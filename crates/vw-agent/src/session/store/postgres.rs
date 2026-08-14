@@ -231,9 +231,8 @@ impl PostgresSessionStore {
         session: &ChatSession,
     ) -> Result<()> {
         let mut connection = self.database.connect_postgres()?;
-        let mut transaction = connection
-            .transaction()
-            .context("begin PostgreSQL session UI snapshot save")?;
+        let mut transaction =
+            connection.transaction().context("begin PostgreSQL session UI snapshot save")?;
         let call_count = transaction
             .query_opt(
                 "SELECT call_count FROM session_index
@@ -246,9 +245,7 @@ impl PostgresSessionStore {
         upsert_session_header(&mut transaction, scope, session, call_count)?;
         replace_session_messages(&mut transaction, scope, session)?;
         replace_session_steps(&mut transaction, scope, session)?;
-        transaction
-            .commit()
-            .context("commit PostgreSQL session UI snapshot save")?;
+        transaction.commit().context("commit PostgreSQL session UI snapshot save")?;
         Ok(())
     }
 

@@ -4,9 +4,10 @@ fn header_tabs_tests_are_wired() {
 }
 
 use super::header_tabs::{
-    build_header_tabs, close_button_style, header_tabs_height, tab_button_style, tab_close_message,
-    tab_context_menu_matches, tab_drag_end_message, tab_drag_start_message, tab_is_selected,
-    tab_menu_anchor, tab_right_click_message, tab_select_message,
+    build_header_tabs, close_button_style, header_tab_item_count, header_tabs_height,
+    open_file_message, tab_button_style, tab_close_message, tab_context_menu_matches,
+    tab_drag_end_message, tab_drag_start_message, tab_is_selected, tab_menu_anchor,
+    tab_right_click_message, tab_select_message,
 };
 use crate::app::components::editor::Editor;
 use crate::app::message::{PreviewMessage, ProjectMessage};
@@ -54,6 +55,18 @@ fn header_tabs_builds_for_empty_tabs() {
     let app = app();
 
     keep(build_header_tabs(&app));
+}
+
+#[test]
+fn header_tabs_keep_open_file_entry_last_for_empty_and_multiple_tabs() {
+    let empty_app = app();
+    assert_eq!(header_tab_item_count(&empty_app), 1);
+    keep(build_header_tabs(&empty_app));
+
+    let mut populated_app = app();
+    populated_app.preview_tabs = vec![tab("/tmp/a.rs", false), tab("/tmp/b.ts", false)];
+    assert_eq!(header_tab_item_count(&populated_app), 3);
+    keep(build_header_tabs(&populated_app));
 }
 
 #[test]
@@ -140,6 +153,11 @@ fn tab_messages_preserve_paths_and_pointer_position() {
     };
     assert_eq!(path, "/tmp/c.rs");
     assert_eq!((x, y), (8.0, 13.0));
+}
+
+#[test]
+fn open_file_entry_reuses_existing_project_open_file_message() {
+    assert!(matches!(open_file_message(), Message::Project(ProjectMessage::OpenFilePressed)));
 }
 
 #[test]

@@ -415,9 +415,8 @@ fn configured_server_panel<'a>(
     let edit_message = controls_enabled.then(|| {
         Message::Settings(SettingsMessage::Mcp(McpMessage::ServerEditRequested(server_index)))
     });
-    let delete_message = controls_enabled.then(|| {
-        Message::Settings(SettingsMessage::Mcp(McpMessage::RequestDelete(server_index)))
-    });
+    let delete_message = controls_enabled
+        .then(|| Message::Settings(SettingsMessage::Mcp(McpMessage::RequestDelete(server_index))));
 
     let mut content = column![
         row![

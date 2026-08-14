@@ -739,12 +739,11 @@ pub(crate) fn agent_scheduler_wake_create_task_requests(
     tasks
         .iter()
         .filter(|task| {
-            workflow
-                .as_ref()
-                .and_then(|workflow| workflow.status_role(task.status))
-                .is_some_and(|role| {
+            workflow.as_ref().and_then(|workflow| workflow.status_role(task.status)).is_some_and(
+                |role| {
                     matches!(role, StatusRole::Backlog | StatusRole::Queued | StatusRole::Planning)
-                })
+                },
+            )
         })
         .map(|task| agent_scheduler_create_task_request(task, workflow_id))
         .collect()

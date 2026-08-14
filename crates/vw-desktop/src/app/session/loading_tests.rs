@@ -3,7 +3,13 @@ use crate::app::models::{
 };
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    ChatMessage {
+        role,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 fn session_meta(id: &str, last_content: Option<&str>) -> ChatSessionMeta {
@@ -72,6 +78,29 @@ fn shared_chat_messages_accepts_an_empty_history() {
     let shared = super::shared_chat_messages(Vec::new());
 
     assert!(shared.is_empty());
+}
+
+#[test]
+fn cold_session_load_prepares_base_chunk_off_ui_thread() {
+    let messages =
+        (0..33).map(|index| message(ChatRole::Assistant, &format!("message {index}"))).collect();
+    let prepared = super::prepare_session_open(
+        "session-1".to_string(),
+        messages,
+        (0..33).map(|index| Some(format!("message-{index}"))).collect(),
+        TokenUsage::default(),
+        Vec::new(),
+        Vec::new(),
+        20,
+        None,
+        false,
+    );
+
+    let chunk = prepared.base_ui_chunk.expect("first UI chunk should be prepared");
+    assert_eq!(chunk.chunk_start_idx, 0);
+    assert_eq!(chunk.chunk_end_idx, 32);
+    assert_eq!(chunk.render_cache.len(), 32);
+    assert_eq!(prepared.messages.len(), 33);
 }
 
 #[test]

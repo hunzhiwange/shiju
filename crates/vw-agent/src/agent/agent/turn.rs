@@ -273,8 +273,6 @@ impl Agent {
 
     fn ephemeral_request_history(&self) -> Result<Vec<ChatMessage>> {
         let protocol = self.build_system_prompt()?;
-        Ok(vec![ChatMessage::user(format!(
-            "<system-reminder>\n{protocol}\n</system-reminder>"
-        ))])
+        Ok(vec![ChatMessage::user(format!("<system-reminder>\n{protocol}\n</system-reminder>"))])
     }
 }

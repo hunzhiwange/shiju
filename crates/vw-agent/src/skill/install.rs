@@ -938,9 +938,10 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
             if is_skills_sh_source(&resolved_source) {
                 // skills.sh 平台源
                 let (installed_dir, files_scanned) =
-                    install_skills_sh_source(&resolved_source, &skills_path, &security).with_context(
-                        || format!("failed to install skills.sh skill: {resolved_source}"),
-                    )?;
+                    install_skills_sh_source(&resolved_source, &skills_path, &security)
+                        .with_context(|| {
+                            format!("failed to install skills.sh skill: {resolved_source}")
+                        })?;
                 println!(
                     "  {} Skill installed from skills.sh: {} ({} files scanned)",
                     "✓",
@@ -950,9 +951,10 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
             } else if is_git_source(&resolved_source) {
                 // Git 仓库源
                 let (installed_dir, files_scanned) =
-                    install_git_skill_source(&resolved_source, &skills_path, &security).with_context(
-                        || format!("failed to install git skill source: {resolved_source}"),
-                    )?;
+                    install_git_skill_source(&resolved_source, &skills_path, &security)
+                        .with_context(|| {
+                            format!("failed to install git skill source: {resolved_source}")
+                        })?;
                 println!(
                     "  {} Skill installed and audited: {} ({} files scanned)",
                     "✓",
@@ -962,9 +964,10 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
             } else {
                 // 本地路径源
                 let (dest, files_scanned) =
-                    install_local_skill_source(&resolved_source, &skills_path, &security).with_context(
-                        || format!("failed to install local skill source: {resolved_source}"),
-                    )?;
+                    install_local_skill_source(&resolved_source, &skills_path, &security)
+                        .with_context(|| {
+                            format!("failed to install local skill source: {resolved_source}")
+                        })?;
                 println!(
                     "  {} Skill installed and audited: {} ({} files scanned)",
                     "✓",

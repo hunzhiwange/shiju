@@ -11,10 +11,11 @@ use super::{
     question_overlay_submission_answers, reduce_tui_state, todo_overlay_items_as_shared_todos,
     todo_session_unavailable_overlay,
 };
-use crate::cli::tui_v2::commands::inspect::execute_inspect_command;
 use crate::cli::tui_v2::commands::directory::DirectoryCommand;
+use crate::cli::tui_v2::commands::inspect::execute_inspect_command;
 use crate::cli::tui_v2::commands::integrations::IntegrationCommand;
 use crate::cli::tui_v2::commands::registry::CommandSource;
+use crate::cli::tui_v2::commands::schedules::ScheduleCommand;
 use crate::cli::tui_v2::commands::session::{
     SessionCommand, execute_session_command, session_confirmation_overlay,
 };
@@ -22,36 +23,32 @@ use crate::cli::tui_v2::commands::settings::{
     SettingsCommand, SettingsRuntime, apply_settings_command, commit_settings,
     validate_settings_values,
 };
-use crate::cli::tui_v2::commands::schedules::ScheduleCommand;
 use crate::cli::tui_v2::completion::sync_skill_completion_catalog;
 use crate::cli::tui_v2::message_action_controller::open_message_actions;
-use crate::cli::tui_v2::model::permission::{PermissionDecision, PermissionQueue};
-use crate::cli::tui_v2::model::settings_panel::{SettingsPanel, SettingsValues};
+use crate::cli::tui_v2::model::agent_view::AgentViewState;
+use crate::cli::tui_v2::model::background_task::BackgroundTaskPanel;
 use crate::cli::tui_v2::model::integration::{IntegrationKind, IntegrationPanel};
+use crate::cli::tui_v2::model::permission::{PermissionDecision, PermissionQueue};
+use crate::cli::tui_v2::model::schedule_panel::SchedulePanel;
+use crate::cli::tui_v2::model::settings_panel::{SettingsPanel, SettingsValues};
+use crate::cli::tui_v2::model::workflow_panel::WorkflowPanel;
 use crate::cli::tui_v2::model::{
     MessageActionIntent, MessageActionKind, MessageActionState, UiConfirmIntent,
-    UiPermissionOverlay,
-    UiReportOverlay,
+    UiPermissionOverlay, UiReportOverlay,
 };
 use crate::cli::tui_v2::paste::apply_prompt_editor_result;
+use crate::cli::tui_v2::runtime::agents::AgentsRuntime;
+use crate::cli::tui_v2::runtime::integrations::{
+    IntegrationRuntime, integration_command_specs, refresh_integrations, switch_skill_provider,
+    toggle_selected_integration,
+};
 use crate::cli::tui_v2::runtime::permission::{
     FullAccessPendingDrain, approve_current_directory_for_full_access, reply_current_permission,
 };
-use crate::cli::tui_v2::runtime::integrations::{
-    IntegrationRuntime, integration_command_specs, refresh_integrations,
-    switch_skill_provider, toggle_selected_integration,
-};
-use crate::cli::tui_v2::runtime::tasks::refresh_background_tasks;
-use crate::cli::tui_v2::runtime::agents::AgentsRuntime;
-use crate::cli::tui_v2::runtime::workflows::{
-    WorkflowRuntime, workflow_command_specs,
-};
 use crate::cli::tui_v2::runtime::schedules::ScheduleRuntime;
-use crate::cli::tui_v2::model::background_task::BackgroundTaskPanel;
-use crate::cli::tui_v2::model::agent_view::AgentViewState;
-use crate::cli::tui_v2::model::workflow_panel::WorkflowPanel;
-use crate::cli::tui_v2::model::schedule_panel::SchedulePanel;
 use crate::cli::tui_v2::runtime::session_store::GatewaySessionCommandRuntime;
+use crate::cli::tui_v2::runtime::tasks::refresh_background_tasks;
+use crate::cli::tui_v2::runtime::workflows::{WorkflowRuntime, workflow_command_specs};
 
 fn gateway_message_id(message_id: &UiMessageId) -> Result<String, String> {
     message_id.as_str().strip_prefix("gateway:").map(str::to_string).ok_or_else(|| {
@@ -566,8 +563,7 @@ impl TuiApp {
             TuiOverlayCommand::IntegrationRefresh(mut panel) => {
                 refresh_integrations(&mut panel, &mut self.runtime);
                 self.update_integration_commands(&panel);
-                if let Some(UiOverlay::Integration(current)) =
-                    self.state.overlays.stack.last_mut()
+                if let Some(UiOverlay::Integration(current)) = self.state.overlays.stack.last_mut()
                 {
                     *current = panel;
                 }
@@ -737,9 +733,7 @@ impl TuiApp {
     fn enable_full_access_after_confirmation(&mut self, values: SettingsValues) {
         let current = self.current_settings_values();
         let capabilities = self.state.session_capabilities.clone();
-        if let Err(error) =
-            validate_settings_values(&values, &current, &capabilities, false)
-        {
+        if let Err(error) = validate_settings_values(&values, &current, &capabilities, false) {
             self.push_overlay_error("完全访问启用失败", error);
             return;
         }
@@ -860,11 +854,7 @@ impl TuiApp {
     }
 
     fn change_directory(&mut self, path: std::path::PathBuf) {
-        let target = if path.is_absolute() {
-            path
-        } else {
-            self.runtime.directory().join(path)
-        };
+        let target = if path.is_absolute() { path } else { self.runtime.directory().join(path) };
         let canonical = match target.canonicalize() {
             Ok(path) if path.is_dir() => path,
             Ok(path) => {
@@ -966,10 +956,7 @@ impl TuiApp {
                 UiSystemMessageLevel::Success,
             );
         }
-        reduce_tui_state(
-            &mut self.state,
-            TuiAction::OverlayPushed(UiOverlay::Integration(panel)),
-        );
+        reduce_tui_state(&mut self.state, TuiAction::OverlayPushed(UiOverlay::Integration(panel)));
     }
 
     pub(super) fn update_integration_commands(&mut self, panel: &IntegrationPanel) {
@@ -990,22 +977,19 @@ impl TuiApp {
             return;
         };
         let specs = integration_command_specs(panel.kind, &panel.items);
-        self.state.command_registry =
-            self.state.command_registry.replace_source(source, Ok(specs));
+        self.state.command_registry = self.state.command_registry.replace_source(source, Ok(specs));
     }
 
     fn delete_integration(&mut self, kind: IntegrationKind, id: &str) {
         match self.runtime.delete(kind, id) {
             Ok(()) => {
-                let Some(UiOverlay::Integration(mut panel)) =
-                    self.state.overlays.active().cloned()
+                let Some(UiOverlay::Integration(mut panel)) = self.state.overlays.active().cloned()
                 else {
                     return;
                 };
                 refresh_integrations(&mut panel, &mut self.runtime);
                 self.update_integration_commands(&panel);
-                if let Some(UiOverlay::Integration(current)) =
-                    self.state.overlays.stack.last_mut()
+                if let Some(UiOverlay::Integration(current)) = self.state.overlays.stack.last_mut()
                 {
                     *current = panel;
                 }
@@ -1043,10 +1027,7 @@ impl TuiApp {
             Ok(items) => panel.items = items,
             Err(error) => panel.error = Some(error),
         }
-        reduce_tui_state(
-            &mut self.state,
-            TuiAction::OverlayPushed(UiOverlay::Schedules(panel)),
-        );
+        reduce_tui_state(&mut self.state, TuiAction::OverlayPushed(UiOverlay::Schedules(panel)));
     }
 
     fn set_schedule_enabled(&mut self, id: &str, enabled: bool) {

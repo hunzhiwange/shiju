@@ -1,9 +1,8 @@
 use super::*;
-use crate::app::{App, PreviewAutoSaveMode, Shell, TerminalTheme, message};
 use crate::app::theme_catalog::{
-    ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore,
-    set_test_themes_root,
+    ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore, set_test_themes_root,
 };
+use crate::app::{App, PreviewAutoSaveMode, Shell, TerminalTheme, message};
 use iced::widget::text;
 
 fn test_app() -> App {

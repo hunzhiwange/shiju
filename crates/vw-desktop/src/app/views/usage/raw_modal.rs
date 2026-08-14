@@ -41,13 +41,8 @@ pub fn view<'a>(app: &'a App) -> Option<Element<'a, Message>> {
         .style(rounded_action_btn_style);
 
     let body = container(
-        scrollable(
-            text(&modal.content)
-                .size(12)
-                .width(Length::Fill)
-                .wrapping(Wrapping::None),
-        )
-        .direction(vertical_scrollbar()),
+        scrollable(text(&modal.content).size(12).width(Length::Fill).wrapping(Wrapping::None))
+            .direction(vertical_scrollbar()),
     )
     .padding(12)
     .width(Length::Fill)
@@ -70,9 +65,7 @@ pub fn view<'a>(app: &'a App) -> Option<Element<'a, Message>> {
             row![
                 column![
                     text(format!("原始记录 · 步骤 {}", modal.step_index)).size(18),
-                    text("完整 LLM 原始载荷，可复制。")
-                        .size(12)
-                        .style(settings_muted_text_style),
+                    text("完整 LLM 原始载荷，可复制。").size(12).style(settings_muted_text_style),
                 ]
                 .spacing(4)
                 .width(Length::Fill),

@@ -12,10 +12,8 @@ fn ocr_settings_require_valid_model_before_enable_and_map_to_config() {
     app.multimodal_settings.model_supports_images = false;
     app.multimodal_settings.ocr_model.clear();
 
-    let _ = update(
-        &mut app,
-        SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(true)),
-    );
+    let _ =
+        update(&mut app, SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(true)));
     assert!(!app.multimodal_settings.ocr_enabled);
     assert_eq!(
         app.multimodal_settings.save_error.as_deref(),
@@ -45,10 +43,8 @@ fn ocr_settings_require_valid_model_before_enable_and_map_to_config() {
             " vision-provider/vision-model ".to_string(),
         )),
     );
-    let _ = update(
-        &mut app,
-        SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(true)),
-    );
+    let _ =
+        update(&mut app, SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(true)));
 
     assert!(app.multimodal_settings.ocr_enabled);
     assert!(app.multimodal_settings.save_error.is_none());
@@ -63,10 +59,8 @@ fn model_supports_images_defaults_on_and_allows_ocr_without_fallback_model() {
     let mut app = app();
     assert!(app.multimodal_settings.model_supports_images);
 
-    let _ = update(
-        &mut app,
-        SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(true)),
-    );
+    let _ =
+        update(&mut app, SettingsMessage::Multimodal(MultimodalMessage::OcrEnabledToggled(true)));
 
     assert!(app.multimodal_settings.ocr_enabled);
     let config = multimodal_config_from_state(&app.multimodal_settings)
@@ -92,10 +86,12 @@ fn model_supports_images_defaults_on_and_allows_ocr_without_fallback_model() {
         SettingsMessage::Multimodal(MultimodalMessage::ModelSupportsImagesToggled(false)),
     );
     assert!(!app.multimodal_settings.model_supports_images);
-    assert!(!multimodal_config_from_state(&app.multimodal_settings)
-        .expect("fallback OCR model should make configuration valid")
-        .ocr
-        .model_supports_images);
+    assert!(
+        !multimodal_config_from_state(&app.multimodal_settings)
+            .expect("fallback OCR model should make configuration valid")
+            .ocr
+            .model_supports_images
+    );
 }
 
 #[test]

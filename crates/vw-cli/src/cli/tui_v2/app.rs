@@ -1044,8 +1044,7 @@ pub(crate) fn gateway_stream_request_from_state(
         options["allowed_tools"] = json!(allowed_tools);
     }
     let system = subagent_mode_enabled.then(|| vec![SUBAGENT_MODE_SYSTEM_PROMPT.to_string()]);
-    let acp_allowed_tools =
-        acp_agent.is_some().then(|| allowed_tools.clone()).flatten();
+    let acp_allowed_tools = acp_agent.is_some().then(|| allowed_tools.clone()).flatten();
     GatewayChatStreamRequest {
         session_id: normalize_optional_str_ref(submission.session_id.as_deref())
             .map(SessionId::from),

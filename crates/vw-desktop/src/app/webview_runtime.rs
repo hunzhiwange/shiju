@@ -7,11 +7,10 @@ use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
-use crate::app::state::{WorkResourceMode, WorkspaceMode};
 use crate::app::Screen;
+use crate::app::state::{WorkResourceMode, WorkspaceMode};
 
-const WEBVIEW_HELPER_NAME: &str =
-    if cfg!(windows) { "vw-webview.exe" } else { "vw-webview" };
+const WEBVIEW_HELPER_NAME: &str = if cfg!(windows) { "vw-webview.exe" } else { "vw-webview" };
 const NAVIGATION_EVENT_PREFIX: &str = "navigation ";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -227,8 +226,9 @@ impl WorkBrowserController {
             self.always_on_top = false;
             return Ok(());
         };
-        let protocol_result =
-            process.write_protocol(b"close\n").map_err(|error| format!("关闭 WebView 失败: {error}"));
+        let protocol_result = process
+            .write_protocol(b"close\n")
+            .map_err(|error| format!("关闭 WebView 失败: {error}"));
         let terminate_result =
             process.terminate().map_err(|error| format!("终止 WebView 失败: {error}"));
         self.visible = false;
@@ -238,8 +238,7 @@ impl WorkBrowserController {
     }
 
     fn send_command(&mut self, command: &str) -> Result<(), String> {
-        let process =
-            self.process.as_mut().ok_or_else(|| "内置浏览器进程尚未启动".to_string())?;
+        let process = self.process.as_mut().ok_or_else(|| "内置浏览器进程尚未启动".to_string())?;
         let mut line = String::with_capacity(command.len() + 1);
         line.push_str(command);
         line.push('\n');
@@ -298,11 +297,8 @@ pub(crate) fn work_browser_bounds(layout: WorkBrowserLayout) -> Option<WebviewBo
     }
 
     Some(WebviewBounds {
-        x: (layout.window_x
-            + sidebar_offset
-            + resource_offset
-            + layout.horizontal_inset)
-            .round() as i32,
+        x: (layout.window_x + sidebar_offset + resource_offset + layout.horizontal_inset).round()
+            as i32,
         y: (layout.window_y + layout.top_bar_height + layout.resource_header_height).round() as i32,
         width: width.round() as u32,
         height: height.round() as u32,
@@ -328,11 +324,8 @@ pub(crate) fn normalize_navigation_url(input: &str) -> Result<String, String> {
         return Err("浏览器地址不能包含空白或控制字符".to_string());
     }
 
-    let target = if trimmed.contains("://") {
-        trimmed.to_string()
-    } else {
-        format!("https://{trimmed}")
-    };
+    let target =
+        if trimmed.contains("://") { trimmed.to_string() } else { format!("https://{trimmed}") };
     let Some((scheme, remainder)) = target.split_once("://") else {
         return Err("浏览器地址缺少有效协议".to_string());
     };
@@ -356,11 +349,9 @@ fn webview_helper_candidates_from(current_exe: Option<&Path>) -> Vec<PathBuf> {
     if let Some(path) = current_exe.and_then(Path::parent) {
         candidates.push(path.join(WEBVIEW_HELPER_NAME));
     }
-    if let Some(target_dir) =
-        current_exe.and_then(|path| path.ancestors().find(|ancestor| {
-            ancestor.file_name().is_some_and(|name| name == "target")
-        }))
-        && let Some(root) = target_dir.parent()
+    if let Some(target_dir) = current_exe.and_then(|path| {
+        path.ancestors().find(|ancestor| ancestor.file_name().is_some_and(|name| name == "target"))
+    }) && let Some(root) = target_dir.parent()
     {
         candidates.push(root.join("target").join("release").join(WEBVIEW_HELPER_NAME));
         candidates.push(root.join("target").join("debug").join(WEBVIEW_HELPER_NAME));
@@ -382,18 +373,12 @@ fn embedded_launch_args(launch: &WorkBrowserLaunch) -> Vec<String> {
     ]
 }
 
-fn spawn_embedded_webview(
-    launch: &WorkBrowserLaunch,
-) -> Result<Box<dyn BrowserProcess>, String> {
+fn spawn_embedded_webview(launch: &WorkBrowserLaunch) -> Result<Box<dyn BrowserProcess>, String> {
     let args = embedded_launch_args(launch);
     let mut failures = Vec::new();
     for candidate in webview_helper_candidates() {
         let mut command = Command::new(&candidate);
-        command
-            .args(&args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+        command.args(&args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
         match command.spawn() {
             Ok(mut child) => {
                 let Some(stdin) = child.stdin.take() else {
@@ -409,9 +394,8 @@ fn spawn_embedded_webview(
                     continue;
                 };
                 let (event_tx, event_rx) = mpsc::channel();
-                let reader = thread::Builder::new()
-                    .name("vw-webview-events".to_string())
-                    .spawn(move || {
+                let reader =
+                    thread::Builder::new().name("vw-webview-events".to_string()).spawn(move || {
                         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
                             let Some(event) = parse_webview_event(&line) else {
                                 continue;
@@ -424,14 +408,11 @@ fn spawn_embedded_webview(
                 if let Err(error) = reader {
                     let _ = child.kill();
                     let _ = child.wait();
-                    failures.push(format!("{}: 无法启动事件读取线程: {error}", candidate.display()));
+                    failures
+                        .push(format!("{}: 无法启动事件读取线程: {error}", candidate.display()));
                     continue;
                 }
-                return Ok(Box::new(ChildBrowserProcess {
-                    child,
-                    stdin,
-                    events: event_rx,
-                }));
+                return Ok(Box::new(ChildBrowserProcess { child, stdin, events: event_rx }));
             }
             Err(error) => failures.push(format!("{}: {error}", candidate.display())),
         }

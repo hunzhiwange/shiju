@@ -1,13 +1,11 @@
 use std::collections::BTreeMap;
 
-use super::question::{
-    QuestionFormRuntime, reject_question_form, submit_elicitation, submit_question_form,
-};
-use super::super::model::{
-    UiQuestionOption, UiQuestionOverlay, UiQuestionPrompt,
-};
 use super::super::model::elicitation::{
     ElicitationField, ElicitationKind, ElicitationRequest, ElicitationResponse,
+};
+use super::super::model::{UiQuestionOption, UiQuestionOverlay, UiQuestionPrompt};
+use super::question::{
+    QuestionFormRuntime, reject_question_form, submit_elicitation, submit_question_form,
 };
 
 #[derive(Default)]
@@ -121,10 +119,7 @@ fn tui_question_and_mcp_elicitation_forms_submit_exact_responses() {
     let invalid = ElicitationRequest {
         id: "bad-url".to_string(),
         server_id: "mcp-a".to_string(),
-        kind: ElicitationKind::Url {
-            url: "file:///etc/passwd".to_string(),
-            confirmed: true,
-        },
+        kind: ElicitationKind::Url { url: "file:///etc/passwd".to_string(), confirmed: true },
     };
     assert!(submit_elicitation(&invalid, true, &mut runtime).is_err());
 

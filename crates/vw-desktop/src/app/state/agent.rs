@@ -312,11 +312,53 @@ impl From<&ChatSessionStep> for StepUiMeta {
     }
 }
 
+impl ActiveSessionViewState {
+    pub(crate) fn estimated_bytes(&self) -> usize {
+        let step_bytes = self.steps.iter().map(|step| {
+            step.model.as_deref().map_or(0, str::len)
+                + step.start_snapshot_path.as_deref().map_or(0, str::len)
+                + step.finish_snapshot_path.as_deref().map_or(0, str::len)
+                + step.finish_reason.as_deref().map_or(0, str::len)
+        });
+        let call_bytes = self.calls.iter().map(json_value_bytes);
+        let step_meta_bytes =
+            self.step_index_map.values().map(|meta| meta.model.as_deref().map_or(0, str::len));
+        let message_meta_bytes =
+            self.message_meta_texts.iter().filter_map(Option::as_deref).map(str::len);
+        let user_question_preview_bytes =
+            self.user_question_markers.iter().map(|marker| marker.preview.len());
+
+        step_bytes
+            .chain(call_bytes)
+            .chain(step_meta_bytes)
+            .chain(message_meta_bytes)
+            .chain(user_question_preview_bytes)
+            .sum()
+    }
+}
+
+fn json_value_bytes(value: &Value) -> usize {
+    match value {
+        Value::Null | Value::Bool(_) | Value::Number(_) => 0,
+        Value::String(text) => text.len(),
+        Value::Array(values) => values.iter().map(json_value_bytes).sum(),
+        Value::Object(entries) => {
+            entries.iter().map(|(key, value)| key.len() + json_value_bytes(value)).sum()
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ExploreSummaryAnimationState {
     pub(crate) previous_summary_text: String,
     pub(crate) current_summary_text: String,
     pub(crate) changed_at_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct UserQuestionMarker {
+    pub(crate) message_idx: usize,
+    pub(crate) preview: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -326,6 +368,8 @@ pub(crate) struct ActiveSessionViewState {
     pub(crate) calls: Vec<Value>,
     pub(crate) step_index_map: HashMap<u32, StepUiMeta>,
     pub(crate) message_meta_texts: Vec<Option<String>>,
+    pub(crate) user_question_markers: Vec<UserQuestionMarker>,
+    pub(crate) user_question_indexed_chat_len: usize,
     pub(crate) ui_preparing: bool,
     pub(crate) base_ready: bool,
     pub(crate) prepared_chat_ui_chunks: HashSet<usize>,

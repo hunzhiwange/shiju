@@ -12,7 +12,13 @@ fn app() -> App {
 }
 
 fn chat_message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    ChatMessage {
+        role,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 fn agent_request(id: u64, session: &str, query: &str, root: Option<&str>) -> AgentRequest {

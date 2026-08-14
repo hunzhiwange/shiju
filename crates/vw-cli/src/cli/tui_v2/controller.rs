@@ -12,17 +12,17 @@ use crossterm::event::{
 };
 use vw_config_types::skills::SkillsDirectoryProvider;
 
+use super::editor::selected_text;
 use super::history_search::handle_history_search_key;
 use super::input::TuiSlashCommandInvocation;
-use super::editor::selected_text;
 use super::keybindings::{is_prompt_selection_copy, is_reserved_exit};
 use super::keymap::{
     KeymapLayerResult, handle_prompt_layer_key, handle_scroll_layer_key, scroll_relative,
     scroll_to_tail, seek_main_scrollbar,
 };
 use super::message_action_controller::handle_message_action_key;
-use super::model::settings_panel::SettingsPanel;
 use super::model::integration::IntegrationPanel;
+use super::model::settings_panel::SettingsPanel;
 use super::model::{
     MessageActionIntent, PermissionDecision, PromptSubmission, PromptSubmissionStatus,
     TranscriptEffectIntent, UiConfirmOverlay, UiQuestionOverlay, UiTodoOverlay,
@@ -141,9 +141,10 @@ impl TuiController {
     pub(crate) fn sync_layout(&mut self, state: &mut TuiState, slots: &impl TuiRenderFeedbackLike) {
         let layout = slots.layout();
         let scrollbar = slots.scrollbar().copied();
-        if self.scrollbar_drag.is_some_and(|drag| {
-            scrollbar.is_none_or(|feedback| feedback.view != drag.view)
-        }) {
+        if self
+            .scrollbar_drag
+            .is_some_and(|drag| scrollbar.is_none_or(|feedback| feedback.view != drag.view))
+        {
             self.scrollbar_drag = None;
         }
         self.scrollbar = scrollbar;
@@ -307,18 +308,14 @@ impl TuiController {
         }
 
         let row_offset = i32::from(row) - i32::from(scrollbar.track.y);
-        let desired_thumb_start =
-            (row_offset - i32::try_from(grab_offset).unwrap_or(i32::MAX))
-                .clamp(0, i32::try_from(max_thumb_start).unwrap_or(i32::MAX))
-                .cast_unsigned() as usize;
-        let current_thumb_start =
-            usize::from(scrollbar.thumb.y.saturating_sub(scrollbar.track.y));
+        let desired_thumb_start = (row_offset - i32::try_from(grab_offset).unwrap_or(i32::MAX))
+            .clamp(0, i32::try_from(max_thumb_start).unwrap_or(i32::MAX))
+            .cast_unsigned() as usize;
+        let current_thumb_start = usize::from(scrollbar.thumb.y.saturating_sub(scrollbar.track.y));
         let position = if desired_thumb_start == current_thumb_start {
             scrollbar.position
         } else {
-            desired_thumb_start
-                .saturating_mul(max_position)
-                .saturating_add(max_thumb_start / 2)
+            desired_thumb_start.saturating_mul(max_position).saturating_add(max_thumb_start / 2)
                 / max_thumb_start
         };
         match scrollbar.view {

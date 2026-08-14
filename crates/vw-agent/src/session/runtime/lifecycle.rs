@@ -45,16 +45,12 @@ async fn load_info_for_scope(
     Ok(info)
 }
 
-async fn resolve_project(
-    scope: &SessionScope,
-) -> Result<(project::Info, String), LifecycleError> {
+async fn resolve_project(scope: &SessionScope) -> Result<(project::Info, String), LifecycleError> {
     project::from_directory(scope.tenant(), scope.directory()).await.map_err(Into::into)
 }
 
 /// 创建并持久化一个属于已验证作用域的原生会话。
-pub async fn create_session(
-    input: CreateSessionInput,
-) -> Result<SessionSnapshot, LifecycleError> {
+pub async fn create_session(input: CreateSessionInput) -> Result<SessionSnapshot, LifecycleError> {
     let CreateSessionInput { scope, parent_id, title, permission } = input;
     let (project, _) = resolve_project(&scope).await?;
     let expected_project_id = project.id;
@@ -101,8 +97,7 @@ pub async fn load_session(
     project::instance::provide(directory, None, move || {
         Box::pin(async move {
             ui_store::with_tenant_scope(tenant, async move {
-                let info =
-                    load_info_for_scope(&scope, &expected_project_id, &session_id).await?;
+                let info = load_info_for_scope(&scope, &expected_project_id, &session_id).await?;
                 let history =
                     message::messages(&session_id, None).await.map_err(LifecycleError::from)?;
                 Ok(SessionSnapshot { info, history })

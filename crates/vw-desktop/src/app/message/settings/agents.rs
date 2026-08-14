@@ -15,9 +15,9 @@ use iced::widget::text_editor;
 use std::path::PathBuf;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::UNIX_EPOCH;
+use vw_config_types::agent::builtin_agent_spec;
 use vw_shared::provider::types as provider_types;
 use vw_shared::provider::types::Info;
-use vw_config_types::agent::builtin_agent_spec;
 
 use super::util::{is_provider_connected, load_gateway_providers};
 
@@ -31,7 +31,9 @@ fn summarize_providers(providers: std::collections::HashMap<String, Info>) -> Ve
                 provider_types::ProviderSource::Config => {
                     ("配置", is_provider_connected(&provider))
                 }
-                provider_types::ProviderSource::Custom => ("内置", is_provider_connected(&provider)),
+                provider_types::ProviderSource::Custom => {
+                    ("内置", is_provider_connected(&provider))
+                }
             };
             ProviderSummary {
                 id: provider.id,
@@ -501,7 +503,10 @@ fn build_agents_settings_patch(
                     .then_some(api_key)
                     .map_or(serde_json::Value::Null, serde_json::Value::String),
             );
-            agent.insert("temperature".to_string(), serde_json::json!(entry.temperature.clamp(0.0, 2.0)));
+            agent.insert(
+                "temperature".to_string(),
+                serde_json::json!(entry.temperature.clamp(0.0, 2.0)),
+            );
             if entry.key == MAIN_AGENT_KEY {
                 agent.insert(
                     "max_parallel_subagents".to_string(),
@@ -656,10 +661,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.config_ready = false;
             app.agents_settings.save_error = None;
             app.agents_settings.project_path = app.project_path.clone();
-            Task::batch(vec![
-                refresh_task(),
-                config_task(app.agents_settings.project_path.clone()),
-            ])
+            Task::batch(vec![refresh_task(), config_task(app.agents_settings.project_path.clone())])
         }
         AgentsMessage::Loaded(res) => {
             match res {

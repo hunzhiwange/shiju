@@ -367,10 +367,7 @@ fn collect_configured_channels_skips_only_invalid_matrix_instance() {
     config.channels_config.matrix = Some(matrix_config());
     config.channels_config.matrix_instances.push(MatrixInstanceConfig {
         id: "disabled".to_string(),
-        config: MatrixConfig {
-            access_token: " ".to_string(),
-            ..matrix_config()
-        },
+        config: MatrixConfig { access_token: " ".to_string(), ..matrix_config() },
     });
 
     assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["Matrix"]);
@@ -415,10 +412,7 @@ fn collect_configured_channels_skips_blank_and_partial_feishu_credentials() {
     config.channels_config.feishu = Some(blank_feishu);
     config.channels_config.feishu_instances.push(FeishuInstanceConfig {
         id: "partial".to_string(),
-        config: FeishuConfig {
-            app_secret: "\t".to_string(),
-            ..feishu_config()
-        },
+        config: FeishuConfig { app_secret: "\t".to_string(), ..feishu_config() },
     });
 
     assert!(collect_configured_channels(&config, "test").is_empty());

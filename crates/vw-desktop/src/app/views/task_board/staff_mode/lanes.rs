@@ -3,8 +3,8 @@
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 
-use crate::app::message::TaskBoardMessage;
 use crate::app::Message;
+use crate::app::message::TaskBoardMessage;
 use crate::app::task::TaskStatus;
 use crate::app::task::staff::{TaskBoardStaffConfig, TaskBoardStaffLane, TaskBoardStaffProjection};
 
@@ -43,11 +43,8 @@ pub(super) fn build_lanes_panel<'a>(
 
     let mut stage_list = column![].spacing(8).width(Length::Fill);
     for lane in &projection.lanes {
-        stage_list = stage_list.push(build_lane_item(
-            lane,
-            config,
-            status_filters == [lane.status],
-        ));
+        stage_list =
+            stage_list.push(build_lane_item(lane, config, status_filters == [lane.status]));
     }
 
     body = body.push(
@@ -121,19 +118,14 @@ fn build_lane_item<'a>(
         content = content.push(ownership).push(dispatch);
     }
 
-    let card = container(content)
-        .padding([10, 11])
-        .width(Length::Fill)
-        .style(move |theme| {
-            styles::lane_card_style(theme, accent, selected || lane.task_count > 0)
-        });
+    let card = container(content).padding([10, 11]).width(Length::Fill).style(move |theme| {
+        styles::lane_card_style(theme, accent, selected || lane.task_count > 0)
+    });
 
     button(card)
         .padding(0)
         .width(Length::Fill)
-        .on_press(Message::TaskBoard(TaskBoardMessage::SelectStaffTaskStatusTab(
-            lane.status,
-        )))
+        .on_press(Message::TaskBoard(TaskBoardMessage::SelectStaffTaskStatusTab(lane.status)))
         .style(move |theme, status| styles::tab_button_style(theme, status, selected))
         .into()
 }

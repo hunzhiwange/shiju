@@ -3,16 +3,16 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerCommandRequest, AgentSchedulerCommandResponse, AgentSchedulerCreateTaskRequest,
     AgentSchedulerCreateTaskResponse, AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyImportResponse, AgentSchedulerOutboxDrainRequest,
-    AgentSchedulerOutboxDrainResponse, AgentSchedulerScopeDto, AgentSchedulerTaskArtifactsResponse,
+    AgentSchedulerOutboxDrainResponse, AgentSchedulerReplaceTaskGraphRequest,
+    AgentSchedulerScopeDto, AgentSchedulerTaskArtifactsResponse,
     AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskBoardStatusResponse,
     AgentSchedulerTaskBoardWorkflowResponse, AgentSchedulerTaskGraphResponse,
-    AgentSchedulerTaskLogsResponse,
-    AgentSchedulerTaskMetadataUpdateRequest, AgentSchedulerTaskMetadataUpdateResponse,
-    AgentSchedulerTeamsResponse, AgentSchedulerUpsertTeamRequest, AgentSchedulerUpsertTeamResponse,
+    AgentSchedulerTaskLogsResponse, AgentSchedulerTaskMetadataUpdateRequest,
+    AgentSchedulerTaskMetadataUpdateResponse, AgentSchedulerTeamsResponse,
+    AgentSchedulerUpsertTeamRequest, AgentSchedulerUpsertTeamResponse,
     AgentSchedulerUpsertWorkerRequest, AgentSchedulerUpsertWorkerResponse,
     AgentSchedulerWakeRequest, AgentSchedulerWakeResponse, AgentSchedulerWorkerRunEventRequest,
     AgentSchedulerWorkerRunEventResponse, AgentSchedulerWorkersResponse,
-    AgentSchedulerReplaceTaskGraphRequest,
 };
 
 use super::GatewayClient;

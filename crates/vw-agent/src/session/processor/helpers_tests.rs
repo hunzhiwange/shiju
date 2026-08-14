@@ -217,11 +217,7 @@ fn delegated_request_tool_policy_uses_shared_resolution_and_removes_recursive_ag
             "Read file",
             json!({"type": "object"}),
         ),
-        crate::app::agent::tools::ToolSpec::new(
-            "shell",
-            "Run command",
-            json!({"type": "object"}),
-        ),
+        crate::app::agent::tools::ToolSpec::new("shell", "Run command", json!({"type": "object"})),
         crate::app::agent::tools::ToolSpec::new(
             "AgentTool",
             "Delegate work",

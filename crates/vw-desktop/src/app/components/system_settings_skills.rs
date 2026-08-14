@@ -138,14 +138,8 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
             "这里配置项目技能默认加载、社区同步与 prompt injection；目录顺序单独展示。",
         ),
         settings_panel(
-            column![
-                provider_row,
-                project_auto_load_row,
-                open_enabled_row,
-                open_dir_row,
-                mode_row
-            ]
-            .spacing(0),
+            column![provider_row, project_auto_load_row, open_enabled_row, open_dir_row, mode_row]
+                .spacing(0),
         ),
     ]
     .spacing(16)

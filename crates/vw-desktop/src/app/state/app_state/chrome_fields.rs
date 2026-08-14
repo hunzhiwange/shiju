@@ -155,6 +155,8 @@
     pub(crate) active_session_id: Option<String>,
     /// 会话聊天消息缓存（会话 ID -> 消息列表）
     pub(crate) session_chat_cache: HashMap<String, crate::app::session::SharedChatMessages>,
+    /// 最近访问会话的可移动视图工作集缓存
+    pub(crate) session_view_cache: crate::app::session::SessionViewCache,
     /// 会话消息 ID 缓存（会话 ID -> 消息 ID 列表）
     pub(crate) session_chat_message_id_cache: HashMap<String, Vec<Option<String>>>,
     /// 会话历史重置边界（会话 ID -> 重置时保留的消息 ID 列表）

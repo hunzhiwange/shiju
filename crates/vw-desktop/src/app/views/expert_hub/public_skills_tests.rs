@@ -6,18 +6,13 @@ use vw_gateway_client::{
     SkillMarketSkillSetDto, SkillMarketSkillSetPageDto, SkillMarketSourceDto,
 };
 
-use super::public_skills::{
-    grid_column_count, public_tab_specs, source_selector_visible, view,
-};
+use super::public_skills::{grid_column_count, public_tab_specs, source_selector_visible, view};
 use super::styles::{card_style, featured_card_style};
 use crate::app::skill_hub::{ExpertHubSection, LoadState, PublicSkillTab};
 use crate::app::{App, Message};
 
 fn source(source: &str) -> SkillMarketSourceDto {
-    SkillMarketSourceDto {
-        source: source.to_string(),
-        display_name: source.to_string(),
-    }
+    SkillMarketSourceDto { source: source.to_string(), display_name: source.to_string() }
 }
 
 fn skill() -> SkillMarketSkillDto {
@@ -31,8 +26,7 @@ fn skill() -> SkillMarketSkillDto {
             version: "1.0.0".to_string(),
         },
         name: "超长中文技能标题用于验证窄窗口渲染不会崩溃".to_string(),
-        description: "这是一个包含中文的技能介绍，用于验证默认字体整形和暗黑主题显示。"
-            .repeat(4),
+        description: "这是一个包含中文的技能介绍，用于验证默认字体整形和暗黑主题显示。".repeat(4),
         author: "技能作者".to_string(),
         category: "开发工具".to_string(),
         tags: vec!["中文".to_string(), "自动化".to_string()],
@@ -52,14 +46,13 @@ fn populated_app(tab: PublicSkillTab) -> App {
         LoadState::Loaded(vec![source("skillhub"), source("second")]);
     app.expert_hub.public_market.current_source = Some("skillhub".to_string());
     app.expert_hub.public_market.recommended = LoadState::Loaded(vec![skill()]);
-    app.expert_hub.public_market.market = LoadState::Loaded(
-        vw_gateway_client::SkillMarketSkillPageDto {
+    app.expert_hub.public_market.market =
+        LoadState::Loaded(vw_gateway_client::SkillMarketSkillPageDto {
             skills: vec![skill()],
             total: 1,
             page: 1,
             page_size: 24,
-        },
-    );
+        });
     app.expert_hub.public_market.suites = LoadState::Loaded(SkillMarketSkillSetPageDto {
         skillsets: vec![SkillMarketSkillSetDto {
             source: "skillhub".to_string(),
@@ -78,11 +71,7 @@ fn populated_app(tab: PublicSkillTab) -> App {
     app
 }
 
-async fn assert_draws(
-    mut element: Element<'_, Message>,
-    theme: &Theme,
-    width: f32,
-) {
+async fn assert_draws(mut element: Element<'_, Message>, theme: &Theme, width: f32) {
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
@@ -101,11 +90,7 @@ async fn assert_draws(
         mouse::Cursor::Unavailable,
         &viewport,
     );
-    let pixels = renderer.screenshot(
-        Size::new(width as u32, 800),
-        1.0,
-        Color::TRANSPARENT,
-    );
+    let pixels = renderer.screenshot(Size::new(width as u32, 800), 1.0, Color::TRANSPARENT);
     assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
 }
 
@@ -136,20 +121,13 @@ fn source_selector_appears_only_for_multiple_sources() {
 #[test]
 fn featured_skill_cards_keep_the_recommended_card_background() {
     for theme in [Theme::Light, Theme::Dark] {
-        assert_eq!(
-            featured_card_style(&theme).background,
-            card_style(&theme).background
-        );
+        assert_eq!(featured_card_style(&theme).background, card_style(&theme).background);
     }
 }
 
 #[tokio::test]
 async fn public_skill_page_renders_chinese_in_both_themes() {
-    for tab in [
-        PublicSkillTab::Recommended,
-        PublicSkillTab::SkillHub,
-        PublicSkillTab::Suites,
-    ] {
+    for tab in [PublicSkillTab::Recommended, PublicSkillTab::SkillHub, PublicSkillTab::Suites] {
         let app = populated_app(tab);
         for theme in [Theme::Light, Theme::Dark] {
             for width in [720.0, 1_440.0] {

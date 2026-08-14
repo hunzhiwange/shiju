@@ -149,7 +149,10 @@ pub(crate) fn context_governance_decision(
     observed_input_tokens: Option<i64>,
 ) -> ContextCompactionDecision {
     let input_tokens = context_usage_tokens(messages, system, tools, observed_input_tokens);
-    ContextCompactionDecision { input_tokens, needs_internal_compaction: should_compact(input_tokens, limit) }
+    ContextCompactionDecision {
+        input_tokens,
+        needs_internal_compaction: should_compact(input_tokens, limit),
+    }
 }
 
 fn message_role(message: &Value) -> Option<&str> {
@@ -218,7 +221,8 @@ pub(crate) fn compact_context_for_next_request(
     limit: &ModelLimit,
     observed_input_tokens: Option<i64>,
 ) -> Result<ContextCompactionResult, String> {
-    let decision = context_governance_decision(messages, system, tools, limit, observed_input_tokens);
+    let decision =
+        context_governance_decision(messages, system, tools, limit, observed_input_tokens);
     Ok(ContextCompactionResult {
         before_tokens: decision.input_tokens,
         after_tokens: decision.input_tokens,

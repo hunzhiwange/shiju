@@ -1,6 +1,6 @@
 use super::*;
-use serde_json::Map;
 use crate::app::state::WorkspaceMode;
+use serde_json::Map;
 
 fn test_app() -> App {
     App::new().0

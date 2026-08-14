@@ -14,8 +14,7 @@ use crate::app::message::settings::{
 };
 use crate::app::state::{ThemeEditorDraft, ThemeEditorTab};
 use crate::app::theme_catalog::{
-    PanelImageFit, ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex,
-    is_bundled_preset_id,
+    PanelImageFit, ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, is_bundled_preset_id,
 };
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -86,11 +85,7 @@ fn optional_hex_to_draft(value: Option<&str>) -> String {
 
 fn draft_optional_hex(value: &str) -> Option<String> {
     let trimmed = value.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
-    }
+    if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
 }
 
 fn draft_optional_u32(field: &str, value: &str) -> Result<Option<u32>, String> {
@@ -156,11 +151,7 @@ pub(crate) fn draft_from_definition(definition: &ThemeDefinition) -> ThemeEditor
         chrome_panel_border: optional_hex_to_draft(definition.chrome.panel_border.as_deref()),
         chrome_button_bg: optional_hex_to_draft(definition.chrome.button_bg.as_deref()),
         chrome_button_text: optional_hex_to_draft(definition.chrome.button_text.as_deref()),
-        chrome_radius_px: definition
-            .chrome
-            .radius_px
-            .map(|v| v.to_string())
-            .unwrap_or_default(),
+        chrome_radius_px: definition.chrome.radius_px.map(|v| v.to_string()).unwrap_or_default(),
         chrome_panel_alpha: definition
             .chrome
             .panel_alpha
@@ -231,7 +222,9 @@ pub(crate) fn draft_from_builtin(
 }
 
 /// 校验草稿并构造可保存的主题定义。
-pub(crate) fn try_definition_from_draft(draft: &ThemeEditorDraft) -> Result<ThemeDefinition, String> {
+pub(crate) fn try_definition_from_draft(
+    draft: &ThemeEditorDraft,
+) -> Result<ThemeDefinition, String> {
     let name = draft.name.trim();
     if name.is_empty() {
         return Err("主题名称不能为空".to_string());
@@ -240,11 +233,7 @@ pub(crate) fn try_definition_from_draft(draft: &ThemeEditorDraft) -> Result<Them
     let mut definition = ThemeDefinition {
         id: draft.id.trim().to_string(),
         name: name.to_string(),
-        tagline: if tagline.is_empty() {
-            None
-        } else {
-            Some(tagline.to_string())
-        },
+        tagline: if tagline.is_empty() { None } else { Some(tagline.to_string()) },
         palette: ThemePaletteHex {
             background: draft.background.trim().to_string(),
             text: draft.text.trim().to_string(),
@@ -383,9 +372,7 @@ fn draft_hex_for_target(draft: &ThemeEditorDraft, target: ThemeColorPickerTarget
         ThemeColorPickerTarget::Chrome(ThemeChromeField::InputBorder) => &draft.chrome_input_border,
         ThemeColorPickerTarget::Chrome(ThemeChromeField::InputText) => &draft.chrome_input_text,
         ThemeColorPickerTarget::Chrome(ThemeChromeField::PanelBg) => &draft.chrome_panel_bg,
-        ThemeColorPickerTarget::Chrome(ThemeChromeField::PanelBorder) => {
-            &draft.chrome_panel_border
-        }
+        ThemeColorPickerTarget::Chrome(ThemeChromeField::PanelBorder) => &draft.chrome_panel_border,
         ThemeColorPickerTarget::Chrome(ThemeChromeField::ButtonBg) => &draft.chrome_button_bg,
         ThemeColorPickerTarget::Chrome(ThemeChromeField::ButtonText) => &draft.chrome_button_text,
         ThemeColorPickerTarget::Chrome(ThemeChromeField::RadiusPx)
@@ -462,32 +449,26 @@ fn color_field_row<'a>(
     on_manual: impl Fn(String) -> ThemesMessage + 'a,
 ) -> Element<'a, Message> {
     let preview = parse_draft_hex(value).unwrap_or(Color::from_rgb8(0x88, 0x88, 0x88));
-    let swatch = button(
-        container(Space::new().width(18).height(18)).style(move |_: &Theme| {
-            iced::widget::container::Style {
-                background: Some(Background::Color(preview)),
-                border: iced::Border {
-                    color: Color::from_rgb(0.55, 0.55, 0.55),
-                    width: 1.0,
-                    radius: 4.0.into(),
-                },
-                ..Default::default()
-            }
-        }),
-    )
+    let swatch = button(container(Space::new().width(18).height(18)).style(move |_: &Theme| {
+        iced::widget::container::Style {
+            background: Some(Background::Color(preview)),
+            border: iced::Border {
+                color: Color::from_rgb(0.55, 0.55, 0.55),
+                width: 1.0,
+                radius: 4.0.into(),
+            },
+            ..Default::default()
+        }
+    }))
     .padding(4)
-    .on_press(Message::Settings(SettingsMessage::Themes(
-        ThemesMessage::ColorPickerToggled(target),
-    )))
+    .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::ColorPickerToggled(target))))
     .style(rounded_action_btn_style);
 
     let open = app.themes_settings.color_picker_target == Some(target);
     let swatch = BelowOverlay::new(swatch, color_picker_popover(app, draft, target))
         .show(open)
         .gap(6.0)
-        .on_close(Message::Settings(SettingsMessage::Themes(
-            ThemesMessage::ColorPickerClosed,
-        )));
+        .on_close(Message::Settings(SettingsMessage::Themes(ThemesMessage::ColorPickerClosed)));
 
     let input = text_input(placeholder, value)
         .on_input(move |value| Message::Settings(SettingsMessage::Themes(on_manual(value))))
@@ -496,9 +477,7 @@ fn color_field_row<'a>(
         .style(settings_text_input_style)
         .width(Length::Fill);
 
-    let control = row![swatch, input]
-        .spacing(8)
-        .align_y(Alignment::Center);
+    let control = row![swatch, input].spacing(8).align_y(Alignment::Center);
     field_row(label, description, control)
 }
 
@@ -550,18 +529,14 @@ fn chrome_row<'a>(
     placeholder: &'static str,
 ) -> Element<'a, Message> {
     text_row(label, description, placeholder, value, move |value| {
-        Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftChromeChanged(
-            field, value,
-        )))
+        Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftChromeChanged(field, value)))
     })
 }
 
 fn asset_status_label(relative: Option<&str>, source: Option<&str>) -> String {
     if let Some(source) = source.filter(|s| !s.trim().is_empty()) {
-        let name = std::path::Path::new(source)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or(source);
+        let name =
+            std::path::Path::new(source).file_name().and_then(|n| n.to_str()).unwrap_or(source);
         return format!("待复制：{name}");
     }
     if let Some(relative) = relative.filter(|s| !s.is_empty()) {
@@ -578,9 +553,8 @@ fn asset_picker_row<'a>(
     pick: ThemesMessage,
     clear: ThemesMessage,
 ) -> Element<'a, Message> {
-    let status = text(asset_status_label(relative, source))
-        .size(12)
-        .style(settings_muted_text_style);
+    let status =
+        text(asset_status_label(relative, source)).size(12).style(settings_muted_text_style);
     let controls = row![
         status,
         button(text("选择图片").size(12))
@@ -597,10 +571,7 @@ fn asset_picker_row<'a>(
     field_row(label, description, controls)
 }
 
-fn zone_image_fit_pick_list<'a>(
-    value: &'a str,
-    field: ThemeChromeField,
-) -> Element<'a, Message> {
+fn zone_image_fit_pick_list<'a>(value: &'a str, field: ThemeChromeField) -> Element<'a, Message> {
     let selected = PanelImageFit::parse(Some(value)).unwrap_or_default();
     pick_list(PanelImageFit::ALL, Some(selected), move |fit| {
         Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftChromeChanged(
@@ -619,10 +590,7 @@ fn zone_image_fit_pick_list<'a>(
 /// 窗口背景卡：选图 + 默认透明度（分区未单独设置时回退）。
 fn background_asset_card(draft: &ThemeEditorDraft) -> Element<'_, Message> {
     column![
-        settings_section_card(
-            "窗口背景",
-            "主窗口壁纸；默认透明度供分区未单独设置时回退。",
-        ),
+        settings_section_card("窗口背景", "主窗口壁纸；默认透明度供分区未单独设置时回退。",),
         asset_picker_row(
             "背景图",
             "主窗口壁纸资源，保存后由应用层加载。",
@@ -660,21 +628,8 @@ fn zone_asset_card<'a>(
 ) -> Element<'a, Message> {
     column![
         settings_section_card(title, description),
-        asset_picker_row(
-            pick_label,
-            pick_description,
-            relative,
-            source,
-            pick,
-            clear,
-        ),
-        chrome_row(
-            "透明度",
-            "0–255；仅本分区。",
-            alpha_field,
-            alpha_value,
-            "例如 184",
-        ),
+        asset_picker_row(pick_label, pick_description, relative, source, pick, clear,),
+        chrome_row("透明度", "0–255；仅本分区。", alpha_field, alpha_value, "例如 184",),
         field_row(
             "图缩放",
             "本分区背景图 ContentFit；默认覆盖裁剪。",
@@ -704,12 +659,8 @@ fn editor_tab_button(
     let is_active = tab == active_tab;
     button(text(label).size(13))
         .padding([8, 14])
-        .on_press(Message::Settings(SettingsMessage::Themes(
-            ThemesMessage::EditorTabSelected(tab),
-        )))
-        .style(move |theme: &Theme, status| {
-            settings_segment_button_style(theme, status, is_active)
-        })
+        .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::EditorTabSelected(tab))))
+        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, is_active))
         .into()
 }
 
@@ -739,9 +690,7 @@ fn basics_tab(draft: &ThemeEditorDraft) -> Element<'_, Message> {
             "例如 Ocean Breeze",
             &draft.name,
             |value| {
-                Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftNameChanged(
-                    value,
-                )))
+                Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftNameChanged(value)))
             },
         ),
         text_row(
@@ -976,9 +925,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             settings_page_intro("主题编辑器", "当前没有可编辑的草稿。"),
             button(text("返回画廊").size(12))
                 .padding([8, 14])
-                .on_press(Message::Settings(SettingsMessage::Themes(
-                    ThemesMessage::CancelEdit,
-                )))
+                .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::CancelEdit,)))
                 .style(rounded_action_btn_style),
         ]
         .spacing(12)
@@ -997,15 +944,11 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let mut actions = row![
         button(text("保存").size(12))
             .padding([8, 16])
-            .on_press(Message::Settings(SettingsMessage::Themes(
-                ThemesMessage::SaveDraft,
-            )))
+            .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::SaveDraft,)))
             .style(primary_action_btn_style),
         button(text("取消").size(12))
             .padding([8, 16])
-            .on_press(Message::Settings(SettingsMessage::Themes(
-                ThemesMessage::CancelEdit,
-            )))
+            .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::CancelEdit,)))
             .style(rounded_action_btn_style),
     ]
     .spacing(8);
@@ -1043,11 +986,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let tabs = editor_tab_labels().iter().fold(
         row![].spacing(8).align_y(Alignment::Center),
         |row, (label, tab)| {
-            row.push(editor_tab_button(
-                label,
-                *tab,
-                app.themes_settings.editor_tab,
-            ))
+            row.push(editor_tab_button(label, *tab, app.themes_settings.editor_tab))
         },
     );
 

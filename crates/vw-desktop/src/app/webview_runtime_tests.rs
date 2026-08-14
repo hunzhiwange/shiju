@@ -2,11 +2,11 @@ use std::io;
 use std::sync::{Arc, Mutex};
 
 use super::{
-    BrowserProcess, WorkBrowserController, WorkBrowserEvent, WorkBrowserLayout, WorkBrowserSurface,
-    WebviewBounds, parse_webview_event, work_browser_bounds, work_browser_surface_visible,
+    BrowserProcess, WebviewBounds, WorkBrowserController, WorkBrowserEvent, WorkBrowserLayout,
+    WorkBrowserSurface, parse_webview_event, work_browser_bounds, work_browser_surface_visible,
 };
-use crate::app::state::{WorkResourceMode, WorkspaceMode};
 use crate::app::Screen;
+use crate::app::state::{WorkResourceMode, WorkspaceMode};
 
 #[derive(Default)]
 struct ProcessProbe {
@@ -44,8 +44,7 @@ impl BrowserProcess for MemoryProcess {
 
 #[test]
 fn work_browser_controller_keeps_single_child_and_writes_navigation_commands() {
-    let probe =
-        Arc::new(Mutex::new(ProcessProbe { running: true, ..ProcessProbe::default() }));
+    let probe = Arc::new(Mutex::new(ProcessProbe { running: true, ..ProcessProbe::default() }));
     let mut spawn_count = 0;
     let mut controller = WorkBrowserController::default();
     let bounds = WebviewBounds { x: 740, y: 180, width: 620, height: 540 };
@@ -65,7 +64,8 @@ fn work_browser_controller_keeps_single_child_and_writes_navigation_commands() {
     controller.back().expect("back command");
     controller.forward().expect("forward command");
     controller.reload().expect("reload command");
-    controller.sync_bounds(WebviewBounds { x: 760, y: 190, width: 600, height: 520 })
+    controller
+        .sync_bounds(WebviewBounds { x: 760, y: 190, width: 600, height: 520 })
         .expect("bounds commands");
     controller.set_always_on_top(false).expect("lower browser window");
     controller.set_always_on_top(true).expect("raise browser window");
@@ -96,8 +96,7 @@ fn work_browser_controller_keeps_single_child_and_writes_navigation_commands() {
 
 #[test]
 fn work_browser_controller_uses_latest_safe_navigation_event() {
-    let probe =
-        Arc::new(Mutex::new(ProcessProbe { running: true, ..ProcessProbe::default() }));
+    let probe = Arc::new(Mutex::new(ProcessProbe { running: true, ..ProcessProbe::default() }));
     let mut controller = WorkBrowserController::default();
     let bounds = WebviewBounds { x: 0, y: 0, width: 800, height: 600 };
     controller
@@ -155,17 +154,10 @@ fn work_browser_bounds_follow_main_window_and_work_split() {
 
     let half_fullscreen =
         work_browser_bounds(WorkBrowserLayout { resource_half_fullscreen: true, ..layout });
-    assert_eq!(
-        half_fullscreen,
-        Some(WebviewBounds { x: 410, y: 362, width: 1_078, height: 698 })
-    );
+    assert_eq!(half_fullscreen, Some(WebviewBounds { x: 410, y: 362, width: 1_078, height: 698 }));
 
-    let fullscreen =
-        work_browser_bounds(WorkBrowserLayout { resource_fullscreen: true, ..layout });
-    assert_eq!(
-        fullscreen,
-        Some(WebviewBounds { x: 112, y: 362, width: 1_376, height: 698 })
-    );
+    let fullscreen = work_browser_bounds(WorkBrowserLayout { resource_fullscreen: true, ..layout });
+    assert_eq!(fullscreen, Some(WebviewBounds { x: 112, y: 362, width: 1_376, height: 698 }));
 }
 
 #[test]

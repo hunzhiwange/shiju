@@ -219,11 +219,8 @@ async fn status_bar_keeps_notification_at_trailing_edge() {
     let node = status_bar.as_widget_mut().layout(&mut tree, &renderer, &limits);
     let row =
         Layout::new(&node).children().next().expect("status bar container should contain a row");
-    let notification = row
-        .children()
-        .last()
-        .expect("notification should remain at the trailing edge")
-        .bounds();
+    let notification =
+        row.children().last().expect("notification should remain at the trailing edge").bounds();
     let cursor = mouse::Cursor::Available(notification.center());
     let mut clipboard = clipboard::Null;
     let mut messages = Vec::new();
@@ -246,10 +243,7 @@ async fn status_bar_keeps_notification_at_trailing_edge() {
     }
 
     assert!(messages.into_iter().any(|message| {
-        matches!(
-            message,
-            Message::Notification(NotificationMessage::ToggleExpanded)
-        )
+        matches!(message, Message::Notification(NotificationMessage::ToggleExpanded))
     }));
 }
 

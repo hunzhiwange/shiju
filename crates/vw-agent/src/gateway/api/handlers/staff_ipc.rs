@@ -788,8 +788,7 @@ async fn resolve_project_context(
             crate::app::agent::project::from_directory(&tenant, directory)
                 .await
                 .map(|(project, _)| project)
-                .map_err(|error| ApiError::bad_request(error.to_string()))
-                ?
+                .map_err(|error| ApiError::bad_request(error.to_string()))?
         }
     };
     let project_scope = ProjectScope::new(tenant, ProjectId::from(project.id.clone()))

@@ -1,6 +1,6 @@
 use super::{
-    select_auto_model, AutoModelSelectionRequest, ModelCandidate, ModelReference,
-    ModelSelectionError, ModelSelectionSource, ModelTaskProfile,
+    AutoModelSelectionRequest, ModelCandidate, ModelReference, ModelSelectionError,
+    ModelSelectionSource, ModelTaskProfile, select_auto_model,
 };
 use crate::app::agent::config::schema::{
     ClassificationRule, ModelRouteConfig, QueryClassificationConfig,
@@ -78,10 +78,7 @@ fn request<'a>(message: &'a str) -> AutoModelSelectionRequest<'a> {
 }
 
 fn candidates<'a>(models: &'a [provider::Model]) -> Vec<ModelCandidate<'a>> {
-    models
-        .iter()
-        .map(|model| ModelCandidate { provider_id: &model.provider_id, model })
-        .collect()
+    models.iter().map(|model| ModelCandidate { provider_id: &model.provider_id, model }).collect()
 }
 
 #[test]
@@ -221,7 +218,8 @@ fn auto_selector_uses_soft_preference_only_as_tiebreaker() {
 
 #[test]
 fn auto_selector_returns_configuration_error_for_missing_rule_target() {
-    let models = vec![model("provider", "available", false, false, false, 32_000, 0.2, "2025-01-01")];
+    let models =
+        vec![model("provider", "available", false, false, false, 32_000, 0.2, "2025-01-01")];
     let classification = QueryClassificationConfig {
         enabled: true,
         rules: vec![ClassificationRule {
@@ -258,7 +256,9 @@ fn auto_selector_returns_requirement_summary_when_no_candidate_is_compatible() {
 
     let error = select_auto_model(&selection_request, &candidates(&models)).unwrap_err();
 
-    assert!(matches!(error, ModelSelectionError::NoCompatibleModel { requirements } if requirements.contains("tools") && requirements.contains("context>=32000")));
+    assert!(
+        matches!(error, ModelSelectionError::NoCompatibleModel { requirements } if requirements.contains("tools") && requirements.contains("context>=32000"))
+    );
 }
 
 #[test]
@@ -268,10 +268,13 @@ fn auto_selector_uses_stable_full_reference_order_after_equal_scores() {
         model("alpha", "same", false, false, false, 32_000, 1.0, "2025-01-01"),
     ];
 
-    let first = select_auto_model(&request("Explain this topic in detail."), &candidates(&models)).unwrap();
+    let first =
+        select_auto_model(&request("Explain this topic in detail."), &candidates(&models)).unwrap();
     let mut reversed = models.clone();
     reversed.reverse();
-    let second = select_auto_model(&request("Explain this topic in detail."), &candidates(&reversed)).unwrap();
+    let second =
+        select_auto_model(&request("Explain this topic in detail."), &candidates(&reversed))
+            .unwrap();
 
     assert_eq!(first.model, ModelReference::new("alpha", "same"));
     assert_eq!(first, second);

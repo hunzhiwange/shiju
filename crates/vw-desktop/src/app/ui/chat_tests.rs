@@ -103,8 +103,7 @@ fn split_think_ignores_tags_with_non_whitespace_suffixes() {
 
 #[test]
 fn split_think_accepts_thinking_alias_tags() {
-    let (thinks, visible, open) =
-        super::split_think("a <thinking>plan next step</thinking> b");
+    let (thinks, visible, open) = super::split_think("a <thinking>plan next step</thinking> b");
     assert_eq!(thinks, vec!["plan next step".to_string()]);
     assert_eq!(visible, "a  b");
     assert!(!open);

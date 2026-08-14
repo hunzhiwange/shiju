@@ -1,6 +1,6 @@
 use super::*;
-use crate::app::{App, Message};
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
+use crate::app::{App, Message};
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::{text, text_input};
@@ -72,11 +72,9 @@ fn view_builds_each_autonomy_level() {
 fn view_builds_each_redirect_and_natural_language_mode_combination() {
     let mut app = test_app();
 
-    for redirect_policy in [
-        ShellRedirectPolicy::Block,
-        ShellRedirectPolicy::Strip,
-        ShellRedirectPolicy::Allow,
-    ] {
+    for redirect_policy in
+        [ShellRedirectPolicy::Block, ShellRedirectPolicy::Strip, ShellRedirectPolicy::Allow]
+    {
         for approval_mode in [
             NonCliNaturalLanguageApprovalMode::Disabled,
             NonCliNaturalLanguageApprovalMode::RequestConfirm,
@@ -136,14 +134,8 @@ fn view_builds_empty_and_unicode_list_items() {
 #[test]
 fn list_editor_renders_one_row_per_saved_item() {
     let items = vec!["cargo".to_string(), "git status".to_string(), "未知工具".to_string()];
-    let element = list_editor(
-        AutonomyListKind::AllowedCommands,
-        "允许命令",
-        "说明",
-        &items,
-        "",
-        &[],
-    );
+    let element =
+        list_editor(AutonomyListKind::AllowedCommands, "允许命令", "说明", &items, "", &[]);
     let tree = Tree::new(element.as_widget());
 
     assert_eq!(tree.children.len(), 3);

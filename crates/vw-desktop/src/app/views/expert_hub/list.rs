@@ -416,16 +416,9 @@ fn marketplace_content(app: &App) -> Element<'static, Message> {
         LoadState::Error(error) => error_view(error),
         LoadState::Loaded(page) if page.items.is_empty() => empty_view("未找到匹配的技能"),
         LoadState::Loaded(page) => {
-            let pending = app
-                .expert_hub
-                .action
-                .as_ref()
-                .map(|action| action.skill_id)
-                .or_else(|| {
-                    app.expert_hub
-                        .version_confirmation
-                        .as_ref()
-                        .map(|action| action.skill_id)
+            let pending =
+                app.expert_hub.action.as_ref().map(|action| action.skill_id).or_else(|| {
+                    app.expert_hub.version_confirmation.as_ref().map(|action| action.skill_id)
                 });
             let installed = match &app.expert_hub.installed {
                 LoadState::Loaded(items) => items.clone(),
@@ -443,16 +436,9 @@ fn installed_content(app: &App) -> Element<'static, Message> {
         LoadState::Error(error) => error_view(error),
         LoadState::Loaded(items) if items.is_empty() => empty_view("尚未安装技能"),
         LoadState::Loaded(items) => {
-            let pending = app
-                .expert_hub
-                .action
-                .as_ref()
-                .map(|action| action.skill_id)
-                .or_else(|| {
-                    app.expert_hub
-                        .version_confirmation
-                        .as_ref()
-                        .map(|action| action.skill_id)
+            let pending =
+                app.expert_hub.action.as_ref().map(|action| action.skill_id).or_else(|| {
+                    app.expert_hub.version_confirmation.as_ref().map(|action| action.skill_id)
                 });
             card_grid(items.clone(), move |skill| installed_card(skill, pending))
         }

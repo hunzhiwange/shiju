@@ -316,9 +316,7 @@ impl TuiApp {
 
         worker.join().map_err(|_| anyhow!("tui_v2 plan-run worker panicked"))?;
         if worker_disconnected && !saw_terminal {
-            return Err(anyhow!(
-                "tui_v2 plan-run worker exited before sending a terminal event"
-            ));
+            return Err(anyhow!("tui_v2 plan-run worker exited before sending a terminal event"));
         }
 
         self.refresh_task_state_blocking();

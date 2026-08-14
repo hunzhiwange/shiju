@@ -5,7 +5,6 @@ use super::{
     bundled_workspace_identity_path, handle_agents_config_saved, normalize_agent_key,
     summarize_models, summarize_providers, tool_in_preset, tools_for_preset, update,
 };
-use vw_config_types::agent::DelegateCapabilityPolicy;
 use crate::app::{
     App,
     message::settings::{AgentsMessage, SettingsMessage},
@@ -18,6 +17,7 @@ use iced::widget::text_editor;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
+use vw_config_types::agent::DelegateCapabilityPolicy;
 use vw_shared::provider::types::{
     ApiInfo, Capabilities, CapabilityIO, Info, InterleavedCapability, Model, ModelCost,
     ModelCostCache, ModelLimit, ProviderSource,
@@ -227,10 +227,8 @@ fn agent_model_clear_keeps_provider() {
     entry_mut(&mut app, "main").provider = "openrouter".to_string();
     entry_mut(&mut app, "main").model = "glm-5".to_string();
 
-    let _ = update(
-        &mut app,
-        SettingsMessage::Agents(AgentsMessage::ModelCleared("main".to_string())),
-    );
+    let _ =
+        update(&mut app, SettingsMessage::Agents(AgentsMessage::ModelCleared("main".to_string())));
 
     assert_eq!(entry(&app, "main").provider, "openrouter");
     assert!(entry(&app, "main").model.is_empty());
@@ -267,10 +265,18 @@ fn agents_settings_patch_omits_fields_the_ui_does_not_own() {
         build_agents_settings_patch(&app.agents_settings.entries).expect("patch should serialize");
     let main = &patch["agents"]["main"];
 
-    for field in
-        ["label", "description", "builtin", "mode", "top_p", "identity_format", "hidden", "options",
-         "permission", "steps"]
-    {
+    for field in [
+        "label",
+        "description",
+        "builtin",
+        "mode",
+        "top_p",
+        "identity_format",
+        "hidden",
+        "options",
+        "permission",
+        "steps",
+    ] {
         assert!(main.get(field).is_none(), "unexpected destructive field: {field}");
     }
 }
@@ -283,25 +289,33 @@ fn fresh_agents_settings_patch_preserves_builtin_role_boundaries() {
     let patch = build_agents_settings_patch(&entries).expect("fresh settings should serialize");
     let researcher = &patch["agents"]["researcher"];
 
-    for field in [
-        "allow_as_subagent",
-        "max_parallel_subagents",
-        "max_depth",
-        "agentic",
-        "max_iterations",
-    ] {
+    for field in
+        ["allow_as_subagent", "max_parallel_subagents", "max_depth", "agentic", "max_iterations"]
+    {
         assert!(researcher.get(field).is_none(), "unexpected fixed boundary: {field}");
     }
-    assert_eq!(researcher["allowed_tools"], serde_json::json!(["file_read", "glob", "grep", "image_info", "ls", "lsp", "pdf_read", "web_fetch", "web_search_tool"]));
+    assert_eq!(
+        researcher["allowed_tools"],
+        serde_json::json!([
+            "file_read",
+            "glob",
+            "grep",
+            "image_info",
+            "ls",
+            "lsp",
+            "pdf_read",
+            "web_fetch",
+            "web_search_tool"
+        ])
+    );
 }
 
 #[test]
 fn agents_settings_patch_removes_legacy_general_entry() {
     let mut config = vw_config_types::config::Config::default();
-    config.agents.insert(
-        "general".to_string(),
-        vw_config_types::agent::DelegateAgentConfig::default(),
-    );
+    config
+        .agents
+        .insert("general".to_string(), vw_config_types::agent::DelegateAgentConfig::default());
     let entries = crate::app::state::agent_settings_entries_from_config(&config);
 
     assert!(entries.iter().all(|entry| entry.key != "general"));
@@ -1165,10 +1179,7 @@ fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
     );
     let _ = update(
         &mut app,
-        SettingsMessage::Agents(AgentsMessage::MaxIterationsChanged(
-            "main".to_string(),
-            50_001,
-        )),
+        SettingsMessage::Agents(AgentsMessage::MaxIterationsChanged("main".to_string(), 50_001)),
     );
     let _ = update(
         &mut app,
@@ -1231,15 +1242,8 @@ fn available_tools_exclude_mcp_dynamic_ids() {
         )))),
     );
 
-    assert_eq!(
-        app.agents_settings.available_tools,
-        vec!["bash".to_string(), "read".to_string()]
-    );
-    assert!(!app
-        .agents_settings
-        .available_tools
-        .iter()
-        .any(|tool| tool.starts_with("mcp__")));
+    assert_eq!(app.agents_settings.available_tools, vec!["bash".to_string(), "read".to_string()]);
+    assert!(!app.agents_settings.available_tools.iter().any(|tool| tool.starts_with("mcp__")));
 }
 
 #[test]

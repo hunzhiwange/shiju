@@ -545,4 +545,3 @@ fn absorb_replaced_defers_live_tabs_from_previous_terminal_state() {
     next.reap_retired();
     assert!(!next.has_retired());
 }
-

@@ -75,9 +75,7 @@ impl KeyBindingRegistry {
         if chord.0.iter().any(is_reserved_stroke) {
             return Err(format!("reserved key cannot be rebound: {spec}"));
         }
-        self.bindings.retain(|binding| {
-            !(binding.context == context && binding.action == action)
-        });
+        self.bindings.retain(|binding| !(binding.context == context && binding.action == action));
         self.bindings.push(KeyBinding { context, action, chord });
         Ok(())
     }
@@ -99,9 +97,12 @@ impl KeyBindingRegistry {
         self.pending_since.get_or_insert(now);
 
         for context in contexts.iter().rev() {
-            if let Some(binding) = self.bindings.iter().rev().find(|binding| {
-                binding.context == *context && binding.chord.0 == self.pending
-            }) {
+            if let Some(binding) = self
+                .bindings
+                .iter()
+                .rev()
+                .find(|binding| binding.context == *context && binding.chord.0 == self.pending)
+            {
                 let action = binding.action;
                 self.pending.clear();
                 self.pending_since = None;
@@ -146,10 +147,7 @@ pub(crate) fn is_prompt_selection_copy(key: KeyEvent) -> bool {
 }
 
 pub(crate) fn parse_key_chord(spec: &str) -> Result<KeyChord, String> {
-    let strokes = spec
-        .split_ascii_whitespace()
-        .map(parse_stroke)
-        .collect::<Result<Vec<_>, _>>()?;
+    let strokes = spec.split_ascii_whitespace().map(parse_stroke).collect::<Result<Vec<_>, _>>()?;
     if strokes.is_empty() || strokes.len() > 2 {
         return Err("key chord must contain one or two strokes".to_string());
     }
@@ -172,9 +170,8 @@ fn parse_stroke(spec: &str) -> Result<KeyStroke, String> {
             "left" => code = Some(KeyCode::Left),
             "right" => code = Some(KeyCode::Right),
             value if value.len() > 1 && value.starts_with('f') => {
-                let number = value[1..]
-                    .parse::<u8>()
-                    .map_err(|_| format!("unknown key token: {value}"))?;
+                let number =
+                    value[1..].parse::<u8>().map_err(|_| format!("unknown key token: {value}"))?;
                 code = Some(KeyCode::F(number));
             }
             value if value.chars().count() == 1 => {
@@ -193,8 +190,7 @@ fn normalized_modifiers(modifiers: KeyModifiers) -> KeyModifiers {
 }
 
 fn is_reserved_stroke(stroke: &KeyStroke) -> bool {
-    stroke.modifiers == KeyModifiers::CONTROL
-        && matches!(stroke.code, KeyCode::Char('c' | 'd'))
+    stroke.modifiers == KeyModifiers::CONTROL && matches!(stroke.code, KeyCode::Char('c' | 'd'))
 }
 
 fn default_bindings() -> Vec<KeyBinding> {

@@ -1,23 +1,16 @@
 use super::toolbar::{
-    TOOLBAR_REGION_HEIGHT, ToolbarAction, ViewRegion, parse_toolbar_ipc_message, toolbar_html,
-    toolbar_address_script, window_regions,
+    TOOLBAR_REGION_HEIGHT, ToolbarAction, ViewRegion, parse_toolbar_ipc_message,
+    toolbar_address_script, toolbar_html, window_regions,
 };
 
 #[test]
 fn toolbar_html_reuses_work_browser_controls_and_icons() {
     let html = toolbar_html();
-    let action_positions = [
-        "back",
-        "forward",
-        "navigate",
-        "reload",
-        "open_external",
-        "close",
-    ]
-    .map(|action| {
-        html.find(&format!(r#"data-action="{action}""#))
-            .unwrap_or_else(|| panic!("missing toolbar action: {action}"))
-    });
+    let action_positions =
+        ["back", "forward", "navigate", "reload", "open_external", "close"].map(|action| {
+            html.find(&format!(r#"data-action="{action}""#))
+                .unwrap_or_else(|| panic!("missing toolbar action: {action}"))
+        });
 
     assert!(action_positions.windows(2).all(|positions| positions[0] < positions[1]));
     assert!(html.contains(r#"id="address""#));
@@ -48,14 +41,8 @@ fn toolbar_html_reuses_work_browser_controls_and_icons() {
 #[test]
 fn toolbar_ipc_accepts_controls_and_safe_urls() {
     assert_eq!(parse_toolbar_ipc_message(r#"{"type":"back"}"#), Some(ToolbarAction::Back));
-    assert_eq!(
-        parse_toolbar_ipc_message(r#"{"type":"forward"}"#),
-        Some(ToolbarAction::Forward)
-    );
-    assert_eq!(
-        parse_toolbar_ipc_message(r#"{"type":"reload"}"#),
-        Some(ToolbarAction::Reload)
-    );
+    assert_eq!(parse_toolbar_ipc_message(r#"{"type":"forward"}"#), Some(ToolbarAction::Forward));
+    assert_eq!(parse_toolbar_ipc_message(r#"{"type":"reload"}"#), Some(ToolbarAction::Reload));
     assert_eq!(parse_toolbar_ipc_message(r#"{"type":"close"}"#), Some(ToolbarAction::Clear));
     assert_eq!(
         parse_toolbar_ipc_message(r#"{"type":"navigate","url":" example.com/docs "}"#),
@@ -65,9 +52,7 @@ fn toolbar_ipc_accepts_controls_and_safe_urls() {
         parse_toolbar_ipc_message(
             r#"{"type":"open_external","url":"HTTPS://example.com/path?q=1"}"#
         ),
-        Some(ToolbarAction::OpenExternal(
-            "HTTPS://example.com/path?q=1".to_string()
-        ))
+        Some(ToolbarAction::OpenExternal("HTTPS://example.com/path?q=1".to_string()))
     );
 
     for message in [

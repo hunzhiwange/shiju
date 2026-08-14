@@ -1,6 +1,4 @@
-use super::model::notification::{
-    NotificationPriority, NotificationStore, TuiNotification,
-};
+use super::model::notification::{NotificationPriority, NotificationStore, TuiNotification};
 use super::state::{TuiState, select_status_summary};
 
 impl NotificationStore {
@@ -9,10 +7,7 @@ impl NotificationStore {
         self.items.retain(|item| item.id != notification.id);
         self.items.push(notification);
         self.items.sort_by(|left, right| {
-            right
-                .priority
-                .cmp(&left.priority)
-                .then_with(|| right.created_ms.cmp(&left.created_ms))
+            right.priority.cmp(&left.priority).then_with(|| right.created_ms.cmp(&left.created_ms))
         });
     }
 
@@ -37,9 +32,8 @@ pub(crate) struct ExitFlow {
 
 impl ExitFlow {
     pub(crate) fn press(&mut self, now_ms: u64, busy: bool) -> ExitDecision {
-        let double = self
-            .last_press_ms
-            .is_some_and(|previous| now_ms.saturating_sub(previous) <= 750);
+        let double =
+            self.last_press_ms.is_some_and(|previous| now_ms.saturating_sub(previous) <= 750);
         self.last_press_ms = Some(now_ms);
         if double {
             self.last_press_ms = None;

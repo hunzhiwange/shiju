@@ -201,11 +201,7 @@ async fn shiju_skill_mutations_do_not_serialize_credentials() {
     let credential = credential();
 
     server.client().shiju_skill_remote_install(&credential, 31).await.unwrap();
-    server
-        .client()
-        .shiju_skill_remote_install_version(&credential, 31, 88)
-        .await
-        .unwrap();
+    server.client().shiju_skill_remote_install_version(&credential, 31, 88).await.unwrap();
     server.client().shiju_skill_remote_uninstall(&credential, 31).await.unwrap();
 
     let install = server.take_request();
@@ -218,10 +214,7 @@ async fn shiju_skill_mutations_do_not_serialize_credentials() {
     assert_eq!(version_install.method, "POST");
     assert_eq!(version_install.path, "/v1/shiju/skills/31/install");
     assert_eq!(version_install.body, json!({"version_id": 88}));
-    assert_eq!(
-        version_install.header(SHIJU_CREDENTIAL_HEADER),
-        Some(credential.expose())
-    );
+    assert_eq!(version_install.header(SHIJU_CREDENTIAL_HEADER), Some(credential.expose()));
 
     let uninstall = server.take_request();
     assert_eq!(uninstall.method, "DELETE");

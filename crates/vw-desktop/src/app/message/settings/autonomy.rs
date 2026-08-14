@@ -174,9 +174,7 @@ fn add_list_item(app: &mut App, kind: AutonomyListKind) -> Task<Message> {
     let value = app.autonomy_settings.list_editor.draft(kind).trim().to_string();
     let error = if value.is_empty() {
         Some("列表项不能为空".to_string())
-    } else if kind == AutonomyListKind::ShellEnvPassthrough
-        && !is_valid_environment_name(&value)
-    {
+    } else if kind == AutonomyListKind::ShellEnvPassthrough && !is_valid_environment_name(&value) {
         Some("环境变量名必须匹配 [A-Za-z_][A-Za-z0-9_]*".to_string())
     } else if app.autonomy_settings.list(kind).iter().any(|item| item == &value) {
         Some("该列表项已存在".to_string())

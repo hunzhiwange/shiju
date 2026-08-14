@@ -4,7 +4,7 @@
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
-use iced::widget::{button, column, container, row, scrollable, text, Space};
+use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Background, Border, Color, Element, Length, Padding, Theme};
 
 use crate::app::assets::{self, Icon};
@@ -109,10 +109,10 @@ pub fn slash_palette_overlay(app: &App) -> Element<'_, Message> {
     } else {
         let mut flat_index = 0usize;
         for section in &sections {
-                list = list.push(
-                    container(text(section.kind.label()).size(11).style(section_header_style))
-                        .padding(Padding::from([4, 8])),
-                );
+            list = list.push(
+                container(text(section.kind.label()).size(11).style(section_header_style))
+                    .padding(Padding::from([4, 8])),
+            );
 
             for entry in &section.entries {
                 let selected = flat_index == app.slash_palette_selected_index;
@@ -129,9 +129,8 @@ pub fn slash_palette_overlay(app: &App) -> Element<'_, Message> {
                         .push(text(description.to_string()).size(11).style(description_text_style));
                 }
 
-                let row_content = row![icon, label_col]
-                    .spacing(8)
-                    .align_y(iced::alignment::Vertical::Center);
+                let row_content =
+                    row![icon, label_col].spacing(8).align_y(iced::alignment::Vertical::Center);
 
                 let kind = entry.kind;
                 let id = entry.id.clone();
@@ -139,10 +138,7 @@ pub fn slash_palette_overlay(app: &App) -> Element<'_, Message> {
                     .width(Length::Fill)
                     .padding([6, 10])
                     .style(move |theme: &Theme, status| entry_style(theme, status, selected))
-                    .on_press(Message::Chat(message::ChatMessage::SlashPaletteSelect {
-                        kind,
-                        id,
-                    }));
+                    .on_press(Message::Chat(message::ChatMessage::SlashPaletteSelect { kind, id }));
                 list = list.push(btn);
             }
 

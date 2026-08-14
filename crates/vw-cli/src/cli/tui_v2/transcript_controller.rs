@@ -16,9 +16,7 @@ pub(crate) fn handle_transcript_mode_key(
     key: KeyEvent,
 ) -> Option<TuiControllerCommand> {
     if !state.transcript_mode.active {
-        if key.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key.code, KeyCode::Char('o'))
-        {
+        if key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('o')) {
             enter_transcript_mode(state);
             return Some(TuiControllerCommand::Continue);
         }
@@ -29,8 +27,7 @@ pub(crate) fn handle_transcript_mode_key(
         return Some(handle_search_key(state, key));
     }
 
-    if key.modifiers.contains(KeyModifiers::CONTROL)
-        && matches!(key.code, KeyCode::Char('c'))
+    if key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('c'))
         || matches!(key.code, KeyCode::Esc | KeyCode::Char('q'))
     {
         exit_transcript_mode(state);
@@ -206,32 +203,24 @@ fn scroll_lines(mode: &mut TranscriptModeState, delta: isize) {
     };
 }
 
-fn export_effect(
-    mode: &TranscriptModeState,
-    open_editor: bool,
-) -> TuiControllerCommand {
+fn export_effect(mode: &TranscriptModeState, open_editor: bool) -> TuiControllerCommand {
     match write_private_transcript(mode.lines.join("\n").as_str()) {
         Ok(path) if open_editor => {
             TuiControllerCommand::TranscriptEffect(TranscriptEffectIntent::OpenExternalEditor {
                 path,
             })
         }
-        Ok(path) => {
-            TuiControllerCommand::TranscriptEffect(TranscriptEffectIntent::Dumped { path })
-        }
-        Err(error) => TuiControllerCommand::TranscriptEffect(
-            TranscriptEffectIntent::Dumped { path: PathBuf::from(format!("ERROR:{error}")) },
-        ),
+        Ok(path) => TuiControllerCommand::TranscriptEffect(TranscriptEffectIntent::Dumped { path }),
+        Err(error) => TuiControllerCommand::TranscriptEffect(TranscriptEffectIntent::Dumped {
+            path: PathBuf::from(format!("ERROR:{error}")),
+        }),
     }
 }
 
 fn write_private_transcript(text: &str) -> std::io::Result<PathBuf> {
-    let nonce =
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
-    let path = std::env::temp_dir().join(format!(
-        "vibewindow-transcript-{}-{nonce}.txt",
-        std::process::id()
-    ));
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let path = std::env::temp_dir()
+        .join(format!("vibewindow-transcript-{}-{nonce}.txt", std::process::id()));
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -262,11 +251,12 @@ pub(crate) fn transcript_plain_text_lines(messages: &[UiMessage]) -> Vec<String>
                 UiMessage::ToolResult(message) => {
                     format!("RESULT {} {}", message.tool_name, message.content)
                 }
-                UiMessage::Thinking(message) => format!(
-                    "THINK {}",
-                    message.summary.as_deref().unwrap_or("[hidden reasoning]")
-                ),
-                UiMessage::Step(message) => format!("STEP #{} {:?}", message.step_index, message.state),
+                UiMessage::Thinking(message) => {
+                    format!("THINK {}", message.summary.as_deref().unwrap_or("[hidden reasoning]"))
+                }
+                UiMessage::Step(message) => {
+                    format!("STEP #{} {:?}", message.step_index, message.state)
+                }
                 UiMessage::System(message) => format!("SYSTEM {}", message.text),
                 UiMessage::Error(message) => format!("ERROR {}", message.message),
                 UiMessage::Attachment(message) => format!("ATTACH {}", message.name),
@@ -280,7 +270,5 @@ pub(crate) fn transcript_plain_text_lines(messages: &[UiMessage]) -> Vec<String>
 }
 
 fn sanitize_visible_line(line: &str) -> String {
-    line.chars()
-        .map(|ch| if ch.is_control() && ch != '\t' { '�' } else { ch })
-        .collect()
+    line.chars().map(|ch| if ch.is_control() && ch != '\t' { '�' } else { ch }).collect()
 }

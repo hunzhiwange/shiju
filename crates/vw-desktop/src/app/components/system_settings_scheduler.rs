@@ -7,7 +7,7 @@
 //! - 启用/禁用内置调度器
 //! - 配置单次轮询最大任务数量
 //! - 配置最大并发执行任务数量
-//! - 提供配置帮助说明的模态对话框
+//! - 提供配置帮助说明的面板内卡片
 //!
 //! ## 配置影响范围
 //!
@@ -15,12 +15,43 @@
 //! 影响定时任务的拉取数量与并发执行能力。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_help_button, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_section_card, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, icon_btn, settings_checkbox_style, settings_close_button,
+    settings_help_button, settings_help_copy_state, settings_muted_text_style, settings_page_intro,
+    settings_panel, settings_section_card, settings_value_badge,
 };
 use crate::app::{App, Message, message};
-use iced::widget::{checkbox, column, container, row, slider, text};
+use iced::widget::{Space, checkbox, column, container, row, slider, text};
 use iced::{Alignment, Element, Length};
+
+const SCHEDULER_HELP: &str = r#"调度配置说明
+
+一、作用
+- scheduler 用于控制内置调度器的开关与吞吐上限。
+- 该配置会影响定时任务的拉取数量与并发执行能力。
+
+二、字段含义
+1) enabled
+- 是否启用调度器主循环。
+
+2) max_tasks
+- 单次轮询最多处理的任务数量上限。
+
+3) max_concurrent
+- 单次轮询内允许并行执行的任务数量上限。
+
+三、示例
+{
+  "scheduler": {
+    "enabled": true,
+    "max_tasks": 64,
+    "max_concurrent": 4
+  }
+}
+
+四、建议
+- 若任务执行时间较长，优先增大 max_tasks，不要一次性把 max_concurrent 调太高。
+- 出现资源竞争（CPU/IO）时，适当下调 max_concurrent。
+"#;
 
 fn field_row<'a>(
     label: &'static str,
@@ -57,9 +88,37 @@ fn max_concurrent_changed(value: f32) -> Message {
     Message::Settings(message::SettingsMessage::SchedulerMaxConcurrentChanged(value.round() as u32))
 }
 
+fn inline_help_panel(app: &App) -> Option<Element<'static, Message>> {
+    app.scheduler_settings.show_help_modal.then(|| {
+        let close_message = Message::Settings(message::SettingsMessage::SchedulerHelpClose);
+        let close_btn = settings_close_button(close_message);
+        let (copy_icon, copy_tip) =
+            settings_help_copy_state(app.last_copied_code_hash, SCHEDULER_HELP);
+        let copy_btn =
+            icon_btn(copy_icon, copy_tip, Some(Message::CopyCode(SCHEDULER_HELP.to_string())));
+
+        settings_panel(
+            column![
+                row![
+                    text("Scheduler 配置帮助").size(16),
+                    Space::new().width(Length::Fill),
+                    copy_btn,
+                    close_btn
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
+                text(SCHEDULER_HELP).size(13).style(settings_muted_text_style),
+            ]
+            .spacing(12)
+            .width(Length::Fill),
+        )
+        .into()
+    })
+}
+
 /// 构建调度器设置视图
 ///
-/// 该函数创建一个完整的调度器配置界面，包含开关选项、滑块控件和帮助模态框。
+/// 该函数创建一个完整的调度器配置界面，包含开关选项、滑块控件和面板内帮助卡片。
 ///
 /// # 参数
 ///
@@ -77,7 +136,7 @@ fn max_concurrent_changed(value: f32) -> Message {
 /// 4. 并发上限滑块：配置允许并行执行的任务数量
 /// 5. 配置建议提示
 /// 6. 可选的保存错误提示
-/// 7. 可选的帮助模态对话框
+/// 7. 可选的帮助卡片
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.scheduler_settings;
     let help_btn =
@@ -124,67 +183,29 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let col = column![
+    let mut col = column![
         row![
             container(settings_page_intro("调度配置", "配置内置调度器的开关、吞吐和并发能力。"))
                 .width(Length::Fill),
             help_btn
         ]
         .align_y(Alignment::Start),
-        settings_section_card("执行能力", "控制调度器处理任务的吞吐和并发上限。"),
-        settings_panel(column![enabled_row, max_tasks_row, max_concurrent_row].spacing(0)),
-        hint_row,
     ]
     .spacing(16)
     .width(Length::Fill);
 
+    if let Some(help_panel) = inline_help_panel(app) {
+        col = col.push(help_panel);
+    }
+
+    col = col
+        .push(settings_section_card("执行能力", "控制调度器处理任务的吞吐和并发上限。"))
+        .push(settings_panel(column![enabled_row, max_tasks_row, max_concurrent_row].spacing(0)))
+        .push(hint_row);
+
     col.into()
 }
 
-pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
-    let s = &app.scheduler_settings;
-    if !s.show_help_modal {
-        return dialog;
-    }
-
-    let help_text = r#"调度配置说明
-
-一、作用
-- scheduler 用于控制内置调度器的开关与吞吐上限。
-- 该配置会影响定时任务的拉取数量与并发执行能力。
-
-二、字段含义
-1) enabled
-- 是否启用调度器主循环。
-
-2) max_tasks
-- 单次轮询最多处理的任务数量上限。
-
-3) max_concurrent
-- 单次轮询内允许并行执行的任务数量上限。
-
-三、示例
-{
-  "scheduler": {
-    "enabled": true,
-    "max_tasks": 64,
-    "max_concurrent": 4
-  }
-}
-
-四、建议
-- 若任务执行时间较长，优先增大 max_tasks，不要一次性把 max_concurrent 调太高。
-- 出现资源竞争（CPU/IO）时，适当下调 max_concurrent。
-"#;
-
-    crate::app::components::system_settings_common::with_settings_help_modal(
-        app,
-        dialog,
-        "Scheduler 配置帮助",
-        help_text,
-        Message::Settings(message::SettingsMessage::SchedulerHelpClose),
-    )
-}
 #[cfg(test)]
 #[path = "system_settings_scheduler_tests.rs"]
 mod system_settings_scheduler_tests;

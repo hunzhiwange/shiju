@@ -40,12 +40,17 @@ fn reveal_work_workspace_files(app: &mut App) -> Option<iced::Task<Message>> {
     app.work_chat_fullscreen = false;
     app.work_chat_half_fullscreen = false;
     Some(iced::Task::done(Message::View(
-        crate::app::message::ViewMessage::WorkResourceModeSelected(WorkResourceMode::WorkspaceFiles),
+        crate::app::message::ViewMessage::WorkResourceModeSelected(
+            WorkResourceMode::WorkspaceFiles,
+        ),
     )))
 }
 
 /// 切到文件管理器「更改」页，并展开变更路径上的目录。
-fn ensure_file_manager_changes_expanded(app: &mut App, extra_paths: impl IntoIterator<Item = String>) {
+fn ensure_file_manager_changes_expanded(
+    app: &mut App,
+    extra_paths: impl IntoIterator<Item = String>,
+) {
     app.show_file_manager = true;
     set_config_field("show_file_manager", serde_json::Value::Bool(true));
     if !app.file_manager_show_changes {
@@ -54,10 +59,11 @@ fn ensure_file_manager_changes_expanded(app: &mut App, extra_paths: impl IntoIte
     }
     let mut paths = app.git_changed_files.clone();
     paths.extend(extra_paths);
-    let keys: Vec<String> =
-        crate::app::components::file_tree::change_list_expand_keys(paths.iter().map(String::as_str))
-            .into_iter()
-            .collect();
+    let keys: Vec<String> = crate::app::components::file_tree::change_list_expand_keys(
+        paths.iter().map(String::as_str),
+    )
+    .into_iter()
+    .collect();
     for key in keys {
         app.ensure_file_tree_dir_expanded(key);
     }
@@ -278,19 +284,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     app.ensure_file_tree_dir_expanded(key);
                 }
                 let arr = serde_json::Value::Array(
-                    app.file_tree_expanded
-                        .iter()
-                        .cloned()
-                        .map(serde_json::Value::String)
-                        .collect(),
+                    app.file_tree_expanded.iter().cloned().map(serde_json::Value::String).collect(),
                 );
                 set_config_field("file_tree_expanded", arr);
             }
-            Some(if tasks.is_empty() {
-                iced::Task::none()
-            } else {
-                iced::Task::batch(tasks)
-            })
+            Some(if tasks.is_empty() { iced::Task::none() } else { iced::Task::batch(tasks) })
         }
         ProjectMessage::FileManagerRefreshChanges => {
             if app.git_changed_files_loading || app.file_manager_changes_refreshing {
@@ -335,9 +333,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             app.active_find_results_tab_id = None;
             ensure_file_manager_changes_expanded(app, std::iter::once(path.clone()));
-            tasks.push(iced::Task::done(Message::Git(
-                crate::app::message::GitMessage::FocusFile(path),
-            )));
+            tasks.push(iced::Task::done(Message::Git(crate::app::message::GitMessage::FocusFile(
+                path,
+            ))));
             Some(iced::Task::batch(tasks))
         }
         // 处理将文件树项添加到聊天的事件

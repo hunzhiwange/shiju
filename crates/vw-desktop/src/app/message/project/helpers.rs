@@ -1034,12 +1034,128 @@ pub(crate) fn run_find_task(
     )
 }
 
-/// load_session_messages_task 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
-pub(crate) fn load_session_messages_task(project_path: String, id: String) -> Task<Message> {
-    load_session_messages_task_scoped(Some(project_path), id)
+/// 后台读取 UI Store，并将完整历史和首屏分块合并为一个冷打开结果。
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn load_prepared_session_open_from_ui_store_task(
+    project_path: String,
+    session_id: String,
+    open_generation: u64,
+    show_reasoning_summary: bool,
+) -> Task<Message> {
+    let target_session_id = session_id.clone();
+    let target_project_path = project_path.clone();
+    Task::perform(
+        async move {
+            let mut session =
+                crate::app::session_gateway::gateway_load_session_any_async(&session_id)
+                    .await?
+                    .filter(|session| !session.messages.is_empty())
+                    .ok_or_else(|| "session UI store has no message history".to_string())?;
+
+            let missing_message_model_count =
+                session.messages.iter().filter(|message| message.model.is_none()).count();
+            crate::app::session::backfill_message_models_from_steps(
+                &mut session.messages,
+                &session.steps,
+            );
+            if session.messages.iter().filter(|message| message.model.is_none()).count()
+                < missing_message_model_count
+            {
+                crate::app::session_gateway::gateway_save_session_async(
+                    &session,
+                    Some(&project_path),
+                )
+                .await?;
+            }
+
+            crate::app::message::spawn_blocking_opt(move || {
+                Some(crate::app::session::prepare_session_open_from_ui_store(
+                    session,
+                    show_reasoning_summary,
+                ))
+            })
+            .await
+            .ok_or_else(|| "session UI preparation task did not complete".to_string())
+        },
+        move |result| {
+            Message::Project(ProjectMessage::SessionOpenPrepared {
+                target_session_id,
+                project_path: target_project_path,
+                open_generation,
+                source: super::PreparedSessionOpenSource::UiStore,
+                result,
+            })
+        },
+    )
+}
+
+/// 后台读取远端历史，并在同一后台边界内完成协议转换和首屏 UI 准备。
+pub(crate) fn load_prepared_session_open_from_gateway_task(
+    project_path: String,
+    session_id: String,
+    open_generation: u64,
+    show_reasoning_summary: bool,
+) -> Task<Message> {
+    let target_session_id = session_id.clone();
+    let target_project_path = project_path.clone();
+    Task::perform(
+        async move {
+            tracing::info!(
+                target: "vw_desktop",
+                session_id = %session_id,
+                project_path = %project_path,
+                "loading prepared session history from gateway"
+            );
+            let client = crate::app::gateway_client()?;
+            let messages = client
+                .session_messages::<Vec<agent_message::WithParts>>(&session_id, Some(&project_path))
+                .await?;
+            client
+                .session_get::<vw_shared::session::info::Info>(&session_id, Some(&project_path))
+                .await?;
+
+            crate::app::message::spawn_blocking_opt(move || {
+                let usage = messages.iter().fold(
+                    crate::app::models::TokenUsage::default(),
+                    |mut usage, message| {
+                        if let agent_message::Info::Assistant(assistant) = &message.info {
+                            usage.input_tokens += assistant.tokens.input;
+                            usage.output_tokens += assistant.tokens.output;
+                            usage.cached_tokens +=
+                                assistant.tokens.cache.read + assistant.tokens.cache.write;
+                            usage.reasoning_tokens += assistant.tokens.reasoning;
+                        }
+                        usage
+                    },
+                );
+                let session_model = super::latest_assistant_model_label(&messages);
+                let steps = super::steps_from_gateway_messages(&messages);
+                let (chat, message_ids) = super::loaded_chat_from_gateway_messages(messages);
+                Some(crate::app::session::prepare_session_open(
+                    session_id,
+                    chat,
+                    message_ids,
+                    usage,
+                    steps,
+                    Vec::new(),
+                    0,
+                    session_model,
+                    show_reasoning_summary,
+                ))
+            })
+            .await
+            .ok_or_else(|| "session history preparation task did not complete".to_string())
+        },
+        move |result| {
+            Message::Project(ProjectMessage::SessionOpenPrepared {
+                target_session_id,
+                project_path: target_project_path,
+                open_generation,
+                source: super::PreparedSessionOpenSource::RemoteHistory,
+                result,
+            })
+        },
+    )
 }
 
 /// load_session_messages_task_scoped 处理当前模块对应的消息或状态转换。

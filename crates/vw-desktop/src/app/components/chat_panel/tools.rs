@@ -50,6 +50,7 @@ mod apply_patch_view;
 mod bash_view;
 mod brief_view;
 mod changes;
+mod command_summary_view;
 mod config_view;
 mod diff_utils;
 mod explore_summary_view;
@@ -81,6 +82,8 @@ mod apply_patch_view_tests;
 mod bash_view_tests;
 #[cfg(test)]
 mod brief_view_tests;
+#[cfg(test)]
+mod command_summary_view_tests;
 #[cfg(test)]
 mod diff_utils_tests;
 #[cfg(test)]
@@ -128,6 +131,7 @@ pub use advanced_view::tool_advanced_view;
 pub use apply_patch_view::tool_apply_patch_view;
 pub use bash_view::tool_bash_view;
 pub use brief_view::tool_brief_view;
+pub(crate) use command_summary_view::{is_command_tool, tool_command_summary_view};
 pub use config_view::tool_config_view;
 pub(crate) use diff_utils::{extract_diff_block, file_preview};
 #[cfg(test)]
@@ -163,14 +167,14 @@ pub use super::tool_names::canonical_tool_name;
 pub(crate) use mcp_view::{format_mcp_detail_content, is_mcp_tool_raw};
 pub(crate) use tool_meta::tool_inline_summary;
 pub(crate) use tool_meta::tool_verb;
-pub use tool_parse::{
-    ExploreToolKind, explore_tool_kind, is_explore_tool, should_hide_tool_block,
-    tool_call_id_from_raw, tool_identity_from_raw, tool_name_from_raw,
-};
 pub(crate) use tool_parse::{
     AgentToolSessionPayload, AgentToolSessionStatus, agent_tool_session_payloads_from_content,
     explore_item_dedupe_key, tool_error_text, tool_input, tool_output_text, tool_status,
     tool_status_from_raw, tool_structured_diff_text, tool_summary_text,
+};
+pub use tool_parse::{
+    ExploreToolKind, explore_tool_kind, is_explore_tool, should_hide_tool_block,
+    tool_call_id_from_raw, tool_identity_from_raw, tool_name_from_raw,
 };
 pub(crate) use tool_permission::{
     ToolPermissionState, pending_permission_badge_label, pending_permission_request_badge_label,
@@ -181,4 +185,4 @@ pub(crate) use tool_permission::{
 };
 
 // 类型定义重导出
-pub use types::{ChangeFile, ChangeFileSummary, EXPLORE_GROUP_TOOL_IDX, ExploreItem};
+pub use types::{ChangeFile, ChangeFileSummary, CommandItem, EXPLORE_GROUP_TOOL_IDX, ExploreItem};

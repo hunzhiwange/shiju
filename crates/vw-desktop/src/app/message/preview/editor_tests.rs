@@ -362,10 +362,7 @@ fn preview_context_menu_request_preserves_selection_and_clears_lsp_overlay() {
     app.preview_context_target = Some((path.clone(), 1, 1, 2, 3));
     app.lsp_overlay_path = Some(path.clone());
     app.lsp_overlay.show_hover("hover".to_string());
-    app.lsp_overlay.set_completions(
-        vec!["completion".to_string()],
-        iced::Point::new(55.0, 1.0),
-    );
+    app.lsp_overlay.set_completions(vec!["completion".to_string()], iced::Point::new(55.0, 1.0));
 
     let _ = update(
         &mut app,
@@ -385,8 +382,7 @@ fn preview_context_menu_request_preserves_selection_and_clears_lsp_overlay() {
             iced::Point::new(10_000.0, second_line_y),
         )),
     );
-    let Some((_, start_line, start_col, end_line, end_col)) =
-        app.preview_context_target.as_ref()
+    let Some((_, start_line, start_col, end_line, end_col)) = app.preview_context_target.as_ref()
     else {
         panic!("right-click outside the selection should move the context target");
     };
@@ -396,10 +392,8 @@ fn preview_context_menu_request_preserves_selection_and_clears_lsp_overlay() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn preview_context_menu_reveal_rejects_missing_file_without_spawning() {
-    let missing = std::env::temp_dir().join(format!(
-        "vibe-window-missing-reveal-{}",
-        std::process::id()
-    ));
+    let missing =
+        std::env::temp_dir().join(format!("vibe-window-missing-reveal-{}", std::process::id()));
 
     let error = super::reveal_in_file_manager(&missing.to_string_lossy())
         .expect_err("missing paths must not be sent to the file manager");
@@ -438,10 +432,7 @@ fn enter_uses_editor_modified_state_for_dirty_and_autosave() {
     app.preview_tabs = vec![tab(&path, "first")];
     app.preview_auto_save_mode = PreviewAutoSaveMode::AfterDelay;
 
-    let _ = update(
-        &mut app,
-        PreviewMessage::EditorEvent(iced_code_editor::Message::Enter),
-    );
+    let _ = update(&mut app, PreviewMessage::EditorEvent(iced_code_editor::Message::Enter));
 
     assert!(app.preview_tabs[0].editor.inner.is_modified());
     assert!(app.preview_tabs[0].is_dirty);

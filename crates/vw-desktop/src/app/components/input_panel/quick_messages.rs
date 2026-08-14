@@ -223,8 +223,7 @@ fn shiju_trigger_label(state: &LoadState<Vec<InstalledSkill>>) -> String {
 }
 
 fn shiju_version_hint(status: &ShijuPackageStatus) -> ShijuVersionHint {
-    let local_version =
-        status.local_version.clone().unwrap_or_else(|| "未安装".to_string());
+    let local_version = status.local_version.clone().unwrap_or_else(|| "未安装".to_string());
     let server_version = match (&status.server_version, status.refresh) {
         (Some(version), ShijuPackageRefreshState::Failed) => {
             format!("{version}（上次检测）")
@@ -246,9 +245,7 @@ fn shiju_version_hint(status: &ShijuPackageStatus) -> ShijuVersionHint {
             "正在检测服务端版本…"
         }
         ShijuPackageRefreshState::Refreshing { .. } => "正在刷新服务端版本…",
-        ShijuPackageRefreshState::Failed if upgrade_enabled => {
-            "刷新失败，建议按上次结果前往处理"
-        }
+        ShijuPackageRefreshState::Failed if upgrade_enabled => "刷新失败，建议按上次结果前往处理",
         ShijuPackageRefreshState::Failed => "刷新失败，服务端版本为上次检测结果",
         ShijuPackageRefreshState::Idle | ShijuPackageRefreshState::Fresh
             if status.local_version.is_none() =>
@@ -260,9 +257,7 @@ fn shiju_version_hint(status: &ShijuPackageStatus) -> ShijuVersionHint {
         {
             "暂未获取服务端版本"
         }
-        ShijuPackageRefreshState::Idle | ShijuPackageRefreshState::Fresh
-            if !upgrade_enabled =>
-        {
+        ShijuPackageRefreshState::Idle | ShijuPackageRefreshState::Fresh if !upgrade_enabled => {
             "当前版本已是最新"
         }
         ShijuPackageRefreshState::Idle | ShijuPackageRefreshState::Fresh => {
@@ -270,12 +265,7 @@ fn shiju_version_hint(status: &ShijuPackageStatus) -> ShijuVersionHint {
         }
     };
 
-    ShijuVersionHint {
-        local_version,
-        server_version,
-        detail: detail.to_string(),
-        upgrade_enabled,
-    }
+    ShijuVersionHint { local_version, server_version, detail: detail.to_string(), upgrade_enabled }
 }
 
 fn shiju_trigger_tooltip(status: &ShijuPackageStatus) -> Element<'static, Message> {
@@ -283,14 +273,8 @@ fn shiju_trigger_tooltip(status: &ShijuPackageStatus) -> Element<'static, Messag
     container(
         column![
             text("识矩技能版本").size(12),
-            row![
-                text("本地版本：").size(12),
-                text(hint.local_version).size(12),
-            ],
-            row![
-                text("服务端版本：").size(12),
-                text(hint.server_version).size(12),
-            ],
+            row![text("本地版本：").size(12), text(hint.local_version).size(12),],
+            row![text("服务端版本：").size(12), text(hint.server_version).size(12),],
             text(hint.detail).size(12),
         ]
         .spacing(5),
@@ -329,8 +313,7 @@ fn shiju_refresh_action(state: &LoadState<Vec<InstalledSkill>>) -> ShijuRefreshA
 }
 
 fn shiju_menu_rows(app: &App) -> Vec<ShijuMenuRow<'_>> {
-    let selector =
-        app.current_session_runtime_ref().map(|runtime| &runtime.tool_selector);
+    let selector = app.current_session_runtime_ref().map(|runtime| &runtime.tool_selector);
     let LoadState::Loaded(skills) = &app.expert_hub.installed else {
         return Vec::new();
     };
@@ -365,19 +348,14 @@ fn shiju_tooltip(row: &ShijuMenuRow<'_>) -> Element<'static, Message> {
 fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     let refresh_action = shiju_refresh_action(&app.expert_hub.installed);
     let refresh_button = button(
-        row![
-            super::icons::icon_svg(Icon::ArrowRepeat, 13.0),
-            text(refresh_action.label).size(12),
-        ]
-        .spacing(8)
-        .align_y(iced::Alignment::Center),
+        row![super::icons::icon_svg(Icon::ArrowRepeat, 13.0), text(refresh_action.label).size(12),]
+            .spacing(8)
+            .align_y(iced::Alignment::Center),
     )
     .on_press_maybe(refresh_action.enabled.then(shiju_refresh_message))
     .padding([8, 10])
     .width(Length::Fill)
-    .style(|theme: &Theme, status| {
-        styles::shiju_skill_button_style(theme, status, false)
-    });
+    .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false));
     let upgrade_enabled = shiju_version_hint(&app.expert_hub.package_status).upgrade_enabled;
     let upgrade_button = button(text("前往识矩技能升级").size(12))
         .on_press_maybe(upgrade_enabled.then(shiju_upgrade_message))
@@ -393,11 +371,9 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
 
     if status != ShijuMenuStatus::Loaded {
         items = items.push(
-            container(text(shiju_menu_status_text(status)).size(12).style(
-                |theme: &Theme| iced::widget::text::Style {
-                    color: Some(theme.palette().text.scale_alpha(0.66)),
-                },
-            ))
+            container(text(shiju_menu_status_text(status)).size(12).style(|theme: &Theme| {
+                iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.66)) }
+            }))
             .padding([9, 10]),
         );
     }
@@ -436,11 +412,7 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     let items =
         scrollable(items).height(menu_height(item_count)).direction(Direction::Vertical(scrollbar));
 
-    container(
-        column![upgrade_button, refresh_button, items]
-            .spacing(3)
-            .width(Length::Fill),
-    )
+    container(column![upgrade_button, refresh_button, items].spacing(3).width(Length::Fill))
         .padding(6)
         .width(Length::Fixed(300.0))
         .style(styles::quick_message_menu_style)
@@ -591,20 +563,21 @@ fn workspace_menu(app: &App) -> Element<'_, Message> {
         .as_deref()
         .map(|path| workspace_label(app, path))
         .unwrap_or_else(|| "选择空间".to_string());
-    let trigger = button(
-        row![
-            super::icons::icon_svg(Icon::FolderOpen, 13.0),
-            text(label).size(12),
-            dropdown_icon(),
-        ]
-        .spacing(5)
-        .align_y(iced::Alignment::Center),
-    )
-    .on_press(Message::View(message::ViewMessage::WorkSpacePickerToggled))
-    .padding([6, 10])
-    .style(move |theme: &Theme, status| {
-        styles::quick_message_group_button_style(theme, status, active)
-    });
+    let trigger =
+        button(
+            row![
+                super::icons::icon_svg(Icon::FolderOpen, 13.0),
+                text(label).size(12),
+                dropdown_icon(),
+            ]
+            .spacing(5)
+            .align_y(iced::Alignment::Center),
+        )
+        .on_press(Message::View(message::ViewMessage::WorkSpacePickerToggled))
+        .padding([6, 10])
+        .style(move |theme: &Theme, status| {
+            styles::quick_message_group_button_style(theme, status, active)
+        });
 
     AboveOverlay::new(trigger, workspace_menu_view(app))
         .show(active)

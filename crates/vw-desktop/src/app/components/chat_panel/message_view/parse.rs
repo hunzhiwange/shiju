@@ -82,9 +82,9 @@ fn is_think_tag_remainder(remainder: &str) -> bool {
     if remainder.is_empty() || remainder.chars().next().is_some_and(char::is_whitespace) {
         return true;
     }
-    remainder
-        .strip_prefix("ing")
-        .is_some_and(|after| after.is_empty() || after.chars().next().is_some_and(char::is_whitespace))
+    remainder.strip_prefix("ing").is_some_and(|after| {
+        after.is_empty() || after.chars().next().is_some_and(char::is_whitespace)
+    })
 }
 
 /// 查找思考块的开始标签
@@ -362,10 +362,7 @@ fn parse_blocks(raw: &str) -> Vec<RenderBlock<'_>> {
                 };
                 rest = &rest[marker_len..];
                 if let Some(tool_start) = find_tool_start(rest) {
-                    out.push(RenderBlock::Think {
-                        content: &rest[..tool_start],
-                        open: false,
-                    });
+                    out.push(RenderBlock::Think { content: &rest[..tool_start], open: false });
                     push_tool_and_text_blocks(&mut out, &rest[tool_start..]);
                 } else {
                     out.push(RenderBlock::Think { content: rest, open: false });

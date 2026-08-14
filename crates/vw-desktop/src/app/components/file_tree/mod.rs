@@ -318,12 +318,11 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
 
     // 组装完整的文件管理器界面
     // 布局顺序：模式栏 -> 搜索结果标签页 -> 内容区域
-    let base: Element<'_, Message> =
-        column![header, results_tabs, content]
-            .spacing(2)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into();
+    let base: Element<'_, Message> = column![header, results_tabs, content]
+        .spacing(2)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
 
     base
 }

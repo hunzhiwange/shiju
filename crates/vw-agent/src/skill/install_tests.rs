@@ -241,8 +241,8 @@ fn local_install_rejects_missing_file_source_and_bad_destination_copy() {
     let skills_path = dir.path().join("skills");
     std::fs::create_dir_all(&skills_path).unwrap();
 
-    let missing =
-        install_local_skill_source("does-not-exist", &skills_path, &default_security()).unwrap_err();
+    let missing = install_local_skill_source("does-not-exist", &skills_path, &default_security())
+        .unwrap_err();
     assert!(missing.to_string().contains("Source path does not exist"));
 
     let source_file = dir.path().join("not-a-directory");
@@ -273,11 +273,9 @@ fn local_install_rejects_failed_security_audit_without_creating_destination() {
     std::fs::create_dir_all(&skills_path).unwrap();
     std::fs::write(source.join("README.md"), "missing required skill manifest").unwrap();
 
-    let require_manifest =
-        SkillSecurityConfig { require_manifest: true, ..Default::default() };
-    let err =
-        install_local_skill_source(source.to_str().unwrap(), &skills_path, &require_manifest)
-            .unwrap_err();
+    let require_manifest = SkillSecurityConfig { require_manifest: true, ..Default::default() };
+    let err = install_local_skill_source(source.to_str().unwrap(), &skills_path, &require_manifest)
+        .unwrap_err();
 
     assert!(err.to_string().contains("Skill security audit failed"));
     assert!(!skills_path.join("unsafe-skill").exists());
@@ -390,12 +388,9 @@ fn git_install_clones_local_repo_removes_metadata_and_audits() {
 fn skills_sh_install_rejects_malformed_source_before_checkout() {
     let dir = tempfile::tempdir().expect("temp dir");
 
-    let err = install_skills_sh_source(
-        "https://skills.sh/owner/repo",
-        dir.path(),
-        &default_security(),
-    )
-    .unwrap_err();
+    let err =
+        install_skills_sh_source("https://skills.sh/owner/repo", dir.path(), &default_security())
+            .unwrap_err();
 
     assert!(err.to_string().contains("invalid skills.sh source"));
     assert!(dir.path().read_dir().unwrap().next().is_none());

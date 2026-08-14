@@ -7,7 +7,8 @@ use super::artifacts;
 use super::context_governance;
 use super::helpers::{
     allowed_tool_ids_for_request_from_specs, delegated_tool_policy_resolution_from_specs,
-    is_acp_request, response_preview, tool_call_preview, trusted_user_selected_tool_ids_from_options,
+    is_acp_request, response_preview, tool_call_preview,
+    trusted_user_selected_tool_ids_from_options,
 };
 use super::llm_messages;
 use super::llm_runner;
@@ -357,12 +358,9 @@ fn delegated_skill_policy_resolution(
     skills: &[crate::app::agent::skills::Skill],
     options: &Value,
 ) -> Option<crate::session::capability_policy::CapabilityPolicyResolution> {
-    let policy = options
-        .get("delegate_skill_policy")
-        .cloned()
-        .and_then(|value| {
-            serde_json::from_value::<vw_config_types::agent::DelegateCapabilityPolicy>(value).ok()
-        })?;
+    let policy = options.get("delegate_skill_policy").cloned().and_then(|value| {
+        serde_json::from_value::<vw_config_types::agent::DelegateCapabilityPolicy>(value).ok()
+    })?;
     Some(crate::session::capability_policy::resolve_skill_capabilities(
         skills.iter().map(|skill| skill.name.as_str()),
         option_string_values(options, "delegate_default_allowed_skills"),
@@ -395,11 +393,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     let model_selected_by_auto = !is_acp && is_auto_model_request(req.model.as_deref());
     let app_session_scope = req.app_session_scope.as_deref();
 
-    let agent_key = req
-        .options
-        .get("agent")
-        .and_then(Value::as_str)
-        .map(ToOwned::to_owned);
+    let agent_key = req.options.get("agent").and_then(Value::as_str).map(ToOwned::to_owned);
     let config = prompt::block_on(config::get());
     let selected_model = match resolve_request_model(&req, &config) {
         Ok(model) => model,
@@ -431,14 +425,14 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     .with_auto_model_selection(model_selected_by_auto);
     let trusted_user_selected_tools = trusted_user_selected_tool_ids_from_options(&req.options);
     if !trusted_user_selected_tools.is_empty() {
-        tool_use_context = tool_use_context.with_trusted_user_selected_tools(trusted_user_selected_tools);
+        tool_use_context =
+            tool_use_context.with_trusted_user_selected_tools(trusted_user_selected_tools);
     }
-    let trusted_user_selected_skills = option_string_values(
-        &req.options,
-        "delegate_trusted_user_selected_skills",
-    );
+    let trusted_user_selected_skills =
+        option_string_values(&req.options, "delegate_trusted_user_selected_skills");
     if !trusted_user_selected_skills.is_empty() {
-        tool_use_context = tool_use_context.with_trusted_user_selected_skills(trusted_user_selected_skills);
+        tool_use_context =
+            tool_use_context.with_trusted_user_selected_skills(trusted_user_selected_skills);
     }
     if let Some(policy) = req
         .options
@@ -537,9 +531,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     );
     if crate::app::agent::tools::skill::user_explicitly_requests_skill_use(&req.query) {
         explicitly_requested_skills.extend(
-            crate::app::agent::tools::skill::user_invocable_skill_names(
-                &session_protocol.skills,
-            ),
+            crate::app::agent::tools::skill::user_invocable_skill_names(&session_protocol.skills),
         );
     }
     let tool_use_context = ctx
@@ -557,15 +549,16 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     let allowed_tools = tool_policy_resolution
         .as_ref()
         .map(|resolution| resolution.visible_ids.iter().cloned().collect())
-        .unwrap_or_else(|| allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options));
+        .unwrap_or_else(|| {
+            allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options)
+        });
     let default_tool_ids = tool_policy_resolution
         .as_ref()
         .map(|resolution| resolution.default_injected_ids.iter().cloned().collect::<Vec<_>>())
         .unwrap_or_default();
     if is_acp {
-        req.options["acp_allowed_tools"] = serde_json::json!(
-            allowed_tools.iter().cloned().collect::<Vec<_>>()
-        );
+        req.options["acp_allowed_tools"] =
+            serde_json::json!(allowed_tools.iter().cloned().collect::<Vec<_>>());
     }
     if !base_system.visible_instruction_paths.is_empty()
         && !on_event(StreamEvent::ContextLoaded {
@@ -728,7 +721,11 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 ));
                 return;
             }
-            match compact_transient_history_for_request(&req.session, &mut llm_messages, &selected_model.model) {
+            match compact_transient_history_for_request(
+                &req.session,
+                &mut llm_messages,
+                &selected_model.model,
+            ) {
                 Ok(true) => {
                     internal_compaction_attempted = true;
                     continue;
@@ -778,7 +775,8 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 output
             }
             Err(message) => {
-                if llm_runner::is_prompt_too_long_error(&message) && !internal_compaction_attempted {
+                if llm_runner::is_prompt_too_long_error(&message) && !internal_compaction_attempted
+                {
                     match compact_transient_history_for_request(
                         &req.session,
                         &mut llm_messages,

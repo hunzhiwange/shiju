@@ -12,8 +12,8 @@ use vw_api_types::id::TenantScope;
 use crate::app::agent::tools::Tool;
 use crate::permission::next as permission_next;
 use crate::session::processor::ToolEvent;
-use crate::session::{message, session};
 use crate::session::ui_types::TokenUsage;
+use crate::session::{message, session};
 
 /// 只属于单个原生会话的运行时工具集合。
 #[derive(Clone, Default)]
@@ -58,10 +58,7 @@ pub struct SessionScope {
 
 impl SessionScope {
     /// 从租户和现有绝对目录构造作用域，并保存目录的规范化形式。
-    pub fn new(
-        tenant: TenantScope,
-        directory: impl AsRef<Path>,
-    ) -> Result<Self, LifecycleError> {
+    pub fn new(tenant: TenantScope, directory: impl AsRef<Path>) -> Result<Self, LifecycleError> {
         let directory = directory.as_ref().to_path_buf();
         if !directory.is_absolute() {
             return Err(LifecycleError::DirectoryMustBeAbsolute { directory });

@@ -84,18 +84,12 @@ impl ConnectionState {
         if self.active_prompts.contains_key(session_id) {
             return false;
         }
-        self.active_prompts.insert(
-            session_id.to_string(),
-            ActivePrompt { cancel: None, cancel_requested: false },
-        );
+        self.active_prompts
+            .insert(session_id.to_string(), ActivePrompt { cancel: None, cancel_requested: false });
         true
     }
 
-    pub(crate) fn attach_cancel(
-        &mut self,
-        session_id: &str,
-        cancel: Arc<dyn BackendCancelHandle>,
-    ) {
+    pub(crate) fn attach_cancel(&mut self, session_id: &str, cancel: Arc<dyn BackendCancelHandle>) {
         let Some(active) = self.active_prompts.get_mut(session_id) else {
             return;
         };

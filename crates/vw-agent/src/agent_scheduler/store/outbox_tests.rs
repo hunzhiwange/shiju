@@ -10,8 +10,8 @@ use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 use super::domain::AgentSchedulerContext;
-use super::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use super::store::outbox::{EnqueueOutboxMessageRequest, OutboxMessageStatus, StoredOutboxMessage};
+use super::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
 use crate::project::store::ProjectStore;
@@ -432,13 +432,31 @@ fn outbox_store_reports_invalid_stored_rows_when_loading_by_idempotency_key() ->
 
     store.initialize_project(project_path)?;
     insert_raw_outbox_message(
-        &store, project_path, "bad-status", "unknown", "bad-status-key", 0, "{}",
+        &store,
+        project_path,
+        "bad-status",
+        "unknown",
+        "bad-status-key",
+        0,
+        "{}",
     )?;
     insert_raw_outbox_message(
-        &store, project_path, "bad-attempts", "pending", "bad-attempts-key", -1, "{}",
+        &store,
+        project_path,
+        "bad-attempts",
+        "pending",
+        "bad-attempts-key",
+        -1,
+        "{}",
     )?;
     insert_raw_outbox_message(
-        &store, project_path, "bad-payload", "pending", "bad-payload-key", 0, "{",
+        &store,
+        project_path,
+        "bad-payload",
+        "pending",
+        "bad-payload-key",
+        0,
+        "{",
     )?;
 
     assert_error_contains(

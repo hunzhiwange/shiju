@@ -8,6 +8,36 @@ use crate::app::{App, Message};
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text_editor;
+use serde_json::Map;
+
+fn command_block(name: &str, call_id: &str, command: &str) -> ParsedChatBlock {
+    ParsedChatBlock::Tool {
+        raw: format!(
+            "tool {name}\n{{\"tool_call_id\":\"{call_id}\",\"input\":\"{command}\",\"status\":\"completed\"}}"
+        ),
+    }
+}
+
+fn rendered_top_level_count(
+    app: &App,
+    blocks: Vec<ParsedChatBlock>,
+    special_text_blocks: Vec<String>,
+    think_timing: &[ThinkTiming],
+) -> usize {
+    let body = render_assistant_body(
+        app,
+        0,
+        think_timing,
+        special_text_blocks,
+        String::new(),
+        blocks,
+        true,
+        false,
+        "",
+    );
+    let element: Element<'_, Message> = body.into();
+    Tree::new(element.as_widget()).children.len()
+}
 
 #[test]
 fn pending_permission_highlight_matches_active_request_or_direct_target() {
@@ -253,6 +283,83 @@ fn render_assistant_body_groups_explore_tools_before_visible_text() {
     );
 
     std::hint::black_box(body);
+}
+
+#[test]
+fn render_assistant_body_groups_adjacent_commands_into_one_top_level_summary() {
+    let app = App::new().0;
+    let blocks = vec![
+        command_block("bash", "call-1", "printf first"),
+        command_block("shell", "call-2", "printf 中文"),
+    ];
+
+    assert_eq!(rendered_top_level_count(&app, blocks, Vec::new(), &[]), 1);
+}
+
+#[test]
+fn render_assistant_body_flushes_command_groups_at_visible_boundaries() {
+    let app = App::new().0;
+
+    let text_blocks = vec![
+        command_block("bash", "call-1", "first"),
+        ParsedChatBlock::Text { content: "正文边界".to_string() },
+        command_block("terminal", "call-2", "second"),
+    ];
+    assert_eq!(rendered_top_level_count(&app, text_blocks, vec!["正文边界".to_string()], &[]), 3);
+
+    let other_tool_blocks = vec![
+        command_block("bash", "call-1", "first"),
+        ParsedChatBlock::Tool {
+            raw: "tool image_info\n{\"input\":\"image.png\",\"status\":\"completed\"}".to_string(),
+        },
+        command_block("execute", "call-2", "second"),
+    ];
+    assert_eq!(rendered_top_level_count(&app, other_tool_blocks, Vec::new(), &[]), 3);
+
+    let explore_blocks = vec![
+        command_block("bash", "call-1", "first"),
+        ParsedChatBlock::Tool {
+            raw:
+                "tool grep\n{\"input\":\"{\\\"pattern\\\":\\\"App\\\"}\",\"status\":\"completed\"}"
+                    .to_string(),
+        },
+        command_block("bash", "call-2", "second"),
+    ];
+    assert_eq!(rendered_top_level_count(&app, explore_blocks, Vec::new(), &[]), 3);
+
+    let think_blocks = vec![
+        command_block("bash", "call-1", "first"),
+        ParsedChatBlock::Think { content: "思考边界".to_string(), open: false },
+        command_block("bash", "call-2", "second"),
+    ];
+    assert!(rendered_top_level_count(&app, think_blocks, Vec::new(), &[]) >= 2);
+}
+
+#[test]
+fn render_assistant_body_keeps_pending_command_outside_summary_group() {
+    let mut app = App::new().0;
+    app.chat_message_ids = vec![Some("msg-1".to_string())];
+    let request = vw_gateway_client::PendingPermissionRequestDto {
+        id: "req-1".to_string(),
+        session_id: "session-1".to_string(),
+        permission: "tool".to_string(),
+        patterns: vec![],
+        metadata: Map::new(),
+        always: vec![],
+        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+            message_id: "msg-1".to_string(),
+            call_id: "call-2".to_string(),
+        }),
+    };
+    app.permission_modal_request_id = Some(request.id.clone());
+    app.permission_modal_request = Some(request.clone());
+    app.permission_modal_requests = vec![request];
+    let blocks = vec![
+        command_block("bash", "call-1", "safe"),
+        command_block("bash", "call-2", "requires approval"),
+    ];
+
+    assert_eq!(rendered_top_level_count(&app, blocks, Vec::new(), &[]), 2);
 }
 
 #[test]

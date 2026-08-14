@@ -139,7 +139,7 @@ pub fn with_settings_help_modal<'a>(
     settings_modal_overlay(Some(base), close_message, card)
 }
 
-pub(super) fn settings_help_copy_state(
+pub fn settings_help_copy_state(
     last_copied_code_hash: Option<u64>,
     help_text: &str,
 ) -> (Icon, &'static str) {

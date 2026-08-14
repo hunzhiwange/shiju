@@ -20,7 +20,7 @@ mod tests {
     use crate::agent_scheduler::store::workers::{AgentCapabilityRecord, NewAgentWorkerSnapshot};
     use crate::app::agent::config::schema::{
         DiscordConfig, FeishuConfig, FeishuInstanceConfig, LarkConfig, LarkReceiveMode,
-        MattermostConfig, MatrixConfig, SlackConfig, WebhookConfig,
+        MatrixConfig, MattermostConfig, SlackConfig, WebhookConfig,
     };
     use tempfile::TempDir;
     use vw_api_types::common::TimestampMs;
@@ -722,10 +722,7 @@ mod tests {
         let store = AgentSchedulerStore::new();
         let context = matrix_worker_scheduler_context(&config).await.unwrap();
         store
-            .upsert_worker_snapshot(
-                &context,
-                matrix_worker_snapshot("matrix-dev", Some("Running")),
-            )
+            .upsert_worker_snapshot(&context, matrix_worker_snapshot("matrix-dev", Some("Running")))
             .unwrap();
 
         let components = configured_matrix_worker_components(&config).await.unwrap();
@@ -755,10 +752,7 @@ mod tests {
         let store = AgentSchedulerStore::new();
         let context = matrix_worker_scheduler_context(&config).await.unwrap();
         store
-            .upsert_worker_snapshot(
-                &context,
-                matrix_worker_snapshot("matrix-dev", Some("Stopped")),
-            )
+            .upsert_worker_snapshot(&context, matrix_worker_snapshot("matrix-dev", Some("Stopped")))
             .unwrap();
 
         let components = configured_matrix_worker_components(&config).await.unwrap();

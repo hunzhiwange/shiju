@@ -1,7 +1,7 @@
 use super::SkillHubMessage;
 use super::skill_hub::{
-    agent_install_text, dispatch_download_with, dispatch_shiju_download_with,
-    open_shiju_install_dir_with, write_shiju_download_chunks, ShijuDownloadChunk,
+    ShijuDownloadChunk, agent_install_text, dispatch_download_with, dispatch_shiju_download_with,
+    open_shiju_install_dir_with, write_shiju_download_chunks,
 };
 use crate::app::account::{
     AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount,
@@ -154,17 +154,16 @@ fn business_skill_version_actions_use_server_upgrade_flag_and_immutable_version_
     assert!(app.expert_hub.action.is_none());
     assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Info));
     let cache_sync_generation = match app.expert_hub.cache_sync {
-        SkillCacheSyncState::Syncing { generation, skill_id: 7, refresh_detail: true } => generation,
+        SkillCacheSyncState::Syncing { generation, skill_id: 7, refresh_detail: true } => {
+            generation
+        }
         ref state => panic!("unexpected cache sync state: {state:?}"),
     };
     let refresh = app.update(Message::SkillHub(SkillHubMessage::SkillCacheSyncFinished {
         generation: cache_sync_generation,
         account_id,
         skill_id: 7,
-        result: Ok(SkillCacheSyncReport {
-            fetch_exit_code: 0,
-            rebuild_exit_code: 0,
-        }),
+        result: Ok(SkillCacheSyncReport { fetch_exit_code: 0, rebuild_exit_code: 0 }),
     }));
     assert!(refresh.units() >= 4, "toast plus three scoped refreshes");
     assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
@@ -338,10 +337,7 @@ fn version_switch_preserves_server_success_when_cache_sync_fails() {
 
     let retry = app.update(Message::SkillHub(SkillHubMessage::RetrySkillCacheSync));
     assert_eq!(retry.units(), 2);
-    assert!(matches!(
-        app.expert_hub.cache_sync,
-        SkillCacheSyncState::Syncing { skill_id: 7, .. }
-    ));
+    assert!(matches!(app.expert_hub.cache_sync, SkillCacheSyncState::Syncing { skill_id: 7, .. }));
 }
 
 #[test]
@@ -571,8 +567,7 @@ fn refresh_installed_skills_forces_latest_request_without_switching_tab() {
         LoadState::Loaded(ref items) if items.is_empty()
     ));
 
-    let refresh_task =
-        app.update(Message::SkillHub(SkillHubMessage::RefreshInstalledSkills));
+    let refresh_task = app.update(Message::SkillHub(SkillHubMessage::RefreshInstalledSkills));
     let refresh_generation = app.expert_hub.installed_request_generation;
 
     assert_eq!(refresh_task.units(), 1);
@@ -687,10 +682,10 @@ fn skill_version(skill_id: u64) -> SkillVersion {
         checksum: "sha256:test".to_string(),
         content_type: "application/zip".to_string(),
         download_expires_at: 1_800_000_000,
-        download_url: Some(SkillDownloadUrl::parse(
-            "https://skill.shiju.cloud/download?signature=sensitive",
-        )
-        .unwrap()),
+        download_url: Some(
+            SkillDownloadUrl::parse("https://skill.shiju.cloud/download?signature=sensitive")
+                .unwrap(),
+        ),
         created_at: "2026-07-28T00:00:00Z".to_string(),
         updated_at: "2026-07-28T00:00:00Z".to_string(),
     }
@@ -763,10 +758,7 @@ fn skill_detail_install_uninstall_and_download_complete_user_flow() {
         generation: cache_sync_generation,
         account_id: account_id.clone(),
         skill_id: 7,
-        result: Ok(SkillCacheSyncReport {
-            fetch_exit_code: 0,
-            rebuild_exit_code: 0,
-        }),
+        result: Ok(SkillCacheSyncReport { fetch_exit_code: 0, rebuild_exit_code: 0 }),
     }));
     assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
     assert!(matches!(app.expert_hub.marketplace, LoadState::Loading { .. }));
@@ -912,8 +904,7 @@ fn project_scope_requires_open_project() {
 fn project_scope_uses_selected_install_project_and_can_switch_projects() {
     let (mut app, _) = App::new();
     app.expert_hub.install_guide.open = true;
-    app.recent_projects =
-        vec!["/repo/first".to_string(), "/repo/second".to_string()];
+    app.recent_projects = vec!["/repo/first".to_string(), "/repo/second".to_string()];
     app.expert_hub.install_guide.selected_project_path = Some("/repo/first".to_string());
 
     let _ = app.update(Message::SkillHub(SkillHubMessage::SelectShijuInstallScope(
@@ -1117,8 +1108,7 @@ fn uninstall_and_sync_use_selected_installations() {
         .collect();
     let (mut app, _) = App::new();
     app.account.replace_repository(repository_with_account("account-secret", "company-1"));
-    app.expert_hub.account_id =
-        Some(app.account.active_account().unwrap().id().to_string());
+    app.expert_hub.account_id = Some(app.account.active_account().unwrap().id().to_string());
     app.expert_hub.install_guide.open = true;
     app.expert_hub.install_guide.selected_targets =
         vec![SkillInstallTarget::AgentSkills, SkillInstallTarget::ClaudeCode];
@@ -1146,11 +1136,12 @@ fn uninstall_and_sync_use_selected_installations() {
         result: Ok(ShijuUninstallReport { targets: uninstall_targets }),
     }));
     assert_eq!(app.expert_hub.install_guide.installed_selection_count(), 0);
-    assert!(app
-        .expert_hub
-        .install_guide
-        .installation(SkillInstallScope::Global, SkillInstallTarget::Cursor)
-        .is_some());
+    assert!(
+        app.expert_hub
+            .install_guide
+            .installation(SkillInstallScope::Global, SkillInstallTarget::Cursor)
+            .is_some()
+    );
 
     app.expert_hub.install_guide.selected_targets = vec![SkillInstallTarget::Cursor];
     let _ = app.update(Message::SkillHub(SkillHubMessage::SyncShijuKey));

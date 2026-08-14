@@ -9,10 +9,7 @@ use crate::agent::loop_::approval::NonCliApprovalPrompt;
 use crate::app::agent::approval::{ApprovalManager, ApprovalResponse};
 use crate::app::agent::config::AutonomyConfig;
 
-fn pending_prompt(
-    manager: &ApprovalManager,
-    arguments: serde_json::Value,
-) -> NonCliApprovalPrompt {
+fn pending_prompt(manager: &ApprovalManager, arguments: serde_json::Value) -> NonCliApprovalPrompt {
     let request = manager.create_non_cli_pending_request(
         "shell",
         "session-1",
@@ -34,10 +31,7 @@ fn pending_prompt(
     }
 }
 
-async fn wait_for_resolution(
-    manager: &ApprovalManager,
-    request_id: &str,
-) -> ApprovalResponse {
+async fn wait_for_resolution(manager: &ApprovalManager, request_id: &str) -> ApprovalResponse {
     for _ in 0..20 {
         if let Some(decision) = manager.take_non_cli_pending_resolution(request_id) {
             return decision;
@@ -55,12 +49,8 @@ async fn approval_prompt_maps_to_single_acp_permission_request() {
     let (prompt_tx, prompt_rx) = tokio::sync::mpsc::unbounded_channel();
     let (permission_tx, mut permission_rx) = tokio::sync::mpsc::unbounded_channel();
     let cancellation = CancellationToken::new();
-    let bridge = ApprovalBridge::new(
-        Arc::clone(&manager),
-        prompt_rx,
-        permission_tx,
-        cancellation.clone(),
-    );
+    let bridge =
+        ApprovalBridge::new(Arc::clone(&manager), prompt_rx, permission_tx, cancellation.clone());
     let task = tokio::spawn(bridge.run());
 
     prompt_tx.send(prompt).expect("approval prompt");
@@ -85,13 +75,8 @@ async fn approval_response_resolves_matching_native_request() {
     let (permission_tx, mut permission_rx) = tokio::sync::mpsc::unbounded_channel();
     let cancellation = CancellationToken::new();
     let task = tokio::spawn(
-        ApprovalBridge::new(
-            Arc::clone(&manager),
-            prompt_rx,
-            permission_tx,
-            cancellation.clone(),
-        )
-        .run(),
+        ApprovalBridge::new(Arc::clone(&manager), prompt_rx, permission_tx, cancellation.clone())
+            .run(),
     );
 
     prompt_tx.send(prompt).expect("approval prompt");
@@ -112,13 +97,8 @@ async fn denied_for_response(response: Option<String>) {
     let (permission_tx, mut permission_rx) = tokio::sync::mpsc::unbounded_channel();
     let cancellation = CancellationToken::new();
     let task = tokio::spawn(
-        ApprovalBridge::new(
-            Arc::clone(&manager),
-            prompt_rx,
-            permission_tx,
-            cancellation.clone(),
-        )
-        .run(),
+        ApprovalBridge::new(Arc::clone(&manager), prompt_rx, permission_tx, cancellation.clone())
+            .run(),
     );
     prompt_tx.send(prompt).expect("approval prompt");
     permission_rx
@@ -147,13 +127,8 @@ async fn approval_disconnect_cancel_timeout_and_unknown_option_deny() {
     drop(permission_rx);
     let cancellation = CancellationToken::new();
     let task = tokio::spawn(
-        ApprovalBridge::new(
-            Arc::clone(&manager),
-            prompt_rx,
-            permission_tx,
-            cancellation.clone(),
-        )
-        .run(),
+        ApprovalBridge::new(Arc::clone(&manager), prompt_rx, permission_tx, cancellation.clone())
+            .run(),
     );
     prompt_tx.send(prompt).expect("approval prompt");
     assert_eq!(wait_for_resolution(&manager, &request_id).await, ApprovalResponse::No);
@@ -168,14 +143,9 @@ async fn approval_disconnect_cancel_timeout_and_unknown_option_deny() {
     let (permission_tx, mut permission_rx) = tokio::sync::mpsc::unbounded_channel();
     let cancellation = CancellationToken::new();
     let task = tokio::spawn(
-        ApprovalBridge::new(
-            Arc::clone(&manager),
-            prompt_rx,
-            permission_tx,
-            cancellation.clone(),
-        )
-        .with_timeout(Duration::from_secs(1))
-        .run(),
+        ApprovalBridge::new(Arc::clone(&manager), prompt_rx, permission_tx, cancellation.clone())
+            .with_timeout(Duration::from_secs(1))
+            .run(),
     );
     prompt_tx.send(prompt).expect("approval prompt");
     let _request = permission_rx.recv().await.expect("permission request");
@@ -192,13 +162,8 @@ async fn approval_disconnect_cancel_timeout_and_unknown_option_deny() {
     let (permission_tx, mut permission_rx) = tokio::sync::mpsc::unbounded_channel();
     let cancellation = CancellationToken::new();
     let task = tokio::spawn(
-        ApprovalBridge::new(
-            Arc::clone(&manager),
-            prompt_rx,
-            permission_tx,
-            cancellation.clone(),
-        )
-        .run(),
+        ApprovalBridge::new(Arc::clone(&manager), prompt_rx, permission_tx, cancellation.clone())
+            .run(),
     );
     prompt_tx.send(prompt).expect("approval prompt");
     let _request = permission_rx.recv().await.expect("permission request");
@@ -218,13 +183,8 @@ async fn approval_payload_uses_sanitized_tool_context() {
     let (permission_tx, mut permission_rx) = tokio::sync::mpsc::unbounded_channel();
     let cancellation = CancellationToken::new();
     let task = tokio::spawn(
-        ApprovalBridge::new(
-            Arc::clone(&manager),
-            prompt_rx,
-            permission_tx,
-            cancellation.clone(),
-        )
-        .run(),
+        ApprovalBridge::new(Arc::clone(&manager), prompt_rx, permission_tx, cancellation.clone())
+            .run(),
     );
 
     prompt_tx.send(prompt).expect("approval prompt");

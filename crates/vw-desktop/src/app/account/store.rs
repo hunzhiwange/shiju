@@ -85,13 +85,7 @@ impl AccountRepository {
     ) -> String {
         let (identity, profile, skey) = verified.into_parts();
         let id = account_id(&skey);
-        let updated = StoredAccount {
-            id: id.clone(),
-            identity,
-            profile,
-            origin,
-            skey,
-        };
+        let updated = StoredAccount { id: id.clone(), identity, profile, origin, skey };
         if let Some(account) = self.accounts.iter_mut().find(|account| account.id == id) {
             *account = updated;
         } else {
@@ -216,22 +210,14 @@ impl AccountRepository {
                 skey,
             });
         }
-        if file
-            .active_account_id
-            .as_ref()
-            .is_some_and(|id| !seen.contains(id))
-        {
+        if file.active_account_id.as_ref().is_some_and(|id| !seen.contains(id)) {
             return Err(AccountStoreError::at(path, "当前账户 ID 不存在"));
         }
-        Ok(Self {
-            accounts,
-            active_account_id: file.active_account_id,
-        })
+        Ok(Self { accounts, active_account_id: file.active_account_id })
     }
 
     pub(crate) fn save_to(&self, path: &Path) -> Result<(), AccountStoreError> {
-        self.validate()
-            .map_err(|error| AccountStoreError::at(path, error.message))?;
+        self.validate().map_err(|error| AccountStoreError::at(path, error.message))?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
                 .map_err(|_| AccountStoreError::at(path, "无法创建账户目录"))?;
@@ -259,9 +245,8 @@ impl AccountRepository {
         options.write(true).create(true).truncate(true);
         #[cfg(unix)]
         options.mode(0o600);
-        let mut output = options
-            .open(path)
-            .map_err(|_| AccountStoreError::at(path, "无法写入账户文件"))?;
+        let mut output =
+            options.open(path).map_err(|_| AccountStoreError::at(path, "无法写入账户文件"))?;
         output
             .write_all(&bytes)
             .and_then(|()| output.sync_all())
@@ -279,11 +264,7 @@ impl AccountRepository {
                 return Err(AccountStoreError::new("账户 ID 重复或无效"));
             }
         }
-        if self
-            .active_account_id
-            .as_ref()
-            .is_some_and(|id| !seen.contains(id.as_str()))
-        {
+        if self.active_account_id.as_ref().is_some_and(|id| !seen.contains(id.as_str())) {
             return Err(AccountStoreError::new("当前账户 ID 不存在"));
         }
         Ok(())

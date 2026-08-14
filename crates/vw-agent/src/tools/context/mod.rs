@@ -283,7 +283,8 @@ impl ToolUseContext {
     pub(crate) fn delegate_skill_policy(
         &self,
     ) -> Option<(DelegateCapabilityPolicy, &BTreeSet<String>)> {
-        self.delegate_skill_policy.map(|policy| (policy, self.delegate_default_allowed_skills.as_ref()))
+        self.delegate_skill_policy
+            .map(|policy| (policy, self.delegate_default_allowed_skills.as_ref()))
     }
 
     /// 返回文件读取状态句柄。
@@ -510,7 +511,8 @@ impl ToolUseContext {
         S: AsRef<str>,
     {
         self.delegate_skill_policy = Some(policy);
-        self.delegate_default_allowed_skills = Arc::new(normalize_capability_selection(default_skills));
+        self.delegate_default_allowed_skills =
+            Arc::new(normalize_capability_selection(default_skills));
         self
     }
 
@@ -537,10 +539,8 @@ impl ToolUseContext {
 
     /// 绑定当前图片资产范围。
     pub fn set_image_asset_scope(&self, scope: &ImageAssetScope) {
-        let mut queue = self
-            .pending_image_reloads
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let mut queue =
+            self.pending_image_reloads.lock().unwrap_or_else(|error| error.into_inner());
         queue.set_scope_key(scope.key());
     }
 
@@ -551,37 +551,27 @@ impl ToolUseContext {
 
     /// 将 image_id 加入待重看队列。
     pub fn enqueue_pending_image_reload(&self, image_id: &ImageAssetId) -> Result<(), String> {
-        let mut queue = self
-            .pending_image_reloads
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let mut queue =
+            self.pending_image_reloads.lock().unwrap_or_else(|error| error.into_inner());
         queue.enqueue(image_id.as_str())
     }
 
     /// 查看待重看 ID 快照。
     pub fn peek_pending_image_reloads(&self) -> Vec<String> {
-        let queue = self
-            .pending_image_reloads
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let queue = self.pending_image_reloads.lock().unwrap_or_else(|error| error.into_inner());
         queue.peek().to_vec()
     }
 
     /// 清除待重看队列（仅在 LLM step 成功后调用）。
     pub fn clear_pending_image_reloads(&self) {
-        let mut queue = self
-            .pending_image_reloads
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let mut queue =
+            self.pending_image_reloads.lock().unwrap_or_else(|error| error.into_inner());
         queue.clear();
     }
 
     /// 当前绑定的图片资产范围键。
     pub fn image_asset_scope_key(&self) -> Option<String> {
-        let queue = self
-            .pending_image_reloads
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let queue = self.pending_image_reloads.lock().unwrap_or_else(|error| error.into_inner());
         queue.scope_key().map(ToOwned::to_owned)
     }
 
@@ -704,9 +694,8 @@ pub fn current_tool_use_context() -> Option<Arc<ToolUseContext>> {
 
 /// 将 image_id 加入当前工具上下文的待重看队列。
 pub fn enqueue_current_pending_image_reload(image_id: &ImageAssetId) -> Result<(), String> {
-    let context = current_tool_use_context().ok_or_else(|| {
-        "image_asset_read requires an active tool use context".to_string()
-    })?;
+    let context = current_tool_use_context()
+        .ok_or_else(|| "image_asset_read requires an active tool use context".to_string())?;
     context.enqueue_pending_image_reload(image_id)
 }
 

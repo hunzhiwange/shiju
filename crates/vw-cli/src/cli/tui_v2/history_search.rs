@@ -17,9 +17,7 @@ pub(crate) fn handle_history_search_key(
     key: KeyEvent,
 ) -> Option<TuiControllerCommand> {
     if !state.history_search.active {
-        if key.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key.code, KeyCode::Char('r'))
-        {
+        if key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('r')) {
             state.history_search = HistorySearchState {
                 active: true,
                 original_draft: state.prompt.value.clone(),
@@ -78,10 +76,8 @@ fn refresh_matches(state: &mut TuiState) {
             (query.is_empty() || entry.to_lowercase().contains(&query)).then_some(index)
         })
         .collect();
-    state.history_search.selected_index =
-        (!state.history_search.matches.is_empty()).then_some(
-            state.history_search.matches.len().saturating_sub(1),
-        );
+    state.history_search.selected_index = (!state.history_search.matches.is_empty())
+        .then_some(state.history_search.matches.len().saturating_sub(1));
 }
 
 fn move_selection(state: &mut TuiState, delta: isize) {

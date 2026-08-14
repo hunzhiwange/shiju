@@ -1,13 +1,11 @@
 use vw_shared::todo::Todo;
 
-use super::tasks::{
-    TasksRuntime, refresh_background_tasks, save_todos, stop_background_task,
-};
 use super::super::model::background_task::{
     BackgroundTask, BackgroundTaskKind, BackgroundTaskPanel, BackgroundTaskStatus,
 };
 use super::super::model::{UiTodoItem, UiTodoOverlay};
 use super::super::state::TuiState;
+use super::tasks::{TasksRuntime, refresh_background_tasks, save_todos, stop_background_task};
 
 #[derive(Default)]
 struct RecordingTasks {
@@ -89,9 +87,11 @@ fn tui_todos_and_background_tasks_match_reference_state_and_gateway_actions() {
     stop_background_task(&mut panel.tasks[0], "session-a", true, &mut runtime).unwrap();
     assert_eq!(panel.tasks[0].status, BackgroundTaskStatus::Cancelled);
     assert_eq!(runtime.stopped, ["task-a"]);
-    assert!(stop_background_task(&mut panel.tasks[1], "session-a", true, &mut runtime)
-        .unwrap_err()
-        .contains("does not expose"));
+    assert!(
+        stop_background_task(&mut panel.tasks[1], "session-a", true, &mut runtime)
+            .unwrap_err()
+            .contains("does not expose")
+    );
 }
 
 #[test]

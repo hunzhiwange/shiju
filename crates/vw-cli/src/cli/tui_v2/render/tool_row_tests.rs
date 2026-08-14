@@ -6,10 +6,10 @@ use crate::cli::tui_v2::model::{
     UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId, UiTokenUsage, UiToolCall,
     UiToolCallState, UiToolResult, UiTurnTerminal, UiUserMessage,
 };
+use crate::cli::tui_v2::state::TuiState;
 use crate::cli::tui_v2::state::selectors::{
     TuiAssistantTurnEntry, TuiTranscriptItem, select_grouped_transcript, select_tool_row_view,
 };
-use crate::cli::tui_v2::state::TuiState;
 
 #[test]
 fn tui_tool_rows_match_reference_lifecycle_and_expansion() {
@@ -29,10 +29,7 @@ fn tui_tool_rows_match_reference_lifecycle_and_expansion() {
             notices: Vec::new(),
         };
         let view = select_tool_row_view(&group);
-        assert_eq!(
-            line_texts(render_tool_row(&view, TuiTheme::default(), false))[0],
-            expected
-        );
+        assert_eq!(line_texts(render_tool_row(&view, TuiTheme::default(), false))[0], expected);
     }
 
     let mut state = TuiState::default();
@@ -62,8 +59,7 @@ fn tui_tool_rows_match_reference_lifecycle_and_expansion() {
         UiMessage::ToolResult(tool_result("unknown_remote_tool", "call-a", "ok", false)),
         UiMessage::ToolResult(tool_result("read", "call-b", "second", true)),
         UiMessage::Assistant(UiAssistantMessage {
-            base: UiMessageBase::new(UiMessageId::new("assistant"))
-                .with_parent_id(user_id.clone()),
+            base: UiMessageBase::new(UiMessageId::new("assistant")).with_parent_id(user_id.clone()),
             text: "done".to_string(),
             usage: UiTokenUsage::default(),
             step_count: 0,

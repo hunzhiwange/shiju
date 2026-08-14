@@ -4,8 +4,8 @@
 //! 会映射为外部打开消息。
 
 use super::markdown::{
-    MarkdownBlock, MarkdownBlockKind, link_click_message, markdown_block_key, markdown_body_view,
-    markdown_block_font, parse_markdown_blocks, strip_inline_markdown,
+    MarkdownBlock, MarkdownBlockKind, link_click_message, markdown_block_font, markdown_block_key,
+    markdown_body_view, parse_markdown_blocks, strip_inline_markdown,
 };
 use crate::app::message::ViewMessage;
 use crate::app::{App, Message};
@@ -46,10 +46,7 @@ fn code_block_font_uses_monospace_only_for_ascii_content() {
     };
 
     assert_eq!(markdown_block_font(&ascii), iced::Font::MONOSPACE);
-    assert_eq!(
-        markdown_block_font(&mixed),
-        super::super::tool_text_support::chat_text_font()
-    );
+    assert_eq!(markdown_block_font(&mixed), super::super::tool_text_support::chat_text_font());
 }
 
 #[test]

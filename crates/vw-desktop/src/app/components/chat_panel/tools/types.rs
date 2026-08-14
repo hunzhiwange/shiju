@@ -87,6 +87,15 @@ pub struct ExploreItem {
     pub raw: String,
 }
 
+/// 连续命令摘要中的单条命令。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommandItem {
+    /// 原始工具块在消息中的工具索引。
+    pub tool_idx: usize,
+    /// 原始工具块，用于复用单条 Bash 视图。
+    pub raw: String,
+}
+
 /// 探索组工具索引常量
 ///
 /// 用于标识探索组（Explore Group）的特殊工具索引值。

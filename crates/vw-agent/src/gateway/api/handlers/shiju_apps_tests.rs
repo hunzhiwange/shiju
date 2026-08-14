@@ -101,24 +101,17 @@ async fn shiju_app_routes_require_credentials_and_valid_installation_ids() {
             .expect("client");
     let app = super::router_with_client::<()>(client);
 
-    let (status, body) =
-        response(app.clone(), request("GET", "/shiju/apps/catalog", None)).await;
+    let (status, body) = response(app.clone(), request("GET", "/shiju/apps/catalog", None)).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"], "SHIJU credential header is required");
 
-    let (status, body) = response(
-        app.clone(),
-        request("GET", "/shiju/apps", Some("   ")),
-    )
-    .await;
+    let (status, body) = response(app.clone(), request("GET", "/shiju/apps", Some("   "))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(!body.to_string().contains(CREDENTIAL));
 
-    let (status, body) = response(
-        app.clone(),
-        request("POST", "/shiju/apps/lowercase/launch", Some(CREDENTIAL)),
-    )
-    .await;
+    let (status, body) =
+        response(app.clone(), request("POST", "/shiju/apps/lowercase/launch", Some(CREDENTIAL)))
+            .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(body["error"].as_str().unwrap_or_default().contains("installation ID"));
     assert!(!body.to_string().contains(CREDENTIAL));
@@ -128,8 +121,7 @@ async fn shiju_app_routes_require_credentials_and_valid_installation_ids() {
         ("POST", "/shiju/apps"),
         ("GET", &format!("/shiju/apps/{INSTALLATION_ID}/launch")),
     ] {
-        let (status, _) =
-            response(app.clone(), request(method, path, Some(CREDENTIAL))).await;
+        let (status, _) = response(app.clone(), request(method, path, Some(CREDENTIAL))).await;
         assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "{method} {path}");
     }
 }
@@ -184,42 +176,31 @@ async fn shiju_app_routes_map_catalog_apps_and_launch() {
     let client = crate::shiju::apps::ShijuAppClient::with_base_url(&base).expect("client");
     let app = super::router_with_client::<()>(client);
 
-    let (status, catalog) = response(
-        app.clone(),
-        request("GET", "/shiju/apps/catalog", Some(CREDENTIAL)),
-    )
-    .await;
+    let (status, catalog) =
+        response(app.clone(), request("GET", "/shiju/apps/catalog", Some(CREDENTIAL))).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(catalog["apps"][0]["userId"], "101027");
     assert_eq!(catalog["apps"][0]["permissions"], serde_json::json!([]));
 
-    let (status, apps) = response(
-        app.clone(),
-        request("GET", "/shiju/apps", Some(CREDENTIAL)),
-    )
-    .await;
+    let (status, apps) =
+        response(app.clone(), request("GET", "/shiju/apps", Some(CREDENTIAL))).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(apps["apps"][0]["runtimeStatus"], "ready");
 
     let (status, launch) = response(
         app,
-        request(
-            "POST",
-            &format!("/shiju/apps/{INSTALLATION_ID}/launch"),
-            Some(CREDENTIAL),
-        ),
+        request("POST", &format!("/shiju/apps/{INSTALLATION_ID}/launch"), Some(CREDENTIAL)),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(launch["installationId"], INSTALLATION_ID);
     assert_eq!(launch["name"], "知识助手");
-    assert!(launch["runtimeSetCookie"]
-        .as_str()
-        .is_some_and(|value| value.starts_with("app_runtime_session=")));
-    assert_eq!(
-        launch["runtimeUrl"],
-        format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")
+    assert!(
+        launch["runtimeSetCookie"]
+            .as_str()
+            .is_some_and(|value| value.starts_with("app_runtime_session="))
     );
+    assert_eq!(launch["runtimeUrl"], format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/"));
 
     let requests = requests.join().expect("join fixture");
     assert_eq!(requests.len(), 5);
@@ -229,9 +210,7 @@ async fn shiju_app_routes_map_catalog_apps_and_launch() {
     assert!(requests[3].starts_with(&format!(
         "GET /app-platform/api/tenant/installations/{INSTALLATION_ID}/api-key-binding "
     )));
-    assert!(requests[4].starts_with(
-        "POST /app-platform/api/runtime/browser-session "
-    ));
+    assert!(requests[4].starts_with("POST /app-platform/api/runtime/browser-session "));
     for request in requests {
         assert!(!request.lines().next().unwrap_or_default().contains(CREDENTIAL));
     }
@@ -242,11 +221,8 @@ async fn shiju_app_route_redacts_upstream_errors() {
     let sensitive = format!(
         r#"{{"credential":"{CREDENTIAL}","runtimeUrl":"https://app.shiju.cloud/app/{INSTALLATION_ID}/?private=1","message":"upstream-body-secret"}}"#
     );
-    let (base, requests) = fixture(vec![FixtureResponse {
-        status: 500,
-        headers: Vec::new(),
-        body: sensitive,
-    }]);
+    let (base, requests) =
+        fixture(vec![FixtureResponse { status: 500, headers: Vec::new(), body: sensitive }]);
     let client = crate::shiju::apps::ShijuAppClient::with_base_url(&base).expect("client");
 
     let (status, body) = response(

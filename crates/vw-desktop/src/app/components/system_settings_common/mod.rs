@@ -31,7 +31,9 @@ mod theme_tests;
 #[path = "utils_tests.rs"]
 mod utils_tests;
 
-pub use help::{settings_close_button, settings_help_button, with_settings_help_modal};
+pub use help::{
+    settings_close_button, settings_help_button, settings_help_copy_state, with_settings_help_modal,
+};
 pub use icons::{icon_btn, icon_svg, provider_logo_svg};
 pub use panels::{
     settings_divider, settings_error_banner, settings_modal_card, settings_modal_overlay,

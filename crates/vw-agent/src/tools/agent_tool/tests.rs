@@ -184,9 +184,8 @@ fn spec_and_schema_describe_configured_agents() {
     }
 
     let schema = tool.parameters_schema();
-    let agent_description = schema["properties"]["agent"]["description"]
-        .as_str()
-        .expect("agent description");
+    let agent_description =
+        schema["properties"]["agent"]["description"].as_str().expect("agent description");
     for expected in ["writer", "Writer", "Draft and revise documents"] {
         assert!(
             agent_description.contains(expected),
@@ -226,16 +225,10 @@ fn default_agent_tool_schema_uses_chinese_role_catalog() {
         json!(["coder", "explore", "researcher", "reviewer"])
     );
 
-    let description = schema["properties"]["agent"]["description"]
-        .as_str()
-        .expect("agent description");
-    for expected in [
-        "代码实现",
-        "代码探索",
-        "资料研究",
-        "代码审查",
-        "只读审查代码、测试与风险",
-    ] {
+    let description =
+        schema["properties"]["agent"]["description"].as_str().expect("agent description");
+    for expected in ["代码实现", "代码探索", "资料研究", "代码审查", "只读审查代码、测试与风险"]
+    {
         assert!(description.contains(expected), "schema should contain {expected}: {description}");
     }
 }
@@ -329,8 +322,7 @@ async fn run_waits_for_persistent_child_session() {
     let (release_tx, release_rx) = oneshot::channel();
     let completed = Arc::new(AtomicBool::new(false));
     let completed_in_executor = completed.clone();
-    let coordinator =
-        crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
+    let coordinator = crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
     let release_rx = Arc::new(tokio::sync::Mutex::new(Some(release_rx)));
     let started_tx = Arc::new(std::sync::Mutex::new(Some(started_tx)));
     let tool = build_persistent_tool(parent.id.clone(), directory, move |_request| {
@@ -436,9 +428,7 @@ async fn main_child_inherits_parent_provider_and_model_as_one_reference() {
             })
         }));
     let context = Arc::new(
-        ToolUseContext::new("parent", None)
-            .with_provider("token-plan")
-            .with_model("qwen3.7-plus"),
+        ToolUseContext::new("parent", None).with_provider("token-plan").with_model("qwen3.7-plus"),
     );
 
     let result = scope_tool_use_context(
@@ -470,10 +460,7 @@ async fn agent_tool_fixes_trusted_parent_tool_selection_into_child_request() {
                 let options = request.options.expect("child policy options");
                 assert_eq!(options["delegate_default_allowed_tools"], json!(["file_read"]));
                 assert_eq!(options["delegate_tool_policy"], json!("user_override"));
-                assert_eq!(
-                    options["delegate_trusted_user_selected_tools"],
-                    json!(["shell"]),
-                );
+                assert_eq!(options["delegate_trusted_user_selected_tools"], json!(["shell"]),);
                 Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
                     output: "child completed".to_string(),
                     message_id: None,
@@ -481,9 +468,8 @@ async fn agent_tool_fixes_trusted_parent_tool_selection_into_child_request() {
                 })
             })
         }));
-    let context = Arc::new(
-        ToolUseContext::new("parent", None).with_trusted_user_selected_tools(["shell"]),
-    );
+    let context =
+        Arc::new(ToolUseContext::new("parent", None).with_trusted_user_selected_tools(["shell"]));
 
     let result = scope_tool_use_context(
         context,
@@ -551,8 +537,7 @@ async fn launch_returns_running_before_child_completes_and_wait_observes_complet
     let release = Arc::new(tokio::sync::Notify::new());
     let started_in_executor = started.clone();
     let release_in_executor = release.clone();
-    let coordinator =
-        crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
+    let coordinator = crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
     let launcher = build_persistent_tool(parent.id.clone(), directory.clone(), move |_request| {
         let started = started_in_executor.clone();
         let release = release_in_executor.clone();
@@ -588,10 +573,8 @@ async fn launch_returns_running_before_child_completes_and_wait_observes_complet
     let launch_body: serde_json::Value =
         serde_json::from_str(&launch.output).expect("structured launch result");
     assert_eq!(launch_body["state"], "running");
-    let child_session_id = launch_body["child_session_id"]
-        .as_str()
-        .expect("child session ID")
-        .to_string();
+    let child_session_id =
+        launch_body["child_session_id"].as_str().expect("child session ID").to_string();
     tokio::time::timeout(std::time::Duration::from_millis(200), started.notified())
         .await
         .expect("background child should start");
@@ -616,14 +599,11 @@ async fn launch_returns_running_before_child_completes_and_wait_observes_complet
 
 #[tokio::test]
 async fn status_wait_timeout_and_stop_are_scoped_to_the_parent_session() {
-    let coordinator =
-        crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
+    let coordinator = crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
     let owned_cancellation = coordinator
         .register("parent-1", "child-owned", "writer", "owned task")
         .expect("owned task should register");
-    coordinator
-        .mark_running("parent-1", "child-owned")
-        .expect("owned task should start");
+    coordinator.mark_running("parent-1", "child-owned").expect("owned task should start");
     coordinator
         .register("parent-2", "child-foreign", "writer", "foreign task")
         .expect("foreign task should register");
@@ -634,10 +614,7 @@ async fn status_wait_timeout_and_stop_are_scoped_to_the_parent_session() {
     )
     .with_coordinator(coordinator);
 
-    let status = tool
-        .execute(json!({"action": "status"}))
-        .await
-        .expect("status should succeed");
+    let status = tool.execute(json!({"action": "status"})).await.expect("status should succeed");
     let status_body: Value = serde_json::from_str(&status.output).expect("status result");
     assert_eq!(status_body["tasks"].as_array().expect("tasks").len(), 1);
     assert_eq!(status_body["tasks"][0]["child_session_id"], "child-owned");
@@ -756,10 +733,8 @@ async fn background_launches_respect_active_subagent_limit() {
         .await
         .expect("first background launch should return");
     let first_body: Value = serde_json::from_str(&first.output).expect("first launch result");
-    let first_child_session_id = first_body["child_session_id"]
-        .as_str()
-        .expect("first child session ID")
-        .to_string();
+    let first_child_session_id =
+        first_body["child_session_id"].as_str().expect("first child session ID").to_string();
     tokio::time::timeout(std::time::Duration::from_millis(200), started.notified())
         .await
         .expect("first background child should start");
@@ -770,12 +745,7 @@ async fn background_launches_respect_active_subagent_limit() {
         .expect("capacity rejection should return a tool result");
 
     assert!(!rejected.success);
-    assert!(
-        rejected
-            .error
-            .as_deref()
-            .is_some_and(|error| error.contains("active subagent limit"))
-    );
+    assert!(rejected.error.as_deref().is_some_and(|error| error.contains("active subagent limit")));
     assert_eq!(
         created_count.load(Ordering::SeqCst),
         1,
@@ -830,9 +800,8 @@ async fn cancelled_background_launch_releases_parallel_permit() {
             let cancelled_tx = cancelled_tx_in_executor.clone();
             Box::pin(async move {
                 if launches.fetch_add(1, Ordering::SeqCst) == 0 {
-                    let _cancelled = DropSignal(
-                        cancelled_tx.lock().expect("cancelled signal lock").take(),
-                    );
+                    let _cancelled =
+                        DropSignal(cancelled_tx.lock().expect("cancelled signal lock").take());
                     started.notify_one();
                     std::future::pending::<()>().await;
                 }
@@ -851,25 +820,18 @@ async fn cancelled_background_launch_releases_parallel_permit() {
         .await
         .expect("background launch should return");
     let launched_body: Value = serde_json::from_str(&launched.output).expect("launch result");
-    let child_session_id = launched_body["child_session_id"]
-        .as_str()
-        .expect("child session ID")
-        .to_string();
+    let child_session_id =
+        launched_body["child_session_id"].as_str().expect("child session ID").to_string();
     tokio::time::timeout(std::time::Duration::from_millis(200), started.notified())
         .await
         .expect("background child should start");
 
     let run_tool = tool.clone();
     let foreground = tokio::spawn(async move {
-        run_tool
-            .execute(json!({"action": "run", "agent": "writer", "prompt": "foreground"}))
-            .await
+        run_tool.execute(json!({"action": "run", "agent": "writer", "prompt": "foreground"})).await
     });
     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    assert!(
-        !foreground.is_finished(),
-        "run must share the active background child limit"
-    );
+    assert!(!foreground.is_finished(), "run must share the active background child limit");
 
     tool.execute(json!({"action": "stop", "child_session_id": child_session_id}))
         .await
@@ -952,33 +914,23 @@ async fn launch_rejects_task_already_assigned_to_an_ancestor() {
     let root = create_parent(directory.clone()).await;
     let directory_for_child = directory.clone();
     let root_id = root.id.clone();
-    let child = crate::app::agent::project::instance::provide(
-        directory.clone(),
-        None,
-        move || {
-            Box::pin(async move {
-                crate::session::session::create_next(crate::session::session::CreateInput {
-                    parent_id: Some(root_id),
-                    title: Some("child".to_string()),
-                    directory: directory_for_child,
-                    permission: None,
-                })
-                .await
+    let child = crate::app::agent::project::instance::provide(directory.clone(), None, move || {
+        Box::pin(async move {
+            crate::session::session::create_next(crate::session::session::CreateInput {
+                parent_id: Some(root_id),
+                title: Some("child".to_string()),
+                directory: directory_for_child,
+                permission: None,
             })
-        },
-    )
+            .await
+        })
+    })
     .await
     .expect("project context should initialize")
     .expect("child session should persist");
-    let coordinator =
-        crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
+    let coordinator = crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
     coordinator
-        .register(
-            &root.id,
-            &child.id,
-            "writer",
-            "Inspect the session lifecycle",
-        )
+        .register(&root.id, &child.id, "writer", "Inspect the session lifecycle")
         .expect("ancestor task should register");
     let executor_called = Arc::new(AtomicBool::new(false));
     let executor_called_in_tool = executor_called.clone();
@@ -1009,12 +961,7 @@ async fn launch_rejects_task_already_assigned_to_an_ancestor() {
         .expect("duplicate delegation should return a tool result");
 
     assert!(!result.success);
-    assert!(
-        result
-            .error
-            .expect("duplicate delegation error")
-            .contains("matches ancestor session")
-    );
+    assert!(result.error.expect("duplicate delegation error").contains("matches ancestor session"));
     assert!(!executor_called.load(Ordering::SeqCst));
     assert!(
         coordinator

@@ -319,11 +319,9 @@ async fn apiql_routes_accept_missing_trailing_slash() {
     make_sqlite_fixture(&db_path);
     install_apiql_fixture(&db_path).await;
 
-    let index =
-        get_json("/apiQL/product:product?column%5B%5D=id&orderBy=id%20asc&limit=1").await;
+    let index = get_json("/apiQL/product:product?column%5B%5D=id&orderBy=id%20asc&limit=1").await;
     let list_only =
-        get_json("/apiQL/product:product/list-only?column%5B%5D=id&orderBy=id%20asc&limit=1")
-            .await;
+        get_json("/apiQL/product:product/list-only?column%5B%5D=id&orderBy=id%20asc&limit=1").await;
     let list_count = get_json("/apiQL/product:product/list-count?active=1").await;
     let list_page = get_json(
         "/apiQL/product:product/list-page?column%5B%5D=id&page=1&page_size=1&orderBy=id%20asc",

@@ -50,12 +50,10 @@ fn map_global_event(
         iced::Event::Window(iced::window::Event::Focused) => {
             Some(Message::View(message::ViewMessage::WindowFocused(id)))
         }
-        iced::Event::Window(iced::window::Event::Unfocused) => {
-            Some(Message::Batch(vec![
-                Message::View(message::ViewMessage::WindowUnfocused(id)),
-                Message::Preview(message::PreviewMessage::WindowUnfocused),
-            ]))
-        }
+        iced::Event::Window(iced::window::Event::Unfocused) => Some(Message::Batch(vec![
+            Message::View(message::ViewMessage::WindowUnfocused(id)),
+            Message::Preview(message::PreviewMessage::WindowUnfocused),
+        ])),
         iced::Event::Keyboard(iced::keyboard::Event::KeyPressed { key, modifiers, .. }) => {
             if matches!(key, iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape)) {
                 let escape_key_message =

@@ -88,9 +88,8 @@ async fn full_access_allows_file_access_outside_root() {
 
     let read_result =
         handlers.read_text_file(&ReadTextFileRequest::new("session-1", &outside)).await;
-    let write_result = handlers
-        .write_text_file(&WriteTextFileRequest::new("session-1", &outside, "after"))
-        .await;
+    let write_result =
+        handlers.write_text_file(&WriteTextFileRequest::new("session-1", &outside, "after")).await;
     let written_content = std::fs::read_to_string(&outside);
 
     let _ = std::fs::remove_dir_all(root);

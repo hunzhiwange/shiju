@@ -631,16 +631,12 @@ mod task_worktree_pool_lifecycle {
         assert_ne!(other_slot.id, slot.id);
         assert_eq!(other_slot.branch, "vw/task/task-other");
 
-        service
-            .recycle_task_slot(&project, &task_id, None)
-            .await
-            .expect("recycle without git CLI");
+        service.recycle_task_slot(&project, &task_id, None).await.expect("recycle without git CLI");
         assert!(!slot_path.join("scratch.txt").exists(), "untracked file should be cleaned");
         assert!(slot_path.join("ignored.txt").exists(), "ignored file should be kept");
 
         let after = service.snapshot(&project).await.expect("snapshot after recycle");
-        let recycled =
-            after.slots.iter().find(|entry| entry.id == slot.id).expect("recycled slot");
+        let recycled = after.slots.iter().find(|entry| entry.id == slot.id).expect("recycled slot");
         assert_eq!(recycled.state, TaskPoolWorktreeSlotStateDto::Idle);
         assert_eq!(recycled.leased_task_id, None);
     }
@@ -729,11 +725,8 @@ impl GitPoolFixture {
             std::fs::remove_dir_all(path).expect("clear worktree destination");
         }
         let repo = Repository::open(&self.repo).expect("open repo");
-        let commit = repo
-            .revparse_single("main")
-            .expect("main")
-            .peel_to_commit()
-            .expect("main commit");
+        let commit =
+            repo.revparse_single("main").expect("main").peel_to_commit().expect("main commit");
         let git_branch = repo.branch(branch, &commit, false).expect("create branch");
         let reference = git_branch.into_reference();
         let mut opts = WorktreeAddOptions::new();

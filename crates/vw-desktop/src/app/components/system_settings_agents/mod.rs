@@ -78,9 +78,10 @@ pub(super) fn agent_project_options(app: &App) -> Vec<String> {
 pub fn view(app: &App) -> Element<'_, Message> {
     let settings = &app.agents_settings;
     if !settings.config_ready {
-        let status = settings.save_error.as_deref().unwrap_or(
-            "正在等待 Gateway 返回当前作用域的委托代理配置；完成前不会使用默认值保存。",
-        );
+        let status = settings
+            .save_error
+            .as_deref()
+            .unwrap_or("正在等待 Gateway 返回当前作用域的委托代理配置；完成前不会使用默认值保存。");
         return column![
             settings_page_intro(
                 "委托代理配置",

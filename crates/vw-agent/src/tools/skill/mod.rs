@@ -402,10 +402,7 @@ fn filter_delegate_skills_for_context(
         std::iter::empty::<&str>(),
     )
     .visible_ids;
-    skills
-        .into_iter()
-        .filter(|skill| visible.contains(&skill.name.trim().to_lowercase()))
-        .collect()
+    skills.into_iter().filter(|skill| visible.contains(&skill.name.trim().to_lowercase())).collect()
 }
 
 /// 从可信用户输入和已加载仓库协议中找出明确引用的技能名称及文件 ID。
@@ -463,27 +460,28 @@ pub(crate) fn user_explicitly_requests_skill_use(text: &str) -> bool {
     }
 
     let has_skill_noun = text.contains("技能")
-        || ["skill", "skills"]
-            .iter()
-            .any(|noun| text_contains_skill_reference(&text, noun));
+        || ["skill", "skills"].iter().any(|noun| text_contains_skill_reference(&text, noun));
     if !has_skill_noun {
         return false;
     }
-    let has_action = ["使用", "加载", "调用", "启用", "运行", "执行"]
-        .iter()
-        .any(|action| text.contains(action))
-        || ["use", "load", "invoke", "enable", "run", "execute"]
-            .iter()
-            .any(|action| text_contains_skill_reference(&text, action));
+    let has_action =
+        ["使用", "加载", "调用", "启用", "运行", "执行"].iter().any(|action| text.contains(action))
+            || ["use", "load", "invoke", "enable", "run", "execute"]
+                .iter()
+                .any(|action| text_contains_skill_reference(&text, action));
     if !has_action {
         return false;
     }
 
-    let directive_markers = ["请", "先", "必须", "务必", "直接", "现在", "帮我", "please", "must", "first"];
+    let directive_markers =
+        ["请", "先", "必须", "务必", "直接", "现在", "帮我", "please", "must", "first"];
     directive_markers.iter().any(|marker| text.contains(marker))
-        || ["使用", "加载", "调用", "启用", "运行", "执行", "use", "load", "invoke", "enable", "run", "execute"]
-            .iter()
-            .any(|action| text.starts_with(action))
+        || [
+            "使用", "加载", "调用", "启用", "运行", "执行", "use", "load", "invoke", "enable",
+            "run", "execute",
+        ]
+        .iter()
+        .any(|action| text.starts_with(action))
 }
 
 /// 返回本轮可由用户泛化授权显式调用的技能名称及文件 ID。

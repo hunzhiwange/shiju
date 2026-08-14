@@ -94,12 +94,9 @@ fn bootstrap_cli_service() -> Result<(), String> {
     let installed = service_installed(&home);
     let running = service_running(&home);
     let health = gateway_health(&endpoint);
-    let running_build_id = health
-        .as_ref()
-        .and_then(|body| body.get("build_id"))
-        .and_then(serde_json::Value::as_str);
-    let service_outdated =
-        installed && running && running_build_id != Some(cli_build_id.as_str());
+    let running_build_id =
+        health.as_ref().and_then(|body| body.get("build_id")).and_then(serde_json::Value::as_str);
+    let service_outdated = installed && running && running_build_id != Some(cli_build_id.as_str());
 
     if service_install_required(service_outdated, installed) {
         if service_outdated {
@@ -563,11 +560,8 @@ fn resolve_agent_binary_path() -> Result<PathBuf, String> {
     let current_exe =
         std::env::current_exe().map_err(|err| format!("获取当前可执行文件失败: {err}"))?;
     let exe_dir = current_exe.parent().ok_or_else(|| "无法定位当前可执行文件目录".to_string())?;
-    let agent_names = if cfg!(windows) {
-        ["shiju.exe", "vibe-agent.exe"]
-    } else {
-        ["shiju", "vibe-agent"]
-    };
+    let agent_names =
+        if cfg!(windows) { ["shiju.exe", "vibe-agent.exe"] } else { ["shiju", "vibe-agent"] };
     let mut candidates = agent_names.iter().map(|name| exe_dir.join(name)).collect::<Vec<_>>();
 
     if let Some(parent) = exe_dir.parent() {

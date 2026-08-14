@@ -186,11 +186,7 @@ fn tui_streaming_thinking_matches_reference_frame() {
             .with_created_ms(1_000),
         summary: Some("Inspect state transitions".to_string()),
         content: "private chain of thought must stay collapsed".to_string(),
-        timing: vec![UiThinkingTiming {
-            start_ms: 1_000,
-            end_ms: None,
-            last_update_ms: 1_250,
-        }],
+        timing: vec![UiThinkingTiming { start_ms: 1_000, end_ms: None, last_update_ms: 1_250 }],
         collapsed: false,
         phase: UiThinkingPhase::Streaming,
     }));
@@ -304,14 +300,12 @@ fn tui_grouped_progress_and_hooks_match_reference_frame() {
             is_error: false,
         }),
         UiMessage::System(UiSystemMessage {
-            base: UiMessageBase::new(UiMessageId::local("background"))
-                .with_parent_id(search_id),
+            base: UiMessageBase::new(UiMessageId::local("background")).with_parent_id(search_id),
             text: "background: index ready".to_string(),
             level: UiSystemMessageLevel::Info,
         }),
         UiMessage::Assistant(UiAssistantMessage {
-            base: UiMessageBase::new(UiMessageId::local("group-assistant"))
-                .with_parent_id(user_id),
+            base: UiMessageBase::new(UiMessageId::local("group-assistant")).with_parent_id(user_id),
             text: "done".to_string(),
             usage: UiTokenUsage::default(),
             step_count: 0,
@@ -374,8 +368,7 @@ fn tui_virtual_scroll_uses_measured_heights_and_preserves_anchor() {
 
     let mut feedback = super::TuiRenderFeedback::default();
     super::test_support::render_snapshot(40, 14, |frame| {
-        feedback =
-            TuiRenderer::default().render_frame(frame, &state, "VW", "gateway://fixture", 0);
+        feedback = TuiRenderer::default().render_frame(frame, &state, "VW", "gateway://fixture", 0);
     })
     .expect("render measured virtual window");
     assert!(
@@ -475,8 +468,7 @@ fn tui_sticky_unread_chrome_matches_reference_frame() {
         crate::cli::tui_v2::state::TuiAction::ScrollSet(parked),
     );
     state.append_message(UiMessage::ToolCall(UiToolCall {
-        base: UiMessageBase::new(UiMessageId::local("sticky-frame-tool"))
-            .with_parent_id(user_id),
+        base: UiMessageBase::new(UiMessageId::local("sticky-frame-tool")).with_parent_id(user_id),
         call_id: Some("sticky-frame-tool".to_string()),
         tool_name: "read".to_string(),
         summary: Some("Read scroll state".to_string()),
@@ -538,12 +530,12 @@ fn tui_prompt_footer_states_match_reference_frames() {
     multiline.prompt.set_value("first line\n第二行");
 
     let mut busy = empty.clone();
-    busy.prompt.start_submission(
-        crate::cli::tui_v2::model::PromptSubmission::new("running request"),
-    );
+    busy.prompt
+        .start_submission(crate::cli::tui_v2::model::PromptSubmission::new("running request"));
 
     let mut search = empty.clone();
-    search.prompt.history.entries = vec!["cargo clippy".to_string(), "cargo test focused".to_string()];
+    search.prompt.history.entries =
+        vec!["cargo clippy".to_string(), "cargo test focused".to_string()];
     search.history_search.active = true;
     search.history_search.query = "cargo".to_string();
     search.history_search.matches = vec![0, 1];
@@ -570,30 +562,23 @@ fn tui_prompt_footer_states_match_reference_frames() {
 
 #[test]
 fn tui_claude_code_2_1_88_parity_acceptance() {
-    let repository_root =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let contract_path =
-        repository_root.join("docs/tui-parity/claude-code-2.1.88-contract.md");
+    let repository_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let contract_path = repository_root.join("docs/tui-parity/claude-code-2.1.88-contract.md");
     let contract = std::fs::read_to_string(&contract_path).expect("read frozen TUI contract");
     let rows = contract
         .lines()
         .filter(|line| {
-            line.strip_prefix("| ")
-                .and_then(|line| line.split_once(' '))
-                .is_some_and(|(id, _)| {
-                    id.len() == 3
-                        && id.starts_with(|character: char| character.is_ascii_uppercase())
-                        && id[1..].chars().all(|character| character.is_ascii_digit())
-                })
+            line.strip_prefix("| ").and_then(|line| line.split_once(' ')).is_some_and(|(id, _)| {
+                id.len() == 3
+                    && id.starts_with(|character: char| character.is_ascii_uppercase())
+                    && id[1..].chars().all(|character| character.is_ascii_digit())
+            })
         })
         .collect::<Vec<_>>();
     assert_eq!(rows.len(), 56, "all frozen contract rows remain auditable");
 
-    let blocked = rows
-        .iter()
-        .filter(|row| row.contains("| 后端阻塞 |"))
-        .copied()
-        .collect::<Vec<_>>();
+    let blocked =
+        rows.iter().filter(|row| row.contains("| 后端阻塞 |")).copied().collect::<Vec<_>>();
     assert!(blocked.is_empty(), "backend-blocked contract rows remain: {blocked:#?}");
 
     let unresolved = rows
@@ -610,17 +595,11 @@ fn tui_claude_code_2_1_88_parity_acceptance() {
     let report_path = repository_root.join("docs/tui-parity/acceptance-report.md");
     let report = std::fs::read_to_string(&report_path).expect("read current acceptance report");
     for row in &rows {
-        let id = row
-            .trim_start_matches("| ")
-            .split('|')
-            .next()
-            .expect("contract ID")
-            .trim();
+        let id = row.trim_start_matches("| ").split('|').next().expect("contract ID").trim();
         assert!(report.contains(&format!("`{id}`")), "acceptance report omits {id}");
     }
 
-    let fixture_root =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tui_parity");
+    let fixture_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tui_parity");
     let fixture_count = std::fs::read_dir(&fixture_root)
         .expect("read parity fixtures")
         .filter_map(Result::ok)

@@ -484,9 +484,8 @@ fn multiline_text_row_rejects_missing_editor_state() {
 
 #[test]
 fn panel_builds_collapsed_disabled_and_expanded_enabled_content() {
-    keep_element(panel("x", "标题", "说明", false, false, text("body").into()));
-    keep_element(panel("x", "标题", "说明", false, true, text("body").into()));
-    keep_element(panel("x", "标题", "说明", true, true, text("body").into()));
+    keep_element(panel("x", "标题", "说明", false, text("body").into()));
+    keep_element(panel("x", "标题", "说明", true, text("body").into()));
 }
 
 #[test]

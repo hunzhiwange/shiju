@@ -123,7 +123,9 @@ where
     let hard_disabled = resolve_selected_ids(hard_disabled, &aliases);
     let mut visible_ids = match policy {
         DelegateCapabilityPolicy::Strict => defaults.clone(),
-        DelegateCapabilityPolicy::UserOverride => defaults.union(&user_selection).cloned().collect(),
+        DelegateCapabilityPolicy::UserOverride => {
+            defaults.union(&user_selection).cloned().collect()
+        }
         DelegateCapabilityPolicy::Unrestricted => aliases.values().cloned().collect(),
     };
     visible_ids.retain(|id| !hard_disabled.contains(id));
@@ -134,10 +136,7 @@ where
     CapabilityPolicyResolution { visible_ids, default_injected_ids }
 }
 
-fn resolve_selected_ids<I, S>(
-    selection: I,
-    aliases: &BTreeMap<String, String>,
-) -> BTreeSet<String>
+fn resolve_selected_ids<I, S>(selection: I, aliases: &BTreeMap<String, String>) -> BTreeSet<String>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,

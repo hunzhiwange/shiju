@@ -437,9 +437,7 @@ fn install_built_in_skill_copies_once_and_collect_catalog_marks_installed() {
 #[test]
 fn installed_skills_preserve_market_source_metadata() {
     let project = tempfile::tempdir().expect("project dir");
-    let skill_dir = project
-        .path()
-        .join(".vibewindow/skills/skillhub--public--safe-skill");
+    let skill_dir = project.path().join(".vibewindow/skills/skillhub--public--safe-skill");
     write_markdown_skill(&skill_dir, "Safe Skill", "Installed from market");
     std::fs::write(
         skill_dir.join("_meta.json"),

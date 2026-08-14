@@ -216,8 +216,9 @@ fn context_usage_does_not_count_base64_image_body_as_text_tokens() {
     let estimated = context_usage_tokens(&messages, &system, &tools, None);
 
     assert!(estimated < 200_000);
-    let result = compact_context_for_next_request(&mut messages, &system, &tools, &model_limit, None)
-        .expect("a vision request should be sized without mutation");
+    let result =
+        compact_context_for_next_request(&mut messages, &system, &tools, &model_limit, None)
+            .expect("a vision request should be sized without mutation");
     assert!(!result.needs_internal_compaction);
 }
 

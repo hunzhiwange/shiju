@@ -1,5 +1,6 @@
 use super::image_compression::{
-    MAX_OUTPUT_DIMENSION, TOTAL_NORMALIZED_IMAGE_BYTES, compress_image_bytes, per_image_output_budget,
+    MAX_OUTPUT_DIMENSION, TOTAL_NORMALIZED_IMAGE_BYTES, compress_image_bytes,
+    per_image_output_budget,
 };
 use super::*;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -9,11 +10,7 @@ use std::io::Cursor;
 
 fn solid_png(width: u32, height: u32) -> Vec<u8> {
     let image = ImageBuffer::from_fn(width, height, |x, y| {
-        Rgb([
-            ((x.wrapping_mul(3)) % 256) as u8,
-            ((y.wrapping_mul(5)) % 256) as u8,
-            90,
-        ])
+        Rgb([((x.wrapping_mul(3)) % 256) as u8, ((y.wrapping_mul(5)) % 256) as u8, 90])
     });
     let mut bytes = Vec::new();
     DynamicImage::ImageRgb8(image)
@@ -39,12 +36,7 @@ fn animated_gif_bytes(width: u32, height: u32, frames: u16) -> Vec<u8> {
 
 fn data_uri_payload(data_uri: &str) -> (String, Vec<u8>) {
     let (header, payload) = data_uri.split_once(',').expect("data uri comma");
-    let mime = header
-        .trim_start_matches("data:")
-        .split(';')
-        .next()
-        .expect("mime")
-        .to_string();
+    let mime = header.trim_start_matches("data:").split(';').next().expect("mime").to_string();
     let bytes = STANDARD.decode(payload).expect("decode data uri payload");
     (mime, bytes)
 }

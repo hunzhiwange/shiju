@@ -169,8 +169,7 @@ fn expert_hub_state_serializes_cache_sync_and_keeps_retry_target() {
     assert!(state.finish_cache_sync(generation, 7, false));
     assert_eq!(state.cache_sync.pending_retry_skill_id(), Some(7));
 
-    let retry_generation =
-        state.start_cache_sync(7, true).expect("pending sync should retry");
+    let retry_generation = state.start_cache_sync(7, true).expect("pending sync should retry");
     assert!(retry_generation > generation);
     assert!(state.start_action(7, SkillActionKind::Install).is_none());
 }
@@ -306,10 +305,7 @@ fn market_detail_switches_visual_and_markdown_without_losing_coordinate() {
     assert_eq!(state.detail_generation, generation);
     assert_eq!(state.detail.as_ref().expect("detail").target, PublicDetailTarget::Skill(locator));
     assert_eq!(state.detail.as_ref().expect("detail").mode, PublicDetailMode::Markdown);
-    assert_eq!(
-        state.detail.as_ref().expect("detail").install_scope,
-        SkillInstallScope::Global
-    );
+    assert_eq!(state.detail.as_ref().expect("detail").install_scope, SkillInstallScope::Global);
 
     state.sources = LoadState::Loaded(vec![
         SkillMarketSourceDto {

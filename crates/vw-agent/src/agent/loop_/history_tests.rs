@@ -96,8 +96,9 @@ async fn internal_compaction_returns_false_when_under_limit() {
     let provider = Testcov0094Provider::ok("unused");
     let mut history = vec![ChatMessage::system("system"), ChatMessage::user("short")];
 
-    let compacted =
-        compact_history_with_internal_service(&mut history, &provider, "test-model", 3).await.unwrap();
+    let compacted = compact_history_with_internal_service(&mut history, &provider, "test-model", 3)
+        .await
+        .unwrap();
 
     assert!(!compacted);
     assert_eq!(provider.calls(), 0);
@@ -109,8 +110,9 @@ async fn internal_compaction_returns_false_when_recent_window_covers_all_message
     let provider = Testcov0094Provider::ok("unused");
     let mut history = vec![ChatMessage::user("older"), ChatMessage::assistant("newer")];
 
-    let compacted =
-        compact_history_with_internal_service(&mut history, &provider, "test-model", 1).await.unwrap();
+    let compacted = compact_history_with_internal_service(&mut history, &provider, "test-model", 1)
+        .await
+        .unwrap();
 
     assert!(!compacted);
     assert_eq!(provider.calls(), 0);
@@ -127,8 +129,9 @@ async fn internal_compaction_preserves_system_and_recent_messages() {
         history.push(ChatMessage::user(format!("message-{index}")));
     }
 
-    let compacted =
-        compact_history_with_internal_service(&mut history, &provider, "test-model", 2).await.unwrap();
+    let compacted = compact_history_with_internal_service(&mut history, &provider, "test-model", 2)
+        .await
+        .unwrap();
 
     assert!(compacted);
     assert_eq!(provider.calls(), 1);

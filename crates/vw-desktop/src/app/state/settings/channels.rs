@@ -57,6 +57,85 @@ fn is_multiline_channel_key(key: &str) -> bool {
     is_static_multiline_channel_key(key) || is_named_instance_multiline_channel_key(key)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChannelsSettingsTab {
+    Global,
+    Telegram,
+    Discord,
+    Slack,
+    Mattermost,
+    Webhook,
+    IMessage,
+    Matrix,
+    Signal,
+    WhatsApp,
+    Linq,
+    Wati,
+    NextcloudTalk,
+    Email,
+    Irc,
+    Lark,
+    Feishu,
+    DingTalk,
+    Qq,
+    Nostr,
+    ClawdTalk,
+}
+
+impl ChannelsSettingsTab {
+    pub(crate) fn from_channel_id(channel: &str) -> Option<Self> {
+        match channel {
+            "telegram" => Some(Self::Telegram),
+            "discord" => Some(Self::Discord),
+            "slack" => Some(Self::Slack),
+            "mattermost" => Some(Self::Mattermost),
+            "webhook" => Some(Self::Webhook),
+            "imessage" => Some(Self::IMessage),
+            "matrix" => Some(Self::Matrix),
+            "signal" => Some(Self::Signal),
+            "whatsapp" => Some(Self::WhatsApp),
+            "linq" => Some(Self::Linq),
+            "wati" => Some(Self::Wati),
+            "nextcloud_talk" => Some(Self::NextcloudTalk),
+            "email" => Some(Self::Email),
+            "irc" => Some(Self::Irc),
+            "lark" => Some(Self::Lark),
+            "feishu" => Some(Self::Feishu),
+            "dingtalk" => Some(Self::DingTalk),
+            "qq" => Some(Self::Qq),
+            "nostr" => Some(Self::Nostr),
+            "clawdtalk" => Some(Self::ClawdTalk),
+            _ => None,
+        }
+    }
+
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Global => "全局",
+            Self::Telegram => "Telegram",
+            Self::Discord => "Discord",
+            Self::Slack => "Slack",
+            Self::Mattermost => "Mattermost",
+            Self::Webhook => "Webhook",
+            Self::IMessage => "iMessage",
+            Self::Matrix => "Matrix",
+            Self::Signal => "Signal",
+            Self::WhatsApp => "WhatsApp",
+            Self::Linq => "Linq",
+            Self::Wati => "WATI",
+            Self::NextcloudTalk => "Nextcloud Talk",
+            Self::Email => "Email",
+            Self::Irc => "IRC",
+            Self::Lark => "Lark",
+            Self::Feishu => "Feishu",
+            Self::DingTalk => "DingTalk",
+            Self::Qq => "QQ",
+            Self::Nostr => "Nostr",
+            Self::ClawdTalk => "ClawdTalk",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// 表示 ChannelsSettingsState 相关的应用状态或派生数据。
 pub(crate) struct ChannelsSettingsState {
@@ -90,7 +169,7 @@ pub(crate) struct ChannelsSettingsState {
     pub(crate) nostr: Option<vw_config_types::channels::NostrConfig>,
     pub(crate) clawdtalk: Option<vw_config_types::channels::ClawdTalkConfig>,
     pub(crate) message_timeout_secs: u32,
-    pub(crate) expanded_panels: HashSet<String>,
+    pub(crate) active_tab: ChannelsSettingsTab,
     pub(crate) save_error: Option<String>,
 }
 
@@ -127,7 +206,7 @@ impl Default for ChannelsSettingsState {
             nostr: None,
             clawdtalk: None,
             message_timeout_secs: 300,
-            expanded_panels: ["feishu".to_string()].into_iter().collect(),
+            active_tab: ChannelsSettingsTab::Global,
             save_error: None,
         }
     }

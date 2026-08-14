@@ -563,7 +563,6 @@ pub(super) fn panel<'a>(
     title: &'static str,
     description: &'static str,
     enabled: bool,
-    expanded: bool,
     body: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let header = row![
@@ -579,25 +578,15 @@ pub(super) fn panel<'a>(
                 )))
             })
             .style(settings_checkbox_style),
-        button(text(if expanded { "收起" } else { "展开" }).size(12))
-            .padding([6, 10])
-            .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::PanelToggled(
-                id.to_string()
-            ),)))
-            .style(rounded_action_btn_style),
     ]
     .spacing(12)
     .align_y(Alignment::Center);
 
-    let content = if expanded {
-        if enabled {
-            column![header, settings_divider(), body].spacing(12)
-        } else {
-            column![header, settings_divider(), hint_row("启用后显示该通道的详细配置表单。")]
-                .spacing(12)
-        }
+    let content = if enabled {
+        column![header, settings_divider(), body].spacing(12)
     } else {
-        column![header].spacing(12)
+        column![header, settings_divider(), hint_row("启用后显示该通道的详细配置表单。")]
+            .spacing(12)
     };
 
     settings_panel(content).into()

@@ -174,10 +174,7 @@ fn work_view_menu_exposes_only_work_mode_surfaces() {
 
     assert_eq!(entries.len(), 4);
     assert_eq!(item(&entries[0]).0, "切换工作侧栏");
-    assert!(matches!(
-        item(&entries[0]).2,
-        Message::View(message::ViewMessage::WorkSidebarToggled)
-    ));
+    assert!(matches!(item(&entries[0]).2, Message::View(message::ViewMessage::WorkSidebarToggled)));
     for (entry, expected_mode) in entries[1..].iter().zip([
         WorkResourceMode::Overview,
         WorkResourceMode::WorkspaceFiles,

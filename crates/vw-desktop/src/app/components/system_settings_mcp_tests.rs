@@ -292,9 +292,8 @@ fn view_builds_servers_runtime_and_json_tabs_with_state_variants() {
 #[test]
 fn delete_confirmation_uses_shared_modal_overlay_and_only_shows_on_servers_tab() {
     let (mut app, _) = crate::app::App::new();
-    app.mcp_settings.editor = text_editor::Content::with_text(
-        r#"[{"name":"demo","type":"stdio","command":"npx"}]"#,
-    );
+    app.mcp_settings.editor =
+        text_editor::Content::with_text(r#"[{"name":"demo","type":"stdio","command":"npx"}]"#);
     app.mcp_settings.delete_pending = Some(0);
 
     let base: iced::Element<'_, Message> = iced::widget::text("base").into();

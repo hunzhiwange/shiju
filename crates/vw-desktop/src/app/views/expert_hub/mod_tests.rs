@@ -5,11 +5,9 @@ use crate::app::{App, Message};
 fn expert_hub_shell_builds_all_sections_and_skill_tabs() {
     let (mut app, _) = App::new();
 
-    for section in [
-        ExpertHubSection::Experts,
-        ExpertHubSection::Connectors,
-        ExpertHubSection::Skills,
-    ] {
+    for section in
+        [ExpertHubSection::Experts, ExpertHubSection::Connectors, ExpertHubSection::Skills]
+    {
         app.expert_hub.section = section;
         let element: iced::Element<'_, Message> = super::view(&app);
         std::hint::black_box(element);

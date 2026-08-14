@@ -343,71 +343,268 @@ fn open_project_session_uses_known_directory_and_restores_cached_state() {
 }
 
 #[test]
-fn session_ui_store_loaded_applies_history_and_schedules_only_prewarm() {
+fn open_project_session_restores_hot_view_without_prewarm() {
     let mut app = app();
-    app.active_session_id = Some("target".to_string());
+    app.project_path = Some("/tmp/project".to_string());
+    app.sessions = vec![session_info("a", 1, 1), session_info("b", 1, 1)];
+    app.active_session_id = Some("a".to_string());
+    app.chat = vec![chat_message("session a")];
+    app.chat_message_ids = vec![Some("a-message".to_string())];
+    app.active_session_view_state.base_ready = true;
+    app.active_session_view_state.prepared_chat_ui_chunks.insert(0);
+    app.active_session_view_state.pinned_chat_ui_chunk_start = Some(0);
+    app.chat_render_cache.insert(0, crate::app::models::ChatRenderCacheEntry::default());
+    app.chat_virtualizer.sync_len(app.chat.len(), 100.0);
+    app.chat_virtualizer.set_viewport_height(100.0);
+    app.chat_virtualizer.scroll_to_item_anchor(0, 0.0, 0.0);
+    app.sync_chat_virtualizer_compat_fields();
+    let a_scroll_id = app.chat_scroll_id.clone();
+    let a_window = app.chat_virtualizer.window();
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
+            "/tmp/project".to_string(),
+            "b".to_string(),
+        ),
+    );
+    app.chat = vec![chat_message("session b")];
+    app.active_session_view_state.base_ready = true;
 
     let task = super::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::SessionUiStoreLoaded {
-            session_id: "target".to_string(),
+        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
+            "/tmp/project".to_string(),
+            "a".to_string(),
+        ),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.active_session_id.as_deref(), Some("a"));
+    assert_eq!(app.chat[0].content, "session a");
+    assert_eq!(app.chat_scroll_id, a_scroll_id);
+    assert_eq!(app.chat_virtualizer.window().visible_start_idx, a_window.visible_start_idx);
+    assert_eq!(app.chat_virtualizer.window().visible_end_idx, a_window.visible_end_idx);
+    assert!(app.active_session_view_state.base_ready);
+    assert!(!app.active_session_view_state.ui_preparing);
+    assert!(app.active_session_view_state.prepared_chat_ui_chunks.contains(&0));
+    assert!(!app.active_session_view_state.preparing_chat_ui_chunks.contains(&0));
+    assert!(app.chat_render_cache.contains_key(&0));
+}
+
+#[test]
+fn hot_restore_preserves_virtual_window_and_scroll_anchor() {
+    let mut app = app();
+    app.project_path = Some("/tmp/project".to_string());
+    app.sessions = vec![session_info("a", 1, 1), session_info("b", 1, 1)];
+    app.active_session_id = Some("a".to_string());
+    app.chat = (0..80).map(|idx| chat_message(&format!("message {idx}"))).collect();
+    app.active_session_view_state.base_ready = true;
+    app.chat_virtualizer.sync_len(app.chat.len(), 100.0);
+    app.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_virtualizer.scroll_to_item_anchor(40, 0.0, 0.0);
+    app.sync_chat_virtualizer_compat_fields();
+    let expected_window = app.chat_virtualizer.window();
+    let expected_scroll_id = app.chat_scroll_id.clone();
+    let expected_offset = app.chat_scroll_offset_y;
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
+            "/tmp/project".to_string(),
+            "b".to_string(),
+        ),
+    );
+    app.chat = vec![chat_message("session b")];
+    app.active_session_view_state.base_ready = true;
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::OpenProjectSessionPressed(
+            "/tmp/project".to_string(),
+            "a".to_string(),
+        ),
+    );
+
+    let restored_window = app.chat_virtualizer.window();
+    assert_eq!(app.chat_scroll_id, expected_scroll_id);
+    assert_eq!(app.chat_scroll_offset_y, expected_offset);
+    assert_eq!(restored_window.visible_start_idx, expected_window.visible_start_idx);
+    assert_eq!(restored_window.visible_end_idx, expected_window.visible_end_idx);
+    assert_eq!(restored_window.render_start_idx, expected_window.render_start_idx);
+    assert_eq!(restored_window.render_end_idx, expected_window.render_end_idx);
+}
+
+#[test]
+fn cold_session_open_applies_history_and_base_ui_once() {
+    let mut app = app();
+    app.active_session_id = Some("target".to_string());
+    app.chat_render_cache.insert(99, crate::app::models::ChatRenderCacheEntry::default());
+    let prepared = crate::app::session::prepare_session_open_from_ui_store(
+        ui_store_session("target", vec![Some("message-1".to_string())]),
+        false,
+    );
+
+    let task = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
             project_path: "/tmp/project".to_string(),
-            result: Ok(Some(ui_store_session(
-                "target",
-                vec![Some("message-1".to_string())],
-            ))),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::UiStore,
+            result: Ok(prepared),
         },
     )
-    .expect("UI store result should be handled");
+    .expect("prepared session should be handled");
 
     assert_eq!(app.chat.len(), 1);
     assert_eq!(app.chat[0].content, "loaded history");
     assert_eq!(app.chat_message_ids, vec![Some("message-1".to_string())]);
-    assert!(app.active_session_view_state.ui_preparing);
-    assert!(!app.active_session_view_state.base_ready);
+    assert!(app.active_session_view_state.base_ready);
+    assert!(!app.active_session_view_state.ui_preparing);
+    assert!(app.active_session_view_state.prepared_chat_ui_chunks.contains(&0));
+    assert!(!app.chat_render_cache.contains_key(&99));
     assert_eq!(task.units(), 1);
 }
 
 #[test]
-fn session_ui_store_loaded_with_missing_ids_schedules_remote_refresh() {
+fn prepared_session_open_moves_messages_into_app() {
     let mut app = app();
     app.active_session_id = Some("target".to_string());
+    let prepared = crate::app::session::prepare_session_open_from_ui_store(
+        ui_store_session("target", vec![Some("message-1".to_string())]),
+        false,
+    );
+    let messages_ptr = prepared.messages.as_ptr();
 
-    let task = super::handle(
+    let _ = super::super::lifecycle::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::SessionUiStoreLoaded {
-            session_id: "target".to_string(),
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
             project_path: "/tmp/project".to_string(),
-            result: Ok(Some(ui_store_session("target", vec![None]))),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::UiStore,
+            result: Ok(prepared),
         },
     )
-    .expect("UI store result should be handled");
+    .expect("prepared session should be handled");
 
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(task.units(), 2);
+    assert_eq!(app.chat.as_ptr(), messages_ptr);
 }
 
 #[test]
-fn stale_session_ui_store_result_is_ignored() {
+fn equal_remote_refresh_keeps_hot_render_cache_and_scroll_id() {
     let mut app = app();
-    app.active_session_id = Some("current".to_string());
-    app.chat = vec![chat_message("current history")];
-
-    let task = super::handle(
+    app.active_session_id = Some("target".to_string());
+    let ui_store = ui_store_session("target", vec![Some("message-1".to_string())]);
+    let prepared = crate::app::session::prepare_session_open_from_ui_store(ui_store.clone(), false);
+    let _ = super::super::lifecycle::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::SessionUiStoreLoaded {
-            session_id: "stale".to_string(),
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
             project_path: "/tmp/project".to_string(),
-            result: Ok(Some(ui_store_session(
-                "stale",
-                vec![Some("message-1".to_string())],
-            ))),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::UiStore,
+            result: Ok(prepared),
+        },
+    );
+    let scroll_id = app.chat_scroll_id.clone();
+    let render_hash = app.chat_render_cache.get(&0).map(|entry| entry.content_hash);
+    let remote = crate::app::session::prepare_session_open_from_ui_store(ui_store, false);
+
+    let task = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(remote),
         },
     )
-    .expect("stale UI store result should be consumed");
+    .expect("equal remote result should be handled");
 
-    assert_eq!(app.chat[0].content, "current history");
+    assert_eq!(app.chat_scroll_id, scroll_id);
+    assert_eq!(app.chat_render_cache.get(&0).map(|entry| entry.content_hash), render_hash);
     assert_eq!(task.units(), 0);
+}
+
+#[test]
+fn changed_remote_refresh_replaces_snapshot_once() {
+    let mut app = app();
+    app.active_session_id = Some("target".to_string());
+    let initial = ui_store_session("target", vec![Some("message-1".to_string())]);
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::UiStore,
+            result: Ok(crate::app::session::prepare_session_open_from_ui_store(initial, false)),
+        },
+    );
+    let initial_scroll_id = app.chat_scroll_id.clone();
+
+    let mut changed = ui_store_session("target", vec![Some("message-2".to_string())]);
+    changed.messages[0].content = "remote replacement".to_string();
+    let prepared = crate::app::session::prepare_session_open_from_ui_store(changed, false);
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(prepared.clone()),
+        },
+    );
+    let replacement_scroll_id = app.chat_scroll_id.clone();
+
+    assert_ne!(replacement_scroll_id, initial_scroll_id);
+    assert_eq!(app.chat[0].content, "remote replacement");
+
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(prepared),
+        },
+    );
+
+    assert_eq!(app.chat_scroll_id, replacement_scroll_id);
+    assert_eq!(app.chat[0].content, "remote replacement");
+}
+
+#[test]
+fn stale_async_result_cannot_overwrite_new_active_session() {
+    let mut app = app();
+    app.active_session_id = Some("a".to_string());
+    let stale_open_generation = app.session_view_cache.begin_open("a");
+    app.active_session_id = Some("b".to_string());
+    let current_open_generation = app.session_view_cache.begin_open("b");
+    app.chat = vec![chat_message("session b")];
+
+    let stale = crate::app::session::prepare_session_open_from_ui_store(
+        ui_store_session("a", vec![Some("a-message".to_string())]),
+        false,
+    );
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "a".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: stale_open_generation,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(stale),
+        },
+    );
+
+    assert_eq!(app.active_session_id.as_deref(), Some("b"));
+    assert_eq!(app.chat[0].content, "session b");
+    assert!(app.session_view_cache.is_current_open("b", current_open_generation));
 }
 
 #[test]

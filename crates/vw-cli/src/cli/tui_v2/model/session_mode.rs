@@ -138,10 +138,8 @@ impl SessionOptions {
         if available.is_empty() {
             return self.permission_mode;
         }
-        let current = available
-            .iter()
-            .position(|mode| *mode == self.permission_mode)
-            .unwrap_or_default();
+        let current =
+            available.iter().position(|mode| *mode == self.permission_mode).unwrap_or_default();
         available[(current + 1) % available.len()]
     }
 
@@ -171,9 +169,7 @@ impl SessionOptions {
         execution: &SessionExecutionSnapshot,
         succeeded: bool,
     ) {
-        if succeeded
-            && execution.acp_force_new_session
-            && self.acp_backend == execution.acp_backend
+        if succeeded && execution.acp_force_new_session && self.acp_backend == execution.acp_backend
         {
             self.acp_session_mode = AcpSessionMode::Reuse;
         }
@@ -203,8 +199,7 @@ impl SessionOptions {
     }
 
     pub(crate) fn set_subagent_mode(&mut self, enabled: bool) {
-        self.subagent_mode =
-            if enabled { SubagentMode::Enabled } else { SubagentMode::Disabled };
+        self.subagent_mode = if enabled { SubagentMode::Enabled } else { SubagentMode::Disabled };
     }
 
     pub(crate) fn workflow_mode_enabled(&self) -> bool {
@@ -216,8 +211,7 @@ impl SessionOptions {
     }
 
     pub(crate) fn set_workflow_mode(&mut self, enabled: bool) {
-        self.workflow_mode =
-            if enabled { WorkflowMode::Enabled } else { WorkflowMode::Disabled };
+        self.workflow_mode = if enabled { WorkflowMode::Enabled } else { WorkflowMode::Disabled };
     }
 
     pub(crate) fn set_goal_mode(&mut self, _enabled: bool) {

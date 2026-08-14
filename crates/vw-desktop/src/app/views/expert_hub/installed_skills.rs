@@ -7,8 +7,7 @@ use super::public_skills::SCROLLBAR_WIDTH;
 use super::styles;
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_close_button, settings_modal_card, settings_modal_overlay,
-    settings_muted_text_style,
+    settings_close_button, settings_modal_card, settings_modal_overlay, settings_muted_text_style,
 };
 use crate::app::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
 use crate::app::skill_hub::LoadState;
@@ -26,10 +25,7 @@ fn grid_columns(width: f32) -> usize {
 }
 
 fn badge(label: String) -> Element<'static, Message> {
-    container(text(label).size(11))
-        .padding([4, 8])
-        .style(styles::meta_badge_style)
-        .into()
+    container(text(label).size(11)).padding([4, 8]).style(styles::meta_badge_style).into()
 }
 
 fn source_badges(item: &DesktopSkillCatalogEntryDto) -> Element<'static, Message> {
@@ -52,10 +48,7 @@ fn source_badges(item: &DesktopSkillCatalogEntryDto) -> Element<'static, Message
     badges.wrap().into()
 }
 
-fn card_grid(
-    app: &App,
-    items: Vec<DesktopSkillCatalogEntryDto>,
-) -> Element<'static, Message> {
+fn card_grid(app: &App, items: Vec<DesktopSkillCatalogEntryDto>) -> Element<'static, Message> {
     let selected = app.expert_hub.public_market.installed_selection.clone();
     let busy = app.expert_hub.public_market.batch_action.is_some();
     responsive(move |size| {
@@ -64,10 +57,8 @@ fn card_grid(
         for chunk in items.chunks(columns) {
             let mut cards = row![].spacing(CARD_GAP);
             for item in chunk {
-                let fixture_app = InstalledCardContext {
-                    selected: selected.contains(&item.id),
-                    busy,
-                };
+                let fixture_app =
+                    InstalledCardContext { selected: selected.contains(&item.id), busy };
                 cards = cards.push(installed_card_from_context(&fixture_app, item));
             }
             for _ in chunk.len()..columns {
@@ -109,11 +100,7 @@ fn installed_card_from_context(
             })
         });
     }
-    let title = if item.title.trim().is_empty() {
-        item.id.clone()
-    } else {
-        item.title.clone()
-    };
+    let title = if item.title.trim().is_empty() { item.id.clone() } else { item.title.clone() };
     container(
         column![
             row![
@@ -121,28 +108,18 @@ fn installed_card_from_context(
                 column![
                     text(title)
                         .size(16)
-                        .font(Font {
-                            weight: iced::font::Weight::Semibold,
-                            ..Font::default()
-                        }),
-                    text(item.id.clone())
-                        .size(11)
-                        .style(styles::muted_text_style),
+                        .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
+                    text(item.id.clone()).size(11).style(styles::muted_text_style),
                 ]
                 .spacing(4)
                 .width(Length::Fill),
-                row![
-                    text(if item.enabled { "已启用" } else { "已关闭" }).size(12),
-                    toggle,
-                ]
-                .spacing(7)
-                .align_y(Alignment::Center),
+                row![text(if item.enabled { "已启用" } else { "已关闭" }).size(12), toggle,]
+                    .spacing(7)
+                    .align_y(Alignment::Center),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
-            text(item.description.clone())
-                .size(13)
-                .height(Length::Fixed(42.0)),
+            text(item.description.clone()).size(13).height(Length::Fixed(42.0)),
             source_badges(item),
             text(format!("资源 {} 项", item.resource_count))
                 .size(11)
@@ -162,9 +139,8 @@ fn batch_button(
     message: PublicSkillMessage,
     enabled: bool,
 ) -> Element<'static, Message> {
-    let mut action = button(text(label).size(12))
-        .padding([8, 12])
-        .style(styles::quiet_button_style);
+    let mut action =
+        button(text(label).size(12)).padding([8, 12]).style(styles::quiet_button_style);
     if enabled {
         action = action.on_press(public_message(message));
     }
@@ -190,21 +166,9 @@ fn toolbar(app: &App, count: usize) -> Element<'static, Message> {
             PublicSkillMessage::ClearInstalledSelection,
             state.batch_action.is_none() && selected > 0,
         ),
-        batch_button(
-            "启用",
-            PublicSkillMessage::StartBatchEnabled(true),
-            enabled,
-        ),
-        batch_button(
-            "关闭",
-            PublicSkillMessage::StartBatchEnabled(false),
-            enabled,
-        ),
-        batch_button(
-            "卸载",
-            PublicSkillMessage::RequestBatchDelete,
-            enabled,
-        ),
+        batch_button("启用", PublicSkillMessage::StartBatchEnabled(true), enabled,),
+        batch_button("关闭", PublicSkillMessage::StartBatchEnabled(false), enabled,),
+        batch_button("卸载", PublicSkillMessage::RequestBatchDelete, enabled,),
     ]
     .spacing(8)
     .align_y(Alignment::Center)
@@ -240,9 +204,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         ]
         .spacing(10)
         .into(),
-        LoadState::NeedsLogin => {
-            container(text("本地技能目录无需登录").size(13)).into()
-        }
+        LoadState::NeedsLogin => container(text("本地技能目录无需登录").size(13)).into(),
         LoadState::Loaded(_) if installed.is_empty() => {
             container(text("当前范围尚未安装可管理技能").size(13))
                 .height(Length::Fixed(180.0))
@@ -258,10 +220,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             column![
                 text("我安装的技能")
                     .size(25)
-                    .font(Font {
-                        weight: iced::font::Weight::Bold,
-                        ..Font::default()
-                    }),
+                    .font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
                 text("管理当前目录范围内可启用、关闭或卸载的本地技能")
                     .size(13)
                     .style(styles::muted_text_style),
@@ -281,9 +240,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
     scrollable(page)
         .direction(Direction::Vertical(
-            Scrollbar::new()
-                .width(SCROLLBAR_WIDTH)
-                .scroller_width(SCROLLBAR_WIDTH),
+            Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
         ))
         .width(Length::Fill)
         .height(Length::Fill)

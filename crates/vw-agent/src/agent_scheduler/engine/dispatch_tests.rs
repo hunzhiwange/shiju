@@ -374,11 +374,7 @@ async fn dispatch_skips_queued_task_with_unsatisfied_dependencies() -> Result<()
 
     let engine = DispatchEngine::new(&store, &controller);
     let directed = engine
-        .dispatch_task_once(
-            project_path,
-            &TaskId::new("task-dispatch-blocked")?,
-            now_ms,
-        )
+        .dispatch_task_once(project_path, &TaskId::new("task-dispatch-blocked")?, now_ms)
         .await?;
     assert_eq!(directed, None);
 

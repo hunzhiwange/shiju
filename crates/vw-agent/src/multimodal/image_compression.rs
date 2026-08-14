@@ -74,7 +74,10 @@ pub(super) fn compress_image_bytes(
     Ok(("image/jpeg".to_string(), jpeg_bytes))
 }
 
-fn encode_jpeg_within_budget(image: &DynamicImage, output_budget: usize) -> Result<Vec<u8>, String> {
+fn encode_jpeg_within_budget(
+    image: &DynamicImage,
+    output_budget: usize,
+) -> Result<Vec<u8>, String> {
     let mut rgb = flatten_to_rgb(image);
     let (mut width, mut height) = (rgb.width(), rgb.height());
 
@@ -108,9 +111,7 @@ fn encode_jpeg_within_budget(image: &DynamicImage, output_budget: usize) -> Resu
         rgb = resized;
     }
 
-    Err(format!(
-        "unable to compress image within output budget of {output_budget} bytes"
-    ))
+    Err(format!("unable to compress image within output budget of {output_budget} bytes"))
 }
 
 fn flatten_to_rgb(image: &DynamicImage) -> RgbImage {
@@ -135,7 +136,8 @@ fn resize_to_max_edge(image: &RgbImage, max_edge: u32) -> RgbImage {
     }
 
     let longest = width.max(height);
-    let scaled_width = ((u64::from(width) * u64::from(max_edge)) / u64::from(longest)).max(1) as u32;
+    let scaled_width =
+        ((u64::from(width) * u64::from(max_edge)) / u64::from(longest)).max(1) as u32;
     let scaled_height =
         ((u64::from(height) * u64::from(max_edge)) / u64::from(longest)).max(1) as u32;
     image::imageops::resize(image, scaled_width, scaled_height, FilterType::Triangle)

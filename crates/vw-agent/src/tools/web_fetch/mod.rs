@@ -530,11 +530,8 @@ impl WebFetchTool {
         let client = self.build_http_client(timeout_secs)?;
 
         // 发送 GET 请求，带有 Accept 和 Accept-Language 头
-        let response = client
-            .get(url)
-            .header(ACCEPT, Self::select_accept_header(format))
-            .send()
-            .await?;
+        let response =
+            client.get(url).header(ACCEPT, Self::select_accept_header(format)).send().await?;
 
         // 处理重定向响应
         if response.status().is_redirection() {

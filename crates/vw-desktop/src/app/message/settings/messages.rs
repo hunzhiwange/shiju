@@ -1,10 +1,10 @@
 //! 定义系统设置页面的消息枚举，作为 UI 事件与状态更新之间的显式契约。
 
 use crate::app::state::{
-    AutonomyListKind, AutonomySettingsTab, CronAddJobType, CronAddScheduleKind, CronSettingsTab,
-    CustomProviderModelFilter, CustomProviderModelTab, CustomProviderTab, GatewaySettingsTab,
-    McpNewServerTransport, McpSettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab,
-    ThemeEditorTab,
+    AutonomyListKind, AutonomySettingsTab, ChannelsSettingsTab, CronAddJobType,
+    CronAddScheduleKind, CronSettingsTab, CustomProviderModelFilter, CustomProviderModelTab,
+    CustomProviderTab, GatewaySettingsTab, McpNewServerTransport, McpSettingsTab,
+    MemorySettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab, ThemeEditorTab,
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
@@ -201,6 +201,7 @@ pub enum GoalLoopMessage {
 #[derive(Debug, Clone)]
 pub enum MemoryMessage {
     Refresh,
+    TabSelected(MemorySettingsTab),
     BackendChanged(String),
     AutoSaveToggled(bool),
     HygieneEnabledToggled(bool),
@@ -255,7 +256,7 @@ pub enum HttpRequestMessage {
 #[derive(Debug, Clone)]
 pub enum ChannelsMessage {
     Refresh,
-    PanelToggled(String),
+    TabSelected(ChannelsSettingsTab),
     CliToggled(bool),
     ProjectDirChanged(String),
     MessageTimeoutSecsChanged(u32),

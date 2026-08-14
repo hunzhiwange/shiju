@@ -448,10 +448,7 @@ fn enabled_acp_backend_keys_load_enabled_config_and_sort_names() {
             "200 OK",
             r#"{"codex":{"command":"codex"},"alpha":{"command":"alpha"},"zeta":{"command":"zeta"}}"#,
         ),
-        (
-            "200 OK",
-            r#"{"acp":{"zeta":{"command":"zeta"},"alpha":{"command":"alpha"}}}"#,
-        ),
+        ("200 OK", r#"{"acp":{"zeta":{"command":"zeta"},"alpha":{"command":"alpha"}}}"#),
     ]);
     let runtime = runtime_for_port(port);
 

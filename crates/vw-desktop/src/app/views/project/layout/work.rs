@@ -32,28 +32,27 @@ pub fn build_work_layout(
         .height(Length::Fill)
         .padding(iced::Padding::default().left(3.0));
 
-    let content: Element<'_, Message> = if !app.work_resources_visible
-        || app.work_chat_fullscreen
-        || app.work_chat_half_fullscreen
-    {
-        chat.into()
-    } else if app.work_resource_fullscreen || app.work_resource_half_fullscreen {
-        resources.into()
-    } else {
-        let left_portion = (app.work_split_ratio.clamp(0.25, 0.75) * 1_000.0) as u16;
-        let right_portion = 1_000u16.saturating_sub(left_portion).max(1);
-        let divider =
-            mouse_area(HResizeHandle).on_press(Message::View(ViewMessage::WorkSplitDragStarted));
-        row![
-            chat.width(Length::FillPortion(left_portion.max(1))),
-            divider,
-            resources.width(Length::FillPortion(right_portion)),
-        ]
-        .spacing(0)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
-    };
+    let content: Element<'_, Message> =
+        if !app.work_resources_visible || app.work_chat_fullscreen || app.work_chat_half_fullscreen
+        {
+            chat.into()
+        } else if app.work_resource_fullscreen || app.work_resource_half_fullscreen {
+            resources.into()
+        } else {
+            let left_portion = (app.work_split_ratio.clamp(0.25, 0.75) * 1_000.0) as u16;
+            let right_portion = 1_000u16.saturating_sub(left_portion).max(1);
+            let divider = mouse_area(HResizeHandle)
+                .on_press(Message::View(ViewMessage::WorkSplitDragStarted));
+            row![
+                chat.width(Length::FillPortion(left_portion.max(1))),
+                divider,
+                resources.width(Length::FillPortion(right_portion)),
+            ]
+            .spacing(0)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+        };
 
     let right_column_base: Element<'_, Message> = content;
     let right_overlay: Element<'_, Message> = chat_panel::tool_dialog_overlay(app)

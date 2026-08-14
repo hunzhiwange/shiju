@@ -1,11 +1,9 @@
-use super::super::model::elicitation::{
-    ElicitationRequest, ElicitationResponse,
-};
 use super::super::model::UiQuestionOverlay;
+use super::super::model::elicitation::{ElicitationRequest, ElicitationResponse};
 
 pub(crate) trait QuestionFormRuntime {
     fn reply_question(&mut self, request_id: &str, answers: Vec<Vec<String>>)
-        -> Result<(), String>;
+    -> Result<(), String>;
     fn reject_question(&mut self, request_id: &str) -> Result<(), String>;
     fn reply_elicitation(
         &mut self,
@@ -21,9 +19,7 @@ pub(crate) fn submit_question_form(
     if overlay.prompts.len() != overlay.answers.len() {
         return Err("question answer shape does not match prompt pages".to_string());
     }
-    for (index, (prompt, answers)) in
-        overlay.prompts.iter().zip(&overlay.answers).enumerate()
-    {
+    for (index, (prompt, answers)) in overlay.prompts.iter().zip(&overlay.answers).enumerate() {
         if answers.is_empty() || answers.iter().all(|answer| answer.trim().is_empty()) {
             return Err(format!("question page {} has no answer", index + 1));
         }

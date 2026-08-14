@@ -35,9 +35,7 @@ fn inline_reasoning_text_stays_visible() {
     let raw = "answer [reasoning] is a label";
     let blocks = owned_blocks_from_raw(raw);
 
-    assert!(
-        matches!(blocks.as_slice(), [ParsedChatBlock::Text { content }] if content == raw)
-    );
+    assert!(matches!(blocks.as_slice(), [ParsedChatBlock::Text { content }] if content == raw));
 }
 
 #[test]

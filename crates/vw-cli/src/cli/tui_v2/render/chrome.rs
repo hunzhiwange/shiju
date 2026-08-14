@@ -53,12 +53,14 @@ impl TuiRenderer {
         state: &TuiState,
     ) -> Option<TuiScrollbarFeedback> {
         let mode = &state.transcript_mode;
-        let block =
-            self.panel_block("Transcript 阅读模式", TuiPanelSurface::Raised, TuiPanelBorder::Focused);
+        let block = self.panel_block(
+            "Transcript 阅读模式",
+            TuiPanelSurface::Raised,
+            TuiPanelBorder::Focused,
+        );
         let inner = block.inner(area);
         frame.render_widget(block, area);
-        let (content_area, scrollbar_track) =
-            super::layout::split_scrollbar_area(inner);
+        let (content_area, scrollbar_track) = super::layout::split_scrollbar_area(inner);
 
         let mut lines = mode
             .visible_lines()
@@ -80,10 +82,9 @@ impl TuiRenderer {
                 Span::styled("  Enter 确认 · Esc 取消", self.theme.muted_style()),
             ]));
         } else {
-            let match_label = mode.selected_match.map_or_else(
-                String::new,
-                |selected| format!(" · 匹配 {}/{}", selected + 1, mode.search_matches.len()),
-            );
+            let match_label = mode.selected_match.map_or_else(String::new, |selected| {
+                format!(" · 匹配 {}/{}", selected + 1, mode.search_matches.len())
+            });
             lines.push(Line::styled(
                 format!(
                     "j/k 滚动 · g/G 首尾 · / 搜索 · n/N 匹配 · [ 导出 · v 编辑 · q 退出{match_label}"
@@ -227,9 +228,7 @@ impl TuiRenderer {
     }
 
     pub(super) fn pill_style(&self, tone: TuiTone) -> Style {
-        Style::default()
-            .fg(tone_color(tone, self.theme))
-            .add_modifier(Modifier::BOLD)
+        Style::default().fg(tone_color(tone, self.theme)).add_modifier(Modifier::BOLD)
     }
 
     pub(super) fn render_pills_line(
@@ -314,10 +313,7 @@ pub(crate) fn build_status_footer(
         pills.push(TuiPill::new(format!("待办 {}", status.todo_count), TuiTone::Warning));
     }
 
-    TuiStatusFooter {
-        pills,
-        detail: Some("/model 模型 · /acp ACP · $ 技能".to_string()),
-    }
+    TuiStatusFooter { pills, detail: Some("/model 模型 · /acp ACP · $ 技能".to_string()) }
 }
 
 pub(crate) fn build_activity_indicator(
@@ -352,10 +348,7 @@ pub(crate) fn build_activity_indicator(
                 .checked_div(1_000)
                 .unwrap_or_default()
                 .max(1);
-            Some(TuiActivityIndicator {
-                spinner,
-                verb: format!("Thought for {seconds}s"),
-            })
+            Some(TuiActivityIndicator { spinner, verb: format!("Thought for {seconds}s") })
         }
         UiThinkingPhase::Redacted | UiThinkingPhase::HiddenHistory => None,
     }

@@ -47,11 +47,7 @@ pub(super) fn render_attachment(
             if let Some(source) = attachment.source.as_deref() {
                 metadata.push(sanitize_visible_text(source));
             }
-            let summary = if metadata.is_empty() {
-                name
-            } else {
-                metadata.join(" · ")
-            };
+            let summary = if metadata.is_empty() { name } else { metadata.join(" · ") };
             vec![Line::styled(
                 truncate_end(format!("[Image #{image_index}] {summary}").as_str(), width),
                 theme.body_style(),
@@ -95,7 +91,10 @@ pub(super) fn render_attachment(
                 Some(_) => label,
                 None => format!("{label} (unsafe target blocked)"),
             };
-            vec![Line::styled(truncate_end(rendered.as_str(), width.max(rendered.len())), theme.body_style())]
+            vec![Line::styled(
+                truncate_end(rendered.as_str(), width.max(rendered.len())),
+                theme.body_style(),
+            )]
         }
         UiAttachmentKind::File => {
             let (label, allowed) = match target.as_ref() {
@@ -153,19 +152,14 @@ fn safe_open_intent(
 fn safe_workspace_path(path: &str, workspace_root: Option<&str>) -> Option<String> {
     let root = Path::new(workspace_root?);
     let candidate = Path::new(path);
-    let joined = if candidate.is_absolute() {
-        candidate.to_path_buf()
-    } else {
-        root.join(candidate)
-    };
+    let joined =
+        if candidate.is_absolute() { candidate.to_path_buf() } else { root.join(candidate) };
     if joined.components().any(|component| matches!(component, Component::ParentDir)) {
         return None;
     }
     let normalized_root = lexical_normalize(root);
     let normalized = lexical_normalize(&joined);
-    normalized
-        .starts_with(&normalized_root)
-        .then(|| normalized.to_string_lossy().into_owned())
+    normalized.starts_with(&normalized_root).then(|| normalized.to_string_lossy().into_owned())
 }
 
 fn lexical_normalize(path: &Path) -> PathBuf {

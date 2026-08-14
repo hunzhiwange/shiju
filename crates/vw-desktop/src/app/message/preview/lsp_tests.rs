@@ -48,10 +48,7 @@ fn lsp_results_rebind_overlay_to_active_preview() {
     app.active_preview_path = Some(active_path.to_string());
     app.preview_tabs.push(preview_tab(active_path, "fn main() {}"));
     app.lsp_overlay_path = Some("/tmp/previous.rs".to_string());
-    install_lsp_events(
-        &mut app,
-        [crate::app::lsp::LspEvent::Hover { text: "hover".to_string() }],
-    );
+    install_lsp_events(&mut app, [crate::app::lsp::LspEvent::Hover { text: "hover".to_string() }]);
 
     let _ = super::lsp::drain_lsp_events(&mut app);
 

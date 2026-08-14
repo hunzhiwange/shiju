@@ -119,7 +119,7 @@ fn chat_area_style_applies_wallpaper_panel_alpha() {
     use std::path::PathBuf;
 
     use crate::app::theme_catalog::{
-        resolve_chrome_style_from_skin, ActiveThemeSkin, ThemeChrome, DEFAULT_WALLPAPER_PANEL_ALPHA,
+        ActiveThemeSkin, DEFAULT_WALLPAPER_PANEL_ALPHA, ThemeChrome, resolve_chrome_style_from_skin,
     };
 
     let theme = Theme::Dark;

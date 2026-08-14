@@ -50,12 +50,7 @@ fn tui_prompt_footer_and_history_match_reference() {
     assert_eq!(state.prompt.value, "line one\nline two", "history restores multiline draft");
 
     state.prompt.set_value("draft survives search");
-    press(
-        &mut controller,
-        &mut state,
-        KeyCode::Char('r'),
-        KeyModifiers::CONTROL,
-    );
+    press(&mut controller, &mut state, KeyCode::Char('r'), KeyModifiers::CONTROL);
     assert!(state.history_search.active);
     for ch in "second".chars() {
         press(&mut controller, &mut state, KeyCode::Char(ch), KeyModifiers::NONE);
@@ -69,12 +64,7 @@ fn tui_prompt_footer_and_history_match_reference() {
     press(&mut controller, &mut state, KeyCode::Esc, KeyModifiers::NONE);
     assert_eq!(state.prompt.value, "draft survives search");
 
-    press(
-        &mut controller,
-        &mut state,
-        KeyCode::Char('r'),
-        KeyModifiers::CONTROL,
-    );
+    press(&mut controller, &mut state, KeyCode::Char('r'), KeyModifiers::CONTROL);
     for ch in "first".chars() {
         press(&mut controller, &mut state, KeyCode::Char(ch), KeyModifiers::NONE);
     }

@@ -1,12 +1,12 @@
-use vw_shared::session::ui_types as session_ui;
 use vw_gateway_client::GatewayChatStreamEvent;
+use vw_shared::session::ui_types as session_ui;
 
 use super::attachment::{UiAttachment, UiAttachmentKind};
 use super::ui_message::{
     UiAssistantMessage, UiCompactBoundary, UiErrorMessage, UiMessage, UiMessageBase, UiMessageId,
     UiMessageKind, UiMessageOrigin, UiProgressMessage, UiStep, UiStepState, UiSystemMessage,
-    UiSystemMessageLevel, UiThinkingBlock, UiThinkingPhase, UiThinkingTiming, UiTokenUsage, UiToolCall,
-    UiToolCallState, UiToolResult, UiTurnTerminal, UiUnknownMessage, UiUserMessage,
+    UiSystemMessageLevel, UiThinkingBlock, UiThinkingPhase, UiThinkingTiming, UiTokenUsage,
+    UiToolCall, UiToolCallState, UiToolResult, UiTurnTerminal, UiUnknownMessage, UiUserMessage,
 };
 use crate::cli::tui_v2::runtime::stream_adapter::adapt_gateway_stream_event;
 use crate::cli::tui_v2::state::{TuiState, apply_runtime_event};
@@ -118,10 +118,7 @@ fn tui_message_model_roundtrips_reference_content_kinds() {
     let snapshot = state.to_chat_session();
     assert_eq!(snapshot.messages.len(), 4);
     assert!(
-        snapshot
-            .messages
-            .iter()
-            .all(|message| !message.content.contains("must-not-be-persisted"))
+        snapshot.messages.iter().all(|message| !message.content.contains("must-not-be-persisted"))
     );
 
     let restored = TuiState::from_chat_session(&snapshot);

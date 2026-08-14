@@ -352,29 +352,32 @@ async fn handle_agent_records_failure_events_with_default_labels() {
 
     assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
     let events = observer.events();
-    assert!(matches!(
-        events.as_slice(),
-        [
-            ObserverEvent::AgentStart { provider, model },
-            ObserverEvent::LlmRequest {
-                provider: request_provider,
-                model: request_model,
-                messages_count: 1,
-            },
-            ObserverEvent::LlmResponse {
-                provider: response_provider,
-                model: response_model,
-                success: false,
-                error_message: Some(_),
-                ..
-            },
-        ] if provider == "unknown"
-            && model == "endpoint-model"
-            && request_provider == provider
-            && request_model == model
-            && response_provider == provider
-            && response_model == model
-    ), "unexpected observer events: {events:?}");
+    assert!(
+        matches!(
+            events.as_slice(),
+            [
+                ObserverEvent::AgentStart { provider, model },
+                ObserverEvent::LlmRequest {
+                    provider: request_provider,
+                    model: request_model,
+                    messages_count: 1,
+                },
+                ObserverEvent::LlmResponse {
+                    provider: response_provider,
+                    model: response_model,
+                    success: false,
+                    error_message: Some(_),
+                    ..
+                },
+            ] if provider == "unknown"
+                && model == "endpoint-model"
+                && request_provider == provider
+                && request_model == model
+                && response_provider == provider
+                && response_model == model
+        ),
+        "unexpected observer events: {events:?}"
+    );
 }
 
 #[tokio::test]

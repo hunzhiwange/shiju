@@ -18,8 +18,9 @@ pub(crate) use installer::{
     uninstall_shiju_for_targets, uninstall_shiju_package, version_is_newer,
 };
 pub(crate) use models::{
-    CursorPage, InstalledSkill, MarketplaceSkill, Page, SkillDetail, SkillDownloadUrl, SkillTag,
-    ShijuPackageId, ShijuPackageRelease, SkillVersion, SkillVersionContent, SystemSkill, TenantSkill,
+    CursorPage, InstalledSkill, MarketplaceSkill, Page, ShijuPackageId, ShijuPackageRelease,
+    SkillDetail, SkillDownloadUrl, SkillTag, SkillVersion, SkillVersionContent, SystemSkill,
+    TenantSkill,
 };
 pub(crate) use package_version_cache::{
     PackageVersionCacheEntry, load_package_version_cache, package_version_cache_path,

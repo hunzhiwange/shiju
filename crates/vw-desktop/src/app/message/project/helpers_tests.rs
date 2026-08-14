@@ -3,9 +3,9 @@ use super::{
     collect_gateway_file_paths, collect_local_attachments, copy_recursively,
     find_session_project_path, is_supported_image_attachment, is_word_byte, map_gateway_project,
     map_loaded_project_info, map_timestamp, normalize_path, path_within_dir,
-    prepare_session_ui_chunks_task, prepare_session_ui_task, refresh_file_index,
-    prepare_stream_message_ui_task, relative_to_project, resolve_absolute_gateway_path,
-    run_find_task, sanitize_attachment_stem, stabilize_image_attachment, unique_name_in_dir,
+    prepare_session_ui_chunks_task, prepare_session_ui_task, prepare_stream_message_ui_task,
+    refresh_file_index, relative_to_project, resolve_absolute_gateway_path, run_find_task,
+    sanitize_attachment_stem, stabilize_image_attachment, unique_name_in_dir,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use super::{build_clipboard_image_attachment_path, persist_clipboard_image_attachment};
@@ -734,10 +734,12 @@ async fn prepare_stream_message_ui_task_prepares_only_target() {
     ))
     .await;
 
-    let [crate::app::Message::Project(crate::app::message::ProjectMessage::SessionUiPrepared {
-        session_id,
-        phase: crate::app::session::PreparedChatUiPhase::Message(prepared),
-    })] = messages.as_slice()
+    let [
+        crate::app::Message::Project(crate::app::message::ProjectMessage::SessionUiPrepared {
+            session_id,
+            phase: crate::app::session::PreparedChatUiPhase::Message(prepared),
+        }),
+    ] = messages.as_slice()
     else {
         panic!("single-message task should return one prepared message")
     };

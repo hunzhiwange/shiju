@@ -462,7 +462,8 @@ pub fn subagent_mode_button(active: bool) -> Element<'static, Message> {
         })
         .on_press(Message::Chat(message::ChatMessage::SubagentModeToggled(!active)));
 
-    let tooltip_label = if active { "关闭子智能体模式" } else { "启用子智能体模式" };
+    let tooltip_label =
+        if active { "关闭子智能体模式" } else { "启用子智能体模式" };
     tooltip(
         button,
         container(text(tooltip_label).size(12)).style(tooltip_dark_style).padding([6, 8]),

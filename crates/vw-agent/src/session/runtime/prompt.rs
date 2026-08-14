@@ -19,19 +19,9 @@ fn map_non_terminal(event: StreamEvent) -> Option<PromptEvent> {
         StreamEvent::StepStart { step_index, created_ms, model } => {
             Some(PromptEvent::StepStart { step_index, created_ms, model })
         }
-        StreamEvent::StepFinish {
-            step_index,
-            finished_ms,
-            usage,
-            finish_reason,
-            model,
-        } => Some(PromptEvent::StepFinish {
-            step_index,
-            finished_ms,
-            usage,
-            finish_reason,
-            model,
-        }),
+        StreamEvent::StepFinish { step_index, finished_ms, usage, finish_reason, model } => {
+            Some(PromptEvent::StepFinish { step_index, finished_ms, usage, finish_reason, model })
+        }
         StreamEvent::PostToolRound { step_index } => {
             Some(PromptEvent::PostToolRound { step_index })
         }
@@ -108,11 +98,7 @@ where
         );
 
         if token.is_cancelled() {
-            send_terminal(
-                &events_tx,
-                terminal.as_ref(),
-                PromptTermination::Cancelled,
-            );
+            send_terminal(&events_tx, terminal.as_ref(), PromptTermination::Cancelled);
         } else {
             send_terminal(
                 &events_tx,

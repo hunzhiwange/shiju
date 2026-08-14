@@ -477,8 +477,7 @@ const BUILTIN_REQUIRED_TOOL_ALIASES: &[&str] = &[
 
 /// 判断工具 ID 是否属于内置必选目录（含主 ID 与既有别名）。
 pub fn is_builtin_required_tool_id(tool_id: &str) -> bool {
-    BUILTIN_REQUIRED_TOOL_IDS.contains(&tool_id)
-        || BUILTIN_REQUIRED_TOOL_ALIASES.contains(&tool_id)
+    BUILTIN_REQUIRED_TOOL_IDS.contains(&tool_id) || BUILTIN_REQUIRED_TOOL_ALIASES.contains(&tool_id)
 }
 
 /// 判断工具 ID 是否为 MCP 动态工具（形如 `mcp__{server}__{tool}`）。

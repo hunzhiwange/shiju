@@ -13,66 +13,66 @@ pub(crate) mod app;
 #[cfg(test)]
 #[path = "app_tests.rs"]
 mod app_tests;
-pub(crate) mod controller;
-pub(crate) mod commands;
-pub(crate) mod completion;
 mod clipboard;
 #[cfg(test)]
 #[path = "clipboard_tests.rs"]
 mod clipboard_tests;
+pub(crate) mod commands;
+pub(crate) mod completion;
 #[cfg(test)]
 #[path = "completion_tests.rs"]
 mod completion_tests;
-pub(crate) mod editor;
-pub(crate) mod effect;
-#[cfg(test)]
-#[path = "editor_tests.rs"]
-mod editor_tests;
+pub(crate) mod controller;
 #[cfg(test)]
 #[path = "controller_tests.rs"]
 mod controller_tests;
-pub(crate) mod input;
-mod keymap;
-mod keybindings;
+pub(crate) mod editor;
 #[cfg(test)]
-#[path = "keybindings_tests.rs"]
-mod keybindings_tests;
+#[path = "editor_tests.rs"]
+mod editor_tests;
+pub(crate) mod effect;
 mod history_search;
 #[cfg(test)]
 #[path = "history_search_tests.rs"]
 mod history_search_tests;
-mod message_action_controller;
-mod notifications;
+pub(crate) mod input;
+mod keybindings;
 #[cfg(test)]
-#[path = "notifications_tests.rs"]
-mod notifications_tests;
+#[path = "keybindings_tests.rs"]
+mod keybindings_tests;
+mod keymap;
+mod message_action_controller;
 #[cfg(test)]
 #[path = "message_action_controller_tests.rs"]
 mod message_action_controller_tests;
 pub(crate) mod model;
+mod notifications;
+#[cfg(test)]
+#[path = "notifications_tests.rs"]
+mod notifications_tests;
 mod overlay_controller;
 pub(crate) mod paste;
 #[cfg(test)]
 #[path = "paste_tests.rs"]
 mod paste_tests;
+pub(crate) mod render;
+pub(crate) mod runtime;
 #[cfg(test)]
 #[path = "security_tests.rs"]
 mod security_tests;
+pub(crate) mod state;
 #[cfg(test)]
 #[path = "stress_tests.rs"]
 mod stress_tests;
-pub(crate) mod render;
-pub(crate) mod runtime;
-pub(crate) mod state;
 pub(crate) mod terminal_capabilities;
-mod vim;
-#[cfg(test)]
-#[path = "vim_tests.rs"]
-mod vim_tests;
 mod transcript_controller;
 #[cfg(test)]
 #[path = "transcript_controller_tests.rs"]
 mod transcript_controller_tests;
+mod vim;
+#[cfg(test)]
+#[path = "vim_tests.rs"]
+mod vim_tests;
 
 pub(crate) use app::TuiRunMode;
 #[cfg(not(test))]

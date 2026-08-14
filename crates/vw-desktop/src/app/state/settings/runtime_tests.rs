@@ -189,7 +189,7 @@ fn research_web_search_browser_and_gateway_defaults_are_ready_for_empty_config()
     assert!(!browser.enabled);
     assert!(browser.allowed_domains_input.is_empty());
     assert!(browser.allowed_domains_editor.text().is_empty());
-    assert_eq!(browser.browser_open, "default");
+    assert_eq!(browser.browser_open, "new_tab");
     assert!(browser.session_name_input.is_empty());
     assert_eq!(browser.backend, "agent_browser");
     assert!(browser.native_headless);

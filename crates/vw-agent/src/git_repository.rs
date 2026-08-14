@@ -47,10 +47,7 @@ pub fn current_branch(path: &Path) -> Option<String> {
     match repo.head() {
         Ok(head) => {
             if head.is_branch() {
-                head.shorthand()
-                    .ok()
-                    .map(str::to_string)
-                    .filter(|name| !name.is_empty())
+                head.shorthand().ok().map(str::to_string).filter(|name| !name.is_empty())
             } else {
                 Some("HEAD".to_string())
             }

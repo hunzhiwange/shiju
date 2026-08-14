@@ -341,99 +341,98 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
     let mut content = column![top_controls].spacing(12);
     if should_render_worktree_controls(app) {
         if let Some(snapshot) = &app.task_board_worktree_snapshot {
-        let title_line = text("工作池").size(13).style(worktree_title_text_style);
-        let lock_text = if snapshot.merge_target_locks.is_empty() {
-            "合并锁: 无".to_string()
-        } else {
-            format!(
-                "合并锁: {}",
-                snapshot
-                    .merge_target_locks
-                    .iter()
-                    .map(|(target, task_id)| format!("{}<-{}", target, task_id))
-                    .collect::<Vec<_>>()
-                    .join(" | ")
-            )
-        };
-        let summary_line = text(format!(
-            "待复用:{} 忙碌:{} 污染:{} 回收中:{} 失效:{} | 基线分支:{} | 目录:{} | {}",
-            snapshot.idle_count,
-            snapshot.busy_count,
-            snapshot.tainted_count,
-            snapshot.recycling_count,
-            snapshot.dead_count,
-            snapshot.base_branch,
-            snapshot.pool_root,
-            lock_text
-        ))
-        .size(12)
-        .style(worktree_summary_text_style);
+            let title_line = text("工作池").size(13).style(worktree_title_text_style);
+            let lock_text = if snapshot.merge_target_locks.is_empty() {
+                "合并锁: 无".to_string()
+            } else {
+                format!(
+                    "合并锁: {}",
+                    snapshot
+                        .merge_target_locks
+                        .iter()
+                        .map(|(target, task_id)| format!("{}<-{}", target, task_id))
+                        .collect::<Vec<_>>()
+                        .join(" | ")
+                )
+            };
+            let summary_line = text(format!(
+                "待复用:{} 忙碌:{} 污染:{} 回收中:{} 失效:{} | 基线分支:{} | 目录:{} | {}",
+                snapshot.idle_count,
+                snapshot.busy_count,
+                snapshot.tainted_count,
+                snapshot.recycling_count,
+                snapshot.dead_count,
+                snapshot.base_branch,
+                snapshot.pool_root,
+                lock_text
+            ))
+            .size(12)
+            .style(worktree_summary_text_style);
 
-        let toggle_label = if app.task_board_worktree_panel_expanded {
-            "收起槽位明细"
-        } else {
-            "展开槽位明细"
-        };
-        let toggle_btn = button(text(toggle_label).size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::ToggleWorktreePanelExpanded))
-            .padding([4, 8])
-            .style(button_style_secondary);
-        let office_toggle_label = if app.task_board_worktree_pixel_office {
-            "切换列表视图"
-        } else {
-            "切换像素办公室"
-        };
-        let office_toggle_btn = button(text(office_toggle_label).size(12))
-            .on_press(Message::TaskBoard(TaskBoardMessage::ToggleWorktreePixelOffice(
-                !app.task_board_worktree_pixel_office,
-            )))
-            .padding([4, 8])
-            .style(button_style_secondary);
-        let clean_btn_label = if app.task_board_worktree_manual_action_kind == Some("cleanup") {
-            format!("一键清理进行中{}", running_dots(now_ms))
-        } else if app.task_board_worktree_manual_confirm_kind == Some("cleanup") {
-            "确认一键清理".to_string()
-        } else {
-            "一键清理".to_string()
-        };
-        let clean_btn = button(text(clean_btn_label).size(12))
-            .on_press_maybe(
-                (!worktree_manual_action_running)
-                    .then_some(Message::TaskBoard(TaskBoardMessage::CleanAllWorktreesPressed)),
-            )
-            .padding([4, 8])
-            .style(if app.task_board_worktree_manual_confirm_kind == Some("cleanup") {
-                button_style_danger
+            let toggle_label = if app.task_board_worktree_panel_expanded {
+                "收起槽位明细"
             } else {
-                button_style_secondary
-            });
-        let delete_btn_label = if app.task_board_worktree_manual_action_kind == Some("delete") {
-            format!("删除所有 worktree 中{}", running_dots(now_ms))
-        } else if app.task_board_worktree_manual_confirm_kind == Some("delete") {
-            "确认删除所有 worktree".to_string()
-        } else {
-            "一键删除".to_string()
-        };
-        let delete_btn = button(text(delete_btn_label).size(12))
-            .on_press_maybe(
-                (!worktree_manual_action_running)
-                    .then_some(Message::TaskBoard(TaskBoardMessage::DeleteAllWorktreesPressed)),
-            )
-            .padding([4, 8])
-            .style(if app.task_board_worktree_manual_confirm_kind == Some("delete") {
-                button_style_danger
+                "展开槽位明细"
+            };
+            let toggle_btn = button(text(toggle_label).size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::ToggleWorktreePanelExpanded))
+                .padding([4, 8])
+                .style(button_style_secondary);
+            let office_toggle_label = if app.task_board_worktree_pixel_office {
+                "切换列表视图"
             } else {
-                button_style_secondary
-            });
-        let merge_btn_label = if app.task_board_worktree_manual_action_kind == Some("merge") {
-            format!("一键合并进行中{}", running_dots(now_ms))
-        } else if app.task_board_worktree_manual_confirm_kind == Some("merge") {
-            "确认一键合并".to_string()
-        } else {
-            "一键合并".to_string()
-        };
-        let merge_btn =
-            button(text(merge_btn_label).size(12))
+                "切换像素办公室"
+            };
+            let office_toggle_btn = button(text(office_toggle_label).size(12))
+                .on_press(Message::TaskBoard(TaskBoardMessage::ToggleWorktreePixelOffice(
+                    !app.task_board_worktree_pixel_office,
+                )))
+                .padding([4, 8])
+                .style(button_style_secondary);
+            let clean_btn_label = if app.task_board_worktree_manual_action_kind == Some("cleanup") {
+                format!("一键清理进行中{}", running_dots(now_ms))
+            } else if app.task_board_worktree_manual_confirm_kind == Some("cleanup") {
+                "确认一键清理".to_string()
+            } else {
+                "一键清理".to_string()
+            };
+            let clean_btn = button(text(clean_btn_label).size(12))
+                .on_press_maybe(
+                    (!worktree_manual_action_running)
+                        .then_some(Message::TaskBoard(TaskBoardMessage::CleanAllWorktreesPressed)),
+                )
+                .padding([4, 8])
+                .style(if app.task_board_worktree_manual_confirm_kind == Some("cleanup") {
+                    button_style_danger
+                } else {
+                    button_style_secondary
+                });
+            let delete_btn_label = if app.task_board_worktree_manual_action_kind == Some("delete") {
+                format!("删除所有 worktree 中{}", running_dots(now_ms))
+            } else if app.task_board_worktree_manual_confirm_kind == Some("delete") {
+                "确认删除所有 worktree".to_string()
+            } else {
+                "一键删除".to_string()
+            };
+            let delete_btn = button(text(delete_btn_label).size(12))
+                .on_press_maybe(
+                    (!worktree_manual_action_running)
+                        .then_some(Message::TaskBoard(TaskBoardMessage::DeleteAllWorktreesPressed)),
+                )
+                .padding([4, 8])
+                .style(if app.task_board_worktree_manual_confirm_kind == Some("delete") {
+                    button_style_danger
+                } else {
+                    button_style_secondary
+                });
+            let merge_btn_label = if app.task_board_worktree_manual_action_kind == Some("merge") {
+                format!("一键合并进行中{}", running_dots(now_ms))
+            } else if app.task_board_worktree_manual_confirm_kind == Some("merge") {
+                "确认一键合并".to_string()
+            } else {
+                "一键合并".to_string()
+            };
+            let merge_btn = button(text(merge_btn_label).size(12))
                 .on_press_maybe((!worktree_manual_action_running).then_some(Message::TaskBoard(
                     TaskBoardMessage::CommitMergeAllWorktreesPressed,
                 )))
@@ -443,108 +442,115 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                 } else {
                     button_style_secondary
                 });
-        let mut title_row = row![title_line, clean_btn, delete_btn, merge_btn]
-            .spacing(12)
-            .align_y(Alignment::Center);
-        if app.task_board_worktree_manual_confirm_kind.is_some() {
-            let cancel_btn = button(text("取消确认").size(12))
-                .on_press(Message::TaskBoard(TaskBoardMessage::CancelWorktreeManualConfirm))
-                .padding([4, 8])
-                .style(button_style_secondary);
-            title_row = title_row.push(cancel_btn);
-        }
-        title_row = title_row.push(office_toggle_btn).push(toggle_btn);
-        if app.task_board_worktree_snapshot_loading {
-            let loading_text = format!("后台刷新中{}", running_dots(now_ms));
-            title_row =
-                title_row.push(text(loading_text).size(12).style(worktree_refreshing_text_style));
-        }
-
-        let mut panel_col = column![title_row, summary_line].spacing(4);
-        if let Some(confirm_kind) = app.task_board_worktree_manual_confirm_kind {
-            let confirm_panel = container(
-                text(worktree_confirm_hint(confirm_kind)).size(11).style(confirm_hint_text_style),
-            )
-            .padding([8, 10])
-            .width(Length::Fill)
-            .style(confirm_panel_style);
-            panel_col = panel_col.push(confirm_panel);
-        }
-        if worktree_manual_action_running || !app.task_board_worktree_action_logs.is_empty() {
-            let action_status =
-                worktree_action_status(app.task_board_worktree_manual_action_kind, now_ms);
-            let status_panel =
-                container(text(action_status).size(11).style(worktree_action_text_style))
-                    .padding([8, 10])
-                    .width(Length::Fill)
-                    .style(worktree_action_panel_style);
-            panel_col = panel_col.push(status_panel);
-        }
-        if app.task_board_worktree_panel_expanded {
-            let mut slots_col = column![].spacing(6);
-            for slot in &snapshot.slots {
-                let owner = slot.leased_task_id.as_deref().unwrap_or("-");
-                let taint = slot.taint_reason.as_deref().unwrap_or("-");
-                let recycle_btn = button(text("回收").size(11))
-                    .on_press(Message::TaskBoard(TaskBoardMessage::RecycleWorktreeSlotPressed {
-                        slot_id: slot.id.clone(),
-                    }))
-                    .padding([3, 8])
-                    .style(if matches!(slot.state, WorktreeState::Tainted | WorktreeState::Dead) {
-                        button_style_danger
-                    } else {
-                        button_style_secondary
-                    });
-                let slot_row = container(
-                    column![
-                        row![
-                            text(format!(
-                                "{} [{}] 分支={} 任务={} ",
-                                slot.id,
-                                worktree_state_label(slot.state),
-                                slot.branch,
-                                owner,
-                            ))
-                            .size(12)
-                            .width(Length::Fill)
-                            .style(worktree_slot_title_text_style),
-                            recycle_btn,
-                        ]
-                        .spacing(8)
-                        .align_y(Alignment::Center),
-                        text(format!("路径={}", slot.path))
-                            .size(12)
-                            .style(worktree_slot_path_text_style),
-                        text(format!("污染原因={}", taint))
-                            .size(12)
-                            .style(worktree_slot_taint_text_style),
-                    ]
-                    .spacing(2),
-                )
-                .padding([6, 8])
-                .width(Length::Fill)
-                .style(worktree_slot_row_style);
-                slots_col = slots_col.push(slot_row);
+            let mut title_row = row![title_line, clean_btn, delete_btn, merge_btn]
+                .spacing(12)
+                .align_y(Alignment::Center);
+            if app.task_board_worktree_manual_confirm_kind.is_some() {
+                let cancel_btn = button(text("取消确认").size(12))
+                    .on_press(Message::TaskBoard(TaskBoardMessage::CancelWorktreeManualConfirm))
+                    .padding([4, 8])
+                    .style(button_style_secondary);
+                title_row = title_row.push(cancel_btn);
             }
-            panel_col = panel_col.push(slots_col);
-        }
+            title_row = title_row.push(office_toggle_btn).push(toggle_btn);
+            if app.task_board_worktree_snapshot_loading {
+                let loading_text = format!("后台刷新中{}", running_dots(now_ms));
+                title_row = title_row
+                    .push(text(loading_text).size(12).style(worktree_refreshing_text_style));
+            }
 
-        let status_panel = container(panel_col)
-            .padding([8, 10])
-            .width(Length::Fill)
-            .style(worktree_status_panel_style);
-        content = content.push(status_panel);
-        if app.task_board_worktree_pixel_office {
-            content = content.push(build_worktree_pixel_office(app, snapshot));
-        }
-    } else if app.project_path.is_some() && app.task_board_worktree_snapshot_loading {
-        let loading_panel =
-            container(text("Worktree 池后台加载中...").size(12).style(worktree_loading_text_style))
+            let mut panel_col = column![title_row, summary_line].spacing(4);
+            if let Some(confirm_kind) = app.task_board_worktree_manual_confirm_kind {
+                let confirm_panel = container(
+                    text(worktree_confirm_hint(confirm_kind))
+                        .size(11)
+                        .style(confirm_hint_text_style),
+                )
+                .padding([8, 10])
+                .width(Length::Fill)
+                .style(confirm_panel_style);
+                panel_col = panel_col.push(confirm_panel);
+            }
+            if worktree_manual_action_running || !app.task_board_worktree_action_logs.is_empty() {
+                let action_status =
+                    worktree_action_status(app.task_board_worktree_manual_action_kind, now_ms);
+                let status_panel =
+                    container(text(action_status).size(11).style(worktree_action_text_style))
+                        .padding([8, 10])
+                        .width(Length::Fill)
+                        .style(worktree_action_panel_style);
+                panel_col = panel_col.push(status_panel);
+            }
+            if app.task_board_worktree_panel_expanded {
+                let mut slots_col = column![].spacing(6);
+                for slot in &snapshot.slots {
+                    let owner = slot.leased_task_id.as_deref().unwrap_or("-");
+                    let taint = slot.taint_reason.as_deref().unwrap_or("-");
+                    let recycle_btn = button(text("回收").size(11))
+                        .on_press(Message::TaskBoard(
+                            TaskBoardMessage::RecycleWorktreeSlotPressed {
+                                slot_id: slot.id.clone(),
+                            },
+                        ))
+                        .padding([3, 8])
+                        .style(
+                            if matches!(slot.state, WorktreeState::Tainted | WorktreeState::Dead) {
+                                button_style_danger
+                            } else {
+                                button_style_secondary
+                            },
+                        );
+                    let slot_row = container(
+                        column![
+                            row![
+                                text(format!(
+                                    "{} [{}] 分支={} 任务={} ",
+                                    slot.id,
+                                    worktree_state_label(slot.state),
+                                    slot.branch,
+                                    owner,
+                                ))
+                                .size(12)
+                                .width(Length::Fill)
+                                .style(worktree_slot_title_text_style),
+                                recycle_btn,
+                            ]
+                            .spacing(8)
+                            .align_y(Alignment::Center),
+                            text(format!("路径={}", slot.path))
+                                .size(12)
+                                .style(worktree_slot_path_text_style),
+                            text(format!("污染原因={}", taint))
+                                .size(12)
+                                .style(worktree_slot_taint_text_style),
+                        ]
+                        .spacing(2),
+                    )
+                    .padding([6, 8])
+                    .width(Length::Fill)
+                    .style(worktree_slot_row_style);
+                    slots_col = slots_col.push(slot_row);
+                }
+                panel_col = panel_col.push(slots_col);
+            }
+
+            let status_panel = container(panel_col)
                 .padding([8, 10])
                 .width(Length::Fill)
                 .style(worktree_status_panel_style);
-        content = content.push(loading_panel);
-    }
+            content = content.push(status_panel);
+            if app.task_board_worktree_pixel_office {
+                content = content.push(build_worktree_pixel_office(app, snapshot));
+            }
+        } else if app.project_path.is_some() && app.task_board_worktree_snapshot_loading {
+            let loading_panel = container(
+                text("Worktree 池后台加载中...").size(12).style(worktree_loading_text_style),
+            )
+            .padding([8, 10])
+            .width(Length::Fill)
+            .style(worktree_status_panel_style);
+            content = content.push(loading_panel);
+        }
     }
 
     container(content).padding([18, 20]).width(Length::Fill).style(control_outer_panel_style).into()

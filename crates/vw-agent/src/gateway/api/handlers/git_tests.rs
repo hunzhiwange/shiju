@@ -53,10 +53,8 @@ fn run_git(directory: &str, args: &[&str]) -> Result<String, String> {
         .args(args)
         .output()
         .map_err(|err| err.to_string())?;
-    let stdout =
-        String::from_utf8_lossy(&output.stdout).replace("\r\n", "\n").replace('\r', "\n");
-    let stderr =
-        String::from_utf8_lossy(&output.stderr).replace("\r\n", "\n").replace('\r', "\n");
+    let stdout = String::from_utf8_lossy(&output.stdout).replace("\r\n", "\n").replace('\r', "\n");
+    let stderr = String::from_utf8_lossy(&output.stderr).replace("\r\n", "\n").replace('\r', "\n");
     if output.status.success() {
         return Ok(stdout);
     }
@@ -153,10 +151,7 @@ fn gateway_git2_commit_works_without_git_executable() {
     assert!(full_response.ok);
     assert!(full_response.created);
     assert_eq!(full_response.commit.message, "full update");
-    assert_eq!(
-        blob_at_commit(repo.path(), &full_response.commit.sha, "created.txt"),
-        "updated\n"
-    );
+    assert_eq!(blob_at_commit(repo.path(), &full_response.commit.sha, "created.txt"), "updated\n");
 
     // No staged changes keeps created=false and HEAD unchanged.
     let head = full_response.commit.sha.clone();
@@ -205,10 +200,7 @@ fn gateway_git2_partial_commit_preserves_unselected_changes() {
     assert_eq!(response.commit.message, "partial");
 
     // File selection commits the full working-tree content.
-    assert_eq!(
-        blob_at_commit(repo.path(), &response.commit.sha, "selected.txt"),
-        "selected-new\n"
-    );
+    assert_eq!(blob_at_commit(repo.path(), &response.commit.sha, "selected.txt"), "selected-new\n");
     // Line selection of the inserted line keeps the unselected old line.
     assert_eq!(
         blob_at_commit(repo.path(), &response.commit.sha, "lines.txt"),
@@ -220,10 +212,7 @@ fn gateway_git2_partial_commit_preserves_unselected_changes() {
         "ONE\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten\n"
     );
     // Completely unselected file stays at the previous committed content.
-    assert_eq!(
-        blob_at_commit(repo.path(), &response.commit.sha, "other.txt"),
-        "base-other\n"
-    );
+    assert_eq!(blob_at_commit(repo.path(), &response.commit.sha, "other.txt"), "base-other\n");
 
     // Unselected working-tree changes remain dirty.
     assert_eq!(
@@ -1148,10 +1137,7 @@ fn verify_local_branch_and_worktree_lookup_distinguish_known_branch() {
         std::fs::canonicalize(&main_path).expect("canonical worktree path"),
         std::fs::canonicalize(repo.path()).expect("canonical repo path")
     );
-    assert_eq!(
-        worktree_path_for_branch(repo.path_str(), "missing").expect("missing lookup"),
-        None
-    );
+    assert_eq!(worktree_path_for_branch(repo.path_str(), "missing").expect("missing lookup"), None);
 }
 
 #[test]
@@ -1414,11 +1400,7 @@ fn write_and_commit_all_git2(path: &std::path::Path, files: &[(&str, &str)], mes
 
 fn blob_at_commit(path: &std::path::Path, sha: &str, file: &str) -> String {
     let repo = git2::Repository::open(path).expect("open repo");
-    let commit = repo
-        .revparse_single(sha)
-        .expect("revparse")
-        .peel_to_commit()
-        .expect("commit");
+    let commit = repo.revparse_single(sha).expect("revparse").peel_to_commit().expect("commit");
     let tree = commit.tree().expect("tree");
     let entry = tree.get_path(std::path::Path::new(file)).expect("tree path");
     let object = entry.to_object(&repo).expect("object");
@@ -1446,20 +1428,12 @@ fn head_oid_git2(path: &std::path::Path) -> String {
 
 fn current_branch_git2(path: &std::path::Path) -> String {
     let repo = git2::Repository::open(path).expect("open repo");
-    repo.head()
-        .expect("head")
-        .shorthand()
-        .expect("branch shorthand")
-        .to_string()
+    repo.head().expect("head").shorthand().expect("branch shorthand").to_string()
 }
 
 fn commit_parent_count_git2(path: &std::path::Path, sha: &str) -> usize {
     let repo = git2::Repository::open(path).expect("open repo");
-    repo.revparse_single(sha)
-        .expect("revparse")
-        .peel_to_commit()
-        .expect("commit")
-        .parent_count()
+    repo.revparse_single(sha).expect("revparse").peel_to_commit().expect("commit").parent_count()
 }
 
 fn commit_parent_oids_git2(path: &std::path::Path, sha: &str) -> Vec<String> {

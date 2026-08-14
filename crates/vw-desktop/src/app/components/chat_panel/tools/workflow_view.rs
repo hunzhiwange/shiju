@@ -9,8 +9,8 @@ use serde_json::Value;
 
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
-    chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style, eye_icon_svg_style,
-    icon_svg, truncate_chars,
+    chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style,
+    eye_icon_svg_style, icon_svg, truncate_chars,
 };
 use crate::app::{App, Message, message};
 
@@ -291,11 +291,7 @@ fn workflow_detail_content(value: &Value, state: WorkflowNodeState) -> String {
 }
 
 fn workflow_tool_detail_message(msg_idx: usize, tool_idx: usize, visible: &str) -> Message {
-    Message::Chat(message::ChatMessage::OpenToolDetail(
-        msg_idx,
-        tool_idx,
-        visible.to_string(),
-    ))
+    Message::Chat(message::ChatMessage::OpenToolDetail(msg_idx, tool_idx, visible.to_string()))
 }
 
 /// 节点主点击：只要会话已登记且项目路径可用，即可进入对应子会话。

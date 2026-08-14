@@ -1,13 +1,13 @@
 use serde_json::json;
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
 use vw_api_types::task::{
-    TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto,
-    TaskPoolMatrixActorDto, TaskPoolMatrixEventDto, TaskPoolMatrixEventKindDto,
-    TaskPoolMatrixPublishRequest, TaskPoolStatus, TaskPoolWorktreeAcquireRequest,
-    TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMergeLockRequest,
-    TaskPoolWorktreeMergeUnlockRequest, TaskPoolWorktreeRecycleRequest,
-    TaskPoolWorktreeReleaseRequest, TaskPoolWorktreeSlotRecycleRequest,
-    TaskPoolWorktreeSlotStateDto, TaskPoolWorktreeSnapshotRequest,
+    TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto, TaskPoolMatrixActorDto,
+    TaskPoolMatrixEventDto, TaskPoolMatrixEventKindDto, TaskPoolMatrixPublishRequest,
+    TaskPoolStatus, TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeMaintenanceRequest,
+    TaskPoolWorktreeMergeLockRequest, TaskPoolWorktreeMergeUnlockRequest,
+    TaskPoolWorktreeRecycleRequest, TaskPoolWorktreeReleaseRequest,
+    TaskPoolWorktreeSlotRecycleRequest, TaskPoolWorktreeSlotStateDto,
+    TaskPoolWorktreeSnapshotRequest,
 };
 
 use crate::client::test_support;
@@ -39,16 +39,8 @@ async fn task_plan_run_control_client_uses_status_and_stop_routes() {
         tenant_scope,
     );
 
-    let status = server
-        .client()
-        .task_plan_run_status("task-control")
-        .await
-        .expect("status");
-    let stopped = server
-        .client()
-        .task_plan_run_stop("task-control")
-        .await
-        .expect("stop");
+    let status = server.client().task_plan_run_status("task-control").await.expect("status");
+    let stopped = server.client().task_plan_run_stop("task-control").await.expect("stop");
 
     assert_eq!(status.status, TaskPlanRunStatus::Waiting);
     assert_eq!(stopped.status, TaskPlanRunStatus::Cancelled);
@@ -240,14 +232,8 @@ async fn task_plan_resumable_stream_reports_incomplete_eof_and_terminal_event() 
         session_id: Some("task-1-plan".to_string()),
     };
     let server = test_support::server_raw(vec![
-        (
-            200,
-            format!("id: 12\ndata: {}\n\n", serde_json::to_string(&progress).expect("progress")),
-        ),
-        (
-            200,
-            format!("id: 13\ndata: {}\n\n", serde_json::to_string(&finished).expect("finished")),
-        ),
+        (200, format!("id: 12\ndata: {}\n\n", serde_json::to_string(&progress).expect("progress"))),
+        (200, format!("id: 13\ndata: {}\n\n", serde_json::to_string(&finished).expect("finished"))),
     ]);
     let request = TaskPlanRunRequest {
         query: "run plan".to_string(),
@@ -257,10 +243,8 @@ async fn task_plan_resumable_stream_reports_incomplete_eof_and_terminal_event() 
         acp_agent: None,
         parent_session_id: None,
     };
-    let first_resume = GatewayStreamResume {
-        request_id: "plan-request-1".to_string(),
-        last_event_id: Some(11),
-    };
+    let first_resume =
+        GatewayStreamResume { request_id: "plan-request-1".to_string(), last_event_id: Some(11) };
     let mut progress_events = Vec::new();
 
     let incomplete = super::GatewayClient::stream_task_plan_run_resumable(
@@ -276,18 +260,13 @@ async fn task_plan_resumable_stream_reports_incomplete_eof_and_terminal_event() 
     .expect("incomplete plan attempt");
 
     assert_eq!(incomplete, GatewayStreamAttemptResult::Incomplete);
-    assert_eq!(
-        progress_events,
-        vec![GatewayStreamEvent { id: 12, event: progress }]
-    );
+    assert_eq!(progress_events, vec![GatewayStreamEvent { id: 12, event: progress }]);
     let first_request = server.take_request();
     assert_eq!(first_request.header("x-vw-stream-request-id"), Some("plan-request-1"));
     assert_eq!(first_request.header("last-event-id"), Some("11"));
 
-    let second_resume = GatewayStreamResume {
-        request_id: "plan-request-1".to_string(),
-        last_event_id: Some(12),
-    };
+    let second_resume =
+        GatewayStreamResume { request_id: "plan-request-1".to_string(), last_event_id: Some(12) };
     let mut terminal_events = Vec::new();
     let terminated = super::GatewayClient::stream_task_plan_run_resumable(
         server.client().endpoint(),
@@ -302,10 +281,7 @@ async fn task_plan_resumable_stream_reports_incomplete_eof_and_terminal_event() 
     .expect("terminal plan attempt");
 
     assert_eq!(terminated, GatewayStreamAttemptResult::Terminated);
-    assert_eq!(
-        terminal_events,
-        vec![GatewayStreamEvent { id: 13, event: finished }]
-    );
+    assert_eq!(terminal_events, vec![GatewayStreamEvent { id: 13, event: finished }]);
     let second_request = server.take_request();
     assert_eq!(second_request.header("x-vw-stream-request-id"), Some("plan-request-1"));
     assert_eq!(second_request.header("last-event-id"), Some("12"));
@@ -331,10 +307,8 @@ async fn task_plan_resumable_stream_reports_caller_stop() {
         acp_agent: None,
         parent_session_id: None,
     };
-    let resume = GatewayStreamResume {
-        request_id: "plan-request-stop".to_string(),
-        last_event_id: None,
-    };
+    let resume =
+        GatewayStreamResume { request_id: "plan-request-stop".to_string(), last_event_id: None };
 
     let stopped = super::GatewayClient::stream_task_plan_run_resumable(
         server.client().endpoint(),

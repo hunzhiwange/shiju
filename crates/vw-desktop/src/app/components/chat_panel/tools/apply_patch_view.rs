@@ -31,10 +31,9 @@ use super::{
     tool_permission_state, tool_permission_target_summary, tool_permission_title, tool_text_editor,
 };
 use crate::app::components::chat_panel::utils::{
-    bold_font, change_pills, chat_context_target_key, chat_scroll_direction,
-    deletions_pill, eye_icon_button_style, eye_icon_svg_style, file_button_style, icon_svg,
-    resolve_path, simplified_block_style, simplified_code_block_style, truncate_chars,
-    truncate_lines_middle,
+    bold_font, change_pills, chat_context_target_key, chat_scroll_direction, deletions_pill,
+    eye_icon_button_style, eye_icon_svg_style, file_button_style, icon_svg, resolve_path,
+    simplified_block_style, simplified_code_block_style, truncate_chars, truncate_lines_middle,
 };
 
 /// 执行 tool_apply_patch_view 对应的模块功能。
@@ -291,19 +290,18 @@ pub fn tool_apply_patch_view<'a>(
                     };
                     let resolved_change =
                         resolve_apply_patch_change_preview(app, &changes, *kind, path);
-                    let external_diff_btn: Element<'a, Message> =
-                        if let Some(change) = resolved_change.clone() {
-                            external_diff_button(Message::Git(
-                                message::GitMessage::OpenChatTextDiff {
-                                    title: title.clone(),
-                                    file: path.clone(),
-                                    before: change.before,
-                                    after: change.after,
-                                },
-                            ))
-                        } else {
-                            Space::new().width(Length::Fixed(20.0)).into()
-                        };
+                    let external_diff_btn: Element<'a, Message> = if let Some(change) =
+                        resolved_change.clone()
+                    {
+                        external_diff_button(Message::Git(message::GitMessage::OpenChatTextDiff {
+                            title: title.clone(),
+                            file: path.clone(),
+                            before: change.before,
+                            after: change.after,
+                        }))
+                    } else {
+                        Space::new().width(Length::Fixed(20.0)).into()
+                    };
                     let view_changes_btn = view_changes_toggle_button(
                         file_expanded,
                         Message::Chat(message::ChatMessage::ToggleToolFile(
@@ -337,46 +335,44 @@ pub fn tool_apply_patch_view<'a>(
                         .style(apply_patch_inner_card_style);
 
                     if file_expanded {
-                        let diff_body: Element<'a, Message> =
-                            if let Some(change) = resolved_change {
-                                container(render_git_diff_content(
-                                    app,
-                                    title,
-                                    Some(path.clone()),
-                                    change.before,
-                                    change.after,
-                                ))
-                                .width(Length::Fill)
-                                .clip(true)
-                                .padding([4, 0])
-                                .into()
-                            } else if *kind == 'D' {
-                                container(
-                                    text("文件已删除，但当前记录未包含删除前内容预览").size(14).style(
-                                        |theme: &Theme| iced::widget::text::Style {
-                                            color: Some(apply_patch_secondary_text(
-                                                theme, 0.72, 0.74,
-                                            )),
-                                        },
-                                    ),
-                                )
-                                .width(Length::Fill)
-                                .clip(true)
-                                .padding([10, 0])
-                                .style(apply_patch_inner_card_style)
-                                .into()
-                            } else {
-                                container(text("未能解析文件变更").size(14).style(
+                        let diff_body: Element<'a, Message> = if let Some(change) = resolved_change
+                        {
+                            container(render_git_diff_content(
+                                app,
+                                title,
+                                Some(path.clone()),
+                                change.before,
+                                change.after,
+                            ))
+                            .width(Length::Fill)
+                            .clip(true)
+                            .padding([4, 0])
+                            .into()
+                        } else if *kind == 'D' {
+                            container(
+                                text("文件已删除，但当前记录未包含删除前内容预览").size(14).style(
                                     |theme: &Theme| iced::widget::text::Style {
                                         color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
                                     },
-                                ))
-                                .width(Length::Fill)
-                                .clip(true)
-                                .padding([10, 0])
-                                .style(apply_patch_inner_card_style)
-                                .into()
-                            };
+                                ),
+                            )
+                            .width(Length::Fill)
+                            .clip(true)
+                            .padding([10, 0])
+                            .style(apply_patch_inner_card_style)
+                            .into()
+                        } else {
+                            container(text("未能解析文件变更").size(14).style(|theme: &Theme| {
+                                iced::widget::text::Style {
+                                    color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
+                                }
+                            }))
+                            .width(Length::Fill)
+                            .clip(true)
+                            .padding([10, 0])
+                            .style(apply_patch_inner_card_style)
+                            .into()
+                        };
                         list = list.push(
                             container(column![header, diff_body].spacing(4))
                                 .width(Length::Fill)
@@ -579,14 +575,14 @@ fn external_diff_button<'a>(on_press: Message) -> Element<'a, Message> {
     let btn = button(eye).padding([2, 4]).style(apply_patch_file_button_style).on_press(on_press);
     Tooltip::new(
         btn,
-        container(text("查找变更").size(12))
-            .padding([6, 8])
-            .style(|_theme: &Theme| iced::widget::container::Style {
+        container(text("查找变更").size(12)).padding([6, 8]).style(|_theme: &Theme| {
+            iced::widget::container::Style {
                 text_color: Some(Color::WHITE),
                 background: Some(Background::Color(Color::from_rgba8(0, 0, 0, 0.94))),
                 border: Border { radius: 6.0.into(), ..Default::default() },
                 ..Default::default()
-            }),
+            }
+        }),
         TooltipPosition::Top,
     )
     .gap(6)
@@ -770,10 +766,8 @@ pub(super) fn apply_patch_header_file_icon(path: &str) -> Icon {
 }
 
 fn preview_eye_button<'a>(abs: String) -> Element<'a, Message> {
-    let eye = icon_svg(Icon::Eye)
-        .width(Length::Fixed(12.0))
-        .height(Length::Fixed(12.0))
-        .style(|theme: &Theme, _status| {
+    let eye = icon_svg(Icon::Eye).width(Length::Fixed(12.0)).height(Length::Fixed(12.0)).style(
+        |theme: &Theme, _status| {
             let is_dark = theme.palette().background.r
                 + theme.palette().background.g
                 + theme.palette().background.b
@@ -785,7 +779,8 @@ fn preview_eye_button<'a>(abs: String) -> Element<'a, Message> {
                     theme.extended_palette().secondary.base.text
                 }),
             }
-        });
+        },
+    );
     button(eye)
         .padding([2, 4])
         .style(apply_patch_file_button_style)

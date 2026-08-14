@@ -97,8 +97,7 @@ fn overlays_build_edit_modal_headers_models_and_error_states() {
     app.provider_settings.custom_provider_tab = crate::app::state::CustomProviderTab::Models;
     keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
 
-    app.provider_settings.custom_models_filter =
-        crate::app::state::CustomProviderModelFilter::All;
+    app.provider_settings.custom_models_filter = crate::app::state::CustomProviderModelFilter::All;
     keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
 
     app.provider_settings.custom_models_filter =

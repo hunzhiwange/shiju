@@ -434,10 +434,7 @@ fn gateway_timeout_without_provider_history_replays_original_prompt() {
 
     assert_eq!(result.as_deref(), Ok("done"));
     assert_eq!(calls.len(), 2);
-    assert_eq!(
-        calls[0],
-        ("initial prompt".to_string(), super::GatewayPromptSessionMode::Fresh)
-    );
+    assert_eq!(calls[0], ("initial prompt".to_string(), super::GatewayPromptSessionMode::Fresh));
     assert_eq!(calls[1].1, super::GatewayPromptSessionMode::ContinueExisting);
     assert!(calls[1].0.contains(super::TASK_GATEWAY_CONTINUE_PROMPT));
     assert!(calls[1].0.contains("## 原始任务上下文\ninitial prompt"));
@@ -1451,9 +1448,10 @@ fn gateway_stream_hides_reasoning_chunks_split_across_deltas() {
         entry,
         super::TaskLogStream::Stdout(line) if line.contains("reasoning effort")
     )));
-    assert!(logs.iter().any(
-        |entry| matches!(entry, super::TaskLogStream::Stdout(line) if line == "answer")
-    ));
+    assert!(
+        logs.iter()
+            .any(|entry| matches!(entry, super::TaskLogStream::Stdout(line) if line == "answer"))
+    );
 }
 
 #[cfg(not(target_arch = "wasm32"))]

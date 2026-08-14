@@ -29,11 +29,7 @@ pub fn sanitize_task_plan_id_part(value: &str) -> String {
             output.push('-');
         }
     }
-    if output.is_empty() {
-        "task".to_string()
-    } else {
-        output
-    }
+    if output.is_empty() { "task".to_string() } else { output }
 }
 
 /// 计划目录名：`task-<sanitized-id>`。
@@ -117,11 +113,7 @@ fn format_depends_on_batches(depends_on_batches: &[u32]) -> String {
     if depends_on_batches.is_empty() {
         "无".to_string()
     } else {
-        depends_on_batches
-            .iter()
-            .map(u32::to_string)
-            .collect::<Vec<_>>()
-            .join(", ")
+        depends_on_batches.iter().map(u32::to_string).collect::<Vec<_>>().join(", ")
     }
 }
 
@@ -131,9 +123,5 @@ fn planning_title(query: &str) -> String {
         return "工作流执行".to_string();
     }
     let truncated: String = first_line.chars().take(40).collect();
-    if first_line.chars().count() > 40 {
-        format!("{truncated}…")
-    } else {
-        truncated
-    }
+    if first_line.chars().count() > 40 { format!("{truncated}…") } else { truncated }
 }

@@ -297,22 +297,14 @@ fn build_acp_agent_enabled_patch_disables_explicit_unknown_agent_with_null_marke
 
 #[test]
 fn build_acp_agent_create_patch_rejects_existing_name_and_blank_command() {
-    let existing = build_acp_agent_create_patch(
-        " codex ",
-        acp("custom-codex"),
-        &catalog(),
-        HashMap::new(),
-    )
-    .expect_err("existing names must not be overwritten");
+    let existing =
+        build_acp_agent_create_patch(" codex ", acp("custom-codex"), &catalog(), HashMap::new())
+            .expect_err("existing names must not be overwritten");
     assert_eq!(existing, "acp agent already exists: codex");
 
-    let blank_command = build_acp_agent_create_patch(
-        "local",
-        acp("  "),
-        &catalog(),
-        HashMap::new(),
-    )
-    .expect_err("blank commands must fail");
+    let blank_command =
+        build_acp_agent_create_patch("local", acp("  "), &catalog(), HashMap::new())
+            .expect_err("blank commands must fail");
     assert_eq!(blank_command, "acp agent command must not be empty");
 }
 
@@ -324,9 +316,8 @@ fn build_acp_agent_create_patch_normalizes_spec_and_preserves_default_enabled_ag
         ..AcpAgentConfig::default()
     };
 
-    let patch =
-        build_acp_agent_create_patch(" local ", spec, &catalog(), HashMap::new())
-            .expect("new ACP patch should build");
+    let patch = build_acp_agent_create_patch(" local ", spec, &catalog(), HashMap::new())
+        .expect("new ACP patch should build");
 
     assert_eq!(patch["acp"]["local"]["command"], "local-agent");
     assert_eq!(patch["acp"]["local"]["args"], json!(["--stdio"]));

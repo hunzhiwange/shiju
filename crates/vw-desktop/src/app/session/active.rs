@@ -4,7 +4,9 @@
 //! 不改变任何运行时行为。
 
 use super::loading::{SharedChatMessages, shared_chat_messages};
+use super::view_cache::{SessionViewCacheInsertResult, SessionViewSnapshot};
 use super::{App, ChatMessage, ChatRole, ChatSessionStep, HashMap, StepUiMeta};
+use crate::app::state::UserQuestionMarker;
 use serde_json::Value;
 
 fn message_meta_text(model: Option<&str>, time_ms: Option<u64>) -> Option<String> {
@@ -66,7 +68,82 @@ fn build_message_meta_label(
     }
 }
 
+fn build_user_question_markers(chat: &[ChatMessage]) -> Vec<UserQuestionMarker> {
+    chat.iter()
+        .enumerate()
+        .filter_map(|(message_idx, message)| {
+            (message.role == ChatRole::User).then(|| UserQuestionMarker {
+                message_idx,
+                preview: crate::app::components::chat_panel::user_question_preview(
+                    &message.content,
+                ),
+            })
+        })
+        .collect()
+}
+
 impl App {
+    /// 移走离开会话的稳定聊天工作集；容量拒绝时保留原始消息缓存作冷恢复后备。
+    pub(crate) fn stash_active_session_view(&mut self) {
+        let Some(session_id) = self.active_session_id.clone() else {
+            return;
+        };
+
+        self.close_session_transient_ui();
+        let has_cold_chat_fallback = self.session_chat_cache.contains_key(&session_id);
+        let snapshot = SessionViewSnapshot::take_from(self);
+        let message_count = snapshot.chat().len();
+
+        match self.session_view_cache.insert(session_id.clone(), snapshot) {
+            SessionViewCacheInsertResult::Inserted { evicted_session_ids } => {
+                tracing::info!(
+                    target: "vw_desktop",
+                    session_id,
+                    cache_hit = false,
+                    message_count,
+                    restore_source = "view_cache_stash",
+                    evicted_sessions = evicted_session_ids.len(),
+                    "stashed session view workset"
+                );
+            }
+            SessionViewCacheInsertResult::RejectedOverCapacity { snapshot, estimated_bytes } => {
+                snapshot.restore_into(self);
+                if !has_cold_chat_fallback {
+                    self.store_session_chat_snapshot(
+                        session_id.clone(),
+                        shared_chat_messages(self.chat.clone()),
+                        self.chat_message_ids.clone(),
+                    );
+                }
+                tracing::info!(
+                    target: "vw_desktop",
+                    session_id,
+                    cache_hit = false,
+                    message_count,
+                    restore_source = "cold_chat_fallback",
+                    estimated_bytes,
+                    "session view workset exceeded hot cache capacity"
+                );
+            }
+        }
+    }
+
+    /// 会话切换不保留短暂交互，避免热恢复到已打开的菜单或悬浮状态。
+    pub(crate) fn close_session_transient_ui(&mut self) {
+        self.chat_think_hovered_idx = None;
+        self.chat_tool_file_hovered = None;
+        self.chat_tool_hovered_idx = None;
+        self.tool_detail_dialog = None;
+        self.chat_context_menu_target = None;
+        self.chat_context_menu_pos = None;
+        self.chat_context_menu_text.clear();
+        self.chat_reset_menu_idx = None;
+        self.chat_fork_dialog_idx = None;
+        self.show_agent_sessions_popover = false;
+        self.show_session_tool_selector_popover = false;
+        self.show_session_actions_popover = false;
+    }
+
     /// 执行 rebuild_active_session_message_meta 对应的领域操作。
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -74,10 +151,44 @@ impl App {
     pub fn rebuild_active_session_message_meta(&mut self) {
         self.active_session_view_state.message_meta_texts =
             build_message_meta_labels(&self.chat, &self.active_session_view_state.step_index_map);
+        if self.active_session_view_state.user_question_indexed_chat_len != self.chat.len() {
+            self.active_session_view_state.user_question_markers =
+                build_user_question_markers(&self.chat);
+            self.active_session_view_state.user_question_indexed_chat_len = self.chat.len();
+        }
+    }
+
+    /// 将聊天尾部新增的消息增量纳入问题导航索引。
+    pub(crate) fn sync_active_session_user_question_index(&mut self) {
+        let indexed_len = self.active_session_view_state.user_question_indexed_chat_len;
+        if indexed_len > self.chat.len() {
+            self.active_session_view_state
+                .user_question_markers
+                .retain(|marker| marker.message_idx < self.chat.len());
+            self.active_session_view_state.user_question_indexed_chat_len = self.chat.len();
+            return;
+        }
+
+        if indexed_len == self.chat.len() {
+            return;
+        }
+
+        self.active_session_view_state.user_question_markers.extend(
+            self.chat[indexed_len..].iter().enumerate().filter_map(|(offset, message)| {
+                (message.role == ChatRole::User).then(|| UserQuestionMarker {
+                    message_idx: indexed_len + offset,
+                    preview: crate::app::components::chat_panel::user_question_preview(
+                        &message.content,
+                    ),
+                })
+            }),
+        );
+        self.active_session_view_state.user_question_indexed_chat_len = self.chat.len();
     }
 
     /// 只刷新流式增量影响的尾部消息元信息。
     pub(crate) fn refresh_active_session_tail_message_meta(&mut self, changed_idx: usize) {
+        self.sync_active_session_user_question_index();
         if changed_idx >= self.chat.len() {
             self.active_session_view_state.message_meta_texts.truncate(self.chat.len());
             return;
@@ -179,8 +290,11 @@ impl App {
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn cache_active_session_chat(&mut self) {
         if let Some(id) = self.active_session_id.clone() {
-            self.session_chat_cache.insert(id.clone(), shared_chat_messages(self.chat.clone()));
-            self.session_chat_message_id_cache.insert(id, self.chat_message_ids.clone());
+            self.store_session_chat_snapshot(
+                id,
+                shared_chat_messages(self.chat.clone()),
+                self.chat_message_ids.clone(),
+            );
         }
         self.prune_inactive_session_chat_cache();
     }
@@ -310,8 +424,26 @@ impl App {
         chat: SharedChatMessages,
         message_ids: Vec<Option<String>>,
     ) {
+        let content_signature = super::loading::session_content_signature(&chat, &message_ids);
+        let invalidated_view_cache = self.active_session_id.as_deref() != Some(session_id.as_str())
+            && self
+                .session_view_cache
+                .invalidate_if_content_changed(&session_id, content_signature);
         self.session_chat_cache.insert(session_id.clone(), chat);
-        self.session_chat_message_id_cache.insert(session_id, message_ids);
+        self.session_chat_message_id_cache.insert(session_id.clone(), message_ids);
+        if invalidated_view_cache {
+            tracing::info!(
+                target: "vw_desktop",
+                session_id,
+                message_count = self
+                    .session_chat_cache
+                    .get(&session_id)
+                    .map_or(0, |messages| messages.len()),
+                content_signature,
+                branch = "background_snapshot_changed",
+                "invalidated stale session view cache"
+            );
+        }
     }
 }
 

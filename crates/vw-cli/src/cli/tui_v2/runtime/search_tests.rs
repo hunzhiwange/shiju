@@ -1,10 +1,8 @@
 use std::path::Path;
 
-use super::search::{
-    SearchProvider, run_search, search_dialog_lines, validated_open_effect,
-};
 use super::super::effect::TuiEffect;
 use super::super::model::search::{SearchMode, SearchResult, SearchState};
+use super::search::{SearchProvider, run_search, search_dialog_lines, validated_open_effect};
 
 struct ReversedProvider;
 

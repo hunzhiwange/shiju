@@ -19,9 +19,7 @@ fn solid_png() -> Vec<u8> {
 fn put_image(store: &ImageAssetStore, scope: &ImageAssetScope) -> ImageAssetId {
     let original = solid_png();
     // 小图保留原字节作为模型输入即可。
-    store
-        .put(scope, &original, "image/png", &original, "image/png")
-        .unwrap()
+    store.put(scope, &original, "image/png", &original, "image/png").unwrap()
 }
 
 async fn with_context<F, T>(context: ToolUseContext, future: F) -> T
@@ -80,9 +78,8 @@ async fn tool_result_never_contains_image_payload() {
 fn pending_reload_ids_are_deduplicated_and_bounded() {
     let mut queue = PendingImageReloadQueue::default();
     queue.set_scope_key("scope");
-    let ids: Vec<String> = (0..MAX_PENDING_IMAGE_RELOADS)
-        .map(|index| format!("{:064x}", index + 1))
-        .collect();
+    let ids: Vec<String> =
+        (0..MAX_PENDING_IMAGE_RELOADS).map(|index| format!("{:064x}", index + 1)).collect();
     for id in &ids {
         queue.enqueue(id).unwrap();
     }
@@ -108,10 +105,8 @@ fn requested_image_is_attached_to_next_step_once() {
         model_ref: "vision/reader".into(),
         prompt_version: "v1".into(),
     };
-    let reference = crate::app::agent::multimodal::analysis::format_image_reference_text(
-        &image_id,
-        &analysis,
-    );
+    let reference =
+        crate::app::agent::multimodal::analysis::format_image_reference_text(&image_id, &analysis);
     let data_uri = "data:image/jpeg;base64,QUJD";
     let tracked = TrackedImage {
         image_id: image_id.clone(),

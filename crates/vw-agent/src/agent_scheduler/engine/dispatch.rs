@@ -229,17 +229,16 @@ where
                 .context("run lease expiry timestamp overflow")?,
         );
         let run_id = RunId::new(format!("run-{}-{}", task.id.as_str(), now_ms.0))?;
-        self.store
-            .claim_ready_task_run(
-                project_path,
-                ClaimReadyTaskRunRequest {
-                    run_id,
-                    task_id: task.id.clone(),
-                    worker_id: worker.id.clone(),
-                    lease_acquired_at_ms: now_ms,
-                    lease_expires_at_ms: Some(lease_expires_at_ms),
-                },
-            )
+        self.store.claim_ready_task_run(
+            project_path,
+            ClaimReadyTaskRunRequest {
+                run_id,
+                task_id: task.id.clone(),
+                worker_id: worker.id.clone(),
+                lease_acquired_at_ms: now_ms,
+                lease_expires_at_ms: Some(lease_expires_at_ms),
+            },
+        )
     }
 
     fn append_worker_selected_event(

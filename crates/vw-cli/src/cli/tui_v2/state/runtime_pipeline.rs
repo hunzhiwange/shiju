@@ -178,16 +178,10 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
         && let Some((visible, reasoning)) = split_reasoning_marker(delta.as_str())
     {
         if !visible.trim().is_empty() {
-            reduce_tui_state(
-                state,
-                TuiAction::AssistantDeltaReceived(visible.to_string()),
-            );
+            reduce_tui_state(state, TuiAction::AssistantDeltaReceived(visible.to_string()));
         }
         if !reasoning.is_empty() {
-            reduce_tui_state(
-                state,
-                TuiAction::ThinkingDeltaReceived(reasoning.to_string()),
-            );
+            reduce_tui_state(state, TuiAction::ThinkingDeltaReceived(reasoning.to_string()));
             reduce_tui_state(state, TuiAction::ThinkingClosed);
         }
         return;

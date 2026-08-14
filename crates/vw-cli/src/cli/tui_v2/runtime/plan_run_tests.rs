@@ -11,9 +11,7 @@ use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
 use super::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::plan_run::plan_run_request_for_submission;
-use super::stream_adapter::{
-    UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_task_plan_run_event,
-};
+use super::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_task_plan_run_event};
 use crate::cli::tui_v2::model::{GoalMode, PromptSubmission, UiMessage, WorkflowMode};
 use crate::cli::tui_v2::state::{TuiState, apply_runtime_event};
 
@@ -30,8 +28,7 @@ fn workflow_mode_streams_task_plan_run_into_tui_state() {
         )
         .expect("append SSE fixture");
     }
-    let (port, server) =
-        spawn_response_server("text/event-stream", response_body, 1);
+    let (port, server) = spawn_response_server("text/event-stream", response_body, 1);
     let runtime = runtime_for_port(port);
 
     let mut submission = PromptSubmission::new("请实现工作流模式")
@@ -157,11 +154,9 @@ fn workflow_mode_streams_task_plan_run_into_tui_state() {
         "current_session_id": "task-1-a"
     })
     .to_string();
-    let (stop_port, stop_server) =
-        spawn_response_server("application/json", stop_body, 1);
-    let stopped = runtime_for_port(stop_port)
-        .task_plan_run_stop_blocking("task-1")
-        .expect("stop plan-run");
+    let (stop_port, stop_server) = spawn_response_server("application/json", stop_body, 1);
+    let stopped =
+        runtime_for_port(stop_port).task_plan_run_stop_blocking("task-1").expect("stop plan-run");
     let stop_requests = stop_server.join().expect("join stop server");
     assert_eq!(stopped.status, TaskPlanRunStatus::Cancelled);
     assert!(stop_requests[0].starts_with("POST /v1/task-plan-run/task-1/stop "));
@@ -169,8 +164,7 @@ fn workflow_mode_streams_task_plan_run_into_tui_state() {
 
 #[test]
 fn goal_mode_alone_does_not_enter_plan_run() {
-    let mut submission =
-        PromptSubmission::new("持续实现并验收目标").with_root("/repo");
+    let mut submission = PromptSubmission::new("持续实现并验收目标").with_root("/repo");
     submission.execution.workflow_mode = WorkflowMode::Disabled;
     submission.execution.goal_mode = GoalMode::Enabled;
 
@@ -233,10 +227,8 @@ fn workflow_mode_streams_goal_turns_and_evaluations_until_terminal() {
         )
         .expect("append goal SSE fixture");
     }
-    let (port, server) =
-        spawn_response_server("text/event-stream", response_body, 1);
-    let mut submission =
-        PromptSubmission::new("持续实现并验收目标").with_root("/repo");
+    let (port, server) = spawn_response_server("text/event-stream", response_body, 1);
+    let mut submission = PromptSubmission::new("持续实现并验收目标").with_root("/repo");
     submission.execution.workflow_mode = WorkflowMode::Enabled;
     submission.execution.goal_mode = GoalMode::Enabled;
 
@@ -262,10 +254,7 @@ fn workflow_mode_streams_goal_turns_and_evaluations_until_terminal() {
     );
     assert_eq!(recorded.query, "持续实现并验收目标");
     assert_eq!(
-        runtime_events
-            .iter()
-            .filter(|event| matches!(event, UiRuntimeEvent::Terminal(_)))
-            .count(),
+        runtime_events.iter().filter(|event| matches!(event, UiRuntimeEvent::Terminal(_))).count(),
         1,
         "an unmet evaluation must keep the stream active"
     );
@@ -379,8 +368,7 @@ fn workflow_fixture_events() -> Vec<TaskPlanRunStreamEventDto> {
 
 fn runtime_for_port(port: u16) -> GatewayUiRuntime {
     GatewayUiRuntime::new(
-        GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port))
-            .expect("gateway client"),
+        GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).expect("gateway client"),
         GatewaySessionSeed::new(PathBuf::from("/repo")),
     )
 }
@@ -420,8 +408,7 @@ fn read_request(stream: &mut TcpStream) -> String {
         }
         request.extend_from_slice(&buffer[..read]);
         if expected_len.is_none()
-            && let Some(header_end) =
-                request.windows(4).position(|window| window == b"\r\n\r\n")
+            && let Some(header_end) = request.windows(4).position(|window| window == b"\r\n\r\n")
         {
             let headers = String::from_utf8_lossy(&request[..header_end]);
             let content_length = headers

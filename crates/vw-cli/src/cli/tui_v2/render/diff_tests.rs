@@ -124,8 +124,7 @@ fn tui_diff_and_shell_cards_match_reference_frames() {
             result_count: 1,
             has_error: false,
             safe_arguments: Some(
-                r#"{"file_path":"src/lib.rs","old_string":"old","new_string":"new"}"#
-                    .to_string(),
+                r#"{"file_path":"src/lib.rs","old_string":"old","new_string":"new"}"#.to_string(),
             ),
             safe_results: vec!["ok".to_string()],
             progress_labels: Vec::new(),

@@ -36,9 +36,8 @@ fn sort_acp_agent_names(mut acp_agents: Vec<String>) -> Vec<String> {
 }
 
 fn route_clipboard_shortcut(app: &App, kind: ClipboardShortcutKind) -> Task<Message> {
-    iced::widget::operation::is_focused(app.input_editor_id.clone()).map(move |input_focused| {
-        Message::ClipboardShortcutRouted { kind, input_focused }
-    })
+    iced::widget::operation::is_focused(app.input_editor_id.clone())
+        .map(move |input_focused| Message::ClipboardShortcutRouted { kind, input_focused })
 }
 
 fn copy_shortcut_without_input(app: &mut App) -> Task<Message> {
@@ -453,10 +452,9 @@ impl App {
                         crate::app::config::load_system_settings_config_async(),
                         Message::StartupSystemSettingsLoaded,
                     ),
-                    Task::perform(
-                        crate::app::config::load_full_agent_config_async(),
-                        |result| Message::StartupAgentConfigLoaded(result.map(Box::new)),
-                    ),
+                    Task::perform(crate::app::config::load_full_agent_config_async(), |result| {
+                        Message::StartupAgentConfigLoaded(result.map(Box::new))
+                    }),
                     Task::perform(
                         crate::app::session_gateway::gateway_external_apps_async(),
                         Message::ExternalAppsLoaded,
@@ -639,7 +637,8 @@ impl App {
             Message::CopyShortcut => route_clipboard_shortcut(self, ClipboardShortcutKind::Copy),
             Message::CutShortcut => route_clipboard_shortcut(self, ClipboardShortcutKind::Cut),
             Message::PasteShortcut => route_clipboard_shortcut(self, ClipboardShortcutKind::Paste),
-            Message::ClipboardShortcutRouted { kind, input_focused } => match (kind, input_focused) {
+            Message::ClipboardShortcutRouted { kind, input_focused } => match (kind, input_focused)
+            {
                 (ClipboardShortcutKind::Copy, true) => {
                     self.update(Message::Chat(message::ChatMessage::CopyInputSelection))
                 }

@@ -50,19 +50,13 @@ async fn mcp_servers_are_scoped_to_bound_session() {
     let tools = prepare_session_tools(&[fixture_server(root.path(), Vec::new())])
         .await
         .expect("session tools");
-    let with_mcp = ToolRuntimeContext::new(
-        "with-mcp",
-        Some(root.path().to_string_lossy().into_owned()),
-    )
-    .with_session_tools(tools);
-    let without_mcp = ToolRuntimeContext::new(
-        "without-mcp",
-        Some(root.path().to_string_lossy().into_owned()),
-    );
+    let with_mcp =
+        ToolRuntimeContext::new("with-mcp", Some(root.path().to_string_lossy().into_owned()))
+            .with_session_tools(tools);
+    let without_mcp =
+        ToolRuntimeContext::new("without-mcp", Some(root.path().to_string_lossy().into_owned()));
 
-    assert!(
-        tool_specs_for_context(&with_mcp).iter().any(|spec| spec.id == "mcp__fixture__echo")
-    );
+    assert!(tool_specs_for_context(&with_mcp).iter().any(|spec| spec.id == "mcp__fixture__echo"));
     assert!(
         !tool_specs_for_context(&without_mcp).iter().any(|spec| spec.id == "mcp__fixture__echo")
     );
@@ -94,10 +88,8 @@ async fn unsupported_or_failed_mcp_is_rejected_atomically() {
     assert!(duplicate_error.to_string().contains("duplicate MCP server name"));
     assert!(!duplicate_error.to_string().contains("missing-command"));
 
-    let failed = [McpServer::Stdio(McpServerStdio::new(
-        "broken",
-        "vibewindow-missing-mcp-command",
-    ))];
+    let failed =
+        [McpServer::Stdio(McpServerStdio::new("broken", "vibewindow-missing-mcp-command"))];
     let failure = prepare_session_tools(&failed).await.expect_err("startup must fail");
     assert_eq!(failure.to_string(), "invalid backend request: MCP server 'broken' failed to start");
 }

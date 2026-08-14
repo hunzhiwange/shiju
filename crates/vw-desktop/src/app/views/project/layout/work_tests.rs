@@ -109,10 +109,7 @@ async fn work_resource_panel_split_ratio_and_fullscreen_have_independent_layouts
         let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
         layout_signature(&mut element, &renderer)
     };
-    assert_ne!(
-        wide_chat, resource_fullscreen,
-        "resource fullscreen must replace the work layout"
-    );
+    assert_ne!(wide_chat, resource_fullscreen, "resource fullscreen must replace the work layout");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -244,26 +241,25 @@ async fn work_layout_drag_handles_emit_sidebar_and_chat_split_messages() {
     let mut app = App::new().0;
     app.work_resources_visible = true;
 
-    let mut sidebar_element =
-        super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
+    let mut sidebar_element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
     let sidebar_messages = press_at(
         &mut sidebar_element,
         &renderer,
         Point::new(app.work_sidebar_width + HResizeHandle::HIT_WIDTH / 2.0, 400.0),
     );
-    assert!(sidebar_messages.iter().any(|message| {
-        matches!(message, Message::View(ViewMessage::WorkSidebarDragStarted))
-    }));
+    assert!(
+        sidebar_messages.iter().any(|message| {
+            matches!(message, Message::View(ViewMessage::WorkSidebarDragStarted))
+        })
+    );
 
     let right_width = VIEWPORT.width - app.work_sidebar_width - HResizeHandle::HIT_WIDTH;
     let split_x = app.work_sidebar_width
         + HResizeHandle::HIT_WIDTH
         + (right_width - HResizeHandle::HIT_WIDTH) * app.work_split_ratio
         + HResizeHandle::HIT_WIDTH / 2.0;
-    let mut split_element =
-        super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
-    let split_messages =
-        press_at(&mut split_element, &renderer, Point::new(split_x, 400.0));
+    let mut split_element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
+    let split_messages = press_at(&mut split_element, &renderer, Point::new(split_x, 400.0));
     assert!(
         split_messages
             .iter()

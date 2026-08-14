@@ -1,10 +1,10 @@
 //! 主题编辑器实时预览面板。
 
+use crate::app::Message;
 use crate::app::state::ThemeEditorDraft;
 use crate::app::theme_catalog::{
     ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, to_iced_theme,
 };
-use crate::app::Message;
 use iced::widget::{button, column, container, row, text};
 use iced::{Background, Border, Color, Element, Length, Theme};
 
@@ -24,16 +24,8 @@ fn parse_hex_or(value: &str, fallback: Color) -> Color {
 
 fn definition_from_draft(draft: &ThemeEditorDraft) -> ThemeDefinition {
     ThemeDefinition {
-        id: if draft.id.is_empty() {
-            "preview".to_string()
-        } else {
-            draft.id.clone()
-        },
-        name: if draft.name.trim().is_empty() {
-            "预览".to_string()
-        } else {
-            draft.name.clone()
-        },
+        id: if draft.id.is_empty() { "preview".to_string() } else { draft.id.clone() },
+        name: if draft.name.trim().is_empty() { "预览".to_string() } else { draft.name.clone() },
         tagline: None,
         palette: ThemePaletteHex {
             background: draft.background.clone(),
@@ -72,11 +64,7 @@ fn definition_from_draft(draft: &ThemeEditorDraft) -> ThemeDefinition {
 
 fn non_empty_opt(value: &str) -> Option<String> {
     let trimmed = value.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
-    }
+    if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
 }
 
 fn status_chip(label: &'static str, color: Color, text_color: Color) -> Element<'static, Message> {
@@ -84,11 +72,7 @@ fn status_chip(label: &'static str, color: Color, text_color: Color) -> Element<
         .padding([4, 10])
         .style(move |_theme: &Theme| iced::widget::container::Style {
             background: Some(Background::Color(color)),
-            border: Border {
-                radius: 6.0.into(),
-                width: 0.0,
-                color: Color::TRANSPARENT,
-            },
+            border: Border { radius: 6.0.into(), width: 0.0, color: Color::TRANSPARENT },
             ..Default::default()
         })
         .into()
@@ -98,17 +82,16 @@ fn status_chip(label: &'static str, color: Color, text_color: Color) -> Element<
 pub(crate) fn theme_preview_panel(draft: &ThemeEditorDraft) -> Element<'static, Message> {
     let definition = definition_from_draft(draft);
     let preview_theme = to_iced_theme(&definition).ok();
-    let palette = preview_theme
-        .as_ref()
-        .map(|theme| theme.palette())
-        .unwrap_or_else(|| iced::theme::Palette {
+    let palette = preview_theme.as_ref().map(|theme| theme.palette()).unwrap_or_else(|| {
+        iced::theme::Palette {
             background: parse_hex_or(&draft.background, Color::from_rgb8(15, 23, 42)),
             text: parse_hex_or(&draft.text, Color::from_rgb8(226, 232, 240)),
             primary: parse_hex_or(&draft.primary, Color::from_rgb8(56, 189, 248)),
             success: parse_hex_or(&draft.success, Color::from_rgb8(34, 197, 94)),
             warning: parse_hex_or(&draft.warning, Color::from_rgb8(245, 158, 11)),
             danger: parse_hex_or(&draft.danger, Color::from_rgb8(239, 68, 68)),
-        });
+        }
+    });
 
     let bg = palette.background;
     let fg = palette.text;
@@ -125,31 +108,22 @@ pub(crate) fn theme_preview_panel(draft: &ThemeEditorDraft) -> Element<'static, 
 
     let sample = column![
         text(title).size(15).color(fg),
-        text("这是一段预览文本，用于检查背景与文字对比。")
-            .size(12)
-            .color(fg),
-        button(text("主色按钮").size(12).color(bg))
-            .padding([8, 14])
-            .style(move |_theme: &Theme, status: iced::widget::button::Status| {
+        text("这是一段预览文本，用于检查背景与文字对比。").size(12).color(fg),
+        button(text("主色按钮").size(12).color(bg)).padding([8, 14]).style(
+            move |_theme: &Theme, status: iced::widget::button::Status| {
                 let alpha = match status {
                     iced::widget::button::Status::Hovered => 0.92,
                     iced::widget::button::Status::Pressed => 0.84,
                     _ => 1.0,
                 };
                 iced::widget::button::Style {
-                    background: Some(Background::Color(Color {
-                        a: alpha,
-                        ..primary
-                    })),
+                    background: Some(Background::Color(Color { a: alpha, ..primary })),
                     text_color: bg,
-                    border: Border {
-                        radius: 8.0.into(),
-                        width: 0.0,
-                        color: Color::TRANSPARENT,
-                    },
+                    border: Border { radius: 8.0.into(), width: 0.0, color: Color::TRANSPARENT },
                     ..Default::default()
                 }
-            }),
+            }
+        ),
         row![
             status_chip("成功", success, bg),
             status_chip("警告", warning, bg),

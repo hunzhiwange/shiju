@@ -1,5 +1,6 @@
-use super::bash_view::tool_bash_view;
+use super::bash_view::{bash_command_preview, bash_view_padding, tool_bash_view};
 use crate::app::App;
+use iced::Padding;
 
 fn app() -> App {
     App::new().0
@@ -28,6 +29,28 @@ fn bash_view_accepts_plain_command_input() {
 {"input":"cargo test -p vw-desktop","output":"ok"}"#;
 
     assert!(tool_bash_view(&app, 1, 2, visible).is_some());
+}
+
+#[test]
+fn bash_rows_remove_left_indent_without_changing_image_info_padding() {
+    assert_eq!(
+        bash_view_padding("bash"),
+        Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 0.0 }
+    );
+    assert_eq!(
+        bash_view_padding("image_info"),
+        Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 6.0 }
+    );
+}
+
+#[test]
+fn bash_command_preview_is_single_line_and_truncates_overflow() {
+    assert_eq!(bash_command_preview("cargo check\n  --all-targets"), "cargo check --all-targets");
+
+    let preview = bash_command_preview(&"x".repeat(100));
+    assert!(!preview.contains('\n'));
+    assert!(preview.ends_with('…'));
+    assert_eq!(preview.chars().count(), 73);
 }
 
 #[test]
@@ -105,13 +128,15 @@ fn image_info_with_hovered_state() {
 }
 
 #[test]
-fn bash_view_uses_cached_inline_editor_for_command_title() {
+fn bash_view_ignores_cached_multiline_text_for_compact_summary() {
     use super::tool_text_key;
     use iced::widget::text_editor;
 
     let mut app = app();
-    app.chat_tool_text_editors
-        .insert(tool_text_key(8, 9, 0), text_editor::Content::with_text("cached command"));
+    app.chat_tool_text_editors.insert(
+        tool_text_key(8, 9, 0),
+        text_editor::Content::with_text("cached command\nsecond line"),
+    );
 
     assert!(tool_bash_view(&app, 8, 9, "tool bash\n{\"input\":\"echo ignored\"}").is_some());
 }

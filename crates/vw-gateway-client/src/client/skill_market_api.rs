@@ -329,9 +329,8 @@ impl GatewayClient {
             version: coordinate.version.clone(),
             installations: installations.to_vec(),
         };
-        let envelope: SkillMarketEnvelope<Vec<DesktopSkillPathDto>> = self
-            .post_json("/v1/skill-market/skills/install-targets", &[], &request)
-            .await?;
+        let envelope: SkillMarketEnvelope<Vec<DesktopSkillPathDto>> =
+            self.post_json("/v1/skill-market/skills/install-targets", &[], &request).await?;
         if envelope.code != 0 {
             return Err(format!(
                 "skill market request failed (code {}): {}",

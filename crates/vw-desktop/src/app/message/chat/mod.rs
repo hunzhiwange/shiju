@@ -56,10 +56,7 @@ pub(super) fn scroll_chat_to_bottom_task(app: &mut App) -> Task<Message> {
     .map(|_: ()| Message::CopyDone)
 }
 
-pub(super) fn scroll_chat_to_turn_top_task(
-    app: &mut App,
-    user_index: usize,
-) -> Task<Message> {
+pub(super) fn scroll_chat_to_turn_top_task(app: &mut App, user_index: usize) -> Task<Message> {
     if user_index >= app.chat_virtualizer.len() {
         return Task::none();
     }

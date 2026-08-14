@@ -145,10 +145,7 @@ fn startup_agent_config_reload_rehydrates_gateway_backed_settings() {
     config.channels_config.cli = true;
     config.proxy.enabled = true;
     config.transcription.enabled = true;
-    config.acp.insert(
-        "claude".to_string(),
-        vw_config_types::config::AcpAgentConfig::default(),
-    );
+    config.acp.insert("claude".to_string(), vw_config_types::config::AcpAgentConfig::default());
 
     let _ = app.update(Message::StartupAgentConfigLoaded(Ok(Box::new(config))));
 
@@ -288,7 +285,7 @@ fn bootstrap_browser_config_normalizes_invalid_options() {
 
     assert!(app.browser_settings.enabled);
     assert_eq!(app.browser_settings.allowed_domains_input, "example.com\ndocs.example.com");
-    assert_eq!(app.browser_settings.browser_open, "default");
+    assert_eq!(app.browser_settings.browser_open, "new_tab");
     assert_eq!(app.browser_settings.backend, "native");
     assert_eq!(app.browser_settings.session_name_input, "desk");
     assert_eq!(app.browser_settings.native_chrome_path_input, "/Applications/Chrome");
@@ -414,10 +411,7 @@ fn app_bootstrap_preserves_custom_items_and_adds_missing_builtin_git_actions() {
     let _ = app.update(Message::BootstrapSystemSettings(Ok(system.clone())));
 
     assert_eq!(app.quick_messages.first(), system.quick_messages.first());
-    assert_eq!(
-        app.quick_messages[1..],
-        vw_config_types::ui::builtin_git_quick_messages()
-    );
+    assert_eq!(app.quick_messages[1..], vw_config_types::ui::builtin_git_quick_messages());
 
     system.quick_messages.clear();
     let _ = app.update(Message::BootstrapSystemSettings(Ok(system)));

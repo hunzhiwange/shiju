@@ -120,10 +120,9 @@ pub fn select_auto_model(
 ) -> Result<ModelSelectionDecision, ModelSelectionError> {
     let profile = infer_profile(request);
 
-    if let Some(classification) = classifier::classify_with_decision(
-        &request.query_classification,
-        request.message,
-    ) {
+    if let Some(classification) =
+        classifier::classify_with_decision(&request.query_classification, request.message)
+    {
         let route = request.model_routes.iter().find(|route| route.hint == classification.hint);
         if let Some(route) = route {
             let reference = ModelReference::new(&route.provider, &route.model);
@@ -181,10 +180,8 @@ fn infer_profile(request: &AutoModelSelectionRequest<'_>) -> ModelTaskProfile {
     {
         return ModelTaskProfile::ToolOrCode;
     }
-    if contains_any(
-        &message,
-        &["analyze", "analysis", "reasoning", "tradeoff", "compare", "prove"],
-    ) || request.message.contains("分析")
+    if contains_any(&message, &["analyze", "analysis", "reasoning", "tradeoff", "compare", "prove"])
+        || request.message.contains("分析")
         || request.message.contains("推理")
     {
         return ModelTaskProfile::Reasoning;
@@ -210,7 +207,8 @@ fn is_compatible(request: &AutoModelSelectionRequest<'_>, candidate: &ModelCandi
         && (!request.needs_tools || capabilities.toolcall)
         && (!request.needs_image_input || capabilities.input.image)
         && (!request.needs_attachments || capabilities.attachment)
-        && (request.required_context == 0 || candidate.model.limit.context >= request.required_context)
+        && (request.required_context == 0
+            || candidate.model.limit.context >= request.required_context)
 }
 
 fn requirement_summary(request: &AutoModelSelectionRequest<'_>) -> String {

@@ -237,11 +237,8 @@ fn task_pool_matrix_instance_publish_uses_named_matrix_instance() {
 
     let default_missing_config =
         ChannelsConfig { matrix_enabled: true, ..ChannelsConfig::default() };
-    let default_missing = matrix_task_pool_publish_config(
-        &default_missing_config,
-        Some("default"),
-    )
-    .expect_err("missing default");
+    let default_missing = matrix_task_pool_publish_config(&default_missing_config, Some("default"))
+        .expect_err("missing default");
     assert_eq!(default_missing.status, StatusCode::BAD_REQUEST);
     assert!(default_missing.to_string().contains("'default'"));
 

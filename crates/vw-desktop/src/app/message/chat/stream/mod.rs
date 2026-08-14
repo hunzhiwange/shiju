@@ -104,10 +104,7 @@ struct StreamSessionSaveState {
 impl StreamSessionSaveCoordinator {
     fn save<F>(&self, session: models::ChatSession, directory: Option<String>, mut save: F)
     where
-        F: FnMut(
-            &models::ChatSession,
-            Option<&str>,
-        ) -> Result<Option<std::path::PathBuf>, String>,
+        F: FnMut(&models::ChatSession, Option<&str>) -> Result<Option<std::path::PathBuf>, String>,
     {
         let session_id = session.id.clone();
         let mut current = PendingSessionSave { session, directory };
@@ -431,9 +428,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
 fn handle_plan_run_session_waiting(app: &mut App, session_id: String) -> Task<Message> {
     let session_id = session_id.trim();
-    if session_id.is_empty()
-        || !app.sessions.iter().any(|session| session.id == session_id)
-    {
+    if session_id.is_empty() || !app.sessions.iter().any(|session| session.id == session_id) {
         return Task::none();
     }
 

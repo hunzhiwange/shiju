@@ -25,8 +25,7 @@ fn expert_hub_detail_view_binds_only_close_download_and_skill_actions() {
     });
     let loading: iced::Element<'_, Message> = super::view(&app);
     std::hint::black_box(loading);
-    app.expert_hub.detail.as_mut().unwrap().detail =
-        LoadState::Error("fixture error".to_string());
+    app.expert_hub.detail.as_mut().unwrap().detail = LoadState::Error("fixture error".to_string());
     let error: iced::Element<'_, Message> = super::view(&app);
     std::hint::black_box(error);
 

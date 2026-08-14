@@ -82,11 +82,8 @@ fn account_profile_edit_generation_rejects_stale_results_and_cancels_cleanly() {
 
 #[test]
 fn account_password_edit_validates_redacts_and_ignores_late_results() {
-    let draft = AccountPasswordDraft::new(
-        "current-password-123",
-        "new-password-456",
-        "new-password-456",
-    );
+    let draft =
+        AccountPasswordDraft::new("current-password-123", "new-password-456", "new-password-456");
     assert!(draft.update_request().is_ok());
     assert!(
         AccountPasswordDraft::new("current-password-123", "short1", "short1")
@@ -118,10 +115,8 @@ fn account_password_edit_validates_redacts_and_ignores_late_results() {
     assert!(debug.contains("<redacted>"));
 
     let mut state = AccountState::default();
-    let stale =
-        state.begin_password_editor(AccountPasswordEditorState::Saving(draft.clone()));
-    let current =
-        state.begin_password_editor(AccountPasswordEditorState::Editing(draft));
+    let stale = state.begin_password_editor(AccountPasswordEditorState::Saving(draft.clone()));
+    let current = state.begin_password_editor(AccountPasswordEditorState::Editing(draft));
     assert!(!state.password_is_current(stale));
     assert!(state.password_is_current(current));
 

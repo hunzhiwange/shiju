@@ -22,7 +22,9 @@ pub(crate) use helpers::refresh_file_index;
 pub(crate) use helpers::{
     prepare_session_ui_chunks_task, prepare_session_ui_task, prepare_stream_message_ui_task,
 };
-pub(crate) use session::loaded_chat_from_gateway_messages;
+pub(crate) use session::{
+    latest_assistant_model_label, loaded_chat_from_gateway_messages, steps_from_gateway_messages,
+};
 
 #[derive(Debug, Clone)]
 /// LoadedProjectInfo 保存该流程中跨函数传递的结构化数据。
@@ -181,6 +183,11 @@ pub enum ProjectMessage {
     },
     FileTreeFindTabSelected(String),
     FileTreeFindTabClosed(String),
+    FileTreeFindTabRightClicked(String, f32, f32),
+    FileTreeFindTabMenuClose,
+    FileTreeFindTabMenuCloseLeft(String),
+    FileTreeFindTabMenuCloseRight(String),
+    FileTreeFindTabMenuCloseAll,
     FileTreeDragStart(String, Option<(usize, usize)>),
     FileTreeDragEnd,
     FileTreePasteCompleted {
@@ -255,10 +262,12 @@ pub enum ProjectMessage {
     SessionMessagesLoaded(
         Result<(String, Vec<agent_message::WithParts>, crate::app::models::TokenUsage), String>,
     ),
-    SessionUiStoreLoaded {
-        session_id: String,
+    SessionOpenPrepared {
+        target_session_id: String,
         project_path: String,
-        result: Result<Option<crate::app::models::ChatSession>, String>,
+        open_generation: u64,
+        source: PreparedSessionOpenSource,
+        result: Result<crate::app::session::PreparedSessionOpen, String>,
     },
     SessionUiPrepared {
         session_id: String,
@@ -267,6 +276,12 @@ pub enum ProjectMessage {
     StartDeferredTasks {
         project_path: String,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PreparedSessionOpenSource {
+    UiStore,
+    RemoteHistory,
 }
 
 /// update 处理当前模块对应的消息或状态转换。

@@ -7,8 +7,8 @@ use vw_shared::session::info::{
     Info as AgentSessionInfo, RevertInfo, ShareInfo, Summary, TimeInfo,
 };
 use vw_shared::session::ui_types::{
-    ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
-    ProcessingTiming, ThinkTiming, TokenUsage,
+    ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming,
+    SessionTodoItem, ThinkTiming, TokenUsage,
 };
 
 use super::store::SessionStore;
@@ -152,10 +152,7 @@ fn session_store_processing_elapsed_round_trips() -> Result<()> {
             Some(90)
         );
         assert_eq!(
-            loaded.messages[1]
-                .processing_timing
-                .as_ref()
-                .and_then(|timing| timing.llm_elapsed_ms),
+            loaded.messages[1].processing_timing.as_ref().and_then(|timing| timing.llm_elapsed_ms),
             Some(75)
         );
         Ok(())
@@ -177,11 +174,8 @@ fn postgres_session_store_runs_from_tokio_worker_without_nested_runtime() -> Res
     let store = fixture.store.clone();
     let session = sample_session("tokio-runtime-session", "Tokio runtime session", 100);
 
-    tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(1)
-        .enable_all()
-        .build()?
-        .block_on(async move {
+    tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build()?.block_on(
+        async move {
             tokio::spawn(async move {
                 store.save_session(&scope, &session)?;
                 assert_json_eq!(store.load_session(&scope, &session.id)?, Some(session));
@@ -189,7 +183,8 @@ fn postgres_session_store_runs_from_tokio_worker_without_nested_runtime() -> Res
             })
             .await??;
             Ok::<(), anyhow::Error>(())
-        })?;
+        },
+    )?;
 
     postgres_fixture.cleanup()?;
     Ok(())

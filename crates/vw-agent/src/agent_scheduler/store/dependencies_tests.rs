@@ -18,15 +18,15 @@ fn agent_scheduler_store_replaces_scoped_task_graph_atomically() -> Result<()> {
     let scope_b = scheduler_context(temp_dir.path(), "platform-b", "company-b", "project")?;
     for context in [&scope_a, &scope_b] {
         for task_id in ["task-a", "task-b", "task-c"] {
-            store.create_task(context, task(task_id, AgentTaskKind::Finite, AgentTaskStatus::Draft)?)?;
+            store.create_task(
+                context,
+                task(task_id, AgentTaskKind::Finite, AgentTaskStatus::Draft)?,
+            )?;
         }
     }
 
     store.replace_task_dependencies(&scope_a, vec![dependency("task-a", "task-b")])?;
-    assert_eq!(
-        store.list_task_dependencies(&scope_a)?,
-        vec![dependency("task-a", "task-b")]
-    );
+    assert_eq!(store.list_task_dependencies(&scope_a)?, vec![dependency("task-a", "task-b")]);
     assert_eq!(
         store
             .load_task_graph(&scope_a)?
@@ -38,14 +38,8 @@ fn agent_scheduler_store_replaces_scoped_task_graph_atomically() -> Result<()> {
     store.replace_task_dependencies(&scope_b, vec![dependency("task-b", "task-c")])?;
 
     store.replace_task_dependencies(&scope_a, vec![dependency("task-a", "task-c")])?;
-    assert_eq!(
-        store.list_task_dependencies(&scope_a)?,
-        vec![dependency("task-a", "task-c")]
-    );
-    assert_eq!(
-        store.list_task_dependencies(&scope_b)?,
-        vec![dependency("task-b", "task-c")]
-    );
+    assert_eq!(store.list_task_dependencies(&scope_a)?, vec![dependency("task-a", "task-c")]);
+    assert_eq!(store.list_task_dependencies(&scope_b)?, vec![dependency("task-b", "task-c")]);
 
     Ok(())
 }
@@ -57,10 +51,17 @@ fn agent_scheduler_store_rejects_invalid_or_active_graph_mutation() -> Result<()
     let scope_a = scheduler_context(temp_dir.path(), "platform-a", "company-a", "project")?;
     let scope_b = scheduler_context(temp_dir.path(), "platform-b", "company-b", "project")?;
     for task_id in ["task-a", "task-b", "task-c"] {
-        store.create_task(&scope_a, task(task_id, AgentTaskKind::Finite, AgentTaskStatus::Draft)?)?;
+        store
+            .create_task(&scope_a, task(task_id, AgentTaskKind::Finite, AgentTaskStatus::Draft)?)?;
     }
-    store.create_task(&scope_a, task("task-infinite", AgentTaskKind::Infinite, AgentTaskStatus::Draft)?)?;
-    store.create_task(&scope_b, task("task-other-scope", AgentTaskKind::Finite, AgentTaskStatus::Draft)?)?;
+    store.create_task(
+        &scope_a,
+        task("task-infinite", AgentTaskKind::Infinite, AgentTaskStatus::Draft)?,
+    )?;
+    store.create_task(
+        &scope_b,
+        task("task-other-scope", AgentTaskKind::Finite, AgentTaskStatus::Draft)?,
+    )?;
 
     let initial = vec![dependency("task-a", "task-b")];
     store.replace_task_dependencies(&scope_a, initial.clone())?;
@@ -86,9 +87,9 @@ fn agent_scheduler_store_rejects_invalid_or_active_graph_mutation() -> Result<()
         TimestampMs(1),
     )?;
     store.replace_task_dependencies(&scope_a, initial.clone())?;
-    assert!(store
-        .replace_task_dependencies(&scope_a, vec![dependency("task-c", "task-b")])
-        .is_err());
+    assert!(
+        store.replace_task_dependencies(&scope_a, vec![dependency("task-c", "task-b")]).is_err()
+    );
     assert_eq!(store.list_task_dependencies(&scope_a)?, initial);
 
     Ok(())

@@ -193,15 +193,13 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
         })
         .padding([8, 10])
         .style(settings_text_input_style);
-    let args = text_input(
-        "例如：-y, @scope/my-acp（逗号分隔）",
-        &app.acp_settings.new_agent_args_input,
-    )
-    .on_input(|value| {
-        Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentArgsChanged(value)))
-    })
-    .padding([8, 10])
-    .style(settings_text_input_style);
+    let args =
+        text_input("例如：-y, @scope/my-acp（逗号分隔）", &app.acp_settings.new_agent_args_input)
+            .on_input(|value| {
+                Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentArgsChanged(value)))
+            })
+            .padding([8, 10])
+            .style(settings_text_input_style);
 
     let mut save_button = button(text(if app.acp_settings.adding_agent {
         "新增中..."
@@ -225,9 +223,7 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
                 .spacing(12)
                 .align_y(Alignment::End),
             form_field("参数", args),
-            container(save_button)
-                .width(Length::Fill)
-                .align_x(iced::alignment::Horizontal::Right),
+            container(save_button).width(Length::Fill).align_x(iced::alignment::Horizontal::Right),
         ]
         .spacing(12),
     )

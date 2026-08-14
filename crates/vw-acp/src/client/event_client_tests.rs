@@ -496,8 +496,7 @@ async fn build_event_client_propagates_full_access_to_filesystem() {
         AcpAgentConfig { command: "noop".to_string(), args: Vec::new(), env: Default::default() },
     )
     .with_full_access(true);
-    let event_client =
-        client.build_event_client(&root, Arc::new(Mutex::new(None)), event_tx);
+    let event_client = client.build_event_client(&root, Arc::new(Mutex::new(None)), event_tx);
 
     let response = event_client
         .read_text_file(acp::ReadTextFileRequest::new("session-1", &outside_file))

@@ -729,10 +729,8 @@ fn recent_remove_canceled_clears_confirmation() {
     let mut app = app();
     app.recent_project_remove_confirm_path = Some("/tmp/remove".to_string());
 
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::RecentRemoveCanceled,
-    );
+    let _ =
+        super::handle(&mut app, crate::app::message::project::ProjectMessage::RecentRemoveCanceled);
 
     assert!(app.recent_project_remove_confirm_path.is_none());
 }

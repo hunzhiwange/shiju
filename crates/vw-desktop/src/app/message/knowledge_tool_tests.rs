@@ -5,8 +5,7 @@ use super::{
     document_status_from_index_job, import_batch_success_message, import_request_from_file,
     import_success_message, looks_sensitive_token, mime_type_for_filename, parse_score_threshold,
     parse_usize_input, sanitize_document_page_size, sanitize_sensitive_display_text,
-    selected_dataset_embedding_model,
-    trim_to_option, update,
+    selected_dataset_embedding_model, trim_to_option, update,
 };
 use crate::app::{
     App,
@@ -702,10 +701,7 @@ fn create_dataset_modal_tracks_tabs_and_supported_embedding_selection() {
     );
 
     assert_eq!(app.knowledge.create_dataset_tab, KnowledgeCreateDatasetTab::Retrieval);
-    assert_eq!(
-        selected_dataset_embedding_model(&app).as_deref(),
-        Some("text-embedding-v4")
-    );
+    assert_eq!(selected_dataset_embedding_model(&app).as_deref(), Some("text-embedding-v4"));
 
     let _ = update(&mut app, KnowledgeToolMessage::CloseCreateDatasetModal);
     let _ = update(&mut app, KnowledgeToolMessage::OpenCreateDatasetModal);

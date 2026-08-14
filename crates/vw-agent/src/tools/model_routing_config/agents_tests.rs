@@ -60,10 +60,7 @@ async fn upsert_agent_sets_optional_fields_and_allowlists() {
     let stored = config::get_project_blocking(tmp.path()).unwrap();
     assert!(stored.agents["researcher"].allow_as_subagent);
     assert_eq!(stored.agents["researcher"].tool_policy, DelegateCapabilityPolicy::Strict);
-    assert_eq!(
-        stored.agents["researcher"].skill_policy,
-        DelegateCapabilityPolicy::UserOverride
-    );
+    assert_eq!(stored.agents["researcher"].skill_policy, DelegateCapabilityPolicy::UserOverride);
 }
 
 #[test]

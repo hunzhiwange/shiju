@@ -31,17 +31,11 @@ pub(crate) struct ShijuAppError {
 
 impl ShijuAppError {
     fn invalid_input(message: &'static str) -> Self {
-        Self {
-            kind: ShijuAppErrorKind::InvalidInput,
-            message,
-        }
+        Self { kind: ShijuAppErrorKind::InvalidInput, message }
     }
 
     fn upstream(message: &'static str) -> Self {
-        Self {
-            kind: ShijuAppErrorKind::Upstream,
-            message,
-        }
+        Self { kind: ShijuAppErrorKind::Upstream, message }
     }
 
     pub(crate) fn kind(&self) -> ShijuAppErrorKind {
@@ -116,14 +110,11 @@ impl ShijuAppClient {
                 ShijuAppError::invalid_input("SHIJU application installation is not owned")
             })?;
         if app.reconcile_status != "ready" || app.runtime_status != "ready" {
-            return Err(ShijuAppError::invalid_input(
-                "SHIJU application runtime is not ready",
-            ));
+            return Err(ShijuAppError::invalid_input("SHIJU application runtime is not ready"));
         }
         validate_runtime_url(&app.runtime_url, installation_id)?;
 
-        let binding_path =
-            format!("tenant/installations/{installation_id}/api-key-binding");
+        let binding_path = format!("tenant/installations/{installation_id}/api-key-binding");
         self.get_success(&binding_path, credential).await?;
         let runtime_set_cookie = self.establish_browser_session(credential).await?;
 
@@ -151,13 +142,11 @@ impl ShijuAppClient {
         self.get(path, credential).await.map(|_| ())
     }
 
-    async fn establish_browser_session(
-        &self,
-        credential: &str,
-    ) -> Result<String, ShijuAppError> {
-        let endpoint = self.base_url.join(BROWSER_SESSION_PATH).map_err(|_| {
-            ShijuAppError::upstream("SHIJU application upstream URL is invalid")
-        })?;
+    async fn establish_browser_session(&self, credential: &str) -> Result<String, ShijuAppError> {
+        let endpoint = self
+            .base_url
+            .join(BROWSER_SESSION_PATH)
+            .map_err(|_| ShijuAppError::upstream("SHIJU application upstream URL is invalid"))?;
         let response = self
             .http
             .post(endpoint)
@@ -166,9 +155,7 @@ impl ShijuAppClient {
             .await
             .map_err(|_| ShijuAppError::upstream("SHIJU browser session request failed"))?;
         if !response.status().is_success() {
-            return Err(ShijuAppError::upstream(
-                "SHIJU browser session request failed",
-            ));
+            return Err(ShijuAppError::upstream("SHIJU browser session request failed"));
         }
         response
             .headers()
@@ -183,11 +170,7 @@ impl ShijuAppClient {
             })
     }
 
-    async fn get(
-        &self,
-        path: &str,
-        credential: &str,
-    ) -> Result<reqwest::Response, ShijuAppError> {
+    async fn get(&self, path: &str, credential: &str) -> Result<reqwest::Response, ShijuAppError> {
         let endpoint = self
             .base_url
             .join(path)
@@ -200,9 +183,7 @@ impl ShijuAppClient {
             .await
             .map_err(|_| ShijuAppError::upstream("SHIJU application upstream request failed"))?;
         if !response.status().is_success() {
-            return Err(ShijuAppError::upstream(
-                "SHIJU application upstream request failed",
-            ));
+            return Err(ShijuAppError::upstream("SHIJU application upstream request failed"));
         }
         Ok(response)
     }
@@ -211,9 +192,7 @@ impl ShijuAppClient {
 pub(crate) fn is_valid_installation_id(installation_id: &str) -> bool {
     !installation_id.is_empty()
         && installation_id.len() <= MAX_INSTALLATION_ID_BYTES
-        && installation_id
-            .bytes()
-            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
+        && installation_id.bytes().all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
 }
 
 fn parse_base_url(raw: &str) -> Result<Url, ShijuAppError> {
@@ -227,13 +206,10 @@ fn parse_base_url(raw: &str) -> Result<Url, ShijuAppError> {
 
 fn credential_header(credential: &str) -> Result<HeaderValue, ShijuAppError> {
     if credential.trim().is_empty() || credential.trim() != credential {
-        return Err(ShijuAppError::invalid_input(
-            "SHIJU application credential is invalid",
-        ));
+        return Err(ShijuAppError::invalid_input("SHIJU application credential is invalid"));
     }
-    HeaderValue::from_str(credential).map_err(|_| {
-        ShijuAppError::invalid_input("SHIJU application credential is invalid")
-    })
+    HeaderValue::from_str(credential)
+        .map_err(|_| ShijuAppError::invalid_input("SHIJU application credential is invalid"))
 }
 
 fn is_valid_runtime_set_cookie(value: &str) -> bool {
@@ -255,14 +231,13 @@ fn is_valid_runtime_set_cookie(value: &str) -> bool {
     attributes.iter().any(|attribute| attribute.eq_ignore_ascii_case("Path=/"))
         && attributes.iter().any(|attribute| attribute.eq_ignore_ascii_case("HttpOnly"))
         && attributes.iter().any(|attribute| attribute.eq_ignore_ascii_case("Secure"))
-        && attributes
-            .iter()
-            .any(|attribute| attribute.eq_ignore_ascii_case("SameSite=None"))
+        && attributes.iter().any(|attribute| attribute.eq_ignore_ascii_case("SameSite=None"))
 }
 
 fn validate_runtime_url(runtime_url: &str, installation_id: &str) -> Result<(), ShijuAppError> {
-    let url = Url::parse(runtime_url)
-        .map_err(|_| ShijuAppError::invalid_input("SHIJU application runtime URL is not trusted"))?;
+    let url = Url::parse(runtime_url).map_err(|_| {
+        ShijuAppError::invalid_input("SHIJU application runtime URL is not trusted")
+    })?;
     let expected_path = format!("/app/{installation_id}/");
     let trusted = url.scheme() == "https"
         && url.host_str() == Some(RUNTIME_HOST)
@@ -273,9 +248,7 @@ fn validate_runtime_url(runtime_url: &str, installation_id: &str) -> Result<(), 
         && url.query().is_none()
         && url.fragment().is_none();
     if !trusted {
-        return Err(ShijuAppError::invalid_input(
-            "SHIJU application runtime URL is not trusted",
-        ));
+        return Err(ShijuAppError::invalid_input("SHIJU application runtime URL is not trusted"));
     }
     Ok(())
 }

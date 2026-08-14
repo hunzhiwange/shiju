@@ -676,8 +676,7 @@ fn matching_scroll_callback_preserves_turn_focus() {
     app.chat_auto_scroll = false;
     let expected_relative_y = app.chat_virtualizer.relative_y();
 
-    let _ =
-        super::input::apply_chat_scroll_changed(&mut app, expected_relative_y, 300.0);
+    let _ = super::input::apply_chat_scroll_changed(&mut app, expected_relative_y, 300.0);
 
     assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(1));
 }

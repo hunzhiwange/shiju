@@ -11,7 +11,9 @@ mod lifecycle;
 mod open;
 mod worktree;
 
-pub(crate) use lifecycle::loaded_chat_from_gateway_messages;
+pub(crate) use lifecycle::{
+    latest_assistant_model_label, loaded_chat_from_gateway_messages, steps_from_gateway_messages,
+};
 
 #[cfg(test)]
 mod lifecycle_tests;

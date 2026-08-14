@@ -4,8 +4,8 @@
 
 use super::security_for_tool_context;
 use crate::app::agent::config::Config;
-use crate::app::agent::tools::ToolUseContext;
 use crate::app::agent::security::ShellRedirectPolicy;
+use crate::app::agent::tools::ToolUseContext;
 use std::path::PathBuf;
 
 #[test]

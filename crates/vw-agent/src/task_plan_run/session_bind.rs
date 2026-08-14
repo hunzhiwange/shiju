@@ -132,7 +132,13 @@ pub(crate) async fn persist_plan_run_session_history(
                 assistant_content
             };
             chat.messages = vec![
-                ChatMessage { role: ChatRole::User, content: user, model: None, think_timing: Vec::new(), processing_timing: None },
+                ChatMessage {
+                    role: ChatRole::User,
+                    content: user,
+                    model: None,
+                    think_timing: Vec::new(),
+                    processing_timing: None,
+                },
                 ChatMessage {
                     role: ChatRole::Assistant,
                     content: assistant,

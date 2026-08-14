@@ -1,11 +1,11 @@
 use super::gallery::{
-    ThemeGallerySource, build_gallery_entries, clamp_gallery_page, gallery_page_count,
-    gallery_page_range, palette_hex_from_theme, GALLERY_COLUMNS, GALLERY_PAGE_SIZE,
+    GALLERY_COLUMNS, GALLERY_PAGE_SIZE, ThemeGallerySource, build_gallery_entries,
+    clamp_gallery_page, gallery_page_count, gallery_page_range, palette_hex_from_theme,
 };
 use crate::app::components::system_settings::SystemTab;
 use crate::app::theme_catalog::{
-    ensure_bundled_presets, list_bundled_preset_ids, ThemeAssets, ThemeChrome, ThemeDefinition,
-    ThemePaletteHex, ThemeStore, set_test_themes_root,
+    ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore, ensure_bundled_presets,
+    list_bundled_preset_ids, set_test_themes_root,
 };
 use iced::Theme;
 
@@ -45,10 +45,8 @@ fn themes_gallery_lists_builtin_and_custom() {
 
     let entries = build_gallery_entries(Some(&store)).expect("build gallery");
 
-    let builtin_count = entries
-        .iter()
-        .filter(|entry| entry.source == ThemeGallerySource::Builtin)
-        .count();
+    let builtin_count =
+        entries.iter().filter(|entry| entry.source == ThemeGallerySource::Builtin).count();
     assert_eq!(builtin_count, Theme::ALL.len());
     assert!(
         entries.iter().any(|entry| {
@@ -79,10 +77,7 @@ fn themes_gallery_lists_builtin_and_custom() {
 #[test]
 fn build_gallery_entries_marks_bundled_presets_and_cover() {
     let ids = list_bundled_preset_ids();
-    assert!(
-        !ids.is_empty(),
-        "bundled presets must be embedded for gallery source test"
-    );
+    assert!(!ids.is_empty(), "bundled presets must be embedded for gallery source test");
     let sample_id = ids[0].clone();
 
     let temp = tempfile::tempdir().expect("tempdir");
@@ -112,15 +107,9 @@ fn build_gallery_entries_marks_bundled_presets_and_cover() {
         preset.cover_path
     );
 
-    let custom = entries
-        .iter()
-        .find(|entry| entry.id == "mint-night")
-        .expect("plain custom theme present");
-    assert_eq!(
-        custom.source,
-        ThemeGallerySource::Custom,
-        "non-bundled custom must stay Custom"
-    );
+    let custom =
+        entries.iter().find(|entry| entry.id == "mint-night").expect("plain custom theme present");
+    assert_eq!(custom.source, ThemeGallerySource::Custom, "non-bundled custom must stay Custom");
 
     let last_builtin = entries
         .iter()
@@ -144,10 +133,7 @@ fn build_gallery_entries_marks_bundled_presets_and_cover() {
 
 #[test]
 fn build_gallery_entries_marks_modified_bundled_preset() {
-    let sample_id = list_bundled_preset_ids()
-        .into_iter()
-        .next()
-        .expect("bundled preset");
+    let sample_id = list_bundled_preset_ids().into_iter().next().expect("bundled preset");
     let temp = tempfile::tempdir().expect("tempdir");
     let themes_root = temp.path().join("themes");
     let store = ThemeStore::new(&themes_root);
@@ -155,28 +141,18 @@ fn build_gallery_entries_marks_modified_bundled_preset() {
     set_test_themes_root(Some(themes_root));
 
     let clean_entries = build_gallery_entries(Some(&store)).expect("build clean gallery");
-    let clean_preset = clean_entries
-        .iter()
-        .find(|entry| entry.id == sample_id)
-        .expect("clean preset entry");
-    assert!(
-        !clean_preset.modified,
-        "freshly seeded preset should not be marked modified"
-    );
+    let clean_preset =
+        clean_entries.iter().find(|entry| entry.id == sample_id).expect("clean preset entry");
+    assert!(!clean_preset.modified, "freshly seeded preset should not be marked modified");
 
     let mut edited = store.load(&sample_id).expect("load seeded preset");
     edited.name = "user-edited-preset".to_string();
     store.save(&edited).expect("save edited preset");
 
     let edited_entries = build_gallery_entries(Some(&store)).expect("build edited gallery");
-    let edited_preset = edited_entries
-        .iter()
-        .find(|entry| entry.id == sample_id)
-        .expect("edited preset entry");
-    assert!(
-        edited_preset.modified,
-        "locally edited bundled preset should be marked modified"
-    );
+    let edited_preset =
+        edited_entries.iter().find(|entry| entry.id == sample_id).expect("edited preset entry");
+    assert!(edited_preset.modified, "locally edited bundled preset should be marked modified");
 
     set_test_themes_root(None);
 }
@@ -215,10 +191,7 @@ fn themes_gallery_exposes_cover_path_when_asset_present() {
 
     set_test_themes_root(Some(temp.path().join("themes")));
     let entries = build_gallery_entries(Some(&store)).expect("build gallery");
-    let custom = entries
-        .iter()
-        .find(|entry| entry.id == definition.id)
-        .expect("custom");
+    let custom = entries.iter().find(|entry| entry.id == definition.id).expect("custom");
     assert!(
         custom.cover_path.as_ref().is_some_and(|path| {
             std::path::Path::new(path).file_name().and_then(|n| n.to_str()) == Some("cover.png")

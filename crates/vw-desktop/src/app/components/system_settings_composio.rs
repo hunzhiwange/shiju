@@ -114,10 +114,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let content = column![
-        settings_page_intro(
-            "Composio 集成配置",
-            "配置 OAuth 工具集成开关、API Key 和默认实体 ID。"
-        ),
+        settings_page_intro("Composio", "配置 OAuth 工具集成开关、API Key 和默认实体 ID。"),
         settings_section_card("基础行为", "控制集成启用状态与认证信息。"),
         settings_panel(column![enabled_row, settings_divider(), api_key_row].spacing(0)),
         settings_section_card("默认实体", "配置多用户或多实体场景下的默认 entity。"),

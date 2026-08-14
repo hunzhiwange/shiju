@@ -47,8 +47,7 @@ fn goal_task_files_require_completed_status_and_validation_evidence() {
         GoalTaskFilesState::Complete
     );
 
-    std::fs::write(&path, "# task\n\n状态：已阻塞\n\n阻塞原因：缺少凭据\n")
-        .expect("write blocked");
+    std::fs::write(&path, "# task\n\n状态：已阻塞\n\n阻塞原因：缺少凭据\n").expect("write blocked");
     assert!(matches!(
         inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("blocked"),
         GoalTaskFilesState::Blocked(reason) if reason.contains("缺少凭据")

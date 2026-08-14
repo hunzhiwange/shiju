@@ -125,12 +125,13 @@ fn terminal_font_size_changed(font_size: f32) -> Message {
 /// // 返回的 Element 可直接用于 iced 应用的视图渲染
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
-    let theme_pick = pick_list(app_theme_options(app), Some(app.app_theme.clone()), app_theme_selected)
-        .padding([10, 14])
-        .text_size(13)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fixed(280.0));
+    let theme_pick =
+        pick_list(app_theme_options(app), Some(app.app_theme.clone()), app_theme_selected)
+            .padding([10, 14])
+            .text_size(13)
+            .style(settings_pick_list_style)
+            .menu_style(settings_pick_list_menu_style)
+            .width(Length::Fixed(280.0));
 
     let shell_pick = pick_list(Shell::all(), Some(app.terminal.shell), terminal_shell_selected)
         .padding([10, 14])
@@ -175,10 +176,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(280.0));
 
     let timezone_pick = pick_list(
-        vw_config_types::ui::timezone_options()
-            .into_iter()
-            .map(str::to_string)
-            .collect::<Vec<_>>(),
+        vw_config_types::ui::timezone_options().into_iter().map(str::to_string).collect::<Vec<_>>(),
         Some(app.chat_timezone.clone()),
         timezone_selected,
     )

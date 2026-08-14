@@ -22,11 +22,10 @@ use crate::app::App;
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn get_session_title(app: &App) -> String {
     if let Some(session_id) = &app.active_session_id {
-        let mut sessions = app.sessions.iter().chain(
-            app.project_sessions
-                .values()
-                .flat_map(|sessions| sessions.iter()),
-        );
+        let mut sessions = app
+            .sessions
+            .iter()
+            .chain(app.project_sessions.values().flat_map(|sessions| sessions.iter()));
         if let Some(session) =
             sessions.find(|session| &session.id == session_id && !session.title.trim().is_empty())
         {

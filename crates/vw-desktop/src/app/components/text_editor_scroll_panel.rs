@@ -148,10 +148,7 @@ where
     Theme: 'a,
     Renderer: iced::advanced::Renderer + 'a,
 {
-    Element::new(WheelInterceptor {
-        content: content.into(),
-        on_scroll: Some(Box::new(on_scroll)),
-    })
+    Element::new(WheelInterceptor { content: content.into(), on_scroll: Some(Box::new(on_scroll)) })
 }
 
 /// 阻止嵌套控件消费鼠标滚轮或触摸板事件，让外层滚动区域继续处理。

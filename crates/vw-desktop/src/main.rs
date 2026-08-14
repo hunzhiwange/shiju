@@ -172,10 +172,7 @@ fn boot_app() -> (app::App, iced::Task<app::Message>) {
     {
         app.register_window_ids(main_window_id, None);
 
-        (
-            app,
-            iced::Task::batch([startup_task, main_window_task.map(|_| app::Message::None)]),
-        )
+        (app, iced::Task::batch([startup_task, main_window_task.map(|_| app::Message::None)]))
     }
 }
 

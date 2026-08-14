@@ -25,6 +25,20 @@ fn clipboard_text_payload_preserves_non_empty_text() {
     ));
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn clipboard_text_payload_caches_text_above_two_hundred_characters_as_attachment() {
+    let content = "中".repeat(201);
+    let payload = clipboard_text_payload(Some(content.clone()));
+
+    let ClipboardPastePayload::AttachmentPath(path) = payload else {
+        panic!("large clipboard text should become a document attachment");
+    };
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), content);
+
+    std::fs::remove_file(path).unwrap();
+}
+
 #[test]
 fn clipboard_text_payload_treats_empty_or_unavailable_content_as_empty() {
     assert!(matches!(clipboard_text_payload(Some(String::new())), ClipboardPastePayload::Empty));

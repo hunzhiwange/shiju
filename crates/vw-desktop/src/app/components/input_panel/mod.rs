@@ -118,8 +118,8 @@ use iced::{Alignment, Color, Element, Length, Padding, Theme};
 use icons::icon_svg;
 use reasoning_selector::reasoning_effort_selector;
 use send_controls::{
-    bottom_bar, cancel_button, full_access_button, pool_button, send_button,
-    subagent_mode_button, workflow_mode_button,
+    bottom_bar, cancel_button, full_access_button, pool_button, send_button, subagent_mode_button,
+    workflow_mode_button,
 };
 use task_mode::task_mode_form;
 
@@ -182,11 +182,12 @@ pub(super) fn session_tool_tab_button<'a>(
             }
         };
 
-    let icon: Element<'_, Message> = icon_svg(session_tool_tab_icon(tab), styles::BOTTOM_BAR_ICON_SIZE)
-        .style(move |theme: &Theme, _| iced::widget::svg::Style {
-            color: Some(styles::selector_text_color(theme, highlight)),
-        })
-        .into();
+    let icon: Element<'_, Message> =
+        icon_svg(session_tool_tab_icon(tab), styles::BOTTOM_BAR_ICON_SIZE)
+            .style(move |theme: &Theme, _| iced::widget::svg::Style {
+                color: Some(styles::selector_text_color(theme, highlight)),
+            })
+            .into();
     let toggle = bottom_bar_round_toggle(
         icon,
         tab.label(),
@@ -791,10 +792,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         .padding(0)
         .width(Length::Fill);
 
-    let input_bg = app
-        .active_theme_skin
-        .as_ref()
-        .and_then(|skin| skin.chat_input_path.as_deref());
+    let input_bg = app.active_theme_skin.as_ref().and_then(|skin| skin.chat_input_path.as_deref());
     let fit = app
         .active_theme_skin
         .as_ref()

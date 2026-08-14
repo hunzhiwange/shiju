@@ -173,8 +173,7 @@ fn controller_returns_submit_command_for_entered_prompt() {
     let mut controller = TuiController::default();
     let mut state = TuiState::default();
     let layout = compute_fullscreen_layout(Rect::new(0, 0, 80, 24), true, false, 0);
-    let feedback =
-        super::render::TuiRenderFeedback { layout, cursor: None, ..Default::default() };
+    let feedback = super::render::TuiRenderFeedback { layout, cursor: None, ..Default::default() };
 
     controller.sync_layout(&mut state, &feedback);
     reduce_tui_state(&mut state, TuiAction::StatusModelSet(Some("gpt-test".to_string())));
@@ -931,8 +930,7 @@ fn controller_sync_layout_records_viewport_height_and_sticky_anchor() {
     state.scroll.follow_tail = false;
 
     let layout = compute_fullscreen_layout(Rect::new(0, 0, 80, 24), true, false, 0);
-    let feedback =
-        super::render::TuiRenderFeedback { layout, cursor: None, ..Default::default() };
+    let feedback = super::render::TuiRenderFeedback { layout, cursor: None, ..Default::default() };
     controller.sync_layout(&mut state, &feedback);
 
     assert_eq!(state.scroll.viewport_height, feedback.layout.scrollable.height.saturating_sub(2));

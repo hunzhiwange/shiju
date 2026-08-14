@@ -11,10 +11,7 @@ fn status_labels_cover_gateway_values() {
 #[test]
 fn empty_and_multiple_values_have_readable_labels() {
     assert_eq!(values_label(&[]), "—");
-    assert_eq!(
-        values_label(&["AI创新组".to_string(), "平台组".to_string()]),
-        "AI创新组、平台组"
-    );
+    assert_eq!(values_label(&["AI创新组".to_string(), "平台组".to_string()]), "AI创新组、平台组");
 }
 
 #[test]
@@ -56,14 +53,7 @@ fn account_password_editor_exposes_secure_reference_form_and_theme_styles() {
     assert!(PASSWORD_INPUTS_SECURE);
     assert_eq!(
         PASSWORD_EDITOR_LABELS,
-        [
-            "修改我的密码",
-            "返回我的",
-            "当前密码",
-            "新密码",
-            "确认新密码",
-            "修改密码"
-        ]
+        ["修改我的密码", "返回我的", "当前密码", "新密码", "确认新密码", "修改密码"]
     );
 
     let ready = crate::app::account::AccountPasswordDraft::new(
@@ -71,18 +61,16 @@ fn account_password_editor_exposes_secure_reference_form_and_theme_styles() {
         "new-password-456",
         "new-password-456",
     );
-    assert!(password_editor_can_submit(
-        &crate::app::state::AccountPasswordEditorState::Editing(ready)
-    ));
-    assert!(password_editor_can_submit(
-        &crate::app::state::AccountPasswordEditorState::Editing(Default::default())
-    ));
-    assert!(!password_editor_can_submit(
-        &crate::app::state::AccountPasswordEditorState::Saving(Default::default())
-    ));
-    assert!(!password_editor_can_submit(
-        &crate::app::state::AccountPasswordEditorState::Closed
-    ));
+    assert!(password_editor_can_submit(&crate::app::state::AccountPasswordEditorState::Editing(
+        ready
+    )));
+    assert!(password_editor_can_submit(&crate::app::state::AccountPasswordEditorState::Editing(
+        Default::default()
+    )));
+    assert!(!password_editor_can_submit(&crate::app::state::AccountPasswordEditorState::Saving(
+        Default::default()
+    )));
+    assert!(!password_editor_can_submit(&crate::app::state::AccountPasswordEditorState::Closed));
 
     for theme in [Theme::Light, Theme::Dark] {
         let input = password_input_style(&theme, iced::widget::text_input::Status::Active);

@@ -72,10 +72,8 @@ fn write_plan_fixture(root: &str, fixture: &PlanFixture) -> Result<(), String> {
     std::fs::create_dir_all(&plan_abs)
         .map_err(|error| format!("create plan dir failed: {error}"))?;
 
-    let doc = PlanTasksDocument {
-        plan_dir: fixture.plan_dir_rel.clone(),
-        tasks: fixture.tasks.clone(),
-    };
+    let doc =
+        PlanTasksDocument { plan_dir: fixture.plan_dir_rel.clone(), tasks: fixture.tasks.clone() };
     let tasks_json = serde_json::to_string_pretty(&doc)
         .map_err(|error| format!("serialize tasks.json failed: {error}"))?;
     std::fs::write(plan_abs.join("tasks.json"), tasks_json)
@@ -226,15 +224,9 @@ async fn plan_run_binds_and_persists_history_through_run_task_plan() {
 
     let planning_chat = crate::session::ui_store::load_session_any(&planning_id)
         .expect("planning ChatSession should load");
-    assert!(
-        !planning_chat.messages.is_empty(),
-        "planning messages must be non-empty for desktop"
-    );
+    assert!(!planning_chat.messages.is_empty(), "planning messages must be non-empty for desktop");
 
     let subtask_chat = crate::session::ui_store::load_session_any(&subtask_id)
         .expect("subtask ChatSession should load");
-    assert!(
-        !subtask_chat.messages.is_empty(),
-        "subtask messages must be non-empty for desktop"
-    );
+    assert!(!subtask_chat.messages.is_empty(), "subtask messages must be non-empty for desktop");
 }

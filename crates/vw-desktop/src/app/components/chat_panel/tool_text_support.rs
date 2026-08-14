@@ -44,7 +44,7 @@ pub(super) fn message_target_from_context(target: u64) -> (usize, Option<usize>)
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
 pub fn chat_text_line_height() -> iced::widget::text::LineHeight {
-    iced::widget::text::LineHeight::Relative(1.6)
+    iced::widget::text::LineHeight::Relative(1.52)
 }
 
 /// 执行 chat_text_font_name 对应的模块功能。
@@ -75,11 +75,7 @@ pub fn chat_text_font() -> iced::Font {
 /// 中文或其它非 ASCII 字符，就整体回退到聊天正文字体，避免字体回退与字形缓存
 /// 在历史消息恢复时处理不安全的混合字体运行。
 pub(crate) fn content_safe_font(content: &str, preferred_font_name: &'static str) -> iced::Font {
-    if content.is_ascii() {
-        iced::Font::with_name(preferred_font_name)
-    } else {
-        chat_text_font()
-    }
+    if content.is_ascii() { iced::Font::with_name(preferred_font_name) } else { chat_text_font() }
 }
 
 /// 执行 chat_text_selection_color 对应的模块功能。

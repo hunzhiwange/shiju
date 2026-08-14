@@ -462,13 +462,7 @@ fn point_below_widget_operate_delegates_to_content() {
         TestMessage,
         Theme,
         RecordingRenderer,
-    >>::operate(
-        &mut overlay,
-        &mut tree,
-        Layout::new(&node),
-        &renderer,
-        &mut operation,
-    );
+    >>::operate(&mut overlay, &mut tree, Layout::new(&node), &renderer, &mut operation);
 
     assert_eq!(operation.containers, vec![bounds]);
 }
@@ -476,10 +470,8 @@ fn point_below_widget_operate_delegates_to_content() {
 #[test]
 fn point_below_widget_overlay_respects_show_flag_and_translation() {
     let mut hidden = test_overlay();
-    let mut visible = test_overlay()
-        .show(true)
-        .snap_within_viewport(false)
-        .snap_within_target_bounds(true);
+    let mut visible =
+        test_overlay().show(true).snap_within_viewport(false).snap_within_target_bounds(true);
     let mut hidden_tree = tree_for_overlay();
     let mut visible_tree = tree_for_overlay();
     let renderer = RecordingRenderer::default();
@@ -513,8 +505,7 @@ fn point_below_widget_overlay_respects_show_flag_and_translation() {
 
     assert!(hidden_overlay.is_none());
     let visible_overlay = visible_overlay.as_mut().expect("show=true should create an overlay");
-    let overlay_node =
-        visible_overlay.as_overlay_mut().layout(&renderer, Size::new(200.0, 160.0));
+    let overlay_node = visible_overlay.as_overlay_mut().layout(&renderer, Size::new(200.0, 160.0));
     assert_eq!(overlay_node.children().len(), 1);
     assert_eq!(
         overlay_node.children()[0].bounds(),

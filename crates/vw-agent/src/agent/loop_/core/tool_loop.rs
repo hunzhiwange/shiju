@@ -365,11 +365,7 @@ async fn prepare_legacy_image_turn(
         &extractor,
     )
     .await?;
-    if ctx.images.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(ctx))
-    }
+    if ctx.images.is_empty() { Ok(None) } else { Ok(Some(ctx)) }
 }
 
 fn is_transient_protocol_message(message: &ChatMessage) -> bool {

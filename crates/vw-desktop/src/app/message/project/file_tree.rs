@@ -48,9 +48,7 @@ fn is_directory_path(path: &str, files: &[String]) -> bool {
 
 fn remove_local_file_tree_path(files: &mut Vec<String>, path: &str, recursive: bool) {
     let descendant_prefix = format!("{path}/");
-    files.retain(|item| {
-        item != path && (!recursive || !item.starts_with(&descendant_prefix))
-    });
+    files.retain(|item| item != path && (!recursive || !item.starts_with(&descendant_prefix)));
 }
 
 #[cfg(test)]

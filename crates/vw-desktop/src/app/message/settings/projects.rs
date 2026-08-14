@@ -91,11 +91,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     .collect();
             }
             app.recent_project_delete_confirm_idx = None;
-            if deleting_current {
-                app.open_first_recent_project_or_home()
-            } else {
-                Task::none()
-            }
+            if deleting_current { app.open_first_recent_project_or_home() } else { Task::none() }
         }
         SettingsMessage::ProjectEnableWorktreeToggled(path, v) => {
             if v {

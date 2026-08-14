@@ -1,10 +1,8 @@
 //! Slash palette overlay 组件测试。
 
 use super::slash_palette::slash_palette_overlay;
-use crate::app::state::{
-    SkillsCatalogItem, SkillsCatalogKind, SlashPaletteKind,
-};
 use crate::app::App;
+use crate::app::state::{SkillsCatalogItem, SkillsCatalogKind, SlashPaletteKind};
 use iced::Length;
 
 fn catalog_skill(id: &str, title: &str) -> SkillsCatalogItem {

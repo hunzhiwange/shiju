@@ -135,10 +135,7 @@ pub(crate) fn sync_skill_completion_catalog(
     match &panel.state {
         IntegrationLoadState::Loading => return,
         IntegrationLoadState::Error(error) => {
-            catalog.source_errors.insert(
-                CompletionKind::Skill,
-                sanitize_integration_text(error),
-            );
+            catalog.source_errors.insert(CompletionKind::Skill, sanitize_integration_text(error));
             return;
         }
         IntegrationLoadState::Empty | IntegrationLoadState::Ready => {}
@@ -150,9 +147,7 @@ pub(crate) fn sync_skill_completion_catalog(
     catalog.items.extend(panel.items.iter().filter_map(|item| {
         let id = item.id.trim();
         let safe_id = !id.is_empty()
-            && id
-                .chars()
-                .all(|ch| !ch.is_whitespace() && !ch.is_control() && ch != '$');
+            && id.chars().all(|ch| !ch.is_whitespace() && !ch.is_control() && ch != '$');
         if !item.enabled || !safe_id || !seen.insert(id.to_string()) {
             return None;
         }
@@ -312,11 +307,7 @@ pub(crate) fn directory_command_suggestions(
             requested.file_name().and_then(|name| name.to_str()).unwrap_or(""),
         )
     };
-    let directory = if parent.is_absolute() {
-        parent.to_path_buf()
-    } else {
-        root.join(parent)
-    };
+    let directory = if parent.is_absolute() { parent.to_path_buf() } else { root.join(parent) };
     let Ok(canonical_parent) = directory.canonicalize() else {
         return Vec::new();
     };
@@ -335,7 +326,9 @@ pub(crate) fn directory_command_suggestions(
             }
             let name = entry.file_name();
             let name = name.to_str()?;
-            if name.starts_with('.') || !name.to_ascii_lowercase().starts_with(&prefix.to_ascii_lowercase()) {
+            if name.starts_with('.')
+                || !name.to_ascii_lowercase().starts_with(&prefix.to_ascii_lowercase())
+            {
                 return None;
             }
             let canonical = entry.path().canonicalize().ok()?;
@@ -343,11 +336,8 @@ pub(crate) fn directory_command_suggestions(
                 return None;
             }
             let relative = canonical.strip_prefix(&root).ok()?.to_string_lossy().replace('\\', "/");
-            let argument = if relative.contains(' ') {
-                format!("\"{relative}\"")
-            } else {
-                relative.clone()
-            };
+            let argument =
+                if relative.contains(' ') { format!("\"{relative}\"") } else { relative.clone() };
             Some(TuiPromptSuggestion {
                 replacement: format!("/cd {argument}/"),
                 label: format!("{relative}/"),

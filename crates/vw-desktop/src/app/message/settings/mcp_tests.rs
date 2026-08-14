@@ -588,15 +588,17 @@ fn deleting_edited_server_clears_stale_form_state_and_cancel_keeps_editor() {
 #[test]
 fn delete_request_rejects_invalid_index_and_confirm_without_pending_is_noop() {
     let mut app = app();
-    app.mcp_settings.editor = text_editor::Content::with_text(
-        r#"[{"name":"local","command":"npx"}]"#,
-    );
+    app.mcp_settings.editor =
+        text_editor::Content::with_text(r#"[{"name":"local","command":"npx"}]"#);
 
     let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::RequestDelete(1)));
     assert_eq!(app.mcp_settings.delete_pending, None);
-    assert!(app.mcp_settings.save_error.as_deref().is_some_and(|error| {
-        error.contains("mcpServers[1] in global config")
-    }));
+    assert!(
+        app.mcp_settings
+            .save_error
+            .as_deref()
+            .is_some_and(|error| { error.contains("mcpServers[1] in global config") })
+    );
 
     let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::ConfirmDelete(0)));
     assert!(!app.mcp_settings.saving);

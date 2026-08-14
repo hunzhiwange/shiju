@@ -111,7 +111,7 @@ fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
         "存储配置",
         "代理配置",
         "隧道配置",
-        "Composio 集成配置",
+        "Composio",
         "技能配置",
         "钩子配置",
         "研究配置",

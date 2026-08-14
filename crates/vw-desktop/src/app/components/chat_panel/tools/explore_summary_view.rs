@@ -30,6 +30,13 @@ use super::{
     explore_tool_kind, tool_inline_text_editor, tool_name_from_raw, tool_status_from_raw,
 };
 
+const EXPANDED_LIST_BOTTOM_PADDING: f32 = 10.0;
+pub(super) const EXPANDED_LIST_TOP_SPACING: f32 = 10.0;
+
+pub(super) fn expanded_list_padding() -> iced::Padding {
+    iced::Padding { top: 0.0, right: 0.0, bottom: EXPANDED_LIST_BOTTOM_PADDING, left: 0.0 }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SummarySegmentKind {
     Text,
@@ -590,18 +597,22 @@ pub fn tool_explore_summary_view<'a>(
             .align_y(Alignment::Center);
 
     // 创建可交互的头部区域
-    let head =
-        container(column![Space::new().height(Length::Fixed(1.0)), head_row]).width(Length::Fill);
+    let head = container(head_row).width(Length::Fill);
 
-    let mut content = column![head].spacing(3);
+    let mut content = column![head].spacing(EXPANDED_LIST_TOP_SPACING);
     if expanded {
         let mut list = column![].spacing(3);
+        let mut has_visible_items = false;
         for item in latest_items {
             if let Some(view) = explore_item_compact_view(app, msg_idx, item) {
                 list = list.push(view);
+                has_visible_items = true;
             }
         }
-        content = content.push(container(list).width(Length::Fill).padding(0));
+        if has_visible_items {
+            content =
+                content.push(container(list).width(Length::Fill).padding(expanded_list_padding()));
+        }
     }
 
     Some(container(content).padding(0).width(Length::Fill).into())

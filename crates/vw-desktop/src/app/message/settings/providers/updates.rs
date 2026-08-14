@@ -66,9 +66,7 @@ fn toggle_modality(
     inherited: Option<&[String]>,
 ) {
     let values = slot.get_or_insert_with(|| {
-        inherited
-            .map(ToOwned::to_owned)
-            .unwrap_or_else(|| vec!["text".to_string()])
+        inherited.map(ToOwned::to_owned).unwrap_or_else(|| vec!["text".to_string()])
     });
     if enabled {
         if !values.iter().any(|value| value == &modality) {
@@ -380,7 +378,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CustomProviderModelOpen(edit_index) => {
-            let model = edit_index.and_then(|i| app.provider_settings.custom.models.get(i).cloned());
+            let model =
+                edit_index.and_then(|i| app.provider_settings.custom.models.get(i).cloned());
             app.provider_settings.custom_model_modal = Some(model_modal_state(edit_index, model));
             app.provider_settings.save_error = None;
             app.provider_settings.catalog_open = false;
@@ -469,12 +468,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     .inherited_capabilities
                     .as_ref()
                     .map(|capabilities| capabilities.input_modalities.clone());
-                toggle_modality(
-                    &mut m.input_modalities,
-                    modality,
-                    enabled,
-                    inherited.as_deref(),
-                );
+                toggle_modality(&mut m.input_modalities, modality, enabled, inherited.as_deref());
             }
             Task::none()
         }
@@ -484,12 +478,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     .inherited_capabilities
                     .as_ref()
                     .map(|capabilities| capabilities.output_modalities.clone());
-                toggle_modality(
-                    &mut m.output_modalities,
-                    modality,
-                    enabled,
-                    inherited.as_deref(),
-                );
+                toggle_modality(&mut m.output_modalities, modality, enabled, inherited.as_deref());
             }
             Task::none()
         }
@@ -672,9 +661,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.provider_settings.custom_editing_provider_id = None;
                 app.provider_settings.save_error = None;
                 app.provider_settings.custom_provider_modal_open = false;
-                Task::perform(async { vw_provider_resolver::provider::invalidate_cache().await }, |_| {
-                    Message::Settings(SettingsMessage::ProvidersRefresh)
-                })
+                Task::perform(
+                    async { vw_provider_resolver::provider::invalidate_cache().await },
+                    |_| Message::Settings(SettingsMessage::ProvidersRefresh),
+                )
             }
             Err(e) => {
                 app.provider_settings.loading = false;

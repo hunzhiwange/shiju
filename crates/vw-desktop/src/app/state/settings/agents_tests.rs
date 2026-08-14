@@ -11,8 +11,7 @@ use super::{
 };
 use crate::app::state::{
     AGENT_DETAIL_BASIC_TAB, AGENT_PROMPT_SYSTEM_TAB, AGENT_TOOLS_OPTIONAL_TAB,
-    AgentSettingsEntryKind, MAIN_AGENT_KEY,
-    WORKSPACE_IDENTITY_FILES,
+    AgentSettingsEntryKind, MAIN_AGENT_KEY, WORKSPACE_IDENTITY_FILES,
 };
 use std::collections::HashMap;
 use vw_config_types::agent::{DelegateAgentConfig, builtin_agent_keys};

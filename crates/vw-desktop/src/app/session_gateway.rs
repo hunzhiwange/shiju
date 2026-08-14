@@ -25,18 +25,17 @@ use vw_gateway_client::SkillMarketSkillQuery;
 use vw_gateway_client::SkillMarketSkillSetDetailDto;
 use vw_gateway_client::SkillMarketSkillSetPageDto;
 use vw_gateway_client::SkillMarketSourceDto;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
+use vw_gateway_client::vw_api_types::id::ProjectId;
+use vw_gateway_client::vw_api_types::project::{ProjectScopeDto, TenantScopeDto};
 use vw_gateway_client::{
     ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto,
     ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuAppCatalogDto,
     ShijuAppLaunchDto, ShijuAppListDto, ShijuCompanySkillQuery, ShijuCredential,
-    ShijuInstalledSkillDto, ShijuLoginChallengeDto, ShijuLoginPollDto,
-    ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
-    ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
-    ShijuTenantSkillDto,
+    ShijuInstalledSkillDto, ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMaintainedSkillQuery,
+    ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillSearchQuery,
+    ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
-use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
-use vw_gateway_client::vw_api_types::id::ProjectId;
-use vw_gateway_client::vw_api_types::project::{ProjectScopeDto, TenantScopeDto};
 use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -82,8 +81,7 @@ pub(crate) async fn gateway_task_plan_run_stop_async(
     gateway_task_plan_run_stop_with_client(&client, task_id).await
 }
 
-pub(crate) async fn gateway_shiju_account_login_async()
--> Result<ShijuLoginChallengeDto, String> {
+pub(crate) async fn gateway_shiju_account_login_async() -> Result<ShijuLoginChallengeDto, String> {
     let client = gateway_client()?;
     client.shiju_account_login().await
 }
@@ -144,9 +142,7 @@ pub(crate) async fn gateway_shiju_app_prepare_launch_async(
     installation_id: &str,
 ) -> Result<ShijuAppLaunchDto, String> {
     let client = gateway_client()?;
-    client
-        .shiju_app_prepare_launch(credential, installation_id)
-        .await
+    client.shiju_app_prepare_launch(credential, installation_id).await
 }
 
 pub(crate) async fn gateway_shiju_skill_search_async(
@@ -219,9 +215,7 @@ pub(crate) async fn gateway_shiju_skill_remote_install_version_async(
     version_id: u64,
 ) -> Result<(), String> {
     let client = gateway_client()?;
-    client
-        .shiju_skill_remote_install_version(credential, skill_id, version_id)
-        .await
+    client.shiju_skill_remote_install_version(credential, skill_id, version_id).await
 }
 
 pub(crate) async fn gateway_shiju_skill_remote_uninstall_async(
@@ -638,9 +632,7 @@ pub async fn gateway_skill_market_install_to_targets_async(
     installations: &[SkillMarketInstallSelectionDto],
 ) -> Result<Vec<String>, String> {
     let client = gateway_client()?;
-    client
-        .skill_market_install_to_targets(project_path, coordinate, installations)
-        .await
+    client.skill_market_install_to_targets(project_path, coordinate, installations).await
 }
 
 /// Queries skill sets from one registered market source.

@@ -404,8 +404,7 @@ impl PromptState {
             QueueDrainBoundary::Turn => QueuedPromptPriority::EndTurn,
         };
         let index = self.queued_commands.iter().position(|command| {
-            command.priority <= max_priority
-                && command.session_id.as_deref() == session_id
+            command.priority <= max_priority && command.session_id.as_deref() == session_id
         })?;
         Some(self.queued_commands.remove(index))
     }

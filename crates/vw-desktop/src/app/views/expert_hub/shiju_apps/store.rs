@@ -4,9 +4,9 @@ use iced::{Alignment, Element, Font, Length};
 use vw_gateway_client::{ShijuAppCatalogDto, ShijuCatalogAppDto};
 
 use super::styles;
+use crate::app::Message;
 use crate::app::message::{AccountMessage, ShijuAppsMessage};
 use crate::app::shiju_apps::{ShijuAppDetailTarget, ShijuAppsLoadState};
-use crate::app::Message;
 
 fn catalog_card(index: usize, app: &ShijuCatalogAppDto) -> Element<'static, Message> {
     let installed = app.installed;
@@ -74,32 +74,20 @@ fn feedback(message: String, action: Option<(&'static str, Message)>) -> Element
                 .on_press(message),
         );
     }
-    container(content)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center(Length::Fill)
-        .into()
+    container(content).width(Length::Fill).height(Length::Fill).center(Length::Fill).into()
 }
 
-pub(super) fn view(
-    state: &ShijuAppsLoadState<ShijuAppCatalogDto>,
-) -> Element<'static, Message> {
+pub(super) fn view(state: &ShijuAppsLoadState<ShijuAppCatalogDto>) -> Element<'static, Message> {
     match state {
         ShijuAppsLoadState::Idle => feedback("应用目录尚未加载".to_string(), None),
         ShijuAppsLoadState::NeedsLogin => feedback(
             "登录识矩账户后可浏览应用商店".to_string(),
-            Some((
-                "登录",
-                Message::Account(AccountMessage::StartBrowserLogin),
-            )),
+            Some(("登录", Message::Account(AccountMessage::StartBrowserLogin))),
         ),
         ShijuAppsLoadState::Loading { .. } => feedback("正在加载应用商店…".to_string(), None),
         ShijuAppsLoadState::Error(error) => feedback(
             format!("应用商店加载失败：{error}"),
-            Some((
-                "重试",
-                Message::ShijuApps(ShijuAppsMessage::Retry),
-            )),
+            Some(("重试", Message::ShijuApps(ShijuAppsMessage::Retry))),
         ),
         ShijuAppsLoadState::Loaded(catalog) if catalog.apps.is_empty() => {
             feedback("应用商店暂时为空".to_string(), None)

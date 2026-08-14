@@ -75,8 +75,9 @@ fn delegate_capability_policies_default_to_unrestricted_and_round_trip() {
     assert_eq!(value["tool_policy"], "strict");
     assert_eq!(value["skill_policy"], "user_override");
 
-    let policy_schema = serde_json::to_value(schemars::schema_for!(super::DelegateCapabilityPolicy))
-        .expect("capability policy schema should serialize");
+    let policy_schema =
+        serde_json::to_value(schemars::schema_for!(super::DelegateCapabilityPolicy))
+            .expect("capability policy schema should serialize");
     assert_eq!(
         policy_schema["enum"],
         serde_json::json!(["strict", "user_override", "unrestricted"])
@@ -133,8 +134,9 @@ fn agent_definition_complete_model_binding_requires_non_blank_provider_and_model
     };
     assert!(complete.has_complete_model_binding());
 
-    for (provider, model) in [("", "gpt-test"), (" \t ", "gpt-test"), ("openai", ""),
-        ("openai", " \t ")] {
+    for (provider, model) in
+        [("", "gpt-test"), (" \t ", "gpt-test"), ("openai", ""), ("openai", " \t ")]
+    {
         let incomplete = super::AgentDefinitionConfig {
             provider: provider.into(),
             model: model.into(),
@@ -162,10 +164,7 @@ fn agent_definition_identity_files_default_empty_and_round_trip() {
         ..Default::default()
     };
     let value = serde_json::to_value(&definition).expect("agent config should serialize");
-    assert_eq!(
-        value["enabled_identity_files"],
-        serde_json::json!(["SOUL.md", "AGENTS.md"])
-    );
+    assert_eq!(value["enabled_identity_files"], serde_json::json!(["SOUL.md", "AGENTS.md"]));
     let decoded: super::AgentDefinitionConfig =
         serde_json::from_value(value).expect("agent config should deserialize");
 
@@ -286,10 +285,7 @@ fn agent_definition_debug_redacts_api_key_and_includes_runtime_fields() {
 fn builtin_agent_keys_follow_spec_order() {
     let keys = super::builtin_agent_keys();
 
-    assert_eq!(
-        keys,
-        vec!["main", "researcher", "coder", "reviewer", "explore"]
-    );
+    assert_eq!(keys, vec!["main", "researcher", "coder", "reviewer", "explore"]);
 }
 
 #[test]
@@ -309,17 +305,17 @@ fn merged_builtin_overrides_preserve_catalog_metadata_and_mark_builtin() {
     let reviewer = merged.get("reviewer").expect("configured reviewer");
 
     assert_eq!(reviewer.label.as_deref(), Some("代码审查"));
-    assert_eq!(reviewer.description.as_deref(), Some("只读审查代码、测试与风险，给出有证据的缺陷报告。"));
+    assert_eq!(
+        reviewer.description.as_deref(),
+        Some("只读审查代码、测试与风险，给出有证据的缺陷报告。")
+    );
     assert!(reviewer.builtin);
 }
 
 #[test]
 fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
     let keys = super::builtin_agent_keys();
-    assert_eq!(
-        keys,
-        vec!["main", "researcher", "coder", "reviewer", "explore"]
-    );
+    assert_eq!(keys, vec!["main", "researcher", "coder", "reviewer", "explore"]);
 
     let expected_delegate_roles = ["researcher", "coder", "reviewer", "explore"];
     for key in &keys {

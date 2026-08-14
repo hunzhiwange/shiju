@@ -7,8 +7,8 @@ use vw_api_types::ReasoningEffortDto;
 use vw_api_types::common::TimestampMs;
 
 use crate::agent_scheduler::domain::{RunId, TaskId, WorkerName};
-use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::engine::dispatch::ready_queued_finite_task;
+use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::artifacts::RecordTaskArtifactRequest;
 use crate::agent_scheduler::store::events::AppendAgentEventRequest;
@@ -154,7 +154,8 @@ where
         if task.kind != AgentTaskKind::Finite {
             bail!("local runner only supports finite tasks: {}", task.id.as_str());
         }
-        let Some(task) = ready_queued_finite_task(self.store, project_path, Some(&request.task_id))?
+        let Some(task) =
+            ready_queued_finite_task(self.store, project_path, Some(&request.task_id))?
         else {
             return Ok(None);
         };
@@ -227,17 +228,16 @@ where
         let lease_expires_at_ms = add_ms(request.now_ms, self.lease_duration_ms)
             .context("local run lease expiry timestamp overflow")?;
         let run_id = RunId::new(format!("local-run-{}-{}", task.id.as_str(), request.now_ms.0))?;
-        self.store
-            .claim_ready_task_run(
-                project_path,
-                ClaimReadyTaskRunRequest {
-                    run_id,
-                    task_id: task.id.clone(),
-                    worker_id: request.worker_id.clone(),
-                    lease_acquired_at_ms: request.now_ms,
-                    lease_expires_at_ms: Some(lease_expires_at_ms),
-                },
-            )
+        self.store.claim_ready_task_run(
+            project_path,
+            ClaimReadyTaskRunRequest {
+                run_id,
+                task_id: task.id.clone(),
+                worker_id: request.worker_id.clone(),
+                lease_acquired_at_ms: request.now_ms,
+                lease_expires_at_ms: Some(lease_expires_at_ms),
+            },
+        )
     }
 
     fn advance_to_running(

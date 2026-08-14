@@ -1,12 +1,13 @@
 use super::{
     active_user_question_idx, chat_message_column, chat_panel_context_menu_overlay,
-    chat_panel_virtual_window, chat_todo_overlay, compute_visible_message_window_for_chat,
-    is_chat_message_idx_visible, jump_to_bottom_button, live_message_meta_fallback,
-    rough_message_heights, user_question_indices, user_question_nav_overlay, user_question_preview,
-    view,
+    chat_panel_virtual_window, chat_render_window, chat_todo_overlay,
+    compute_visible_message_window_for_chat, is_chat_message_idx_visible, jump_to_bottom_button,
+    live_message_meta_fallback, project_user_question_marker_positions, rough_message_heights,
+    user_question_nav_overlay, user_question_preview, view,
 };
 use crate::app::components::chat_panel::virtualizer::ChatVirtualizer;
 use crate::app::models::{ChatMessage, ChatRole};
+use crate::app::state::UserQuestionMarker;
 use crate::app::{App, Message, TodoPanelPlacement};
 use vw_shared::todo::Todo;
 
@@ -27,6 +28,10 @@ fn todo(id: &str) -> Todo {
         content: format!("task {id}"),
         priority: "medium".to_string(),
     }
+}
+
+fn question_marker(message_idx: usize) -> UserQuestionMarker {
+    UserQuestionMarker { message_idx, preview: format!("question {message_idx}") }
 }
 
 #[test]
@@ -123,18 +128,6 @@ fn visible_message_idx_requires_positive_non_empty_window() {
 }
 
 #[test]
-fn user_question_indices_only_returns_user_roles() {
-    let chat = vec![
-        message(ChatRole::System, "system"),
-        message(ChatRole::User, "first"),
-        message(ChatRole::Assistant, "answer"),
-        message(ChatRole::User, "second"),
-    ];
-
-    assert_eq!(user_question_indices(&chat), vec![1, 3]);
-}
-
-#[test]
 fn rough_message_heights_grow_for_rich_messages() {
     let chat = vec![
         message(ChatRole::User, "short"),
@@ -189,6 +182,47 @@ fn active_user_question_returns_first_when_multiple_visible() {
 fn active_user_question_returns_none_with_zero_viewport() {
     let indices = vec![1, 3];
     assert_eq!(active_user_question_idx(&indices, 0, 4, 0.0), None);
+}
+
+#[test]
+fn chat_render_window_iterates_only_render_slice() {
+    let chat = vec![(); 10_000];
+    let mut visits = 0;
+
+    for (idx, _) in chat_render_window(&chat, 9_980, 10_000) {
+        assert!((9_980..10_000).contains(&idx));
+        visits += 1;
+    }
+
+    assert_eq!(visits, 20);
+}
+
+#[test]
+fn question_marker_projection_is_bounded_to_40_and_keeps_active_edges() {
+    let markers = (0..10_000).map(question_marker).collect::<Vec<_>>();
+    let active_position = 5_000;
+    let projected = project_user_question_marker_positions(markers.len(), Some(active_position));
+
+    assert!(projected.len() <= 40);
+    assert!(projected.contains(&0));
+    assert!(projected.contains(&(markers.len() - 1)));
+    assert!(projected.contains(&active_position));
+    assert!(projected.contains(&(active_position - 1)));
+    assert!(projected.contains(&(active_position + 1)));
+}
+
+#[test]
+fn chat_panel_widget_tree_size_is_independent_of_total_history() {
+    let small_history = vec![(); 100];
+    let large_history = vec![(); 10_000];
+    let small_rows = chat_render_window(&small_history, 80, 100).count();
+    let large_rows = chat_render_window(&large_history, 9_980, 10_000).count();
+    let small_markers = project_user_question_marker_positions(100, Some(90));
+    let large_markers = project_user_question_marker_positions(10_000, Some(9_990));
+
+    assert_eq!(small_rows, large_rows);
+    assert!(small_markers.len() <= 40);
+    assert!(large_markers.len() <= 40);
 }
 
 #[test]
@@ -277,8 +311,14 @@ fn jump_button_and_question_overlay_cover_hidden_and_visible_states() {
     app.chat_auto_scroll = false;
     app.chat_scroll_viewport_h = 200.0;
     app.chat = vec![message(ChatRole::User, "first\nquestion")];
+    app.rebuild_active_session_message_meta();
     keep_element(jump_to_bottom_button(&app));
-    keep_element(user_question_nav_overlay(&app, &[0], 0, 1));
+    keep_element(user_question_nav_overlay(
+        &app,
+        &app.active_session_view_state.user_question_markers,
+        0,
+        1,
+    ));
 }
 
 #[test]

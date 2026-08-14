@@ -4,27 +4,22 @@ use iced::{Alignment, Element, Font, Length};
 use vw_gateway_client::{ShijuAppListDto, ShijuInstalledAppDto};
 
 use super::styles;
+use crate::app::Message;
 use crate::app::message::{AccountMessage, ShijuAppsMessage};
 use crate::app::shiju_apps::{ShijuAppDetailTarget, ShijuAppsLoadState};
-use crate::app::Message;
 
 pub(crate) fn runtime_readiness(app: &ShijuInstalledAppDto) -> Result<&'static str, String> {
     if app.reconcile_status == "ready" && app.runtime_status == "ready" {
         Ok("运行就绪")
     } else {
-        Err(format!(
-            "协调状态：{}；运行状态：{}",
-            app.reconcile_status, app.runtime_status
-        ))
+        Err(format!("协调状态：{}；运行状态：{}", app.reconcile_status, app.runtime_status))
     }
 }
 
 pub(crate) fn open_action_message(app: &ShijuInstalledAppDto) -> Option<Message> {
-    runtime_readiness(app).is_ok().then(|| {
-        Message::ShijuApps(ShijuAppsMessage::OpenInstalled(
-            app.installation_id.clone(),
-        ))
-    })
+    runtime_readiness(app)
+        .is_ok()
+        .then(|| Message::ShijuApps(ShijuAppsMessage::OpenInstalled(app.installation_id.clone())))
 }
 
 fn installed_card(index: usize, app: &ShijuInstalledAppDto) -> Element<'static, Message> {
@@ -54,12 +49,9 @@ fn installed_card(index: usize, app: &ShijuInstalledAppDto) -> Element<'static, 
     let mut actions = row![
         text(readiness).size(11).style(styles::muted_text_style),
         iced::widget::Space::new().width(Length::Fill),
-        button(text("查看").size(12))
-            .padding([6, 12])
-            .style(styles::quiet_button_style)
-            .on_press(Message::ShijuApps(ShijuAppsMessage::OpenDetail(
-                ShijuAppDetailTarget::Mine(index),
-            ))),
+        button(text("查看").size(12)).padding([6, 12]).style(styles::quiet_button_style).on_press(
+            Message::ShijuApps(ShijuAppsMessage::OpenDetail(ShijuAppDetailTarget::Mine(index),))
+        ),
     ]
     .spacing(6)
     .align_y(Alignment::Center);
@@ -100,32 +92,20 @@ fn feedback(message: String, action: Option<(&'static str, Message)>) -> Element
                 .on_press(message),
         );
     }
-    container(content)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center(Length::Fill)
-        .into()
+    container(content).width(Length::Fill).height(Length::Fill).center(Length::Fill).into()
 }
 
-pub(super) fn view(
-    state: &ShijuAppsLoadState<ShijuAppListDto>,
-) -> Element<'static, Message> {
+pub(super) fn view(state: &ShijuAppsLoadState<ShijuAppListDto>) -> Element<'static, Message> {
     match state {
         ShijuAppsLoadState::Idle => feedback("我的应用尚未加载".to_string(), None),
         ShijuAppsLoadState::NeedsLogin => feedback(
             "登录识矩账户后可查看我的应用".to_string(),
-            Some((
-                "登录",
-                Message::Account(AccountMessage::StartBrowserLogin),
-            )),
+            Some(("登录", Message::Account(AccountMessage::StartBrowserLogin))),
         ),
         ShijuAppsLoadState::Loading { .. } => feedback("正在加载我的应用…".to_string(), None),
         ShijuAppsLoadState::Error(error) => feedback(
             format!("我的应用加载失败：{error}"),
-            Some((
-                "重试",
-                Message::ShijuApps(ShijuAppsMessage::Retry),
-            )),
+            Some(("重试", Message::ShijuApps(ShijuAppsMessage::Retry))),
         ),
         ShijuAppsLoadState::Loaded(apps) if apps.apps.is_empty() => {
             feedback("当前账户尚未安装应用".to_string(), None)

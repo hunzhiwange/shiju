@@ -52,6 +52,8 @@ const FIND_MATCH_HIGHLIGHT_STYLE: FindMatchHighlightStyle = FindMatchHighlightSt
 /// 为避免性能问题，当搜索结果达到此数量时将停止继续搜索。
 const FIND_RESULTS_LIMIT: usize = 3000;
 pub(super) const FIND_RESULTS_SCROLLBAR_GUTTER: f32 = 10.0;
+pub(super) const FIND_RESULTS_TAB_HEIGHT: f32 = 30.0;
+pub(super) const FIND_RESULT_ITEM_ICON_SIZE: f32 = 14.0 * 2.0 / 3.0;
 
 #[cfg(target_os = "macos")]
 pub(super) const FIND_CASE_SHORTCUT: &str = "⌥⌘C";
@@ -164,76 +166,238 @@ fn find_tab_button_style(
     status: iced::widget::button::Status,
     active: bool,
 ) -> iced::widget::button::Style {
-    let p = theme.extended_palette();
-    let base_bg = theme.palette().background;
-    let is_dark = base_bg.r + base_bg.g + base_bg.b < 1.5;
-    let active_bg = if is_dark { p.primary.weak.color } else { p.primary.base.color };
-    let background = if active {
-        Some(active_bg)
+    let palette = theme.extended_palette();
+    let base_background = palette.background.base.color;
+    let luma = 0.2126 * base_background.r + 0.7152 * base_background.g + 0.0722 * base_background.b;
+    let is_dark = luma < 0.5;
+    let hover_background = if is_dark {
+        palette.background.strong.color.scale_alpha(0.8)
     } else {
-        match status {
-            iced::widget::button::Status::Hovered => Some(p.background.weak.color),
-            iced::widget::button::Status::Pressed => Some(p.background.strong.color),
-            _ => None,
-        }
+        Color::from_rgba(
+            palette.primary.base.color.r,
+            palette.primary.base.color.g,
+            palette.primary.base.color.b,
+            0.10,
+        )
+    };
+    let selected_background = if is_dark {
+        palette.background.strong.color.scale_alpha(0.95)
+    } else {
+        Color::from_rgba(
+            palette.primary.base.color.r,
+            palette.primary.base.color.g,
+            palette.primary.base.color.b,
+            0.18,
+        )
+    };
+    let background = match (active, status) {
+        (true, _) => Some(selected_background),
+        (false, iced::widget::button::Status::Hovered) => Some(hover_background),
+        (false, iced::widget::button::Status::Pressed) => Some(selected_background),
+        _ => None,
     };
 
     iced::widget::button::Style {
         background: background.map(Background::Color),
-        text_color: if active {
-            if is_dark { theme.palette().text } else { p.primary.base.text }
-        } else {
-            theme.palette().text
-        },
-        border: iced::Border { radius: 6.0.into(), ..Default::default() },
+        text_color: theme.palette().text,
+        border: iced::Border { radius: 4.0.into(), ..Default::default() },
         ..Default::default()
     }
 }
 
+fn find_tab_close_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let primary = theme.palette().primary;
+    let background = match status {
+        iced::widget::button::Status::Hovered => {
+            Some(Background::Color(Color::from_rgba(primary.r, primary.g, primary.b, 0.10)))
+        }
+        iced::widget::button::Status::Pressed => {
+            Some(Background::Color(Color::from_rgba(primary.r, primary.g, primary.b, 0.18)))
+        }
+        _ => None,
+    };
+
+    iced::widget::button::Style {
+        background,
+        text_color: theme.palette().text,
+        border: iced::Border { width: 0.0, color: Color::TRANSPARENT, radius: 4.0.into() },
+        ..Default::default()
+    }
+}
+
+pub(super) fn find_results_tab_title(query_input: &str) -> String {
+    let first_line = query_input.trim().lines().next().unwrap_or_default().trim();
+    let title = first_line.chars().take(10).collect::<String>();
+
+    if title.is_empty() { "搜索".to_string() } else { title }
+}
+
+pub(super) fn find_results_tab_add_message() -> Message {
+    Message::Project(ProjectMessage::FileTreeFindInProject)
+}
+
+pub(super) fn find_tab_menu_messages(tab_id: &str) -> [Message; 4] {
+    [
+        Message::Project(ProjectMessage::FileTreeFindTabClosed(tab_id.to_string())),
+        Message::Project(ProjectMessage::FileTreeFindTabMenuCloseLeft(tab_id.to_string())),
+        Message::Project(ProjectMessage::FileTreeFindTabMenuCloseRight(tab_id.to_string())),
+        Message::Project(ProjectMessage::FileTreeFindTabMenuCloseAll),
+    ]
+}
+
+fn find_tab_menu_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let background = match status {
+        iced::widget::button::Status::Hovered => palette.background.weak.color,
+        iced::widget::button::Status::Pressed => palette.background.strong.color,
+        _ => Color::TRANSPARENT,
+    };
+
+    iced::widget::button::Style {
+        background: Some(Background::Color(background)),
+        text_color: theme.palette().text,
+        border: iced::Border { radius: 4.0.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+fn build_find_tab_menu<'a>(tab_id: &str) -> Element<'a, Message> {
+    let [close, close_left, close_right, close_all] = find_tab_menu_messages(tab_id);
+    let menu_button = |label: &'static str, message: Message| {
+        button(container(text(label).size(13)).width(Length::Fill).padding([2, 8]))
+            .on_press(message)
+            .style(find_tab_menu_button_style)
+            .width(Length::Fill)
+    };
+    let separator = || {
+        container(Space::new()).width(Length::Fill).height(Length::Fixed(1.0)).style(
+            |theme: &Theme| {
+                let palette = theme.extended_palette();
+                container::Style {
+                    background: Some(palette.background.strong.color.into()),
+                    ..Default::default()
+                }
+            },
+        )
+    };
+
+    let content = column![
+        menu_button("关闭", close),
+        separator(),
+        menu_button("关闭左侧", close_left),
+        menu_button("关闭右侧", close_right),
+        separator(),
+        menu_button("关闭所有", close_all),
+    ]
+    .width(Length::Fixed(140.0))
+    .padding(2)
+    .spacing(1);
+
+    container(content)
+        .style(|theme: &Theme| {
+            let palette = theme.extended_palette();
+            container::Style {
+                background: Some(palette.background.weak.color.into()),
+                border: iced::Border {
+                    color: palette.background.strong.color,
+                    width: 1.0,
+                    radius: 8.0.into(),
+                },
+                shadow: iced::Shadow {
+                    color: Color::BLACK.scale_alpha(0.30),
+                    offset: iced::Vector::new(0.0, 4.0),
+                    blur_radius: 12.0,
+                },
+                ..Default::default()
+            }
+        })
+        .into()
+}
+
 /// 构建搜索结果标签页栏，允许在多个搜索会话之间切换。
 pub(super) fn build_find_results_tabs(app: &App) -> Element<'_, Message> {
-    let mut tabs = row![].spacing(4).width(Length::Fill);
+    let mut tabs = row![].spacing(4).width(Length::Fill).height(Length::Fixed(28.0));
+    let selection_locked = app.find_results_tabs.iter().any(|tab| tab.running);
 
     for tab in &app.find_results_tabs {
         let active = app.active_find_results_tab_id.as_deref() == Some(tab.id.as_str());
         let tab_id = tab.id.clone();
         let close_id = tab.id.clone();
-        let title = format!("{} ({})", tab.query, tab.matches.len());
+        let menu_id = tab.id.clone();
+        let title = find_results_tab_title(&tab.query_input);
 
-        let title_btn = button(text(title).size(12))
-            .on_press(Message::Project(ProjectMessage::FileTreeFindTabSelected(tab_id)))
-            .padding([4, 8])
-            .style(move |theme, status| find_tab_button_style(theme, status, active));
-
-        let close_btn = button(
-            themed_icon_svg(Icon::X).width(Length::Fixed(12.0)).height(Length::Fixed(12.0)),
+        let close = button(themed_icon_svg(Icon::X))
+            .on_press(Message::Project(ProjectMessage::FileTreeFindTabClosed(close_id)))
+            .padding(2)
+            .style(find_tab_close_button_style);
+        let tab_content = row![
+            container(themed_icon_svg(Icon::Search)).width(Length::Fixed(16.0)),
+            container(text(title).size(13))
+                .width(Length::Fill)
+                .align_y(iced::alignment::Vertical::Center),
+            container(close).width(Length::Shrink),
+        ]
+        .spacing(6)
+        .align_y(iced::Alignment::Center)
+        .width(Length::Fill);
+        let tab_button: Element<'_, Message> = button(
+            container(tab_content).padding([4, 6]).height(Length::Fixed(28.0)).width(Length::Fill),
         )
-        .on_press(Message::Project(ProjectMessage::FileTreeFindTabClosed(close_id)))
-        .padding([3, 4])
-        .style(|theme: &Theme, status| {
-            let p = theme.extended_palette();
-            let background = match status {
-                iced::widget::button::Status::Hovered => Some(p.background.weak.color),
-                iced::widget::button::Status::Pressed => Some(p.background.strong.color),
-                _ => None,
-            };
-            iced::widget::button::Style {
-                background: background.map(Background::Color),
-                text_color: theme.palette().text,
-                border: iced::Border { radius: 4.0.into(), ..Default::default() },
-                ..Default::default()
-            }
-        });
+        .on_press_maybe(
+            (!selection_locked)
+                .then_some(Message::Project(ProjectMessage::FileTreeFindTabSelected(tab_id))),
+        )
+        .style(move |theme, status| find_tab_button_style(theme, status, active))
+        .padding(0)
+        .width(Length::Fill)
+        .into();
+        let right_click = Element::new(RightClickArea::new(
+            tab_button,
+            Box::new(move |position| {
+                Message::Project(ProjectMessage::FileTreeFindTabRightClicked(
+                    menu_id.clone(),
+                    position.x,
+                    position.y,
+                ))
+            }),
+            None,
+            None,
+        ));
+        let tab_item = if app.find_results_tab_menu_id.as_deref() == Some(tab.id.as_str()) {
+            PointBelowOverlay::new(right_click, build_find_tab_menu(&tab.id))
+                .show(true)
+                .anchor(app.find_results_tab_menu_pos.unwrap_or(iced::Point::ORIGIN))
+                .on_close(Message::Project(ProjectMessage::FileTreeFindTabMenuClose))
+                .capture_outside_click(false)
+                .into()
+        } else {
+            right_click
+        };
 
-        tabs = tabs.push(
-            container(row![title_btn, close_btn].spacing(2).align_y(iced::Alignment::Center))
-                .padding([2, 2]),
-        );
+        tabs = tabs.push(tab_item);
     }
+
+    let add_tab = button(
+        container(themed_icon_svg(Icon::Plus))
+            .width(Length::Fixed(28.0))
+            .height(Length::Fixed(28.0))
+            .align_x(iced::alignment::Horizontal::Center)
+            .align_y(iced::alignment::Vertical::Center),
+    )
+    .on_press(find_results_tab_add_message())
+    .padding(0)
+    .style(find_tab_close_button_style);
+    tabs = tabs.push(add_tab);
 
     scrollable(container(tabs).width(Length::Fill).padding([0, 2]))
         .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4)))
-        .height(Length::Fixed(34.0))
+        .height(Length::Fixed(FIND_RESULTS_TAB_HEIGHT))
         .into()
 }
 
@@ -664,7 +828,14 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
             let rel = to_relative_path(root, &item.path);
             let line_col = format!("{}:{}", item.line, item.column);
             let title = row![
-                container(static_icon_svg(file_icon_for(&rel))).width(Length::Fixed(16.0)),
+                container(
+                    static_icon_svg(file_icon_for(&rel))
+                        .width(Length::Fixed(FIND_RESULT_ITEM_ICON_SIZE))
+                        .height(Length::Fixed(FIND_RESULT_ITEM_ICON_SIZE)),
+                )
+                .width(Length::Fixed(16.0))
+                .align_x(iced::alignment::Horizontal::Center)
+                .align_y(iced::alignment::Vertical::Center),
                 text(rel).size(12).wrapping(text::Wrapping::None).width(Length::Fill),
                 text(line_col).size(11).color(Color::from_rgb(0.5, 0.5, 0.5))
             ]

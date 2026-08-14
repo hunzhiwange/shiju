@@ -67,10 +67,7 @@ pub(super) fn git_context_path_for_app(app: &App) -> Option<String> {
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
-fn build_commit_request(
-    app: &App,
-    stage_all: bool,
-) -> Result<SelectedCommitRequest, String> {
+fn build_commit_request(app: &App, stage_all: bool) -> Result<SelectedCommitRequest, String> {
     let summary = app.git_commit_message.trim().to_string();
     let body = app.git_commit_description.trim().to_string();
     let subject = if let Some(commit_type) = app.git_commit_type {

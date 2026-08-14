@@ -197,11 +197,7 @@ pub struct ThemeDefinition {
     pub palette: ThemePaletteHex,
     #[serde(default, skip_serializing_if = "ThemeAssets::is_empty")]
     pub assets: ThemeAssets,
-    #[serde(
-        default,
-        rename = "appearance",
-        skip_serializing_if = "ThemeChrome::is_empty"
-    )]
+    #[serde(default, rename = "appearance", skip_serializing_if = "ThemeChrome::is_empty")]
     pub chrome: ThemeChrome,
 }
 
@@ -267,13 +263,8 @@ fn truncate_chars(input: &str, max_chars: usize) -> String {
 
 fn validate_theme_id(id: &str) -> Result<()> {
     let valid = id.len() <= 64
-        && id
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
-        && id
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-');
+        && id.chars().next().is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-');
     if !valid {
         bail!("invalid theme id `{id}`: expected [a-z0-9][a-z0-9_-]{{0,63}}");
     }
@@ -292,9 +283,7 @@ fn validate_asset_name(field: &str, value: Option<&str>) -> Result<()> {
         bail!("invalid asset name for {field}: absolute paths are not allowed, got `{name}`");
     }
     if name.contains("..") || name.contains('/') || name.contains('\\') {
-        bail!(
-            "invalid asset name for {field}: expected a single relative filename, got `{name}`"
-        );
+        bail!("invalid asset name for {field}: expected a single relative filename, got `{name}`");
     }
     Ok(())
 }

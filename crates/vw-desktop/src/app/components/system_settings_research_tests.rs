@@ -103,12 +103,12 @@ fn view_builds_empty_and_unicode_text_inputs() {
 }
 
 #[test]
-fn overlays_return_dialog_or_build_help_modal() {
+fn inline_help_panel_is_visible_only_when_open() {
     let mut app = test_app();
-    keep_element(view_overlays(&app, text("dialog").into()));
+    assert!(inline_help_panel(&app).is_none());
 
     app.research_settings.show_help_modal = true;
-    keep_element(view_overlays(&app, text("dialog").into()));
+    assert!(inline_help_panel(&app).is_some());
 }
 
 #[test]

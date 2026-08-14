@@ -167,7 +167,10 @@ fn model_detail_and_model_settings_defaults_are_stable() {
     assert_eq!(custom_modal.temperature, Some(false));
     assert_eq!(custom_modal.attachment, Some(true));
     assert_eq!(custom_modal.interleaved, Some(true));
-    assert_eq!(custom_modal.input_modalities.as_deref(), Some(["text".to_string(), "image".to_string()].as_slice()));
+    assert_eq!(
+        custom_modal.input_modalities.as_deref(),
+        Some(["text".to_string(), "image".to_string()].as_slice())
+    );
     assert_eq!(custom_modal.output_modalities.as_deref(), Some(["text".to_string()].as_slice()));
 
     let row = ModelDetailRow { label: "Context".to_string(), value: "128k".to_string() };

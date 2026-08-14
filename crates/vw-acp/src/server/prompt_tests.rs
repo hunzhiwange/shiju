@@ -75,11 +75,7 @@ impl BackendCancelHandle for ChannelCancel {
 impl SessionBackend for PromptBackend {
     async fn create_session(&self, cwd: PathBuf) -> Result<BackendSession, BackendError> {
         let index = self.next_session.fetch_add(1, Ordering::Relaxed) + 1;
-        Ok(BackendSession {
-            id: format!("session-{index}"),
-            cwd,
-            history: Vec::new(),
-        })
+        Ok(BackendSession { id: format!("session-{index}"), cwd, history: Vec::new() })
     }
 
     async fn load_session(
@@ -103,10 +99,7 @@ impl SessionBackend for PromptBackend {
             tx.send(event).expect("script receiver");
         }
         if self.hold_open {
-            self.active
-                .lock()
-                .expect("active lock")
-                .insert(session_id.to_string(), tx);
+            self.active.lock().expect("active lock").insert(session_id.to_string(), tx);
             Ok(BackendPrompt::new(
                 rx,
                 Arc::new(ChannelCancel {
@@ -202,10 +195,7 @@ async fn prompt_rejects_unadvertised_content() {
         prepared_agent(PromptBackend::default(), RecordingSink::default(), root.path()).await;
     let request = PromptRequest::new(
         "session-1",
-        vec![ContentBlock::Image(agent_client_protocol::ImageContent::new(
-            "base64",
-            "image/png",
-        ))],
+        vec![ContentBlock::Image(agent_client_protocol::ImageContent::new("base64", "image/png"))],
     );
 
     let error = Agent::prompt(&agent, request).await.expect_err("image must be rejected");
@@ -250,13 +240,8 @@ async fn cancel_targets_only_active_session() {
         }
         Agent::cancel(&agent, CancelNotification::new("unknown")).await.expect("unknown cancel");
         Agent::cancel(&agent, CancelNotification::new("session-1")).await.expect("first cancel");
-        Agent::cancel(&agent, CancelNotification::new("session-1"))
-            .await
-            .expect("repeat cancel");
-        assert_eq!(
-            cancel_counts.lock().expect("cancel count lock").get("session-1"),
-            Some(&1)
-        );
+        Agent::cancel(&agent, CancelNotification::new("session-1")).await.expect("repeat cancel");
+        assert_eq!(cancel_counts.lock().expect("cancel count lock").get("session-1"), Some(&1));
         assert!(!cancel_counts.lock().expect("cancel count lock").contains_key("session-2"));
         Agent::cancel(&agent, CancelNotification::new("session-2")).await.expect("second cancel");
     };

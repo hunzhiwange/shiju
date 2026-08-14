@@ -193,10 +193,7 @@ async fn bootstrap_apiql_root_compat_route_is_not_registered() {
     let token = String::from("paired-token");
     let app = bootstrap_rest_app(auth_state(true, &[token]));
 
-    let response = app
-        .oneshot(tenant_request("/apiQL/v1:product:product/"))
-        .await
-        .unwrap();
+    let response = app.oneshot(tenant_request("/apiQL/v1:product:product/")).await.unwrap();
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }

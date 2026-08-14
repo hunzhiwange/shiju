@@ -11,9 +11,7 @@ use crate::cli::tui_v2::model::{
     UiAssistantMessage, UiMessage, UiMessageBase, UiSystemMessageLevel, UiThinkingBlock,
     UiThinkingPhase, UiTurnTerminal,
 };
-use crate::cli::tui_v2::state::selectors::{
-    TuiToolCallGroup, select_tool_row_view,
-};
+use crate::cli::tui_v2::state::selectors::{TuiToolCallGroup, select_tool_row_view};
 use crate::cli::tui_v2::state::{TuiAssistantTurnEntry, TuiTranscriptItem};
 use crate::cli::tui_v2::terminal_capabilities::sanitize_terminal_text;
 
@@ -61,14 +59,7 @@ pub(super) fn render_transcript_item_lines_with_context(
 ) -> Vec<Line<'static>> {
     match item {
         TuiTranscriptItem::Standalone(message) => {
-            render_message_lines(
-                message,
-                theme,
-                width,
-                verbose,
-                capabilities,
-                workspace_root,
-            )
+            render_message_lines(message, theme, width, verbose, capabilities, workspace_root)
         }
         TuiTranscriptItem::AssistantTurn(turn) => {
             let mut lines = Vec::new();
@@ -110,8 +101,7 @@ fn render_message_lines(
             if message.text.is_empty() {
                 return Vec::new();
             }
-            let mut lines =
-                render_symbol_text("❯", theme.accent, message.text.as_str(), theme);
+            let mut lines = render_symbol_text("❯", theme.accent, message.text.as_str(), theme);
             append_verbose_base(&mut lines, &message.base, None, theme, verbose);
             lines
         }
@@ -155,15 +145,17 @@ fn render_message_lines(
         UiMessage::Error(message) => {
             render_symbol_text("●", theme.danger, message.message.as_str(), theme)
         }
-        UiMessage::Attachment(message) => super::attachment::render_attachment(
-            message,
-            1,
-            capabilities,
-            workspace_root,
-            theme,
-            width,
-        )
-        .lines,
+        UiMessage::Attachment(message) => {
+            super::attachment::render_attachment(
+                message,
+                1,
+                capabilities,
+                workspace_root,
+                theme,
+                width,
+            )
+            .lines
+        }
         UiMessage::Progress(message) => render_text_block(
             "进度",
             theme.warning,
@@ -183,10 +175,7 @@ fn render_message_lines(
             )];
             if verbose {
                 lines.push(Line::styled(
-                    format!(
-                        "  {} · {} messages",
-                        message.summary, message.compacted_messages
-                    ),
+                    format!("  {} · {} messages", message.summary, message.compacted_messages),
                     theme.muted_style(),
                 ));
             }
@@ -271,8 +260,11 @@ fn render_symbol_text(
     let sanitized = sanitize_terminal_text(text);
     let mut lines = sanitized.lines();
     let first = lines.next().unwrap_or_default();
-    let mut rendered =
-        vec![Line::from(vec![label_span(symbol, color), Span::raw(" "), Span::raw(first.to_string())])];
+    let mut rendered = vec![Line::from(vec![
+        label_span(symbol, color),
+        Span::raw(" "),
+        Span::raw(first.to_string()),
+    ])];
     rendered.extend(lines.map(|line| {
         Line::from(vec![
             Span::styled("  ", theme.muted_style()),
@@ -378,21 +370,24 @@ fn render_thinking_lines(
         UiThinkingPhase::Streaming if !verbose => {
             vec![Line::styled("∴ Thinking…", theme.muted_style())]
         }
-        UiThinkingPhase::Closed if !verbose => vec![Line::styled(
-            "∴ Thinking (Ctrl+O to expand)",
-            theme.muted_style(),
-        )],
+        UiThinkingPhase::Closed if !verbose => {
+            vec![Line::styled("∴ Thinking (Ctrl+O to expand)", theme.muted_style())]
+        }
         UiThinkingPhase::Streaming | UiThinkingPhase::Closed => {
             let mut lines = vec![Line::styled("∴ Thinking…", theme.muted_style())];
             lines.extend(
-                render_markdown(sanitize_terminal_text(message.content.as_str()).as_str(), 78, theme)
-                    .lines
-                    .into_iter()
-                    .map(|line| {
-                        let mut spans = vec![Span::styled("  ", theme.muted_style())];
-                        spans.extend(line.spans);
-                        Line::from(spans)
-                    }),
+                render_markdown(
+                    sanitize_terminal_text(message.content.as_str()).as_str(),
+                    78,
+                    theme,
+                )
+                .lines
+                .into_iter()
+                .map(|line| {
+                    let mut spans = vec![Span::styled("  ", theme.muted_style())];
+                    spans.extend(line.spans);
+                    Line::from(spans)
+                }),
             );
             lines
         }

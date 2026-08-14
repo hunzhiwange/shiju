@@ -23,9 +23,7 @@ fn supported_server_name(server: &McpServer) -> Result<&str, BackendError> {
         }
     };
     if name.trim().is_empty() {
-        return Err(BackendError::InvalidRequest(
-            "MCP server name must not be empty".to_string(),
-        ));
+        return Err(BackendError::InvalidRequest("MCP server name must not be empty".to_string()));
     }
     Ok(name)
 }
@@ -35,9 +33,7 @@ fn validate_server_names(servers: &[McpServer]) -> Result<(), BackendError> {
     for server in servers {
         let name = supported_server_name(server)?;
         if !names.insert(name.to_string()) {
-            return Err(BackendError::InvalidRequest(format!(
-                "duplicate MCP server name: {name}"
-            )));
+            return Err(BackendError::InvalidRequest(format!("duplicate MCP server name: {name}")));
         }
     }
     Ok(())

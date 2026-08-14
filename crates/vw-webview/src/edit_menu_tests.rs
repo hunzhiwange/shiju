@@ -67,16 +67,7 @@ fn edit_menu_actions_keep_stable_order() {
 #[test]
 fn browser_menu_actions_cover_navigation_controls() {
     let titles: Vec<_> = BROWSER_MENU_ACTIONS.iter().map(|action| action.title).collect();
-    assert_eq!(
-        titles,
-        [
-            "Back",
-            "Forward",
-            "Reload",
-            "Open in External Browser",
-            "Close Page",
-        ]
-    );
+    assert_eq!(titles, ["Back", "Forward", "Reload", "Open in External Browser", "Close Page",]);
     assert_eq!(BROWSER_MENU_ACTIONS[2].key, "r");
     assert_eq!(BROWSER_MENU_ACTIONS[0].selector, "browserBack:");
     assert_eq!(BROWSER_MENU_ACTIONS[4].selector, "browserClose:");

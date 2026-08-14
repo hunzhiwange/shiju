@@ -6,14 +6,14 @@
 use vw_shared::question;
 use vw_shared::todo::Todo;
 
-use super::permission::PermissionQueue;
-use super::settings_panel::{SettingsPanel, SettingsValues};
-use super::integration::{IntegrationKind, IntegrationPanel};
 use super::agent_view::AgentViewState;
 use super::background_task::BackgroundTaskPanel;
-use super::workflow_panel::WorkflowPanel;
+use super::integration::{IntegrationKind, IntegrationPanel};
+use super::permission::PermissionQueue;
 use super::schedule_panel::SchedulePanel;
+use super::settings_panel::{SettingsPanel, SettingsValues};
 use super::ui_message::{UiMessageId, UiStepState, UiTokenUsage, UiTurnTerminal};
+use super::workflow_panel::WorkflowPanel;
 
 /// 当前焦点位于 prompt 还是 overlay。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

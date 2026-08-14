@@ -17,10 +17,8 @@ fn run_git(directory: &str, args: &[&str]) -> Result<String, String> {
         .args(args)
         .output()
         .map_err(|err| err.to_string())?;
-    let stdout =
-        String::from_utf8_lossy(&output.stdout).replace("\r\n", "\n").replace('\r', "\n");
-    let stderr =
-        String::from_utf8_lossy(&output.stderr).replace("\r\n", "\n").replace('\r', "\n");
+    let stdout = String::from_utf8_lossy(&output.stdout).replace("\r\n", "\n").replace('\r', "\n");
+    let stderr = String::from_utf8_lossy(&output.stderr).replace("\r\n", "\n").replace('\r', "\n");
     if output.status.success() {
         return Ok(stdout);
     }

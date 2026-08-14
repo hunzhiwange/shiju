@@ -178,7 +178,8 @@ async fn resolve_auto_model(
         .iter()
         .map(|model| super::ModelCandidate { provider_id: &model.provider_id, model })
         .collect::<Vec<_>>();
-    let needs_image_input = !crate::app::agent::multimodal::parse_image_markers(message).1.is_empty();
+    let needs_image_input =
+        !crate::app::agent::multimodal::parse_image_markers(message).1.is_empty();
     let selected = super::select_auto_model(
         &super::AutoModelSelectionRequest {
             message,
@@ -195,7 +196,9 @@ async fn resolve_auto_model(
     .map_err(|error| error.to_string())?;
     candidates
         .into_iter()
-        .find(|model| model.provider_id == selected.model.provider && model.id == selected.model.model)
+        .find(|model| {
+            model.provider_id == selected.model.provider && model.id == selected.model.model
+        })
         .ok_or_else(|| "Auto 模型选择结果不在 active 候选中".to_string())
 }
 

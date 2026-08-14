@@ -282,8 +282,7 @@ fn optional_info_fields_are_omitted_when_absent() {
 
 #[test]
 fn assistant_time_elapsed_fields_are_optional_and_round_trip() {
-    let legacy: AssistantTime =
-        serde_json::from_str(r#"{"created":100,"completed":250}"#).unwrap();
+    let legacy: AssistantTime = serde_json::from_str(r#"{"created":100,"completed":250}"#).unwrap();
     assert_eq!(legacy.processing_elapsed_ms, None);
     assert_eq!(legacy.llm_elapsed_ms, None);
 

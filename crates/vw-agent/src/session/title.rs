@@ -292,14 +292,9 @@ pub(crate) async fn generate_message_title(
     };
     let Some(model) = model else { return Ok(None) };
 
-    let output = stream_title(
-        session_id.to_string(),
-        user,
-        model,
-        build_title_prompt(&content),
-        None,
-    )
-    .await?;
+    let output =
+        stream_title(session_id.to_string(), user, model, build_title_prompt(&content), None)
+            .await?;
     let title = output.trim();
     Ok((!title.is_empty()).then(|| title.to_string()))
 }

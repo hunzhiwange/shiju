@@ -274,13 +274,11 @@ impl App {
         };
 
         // 自定义主题背景图：置于最底层；无背景时保持原视图。
-        if let Some(path) = self
-            .active_theme_skin
-            .as_ref()
-            .and_then(|skin| skin.background_path.as_ref())
+        if let Some(path) =
+            self.active_theme_skin.as_ref().and_then(|skin| skin.background_path.as_ref())
         {
-            use iced::widget::image::Handle as ImageHandle;
             use iced::widget::Image;
+            use iced::widget::image::Handle as ImageHandle;
             use iced::{ContentFit, Length};
 
             let wallpaper: Element<'_, Message> = iced::widget::container(

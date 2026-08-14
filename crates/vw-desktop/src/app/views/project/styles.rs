@@ -80,10 +80,8 @@ pub fn workspace_background_style(theme: &Theme) -> ContainerStyle {
 pub fn content_panel_style(theme: &Theme) -> ContainerStyle {
     let palette = theme.extended_palette();
     let is_dark = is_dark_theme(theme);
-    let background = crate::app::theme_catalog::panel_surface_color(
-        theme,
-        if is_dark { 0.98 } else { 0.985 },
-    );
+    let background =
+        crate::app::theme_catalog::panel_surface_color(theme, if is_dark { 0.98 } else { 0.985 });
     let border_color = if is_dark {
         palette.background.strong.color.scale_alpha(0.70)
     } else {

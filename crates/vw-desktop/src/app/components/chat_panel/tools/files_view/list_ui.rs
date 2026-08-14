@@ -232,16 +232,10 @@ pub(super) fn edit_file_change_block<'a>(
     let header = container(header).padding([6, 0]).width(Length::Fill);
 
     let block: Element<'a, Message> = if file_expanded {
-        let diff_body = container(render_git_diff_content(
-            app,
-            title,
-            Some(file),
-            before,
-            after,
-        ))
-        .width(Length::Fill)
-        .clip(true)
-        .padding([4, 0]);
+        let diff_body = container(render_git_diff_content(app, title, Some(file), before, after))
+            .width(Length::Fill)
+            .clip(true)
+            .padding([4, 0]);
         column![header, diff_body].spacing(4).into()
     } else {
         header.into()
@@ -312,12 +306,10 @@ pub(super) fn file_name_tooltip<'a>(label: String) -> Element<'a, Message> {
 }
 
 pub(super) fn external_diff_button<'a>(on_press: Message) -> Element<'a, Message> {
-    let eye = icon_svg(Icon::ChevronRight)
-        .width(Length::Fixed(12.0))
-        .height(Length::Fixed(12.0))
-        .style(|theme: &Theme, _status| svg::Style {
-            color: Some(view_changes_secondary_text(theme)),
-        });
+    let eye =
+        icon_svg(Icon::ChevronRight).width(Length::Fixed(12.0)).height(Length::Fixed(12.0)).style(
+            |theme: &Theme, _status| svg::Style { color: Some(view_changes_secondary_text(theme)) },
+        );
 
     let button: Element<'a, Message> =
         button(eye).padding([2, 4]).style(edit_file_change_button_style).on_press(on_press).into();
@@ -389,10 +381,9 @@ pub(super) fn view_changes_pill<'a>() -> Element<'a, Message> {
 }
 
 pub(super) fn view_changes_secondary_text(theme: &Theme) -> Color {
-    let is_dark = theme.palette().background.r
-        + theme.palette().background.g
-        + theme.palette().background.b
-        < 1.5;
+    let is_dark =
+        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
+            < 1.5;
     if is_dark {
         theme.palette().text.scale_alpha(0.72)
     } else {
@@ -405,10 +396,9 @@ pub(super) fn edit_file_change_button_style(
     status: iced::widget::button::Status,
 ) -> iced::widget::button::Style {
     let ext = theme.extended_palette();
-    let is_dark = theme.palette().background.r
-        + theme.palette().background.g
-        + theme.palette().background.b
-        < 1.5;
+    let is_dark =
+        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
+            < 1.5;
     let background = match status {
         iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
             Some(Background::Color(if is_dark {
@@ -422,11 +412,7 @@ pub(super) fn edit_file_change_button_style(
     iced::widget::button::Style {
         background,
         text_color: theme.palette().text,
-        border: Border {
-            width: 0.0,
-            color: Color::TRANSPARENT,
-            radius: 8.0.into(),
-        },
+        border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
         shadow: Default::default(),
         ..Default::default()
     }

@@ -1,9 +1,11 @@
 use super::styles::{
-    COMPACT_ACTION_BUTTON_RADIUS, MESSAGE_META_TEXT_SIZE, MESSAGE_TEXT_SIZE,
-    PROCESSING_DURATION_TEXT_SIZE, THINK_META_TEXT_SIZE, THINK_STATUS_TEXT_SIZE, is_dark_theme,
-    message_body_text_color, message_meta_text_color, message_text_line_height,
-    processing_duration_separator_color, processing_duration_text_color, subtle_card_shadow,
-    think_block_text_color, thinking_status_text,
+    ASSISTANT_BLOCK_SPACING, ASSISTANT_HEADER_BODY_SPACING, COMPACT_ACTION_BUTTON_RADIUS,
+    MARKDOWN_BLOCK_SPACING, MESSAGE_META_TEXT_SIZE, MESSAGE_TEXT_SIZE,
+    PROCESSING_DURATION_TEXT_SIZE, PROCESSING_HEADER_RULE_SPACING, THINK_BLOCK_CONTENT_SPACING,
+    THINK_META_TEXT_SIZE, THINK_STATUS_TEXT_SIZE, is_dark_theme, message_body_text_color,
+    message_meta_text_color, message_text_line_height, processing_duration_separator_color,
+    processing_duration_text_color, subtle_card_shadow, think_block_text_color,
+    thinking_status_text,
 };
 use iced::{Color, Theme, theme::Palette};
 
@@ -43,7 +45,7 @@ fn thinking_status_text_builds_for_empty_label() {
 
 #[test]
 fn message_text_line_height_returns_expected_value() {
-    assert_eq!(message_text_line_height(), iced::widget::text::LineHeight::Relative(1.62));
+    assert_eq!(message_text_line_height(), iced::widget::text::LineHeight::Relative(1.52));
 }
 
 #[test]
@@ -54,6 +56,11 @@ fn style_constants_have_expected_values() {
     assert_eq!(THINK_STATUS_TEXT_SIZE, 13.0);
     assert_eq!(THINK_META_TEXT_SIZE, 12.0);
     assert_eq!(COMPACT_ACTION_BUTTON_RADIUS, 5.0);
+    assert_eq!(ASSISTANT_BLOCK_SPACING, 14.0);
+    assert_eq!(ASSISTANT_HEADER_BODY_SPACING, 16.0);
+    assert_eq!(PROCESSING_HEADER_RULE_SPACING, 8.0);
+    assert_eq!(MARKDOWN_BLOCK_SPACING, 10.0);
+    assert_eq!(THINK_BLOCK_CONTENT_SPACING, 6.0);
 }
 
 #[test]

@@ -46,10 +46,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .push(settings);
 
     container(bar.spacing(2).align_y(iced::Alignment::Center))
-    .padding([0, 6])
-    .height(Length::Fixed(TOP_BAR_HEIGHT))
-    .style(top_bar_style)
-    .into()
+        .padding([0, 6])
+        .height(Length::Fixed(TOP_BAR_HEIGHT))
+        .style(top_bar_style)
+        .into()
 }
 
 pub(super) fn top_bar_style(theme: &Theme) -> container::Style {

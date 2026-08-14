@@ -27,14 +27,10 @@ fn verified_with_profile(skey: &str, company_name: &str) -> VerifiedAccount {
 #[test]
 fn repository_upserts_same_skey_without_duplicates() {
     let mut repository = AccountRepository::default();
-    let first = repository.upsert_verified(
-        verified("same-key", "company-1", "旧名称"),
-        AccountOrigin::ManualSkey,
-    );
-    let second = repository.upsert_verified(
-        verified("same-key", "company-1", "新名称"),
-        AccountOrigin::BrowserLogin,
-    );
+    let first = repository
+        .upsert_verified(verified("same-key", "company-1", "旧名称"), AccountOrigin::ManualSkey);
+    let second = repository
+        .upsert_verified(verified("same-key", "company-1", "新名称"), AccountOrigin::BrowserLogin);
 
     assert_eq!(first, second);
     assert_eq!(repository.accounts().len(), 1);
@@ -46,12 +42,10 @@ fn repository_upserts_same_skey_without_duplicates() {
 #[test]
 fn repository_switches_exactly_one_active_account() {
     let mut repository = AccountRepository::default();
-    let first =
-        repository.upsert_verified(verified("key-1", "company-1", "一号"), AccountOrigin::ManualSkey);
-    let second = repository.upsert_verified(
-        verified("key-2", "company-2", "二号"),
-        AccountOrigin::BrowserLogin,
-    );
+    let first = repository
+        .upsert_verified(verified("key-1", "company-1", "一号"), AccountOrigin::ManualSkey);
+    let second = repository
+        .upsert_verified(verified("key-2", "company-2", "二号"), AccountOrigin::BrowserLogin);
 
     repository.activate(&first).unwrap();
     assert_eq!(repository.active_account_id(), Some(first.as_str()));
@@ -65,14 +59,8 @@ fn repository_switches_exactly_one_active_account() {
 #[test]
 fn repository_sign_out_retains_all_accounts() {
     let mut repository = AccountRepository::default();
-    repository.upsert_verified(
-        verified("key-1", "company-1", "一号"),
-        AccountOrigin::ManualSkey,
-    );
-    repository.upsert_verified(
-        verified("key-2", "company-2", "二号"),
-        AccountOrigin::BrowserLogin,
-    );
+    repository.upsert_verified(verified("key-1", "company-1", "一号"), AccountOrigin::ManualSkey);
+    repository.upsert_verified(verified("key-2", "company-2", "二号"), AccountOrigin::BrowserLogin);
     repository.sign_out();
 
     assert_eq!(repository.accounts().len(), 2);
@@ -83,14 +71,10 @@ fn repository_sign_out_retains_all_accounts() {
 #[test]
 fn repository_removes_saved_accounts_and_clears_deleted_active_account() {
     let mut repository = AccountRepository::default();
-    let inactive = repository.upsert_verified(
-        verified("key-1", "company-1", "一号"),
-        AccountOrigin::ManualSkey,
-    );
-    let active = repository.upsert_verified(
-        verified("key-2", "company-2", "二号"),
-        AccountOrigin::BrowserLogin,
-    );
+    let inactive = repository
+        .upsert_verified(verified("key-1", "company-1", "一号"), AccountOrigin::ManualSkey);
+    let active = repository
+        .upsert_verified(verified("key-2", "company-2", "二号"), AccountOrigin::BrowserLogin);
 
     repository.remove(&inactive).unwrap();
     assert_eq!(repository.accounts().len(), 1);
@@ -107,14 +91,9 @@ fn store_round_trips_multiple_accounts() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("shiju-accounts.json");
     let mut repository = AccountRepository::default();
-    repository.upsert_verified(
-        verified("key-1", "company-1", "一号"),
-        AccountOrigin::ManualSkey,
-    );
-    let active = repository.upsert_verified(
-        verified_with_profile("key-2", "二号"),
-        AccountOrigin::BrowserLogin,
-    );
+    repository.upsert_verified(verified("key-1", "company-1", "一号"), AccountOrigin::ManualSkey);
+    let active = repository
+        .upsert_verified(verified_with_profile("key-2", "二号"), AccountOrigin::BrowserLogin);
     repository.save_to(&path).unwrap();
 
     let loaded = AccountRepository::load_from(&path).unwrap();
@@ -135,10 +114,7 @@ fn stored_account_skill_hub_credential_remains_redacted() {
         AccountOrigin::BrowserLogin,
     );
 
-    let credential = repository
-        .active_account()
-        .unwrap()
-        .skill_hub_credential();
+    let credential = repository.active_account().unwrap().skill_hub_credential();
 
     assert_eq!(credential.expose(), "catalog-secret");
     assert_eq!(format!("{credential:?}"), "<redacted>");

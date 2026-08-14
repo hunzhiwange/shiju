@@ -64,11 +64,7 @@ pub(super) fn render_tool_row(
     lines
 }
 
-fn append_tool_activity(
-    lines: &mut Vec<Line<'static>>,
-    view: &TuiToolRowView,
-    theme: TuiTheme,
-) {
+fn append_tool_activity(lines: &mut Vec<Line<'static>>, view: &TuiToolRowView, theme: TuiTheme) {
     for progress in &view.progress_labels {
         lines.push(Line::styled(
             sanitize_terminal_text(format!("  ↳ {progress}").as_str()),
@@ -83,10 +79,7 @@ fn append_tool_activity(
     }
 }
 
-fn render_specialized_tool(
-    view: &TuiToolRowView,
-    theme: TuiTheme,
-) -> Option<Vec<Line<'static>>> {
+fn render_specialized_tool(view: &TuiToolRowView, theme: TuiTheme) -> Option<Vec<Line<'static>>> {
     match view.tool_name.trim().to_ascii_lowercase().as_str() {
         "edit" | "write" | "apply_patch" | "notebook_edit" => {
             let arguments = parse_object(view.safe_arguments.as_deref()?)?;
@@ -161,12 +154,6 @@ fn parse_object(value: &str) -> Option<serde_json::Map<String, Value>> {
     Some(entries)
 }
 
-fn text_field(
-    value: &serde_json::Map<String, Value>,
-    keys: &[&str],
-) -> Option<String> {
-    keys.iter()
-        .find_map(|key| value.get(*key))
-        .and_then(Value::as_str)
-        .map(ToOwned::to_owned)
+fn text_field(value: &serde_json::Map<String, Value>, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| value.get(*key)).and_then(Value::as_str).map(ToOwned::to_owned)
 }

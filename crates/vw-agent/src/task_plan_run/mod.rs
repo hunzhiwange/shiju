@@ -11,21 +11,21 @@ mod runner;
 mod schedule;
 mod session_bind;
 
-pub use model::{PlanTaskEntry, PlanTasksDocument, load_tasks_json, parse_tasks_json};
-pub(crate) use control::global_plan_run_control_registry;
 #[cfg(test)]
 pub(crate) use control::PlanRunControlRegistry;
+pub(crate) use control::global_plan_run_control_registry;
+pub use model::{PlanTaskEntry, PlanTasksDocument, load_tasks_json, parse_tasks_json};
 pub use prompts::{
     CREATE_TASK_PLANS_SKILL_SOURCE, DO_TASK_PLANS_SKILL_SOURCE, build_execution_prompt,
     build_goal_planning_prompt, build_planning_prompt, plan_dir_abs, plan_dir_name, plan_dir_rel,
     sanitize_task_plan_id_part,
 };
+#[cfg(test)]
+pub(crate) use runner::gateway_session_options;
 pub use runner::{
     GatewaySessionRunner, SessionRunRequest, SessionRunner, run_task_plan,
     run_task_plan_with_cancellation,
 };
-#[cfg(test)]
-pub(crate) use runner::gateway_session_options;
 pub use schedule::build_batch_stages;
 
 #[cfg(test)]

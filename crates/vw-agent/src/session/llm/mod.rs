@@ -31,11 +31,11 @@
 mod logging;
 mod messages;
 mod model_selector;
+#[cfg(test)]
+mod model_selector_tests;
 mod options;
 mod prompt;
 mod stream;
-#[cfg(test)]
-mod model_selector_tests;
 #[cfg(test)]
 mod tests;
 mod types;
@@ -47,8 +47,8 @@ mod aisdk;
 
 pub use messages::has_tool_calls;
 pub use model_selector::{
-    select_auto_model, AutoModelSelectionRequest, ModelCandidate, ModelReference,
-    ModelSelectionDecision, ModelSelectionError, ModelSelectionSource, ModelTaskProfile,
+    AutoModelSelectionRequest, ModelCandidate, ModelReference, ModelSelectionDecision,
+    ModelSelectionError, ModelSelectionSource, ModelTaskProfile, select_auto_model,
 };
 #[cfg(test)]
 pub(crate) use prompt::model_limit_for_request;

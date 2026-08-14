@@ -120,7 +120,6 @@ impl DescendantGatedSessionRunner {
     }
 }
 
-
 #[async_trait]
 impl SessionRunner for CancellationGatedSessionRunner {
     async fn run_session(
@@ -192,12 +191,8 @@ impl SessionRunner for GatedStreamingSessionRunner {
         delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
     ) -> Result<String, String> {
         if request.session_id.ends_with("-plan") {
-            let fixture = self
-                .plan_fixture
-                .lock()
-                .expect("fixture lock")
-                .take()
-                .expect("planning fixture");
+            let fixture =
+                self.plan_fixture.lock().expect("fixture lock").take().expect("planning fixture");
             write_plan_fixture(&request.root, &fixture)?;
             return Ok("plan ready".to_string());
         }
@@ -270,12 +265,8 @@ impl SessionRunner for DescendantGatedSessionRunner {
         _delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
     ) -> Result<String, String> {
         if request.session_id.ends_with("-plan") {
-            let fixture = self
-                .plan_fixture
-                .lock()
-                .expect("fixture lock")
-                .take()
-                .expect("planning fixture");
+            let fixture =
+                self.plan_fixture.lock().expect("fixture lock").take().expect("planning fixture");
             write_plan_fixture(&request.root, &fixture)?;
             return Ok("plan ready".to_string());
         }
@@ -292,19 +283,10 @@ impl SessionRunner for DescendantGatedSessionRunner {
             )
             .map_err(|error| error.to_string())?;
         coordinator
-            .mark_succeeded(
-                &request.session_id,
-                &child_session_id,
-                "delegated verification",
-            )
+            .mark_succeeded(&request.session_id, &child_session_id, "delegated verification")
             .map_err(|error| error.to_string())?;
         coordinator
-            .register(
-                &child_session_id,
-                &descendant_session_id,
-                "reviewer",
-                "verify parent output",
-            )
+            .register(&child_session_id, &descendant_session_id, "reviewer", "verify parent output")
             .map_err(|error| error.to_string())?;
         coordinator
             .mark_running(&child_session_id, &descendant_session_id)
@@ -379,10 +361,8 @@ fn write_plan_fixture(root: &str, fixture: &PlanFixture) -> Result<(), String> {
     std::fs::create_dir_all(&plan_abs)
         .map_err(|error| format!("create plan dir failed: {error}"))?;
 
-    let doc = PlanTasksDocument {
-        plan_dir: fixture.plan_dir_rel.clone(),
-        tasks: fixture.tasks.clone(),
-    };
+    let doc =
+        PlanTasksDocument { plan_dir: fixture.plan_dir_rel.clone(), tasks: fixture.tasks.clone() };
     let tasks_json = serde_json::to_string_pretty(&doc)
         .map_err(|error| format!("serialize tasks.json failed: {error}"))?;
     std::fs::write(plan_abs.join("tasks.json"), tasks_json)
@@ -439,11 +419,12 @@ fn event_kind(event: &TaskPlanRunStreamEventDto) -> &'static str {
 fn subtask_id_of(event: &TaskPlanRunStreamEventDto) -> Option<&str> {
     match event {
         TaskPlanRunStreamEventDto::SubtaskStarted { subtask_id, .. }
-        | TaskPlanRunStreamEventDto::SubtaskFinished { subtask_id, .. } => Some(subtask_id.as_str()),
-        TaskPlanRunStreamEventDto::Blocked {
-            subtask_id: Some(subtask_id),
-            ..
-        } => Some(subtask_id.as_str()),
+        | TaskPlanRunStreamEventDto::SubtaskFinished { subtask_id, .. } => {
+            Some(subtask_id.as_str())
+        }
+        TaskPlanRunStreamEventDto::Blocked { subtask_id: Some(subtask_id), .. } => {
+            Some(subtask_id.as_str())
+        }
         _ => None,
     }
 }
@@ -622,10 +603,7 @@ async fn run_plan_delays_subtask_finished_until_nested_agents_are_terminal() {
     .expect("same-batch nested descendants should start");
     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
 
-    assert!(
-        !run.is_finished(),
-        "plan-run must wait while a nested descendant remains active"
-    );
+    assert!(!run.is_finished(), "plan-run must wait while a nested descendant remains active");
     assert!(
         !events
             .lock()
@@ -659,29 +637,22 @@ async fn run_plan_delays_subtask_finished_until_nested_agents_are_terminal() {
         .iter()
         .enumerate()
         .filter_map(|(index, event)| match event {
-            TaskPlanRunStreamEventDto::SessionWaiting {
-                active_descendant_session_ids,
-                ..
-            } => Some((index, active_descendant_session_ids)),
+            TaskPlanRunStreamEventDto::SessionWaiting { active_descendant_session_ids, .. } => {
+                Some((index, active_descendant_session_ids))
+            }
             _ => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(waiting.len(), 3);
     assert!(waiting.iter().all(|(index, _)| *index < first_finished));
     assert!(waiting.iter().all(|(_, active)| active.len() == 1));
-    assert!(
-        waiting
-            .iter()
-            .all(|(_, active)| active[0].ends_with("-nested"))
-    );
+    assert!(waiting.iter().all(|(_, active)| active[0].ends_with("-nested")));
 
     let finished = events
         .iter()
         .filter_map(|event| match event {
             TaskPlanRunStreamEventDto::SubtaskFinished {
-                subtask_id,
-                output: Some(output),
-                ..
+                subtask_id, output: Some(output), ..
             } => Some((subtask_id.as_str(), output.as_str())),
             _ => None,
         })
@@ -872,38 +843,32 @@ async fn run_plan_streams_each_subtask_before_completion() {
         .await
     });
 
-    let streamed_before_release = tokio::time::timeout(
-        std::time::Duration::from_secs(1),
-        async {
-            loop {
-                let delta_count = events
-                    .lock()
-                    .expect("events")
-                    .iter()
-                    .filter(|event| {
-                        matches!(
-                            event,
-                            TaskPlanRunStreamEventDto::SessionDelta { session_id, .. }
-                                if session_id == "demo-live-subtasks-1"
-                                    || session_id == "demo-live-subtasks-2"
-                        )
-                    })
-                    .count();
-                if delta_count == 2 {
-                    break;
-                }
-                event_notify.notified().await;
+    let streamed_before_release = tokio::time::timeout(std::time::Duration::from_secs(1), async {
+        loop {
+            let delta_count = events
+                .lock()
+                .expect("events")
+                .iter()
+                .filter(|event| {
+                    matches!(
+                        event,
+                        TaskPlanRunStreamEventDto::SessionDelta { session_id, .. }
+                            if session_id == "demo-live-subtasks-1"
+                                || session_id == "demo-live-subtasks-2"
+                    )
+                })
+                .count();
+            if delta_count == 2 {
+                break;
             }
-        },
-    )
+            event_notify.notified().await;
+        }
+    })
     .await
     .is_ok();
 
     runner.subtask_release.add_permits(2);
-    handle
-        .await
-        .expect("run task join")
-        .expect("run_task_plan should succeed");
+    handle.await.expect("run task join").expect("run_task_plan should succeed");
 
     assert!(
         streamed_before_release,
@@ -966,11 +931,7 @@ async fn run_plan_retries_failed_subtask_without_replanning() {
     .expect("retry should recover the workflow");
 
     let events = events.lock().expect("events").clone();
-    assert!(
-        events
-            .iter()
-            .all(|event| !matches!(event, TaskPlanRunStreamEventDto::Blocked { .. }))
-    );
+    assert!(events.iter().all(|event| !matches!(event, TaskPlanRunStreamEventDto::Blocked { .. })));
     assert!(matches!(
         events.last(),
         Some(TaskPlanRunStreamEventDto::Finished { status, .. }) if status == "completed"
@@ -978,10 +939,7 @@ async fn run_plan_retries_failed_subtask_without_replanning() {
     assert_eq!(
         events
             .iter()
-            .filter(|event| matches!(
-                event,
-                TaskPlanRunStreamEventDto::PlanningStarted { .. }
-            ))
+            .filter(|event| matches!(event, TaskPlanRunStreamEventDto::PlanningStarted { .. }))
             .count(),
         1,
         "retry must not restart planning"
@@ -1000,20 +958,8 @@ async fn run_plan_retries_failed_subtask_without_replanning() {
 
     let calls = runner.calls.lock().expect("calls").clone();
     assert_eq!(calls.len(), 5, "1 planning + 3 subtask attempts + later batch");
-    assert_eq!(
-        calls
-            .iter()
-            .filter(|call| call.session_id == "demo-recovered-plan")
-            .count(),
-        1
-    );
-    assert_eq!(
-        calls
-            .iter()
-            .filter(|call| call.session_id == "demo-recovered-1")
-            .count(),
-        3
-    );
+    assert_eq!(calls.iter().filter(|call| call.session_id == "demo-recovered-plan").count(), 1);
+    assert_eq!(calls.iter().filter(|call| call.session_id == "demo-recovered-1").count(), 3);
     assert!(
         calls.iter().any(|call| call.session_id == "demo-recovered-2"),
         "later batch must continue after retry succeeds"
@@ -1076,11 +1022,7 @@ async fn goal_mode_continues_after_subtask_retries_and_finishes_via_checklist() 
     assert_eq!(kinds.first().copied(), Some("planning_started"));
     assert!(events.iter().any(|event| matches!(
         event,
-        TaskPlanRunStreamEventDto::BatchFinished {
-            batch: 1,
-            success: false,
-            ..
-        }
+        TaskPlanRunStreamEventDto::BatchFinished { batch: 1, success: false, .. }
     )));
     assert!(events.iter().any(|event| {
         matches!(
@@ -1133,10 +1075,7 @@ async fn run_plan_errors_when_planning_session_skips_writing_tasks_json() {
         err.contains("规划会话未在固定目录写出任务文件"),
         "error should explain missing write: {err}"
     );
-    assert!(
-        err.contains("没有用工具落盘"),
-        "error should include planning output preview: {err}"
-    );
+    assert!(err.contains("没有用工具落盘"), "error should include planning output preview: {err}");
 
     let events = events.lock().expect("events").clone();
     assert_eq!(event_kind(&events[0]), "planning_started");
@@ -1231,10 +1170,9 @@ async fn goal_mode_never_finishes_without_validation_evidence() {
         TaskPlanRunStreamEventDto::GoalEvaluated { achieved: false, reason, .. }
             if reason.contains("状态不是")
     )));
-    assert!(!events.iter().any(|event| matches!(
-        event,
-        TaskPlanRunStreamEventDto::Finished { .. }
-    )));
+    assert!(
+        !events.iter().any(|event| matches!(event, TaskPlanRunStreamEventDto::Finished { .. }))
+    );
 }
 
 #[tokio::test]
@@ -1274,10 +1212,9 @@ async fn goal_mode_blocks_on_explicit_external_blocker() {
         Some(TaskPlanRunStreamEventDto::Blocked { reason, .. })
             if reason.contains("缺少部署凭据")
     ));
-    assert!(!events.iter().any(|event| matches!(
-        event,
-        TaskPlanRunStreamEventDto::Finished { .. }
-    )));
+    assert!(
+        !events.iter().any(|event| matches!(event, TaskPlanRunStreamEventDto::Finished { .. }))
+    );
 }
 
 #[test]
@@ -1291,22 +1228,10 @@ fn gateway_session_options_always_enable_full_access() {
         acp_agent: None,
     };
     let options = super::gateway_session_options(&request);
-    assert_eq!(
-        options.get("full_access").and_then(serde_json::Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        options.get("cwd").and_then(serde_json::Value::as_str),
-        Some("/tmp/project")
-    );
-    assert_eq!(
-        options.get("agent").and_then(serde_json::Value::as_str),
-        Some("main")
-    );
-    assert_eq!(
-        options.get("acp_test").and_then(serde_json::Value::as_bool),
-        Some(false)
-    );
+    assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
+    assert_eq!(options.get("cwd").and_then(serde_json::Value::as_str), Some("/tmp/project"));
+    assert_eq!(options.get("agent").and_then(serde_json::Value::as_str), Some("main"));
+    assert_eq!(options.get("acp_test").and_then(serde_json::Value::as_bool), Some(false));
     assert!(!options.contains_key("acp_permission_mode"));
 }
 
@@ -1321,20 +1246,11 @@ fn gateway_session_options_use_approve_all_for_acp() {
         acp_agent: Some("codex".to_string()),
     };
     let options = super::gateway_session_options(&request);
-    assert_eq!(
-        options.get("full_access").and_then(serde_json::Value::as_bool),
-        Some(true)
-    );
-    assert_eq!(
-        options.get("acp_agent").and_then(serde_json::Value::as_str),
-        Some("codex")
-    );
+    assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
+    assert_eq!(options.get("acp_agent").and_then(serde_json::Value::as_str), Some("codex"));
     assert_eq!(
         options.get("acp_permission_mode").and_then(serde_json::Value::as_str),
         Some("approve-all")
     );
-    assert_eq!(
-        options.get("acp_test").and_then(serde_json::Value::as_bool),
-        Some(true)
-    );
+    assert_eq!(options.get("acp_test").and_then(serde_json::Value::as_bool), Some(true));
 }

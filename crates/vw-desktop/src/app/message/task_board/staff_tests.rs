@@ -250,17 +250,16 @@ fn task_board_unknown_lifecycle_reports_error_without_fallback() {
 }
 
 #[test]
-fn staff_matrix_config_action_opens_channels_settings_and_expands_matrix() {
+fn staff_matrix_config_action_opens_channels_settings_on_matrix_tab() {
     let (mut app, _task) = crate::app::App::new();
     app.channels_settings.matrix = None;
-    app.channels_settings.expanded_panels.clear();
 
     let _task = super::update(&mut app, super::TaskBoardMessage::OpenMatrixTaskPoolConfig);
 
     assert!(app.show_system_settings);
     assert_eq!(app.system_settings_tab, SystemTab::Channels);
     assert!(app.channels_settings.matrix.is_none());
-    assert!(app.channels_settings.expanded_panels.contains("matrix"));
+    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Matrix);
     assert!(app.channels_settings.save_error.is_none());
 }
 
@@ -522,9 +521,7 @@ async fn desktop_staff_orchestration_uses_workflow_level_gateway_paths() {
         "capability catalog save should use workflow capability path: {requests:?}"
     );
     assert!(
-        requests.iter().all(|request| {
-            !request.path.starts_with("/v1/staff/workflows/")
-        }),
+        requests.iter().all(|request| { !request.path.starts_with("/v1/staff/workflows/") }),
         "desktop orchestration should use project-scoped paths: {paths:?}"
     );
 }
@@ -544,8 +541,7 @@ fn staff_stage_actions_projection_ignores_legacy_workflow_bindings() {
     assert!(projection.stage_workflow_bindings.is_empty());
     assert!(
         projection.stage_actions.iter().all(|action| {
-            action.workflow_uuid.as_deref()
-                != Some("018ff4b0-1d0d-7a2c-a30c-7bcf9ee1f021")
+            action.workflow_uuid.as_deref() != Some("018ff4b0-1d0d-7a2c-a30c-7bcf9ee1f021")
         }),
         "legacy workflow bindings should not become stage actions"
     );
@@ -1060,8 +1056,7 @@ async fn desktop_staff_capability_catalog_loads_and_saves_draft() {
     );
     assert!(
         requests.iter().any(|request| {
-            request.path
-                == "/v1/staff/projects/proj_1/workflows/dev_lifecycle/orchestration"
+            request.path == "/v1/staff/projects/proj_1/workflows/dev_lifecycle/orchestration"
                 && request.method == "GET"
         }),
         "successful save should refresh workflow orchestration: {requests:?}"
@@ -2170,10 +2165,7 @@ fn staff_feed_tab_and_task_status_filter_update_independent_staff_view_state() {
         &mut app,
         super::TaskBoardMessage::SelectStaffTaskStatusTab(TaskStatus::CodeReview),
     );
-    assert_eq!(
-        app.task_board_staff_task_status_filter,
-        vec![TaskStatus::CodeReview]
-    );
+    assert_eq!(app.task_board_staff_task_status_filter, vec![TaskStatus::CodeReview]);
 
     let _task = super::update(&mut app, super::TaskBoardMessage::SelectAllStaffTaskStatuses);
     assert!(app.task_board_staff_task_status_filter.is_empty());

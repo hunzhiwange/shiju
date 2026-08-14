@@ -13,10 +13,7 @@ fn vim_normal_insert_and_external_editor_intent_preserve_draft() {
     let mut state = TuiState::default();
     state.prompt.set_value("hello");
 
-    handle_vim_key(
-        &mut state,
-        KeyEvent::new(KeyCode::Char('v'), KeyModifiers::ALT),
-    );
+    handle_vim_key(&mut state, KeyEvent::new(KeyCode::Char('v'), KeyModifiers::ALT));
     assert_eq!(state.prompt.vim_mode, VimMode::Normal);
     handle_vim_key(&mut state, key(KeyCode::Char('h')));
     assert_eq!(state.prompt.cursor.char_index, 4);

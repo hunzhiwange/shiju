@@ -196,12 +196,11 @@ impl QueryEngine {
         let runtime: Arc<dyn runtime::RuntimeAdapter> =
             Arc::from(runtime::create_runtime(&config.runtime)?);
 
-        let security =
-            Arc::new(SecurityPolicy::from_configs(
-                &config.autonomy,
-                &config.security,
-                &config.workspace_dir,
-            ));
+        let security = Arc::new(SecurityPolicy::from_configs(
+            &config.autonomy,
+            &config.security,
+            &config.workspace_dir,
+        ));
 
         let memory: Arc<dyn Memory> = Arc::from(memory::create_memory_with_storage(
             &config.memory,
@@ -406,7 +405,8 @@ impl QueryEngine {
             self.history = history_snapshot;
         } else {
             if !retry_response_persisted {
-                self.history.extend(request_history.into_iter().skip(transient_len + persistent_len));
+                self.history
+                    .extend(request_history.into_iter().skip(transient_len + persistent_len));
             }
             self.turn_count = self.turn_count.saturating_add(1);
             self.govern_history().await;
@@ -544,8 +544,9 @@ fn build_tool_descriptions(config: &Config) -> Vec<(&'static str, &'static str)>
         tool_descs.push(("composio", "Execute actions on 1000+ apps via Composio."));
     }
 
-    let has_agent_tool =
-        merged_agent_configs(&config.agents).values().any(|agent| agent.enabled && agent.allow_as_subagent);
+    let has_agent_tool = merged_agent_configs(&config.agents)
+        .values()
+        .any(|agent| agent.enabled && agent.allow_as_subagent);
     if has_agent_tool {
         tool_descs.push((
             "AgentTool",

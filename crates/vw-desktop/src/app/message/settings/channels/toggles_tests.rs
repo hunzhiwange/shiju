@@ -7,7 +7,7 @@ fn app() -> App {
 }
 
 #[test]
-fn toggle_enabled_creates_static_channel_defaults_and_expands_panels() {
+fn toggle_enabled_creates_static_channel_defaults() {
     let mut app = app();
     let channels = [
         "telegram",
@@ -32,7 +32,6 @@ fn toggle_enabled_creates_static_channel_defaults_and_expands_panels() {
 
     for channel in channels {
         toggle_enabled(&mut app, channel, true);
-        assert!(app.channels_settings.expanded_panels.contains(channel));
     }
 
     let telegram = app.channels_settings.telegram.as_ref().expect("telegram");
@@ -97,7 +96,7 @@ fn toggle_enabled_creates_static_channel_defaults_and_expands_panels() {
 }
 
 #[test]
-fn toggle_enabled_disables_every_static_channel_without_collapsing_panels() {
+fn toggle_enabled_disables_every_static_channel() {
     let mut app = app();
     let channels = [
         "telegram",
@@ -123,7 +122,6 @@ fn toggle_enabled_disables_every_static_channel_without_collapsing_panels() {
     for channel in channels {
         toggle_enabled(&mut app, channel, true);
         toggle_enabled(&mut app, channel, false);
-        assert!(app.channels_settings.expanded_panels.contains(channel));
     }
 
     assert!(app.channels_settings.telegram.is_none());
@@ -194,14 +192,12 @@ fn toggle_enabled_preserves_matrix_config_when_switch_is_disabled() {
 }
 
 #[test]
-fn toggle_enabled_unknown_channel_only_expands_when_enabled() {
+fn toggle_enabled_ignores_unknown_channel() {
     let mut app = app();
 
     toggle_enabled(&mut app, "unknown", false);
-    assert!(!app.channels_settings.expanded_panels.contains("unknown"));
-
     toggle_enabled(&mut app, "unknown", true);
-    assert!(app.channels_settings.expanded_panels.contains("unknown"));
+    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Global);
 }
 
 #[test]
@@ -212,7 +208,7 @@ fn next_instance_id_returns_first_unused_numeric_id() {
 }
 
 #[test]
-fn add_channel_instance_reuses_gaps_and_expands_supported_panels() {
+fn add_channel_instance_reuses_gaps() {
     let mut app = app();
 
     for channel in ["matrix", "feishu", "dingtalk"] {
@@ -221,7 +217,6 @@ fn add_channel_instance_reuses_gaps_and_expands_supported_panels() {
         add_channel_instance(&mut app, channel);
         remove_channel_instance(&mut app, channel, 1);
         add_channel_instance(&mut app, channel);
-        assert!(app.channels_settings.expanded_panels.contains(channel));
     }
 
     assert_eq!(
@@ -259,7 +254,7 @@ fn add_channel_instance_unknown_channel_does_nothing() {
     assert!(app.channels_settings.matrix_instances.is_empty());
     assert!(app.channels_settings.feishu_instances.is_empty());
     assert!(app.channels_settings.dingtalk_instances.is_empty());
-    assert!(!app.channels_settings.expanded_panels.contains("unknown"));
+    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Global);
 }
 
 #[test]

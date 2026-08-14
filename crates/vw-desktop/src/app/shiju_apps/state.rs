@@ -14,7 +14,9 @@ pub(crate) enum ShijuAppsLoadState<T> {
     #[default]
     Idle,
     NeedsLogin,
-    Loading { generation: u64 },
+    Loading {
+        generation: u64,
+    },
     Loaded(T),
     Error(String),
 }

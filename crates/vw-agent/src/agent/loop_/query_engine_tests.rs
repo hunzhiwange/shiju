@@ -250,7 +250,12 @@ async fn agent_and_query_engine_use_ephemeral_query_engine_context_each_turn() {
         assert_eq!(request[0].role, "user");
         assert!(request[0].content.starts_with("<system-reminder>"));
     }
-    assert!(engine.history_snapshot().iter().all(|message| !message.content.contains("<system-reminder>")));
+    assert!(
+        engine
+            .history_snapshot()
+            .iter()
+            .all(|message| !message.content.contains("<system-reminder>"))
+    );
     assert!(engine.history_snapshot().iter().all(|message| message.role != "system"));
 }
 
@@ -580,7 +585,8 @@ async fn submit_message_error_rolls_back_history_and_turn_count() {
 
 #[tokio::test]
 async fn submit_message_compacts_before_the_primary_request() {
-    let provider = ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("done", None))]);
+    let provider =
+        ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("done", None))]);
     let provider_handle = provider.clone();
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
     engine.compact_context = true;
@@ -621,7 +627,12 @@ async fn prompt_too_long_compacts_and_retries_once() {
 
     assert_eq!(response, "recovered");
     assert_eq!(provider_handle.seen_messages().len(), 2);
-    assert!(engine.history_snapshot().iter().any(|message| message.content.contains("[Compaction summary]")));
+    assert!(
+        engine
+            .history_snapshot()
+            .iter()
+            .any(|message| message.content.contains("[Compaction summary]"))
+    );
 }
 
 #[tokio::test]
@@ -639,7 +650,10 @@ async fn govern_history_does_not_apply_message_count_trimming() {
     engine.govern_history().await;
 
     let history = engine.history_snapshot();
-    assert_eq!(history.iter().map(|m| m.content.as_str()).collect::<Vec<_>>(), vec!["system", "old", "middle", "new"]);
+    assert_eq!(
+        history.iter().map(|m| m.content.as_str()).collect::<Vec<_>>(),
+        vec!["system", "old", "middle", "new"]
+    );
 }
 
 #[tokio::test]

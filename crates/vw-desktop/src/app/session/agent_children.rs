@@ -71,8 +71,7 @@ fn plan_run_control_from_value(value: &serde_json::Value) -> Option<PlanRunSessi
     if metadata.get("plan_run").and_then(serde_json::Value::as_bool) != Some(true) {
         return None;
     }
-    let session_id =
-        metadata.get("session_id")?.as_str()?.trim().to_string();
+    let session_id = metadata.get("session_id")?.as_str()?.trim().to_string();
     let task_id = metadata.get("task_id")?.as_str()?.trim().to_string();
     if session_id.is_empty() || task_id.is_empty() {
         return None;
@@ -94,9 +93,7 @@ fn is_tool_block_boundary(content: &str, start: usize) -> bool {
     start == 0 || content[..start].ends_with('\n')
 }
 
-pub(crate) fn plan_run_session_controls_from_content(
-    content: &str,
-) -> Vec<PlanRunSessionControl> {
+pub(crate) fn plan_run_session_controls_from_content(content: &str) -> Vec<PlanRunSessionControl> {
     let mut controls = Vec::new();
     let mut positions = HashMap::<String, usize>::new();
     let mut cursor = 0;

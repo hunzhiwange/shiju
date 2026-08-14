@@ -165,15 +165,9 @@ where
 
         // 模态弹层等待鼠标释放后关闭，确保同一次点击不会落到底层控件。
         let close_event = if self.block_background_events {
-            matches!(
-                event,
-                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
-            )
+            matches!(event, Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)))
         } else {
-            matches!(
-                event,
-                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-            )
+            matches!(event, Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)))
         };
         if close_event
             && let Some(on_close) = &self.on_close
@@ -189,10 +183,8 @@ where
             .as_widget_mut()
             .update(self.tree, event, layout, cursor, renderer, clipboard, shell, &bounds);
 
-        let user_input_event = matches!(
-            event,
-            Event::Mouse(_) | Event::Touch(_) | Event::Keyboard(_)
-        );
+        let user_input_event =
+            matches!(event, Event::Mouse(_) | Event::Touch(_) | Event::Keyboard(_));
         // 模态弹层捕获全部用户输入；普通弹层仅捕获内部鼠标事件。
         if self.block_background_events && user_input_event {
             shell.capture_event();

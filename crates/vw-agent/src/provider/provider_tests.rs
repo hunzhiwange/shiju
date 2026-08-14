@@ -240,8 +240,8 @@ async fn agent_cross_layer_fixture_uses_the_same_default_limit() {
     let mut providers = serde_json::Map::new();
     providers.insert(provider_id.to_string(), provider.take());
     config::update(serde_json::json!({"providers": providers}))
-    .await
-    .expect("isolated provider config should be saved");
+        .await
+        .expect("isolated provider config should be saved");
 
     let state = load_state_impl(false).await;
     let model = &state.providers[provider_id].models[model_id];

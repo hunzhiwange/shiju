@@ -547,8 +547,14 @@ pub async fn materialize_image_reference(
     let max_bytes = max_image_size_mb.saturating_mul(1024 * 1024);
     let output_budget = per_image_output_budget(image_count_for_budget.max(1));
     let remote_client = build_runtime_proxy_client_with_timeouts("provider.ollama", 30, 10);
-    materialize_image_reference_with_budget(source, config, max_bytes, output_budget, &remote_client)
-        .await
+    materialize_image_reference_with_budget(
+        source,
+        config,
+        max_bytes,
+        output_budget,
+        &remote_client,
+    )
+    .await
 }
 
 async fn materialize_image_reference_with_budget(

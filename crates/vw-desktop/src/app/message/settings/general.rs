@@ -4,8 +4,7 @@ use iced::Task;
 use super::{GeneralSettingsMessage, SettingsMessage};
 
 #[cfg(test)]
-static LAST_PERSISTED_TIMEZONE: std::sync::Mutex<Option<String>> =
-    std::sync::Mutex::new(None);
+static LAST_PERSISTED_TIMEZONE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
 #[cfg(test)]
 fn persist_timezone(timezone: String) {

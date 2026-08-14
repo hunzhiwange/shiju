@@ -75,8 +75,7 @@ pub(super) fn render_shell_card(
         ]));
     }
     if !input.stderr.trim().is_empty() {
-        let stderr =
-            truncate_shell_output(input.stderr.as_str(), 1, DEFAULT_OUTPUT_BYTES);
+        let stderr = truncate_shell_output(input.stderr.as_str(), 1, DEFAULT_OUTPUT_BYTES);
         if let Some(error) = stderr.visible_lines.first() {
             lines.push(Line::from(vec![
                 Span::styled("! ", ratatui::style::Style::default().fg(theme.danger)),
@@ -100,7 +99,10 @@ pub(super) fn render_shell_card(
     }
 
     let status = shell_status(input);
-    lines.push(Line::styled(status, if input.running { theme.accent_style() } else { theme.muted_style() }));
+    lines.push(Line::styled(
+        status,
+        if input.running { theme.accent_style() } else { theme.muted_style() },
+    ));
     lines
 }
 

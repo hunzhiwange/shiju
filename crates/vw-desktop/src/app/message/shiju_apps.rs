@@ -66,41 +66,22 @@ pub(crate) fn update(app: &mut App, message: ShijuAppsMessage) -> Task<Message> 
         ShijuAppsMessage::OpenInstalled(installation_id) => {
             prepare_installed_launch(app, installation_id)
         }
-        ShijuAppsMessage::LaunchPrepared {
-            generation,
-            account_id,
-            installation_id,
-            result,
-        } => finish_installed_launch(app, generation, &account_id, &installation_id, result),
+        ShijuAppsMessage::LaunchPrepared { generation, account_id, installation_id, result } => {
+            finish_installed_launch(app, generation, &account_id, &installation_id, result)
+        }
         ShijuAppsMessage::Retry | ShijuAppsMessage::ReloadAfterAccountChange => {
             load_current_tab(app)
         }
-        ShijuAppsMessage::StoreLoaded {
-            generation,
-            account_id,
-            result,
-        } => {
-            if app
-                .expert_hub
-                .shiju_apps
-                .response_is_current(generation, &account_id)
-            {
+        ShijuAppsMessage::StoreLoaded { generation, account_id, result } => {
+            if app.expert_hub.shiju_apps.response_is_current(generation, &account_id) {
                 app.expert_hub.shiju_apps.store = result
                     .map(ShijuAppsLoadState::Loaded)
                     .unwrap_or_else(ShijuAppsLoadState::Error);
             }
             Task::none()
         }
-        ShijuAppsMessage::MineLoaded {
-            generation,
-            account_id,
-            result,
-        } => {
-            if app
-                .expert_hub
-                .shiju_apps
-                .response_is_current(generation, &account_id)
-            {
+        ShijuAppsMessage::MineLoaded { generation, account_id, result } => {
+            if app.expert_hub.shiju_apps.response_is_current(generation, &account_id) {
                 app.expert_hub.shiju_apps.mine = result
                     .map(ShijuAppsLoadState::Loaded)
                     .unwrap_or_else(ShijuAppsLoadState::Error);
@@ -148,20 +129,15 @@ fn prepare_installed_launch(app: &mut App, installation_id: String) -> Task<Mess
     }
     let credential = account.skill_hub_credential();
     let generation = app.expert_hub.shiju_apps.next_generation();
-    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Preparing {
-        generation,
-        installation_id: installation_id.clone(),
-    };
+    app.expert_hub.shiju_apps.launch =
+        ShijuAppLaunchState::Preparing { generation, installation_id: installation_id.clone() };
     let requested_installation_id = installation_id.clone();
     Task::perform(
         async move {
             let gateway_credential =
                 credential.gateway_credential().map_err(|error| error.to_string())?;
-            gateway_shiju_app_prepare_launch_async(
-                &gateway_credential,
-                &requested_installation_id,
-            )
-            .await
+            gateway_shiju_app_prepare_launch_async(&gateway_credential, &requested_installation_id)
+                .await
         },
         move |result| {
             Message::ShijuApps(ShijuAppsMessage::LaunchPrepared {
@@ -233,11 +209,7 @@ fn ensure_current_tab_loaded(app: &mut App) -> Task<Message> {
             ShijuAppsLoadState::Loading { .. } | ShijuAppsLoadState::Loaded(_)
         ),
     };
-    if needs_load {
-        load_current_tab(app)
-    } else {
-        Task::none()
-    }
+    if needs_load { load_current_tab(app) } else { Task::none() }
 }
 
 fn load_current_tab(app: &mut App) -> Task<Message> {
@@ -261,9 +233,7 @@ fn load_current_tab(app: &mut App) -> Task<Message> {
     };
 
     if app.expert_hub.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
-        app.expert_hub
-            .shiju_apps
-            .clear_for_account(Some(account_id.clone()));
+        app.expert_hub.shiju_apps.clear_for_account(Some(account_id.clone()));
     }
     let generation = app.expert_hub.shiju_apps.next_generation();
     match app.expert_hub.shiju_apps.tab {

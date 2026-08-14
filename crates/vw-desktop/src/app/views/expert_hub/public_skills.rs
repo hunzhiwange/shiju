@@ -3,13 +3,12 @@ use std::fmt;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{
-    Space, button, column, container, pick_list, responsive, row, scrollable, text,
-    text_input,
+    Space, button, column, container, pick_list, responsive, row, scrollable, text, text_input,
 };
 use iced::{Alignment, Element, Font, Length};
 use vw_gateway_client::{
-    SkillMarketSkillDto, SkillMarketSkillLocatorDto, SkillMarketSkillSetDto,
-    SkillMarketSort, SkillMarketSourceDto,
+    SkillMarketSkillDto, SkillMarketSkillLocatorDto, SkillMarketSkillSetDto, SkillMarketSort,
+    SkillMarketSourceDto,
 };
 
 use super::list::{description_preview, description_tooltip};
@@ -71,9 +70,7 @@ pub(super) fn grid_column_count(width: f32) -> usize {
     (((width + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP)).floor() as usize).max(1)
 }
 
-pub(super) fn source_selector_visible(
-    sources: &LoadState<Vec<SkillMarketSourceDto>>,
-) -> bool {
+pub(super) fn source_selector_visible(sources: &LoadState<Vec<SkillMarketSourceDto>>) -> bool {
     matches!(sources, LoadState::Loaded(items) if items.len() > 1)
 }
 
@@ -89,9 +86,7 @@ fn tab_button(
     button(text(label).size(14))
         .on_press(public_message(PublicSkillMessage::SelectTab(tab)))
         .padding([8, 16])
-        .style(move |theme, status| {
-            styles::selected_tab_style(theme, status, selected)
-        })
+        .style(move |theme, status| styles::selected_tab_style(theme, status, selected))
         .into()
 }
 
@@ -127,18 +122,14 @@ fn source_selector(state: &PublicSkillMarketState) -> Element<'static, Message> 
 
 fn search_header(app: &App) -> Element<'_, Message> {
     let state = &app.expert_hub.public_market;
-    let tabs = row(
-        public_tab_specs()
-            .iter()
-            .map(|(label, tab)| tab_button(label, *tab, state.tab == *tab))
-            .collect::<Vec<_>>(),
-    )
+    let tabs = row(public_tab_specs()
+        .iter()
+        .map(|(label, tab)| tab_button(label, *tab, state.tab == *tab))
+        .collect::<Vec<_>>())
     .spacing(6)
     .wrap();
     let search = text_input("搜索技能或套件", &state.query.keyword_draft)
-        .on_input(|query| {
-            public_message(PublicSkillMessage::QueryDraftChanged(query))
-        })
+        .on_input(|query| public_message(PublicSkillMessage::QueryDraftChanged(query)))
         .on_submit(public_message(PublicSkillMessage::SubmitQuery))
         .padding([10, 14])
         .style(styles::search_input_style)
@@ -148,13 +139,8 @@ fn search_header(app: &App) -> Element<'_, Message> {
             column![
                 text("技能")
                     .size(26)
-                    .font(Font {
-                        weight: iced::font::Weight::Bold,
-                        ..Font::default()
-                    }),
-                text("发现适合当前工作的公开技能与套件")
-                    .size(13)
-                    .style(styles::muted_text_style),
+                    .font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
+                text("发现适合当前工作的公开技能与套件").size(13).style(styles::muted_text_style),
             ]
             .spacing(5)
             .width(Length::Fill),
@@ -164,13 +150,9 @@ fn search_header(app: &App) -> Element<'_, Message> {
                 .style(styles::quiet_button_style),
         ]
         .align_y(Alignment::Center),
-        row![
-            tabs,
-            Space::new().width(Length::Fill),
-            source_selector(state),
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center),
+        row![tabs, Space::new().width(Length::Fill), source_selector(state),]
+            .spacing(10)
+            .align_y(Alignment::Center),
         row![
             search,
             button(text("搜索").size(13))
@@ -189,20 +171,13 @@ fn search_header(app: &App) -> Element<'_, Message> {
 fn truncate(value: &str, limit: usize) -> String {
     let mut characters = value.chars();
     let text = characters.by_ref().take(limit).collect::<String>();
-    if characters.next().is_some() {
-        format!("{text}…")
-    } else {
-        text
-    }
+    if characters.next().is_some() { format!("{text}…") } else { text }
 }
 
 fn initial_badge(name: &str) -> Element<'static, Message> {
     let initial = name.chars().next().unwrap_or('技').to_string();
     container(
-        text(initial).size(17).font(Font {
-            weight: iced::font::Weight::Bold,
-            ..Font::default()
-        }),
+        text(initial).size(17).font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
     )
     .width(Length::Fixed(42.0))
     .height(Length::Fixed(42.0))
@@ -212,11 +187,7 @@ fn initial_badge(name: &str) -> Element<'static, Message> {
     .into()
 }
 
-fn skill_coordinate_line(
-    namespace: &str,
-    slug: &str,
-    version: &str,
-) -> Element<'static, Message> {
+fn skill_coordinate_line(namespace: &str, slug: &str, version: &str) -> Element<'static, Message> {
     let coordinate = format!("{namespace} / {slug}");
     let coordinate_preview = container(
         text(truncate(&coordinate, COORDINATE_PREVIEW_CHARS))
@@ -228,12 +199,9 @@ fn skill_coordinate_line(
     .width(Length::Fill)
     .height(Length::Fixed(16.0))
     .clip(true);
-    let coordinate_view = Tooltip::new(
-        coordinate_preview,
-        description_tooltip(coordinate),
-        TooltipPosition::Top,
-    )
-    .gap(8);
+    let coordinate_view =
+        Tooltip::new(coordinate_preview, description_tooltip(coordinate), TooltipPosition::Top)
+            .gap(8);
 
     row![
         coordinate_view,
@@ -269,10 +237,7 @@ fn skill_card(skill: &SkillMarketSkillDto, featured: bool) -> Element<'static, M
                 column![
                     text(truncate(&skill.name, 34))
                         .size(16)
-                        .font(Font {
-                            weight: iced::font::Weight::Semibold,
-                            ..Font::default()
-                        }),
+                        .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
                     skill_coordinate_line(
                         &skill.coordinate.locator.namespace,
                         &skill.coordinate.locator.slug,
@@ -285,9 +250,7 @@ fn skill_card(skill: &SkillMarketSkillDto, featured: bool) -> Element<'static, M
             .spacing(10)
             .align_y(Alignment::Center),
             description_view,
-            text(truncate(&metadata, 70))
-                .size(11)
-                .style(styles::muted_text_style),
+            text(truncate(&metadata, 70)).size(11).style(styles::muted_text_style),
             row![
                 text(truncate(&skill.tags.join(" · "), 42))
                     .size(11)
@@ -305,13 +268,11 @@ fn skill_card(skill: &SkillMarketSkillDto, featured: bool) -> Element<'static, M
     .padding(16)
     .width(Length::Fill)
     .height(Length::Fixed(196.0))
-    .style(move |theme| {
-        if featured {
-            styles::featured_card_style(theme)
-        } else {
-            styles::card_style(theme)
-        }
-    })
+    .style(
+        move |theme| {
+            if featured { styles::featured_card_style(theme) } else { styles::card_style(theme) }
+        },
+    )
     .into()
 }
 
@@ -325,10 +286,7 @@ fn suite_card(suite: &SkillMarketSkillSetDto) -> Element<'static, Message> {
                 column![
                     text(truncate(&suite.name, 34))
                         .size(16)
-                        .font(Font {
-                            weight: iced::font::Weight::Semibold,
-                            ..Font::default()
-                        }),
+                        .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
                     text(format!("{} 个成员 · {}", suite.member_count, suite.author))
                         .size(11)
                         .style(styles::muted_text_style),
@@ -347,10 +305,7 @@ fn suite_card(suite: &SkillMarketSkillSetDto) -> Element<'static, Message> {
                     .style(styles::muted_text_style)
                     .width(Length::Fill),
                 button(text("查看套件").size(12))
-                    .on_press(public_message(PublicSkillMessage::OpenSuiteDetail {
-                        source,
-                        slug,
-                    }))
+                    .on_press(public_message(PublicSkillMessage::OpenSuiteDetail { source, slug }))
                     .padding([6, 11])
                     .style(styles::quiet_button_style),
             ]
@@ -417,9 +372,7 @@ fn error_view(error: &str) -> Element<'static, Message> {
     container(
         column![
             text("加载失败").size(16),
-            text(truncate(error, 100))
-                .size(12)
-                .style(styles::muted_text_style),
+            text(truncate(error, 100)).size(12).style(styles::muted_text_style),
             button(text("重试").size(12))
                 .on_press(public_message(PublicSkillMessage::Retry))
                 .padding([8, 14])
@@ -452,26 +405,18 @@ fn skill_state_content(
 }
 
 fn recommended_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
-    let featured = state
-        .featured(3)
-        .into_iter()
-        .cloned()
-        .collect::<Vec<_>>();
+    let featured = state.featured(3).into_iter().cloned().collect::<Vec<_>>();
     let featured_content = if featured.is_empty() {
         skill_state_content(&state.recommended, true, "暂无精选技能")
     } else {
         card_grid(featured, |skill| skill_card(skill, true))
     };
-    let all_content =
-        skill_state_content(&state.recommended, false, "暂无推荐技能");
+    let all_content = skill_state_content(&state.recommended, false, "暂无推荐技能");
     column![
         row![
             text("精选技能")
                 .size(19)
-                .font(Font {
-                    weight: iced::font::Weight::Semibold,
-                    ..Font::default()
-                })
+                .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() })
                 .width(Length::Fill),
             button(text("换一换").size(12))
                 .on_press(public_message(PublicSkillMessage::RotateFeatured))
@@ -482,10 +427,7 @@ fn recommended_content(state: &PublicSkillMarketState) -> Element<'static, Messa
         featured_content,
         text("推荐技能")
             .size(19)
-            .font(Font {
-                weight: iced::font::Weight::Semibold,
-                ..Font::default()
-            }),
+            .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
         all_content,
     ]
     .spacing(14)
@@ -498,11 +440,7 @@ fn category_controls(state: &PublicSkillMarketState) -> Element<'static, Message
         button(text("全部").size(12))
             .on_press(public_message(PublicSkillMessage::SelectCategory(None)))
             .padding([7, 12])
-            .style(move |theme, status| styles::selected_tab_style(
-                theme,
-                status,
-                all_selected
-            )),
+            .style(move |theme, status| styles::selected_tab_style(theme, status, all_selected)),
     ]
     .spacing(6);
     if let LoadState::Loaded(items) = &state.categories {
@@ -511,9 +449,7 @@ fn category_controls(state: &PublicSkillMarketState) -> Element<'static, Message
             let selected = state.query.category.as_deref() == Some(&slug);
             categories = categories.push(
                 button(text(format!("{} {}", category.name, category.skill_count)).size(12))
-                    .on_press(public_message(PublicSkillMessage::SelectCategory(
-                        Some(slug),
-                    )))
+                    .on_press(public_message(PublicSkillMessage::SelectCategory(Some(slug))))
                     .padding([7, 12])
                     .style(move |theme, status| {
                         styles::selected_tab_style(theme, status, selected)
@@ -521,10 +457,7 @@ fn category_controls(state: &PublicSkillMarketState) -> Element<'static, Message
             );
         }
     }
-    let selected_sort = SORT_OPTIONS
-        .iter()
-        .copied()
-        .find(|option| option.sort == state.query.sort);
+    let selected_sort = SORT_OPTIONS.iter().copied().find(|option| option.sort == state.query.sort);
     row![
         categories.wrap(),
         Space::new().width(Length::Fill),
@@ -542,21 +475,14 @@ fn category_controls(state: &PublicSkillMarketState) -> Element<'static, Message
     .into()
 }
 
-fn pagination(
-    page: u32,
-    page_size: u32,
-    total: u64,
-) -> Element<'static, Message> {
-    let mut previous = button(text("上一页").size(12))
-        .padding([7, 12])
-        .style(styles::quiet_button_style);
+fn pagination(page: u32, page_size: u32, total: u64) -> Element<'static, Message> {
+    let mut previous =
+        button(text("上一页").size(12)).padding([7, 12]).style(styles::quiet_button_style);
     if page > 1 {
-        previous =
-            previous.on_press(public_message(PublicSkillMessage::PreviousPage));
+        previous = previous.on_press(public_message(PublicSkillMessage::PreviousPage));
     }
-    let mut next = button(text("下一页").size(12))
-        .padding([7, 12])
-        .style(styles::quiet_button_style);
+    let mut next =
+        button(text("下一页").size(12)).padding([7, 12]).style(styles::quiet_button_style);
     if u64::from(page) * u64::from(page_size) < total {
         next = next.on_press(public_message(PublicSkillMessage::NextPage));
     }
@@ -571,9 +497,7 @@ fn market_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
         LoadState::Idle | LoadState::Loading { .. } => loading_view(),
         LoadState::NeedsLogin => error_view("公开市场不需要登录，请重试"),
         LoadState::Error(error) => error_view(error),
-        LoadState::Loaded(page) if page.skills.is_empty() => {
-            empty_view("未找到匹配的技能")
-        }
+        LoadState::Loaded(page) if page.skills.is_empty() => empty_view("未找到匹配的技能"),
         LoadState::Loaded(page) => column![
             card_grid(page.skills.clone(), |skill| skill_card(skill, false)),
             pagination(page.page, page.page_size, page.total),
@@ -589,9 +513,7 @@ fn suites_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
         LoadState::Idle | LoadState::Loading { .. } => loading_view(),
         LoadState::NeedsLogin => error_view("公开市场不需要登录，请重试"),
         LoadState::Error(error) => error_view(error),
-        LoadState::Loaded(page) if page.skillsets.is_empty() => {
-            empty_view("未找到匹配的套件")
-        }
+        LoadState::Loaded(page) if page.skillsets.is_empty() => empty_view("未找到匹配的套件"),
         LoadState::Loaded(page) => column![
             card_grid(page.skillsets.clone(), suite_card),
             pagination(page.page, page.page_size, page.total),
@@ -613,9 +535,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             PublicSkillTab::Suites => suites_content(state),
         },
     };
-    let body = column![search_header(app), content]
-        .spacing(18)
-        .width(Length::Fill);
+    let body = column![search_header(app), content].spacing(18).width(Length::Fill);
     scrollable(body)
         .direction(Direction::Vertical(
             Scrollbar::new()
@@ -628,8 +548,6 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         .into()
 }
 
-pub(super) fn skill_detail_message(
-    locator: SkillMarketSkillLocatorDto,
-) -> Message {
+pub(super) fn skill_detail_message(locator: SkillMarketSkillLocatorDto) -> Message {
     public_message(PublicSkillMessage::OpenSkillDetail(locator))
 }

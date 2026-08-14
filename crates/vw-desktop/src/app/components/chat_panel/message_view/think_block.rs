@@ -15,11 +15,12 @@ use super::super::tool_text_support::{
     READ_ONLY_EDITOR_MAX_HEIGHT, chat_text_font, chat_text_line_height, read_only_text_style,
 };
 use super::super::utils::{
-    bold_font, chat_secondary_muted_text_color, chat_secondary_subtle_text_color, icon_svg,
+    chat_secondary_muted_text_color, chat_secondary_subtle_text_color, icon_svg,
     normalize_display_text,
 };
 use super::styles::{
-    THINK_META_TEXT_SIZE, THINK_STATUS_TEXT_SIZE, think_block_text_color, thinking_status_text,
+    THINK_BLOCK_CONTENT_SPACING, THINK_META_TEXT_SIZE, THINK_STATUS_TEXT_SIZE,
+    think_block_text_color, thinking_status_text,
 };
 use super::text::{should_segment_text_block, think_text_body};
 
@@ -95,36 +96,29 @@ pub(super) fn think_block_view<'a>(
     } else {
         text(status_label)
             .size(THINK_STATUS_TEXT_SIZE)
-            .font(bold_font())
+            .font(chat_text_font())
             .style(move |theme: &Theme| iced::widget::text::Style {
-                color: Some(think_block_text_color(theme)),
+                color: Some(chat_secondary_subtle_text_color(theme)),
             })
             .into()
     };
 
-    let mut head_row = row![].spacing(4).align_y(Alignment::Center);
+    let mut head_row = row![status_text].spacing(5).align_y(Alignment::Center);
 
-    if !is_thinking {
+    if let Some(duration) = duration_label {
         head_row = head_row.push(
-            container(text("💡").size(THINK_META_TEXT_SIZE).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(think_block_text_color(theme)) }
-            }))
-            .padding(iced::Padding { top: 0.0, right: 0.0, bottom: 2.0, left: 0.0 }),
+            text(format!("· {duration}"))
+                .size(THINK_META_TEXT_SIZE)
+                .font(chat_text_font())
+                .style(|theme: &Theme| {
+                iced::widget::text::Style { color: Some(chat_secondary_subtle_text_color(theme)) }
+                }),
         );
     }
 
-    head_row = head_row.push(status_text);
+    head_row = head_row.push(container(toggle_icon).padding([1, 2]));
 
-    if let Some(duration) = duration_label {
-        head_row =
-            head_row.push(text(duration).size(THINK_META_TEXT_SIZE).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(chat_secondary_subtle_text_color(theme)) }
-            }));
-    }
-
-    head_row = head_row.push(container(toggle_icon).padding([2, 4]));
-
-    let head = mouse_area(container(head_row).width(Length::Fill).padding([2, 0]))
+    let head = mouse_area(container(head_row).width(Length::Fill).padding([1, 0]))
         .on_enter(Message::Chat(message::ChatMessage::ThinkHover(msg_idx, think_idx)))
         .on_exit(Message::Chat(message::ChatMessage::ThinkHoverLeave));
 
@@ -134,7 +128,7 @@ pub(super) fn think_block_view<'a>(
         default_expanded,
     )));
 
-    let mut think_col = column![head].spacing(8);
+    let mut think_col = column![head].spacing(THINK_BLOCK_CONTENT_SPACING);
 
     if expanded {
         let text_content = normalize_display_text(content.trim()).into_owned();
@@ -176,9 +170,8 @@ pub(super) fn think_block_view<'a>(
                             read_only_text_style(theme, value)
                         });
 
-                    let body = container(pass_wheel_to_parent(editor))
-                        .width(Length::Fill)
-                        .style(|_theme: &Theme| iced::widget::container::Style {
+                    let body = container(pass_wheel_to_parent(editor)).width(Length::Fill).style(
+                        |_theme: &Theme| iced::widget::container::Style {
                             background: None,
                             border: Border {
                                 width: 0.0,
@@ -186,7 +179,8 @@ pub(super) fn think_block_view<'a>(
                                 radius: 10.0.into(),
                             },
                             ..Default::default()
-                        });
+                        },
+                    );
                     think_col = think_col.push(body);
                 } else {
                     let body = container(

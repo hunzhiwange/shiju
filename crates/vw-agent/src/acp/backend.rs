@@ -2,12 +2,12 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Mutex;
 use std::sync::Arc;
+use std::sync::Mutex;
 
+use agent_client_protocol::McpServer;
 use async_trait::async_trait;
 use serde_json::{Value, json};
-use agent_client_protocol::McpServer;
 use vw_acp::server::{
     BackendCancelHandle, BackendError, BackendEvent, BackendHistoryEntry, BackendPrompt,
     BackendRole, BackendSession, BackendTermination, BackendToolStatus, PromptContent,
@@ -15,18 +15,16 @@ use vw_acp::server::{
 };
 use vw_api_types::id::TenantScope;
 
+use crate::agent::loop_::approval::NonCliApprovalContext;
+use crate::app::agent::approval::ApprovalManager;
 use crate::session::message;
-use crate::session::processor::{
-    Request, StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind,
-};
+use crate::session::processor::{Request, StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
 use crate::session::runtime::{
     CreateSessionInput, PromptCancelHandle, PromptEvent, PromptTermination, PromptTurn,
     SessionScope, SessionToolset, create_session, load_session, start_prompt,
     start_prompt_with_runner,
 };
 use crate::session::ui_types::{ChatMessage, ChatRole, TokenUsage};
-use crate::agent::loop_::approval::NonCliApprovalContext;
-use crate::app::agent::approval::ApprovalManager;
 
 use super::approval::ApprovalBridge;
 use super::mcp::prepare_session_tools;
@@ -95,12 +93,8 @@ fn lifecycle_error(error: crate::session::runtime::LifecycleError) -> BackendErr
         }
         LifecycleError::DirectoryMustBeAbsolute { .. }
         | LifecycleError::DirectoryUnavailable { .. }
-        | LifecycleError::DirectoryNotDirectory { .. } => {
-            BackendError::InvalidRequest(message)
-        }
-        LifecycleError::Project(_) | LifecycleError::Session(_) => {
-            BackendError::Internal(message)
-        }
+        | LifecycleError::DirectoryNotDirectory { .. } => BackendError::InvalidRequest(message),
+        LifecycleError::Project(_) | LifecycleError::Session(_) => BackendError::Internal(message),
     }
 }
 
@@ -362,10 +356,7 @@ async fn persist_turn(
                     provider_id: String::new(),
                     mode: "chat".to_string(),
                     agent: "acp".to_string(),
-                    path: message::PathInfo {
-                        cwd: directory_text.clone(),
-                        root: directory_text,
-                    },
+                    path: message::PathInfo { cwd: directory_text.clone(), root: directory_text },
                     summary: None,
                     cost: 0.0,
                     tokens: message::TokenInfo {
@@ -378,10 +369,7 @@ async fn persist_turn(
                         input: usage.input_tokens,
                         output: usage.output_tokens,
                         reasoning: usage.reasoning_tokens,
-                        cache: message::TokenCacheInfo {
-                            read: usage.cached_tokens,
-                            write: 0,
-                        },
+                        cache: message::TokenCacheInfo { read: usage.cached_tokens, write: 0 },
                     },
                     variant: None,
                     finish: Some(if error.is_some() { "error" } else { "stop" }.to_string()),
@@ -484,8 +472,7 @@ fn bridge_prompt(
                 _ => {}
             }
             if let Some(event) = map_runtime_event(event) {
-                let terminal =
-                    matches!(event, BackendEvent::Terminal(_) | BackendEvent::Error(_));
+                let terminal = matches!(event, BackendEvent::Terminal(_) | BackendEvent::Error(_));
                 if events_tx.send(event).is_err() || terminal {
                     break;
                 }
@@ -541,11 +528,7 @@ pub(crate) async fn start_prompt_with_runtime_runner<R>(
     runner: R,
 ) -> Result<BackendPrompt, BackendError>
 where
-    R: FnOnce(
-            Request,
-            Box<dyn FnMut(StreamEvent) -> bool + Send>,
-        ) + Send
-        + 'static,
+    R: FnOnce(Request, Box<dyn FnMut(StreamEvent) -> bool + Send>) + Send + 'static,
 {
     start_prompt_core(backend, session_id, prompt, |request| {
         start_prompt_with_runner(request, runner)

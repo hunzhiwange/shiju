@@ -3,17 +3,10 @@ use iced::{Background, Border, Color, Shadow, Theme, Vector};
 
 pub(crate) const SCROLLBAR_WIDTH: u32 = 4;
 
-pub(super) fn tab_style(
-    theme: &Theme,
-    status: button::Status,
-    selected: bool,
-) -> button::Style {
+pub(super) fn tab_style(theme: &Theme, status: button::Status, selected: bool) -> button::Style {
     let palette = theme.extended_palette();
-    let active = if selected {
-        palette.primary.strong.color
-    } else {
-        palette.background.weak.color
-    };
+    let active =
+        if selected { palette.primary.strong.color } else { palette.background.weak.color };
     let background = match status {
         button::Status::Hovered => palette.background.strong.color,
         _ => active,
@@ -35,11 +28,7 @@ pub(super) fn quiet_button_style(theme: &Theme, status: button::Status) -> butto
     button::Style {
         background: Some(Background::Color(background)),
         text_color: theme.palette().text,
-        border: Border {
-            color: palette.background.strong.color,
-            width: 1.0,
-            radius: 7.0.into(),
-        },
+        border: Border { color: palette.background.strong.color, width: 1.0, radius: 7.0.into() },
         ..Default::default()
     }
 }
@@ -49,11 +38,7 @@ pub(super) fn card_style(theme: &Theme) -> container::Style {
     container::Style {
         background: Some(Background::Color(palette.background.weak.color)),
         text_color: Some(theme.palette().text),
-        border: Border {
-            color: palette.background.strong.color,
-            width: 1.0,
-            radius: 12.0.into(),
-        },
+        border: Border { color: palette.background.strong.color, width: 1.0, radius: 12.0.into() },
         shadow: Shadow {
             color: Color::BLACK.scale_alpha(if palette.is_dark { 0.22 } else { 0.08 }),
             offset: Vector::new(0.0, 2.0),

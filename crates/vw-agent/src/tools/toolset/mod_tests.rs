@@ -147,8 +147,7 @@ fn delegate_agents_auto_load_project_skills_by_default_and_preserve_explicit_ski
         agent_config("all", true, vec!["explicit-skill".to_string()]),
     )]);
 
-    let effective =
-        enabled_delegate_agents_with_project_skills(&agents, &workspace, &root_config);
+    let effective = enabled_delegate_agents_with_project_skills(&agents, &workspace, &root_config);
 
     assert_eq!(
         effective["worker"].allowed_skills,
@@ -173,8 +172,7 @@ fn delegate_agents_require_explicit_skills_when_project_auto_load_is_disabled() 
         agent_config("all", true, vec!["explicit-skill".to_string()]),
     )]);
 
-    let effective =
-        enabled_delegate_agents_with_project_skills(&agents, &workspace, &root_config);
+    let effective = enabled_delegate_agents_with_project_skills(&agents, &workspace, &root_config);
 
     assert_eq!(effective["worker"].allowed_skills, vec!["explicit-skill".to_string()]);
 }
@@ -751,8 +749,7 @@ async fn workflow_and_goal_sessions_inherit_recursive_agent_tool_controls() {
     for session_id in ["workflow-subtask-session", "goal-continuation-session"] {
         let ctx =
             ToolRuntimeContext::new(session_id, Some(workspace.to_string_lossy().to_string()));
-        let (tools, tool_use_context) =
-            execution_environment_for_config(&ctx, Arc::clone(&config));
+        let (tools, tool_use_context) = execution_environment_for_config(&ctx, Arc::clone(&config));
         let agent_tool =
             tools.iter().find(|tool| tool.name() == "AgentTool").expect("AgentTool registered");
         let actions = agent_tool.parameters_schema()["properties"]["action"]["enum"]

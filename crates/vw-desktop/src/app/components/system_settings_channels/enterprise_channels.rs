@@ -104,14 +104,7 @@ pub(super) fn lark_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(
-        "lark",
-        "Lark",
-        "国际版 Lark 的 app、接收模式与草稿编辑节流。",
-        s.lark.is_some(),
-        s.expanded_panels.contains("lark"),
-        body,
-    )
+    panel("lark", "Lark", "国际版 Lark 的 app、接收模式与草稿编辑节流。", s.lark.is_some(), body)
 }
 
 /// 构建或处理 `feishu_panel` 对应的界面片段与交互数据。
@@ -323,14 +316,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
 
     body = body.push(add_instance_row("feishu", "新增 Feishu 实例"));
 
-    panel(
-        "feishu",
-        "Feishu",
-        "国内版飞书详细配置。",
-        enabled,
-        s.expanded_panels.contains("feishu"),
-        body.into(),
-    )
+    panel("feishu", "Feishu", "国内版飞书详细配置。", enabled, body.into())
 }
 
 /// 构建或处理 `dingtalk_panel` 对应的界面片段与交互数据。
@@ -424,14 +410,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
 
     body = body.push(add_instance_row("dingtalk", "新增 DingTalk 实例"));
 
-    panel(
-        "dingtalk",
-        "DingTalk",
-        "钉钉 Stream 模式鉴权与白名单。",
-        enabled,
-        s.expanded_panels.contains("dingtalk"),
-        body.into(),
-    )
+    panel("dingtalk", "DingTalk", "钉钉 Stream 模式鉴权与白名单。", enabled, body.into())
 }
 
 /// 构建或处理 `qq_panel` 对应的界面片段与交互数据。
@@ -467,14 +446,7 @@ pub(super) fn qq_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(
-        "qq",
-        "QQ",
-        "QQ 官方机器人 app 信息与接收模式。",
-        s.qq.is_some(),
-        s.expanded_panels.contains("qq"),
-        body,
-    )
+    panel("qq", "QQ", "QQ 官方机器人 app 信息与接收模式。", s.qq.is_some(), body)
 }
 
 /// 构建或处理 `nostr_panel` 对应的界面片段与交互数据。
@@ -511,14 +483,7 @@ pub(super) fn nostr_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(
-        "nostr",
-        "Nostr",
-        "私钥、中继列表和允许的公钥白名单。",
-        s.nostr.is_some(),
-        s.expanded_panels.contains("nostr"),
-        body,
-    )
+    panel("nostr", "Nostr", "私钥、中继列表和允许的公钥白名单。", s.nostr.is_some(), body)
 }
 
 /// 构建或处理 `clawdtalk_panel` 对应的界面片段与交互数据。
@@ -583,7 +548,6 @@ pub(super) fn clawdtalk_panel(app: &App) -> Element<'_, Message> {
         "ClawdTalk",
         "Telnyx 语音通道的 API 鉴权与目的地限制。",
         s.clawdtalk.is_some(),
-        s.expanded_panels.contains("clawdtalk"),
         body,
     )
 }

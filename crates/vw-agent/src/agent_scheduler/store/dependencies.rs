@@ -5,9 +5,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 
 use crate::agent_scheduler::domain::TaskId;
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
-use crate::agent_scheduler::task_graph::{
-    AgentTaskDependency, TaskGraph, TaskGraphTaskSnapshot,
-};
+use crate::agent_scheduler::task_graph::{AgentTaskDependency, TaskGraph, TaskGraphTaskSnapshot};
 
 use super::{
     AgentSchedulerStorageContext, AgentSchedulerStore, open_initialized_connection,

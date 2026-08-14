@@ -314,7 +314,7 @@ impl std::fmt::Display for SystemTab {
             SystemTab::Storage => write!(f, "存储配置"),
             SystemTab::Proxy => write!(f, "代理配置"),
             SystemTab::Tunnel => write!(f, "隧道配置"),
-            SystemTab::Composio => write!(f, "Composio 集成配置"),
+            SystemTab::Composio => write!(f, "Composio"),
             SystemTab::Skills => write!(f, "技能配置"),
             SystemTab::Hooks => write!(f, "钩子配置"),
             SystemTab::Research => write!(f, "研究配置"),
@@ -789,9 +789,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             container(
                 row![
                     column![
-                        row![text("配置").size(22), back_btn]
-                            .spacing(8)
-                            .align_y(Alignment::Center),
+                        row![text("配置").size(22), back_btn].spacing(8).align_y(Alignment::Center),
                         text("管理运行、工具、模型与连接设置。")
                             .size(12)
                             .style(settings_muted_text_style),
@@ -948,10 +946,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         dialog = crate::app::components::system_settings_cron::view_overlays(app, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Scheduler {
-        dialog = crate::app::components::system_settings_scheduler::view_overlays(app, dialog);
-    }
-
     if app.system_settings_tab == SystemTab::AgentsIpc {
         dialog = crate::app::components::system_settings_agents_ipc::view_overlays(app, dialog);
     }
@@ -994,14 +988,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if app.system_settings_tab == SystemTab::Skills {
         dialog = crate::app::components::system_settings_skills::view_overlays(app, dialog);
-    }
-
-    if app.system_settings_tab == SystemTab::Research {
-        dialog = crate::app::components::system_settings_research::view_overlays(app, dialog);
-    }
-
-    if app.system_settings_tab == SystemTab::WebSearch {
-        dialog = crate::app::components::system_settings_web_search::view_overlays(app, dialog);
     }
 
     if app.system_settings_tab == SystemTab::Transcription {

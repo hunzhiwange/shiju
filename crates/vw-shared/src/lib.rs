@@ -23,6 +23,7 @@ pub mod build_identity;
 pub mod id;
 pub mod json;
 pub mod message;
+pub mod pasted_text;
 pub mod patch;
 pub mod permission;
 pub mod project;

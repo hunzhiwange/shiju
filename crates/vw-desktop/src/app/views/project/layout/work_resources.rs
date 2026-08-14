@@ -8,8 +8,8 @@ use iced::widget::{Space, button, column, container, row, text};
 use iced::{Background, Border, Element, Length, Theme};
 
 use crate::app::assets::{self, Icon};
-use crate::app::components::{file_tree, preview_panel};
 use crate::app::components::input_panel::styles::tooltip_dark_style;
+use crate::app::components::{file_tree, preview_panel};
 use crate::app::message::ViewMessage;
 use crate::app::state::WorkResourceMode;
 use crate::app::{App, Message};
@@ -259,16 +259,12 @@ pub(super) fn view(app: &App, corner_radius: f32) -> Element<'_, Message> {
         resource_header_icon_button(
             expand_left_icon,
             "向左扩展",
-            Message::View(ViewMessage::WorkSplitRatioChanged(
-                app.work_split_ratio - 0.05,
-            )),
+            Message::View(ViewMessage::WorkSplitRatioChanged(app.work_split_ratio - 0.05,)),
         ),
         resource_header_icon_button(
             contract_right_icon,
             "向右收起",
-            Message::View(ViewMessage::WorkSplitRatioChanged(
-                app.work_split_ratio + 0.05,
-            )),
+            Message::View(ViewMessage::WorkSplitRatioChanged(app.work_split_ratio + 0.05,)),
         ),
         resource_header_icon_button(
             half_fullscreen_icon,
@@ -287,9 +283,7 @@ pub(super) fn view(app: &App, corner_radius: f32) -> Element<'_, Message> {
     let body = match body_kind(app) {
         ResourceBodyKind::Overview => overview(app),
         ResourceBodyKind::WorkspaceFiles => workspace_files(app),
-        ResourceBodyKind::Browser => {
-            crate::app::message::view::panel::work_browser::view(app)
-        }
+        ResourceBodyKind::Browser => crate::app::message::view::panel::work_browser::view(app),
     };
     let _ = corner_radius;
 

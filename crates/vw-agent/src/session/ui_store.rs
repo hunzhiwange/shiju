@@ -530,9 +530,7 @@ pub fn save_session_todos_scoped(
             scope,
             |store, project_scope| {
                 store.save_session_todos(project_scope, session_id, todos)?;
-                Ok(store
-                    .storage_path()
-                    .map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
+                Ok(store.storage_path().map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
             },
         )
     }
@@ -958,10 +956,7 @@ pub fn delete_session_scoped(id: &str, scope: Option<&str>) {
 fn release_image_assets_for_deleted_session(session_id: &str, scope: Option<&str>) {
     use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
 
-    let scope_key = scope
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or(session_id);
+    let scope_key = scope.map(str::trim).filter(|value| !value.is_empty()).unwrap_or(session_id);
     let Ok(asset_scope) = ImageAssetScope::new(scope_key) else {
         return;
     };

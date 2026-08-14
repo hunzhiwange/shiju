@@ -83,12 +83,8 @@ pub(crate) fn split_scrollbar_area(area: Rect) -> (Rect, Option<Rect>) {
         return (area, None);
     }
     let body = Rect::new(area.x, area.y, area.width.saturating_sub(1), area.height);
-    let track = Rect::new(
-        area.x.saturating_add(area.width.saturating_sub(1)),
-        area.y,
-        1,
-        area.height,
-    );
+    let track =
+        Rect::new(area.x.saturating_add(area.width.saturating_sub(1)), area.y, 1, area.height);
     (body, Some(track))
 }
 

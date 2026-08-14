@@ -31,13 +31,7 @@ impl ApprovalBridge {
         permissions: mpsc::UnboundedSender<BackendPermissionRequest>,
         cancellation: CancellationToken,
     ) -> Self {
-        Self {
-            manager,
-            prompts,
-            permissions,
-            cancellation,
-            timeout: APPROVAL_TIMEOUT,
-        }
+        Self { manager, prompts, permissions, cancellation, timeout: APPROVAL_TIMEOUT }
     }
 
     #[cfg(test)]

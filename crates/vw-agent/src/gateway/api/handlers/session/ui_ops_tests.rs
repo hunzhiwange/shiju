@@ -3,7 +3,7 @@ use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::session::ui_store;
 use axum::extract::{Path, Query};
 use axum::http::{HeaderMap, HeaderValue};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::path::Path as FsPath;
 use std::sync::Once;
 use tempfile::TempDir;
@@ -256,19 +256,13 @@ async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
         Some(&scope_a),
     )
     .expect("raw payload should persist");
-    let Json(with_raw) = session_ui_get(
-        Path(body_a.id.clone()),
-        Query(query_for(project_a_path)),
-        HeaderMap::new(),
-    )
-    .await
-    .expect("raw payload should load");
+    let Json(with_raw) =
+        session_ui_get(Path(body_a.id.clone()), Query(query_for(project_a_path)), HeaderMap::new())
+            .await
+            .expect("raw payload should load");
     let steps = with_raw.expect("session with raw").steps;
     assert_eq!(
-        steps[0]
-            .llm_raw
-            .as_ref()
-            .expect("step raw payload")["messages"][0]["content"],
+        steps[0].llm_raw.as_ref().expect("step raw payload")["messages"][0]["content"],
         "hello"
     );
     ui_store::set_session_scope(Some(&scope_b));
@@ -505,8 +499,9 @@ async fn session_ui_get_maps_invalid_json_llm_raw_to_internal_error() {
     .expect("session containing invalid raw step should save");
     assert!(saved);
     let tenant = ui_store::current_tenant_scope();
-    let connection = Connection::open(ui_store::session_file_path(&session_id).expect("session store path"))
-        .expect("open session store database");
+    let connection =
+        Connection::open(ui_store::session_file_path(&session_id).expect("session store path"))
+            .expect("open session store database");
     connection
         .execute(
             "UPDATE session_step_llm_raw
@@ -524,13 +519,9 @@ async fn session_ui_get_maps_invalid_json_llm_raw_to_internal_error() {
         )
         .expect("raw payload should be corrupted for the error case");
 
-    let error = session_ui_get(
-        Path(session_id),
-        Query(query_for(project_path)),
-        HeaderMap::new(),
-    )
-    .await
-    .expect_err("invalid raw payload should fail");
+    let error = session_ui_get(Path(session_id), Query(query_for(project_path)), HeaderMap::new())
+        .await
+        .expect_err("invalid raw payload should fail");
     assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
 }
 

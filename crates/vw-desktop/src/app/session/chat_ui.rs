@@ -849,6 +849,7 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn sync_chat_message_estimated_heights_len(&mut self) {
+        self.sync_active_session_user_question_index();
         let mut heights = self.chat_virtualizer.estimated_heights().to_vec();
         heights.truncate(self.chat.len());
         if heights.len() < self.chat.len() {
@@ -907,6 +908,8 @@ impl App {
         self.chat_visible_text_cache.clear();
         self.chat_copy_hash_cache.clear();
         self.active_session_view_state.message_meta_texts.clear();
+        self.active_session_view_state.user_question_markers.clear();
+        self.active_session_view_state.user_question_indexed_chat_len = 0;
         self.active_session_view_state.prepared_chat_ui_chunks.clear();
         self.active_session_view_state.preparing_chat_ui_chunks.clear();
         self.active_session_view_state.dirty_preparing_chat_ui_chunks.clear();
@@ -1070,11 +1073,9 @@ impl App {
             self.chat_message_editors.resize_with(self.chat.len(), text_editor::Content::new);
         }
 
-        self.chat_special_text_editors
-            .retain(|key, _| (*key >> 32) as usize != message_idx);
+        self.chat_special_text_editors.retain(|key, _| (*key >> 32) as usize != message_idx);
         self.chat_markdown_blocks.retain(|key, _| (*key >> 32) as usize != message_idx);
-        self.chat_markdown_block_editors
-            .retain(|key, _| (*key >> 64) as usize != message_idx);
+        self.chat_markdown_block_editors.retain(|key, _| (*key >> 64) as usize != message_idx);
         self.chat_tool_text_editors.retain(|key, _| (*key >> 64) as usize != message_idx);
         self.chat_think_editors.retain(|key, _| (*key >> 32) as usize != message_idx);
 

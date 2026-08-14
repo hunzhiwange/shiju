@@ -343,12 +343,7 @@ impl SettingsPanel {
                     self.pending.acp_backend.clone().unwrap_or_else(|| "默认 ACP".to_string())
                 }),
             SettingKey::FullAccess => {
-                if self.pending.full_access_enabled {
-                    "已启用（危险）"
-                } else {
-                    "关闭"
-                }
-                .to_string()
+                if self.pending.full_access_enabled { "已启用（危险）" } else { "关闭" }.to_string()
             }
             SettingKey::SubagentMode => {
                 if self.pending.subagent_mode_enabled { "开" } else { "关" }.to_string()

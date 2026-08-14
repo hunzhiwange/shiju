@@ -14,10 +14,7 @@ fn timezone_selection_updates_state_and_persists_config() {
     );
 
     assert_eq!(app.chat_timezone, "America/New_York");
-    assert_eq!(
-        last_persisted_timezone().as_deref(),
-        Some("America/New_York")
-    );
+    assert_eq!(last_persisted_timezone().as_deref(), Some("America/New_York"));
     clear_last_persisted_timezone();
     let original = app.chat_timezone.clone();
 

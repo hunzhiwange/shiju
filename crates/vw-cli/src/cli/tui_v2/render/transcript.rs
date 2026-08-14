@@ -1,8 +1,8 @@
+use super::chrome::TuiActivityIndicator;
 use super::{
     Line, Modifier, Paragraph, Rect, Span, Style, Text, TuiPanelSurface, TuiRenderer,
     TuiScrollbarFeedback, TuiScrollbarView, TuiVisibleTranscriptWindow, Wrap,
 };
-use super::chrome::TuiActivityIndicator;
 use crate::cli::tui_v2::model::UiMessage;
 use crate::cli::tui_v2::model::UiMessageId;
 use crate::cli::tui_v2::state::{TuiTranscriptMeasurement, TuiTranscriptMeasurements};
@@ -83,8 +83,7 @@ impl TuiRenderer {
                     lines.push(Line::raw(""));
                 }
 
-                let workspace_root =
-                    workspace_root.map(|path| path.to_string_lossy().into_owned());
+                let workspace_root = workspace_root.map(|path| path.to_string_lossy().into_owned());
                 let item_lines = super::message_row::render_transcript_item_lines_with_context(
                     item,
                     self.theme,
@@ -244,12 +243,12 @@ fn transcript_item_contains_id(
                                 || group.results.iter().any(|message| &message.base.id == id)
                         }
                         TuiAssistantTurnEntry::ToolResult(message) => &message.base.id == id,
-                        TuiAssistantTurnEntry::CollapsedTools(batch) => batch.calls.iter().any(
-                            |group| {
+                        TuiAssistantTurnEntry::CollapsedTools(batch) => {
+                            batch.calls.iter().any(|group| {
                                 &group.call.base.id == id
                                     || group.results.iter().any(|message| &message.base.id == id)
-                            },
-                        ),
+                            })
+                        }
                     }
                 })
         }
@@ -258,18 +257,11 @@ fn transcript_item_contains_id(
 
 fn rendered_line_height(lines: &[Line<'_>], content_width: u16) -> usize {
     let width = usize::from(content_width.max(1));
-    lines
-        .iter()
-        .map(|line| line.width().max(1).div_ceil(width))
-        .sum::<usize>()
-        .max(1)
+    lines.iter().map(|line| line.width().max(1).div_ceil(width)).sum::<usize>().max(1)
 }
 
 fn is_user_item(item: &super::super::state::TuiTranscriptItem<'_>) -> bool {
-    matches!(
-        item,
-        super::super::state::TuiTranscriptItem::Standalone(UiMessage::User(_))
-    )
+    matches!(item, super::super::state::TuiTranscriptItem::Standalone(UiMessage::User(_)))
 }
 
 pub(super) fn zh_window_sticky_label(

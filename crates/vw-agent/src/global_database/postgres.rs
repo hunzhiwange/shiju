@@ -21,11 +21,11 @@ const ADVISORY_SCHEMA_LOCK_SQL: &str =
 
 fn drop_postgres_connection<M: Send + 'static + ManageConnection>(connection: PooledConnection<M>) {
     if tokio::runtime::Handle::try_current().is_ok() {
-        let _ = thread::Builder::new()
-            .name("vw-postgres-connection-drop".to_string())
-            .spawn(move || {
+        let _ = thread::Builder::new().name("vw-postgres-connection-drop".to_string()).spawn(
+            move || {
                 drop(connection);
-            });
+            },
+        );
         return;
     }
 
@@ -79,7 +79,9 @@ impl Deref for PostgresConnection {
         match self {
             Self::Plain(Some(connection)) => connection,
             Self::Rustls(Some(connection)) => connection,
-            Self::Closed => unreachable!("PostgresConnection has been moved into a background drop task"),
+            Self::Closed => {
+                unreachable!("PostgresConnection has been moved into a background drop task")
+            }
             Self::Plain(None) => unreachable!("PostgresConnection has been dropped"),
             Self::Rustls(None) => unreachable!("PostgresConnection has been dropped"),
         }
@@ -91,7 +93,9 @@ impl DerefMut for PostgresConnection {
         match self {
             Self::Plain(Some(connection)) => connection,
             Self::Rustls(Some(connection)) => connection,
-            Self::Closed => unreachable!("PostgresConnection has been moved into a background drop task"),
+            Self::Closed => {
+                unreachable!("PostgresConnection has been moved into a background drop task")
+            }
             Self::Plain(None) => unreachable!("PostgresConnection has been dropped"),
             Self::Rustls(None) => unreachable!("PostgresConnection has been dropped"),
         }
@@ -248,24 +252,20 @@ impl PostgresProvider {
     pub(super) fn connect(&self) -> Result<PostgresConnection> {
         let mut connection = match &self.pool {
             PostgresPool::Plain(pool) => {
-                PostgresConnection::Plain(Some(
-                    pool.get().with_context(|| {
+                PostgresConnection::Plain(Some(pool.get().with_context(|| {
                     format!(
                         "checkout PostgreSQL global database connection for schema {}",
                         self.schema
                     )
-                })?,
-                ))
+                })?))
             }
             PostgresPool::Rustls(pool) => {
-                PostgresConnection::Rustls(Some(
-                    pool.get().with_context(|| {
+                PostgresConnection::Rustls(Some(pool.get().with_context(|| {
                     format!(
                         "checkout verified-TLS PostgreSQL global database connection for schema {}",
                         self.schema
                     )
-                })?,
-                ))
+                })?))
             }
         };
         configure_search_path(&mut connection, &self.schema)?;

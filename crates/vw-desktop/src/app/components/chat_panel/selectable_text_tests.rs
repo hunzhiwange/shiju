@@ -32,8 +32,13 @@ fn selectable_text_policy_uses_preview_for_unsafe_text() {
     assert!(read_only_editor_content(&unsafe_text).is_none());
 
     let (mut app, _task) = App::new();
-    app.chat =
-        vec![ChatMessage { role: ChatRole::User, content: unsafe_text, model: None, think_timing: Vec::new(), processing_timing: None }];
+    app.chat = vec![ChatMessage {
+        role: ChatRole::User,
+        content: unsafe_text,
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }];
     let phase = prepare_chat_ui_chunk_phase(&app.chat, 0, true, false);
     app.apply_prepared_chat_ui_phase(phase);
 

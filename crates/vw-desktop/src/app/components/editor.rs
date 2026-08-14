@@ -185,8 +185,7 @@ impl Editor {
     pub fn set_ui_language(&mut self, language: i18n::Language) {
         self.inner.set_language(language);
         if self.preview_context_menu_configured {
-            self.inner
-                .set_custom_context_menu_entries(preview_context_menu_entries(language));
+            self.inner.set_custom_context_menu_entries(preview_context_menu_entries(language));
         }
     }
 
@@ -197,11 +196,9 @@ impl Editor {
         reveal_in_file_manager_enabled: bool,
     ) {
         self.preview_context_menu_configured = true;
-        self.inner
-            .set_custom_context_menu_entries(preview_context_menu_entries(language));
+        self.inner.set_custom_context_menu_entries(preview_context_menu_entries(language));
         self.inner.set_default_context_menu_enabled(true);
-        self.inner
-            .set_reveal_in_file_manager_enabled(reveal_in_file_manager_enabled);
+        self.inner.set_reveal_in_file_manager_enabled(reveal_in_file_manager_enabled);
     }
 
     /// 检查是否可以执行撤销操作

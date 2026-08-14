@@ -60,10 +60,8 @@ fn account_styles_keep_dark_and_light_contrast() {
         }
     }
 
-    let light_active =
-        login_button_style(&Theme::Light, iced::widget::button::Status::Active);
-    let light_hovered =
-        login_button_style(&Theme::Light, iced::widget::button::Status::Hovered);
+    let light_active = login_button_style(&Theme::Light, iced::widget::button::Status::Active);
+    let light_hovered = login_button_style(&Theme::Light, iced::widget::button::Status::Hovered);
     let dark_active = login_button_style(&Theme::Dark, iced::widget::button::Status::Active);
 
     assert!(

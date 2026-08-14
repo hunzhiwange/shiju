@@ -628,11 +628,8 @@ fn above_overlay_element_operate_forwards_to_overlay_content() {
 
 #[test]
 fn above_overlay_element_forwards_nested_overlay_from_content() {
-    let mut overlay: Element<'_, TestMessage, Theme, RecordingRenderer> = TestContent {
-        has_overlay: true,
-        ..TestContent::default()
-    }
-    .into();
+    let mut overlay: Element<'_, TestMessage, Theme, RecordingRenderer> =
+        TestContent { has_overlay: true, ..TestContent::default() }.into();
     let mut tree = widget::Tree::empty();
     let renderer = RecordingRenderer::default();
     let mut element = AboveOverlayElement {

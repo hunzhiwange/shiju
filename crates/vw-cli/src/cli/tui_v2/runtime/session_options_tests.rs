@@ -1,5 +1,5 @@
-use super::super::model::{PermissionMode, SessionCapabilityMatrix, SessionOptions};
 use super::super::model::session_mode::ReasoningEffort;
+use super::super::model::{PermissionMode, SessionCapabilityMatrix, SessionOptions};
 use super::session_options::{SessionOptionsRuntime, commit_session_options};
 
 #[derive(Default)]
@@ -44,54 +44,35 @@ fn tui_session_options_match_reference_picker_and_failure_semantics() {
         ..SessionOptions::default()
     };
     let mut runtime = RecordingRuntime::default();
-    commit_session_options(
-        &mut current,
-        requested.clone(),
-        &capabilities,
-        false,
-        &mut runtime,
-    )
-    .unwrap();
+    commit_session_options(&mut current, requested.clone(), &capabilities, false, &mut runtime)
+        .unwrap();
     assert_eq!(current, requested);
 
     runtime.error = Some("gateway rejected options".to_string());
     let before_failure = current.clone();
     let mut failed = current.clone();
     failed.effort = ReasoningEffort::Low;
-    assert!(commit_session_options(
-        &mut current,
-        failed,
-        &capabilities,
-        false,
-        &mut runtime,
-    )
-    .is_err());
+    assert!(
+        commit_session_options(&mut current, failed, &capabilities, false, &mut runtime,).is_err()
+    );
     assert_eq!(current, before_failure, "UI state only commits after runtime success");
 
     runtime.error = None;
     let mut bypass = current.clone();
     bypass.permission_mode = PermissionMode::Bypass;
-    assert!(commit_session_options(
-        &mut current,
-        bypass.clone(),
-        &capabilities,
-        false,
-        &mut runtime,
-    )
-    .unwrap_err()
-    .contains("explicit confirmation"));
+    assert!(
+        commit_session_options(&mut current, bypass.clone(), &capabilities, false, &mut runtime,)
+            .unwrap_err()
+            .contains("explicit confirmation")
+    );
     commit_session_options(&mut current, bypass, &capabilities, true, &mut runtime).unwrap();
     assert!(current.bypass_confirmed);
 
     let mut unsupported = current.clone();
     unsupported.fast = true;
-    assert!(commit_session_options(
-        &mut current,
-        unsupported,
-        &capabilities,
-        true,
-        &mut runtime,
-    )
-    .unwrap_err()
-    .contains("not supported"));
+    assert!(
+        commit_session_options(&mut current, unsupported, &capabilities, true, &mut runtime,)
+            .unwrap_err()
+            .contains("not supported")
+    );
 }

@@ -821,8 +821,7 @@ fn create_dataset(app: &mut App) -> Task<Message> {
 }
 
 fn selected_dataset_embedding_model(app: &App) -> Option<String> {
-    if app.knowledge.dataset_embedding_selection
-        != KnowledgeDatasetEmbeddingSelection::LockCurrent
+    if app.knowledge.dataset_embedding_selection != KnowledgeDatasetEmbeddingSelection::LockCurrent
     {
         return None;
     }

@@ -184,14 +184,9 @@ fn gateway_route_summary_hides_disabled_optional_routes() {
 
     assert!(!text.contains("GET    /health"), "root health route should not be shown");
 
-    for route in [
-        "/v1/whatsapp",
-        "/v1/linq",
-        "/v1/wati",
-        "/v1/nextcloud-talk",
-        "/v1/qq",
-        "/v1/node-control",
-    ] {
+    for route in
+        ["/v1/whatsapp", "/v1/linq", "/v1/wati", "/v1/nextcloud-talk", "/v1/qq", "/v1/node-control"]
+    {
         assert!(!text.contains(route), "disabled route should not be shown: {route}");
     }
 }

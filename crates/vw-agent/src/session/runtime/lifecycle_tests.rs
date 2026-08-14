@@ -4,9 +4,7 @@ use tempfile::TempDir;
 use tokio::sync::Mutex;
 use vw_api_types::id::TenantScope;
 
-use super::{
-    CreateSessionInput, LifecycleError, SessionScope, create_session, load_session,
-};
+use super::{CreateSessionInput, LifecycleError, SessionScope, create_session, load_session};
 
 static LIFECYCLE_TEST_LOCK: Mutex<()> = Mutex::const_new(());
 
@@ -24,10 +22,8 @@ fn create_session_requires_canonical_absolute_directory() {
     let relative = SessionScope::new(tenant.clone(), "relative/project");
     assert!(matches!(relative, Err(LifecycleError::DirectoryMustBeAbsolute { .. })));
 
-    let missing = std::env::temp_dir().join(format!(
-        "vw-agent-runtime-missing-{}",
-        uuid::Uuid::new_v4()
-    ));
+    let missing =
+        std::env::temp_dir().join(format!("vw-agent-runtime-missing-{}", uuid::Uuid::new_v4()));
     let missing = SessionScope::new(tenant.clone(), &missing);
     assert!(matches!(missing, Err(LifecycleError::DirectoryUnavailable { .. })));
 
@@ -59,12 +55,8 @@ async fn load_session_rejects_directory_or_scope_mismatch() {
     .await
     .expect("session should be created");
 
-    let wrong_directory =
-        load_session(scope(tenant_a, project_b.path()), &created.info.id).await;
-    assert!(matches!(
-        wrong_directory,
-        Err(LifecycleError::SessionOwnershipMismatch { .. })
-    ));
+    let wrong_directory = load_session(scope(tenant_a, project_b.path()), &created.info.id).await;
+    assert!(matches!(wrong_directory, Err(LifecycleError::SessionOwnershipMismatch { .. })));
 
     let wrong_tenant = load_session(scope(tenant_b, project_a.path()), &created.info.id).await;
     assert!(matches!(wrong_tenant, Err(LifecycleError::SessionNotFound { .. })));
@@ -78,10 +70,8 @@ async fn created_session_preserves_native_identity() {
     crate::project::instance::dispose_all().await;
 
     let project = TempDir::new().expect("project directory");
-    let scope = scope(
-        tenant("runtime-platform-identity", "runtime-company-identity"),
-        project.path(),
-    );
+    let scope =
+        scope(tenant("runtime-platform-identity", "runtime-company-identity"), project.path());
     let created = create_session(CreateSessionInput {
         scope: scope.clone(),
         parent_id: None,
@@ -90,9 +80,7 @@ async fn created_session_preserves_native_identity() {
     })
     .await
     .expect("session should be created");
-    let loaded = load_session(scope, &created.info.id)
-        .await
-        .expect("created session should load");
+    let loaded = load_session(scope, &created.info.id).await.expect("created session should load");
 
     assert_eq!(loaded.info.id, created.info.id);
     assert_eq!(loaded.info.slug, created.info.slug);

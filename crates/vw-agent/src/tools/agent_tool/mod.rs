@@ -256,8 +256,7 @@ impl AgentTool {
 
         if let Err(error) = spawned {
             let message = format!("spawn child agent runtime: {error}");
-            let _ =
-                self.coordinator.mark_failed(&parent_session_id, &child_session_id, &message);
+            let _ = self.coordinator.mark_failed(&parent_session_id, &child_session_id, &message);
             anyhow::bail!(message);
         }
         Ok(())
@@ -273,7 +272,8 @@ impl AgentTool {
         agents
             .into_iter()
             .map(|(name, config)| {
-                let label = config.label.as_deref().map(str::trim).filter(|value| !value.is_empty());
+                let label =
+                    config.label.as_deref().map(str::trim).filter(|value| !value.is_empty());
                 let description =
                     config.description.as_deref().map(str::trim).filter(|value| !value.is_empty());
                 match (label, description) {
@@ -326,7 +326,8 @@ impl AgentTool {
     fn child_session_ids_from_args(&self, args: &Value) -> anyhow::Result<Vec<String>> {
         let mut ids = Vec::new();
         if let Some(value) = args.get("child_session_id") {
-            let Some(value) = value.as_str().map(str::trim).filter(|value| !value.is_empty()) else {
+            let Some(value) = value.as_str().map(str::trim).filter(|value| !value.is_empty())
+            else {
                 anyhow::bail!("'child_session_id' must be a non-empty string");
             };
             ids.push(value.to_string());
@@ -336,8 +337,7 @@ impl AgentTool {
                 anyhow::bail!("'child_session_ids' must be an array of non-empty strings");
             };
             for value in values {
-                let Some(value) =
-                    value.as_str().map(str::trim).filter(|value| !value.is_empty())
+                let Some(value) = value.as_str().map(str::trim).filter(|value| !value.is_empty())
                 else {
                     anyhow::bail!("'child_session_ids' must contain only non-empty strings");
                 };
@@ -418,9 +418,7 @@ impl AgentTool {
         let max_depth = usize::try_from(agent_config.max_depth).unwrap_or(usize::MAX);
         let parent_session_id = self.parent_session_id()?;
         let task = Self::task_summary(prompt);
-        if let Some(ancestor) =
-            self.coordinator.matching_ancestor_task(parent_session_id, &task)?
-        {
+        if let Some(ancestor) = self.coordinator.matching_ancestor_task(parent_session_id, &task)? {
             return Ok(Err(ToolResult {
                 success: false,
                 output: String::new(),

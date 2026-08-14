@@ -106,11 +106,7 @@ impl IntegrationPanel {
             };
             format!(
                 "{} {} · {} · {}",
-                if !self.skill_platform_focused && index == self.selected {
-                    ">"
-                } else {
-                    " "
-                },
+                if !self.skill_platform_focused && index == self.selected { ">" } else { " " },
                 item.title,
                 status,
                 sanitize_integration_text(&item.detail)

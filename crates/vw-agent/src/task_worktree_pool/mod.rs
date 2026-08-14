@@ -775,11 +775,9 @@ async fn git_repo_root(worktree: &Path) -> Result<PathBuf> {
 
 async fn git_base_branch(repo_root: &Path) -> Result<String> {
     let repo_root = repo_root.to_path_buf();
-    tokio::task::spawn_blocking(move || {
-        match crate::git_repository::current_branch(&repo_root) {
-            Some(branch) if !branch.is_empty() && branch != "HEAD" => Ok(branch),
-            _ => Ok("main".to_string()),
-        }
+    tokio::task::spawn_blocking(move || match crate::git_repository::current_branch(&repo_root) {
+        Some(branch) if !branch.is_empty() && branch != "HEAD" => Ok(branch),
+        _ => Ok("main".to_string()),
     })
     .await?
 }
@@ -891,14 +889,12 @@ async fn prepare_slot_for_task(slot: &SlotRecord, task_id: &TaskId) -> Result<Sl
 
     tokio::task::spawn_blocking(move || {
         let repo = open_worktree_repo(&slot_path)?;
-        hard_reset_to(&repo, &base_target).map_err(|error| {
-            anyhow::anyhow!("failed to reset task worktree slot: {error}")
-        })?;
+        hard_reset_to(&repo, &base_target)
+            .map_err(|error| anyhow::anyhow!("failed to reset task worktree slot: {error}"))?;
         clean_untracked_non_ignored(&repo)
             .map_err(|error| anyhow::anyhow!("failed to clean task worktree slot: {error}"))?;
-        force_checkout_branch(&repo, &branch_for_checkout, &base_target).map_err(|error| {
-            anyhow::anyhow!("failed to checkout task worktree branch: {error}")
-        })?;
+        force_checkout_branch(&repo, &branch_for_checkout, &base_target)
+            .map_err(|error| anyhow::anyhow!("failed to checkout task worktree branch: {error}"))?;
         Ok::<(), anyhow::Error>(())
     })
     .await??;
@@ -918,9 +914,8 @@ async fn reset_and_clean_slot(slot: &SlotRecord) -> Result<SlotRecord> {
 
     let recycled_branch = tokio::task::spawn_blocking(move || {
         let repo = open_worktree_repo(&slot_path)?;
-        hard_reset_to(&repo, &base_target).map_err(|error| {
-            anyhow::anyhow!("failed to reset task worktree slot: {error}")
-        })?;
+        hard_reset_to(&repo, &base_target)
+            .map_err(|error| anyhow::anyhow!("failed to reset task worktree slot: {error}"))?;
         clean_untracked_non_ignored(&repo)
             .map_err(|error| anyhow::anyhow!("failed to clean task worktree slot: {error}"))?;
         if !worktree_is_clean(&repo)? {
@@ -1006,8 +1001,9 @@ fn clean_untracked_non_ignored(repo: &git2::Repository) -> Result<()> {
     paths.sort_by_key(|path| std::cmp::Reverse(path.components().count()));
     for path in paths {
         if path.is_dir() {
-            std::fs::remove_dir_all(&path)
-                .with_context(|| format!("failed to remove untracked directory: {}", path.display()))?;
+            std::fs::remove_dir_all(&path).with_context(|| {
+                format!("failed to remove untracked directory: {}", path.display())
+            })?;
         } else if path.exists() {
             std::fs::remove_file(&path)
                 .with_context(|| format!("failed to remove untracked file: {}", path.display()))?;
@@ -1016,7 +1012,11 @@ fn clean_untracked_non_ignored(repo: &git2::Repository) -> Result<()> {
     Ok(())
 }
 
-fn force_checkout_branch(repo: &git2::Repository, branch_name: &str, start_point: &str) -> Result<()> {
+fn force_checkout_branch(
+    repo: &git2::Repository,
+    branch_name: &str,
+    start_point: &str,
+) -> Result<()> {
     let commit = repo
         .revparse_single(start_point)
         .and_then(|object| object.peel_to_commit())
@@ -1100,16 +1100,12 @@ fn worktree_has_branch_head(path: &Path, branch_ref: &str) -> bool {
     let Ok(repo) = git2::Repository::open(path) else {
         return false;
     };
-    repo.head()
-        .ok()
-        .is_some_and(|head| head.is_branch() && head.name().ok() == Some(branch_ref))
+    repo.head().ok().is_some_and(|head| head.is_branch() && head.name().ok() == Some(branch_ref))
 }
 
 fn worktree_is_clean(repo: &git2::Repository) -> Result<bool> {
     let mut opts = git2::StatusOptions::new();
-    opts.include_untracked(true)
-        .recurse_untracked_dirs(true)
-        .include_ignored(false);
+    opts.include_untracked(true).recurse_untracked_dirs(true).include_ignored(false);
     let statuses = repo.statuses(Some(&mut opts)).context("failed to read task worktree status")?;
     Ok(statuses.is_empty())
 }

@@ -90,6 +90,7 @@ use crate::app::assets::Icon;
 use crate::app::components::input_panel::todo_panel::{self, TodoPanelSurface};
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ChatRole};
+use crate::app::state::UserQuestionMarker;
 use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, TodoPanelPlacement, message};
 
@@ -99,13 +100,15 @@ use self::header::chat_header_view;
 use self::height_index::CHAT_MESSAGE_GAP;
 use self::message_view::estimate_message_height_rough;
 use self::message_view::message_view;
-use self::utils::{chat_context_menu, chat_scroll_direction, icon_svg, truncate_chars};
+use self::utils::{chat_context_menu, chat_scroll_direction, icon_svg};
 use self::virtualizer::ChatVirtualWindow;
 #[cfg(test)]
 use self::virtualizer::ChatVirtualizer;
 
 static FALLBACK_RENDER_CACHE_ENTRY: Lazy<ChatRenderCacheEntry> =
     Lazy::new(ChatRenderCacheEntry::default);
+
+const MAX_USER_QUESTION_MARKERS: usize = 40;
 
 fn chat_message_column<'a>() -> iced::widget::Column<'a, Message> {
     column![].spacing(CHAT_MESSAGE_GAP).width(Length::Fill)
@@ -132,6 +135,19 @@ pub(crate) fn compute_visible_message_window_for_chat(
 
 pub(crate) fn chat_panel_virtual_window(app: &App) -> ChatVirtualWindow {
     app.chat_virtualizer.window()
+}
+
+pub(crate) fn chat_render_window<T>(
+    chat: &[T],
+    start_idx: usize,
+    end_idx: usize,
+) -> impl ExactSizeIterator<Item = (usize, &T)> {
+    let start_idx = start_idx.min(chat.len());
+    let end_idx = end_idx.max(start_idx).min(chat.len());
+    chat[start_idx..end_idx]
+        .iter()
+        .enumerate()
+        .map(move |(offset, message)| (start_idx + offset, message))
 }
 
 fn chat_panel_context_menu_overlay<'a>(
@@ -168,6 +184,7 @@ fn refine_message_heights(app: &mut App) {
     app.refine_chat_message_estimated_heights(0, app.chat.len());
 }
 
+#[cfg(test)]
 pub(crate) fn user_question_indices(chat: &[ChatMessage]) -> Vec<usize> {
     chat.iter()
         .enumerate()
@@ -175,6 +192,7 @@ pub(crate) fn user_question_indices(chat: &[ChatMessage]) -> Vec<usize> {
         .collect()
 }
 
+#[cfg(test)]
 pub(crate) fn is_chat_message_idx_visible(
     target_idx: usize,
     visible_start_idx: usize,
@@ -188,21 +206,127 @@ pub(crate) fn is_chat_message_idx_visible(
     (visible_start_idx..visible_end_idx).contains(&target_idx)
 }
 
+#[cfg(test)]
 pub(crate) fn active_user_question_idx(
     user_question_idxs: &[usize],
     visible_start_idx: usize,
     visible_end_idx: usize,
     viewport_h: f32,
 ) -> Option<usize> {
-    user_question_idxs.iter().copied().find(|&msg_idx| {
-        is_chat_message_idx_visible(msg_idx, visible_start_idx, visible_end_idx, viewport_h)
-    })
+    if viewport_h <= 0.0 || visible_end_idx <= visible_start_idx {
+        return None;
+    }
+
+    let position = user_question_idxs.partition_point(|&idx| idx < visible_start_idx);
+    user_question_idxs.get(position).copied().filter(|&idx| idx < visible_end_idx)
+}
+
+fn active_user_question_marker_position(
+    user_question_markers: &[UserQuestionMarker],
+    visible_start_idx: usize,
+    visible_end_idx: usize,
+    viewport_h: f32,
+) -> Option<usize> {
+    if viewport_h <= 0.0 || visible_end_idx <= visible_start_idx {
+        return None;
+    }
+
+    let position =
+        user_question_markers.partition_point(|marker| marker.message_idx < visible_start_idx);
+    user_question_markers
+        .get(position)
+        .filter(|marker| marker.message_idx < visible_end_idx)
+        .map(|_| position)
+}
+
+pub(crate) fn project_user_question_marker_positions(
+    marker_len: usize,
+    active_position: Option<usize>,
+) -> Vec<usize> {
+    if marker_len <= MAX_USER_QUESTION_MARKERS {
+        return (0..marker_len).collect();
+    }
+
+    let mut positions = Vec::with_capacity(MAX_USER_QUESTION_MARKERS);
+    push_projected_question_marker_position(&mut positions, marker_len, 0);
+    push_projected_question_marker_position(&mut positions, marker_len, marker_len - 1);
+    if let Some(active_position) = active_position {
+        push_projected_question_marker_position(&mut positions, marker_len, active_position);
+        push_projected_question_marker_position(
+            &mut positions,
+            marker_len,
+            active_position.saturating_sub(1),
+        );
+        push_projected_question_marker_position(
+            &mut positions,
+            marker_len,
+            active_position.saturating_add(1),
+        );
+    }
+
+    let sample_slots = MAX_USER_QUESTION_MARKERS - positions.len();
+    for slot in 0..sample_slots {
+        push_projected_question_marker_position(
+            &mut positions,
+            marker_len,
+            slot * (marker_len - 1) / (sample_slots - 1),
+        );
+    }
+    positions.sort_unstable();
+    positions
+}
+
+fn push_projected_question_marker_position(
+    positions: &mut Vec<usize>,
+    marker_len: usize,
+    position: usize,
+) {
+    if position < marker_len
+        && !positions.contains(&position)
+        && positions.len() < MAX_USER_QUESTION_MARKERS
+    {
+        positions.push(position);
+    }
 }
 
 pub(crate) fn user_question_preview(content: &str) -> String {
-    let flattened = content.replace(['\n', '\r'], " ");
-    let trimmed = flattened.split_whitespace().collect::<Vec<_>>().join(" ");
-    if trimmed.is_empty() { "空提问".to_string() } else { truncate_chars(trimmed.trim(), 100) }
+    const PREVIEW_CHAR_LIMIT: usize = 100;
+
+    let mut preview = String::new();
+    let mut char_count = 0;
+    let mut pending_space = false;
+    let mut truncated = false;
+
+    for character in content.chars() {
+        if character.is_whitespace() {
+            pending_space = !preview.is_empty();
+            continue;
+        }
+
+        if char_count == PREVIEW_CHAR_LIMIT {
+            truncated = true;
+            break;
+        }
+        if pending_space {
+            preview.push(' ');
+            char_count += 1;
+            pending_space = false;
+            if char_count == PREVIEW_CHAR_LIMIT {
+                truncated = true;
+                break;
+            }
+        }
+        preview.push(character);
+        char_count += 1;
+    }
+
+    if preview.is_empty() {
+        return "空提问".to_string();
+    }
+    if truncated {
+        preview.push('…');
+    }
+    preview
 }
 
 pub(crate) fn live_message_meta_fallback(
@@ -290,7 +414,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let visible_end_idx = window.visible_end_idx;
     let question_visible_start_idx = window.visible_start_idx;
     let question_visible_end_idx = window.visible_end_idx;
-    let user_question_idxs = user_question_indices(&app.chat);
+    let user_question_markers = &app.active_session_view_state.user_question_markers;
 
     // 构建消息列，每条消息之间间隔 18px
     let mut col = chat_message_column();
@@ -300,14 +424,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     // 遍历聊天消息并添加到列中
-    for (i, m) in app.chat.iter().enumerate() {
-        if i < start_idx {
-            continue;
-        }
-        if i >= end_idx {
-            break;
-        }
-
+    for (i, m) in chat_render_window(&app.chat, start_idx, end_idx) {
         // 流式响应标志：当前消息是助手消息、正在请求中且是最后一条消息
         let is_last = i + 1 == app.chat.len();
         let _is_streaming =
@@ -371,7 +488,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let header = chat_header_view(app);
         let question_jump_button = user_question_nav_overlay(
             app,
-            &user_question_idxs,
+            user_question_markers,
             question_visible_start_idx,
             question_visible_end_idx,
         );
@@ -576,30 +693,29 @@ fn jump_to_bottom_button<'a>(app: &'a App) -> Element<'a, Message> {
 
 fn user_question_nav_overlay<'a>(
     app: &'a App,
-    user_question_idxs: &[usize],
+    user_question_markers: &[UserQuestionMarker],
     visible_start_idx: usize,
     visible_end_idx: usize,
 ) -> Element<'a, Message> {
-    if user_question_idxs.is_empty() || app.chat_scroll_viewport_h <= 0.0 {
+    if user_question_markers.is_empty() || app.chat_scroll_viewport_h <= 0.0 {
         return Space::new().height(Length::Fixed(0.0)).into();
     }
 
     let mut dots = column![].spacing(5).align_x(iced::alignment::Horizontal::Center);
-    let active_question_msg_idx = active_user_question_idx(
-        user_question_idxs,
+    let active_question_position = active_user_question_marker_position(
+        user_question_markers,
         visible_start_idx,
         visible_end_idx,
         app.chat_scroll_viewport_h,
     );
 
-    for (question_number, &msg_idx) in user_question_idxs.iter().enumerate() {
-        let is_active = active_question_msg_idx == Some(msg_idx);
-        let preview = app
-            .chat
-            .get(msg_idx)
-            .map(|message| user_question_preview(&message.content))
-            .unwrap_or_else(|| "空提问".to_string());
-        let tooltip_label = format!("问题 {}: {}", question_number + 1, preview);
+    for marker_position in project_user_question_marker_positions(
+        user_question_markers.len(),
+        active_question_position,
+    ) {
+        let marker = &user_question_markers[marker_position];
+        let is_active = active_question_position == Some(marker_position);
+        let tooltip_label = format!("问题 {}: {}", marker_position + 1, marker.preview);
 
         let dot = container(Space::new().width(Length::Shrink).height(Length::Shrink))
             .width(Length::Fixed(if is_active { 7.0 } else { 5.0 }))
@@ -637,7 +753,9 @@ fn user_question_nav_overlay<'a>(
             .width(Length::Fixed(15.0))
             .height(Length::Fixed(15.0))
             .style(iced::widget::button::text)
-            .on_press(Message::Chat(message::ChatMessage::LocateChatMessageIndex(msg_idx)));
+            .on_press(Message::Chat(message::ChatMessage::LocateChatMessageIndex(
+                marker.message_idx,
+            )));
 
         let button_with_tooltip: Element<'a, Message> = Tooltip::new(
             button,

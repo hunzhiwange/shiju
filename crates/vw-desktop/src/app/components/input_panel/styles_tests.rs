@@ -32,8 +32,7 @@ fn bottom_bar_constants_keep_compact_control_dimensions() {
 #[test]
 fn quick_message_button_style_keeps_light_and_dark_actions_distinguishable() {
     for theme in [Theme::Light, Theme::Dark] {
-        let message =
-            quick_message_button_style(&theme, button::Status::Active, false);
+        let message = quick_message_button_style(&theme, button::Status::Active, false);
         let action = quick_message_button_style(&theme, button::Status::Active, true);
 
         assert_ne!(message.background, action.background);
@@ -46,10 +45,8 @@ fn quick_message_button_style_keeps_light_and_dark_actions_distinguishable() {
 #[test]
 fn quick_message_group_menu_and_action_badge_support_dark_theme() {
     for theme in [Theme::Light, Theme::Dark] {
-        let inactive =
-            quick_message_group_button_style(&theme, button::Status::Active, false);
-        let active =
-            quick_message_group_button_style(&theme, button::Status::Active, true);
+        let inactive = quick_message_group_button_style(&theme, button::Status::Active, false);
+        let active = quick_message_group_button_style(&theme, button::Status::Active, true);
         assert_ne!(inactive.background, active.background);
 
         let menu = quick_message_menu_style(&theme);
@@ -79,12 +76,9 @@ fn shiju_menu_styles_support_light_and_dark_themes() {
         assert!(menu.background.is_some());
         assert_eq!(menu.border.width, 1.0);
 
-        let upgrade =
-            shiju_upgrade_button_style(&theme, button::Status::Active, true);
-        let upgrade_hovered =
-            shiju_upgrade_button_style(&theme, button::Status::Hovered, true);
-        let upgrade_disabled =
-            shiju_upgrade_button_style(&theme, button::Status::Disabled, false);
+        let upgrade = shiju_upgrade_button_style(&theme, button::Status::Active, true);
+        let upgrade_hovered = shiju_upgrade_button_style(&theme, button::Status::Hovered, true);
+        let upgrade_disabled = shiju_upgrade_button_style(&theme, button::Status::Disabled, false);
         assert!(upgrade.background.is_some());
         assert_ne!(upgrade.background, upgrade_hovered.background);
         assert_eq!(upgrade.border.width, 1.0);
@@ -565,10 +559,7 @@ fn input_card_style_applies_chrome_input_background() {
         &theme.palette(),
     );
     let style = input_card_style(&theme, false, Some(&chrome));
-    assert_color(
-        background_color(&style.background),
-        Color::from_rgb8(0x11, 0x22, 0x33),
-    );
+    assert_color(background_color(&style.background), Color::from_rgb8(0x11, 0x22, 0x33));
     assert_color(style.border.color, Color::from_rgb8(0x44, 0x55, 0x66));
     assert_eq!(style.border.radius, 12.0.into());
 }
@@ -577,9 +568,7 @@ fn input_card_style_applies_chrome_input_background() {
 fn input_card_style_more_transparent_with_wallpaper_chrome() {
     use std::path::PathBuf;
 
-    use crate::app::theme_catalog::{
-        resolve_chrome_style_from_skin, ActiveThemeSkin, ThemeChrome,
-    };
+    use crate::app::theme_catalog::{ActiveThemeSkin, ThemeChrome, resolve_chrome_style_from_skin};
 
     let theme = Theme::Dark;
     let baseline = input_card_style(&theme, false, None);
@@ -614,10 +603,7 @@ fn input_card_style_more_transparent_with_wallpaper_chrome() {
     };
     let plain_chrome = resolve_chrome_style_from_skin(Some(&no_wallpaper), &theme);
     let plain_style = input_card_style(&theme, false, Some(&plain_chrome));
-    assert_color(
-        background_color(&plain_style.background),
-        background_color(&baseline.background),
-    );
+    assert_color(background_color(&plain_style.background), background_color(&baseline.background));
 
     let explicit = ActiveThemeSkin {
         theme_id: "wallpaper-theme".to_string(),
@@ -626,10 +612,7 @@ fn input_card_style_more_transparent_with_wallpaper_chrome() {
         chat_header_path: None,
         chat_body_path: None,
         chat_input_path: None,
-        chrome: ThemeChrome {
-            panel_alpha: Some(90),
-            ..ThemeChrome::default()
-        },
+        chrome: ThemeChrome { panel_alpha: Some(90), ..ThemeChrome::default() },
     };
     let explicit_chrome = resolve_chrome_style_from_skin(Some(&explicit), &theme);
     let explicit_style = input_card_style(&theme, false, Some(&explicit_chrome));

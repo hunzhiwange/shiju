@@ -861,9 +861,9 @@ fn wake_scheduler_requests_include_pool_queued_and_planning_tasks() {
     assert_eq!(requests[1].task_id, "pending");
     assert_eq!(requests[2].task_id, "planning");
     assert!(requests.iter().all(|request| request.kind == AgentTaskKindDto::Finite));
-    assert!(requests[1..].iter().all(|request| {
-        request.status == Some(AgentTaskStatusDto::Queued)
-    }));
+    assert!(
+        requests[1..].iter().all(|request| { request.status == Some(AgentTaskStatusDto::Queued) })
+    );
 }
 
 #[test]

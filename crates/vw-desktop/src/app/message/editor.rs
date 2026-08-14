@@ -160,11 +160,10 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
             }
 
             // 更新 Git 复制模态框中的代码编辑器
-            app.git_copy_modal_code_editor
-                .set_font_size(
-                    app.current_font_size.clamp(10.0, 30.0),
-                    app.auto_adjust_line_height,
-                );
+            app.git_copy_modal_code_editor.set_font_size(
+                app.current_font_size.clamp(10.0, 30.0),
+                app.auto_adjust_line_height,
+            );
             if app.auto_adjust_line_height {
                 app.git_copy_modal_code_editor
                     .set_line_height(app.current_line_height.clamp(10.0, 60.0));

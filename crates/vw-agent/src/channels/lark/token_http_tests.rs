@@ -17,7 +17,8 @@ async fn lark_channel_send_posts_markdown_as_rich_text() {
     let body = request_json_body(&request);
     assert_eq!(body["receive_id"], "oc_chat");
     assert_eq!(body["msg_type"], "post");
-    let content: serde_json::Value = serde_json::from_str(body["content"].as_str().unwrap()).unwrap();
+    let content: serde_json::Value =
+        serde_json::from_str(body["content"].as_str().unwrap()).unwrap();
     assert_eq!(
         content["zh_cn"]["content"][0][0],
         serde_json::json!({"tag": "md", "text": markdown})

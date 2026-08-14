@@ -12,8 +12,8 @@ use super::{
     build_delete_confirm_modal, build_detail, build_document_bulk_toolbar,
     build_document_input_tabs, build_document_pagination, build_document_preview_drawer,
     build_document_rename_modal, build_document_status_menu, build_documents_tab,
-    build_documents_table, build_documents_toolbar, build_embedding_model_section,
-    build_embedding_model_picker, build_file_import_panel, build_import_polling_panel,
+    build_documents_table, build_documents_toolbar, build_embedding_model_picker,
+    build_embedding_model_section, build_file_import_panel, build_import_polling_panel,
     build_indexing_mode_section, build_no_dataset_result_card, build_rerank_toggle,
     build_retrieval_mode_section, build_retrieval_tab, build_settings_tab,
     build_text_document_panel, build_upload_panel, build_workspace, chrome_style, chunk_card,
@@ -21,13 +21,12 @@ use super::{
     compact_document_count_label, compact_input_row, dataset_card_button_style,
     dataset_card_container_style, dataset_description, dataset_embedding_model_label,
     dataset_embedding_options, dataset_item, dataset_tag, dataset_title, dataset_title_text_style,
-    document_page_button,
-    document_page_nav_button, document_page_size, document_page_size_selector,
-    document_pagination_items, document_row, document_row_style, document_selection_button_style,
-    document_status_badge, document_status_badge_style, document_status_filter_options,
-    document_status_label, document_title_button_style, document_total_pages,
-    effective_document_status, embedding_hybrid_available, embedding_preset_label,
-    embedding_status_dimensions_label, embedding_status_model_label,
+    document_page_button, document_page_nav_button, document_page_size,
+    document_page_size_selector, document_pagination_items, document_row, document_row_style,
+    document_selection_button_style, document_status_badge, document_status_badge_style,
+    document_status_filter_options, document_status_label, document_title_button_style,
+    document_total_pages, effective_document_status, embedding_hybrid_available,
+    embedding_preset_label, embedding_status_dimensions_label, embedding_status_model_label,
     embedding_status_provider_label, embedding_status_route_label, embedding_test_result_label,
     embedding_vector_available, empty_hint, enabled_label, file_drop_zone_style,
     file_import_summary, file_imports_summary, filtered_documents_page, format_dataset_time,
@@ -350,8 +349,7 @@ fn dataset_catalog_builds_loading_empty_filtered_and_populated_states() {
 #[test]
 fn create_dataset_controls_build_for_vector_and_rerank_capabilities() {
     let mut app = test_app();
-    app.knowledge.create_dataset_tab =
-        crate::app::state::KnowledgeCreateDatasetTab::Indexing;
+    app.knowledge.create_dataset_tab = crate::app::state::KnowledgeCreateDatasetTab::Indexing;
     keep_element(build_create_dataset_panel(&app));
     app.knowledge.runtime_status = Some(runtime_status(false, false));
     app.knowledge.dataset_indexing_mode = KnowledgeIndexingMode::Economy;
@@ -370,8 +368,7 @@ fn create_dataset_controls_build_for_vector_and_rerank_capabilities() {
     keep_element(build_embedding_model_section(&app));
     keep_element(build_embedding_model_picker(&app));
 
-    app.knowledge.create_dataset_tab =
-        crate::app::state::KnowledgeCreateDatasetTab::Retrieval;
+    app.knowledge.create_dataset_tab = crate::app::state::KnowledgeCreateDatasetTab::Retrieval;
     keep_element(build_create_dataset_panel(&app));
 }
 

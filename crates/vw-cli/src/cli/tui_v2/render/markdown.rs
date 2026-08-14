@@ -63,11 +63,8 @@ pub(crate) fn split_streaming_markdown(
     markdown: &str,
     previous_stable_prefix: &str,
 ) -> StreamingMarkdownSplit {
-    let previous = if markdown.starts_with(previous_stable_prefix) {
-        previous_stable_prefix
-    } else {
-        ""
-    };
+    let previous =
+        if markdown.starts_with(previous_stable_prefix) { previous_stable_prefix } else { "" };
     let mut offset = 0usize;
     let mut safe_boundary = previous.len();
     let mut fence: Option<&str> = None;
@@ -251,11 +248,8 @@ impl MarkdownRenderer {
                     self.links.push(MarkdownLink { text, target });
                 }
             }
-            Tag::CodeBlock(_)
-            | Tag::Table(_)
-            | Tag::TableHead
-            | Tag::TableRow
-            | Tag::TableCell => {}
+            Tag::CodeBlock(_) | Tag::Table(_) | Tag::TableHead | Tag::TableRow | Tag::TableCell => {
+            }
         }
     }
 
@@ -265,10 +259,7 @@ impl MarkdownRenderer {
         }
         let mut style = override_style.unwrap_or_else(|| self.theme.body_style());
         if self.heading_level.is_some() {
-            style = self
-                .theme
-                .accent_style()
-                .add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+            style = self.theme.accent_style().add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
         }
         if self.strong_depth > 0 {
             style = style.add_modifier(Modifier::BOLD);
@@ -406,11 +397,7 @@ fn wrap_segments(
                 continue;
             }
             let character_width = UnicodeWidthChar::width(character).unwrap_or_default();
-            let rendered = if character_width > width {
-                "?"
-            } else {
-                &segment.text[0..0]
-            };
+            let rendered = if character_width > width { "?" } else { &segment.text[0..0] };
             let (text, cell_width) = if rendered == "?" {
                 ("?".to_string(), 1)
             } else {
@@ -456,12 +443,7 @@ fn render_table(rows: &[Vec<String>], width: usize, theme: TuiTheme) -> Vec<Line
             .iter()
             .flat_map(|row| {
                 let text = format!("| {}", row.join(" | "));
-                wrap_segments(
-                    "",
-                    &[StyledText { text, style: theme.body_style() }],
-                    width,
-                    theme,
-                )
+                wrap_segments("", &[StyledText { text, style: theme.body_style() }], width, theme)
             })
             .collect();
     }

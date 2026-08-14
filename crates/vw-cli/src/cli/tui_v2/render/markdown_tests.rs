@@ -29,7 +29,9 @@ fn tui_markdown_matches_reference_blocks_tables_and_streaming() {
     let (lines, links) = plain_lines(markdown, 32);
     let joined = lines.join("\n");
 
-    for marker in ["# 标题 Title", "inline()", "• 第一项", "│ 引用 quote", "fn main()", "┌", "Status"] {
+    for marker in
+        ["# 标题 Title", "inline()", "• 第一项", "│ 引用 quote", "fn main()", "┌", "Status"]
+    {
         assert!(joined.contains(marker), "missing markdown marker {marker:?}:\n{joined}");
     }
     assert_eq!(links, vec!["https://example.com/very/long/path?q=1"]);
@@ -50,7 +52,9 @@ fn tui_markdown_matches_reference_blocks_tables_and_streaming() {
     let extended = format!("{unfinished}\nprintln!(\"{{文本}}\");");
     let second = split_streaming_markdown(extended.as_str(), first.stable_prefix.as_str());
     assert_eq!(second.stable_prefix, first.stable_prefix);
-    assert!(plain_lines(second.unstable_suffix.as_str(), 18).0.iter().any(|line| line.contains("let")));
+    assert!(
+        plain_lines(second.unstable_suffix.as_str(), 18).0.iter().any(|line| line.contains("let"))
+    );
 
     let replaced = split_streaming_markdown("replacement", first.stable_prefix.as_str());
     assert!(replaced.stable_prefix.is_empty());

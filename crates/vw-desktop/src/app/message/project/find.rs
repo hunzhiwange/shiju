@@ -37,6 +37,46 @@ use std::path::{Component, Path, PathBuf};
 
 const FIND_SCOPE_ERROR: &str = "作用域必须是项目内的相对路径";
 
+fn dismiss_find_tab_menu(app: &mut App) {
+    app.find_results_tab_menu_id = None;
+    app.find_results_tab_menu_pos = None;
+}
+
+fn close_find_results_tab(app: &mut App, id: &str) {
+    let open_tab_id = format!("find:{id}");
+    let closing_active_find = app.active_find_results_tab_id.as_deref() == Some(id);
+    let closing_active_open = app.active_tab_id.as_deref() == Some(open_tab_id.as_str());
+
+    app.find_results_tabs.retain(|tab| tab.id != id);
+    app.open_tabs.retain(|tab| tab.id != open_tab_id);
+
+    if closing_active_find {
+        app.active_find_results_tab_id = app.find_results_tabs.last().map(|tab| tab.id.clone());
+    }
+
+    if closing_active_find
+        && let Some(active_find_id) = app.active_find_results_tab_id.as_deref()
+        && let Some(active_tab) =
+            app.open_tabs.iter().find(|tab| tab.id == format!("find:{active_find_id}"))
+    {
+        app.active_tab_id = Some(active_tab.id.clone());
+        app.screen = active_tab.screen;
+    } else if closing_active_open {
+        app.active_tab_id = app.open_tabs.last().map(|tab| tab.id.clone());
+        if let Some(active_tab) = app
+            .active_tab_id
+            .as_deref()
+            .and_then(|active_id| app.open_tabs.iter().find(|tab| tab.id == active_id))
+        {
+            app.screen = active_tab.screen;
+        }
+    }
+
+    if app.find_results_tab_menu_id.as_deref() == Some(id) {
+        dismiss_find_tab_menu(app);
+    }
+}
+
 fn resolve_find_scope_path(project_root: &str, input: &str) -> Result<String, &'static str> {
     let normalized = input.trim().replace('\\', "/");
     if normalized.is_empty() {
@@ -469,6 +509,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
         // 选择查找标签页
         ProjectMessage::FileTreeFindTabSelected(id) => {
+            if app.find_results_tabs.iter().any(|tab| tab.running) {
+                return Some(iced::Task::none());
+            }
+
             if id.is_empty() {
                 // 空字符串表示没有选中的标签页
                 app.active_find_results_tab_id = None;
@@ -476,52 +520,67 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 // 设置为活动的查找标签页
                 app.active_find_results_tab_id = Some(id);
 
-                // 确保文件管理器可见
+                // 点击搜索标签时文件管理器已可见；避免在 UI 主线程同步读写配置文件。
                 app.show_file_manager = true;
-                set_config_field("show_file_manager", serde_json::Value::Bool(true));
-
-                // 如果打开标签页列表中存在对应的标签页，则切换到该标签页
-                if let Some(active_id) = app.active_find_results_tab_id.clone() {
-                    let open_tab_id = format!("find:{}", active_id);
-                    if app.open_tabs.iter().any(|t| t.id == open_tab_id) {
-                        app.active_tab_id = Some(open_tab_id);
-                        app.screen = Screen::Project;
-                    }
-                }
             }
+            Some(iced::Task::none())
+        }
+
+        ProjectMessage::FileTreeFindTabRightClicked(id, x, y) => {
+            app.find_results_tab_menu_id = Some(id);
+            app.find_results_tab_menu_pos = Some(iced::Point::new(x, y));
+            Some(iced::Task::none())
+        }
+
+        ProjectMessage::FileTreeFindTabMenuClose => {
+            dismiss_find_tab_menu(app);
+            Some(iced::Task::none())
+        }
+
+        ProjectMessage::FileTreeFindTabMenuCloseLeft(id) => {
+            let Some(position) = app.find_results_tabs.iter().position(|tab| tab.id == id) else {
+                dismiss_find_tab_menu(app);
+                return Some(iced::Task::none());
+            };
+            let ids = app.find_results_tabs[..position]
+                .iter()
+                .map(|tab| tab.id.clone())
+                .collect::<Vec<_>>();
+            for tab_id in ids {
+                close_find_results_tab(app, &tab_id);
+            }
+            dismiss_find_tab_menu(app);
+            Some(iced::Task::none())
+        }
+
+        ProjectMessage::FileTreeFindTabMenuCloseRight(id) => {
+            let Some(position) = app.find_results_tabs.iter().position(|tab| tab.id == id) else {
+                dismiss_find_tab_menu(app);
+                return Some(iced::Task::none());
+            };
+            let ids = app.find_results_tabs[position.saturating_add(1)..]
+                .iter()
+                .map(|tab| tab.id.clone())
+                .collect::<Vec<_>>();
+            for tab_id in ids {
+                close_find_results_tab(app, &tab_id);
+            }
+            dismiss_find_tab_menu(app);
+            Some(iced::Task::none())
+        }
+
+        ProjectMessage::FileTreeFindTabMenuCloseAll => {
+            let ids = app.find_results_tabs.iter().map(|tab| tab.id.clone()).collect::<Vec<_>>();
+            for tab_id in ids {
+                close_find_results_tab(app, &tab_id);
+            }
+            dismiss_find_tab_menu(app);
             Some(iced::Task::none())
         }
 
         // 关闭查找标签页
         ProjectMessage::FileTreeFindTabClosed(id) => {
-            // 从查找标签页列表中移除指定标签页
-            app.find_results_tabs.retain(|t| t.id != id);
-
-            // 生成对应的打开标签页 ID
-            let open_tab_id = format!("find:{}", id);
-
-            // 从打开标签页列表中移除
-            if let Some(pos) = app.open_tabs.iter().position(|t| t.id == open_tab_id) {
-                app.open_tabs.remove(pos);
-
-                // 如果关闭的是当前活动标签页，则切换到最后一个标签页
-                if app.active_tab_id.as_deref() == Some(&open_tab_id) {
-                    app.active_tab_id = app.open_tabs.last().map(|t| t.id.clone());
-
-                    // 更新当前屏幕到新活动标签页的屏幕
-                    if let Some(active) = app.active_tab_id.clone()
-                        && let Some(tab) = app.open_tabs.iter().find(|t| t.id == active)
-                    {
-                        app.screen = tab.screen;
-                    }
-                }
-            }
-
-            // 如果关闭的是当前活动的查找标签页，则切换到最后一个查找标签页
-            if app.active_find_results_tab_id.as_deref() == Some(&id) {
-                app.active_find_results_tab_id = app.find_results_tabs.last().map(|t| t.id.clone());
-            }
-
+            close_find_results_tab(app, &id);
             Some(iced::Task::none())
         }
 

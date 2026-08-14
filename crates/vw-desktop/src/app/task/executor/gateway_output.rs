@@ -40,10 +40,7 @@ impl GatewayVisibleOutputFilter {
                 if force {
                     self.buffered.clear();
                 } else {
-                    Self::retain_possible_tag_prefix(
-                        &mut self.buffered,
-                        Self::REASONING_CLOSE,
-                    );
+                    Self::retain_possible_tag_prefix(&mut self.buffered, Self::REASONING_CLOSE);
                 }
                 break;
             }
@@ -59,8 +56,7 @@ impl GatewayVisibleOutputFilter {
                 visible.push_str(&self.buffered);
                 self.buffered.clear();
             } else {
-                let retained =
-                    Self::possible_tag_prefix_len(&self.buffered, Self::REASONING_OPEN);
+                let retained = Self::possible_tag_prefix_len(&self.buffered, Self::REASONING_OPEN);
                 let visible_end = self.buffered.len().saturating_sub(retained);
                 visible.push_str(&self.buffered[..visible_end]);
                 self.buffered.drain(..visible_end);

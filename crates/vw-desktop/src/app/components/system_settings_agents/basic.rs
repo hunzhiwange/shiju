@@ -50,15 +50,15 @@ pub(super) fn view<'a>(
         with_selected_option(models_for_provider(app, &entry.provider), &entry.model);
     let agent_key = entry.key.clone();
     let clear_provider = button(text("清除").size(12))
-        .on_press(Message::Settings(SettingsMessage::Agents(
-            AgentsMessage::ProviderCleared(agent_key.clone()),
-        )))
+        .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::ProviderCleared(
+            agent_key.clone(),
+        ))))
         .padding([8, 10])
         .style(|theme, status| settings_segment_button_style(theme, status, false));
     let clear_model = button(text("清除").size(12))
-        .on_press(Message::Settings(SettingsMessage::Agents(
-            AgentsMessage::ModelCleared(agent_key.clone()),
-        )))
+        .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::ModelCleared(
+            agent_key.clone(),
+        ))))
         .padding([8, 10])
         .style(|theme, status| settings_segment_button_style(theme, status, false));
 
@@ -256,9 +256,10 @@ pub(super) fn view<'a>(
         .spacing(14)
         .into()
     } else {
-        column![
-            section_card("角色边界", "委托资格、并发上限和递归深度由内置角色目录固定，不能在此放宽。"),
-        ]
+        column![section_card(
+            "角色边界",
+            "委托资格、并发上限和递归深度由内置角色目录固定，不能在此放宽。"
+        ),]
         .spacing(14)
         .into()
     };

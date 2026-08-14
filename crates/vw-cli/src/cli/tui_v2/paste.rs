@@ -5,9 +5,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::editor::{EditorCommand, apply_editor_command};
 use super::model::PromptState;
+use vw_shared::pasted_text::{cache_large_pasted_text, document_reference};
 
-const LARGE_PASTE_CHARS: usize = 800;
-const LARGE_PASTE_LINES: usize = 8;
 const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,24 +64,13 @@ pub(crate) struct ClipboardImage {
 
 pub(crate) fn apply_terminal_paste(prompt: &mut PromptState, text: &str) {
     let text = text.replace("\r\n", "\n").replace('\r', "\n");
-    if text.chars().count() < LARGE_PASTE_CHARS && text.lines().count() < LARGE_PASTE_LINES {
+    if let Ok(Some(path)) = cache_large_pasted_text(&text) {
+        apply_editor_command(prompt, EditorCommand::Insert(document_reference(&path)));
+    } else {
         apply_editor_command(prompt, EditorCommand::PasteStart);
         apply_editor_command(prompt, EditorCommand::Insert(text));
         apply_editor_command(prompt, EditorCommand::PasteEnd);
-        return;
     }
-    let id = next_attachment_id(prompt);
-    let label = format!("[Pasted text #{id}]");
-    prompt.attachments.push(PromptAttachment {
-        id,
-        kind: PromptAttachmentKind::PastedText,
-        label: label.clone(),
-        media_type: Some("text/plain".to_string()),
-        text: Some(text),
-        bytes: Vec::new(),
-    });
-    apply_editor_command(prompt, EditorCommand::Insert(label));
-    prompt.focused_attachment = Some(prompt.attachments.len().saturating_sub(1));
 }
 
 pub(crate) fn attach_clipboard_image(
@@ -98,10 +86,8 @@ pub(crate) fn attach_clipboard_image(
     if image.bytes.len() > MAX_IMAGE_BYTES {
         return Err("clipboard image exceeds 10 MiB".to_string());
     }
-    if !matches!(
-        image.media_type.as_str(),
-        "image/png" | "image/jpeg" | "image/gif" | "image/webp"
-    ) {
+    if !matches!(image.media_type.as_str(), "image/png" | "image/jpeg" | "image/gif" | "image/webp")
+    {
         return Err(format!("unsupported clipboard image type: {}", image.media_type));
     }
     let id = next_attachment_id(prompt);
@@ -154,9 +140,7 @@ pub(crate) fn delete_focused_attachment(prompt: &mut PromptState) -> bool {
 pub(crate) fn prompt_content_blocks(prompt: &PromptState) -> Vec<PromptContentBlock> {
     let mut blocks = vec![PromptContentBlock::Text(prompt.value.clone())];
     blocks.extend(prompt.attachments.iter().filter_map(|attachment| match attachment.kind {
-        PromptAttachmentKind::PastedText => {
-            attachment.text.clone().map(PromptContentBlock::Text)
-        }
+        PromptAttachmentKind::PastedText => attachment.text.clone().map(PromptContentBlock::Text),
         PromptAttachmentKind::Image => Some(PromptContentBlock::Image {
             media_type: attachment.media_type.clone().unwrap_or_else(|| "image/png".to_string()),
             bytes: attachment.bytes.clone(),
@@ -165,13 +149,12 @@ pub(crate) fn prompt_content_blocks(prompt: &PromptState) -> Vec<PromptContentBl
     blocks
 }
 
-pub(crate) fn create_prompt_editor_intent(prompt: &PromptState) -> std::io::Result<PromptEditorIntent> {
-    let nonce =
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
-    let path = std::env::temp_dir().join(format!(
-        "vibewindow-prompt-{}-{nonce}.txt",
-        std::process::id()
-    ));
+pub(crate) fn create_prompt_editor_intent(
+    prompt: &PromptState,
+) -> std::io::Result<PromptEditorIntent> {
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let path =
+        std::env::temp_dir().join(format!("vibewindow-prompt-{}-{nonce}.txt", std::process::id()));
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]

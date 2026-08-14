@@ -8,12 +8,8 @@ use vw_acp::server::{
 };
 use vw_api_types::id::TenantScope;
 
-use super::backend::{
-    VibeWindowBackend, map_runtime_event, start_prompt_with_runtime_runner,
-};
-use crate::session::processor::{
-    StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind,
-};
+use super::backend::{VibeWindowBackend, map_runtime_event, start_prompt_with_runtime_runner};
+use crate::session::processor::{StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
 use crate::session::runtime::{PromptEvent, PromptTermination};
 use crate::session::ui_types::TokenUsage;
 

@@ -14,12 +14,12 @@ use std::borrow::Cow;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::{self, Component, Path, PathBuf};
 
-#[cfg(not(target_arch = "wasm32"))]
-use wry::http::{header::COOKIE, HeaderMap, HeaderValue, Request, Response, StatusCode};
 #[cfg(target_os = "macos")]
 use tao::platform::macos::WindowBuilderExtMacOS;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::WindowBuilderExtWindows;
+#[cfg(not(target_arch = "wasm32"))]
+use wry::http::{HeaderMap, HeaderValue, Request, Response, StatusCode, header::COOKIE};
 
 #[cfg(not(target_arch = "wasm32"))]
 const DEFAULT_TARGET: &str = "about:blank";
@@ -313,8 +313,7 @@ fn is_trusted_shiju_app_target(target: &str) -> bool {
         return false;
     }
 
-    let Some(installation_id) =
-        path.strip_prefix("app/").and_then(|path| path.strip_suffix('/'))
+    let Some(installation_id) = path.strip_prefix("app/").and_then(|path| path.strip_suffix('/'))
     else {
         return false;
     };
@@ -337,9 +336,7 @@ fn read_shiju_app_set_cookie_for_target(
     }
 
     let mut bytes = Vec::with_capacity(MAX_SHIJU_APP_SET_COOKIE_BYTES + 2);
-    input
-        .take((MAX_SHIJU_APP_SET_COOKIE_BYTES + 2) as u64)
-        .read_until(b'\n', &mut bytes)?;
+    input.take((MAX_SHIJU_APP_SET_COOKIE_BYTES + 2) as u64).read_until(b'\n', &mut bytes)?;
     if bytes.last() == Some(&b'\n') {
         bytes.pop();
         if bytes.last() == Some(&b'\r') {
@@ -354,10 +351,7 @@ fn read_shiju_app_set_cookie_for_target(
     }
 
     let token = String::from_utf8(bytes).map_err(|_| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "识矩应用浏览器会话不是有效 UTF-8",
-        )
+        std::io::Error::new(std::io::ErrorKind::InvalidData, "识矩应用浏览器会话不是有效 UTF-8")
     })?;
     if token.chars().any(char::is_control) {
         return Err(std::io::Error::new(
@@ -388,9 +382,7 @@ fn runtime_cookie(set_cookie: &str) -> Result<wry::cookie::Cookie<'static>, &'st
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn runtime_cookie_headers(
-    cookie: &wry::cookie::Cookie<'_>,
-) -> Result<HeaderMap, &'static str> {
+fn runtime_cookie_headers(cookie: &wry::cookie::Cookie<'_>) -> Result<HeaderMap, &'static str> {
     let value = HeaderValue::from_str(&format!("{}={}", cookie.name(), cookie.value()))
         .map_err(|_| "识矩应用浏览器会话 Cookie 无效")?;
     let mut headers = HeaderMap::new();
@@ -411,9 +403,8 @@ fn is_safe_navigation_url(url: &str) -> bool {
         return false;
     }
 
-    let authority = remainder
-        .split_once(['/', '?', '#'])
-        .map_or(remainder, |(authority, _)| authority);
+    let authority =
+        remainder.split_once(['/', '?', '#']).map_or(remainder, |(authority, _)| authority);
     authority.rsplit('@').next().is_some_and(|host| !host.is_empty())
 }
 
@@ -458,9 +449,8 @@ fn redacted_launch_target(target: &str) -> String {
         return "<local-or-invalid>".to_string();
     }
 
-    let authority = remainder
-        .split_once(['/', '?', '#'])
-        .map_or(remainder, |(authority, _)| authority);
+    let authority =
+        remainder.split_once(['/', '?', '#']).map_or(remainder, |(authority, _)| authority);
     let host = authority.rsplit('@').next().unwrap_or_default();
     if host.is_empty() {
         return "<invalid>".to_string();
@@ -852,8 +842,8 @@ fn main() {
         }
     };
 
-    let init_script =
-        match build_init_script(&data_path, &options.cookies_json, SAFARI_USER_AGENT) {
+    let init_script = match build_init_script(&data_path, &options.cookies_json, SAFARI_USER_AGENT)
+    {
         Ok(script) => script,
         Err(e) => {
             let msg = format!("Failed to build initialization script: {e}\nLog: {log_path:?}");
@@ -899,8 +889,7 @@ fn main() {
         {
             Ok(toolbar) => toolbar,
             Err(error) => {
-                let msg =
-                    format!("WebView toolbar build error: {error:?}\nLog: {log_path:?}");
+                let msg = format!("WebView toolbar build error: {error:?}\nLog: {log_path:?}");
                 append_log(&log_path, &msg);
                 show_error_dialog("VibeWindow WebView", &msg);
                 return;
@@ -913,8 +902,7 @@ fn main() {
 
     let mut web_context = WebContext::new(Some(data_path.clone()));
 
-    let initial_url =
-        shiju_app_set_cookie.as_ref().map_or(url.as_str(), |_| DEFAULT_TARGET);
+    let initial_url = shiju_app_set_cookie.as_ref().map_or(url.as_str(), |_| DEFAULT_TARGET);
 
     #[cfg(target_os = "macos")]
     let mut builder = {
@@ -981,11 +969,8 @@ fn main() {
         builder = builder.with_bounds(content_region.to_wry_rect());
     }
 
-    let webview_result = if independent_mode {
-        builder.build_as_child(&window)
-    } else {
-        builder.build(&window)
-    };
+    let webview_result =
+        if independent_mode { builder.build_as_child(&window) } else { builder.build(&window) };
     let webview = match webview_result {
         Ok(w) => w,
         Err(e) => {

@@ -1,6 +1,5 @@
 use super::editor::{
-    EditorCommand, apply_editor_command, byte_index_for_grapheme, editor_viewport,
-    grapheme_count,
+    EditorCommand, apply_editor_command, byte_index_for_grapheme, editor_viewport, grapheme_count,
 };
 use super::model::{PromptMotion, PromptState};
 
@@ -71,10 +70,7 @@ fn tui_editor_handles_graphemes_multiline_undo_and_viewport() {
 
     let before = multiline.value.clone();
     multiline.cursor.char_index = usize::MAX;
-    assert!(!apply_editor_command(
-        &mut multiline,
-        EditorCommand::Insert("unsafe".to_string()),
-    ));
+    assert!(!apply_editor_command(&mut multiline, EditorCommand::Insert("unsafe".to_string()),));
     assert_eq!(multiline.value, before, "invalid offsets are rejected without mutation");
 }
 
@@ -84,10 +80,7 @@ fn selection_replacement_and_deletion_each_create_one_undo_snapshot() {
 
     let mut inserted = PromptState::new(original);
     apply_editor_command(&mut inserted, EditorCommand::SelectAll);
-    assert!(apply_editor_command(
-        &mut inserted,
-        EditorCommand::Insert("替".to_string()),
-    ));
+    assert!(apply_editor_command(&mut inserted, EditorCommand::Insert("替".to_string()),));
     assert_eq!(inserted.value, "替");
     assert_eq!(inserted.cursor.char_index, 1);
     assert_eq!(inserted.editor.undo_depth(), 1);

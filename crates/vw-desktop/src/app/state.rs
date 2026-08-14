@@ -71,9 +71,8 @@ pub(crate) use presentation::{
     ConventionalCommitType, ExternalOpenApp, ModelPopoverHover, RuntimePlatform, TopBarGatewayTab,
     WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS, WORK_SIDEBAR_LOAD_MORE_STEP,
     WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE, WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP,
-    WorkResourceMode,
-    WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime, WorkSidebarTab,
-    WorkspaceMode,
+    WorkResourceMode, WorkSidebarFilterScope, WorkSidebarFilterStatus, WorkSidebarFilterTime,
+    WorkSidebarTab, WorkspaceMode,
 };
 pub(crate) use runtime_tools::*;
 pub(crate) use settings::*;

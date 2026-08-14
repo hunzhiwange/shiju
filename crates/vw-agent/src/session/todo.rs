@@ -105,9 +105,7 @@ fn instance_directory_opt() -> Option<String> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn map_tool_todos_to_gateway(
-    todos: Vec<crate::app::agent::tools::todo::Todo>,
-) -> Vec<Info> {
+fn map_tool_todos_to_gateway(todos: Vec<crate::app::agent::tools::todo::Todo>) -> Vec<Info> {
     todos
         .into_iter()
         .map(|todo| Info {

@@ -26,7 +26,7 @@ fn normalize_browser_open(raw: &str) -> String {
     match raw.trim().to_ascii_lowercase().replace('-', "_").as_str() {
         "new_window" => "new_window".to_string(),
         "new_tab" => "new_tab".to_string(),
-        _ => "default".to_string(),
+        _ => "new_tab".to_string(),
     }
 }
 

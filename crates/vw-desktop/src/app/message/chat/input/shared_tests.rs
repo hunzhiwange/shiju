@@ -18,7 +18,13 @@ fn test_app() -> App {
 }
 
 fn chat_message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    ChatMessage {
+        role,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 #[test]
@@ -293,11 +299,13 @@ fn permission_target_tool_anchor_fraction_rejects_non_matching_request() {
 
 #[test]
 fn permission_target_tool_anchor_fraction_handles_non_tool_roles_and_empty_tool_list() {
-    let user =
-        ChatMessage {
-            model: None,
-            role: ChatRole::User, content: "问题".to_string(), think_timing: Vec::new(), processing_timing: None
-        };
+    let user = ChatMessage {
+        model: None,
+        role: ChatRole::User,
+        content: "问题".to_string(),
+        think_timing: Vec::new(),
+        processing_timing: None,
+    };
     let assistant = ChatMessage {
         role: ChatRole::Assistant,
         content: "没有工具调用".to_string(),

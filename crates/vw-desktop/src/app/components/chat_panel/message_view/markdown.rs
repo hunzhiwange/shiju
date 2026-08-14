@@ -14,7 +14,9 @@ use crate::app::{App, Message, message};
 use super::super::tool_text_support::{
     READ_ONLY_EDITOR_MAX_HEIGHT, chat_text_font, chat_text_line_height, read_only_text_style,
 };
-use super::styles::{MESSAGE_TEXT_SIZE, is_dark_theme, message_body_text_color};
+use super::styles::{
+    MARKDOWN_BLOCK_SPACING, MESSAGE_TEXT_SIZE, is_dark_theme, message_body_text_color,
+};
 
 /// Markdown 块类型。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -477,7 +479,7 @@ pub(crate) fn markdown_body_view<'a>(
     text_idx: usize,
     blocks: &'a [MarkdownBlock],
 ) -> Element<'a, Message> {
-    let mut body = column![].spacing(8).width(Length::Fill);
+    let mut body = column![].spacing(MARKDOWN_BLOCK_SPACING).width(Length::Fill);
     for (block_idx, block) in blocks.iter().enumerate() {
         body = body.push(markdown_block_view(app, msg_idx, text_idx, block_idx, block));
     }

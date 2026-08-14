@@ -1,4 +1,6 @@
-use super::status_animation::{ACTIVITY_ANIMATION_INTERVAL_MS, STATUS_SPINNER_FRAMES, spinner_frame};
+use super::status_animation::{
+    ACTIVITY_ANIMATION_INTERVAL_MS, STATUS_SPINNER_FRAMES, spinner_frame,
+};
 
 #[test]
 fn activity_animation_interval_limits_request_time_refresh_rate() {

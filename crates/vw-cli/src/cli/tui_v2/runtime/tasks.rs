@@ -1,13 +1,13 @@
 use vw_shared::todo::Todo;
 
+use super::super::model::UiTodoOverlay;
 use super::super::model::background_task::{
     BackgroundTask, BackgroundTaskPanel, BackgroundTaskStatus,
 };
-use super::super::model::UiTodoOverlay;
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use vw_gateway_client::vw_api_types::agent_scheduler::{
-    AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto,
-    AgentSchedulerCommandRequest, AgentSchedulerDispatchModeDto,
+    AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
+    AgentSchedulerDispatchModeDto,
 };
 use vw_gateway_client::vw_api_types::id::TaskId;
 
@@ -31,10 +31,9 @@ impl TasksRuntime for GatewayUiRuntime {
                         id: task.task_id.as_ref().to_string(),
                         session_id: current_session.clone(),
                         kind: super::super::model::background_task::BackgroundTaskKind::Agent,
-                        title: task
-                            .read_model
-                            .title
-                            .unwrap_or_else(|| task.prompt.lines().next().unwrap_or("Agent task").to_string()),
+                        title: task.read_model.title.unwrap_or_else(|| {
+                            task.prompt.lines().next().unwrap_or("Agent task").to_string()
+                        }),
                         status,
                         detail: format!(
                             "status={} model={} run={}",
@@ -103,10 +102,8 @@ pub(crate) fn save_todos(
     overlay: &mut UiTodoOverlay,
     runtime: &mut dyn TasksRuntime,
 ) -> Result<(), String> {
-    let session_id = overlay
-        .session_id
-        .as_deref()
-        .ok_or_else(|| "todo session id is required".to_string())?;
+    let session_id =
+        overlay.session_id.as_deref().ok_or_else(|| "todo session id is required".to_string())?;
     let todos = overlay
         .items
         .iter()

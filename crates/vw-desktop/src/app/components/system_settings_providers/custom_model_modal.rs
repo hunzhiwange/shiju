@@ -10,8 +10,8 @@ use crate::app::components::system_settings_common::{
     settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_panel,
     settings_section_card, settings_segment_button_style, settings_text_input_style,
 };
-use crate::app::{App, Message, message};
 use crate::app::state::CustomProviderModelTab;
+use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, checkbox, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Element, Length};
@@ -66,9 +66,7 @@ pub(super) fn text_row<'a>(
 }
 
 fn modality_checked(values: Option<&Vec<String>>, modality: &str) -> bool {
-    values
-        .map(|values| values.iter().any(|value| value == modality))
-        .unwrap_or(modality == "text")
+    values.map(|values| values.iter().any(|value| value == modality)).unwrap_or(modality == "text")
 }
 
 fn effective_capability(
@@ -77,9 +75,7 @@ fn effective_capability(
     inherited_value: impl FnOnce(&crate::app::state::ModelCapabilityDefaults) -> bool,
     default: bool,
 ) -> bool {
-    override_value
-        .or_else(|| inherited.map(inherited_value))
-        .unwrap_or(default)
+    override_value.or_else(|| inherited.map(inherited_value)).unwrap_or(default)
 }
 
 fn capability_checkbox(
@@ -87,11 +83,7 @@ fn capability_checkbox(
     label: &'static str,
     on_toggle: impl Fn(bool) -> Message + 'static,
 ) -> Element<'static, Message> {
-    checkbox(checked)
-        .label(label)
-        .on_toggle(on_toggle)
-        .style(settings_checkbox_style)
-        .into()
+    checkbox(checked).label(label).on_toggle(on_toggle).style(settings_checkbox_style).into()
 }
 
 fn model_tab_button(
@@ -151,7 +143,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             "可选 family 元数据，用于区分同一厂商的模型系列。",
             "例如 qwen、gpt、claude",
             &mm.family,
-            |v| Message::Settings(message::SettingsMessage::CustomProviderModelModalFamilyChanged(v)),
+            |v| {
+                Message::Settings(message::SettingsMessage::CustomProviderModelModalFamilyChanged(
+                    v,
+                ))
+            },
         );
 
         let context_limit_row = text_row(
@@ -159,27 +155,33 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             "总上下文窗口；留空时沿用内置基线或安全默认值。",
             "例如 200000，留空使用默认值",
             &mm.context_limit,
-            |v| Message::Settings(
-                message::SettingsMessage::CustomProviderModelModalContextLimitChanged(v),
-            ),
+            |v| {
+                Message::Settings(
+                    message::SettingsMessage::CustomProviderModelModalContextLimitChanged(v),
+                )
+            },
         );
         let input_limit_row = text_row(
             "最大输入（token）",
             "最大输入窗口；留空时沿用内置基线或安全默认值。",
             "例如 200000，留空使用默认值",
             &mm.input_limit,
-            |v| Message::Settings(
-                message::SettingsMessage::CustomProviderModelModalInputLimitChanged(v),
-            ),
+            |v| {
+                Message::Settings(
+                    message::SettingsMessage::CustomProviderModelModalInputLimitChanged(v),
+                )
+            },
         );
         let output_limit_row = text_row(
             "最大输出（token）",
             "最大输出窗口；0 可表示该模型不产生文本输出。",
             "例如 4096，留空使用默认值",
             &mm.output_limit,
-            |v| Message::Settings(
-                message::SettingsMessage::CustomProviderModelModalOutputLimitChanged(v),
-            ),
+            |v| {
+                Message::Settings(
+                    message::SettingsMessage::CustomProviderModelModalOutputLimitChanged(v),
+                )
+            },
         );
 
         let reasoning = capability_checkbox(
@@ -190,7 +192,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 false,
             ),
             "推理",
-            |value| Message::Settings(message::SettingsMessage::CustomProviderModelModalReasoningChanged(value)),
+            |value| {
+                Message::Settings(
+                    message::SettingsMessage::CustomProviderModelModalReasoningChanged(value),
+                )
+            },
         );
         let tool_call = capability_checkbox(
             effective_capability(
@@ -200,7 +206,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 true,
             ),
             "工具调用",
-            |value| Message::Settings(message::SettingsMessage::CustomProviderModelModalToolCallChanged(value)),
+            |value| {
+                Message::Settings(
+                    message::SettingsMessage::CustomProviderModelModalToolCallChanged(value),
+                )
+            },
         );
         let temperature = capability_checkbox(
             effective_capability(
@@ -210,7 +220,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 false,
             ),
             "温度",
-            |value| Message::Settings(message::SettingsMessage::CustomProviderModelModalTemperatureChanged(value)),
+            |value| {
+                Message::Settings(
+                    message::SettingsMessage::CustomProviderModelModalTemperatureChanged(value),
+                )
+            },
         );
         let attachment = capability_checkbox(
             effective_capability(
@@ -220,7 +234,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 false,
             ),
             "附件",
-            |value| Message::Settings(message::SettingsMessage::CustomProviderModelModalAttachmentChanged(value)),
+            |value| {
+                Message::Settings(
+                    message::SettingsMessage::CustomProviderModelModalAttachmentChanged(value),
+                )
+            },
         );
         let interleaved = capability_checkbox(
             effective_capability(
@@ -230,9 +248,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 false,
             ),
             "交错输入输出",
-            |value| Message::Settings(
-                message::SettingsMessage::CustomProviderModelModalInterleavedChanged(value),
-            ),
+            |value| {
+                Message::Settings(
+                    message::SettingsMessage::CustomProviderModelModalInterleavedChanged(value),
+                )
+            },
         );
         let capabilities_row = field_row(
             "能力",
@@ -296,7 +316,10 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(0);
 
         let info_tab = column![
-            settings_section_card("模型信息", "模型 ID 会直接用于请求；显示名称和家族仅用于元数据。"),
+            settings_section_card(
+                "模型信息",
+                "模型 ID 会直接用于请求；显示名称和家族仅用于元数据。"
+            ),
             settings_panel(
                 column![id_row, settings_divider(), name_row, settings_divider(), family_row]
                     .spacing(0),
@@ -304,7 +327,10 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(16);
         let limits_tab = column![
-            settings_section_card("限制", "空值明确表示沿用内置基线或安全默认值，数值单位为 token。"),
+            settings_section_card(
+                "限制",
+                "空值明确表示沿用内置基线或安全默认值，数值单位为 token。"
+            ),
             settings_panel(
                 column![
                     context_limit_row,
@@ -318,19 +344,20 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(16);
         let capabilities_tab = column![
-            settings_section_card("能力与模态", "只保存用户显式设置的覆盖，保持自动发现模型的其它配置。"),
-            settings_panel(column![capabilities_row, settings_divider(), modalities_row].spacing(0)),
+            settings_section_card(
+                "能力与模态",
+                "只保存用户显式设置的覆盖，保持自动发现模型的其它配置。"
+            ),
+            settings_panel(
+                column![capabilities_row, settings_divider(), modalities_row].spacing(0)
+            ),
         ]
         .spacing(16);
 
         let tabs = row![
             model_tab_button("模型信息", CustomProviderModelTab::Info, mm.active_tab),
             model_tab_button("限制", CustomProviderModelTab::Limits, mm.active_tab),
-            model_tab_button(
-                "能力与模态",
-                CustomProviderModelTab::Capabilities,
-                mm.active_tab,
-            ),
+            model_tab_button("能力与模态", CustomProviderModelTab::Capabilities, mm.active_tab,),
         ]
         .spacing(8)
         .align_y(Alignment::Center);
@@ -356,14 +383,10 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             .align_y(Alignment::Start),
             tabs,
             error_banner,
-            scrollable(
-                container(body).padding([0, SCROLLABLE_SIDE_PADDING]).width(Length::Fill),
-            )
-                .direction(
-                    Direction::Vertical(
-                        Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
-                    ),
-                )
+            scrollable(container(body).padding([0, SCROLLABLE_SIDE_PADDING]).width(Length::Fill),)
+                .direction(Direction::Vertical(
+                    Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
+                ),)
                 .height(Length::Fill),
             row![
                 container(text("")).width(Length::Fill),
@@ -384,9 +407,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(16)
         .height(Length::Fill);
 
-        let card = settings_modal_card(modal_col)
-            .width(Length::Fixed(840.0))
-            .height(Length::Fixed(680.0));
+        let card =
+            settings_modal_card(modal_col).width(Length::Fixed(840.0)).height(Length::Fixed(680.0));
         base = settings_modal_overlay(Some(base), close_message, card);
     }
 

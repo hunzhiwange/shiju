@@ -1,15 +1,13 @@
-use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use super::super::commands::registry::{
     CommandAction, CommandAvailability, CommandExecutionPolicy, CommandSource, CommandSpec,
 };
+#[cfg(test)]
+pub(crate) use super::super::model::integration::IntegrationLoadState;
 pub(crate) use super::super::model::integration::{
     IntegrationAction, IntegrationItem, IntegrationKind, IntegrationPanel,
 };
-use vw_config_types::skills::{
-    SkillsDirectoryProvider, parse_skills_directory_provider,
-};
-#[cfg(test)]
-pub(crate) use super::super::model::integration::IntegrationLoadState;
+use super::gateway::{GatewayUiRuntime, block_on_gateway};
+use vw_config_types::skills::{SkillsDirectoryProvider, parse_skills_directory_provider};
 
 pub(crate) trait IntegrationRuntime {
     fn load(&mut self, kind: IntegrationKind) -> Result<Vec<IntegrationItem>, String>;
@@ -31,10 +29,7 @@ pub(crate) trait IntegrationRuntime {
         Ok(SkillsDirectoryProvider::default())
     }
 
-    fn set_skill_provider(
-        &mut self,
-        _provider: SkillsDirectoryProvider,
-    ) -> Result<(), String> {
+    fn set_skill_provider(&mut self, _provider: SkillsDirectoryProvider) -> Result<(), String> {
         Err("this integration does not support skill platform switching".to_string())
     }
 
@@ -85,13 +80,12 @@ pub(crate) fn switch_skill_provider(
         Ok(items) => items,
         Err(error) => {
             return match runtime.set_skill_provider(previous) {
-                Ok(()) => Err(format!(
-                    "技能平台目录加载失败，已恢复 {}：{error}",
-                    previous.label()
-                )),
-                Err(rollback_error) => Err(format!(
-                    "技能平台目录加载失败且恢复配置失败：{error}；{rollback_error}"
-                )),
+                Ok(()) => {
+                    Err(format!("技能平台目录加载失败，已恢复 {}：{error}", previous.label()))
+                }
+                Err(rollback_error) => {
+                    Err(format!("技能平台目录加载失败且恢复配置失败：{error}；{rollback_error}"))
+                }
             };
         }
     };
@@ -262,20 +256,18 @@ impl IntegrationRuntime for GatewayUiRuntime {
                     let directory = self.directory_value();
                     let skills = self.client().skills_get(directory.as_deref()).await?;
                     let plugins = self.client().plugins_get().await?;
-                    Ok(vec![
-                        IntegrationItem {
-                            id: "gateway".to_string(),
-                            title: "Gateway 集成诊断".to_string(),
-                            detail: format!(
-                                "mcp_servers={} skills={} plugins={}",
-                                mcp.servers.len(),
-                                skills.len(),
-                                plugins.len()
-                            ),
-                            enabled: true,
-                            actions: Vec::new(),
-                        },
-                    ])
+                    Ok(vec![IntegrationItem {
+                        id: "gateway".to_string(),
+                        title: "Gateway 集成诊断".to_string(),
+                        detail: format!(
+                            "mcp_servers={} skills={} plugins={}",
+                            mcp.servers.len(),
+                            skills.len(),
+                            plugins.len()
+                        ),
+                        enabled: true,
+                        actions: Vec::new(),
+                    }])
                 }
                 IntegrationKind::Memory => Ok(Vec::new()),
             }
@@ -295,10 +287,7 @@ impl IntegrationRuntime for GatewayUiRuntime {
                     let config = self.client().config_get(directory.as_deref()).await?;
                     let provider = skill_provider_from_config(&config)?;
                     if provider != SkillsDirectoryProvider::Vibewindow {
-                        return Err(format!(
-                            "{} 技能平台不支持启用/停用",
-                            provider.label()
-                        ));
+                        return Err(format!("{} 技能平台不支持启用/停用", provider.label()));
                     }
                     self.client()
                         .skill_set_enabled(directory.as_deref(), id, enabled)
@@ -317,11 +306,9 @@ impl IntegrationRuntime for GatewayUiRuntime {
         let directory = self.directory_value();
         block_on_gateway(async {
             match kind {
-                IntegrationKind::Skill => self
-                    .client()
-                    .skill_delete(directory.as_deref(), id)
-                    .await
-                    .map(|_| ()),
+                IntegrationKind::Skill => {
+                    self.client().skill_delete(directory.as_deref(), id).await.map(|_| ())
+                }
                 IntegrationKind::Plugin => self.client().plugin_delete(id).await.map(|_| ()),
                 _ => Err("this integration does not support deletion".to_string()),
             }
@@ -336,10 +323,7 @@ impl IntegrationRuntime for GatewayUiRuntime {
         })
     }
 
-    fn set_skill_provider(
-        &mut self,
-        provider: SkillsDirectoryProvider,
-    ) -> Result<(), String> {
+    fn set_skill_provider(&mut self, provider: SkillsDirectoryProvider) -> Result<(), String> {
         block_on_gateway(self.client().global_config_patch(&serde_json::json!({
             "skills": {
                 "directory_provider": provider
@@ -382,8 +366,7 @@ impl IntegrationRuntime for GatewayUiRuntime {
 fn skill_provider_from_config(
     config: &serde_json::Value,
 ) -> Result<SkillsDirectoryProvider, String> {
-    let Some(value) =
-        config.get("skills").and_then(|skills| skills.get("directory_provider"))
+    let Some(value) = config.get("skills").and_then(|skills| skills.get("directory_provider"))
     else {
         return Ok(SkillsDirectoryProvider::default());
     };

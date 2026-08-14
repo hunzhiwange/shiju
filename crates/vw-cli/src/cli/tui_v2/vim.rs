@@ -14,10 +14,7 @@ pub(crate) enum VimMode {
     Insert,
 }
 
-pub(crate) fn handle_vim_key(
-    state: &mut TuiState,
-    key: KeyEvent,
-) -> Option<TuiControllerCommand> {
+pub(crate) fn handle_vim_key(state: &mut TuiState, key: KeyEvent) -> Option<TuiControllerCommand> {
     if key.modifiers.contains(KeyModifiers::ALT) && key.code == KeyCode::Char('v') {
         state.prompt.vim_mode = match state.prompt.vim_mode {
             VimMode::Disabled => VimMode::Normal,

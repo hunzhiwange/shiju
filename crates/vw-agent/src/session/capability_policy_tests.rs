@@ -1,5 +1,5 @@
 use super::capability_policy::{
-    resolve_skill_capabilities, resolve_tool_capabilities, CapabilityPolicyResolution,
+    CapabilityPolicyResolution, resolve_skill_capabilities, resolve_tool_capabilities,
 };
 use crate::app::agent::tools::ToolSpec;
 use vw_config_types::agent::DelegateCapabilityPolicy;
@@ -27,10 +27,7 @@ fn capability_policy_resolves_all_modes_without_model_self_authorization() {
         DelegateCapabilityPolicy::Strict,
         &hard_disabled,
     );
-    assert_eq!(
-        strict,
-        CapabilityPolicyResolution::new(["file_read"], ["file_read"])
-    );
+    assert_eq!(strict, CapabilityPolicyResolution::new(["file_read"], ["file_read"]));
 
     let user_override = resolve_tool_capabilities(
         &tools,
@@ -64,10 +61,7 @@ fn capability_policy_resolves_all_modes_without_model_self_authorization() {
         DelegateCapabilityPolicy::Strict,
         ["disabled"],
     );
-    assert_eq!(
-        strict_skills,
-        CapabilityPolicyResolution::new(["review"], ["review"])
-    );
+    assert_eq!(strict_skills, CapabilityPolicyResolution::new(["review"], ["review"]));
 
     let user_override_skills = resolve_skill_capabilities(
         &skills,
@@ -90,9 +84,6 @@ fn capability_policy_resolves_all_modes_without_model_self_authorization() {
     );
     assert_eq!(
         unrestricted_skills,
-        CapabilityPolicyResolution::new(
-            ["review", "rustcodegraph"],
-            std::iter::empty::<&str>(),
-        )
+        CapabilityPolicyResolution::new(["review", "rustcodegraph"], std::iter::empty::<&str>(),)
     );
 }

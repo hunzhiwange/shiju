@@ -356,7 +356,7 @@ impl Default for BrowserSettingsState {
             enabled: false,
             allowed_domains_input: String::new(),
             allowed_domains_editor: text_editor::Content::new(),
-            browser_open: "default".to_string(),
+            browser_open: "new_tab".to_string(),
             session_name_input: String::new(),
             backend: "agent_browser".to_string(),
             native_headless: true,
@@ -628,8 +628,18 @@ impl Default for CostSettingsState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemorySettingsTab {
+    General,
+    RetentionAndCache,
+    Embedding,
+    Qdrant,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct MemorySettingsState {
+    /// 当前显示的记忆配置页签
+    pub(crate) active_tab: MemorySettingsTab,
     pub(crate) backend: String,
     pub(crate) auto_save: bool,
     pub(crate) hygiene_enabled: bool,
@@ -660,6 +670,7 @@ pub(crate) struct MemorySettingsState {
 impl Default for MemorySettingsState {
     fn default() -> Self {
         Self {
+            active_tab: MemorySettingsTab::General,
             backend: "sqlite".to_string(),
             auto_save: true,
             hygiene_enabled: true,

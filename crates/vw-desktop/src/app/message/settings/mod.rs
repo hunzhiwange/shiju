@@ -54,10 +54,9 @@ use iced::Task;
 
 pub(crate) use messages::{
     AcpMessage, AgentsMessage, BashPolicyCheck, BashValidatorCheck, BrowserMessage,
-    ChannelsMessage, EmbeddingRoutesMessage,
-    GeneralSettingsMessage,
-    GatewayClientMessage, GatewayMessage, GoalLoopMessage, HooksMessage, HttpRequestMessage,
-    McpMessage, MemoryMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
+    ChannelsMessage, EmbeddingRoutesMessage, GatewayClientMessage, GatewayMessage,
+    GeneralSettingsMessage, GoalLoopMessage, HooksMessage, HttpRequestMessage, McpMessage,
+    MemoryMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
     QuickMessagesMessage, RuntimeMessage, SettingsMessage, SopMessage, StaffMessage,
     StaffResourceMessage, StaffTeamDraftField, StaffTeamMemberDraftField, StaffWorkerDraftField,
     StorageMessage, ThemeChromeField, ThemeColorPickerTarget, ThemePaletteField, ThemesMessage,

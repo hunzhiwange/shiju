@@ -1,15 +1,15 @@
 //! 会话领域模块入口，集中声明会话运行、提示词、状态同步和 UI 持久化相关子模块。
 
-/// 声明持久化子会话执行子模块。
-pub mod child_agent;
-#[cfg(test)]
-#[path = "child_agent_tests.rs"]
-mod child_agent_tests;
 /// 声明委托能力的纯策略解析器。
 pub(crate) mod capability_policy;
 #[cfg(test)]
 #[path = "capability_policy_tests.rs"]
 mod capability_policy_tests;
+/// 声明持久化子会话执行子模块。
+pub mod child_agent;
+#[cfg(test)]
+#[path = "child_agent_tests.rs"]
+mod child_agent_tests;
 /// 声明 compaction 子模块，保持当前领域的职责拆分清晰。
 pub mod compaction;
 /// 声明临时模型上下文装配器，避免 AGENTS 进入可见聊天记录。

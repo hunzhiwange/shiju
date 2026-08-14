@@ -633,8 +633,7 @@ pub fn all_tools_with_runtime(
         &vibewindow_dir,
         root_config.security.audit.clone(),
     ));
-    let cron_full_access =
-        security.autonomy == AutonomyLevel::Full && !security.workspace_only;
+    let cron_full_access = security.autonomy == AutonomyLevel::Full && !security.workspace_only;
     let mut tool_arcs: Vec<Arc<dyn Tool>> = vec![
         Arc::new(ConfigTool::new(config.clone(), security.clone())),
         Arc::new(
@@ -827,15 +826,13 @@ pub fn all_tools_with_runtime(
         tool_arcs.push(Arc::new(ComposioTool::new(key, composio_entity_id, security.clone())));
     }
 
-    tool_arcs.push(Arc::new(
-        SkillTool::new_with_runtime_config(
-            security.clone(),
-            session_id.to_string(),
-            false,
-            workspace_dir.to_path_buf(),
-            config.clone(),
-        ),
-    ));
+    tool_arcs.push(Arc::new(SkillTool::new_with_runtime_config(
+        security.clone(),
+        session_id.to_string(),
+        false,
+        workspace_dir.to_path_buf(),
+        config.clone(),
+    )));
     tool_arcs.push(Arc::new(BriefTool::new(security.clone())));
     tool_arcs.push(Arc::new(SleepTool::new()));
     tool_arcs
@@ -917,13 +914,11 @@ fn enabled_delegate_agents_with_project_skills(
         return enabled;
     }
 
-    let project_skill_names = crate::app::agent::skills::load_project_skills_with_config(
-        workspace_dir,
-        root_config,
-    )
-    .into_iter()
-    .map(|skill| skill.name)
-    .collect::<Vec<_>>();
+    let project_skill_names =
+        crate::app::agent::skills::load_project_skills_with_config(workspace_dir, root_config)
+            .into_iter()
+            .map(|skill| skill.name)
+            .collect::<Vec<_>>();
 
     for config in enabled.values_mut() {
         config.allowed_skills.extend(project_skill_names.iter().cloned());

@@ -107,8 +107,7 @@ pub enum BackendEvent {
 #[async_trait(?Send)]
 pub trait SessionUpdateSink: 'static {
     /// 发送一条真实 ACP 通知。
-    async fn send(&self, notification: SessionNotification)
-    -> agent_client_protocol::Result<()>;
+    async fn send(&self, notification: SessionNotification) -> agent_client_protocol::Result<()>;
 
     /// 请求客户端对工具调用做出权限选择。
     async fn request_permission(
@@ -125,10 +124,7 @@ pub(crate) struct NoopUpdateSink;
 
 #[async_trait(?Send)]
 impl SessionUpdateSink for NoopUpdateSink {
-    async fn send(
-        &self,
-        _notification: SessionNotification,
-    ) -> agent_client_protocol::Result<()> {
+    async fn send(&self, _notification: SessionNotification) -> agent_client_protocol::Result<()> {
         Ok(())
     }
 }
@@ -167,13 +163,9 @@ pub(crate) fn session_update(event: BackendEvent) -> Result<Option<SessionUpdate
         BackendEvent::Text(text) => Ok(Some(SessionUpdate::AgentMessageChunk(ContentChunk::new(
             ContentBlock::Text(TextContent::new(text)),
         )))),
-        BackendEvent::ToolStart { call_id, title, raw_input } => {
-            Ok(Some(SessionUpdate::ToolCall(
-                ToolCall::new(call_id, title)
-                    .status(ToolCallStatus::InProgress)
-                    .raw_input(raw_input),
-            )))
-        }
+        BackendEvent::ToolStart { call_id, title, raw_input } => Ok(Some(SessionUpdate::ToolCall(
+            ToolCall::new(call_id, title).status(ToolCallStatus::InProgress).raw_input(raw_input),
+        ))),
         BackendEvent::ToolUpdate { call_id, status, content, raw_output }
         | BackendEvent::ToolComplete { call_id, status, content, raw_output } => {
             Ok(Some(tool_update(call_id, status, content, raw_output)))

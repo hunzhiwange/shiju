@@ -207,8 +207,7 @@ fn summary_from_persisted_patch_stats(
             let super::message::Part::Patch(patch) = part else {
                 continue;
             };
-            let (Some(patch_additions), Some(patch_deletions)) =
-                (patch.additions, patch.deletions)
+            let (Some(patch_additions), Some(patch_deletions)) = (patch.additions, patch.deletions)
             else {
                 continue;
             };

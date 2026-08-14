@@ -76,11 +76,6 @@ fn configure_basic_channels(app: &mut App) {
         ignore_attachments: true,
         ignore_stories: true,
     });
-    app.channels_settings.expanded_panels.extend(
-        ["telegram", "discord", "slack", "mattermost", "webhook", "imessage", "matrix", "signal"]
-            .into_iter()
-            .map(str::to_string),
-    );
     app.channels_settings.refresh_text_inputs();
 }
 
@@ -170,11 +165,6 @@ fn basic_panels_build_enabled_collapsed_states_with_optional_fields_absent() {
     });
     app.channels_settings.refresh_text_inputs();
 
-    for panel in
-        ["telegram", "discord", "slack", "mattermost", "webhook", "imessage", "matrix", "signal"]
-    {
-        assert!(!app.channels_settings.expanded_panels.contains(panel));
-    }
     keep_element(super::basic_channels::telegram_panel(&app));
     keep_element(super::basic_channels::discord_panel(&app));
     keep_element(super::basic_channels::slack_panel(&app));
@@ -279,9 +269,6 @@ mod channel_instance_settings {
                 allowed_users: vec!["dingtalk-user".to_string()],
             },
         });
-        app.channels_settings
-            .expanded_panels
-            .extend(["matrix", "feishu", "dingtalk"].into_iter().map(str::to_string));
         app.channels_settings.refresh_text_inputs();
 
         keep_element(super::super::basic_channels::matrix_panel(&app));

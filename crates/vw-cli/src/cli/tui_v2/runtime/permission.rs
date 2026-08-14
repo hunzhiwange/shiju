@@ -16,11 +16,8 @@ pub(crate) trait PermissionRuntime {
 
 pub(crate) trait FullAccessPermissionRuntime {
     fn pending_for_current_directory(&mut self) -> Result<Vec<PermissionRequest>, String>;
-    fn approve(
-        &mut self,
-        request_id: &str,
-        reply: PendingPermissionReplyDto,
-    ) -> Result<(), String>;
+    fn approve(&mut self, request_id: &str, reply: PendingPermissionReplyDto)
+    -> Result<(), String>;
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

@@ -49,11 +49,7 @@ fn menu_style(theme: &Theme) -> iced::widget::container::Style {
     iced::widget::container::Style {
         background: Some(Background::Color(palette.background.base.color)),
         text_color: Some(palette.background.base.text),
-        border: Border {
-            color: palette.background.strong.color,
-            width: 1.0,
-            radius: 12.0.into(),
-        },
+        border: Border { color: palette.background.strong.color, width: 1.0, radius: 12.0.into() },
         shadow: Shadow {
             color: Color::BLACK.scale_alpha(0.26),
             offset: iced::Vector::new(0.0, 5.0),
@@ -75,11 +71,7 @@ fn trigger_style(
     iced::widget::button::Style {
         background: Some(Background::Color(background)),
         text_color: palette.background.base.text,
-        border: Border {
-            color: palette.background.strong.color,
-            width: 1.0,
-            radius: 9.0.into(),
-        },
+        border: Border { color: palette.background.strong.color, width: 1.0, radius: 9.0.into() },
         ..Default::default()
     }
 }
@@ -99,11 +91,7 @@ fn account_row_style(
     };
     iced::widget::button::Style {
         background,
-        text_color: if active {
-            palette.primary.weak.text
-        } else {
-            palette.background.base.text
-        },
+        text_color: if active { palette.primary.weak.text } else { palette.background.base.text },
         border: Border { radius: 7.0.into(), ..Default::default() },
         ..Default::default()
     }
@@ -157,11 +145,11 @@ fn login_button_style(
         background: Some(Background::Color(background)),
         text_color,
         border: Border {
-            color: palette
-                .background
-                .strong
-                .color
-                .scale_alpha(if palette.is_dark { 0.78 } else { 0.42 }),
+            color: palette.background.strong.color.scale_alpha(if palette.is_dark {
+                0.78
+            } else {
+                0.42
+            }),
             width: 1.0,
             radius: 10.0.into(),
         },
@@ -184,9 +172,7 @@ fn delete_account_button_style(
 ) -> iced::widget::button::Style {
     let palette = theme.extended_palette();
     let background = match status {
-        iced::widget::button::Status::Hovered => {
-            Some(Background::Color(palette.danger.weak.color))
-        }
+        iced::widget::button::Status::Hovered => Some(Background::Color(palette.danger.weak.color)),
         iced::widget::button::Status::Pressed => {
             Some(Background::Color(palette.danger.base.color.scale_alpha(0.20)))
         }
@@ -211,9 +197,7 @@ fn menu(app: &App) -> Element<'_, Message> {
     if app.account.accounts().is_empty() {
         account_rows = account_rows.push(
             container(text("暂无本地账户").size(12).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.palette().text.scale_alpha(0.58)),
-                }
+                iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.58)) }
             }))
             .padding([8, 10]),
         );
@@ -236,29 +220,22 @@ fn menu(app: &App) -> Element<'_, Message> {
                     account.id().to_string(),
                 )));
             }
-            let mut delete = button(text("删除").size(12))
-                .padding([8, 10])
-                .style(delete_account_button_style);
+            let mut delete =
+                button(text("删除").size(12)).padding([8, 10]).style(delete_account_button_style);
             if !busy {
                 delete = delete.on_press(account_message(AccountMessage::DeleteSaved(
                     account.id().to_string(),
                 )));
             }
             account_rows = account_rows.push(
-                row![item, delete]
-                    .spacing(4)
-                    .align_y(iced::Alignment::Center)
-                    .width(Length::Fill),
+                row![item, delete].spacing(4).align_y(iced::Alignment::Center).width(Length::Fill),
             );
         }
     }
 
-    let accounts = scrollable(account_rows)
-        .height(Length::Fixed(148.0))
-        .direction(Direction::Vertical(
-            Scrollbar::new()
-                .width(ACCOUNT_SCROLLBAR_WIDTH)
-                .scroller_width(ACCOUNT_SCROLLBAR_WIDTH),
+    let accounts =
+        scrollable(account_rows).height(Length::Fixed(148.0)).direction(Direction::Vertical(
+            Scrollbar::new().width(ACCOUNT_SCROLLBAR_WIDTH).scroller_width(ACCOUNT_SCROLLBAR_WIDTH),
         ));
     let input = text_input("手工输入 skey", app.account.manual_input.expose())
         .secure(true)
@@ -271,8 +248,7 @@ fn menu(app: &App) -> Element<'_, Message> {
         .padding([7, 9])
         .size(12)
         .style(login_input_style);
-    let mut confirm =
-        button(text("确认").size(12)).padding([7, 12]).style(login_button_style);
+    let mut confirm = button(text("确认").size(12)).padding([7, 12]).style(login_button_style);
     if !busy && !app.account.manual_input.expose().trim().is_empty() {
         confirm = confirm.on_press(account_message(AccountMessage::SubmitManual));
     }
@@ -330,22 +306,14 @@ fn menu(app: &App) -> Element<'_, Message> {
         content = content.push(sign_out);
     }
 
-    container(content)
-        .width(Length::Fixed(320.0))
-        .padding(12)
-        .style(menu_style)
-        .into()
+    container(content).width(Length::Fixed(320.0)).padding(12).style(menu_style).into()
 }
 
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let trigger = button(
-        row![
-            text("◉").size(12),
-            text(trigger_label(app)).size(12),
-            text("⌃").size(10),
-        ]
-        .spacing(6)
-        .align_y(iced::Alignment::Center),
+        row![text("◉").size(12), text(trigger_label(app)).size(12), text("⌃").size(10),]
+            .spacing(6)
+            .align_y(iced::Alignment::Center),
     )
     .on_press(account_message(AccountMessage::ToggleMenu))
     .padding([5, 9])

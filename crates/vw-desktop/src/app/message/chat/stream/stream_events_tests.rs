@@ -89,6 +89,24 @@ fn agent_request(id: u64, session_id: &str) -> AgentRequest {
     }
 }
 
+#[test]
+fn background_stream_mutation_invalidates_cached_session_view() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("background".to_string());
+    app.chat = vec![message(ChatRole::Assistant, "cached response")];
+    app.stash_active_session_view();
+    assert!(app.session_view_cache.contains("background"));
+
+    app.active_session_id = Some("foreground".to_string());
+    let _ = super::handle_agent_session_delta(
+        &mut app,
+        "background".to_string(),
+        " updated".to_string(),
+    );
+
+    assert!(!app.session_view_cache.contains("background"));
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn generated_git_commit_message_fills_form_then_dispatches_commit_action() {
     let (mut app, _) = crate::app::App::new();
@@ -532,8 +550,7 @@ fn active_stream_growth_preserves_turn_top_focus() {
     ];
     app.chat_message_ids = vec![None; app.chat.len()];
     app.chat_auto_scroll = false;
-    app.chat_virtualizer =
-        ChatVirtualizer::from_estimated_heights(&[180.0, 180.0, 100.0, 0.0]);
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[180.0, 180.0, 100.0, 0.0]);
     app.chat_virtualizer.set_viewport_height(300.0);
     app.chat_virtualizer.focus_turn_on_user(2);
     app.sync_chat_virtualizer_compat_fields();

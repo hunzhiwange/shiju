@@ -150,10 +150,8 @@ fn resolve_select_fields(
         }
     }
 
-    let hidden_fields = virtual_dependencies
-        .into_iter()
-        .filter(|field| !direct_regular.contains(field))
-        .collect();
+    let hidden_fields =
+        virtual_dependencies.into_iter().filter(|field| !direct_regular.contains(field)).collect();
 
     Ok(ApiQlSelectFields { fields: resolved, virtual_fields, hidden_fields })
 }

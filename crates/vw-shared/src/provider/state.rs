@@ -39,11 +39,7 @@ pub fn resolve_model_limit(
         })
         .unwrap_or(DEFAULT_MODEL_INPUT_LIMIT);
 
-    ModelLimit {
-        context,
-        input: Some(input),
-        output,
-    }
+    ModelLimit { context, input: Some(input), output }
 }
 
 /// 解析带基础模型的配置限制。
@@ -102,29 +98,14 @@ pub fn default_model_capabilities() -> Capabilities {
         reasoning: false,
         attachment: false,
         toolcall: true,
-        input: CapabilityIO {
-            text: true,
-            audio: false,
-            image: false,
-            video: false,
-            pdf: false,
-        },
-        output: CapabilityIO {
-            text: true,
-            audio: false,
-            image: false,
-            video: false,
-            pdf: false,
-        },
+        input: CapabilityIO { text: true, audio: false, image: false, video: false, pdf: false },
+        output: CapabilityIO { text: true, audio: false, image: false, video: false, pdf: false },
         interleaved: InterleavedCapability::Bool(false),
     }
 }
 
 /// 解析模型级能力覆盖，未显式设置的字段沿用基线或兼容默认值。
-pub fn resolve_model_capabilities(
-    model_cfg: &Value,
-    base: Option<&Capabilities>,
-) -> Capabilities {
+pub fn resolve_model_capabilities(model_cfg: &Value, base: Option<&Capabilities>) -> Capabilities {
     let mut capabilities = base.cloned().unwrap_or_else(default_model_capabilities);
 
     for (key, target) in [
@@ -247,11 +228,7 @@ pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model 
     } else {
         None
     };
-    let limit = resolve_model_limit(
-        Some(model.limit.context),
-        model.limit.input,
-        output_limit,
-    );
+    let limit = resolve_model_limit(Some(model.limit.context), model.limit.input, output_limit);
 
     Model {
         id: model.id.clone(),

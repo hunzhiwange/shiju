@@ -54,12 +54,7 @@ fn tui_message_actions_select_stable_messages_and_emit_exact_intents() {
     let mut controller = TuiController::default();
 
     assert!(matches!(
-        press(
-            &mut controller,
-            &mut state,
-            KeyCode::Char('r'),
-            KeyModifiers::ALT,
-        ),
+        press(&mut controller, &mut state, KeyCode::Char('r'), KeyModifiers::ALT,),
         TuiControllerCommand::Continue
     ));
     assert!(state.message_actions.active);
@@ -92,10 +87,8 @@ fn tui_message_actions_select_stable_messages_and_emit_exact_intents() {
     press(&mut controller, &mut state, KeyCode::Char('U'), KeyModifiers::NONE);
     assert_eq!(state.message_actions.selected_id.as_ref(), Some(&user2));
 
-    let TuiControllerCommand::MessageAction(MessageActionIntent::Copy {
-        message_id,
-        text,
-    }) = press(&mut controller, &mut state, KeyCode::Char('c'), KeyModifiers::NONE)
+    let TuiControllerCommand::MessageAction(MessageActionIntent::Copy { message_id, text }) =
+        press(&mut controller, &mut state, KeyCode::Char('c'), KeyModifiers::NONE)
     else {
         panic!("copy intent");
     };
@@ -115,41 +108,28 @@ fn tui_message_actions_select_stable_messages_and_emit_exact_intents() {
     assert_eq!(text, "second prompt");
     assert!(cancel_active_turn, "streaming edit requests cancellation first");
 
-    for (key, expected) in [
-        ('f', "fork"),
-        ('r', "restore"),
-        ('s', "summarize"),
-        ('w', "rewind"),
-    ] {
-        let command = press(
-            &mut controller,
-            &mut state,
-            KeyCode::Char(key),
-            KeyModifiers::NONE,
-        );
-        let actual = match command {
-            TuiControllerCommand::MessageAction(MessageActionIntent::Fork { message_id })
-                if message_id == user2 =>
-            {
-                "fork"
-            }
-            TuiControllerCommand::MessageAction(MessageActionIntent::Restore { message_id })
-                if message_id == user2 =>
-            {
-                "restore"
-            }
-            TuiControllerCommand::MessageAction(MessageActionIntent::Summarize { message_id })
-                if message_id == user2 =>
-            {
-                "summarize"
-            }
-            TuiControllerCommand::MessageAction(MessageActionIntent::Rewind { message_id })
-                if message_id == user2 =>
-            {
-                "rewind"
-            }
-            other => panic!("unexpected intent: {other:?}"),
-        };
+    for (key, expected) in [('f', "fork"), ('r', "restore"), ('s', "summarize"), ('w', "rewind")] {
+        let command = press(&mut controller, &mut state, KeyCode::Char(key), KeyModifiers::NONE);
+        let actual =
+            match command {
+                TuiControllerCommand::MessageAction(MessageActionIntent::Fork { message_id })
+                    if message_id == user2 =>
+                {
+                    "fork"
+                }
+                TuiControllerCommand::MessageAction(MessageActionIntent::Restore {
+                    message_id,
+                }) if message_id == user2 => "restore",
+                TuiControllerCommand::MessageAction(MessageActionIntent::Summarize {
+                    message_id,
+                }) if message_id == user2 => "summarize",
+                TuiControllerCommand::MessageAction(MessageActionIntent::Rewind { message_id })
+                    if message_id == user2 =>
+                {
+                    "rewind"
+                }
+                other => panic!("unexpected intent: {other:?}"),
+            };
         assert_eq!(actual, expected);
     }
 

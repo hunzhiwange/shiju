@@ -249,11 +249,7 @@ fn directory_loading_applies_explicit_manifest_and_content_policy() {
         detect_shell_chaining: true,
         ..Default::default()
     };
-    let skills = load_skills_from_directory(
-        &skills_dir,
-        SkillLoadMode::MetadataOnly,
-        &security,
-    );
+    let skills = load_skills_from_directory(&skills_dir, SkillLoadMode::MetadataOnly, &security);
 
     assert_eq!(skills.len(), 1);
     assert_eq!(skills[0].name, "safe");
@@ -291,11 +287,7 @@ fn legacy_open_skill_loading_is_case_insensitive_and_applies_explicit_policy() {
         detect_shell_chaining: true,
         ..Default::default()
     };
-    let skills = load_open_skills(
-        &repo,
-        SkillLoadMode::MetadataOnly,
-        &security,
-    );
+    let skills = load_open_skills(&repo, SkillLoadMode::MetadataOnly, &security);
 
     assert_eq!(skills.len(), 1);
     assert_eq!(skills[0].name, "SAFE");

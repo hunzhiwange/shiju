@@ -15,9 +15,7 @@ use vw_gateway_client::{
 };
 
 use crate::gateway::ApiError;
-use crate::skills::shiju::{
-    ShijuSkillClient, ShijuSkillError, ShijuSkillInstallRequest,
-};
+use crate::skills::shiju::{ShijuSkillClient, ShijuSkillError, ShijuSkillInstallRequest};
 
 pub(crate) fn router<S>() -> Router<S>
 where
@@ -40,10 +38,7 @@ where
         .route("/shiju/skills/maintained", get(maintained_get))
         .route("/shiju/skills/{skill_id}", get(detail_get))
         .route("/shiju/skills/{skill_id}/versions", get(versions_get))
-        .route(
-            "/shiju/skills/{skill_id}/install",
-            post(install_post).delete(install_delete),
-        )
+        .route("/shiju/skills/{skill_id}/install", post(install_post).delete(install_delete))
         .layer(Extension(Arc::new(client)))
 }
 
@@ -175,9 +170,7 @@ async fn install_post(
     let credential = credential(&headers)?;
     match body {
         Some(Json(body)) => {
-            client
-                .remote_install_version(&credential, skill_id, body.version_id)
-                .await
+            client.remote_install_version(&credential, skill_id, body.version_id).await
         }
         None => client.remote_install(&credential, skill_id).await,
     }
@@ -199,8 +192,7 @@ fn credential(headers: &HeaderMap) -> Result<ShijuCredential, ApiError> {
         .ok_or_else(|| ApiError::bad_request("SHIJU credential header is required"))?
         .to_str()
         .map_err(|_| ApiError::bad_request("SHIJU credential header is invalid"))?;
-    ShijuCredential::new(raw)
-        .map_err(|_| ApiError::bad_request("SHIJU credential cannot be empty"))
+    ShijuCredential::new(raw).map_err(|_| ApiError::bad_request("SHIJU credential cannot be empty"))
 }
 
 fn map_error(error: ShijuSkillError) -> ApiError {

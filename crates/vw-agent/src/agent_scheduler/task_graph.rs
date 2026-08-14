@@ -13,10 +13,7 @@ pub struct AgentTaskDependency {
 
 impl AgentTaskDependency {
     pub fn new(predecessor: TaskId, successor: TaskId) -> Self {
-        Self {
-            predecessor,
-            successor,
-        }
+        Self { predecessor, successor }
     }
 }
 
@@ -59,10 +56,7 @@ impl TaskGraph {
         let mut tasks_by_id = BTreeMap::new();
         for task in tasks {
             if task.kind != AgentTaskKind::Finite {
-                bail!(
-                    "task graph node {} must have finite task kind",
-                    task.id.as_str()
-                );
+                bail!("task graph node {} must have finite task kind", task.id.as_str());
             }
 
             let task_id = task.id.as_str().to_owned();
@@ -116,11 +110,7 @@ impl TaskGraph {
         }
         ensure_acyclic(&successors)?;
 
-        Ok(Self {
-            tasks: tasks_by_id,
-            dependencies,
-            predecessors,
-        })
+        Ok(Self { tasks: tasks_by_id, dependencies, predecessors })
     }
 
     pub fn dependencies(&self) -> &[AgentTaskDependency] {
@@ -156,14 +146,10 @@ impl TaskGraph {
         }
 
         if !blocking_task_ids.is_empty() {
-            return Ok(TaskGraphReadiness::BlockedByDependency {
-                task_ids: blocking_task_ids,
-            });
+            return Ok(TaskGraphReadiness::BlockedByDependency { task_ids: blocking_task_ids });
         }
         if !waiting_task_ids.is_empty() {
-            return Ok(TaskGraphReadiness::WaitingDependencies {
-                task_ids: waiting_task_ids,
-            });
+            return Ok(TaskGraphReadiness::WaitingDependencies { task_ids: waiting_task_ids });
         }
 
         Ok(TaskGraphReadiness::Ready)
@@ -202,10 +188,7 @@ fn visit(
     }
 
     states.insert(task_id.to_owned(), VisitState::Visiting);
-    for successor in successors
-        .get(task_id)
-        .expect("validated task must have a successor entry")
-    {
+    for successor in successors.get(task_id).expect("validated task must have a successor entry") {
         visit(successor, successors, states)?;
     }
     states.insert(task_id.to_owned(), VisitState::Visited);

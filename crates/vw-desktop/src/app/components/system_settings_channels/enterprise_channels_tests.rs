@@ -70,9 +70,6 @@ fn configure_enterprise_channels(app: &mut App) {
         allowed_destinations: vec!["*".to_string()],
         webhook_secret: Some("secret".to_string()),
     });
-    app.channels_settings.expanded_panels.extend(
-        ["lark", "feishu", "dingtalk", "qq", "nostr", "clawdtalk"].into_iter().map(str::to_string),
-    );
     app.channels_settings.refresh_text_inputs();
 }
 
@@ -101,11 +98,9 @@ fn enterprise_panels_build_disabled_and_expanded_enabled_states() {
 }
 
 #[test]
-fn enterprise_panels_build_configured_but_collapsed_state() {
+fn enterprise_panels_build_configured_state() {
     let mut app = test_app();
     configure_enterprise_channels(&mut app);
-    app.channels_settings.expanded_panels.clear();
-
     keep_element(super::enterprise_channels::lark_panel(&app));
     keep_element(super::enterprise_channels::feishu_panel(&app));
     keep_element(super::enterprise_channels::dingtalk_panel(&app));
@@ -183,7 +178,6 @@ fn feishu_panel_builds_instance_only_state_with_named_and_fallback_titles() {
             },
         },
     ]);
-    app.channels_settings.expanded_panels.insert("feishu".to_string());
     app.channels_settings.refresh_text_inputs();
 
     assert!(app.channels_settings.feishu.is_none());
@@ -211,7 +205,6 @@ fn dingtalk_panel_builds_instance_only_state_with_named_and_fallback_titles() {
             },
         },
     ]);
-    app.channels_settings.expanded_panels.insert("dingtalk".to_string());
     app.channels_settings.refresh_text_inputs();
 
     assert!(app.channels_settings.dingtalk.is_none());

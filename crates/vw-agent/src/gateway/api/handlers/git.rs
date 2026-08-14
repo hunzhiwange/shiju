@@ -264,14 +264,12 @@ pub(crate) fn merge_branch_blocking(
     let repo = open_repo(&workspace)?;
     let target_oid = branch_commit_oid(&repo, target_branch)?;
     let source_commit = {
-        let branch = repo
-            .find_branch(source_branch, BranchType::Local)
-            .map_err(|err| err.to_string())?;
+        let branch =
+            repo.find_branch(source_branch, BranchType::Local).map_err(|err| err.to_string())?;
         branch.into_reference().peel_to_commit().map_err(|err| err.to_string())?
     };
-    let annotated = repo
-        .find_annotated_commit(source_commit.id())
-        .map_err(|err| err.to_string())?;
+    let annotated =
+        repo.find_annotated_commit(source_commit.id()).map_err(|err| err.to_string())?;
     let (analysis, _) = repo.merge_analysis(&[&annotated]).map_err(|err| err.to_string())?;
 
     if analysis.is_up_to_date() {
@@ -542,9 +540,7 @@ fn git_stage_file(directory: &str, file: &str) -> Result<(), String> {
 fn git_stage_all(directory: &str) -> Result<(), String> {
     let repo = open_repo(directory)?;
     let mut index = repo.index().map_err(|err| err.to_string())?;
-    index
-        .add_all(["*"].iter(), IndexAddOption::DEFAULT, None)
-        .map_err(|err| err.to_string())?;
+    index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None).map_err(|err| err.to_string())?;
     index.update_all(["*"].iter(), None).map_err(|err| err.to_string())?;
     index.write().map_err(|err| err.to_string())?;
     Ok(())

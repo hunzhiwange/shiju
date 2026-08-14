@@ -18,7 +18,11 @@ impl ImageTextExtractor for CountingExtractor {
         Ok(true)
     }
 
-    async fn extract_text(&self, _model_ref: &str, _image_data_uri: &str) -> anyhow::Result<String> {
+    async fn extract_text(
+        &self,
+        _model_ref: &str,
+        _image_data_uri: &str,
+    ) -> anyhow::Result<String> {
         self.calls.fetch_add(1, Ordering::SeqCst);
         Ok(serde_json::json!({
             "visible_text": "ocr-text",
@@ -28,12 +32,7 @@ impl ImageTextExtractor for CountingExtractor {
     }
 }
 
-fn tracked(
-    source: &str,
-    is_current: bool,
-    data_uri: &str,
-    image_id: &str,
-) -> TrackedImage {
+fn tracked(source: &str, is_current: bool, data_uri: &str, image_id: &str) -> TrackedImage {
     let image_id = ImageAssetId::from_hex(image_id).unwrap();
     let analysis = ImageAnalysisResult {
         version: 1,
@@ -140,10 +139,7 @@ fn ocr_enabled_sends_text_instead_of_image_bytes_on_first_step() {
     let ctx = context_with_ocr(vec![image.clone()]);
 
     let first = ctx.rewrite_content(&format!("look [IMAGE:{}]", image.source_ref));
-    assert!(
-        !first.contains("data:image"),
-        "OCR mode must not attach compressed image bytes"
-    );
+    assert!(!first.contains("data:image"), "OCR mode must not attach compressed image bytes");
     assert!(first.contains("[VW_IMAGE:"));
     assert!(first.contains("ocr-text"));
     assert!(first.contains("visual_summary"));

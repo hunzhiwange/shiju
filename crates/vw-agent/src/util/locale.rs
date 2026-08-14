@@ -32,12 +32,7 @@ pub fn configured_datetime(timezone: Tz) -> String {
 /// Format a UTC instant with its numeric offset and unambiguous IANA timezone name.
 pub fn configured_datetime_at(datetime: DateTime<Utc>, timezone: Tz) -> String {
     let local = datetime.with_timezone(&timezone);
-    format!(
-        "{} {} ({})",
-        local.format("%Y-%m-%d %H:%M:%S"),
-        local.format("%:z"),
-        timezone.name()
-    )
+    format!("{} {} ({})", local.format("%Y-%m-%d %H:%M:%S"), local.format("%:z"), timezone.name())
 }
 
 fn datetime_from_millis_utc(ms: i64) -> OffsetDateTime {

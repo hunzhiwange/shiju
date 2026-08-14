@@ -1,8 +1,8 @@
 use super::{
     Clear, Line, Modifier, Paragraph, Path, PathBuf, PromptMode, PromptSubmissionStatus,
-    QueuedPromptCommand, QueuedPromptCommandKind, QueuedPromptPriority, Rect, Span, Style, Text, TuiCursorPlacement,
-    TuiPanelBorder, TuiPanelSurface, TuiPill, TuiRenderer, TuiState, TuiTheme, TuiTone,
-    UnicodeWidthStr, prompt_suggestions, selected_suggestion_index, usize_to_u16,
+    QueuedPromptCommand, QueuedPromptCommandKind, QueuedPromptPriority, Rect, Span, Style, Text,
+    TuiCursorPlacement, TuiPanelBorder, TuiPanelSurface, TuiPill, TuiRenderer, TuiState, TuiTheme,
+    TuiTone, UnicodeWidthStr, prompt_suggestions, selected_suggestion_index, usize_to_u16,
 };
 use crate::cli::tui_v2::completion::{CompletionKind, completion_notices};
 use crate::cli::tui_v2::editor::EditorSelection;
@@ -101,11 +101,7 @@ impl TuiRenderer {
 
         frame.render_widget(
             Paragraph::new(Text::from(
-                prompt_viewport
-                    .lines
-                    .into_iter()
-                    .chain(queue_line)
-                    .collect::<Vec<_>>(),
+                prompt_viewport.lines.into_iter().chain(queue_line).collect::<Vec<_>>(),
             ))
             .style(self.theme.panel_style(TuiPanelSurface::Base)),
             // prompt host 的光标与 reserved_rows 都按“逻辑行 = 屏幕行”计算，
@@ -117,10 +113,7 @@ impl TuiRenderer {
             status_area,
         );
         frame.render_widget(
-            Paragraph::new(Line::styled(
-                prompt_host.helper_text.clone(),
-                self.theme.muted_style(),
-            )),
+            Paragraph::new(Line::styled(prompt_host.helper_text.clone(), self.theme.muted_style())),
             shortcut_area,
         );
 
@@ -156,11 +149,8 @@ impl TuiRenderer {
             .map(|row| {
                 if matches!(row.kind, Some(CompletionKind::Directory | CompletionKind::File)) {
                     let marker = if row.selected { ">" } else { " " };
-                    let kind = if row.kind == Some(CompletionKind::Directory) {
-                        "[D]"
-                    } else {
-                        "[F]"
-                    };
+                    let kind =
+                        if row.kind == Some(CompletionKind::Directory) { "[D]" } else { "[F]" };
                     let style = if row.selected {
                         selected_completion_style(self.theme)
                     } else {
@@ -284,10 +274,8 @@ pub(crate) fn build_prompt_host(state: &TuiState) -> TuiPromptHost {
                 })
             })
             .collect();
-        suggestion_detail = Some(format!(
-            "历史搜索 /{} · Enter 选择 · Esc 恢复草稿",
-            state.history_search.query
-        ));
+        suggestion_detail =
+            Some(format!("历史搜索 /{} · Enter 选择 · Esc 恢复草稿", state.history_search.query));
     }
     let notices = completion_notices(state);
     if !notices.is_empty() {
@@ -300,8 +288,7 @@ pub(crate) fn build_prompt_host(state: &TuiState) -> TuiPromptHost {
         .find(|agent| agent.key == state.session_options.delegate_agent)
         .map(|agent| agent.label.as_str())
         .unwrap_or_else(|| state.session_options.delegate_agent.as_deref().unwrap_or("main"));
-    let acp_backend_label =
-        state.session_options.acp_backend.as_deref().unwrap_or("默认");
+    let acp_backend_label = state.session_options.acp_backend.as_deref().unwrap_or("默认");
 
     let mut queued_commands =
         state.prompt.queued_commands.iter().take(3).map(queue_command_pill).collect::<Vec<_>>();
@@ -371,10 +358,7 @@ pub(crate) fn build_prompt_host(state: &TuiState) -> TuiPromptHost {
                 format!("代理 {}", truncate_label(delegate_agent_label, 20)),
                 TuiTone::Muted,
             ),
-            TuiPill::new(
-                format!("ACP {}", truncate_label(acp_backend_label, 20)),
-                TuiTone::Muted,
-            ),
+            TuiPill::new(format!("ACP {}", truncate_label(acp_backend_label, 20)), TuiTone::Muted),
             TuiPill::new(
                 if state.session_options.full_access_enabled() {
                     "完全访问 已启用"
@@ -513,10 +497,7 @@ pub(super) fn render_prompt_value_lines(
         let prefix = prompt_line_prefix(index);
         let text = raw_lines.get(index).copied().unwrap_or_default();
         let text_spans = if prompt_host.value.is_empty() {
-            vec![Span::styled(
-                prompt_host.placeholder.clone(),
-                Style::default().fg(theme.muted),
-            )]
+            vec![Span::styled(prompt_host.placeholder.clone(), Style::default().fg(theme.muted))]
         } else {
             prompt_line_value_spans(
                 text,
@@ -531,15 +512,12 @@ pub(super) fn render_prompt_value_lines(
         lines.push(Line::from(spans));
     }
 
-    let current_line = raw_lines
-        .get(cursor_line.min(total_lines.saturating_sub(1)))
-        .copied()
-        .unwrap_or_default();
+    let current_line =
+        raw_lines.get(cursor_line.min(total_lines.saturating_sub(1))).copied().unwrap_or_default();
     let current_prefix = prompt_line_prefix(cursor_line);
     let cursor_prefix_width = UnicodeWidthStr::width(current_prefix);
-    let cursor_text = UnicodeSegmentation::graphemes(current_line, true)
-        .take(cursor_column)
-        .collect::<String>();
+    let cursor_text =
+        UnicodeSegmentation::graphemes(current_line, true).take(cursor_column).collect::<String>();
     let cursor_text =
         crate::cli::tui_v2::terminal_capabilities::sanitize_terminal_text(cursor_text.as_str());
     let cursor_x = cursor_prefix_width.saturating_add(UnicodeWidthStr::width(cursor_text.as_str()));
@@ -580,10 +558,7 @@ fn prompt_line_value_spans(
     let selection_style = if theme.accent == ratatui::style::Color::Reset {
         Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED)
     } else {
-        Style::default()
-            .fg(theme.background)
-            .bg(theme.accent)
-            .add_modifier(Modifier::BOLD)
+        Style::default().fg(theme.background).bg(theme.accent).add_modifier(Modifier::BOLD)
     };
     let mut spans = Vec::with_capacity(3);
     push_prompt_span(&mut spans, &graphemes[..selected_start], normal_style);

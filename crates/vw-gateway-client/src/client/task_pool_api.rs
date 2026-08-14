@@ -5,10 +5,10 @@ use vw_api_types::task::{
     TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMaintenanceResponse,
     TaskPoolWorktreeMergeLockRequest, TaskPoolWorktreeMergeLockResponse,
     TaskPoolWorktreeMergeUnlockRequest, TaskPoolWorktreeMergeUnlockResponse,
-    TaskPoolWorktreeRecycleRequest, TaskPoolWorktreeRecycleResponse, TaskPoolWorktreeReleaseRequest,
-    TaskPoolWorktreeReleaseResponse, TaskPoolWorktreeSlotRecycleRequest,
-    TaskPoolWorktreeSlotRecycleResponse, TaskPoolWorktreeSnapshotRequest,
-    TaskPoolWorktreeSnapshotResponse,
+    TaskPoolWorktreeRecycleRequest, TaskPoolWorktreeRecycleResponse,
+    TaskPoolWorktreeReleaseRequest, TaskPoolWorktreeReleaseResponse,
+    TaskPoolWorktreeSlotRecycleRequest, TaskPoolWorktreeSlotRecycleResponse,
+    TaskPoolWorktreeSnapshotRequest, TaskPoolWorktreeSnapshotResponse,
 };
 
 use super::GatewayClient;
@@ -45,9 +45,7 @@ impl GatewayClient {
         endpoint: &crate::endpoint::GatewayEndpoint,
         body: &TaskPlanRunRequest,
         resume: &crate::stream::GatewayStreamResume,
-        on_event: impl FnMut(
-            crate::stream::GatewayStreamEvent<TaskPlanRunStreamEventDto>,
-        ) -> bool,
+        on_event: impl FnMut(crate::stream::GatewayStreamEvent<TaskPlanRunStreamEventDto>) -> bool,
     ) -> Result<crate::stream::GatewayStreamAttemptResult, String> {
         Self::stream_task_plan_run_attempt(endpoint, body, Some(resume), on_event).await
     }
@@ -56,9 +54,7 @@ impl GatewayClient {
         endpoint: &crate::endpoint::GatewayEndpoint,
         body: &TaskPlanRunRequest,
         resume: Option<&crate::stream::GatewayStreamResume>,
-        mut on_event: impl FnMut(
-            crate::stream::GatewayStreamEvent<TaskPlanRunStreamEventDto>,
-        ) -> bool,
+        mut on_event: impl FnMut(crate::stream::GatewayStreamEvent<TaskPlanRunStreamEventDto>) -> bool,
     ) -> Result<crate::stream::GatewayStreamAttemptResult, String> {
         use futures_util::StreamExt;
 
@@ -108,9 +104,7 @@ impl GatewayClient {
                 let id = match (frame.id, resume.is_some()) {
                     (Some(id), _) => id,
                     (None, true) => {
-                        return Err(
-                            "gateway resumable stream event is missing SSE id".to_string()
-                        );
+                        return Err("gateway resumable stream event is missing SSE id".to_string());
                     }
                     (None, false) => 0,
                 };

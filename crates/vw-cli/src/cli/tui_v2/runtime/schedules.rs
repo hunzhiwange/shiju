@@ -1,7 +1,7 @@
 use vw_gateway_client::CronUpdateRequest;
 
-use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use super::super::model::schedule_panel::SchedulePanelItem;
+use super::gateway::{GatewayUiRuntime, block_on_gateway};
 
 pub(crate) trait ScheduleRuntime {
     fn list_schedules(&mut self) -> Result<Vec<SchedulePanelItem>, String>;
@@ -57,10 +57,10 @@ impl ScheduleRuntime for GatewayUiRuntime {
     }
 
     fn set_schedule_enabled(&mut self, id: &str, enabled: bool) -> Result<(), String> {
-        block_on_gateway(
-            self.client()
-                .cron_job_update(id, &CronUpdateRequest { enabled: Some(enabled), ..Default::default() }),
-        )
+        block_on_gateway(self.client().cron_job_update(
+            id,
+            &CronUpdateRequest { enabled: Some(enabled), ..Default::default() },
+        ))
         .and_then(|response| {
             (response.status == "ok" || response.job.is_some())
                 .then_some(())

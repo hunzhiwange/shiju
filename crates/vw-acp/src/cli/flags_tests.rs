@@ -536,12 +536,9 @@ fn resolve_agent_invocation_uses_trimmed_config_default_or_builtin_default_agent
     assert_eq!(invocation.cwd, workspace.to_string_lossy());
 
     config.default_agent = " ".to_string();
-    let default_invocation = resolve_agent_invocation(
-        None,
-        &make_global_flags(workspace.to_string_lossy()),
-        &config,
-    )
-    .expect("agent invocation");
+    let default_invocation =
+        resolve_agent_invocation(None, &make_global_flags(workspace.to_string_lossy()), &config)
+            .expect("agent invocation");
     assert_eq!(default_invocation.agent_name, "codex");
 }
 

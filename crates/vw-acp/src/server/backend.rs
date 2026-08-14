@@ -2,8 +2,8 @@
 
 use std::path::PathBuf;
 
-use async_trait::async_trait;
 use agent_client_protocol::McpServer;
+use async_trait::async_trait;
 use std::sync::Arc;
 
 use super::content::PromptContent;

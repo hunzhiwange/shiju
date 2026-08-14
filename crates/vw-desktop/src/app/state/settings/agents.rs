@@ -5,8 +5,8 @@
 
 use super::*;
 use vw_config_types::agent::{
-    BuiltinAgentKind, DelegateAgentConfig, DelegateCapabilityPolicy, builtin_agent_config, builtin_agent_keys,
-    builtin_agent_spec, is_retired_builtin_agent_key, merged_agent_configs,
+    BuiltinAgentKind, DelegateAgentConfig, DelegateCapabilityPolicy, builtin_agent_config,
+    builtin_agent_keys, builtin_agent_spec, is_retired_builtin_agent_key, merged_agent_configs,
 };
 use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
 
@@ -69,9 +69,7 @@ impl DelegateAgentSettingsEntry {
             description: default_agent_description(key, &config),
             kind,
             role_controls_locked: builtin_agent_spec(key).is_some(),
-            can_disable: builtin_agent_spec(key)
-                .map(|spec| spec.allow_as_subagent)
-                .unwrap_or(true),
+            can_disable: builtin_agent_spec(key).map(|spec| spec.allow_as_subagent).unwrap_or(true),
             enabled: if key == MAIN_AGENT_KEY { true } else { config.enabled },
             allow_as_subagent: config.allow_as_subagent,
             max_parallel_subagents: config.max_parallel_subagents.clamp(1, 32) as u32,

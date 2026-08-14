@@ -111,7 +111,7 @@ fn default_channels_state_matches_ui_defaults() {
     assert_eq!(state.project_dir(), None);
     assert!(state.cli);
     assert_eq!(state.message_timeout_secs, 300);
-    assert!(state.expanded_panels.contains("feishu"));
+    assert_eq!(state.active_tab, ChannelsSettingsTab::Global);
     assert!(state.save_error.is_none());
     assert!(state.text_inputs.is_empty());
     assert!(state.text_editors.is_empty());

@@ -2,8 +2,8 @@ use super::skills::{
     capability_policy_label, discovery_order_text, enabled_skill_ids, scope_description,
     scope_source_matches, skill_card_button_style, skill_policy_message, skill_source_label, view,
 };
-use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::Message;
+use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{SkillsCatalogItem, SkillsCatalogKind, SkillsDirectoryScope};
 use iced::advanced::widget::Tree;
 use iced::widget::button;

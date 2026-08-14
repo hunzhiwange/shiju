@@ -8,7 +8,7 @@ use iced::widget::{column, container};
 use iced::{Background, Element, Length, Theme};
 
 use crate::app::components::{chat_panel, input_panel};
-use crate::app::theme_catalog::{resolve_chrome_style_from_skin, ChromeStyleOverrides};
+use crate::app::theme_catalog::{ChromeStyleOverrides, resolve_chrome_style_from_skin};
 use crate::app::{App, Message};
 
 /// 构建聊天区域的完整布局

@@ -7,17 +7,17 @@ use crossterm::event::{
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 
+use super::app::{full_access_confirmation, gateway_stream_request_from_state};
 use super::commands::registry::{
     CommandAction, CommandAvailability, CommandExecutionPolicy, CommandRegistry, CommandSource,
     CommandSpec,
 };
-use super::app::{full_access_confirmation, gateway_stream_request_from_state};
 use super::controller::{
     TuiController, TuiControllerCommand, TuiControllerEvent, build_prompt_submission,
 };
+use super::model::PermissionMode;
 use super::model::integration::IntegrationKind;
 use super::model::settings_panel::{SettingsPanel, SettingsValues};
-use super::model::PermissionMode;
 use super::model::{
     UiConfirmIntent, UiConfirmOverlay, UiMessage, UiMessageBase, UiMessageId, UiOverlay,
     UiSystemMessage, UiSystemMessageLevel, UiThinkingBlock, UiThinkingPhase,
@@ -185,8 +185,7 @@ fn full_access_overrides_plan_allowed_tool_filter() {
     state.session_options.set_full_access(true);
     let full_access_submission =
         build_prompt_submission(&state, "full access plan").expect("full access submission");
-    let full_access_request =
-        gateway_stream_request_from_state(&state, &full_access_submission);
+    let full_access_request = gateway_stream_request_from_state(&state, &full_access_submission);
     assert_eq!(full_access_request.allowed_tools, None);
 
     state.session_options.set_full_access(false);
@@ -194,10 +193,7 @@ fn full_access_overrides_plan_allowed_tool_filter() {
         build_prompt_submission(&state, "standard access plan").expect("standard submission");
     let standard_access_request =
         gateway_stream_request_from_state(&state, &standard_access_submission);
-    assert_eq!(
-        standard_access_request.allowed_tools,
-        Some(vec!["todowrite".to_string()])
-    );
+    assert_eq!(standard_access_request.allowed_tools, Some(vec!["todowrite".to_string()]));
 }
 
 #[test]
@@ -256,9 +252,7 @@ fn full_access_requires_confirmation_and_scopes_auto_approval() {
     assert_eq!(acp_options["full_access"], true);
     assert_eq!(acp_options["acp_permission_mode"], "approve-all");
 
-    state
-        .session_options
-        .finish_acp_session_start(&acp_submission.execution, true);
+    state.session_options.finish_acp_session_start(&acp_submission.execution, true);
     state.session_options.set_full_access(false);
     assert!(state.session_options.acp_force_new_session());
     let safe_submission = build_prompt_submission(&state, "ACP safe").expect("ACP safe submit");
@@ -267,10 +261,7 @@ fn full_access_requires_confirmation_and_scopes_auto_approval() {
     assert!(safe_options.get("full_access").is_none());
     assert_eq!(safe_options["acp_permission_mode"], "approve-reads");
     assert!(
-        build_prompt_host(&state)
-            .footer_pills
-            .iter()
-            .any(|pill| pill.label == "完全访问 关闭")
+        build_prompt_host(&state).footer_pills.iter().any(|pill| pill.label == "完全访问 关闭")
     );
 }
 

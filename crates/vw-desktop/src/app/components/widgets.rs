@@ -65,12 +65,7 @@ impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, Rendere
         content: Element<'a, Message, ThemeT, RendererT>,
         on_right_click: Box<dyn Fn(Point) -> Message + 'a>,
     ) -> Self {
-        Self {
-            content,
-            on_right_click,
-            consume_right_click: false,
-            use_global_position: false,
-        }
+        Self { content, on_right_click, consume_right_click: false, use_global_position: false }
     }
 
     pub fn preserve_on_right_click(mut self) -> Self {
@@ -151,12 +146,7 @@ where
         renderer: &RendererT,
         operation: &mut dyn widget::Operation,
     ) {
-        self.content.as_widget_mut().operate(
-            &mut tree.children[0],
-            layout,
-            renderer,
-            operation,
-        );
+        self.content.as_widget_mut().operate(&mut tree.children[0], layout, renderer, operation);
     }
 
     /// 绘制组件

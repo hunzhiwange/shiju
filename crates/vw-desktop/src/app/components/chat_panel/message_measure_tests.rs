@@ -196,35 +196,7 @@ fn chat_message_measure_operation_accumulates_multiple_widgets_in_order() {
 
 #[test]
 fn chat_message_draw_skips_non_finite_viewport() {
-    let mut measured =
-        MeasuredChatMessage::new(0, TestContent { width: 80.0, height: 24.0 });
-    let mut tree = widget::Tree::empty();
-    tree.children.push(widget::Tree::empty());
-    let renderer = RecordingRenderer::default();
-    let node =
-        measured.layout(&mut tree, &renderer, &layout::Limits::NONE);
-    let mut renderer = RecordingRenderer::default();
-
-    measured.draw(
-        &tree,
-        &mut renderer,
-        &Theme::Dark,
-        &renderer::Style::default(),
-        Layout::new(&node),
-        mouse::Cursor::Unavailable,
-        &Rectangle {
-            y: f32::INFINITY,
-            ..Rectangle::with_size(Size::new(800.0, 600.0))
-        },
-    );
-
-    assert!(renderer.fills.is_empty());
-}
-
-#[test]
-fn chat_message_draw_skips_finite_viewport_outside_text_coordinate_range() {
-    let mut measured =
-        MeasuredChatMessage::new(0, TestContent { width: 80.0, height: 24.0 });
+    let mut measured = MeasuredChatMessage::new(0, TestContent { width: 80.0, height: 24.0 });
     let mut tree = widget::Tree::empty();
     tree.children.push(widget::Tree::empty());
     let renderer = RecordingRenderer::default();
@@ -238,10 +210,29 @@ fn chat_message_draw_skips_finite_viewport_outside_text_coordinate_range() {
         &renderer::Style::default(),
         Layout::new(&node),
         mouse::Cursor::Unavailable,
-        &Rectangle {
-            y: f32::MAX,
-            ..Rectangle::with_size(Size::new(800.0, 600.0))
-        },
+        &Rectangle { y: f32::INFINITY, ..Rectangle::with_size(Size::new(800.0, 600.0)) },
+    );
+
+    assert!(renderer.fills.is_empty());
+}
+
+#[test]
+fn chat_message_draw_skips_finite_viewport_outside_text_coordinate_range() {
+    let mut measured = MeasuredChatMessage::new(0, TestContent { width: 80.0, height: 24.0 });
+    let mut tree = widget::Tree::empty();
+    tree.children.push(widget::Tree::empty());
+    let renderer = RecordingRenderer::default();
+    let node = measured.layout(&mut tree, &renderer, &layout::Limits::NONE);
+    let mut renderer = RecordingRenderer::default();
+
+    measured.draw(
+        &tree,
+        &mut renderer,
+        &Theme::Dark,
+        &renderer::Style::default(),
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &Rectangle { y: f32::MAX, ..Rectangle::with_size(Size::new(800.0, 600.0)) },
     );
 
     assert!(renderer.fills.is_empty());

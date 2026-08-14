@@ -19,8 +19,8 @@ use crate::app::components::system_settings_common::{
     settings_page_intro, settings_panel, settings_section_card, settings_segment_button_style,
     settings_text_input_style, settings_value_badge,
 };
-use crate::app::{App, Message, message};
 use crate::app::state::{CustomProviderModelFilter, CustomProviderTab};
+use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input, toggler};
 use iced::{Alignment, Element, Length};
@@ -113,17 +113,14 @@ fn model_filter_button(
     let is_active = filter == active;
     button(text(label).size(12))
         .padding([6, 10])
-        .on_press(Message::Settings(
-            message::SettingsMessage::CustomProviderModelFilterSelected(filter),
-        ))
+        .on_press(Message::Settings(message::SettingsMessage::CustomProviderModelFilterSelected(
+            filter,
+        )))
         .style(move |theme, status| settings_segment_button_style(theme, status, is_active))
         .into()
 }
 
-fn model_matches_filter(
-    enabled: bool,
-    filter: CustomProviderModelFilter,
-) -> bool {
+fn model_matches_filter(enabled: bool, filter: CustomProviderModelFilter) -> bool {
     match filter {
         CustomProviderModelFilter::All => true,
         CustomProviderModelFilter::Enabled => enabled,
@@ -277,8 +274,12 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             headers_controls,
         );
 
-        let enabled_count =
-            s.custom.models.iter().filter(|model| model.enabled && !model.model_id.trim().is_empty()).count();
+        let enabled_count = s
+            .custom
+            .models
+            .iter()
+            .filter(|model| model.enabled && !model.model_id.trim().is_empty())
+            .count();
         let total_count =
             s.custom.models.iter().filter(|model| !model.model_id.trim().is_empty()).count();
         let mut model_actions = row![
@@ -370,18 +371,12 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 container(
                     row![
                         column![
-                            text(title)
-                                .size(13)
-                                .style(move |theme: &iced::Theme| text::Style {
-                                    color: Some(theme.palette().text.scale_alpha(title_alpha)),
-                                }),
-                            text(subtitle)
-                                .size(11)
-                                .style(move |theme: &iced::Theme| text::Style {
-                                    color: Some(
-                                        theme.palette().text.scale_alpha(subtitle_alpha),
-                                    ),
-                                }),
+                            text(title).size(13).style(move |theme: &iced::Theme| text::Style {
+                                color: Some(theme.palette().text.scale_alpha(title_alpha)),
+                            }),
+                            text(subtitle).size(11).style(move |theme: &iced::Theme| text::Style {
+                                color: Some(theme.palette().text.scale_alpha(subtitle_alpha),),
+                            }),
                         ]
                         .spacing(4)
                         .width(Length::Fill),
@@ -502,12 +497,10 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let scroll_body = scrollable(
             container(body_col).padding([0, SCROLLABLE_SIDE_PADDING]).width(Length::Fill),
         )
-            .direction(
-                Direction::Vertical(
-                    Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
-                ),
-            )
-            .height(Length::Fill);
+        .direction(Direction::Vertical(
+            Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
+        ))
+        .height(Length::Fill);
 
         let mut modal_col = column![header_row, tabs].spacing(16).height(Length::Fill);
         if let Some(err) = &s.save_error {

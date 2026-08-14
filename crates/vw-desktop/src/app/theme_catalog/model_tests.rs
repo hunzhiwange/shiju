@@ -82,9 +82,7 @@ fn theme_definition_accepts_assets_and_chrome() {
         },
         ..base_definition()
     };
-    definition
-        .validate()
-        .expect("definition with assets and chrome should validate");
+    definition.validate().expect("definition with assets and chrome should validate");
 }
 
 #[test]
@@ -98,18 +96,10 @@ fn theme_chrome_accepts_per_zone_image_fit() {
         },
         ..base_definition()
     };
-    definition
-        .validate()
-        .expect("per-zone image fit should validate");
-    assert_eq!(
-        definition.chrome.chat_header_image_fit.as_deref(),
-        Some("contain")
-    );
+    definition.validate().expect("per-zone image fit should validate");
+    assert_eq!(definition.chrome.chat_header_image_fit.as_deref(), Some("contain"));
     assert_eq!(definition.chrome.chat_body_image_fit.as_deref(), Some("fill"));
-    assert_eq!(
-        definition.chrome.chat_input_image_fit.as_deref(),
-        Some("none")
-    );
+    assert_eq!(definition.chrome.chat_input_image_fit.as_deref(), Some("none"));
 
     let json = serde_json::to_value(&definition).expect("serialize");
     let appearance = json.get("appearance").expect("appearance object");
@@ -142,21 +132,10 @@ fn theme_chrome_folds_legacy_panel_image_fit_into_zones() {
     }"##;
     let definition: ThemeDefinition =
         serde_json::from_str(json).expect("legacy panel_image_fit should deserialize");
-    assert_eq!(
-        definition.chrome.chat_header_image_fit.as_deref(),
-        Some("contain")
-    );
-    assert_eq!(
-        definition.chrome.chat_body_image_fit.as_deref(),
-        Some("contain")
-    );
-    assert_eq!(
-        definition.chrome.chat_input_image_fit.as_deref(),
-        Some("contain")
-    );
-    definition
-        .validate()
-        .expect("folded legacy fit should validate");
+    assert_eq!(definition.chrome.chat_header_image_fit.as_deref(), Some("contain"));
+    assert_eq!(definition.chrome.chat_body_image_fit.as_deref(), Some("contain"));
+    assert_eq!(definition.chrome.chat_input_image_fit.as_deref(), Some("contain"));
+    definition.validate().expect("folded legacy fit should validate");
 
     let mixed = r##"{
         "id": "mixed-fit",
@@ -181,23 +160,15 @@ fn theme_chrome_folds_legacy_panel_image_fit_into_zones() {
         Some("fill"),
         "explicit zone fit must win over legacy"
     );
-    assert_eq!(
-        mixed_def.chrome.chat_body_image_fit.as_deref(),
-        Some("contain")
-    );
-    assert_eq!(
-        mixed_def.chrome.chat_input_image_fit.as_deref(),
-        Some("contain")
-    );
+    assert_eq!(mixed_def.chrome.chat_body_image_fit.as_deref(), Some("contain"));
+    assert_eq!(mixed_def.chrome.chat_input_image_fit.as_deref(), Some("contain"));
 }
 
 #[test]
 fn theme_definition_rejects_invalid_zone_image_fit() {
     let mut definition = base_definition();
     definition.chrome.chat_body_image_fit = Some("stretch".to_string());
-    let err = definition
-        .validate()
-        .expect_err("unknown zone image fit should be rejected");
+    let err = definition.validate().expect_err("unknown zone image fit should be rejected");
     assert!(
         err.to_string().contains("image_fit") || err.to_string().contains("stretch"),
         "unexpected error: {err}"
@@ -216,9 +187,7 @@ fn theme_definition_rejects_invalid_zone_image_fit() {
 fn theme_definition_rejects_invalid_asset_name() {
     let mut definition = base_definition();
     definition.assets.cover = Some("../cover.png".to_string());
-    let err = definition
-        .validate()
-        .expect_err("relative path traversal should be rejected");
+    let err = definition.validate().expect_err("relative path traversal should be rejected");
     assert!(
         err.to_string().contains("cover") || err.to_string().contains("asset"),
         "error should mention the invalid asset: {err}"
@@ -253,7 +222,5 @@ fn theme_definition_deserializes_without_optional_sections() {
         serde_json::from_str(json).expect("theme.json without optional sections should load");
     assert_eq!(definition.assets, ThemeAssets::default());
     assert_eq!(definition.chrome, ThemeChrome::default());
-    definition
-        .validate()
-        .expect("legacy definition should validate");
+    definition.validate().expect("legacy definition should validate");
 }

@@ -13,11 +13,7 @@ pub(crate) async fn run_stdio() -> anyhow::Result<()> {
     .await
 }
 
-pub(crate) async fn run_with_io<B, R, W>(
-    backend: B,
-    reader: R,
-    writer: W,
-) -> anyhow::Result<()>
+pub(crate) async fn run_with_io<B, R, W>(backend: B, reader: R, writer: W) -> anyhow::Result<()>
 where
     B: SessionBackend,
     R: AsyncRead + Unpin + 'static,

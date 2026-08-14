@@ -1,12 +1,12 @@
 use super::*;
-use std::collections::HashSet;
+use serde_json::{Value, json};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::thread;
-use serde_json::{Value, json};
 use vw_shared::provider::state::from_models_dev_model;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -259,10 +259,8 @@ fn bundled_models_loads_included_metadata() {
 fn bundled_models_include_qwen37_plus_multimodal_metadata() {
     let bundled = bundled_models("bundled_qwen37_plus");
     let alibaba = bundled.get("alibaba-cn").expect("Alibaba China provider should be bundled");
-    let model =
-        alibaba.models.get("qwen3.7-plus").expect("Qwen3.7 Plus should be bundled");
-    let modalities =
-        model.modalities.as_ref().expect("Qwen3.7 Plus should declare modalities");
+    let model = alibaba.models.get("qwen3.7-plus").expect("Qwen3.7 Plus should be bundled");
+    let modalities = model.modalities.as_ref().expect("Qwen3.7 Plus should declare modalities");
     let cost = model.cost.as_ref().expect("Qwen3.7 Plus should declare cost");
 
     assert!(model.attachment);
@@ -270,10 +268,7 @@ fn bundled_models_include_qwen37_plus_multimodal_metadata() {
         modalities.input.iter().map(String::as_str).collect::<Vec<_>>(),
         vec!["text", "image", "video"]
     );
-    assert_eq!(
-        modalities.output.iter().map(String::as_str).collect::<Vec<_>>(),
-        vec!["text"]
-    );
+    assert_eq!(modalities.output.iter().map(String::as_str).collect::<Vec<_>>(), vec!["text"]);
     assert_eq!(model.limit.context, 1_000_000);
     assert_eq!(model.limit.output, 64_000);
     assert_eq!(cost.input, 0.5);
@@ -334,9 +329,7 @@ fn bundled_models_include_shiju_static_catalog() {
     assert!(shiju.models.contains_key("qwen-coder-turbo"));
     assert!(shiju.models.contains_key("deepseek-v4-flash"));
 
-    for model_id in
-        ["qvq-max", "qwen-plus-latest", "qwen-image-edit-max", "qwen3-vl-flash"]
-    {
+    for model_id in ["qvq-max", "qwen-plus-latest", "qwen-image-edit-max", "qwen3-vl-flash"] {
         let input = &shiju.models[model_id]
             .modalities
             .as_ref()
@@ -382,10 +375,7 @@ fn bundled_shiju_models_have_usable_limits_and_modalities() {
     }
 }
 
-fn audit_provider_models(
-    label: &str,
-    providers: &HashMap<String, Provider>,
-) -> Result<(), String> {
+fn audit_provider_models(label: &str, providers: &HashMap<String, Provider>) -> Result<(), String> {
     for (provider_id, provider) in providers {
         for (model_id, model) in &provider.models {
             if model.limit.context == 0 {
@@ -486,7 +476,10 @@ fn model_asset_audit_rejects_missing_limits_bad_modalities_and_textless_text_mod
         .unwrap();
     let model = &provider.models["broken"];
     assert!(model.modalities.as_ref().unwrap().input.iter().all(|item| item != "text"));
-    assert!(model.reasoning && model.modalities.as_ref().unwrap().output.iter().any(|item| item == "text"));
+    assert!(
+        model.reasoning
+            && model.modalities.as_ref().unwrap().output.iter().any(|item| item == "text")
+    );
     let error = audit_provider_models(
         "textless-text",
         &HashMap::from([(String::from("fixture"), provider)]),
@@ -505,24 +498,33 @@ fn bundled_api_models_have_typed_limits_and_non_text_outputs_are_not_text_models
         }
 
         for (model_id, model) in &provider.models {
-            assert!(model.limit.context > 0, "{provider_id}/{model_id} should have a context limit");
+            assert!(
+                model.limit.context > 0,
+                "{provider_id}/{model_id} should have a context limit"
+            );
             let output_is_text = model
                 .modalities
                 .as_ref()
                 .is_none_or(|modalities| modalities.output.iter().any(|item| item == "text"));
             if output_is_text {
-                assert!(model.limit.output > 0, "{provider_id}/{model_id} should have a text output limit");
+                assert!(
+                    model.limit.output > 0,
+                    "{provider_id}/{model_id} should have a text output limit"
+                );
             }
 
             if let Some(modalities) = model.modalities.as_ref()
-                && modalities.output.iter().any(|item| {
-                    matches!(item.as_str(), "image" | "audio" | "video")
-                })
+                && modalities
+                    .output
+                    .iter()
+                    .any(|item| matches!(item.as_str(), "image" | "audio" | "video"))
                 && !modalities.output.iter().any(|item| item == "text")
             {
                 let converted = from_models_dev_model(&provider, model);
-                assert!(!converted.capabilities.output.text,
-                    "{provider_id}/{model_id} must keep media-only output non-text");
+                assert!(
+                    !converted.capabilities.output.text,
+                    "{provider_id}/{model_id} must keep media-only output non-text"
+                );
             }
         }
     }

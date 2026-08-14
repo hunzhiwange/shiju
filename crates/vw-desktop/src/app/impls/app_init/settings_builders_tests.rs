@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::PathBuf;
 
 use vw_config_types::channels::{
@@ -17,7 +16,7 @@ fn build_channels_settings_maps_empty_config_to_default_state() {
     assert!(settings.cli);
     assert_eq!(settings.project_dir_input, "");
     assert_eq!(settings.message_timeout_secs, 300);
-    assert_eq!(settings.expanded_panels, HashSet::from(["feishu".to_string()]));
+    assert_eq!(settings.active_tab, super::super::state::ChannelsSettingsTab::Global);
     assert!(settings.text_inputs.is_empty());
     assert!(settings.text_editors.is_empty());
     assert!(settings.save_error.is_none());
@@ -57,35 +56,12 @@ fn build_channels_settings_preserves_project_dir_and_disabled_cli() {
 }
 
 #[test]
-fn build_channels_settings_expands_every_configured_channel_panel() {
+fn build_channels_settings_defaults_to_global_tab() {
     let config = populated_channels_config();
 
     let settings = super::build_channels_settings(&config);
 
-    let expected_panels = HashSet::from([
-        "telegram".to_string(),
-        "discord".to_string(),
-        "slack".to_string(),
-        "mattermost".to_string(),
-        "webhook".to_string(),
-        "imessage".to_string(),
-        "matrix".to_string(),
-        "signal".to_string(),
-        "whatsapp".to_string(),
-        "linq".to_string(),
-        "wati".to_string(),
-        "nextcloud_talk".to_string(),
-        #[cfg(not(target_arch = "wasm32"))]
-        "email".to_string(),
-        "irc".to_string(),
-        "lark".to_string(),
-        "feishu".to_string(),
-        "dingtalk".to_string(),
-        "qq".to_string(),
-        "nostr".to_string(),
-        "clawdtalk".to_string(),
-    ]);
-    assert_eq!(settings.expanded_panels, expected_panels);
+    assert_eq!(settings.active_tab, super::super::state::ChannelsSettingsTab::Global);
 }
 
 #[test]
@@ -240,9 +216,7 @@ mod channel_instance_settings {
             settings.text_inputs["dingtalk_instances.0.allowed_users"],
             "dingtalk-profile-user"
         );
-        assert!(settings.expanded_panels.contains("matrix"));
-        assert!(settings.expanded_panels.contains("feishu"));
-        assert!(settings.expanded_panels.contains("dingtalk"));
+        assert_eq!(settings.active_tab, crate::app::state::ChannelsSettingsTab::Global);
     }
 }
 

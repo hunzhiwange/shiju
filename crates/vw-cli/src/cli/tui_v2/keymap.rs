@@ -222,8 +222,7 @@ pub(super) fn handle_prompt_layer_key(state: &mut TuiState, key: KeyEvent) -> Ke
         }
         (
             KeyModifiers::SHIFT,
-            code
-            @ (KeyCode::Left
+            code @ (KeyCode::Left
             | KeyCode::Right
             | KeyCode::Up
             | KeyCode::Down
@@ -454,11 +453,7 @@ pub(super) fn scroll_relative(state: &mut TuiState, delta: isize) {
     reduce_tui_state(state, TuiAction::ScrollSet(scroll));
 }
 
-pub(super) fn seek_main_scrollbar(
-    state: &mut TuiState,
-    position: usize,
-    max_position: usize,
-) {
+pub(super) fn seek_main_scrollbar(state: &mut TuiState, position: usize, max_position: usize) {
     if position >= max_position {
         scroll_to_tail(state);
         return;

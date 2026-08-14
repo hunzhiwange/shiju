@@ -10,12 +10,10 @@ use ratatui::backend::TestBackend;
 use ratatui::layout::Rect;
 use vw_config_types::skills::SkillsDirectoryProvider;
 
+use super::app::{gateway_stream_request_from_state, queued_command_to_controller_command};
 use super::commands::registry::{
     CommandAction, CommandAvailability, CommandExecutionPolicy, CommandRegistry, CommandSource,
     CommandSpec,
-};
-use super::app::{
-    gateway_stream_request_from_state, queued_command_to_controller_command,
 };
 use super::completion::{CompletionCatalogItem, CompletionKind};
 use super::controller::{
@@ -23,19 +21,18 @@ use super::controller::{
     TuiRenderFeedbackLike, build_prompt_submission,
 };
 use super::input::{execute_slash_command, parse_slash_command};
-use super::model::overlay::UiCommandPaletteOverlay;
 use super::model::integration::{
     IntegrationAction, IntegrationItem, IntegrationKind, IntegrationPanel,
 };
+use super::model::overlay::UiCommandPaletteOverlay;
 use super::model::settings_panel::{SettingsPanel, SettingsValues};
 use super::model::{
     AcpBackendOption, DelegateAgentOption, McpServerTransport, PromptMode, PromptSubmission,
-    UiConfirmIntent,
-    UiConfirmOverlay, UiMcpOverlay,
-    UiMcpServerInfo, UiMemoryEntry, UiMemoryOverlay, UiMessage, UiMessageBase, UiMessageId,
-    UiOverlay, UiQuestionOption, UiQuestionOverlay, UiQuestionPrompt, UiSearchMatch,
-    UiSearchOverlay, UiSystemMessage, UiSystemMessageLevel, UiTaskOverlay, UiTaskStepItem,
-    UiTodoItem, UiTodoOverlay, UiTokenUsage, UiTurnTerminal,
+    UiConfirmIntent, UiConfirmOverlay, UiMcpOverlay, UiMcpServerInfo, UiMemoryEntry,
+    UiMemoryOverlay, UiMessage, UiMessageBase, UiMessageId, UiOverlay, UiQuestionOption,
+    UiQuestionOverlay, UiQuestionPrompt, UiSearchMatch, UiSearchOverlay, UiSystemMessage,
+    UiSystemMessageLevel, UiTaskOverlay, UiTaskStepItem, UiTodoItem, UiTodoOverlay, UiTokenUsage,
+    UiTurnTerminal,
 };
 use super::render::layout::FullscreenLayoutSlots;
 use super::render::{TuiRenderer, build_modal_host, build_prompt_host};
@@ -264,14 +261,8 @@ fn prompt_selection_is_visible_multiline_and_editable() {
         key_mod(&mut controller, &mut state, KeyCode::Char('a'), KeyModifiers::CONTROL),
         TuiControllerCommand::Continue
     );
-    assert_eq!(
-        state.prompt.editor.selection.expect("Ctrl+A selection").ordered(),
-        (0, 7)
-    );
-    assert_eq!(
-        key(&mut controller, &mut state, KeyCode::Left),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(state.prompt.editor.selection.expect("Ctrl+A selection").ordered(), (0, 7));
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Left), TuiControllerCommand::Continue);
     assert!(state.prompt.editor.selection.is_none());
     assert_eq!(state.prompt.cursor.char_index, 6);
 
@@ -322,10 +313,7 @@ fn prompt_selection_is_visible_multiline_and_editable() {
         TuiControllerCommand::Continue
     );
     assert_eq!(state.prompt.editor.selection.expect("Shift+Right selection").ordered(), (6, 7));
-    assert_eq!(
-        key(&mut controller, &mut state, KeyCode::Right),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Right), TuiControllerCommand::Continue);
     assert!(state.prompt.editor.selection.is_none());
     assert_eq!(state.prompt.cursor.char_index, 7);
 
@@ -367,16 +355,12 @@ fn prompt_selection_is_visible_multiline_and_editable() {
 fn ctrl_c_copies_prompt_selection_without_exiting() {
     let mut controller = TuiController::default();
     let mut state = TuiState::default();
-    reduce_tui_state(
-        &mut state,
-        TuiAction::PromptValueSet("中e\u{301}🙂\n下一行".to_string()),
-    );
+    reduce_tui_state(&mut state, TuiAction::PromptValueSet("中e\u{301}🙂\n下一行".to_string()));
     key_mod(&mut controller, &mut state, KeyCode::Char('a'), KeyModifiers::CONTROL);
     key_mod(&mut controller, &mut state, KeyCode::Left, KeyModifiers::SHIFT);
     let prompt_before = state.prompt.clone();
 
-    let command =
-        key_mod(&mut controller, &mut state, KeyCode::Char('c'), KeyModifiers::CONTROL);
+    let command = key_mod(&mut controller, &mut state, KeyCode::Char('c'), KeyModifiers::CONTROL);
 
     assert_eq!(
         command,
@@ -720,8 +704,7 @@ fn mouse_scrollbar_drag_and_track_click_seek_main_and_transcript_views() {
     state.scroll.follow_tail = false;
     state.scroll.top_message = 0;
 
-    let (main_track, main_thumb) =
-        render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
+    let (main_track, main_thumb) = render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
     assert!(main_thumb.len() >= 2, "main view needs an overflowing scrollbar fixture");
 
     mouse_at(
@@ -778,8 +761,7 @@ fn mouse_scrollbar_drag_and_track_click_seek_main_and_transcript_views() {
     );
     assert_eq!(state.scroll.top_message, 0, "a top track click must clamp to the first anchor");
 
-    let (main_track, main_thumb) =
-        render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
+    let (main_track, main_thumb) = render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
     mouse_at(
         &mut controller,
         &mut state,
@@ -822,19 +804,12 @@ fn mouse_scrollbar_drag_and_track_click_seek_main_and_transcript_views() {
         main_track.x,
         main_track.y,
     );
-    assert_eq!(
-        state.scroll.top_message, main_tail,
-        "mouse up must end main scrollbar dragging"
-    );
+    assert_eq!(state.scroll.top_message, main_tail, "mouse up must end main scrollbar dragging");
 
     key_mod(&mut controller, &mut state, KeyCode::Char('o'), KeyModifiers::CONTROL);
     assert!(state.transcript_mode.active);
-    let (_, transcript_thumb) =
-        render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
-    assert!(
-        transcript_thumb.len() >= 2,
-        "transcript view needs an overflowing scrollbar fixture"
-    );
+    let (_, transcript_thumb) = render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
+    assert!(transcript_thumb.len() >= 2, "transcript view needs an overflowing scrollbar fixture");
 
     state.overlays.push(UiOverlay::Question(question_overlay()));
     let (transcript_track, transcript_thumb) =
@@ -858,8 +833,7 @@ fn mouse_scrollbar_drag_and_track_click_seek_main_and_transcript_views() {
     let _ = state.overlays.stack.pop();
     let transcript_tail = state.transcript_mode.top_line;
 
-    let (transcript_track, _) =
-        render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
+    let (transcript_track, _) = render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
     mouse_at(
         &mut controller,
         &mut state,
@@ -872,8 +846,7 @@ fn mouse_scrollbar_drag_and_track_click_seek_main_and_transcript_views() {
         "a middle track click must seek between transcript endpoints"
     );
 
-    let (transcript_track, _) =
-        render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
+    let (transcript_track, _) = render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
     mouse_at(
         &mut controller,
         &mut state,
@@ -906,8 +879,7 @@ fn mouse_scrollbar_drag_and_track_click_seek_main_and_transcript_views() {
         state.transcript_mode.top_line > 0 && state.transcript_mode.top_line < transcript_tail,
         "transcript dragging must continuously seek through the middle"
     );
-    let (transcript_track, _) =
-        render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
+    let (transcript_track, _) = render_and_sync_scrollbar(&mut controller, &mut state, 48, 18);
     mouse_at(
         &mut controller,
         &mut state,
@@ -1398,10 +1370,7 @@ fn at_file_picker_is_compact_scrollable_and_keyboard_selectable() {
         .expect("selected file remains visible");
     assert_eq!(selected.label, "src/Z8.rs");
     assert_eq!(selected.detail, None);
-    assert_ne!(
-        rendered_symbol_background(&state, "Z"),
-        rendered_symbol_background(&state, "Q")
-    );
+    assert_ne!(rendered_symbol_background(&state, "Z"), rendered_symbol_background(&state, "Q"));
 
     key(&mut controller, &mut state, KeyCode::Down);
     key(&mut controller, &mut state, KeyCode::Down);
@@ -1431,10 +1400,7 @@ fn trailing_slash_completion_accepts_without_executing_command() {
     state.prompt.set_value("请检查 /cl");
     let messages_before = state.messages.len();
 
-    assert_eq!(
-        key(&mut controller, &mut state, KeyCode::Enter),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
     assert_eq!(state.prompt.value, "请检查 /clear");
     assert_eq!(
         state.messages.len(),
@@ -1452,10 +1418,7 @@ fn skill_help_distinguishes_selection_from_platform_management() {
 
     let mut controller = TuiController::default();
     let mut state = TuiState::default();
-    assert_eq!(
-        key(&mut controller, &mut state, KeyCode::F(1)),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(key(&mut controller, &mut state, KeyCode::F(1)), TuiControllerCommand::Continue);
     let Some(UiOverlay::Error(help)) = state.overlays.active() else {
         panic!("F1 opens input help");
     };
@@ -1530,10 +1493,7 @@ fn model_and_acp_picker_confirmation_applies_selection_immediately() {
         model_values,
         &state.session_capabilities,
     )));
-    assert_eq!(
-        key(&mut controller, &mut state, KeyCode::Enter),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
     key(&mut controller, &mut state, KeyCode::Down);
     let TuiControllerCommand::Overlay(TuiOverlayCommand::SettingsSave(model_panel)) =
         key(&mut controller, &mut state, KeyCode::Enter)
@@ -1547,10 +1507,7 @@ fn model_and_acp_picker_confirmation_applies_selection_immediately() {
         SettingsPanel::for_capabilities(SettingsValues::default(), &state.session_capabilities);
     acp_panel.selected = 2;
     state.overlays.push(UiOverlay::Settings(acp_panel));
-    assert_eq!(
-        key(&mut controller, &mut state, KeyCode::Enter),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
     key(&mut controller, &mut state, KeyCode::Down);
     let TuiControllerCommand::Overlay(TuiOverlayCommand::SettingsSave(acp_panel)) =
         key(&mut controller, &mut state, KeyCode::Enter)
@@ -1591,24 +1548,17 @@ fn skill_panel_enter_and_space_toggle_only_installed_items() {
     ]));
     state.overlays.push(UiOverlay::Integration(panel));
 
-    assert_eq!(
-        key(&mut controller, &mut state, KeyCode::Enter),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
     let platform_picker = build_modal_host(&state).expect("skill platform picker");
     assert_eq!(platform_picker.title, "技能平台");
     for provider in SkillsDirectoryProvider::ALL {
-        assert!(
-            platform_picker
-                .body_lines
-                .iter()
-                .any(|line| line.contains(provider.label()))
-        );
+        assert!(platform_picker.body_lines.iter().any(|line| line.contains(provider.label())));
     }
     key(&mut controller, &mut state, KeyCode::Down);
-    let TuiControllerCommand::Overlay(
-        TuiOverlayCommand::IntegrationSkillProviderSelected(_, provider),
-    ) = key(&mut controller, &mut state, KeyCode::Enter)
+    let TuiControllerCommand::Overlay(TuiOverlayCommand::IntegrationSkillProviderSelected(
+        _,
+        provider,
+    )) = key(&mut controller, &mut state, KeyCode::Enter)
     else {
         panic!("skill provider selection reaches app");
     };
@@ -1660,20 +1610,14 @@ fn settings_delegate_agent_picker_routes_selected_agent() {
     let mut state = TuiState::default();
     state.session_capabilities.delegate_agents = vec![
         DelegateAgentOption::main(),
-        DelegateAgentOption {
-            key: Some("reviewer".to_string()),
-            label: "Reviewer".to_string(),
-        },
+        DelegateAgentOption { key: Some("reviewer".to_string()), label: "Reviewer".to_string() },
     ];
     state.overlays.push(UiOverlay::Settings(SettingsPanel::for_capabilities(
         SettingsValues::default(),
         &state.session_capabilities,
     )));
     key(&mut controller, &mut state, KeyCode::Down);
-    assert_eq!(
-        key(&mut controller, &mut state, KeyCode::Enter),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
     let delegate_picker = build_modal_host(&state).expect("delegate picker render model");
     assert_eq!(delegate_picker.title, "委托代理");
     assert!(delegate_picker.body_lines.iter().any(|line| line.contains("Reviewer")));
@@ -1692,10 +1636,7 @@ fn settings_delegate_agent_picker_routes_selected_agent() {
     let request = gateway_stream_request_from_state(&state, &submission);
     assert_eq!(request.agent.as_deref(), Some("reviewer"));
     assert!(
-        build_prompt_host(&state)
-            .footer_pills
-            .iter()
-            .any(|pill| pill.label == "代理 Reviewer")
+        build_prompt_host(&state).footer_pills.iter().any(|pill| pill.label == "代理 Reviewer")
     );
 
     state.prompt.set_value("queued review");
@@ -1714,10 +1655,7 @@ fn settings_delegate_agent_picker_routes_selected_agent() {
     assert_eq!(queued_request.agent.as_deref(), Some("reviewer"));
 
     let main_submission = build_prompt_submission(&state, "main task").expect("main submission");
-    assert_eq!(
-        gateway_stream_request_from_state(&state, &main_submission).agent,
-        None
-    );
+    assert_eq!(gateway_stream_request_from_state(&state, &main_submission).agent, None);
 }
 
 #[test]
@@ -1736,10 +1674,7 @@ fn settings_acp_picker_switches_backend_and_forces_first_session() {
 
     key(&mut controller, &mut state, KeyCode::Down);
     key(&mut controller, &mut state, KeyCode::Down);
-    assert_eq!(
-        key(&mut controller, &mut state, KeyCode::Enter),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(key(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
     let acp_picker = build_modal_host(&state).expect("ACP picker render model");
     assert_eq!(acp_picker.title, "ACP 后端");
     assert!(acp_picker.body_lines.iter().any(|line| line.contains("默认 ACP")));
@@ -1768,8 +1703,7 @@ fn settings_acp_picker_switches_backend_and_forces_first_session() {
     state.session_options.finish_acp_session_start(&first.execution, true);
     let next = build_prompt_submission(&state, "reuse ACP").expect("next ACP submission");
     assert_eq!(
-        gateway_stream_request_from_state(&state, &next).options.expect("ACP options")
-            ["acp_force_new_session"],
+        gateway_stream_request_from_state(&state, &next).options.expect("ACP options")["acp_force_new_session"],
         false
     );
 
@@ -1801,10 +1735,7 @@ fn settings_acp_picker_switches_backend_and_forces_first_session() {
     };
     let queued_request = gateway_stream_request_from_state(&state, &queued_submission);
     assert_eq!(queued_request.acp_agent.as_deref(), Some("codex"));
-    assert_eq!(
-        queued_request.options.expect("queued ACP options")["acp_force_new_session"],
-        true
-    );
+    assert_eq!(queued_request.options.expect("queued ACP options")["acp_force_new_session"], true);
     let default_submission =
         build_prompt_submission(&state, "default backend").expect("default submission");
     let default_request = gateway_stream_request_from_state(&state, &default_submission);
@@ -1834,12 +1765,7 @@ fn settings_subagent_mode_toggles_independently() {
     assert_eq!(panel.pending.acp_backend, None);
 
     state.session_options.set_subagent_mode(true);
-    assert!(
-        build_prompt_host(&state)
-            .footer_pills
-            .iter()
-            .any(|pill| pill.label == "子智能体 开")
-    );
+    assert!(build_prompt_host(&state).footer_pills.iter().any(|pill| pill.label == "子智能体 开"));
 }
 
 #[test]
@@ -1863,25 +1789,14 @@ fn settings_workflow_and_goal_modes_can_both_be_enabled() {
     else {
         panic!("workflow mode setting saves");
     };
-    assert_eq!(
-        panel.pending.workflow_mode,
-        super::model::session_mode::WorkflowMode::Enabled
-    );
+    assert_eq!(panel.pending.workflow_mode, super::model::session_mode::WorkflowMode::Enabled);
     assert_eq!(panel.pending.goal_mode, super::model::session_mode::GoalMode::Enabled);
     assert!(!panel.pending.subagent_mode_enabled);
 
     state.session_options.set_workflow_mode(true);
+    assert!(build_prompt_host(&state).footer_pills.iter().any(|pill| pill.label == "工作流 开"));
     assert!(
-        build_prompt_host(&state)
-            .footer_pills
-            .iter()
-            .any(|pill| pill.label == "工作流 开")
-    );
-    assert!(
-        build_prompt_host(&state)
-            .footer_pills
-            .iter()
-            .all(|pill| !pill.label.starts_with("目标 "))
+        build_prompt_host(&state).footer_pills.iter().all(|pill| !pill.label.starts_with("目标 "))
     );
 
     let mut goal_state = TuiState::default();
@@ -1898,14 +1813,8 @@ fn settings_workflow_and_goal_modes_can_both_be_enabled() {
     else {
         panic!("settings save");
     };
-    assert_eq!(
-        goal_panel.pending.goal_mode,
-        super::model::session_mode::GoalMode::Enabled
-    );
-    assert_eq!(
-        goal_panel.pending.workflow_mode,
-        super::model::session_mode::WorkflowMode::Enabled
-    );
+    assert_eq!(goal_panel.pending.goal_mode, super::model::session_mode::GoalMode::Enabled);
+    assert_eq!(goal_panel.pending.workflow_mode, super::model::session_mode::WorkflowMode::Enabled);
 
     goal_state.session_options.set_workflow_mode(true);
     goal_state.session_options.set_goal_mode(false);
@@ -2018,9 +1927,9 @@ fn render_and_sync_scrollbar(
         },
         |scrollbar| scrollbar.track,
     );
-    let thumb_rows = feedback.scrollbar.map_or_else(Vec::new, |scrollbar| {
-        (scrollbar.thumb.y..scrollbar.thumb.bottom()).collect()
-    });
+    let thumb_rows = feedback
+        .scrollbar
+        .map_or_else(Vec::new, |scrollbar| (scrollbar.thumb.y..scrollbar.thumb.bottom()).collect());
     (track, thumb_rows)
 }
 

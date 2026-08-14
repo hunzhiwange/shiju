@@ -529,6 +529,7 @@ pub(super) fn build_memory_settings(
     let memory_cfg = &full_agent_cfg.memory;
 
     crate::app::state::MemorySettingsState {
+        active_tab: crate::app::state::MemorySettingsTab::General,
         backend: match memory_cfg.backend.trim().to_ascii_lowercase().as_str() {
             "sqlite" | "postgres" | "qdrant" | "markdown" | "none" => {
                 memory_cfg.backend.trim().to_ascii_lowercase()
@@ -693,10 +694,7 @@ pub(super) fn build_security_settings(
             let value = security_cfg.syscall_anomaly.log_path.trim().to_string();
             if value.is_empty() { "syscall-anomalies.log".to_string() } else { value }
         },
-        syscall_anomaly_baseline_syscalls: security_cfg
-            .syscall_anomaly
-            .baseline_syscalls
-            .clone(),
+        syscall_anomaly_baseline_syscalls: security_cfg.syscall_anomaly.baseline_syscalls.clone(),
         list_editor: crate::app::state::SecurityListEditorState::default(),
         canary_tokens: security_cfg.canary_tokens.clone(),
         semantic_guard: security_cfg.semantic_guard,

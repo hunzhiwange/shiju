@@ -4,8 +4,8 @@
 //! 输出始终作为不可信附件数据写回原消息，不允许重新解释为图片控制标记。
 
 use super::analysis::{
-    analysis_system_prompt, analysis_user_prompt_with_image, bound_analysis_result,
-    format_analysis_attachment_parts, parse_analysis_model_output, RawImageAnalysis,
+    RawImageAnalysis, analysis_system_prompt, analysis_user_prompt_with_image,
+    bound_analysis_result, format_analysis_attachment_parts, parse_analysis_model_output,
 };
 use super::{
     IMAGE_MARKER_PREFIX, MultimodalError, PreparedMessages, parse_image_markers,

@@ -175,32 +175,23 @@ fn parse_acp_options_returns_default_when_no_options_are_set() {
 
 #[test]
 fn parse_acp_options_preserves_full_access() {
-    let enabled = parse_acp_options(
-        &json!({ "full_access": true }),
-        "codex",
-        &acp_config("codex", &[]),
-    )
-    .expect("true full_access should parse");
+    let enabled =
+        parse_acp_options(&json!({ "full_access": true }), "codex", &acp_config("codex", &[]))
+            .expect("true full_access should parse");
     assert!(enabled.full_access);
 
-    let disabled = parse_acp_options(
-        &json!({ "full_access": false }),
-        "codex",
-        &acp_config("codex", &[]),
-    )
-    .expect("false full_access should parse");
+    let disabled =
+        parse_acp_options(&json!({ "full_access": false }), "codex", &acp_config("codex", &[]))
+            .expect("false full_access should parse");
     assert!(!disabled.full_access);
 
     let missing =
         parse_acp_options(&json!({}), "codex", &acp_config("codex", &[])).expect("missing parses");
     assert!(!missing.full_access);
 
-    let err = parse_acp_options(
-        &json!({ "full_access": "true" }),
-        "codex",
-        &acp_config("codex", &[]),
-    )
-    .expect_err("non-boolean full_access should fail");
+    let err =
+        parse_acp_options(&json!({ "full_access": "true" }), "codex", &acp_config("codex", &[]))
+            .expect_err("non-boolean full_access should fail");
     assert!(error_text(err).contains("full_access must be a boolean"));
 }
 

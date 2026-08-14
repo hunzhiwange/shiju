@@ -29,41 +29,11 @@ pub(crate) struct MenuAction {
 
 /// Edit 菜单动作列表（供测试与安装共用）。
 pub(crate) const EDIT_MENU_ACTIONS: &[MenuAction] = &[
-    MenuAction {
-        title: "Undo",
-        selector: "undo:",
-        key: "z",
-        shift: false,
-        control: false,
-    },
-    MenuAction {
-        title: "Redo",
-        selector: "redo:",
-        key: "z",
-        shift: true,
-        control: false,
-    },
-    MenuAction {
-        title: "Cut",
-        selector: "cut:",
-        key: "x",
-        shift: false,
-        control: false,
-    },
-    MenuAction {
-        title: "Copy",
-        selector: "copy:",
-        key: "c",
-        shift: false,
-        control: false,
-    },
-    MenuAction {
-        title: "Paste",
-        selector: "paste:",
-        key: "v",
-        shift: false,
-        control: false,
-    },
+    MenuAction { title: "Undo", selector: "undo:", key: "z", shift: false, control: false },
+    MenuAction { title: "Redo", selector: "redo:", key: "z", shift: true, control: false },
+    MenuAction { title: "Cut", selector: "cut:", key: "x", shift: false, control: false },
+    MenuAction { title: "Copy", selector: "copy:", key: "c", shift: false, control: false },
+    MenuAction { title: "Paste", selector: "paste:", key: "v", shift: false, control: false },
     MenuAction {
         title: "Select All",
         selector: "selectAll:",
@@ -75,13 +45,7 @@ pub(crate) const EDIT_MENU_ACTIONS: &[MenuAction] = &[
 
 /// Browser 菜单动作列表。
 pub(crate) const BROWSER_MENU_ACTIONS: &[MenuAction] = &[
-    MenuAction {
-        title: "Back",
-        selector: "browserBack:",
-        key: "[",
-        shift: false,
-        control: false,
-    },
+    MenuAction { title: "Back", selector: "browserBack:", key: "[", shift: false, control: false },
     MenuAction {
         title: "Forward",
         selector: "browserForward:",
@@ -121,13 +85,7 @@ pub(crate) const WINDOW_MENU_ACTIONS: &[MenuAction] = &[
         shift: false,
         control: false,
     },
-    MenuAction {
-        title: "Zoom",
-        selector: "performZoom:",
-        key: "",
-        shift: false,
-        control: false,
-    },
+    MenuAction { title: "Zoom", selector: "performZoom:", key: "", shift: false, control: false },
     MenuAction {
         title: "Enter Full Screen",
         selector: "toggleFullScreen:",

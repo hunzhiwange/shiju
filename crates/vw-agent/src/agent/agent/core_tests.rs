@@ -8,7 +8,9 @@ use crate::app::agent::provider::provider;
 use crate::app::agent::providers::{ChatMessage, Provider};
 use crate::app::agent::tools::{Tool, ToolResult};
 use crate::providers::traits::ProviderCapabilities;
-use crate::session::llm::{AutoModelSelectionRequest, ModelCandidate, ModelReference, select_auto_model};
+use crate::session::llm::{
+    AutoModelSelectionRequest, ModelCandidate, ModelReference, select_auto_model,
+};
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -313,8 +315,7 @@ fn legacy_and_processor_auto_selection_are_consistent() {
         }],
     };
     agent.available_hints = vec!["fast".to_string()];
-    agent.route_model_by_hint =
-        HashMap::from([("fast".to_string(), "provider/fast".to_string())]);
+    agent.route_model_by_hint = HashMap::from([("fast".to_string(), "provider/fast".to_string())]);
     agent.model_name = "auto".to_string();
     let models = vec![selectable_model("provider", "fast")];
     let candidates = models

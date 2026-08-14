@@ -6,11 +6,23 @@ use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole, TokenUsage};
 
 fn assistant(content: &str) -> ChatMessage {
-    ChatMessage { role: ChatRole::Assistant, content: content.to_string(), model: None, think_timing: vec![], processing_timing: None }
+    ChatMessage {
+        role: ChatRole::Assistant,
+        content: content.to_string(),
+        model: None,
+        think_timing: vec![],
+        processing_timing: None,
+    }
 }
 
 fn user(content: &str) -> ChatMessage {
-    ChatMessage { role: ChatRole::User, content: content.to_string(), model: None, think_timing: vec![], processing_timing: None }
+    ChatMessage {
+        role: ChatRole::User,
+        content: content.to_string(),
+        model: None,
+        think_timing: vec![],
+        processing_timing: None,
+    }
 }
 
 #[test]

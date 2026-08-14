@@ -154,9 +154,7 @@ pub(crate) fn byte_index_for_grapheme(value: &str, grapheme_index: usize) -> Opt
     if grapheme_index == grapheme_count(value) {
         return Some(value.len());
     }
-    UnicodeSegmentation::grapheme_indices(value, true)
-        .nth(grapheme_index)
-        .map(|(index, _)| index)
+    UnicodeSegmentation::grapheme_indices(value, true).nth(grapheme_index).map(|(index, _)| index)
 }
 
 pub(crate) fn selected_text(prompt: &PromptState) -> Option<String> {
@@ -201,8 +199,7 @@ fn backspace(prompt: &mut PromptState) -> bool {
     }
     begin_edit(prompt, EditorEditKind::Other, false);
     let end = byte_index_for_grapheme(&prompt.value, prompt.cursor.char_index);
-    let start =
-        byte_index_for_grapheme(&prompt.value, prompt.cursor.char_index.saturating_sub(1));
+    let start = byte_index_for_grapheme(&prompt.value, prompt.cursor.char_index.saturating_sub(1));
     let (Some(start), Some(end)) = (start, end) else {
         return false;
     };
@@ -222,8 +219,7 @@ fn delete(prompt: &mut PromptState) -> bool {
     }
     begin_edit(prompt, EditorEditKind::Other, false);
     let start = byte_index_for_grapheme(&prompt.value, prompt.cursor.char_index);
-    let end =
-        byte_index_for_grapheme(&prompt.value, prompt.cursor.char_index.saturating_add(1));
+    let end = byte_index_for_grapheme(&prompt.value, prompt.cursor.char_index.saturating_add(1));
     let (Some(start), Some(end)) = (start, end) else {
         return false;
     };
@@ -270,9 +266,7 @@ fn move_cursor(prompt: &mut PromptState, motion: PromptMotion, select: bool) -> 
         PromptMotion::Right => old.saturating_add(1).min(grapheme_count(&prompt.value)),
         PromptMotion::Home => line_start_grapheme(prompt.value.as_str(), old),
         PromptMotion::End => line_end_grapheme(prompt.value.as_str(), old),
-        PromptMotion::Up | PromptMotion::Down => {
-            vertical_target(prompt, motion, preferred_column)
-        }
+        PromptMotion::Up | PromptMotion::Down => vertical_target(prompt, motion, preferred_column),
     };
     if next == old {
         if !select && prompt.editor.selection.take().is_some() {
@@ -379,7 +373,8 @@ fn delete_grapheme_range(prompt: &mut PromptState, start: usize, end: usize) -> 
 fn update_selection(prompt: &mut PromptState, old: usize, next: usize, select: bool) {
     if select {
         let anchor = prompt.editor.selection.map_or(old, |selection| selection.anchor);
-        prompt.editor.selection = (anchor != next).then_some(EditorSelection { anchor, active: next });
+        prompt.editor.selection =
+            (anchor != next).then_some(EditorSelection { anchor, active: next });
     } else {
         prompt.editor.selection = None;
     }
@@ -442,10 +437,7 @@ fn cursor_display_position(value: &str, cursor: usize) -> (usize, usize) {
     let graphemes = UnicodeSegmentation::graphemes(value, true).collect::<Vec<_>>();
     let prefix = &graphemes[..cursor.min(graphemes.len())];
     let line = prefix.iter().filter(|grapheme| **grapheme == "\n").count();
-    let start = prefix
-        .iter()
-        .rposition(|grapheme| *grapheme == "\n")
-        .map_or(0, |index| index + 1);
+    let start = prefix.iter().rposition(|grapheme| *grapheme == "\n").map_or(0, |index| index + 1);
     let column = prefix[start..].iter().map(|grapheme| grapheme.width()).sum();
     (line, column)
 }

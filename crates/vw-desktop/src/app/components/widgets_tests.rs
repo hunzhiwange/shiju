@@ -296,13 +296,7 @@ fn operate_delegates_to_content() {
         TestMessage,
         Theme,
         RecordingRenderer,
-    >>::operate(
-        &mut area,
-        &mut tree,
-        Layout::new(&node),
-        &renderer,
-        &mut operation,
-    );
+    >>::operate(&mut area, &mut tree, Layout::new(&node), &renderer, &mut operation);
 
     assert_eq!(operation.containers, vec![bounds]);
 }

@@ -17,6 +17,7 @@ mod agent_children;
 mod chat_ui;
 mod loading;
 mod runtime;
+pub(crate) mod view_cache;
 
 pub use self::agent_children::{
     AgentChildSession, AgentChildSessionKind, AgentChildSessionStatus,
@@ -33,8 +34,11 @@ pub use self::chat_ui::{
 };
 /// 对外暴露当前模块需要复用的能力。
 pub use self::loading::{
-    SharedChatMessages, build_session_previews, session_usage, shared_chat_messages,
+    PreparedSessionOpen, SharedChatMessages, build_session_previews, prepare_session_open,
+    prepare_session_open_from_ui_store, session_content_signature, session_usage,
+    shared_chat_messages,
 };
+pub(crate) use self::view_cache::SessionViewCache;
 
 #[cfg(test)]
 use self::chat_ui::{explore_summary_animation_key, prioritize_chat_ui_chunk_starts};
@@ -92,3 +96,5 @@ pub(crate) fn backfill_message_models_from_steps(
 mod agent_children_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod view_cache_tests;

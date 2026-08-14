@@ -108,9 +108,8 @@ fn task_plan_run_streaming_response(
     let task_id = uuid::Uuid::new_v4().to_string();
     if let Some(producer) = opened.producer.take() {
         let control_registry = global_plan_run_control_registry();
-        let cancellation = control_registry
-            .register(tenant.clone(), &task_id)
-            .map_err(ApiError::internal)?;
+        let cancellation =
+            control_registry.register(tenant.clone(), &task_id).map_err(ApiError::internal)?;
         tokio::spawn(async move {
             // spawn 脱离请求中间件，必须显式带上租户；否则 ui_store/project 落到默认租户。
             crate::session::ui_store::with_tenant_scope(tenant.clone(), async move {

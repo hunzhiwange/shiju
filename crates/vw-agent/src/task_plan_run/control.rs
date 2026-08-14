@@ -5,9 +5,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use tokio_util::sync::CancellationToken;
 use vw_api_types::id::TenantScope;
-use vw_api_types::task::{
-    TaskPlanRunStatus, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto,
-};
+use vw_api_types::task::{TaskPlanRunStatus, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto};
 
 use crate::session::child_agent::coordinator::ChildAgentCoordinator;
 
@@ -61,9 +59,7 @@ pub(crate) struct PlanRunControlRegistry {
 static GLOBAL_PLAN_RUN_CONTROL_REGISTRY: OnceLock<PlanRunControlRegistry> = OnceLock::new();
 
 pub(crate) fn global_plan_run_control_registry() -> PlanRunControlRegistry {
-    GLOBAL_PLAN_RUN_CONTROL_REGISTRY
-        .get_or_init(|| PlanRunControlRegistry::new(128))
-        .clone()
+    GLOBAL_PLAN_RUN_CONTROL_REGISTRY.get_or_init(|| PlanRunControlRegistry::new(128)).clone()
 }
 
 impl PlanRunControlRegistry {
@@ -191,21 +187,15 @@ impl PlanRunControlRegistry {
         let mut cancelled_descendants = 0usize;
         for session_id in session_ids {
             cancelled_descendants = cancelled_descendants.saturating_add(
-                coordinator
-                    .cancel_descendants(&session_id, &[])
-                    .map_err(|error| {
-                        format!(
-                            "cancel descendants of task-plan-run session '{session_id}' failed: {error}"
-                        )
-                    })?,
+                coordinator.cancel_descendants(&session_id, &[]).map_err(|error| {
+                    format!(
+                        "cancel descendants of task-plan-run session '{session_id}' failed: {error}"
+                    )
+                })?,
             );
         }
 
-        Ok(Some(PlanRunStopOutcome {
-            status,
-            cancelled_descendants,
-            already_terminal: false,
-        }))
+        Ok(Some(PlanRunStopOutcome { status, cancelled_descendants, already_terminal: false }))
     }
 
     fn prune_terminal_entries(&self, state: &mut RegistryState) {
@@ -213,11 +203,7 @@ impl PlanRunControlRegistry {
             let Some(oldest) = state.terminal_order.pop_front() else {
                 break;
             };
-            if state
-                .runs
-                .get(&oldest)
-                .is_some_and(|entry| entry.status.is_terminal())
-            {
+            if state.runs.get(&oldest).is_some_and(|entry| entry.status.is_terminal()) {
                 state.runs.remove(&oldest);
             }
         }

@@ -5,8 +5,8 @@
 
 use super::widgets::{menu_btn, menu_container, menu_item_btn, menu_separator};
 use crate::app::components::overlays::BelowOverlay;
-use crate::app::message::view::MenuType;
 use crate::app::components::top_bar::menu_actions::NativeMenuAction;
+use crate::app::message::view::MenuType;
 use crate::app::state::{WorkResourceMode, WorkspaceMode};
 use crate::app::{App, Message, Screen, message};
 use iced::Element;
@@ -29,12 +29,7 @@ impl MenuEntry {
         shortcut: Option<&'static str>,
         message: Message,
     ) -> Self {
-        Self::Item {
-            action: Some(action),
-            label,
-            shortcut,
-            message: Box::new(message),
-        }
+        Self::Item { action: Some(action), label, shortcut, message: Box::new(message) }
     }
 
     fn into_element(self) -> Element<'static, Message> {
@@ -129,24 +124,9 @@ pub(crate) fn edit_menu_entries(is_project: bool) -> Vec<MenuEntry> {
             Message::Editor(crate::app::message::editor::EditorMessage::Redo),
         ),
         MenuEntry::Separator,
-        MenuEntry::item(
-            NativeMenuAction::EditCut,
-            "剪切",
-            Some("⌘X"),
-            Message::CutShortcut,
-        ),
-        MenuEntry::item(
-            NativeMenuAction::EditCopy,
-            "复制",
-            Some("⌘C"),
-            Message::CopyShortcut,
-        ),
-        MenuEntry::item(
-            NativeMenuAction::EditPaste,
-            "粘贴",
-            Some("⌘V"),
-            Message::PasteShortcut,
-        ),
+        MenuEntry::item(NativeMenuAction::EditCut, "剪切", Some("⌘X"), Message::CutShortcut),
+        MenuEntry::item(NativeMenuAction::EditCopy, "复制", Some("⌘C"), Message::CopyShortcut),
+        MenuEntry::item(NativeMenuAction::EditPaste, "粘贴", Some("⌘V"), Message::PasteShortcut),
         MenuEntry::Separator,
         MenuEntry::item(
             NativeMenuAction::EditOpenSearch,

@@ -1,18 +1,16 @@
 use super::install_guide::{
     SCROLLBAR_WIDTH, agent_install_preview, copy_action_message, direct_install_action_message,
     direct_install_button_label, direct_install_progress, install_project_options,
-    install_target_presentations,
-    manual_download_action_message, open_target_directory_message, scope_action_message,
-    sync_action_message, sync_button_label, target_action_message, target_button_style,
-    target_directory_action_label, target_path_label, uninstall_action_message,
-    upgrade_available,
+    install_target_presentations, manual_download_action_message, open_target_directory_message,
+    scope_action_message, sync_action_message, sync_button_label, target_action_message,
+    target_button_style, target_directory_action_label, target_path_label,
+    uninstall_action_message, upgrade_available,
 };
 use crate::app::message::SkillHubMessage;
 use crate::app::skill_hub::{
     LoadState, ShijuDirectInstallState, ShijuInstallGuideState, ShijuInstallation,
-    ShijuInstallationsReport, ShijuManualDownloadState, ShijuPackageId,
-    ShijuTargetInstallation, SkillInstallScope, SkillInstallSelection, SkillInstallTarget,
-    resolve_skill_destinations,
+    ShijuInstallationsReport, ShijuManualDownloadState, ShijuPackageId, ShijuTargetInstallation,
+    SkillInstallScope, SkillInstallSelection, SkillInstallTarget, resolve_skill_destinations,
 };
 use crate::app::{App, Message};
 use iced::{Background, Color};
@@ -20,11 +18,7 @@ use iced::{Background, Color};
 fn contrast_ratio(first: Color, second: Color) -> f32 {
     fn luminance(color: Color) -> f32 {
         fn channel(value: f32) -> f32 {
-            if value <= 0.04045 {
-                value / 12.92
-            } else {
-                ((value + 0.055) / 1.055).powf(2.4)
-            }
+            if value <= 0.04045 { value / 12.92 } else { ((value + 0.055) / 1.055).powf(2.4) }
         }
         0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b)
     }
@@ -70,17 +64,13 @@ fn install_guide_disables_duplicate_actions_and_styles_both_themes() {
         generation: 1,
         package_id: ShijuPackageId::DarwinArm64,
     };
-    state.manual_download = Some(ShijuManualDownloadState {
-        generation: 2,
-        package_id: ShijuPackageId::LinuxAmd64,
-    });
+    state.manual_download =
+        Some(ShijuManualDownloadState { generation: 2, package_id: ShijuPackageId::LinuxAmd64 });
     state.agent_package = LoadState::Loading { generation: 3 };
 
     assert!(direct_install_action_message(&state).is_none());
     assert!(copy_action_message(&state).is_none());
-    assert!(
-        manual_download_action_message(&state, ShijuPackageId::WindowsAmd64).is_none()
-    );
+    assert!(manual_download_action_message(&state, ShijuPackageId::WindowsAmd64).is_none());
     for theme in [iced::Theme::Light, iced::Theme::Dark] {
         let card = super::styles::card_style(&theme);
         let inset = super::styles::inset_panel_style(&theme);
@@ -195,11 +185,7 @@ fn install_project_options_put_current_first_and_deduplicate_recent_paths() {
 
     assert_eq!(
         install_project_options(&app),
-        vec![
-            "/repo/current".to_string(),
-            "/repo/other".to_string(),
-            "/repo/third".to_string(),
-        ]
+        vec!["/repo/current".to_string(), "/repo/other".to_string(), "/repo/third".to_string(),]
     );
 }
 
@@ -245,10 +231,7 @@ fn direct_install_progress_and_location_action_cover_all_stages() {
     let mut state = ShijuInstallGuideState::default();
     assert_eq!(direct_install_progress(&state), 0.0);
     assert!(open_target_directory_message(&state, SkillInstallTarget::AgentSkills).is_none());
-    assert_eq!(
-        target_directory_action_label(&state, SkillInstallTarget::AgentSkills),
-        "未安装"
-    );
+    assert_eq!(target_directory_action_label(&state, SkillInstallTarget::AgentSkills), "未安装");
 
     state.direct_install = ShijuDirectInstallState::Fetching {
         generation: 1,

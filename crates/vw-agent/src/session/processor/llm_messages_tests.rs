@@ -112,14 +112,10 @@ fn session_protocol_injects_agents_and_skills_on_every_desktop_step() {
             messages[1]["content"],
             "<system-reminder>Available skills: rustcodegraph</system-reminder>"
         );
-        assert!(
-            messages[2]["content"]
-                .as_str()
-                .is_some_and(|content| {
-                    content.contains("AGENTS.md loaded for this request")
-                        && content.contains("Follow the protocol.")
-                })
-        );
+        assert!(messages[2]["content"].as_str().is_some_and(|content| {
+            content.contains("AGENTS.md loaded for this request")
+                && content.contains("Follow the protocol.")
+        }));
         assert_eq!(messages[2]["role"], "system");
         assert_eq!(messages[3], history[0]);
     }
@@ -143,7 +139,9 @@ fn session_protocol_places_agents_immediately_before_current_user_turn() {
         &history,
         &instructions,
         &[json!({"role": "user", "content": "<system-reminder>Skill active</system-reminder>"})],
-        Some(json!({"role": "user", "content": "<system-reminder>Skill listing</system-reminder>"})),
+        Some(
+            json!({"role": "user", "content": "<system-reminder>Skill listing</system-reminder>"}),
+        ),
         super::default_tool_reminder(&["file_read".to_string()]),
     );
 

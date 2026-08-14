@@ -23,7 +23,7 @@ fn normalize_browser_open_accepts_supported_aliases_and_defaults_unknown_values(
         assert_eq!(normalize_browser_open(input), "new_tab", "input: {input}");
     }
     for input in ["", "same_tab", "???"] {
-        assert_eq!(normalize_browser_open(input), "default", "input: {input}");
+        assert_eq!(normalize_browser_open(input), "new_tab", "input: {input}");
     }
 }
 

@@ -3,9 +3,7 @@
 //! 模型通过 `image_id` 请求在下一 LLM step 一次性重新查看压缩模型输入。
 //! 工具结果仅返回简短确认或错误，绝不包含 Base64、路径、OCR 或摘要正文。
 
-use super::context::{
-    current_tool_use_context, enqueue_current_pending_image_reload,
-};
+use super::context::{current_tool_use_context, enqueue_current_pending_image_reload};
 use super::traits::{Tool, ToolResult};
 use crate::app::agent::multimodal::assets::{ImageAssetId, ImageAssetScope, ImageAssetStore};
 use async_trait::async_trait;
@@ -75,7 +73,9 @@ Does not return image bytes."
                 return Ok(ToolResult {
                     success: false,
                     output: String::new(),
-                    error: Some("image_id must be a full 64-character SHA-256 hex digest".to_string()),
+                    error: Some(
+                        "image_id must be a full 64-character SHA-256 hex digest".to_string(),
+                    ),
                 });
             }
         };
@@ -116,11 +116,7 @@ Does not return image bytes."
         }
 
         if let Err(error) = enqueue_current_pending_image_reload(&image_id) {
-            return Ok(ToolResult {
-                success: false,
-                output: String::new(),
-                error: Some(error),
-            });
+            return Ok(ToolResult { success: false, output: String::new(), error: Some(error) });
         }
 
         Ok(ToolResult {

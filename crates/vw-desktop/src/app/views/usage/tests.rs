@@ -13,7 +13,13 @@ fn child_count(element: &iced::Element<'_, crate::app::Message>) -> usize {
 fn usage_data_counts_tool_messages_separately() {
     let (mut app, _task) = App::new();
     app.chat = vec![
-        ChatMessage { role: ChatRole::User, content: "user".to_string(), model: None, think_timing: Vec::new(), processing_timing: None },
+        ChatMessage {
+            role: ChatRole::User,
+            content: "user".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
         ChatMessage {
             role: ChatRole::Assistant,
             content: "assistant".to_string(),

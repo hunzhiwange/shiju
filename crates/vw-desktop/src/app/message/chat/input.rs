@@ -101,7 +101,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     let Some(project_path) = app
                         .known_session_directory(&session_id)
                         .filter(|path| !path.trim().is_empty())
-                        .or_else(|| app.project_path.clone().filter(|path| !path.trim().is_empty()))
+                        .or_else(|| {
+                            app.project_path.clone().filter(|path| !path.trim().is_empty())
+                        })
                     else {
                         return app.show_warning_toast("当前会话没有可用的项目目录");
                     };

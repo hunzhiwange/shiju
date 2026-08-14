@@ -8,14 +8,14 @@ use vw_gateway_client::{
     GatewayClient, GatewayEndpoint, PendingPermissionReplyDto, PendingPermissionRequestDto,
 };
 
-use super::permission::{
-    FullAccessPermissionRuntime, PermissionRuntime, approve_current_directory_for_full_access,
-    reply_current_permission,
-};
 use super::super::model::permission::{
     PermissionDecision, PermissionPreviewKind, PermissionQueue, PermissionRequest,
 };
 use super::gateway::{GatewaySessionSeed, GatewayUiRuntime};
+use super::permission::{
+    FullAccessPermissionRuntime, PermissionRuntime, approve_current_directory_for_full_access,
+    reply_current_permission,
+};
 
 #[derive(Default)]
 struct RecordingPermissionRuntime {
@@ -59,11 +59,7 @@ impl FullAccessPermissionRuntime for RecordingPermissionRuntime {
         if self.reply_errors.contains(request_id) {
             return Err(format!("reply failed for {request_id}"));
         }
-        self.replies.push((
-            request_id.to_string(),
-            reply,
-            None,
-        ));
+        self.replies.push((request_id.to_string(), reply, None));
         Ok(())
     }
 }
@@ -119,12 +115,7 @@ fn tui_permission_queue_replies_once_always_reject_and_recovers_errors() {
     let mut runtime = RecordingPermissionRuntime::default();
 
     runtime.error = Some("network down".to_string());
-    assert!(reply_current_permission(
-        &mut queue,
-        PermissionDecision::Once,
-        &mut runtime,
-    )
-    .is_err());
+    assert!(reply_current_permission(&mut queue, PermissionDecision::Once, &mut runtime,).is_err());
     assert_eq!(queue.current().unwrap().id, "once", "failed reply stays queued");
 
     runtime.error = None;
@@ -151,13 +142,11 @@ fn tui_permission_queue_replies_once_always_reject_and_recovers_errors() {
     );
 
     queue.replace(vec![request("no-pattern", "shell", &[])]);
-    assert!(reply_current_permission(
-        &mut queue,
-        PermissionDecision::Always,
-        &mut runtime,
-    )
-    .unwrap_err()
-    .contains("no persistable pattern"));
+    assert!(
+        reply_current_permission(&mut queue, PermissionDecision::Always, &mut runtime,)
+            .unwrap_err()
+            .contains("no persistable pattern")
+    );
     assert_eq!(queue.current().unwrap().id, "no-pattern");
 }
 
@@ -231,15 +220,15 @@ fn gateway_full_access_approval_scopes_list_and_replies_to_runtime_directory() {
     assert_eq!(summary.approved, 2);
     assert_eq!(summary.failed, 0);
     let requests = server.join().expect("join permission fixture");
-    assert!(requests[0].starts_with(
-        "GET /v1/permission?directory=%2Ftmp%2Fcurrent-project "
-    ));
-    assert!(requests[1].starts_with(
-        "POST /v1/permission/current-a/reply?directory=%2Ftmp%2Fcurrent-project "
-    ));
-    assert!(requests[2].starts_with(
-        "POST /v1/permission/current-b/reply?directory=%2Ftmp%2Fcurrent-project "
-    ));
+    assert!(requests[0].starts_with("GET /v1/permission?directory=%2Ftmp%2Fcurrent-project "));
+    assert!(
+        requests[1]
+            .starts_with("POST /v1/permission/current-a/reply?directory=%2Ftmp%2Fcurrent-project ")
+    );
+    assert!(
+        requests[2]
+            .starts_with("POST /v1/permission/current-b/reply?directory=%2Ftmp%2Fcurrent-project ")
+    );
     assert!(
         requests.iter().all(|request| !request.contains("other-project")),
         "no request outside the runtime directory may be approved"

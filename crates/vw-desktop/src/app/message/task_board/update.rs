@@ -407,7 +407,7 @@ fn poll_task_pool_matrix_events(app: &crate::app::App) -> iced::Task<crate::app:
 }
 
 fn open_matrix_task_pool_config(app: &mut crate::app::App) -> iced::Task<crate::app::Message> {
-    app.channels_settings.expanded_panels.insert("matrix".to_string());
+    app.channels_settings.active_tab = crate::app::state::ChannelsSettingsTab::Matrix;
     app.channels_settings.save_error = None;
     app.show_system_settings = true;
     app.system_settings_tab = SystemTab::Channels;

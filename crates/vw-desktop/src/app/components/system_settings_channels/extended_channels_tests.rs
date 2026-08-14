@@ -71,11 +71,6 @@ fn configure_extended_channels(app: &mut App) {
         sasl_password: Some("sasl-pass".to_string()),
         verify_tls: Some(false),
     });
-    app.channels_settings.expanded_panels.extend(
-        ["whatsapp", "linq", "wati", "nextcloud_talk", "email", "irc"]
-            .into_iter()
-            .map(str::to_string),
-    );
     app.channels_settings.refresh_text_inputs();
 }
 
@@ -94,11 +89,9 @@ fn extended_panels_build_disabled_and_expanded_enabled_states() {
 }
 
 #[test]
-fn extended_panels_build_enabled_but_collapsed_states() {
+fn extended_panels_build_enabled_states() {
     let mut app = test_app();
     configure_extended_channels(&mut app);
-    app.channels_settings.expanded_panels.clear();
-
     render_extended_channels(&app);
 }
 
@@ -145,9 +138,6 @@ fn extended_panels_build_with_optional_credentials_absent() {
         sasl_password: None,
         verify_tls: None,
     });
-    app.channels_settings.expanded_panels.extend(
-        ["whatsapp", "linq", "wati", "nextcloud_talk", "irc"].into_iter().map(str::to_string),
-    );
     app.channels_settings.refresh_text_inputs();
 
     keep_element(super::extended_channels::whatsapp_panel(&app));
@@ -168,7 +158,6 @@ fn email_panel_builds_numeric_boundaries_and_tls_states() {
         idle_timeout_secs: 60,
         ..EmailConfig::default()
     });
-    app.channels_settings.expanded_panels.insert("email".to_string());
     app.channels_settings.refresh_text_inputs();
     keep_element(super::extended_channels::email_panel(&app));
 

@@ -3,18 +3,16 @@ use std::net::TcpListener;
 use std::path::PathBuf;
 use std::thread;
 
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 use vw_config_types::skills::SkillsDirectoryProvider;
+use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
+use super::super::commands::registry::{CommandAction, CommandRegistry, CommandSource};
+use super::super::completion::{CompletionCatalog, CompletionKind, sync_skill_completion_catalog};
 use super::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::integrations::{
     IntegrationAction, IntegrationItem, IntegrationKind, IntegrationLoadState, IntegrationPanel,
     IntegrationRuntime, integration_command_specs, refresh_integrations, switch_skill_provider,
     toggle_selected_integration,
-};
-use super::super::commands::registry::{CommandAction, CommandRegistry, CommandSource};
-use super::super::completion::{
-    CompletionCatalog, CompletionKind, sync_skill_completion_catalog,
 };
 
 struct RecordingIntegrations {
@@ -31,12 +29,7 @@ impl IntegrationRuntime for ToggleRecordingIntegrations {
         Ok(Vec::new())
     }
 
-    fn set_enabled(
-        &mut self,
-        _: IntegrationKind,
-        _: &str,
-        _: bool,
-    ) -> Result<(), String> {
+    fn set_enabled(&mut self, _: IntegrationKind, _: &str, _: bool) -> Result<(), String> {
         self.calls += 1;
         Ok(())
     }
@@ -55,11 +48,7 @@ fn item(id: &str, detail: &str) -> IntegrationItem {
         detail: detail.to_string(),
         enabled: true,
         actions: vec![
-            IntegrationAction {
-                label: "刷新".to_string(),
-                enabled: true,
-                disabled_reason: None,
-            },
+            IntegrationAction { label: "刷新".to_string(), enabled: true, disabled_reason: None },
             IntegrationAction {
                 label: "OAuth".to_string(),
                 enabled: false,
@@ -123,10 +112,7 @@ fn integration_refresh_merges_partial_sources_and_registers_only_safe_dynamic_co
 
     let registry = CommandRegistry::builtin()
         .replace_source(CommandSource::Skill, Ok(specs))
-        .replace_source(
-            CommandSource::Mcp,
-            Err("mcp token=secret is offline".to_string()),
-        );
+        .replace_source(CommandSource::Mcp, Err("mcp token=secret is offline".to_string()));
     assert!(registry.resolve("help").is_some(), "builtin survives partial refresh failure");
     assert!(registry.resolve("skill:review-code").is_some());
     assert!(registry.errors().iter().any(|error| error.contains("Mcp")));
@@ -154,29 +140,21 @@ fn skill_refresh_updates_completion_catalog_and_preserves_safe_stale_items_on_er
         enabled: false,
         actions: vec![installed_action(true)],
     };
-    let mut runtime = RecordingIntegrations {
-        result: Ok(vec![enabled, disabled]),
-    };
+    let mut runtime = RecordingIntegrations { result: Ok(vec![enabled, disabled]) };
     let mut panel = IntegrationPanel::new(IntegrationKind::Skill);
     let mut catalog = CompletionCatalog::default();
 
     refresh_integrations(&mut panel, &mut runtime);
     sync_skill_completion_catalog(&mut catalog, &panel);
-    let skills = catalog
-        .items
-        .iter()
-        .filter(|item| item.kind == CompletionKind::Skill)
-        .collect::<Vec<_>>();
+    let skills =
+        catalog.items.iter().filter(|item| item.kind == CompletionKind::Skill).collect::<Vec<_>>();
     assert_eq!(skills.len(), 1);
     assert_eq!(skills[0].replacement, "$review-code");
 
     runtime.result = Err("gateway authorization=secret unavailable".to_string());
     refresh_integrations(&mut panel, &mut runtime);
     sync_skill_completion_catalog(&mut catalog, &panel);
-    assert_eq!(
-        catalog.items.iter().filter(|item| item.kind == CompletionKind::Skill).count(),
-        1
-    );
+    assert_eq!(catalog.items.iter().filter(|item| item.kind == CompletionKind::Skill).count(), 1);
     let error = catalog.source_errors.get(&CompletionKind::Skill).expect("safe skill error");
     assert!(error.contains("[redacted]"));
     assert!(!error.contains("secret"));
@@ -235,10 +213,7 @@ fn skill_platform_switch_reloads_only_installed_skills() {
 
     refresh_integrations(&mut panel, &mut runtime);
     assert_eq!(panel.skill_provider, SkillsDirectoryProvider::Vibewindow);
-    assert_eq!(
-        panel.items.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
-        ["installed"]
-    );
+    assert_eq!(panel.items.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(), ["installed"]);
     switch_skill_provider(&mut panel, &mut runtime, SkillsDirectoryProvider::Codex)
         .expect("switch to codex");
     sync_skill_completion_catalog(&mut catalog, &panel);
@@ -267,17 +242,15 @@ fn skill_platform_switch_reloads_only_installed_skills() {
         ["$codex-installed"]
     );
 
-    let (failure_port, failure_server) =
-        spawn_json_server(vec![("500 Internal Server Error", r#"{"error":"readonly"}"#.to_string())]);
+    let (failure_port, failure_server) = spawn_json_server(vec![(
+        "500 Internal Server Error",
+        r#"{"error":"readonly"}"#.to_string(),
+    )]);
     let mut failure_runtime = runtime_for_port(failure_port);
     let previous = panel.clone();
     assert!(
-        switch_skill_provider(
-            &mut panel,
-            &mut failure_runtime,
-            SkillsDirectoryProvider::Claude
-        )
-        .is_err()
+        switch_skill_provider(&mut panel, &mut failure_runtime, SkillsDirectoryProvider::Claude)
+            .is_err()
     );
     failure_server.join().expect("join failed switch server");
     assert_eq!(panel, previous, "failed persistence must preserve the prior snapshot");
@@ -315,12 +288,7 @@ fn unsupported_skill_platform_ignores_toggle_and_keeps_installed_skills_selectab
     assert!(!panel.can_toggle, "Codex does not support VibeWindow disabled markers");
     assert!(panel.items[0].actions.is_empty());
     assert!(panel.items[0].enabled);
-    assert!(
-        catalog
-            .items
-            .iter()
-            .any(|item| item.replacement == "$external-installed")
-    );
+    assert!(catalog.items.iter().any(|item| item.replacement == "$external-installed"));
     let mut toggle_runtime = ToggleRecordingIntegrations::default();
     assert!(!toggle_selected_integration(&panel, &mut toggle_runtime).expect("ignore toggle"));
     assert_eq!(toggle_runtime.calls, 0, "unsupported platforms emit no toggle request");
@@ -328,8 +296,7 @@ fn unsupported_skill_platform_ignores_toggle_and_keeps_installed_skills_selectab
 
 fn runtime_for_port(port: u16) -> GatewayUiRuntime {
     GatewayUiRuntime::new(
-        GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port))
-            .expect("gateway client"),
+        GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).expect("gateway client"),
         GatewaySessionSeed::new(PathBuf::from("/repo")),
     )
 }
@@ -368,8 +335,7 @@ fn read_request(stream: &mut std::net::TcpStream) -> String {
         }
         request.extend_from_slice(&buffer[..read]);
         if expected_len.is_none()
-            && let Some(header_end) =
-                request.windows(4).position(|window| window == b"\r\n\r\n")
+            && let Some(header_end) = request.windows(4).position(|window| window == b"\r\n\r\n")
         {
             let headers = String::from_utf8_lossy(&request[..header_end]);
             let content_length = headers

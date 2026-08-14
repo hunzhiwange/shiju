@@ -225,14 +225,8 @@ fn shiju_trigger_count_reflects_installed_load_state() {
         shiju_menu_status(&LoadState::<Vec<InstalledSkill>>::Idle),
         ShijuMenuStatus::Loading
     );
-    assert_eq!(
-        shiju_menu_status(&LoadState::Loading { generation: 3 }),
-        ShijuMenuStatus::Loading
-    );
-    assert_eq!(
-        shiju_menu_status(&LoadState::NeedsLogin),
-        ShijuMenuStatus::NeedsLogin
-    );
+    assert_eq!(shiju_menu_status(&LoadState::Loading { generation: 3 }), ShijuMenuStatus::Loading);
+    assert_eq!(shiju_menu_status(&LoadState::NeedsLogin), ShijuMenuStatus::NeedsLogin);
     assert_eq!(
         shiju_menu_status(&LoadState::Loaded(Vec::<InstalledSkill>::new())),
         ShijuMenuStatus::Empty
@@ -241,14 +235,8 @@ fn shiju_trigger_count_reflects_installed_load_state() {
         shiju_menu_status(&LoadState::Error("网关不可用".into())),
         ShijuMenuStatus::Error("网关不可用")
     );
-    assert_eq!(
-        shiju_menu_status_text(ShijuMenuStatus::Loading),
-        "正在加载识矩技能…"
-    );
-    assert_eq!(
-        shiju_menu_status_text(ShijuMenuStatus::NeedsLogin),
-        "请先登录识矩账户"
-    );
+    assert_eq!(shiju_menu_status_text(ShijuMenuStatus::Loading), "正在加载识矩技能…");
+    assert_eq!(shiju_menu_status_text(ShijuMenuStatus::NeedsLogin), "请先登录识矩账户");
     assert_eq!(shiju_menu_status_text(ShijuMenuStatus::Empty), "暂无已安装识矩技能");
     assert_eq!(
         shiju_menu_status_text(ShijuMenuStatus::Error("网关不可用")),
@@ -258,8 +246,7 @@ fn shiju_trigger_count_reflects_installed_load_state() {
 
 #[test]
 fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
-    let uninstalled =
-        package_status(None, Some("2.0.0"), ShijuPackageRefreshState::Fresh);
+    let uninstalled = package_status(None, Some("2.0.0"), ShijuPackageRefreshState::Fresh);
     assert_eq!(
         shiju_version_hint(&uninstalled),
         ShijuVersionHint {
@@ -270,11 +257,8 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
         }
     );
 
-    let checking = package_status(
-        Some("1.0.0"),
-        None,
-        ShijuPackageRefreshState::Refreshing { generation: 7 },
-    );
+    let checking =
+        package_status(Some("1.0.0"), None, ShijuPackageRefreshState::Refreshing { generation: 7 });
     assert_eq!(
         shiju_version_hint(&checking),
         ShijuVersionHint {
@@ -285,8 +269,7 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
         }
     );
 
-    let current =
-        package_status(Some("1.2.3"), Some("1.2.3"), ShijuPackageRefreshState::Fresh);
+    let current = package_status(Some("1.2.3"), Some("1.2.3"), ShijuPackageRefreshState::Fresh);
     assert_eq!(
         shiju_version_hint(&current),
         ShijuVersionHint {
@@ -297,8 +280,7 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
         }
     );
 
-    let upgrade =
-        package_status(Some("1.2.3"), Some("2.0.0"), ShijuPackageRefreshState::Fresh);
+    let upgrade = package_status(Some("1.2.3"), Some("2.0.0"), ShijuPackageRefreshState::Fresh);
     assert_eq!(
         shiju_version_hint(&upgrade),
         ShijuVersionHint {
@@ -309,8 +291,7 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
         }
     );
 
-    let stale =
-        package_status(Some("1.2.3"), Some("2.0.0"), ShijuPackageRefreshState::Failed);
+    let stale = package_status(Some("1.2.3"), Some("2.0.0"), ShijuPackageRefreshState::Failed);
     assert_eq!(
         shiju_version_hint(&stale),
         ShijuVersionHint {
@@ -352,8 +333,7 @@ fn shiju_menu_keeps_refresh_action_fixed_and_maps_loading_state() {
         shiju_refresh_action(&LoadState::<Vec<InstalledSkill>>::Loading { generation: 3 });
     let needs_login = shiju_refresh_action(&LoadState::<Vec<InstalledSkill>>::NeedsLogin);
     let empty = shiju_refresh_action(&LoadState::Loaded(Vec::<InstalledSkill>::new()));
-    let error =
-        shiju_refresh_action(&LoadState::<Vec<InstalledSkill>>::Error("网关不可用".into()));
+    let error = shiju_refresh_action(&LoadState::<Vec<InstalledSkill>>::Error("网关不可用".into()));
     let loaded = shiju_refresh_action(&LoadState::Loaded(vec![installed_skill(
         7,
         "document-review",
@@ -372,11 +352,8 @@ fn shiju_menu_keeps_refresh_action_fixed_and_maps_loading_state() {
     ));
 
     let mut app = App::new().0;
-    app.expert_hub.installed = LoadState::Loaded(vec![installed_skill(
-        7,
-        "document-review",
-        "文档审查",
-    )]);
+    app.expert_hub.installed =
+        LoadState::Loaded(vec![installed_skill(7, "document-review", "文档审查")]);
     let menu = shiju_menu_view(&app);
     let tree = Tree::new(menu.as_widget());
     assert_eq!(

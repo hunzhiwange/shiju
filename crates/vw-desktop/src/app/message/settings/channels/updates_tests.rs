@@ -21,21 +21,20 @@ fn channel_update_ignores_non_channel_messages() {
 }
 
 #[test]
-fn channel_refresh_clears_error_and_panel_toggle_round_trips() {
+fn channel_refresh_clears_error_and_tab_selection_updates_state() {
     let mut app = app();
     app.channels_settings.save_error = Some("old".to_string());
 
     let _ = update(&mut app, SettingsMessage::Channels(ChannelsMessage::Refresh));
     assert!(app.channels_settings.save_error.is_none());
 
-    let panel = "telegram".to_string();
-    let _ =
-        update(&mut app, SettingsMessage::Channels(ChannelsMessage::PanelToggled(panel.clone())));
-    assert!(app.channels_settings.expanded_panels.contains(&panel));
-
-    let _ =
-        update(&mut app, SettingsMessage::Channels(ChannelsMessage::PanelToggled(panel.clone())));
-    assert!(!app.channels_settings.expanded_panels.contains(&panel));
+    let _ = update(
+        &mut app,
+        SettingsMessage::Channels(ChannelsMessage::TabSelected(
+            crate::app::state::ChannelsSettingsTab::Telegram,
+        )),
+    );
+    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Telegram);
 }
 
 #[test]
@@ -65,6 +64,7 @@ fn channel_enabled_and_instance_updates_refresh_derived_inputs() {
         SettingsMessage::Channels(ChannelsMessage::EnabledToggled("telegram".to_string(), true)),
     );
     assert!(app.channels_settings.telegram.is_some());
+    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Telegram);
     assert!(app.channels_settings.text_inputs.contains_key("telegram.allowed_users"));
     assert!(app.channels_settings.text_editors.contains_key("telegram.allowed_users"));
 
@@ -73,6 +73,7 @@ fn channel_enabled_and_instance_updates_refresh_derived_inputs() {
         SettingsMessage::Channels(ChannelsMessage::InstanceAdded("matrix".to_string())),
     );
     assert_eq!(app.channels_settings.matrix_instances.len(), 1);
+    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Matrix);
     assert!(app.channels_settings.text_inputs.contains_key("matrix_instances.0.allowed_users"));
     assert!(app.channels_settings.text_editors.contains_key("matrix_instances.0.allowed_users"));
 

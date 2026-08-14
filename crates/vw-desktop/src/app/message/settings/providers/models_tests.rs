@@ -561,10 +561,7 @@ fn custom_provider_patch_writes_explicit_model_metadata_and_preserves_unedited_f
         display_name: "Custom".to_string(),
         base_url: "https://api.example.test/v1".to_string(),
         api_key: String::new(),
-        headers: vec![ProviderHeaderDraft {
-            key: "X-Keep".to_string(),
-            value: "yes".to_string(),
-        }],
+        headers: vec![ProviderHeaderDraft { key: "X-Keep".to_string(), value: "yes".to_string() }],
         models: vec![CustomProviderModelDraft {
             model_id: "model-a".to_string(),
             display_name: "Model A".to_string(),
@@ -698,8 +695,8 @@ fn cross_layer_explicit_fixture_round_trips_through_settings_patch() {
 
     let (_, patch) = custom_provider_patch_from_draft(&draft, None).unwrap();
     let provider_id = fixture["provider_id"].as_str().unwrap();
-    let restored = custom_provider_draft_from_value(provider_id, &patch["providers"][provider_id])
-        .unwrap();
+    let restored =
+        custom_provider_draft_from_value(provider_id, &patch["providers"][provider_id]).unwrap();
     let model = &restored.models[0];
     assert_eq!(model.model_id, fixture["model_id"].as_str().unwrap());
     assert_eq!(model.family, fixture["family"].as_str().unwrap());
@@ -711,7 +708,10 @@ fn cross_layer_explicit_fixture_round_trips_through_settings_patch() {
     assert_eq!(model.temperature, fixture["temperature"].as_bool());
     assert_eq!(model.attachment, fixture["attachment"].as_bool());
     assert_eq!(model.interleaved, fixture["interleaved"].as_bool());
-    assert_eq!(model.input_modalities.as_deref(), Some(["text".to_string(), "image".to_string()].as_slice()));
+    assert_eq!(
+        model.input_modalities.as_deref(),
+        Some(["text".to_string(), "image".to_string()].as_slice())
+    );
     assert_eq!(model.output_modalities.as_deref(), Some(["text".to_string()].as_slice()));
 }
 

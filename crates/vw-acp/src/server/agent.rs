@@ -7,8 +7,8 @@ use std::rc::Rc;
 use agent_client_protocol::{
     Agent, AgentCapabilities, AgentSideConnection, AuthenticateRequest, AuthenticateResponse,
     CancelNotification, Client, ContentBlock, ContentChunk, Error, InitializeRequest,
-    InitializeResponse, LoadSessionRequest, LoadSessionResponse, NewSessionRequest,
-    McpCapabilities, NewSessionResponse, PermissionOption, PermissionOptionKind, PromptRequest,
+    InitializeResponse, LoadSessionRequest, LoadSessionResponse, McpCapabilities,
+    NewSessionRequest, NewSessionResponse, PermissionOption, PermissionOptionKind, PromptRequest,
     PromptResponse, ProtocolVersion, RequestPermissionOutcome, RequestPermissionRequest, Result,
     SessionNotification, SessionUpdate, StopReason, TextContent, ToolCallUpdate,
     ToolCallUpdateFields,
@@ -49,11 +49,7 @@ where
 
     /// 创建带有可注入 `session/update` 输出端的 Agent。
     pub fn with_update_sink(backend: B, updates: impl SessionUpdateSink) -> Self {
-        Self {
-            backend,
-            state: Mutex::new(ConnectionState::default()),
-            updates: Rc::new(updates),
-        }
+        Self { backend, state: Mutex::new(ConnectionState::default()), updates: Rc::new(updates) }
     }
 
     /// 返回当前连接中的会话绑定快照。
@@ -106,16 +102,10 @@ where
         self.updates.send(SessionNotification::new(session_id.to_string(), update)).await
     }
 
-    async fn request_permission(
-        &self,
-        session_id: &str,
-        request: BackendPermissionRequest,
-    ) {
+    async fn request_permission(&self, session_id: &str, request: BackendPermissionRequest) {
         let tool_call = ToolCallUpdate::new(
             request.call_id,
-            ToolCallUpdateFields::new()
-                .title(request.title)
-                .raw_input(request.raw_input),
+            ToolCallUpdateFields::new().title(request.title).raw_input(request.raw_input),
         );
         let options = request
             .options
@@ -226,12 +216,11 @@ where
                 "ACP connection is already initialized",
             ));
         }
-        Ok(InitializeResponse::new(ProtocolVersion::V1)
-            .agent_capabilities(
-                AgentCapabilities::new()
-                    .load_session(true)
-                    .mcp_capabilities(McpCapabilities::new().http(true).sse(true)),
-            ))
+        Ok(InitializeResponse::new(ProtocolVersion::V1).agent_capabilities(
+            AgentCapabilities::new()
+                .load_session(true)
+                .mcp_capabilities(McpCapabilities::new().http(true).sse(true)),
+        ))
     }
 
     async fn authenticate(&self, _args: AuthenticateRequest) -> Result<AuthenticateResponse> {
@@ -241,11 +230,11 @@ where
     async fn new_session(&self, args: NewSessionRequest) -> Result<NewSessionResponse> {
         self.ensure_initialized()?;
         let cwd = canonical_directory(&args.cwd)?;
-        let session =
-            self.backend
-                .create_session_with_mcp(cwd.clone(), args.mcp_servers)
-                .await
-                .map_err(map_backend_error)?;
+        let session = self
+            .backend
+            .create_session_with_mcp(cwd.clone(), args.mcp_servers)
+            .await
+            .map_err(map_backend_error)?;
         let session_id = self.register_session(session, &cwd)?;
         Ok(NewSessionResponse::new(session_id))
     }
@@ -285,16 +274,10 @@ where
                 format!("a prompt is already active for session {session_id}"),
             ));
         }
-        let mut scope = PromptScope {
-            state: &self.state,
-            session_id: session_id.clone(),
-            completed: false,
-        };
-        let mut prompt = self
-            .backend
-            .start_prompt(&session_id, prompt)
-            .await
-            .map_err(map_backend_error)?;
+        let mut scope =
+            PromptScope { state: &self.state, session_id: session_id.clone(), completed: false };
+        let mut prompt =
+            self.backend.start_prompt(&session_id, prompt).await.map_err(map_backend_error)?;
         self.state.lock().attach_cancel(&session_id, prompt.cancel.clone());
 
         let mut permissions_open = true;
@@ -378,14 +361,10 @@ where
                 backend,
                 ConnectionUpdateSink { connection: Rc::clone(&connection) },
             );
-            let (client, io_task) = AgentSideConnection::new(
-                agent,
-                writer.compat_write(),
-                reader.compat(),
-                |future| {
+            let (client, io_task) =
+                AgentSideConnection::new(agent, writer.compat_write(), reader.compat(), |future| {
                     tokio::task::spawn_local(future);
-                },
-            );
+                });
             connection.set(client).map_err(|_| {
                 protocol_error(Error::internal_error(), "ACP connection was initialized twice")
             })?;

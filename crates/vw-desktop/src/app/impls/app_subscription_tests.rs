@@ -393,9 +393,7 @@ fn subscription_builds_task_board_ui_tick() {
 fn project_subscription_does_not_schedule_periodic_task_or_session_refresh() {
     let source = include_str!("app_subscription.rs");
 
-    assert!(!source.contains(
-        ".map(|_| Message::TaskBoard(message::TaskBoardMessage::LoadTasks))"
-    ));
+    assert!(!source.contains(".map(|_| Message::TaskBoard(message::TaskBoardMessage::LoadTasks))"));
     assert!(!source.contains("ProjectMessage::ProjectSessionsRefreshTick"));
 }
 

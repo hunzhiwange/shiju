@@ -1,8 +1,8 @@
 use super::send_controls::{
     bottom_bar, cancel_button, full_access_button, is_dark_theme, permission_access_button_style,
     pool_button, prominent_action_background, prominent_action_foreground, prominent_action_style,
-    send_behavior_icon, send_behavior_popover, send_button, utility_cluster_style,
-    subagent_mode_button, workflow_mode_button,
+    send_behavior_icon, send_behavior_popover, send_button, subagent_mode_button,
+    utility_cluster_style, workflow_mode_button,
 };
 use super::styles::square_icon_button_style;
 use crate::app::Message;
@@ -381,10 +381,7 @@ fn bottom_bar_places_workflow_after_full_access_and_before_subagent() {
     let controls = include_str!("send_controls.rs");
     let workflow_push = controls.find("bar = bar.push(workflow_btn)").expect("workflow push");
     let subagent_push = controls.find("bar = bar.push(subagent_btn)").expect("subagent push");
-    assert!(
-        workflow_push < subagent_push,
-        "bottom bar should place workflow before subagent"
-    );
+    assert!(workflow_push < subagent_push, "bottom bar should place workflow before subagent");
     assert!(
         !controls.contains("bar = bar.push(goal_btn)"),
         "bottom bar must not expose removed goal mode button"
@@ -403,10 +400,7 @@ fn bottom_bar_places_workflow_after_full_access_and_before_subagent() {
         mod_source.contains("workflow_btn,\n        subagent_btn,"),
         "input panel should pass workflow then subagent into bottom_bar"
     );
-    assert!(
-        !mod_source.contains("goal_btn"),
-        "input panel must not wire goal mode button"
-    );
+    assert!(!mod_source.contains("goal_btn"), "input panel must not wire goal mode button");
     for tab in ["Agent", "Tools", "Skills"] {
         assert!(
             mod_source.contains(&format!("SessionToolSelectorTab::{tab}")),

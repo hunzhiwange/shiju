@@ -567,11 +567,7 @@ fn execute_prompt_with_continue_retry_on_timeout_in_mode(
     let continue_prompt = if provider_retains_session_history {
         TASK_GATEWAY_CONTINUE_PROMPT.to_string()
     } else {
-        format!(
-            "{}\n\n## 原始任务上下文\n{}",
-            TASK_GATEWAY_CONTINUE_PROMPT,
-            initial_prompt.trim()
-        )
+        format!("{}\n\n## 原始任务上下文\n{}", TASK_GATEWAY_CONTINUE_PROMPT, initial_prompt.trim())
     };
     let mut last_error = match &result {
         Ok(_) => return result,

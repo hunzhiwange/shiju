@@ -370,7 +370,8 @@ pub(crate) fn internal_compaction_profile() -> crate::app::agent::session::llm::
 }
 
 fn build_internal_request(input: &ProcessInput) -> Option<(usize, InternalCompactionRequest)> {
-    let boundary = input.messages.iter().position(|message| message.info.id() == input.parent_id)?;
+    let boundary =
+        input.messages.iter().position(|message| message.info.id() == input.parent_id)?;
     if !matches!(input.messages[boundary].info, message::Info::User(_)) || boundary == 0 {
         return None;
     }
@@ -380,10 +381,7 @@ fn build_internal_request(input: &ProcessInput) -> Option<(usize, InternalCompac
     }
     Some((
         boundary,
-        InternalCompactionRequest {
-            prompt: internal_summary_prompt(&context),
-            tools: Vec::new(),
-        },
+        InternalCompactionRequest { prompt: internal_summary_prompt(&context), tools: Vec::new() },
     ))
 }
 
@@ -503,7 +501,10 @@ async fn compact_with_summary(
         history,
         stats: CompactionStats {
             covered_messages: boundary,
-            covered_parts: input.messages[..boundary].iter().map(|message| message.parts.len()).sum(),
+            covered_parts: input.messages[..boundary]
+                .iter()
+                .map(|message| message.parts.len())
+                .sum(),
             summary_chars: summary.chars().count(),
         },
     })
@@ -516,12 +517,17 @@ async fn stream_internal_summary(
 ) -> Result<String, String> {
     use std::sync::{Arc, Mutex};
 
-    let Some(user) = input.messages.iter().find_map(|message| {
-        (message.info.id() == input.parent_id).then(|| match &message.info {
-            message::Info::User(user) => Some(user.as_ref().clone()),
-            _ => None,
+    let Some(user) = input
+        .messages
+        .iter()
+        .find_map(|message| {
+            (message.info.id() == input.parent_id).then(|| match &message.info {
+                message::Info::User(user) => Some(user.as_ref().clone()),
+                _ => None,
+            })
         })
-    }).flatten() else {
+        .flatten()
+    else {
         return Err("compaction boundary is not a user message".to_string());
     };
     let output = Arc::new(Mutex::new(String::new()));
@@ -623,7 +629,11 @@ pub async fn process(
                 .unwrap_or_default(),
             _ => String::new(),
         };
-        let _ = bus::publish(event::COMPACTED, json!({ "sessionID": session_id }), instance_directory_opt());
+        let _ = bus::publish(
+            event::COMPACTED,
+            json!({ "sessionID": session_id }),
+            instance_directory_opt(),
+        );
     }
     Ok(outcome)
 }
@@ -661,9 +671,11 @@ pub async fn process_session(
             "compaction boundary has no model reference"
         )));
     }
-    let model = provider::get_model(&model_ref.provider_id, &model_ref.model_id)
-        .await
-        .map_err(|error| crate::app::agent::session::session::Error::Runtime(anyhow::anyhow!(error.to_string())))?;
+    let model = provider::get_model(&model_ref.provider_id, &model_ref.model_id).await.map_err(
+        |error| {
+            crate::app::agent::session::session::Error::Runtime(anyhow::anyhow!(error.to_string()))
+        },
+    )?;
     process(
         ProcessInput {
             parent_id: parent_id.to_string(),

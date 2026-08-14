@@ -16,17 +16,14 @@ fn tui_keybinding_contexts_resolve_reference_defaults_and_safe_overrides() {
         ),
         Some(KeyAction::Submit)
     );
-    assert_eq!(
-        registry.shortcut(KeyContext::Chat, KeyAction::Submit).as_deref(),
-        Some("Enter")
+    assert_eq!(registry.shortcut(KeyContext::Chat, KeyAction::Submit).as_deref(), Some("Enter"));
+    assert!(
+        registry
+            .apply_override(KeyContext::Chat, KeyAction::Submit, "ctrl+c")
+            .unwrap_err()
+            .contains("reserved")
     );
-    assert!(registry
-        .apply_override(KeyContext::Chat, KeyAction::Submit, "ctrl+c")
-        .unwrap_err()
-        .contains("reserved"));
-    registry
-        .apply_override(KeyContext::Chat, KeyAction::Submit, "ctrl+k ctrl+s")
-        .unwrap();
+    registry.apply_override(KeyContext::Chat, KeyAction::Submit, "ctrl+k ctrl+s").unwrap();
     assert_eq!(
         registry.resolve(
             &[KeyContext::Global, KeyContext::Chat],
@@ -43,8 +40,10 @@ fn tui_keybinding_contexts_resolve_reference_defaults_and_safe_overrides() {
         ),
         Some(KeyAction::Submit)
     );
-    assert!(registry
-        .apply_override(KeyContext::Chat, KeyAction::Submit, "ctrl+unknown")
-        .unwrap_err()
-        .contains("unknown key"));
+    assert!(
+        registry
+            .apply_override(KeyContext::Chat, KeyAction::Submit, "ctrl+unknown")
+            .unwrap_err()
+            .contains("unknown key")
+    );
 }

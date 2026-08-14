@@ -6,9 +6,7 @@ use vw_gateway_client::{
 };
 
 use super::shiju_apps;
-use crate::app::shiju_apps::{
-    ShijuAppDetailTarget, ShijuAppsLoadState, ShijuAppsTab,
-};
+use crate::app::shiju_apps::{ShijuAppDetailTarget, ShijuAppsLoadState, ShijuAppsTab};
 use crate::app::{App, Message};
 
 fn catalog_app(installed: bool) -> ShijuCatalogAppDto {
@@ -45,10 +43,9 @@ fn installed_app(ready: bool) -> ShijuInstalledAppDto {
 
 fn app_with_lists() -> App {
     let (mut app, _) = App::new();
-    app.expert_hub.shiju_apps.store =
-        ShijuAppsLoadState::Loaded(ShijuAppCatalogDto {
-            apps: vec![catalog_app(true), catalog_app(false)],
-        });
+    app.expert_hub.shiju_apps.store = ShijuAppsLoadState::Loaded(ShijuAppCatalogDto {
+        apps: vec![catalog_app(true), catalog_app(false)],
+    });
     app.expert_hub.shiju_apps.mine = ShijuAppsLoadState::Loaded(ShijuAppListDto {
         apps: vec![installed_app(true), installed_app(false)],
     });
@@ -62,10 +59,7 @@ fn shiju_apps_view_builds_store_mine_and_details() {
     let mut app = app_with_lists();
     assert_eq!(
         shiju_apps::tab_specs(),
-        &[
-            ("我的应用", ShijuAppsTab::Mine),
-            ("应用商店", ShijuAppsTab::Store),
-        ]
+        &[("我的应用", ShijuAppsTab::Mine), ("应用商店", ShijuAppsTab::Store),]
     );
 
     keep_element(shiju_apps::view(&app));
@@ -135,11 +129,8 @@ async fn assert_draws(app: &App, theme: Theme) {
 #[tokio::test]
 async fn shiju_apps_dark_chinese_render_path_is_safe() {
     let mut app = app_with_lists();
-    for detail in [
-        None,
-        Some(ShijuAppDetailTarget::Store(0)),
-        Some(ShijuAppDetailTarget::Mine(0)),
-    ] {
+    for detail in [None, Some(ShijuAppDetailTarget::Store(0)), Some(ShijuAppDetailTarget::Mine(0))]
+    {
         app.expert_hub.shiju_apps.detail = detail;
         assert_draws(&app, Theme::Dark).await;
     }

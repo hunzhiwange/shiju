@@ -5,22 +5,19 @@ use std::sync::Mutex;
 use iced::Subscription;
 use iced::futures::SinkExt;
 use muda::accelerator::{Accelerator, Code, Modifiers};
-use muda::{
-    AboutMetadata, CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu,
-};
+use muda::{AboutMetadata, CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 use once_cell::sync::Lazy;
 
 use super::actions::{
     NativeMenuSnapshot, help_section, menu_item_enabled, menu_sections, parse_window_tab_menu_id,
     window_tab_menu_id,
 };
+use crate::app::Message;
 use crate::app::components::top_bar::menu_actions::NativeMenuAction;
 use crate::app::components::top_bar::menus::MenuEntry;
 use crate::app::message::view::ViewMessage;
-use crate::app::Message;
 
-static INSTALLED_SNAPSHOT: Lazy<Mutex<Option<NativeMenuSnapshot>>> =
-    Lazy::new(|| Mutex::new(None));
+static INSTALLED_SNAPSHOT: Lazy<Mutex<Option<NativeMenuSnapshot>>> = Lazy::new(|| Mutex::new(None));
 
 /// 按快照安装或重建原生菜单。
 pub(crate) fn install_or_sync(snapshot: NativeMenuSnapshot) {
@@ -119,9 +116,7 @@ fn build_window_menu(snapshot: &NativeMenuSnapshot) -> Option<Submenu> {
     window_menu.append(&PredefinedMenuItem::maximize(Some("缩放"))).ok()?;
     window_menu.append(&PredefinedMenuItem::fullscreen(Some("进入全屏幕"))).ok()?;
     window_menu.append(&PredefinedMenuItem::separator()).ok()?;
-    window_menu
-        .append(&PredefinedMenuItem::bring_all_to_front(Some("前置全部窗口")))
-        .ok()?;
+    window_menu.append(&PredefinedMenuItem::bring_all_to_front(Some("前置全部窗口"))).ok()?;
 
     if !snapshot.open_window_tabs.is_empty() {
         window_menu.append(&PredefinedMenuItem::separator()).ok()?;

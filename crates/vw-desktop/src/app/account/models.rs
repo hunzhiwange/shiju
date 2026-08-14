@@ -295,9 +295,7 @@ impl AccountPasswordDraft {
         let has_letter = self.new_password.chars().any(|character| character.is_ascii_alphabetic());
         let has_number = self.new_password.chars().any(|character| character.is_ascii_digit());
         if !(8..=64).contains(&length) || !has_letter || !has_number {
-            return Err(AccountModelError::new(
-                "新密码需为 8–64 个字符，并同时包含字母和数字",
-            ));
+            return Err(AccountModelError::new("新密码需为 8–64 个字符，并同时包含字母和数字"));
         }
         if self.new_password != self.confirmation {
             return Err(AccountModelError::new("两次输入的新密码不一致"));
@@ -346,8 +344,7 @@ impl VerifiedAccount {
         dto: ShijuAccountProfileDto,
         skey: SecretSkey,
     ) -> Result<Self, AccountModelError> {
-        let identity =
-            AccountIdentity::from_profile(dto.company_name, dto.company_status.clone())?;
+        let identity = AccountIdentity::from_profile(dto.company_name, dto.company_status.clone())?;
         let profile = AccountProfile::new(
             dto.company_status,
             dto.name,

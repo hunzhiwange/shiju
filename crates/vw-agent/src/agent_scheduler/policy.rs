@@ -172,12 +172,7 @@ impl<'a> AgentSchedulerPolicyService<'a> {
         let from_status_key = crate::agent_scheduler::task_board::task_board_status_key(task);
         let updated = self
             .store
-            .transition_task_status(
-                project_path,
-                &task.id,
-                AgentTaskStatus::Queued,
-                now_ms,
-            )?
+            .transition_task_status(project_path, &task.id, AgentTaskStatus::Queued, now_ms)?
             .with_context(|| {
                 format!("task disappeared during pool promotion: {}", task.id.as_str())
             })?;

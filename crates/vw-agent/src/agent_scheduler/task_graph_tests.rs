@@ -9,11 +9,8 @@ fn task_graph_rejects_invalid_topology() {
     let task_a = task("task-a", AgentTaskKind::Finite, AgentTaskStatus::Queued);
     let task_b = task("task-b", AgentTaskKind::Finite, AgentTaskStatus::Queued);
 
-    let self_loop = TaskGraph::new(
-        vec![task_a.clone()],
-        vec![dependency("task-a", "task-a")],
-    )
-    .expect_err("self loop must be rejected");
+    let self_loop = TaskGraph::new(vec![task_a.clone()], vec![dependency("task-a", "task-a")])
+        .expect_err("self loop must be rejected");
     assert!(self_loop.to_string().contains("task-a"));
 
     let duplicate = TaskGraph::new(
@@ -24,11 +21,9 @@ fn task_graph_rejects_invalid_topology() {
     assert!(duplicate.to_string().contains("task-a"));
     assert!(duplicate.to_string().contains("task-b"));
 
-    let missing_node = TaskGraph::new(
-        vec![task_a.clone()],
-        vec![dependency("task-a", "task-missing")],
-    )
-    .expect_err("edge endpoint must exist");
+    let missing_node =
+        TaskGraph::new(vec![task_a.clone()], vec![dependency("task-a", "task-missing")])
+            .expect_err("edge endpoint must exist");
     assert!(missing_node.to_string().contains("task-missing"));
 
     let cycle = TaskGraph::new(
@@ -74,9 +69,7 @@ fn task_graph_derives_readiness_from_runtime_status() {
     .expect("valid graph");
     assert_eq!(
         waiting.readiness_for(&task_id("task-successor")).expect("known task"),
-        TaskGraphReadiness::WaitingDependencies {
-            task_ids: vec![task_id("task-predecessor")],
-        }
+        TaskGraphReadiness::WaitingDependencies { task_ids: vec![task_id("task-predecessor")] }
     );
 
     let blocked = TaskGraph::new(
@@ -89,9 +82,7 @@ fn task_graph_derives_readiness_from_runtime_status() {
     .expect("valid graph");
     assert_eq!(
         blocked.readiness_for(&task_id("task-successor")).expect("known task"),
-        TaskGraphReadiness::BlockedByDependency {
-            task_ids: vec![task_id("task-predecessor")],
-        }
+        TaskGraphReadiness::BlockedByDependency { task_ids: vec![task_id("task-predecessor")] }
     );
 
     let retried_predecessor = TaskGraph::new(
@@ -103,12 +94,8 @@ fn task_graph_derives_readiness_from_runtime_status() {
     )
     .expect("valid graph");
     assert_eq!(
-        retried_predecessor
-            .readiness_for(&task_id("task-successor"))
-            .expect("known task"),
-        TaskGraphReadiness::WaitingDependencies {
-            task_ids: vec![task_id("task-predecessor")],
-        }
+        retried_predecessor.readiness_for(&task_id("task-successor")).expect("known task"),
+        TaskGraphReadiness::WaitingDependencies { task_ids: vec![task_id("task-predecessor")] }
     );
 
     let non_queued = TaskGraph::new(

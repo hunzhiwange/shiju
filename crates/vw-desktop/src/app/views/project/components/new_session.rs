@@ -302,11 +302,11 @@ pub fn new_session_button<'a>(app: &crate::app::App, path: String) -> Element<'a
                             theme.palette().text
                         }),
                     }),
-                text(if is_creating { "创建中..." } else { "新建会话" })
-                    .size(12)
-                    .style(move |theme: &Theme| text::Style {
+                text(if is_creating { "创建中..." } else { "新建会话" }).size(12).style(
+                    move |theme: &Theme| text::Style {
                         color: is_creating.then(|| theme.palette().text.scale_alpha(0.35)),
-                    }),
+                    }
+                ),
             ]
             .align_y(iced::alignment::Vertical::Center)
             .spacing(6),

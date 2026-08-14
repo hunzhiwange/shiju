@@ -88,31 +88,26 @@ fn work_sidebar_space_tasks_load_more_increments_per_space_and_resets_on_filter(
     let mut app = App::new().0;
     let path = "/workspace/alpha".to_string();
 
-    let _task = update_panel(
-        &mut app,
-        ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(path.clone()),
-    );
+    let _task =
+        update_panel(&mut app, ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(path.clone()));
     assert_eq!(
         app.work_sidebar_space_task_visible.get(&path),
         Some(&(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE + WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP))
     );
 
-    let _task = update_panel(
-        &mut app,
-        ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(path.clone()),
-    );
+    let _task =
+        update_panel(&mut app, ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(path.clone()));
     assert_eq!(
         app.work_sidebar_space_task_visible.get(&path),
         Some(
-            &(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE + WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP * 2)
+            &(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE
+                + WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP * 2)
         )
     );
 
     let other = "/workspace/beta".to_string();
-    let _task = update_panel(
-        &mut app,
-        ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(other.clone()),
-    );
+    let _task =
+        update_panel(&mut app, ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(other.clone()));
     assert_eq!(
         app.work_sidebar_space_task_visible.get(&other),
         Some(&(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE + WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP))
@@ -120,7 +115,8 @@ fn work_sidebar_space_tasks_load_more_increments_per_space_and_resets_on_filter(
     assert_eq!(
         app.work_sidebar_space_task_visible.get(&path),
         Some(
-            &(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE + WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP * 2)
+            &(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE
+                + WORK_SIDEBAR_SPACE_TASKS_LOAD_MORE_STEP * 2)
         )
     );
 

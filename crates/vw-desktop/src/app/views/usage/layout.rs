@@ -120,8 +120,7 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
             } else {
                 format!(
                     "{:.1}%",
-                    (usage_data.last_step_input_tokens as f64) * 100.0
-                        / (info.input_limit as f64)
+                    (usage_data.last_step_input_tokens as f64) * 100.0 / (info.input_limit as f64)
                 )
             }
         })

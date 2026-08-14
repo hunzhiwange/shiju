@@ -112,9 +112,7 @@ impl ImageAnalysisCache {
             return Ok(hit);
         }
 
-        let result = self
-            .run_analysis(store, scope, image_id, &model_ref, extractor)
-            .await;
+        let result = self.run_analysis(store, scope, image_id, &model_ref, extractor).await;
         match &result {
             Ok(value) => {
                 if let Err(error) = self.persist_cache(&cache_path, value) {
@@ -192,8 +190,8 @@ impl ImageAnalysisCache {
         fs::create_dir_all(parent).with_context(|| {
             format!("failed to create analysis cache directory {}", parent.display())
         })?;
-        let encoded =
-            serde_json::to_vec_pretty(result).context("failed to serialize image analysis cache")?;
+        let encoded = serde_json::to_vec_pretty(result)
+            .context("failed to serialize image analysis cache")?;
         let tmp = parent.join(format!(
             ".{}.tmp-{}",
             path.file_name().and_then(|name| name.to_str()).unwrap_or("analysis"),
@@ -215,9 +213,10 @@ impl ImageAnalysisCache {
         model_ref: &str,
         extractor: &dyn ImageTextExtractor,
     ) -> Result<ImageAnalysisResult> {
-        let supports = extractor.supports_image_input(model_ref).await.map_err(|_| {
-            MultimodalError::OcrModelUnavailable { model: model_ref.to_string() }
-        })?;
+        let supports = extractor
+            .supports_image_input(model_ref)
+            .await
+            .map_err(|_| MultimodalError::OcrModelUnavailable { model: model_ref.to_string() })?;
         if !supports {
             return Err(MultimodalError::OcrModelDoesNotSupportImages {
                 model: model_ref.to_string(),
@@ -233,13 +232,10 @@ impl ImageAnalysisCache {
         let raw_output = extractor
             .analyze_image(model_ref, &data_uri)
             .await
-            .map_err(|_| MultimodalError::OcrExtractionFailed {
-                model: model_ref.to_string(),
-            })?;
+            .map_err(|_| MultimodalError::OcrExtractionFailed { model: model_ref.to_string() })?;
 
-        let bounded = bound_analysis_result(raw_output).ok_or_else(|| {
-            MultimodalError::EmptyOcrOutput { model: model_ref.to_string() }
-        })?;
+        let bounded = bound_analysis_result(raw_output)
+            .ok_or_else(|| MultimodalError::EmptyOcrOutput { model: model_ref.to_string() })?;
 
         Ok(ImageAnalysisResult {
             version: 1,
@@ -260,9 +256,10 @@ pub async fn resolve_analysis_model(
 ) -> Result<String> {
     if let Some(configured) = config.ocr.model.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
         let model_ref = validated_model_ref(Some(configured))?;
-        let supports = extractor.supports_image_input(&model_ref).await.map_err(|_| {
-            MultimodalError::OcrModelUnavailable { model: model_ref.clone() }
-        })?;
+        let supports = extractor
+            .supports_image_input(&model_ref)
+            .await
+            .map_err(|_| MultimodalError::OcrModelUnavailable { model: model_ref.clone() })?;
         if !supports {
             return Err(MultimodalError::OcrModelDoesNotSupportImages { model: model_ref }.into());
         }
@@ -273,13 +270,12 @@ pub async fn resolve_analysis_model(
         return Err(MultimodalError::InvalidOcrModelReference.into());
     };
     let model_ref = validated_model_ref(Some(current))?;
-    let supports = extractor.supports_image_input(&model_ref).await.map_err(|_| {
-        MultimodalError::OcrModelUnavailable { model: model_ref.clone() }
-    })?;
+    let supports = extractor
+        .supports_image_input(&model_ref)
+        .await
+        .map_err(|_| MultimodalError::OcrModelUnavailable { model: model_ref.clone() })?;
     if !supports {
-        return Err(
-            MultimodalError::OcrModelDoesNotSupportImages { model: model_ref }.into()
-        );
+        return Err(MultimodalError::OcrModelDoesNotSupportImages { model: model_ref }.into());
     }
     Ok(model_ref)
 }
@@ -342,12 +338,11 @@ pub fn format_analysis_attachment_parts(visible_text: &str, visual_summary: &str
 /// 稳定文本表示：image_id + 有界分析附件。
 ///
 /// 使用 `[VW_IMAGE:...]` 前缀，避免被 `[IMAGE:...]` 图片标记解析误匹配。
-pub fn format_image_reference_text(image_id: &ImageAssetId, result: &ImageAnalysisResult) -> String {
-    format!(
-        "[VW_IMAGE:{}]\n\n{}",
-        image_id.as_str(),
-        format_analysis_attachment(result)
-    )
+pub fn format_image_reference_text(
+    image_id: &ImageAssetId,
+    result: &ImageAnalysisResult,
+) -> String {
+    format!("[VW_IMAGE:{}]\n\n{}", image_id.as_str(), format_analysis_attachment(result))
 }
 
 /// 分析请求使用的系统提示。

@@ -232,10 +232,9 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             };
 
             app.git_commit_in_progress = true;
-            Task::perform(
-                async move { execute_stage_all_via_gateway(path).await },
-                |result| Message::Git(GitMessage::StageAllFinished(result)),
-            )
+            Task::perform(async move { execute_stage_all_via_gateway(path).await }, |result| {
+                Message::Git(GitMessage::StageAllFinished(result))
+            })
         }
         GitMessage::StageAllFinished(result) => {
             app.git_commit_in_progress = false;

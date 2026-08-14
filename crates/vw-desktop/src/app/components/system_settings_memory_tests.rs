@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::App;
+use crate::app::state::MemorySettingsTab;
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
@@ -70,34 +71,52 @@ fn row_helpers_build_expected_control_structure() {
 }
 
 #[test]
-fn view_shows_qdrant_section_only_for_qdrant_backend() {
+fn view_shows_qdrant_tab_only_for_qdrant_backend() {
     let mut app = test_app();
 
     for backend in ["sqlite", "postgres", "chroma", "markdown", "null", "unknown"] {
         app.memory_settings.backend = backend.to_string();
-        assert_eq!(element_tree(view(&app)).children.len(), 4, "backend={backend}");
+        assert_eq!(element_tree(view(&app)).children.len(), 3, "backend={backend}");
     }
 
     app.memory_settings.backend = "qdrant".to_string();
-    assert_eq!(element_tree(view(&app)).children.len(), 5);
+    assert_eq!(element_tree(view(&app)).children.len(), 3);
 }
 
 #[test]
-fn view_builds_intro_and_two_part_sections_for_default_and_qdrant_backends() {
+fn view_builds_intro_tabs_and_selected_section() {
     let mut app = test_app();
     app.memory_settings.backend = "sqlite".to_string();
 
     let sqlite = element_tree(view(&app));
-    assert_eq!(sqlite.children.len(), 4);
+    assert_eq!(sqlite.children.len(), 3);
     assert_eq!(sqlite.children[0].children.len(), 2);
-    for section in sqlite.children.iter().skip(1) {
-        assert_eq!(section.children.len(), 2);
-    }
+    assert_eq!(sqlite.children[1].children.len(), 3);
+    assert_eq!(sqlite.children[2].children.len(), 2);
 
     app.memory_settings.backend = "qdrant".to_string();
     let qdrant = element_tree(view(&app));
-    assert_eq!(qdrant.children.len(), 5);
-    assert_eq!(qdrant.children[4].children.len(), 2);
+    assert_eq!(qdrant.children.len(), 3);
+    assert_eq!(qdrant.children[1].children.len(), 4);
+    assert_eq!(qdrant.children[2].children.len(), 2);
+}
+
+#[test]
+fn view_switches_between_memory_configuration_tabs() {
+    let mut app = test_app();
+
+    for tab in [
+        MemorySettingsTab::General,
+        MemorySettingsTab::RetentionAndCache,
+        MemorySettingsTab::Embedding,
+    ] {
+        app.memory_settings.active_tab = tab;
+        assert_eq!(element_tree(view(&app)).children.len(), 3);
+    }
+
+    app.memory_settings.backend = "qdrant".to_string();
+    app.memory_settings.active_tab = MemorySettingsTab::Qdrant;
+    assert_eq!(element_tree(view(&app)).children.len(), 3);
 }
 
 #[test]
@@ -130,5 +149,5 @@ fn view_builds_boundary_memory_state() {
     custom.memory_settings.qdrant_api_key_input = "secret".to_string();
     custom.memory_settings.save_error = Some("memory save failed".to_string());
 
-    assert_eq!(element_tree(view(&custom)).children.len(), 5);
+    assert_eq!(element_tree(view(&custom)).children.len(), 3);
 }

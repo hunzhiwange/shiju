@@ -109,10 +109,8 @@ fn tool_selector_tracks_manual_context_selections() {
 #[test]
 fn tool_selector_tracks_multiple_shiju_functions_and_reset() {
     let mut selector = SessionToolSelectorState::default();
-    let first =
-        ShijuSkillSelection::new(7, "document-review".to_string(), "文档审查".to_string());
-    let second =
-        ShijuSkillSelection::new(9, "meeting-notes".to_string(), "会议纪要".to_string());
+    let first = ShijuSkillSelection::new(7, "document-review".to_string(), "文档审查".to_string());
+    let second = ShijuSkillSelection::new(9, "meeting-notes".to_string(), "会议纪要".to_string());
 
     selector.toggle_shiju_skill(first.clone());
     assert!(selector.is_shiju_skill_selected(first.skill_id()));

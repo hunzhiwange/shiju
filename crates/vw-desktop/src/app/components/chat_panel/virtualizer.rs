@@ -322,9 +322,8 @@ impl ChatVirtualizer {
         self.height_index.set_trailing_runway(0.0);
         let user_top = self.height_index.scroll_top_for_item(user_index);
         let turn_height = (self.height_index.total_height() - user_top).max(0.0);
-        self.height_index.set_trailing_runway(
-            (self.viewport_h - CHAT_TURN_TOP_INSET_PX - turn_height).max(0.0),
-        );
+        self.height_index
+            .set_trailing_runway((self.viewport_h - CHAT_TURN_TOP_INSET_PX - turn_height).max(0.0));
     }
 
     fn clear_turn_focus(&mut self) -> bool {

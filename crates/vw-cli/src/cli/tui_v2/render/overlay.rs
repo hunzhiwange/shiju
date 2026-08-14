@@ -175,8 +175,7 @@ pub(super) fn overlay_body_lines(overlay: &UiOverlay) -> (String, Vec<String>) {
         }),
         UiOverlay::Settings(panel) if panel.model_picker.is_some() => ("模型".to_string(), {
             let picker = panel.model_picker.as_ref().expect("guarded model picker");
-            let mut lines =
-                vec!["选择本次 TUI 会话使用的模型：".to_string(), String::new()];
+            let mut lines = vec!["选择本次 TUI 会话使用的模型：".to_string(), String::new()];
             lines.extend(panel.model_options.iter().enumerate().map(|(index, model)| {
                 let marker = if index == picker.selected { "›" } else { " " };
                 format!("{marker} {model}")
@@ -189,36 +188,33 @@ pub(super) fn overlay_body_lines(overlay: &UiOverlay) -> (String, Vec<String>) {
             ("委托代理".to_string(), {
                 let picker =
                     panel.delegate_agent_picker.as_ref().expect("guarded delegate agent picker");
-                let mut lines =
-                    vec!["选择后续提交使用的会话级代理：".to_string(), String::new()];
-                lines.extend(
-                    panel.delegate_agent_options.iter().enumerate().map(|(index, agent)| {
+                let mut lines = vec!["选择后续提交使用的会话级代理：".to_string(), String::new()];
+                lines.extend(panel.delegate_agent_options.iter().enumerate().map(
+                    |(index, agent)| {
                         let marker = if index == picker.selected { "›" } else { " " };
                         format!("{marker} {}", agent.label)
-                    }),
-                );
+                    },
+                ));
                 lines.push(String::new());
                 lines.push("↑/↓ 选择 · Enter 确认 · Esc 取消列表编辑".to_string());
                 lines
             })
-        },
+        }
         UiOverlay::Settings(panel) if panel.acp_backend_picker.is_some() => {
             ("ACP 后端".to_string(), {
-                let picker =
-                    panel.acp_backend_picker.as_ref().expect("guarded ACP backend picker");
-                let mut lines =
-                    vec!["选择后续提交使用的 ACP 后端：".to_string(), String::new()];
-                lines.extend(
-                    panel.acp_backend_options.iter().enumerate().map(|(index, backend)| {
+                let picker = panel.acp_backend_picker.as_ref().expect("guarded ACP backend picker");
+                let mut lines = vec!["选择后续提交使用的 ACP 后端：".to_string(), String::new()];
+                lines.extend(panel.acp_backend_options.iter().enumerate().map(
+                    |(index, backend)| {
                         let marker = if index == picker.selected { "›" } else { " " };
                         format!("{marker} {}", backend.label)
-                    }),
-                );
+                    },
+                ));
                 lines.push(String::new());
                 lines.push("↑/↓ 选择 · Enter 应用 · Esc 取消列表编辑".to_string());
                 lines
             })
-        },
+        }
         UiOverlay::Settings(panel) => ("设置".to_string(), {
             let rows = panel.visible_rows();
             let mut lines = vec![
@@ -239,7 +235,8 @@ pub(super) fn overlay_body_lines(overlay: &UiOverlay) -> (String, Vec<String>) {
             }
             lines.push(String::new());
             lines.push(
-                "模型/委托代理/ACP 行 Enter 打开列表 · 模式行 ←/→/Tab 切换 · Enter 保存 · Esc 取消".to_string(),
+                "模型/委托代理/ACP 行 Enter 打开列表 · 模式行 ←/→/Tab 切换 · Enter 保存 · Esc 取消"
+                    .to_string(),
             );
             lines
         }),
@@ -277,17 +274,16 @@ pub(super) fn overlay_body_lines(overlay: &UiOverlay) -> (String, Vec<String>) {
             lines
         }),
         UiOverlay::Integration(panel) if panel.skill_provider_picker.is_some() => {
-            let selected =
-                panel.skill_provider_picker.as_ref().map(|picker| picker.selected).unwrap_or_default();
+            let selected = panel
+                .skill_provider_picker
+                .as_ref()
+                .map(|picker| picker.selected)
+                .unwrap_or_default();
             let mut lines = vw_config_types::skills::SkillsDirectoryProvider::ALL
                 .iter()
                 .enumerate()
                 .map(|(index, provider)| {
-                    format!(
-                        "{} {}",
-                        if index == selected { "›" } else { " " },
-                        provider.label()
-                    )
+                    format!("{} {}", if index == selected { "›" } else { " " }, provider.label())
                 })
                 .collect::<Vec<_>>();
             lines.push(String::new());
@@ -296,9 +292,7 @@ pub(super) fn overlay_body_lines(overlay: &UiOverlay) -> (String, Vec<String>) {
         }
         UiOverlay::Integration(panel) => ("集成".to_string(), {
             let mut lines = panel.lines();
-            if panel.kind
-                == crate::cli::tui_v2::model::integration::IntegrationKind::Skill
-            {
+            if panel.kind == crate::cli::tui_v2::model::integration::IntegrationKind::Skill {
                 lines.push(if panel.can_toggle {
                     "输入 `$` 选择技能；`/skills` 管理平台与启停。".to_string()
                 } else {
@@ -324,20 +318,21 @@ pub(super) fn overlay_body_lines(overlay: &UiOverlay) -> (String, Vec<String>) {
                 }
             }
             lines.push(String::new());
-            lines.push(if panel.kind
-                == crate::cli::tui_v2::model::integration::IntegrationKind::Skill
-                && !panel.can_toggle
-            {
-                "↑/↓ 选择 · Enter/p 平台 · r 刷新 · Esc 关闭".to_string()
-            } else if panel.kind
-                == crate::cli::tui_v2::model::integration::IntegrationKind::Skill
-            {
-                "↑/↓ 选择 · Enter 平台/启停 · p 平台 · Space/t 启停 · r 刷新 · Esc 关闭"
-                    .to_string()
-            } else {
-                "↑/↓ 选择 · Enter/Space/t 启停 · d 删除（需确认）· r 刷新 · Esc 关闭"
-                    .to_string()
-            });
+            lines.push(
+                if panel.kind == crate::cli::tui_v2::model::integration::IntegrationKind::Skill
+                    && !panel.can_toggle
+                {
+                    "↑/↓ 选择 · Enter/p 平台 · r 刷新 · Esc 关闭".to_string()
+                } else if panel.kind
+                    == crate::cli::tui_v2::model::integration::IntegrationKind::Skill
+                {
+                    "↑/↓ 选择 · Enter 平台/启停 · p 平台 · Space/t 启停 · r 刷新 · Esc 关闭"
+                        .to_string()
+                } else {
+                    "↑/↓ 选择 · Enter/Space/t 启停 · d 删除（需确认）· r 刷新 · Esc 关闭"
+                        .to_string()
+                },
+            );
             lines
         }),
         UiOverlay::BackgroundTasks(panel) => ("后台任务".to_string(), {
@@ -348,10 +343,7 @@ pub(super) fn overlay_body_lines(overlay: &UiOverlay) -> (String, Vec<String>) {
             ];
             for (index, task) in panel.tasks.iter().take(10).enumerate() {
                 let marker = if index == panel.selected { "›" } else { " " };
-                lines.push(format!(
-                    "{marker} {} [{:?}] {:?}",
-                    task.title, task.kind, task.status
-                ));
+                lines.push(format!("{marker} {} [{:?}] {:?}", task.title, task.kind, task.status));
             }
             if let Some(task) = panel.tasks.get(panel.selected) {
                 lines.push(String::new());
@@ -376,12 +368,11 @@ pub(super) fn overlay_body_lines(overlay: &UiOverlay) -> (String, Vec<String>) {
                 String::new(),
             ];
             for member in view.members.iter().take(10) {
-                let marker =
-                    if view.viewed_agent_id.as_deref() == Some(member.id.as_str()) {
-                        "›"
-                    } else {
-                        " "
-                    };
+                let marker = if view.viewed_agent_id.as_deref() == Some(member.id.as_str()) {
+                    "›"
+                } else {
+                    " "
+                };
                 lines.push(format!(
                     "{marker} {} ({}) [{:?}] team={}",
                     member.name,
@@ -428,10 +419,7 @@ pub(super) fn overlay_body_lines(overlay: &UiOverlay) -> (String, Vec<String>) {
             if let Some(item) = panel.items.get(panel.selected) {
                 lines.push(String::new());
                 lines.push(format!("ID: {}", item.id));
-                lines.push(format!(
-                    "最近状态: {}",
-                    item.last_status.as_deref().unwrap_or("-")
-                ));
+                lines.push(format!("最近状态: {}", item.last_status.as_deref().unwrap_or("-")));
                 lines.extend(item.history.iter().map(|run| format!("  {run}")));
                 if let Some(error) = item.history_error.as_deref() {
                     lines.push(format!("历史不可用: {error}"));

@@ -391,9 +391,8 @@ fn shiju_app_set_cookie_mode_rejects_untrusted_targets() {
         "https://app.shiju.cloud/app/ABC123/?next=evil",
     ] {
         assert!(!is_trusted_shiju_app_target(target), "accepted untrusted target: {target}");
-        let error =
-            read_shiju_app_set_cookie_for_target(target, &mut "do-not-read\n".as_bytes())
-                .unwrap_err();
+        let error = read_shiju_app_set_cookie_for_target(target, &mut "do-not-read\n".as_bytes())
+            .unwrap_err();
         assert!(!error.to_string().contains("do-not-read"));
     }
 }
@@ -442,10 +441,7 @@ fn shiju_app_runtime_cookie_preserves_response_security_attributes() {
     assert_eq!(cookie.http_only(), Some(true));
     assert_eq!(cookie.secure(), Some(true));
     assert_eq!(cookie.same_site(), Some(wry::cookie::SameSite::None));
-    assert_eq!(
-        headers["Cookie"],
-        "app_runtime_session=fixture-session-secret"
-    );
+    assert_eq!(headers["Cookie"], "app_runtime_session=fixture-session-secret");
 }
 
 #[test]

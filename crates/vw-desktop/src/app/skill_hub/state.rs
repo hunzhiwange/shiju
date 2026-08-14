@@ -896,11 +896,7 @@ impl SkillCacheSyncState {
         }
     }
 
-    pub(crate) fn syncing_refreshes_detail(
-        &self,
-        generation: u64,
-        skill_id: u64,
-    ) -> Option<bool> {
+    pub(crate) fn syncing_refreshes_detail(&self, generation: u64, skill_id: u64) -> Option<bool> {
         match self {
             Self::Syncing {
                 generation: active_generation,
@@ -1015,18 +1011,13 @@ impl ExpertHubState {
         Some(generation)
     }
 
-    pub(crate) fn start_cache_sync(
-        &mut self,
-        skill_id: u64,
-        refresh_detail: bool,
-    ) -> Option<u64> {
+    pub(crate) fn start_cache_sync(&mut self, skill_id: u64, refresh_detail: bool) -> Option<u64> {
         if self.cache_sync.syncing_skill_id().is_some() {
             return None;
         }
         self.cache_sync_generation = self.cache_sync_generation.wrapping_add(1);
         let generation = self.cache_sync_generation;
-        self.cache_sync =
-            SkillCacheSyncState::Syncing { generation, skill_id, refresh_detail };
+        self.cache_sync = SkillCacheSyncState::Syncing { generation, skill_id, refresh_detail };
         Some(generation)
     }
 

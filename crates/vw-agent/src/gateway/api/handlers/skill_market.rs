@@ -9,21 +9,19 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use directories::BaseDirs;
 use serde::Deserialize;
 use serde_json::Value;
-use directories::BaseDirs;
-use vw_gateway_client::{
-    DesktopSkillPathDto, SkillMarketCoordinateDto, SkillMarketEnvelope,
-    SkillMarketInstallScopeDto, SkillMarketInstallSelectionDto,
-    SkillMarketInstallTargetDto,
-    SkillMarketSkillLocatorDto, SkillMarketSkillQuery, SkillMarketSort,
-};
 use vw_config_types::paths::HOME_CONFIG_DIR_NAME;
+use vw_gateway_client::{
+    DesktopSkillPathDto, SkillMarketCoordinateDto, SkillMarketEnvelope, SkillMarketInstallScopeDto,
+    SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillLocatorDto,
+    SkillMarketSkillQuery, SkillMarketSort,
+};
 
 use crate::app::agent::skills::marketplace::install::{
     install_verified_market_artifact, install_verified_market_artifact_for_roots,
-    install_verified_market_skill_set,
-    validate_market_coordinate,
+    install_verified_market_skill_set, validate_market_coordinate,
 };
 use crate::app::agent::skills::marketplace::provider::{
     SkillMarketProvider, SkillMarketProviderError, SkillMarketProviderRegistry,
@@ -45,9 +43,7 @@ where
 }
 
 /// Builds skill-market routes with an explicit registry for deterministic tests.
-pub(crate) fn router_with_registry<S>(
-    registry: Arc<SkillMarketProviderRegistry>,
-) -> Router<S>
+pub(crate) fn router_with_registry<S>(registry: Arc<SkillMarketProviderRegistry>) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
@@ -57,17 +53,11 @@ where
         .route("/skill-market/skills", get(skills_get))
         .route("/skill-market/categories", get(categories_get))
         .route("/skill-market/skills/install", post(skill_install_post))
-        .route(
-            "/skill-market/skills/install-targets",
-            post(skill_install_targets_post),
-        )
+        .route("/skill-market/skills/install-targets", post(skill_install_targets_post))
         .route("/skill-market/skills/{slug}", get(skill_detail_get))
         .route("/skill-market/skills/{slug}/file", get(skill_file_get))
         .route("/skill-market/skillsets", get(skill_sets_get))
-        .route(
-            "/skill-market/skillsets/install",
-            post(skill_set_install_post),
-        )
+        .route("/skill-market/skillsets/install", post(skill_set_install_post))
         .route("/skill-market/skillsets/{slug}", get(skill_set_detail_get))
         .layer(Extension(registry))
 }
@@ -81,7 +71,8 @@ async fn sources_get(
 async fn recommended_get(
     Extension(registry): Extension<Arc<SkillMarketProviderRegistry>>,
     RawQuery(raw_query): RawQuery,
-) -> Result<Json<SkillMarketEnvelope<Vec<vw_gateway_client::SkillMarketSkillDto>>>, MarketApiError> {
+) -> Result<Json<SkillMarketEnvelope<Vec<vw_gateway_client::SkillMarketSkillDto>>>, MarketApiError>
+{
     let query = MarketQuery::parse(raw_query.as_deref())?;
     let provider = resolve_provider(&registry, query.required_source()?)?;
     let skills = provider.recommended().await.map_err(MarketApiError::provider)?;
@@ -114,7 +105,8 @@ async fn skill_detail_get(
     Extension(registry): Extension<Arc<SkillMarketProviderRegistry>>,
     Path(slug): Path<String>,
     RawQuery(raw_query): RawQuery,
-) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillDetailDto>>, MarketApiError> {
+) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillDetailDto>>, MarketApiError>
+{
     let query = MarketQuery::parse(raw_query.as_deref())?;
     let locator = query.locator(slug)?;
     let provider = resolve_provider(&registry, &locator.source)?;
@@ -143,10 +135,7 @@ async fn skill_install_post(
         .map_err(|error| MarketApiError::bad_request(error.to_string()))?;
     let project_path = resolve_install_project_path(&body.project_path)?;
     let provider = resolve_provider(&registry, &coordinate.locator.source)?;
-    let artifact = provider
-        .skill_artifact(&coordinate)
-        .await
-        .map_err(MarketApiError::provider)?;
+    let artifact = provider.skill_artifact(&coordinate).await.map_err(MarketApiError::provider)?;
     let skills_config = crate::app::agent::config::get().await.skills.clone();
     let skills_root = workspace_skills_dir(&project_path, skills_config.directory_provider);
     let security = skills_config.security;
@@ -156,9 +145,7 @@ async fn skill_install_post(
     .await
     .map_err(|_| MarketApiError::internal("skill market install task failed"))?
     .map_err(|error| MarketApiError::bad_request(error.to_string()))?;
-    Ok(success(DesktopSkillPathDto {
-        path: installed.display().to_string(),
-    }))
+    Ok(success(DesktopSkillPathDto { path: installed.display().to_string() }))
 }
 
 async fn skill_install_targets_post(
@@ -169,9 +156,7 @@ async fn skill_install_targets_post(
     validate_market_coordinate(&coordinate)
         .map_err(|error| MarketApiError::bad_request(error.to_string()))?;
     if body.installations.is_empty() {
-        return Err(MarketApiError::bad_request(
-            "at least one skill install target is required",
-        ));
+        return Err(MarketApiError::bad_request("at least one skill install target is required"));
     }
     let project_path = optional_value(Some(body.project_path))
         .map(|path| resolve_install_project_path(&path))
@@ -192,10 +177,7 @@ async fn skill_install_targets_post(
         &body.installations,
     )?;
     let provider = resolve_provider(&registry, &coordinate.locator.source)?;
-    let artifact = provider
-        .skill_artifact(&coordinate)
-        .await
-        .map_err(MarketApiError::provider)?;
+    let artifact = provider.skill_artifact(&coordinate).await.map_err(MarketApiError::provider)?;
     let security = skills_config.security;
     let installed = tokio::task::spawn_blocking(move || {
         install_verified_market_artifact_for_roots(&roots, &coordinate, artifact, &security)
@@ -206,9 +188,7 @@ async fn skill_install_targets_post(
     Ok(success(
         installed
             .into_iter()
-            .map(|path| DesktopSkillPathDto {
-                path: path.display().to_string(),
-            })
+            .map(|path| DesktopSkillPathDto { path: path.display().to_string() })
             .collect(),
     ))
 }
@@ -216,7 +196,8 @@ async fn skill_install_targets_post(
 async fn skill_sets_get(
     Extension(registry): Extension<Arc<SkillMarketProviderRegistry>>,
     RawQuery(raw_query): RawQuery,
-) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillSetPageDto>>, MarketApiError> {
+) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillSetPageDto>>, MarketApiError>
+{
     let query = MarketQuery::parse(raw_query.as_deref())?;
     let provider = resolve_provider(&registry, query.required_source()?)?;
     let catalog_query = query.catalog_query()?;
@@ -249,10 +230,8 @@ async fn skill_set_install_post(
     let source = required_value("source", Some(body.source))?;
     let slug = required_value("slug", Some(body.slug))?;
     let provider = resolve_provider(&registry, &source)?;
-    let artifact = provider
-        .skill_set_artifact(&source, &slug)
-        .await
-        .map_err(MarketApiError::provider)?;
+    let artifact =
+        provider.skill_set_artifact(&source, &slug).await.map_err(MarketApiError::provider)?;
     let skills_config = crate::app::agent::config::get().await.skills.clone();
     let skills_root = workspace_skills_dir(&project_path, skills_config.directory_provider);
     let security = skills_config.security;
@@ -265,9 +244,7 @@ async fn skill_set_install_post(
     Ok(success(
         installed
             .into_iter()
-            .map(|path| DesktopSkillPathDto {
-                path: path.display().to_string(),
-            })
+            .map(|path| DesktopSkillPathDto { path: path.display().to_string() })
             .collect(),
     ))
 }
@@ -416,9 +393,7 @@ fn resolve_install_project_path(project_path: &str) -> Result<PathBuf, MarketApi
     let metadata = std::fs::symlink_metadata(&path)
         .map_err(|_| MarketApiError::bad_request("project_path must be an existing directory"))?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
-        return Err(MarketApiError::bad_request(
-            "project_path must be a real directory",
-        ));
+        return Err(MarketApiError::bad_request("project_path must be a real directory"));
     }
     path.canonicalize()
         .map_err(|_| MarketApiError::bad_request("project_path could not be resolved"))
@@ -431,9 +406,7 @@ fn resolve_explicit_install_roots(
     installations: &[SkillMarketInstallSelectionDto],
 ) -> Result<Vec<PathBuf>, MarketApiError> {
     validate_real_base(home, "user home directory")?;
-    if installations
-        .iter()
-        .any(|selection| selection.scope == SkillMarketInstallScopeDto::Project)
+    if installations.iter().any(|selection| selection.scope == SkillMarketInstallScopeDto::Project)
     {
         validate_real_base(
             project.ok_or_else(|| {
@@ -467,32 +440,26 @@ fn resolve_explicit_install_roots(
             (SkillMarketInstallTargetDto::Codex, _) => base.join(".codex/skills"),
             (SkillMarketInstallTargetDto::WorkBuddy, _) => base.join(".workbuddy/skills"),
             (SkillMarketInstallTargetDto::ClaudeCode, _) => base.join(".claude/skills"),
-            (
-                SkillMarketInstallTargetDto::OpenCode,
-                SkillMarketInstallScopeDto::Global,
-            ) => base.join(".config/opencode/skills"),
-            (
-                SkillMarketInstallTargetDto::OpenCode,
-                SkillMarketInstallScopeDto::Project,
-            ) => base.join(".opencode/skills"),
+            (SkillMarketInstallTargetDto::OpenCode, SkillMarketInstallScopeDto::Global) => {
+                base.join(".config/opencode/skills")
+            }
+            (SkillMarketInstallTargetDto::OpenCode, SkillMarketInstallScopeDto::Project) => {
+                base.join(".opencode/skills")
+            }
             (SkillMarketInstallTargetDto::GeminiCli, _) => base.join(".gemini/skills"),
-            (
-                SkillMarketInstallTargetDto::GitHubCopilot,
-                SkillMarketInstallScopeDto::Global,
-            ) => base.join(".copilot/skills"),
-            (
-                SkillMarketInstallTargetDto::GitHubCopilot,
-                SkillMarketInstallScopeDto::Project,
-            ) => base.join(".github/skills"),
+            (SkillMarketInstallTargetDto::GitHubCopilot, SkillMarketInstallScopeDto::Global) => {
+                base.join(".copilot/skills")
+            }
+            (SkillMarketInstallTargetDto::GitHubCopilot, SkillMarketInstallScopeDto::Project) => {
+                base.join(".github/skills")
+            }
             (SkillMarketInstallTargetDto::Cursor, _) => base.join(".cursor/skills"),
-            (
-                SkillMarketInstallTargetDto::Windsurf,
-                SkillMarketInstallScopeDto::Global,
-            ) => base.join(".codeium/windsurf/skills"),
-            (
-                SkillMarketInstallTargetDto::Windsurf,
-                SkillMarketInstallScopeDto::Project,
-            ) => base.join(".windsurf/skills"),
+            (SkillMarketInstallTargetDto::Windsurf, SkillMarketInstallScopeDto::Global) => {
+                base.join(".codeium/windsurf/skills")
+            }
+            (SkillMarketInstallTargetDto::Windsurf, SkillMarketInstallScopeDto::Project) => {
+                base.join(".windsurf/skills")
+            }
         };
         validate_target_root(base, &root)?;
         if seen.insert(root.clone()) {
@@ -506,9 +473,7 @@ fn validate_real_base(path: &FsPath, label: &str) -> Result<(), MarketApiError> 
     let metadata = std::fs::symlink_metadata(path)
         .map_err(|_| MarketApiError::bad_request(format!("{label} must exist")))?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
-        return Err(MarketApiError::bad_request(format!(
-            "{label} must be a real directory"
-        )));
+        return Err(MarketApiError::bad_request(format!("{label} must be a real directory")));
     }
     Ok(())
 }
@@ -560,9 +525,7 @@ fn parse_positive_u32(
         .parse::<u32>()
         .map_err(|_| MarketApiError::bad_request(format!("{name} must be a positive integer")))?;
     if parsed == 0 {
-        return Err(MarketApiError::bad_request(format!(
-            "{name} must be a positive integer"
-        )));
+        return Err(MarketApiError::bad_request(format!("{name} must be a positive integer")));
     }
     Ok(parsed)
 }
@@ -595,10 +558,7 @@ impl MarketApiError {
     }
 
     fn internal(message: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            message: message.into(),
-        }
+        Self { status: StatusCode::INTERNAL_SERVER_ERROR, message: message.into() }
     }
 
     fn provider(error: SkillMarketProviderError) -> Self {

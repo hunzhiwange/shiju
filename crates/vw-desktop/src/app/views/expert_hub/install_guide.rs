@@ -1,13 +1,13 @@
 use super::styles;
 use crate::app::components::system_settings_common::{
-    danger_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_modal_card, settings_modal_overlay, settings_muted_text_style,
-    settings_pick_list_menu_style, settings_pick_list_style,
+    danger_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
+    settings_modal_overlay, settings_muted_text_style, settings_pick_list_menu_style,
+    settings_pick_list_style,
 };
 use crate::app::message::SkillHubMessage;
 use crate::app::skill_hub::{
-    LoadState, ShijuDirectInstallState, ShijuInstallGuideState, ShijuPackageId,
-    SkillInstallScope, SkillInstallTarget, version_is_newer,
+    LoadState, ShijuDirectInstallState, ShijuInstallGuideState, ShijuPackageId, SkillInstallScope,
+    SkillInstallTarget, version_is_newer,
 };
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -40,59 +40,21 @@ const INSTALL_TARGETS: [(SkillInstallTarget, &str, &str); 10] = [
         "通用 Agent Skills",
         "覆盖 Cursor、Gemini CLI、OpenCode、Copilot、Windsurf 等兼容工具。",
     ),
-    (
-        SkillInstallTarget::Codex,
-        "Codex",
-        "Codex 原生技能目录。",
-    ),
-    (
-        SkillInstallTarget::WorkBuddy,
-        "WorkBuddy",
-        "WorkBuddy 原生技能目录。",
-    ),
-    (
-        SkillInstallTarget::ClaudeCode,
-        "Claude Code",
-        "Claude Code 原生技能目录。",
-    ),
-    (
-        SkillInstallTarget::OpenCode,
-        "OpenCode",
-        "OpenCode 原生技能目录。",
-    ),
-    (
-        SkillInstallTarget::GeminiCli,
-        "Gemini CLI",
-        "Gemini CLI 原生技能目录。",
-    ),
-    (
-        SkillInstallTarget::GitHubCopilot,
-        "GitHub Copilot",
-        "GitHub Copilot 原生技能目录。",
-    ),
-    (
-        SkillInstallTarget::Cursor,
-        "Cursor",
-        "Cursor 原生技能目录。",
-    ),
-    (
-        SkillInstallTarget::Windsurf,
-        "Windsurf",
-        "Windsurf 原生技能目录。",
-    ),
+    (SkillInstallTarget::Codex, "Codex", "Codex 原生技能目录。"),
+    (SkillInstallTarget::WorkBuddy, "WorkBuddy", "WorkBuddy 原生技能目录。"),
+    (SkillInstallTarget::ClaudeCode, "Claude Code", "Claude Code 原生技能目录。"),
+    (SkillInstallTarget::OpenCode, "OpenCode", "OpenCode 原生技能目录。"),
+    (SkillInstallTarget::GeminiCli, "Gemini CLI", "Gemini CLI 原生技能目录。"),
+    (SkillInstallTarget::GitHubCopilot, "GitHub Copilot", "GitHub Copilot 原生技能目录。"),
+    (SkillInstallTarget::Cursor, "Cursor", "Cursor 原生技能目录。"),
+    (SkillInstallTarget::Windsurf, "Windsurf", "Windsurf 原生技能目录。"),
 ];
 
-pub(super) fn target_path_label(
-    target: SkillInstallTarget,
-    scope: SkillInstallScope,
-) -> String {
+pub(super) fn target_path_label(target: SkillInstallTarget, scope: SkillInstallScope) -> String {
     format!("{}/shiju", target_root_label(target, scope))
 }
 
-pub(super) fn target_root_label(
-    target: SkillInstallTarget,
-    scope: SkillInstallScope,
-) -> String {
+pub(super) fn target_root_label(target: SkillInstallTarget, scope: SkillInstallScope) -> String {
     let root = match (target, scope) {
         (SkillInstallTarget::VibeWindow, _) => format!("{HOME_CONFIG_DIR_NAME}/skills"),
         (SkillInstallTarget::AgentSkills, _) => ".agents/skills".to_string(),
@@ -148,9 +110,7 @@ pub(super) fn scope_action_message(
     (!state.is_busy()
         && state.install_scope != scope
         && (scope == SkillInstallScope::Global || project_available))
-        .then_some(Message::SkillHub(
-            SkillHubMessage::SelectShijuInstallScope(scope),
-        ))
+        .then_some(Message::SkillHub(SkillHubMessage::SelectShijuInstallScope(scope)))
 }
 
 pub(super) fn install_project_options(app: &App) -> Vec<String> {
@@ -169,9 +129,8 @@ pub(super) fn install_project_action_message(
     is_busy: bool,
     project_path: String,
 ) -> Option<Message> {
-    (!is_busy && selected_project_path != Some(project_path.as_str())).then_some(
-        Message::SkillHub(SkillHubMessage::SelectShijuInstallProject(project_path)),
-    )
+    (!is_busy && selected_project_path != Some(project_path.as_str()))
+        .then_some(Message::SkillHub(SkillHubMessage::SelectShijuInstallProject(project_path)))
 }
 
 pub(super) fn target_action_message(
@@ -180,9 +139,8 @@ pub(super) fn target_action_message(
 ) -> Option<Message> {
     let removing_last = state.selected_targets.len() == 1
         && state.selected_targets.first().is_some_and(|selected| *selected == target);
-    (!state.is_busy() && !removing_last).then_some(Message::SkillHub(
-        SkillHubMessage::ToggleShijuInstallTarget(target),
-    ))
+    (!state.is_busy() && !removing_last)
+        .then_some(Message::SkillHub(SkillHubMessage::ToggleShijuInstallTarget(target)))
 }
 
 pub(super) fn open_target_directory_message(
@@ -190,13 +148,8 @@ pub(super) fn open_target_directory_message(
     target: SkillInstallTarget,
 ) -> Option<Message> {
     (state.installation(state.install_scope, target).is_some()
-        && !matches!(
-            state.direct_install,
-            ShijuDirectInstallState::Uninstalling { .. }
-        ))
-    .then_some(Message::SkillHub(
-        SkillHubMessage::OpenShijuInstallDirFor(target),
-    ))
+        && !matches!(state.direct_install, ShijuDirectInstallState::Uninstalling { .. }))
+    .then_some(Message::SkillHub(SkillHubMessage::OpenShijuInstallDirFor(target)))
 }
 
 pub(super) fn target_directory_action_label(
@@ -235,9 +188,7 @@ pub(super) fn direct_install_button_label(state: &ShijuInstallGuideState) -> Str
     }
 }
 
-pub(super) fn direct_install_action_message(
-    state: &ShijuInstallGuideState,
-) -> Option<Message> {
+pub(super) fn direct_install_action_message(state: &ShijuInstallGuideState) -> Option<Message> {
     (state.current_package.is_some()
         && !state.selected_targets.is_empty()
         && !state.login_sync_in_progress
@@ -258,9 +209,7 @@ pub(super) fn direct_install_progress(state: &ShijuInstallGuideState) -> f32 {
     }
 }
 
-pub(super) fn uninstall_action_message(
-    state: &ShijuInstallGuideState,
-) -> Option<Message> {
+pub(super) fn uninstall_action_message(state: &ShijuInstallGuideState) -> Option<Message> {
     (state.is_installed
         && matches!(
             state.direct_install,
@@ -280,11 +229,7 @@ pub(super) fn sync_action_message(state: &ShijuInstallGuideState) -> Option<Mess
 }
 
 pub(super) fn sync_button_label(state: &ShijuInstallGuideState) -> &'static str {
-    if state.login_sync_in_progress {
-        "同步中..."
-    } else {
-        "同步登录信息"
-    }
+    if state.login_sync_in_progress { "同步中..." } else { "同步登录信息" }
 }
 
 fn sync_tooltip_style(_theme: &Theme) -> container::Style {
@@ -316,9 +261,7 @@ pub(super) fn upgrade_available(state: &ShijuInstallGuideState) -> bool {
     let LoadState::Loaded(release) = &state.agent_package else {
         return false;
     };
-    release
-        .version()
-        .is_some_and(|latest| version_is_newer(current, latest))
+    release.version().is_some_and(|latest| version_is_newer(current, latest))
 }
 
 fn latest_version_label(state: &ShijuInstallGuideState) -> String {
@@ -365,11 +308,8 @@ fn status_row(label: &'static str, value: String) -> Element<'static, Message> {
 }
 
 pub(super) fn copy_action_message(state: &ShijuInstallGuideState) -> Option<Message> {
-    (!matches!(
-        state.agent_package,
-        LoadState::Loading { .. } | LoadState::NeedsLogin
-    ))
-    .then_some(Message::SkillHub(SkillHubMessage::CopyAgentInstall))
+    (!matches!(state.agent_package, LoadState::Loading { .. } | LoadState::NeedsLogin))
+        .then_some(Message::SkillHub(SkillHubMessage::CopyAgentInstall))
 }
 
 pub(super) fn manual_download_action_message(
@@ -379,9 +319,7 @@ pub(super) fn manual_download_action_message(
     state
         .manual_download
         .is_none()
-        .then_some(Message::SkillHub(SkillHubMessage::DownloadShijuPackage(
-            package_id,
-        )))
+        .then_some(Message::SkillHub(SkillHubMessage::DownloadShijuPackage(package_id)))
 }
 
 pub(super) fn agent_install_preview(state: &ShijuInstallGuideState) -> &'static str {
@@ -397,10 +335,7 @@ pub(super) fn agent_install_preview(state: &ShijuInstallGuideState) -> &'static 
 }
 
 fn method_badge(label: &'static str) -> Element<'static, Message> {
-    container(text(label).size(12))
-        .padding([4, 10])
-        .style(styles::skill_badge_style)
-        .into()
+    container(text(label).size(12)).padding([4, 10]).style(styles::skill_badge_style).into()
 }
 
 fn section_header(
@@ -413,16 +348,11 @@ fn section_header(
         heading = heading.push(text(method).size(13).style(styles::muted_text_style));
     }
     heading = heading.push(
-        text(title)
-            .size(18)
-            .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
+        text(title).size(18).font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
     );
     column![
         heading,
-        text(description)
-            .size(13)
-            .style(styles::muted_text_style)
-            .wrapping(Wrapping::Word),
+        text(description).size(13).style(styles::muted_text_style).wrapping(Wrapping::Word),
     ]
     .spacing(6)
     .into()
@@ -433,10 +363,9 @@ fn scope_selector(
     project_available: bool,
 ) -> Element<'static, Message> {
     let mut choices = row![].spacing(8).align_y(Alignment::Center);
-    for (scope, label) in [
-        (SkillInstallScope::Global, "全局"),
-        (SkillInstallScope::Project, "项目"),
-    ] {
+    for (scope, label) in
+        [(SkillInstallScope::Global, "全局"), (SkillInstallScope::Project, "项目")]
+    {
         let selected = state.install_scope == scope;
         let mut choice = button(text(label).size(13))
             .padding([8, 16])
@@ -454,9 +383,7 @@ fn scope_selector(
     column![
         text("安装范围").size(13),
         choices,
-        text(availability)
-            .size(12)
-            .style(styles::muted_text_style),
+        text(availability).size(12).style(styles::muted_text_style),
     ]
     .spacing(8)
     .into()
@@ -469,12 +396,8 @@ fn project_selector(app: &App, options: Vec<String>) -> Element<'static, Message
     row![
         text("目标项目").size(13).width(Length::Fixed(84.0)),
         pick_list(options, state.selected_project_path.clone(), move |project_path| {
-            install_project_action_message(
-                selected_project_path.as_deref(),
-                is_busy,
-                project_path,
-            )
-            .unwrap_or(Message::None)
+            install_project_action_message(selected_project_path.as_deref(), is_busy, project_path)
+                .unwrap_or(Message::None)
         })
         .placeholder("选择项目")
         .padding([9, 12])
@@ -504,22 +427,14 @@ fn target_card(
             row![
                 text(presentation.name)
                     .size(15)
-                    .font(Font {
-                        weight: iced::font::Weight::Semibold,
-                        ..Font::default()
-                    })
+                    .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() })
                     .width(Length::Fill),
                 text(if selected { "已选择" } else { "未选择" }).size(12),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
-            text(presentation.compatibility)
-                .size(12)
-                .wrapping(Wrapping::Word),
-            text(presentation.path)
-                .size(12)
-                .font(Font::MONOSPACE)
-                .wrapping(Wrapping::Word),
+            text(presentation.compatibility).size(12).wrapping(Wrapping::Word),
+            text(presentation.path).size(12).font(Font::MONOSPACE).wrapping(Wrapping::Word),
             text(status).size(12),
         ]
         .spacing(8)
@@ -527,19 +442,16 @@ fn target_card(
     )
     .width(Length::Fill)
     .padding(14)
-    .style(move |theme, button_status| {
-        target_button_style(theme, button_status, selected)
-    });
+    .style(move |theme, button_status| target_button_style(theme, button_status, selected));
     if let Some(message) = target_action_message(state, presentation.target) {
         select = select.on_press(message);
     }
 
-    let mut directory_action = button(
-        text(target_directory_action_label(state, presentation.target)).size(12),
-    )
-    .width(Length::Fill)
-    .padding([8, 12])
-    .style(styles::quiet_button_style);
+    let mut directory_action =
+        button(text(target_directory_action_label(state, presentation.target)).size(12))
+            .width(Length::Fill)
+            .padding([8, 12])
+            .style(styles::quiet_button_style);
     if let Some(message) = open_target_directory_message(state, presentation.target) {
         directory_action = directory_action.on_press(message);
     }
@@ -571,9 +483,8 @@ fn direct_install_card(app: &App) -> Element<'static, Message> {
         }
         ShijuDirectInstallState::Installed => ("安装完成", direct_install_progress(state)),
     };
-    let mut install_button = button(text(button_label).size(14))
-        .padding([10, 24])
-        .style(styles::action_button_style);
+    let mut install_button =
+        button(text(button_label).size(14)).padding([10, 24]).style(styles::action_button_style);
     if let Some(message) = direct_install_action_message(state) {
         install_button = install_button.on_press(message);
     }
@@ -593,21 +504,13 @@ fn direct_install_card(app: &App) -> Element<'static, Message> {
         if let Some(message) = sync_action_message(state) {
             sync_button = sync_button.on_press(message);
         }
-        actions = actions.push(
-            Tooltip::new(sync_button, sync_tooltip(), TooltipPosition::Top).gap(8),
-        );
+        actions =
+            actions.push(Tooltip::new(sync_button, sync_tooltip(), TooltipPosition::Top).gap(8));
     }
-    let current_version = state
-        .installed_version
-        .as_deref()
-        .map(|version| format!("v{version}"))
-        .unwrap_or_else(|| {
-            if state.is_installed {
-                "未知".to_string()
-            } else {
-                "—".to_string()
-            }
-        });
+    let current_version =
+        state.installed_version.as_deref().map(|version| format!("v{version}")).unwrap_or_else(
+            || if state.is_installed { "未知".to_string() } else { "—".to_string() },
+        );
 
     let target_cards = install_target_presentations(state.install_scope)
         .into_iter()
@@ -696,10 +599,7 @@ fn step_card(
                 text(title)
                     .size(14)
                     .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
-                text(description)
-                    .size(12)
-                    .style(styles::muted_text_style)
-                    .wrapping(Wrapping::Word),
+                text(description).size(12).style(styles::muted_text_style).wrapping(Wrapping::Word),
             ]
             .spacing(5),
         ]
@@ -714,30 +614,24 @@ fn step_card(
 
 fn agent_install_card(state: &ShijuInstallGuideState) -> Element<'static, Message> {
     let prompt = agent_install_preview(state);
-    let mut copy_button = button(text(if matches!(
-        state.agent_package,
-        LoadState::Loading { .. }
-    ) {
-        "正在准备…"
-    } else {
-        "复制安装文字"
-    }))
-    .padding([10, 22])
-    .style(styles::action_button_style);
+    let mut copy_button =
+        button(text(if matches!(state.agent_package, LoadState::Loading { .. }) {
+            "正在准备…"
+        } else {
+            "复制安装文字"
+        }))
+        .padding([10, 22])
+        .style(styles::action_button_style);
     if let Some(message) = copy_action_message(state) {
         copy_button = copy_button.on_press(message);
     }
     let status = match &state.agent_package {
-        LoadState::Error(error) => Some(
-            text(format!("地址生成失败：{error}"))
-                .size(12)
-                .style(styles::muted_text_style),
-        ),
-        LoadState::NeedsLogin => Some(
-            text("请先登录识矩账户。")
-                .size(12)
-                .style(styles::muted_text_style),
-        ),
+        LoadState::Error(error) => {
+            Some(text(format!("地址生成失败：{error}")).size(12).style(styles::muted_text_style))
+        }
+        LoadState::NeedsLogin => {
+            Some(text("请先登录识矩账户。").size(12).style(styles::muted_text_style))
+        }
         _ => None,
     };
     let mut actions = row![copy_button].spacing(10).align_y(Alignment::Center);
@@ -789,9 +683,7 @@ fn platform_card(
     state: &ShijuInstallGuideState,
     package_id: ShijuPackageId,
 ) -> Element<'static, Message> {
-    let is_pending = state
-        .manual_download
-        .is_some_and(|pending| pending.package_id == package_id);
+    let is_pending = state.manual_download.is_some_and(|pending| pending.package_id == package_id);
     let mut download_button = button(text(if is_pending {
         "正在生成…"
     } else if state.manual_download.is_some() {
@@ -811,12 +703,8 @@ fn platform_card(
             text(package_id.name())
                 .size(16)
                 .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
-            text(package_id.description())
-                .size(12)
-                .style(styles::muted_text_style),
-            text("平台安装包（zip）")
-                .size(12)
-                .style(styles::muted_text_style),
+            text(package_id.description()).size(12).style(styles::muted_text_style),
+            text("平台安装包（zip）").size(12).style(styles::muted_text_style),
             text("1. 下载该平台安装包。\n2. 解压后将技能包根目录放入当前 Agent 的技能目录。")
                 .size(12)
                 .style(styles::muted_text_style)
@@ -883,9 +771,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
 
     scrollable(content)
         .direction(Direction::Vertical(
-            Scrollbar::new()
-                .width(SCROLLBAR_WIDTH)
-                .scroller_width(SCROLLBAR_WIDTH),
+            Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
         ))
         .width(Length::Fill)
         .height(Length::Fill)

@@ -199,10 +199,8 @@ fn completed_todos_with_active_animation_schedule_next_tick() {
 
 #[test]
 fn load_input_panel_todos_task_schedules_gateway_request() {
-    let task = super::load_input_panel_todos_task(
-        "active".to_string(),
-        Some("/tmp/project".to_string()),
-    );
+    let task =
+        super::load_input_panel_todos_task("active".to_string(), Some("/tmp/project".to_string()));
 
     assert!(iced_runtime::task::into_stream(task.collect()).is_some());
 }

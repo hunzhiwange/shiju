@@ -3,7 +3,13 @@ use super::*;
 use crate::app::models::{ChatMessage, ChatRole};
 
 fn chat_message(content: &str) -> ChatMessage {
-    ChatMessage { role: ChatRole::User, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    ChatMessage {
+        role: ChatRole::User,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 fn app() -> App {

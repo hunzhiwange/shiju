@@ -27,7 +27,7 @@ sha2 = "0.10"
 thiserror = "2.0.18"
 time = { version = "0.3", features = ["formatting", "parsing"] }
 tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "process", "rt", "rt-multi-thread", "signal", "sync", "time"] }
-tokio-util = { version = "0.7.18", fatures = ["compat"] }
+tokio-util = { version = "0.7.18", features = ["compat"] }
 tracing = "0.1"
 vw-api-types = { path = "../vw-api-types", version = "0.4.0" }
 vw-config-types = { path = "../vw-config-types", version = "0.4.0" }

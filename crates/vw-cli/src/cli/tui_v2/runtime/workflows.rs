@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 
 use vw_gateway_client::{GatewayWorkflowResponseMode, GatewayWorkflowStreamRequest};
 
-use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use super::super::commands::registry::{
     CommandAction, CommandAvailability, CommandExecutionPolicy, CommandSource, CommandSpec,
 };
 use super::super::model::workflow_panel::WorkflowPanelItem;
+use super::gateway::{GatewayUiRuntime, block_on_gateway};
 
 pub(crate) trait WorkflowRuntime {
     fn list_workflows(&mut self) -> Result<Vec<WorkflowPanelItem>, String>;
@@ -47,11 +47,7 @@ fn normalize_workflow_name(value: &str) -> String {
         })
         .collect::<String>();
     let normalized = normalized.trim_matches('-');
-    if normalized.is_empty() {
-        "unnamed".to_string()
-    } else {
-        normalized.to_string()
-    }
+    if normalized.is_empty() { "unnamed".to_string() } else { normalized.to_string() }
 }
 
 impl WorkflowRuntime for GatewayUiRuntime {

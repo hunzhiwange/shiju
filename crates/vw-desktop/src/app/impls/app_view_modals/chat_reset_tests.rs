@@ -10,7 +10,13 @@ fn root() -> iced::Element<'static, Message> {
 }
 
 fn user_message() -> ChatMessage {
-    ChatMessage { role: ChatRole::User, content: "hello".to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    ChatMessage {
+        role: ChatRole::User,
+        content: "hello".to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 #[test]

@@ -130,10 +130,7 @@ fn each_autonomy_list_adds_trimmed_values_and_removes_by_index_in_isolation() {
         }
         let before = list_snapshots(&app);
 
-        apply(
-            &mut app,
-            SettingsMessage::AutonomyListDraftChanged(kind, input.to_string()),
-        );
+        apply(&mut app, SettingsMessage::AutonomyListDraftChanged(kind, input.to_string()));
         apply(&mut app, SettingsMessage::AutonomyListAdd(kind));
 
         let after_add = list_snapshots(&app);
@@ -163,10 +160,7 @@ fn autonomy_list_add_rejects_blank_duplicate_and_invalid_environment_names() {
                 input.to_string(),
             ),
         );
-        apply(
-            &mut app,
-            SettingsMessage::AutonomyListAdd(AutonomyListKind::AllowedCommands),
-        );
+        apply(&mut app, SettingsMessage::AutonomyListAdd(AutonomyListKind::AllowedCommands));
         assert_eq!(app.autonomy_settings.allowed_commands, ["cargo"]);
         assert!(app.autonomy_settings.save_error.is_some());
     }
@@ -179,10 +173,7 @@ fn autonomy_list_add_rejects_blank_duplicate_and_invalid_environment_names() {
                 invalid.to_string(),
             ),
         );
-        apply(
-            &mut app,
-            SettingsMessage::AutonomyListAdd(AutonomyListKind::ShellEnvPassthrough),
-        );
+        apply(&mut app, SettingsMessage::AutonomyListAdd(AutonomyListKind::ShellEnvPassthrough));
         assert!(app.autonomy_settings.shell_env_passthrough.is_empty());
         assert!(app.autonomy_settings.save_error.is_some());
     }
@@ -227,10 +218,7 @@ fn update_switches_tab_without_persisting() {
     let mut app = app();
     app.autonomy_settings.save_error = Some("keep".to_string());
 
-    apply(
-        &mut app,
-        SettingsMessage::AutonomyTabSelected(AutonomySettingsTab::NonCli),
-    );
+    apply(&mut app, SettingsMessage::AutonomyTabSelected(AutonomySettingsTab::NonCli));
 
     assert_eq!(app.autonomy_settings.active_tab, AutonomySettingsTab::NonCli);
     assert_eq!(app.autonomy_settings.save_error.as_deref(), Some("keep"));

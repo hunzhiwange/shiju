@@ -56,10 +56,7 @@ fn task_plan_run_router_is_wired() {
 fn task_plan_run_stream_path_matches_desktop_client() {
     assert_eq!(TASK_PLAN_RUN_STREAM_ROUTE, "/task-plan-run/stream");
     assert_eq!(format!("/v1{TASK_PLAN_RUN_STREAM_ROUTE}"), "/v1/task-plan-run/stream");
-    assert_eq!(
-        TASK_PLAN_RUN_STATUS_ROUTE,
-        "/task-plan-run/{task_id}/status"
-    );
+    assert_eq!(TASK_PLAN_RUN_STATUS_ROUTE, "/task-plan-run/{task_id}/status");
     assert_eq!(TASK_PLAN_RUN_STOP_ROUTE, "/task-plan-run/{task_id}/stop");
 }
 
@@ -85,12 +82,9 @@ async fn task_plan_run_control_routes_are_tenant_scoped_and_stop_is_idempotent()
         )
         .expect("observe planning");
 
-    let Json(status) = task_plan_run_status(
-        Extension(owner.clone()),
-        Path(task_id.clone()),
-    )
-    .await
-    .expect("owner status");
+    let Json(status) = task_plan_run_status(Extension(owner.clone()), Path(task_id.clone()))
+        .await
+        .expect("owner status");
     assert_eq!(status.status, TaskPlanRunStatus::Running);
     assert_eq!(status.current_session_id.as_deref(), Some(session_id.as_str()));
 
@@ -105,16 +99,14 @@ async fn task_plan_run_control_routes_are_tenant_scoped_and_stop_is_idempotent()
     assert_eq!(cross_tenant_stop.status, StatusCode::NOT_FOUND);
     assert!(!cancellation.is_cancelled());
 
-    let Json(stopped) =
-        task_plan_run_stop(Extension(owner.clone()), Path(task_id.clone()))
-            .await
-            .expect("owner stop");
+    let Json(stopped) = task_plan_run_stop(Extension(owner.clone()), Path(task_id.clone()))
+        .await
+        .expect("owner stop");
     assert_eq!(stopped.status, TaskPlanRunStatus::Cancelled);
     assert!(cancellation.is_cancelled());
 
-    let Json(stopped_again) = task_plan_run_stop(Extension(owner), Path(task_id))
-        .await
-        .expect("idempotent stop");
+    let Json(stopped_again) =
+        task_plan_run_stop(Extension(owner), Path(task_id)).await.expect("idempotent stop");
     assert_eq!(stopped_again.status, TaskPlanRunStatus::Cancelled);
 }
 

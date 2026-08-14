@@ -14,9 +14,9 @@
 
 use super::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_gateway_stream_event};
 use crate::app::agent::config::Config;
+use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::future::Future;
-use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{Read, Write};
 #[cfg(not(target_arch = "wasm32"))]
@@ -26,14 +26,14 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
+use vw_config_types::config::AcpAgentConfig;
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
+use vw_gateway_client::vw_api_types::id::ProjectScope;
 use vw_gateway_client::vw_api_types::id::{
     COMPANY_ID_HEADER, PLATFORM_ID_HEADER, SessionId, TenantScope,
 };
-use vw_gateway_client::{GatewayAuth, GatewayChatStreamRequest, GatewayClient, GatewayEndpoint};
-use vw_config_types::config::AcpAgentConfig;
 use vw_gateway_client::vw_api_types::project::{ProjectDto, ResolveProjectRequest};
-use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
-use vw_gateway_client::vw_api_types::id::ProjectScope;
+use vw_gateway_client::{GatewayAuth, GatewayChatStreamRequest, GatewayClient, GatewayEndpoint};
 
 #[cfg(not(target_arch = "wasm32"))]
 const GATEWAY_HEALTH_PATH: &str = "/v1/health";
@@ -338,11 +338,9 @@ impl GatewayUiRuntime {
         directory: &Path,
         create_if_missing: bool,
     ) -> Result<ProjectDto, String> {
-        let directory = directory
-            .to_str()
-            .ok_or_else(|| "project directory is not valid UTF-8".to_string())?;
-        let request =
-            ResolveProjectRequest { directory: directory.to_string(), create_if_missing };
+        let directory =
+            directory.to_str().ok_or_else(|| "project directory is not valid UTF-8".to_string())?;
+        let request = ResolveProjectRequest { directory: directory.to_string(), create_if_missing };
         self.client
             .project_resolve(self.endpoint().tenant_scope(), &request)
             .await
@@ -396,10 +394,8 @@ impl GatewayUiRuntime {
     }
 
     pub(crate) async fn enabled_acp_backend_keys(&self) -> Result<Vec<String>, String> {
-        let catalog = self
-            .client
-            .global_acp_config_get::<HashMap<String, AcpAgentConfig>>()
-            .await?;
+        let catalog =
+            self.client.global_acp_config_get::<HashMap<String, AcpAgentConfig>>().await?;
         let config = self.client.global_config_get().await?;
         Ok(resolve_enabled_acp_backend_keys(&catalog, &config))
     }

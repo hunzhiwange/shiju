@@ -1,15 +1,11 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use vw_gateway_client::vw_api_types::task::{TaskPlanRunRequest, TaskPlanRunStatusResponse};
-use vw_gateway_client::{
-    GatewayClient, GatewayStreamAttemptResult, GatewayStreamResume,
-};
+use vw_gateway_client::{GatewayClient, GatewayStreamAttemptResult, GatewayStreamResume};
 use vw_shared::session::info::Info as SessionInfo;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
-use super::stream_adapter::{
-    UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_task_plan_run_event,
-};
+use super::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent, adapt_task_plan_run_event};
 use crate::cli::tui_v2::model::{PromptSubmission, WorkflowMode};
 
 const PLAN_RUN_RESUME_ATTEMPTS: usize = 3;
@@ -46,11 +42,8 @@ impl GatewayUiRuntime {
         session_id: &str,
     ) -> Result<bool, String> {
         let directory = self.directory().to_str();
-        block_on_gateway(
-            self.client()
-                .session_get::<SessionInfo>(session_id, directory),
-        )
-        .map(|info| info.parent_id.is_some() && info.is_plan_run())
+        block_on_gateway(self.client().session_get::<SessionInfo>(session_id, directory))
+            .map(|info| info.parent_id.is_some() && info.is_plan_run())
     }
 
     pub(crate) fn stream_task_plan_run_blocking(
@@ -63,10 +56,7 @@ impl GatewayUiRuntime {
         let mut terminal = None;
 
         for _ in 0..PLAN_RUN_RESUME_ATTEMPTS {
-            let resume = GatewayStreamResume {
-                request_id: request_id.clone(),
-                last_event_id,
-            };
+            let resume = GatewayStreamResume { request_id: request_id.clone(), last_event_id };
             let mut next_event_id = last_event_id;
             let attempt = block_on_gateway(GatewayClient::stream_task_plan_run_resumable(
                 self.endpoint(),
@@ -121,7 +111,6 @@ impl GatewayUiRuntime {
 }
 
 fn plan_run_request_id() -> String {
-    let nanos =
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
     format!("tui-plan-run-{nanos}")
 }

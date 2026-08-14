@@ -345,14 +345,8 @@ impl TerminalState {
         font_size: f32,
         initial_cwd: Option<std::path::PathBuf>,
     ) -> Self {
-        let mut state = Self::blank_with_settings(
-            is_visible,
-            shell,
-            theme,
-            font_family,
-            font_size,
-            200.0,
-        );
+        let mut state =
+            Self::blank_with_settings(is_visible, shell, theme, font_family, font_size, 200.0);
         // Only spawn a PTY when the panel will be shown; keep hidden sessions empty.
         if is_visible {
             let _ = state.ensure_default_terminal(initial_cwd);

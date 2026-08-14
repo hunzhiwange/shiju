@@ -120,7 +120,13 @@ fn stale_prepared_chunk_clears_preparing_state() {
 }
 
 fn message(role: super::ChatRole, content: &str) -> super::ChatMessage {
-    super::ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    super::ChatMessage {
+        role,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 #[test]
@@ -347,6 +353,18 @@ fn sync_chat_message_estimated_heights_len_truncates_removed_measurements() {
 }
 
 #[test]
+fn invalidate_chat_ui_state_clears_user_question_index_for_history_replacement() {
+    let (mut app, _task) = super::App::new();
+    app.chat = vec![message(super::ChatRole::User, "old question")];
+    app.rebuild_active_session_message_meta();
+
+    app.invalidate_chat_ui_state();
+
+    assert!(app.active_session_view_state.user_question_markers.is_empty());
+    assert_eq!(app.active_session_view_state.user_question_indexed_chat_len, 0);
+}
+
+#[test]
 fn resolve_render_cache_height_requires_matching_message_content_hash() {
     let (mut app, _task) = super::App::new();
     app.chat = vec![message(super::ChatRole::Assistant, "cached")];
@@ -435,12 +453,7 @@ fn prepared_stream_message_updates_only_target_cache() {
         message(super::ChatRole::Assistant, "old tail"),
         message(super::ChatRole::Assistant, "neighbor"),
     ];
-    app.apply_prepared_chat_ui_phase(super::prepare_chat_ui_chunk_phase(
-        &app.chat,
-        0,
-        true,
-        false,
-    ));
+    app.apply_prepared_chat_ui_phase(super::prepare_chat_ui_chunk_phase(&app.chat, 0, true, false));
     let first_hash = app.chat_render_cache[&0].content_hash;
     let neighbor_hash = app.chat_render_cache[&2].content_hash;
     let target_interaction_key = (1_u64) << 32;

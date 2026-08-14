@@ -4,9 +4,7 @@ use iced::{Element, Font, Length};
 
 use super::{mine, styles};
 use crate::app::message::ShijuAppsMessage;
-use crate::app::shiju_apps::{
-    ShijuAppDetailTarget, ShijuAppsLoadState,
-};
+use crate::app::shiju_apps::{ShijuAppDetailTarget, ShijuAppsLoadState};
 use crate::app::{App, Message};
 
 fn field(label: &'static str, value: String, monospace: bool) -> Element<'static, Message> {
@@ -15,12 +13,7 @@ fn field(label: &'static str, value: String, monospace: bool) -> Element<'static
     } else {
         text(value).size(13)
     };
-    column![
-        text(label).size(11).style(styles::muted_text_style),
-        value,
-    ]
-    .spacing(4)
-    .into()
+    column![text(label).size(11).style(styles::muted_text_style), value,].spacing(4).into()
 }
 
 fn shell(
@@ -41,13 +34,12 @@ fn shell(
     ]
     .spacing(16);
     for item in fields {
-        content = content.push(container(item).padding(12).width(Length::Fill).style(styles::card_style));
+        content =
+            content.push(container(item).padding(12).width(Length::Fill).style(styles::card_style));
     }
     scrollable(content)
         .direction(Direction::Vertical(
-            Scrollbar::new()
-                .width(styles::SCROLLBAR_WIDTH)
-                .scroller_width(styles::SCROLLBAR_WIDTH),
+            Scrollbar::new().width(styles::SCROLLBAR_WIDTH).scroller_width(styles::SCROLLBAR_WIDTH),
         ))
         .height(Length::Fill)
         .into()
@@ -105,11 +97,7 @@ pub(super) fn view(app: &App, target: ShijuAppDetailTarget) -> Element<'static, 
                 return shell("我的应用详情".to_string(), "应用数据不可用".to_string(), Vec::new());
             };
             let Some(item) = apps.apps.get(index) else {
-                return shell(
-                    "我的应用详情".to_string(),
-                    "应用条目不存在".to_string(),
-                    Vec::new(),
-                );
+                return shell("我的应用详情".to_string(), "应用条目不存在".to_string(), Vec::new());
             };
             let readiness = mine::runtime_readiness(item)
                 .map(str::to_string)

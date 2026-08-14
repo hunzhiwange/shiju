@@ -24,16 +24,16 @@ pub(crate) mod prompt;
 #[cfg(test)]
 #[path = "prompt_tests.rs"]
 mod prompt_tests;
-pub(crate) mod search;
 pub(crate) mod schedule_panel;
+pub(crate) mod search;
 pub(crate) mod session_mode;
 pub(crate) mod settings_panel;
 pub(crate) mod transcript_mode;
 pub(crate) mod ui_message;
-pub(crate) mod workflow_panel;
 #[cfg(test)]
 #[path = "ui_message_tests.rs"]
 mod ui_message_tests;
+pub(crate) mod workflow_panel;
 
 pub(crate) use attachment::{UiAttachment, UiAttachmentKind};
 pub(crate) use message_action::{MessageActionIntent, MessageActionKind, MessageActionState};
@@ -50,12 +50,12 @@ pub(crate) use prompt::{
     PromptMode, PromptMotion, PromptState, PromptSubmission, PromptSubmissionStatus,
     QueueDrainBoundary, QueuedPromptCommand, QueuedPromptCommandKind, QueuedPromptPriority,
 };
+#[cfg(test)]
+pub(crate) use session_mode::GoalMode;
 pub(crate) use session_mode::{
     AcpBackendOption, DelegateAgentOption, PermissionMode, ReasoningEffort,
     SessionCapabilityMatrix, SessionOptions, WorkflowMode,
 };
-#[cfg(test)]
-pub(crate) use session_mode::GoalMode;
 pub(crate) use transcript_mode::{
     TranscriptEffectIntent, TranscriptModeState, TranscriptScrollRestore,
 };

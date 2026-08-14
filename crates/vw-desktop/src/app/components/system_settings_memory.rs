@@ -9,9 +9,10 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
     settings_checkbox_style, settings_divider, settings_muted_text_style, settings_page_intro,
     settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_text_input_style,
+    settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::message::settings::{MemoryMessage, SettingsMessage};
+use crate::app::state::MemorySettingsTab;
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
 use iced::{Alignment, Border, Element, Length};
@@ -70,6 +71,19 @@ fn bool_row<'a>(
         description,
         checkbox(checked).label(checkbox_label).on_toggle(on_toggle).style(settings_checkbox_style),
     )
+}
+
+fn tab_button<'a>(
+    label: &'static str,
+    tab: MemorySettingsTab,
+    active_tab: MemorySettingsTab,
+) -> iced::widget::Button<'a, Message> {
+    button(text(label))
+        .on_press(Message::Settings(SettingsMessage::Memory(MemoryMessage::TabSelected(tab))))
+        .padding([8, 14])
+        .style(move |theme: &iced::Theme, status| {
+            settings_segment_button_style(theme, status, tab == active_tab)
+        })
 }
 
 fn parse_bounded_number(value: &str, min: f32, max: f32) -> f32 {
@@ -544,20 +558,35 @@ pub fn view(app: &App) -> Element<'_, Message> {
         None
     };
 
-    let mut content = column![
-        settings_page_intro("记忆系统配置", "统一配置后端、保留策略、缓存和向量检索参数。"),
-        general_section,
-        retention_section,
-        embedding_section,
+    let mut tabs = row![
+        tab_button("基础行为", MemorySettingsTab::General, s.active_tab),
+        tab_button("保留与缓存", MemorySettingsTab::RetentionAndCache, s.active_tab,),
+        tab_button("嵌入与检索", MemorySettingsTab::Embedding, s.active_tab),
     ]
-    .spacing(16)
-    .width(Length::Fill);
+    .spacing(8)
+    .align_y(Alignment::Center);
 
-    if let Some(qdrant_section) = qdrant_section {
-        content = content.push(qdrant_section);
+    if s.backend == "qdrant" {
+        tabs = tabs.push(tab_button("Qdrant 连接", MemorySettingsTab::Qdrant, s.active_tab));
     }
 
-    content.into()
+    let selected_section: Element<'_, Message> = match s.active_tab {
+        MemorySettingsTab::General => general_section.into(),
+        MemorySettingsTab::RetentionAndCache => retention_section.into(),
+        MemorySettingsTab::Embedding => embedding_section.into(),
+        MemorySettingsTab::Qdrant => {
+            qdrant_section.map(Into::into).unwrap_or_else(|| general_section.into())
+        }
+    };
+
+    column![
+        settings_page_intro("记忆系统配置", "统一配置后端、保留策略、缓存和向量检索参数。"),
+        tabs,
+        selected_section,
+    ]
+    .spacing(16)
+    .width(Length::Fill)
+    .into()
 }
 #[cfg(test)]
 #[path = "system_settings_memory_tests.rs"]

@@ -90,10 +90,7 @@ fn menu_sections_exclude_browser_and_follow_workspace_mode() {
         open_window_tabs: Vec::new(),
         ..snapshot_with(Vec::new())
     };
-    let work = NativeMenuSnapshot {
-        file_manager_show_changes: true,
-        ..snapshot_with(Vec::new())
-    };
+    let work = NativeMenuSnapshot { file_manager_show_changes: true, ..snapshot_with(Vec::new()) };
 
     let sections = menu_sections(&code);
     assert_eq!(sections.len(), 3);
@@ -114,10 +111,7 @@ fn menu_sections_exclude_browser_and_follow_workspace_mode() {
 fn project_display_label_uses_basename_or_fallback() {
     assert_eq!(project_display_label_for_test(None), "未打开项目");
     assert_eq!(project_display_label_for_test(Some("")), "未打开项目");
-    assert_eq!(
-        project_display_label_for_test(Some("/Users/me/work/vibe-window")),
-        "vibe-window"
-    );
+    assert_eq!(project_display_label_for_test(Some("/Users/me/work/vibe-window")), "vibe-window");
 }
 
 #[test]

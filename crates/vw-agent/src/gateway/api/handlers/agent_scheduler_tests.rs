@@ -4764,9 +4764,9 @@ fn scheduler_worker_ownership_and_serializer_helpers_cover_error_edges() {
         "task metadata must be a JSON object"
     );
     assert!(reasoning_effort_field(&json!({})).expect("missing effort").is_none());
-    assert!(reasoning_effort_field(&json!({"reasoning_effort": null}))
-        .expect("null effort")
-        .is_none());
+    assert!(
+        reasoning_effort_field(&json!({"reasoning_effort": null})).expect("null effort").is_none()
+    );
     assert_eq!(
         reasoning_effort_field(&json!({"reasoning_effort": "invalid-effort"}))
             .expect_err("invalid effort")

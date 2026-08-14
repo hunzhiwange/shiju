@@ -3,13 +3,16 @@
 //! 注释聚焦模块职责、消息边界和失败处理方式，帮助维护者在不改变逻辑的前提下理解代码。
 
 use super::common::save_config_field_task;
+use crate::app::message::project::PreparedSessionOpenSource;
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{
-    find_session_project_path, now_ms, prepare_session_ui_chunks_task, prepare_session_ui_task,
+    find_session_project_path, load_prepared_session_open_from_gateway_task, now_ms,
+    prepare_session_ui_chunks_task, prepare_session_ui_task,
 };
 use crate::app::{App, Message, models, state::ActiveSessionViewState};
 use serde_json::{Map, Value};
 use vw_shared::message::types as agent_message;
+use web_time::Instant;
 
 fn push_loaded_chat_message(
     chat: &mut Vec<models::ChatMessage>,
@@ -269,7 +272,7 @@ fn message_processing_timing(
     })
 }
 
-fn latest_assistant_model_label(msgs: &[agent_message::WithParts]) -> Option<String> {
+pub(crate) fn latest_assistant_model_label(msgs: &[agent_message::WithParts]) -> Option<String> {
     msgs.iter()
         .filter_map(assistant_info)
         .filter_map(|info| {
@@ -615,6 +618,53 @@ fn filter_loaded_chat_after_reset_boundary(
     (filtered_chat, filtered_ids)
 }
 
+fn apply_prepared_session_open(app: &mut App, prepared: crate::app::session::PreparedSessionOpen) {
+    let crate::app::session::PreparedSessionOpen {
+        session_id,
+        messages,
+        message_ids,
+        usage,
+        steps,
+        calls,
+        updated_ms,
+        content_signature: _,
+        session_model,
+        base_ui_chunk,
+    } = prepared;
+
+    app.chat_scroll_id = iced::widget::Id::unique();
+    app.chat = messages;
+    app.chat_message_ids = message_ids;
+    app.usage = usage;
+    app.active_session_view_state.updated_ms = updated_ms;
+    let restored_session_model_from_steps =
+        app.restore_session_model_from_steps(&session_id, &steps);
+    app.replace_active_session_steps(steps);
+    app.replace_active_session_calls(calls);
+    let restored_session_model_from_history = session_model
+        .as_deref()
+        .is_some_and(|model| app.restore_session_model_from_history(&session_id, model));
+    if restored_session_model_from_steps || restored_session_model_from_history {
+        app.sync_active_session_preferences();
+    }
+
+    app.active_session_view_state.ui_preparing = true;
+    app.active_session_view_state.base_ready = false;
+    app.invalidate_chat_ui_state();
+    if let Some(base_ui_chunk) = base_ui_chunk {
+        let chunk_start_idx = base_ui_chunk.chunk_start_idx;
+        app.pin_chat_ui_chunk(Some(chunk_start_idx));
+        app.apply_prepared_chat_ui_phase(crate::app::session::PreparedChatUiPhase::Base(
+            base_ui_chunk,
+        ));
+        app.active_session_view_state.base_ready = true;
+        app.rebuild_active_session_message_meta();
+    } else {
+        app.pin_chat_ui_chunk(None);
+    }
+    app.active_session_view_state.ui_preparing = false;
+}
+
 /// handle 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
@@ -822,6 +872,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.session_menu_anchor = None;
             app.show_session_actions_popover = false;
             app.session_runtime_states.remove(&id);
+            app.session_view_cache.remove(&id);
+            app.session_chat_cache.remove(&id);
+            app.session_chat_message_id_cache.remove(&id);
+            app.session_history_reset_boundaries.remove(&id);
 
             let project_path = find_session_project_path(app, &id);
 
@@ -971,6 +1025,104 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.invalidate_chat_ui_state();
             app.sync_active_session_preferences();
             Some(save_last_directory_task)
+        }
+        ProjectMessage::SessionOpenPrepared {
+            target_session_id,
+            project_path,
+            open_generation,
+            source,
+            result,
+        } => {
+            let is_active_target = app.active_session_id.as_deref() == Some(&target_session_id)
+                && app.session_view_cache.is_current_open(&target_session_id, open_generation);
+            let prepared = match result {
+                Ok(prepared) if is_active_target && prepared.session_id == target_session_id => {
+                    prepared
+                }
+                Ok(_) => {
+                    tracing::info!(
+                        target: "vw_desktop",
+                        session_id = %target_session_id,
+                        open_generation,
+                        branch = "stale_open_result",
+                        "discarded prepared session open because the active request changed"
+                    );
+                    return Some(iced::Task::none());
+                }
+                Err(error) if source == PreparedSessionOpenSource::UiStore && is_active_target => {
+                    tracing::warn!(
+                        target: "vw_desktop",
+                        session_id = %target_session_id,
+                        error = %error,
+                        "failed to prepare session UI store history; falling back to remote history"
+                    );
+                    return Some(load_prepared_session_open_from_gateway_task(
+                        project_path,
+                        target_session_id,
+                        open_generation,
+                        app.dialogue_flow_show_reasoning_summary,
+                    ));
+                }
+                Err(error) if is_active_target => {
+                    tracing::warn!(
+                        target: "vw_desktop",
+                        session_id = %target_session_id,
+                        error = %error,
+                        "failed to prepare remote session history"
+                    );
+                    if app.chat.is_empty() {
+                        app.error_message =
+                            Some(format!("Failed to load session messages: {error}"));
+                    }
+                    return Some(iced::Task::none());
+                }
+                Err(_) => return Some(iced::Task::none()),
+            };
+
+            let same_remote_history = source == PreparedSessionOpenSource::RemoteHistory
+                && crate::app::session::session_content_signature(&app.chat, &app.chat_message_ids)
+                    == prepared.content_signature;
+            if same_remote_history {
+                app.usage = prepared.usage;
+                if !prepared.steps.is_empty() {
+                    app.replace_active_session_steps(prepared.steps);
+                }
+                if let Some(summary) = app.session_view_cache.record_open_commit(
+                    &target_session_id,
+                    open_generation,
+                    crate::app::session::view_cache::SessionOpenUiCommit::SameContentRefresh,
+                    app.chat.len(),
+                    web_time::Duration::ZERO,
+                    true,
+                ) {
+                    summary.emit();
+                }
+                return Some(iced::Task::none());
+            }
+
+            let commit_started_at = Instant::now();
+            let message_count = prepared.messages.len();
+            apply_prepared_session_open(app, prepared);
+            let finalize = source == PreparedSessionOpenSource::RemoteHistory;
+            if let Some(summary) = app.session_view_cache.record_open_commit(
+                &target_session_id,
+                open_generation,
+                crate::app::session::view_cache::SessionOpenUiCommit::PreparedHistory,
+                message_count,
+                commit_started_at.elapsed(),
+                finalize,
+            ) {
+                summary.emit();
+            }
+            if source == PreparedSessionOpenSource::UiStore {
+                return Some(load_prepared_session_open_from_gateway_task(
+                    project_path,
+                    target_session_id,
+                    open_generation,
+                    app.dialogue_flow_show_reasoning_summary,
+                ));
+            }
+            Some(iced::Task::none())
         }
         ProjectMessage::SessionMessagesLoaded(res) => {
             match res {

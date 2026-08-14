@@ -1061,8 +1061,7 @@ fn workflow_node_model(node: &WorkflowNode, runtime_model: &str) -> String {
     let Some(model) = node.data.get("model") else {
         return runtime_model.to_string();
     };
-    let Some(name) =
-        string_field(model, "name").map(str::trim).filter(|value| !value.is_empty())
+    let Some(name) = string_field(model, "name").map(str::trim).filter(|value| !value.is_empty())
     else {
         return runtime_model.to_string();
     };

@@ -384,17 +384,12 @@ fn set_server_enabled(
     Ok((value, count))
 }
 
-fn delete_server(
-    editor: &text_editor::Content,
-    index: usize,
-) -> Result<(Value, usize), String> {
+fn delete_server(editor: &text_editor::Content, index: usize) -> Result<(Value, usize), String> {
     let (mut value, _) = editor_value(editor)?;
     let servers =
         value.as_array_mut().ok_or_else(|| invalid("mcpServers in global config", "array"))?;
     if index >= servers.len() {
-        return Err(format!(
-            "Invalid mcpServers[{index}] in global config: index out of bounds"
-        ));
+        return Err(format!("Invalid mcpServers[{index}] in global config: index out of bounds"));
     }
     servers.remove(index);
     let count = validate_mcp_servers(&value)?;

@@ -22,10 +22,7 @@ pub(super) fn capability_policy_label(policy: DelegateCapabilityPolicy) -> &'sta
     }
 }
 
-pub(super) fn skill_policy_message(
-    agent_key: String,
-    policy: DelegateCapabilityPolicy,
-) -> Message {
+pub(super) fn skill_policy_message(agent_key: String, policy: DelegateCapabilityPolicy) -> Message {
     Message::Settings(SettingsMessage::Agents(AgentsMessage::SkillPolicyChanged(agent_key, policy)))
 }
 
@@ -296,10 +293,7 @@ pub(super) fn view<'a>(
     };
 
     column![
-        section_card(
-            "默认技能",
-            "选择会在委托代理首步默认注入的技能；它们不是技能白名单。",
-        ),
+        section_card("默认技能", "选择会在委托代理首步默认注入的技能；它们不是技能白名单。",),
         column![
             text("技能访问策略").size(14),
             text("控制委托代理可见技能的范围；不限制为默认策略。")

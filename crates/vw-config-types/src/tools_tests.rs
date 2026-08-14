@@ -49,10 +49,7 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
     assert_eq!(super::BUILTIN_REQUIRED_TOOL_IDS, expected_primary);
 
     for id in expected_primary {
-        assert!(
-            super::is_builtin_required_tool_id(id),
-            "primary id should match: {id}"
-        );
+        assert!(super::is_builtin_required_tool_id(id), "primary id should match: {id}");
     }
 
     for (alias, primary) in [

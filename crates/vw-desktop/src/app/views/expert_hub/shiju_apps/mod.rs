@@ -11,17 +11,10 @@ mod store;
 pub(super) mod styles;
 
 pub(super) fn tab_specs() -> &'static [(&'static str, ShijuAppsTab)] {
-    &[
-        ("我的应用", ShijuAppsTab::Mine),
-        ("应用商店", ShijuAppsTab::Store),
-    ]
+    &[("我的应用", ShijuAppsTab::Mine), ("应用商店", ShijuAppsTab::Store)]
 }
 
-fn tab_button(
-    label: &'static str,
-    tab: ShijuAppsTab,
-    selected: bool,
-) -> Element<'static, Message> {
+fn tab_button(label: &'static str, tab: ShijuAppsTab, selected: bool) -> Element<'static, Message> {
     button(text(label).size(14))
         .on_press(Message::ShijuApps(ShijuAppsMessage::SelectTab(tab)))
         .padding([8, 14])
@@ -55,9 +48,5 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .into()
     };
 
-    container(content)
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .padding([24, 28])
-    .into()
+    container(content).width(Length::Fill).height(Length::Fill).padding([24, 28]).into()
 }

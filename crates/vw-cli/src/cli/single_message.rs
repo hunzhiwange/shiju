@@ -137,12 +137,11 @@ pub(crate) async fn run_single_message(
     // - max_tool_iterations: 最大工具调用迭代次数
     // - 后续 None/空参数: 不指定特定约束
     let approval = Some(Arc::new(ApprovalManager::from_config(&config.autonomy)));
-    let security =
-        Some(Arc::new(SecurityPolicy::from_configs(
-            &config.autonomy,
-            &config.security,
-            &config.workspace_dir,
-        )));
+    let security = Some(Arc::new(SecurityPolicy::from_configs(
+        &config.autonomy,
+        &config.security,
+        &config.workspace_dir,
+    )));
 
     let response = run_tool_call_loop(
         setup.provider.as_ref(),

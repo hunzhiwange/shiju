@@ -32,7 +32,9 @@ fn execution_prompt_preserves_outer_task_and_allows_internal_orchestration() {
     assert!(!prompt.contains("不要重新拆分任务"));
     assert!(prompt.contains("不得改写外层编号任务、批次依赖或任务文件所有权"));
     assert!(prompt.contains("可在当前任务边界内自主拆分内部工作流"));
-    assert!(prompt.contains("Identify internal workstreams, ordering dependencies, and write sets"));
+    assert!(
+        prompt.contains("Identify internal workstreams, ordering dependencies, and write sets")
+    );
     assert!(prompt.contains("Retry only safely retryable failures, with a finite attempt limit"));
     assert!(prompt.contains("当前批次: 4"));
     assert!(prompt.contains("依赖批次: 2, 3"));

@@ -7,18 +7,17 @@
 //! 不在这里处理终端按键、overlay 焦点或真正的 runtime 取消；这些边界分别留给
 //! controller 与 app 宿主。
 
+use super::commands::directory::DirectoryCommand;
 use super::commands::inspect::InspectCommand;
 use super::commands::integrations::IntegrationCommand;
-use super::commands::directory::DirectoryCommand;
 use super::commands::registry::{
     CommandAction, CommandExecutionPolicy, CommandRegistry, CommandSpec, command_score,
 };
+use super::commands::schedules::{ScheduleCommand, parse_schedule_command};
 use super::commands::session::SessionCommand;
 use super::commands::settings::SettingsCommand;
-use super::commands::schedules::{ScheduleCommand, parse_schedule_command};
 use super::completion::{
-    CompletionKind, active_completion_token, completion_suggestions,
-    directory_command_suggestions,
+    CompletionKind, active_completion_token, completion_suggestions, directory_command_suggestions,
 };
 use super::model::{
     UiConfirmIntent, UiConfirmOverlay, UiMessage, UiMessageBase, UiMessageId, UiOverlay,
@@ -101,10 +100,7 @@ pub(crate) enum TuiSlashCommandOutcome {
     OpenBackgroundTasks,
     OpenAgents,
     OpenWorkflows,
-    RunWorkflow {
-        uuid: String,
-        query: String,
-    },
+    RunWorkflow { uuid: String, query: String },
     Schedule(ScheduleCommand),
     OpenRewindSelector,
 }
@@ -230,8 +226,7 @@ pub(crate) fn slash_prompt_suggestions(state: &TuiState) -> Vec<TuiPromptSuggest
         .collect::<Vec<_>>();
     if let Some(start) = embedded_start {
         for suggestion in &mut suggestions {
-            suggestion.replacement =
-                format!("{}{}", &raw[..start], suggestion.replacement);
+            suggestion.replacement = format!("{}{}", &raw[..start], suggestion.replacement);
         }
     }
     suggestions
@@ -416,11 +411,7 @@ pub(crate) fn execute_slash_command(
                 .map(|path| path.trim_matches('"').trim_matches('\'').to_string())
                 .filter(|path| !path.is_empty())
             else {
-                push_local_system_message(
-                    state,
-                    "用法: /cd <path>",
-                    UiSystemMessageLevel::Warning,
-                );
+                push_local_system_message(state, "用法: /cd <path>", UiSystemMessageLevel::Warning);
                 return TuiSlashCommandOutcome::Continue;
             };
             TuiSlashCommandOutcome::Directory(DirectoryCommand::Change(path.into()))
@@ -428,16 +419,16 @@ pub(crate) fn execute_slash_command(
         CommandAction::Builtin(TuiSlashCommandKind::Project) => {
             TuiSlashCommandOutcome::Directory(DirectoryCommand::Project)
         }
-        CommandAction::Builtin(kind @ (
-            TuiSlashCommandKind::Mcp
+        CommandAction::Builtin(
+            kind @ (TuiSlashCommandKind::Mcp
             | TuiSlashCommandKind::Memory
             | TuiSlashCommandKind::Skills
             | TuiSlashCommandKind::Plugins
             | TuiSlashCommandKind::Hooks
             | TuiSlashCommandKind::Doctor
             | TuiSlashCommandKind::ReloadSkills
-            | TuiSlashCommandKind::ReloadPlugins
-        )) => TuiSlashCommandOutcome::Integration(match kind {
+            | TuiSlashCommandKind::ReloadPlugins),
+        ) => TuiSlashCommandOutcome::Integration(match kind {
             TuiSlashCommandKind::Mcp => IntegrationCommand::Mcp,
             TuiSlashCommandKind::Memory => IntegrationCommand::Memory,
             TuiSlashCommandKind::Skills => IntegrationCommand::Skills,
@@ -451,9 +442,7 @@ pub(crate) fn execute_slash_command(
         CommandAction::Builtin(TuiSlashCommandKind::Tasks) => {
             TuiSlashCommandOutcome::OpenBackgroundTasks
         }
-        CommandAction::Builtin(TuiSlashCommandKind::Agents) => {
-            TuiSlashCommandOutcome::OpenAgents
-        }
+        CommandAction::Builtin(TuiSlashCommandKind::Agents) => TuiSlashCommandOutcome::OpenAgents,
         CommandAction::Builtin(TuiSlashCommandKind::Workflows) => {
             TuiSlashCommandOutcome::OpenWorkflows
         }
@@ -587,16 +576,10 @@ fn normalize_gateway_message_id(message_id: &str) -> String {
 }
 
 fn latest_gateway_user_message_id(state: &TuiState) -> Option<String> {
-    state
-        .messages
-        .iter()
-        .rev()
-        .find_map(|message| match message {
-            UiMessage::User(user) => {
-                user.base.id.as_str().strip_prefix("gateway:").map(str::to_string)
-            }
-            _ => None,
-        })
+    state.messages.iter().rev().find_map(|message| match message {
+        UiMessage::User(user) => user.base.id.as_str().strip_prefix("gateway:").map(str::to_string),
+        _ => None,
+    })
 }
 
 fn argument_suggestions(

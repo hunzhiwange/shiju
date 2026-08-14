@@ -727,17 +727,7 @@ fn message_view_builds_assistant_special_blocks_without_metadata() {
     let content = "<think>inspect</think>\ntool read\n{\"status\":\"completed\",\"input\":\"{\\\"filePath\\\":\\\"src/lib.rs\\\"}\"}\nanswer";
     let cache = ChatRenderCacheEntry::default();
 
-    let view = message_view(
-        &app,
-        0,
-        ChatRole::Assistant,
-        content,
-        &[],
-        None,
-        None,
-        &cache,
-        false,
-    );
+    let view = message_view(&app, 0, ChatRole::Assistant, content, &[], None, None, &cache, false);
 
     std::hint::black_box(view);
 }

@@ -8,8 +8,8 @@ mod detail;
 mod install_guide;
 mod installed_skills;
 mod list;
-mod public_skills;
 mod public_skill_detail;
+mod public_skills;
 pub(crate) mod shiju_apps;
 mod styles;
 
@@ -54,55 +54,43 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             .center_x(Length::Fill)
             .center_y(Length::Fill)
             .into(),
-        ExpertHubSection::Skills
-            if app.expert_hub.public_market.installed_open =>
-        {
+        ExpertHubSection::Skills if app.expert_hub.public_market.installed_open => {
             installed_skills::view(app)
         }
-        ExpertHubSection::Skills
-            if app.expert_hub.public_market.detail.is_some() =>
-        {
+        ExpertHubSection::Skills if app.expert_hub.public_market.detail.is_some() => {
             public_skill_detail::view(app)
         }
         ExpertHubSection::Skills => public_skills::view(app),
     };
 
     let base = container(column![section_tabs, body].spacing(24))
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .padding([24, 28])
-    .into();
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .padding([24, 28])
+        .into();
 
     installed_skills::with_delete_confirmation(app, base)
 }
 
 pub(crate) fn shiju_skills_view(app: &App) -> Element<'_, Message> {
-    let body = if app.expert_hub.detail.is_some() {
-        detail::view(app)
-    } else {
-        list::view(app)
-    };
-    let base = container(body)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .padding([24, 28])
-        .into();
+    let body = if app.expert_hub.detail.is_some() { detail::view(app) } else { list::view(app) };
+    let base = container(body).width(Length::Fill).height(Length::Fill).padding([24, 28]).into();
     install_guide::with_uninstall_confirmation(app, base)
 }
 
-#[cfg(test)]
-mod mod_tests;
-#[cfg(test)]
-mod list_tests;
 #[cfg(test)]
 mod detail_tests;
 #[cfg(test)]
 mod install_guide_tests;
 #[cfg(test)]
-mod public_skills_tests;
+mod installed_skills_tests;
+#[cfg(test)]
+mod list_tests;
+#[cfg(test)]
+mod mod_tests;
 #[cfg(test)]
 mod public_skill_detail_tests;
 #[cfg(test)]
-mod installed_skills_tests;
+mod public_skills_tests;
 #[cfg(test)]
 mod shiju_apps_tests;

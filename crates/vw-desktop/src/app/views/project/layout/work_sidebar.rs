@@ -223,36 +223,37 @@ fn task_status(app: &App, session_id: &str) -> WorkTaskStatus {
 }
 
 pub(super) fn model(app: &App) -> WorkSidebarModel {
-    let mut task_sessions = collect_top_level_sessions(app.recent_projects.iter().flat_map(|path| {
-        app.project_sessions
-            .get(path)
-            .into_iter()
-            .flatten()
-            .map(move |session| (path.as_str(), session))
-    }))
-    .into_iter()
-    .filter(|(path, session)| {
-        project_matches_filter(app, path)
-            && session_matches_status_filter(app, &session.id)
-            && session_matches_time_filter(app, session.time.updated)
-    })
-    .collect::<Vec<_>>();
+    let mut task_sessions =
+        collect_top_level_sessions(app.recent_projects.iter().flat_map(|path| {
+            app.project_sessions
+                .get(path)
+                .into_iter()
+                .flatten()
+                .map(move |session| (path.as_str(), session))
+        }))
+        .into_iter()
+        .filter(|(path, session)| {
+            project_matches_filter(app, path)
+                && session_matches_status_filter(app, &session.id)
+                && session_matches_time_filter(app, session.time.updated)
+        })
+        .collect::<Vec<_>>();
     let task_total = task_sessions.len();
     sort_and_truncate_sessions(&mut task_sessions, app.work_sidebar_visible_tasks);
     let tasks = task_sessions
-    .into_iter()
-    .map(|(path, session)| WorkTaskItem {
-        id: session.id.clone(),
-        title: session.title.clone(),
-        project_label: project_label(app, path),
-        updated: session.time.updated,
-        status: task_status(app, &session.id),
-        message: Message::Project(ProjectMessage::OpenProjectSessionPressed(
-            session.directory.clone(),
-            session.id.clone(),
-        )),
-    })
-    .collect::<Vec<_>>();
+        .into_iter()
+        .map(|(path, session)| WorkTaskItem {
+            id: session.id.clone(),
+            title: session.title.clone(),
+            project_label: project_label(app, path),
+            updated: session.time.updated,
+            status: task_status(app, &session.id),
+            message: Message::Project(ProjectMessage::OpenProjectSessionPressed(
+                session.directory.clone(),
+                session.id.clone(),
+            )),
+        })
+        .collect::<Vec<_>>();
 
     let mut spaces = app
         .recent_projects

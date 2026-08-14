@@ -380,10 +380,7 @@ fn delegated_gateway_options_pass_policy_inputs_without_writing_a_whitelist() {
     assert!(options.get("allowed_tools").is_none());
     assert_eq!(options["delegate_default_allowed_tools"], serde_json::json!(["file_read"]));
     assert_eq!(options["delegate_tool_policy"], "user_override");
-    assert_eq!(
-        options["delegate_trusted_user_selected_tools"],
-        serde_json::json!(["shell"]),
-    );
+    assert_eq!(options["delegate_trusted_user_selected_tools"], serde_json::json!(["shell"]),);
     assert_eq!(options["delegate_default_allowed_skills"], serde_json::json!(["review"]));
     assert_eq!(options["delegate_skill_policy"], "user_override");
     assert_eq!(

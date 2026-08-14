@@ -4,8 +4,8 @@
 //! 预览裁剪与 ACP 请求识别等细节职责。
 
 use super::utils;
-use crate::tools;
 use crate::session::capability_policy::{CapabilityPolicyResolution, resolve_tool_capabilities};
+use crate::tools;
 use serde_json::Value;
 use std::collections::HashSet;
 use vw_config_types::agent::DelegateCapabilityPolicy;
@@ -82,18 +82,21 @@ pub(crate) fn delegated_tool_policy_resolution_from_specs(
         .cloned()
         .and_then(|value| serde_json::from_value::<DelegateCapabilityPolicy>(value).ok())?;
     let defaults = option_string_values(options, "delegate_default_allowed_tools");
-    let trusted_user_selection = option_string_values(options, "delegate_trusted_user_selected_tools");
-    let hard_disabled = specs.iter().filter(|spec| {
-        crate::session::processor::tools_exec::is_agent_tool(&spec.id)
-            || spec.aliases.iter().any(|alias| crate::session::processor::tools_exec::is_agent_tool(alias))
-    }).map(|spec| spec.id.as_str()).collect::<Vec<_>>();
-    let mut resolution = resolve_tool_capabilities(
-        specs,
-        defaults,
-        trusted_user_selection,
-        policy,
-        hard_disabled,
-    );
+    let trusted_user_selection =
+        option_string_values(options, "delegate_trusted_user_selected_tools");
+    let hard_disabled = specs
+        .iter()
+        .filter(|spec| {
+            crate::session::processor::tools_exec::is_agent_tool(&spec.id)
+                || spec
+                    .aliases
+                    .iter()
+                    .any(|alias| crate::session::processor::tools_exec::is_agent_tool(alias))
+        })
+        .map(|spec| spec.id.as_str())
+        .collect::<Vec<_>>();
+    let mut resolution =
+        resolve_tool_capabilities(specs, defaults, trusted_user_selection, policy, hard_disabled);
 
     for spec in specs {
         if (is_builtin_required_tool_id(&spec.id) || is_mcp_dynamic_tool_id(&spec.id))

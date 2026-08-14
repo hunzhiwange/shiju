@@ -110,8 +110,7 @@ fn agents_referenced_skill_is_preloaded_before_first_user_request() {
     let workspace = tempfile::tempdir().expect("skill workspace");
     let skill_path = workspace.path().join("rustcodegraph/SKILL.md");
     std::fs::create_dir_all(skill_path.parent().expect("skill parent")).expect("skill dir");
-    std::fs::write(&skill_path, "# RustCodeGraph\nUSE_RUSTCODEGRAPH_FIRST")
-        .expect("write skill");
+    std::fs::write(&skill_path, "# RustCodeGraph\nUSE_RUSTCODEGRAPH_FIRST").expect("write skill");
     let skills = vec![crate::app::agent::skills::Skill {
         name: "rustcodegraph".to_string(),
         location: Some(skill_path),
@@ -132,13 +131,14 @@ fn agents_referenced_skill_is_preloaded_before_first_user_request() {
 
     protocol.preload_skills(&referenced).expect("preload AGENTS skill");
     let history = vec![serde_json::json!({"role": "user", "content": "inspect callers"})];
-    let messages = protocol
-        .assemble(&history, &instructions, true, &[])
-        .expect("assemble protocol");
+    let messages =
+        protocol.assemble(&history, &instructions, true, &[]).expect("assemble protocol");
 
-    assert!(messages[0]["content"].as_str().is_some_and(|content| {
-        content.contains("USE_RUSTCODEGRAPH_FIRST")
-    }));
+    assert!(
+        messages[0]["content"]
+            .as_str()
+            .is_some_and(|content| { content.contains("USE_RUSTCODEGRAPH_FIRST") })
+    );
     assert_eq!(messages[messages.len() - 2]["role"], "system");
     assert_eq!(messages.last(), history.last());
 }
@@ -179,11 +179,20 @@ fn delegate_skill_policy_preloads_defaults_and_honors_trusted_user_override() {
     let first = protocol.assemble(&history, &[], true, &[]).expect("first protocol");
     let second = protocol.assemble(&history, &[], true, &[]).expect("second protocol");
     let default_count = |messages: &[serde_json::Value]| {
-        messages.iter().filter(|message| message["content"].as_str().is_some_and(|content| content.contains("DEFAULT_SKILL_BODY"))).count()
+        messages
+            .iter()
+            .filter(|message| {
+                message["content"]
+                    .as_str()
+                    .is_some_and(|content| content.contains("DEFAULT_SKILL_BODY"))
+            })
+            .count()
     };
     assert_eq!(default_count(&first), 1);
     assert_eq!(default_count(&second), 1);
-    assert!(!first.iter().any(|message| message["content"].as_str().is_some_and(|content| content.contains("USER_SKILL_BODY"))));
+    assert!(!first.iter().any(|message| {
+        message["content"].as_str().is_some_and(|content| content.contains("USER_SKILL_BODY"))
+    }));
 }
 
 use crate::app::agent::session::llm;
@@ -542,7 +551,9 @@ fn context_preflight_runs_before_next_llm_step_after_real_input_usage() {
             .iter()
             .find(|message| message["tool_call_id"] == "call-0")
             .and_then(|message| message["content"].as_str()),
-        Some("old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output ")
+        Some(
+            "old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output "
+        )
     );
 }
 
@@ -572,7 +583,9 @@ fn transient_internal_compaction_replaces_only_covered_history_without_tools() {
 
     assert!(compacted);
     assert_eq!(messages.len(), 2);
-    assert!(messages[0]["content"].as_str().is_some_and(|text| text.contains("remembered context")));
+    assert!(
+        messages[0]["content"].as_str().is_some_and(|text| text.contains("remembered context"))
+    );
     assert_eq!(messages[1]["content"], "latest request");
     assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids(), vec![Vec::<String>::new()]);
 }
@@ -914,16 +927,14 @@ fn unfinished_todos_do_not_auto_complete_from_assistant_text() {
     let mut session = super::Session::new(session_id);
     let mut llm_messages = Vec::new();
     let mut total_usage = models::TokenUsage::default();
-    let mut tool_state =
-        super::ToolSessionState { non_todo_tool_runs: 1, ..Default::default() };
+    let mut tool_state = super::ToolSessionState { non_todo_tool_runs: 1, ..Default::default() };
     let mut retries = 0usize;
     let mut step = 0;
     let mut events = Vec::new();
     let empty_tools = HashSet::new();
     let mut allowed_tools = HashSet::new();
     allowed_tools.insert(TODO_WRITE_TOOL_ID.to_string());
-    let answer =
-        "I completed the requested work after inspecting the repository, applying the changes, and verifying the result.";
+    let answer = "I completed the requested work after inspecting the repository, applying the changes, and verifying the result.";
     let step_out = llm_step(answer);
 
     let seed = serde_json::json!({

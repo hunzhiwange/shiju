@@ -32,15 +32,11 @@ fn task_plan_run_stop_is_tenant_scoped_and_cancels_descendants() {
     let child_cancellation = coordinator
         .register(root_session_id, child_session_id, "planner", "delegate validation")
         .expect("register child");
-    coordinator
-        .mark_running(root_session_id, child_session_id)
-        .expect("start child");
+    coordinator.mark_running(root_session_id, child_session_id).expect("start child");
     let grandchild_cancellation = coordinator
         .register(child_session_id, grandchild_session_id, "reviewer", "validate result")
         .expect("register grandchild");
-    coordinator
-        .mark_running(child_session_id, grandchild_session_id)
-        .expect("start grandchild");
+    coordinator.mark_running(child_session_id, grandchild_session_id).expect("start grandchild");
     registry
         .observe_event(
             &owner,

@@ -68,23 +68,14 @@ fn build_batch_stages_groups_tasks_by_ascending_batch() {
 fn build_batch_stages_rejects_self_dependency() {
     let tasks = vec![entry("1", "self", "1-self.md", 1, vec![1])];
     let err = build_batch_stages(&tasks).expect_err("self dependency must fail");
-    assert!(
-        err.contains("自依赖") || err.contains("非更早批次"),
-        "unexpected error: {err}"
-    );
+    assert!(err.contains("自依赖") || err.contains("非更早批次"), "unexpected error: {err}");
 }
 
 #[test]
 fn build_batch_stages_rejects_forward_dependency() {
-    let tasks = vec![
-        entry("1", "a", "1-a.md", 1, vec![2]),
-        entry("2", "b", "2-b.md", 2, vec![]),
-    ];
+    let tasks = vec![entry("1", "a", "1-a.md", 1, vec![2]), entry("2", "b", "2-b.md", 2, vec![])];
     let err = build_batch_stages(&tasks).expect_err("forward dependency must fail");
-    assert!(
-        err.contains("非更早批次") || err.contains("前向"),
-        "unexpected error: {err}"
-    );
+    assert!(err.contains("非更早批次") || err.contains("前向"), "unexpected error: {err}");
 }
 
 #[test]

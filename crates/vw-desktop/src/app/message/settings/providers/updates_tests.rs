@@ -422,23 +422,14 @@ fn custom_provider_model_filter_and_enable_toggle_update_state() {
         },
     ];
 
-    assert_eq!(
-        app.provider_settings.custom_models_filter,
-        CustomProviderModelFilter::Enabled
-    );
+    assert_eq!(app.provider_settings.custom_models_filter, CustomProviderModelFilter::Enabled);
     let _ = update(
         &mut app,
         SettingsMessage::CustomProviderModelFilterSelected(CustomProviderModelFilter::All),
     );
-    assert_eq!(
-        app.provider_settings.custom_models_filter,
-        CustomProviderModelFilter::All
-    );
+    assert_eq!(app.provider_settings.custom_models_filter, CustomProviderModelFilter::All);
 
-    let _ = update(
-        &mut app,
-        SettingsMessage::CustomProviderModelEnabledToggled(0, false),
-    );
+    let _ = update(&mut app, SettingsMessage::CustomProviderModelEnabledToggled(0, false));
     assert!(!app.provider_settings.custom.models[0].enabled);
 
     let _ = update(&mut app, SettingsMessage::CustomProviderModelRemove(0));
@@ -478,7 +469,10 @@ fn custom_model_modal_restores_and_saves_full_metadata() {
     assert_eq!(modal.tool_call, Some(false));
     assert_eq!(modal.temperature, Some(true));
     assert_eq!(modal.attachment, Some(true));
-    assert_eq!(modal.input_modalities.as_deref(), Some(["text".to_string(), "image".to_string()].as_slice()));
+    assert_eq!(
+        modal.input_modalities.as_deref(),
+        Some(["text".to_string(), "image".to_string()].as_slice())
+    );
     assert_eq!(modal.output_modalities.as_deref(), Some(["text".to_string()].as_slice()));
 
     let _ = update(
@@ -516,9 +510,8 @@ fn custom_model_modal_restores_and_saves_full_metadata() {
 #[test]
 fn custom_model_modal_rejects_duplicate_ids_and_invalid_limit_relationships() {
     let mut app = app();
-    app.provider_settings.custom.models = vec![
-        CustomProviderModelDraft { model_id: "existing".to_string(), ..Default::default() },
-    ];
+    app.provider_settings.custom.models =
+        vec![CustomProviderModelDraft { model_id: "existing".to_string(), ..Default::default() }];
 
     let _ = update(&mut app, SettingsMessage::CustomProviderModelOpen(None));
     let _ = update(

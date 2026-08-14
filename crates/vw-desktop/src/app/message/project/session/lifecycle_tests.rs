@@ -1317,6 +1317,51 @@ fn session_messages_loaded_for_inactive_session_preserves_active_state() {
 }
 
 #[test]
+fn prepared_session_open_for_inactive_target_preserves_active_state() {
+    let mut app = app();
+    app.active_session_id = Some("active".to_string());
+    app.chat.push(crate::app::models::ChatMessage {
+        role: ChatRole::User,
+        content: "keep".to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    let prepared = crate::app::session::prepare_session_open(
+        "inactive".to_string(),
+        vec![crate::app::models::ChatMessage {
+            role: ChatRole::Assistant,
+            content: "discard".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        }],
+        vec![Some("inactive-message".to_string())],
+        crate::app::models::TokenUsage::default(),
+        Vec::new(),
+        Vec::new(),
+        0,
+        None,
+        false,
+    );
+
+    let task = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "inactive".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(prepared),
+        },
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.chat.len(), 1);
+    assert_eq!(app.chat[0].content, "keep");
+}
+
+#[test]
 fn reset_boundary_loaded_end_prefers_last_known_id_and_falls_back_to_bounded_length() {
     let loaded_ids = vec![
         Some("message-1".to_string()),

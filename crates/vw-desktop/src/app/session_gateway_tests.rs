@@ -3,10 +3,7 @@ async fn stop_stub(
     status: &'static str,
     body: &'static str,
     tenant: vw_gateway_client::vw_api_types::id::TenantScope,
-) -> (
-    vw_gateway_client::GatewayClient,
-    tokio::task::JoinHandle<String>,
-) {
+) -> (vw_gateway_client::GatewayClient, tokio::task::JoinHandle<String>) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     let listener =
@@ -30,10 +27,7 @@ async fn stop_stub(
             "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
             body.len()
         );
-        stream
-            .write_all(response.as_bytes())
-            .await
-            .expect("stop response should be written");
+        stream.write_all(response.as_bytes()).await.expect("stop response should be written");
         String::from_utf8(request).expect("stop request should be utf8")
     });
     let endpoint =
@@ -71,9 +65,7 @@ fn desktop_project_calls_use_active_tenant_scope() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn task_plan_run_stop_gateway_boundary_preserves_task_and_tenant_scope() {
-    use vw_gateway_client::vw_api_types::id::{
-        COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope,
-    };
+    use vw_gateway_client::vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
 
     let tenant = TenantScope::new("platform-nested", "company-nested").expect("tenant scope");
     let (client, request) = stop_stub(
@@ -90,19 +82,16 @@ async fn task_plan_run_stop_gateway_boundary_preserves_task_and_tenant_scope() {
     let request_lower = request.to_ascii_lowercase();
 
     assert_eq!(status.task_id, "task-nested");
-    assert_eq!(
-        status.status,
-        vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled
-    );
+    assert_eq!(status.status, vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled);
     assert!(request.starts_with("POST /v1/task-plan-run/task-nested/stop HTTP/1.1"));
-    assert!(request_lower.contains(&format!(
-        "{}: platform-nested",
-        PLATFORM_ID_HEADER.to_ascii_lowercase()
-    )));
-    assert!(request_lower.contains(&format!(
-        "{}: company-nested",
-        COMPANY_ID_HEADER.to_ascii_lowercase()
-    )));
+    assert!(
+        request_lower
+            .contains(&format!("{}: platform-nested", PLATFORM_ID_HEADER.to_ascii_lowercase()))
+    );
+    assert!(
+        request_lower
+            .contains(&format!("{}: company-nested", COMPANY_ID_HEADER.to_ascii_lowercase()))
+    );
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -116,8 +105,7 @@ async fn task_plan_run_stop_gateway_boundary_surfaces_unknown_and_cross_tenant_e
     ] {
         let tenant = TenantScope::new("platform-nested", "company-nested").expect("tenant scope");
         let (client, request) = stop_stub(status, body, tenant).await;
-        let result =
-            super::gateway_task_plan_run_stop_with_client(&client, "task-nested").await;
+        let result = super::gateway_task_plan_run_stop_with_client(&client, "task-nested").await;
         request.await.expect("error stop stub should finish");
         assert!(result.is_err(), "{status} must remain an explicit gateway error");
     }
@@ -126,9 +114,10 @@ async fn task_plan_run_stop_gateway_boundary_surfaces_unknown_and_cross_tenant_e
         std::net::TcpListener::bind("127.0.0.1:0").expect("unused stop port should bind");
     let unused_port = unused_listener.local_addr().expect("unused stop address").port();
     drop(unused_listener);
-    let client = vw_gateway_client::GatewayClient::new(
-        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", unused_port),
-    )
+    let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+        "127.0.0.1",
+        unused_port,
+    ))
     .expect("unreachable client should build");
     assert!(
         super::gateway_task_plan_run_stop_with_client(&client, "task-request-failure")

@@ -165,17 +165,10 @@ fn session_panel_style_uses_radius_and_theme_palette() {
 
     assert_color_close(
         background_color(dark),
-        blend_color(
-            dark_palette.background.base.color,
-            dark_palette.background.strong.color,
-            0.28,
-        )
-        .scale_alpha(0.99),
+        blend_color(dark_palette.background.base.color, dark_palette.background.strong.color, 0.28)
+            .scale_alpha(0.99),
     );
-    assert_color_close(
-        dark.border.color,
-        dark_palette.background.strong.color.scale_alpha(0.78),
-    );
+    assert_color_close(dark.border.color, dark_palette.background.strong.color.scale_alpha(0.78));
     assert_close(dark.border.radius.top_left, 18.0);
     assert_color_close(dark.shadow.color, Color::BLACK.scale_alpha(0.18));
 
@@ -200,12 +193,8 @@ fn right_column_styles_apply_inner_background_and_outer_border() {
 
     assert_color_close(
         background_color(dark_inner),
-        blend_color(
-            dark_palette.background.base.color,
-            dark_palette.background.strong.color,
-            0.22,
-        )
-        .scale_alpha(0.99),
+        blend_color(dark_palette.background.base.color, dark_palette.background.strong.color, 0.22)
+            .scale_alpha(0.99),
     );
     assert_close(dark_inner.border.width, 0.0);
     assert_close(dark_inner.border.radius.top_left, 16.0);

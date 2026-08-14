@@ -683,33 +683,30 @@ async fn resumable_stream_reports_incomplete_eof_and_sends_resume_headers() {
         "id: 42\ndata: {\"type\":\"chat.delta\",\"delta\":\"a\"}\n\n",
     );
     let endpoint = server.endpoint();
-    let resume = GatewayStreamResume {
-        request_id: "chat-request-1".to_string(),
-        last_event_id: Some(41),
-    };
+    let resume =
+        GatewayStreamResume { request_id: "chat-request-1".to_string(), last_event_id: Some(41) };
     let mut events = Vec::new();
 
-    let result =
-        super::stream_chat_resumable(&endpoint, None, &GatewayChatStreamRequest::default(), &resume, |event| {
+    let result = super::stream_chat_resumable(
+        &endpoint,
+        None,
+        &GatewayChatStreamRequest::default(),
+        &resume,
+        |event| {
             events.push(event);
             true
-        })
-        .await
-        .expect("resumable stream attempt");
+        },
+    )
+    .await
+    .expect("resumable stream attempt");
     let request = server.join();
 
     assert_eq!(result, GatewayStreamAttemptResult::Incomplete);
     assert_eq!(
         events,
-        vec![GatewayStreamEvent {
-            id: 42,
-            event: GatewayChatStreamEvent::Delta("a".to_string()),
-        }]
+        vec![GatewayStreamEvent { id: 42, event: GatewayChatStreamEvent::Delta("a".to_string()) }]
     );
-    assert_eq!(
-        raw_header(&request, "x-vw-stream-request-id").as_deref(),
-        Some("chat-request-1")
-    );
+    assert_eq!(raw_header(&request, "x-vw-stream-request-id").as_deref(), Some("chat-request-1"));
     assert_eq!(raw_header(&request, "last-event-id").as_deref(), Some("41"));
 }
 

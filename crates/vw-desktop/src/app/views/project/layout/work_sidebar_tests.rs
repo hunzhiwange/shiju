@@ -46,13 +46,7 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
         "/workspace/alpha".into(),
         vec![
             session("older", "较早任务", "/workspace/alpha", 10),
-            child_session(
-                "newest-child",
-                "newest",
-                "不应显示的子任务",
-                "/workspace/alpha",
-                50,
-            ),
+            child_session("newest-child", "newest", "不应显示的子任务", "/workspace/alpha", 50),
             session("newest", "最新任务", "/workspace/alpha", 40),
         ],
     );
@@ -92,11 +86,7 @@ fn work_sidebar_builds_workbuddy_sections_from_real_projects() {
     assert!(model.spaces[0].expanded);
     assert_eq!(model.spaces[0].sessions.len(), 2);
     assert_eq!(
-        model.spaces[0]
-            .sessions
-            .iter()
-            .map(|session| session.id.as_str())
-            .collect::<Vec<_>>(),
+        model.spaces[0].sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
         ["newest", "older"],
         "expanded-space tasks should retain their real session IDs"
     );
@@ -165,13 +155,7 @@ fn work_sidebar_projects_runtime_status_for_main_tasks_only() {
         vec![
             session("idle", "空闲任务", "/workspace/alpha", 10),
             session("running", "运行任务", "/workspace/alpha", 30),
-            child_session(
-                "running-child",
-                "running",
-                "运行中的子任务",
-                "/workspace/alpha",
-                40,
-            ),
+            child_session("running-child", "running", "运行中的子任务", "/workspace/alpha", 40),
         ],
     );
     app.work_expanded_spaces.insert("/workspace/alpha".into());
@@ -187,11 +171,7 @@ fn work_sidebar_projects_runtime_status_for_main_tasks_only() {
     assert_eq!(model.tasks[0].status, work_sidebar::WorkTaskStatus::Running);
     assert_eq!(model.tasks[1].status, work_sidebar::WorkTaskStatus::Idle);
     assert_eq!(
-        model.spaces[0]
-            .sessions
-            .iter()
-            .map(|session| session.id.as_str())
-            .collect::<Vec<_>>(),
+        model.spaces[0].sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
         ["running", "idle"]
     );
     assert_eq!(model.spaces[0].sessions[0].status, work_sidebar::WorkTaskStatus::Running);
@@ -206,10 +186,7 @@ fn work_sidebar_truncates_long_task_titles_without_using_time_space() {
     assert!(full_width.ends_with('…'));
     assert!(with_time.ends_with('…'));
     assert!(with_time.chars().count() < full_width.chars().count());
-    assert_eq!(
-        work_sidebar::truncate_work_task_text("短任务", 280.0, true),
-        "短任务"
-    );
+    assert_eq!(work_sidebar::truncate_work_task_text("短任务", 280.0, true), "短任务");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -448,10 +425,7 @@ async fn work_sidebar_routes_shiju_entries_and_expert_hub_separately() {
     let mut shiju_apps = work_sidebar::shiju_apps_button();
     let mut shiju_messages = click(&mut shiju_apps, &renderer);
     assert_eq!(shiju_messages.len(), 1);
-    assert!(matches!(
-        shiju_messages.remove(0),
-        Message::ShijuApps(ShijuAppsMessage::Open)
-    ));
+    assert!(matches!(shiju_messages.remove(0), Message::ShijuApps(ShijuAppsMessage::Open)));
 
     let mut shiju_skills = work_sidebar::shiju_skills_button();
     let mut skill_messages = click(&mut shiju_skills, &renderer);
@@ -464,20 +438,14 @@ async fn work_sidebar_routes_shiju_entries_and_expert_hub_separately() {
     let mut expert_hub = work_sidebar::expert_hub_button();
     let mut expert_messages = click(&mut expert_hub, &renderer);
     assert_eq!(expert_messages.len(), 1);
-    assert!(matches!(
-        expert_messages.remove(0),
-        Message::SkillHub(SkillHubMessage::Open)
-    ));
+    assert!(matches!(expert_messages.remove(0), Message::SkillHub(SkillHubMessage::Open)));
 }
 
 #[test]
 fn work_sidebar_refresh_message_deduplicates_recent_projects() {
     let mut app = App::new().0;
-    app.recent_projects = vec![
-        "/workspace/alpha".into(),
-        "/workspace/beta".into(),
-        "/workspace/alpha".into(),
-    ];
+    app.recent_projects =
+        vec!["/workspace/alpha".into(), "/workspace/beta".into(), "/workspace/alpha".into()];
 
     let Message::Batch(refreshes) = work_sidebar::refresh_all_message(&app) else {
         panic!("refresh helper should batch project session loads");

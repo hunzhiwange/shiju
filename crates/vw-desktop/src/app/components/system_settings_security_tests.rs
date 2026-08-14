@@ -1,6 +1,6 @@
 use super::*;
-use crate::app::{App, Message};
 use crate::app::state::{SecurityListKind, SecuritySettingsTab};
+use crate::app::{App, Message};
 use iced::Element;
 use iced::widget::{slider, text};
 
@@ -149,8 +149,7 @@ fn view_builds_default_disabled_firejail_and_threshold_states() {
     app.security_settings.otp_method_input = "cli-prompt".to_string();
     app.security_settings.otp_token_ttl_secs = 600;
     app.security_settings.otp_cache_valid_secs = 3600;
-    app.security_settings.otp_gated_actions =
-        vec!["shell".to_string(), "file_write".to_string()];
+    app.security_settings.otp_gated_actions = vec!["shell".to_string(), "file_write".to_string()];
     app.security_settings.otp_gated_domains =
         vec!["example.com".to_string(), "api.internal".to_string()];
     app.security_settings.otp_gated_domain_categories =

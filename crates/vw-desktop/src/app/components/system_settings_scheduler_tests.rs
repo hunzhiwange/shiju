@@ -75,10 +75,10 @@ fn max_concurrent_slider_rounds_values_into_settings_messages() {
 }
 
 #[test]
-fn overlays_return_dialog_or_help_modal() {
+fn inline_help_panel_is_visible_only_when_open() {
     let mut app = test_app();
-    keep_element(view_overlays(&app, text("dialog").into()));
+    assert!(inline_help_panel(&app).is_none());
 
     app.scheduler_settings.show_help_modal = true;
-    keep_element(view_overlays(&app, text("dialog").into()));
+    assert!(inline_help_panel(&app).is_some());
 }

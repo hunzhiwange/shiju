@@ -181,10 +181,7 @@ impl BrowserTool {
     pub(crate) async fn run_command(&self, args: &[&str]) -> anyhow::Result<AgentBrowserResponse> {
         let mut cmd = tokio_command("agent-browser");
         let existing_launch_args = std::env::var("AGENT_BROWSER_ARGS").ok();
-        cmd.env(
-            "AGENT_BROWSER_ARGS",
-            agent_browser_launch_args(existing_launch_args.as_deref()),
-        );
+        cmd.env("AGENT_BROWSER_ARGS", agent_browser_launch_args(existing_launch_args.as_deref()));
 
         // 如果配置了会话名称，添加 --session 参数以支持会话持久化
         if let Some(ref session) = self.session_name {

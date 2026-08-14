@@ -31,15 +31,8 @@ pub(super) const fn mode_label_font() -> Font {
 }
 
 fn centered_icon(mode: WorkspaceMode, selected: bool) -> Element<'static, Message> {
-    container(icon_svg(mode_icon(mode)).style(move |theme: &Theme, _| {
-        iced::widget::svg::Style {
-            color: Some(
-                theme
-                    .palette()
-                    .text
-                    .scale_alpha(if selected { 1.0 } else { 0.72 }),
-            ),
-        }
+    container(icon_svg(mode_icon(mode)).style(move |theme: &Theme, _| iced::widget::svg::Style {
+        color: Some(theme.palette().text.scale_alpha(if selected { 1.0 } else { 0.72 })),
     }))
     .width(Length::Fixed(18.0))
     .height(Length::Fixed(18.0))
@@ -96,9 +89,11 @@ fn mode_item(mode: WorkspaceMode, selected: bool) -> Element<'static, Message> {
                         .line_height(LineHeight::Relative(1.0))
                         .font(mode_label_font())
                         .style(move |theme: &Theme| iced::widget::text::Style {
-                            color: Some(
-                                theme.palette().text.scale_alpha(if selected { 1.0 } else { 0.88 }),
-                            ),
+                            color: Some(theme.palette().text.scale_alpha(if selected {
+                                1.0
+                            } else {
+                                0.88
+                            }),),
                         }),
                     text(description).size(12).line_height(LineHeight::Relative(1.0)).style(
                         |theme: &Theme| iced::widget::text::Style {
@@ -149,10 +144,7 @@ pub(super) fn selector(app: &App) -> Element<'_, Message> {
     let toggle_content = container(
         row![
             centered_icon(app.workspace_mode, true),
-            text(label)
-                .size(13)
-                .line_height(LineHeight::Relative(1.0))
-                .font(mode_label_font()),
+            text(label).size(13).line_height(LineHeight::Relative(1.0)).font(mode_label_font()),
             chevron
         ]
         .spacing(5)

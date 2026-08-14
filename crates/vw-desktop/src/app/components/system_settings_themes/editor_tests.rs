@@ -3,9 +3,7 @@ use super::{
     new_theme_draft, slugify_theme_id, try_definition_from_draft, view,
 };
 use crate::app::state::{ThemeEditorDraft, ThemeEditorTab, ThemesSettingsMode};
-use crate::app::theme_catalog::{
-    ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex,
-};
+use crate::app::theme_catalog::{ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex};
 use crate::app::{App, Message};
 use iced::Element;
 
@@ -138,15 +136,9 @@ fn try_definition_from_draft_keeps_per_zone_image_fit_and_alpha() {
     assert_eq!(rebuilt.chrome.chat_header_alpha, Some(160));
     assert_eq!(rebuilt.chrome.chat_body_alpha, Some(180));
     assert_eq!(rebuilt.chrome.chat_input_alpha, Some(220));
-    assert_eq!(
-        rebuilt.chrome.chat_header_image_fit.as_deref(),
-        Some("contain")
-    );
+    assert_eq!(rebuilt.chrome.chat_header_image_fit.as_deref(), Some("contain"));
     assert_eq!(rebuilt.chrome.chat_body_image_fit.as_deref(), Some("fill"));
-    assert_eq!(
-        rebuilt.chrome.chat_input_image_fit.as_deref(),
-        Some("scale_down")
-    );
+    assert_eq!(rebuilt.chrome.chat_input_image_fit.as_deref(), Some("scale_down"));
 }
 
 #[test]
@@ -163,10 +155,7 @@ fn editor_tab_labels_keep_expected_order_and_unique_tabs() {
         ]
     );
     for (_, expected_tab) in labels {
-        assert_eq!(
-            labels.iter().filter(|(_, tab)| tab == expected_tab).count(),
-            1
-        );
+        assert_eq!(labels.iter().filter(|(_, tab)| tab == expected_tab).count(), 1);
     }
 }
 

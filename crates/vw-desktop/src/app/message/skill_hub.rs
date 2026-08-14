@@ -9,13 +9,13 @@ use crate::app::skill_hub::{
     CursorPage, ExpertHubSection, InstalledSkill, LoadState, MarketplaceSkill,
     PackageVersionCacheEntry, Page, ShijuDirectInstallState, ShijuInstallGuideState,
     ShijuInstallationsReport, ShijuKeySyncOutcome, ShijuKeySyncReport, ShijuMultiInstallReport,
-    ShijuPackageId, ShijuPackageRelease, ShijuUninstallReport, SkillActionKind, SkillDetail,
-    SkillCacheSyncReport, SkillDetailState, SkillHubClient, SkillHubError, SkillInstallScope,
-    SkillInstallSelection, SkillInstallTarget, SkillTab, SkillVersion, SkillVersionAction,
-    SkillVersionDirection, SystemSkill, TenantSkill, install_shiju_archive_for_targets,
-    package_version_cache_path, resolve_skill_destinations, shiju_installation,
-    shiju_installations_for_targets, sync_business_skill_cache, sync_shiju_key_for_targets,
-    uninstall_shiju_for_targets, write_package_version_cache,
+    ShijuPackageId, ShijuPackageRelease, ShijuUninstallReport, SkillActionKind,
+    SkillCacheSyncReport, SkillDetail, SkillDetailState, SkillHubClient, SkillHubError,
+    SkillInstallScope, SkillInstallSelection, SkillInstallTarget, SkillTab, SkillVersion,
+    SkillVersionAction, SkillVersionDirection, SystemSkill, TenantSkill,
+    install_shiju_archive_for_targets, package_version_cache_path, resolve_skill_destinations,
+    shiju_installation, shiju_installations_for_targets, sync_business_skill_cache,
+    sync_shiju_key_for_targets, uninstall_shiju_for_targets, write_package_version_cache,
 };
 use crate::app::{App, AppTab, Message, Screen};
 use directories::BaseDirs;
@@ -26,8 +26,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tempfile::NamedTempFile;
 use vw_gateway_client::{
-    ShijuCompanySkillQuery, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery,
-    ShijuSystemSkillQuery,
+    ShijuCompanySkillQuery, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery,
 };
 
 mod public;
@@ -239,7 +238,9 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
         SkillHubMessage::SelectShijuInstallProject(project_path) => {
             select_shiju_install_project(app, project_path)
         }
-        SkillHubMessage::ToggleShijuInstallTarget(target) => toggle_shiju_install_target(app, target),
+        SkillHubMessage::ToggleShijuInstallTarget(target) => {
+            toggle_shiju_install_target(app, target)
+        }
         SkillHubMessage::SyncShijuKey => start_manual_shiju_key_sync(app),
         SkillHubMessage::UninstallShiju => {
             if app.expert_hub.install_guide.is_installed
@@ -264,9 +265,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             start_shiju_uninstall(app)
         }
         SkillHubMessage::OpenShijuInstallDir => open_selected_shiju_install_dir(app),
-        SkillHubMessage::OpenShijuInstallDirFor(target) => {
-            open_shiju_install_dir_for(app, target)
-        }
+        SkillHubMessage::OpenShijuInstallDirFor(target) => open_shiju_install_dir_for(app, target),
         SkillHubMessage::ShijuInstallationsLoaded { generation, selections, result } => {
             finish_installation_load(app, generation, &selections, result)
         }
@@ -277,17 +276,15 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             selections,
             project_root,
             result,
-        } => {
-            finish_direct_package_load(
-                app,
-                generation,
-                &account_id,
-                package_id,
-                selections,
-                project_root,
-                result,
-            )
-        }
+        } => finish_direct_package_load(
+            app,
+            generation,
+            &account_id,
+            package_id,
+            selections,
+            project_root,
+            result,
+        ),
         SkillHubMessage::ShijuInstallFinished {
             generation,
             account_id,
@@ -301,16 +298,14 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             selections,
             requested_by_user,
             result,
-        } => {
-            finish_shiju_key_sync(
-                app,
-                generation,
-                &account_id,
-                &selections,
-                requested_by_user,
-                result,
-            )
-        }
+        } => finish_shiju_key_sync(
+            app,
+            generation,
+            &account_id,
+            &selections,
+            requested_by_user,
+            result,
+        ),
         SkillHubMessage::ShijuUninstallFinished { generation, selections, result } => {
             finish_shiju_uninstall(app, generation, &selections, result)
         }
@@ -530,12 +525,9 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             action,
             result,
         } => finish_skill_action(app, generation, &account_id, skill_id, action, result),
-        SkillHubMessage::SkillCacheSyncFinished {
-            generation,
-            account_id,
-            skill_id,
-            result,
-        } => finish_skill_cache_sync(app, generation, &account_id, skill_id, result),
+        SkillHubMessage::SkillCacheSyncFinished { generation, account_id, skill_id, result } => {
+            finish_skill_cache_sync(app, generation, &account_id, skill_id, result)
+        }
         SkillHubMessage::RetrySkillCacheSync => retry_skill_cache_sync(app),
         SkillHubMessage::DownloadVersion(version_id) => {
             match dispatch_download_with(app, version_id, |url| {
@@ -1154,14 +1146,15 @@ async fn install_shiju_package_for_targets(
                 break;
             }
         };
-        let chunk_len =
-            match u64::try_from(chunk.len()).map_err(|_| "识矩技能安装包大小溢出".to_string()) {
-                Ok(chunk_len) => chunk_len,
-                Err(error) => {
-                    download_error = Some(error);
-                    break;
-                }
-            };
+        let chunk_len = match u64::try_from(chunk.len())
+            .map_err(|_| "识矩技能安装包大小溢出".to_string())
+        {
+            Ok(chunk_len) => chunk_len,
+            Err(error) => {
+                download_error = Some(error);
+                break;
+            }
+        };
         written = match written.checked_add(chunk_len) {
             Some(written) => written,
             None => {
@@ -1270,13 +1263,8 @@ fn start_shiju_key_sync(app: &mut App, requested_by_user: bool) -> Task<Message>
     Task::perform(
         async move {
             tokio::task::spawn_blocking(move || {
-                sync_shiju_key_for_targets(
-                    &home,
-                    project_root.as_deref(),
-                    &selections,
-                    &credential,
-                )
-                .map_err(|error| error.to_string())
+                sync_shiju_key_for_targets(&home, project_root.as_deref(), &selections, &credential)
+                    .map_err(|error| error.to_string())
             })
             .await
             .map_err(|_| "识矩登录信息同步任务异常终止".to_string())?
@@ -1721,10 +1709,7 @@ fn finish_skill_action(
                 ),
             ])
         }
-        Ok(()) => Task::batch([
-            app.show_success_toast("技能卸载成功"),
-            load_current_tab(app),
-        ]),
+        Ok(()) => Task::batch([app.show_success_toast("技能卸载成功"), load_current_tab(app)]),
         Err(error) => {
             let label = match &action {
                 SkillActionKind::Install => "技能安装失败",
@@ -1741,13 +1726,8 @@ fn finish_skill_action(
     }
 }
 
-fn start_skill_cache_sync(
-    app: &mut App,
-    skill_id: u64,
-    refresh_detail: bool,
-) -> Task<Message> {
-    let Some(account_id) =
-        app.account.active_account().map(|account| account.id().to_string())
+fn start_skill_cache_sync(app: &mut App, skill_id: u64, refresh_detail: bool) -> Task<Message> {
+    let Some(account_id) = app.account.active_account().map(|account| account.id().to_string())
     else {
         return app.show_warning_toast("登录识矩账户后重试本地缓存同步");
     };
@@ -1755,9 +1735,7 @@ fn start_skill_cache_sync(
         app.expert_hub.clear_for_account(Some(account_id));
         return Task::none();
     }
-    let Some(generation) =
-        app.expert_hub.start_cache_sync(skill_id, refresh_detail)
-    else {
+    let Some(generation) = app.expert_hub.start_cache_sync(skill_id, refresh_detail) else {
         return Task::none();
     };
     Task::perform(
@@ -1783,9 +1761,7 @@ fn start_skill_cache_sync(
 }
 
 fn retry_skill_cache_sync(app: &mut App) -> Task<Message> {
-    let Some((skill_id, refresh_detail)) =
-        app.expert_hub.cache_sync.pending_retry_target()
-    else {
+    let Some((skill_id, refresh_detail)) = app.expert_hub.cache_sync.pending_retry_target() else {
         return Task::none();
     };
     Task::batch([
@@ -1801,8 +1777,7 @@ fn finish_skill_cache_sync(
     skill_id: u64,
     result: Result<SkillCacheSyncReport, String>,
 ) -> Task<Message> {
-    let refresh_detail =
-        app.expert_hub.cache_sync.syncing_refreshes_detail(generation, skill_id);
+    let refresh_detail = app.expert_hub.cache_sync.syncing_refreshes_detail(generation, skill_id);
     if app.expert_hub.account_id.as_deref() != Some(account_id)
         || refresh_detail.is_none()
         || !app.expert_hub.finish_cache_sync(generation, skill_id, result.is_ok())
@@ -1814,17 +1789,13 @@ fn finish_skill_cache_sync(
             app.show_success_toast("技能与本地缓存同步成功"),
             refresh_skill_cache_views(app, skill_id, refresh_detail.unwrap_or(false)),
         ]),
-        Err(error) => app.show_warning_toast(format!(
-            "服务端已更新，本地缓存待同步：{error}，请重试"
-        )),
+        Err(error) => {
+            app.show_warning_toast(format!("服务端已更新，本地缓存待同步：{error}，请重试"))
+        }
     }
 }
 
-fn refresh_skill_cache_views(
-    app: &mut App,
-    skill_id: u64,
-    refresh_detail: bool,
-) -> Task<Message> {
+fn refresh_skill_cache_views(app: &mut App, skill_id: u64, refresh_detail: bool) -> Task<Message> {
     if refresh_detail {
         return refresh_version_action_views(app, skill_id);
     }
@@ -1912,10 +1883,7 @@ fn refresh_shiju_package_version(app: &mut App) -> Task<Message> {
                 .map_err(|_| "识矩服务端版本格式无效".to_string())
         },
         move |result| {
-            Message::SkillHub(SkillHubMessage::ShijuPackageVersionRefreshed {
-                generation,
-                result,
-            })
+            Message::SkillHub(SkillHubMessage::ShijuPackageVersionRefreshed { generation, result })
         },
     )
 }

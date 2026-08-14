@@ -208,10 +208,7 @@ pub(super) fn handle_agent_step_start(
     if session_id.is_empty() {
         return Task::none();
     }
-    start_llm_timer_at(
-        app.get_session_runtime_mut(&session_id),
-        web_time::Instant::now(),
-    );
+    start_llm_timer_at(app.get_session_runtime_mut(&session_id), web_time::Instant::now());
     let mut session = load_session_or_default(app, session_id.clone());
     upsert_step_start(&mut session, step_index, created_ms, model, None);
     let save_task =
@@ -258,10 +255,7 @@ pub(super) fn handle_agent_step_finish(
     if session_id.is_empty() {
         return Task::none();
     }
-    pause_llm_timer_at(
-        app.get_session_runtime_mut(&session_id),
-        web_time::Instant::now(),
-    );
+    pause_llm_timer_at(app.get_session_runtime_mut(&session_id), web_time::Instant::now());
 
     if app.active_session_id.as_ref() == Some(&session_id) {
         app.usage.input_tokens += usage.input_tokens;

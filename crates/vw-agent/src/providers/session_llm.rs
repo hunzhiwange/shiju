@@ -4,11 +4,11 @@
 //! 原生目标直接走 `vw_gateway_client`；wasm 目标不支持本地 gateway 流式调用，因此显式
 //! 返回错误，避免表现为半可用的 provider。
 
+use crate::app::agent::multimodal::DISABLE_OCR_OPTION;
 use crate::app::agent::providers::traits::{
     ChatMessage, ChatRequest, ChatResponse, Provider, ProviderCapabilities, StreamChunk,
     StreamOptions, TokenUsage, ToolsPayload,
 };
-use crate::app::agent::multimodal::DISABLE_OCR_OPTION;
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream};
 

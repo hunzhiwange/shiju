@@ -454,7 +454,8 @@ pub fn builtin_agent_config(key: &str) -> Option<AgentDefinitionConfig> {
         hidden: spec.hidden,
         max_depth: spec.max_depth,
         allowed_tools: spec.allowed_tools.iter().map(|tool| (*tool).to_string()).collect(),
-        permission: serde_json::from_str(spec.permission).expect("builtin agent permission is valid JSON"),
+        permission: serde_json::from_str(spec.permission)
+            .expect("builtin agent permission is valid JSON"),
         max_iterations: spec.max_iterations,
         ..AgentDefinitionConfig::default()
     })
@@ -474,7 +475,8 @@ pub fn merged_agent_configs(
             continue;
         }
         if let Some(spec) = builtin_agent_spec(key) {
-            let mut builtin = builtin_agent_config(spec.key).expect("builtin spec has configuration");
+            let mut builtin =
+                builtin_agent_config(spec.key).expect("builtin spec has configuration");
             builtin.enabled &= value.enabled;
             if spec.allow_as_subagent && !value.allowed_tools.is_empty() {
                 builtin.allowed_tools.retain(|tool| value.allowed_tools.contains(tool));

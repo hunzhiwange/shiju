@@ -146,10 +146,7 @@ async fn skills_project_selection_refreshes_current_and_opens_other_project() {
             .any(|message| matches!(message, Message::Settings(SettingsMessage::SkillsRefresh)))
     );
 
-    let _ = update(
-        &mut app,
-        SettingsMessage::SkillsProjectSelected("/repo/other".to_string()),
-    );
+    let _ = update(&mut app, SettingsMessage::SkillsProjectSelected("/repo/other".to_string()));
 
     assert_eq!(app.project_path.as_deref(), Some("/repo/other"));
     assert_eq!(app.agents_settings.project_path.as_deref(), Some("/repo/other"));

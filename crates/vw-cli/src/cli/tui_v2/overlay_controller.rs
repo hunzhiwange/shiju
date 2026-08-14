@@ -7,8 +7,8 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use super::completion::slash_palette_overlay;
 use super::controller::{TuiControllerCommand, TuiOverlayCommand};
 use super::keymap::{KeymapLayerResult, scroll_to_tail};
-use super::model::settings_panel::SettingKey;
 use super::model::integration::IntegrationKind;
+use super::model::settings_panel::SettingKey;
 use super::model::{
     PermissionDecision, UiOverlay, UiOverlayKind, UiQuestionOverlay, UiTaskOverlay, UiTodoOverlay,
 };
@@ -115,10 +115,7 @@ fn workflow_label(value: &str) -> String {
         .to_string()
 }
 
-fn handle_background_tasks_overlay_key(
-    state: &mut TuiState,
-    key: KeyEvent,
-) -> KeymapLayerResult {
+fn handle_background_tasks_overlay_key(state: &mut TuiState, key: KeyEvent) -> KeymapLayerResult {
     if key.code == KeyCode::Esc {
         reduce_tui_state(state, TuiAction::OverlayPopped);
         return KeymapLayerResult::Handled(TuiControllerCommand::Continue);
@@ -214,17 +211,11 @@ fn handle_integration_overlay_key(state: &mut TuiState, key: KeyEvent) -> Keymap
             TuiOverlayCommand::IntegrationRefresh(panel),
         ));
     }
-    if matches!(
-        key.code,
-        KeyCode::Enter | KeyCode::Char(' ' | 't' | 'T' | 'd' | 'D')
-    ) {
+    if matches!(key.code, KeyCode::Enter | KeyCode::Char(' ' | 't' | 'T' | 'd' | 'D')) {
         let Some(UiOverlay::Integration(panel)) = state.overlays.active().cloned() else {
             return KeymapLayerResult::Pass;
         };
-        let command = if matches!(
-            key.code,
-            KeyCode::Enter | KeyCode::Char(' ' | 't' | 'T')
-        ) {
+        let command = if matches!(key.code, KeyCode::Enter | KeyCode::Char(' ' | 't' | 'T')) {
             if !panel
                 .items
                 .get(panel.selected)

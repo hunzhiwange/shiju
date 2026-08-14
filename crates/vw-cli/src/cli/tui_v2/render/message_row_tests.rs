@@ -1,9 +1,7 @@
 use ratatui::text::Line;
 
 use super::TuiTheme;
-use super::message_row::{
-    render_transcript_item_lines, render_transcript_item_lines_with_options,
-};
+use super::message_row::{render_transcript_item_lines, render_transcript_item_lines_with_options};
 use crate::cli::tui_v2::model::{
     UiAssistantMessage, UiErrorMessage, UiMessage, UiMessageBase, UiMessageId, UiStep, UiStepState,
     UiSystemMessage, UiSystemMessageLevel, UiThinkingBlock, UiThinkingPhase, UiTokenUsage,

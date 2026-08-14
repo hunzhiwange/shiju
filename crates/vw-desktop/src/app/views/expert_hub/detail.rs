@@ -48,13 +48,13 @@ fn installed_skill(app: &App, skill_id: u64) -> Option<&InstalledSkill> {
 fn is_installed(app: &App, skill_id: u64) -> bool {
     installed_skill(app, skill_id).is_some()
         || match &app.expert_hub.marketplace {
-        LoadState::Loaded(page) => page
-            .items
-            .iter()
-            .find(|skill| skill.id == skill_id)
-            .is_some_and(|skill| skill.is_installed),
-        _ => false,
-    }
+            LoadState::Loaded(page) => page
+                .items
+                .iter()
+                .find(|skill| skill.id == skill_id)
+                .is_some_and(|skill| skill.is_installed),
+            _ => false,
+        }
 }
 
 fn action_message(skill_id: u64, installed: bool) -> Message {
@@ -422,25 +422,14 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         (LoadState::Loaded(detail), LoadState::Loaded(versions)) => {
             loaded_view(app, detail, versions, None)
         }
-        (LoadState::Loaded(detail), LoadState::Error(error)) => loaded_view(
-            app,
-            detail,
-            &[],
-            Some(format!("版本列表加载失败：{error}")),
-        ),
-        (LoadState::Loaded(detail), LoadState::NeedsLogin) => loaded_view(
-            app,
-            detail,
-            &[],
-            Some("登录识矩账户后查看版本列表".to_string()),
-        ),
+        (LoadState::Loaded(detail), LoadState::Error(error)) => {
+            loaded_view(app, detail, &[], Some(format!("版本列表加载失败：{error}")))
+        }
+        (LoadState::Loaded(detail), LoadState::NeedsLogin) => {
+            loaded_view(app, detail, &[], Some("登录识矩账户后查看版本列表".to_string()))
+        }
         (LoadState::Loaded(detail), LoadState::Idle | LoadState::Loading { .. }) => {
-            loaded_view(
-                app,
-                detail,
-                &[],
-                Some("版本列表正在加载…".to_string()),
-            )
+            loaded_view(app, detail, &[], Some("版本列表正在加载…".to_string()))
         }
         (LoadState::Error(error), _) => status_view("技能详情加载失败", error.clone()),
         _ => status_view("正在加载技能详情", "正在同步技能信息与可下载版本…".to_string()),

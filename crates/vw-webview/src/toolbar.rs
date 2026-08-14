@@ -2,12 +2,9 @@
 
 pub(crate) const TOOLBAR_REGION_HEIGHT: u32 = 46;
 
-const ARROW_LEFT_ICON: &str =
-    include_str!("../../../assets/icons/bootstrap/arrow-left.svg");
-const ARROW_RIGHT_ICON: &str =
-    include_str!("../../../assets/icons/bootstrap/arrow-right.svg");
-const RELOAD_ICON: &str =
-    include_str!("../../../assets/icons/bootstrap/arrow-clockwise.svg");
+const ARROW_LEFT_ICON: &str = include_str!("../../../assets/icons/bootstrap/arrow-left.svg");
+const ARROW_RIGHT_ICON: &str = include_str!("../../../assets/icons/bootstrap/arrow-right.svg");
+const RELOAD_ICON: &str = include_str!("../../../assets/icons/bootstrap/arrow-clockwise.svg");
 const GLOBE_ICON: &str = include_str!("../../../assets/icons/bootstrap/globe.svg");
 const CLOSE_ICON: &str = include_str!("../../../assets/icons/bootstrap/x-lg.svg");
 
@@ -184,9 +181,7 @@ pub(crate) fn toolbar_html() -> String {
 
 pub(crate) fn toolbar_address_script(address: &str) -> Result<String, serde_json::Error> {
     let address = serde_json::to_string(address)?;
-    Ok(format!(
-        "window.VibeWindowToolbar?.setAddress({address});"
-    ))
+    Ok(format!("window.VibeWindowToolbar?.setAddress({address});"))
 }
 
 pub(crate) fn parse_toolbar_ipc_message(message: &str) -> Option<ToolbarAction> {

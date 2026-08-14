@@ -3,8 +3,8 @@ use super::tools::{
     tool_english_name, tool_group_meta, tool_group_order, tool_in_preset, tool_matches_any,
     tool_meta, tool_policy_message, tool_preset_meta,
 };
-use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::Message;
+use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use iced::advanced::widget::Tree;
 use iced::widget::button;
 use iced::{Background, Color, Theme};
@@ -473,15 +473,8 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         let optional_tree = Tree::new(optional_view.as_widget());
         let optional_list = &optional_tree.children[2];
         // tabs + select-all row + preset section + preset buttons + grouped cards
-        assert!(
-            optional_list.children.len() >= 4,
-            "optional tab should keep preset controls"
-        );
-        assert_eq!(
-            optional_list.children[0].children.len(),
-            2,
-            "optional/builtin tab buttons"
-        );
+        assert!(optional_list.children.len() >= 4, "optional tab should keep preset controls");
+        assert_eq!(optional_list.children[0].children.len(), 2, "optional/builtin tab buttons");
     }
 
     app.agents_settings.active_tools_list_tab = AGENT_TOOLS_BUILTIN_TAB.to_string();
@@ -504,9 +497,9 @@ fn tools_view_splits_optional_and_builtin_tabs() {
 
 #[test]
 fn builtin_tool_cards_are_locked_and_badged() {
+    use crate::app::Message;
     use crate::app::message::settings::{AgentsMessage, SettingsMessage};
     use crate::app::state::AGENT_TOOLS_BUILTIN_TAB;
-    use crate::app::Message;
 
     let (mut app, _) = crate::app::App::new();
     let mut entry = app.agents_settings.entries[0].clone();
@@ -545,9 +538,5 @@ fn builtin_tool_cards_are_locked_and_badged() {
     assert_eq!(first_group_cards.children.len(), 1);
     let card_content = &first_group_cards.children[0].children[0];
     let title_row = &card_content.children[0];
-    assert_eq!(
-        title_row.children.len(),
-        2,
-        "builtin card title should include name + 内置 badge"
-    );
+    assert_eq!(title_row.children.len(), 2, "builtin card title should include name + 内置 badge");
 }

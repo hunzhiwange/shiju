@@ -1,25 +1,22 @@
 use std::fs;
 
-use crossterm::event::{
-    Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers,
-};
+use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
 
-use super::controller::{
-    TuiController, TuiControllerCommand, TuiControllerEvent,
-};
+use super::controller::{TuiController, TuiControllerCommand, TuiControllerEvent};
 use super::model::{
     TranscriptEffectIntent, UiAssistantMessage, UiMessage, UiMessageBase, UiMessageId,
     UiTokenUsage, UiToolCall, UiToolCallState, UiTurnTerminal, UiUserMessage,
 };
 use super::state::TuiState;
 
-fn key(controller: &mut TuiController, state: &mut TuiState, code: KeyCode) -> TuiControllerCommand {
+fn key(
+    controller: &mut TuiController,
+    state: &mut TuiState,
+    code: KeyCode,
+) -> TuiControllerCommand {
     controller.handle_event(
         state,
-        TuiControllerEvent::Terminal(CrosstermEvent::Key(KeyEvent::new(
-            code,
-            KeyModifiers::NONE,
-        ))),
+        TuiControllerEvent::Terminal(CrosstermEvent::Key(KeyEvent::new(code, KeyModifiers::NONE))),
     )
 }
 
@@ -108,10 +105,8 @@ fn tui_transcript_mode_matches_reference_navigation_search_and_exit() {
     key(&mut controller, &mut state, KeyCode::Char('N'));
     assert_eq!(state.transcript_mode.selected_match, Some(0));
 
-    controller.handle_event(
-        &mut state,
-        TuiControllerEvent::Terminal(CrosstermEvent::Resize(80, 12)),
-    );
+    controller
+        .handle_event(&mut state, TuiControllerEvent::Terminal(CrosstermEvent::Resize(80, 12)));
     assert_eq!(state.transcript_mode.viewport_rows, 10);
     key(&mut controller, &mut state, KeyCode::Char('G'));
     assert!(state.transcript_mode.show_all);
@@ -129,9 +124,8 @@ fn tui_transcript_mode_matches_reference_navigation_search_and_exit() {
     }
     fs::remove_file(&path).expect("remove owned dump");
 
-    let TuiControllerCommand::TranscriptEffect(
-        TranscriptEffectIntent::OpenExternalEditor { path },
-    ) = key(&mut controller, &mut state, KeyCode::Char('v'))
+    let TuiControllerCommand::TranscriptEffect(TranscriptEffectIntent::OpenExternalEditor { path }) =
+        key(&mut controller, &mut state, KeyCode::Char('v'))
     else {
         panic!("editor should return a safe path intent");
     };

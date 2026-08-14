@@ -2,8 +2,8 @@ use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};
 
-use super::workspace_mode;
 use super::widgets;
+use super::workspace_mode;
 use crate::app::App;
 use crate::app::state::WorkspaceMode;
 

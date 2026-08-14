@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::App;
+use crate::app::state::MemorySettingsTab;
 
 fn app() -> App {
     App::new().0
@@ -38,6 +39,26 @@ fn update_ignores_unrelated_messages_and_refresh_clears_only_the_error() {
     apply(&mut app, MemoryMessage::Refresh);
     assert_eq!(app.memory_settings.backend, "postgres");
     assert!(app.memory_settings.save_error.is_none());
+}
+
+#[test]
+fn tab_selection_updates_only_visible_memory_section() {
+    let mut app = app();
+    app.memory_settings.save_error = Some("keep".to_string());
+
+    apply(&mut app, MemoryMessage::TabSelected(MemorySettingsTab::Embedding));
+    assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::Embedding);
+    assert_eq!(app.memory_settings.save_error.as_deref(), Some("keep"));
+
+    apply(&mut app, MemoryMessage::TabSelected(MemorySettingsTab::Qdrant));
+    assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::Embedding);
+
+    apply(&mut app, MemoryMessage::BackendChanged("qdrant".to_string()));
+    apply(&mut app, MemoryMessage::TabSelected(MemorySettingsTab::Qdrant));
+    assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::Qdrant);
+
+    apply(&mut app, MemoryMessage::BackendChanged("sqlite".to_string()));
+    assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::General);
 }
 
 #[test]

@@ -358,8 +358,10 @@ pub(crate) async fn run_session_processor_for_channel(
     let mut req = req;
     if req.persist_app_session_artifacts && req.app_session_scope.is_none() {
         req.app_session_scope =
-            crate::app::agent::session::processor::app_session_scope_from_root_async(req.root.as_deref())
-                .await;
+            crate::app::agent::session::processor::app_session_scope_from_root_async(
+                req.root.as_deref(),
+            )
+            .await;
     }
 
     // 创建无界通道用于事件传递

@@ -5,8 +5,8 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest, AgentSchedulerCreateTaskRequest,
     AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
-    AgentSchedulerOutboxDrainRequest, AgentSchedulerTaskBoardEventsResponse,
-    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerTaskGraphEdgeDto,
+    AgentSchedulerOutboxDrainRequest, AgentSchedulerReplaceTaskGraphRequest,
+    AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskGraphEdgeDto,
     AgentSchedulerTaskMetadataPatchDto, AgentSchedulerTaskMetadataUpdateRequest,
     AgentSchedulerUpsertTeamRequest, AgentSchedulerUpsertWorkerRequest, AgentSchedulerWakeRequest,
     AgentSchedulerWorkerRunEventKindDto, AgentSchedulerWorkerRunEventRequest, AgentTaskKindDto,
@@ -32,8 +32,7 @@ fn scheduler_scope(project_id: &str) -> AgentSchedulerScopeDto {
 async fn agent_scheduler_client_reads_and_replaces_task_graph() {
     let tenant = TenantScope::new("platform-graph", "company-graph").expect("tenant scope");
     let scope = AgentSchedulerScopeDto::new(
-        ProjectScope::new(tenant.clone(), ProjectId::from("project/one ?"))
-            .expect("project scope"),
+        ProjectScope::new(tenant.clone(), ProjectId::from("project/one ?")).expect("project scope"),
     );
     let server = test_support::server_with_tenant_scope(
         vec![
@@ -65,11 +64,8 @@ async fn agent_scheduler_client_reads_and_replaces_task_graph() {
         }],
     };
 
-    let snapshot = server
-        .client()
-        .agent_scheduler_task_graph(&scope)
-        .await
-        .expect("read task graph");
+    let snapshot =
+        server.client().agent_scheduler_task_graph(&scope).await.expect("read task graph");
     let replaced = server
         .client()
         .agent_scheduler_replace_task_graph(&scope, &replace)

@@ -77,10 +77,7 @@ fn session_chat(app: &App, session_id: &str) -> Vec<crate::app::models::ChatMess
     }
 }
 
-fn plan_run_controls(
-    app: &App,
-    sessions: &[&Info],
-) -> HashMap<String, PlanRunSessionControl> {
+fn plan_run_controls(app: &App, sessions: &[&Info]) -> HashMap<String, PlanRunSessionControl> {
     let mut controls = HashMap::new();
     for message in &app.chat {
         for control in plan_run_session_controls_from_content(&message.content) {
@@ -207,8 +204,10 @@ pub(super) fn agent_sessions_badge_style(
     status: iced::widget::button::Status,
 ) -> iced::widget::button::Style {
     let primary = theme.extended_palette().primary.base.color;
-    let hovered =
-        matches!(status, iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed);
+    let hovered = matches!(
+        status,
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed
+    );
     let background_alpha = if theme_is_dark(theme) {
         if hovered { 0.24 } else { 0.16 }
     } else if hovered {
@@ -233,20 +232,11 @@ pub(super) fn agent_sessions_badge_style(
     }
 }
 
-pub(super) fn agent_sessions_popover_style(
-    theme: &Theme,
-) -> iced::widget::container::Style {
+pub(super) fn agent_sessions_popover_style(theme: &Theme) -> iced::widget::container::Style {
     let dark = theme_is_dark(theme);
-    let background = if dark {
-        Color::from_rgb8(30, 32, 38)
-    } else {
-        Color::from_rgb8(250, 251, 253)
-    };
-    let border = if dark {
-        Color::from_rgb8(66, 70, 80)
-    } else {
-        Color::from_rgb8(218, 223, 231)
-    };
+    let background =
+        if dark { Color::from_rgb8(30, 32, 38) } else { Color::from_rgb8(250, 251, 253) };
+    let border = if dark { Color::from_rgb8(66, 70, 80) } else { Color::from_rgb8(218, 223, 231) };
 
     iced::widget::container::Style {
         background: Some(Background::Color(background)),
@@ -296,8 +286,10 @@ pub(super) fn agent_sessions_stop_style(
     status: iced::widget::button::Status,
 ) -> iced::widget::button::Style {
     let danger = theme.extended_palette().danger.base.color;
-    let hovered =
-        matches!(status, iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed);
+    let hovered = matches!(
+        status,
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed
+    );
     iced::widget::button::Style {
         background: Some(Background::Color(danger.scale_alpha(if hovered { 0.20 } else { 0.10 }))),
         text_color: danger,
@@ -334,10 +326,7 @@ pub(super) fn agent_session_stop_message(child: &AgentChildSession) -> Option<Me
     Some(Message::Chat(message::ChatMessage::StopPlanRun(task_id.to_string())))
 }
 
-fn agent_session_row<'a>(
-    app: &App,
-    child: &AgentChildSession,
-) -> Element<'a, Message> {
+fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Message> {
     let running_color = Color::from_rgb8(96, 165, 250);
     let title = compact_and_truncate(&child.title, TITLE_MAX_CHARS);
     let task = compact_and_truncate(&child.task, TASK_MAX_CHARS);
@@ -345,22 +334,16 @@ fn agent_session_row<'a>(
 
     let title_line = row![
         text(title).size(12).width(Length::Fill).style(|theme: &Theme| {
-            iced::widget::text::Style {
-                color: Some(theme.palette().text.scale_alpha(0.96)),
-            }
+            iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.96)) }
         }),
-        container(text(agent).size(9))
-            .padding([2, 6])
-            .style(move |_theme: &Theme| iced::widget::container::Style {
+        container(text(agent).size(9)).padding([2, 6]).style(move |_theme: &Theme| {
+            iced::widget::container::Style {
                 background: Some(Background::Color(running_color.scale_alpha(0.14))),
-                border: Border {
-                    width: 0.0,
-                    color: Color::TRANSPARENT,
-                    radius: 999.0.into(),
-                },
+                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
                 text_color: Some(running_color),
                 ..Default::default()
-            }),
+            }
+        }),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -369,18 +352,12 @@ fn agent_session_row<'a>(
     let running = row![
         text(spinner_frame(app.status_animation_frame))
             .size(10)
-            .style(move |_theme: &Theme| iced::widget::text::Style {
-                color: Some(running_color),
-            }),
+            .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(running_color) }),
         text(status_label).size(10).style(move |_theme: &Theme| {
-            iced::widget::text::Style {
-                color: Some(running_color),
-            }
+            iced::widget::text::Style { color: Some(running_color) }
         }),
         text(task).size(10).width(Length::Fill).style(|theme: &Theme| {
-            iced::widget::text::Style {
-                color: Some(theme.palette().text.scale_alpha(0.62)),
-            }
+            iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.62)) }
         }),
     ]
     .spacing(5)
@@ -394,13 +371,11 @@ fn agent_session_row<'a>(
         Some(message) => row_button.on_press(message).into(),
         None => row_button.into(),
     };
-    let mut session_row = row![
-        Space::new().width(Length::Fixed((child.depth as f32) * 14.0)),
-        row_button,
-    ]
-    .spacing(6)
-    .align_y(Alignment::Center)
-    .width(Length::Fill);
+    let mut session_row =
+        row![Space::new().width(Length::Fixed((child.depth as f32) * 14.0)), row_button,]
+            .spacing(6)
+            .align_y(Alignment::Center)
+            .width(Length::Fill);
     if let Some(stop_message) = agent_session_stop_message(child) {
         session_row = session_row.push(
             button(text("停止").size(10))
@@ -419,9 +394,9 @@ fn agent_session_row<'a>(
                 .size(12)
                 .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
         )
-            .padding([6, 10])
-            .max_width(320.0)
-            .style(super::styles::tooltip_dark_style);
+        .padding([6, 10])
+        .max_width(320.0)
+        .style(super::styles::tooltip_dark_style);
         Tooltip::new(session_row, tooltip, TooltipPosition::Top).gap(6.0).into()
     }
 }
@@ -432,9 +407,7 @@ pub(super) fn agent_sessions_popover<'a>(
 ) -> Element<'a, Message> {
     let header = row![
         text("工作中的子代理会话").size(13).style(|theme: &Theme| {
-            iced::widget::text::Style {
-                color: Some(theme.palette().text.scale_alpha(0.96)),
-            }
+            iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.96)) }
         }),
         Space::new().width(Length::Fill),
         text(children.len().to_string()).size(11).style(|theme: &Theme| {
@@ -480,11 +453,9 @@ pub(super) fn agent_sessions_entry<'a>(
     let running_color = Color::from_rgb8(96, 165, 250);
     let badge = button(
         row![
-            text(spinner_frame(app.status_animation_frame))
-                .size(11)
-                .style(move |_theme: &Theme| iced::widget::text::Style {
-                    color: Some(running_color),
-                }),
+            text(spinner_frame(app.status_animation_frame)).size(11).style(
+                move |_theme: &Theme| iced::widget::text::Style { color: Some(running_color) }
+            ),
             text(agent_sessions_badge_label(children.len())).size(11),
         ]
         .spacing(6)
@@ -492,9 +463,7 @@ pub(super) fn agent_sessions_entry<'a>(
     )
     .padding([5, 10])
     .style(agent_sessions_badge_style)
-    .on_press(Message::Chat(
-        message::ChatMessage::ToggleAgentSessionsPopover,
-    ));
+    .on_press(Message::Chat(message::ChatMessage::ToggleAgentSessionsPopover));
 
     let anchor = row![badge, Space::new().width(Length::Fill)]
         .align_y(Alignment::Center)
@@ -505,9 +474,7 @@ pub(super) fn agent_sessions_entry<'a>(
         AboveOverlay::new(anchor, popover)
             .show(app.show_agent_sessions_popover)
             .gap(6.0)
-            .on_close(Message::Chat(
-                message::ChatMessage::CloseAgentSessionsPopover,
-            ))
+            .on_close(Message::Chat(message::ChatMessage::CloseAgentSessionsPopover))
             .into(),
     )
 }

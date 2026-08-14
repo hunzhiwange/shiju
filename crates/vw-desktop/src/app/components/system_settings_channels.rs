@@ -22,9 +22,11 @@ use crate::app::components::system_settings_common::{
     settings_panel, settings_section_card, settings_text_input_style,
 };
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
+use crate::app::state::ChannelsSettingsTab;
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, container, row, text, text_input};
-use iced::{Alignment, Element, Length};
+use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::widget::{button, checkbox, column, container, row, scrollable, text, text_input};
+use iced::{Alignment, Background, Border, Color, Element, Length};
 
 use self::common::{LABEL_WIDTH, enabled_channels, number_row};
 
@@ -77,6 +79,97 @@ fn global_settings_panel(app: &App) -> Element<'_, Message> {
     .into()
 }
 
+fn tab_button(
+    tab: ChannelsSettingsTab,
+    active_tab: ChannelsSettingsTab,
+) -> Element<'static, Message> {
+    let active = tab == active_tab;
+
+    button(text(tab.label()).size(12))
+        .padding([7, 12])
+        .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(tab))))
+        .style(move |theme: &iced::Theme, status| {
+            let palette = theme.extended_palette();
+            let is_dark = theme.palette().background.r
+                + theme.palette().background.g
+                + theme.palette().background.b
+                < 1.5;
+            let background = if active {
+                Some(Background::Color(theme.palette().primary.scale_alpha(if is_dark {
+                    0.24
+                } else {
+                    0.14
+                })))
+            } else if matches!(status, iced::widget::button::Status::Hovered) {
+                Some(Background::Color(palette.background.weak.color.scale_alpha(if is_dark {
+                    0.7
+                } else {
+                    0.9
+                })))
+            } else {
+                None
+            };
+
+            iced::widget::button::Style {
+                background,
+                text_color: if active {
+                    theme.palette().primary
+                } else {
+                    theme.palette().text.scale_alpha(0.9)
+                },
+                border: Border {
+                    radius: 12.0.into(),
+                    width: 1.0,
+                    color: if active {
+                        theme.palette().primary.scale_alpha(0.42)
+                    } else if is_dark {
+                        palette.background.strong.color.scale_alpha(0.8)
+                    } else {
+                        Color::from_rgba8(15, 23, 42, 0.1)
+                    },
+                },
+                ..Default::default()
+            }
+        })
+        .into()
+}
+
+fn channel_tabs(active_tab: ChannelsSettingsTab) -> Element<'static, Message> {
+    let mut tabs = vec![
+        ChannelsSettingsTab::Global,
+        ChannelsSettingsTab::Telegram,
+        ChannelsSettingsTab::Discord,
+        ChannelsSettingsTab::Slack,
+        ChannelsSettingsTab::Mattermost,
+        ChannelsSettingsTab::Webhook,
+        ChannelsSettingsTab::IMessage,
+        ChannelsSettingsTab::Matrix,
+        ChannelsSettingsTab::Signal,
+        ChannelsSettingsTab::WhatsApp,
+        ChannelsSettingsTab::Linq,
+        ChannelsSettingsTab::Wati,
+        ChannelsSettingsTab::NextcloudTalk,
+    ];
+    #[cfg(not(target_arch = "wasm32"))]
+    tabs.push(ChannelsSettingsTab::Email);
+    tabs.extend([
+        ChannelsSettingsTab::Irc,
+        ChannelsSettingsTab::Lark,
+        ChannelsSettingsTab::Feishu,
+        ChannelsSettingsTab::DingTalk,
+        ChannelsSettingsTab::Qq,
+        ChannelsSettingsTab::Nostr,
+        ChannelsSettingsTab::ClawdTalk,
+    ]);
+
+    scrollable(
+        row(tabs.into_iter().map(|tab| tab_button(tab, active_tab)).collect::<Vec<_>>()).spacing(8),
+    )
+    .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4)))
+    .width(Length::Fill)
+    .into()
+}
+
 /// 构建或处理 `view` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -98,42 +191,44 @@ pub fn view(app: &App) -> Element<'_, Message> {
         format!("已启用：{}", enabled.join("、"))
     };
 
-    let mut content = column![
+    let active_tab = app.channels_settings.active_tab;
+    let selected_panel: Element<'_, Message> = match active_tab {
+        ChannelsSettingsTab::Global => global_settings_panel(app),
+        ChannelsSettingsTab::Telegram => basic_channels::telegram_panel(app),
+        ChannelsSettingsTab::Discord => basic_channels::discord_panel(app),
+        ChannelsSettingsTab::Slack => basic_channels::slack_panel(app),
+        ChannelsSettingsTab::Mattermost => basic_channels::mattermost_panel(app),
+        ChannelsSettingsTab::Webhook => basic_channels::webhook_panel(app),
+        ChannelsSettingsTab::IMessage => basic_channels::imessage_panel(app),
+        ChannelsSettingsTab::Matrix => basic_channels::matrix_panel(app),
+        ChannelsSettingsTab::Signal => basic_channels::signal_panel(app),
+        ChannelsSettingsTab::WhatsApp => extended_channels::whatsapp_panel(app),
+        ChannelsSettingsTab::Linq => extended_channels::linq_panel(app),
+        ChannelsSettingsTab::Wati => extended_channels::wati_panel(app),
+        ChannelsSettingsTab::NextcloudTalk => extended_channels::nextcloud_talk_panel(app),
+        #[cfg(not(target_arch = "wasm32"))]
+        ChannelsSettingsTab::Email => extended_channels::email_panel(app),
+        #[cfg(target_arch = "wasm32")]
+        ChannelsSettingsTab::Email => global_settings_panel(app),
+        ChannelsSettingsTab::Irc => extended_channels::irc_panel(app),
+        ChannelsSettingsTab::Lark => enterprise_channels::lark_panel(app),
+        ChannelsSettingsTab::Feishu => enterprise_channels::feishu_panel(app),
+        ChannelsSettingsTab::DingTalk => enterprise_channels::dingtalk_panel(app),
+        ChannelsSettingsTab::Qq => enterprise_channels::qq_panel(app),
+        ChannelsSettingsTab::Nostr => enterprise_channels::nostr_panel(app),
+        ChannelsSettingsTab::ClawdTalk => enterprise_channels::clawdtalk_panel(app),
+    };
+
+    let content = column![
         settings_page_intro("通道配置", "集中配置 CLI 与外部消息通道的接入参数。"),
         settings_section_card("已启用通道", "快速查看当前已打开的入口，便于核对多通道部署状态。"),
         settings_panel(column![text(enabled_text).size(12).style(settings_muted_text_style)]),
-        settings_section_card(
-            "全局参数",
-            "这些参数对所有消息通道生效，包括固定项目目录和消息超时预算。"
-        ),
-        global_settings_panel(app),
+        settings_section_card("通道", "选择一个通道进行配置。"),
+        channel_tabs(active_tab),
+        selected_panel,
     ]
     .spacing(16)
     .width(Length::Fill);
-
-    content = content.push(basic_channels::telegram_panel(app));
-    content = content.push(basic_channels::discord_panel(app));
-    content = content.push(basic_channels::slack_panel(app));
-    content = content.push(basic_channels::mattermost_panel(app));
-    content = content.push(basic_channels::webhook_panel(app));
-    content = content.push(basic_channels::imessage_panel(app));
-    content = content.push(basic_channels::matrix_panel(app));
-    content = content.push(basic_channels::signal_panel(app));
-    content = content.push(extended_channels::whatsapp_panel(app));
-    content = content.push(extended_channels::linq_panel(app));
-    content = content.push(extended_channels::wati_panel(app));
-    content = content.push(extended_channels::nextcloud_talk_panel(app));
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        content = content.push(extended_channels::email_panel(app));
-    }
-    content = content.push(extended_channels::irc_panel(app));
-    content = content.push(enterprise_channels::lark_panel(app));
-    content = content.push(enterprise_channels::feishu_panel(app));
-    content = content.push(enterprise_channels::dingtalk_panel(app));
-    content = content.push(enterprise_channels::qq_panel(app));
-    content = content.push(enterprise_channels::nostr_panel(app));
-    content = content.push(enterprise_channels::clawdtalk_panel(app));
 
     container(content).width(Length::Fill).into()
 }

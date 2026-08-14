@@ -1,6 +1,6 @@
 use super::assets::{
-    ImageAssetId, ImageAssetMetadata, ImageAssetScope, ImageAssetStore, ImageAssetVariant,
-    IMAGE_ASSET_METADATA_VERSION, asset_dir_for_tests,
+    IMAGE_ASSET_METADATA_VERSION, ImageAssetId, ImageAssetMetadata, ImageAssetScope,
+    ImageAssetStore, ImageAssetVariant, asset_dir_for_tests,
 };
 use super::image_compression::{compress_image_bytes, per_image_output_budget};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Rgb};
@@ -9,11 +9,7 @@ use std::path::Path;
 
 fn solid_png(width: u32, height: u32) -> Vec<u8> {
     let image = ImageBuffer::from_fn(width, height, |x, y| {
-        Rgb([
-            ((x.wrapping_mul(3)) % 256) as u8,
-            ((y.wrapping_mul(5)) % 256) as u8,
-            90,
-        ])
+        Rgb([((x.wrapping_mul(3)) % 256) as u8, ((y.wrapping_mul(5)) % 256) as u8, 90])
     });
     let mut bytes = Vec::new();
     DynamicImage::ImageRgb8(image)
@@ -34,9 +30,8 @@ fn put_fixture(
     let (mime, model_input) =
         compress_image_bytes(original, "image/png", per_image_output_budget(1))
             .expect("compress fixture for model input");
-    let image_id = store
-        .put(scope, original, "image/png", &model_input, &mime)
-        .expect("put image asset");
+    let image_id =
+        store.put(scope, original, "image/png", &model_input, &mime).expect("put image asset");
     (image_id, model_input, mime)
 }
 
@@ -65,20 +60,12 @@ fn same_content_in_scope_reuses_image_id() {
         path.contains(scope.path_segment().as_str()),
         "disk path must include controlled scope encoding"
     );
-    assert!(
-        path.contains(first_id.as_str()),
-        "disk path must include full content hash"
-    );
+    assert!(path.contains(first_id.as_str()), "disk path must include full content hash");
     let entries = std::fs::read_dir(asset_dir.parent().unwrap())
         .unwrap()
         .filter_map(Result::ok)
         .filter(|entry| entry.file_type().map(|ty| ty.is_dir()).unwrap_or(false))
-        .filter(|entry| {
-            !entry
-                .file_name()
-                .to_string_lossy()
-                .starts_with(".tmp-")
-        })
+        .filter(|entry| !entry.file_name().to_string_lossy().starts_with(".tmp-"))
         .count();
     assert_eq!(entries, 1, "same content must not publish a second asset directory");
 }
@@ -95,13 +82,8 @@ fn asset_cannot_be_resolved_across_scopes() {
 
     assert!(store.is_published(&scope_a, &image_id));
     assert!(!store.is_published(&scope_b, &image_id));
-    let err = store
-        .get_metadata(&scope_b, &image_id)
-        .expect_err("cross-scope resolve must fail");
-    assert!(
-        err.to_string().contains("not published"),
-        "unexpected error: {err}"
-    );
+    let err = store.get_metadata(&scope_b, &image_id).expect_err("cross-scope resolve must fail");
+    assert!(err.to_string().contains("not published"), "unexpected error: {err}");
     let err = store
         .read_variant(&scope_b, &image_id, ImageAssetVariant::Original)
         .expect_err("cross-scope original read must fail");
@@ -120,9 +102,8 @@ fn asset_keeps_original_and_normalized_variants() {
     assert_ne!(model_input, original, "fixture should exercise compressed model input");
     assert_eq!(mime, "image/jpeg");
 
-    let stored_original = store
-        .read_variant(&scope, &image_id, ImageAssetVariant::Original)
-        .expect("read original");
+    let stored_original =
+        store.read_variant(&scope, &image_id, ImageAssetVariant::Original).expect("read original");
     let stored_model = store
         .read_variant(&scope, &image_id, ImageAssetVariant::ModelInput)
         .expect("read model input");
@@ -195,17 +176,10 @@ fn partial_write_is_not_published() {
     std::fs::write(asset_dir.join("original.bin"), &original).unwrap();
     assert!(!store.is_published(&scope, &image_id));
     assert!(store.get_metadata(&scope, &image_id).is_err());
-    assert!(
-        store
-            .read_variant(&scope, &image_id, ImageAssetVariant::Original)
-            .is_err()
-    );
+    assert!(store.read_variant(&scope, &image_id, ImageAssetVariant::Original).is_err());
 
     // 带 `.tmp-` 前缀的半成品目录同样不可解析。
-    let staging = asset_dir
-        .parent()
-        .unwrap()
-        .join(format!(".tmp-{}-orphan", image_id.as_str()));
+    let staging = asset_dir.parent().unwrap().join(format!(".tmp-{}-orphan", image_id.as_str()));
     std::fs::create_dir_all(&staging).unwrap();
     std::fs::write(staging.join("original.bin"), &original).unwrap();
     std::fs::write(staging.join("model_input.bin"), &original).unwrap();
@@ -234,9 +208,7 @@ fn partial_write_is_not_published() {
     assert_eq!(published_id, image_id);
     assert!(store.is_published(&scope, &image_id));
     assert_eq!(
-        store
-            .read_variant(&scope, &image_id, ImageAssetVariant::Original)
-            .unwrap(),
+        store.read_variant(&scope, &image_id, ImageAssetVariant::Original).unwrap(),
         original
     );
 }
@@ -293,8 +265,8 @@ fn session_cleanup_is_idempotent() {
 
 #[test]
 fn many_historical_images_emit_only_bounded_text() {
-    use super::context::{ImageTurnContext, TrackedImage};
     use super::analysis::ImageAnalysisResult;
+    use super::context::{ImageTurnContext, TrackedImage};
 
     let mut images = Vec::new();
     for index in 0..6 {
@@ -308,8 +280,7 @@ fn many_historical_images_emit_only_bounded_text() {
             model_ref: "vision/reader".into(),
             prompt_version: "v1".into(),
         };
-        let reference =
-            super::analysis::format_image_reference_text(&image_id, &analysis);
+        let reference = super::analysis::format_image_reference_text(&image_id, &analysis);
         images.push(TrackedImage {
             image_id,
             is_current: false,
@@ -333,10 +304,13 @@ fn many_historical_images_emit_only_bounded_text() {
     assert!(!rewritten.contains("data:image"));
     assert!(!rewritten.contains("/tmp/"));
     assert_eq!(rewritten.matches("[VW_IMAGE:").count(), 6);
-    assert!(ctx.assert_provider_messages_safe(&[serde_json::json!({
-        "role": "user",
-        "content": rewritten,
-    })]).is_ok());
+    assert!(
+        ctx.assert_provider_messages_safe(&[serde_json::json!({
+            "role": "user",
+            "content": rewritten,
+        })])
+        .is_ok()
+    );
 }
 
 #[test]

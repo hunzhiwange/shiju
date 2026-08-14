@@ -3,14 +3,12 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use agent_client_protocol::{
-    Agent, InitializeRequest, LoadSessionRequest, NewSessionRequest, PromptRequest,
-    ProtocolVersion,
+    Agent, InitializeRequest, LoadSessionRequest, NewSessionRequest, PromptRequest, ProtocolVersion,
 };
 use async_trait::async_trait;
 
 use super::{
-    BackendError, BackendHistoryEntry, BackendRole, BackendSession, SessionBackend,
-    VibeWindowAgent,
+    BackendError, BackendHistoryEntry, BackendRole, BackendSession, SessionBackend, VibeWindowAgent,
 };
 
 #[derive(Default)]
@@ -77,9 +75,8 @@ async fn new_session_binds_backend_session_and_cwd() {
     let agent = VibeWindowAgent::new(FakeBackend::default());
     initialize(&agent).await;
 
-    let response = Agent::new_session(&agent, NewSessionRequest::new(root.path()))
-        .await
-        .expect("new session");
+    let response =
+        Agent::new_session(&agent, NewSessionRequest::new(root.path())).await.expect("new session");
     let binding = agent.session_binding(response.session_id.0.as_ref()).expect("binding");
 
     assert_eq!(response.session_id.0.as_ref(), binding.backend_session_id());

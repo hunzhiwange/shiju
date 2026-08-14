@@ -26,9 +26,8 @@ pub(crate) fn validated_open_effect(
     if relative.is_absolute() || has_sensitive_component(relative) {
         return Err("search target is outside the allowed workspace surface".to_string());
     }
-    let workspace = workspace
-        .canonicalize()
-        .map_err(|error| format!("workspace unavailable: {error}"))?;
+    let workspace =
+        workspace.canonicalize().map_err(|error| format!("workspace unavailable: {error}"))?;
     let target = workspace
         .join(relative)
         .canonicalize()
@@ -67,10 +66,7 @@ fn has_sensitive_component(path: &Path) -> bool {
         Component::ParentDir | Component::RootDir | Component::Prefix(_) => true,
         Component::Normal(value) => {
             let value = value.to_string_lossy().to_ascii_lowercase();
-            value == ".git"
-                || value == ".env"
-                || value.ends_with(".pem")
-                || value.ends_with(".key")
+            value == ".git" || value == ".env" || value.ends_with(".pem") || value.ends_with(".key")
         }
         Component::CurDir => false,
     })

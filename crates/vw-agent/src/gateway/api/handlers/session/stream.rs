@@ -136,10 +136,7 @@ impl StreamPatchRecorder {
 
 fn patch_line_stats(diffs: &[snapshot::FileDiff]) -> (i64, i64) {
     diffs.iter().fold((0_i64, 0_i64), |(additions, deletions), diff| {
-        (
-            additions.saturating_add(diff.additions),
-            deletions.saturating_add(diff.deletions),
-        )
+        (additions.saturating_add(diff.additions), deletions.saturating_add(diff.deletions))
     })
 }
 
@@ -218,10 +215,8 @@ fn build_stream_patch_part(
     files: Vec<String>,
     line_stats: Option<(i64, i64)>,
 ) -> agent_session::message::Part {
-    let (additions, deletions) =
-        line_stats.map_or((None, None), |(additions, deletions)| {
-            (Some(additions), Some(deletions))
-        });
+    let (additions, deletions) = line_stats
+        .map_or((None, None), |(additions, deletions)| (Some(additions), Some(deletions)));
     agent_session::message::Part::Patch(agent_session::message::PatchPart {
         base: stream_part_base(session_id, assistant_id, part_id),
         hash,
@@ -239,14 +234,7 @@ fn new_stream_patch_part(
     line_stats: Option<(i64, i64)>,
 ) -> Option<agent_session::message::Part> {
     let part_id = id::ascending(id::Prefix::Part, None).ok()?;
-    Some(build_stream_patch_part(
-        session_id,
-        assistant_id,
-        part_id,
-        hash,
-        files,
-        line_stats,
-    ))
+    Some(build_stream_patch_part(session_id, assistant_id, part_id, hash, files, line_stats))
 }
 
 fn tool_content_to_session_text(content: &str) -> String {
@@ -449,12 +437,10 @@ fn stream_payload_for_non_done_event(
     root_dir: &str,
 ) -> Option<Value> {
     match ev {
-        agent_session::processor::StreamEvent::ContextLoaded { paths } => {
-            Some(serde_json::json!({
-                "type": "chat.context_loaded",
-                "paths": paths
-            }))
-        }
+        agent_session::processor::StreamEvent::ContextLoaded { paths } => Some(serde_json::json!({
+            "type": "chat.context_loaded",
+            "paths": paths
+        })),
         agent_session::processor::StreamEvent::Delta(delta) => {
             assistant_text.push_str(&delta);
             Some(serde_json::json!({ "type": "chat.delta", "delta": delta }))
@@ -752,10 +738,7 @@ async fn start_gateway_chat_producer(
     let history_messages = messages;
     let root_dir = dir;
     let stream_session_id = session_id.as_ref().map(|value| value.0.clone()).unwrap_or_default();
-    let goal_evaluation = options
-        .get("goal_evaluation")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
+    let goal_evaluation = options.get("goal_evaluation").and_then(Value::as_bool).unwrap_or(false);
     let should_persist_app_session_artifacts =
         !stream_session_id.trim().is_empty() && !goal_evaluation;
     let app_session_scope = if should_persist_app_session_artifacts || goal_evaluation {
@@ -799,57 +782,56 @@ async fn start_gateway_chat_producer(
             };
             let (approval_prompt_tx, _approval_prompt_rx) = tokio::sync::mpsc::unbounded_channel();
 
-            let turn = agent_session::runtime::start_prompt(
-                agent_session::processor::Request {
-                    stream: 0,
-                    session: stream_session_id.clone(),
-                    query: query.clone(),
-                    root: Some(root_dir.clone()),
-                    model: model.clone(),
-                    options: options.clone(),
-                    approval: Some(approval_manager.clone()),
-                    channel_name: Some("desktop".to_string()),
-                    non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {
-                        sender: "desktop".to_string(),
-                        reply_target: approval_reply_target,
-                        prompt_tx: approval_prompt_tx,
-                    }),
-                    assistant_message_id: stream_message_ids
-                        .as_ref()
-                        .map(|ids| ids.assistant_id.clone()),
-                    history,
-                    persist_app_session_artifacts: should_persist_app_session_artifacts,
-                    app_session_scope: app_session_scope.clone(),
-                    abort_token: None,
-                    session_tools: crate::session::runtime::SessionToolset::default(),
-                },
-            );
+            let turn = agent_session::runtime::start_prompt(agent_session::processor::Request {
+                stream: 0,
+                session: stream_session_id.clone(),
+                query: query.clone(),
+                root: Some(root_dir.clone()),
+                model: model.clone(),
+                options: options.clone(),
+                approval: Some(approval_manager.clone()),
+                channel_name: Some("desktop".to_string()),
+                non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {
+                    sender: "desktop".to_string(),
+                    reply_target: approval_reply_target,
+                    prompt_tx: approval_prompt_tx,
+                }),
+                assistant_message_id: stream_message_ids
+                    .as_ref()
+                    .map(|ids| ids.assistant_id.clone()),
+                history,
+                persist_app_session_artifacts: should_persist_app_session_artifacts,
+                app_session_scope: app_session_scope.clone(),
+                abort_token: None,
+                session_tools: crate::session::runtime::SessionToolset::default(),
+            });
             let cancel = turn.cancel.clone();
             while let Ok(prompt_event) = turn.events.recv() {
                 let ev = processor_event_from_prompt_event(prompt_event);
-                    let timer_now = web_time::Instant::now();
-                    match &ev {
-                        agent_session::processor::StreamEvent::StepStart { .. } => {
-                            llm_timer.start_at(timer_now);
-                        }
-                        agent_session::processor::StreamEvent::StepFinish { .. } => {
-                            llm_timer.pause_at(timer_now);
-                        }
-                        _ => {}
+                let timer_now = web_time::Instant::now();
+                match &ev {
+                    agent_session::processor::StreamEvent::StepStart { .. } => {
+                        llm_timer.start_at(timer_now);
                     }
-                    let terminal = matches!(
-                        ev,
-                        agent_session::processor::StreamEvent::Done(_)
-                            | agent_session::processor::StreamEvent::Error(_)
-                    );
-                    if terminal {
-                        processing_timer.pause_at(timer_now);
+                    agent_session::processor::StreamEvent::StepFinish { .. } => {
                         llm_timer.pause_at(timer_now);
                     }
-                    let payload = match ev {
-                        agent_session::processor::StreamEvent::Done(usage) => {
-                            let processing_completed_ms = agent_session::session::now_ms();
-                            let (message_id, parent_message_id) = if should_persist_app_session_artifacts
+                    _ => {}
+                }
+                let terminal = matches!(
+                    ev,
+                    agent_session::processor::StreamEvent::Done(_)
+                        | agent_session::processor::StreamEvent::Error(_)
+                );
+                if terminal {
+                    processing_timer.pause_at(timer_now);
+                    llm_timer.pause_at(timer_now);
+                }
+                let payload = match ev {
+                    agent_session::processor::StreamEvent::Done(usage) => {
+                        let processing_completed_ms = agent_session::session::now_ms();
+                        let (message_id, parent_message_id) =
+                            if should_persist_app_session_artifacts
                                 && !(resume_history_only && query.trim().is_empty())
                             {
                                 let stream_message_ids = stream_message_ids.clone();
@@ -889,91 +871,90 @@ async fn start_gateway_chat_producer(
                             } else {
                                 (None, None)
                             };
-                            serde_json::json!({
-                                "type": "chat.done",
-                                "usage": usage,
-                                "message_id": message_id,
-                                "parent_message_id": parent_message_id
-                            })
-                        }
-                        agent_session::processor::StreamEvent::Error(error) => {
-                            let processing_completed_ms = agent_session::session::now_ms();
-                            if should_persist_app_session_artifacts
-                                && !(resume_history_only && query.trim().is_empty())
-                            {
-                                let stream_message_ids = stream_message_ids.clone();
-                                let patch_parts = patch_recorder.take_parts();
-                                let assistant_text = if assistant_text.trim().is_empty() {
-                                    error.as_str()
-                                } else {
-                                    assistant_text.as_str()
-                                };
-                                let assistant_error =
-                                    agent_session::message::AssistantError::Unknown {
-                                        message: error.clone(),
-                                    };
-                                let empty_usage = ui_models::TokenUsage {
-                                    input_tokens: 0,
-                                    output_tokens: 0,
-                                    cached_tokens: 0,
-                                    reasoning_tokens: 0,
-                                };
-                                let _ = runtime_handle.block_on(
-                                    crate::session::ui_store::with_tenant_scope(
-                                        tenant.clone(),
-                                        persist_stream_chat_turn_for_agent(
-                                            &stream_session_id,
-                                            &query,
-                                            assistant_text,
-                                            assistant_model.as_deref(),
-                                            &empty_usage,
-                                            Some("error"),
-                                            stream_message_ids.as_ref(),
-                                            &patch_parts,
-                                            &message_agent,
-                                            Some(assistant_error),
-                                            Some(agent_session::message::AssistantTime {
-                                                created: processing_started_ms,
-                                                completed: Some(processing_completed_ms),
-                                                processing_elapsed_ms: Some(
-                                                    processing_timer.elapsed_ms_at(timer_now),
-                                                ),
-                                                llm_elapsed_ms: Some(
-                                                    llm_timer.elapsed_ms_at(timer_now),
-                                                ),
-                                            }),
-                                        ),
+                        serde_json::json!({
+                            "type": "chat.done",
+                            "usage": usage,
+                            "message_id": message_id,
+                            "parent_message_id": parent_message_id
+                        })
+                    }
+                    agent_session::processor::StreamEvent::Error(error) => {
+                        let processing_completed_ms = agent_session::session::now_ms();
+                        if should_persist_app_session_artifacts
+                            && !(resume_history_only && query.trim().is_empty())
+                        {
+                            let stream_message_ids = stream_message_ids.clone();
+                            let patch_parts = patch_recorder.take_parts();
+                            let assistant_text = if assistant_text.trim().is_empty() {
+                                error.as_str()
+                            } else {
+                                assistant_text.as_str()
+                            };
+                            let assistant_error = agent_session::message::AssistantError::Unknown {
+                                message: error.clone(),
+                            };
+                            let empty_usage = ui_models::TokenUsage {
+                                input_tokens: 0,
+                                output_tokens: 0,
+                                cached_tokens: 0,
+                                reasoning_tokens: 0,
+                            };
+                            let _ = runtime_handle.block_on(
+                                crate::session::ui_store::with_tenant_scope(
+                                    tenant.clone(),
+                                    persist_stream_chat_turn_for_agent(
+                                        &stream_session_id,
+                                        &query,
+                                        assistant_text,
+                                        assistant_model.as_deref(),
+                                        &empty_usage,
+                                        Some("error"),
+                                        stream_message_ids.as_ref(),
+                                        &patch_parts,
+                                        &message_agent,
+                                        Some(assistant_error),
+                                        Some(agent_session::message::AssistantTime {
+                                            created: processing_started_ms,
+                                            completed: Some(processing_completed_ms),
+                                            processing_elapsed_ms: Some(
+                                                processing_timer.elapsed_ms_at(timer_now),
+                                            ),
+                                            llm_elapsed_ms: Some(
+                                                llm_timer.elapsed_ms_at(timer_now),
+                                            ),
+                                        }),
                                     ),
-                                );
-                            }
-                            serde_json::json!({ "type": "chat.error", "error": error })
+                                ),
+                            );
                         }
-                        other => stream_payload_for_non_done_event(
-                            other,
-                            &mut assistant_text,
-                            &mut assistant_finish_reason,
-                            &mut assistant_model,
-                            &mut patch_recorder,
-                            &stream_session_id,
-                            stream_message_ids.as_ref(),
-                            &root_dir,
-                        )
-                        .expect("done events are handled before non-done event encoding"),
-                    };
-                    let mut sink =
-                        sink_for_run.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-                    let accepted = (sink.send)(payload, terminal);
-                    if accepted && terminal {
-                        sink.sent_terminal = true;
+                        serde_json::json!({ "type": "chat.error", "error": error })
                     }
-                    drop(sink);
-                    if !accepted {
-                        cancel.cancel();
-                        break;
-                    }
-                    if terminal {
-                        break;
-                    }
+                    other => stream_payload_for_non_done_event(
+                        other,
+                        &mut assistant_text,
+                        &mut assistant_finish_reason,
+                        &mut assistant_model,
+                        &mut patch_recorder,
+                        &stream_session_id,
+                        stream_message_ids.as_ref(),
+                        &root_dir,
+                    )
+                    .expect("done events are handled before non-done event encoding"),
+                };
+                let mut sink =
+                    sink_for_run.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                let accepted = (sink.send)(payload, terminal);
+                if accepted && terminal {
+                    sink.sent_terminal = true;
+                }
+                drop(sink);
+                if !accepted {
+                    cancel.cancel();
+                    break;
+                }
+                if terminal {
+                    break;
+                }
             }
         }));
 

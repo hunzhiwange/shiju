@@ -71,9 +71,7 @@ fn split_reasoning_marker(raw: &str) -> Option<(&str, &str)> {
 
 fn reasoning_visible_content(content: Option<String>) -> Option<String> {
     content.map(|content| {
-        split_reasoning_marker(&content)
-            .map(|(visible, _)| visible.to_string())
-            .unwrap_or(content)
+        split_reasoning_marker(&content).map(|(visible, _)| visible.to_string()).unwrap_or(content)
     })
 }
 

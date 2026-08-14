@@ -3,10 +3,119 @@
 //! 注释说明当前文件的职责边界，帮助调用方理解数据流与错误传播，
 //! 不改变任何运行时行为。
 
-use super::{App, Arc, ChatMessage, ChatSession, ChatSessionMeta, TokenUsage};
+use super::{
+    App, Arc, ChatMessage, ChatSession, ChatSessionMeta, ChatSessionStep, PreparedChatUiChunk,
+    PreparedChatUiPhase, TokenUsage,
+};
+use serde_json::Value;
+use std::hash::{Hash, Hasher};
 
 /// 为 SharedChatMessages 领域数据提供更清晰的类型名称。
 pub type SharedChatMessages = Arc<[ChatMessage]>;
+
+/// 冷会话打开在后台完成后的完整提交单元。
+///
+/// 消息与其首屏派生状态由同一个后台任务产生，主线程只负责校验目标会话并移动安装。
+#[derive(Debug, Clone)]
+pub struct PreparedSessionOpen {
+    pub session_id: String,
+    pub messages: Vec<ChatMessage>,
+    pub message_ids: Vec<Option<String>>,
+    pub usage: TokenUsage,
+    pub steps: Vec<ChatSessionStep>,
+    pub calls: Vec<Value>,
+    pub updated_ms: u64,
+    pub content_signature: u64,
+    pub session_model: Option<String>,
+    pub base_ui_chunk: Option<PreparedChatUiChunk>,
+}
+
+/// 计算会话可见内容与消息标识的稳定进程内签名。
+pub fn session_content_signature(chat: &[ChatMessage], message_ids: &[Option<String>]) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    chat.len().hash(&mut hasher);
+    for (index, message) in chat.iter().enumerate() {
+        index.hash(&mut hasher);
+        message.hash(&mut hasher);
+        message_ids.get(index).hash(&mut hasher);
+    }
+    hasher.finish()
+}
+
+/// 在后台将已转换的历史和首个 UI 分块封装为一次冷打开提交。
+pub fn prepare_session_open(
+    session_id: String,
+    messages: Vec<ChatMessage>,
+    mut message_ids: Vec<Option<String>>,
+    usage: TokenUsage,
+    steps: Vec<ChatSessionStep>,
+    calls: Vec<Value>,
+    updated_ms: u64,
+    session_model: Option<String>,
+    show_reasoning_summary: bool,
+) -> PreparedSessionOpen {
+    if message_ids.len() != messages.len() {
+        message_ids = vec![None; messages.len()];
+    }
+    let content_signature = session_content_signature(&messages, &message_ids);
+    let base_ui_chunk = (!messages.is_empty()).then(|| {
+        let (_, chunk_end_idx) = super::chat_ui_chunk_bounds(messages.len(), 0);
+        let PreparedChatUiPhase::Base(chunk) = super::prepare_chat_ui_chunk_phase(
+            &messages[..chunk_end_idx],
+            0,
+            true,
+            show_reasoning_summary,
+        ) else {
+            unreachable!("base session preparation must return a base UI chunk");
+        };
+        chunk
+    });
+
+    PreparedSessionOpen {
+        session_id,
+        messages,
+        message_ids,
+        usage,
+        steps,
+        calls,
+        updated_ms,
+        content_signature,
+        session_model,
+        base_ui_chunk,
+    }
+}
+
+/// 在后台将 UI Store 会话移动为统一的冷打开提交。
+pub fn prepare_session_open_from_ui_store(
+    session: ChatSession,
+    show_reasoning_summary: bool,
+) -> PreparedSessionOpen {
+    let ChatSession { id, messages, message_ids, calls, steps, updated_ms, .. } = session;
+    let usage = session_usage_from_steps(&steps);
+    let session_model = steps.iter().rev().find_map(|step| step.model.clone());
+    prepare_session_open(
+        id,
+        messages,
+        message_ids,
+        usage,
+        steps,
+        calls,
+        updated_ms,
+        session_model,
+        show_reasoning_summary,
+    )
+}
+
+fn session_usage_from_steps(steps: &[ChatSessionStep]) -> TokenUsage {
+    let mut usage = TokenUsage::default();
+    for step in steps {
+        usage.input_tokens += step.usage.input_tokens;
+        usage.output_tokens += step.usage.output_tokens;
+        usage.cached_tokens += step.usage.cached_tokens;
+        usage.reasoning_tokens += step.usage.reasoning_tokens;
+    }
+    usage
+}
 
 /// 执行 shared_chat_messages 对应的领域操作。
 ///
@@ -48,14 +157,7 @@ pub fn build_session_previews(
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn session_usage(session: &ChatSession) -> TokenUsage {
-    let mut usage = TokenUsage::default();
-    for step in &session.steps {
-        usage.input_tokens += step.usage.input_tokens;
-        usage.output_tokens += step.usage.output_tokens;
-        usage.cached_tokens += step.usage.cached_tokens;
-        usage.reasoning_tokens += step.usage.reasoning_tokens;
-    }
-    usage
+    session_usage_from_steps(&session.steps)
 }
 
 impl App {

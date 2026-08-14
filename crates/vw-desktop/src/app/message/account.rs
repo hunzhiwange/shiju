@@ -9,9 +9,7 @@ use crate::app::session_gateway::{
     gateway_shiju_account_profile_async, gateway_shiju_account_update_async,
 };
 use crate::app::skill_hub::{ShijuKeySyncOutcome, sync_shiju_key};
-use crate::app::state::{
-    AccountOperation, AccountPasswordEditorState, AccountProfileEditorState,
-};
+use crate::app::state::{AccountOperation, AccountPasswordEditorState, AccountProfileEditorState};
 use crate::app::{App, Message};
 use iced::Task;
 use std::time::Duration;
@@ -453,10 +451,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             start_browser_login_task(generation)
         }
         AccountMessage::CancelBrowserLogin => {
-            if !matches!(
-                &app.account.operation,
-                AccountOperation::WaitingAuthorization { .. }
-            ) {
+            if !matches!(&app.account.operation, AccountOperation::WaitingAuthorization { .. }) {
                 return Task::none();
             }
             app.account.cancel();
@@ -511,10 +506,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
         }
         AccountMessage::LoginTimedOut { generation } => {
             if !app.account.is_current(generation)
-                || !matches!(
-                    &app.account.operation,
-                    AccountOperation::WaitingAuthorization { .. }
-                )
+                || !matches!(&app.account.operation, AccountOperation::WaitingAuthorization { .. })
             {
                 return Task::none();
             }
@@ -539,8 +531,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 }
                 Ok(LoginPoll::Approved(skey)) => {
                     app.account.operation = AccountOperation::Validating;
-                    let validation =
-                        validate_task(skey, generation, AccountOrigin::BrowserLogin);
+                    let validation = validate_task(skey, generation, AccountOrigin::BrowserLogin);
                     let feedback = app.show_info_toast("授权成功，正在加载账户信息");
                     Task::batch([validation, feedback])
                 }

@@ -12,22 +12,18 @@ use super::{
     prompt_cursor_line_column, prompt_line_prefix, prompt_mode_label, prompt_shortcut_hint,
     queue_command_pill, render_prompt_value_lines, sidebar_lines, step_state_label,
     step_timing_line, terminal_label, terminal_tone, tone_color, truncate_label, truncate_start,
-    usize_to_u16,
-    visible_prompt_suggestion_window, zh_sticky_notice, zh_unseen_divider_label,
+    usize_to_u16, visible_prompt_suggestion_window, zh_sticky_notice, zh_unseen_divider_label,
     zh_unseen_pill_label, zh_window_sticky_label,
 };
 use crate::cli::session::GitWorkspaceStatus;
 use crate::cli::tui_v2::completion::{CompletionCatalogItem, CompletionKind};
 use crate::cli::tui_v2::editor::EditorSelection;
+use crate::cli::tui_v2::model::integration::{IntegrationItem, IntegrationKind, IntegrationPanel};
 use crate::cli::tui_v2::model::overlay::{UiCommandPaletteOverlay, UiPaletteItem};
-use crate::cli::tui_v2::model::integration::{
-    IntegrationItem, IntegrationKind, IntegrationPanel,
-};
 use crate::cli::tui_v2::model::session_mode::SessionExecutionSnapshot;
 use crate::cli::tui_v2::model::{
-    McpServerTransport, PromptMode, PromptSubmission, PromptSubmissionStatus,
-    QueuedPromptCommand, QueuedPromptCommandKind,
-    UiConfirmIntent, UiConfirmOverlay, UiErrorOverlay, UiMcpOverlay,
+    McpServerTransport, PromptMode, PromptSubmission, PromptSubmissionStatus, QueuedPromptCommand,
+    QueuedPromptCommandKind, UiConfirmIntent, UiConfirmOverlay, UiErrorOverlay, UiMcpOverlay,
     UiMcpServerInfo, UiMemoryEntry, UiMemoryOverlay, UiMessage, UiMessageBase, UiMessageId,
     UiOverlay, UiOverlayKind, UiQuestionOption, UiQuestionOverlay, UiQuestionPrompt,
     UiQuestionToolContext, UiSearchMatch, UiSearchOverlay, UiStepState, UiTaskOverlay,
@@ -95,10 +91,7 @@ fn prompt_footer_renders_below_border_without_background_fills() {
     assert!(status_y > input_border_y, "status must render after the input border");
     assert!(shortcut_y > status_y, "shortcut hint must render after the status row");
     assert!(
-        buffer
-            .content()
-            .iter()
-            .all(|cell| cell.bg == Color::Reset),
+        buffer.content().iter().all(|cell| cell.bg == Color::Reset),
         "root, panels, pills, and selected completions must not fill backgrounds"
     );
     assert!(
@@ -158,10 +151,7 @@ fn transcript_scrollbar_is_visible_and_tracks_viewport() {
 fn rendered_scrollbar_thumb_rows(state: &TuiState, width: u16, height: u16) -> Vec<u16> {
     let backend = TestBackend::new(width, height);
     let mut terminal = Terminal::new(backend).expect("test terminal");
-    let renderer = super::TuiRenderer::for_capabilities(
-        TerminalCapabilities::default(),
-        false,
-    );
+    let renderer = super::TuiRenderer::for_capabilities(TerminalCapabilities::default(), false);
     terminal
         .draw(|frame| {
             renderer.render_frame(frame, state, "TUI", "local", 0);
@@ -171,11 +161,8 @@ fn rendered_scrollbar_thumb_rows(state: &TuiState, width: u16, height: u16) -> V
     let area = buffer.area;
     (area.top()..area.bottom())
         .filter(|y| {
-            (area.left()..area.right()).any(|x| {
-                buffer
-                    .cell((x, *y))
-                    .is_some_and(|cell| cell.symbol() == "█")
-            })
+            (area.left()..area.right())
+                .any(|x| buffer.cell((x, *y)).is_some_and(|cell| cell.symbol() == "█"))
         })
         .collect()
 }
@@ -373,13 +360,8 @@ fn prompt_queue_row_omits_workspace_directory() {
         })
         .expect("render prompt host");
 
-    let rendered = terminal
-        .backend()
-        .buffer()
-        .content()
-        .iter()
-        .map(|cell| cell.symbol())
-        .collect::<String>();
+    let rendered =
+        terminal.backend().buffer().content().iter().map(|cell| cell.symbol()).collect::<String>();
     assert!(!rendered.contains("目录"));
     assert!(!rendered.contains("must-not-render-in-queue"));
 }
@@ -429,10 +411,7 @@ fn file_picker_rows_use_compact_ascii_labels_and_explicit_selection_marker() {
     assert_eq!(selected_line.style.bg, None);
     assert!(!selected_line.style.add_modifier.contains(ratatui::style::Modifier::REVERSED));
     assert!(
-        selected_line
-            .spans
-            .first()
-            .is_some_and(|span| span.content.starts_with("> [F]")),
+        selected_line.spans.first().is_some_and(|span| span.content.starts_with("> [F]")),
         "selected file row keeps a visible marker"
     );
 }
@@ -986,10 +965,7 @@ fn prompt_multiline_viewport_starts_at_top_and_tracks_cursor() {
 fn prompt_selection_spans_follow_graphemes_across_lines() {
     let theme = super::TuiTheme::default();
     let mut state = TuiState::default();
-    reduce_tui_state(
-        &mut state,
-        TuiAction::PromptValueSet("中e\u{301}🙂\n下一行".to_string()),
-    );
+    reduce_tui_state(&mut state, TuiAction::PromptValueSet("中e\u{301}🙂\n下一行".to_string()));
     state.prompt.editor.selection = Some(EditorSelection { anchor: 1, active: 6 });
 
     let viewport = render_prompt_value_lines(&build_prompt_host(&state), theme, 3);

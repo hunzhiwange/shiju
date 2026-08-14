@@ -633,6 +633,7 @@ impl App {
             active_session_id,
             archived_session_ids: cfg_archived_session_ids,
             session_chat_cache: HashMap::new(),
+            session_view_cache: crate::app::session::SessionViewCache::new(),
             session_chat_message_id_cache: HashMap::new(),
             session_history_reset_boundaries: HashMap::new(),
             session_previews: HashMap::new(),
@@ -788,9 +789,7 @@ impl App {
                         api_key_input: route.api_key.unwrap_or_default(),
                     })
                     .collect(),
-                save_error: gateway_cfg_result
-                    .err()
-                    .map(config::server_config_unreachable_error),
+                save_error: gateway_cfg_result.err().map(config::server_config_unreachable_error),
                 save_success: false,
             },
             model_routes_settings: super::state::ModelRoutesSettingsState {
@@ -808,7 +807,8 @@ impl App {
                             .unwrap_or_else(|| "0".to_string()),
                     })
                     .collect(),
-                save_error: if model_routes_cfg.is_empty() && !query_classification_cfg.rules.is_empty()
+                save_error: if model_routes_cfg.is_empty()
+                    && !query_classification_cfg.rules.is_empty()
                 {
                     Some("已检测到 query_classification 规则，但桌面模型路由列表为空".to_string())
                 } else {
@@ -881,9 +881,7 @@ impl App {
             sop_settings: super::state::SopSettingsState {
                 sops_dir_input: sop_cfg.sops_dir.unwrap_or_default(),
                 default_execution_mode: match sop_cfg.default_execution_mode {
-                    vw_config_types::automation::SopExecutionMode::Auto => {
-                        "autonomous".to_string()
-                    }
+                    vw_config_types::automation::SopExecutionMode::Auto => "autonomous".to_string(),
                     _ => "supervised".to_string(),
                 },
                 max_finished_runs: sop_cfg.max_finished_runs.min(100_000),
@@ -942,7 +940,11 @@ impl App {
                     let v = runtime_cfg.wasm.tools_dir.trim().to_string();
                     if v.is_empty() { "tools/wasm".to_string() } else { v }
                 },
-                wasm_fuel_limit_input: runtime_cfg.wasm.fuel_limit.clamp(1, 100_000_000).to_string(),
+                wasm_fuel_limit_input: runtime_cfg
+                    .wasm
+                    .fuel_limit
+                    .clamp(1, 100_000_000)
+                    .to_string(),
                 wasm_memory_limit_mb_input: runtime_cfg
                     .wasm
                     .memory_limit_mb
@@ -979,9 +981,7 @@ impl App {
                     vw_config_types::runtime::WasmModuleHashPolicy::Disabled => {
                         "disabled".to_string()
                     }
-                    vw_config_types::runtime::WasmModuleHashPolicy::Warn => {
-                        "warn".to_string()
-                    }
+                    vw_config_types::runtime::WasmModuleHashPolicy::Warn => "warn".to_string(),
                     vw_config_types::runtime::WasmModuleHashPolicy::Enforce => {
                         "enforce".to_string()
                     }
@@ -1077,10 +1077,16 @@ impl App {
                     "default" | "new_window" | "new_tab" => {
                         browser_cfg.browser_open.trim().to_ascii_lowercase()
                     }
-                    _ => "default".to_string(),
+                    _ => "new_tab".to_string(),
                 },
                 session_name_input: browser_cfg.session_name.unwrap_or_default(),
-                backend: match browser_cfg.backend.trim().to_ascii_lowercase().replace('-', "_").as_str() {
+                backend: match browser_cfg
+                    .backend
+                    .trim()
+                    .to_ascii_lowercase()
+                    .replace('-', "_")
+                    .as_str()
+                {
                     "agent_browser" => "agent_browser".to_string(),
                     "rust_native" | "native" => "native".to_string(),
                     "computer_use" => "computer_use".to_string(),
@@ -1093,9 +1099,7 @@ impl App {
                 computer_use_endpoint: browser_cfg.computer_use.endpoint,
                 computer_use_api_key_input: browser_cfg.computer_use.api_key.unwrap_or_default(),
                 computer_use_timeout_ms_input: browser_cfg.computer_use.timeout_ms.to_string(),
-                computer_use_allow_remote_endpoint: browser_cfg
-                    .computer_use
-                    .allow_remote_endpoint,
+                computer_use_allow_remote_endpoint: browser_cfg.computer_use.allow_remote_endpoint,
                 computer_use_window_allowlist_input: browser_cfg
                     .computer_use
                     .window_allowlist
@@ -1145,9 +1149,13 @@ impl App {
                 trust_forwarded_headers: gateway_cfg.trust_forwarded_headers,
                 rate_limit_max_keys: gateway_cfg.rate_limit_max_keys.min(u32::MAX as usize) as u32,
                 idempotency_ttl_secs: gateway_cfg.idempotency_ttl_secs.min(u32::MAX as u64) as u32,
-                idempotency_max_keys: gateway_cfg.idempotency_max_keys.min(u32::MAX as usize) as u32,
+                idempotency_max_keys: gateway_cfg.idempotency_max_keys.min(u32::MAX as usize)
+                    as u32,
                 node_control_enabled: gateway_cfg.node_control.enabled,
-                node_control_auth_token_input: gateway_cfg.node_control.auth_token.unwrap_or_default(),
+                node_control_auth_token_input: gateway_cfg
+                    .node_control
+                    .auth_token
+                    .unwrap_or_default(),
                 node_control_allowed_node_ids_input: gateway_cfg
                     .node_control
                     .allowed_node_ids
@@ -1178,11 +1186,7 @@ impl App {
                 company_id_input: gateway_client_cfg.active_server().company_id.clone(),
                 skey_input: {
                     let active = gateway_client_cfg.active_server();
-                    if active.skey.trim().is_empty() {
-                        active.bearer_token
-                    } else {
-                        active.skey
-                    }
+                    if active.skey.trim().is_empty() { active.bearer_token } else { active.skey }
                 },
                 pending_remove_server_id: None,
                 show_help_modal: false,
@@ -1199,15 +1203,13 @@ impl App {
             },
 
             agents_settings: {
-                let mut entries =
-                    super::state::agent_settings_entries_from_config(&full_agent_cfg);
+                let mut entries = super::state::agent_settings_entries_from_config(&full_agent_cfg);
                 if let Some(main) = entries.iter_mut().find(|entry| entry.key == "main") {
                     main.compact_context = full_agent_cfg.agent.compact_context;
-                    main.max_tool_iterations = u32::try_from(
-                        full_agent_cfg.agent.max_tool_iterations,
-                    )
-                    .unwrap_or(u32::MAX)
-                    .max(1);
+                    main.max_tool_iterations =
+                        u32::try_from(full_agent_cfg.agent.max_tool_iterations)
+                            .unwrap_or(u32::MAX)
+                            .max(1);
                     main.max_history_messages =
                         full_agent_cfg.agent.max_history_messages.clamp(1, 1000) as u32;
                     main.parallel_tools = full_agent_cfg.agent.parallel_tools;
@@ -1258,9 +1260,8 @@ impl App {
                     .clamp(1, 10_000) as u32,
                 max_dead_letters: coordination_cfg.max_dead_letters.clamp(1, 10_000) as u32,
                 max_context_entries: coordination_cfg.max_context_entries.clamp(1, 20_000) as u32,
-                max_seen_message_ids: coordination_cfg
-                    .max_seen_message_ids
-                    .clamp(1, 100_000) as u32,
+                max_seen_message_ids: coordination_cfg.max_seen_message_ids.clamp(1, 100_000)
+                    as u32,
                 show_help_modal: false,
                 save_error: None,
             },
@@ -1270,6 +1271,7 @@ impl App {
 
             // ========== 记忆系统设置 ==========
             memory_settings: super::state::MemorySettingsState {
+                active_tab: super::state::MemorySettingsTab::General,
                 backend: match memory_cfg.backend.trim().to_ascii_lowercase().as_str() {
                     "sqlite" | "postgres" | "qdrant" | "markdown" | "none" => {
                         memory_cfg.backend.trim().to_ascii_lowercase()
@@ -1284,8 +1286,7 @@ impl App {
                 conversation_retention_days: memory_cfg.conversation_retention_days,
                 embedding_provider: memory_cfg.embedding_provider,
                 embedding_model: memory_cfg.embedding_model,
-                embedding_dimensions: memory_cfg.embedding_dimensions.min(u32::MAX as usize)
-                    as u32,
+                embedding_dimensions: memory_cfg.embedding_dimensions.min(u32::MAX as usize) as u32,
                 vector_weight: memory_cfg.vector_weight.clamp(0.0, 1.0) as f32,
                 keyword_weight: memory_cfg.keyword_weight.clamp(0.0, 1.0) as f32,
                 min_relevance_score: memory_cfg.min_relevance_score.clamp(0.0, 1.0) as f32,
@@ -1343,15 +1344,23 @@ impl App {
                     vw_config_types::security::SandboxBackend::Auto => "auto".to_string(),
                     vw_config_types::security::SandboxBackend::Landlock => "landlock".to_string(),
                     vw_config_types::security::SandboxBackend::Firejail => "firejail".to_string(),
-                    vw_config_types::security::SandboxBackend::Bubblewrap => "bubblewrap".to_string(),
+                    vw_config_types::security::SandboxBackend::Bubblewrap => {
+                        "bubblewrap".to_string()
+                    }
                     vw_config_types::security::SandboxBackend::Docker => "docker".to_string(),
                     vw_config_types::security::SandboxBackend::None => "none".to_string(),
                 },
                 sandbox_firejail_args: security_cfg.sandbox.firejail_args.clone(),
                 // 资源限制配置
                 resources_max_memory_mb: security_cfg.resources.max_memory_mb.clamp(32, 65_536),
-                resources_max_cpu_time_seconds: security_cfg.resources.max_cpu_time_seconds.clamp(1, 86_400),
-                resources_max_subprocesses: security_cfg.resources.max_subprocesses.clamp(1, 10_000),
+                resources_max_cpu_time_seconds: security_cfg
+                    .resources
+                    .max_cpu_time_seconds
+                    .clamp(1, 86_400),
+                resources_max_subprocesses: security_cfg
+                    .resources
+                    .max_subprocesses
+                    .clamp(1, 10_000),
                 resources_memory_monitoring: security_cfg.resources.memory_monitoring,
                 // 审计配置
                 audit_enabled: security_cfg.audit.enabled,
@@ -1383,7 +1392,9 @@ impl App {
                 // 系统调用异常检测配置
                 syscall_anomaly_enabled: security_cfg.syscall_anomaly.enabled,
                 syscall_anomaly_strict_mode: security_cfg.syscall_anomaly.strict_mode,
-                syscall_anomaly_alert_on_unknown_syscall: security_cfg.syscall_anomaly.alert_on_unknown_syscall,
+                syscall_anomaly_alert_on_unknown_syscall: security_cfg
+                    .syscall_anomaly
+                    .alert_on_unknown_syscall,
                 syscall_anomaly_max_denied_events_per_minute: security_cfg
                     .syscall_anomaly
                     .max_denied_events_per_minute
@@ -1440,7 +1451,9 @@ impl App {
                     let v = observability_cfg.runtime_trace_path.trim().to_string();
                     if v.is_empty() { "state/runtime-trace.jsonl".to_string() } else { v }
                 },
-                runtime_trace_max_entries: observability_cfg.runtime_trace_max_entries.clamp(1, 100_000) as u32,
+                runtime_trace_max_entries: observability_cfg
+                    .runtime_trace_max_entries
+                    .clamp(1, 100_000) as u32,
                 show_help_modal: false,
                 save_error: None,
             },
@@ -1587,6 +1600,8 @@ impl App {
             // ========== 查找结果标签页 ==========
             find_results_tabs: Vec::new(),
             active_find_results_tab_id: None,
+            find_results_tab_menu_id: None,
+            find_results_tab_menu_pos: None,
             tool_files_filter: String::new(),
             file_ref_hovered_index: None,
 
@@ -1691,12 +1706,9 @@ impl App {
                     .ok()
                     .flatten()
                     .and_then(|installation| installation.version);
-                let cached = crate::app::skill_hub::package_version_cache_path()
-                    .ok()
-                    .and_then(|path| {
-                        crate::app::skill_hub::load_package_version_cache(&path)
-                            .ok()
-                            .flatten()
+                let cached =
+                    crate::app::skill_hub::package_version_cache_path().ok().and_then(|path| {
+                        crate::app::skill_hub::load_package_version_cache(&path).ok().flatten()
                     });
                 let mut state = crate::app::skill_hub::ExpertHubState::default();
                 state.package_status =
@@ -1712,8 +1724,8 @@ impl App {
             task_board_tasks: Vec::new(),
             task_board_staff_config: crate::app::task::TaskBoardStaffConfig::default(),
             task_board_staff_config_workflow_id: None,
-            task_board_staff_projection:
-                crate::app::task::staff::TaskBoardStaffProjection::default(),
+            task_board_staff_projection: crate::app::task::staff::TaskBoardStaffProjection::default(
+            ),
             task_board_staff_config_load_error: None,
             task_board_staff_capability_catalog: Vec::new(),
             task_board_staff_capability_catalog_workflow_id: None,
@@ -1724,8 +1736,7 @@ impl App {
             task_board_staff_command_queue:
                 crate::app::task::staff::TaskBoardStaffCommandQueue::default(),
             task_board_staff_events: Vec::new(),
-            task_board_staff_feed_tab:
-                crate::app::state::TaskBoardStaffFeedTab::default(),
+            task_board_staff_feed_tab: crate::app::state::TaskBoardStaffFeedTab::default(),
             task_board_staff_task_status_filter: Vec::new(),
             task_board_staff_command_input: String::new(),
             task_board_staff_filter_member_id: None,
@@ -1741,8 +1752,7 @@ impl App {
                 crate::app::state::TaskBoardStaffOrchestrationTab::default(),
             task_board_create_modal_open: false,
             task_board_settings_modal_open: false,
-            task_board_settings_modal_tab:
-                crate::app::state::TaskBoardSettingsModalTab::default(),
+            task_board_settings_modal_tab: crate::app::state::TaskBoardSettingsModalTab::default(),
 
             // ========== 任务导入 ==========
             task_board_is_import_mode: false,

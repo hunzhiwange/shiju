@@ -66,9 +66,9 @@ use crate::app::{App, Message, message};
 use self::assistant_body::render_assistant_body;
 use self::render_cache::resolve_visible_text_and_copy_hash;
 use self::styles::{
-    COMPACT_ACTION_BUTTON_RADIUS, MESSAGE_META_TEXT_SIZE, PROCESSING_DURATION_TEXT_SIZE,
-    is_dark_theme, message_meta_text_color, processing_duration_separator_color,
-    processing_duration_text_color,
+    ASSISTANT_HEADER_BODY_SPACING, COMPACT_ACTION_BUTTON_RADIUS, MESSAGE_META_TEXT_SIZE,
+    PROCESSING_DURATION_TEXT_SIZE, PROCESSING_HEADER_RULE_SPACING, is_dark_theme,
+    message_meta_text_color, processing_duration_separator_color, processing_duration_text_color,
 };
 use self::text::{
     message_editor_body, message_text_body, session_control_selection_card,
@@ -413,7 +413,7 @@ pub fn message_view<'a>(
         body
     };
     let body = if assistant_like {
-        let mut assistant_content = column![].spacing(6);
+        let mut assistant_content = column![].spacing(ASSISTANT_HEADER_BODY_SPACING);
         if let Some(label) =
             processing_duration_label(processing_timing, live_processing_elapsed_ms)
         {
@@ -431,7 +431,7 @@ pub fn message_view<'a>(
                         }
                     })
             ]
-            .spacing(10);
+            .spacing(PROCESSING_HEADER_RULE_SPACING);
             assistant_content = assistant_content.push(processing_header);
         }
         assistant_content.push(body)

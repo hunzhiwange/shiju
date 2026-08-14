@@ -42,7 +42,10 @@ pub(super) fn render_diff_card(
                 lines.push(diff_line(line, '+', text.as_str(), theme.success, theme, width));
             }
             DiffLine::ContextFold(count) => {
-                lines.push(Line::styled(format!("    … {count} unchanged lines"), theme.muted_style()));
+                lines.push(Line::styled(
+                    format!("    … {count} unchanged lines"),
+                    theme.muted_style(),
+                ));
             }
         }
     }
@@ -71,10 +74,7 @@ fn diff_lines(old: &[String], new: &[String]) -> Vec<DiffLine> {
     let mut changes = Vec::new();
     let (mut old_index, mut new_index, mut unchanged) = (0usize, 0usize, 0usize);
     while old_index < old.len() || new_index < new.len() {
-        if old_index < old.len()
-            && new_index < new.len()
-            && old[old_index] == new[new_index]
-        {
+        if old_index < old.len() && new_index < new.len() && old[old_index] == new[new_index] {
             unchanged = unchanged.saturating_add(1);
             old_index = old_index.saturating_add(1);
             new_index = new_index.saturating_add(1);

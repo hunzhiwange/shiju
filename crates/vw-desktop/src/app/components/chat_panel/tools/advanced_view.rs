@@ -23,10 +23,9 @@ use super::{
     tool_permission_state, tool_permission_title, tool_text_editor,
 };
 use crate::app::components::chat_panel::utils::{
-    chat_context_target_key, chat_scroll_direction,
-    chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style,
-    eye_icon_svg_style, icon_svg, simplified_block_style, simplified_code_block_style,
-    truncate_chars, truncate_lines_middle,
+    chat_context_target_key, chat_scroll_direction, chat_secondary_muted_text_color,
+    copy_tooltip_content, eye_icon_button_style, eye_icon_svg_style, icon_svg,
+    simplified_block_style, simplified_code_block_style, truncate_chars, truncate_lines_middle,
 };
 
 pub(super) fn is_advanced_surface_tool(tool_name: &str) -> bool {
@@ -635,11 +634,10 @@ pub fn tool_advanced_view<'a>(
 
     // 浏览器成功态：单行摘要 + 右侧详情入口，完整结果进弹窗（对齐 skill/mcp/tool_search）。
     if collapse_success_body {
-        let summary_text = text(truncate_chars(summary.trim(), 80)).size(13).style(
-            |theme: &Theme| iced::widget::text::Style {
-                color: Some(chat_secondary_muted_text_color(theme)),
-            },
-        );
+        let summary_text =
+            text(truncate_chars(summary.trim(), 80)).size(13).style(|theme: &Theme| {
+                iced::widget::text::Style { color: Some(chat_secondary_muted_text_color(theme)) }
+            });
         return Some(
             mouse_area(
                 container(

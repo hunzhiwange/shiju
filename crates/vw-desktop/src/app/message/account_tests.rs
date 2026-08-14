@@ -165,35 +165,20 @@ fn account_password_edit_validates_redacts_and_ignores_late_results() {
     assert!(!format!("{input_message:?}").contains("message-password-secret"));
 
     let (mut app, _) = App::new();
-    app.account
-        .replace_repository(repository_with_account("password-edit-secret", "company-1"));
-    let draft = AccountPasswordDraft::new(
-        "current-password-123",
-        "new-password-456",
-        "new-password-456",
-    );
+    app.account.replace_repository(repository_with_account("password-edit-secret", "company-1"));
+    let draft =
+        AccountPasswordDraft::new("current-password-123", "new-password-456", "new-password-456");
     app.account.password_editor = AccountPasswordEditorState::Editing(draft.clone());
 
     let submit = update(&mut app, AccountMessage::SubmitPasswordEditor);
     assert_eq!(submit.units(), 1);
-    assert!(matches!(
-        app.account.password_editor,
-        AccountPasswordEditorState::Saving(_)
-    ));
+    assert!(matches!(app.account.password_editor, AccountPasswordEditorState::Saving(_)));
 
-    let stale = app
-        .account
-        .begin_password_editor(AccountPasswordEditorState::Saving(draft.clone()));
-    let current = app
-        .account
-        .begin_password_editor(AccountPasswordEditorState::Saving(draft));
-    let stale_result = update(
-        &mut app,
-        AccountMessage::PasswordUpdated {
-            generation: stale,
-            result: Ok(()),
-        },
-    );
+    let stale =
+        app.account.begin_password_editor(AccountPasswordEditorState::Saving(draft.clone()));
+    let current = app.account.begin_password_editor(AccountPasswordEditorState::Saving(draft));
+    let stale_result =
+        update(&mut app, AccountMessage::PasswordUpdated { generation: stale, result: Ok(()) });
     assert_eq!(stale_result.units(), 0);
     assert!(app.account.password_is_current(current));
 
@@ -205,30 +190,17 @@ fn account_password_edit_validates_redacts_and_ignores_late_results() {
         },
     );
     assert_eq!(failed.units(), 0);
-    assert!(matches!(
-        app.account.password_editor,
-        AccountPasswordEditorState::Failed { .. }
-    ));
+    assert!(matches!(app.account.password_editor, AccountPasswordEditorState::Failed { .. }));
 
-    let success_generation = app.account.begin_password_editor(
-        AccountPasswordEditorState::Saving(AccountPasswordDraft::new(
-            "current-password-123",
-            "new-password-456",
-            "new-password-456",
-        )),
-    );
+    let success_generation = app.account.begin_password_editor(AccountPasswordEditorState::Saving(
+        AccountPasswordDraft::new("current-password-123", "new-password-456", "new-password-456"),
+    ));
     let success = update(
         &mut app,
-        AccountMessage::PasswordUpdated {
-            generation: success_generation,
-            result: Ok(()),
-        },
+        AccountMessage::PasswordUpdated { generation: success_generation, result: Ok(()) },
     );
     assert_eq!(success.units(), 1);
-    assert!(matches!(
-        app.account.password_editor,
-        AccountPasswordEditorState::Closed
-    ));
+    assert!(matches!(app.account.password_editor, AccountPasswordEditorState::Closed));
 }
 
 #[test]
@@ -278,13 +250,12 @@ fn account_change_invalidates_skill_hub_state() {
     app.account.replace_repository(first);
     app.expert_hub.account_id = Some("stale-account".to_string());
     app.expert_hub.submitted_search = "stale search".to_string();
-    app.expert_hub.marketplace = crate::app::skill_hub::LoadState::Loaded(
-        crate::app::skill_hub::CursorPage {
+    app.expert_hub.marketplace =
+        crate::app::skill_hub::LoadState::Loaded(crate::app::skill_hub::CursorPage {
             items: Vec::new(),
             next_cursor: None,
             has_more: false,
-        },
-    );
+        });
 
     let mut signed_out = app.account.repository().clone();
     signed_out.sign_out();
@@ -300,30 +271,19 @@ fn account_change_invalidates_skill_hub_state() {
 
     assert!(app.expert_hub.account_id.is_none());
     assert!(app.expert_hub.submitted_search.is_empty());
-    assert!(matches!(
-        app.expert_hub.marketplace,
-        crate::app::skill_hub::LoadState::NeedsLogin
-    ));
+    assert!(matches!(app.expert_hub.marketplace, crate::app::skill_hub::LoadState::NeedsLogin));
 }
 
 #[test]
 fn successful_login_and_switch_schedule_shiju_key_sync() {
-    for notice in [
-        AccountNotice::ManualLogin,
-        AccountNotice::BrowserLogin,
-        AccountNotice::Switch,
-    ] {
+    for notice in [AccountNotice::ManualLogin, AccountNotice::BrowserLogin, AccountNotice::Switch] {
         let (mut app, _) = App::new();
         let repository = repository_with_account("test-account-secret", "company-1");
         let generation = app.account.begin(AccountOperation::Saving);
 
         let task = update(
             &mut app,
-            AccountMessage::RepositoryPersisted {
-                generation,
-                notice,
-                result: Ok(repository),
-            },
+            AccountMessage::RepositoryPersisted { generation, notice, result: Ok(repository) },
         );
 
         assert_eq!(task.units(), 3);
@@ -354,8 +314,7 @@ fn sign_out_and_delete_do_not_sync_shiju_key() {
 #[test]
 fn shiju_key_sync_failure_keeps_account_active() {
     let (mut app, _) = App::new();
-    app.account
-        .replace_repository(repository_with_account("test-account-secret", "company-1"));
+    app.account.replace_repository(repository_with_account("test-account-secret", "company-1"));
     let active_account_id =
         app.account.active_account().expect("fixture should be active").id().to_string();
 

@@ -301,18 +301,13 @@ async fn open_file_in_work_mode_reveals_workspace_files() {
     let task = update(&mut app, PreviewMessage::Open("/tmp/image.png".to_string()));
 
     assert!(app.work_resources_visible);
-    assert_eq!(
-        app.work_resource_mode,
-        crate::app::state::WorkResourceMode::WorkspaceFiles
-    );
+    assert_eq!(app.work_resource_mode, crate::app::state::WorkResourceMode::WorkspaceFiles);
     assert!(!app.work_chat_fullscreen);
     assert!(!app.work_chat_half_fullscreen);
     assert!(collect_task_messages(task).await.iter().any(|message| {
         matches!(
             message,
-            Message::View(ViewMessage::WorkResourceModeSelected(
-                WorkResourceMode::WorkspaceFiles
-            ))
+            Message::View(ViewMessage::WorkResourceModeSelected(WorkResourceMode::WorkspaceFiles))
         )
     }));
 }

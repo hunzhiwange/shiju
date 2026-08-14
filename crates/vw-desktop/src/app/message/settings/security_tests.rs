@@ -79,7 +79,6 @@ fn sandbox_messages_normalize_state() {
     apply(&mut app, SettingsMessage::SecuritySandboxEnabledChanged("true".to_string()));
     apply(&mut app, SettingsMessage::SecuritySandboxBackendChanged("none".to_string()));
     assert_eq!(app.security_settings.sandbox_backend_input, "auto");
-
 }
 
 #[test]
@@ -214,10 +213,7 @@ fn security_tab_switch_does_not_clear_save_error() {
     let mut app = app();
     app.security_settings.save_error = Some("keep".to_string());
 
-    apply(
-        &mut app,
-        SettingsMessage::SecurityTabSelected(SecuritySettingsTab::Syscall),
-    );
+    apply(&mut app, SettingsMessage::SecurityTabSelected(SecuritySettingsTab::Syscall));
 
     assert_eq!(app.security_settings.active_tab, SecuritySettingsTab::Syscall);
     assert_eq!(app.security_settings.save_error.as_deref(), Some("keep"));

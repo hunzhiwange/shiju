@@ -2,12 +2,8 @@ use ratatui::text::Line;
 
 use super::TuiTheme;
 use super::attachment::{AttachmentOpenIntent, render_attachment};
-use crate::cli::tui_v2::model::{
-    UiAttachment, UiAttachmentKind, UiMessageBase, UiMessageId,
-};
-use crate::cli::tui_v2::terminal_capabilities::{
-    TerminalCapabilities, TuiBackground,
-};
+use crate::cli::tui_v2::model::{UiAttachment, UiAttachmentKind, UiMessageBase, UiMessageId};
+use crate::cli::tui_v2::terminal_capabilities::{TerminalCapabilities, TuiBackground};
 
 #[test]
 fn tui_attachments_and_links_match_reference_and_sanitize_targets() {
@@ -57,14 +53,8 @@ fn tui_attachments_and_links_match_reference_and_sanitize_targets() {
 
     let pasted = attachment(UiAttachmentKind::PastedText, "Pasted text", "paste://3")
         .with_preview("first line\nsecond line\nsecret third line");
-    let pasted = render_attachment(
-        &pasted,
-        3,
-        plain,
-        Some("/workspace/project"),
-        TuiTheme::default(),
-        40,
-    );
+    let pasted =
+        render_attachment(&pasted, 3, plain, Some("/workspace/project"), TuiTheme::default(), 40);
     assert_eq!(
         line_texts(&pasted.lines),
         vec!["[Pasted text #3] first line", "  second line", "  (Ctrl+O to expand)"]
@@ -84,7 +74,9 @@ fn tui_attachments_and_links_match_reference_and_sanitize_targets() {
         TuiTheme::default(),
         50,
     );
-    assert!(line_texts(&resource.lines)[0].contains("\u{1b}]8;;https://docs.example.test/resource"));
+    assert!(
+        line_texts(&resource.lines)[0].contains("\u{1b}]8;;https://docs.example.test/resource")
+    );
     assert!(matches!(resource.open_intent, Some(AttachmentOpenIntent::Url { .. })));
 
     let dangerous = attachment(UiAttachmentKind::Link, "click", "javascript:alert(1)");
@@ -100,11 +92,8 @@ fn tui_attachments_and_links_match_reference_and_sanitize_targets() {
     assert!(dangerous.open_intent.is_none());
     assert!(!line_texts(&dangerous.lines).join("").contains('\u{1b}'));
 
-    let outside = attachment(
-        UiAttachmentKind::File,
-        "secrets.txt",
-        "file:///workspace/other/secrets.txt",
-    );
+    let outside =
+        attachment(UiAttachmentKind::File, "secrets.txt", "file:///workspace/other/secrets.txt");
     let outside = render_attachment(
         &outside,
         6,
@@ -136,12 +125,7 @@ fn tui_attachments_and_links_match_reference_and_sanitize_targets() {
 }
 
 fn attachment(kind: UiAttachmentKind, name: &str, uri: &str) -> UiAttachment {
-    UiAttachment::new(
-        UiMessageBase::new(UiMessageId::local("attachment")),
-        kind,
-        name,
-        uri,
-    )
+    UiAttachment::new(UiMessageBase::new(UiMessageId::local("attachment")), kind, name, uri)
 }
 
 fn line_texts(lines: &[Line<'static>]) -> Vec<String> {

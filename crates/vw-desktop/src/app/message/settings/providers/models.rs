@@ -4,13 +4,13 @@ use crate::app::config;
 use crate::app::config::server_config_unreachable_error;
 use crate::app::provider::provider as model_provider;
 use crate::app::provider::provider_models;
-use crate::app::state::{CustomProviderDraft, ModelCatalogEntry, ModelCapabilityDefaults};
+use crate::app::state::{CustomProviderDraft, ModelCapabilityDefaults, ModelCatalogEntry};
 use serde_json::{Map, Value};
 use std::collections::{BTreeMap, HashSet};
 use vw_shared::auth::{self as shared_auth};
 
-use super::helpers::{build_catalog_from_sources, load_popular_providers_from_config};
 use super::super::util::load_gateway_providers;
+use super::helpers::{build_catalog_from_sources, load_popular_providers_from_config};
 
 fn auth_filepath() -> std::path::PathBuf {
     let base = directories::BaseDirs::new();
@@ -167,9 +167,7 @@ pub async fn load_custom_provider_draft(
         (None, Some(settings)) => {
             Ok(draft_from_settings_provider(&provider_id, settings, &catalog_model_ids))
         }
-        (None, None) => {
-            Err(format!("提供商 {} 不在系统配置的 providers 中", provider_id))
-        }
+        (None, None) => Err(format!("提供商 {} 不在系统配置的 providers 中", provider_id)),
     }
 }
 
@@ -195,9 +193,9 @@ fn merge_custom_provider_draft(
     let mut models = Vec::with_capacity(settings_models.len() + by_id.len());
     for settings_model in settings_models {
         let from_catalog = catalog_model_ids.contains(&settings_model.id);
-        let mut model = by_id.remove(&settings_model.id).unwrap_or_else(|| {
-            model_draft_from_settings_model(&settings_model, from_catalog)
-        });
+        let mut model = by_id
+            .remove(&settings_model.id)
+            .unwrap_or_else(|| model_draft_from_settings_model(&settings_model, from_catalog));
         overlay_settings_model_onto_draft(&mut model, &settings_model, from_catalog);
         models.push(model);
     }
@@ -685,11 +683,8 @@ pub(crate) fn custom_provider_patch_from_draft(
                 model_cfg.insert(key.to_string(), serde_json::Value::Bool(value));
             }
         }
-        let mut modalities = model_cfg
-            .get("modalities")
-            .and_then(Value::as_object)
-            .cloned()
-            .unwrap_or_default();
+        let mut modalities =
+            model_cfg.get("modalities").and_then(Value::as_object).cloned().unwrap_or_default();
         if let Some(input) = &m.input_modalities {
             modalities.insert(
                 "input".to_string(),
@@ -707,7 +702,8 @@ pub(crate) fn custom_provider_patch_from_draft(
         } else {
             model_cfg.insert("modalities".to_string(), Value::Object(modalities));
         }
-        let mut limit = model_cfg.get("limit").and_then(Value::as_object).cloned().unwrap_or_default();
+        let mut limit =
+            model_cfg.get("limit").and_then(Value::as_object).cloned().unwrap_or_default();
         update_limit_field(&mut limit, "context", &m.context_limit, false)?;
         update_limit_field(&mut limit, "input", &m.input_limit, false)?;
         update_limit_field(&mut limit, "output", &m.output_limit, true)?;
@@ -789,9 +785,12 @@ fn parse_limit_field(
     if value.is_empty() {
         return Ok(None);
     }
-    let parsed = value
-        .parse::<u64>()
-        .map_err(|_| format!("模型 {model_id} 的{label}限制必须是{}", if allow_zero { "非负整数" } else { "正整数" }))?;
+    let parsed = value.parse::<u64>().map_err(|_| {
+        format!(
+            "模型 {model_id} 的{label}限制必须是{}",
+            if allow_zero { "非负整数" } else { "正整数" }
+        )
+    })?;
     if !allow_zero && parsed == 0 {
         return Err(format!("模型 {model_id} 的{label}限制必须是正整数"));
     }

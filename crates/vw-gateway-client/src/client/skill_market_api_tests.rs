@@ -1,8 +1,7 @@
 use super::{
-    SkillMarketCoordinateDto, SkillMarketEnvelope, SkillMarketSkillLocatorDto,
-    SkillMarketInstallScopeDto, SkillMarketInstallSelectionDto,
-    SkillMarketInstallTargetDto, SkillMarketSkillPageDto, SkillMarketSkillQuery,
-    SkillMarketSort,
+    SkillMarketCoordinateDto, SkillMarketEnvelope, SkillMarketInstallScopeDto,
+    SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillLocatorDto,
+    SkillMarketSkillPageDto, SkillMarketSkillQuery, SkillMarketSort,
 };
 use crate::client::test_support;
 use serde_json::json;

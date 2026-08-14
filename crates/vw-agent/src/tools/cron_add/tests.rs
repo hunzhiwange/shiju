@@ -393,10 +393,7 @@ async fn agent_job_inherits_execution_project_and_full_access() {
     assert!(result.success, "{:?}", result.error);
     let jobs = list_jobs(&cfg).unwrap();
     assert_eq!(jobs.len(), 1);
-    assert_eq!(
-        jobs[0].project_path.as_deref(),
-        Some(project_path.to_string_lossy().as_ref())
-    );
+    assert_eq!(jobs[0].project_path.as_deref(), Some(project_path.to_string_lossy().as_ref()));
     assert!(jobs[0].full_access);
 }
 
@@ -423,10 +420,7 @@ async fn agent_job_explicit_execution_options_override_defaults() {
     assert!(result.success, "{:?}", result.error);
     let jobs = list_jobs(&cfg).unwrap();
     assert_eq!(jobs.len(), 1);
-    assert_eq!(
-        jobs[0].project_path.as_deref(),
-        Some(explicit_project.to_string_lossy().as_ref())
-    );
+    assert_eq!(jobs[0].project_path.as_deref(), Some(explicit_project.to_string_lossy().as_ref()));
     assert!(!jobs[0].full_access);
 }
 

@@ -156,7 +156,8 @@ pub struct FindInFolderMatch {
     pub(crate) match_len: usize,
 }
 
-pub(crate) const FIND_RESULTS_PAGE_SIZE: usize = 100;
+/// 搜索结果项包含预览、右键菜单和拖拽交互；保持较小页面以避免切换标签时重建过多组件。
+pub(crate) const FIND_RESULTS_PAGE_SIZE: usize = 24;
 
 pub(crate) fn find_results_page_bounds(
     result_count: usize,

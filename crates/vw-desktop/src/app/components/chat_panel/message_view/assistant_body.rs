@@ -14,15 +14,16 @@ use crate::app::{App, Message};
 use super::super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
 use super::super::tool_text_support::chat_text_font_name;
 use super::super::tools::{
-    ExploreItem, ToolTextTarget, is_explore_tool, pending_permission_badge_label,
-    pending_permission_request_badge_label, pending_permission_request_for_tool_call,
-    pending_permission_targets_message, pending_permission_targets_tool_call,
-    render_shared_tool_view, tool_call_id_from_raw, tool_explore_summary_view,
-    tool_identity_from_raw, tool_name_from_raw, tool_text_editor,
+    CommandItem, ExploreItem, ToolTextTarget, is_command_tool, is_explore_tool,
+    pending_permission_badge_label, pending_permission_request_badge_label,
+    pending_permission_request_for_tool_call, pending_permission_targets_message,
+    pending_permission_targets_tool_call, render_shared_tool_view, tool_call_id_from_raw,
+    tool_command_summary_view, tool_explore_summary_view, tool_identity_from_raw,
+    tool_name_from_raw, tool_text_editor,
 };
 use super::super::utils::{chat_secondary_text_color, is_dark_theme};
 use super::assistant_error::assistant_api_error_view;
-use super::styles::MESSAGE_TEXT_SIZE;
+use super::styles::{ASSISTANT_BLOCK_SPACING, MESSAGE_TEXT_SIZE};
 use super::text::{message_editor_body, message_text_body, should_segment_text_block};
 use super::think_block::{should_render_think_block, think_block_is_running, think_block_view};
 use super::tool_summaries::{
@@ -238,6 +239,19 @@ fn push_explore_summary<'a>(
     body
 }
 
+fn flush_command_summary<'a>(
+    mut body: Column<'a, Message>,
+    app: &'a App,
+    idx: usize,
+    command_items: &mut Vec<CommandItem>,
+) -> Column<'a, Message> {
+    if let Some(view) = tool_command_summary_view(app, idx, command_items) {
+        body = body.push(view);
+    }
+    command_items.clear();
+    body
+}
+
 fn push_special_text_block<'a>(
     body: Column<'a, Message>,
     app: &'a App,
@@ -285,7 +299,7 @@ pub(super) fn render_assistant_body<'a>(
     is_streaming_assistant: bool,
     visible_for_copy: &str,
 ) -> Column<'a, Message> {
-    let mut body = column![].spacing(8);
+    let mut body = column![].spacing(ASSISTANT_BLOCK_SPACING);
     let use_editor = !is_streaming_assistant
         && selectable_text_policy(visible_for_copy, should_segment_text_block(visible_for_copy))
             != SelectableTextPolicy::PreviewWithCopyFallback
@@ -314,6 +328,7 @@ pub(super) fn render_assistant_body<'a>(
         let mut tool_idx = 0usize;
         let mut text_block_idx = 0usize;
         let mut explore_items: Vec<ExploreItem> = Vec::new();
+        let mut command_items: Vec<CommandItem> = Vec::new();
         let mut explore_group_idx = 0usize;
         let mut explore_group_force_running = false;
         let mut deferred_text: Option<(usize, String)> = None;
@@ -321,6 +336,7 @@ pub(super) fn render_assistant_body<'a>(
         for (block_i, block) in blocks.iter().enumerate() {
             match block {
                 ParsedChatBlock::Think { content, open } => {
+                    body = flush_command_summary(body, app, idx, &mut command_items);
                     let timing = think_timing.get(think_idx);
                     let think_running = think_block_is_running(*open, timing);
                     let should_render = should_render_think_block(
@@ -372,6 +388,7 @@ pub(super) fn render_assistant_body<'a>(
                     if let Some(name) = tool_name
                         && is_explore_tool(&name)
                     {
+                        body = flush_command_summary(body, app, idx, &mut command_items);
                         explore_items.push(ExploreItem { tool_idx, raw: raw_text.clone() });
                         tool_idx += 1;
                         continue;
@@ -417,6 +434,17 @@ pub(super) fn render_assistant_body<'a>(
                     } else {
                         false
                     };
+
+                    if is_command_tool(&raw_text)
+                        && matched_permission_request.is_none()
+                        && !matches_permission_tool
+                    {
+                        command_items.push(CommandItem { tool_idx, raw: raw_text });
+                        tool_idx += 1;
+                        continue;
+                    }
+
+                    body = flush_command_summary(body, app, idx, &mut command_items);
 
                     let rendered = render_shared_tool_view(app, idx, tool_idx, &raw_text);
 
@@ -470,6 +498,7 @@ pub(super) fn render_assistant_body<'a>(
                     if normalized_visible_text(content).is_none() {
                         continue;
                     }
+                    body = flush_command_summary(body, app, idx, &mut command_items);
                     let Some(text) = special_text_blocks.get(text_block_idx).cloned() else {
                         continue;
                     };
@@ -528,6 +557,7 @@ pub(super) fn render_assistant_body<'a>(
             }
         }
 
+        body = flush_command_summary(body, app, idx, &mut command_items);
         body = push_explore_summary(
             body,
             app,

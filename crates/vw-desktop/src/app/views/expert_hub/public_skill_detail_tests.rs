@@ -7,15 +7,13 @@ use vw_gateway_client::{
 };
 
 use super::public_skill_detail::{
-    detail_project_action_message, detail_scope_action_message,
-    detail_target_action_message, view,
-};
-use crate::app::skill_hub::{
-    ExpertHubSection, LoadState, PublicDetailMode, PublicDetailState,
-    PublicDetailTarget, PublicInstallState, SkillInstallScope,
-    SkillInstallTarget, parse_public_markdown,
+    detail_project_action_message, detail_scope_action_message, detail_target_action_message, view,
 };
 use crate::app::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
+use crate::app::skill_hub::{
+    ExpertHubSection, LoadState, PublicDetailMode, PublicDetailState, PublicDetailTarget,
+    PublicInstallState, SkillInstallScope, SkillInstallTarget, parse_public_markdown,
+};
 use crate::app::{App, Message};
 
 fn locator() -> SkillMarketSkillLocatorDto {
@@ -29,10 +27,7 @@ fn locator() -> SkillMarketSkillLocatorDto {
 fn app_with_markdown(mode: PublicDetailMode) -> App {
     let (mut app, _) = App::new();
     app.expert_hub.section = ExpertHubSection::Skills;
-    let coordinate = SkillMarketCoordinateDto {
-        locator: locator(),
-        version: "1.0.0".to_string(),
-    };
+    let coordinate = SkillMarketCoordinateDto { locator: locator(), version: "1.0.0".to_string() };
     let markdown = concat!(
         "# 中文标题\n\n",
         "- 第一项\n",
@@ -129,13 +124,10 @@ async fn public_market_detail_renders_chinese_markdown_in_both_modes_and_themes(
         let app = app_with_markdown(mode);
         for theme in [Theme::Light, Theme::Dark] {
             let mut element = view(&app);
-            let mut renderer = <iced::Renderer as Headless>::new(
-                Font::DEFAULT,
-                Pixels(16.0),
-                Some("tiny-skia"),
-            )
-            .await
-            .expect("headless renderer");
+            let mut renderer =
+                <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                    .await
+                    .expect("headless renderer");
             let bounds = Size::new(900.0, 720.0);
             let mut tree = Tree::new(element.as_widget());
             let node = element.as_widget_mut().layout(
@@ -153,12 +145,9 @@ async fn public_market_detail_renders_chinese_markdown_in_both_modes_and_themes(
                 mouse::Cursor::Unavailable,
                 &viewport,
             );
-            let pixels =
-                renderer.screenshot(Size::new(900, 720), 1.0, Color::TRANSPARENT);
+            let pixels = renderer.screenshot(Size::new(900, 720), 1.0, Color::TRANSPARENT);
             assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
         }
     }
-    let _: iced::Element<'_, Message> = view(&app_with_markdown(
-        PublicDetailMode::Visual,
-    ));
+    let _: iced::Element<'_, Message> = view(&app_with_markdown(PublicDetailMode::Visual));
 }

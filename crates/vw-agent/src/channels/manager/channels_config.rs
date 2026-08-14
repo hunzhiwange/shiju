@@ -79,7 +79,9 @@ fn append_matrix_channel_if_valid(
     channels: &mut Vec<ConfiguredChannel>,
 ) {
     if let Some(reason) = matrix_config_validation_error(matrix) {
-        tracing::warn!("{display_name} config is incomplete ({reason}); skipping optional channel.");
+        tracing::warn!(
+            "{display_name} config is incomplete ({reason}); skipping optional channel."
+        );
         return;
     }
 

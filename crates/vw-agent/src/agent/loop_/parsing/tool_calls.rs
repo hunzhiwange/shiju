@@ -90,9 +90,8 @@ fn normalize_deepseek_dsml_body(body: &str) -> Option<String> {
     static PARAMETER_RE: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r"(?is)<｜DSML｜parameter\b([^>]*)>(.*?)</｜DSML｜parameter>").unwrap()
     });
-    static NAME_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r#"\bname\s*=\s*(?:"([^"]+)"|'([^']+)')"#).unwrap()
-    });
+    static NAME_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"\bname\s*=\s*(?:"([^"]+)"|'([^']+)')"#).unwrap());
     static STRING_TRUE_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r#"\bstring\s*=\s*(?:"true"|'true')"#).unwrap());
 
@@ -123,15 +122,10 @@ fn normalize_deepseek_dsml_body(body: &str) -> Option<String> {
     }
 
     normalized.push_str(&body[last_end..]);
-    let normalized = normalized
-        .replace("<｜DSML｜invoke", "<invoke")
-        .replace("</｜DSML｜invoke>", "</invoke>");
+    let normalized =
+        normalized.replace("<｜DSML｜invoke", "<invoke").replace("</｜DSML｜invoke>", "</invoke>");
 
-    if normalized.contains("｜DSML｜") {
-        None
-    } else {
-        Some(normalized)
-    }
+    if normalized.contains("｜DSML｜") { None } else { Some(normalized) }
 }
 
 fn parse_deepseek_dsml_calls(response: &str) -> Option<(String, Vec<ParsedToolCall>)> {

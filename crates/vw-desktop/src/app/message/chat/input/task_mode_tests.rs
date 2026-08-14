@@ -1,12 +1,12 @@
 #![allow(unused_must_use)]
 use super::{
-    handle_task_mode_add_subtask, handle_task_mode_executor_changed,
-    handle_task_mode_model_changed, handle_task_mode_move_subtask_down,
-    handle_task_mode_move_subtask_up, handle_task_mode_priority_changed,
-    handle_task_mode_reasoning_effort_changed, handle_task_mode_remove_subtask,
-    handle_task_mode_subtask_changed, handle_task_mode_subtask_editor_action,
-    handle_task_mode_task_split_mode_changed, handle_task_mode_toggled,
-    handle_goal_mode_toggled, handle_subagent_mode_toggled, handle_workflow_mode_toggled,
+    handle_goal_mode_toggled, handle_subagent_mode_toggled, handle_task_mode_add_subtask,
+    handle_task_mode_executor_changed, handle_task_mode_model_changed,
+    handle_task_mode_move_subtask_down, handle_task_mode_move_subtask_up,
+    handle_task_mode_priority_changed, handle_task_mode_reasoning_effort_changed,
+    handle_task_mode_remove_subtask, handle_task_mode_subtask_changed,
+    handle_task_mode_subtask_editor_action, handle_task_mode_task_split_mode_changed,
+    handle_task_mode_toggled, handle_workflow_mode_toggled,
 };
 use crate::app::App;
 use crate::app::task::TaskSplitMode;

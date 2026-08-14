@@ -31,19 +31,17 @@ kind = "shell"
     std::fs::write(skill_dir.join("invalid.toml"), "tools = [").unwrap();
     std::fs::write(skill_dir.join("run.sh"), "#!/usr/bin/env bash\necho safe\n").unwrap();
     std::fs::write(skill_dir.join("runner"), "#!/usr/bin/env bash\necho safe\n").unwrap();
-    std::fs::write(
-        skill_dir.join("large.markdown"),
-        "x".repeat(MAX_TEXT_FILE_BYTES as usize + 1),
-    )
-    .unwrap();
+    std::fs::write(skill_dir.join("large.markdown"), "x".repeat(MAX_TEXT_FILE_BYTES as usize + 1))
+        .unwrap();
 }
 
 fn assert_findings_only_match(report: &SkillAuditReport, expected_needles: &[&str]) {
     assert!(!report.is_clean(), "expected findings for enabled audit rule");
     assert!(
-        report.findings.iter().all(|finding| {
-            expected_needles.iter().any(|expected| finding.contains(expected))
-        }),
+        report
+            .findings
+            .iter()
+            .all(|finding| { expected_needles.iter().any(|expected| finding.contains(expected)) }),
         "unexpected findings: {:#?}",
         report.findings
     );
@@ -69,7 +67,8 @@ fn audit_rules_default_off_and_enable_independently() {
     write_audit_policy_fixture(&skill_dir);
     std::fs::write(dir.path().join("outside.txt"), "outside").unwrap();
     #[cfg(unix)]
-    std::os::unix::fs::symlink(dir.path().join("outside.txt"), skill_dir.join("linked.txt")).unwrap();
+    std::os::unix::fs::symlink(dir.path().join("outside.txt"), skill_dir.join("linked.txt"))
+        .unwrap();
 
     let default_report =
         audit_skill_directory_with_security(&skill_dir, &SkillSecurityConfig::default()).unwrap();
@@ -77,11 +76,9 @@ fn audit_rules_default_off_and_enable_independently() {
 
     let missing_manifest_dir = dir.path().join("missing-manifest");
     std::fs::create_dir_all(&missing_manifest_dir).unwrap();
-    let default_missing = audit_skill_directory_with_security(
-        &missing_manifest_dir,
-        &SkillSecurityConfig::default(),
-    )
-    .unwrap();
+    let default_missing =
+        audit_skill_directory_with_security(&missing_manifest_dir, &SkillSecurityConfig::default())
+            .unwrap();
     assert!(default_missing.is_clean(), "{:#?}", default_missing.findings);
 
     let require_manifest = SkillSecurityConfig { require_manifest: true, ..Default::default() };
@@ -91,8 +88,7 @@ fn audit_rules_default_off_and_enable_independently() {
 
     #[cfg(unix)]
     {
-        let reject_symlinks =
-            SkillSecurityConfig { reject_symlinks: true, ..Default::default() };
+        let reject_symlinks = SkillSecurityConfig { reject_symlinks: true, ..Default::default() };
         let report = audit_skill_directory_with_security(&skill_dir, &reject_symlinks).unwrap();
         assert_findings_only_match(&report, &["symlinks are not allowed"]);
     }
@@ -119,15 +115,13 @@ fn audit_rules_default_off_and_enable_independently() {
     let report = audit_skill_directory_with_security(&skill_dir, &detect_shell_chaining).unwrap();
     assert_findings_only_match(&report, &["shell chaining"]);
 
-    let validate_manifest =
-        SkillSecurityConfig { validate_manifest: true, ..Default::default() };
+    let validate_manifest = SkillSecurityConfig { validate_manifest: true, ..Default::default() };
     let report = audit_skill_directory_with_security(&skill_dir, &validate_manifest).unwrap();
     assert_findings_only_match(&report, &["invalid TOML manifest", "missing a command field"]);
 
     let validate_markdown_links =
         SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
-    let report =
-        audit_skill_directory_with_security(&skill_dir, &validate_markdown_links).unwrap();
+    let report = audit_skill_directory_with_security(&skill_dir, &validate_markdown_links).unwrap();
     assert_findings_only_match(&report, &["remote markdown links", "missing file"]);
 }
 
@@ -382,8 +376,7 @@ fn audit_directory_rejects_symlink_files() {
     std::fs::write(dir.path().join("outside.txt"), "outside").unwrap();
     symlink(dir.path().join("outside.txt"), skill.join("linked.txt")).unwrap();
 
-    let security =
-        SkillSecurityConfig { reject_symlinks: true, ..Default::default() };
+    let security = SkillSecurityConfig { reject_symlinks: true, ..Default::default() };
     let report = audit_skill_directory_with_security(&skill, &security).unwrap();
 
     assert!(report.summary().contains("symlinks are not allowed in installed skills"));
@@ -396,8 +389,7 @@ fn audit_manifest_reports_invalid_toml_and_empty_script_commands() {
     std::fs::create_dir_all(&invalid).unwrap();
     std::fs::write(invalid.join("SKILL.toml"), "tools = [").unwrap();
 
-    let security =
-        SkillSecurityConfig { validate_manifest: true, ..Default::default() };
+    let security = SkillSecurityConfig { validate_manifest: true, ..Default::default() };
     let invalid_report = audit_skill_directory_with_security(&invalid, &security).unwrap();
     assert!(invalid_report.summary().contains("invalid TOML manifest"));
 
@@ -467,8 +459,7 @@ fn audit_markdown_links_cover_allowed_and_rejected_targets() {
 fn audit_markdown_link_without_parent_reports_resolution_failure() {
     let root = std::path::Path::new("/");
     let mut report = SkillAuditReport::default();
-    let security =
-        SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
+    let security = SkillSecurityConfig { validate_markdown_links: true, ..Default::default() };
 
     audit_markdown_link_target(root, root, "local.md", &security, &mut report);
 

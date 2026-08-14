@@ -4,7 +4,13 @@ use std::sync::Arc;
 use vw_shared::session::info::{Info, TimeInfo};
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
-    ChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    ChatMessage {
+        role,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 fn message_with_model(role: ChatRole, content: &str, model: &str) -> ChatMessage {
@@ -133,6 +139,22 @@ fn refresh_tail_message_meta_rebuilds_gaps_and_truncates_out_of_range_entries() 
     app.active_session_view_state.message_meta_texts.push(Some("stale".to_string()));
     app.refresh_active_session_tail_message_meta(2);
     assert_eq!(app.active_session_view_state.message_meta_texts.len(), 2);
+}
+
+#[test]
+fn question_index_updates_incrementally_for_appended_user_message() {
+    let (mut app, _task) = App::new();
+    app.chat = vec![message(ChatRole::Assistant, "existing answer")];
+    app.rebuild_active_session_message_meta();
+
+    app.chat.push(message(ChatRole::User, "new question"));
+    app.sync_active_session_user_question_index();
+
+    assert_eq!(app.active_session_view_state.user_question_indexed_chat_len, 2);
+    assert_eq!(app.active_session_view_state.user_question_markers.len(), 1);
+    let marker = &app.active_session_view_state.user_question_markers[0];
+    assert_eq!(marker.message_idx, 1);
+    assert_eq!(marker.preview, "new question");
 }
 
 #[test]
@@ -287,4 +309,25 @@ fn active_shared_chat_messages_reuses_only_a_length_matching_active_snapshot() {
     assert!(!Arc::ptr_eq(&rebuilt, &matching));
     assert_eq!(rebuilt.len(), 2);
     assert_eq!(rebuilt[0].content, "live");
+}
+
+#[test]
+fn switch_stashes_previous_chat_without_cloning_payload() {
+    let (mut app, _task) = App::new();
+    let content = "large message payload ".repeat(4_096);
+    let expected_pointer = content.as_ptr();
+    app.active_session_id = Some("previous".to_string());
+    app.chat = vec![ChatMessage {
+        role: ChatRole::Assistant,
+        content,
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }];
+
+    app.stash_active_session_view();
+
+    let snapshot = app.session_view_cache.get("previous").expect("previous view should be cached");
+    assert_eq!(snapshot.chat()[0].content.as_ptr(), expected_pointer);
+    assert!(app.chat.is_empty());
 }

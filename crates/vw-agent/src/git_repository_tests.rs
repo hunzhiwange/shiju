@@ -71,10 +71,7 @@ fn discover_resolves_linked_worktree_to_common_root() {
 
     let discovered = discover(&linked).expect("linked worktree should discover");
     assert_eq!(discovered.root_commit_ids, vec![oid.to_string()]);
-    assert_eq!(
-        discovered.workdir,
-        std::fs::canonicalize(&linked).expect("linked canonicalize")
-    );
+    assert_eq!(discovered.workdir, std::fs::canonicalize(&linked).expect("linked canonicalize"));
     assert_eq!(
         discovered.common_root,
         std::fs::canonicalize(&primary).expect("primary canonicalize")

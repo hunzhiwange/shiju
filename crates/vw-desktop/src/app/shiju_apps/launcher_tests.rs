@@ -16,23 +16,14 @@ impl LaunchProcess for MemoryProcess {
     type Child = ();
 
     fn spawn(&mut self, program: &Path, args: &[String]) -> Result<Self::Child, String> {
-        self.argv = std::iter::once(program.display().to_string())
-            .chain(args.iter().cloned())
-            .collect();
-        if let Some(error) = &self.spawn_error {
-            Err(error.clone())
-        } else {
-            Ok(())
-        }
+        self.argv =
+            std::iter::once(program.display().to_string()).chain(args.iter().cloned()).collect();
+        if let Some(error) = &self.spawn_error { Err(error.clone()) } else { Ok(()) }
     }
 
     fn write_stdin(&mut self, _child: &mut Self::Child, input: &[u8]) -> Result<(), String> {
         self.stdin.extend_from_slice(input);
-        if let Some(error) = &self.write_error {
-            Err(error.clone())
-        } else {
-            Ok(())
-        }
+        if let Some(error) = &self.write_error { Err(error.clone()) } else { Ok(()) }
     }
 
     fn terminate(&mut self, _child: &mut Self::Child) {
@@ -103,10 +94,8 @@ fn launcher_rejects_untrusted_runtime_without_external_fallback() {
 
 #[test]
 fn launcher_terminates_child_when_stdin_write_fails() {
-    let mut process = MemoryProcess {
-        write_error: Some("pipe closed".to_string()),
-        ..MemoryProcess::default()
-    };
+    let mut process =
+        MemoryProcess { write_error: Some("pipe closed".to_string()), ..MemoryProcess::default() };
     let error = launch_with(
         &mut process,
         &[PathBuf::from("/safe/vw-webview")],
@@ -122,10 +111,8 @@ fn launcher_terminates_child_when_stdin_write_fails() {
 
 #[test]
 fn launcher_reports_missing_helper_without_exposing_secret() {
-    let mut process = MemoryProcess {
-        spawn_error: Some("not found".to_string()),
-        ..MemoryProcess::default()
-    };
+    let mut process =
+        MemoryProcess { spawn_error: Some("not found".to_string()), ..MemoryProcess::default() };
     let error = launch_with(
         &mut process,
         &[PathBuf::from("/missing/vw-webview")],

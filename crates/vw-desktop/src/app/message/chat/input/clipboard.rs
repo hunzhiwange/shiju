@@ -28,7 +28,15 @@ fn resolved_clipboard_message(payload: ClipboardPastePayload) -> Message {
 
 fn clipboard_text_payload(content: Option<String>) -> ClipboardPastePayload {
     match content {
-        Some(content) if !content.is_empty() => ClipboardPastePayload::Text(content),
+        Some(content) if !content.is_empty() => {
+            match vw_shared::pasted_text::cache_large_pasted_text(&content) {
+                Ok(Some(path)) => {
+                    ClipboardPastePayload::AttachmentPath(path.to_string_lossy().into_owned())
+                }
+                Ok(None) => ClipboardPastePayload::Text(content),
+                Err(error) => ClipboardPastePayload::Error(format!("缓存粘贴文本失败：{error}")),
+            }
+        }
         _ => ClipboardPastePayload::Empty,
     }
 }

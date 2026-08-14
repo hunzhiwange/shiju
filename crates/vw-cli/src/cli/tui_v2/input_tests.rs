@@ -5,13 +5,13 @@ use super::commands::registry::{
     CommandAction, CommandAvailability, CommandExecutionPolicy, CommandRegistry, CommandSource,
     CommandSpec,
 };
+use super::completion::active_completion_token;
 use super::input::{
     TuiPromptSuggestionMotion, TuiSlashCommandInvocation, TuiSlashCommandKind,
     TuiSlashCommandOutcome, apply_first_suggestion, execute_slash_command,
     move_prompt_suggestion_selection, parse_slash_command as parse_slash_command_with_state,
     prompt_suggestions, selected_prompt_suggestion, selected_suggestion_index,
 };
-use super::completion::active_completion_token;
 use super::state::{
     TuiAction, TuiModelCatalogEntry, TuiSessionPreview, TuiState, reduce_tui_state,
 };
@@ -88,11 +88,7 @@ fn trailing_slash_token_suggestions_keep_message_prefix_and_close_on_space() {
     assert_eq!(&value[..start], "请检查 ");
 
     reduce_tui_state(&mut state, TuiAction::PromptValueSet(value.to_string()));
-    assert!(
-        prompt_suggestions(&state)
-            .iter()
-            .any(|item| item.replacement == "请检查 /clear")
-    );
+    assert!(prompt_suggestions(&state).iter().any(|item| item.replacement == "请检查 /clear"));
     assert_eq!(apply_first_suggestion(&state).as_deref(), Some("请检查 /clear"));
 
     reduce_tui_state(&mut state, TuiAction::PromptValueSet("请检查 /cl ".to_string()));

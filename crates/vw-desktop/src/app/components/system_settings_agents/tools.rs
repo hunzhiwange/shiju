@@ -260,11 +260,7 @@ pub(super) fn tools_for_list_tab<'a>(available_tools: &'a [String], tab: &str) -
         .map(String::as_str)
         .filter(|tool_id| {
             let is_builtin = is_builtin_required_tool_id(tool_id);
-            if tab == AGENT_TOOLS_BUILTIN_TAB {
-                is_builtin
-            } else {
-                !is_builtin
-            }
+            if tab == AGENT_TOOLS_BUILTIN_TAB { is_builtin } else { !is_builtin }
         })
         .collect()
 }
@@ -285,10 +281,7 @@ pub(super) fn capability_policy_label(policy: DelegateCapabilityPolicy) -> &'sta
     }
 }
 
-pub(super) fn tool_policy_message(
-    agent_key: String,
-    policy: DelegateCapabilityPolicy,
-) -> Message {
+pub(super) fn tool_policy_message(agent_key: String, policy: DelegateCapabilityPolicy) -> Message {
     Message::Settings(SettingsMessage::Agents(AgentsMessage::ToolPolicyChanged(agent_key, policy)))
 }
 
@@ -313,9 +306,11 @@ pub(super) fn tool_card_press_message(
     if locked {
         None
     } else {
-        Some(Message::Settings(SettingsMessage::Agents(
-            AgentsMessage::AllowedToolToggled(agent_key, tool_id, !currently_checked),
-        )))
+        Some(Message::Settings(SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
+            agent_key,
+            tool_id,
+            !currently_checked,
+        ))))
     }
 }
 
@@ -328,9 +323,9 @@ fn tools_list_tab_button<'a>(
     button(text(label).size(14))
         .padding([10, 18])
         .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, is_active))
-        .on_press(Message::Settings(SettingsMessage::Agents(
-            AgentsMessage::ToolsListTabSelected(key.to_string()),
-        )))
+        .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::ToolsListTabSelected(
+            key.to_string(),
+        ))))
         .into()
 }
 
@@ -805,8 +800,8 @@ pub(super) fn view<'a>(
                     .filter(|tool_id| tool_meta(tool_id).group == group_meta.group)
                     .map(|tool_id| {
                         let locked = is_builtin_tab || tool_card_is_locked(tool_id);
-                        let checked = locked
-                            || entry.allowed_tools.iter().any(|tool| tool == tool_id);
+                        let checked =
+                            locked || entry.allowed_tools.iter().any(|tool| tool == tool_id);
                         let agent_key = entry.key.clone();
                         let tool_id = tool_id.clone();
                         let meta = tool_meta(&tool_id);
@@ -991,10 +986,7 @@ pub(super) fn view<'a>(
     };
 
     column![
-        section_card(
-            "默认工具",
-            "选择会在委托代理首步默认注入的工具；它们不是工具白名单。",
-        ),
+        section_card("默认工具", "选择会在委托代理首步默认注入的工具；它们不是工具白名单。",),
         column![
             text("工具访问策略").size(14),
             text("控制委托代理可见工具的范围；不限制为默认策略。")

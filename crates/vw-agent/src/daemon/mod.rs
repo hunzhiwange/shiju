@@ -366,14 +366,9 @@ async fn configured_matrix_worker_components(
 
 async fn matrix_worker_scheduler_context(config: &Config) -> Result<AgentSchedulerContext> {
     let tenant_scope = TenantScope::default();
-    let project = crate::app::agent::project::from_directory(
-        &tenant_scope,
-        &config.workspace_dir,
-    )
-    .await?
-    .0;
-    let project_scope =
-        ProjectScope::new(tenant_scope, ProjectId::from(project.id.as_str()))?;
+    let project =
+        crate::app::agent::project::from_directory(&tenant_scope, &config.workspace_dir).await?.0;
+    let project_scope = ProjectScope::new(tenant_scope, ProjectId::from(project.id.as_str()))?;
     AgentSchedulerContext::new(
         AgentSchedulerScope::new(project_scope),
         config.workspace_dir.clone(),

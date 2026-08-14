@@ -412,14 +412,18 @@ async fn internal_compaction_replaces_covered_history_with_a_model_summary() {
         panic!("expected a completed compaction");
     };
     assert_eq!(stats.covered_messages, 2);
-    assert_eq!(stats.summary_chars, "Build investigation: ownership error remains.".chars().count());
+    assert_eq!(
+        stats.summary_chars,
+        "Build investigation: ownership error remains.".chars().count()
+    );
 
     let stored = message::messages(&session_id, None).await.expect("stored history");
     assert_eq!(stored.len(), 2);
-    assert!(stored.iter().all(|message| !matches!(
-        message.info.id(),
-        "msg_old_user" | "msg_old_assistant"
-    )));
+    assert!(
+        stored
+            .iter()
+            .all(|message| !matches!(message.info.id(), "msg_old_user" | "msg_old_assistant"))
+    );
     let summary = stored
         .iter()
         .find(|message| matches!(&message.info, message::Info::Assistant(info) if info.summary == Some(true)))

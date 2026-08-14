@@ -255,9 +255,7 @@ fn edit_row_helpers_build_hovered_and_idle_elements() {
     ));
 
     let mut expanded = test_app();
-    expanded
-        .chat_tool_file_expanded
-        .insert(edit_file_expand_key(1, 2, "src/main.rs"));
+    expanded.chat_tool_file_expanded.insert(edit_file_expand_key(1, 2, "src/main.rs"));
     expanded.chat_tool_file_hovered =
         Some(tool_file_hover_key(1, 2, "/tmp/vibe-window/src/main.rs"));
     keep_element(edit_file_change_block(
@@ -275,7 +273,8 @@ fn edit_row_helpers_build_hovered_and_idle_elements() {
     ));
 
     let _ = edit_file_change_button_style(&iced::Theme::Dark, iced::widget::button::Status::Active);
-    let _ = edit_file_change_button_style(&iced::Theme::Dark, iced::widget::button::Status::Hovered);
+    let _ =
+        edit_file_change_button_style(&iced::Theme::Dark, iced::widget::button::Status::Hovered);
     let _ = view_changes_secondary_text(&iced::Theme::Dark);
     let _ = view_changes_secondary_text(&iced::Theme::Light);
 }
@@ -358,8 +357,7 @@ fn build_file_list_column_handles_search_items_and_truncated_labels() {
 fn build_file_list_column_expands_inline_diff_for_edit_rows() {
     let mut app = test_app();
     let abs = "/tmp/vibe-window/src/main.rs";
-    app.chat_tool_file_expanded
-        .insert(edit_file_expand_key(1, 2, "src/main.rs"));
+    app.chat_tool_file_expanded.insert(edit_file_expand_key(1, 2, "src/main.rs"));
     let view_ctx = ctx(&app, "file_edit", r#"{"path":"src/main.rs","new_string":"after"}"#, "");
     let render_state = state(vec![("src/main.rs".to_string(), abs.to_string())], false);
     let mut changes_by_path = HashMap::new();

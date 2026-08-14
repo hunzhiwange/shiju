@@ -59,13 +59,7 @@ const SQLITE_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
     ("scheduler_tasks", &["platform_id", "company_id", "project_id", "id"]),
     (
         "scheduler_task_dependencies",
-        &[
-            "platform_id",
-            "company_id",
-            "project_id",
-            "predecessor_task_id",
-            "successor_task_id",
-        ],
+        &["platform_id", "company_id", "project_id", "predecessor_task_id", "successor_task_id"],
     ),
     ("scheduler_runs", &["platform_id", "company_id", "project_id", "id"]),
     ("scheduler_task_logs", &["platform_id", "company_id", "project_id", "task_id", "seq_no"]),
@@ -83,13 +77,7 @@ const POSTGRES_SCHEDULER_PRIMARY_KEYS: [(&str, &[&str]); 12] = [
     ("scheduler_tasks", &["platform_id", "company_id", "project_id", "id"]),
     (
         "scheduler_task_dependencies",
-        &[
-            "platform_id",
-            "company_id",
-            "project_id",
-            "predecessor_task_id",
-            "successor_task_id",
-        ],
+        &["platform_id", "company_id", "project_id", "predecessor_task_id", "successor_task_id"],
     ),
     ("scheduler_runs", &["platform_id", "company_id", "project_id", "id"]),
     ("scheduler_task_logs", &["platform_id", "company_id", "project_id", "task_id", "seq_no"]),
@@ -266,10 +254,9 @@ fn assert_postgres_scheduler_schema() -> Result<()> {
         assert_postgres_primary_key(&mut *connection, table, expected_columns)?;
     }
     assert_postgres_task_dependency_foreign_keys(&mut *connection)?;
-    for index in [
-        "idx_scheduler_task_dependencies_predecessor",
-        "idx_scheduler_task_dependencies_successor",
-    ] {
+    for index in
+        ["idx_scheduler_task_dependencies_predecessor", "idx_scheduler_task_dependencies_successor"]
+    {
         assert_postgres_object_exists(&mut *connection, "index", index)?;
     }
     for table in LEGACY_SCHEDULER_TABLES {
@@ -598,9 +585,9 @@ fn assert_postgres_task_dependency_foreign_keys(
             definitions.iter().any(|definition| {
                 definition.contains(&format!(
                     "FOREIGN KEY (platform_id, company_id, project_id, {column})"
-                )) && definition.contains(
-                    "REFERENCES scheduler_tasks(platform_id, company_id, project_id, id)"
-                ) && definition.contains("ON DELETE CASCADE")
+                )) && definition
+                    .contains("REFERENCES scheduler_tasks(platform_id, company_id, project_id, id)")
+                    && definition.contains("ON DELETE CASCADE")
             }),
             "missing PostgreSQL scoped {column} foreign key: {definitions:?}"
         );

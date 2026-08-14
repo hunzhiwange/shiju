@@ -127,10 +127,8 @@ fn delete_request_allows_current_project() {
 #[test]
 fn delete_confirmed_current_project_selects_first_remaining_project() {
     let mut app = app();
-    app.recent_projects = vec![
-        "/workspace/project-a".to_string(),
-        "/workspace/project-b".to_string(),
-    ];
+    app.recent_projects =
+        vec!["/workspace/project-a".to_string(), "/workspace/project-b".to_string()];
     app.recent_projects_edits = vec!["Project A".to_string(), "Project B".to_string()];
     app.project_path = Some("/workspace/project-a".to_string());
     app.recent_project_delete_confirm_idx = Some(0);

@@ -13,10 +13,7 @@ fn write(path: impl AsRef<Path>, content: &str) {
 
 fn init_repository(worktree: &Path) -> Repository {
     let repo = Repository::init(worktree).expect("repo init");
-    repo.config()
-        .expect("config")
-        .set_str("user.email", "unit@example.com")
-        .expect("user.email");
+    repo.config().expect("config").set_str("user.email", "unit@example.com").expect("user.email");
     repo.config().expect("config").set_str("user.name", "Unit Test").expect("user.name");
     repo
 }

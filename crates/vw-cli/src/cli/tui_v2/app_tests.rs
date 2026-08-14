@@ -10,13 +10,12 @@ use std::rc::Rc;
 use serde_json::json;
 
 use super::app::{
-    TodoSessionAccessAction, TuiApp, TuiRunMode, bootstrap_message_base, bootstrap_system_message,
-    apply_settings_values_to_state,
-    build_exit_confirm_body, comparable_terminal_from_runtime_terminal,
-    comparable_usage_from_runtime_terminal, compare_shadow_results, default_session_title,
-    delegate_agent_options, empty_session_snapshot, gateway_message_from_chat_message, gateway_role,
-    gateway_stream_request_from_state, is_session_unavailable_error, latest_session_preview,
-    mcp_server_entry_to_info,
+    TodoSessionAccessAction, TuiApp, TuiRunMode, apply_settings_values_to_state,
+    bootstrap_message_base, bootstrap_system_message, build_exit_confirm_body,
+    comparable_terminal_from_runtime_terminal, comparable_usage_from_runtime_terminal,
+    compare_shadow_results, default_session_title, delegate_agent_options, empty_session_snapshot,
+    gateway_message_from_chat_message, gateway_role, gateway_stream_request_from_state,
+    is_session_unavailable_error, latest_session_preview, mcp_server_entry_to_info,
     normalize_catalog_text, parse_mcp_servers_json, provider_name_from_model,
     runtime_event_fallback_overlay, select_restore_session_id, shadow_compare_success_message,
     snapshot_from_preview,
@@ -34,8 +33,8 @@ use super::runtime::permission::FullAccessPermissionRuntime;
 use super::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use super::state::{TuiAction, TuiState, reduce_tui_state};
 use super::terminal_capabilities::{TerminalModePlan, TerminalModeSession};
-use crate::cli::processor::{SessionProcessorComparableResult, SessionProcessorComparableTerminal};
 use crate::app::agent::config::{Config, DelegateAgentConfig};
+use crate::cli::processor::{SessionProcessorComparableResult, SessionProcessorComparableTerminal};
 use vw_gateway_client::GatewayChatUsage;
 use vw_shared::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, TokenUsage,
@@ -202,20 +201,14 @@ fn delegate_agent_catalog_keeps_main_enabled_and_current_disabled_only() {
     );
     config.agents.insert(
         "hidden".to_string(),
-        DelegateAgentConfig {
-            enabled: true,
-            hidden: true,
-            ..DelegateAgentConfig::default()
-        },
+        DelegateAgentConfig { enabled: true, hidden: true, ..DelegateAgentConfig::default() },
     );
 
     let catalog = delegate_agent_options(&config, Some("current-disabled"));
     assert_eq!(catalog[0].key, None);
     assert_eq!(catalog[0].label, "main");
     assert!(catalog.iter().any(|agent| agent.key.as_deref() == Some("reviewer")));
-    assert!(
-        catalog.iter().any(|agent| agent.key.as_deref() == Some("current-disabled"))
-    );
+    assert!(catalog.iter().any(|agent| agent.key.as_deref() == Some("current-disabled")));
     assert!(!catalog.iter().any(|agent| agent.key.as_deref() == Some("disabled")));
     assert!(!catalog.iter().any(|agent| agent.key.as_deref() == Some("hidden")));
 }
@@ -303,20 +296,14 @@ fn tui_terminal_lifecycle_enables_shift_enter_in_integrated_terminals() {
 #[test]
 fn prompt_selection_copy_feedback_preserves_draft_and_selection() {
     let mut state = TuiState::default();
-    reduce_tui_state(
-        &mut state,
-        TuiAction::PromptValueSet("中e\u{301}🙂\n下一行".to_string()),
-    );
+    reduce_tui_state(&mut state, TuiAction::PromptValueSet("中e\u{301}🙂\n下一行".to_string()));
     state.prompt.editor.selection = Some(EditorSelection { anchor: 1, active: 6 });
     let prompt_before = state.prompt.clone();
     let mut output = Vec::new();
 
     TuiApp::copy_prompt_selection_to_writer(&mut state, &mut output, "e\u{301}🙂\n下一");
 
-    assert_eq!(
-        output,
-        b"\x1b]52;c;ZcyB8J+ZggrkuIvkuIA=\x07"
-    );
+    assert_eq!(output, b"\x1b]52;c;ZcyB8J+ZggrkuIvkuIA=\x07");
     assert_eq!(state.prompt, prompt_before);
     assert!(matches!(
         state.messages.last(),
@@ -326,17 +313,10 @@ fn prompt_selection_copy_feedback_preserves_draft_and_selection() {
     ));
 
     let mut failed_state = TuiState::default();
-    reduce_tui_state(
-        &mut failed_state,
-        TuiAction::PromptValueSet("保留草稿".to_string()),
-    );
+    reduce_tui_state(&mut failed_state, TuiAction::PromptValueSet("保留草稿".to_string()));
     failed_state.prompt.editor.selection = Some(EditorSelection { anchor: 0, active: 2 });
     let failed_prompt_before = failed_state.prompt.clone();
-    TuiApp::copy_prompt_selection_to_writer(
-        &mut failed_state,
-        &mut FailingClipboardWriter,
-        "保留",
-    );
+    TuiApp::copy_prompt_selection_to_writer(&mut failed_state, &mut FailingClipboardWriter, "保留");
 
     assert_eq!(failed_state.prompt, failed_prompt_before);
     assert!(matches!(
@@ -1140,15 +1120,11 @@ fn tui_busy_queue_drains_priorities_and_preserves_editable_input() {
         Some("now".to_string())
     );
     assert_eq!(
-        prompt
-            .drain_queued_for(QueueDrainBoundary::Tool, Some("session-a"))
-            .map(|item| item.raw),
+        prompt.drain_queued_for(QueueDrainBoundary::Tool, Some("session-a")).map(|item| item.raw),
         Some("tool".to_string())
     );
     assert_eq!(
-        prompt
-            .drain_queued_for(QueueDrainBoundary::Turn, Some("session-a"))
-            .map(|item| item.raw),
+        prompt.drain_queued_for(QueueDrainBoundary::Turn, Some("session-a")).map(|item| item.raw),
         Some("turn".to_string())
     );
     assert_eq!(prompt.queued_commands[0].raw, "foreign");
@@ -1233,8 +1209,5 @@ fn model_and_acp_settings_update_state_and_next_request_snapshot() {
     let request = gateway_stream_request_from_state(&state, &submission);
     assert_eq!(request.model.as_deref(), Some("openai/gpt-5.6"));
     assert_eq!(request.acp_agent.as_deref(), Some("codex"));
-    assert_eq!(
-        request.options.expect("ACP request options")["acp_force_new_session"],
-        true
-    );
+    assert_eq!(request.options.expect("ACP request options")["acp_force_new_session"], true);
 }

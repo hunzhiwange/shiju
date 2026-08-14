@@ -460,13 +460,8 @@ async fn git2_project_discovery_works_without_git_executable() {
     std::fs::create_dir_all(&primary_path).expect("primary dir");
 
     let committed_repo = repo_with_initial_commit(committed.path());
-    let root_oid = committed_repo
-        .head()
-        .expect("head")
-        .peel_to_commit()
-        .expect("commit")
-        .id()
-        .to_string();
+    let root_oid =
+        committed_repo.head().expect("head").peel_to_commit().expect("commit").id().to_string();
     drop(committed_repo);
 
     Repository::init(empty.path()).expect("empty repo");
@@ -493,8 +488,7 @@ async fn git2_project_discovery_works_without_git_executable() {
     let (empty_first, _) = from_directory(&tenant, empty.path()).await.expect("empty discover");
     assert_eq!(empty_first.vcs, Some(Vcs::Git));
     assert!(!empty_first.id.is_empty());
-    let (empty_second, _) =
-        from_directory(&tenant, empty.path()).await.expect("empty rediscover");
+    let (empty_second, _) = from_directory(&tenant, empty.path()).await.expect("empty rediscover");
     assert_eq!(empty_second.vcs, Some(Vcs::Git));
     assert_eq!(empty_second.id, empty_first.id);
 

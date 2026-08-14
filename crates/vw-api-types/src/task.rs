@@ -354,10 +354,7 @@ pub enum TaskPlanRunStatus {
 
 impl TaskPlanRunStatus {
     pub fn is_terminal(self) -> bool {
-        matches!(
-            self,
-            Self::Completed | Self::Blocked | Self::Failed | Self::Cancelled
-        )
+        matches!(self, Self::Completed | Self::Blocked | Self::Failed | Self::Cancelled)
     }
 }
 

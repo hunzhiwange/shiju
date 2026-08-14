@@ -672,12 +672,9 @@ pub(crate) fn parse_sse_frame(frame: &str) -> Result<Option<GatewaySseFrame>, St
         .filter_map(|line| {
             let line = line.trim_end_matches('\r');
             if let Some(value) = line.strip_prefix("id:") {
-                id = Some(
-                    value
-                        .trim()
-                        .parse::<u64>()
-                        .map_err(|_| "gateway stream SSE id must be a non-negative integer".to_string()),
-                );
+                id = Some(value.trim().parse::<u64>().map_err(|_| {
+                    "gateway stream SSE id must be a non-negative integer".to_string()
+                }));
                 None
             } else {
                 line.strip_prefix("data:").map(|value| Ok(value.trim_start()))

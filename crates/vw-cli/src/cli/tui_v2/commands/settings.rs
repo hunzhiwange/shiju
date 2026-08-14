@@ -108,18 +108,12 @@ pub(crate) fn validate_settings_values(
         return Err("selected model is not supported by the active provider".to_string());
     }
     if requested.delegate_agent != current.delegate_agent
-        && !capabilities
-            .delegate_agents
-            .iter()
-            .any(|agent| agent.key == requested.delegate_agent)
+        && !capabilities.delegate_agents.iter().any(|agent| agent.key == requested.delegate_agent)
     {
         return Err("selected delegate agent is not available in this session".to_string());
     }
     if requested.acp_backend != current.acp_backend
-        && !capabilities
-            .acp_backends
-            .iter()
-            .any(|backend| backend.key == requested.acp_backend)
+        && !capabilities.acp_backends.iter().any(|backend| backend.key == requested.acp_backend)
     {
         return Err("selected ACP backend is not available in this session".to_string());
     }

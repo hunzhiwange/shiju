@@ -281,30 +281,24 @@ fn raw_payload_panel(app: &App, session_id: &str, step_index: u32) -> Element<'s
     let key = (session_id.to_string(), step_index);
     let status = text(raw_payload_status(app, session_id, step_index)).size(12);
     let can_open = matches!(app.usage_step_raw_payloads.get(&key), Some(Ok(Some(_))));
-    let mut open_btn = button(text("查看原始记录").size(12))
-        .padding([6, 12])
-        .style(rounded_action_btn_style);
+    let mut open_btn =
+        button(text("查看原始记录").size(12)).padding([6, 12]).style(rounded_action_btn_style);
     if can_open {
-        open_btn =
-            open_btn.on_press(Message::View(ViewMessage::UsageStepRawOpen(step_index)));
+        open_btn = open_btn.on_press(Message::View(ViewMessage::UsageStepRawOpen(step_index)));
     }
 
-    container(
-        row![status.width(Length::Fill), open_btn]
-            .spacing(10)
-            .align_y(Alignment::Center),
-    )
-    .width(Length::Fill)
-    .padding(10)
-    .style(|theme: &Theme| {
-        let p = theme.extended_palette();
-        iced::widget::container::Style {
-            background: Some(Background::Color(p.background.weak.color)),
-            border: Border { width: 1.0, color: p.background.strong.color, radius: 8.0.into() },
-            ..Default::default()
-        }
-    })
-    .into()
+    container(row![status.width(Length::Fill), open_btn].spacing(10).align_y(Alignment::Center))
+        .width(Length::Fill)
+        .padding(10)
+        .style(|theme: &Theme| {
+            let p = theme.extended_palette();
+            iced::widget::container::Style {
+                background: Some(Background::Color(p.background.weak.color)),
+                border: Border { width: 1.0, color: p.background.strong.color, radius: 8.0.into() },
+                ..Default::default()
+            }
+        })
+        .into()
 }
 
 /// 构建步骤面板

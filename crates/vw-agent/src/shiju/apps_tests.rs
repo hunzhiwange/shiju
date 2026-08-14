@@ -88,9 +88,7 @@ fn assert_api_key(request: &str) {
         .find(|line| line.to_ascii_lowercase().starts_with("x-api-key:"))
         .expect("X-Api-Key header");
     assert_eq!(api_key, format!("x-api-key: {CREDENTIAL}"));
-    assert!(!request
-        .lines()
-        .any(|line| line.to_ascii_lowercase().starts_with("cookie:")));
+    assert!(!request.lines().any(|line| line.to_ascii_lowercase().starts_with("cookie:")));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -137,10 +135,7 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
 
     let catalog = client.catalog(CREDENTIAL).await.expect("catalog");
     let apps = client.installed(CREDENTIAL).await.expect("installed");
-    let launch = client
-        .prepare_launch(CREDENTIAL, INSTALLATION_ID)
-        .await
-        .expect("prepare launch");
+    let launch = client.prepare_launch(CREDENTIAL, INSTALLATION_ID).await.expect("prepare launch");
 
     assert_eq!(catalog.apps[0].app_id, "knowledge-assistant");
     assert!(catalog.apps[0].permissions.is_empty());
@@ -149,13 +144,12 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
     assert_eq!(apps.apps[0].updated_at.as_deref(), Some("2026-07-30T09:31:00+08:00"));
     assert_eq!(launch.installation_id, INSTALLATION_ID);
     assert_eq!(launch.name, "知识助手");
-    assert!(launch
-        .runtime_set_cookie
-        .starts_with("app_runtime_session=fixture-runtime-session-secret;"));
-    assert_eq!(
-        launch.runtime_url,
-        format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")
+    assert!(
+        launch
+            .runtime_set_cookie
+            .starts_with("app_runtime_session=fixture-runtime-session-secret;")
     );
+    assert_eq!(launch.runtime_url, format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/"));
     assert!(!format!("{launch:?}").contains("fixture-runtime-session-secret"));
 
     let requests = requests.join().expect("join fixture");
@@ -166,9 +160,7 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
     assert!(requests[3].starts_with(&format!(
         "GET /app-platform/api/tenant/installations/{INSTALLATION_ID}/api-key-binding HTTP/1.1\r\n"
     )));
-    assert!(requests[4].starts_with(
-        "POST /app-platform/api/runtime/browser-session HTTP/1.1\r\n"
-    ));
+    assert!(requests[4].starts_with("POST /app-platform/api/runtime/browser-session HTTP/1.1\r\n"));
     for request in &requests {
         assert_api_key(request);
         assert!(!request.lines().next().unwrap().contains(CREDENTIAL));
@@ -217,41 +209,17 @@ async fn shiju_app_prepare_launch_validates_owned_ready_runtime() {
     )
     .await;
     for (reconcile, runtime, url) in [
-        (
-            "pending",
-            "ready",
-            format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/"),
-        ),
-        (
-            "ready",
-            "stopped",
-            format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/"),
-        ),
-        (
-            "ready",
-            "ready",
-            format!("http://app.shiju.cloud/app/{INSTALLATION_ID}/"),
-        ),
-        (
-            "ready",
-            "ready",
-            format!("https://evil.example/app/{INSTALLATION_ID}/"),
-        ),
-        (
-            "ready",
-            "ready",
-            "https://app.shiju.cloud/app/OTHER123/".to_string(),
-        ),
+        ("pending", "ready", format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")),
+        ("ready", "stopped", format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")),
+        ("ready", "ready", format!("http://app.shiju.cloud/app/{INSTALLATION_ID}/")),
+        ("ready", "ready", format!("https://evil.example/app/{INSTALLATION_ID}/")),
+        ("ready", "ready", "https://app.shiju.cloud/app/OTHER123/".to_string()),
         (
             "ready",
             "ready",
             format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/?session=private"),
         ),
-        (
-            "ready",
-            "ready",
-            format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/#private"),
-        ),
+        ("ready", "ready", format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/#private")),
     ] {
         assert_prepare_rejected(
             installed_app(INSTALLATION_ID, reconcile, runtime, &url),
@@ -266,11 +234,8 @@ async fn shiju_apps_adapter_redacts_credentials_and_upstream_bodies() {
     let sensitive_body = format!(
         r#"{{"message":"upstream-body-secret","credential":"{CREDENTIAL}","runtimeUrl":"https://app.shiju.cloud/app/{INSTALLATION_ID}/?session=private"}}"#
     );
-    let (base, requests) = fixture(vec![FixtureResponse {
-        status: 500,
-        headers: Vec::new(),
-        body: sensitive_body,
-    }]);
+    let (base, requests) =
+        fixture(vec![FixtureResponse { status: 500, headers: Vec::new(), body: sensitive_body }]);
     let client = ShijuAppClient::with_base_url(&base).expect("client");
 
     let error = client.catalog(CREDENTIAL).await.expect_err("upstream error");

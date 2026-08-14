@@ -1,9 +1,6 @@
-use super::model::notification::{
-    NotificationPriority, NotificationStore, TuiNotification,
-};
+use super::model::notification::{NotificationPriority, NotificationStore, TuiNotification};
 use super::notifications::{
-    ExitDecision, ExitFlow, builtin_status_line, osc_title, progress_bar,
-    startup_notifications,
+    ExitDecision, ExitFlow, builtin_status_line, osc_title, progress_bar, startup_notifications,
 };
 use super::state::TuiState;
 

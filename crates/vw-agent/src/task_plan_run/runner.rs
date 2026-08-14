@@ -71,11 +71,8 @@ pub(crate) fn gateway_session_options(request: &SessionRunRequest) -> Map<String
         options.insert("agent".to_string(), json!(agent));
     }
 
-    let acp_agent = request
-        .acp_agent
-        .as_ref()
-        .map(|value| value.trim())
-        .filter(|value| !value.is_empty());
+    let acp_agent =
+        request.acp_agent.as_ref().map(|value| value.trim()).filter(|value| !value.is_empty());
     let acp_enabled = acp_agent.is_some();
     options.insert("acp_test".to_string(), json!(acp_enabled));
     if let Some(acp_agent) = acp_agent {
@@ -184,11 +181,8 @@ where
     let plan_abs = plan_dir_abs(root, task_id);
     let plan_dir_display = path_display(&plan_abs);
     let planning_session = planning_session_id(task_id);
-    let parent_session_id = request
-        .parent_session_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty());
+    let parent_session_id =
+        request.parent_session_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
     let planning_title = format!("规划 · {task_id}");
 
     if let Err(error) = std::fs::create_dir_all(&plan_abs) {
@@ -202,13 +196,9 @@ where
 
     // Info 绑定失败不应中断规划：会话目录/历史仍可由 run_session 落盘，
     // 否则桌面侧只看到 PlanningStarted 后流就断，表现为「一发起就挂」。
-    if let Err(error) = ensure_plan_run_session_info(
-        &planning_session,
-        parent_session_id,
-        root,
-        &planning_title,
-    )
-    .await
+    if let Err(error) =
+        ensure_plan_run_session_info(&planning_session, parent_session_id, root, &planning_title)
+            .await
     {
         tracing::warn!(
             target: "vw_agent::task_plan_run",
@@ -372,10 +362,8 @@ where
 
     for stage in stages {
         let batch = document.tasks[stage[0]].batch;
-        let subtask_ids: Vec<String> = stage
-            .iter()
-            .map(|&index| document.tasks[index].id.clone())
-            .collect();
+        let subtask_ids: Vec<String> =
+            stage.iter().map(|&index| document.tasks[index].id.clone()).collect();
 
         if !emit(
             &mut on_event,
@@ -396,13 +384,9 @@ where
             let task_file_display = path_display(&task_file_abs);
             let session_id = subtask_session_id(task_id, &task.id);
             let subtask_title = task.title.clone();
-            if let Err(error) = ensure_plan_run_session_info(
-                &session_id,
-                parent_session_id,
-                root,
-                &subtask_title,
-            )
-            .await
+            if let Err(error) =
+                ensure_plan_run_session_info(&session_id, parent_session_id, root, &subtask_title)
+                    .await
             {
                 tracing::warn!(
                     target: "vw_agent::task_plan_run",
@@ -582,11 +566,8 @@ where
     F: FnMut(TaskPlanRunStreamEventDto) -> bool,
 {
     let root = request.root.trim();
-    let parent_session_id = request
-        .parent_session_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty());
+    let parent_session_id =
+        request.parent_session_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
     let mut turn = 1_u32;
     loop {
         let task_files_state = inspect_goal_task_files(plan_abs, tasks)?;
@@ -757,9 +738,7 @@ where
         .await
         .map_err(|error| format!("等待会话 {session_id} 的 AgentTool 后代失败: {error}"))?;
     if outcome.timed_out {
-        return Err(format!(
-            "等待会话 {session_id} 的 AgentTool 后代终态超时"
-        ));
+        return Err(format!("等待会话 {session_id} 的 AgentTool 后代终态超时"));
     }
     Ok(Some(outcome.tasks))
 }
@@ -858,24 +837,18 @@ where
                 }
             }
         };
-        let descendants =
-            match wait_for_session_descendants(task_id, &session_id, |event| {
-                let stage_event_tx = stage_event_tx.clone();
-                async move { stage_event_tx.send(event).await.is_ok() }
-            })
-            .await
-            {
-                Ok(Some(descendants)) => descendants,
-                Ok(None) => Vec::new(),
-                Err(error) => {
-                    return (
-                        launch.index,
-                        launch.task,
-                        launch.task_file_display,
-                        Err(error),
-                    );
-                }
-            };
+        let descendants = match wait_for_session_descendants(task_id, &session_id, |event| {
+            let stage_event_tx = stage_event_tx.clone();
+            async move { stage_event_tx.send(event).await.is_ok() }
+        })
+        .await
+        {
+            Ok(Some(descendants)) => descendants,
+            Ok(None) => Vec::new(),
+            Err(error) => {
+                return (launch.index, launch.task, launch.task_file_display, Err(error));
+            }
+        };
         let result = result
             .map(|mut output| {
                 append_descendant_evidence(&mut output, &descendants);
@@ -906,12 +879,7 @@ where
 
         match result {
             Ok(output) => {
-                return (
-                    launch.index,
-                    launch.task,
-                    launch.task_file_display,
-                    Ok(output),
-                );
+                return (launch.index, launch.task, launch.task_file_display, Ok(output));
             }
             Err(error) if retry_attempt < SUBTASK_RETRY_MAX_ATTEMPTS => {
                 retry_attempt += 1;
@@ -959,11 +927,7 @@ where
 
 fn resolve_task_file(plan_abs: &Path, task: &PlanTaskEntry) -> PathBuf {
     let file = Path::new(&task.file);
-    if file.is_absolute() {
-        file.to_path_buf()
-    } else {
-        plan_abs.join(file)
-    }
+    if file.is_absolute() { file.to_path_buf() } else { plan_abs.join(file) }
 }
 
 fn path_display(path: &Path) -> String {
@@ -979,11 +943,7 @@ fn planning_session_id(task_id: &str) -> String {
 }
 
 fn subtask_session_id(task_id: &str, subtask_id: &str) -> String {
-    format!(
-        "{}-{}",
-        sanitize_session_part(task_id),
-        sanitize_session_part(subtask_id)
-    )
+    format!("{}-{}", sanitize_session_part(task_id), sanitize_session_part(subtask_id))
 }
 
 fn truncate_for_error(value: &str, max_chars: usize) -> String {
@@ -992,9 +952,5 @@ fn truncate_for_error(value: &str, max_chars: usize) -> String {
         return "(空)".to_string();
     }
     let truncated: String = trimmed.chars().take(max_chars).collect();
-    if trimmed.chars().count() > max_chars {
-        format!("{truncated}…")
-    } else {
-        truncated
-    }
+    if trimmed.chars().count() > max_chars { format!("{truncated}…") } else { truncated }
 }

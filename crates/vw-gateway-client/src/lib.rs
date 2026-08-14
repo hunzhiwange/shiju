@@ -77,12 +77,11 @@ pub use client::{
 /// Unified skill-market transport contract.
 pub use client::{
     SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketEnvelope,
-    SkillMarketInstallScopeDto, SkillMarketInstallSelectionDto,
-    SkillMarketInstallTargetDto, SkillMarketSecurityDto, SkillMarketSkillDetailDto,
-    SkillMarketSkillDto, SkillMarketSkillFileDto, SkillMarketSkillLocatorDto,
-    SkillMarketSkillPageDto, SkillMarketSkillQuery, SkillMarketSkillSetDetailDto,
-    SkillMarketSkillSetDto, SkillMarketSkillSetPageDto, SkillMarketSort,
-    SkillMarketSourceDto,
+    SkillMarketInstallScopeDto, SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto,
+    SkillMarketSecurityDto, SkillMarketSkillDetailDto, SkillMarketSkillDto,
+    SkillMarketSkillFileDto, SkillMarketSkillLocatorDto, SkillMarketSkillPageDto,
+    SkillMarketSkillQuery, SkillMarketSkillSetDetailDto, SkillMarketSkillSetDto,
+    SkillMarketSkillSetPageDto, SkillMarketSort, SkillMarketSourceDto,
 };
 /// 网关认证参数与基础端点配置。
 ///

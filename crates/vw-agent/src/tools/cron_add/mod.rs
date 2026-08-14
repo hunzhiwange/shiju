@@ -103,12 +103,7 @@ impl CronAddTool {
     /// let tool = CronAddTool::new(config, security);
     /// ```
     pub fn new(config: Arc<Config>, security: Arc<SecurityPolicy>) -> Self {
-        Self {
-            config,
-            security,
-            default_project_path: None,
-            default_full_access: None,
-        }
+        Self { config, security, default_project_path: None, default_full_access: None }
     }
 
     /// 设置新任务默认继承的当前执行上下文。
@@ -470,9 +465,7 @@ impl Tool for CronAddTool {
             .filter(|value| !value.is_empty())
             .map(str::to_string)
             .or_else(|| {
-                self.default_project_path
-                    .as_ref()
-                    .map(|path| path.to_string_lossy().to_string())
+                self.default_project_path.as_ref().map(|path| path.to_string_lossy().to_string())
             });
         let full_access = args
             .get("full_access")

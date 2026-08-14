@@ -143,9 +143,10 @@ mod tests {
             }
         ]);
 
-        let prepared = prepare_openai_json_messages_for_provider(messages, &MultimodalConfig::default())
-            .await
-            .unwrap();
+        let prepared =
+            prepare_openai_json_messages_for_provider(messages, &MultimodalConfig::default())
+                .await
+                .unwrap();
         let arr = prepared.as_array().expect("array");
         assert_eq!(arr[0]["content"], "sys");
         let (cleaned, refs) = parse_image_markers(arr[1]["content"].as_str().unwrap());
@@ -361,9 +362,15 @@ mod tests {
         let source = missing_path.to_str().unwrap();
         let client = Client::new();
 
-        let error = normalize_image_reference(source, &MultimodalConfig::default(), 1024, usize::MAX, &client)
-            .await
-            .expect_err("missing local source should fail");
+        let error = normalize_image_reference(
+            source,
+            &MultimodalConfig::default(),
+            1024,
+            usize::MAX,
+            &client,
+        )
+        .await
+        .expect_err("missing local source should fail");
 
         assert!(matches!(
             error.downcast_ref::<MultimodalError>(),
@@ -379,7 +386,9 @@ mod tests {
         std::fs::write(&image_path, bytes).unwrap();
 
         let normalized =
-            normalize_local_image(image_path.to_str().unwrap(), bytes.len(), usize::MAX).await.unwrap();
+            normalize_local_image(image_path.to_str().unwrap(), bytes.len(), usize::MAX)
+                .await
+                .unwrap();
 
         assert_eq!(normalized, format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes)));
     }
@@ -435,9 +444,12 @@ mod tests {
         let bytes = [0x89, b'P', b'N', b'G'];
         let payload = STANDARD.encode(bytes);
 
-        let normalized =
-            normalize_data_uri(&format!("data:IMAGE/PNG;base64,  {payload}  "), bytes.len(), usize::MAX)
-                .unwrap();
+        let normalized = normalize_data_uri(
+            &format!("data:IMAGE/PNG;base64,  {payload}  "),
+            bytes.len(),
+            usize::MAX,
+        )
+        .unwrap();
 
         assert_eq!(normalized, format!("data:image/png;base64,{payload}"));
     }
@@ -452,8 +464,8 @@ mod tests {
         ];
 
         for (source, expected_message) in cases {
-            let error =
-                normalize_data_uri(source, 1024, usize::MAX).expect_err("malformed data URI should fail");
+            let error = normalize_data_uri(source, 1024, usize::MAX)
+                .expect_err("malformed data URI should fail");
             assert!(
                 error.to_string().contains(expected_message),
                 "unexpected error for {source}: {error}"
@@ -465,8 +477,8 @@ mod tests {
     fn normalize_data_uri_rejects_decoded_payload_over_limit() {
         let source = format!("data:image/png;base64,{}", STANDARD.encode([1_u8, 2, 3]));
 
-        let error =
-            normalize_data_uri(&source, 2, usize::MAX).expect_err("decoded payload should exceed limit");
+        let error = normalize_data_uri(&source, 2, usize::MAX)
+            .expect_err("decoded payload should exceed limit");
 
         assert!(matches!(
             error.downcast_ref::<MultimodalError>(),

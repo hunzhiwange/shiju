@@ -194,7 +194,6 @@ impl<'a, Message, ThemeT, RendererT> LeftOverlay<'a, Message, ThemeT, RendererT>
         self.snap_within_viewport = snap;
         self
     }
-
 }
 
 impl<'a, Message, ThemeT, RendererT> PointLeftOverlay<'a, Message, ThemeT, RendererT> {

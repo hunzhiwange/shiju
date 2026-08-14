@@ -78,7 +78,10 @@ impl PermissionQueue {
     }
 }
 
-fn preview_kind(permission: &str, metadata: &serde_json::Map<String, Value>) -> PermissionPreviewKind {
+fn preview_kind(
+    permission: &str,
+    metadata: &serde_json::Map<String, Value>,
+) -> PermissionPreviewKind {
     let normalized = permission.to_ascii_lowercase();
     if normalized.contains("shell") || normalized.contains("command") {
         PermissionPreviewKind::Shell

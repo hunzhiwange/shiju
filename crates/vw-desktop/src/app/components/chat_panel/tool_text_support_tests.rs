@@ -1,10 +1,9 @@
 use super::tool_text_support::{
     ToolTextTarget, chat_text_font, chat_text_font_name, chat_text_line_height,
     chat_text_selection_color, content_safe_font, is_safe_for_text_editor,
-    message_target_from_context,
-    read_only_text_style, selected_chat_text_for_message, selected_chat_text_for_target,
-    selected_chat_text_for_tool, tool_inline_text_editor, tool_text_editor, tool_text_key,
-    tool_text_style, tool_text_style_with_danger,
+    message_target_from_context, read_only_text_style, selected_chat_text_for_message,
+    selected_chat_text_for_target, selected_chat_text_for_tool, tool_inline_text_editor,
+    tool_text_editor, tool_text_key, tool_text_style, tool_text_style_with_danger,
 };
 use crate::app::App;
 use iced::widget::text_editor;
@@ -30,7 +29,7 @@ fn chat_text_font_name_is_configured() {
     assert!(!chat_text_font_name().is_empty());
     let _ = chat_text_font();
     match chat_text_line_height() {
-        iced::widget::text::LineHeight::Relative(value) => assert_eq!(value, 1.6),
+        iced::widget::text::LineHeight::Relative(value) => assert_eq!(value, 1.52),
         _ => panic!("chat text line height should be relative"),
     }
 }
@@ -39,10 +38,7 @@ fn chat_text_font_name_is_configured() {
 fn content_safe_font_keeps_ascii_monospace_and_falls_back_for_non_ascii() {
     let preferred = "JetBrains Mono";
 
-    assert_eq!(
-        content_safe_font("fn main() {}", preferred),
-        iced::Font::with_name(preferred)
-    );
+    assert_eq!(content_safe_font("fn main() {}", preferred), iced::Font::with_name(preferred));
     assert_eq!(content_safe_font("// 中文注释", preferred), chat_text_font());
 }
 

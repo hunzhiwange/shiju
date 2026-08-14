@@ -432,8 +432,7 @@ pub(crate) fn setup_cli(
 
     // 检查 Provider 是否支持原生工具调用
     let native_tools = provider.supports_native_tools();
-    let timezone =
-        vw_agent::util::locale::parse_timezone(&config.app_ui.system_settings.timezone)?;
+    let timezone = vw_agent::util::locale::parse_timezone(&config.app_ui.system_settings.timezone)?;
 
     // 构建基础系统提示词
     let mut system_prompt = crate::app::agent::channels::build_system_prompt_with_mode(

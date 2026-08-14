@@ -100,11 +100,8 @@ pub(super) fn split_session_control_selection(
     let close_end = close_start + SESSION_CONTROL_CLOSE.len();
 
     let block = &raw[content_start..close_start];
-    let mut selection = SessionControlSelection {
-        tools: Vec::new(),
-        skills: Vec::new(),
-        shiju_skills: Vec::new(),
-    };
+    let mut selection =
+        SessionControlSelection { tools: Vec::new(), skills: Vec::new(), shiju_skills: Vec::new() };
     for line in block.lines().map(str::trim) {
         if let Some(items) = parse_session_control_items(line, "工具：")
             .or_else(|| parse_session_control_items(line, "工具:"))

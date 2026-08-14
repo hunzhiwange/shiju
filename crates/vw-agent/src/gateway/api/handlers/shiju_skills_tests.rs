@@ -22,9 +22,7 @@ async fn response(request: Request<Body>) -> (StatusCode, Value) {
     (status, value)
 }
 
-fn upstream_fixture(
-    request_count: usize,
-) -> (String, thread::JoinHandle<Vec<String>>) {
+fn upstream_fixture(request_count: usize) -> (String, thread::JoinHandle<Vec<String>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind SHIJU route fixture");
     let address = listener.local_addr().expect("fixture address");
     let handle = thread::spawn(move || {
@@ -109,9 +107,7 @@ async fn shiju_skill_routes_forward_empty_and_version_install_bodies() {
 #[tokio::test]
 async fn shiju_skill_routes_reject_missing_credential_and_invalid_filters() {
     let (status, body) = response(
-        Request::get("/shiju/skills/installed")
-            .body(Body::empty())
-            .expect("installed request"),
+        Request::get("/shiju/skills/installed").body(Body::empty()).expect("installed request"),
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);

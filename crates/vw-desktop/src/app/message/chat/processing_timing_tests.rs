@@ -76,10 +76,7 @@ fn llm_timer_terminal_paths_persist_accumulated_elapsed() {
     ));
 
     assert_eq!(
-        messages[0]
-            .processing_timing
-            .as_ref()
-            .and_then(|timing| timing.processing_elapsed_ms),
+        messages[0].processing_timing.as_ref().and_then(|timing| timing.processing_elapsed_ms),
         Some(8_000)
     );
     assert_eq!(

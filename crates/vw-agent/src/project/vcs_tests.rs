@@ -290,8 +290,7 @@ async fn git2_branch_tracking_works_without_git_executable() {
 
     let (temp, repo) = repo_with_initial_commit();
     {
-        let commit =
-            repo.head().expect("head should exist").peel_to_commit().expect("head commit");
+        let commit = repo.head().expect("head should exist").peel_to_commit().expect("head commit");
         repo.branch("feature/git2-branch", &commit, false).expect("branch should create");
         repo.set_head("refs/heads/feature/git2-branch").expect("head should switch");
     }

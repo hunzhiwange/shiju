@@ -764,11 +764,8 @@ fn resolve_agent_binary_path() -> Result<PathBuf, String> {
     let current_exe =
         std::env::current_exe().map_err(|e| format!("获取当前可执行文件失败: {e}"))?;
     let exe_dir = current_exe.parent().ok_or_else(|| "无法定位当前可执行文件目录".to_string())?;
-    let agent_names = if cfg!(windows) {
-        ["shiju.exe", "vibe-agent.exe"]
-    } else {
-        ["shiju", "vibe-agent"]
-    };
+    let agent_names =
+        if cfg!(windows) { ["shiju.exe", "vibe-agent.exe"] } else { ["shiju", "vibe-agent"] };
     let mut candidates = agent_names.iter().map(|name| exe_dir.join(name)).collect::<Vec<_>>();
 
     if let Ok(cwd) = std::env::current_dir() {

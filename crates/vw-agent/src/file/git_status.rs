@@ -64,22 +64,12 @@ pub fn status_git(worktree: impl AsRef<Path>) -> Vec<Info> {
                 let lines = std::fs::read_to_string(&full)
                     .map(|content| content.lines().count() as i64)
                     .unwrap_or(0);
-                changed.push(Info {
-                    path,
-                    added: lines,
-                    removed: 0,
-                    status: Status::Added,
-                });
+                changed.push(Info { path, added: lines, removed: 0, status: Status::Added });
             }
             Delta::Deleted => {
                 let (added, removed) = line_counts.get(&path).copied().unwrap_or((0, 0));
                 // 对齐 `git diff --numstat HEAD`：删除文件先以 Modified 计数出现。
-                changed.push(Info {
-                    path: path.clone(),
-                    added,
-                    removed,
-                    status: Status::Modified,
-                });
+                changed.push(Info { path: path.clone(), added, removed, status: Status::Modified });
                 changed.push(Info { path, added: 0, removed: 0, status: Status::Deleted });
             }
             Delta::Added | Delta::Modified | Delta::Renamed | Delta::Copied | Delta::Typechange => {

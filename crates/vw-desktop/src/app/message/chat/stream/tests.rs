@@ -1,7 +1,13 @@
 use crate::app::models::{ChatMessage as ModelChatMessage, ChatRole};
 
 fn chat_message(role: ChatRole, content: &str) -> ModelChatMessage {
-    ModelChatMessage { role, content: content.to_string(), model: None, think_timing: Vec::new(), processing_timing: None }
+    ModelChatMessage {
+        role,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }
 }
 
 fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
@@ -84,8 +90,7 @@ fn desktop_plan_run_waiting_and_cancelled_events_keep_session_lifecycle_consiste
     assert!(!app.get_session_runtime("task-2-sub-9").is_requesting);
     assert!(app.get_session_runtime("main-session").is_requesting);
 
-    let _parent_cancelled =
-        super::update(&mut app, super::ChatMessage::AgentStreamCancelled(42));
+    let _parent_cancelled = super::update(&mut app, super::ChatMessage::AgentStreamCancelled(42));
 
     let parent = app.get_session_runtime("main-session");
     assert!(!parent.is_requesting);
@@ -101,10 +106,8 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
         let session_id = format!("session-{request_id}");
         app.active_session_id = Some(session_id.clone());
         app.sessions = vec![session_info(&session_id, "Session", "/project")];
-        app.chat = vec![
-            chat_message(ChatRole::User, "question"),
-            chat_message(ChatRole::Assistant, ""),
-        ];
+        app.chat =
+            vec![chat_message(ChatRole::User, "question"), chat_message(ChatRole::Assistant, "")];
         app.chat_message_ids = vec![None, None];
         let runtime = app.get_session_runtime_mut(&session_id);
         runtime.is_requesting = true;
@@ -114,11 +117,8 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
 
     let mut done_app = active_app(51);
     let done_session = done_app.active_session_id.clone().unwrap();
-    let _ = super::stream_events::queue_agent_stream_delta(
-        &mut done_app,
-        51,
-        "done tail".to_string(),
-    );
+    let _ =
+        super::stream_events::queue_agent_stream_delta(&mut done_app, 51, "done tail".to_string());
     let _ = super::update(
         &mut done_app,
         super::ChatMessage::AgentStreamDone(
@@ -145,12 +145,7 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
     );
     let _ = super::update(&mut cancelled_app, super::ChatMessage::AgentStreamCancelled(52));
     assert_eq!(cancelled_app.chat[1].content, "cancelled tail");
-    assert!(
-        cancelled_app
-            .get_session_runtime(&cancelled_session)
-            .pending_stream_delta
-            .is_empty()
-    );
+    assert!(cancelled_app.get_session_runtime(&cancelled_session).pending_stream_delta.is_empty());
     assert!(!cancelled_app.get_session_runtime(&cancelled_session).stream_delta_flush_scheduled);
 
     let mut error_app = active_app(53);
@@ -395,7 +390,7 @@ fn maybe_generate_session_title_schedules_task_for_single_user_default_title() {
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
 fn stream_session_saves_coalesce_to_latest_snapshot_while_in_flight() {
-    use std::sync::{mpsc, Arc, Mutex};
+    use std::sync::{Arc, Mutex, mpsc};
     use std::time::Duration;
 
     let coordinator = Arc::new(super::StreamSessionSaveCoordinator::default());
@@ -404,17 +399,15 @@ fn stream_session_saves_coalesce_to_latest_snapshot_while_in_flight() {
     let (first_save_started_tx, first_save_started_rx) = mpsc::channel();
     let (release_first_save_tx, release_first_save_rx) = mpsc::channel();
 
-    let snapshot = |content: &str| {
-        crate::app::models::ChatSession {
-            id: "session-1".to_string(),
-            title: "Session".to_string(),
-            messages: vec![chat_message(ChatRole::Assistant, content)],
-            message_ids: vec![None],
-            calls: Vec::new(),
-            steps: Vec::new(),
-            created_ms: 1,
-            updated_ms: 2,
-        }
+    let snapshot = |content: &str| crate::app::models::ChatSession {
+        id: "session-1".to_string(),
+        title: "Session".to_string(),
+        messages: vec![chat_message(ChatRole::Assistant, content)],
+        message_ids: vec![None],
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 2,
     };
     let first_snapshot = snapshot("first");
     let middle_snapshot = snapshot("middle");
@@ -432,10 +425,7 @@ fn stream_session_saves_coalesce_to_latest_snapshot_while_in_flight() {
                 first_saved_contents
                     .lock()
                     .expect("saved contents lock")
-                    .push((
-                        session.messages[0].content.clone(),
-                        directory.map(str::to_string),
-                    ));
+                    .push((session.messages[0].content.clone(), directory.map(str::to_string)));
                 if session.messages[0].content == "first" {
                     first_save_started_tx.send(()).expect("signal first save start");
                     release_first_save_rx
@@ -447,9 +437,7 @@ fn stream_session_saves_coalesce_to_latest_snapshot_while_in_flight() {
         );
     });
 
-    first_save_started_rx
-        .recv_timeout(Duration::from_secs(10))
-        .expect("first save should start");
+    first_save_started_rx.recv_timeout(Duration::from_secs(10)).expect("first save should start");
 
     coordinator.save(middle_snapshot, Some("/middle".to_string()), |_, _| {
         panic!("an in-flight save must use the active runner")

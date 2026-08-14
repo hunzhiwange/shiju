@@ -83,14 +83,7 @@ pub(super) fn telegram_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(
-        "telegram",
-        "Telegram",
-        "机器人令牌、群聊行为与白名单控制。",
-        s.telegram.is_some(),
-        s.expanded_panels.contains("telegram"),
-        body,
-    )
+    panel("telegram", "Telegram", "机器人令牌、群聊行为与白名单控制。", s.telegram.is_some(), body)
 }
 
 /// 构建或处理 `discord_panel` 对应的界面片段与交互数据。
@@ -160,14 +153,7 @@ pub(super) fn discord_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(
-        "discord",
-        "Discord",
-        "机器人令牌、服务器限制与群聊回复控制。",
-        s.discord.is_some(),
-        s.expanded_panels.contains("discord"),
-        body,
-    )
+    panel("discord", "Discord", "机器人令牌、服务器限制与群聊回复控制。", s.discord.is_some(), body)
 }
 
 /// 构建或处理 `slack_panel` 对应的界面片段与交互数据。
@@ -226,14 +212,7 @@ pub(super) fn slack_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(
-        "slack",
-        "Slack",
-        "机器人令牌、Socket Mode 应用令牌与频道限制。",
-        s.slack.is_some(),
-        s.expanded_panels.contains("slack"),
-        body,
-    )
+    panel("slack", "Slack", "机器人令牌、Socket Mode 应用令牌与频道限制。", s.slack.is_some(), body)
 }
 
 /// 构建或处理 `mattermost_panel` 对应的界面片段与交互数据。
@@ -323,7 +302,6 @@ pub(super) fn mattermost_panel(app: &App) -> Element<'_, Message> {
         "Mattermost",
         "服务器地址、机器人令牌、线程回复与仅提及时回复。",
         s.mattermost.is_some(),
-        s.expanded_panels.contains("mattermost"),
         body,
     )
 }
@@ -361,14 +339,7 @@ pub(super) fn webhook_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(
-        "webhook",
-        "Webhook",
-        "接收入站网络事件的轻量端点。",
-        s.webhook.is_some(),
-        s.expanded_panels.contains("webhook"),
-        body,
-    )
+    panel("webhook", "Webhook", "接收入站网络事件的轻量端点。", s.webhook.is_some(), body)
 }
 
 /// 构建或处理 `imessage_panel` 对应的界面片段与交互数据。
@@ -401,14 +372,7 @@ pub(super) fn imessage_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(
-        "imessage",
-        "iMessage",
-        "macOS 下允许接入的联系人列表。",
-        s.imessage.is_some(),
-        s.expanded_panels.contains("imessage"),
-        body,
-    )
+    panel("imessage", "iMessage", "macOS 下允许接入的联系人列表。", s.imessage.is_some(), body)
 }
 
 /// 构建或处理 `matrix_panel` 对应的界面片段与交互数据。
@@ -567,7 +531,6 @@ pub(super) fn matrix_panel(app: &App) -> Element<'_, Message> {
         "外部 Matrix 桥",
         "可选：把任务池事件同步到外部 Matrix room。本地员工协同不需要配置服务器。",
         enabled,
-        s.expanded_panels.contains("matrix"),
         body.into(),
     )
 }
@@ -626,12 +589,5 @@ pub(super) fn signal_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(
-        "signal",
-        "Signal",
-        "signal-cli HTTP daemon 地址与来源过滤。",
-        s.signal.is_some(),
-        s.expanded_panels.contains("signal"),
-        body,
-    )
+    panel("signal", "Signal", "signal-cli HTTP daemon 地址与来源过滤。", s.signal.is_some(), body)
 }

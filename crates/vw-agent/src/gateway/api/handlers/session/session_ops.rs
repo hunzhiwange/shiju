@@ -188,10 +188,9 @@ pub(super) async fn ui_session_create(
     let vw_api_types::session::GatewaySessionCreateBody { parent_id, title } = session;
 
     let scope = SessionScope::new(tenant, dir).map_err(lifecycle_api_error)?;
-    let created =
-        create_session(CreateSessionInput { scope, parent_id, title, permission })
-            .await
-            .map_err(lifecycle_api_error)?;
+    let created = create_session(CreateSessionInput { scope, parent_id, title, permission })
+        .await
+        .map_err(lifecycle_api_error)?;
     Ok(Json(created.info))
 }
 
@@ -520,13 +519,10 @@ pub(super) async fn session_summarize(
     let dir = resolve_directory(&query, &headers);
     with_tenant_instance(tenant, dir, move || {
         Box::pin(async move {
-            let outcome = agent_session::compaction::process_session(
-                &session_id,
-                &body.message_id,
-                false,
-            )
-            .await
-            .map_err(|error| ApiError::bad_request(error.to_string()))?;
+            let outcome =
+                agent_session::compaction::process_session(&session_id, &body.message_id, false)
+                    .await
+                    .map_err(|error| ApiError::bad_request(error.to_string()))?;
             match outcome {
                 agent_session::compaction::CompactionOutcome::Compacted { .. } => Ok(true),
                 agent_session::compaction::CompactionOutcome::NotNeeded { .. } => Ok(false),

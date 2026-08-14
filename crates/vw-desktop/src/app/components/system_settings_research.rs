@@ -19,14 +19,60 @@
 //! 共享数据库的 `research` 字段中。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_text_input_style,
-    settings_value_badge,
+    SETTINGS_LABEL_WIDTH, icon_btn, settings_checkbox_style, settings_close_button,
+    settings_divider, settings_help_button, settings_help_copy_state, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
-use iced::widget::{checkbox, column, container, pick_list, row, slider, text, text_input};
+use iced::widget::{Space, checkbox, column, container, pick_list, row, slider, text, text_input};
 use iced::{Alignment, Element, Length};
+
+const RESEARCH_HELP: &str = r#"研究配置说明
+
+一、作用
+- research 用于在正式回复前做一轮预检：先调用工具收集上下文，再生成主回复。
+- 典型用于代码搜索、资料补全、复杂问题分解。
+
+二、字段含义
+1) enabled
+- 是否启用 research 阶段。
+
+2) trigger
+- 从不：永不触发。
+- 总是：每次都触发。
+- 关键词：命中关键词时触发。
+- 长度：消息长度超过 min_message_length 时触发。
+- 问句：包含问号时触发。
+
+3) keywords
+- trigger 为“关键词”时使用，支持多个关键词。
+
+4) min_message_length
+- trigger 为“长度”时使用，消息长度阈值。
+
+5) max_iterations
+- 单次 research 允许的最大工具调用轮次。
+
+6) show_progress
+- 是否在控制台显示 research 过程日志。
+
+7) system_prompt_prefix
+- 可选。用于追加自定义研究指令前缀。
+
+三、示例
+{
+  "research": {
+    "enabled": true,
+    "trigger": "keywords",
+    "keywords": ["find", "search", "investigate"],
+    "min_message_length": 50,
+    "max_iterations": 5,
+    "show_progress": true,
+    "system_prompt_prefix": ""
+  }
+  }
+"#;
 
 fn field_row<'a>(
     label: &'static str,
@@ -91,6 +137,34 @@ fn parse_trigger_label(value: &str) -> ResearchTrigger {
     }
 }
 
+fn inline_help_panel(app: &App) -> Option<Element<'static, Message>> {
+    app.research_settings.show_help_modal.then(|| {
+        let close_message = Message::Settings(message::SettingsMessage::ResearchHelpClose);
+        let close_btn = settings_close_button(close_message);
+        let (copy_icon, copy_tip) =
+            settings_help_copy_state(app.last_copied_code_hash, RESEARCH_HELP);
+        let copy_btn =
+            icon_btn(copy_icon, copy_tip, Some(Message::CopyCode(RESEARCH_HELP.to_string())));
+
+        settings_panel(
+            column![
+                row![
+                    text("Research 配置帮助").size(16),
+                    Space::new().width(Length::Fill),
+                    copy_btn,
+                    close_btn
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
+                text(RESEARCH_HELP).size(13).style(settings_muted_text_style),
+            ]
+            .spacing(12)
+            .width(Length::Fill),
+        )
+        .into()
+    })
+}
+
 /// 构建研究配置设置界面的视图
 ///
 /// # 参数
@@ -103,7 +177,7 @@ fn parse_trigger_label(value: &str) -> ResearchTrigger {
 /// - 标题和帮助按钮
 /// - 各配置项的输入控件
 /// - 错误信息显示（如有）
-/// - 帮助模态窗口（当 `show_help_modal` 为 true 时）
+/// - 帮助卡片（当 `show_help_modal` 为 true 时）
 ///
 /// # 界面布局
 ///
@@ -214,7 +288,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         |v| Message::Settings(message::SettingsMessage::ResearchSystemPromptPrefixChanged(v)),
     );
 
-    let col = column![
+    let mut col = column![
         row![
             container(settings_page_intro(
                 "研究配置",
@@ -224,14 +298,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
             help_btn
         ]
         .align_y(Alignment::Start),
-        settings_section_card("基础行为", "控制研究阶段启用状态与触发方式。"),
-        settings_panel(
+    ]
+    .spacing(16)
+    .width(Length::Fill);
+
+    if let Some(help_panel) = inline_help_panel(app) {
+        col = col.push(help_panel);
+    }
+
+    col = col
+        .push(settings_section_card("基础行为", "控制研究阶段启用状态与触发方式。"))
+        .push(settings_panel(
             column![enabled_row, settings_divider(), trigger_row, settings_divider(), keywords_row]
-                .spacing(0)
-        ),
-        keywords_hint,
-        settings_section_card("预算与输出", "配置长度阈值、最大迭代和过程输出。"),
-        settings_panel(
+                .spacing(0),
+        ))
+        .push(keywords_hint)
+        .push(settings_section_card("预算与输出", "配置长度阈值、最大迭代和过程输出。"))
+        .push(settings_panel(
             column![
                 min_len_row,
                 settings_divider(),
@@ -242,74 +325,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 prompt_row,
             ]
             .spacing(0),
-        ),
-    ]
-    .spacing(16)
-    .width(Length::Fill);
+        ));
 
     col.into()
 }
 
-pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
-    let s = &app.research_settings;
-    if !s.show_help_modal {
-        return dialog;
-    }
-
-    let help_text = r#"研究配置说明
-
-一、作用
-- research 用于在正式回复前做一轮预检：先调用工具收集上下文，再生成主回复。
-- 典型用于代码搜索、资料补全、复杂问题分解。
-
-二、字段含义
-1) enabled
-- 是否启用 research 阶段。
-
-2) trigger
-- 从不：永不触发。
-- 总是：每次都触发。
-- 关键词：命中关键词时触发。
-- 长度：消息长度超过 min_message_length 时触发。
-- 问句：包含问号时触发。
-
-3) keywords
-- trigger 为“关键词”时使用，支持多个关键词。
-
-4) min_message_length
-- trigger 为“长度”时使用，消息长度阈值。
-
-5) max_iterations
-- 单次 research 允许的最大工具调用轮次。
-
-6) show_progress
-- 是否在控制台显示 research 过程日志。
-
-7) system_prompt_prefix
-- 可选。用于追加自定义研究指令前缀。
-
-三、示例
-{
-  "research": {
-    "enabled": true,
-    "trigger": "keywords",
-    "keywords": ["find", "search", "investigate"],
-    "min_message_length": 50,
-    "max_iterations": 5,
-    "show_progress": true,
-    "system_prompt_prefix": ""
-  }
-  }
-"#;
-
-    crate::app::components::system_settings_common::with_settings_help_modal(
-        app,
-        dialog,
-        "Research 配置帮助",
-        help_text,
-        Message::Settings(message::SettingsMessage::ResearchHelpClose),
-    )
-}
 #[cfg(test)]
 #[path = "system_settings_research_tests.rs"]
 mod system_settings_research_tests;

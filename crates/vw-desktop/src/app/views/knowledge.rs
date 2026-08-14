@@ -365,10 +365,7 @@ fn build_create_dataset_panel(app: &App) -> Element<'_, Message> {
     };
 
     column![
-        container(tabs)
-            .padding([8, 10])
-            .width(Length::Fill)
-            .style(chrome_style),
+        container(tabs).padding([8, 10]).width(Length::Fill).style(chrome_style),
         knowledge_scrollable(content).height(Length::Fill),
     ]
     .spacing(14)
@@ -422,11 +419,8 @@ fn create_dataset_step<'a>(
 ) -> Element<'a, Message> {
     row![
         settings_value_badge(number),
-        column![
-            text(title).size(13),
-            text(description).size(11).style(settings_muted_text_style),
-        ]
-        .spacing(3),
+        column![text(title).size(13), text(description).size(11).style(settings_muted_text_style),]
+            .spacing(3),
     ]
     .spacing(10)
     .align_y(Alignment::Center)
@@ -608,11 +602,8 @@ fn build_embedding_model_section(app: &App) -> Element<'_, Message> {
 
 fn embedding_summary_item<'a>(label: &'a str, value: String) -> Element<'a, Message> {
     container(
-        column![
-            text(label).size(10).style(settings_muted_text_style),
-            text(value).size(12),
-        ]
-        .spacing(3),
+        column![text(label).size(10).style(settings_muted_text_style), text(value).size(12),]
+            .spacing(3),
     )
     .padding([8, 9])
     .width(Length::FillPortion(1))

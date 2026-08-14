@@ -43,13 +43,7 @@ fn lark_and_feishu_required_credentials_reject_blank_or_partial_values() {
     ];
 
     for (app_id, app_secret, expected) in cases {
-        assert_eq!(
-            lark_config(app_id, app_secret).has_required_credentials(),
-            expected
-        );
-        assert_eq!(
-            feishu_config(app_id, app_secret).has_required_credentials(),
-            expected
-        );
+        assert_eq!(lark_config(app_id, app_secret).has_required_credentials(), expected);
+        assert_eq!(feishu_config(app_id, app_secret).has_required_credentials(), expected);
     }
 }

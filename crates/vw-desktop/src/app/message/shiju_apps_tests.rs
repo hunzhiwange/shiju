@@ -2,9 +2,7 @@ use crate::app::account::{
     AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount,
 };
 use crate::app::message::ShijuAppsMessage;
-use crate::app::shiju_apps::{
-    ShijuAppLaunchState, ShijuAppsLoadState, ShijuAppsTab,
-};
+use crate::app::shiju_apps::{ShijuAppLaunchState, ShijuAppsLoadState, ShijuAppsTab};
 use crate::app::{App, Message, Screen};
 use vw_gateway_client::{
     ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuInstalledAppDto,
@@ -35,15 +33,8 @@ fn shiju_apps_open_loads_mine_through_gateway() {
     assert_eq!(app.screen, Screen::ShijuApps);
     assert_eq!(app.expert_hub.shiju_apps.tab, ShijuAppsTab::Mine);
     assert_eq!(app.expert_hub.shiju_apps.account_id.as_deref(), Some("company-1"));
-    assert!(matches!(
-        app.expert_hub.shiju_apps.mine,
-        ShijuAppsLoadState::Loading { .. }
-    ));
-    let tabs = app
-        .open_tabs
-        .iter()
-        .filter(|tab| tab.id == "shiju_apps")
-        .collect::<Vec<_>>();
+    assert!(matches!(app.expert_hub.shiju_apps.mine, ShijuAppsLoadState::Loading { .. }));
+    let tabs = app.open_tabs.iter().filter(|tab| tab.id == "shiju_apps").collect::<Vec<_>>();
     assert_eq!(tabs.len(), 1);
     assert_eq!(tabs[0].title, "识矩应用");
     assert_eq!(tabs[0].screen, Screen::ShijuApps);
@@ -66,39 +57,25 @@ fn shiju_apps_tabs_ignore_stale_or_wrong_account_results() {
         account_id: "wrong-account".to_string(),
         result: Ok(ShijuAppListDto { apps: Vec::new() }),
     }));
-    assert!(matches!(
-        app.expert_hub.shiju_apps.mine,
-        ShijuAppsLoadState::Loading { .. }
-    ));
+    assert!(matches!(app.expert_hub.shiju_apps.mine, ShijuAppsLoadState::Loading { .. }));
 
     let _ = app.update(Message::ShijuApps(ShijuAppsMessage::MineLoaded {
         generation: mine_generation,
         account_id: "company-1".to_string(),
         result: Ok(ShijuAppListDto { apps: Vec::new() }),
     }));
-    assert!(matches!(
-        app.expert_hub.shiju_apps.mine,
-        ShijuAppsLoadState::Loaded(_)
-    ));
+    assert!(matches!(app.expert_hub.shiju_apps.mine, ShijuAppsLoadState::Loaded(_)));
 
-    let _ = app.update(Message::ShijuApps(ShijuAppsMessage::SelectTab(
-        ShijuAppsTab::Store,
-    )));
+    let _ = app.update(Message::ShijuApps(ShijuAppsMessage::SelectTab(ShijuAppsTab::Store)));
     let store_generation = app.expert_hub.shiju_apps.generation;
     assert!(store_generation > mine_generation);
-    assert!(matches!(
-        app.expert_hub.shiju_apps.store,
-        ShijuAppsLoadState::Loading { .. }
-    ));
+    assert!(matches!(app.expert_hub.shiju_apps.store, ShijuAppsLoadState::Loading { .. }));
     let _ = app.update(Message::ShijuApps(ShijuAppsMessage::StoreLoaded {
         generation: store_generation,
         account_id: "company-1".to_string(),
         result: Ok(ShijuAppCatalogDto { apps: Vec::new() }),
     }));
-    assert!(matches!(
-        app.expert_hub.shiju_apps.store,
-        ShijuAppsLoadState::Loaded(_)
-    ));
+    assert!(matches!(app.expert_hub.shiju_apps.store, ShijuAppsLoadState::Loaded(_)));
 }
 
 fn ready_app() -> ShijuInstalledAppDto {

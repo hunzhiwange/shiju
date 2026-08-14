@@ -276,8 +276,7 @@ fn delete_action_removes_file_from_local_tree_before_gateway_completes() {
     let target = "/tmp/project/src/main.rs";
     app.project_path = Some("/tmp/project".to_string());
     app.file_tree_menu_path = Some(target.to_string());
-    app.files =
-        vec![target.to_string(), "/tmp/project/src/lib.rs".to_string()];
+    app.files = vec![target.to_string(), "/tmp/project/src/lib.rs".to_string()];
 
     let task = super::handle(
         &mut app,
@@ -314,10 +313,7 @@ fn delete_action_removes_directory_subtree_from_local_tree_before_gateway_comple
     assert!(task.is_some());
     assert_eq!(
         app.files,
-        vec![
-            "/tmp/project/src-old/keep.rs".to_string(),
-            "/tmp/project/README.md".to_string(),
-        ]
+        vec!["/tmp/project/src-old/keep.rs".to_string(), "/tmp/project/README.md".to_string(),]
     );
 }
 

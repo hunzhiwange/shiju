@@ -355,8 +355,7 @@ fn plan_run_node_click_opens_session_when_session_id_present() {
         }
     });
 
-    let message =
-        workflow_node_primary_message(Some("/work/proj"), &value, 1, 2, visible);
+    let message = workflow_node_primary_message(Some("/work/proj"), &value, 1, 2, visible);
     match message {
         Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id)) => {
             assert_eq!(path, "/work/proj");
@@ -377,8 +376,7 @@ fn plan_run_running_node_click_opens_session_with_session_id() {
         }
     });
 
-    let message =
-        workflow_node_primary_message(Some("/work/proj"), &value, 1, 2, visible);
+    let message = workflow_node_primary_message(Some("/work/proj"), &value, 1, 2, visible);
     match message {
         Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id)) => {
             assert_eq!(path, "/work/proj");
@@ -396,8 +394,7 @@ fn plan_run_node_click_keeps_detail_without_session_id() {
         "metadata": {"plan_run": true, "title": "Plan"}
     });
 
-    let message =
-        workflow_node_primary_message(Some("/work/proj"), &value, 3, 4, visible);
+    let message = workflow_node_primary_message(Some("/work/proj"), &value, 3, 4, visible);
     assert!(matches!(
         message,
         Message::Chat(message::ChatMessage::OpenToolDetail(3, 4, ref raw)) if raw == visible
@@ -412,8 +409,7 @@ fn plan_run_node_click_falls_back_to_detail_without_project_path() {
     });
 
     for project_path in [None, Some(""), Some("   ")] {
-        let message =
-            workflow_node_primary_message(project_path, &value, 5, 6, visible);
+        let message = workflow_node_primary_message(project_path, &value, 5, 6, visible);
         assert!(
             matches!(
                 message,

@@ -1,10 +1,8 @@
-use super::agents::{AgentsRuntime, send_to_viewed_agent, stop_viewed_agent};
-use super::super::model::agent_view::{
-    AgentMember, AgentStatus, AgentViewState,
-};
+use super::super::model::agent_view::{AgentMember, AgentStatus, AgentViewState};
 use super::super::model::{
     PermissionMode, UiMessage, UiMessageBase, UiMessageId, UiSystemMessage, UiSystemMessageLevel,
 };
+use super::agents::{AgentsRuntime, send_to_viewed_agent, stop_viewed_agent};
 
 #[derive(Default)]
 struct RecordingAgents {
@@ -83,11 +81,7 @@ fn tui_agent_team_view_isolates_transcripts_input_and_permissions() {
     send_to_viewed_agent(&mut view, "work only here", &mut runtime).unwrap();
     assert_eq!(
         runtime.sent[0],
-        (
-            "agent-b".to_string(),
-            "session-b".to_string(),
-            "work only here".to_string(),
-        )
+        ("agent-b".to_string(), "session-b".to_string(), "work only here".to_string(),)
     );
     runtime.fail = true;
     assert!(stop_viewed_agent(&mut view, true, &mut runtime).is_err());

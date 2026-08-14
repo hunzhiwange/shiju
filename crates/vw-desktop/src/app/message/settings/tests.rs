@@ -246,9 +246,11 @@ fn settings_update_dispatches_to_child_modules() {
 
     let _ = update(
         &mut app,
-        SettingsMessage::Channels(ChannelsMessage::PanelToggled("telegram".to_string())),
+        SettingsMessage::Channels(ChannelsMessage::TabSelected(
+            crate::app::state::ChannelsSettingsTab::Telegram,
+        )),
     );
-    assert!(app.channels_settings.expanded_panels.contains("telegram"));
+    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Telegram);
 
     let _ = update(
         &mut app,

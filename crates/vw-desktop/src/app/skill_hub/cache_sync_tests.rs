@@ -1,6 +1,4 @@
-use super::cache_sync::{
-    build_cache_sync_command, resolve_shiju_cli, sync_business_skill_cache,
-};
+use super::cache_sync::{build_cache_sync_command, resolve_shiju_cli, sync_business_skill_cache};
 use std::fs;
 use std::path::Path;
 
@@ -40,8 +38,7 @@ async fn cache_sync_fetches_selected_server_version_then_rebuilds_index_without_
     let root = fixture.path().join("installed-shiju");
     write_fixture(&root, &log, r#"{"success":true,"data":{"count":1}}"#);
 
-    let report =
-        sync_business_skill_cache(&root, 42).await.expect("cache sync should succeed");
+    let report = sync_business_skill_cache(&root, 42).await.expect("cache sync should succeed");
 
     assert_eq!(report.fetch_exit_code, 0);
     assert_eq!(report.rebuild_exit_code, 0);
@@ -64,11 +61,7 @@ async fn cache_sync_rejects_business_error_after_fetch_without_exposing_payload(
     let fixture = tempfile::tempdir().expect("fixture root");
     let log = fixture.path().join("argv.log");
     let root = fixture.path().join("installed-shiju");
-    write_fixture(
-        &root,
-        &log,
-        r#"{"success":false,"error":"payload-secret"}"#,
-    );
+    write_fixture(&root, &log, r#"{"success":false,"error":"payload-secret"}"#);
 
     let error =
         sync_business_skill_cache(&root, 7).await.expect_err("rebuild business error must fail");

@@ -7,17 +7,16 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 use vw_gateway_client::{
     SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketInstallScopeDto,
-    SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto,
-    SkillMarketSkillDetailDto, SkillMarketSkillDto, SkillMarketSkillFileDto,
-    SkillMarketSkillLocatorDto, SkillMarketSkillPageDto, SkillMarketSkillQuery,
-    SkillMarketSkillSetDetailDto, SkillMarketSkillSetDto,
-    SkillMarketSkillSetPageDto, SkillMarketSourceDto,
+    SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillDetailDto,
+    SkillMarketSkillDto, SkillMarketSkillFileDto, SkillMarketSkillLocatorDto,
+    SkillMarketSkillPageDto, SkillMarketSkillQuery, SkillMarketSkillSetDetailDto,
+    SkillMarketSkillSetDto, SkillMarketSkillSetPageDto, SkillMarketSourceDto,
 };
 
 use crate::app::agent::skills::marketplace::provider::{
-    SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketProvider,
-    SkillMarketProviderError, SkillMarketProviderRegistry,
-    SkillMarketSkillSetArtifact, SkillMarketSkillSetVerificationPolicy,
+    SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketProvider, SkillMarketProviderError,
+    SkillMarketProviderRegistry, SkillMarketSkillSetArtifact,
+    SkillMarketSkillSetVerificationPolicy,
 };
 
 struct RecordingProvider {
@@ -82,9 +81,7 @@ impl SkillMarketProvider for RecordingProvider {
         })
     }
 
-    async fn categories(
-        &self,
-    ) -> Result<Vec<SkillMarketCategoryDto>, SkillMarketProviderError> {
+    async fn categories(&self) -> Result<Vec<SkillMarketCategoryDto>, SkillMarketProviderError> {
         self.record("categories".to_string())?;
         Ok(vec![SkillMarketCategoryDto {
             slug: "development".to_string(),
@@ -200,10 +197,7 @@ fn locator(source: &str) -> SkillMarketSkillLocatorDto {
 }
 
 fn coordinate(locator: SkillMarketSkillLocatorDto) -> SkillMarketCoordinateDto {
-    SkillMarketCoordinateDto {
-        locator,
-        version: "1.0.0".to_string(),
-    }
+    SkillMarketCoordinateDto { locator, version: "1.0.0".to_string() }
 }
 
 fn skill(locator: SkillMarketSkillLocatorDto) -> SkillMarketSkillDto {
@@ -340,8 +334,7 @@ async fn skill_market_install_delegates_only_canonical_coordinate() {
         "version": "1.0.0"
     });
 
-    let (status, body) =
-        post_response("/skill-market/skills/install", request, registry).await;
+    let (status, body) = post_response("/skill-market/skills/install", request, registry).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
     assert_eq!(
@@ -412,13 +405,7 @@ fn explicit_install_targets_resolve_codex_and_claude_roots() {
     )
     .expect("resolve explicit roots");
 
-    assert_eq!(
-        roots,
-        [
-            home.join(".codex/skills"),
-            project.join(".claude/skills")
-        ]
-    );
+    assert_eq!(roots, [home.join(".codex/skills"), project.join(".claude/skills")]);
 }
 
 #[tokio::test]
@@ -516,8 +503,7 @@ async fn skill_market_routes_map_provider_failures_without_leaking_details() {
 
     for (error, expected_status, expected_message) in cases {
         let registry = registry(RecordingProvider::failing("fixture", error));
-        let (status, body) =
-            response("/skill-market/categories?source=fixture", registry).await;
+        let (status, body) = response("/skill-market/categories?source=fixture", registry).await;
 
         assert_eq!(status, expected_status);
         assert_eq!(body["code"], u16::from(expected_status));

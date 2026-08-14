@@ -3,11 +3,11 @@ use std::fs;
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
 use tempfile::tempdir;
 
+use super::commands::registry::CommandSource;
 use super::completion::{
     CompletionCatalogItem, CompletionKind, completion_notices, completion_suggestions,
     refresh_file_completion_index, sync_skill_completion_catalog,
 };
-use super::commands::registry::CommandSource;
 use super::controller::{TuiController, TuiControllerCommand, TuiControllerEvent};
 use super::model::integration::{
     IntegrationAction, IntegrationItem, IntegrationKind, IntegrationPanel,
@@ -22,10 +22,7 @@ fn press(
 ) -> TuiControllerCommand {
     controller.handle_event(
         state,
-        TuiControllerEvent::Terminal(CrosstermEvent::Key(KeyEvent::new(
-            code,
-            KeyModifiers::NONE,
-        ))),
+        TuiControllerEvent::Terminal(CrosstermEvent::Key(KeyEvent::new(code, KeyModifiers::NONE))),
     )
 }
 
@@ -235,25 +232,17 @@ fn completion_markers_trigger_from_trailing_token_and_preserve_prefix() {
 
     state.prompt.set_value("请检查 /mod");
     assert!(
-        completion_suggestions(&state)
-            .iter()
-            .any(|item| item.replacement == "请检查 /model "),
+        completion_suggestions(&state).iter().any(|item| item.replacement == "请检查 /model "),
         "slash completion is available from the trailing token"
     );
 
     state.prompt.set_value("查看 @src");
     assert!(
-        completion_suggestions(&state)
-            .iter()
-            .any(|item| item.replacement == "查看 @src/lib.rs")
+        completion_suggestions(&state).iter().any(|item| item.replacement == "查看 @src/lib.rs")
     );
 
     state.prompt.set_value("使用 $rev");
-    assert!(
-        completion_suggestions(&state)
-            .iter()
-            .any(|item| item.replacement == "使用 $review")
-    );
+    assert!(completion_suggestions(&state).iter().any(|item| item.replacement == "使用 $review"));
 
     state.prompt.set_value("使用 $rev ");
     assert!(
@@ -308,11 +297,7 @@ fn enabled_skills_are_selectable_from_dollar_completion() {
     panel.finish_refresh(Ok(skills));
     sync_skill_completion_catalog(&mut state.completion_catalog, &panel);
     assert!(
-        state
-            .completion_catalog
-            .items
-            .iter()
-            .any(|item| item.replacement == "$external-installed")
+        state.completion_catalog.items.iter().any(|item| item.replacement == "$external-installed")
     );
     state.prompt.set_value("$rev");
 
@@ -320,16 +305,17 @@ fn enabled_skills_are_selectable_from_dollar_completion() {
     assert_eq!(suggestions.len(), 1);
     assert_eq!(suggestions[0].replacement, "$review-code");
     let mut controller = TuiController::default();
-    assert_eq!(
-        press(&mut controller, &mut state, KeyCode::Enter),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(press(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
     assert_eq!(state.prompt.value, "$review-code ");
 
     panel.finish_refresh(Err("gateway token=secret disconnected".to_string()));
     sync_skill_completion_catalog(&mut state.completion_catalog, &panel);
     state.prompt.set_value("$rev");
-    assert_eq!(completion_suggestions(&state).len(), 1, "refresh error preserves safe stale skills");
+    assert_eq!(
+        completion_suggestions(&state).len(),
+        1,
+        "refresh error preserves safe stale skills"
+    );
     let notices = completion_notices(&state).join("\n");
     assert!(notices.contains("[redacted]"));
     assert!(!notices.contains("secret"));
@@ -354,10 +340,7 @@ fn skill_completion_confirmation_closes_picker_and_keeps_prompt_editable() {
     state.prompt.set_value("$rev");
     let mut controller = TuiController::default();
 
-    assert_eq!(
-        press(&mut controller, &mut state, KeyCode::Enter),
-        TuiControllerCommand::Continue
-    );
+    assert_eq!(press(&mut controller, &mut state, KeyCode::Enter), TuiControllerCommand::Continue);
     assert_eq!(state.prompt.value, "$review-code ");
     assert_eq!(state.prompt.cursor.char_index, "$review-code ".chars().count());
     assert!(

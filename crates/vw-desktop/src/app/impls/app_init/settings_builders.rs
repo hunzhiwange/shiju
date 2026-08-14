@@ -6,30 +6,6 @@
 pub(super) fn build_channels_settings(
     channels_cfg: &vw_config_types::channels::ChannelsConfig,
 ) -> super::state::ChannelsSettingsState {
-    let channels_telegram_enabled = channels_cfg.telegram.is_some();
-    let channels_discord_enabled = channels_cfg.discord.is_some();
-    let channels_slack_enabled = channels_cfg.slack.is_some();
-    let channels_mattermost_enabled = channels_cfg.mattermost.is_some();
-    let channels_webhook_enabled = channels_cfg.webhook.is_some();
-    let channels_imessage_enabled = channels_cfg.imessage.is_some();
-    let channels_matrix_enabled = channels_cfg.matrix_enabled;
-    let channels_signal_enabled = channels_cfg.signal.is_some();
-    let channels_whatsapp_enabled = channels_cfg.whatsapp.is_some();
-    let channels_linq_enabled = channels_cfg.linq.is_some();
-    let channels_wati_enabled = channels_cfg.wati.is_some();
-    let channels_nextcloud_talk_enabled = channels_cfg.nextcloud_talk.is_some();
-    #[cfg(not(target_arch = "wasm32"))]
-    let channels_email_enabled = channels_cfg.email.is_some();
-    let channels_irc_enabled = channels_cfg.irc.is_some();
-    let channels_lark_enabled = channels_cfg.lark.is_some();
-    let channels_feishu_enabled =
-        channels_cfg.feishu.is_some() || !channels_cfg.feishu_instances.is_empty();
-    let channels_dingtalk_enabled =
-        channels_cfg.dingtalk.is_some() || !channels_cfg.dingtalk_instances.is_empty();
-    let channels_qq_enabled = channels_cfg.qq.is_some();
-    let channels_nostr_enabled = channels_cfg.nostr.is_some();
-    let channels_clawdtalk_enabled = channels_cfg.clawdtalk.is_some();
-
     let mut channels_settings = super::state::ChannelsSettingsState {
         project_dir_input: channels_cfg
             .project_dir
@@ -65,71 +41,7 @@ pub(super) fn build_channels_settings(
         nostr: channels_cfg.nostr.clone(),
         clawdtalk: channels_cfg.clawdtalk.clone(),
         message_timeout_secs: channels_cfg.message_timeout_secs.min(u32::MAX as u64) as u32,
-        expanded_panels: {
-            let mut panels = vec!["feishu".to_string()];
-            if channels_telegram_enabled {
-                panels.push("telegram".to_string());
-            }
-            if channels_discord_enabled {
-                panels.push("discord".to_string());
-            }
-            if channels_slack_enabled {
-                panels.push("slack".to_string());
-            }
-            if channels_mattermost_enabled {
-                panels.push("mattermost".to_string());
-            }
-            if channels_webhook_enabled {
-                panels.push("webhook".to_string());
-            }
-            if channels_imessage_enabled {
-                panels.push("imessage".to_string());
-            }
-            if channels_matrix_enabled {
-                panels.push("matrix".to_string());
-            }
-            if channels_signal_enabled {
-                panels.push("signal".to_string());
-            }
-            if channels_whatsapp_enabled {
-                panels.push("whatsapp".to_string());
-            }
-            if channels_linq_enabled {
-                panels.push("linq".to_string());
-            }
-            if channels_wati_enabled {
-                panels.push("wati".to_string());
-            }
-            if channels_nextcloud_talk_enabled {
-                panels.push("nextcloud_talk".to_string());
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            if channels_email_enabled {
-                panels.push("email".to_string());
-            }
-            if channels_irc_enabled {
-                panels.push("irc".to_string());
-            }
-            if channels_lark_enabled {
-                panels.push("lark".to_string());
-            }
-            if channels_feishu_enabled {
-                panels.push("feishu".to_string());
-            }
-            if channels_dingtalk_enabled {
-                panels.push("dingtalk".to_string());
-            }
-            if channels_qq_enabled {
-                panels.push("qq".to_string());
-            }
-            if channels_nostr_enabled {
-                panels.push("nostr".to_string());
-            }
-            if channels_clawdtalk_enabled {
-                panels.push("clawdtalk".to_string());
-            }
-            panels.into_iter().collect()
-        },
+        active_tab: super::state::ChannelsSettingsTab::Global,
         save_error: None,
     };
     channels_settings.refresh_text_inputs();

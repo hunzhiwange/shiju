@@ -295,16 +295,15 @@ impl WebSearchTool {
 
         let client = self.build_client()?;
 
-        let response =
-            client
-                .get(&search_url)
-                .header(
-                    reqwest::header::ACCEPT,
-                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                )
-                .send()
-                .await
-                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        let response = client
+            .get(&search_url)
+            .header(
+                reqwest::header::ACCEPT,
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            )
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
         if !response.status().is_success() {
             anyhow::bail!("DuckDuckGo search failed with status: {}", response.status());

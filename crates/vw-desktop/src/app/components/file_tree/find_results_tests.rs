@@ -1,8 +1,10 @@
 use super::find_results::{
-    FIND_CASE_SHORTCUT, FIND_REGEX_SHORTCUT, FIND_RESULTS_SCROLLBAR_GUTTER,
-    FIND_WHOLE_WORD_SHORTCUT, build_find_results_list, build_find_results_tabs,
-    find_match_highlight_bg, find_option_button, find_option_button_style, find_run_button_style,
-    find_scope_input_style, find_scope_input_value, to_relative_path,
+    FIND_CASE_SHORTCUT, FIND_REGEX_SHORTCUT, FIND_RESULT_ITEM_ICON_SIZE,
+    FIND_RESULTS_SCROLLBAR_GUTTER, FIND_RESULTS_TAB_HEIGHT, FIND_WHOLE_WORD_SHORTCUT,
+    build_find_results_list, build_find_results_tabs, find_match_highlight_bg, find_option_button,
+    find_option_button_style, find_results_tab_add_message, find_results_tab_title,
+    find_run_button_style, find_scope_input_style, find_scope_input_value, find_tab_menu_messages,
+    to_relative_path,
 };
 use crate::app::state::{
     FIND_RESULTS_PAGE_SIZE, FindInFolderMatch, FindInFolderTab, find_results_page_bounds,
@@ -117,6 +119,56 @@ fn find_results_tabs_build_empty_and_populated_tab_bar() {
 }
 
 #[test]
+fn find_results_tab_title_normalizes_to_the_first_line_and_ten_unicode_characters() {
+    assert_eq!(find_results_tab_title("  alpha  \n beta  "), "alpha");
+    assert_eq!(find_results_tab_title("搜索标签交互增强测试"), "搜索标签交互增强测试");
+    assert_eq!(find_results_tab_title(" \n "), "搜索");
+}
+
+#[test]
+fn find_results_tabs_use_the_preview_tab_height() {
+    assert_eq!(FIND_RESULTS_TAB_HEIGHT, 30.0);
+}
+
+#[test]
+fn find_result_item_icon_is_two_thirds_of_the_standard_file_icon() {
+    assert_eq!(FIND_RESULT_ITEM_ICON_SIZE, 14.0 * 2.0 / 3.0);
+}
+
+#[test]
+fn find_results_tab_add_button_creates_a_new_project_search() {
+    assert!(matches!(
+        find_results_tab_add_message(),
+        Message::Project(crate::app::message::project::ProjectMessage::FileTreeFindInProject)
+    ));
+}
+
+#[test]
+fn find_tab_menu_messages_preserve_id_and_action_order() {
+    let [close, close_left, close_right, close_all] = find_tab_menu_messages("搜索 标签");
+
+    assert!(matches!(
+        close,
+        Message::Project(crate::app::message::project::ProjectMessage::FileTreeFindTabClosed(id))
+            if id == "搜索 标签"
+    ));
+    assert!(matches!(
+        close_left,
+        Message::Project(crate::app::message::project::ProjectMessage::FileTreeFindTabMenuCloseLeft(id))
+            if id == "搜索 标签"
+    ));
+    assert!(matches!(
+        close_right,
+        Message::Project(crate::app::message::project::ProjectMessage::FileTreeFindTabMenuCloseRight(id))
+            if id == "搜索 标签"
+    ));
+    assert!(matches!(
+        close_all,
+        Message::Project(crate::app::message::project::ProjectMessage::FileTreeFindTabMenuCloseAll)
+    ));
+}
+
+#[test]
 fn find_run_button_uses_white_text_in_all_themes() {
     for theme in [Theme::Dark, Theme::Light] {
         for status in [
@@ -132,8 +184,7 @@ fn find_run_button_uses_white_text_in_all_themes() {
 #[test]
 fn find_scope_input_uses_pill_shaped_border_in_light_and_dark_themes() {
     for theme in [Theme::Dark, Theme::Light] {
-        let style =
-            find_scope_input_style(&theme, iced::widget::text_input::Status::Active);
+        let style = find_scope_input_style(&theme, iced::widget::text_input::Status::Active);
         assert_eq!(style.border.radius, 999.0.into());
     }
 }
@@ -149,6 +200,11 @@ fn find_results_page_bounds_limit_each_ui_build_to_one_page() {
         find_results_page_bounds(FIND_RESULTS_PAGE_SIZE * 3 + 17, usize::MAX),
         (FIND_RESULTS_PAGE_SIZE * 3..FIND_RESULTS_PAGE_SIZE * 3 + 17, 3, 4)
     );
+}
+
+#[test]
+fn find_results_page_size_limits_tab_switch_rendering_to_twenty_four_items() {
+    assert_eq!(FIND_RESULTS_PAGE_SIZE, 24);
 }
 
 #[test]

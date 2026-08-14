@@ -65,10 +65,7 @@ impl ImageAssetScope {
     }
 
     /// 范围优先取 `app_session_scope`，否则回退到 session 标识。
-    pub fn from_request_context(
-        app_session_scope: Option<&str>,
-        session_id: &str,
-    ) -> Result<Self> {
+    pub fn from_request_context(app_session_scope: Option<&str>, session_id: &str) -> Result<Self> {
         if let Some(scope) = app_session_scope.map(str::trim).filter(|value| !value.is_empty()) {
             return Self::new(scope);
         }
@@ -132,12 +129,7 @@ pub struct ImageAssetStore {
 impl ImageAssetStore {
     /// 在给定 data 根目录下创建存储（测试可注入临时目录）。
     pub fn new(data_root: impl Into<PathBuf>) -> Self {
-        Self {
-            root: data_root
-                .into()
-                .join(ASSETS_DIR_NAME)
-                .join(IMAGES_DIR_NAME),
-        }
+        Self { root: data_root.into().join(ASSETS_DIR_NAME).join(IMAGES_DIR_NAME) }
     }
 
     /// 使用进程全局持久 `data` 目录；不使用可版本清理的 cache。
@@ -230,11 +222,7 @@ impl ImageAssetStore {
             ImageAssetVariant::ModelInput => asset_dir.join(MODEL_INPUT_FILE),
         };
         fs::read(&path).with_context(|| {
-            format!(
-                "failed to read image asset variant {:?} at {}",
-                variant,
-                path.display()
-            )
+            format!("failed to read image asset variant {:?} at {}", variant, path.display())
         })
     }
 
@@ -318,7 +306,11 @@ impl ImageAssetStore {
     }
 
     /// 判断资产是否仍被至少一个会话引用。
-    pub fn has_session_refs(&self, scope: &ImageAssetScope, image_id: &ImageAssetId) -> Result<bool> {
+    pub fn has_session_refs(
+        &self,
+        scope: &ImageAssetScope,
+        image_id: &ImageAssetId,
+    ) -> Result<bool> {
         let metadata = self.get_metadata(scope, image_id)?;
         Ok(!metadata.session_refs.is_empty())
     }
@@ -340,10 +332,7 @@ impl ImageAssetStore {
     ) -> Result<PathBuf> {
         let asset_dir = self.asset_dir(scope, image_id);
         if !asset_dir.join(METADATA_FILE).is_file() {
-            bail!(
-                "image asset '{}' is not published in the requested scope",
-                image_id.as_str()
-            );
+            bail!("image asset '{}' is not published in the requested scope", image_id.as_str());
         }
         Ok(asset_dir)
     }
@@ -369,9 +358,8 @@ impl ImageAssetStore {
         if staging.exists() {
             let _ = fs::remove_dir_all(&staging);
         }
-        fs::create_dir_all(&staging).with_context(|| {
-            format!("failed to create staging directory {}", staging.display())
-        })?;
+        fs::create_dir_all(&staging)
+            .with_context(|| format!("failed to create staging directory {}", staging.display()))?;
 
         let publish_result = (|| -> Result<()> {
             write_file_synced(&staging.join(ORIGINAL_FILE), original_bytes)?;
@@ -402,10 +390,7 @@ impl ImageAssetStore {
             }
 
             fs::rename(&staging, &final_dir).with_context(|| {
-                format!(
-                    "failed to atomically publish image asset to {}",
-                    final_dir.display()
-                )
+                format!("failed to atomically publish image asset to {}", final_dir.display())
             })?;
             sync_dir(&parent)?;
             Ok(())
@@ -461,11 +446,7 @@ impl ImageAssetStore {
         Ok(())
     }
 
-    fn touch_access(
-        &self,
-        asset_dir: &Path,
-        mut metadata: ImageAssetMetadata,
-    ) -> Result<()> {
+    fn touch_access(&self, asset_dir: &Path, mut metadata: ImageAssetMetadata) -> Result<()> {
         metadata.last_accessed_at_ms = now_ms();
         self.write_metadata_atomic(asset_dir, &metadata)
     }
@@ -476,10 +457,7 @@ impl ImageAssetStore {
         let tmp = asset_dir.join(format!(".{METADATA_FILE}.tmp-{}", staging_suffix()));
         write_file_synced(&tmp, &encoded)?;
         fs::rename(&tmp, asset_dir.join(METADATA_FILE)).with_context(|| {
-            format!(
-                "failed to update image asset metadata at {}",
-                asset_dir.display()
-            )
+            format!("failed to update image asset metadata at {}", asset_dir.display())
         })?;
         let _ = fs::remove_file(&tmp);
         Ok(())
@@ -501,8 +479,7 @@ impl ImageAssetStore {
             fs::create_dir_all(parent)?;
         }
         let mut ids: BTreeSet<String> = if path.is_file() {
-            serde_json::from_slice(&fs::read(&path)?)
-                .unwrap_or_default()
+            serde_json::from_slice(&fs::read(&path)?).unwrap_or_default()
         } else {
             BTreeSet::new()
         };
@@ -514,11 +491,7 @@ impl ImageAssetStore {
         Ok(())
     }
 
-    fn take_session_index(
-        &self,
-        scope: &ImageAssetScope,
-        session_id: &str,
-    ) -> Result<Vec<String>> {
+    fn take_session_index(&self, scope: &ImageAssetScope, session_id: &str) -> Result<Vec<String>> {
         let path = self.session_index_path(scope, session_id);
         if !path.is_file() {
             return Ok(Vec::new());
@@ -560,12 +533,10 @@ fn probe_dimensions(bytes: &[u8]) -> (Option<u32>, Option<u32>) {
 }
 
 fn write_file_synced(path: &Path, bytes: &[u8]) -> Result<()> {
-    let mut file = File::create(path)
-        .with_context(|| format!("failed to create file {}", path.display()))?;
-    file.write_all(bytes)
-        .with_context(|| format!("failed to write file {}", path.display()))?;
-    file.sync_all()
-        .with_context(|| format!("failed to sync file {}", path.display()))?;
+    let mut file =
+        File::create(path).with_context(|| format!("failed to create file {}", path.display()))?;
+    file.write_all(bytes).with_context(|| format!("failed to write file {}", path.display()))?;
+    file.sync_all().with_context(|| format!("failed to sync file {}", path.display()))?;
     Ok(())
 }
 
@@ -574,8 +545,7 @@ fn sync_dir(path: &Path) -> Result<()> {
     {
         let file = File::open(path)
             .with_context(|| format!("failed to open directory for sync {}", path.display()))?;
-        file.sync_all()
-            .with_context(|| format!("failed to sync directory {}", path.display()))?;
+        file.sync_all().with_context(|| format!("failed to sync directory {}", path.display()))?;
     }
     #[cfg(not(unix))]
     {

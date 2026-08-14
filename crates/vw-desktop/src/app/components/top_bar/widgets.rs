@@ -212,12 +212,8 @@ pub(super) fn workspace_mode_button_style(
 ) -> iced::widget::button::Style {
     let palette = theme.extended_palette();
     let background = match status {
-        iced::widget::button::Status::Hovered => {
-            palette.background.strong.color.scale_alpha(0.72)
-        }
-        iced::widget::button::Status::Pressed => {
-            palette.background.strong.color.scale_alpha(0.88)
-        }
+        iced::widget::button::Status::Hovered => palette.background.strong.color.scale_alpha(0.72),
+        iced::widget::button::Status::Pressed => palette.background.strong.color.scale_alpha(0.88),
         _ if open => palette.background.strong.color.scale_alpha(0.68),
         _ => palette.background.weak.color.scale_alpha(0.72),
     };

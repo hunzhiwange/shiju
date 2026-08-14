@@ -3249,7 +3249,9 @@ mod task_board_worktree_gateway {
         let scheduler_requests = task_board_scheduler_requests(&requests);
         let create_index = scheduler_requests
             .iter()
-            .position(|request| request.path == "/v1/agent-scheduler/projects/project-gateway/tasks")
+            .position(|request| {
+                request.path == "/v1/agent-scheduler/projects/project-gateway/tasks"
+            })
             .expect("pending task create request");
         let wake_index = scheduler_requests
             .iter()
@@ -3265,7 +3267,9 @@ mod task_board_worktree_gateway {
         assert_eq!(
             scheduler_requests
                 .iter()
-                .filter(|request| request.path == "/v1/agent-scheduler/projects/project-gateway/tasks")
+                .filter(
+                    |request| request.path == "/v1/agent-scheduler/projects/project-gateway/tasks"
+                )
                 .count(),
             2
         );
@@ -3278,8 +3282,7 @@ mod task_board_worktree_gateway {
             request.body["task_id"] == "T-register-pool" && request.body["status"] == "draft"
         }));
         assert!(create_requests.iter().any(|request| {
-            request.body["task_id"] == "T-register-pending"
-                && request.body["status"] == "queued"
+            request.body["task_id"] == "T-register-pending" && request.body["status"] == "queued"
         }));
         let create_request = create_requests
             .iter()
@@ -3465,14 +3468,10 @@ mod task_board_worktree_gateway {
             "legacy promote bulk command must not be sent: {:?}",
             scheduler_requests
         );
-        assert!(
-            scheduler_requests
-                .iter()
-                .any(|request| {
-                    request.path == "/v1/agent-scheduler/projects/project-gateway/wake"
-                        && request.body["auto_promote_pool_tasks"] == true
-                })
-        );
+        assert!(scheduler_requests.iter().any(|request| {
+            request.path == "/v1/agent-scheduler/projects/project-gateway/wake"
+                && request.body["auto_promote_pool_tasks"] == true
+        }));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -3569,9 +3568,8 @@ mod task_board_worktree_gateway {
                 && entry.status_to == Some(TaskStatus::CodeComplete)
         }));
 
-        let status_task = super::super::super::helpers::sync_agent_scheduler_status(
-            project_path.to_string(),
-        );
+        let status_task =
+            super::super::super::helpers::sync_agent_scheduler_status(project_path.to_string());
         let status_messages = apply_task_board_task_once(&mut app, status_task).await;
         assert!(
             status_messages.iter().any(|message| matches!(
@@ -4226,9 +4224,8 @@ mod task_board_worktree_gateway {
                 "vw/task/T-merge-ready",
             ),
         ]);
-        let status_task = super::super::super::helpers::sync_agent_scheduler_status(
-            project_path.to_string(),
-        );
+        let status_task =
+            super::super::super::helpers::sync_agent_scheduler_status(project_path.to_string());
         let _ = apply_task_board_task_once(&mut app, status_task).await;
 
         let task = app.task_board_tasks.iter().find(|task| task.id == "T-merge-ready").unwrap();
@@ -4319,7 +4316,10 @@ mod task_board_worktree_gateway {
         let requests = gateway.take_requests();
         let scheduler_requests = task_board_scheduler_requests(&requests);
         assert_eq!(scheduler_requests.len(), 3);
-        assert_eq!(scheduler_requests[0].path, "/v1/agent-scheduler/projects/project-gateway/tasks");
+        assert_eq!(
+            scheduler_requests[0].path,
+            "/v1/agent-scheduler/projects/project-gateway/tasks"
+        );
         assert_eq!(scheduler_requests[0].body["task_id"], "T-merge");
         assert_eq!(
             scheduler_requests[1].path,
@@ -4369,7 +4369,10 @@ mod task_board_worktree_gateway {
         let requests = gateway.take_requests();
         let scheduler_requests = task_board_scheduler_requests(&requests);
         assert_eq!(scheduler_requests.len(), 3);
-        assert_eq!(scheduler_requests[0].path, "/v1/agent-scheduler/projects/project-gateway/tasks");
+        assert_eq!(
+            scheduler_requests[0].path,
+            "/v1/agent-scheduler/projects/project-gateway/tasks"
+        );
         assert_eq!(
             scheduler_requests[1].path,
             "/v1/agent-scheduler/projects/project-gateway/commands"

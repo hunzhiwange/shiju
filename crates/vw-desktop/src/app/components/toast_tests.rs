@@ -2,9 +2,9 @@ use super::toast::{
     cache_sync_retry_message, confirm_dialog, icon_svg, is_dark_theme, toast_card_style,
     toast_icon_badge_style, toast_message_text_color, toast_palette, view,
 };
+use crate::app::assets::Icon;
 use crate::app::message::SkillHubMessage;
 use crate::app::skill_hub::SkillCacheSyncState;
-use crate::app::assets::Icon;
 use crate::app::state::{Toast, ToastKind};
 use crate::app::{App, Message};
 use iced::{Background, Color, Element, Theme};

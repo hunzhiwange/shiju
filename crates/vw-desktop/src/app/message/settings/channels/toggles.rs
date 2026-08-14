@@ -200,10 +200,6 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
         }
         _ => {}
     }
-
-    if enabled {
-        app.channels_settings.expanded_panels.insert(channel.to_string());
-    }
 }
 
 fn next_instance_id<'a>(
@@ -262,8 +258,6 @@ pub(super) fn add_channel_instance(app: &mut App, channel: &str) {
         }
         _ => return,
     }
-
-    app.channels_settings.expanded_panels.insert(channel.to_string());
 }
 
 pub(super) fn remove_channel_instance(app: &mut App, channel: &str, index: usize) {

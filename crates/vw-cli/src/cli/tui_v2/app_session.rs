@@ -1,12 +1,11 @@
 //! TUI session restore/save 副作用。
 
 use super::{
-    ChatSessionMeta, CliSetup, Config, SessionRestoreOutcome, TuiAction, TuiApp, UiMessage,
-    UiSystemMessage, UiSystemMessageLevel, bootstrap_message_base, bootstrap_system_message,
-    AcpBackendOption, default_session_title, delegate_agent_options, empty_session_snapshot,
-    load_model_catalog_blocking, normalize_optional_str_ref, provider_name_from_model,
-    reduce_tui_state,
-    select_restore_session_id, snapshot_from_preview,
+    AcpBackendOption, ChatSessionMeta, CliSetup, Config, SessionRestoreOutcome, TuiAction, TuiApp,
+    UiMessage, UiSystemMessage, UiSystemMessageLevel, bootstrap_message_base,
+    bootstrap_system_message, default_session_title, delegate_agent_options,
+    empty_session_snapshot, load_model_catalog_blocking, normalize_optional_str_ref,
+    provider_name_from_model, reduce_tui_state, select_restore_session_id, snapshot_from_preview,
 };
 use crate::cli::tui_v2::completion::refresh_file_completion_index;
 use crate::cli::tui_v2::model::integration::{IntegrationKind, IntegrationPanel};
@@ -17,9 +16,8 @@ impl TuiApp {
         let workspace_root = self.state.project.workspace_root.clone();
         let mut roots = Vec::new();
         let mut has_unreadable_root = false;
-        for candidate in workspace_root
-            .iter()
-            .chain(self.state.completion_catalog.added_directories.iter())
+        for candidate in
+            workspace_root.iter().chain(self.state.completion_catalog.added_directories.iter())
         {
             match candidate.canonicalize() {
                 Ok(root) if root.is_dir() => roots.push(root),
@@ -56,17 +54,15 @@ impl TuiApp {
             crate::cli::tui_v2::model::PermissionMode::Default,
             crate::cli::tui_v2::model::PermissionMode::Plan,
         ];
-        self.state.session_capabilities.delegate_agents = delegate_agent_options(
-            config,
-            self.state.session_options.delegate_agent.as_deref(),
-        );
+        self.state.session_capabilities.delegate_agents =
+            delegate_agent_options(config, self.state.session_options.delegate_agent.as_deref());
         self.state.session_capabilities.acp_backends =
             match self.runtime.enabled_acp_backend_keys_blocking() {
                 Ok(keys) => std::iter::once(AcpBackendOption::default_backend())
-                    .chain(keys.into_iter().map(|key| AcpBackendOption {
-                        label: key.clone(),
-                        key: Some(key),
-                    }))
+                    .chain(
+                        keys.into_iter()
+                            .map(|key| AcpBackendOption { label: key.clone(), key: Some(key) }),
+                    )
                     .collect(),
                 Err(error) => {
                     tracing::warn!(

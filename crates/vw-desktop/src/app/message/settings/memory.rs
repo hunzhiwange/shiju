@@ -5,6 +5,8 @@ use crate::app::{App, Message};
 use iced::Task;
 use vw_config_types::memory::{MemoryConfig, QdrantConfig};
 
+use crate::app::state::MemorySettingsTab;
+
 use super::messages::{MemoryMessage, SettingsMessage};
 
 fn normalize_backend(raw: &str) -> String {
@@ -119,8 +121,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.memory_settings.save_error = None;
             return Task::none();
         }
+        MemoryMessage::TabSelected(tab) => {
+            if tab == MemorySettingsTab::Qdrant && app.memory_settings.backend != "qdrant" {
+                return Task::none();
+            }
+
+            app.memory_settings.active_tab = tab;
+            return Task::none();
+        }
         MemoryMessage::BackendChanged(value) => {
-            app.memory_settings.backend = normalize_backend(&value)
+            app.memory_settings.backend = normalize_backend(&value);
+            if app.memory_settings.backend != "qdrant"
+                && app.memory_settings.active_tab == MemorySettingsTab::Qdrant
+            {
+                app.memory_settings.active_tab = MemorySettingsTab::General;
+            }
         }
         MemoryMessage::AutoSaveToggled(value) => app.memory_settings.auto_save = value,
         MemoryMessage::HygieneEnabledToggled(value) => app.memory_settings.hygiene_enabled = value,

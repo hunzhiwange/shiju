@@ -1,15 +1,17 @@
-use super::super::model::agent_view::{
-    AgentMember, AgentStatus, AgentViewState,
-};
 use super::super::model::PermissionMode;
+use super::super::model::agent_view::{AgentMember, AgentStatus, AgentViewState};
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
 
 pub(crate) trait AgentsRuntime {
     fn list_agents(&mut self) -> Result<Vec<AgentMember>, String> {
         Err("agent listing is unavailable".to_string())
     }
-    fn send_message(&mut self, agent_id: &str, session_id: &str, message: &str)
-        -> Result<(), String>;
+    fn send_message(
+        &mut self,
+        agent_id: &str,
+        session_id: &str,
+        message: &str,
+    ) -> Result<(), String>;
     fn stop_agent(&mut self, agent_id: &str) -> Result<(), String>;
 }
 
@@ -61,9 +63,8 @@ pub(crate) fn send_to_viewed_agent(
     message: &str,
     runtime: &mut dyn AgentsRuntime,
 ) -> Result<(), String> {
-    let member = view
-        .viewed_member()
-        .ok_or_else(|| "no teammate is currently viewed".to_string())?;
+    let member =
+        view.viewed_member().ok_or_else(|| "no teammate is currently viewed".to_string())?;
     if message.trim().is_empty() {
         return Err("agent message is empty".to_string());
     }

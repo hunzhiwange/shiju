@@ -107,10 +107,8 @@ fn work_resources_toggle_hides_whole_panel_and_mode_selection_restores_it() {
     assert!(!app.work_resource_fullscreen);
     assert!(!app.work_resource_half_fullscreen);
 
-    let _task = update_panel(
-        &mut app,
-        ViewMessage::WorkResourceModeSelected(WorkResourceMode::Browser),
-    );
+    let _task =
+        update_panel(&mut app, ViewMessage::WorkResourceModeSelected(WorkResourceMode::Browser));
     assert!(app.work_resources_visible);
     assert_eq!(app.work_resource_mode, WorkResourceMode::Browser);
 }

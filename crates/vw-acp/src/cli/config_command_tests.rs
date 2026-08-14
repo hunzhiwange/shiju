@@ -7,8 +7,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 
-
-
 use crate::cli::flags::GlobalFlags;
 use crate::{
     AuthPolicy, ConfigError, InitGlobalConfigFileResult, NonInteractivePermissionPolicy,

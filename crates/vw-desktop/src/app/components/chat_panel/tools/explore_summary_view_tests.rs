@@ -1,5 +1,6 @@
 use super::explore_summary_view::{
-    SummarySegmentKind, explore_summary_expanded, explore_summary_is_running, latest_explore_items,
+    EXPANDED_LIST_TOP_SPACING, SummarySegmentKind, expanded_list_padding,
+    explore_summary_expanded, explore_summary_is_running, latest_explore_items,
     right_aligned_slot_char, split_summary_segments, summary_animation_key,
     tool_explore_summary_view,
 };
@@ -7,7 +8,7 @@ use super::types::{EXPLORE_GROUP_TOOL_IDX, ExploreItem};
 use crate::app::components::chat_panel::tool_text_support::tool_text_key;
 use crate::app::state::ExploreSummaryAnimationState;
 use crate::app::{App, Message};
-use iced::widget::text_editor;
+use iced::{Padding, widget::text_editor};
 use std::collections::HashSet;
 
 fn test_app() -> App {
@@ -102,8 +103,8 @@ fn tool_explore_summary_view_returns_none_for_empty_items() {
 }
 
 #[test]
-fn tool_explore_summary_view_builds_collapsed_and_expanded_summaries() {
-    let mut app = test_app();
+fn tool_explore_summary_view_builds_collapsed_summary_without_expanded_content() {
+    let app = test_app();
     let items = vec![
         ExploreItem {
             tool_idx: 1,
@@ -128,17 +129,38 @@ fn tool_explore_summary_view_builds_collapsed_and_expanded_summaries() {
     let collapsed =
         tool_explore_summary_view(&app, 1, 0, &items, false, false).expect("collapsed summary");
     keep_element(collapsed);
+}
 
-    let group_tool_idx = EXPLORE_GROUP_TOOL_IDX.saturating_sub(1);
-    let key = ((1_u64) << 32) | (group_tool_idx as u64);
+#[test]
+fn tool_explore_summary_view_builds_expanded_content_with_top_gap_and_bottom_padding() {
+    assert_eq!(EXPANDED_LIST_TOP_SPACING, 10.0);
+    assert_eq!(
+        expanded_list_padding(),
+        Padding { top: 0.0, right: 0.0, bottom: 10.0, left: 0.0 }
+    );
+
+    let mut app = test_app();
+    let items = vec![
+        ExploreItem {
+            tool_idx: 1,
+            raw: r#"tool read
+{"input":"{\"path\":\"src/main.rs\"}","status":"completed"}"#
+                .to_string(),
+        },
+        ExploreItem {
+            tool_idx: 2,
+            raw: r#"tool grep
+{"input":"{\"pattern\":\"App\"}","status":"completed"}"#
+                .to_string(),
+        },
+    ];
+
+    let group_tool_idx = EXPLORE_GROUP_TOOL_IDX;
+    let key = ((1_u64) << 32) | group_tool_idx as u64;
     app.chat_explore_expanded.insert(key);
     let expanded =
         tool_explore_summary_view(&app, 1, 0, &items, false, false).expect("expanded summary");
     keep_element(expanded);
-
-    let closed = tool_explore_summary_view(&app, 1, 0, &items, false, true)
-        .expect("closed summary still renders");
-    keep_element(closed);
 }
 
 #[test]

@@ -1,7 +1,11 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::{ffi::OsString, io::{Read, Write}, net::TcpListener};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    ffi::OsString,
+    io::{Read, Write},
+    net::TcpListener,
+};
 
 use serde_json::json;
 use tokio::sync::oneshot;
@@ -123,15 +127,9 @@ fn child_agent_tool_policy_preserves_trusted_user_selection_across_gateway_bound
 
     assert_eq!(request.allowed_tools, None, "policy inputs must not become a Gateway whitelist");
     let options = request.options.as_ref().expect("child request options");
-    assert_eq!(
-        options["delegate_default_allowed_tools"],
-        json!(["file_read"]),
-    );
+    assert_eq!(options["delegate_default_allowed_tools"], json!(["file_read"]),);
     assert_eq!(options["delegate_tool_policy"], json!("user_override"));
-    assert_eq!(
-        options["delegate_trusted_user_selected_tools"],
-        json!(["shell"]),
-    );
+    assert_eq!(options["delegate_trusted_user_selected_tools"], json!(["shell"]),);
     assert_eq!(options["delegate_default_allowed_skills"], json!(["review"]));
     assert_eq!(options["delegate_skill_policy"], json!("user_override"));
     assert_eq!(options["delegate_trusted_user_selected_skills"], json!(["rustcodegraph"]));
@@ -179,13 +177,12 @@ async fn child_agent_run_creates_persistent_child_and_waits() {
             assert_eq!(request.model, None);
             assert!(request.messages.iter().any(|message| {
                 message.get("role").and_then(serde_json::Value::as_str) == Some("system")
-                    && message
-                        .get("content")
-                        .and_then(serde_json::Value::as_str)
-                        .is_some_and(|content| {
+                    && message.get("content").and_then(serde_json::Value::as_str).is_some_and(
+                        |content| {
                             content.contains("key evidence")
                                 && content.contains("Do not pass the full task")
-                        })
+                        },
+                    )
             }));
             assert_eq!(
                 request.messages.last(),
@@ -264,10 +261,14 @@ async fn delegated_child_first_provider_request_auto_loads_workspace_agents() {
             else {
                 continue;
             };
-            let headers = std::str::from_utf8(&request[..headers_end]).expect("request headers utf8");
+            let headers =
+                std::str::from_utf8(&request[..headers_end]).expect("request headers utf8");
             let content_length = headers
                 .lines()
-                .find_map(|line| line.strip_prefix("Content-Length: ").or_else(|| line.strip_prefix("content-length: ")))
+                .find_map(|line| {
+                    line.strip_prefix("Content-Length: ")
+                        .or_else(|| line.strip_prefix("content-length: "))
+                })
                 .expect("provider request content length")
                 .parse::<usize>()
                 .expect("numeric content length");
@@ -341,7 +342,9 @@ async fn delegated_child_first_provider_request_auto_loads_workspace_agents() {
     let observed = observed.lock().expect("observed gateway payloads lock");
     let context_loaded = observed
         .iter()
-        .find(|payload| payload.get("type").and_then(serde_json::Value::as_str) == Some("chat.context_loaded"))
+        .find(|payload| {
+            payload.get("type").and_then(serde_json::Value::as_str) == Some("chat.context_loaded")
+        })
         .expect("first processor step should report the workspace protocol");
     assert_eq!(context_loaded["paths"], json!([expected_path]));
     let provider_request = provider_request

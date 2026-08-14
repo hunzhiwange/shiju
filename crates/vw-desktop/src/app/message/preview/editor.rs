@@ -438,8 +438,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                     && matches!(
                         app.preview_auto_save_mode,
                         PreviewAutoSaveMode::AfterDelay | PreviewAutoSaveMode::OnFocusChange
-                    )
-                {
+                    ) {
                     let revision = tab.auto_save_revision;
                     let auto_save_path = path.to_string();
                     Some(crate::app::message::after(

@@ -65,13 +65,7 @@ impl ImageTurnContext {
         resume_history_only: bool,
         ocr_text_only: bool,
     ) -> Self {
-        Self {
-            scope,
-            images,
-            first_success: false,
-            resume_history_only,
-            ocr_text_only,
-        }
+        Self { scope, images, first_success: false, resume_history_only, ocr_text_only }
     }
 
     /// 从用户消息构建上下文：落盘资产、分析缓存，并区分历史/当前图片。
@@ -153,13 +147,7 @@ impl ImageTurnContext {
             }
         }
 
-        Ok(Self {
-            scope,
-            images,
-            first_success: false,
-            resume_history_only,
-            ocr_text_only,
-        })
+        Ok(Self { scope, images, first_success: false, resume_history_only, ocr_text_only })
     }
 
     /// 将本轮图片引用登记到给定会话（幂等）。
@@ -256,7 +244,10 @@ impl ImageTurnContext {
     }
 
     /// 供应商边界检查：禁止历史/成功后消息携带图片字节或本地路径标记。
-    pub fn assert_provider_messages_safe(&self, messages: &[serde_json::Value]) -> Result<(), String> {
+    pub fn assert_provider_messages_safe(
+        &self,
+        messages: &[serde_json::Value],
+    ) -> Result<(), String> {
         if self.should_attach_image_bytes() {
             return Ok(());
         }
@@ -273,7 +264,9 @@ impl ImageTurnContext {
             }
             let (_, refs) = parse_image_markers(content);
             for reference in refs {
-                if reference.starts_with('/') || reference.starts_with("http://") || reference.starts_with("https://")
+                if reference.starts_with('/')
+                    || reference.starts_with("http://")
+                    || reference.starts_with("https://")
                 {
                     return Err(
                         "provider messages must not contain local/remote image paths after first success or for history"
@@ -426,8 +419,7 @@ async fn persist_and_analyze(
     analysis_cache: &ImageAnalysisCache,
     extractor: &dyn ImageTextExtractor,
 ) -> Result<TrackedImage> {
-    let materialized =
-        materialize_image_reference(source_ref, config, total_refs.max(1)).await?;
+    let materialized = materialize_image_reference(source_ref, config, total_refs.max(1)).await?;
     tracked_from_materialized(
         store,
         scope,
@@ -459,9 +451,8 @@ async fn tracked_from_materialized(
         &materialized.model_input_bytes,
         &materialized.model_input_mime,
     )?;
-    let analysis = analysis_cache
-        .analyze_or_load(store, scope, &image_id, model_ref, extractor)
-        .await?;
+    let analysis =
+        analysis_cache.analyze_or_load(store, scope, &image_id, model_ref, extractor).await?;
     let reference_text = format_image_reference_text(&image_id, &analysis);
     Ok(TrackedImage {
         image_id,

@@ -9,14 +9,8 @@ fn defaults_are_stable_and_include_builtin_aliases() {
         aliases.get("create-task-plans").map(String::as_str),
         Some("bundled:create-task-plans")
     );
-    assert_eq!(
-        aliases.get("do-task-plans").map(String::as_str),
-        Some("bundled:do-task-plans")
-    );
-    assert_eq!(
-        aliases.get("rustcodegraph").map(String::as_str),
-        Some("bundled:rustcodegraph")
-    );
+    assert_eq!(aliases.get("do-task-plans").map(String::as_str), Some("bundled:do-task-plans"));
+    assert_eq!(aliases.get("rustcodegraph").map(String::as_str), Some("bundled:rustcodegraph"));
     assert_eq!(BUILTIN_PRELOADED_SKILLS.len(), DEFAULT_PRELOADED_SKILL_SOURCES.len());
 }
 

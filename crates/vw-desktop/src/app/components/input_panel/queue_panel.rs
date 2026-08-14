@@ -157,13 +157,9 @@ fn queue_action_button(
         action_button = action_button.on_press(Message::Chat(action));
     }
 
-    Tooltip::new(
-        action_button,
-        dark_tooltip_content(tooltip_label),
-        TooltipPosition::Top,
-    )
-    .gap(4.0)
-    .into()
+    Tooltip::new(action_button, dark_tooltip_content(tooltip_label), TooltipPosition::Top)
+        .gap(4.0)
+        .into()
 }
 
 /// 构建并渲染任务队列面板
@@ -249,8 +245,7 @@ pub fn queue_panel(
         // 构建标题文本，格式为 "序号. 查询内容"；悬停时在右侧展示完整内容
         let title = text(format!("{}. {}", i + 1, label)).size(12).line_height(1.0);
         let info = container(
-            Tooltip::new(title, queue_content_tooltip(full_query), TooltipPosition::Right)
-                .gap(8.0),
+            Tooltip::new(title, queue_content_tooltip(full_query), TooltipPosition::Right).gap(8.0),
         )
         .width(Length::Fill);
         let (can_move_up, can_move_down) = queue_move_availability(i, queue.len());
@@ -264,11 +259,8 @@ pub fn queue_panel(
             "再次编辑文字",
             Some(message::ChatMessage::QueueEdit(i)),
         );
-        let copy_button = queue_action_button(
-            Icon::Copy,
-            "复制",
-            Some(message::ChatMessage::QueueCopy(i)),
-        );
+        let copy_button =
+            queue_action_button(Icon::Copy, "复制", Some(message::ChatMessage::QueueCopy(i)));
         let move_up_button = queue_action_button(
             Icon::ArrowUp,
             "上移",
@@ -279,11 +271,8 @@ pub fn queue_panel(
             "下移",
             can_move_down.then_some(message::ChatMessage::QueueDown(i)),
         );
-        let remove_button = queue_action_button(
-            Icon::Trash,
-            "删除",
-            Some(message::ChatMessage::QueueRemove(i)),
-        );
+        let remove_button =
+            queue_action_button(Icon::Trash, "删除", Some(message::ChatMessage::QueueRemove(i)));
         let actions = row![
             guide_button,
             edit_button,
@@ -296,9 +285,7 @@ pub fn queue_panel(
         .align_y(Alignment::Center);
 
         // 构建行布局：状态图标 + 单行内容（填充剩余宽度）+ 图标操作
-        let row = row![status, info, actions]
-            .spacing(8)
-            .align_y(Alignment::Center);
+        let row = row![status, info, actions].spacing(8).align_y(Alignment::Center);
 
         let item_card = container(row)
             .padding([5, 10])

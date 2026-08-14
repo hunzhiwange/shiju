@@ -6,12 +6,12 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::session::info::Info as AgentSessionInfo;
 use vw_shared::session::ui_types::{
-    ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
-    ProcessingTiming, ThinkTiming, TokenUsage,
+    ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming,
+    SessionTodoItem, ThinkTiming, TokenUsage,
 };
 
-use crate::global_database::{GlobalDatabase, run_sync_database};
 use crate::global_database::config::DatabaseProvider;
+use crate::global_database::{GlobalDatabase, run_sync_database};
 
 mod postgres;
 
@@ -539,11 +539,9 @@ impl SessionStore {
                 )?;
                 Ok(())
             }
-            SessionStoreProvider::Postgres(store) => {
-                run_sync_database(|| {
-                    store.save_session_step_llm_raw(scope, session_id, step_index, payload)
-                })
-            }
+            SessionStoreProvider::Postgres(store) => run_sync_database(|| {
+                store.save_session_step_llm_raw(scope, session_id, step_index, payload)
+            }),
         }
     }
 
@@ -587,9 +585,7 @@ impl SessionStore {
                     .transpose()
             }
             SessionStoreProvider::Postgres(store) => {
-                run_sync_database(|| {
-                    store.load_session_step_llm_raw(scope, session_id, step_index)
-                })
+                run_sync_database(|| store.load_session_step_llm_raw(scope, session_id, step_index))
             }
         }
     }
@@ -1094,26 +1090,17 @@ fn ensure_sqlite_message_processing_timing_columns(connection: &Connection) -> R
     };
     if !columns.contains("processing_started_ms") {
         connection
-            .execute(
-                "ALTER TABLE session_messages ADD COLUMN processing_started_ms INTEGER",
-                [],
-            )
+            .execute("ALTER TABLE session_messages ADD COLUMN processing_started_ms INTEGER", [])
             .context("add SQLite session message processing started_ms column")?;
     }
     if !columns.contains("processing_completed_ms") {
         connection
-            .execute(
-                "ALTER TABLE session_messages ADD COLUMN processing_completed_ms INTEGER",
-                [],
-            )
+            .execute("ALTER TABLE session_messages ADD COLUMN processing_completed_ms INTEGER", [])
             .context("add SQLite session message processing completed_ms column")?;
     }
     if !columns.contains("processing_elapsed_ms") {
         connection
-            .execute(
-                "ALTER TABLE session_messages ADD COLUMN processing_elapsed_ms INTEGER",
-                [],
-            )
+            .execute("ALTER TABLE session_messages ADD COLUMN processing_elapsed_ms INTEGER", [])
             .context("add SQLite session message processing elapsed_ms column")?;
     }
     if !columns.contains("processing_llm_elapsed_ms") {

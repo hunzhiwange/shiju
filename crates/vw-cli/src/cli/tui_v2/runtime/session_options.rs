@@ -1,6 +1,4 @@
-use super::super::model::{
-    PermissionMode, SessionCapabilityMatrix, SessionOptions,
-};
+use super::super::model::{PermissionMode, SessionCapabilityMatrix, SessionOptions};
 
 pub(crate) trait SessionOptionsRuntime {
     fn save_session_options(&mut self, options: &SessionOptions) -> Result<(), String>;
@@ -35,11 +33,7 @@ fn validate_options(
     options: &SessionOptions,
     capabilities: &SessionCapabilityMatrix,
 ) -> Result<(), String> {
-    if options
-        .model
-        .as_ref()
-        .is_some_and(|model| !capabilities.models.contains(model))
-    {
+    if options.model.as_ref().is_some_and(|model| !capabilities.models.contains(model)) {
         return Err("selected model is not supported by the active provider".to_string());
     }
     if !capabilities.efforts.contains(&options.effort) {

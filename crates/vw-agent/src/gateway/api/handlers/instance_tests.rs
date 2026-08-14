@@ -224,8 +224,12 @@ async fn vcs_get_reports_current_git_branch() {
     let tree = repo.find_tree(tree_id).expect("tree lookup");
     let sig = git2::Signature::now("Test User", "test@example.invalid").expect("signature");
     repo.commit(Some("HEAD"), &sig, &sig, "initial", &tree, &[]).expect("commit");
-    repo.branch("unit-test-branch", &repo.head().expect("head").peel_to_commit().expect("commit"), false)
-        .expect("branch");
+    repo.branch(
+        "unit-test-branch",
+        &repo.head().expect("head").peel_to_commit().expect("commit"),
+        false,
+    )
+    .expect("branch");
     repo.set_head("refs/heads/unit-test-branch").expect("checkout branch ref");
     repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))
         .expect("checkout worktree");

@@ -1,12 +1,12 @@
 //! 独立展示当前登录账户的公司与个人基础信息。
 
 use super::{App, Message};
+use crate::app::account::{AccountPasswordField, AccountPasswordInput};
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_divider,
     settings_modal_card, settings_modal_overlay, settings_muted_text_style,
     settings_text_input_style,
 };
-use crate::app::account::{AccountPasswordField, AccountPasswordInput};
 use crate::app::message::AccountMessage;
 use crate::app::state::{AccountPasswordEditorState, AccountProfileEditorState};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -20,14 +20,8 @@ const PROFILE_EDITOR_LABELS: [&str; 5] =
     ["编辑我的资料", "返回我的", "显示名称", "登录账号", "保存资料"];
 const PASSWORD_EDITOR_SCROLLBAR_WIDTH: u32 = 4;
 const PASSWORD_INPUTS_SECURE: bool = true;
-const PASSWORD_EDITOR_LABELS: [&str; 6] = [
-    "修改我的密码",
-    "返回我的",
-    "当前密码",
-    "新密码",
-    "确认新密码",
-    "修改密码",
-];
+const PASSWORD_EDITOR_LABELS: [&str; 6] =
+    ["修改我的密码", "返回我的", "当前密码", "新密码", "确认新密码", "修改密码"];
 
 fn close_message() -> Message {
     Message::Account(AccountMessage::CloseDetails)
@@ -128,10 +122,7 @@ fn values_label(values: &[String]) -> String {
 
 fn detail_row(label: &'static str, value: String) -> Element<'static, Message> {
     row![
-        text(label)
-            .size(13)
-            .width(Length::Fixed(92.0))
-            .style(settings_muted_text_style),
+        text(label).size(13).width(Length::Fixed(92.0)).style(settings_muted_text_style),
         text(value).size(13).width(Length::Fill).wrapping(Wrapping::Word),
     ]
     .spacing(12)
@@ -142,13 +133,8 @@ fn detail_row(label: &'static str, value: String) -> Element<'static, Message> {
 
 fn status_row(label: &'static str, status: String) -> Element<'static, Message> {
     row![
-        text(label)
-            .size(13)
-            .width(Length::Fixed(92.0))
-            .style(settings_muted_text_style),
-        container(text(status_label(&status)).size(12))
-            .padding([4, 10])
-            .style(status_badge_style),
+        text(label).size(13).width(Length::Fixed(92.0)).style(settings_muted_text_style),
+        container(text(status_label(&status)).size(12)).padding([4, 10]).style(status_badge_style),
     ]
     .spacing(12)
     .align_y(Alignment::Center)
@@ -322,9 +308,7 @@ fn password_editor_body(app: &App) -> Element<'_, Message> {
     let header = row![
         column![
             text(PASSWORD_EDITOR_LABELS[0]).size(22),
-            text("使用当前密码设置新的登录密码。")
-                .size(12)
-                .style(settings_muted_text_style),
+            text("使用当前密码设置新的登录密码。").size(12).style(settings_muted_text_style),
         ]
         .spacing(4)
         .width(Length::Fill),
@@ -395,9 +379,8 @@ fn password_editor_body(app: &App) -> Element<'_, Message> {
     }
 
     let submit_label = if saving { "修改中…" } else { PASSWORD_EDITOR_LABELS[5] };
-    let mut submit = button(text(submit_label).size(14))
-        .padding([10, 18])
-        .style(password_submit_button_style);
+    let mut submit =
+        button(text(submit_label).size(14)).padding([10, 18]).style(password_submit_button_style);
     if password_editor_can_submit(&app.account.password_editor) {
         submit = submit.on_press(account_message(AccountMessage::SubmitPasswordEditor));
     }
@@ -509,16 +492,11 @@ pub(crate) fn with_account_details<'a>(
     };
 
     let details = scrollable(
-        row![company_card, user_card]
-            .spacing(16)
-            .align_y(Alignment::Start)
-            .width(Length::Fill),
+        row![company_card, user_card].spacing(16).align_y(Alignment::Start).width(Length::Fill),
     )
     .height(Length::Fixed(430.0))
     .direction(Direction::Vertical(
-        Scrollbar::new()
-            .width(DETAILS_SCROLLBAR_WIDTH)
-            .scroller_width(DETAILS_SCROLLBAR_WIDTH),
+        Scrollbar::new().width(DETAILS_SCROLLBAR_WIDTH).scroller_width(DETAILS_SCROLLBAR_WIDTH),
     ));
     let close = close_message();
     let card = settings_modal_card(

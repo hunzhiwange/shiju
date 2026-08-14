@@ -4,12 +4,12 @@
 //! - 将 gateway client 暴露的 typed stream 事件转换为 CLI 内部事件
 //! - 统一终态控制语义，把 done/error/cancel/timeout 收口为稳定枚举
 
+use serde_json::Value;
+use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
 use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatUsage, GatewayTypedChatStreamEvent,
     normalize_chat_stream_event,
 };
-use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
-use serde_json::Value;
 
 use crate::cli::tui_v2::model::{
     UiAttachment, UiAttachmentKind, UiCompactBoundary, UiMessage, UiMessageBase, UiMessageId,
@@ -101,15 +101,9 @@ pub(crate) enum UiRuntimeEvent {
 }
 
 /// 将计划运行事件投影到既有 TUI 消息与终态管线。
-pub(crate) fn adapt_task_plan_run_event(
-    event: TaskPlanRunStreamEventDto,
-) -> Vec<UiRuntimeEvent> {
+pub(crate) fn adapt_task_plan_run_event(event: TaskPlanRunStreamEventDto) -> Vec<UiRuntimeEvent> {
     match event {
-        TaskPlanRunStreamEventDto::PlanningStarted {
-            task_id,
-            plan_dir,
-            session_id,
-        } => vec![
+        TaskPlanRunStreamEventDto::PlanningStarted { task_id, plan_dir, session_id } => vec![
             UiRuntimeEvent::PlanRunTaskStarted { task_id: task_id.clone() },
             plan_run_progress(
                 &task_id,
@@ -131,73 +125,56 @@ pub(crate) fn adapt_task_plan_run_event(
         } => vec![plan_run_progress(
             &task_id,
             "waiting",
-            format!(
-                "等待 {} 个子智能体完成",
-                active_descendant_session_ids.len()
-            ),
+            format!("等待 {} 个子智能体完成", active_descendant_session_ids.len()),
             None,
             None,
             false,
             Some(session_id),
         )],
-        TaskPlanRunStreamEventDto::PlanCreated {
-            task_id,
-            subtask_count,
-            session_id,
-            ..
-        } => vec![plan_run_progress(
-            &task_id,
-            "plan-created",
-            format!("计划已创建，共 {subtask_count} 个子任务"),
-            Some(subtask_count as u64),
-            Some(subtask_count as u64),
-            true,
-            Some(session_id),
-        )],
-        TaskPlanRunStreamEventDto::BatchStarted {
-            task_id,
-            batch,
-            subtask_ids,
-        } => vec![plan_run_progress(
-            &task_id,
-            &format!("batch-{batch}-started"),
-            format!("批次 {batch} 开始，共 {} 个子任务", subtask_ids.len()),
-            Some(0),
-            Some(subtask_ids.len() as u64),
-            false,
-            None,
-        )],
-        TaskPlanRunStreamEventDto::BatchFinished {
-            task_id,
-            batch,
-            subtask_ids,
-            success,
-        } => vec![plan_run_progress(
-            &task_id,
-            &format!("batch-{batch}-finished"),
-            format!(
-                "批次 {batch} {}",
-                if success { "已完成" } else { "执行失败" }
-            ),
-            Some(subtask_ids.len() as u64),
-            Some(subtask_ids.len() as u64),
-            true,
-            None,
-        )],
-        TaskPlanRunStreamEventDto::GoalTurnStarted {
-            task_id,
-            turn,
-            session_id,
-            reason,
-        } => vec![plan_run_progress(
-            &task_id,
-            &format!("goal-turn-{turn}"),
-            format!("目标续轮 {turn}：{reason}"),
-            Some(u64::from(turn)),
-            None,
-            false,
-            Some(session_id),
-        )],
+        TaskPlanRunStreamEventDto::PlanCreated { task_id, subtask_count, session_id, .. } => {
+            vec![plan_run_progress(
+                &task_id,
+                "plan-created",
+                format!("计划已创建，共 {subtask_count} 个子任务"),
+                Some(subtask_count as u64),
+                Some(subtask_count as u64),
+                true,
+                Some(session_id),
+            )]
+        }
+        TaskPlanRunStreamEventDto::BatchStarted { task_id, batch, subtask_ids } => {
+            vec![plan_run_progress(
+                &task_id,
+                &format!("batch-{batch}-started"),
+                format!("批次 {batch} 开始，共 {} 个子任务", subtask_ids.len()),
+                Some(0),
+                Some(subtask_ids.len() as u64),
+                false,
+                None,
+            )]
+        }
+        TaskPlanRunStreamEventDto::BatchFinished { task_id, batch, subtask_ids, success } => {
+            vec![plan_run_progress(
+                &task_id,
+                &format!("batch-{batch}-finished"),
+                format!("批次 {batch} {}", if success { "已完成" } else { "执行失败" }),
+                Some(subtask_ids.len() as u64),
+                Some(subtask_ids.len() as u64),
+                true,
+                None,
+            )]
+        }
+        TaskPlanRunStreamEventDto::GoalTurnStarted { task_id, turn, session_id, reason } => {
+            vec![plan_run_progress(
+                &task_id,
+                &format!("goal-turn-{turn}"),
+                format!("目标续轮 {turn}：{reason}"),
+                Some(u64::from(turn)),
+                None,
+                false,
+                Some(session_id),
+            )]
+        }
         TaskPlanRunStreamEventDto::GoalEvaluated {
             task_id,
             turn,
@@ -207,10 +184,7 @@ pub(crate) fn adapt_task_plan_run_event(
         } => vec![plan_run_progress(
             &task_id,
             &format!("goal-evaluated-{turn}"),
-            format!(
-                "目标评估 {turn}：{}（{reason}）",
-                if achieved { "已达成" } else { "未达成" }
-            ),
+            format!("目标评估 {turn}：{}（{reason}）", if achieved { "已达成" } else { "未达成" }),
             Some(u64::from(turn)),
             None,
             achieved,
@@ -245,10 +219,7 @@ pub(crate) fn adapt_task_plan_run_event(
             let mut events = vec![plan_run_progress(
                 &task_id,
                 &format!("subtask-{subtask_id}-finished"),
-                format!(
-                    "{}：{title}",
-                    if success { "子任务完成" } else { "子任务失败" }
-                ),
+                format!("{}：{title}", if success { "子任务完成" } else { "子任务失败" }),
                 None,
                 None,
                 true,
@@ -259,12 +230,7 @@ pub(crate) fn adapt_task_plan_run_event(
             }
             events
         }
-        TaskPlanRunStreamEventDto::Blocked {
-            task_id,
-            reason,
-            session_id,
-            ..
-        } => vec![
+        TaskPlanRunStreamEventDto::Blocked { task_id, reason, session_id, .. } => vec![
             plan_run_progress(
                 &task_id,
                 "blocked",
@@ -278,13 +244,7 @@ pub(crate) fn adapt_task_plan_run_event(
                 "计划运行已阻塞：{reason}"
             ))),
         ],
-        TaskPlanRunStreamEventDto::Finished {
-            task_id,
-            status,
-            output,
-            session_id,
-            ..
-        } => {
+        TaskPlanRunStreamEventDto::Finished { task_id, status, output, session_id, .. } => {
             let mut events = vec![plan_run_progress(
                 &task_id,
                 "finished",
@@ -328,11 +288,8 @@ fn plan_run_progress(
     completed: bool,
     session_id: Option<String>,
 ) -> UiRuntimeEvent {
-    let mut base =
-        UiMessageBase::new(UiMessageId::local(format!("plan-run-{task_id}-{phase}")))
-            .with_origin(UiMessageOrigin::Gateway {
-                event_type: format!("task_plan_run.{phase}"),
-            });
+    let mut base = UiMessageBase::new(UiMessageId::local(format!("plan-run-{task_id}-{phase}")))
+        .with_origin(UiMessageOrigin::Gateway { event_type: format!("task_plan_run.{phase}") });
     if let Some(session_id) = session_id {
         base = base.with_session_id(session_id);
     }
@@ -413,8 +370,10 @@ pub(crate) fn adapt_gateway_stream_event(event: GatewayChatStreamEvent) -> UiRun
 
 fn adapt_gateway_content_event(value: &Value) -> UiRuntimeEvent {
     let content = value.get("content").and_then(Value::as_object);
-    let external_kind =
-        content.and_then(|content| content.get("type")).and_then(Value::as_str).unwrap_or("unknown");
+    let external_kind = content
+        .and_then(|content| content.get("type"))
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
     let mut base = content_event_base(value, external_kind);
 
     if let Some(origin) = value.get("origin").and_then(Value::as_object)
@@ -426,9 +385,7 @@ fn adapt_gateway_content_event(value: &Value) -> UiRuntimeEvent {
 
     let message = match external_kind {
         "attachment" => {
-            let kind = match content
-                .and_then(|content| content.get("kind"))
-                .and_then(Value::as_str)
+            let kind = match content.and_then(|content| content.get("kind")).and_then(Value::as_str)
             {
                 Some("image") => UiAttachmentKind::Image,
                 Some("link") => UiAttachmentKind::Link,
@@ -461,9 +418,7 @@ fn adapt_gateway_content_event(value: &Value) -> UiRuntimeEvent {
         "progress" => UiMessage::Progress(UiProgressMessage {
             base,
             label: content_string(content, "label").unwrap_or_else(|| "Progress".to_string()),
-            current: content
-                .and_then(|content| content.get("current"))
-                .and_then(Value::as_u64),
+            current: content.and_then(|content| content.get("current")).and_then(Value::as_u64),
             total: content.and_then(|content| content.get("total")).and_then(Value::as_u64),
             completed: content
                 .and_then(|content| content.get("completed"))
@@ -509,10 +464,7 @@ fn content_event_base(value: &Value, external_kind: &str) -> UiMessageBase {
     base
 }
 
-fn content_string(
-    content: Option<&serde_json::Map<String, Value>>,
-    key: &str,
-) -> Option<String> {
+fn content_string(content: Option<&serde_json::Map<String, Value>>, key: &str) -> Option<String> {
     content
         .and_then(|content| content.get(key))
         .and_then(Value::as_str)

@@ -8,6 +8,7 @@ use iced::{Alignment, Color, Element, Theme};
 
 use crate::app::Message;
 use crate::app::components::animated_text::neutral_sweep_text_color;
+use crate::app::components::chat_panel::tool_text_support::chat_text_line_height;
 use crate::app::components::status_animation::spinner_frame;
 
 use super::super::utils::chat_secondary_text_color;
@@ -18,6 +19,11 @@ pub(super) const PROCESSING_DURATION_TEXT_SIZE: f32 = 14.0;
 pub(super) const THINK_STATUS_TEXT_SIZE: f32 = 13.0;
 pub(super) const THINK_META_TEXT_SIZE: f32 = 12.0;
 pub(super) const COMPACT_ACTION_BUTTON_RADIUS: f32 = 5.0;
+pub(super) const ASSISTANT_BLOCK_SPACING: f32 = 14.0;
+pub(super) const ASSISTANT_HEADER_BODY_SPACING: f32 = 16.0;
+pub(super) const PROCESSING_HEADER_RULE_SPACING: f32 = 8.0;
+pub(super) const MARKDOWN_BLOCK_SPACING: f32 = 10.0;
+pub(super) const THINK_BLOCK_CONTENT_SPACING: f32 = 6.0;
 
 pub(super) fn is_dark_theme(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
@@ -66,7 +72,7 @@ pub(super) fn thinking_status_text<'a>(
 }
 
 pub(super) fn message_text_line_height() -> iced::widget::text::LineHeight {
-    iced::widget::text::LineHeight::Relative(1.62)
+    chat_text_line_height()
 }
 
 pub(super) fn message_body_text_color(theme: &Theme, is_user: bool) -> Color {

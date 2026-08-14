@@ -4,9 +4,9 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use super::{
-    BackendCancelHandle, BackendError, BackendEvent, BackendHistoryEntry,
-    BackendPermissionOption, BackendPermissionOptionKind, BackendPermissionRequest, BackendPrompt,
-    BackendRole, BackendSession, PromptContent, SessionBackend,
+    BackendCancelHandle, BackendError, BackendEvent, BackendHistoryEntry, BackendPermissionOption,
+    BackendPermissionOptionKind, BackendPermissionRequest, BackendPrompt, BackendRole,
+    BackendSession, PromptContent, SessionBackend,
 };
 
 #[derive(Clone)]
@@ -84,11 +84,8 @@ impl SessionBackend for AcceptanceBackend {
             })
             .expect("permission event");
         drop(permissions_tx);
-        Ok(BackendPrompt::new(
-            events_rx,
-            Arc::new(CancelToTerminal { events: events_tx }),
-        )
-        .with_permissions(permissions_rx))
+        Ok(BackendPrompt::new(events_rx, Arc::new(CancelToTerminal { events: events_tx }))
+            .with_permissions(permissions_rx))
     }
 }
 
@@ -98,9 +95,7 @@ async fn write_frame(stream: &mut tokio::io::DuplexStream, frame: serde_json::Va
     stream.write_all(&bytes).await.expect("write frame");
 }
 
-async fn read_frame(
-    reader: &mut BufReader<&mut tokio::io::DuplexStream>,
-) -> serde_json::Value {
+async fn read_frame(reader: &mut BufReader<&mut tokio::io::DuplexStream>) -> serde_json::Value {
     let mut line = String::new();
     reader.read_line(&mut line).await.expect("read frame");
     assert!(!line.is_empty(), "protocol stream closed before expected frame");

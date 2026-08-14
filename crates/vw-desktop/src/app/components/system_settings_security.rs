@@ -123,9 +123,9 @@ fn list_editor<'a>(
                 row![
                     text(item).size(13).width(Length::Fill),
                     button(text("删除").size(12))
-                        .on_press(Message::Settings(
-                            message::SettingsMessage::SecurityListRemove(kind, index),
-                        ))
+                        .on_press(Message::Settings(message::SettingsMessage::SecurityListRemove(
+                            kind, index
+                        ),))
                         .padding([6, 10])
                         .style(|theme, status| {
                             settings_segment_button_style(theme, status, false)
@@ -140,22 +140,16 @@ fn list_editor<'a>(
     }
 
     let item_list = container(
-        scrollable(container(item_rows).padding(Padding {
-            right: 12.0,
-            ..Padding::default()
-        }))
-        .height(Length::Shrink)
-        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
+        scrollable(container(item_rows).padding(Padding { right: 12.0, ..Padding::default() }))
+            .height(Length::Shrink)
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4))),
     )
     .max_height(LIST_EDITOR_MAX_HEIGHT)
     .width(Length::Fill);
 
     column![
-        column![
-            text(label).size(13),
-            text(description).size(11).style(settings_muted_text_style),
-        ]
-        .spacing(4),
+        column![text(label).size(13), text(description).size(11).style(settings_muted_text_style),]
+            .spacing(4),
         row![
             text_input(placeholder, draft)
                 .on_input(draft_changed)

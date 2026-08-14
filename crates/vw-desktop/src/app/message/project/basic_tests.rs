@@ -9,9 +9,7 @@ fn app() -> crate::app::App {
     crate::app::App::new().0
 }
 
-async fn collect_task_messages(
-    task: iced::Task<crate::app::Message>,
-) -> Vec<crate::app::Message> {
+async fn collect_task_messages(task: iced::Task<crate::app::Message>) -> Vec<crate::app::Message> {
     use iced_runtime::Action;
     use iced_runtime::futures::futures::StreamExt;
 
@@ -311,11 +309,8 @@ fn file_manager_show_changes_true_clears_active_preview_and_expands_changed_dirs
     let mut app = app();
     app.active_preview_path = Some("/tmp/project/src/main.rs".to_string());
     app.show_file_manager = false;
-    app.git_changed_files = vec![
-        "src/main.rs".to_string(),
-        "src/nested/lib.rs".to_string(),
-        "README.md".to_string(),
-    ];
+    app.git_changed_files =
+        vec!["src/main.rs".to_string(), "src/nested/lib.rs".to_string(), "README.md".to_string()];
 
     let _ = super::handle(
         &mut app,

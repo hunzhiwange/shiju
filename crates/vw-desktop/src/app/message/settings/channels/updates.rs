@@ -25,10 +25,8 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.channels_settings.save_error = None;
             Task::none()
         }
-        ChannelsMessage::PanelToggled(panel) => {
-            if !app.channels_settings.expanded_panels.remove(&panel) {
-                app.channels_settings.expanded_panels.insert(panel);
-            }
+        ChannelsMessage::TabSelected(tab) => {
+            app.channels_settings.active_tab = tab;
             Task::none()
         }
         ChannelsMessage::CliToggled(value) => {
@@ -45,11 +43,17 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         ChannelsMessage::EnabledToggled(channel, enabled) => {
             toggle_enabled(app, &channel, enabled);
+            if let Some(tab) = crate::app::state::ChannelsSettingsTab::from_channel_id(&channel) {
+                app.channels_settings.active_tab = tab;
+            }
             app.channels_settings.refresh_text_inputs();
             persist_channels_settings(app).unwrap_or_else(Task::none)
         }
         ChannelsMessage::InstanceAdded(channel) => {
             add_channel_instance(app, &channel);
+            if let Some(tab) = crate::app::state::ChannelsSettingsTab::from_channel_id(&channel) {
+                app.channels_settings.active_tab = tab;
+            }
             app.channels_settings.refresh_text_inputs();
             persist_channels_settings(app).unwrap_or_else(Task::none)
         }

@@ -79,12 +79,7 @@ fn visible_text_from_attachment(content: &str) -> &str {
     let body = attachment_text(content);
     body.strip_prefix("visible_text:\n")
         .or_else(|| body.strip_prefix("visible_text:\r\n"))
-        .map(|rest| {
-            rest.split("\n\nvisual_summary:")
-                .next()
-                .unwrap_or(rest)
-                .trim_end()
-        })
+        .map(|rest| rest.split("\n\nvisual_summary:").next().unwrap_or(rest).trim_end())
         .unwrap_or(body)
 }
 
@@ -114,9 +109,7 @@ async fn ocr_preprocessing_replaces_markers_with_bounded_untrusted_text() {
     assert!(!prepared.messages[1].content.contains("[IMAGE:"));
     assert!(!prepared.messages[1].content.contains(&data_uri));
     assert_eq!(
-        visible_text_from_attachment(&prepared.messages[1].content)
-            .chars()
-            .count(),
+        visible_text_from_attachment(&prepared.messages[1].content).chars().count(),
         OCR_TEXT_MAX_CHARS
     );
     assert_eq!(prepared.messages[2].content, "previous response");

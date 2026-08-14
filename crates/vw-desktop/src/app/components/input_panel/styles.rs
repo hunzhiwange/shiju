@@ -26,11 +26,8 @@ pub fn quick_message_button_style(
 ) -> button::Style {
     let is_dark = is_dark_theme(theme);
     let palette = theme.extended_palette();
-    let neutral = if is_dark {
-        palette.background.weak.color
-    } else {
-        Color::from_rgba8(246, 248, 251, 1.0)
-    };
+    let neutral =
+        if is_dark { palette.background.weak.color } else { Color::from_rgba8(246, 248, 251, 1.0) };
     let action = if is_dark {
         palette.primary.weak.color.scale_alpha(0.72)
     } else {
@@ -96,19 +93,19 @@ pub fn shiju_skill_button_style(
     let palette = theme.extended_palette();
     let pointed = matches!(status, button::Status::Hovered | button::Status::Pressed);
     let background = if selected {
-        Some(Background::Color(
-            theme.palette().primary.scale_alpha(if pointed {
-                if is_dark { 0.20 } else { 0.14 }
-            } else if is_dark {
-                0.16
-            } else {
-                0.10
-            }),
-        ))
+        Some(Background::Color(theme.palette().primary.scale_alpha(if pointed {
+            if is_dark { 0.20 } else { 0.14 }
+        } else if is_dark {
+            0.16
+        } else {
+            0.10
+        })))
     } else if pointed {
-        Some(Background::Color(
-            palette.background.weak.color.scale_alpha(if is_dark { 0.92 } else { 0.78 }),
-        ))
+        Some(Background::Color(palette.background.weak.color.scale_alpha(if is_dark {
+            0.92
+        } else {
+            0.78
+        })))
     } else {
         None
     };
@@ -140,8 +137,7 @@ pub fn shiju_upgrade_button_style(
 ) -> button::Style {
     let is_dark = is_dark_theme(theme);
     let palette = theme.extended_palette();
-    let pointed =
-        enabled && matches!(status, button::Status::Hovered | button::Status::Pressed);
+    let pointed = enabled && matches!(status, button::Status::Hovered | button::Status::Pressed);
     let background = enabled.then(|| {
         Background::Color(palette.primary.weak.color.scale_alpha(if pointed {
             if is_dark { 0.82 } else { 0.62 }
@@ -163,10 +159,13 @@ pub fn shiju_upgrade_button_style(
                 Color::TRANSPARENT
             },
         },
-        text_color: theme
-            .palette()
-            .text
-            .scale_alpha(if enabled { 0.94 } else if is_dark { 0.36 } else { 0.42 }),
+        text_color: theme.palette().text.scale_alpha(if enabled {
+            0.94
+        } else if is_dark {
+            0.36
+        } else {
+            0.42
+        }),
         ..Default::default()
     }
 }
@@ -573,10 +572,8 @@ pub fn input_card_style(
     chrome: Option<&ChromeStyleOverrides>,
 ) -> container::Style {
     let is_dark = is_dark_theme(theme);
-    let default_bg = crate::app::theme_catalog::input_surface_color(
-        theme,
-        if is_dark { 0.96 } else { 1.0 },
-    );
+    let default_bg =
+        crate::app::theme_catalog::input_surface_color(theme, if is_dark { 0.96 } else { 1.0 });
     let chrome_bg = chrome.and_then(|c| c.input_bg.or(c.panel_bg));
     let base_bg = chrome_bg.unwrap_or(default_bg);
     let palette = theme.extended_palette();
@@ -601,9 +598,7 @@ pub fn input_card_style(
     } else {
         base_bg
     };
-    let radius = chrome
-        .and_then(|c| c.radius_px)
-        .unwrap_or(20.0);
+    let radius = chrome.and_then(|c| c.radius_px).unwrap_or(20.0);
     container::Style {
         background: Some(Background::Color(background)),
         border: Border { width: 1.0, color: border_color, radius: radius.into() },
@@ -693,20 +688,14 @@ pub fn editor_style(
     let is_dark = is_dark_theme(theme);
     let chrome_text = chrome.and_then(|c| c.input_text);
     let value = if let Some(text) = chrome_text {
-        if requesting {
-            text.scale_alpha(0.92)
-        } else {
-            text
-        }
+        if requesting { text.scale_alpha(0.92) } else { text }
     } else if requesting {
         palette.text.scale_alpha(0.92)
     } else {
         palette.text.scale_alpha(if is_dark { 0.96 } else { 0.94 })
     };
     let placeholder = if is_dark {
-        chrome_text
-            .unwrap_or(palette.text)
-            .scale_alpha(0.48)
+        chrome_text.unwrap_or(palette.text).scale_alpha(0.48)
     } else {
         p.secondary.base.text.scale_alpha(0.56)
     };

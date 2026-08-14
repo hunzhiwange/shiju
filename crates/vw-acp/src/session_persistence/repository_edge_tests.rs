@@ -50,11 +50,7 @@ impl Drop for EnvVarGuard {
 }
 
 fn env_keys(key: &'static str) -> Vec<&'static str> {
-    if key == "HOME" {
-        vec!["HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH"]
-    } else {
-        vec![key]
-    }
+    if key == "HOME" { vec!["HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH"] } else { vec![key] }
 }
 
 fn record(id: &str, agent_command: &str, cwd: &Path, name: Option<&str>) -> crate::SessionRecord {

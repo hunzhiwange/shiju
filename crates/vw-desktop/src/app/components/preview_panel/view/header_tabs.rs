@@ -110,6 +110,15 @@ pub(super) fn tab_select_message(path: &str) -> Message {
     Message::Preview(message::PreviewMessage::Select(path.to_string()))
 }
 
+pub(super) fn open_file_message() -> Message {
+    Message::Project(message::ProjectMessage::OpenFilePressed)
+}
+
+#[cfg(test)]
+pub(super) fn header_tab_item_count(app: &App) -> usize {
+    app.preview_tabs.len() + 1
+}
+
 pub(super) fn tab_right_click_message(path: &str, pos: Point) -> Message {
     Message::Preview(message::PreviewMessage::TabRightClicked(path.to_string(), pos.x, pos.y))
 }
@@ -249,6 +258,18 @@ pub fn build_header_tabs(app: &App) -> Element<'_, Message> {
         // 将构建好的标签页项添加到标签页行容器中
         tabs = tabs.push(tab_item);
     }
+
+    let open_file = button(
+        container(small_icon_svg(Icon::Plus))
+            .width(Length::Fixed(28.0))
+            .height(Length::Fixed(28.0))
+            .align_x(iced::alignment::Horizontal::Center)
+            .align_y(iced::alignment::Vertical::Center),
+    )
+    .on_press(open_file_message())
+    .padding(0)
+    .style(close_button_style);
+    tabs = tabs.push(open_file);
 
     // 创建滚动条配置，宽度为 4px
     let scrollbar = Scrollbar::new().width(4).scroller_width(4);

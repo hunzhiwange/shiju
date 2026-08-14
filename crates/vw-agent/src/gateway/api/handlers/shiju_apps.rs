@@ -30,10 +30,7 @@ where
     Router::new()
         .route("/shiju/apps/catalog", get(catalog_get))
         .route("/shiju/apps", get(installed_get))
-        .route(
-            "/shiju/apps/{installation_id}/launch",
-            post(prepare_launch_post),
-        )
+        .route("/shiju/apps/{installation_id}/launch", post(prepare_launch_post))
         .layer(Extension(Arc::new(client)))
 }
 
@@ -42,11 +39,7 @@ async fn catalog_get(
     headers: HeaderMap,
 ) -> Result<Json<ShijuAppCatalogDto>, ApiError> {
     let credential = credential(&headers)?;
-    client
-        .catalog(credential.expose())
-        .await
-        .map(Json)
-        .map_err(map_error)
+    client.catalog(credential.expose()).await.map(Json).map_err(map_error)
 }
 
 async fn installed_get(
@@ -54,11 +47,7 @@ async fn installed_get(
     headers: HeaderMap,
 ) -> Result<Json<ShijuAppListDto>, ApiError> {
     let credential = credential(&headers)?;
-    client
-        .installed(credential.expose())
-        .await
-        .map(Json)
-        .map_err(map_error)
+    client.installed(credential.expose()).await.map(Json).map_err(map_error)
 }
 
 async fn prepare_launch_post(
@@ -67,11 +56,7 @@ async fn prepare_launch_post(
     Path(installation_id): Path<String>,
 ) -> Result<Json<ShijuAppLaunchDto>, ApiError> {
     let credential = credential(&headers)?;
-    client
-        .prepare_launch(credential.expose(), &installation_id)
-        .await
-        .map(Json)
-        .map_err(map_error)
+    client.prepare_launch(credential.expose(), &installation_id).await.map(Json).map_err(map_error)
 }
 
 fn credential(headers: &HeaderMap) -> Result<ShijuCredential, ApiError> {
@@ -80,8 +65,7 @@ fn credential(headers: &HeaderMap) -> Result<ShijuCredential, ApiError> {
         .ok_or_else(|| ApiError::bad_request("SHIJU credential header is required"))?
         .to_str()
         .map_err(|_| ApiError::bad_request("SHIJU credential header is invalid"))?;
-    ShijuCredential::new(raw)
-        .map_err(|_| ApiError::bad_request("SHIJU credential cannot be empty"))
+    ShijuCredential::new(raw).map_err(|_| ApiError::bad_request("SHIJU credential cannot be empty"))
 }
 
 fn map_error(error: ShijuAppError) -> ApiError {

@@ -199,7 +199,7 @@ pub use list_mcp_resources::ListMcpResourcesTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use ls::LsTool;
 #[cfg(not(target_arch = "wasm32"))]
-pub use lsp::LspTool;
+pub use lsp::{LspTool, RustCodeGraphTool};
 pub use mcp_auth::McpAuthTool;
 pub use mcp_status::McpStatusTool;
 pub use memory_forget::MemoryForgetTool;

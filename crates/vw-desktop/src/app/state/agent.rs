@@ -321,6 +321,7 @@ impl ActiveSessionViewState {
                 + step.finish_reason.as_deref().map_or(0, str::len)
         });
         let call_bytes = self.calls.iter().map(json_value_bytes);
+        let step_llm_raw_bytes = self.step_llm_raw.values().map(json_value_bytes);
         let step_meta_bytes =
             self.step_index_map.values().map(|meta| meta.model.as_deref().map_or(0, str::len));
         let message_meta_bytes =
@@ -330,6 +331,7 @@ impl ActiveSessionViewState {
 
         step_bytes
             .chain(call_bytes)
+            .chain(step_llm_raw_bytes)
             .chain(step_meta_bytes)
             .chain(message_meta_bytes)
             .chain(user_question_preview_bytes)
@@ -366,6 +368,7 @@ pub(crate) struct ActiveSessionViewState {
     pub(crate) updated_ms: u64,
     pub(crate) steps: Vec<ChatSessionStep>,
     pub(crate) calls: Vec<Value>,
+    pub(crate) step_llm_raw: HashMap<u32, Value>,
     pub(crate) step_index_map: HashMap<u32, StepUiMeta>,
     pub(crate) message_meta_texts: Vec<Option<String>>,
     pub(crate) user_question_markers: Vec<UserQuestionMarker>,

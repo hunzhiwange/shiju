@@ -626,6 +626,7 @@ fn apply_prepared_session_open(app: &mut App, prepared: crate::app::session::Pre
         usage,
         steps,
         calls,
+        step_llm_raw,
         updated_ms,
         content_signature: _,
         session_model,
@@ -641,6 +642,7 @@ fn apply_prepared_session_open(app: &mut App, prepared: crate::app::session::Pre
         app.restore_session_model_from_steps(&session_id, &steps);
     app.replace_active_session_steps(steps);
     app.replace_active_session_calls(calls);
+    app.replace_active_session_step_llm_raw(step_llm_raw);
     let restored_session_model_from_history = session_model
         .as_deref()
         .is_some_and(|model| app.restore_session_model_from_history(&session_id, model));
@@ -1086,6 +1088,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 app.usage = prepared.usage;
                 if !prepared.steps.is_empty() {
                     app.replace_active_session_steps(prepared.steps);
+                }
+                if !prepared.step_llm_raw.is_empty() {
+                    app.replace_active_session_step_llm_raw(prepared.step_llm_raw);
                 }
                 if let Some(summary) = app.session_view_cache.record_open_commit(
                     &target_session_id,

@@ -59,6 +59,7 @@ pub use self::desktop_settings_api::{
 pub use self::permission_api::{
     PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto,
 };
+pub use self::session_api::SessionUiLoadResult;
 pub use self::shiju_account_api::{
     SHIJU_CREDENTIAL_HEADER, ShijuAccountDepartmentDto, ShijuAccountMeDto,
     ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto, ShijuAccountRoleDto,

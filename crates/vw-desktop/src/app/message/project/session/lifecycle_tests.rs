@@ -1362,6 +1362,42 @@ fn prepared_session_open_for_inactive_target_preserves_active_state() {
 }
 
 #[test]
+fn loaded_session_preserves_step_llm_raw_for_active_view() {
+    let mut app = app();
+    app.active_session_id = Some("session-1".to_string());
+    let mut prepared = crate::app::session::prepare_session_open(
+        "session-1".to_string(),
+        Vec::new(),
+        Vec::new(),
+        crate::app::models::TokenUsage::default(),
+        Vec::new(),
+        Vec::new(),
+        0,
+        None,
+        false,
+    );
+    prepared.step_llm_raw =
+        std::collections::HashMap::from([(3, json!({"output": {"reasoning_content": "kept"}}))]);
+
+    let task = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "session-1".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(prepared),
+        },
+    );
+
+    assert!(task.is_some());
+    assert_eq!(
+        app.active_session_view_state.step_llm_raw[&3]["output"]["reasoning_content"],
+        "kept"
+    );
+}
+
+#[test]
 fn reset_boundary_loaded_end_prefers_last_known_id_and_falls_back_to_bounded_length() {
     let loaded_ids = vec![
         Some("message-1".to_string()),

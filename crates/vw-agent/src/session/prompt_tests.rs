@@ -31,7 +31,7 @@ fn environment_wraps_missing_model_with_explicit_root() {
 
     assert_eq!(entries.len(), 1);
     assert!(entries[0].contains("unknown/unknown"));
-    assert!(entries[0].contains("工作目录: prompt-test-root"));
+    assert!(entries[0].contains("Working directory: prompt-test-root"));
 }
 
 #[test]
@@ -59,7 +59,7 @@ fn system_includes_environment_for_explicit_root() {
     let prompt = super::system(None, Some("prompt-test-root"));
 
     assert!(prompt.contains("unknown/unknown"));
-    assert!(prompt.contains("工作目录: prompt-test-root"));
+    assert!(prompt.contains("Working directory: prompt-test-root"));
 }
 
 #[test]
@@ -104,6 +104,43 @@ fn system_prompt_initial_request_reads_explicit_workspace_agents_family() {
     assert!(context.contains("root protocol"));
     assert!(context.contains("project protocol"));
     assert!(context.contains("local protocol"));
+}
+
+#[test]
+fn system_prompt_runtime_context_renders_model_directory_and_available_capabilities_once() {
+    let project = tempfile::tempdir().expect("project workspace");
+    let tools = vec![
+        "skill".to_string(),
+        "TodoRead".to_string(),
+        "TodoWrite".to_string(),
+        "AgentTool".to_string(),
+    ];
+
+    let prompt = super::system_with_metadata(None, project.path().to_str())
+        .with_runtime_context(
+            Some("deepseek/deepseek-v4-flash"),
+            project.path().to_str(),
+            &tools,
+            true,
+        )
+        .with_runtime_context(
+            Some("ignored/model"),
+            project.path().to_str(),
+            &tools,
+            true,
+        );
+
+    assert_eq!(
+        prompt.content.matches(super::super::system::UNIFIED_PROMPT_MARKER).count(),
+        1
+    );
+    assert!(prompt.content.contains("deepseek/deepseek-v4-flash"));
+    assert!(prompt.content.contains(&project.path().display().to_string()));
+    assert!(prompt.content.contains("## RustCodeGraph"));
+    assert!(prompt.content.contains("## Task Tracking"));
+    assert!(prompt.content.contains("## Subagents"));
+    assert!(!prompt.content.contains("ignored/model"));
+    assert!(!prompt.content.contains("{{"));
 }
 
 #[test]

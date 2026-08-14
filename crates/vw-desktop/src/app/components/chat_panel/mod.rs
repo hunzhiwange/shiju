@@ -30,6 +30,7 @@ mod tool_names;
 pub mod tool_selector;
 pub mod tool_text_support;
 pub mod tools;
+pub(crate) mod trajectory;
 pub mod utils;
 pub mod virtualizer;
 
@@ -90,7 +91,7 @@ use crate::app::assets::Icon;
 use crate::app::components::input_panel::todo_panel::{self, TodoPanelSurface};
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ChatRole};
-use crate::app::state::UserQuestionMarker;
+use crate::app::state::{ChatPanelMode, UserQuestionMarker};
 use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, TodoPanelPlacement, message};
 
@@ -494,9 +495,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
         );
         let jump_button = jump_to_bottom_button(app);
         let todo_overlay = chat_todo_overlay(app);
-        let body_base = stack![scroll_content, question_jump_button, jump_button, todo_overlay]
-            .width(Length::Fill)
-            .height(Length::Fill);
+        let body_base: Element<'_, Message> = match app.chat_panel_mode {
+            ChatPanelMode::Conversation => {
+                stack![scroll_content, question_jump_button, jump_button, todo_overlay]
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into()
+            }
+            ChatPanelMode::Trajectory => trajectory::view(app),
+        };
         let body_bg =
             app.active_theme_skin.as_ref().and_then(|skin| skin.chat_body_path.as_deref());
         let fit = app
@@ -509,7 +516,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .unwrap_or_default()
             })
             .unwrap_or_default();
-        let body = with_panel_background(body_base.into(), body_bg, fit);
+        let body = with_panel_background(body_base, body_bg, fit);
         let panel_base = column![header, body, chat_global_status_view(app)]
             .spacing(6)
             .width(Length::Fill)

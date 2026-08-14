@@ -30,12 +30,7 @@ use super::{
     explore_tool_kind, tool_inline_text_editor, tool_name_from_raw, tool_status_from_raw,
 };
 
-const EXPANDED_LIST_BOTTOM_PADDING: f32 = 10.0;
 pub(super) const EXPANDED_LIST_TOP_SPACING: f32 = 10.0;
-
-pub(super) fn expanded_list_padding() -> iced::Padding {
-    iced::Padding { top: 0.0, right: 0.0, bottom: EXPANDED_LIST_BOTTOM_PADDING, left: 0.0 }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SummarySegmentKind {
@@ -610,8 +605,7 @@ pub fn tool_explore_summary_view<'a>(
             }
         }
         if has_visible_items {
-            content =
-                content.push(container(list).width(Length::Fill).padding(expanded_list_padding()));
+            content = content.push(container(list).width(Length::Fill));
         }
     }
 

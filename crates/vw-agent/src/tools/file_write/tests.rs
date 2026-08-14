@@ -142,8 +142,8 @@ mod tests {
     fn file_write_description_is_available() {
         let tool = FileWriteTool::new(test_security(std::env::temp_dir()));
         let description = tool.description();
-        assert!(description.contains("完整内容"));
-        assert!(description.contains("创建新文件"));
+        assert!(description.contains("complete content"));
+        assert!(description.contains("create a new file"));
     }
 
     /// 测试文件创建功能

@@ -1,8 +1,8 @@
-- 在当前工作区内搜索与信息需求最相关的代码位置与片段
-- 适合输入自然语言描述（"入口在哪里""谁调用了 X""哪里定义了 Y"），会自动提取关键词并搜索
-- 输出按相关度排序的文件列表，并附上命中行的行号与内容片段
+- Search the current workspace for code locations and snippets most relevant to the information request.
+- Accept natural-language queries such as "Where is the entry point?", "Who calls X?", or "Where is Y defined?"; keywords are extracted and searched automatically.
+- Return a relevance-ranked file list with line numbers and content snippets for each match.
 
-使用说明：
-  - 对于精确字符串（路径、标识符、import 路径等）效果最好
-  - 可以通过 target_directories 限定搜索目录以加速
-  - 结果有 head_limit 上限，默认 20 个文件
+Usage:
+  - Works best with exact strings such as paths, identifiers, and import paths.
+  - Use `target_directories` to restrict the search directories and improve speed.
+  - Results are capped by `head_limit`, which defaults to 20 files.

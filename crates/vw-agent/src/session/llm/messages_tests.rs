@@ -119,7 +119,7 @@ fn build_system_messages_merges_non_empty_sources_in_order() {
 #[test]
 fn build_system_messages_does_not_duplicate_unified_prompt_for_codex() {
     // Stable marker from unified.txt; must appear once regardless of is_codex.
-    const UNIFIED_MARKER: &str = "你是 VibeWindow，一个通用自主助手";
+    const UNIFIED_MARKER: &str = crate::app::agent::session::system::UNIFIED_PROMPT_MARKER;
 
     let model = test_model("openai", "gpt-5-test", "openai");
     let input = test_input(model);
@@ -140,6 +140,30 @@ fn build_system_messages_does_not_duplicate_unified_prompt_for_codex() {
     assert_eq!(with_count, 1, "codex path must not duplicate unified prompt");
     assert!(with_codex.contains("agent prompt"));
     assert!(with_codex.contains("session system"));
+}
+
+#[test]
+fn build_system_messages_keeps_pre_rendered_runtime_prompt_once() {
+    let model = test_model("deepseek", "deepseek-v4-flash", "openai-compatible");
+    let mut input = test_input(model);
+    let rendered = crate::app::agent::session::system::render_unified_prompt(
+        "deepseek/deepseek-v4-flash",
+        "/workspace/project",
+        &["TodoRead".into(), "TodoWrite".into(), "AgentTool".into()],
+        false,
+    );
+    input.system = vec![rendered, "session system".to_string()];
+
+    let joined = build_system_messages(&input, false).join("\n");
+
+    assert_eq!(
+        joined.matches(crate::app::agent::session::system::UNIFIED_PROMPT_MARKER).count(),
+        1
+    );
+    assert!(joined.contains("deepseek/deepseek-v4-flash"));
+    assert!(joined.contains("/workspace/project"));
+    assert!(joined.contains("## Task Tracking"));
+    assert!(joined.contains("## Subagents"));
 }
 
 #[test]

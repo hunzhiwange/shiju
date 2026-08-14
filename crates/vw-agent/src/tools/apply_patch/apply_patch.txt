@@ -1,33 +1,33 @@
-使用 `apply_patch` 工具编辑文件。你的补丁语言是一种精简的、面向文件的 diff 格式，设计为易于解析和安全应用。你可以将其视为一个高级信封：
+Use the `apply_patch` tool to edit files. Its patch language is a concise, file-oriented diff format designed to be easy to parse and safe to apply. Think of it as a high-level envelope:
 
-*** 开始补丁
-[ 一个或多个文件部分 ]
-*** 结束补丁
+*** Begin Patch
+[ one or more file sections ]
+*** End Patch
 
-在该信封内，你得到一系列文件操作。
-你必须包含一个标头以指定你正在采取的操作。
-每个操作都以三个标头之一开始：
+Inside this envelope is a sequence of file operations.
+You must include a header specifying the operation you are taking.
+Each operation begins with one of three headers:
 
-*** 添加文件：<路径> - 创建新文件。后面的每一行都是 + 行（初始内容）。
-*** 删除文件：<路径> - 删除现有文件。后面没有任何内容。
-*** 更新文件：<路径> - 就地修补现有文件（可选重命名）。
+*** Add File: <path> - Create a new file. Every following line is a + line containing its initial content.
+*** Delete File: <path> - Delete an existing file. Nothing follows.
+*** Update File: <path> - Patch an existing file in place, with an optional rename.
 
-示例补丁：
+Example patch:
 
 ```
-*** 开始补丁
-*** 添加文件：hello.txt
+*** Begin Patch
+*** Add File: hello.txt
 +Hello world
-*** 更新文件：src/app.py
-*** 移动到：src/main.py
+*** Update File: src/app.py
+*** Move to: src/main.py
 @@ def greet():
 -print("Hi")
 +print("Hello, world!")
-*** 删除文件：obsolete.txt
-*** 结束补丁
+*** Delete File: obsolete.txt
+*** End Patch
 ```
 
-重要的是要记住：
+Important reminders:
 
-- 你必须包含一个标头，说明你的预期操作（添加/删除/更新）
-- 创建新文件时，你必须用 `+` 作为新行的前缀
+- You must include a header describing the intended operation (add/delete/update).
+- When creating a new file, you must prefix every new line with `+`.

@@ -1,14 +1,14 @@
-使用此工具在执行期间向用户提出选择题。这允许你：
-1. 收集用户偏好或需求
-2. 澄清含糊的说明
-3. 在实现方案之间获取决策
-4. 向用户提供明确可比较的方向选择
+Use this tool to ask the user multiple-choice questions during execution. This lets you:
+1. Gather user preferences or requirements.
+2. Clarify ambiguous instructions.
+3. Obtain decisions between implementation approaches.
+4. Present clearly comparable directions to the user.
 
-使用说明：
-- `questions` 最多 4 个；每个问题的 `options` 最多 4 个，且问题文本与选项标签在各自范围内必须唯一
-- 默认允许用户输入自定义答案；启用 `custom` 时会自动提供自定义输入，不要再手动添加“其他”一类兜底选项
-- 使用 `multiSelect: true` 允许多选；兼容旧字段 `multiple`
-- 如果你推荐特定选项，请将其放在第一个，并在标签末尾添加“（推荐）”
-- 当你需要用户比较具体产物时，可以在选项上附带可选的 `preview` 字段，例如 UI 草图、代码片段或配置示例；仅在单选题中使用
-- 工具结果会返回 `questions`、按问题文本索引的 `answers`，以及可选的 `annotations`
-- 在计划模式中，用它澄清需求或在方案之间做选择；不要用它询问“是否开始执行计划”，那应改用 `plan_exit`
+Usage:
+- `questions` accepts at most 4 questions, and each question accepts at most 4 `options`. Question text and option labels must each be unique within their respective scope.
+- Custom answers are allowed by default. Enabling `custom` automatically provides a custom input, so do not manually add a fallback option such as "Other."
+- Use `multiSelect: true` to allow multiple selections; the legacy `multiple` field remains supported.
+- If you recommend a specific option, place it first and append " (Recommended)" to its label.
+- When users need to compare concrete artifacts, options may include an optional `preview` field, such as a UI sketch, code snippet, or configuration example. Use previews only for single-choice questions.
+- Tool results include `questions`, `answers` indexed by question text, and optional `annotations`.
+- In plan mode, use this tool to clarify requirements or choose between approaches. Do not use it to ask whether to begin executing the plan; use `plan_exit` instead.

@@ -107,12 +107,11 @@ pub(super) fn think_block_view<'a>(
 
     if let Some(duration) = duration_label {
         head_row = head_row.push(
-            text(format!("· {duration}"))
-                .size(THINK_META_TEXT_SIZE)
-                .font(chat_text_font())
-                .style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(chat_secondary_subtle_text_color(theme)) }
-                }),
+            text(format!("· {duration}")).size(THINK_META_TEXT_SIZE).font(chat_text_font()).style(
+                |theme: &Theme| iced::widget::text::Style {
+                    color: Some(chat_secondary_subtle_text_color(theme)),
+                },
+            ),
         );
     }
 

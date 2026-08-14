@@ -8,6 +8,7 @@ use super::{
     PreparedChatUiPhase, TokenUsage,
 };
 use serde_json::Value;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 /// 为 SharedChatMessages 领域数据提供更清晰的类型名称。
@@ -24,6 +25,7 @@ pub struct PreparedSessionOpen {
     pub usage: TokenUsage,
     pub steps: Vec<ChatSessionStep>,
     pub calls: Vec<Value>,
+    pub step_llm_raw: HashMap<u32, Value>,
     pub updated_ms: u64,
     pub content_signature: u64,
     pub session_model: Option<String>,
@@ -78,6 +80,7 @@ pub fn prepare_session_open(
         usage,
         steps,
         calls,
+        step_llm_raw: HashMap::new(),
         updated_ms,
         content_signature,
         session_model,

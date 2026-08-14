@@ -25,6 +25,7 @@
 use crate::app::agent::project::instance;
 use crate::app::agent::provider::provider;
 use crate::app::agent::util::log;
+use std::collections::BTreeSet;
 use std::path::Path;
 use time::format_description;
 
@@ -32,6 +33,297 @@ use time::format_description;
 ///
 /// 所有模型共用；指令优先级为：用户本轮要求 > 项目协议（含 AGENTS.md）> 本文件默认指引。
 const PROMPT_UNIFIED: &str = include_str!("prompt/unified.txt");
+
+pub(crate) const UNIFIED_PROMPT_MARKER: &str =
+    "You are VibeWindow, a general-purpose autonomous assistant";
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct RuntimePromptModes {
+    pub(crate) goal: bool,
+    pub(crate) workflow: bool,
+}
+
+impl RuntimePromptModes {
+    pub(crate) fn from_options(options: &serde_json::Value) -> Self {
+        Self {
+            goal: options.get("goal_mode").and_then(serde_json::Value::as_bool).unwrap_or(false),
+            workflow: options
+                .get("workflow_mode")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+        }
+    }
+}
+
+fn has_tool(tool_ids: &BTreeSet<String>, candidates: &[&str]) -> bool {
+    candidates.iter().any(|candidate| tool_ids.contains(*candidate))
+}
+
+fn runtime_capability_instructions(
+    available_tool_ids: &[String],
+    rustcodegraph_skill_available: bool,
+) -> String {
+    let tool_ids = available_tool_ids
+        .iter()
+        .map(|tool| tool.trim().to_ascii_lowercase())
+        .filter(|tool| !tool.is_empty())
+        .collect::<BTreeSet<_>>();
+    let mut sections = Vec::new();
+
+    let mut file_rules = Vec::new();
+    if has_tool(&tool_ids, &["file_read"]) {
+        file_rules.push(
+            "Use `file_read` to inspect text. If the result is truncated or paginated, continue reading the required content using offset/limit.",
+        );
+    }
+    if has_tool(&tool_ids, &["glob"]) || has_tool(&tool_ids, &["grep"]) {
+        let search_rule = match (
+            has_tool(&tool_ids, &["glob"]),
+            has_tool(&tool_ids, &["grep"]),
+        ) {
+            (true, true) => {
+                "Use `glob` to find paths and `grep` to search contents. After finding matches, read the required context."
+            }
+            (true, false) => "Use `glob` to find files by path pattern.",
+            (false, true) => {
+                "Use `grep` to search file contents. After finding matches, read the required context."
+            }
+            (false, false) => unreachable!(),
+        };
+        file_rules.push(search_rule);
+    }
+    if has_tool(&tool_ids, &["apply_patch"]) {
+        file_rules.push(
+            "When modifying existing text, prefer `apply_patch` for focused patches and preserve unrelated changes.",
+        );
+    }
+    if has_tool(&tool_ids, &["file_edit"]) {
+        file_rules.push(
+            "Read the file before invoking `file_edit`. By default, `old_string` must be unique; for multiple replacements, provide more specific context or explicitly set `replace_all`.",
+        );
+    }
+    if has_tool(&tool_ids, &["file_write"]) {
+        file_rules.push(
+            "Use `file_write` only for new files or when a complete replacement is genuinely necessary. Read an existing file before overwriting it.",
+        );
+    }
+    if has_tool(&tool_ids, &["notebook_edit", "notebookedit"]) {
+        file_rules.push(
+            "Use the dedicated editing tool for notebooks; do not modify them with ordinary text-writing tools.",
+        );
+    }
+    if !file_rules.is_empty() {
+        sections.push(format!("## Files and Search\n- {}", file_rules.join("\n- ")));
+    }
+
+    if has_tool(&tool_ids, &["bash", "shell"]) {
+        sections.push(
+            "## Command Execution\n- Use `bash` for project CLIs, builds, tests, and Git. Check the exit code of every result; when a command fails, investigate the cause first and do not treat failed output as valid evidence.\n- Do not use shell commands such as `cat`, `find`, or `grep` to bypass available specialized file tools unless project protocols explicitly require it."
+                .to_string(),
+        );
+    }
+
+    let skill_available = has_tool(&tool_ids, &["skill"]);
+    if skill_available {
+        sections.push(
+            "## Skills\n- Available skills are listed by name and description in a temporary `<system-reminder>`. When a skill matches the task or the user names one, invoke the Skill Tool first. After it succeeds, follow the injected skill instructions in full; do not guess paths or preload instructions."
+                .to_string(),
+        );
+    }
+
+    if skill_available && rustcodegraph_skill_available {
+        sections.push(
+            "## RustCodeGraph\n- The RustCodeGraph skill is available. For code navigation, first invoke the Skill Tool to load it and check the index as the skill requires.\n- When the index is available, prefer `explore`; use `query` / `node` for precise lookup, `callers` / `callees` / `impact` for call and impact analysis, and `affected` for test selection.\n- Do not immediately reread source context already obtained from the graph. Fall back to ordinary file search only for unindexed content, a stale index, or documents and configuration not covered by the graph."
+                .to_string(),
+        );
+    }
+
+    if has_tool(&tool_ids, &["todoread"]) && has_tool(&tool_ids, &["todowrite"]) {
+        sections.push(
+            "## Task Tracking\n- For non-trivial tasks, first use `TodoWrite` to create a concise task list and keep its state synchronized with `TodoRead`. Do not create a task list for simple questions and answers.\n- Update each item immediately upon completion and continue. Do not claim the task is complete while unfinished items remain. When the user asks you to continue, resume from the next unfinished item."
+                .to_string(),
+        );
+    }
+
+    if has_tool(&tool_ids, &["agenttool", "agent", "agent_tool", "delegate"]) {
+        sections.push(
+            "## Subagents\n- Delegate only concrete, independent, bounded subtasks. Do not delegate the entire original task or duplicate the parent task.\n- Independent subtasks may run concurrently in the background using `AgentTool`'s `launch` / `spawn`; use `run` only when the result is needed immediately. Record child-session IDs, continue local work, and `wait` for, verify, and integrate results before the final response. Use `stop` to end tasks that no longer provide value."
+                .to_string(),
+        );
+    }
+
+    if has_tool(&tool_ids, &["process"]) {
+        sections.push(
+            "## Background Tasks\n- Run long-running commands in the background with `process` and record the task ID. Continue independent work in the meantime; do not busy-wait with `sleep`.\n- Before the final response, read the output of tasks that remain relevant, confirm their exit status, and terminate background tasks that no longer provide value. Running does not mean validation passed."
+                .to_string(),
+        );
+    }
+
+    if has_tool(&tool_ids, &["batch"]) {
+        sections.push(
+            "## Parallel Tool Calls\n- Use `batch` only to combine calls that are independent, concurrency-safe, and do not contend for the same state. Run calls separately when they have sequential dependencies, approval requirements, or write conflicts."
+                .to_string(),
+        );
+    }
+
+    if has_tool(&tool_ids, &["askuserquestion", "question"]) {
+        sections.push(
+            "## Asking the User Questions\n- Use the question tool only when a critical ambiguity, missing credentials, or a high-risk decision still blocks progress after you inspect the context. Complete all unblocked work first and ask only one specific question."
+                .to_string(),
+        );
+    }
+
+    if has_tool(&tool_ids, &["plan_enter", "enterplanmode", "enter_plan_mode"])
+        && has_tool(&tool_ids, &["plan_exit", "exitplanmode", "exit_plan_mode"])
+    {
+        sections.push(
+            "## Plan Mode\n- Enter plan mode only when the user asks for a plan or the task genuinely requires the design to be settled first. After completing the plan, exit according to the tool protocol; do not implement during a read-only planning phase without authorization."
+                .to_string(),
+        );
+    }
+
+    if has_tool(&tool_ids, &["tool_search"]) {
+        sections.push(
+            "## Tool Discovery\n- When you need a capability that is not currently shown, search for it with `tool_search` first. Search results remain filtered by the current model, client, and permissions."
+                .to_string(),
+        );
+    }
+
+    if has_tool(
+        &tool_ids,
+        &[
+            "websearch",
+            "web_search",
+            "websearchtool",
+            "webfetch",
+            "web_fetch",
+            "browser",
+            "browseropen",
+            "http_request",
+        ],
+    ) {
+        sections.push(
+            "## Network and Browser\n- Use the currently available search, fetch, or browser tools for current information, external pages, and user-requested verification. Distinguish search summaries from page evidence and cite relevant sources in the final response.\n- The browser does not implicitly provide page state. Obtain the current snapshot or interactive state before acting, and revalidate the target page after a refresh or reconstruction."
+                .to_string(),
+        );
+    }
+
+    if has_tool(&tool_ids, &["list_mcp_resources"])
+        || has_tool(&tool_ids, &["list_mcp_resource_templates"])
+    {
+        sections.push(
+            "## MCP Resources\n- When external systems provide structured resources or templates through MCP, first discover and read the corresponding resources. Do not substitute web search for authoritative context that is directly accessible."
+                .to_string(),
+        );
+    }
+
+    sections.join("\n\n")
+}
+
+fn runtime_mode_instructions(modes: RuntimePromptModes) -> String {
+    let mut rules = Vec::new();
+    if modes.goal {
+        rules.push(
+            "Goal mode is enabled: treat the original request as an ongoing goal. Continue until the completion criteria and necessary validation are satisfied; do not claim completion merely because a turn ended, part of the task succeeded, or you provided a verbal summary. Only external dependencies, permissions, or security risks that you cannot resolve yourself constitute a genuine blocker.",
+        );
+    }
+    if modes.workflow {
+        rules.push(
+            "Workflow mode is enabled: the current session is part of a planning, batch-execution, or goal-acceptance workflow. Strictly complete the phase and task boundaries specified by the current prompt; do not skip dependency batches, take over other tasks, or change ownership of the outer plan.",
+        );
+    }
+    if rules.is_empty() {
+        String::new()
+    } else {
+        format!("## Current Runtime Mode\n- {}", rules.join("\n- "))
+    }
+}
+
+pub(crate) fn render_unified_prompt_with_modes(
+    model_id: &str,
+    working_directory: &str,
+    available_tool_ids: &[String],
+    rustcodegraph_skill_available: bool,
+    runtime_modes: RuntimePromptModes,
+) -> String {
+    let model_id = model_id.trim();
+    let model_id = if model_id.is_empty() { "unknown" } else { model_id };
+    let working_directory = working_directory.trim();
+    let working_directory = if working_directory.is_empty() { "." } else { working_directory };
+    PROMPT_UNIFIED
+        .replace("{{model_id}}", model_id)
+        .replace("{{working_directory}}", working_directory)
+        .replace(
+            "{{runtime_capabilities}}",
+            &runtime_capability_instructions(
+                available_tool_ids,
+                rustcodegraph_skill_available,
+            ),
+        )
+        .replace("{{runtime_modes}}", &runtime_mode_instructions(runtime_modes))
+        .trim()
+        .to_string()
+}
+
+pub(crate) fn render_unified_prompt(
+    model_id: &str,
+    working_directory: &str,
+    available_tool_ids: &[String],
+    rustcodegraph_skill_available: bool,
+) -> String {
+    render_unified_prompt_with_modes(
+        model_id,
+        working_directory,
+        available_tool_ids,
+        rustcodegraph_skill_available,
+        RuntimePromptModes::default(),
+    )
+}
+
+pub(crate) fn render_unified_prompt_from_ref(
+    model: Option<&str>,
+    root: Option<&str>,
+    available_tool_ids: &[String],
+    rustcodegraph_skill_available: bool,
+) -> String {
+    render_unified_prompt_from_ref_with_modes(
+        model,
+        root,
+        available_tool_ids,
+        rustcodegraph_skill_available,
+        RuntimePromptModes::default(),
+    )
+}
+
+pub(crate) fn render_unified_prompt_from_ref_with_modes(
+    model: Option<&str>,
+    root: Option<&str>,
+    available_tool_ids: &[String],
+    rustcodegraph_skill_available: bool,
+    runtime_modes: RuntimePromptModes,
+) -> String {
+    render_unified_prompt_with_modes(
+        model.unwrap_or("unknown"),
+        &resolve_cwd(root),
+        available_tool_ids,
+        rustcodegraph_skill_available,
+        runtime_modes,
+    )
+}
+
+pub(crate) fn render_unified_prompt_for_model(
+    model: &provider::Model,
+    root: Option<&str>,
+    available_tool_ids: &[String],
+    rustcodegraph_skill_available: bool,
+) -> String {
+    render_unified_prompt(
+        &format!("{}/{}", model.provider_id, model.api.id),
+        &resolve_cwd(root),
+        available_tool_ids,
+        rustcodegraph_skill_available,
+    )
+}
 
 /// 获取默认的系统指令
 ///
@@ -48,7 +340,7 @@ const PROMPT_UNIFIED: &str = include_str!("prompt/unified.txt");
 /// println!("系统指令: {}", instructions);
 /// ```
 pub fn instructions() -> String {
-    PROMPT_UNIFIED.trim().to_string()
+    render_unified_prompt_from_ref(None, None, &[], false)
 }
 
 /// 返回统一的系统提示
@@ -69,7 +361,12 @@ pub fn instructions() -> String {
 /// let model = provider::get_model("openai", "gpt-4").await?;
 /// let prompts = system::provider(&model);
 /// ```
-pub fn provider(model: &provider::Model) -> Vec<&'static str> {
+pub(crate) fn provider_with_context(
+    model: &provider::Model,
+    root: Option<&str>,
+    available_tool_ids: &[String],
+    rustcodegraph_skill_available: bool,
+) -> Vec<String> {
     let id = model.api.id.as_str();
 
     // 记录系统提示选择日志，用于调试和审计
@@ -78,23 +375,32 @@ pub fn provider(model: &provider::Model) -> Vec<&'static str> {
         .tag("providerID", &model.provider_id)
         .info("system_prompt::provider called", None);
 
-    vec![PROMPT_UNIFIED]
+    vec![render_unified_prompt_for_model(
+        model,
+        root,
+        available_tool_ids,
+        rustcodegraph_skill_available,
+    )]
 }
 
-/// 将布尔值转换为中文"是"或"否"
+pub fn provider(model: &provider::Model) -> Vec<String> {
+    provider_with_context(model, None, &[], false)
+}
+
+/// Converts a Boolean value to "Yes" or "No".
 ///
-/// 用于在生成的环境信息中使用用户友好的中文表示
+/// Used to provide a user-friendly English representation in generated environment information.
 ///
 /// # 参数
 ///
-/// - `v`: 要转换的布尔值
+/// - `v`: Boolean value to convert
 ///
 /// # 返回值
 ///
-/// - `true` → `"是"`
-/// - `false` → `"否"`
-fn yes_no_cn(v: bool) -> &'static str {
-    if v { "是" } else { "否" }
+/// - `true` → `"Yes"`
+/// - `false` → `"No"`
+fn yes_no_en(v: bool) -> &'static str {
+    if v { "Yes" } else { "No" }
 }
 
 /// 获取当前平台标识符
@@ -166,13 +472,13 @@ fn today_date_string() -> String {
 ///
 /// 返回格式化的环境信息文本，结构如下：
 /// ```text
-/// 你正在使用模型 <model_name>。精确模型 ID: <provider_id>/<model_name>
-/// 这里是一些运行环境信息：
+/// You are using the <model_name> model. Exact model ID: <provider_id>/<model_name>
+/// Here is some information about the runtime environment:
 /// <env>
-///   工作目录: <cwd>
-///   是否为 Git 仓库: <是/否>
-///   平台: <platform>
-///   今日日期: <date>
+///   Working directory: <cwd>
+///   Is Git repository: <Yes/No>
+///   Platform: <platform>
+///   Today's date: <date>
 /// </env>
 /// <directories>
 ///   <dirs>
@@ -186,13 +492,16 @@ fn environment_text(
     dirs: &str,
 ) -> String {
     [
-        format!("你正在使用模型 {}。精确模型 ID: {}/{}", model_name, provider_id, model_name),
-        "这里是一些运行环境信息：".to_string(),
+        format!(
+            "You are using the {} model. Exact model ID: {}/{}",
+            model_name, provider_id, model_name
+        ),
+        "Here is some information about the runtime environment:".to_string(),
         "<env>".to_string(),
-        format!("  工作目录: {}", cwd),
-        format!("  是否为 Git 仓库: {}", yes_no_cn(is_git)),
-        format!("  平台: {}", platform()),
-        format!("  今日日期: {}", today_date_string()),
+        format!("  Working directory: {}", cwd),
+        format!("  Is Git repository: {}", yes_no_en(is_git)),
+        format!("  Platform: {}", platform()),
+        format!("  Today's date: {}", today_date_string()),
         "</env>".to_string(),
         "<directories>".to_string(),
         format!("  {}", dirs),

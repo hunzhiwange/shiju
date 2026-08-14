@@ -19,6 +19,7 @@ use super::diff_utils::{
     count_apply_patch_format_changes, count_unified_diff_changes, extract_diff_block,
     parse_apply_patch_line_changes, parse_apply_patch_summary,
 };
+use super::file_link::{file_name_link, file_name_only, file_path_tooltip};
 use super::git_diff_view::render_git_diff_content;
 use super::tool_meta::tool_header_title;
 use super::tool_parse::{
@@ -128,7 +129,7 @@ pub fn tool_apply_patch_view<'a>(
         visible.to_string(),
     )));
 
-    let (primary_name, primary_dir, trailing_summary) = apply_patch_header_summary(&files);
+    let (primary_name, _primary_dir, trailing_summary) = apply_patch_header_summary(&files);
     let permission_target = tool_permission_target_summary(tool_name, &v);
     let title = if let Some(permission_state) = tool_permission_state(tool_name, &v) {
         tool_permission_title("补丁", permission_state)
@@ -156,11 +157,6 @@ pub fn tool_apply_patch_view<'a>(
         }));
     } else if let Some(permission_target) = permission_target {
         head_row = head_row.push(text(permission_target).size(13).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(apply_patch_secondary_text(theme, 0.68, 0.74)) }
-        }));
-    }
-    if !primary_dir.is_empty() {
-        head_row = head_row.push(text(primary_dir.clone()).size(13).style(|theme: &Theme| {
             iced::widget::text::Style { color: Some(apply_patch_secondary_text(theme, 0.68, 0.74)) }
         }));
     }
@@ -264,6 +260,22 @@ pub fn tool_apply_patch_view<'a>(
                     _ => Icon::File,
                 };
                 let abs_for_preview = if *kind != 'D' { resolve_path(app, path) } else { None };
+                let full_path = resolve_path(app, path).unwrap_or_else(|| path.clone());
+                let file_ref: Element<'a, Message> = if let Some(abs) = abs_for_preview.as_deref() {
+                    file_name_link(path, abs)
+                } else {
+                    Tooltip::new(
+                        text(file_name_only(path)).size(14).style(|theme: &Theme| {
+                            iced::widget::text::Style {
+                                color: Some(theme.palette().text.scale_alpha(0.92)),
+                            }
+                        }),
+                        file_path_tooltip(full_path),
+                        TooltipPosition::Top,
+                    )
+                    .gap(6)
+                    .into()
+                };
                 let eye_btn: Element<'a, Message> = abs_for_preview
                     .as_ref()
                     .cloned()
@@ -311,16 +323,9 @@ pub fn tool_apply_patch_view<'a>(
                         )),
                     );
                     let header_row = row![
-                        row![
-                            apply_patch_file_icon(icon),
-                            text(path.clone()).size(14).style(|theme: &Theme| {
-                                iced::widget::text::Style {
-                                    color: Some(theme.palette().text.scale_alpha(0.92)),
-                                }
-                            })
-                        ]
-                        .spacing(10)
-                        .align_y(Alignment::Center),
+                        row![apply_patch_file_icon(icon), file_ref]
+                            .spacing(10)
+                            .align_y(Alignment::Center),
                         eye_btn,
                         external_diff_btn,
                         container(Space::new()).width(Length::Fill),
@@ -384,37 +389,21 @@ pub fn tool_apply_patch_view<'a>(
                     }
                 } else {
                     let open_row = row![
-                        row![
-                            apply_patch_file_icon(icon),
-                            text(path.clone()).size(14).style(|theme: &Theme| {
-                                iced::widget::text::Style {
-                                    color: Some(theme.palette().text.scale_alpha(0.92)),
-                                }
-                            })
-                        ]
-                        .spacing(10)
-                        .align_y(Alignment::Center),
+                        row![apply_patch_file_icon(icon), file_ref]
+                            .spacing(10)
+                            .align_y(Alignment::Center),
                         eye_btn,
                         container(Space::new()).width(Length::Fill),
                         count_meta
                     ]
                     .align_y(Alignment::Center)
                     .spacing(10);
-                    let open_btn: Element<'a, Message> = if let Some(abs) = abs_for_preview {
-                        button(open_row)
-                            .padding([8, 0])
-                            .width(Length::Fill)
-                            .style(apply_patch_file_button_style)
-                            .on_press(Message::Preview(message::PreviewMessage::Open(abs)))
-                            .into()
-                    } else {
+                    list = list.push(
                         container(open_row)
                             .padding([8, 0])
                             .width(Length::Fill)
-                            .style(apply_patch_inner_card_style)
-                            .into()
-                    };
-                    list = list.push(open_btn);
+                            .style(apply_patch_inner_card_style),
+                    );
                 }
             }
             content = content.push(container(list).width(Length::Fill));

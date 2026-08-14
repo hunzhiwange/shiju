@@ -1,0 +1,9 @@
+- 使用正则表达式搜索文件内容
+- 支持 `output_mode=files_with_matches|content|count`
+- 使用 `include` 或 `glob` 按模式过滤文件（例如 `"*.js"`、`"*.{ts,tsx}"`）
+- 支持 `head_limit` 和 `offset` 控制返回结果规模
+- 支持 `-i` 进行大小写不敏感搜索
+- 支持 `-n` 在 `content` 模式下输出行号
+- 当前暂不支持 `-A`、`-B`、`-C`、`type`、`multiline`
+- 当你需要查找包含特定模式的文件时使用此工具
+- 当你进行可能需要多轮 glob 和 grep 的开放式搜索时，请改用 Task 工具

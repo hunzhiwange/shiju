@@ -54,6 +54,7 @@ mod command_summary_view;
 mod config_view;
 mod diff_utils;
 mod explore_summary_view;
+mod file_link;
 mod files_view;
 mod git_diff_view;
 mod lsp_view;
@@ -88,6 +89,8 @@ mod command_summary_view_tests;
 mod diff_utils_tests;
 #[cfg(test)]
 mod explore_summary_view_tests;
+#[cfg(test)]
+mod file_link_tests;
 #[cfg(test)]
 mod files_view_tests;
 #[cfg(test)]

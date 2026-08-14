@@ -4,7 +4,7 @@
 
 use super::height_index::{CHAT_VIRTUALIZATION_OVERSCAN_PX, ChatHeightIndex, ChatHeightWindow};
 
-pub(crate) const CHAT_TURN_TOP_INSET_PX: f32 = 16.0;
+pub(crate) const CHAT_TURN_TOP_INSET_PX: f32 = 48.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChatScrollMode {

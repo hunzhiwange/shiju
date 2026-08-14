@@ -1,0 +1,24 @@
+与语言服务器协议（LSP）服务器交互以获取代码智能功能。
+
+该工具会在本地启动对应语言的 LSP 服务器，并通过 stdio 执行代码导航与符号查询。
+
+兼容操作：
+- goToDefinition
+- findReferences
+- hover
+- documentSymbol
+- workspaceSymbol
+- goToImplementation
+- prepareCallHierarchy
+- incomingCalls
+- outgoingCalls
+
+兼容参数：
+- operation
+- filePath
+- line
+- character
+- query
+- uri（旧调用兼容）
+
+返回结果包含结构化 payload、计数摘要和可供 UI 渲染的位置/符号明细。

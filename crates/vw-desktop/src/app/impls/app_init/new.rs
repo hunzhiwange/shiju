@@ -439,6 +439,12 @@ impl App {
             // ========== Token使用统计 ==========
             usage,
             active_session_view_state: crate::app::state::ActiveSessionViewState::default(),
+            chat_panel_mode: crate::app::state::ChatPanelMode::default(),
+            trajectory_search_text: String::new(),
+            trajectory_details:
+                crate::app::components::chat_panel::trajectory::TrajectoryDetailsState::default(),
+            trajectory_raw_loading: std::collections::HashSet::new(),
+            trajectory_raw_errors: std::collections::HashMap::new(),
             usage_model_info: None,
             usage_step_expanded: std::collections::HashSet::new(),
             usage_step_raw_payloads: std::collections::HashMap::new(),

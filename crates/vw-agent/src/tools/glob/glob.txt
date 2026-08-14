@@ -1,6 +1,6 @@
-- 适用于任何代码库大小的快速文件模式匹配工具
-- 支持 glob 模式，如 "**/*.js" 或 "src/**/*.ts"
-- 返回按修改时间排序的匹配文件路径
-- 当你需要按名称模式查找文件时使用此工具
-- 当你进行可能需要多轮 glob 和 grep 的开放式搜索时，请改用 Task 工具
-- 你有能力在单个响应中调用多个工具。始终最好将可能有用的一批搜索作为一批进行推测性执行。
+- A fast file-pattern matching tool that works with codebases of any size.
+- Supports glob patterns such as `**/*.js` and `src/**/*.ts`.
+- Returns matching file paths sorted by modification time.
+- Use this tool when you need to find files by name pattern.
+- Use the Task tool instead for open-ended searches that may require multiple rounds of glob and grep.
+- You can call multiple tools in a single response. Prefer speculatively running a batch of potentially useful searches together.

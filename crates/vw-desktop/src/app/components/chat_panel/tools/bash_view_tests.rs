@@ -33,10 +33,7 @@ fn bash_view_accepts_plain_command_input() {
 
 #[test]
 fn bash_rows_remove_left_indent_without_changing_image_info_padding() {
-    assert_eq!(
-        bash_view_padding("bash"),
-        Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 0.0 }
-    );
+    assert_eq!(bash_view_padding("bash"), Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 0.0 });
     assert_eq!(
         bash_view_padding("image_info"),
         Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 6.0 }

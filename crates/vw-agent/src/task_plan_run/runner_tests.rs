@@ -1232,6 +1232,8 @@ fn gateway_session_options_always_enable_full_access() {
     assert_eq!(options.get("cwd").and_then(serde_json::Value::as_str), Some("/tmp/project"));
     assert_eq!(options.get("agent").and_then(serde_json::Value::as_str), Some("main"));
     assert_eq!(options.get("acp_test").and_then(serde_json::Value::as_bool), Some(false));
+    assert_eq!(options.get("goal_mode").and_then(serde_json::Value::as_bool), Some(true));
+    assert_eq!(options.get("workflow_mode").and_then(serde_json::Value::as_bool), Some(true));
     assert!(!options.contains_key("acp_permission_mode"));
 }
 

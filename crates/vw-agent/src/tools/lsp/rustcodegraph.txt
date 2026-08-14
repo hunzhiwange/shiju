@@ -1,0 +1,5 @@
+Query the current workspace through its existing RustCodeGraph index, in-process and read-only.
+
+Use `explore` first for most code-understanding questions and before edits. It returns relevant source and call-flow context in one bounded response. Use `node` for one symbol or indexed file, `search` for fast symbol locations, `callers`/`callees` for direct call edges, `impact` before refactoring, `files` for the indexed file tree, and `status` only for index diagnostics.
+
+All file and directory filters must be relative to the current workspace. This tool never accepts `projectPath`, never searches parent directories, and never creates an index. A recoverable no-match or missing-index response is returned as a successful text result; only safety refusals and actual RustCodeGraph errors fail the call.

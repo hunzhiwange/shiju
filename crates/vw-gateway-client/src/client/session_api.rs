@@ -7,6 +7,8 @@
 //! - todo、scope、archived 状态维护
 //! - UI 会话快照与预览元数据读写
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 
@@ -47,32 +49,68 @@ struct ChatSessionWithRaw {
     pub updated_ms: u64,
 }
 
-impl From<ChatSessionWithRaw> for ChatSession {
+/// 会话 UI 批量加载结果。
+///
+/// 普通会话数据保持可直接保存的 `ChatSession` 形状；每步原始 LLM 载荷单独按 step
+/// index 保存，避免把只读加载数据混入持久化模型。
+#[derive(Debug, Clone)]
+pub struct SessionUiLoadResult {
+    pub session: ChatSession,
+    pub step_llm_raw: HashMap<u32, Value>,
+}
+
+impl From<ChatSessionWithRaw> for SessionUiLoadResult {
     fn from(value: ChatSessionWithRaw) -> Self {
-        Self {
+        let mut step_llm_raw = HashMap::new();
+        let steps = value
+            .steps
+            .into_iter()
+            .map(|step| {
+                if let Some(raw) = step.llm_raw {
+                    step_llm_raw.insert(step.step.index, raw);
+                }
+                step.step
+            })
+            .collect();
+        let session = ChatSession {
             id: value.id,
             title: value.title,
             messages: value.messages,
             message_ids: value.message_ids,
             calls: value.calls,
-            steps: value.steps.into_iter().map(|step| step.step).collect(),
+            steps,
             created_ms: value.created_ms,
             updated_ms: value.updated_ms,
-        }
+        };
+        Self { session, step_llm_raw }
     }
 }
 
 impl GatewayClient {
-    async fn session_ui_get_with_raw(
+    /// 读取会话 UI 数据，并保留响应中每步的原始 LLM 载荷。
+    pub async fn session_ui_get_with_raw(
         &self,
         session_id: &str,
         directory: Option<&str>,
-    ) -> Result<Option<ChatSessionWithRaw>, String> {
-        self.get_json_with_404::<ChatSessionWithRaw>(
-            &format!("/v1/session/{session_id}/ui"),
-            &directory_query(directory),
-        )
-        .await
+    ) -> Result<Option<SessionUiLoadResult>, String> {
+        let loaded = self
+            .get_json_with_404::<ChatSessionWithRaw>(
+                &format!("/v1/session/{session_id}/ui"),
+                &directory_query(directory),
+            )
+            .await?;
+        Ok(loaded.map(SessionUiLoadResult::from))
+    }
+
+    /// 无目录限制地读取会话 UI 数据及每步原始 LLM 载荷。
+    pub async fn session_ui_get_any_with_raw(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<SessionUiLoadResult>, String> {
+        let loaded = self
+            .get_json_with_404::<ChatSessionWithRaw>(&format!("/v1/session/{session_id}/any"), &[])
+            .await?;
+        Ok(loaded.map(SessionUiLoadResult::from))
     }
 }
 
@@ -253,7 +291,7 @@ impl GatewayClient {
         directory: Option<&str>,
     ) -> Result<Option<ChatSession>, String> {
         let with_raw = self.session_ui_get_with_raw(session_id, directory).await?;
-        Ok(with_raw.map(ChatSession::from))
+        Ok(with_raw.map(|loaded| loaded.session))
     }
 
     /// 无目录限制地读取会话 UI 持久化数据。
@@ -261,7 +299,8 @@ impl GatewayClient {
         &self,
         session_id: &str,
     ) -> Result<Option<ChatSession>, String> {
-        self.get_json_with_404(&format!("/v1/session/{session_id}/any"), &[]).await
+        let with_raw = self.session_ui_get_any_with_raw(session_id).await?;
+        Ok(with_raw.map(|loaded| loaded.session))
     }
 
     /// 保存会话 UI 持久化数据。
@@ -317,13 +356,7 @@ impl GatewayClient {
         directory: Option<&str>,
     ) -> Result<Option<serde_json::Value>, String> {
         let raw = self.session_ui_get_with_raw(session_id, directory).await?;
-        let payload = raw.and_then(|session| {
-            session
-                .steps
-                .into_iter()
-                .find(|step| step.step.index == step_index)
-                .and_then(|step| step.llm_raw)
-        });
+        let payload = raw.and_then(|session| session.step_llm_raw.get(&step_index).cloned());
         Ok(payload)
     }
 

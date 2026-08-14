@@ -1,0 +1,22 @@
+并发执行多个独立的工具调用以减少延迟。
+
+负载格式（JSON 数组）：
+[{"tool": "read", "parameters": {"filePath": "src/index.ts", "limit": 350}},{"tool": "grep", "parameters": {"pattern": "Session\\.updatePart", "include": "src/**/*.ts"}},{"tool": "shell", "parameters": {"command": "git status", "description": "显示工作树状态"}}]
+
+注意：
+- 每批 1-25 个工具调用
+- 所有调用并行启动；顺序不保证
+- 部分失败不会停止其他工具调用
+- 不要在另一个批处理工具中使用批处理工具。
+
+良好的用例：
+- 读取许多文件
+- grep + glob + read 组合
+- 多个 shell 命令
+- 多部分编辑；在同一个或不同文件上
+
+何时不使用：
+- 依赖先前工具输出的操作（例如，创建然后读取同一文件）
+- 顺序很重要的有序状态突变
+
+批处理工具调用被证明可产生 2-5 倍的效率提升并提供更好的用户体验。

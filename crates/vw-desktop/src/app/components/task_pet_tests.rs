@@ -133,6 +133,7 @@ fn task_card_builds_running_completed_hovered_and_replying_states() {
 #[test]
 fn leaf_widgets_and_status_icons_build() {
     keep_element(robot_pet_sprite(&test_app(), PET_COLLAPSED_SIZE));
+    keep_element(task_pet_context_menu());
     keep_element(human_pet_sprite(PET_BEAUTY_HANDLE.clone(), PET_COLLAPSED_SIZE, 4.0));
     keep_element(code_effect(7));
     keep_element(avatar_cycle_button());

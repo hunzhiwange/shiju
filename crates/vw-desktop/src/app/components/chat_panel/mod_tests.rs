@@ -275,6 +275,33 @@ fn chat_panel_view_builds_started_message_window() {
 }
 
 #[test]
+fn chat_panel_switch_preserves_conversation_state() {
+    use crate::app::message::chat::{self, ChatMessage as AppChatMessage};
+    use crate::app::state::ChatPanelMode;
+
+    let (mut app, _) = App::new();
+    app.active_session_id = Some("active".to_string());
+    app.chat = vec![message(ChatRole::User, "问题"), message(ChatRole::Assistant, "回答")];
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0, 120.0]);
+    app.chat_virtualizer.set_viewport_height(100.0);
+    app.chat_virtualizer.set_scroll_top_px(40.0);
+    app.sync_chat_virtualizer_compat_fields();
+    let before_window = app.chat_virtualizer.window();
+    let before_offset = app.chat_scroll_offset_y;
+
+    let _task =
+        chat::update(&mut app, AppChatMessage::ChatPanelModeSelected(ChatPanelMode::Trajectory));
+    keep_element(view(&app));
+    let _task =
+        chat::update(&mut app, AppChatMessage::ChatPanelModeSelected(ChatPanelMode::Conversation));
+    keep_element(view(&app));
+
+    assert_eq!(app.chat_virtualizer.window(), before_window);
+    assert_eq!(app.chat_scroll_offset_y, before_offset);
+    assert_eq!(app.chat.len(), 2);
+}
+
+#[test]
 fn chat_panel_context_menu_overlay_builds_closed_and_open_states() {
     let (mut app, _) = App::new();
     keep_element(chat_panel_context_menu_overlay(&app, iced::widget::text("content")));

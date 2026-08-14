@@ -385,25 +385,28 @@ fn pet_control(app: &App, size: f32, collapsed: bool) -> Element<'_, Message> {
 }
 
 fn task_pet_context_menu() -> Element<'static, Message> {
-    button(
-        container(text("关闭宠物").size(13))
-            .width(Length::Fill)
-            .padding([6, 10])
-            .align_x(iced::alignment::Horizontal::Left),
+    mouse_area(
+        button(
+            container(text("关闭宠物").size(13))
+                .width(Length::Fill)
+                .padding([6, 10])
+                .align_x(iced::alignment::Horizontal::Left),
+        )
+        .width(Length::Fixed(112.0))
+        .padding(0)
+        .style(|theme: &Theme, status| {
+            let palette = theme.extended_palette();
+            iced::widget::button::Style {
+                background: matches!(status, iced::widget::button::Status::Hovered)
+                    .then_some(Background::Color(palette.danger.base.color.scale_alpha(0.16))),
+                text_color: theme.palette().text,
+                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 5.0.into() },
+                ..Default::default()
+            }
+        })
+        .on_press(Message::View(message::ViewMessage::TaskPetToggleWindow)),
     )
-    .width(Length::Fixed(112.0))
-    .padding(0)
-    .style(|theme: &Theme, status| {
-        let palette = theme.extended_palette();
-        iced::widget::button::Style {
-            background: matches!(status, iced::widget::button::Status::Hovered)
-                .then_some(Background::Color(palette.danger.base.color.scale_alpha(0.16))),
-            text_color: theme.palette().text,
-            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 5.0.into() },
-            ..Default::default()
-        }
-    })
-    .on_press(Message::View(message::ViewMessage::TaskPetToggleWindow))
+    .on_exit(Message::View(message::ViewMessage::TaskPetContextMenuClosed))
     .into()
 }
 

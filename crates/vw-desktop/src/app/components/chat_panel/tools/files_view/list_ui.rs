@@ -1,21 +1,19 @@
 //! 文件视图中的列表项与按钮构建。
 
-use std::collections::HashMap;
-use std::path::Path;
-
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, mouse_area, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use std::collections::HashMap;
 
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
-    bold_font, icon_svg, relative_to_project_root, resolve_path, truncate_chars,
-    weak_file_button_style,
+    bold_font, icon_svg, relative_to_project_root, resolve_path,
 };
 use crate::app::{App, Message, message};
 
 use super::super::diff_utils::file_preview;
+use super::super::file_link::{file_name_link, file_name_only, file_path_tooltip};
 use super::super::git_diff_view::render_git_diff_content;
 use super::super::tool_parse::tool_input_path;
 use super::super::types::ChangeFile;
@@ -40,22 +38,19 @@ pub(crate) fn build_file_list_column<'a>(
         }
 
         let open_content: Element<'a, Message> = if render_state.is_search {
-            let label = truncate_chars(display, 80);
-            row![text(label).size(14).style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.85)),
-            })]
-            .into()
+            file_name_link(display, abs)
         } else {
             let file_name = file_row_label(app, view_ctx, display, abs);
             let light = matches!(view_ctx.verb, "读取" | "编辑");
-            tool_file_left(view_ctx.verb, file_name, light, view_ctx.read_range.clone())
+            tool_file_left(
+                view_ctx.verb,
+                file_name_link(&file_name, abs),
+                light,
+                view_ctx.read_range.clone(),
+            )
         };
 
-        let open_button = button(open_content)
-            .padding([6, 10])
-            .width(Length::Fill)
-            .style(weak_file_button_style)
-            .on_press(Message::Preview(message::PreviewMessage::Open(abs.clone())));
+        let open_row = container(open_content).padding([6, 10]).width(Length::Fill);
 
         if view_ctx.is_edit_like
             && !render_state.is_search
@@ -98,7 +93,7 @@ pub(crate) fn build_file_list_column<'a>(
             continue;
         }
 
-        column_view = column_view.push(open_button);
+        column_view = column_view.push(open_row);
     }
 
     if render_state.tail_omitted > 0 {
@@ -145,16 +140,12 @@ pub(crate) fn build_file_list_column<'a>(
 }
 
 pub(super) fn file_row_label(
-    app: &App,
-    view_ctx: &super::FilesViewContext<'_>,
+    _app: &App,
+    _view_ctx: &super::FilesViewContext<'_>,
     display: &str,
-    abs: &str,
+    _abs: &str,
 ) -> String {
-    if view_ctx.is_edit_like {
-        return relative_to_project_root(app, abs).unwrap_or_else(|| display.to_string());
-    }
-
-    Path::new(display).file_name().and_then(|value| value.to_str()).unwrap_or(display).to_string()
+    file_name_only(display)
 }
 
 pub(super) fn fallback_edit_diff_payload(
@@ -203,8 +194,6 @@ pub(super) fn edit_file_change_block<'a>(
     let expand_key = edit_file_expand_key(msg_idx, tool_idx, &file);
     let file_expanded = app.chat_tool_file_expanded.contains(&expand_key);
     let hover_key = tool_file_hover_key(msg_idx, tool_idx, abs);
-    let is_hovered = app.chat_tool_file_hovered.as_deref() == Some(hover_key.as_str());
-    let open_message = Message::Preview(message::PreviewMessage::Open(abs.to_string()));
     let open_diff_message = Message::Git(message::GitMessage::OpenChatTextDiff {
         title: title.clone(),
         file: file.clone(),
@@ -216,7 +205,7 @@ pub(super) fn edit_file_change_block<'a>(
 
     let mut header = row![
         edit_verb_text(verb),
-        edit_file_name_link(msg_idx, tool_idx, abs, file_name, open_message, is_hovered),
+        edit_file_name_link(abs, file_name),
         external_diff_button(open_diff_message),
         container(Space::new()).width(Length::Fill),
     ]
@@ -247,26 +236,8 @@ pub(super) fn edit_file_change_block<'a>(
         .into()
 }
 
-pub(super) fn edit_file_name_link<'a>(
-    msg_idx: usize,
-    tool_idx: usize,
-    abs: &str,
-    file_name: String,
-    open_message: Message,
-    is_hovered: bool,
-) -> Element<'a, Message> {
-    let hover_key = tool_file_hover_key(msg_idx, tool_idx, abs);
-    let label = file_name.clone();
-    let file_text = text(file_name).size(14).style(move |theme: &Theme| {
-        iced::widget::text::Style { color: Some(edit_file_name_color(theme, is_hovered)) }
-    });
-
-    let link: Element<'a, Message> = mouse_area(file_text)
-        .on_enter(Message::Chat(message::ChatMessage::ToolFileHover(hover_key)))
-        .on_press(open_message)
-        .into();
-
-    Tooltip::new(link, file_name_tooltip(label), TooltipPosition::Top).gap(6).into()
+pub(super) fn edit_file_name_link<'a>(abs: &str, file_name: String) -> Element<'a, Message> {
+    file_name_link(&file_name, abs)
 }
 
 pub(super) fn edit_verb_text<'a>(verb: &'static str) -> Element<'a, Message> {
@@ -288,21 +259,8 @@ pub(super) fn edit_verb_text<'a>(verb: &'static str) -> Element<'a, Message> {
         .into()
 }
 
-pub(super) fn edit_file_name_color(theme: &Theme, is_hovered: bool) -> Color {
-    let base = theme.extended_palette().primary.base.color;
-    if is_hovered { base } else { base.scale_alpha(0.86) }
-}
-
 pub(super) fn file_name_tooltip<'a>(label: String) -> Element<'a, Message> {
-    container(text(label).size(12))
-        .padding([6, 8])
-        .style(|_theme: &Theme| iced::widget::container::Style {
-            text_color: Some(Color::WHITE),
-            background: Some(Background::Color(Color::from_rgba8(0, 0, 0, 0.94))),
-            border: Border { radius: 6.0.into(), ..Default::default() },
-            ..Default::default()
-        })
-        .into()
+    file_path_tooltip(label)
 }
 
 pub(super) fn external_diff_button<'a>(on_press: Message) -> Element<'a, Message> {
@@ -424,7 +382,7 @@ pub(super) fn tool_file_hover_key(msg_idx: usize, tool_idx: usize, abs: &str) ->
 
 pub(super) fn tool_file_left<'a>(
     verb: &'static str,
-    file_name: String,
+    file_name: Element<'a, Message>,
     light: bool,
     read_range: Option<String>,
 ) -> Element<'a, Message> {
@@ -446,25 +404,7 @@ pub(super) fn tool_file_left<'a>(
         }
     });
 
-    let file_text = text(file_name).size(14).style(move |theme: &Theme| {
-        let is_dark = theme.palette().background.r
-            + theme.palette().background.g
-            + theme.palette().background.b
-            < 1.5;
-        iced::widget::text::Style {
-            color: Some(if light {
-                if is_dark {
-                    theme.extended_palette().primary.base.color.scale_alpha(0.95)
-                } else {
-                    theme.extended_palette().primary.base.color.scale_alpha(0.86)
-                }
-            } else {
-                theme.palette().text
-            }),
-        }
-    });
-
-    let mut row_view = row![verb_text, file_text].spacing(8).align_y(Alignment::Center);
+    let mut row_view = row![verb_text, file_name].spacing(8).align_y(Alignment::Center);
 
     if let Some(range) = read_range {
         row_view = row_view.push(container(Space::new()).width(Length::Fill)).push(

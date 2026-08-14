@@ -1,12 +1,13 @@
 use super::super::types::ChangeFile;
 use super::list_ui::{
     build_file_list_column, edit_change_counts, edit_file_change_block,
-    edit_file_change_button_style, edit_file_expand_key, edit_file_name_color, edit_file_name_link,
-    edit_result_label, edit_verb_text, external_diff_button, fallback_edit_diff_payload,
-    file_name_tooltip, file_row_label, tool_file_hover_key, tool_file_left, view_changes_pill,
+    edit_file_change_button_style, edit_file_expand_key, edit_file_name_link, edit_result_label,
+    edit_verb_text, external_diff_button, fallback_edit_diff_payload, file_name_tooltip,
+    file_row_label, tool_file_hover_key, tool_file_left, view_changes_pill,
     view_changes_secondary_text, view_changes_toggle_button,
 };
 use super::{FileListState, FilesViewContext};
+use crate::app::components::chat_panel::tools::file_link::file_name_link;
 use crate::app::{App, Message};
 use std::collections::HashMap;
 
@@ -68,13 +69,13 @@ fn tool_file_hover_key_includes_indices_and_path() {
 }
 
 #[test]
-fn file_row_label_uses_relative_path_for_edit_tools() {
+fn file_row_label_uses_file_name_for_edit_tools() {
     let app = test_app();
     let view_ctx = ctx(&app, "write", r#"{"path":"src/main.rs"}"#, "");
 
     assert_eq!(
-        file_row_label(&app, &view_ctx, "display.rs", "/tmp/vibe-window/src/main.rs"),
-        "src/main.rs"
+        file_row_label(&app, &view_ctx, "src/main.rs", "/tmp/vibe-window/src/main.rs"),
+        "main.rs"
     );
 }
 
@@ -92,7 +93,7 @@ fn file_row_label_uses_file_name_for_non_edit_tools() {
 }
 
 #[test]
-fn file_row_label_falls_back_when_relative_path_or_file_name_is_unavailable() {
+fn file_row_label_falls_back_when_file_name_is_unavailable() {
     let mut app = test_app();
     app.project_path = None;
     let view_ctx = ctx(&app, "write", r#"{"path":"src/main.rs"}"#, "");
@@ -202,19 +203,6 @@ fn edit_result_label_covers_write_and_edit_statuses() {
 }
 
 #[test]
-fn edit_file_name_color_keeps_base_color_and_changes_alpha_on_hover() {
-    let hovered = edit_file_name_color(&iced::Theme::Dark, true);
-    let idle = edit_file_name_color(&iced::Theme::Dark, false);
-    let light_idle = edit_file_name_color(&iced::Theme::Light, false);
-
-    assert_eq!(hovered.r, idle.r);
-    assert_eq!(hovered.g, idle.g);
-    assert_eq!(hovered.b, idle.b);
-    assert!(hovered.a > idle.a);
-    assert!(light_idle.a < 1.0);
-}
-
-#[test]
 fn edit_file_expand_key_includes_indices_and_path() {
     assert_eq!(edit_file_expand_key(1, 2, "src/main.rs"), "1:2:src/main.rs");
 }
@@ -228,16 +216,19 @@ fn edit_row_helpers_build_hovered_and_idle_elements() {
     keep_element(view_changes_pill());
     keep_element(edit_verb_text("读取"));
     keep_element(edit_change_counts(3, 1));
-    keep_element(tool_file_left("读取", "main.rs".to_string(), true, Some("L1-L3".to_string())));
-    keep_element(tool_file_left("运行", "cargo test".to_string(), false, None));
-    keep_element(edit_file_name_link(
-        1,
-        2,
-        "/tmp/vibe-window/src/main.rs",
-        "src/main.rs".to_string(),
-        Message::None,
+    keep_element(tool_file_left(
+        "读取",
+        file_name_link("src/main.rs", "/tmp/vibe-window/src/main.rs"),
         true,
+        Some("L1-L3".to_string()),
     ));
+    keep_element(tool_file_left(
+        "运行",
+        file_name_link("Cargo.toml", "/tmp/vibe-window/Cargo.toml"),
+        false,
+        None,
+    ));
+    keep_element(edit_file_name_link("/tmp/vibe-window/src/main.rs", "src/main.rs".to_string()));
 
     let app = test_app();
     keep_element(edit_file_change_block(

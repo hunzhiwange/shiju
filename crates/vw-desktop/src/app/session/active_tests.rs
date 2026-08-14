@@ -185,6 +185,22 @@ fn active_session_step_mutations_keep_steps_calls_and_index_map_consistent() {
 }
 
 #[test]
+fn active_session_clear_removes_step_raw_payloads() {
+    let (mut app, _task) = App::new();
+    let raw = serde_json::json!({
+        "messages": [{"role": "user", "content": "retained raw payload"}]
+    });
+    app.replace_active_session_step_llm_raw(std::collections::HashMap::from([(1, raw)]));
+    let estimated_with_raw = app.active_session_view_state.estimated_bytes();
+
+    assert!(estimated_with_raw > 0);
+    app.clear_active_session_steps();
+
+    assert!(app.active_session_view_state.step_llm_raw.is_empty());
+    assert!(app.active_session_view_state.estimated_bytes() < estimated_with_raw);
+}
+
+#[test]
 fn sync_active_session_from_chat_only_advances_session_timestamp() {
     let (mut app, _task) = App::new();
     app.active_session_id = Some("active".to_string());

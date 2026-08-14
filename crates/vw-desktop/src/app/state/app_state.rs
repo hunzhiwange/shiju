@@ -15,6 +15,35 @@ pub enum TaskBoardViewMode {
     Staff,
 }
 
+/// 聊天面板主体的瞬时显示模式。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ChatPanelMode {
+    #[default]
+    Conversation,
+    Trajectory,
+}
+
+/// 轨迹详情检查器的三个稳定标签。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum TrajectoryDetailsTab {
+    #[default]
+    Summary,
+    Preview,
+    Raw,
+}
+
+impl TrajectoryDetailsTab {
+    pub(crate) const ALL: [Self; 3] = [Self::Summary, Self::Preview, Self::Raw];
+
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Summary => "Summary",
+            Self::Preview => "Preview",
+            Self::Raw => "Raw",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QuickMessageGitCommitAction {
     StageAllAndCommit,
@@ -218,6 +247,17 @@ pub struct App {
     pub(crate) usage: models::TokenUsage,
     /// 当前活跃会话的轻量视图状态
     pub(crate) active_session_view_state: ActiveSessionViewState,
+    /// 聊天面板当前显示对话或轨迹。
+    pub(crate) chat_panel_mode: ChatPanelMode,
+    /// 轨迹账本搜索文本。
+    pub(crate) trajectory_search_text: String,
+    /// 轨迹详情选择与标签状态。
+    pub(crate) trajectory_details:
+        crate::app::components::chat_panel::trajectory::TrajectoryDetailsState,
+    /// 正在补载的轨迹原始步骤载荷。
+    pub(crate) trajectory_raw_loading: HashSet<UsageStepRawKey>,
+    /// 轨迹原始步骤载荷的可恢复错误。
+    pub(crate) trajectory_raw_errors: HashMap<UsageStepRawKey, String>,
     /// 当前模型的使用信息
     pub(crate) usage_model_info: Option<UsageModelInfo>,
     /// 展开的使用量步骤索引集合

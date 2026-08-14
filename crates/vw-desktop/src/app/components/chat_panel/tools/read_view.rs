@@ -15,18 +15,17 @@
 
 use iced::widget::{Space, button, container, mouse_area, row, text};
 use iced::{Alignment, Element, Length, Theme};
-use std::path::Path;
 
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
 
+use super::file_link::file_name_link;
 use super::{ToolTextTarget, canonical_tool_name, tool_inline_text_editor};
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
-    bold_font, chat_context_target_key, chat_secondary_muted_text_color,
-    chat_secondary_subtle_text_color, chat_secondary_text_color, eye_icon_button_style,
-    eye_icon_svg_style, icon_svg, normalize_file_reference_to_path, resolve_path,
-    weak_file_button_style,
+    bold_font, chat_context_target_key, chat_secondary_subtle_text_color,
+    chat_secondary_text_color, eye_icon_button_style, eye_icon_svg_style, icon_svg,
+    normalize_file_reference_to_path, resolve_path,
 };
 
 pub(super) fn parse_read_input(input: &str) -> Option<(String, usize, usize)> {
@@ -76,12 +75,6 @@ pub fn tool_read_compact_view<'a>(app: &'a App, visible: &str) -> Option<Element
     }
 
     let abs = resolve_path(app, &file_path).unwrap_or_else(|| file_path.clone());
-    let file_name = Path::new(&file_path)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(file_path.as_str())
-        .to_string();
-
     let range_text = read_range_text(offset, limit);
     let range_view: Element<'a, Message> = if let Some(s) = range_text.clone() {
         text(s)
@@ -101,22 +94,18 @@ pub fn tool_read_compact_view<'a>(app: &'a App, visible: &str) -> Option<Element
     let title = verb.to_string();
 
     Some(
-        button(
+        container(
             row![
                 text(title).size(14).font(bold_font()).style(|theme: &Theme| {
                     iced::widget::text::Style { color: Some(chat_secondary_text_color(theme)) }
                 }),
-                text(file_name).size(14).style(|theme: &Theme| iced::widget::text::Style {
-                    color: Some(chat_secondary_muted_text_color(theme)),
-                }),
+                file_name_link(&file_path, &abs),
                 range_view
             ]
             .spacing(8)
             .align_y(iced::Alignment::Center),
         )
         .padding([2, 6])
-        .style(weak_file_button_style)
-        .on_press(Message::Preview(message::PreviewMessage::Open(abs)))
         .into(),
     )
 }
@@ -142,12 +131,6 @@ pub fn tool_read_view<'a>(
     }
 
     let abs = resolve_path(app, &file_path).unwrap_or_else(|| file_path.clone());
-    let file_name = Path::new(&file_path)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(file_path.as_str())
-        .to_string();
-
     let range_text = read_range_text(offset, limit);
     let has_range_text = range_text.is_some();
     let range_text_value = range_text.clone().unwrap_or_default();
@@ -160,21 +143,7 @@ pub fn tool_read_view<'a>(
     let context_text = abs.clone();
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
     let is_hovered = app.chat_tool_hovered_idx == Some(key);
-    let file_name_view: Element<'a, Message> = tool_inline_text_editor(
-        app,
-        ToolTextTarget::ToolCardText { msg_idx, tool_idx, text_idx: 0 },
-        crate::app::components::chat_panel::tool_text_support::chat_text_font_name(),
-        14.0,
-        chat_secondary_muted_text_color,
-    )
-    .unwrap_or_else(|| {
-        text(file_name.clone())
-            .size(14)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(chat_secondary_muted_text_color(theme)),
-            })
-            .into()
-    });
+    let file_name_view = file_name_link(&file_path, &abs);
     let range_slot: Element<'a, Message> = if has_range_text {
         tool_inline_text_editor(
             app,
@@ -194,11 +163,6 @@ pub fn tool_read_view<'a>(
     } else {
         Space::new().into()
     };
-    let open_btn = button(text("打开").size(13))
-        .padding([2, 6])
-        .style(weak_file_button_style)
-        .on_press(Message::Preview(message::PreviewMessage::Open(abs.clone())));
-
     let detail_btn = button(
         icon_svg(Icon::ChevronRight)
             .width(Length::Fixed(10.0))
@@ -232,7 +196,6 @@ pub fn tool_read_view<'a>(
                         .spacing(8)
                         .align_y(iced::Alignment::Center),
                         container(Space::new()).width(Length::Fill),
-                        open_btn,
                         detail_slot
                     ]
                     .align_y(Alignment::Center)

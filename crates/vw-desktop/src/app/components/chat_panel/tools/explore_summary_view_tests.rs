@@ -1,14 +1,13 @@
 use super::explore_summary_view::{
-    EXPANDED_LIST_TOP_SPACING, SummarySegmentKind, expanded_list_padding,
-    explore_summary_expanded, explore_summary_is_running, latest_explore_items,
-    right_aligned_slot_char, split_summary_segments, summary_animation_key,
-    tool_explore_summary_view,
+    EXPANDED_LIST_TOP_SPACING, SummarySegmentKind, explore_summary_expanded,
+    explore_summary_is_running, latest_explore_items, right_aligned_slot_char,
+    split_summary_segments, summary_animation_key, tool_explore_summary_view,
 };
 use super::types::{EXPLORE_GROUP_TOOL_IDX, ExploreItem};
 use crate::app::components::chat_panel::tool_text_support::tool_text_key;
 use crate::app::state::ExploreSummaryAnimationState;
 use crate::app::{App, Message};
-use iced::{Padding, widget::text_editor};
+use iced::widget::text_editor;
 use std::collections::HashSet;
 
 fn test_app() -> App {
@@ -132,12 +131,8 @@ fn tool_explore_summary_view_builds_collapsed_summary_without_expanded_content()
 }
 
 #[test]
-fn tool_explore_summary_view_builds_expanded_content_with_top_gap_and_bottom_padding() {
+fn tool_explore_summary_view_builds_expanded_content_with_top_gap() {
     assert_eq!(EXPANDED_LIST_TOP_SPACING, 10.0);
-    assert_eq!(
-        expanded_list_padding(),
-        Padding { top: 0.0, right: 0.0, bottom: 10.0, left: 0.0 }
-    );
 
     let mut app = test_app();
     let items = vec![

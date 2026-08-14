@@ -73,8 +73,23 @@ pub fn build_system_messages(input: &StreamInput, is_codex: bool) -> Vec<String>
         .tag("is_codex", &is_codex.to_string())
         .info("build_system_messages: before provider prompt", None);
 
-    // 获取统一会话系统提示
-    let provider_prompts = crate::app::agent::session::system::provider(&input.model);
+    // 主会话会在知道真实工具与技能后预先渲染统一提示；旧入口则在这里
+    // 根据 StreamInput 中的工具规格生成安全降级版本。
+    let unified_already_rendered = input
+        .system
+        .iter()
+        .any(|part| part.contains(crate::app::agent::session::system::UNIFIED_PROMPT_MARKER));
+    let provider_prompts = if unified_already_rendered {
+        Vec::new()
+    } else {
+        let tool_ids = input.tools.keys().cloned().collect::<Vec<_>>();
+        crate::app::agent::session::system::provider_with_context(
+            &input.model,
+            None,
+            &tool_ids,
+            false,
+        )
+    };
 
     // 记录日志：provider 提示词数量
     LOGGER

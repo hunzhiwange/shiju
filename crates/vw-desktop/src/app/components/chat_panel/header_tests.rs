@@ -335,6 +335,23 @@ fn chat_header_view_builds_default_session_variants() {
 }
 
 #[test]
+fn chat_header_places_mode_control_before_title() {
+    let source = include_str!("header.rs");
+    assert!(source.contains("row![status_icon, mode_control, title_element]"));
+
+    let mut app = active_header_app();
+    keep_element(chat_header_view(&app));
+    app.chat_panel_mode = crate::app::state::ChatPanelMode::Trajectory;
+    keep_element(chat_header_view(&app));
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let active = chat_mode_button_style(&theme, button::Status::Active, true);
+        let inactive = chat_mode_button_style(&theme, button::Status::Active, false);
+        assert_ne!(background_color(active.background), background_color(inactive.background));
+    }
+}
+
+#[test]
 fn chat_header_view_keeps_container_shape_across_fullscreen_modes() {
     let mut app = active_header_app();
     let normal = chat_header_view(&app);

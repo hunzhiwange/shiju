@@ -28,6 +28,11 @@ pub mod input;
 mod processing_timing;
 pub mod session;
 pub mod stream;
+mod trajectory;
+
+#[cfg(test)]
+#[path = "trajectory_tests.rs"]
+mod trajectory_tests;
 
 #[cfg(test)]
 #[path = "processing_timing_tests.rs"]
@@ -436,6 +441,28 @@ pub enum ChatMessage {
 
     /// plan-run 规划或执行子会话已被取消。
     PlanRunSessionCancelled(String),
+
+    /// 切换聊天面板的对话／轨迹主体。
+    ChatPanelModeSelected(crate::app::state::ChatPanelMode),
+
+    /// 更新轨迹账本搜索文本。
+    TrajectorySearchChanged(String),
+
+    /// 选中一条稳定轨迹记录。
+    TrajectoryRecordSelected(String),
+
+    /// 切换轨迹详情标签。
+    TrajectoryDetailsTabSelected(crate::app::state::TrajectoryDetailsTab),
+
+    /// 关闭轨迹详情。
+    TrajectoryDetailsClosed,
+
+    /// 某一步骤的原始 LLM 载荷补载完成。
+    TrajectoryRawLoaded {
+        session_id: String,
+        step_index: u32,
+        result: Result<Option<serde_json::Value>, String>,
+    },
 
     /// Agent 步骤开始
     ///
@@ -1068,6 +1095,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::OpenAgentSession { .. }
         | ChatMessage::StopPlanRun(_)
         | ChatMessage::StopPlanRunFinished { .. } => input::update(app, message),
+
+        ChatMessage::ChatPanelModeSelected(_)
+        | ChatMessage::TrajectorySearchChanged(_)
+        | ChatMessage::TrajectoryRecordSelected(_)
+        | ChatMessage::TrajectoryDetailsTabSelected(_)
+        | ChatMessage::TrajectoryDetailsClosed
+        | ChatMessage::TrajectoryRawLoaded { .. } => trajectory::update(app, message),
 
         // 流式响应相关消息：Agent 增量更新、步骤状态、会话标题、问题应答等
         ChatMessage::AgentStreamDelta(_, _)

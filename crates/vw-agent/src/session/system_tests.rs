@@ -57,9 +57,9 @@ fn test_model(api_id: &str, provider_id: &str) -> provider::Model {
 }
 
 #[test]
-fn yes_no_cn_is_stable() {
-    assert_eq!(yes_no_cn(true), "是");
-    assert_eq!(yes_no_cn(false), "否");
+fn yes_no_en_is_stable() {
+    assert_eq!(yes_no_en(true), "Yes");
+    assert_eq!(yes_no_en(false), "No");
 }
 
 #[test]
@@ -68,7 +68,7 @@ fn environment_text_contains_core_fields() {
     assert!(text.contains("gpt-5"));
     assert!(text.contains("openai/gpt-5"));
     assert!(text.contains("/tmp/work"));
-    assert!(text.contains("是"));
+    assert!(text.contains("Yes"));
     assert!(text.contains(platform()));
 }
 
@@ -87,57 +87,159 @@ fn provider_returns_unified_prompt_for_all_models() {
         ("unknown-model", "custom"),
     ];
 
-    let expected = vec![PROMPT_UNIFIED];
     for (api_id, provider_id) in models {
-        assert_eq!(
-            provider(&test_model(api_id, provider_id)),
-            expected,
-            "model {api_id} should use the unified system prompt"
-        );
+        let prompts = provider(&test_model(api_id, provider_id));
+        assert_eq!(prompts.len(), 1);
+        assert!(prompts[0].contains(UNIFIED_PROMPT_MARKER));
+        assert!(prompts[0].contains(&format!("{provider_id}/{api_id}")));
+        assert!(!prompts[0].contains("{{"));
     }
 }
 
 #[test]
-fn instructions_match_unified_prompt() {
+fn instructions_render_unified_prompt_defaults() {
     let instructions = instructions();
 
-    assert_eq!(instructions, PROMPT_UNIFIED.trim());
+    assert!(instructions.contains(UNIFIED_PROMPT_MARKER));
+    assert!(instructions.contains("`unknown`"));
+    assert!(!instructions.contains("{{"));
     assert!(!instructions.starts_with('\n'));
     assert!(!instructions.ends_with('\n'));
 }
 
 #[test]
 fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
-    let prompt = PROMPT_UNIFIED;
+    let template = PROMPT_UNIFIED;
+    let tools = [
+        "file_read",
+        "file_edit",
+        "file_write",
+        "apply_patch",
+        "glob",
+        "grep",
+        "bash",
+        "skill",
+        "TodoRead",
+        "TodoWrite",
+        "AgentTool",
+        "process",
+        "batch",
+        "AskUserQuestion",
+        "plan_enter",
+        "plan_exit",
+        "tool_search",
+        "WebSearch",
+        "Browser",
+        "list_mcp_resources",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect::<Vec<_>>();
+    let prompt = render_unified_prompt("deepseek/deepseek-v4-flash", "/workspace", &tools, true);
 
-    assert!(prompt.contains("## 指令优先级"));
+    assert!(prompt.contains("## Instruction Priority"));
     assert!(prompt.contains("AGENTS.md"));
-    assert!(prompt.contains("代码模式") && prompt.contains("工作模式"));
-    assert!(prompt.contains("## 工具使用"));
+    assert!(prompt.contains("coding mode") && prompt.contains("work mode"));
+    assert!(prompt.contains("## Tool Usage"));
     assert!(
-        prompt.contains("协议未覆盖") || prompt.contains("未覆盖时"),
+        prompt.contains("Where the protocols do not apply"),
         "default tools must be framed as fallback when project protocol is silent"
     );
     assert!(
         prompt.contains("Skill Tool")
             && prompt.contains("<system-reminder>")
-            && prompt.contains("预加载任何技能正文"),
+            && prompt.contains("do not guess paths or preload instructions"),
         "skills must be listed as metadata and loaded only by a successful Skill Tool call"
     );
-    assert!(!prompt.contains("<preloaded_skill_instructions>"));
-    assert!(prompt.contains("## 自主代理纪律（防走偏）"));
-    assert!(prompt.contains("## 结构化工作流"));
     assert!(
-        prompt.contains("说“接下来我会做 X”时，必须实际发起工具调用")
-            || prompt.contains("必须实际发起工具调用去做 X"),
+        prompt.contains("file_read")
+            && prompt.contains("apply_patch")
+            && prompt.contains("tool_search")
+            && prompt.contains("TodoWrite"),
+        "unified prompt must describe the built-in tool routing contract"
+    );
+    assert!(
+        prompt.contains("## RustCodeGraph")
+            && prompt.contains("explore")
+            && prompt.contains("impact")
+            && prompt.contains("affected"),
+        "unified prompt must preserve the indexed Rust navigation workflow"
+    );
+    assert!(template.lines().count() <= 80, "unified prompt template should remain compact");
+    assert!(template.contains("{{model_id}}"));
+    assert!(template.contains("{{working_directory}}"));
+    assert!(template.contains("{{runtime_capabilities}}"));
+    assert!(template.contains("{{runtime_modes}}"));
+    assert!(prompt.contains("deepseek/deepseek-v4-flash"));
+    assert!(prompt.contains("/workspace"));
+    assert!(prompt.contains("## Subagents"));
+    assert!(prompt.contains("## Background Tasks"));
+    assert!(prompt.contains("## Task Tracking"));
+    assert!(prompt.contains("## Network and Browser"));
+    assert!(prompt.contains("## MCP Resources"));
+    assert!(prompt.contains("By default, `old_string` must be unique"));
+    assert!(prompt.contains("the final response must mention the primary output"));
+    assert!(prompt.contains("Markdown inline code"));
+    assert!(prompt.contains(":line[:column]"));
+    assert!(prompt.contains("Do not use `file://`"));
+    assert!(!prompt.contains("{{"));
+    assert!(!prompt.contains("<preloaded_skill_instructions>"));
+    assert!(prompt.contains("## Autonomous Agent Discipline"));
+    assert!(prompt.contains("## Structured Workflow"));
+    assert!(
+        prompt.contains("you must actually initiate the tool call"),
         "agent loop must require acting on stated next steps"
     );
     assert!(
-        prompt.contains("不要在证据不足时假设"),
+        prompt.contains("Do not assume code behavior"),
         "weaker models must be told not to invent codebase facts"
     );
     assert!(!prompt.contains("最好的编码智能体"));
     assert!(!prompt.contains("软件工程任务的交互式 CLI 工具"));
+}
+
+#[test]
+fn unified_prompt_omits_unavailable_capability_instructions() {
+    let prompt = render_unified_prompt("provider/model", "/workspace", &["file_read".into()], true);
+
+    assert!(prompt.contains("## Files and Search"));
+    assert!(prompt.contains("the final response must mention the primary output"));
+    assert!(prompt.contains("Markdown inline code"));
+    assert!(!prompt.contains("file_edit"));
+    assert!(!prompt.contains("file_write"));
+    assert!(!prompt.contains("`glob`"));
+    assert!(!prompt.contains("`grep`"));
+    assert!(!prompt.contains("## Skills"));
+    assert!(!prompt.contains("## RustCodeGraph"));
+    assert!(!prompt.contains("## Task Tracking"));
+    assert!(!prompt.contains("## Subagents"));
+    assert!(!prompt.contains("## Background Tasks"));
+    assert!(!prompt.contains("## Current Runtime Mode"));
+}
+
+#[test]
+fn unified_prompt_injects_only_enabled_runtime_modes() {
+    let goal_prompt = render_unified_prompt_with_modes(
+        "provider/model",
+        "/workspace",
+        &[],
+        false,
+        RuntimePromptModes { goal: true, workflow: false },
+    );
+    assert!(goal_prompt.contains("## Current Runtime Mode"));
+    assert!(goal_prompt.contains("Goal mode is enabled"));
+    assert!(!goal_prompt.contains("Workflow mode is enabled"));
+
+    let workflow_prompt = render_unified_prompt_with_modes(
+        "provider/model",
+        "/workspace",
+        &[],
+        false,
+        RuntimePromptModes { goal: true, workflow: true },
+    );
+    assert!(workflow_prompt.contains("Goal mode is enabled"));
+    assert!(workflow_prompt.contains("Workflow mode is enabled"));
+    assert!(!workflow_prompt.contains("{{runtime_modes}}"));
 }
 
 #[test]
@@ -151,13 +253,13 @@ fn environment_text_preserves_structure_for_non_git_workspace() {
     let lines = text.lines().collect::<Vec<_>>();
 
     assert_eq!(lines.len(), 11);
-    assert_eq!(lines[0], "你正在使用模型 model。精确模型 ID: provider/model");
-    assert_eq!(lines[1], "这里是一些运行环境信息：");
+    assert_eq!(lines[0], "You are using the model model. Exact model ID: provider/model");
+    assert_eq!(lines[1], "Here is some information about the runtime environment:");
     assert_eq!(lines[2], "<env>");
-    assert_eq!(lines[3], "  工作目录: /workspace");
-    assert_eq!(lines[4], "  是否为 Git 仓库: 否");
-    assert_eq!(lines[5], format!("  平台: {}", platform()));
-    assert!(lines[6].starts_with("  今日日期: "));
+    assert_eq!(lines[3], "  Working directory: /workspace");
+    assert_eq!(lines[4], "  Is Git repository: No");
+    assert_eq!(lines[5], format!("  Platform: {}", platform()));
+    assert!(lines[6].starts_with("  Today's date: "));
     assert_eq!(lines[7], "</env>");
     assert_eq!(lines[8], "<directories>");
     assert_eq!(lines[9], "  ");
@@ -220,7 +322,7 @@ async fn environment_from_ref_handles_missing_and_malformed_model_refs() {
     assert!(malformed.contains("unknown/not-a-model-ref"));
 
     let missing_provider = environment_from_ref(Some("/orphan-model"), Some(root)).await;
-    assert!(missing_provider.contains("精确模型 ID: unknown//orphan-model"));
+    assert!(missing_provider.contains("Exact model ID: unknown//orphan-model"));
 }
 
 #[tokio::test]
@@ -229,6 +331,6 @@ async fn environment_from_ref_preserves_parsed_ids_when_model_lookup_fails() {
 
     let text = environment_from_ref(Some("missing-provider/missing-model"), Some(root)).await;
 
-    assert!(text.contains("精确模型 ID: missing-provider/missing-model"));
+    assert!(text.contains("Exact model ID: missing-provider/missing-model"));
     assert!(text.contains(root));
 }

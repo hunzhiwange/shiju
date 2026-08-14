@@ -35,6 +35,8 @@ mod tests;
 ///
 /// 调用方通常只需要持有这个类型，即可访问本 crate 暴露的大部分能力。
 pub use client::GatewayClient;
+/// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
+pub use client::SessionUiLoadResult;
 /// Provider 列表接口的响应结构。
 ///
 /// 包含全部 provider、默认路由与已连接 provider 三部分信息。

@@ -155,6 +155,46 @@ impl SystemPrompt {
         &self.instruction_context
     }
 
+    /// 将模型、工作目录和本轮真实可用能力渲染进统一提示词。
+    pub(crate) fn with_runtime_context(
+        self,
+        model: Option<&str>,
+        root: Option<&str>,
+        available_tool_ids: &[String],
+        rustcodegraph_skill_available: bool,
+    ) -> Self {
+        self.with_runtime_context_and_modes(
+            model,
+            root,
+            available_tool_ids,
+            rustcodegraph_skill_available,
+            super::system::RuntimePromptModes::default(),
+        )
+    }
+
+    /// 将模型、目录、能力和本轮运行模式渲染进统一提示词。
+    pub(crate) fn with_runtime_context_and_modes(
+        mut self,
+        model: Option<&str>,
+        root: Option<&str>,
+        available_tool_ids: &[String],
+        rustcodegraph_skill_available: bool,
+        runtime_modes: super::system::RuntimePromptModes,
+    ) -> Self {
+        if !self.base_content.contains(super::system::UNIFIED_PROMPT_MARKER) {
+            let unified = super::system::render_unified_prompt_from_ref_with_modes(
+                model,
+                root,
+                available_tool_ids,
+                rustcodegraph_skill_available,
+                runtime_modes,
+            );
+            self.base_content = join_non_empty_parts(vec![unified, self.base_content]);
+            self.content = self.base_content.clone();
+        }
+        self
+    }
+
     /// 按稳定优先级生成每一步发送给模型的独立系统消息。
     pub fn runtime_parts(
         &self,

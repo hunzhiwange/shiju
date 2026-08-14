@@ -297,6 +297,9 @@ pub(super) fn handle_agent_step_finish(
         );
     }
 
+    let raw_refresh_task =
+        super::super::trajectory::refresh_missing_raw_task(app, &session_id, Some(step_index));
+
     Task::batch(vec![
         save_task,
         Task::perform(compute_step_cost(model, usage), move |(resolved_model, cost)| {
@@ -308,6 +311,7 @@ pub(super) fn handle_agent_step_finish(
                 cost,
             ))
         }),
+        raw_refresh_task,
     ])
 }
 

@@ -33,7 +33,7 @@ use crate::app::components::input_panel::usage::{
 };
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::status_animation::spinner_frame;
-use crate::app::state::WorkspaceMode;
+use crate::app::state::{ChatPanelMode, WorkspaceMode};
 use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, message};
 
@@ -55,6 +55,64 @@ pub(super) fn show_half_fullscreen_control(_workspace_mode: WorkspaceMode) -> bo
 
 fn theme_is_dark(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
+}
+
+fn chat_mode_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+    active: bool,
+) -> iced::widget::button::Style {
+    let palette = theme.extended_palette();
+    let hovered = matches!(
+        status,
+        iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed
+    );
+    let background = if active {
+        palette.primary.weak.color.scale_alpha(if theme_is_dark(theme) { 0.38 } else { 0.24 })
+    } else if hovered {
+        palette.background.strong.color.scale_alpha(if theme_is_dark(theme) { 0.42 } else { 0.28 })
+    } else {
+        Color::TRANSPARENT
+    };
+    iced::widget::button::Style {
+        background: Some(Background::Color(background)),
+        border: Border {
+            width: 1.0,
+            color: if active {
+                palette.primary.base.color.scale_alpha(0.66)
+            } else {
+                palette.background.strong.color.scale_alpha(0.42)
+            },
+            radius: 5.0.into(),
+        },
+        text_color: if active {
+            if theme_is_dark(theme) {
+                theme.palette().text.scale_alpha(0.96)
+            } else {
+                palette.primary.base.color
+            }
+        } else {
+            theme.palette().text.scale_alpha(0.72)
+        },
+        ..Default::default()
+    }
+}
+
+fn chat_mode_control(app: &App) -> Element<'_, Message> {
+    let mode_button = |label, mode| {
+        let active = app.chat_panel_mode == mode;
+        button(text(label).size(11))
+            .padding([3, 7])
+            .style(move |theme, status| chat_mode_button_style(theme, status, active))
+            .on_press(Message::Chat(message::ChatMessage::ChatPanelModeSelected(mode)))
+    };
+    row![
+        mode_button("对话", ChatPanelMode::Conversation),
+        mode_button("轨迹", ChatPanelMode::Trajectory),
+    ]
+    .spacing(3)
+    .align_y(Alignment::Center)
+    .into()
 }
 
 /// 在已加载会话与项目会话缓存中查找会话 Info。
@@ -547,7 +605,9 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
             .into();
     }
 
-    let mut left = row![status_icon, title_element].spacing(6).align_y(Alignment::Center);
+    let mode_control = chat_mode_control(app);
+    let mut left =
+        row![status_icon, mode_control, title_element].spacing(6).align_y(Alignment::Center);
     if let Some(tag) = session_workspace_badge(app) {
         left = left.push(tag);
     }

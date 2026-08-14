@@ -66,6 +66,8 @@ pub(crate) fn gateway_session_options(request: &SessionRunRequest) -> Map<String
     let mut options = Map::new();
     options.insert("full_access".to_string(), json!(true));
     options.insert("cwd".to_string(), json!(request.root.as_str()));
+    options.insert("goal_mode".to_string(), json!(true));
+    options.insert("workflow_mode".to_string(), json!(true));
 
     if let Some(agent) = request.agent.as_ref().filter(|value| !value.trim().is_empty()) {
         options.insert("agent".to_string(), json!(agent));

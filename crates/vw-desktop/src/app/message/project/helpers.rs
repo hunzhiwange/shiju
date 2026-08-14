@@ -1046,11 +1046,13 @@ pub(crate) fn load_prepared_session_open_from_ui_store_task(
     let target_project_path = project_path.clone();
     Task::perform(
         async move {
-            let mut session =
-                crate::app::session_gateway::gateway_load_session_any_async(&session_id)
+            let mut loaded =
+                crate::app::session_gateway::gateway_load_session_any_with_raw_async(&session_id)
                     .await?
-                    .filter(|session| !session.messages.is_empty())
+                    .filter(|loaded| !loaded.session.messages.is_empty())
                     .ok_or_else(|| "session UI store has no message history".to_string())?;
+            let step_llm_raw = std::mem::take(&mut loaded.step_llm_raw);
+            let mut session = loaded.session;
 
             let missing_message_model_count =
                 session.messages.iter().filter(|message| message.model.is_none()).count();
@@ -1069,10 +1071,12 @@ pub(crate) fn load_prepared_session_open_from_ui_store_task(
             }
 
             crate::app::message::spawn_blocking_opt(move || {
-                Some(crate::app::session::prepare_session_open_from_ui_store(
+                let mut prepared = crate::app::session::prepare_session_open_from_ui_store(
                     session,
                     show_reasoning_summary,
-                ))
+                );
+                prepared.step_llm_raw = step_llm_raw;
+                Some(prepared)
             })
             .await
             .ok_or_else(|| "session UI preparation task did not complete".to_string())
@@ -1113,6 +1117,20 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
             client
                 .session_get::<vw_shared::session::info::Info>(&session_id, Some(&project_path))
                 .await?;
+            let step_llm_raw =
+                match client.session_ui_get_with_raw(&session_id, Some(&project_path)).await {
+                    Ok(Some(loaded)) => loaded.step_llm_raw,
+                    Ok(None) => std::collections::HashMap::new(),
+                    Err(error) => {
+                        tracing::warn!(
+                            target: "vw_desktop",
+                            session_id = %session_id,
+                            error = %error,
+                            "session raw step payloads were unavailable"
+                        );
+                        std::collections::HashMap::new()
+                    }
+                };
 
             crate::app::message::spawn_blocking_opt(move || {
                 let usage = messages.iter().fold(
@@ -1131,7 +1149,7 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
                 let session_model = super::latest_assistant_model_label(&messages);
                 let steps = super::steps_from_gateway_messages(&messages);
                 let (chat, message_ids) = super::loaded_chat_from_gateway_messages(messages);
-                Some(crate::app::session::prepare_session_open(
+                let mut prepared = crate::app::session::prepare_session_open(
                     session_id,
                     chat,
                     message_ids,
@@ -1141,7 +1159,9 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
                     0,
                     session_model,
                     show_reasoning_summary,
-                ))
+                );
+                prepared.step_llm_raw = step_llm_raw;
+                Some(prepared)
             })
             .await
             .ok_or_else(|| "session history preparation task did not complete".to_string())

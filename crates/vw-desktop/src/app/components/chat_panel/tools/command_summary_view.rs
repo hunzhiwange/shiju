@@ -51,12 +51,9 @@ pub(crate) fn tool_command_summary_view<'a>(
 
     let head = container(
         row![
-            text("运行了命令")
-                .size(13)
-                .font(chat_text_font())
-                .style(|theme: &Theme| iced::widget::text::Style {
-                    color: Some(chat_secondary_subtle_text_color(theme)),
-                }),
+            text("运行了命令").size(13).font(chat_text_font()).style(|theme: &Theme| {
+                iced::widget::text::Style { color: Some(chat_secondary_subtle_text_color(theme)) }
+            }),
             text(format!("{} 条", items.len())).size(13).style(|theme: &Theme| {
                 iced::widget::text::Style { color: Some(chat_secondary_subtle_text_color(theme)) }
             }),

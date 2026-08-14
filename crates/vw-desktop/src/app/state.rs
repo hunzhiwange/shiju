@@ -56,8 +56,8 @@ pub(crate) use account::{
 };
 pub(crate) use agent::*;
 pub use app_state::{
-    App, CookieConfig, QuickMessageGitCommitAction, RecentProjectMeta, TaskBoardViewMode,
-    WebBookmark,
+    App, ChatPanelMode, CookieConfig, QuickMessageGitCommitAction, RecentProjectMeta,
+    TaskBoardViewMode, TrajectoryDetailsTab, WebBookmark,
 };
 pub(crate) use app_state::{
     Notification, QuickMessageHandoffState, Toast, ToastKind, WorkBrowserState,

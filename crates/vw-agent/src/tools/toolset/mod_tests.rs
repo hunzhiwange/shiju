@@ -9,6 +9,8 @@ use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::context::ToolUseContext;
 use crate::app::agent::tools::traits::{Tool, ToolResult};
 use async_trait::async_trait;
+#[cfg(not(target_arch = "wasm32"))]
+use rustcodegraph::{CodeGraph, InitOptions};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -93,6 +95,29 @@ fn test_config(workspace: &Path) -> Config {
         config_path: workspace.join(".vibewindow.json"),
         ..Config::default()
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn indexed_workspace() -> tempfile::TempDir {
+    let workspace = tempfile::tempdir().unwrap();
+    let source_dir = workspace.path().join("src");
+    std::fs::create_dir(&source_dir).unwrap();
+    std::fs::write(
+        source_dir.join("lib.rs"),
+        "pub fn toolset_indexed_entry() -> usize { 17 }\n",
+    )
+    .unwrap();
+
+    let mut graph = CodeGraph::init(workspace.path(), InitOptions { index: true }).unwrap();
+    graph.close();
+    workspace
+}
+
+fn security_for_workspace(workspace: &Path) -> Arc<SecurityPolicy> {
+    Arc::new(SecurityPolicy {
+        workspace_dir: workspace.to_path_buf(),
+        ..SecurityPolicy::default()
+    })
 }
 
 fn agent_config(mode: &str, enabled: bool, allowed_skills: Vec<String>) -> DelegateAgentConfig {
@@ -313,7 +338,7 @@ fn build_all_tools(
     root_config: &Config,
     session_id: Option<&str>,
 ) -> Vec<Box<dyn Tool>> {
-    let security = Arc::new(SecurityPolicy::default());
+    let security = security_for_workspace(workspace);
     all_tools_with_runtime(
         Arc::new(config),
         &security,
@@ -461,6 +486,160 @@ fn default_tools_with_runtime_omits_batch_when_runtime_has_no_capabilities() {
     let tools = default_tools_with_runtime(Arc::new(SecurityPolicy::default()), runtime);
 
     assert!(tools.is_empty());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn toolsets_include_rustcodegraph_only_for_indexed_native_workspaces() {
+    let workspace = indexed_workspace();
+    let security = security_for_workspace(workspace.path());
+    let runtime: Arc<dyn RuntimeAdapter> = Arc::new(NativeRuntime::new());
+
+    let default_tools = default_tools_with_runtime(security, runtime.clone());
+    assert_eq!(
+        tool_names(&default_tools)
+            .into_iter()
+            .filter(|name| *name == "rustcodegraph")
+            .count(),
+        1
+    );
+
+    let root_config = test_config(workspace.path());
+    let all_tools = build_all_tools(
+        root_config.clone(),
+        runtime,
+        test_memory(workspace.path()),
+        &BrowserConfig::default(),
+        &HttpRequestConfig::default(),
+        &WebFetchConfig::default(),
+        workspace.path(),
+        &HashMap::new(),
+        None,
+        &root_config,
+        None,
+    );
+    assert_eq!(
+        tool_names(&all_tools)
+            .into_iter()
+            .filter(|name| *name == "rustcodegraph")
+            .count(),
+        1
+    );
+
+    let rustcodegraph = default_tools
+        .iter()
+        .find(|tool| tool.name() == "rustcodegraph")
+        .unwrap();
+    let result = rustcodegraph
+        .call(json!({
+            "operation": "search",
+            "query": "toolset_indexed_entry"
+        }))
+        .await
+        .unwrap();
+    assert!(result.is_success());
+    assert!(result.model_text().contains("toolset_indexed_entry"));
+
+    let batch = default_tools.iter().find(|tool| tool.name() == "batch").unwrap();
+    let batched = batch
+        .execute(json!({
+            "tool_calls": [{
+                "tool": "rustcodegraph",
+                "args": {
+                    "operation": "search",
+                    "query": "toolset_indexed_entry"
+                }
+            }]
+        }))
+        .await
+        .unwrap();
+    assert!(batched.success);
+    assert!(batched.output.contains("toolset_indexed_entry"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn toolsets_omit_rustcodegraph_without_filesystem_or_valid_index() {
+    let unindexed = tempfile::tempdir().unwrap();
+    let corrupt = tempfile::tempdir().unwrap();
+    std::fs::create_dir(corrupt.path().join(".rustcodegraph")).unwrap();
+    std::fs::write(
+        corrupt.path().join(".rustcodegraph/rustcodegraph.db"),
+        b"not a sqlite database",
+    )
+    .unwrap();
+    let indexed = indexed_workspace();
+
+    for workspace in [unindexed.path(), corrupt.path()] {
+        let runtime: Arc<dyn RuntimeAdapter> = Arc::new(NativeRuntime::new());
+        let default_tools =
+            default_tools_with_runtime(security_for_workspace(workspace), runtime.clone());
+        assert!(!tool_names(&default_tools).contains(&"rustcodegraph"));
+
+        let root_config = test_config(workspace);
+        let all_tools = build_all_tools(
+            root_config.clone(),
+            runtime,
+            test_memory(workspace),
+            &BrowserConfig::default(),
+            &HttpRequestConfig::default(),
+            &WebFetchConfig::default(),
+            workspace,
+            &HashMap::new(),
+            None,
+            &root_config,
+            None,
+        );
+        assert!(!tool_names(&all_tools).contains(&"rustcodegraph"));
+    }
+
+    let no_filesystem: Arc<dyn RuntimeAdapter> = Arc::new(CapabilityRuntime::new(
+        true,
+        false,
+        indexed.path().join("storage"),
+    ));
+    let default_tools = default_tools_with_runtime(
+        security_for_workspace(indexed.path()),
+        no_filesystem.clone(),
+    );
+    assert!(!tool_names(&default_tools).contains(&"rustcodegraph"));
+
+    let root_config = test_config(indexed.path());
+    let all_tools = build_all_tools(
+        root_config.clone(),
+        no_filesystem,
+        test_memory(indexed.path()),
+        &BrowserConfig::default(),
+        &HttpRequestConfig::default(),
+        &WebFetchConfig::default(),
+        indexed.path(),
+        &HashMap::new(),
+        None,
+        &root_config,
+        None,
+    );
+    assert!(!tool_names(&all_tools).contains(&"rustcodegraph"));
+
+    let wasm_runtime: Arc<dyn RuntimeAdapter> =
+        Arc::new(WasmRuntime::new(WasmRuntimeConfig::default()));
+    let default_tools =
+        default_tools_with_runtime(security_for_workspace(indexed.path()), wasm_runtime.clone());
+    assert!(!tool_names(&default_tools).contains(&"rustcodegraph"));
+
+    let all_tools = build_all_tools(
+        root_config.clone(),
+        wasm_runtime,
+        test_memory(indexed.path()),
+        &BrowserConfig::default(),
+        &HttpRequestConfig::default(),
+        &WebFetchConfig::default(),
+        indexed.path(),
+        &HashMap::new(),
+        None,
+        &root_config,
+        None,
+    );
+    assert!(!tool_names(&all_tools).contains(&"rustcodegraph"));
 }
 
 #[test]

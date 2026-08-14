@@ -123,6 +123,39 @@ async fn session_optional_reads_distinguish_not_found_from_server_errors() {
 }
 
 #[tokio::test]
+async fn session_ui_get_with_raw_preserves_step_payloads() {
+    let server = test_support::server(vec![(
+        200,
+        json!({
+            "id": "s1",
+            "title": "Session",
+            "steps": [
+                {
+                    "index": 1,
+                    "started_ms": 10,
+                    "llm_raw": {"messages": [{"role": "user", "content": "hello"}]}
+                },
+                {"index": 2, "started_ms": 20}
+            ]
+        }),
+    )]);
+
+    let loaded = server
+        .client()
+        .session_ui_get_with_raw("s1", Some("/repo"))
+        .await
+        .expect("load session with raw")
+        .expect("session exists");
+
+    assert_eq!(loaded.session.id, "s1");
+    assert_eq!(loaded.session.steps.len(), 2);
+    assert_eq!(loaded.step_llm_raw[&1]["messages"][0]["content"], "hello");
+    assert!(!loaded.step_llm_raw.contains_key(&2));
+    assert_eq!(server.take_request().path, "/v1/session/s1/ui?directory=%2Frepo");
+    server.join();
+}
+
+#[tokio::test]
 async fn session_archived_and_scope_updates_serialize_empty_values() {
     let server = test_support::server(vec![(200, json!(true)), (200, json!(true))]);
 

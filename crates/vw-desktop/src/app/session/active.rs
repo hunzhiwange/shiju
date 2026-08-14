@@ -230,6 +230,7 @@ impl App {
     pub(crate) fn clear_active_session_steps(&mut self) {
         self.active_session_view_state.steps.clear();
         self.active_session_view_state.calls.clear();
+        self.active_session_view_state.step_llm_raw.clear();
         self.active_session_view_state.step_index_map.clear();
     }
 
@@ -249,6 +250,11 @@ impl App {
     /// 原始调用记录来自会话 UI 快照，单独维护以避免历史加载时覆盖步骤索引。
     pub(crate) fn replace_active_session_calls(&mut self, calls: Vec<Value>) {
         self.active_session_view_state.calls = calls;
+    }
+
+    /// 替换当前会话按 step index 保存的原始 LLM 载荷。
+    pub(crate) fn replace_active_session_step_llm_raw(&mut self, raw: HashMap<u32, Value>) {
+        self.active_session_view_state.step_llm_raw = raw;
     }
 
     /// 执行 upsert_active_session_step 对应的领域操作。

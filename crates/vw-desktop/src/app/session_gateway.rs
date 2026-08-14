@@ -254,6 +254,14 @@ pub async fn gateway_load_session_any_async(id: &str) -> Result<Option<ChatSessi
     client.session_ui_get_any(id).await
 }
 
+/// 无目录限制地读取会话 UI 数据，并保留每步原始 LLM 载荷。
+pub async fn gateway_load_session_any_with_raw_async(
+    id: &str,
+) -> Result<Option<vw_gateway_client::SessionUiLoadResult>, String> {
+    let client = gateway_client()?;
+    client.session_ui_get_any_with_raw(id).await
+}
+
 /// 执行 gateway_load_sessions_scoped_async 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。

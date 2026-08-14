@@ -125,6 +125,7 @@ fn chat_virtualizer_turn_focus_keeps_tail_user_below_viewport_top() {
     );
     assert_eq!(virtualizer.scroll_top_px(), user_top - CHAT_TURN_TOP_INSET_PX);
     assert_eq!(virtualizer.max_scroll_top_px(), user_top - CHAT_TURN_TOP_INSET_PX);
+    assert!(user_top - virtualizer.scroll_top_px() >= 48.0);
     assert!(virtualizer.trailing_runway_height_px() > 0.0);
 
     virtualizer.release_turn_focus();

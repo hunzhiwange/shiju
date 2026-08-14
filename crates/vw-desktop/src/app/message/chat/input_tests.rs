@@ -663,6 +663,49 @@ fn manual_scroll_requires_tail_threshold_to_resume_autoscroll() {
 }
 
 #[test]
+fn matching_scroll_callback_preserves_turn_focus() {
+    let (mut app, _) = crate::app::App::new();
+    app.chat = vec![
+        chat_entry(ChatRole::Assistant, "history"),
+        chat_entry(ChatRole::User, "question"),
+        chat_entry(ChatRole::Assistant, ""),
+    ];
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[120.0, 100.0, 0.0]);
+    app.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_virtualizer.focus_turn_on_user(1);
+    app.chat_auto_scroll = false;
+    let expected_relative_y = app.chat_virtualizer.relative_y();
+
+    let _ =
+        super::input::apply_chat_scroll_changed(&mut app, expected_relative_y, 300.0);
+
+    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(1));
+}
+
+#[test]
+fn manual_scroll_and_explicit_navigation_release_turn_focus() {
+    let (mut app, _) = crate::app::App::new();
+    app.chat = vec![
+        chat_entry(ChatRole::Assistant, "history"),
+        chat_entry(ChatRole::User, "question"),
+        chat_entry(ChatRole::Assistant, ""),
+    ];
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[120.0, 100.0, 0.0]);
+    app.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_virtualizer.focus_turn_on_user(1);
+    app.chat_auto_scroll = false;
+
+    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.5, 300.0);
+
+    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), None);
+
+    app.chat_virtualizer.focus_turn_on_user(1);
+    let _task = super::scroll_chat_to_bottom_task(&mut app);
+
+    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), None);
+}
+
+#[test]
 fn message_measurements_ignore_empty_invalid_and_out_of_range_values() {
     let (mut app, _) = crate::app::App::new();
     app.chat = vec![chat_entry(ChatRole::Assistant, "answer")];

@@ -4,6 +4,8 @@
 
 use super::height_index::{CHAT_VIRTUALIZATION_OVERSCAN_PX, ChatHeightIndex, ChatHeightWindow};
 
+pub(crate) const CHAT_TURN_TOP_INSET_PX: f32 = 16.0;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChatScrollMode {
     Free,
@@ -68,6 +70,7 @@ pub struct ChatVirtualizer {
     viewport_h: f32,
     scroll_mode: ChatScrollMode,
     anchor: Option<ChatScrollAnchor>,
+    turn_focus_user_index: Option<usize>,
 }
 
 impl Default for ChatVirtualizer {
@@ -79,6 +82,7 @@ impl Default for ChatVirtualizer {
             viewport_h: 0.0,
             scroll_mode: ChatScrollMode::Free,
             anchor: None,
+            turn_focus_user_index: None,
         }
     }
 }
@@ -139,6 +143,14 @@ impl ChatVirtualizer {
         self.anchor
     }
 
+    pub fn turn_focus_user_index(&self) -> Option<usize> {
+        self.turn_focus_user_index
+    }
+
+    pub fn trailing_runway_height_px(&self) -> f32 {
+        self.height_index.trailing_runway()
+    }
+
     pub fn sync_len(&mut self, len: usize, estimated_height: f32) {
         self.heights.truncate(len);
         if self.heights.len() < len {
@@ -146,29 +158,39 @@ impl ChatVirtualizer {
         }
 
         self.height_index.set_heights(&self.heights);
+        if self.turn_focus_user_index.is_some_and(|index| index >= len) {
+            self.clear_turn_focus();
+        }
         if self.anchor.is_some_and(|anchor| anchor.index >= len) {
             self.anchor = None;
             self.scroll_mode = ChatScrollMode::Free;
         }
+        self.refresh_turn_runway();
         self.reconcile_scroll_after_height_change();
     }
 
     pub fn set_estimated_heights(&mut self, heights: &[f32]) {
         self.heights = heights.iter().map(|height| height.max(0.0)).collect();
         self.height_index.set_heights(&self.heights);
+        if self.turn_focus_user_index.is_some_and(|index| index >= self.heights.len()) {
+            self.clear_turn_focus();
+        }
         if self.anchor.is_some_and(|anchor| anchor.index >= self.heights.len()) {
             self.anchor = None;
             self.scroll_mode = ChatScrollMode::Free;
         }
+        self.refresh_turn_runway();
         self.reconcile_scroll_after_height_change();
     }
 
     pub fn set_viewport_height(&mut self, viewport_h: f32) {
         self.viewport_h = viewport_h.max(0.0);
+        self.refresh_turn_runway();
         self.reconcile_scroll_after_height_change();
     }
 
     pub fn set_scroll_top_px(&mut self, scroll_top_px: f32) {
+        self.clear_turn_focus();
         self.scroll_mode = ChatScrollMode::Free;
         self.anchor = None;
         self.scroll_top_px = self.clamp_scroll_top(scroll_top_px);
@@ -191,6 +213,7 @@ impl ChatVirtualizer {
 
         self.heights[idx] = next_height;
         self.height_index.update_height(idx, next_height);
+        self.refresh_turn_runway();
         self.reconcile_scroll_after_height_change();
     }
 
@@ -205,6 +228,7 @@ impl ChatVirtualizer {
             return;
         }
 
+        self.clear_turn_focus();
         self.scroll_mode = ChatScrollMode::Anchored;
         self.anchor = Some(anchor);
         self.scroll_top_px = self.clamp_scroll_top(self.scroll_top_for_anchor(anchor));
@@ -220,6 +244,7 @@ impl ChatVirtualizer {
             return;
         }
 
+        self.clear_turn_focus();
         let item_top = self.height_index.scroll_top_for_item(index);
         let item_height = self.heights.get(index).copied().unwrap_or(0.0).max(0.0);
         let desired_top = item_top + item_height * item_anchor_fraction.clamp(0.0, 1.0)
@@ -231,7 +256,29 @@ impl ChatVirtualizer {
         self.scroll_top_px = scroll_top;
     }
 
+    pub fn focus_turn_on_user(&mut self, user_index: usize) {
+        if user_index >= self.heights.len() {
+            return;
+        }
+
+        let anchor = ChatScrollAnchor { index: user_index, offset_px: -CHAT_TURN_TOP_INSET_PX };
+        self.turn_focus_user_index = Some(user_index);
+        self.scroll_mode = ChatScrollMode::Anchored;
+        self.anchor = Some(anchor);
+        self.refresh_turn_runway();
+        self.scroll_top_px = self.clamp_scroll_top(self.scroll_top_for_anchor(anchor));
+    }
+
+    pub fn release_turn_focus(&mut self) {
+        if self.clear_turn_focus() {
+            self.scroll_mode = ChatScrollMode::Free;
+            self.anchor = None;
+            self.scroll_top_px = self.clamp_scroll_top(self.scroll_top_px);
+        }
+    }
+
     pub fn snap_to_tail(&mut self) {
+        self.clear_turn_focus();
         self.scroll_mode = ChatScrollMode::TailSticky;
         self.anchor = None;
         self.scroll_top_px = self.max_scroll_top_px();
@@ -265,6 +312,27 @@ impl ChatVirtualizer {
             }
             _ => self.scroll_top_px = self.clamp_scroll_top(self.scroll_top_px),
         }
+    }
+
+    fn refresh_turn_runway(&mut self) {
+        let Some(user_index) = self.turn_focus_user_index else {
+            return;
+        };
+
+        self.height_index.set_trailing_runway(0.0);
+        let user_top = self.height_index.scroll_top_for_item(user_index);
+        let turn_height = (self.height_index.total_height() - user_top).max(0.0);
+        self.height_index.set_trailing_runway(
+            (self.viewport_h - CHAT_TURN_TOP_INSET_PX - turn_height).max(0.0),
+        );
+    }
+
+    fn clear_turn_focus(&mut self) -> bool {
+        let had_turn_focus = self.turn_focus_user_index.take().is_some();
+        if had_turn_focus {
+            self.height_index.set_trailing_runway(0.0);
+        }
+        had_turn_focus
     }
 
     fn current_anchor(&self) -> Option<ChatScrollAnchor> {

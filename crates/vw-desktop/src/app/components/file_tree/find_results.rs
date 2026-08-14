@@ -190,6 +190,71 @@ fn find_tab_button_style(
     }
 }
 
+/// 构建搜索结果标签页栏，允许在多个搜索会话之间切换。
+pub(super) fn build_find_results_tabs(app: &App) -> Element<'_, Message> {
+    let mut tabs = row![].spacing(4).width(Length::Fill);
+
+    for tab in &app.find_results_tabs {
+        let active = app.active_find_results_tab_id.as_deref() == Some(tab.id.as_str());
+        let tab_id = tab.id.clone();
+        let close_id = tab.id.clone();
+        let title = format!("{} ({})", tab.query, tab.matches.len());
+
+        let title_btn = button(text(title).size(12))
+            .on_press(Message::Project(ProjectMessage::FileTreeFindTabSelected(tab_id)))
+            .padding([4, 8])
+            .style(move |theme, status| find_tab_button_style(theme, status, active));
+
+        let close_btn = button(
+            themed_icon_svg(Icon::X).width(Length::Fixed(12.0)).height(Length::Fixed(12.0)),
+        )
+        .on_press(Message::Project(ProjectMessage::FileTreeFindTabClosed(close_id)))
+        .padding([3, 4])
+        .style(|theme: &Theme, status| {
+            let p = theme.extended_palette();
+            let background = match status {
+                iced::widget::button::Status::Hovered => Some(p.background.weak.color),
+                iced::widget::button::Status::Pressed => Some(p.background.strong.color),
+                _ => None,
+            };
+            iced::widget::button::Style {
+                background: background.map(Background::Color),
+                text_color: theme.palette().text,
+                border: iced::Border { radius: 4.0.into(), ..Default::default() },
+                ..Default::default()
+            }
+        });
+
+        tabs = tabs.push(
+            container(row![title_btn, close_btn].spacing(2).align_y(iced::Alignment::Center))
+                .padding([2, 2]),
+        );
+    }
+
+    scrollable(container(tabs).width(Length::Fill).padding([0, 2]))
+        .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fixed(34.0))
+        .into()
+}
+
+pub(super) fn find_run_button_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let p = theme.extended_palette();
+    let background = match status {
+        iced::widget::button::Status::Hovered => Some(p.primary.strong.color),
+        iced::widget::button::Status::Pressed => Some(p.primary.base.color),
+        _ => Some(p.primary.base.color),
+    };
+    iced::widget::button::Style {
+        background: background.map(Background::Color),
+        text_color: Color::WHITE,
+        border: iced::Border { radius: 999.0.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
 fn find_page_button(
     icon: Icon,
     label: &'static str,
@@ -515,20 +580,7 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
             )
             .padding([10, 16])
             .width(Length::Fill)
-            .style(|theme: &Theme, status| {
-                let p = theme.extended_palette();
-                let bg = match status {
-                    iced::widget::button::Status::Hovered => Some(p.primary.strong.color),
-                    iced::widget::button::Status::Pressed => Some(p.primary.base.color),
-                    _ => Some(p.primary.base.color),
-                };
-                iced::widget::button::Style {
-                    background: bg.map(Background::Color),
-                    text_color: p.primary.base.text,
-                    border: iced::Border { radius: 999.0.into(), ..Default::default() },
-                    ..Default::default()
-                }
-            });
+            .style(find_run_button_style);
 
     // 显示错误信息（如果存在）
     let error_line: Element<'_, Message> = if let Some(err) = &tab.error {

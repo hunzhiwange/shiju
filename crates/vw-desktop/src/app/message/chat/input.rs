@@ -649,8 +649,13 @@ pub(crate) fn apply_chat_scroll_changed(
     let offset_changed = (app.chat_virtualizer.relative_y() - next_offset_y).abs() > 0.0005;
     let viewport_changed =
         (app.chat_virtualizer.viewport_height_px() - next_viewport_h).abs() > 0.5;
+    app.chat_virtualizer.set_viewport_height(next_viewport_h);
+    let matches_turn_focus = app.chat_virtualizer.turn_focus_user_index().is_some()
+        && (app.chat_virtualizer.relative_y() - next_offset_y).abs() <= 0.0005;
     let within_hold_window = super::now_ms() < app.chat_autoscroll_hold_until_ms;
-    let next_auto_scroll = if within_hold_window && app.chat_auto_scroll {
+    let next_auto_scroll = if matches_turn_focus {
+        false
+    } else if within_hold_window && app.chat_auto_scroll {
         next_offset_y >= 0.82
     } else if app.chat_auto_scroll {
         next_offset_y >= 0.90
@@ -659,8 +664,9 @@ pub(crate) fn apply_chat_scroll_changed(
     };
 
     app.chat_auto_scroll = next_auto_scroll;
-    app.chat_virtualizer.set_viewport_height(next_viewport_h);
-    if next_auto_scroll {
+    if matches_turn_focus {
+        // 程序化顶部定位的滚动回执只确认视口，不释放本轮锚点。
+    } else if next_auto_scroll {
         app.chat_virtualizer.snap_to_tail();
     } else {
         app.chat_virtualizer.set_relative_y(next_offset_y);

@@ -171,8 +171,6 @@
     pub(crate) project_sessions_loading: HashSet<String>,
     /// 各项目会话列表是否显示纵向滚动条
     pub(crate) project_session_has_vertical_scrollbar: HashMap<String, bool>,
-    /// 项目会话上次刷新时间
-    pub(crate) project_sessions_last_refresh_at: HashMap<String, web_time::Instant>,
     /// 会话菜单的目标会话 ID
     pub(crate) session_menu_id: Option<String>,
     /// 会话菜单的锚点位置

@@ -128,6 +128,19 @@ fn chat_message(content: &str) -> crate::app::models::ChatMessage {
     }
 }
 
+fn ui_store_session(id: &str, message_ids: Vec<Option<String>>) -> crate::app::models::ChatSession {
+    crate::app::models::ChatSession {
+        id: id.to_string(),
+        title: "History".to_string(),
+        messages: vec![chat_message("loaded history")],
+        message_ids,
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 2,
+    }
+}
+
 #[test]
 fn merge_project_sessions_returns_incoming_when_no_existing_list() {
     let incoming = vec![session_info("incoming", 1, 2)];
@@ -177,6 +190,9 @@ fn sessions_loaded_updates_list_or_pushes_notification() {
 #[test]
 fn session_bootstrap_loaded_sets_previews_archived_and_sessions() {
     let mut app = app();
+    let project_path = "/tmp/project".to_string();
+    app.project_path = Some(project_path.clone());
+    app.project_sessions_loading.insert(project_path.clone());
     let sessions = vec![session_info("s1", 1, 1)];
     let mut previews = std::collections::HashMap::new();
     previews.insert("s1".to_string(), "preview text".to_string());
@@ -185,6 +201,7 @@ fn session_bootstrap_loaded_sets_previews_archived_and_sessions() {
     let _ = super::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
+            project_path: Some(project_path.clone()),
             result: Ok(sessions),
             previews: previews.clone(),
             archived_session_ids: archived.clone(),
@@ -194,6 +211,30 @@ fn session_bootstrap_loaded_sets_previews_archived_and_sessions() {
     assert_eq!(app.session_previews, previews);
     assert_eq!(app.archived_session_ids, archived);
     assert_eq!(app.sessions[0].id, "s1");
+    assert_eq!(app.project_sessions[&project_path][0].id, "s1");
+    assert!(!app.project_sessions_loading.contains(&project_path));
+}
+
+#[test]
+fn stale_session_bootstrap_result_is_ignored() {
+    let mut app = app();
+    let stale_path = "/tmp/stale".to_string();
+    app.project_path = Some("/tmp/current".to_string());
+    app.project_sessions_loading.insert(stale_path.clone());
+
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
+            project_path: Some(stale_path.clone()),
+            result: Ok(vec![session_info("stale", 1, 1)]),
+            previews: std::collections::HashMap::new(),
+            archived_session_ids: std::collections::HashSet::new(),
+        },
+    );
+
+    assert!(app.sessions.is_empty());
+    assert!(!app.project_sessions.contains_key(&stale_path));
+    assert!(!app.project_sessions_loading.contains(&stale_path));
 }
 
 #[test]
@@ -208,6 +249,7 @@ fn session_bootstrap_loaded_keeps_metadata_and_reports_session_error() {
     let _ = super::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
+            project_path: None,
             result: Err("gateway unavailable".to_string()),
             previews: previews.clone(),
             archived_session_ids: archived.clone(),
@@ -298,6 +340,74 @@ fn open_project_session_uses_known_directory_and_restores_cached_state() {
     assert!(app.active_session_view_state.ui_preparing);
     assert!(!app.active_session_view_state.base_ready);
     assert_ne!(app.chat_scroll_id, previous_scroll_id);
+}
+
+#[test]
+fn session_ui_store_loaded_applies_history_and_schedules_only_prewarm() {
+    let mut app = app();
+    app.active_session_id = Some("target".to_string());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionUiStoreLoaded {
+            session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            result: Ok(Some(ui_store_session(
+                "target",
+                vec![Some("message-1".to_string())],
+            ))),
+        },
+    )
+    .expect("UI store result should be handled");
+
+    assert_eq!(app.chat.len(), 1);
+    assert_eq!(app.chat[0].content, "loaded history");
+    assert_eq!(app.chat_message_ids, vec![Some("message-1".to_string())]);
+    assert!(app.active_session_view_state.ui_preparing);
+    assert!(!app.active_session_view_state.base_ready);
+    assert_eq!(task.units(), 1);
+}
+
+#[test]
+fn session_ui_store_loaded_with_missing_ids_schedules_remote_refresh() {
+    let mut app = app();
+    app.active_session_id = Some("target".to_string());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionUiStoreLoaded {
+            session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            result: Ok(Some(ui_store_session("target", vec![None]))),
+        },
+    )
+    .expect("UI store result should be handled");
+
+    assert_eq!(app.chat.len(), 1);
+    assert_eq!(task.units(), 2);
+}
+
+#[test]
+fn stale_session_ui_store_result_is_ignored() {
+    let mut app = app();
+    app.active_session_id = Some("current".to_string());
+    app.chat = vec![chat_message("current history")];
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionUiStoreLoaded {
+            session_id: "stale".to_string(),
+            project_path: "/tmp/project".to_string(),
+            result: Ok(Some(ui_store_session(
+                "stale",
+                vec![Some("message-1".to_string())],
+            ))),
+        },
+    )
+    .expect("stale UI store result should be consumed");
+
+    assert_eq!(app.chat[0].content, "current history");
+    assert_eq!(task.units(), 0);
 }
 
 #[test]
@@ -416,11 +526,6 @@ fn recent_hover_marks_uncached_project_loading_once() {
 
     assert!(first_task.is_some());
     assert!(app.project_sessions_loading.contains(&path));
-    let first_refresh = app
-        .project_sessions_last_refresh_at
-        .get(&path)
-        .copied()
-        .expect("first hover should record refresh time");
 
     let second_task = super::handle(
         &mut app,
@@ -429,7 +534,6 @@ fn recent_hover_marks_uncached_project_loading_once() {
 
     assert!(second_task.is_some());
     assert_eq!(app.project_sessions_loading.len(), 1);
-    assert_eq!(app.project_sessions_last_refresh_at.get(&path), Some(&first_refresh));
 }
 
 #[test]
@@ -830,87 +934,6 @@ fn project_load_sessions_skips_duplicate_loads_and_marks_new_load() {
 
     assert!(task.is_some());
     assert!(app.project_sessions_loading.contains(&path));
-    assert!(app.project_sessions_last_refresh_at.contains_key(&path));
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn project_sessions_refresh_tick_skips_missing_disabled_and_not_due_projects() {
-    let mut app = app();
-
-    let no_project_task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectSessionsRefreshTick,
-    )
-    .expect("refresh tick should be handled");
-    assert!(collect_task_messages(no_project_task).await.is_empty());
-
-    let path = "/tmp/project".to_string();
-    app.hovered_recent_project = Some(path.clone());
-    app.recent_projects_meta = vec![recent_project_meta(&path, false, 60)];
-    let disabled_task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectSessionsRefreshTick,
-    )
-    .expect("disabled refresh tick should be handled");
-    assert!(collect_task_messages(disabled_task).await.is_empty());
-
-    app.recent_projects_meta = vec![recent_project_meta(&path, true, 3600)];
-    app.project_sessions_last_refresh_at.insert(path, web_time::Instant::now());
-    let not_due_task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectSessionsRefreshTick,
-    )
-    .expect("not-due refresh tick should be handled");
-    assert!(collect_task_messages(not_due_task).await.is_empty());
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn project_sessions_refresh_tick_schedules_selected_project_when_due() {
-    let mut app = app();
-    let hovered_path = "/tmp/hovered".to_string();
-    let settings_path = "/tmp/settings".to_string();
-    app.hovered_recent_project = Some(hovered_path);
-    app.project_path = Some(settings_path.clone());
-    app.show_settings = true;
-    app.recent_projects_meta = vec![recent_project_meta(&settings_path, true, 1)];
-
-    let task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectSessionsRefreshTick,
-    )
-    .expect("due refresh tick should be handled");
-    let messages = collect_task_messages(task).await;
-
-    assert!(matches!(
-        messages.as_slice(),
-        [crate::app::Message::Project(
-            crate::app::message::project::ProjectMessage::ProjectLoadSessions(path)
-        )] if path == &settings_path
-    ));
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn project_sessions_refresh_tick_uses_hovered_project_outside_settings() {
-    let mut app = app();
-    let hovered_path = "/tmp/hovered".to_string();
-    app.hovered_recent_project = Some(hovered_path.clone());
-    app.project_path = Some("/tmp/open-project".to_string());
-    app.show_settings = false;
-    app.recent_projects_meta = vec![recent_project_meta(&hovered_path, true, 60)];
-
-    let task = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectSessionsRefreshTick,
-    )
-    .expect("due refresh tick should be handled");
-    let messages = collect_task_messages(task).await;
-
-    assert!(matches!(
-        messages.as_slice(),
-        [crate::app::Message::Project(
-            crate::app::message::project::ProjectMessage::ProjectLoadSessions(path)
-        )] if path == &hovered_path
-    ));
 }
 
 #[test]

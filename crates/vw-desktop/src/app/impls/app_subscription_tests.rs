@@ -33,19 +33,6 @@ fn subscription_builds(app: &App) {
     let _subscription = app.subscription();
 }
 
-fn recent_project_meta(path: &str, interval: u64) -> crate::app::RecentProjectMeta {
-    crate::app::RecentProjectMeta {
-        path: path.to_string(),
-        name: "Project".to_string(),
-        task_board_settings: None,
-        session_auto_refresh: true,
-        session_refresh_interval_seconds: interval,
-        icon: None,
-        icon_color: None,
-        worktree_start_command: None,
-    }
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 fn preview_tab(path: &str) -> PreviewTab {
     PreviewTab {
@@ -392,30 +379,24 @@ fn workflow_run_subscription_is_active_only_while_running() {
 }
 
 #[test]
-fn subscription_builds_tool_and_project_ticks() {
+fn subscription_builds_task_board_ui_tick() {
     let mut app = test_app();
 
     app.terminal.is_visible = true;
-    app.task_board_settings.auto_refresh = true;
-    app.task_board_settings.refresh_interval_seconds = 0;
     subscription_builds(&app);
 
     app.screen = Screen::TaskBoard;
-    app.task_board_settings.refresh_interval_seconds = 4000;
     subscription_builds(&app);
+}
 
-    app.show_settings = true;
-    app.project_path = Some("/tmp/project".to_string());
-    app.recent_projects_meta = vec![recent_project_meta("/tmp/project", 0)];
-    subscription_builds(&app);
+#[test]
+fn project_subscription_does_not_schedule_periodic_task_or_session_refresh() {
+    let source = include_str!("app_subscription.rs");
 
-    app.show_settings = false;
-    app.hovered_recent_project = Some("/tmp/hovered".to_string());
-    app.recent_projects_meta = vec![recent_project_meta("/tmp/hovered", 4000)];
-    subscription_builds(&app);
-
-    app.hovered_recent_project = Some("/tmp/missing".to_string());
-    subscription_builds(&app);
+    assert!(!source.contains(
+        ".map(|_| Message::TaskBoard(message::TaskBoardMessage::LoadTasks))"
+    ));
+    assert!(!source.contains("ProjectMessage::ProjectSessionsRefreshTick"));
 }
 
 #[test]

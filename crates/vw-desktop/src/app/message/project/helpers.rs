@@ -1154,6 +1154,35 @@ pub(crate) fn prepare_session_ui_task(
     )
 }
 
+pub(crate) fn prepare_stream_message_ui_task(
+    session_id: String,
+    message: crate::app::models::ChatMessage,
+    message_idx: usize,
+    show_reasoning_summary: bool,
+) -> Task<Message> {
+    Task::perform(
+        async move {
+            crate::app::message::spawn_blocking_opt(move || {
+                Some((
+                    session_id,
+                    crate::app::session::prepare_chat_ui_message_phase(
+                        &message,
+                        message_idx,
+                        show_reasoning_summary,
+                    ),
+                ))
+            })
+            .await
+        },
+        |res| match res {
+            Some((session_id, phase)) => {
+                Message::Project(ProjectMessage::SessionUiPrepared { session_id, phase })
+            }
+            None => Message::None,
+        },
+    )
+}
+
 /// prepare_session_ui_chunks_task 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。

@@ -141,24 +141,40 @@ fn project_label(app: &App, path: &str) -> String {
         .unwrap_or_else(|| path.to_string())
 }
 
-fn sorted_sessions<'a>(
+type SessionRef<'a> = (&'a str, &'a vw_shared::session::info::Info);
+
+fn collect_top_level_sessions<'a>(
     sessions: impl Iterator<Item = (&'a str, &'a vw_shared::session::info::Info)>,
-) -> Vec<(&'a str, &'a vw_shared::session::info::Info)> {
-    let mut sessions = sessions
+) -> Vec<SessionRef<'a>> {
+    sessions
         .filter(|(_, session)| {
             session.time.archived.is_none()
                 && session.parent_id.as_deref().is_none_or(|id| id.trim().is_empty())
         })
-        .collect::<Vec<_>>();
-    sessions.sort_by(|(left_path, left), (right_path, right)| {
-        right
-            .time
-            .updated
-            .cmp(&left.time.updated)
-            .then_with(|| left.id.cmp(&right.id))
-            .then_with(|| left_path.cmp(right_path))
-    });
-    sessions
+        .collect()
+}
+
+fn compare_sessions(left: &SessionRef<'_>, right: &SessionRef<'_>) -> std::cmp::Ordering {
+    right
+        .1
+        .time
+        .updated
+        .cmp(&left.1.time.updated)
+        .then_with(|| left.1.id.cmp(&right.1.id))
+        .then_with(|| left.0.cmp(right.0))
+}
+
+fn sort_and_truncate_sessions(sessions: &mut Vec<SessionRef<'_>>, limit: usize) {
+    if limit == 0 {
+        sessions.clear();
+        return;
+    }
+
+    if sessions.len() > limit {
+        sessions.select_nth_unstable_by(limit, compare_sessions);
+        sessions.truncate(limit);
+    }
+    sessions.sort_unstable_by(compare_sessions);
 }
 
 fn project_matches_filter(app: &App, path: &str) -> bool {
@@ -207,7 +223,7 @@ fn task_status(app: &App, session_id: &str) -> WorkTaskStatus {
 }
 
 pub(super) fn model(app: &App) -> WorkSidebarModel {
-    let mut tasks = sorted_sessions(app.recent_projects.iter().flat_map(|path| {
+    let mut task_sessions = collect_top_level_sessions(app.recent_projects.iter().flat_map(|path| {
         app.project_sessions
             .get(path)
             .into_iter()
@@ -220,6 +236,11 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
             && session_matches_status_filter(app, &session.id)
             && session_matches_time_filter(app, session.time.updated)
     })
+    .collect::<Vec<_>>();
+    let task_total = task_sessions.len();
+    sort_and_truncate_sessions(&mut task_sessions, app.work_sidebar_visible_tasks);
+    let tasks = task_sessions
+    .into_iter()
     .map(|(path, session)| WorkTaskItem {
         id: session.id.clone(),
         title: session.title.clone(),
@@ -232,15 +253,13 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
         )),
     })
     .collect::<Vec<_>>();
-    let task_total = tasks.len();
-    tasks.truncate(app.work_sidebar_visible_tasks);
 
     let mut spaces = app
         .recent_projects
         .iter()
         .filter(|path| project_matches_filter(app, path))
         .filter_map(|path| {
-            let filtered_sessions = sorted_sessions(
+            let mut filtered_sessions = collect_top_level_sessions(
                 app.project_sessions
                     .get(path)
                     .into_iter()
@@ -268,9 +287,9 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
                     .get(path)
                     .copied()
                     .unwrap_or(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE);
+                sort_and_truncate_sessions(&mut filtered_sessions, visible);
                 filtered_sessions
                     .into_iter()
-                    .take(visible)
                     .map(|(_, session)| WorkSpaceSession {
                         id: session.id.clone(),
                         title: session.title.clone(),

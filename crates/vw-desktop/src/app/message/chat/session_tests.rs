@@ -1223,6 +1223,44 @@ fn processing_timing_start_uses_runtime_request_start_and_cancel_creates_indepen
 }
 
 #[test]
+fn send_starts_turn_focused_on_new_user_message() {
+    let (mut app, _task) = crate::app::App::new();
+    app.active_session_id = Some("s1".to_string());
+    app.sessions = vec![session_info("s1", "Session", "/repo")];
+    app.chat = vec![
+        chat_message(crate::app::models::ChatRole::User, "old question"),
+        chat_message(crate::app::models::ChatRole::Assistant, "old answer"),
+    ];
+    app.chat_virtualizer =
+        crate::app::components::chat_panel::virtualizer::ChatVirtualizer::from_estimated_heights(
+            &[120.0, 180.0],
+        );
+    app.chat_virtualizer.set_viewport_height(320.0);
+    app.chat_auto_scroll = true;
+
+    let task = super::start(
+        &mut app,
+        queue_item("new question", crate::app::state::ChatSendBehavior::Queue),
+        true,
+    );
+
+    assert_eq!(app.chat.len(), 4);
+    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(2));
+    assert!(!app.chat_auto_scroll);
+    assert!(task.units() >= 2);
+
+    let (mut restored_app, _task) = crate::app::App::new();
+    restored_app.active_session_id = Some("restored".to_string());
+    restored_app.sessions = vec![session_info("restored", "Restored", "/repo")];
+    let mut restore_item = queue_item("", crate::app::state::ChatSendBehavior::Queue);
+    restore_item.resume_history_only = true;
+
+    let _task = super::start(&mut restored_app, restore_item, true);
+
+    assert_eq!(restored_app.chat_virtualizer.turn_focus_user_index(), None);
+}
+
+#[test]
 fn start_without_project_reports_error_before_creating_session() {
     let (mut app, _task) = crate::app::App::new();
 

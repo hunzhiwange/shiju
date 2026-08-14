@@ -19,7 +19,9 @@ mod session;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use helpers::refresh_file_index;
-pub(crate) use helpers::{prepare_session_ui_chunks_task, prepare_session_ui_task};
+pub(crate) use helpers::{
+    prepare_session_ui_chunks_task, prepare_session_ui_task, prepare_stream_message_ui_task,
+};
 pub(crate) use session::loaded_chat_from_gateway_messages;
 
 #[derive(Debug, Clone)]
@@ -201,6 +203,7 @@ pub enum ProjectMessage {
     SessionCreated(vw_shared::session::info::Info),
     SessionsLoaded(Result<Vec<vw_shared::session::info::Info>, String>),
     SessionBootstrapLoaded {
+        project_path: Option<String>,
         result: Result<Vec<vw_shared::session::info::Info>, String>,
         previews: std::collections::HashMap<String, String>,
         archived_session_ids: std::collections::HashSet<String>,
@@ -242,7 +245,6 @@ pub enum ProjectMessage {
     ProjectCreateSessionPickerClose,
     ProjectCreateSessionWorktree(String),
     ProjectLoadSessions(String),
-    ProjectSessionsRefreshTick,
     RecentProjectsLoaded(Result<Vec<crate::app::RecentProjectMeta>, String>),
     ProjectInfoLoaded(Result<LoadedProjectInfo, String>),
     ProjectBranchesLoaded {
@@ -253,6 +255,11 @@ pub enum ProjectMessage {
     SessionMessagesLoaded(
         Result<(String, Vec<agent_message::WithParts>, crate::app::models::TokenUsage), String>,
     ),
+    SessionUiStoreLoaded {
+        session_id: String,
+        project_path: String,
+        result: Result<Option<crate::app::models::ChatSession>, String>,
+    },
     SessionUiPrepared {
         session_id: String,
         phase: crate::app::session::PreparedChatUiPhase,

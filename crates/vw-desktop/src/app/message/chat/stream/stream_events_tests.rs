@@ -423,6 +423,29 @@ fn queued_stream_deltas_are_coalesced_until_flush() {
 }
 
 #[test]
+fn active_stream_delta_flush_interval_is_one_second() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "active-session".to_string();
+    app.active_session_id = Some(session_id.clone());
+
+    assert_eq!(
+        super::stream_delta_flush_interval(&app, &session_id),
+        std::time::Duration::from_secs(1)
+    );
+}
+
+#[test]
+fn background_stream_delta_keeps_existing_interval() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("active-session".to_string());
+
+    assert_eq!(
+        super::stream_delta_flush_interval(&app, "background-session"),
+        std::time::Duration::from_millis(100)
+    );
+}
+
+#[test]
 fn active_stream_delta_updates_tail_without_replacing_chat_vector() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
@@ -472,7 +495,7 @@ fn active_stream_delta_updates_tail_without_replacing_chat_vector() {
 }
 
 #[test]
-fn tail_chunk_prewarm_is_coalesced_during_streaming() {
+fn tail_message_prewarm_does_not_mark_chunk_state() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
@@ -486,39 +509,42 @@ fn tail_chunk_prewarm_is_coalesced_during_streaming() {
     app.get_session_runtime_mut(&session_id).active_agent_request =
         Some(agent_request(42, &session_id));
 
-    let _first_task = super::handle_agent_stream_delta(&mut app, 42, "hello".to_string());
-    let tail_chunk_start = crate::app::session::chat_ui_chunk_start_idx(app.chat.len() - 1);
-    let stale_phase = crate::app::session::prepare_chat_ui_chunk_phase(
-        &app.chat[tail_chunk_start..],
-        tail_chunk_start,
-        false,
-        app.dialogue_flow_show_reasoning_summary,
-    );
+    let first_task = super::handle_agent_stream_delta(&mut app, 42, "hello".to_string());
+    let second_task = super::handle_agent_stream_delta(&mut app, 42, " world".to_string());
 
-    assert!(app.active_session_view_state.preparing_chat_ui_chunks.contains(&tail_chunk_start));
-    assert!(
-        !app.active_session_view_state.dirty_preparing_chat_ui_chunks.contains(&tail_chunk_start)
-    );
+    assert_eq!(first_task.units(), 2);
+    assert_eq!(second_task.units(), 2);
+    assert!(app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
+    assert!(app.active_session_view_state.dirty_preparing_chat_ui_chunks.is_empty());
+    assert_eq!(app.chat.last().unwrap().content, "hello world");
+}
 
-    let _second_task = super::handle_agent_stream_delta(&mut app, 42, " world".to_string());
+#[test]
+fn active_stream_growth_preserves_turn_top_focus() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![
+        message(ChatRole::Assistant, "old answer"),
+        message(ChatRole::Assistant, "more history"),
+        message(ChatRole::User, "new question"),
+        message(ChatRole::Assistant, ""),
+    ];
+    app.chat_message_ids = vec![None; app.chat.len()];
+    app.chat_auto_scroll = false;
+    app.chat_virtualizer =
+        ChatVirtualizer::from_estimated_heights(&[180.0, 180.0, 100.0, 0.0]);
+    app.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_virtualizer.focus_turn_on_user(2);
+    app.sync_chat_virtualizer_compat_fields();
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+    let anchored_top = app.chat_virtualizer.scroll_top_px();
 
-    assert!(app.active_session_view_state.preparing_chat_ui_chunks.contains(&tail_chunk_start));
-    assert!(
-        app.active_session_view_state.dirty_preparing_chat_ui_chunks.contains(&tail_chunk_start)
-    );
+    let _task = super::handle_agent_stream_delta(&mut app, 42, "growing answer".to_string());
 
-    app.apply_prepared_chat_ui_phase(stale_phase);
-
-    assert!(!app.active_session_view_state.preparing_chat_ui_chunks.contains(&tail_chunk_start));
-    assert!(!app.active_session_view_state.prepared_chat_ui_chunks.contains(&tail_chunk_start));
-
-    let _third_task = super::handle_agent_stream_delta(&mut app, 42, "!".to_string());
-
-    assert!(app.active_session_view_state.preparing_chat_ui_chunks.contains(&tail_chunk_start));
-    assert!(
-        !app.active_session_view_state.dirty_preparing_chat_ui_chunks.contains(&tail_chunk_start)
-    );
-    assert_eq!(app.chat.last().unwrap().content, "hello world!");
+    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(2));
+    assert_eq!(app.chat_virtualizer.scroll_top_px(), anchored_top);
 }
 
 #[test]

@@ -95,6 +95,81 @@ fn desktop_plan_run_waiting_and_cancelled_events_keep_session_lifecycle_consiste
 }
 
 #[test]
+fn stream_terminal_flushes_pending_active_delta_immediately() {
+    fn active_app(request_id: u64) -> crate::app::App {
+        let (mut app, _) = crate::app::App::new();
+        let session_id = format!("session-{request_id}");
+        app.active_session_id = Some(session_id.clone());
+        app.sessions = vec![session_info(&session_id, "Session", "/project")];
+        app.chat = vec![
+            chat_message(ChatRole::User, "question"),
+            chat_message(ChatRole::Assistant, ""),
+        ];
+        app.chat_message_ids = vec![None, None];
+        let runtime = app.get_session_runtime_mut(&session_id);
+        runtime.is_requesting = true;
+        runtime.active_agent_request = Some(agent_request(request_id, &session_id));
+        app
+    }
+
+    let mut done_app = active_app(51);
+    let done_session = done_app.active_session_id.clone().unwrap();
+    let _ = super::stream_events::queue_agent_stream_delta(
+        &mut done_app,
+        51,
+        "done tail".to_string(),
+    );
+    let _ = super::update(
+        &mut done_app,
+        super::ChatMessage::AgentStreamDone(
+            51,
+            crate::app::models::TokenUsage::default(),
+            None,
+            None,
+        ),
+    );
+    assert_eq!(done_app.chat[1].content, "done tail");
+    assert!(done_app.get_session_runtime(&done_session).pending_stream_delta.is_empty());
+    assert!(!done_app.get_session_runtime(&done_session).stream_delta_flush_scheduled);
+    assert_eq!(
+        super::stream_events::flush_agent_stream_delta(&mut done_app, done_session).units(),
+        0
+    );
+
+    let mut cancelled_app = active_app(52);
+    let cancelled_session = cancelled_app.active_session_id.clone().unwrap();
+    let _ = super::stream_events::queue_agent_stream_delta(
+        &mut cancelled_app,
+        52,
+        "cancelled tail".to_string(),
+    );
+    let _ = super::update(&mut cancelled_app, super::ChatMessage::AgentStreamCancelled(52));
+    assert_eq!(cancelled_app.chat[1].content, "cancelled tail");
+    assert!(
+        cancelled_app
+            .get_session_runtime(&cancelled_session)
+            .pending_stream_delta
+            .is_empty()
+    );
+    assert!(!cancelled_app.get_session_runtime(&cancelled_session).stream_delta_flush_scheduled);
+
+    let mut error_app = active_app(53);
+    let error_session = error_app.active_session_id.clone().unwrap();
+    let _ = super::stream_events::queue_agent_stream_delta(
+        &mut error_app,
+        53,
+        "error tail".to_string(),
+    );
+    let _ = super::update(
+        &mut error_app,
+        super::ChatMessage::AgentStreamError(53, "failed".to_string()),
+    );
+    assert_eq!(error_app.chat[1].content, "error tail");
+    assert!(error_app.get_session_runtime(&error_session).pending_stream_delta.is_empty());
+    assert!(!error_app.get_session_runtime(&error_session).stream_delta_flush_scheduled);
+}
+
+#[test]
 fn session_directory_for_save_skips_blank_session_directory() {
     let (mut app, _task) = crate::app::App::new();
     app.sessions = vec![session_info("session-1", "Title", "  \n")];

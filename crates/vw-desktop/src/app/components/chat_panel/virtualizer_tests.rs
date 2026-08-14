@@ -2,7 +2,9 @@
 //! 测试使用纯高度数据保护滚动锚点、尾部 sticky 和窗口 spacer 自洽。
 
 use super::height_index::CHAT_MESSAGE_GAP;
-use super::virtualizer::{ChatScrollAnchor, ChatScrollMode, ChatVirtualizer};
+use super::virtualizer::{
+    CHAT_TURN_TOP_INSET_PX, ChatScrollAnchor, ChatScrollMode, ChatVirtualizer,
+};
 
 #[test]
 fn chat_virtualizer_preserves_anchor_when_heights_change() {
@@ -106,4 +108,57 @@ fn chat_virtualizer_sync_len_extends_with_non_negative_estimates() {
     virtualizer.sync_len(3, -10.0);
 
     assert_eq!(virtualizer.estimated_heights(), &[25.0, 0.0, 0.0]);
+}
+
+#[test]
+fn chat_virtualizer_turn_focus_keeps_tail_user_below_viewport_top() {
+    let mut virtualizer = ChatVirtualizer::from_estimated_heights(&[120.0, 100.0, 0.0]);
+    virtualizer.set_viewport_height(300.0);
+
+    virtualizer.focus_turn_on_user(1);
+
+    let user_top = 120.0 + CHAT_MESSAGE_GAP;
+    assert_eq!(virtualizer.turn_focus_user_index(), Some(1));
+    assert_eq!(
+        virtualizer.anchor(),
+        Some(ChatScrollAnchor { index: 1, offset_px: -CHAT_TURN_TOP_INSET_PX })
+    );
+    assert_eq!(virtualizer.scroll_top_px(), user_top - CHAT_TURN_TOP_INSET_PX);
+    assert_eq!(virtualizer.max_scroll_top_px(), user_top - CHAT_TURN_TOP_INSET_PX);
+    assert!(virtualizer.trailing_runway_height_px() > 0.0);
+
+    virtualizer.release_turn_focus();
+
+    assert_eq!(virtualizer.turn_focus_user_index(), None);
+    assert_eq!(virtualizer.trailing_runway_height_px(), 0.0);
+    assert_eq!(virtualizer.scroll_mode(), ChatScrollMode::Free);
+}
+
+#[test]
+fn chat_virtualizer_turn_runway_shrinks_without_moving_anchor() {
+    let mut virtualizer = ChatVirtualizer::from_estimated_heights(&[120.0, 100.0, 0.0]);
+    virtualizer.set_viewport_height(300.0);
+    virtualizer.focus_turn_on_user(1);
+    let anchored_top = virtualizer.scroll_top_px();
+    let initial_runway = virtualizer.trailing_runway_height_px();
+    let initial_total = virtualizer.total_height_px();
+
+    virtualizer.set_viewport_height(340.0);
+
+    assert_eq!(virtualizer.scroll_top_px(), anchored_top);
+    assert_eq!(virtualizer.trailing_runway_height_px(), initial_runway + 40.0);
+    assert_eq!(virtualizer.total_height_px(), initial_total + 40.0);
+    let resized_total = virtualizer.total_height_px();
+
+    virtualizer.apply_measured_height(2, 80.0);
+
+    assert_eq!(virtualizer.scroll_top_px(), anchored_top);
+    assert_eq!(virtualizer.trailing_runway_height_px(), initial_runway - 40.0);
+    assert_eq!(virtualizer.total_height_px(), resized_total);
+
+    virtualizer.apply_measured_height(2, 240.0);
+
+    assert_eq!(virtualizer.scroll_top_px(), anchored_top);
+    assert_eq!(virtualizer.trailing_runway_height_px(), 0.0);
+    assert!(virtualizer.total_height_px() > resized_total);
 }

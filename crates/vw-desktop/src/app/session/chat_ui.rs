@@ -21,10 +21,20 @@ pub struct PreparedChatUiChunk {
 }
 
 #[derive(Debug, Clone)]
+pub struct PreparedChatUiMessage {
+    pub message_idx: usize,
+    pub render_cache: ChatRenderCacheEntry,
+    pub visible_text: String,
+    pub copy_hash: u64,
+    pub message_editor_text: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 /// 描述 PreparedChatUiPhase 支持的离散状态或消息分支。
 pub enum PreparedChatUiPhase {
     Base(PreparedChatUiChunk),
     Chunk(PreparedChatUiChunk),
+    Message(PreparedChatUiMessage),
 }
 
 /// CHAT_UI_CHUNK_SIZE 使用的固定配置值。
@@ -429,6 +439,21 @@ pub fn prepare_chat_ui_chunk_phase(
     if is_base { PreparedChatUiPhase::Base(chunk) } else { PreparedChatUiPhase::Chunk(chunk) }
 }
 
+pub fn prepare_chat_ui_message_phase(
+    message: &ChatMessage,
+    message_idx: usize,
+    show_reasoning_summary: bool,
+) -> PreparedChatUiPhase {
+    let mut parsed = parse_chat_ui_artifacts(std::slice::from_ref(message), show_reasoning_summary);
+    PreparedChatUiPhase::Message(PreparedChatUiMessage {
+        message_idx,
+        render_cache: parsed.render_cache.remove(&0).unwrap_or_default(),
+        visible_text: parsed.visible_texts.pop().flatten().unwrap_or_default(),
+        copy_hash: parsed.copy_hashes.pop().flatten().unwrap_or_default(),
+        message_editor_text: parsed.message_editor_texts.pop().flatten(),
+    })
+}
+
 impl App {
     pub(crate) fn sync_chat_virtualizer_compat_fields(&mut self) {
         self.chat_message_estimated_heights = self.chat_virtualizer.estimated_heights().to_vec();
@@ -791,17 +816,6 @@ impl App {
         }
     }
 
-    pub(crate) fn mark_chat_ui_chunk_preparing_or_dirty(&mut self, chunk_start_idx: usize) -> bool {
-        if self.active_session_view_state.preparing_chat_ui_chunks.contains(&chunk_start_idx) {
-            self.active_session_view_state.dirty_preparing_chat_ui_chunks.insert(chunk_start_idx);
-            false
-        } else {
-            self.active_session_view_state.preparing_chat_ui_chunks.insert(chunk_start_idx);
-            self.active_session_view_state.dirty_preparing_chat_ui_chunks.remove(&chunk_start_idx);
-            true
-        }
-    }
-
     /// 执行 invalidate_chat_ui_chunk 对应的领域操作。
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -932,6 +946,10 @@ impl App {
     pub fn apply_prepared_chat_ui_phase(&mut self, phase: PreparedChatUiPhase) {
         let chunk = match phase {
             PreparedChatUiPhase::Base(chunk) | PreparedChatUiPhase::Chunk(chunk) => chunk,
+            PreparedChatUiPhase::Message(message) => {
+                self.apply_prepared_chat_ui_message(message);
+                return;
+            }
         };
 
         let PreparedChatUiChunk {
@@ -1023,6 +1041,52 @@ impl App {
         let (visible_start_idx, visible_end_idx) = self.visible_chat_message_window();
         self.prune_chat_ui_chunks(visible_start_idx, visible_end_idx);
         self.prune_chat_heavy_editor_caches(visible_start_idx, visible_end_idx);
+    }
+
+    fn apply_prepared_chat_ui_message(&mut self, prepared: PreparedChatUiMessage) {
+        let PreparedChatUiMessage {
+            message_idx,
+            render_cache,
+            visible_text,
+            copy_hash,
+            message_editor_text,
+        } = prepared;
+        let Some(message) = self.chat.get(message_idx) else {
+            return;
+        };
+        let expected_hash =
+            crate::app::components::chat_panel::message_view::hash_chat_content(&message.content);
+        if render_cache.content_hash != expected_hash {
+            return;
+        }
+
+        if self.chat_visible_text_cache.len() < self.chat.len() {
+            self.chat_visible_text_cache.resize(self.chat.len(), None);
+        }
+        if self.chat_copy_hash_cache.len() < self.chat.len() {
+            self.chat_copy_hash_cache.resize(self.chat.len(), None);
+        }
+        if self.chat_message_editors.len() < self.chat.len() {
+            self.chat_message_editors.resize_with(self.chat.len(), text_editor::Content::new);
+        }
+
+        self.chat_special_text_editors
+            .retain(|key, _| (*key >> 32) as usize != message_idx);
+        self.chat_markdown_blocks.retain(|key, _| (*key >> 32) as usize != message_idx);
+        self.chat_markdown_block_editors
+            .retain(|key, _| (*key >> 64) as usize != message_idx);
+        self.chat_tool_text_editors.retain(|key, _| (*key >> 64) as usize != message_idx);
+        self.chat_think_editors.retain(|key, _| (*key >> 32) as usize != message_idx);
+
+        self.chat_render_cache.insert(message_idx, render_cache.clone());
+        sync_chat_aux_text_editors_for_message(self, message_idx, &render_cache);
+        self.chat_visible_text_cache[message_idx] = Some(visible_text);
+        self.chat_copy_hash_cache[message_idx] = Some(copy_hash);
+        self.chat_message_editors[message_idx] = message_editor_text
+            .as_deref()
+            .map(text_editor::Content::with_text)
+            .unwrap_or_else(text_editor::Content::new);
+        self.refine_chat_message_estimated_heights(message_idx, message_idx + 1);
     }
 
     /// 执行 pending_chat_message_editors_window_chunks 对应的领域操作。

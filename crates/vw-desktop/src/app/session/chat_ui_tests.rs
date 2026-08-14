@@ -266,21 +266,6 @@ fn protected_chat_ui_chunk_starts_keeps_requesting_tail_assistant_chunk() {
 }
 
 #[test]
-fn mark_chat_ui_chunk_preparing_or_dirty_reports_first_and_repeated_requests() {
-    let (mut app, _task) = super::App::new();
-
-    assert!(app.mark_chat_ui_chunk_preparing_or_dirty(32));
-    assert!(app.active_session_view_state.preparing_chat_ui_chunks.contains(&32));
-    assert!(!app.active_session_view_state.dirty_preparing_chat_ui_chunks.contains(&32));
-
-    assert!(!app.mark_chat_ui_chunk_preparing_or_dirty(32));
-    assert!(app.active_session_view_state.dirty_preparing_chat_ui_chunks.contains(&32));
-
-    app.mark_chat_ui_chunks_preparing(&[32]);
-    assert!(!app.active_session_view_state.dirty_preparing_chat_ui_chunks.contains(&32));
-}
-
-#[test]
 fn unload_chat_ui_chunk_clears_derived_caches_but_preserves_interaction_state() {
     let (mut app, _task) = super::App::new();
     app.chat = vec![message(super::ChatRole::Assistant, "answer")];
@@ -440,4 +425,61 @@ fn apply_prepared_chat_ui_phase_missing_cache_entry_marks_chunk_stale() {
     assert!(!app.active_session_view_state.dirty_preparing_chat_ui_chunks.contains(&0));
     assert!(!app.chat_render_cache.contains_key(&0));
     assert_eq!(app.chat_visible_text_cache[0], None);
+}
+
+#[test]
+fn prepared_stream_message_updates_only_target_cache() {
+    let (mut app, _task) = super::App::new();
+    app.chat = vec![
+        message(super::ChatRole::Assistant, "first"),
+        message(super::ChatRole::Assistant, "old tail"),
+        message(super::ChatRole::Assistant, "neighbor"),
+    ];
+    app.apply_prepared_chat_ui_phase(super::prepare_chat_ui_chunk_phase(
+        &app.chat,
+        0,
+        true,
+        false,
+    ));
+    let first_hash = app.chat_render_cache[&0].content_hash;
+    let neighbor_hash = app.chat_render_cache[&2].content_hash;
+    let target_interaction_key = (1_u64) << 32;
+    let neighbor_interaction_key = (2_u64) << 32;
+    app.chat_tool_expanded.extend([target_interaction_key, neighbor_interaction_key]);
+
+    app.chat[1].content = "new streamed tail".to_string();
+    let phase = super::prepare_chat_ui_message_phase(&app.chat[1], 1, false);
+    app.apply_prepared_chat_ui_phase(phase);
+
+    assert_eq!(app.chat_render_cache[&0].content_hash, first_hash);
+    assert_eq!(app.chat_render_cache[&2].content_hash, neighbor_hash);
+    assert_eq!(
+        app.chat_render_cache[&1].content_hash,
+        crate::app::components::chat_panel::message_view::hash_chat_content("new streamed tail")
+    );
+    assert_eq!(app.chat_visible_text_cache[1].as_deref(), Some("new streamed tail"));
+    assert!(app.chat_tool_expanded.contains(&target_interaction_key));
+    assert!(app.chat_tool_expanded.contains(&neighbor_interaction_key));
+}
+
+#[test]
+fn stale_prepared_stream_message_is_ignored() {
+    let (mut app, _task) = super::App::new();
+    app.chat = vec![message(super::ChatRole::Assistant, "old")];
+    app.chat_render_cache.insert(
+        0,
+        super::ChatRenderCacheEntry {
+            content_hash: 77,
+            display_text: "kept".to_string(),
+            ..super::ChatRenderCacheEntry::default()
+        },
+    );
+    app.chat_visible_text_cache = vec![Some("kept".to_string())];
+    let stale_phase = super::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
+    app.chat[0].content = "newer".to_string();
+
+    app.apply_prepared_chat_ui_phase(stale_phase);
+
+    assert_eq!(app.chat_render_cache[&0].content_hash, 77);
+    assert_eq!(app.chat_visible_text_cache[0].as_deref(), Some("kept"));
 }

@@ -204,8 +204,10 @@ fn reload_sessions_for_project_clears_current_session_state_before_loading() {
 #[test]
 fn reload_sessions_for_project_with_path_returns_runnable_task() {
     let (mut app, _startup_task) = crate::app::App::new();
+    let project_path = "/workspace/project".to_string();
 
-    let reload_task = app.reload_sessions_for_project(Some("/workspace/project".to_string()));
+    let reload_task = app.reload_sessions_for_project(Some(project_path.clone()));
 
     assert!(iced_runtime::task::into_stream(reload_task.collect()).is_some());
+    assert!(app.project_sessions_loading.contains(&project_path));
 }

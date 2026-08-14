@@ -274,6 +274,13 @@ fn user_question_tooltip_content(label: String) -> Element<'static, Message> {
 /// let main_view = container(chat_panel);
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
+    let is_loading_session_ui = app.active_session_id.is_some()
+        && app.active_session_view_state.ui_preparing
+        && !app.active_session_view_state.base_ready;
+    if is_loading_session_ui {
+        return session_loading_panel(app);
+    }
+
     let window = chat_panel_virtual_window(app);
     let start_idx = window.render_start_idx;
     let end_idx = window.render_end_idx;
@@ -358,9 +365,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     });
 
     // 判断会话是否已开始：存在活跃会话且消息列表非空
-    let is_loading_session_ui = app.active_session_id.is_some()
-        && app.active_session_view_state.ui_preparing
-        && !app.active_session_view_state.base_ready;
     let has_started = if app.active_session_id.is_some() { !app.chat.is_empty() } else { false };
 
     if has_started {
@@ -394,8 +398,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .width(Length::Fill)
             .height(Length::Fill);
         chat_panel_context_menu_overlay(app, panel_base)
-    } else if is_loading_session_ui {
-        session_loading_panel(app)
     } else {
         column![
             stack![empty_session_placeholder(app), empty_fullscreen_controls(app)]

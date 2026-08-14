@@ -27,8 +27,9 @@ pub(crate) use self::agent_children::{
 };
 /// 对外暴露当前模块需要复用的能力。
 pub use self::chat_ui::{
-    CHAT_UI_CHUNK_SIZE, PreparedChatUiChunk, PreparedChatUiPhase, chat_ui_chunk_bounds,
-    chat_ui_chunk_start_idx, prepare_chat_ui_chunk_phase,
+    CHAT_UI_CHUNK_SIZE, PreparedChatUiChunk, PreparedChatUiMessage, PreparedChatUiPhase,
+    chat_ui_chunk_bounds, chat_ui_chunk_start_idx, prepare_chat_ui_chunk_phase,
+    prepare_chat_ui_message_phase,
 };
 /// 对外暴露当前模块需要复用的能力。
 pub use self::loading::{

@@ -1996,7 +1996,9 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
     });
     let request_started_ms = crate::app::time::now_ms();
     let appended_start_idx = app.chat.len();
-    if !request_query.trim().is_empty() {
+    let appended_user_idx = if request_query.trim().is_empty() {
+        None
+    } else {
         app.chat.push(models::ChatMessage {
             role: models::ChatRole::User,
             content: request_query.clone(),
@@ -2005,7 +2007,8 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             processing_timing: None,
         });
         app.chat_message_ids.push(None);
-    }
+        Some(appended_start_idx)
+    };
     app.chat.push(models::ChatMessage {
         role: models::ChatRole::Assistant,
         content: String::new(),
@@ -2141,7 +2144,10 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
     let title_task = stream::maybe_generate_session_title(app);
     save_tasks.push(submit);
     save_tasks.push(Task::done(Message::Chat(ChatMessage::LoadInputPanelTodos)));
-    if app.chat_auto_scroll {
+    if let Some(user_idx) = appended_user_idx {
+        save_tasks.push(super::scroll_chat_to_turn_top_task(app, user_idx));
+        save_tasks.push(title_task);
+    } else if app.chat_auto_scroll {
         save_tasks.push(super::scroll_chat_to_bottom_task(app).chain(title_task));
     } else {
         save_tasks.push(title_task);

@@ -1,7 +1,8 @@
 use super::find_results::{
     FIND_CASE_SHORTCUT, FIND_REGEX_SHORTCUT, FIND_RESULTS_SCROLLBAR_GUTTER,
-    FIND_WHOLE_WORD_SHORTCUT, build_find_results_list, find_match_highlight_bg, find_option_button,
-    find_option_button_style, find_scope_input_style, find_scope_input_value, to_relative_path,
+    FIND_WHOLE_WORD_SHORTCUT, build_find_results_list, build_find_results_tabs,
+    find_match_highlight_bg, find_option_button, find_option_button_style, find_run_button_style,
+    find_scope_input_style, find_scope_input_value, to_relative_path,
 };
 use crate::app::state::{
     FIND_RESULTS_PAGE_SIZE, FindInFolderMatch, FindInFolderTab, find_results_page_bounds,
@@ -12,7 +13,7 @@ use iced::advanced::Layout;
 use iced::advanced::layout;
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
-use iced::{Font, Pixels, Size, Theme};
+use iced::{Color, Font, Pixels, Size, Theme};
 
 fn find_tab(id: &str) -> FindInFolderTab {
     FindInFolderTab {
@@ -100,6 +101,32 @@ fn find_option_shortcut_labels_match_platform_conventions() {
         [FIND_CASE_SHORTCUT, FIND_WHOLE_WORD_SHORTCUT, FIND_REGEX_SHORTCUT],
         ["Ctrl+Alt+C", "Ctrl+Alt+W", "Ctrl+Alt+X"]
     );
+}
+
+#[test]
+fn find_results_tabs_build_empty_and_populated_tab_bar() {
+    let empty = App::new().0;
+    assert_eq!(child_count(build_find_results_tabs(&empty)), 1);
+
+    let mut app = App::new().0;
+    app.find_results_tabs.push(find_tab("first"));
+    app.find_results_tabs.push(find_tab("second"));
+    app.active_find_results_tab_id = Some("second".to_string());
+
+    assert_eq!(child_count(build_find_results_tabs(&app)), 1);
+}
+
+#[test]
+fn find_run_button_uses_white_text_in_all_themes() {
+    for theme in [Theme::Dark, Theme::Light] {
+        for status in [
+            iced::widget::button::Status::Active,
+            iced::widget::button::Status::Hovered,
+            iced::widget::button::Status::Pressed,
+        ] {
+            assert_eq!(find_run_button_style(&theme, status).text_color, Color::WHITE);
+        }
+    }
 }
 
 #[test]

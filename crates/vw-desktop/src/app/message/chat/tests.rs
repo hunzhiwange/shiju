@@ -101,6 +101,28 @@ fn scroll_chat_to_bottom_with_followups_snaps_virtualizer_and_syncs_compat_field
 }
 
 #[test]
+fn turn_top_scroll_task_focuses_requested_user_and_requests_measurement() {
+    use crate::app::components::chat_panel::virtualizer::{
+        CHAT_TURN_TOP_INSET_PX, ChatScrollAnchor, ChatVirtualizer,
+    };
+
+    let (mut app, _task) = crate::app::App::new();
+    app.chat_auto_scroll = true;
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[120.0, 100.0, 0.0]);
+    app.chat_virtualizer.set_viewport_height(300.0);
+
+    let task = super::scroll_chat_to_turn_top_task(&mut app, 1);
+
+    assert!(!app.chat_auto_scroll);
+    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(1));
+    assert_eq!(
+        app.chat_virtualizer.anchor(),
+        Some(ChatScrollAnchor { index: 1, offset_px: -CHAT_TURN_TOP_INSET_PX })
+    );
+    assert_eq!(task.units(), 2);
+}
+
+#[test]
 fn measure_visible_chat_messages_task_schedules_widget_operation() {
     let task = super::measure_visible_chat_messages_task();
 
@@ -153,6 +175,47 @@ fn stream_delta_syncs_and_prunes_think_block_state() {
     assert!(!app.chat_think_editors.contains_key(&key));
     assert!(!app.chat_think_expanded.contains(&key));
     assert!(!app.chat_think_collapsed.contains(&key));
+}
+
+#[test]
+fn stream_flush_schedules_one_tail_ui_prepare_without_generic_chunk_sweep() {
+    use crate::app::components::chat_panel::virtualizer::ChatVirtualizer;
+    use crate::app::models::{ChatMessage as ModelChatMessage, ChatRole};
+
+    let (mut app, _task) = crate::app::App::new();
+    let session_id = "active".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = (0..39)
+        .map(|idx| ModelChatMessage {
+            role: ChatRole::User,
+            content: format!("history {idx}"),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        })
+        .chain(std::iter::once(ModelChatMessage {
+            role: ChatRole::Assistant,
+            content: String::new(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        }))
+        .collect();
+    app.chat_message_ids = vec![None; app.chat.len()];
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&vec![100.0; app.chat.len()]);
+    app.chat_virtualizer.set_viewport_height(240.0);
+    app.chat_virtualizer.snap_to_tail();
+    app.chat_auto_scroll = false;
+    app.sync_chat_virtualizer_compat_fields();
+    let runtime = app.get_session_runtime_mut(&session_id);
+    runtime.pending_stream_delta = "one-second tail".to_string();
+    runtime.stream_delta_flush_scheduled = true;
+
+    let task = super::update(&mut app, super::ChatMessage::AgentStreamDeltaFlush(session_id));
+
+    assert_eq!(app.chat.last().unwrap().content, "one-second tail");
+    assert_eq!(task.units(), 2, "one message prepare plus one save task");
+    assert!(app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
 }
 
 #[test]

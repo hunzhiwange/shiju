@@ -125,6 +125,7 @@ fn chat_scroll_semantics_locate_message_uses_virtualizer_anchor() {
     app.chat_auto_scroll = true;
     app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[100.0; 8]);
     app.chat_virtualizer.set_viewport_height(220.0);
+    app.chat_virtualizer.focus_turn_on_user(6);
     app.sync_chat_virtualizer_compat_fields();
     for idx in 0..app.chat.len() {
         app.chat_message_measured_heights.insert(idx, 100.0);
@@ -134,6 +135,7 @@ fn chat_scroll_semantics_locate_message_uses_virtualizer_anchor() {
 
     let expected_scroll_top = 4.0 * (100.0 + CHAT_MESSAGE_GAP) + 100.0 * 0.50 - 220.0 * 0.18;
     assert!(!app.chat_auto_scroll);
+    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), None);
     assert!((app.chat_virtualizer.scroll_top_px() - expected_scroll_top).abs() < 0.01);
     assert_eq!(app.chat_scroll_offset_y, app.chat_virtualizer.relative_y());
 }

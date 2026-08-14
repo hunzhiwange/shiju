@@ -200,41 +200,12 @@ impl App {
             Subscription::none()
         };
 
-        let task_board_refresh = if self.task_board_settings.auto_refresh {
-            iced::time::every(std::time::Duration::from_secs(
-                self.task_board_settings.refresh_interval_seconds.clamp(1, 3600),
-            ))
-            .map(|_| Message::TaskBoard(message::TaskBoardMessage::LoadTasks))
-        } else {
-            Subscription::none()
-        };
-
         let task_board_ui_tick = if self.screen == Screen::TaskBoard {
             iced::time::every(std::time::Duration::from_secs(1))
                 .map(|_| Message::TaskBoard(message::TaskBoardMessage::UiTick))
         } else {
             Subscription::none()
         };
-
-        let project_sessions_refresh =
-            if self.show_settings || self.hovered_recent_project.is_some() {
-                let interval_secs = self
-                    .show_settings
-                    .then_some(self.project_path.as_ref())
-                    .flatten()
-                    .or(self.hovered_recent_project.as_ref())
-                    .and_then(|path| {
-                        self.recent_projects_meta
-                            .iter()
-                            .find(|meta| &meta.path == path)
-                            .map(|meta| meta.session_refresh_interval_seconds.clamp(1, 3600))
-                    })
-                    .unwrap_or(60);
-                iced::time::every(std::time::Duration::from_secs(interval_secs))
-                    .map(|_| Message::Project(message::ProjectMessage::ProjectSessionsRefreshTick))
-            } else {
-                Subscription::none()
-            };
 
         #[cfg(not(target_arch = "wasm32"))]
         let preview_lsp_tick = if self.lsp_disabled {
@@ -297,9 +268,7 @@ impl App {
             permission_poll,
             todo_poll,
             activity_animation_tick,
-            task_board_refresh,
             task_board_ui_tick,
-            project_sessions_refresh,
             preview_lsp_tick,
             design_generation_stream_tick,
             provider_models_sync_tick,

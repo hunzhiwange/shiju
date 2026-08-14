@@ -18,7 +18,16 @@ use vw_shared::message::types as message;
 use vw_shared::session::info as session_info;
 
 /// 将连续的模型增量合并后再交给 UI，避免每个 token 都触发重排、预热和保存。
-pub(super) const STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(100);
+pub(super) const ACTIVE_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_secs(1);
+pub(super) const BACKGROUND_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(100);
+
+pub(super) fn stream_delta_flush_interval(app: &App, session_id: &str) -> Duration {
+    if app.active_session_id.as_deref() == Some(session_id) {
+        ACTIVE_STREAM_DELTA_FLUSH_INTERVAL
+    } else {
+        BACKGROUND_STREAM_DELTA_FLUSH_INTERVAL
+    }
+}
 
 fn update_think_timing_from_delta(message: &mut models::ChatMessage, delta: &str, now: u64) {
     if delta.is_empty() {
@@ -280,7 +289,7 @@ fn continuation_label_from_history(history: &[models::ChatMessage]) -> String {
 fn prepare_scroll_for_active_stream_growth(app: &mut App) {
     if app.chat_auto_scroll {
         app.chat_virtualizer.snap_to_tail();
-    } else {
+    } else if app.chat_virtualizer.turn_focus_user_index().is_none() {
         app.chat_virtualizer.preserve_current_anchor_around();
     }
     app.sync_chat_virtualizer_compat_fields();
@@ -362,26 +371,15 @@ fn finish_active_stream_tail_update(
 
     let mut tail_prewarm_task = Task::none();
     let mut should_snap_to_bottom = false;
-    if let Some(last_idx) = app.chat.len().checked_sub(1) {
-        app.refine_chat_message_estimated_heights(last_idx, last_idx + 1);
-        let tail_chunk_start = crate::app::session::chat_ui_chunk_start_idx(last_idx);
-        let tail_is_visible = {
-            let (visible_start_idx, visible_end_idx) = app.visible_chat_message_window();
-            last_idx >= visible_start_idx && last_idx < visible_end_idx
-        };
+    if let Some(message) = app.chat.get(changed_idx).cloned() {
+        app.refine_chat_message_estimated_heights(changed_idx, changed_idx + 1);
         should_snap_to_bottom = app.chat_virtualizer.should_follow_tail_after_growth();
-        if (should_snap_to_bottom || tail_is_visible)
-            && app.mark_chat_ui_chunk_preparing_or_dirty(tail_chunk_start)
-        {
-            let shared_chat = crate::app::session::shared_chat_messages(app.chat.clone());
-            tail_prewarm_task = crate::app::message::project::prepare_session_ui_task(
-                session_id.clone(),
-                shared_chat,
-                tail_chunk_start,
-                false,
-                app.dialogue_flow_show_reasoning_summary,
-            );
-        }
+        tail_prewarm_task = crate::app::message::project::prepare_stream_message_ui_task(
+            session_id.clone(),
+            message,
+            changed_idx,
+            app.dialogue_flow_show_reasoning_summary,
+        );
     }
 
     app.active_session_view_state.updated_ms = now;
@@ -415,6 +413,7 @@ pub(super) fn queue_agent_session_delta(
         return Task::none();
     }
 
+    let flush_interval = stream_delta_flush_interval(app, &session_id);
     let schedule_flush = {
         let runtime = app.get_session_runtime_mut(&session_id);
         runtime.pending_stream_delta.push_str(&delta);
@@ -428,7 +427,7 @@ pub(super) fn queue_agent_session_delta(
 
     if schedule_flush {
         crate::app::message::after(
-            STREAM_DELTA_FLUSH_INTERVAL,
+            flush_interval,
             Message::Chat(super::ChatMessage::AgentStreamDeltaFlush(session_id)),
         )
     } else {

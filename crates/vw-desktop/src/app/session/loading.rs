@@ -75,6 +75,9 @@ impl App {
         self.usage = TokenUsage::default();
         self.invalidate_chat_ui_state();
 
+        if let Some(project_path) = path.as_ref() {
+            self.project_sessions_loading.insert(project_path.clone());
+        }
         let path_clone = path.clone();
         let project_id = self.project_id.clone();
 
@@ -135,7 +138,7 @@ impl App {
 
                 Ok((sessions, preview_map, archived_session_ids))
             },
-            |res: Result<
+            move |res: Result<
                 (
                     Vec<vw_shared::session::info::Info>,
                     std::collections::HashMap<String, String>,
@@ -145,6 +148,7 @@ impl App {
             >| match res {
                 Ok((sessions, previews, archived_session_ids)) => crate::app::Message::Project(
                     crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
+                        project_path: path.clone(),
                         result: Ok(sessions),
                         previews,
                         archived_session_ids,
@@ -152,6 +156,7 @@ impl App {
                 ),
                 Err(err) => crate::app::Message::Project(
                     crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
+                        project_path: path,
                         result: Err(err.to_string()),
                         previews: std::collections::HashMap::new(),
                         archived_session_ids: std::collections::HashSet::new(),

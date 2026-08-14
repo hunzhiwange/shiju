@@ -4,8 +4,8 @@ use super::{
     find_session_project_path, is_supported_image_attachment, is_word_byte, map_gateway_project,
     map_loaded_project_info, map_timestamp, normalize_path, path_within_dir,
     prepare_session_ui_chunks_task, prepare_session_ui_task, refresh_file_index,
-    relative_to_project, resolve_absolute_gateway_path, run_find_task, sanitize_attachment_stem,
-    stabilize_image_attachment, unique_name_in_dir,
+    prepare_stream_message_ui_task, relative_to_project, resolve_absolute_gateway_path,
+    run_find_task, sanitize_attachment_stem, stabilize_image_attachment, unique_name_in_dir,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use super::{build_clipboard_image_attachment_path, persist_clipboard_image_attachment};
@@ -714,6 +714,36 @@ async fn prepare_session_ui_tasks_return_none_for_empty_work_units() {
     ))
     .await;
     assert!(empty_batch_messages.is_empty());
+}
+
+#[tokio::test]
+async fn prepare_stream_message_ui_task_prepares_only_target() {
+    let message = crate::app::models::ChatMessage {
+        role: crate::app::models::ChatRole::Assistant,
+        content: "stream tail".to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    };
+
+    let messages = collect_task_messages(prepare_stream_message_ui_task(
+        "session-1".to_string(),
+        message,
+        47,
+        false,
+    ))
+    .await;
+
+    let [crate::app::Message::Project(crate::app::message::ProjectMessage::SessionUiPrepared {
+        session_id,
+        phase: crate::app::session::PreparedChatUiPhase::Message(prepared),
+    })] = messages.as_slice()
+    else {
+        panic!("single-message task should return one prepared message")
+    };
+    assert_eq!(session_id, "session-1");
+    assert_eq!(prepared.message_idx, 47);
+    assert_eq!(prepared.render_cache.display_text, "stream tail");
 }
 
 fn project_dto(current_branch: Option<&str>) -> ProjectDto {

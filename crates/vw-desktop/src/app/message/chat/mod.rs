@@ -56,6 +56,29 @@ pub(super) fn scroll_chat_to_bottom_task(app: &mut App) -> Task<Message> {
     .map(|_: ()| Message::CopyDone)
 }
 
+pub(super) fn scroll_chat_to_turn_top_task(
+    app: &mut App,
+    user_index: usize,
+) -> Task<Message> {
+    if user_index >= app.chat_virtualizer.len() {
+        return Task::none();
+    }
+
+    app.chat_auto_scroll = false;
+    app.chat_virtualizer.focus_turn_on_user(user_index);
+    app.sync_chat_virtualizer_compat_fields();
+    let relative_y = app.chat_virtualizer.relative_y();
+
+    Task::batch([
+        iced::widget::operation::snap_to(
+            app.chat_scroll_id.clone(),
+            scrollable::RelativeOffset { x: Some(0.0), y: Some(relative_y) },
+        )
+        .map(|_: ()| Message::CopyDone),
+        measure_visible_chat_messages_task(),
+    ])
+}
+
 pub(super) fn throttled_stream_autoscroll_task(app: &mut App) -> Option<Task<Message>> {
     if !app.chat_auto_scroll {
         return None;
@@ -937,7 +960,10 @@ pub enum ChatMessage {
 /// ```
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     // 检查是否为流式增量消息，用于后续特殊处理
-    let is_stream_delta = matches!(message, ChatMessage::AgentStreamDelta(_, _));
+    let is_stream_delta = matches!(
+        message,
+        ChatMessage::AgentStreamDelta(_, _) | ChatMessage::AgentStreamDeltaFlush(_)
+    );
 
     // 根据消息类型路由到对应的子模块处理函数
     let mut task = match message {

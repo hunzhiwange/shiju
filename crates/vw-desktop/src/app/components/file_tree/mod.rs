@@ -26,7 +26,7 @@
 
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Background, Color, Element, Length, Theme};
 
 use crate::app::components::status_animation::spinner_frame;
@@ -310,10 +310,20 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
 
     let content = container(list_content).width(Length::Fill).height(Length::Fill);
 
+    let results_tabs: Element<'_, Message> = if app.find_results_tabs.is_empty() {
+        Space::new().height(Length::Fixed(0.0)).into()
+    } else {
+        find_results::build_find_results_tabs(app)
+    };
+
     // 组装完整的文件管理器界面
-    // 布局顺序：模式栏 -> 内容区域
+    // 布局顺序：模式栏 -> 搜索结果标签页 -> 内容区域
     let base: Element<'_, Message> =
-        column![header, content].spacing(2).width(Length::Fill).height(Length::Fill).into();
+        column![header, results_tabs, content]
+            .spacing(2)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into();
 
     base
 }

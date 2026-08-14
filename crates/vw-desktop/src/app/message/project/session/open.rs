@@ -9,13 +9,7 @@ use crate::app::message::project::helpers::{
     load_session_messages_task, prepare_session_ui_task,
 };
 use crate::app::projects::save_recent_projects_meta_background;
-use crate::app::{
-    App, Message, models,
-    state::{
-        default_recent_project_session_auto_refresh,
-        default_recent_project_session_refresh_interval_seconds,
-    },
-};
+use crate::app::{App, Message, models};
 
 fn merge_project_sessions(
     existing: Option<Vec<vw_shared::session::info::Info>>,
@@ -32,6 +26,24 @@ fn merge_project_sessions(
         }
     }
     merged
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn load_session_ui_store_task(project_path: String, session_id: String) -> iced::Task<Message> {
+    iced::Task::perform(
+        async move {
+            let result =
+                crate::app::session_gateway::gateway_load_session_any_async(&session_id).await;
+            (session_id, project_path, result)
+        },
+        |(session_id, project_path, result)| {
+            Message::Project(ProjectMessage::SessionUiStoreLoaded {
+                session_id,
+                project_path,
+                result,
+            })
+        },
+    )
 }
 
 /// handle 处理当前模块对应的消息或状态转换。
@@ -126,84 +138,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 "prepared active session state before loading history"
             );
 
-            #[cfg(not(target_arch = "wasm32"))]
-            let mut loaded_from_ui_store_has_missing_message_ids = false;
-            #[cfg(not(target_arch = "wasm32"))]
-            let loaded_from_ui_store = if app.chat.is_empty() && !app.session_is_requesting(&id) {
-                if let Some(mut session) =
-                    crate::app::session_gateway::gateway_load_session_any(&id)
-                {
-                    if session.messages.is_empty() {
-                        false
-                    } else {
-                        let missing_message_model_count = session
-                            .messages
-                            .iter()
-                            .filter(|message| message.model.is_none())
-                            .count();
-                        crate::app::session::backfill_message_models_from_steps(
-                            &mut session.messages,
-                            &session.steps,
-                        );
-                        let backfilled_message_model = session
-                            .messages
-                            .iter()
-                            .filter(|message| message.model.is_none())
-                            .count()
-                            < missing_message_model_count;
-                        if backfilled_message_model {
-                            let _ = crate::app::session_gateway::gateway_save_session(
-                                &session,
-                                Some(&resolved_path),
-                            );
-                        }
-                        let usage = session.steps.iter().fold(
-                            models::TokenUsage::default(),
-                            |mut acc, step| {
-                                acc.input_tokens += step.usage.input_tokens;
-                                acc.output_tokens += step.usage.output_tokens;
-                                acc.cached_tokens += step.usage.cached_tokens;
-                                acc.reasoning_tokens += step.usage.reasoning_tokens;
-                                acc
-                            },
-                        );
-                        let shared_chat =
-                            crate::app::session::shared_chat_messages(session.messages.clone());
-                        app.chat = shared_chat.iter().cloned().collect();
-                        app.chat_message_ids = if session.message_ids.len() == app.chat.len() {
-                            session.message_ids.clone()
-                        } else {
-                            vec![None; app.chat.len()]
-                        };
-                        loaded_from_ui_store_has_missing_message_ids =
-                            app.chat_message_ids.iter().any(Option::is_none);
-                        app.store_session_chat_snapshot(
-                            id.clone(),
-                            shared_chat,
-                            app.chat_message_ids.clone(),
-                        );
-                        app.usage = usage;
-                        app.active_session_view_state.updated_ms = session.updated_ms;
-                        app.replace_active_session_steps(session.steps.clone());
-                        app.replace_active_session_calls(session.calls.clone());
-                        if !loaded_from_ui_store_has_missing_message_ids
-                            && app.restore_session_model_from_steps(&id, &session.steps)
-                        {
-                            app.sync_active_session_preferences();
-                        }
-                        true
-                    }
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
-            #[cfg(target_arch = "wasm32")]
-            let loaded_from_ui_store_has_missing_message_ids = false;
-            #[cfg(target_arch = "wasm32")]
-            let loaded_from_ui_store = false;
-
             let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
             let initial_prewarm_task = if app.chat.is_empty() {
                 iced::Task::none()
@@ -221,33 +155,144 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
             let has_requesting_cache =
                 app.session_is_requesting(&id) && app.session_chat_cache.contains_key(&id);
-            let should_load_remote = (!loaded_from_ui_store
-                || loaded_from_ui_store_has_missing_message_ids)
-                && !has_requesting_cache;
+            #[cfg(not(target_arch = "wasm32"))]
+            let history_load_task = if app.chat.is_empty() && !app.session_is_requesting(&id) {
+                load_session_ui_store_task(resolved_path.clone(), id.clone())
+            } else if !has_requesting_cache {
+                load_session_messages_task(resolved_path.clone(), id.clone())
+            } else {
+                iced::Task::none()
+            };
+            #[cfg(target_arch = "wasm32")]
+            let history_load_task = if !has_requesting_cache {
+                load_session_messages_task(resolved_path.clone(), id.clone())
+            } else {
+                iced::Task::none()
+            };
             tracing::info!(
                 target: "vw_desktop",
                 session_id = %id,
                 project_path = %resolved_path,
-                loaded_from_ui_store,
-                loaded_from_ui_store_has_missing_message_ids,
                 has_requesting_cache,
-                should_load_remote,
                 current_messages = app.chat.len(),
                 "resolved session history bootstrap strategy"
             );
-
-            let load_task = if should_load_remote {
-                load_session_messages_task(resolved_path, id)
-            } else {
-                iced::Task::none()
-            };
             Some(iced::Task::batch(vec![
                 open_task,
                 initial_prewarm_task,
-                load_task,
+                history_load_task,
                 iced::Task::done(Message::Chat(
                     crate::app::message::ChatMessage::LoadInputPanelTodos,
                 )),
+            ]))
+        }
+        ProjectMessage::SessionUiStoreLoaded { session_id, project_path, result } => {
+            if app.active_session_id.as_ref() != Some(&session_id) {
+                return Some(iced::Task::none());
+            }
+
+            let mut session = match result {
+                Ok(Some(session)) if !session.messages.is_empty() => session,
+                Ok(_) => {
+                    return Some(load_session_messages_task(project_path, session_id));
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        target: "vw_desktop",
+                        session_id = %session_id,
+                        error = %error,
+                        "failed to load session UI snapshot; falling back to message history"
+                    );
+                    return Some(load_session_messages_task(project_path, session_id));
+                }
+            };
+
+            let missing_message_model_count =
+                session.messages.iter().filter(|message| message.model.is_none()).count();
+            crate::app::session::backfill_message_models_from_steps(
+                &mut session.messages,
+                &session.steps,
+            );
+            let backfilled_message_model = session
+                .messages
+                .iter()
+                .filter(|message| message.model.is_none())
+                .count()
+                < missing_message_model_count;
+            let persist_backfill_task = if backfilled_message_model {
+                let session = session.clone();
+                let directory = project_path.clone();
+                iced::Task::perform(
+                    async move {
+                        crate::app::session_gateway::gateway_save_session_async(
+                            &session,
+                            Some(&directory),
+                        )
+                        .await
+                    },
+                    |_| Message::None,
+                )
+            } else {
+                iced::Task::none()
+            };
+
+            let usage = session.steps.iter().fold(
+                models::TokenUsage::default(),
+                |mut acc, step| {
+                    acc.input_tokens += step.usage.input_tokens;
+                    acc.output_tokens += step.usage.output_tokens;
+                    acc.cached_tokens += step.usage.cached_tokens;
+                    acc.reasoning_tokens += step.usage.reasoning_tokens;
+                    acc
+                },
+            );
+            let shared_chat =
+                crate::app::session::shared_chat_messages(session.messages.clone());
+            app.chat = shared_chat.iter().cloned().collect();
+            app.chat_message_ids = if session.message_ids.len() == app.chat.len() {
+                session.message_ids.clone()
+            } else {
+                vec![None; app.chat.len()]
+            };
+            let has_missing_message_ids = app.chat_message_ids.iter().any(Option::is_none);
+            app.store_session_chat_snapshot(
+                session_id.clone(),
+                shared_chat.clone(),
+                app.chat_message_ids.clone(),
+            );
+            app.usage = usage;
+            app.active_session_view_state.updated_ms = session.updated_ms;
+            app.replace_active_session_steps(session.steps.clone());
+            app.replace_active_session_calls(session.calls.clone());
+            if !has_missing_message_ids
+                && app.restore_session_model_from_steps(&session_id, &session.steps)
+            {
+                app.sync_active_session_preferences();
+            }
+
+            app.active_session_view_state.ui_preparing = true;
+            app.active_session_view_state.base_ready = false;
+            app.invalidate_chat_ui_state();
+            let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
+            app.mark_chat_ui_chunks_preparing(&[base_chunk_start]);
+            app.pin_chat_ui_chunk(Some(base_chunk_start));
+            let prewarm_task = prepare_session_ui_task(
+                session_id.clone(),
+                shared_chat,
+                base_chunk_start,
+                true,
+                app.dialogue_flow_show_reasoning_summary,
+            );
+            let remote_refresh_task = if has_missing_message_ids {
+                load_session_messages_task(project_path, session_id)
+            } else {
+                iced::Task::none()
+            };
+
+            Some(iced::Task::batch([
+                persist_backfill_task,
+                prewarm_task,
+                remote_refresh_task,
             ]))
         }
         ProjectMessage::RecentHovered(id) => {
@@ -257,7 +302,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 && !app.project_sessions_loading.contains(&path)
             {
                 app.project_sessions_loading.insert(path.clone());
-                app.project_sessions_last_refresh_at.insert(path.clone(), web_time::Instant::now());
                 let project_path_clone = path.clone();
                 return Some(iced::Task::perform(
                     async move {
@@ -297,11 +341,27 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             Some(iced::Task::none())
         }
-        ProjectMessage::SessionBootstrapLoaded { result, previews, archived_session_ids } => {
+        ProjectMessage::SessionBootstrapLoaded {
+            project_path,
+            result,
+            previews,
+            archived_session_ids,
+        } => {
+            if let Some(path) = project_path.as_ref() {
+                app.project_sessions_loading.remove(path);
+            }
+            if project_path != app.project_path {
+                return Some(iced::Task::none());
+            }
             app.session_previews = previews;
             app.archived_session_ids = archived_session_ids;
             match result {
                 Ok(sessions) => {
+                    if let Some(path) = project_path {
+                        let existing = app.project_sessions.get(&path).cloned();
+                        app.project_sessions
+                            .insert(path, merge_project_sessions(existing, sessions.clone()));
+                    }
                     app.sessions = sessions;
                 }
                 Err(e) => {
@@ -455,52 +515,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.branches = branches;
             Some(iced::Task::none())
         }
-        ProjectMessage::ProjectSessionsRefreshTick => {
-            let project_path = if app.show_settings {
-                app.project_path.clone()
-            } else {
-                app.hovered_recent_project.clone()
-            };
-
-            if let Some(path) = project_path {
-                let (auto_refresh, interval_seconds) = app
-                    .recent_projects_meta
-                    .iter()
-                    .find(|meta| meta.path == path)
-                    .map(|meta| {
-                        (
-                            meta.session_auto_refresh,
-                            meta.session_refresh_interval_seconds.clamp(1, 3600),
-                        )
-                    })
-                    .unwrap_or((
-                        default_recent_project_session_auto_refresh(),
-                        default_recent_project_session_refresh_interval_seconds(),
-                    ));
-                if !auto_refresh {
-                    return Some(iced::Task::none());
-                }
-                let refresh_due = app
-                    .project_sessions_last_refresh_at
-                    .get(&path)
-                    .map(|last| last.elapsed().as_secs() >= interval_seconds)
-                    .unwrap_or(true);
-                if !refresh_due {
-                    return Some(iced::Task::none());
-                }
-                return Some(iced::Task::perform(async move { path }, |p| {
-                    Message::Project(ProjectMessage::ProjectLoadSessions(p))
-                }));
-            }
-            Some(iced::Task::none())
-        }
         ProjectMessage::ProjectLoadSessions(project_path) => {
             if app.project_sessions_loading.contains(&project_path) {
                 return Some(iced::Task::none());
             }
             app.project_sessions_loading.insert(project_path.clone());
-            app.project_sessions_last_refresh_at
-                .insert(project_path.clone(), web_time::Instant::now());
             let project_path_clone = project_path.clone();
             Some(iced::Task::perform(
                 async move {

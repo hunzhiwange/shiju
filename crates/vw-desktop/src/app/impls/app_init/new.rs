@@ -645,7 +645,6 @@ impl App {
             session_tree_expanded: std::collections::HashSet::new(),
             project_sessions_loading: std::collections::HashSet::new(),
             project_session_has_vertical_scrollbar: std::collections::HashMap::new(),
-            project_sessions_last_refresh_at: std::collections::HashMap::new(),
             session_menu_id: None,
             session_menu_anchor: None,
             project_tools_menu_path: None,

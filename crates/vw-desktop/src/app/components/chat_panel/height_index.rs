@@ -37,6 +37,7 @@ pub(crate) struct ChatHeightIndex {
     slot_values: Vec<f32>,
     fenwick_tree: Vec<f32>,
     total_slot_height: f32,
+    trailing_runway: f32,
 }
 
 impl ChatHeightIndex {
@@ -51,6 +52,7 @@ impl ChatHeightIndex {
         self.slot_values.clear();
         self.fenwick_tree.clear();
         self.total_slot_height = 0.0;
+        self.trailing_runway = 0.0;
     }
 
     #[allow(dead_code)]
@@ -62,8 +64,18 @@ impl ChatHeightIndex {
         if self.heights.is_empty() {
             0.0
         } else {
-            (self.total_slot_height - CHAT_MESSAGE_GAP).max(0.0) + CHAT_LIST_VERTICAL_PADDING
+            (self.total_slot_height - CHAT_MESSAGE_GAP).max(0.0)
+                + CHAT_LIST_VERTICAL_PADDING
+                + self.trailing_runway
         }
+    }
+
+    pub(crate) fn trailing_runway(&self) -> f32 {
+        self.trailing_runway
+    }
+
+    pub(crate) fn set_trailing_runway(&mut self, trailing_runway: f32) {
+        self.trailing_runway = trailing_runway.max(0.0);
     }
 
     pub(crate) fn set_heights(&mut self, heights: &[f32]) {

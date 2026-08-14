@@ -124,3 +124,26 @@ fn equivalent_update_is_a_noop_and_scroll_past_total_returns_len() {
     assert_eq!(index.total_height(), initial_total);
     assert_eq!(index.find_start_by_scroll_top(initial_total + 100.0), index.len());
 }
+
+#[test]
+fn chat_height_index_includes_trailing_runway_in_bottom_spacer() {
+    let heights = [80.0, 100.0, 40.0];
+    let mut index = ChatHeightIndex::from_heights(&heights);
+    index.set_trailing_runway(160.0);
+
+    let window = index.compute_window(1.0, 180.0, 0.0);
+    let rendered_height = heights[window.render_start_idx..window.render_end_idx]
+        .iter()
+        .sum::<f32>()
+        + CHAT_MESSAGE_GAP
+            * window.render_end_idx.saturating_sub(window.render_start_idx + 1) as f32;
+
+    assert_eq!(index.trailing_runway(), 160.0);
+    assert!(window.bottom_spacer_h >= index.trailing_runway());
+    assert!(
+        (window.top_spacer_h + rendered_height + window.bottom_spacer_h
+            - index.total_height())
+        .abs()
+            < 0.01
+    );
+}

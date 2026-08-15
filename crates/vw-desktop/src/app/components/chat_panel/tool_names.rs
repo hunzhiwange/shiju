@@ -100,7 +100,6 @@ pub fn is_known_tool_name(tool_name: &str) -> bool {
             | "get_changed_files"
             | "view_image"
             | "wasm_module"
-            | "composio"
             | "pushover"
             | "process"
             | "enter_plan_mode"

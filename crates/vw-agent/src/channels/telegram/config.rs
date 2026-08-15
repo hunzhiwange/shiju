@@ -73,8 +73,6 @@ impl TelegramChannel {
             group_reply_allowed_sender_ids: Vec::new(),
             bot_username: Mutex::new(None),
             api_base: "https://api.telegram.org".to_string(),
-            transcription: None,
-            voice_transcriptions: Mutex::new(std::collections::HashMap::new()),
             workspace_dir: None,
         }
     }
@@ -178,40 +176,6 @@ impl TelegramChannel {
     /// ```
     pub fn with_api_base(mut self, api_base: String) -> Self {
         self.api_base = api_base.trim_end_matches('/').to_string();
-        self
-    }
-
-    /// 配置语音转录功能
-    ///
-    /// 启用并配置语音消息的自动转录功能。
-    /// 当启用时，机器人会将接收到的语音消息转录为文本后再处理。
-    ///
-    /// # 参数
-    ///
-    /// - `config`: 转录配置，包含启用状态和服务提供商设置
-    ///
-    /// # 返回值
-    ///
-    /// 返回修改后的 `Self`，支持链式调用
-    ///
-    /// # 示例
-    ///
-    /// ```ignore
-    /// let transcription_config = TranscriptionConfig {
-    ///     enabled: true,
-    ///     provider: "openai".to_string(),
-    ///     // ... 其他配置
-    /// };
-    /// let channel = TelegramChannel::new(token, users, false)
-    ///     .with_transcription(transcription_config);
-    /// ```
-    pub fn with_transcription(
-        mut self,
-        config: crate::app::agent::config::TranscriptionConfig,
-    ) -> Self {
-        if config.enabled {
-            self.transcription = Some(config);
-        }
         self
     }
 

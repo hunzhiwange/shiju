@@ -54,7 +54,6 @@ pub use vw_config_types::observability;
 pub use vw_config_types::reliability;
 pub use vw_config_types::routing;
 pub use vw_config_types::runtime;
-pub use vw_config_types::transcription;
 
 // Re-export types for backward compatibility and ease of use
 pub use agent::*;
@@ -72,7 +71,6 @@ pub use runtime::*;
 pub use security::*;
 pub use skills::*;
 pub use tools::*;
-pub use transcription::*;
 pub use ui::*;
 
 pub use config::{AcpAgentConfig, Config, ConfigExt};

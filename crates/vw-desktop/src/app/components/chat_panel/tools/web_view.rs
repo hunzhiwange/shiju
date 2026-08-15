@@ -83,7 +83,8 @@ pub fn tool_web_view<'a>(
         .unwrap_or_default();
     let metadata_text = web_metadata_text(tool_name, &value);
 
-    if !is_running && summary.trim().is_empty() && body_text.is_empty() && metadata_text.is_empty() {
+    if !is_running && summary.trim().is_empty() && body_text.is_empty() && metadata_text.is_empty()
+    {
         return None;
     }
 
@@ -92,15 +93,11 @@ pub fn tool_web_view<'a>(
 
         if !metadata_text.is_empty() {
             content = content.push(text(metadata_text).size(12).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(chat_secondary_muted_text_color(theme)),
-                }
+                iced::widget::text::Style { color: Some(chat_secondary_muted_text_color(theme)) }
             }));
         } else if !summary.trim().is_empty() {
             content = content.push(text(summary).size(12).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(chat_secondary_muted_text_color(theme)),
-                }
+                iced::widget::text::Style { color: Some(chat_secondary_muted_text_color(theme)) }
             }));
         }
 

@@ -331,7 +331,8 @@ fn projection_classifies_user_and_context_from_message_source() {
         {"kind": "user", "rpcId": "desktop-42", "clientTimeZone": "Asia/Shanghai"},
     ]);
 
-    let projection = project_trajectory(&[step(1, 100, Some(200), [3, 2, 0, 0])], &HashMap::from([(1, raw)]));
+    let projection =
+        project_trajectory(&[step(1, 100, Some(200), [3, 2, 0, 0])], &HashMap::from([(1, raw)]));
 
     assert_eq!(
         projection.records.iter().map(|record| record.kind).collect::<Vec<_>>(),
@@ -368,7 +369,8 @@ fn projection_attaches_request_and_tool_inspection_facts() {
         }],
     });
 
-    let projection = project_trajectory(&[step(1, 100, Some(200), [3, 2, 0, 0])], &HashMap::from([(1, raw)]));
+    let projection =
+        project_trajectory(&[step(1, 100, Some(200), [3, 2, 0, 0])], &HashMap::from([(1, raw)]));
     let system = projection
         .records
         .iter()
@@ -395,14 +397,8 @@ fn detail_tabs_match_reference_for_every_record_kind() {
     };
 
     assert_eq!(labels(TrajectoryRecordKind::System), vec!["System Prompt", "Tools"]);
-    assert_eq!(
-        labels(TrajectoryRecordKind::User),
-        vec!["Summary", "Preview", "Raw", "Source"]
-    );
-    assert_eq!(
-        labels(TrajectoryRecordKind::Context),
-        vec!["Summary", "Preview", "Raw", "Source"]
-    );
+    assert_eq!(labels(TrajectoryRecordKind::User), vec!["Summary", "Preview", "Raw", "Source"]);
+    assert_eq!(labels(TrajectoryRecordKind::Context), vec!["Summary", "Preview", "Raw", "Source"]);
     assert_eq!(
         labels(TrajectoryRecordKind::Assistant),
         vec!["Summary", "Options", "Usage", "Timing"]

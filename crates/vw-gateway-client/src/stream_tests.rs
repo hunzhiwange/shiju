@@ -386,7 +386,10 @@ fn normalize_chat_tool_event() {
     assert_eq!(event.status, super::GatewayChatToolStatus::Completed);
     assert_eq!(event.occurred_ms, 123);
     assert_eq!(event.payload["output"], "done");
-    assert_eq!(event.legacy_delta(), "tool shell\n{\"output\":\"done\",\"status\":\"completed\"}\n");
+    assert_eq!(
+        event.legacy_delta(),
+        "tool shell\n{\"output\":\"done\",\"status\":\"completed\"}\n"
+    );
 }
 
 #[test]

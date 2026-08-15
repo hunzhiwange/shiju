@@ -256,48 +256,6 @@ impl Default for SkillsSettingsState {
     }
 }
 
-/// 研究功能设置面板状态
-///
-/// 管理自动研究功能的配置，包括触发条件、
-/// 迭代限制和系统提示等。
-#[derive(Debug, Clone)]
-pub(crate) struct ResearchSettingsState {
-    /// 是否启用研究功能
-    pub(crate) enabled: bool,
-    /// 研究触发条件
-    pub(crate) trigger: ResearchTrigger,
-    /// 关键词输入
-    pub(crate) keywords_input: String,
-    /// 最小消息长度
-    pub(crate) min_message_length: u32,
-    /// 最大迭代次数
-    pub(crate) max_iterations: u32,
-    /// 是否显示进度
-    pub(crate) show_progress: bool,
-    /// 系统提示前缀
-    pub(crate) system_prompt_prefix: String,
-    /// 是否显示帮助对话框
-    pub(crate) show_help_modal: bool,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for ResearchSettingsState {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            trigger: ResearchTrigger::Never,
-            keywords_input: String::new(),
-            min_message_length: 50,
-            max_iterations: 5,
-            show_progress: true,
-            system_prompt_prefix: String::new(),
-            show_help_modal: false,
-            save_error: None,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct WebSearchSettingsState {
     pub(crate) enabled: bool,

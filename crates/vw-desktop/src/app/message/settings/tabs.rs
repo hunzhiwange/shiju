@@ -5,8 +5,8 @@ use iced::Task;
 
 use super::messages::{
     AcpMessage, AgentsMessage, BrowserMessage, ChannelsMessage, GatewayMessage, HttpRequestMessage,
-    McpMessage, MemoryMessage, ModelRoutesMessage, QueryClassificationMessage, RuntimeMessage,
-    SettingsMessage, StaffMessage, StaffResourceMessage, WebSearchMessage,
+    McpMessage, MemoryMessage, ModelRoutesMessage, RuntimeMessage, SettingsMessage, StaffMessage,
+    StaffResourceMessage, WebSearchMessage,
 };
 use super::models::models_refresh_task;
 use super::providers::refresh_task;
@@ -52,12 +52,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     ModelRoutesMessage::Refresh,
                 )))
             } else if tab == SystemTab::QueryClassification {
-                Task::done(Message::Settings(SettingsMessage::QueryClassification(
-                    QueryClassificationMessage::Refresh,
+                // Model-route refresh also reconstructs the classification rules, ensuring the
+                // category picker is populated from the persisted route patterns.
+                Task::done(Message::Settings(SettingsMessage::ModelRoutes(
+                    ModelRoutesMessage::Refresh,
                 )))
-            } else if tab == SystemTab::GoalLoop {
-                app.goal_loop_settings.save_error = None;
-                Task::none()
             } else if tab == SystemTab::Cron {
                 app.cron_settings.save_error = None;
                 app.agents_settings.loading = true;

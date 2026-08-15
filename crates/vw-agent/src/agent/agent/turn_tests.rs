@@ -260,9 +260,6 @@ async fn collect_chunks(mut rx: tokio::sync::mpsc::Receiver<String>) -> Vec<Stri
     chunks
 }
 
-#[path = "turn_research_tests.rs"]
-mod turn_research_tests;
-
 #[test]
 fn run_single_method_is_available_on_agent_type() {
     let method = Agent::run_single;

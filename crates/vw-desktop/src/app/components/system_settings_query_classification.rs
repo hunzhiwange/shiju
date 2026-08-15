@@ -4,14 +4,17 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::assets::Icon;
+use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, icon_btn, primary_action_btn_style, settings_checkbox_style,
     settings_muted_text_style, settings_page_intro, settings_panel, settings_panel_style,
-    settings_section_card, settings_text_input_style,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_text_input_style,
 };
 use crate::app::message::settings::{QueryClassificationMessage, SettingsMessage};
+use crate::app::message::view::ViewMessage;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, text, text_input};
+use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
 use iced::{Alignment, Element, Length};
 
 fn field_row<'a>(
@@ -52,13 +55,24 @@ fn field_row<'a>(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.query_classification_settings;
+    let mut category_options = Vec::new();
+    for route in &app.model_routes_settings.routes {
+        let pattern = route.pattern.trim();
+        if !pattern.is_empty() && !category_options.iter().any(|item| item == pattern) {
+            category_options.push(pattern.to_string());
+        }
+    }
 
     let header = row![
         container(settings_page_intro(
-            "查询分类",
-            "将 pattern 映射为 category，并同步回 query_classification 配置。"
+            "查询模型分类",
+            "将请求 pattern 映射到已配置的模型路由。"
         ))
         .width(Length::Fill),
+        button(text("前往模型路由"))
+            .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::ModelRoutes)))
+            .padding([8, 12])
+            .style(primary_action_btn_style),
         button(text("新增规则"))
             .on_press(Message::Settings(SettingsMessage::QueryClassification(
                 QueryClassificationMessage::AddRule,
@@ -71,9 +85,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let enabled_row = field_row(
         "启用",
-        "控制是否开启查询分类规则。",
+        "控制是否开启查询模型分类规则。",
         checkbox(s.enabled)
-            .label("启用查询分类")
+            .label("启用查询模型分类")
             .on_toggle(|value| {
                 Message::Settings(SettingsMessage::QueryClassification(
                     QueryClassificationMessage::EnabledToggled(value),
@@ -84,11 +98,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut list = column![
         header,
-        settings_section_card("基础行为", "控制查询分类总开关以及规则优先级行为。"),
+        settings_section_card("基础行为", "控制查询模型分类总开关以及规则优先级行为。"),
         settings_panel(column![enabled_row].spacing(0)),
         settings_section_card(
-            "分类规则",
-            "pattern 会同步到 patterns/keywords，category 会写入 hint。"
+            "模型分类规则",
+            "pattern 会匹配用户请求；模型分类从已配置的模型路由中选择。"
         ),
     ]
     .spacing(16);
@@ -96,7 +110,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if s.rules.is_empty() {
         list = list.push(settings_panel(
             column![
-                text("暂无分类规则，点击右上角“新增规则”开始配置")
+                text("暂无模型分类规则，点击右上角“新增规则”开始配置")
                     .size(13)
                     .style(settings_muted_text_style)
             ]
@@ -105,6 +119,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     for (idx, rule) in s.rules.iter().enumerate() {
+        let category_control: Element<'_, Message> = if category_options.is_empty() {
+            text("暂无模型路由，请先点击“前往模型路由”添加。")
+                .size(13)
+                .style(settings_muted_text_style)
+                .into()
+        } else {
+            let selected = category_options
+                .iter()
+                .find(|option| option.as_str() == rule.category.trim())
+                .cloned();
+            pick_list(category_options.clone(), selected, move |value| {
+                Message::Settings(SettingsMessage::QueryClassification(
+                    QueryClassificationMessage::CategoryChanged(idx, value),
+                ))
+            })
+            .style(settings_pick_list_style)
+            .menu_style(settings_pick_list_menu_style)
+            .width(Length::Fill)
+            .into()
+        };
         let card = container(
             column![
                 row![
@@ -136,22 +170,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 .width(Length::Fill),
                         ),
                         field_row(
-                            "category",
-                            "命中后写入的分类标签，例如 reasoning / fast。",
-                            text_input("例如 reasoning / fast", &rule.category)
-                                .on_input(move |value| Message::Settings(
-                                    SettingsMessage::QueryClassification(
-                                        QueryClassificationMessage::CategoryChanged(idx, value),
-                                    )
-                                ))
-                                .padding([10, 12])
-                                .size(13)
-                                .style(settings_text_input_style)
-                                .width(Length::Fill),
+                            "模型分类",
+                            "选择命中后使用的模型路由；可在“模型路由”页新增选项。",
+                            category_control,
                         ),
                         field_row(
                             "priority",
-                            "越大优先级越高；pattern 会同步到 patterns/keywords，category 会写入 hint。",
+                            "越大优先级越高；匹配成功后使用所选模型分类对应的路由。",
                             text_input("0", &rule.priority_input)
                                 .on_input(move |value| Message::Settings(
                                     SettingsMessage::QueryClassification(

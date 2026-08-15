@@ -125,23 +125,6 @@ fn extract_reply_context_formats_media_and_multiline_text() {
 }
 
 #[test]
-fn extract_reply_context_uses_cached_voice_transcription_when_available() {
-    let ch = TelegramChannel::new("token".into(), vec!["*".into()], false);
-    ch.voice_transcriptions.lock().insert("100:55".to_string(), "cached words".to_string());
-
-    let message = serde_json::json!({
-        "chat": {"id": 100},
-        "reply_to_message": {
-            "message_id": 55,
-            "from": {"username": "alice"},
-            "voice": {"file_id": "voice"}
-        }
-    });
-
-    assert_eq!(ch.extract_reply_context(&message).unwrap(), "> @alice:\n> [Voice] cached words");
-}
-
-#[test]
 fn extract_reply_context_formats_uncached_voice_audio_unknown_and_generic_messages() {
     let ch = TelegramChannel::new("token".into(), vec!["*".into()], false);
 

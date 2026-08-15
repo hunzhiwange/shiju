@@ -5,10 +5,10 @@ use iced::widget::text::Wrapping;
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_editor};
 use iced::{Alignment, Element, Font, Length, Theme};
 
-use super::styles;
 use super::details_content::{
     build_details_content, detail_content_values, trajectory_details_body,
 };
+use super::styles;
 use super::{
     MetricAvailability, TrajectoryDetailsState, TrajectoryDetailsTab, TrajectoryRecord,
     TrajectoryRecordKind, TrajectoryUsage,
@@ -120,9 +120,9 @@ pub(crate) fn trajectory_details<'a>(
     for tab in details.tabs {
         let selected = active_tab == tab;
         let tab_button = button(text(tab.label()).font(Font::DEFAULT).size(11))
-                .padding([5, 8])
-                .style(move |theme, status| styles::details_tab_style(theme, status, selected))
-                .on_press(Message::Chat(message::ChatMessage::TrajectoryDetailsTabSelected(tab)));
+            .padding([5, 8])
+            .style(move |theme, status| styles::details_tab_style(theme, status, selected))
+            .on_press(Message::Chat(message::ChatMessage::TrajectoryDetailsTabSelected(tab)));
         let underline = container(Space::new().height(Length::Fixed(2.0)))
             .width(Length::Fill)
             .height(Length::Fixed(2.0))

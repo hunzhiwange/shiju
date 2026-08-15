@@ -66,9 +66,7 @@ mod tests {
 
         // 验证工具名称
         assert_eq!(tool.name(), "ls");
-        assert!(tool
-            .description()
-            .contains("List files and directories at the given path"));
+        assert!(tool.description().contains("List files and directories at the given path"));
 
         // 获取参数 schema
         let schema = tool.parameters_schema();

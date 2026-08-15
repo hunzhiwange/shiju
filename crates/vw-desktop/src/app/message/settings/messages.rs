@@ -8,7 +8,6 @@ use crate::app::state::{
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
-use vw_config_types::automation::ResearchTrigger;
 use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
 use vw_config_types::ui::{QuickMessageGroup, QuickMessageKind};
 
@@ -184,17 +183,6 @@ pub enum WebSearchMessage {
     UserAgentChanged(String),
     HelpOpen,
     HelpClose,
-}
-
-/// 目标循环设置页消息。
-#[derive(Debug, Clone)]
-pub enum GoalLoopMessage {
-    EnabledToggled(bool),
-    IntervalMinutesChanged(String),
-    StepTimeoutSecsChanged(String),
-    MaxStepsPerCycleChanged(String),
-    ChannelChanged(String),
-    TargetChanged(String),
 }
 
 /// 记忆系统设置页消息。
@@ -720,7 +708,6 @@ pub enum SettingsMessage {
     Runtime(RuntimeMessage),
     Browser(BrowserMessage),
     WebSearch(WebSearchMessage),
-    GoalLoop(GoalLoopMessage),
     HttpRequest(HttpRequestMessage),
     Memory(MemoryMessage),
     Channels(ChannelsMessage),
@@ -1036,9 +1023,6 @@ pub enum SettingsMessage {
     ProxyServicesChanged(String),
     ProxyHelpOpen,
     ProxyHelpClose,
-    ComposioEnabledToggled(bool),
-    ComposioApiKeyChanged(String),
-    ComposioEntityIdChanged(String),
     SkillsTabChanged(crate::app::state::SkillsSettingsTab),
     SkillsDetailClosed,
     SkillsDetailRequested(String),
@@ -1075,21 +1059,4 @@ pub enum SettingsMessage {
     SkillsSave,
     SkillsHelpOpen,
     SkillsHelpClose,
-    ResearchEnabledToggled(bool),
-    ResearchTriggerChanged(ResearchTrigger),
-    ResearchKeywordsChanged(String),
-    ResearchMinMessageLengthChanged(u32),
-    ResearchMaxIterationsChanged(u32),
-    ResearchShowProgressToggled(bool),
-    ResearchSystemPromptPrefixChanged(String),
-    ResearchSave,
-    ResearchHelpOpen,
-    ResearchHelpClose,
-    TranscriptionEnabledToggled(bool),
-    TranscriptionApiUrlChanged(String),
-    TranscriptionModelChanged(String),
-    TranscriptionLanguageChanged(String),
-    TranscriptionMaxDurationSecsChanged(u64),
-    TranscriptionHelpOpen,
-    TranscriptionHelpClose,
 }

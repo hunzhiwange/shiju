@@ -182,10 +182,8 @@ pub(crate) fn assemble_session_protocol_messages_with_sources(
     default_tool_reminder: Option<Value>,
 ) -> AssembledProtocolMessages {
     let injection = context_injection::assemble_agents_context(instructions, history);
-    let instruction_entries = instructions
-        .iter()
-        .map(|instruction| instruction.filepath.clone())
-        .collect::<Vec<_>>();
+    let instruction_entries =
+        instructions.iter().map(|instruction| instruction.filepath.clone()).collect::<Vec<_>>();
     let instruction_source = context_message_source("instructions", &instruction_entries);
     let agents_messages = injection
         .transient_messages

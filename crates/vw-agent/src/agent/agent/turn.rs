@@ -1,6 +1,5 @@
 use super::core::Agent;
 use crate::app::agent::agent::loop_::run_tool_call_loop;
-use crate::app::agent::agent::research;
 use crate::app::agent::memory::MemoryCategory;
 use crate::app::agent::providers::ChatMessage;
 use anyhow::Result;
@@ -52,51 +51,11 @@ impl Agent {
             .await
             .unwrap_or_default();
 
-        let research_context = if research::should_trigger(&self.research_config, user_message) {
-            if self.research_config.show_progress {
-                println!("[Research] Gathering information...");
-            }
-
-            match research::run_research_phase(
-                &self.research_config,
-                self.provider.as_ref(),
-                &self.tools,
-                user_message,
-                &self.model_name,
-                self.temperature,
-                self.observer.clone(),
-            )
-            .await
-            {
-                Ok(result) => {
-                    if self.research_config.show_progress {
-                        println!(
-                            "[Research] Complete: {} tool calls, {} chars context",
-                            result.tool_call_count,
-                            result.context.len()
-                        );
-                        for summary in &result.tool_summaries {
-                            println!("  - {}: {}", summary.tool_name, summary.result_preview);
-                        }
-                    }
-                    if result.context.is_empty() { None } else { Some(result.context) }
-                }
-                Err(e) => {
-                    tracing::warn!("Research phase failed: {}", e);
-                    None
-                }
-            }
-        } else {
-            None
-        };
-
         let now = crate::app::agent::util::locale::configured_datetime(self.timezone);
         let stamped_user_message = format!("[{now}] {user_message}");
 
-        let enriched = match (&context, &research_context) {
-            (c, Some(r)) if !c.is_empty() => format!("{c}\n\n{r}\n\n{stamped_user_message}"),
-            (_, Some(r)) => format!("{r}\n\n{stamped_user_message}"),
-            (c, None) if !c.is_empty() => format!("{c}{stamped_user_message}"),
+        let enriched = match &context {
+            c if !c.is_empty() => format!("{c}{stamped_user_message}"),
             _ => stamped_user_message,
         };
 
@@ -187,51 +146,11 @@ impl Agent {
             .await
             .unwrap_or_default();
 
-        let research_context = if research::should_trigger(&self.research_config, user_message) {
-            if self.research_config.show_progress {
-                println!("[Research] Gathering information...");
-            }
-
-            match research::run_research_phase(
-                &self.research_config,
-                self.provider.as_ref(),
-                &self.tools,
-                user_message,
-                &self.model_name,
-                self.temperature,
-                self.observer.clone(),
-            )
-            .await
-            {
-                Ok(result) => {
-                    if self.research_config.show_progress {
-                        println!(
-                            "[Research] Complete: {} tool calls, {} chars context",
-                            result.tool_call_count,
-                            result.context.len()
-                        );
-                        for summary in &result.tool_summaries {
-                            println!("  - {}: {}", summary.tool_name, summary.result_preview);
-                        }
-                    }
-                    if result.context.is_empty() { None } else { Some(result.context) }
-                }
-                Err(e) => {
-                    tracing::warn!("Research phase failed: {}", e);
-                    None
-                }
-            }
-        } else {
-            None
-        };
-
         let now = crate::app::agent::util::locale::configured_datetime(self.timezone);
         let stamped_user_message = format!("[{now}] {user_message}");
 
-        let enriched = match (&context, &research_context) {
-            (c, Some(r)) if !c.is_empty() => format!("{c}\n\n{r}\n\n{stamped_user_message}"),
-            (_, Some(r)) => format!("{r}\n\n{stamped_user_message}"),
-            (c, None) if !c.is_empty() => format!("{c}{stamped_user_message}"),
+        let enriched = match &context {
+            c if !c.is_empty() => format!("{c}{stamped_user_message}"),
             _ => stamped_user_message,
         };
 

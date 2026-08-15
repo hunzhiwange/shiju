@@ -179,10 +179,8 @@ pub(crate) fn ordered_agent_keys(
 /// gateway 的 `/v1/tools` 清单绑定其启动工作区，而 RustCodeGraph 按当前会话项目
 /// 动态注册，因此不能仅依赖 gateway 清单决定它是否在设置页可见。
 pub(crate) fn filter_mcp_from_available_tools(tools: Vec<String>) -> Vec<String> {
-    let mut tools = tools
-        .into_iter()
-        .filter(|tool_id| !is_mcp_dynamic_tool_id(tool_id))
-        .collect::<Vec<_>>();
+    let mut tools =
+        tools.into_iter().filter(|tool_id| !is_mcp_dynamic_tool_id(tool_id)).collect::<Vec<_>>();
     if !tools.iter().any(|tool_id| tool_id == "rustcodegraph") {
         tools.push("rustcodegraph".to_string());
     }

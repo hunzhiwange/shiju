@@ -91,7 +91,6 @@ fn config_secrets_encrypt_and_decrypt_representative_fields() {
     let mut config = Config::default();
     config.config_path = tmp.path().join("vibewindow.json");
     config.api_key = Some("api-key".to_string());
-    config.composio.api_key = Some("composio-key".to_string());
     config.proxy.http_proxy = Some("http://user:pass@proxy.example:8080".to_string());
     config.proxy.https_proxy = Some("https://user:pass@proxy.example:8443".to_string());
     config.proxy.all_proxy = Some("socks5://user:pass@proxy.example:1080".to_string());
@@ -133,7 +132,6 @@ fn config_secrets_encrypt_and_decrypt_representative_fields() {
     assert!(crate::app::agent::security::SecretStore::is_encrypted(
         config.api_key.as_deref().unwrap()
     ));
-    assert!(SecretStore::is_encrypted(config.composio.api_key.as_deref().unwrap()));
     assert!(SecretStore::is_encrypted(config.proxy.http_proxy.as_deref().unwrap()));
     assert!(SecretStore::is_encrypted(config.proxy.https_proxy.as_deref().unwrap()));
     assert!(SecretStore::is_encrypted(config.proxy.all_proxy.as_deref().unwrap()));
@@ -152,7 +150,6 @@ fn config_secrets_encrypt_and_decrypt_representative_fields() {
     decrypt_config_secrets(&mut config, tmp.path()).unwrap();
 
     assert_eq!(config.api_key.as_deref(), Some("api-key"));
-    assert_eq!(config.composio.api_key.as_deref(), Some("composio-key"));
     assert_eq!(config.proxy.http_proxy.as_deref(), Some("http://user:pass@proxy.example:8080"));
     assert_eq!(config.proxy.https_proxy.as_deref(), Some("https://user:pass@proxy.example:8443"));
     assert_eq!(config.proxy.all_proxy.as_deref(), Some("socks5://user:pass@proxy.example:1080"));

@@ -28,17 +28,15 @@ pub const SUPPORTED_PROXY_SERVICE_KEYS: &[&str] = &[
     "channel.wati",
     "channel.whatsapp",
     "tool.browser",
-    "tool.composio",
     "tool.http_request",
     "tool.pushover",
     "memory.embeddings",
     "tunnel.custom",
-    "transcription.groq",
 ];
 
 /// SUPPORTED_PROXY_SERVICE_SELECTORS 是该模块对外使用的常量值。
 pub const SUPPORTED_PROXY_SERVICE_SELECTORS: &[&str] =
-    &["provider.*", "channel.*", "tool.*", "memory.*", "tunnel.*", "transcription.*"];
+    &["provider.*", "channel.*", "tool.*", "memory.*", "tunnel.*"];
 
 /// ProxyScope 描述该模块对外暴露的离散状态。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, JsonSchema)]

@@ -25,7 +25,6 @@ fn discord_channel_new_preserves_constructor_options() {
     assert!(ch.listen_to_bots);
     assert!(ch.mention_only);
     assert!(ch.group_reply_allowed_sender_ids.is_empty());
-    assert!(ch.transcription.is_none());
     assert!(ch.workspace_dir.is_none());
 }
 
@@ -209,25 +208,4 @@ fn with_workspace_dir_sets_field() {
     let channel = DiscordChannel::new("fake".into(), None, vec![], false, false)
         .with_workspace_dir(PathBuf::from("/tmp/discord-workspace"));
     assert_eq!(channel.workspace_dir.as_deref(), Some(Path::new("/tmp/discord-workspace")));
-}
-
-/// 测试 with_transcription 在启用时设置配置
-/// 启用转录时，应该设置转录配置
-#[test]
-fn with_transcription_sets_config_when_enabled() {
-    let mut tc = TranscriptionConfig::default();
-    tc.enabled = true;
-    let channel =
-        DiscordChannel::new("fake".into(), None, vec![], false, false).with_transcription(tc);
-    assert!(channel.transcription.is_some());
-}
-
-/// 测试 with_transcription 在禁用时跳过设置
-/// 禁用转录时，不应该设置转录配置
-#[test]
-fn with_transcription_skips_when_disabled() {
-    let tc = TranscriptionConfig::default();
-    let channel =
-        DiscordChannel::new("fake".into(), None, vec![], false, false).with_transcription(tc);
-    assert!(channel.transcription.is_none());
 }

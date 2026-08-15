@@ -278,6 +278,11 @@ fn tabs_and_view_cover_loading_empty_jobs_config_and_add_forms() {
     keep_element(config_tab(&app));
     keep_element(view(&app));
 
+    app.scheduler_settings.enabled = false;
+    app.scheduler_settings.max_tasks = 64;
+    app.scheduler_settings.max_concurrent = 4;
+    keep_element(config_tab(&app));
+
     app.cron_settings.active_tab = CronSettingsTab::Add;
     app.cron_settings.add_draft.job_type = CronAddJobType::Shell;
     app.cron_settings.add_draft.schedule_kind = CronAddScheduleKind::Cron;

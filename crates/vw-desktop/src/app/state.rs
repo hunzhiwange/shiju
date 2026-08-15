@@ -33,7 +33,6 @@ use crate::app::terminal::TerminalState;
 use crate::app::{DiffTheme, FocusArea, PreviewTab, Screen, SettingsTab, TodoPanelPlacement};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::{LspHoverPending, LspProgress};
-use vw_config_types::automation::ResearchTrigger;
 use vw_config_types::tools::HttpRequestConfig;
 
 #[cfg(not(target_arch = "wasm32"))]

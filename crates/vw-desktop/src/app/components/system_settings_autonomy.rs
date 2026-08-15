@@ -756,7 +756,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
       "proxy_config",
       "model_routing_config",
       "pushover",
-      "composio",
       "screenshot",
       "image_info"
     ],

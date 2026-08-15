@@ -344,10 +344,12 @@ fn raw_payload_persists_message_sources_without_provider_metadata() {
         "clientTimeZone": "Asia/Shanghai",
     });
     let llm_messages = vec![json!({"role": "user", "content": "hello"})];
-    let message_sources = vec![req.options
-        .get(super::super::llm_messages::INTERNAL_INPUT_SOURCE_OPTION)
-        .cloned()
-        .expect("input source")];
+    let message_sources = vec![
+        req.options
+            .get(super::super::llm_messages::INTERNAL_INPUT_SOURCE_OPTION)
+            .cloned()
+            .expect("input source"),
+    ];
 
     persist_llm_raw_step_payload(
         &req,
@@ -480,13 +482,7 @@ fn raw_payload_options_are_explicitly_allowlisted() {
         })
     );
     let serialized = serde_json::to_string(&payload).expect("payload should serialize");
-    for secret in [
-        "secret-key",
-        "secret-token",
-        "private_option",
-        "_vw_input_source",
-        "approval",
-    ] {
+    for secret in ["secret-key", "secret-token", "private_option", "_vw_input_source", "approval"] {
         assert!(!serialized.contains(secret), "raw payload leaked {secret}");
     }
 }

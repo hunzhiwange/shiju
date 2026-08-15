@@ -72,18 +72,6 @@ fn ordinary_system_tab_selection_changes_tab_closes_help_and_stays_idle() {
 }
 
 #[test]
-fn transcription_tab_selection_uses_the_idle_fallback_and_closes_help() {
-    let mut app = app();
-    app.system_settings_help_tab = Some(SystemTab::Security);
-
-    let task = update(&mut app, SettingsMessage::SystemTabSelected(SystemTab::Transcription));
-
-    assert_eq!(app.system_settings_tab, SystemTab::Transcription);
-    assert_eq!(app.system_settings_help_tab, None);
-    assert!(!has_scheduled_action(task));
-}
-
-#[test]
 fn providers_and_models_selection_prepare_loading_before_refresh() {
     let mut app = app();
     app.provider_settings.loading = false;
@@ -171,9 +159,7 @@ async fn direct_refresh_tabs_emit_their_expected_messages() {
                 )
                 | (
                     "query_classification",
-                    Message::Settings(SettingsMessage::QueryClassification(
-                        QueryClassificationMessage::Refresh
-                    ))
+                    Message::Settings(SettingsMessage::ModelRoutes(ModelRoutesMessage::Refresh))
                 )
                 | ("runtime", Message::Settings(SettingsMessage::Runtime(RuntimeMessage::Refresh)))
                 | ("browser", Message::Settings(SettingsMessage::Browser(BrowserMessage::Refresh)))
@@ -216,22 +202,15 @@ fn state_only_system_tabs_clear_stale_feedback_without_scheduling_work() {
     let mut app = app();
     app.embedding_routes_settings.save_error = Some("embedding".to_string());
     app.embedding_routes_settings.save_success = true;
-    app.goal_loop_settings.save_error = Some("goal".to_string());
     app.multimodal_settings.save_error = Some("multimodal".to_string());
     app.tunnel_settings.save_error = Some("tunnel".to_string());
 
-    for tab in [
-        SystemTab::EmbeddingRoutes,
-        SystemTab::GoalLoop,
-        SystemTab::Multimodal,
-        SystemTab::Tunnel,
-    ] {
+    for tab in [SystemTab::EmbeddingRoutes, SystemTab::Multimodal, SystemTab::Tunnel] {
         assert!(!has_scheduled_action(update(&mut app, SettingsMessage::SystemTabSelected(tab),)));
     }
 
     assert_eq!(app.embedding_routes_settings.save_error, None);
     assert!(!app.embedding_routes_settings.save_success);
-    assert_eq!(app.goal_loop_settings.save_error, None);
     assert_eq!(app.multimodal_settings.save_error, None);
     assert_eq!(app.tunnel_settings.save_error, None);
 }

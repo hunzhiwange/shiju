@@ -20,7 +20,6 @@
 //! - `streaming_drafts`: 流式草稿测试，验证消息编辑与实时更新功能
 //! - `tool_call_tags`: 工具调用标签测试，验证工具执行结果的标签化展示
 //! - `user_allowlist`: 用户白名单测试，验证访问控制与权限过滤
-//! - `voice`: 语音消息测试，验证语音消息的接收、转码与处理
 
 use super::attachments::{
     IncomingAttachmentKind, TELEGRAM_MAX_FILE_DOWNLOAD_BYTES, TelegramAttachmentKind,
@@ -33,7 +32,6 @@ use super::message_utils::{
     random_telegram_ack_reaction, split_message_for_telegram,
 };
 use super::tool_tags::strip_tool_call_tags;
-use super::voice::VoiceMetadata;
 use super::*;
 
 mod ack_reaction;
@@ -51,4 +49,3 @@ mod pairing_bind;
 mod streaming_drafts;
 mod tool_call_tags;
 mod user_allowlist;
-mod voice;

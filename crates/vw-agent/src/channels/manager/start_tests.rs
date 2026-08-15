@@ -125,20 +125,6 @@ fn provider_runtime_options_preserve_config_fields() {
 }
 
 #[test]
-fn composio_credentials_follow_enabled_flag() {
-    let mut config = Config::default();
-    config.composio.enabled = false;
-    config.composio.api_key = Some("secret-key".to_string());
-    config.composio.entity_id = "entity".to_string();
-
-    assert_eq!(resolve_composio_credentials(&config), (None, None));
-
-    config.composio.enabled = true;
-
-    assert_eq!(resolve_composio_credentials(&config), (Some("secret-key"), Some("entity")));
-}
-
-#[test]
 fn channel_tool_descriptions_track_optional_tools_and_exclusions() {
     let mut config = Config::default();
     let base_names = tool_names(&build_channel_tool_descriptions(&config, false));
@@ -153,7 +139,6 @@ fn channel_tool_descriptions_track_optional_tools_and_exclusions() {
     config.browser.browser_open = "disable".to_string();
     config.web_fetch.enabled = true;
     config.web_search.enabled = true;
-    config.composio.enabled = true;
     config.autonomy.non_cli_excluded_tools =
         vec!["shell".to_string(), "WebSearch".to_string(), "AgentTool".to_string()];
 
@@ -162,7 +147,6 @@ fn channel_tool_descriptions_track_optional_tools_and_exclusions() {
     assert!(optional_names.contains(&"Browser"));
     assert!(!optional_names.contains(&"BrowserOpen"));
     assert!(optional_names.contains(&"WebFetch"));
-    assert!(optional_names.contains(&"composio"));
     assert!(!optional_names.contains(&"shell"));
     assert!(!optional_names.contains(&"WebSearch"));
     assert!(!optional_names.contains(&"AgentTool"));

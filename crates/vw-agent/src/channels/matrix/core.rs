@@ -187,19 +187,7 @@ impl MatrixChannel {
             sdk_client: std::sync::Arc::new(tokio::sync::OnceCell::new()),
             otk_conflict_detected: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             http_client: reqwest::Client::new(),
-            transcription: None,
         }
-    }
-
-    /// 配置语音转写功能
-    pub fn with_transcription(
-        mut self,
-        config: crate::app::agent::config::TranscriptionConfig,
-    ) -> Self {
-        if config.enabled {
-            self.transcription = Some(config);
-        }
-        self
     }
 
     /// 配置是否仅响应提及消息

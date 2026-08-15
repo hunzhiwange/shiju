@@ -8,7 +8,6 @@
 //! - 通过 Matrix Client-Server API 与 Matrix 服务器通信
 //! - 支持房间别名和房间 ID 两种房间引用方式
 //! - 支持端到端加密(E2EE)房间的消息解密
-//! - 支持语音消息转写（需配置转写服务）
 //! - 支持提及过滤模式（仅响应提及或私信）
 //! - 支持用户访问控制（白名单）
 //!
@@ -63,7 +62,6 @@ pub(crate) use listener::MatrixAgentSchedulerDispatchTimelineEvent;
 /// - `sdk_client`: matrix-sdk 客户端实例的延迟初始化容器
 /// - `otk_conflict_detected`: 一次性密钥冲突检测标志
 /// - `http_client`: HTTP 客户端，用于直接 API 调用
-/// - `transcription`: 语音转写配置
 #[derive(Clone)]
 pub struct MatrixChannel {
     /// Matrix 主服务器 URL
@@ -92,8 +90,6 @@ pub struct MatrixChannel {
     otk_conflict_detected: Arc<AtomicBool>,
     /// HTTP 客户端
     http_client: Client,
-    /// 语音转写配置
-    transcription: Option<crate::app::agent::config::TranscriptionConfig>,
 }
 
 impl std::fmt::Debug for MatrixChannel {
@@ -102,7 +98,6 @@ impl std::fmt::Debug for MatrixChannel {
             .field("homeserver", &self.homeserver)
             .field("room_id", &self.room_id)
             .field("allowed_users", &self.allowed_users)
-            .field("transcription_enabled", &self.transcription.is_some())
             .finish_non_exhaustive()
     }
 }

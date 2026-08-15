@@ -48,7 +48,6 @@ fn build_matrix_channel(
         config.config_path.parent().map(|path| path.to_path_buf()),
     )
     .with_mention_only(matrix.mention_only)
-    .with_transcription(config.transcription.clone())
 }
 
 #[cfg(feature = "channel-matrix")]
@@ -166,7 +165,6 @@ pub(crate) fn collect_configured_channels(
         )
         .with_group_reply_allowed_senders(tg.group_reply_allowed_sender_ids()) // 群组回复允许的发送者
         .with_streaming(tg.stream_mode, tg.draft_update_interval_ms) // 流式输出配置
-        .with_transcription(config.transcription.clone()) // 语音转文字配置
         .with_workspace_dir(config.workspace_dir.clone()); // 工作目录配置
 
         // 如果配置了自定义 API 基础 URL（用于代理或私有实例），则覆盖默认值
@@ -193,7 +191,6 @@ pub(crate) fn collect_configured_channels(
                     dc.effective_group_reply_mode().requires_mention(), // 群组回复提及要求
                 )
                 .with_group_reply_allowed_senders(dc.group_reply_allowed_sender_ids())
-                .with_transcription(config.transcription.clone())
                 .with_workspace_dir(config.workspace_dir.clone()),
             ),
         ));

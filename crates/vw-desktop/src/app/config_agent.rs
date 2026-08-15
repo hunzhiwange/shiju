@@ -8,9 +8,7 @@ use iced::Task;
 use std::collections::{BTreeMap, HashMap};
 use vw_config_types::{
     agent::{AgentConfig, AgentsIpcConfig, CoordinationConfig, DelegateAgentConfig},
-    automation::{
-        CronConfig, GoalLoopConfig, HeartbeatConfig, ResearchPhaseConfig, SchedulerConfig,
-    },
+    automation::{CronConfig, HeartbeatConfig, SchedulerConfig},
     channels::ChannelsConfig,
     config::{AcpAgentConfig, Config},
     gateway::{GatewayConfig, TunnelConfig},
@@ -24,8 +22,7 @@ use vw_config_types::{
     security::{AutonomyConfig, IdentityConfig, SecurityConfig},
     skills::SkillsConfig,
     staff::StaffConfig,
-    tools::{BrowserConfig, ComposioConfig, HttpRequestConfig, MultimodalConfig, WebSearchConfig},
-    transcription::TranscriptionConfig,
+    tools::{BrowserConfig, HttpRequestConfig, MultimodalConfig, WebSearchConfig},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -851,24 +848,6 @@ pub fn load_hooks_config() -> HooksConfig {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_composio_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_composio_config() -> ComposioConfig {
-    load_agent_config_via_gateway().composio
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 /// 读取、保存或转换 `load_skills_config` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -884,24 +863,6 @@ pub fn load_composio_config() -> ComposioConfig {
 /// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn load_skills_config() -> SkillsConfig {
     load_agent_config_via_gateway().skills
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_research_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_research_config() -> ResearchPhaseConfig {
-    load_agent_config_via_gateway().research
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1025,24 +986,6 @@ pub fn load_coordination_config() -> CoordinationConfig {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_transcription_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_transcription_config() -> TranscriptionConfig {
-    load_agent_config_via_gateway().transcription
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 /// 读取、保存或转换 `load_identity_config` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1097,24 +1040,6 @@ pub fn load_full_agent_config_result() -> Result<Config, String> {
         Ok(config) => Ok(config),
         Err(err) => load_local_agent_config().ok_or(err),
     }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_goal_loop_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_goal_loop_config() -> GoalLoopConfig {
-    load_agent_config_via_gateway().goal_loop
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1228,23 +1153,6 @@ pub fn load_hooks_config() -> HooksConfig {
     HooksConfig::default()
 }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_composio_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_composio_config() -> ComposioConfig {
-    ComposioConfig::default()
-}
-#[cfg(target_arch = "wasm32")]
 /// 读取、保存或转换 `load_skills_config` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1260,23 +1168,6 @@ pub fn load_composio_config() -> ComposioConfig {
 /// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn load_skills_config() -> SkillsConfig {
     SkillsConfig::default()
-}
-#[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_research_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_research_config() -> ResearchPhaseConfig {
-    ResearchPhaseConfig::default()
 }
 #[cfg(target_arch = "wasm32")]
 /// 读取、保存或转换 `load_agent_runtime_config` 对应的配置数据与运行时状态。
@@ -1394,23 +1285,6 @@ pub fn load_coordination_config() -> CoordinationConfig {
     CoordinationConfig::default()
 }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_transcription_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_transcription_config() -> TranscriptionConfig {
-    TranscriptionConfig::default()
-}
-#[cfg(target_arch = "wasm32")]
 /// 读取、保存或转换 `load_identity_config` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1460,23 +1334,6 @@ pub fn load_full_agent_config() -> Config {
 /// 当底层配置、文件或运行时调用失败时，错误会通过 `Result` 返回给上层统一处理。
 pub fn load_full_agent_config_result() -> Result<Config, String> {
     Ok(Config::default())
-}
-#[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_goal_loop_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_goal_loop_config() -> GoalLoopConfig {
-    GoalLoopConfig::default()
 }
 #[cfg(target_arch = "wasm32")]
 /// 读取、保存或转换 `update_gateway_config` 对应的配置数据与运行时状态。
@@ -1602,7 +1459,6 @@ pub fn update_main_agent_overrides_from_delegate_agents() {}
 
 define_agent_config_update_result_fns!(
     (update_heartbeat_config_result, update_heartbeat_config, HeartbeatConfig, heartbeat, &["heartbeat"]),
-    (update_goal_loop_config_result, update_goal_loop_config, GoalLoopConfig, goal_loop, &["goal_loop"]),
     (update_cron_config_result, update_cron_config, CronConfig, cron, &["cron"]),
     (update_scheduler_config_result, update_scheduler_config, SchedulerConfig, scheduler, &["scheduler"]),
     (update_reliability_config_result, update_reliability_config, ReliabilityConfig, reliability, &["reliability"]),
@@ -1618,9 +1474,7 @@ define_agent_config_update_result_fns!(
     (update_web_search_config_result, update_web_search_config, WebSearchConfig, web_search, &["web_search"]),
     (update_tunnel_config_result, update_tunnel_config, TunnelConfig, tunnel, &["tunnel"]),
     (update_hooks_config_result, update_hooks_config, HooksConfig, hooks, &["hooks"]),
-    (update_composio_config_result, update_composio_config, ComposioConfig, composio, &["composio"]),
     (update_skills_config_result, update_skills_config, SkillsConfig, skills, &["skills"]),
-    (update_research_config_result, update_research_config, ResearchPhaseConfig, research, &["research"]),
     (update_agent_runtime_config_result, update_agent_runtime_config, AgentConfig, agent, &["agent"]),
     (update_runtime_config_result, update_runtime_config, RuntimeConfig, runtime, &["runtime"]),
     (update_model_routes_config_result, update_model_routes_config, Vec<ModelRouteConfig>, model_routes, &["model_routes"]),
@@ -1629,12 +1483,10 @@ define_agent_config_update_result_fns!(
     (update_autonomy_config_result, update_autonomy_config, AutonomyConfig, autonomy, &["autonomy"]),
     (update_agents_ipc_config_result, update_agents_ipc_config, AgentsIpcConfig, agents_ipc, &["agents_ipc"]),
     (update_coordination_config_result, update_coordination_config, CoordinationConfig, coordination, &["coordination"]),
-    (update_transcription_config_result, update_transcription_config, TranscriptionConfig, transcription, &["transcription"]),
 );
 
 define_agent_config_update_result_async_fns!(
     (update_heartbeat_config_result_async, HeartbeatConfig, heartbeat, &["heartbeat"]),
-    (update_goal_loop_config_result_async, GoalLoopConfig, goal_loop, &["goal_loop"]),
     (update_cron_config_result_async, CronConfig, cron, &["cron"]),
     (update_scheduler_config_result_async, SchedulerConfig, scheduler, &["scheduler"]),
     (update_reliability_config_result_async, ReliabilityConfig, reliability, &["reliability"]),
@@ -1650,9 +1502,7 @@ define_agent_config_update_result_async_fns!(
     (update_web_search_config_result_async, WebSearchConfig, web_search, &["web_search"]),
     (update_tunnel_config_result_async, TunnelConfig, tunnel, &["tunnel"]),
     (update_hooks_config_result_async, HooksConfig, hooks, &["hooks"]),
-    (update_composio_config_result_async, ComposioConfig, composio, &["composio"]),
     (update_skills_config_result_async, SkillsConfig, skills, &["skills"]),
-    (update_research_config_result_async, ResearchPhaseConfig, research, &["research"]),
     (update_agent_runtime_config_result_async, AgentConfig, agent, &["agent"]),
     (update_runtime_config_result_async, RuntimeConfig, runtime, &["runtime"]),
     (update_model_routes_config_result_async, Vec<ModelRouteConfig>, model_routes, &["model_routes"]),
@@ -1661,12 +1511,10 @@ define_agent_config_update_result_async_fns!(
     (update_autonomy_config_result_async, AutonomyConfig, autonomy, &["autonomy"]),
     (update_agents_ipc_config_result_async, AgentsIpcConfig, agents_ipc, &["agents_ipc"]),
     (update_coordination_config_result_async, CoordinationConfig, coordination, &["coordination"]),
-    (update_transcription_config_result_async, TranscriptionConfig, transcription, &["transcription"]),
 );
 
 define_agent_config_update_async_fns!(
     (update_heartbeat_config_async, update_heartbeat_config_result_async, HeartbeatConfig, heartbeat, &["heartbeat"]),
-    (update_goal_loop_config_async, update_goal_loop_config_result_async, GoalLoopConfig, goal_loop, &["goal_loop"]),
     (update_cron_config_async, update_cron_config_result_async, CronConfig, cron, &["cron"]),
     (update_scheduler_config_async, update_scheduler_config_result_async, SchedulerConfig, scheduler, &["scheduler"]),
     (update_reliability_config_async, update_reliability_config_result_async, ReliabilityConfig, reliability, &["reliability"]),
@@ -1682,9 +1530,7 @@ define_agent_config_update_async_fns!(
     (update_web_search_config_async, update_web_search_config_result_async, WebSearchConfig, web_search, &["web_search"]),
     (update_tunnel_config_async, update_tunnel_config_result_async, TunnelConfig, tunnel, &["tunnel"]),
     (update_hooks_config_async, update_hooks_config_result_async, HooksConfig, hooks, &["hooks"]),
-    (update_composio_config_async, update_composio_config_result_async, ComposioConfig, composio, &["composio"]),
     (update_skills_config_async, update_skills_config_result_async, SkillsConfig, skills, &["skills"]),
-    (update_research_config_async, update_research_config_result_async, ResearchPhaseConfig, research, &["research"]),
     (update_agent_runtime_config_async, update_agent_runtime_config_result_async, AgentConfig, agent, &["agent"]),
     (update_runtime_config_async, update_runtime_config_result_async, RuntimeConfig, runtime, &["runtime"]),
     (update_model_routes_config_async, update_model_routes_config_result_async, Vec<ModelRouteConfig>, model_routes, &["model_routes"]),
@@ -1693,7 +1539,6 @@ define_agent_config_update_async_fns!(
     (update_autonomy_config_async, update_autonomy_config_result_async, AutonomyConfig, autonomy, &["autonomy"]),
     (update_agents_ipc_config_async, update_agents_ipc_config_result_async, AgentsIpcConfig, agents_ipc, &["agents_ipc"]),
     (update_coordination_config_async, update_coordination_config_result_async, CoordinationConfig, coordination, &["coordination"]),
-    (update_transcription_config_async, update_transcription_config_result_async, TranscriptionConfig, transcription, &["transcription"]),
 );
 
 /// 读取、保存或转换 `update_gateway_config_async` 对应的配置数据与运行时状态。

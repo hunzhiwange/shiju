@@ -24,11 +24,12 @@ use crate::app::components::system_settings_common::{
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::state::ChannelsSettingsTab;
 use crate::app::{App, Message};
-use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{button, checkbox, column, container, row, scrollable, text, text_input};
+use iced::widget::{button, checkbox, column, container, row, text, text_input};
 use iced::{Alignment, Background, Border, Color, Element, Length};
 
 use self::common::{LABEL_WIDTH, enabled_channels, number_row};
+
+const CHANNEL_TAB_COLUMNS: usize = 5;
 
 fn global_settings_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
@@ -87,6 +88,7 @@ fn tab_button(
 
     button(text(tab.label()).size(12))
         .padding([7, 12])
+        .width(Length::Fill)
         .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(tab))))
         .style(move |theme: &iced::Theme, status| {
             let palette = theme.extended_palette();
@@ -162,12 +164,20 @@ fn channel_tabs(active_tab: ChannelsSettingsTab) -> Element<'static, Message> {
         ChannelsSettingsTab::ClawdTalk,
     ]);
 
-    scrollable(
-        row(tabs.into_iter().map(|tab| tab_button(tab, active_tab)).collect::<Vec<_>>()).spacing(8),
-    )
-    .direction(Direction::Horizontal(Scrollbar::new().width(4).scroller_width(4)))
-    .width(Length::Fill)
-    .into()
+    let mut rows = column![].spacing(8).width(Length::Fill);
+    for tabs_in_row in tabs.chunks(CHANNEL_TAB_COLUMNS) {
+        let mut tab_row = row![].spacing(8).width(Length::Fill);
+        for tab in tabs_in_row {
+            tab_row =
+                tab_row.push(container(tab_button(*tab, active_tab)).width(Length::FillPortion(1)));
+        }
+        for _ in tabs_in_row.len()..CHANNEL_TAB_COLUMNS {
+            tab_row = tab_row.push(container(text("")).width(Length::FillPortion(1)));
+        }
+        rows = rows.push(tab_row);
+    }
+
+    rows.into()
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。

@@ -59,9 +59,9 @@ pub(crate) fn detail_content_values(body: &TrajectoryDetailContent) -> Vec<Strin
         TrajectoryDetailContent::Text(text) | TrajectoryDetailContent::Unavailable(text) => {
             vec![text.clone()]
         }
-        TrajectoryDetailContent::Json(value) => vec![
-            serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string()),
-        ],
+        TrajectoryDetailContent::Json(value) => {
+            vec![serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())]
+        }
         TrajectoryDetailContent::Tools(_) => Vec::new(),
     }
 }
@@ -72,28 +72,20 @@ pub(crate) fn trajectory_details_body<'a>(
 ) -> Element<'a, Message> {
     match body {
         TrajectoryDetailContent::Fields(fields) => fields_view(fields, state),
-        TrajectoryDetailContent::Text(value) => container(selectable_value(
-            0,
-            value,
-            Font::DEFAULT,
-            12.0,
-            state,
-        ))
-        .padding(10)
-        .width(Length::Fill)
-        .style(styles::details_section_style)
-        .into(),
+        TrajectoryDetailContent::Text(value) => {
+            container(selectable_value(0, value, Font::DEFAULT, 12.0, state))
+                .padding(10)
+                .width(Length::Fill)
+                .style(styles::details_section_style)
+                .into()
+        }
         TrajectoryDetailContent::Json(value) => {
             let collapsed_paths = state.json_collapsed_paths();
             json_tree::json_tree(
                 &value,
                 &collapsed_paths,
-                |path| {
-                    Message::Chat(message::ChatMessage::TrajectoryDetailsJsonToggled(path))
-                },
-                |value| {
-                    Message::Chat(message::ChatMessage::TrajectoryDetailsJsonCopied(value))
-                },
+                |path| Message::Chat(message::ChatMessage::TrajectoryDetailsJsonToggled(path)),
+                |value| Message::Chat(message::ChatMessage::TrajectoryDetailsJsonCopied(value)),
             )
         }
         TrajectoryDetailContent::Tools(tools) => tool_definitions_view(tools, state),
@@ -234,12 +226,7 @@ fn selectable_value<'a>(
             .style(|theme: &Theme, _status| read_only_text_style(theme, theme.palette().text));
         container(pass_wheel_to_parent(editor)).width(Length::Fill).into()
     } else {
-        text(value)
-            .font(font)
-            .size(size)
-            .width(Length::Fill)
-            .wrapping(Wrapping::WordOrGlyph)
-            .into()
+        text(value).font(font).size(size).width(Length::Fill).wrapping(Wrapping::WordOrGlyph).into()
     };
     let position = state.context_menu_position(index);
     wrap_with_copy_context_menu(
@@ -315,10 +302,9 @@ fn content_for_tab(
             TrajectoryRecordKind::User | TrajectoryRecordKind::Context,
             TrajectoryDetailsTab::Preview,
         ) => detail_text(record.detail.input.as_deref(), "No content"),
-        (
-            TrajectoryRecordKind::User | TrajectoryRecordKind::Context,
-            TrajectoryDetailsTab::Raw,
-        ) => raw_fragments(record),
+        (TrajectoryRecordKind::User | TrajectoryRecordKind::Context, TrajectoryDetailsTab::Raw) => {
+            raw_fragments(record)
+        }
         (
             TrajectoryRecordKind::User | TrajectoryRecordKind::Context,
             TrajectoryDetailsTab::Source,

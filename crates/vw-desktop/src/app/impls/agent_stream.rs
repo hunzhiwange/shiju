@@ -1855,9 +1855,8 @@ fn gateway_request_options(
 }
 
 fn chat_tool_message(request_id: u64, payload: &serde_json::Value) -> Option<Message> {
-    vw_gateway_client::normalize_chat_tool_event(payload).map(|event| {
-        Message::Chat(message::ChatMessage::AgentToolLifecycle(request_id, event))
-    })
+    vw_gateway_client::normalize_chat_tool_event(payload)
+        .map(|event| Message::Chat(message::ChatMessage::AgentToolLifecycle(request_id, event)))
 }
 
 fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {

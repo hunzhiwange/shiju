@@ -69,9 +69,6 @@ pub mod slack;
 pub mod telegram;
 /// Channel trait 定义
 pub mod traits;
-/// 转录功能（非 WASM 平台）
-#[cfg(not(target_arch = "wasm32"))]
-pub mod transcription;
 /// WATI 通道实现（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 pub mod wati;

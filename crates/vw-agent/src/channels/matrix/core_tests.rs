@@ -123,17 +123,7 @@ fn empty_session_hints_and_missing_store_dir_are_ignored() {
 }
 
 #[test]
-fn builders_apply_enabled_transcription_and_mention_only_flags() {
-    let mut enabled = crate::app::agent::config::TranscriptionConfig::default();
-    enabled.enabled = true;
-
-    assert!(channel().with_transcription(enabled).transcription.is_some());
-    assert!(
-        channel()
-            .with_transcription(crate::app::agent::config::TranscriptionConfig::default())
-            .transcription
-            .is_none()
-    );
+fn mention_only_builder_updates_flag() {
     assert!(channel().with_mention_only(true).mention_only);
     assert!(!channel().with_mention_only(false).mention_only);
 }

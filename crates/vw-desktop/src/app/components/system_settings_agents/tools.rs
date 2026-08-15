@@ -581,11 +581,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "读取或调整运行时配置项，用于会话内配置查询与变更。",
             group: ToolGroup::Integration,
         },
-        "composio" => ToolMeta {
-            name: "外部集成",
-            description: "通过 Composio 调用 Gmail、Notion、GitHub、Slack 等外部应用操作。",
-            group: ToolGroup::Integration,
-        },
         "pushover" => ToolMeta {
             name: "推送通知",
             description: "向 Pushover 设备发送通知，支持标题、优先级和提示音。",

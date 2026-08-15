@@ -6,7 +6,6 @@ mod agents_ipc;
 mod autonomy;
 mod browser;
 mod channels;
-mod composio;
 mod coordination;
 mod cron;
 mod dialogue_flow;
@@ -14,7 +13,6 @@ mod embedding_routes;
 mod gateway;
 mod gateway_client;
 mod general;
-mod goal_loop;
 mod heartbeat;
 mod hooks;
 mod http_request;
@@ -31,7 +29,6 @@ mod proxy;
 mod query_classification;
 mod quick_messages;
 mod reliability;
-mod research;
 mod runtime;
 mod scheduler;
 mod security;
@@ -41,7 +38,6 @@ mod staff;
 mod storage;
 mod tabs;
 mod themes;
-mod transcription;
 mod tunnel;
 mod types;
 mod util;
@@ -54,12 +50,11 @@ use iced::Task;
 pub(crate) use messages::{
     AcpMessage, AgentsMessage, BashPolicyCheck, BashValidatorCheck, BrowserMessage,
     ChannelsMessage, EmbeddingRoutesMessage, GatewayClientMessage, GatewayMessage,
-    GeneralSettingsMessage, GoalLoopMessage, HooksMessage, HttpRequestMessage, McpMessage,
-    MemoryMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
-    QuickMessagesMessage, RuntimeMessage, SettingsMessage, StaffMessage,
-    StaffResourceMessage, StaffTeamDraftField, StaffTeamMemberDraftField, StaffWorkerDraftField,
-    StorageMessage, ThemeChromeField, ThemeColorPickerTarget, ThemePaletteField, ThemesMessage,
-    TunnelMessage, WebSearchMessage,
+    GeneralSettingsMessage, HooksMessage, HttpRequestMessage, McpMessage, MemoryMessage,
+    ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage, QuickMessagesMessage,
+    RuntimeMessage, SettingsMessage, StaffMessage, StaffResourceMessage, StaffTeamDraftField,
+    StaffTeamMemberDraftField, StaffWorkerDraftField, StorageMessage, ThemeChromeField,
+    ThemeColorPickerTarget, ThemePaletteField, ThemesMessage, TunnelMessage, WebSearchMessage,
 };
 
 pub(crate) fn reload_agents_config_task(project_path: Option<String>) -> Task<Message> {
@@ -71,7 +66,6 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
 
     match tag {
         "heartbeat" => app.heartbeat_settings.save_error = save_error,
-        "goal_loop" => app.goal_loop_settings.save_error = save_error,
         "cron" => app.cron_settings.save_error = save_error,
         "scheduler" => app.scheduler_settings.save_error = save_error,
         "reliability" => app.reliability_settings.save_error = save_error,
@@ -87,9 +81,7 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
         "web_search" => app.web_search_settings.save_error = save_error,
         "tunnel" => app.tunnel_settings.save_error = save_error,
         "hooks" => app.hooks_settings.save_error = save_error,
-        "composio" => app.composio_settings.save_error = save_error,
         "skills" => app.skills_settings.save_error = save_error,
-        "research" => app.research_settings.save_error = save_error,
         "staff" => {
             let result = match save_error {
                 Some(error) => Err(error),
@@ -104,7 +96,6 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
         "autonomy" => app.autonomy_settings.save_error = save_error,
         "agents_ipc" => app.agents_ipc_settings.save_error = save_error,
         "coordination" => app.coordination_settings.save_error = save_error,
-        "transcription" => app.transcription_settings.save_error = save_error,
         _ => {}
     }
 }
@@ -133,7 +124,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::Runtime(_) => runtime::update(app, message),
         SettingsMessage::Browser(_) => browser::update(app, message),
         SettingsMessage::WebSearch(_) => web_search::update(app, message),
-        SettingsMessage::GoalLoop(_) => goal_loop::update(app, message),
         SettingsMessage::HttpRequest(_) => http_request::update(app, message),
         SettingsMessage::Memory(_) => memory::update(app, message),
         SettingsMessage::Channels(_) => channels::update(app, message),
@@ -464,25 +454,5 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::ProxyServicesChanged(_)
         | SettingsMessage::ProxyHelpOpen
         | SettingsMessage::ProxyHelpClose => proxy::update(app, message),
-        SettingsMessage::ComposioEnabledToggled(_)
-        | SettingsMessage::ComposioApiKeyChanged(_)
-        | SettingsMessage::ComposioEntityIdChanged(_) => composio::update(app, message),
-        SettingsMessage::ResearchEnabledToggled(_)
-        | SettingsMessage::ResearchTriggerChanged(_)
-        | SettingsMessage::ResearchKeywordsChanged(_)
-        | SettingsMessage::ResearchMinMessageLengthChanged(_)
-        | SettingsMessage::ResearchMaxIterationsChanged(_)
-        | SettingsMessage::ResearchShowProgressToggled(_)
-        | SettingsMessage::ResearchSystemPromptPrefixChanged(_)
-        | SettingsMessage::ResearchSave
-        | SettingsMessage::ResearchHelpOpen
-        | SettingsMessage::ResearchHelpClose => research::update(app, message),
-        SettingsMessage::TranscriptionEnabledToggled(_)
-        | SettingsMessage::TranscriptionApiUrlChanged(_)
-        | SettingsMessage::TranscriptionModelChanged(_)
-        | SettingsMessage::TranscriptionLanguageChanged(_)
-        | SettingsMessage::TranscriptionMaxDurationSecsChanged(_)
-        | SettingsMessage::TranscriptionHelpOpen
-        | SettingsMessage::TranscriptionHelpClose => transcription::update(app, message),
     }
 }

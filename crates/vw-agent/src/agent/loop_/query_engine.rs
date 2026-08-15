@@ -209,19 +209,11 @@ impl QueryEngine {
             config.api_key.as_deref(),
         )?);
 
-        let (composio_key, composio_entity_id) = if config.composio.enabled {
-            (config.composio.api_key.as_deref(), Some(config.composio.entity_id.as_str()))
-        } else {
-            (None, None)
-        };
-
         let tools_registry = crate::app::agent::tools::all_tools_with_runtime(
             Arc::new(config.clone()),
             &security,
             runtime,
             memory.clone(),
-            composio_key,
-            composio_entity_id,
             &config.browser,
             &config.http_request,
             &config.web_fetch,
@@ -538,10 +530,6 @@ fn build_tool_descriptions(config: &Config) -> Vec<(&'static str, &'static str)>
     if config.web_search.enabled {
         tool_descs
             .push(("WebSearch", "Search the web for current information and relevant sources."));
-    }
-
-    if config.composio.enabled {
-        tool_descs.push(("composio", "Execute actions on 1000+ apps via Composio."));
     }
 
     let has_agent_tool = merged_agent_configs(&config.agents)

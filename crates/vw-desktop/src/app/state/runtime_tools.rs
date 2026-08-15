@@ -687,8 +687,7 @@ pub(crate) fn tool_bucket(tool_id: &str) -> SessionToolBucket {
         | "question"
         | "skill"
         | "memory_store"
-        | "memory_forget"
-        => SessionToolBucket::Agent,
+        | "memory_forget" => SessionToolBucket::Agent,
         _ => SessionToolBucket::Other,
     }
 }
@@ -731,13 +730,11 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         | "exit_plan_mode"
         | "verify_plan_execution"
         | "enter_worktree"
-        | "exit_worktree"
-        => SessionToolGroup::Collaboration,
+        | "exit_worktree" => SessionToolGroup::Collaboration,
         "memory_recall" | "memory_store" | "memory_forget" => SessionToolGroup::Memory,
         "tool_search"
         | "proxy_config"
         | "model_routing_config"
-        | "composio"
         | "pushover"
         | "agents_list"
         | "agents_send"

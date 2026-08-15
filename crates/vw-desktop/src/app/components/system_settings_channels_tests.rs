@@ -38,6 +38,14 @@ fn view_builds_empty_enabled_channel_summary() {
 }
 
 #[test]
+fn channel_tabs_builds_five_column_grid() {
+    let app = test_app();
+
+    assert_eq!(CHANNEL_TAB_COLUMNS, 5);
+    keep_element(channel_tabs(app.channels_settings.active_tab));
+}
+
+#[test]
 fn view_builds_cli_enabled_channel_summary() {
     let mut app = test_app();
     app.channels_settings.cli = true;

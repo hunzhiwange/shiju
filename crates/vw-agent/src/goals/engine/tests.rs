@@ -2,7 +2,6 @@
 //!
 //! 本模块包含针对 `GoalEngine` 及其相关数据结构的完整测试套件，涵盖以下功能：
 //!
-//! - **配置序列化/反序列化**：验证 `GoalLoopConfig` 的 TOML 解析和默认值
 //! - **目标状态持久化**：验证 `GoalState` 的 JSON 序列化/反序列化和文件 I/O
 //! - **步骤选择算法**：验证 `select_next_actionable` 的优先级排序和过滤逻辑
 //! - **提示词生成**：验证 `build_step_prompt` 和 `build_reflection_prompt` 的内容组装
@@ -103,52 +102,6 @@ mod tests {
                 },
             ],
         }
-    }
-
-    /// 测试 GoalLoopConfig 的 TOML 反序列化完整流程
-    ///
-    /// 验证所有配置项能够正确从 TOML 字符串解析，包括：
-    /// - 启用状态（enabled）
-    /// - 时间间隔（interval_minutes, step_timeout_secs）
-    /// - 并发限制（max_steps_per_cycle）
-    /// - 通道配置（channel, target）
-    #[test]
-    fn goal_loop_config_serde_roundtrip() {
-        let toml_str = r#"
-    enabled = true
-    interval_minutes = 15
-    step_timeout_secs = 180
-    max_steps_per_cycle = 5
-    channel = "lark"
-    target = "oc_test"
-    "#;
-        let config: crate::app::agent::config::schema::GoalLoopConfig =
-            toml::from_str(toml_str).unwrap();
-        assert!(config.enabled);
-        assert_eq!(config.interval_minutes, 15);
-        assert_eq!(config.step_timeout_secs, 180);
-        assert_eq!(config.max_steps_per_cycle, 5);
-        assert_eq!(config.channel.as_deref(), Some("lark"));
-        assert_eq!(config.target.as_deref(), Some("oc_test"));
-    }
-
-    /// 测试 GoalLoopConfig 的默认值
-    ///
-    /// 验证未显式配置时，各字段采用以下默认值：
-    /// - enabled: false（默认禁用）
-    /// - interval_minutes: 10（每 10 分钟执行一次）
-    /// - step_timeout_secs: 120（单步超时 2 分钟）
-    /// - max_steps_per_cycle: 3（每周期最多 3 步）
-    /// - channel/target: None（未配置）
-    #[test]
-    fn goal_loop_config_defaults() {
-        let config = crate::app::agent::config::schema::GoalLoopConfig::default();
-        assert!(!config.enabled);
-        assert_eq!(config.interval_minutes, 10);
-        assert_eq!(config.step_timeout_secs, 120);
-        assert_eq!(config.max_steps_per_cycle, 3);
-        assert!(config.channel.is_none());
-        assert!(config.target.is_none());
     }
 
     /// 测试 GoalState 的 JSON 序列化/反序列化完整流程

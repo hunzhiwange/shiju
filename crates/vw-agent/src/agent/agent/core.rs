@@ -2,7 +2,7 @@ use super::builder::AgentBuilder;
 use crate::app::agent::agent::memory_loader::{DefaultMemoryLoader, MemoryLoader};
 use crate::app::agent::agent::prompt::{PromptContext, SystemPromptBuilder};
 use crate::app::agent::approval::ApprovalManager;
-use crate::app::agent::config::{Config, ResearchPhaseConfig};
+use crate::app::agent::config::Config;
 use crate::app::agent::memory::{self, Memory};
 use crate::app::agent::observability::{self, Observer};
 use crate::app::agent::providers::{ChatMessage, Provider};
@@ -48,7 +48,6 @@ use std::sync::Arc;
 /// * `classification_config` - 查询分类配置
 /// * `available_hints` - 可用的路由提示列表
 /// * `route_model_by_hint` - 提示到模型的映射表
-/// * `research_config` - 研究阶段配置
 /// * `multimodal_config` - 多模态配置
 ///
 /// # 示例
@@ -86,7 +85,6 @@ pub struct Agent {
     pub(super) classification_config: crate::app::agent::config::QueryClassificationConfig,
     pub(super) available_hints: Vec<String>,
     pub(super) route_model_by_hint: HashMap<String, String>,
-    pub(super) research_config: ResearchPhaseConfig,
     pub(super) multimodal_config: crate::app::agent::config::MultimodalConfig,
     pub(super) timezone: Tz,
 }
@@ -197,18 +195,11 @@ impl Agent {
             config.api_key.as_deref(),
         )?);
 
-        let composio_key =
-            if config.composio.enabled { config.composio.api_key.as_deref() } else { None };
-        let composio_entity_id =
-            if config.composio.enabled { Some(config.composio.entity_id.as_str()) } else { None };
-
         let tools = crate::app::agent::tools::all_tools_with_runtime(
             Arc::new(config.clone()),
             &security,
             runtime,
             memory.clone(),
-            composio_key,
-            composio_entity_id,
             &config.browser,
             &config.http_request,
             &config.web_fetch,
@@ -264,7 +255,6 @@ impl Agent {
             ))
             .skills_prompt_mode(config.skills.prompt_injection_mode)
             .auto_save(config.memory.auto_save)
-            .research_config(config.research.clone())
             .multimodal_config(config.multimodal.clone())
             .timezone(timezone)
             .build()

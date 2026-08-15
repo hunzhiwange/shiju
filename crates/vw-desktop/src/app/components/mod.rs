@@ -271,11 +271,6 @@ pub mod system_settings_gateway;
 /// 配置桌面客户端连接哪个网关，以及访问认证参数。
 pub mod system_settings_gateway_client;
 
-/// 系统设置：目标循环
-///
-/// 配置自主 goal loop 的执行开关、节奏与事件投递目标。
-pub mod system_settings_goal_loop;
-
 /// 系统设置：心跳监控
 ///
 /// 配置代理健康检查、心跳间隔、故障检测等。
@@ -331,11 +326,6 @@ pub mod system_settings_proxy;
 /// 配置公网暴露网关时使用的 tunnel provider 与凭据。
 pub mod system_settings_tunnel;
 
-/// 系统设置：Composio 集成
-///
-/// 配置 Composio OAuth 工具集成的启用状态、API 密钥和实体标识。
-pub mod system_settings_composio;
-
 /// 系统设置：记忆系统配置
 ///
 /// 配置 memory 后端、嵌入参数、缓存与 Qdrant 连接选项。
@@ -356,11 +346,6 @@ pub mod system_settings_multimodal;
 /// 配置 runtime 类型以及 Docker/WASM 执行环境参数。
 pub mod system_settings_runtime;
 
-/// 系统设置：研究功能
-///
-/// 配置代理的研究能力、信息检索、知识库访问等。
-pub mod system_settings_research;
-
 /// 系统设置：Web 搜索
 ///
 /// 配置 web_search 工具的 provider、凭据、结果数和超时等参数。
@@ -370,7 +355,6 @@ pub mod system_settings_web_search;
 ///
 /// 配置任务调度器、优先级队列、并发控制等。
 pub mod system_settings_scheduler;
-
 
 /// 系统设置：浏览器配置
 ///
@@ -392,11 +376,6 @@ pub mod system_settings_security;
 ///
 /// 管理和配置代理可使用的技能和工具集。
 pub mod system_settings_skills;
-
-/// 系统设置：语音转写
-///
-/// 配置语音识别、音频转文字等转写功能。
-pub mod system_settings_transcription;
 
 /// 系统设置：主题管理
 ///

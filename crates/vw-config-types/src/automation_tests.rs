@@ -1,20 +1,9 @@
 #[test]
-fn automation_defaults_cover_research_scheduler_and_goal_loop() {
-    let research = super::ResearchPhaseConfig::default();
-    assert!(!research.enabled);
-    assert_eq!(research.trigger, super::ResearchTrigger::Never);
-    assert!(research.keywords.contains(&"find".to_string()));
-    assert_eq!(research.max_iterations, 5);
-
+fn automation_defaults_cover_scheduler() {
     let scheduler = super::SchedulerConfig::default();
     assert!(scheduler.enabled);
     assert_eq!(scheduler.max_tasks, 64);
     assert_eq!(scheduler.max_concurrent, 4);
-
-    let goal_loop = super::GoalLoopConfig::default();
-    assert!(!goal_loop.enabled);
-    assert_eq!(goal_loop.interval_minutes, 10);
-    assert_eq!(goal_loop.step_timeout_secs, 120);
 }
 
 #[test]

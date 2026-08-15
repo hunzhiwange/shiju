@@ -724,14 +724,12 @@ fn build_tool_descriptions_tracks_optional_tools() {
     config.browser.browser_open = "disable".to_string();
     config.web_fetch.enabled = true;
     config.web_search.enabled = true;
-    config.composio.enabled = true;
 
     let descriptions = build_tool_descriptions(&config);
     assert!(descriptions.iter().any(|(name, _)| *name == "Browser"));
     assert!(!descriptions.iter().any(|(name, _)| *name == "BrowserOpen"));
     assert!(descriptions.iter().any(|(name, _)| *name == "WebFetch"));
     assert!(descriptions.iter().any(|(name, _)| *name == "WebSearch"));
-    assert!(descriptions.iter().any(|(name, _)| *name == "composio"));
 }
 
 #[test]

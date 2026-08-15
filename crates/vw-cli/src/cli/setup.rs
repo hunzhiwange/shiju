@@ -125,17 +125,8 @@ pub(super) fn resolve_setup_name(
     override_value.or(configured_value).unwrap_or(fallback).to_string()
 }
 
-pub(super) fn composio_credentials<'a, 'b>(
-    enabled: bool,
-    api_key: Option<&'a str>,
-    entity_id: &'b str,
-) -> (Option<&'a str>, Option<&'b str>) {
-    if enabled { (api_key, Some(entity_id)) } else { (None, None) }
-}
-
 pub(super) fn build_tool_descriptions(
     browser_enabled: bool,
-    composio_enabled: bool,
     has_agent_tool: bool,
 ) -> Vec<(&'static str, &'static str)> {
     let mut tool_descs = vec![
@@ -189,13 +180,6 @@ pub(super) fn build_tool_descriptions(
         tool_descs.push((
             "browser_open",
             "Open approved HTTPS URLs in system browser (allowlist-only, no scraping)",
-        ));
-    }
-
-    if composio_enabled {
-        tool_descs.push((
-            "composio",
-            "Execute actions on 1000+ apps via Composio (Gmail, Notion, GitHub, Slack, etc.). Use action='list' to discover, 'execute' to run (optionally with connected_account_id), 'connect' to OAuth.",
         ));
     }
 
@@ -335,21 +319,12 @@ pub(crate) fn setup_cli(
     // 第三步：配置并注册工具集
     // ========================================
 
-    // 解析 Composio 集成配置（用于第三方应用集成）
-    let (composio_key, composio_entity_id) = composio_credentials(
-        config.composio.enabled,
-        config.composio.api_key.as_deref(),
-        config.composio.entity_id.as_str(),
-    );
-
     // 注册所有可用工具，传入必要的依赖项
     let tools_registry = crate::app::agent::tools::all_tools_with_runtime(
         Arc::new(config.clone()),  // 配置克隆
         &security,                 // 安全策略
         runtime,                   // 运行时适配器
         mem.clone(),               // 内存系统
-        composio_key,              // Composio API 密钥
-        composio_entity_id,        // Composio 实体 ID
         &config.browser,           // 浏览器配置
         &config.http_request,      // HTTP 请求配置
         &config.web_fetch,         // Web 抓取配置
@@ -423,8 +398,7 @@ pub(crate) fn setup_cli(
     // 构建工具描述列表，用于系统提示词
     // 每个工具包含名称和使用指南
     let has_agent_tool = tools_registry.iter().any(|tool| tool.name() == "AgentTool");
-    let tool_descs =
-        build_tool_descriptions(config.browser.enabled, config.composio.enabled, has_agent_tool);
+    let tool_descs = build_tool_descriptions(config.browser.enabled, has_agent_tool);
 
     // 确定上下文压缩设置
     // 启用时会限制初始上下文大小以优化性能

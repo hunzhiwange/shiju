@@ -171,44 +171,25 @@ const MODEL_ROUTES_HELP: &str = r#"模型路由说明
 - 避免多个高优先级规则表达同一意图，否则排查命中链路会变复杂。
 "#;
 
-const QUERY_CLASSIFICATION_HELP: &str = r#"查询分类说明
+const QUERY_CLASSIFICATION_HELP: &str = r#"查询模型分类说明
 
 一、作用
-- 本页把 pattern 映射为 category，供后续模型路由与策略判断使用。
-- 分类链路更偏“请求理解”，不是直接执行模型调用。
+- 本页把用户请求 pattern 映射到已配置的模型路由，供后续模型选择使用。
+- 模型分类链路更偏“请求理解”，不是直接执行模型调用。
 
 二、主要字段
 1) 启用开关
-- 控制查询分类是否参与决策。
+- 控制查询模型分类是否参与决策。
 2) pattern
 - 用于匹配用户请求或路由线索。
-3) category
-- 匹配成功后写入的分类标签。
+3) 模型分类
+- 从模型路由中选择；匹配成功后使用同名路由的 provider / model。
 4) priority
 - 用于解决多条规则同时命中的优先顺序。
 
 三、建议
-- category 命名保持简短稳定，方便被模型路由与日志复用。
+- 先在“模型路由”创建路由，再在本页选择对应模型分类。
 - 规则过多时优先收敛重复 pattern，减少维护成本。
-"#;
-
-const GOAL_LOOP_HELP: &str = r#"目标循环说明
-
-一、作用
-- 本页配置 autonomous goal loop 的执行节奏、单轮限制与事件投递目标。
-- 目标循环适合做定期回顾、待办推进或自治型后台动作。
-
-二、主要字段
-1) 启用
-- 控制 goal loop 是否运行。
-2) 间隔分钟 / 步骤超时 / 单轮最大步数
-- 决定循环频率、单步上限与每轮工作量。
-3) 通道 / 目标
-- 可选，把执行结果或事件投递到指定 channel/target。
-
-三、建议
-- 刚启用时先用较长间隔和较低步数，确认行为稳定后再放开。
-- channel 和 target 留空时，只执行循环本身，不额外发消息。
 "#;
 
 const AGENTS_HELP: &str = r#"委托代理配置说明
@@ -337,25 +318,6 @@ const TUNNEL_HELP: &str = r#"隧道配置说明
 - 自定义命令建议先在终端单独验证，再写入这里。
 "#;
 
-const COMPOSIO_HELP: &str = r#"Composio 集成说明
-
-一、作用
-- 本页控制 Composio OAuth 工具集成是否启用，并维护 API key 与默认实体 ID。
-- Composio 适合接入需要授权的第三方 SaaS 工具。
-
-二、主要字段
-1) 启用
-- 控制是否在运行时注册 Composio 工具。
-2) API 密钥
-- 用于访问 Composio 平台。
-3) 实体 ID
-- 用于区分不同用户、工作区或授权上下文。
-
-三、建议
-- 留空 API key 时不会注册相关工具，这是安全默认值。
-- 多租户或多账号场景下，为不同实体显式区分 entity_id。
-"#;
-
 const HOOKS_HELP: &str = r#"钩子配置说明
 
 一、作用
@@ -446,15 +408,13 @@ fn help_content(tab: SystemTab) -> Option<(&'static str, &'static str)> {
         SystemTab::Models => Some(("模型设置帮助", MODELS_HELP)),
         SystemTab::EmbeddingRoutes => Some(("嵌入路由帮助", EMBEDDING_ROUTES_HELP)),
         SystemTab::ModelRoutes => Some(("模型路由帮助", MODEL_ROUTES_HELP)),
-        SystemTab::QueryClassification => Some(("查询分类帮助", QUERY_CLASSIFICATION_HELP)),
-        SystemTab::GoalLoop => Some(("目标循环帮助", GOAL_LOOP_HELP)),
+        SystemTab::QueryClassification => Some(("查询模型分类帮助", QUERY_CLASSIFICATION_HELP)),
         SystemTab::Agents => Some(("委托代理配置帮助", AGENTS_HELP)),
         SystemTab::Channels => Some(("通道配置帮助", CHANNELS_HELP)),
         SystemTab::Memory => Some(("记忆系统帮助", MEMORY_HELP)),
         SystemTab::Runtime => Some(("运行时配置帮助", RUNTIME_HELP)),
         SystemTab::Storage => Some(("存储配置帮助", STORAGE_HELP)),
         SystemTab::Tunnel => Some(("隧道配置帮助", TUNNEL_HELP)),
-        SystemTab::Composio => Some(("Composio 集成帮助", COMPOSIO_HELP)),
         SystemTab::Hooks => Some(("钩子配置帮助", HOOKS_HELP)),
         SystemTab::HttpRequest => Some(("网络请求帮助", HTTP_REQUEST_HELP)),
         SystemTab::Browser => Some(("浏览器配置帮助", BROWSER_HELP)),

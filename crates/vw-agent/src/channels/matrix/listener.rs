@@ -5,7 +5,6 @@ use matrix_sdk::{
     Client as MatrixSdkClient, Room,
     config::SyncSettings,
     event_handler::RawEvent,
-    media::{MediaFormat, MediaRequestParameters},
     ruma::{
         OwnedRoomId, OwnedUserId,
         events::{
@@ -174,7 +173,6 @@ impl MatrixChannel {
         let dedupe_for_handler = Arc::clone(&recent_event_cache);
         let bot_dedupe_for_handler = Arc::clone(&recent_bot_event_cache);
         let mention_only_for_handler = self.mention_only;
-        let transcription_for_handler = self.transcription.clone();
 
         let task_pool_target_room_for_handler = target_room.clone();
         let task_pool_allowed_users_for_handler = self.allowed_users.clone();
@@ -215,7 +213,6 @@ impl MatrixChannel {
             let allowed_users = allowed_users_for_handler.clone();
             let dedupe = Arc::clone(&dedupe_for_handler);
             let bot_dedupe = Arc::clone(&bot_dedupe_for_handler);
-            let transcription = transcription_for_handler.clone();
 
             async move {
                 if room.room_id().as_str() != target_room.as_str() {
@@ -239,42 +236,7 @@ impl MatrixChannel {
                 let body = match &event.content.msgtype {
                     MessageType::Text(content) => content.body.clone(),
                     MessageType::Notice(content) => content.body.clone(),
-                    MessageType::Audio(content) => {
-                        if let Some(ref tc) = transcription {
-                            if tc.enabled {
-                                let media_request = MediaRequestParameters {
-                                    source: content.source.clone(),
-                                    format: MediaFormat::File,
-                                };
-                                match room.client().media().get_media_content(&media_request, true).await {
-                                    Ok(audio_data) => {
-                                        match crate::app::agent::channels::transcription::transcribe_audio(
-                                            audio_data,
-                                            &content.body,
-                                            tc,
-                                        )
-                                        .await
-                                        {
-                                            Ok(text) => text,
-                                            Err(e) => {
-                                                tracing::warn!("Matrix voice transcription failed: {e}");
-                                                format!("[Audio transcription failed: {}]", content.body)
-                                            }
-                                        }
-                                    }
-                                    Err(e) => {
-                                        let safe_error = MatrixChannel::sanitize_error_for_log(&e);
-                                        tracing::warn!("Failed to download Matrix audio: {safe_error}");
-                                        format!("[Audio download failed: {}]", content.body)
-                                    }
-                                }
-                            } else {
-                                return;
-                            }
-                        } else {
-                            return;
-                        }
-                    }
+                    MessageType::Audio(_) => return,
                     _ => return,
                 };
 

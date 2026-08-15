@@ -201,7 +201,7 @@ fn model_detail_and_model_settings_defaults_are_stable() {
 }
 
 #[test]
-fn route_classification_heartbeat_and_goal_loop_defaults_are_ready_to_edit() {
+fn route_classification_and_heartbeat_defaults_are_ready_to_edit() {
     let embedding = EmbeddingRouteDraft::default();
     assert!(embedding.pattern.is_empty());
     assert!(embedding.provider.is_empty());
@@ -239,15 +239,6 @@ fn route_classification_heartbeat_and_goal_loop_defaults_are_ready_to_edit() {
     assert!(heartbeat.to_input.is_empty());
     assert!(!heartbeat.show_help_modal);
     assert!(heartbeat.save_error.is_none());
-
-    let goal_loop = GoalLoopSettingsState::default();
-    assert!(!goal_loop.enabled);
-    assert_eq!(goal_loop.interval_minutes_input, "10");
-    assert_eq!(goal_loop.step_timeout_secs_input, "120");
-    assert_eq!(goal_loop.max_steps_per_cycle_input, "3");
-    assert!(goal_loop.channel_input.is_empty());
-    assert!(goal_loop.target_input.is_empty());
-    assert!(goal_loop.save_error.is_none());
 }
 
 #[test]

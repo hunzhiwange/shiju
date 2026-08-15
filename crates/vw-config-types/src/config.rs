@@ -20,9 +20,7 @@ use std::path::PathBuf;
 use crate::agent::{
     AgentConfig, AgentsIpcConfig, CoordinationConfig, DelegateAgentConfig, WorkspacesConfig,
 };
-use crate::automation::{
-    CronConfig, GoalLoopConfig, HeartbeatConfig, ResearchPhaseConfig, SchedulerConfig,
-};
+use crate::automation::{CronConfig, HeartbeatConfig, SchedulerConfig};
 use crate::channels::ChannelsConfig;
 use crate::gateway::GatewayConfig;
 use crate::gateway::TunnelConfig;
@@ -39,10 +37,8 @@ use crate::security::{AutonomyConfig, IdentityConfig, SecretsConfig, SecurityCon
 use crate::skills::SkillsConfig;
 use crate::staff::StaffConfig;
 use crate::tools::{
-    BrowserConfig, ComposioConfig, HttpRequestConfig, MultimodalConfig, WebFetchConfig,
-    WebSearchConfig,
+    BrowserConfig, HttpRequestConfig, MultimodalConfig, WebFetchConfig, WebSearchConfig,
 };
-use crate::transcription::TranscriptionConfig;
 use crate::ui::AppUiConfig;
 
 /// 仅用于填充运行时兼容路径；生产系统配置不从该文件读写。
@@ -160,9 +156,6 @@ pub struct Config {
     pub runtime: RuntimeConfig,
 
     #[serde(default)]
-    pub research: ResearchPhaseConfig,
-
-    #[serde(default)]
     pub reliability: ReliabilityConfig,
 
     #[serde(default)]
@@ -196,9 +189,6 @@ pub struct Config {
     pub cron: CronConfig,
 
     #[serde(default)]
-    pub goal_loop: GoalLoopConfig,
-
-    #[serde(default)]
     pub channels_config: ChannelsConfig,
 
     #[serde(default)]
@@ -212,9 +202,6 @@ pub struct Config {
 
     #[serde(default)]
     pub gateway: GatewayConfig,
-
-    #[serde(default)]
-    pub composio: ComposioConfig,
 
     #[serde(default)]
     pub secrets: SecretsConfig,
@@ -251,9 +238,6 @@ pub struct Config {
 
     #[serde(default)]
     pub hooks: HooksConfig,
-
-    #[serde(default)]
-    pub transcription: TranscriptionConfig,
 
     #[serde(default)]
     pub agents_ipc: AgentsIpcConfig,
@@ -378,7 +362,6 @@ impl Default for Config {
             autonomy: AutonomyConfig::default(),
             security: SecurityConfig::default(),
             runtime: RuntimeConfig::default(),
-            research: ResearchPhaseConfig::default(),
             reliability: ReliabilityConfig::default(),
             scheduler: SchedulerConfig::default(),
             agent: AgentConfig::default(),
@@ -389,13 +372,11 @@ impl Default for Config {
             embedding_routes: Vec::new(),
             heartbeat: HeartbeatConfig::default(),
             cron: CronConfig::default(),
-            goal_loop: GoalLoopConfig::default(),
             channels_config: ChannelsConfig::default(),
             memory: MemoryConfig::default(),
             storage: StorageConfig::default(),
             tunnel: TunnelConfig::default(),
             gateway: GatewayConfig::default(),
-            composio: ComposioConfig::default(),
             secrets: SecretsConfig::default(),
             browser: BrowserConfig::default(),
             http_request: HttpRequestConfig::default(),
@@ -409,7 +390,6 @@ impl Default for Config {
             coordination: CoordinationConfig::default(),
             hooks: HooksConfig::default(),
             query_classification: QueryClassificationConfig::default(),
-            transcription: TranscriptionConfig::default(),
             agents_ipc: AgentsIpcConfig::default(),
             model_support_vision: None,
             app_ui: AppUiConfig::default(),

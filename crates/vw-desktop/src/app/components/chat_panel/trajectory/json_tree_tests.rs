@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
-use iced::{Font, Theme};
 use iced::advanced::widget::Tree;
 use iced::widget::scrollable::{Direction, Scrollbar};
+use iced::{Font, Theme};
 use serde_json::json;
 
 use super::json_tree::{
@@ -68,12 +68,9 @@ fn json_tree_collapse_hides_only_selected_subtree() {
     );
     assert_eq!(rows[1].copy_value, json!({"hidden": [1, 2]}));
 
-    let element = json_tree(
-        &value,
-        &collapsed,
-        TestMessage::Toggle,
-        |value| TestMessage::Copy(value.to_string()),
-    );
+    let element = json_tree(&value, &collapsed, TestMessage::Toggle, |value| {
+        TestMessage::Copy(value.to_string())
+    });
     assert!(!Tree::new(element.as_widget()).children.is_empty());
 }
 
@@ -85,7 +82,10 @@ fn json_tree_uses_safe_fonts_for_non_ascii_values() {
         chinese
             .tokens
             .iter()
-            .filter(|token| matches!(token.kind, JsonTreeTokenKind::Key | JsonTreeTokenKind::String))
+            .filter(|token| matches!(
+                token.kind,
+                JsonTreeTokenKind::Key | JsonTreeTokenKind::String
+            ))
             .all(|token| token.font == Font::DEFAULT)
     );
     let ascii = rows.iter().find(|row| row.path == "/ascii").unwrap();

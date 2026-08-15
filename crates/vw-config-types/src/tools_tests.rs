@@ -158,29 +158,6 @@ fn multimodal_ocr_config_defaults_to_model_vision_and_round_trips_model_selectio
 }
 
 #[test]
-fn composio_config_defaults_and_enable_alias_deserialize() {
-    let config = super::ComposioConfig::default();
-    assert!(!config.enabled);
-    assert_eq!(config.api_key, None);
-    assert_eq!(config.entity_id, "default");
-
-    let parsed: super::ComposioConfig = serde_json::from_str("{}").unwrap();
-    assert!(!parsed.enabled);
-    assert_eq!(parsed.api_key, None);
-    assert_eq!(parsed.entity_id, "default");
-
-    let aliased: super::ComposioConfig = serde_json::from_value(serde_json::json!({
-        "enable": true,
-        "api_key": "secret",
-        "entity_id": "team-42"
-    }))
-    .unwrap();
-    assert!(aliased.enabled);
-    assert_eq!(aliased.api_key.as_deref(), Some("secret"));
-    assert_eq!(aliased.entity_id, "team-42");
-}
-
-#[test]
 fn browser_computer_use_config_defaults_and_overrides_deserialize() {
     let config = super::BrowserComputerUseConfig::default();
     assert_eq!(config.endpoint, "http://127.0.0.1:8787/v1/actions");

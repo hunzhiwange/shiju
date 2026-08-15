@@ -257,12 +257,8 @@ impl TrajectoryDetailsState {
     }
 
     pub(crate) fn select_record(&mut self, record: &TrajectoryRecord) -> bool {
-        let first_tab = record
-            .kind
-            .detail_tabs()
-            .first()
-            .copied()
-            .unwrap_or(TrajectoryDetailsTab::Summary);
+        let first_tab =
+            record.kind.detail_tabs().first().copied().unwrap_or(TrajectoryDetailsTab::Summary);
         let changed = self.select_id(record.id.clone(), Some(record.kind), first_tab);
         if changed && record.kind == TrajectoryRecordKind::System {
             let collapsed_tools = (1..record.detail.request_tools.len())

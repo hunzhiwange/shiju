@@ -9,7 +9,6 @@
 //! - **交互功能**：处理回调查询、消息反应、提及(@mention)等用户交互
 //! - **配对机制**：实现安全配对流程，限制允许与机器人交互的用户
 //! - **流式模式**：支持流式响应，实时更新消息内容
-//! - **语音转写**：可选的语音消息转写功能
 //!
 //! # 架构设计
 //!
@@ -28,7 +27,6 @@
 //! - `callbacks`: 回调查询处理
 //! - `reactions`: 消息反应处理
 //! - `mentions`: 提及(@mention)处理
-//! - `voice`: 语音消息处理
 //! - `pairing`: 配对流程
 //! - `polling`: 长轮询机制
 //! - `draft`: 草稿消息管理
@@ -76,7 +74,6 @@ mod reactions;
 mod sending_media;
 mod sending_text;
 mod tool_tags;
-mod voice;
 
 /// Telegram 通道实现
 ///
@@ -89,7 +86,6 @@ mod voice;
 /// - 提供安全的用户访问控制（通过 `allowed_users` 和 `pairing`）
 /// - 支持流式响应模式，实时更新消息内容
 /// - 支持群组消息处理，包括提及(@mention)和回复控制
-/// - 可选的语音消息转写功能
 ///
 /// # 线程安全
 ///
@@ -98,7 +94,6 @@ mod voice;
 /// - `typing_handle`: 使用 `Mutex` 保护异步任务句柄
 /// - `last_draft_edit`: 使用 `Mutex` 保护草稿编辑时间戳
 /// - `bot_username`: 使用 `Mutex` 缓存机器人用户名
-/// - `voice_transcriptions`: 使用 `Mutex` 缓存语音转写结果
 ///
 /// # 示例
 ///
@@ -184,17 +179,6 @@ pub struct TelegramChannel {
     /// 可覆盖此值以使用本地 Bot API 服务器或测试环境。
     api_base: String,
 
-    /// 语音转写配置
-    ///
-    /// 配置语音消息的转写功能。`None` 表示禁用语音转写。
-    transcription: Option<crate::app::agent::config::TranscriptionConfig>,
-
-    /// 语音转写结果缓存
-    ///
-    /// 缓存已处理的语音消息的转写文本，避免重复转写。
-    /// Key: 文件 ID，Value: 转写文本
-    voice_transcriptions: Mutex<std::collections::HashMap<String, String>>,
-
     /// 工作空间目录路径
     ///
     /// 用于存储下载的文件、临时数据等。
@@ -264,6 +248,3 @@ mod tests;
 #[cfg(test)]
 #[path = "tool_tags_tests.rs"]
 mod tool_tags_tests;
-#[cfg(test)]
-#[path = "voice_tests.rs"]
-mod voice_tests;

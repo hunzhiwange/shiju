@@ -168,7 +168,7 @@ fn restore_vec_secrets(values: &mut [String], current: &[String]) {
 /// # 处理的敏感字段
 ///
 /// - 全局 API 密钥和可靠性配置中的多个 API 密钥
-/// - Composio、代理、浏览器、Web 获取/搜索相关密钥
+/// - 代理、浏览器、Web 获取/搜索相关密钥
 /// - 存储数据库 URL
 /// - 隧道服务（Cloudflare、Ngrok）的令牌
 /// - 各代理的 API 密钥
@@ -190,7 +190,6 @@ pub fn mask_sensitive_fields(config: &Config) -> Config {
     // 掩码全局配置中的敏感字段
     mask_optional_secret(&mut masked.api_key);
     mask_vec_secrets(&mut masked.reliability.api_keys);
-    mask_optional_secret(&mut masked.composio.api_key);
     mask_vec_secrets(&mut masked.gateway.paired_tokens);
 
     // 掩码代理配置
@@ -351,7 +350,6 @@ fn restore_masked_sensitive_fields(incoming: &mut Config, current: &Config) {
     // 恢复全局配置中的敏感字段
     restore_optional_secret(&mut incoming.api_key, &current.api_key);
     restore_vec_secrets(&mut incoming.reliability.api_keys, &current.reliability.api_keys);
-    restore_optional_secret(&mut incoming.composio.api_key, &current.composio.api_key);
     restore_vec_secrets(&mut incoming.gateway.paired_tokens, &current.gateway.paired_tokens);
 
     // 恢复代理配置

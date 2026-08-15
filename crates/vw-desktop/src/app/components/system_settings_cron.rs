@@ -813,6 +813,7 @@ fn config_tab(app: &App) -> Element<'_, Message> {
     column![
         settings_section_card("基础行为", "控制 Cron 子系统是否运行与历史留存数量。"),
         settings_panel(column![enabled_row, history_row].spacing(0)),
+        crate::app::components::system_settings_scheduler::embedded_view(app),
     ]
     .spacing(14)
     .into()

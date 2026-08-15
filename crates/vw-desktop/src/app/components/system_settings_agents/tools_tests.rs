@@ -249,7 +249,6 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("Config", "配置管理", ToolGroup::Integration),
         ("tool_search", "工具搜索", ToolGroup::Integration),
         ("ToolSearch", "工具搜索", ToolGroup::Integration),
-        ("composio", "外部集成", ToolGroup::Integration),
         ("pushover", "推送通知", ToolGroup::Integration),
         ("screenshot", "屏幕截图", ToolGroup::Web),
         ("image_info", "图像信息", ToolGroup::Web),

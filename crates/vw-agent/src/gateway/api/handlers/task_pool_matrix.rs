@@ -160,15 +160,14 @@ async fn publish_task_pool_matrix_event(
     event: &TaskPoolMatrixEventDto,
 ) -> Result<String, ApiError> {
     let matrix_instance_id = matrix_instance_id.map(str::trim).filter(|value| !value.is_empty());
-    let (matrix, transcription, config_dir) = {
+    let (matrix, config_dir) = {
         let config = state.config.lock();
         let matrix = matrix_task_pool_publish_config(&config.channels_config, matrix_instance_id)?;
-        let transcription = config.transcription.clone();
         let config_dir = config.config_path.parent().map(std::path::PathBuf::from);
-        (matrix, transcription, config_dir)
+        (matrix, config_dir)
     };
 
-    let channel = task_pool_matrix_channel(matrix, transcription, config_dir, matrix_instance_id);
+    let channel = task_pool_matrix_channel(matrix, config_dir, matrix_instance_id);
 
     channel.send_task_pool_matrix_event(event).await.map_err(|error| {
         ApiError::internal(format!("Matrix task-pool event publish failed: {error}"))
@@ -178,7 +177,6 @@ async fn publish_task_pool_matrix_event(
 #[cfg(feature = "channel-matrix")]
 fn task_pool_matrix_channel(
     matrix: MatrixConfig,
-    transcription: crate::app::agent::config::TranscriptionConfig,
     config_dir: Option<std::path::PathBuf>,
     matrix_instance_id: Option<&str>,
 ) -> MatrixChannel {
@@ -193,7 +191,6 @@ fn task_pool_matrix_channel(
         config_dir,
     )
     .with_mention_only(matrix.mention_only)
-    .with_transcription(transcription)
 }
 
 #[cfg(not(feature = "channel-matrix"))]

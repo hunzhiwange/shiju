@@ -303,10 +303,7 @@ fn details_render_user_context_source() {
             TrajectoryRecordKind::User,
             json!({"kind": "user", "rpcId": "rpc-7", "clientTimeZone": "Asia/Shanghai"}),
         ),
-        (
-            TrajectoryRecordKind::Context,
-            json!({"kind": "context", "form": "skill_catalog"}),
-        ),
+        (TrajectoryRecordKind::Context, json!({"kind": "context", "form": "skill_catalog"})),
     ] {
         let mut message = record(kind);
         message.detail.input = Some("请查询".to_string());
@@ -343,9 +340,13 @@ fn details_render_model_options_usage_timing() {
         TrajectoryDetailContent::Json(json!({"model": "provider/model", "temperature": 0.2}))
     );
     let usage = build_details_content(&model, TrajectoryDetailsTab::Usage).body;
-    assert!(matches!(usage, TrajectoryDetailContent::Fields(ref fields) if fields.contains(&("Input tokens".to_string(), "12".to_string())) && fields.contains(&("Reasoning tokens".to_string(), "2".to_string()))));
+    assert!(
+        matches!(usage, TrajectoryDetailContent::Fields(ref fields) if fields.contains(&("Input tokens".to_string(), "12".to_string())) && fields.contains(&("Reasoning tokens".to_string(), "2".to_string())))
+    );
     let timing = build_details_content(&model, TrajectoryDetailsTab::Timing).body;
-    assert!(matches!(timing, TrajectoryDetailContent::Fields(ref fields) if fields.contains(&("Started".to_string(), "1000 ms".to_string())) && fields.contains(&("Duration".to_string(), "1.2 s".to_string()))));
+    assert!(
+        matches!(timing, TrajectoryDetailContent::Fields(ref fields) if fields.contains(&("Started".to_string(), "1000 ms".to_string())) && fields.contains(&("Duration".to_string(), "1.2 s".to_string())))
+    );
 }
 
 #[test]

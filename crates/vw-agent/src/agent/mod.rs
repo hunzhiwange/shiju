@@ -17,7 +17,6 @@
 //! - `loop_`：主循环处理，包含消息处理和运行逻辑
 //! - `memory_loader`：记忆加载器
 //! - `prompt`：提示词管理
-//! - `research`：研究功能实现
 //!
 //! ## 内置代理
 //!
@@ -32,7 +31,6 @@ pub mod dispatcher;
 pub mod loop_;
 pub mod memory_loader;
 pub mod prompt;
-pub mod research;
 
 #[cfg(test)]
 #[path = "mod_tests.rs"]

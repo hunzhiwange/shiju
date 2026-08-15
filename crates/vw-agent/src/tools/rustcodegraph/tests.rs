@@ -247,10 +247,8 @@ fn rustcodegraph_rejects_cross_workspace_paths() {
         );
     }
 
-    tool.validate_input(json!({ "operation": "node", "file": "lib.rs" }))
-        .unwrap();
-    tool.validate_input(json!({ "operation": "files", "pattern": "**/*.rs" }))
-        .unwrap();
+    tool.validate_input(json!({ "operation": "node", "file": "lib.rs" })).unwrap();
+    tool.validate_input(json!({ "operation": "files", "pattern": "**/*.rs" })).unwrap();
 }
 
 #[tokio::test]

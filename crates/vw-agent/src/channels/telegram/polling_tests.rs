@@ -219,13 +219,6 @@ fn approval_callback_update(
     })
 }
 
-#[test]
-fn polling_channel_starts_with_empty_voice_cache() {
-    let channel = TelegramChannel::new("token".to_string(), vec![], false);
-
-    assert!(channel.voice_transcriptions.lock().is_empty());
-}
-
 #[tokio::test]
 async fn listen_impl_advances_offset_and_returns_when_sender_closed() {
     let state = MockTelegramState::default();

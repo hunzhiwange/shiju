@@ -17,16 +17,32 @@ pub(crate) fn json_tree_token_color(theme: &Theme, kind: JsonTreeTokenKind) -> C
     match kind {
         JsonTreeTokenKind::Punctuation => theme.palette().text.scale_alpha(0.82),
         JsonTreeTokenKind::Key => {
-            if dark { Color::from_rgb8(196, 148, 255) } else { Color::from_rgb8(112, 66, 170) }
+            if dark {
+                Color::from_rgb8(196, 148, 255)
+            } else {
+                Color::from_rgb8(112, 66, 170)
+            }
         }
         JsonTreeTokenKind::String => {
-            if dark { Color::from_rgb8(244, 139, 152) } else { Color::from_rgb8(174, 48, 66) }
+            if dark {
+                Color::from_rgb8(244, 139, 152)
+            } else {
+                Color::from_rgb8(174, 48, 66)
+            }
         }
         JsonTreeTokenKind::Number => {
-            if dark { Color::from_rgb8(113, 190, 255) } else { Color::from_rgb8(26, 106, 174) }
+            if dark {
+                Color::from_rgb8(113, 190, 255)
+            } else {
+                Color::from_rgb8(26, 106, 174)
+            }
         }
         JsonTreeTokenKind::Boolean => {
-            if dark { Color::from_rgb8(240, 178, 100) } else { Color::from_rgb8(164, 92, 20) }
+            if dark {
+                Color::from_rgb8(240, 178, 100)
+            } else {
+                Color::from_rgb8(164, 92, 20)
+            }
         }
         JsonTreeTokenKind::Null => theme.palette().text.scale_alpha(0.54),
     }
@@ -355,7 +371,8 @@ pub(crate) fn details_tab_style(
 
 pub(crate) fn details_tab_underline_style(theme: &Theme, selected: bool) -> container::Style {
     container::Style {
-        background: selected.then(|| Background::Color(theme.extended_palette().primary.base.color)),
+        background: selected
+            .then(|| Background::Color(theme.extended_palette().primary.base.color)),
         border: Border { radius: 1.0.into(), ..Border::default() },
         ..container::Style::default()
     }

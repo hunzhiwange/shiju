@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::state::QueryClassificationRuleInput;
+use crate::app::state::{ModelRoute, QueryClassificationRuleInput};
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
@@ -29,7 +29,7 @@ fn view_empty_rules_adds_empty_panel_after_base_sections() {
     let tree = element_tree(view(&app));
 
     assert_eq!(tree.children.len(), 5);
-    assert_eq!(tree.children[0].children.len(), 2);
+    assert_eq!(tree.children[0].children.len(), 3);
     assert_eq!(tree.children[2].children.len(), 1);
     assert_eq!(tree.children[4].children.len(), 1);
 }
@@ -84,6 +84,26 @@ fn view_single_rule_uses_one_card_without_empty_state() {
 }
 
 #[test]
+fn view_renders_category_picker_for_configured_model_routes() {
+    let mut app = test_app();
+    app.model_routes_settings.routes = vec![ModelRoute {
+        pattern: "code".to_string(),
+        provider: "openai".to_string(),
+        model: "gpt-5".to_string(),
+        priority_input: "100".to_string(),
+    }];
+    app.query_classification_settings.rules = vec![QueryClassificationRuleInput {
+        pattern: "写代码".to_string(),
+        category: "code".to_string(),
+        priority_input: "100".to_string(),
+    }];
+
+    let tree = element_tree(view(&app));
+
+    assert_eq!(tree.children.len(), 5);
+}
+
+#[test]
 fn source_wires_each_editor_action_to_query_classification_message() {
     let source = include_str!("system_settings_query_classification.rs");
 
@@ -93,4 +113,6 @@ fn source_wires_each_editor_action_to_query_classification_message() {
     assert!(source.contains("QueryClassificationMessage::PatternChanged(idx, value)"));
     assert!(source.contains("QueryClassificationMessage::CategoryChanged(idx, value)"));
     assert!(source.contains("QueryClassificationMessage::PriorityChanged(idx, value)"));
+    assert!(source.contains("pick_list"));
+    assert!(source.contains("ViewMessage::OpenSystemSettingsTab(SystemTab::ModelRoutes)"));
 }

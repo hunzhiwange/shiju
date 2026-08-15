@@ -85,24 +85,6 @@ pub(super) fn build_query_classification_settings(
     }
 }
 
-/// 模块内可见函数，执行 build_goal_loop_settings 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_goal_loop_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
-) -> crate::app::state::GoalLoopSettingsState {
-    let goal_loop_cfg = &full_agent_cfg.goal_loop;
-
-    crate::app::state::GoalLoopSettingsState {
-        enabled: goal_loop_cfg.enabled,
-        interval_minutes_input: goal_loop_cfg.interval_minutes.to_string(),
-        step_timeout_secs_input: goal_loop_cfg.step_timeout_secs.to_string(),
-        max_steps_per_cycle_input: goal_loop_cfg.max_steps_per_cycle.to_string(),
-        channel_input: goal_loop_cfg.channel.clone().unwrap_or_default(),
-        target_input: goal_loop_cfg.target.clone().unwrap_or_default(),
-        save_error: None,
-    }
-}
-
 /// 模块内可见函数，执行 build_heartbeat_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_heartbeat_settings(
@@ -290,26 +272,6 @@ pub(super) fn build_skills_settings(
         detail_error: None,
         status_message: None,
         status_is_error: false,
-        show_help_modal: false,
-        save_error: None,
-    }
-}
-
-/// 模块内可见函数，执行 build_research_settings 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_research_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
-) -> crate::app::state::ResearchSettingsState {
-    let research_cfg = &full_agent_cfg.research;
-
-    crate::app::state::ResearchSettingsState {
-        enabled: research_cfg.enabled,
-        trigger: research_cfg.trigger,
-        keywords_input: research_cfg.keywords.join(", "),
-        min_message_length: research_cfg.min_message_length.clamp(1, 10_000) as u32,
-        max_iterations: research_cfg.max_iterations.clamp(1, 100) as u32,
-        show_progress: research_cfg.show_progress,
-        system_prompt_prefix: research_cfg.system_prompt_prefix.clone(),
         show_help_modal: false,
         save_error: None,
     }
@@ -833,42 +795,6 @@ pub(super) fn build_tunnel_settings(
     }
 }
 
-/// 模块内可见函数，执行 build_composio_settings 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_composio_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
-) -> crate::app::state::ComposioSettingsState {
-    let composio_cfg = &full_agent_cfg.composio;
-
-    crate::app::state::ComposioSettingsState {
-        enabled: composio_cfg.enabled,
-        api_key_input: composio_cfg.api_key.clone().unwrap_or_default(),
-        entity_id_input: {
-            let value = composio_cfg.entity_id.trim().to_string();
-            if value.is_empty() { "default".to_string() } else { value }
-        },
-        save_error: None,
-    }
-}
-
-/// 模块内可见函数，执行 build_transcription_settings 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_transcription_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
-) -> crate::app::state::TranscriptionSettingsState {
-    let transcription_cfg = &full_agent_cfg.transcription;
-
-    crate::app::state::TranscriptionSettingsState {
-        enabled: transcription_cfg.enabled,
-        api_url: transcription_cfg.api_url.clone(),
-        model: transcription_cfg.model.clone(),
-        language: transcription_cfg.language.clone().unwrap_or_default(),
-        max_duration_secs: transcription_cfg.max_duration_secs.clamp(1, 3600),
-        show_help_modal: false,
-        save_error: None,
-    }
-}
-
 pub(super) fn apply_bootstrap_agent_config(
     app: &mut App,
     full_agent_cfg: &vw_config_types::config::Config,
@@ -879,14 +805,12 @@ pub(super) fn apply_bootstrap_agent_config(
         build_embedding_routes_settings(full_agent_cfg, &gateway_cfg_result);
     app.model_routes_settings = build_model_routes_settings(full_agent_cfg);
     app.query_classification_settings = build_query_classification_settings(full_agent_cfg);
-    app.goal_loop_settings = build_goal_loop_settings(full_agent_cfg);
     app.heartbeat_settings = build_heartbeat_settings(full_agent_cfg);
     app.cron_settings = build_cron_settings(full_agent_cfg);
     app.scheduler_settings = build_scheduler_settings(full_agent_cfg);
     app.hooks_settings = build_hooks_settings(full_agent_cfg);
     app.runtime_settings = build_runtime_settings(full_agent_cfg);
     app.skills_settings = build_skills_settings(full_agent_cfg);
-    app.research_settings = build_research_settings(full_agent_cfg);
     app.web_search_settings = build_web_search_settings(full_agent_cfg);
     app.browser_settings = build_browser_settings(full_agent_cfg);
     app.http_request_settings = build_http_request_settings(full_agent_cfg);
@@ -905,7 +829,5 @@ pub(super) fn apply_bootstrap_agent_config(
     app.storage_settings = build_storage_settings(full_agent_cfg);
     app.proxy_settings = build_proxy_settings(full_agent_cfg);
     app.tunnel_settings = build_tunnel_settings(full_agent_cfg);
-    app.composio_settings = build_composio_settings(full_agent_cfg);
-    app.transcription_settings = build_transcription_settings(full_agent_cfg);
     app.acp_agents = super::sort_acp_agents(&full_agent_cfg.acp);
 }

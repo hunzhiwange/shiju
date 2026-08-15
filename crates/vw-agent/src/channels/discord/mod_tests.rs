@@ -229,9 +229,6 @@ async fn listen_with_gateway_events(events: Vec<serde_json::Value>) {
 
 #[test]
 fn constructor_and_builders_preserve_state() {
-    let mut transcription = TranscriptionConfig::default();
-    transcription.enabled = true;
-
     let channel = DiscordChannel::new(
         "token".to_string(),
         Some("guild-1".to_string()),
@@ -244,7 +241,6 @@ fn constructor_and_builders_preserve_state() {
         "user-1".to_string(),
         "user-1".to_string(),
     ])
-    .with_transcription(transcription)
     .with_workspace_dir(PathBuf::from("/tmp/discord-workspace"))
     .with_api_base("http://127.0.0.1:1///".to_string());
 
@@ -255,7 +251,6 @@ fn constructor_and_builders_preserve_state() {
     assert!(channel.listen_to_bots);
     assert!(channel.mention_only);
     assert_eq!(channel.group_reply_allowed_sender_ids, vec!["user-1", "user-2"]);
-    assert!(channel.transcription.is_some());
     assert_eq!(channel.workspace_dir.as_deref(), Some(Path::new("/tmp/discord-workspace")));
     assert_eq!(channel.discord_api_base_url(), "http://127.0.0.1:1");
     assert!(channel.typing_handles.lock().is_empty());

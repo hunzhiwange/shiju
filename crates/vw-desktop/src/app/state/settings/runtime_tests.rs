@@ -161,18 +161,7 @@ fn skills_catalog_models_preserve_metadata_and_support_every_kind() {
 }
 
 #[test]
-fn research_web_search_browser_and_gateway_defaults_are_ready_for_empty_config() {
-    let research = ResearchSettingsState::default();
-    assert!(!research.enabled);
-    assert_eq!(research.trigger, ResearchTrigger::Never);
-    assert!(research.keywords_input.is_empty());
-    assert_eq!(research.min_message_length, 50);
-    assert_eq!(research.max_iterations, 5);
-    assert!(research.show_progress);
-    assert!(research.system_prompt_prefix.is_empty());
-    assert!(!research.show_help_modal);
-    assert!(research.save_error.is_none());
-
+fn web_search_browser_and_gateway_defaults_are_ready_for_empty_config() {
     let web = WebSearchSettingsState::default();
     assert!(!web.enabled);
     assert_eq!(web.provider, "duckduckgo");

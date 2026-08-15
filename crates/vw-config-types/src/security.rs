@@ -208,7 +208,6 @@ fn default_non_cli_excluded_tools() -> Vec<String> {
         "proxy_config",
         "model_routing_config",
         "pushover",
-        "composio",
         "delegate",
         "screenshot",
         "image_info",

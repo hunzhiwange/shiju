@@ -255,7 +255,6 @@ impl App {
         let cfg_acp_agent =
             cfg_acp_agent.filter(|agent| acp_agents.iter().any(|candidate| candidate == agent));
         let heartbeat_cfg = full_agent_cfg.heartbeat.clone();
-        let goal_loop_cfg = full_agent_cfg.goal_loop.clone();
         let cron_cfg = full_agent_cfg.cron.clone();
         let scheduler_cfg = full_agent_cfg.scheduler.clone();
         let embedding_routes_cfg = full_agent_cfg.embedding_routes.clone();
@@ -277,11 +276,8 @@ impl App {
         let tunnel_cfg = full_agent_cfg.tunnel.clone();
         let hooks_cfg = full_agent_cfg.hooks.clone();
         let runtime_cfg = full_agent_cfg.runtime.clone();
-        let composio_cfg = full_agent_cfg.composio.clone();
         let skills_cfg = full_agent_cfg.skills.clone();
-        let research_cfg = full_agent_cfg.research.clone();
         let web_search_cfg = full_agent_cfg.web_search.clone();
-        let transcription_cfg = full_agent_cfg.transcription.clone();
         let agents_ipc_cfg = full_agent_cfg.agents_ipc.clone();
         let coordination_cfg = full_agent_cfg.coordination.clone();
         let model_routes_cfg = full_agent_cfg.model_routes.clone();
@@ -842,17 +838,6 @@ impl App {
                 save_error: None,
             },
 
-            // ========== 目标循环设置 ==========
-            goal_loop_settings: super::state::GoalLoopSettingsState {
-                enabled: goal_loop_cfg.enabled,
-                interval_minutes_input: goal_loop_cfg.interval_minutes.to_string(),
-                step_timeout_secs_input: goal_loop_cfg.step_timeout_secs.to_string(),
-                max_steps_per_cycle_input: goal_loop_cfg.max_steps_per_cycle.to_string(),
-                channel_input: goal_loop_cfg.channel.unwrap_or_default(),
-                target_input: goal_loop_cfg.target.unwrap_or_default(),
-                save_error: None,
-            },
-
             // ========== 心跳设置 ==========
             heartbeat_settings: super::state::HeartbeatSettingsState {
                 enabled: heartbeat_cfg.enabled,
@@ -884,7 +869,6 @@ impl App {
                 save_error: None,
                 action_status: None,
             },
-
 
             // ========== 调度器设置 ==========
             scheduler_settings: super::state::SchedulerSettingsState {
@@ -1022,19 +1006,6 @@ impl App {
                 detail_error: None,
                 status_message: None,
                 status_is_error: false,
-                show_help_modal: false,
-                save_error: None,
-            },
-
-            // ========== 研究设置 ==========
-            research_settings: super::state::ResearchSettingsState {
-                enabled: research_cfg.enabled,
-                trigger: research_cfg.trigger,
-                keywords_input: research_cfg.keywords.join(", "),
-                min_message_length: research_cfg.min_message_length.clamp(1, 10_000) as u32,
-                max_iterations: research_cfg.max_iterations.clamp(1, 100) as u32,
-                show_progress: research_cfg.show_progress,
-                system_prompt_prefix: research_cfg.system_prompt_prefix,
                 show_help_modal: false,
                 save_error: None,
             },
@@ -1545,28 +1516,6 @@ impl App {
 
             // ========== 主题设置 ==========
             themes_settings: super::state::ThemesSettingsState::default(),
-
-            // ========== Composio 设置 ==========
-            composio_settings: super::state::ComposioSettingsState {
-                enabled: composio_cfg.enabled,
-                api_key_input: composio_cfg.api_key.unwrap_or_default(),
-                entity_id_input: {
-                    let value = composio_cfg.entity_id.trim().to_string();
-                    if value.is_empty() { "default".to_string() } else { value }
-                },
-                save_error: None,
-            },
-
-            // ========== 转录设置 ==========
-            transcription_settings: super::state::TranscriptionSettingsState {
-                enabled: transcription_cfg.enabled,
-                api_url: transcription_cfg.api_url,
-                model: transcription_cfg.model,
-                language: transcription_cfg.language.unwrap_or_default(),
-                max_duration_secs: transcription_cfg.max_duration_secs.clamp(1, 3600),
-                show_help_modal: false,
-                save_error: None,
-            },
 
             // ========== 文件树状态 ==========
             file_tree_expanded: cfg_file_tree_expanded.clone(),

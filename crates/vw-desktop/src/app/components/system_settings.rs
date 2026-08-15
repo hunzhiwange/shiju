@@ -20,11 +20,9 @@
 //! - **模型 (Models)**：AI 模型配置
 //! - **嵌入路由 (EmbeddingRoutes)**：嵌入模型路由配置
 //! - **模型路由 (ModelRoutes)**：模式到模型的路由配置
-//! - **查询分类 (QueryClassification)**：查询分类规则配置
-//! - **目标循环 (GoalLoop)**：自治目标循环设置
+//! - **查询模型分类 (QueryClassification)**：查询模型分类规则配置
 //! - **心跳配置 (Heartbeat)**：心跳检测设置
 //! - **定时任务配置 (Cron)**：定时任务配置
-//! - **调度配置 (Scheduler)**：任务调度设置
 //! - **委托代理配置 (Agents)**：委托代理 researcher/coder/reviewer 配置
 //! - **员工配置 (Staff)**：任务看板员工名册、绑定和能力配置
 //! - **代理通信配置 (AgentsIpc)**：代理间通信配置
@@ -42,16 +40,13 @@
 //! - **存储配置 (Storage)**：持久化存储 provider 与连接参数
 //! - **代理配置 (Proxy)**：网络代理设置
 //! - **隧道配置 (Tunnel)**：网关公网暴露隧道配置
-//! - **Composio 集成配置 (Composio)**：Composio OAuth 工具集成设置
 //! - **技能配置 (Skills)**：代理技能配置
 //! - **钩子配置 (Hooks)**：运行时钩子配置
-//! - **研究配置 (Research)**：研究功能配置
 //! - **网页搜索配置 (WebSearch)**：Web 搜索工具 provider 与请求参数配置
 //! - **网络请求配置 (HttpRequest)**：HTTP 请求工具配置
 //! - **浏览器配置 (Browser)**：浏览器工具与自动化后端配置
 //! - **多模态配置 (Multimodal)**：图像输入数量、大小限制与远程抓取配置
 //! - **网络请求配置 (HttpRequest)**：HTTP 请求工具白名单与请求限制
-//! - **转录配置 (Transcription)**：语音转录配置
 
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
@@ -78,11 +73,9 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Vector
 /// - `Models` - 模型设置，管理可用 AI 模型
 /// - `EmbeddingRoutes` - 嵌入路由设置，管理嵌入模型路由规则
 /// - `ModelRoutes` - 模型路由设置，配置模式到模型的映射
-/// - `QueryClassification` - 查询分类设置，配置匹配规则与分类目标
-/// - `GoalLoop` - 目标循环设置，配置自治目标执行节奏与投递目标
+/// - `QueryClassification` - 查询模型分类设置，配置匹配规则与模型路由目标
 /// - `Heartbeat` - 心跳设置，配置心跳检测参数
 /// - `Cron` - Cron 设置，配置定时任务
-/// - `Scheduler` - 调度器设置，配置任务调度策略
 /// - `Agents` - Agents 设置，配置 researcher / coder / reviewer 等委托代理
 /// - `Staff` - 员工配置，配置任务看板员工名册、绑定和能力
 /// - `AgentsIpc` - Agents IPC 设置，配置代理间通信
@@ -99,16 +92,13 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Vector
 /// - `Storage` - 存储设置，配置持久化存储 provider 与连接参数
 /// - `Proxy` - 代理设置，配置网络代理
 /// - `Tunnel` - 隧道设置，配置网关公网暴露 provider
-/// - `Composio` - Composio 设置，配置 OAuth 工具集成
 /// - `Skills` - 技能设置，配置代理可用技能
 /// - `Hooks` - 钩子设置，配置运行时 hooks 与内置钩子
-/// - `Research` - 研究设置，配置研究功能
 /// - `WebSearch` - Web 搜索设置，配置搜索 provider、凭据与请求参数
 /// - `HttpRequest` - HTTP 请求设置，配置 http_request 工具白名单与网络限制
 /// - `Browser` - 浏览器设置，配置 browser/browser_open 工具与后端
 /// - `Multimodal` - 多模态设置，配置图像输入限制与远程抓取策略
 /// - `HttpRequest` - HTTP 请求设置，配置 http_request 工具白名单与请求限制
-/// - `Transcription` - 转录设置，配置语音转录功能
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemTab {
     /// 常规设置标签页
@@ -131,16 +121,12 @@ pub enum SystemTab {
     EmbeddingRoutes,
     /// 模型路由设置标签页
     ModelRoutes,
-    /// 查询分类设置标签页
+    /// 查询模型分类设置标签页
     QueryClassification,
-    /// 目标循环配置标签页
-    GoalLoop,
     /// 心跳配置标签页
     Heartbeat,
     /// 定时任务配置标签页
     Cron,
-    /// 调度配置标签页
-    Scheduler,
     /// 委托代理配置标签页
     Agents,
     /// 员工配置标签页
@@ -177,14 +163,10 @@ pub enum SystemTab {
     Proxy,
     /// 隧道配置标签页
     Tunnel,
-    /// Composio 集成配置标签页
-    Composio,
     /// 技能配置标签页
     Skills,
     /// 钩子配置标签页
     Hooks,
-    /// 研究配置标签页
-    Research,
     /// 网页搜索配置标签页
     WebSearch,
     /// 网络请求配置标签页
@@ -193,8 +175,6 @@ pub enum SystemTab {
     Browser,
     /// 多模态配置标签页
     Multimodal,
-    /// 转录配置标签页
-    Transcription,
 }
 
 impl SystemTab {
@@ -212,7 +192,7 @@ impl SystemTab {
     ///     println!("{}", tab);
     /// }
     /// ```
-    pub(super) fn all() -> [SystemTab; 42] {
+    pub(super) fn all() -> [SystemTab; 37] {
         [
             SystemTab::General,
             SystemTab::Themes,
@@ -226,10 +206,8 @@ impl SystemTab {
             SystemTab::Memory,
             SystemTab::ModelRoutes,
             SystemTab::QueryClassification,
-            SystemTab::GoalLoop,
             SystemTab::Heartbeat,
             SystemTab::Cron,
-            SystemTab::Scheduler,
             SystemTab::Agents,
             SystemTab::Staff,
             SystemTab::AgentsIpc,
@@ -247,15 +225,12 @@ impl SystemTab {
             SystemTab::Storage,
             SystemTab::Proxy,
             SystemTab::Tunnel,
-            SystemTab::Composio,
             SystemTab::Skills,
             SystemTab::Hooks,
-            SystemTab::Research,
             SystemTab::WebSearch,
             SystemTab::HttpRequest,
             SystemTab::Browser,
             SystemTab::Multimodal,
-            SystemTab::Transcription,
         ]
     }
 }
@@ -285,11 +260,9 @@ impl std::fmt::Display for SystemTab {
             SystemTab::Models => write!(f, "模型"),
             SystemTab::EmbeddingRoutes => write!(f, "嵌入路由"),
             SystemTab::ModelRoutes => write!(f, "模型路由"),
-            SystemTab::QueryClassification => write!(f, "查询分类"),
-            SystemTab::GoalLoop => write!(f, "目标循环配置"),
+            SystemTab::QueryClassification => write!(f, "查询模型分类"),
             SystemTab::Heartbeat => write!(f, "心跳配置"),
             SystemTab::Cron => write!(f, "定时任务配置"),
-            SystemTab::Scheduler => write!(f, "调度配置"),
             SystemTab::Agents => write!(f, "委托代理配置"),
             SystemTab::Staff => write!(f, "员工配置"),
             SystemTab::AgentsIpc => write!(f, "代理通信配置"),
@@ -308,15 +281,12 @@ impl std::fmt::Display for SystemTab {
             SystemTab::Storage => write!(f, "存储配置"),
             SystemTab::Proxy => write!(f, "代理配置"),
             SystemTab::Tunnel => write!(f, "隧道配置"),
-            SystemTab::Composio => write!(f, "Composio"),
             SystemTab::Skills => write!(f, "技能配置"),
             SystemTab::Hooks => write!(f, "钩子配置"),
-            SystemTab::Research => write!(f, "研究配置"),
             SystemTab::WebSearch => write!(f, "网页搜索配置"),
             SystemTab::HttpRequest => write!(f, "网络请求配置"),
             SystemTab::Browser => write!(f, "浏览器配置"),
             SystemTab::Multimodal => write!(f, "多模态配置"),
-            SystemTab::Transcription => write!(f, "转录配置"),
         }
     }
 }
@@ -354,19 +324,13 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
             "模型路由 model routes routing 模型 新增路由 匹配模式 pattern provider model priority 优先级"
         }
         SystemTab::QueryClassification => {
-            "查询分类 query classification rules 规则 启用 新增规则 规则优先级 pattern category priority 分类"
-        }
-        SystemTab::GoalLoop => {
-            "目标循环配置 goal loop run automation 运行 自动化 启用 调度节奏 间隔 投递目标 channel target"
+            "查询模型分类 查询分类 query model classification rules 规则 启用 新增规则 规则优先级 pattern category priority 模型 分类"
         }
         SystemTab::Heartbeat => {
             "心跳配置 heartbeat monitor follow up 自动化 启用 执行间隔 兜底消息 目标通道 接收者 投递内容"
         }
         SystemTab::Cron => {
-            "定时任务配置 cron schedule task 自动化 启用 历史留存 history retention max history"
-        }
-        SystemTab::Scheduler => {
-            "调度配置 scheduler tasks run 运行 执行能力 启用 最大任务 并发上限 最大并发 max_tasks max_concurrent"
+            "定时任务配置 cron schedule task 自动化 启用 历史留存 history retention 调度器 scheduler 执行能力 最大任务 并发上限 最大并发 max_tasks max_concurrent"
         }
         SystemTab::Agents => {
             "委托代理配置 agents subagent model tools 模型 工具 Agent 工作台 新增智能体 key 基础 身份 工具 技能 提供商 API 密钥 温度 启用 最大深度 上下文压缩 历史消息上限 并行工具 工具调度器 最大迭代次数 智能体模式"
@@ -422,17 +386,11 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
         SystemTab::Tunnel => {
             "隧道配置 tunnel public gateway 接入方式 提供者 tailscale funnel tailnet 主机名 端口 公网暴露"
         }
-        SystemTab::Composio => {
-            "composio 集成配置 oauth tools 工具 基础行为 启用 API Key 默认实体 entity OAuth"
-        }
         SystemTab::Skills => {
             "技能配置 skills tools plugins 工具 插件 open-skills 目录 模式 catalog browser"
         }
         SystemTab::Hooks => {
             "钩子配置 hooks tool command 工具 基础行为 启用 command_logger 内置钩子 自定义 hooks"
-        }
-        SystemTab::Research => {
-            "研究配置 research search tool 工具 基础行为 启用 触发方式 关键词 最短消息 预算与输出 最大迭代 进度输出 提示前缀"
         }
         SystemTab::WebSearch => {
             "网页搜索配置 web search brave tool 工具 搜索 基础行为 启用 搜索服务 DuckDuckGo Brave Serper Google Bing Brave 密钥 API 密钥 接口地址 请求参数 结果数量 超时时间 User-Agent"
@@ -445,9 +403,6 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
         }
         SystemTab::Multimodal => {
             "多模态配置 multimodal image vision model 模型 图片模型 OCR 文字提取 最大图片数量 单张图片大小上限 远程抓取 remote fetch"
-        }
-        SystemTab::Transcription => {
-            "转录配置 transcription audio speech model 模型 基础行为 启用 接口参数 API 密钥 接口地址 超时时间"
         }
     }
 }
@@ -469,8 +424,9 @@ pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bo
         active_tab,
     ) || match active_tab {
         SystemTab::Heartbeat => app.heartbeat_settings.show_help_modal,
-        SystemTab::Cron => app.cron_settings.show_help_modal,
-        SystemTab::Scheduler => app.scheduler_settings.show_help_modal,
+        SystemTab::Cron => {
+            app.cron_settings.show_help_modal || app.scheduler_settings.show_help_modal
+        }
         SystemTab::AgentsIpc => app.agents_ipc_settings.show_help_modal,
         SystemTab::Coordination => app.coordination_settings.show_help_modal,
         SystemTab::Reliability => app.reliability_settings.show_help_modal,
@@ -481,9 +437,7 @@ pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bo
         SystemTab::Observability => app.observability_settings.show_help_modal,
         SystemTab::Proxy => app.proxy_settings.show_help_modal,
         SystemTab::Skills => app.skills_settings.show_help_modal,
-        SystemTab::Research => app.research_settings.show_help_modal,
         SystemTab::WebSearch => app.web_search_settings.show_help_modal,
-        SystemTab::Transcription => app.transcription_settings.show_help_modal,
         _ => false,
     }
 }
@@ -495,10 +449,12 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::EmbeddingRoutes => app.embedding_routes_settings.save_error.as_deref(),
         SystemTab::ModelRoutes => app.model_routes_settings.save_error.as_deref(),
         SystemTab::QueryClassification => app.query_classification_settings.save_error.as_deref(),
-        SystemTab::GoalLoop => app.goal_loop_settings.save_error.as_deref(),
         SystemTab::Heartbeat => app.heartbeat_settings.save_error.as_deref(),
-        SystemTab::Cron => app.cron_settings.save_error.as_deref(),
-        SystemTab::Scheduler => app.scheduler_settings.save_error.as_deref(),
+        SystemTab::Cron => app
+            .cron_settings
+            .save_error
+            .as_deref()
+            .or(app.scheduler_settings.save_error.as_deref()),
         SystemTab::Agents => app.agents_settings.save_error.as_deref(),
         SystemTab::Staff => app.staff_settings.save_error.as_deref(),
         SystemTab::AgentsIpc => app.agents_ipc_settings.save_error.as_deref(),
@@ -517,15 +473,12 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::Storage => app.storage_settings.save_error.as_deref(),
         SystemTab::Proxy => app.proxy_settings.save_error.as_deref(),
         SystemTab::Tunnel => app.tunnel_settings.save_error.as_deref(),
-        SystemTab::Composio => app.composio_settings.save_error.as_deref(),
         SystemTab::Skills => app.skills_settings.save_error.as_deref(),
         SystemTab::Hooks => app.hooks_settings.save_error.as_deref(),
-        SystemTab::Research => app.research_settings.save_error.as_deref(),
         SystemTab::WebSearch => app.web_search_settings.save_error.as_deref(),
         SystemTab::HttpRequest => app.http_request_settings.save_error.as_deref(),
         SystemTab::Browser => app.browser_settings.save_error.as_deref(),
         SystemTab::Multimodal => app.multimodal_settings.save_error.as_deref(),
-        SystemTab::Transcription => app.transcription_settings.save_error.as_deref(),
         SystemTab::Themes => app.themes_settings.error.as_deref(),
         SystemTab::General
         | SystemTab::DialogueFlow
@@ -723,10 +676,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SystemTab::QueryClassification => {
             crate::app::components::system_settings_query_classification::view(app)
         }
-        SystemTab::GoalLoop => crate::app::components::system_settings_goal_loop::view(app),
         SystemTab::Heartbeat => crate::app::components::system_settings_heartbeat::view(app),
         SystemTab::Cron => crate::app::components::system_settings_cron::view(app),
-        SystemTab::Scheduler => crate::app::components::system_settings_scheduler::view(app),
         SystemTab::Agents => crate::app::components::system_settings_agents::view(app),
         SystemTab::Staff => crate::app::components::system_settings_staff::view(app),
         SystemTab::AgentsIpc => crate::app::components::system_settings_agents_ipc::view(app),
@@ -749,17 +700,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SystemTab::Storage => crate::app::components::system_settings_storage::view(app),
         SystemTab::Proxy => crate::app::components::system_settings_proxy::view(app),
         SystemTab::Tunnel => crate::app::components::system_settings_tunnel::view(app),
-        SystemTab::Composio => crate::app::components::system_settings_composio::view(app),
         SystemTab::Skills => crate::app::components::system_settings_skills::view(app),
         SystemTab::Hooks => crate::app::components::system_settings_hooks::view(app),
-        SystemTab::Research => crate::app::components::system_settings_research::view(app),
         SystemTab::WebSearch => crate::app::components::system_settings_web_search::view(app),
         SystemTab::HttpRequest => crate::app::components::system_settings_http_request::view(app),
         SystemTab::Browser => crate::app::components::system_settings_browser::view(app),
         SystemTab::Multimodal => crate::app::components::system_settings_multimodal::view(app),
-        SystemTab::Transcription => {
-            crate::app::components::system_settings_transcription::view(app)
-        }
     };
 
     // 左侧返回按钮和右侧关闭按钮执行相同的关闭操作
@@ -977,10 +923,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if app.system_settings_tab == SystemTab::Skills {
         dialog = crate::app::components::system_settings_skills::view_overlays(app, dialog);
-    }
-
-    if app.system_settings_tab == SystemTab::Transcription {
-        dialog = crate::app::components::system_settings_transcription::view_overlays(app, dialog);
     }
 
     dialog = crate::app::components::system_settings_help::with_help_modal(

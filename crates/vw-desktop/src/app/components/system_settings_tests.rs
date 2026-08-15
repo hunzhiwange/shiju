@@ -38,7 +38,7 @@ fn system_settings_search_matches_child_items() {
     assert!(system_tab_matches_query(SystemTab::General, "语言"));
     assert!(system_tab_matches_query(SystemTab::QuickMessages, "创建新会话"));
     assert!(system_tab_matches_query(SystemTab::Agents, "API 密钥"));
-    assert!(system_tab_matches_query(SystemTab::Scheduler, "最大并发"));
+    assert!(system_tab_matches_query(SystemTab::Cron, "最大并发"));
     assert!(system_tab_matches_query(SystemTab::Acp, "初始化"));
     assert!(system_tab_matches_query(SystemTab::Mcp, "stdio"));
     assert!(system_tab_matches_query(SystemTab::WebSearch, "Brave 密钥"));
@@ -49,10 +49,10 @@ fn system_settings_search_matches_child_items() {
 fn system_tab_all_contains_every_display_label_once_in_order() {
     let tabs = SystemTab::all();
 
-    assert_eq!(tabs.len(), 43);
+    assert_eq!(tabs.len(), 37);
     assert_eq!(tabs.first(), Some(&SystemTab::General));
     assert_eq!(tabs.get(1), Some(&SystemTab::Themes));
-    assert_eq!(tabs.last(), Some(&SystemTab::Transcription));
+    assert_eq!(tabs.last(), Some(&SystemTab::Multimodal));
     assert_eq!(tabs.iter().filter(|tab| **tab == SystemTab::HttpRequest).count(), 1);
 
     let labels = tabs.iter().map(ToString::to_string).collect::<Vec<_>>();
@@ -62,7 +62,7 @@ fn system_tab_all_contains_every_display_label_once_in_order() {
     assert!(labels.contains(&"ACP 配置".to_string()));
     assert!(labels.contains(&"MCP 配置".to_string()));
     assert!(labels.contains(&"委托代理配置".to_string()));
-    assert!(labels.contains(&"转录配置".to_string()));
+    assert!(!labels.contains(&"调度配置".to_string()));
 }
 
 #[test]
@@ -88,12 +88,9 @@ fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
         "嵌入路由",
         "记忆配置",
         "模型路由",
-        "查询分类",
-        "目标循环配置",
+        "查询模型分类",
         "心跳配置",
         "定时任务配置",
-        "标准流程配置",
-        "调度配置",
         "委托代理配置",
         "员工配置",
         "代理通信配置",
@@ -111,15 +108,12 @@ fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
         "存储配置",
         "代理配置",
         "隧道配置",
-        "Composio",
         "技能配置",
         "钩子配置",
-        "研究配置",
         "网页搜索配置",
         "网络请求配置",
         "浏览器配置",
         "多模态配置",
-        "转录配置",
     ];
 
     for (tab, expected_label) in SystemTab::all().into_iter().zip(expected) {
@@ -142,10 +136,8 @@ fn system_tab_search_metadata_covers_every_tab() {
         (SystemTab::Memory, "sqlite"),
         (SystemTab::ModelRoutes, "routing"),
         (SystemTab::QueryClassification, "category"),
-        (SystemTab::GoalLoop, "automation"),
         (SystemTab::Heartbeat, "monitor"),
-        (SystemTab::Cron, "history retention"),
-        (SystemTab::Scheduler, "max_concurrent"),
+        (SystemTab::Cron, "max_concurrent"),
         (SystemTab::Agents, "subagent"),
         (SystemTab::Staff, "roster"),
         (SystemTab::AgentsIpc, "communication"),
@@ -163,15 +155,12 @@ fn system_tab_search_metadata_covers_every_tab() {
         (SystemTab::Storage, "database"),
         (SystemTab::Proxy, "all_proxy"),
         (SystemTab::Tunnel, "tailscale"),
-        (SystemTab::Composio, "oauth"),
         (SystemTab::Skills, "plugins"),
         (SystemTab::Hooks, "command_logger"),
-        (SystemTab::Research, "search"),
         (SystemTab::WebSearch, "duckduckgo"),
         (SystemTab::HttpRequest, "allowlist"),
         (SystemTab::Browser, "webdriver"),
         (SystemTab::Multimodal, "vision"),
-        (SystemTab::Transcription, "speech"),
     ];
 
     for (tab, query) in cases {
@@ -193,8 +182,9 @@ fn active_tab_help_modal_recognizes_shared_and_tab_specific_help() {
     assert!(active_tab_help_modal_open(&app, SystemTab::Heartbeat));
     app.cron_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::Cron));
+    app.cron_settings.show_help_modal = false;
     app.scheduler_settings.show_help_modal = true;
-    assert!(active_tab_help_modal_open(&app, SystemTab::Scheduler));
+    assert!(active_tab_help_modal_open(&app, SystemTab::Cron));
     app.agents_ipc_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::AgentsIpc));
     app.coordination_settings.show_help_modal = true;
@@ -215,12 +205,8 @@ fn active_tab_help_modal_recognizes_shared_and_tab_specific_help() {
     assert!(active_tab_help_modal_open(&app, SystemTab::Proxy));
     app.skills_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::Skills));
-    app.research_settings.show_help_modal = true;
-    assert!(active_tab_help_modal_open(&app, SystemTab::Research));
     app.web_search_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::WebSearch));
-    app.transcription_settings.show_help_modal = true;
-    assert!(active_tab_help_modal_open(&app, SystemTab::Transcription));
 }
 
 #[test]
@@ -236,7 +222,7 @@ fn active_tab_help_modal_matches_shared_help_tab_for_every_category() {
         );
 
         let other_tab =
-            if tab == SystemTab::General { SystemTab::Transcription } else { SystemTab::General };
+            if tab == SystemTab::General { SystemTab::Multimodal } else { SystemTab::General };
         assert!(
             !active_tab_help_modal_open(&app, other_tab),
             "{tab:?} help should not leak into {other_tab:?}"
@@ -260,9 +246,7 @@ fn active_tab_help_modal_does_not_open_static_tabs_from_tab_specific_flags() {
     app.observability_settings.show_help_modal = true;
     app.proxy_settings.show_help_modal = true;
     app.skills_settings.show_help_modal = true;
-    app.research_settings.show_help_modal = true;
     app.web_search_settings.show_help_modal = true;
-    app.transcription_settings.show_help_modal = true;
 
     for tab in [
         SystemTab::General,
@@ -273,7 +257,6 @@ fn active_tab_help_modal_does_not_open_static_tabs_from_tab_specific_flags() {
         SystemTab::Providers,
         SystemTab::Storage,
         SystemTab::Tunnel,
-        SystemTab::Composio,
         SystemTab::Hooks,
         SystemTab::HttpRequest,
         SystemTab::Browser,
@@ -304,10 +287,11 @@ fn active_tab_save_error_routes_each_settings_state_and_rejects_static_tabs() {
     assert_error_route!(EmbeddingRoutes, embedding_routes_settings);
     assert_error_route!(ModelRoutes, model_routes_settings);
     assert_error_route!(QueryClassification, query_classification_settings);
-    assert_error_route!(GoalLoop, goal_loop_settings);
     assert_error_route!(Heartbeat, heartbeat_settings);
     assert_error_route!(Cron, cron_settings);
-    assert_error_route!(Scheduler, scheduler_settings);
+    app.scheduler_settings.save_error = Some("scheduler_settings".to_string());
+    assert_eq!(active_tab_save_error(&app, SystemTab::Cron), Some("scheduler_settings"));
+    app.scheduler_settings.save_error = None;
     assert_error_route!(Agents, agents_settings);
     assert_error_route!(Staff, staff_settings);
     assert_error_route!(AgentsIpc, agents_ipc_settings);
@@ -326,15 +310,12 @@ fn active_tab_save_error_routes_each_settings_state_and_rejects_static_tabs() {
     assert_error_route!(Storage, storage_settings);
     assert_error_route!(Proxy, proxy_settings);
     assert_error_route!(Tunnel, tunnel_settings);
-    assert_error_route!(Composio, composio_settings);
     assert_error_route!(Skills, skills_settings);
     assert_error_route!(Hooks, hooks_settings);
-    assert_error_route!(Research, research_settings);
     assert_error_route!(WebSearch, web_search_settings);
     assert_error_route!(HttpRequest, http_request_settings);
     assert_error_route!(Browser, browser_settings);
     assert_error_route!(Multimodal, multimodal_settings);
-    assert_error_route!(Transcription, transcription_settings);
 
     for tab in [
         SystemTab::General,

@@ -22,7 +22,6 @@ fn full_config() -> Config {
     config.api_key = secret("api-key");
     config.reliability.api_keys =
         vec!["reliability-a".to_string(), String::new(), "reliability-c".to_string()];
-    config.composio.api_key = secret("composio-key");
     config.gateway.paired_tokens =
         vec!["paired-a".to_string(), String::new(), "paired-c".to_string()];
     config.proxy.http_proxy = secret("http://user:pass@proxy.local:8080");
@@ -214,7 +213,6 @@ fn assert_all_config_secrets_masked(config: &Config) {
     assert_eq!(config.reliability.api_keys[0], MASKED_SECRET);
     assert_eq!(config.reliability.api_keys[1], "");
     assert_eq!(config.reliability.api_keys[2], MASKED_SECRET);
-    assert_eq!(config.composio.api_key.as_deref(), Some(MASKED_SECRET));
     assert_eq!(
         config.gateway.paired_tokens,
         vec![MASKED_SECRET.to_string(), String::new(), MASKED_SECRET.to_string()]

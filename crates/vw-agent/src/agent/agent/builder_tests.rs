@@ -4,7 +4,7 @@ use crate::app::agent::agent::prompt::SystemPromptBuilder;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::{
     AgentConfig, AutonomyConfig, IdentityConfig, MultimodalConfig, QueryClassificationConfig,
-    ResearchPhaseConfig, SkillsPromptInjectionMode,
+    SkillsPromptInjectionMode,
 };
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
@@ -169,8 +169,6 @@ fn build_fills_defaults_when_optional_fields_are_absent() {
     assert!(!agent.classification_config.enabled);
     assert!(agent.available_hints.is_empty());
     assert!(agent.route_model_by_hint.is_empty());
-    assert!(!agent.research_config.enabled);
-    assert_eq!(agent.research_config.max_iterations, 5);
     assert_eq!(agent.multimodal_config.max_images, 10);
     assert_eq!(agent.multimodal_config.max_image_size_mb, 5);
     assert!(agent.multimodal_config.allow_remote_fetch);
@@ -214,7 +212,6 @@ fn build_uses_configured_optional_fields() {
         aieos_path: None,
         aieos_inline: Some("inline identity".into()),
     };
-    let research_config = ResearchPhaseConfig { enabled: true, ..ResearchPhaseConfig::default() };
     let multimodal_config = MultimodalConfig {
         max_images: 2,
         max_image_size_mb: 3,
@@ -238,7 +235,6 @@ fn build_uses_configured_optional_fields() {
         .classification_config(classification_config)
         .available_hints(vec!["fast".into()])
         .route_model_by_hint(routes)
-        .research_config(research_config)
         .multimodal_config(multimodal_config)
         .timezone(chrono_tz::America::New_York)
         .build()
@@ -258,7 +254,6 @@ fn build_uses_configured_optional_fields() {
     assert!(agent.classification_config.enabled);
     assert_eq!(agent.available_hints, vec!["fast"]);
     assert_eq!(agent.route_model_by_hint.get("fast").map(String::as_str), Some("test-model-fast"));
-    assert!(agent.research_config.enabled);
     assert_eq!(agent.multimodal_config.max_images, 2);
     assert_eq!(agent.multimodal_config.max_image_size_mb, 3);
     assert!(agent.multimodal_config.allow_remote_fetch);

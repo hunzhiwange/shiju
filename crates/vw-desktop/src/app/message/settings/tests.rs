@@ -44,7 +44,6 @@ fn every_non_staff_save_tag_routes_error_and_success_to_its_own_state() {
     }
 
     assert_route!("heartbeat", heartbeat_settings);
-    assert_route!("goal_loop", goal_loop_settings);
     assert_route!("cron", cron_settings);
     assert_route!("scheduler", scheduler_settings);
     assert_route!("reliability", reliability_settings);
@@ -60,9 +59,7 @@ fn every_non_staff_save_tag_routes_error_and_success_to_its_own_state() {
     assert_route!("web_search", web_search_settings);
     assert_route!("tunnel", tunnel_settings);
     assert_route!("hooks", hooks_settings);
-    assert_route!("composio", composio_settings);
     assert_route!("skills", skills_settings);
-    assert_route!("research", research_settings);
     assert_route!("agent", agents_settings);
     assert_route!("runtime", runtime_settings);
     assert_route!("model_routes", model_routes_settings);
@@ -71,7 +68,6 @@ fn every_non_staff_save_tag_routes_error_and_success_to_its_own_state() {
     assert_route!("autonomy", autonomy_settings);
     assert_route!("agents_ipc", agents_ipc_settings);
     assert_route!("coordination", coordination_settings);
-    assert_route!("transcription", transcription_settings);
 }
 
 #[test]
@@ -279,7 +275,6 @@ fn settings_update_routes_nested_messages_to_their_owned_state() {
     );
     let _ = update(&mut app, SettingsMessage::Browser(BrowserMessage::EnabledToggled(true)));
     let _ = update(&mut app, SettingsMessage::WebSearch(WebSearchMessage::HelpOpen));
-    let _ = update(&mut app, SettingsMessage::GoalLoop(GoalLoopMessage::EnabledToggled(true)));
     let _ =
         update(&mut app, SettingsMessage::HttpRequest(HttpRequestMessage::EnabledToggled(true)));
     let _ = update(
@@ -301,7 +296,6 @@ fn settings_update_routes_nested_messages_to_their_owned_state() {
     assert_eq!(app.runtime_settings.kind, "docker");
     assert!(app.browser_settings.enabled);
     assert!(app.web_search_settings.show_help_modal);
-    assert!(app.goal_loop_settings.enabled);
     assert!(app.http_request_settings.enabled);
     assert_eq!(app.memory_settings.backend, "none");
     assert!(app.multimodal_settings.allow_remote_fetch);
@@ -321,8 +315,6 @@ fn settings_update_routes_standalone_help_messages() {
     let _ = update(&mut app, SettingsMessage::AutonomyHelpOpen);
     let _ = update(&mut app, SettingsMessage::ObservabilityHelpOpen);
     let _ = update(&mut app, SettingsMessage::ProxyHelpOpen);
-    let _ = update(&mut app, SettingsMessage::ResearchHelpOpen);
-    let _ = update(&mut app, SettingsMessage::TranscriptionHelpOpen);
     let _ = update(&mut app, SettingsMessage::SkillsHelpOpen);
 
     assert!(app.cron_settings.show_help_modal);
@@ -334,8 +326,6 @@ fn settings_update_routes_standalone_help_messages() {
     assert!(app.autonomy_settings.show_help_modal);
     assert!(app.observability_settings.show_help_modal);
     assert!(app.proxy_settings.show_help_modal);
-    assert!(app.research_settings.show_help_modal);
-    assert!(app.transcription_settings.show_help_modal);
     assert!(app.skills_settings.show_help_modal);
 }
 
@@ -365,22 +355,19 @@ fn settings_update_routes_additional_feature_groups() {
 }
 
 #[test]
-fn settings_update_routes_tabs_projects_sessions_dialogue_flow_and_composio_groups() {
+fn settings_update_routes_tabs_projects_sessions_and_dialogue_flow_groups() {
     let mut app = app();
     let original_sidebar_state = app.settings_sidebar_collapsed;
     app.recent_projects = vec!["/workspace/project-a".to_string()];
     app.recent_project_delete_confirm_idx = None;
     app.dialogue_flow_show_reasoning_summary = false;
-    app.composio_settings.enabled = false;
 
     let _ = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
     let _ = update(&mut app, SettingsMessage::RecentProjectDeleteRequested(0));
     let _ = update(&mut app, SettingsMessage::SessionDelete("missing".to_string()));
     let _ = update(&mut app, SettingsMessage::DialogueFlowShowReasoningSummaryToggled(true));
-    let _ = update(&mut app, SettingsMessage::ComposioEnabledToggled(true));
 
     assert_eq!(app.settings_sidebar_collapsed, !original_sidebar_state);
     assert_eq!(app.recent_project_delete_confirm_idx, Some(0));
     assert!(app.dialogue_flow_show_reasoning_summary);
-    assert!(app.composio_settings.enabled);
 }

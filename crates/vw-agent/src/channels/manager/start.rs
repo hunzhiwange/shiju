@@ -155,9 +155,6 @@ pub async fn start_channels(config: Config) -> Result<()> {
         config.api_key.as_deref(),
     )?);
 
-    // 配置 Composio 集成（如果启用）
-    let (composio_key, composio_entity_id) = resolve_composio_credentials(&config);
-
     // 构建工具注册表，包含所有可用工具和运行时配置
     let workspace = config.workspace_dir.clone();
     let tools_registry = Arc::new(crate::app::agent::tools::all_tools_with_runtime(
@@ -165,8 +162,6 @@ pub async fn start_channels(config: Config) -> Result<()> {
         &security,
         runtime,
         Arc::clone(&mem),
-        composio_key,
-        composio_entity_id,
         &config.browser,
         &config.http_request,
         &config.web_fetch,
@@ -367,14 +362,6 @@ fn build_provider_runtime_options(
     }
 }
 
-fn resolve_composio_credentials(config: &Config) -> (Option<&str>, Option<&str>) {
-    if config.composio.enabled {
-        (config.composio.api_key.as_deref(), Some(config.composio.entity_id.as_str()))
-    } else {
-        (None, None)
-    }
-}
-
 fn build_channel_tool_descriptions(
     config: &Config,
     agent_tool_registered: bool,
@@ -428,12 +415,6 @@ fn build_channel_tool_descriptions(
         tool_descs.push((
             "WebSearch",
             "Search the web and return structured search results with sources",
-        ));
-    }
-    if config.composio.enabled {
-        tool_descs.push((
-            "composio",
-            "Execute actions on 1000+ apps via Composio (Gmail, Notion, GitHub, Slack, etc.). Use action='list' to discover actions, 'list_accounts' to retrieve connected account IDs, 'execute' to run (optionally with connected_account_id), and 'connect' for OAuth.",
         ));
     }
     tool_descs.push((

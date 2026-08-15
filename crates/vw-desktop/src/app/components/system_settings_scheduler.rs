@@ -116,28 +116,8 @@ fn inline_help_panel(app: &App) -> Option<Element<'static, Message>> {
     })
 }
 
-/// 构建调度器设置视图
-///
-/// 该函数创建一个完整的调度器配置界面，包含开关选项、滑块控件和面板内帮助卡片。
-///
-/// # 参数
-///
-/// - `app`: 应用程序状态引用，从中读取 `scheduler_settings` 获取当前配置
-///
-/// # 返回值
-///
-/// 返回一个 `Element`，包含调度器设置的完整 UI 组件
-///
-/// # UI 结构
-///
-/// 1. 标题行：包含标题文本和帮助按钮
-/// 2. 启用开关：控制调度器是否运行
-/// 3. 最大任务数滑块：配置单次轮询最多处理的任务数量
-/// 4. 并发上限滑块：配置允许并行执行的任务数量
-/// 5. 配置建议提示
-/// 6. 可选的保存错误提示
-/// 7. 可选的帮助卡片
-pub fn view(app: &App) -> Element<'_, Message> {
+/// 构建可嵌入到定时任务配置页的调度器设置内容。
+pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
     let s = &app.scheduler_settings;
     let help_btn =
         settings_help_button(Message::Settings(message::SettingsMessage::SchedulerHelpOpen));
@@ -185,8 +165,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut col = column![
         row![
-            container(settings_page_intro("调度配置", "配置内置调度器的开关、吞吐和并发能力。"))
-                .width(Length::Fill),
+            text("内置调度器").size(16),
+            Space::new().width(Length::Fill),
             help_btn
         ]
         .align_y(Alignment::Start),
@@ -204,6 +184,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .push(hint_row);
 
     col.into()
+}
+
+/// 构建独立调度器设置视图。
+///
+/// 保留该入口供组件测试和嵌入前的调用方使用；系统设置导航会将内容展示在定时任务配置中。
+pub fn view(app: &App) -> Element<'_, Message> {
+    column![
+        settings_page_intro("调度配置", "配置内置调度器的开关、吞吐和并发能力。"),
+        embedded_view(app),
+    ]
+    .spacing(16)
+    .width(Length::Fill)
+    .into()
 }
 
 #[cfg(test)]

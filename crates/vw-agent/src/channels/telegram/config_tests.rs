@@ -1,7 +1,5 @@
 use super::TelegramChannel;
-use crate::app::agent::config::{
-    Config, StreamMode, SystemConfigStore, TelegramConfig, TranscriptionConfig,
-};
+use crate::app::agent::config::{Config, StreamMode, SystemConfigStore, TelegramConfig};
 use crate::global_database::GlobalDatabase;
 use axum::{
     Router,
@@ -170,29 +168,20 @@ fn new_normalizes_allowed_users_and_defaults_runtime_state() {
     assert!(channel.mention_only);
     assert_eq!(channel.stream_mode, StreamMode::Off);
     assert_eq!(channel.draft_update_interval_ms, 1000);
-    assert!(channel.transcription.is_none());
     assert!(channel.workspace_dir.is_none());
 }
 
 #[test]
-fn streaming_workspace_and_transcription_builders_update_fields() {
+fn streaming_and_workspace_builders_update_fields() {
     let workspace = std::path::PathBuf::from("/tmp/vw-telegram-workspace");
-    let enabled_transcription = TranscriptionConfig { enabled: true, ..Default::default() };
-    let disabled_transcription = TranscriptionConfig { enabled: false, ..Default::default() };
 
     let channel = TelegramChannel::new("token".to_string(), vec![], false)
         .with_workspace_dir(workspace.clone())
-        .with_streaming(StreamMode::Partial, 250)
-        .with_transcription(disabled_transcription.clone());
+        .with_streaming(StreamMode::Partial, 250);
 
     assert_eq!(channel.workspace_dir, Some(workspace));
     assert_eq!(channel.stream_mode, StreamMode::Partial);
     assert_eq!(channel.draft_update_interval_ms, 250);
-    assert!(channel.transcription.is_none());
-
-    let channel = TelegramChannel::new("token".to_string(), vec![], false)
-        .with_transcription(enabled_transcription);
-    assert!(channel.transcription.is_some());
 }
 
 #[test]

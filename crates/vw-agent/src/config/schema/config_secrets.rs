@@ -97,7 +97,6 @@ pub(crate) fn decrypt_config_secrets(config: &mut Config, vibewindow_dir: &Path)
     let store =
         crate::app::agent::security::SecretStore::new(vibewindow_dir, config.secrets.encrypt);
     decrypt_optional_secret(&store, &mut config.api_key, "config.api_key")?;
-    decrypt_optional_secret(&store, &mut config.composio.api_key, "config.composio.api_key")?;
     decrypt_optional_secret(&store, &mut config.proxy.http_proxy, "config.proxy.http_proxy")?;
     decrypt_optional_secret(&store, &mut config.proxy.https_proxy, "config.proxy.https_proxy")?;
     decrypt_optional_secret(&store, &mut config.proxy.all_proxy, "config.proxy.all_proxy")?;
@@ -146,11 +145,6 @@ pub(crate) fn encrypt_config_secrets(config_to_save: &mut Config) -> Result<()> 
     );
 
     encrypt_optional_secret(&store, &mut config_to_save.api_key, "config.api_key")?;
-    encrypt_optional_secret(
-        &store,
-        &mut config_to_save.composio.api_key,
-        "config.composio.api_key",
-    )?;
     encrypt_optional_secret(
         &store,
         &mut config_to_save.proxy.http_proxy,

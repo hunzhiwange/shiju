@@ -47,7 +47,6 @@
 //! ```
 
 use super::traits::{Channel, ChannelMessage, SendMessage};
-use crate::app::agent::config::TranscriptionConfig;
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
@@ -107,7 +106,6 @@ use typing::{TypingHandles, new_typing_handles, start_typing, stop_typing};
 /// - `listen_to_bots`: 是否监听其他 Bot 发送的消息
 /// - `mention_only`: 群组消息中是否要求必须提及 Bot 才触发
 /// - `group_reply_allowed_sender_ids`: 群组中无需提及即可触发的发送者 ID 列表
-/// - `transcription`: 可选的语音转写配置
 /// - `workspace_dir`: 工作目录，用于验证本地附件路径
 /// - `typing_handles`: "正在输入"状态管理的句柄集合
 pub struct DiscordChannel {
@@ -123,8 +121,6 @@ pub struct DiscordChannel {
     mention_only: bool,
     /// 群组中无需提及即可触发响应的特权发送者 ID 列表
     group_reply_allowed_sender_ids: Vec<String>,
-    /// 可选的语音转写配置，用于处理音频附件
-    transcription: Option<TranscriptionConfig>,
     /// 工作目录路径，用于验证本地文件附件的路径安全性
     workspace_dir: Option<PathBuf>,
     /// "正在输入"状态管理所需的异步任务句柄集合
@@ -173,7 +169,6 @@ impl DiscordChannel {
             listen_to_bots,
             mention_only,
             group_reply_allowed_sender_ids: Vec::new(),
-            transcription: None,
             workspace_dir: None,
             typing_handles: new_typing_handles(),
             api_base_url: "https://discord.com/api/v10".to_string(),
@@ -219,14 +214,6 @@ impl DiscordChannel {
     ///
     /// # 注意
     ///
-    /// 仅当 `config.enabled` 为 true 时才会实际启用转写功能
-    pub fn with_transcription(mut self, config: TranscriptionConfig) -> Self {
-        if config.enabled {
-            self.transcription = Some(config);
-        }
-        self
-    }
-
     /// 配置工作目录，用于验证本地附件路径
     ///
     /// 设置工作目录后，传出消息中的本地文件附件路径将被限制在此目录内，
@@ -603,8 +590,7 @@ impl Channel for DiscordChannel {
                             .and_then(|a| a.as_array())
                             .cloned()
                             .unwrap_or_default();
-                        process_attachments(&atts, &self.http_client(), self.transcription.as_ref())
-                            .await
+                        process_attachments(&atts, &self.http_client()).await
                     };
                     // 合并消息内容和附件文本
                     let final_content = if attachment_text.is_empty() {

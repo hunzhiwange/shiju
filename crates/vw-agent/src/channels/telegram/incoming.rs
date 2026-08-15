@@ -98,8 +98,7 @@ impl TelegramChannel {
     /// 当前消息是回复时返回 Markdown 风格引用文本，否则返回 `None`。
     ///
     /// # 说明
-    /// 对语音回复会优先复用已缓存的转录文本；媒体类回复会生成类型占位符，
-    /// 让代理知道用户是在回应哪类上文。
+    /// 媒体类回复会生成类型占位符，让代理知道用户是在回应哪类上文。
     pub(super) fn extract_reply_context(&self, message: &serde_json::Value) -> Option<String> {
         let reply = message.get("reply_to_message")?;
 
@@ -118,19 +117,7 @@ impl TelegramChannel {
         let reply_text = if let Some(text) = reply.get("text").and_then(serde_json::Value::as_str) {
             text.to_string()
         } else if reply.get("voice").is_some() || reply.get("audio").is_some() {
-            let reply_mid = reply.get("message_id").and_then(serde_json::Value::as_i64);
-            let chat_id =
-                message.get("chat").and_then(|c| c.get("id")).and_then(serde_json::Value::as_i64);
-            if let (Some(mid), Some(cid)) = (reply_mid, chat_id) {
-                // 语音转录异步完成，缓存命中时补充真实内容，未命中时保留稳定占位符。
-                self.voice_transcriptions
-                    .lock()
-                    .get(&format!("{cid}:{mid}"))
-                    .map(|t| format!("[Voice] {t}"))
-                    .unwrap_or_else(|| "[Voice message]".to_string())
-            } else {
-                "[Voice message]".to_string()
-            }
+            "[Voice message]".to_string()
         } else if reply.get("photo").is_some() {
             "[Photo]".to_string()
         } else if reply.get("document").is_some() {

@@ -138,13 +138,8 @@ fn assemble_session_protocol_messages_tracks_context_sources() {
         super::context_message_source("skill_catalog", &["rustcodegraph".to_string()]),
     ));
 
-    let messages = super::assemble_session_protocol_messages_with_sources(
-        &history,
-        &[],
-        &[],
-        listing,
-        None,
-    );
+    let messages =
+        super::assemble_session_protocol_messages_with_sources(&history, &[], &[], listing, None);
 
     assert_eq!(
         messages.message_sources[0],

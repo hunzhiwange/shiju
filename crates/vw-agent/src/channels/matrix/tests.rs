@@ -295,34 +295,6 @@ mod tests {
         assert!(!MatrixChannel::is_supported_message_type("m.file"));
     }
 
-    /// 测试：启用转录配置时 with_transcription 生效
-    ///
-    /// 验证当 `TranscriptionConfig.enabled` 为 `true` 时，
-    /// `with_transcription` 方法会将配置存储到通道实例中。
-    /// 该配置用于控制是否对音频消息进行语音转文字处理。
-    #[test]
-    fn with_transcription_configures_enabled_config() {
-        let mut tc = crate::app::agent::config::TranscriptionConfig::default();
-        tc.enabled = true;
-
-        let ch = make_channel().with_transcription(tc);
-        assert!(ch.transcription.is_some());
-    }
-
-    /// 测试：禁用转录配置时 with_transcription 忽略配置
-    ///
-    /// 验证当 `TranscriptionConfig.enabled` 为 `false` 时，
-    /// `with_transcription` 方法会将转录配置设置为 `None`，
-    /// 表示该通道不启用音频转录功能。
-    #[test]
-    fn with_transcription_ignores_disabled_config() {
-        let mut tc = crate::app::agent::config::TranscriptionConfig::default();
-        tc.enabled = false;
-
-        let ch = make_channel().with_transcription(tc);
-        assert!(ch.transcription.is_none());
-    }
-
     /// 测试：消息正文存在性检测
     ///
     /// 验证 `has_non_empty_body` 方法能正确判断消息正文是否有效：

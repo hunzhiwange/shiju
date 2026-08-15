@@ -101,19 +101,11 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         &config.workspace_dir,
     ));
 
-    let (composio_key, composio_entity_id) = if config.composio.enabled {
-        (config.composio.api_key.as_deref(), Some(config.composio.entity_id.as_str()))
-    } else {
-        (None, None)
-    };
-
     let tools_registry_exec: Arc<Vec<Box<dyn Tool>>> = Arc::new(tools::all_tools_with_runtime(
         Arc::new(config.clone()),
         &security,
         runtime,
         Arc::clone(&mem),
-        composio_key,
-        composio_entity_id,
         &config.browser,
         &config.http_request,
         &config.web_fetch,

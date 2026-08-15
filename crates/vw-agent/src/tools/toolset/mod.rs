@@ -276,8 +276,6 @@ fn execution_environment_for_config(
         &security,
         runtime,
         memory,
-        None,
-        None,
         &browser_config,
         &http_config,
         &web_fetch_config,
@@ -579,8 +577,6 @@ pub fn all_tools(
     config: Arc<Config>,
     security: &Arc<SecurityPolicy>,
     memory: Arc<dyn Memory>,
-    composio_key: Option<&str>,
-    composio_entity_id: Option<&str>,
     browser_config: &crate::app::agent::config::BrowserConfig,
     http_config: &crate::app::agent::config::HttpRequestConfig,
     web_fetch_config: &crate::app::agent::config::WebFetchConfig,
@@ -595,8 +591,6 @@ pub fn all_tools(
         security,
         Arc::new(NativeRuntime::new()),
         memory,
-        composio_key,
-        composio_entity_id,
         browser_config,
         http_config,
         web_fetch_config,
@@ -614,8 +608,6 @@ pub fn all_tools_with_runtime(
     security: &Arc<SecurityPolicy>,
     runtime: Arc<dyn RuntimeAdapter>,
     memory: Arc<dyn Memory>,
-    composio_key: Option<&str>,
-    composio_entity_id: Option<&str>,
     browser_config: &crate::app::agent::config::BrowserConfig,
     http_config: &crate::app::agent::config::HttpRequestConfig,
     web_fetch_config: &crate::app::agent::config::WebFetchConfig,
@@ -814,12 +806,6 @@ pub fn all_tools_with_runtime(
     tool_arcs.push(Arc::new(ScreenshotTool::new(security.clone())));
     tool_arcs.push(Arc::new(ImageInfoTool::new(security.clone())));
     tool_arcs.push(Arc::new(ImageAssetReadTool::new()));
-
-    if let Some(key) = composio_key
-        && !key.is_empty()
-    {
-        tool_arcs.push(Arc::new(ComposioTool::new(key, composio_entity_id, security.clone())));
-    }
 
     tool_arcs.push(Arc::new(SkillTool::new_with_runtime_config(
         security.clone(),

@@ -231,25 +231,3 @@ fn extract_reply_context_no_username_uses_first_name() {
     let ctx = ch.extract_reply_context(&msg).unwrap();
     assert_eq!(ctx, "> @Charlie:\n> Hi there");
 }
-
-/// 测试提取回复上下文（语音消息包含缓存转录）
-///
-/// 验证点：
-/// - 当语音消息已被转录并缓存时，使用转录文本
-/// - 引用格式为 "> @username:\n> [Voice] transcription"
-#[test]
-fn extract_reply_context_voice_with_cached_transcription() {
-    let ch = TelegramChannel::new("t".into(), vec!["*".into()], false);
-    // 预先在缓存中插入语音转录文本（键格式为 "chat_id:message_id"）
-    ch.voice_transcriptions.lock().insert("100:42".to_string(), "Hello from voice".to_string());
-    let msg = serde_json::json!({
-        "chat": { "id": 100 },
-        "reply_to_message": {
-            "message_id": 42,
-            "from": { "username": "bob" },
-            "voice": { "file_id": "abc", "duration": 5 }
-        }
-    });
-    let ctx = ch.extract_reply_context(&msg).unwrap();
-    assert_eq!(ctx, "> @bob:\n> [Voice] Hello from voice");
-}

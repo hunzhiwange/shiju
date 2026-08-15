@@ -531,41 +531,6 @@ impl Default for HeartbeatSettingsState {
     }
 }
 
-/// 目标循环设置面板状态
-///
-/// 管理 autonomous goal loop 的执行开关、周期和事件投递目标配置。
-#[derive(Debug, Clone)]
-pub(crate) struct GoalLoopSettingsState {
-    /// 是否启用目标循环
-    pub(crate) enabled: bool,
-    /// 循环间隔输入（分钟）
-    pub(crate) interval_minutes_input: String,
-    /// 单步超时输入（秒）
-    pub(crate) step_timeout_secs_input: String,
-    /// 每轮最大步数输入
-    pub(crate) max_steps_per_cycle_input: String,
-    /// 事件投递通道输入
-    pub(crate) channel_input: String,
-    /// 事件投递目标输入
-    pub(crate) target_input: String,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for GoalLoopSettingsState {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            interval_minutes_input: "10".to_string(),
-            step_timeout_secs_input: "120".to_string(),
-            max_steps_per_cycle_input: "3".to_string(),
-            channel_input: String::new(),
-            target_input: String::new(),
-            save_error: None,
-        }
-    }
-}
-
 /// 定时任务设置面板状态
 ///
 /// 管理 Cron 定时任务功能的配置。

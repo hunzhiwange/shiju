@@ -253,7 +253,6 @@ fn task_pool_matrix_instance_publish_uses_named_matrix_instance() {
 fn task_pool_matrix_publish_channel_scopes_store_by_named_instance_and_user() {
     let channel = task_pool_matrix_channel(
         matrix_config(Some("@planner:matrix.example.test"), "token", "!room:matrix.example.test"),
-        crate::app::agent::config::TranscriptionConfig::default(),
         Some(std::path::PathBuf::from("/tmp/vibewindow")),
         Some(" planner "),
     );

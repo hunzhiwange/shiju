@@ -206,10 +206,7 @@ impl RustCodeGraphTool {
             )
         })?;
         if !project_root.is_dir() {
-            anyhow::bail!(
-                "RustCodeGraph workspace is not a directory: {}",
-                project_root.display()
-            );
+            anyhow::bail!("RustCodeGraph workspace is not a directory: {}", project_root.display());
         }
         if !CodeGraph::is_initialized(&project_root) {
             anyhow::bail!(
@@ -219,11 +216,7 @@ impl RustCodeGraphTool {
         }
         validate_index_header(&project_root)?;
 
-        Ok(Self {
-            project_root,
-            watch_options,
-            lifecycle: Mutex::new(None),
-        })
+        Ok(Self { project_root, watch_options, lifecycle: Mutex::new(None) })
     }
 
     fn lifecycle_commands(&self) -> anyhow::Result<mpsc::Sender<LifecycleCommand>> {
@@ -232,10 +225,8 @@ impl RustCodeGraphTool {
             Err(poisoned) => poisoned.into_inner(),
         };
         if lifecycle.is_none() {
-            *lifecycle = Some(Self::start_lifecycle_worker(
-                &self.project_root,
-                self.watch_options.clone(),
-            )?);
+            *lifecycle =
+                Some(Self::start_lifecycle_worker(&self.project_root, self.watch_options.clone())?);
         }
         Ok(lifecycle
             .as_ref()
@@ -256,10 +247,7 @@ impl RustCodeGraphTool {
             .spawn(move || {
                 let mut graph = match CodeGraph::open(
                     &worker_root,
-                    OpenOptions {
-                        sync: false,
-                        read_only: false,
-                    },
+                    OpenOptions { sync: false, read_only: false },
                 ) {
                     Ok(graph) => graph,
                     Err(error) => {
@@ -301,10 +289,7 @@ impl RustCodeGraphTool {
             .map_err(|error| anyhow::anyhow!("failed to start RustCodeGraph lifecycle: {error}"))?;
 
         match initialized_rx.recv() {
-            Ok(Ok(())) => Ok(IndexLifecycleWorker {
-                commands,
-                thread: Mutex::new(Some(thread)),
-            }),
+            Ok(Ok(())) => Ok(IndexLifecycleWorker { commands, thread: Mutex::new(Some(thread)) }),
             Ok(Err(error)) => {
                 let _ = thread.join();
                 anyhow::bail!(
@@ -447,10 +432,7 @@ fn validate_index_header(project_root: &Path) -> anyhow::Result<()> {
     })?;
     let mut header = [0_u8; SQLITE_HEADER.len()];
     file.read_exact(&mut header).map_err(|error| {
-        anyhow::anyhow!(
-            "RustCodeGraph index is invalid at {}: {error}",
-            database_path.display()
-        )
+        anyhow::anyhow!("RustCodeGraph index is invalid at {}: {error}", database_path.display())
     })?;
     if &header != SQLITE_HEADER {
         anyhow::bail!(

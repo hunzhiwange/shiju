@@ -2,7 +2,6 @@ use super::core::Agent;
 use crate::app::agent::agent::memory_loader::{DefaultMemoryLoader, MemoryLoader};
 use crate::app::agent::agent::prompt::SystemPromptBuilder;
 use crate::app::agent::approval::ApprovalManager;
-use crate::app::agent::config::ResearchPhaseConfig;
 use crate::app::agent::memory::Memory;
 use crate::app::agent::observability::Observer;
 use crate::app::agent::providers::Provider;
@@ -79,7 +78,6 @@ pub struct AgentBuilder {
     classification_config: Option<crate::app::agent::config::QueryClassificationConfig>,
     available_hints: Option<Vec<String>>,
     route_model_by_hint: Option<HashMap<String, String>>,
-    research_config: Option<ResearchPhaseConfig>,
     multimodal_config: Option<crate::app::agent::config::MultimodalConfig>,
     timezone: Option<Tz>,
 }
@@ -113,7 +111,6 @@ impl AgentBuilder {
             classification_config: None,
             available_hints: None,
             route_model_by_hint: None,
-            research_config: None,
             multimodal_config: None,
             timezone: None,
         }
@@ -223,11 +220,6 @@ impl AgentBuilder {
         self
     }
 
-    pub fn research_config(mut self, research_config: ResearchPhaseConfig) -> Self {
-        self.research_config = Some(research_config);
-        self
-    }
-
     pub fn multimodal_config(
         mut self,
         multimodal_config: crate::app::agent::config::MultimodalConfig,
@@ -305,7 +297,6 @@ impl AgentBuilder {
             classification_config: self.classification_config.unwrap_or_default(),
             available_hints: self.available_hints.unwrap_or_default(),
             route_model_by_hint: self.route_model_by_hint.unwrap_or_default(),
-            research_config: self.research_config.unwrap_or_default(),
             multimodal_config: self.multimodal_config.unwrap_or_default(),
             timezone: self.timezone.unwrap_or(chrono_tz::Asia::Shanghai),
         })

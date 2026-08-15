@@ -53,15 +53,7 @@ pub(crate) fn project_json_tree(
     collapsed_paths: &HashSet<String>,
 ) -> Vec<JsonTreeRow> {
     let mut rows = Vec::new();
-    project_value(
-        value,
-        "",
-        None,
-        0,
-        true,
-        collapsed_paths,
-        &mut rows,
-    );
+    project_value(value, "", None, 0, true, collapsed_paths, &mut rows);
     rows
 }
 
@@ -246,9 +238,7 @@ pub(crate) const fn json_tree_copy_visible_in_layer(
 
 pub(crate) fn json_tree_scroll_direction() -> Direction {
     Direction::Horizontal(
-        Scrollbar::new()
-            .width(JSON_TREE_SCROLLBAR_WIDTH)
-            .scroller_width(JSON_TREE_SCROLLBAR_WIDTH),
+        Scrollbar::new().width(JSON_TREE_SCROLLBAR_WIDTH).scroller_width(JSON_TREE_SCROLLBAR_WIDTH),
     )
 }
 

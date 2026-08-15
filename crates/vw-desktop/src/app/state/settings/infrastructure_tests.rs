@@ -223,24 +223,6 @@ fn observability_storage_proxy_and_tunnel_defaults_are_stable() {
 }
 
 #[test]
-fn composio_and_transcription_defaults_are_ready_for_empty_config() {
-    let composio = ComposioSettingsState::default();
-    assert!(!composio.enabled);
-    assert!(composio.api_key_input.is_empty());
-    assert_eq!(composio.entity_id_input, "default");
-    assert!(composio.save_error.is_none());
-
-    let transcription = TranscriptionSettingsState::default();
-    assert!(!transcription.enabled);
-    assert_eq!(transcription.api_url, "https://api.groq.com/openai/v1/audio/transcriptions");
-    assert_eq!(transcription.model, "whisper-large-v3-turbo");
-    assert!(transcription.language.is_empty());
-    assert_eq!(transcription.max_duration_secs, 120);
-    assert!(!transcription.show_help_modal);
-    assert!(transcription.save_error.is_none());
-}
-
-#[test]
 fn themes_settings_default_opens_list_with_basics_editor_tab() {
     let state = ThemesSettingsState::default();
     assert_eq!(state.mode, ThemesSettingsMode::List);

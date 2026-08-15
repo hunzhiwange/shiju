@@ -39,7 +39,6 @@ pub mod browser_open;
 pub mod cli_discovery;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod codesearch;
-pub mod composio;
 pub mod config;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod content_search;
@@ -90,8 +89,6 @@ pub mod list_mcp_resources;
 pub mod ls;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod lsp;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod rustcodegraph;
 pub mod mcp_auth;
 pub mod mcp_common;
 pub mod mcp_inspect;
@@ -117,6 +114,8 @@ pub mod read_mcp_resource;
 mod read_state;
 pub mod registry;
 pub mod remote_trigger;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod rustcodegraph;
 pub mod schedule;
 mod scheduler;
 pub mod schema;
@@ -153,7 +152,6 @@ pub use browser::{BrowserTool, ComputerUseConfig};
 pub use browser_open::BrowserOpenTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use codesearch::CodeSearchTool;
-pub use composio::ComposioTool;
 pub use config::ConfigTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use content_search::ContentSearchTool;
@@ -213,13 +211,13 @@ pub use powershell::PowerShellTool;
 pub use process::ProcessTool;
 pub use proxy_config::ProxyConfigTool;
 #[cfg(not(target_arch = "wasm32"))]
-pub use rustcodegraph::RustCodeGraphTool;
-#[cfg(not(target_arch = "wasm32"))]
 pub use pushover::PushoverTool;
 pub use question::QuestionTool;
 pub use read_mcp_resource::ReadMcpResourceTool;
 pub use read_state::{FileReadStateCache, FileReadStateEntry, FileSnapshot};
 pub use remote_trigger::RemoteTriggerTool;
+#[cfg(not(target_arch = "wasm32"))]
+pub use rustcodegraph::RustCodeGraphTool;
 pub use schedule::ScheduleTool;
 #[allow(unused_imports)]
 pub use schema::{CleaningStrategy, SchemaCleanr};

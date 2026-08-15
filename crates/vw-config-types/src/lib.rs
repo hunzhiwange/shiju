@@ -22,5 +22,4 @@ pub mod security;
 pub mod skills;
 pub mod staff;
 pub mod tools;
-pub mod transcription;
 pub mod ui;

@@ -90,32 +90,6 @@ impl Default for MultimodalConfig {
     }
 }
 
-/// Composio 托管 OAuth 工具集成配置（`[composio]` 配置段）。
-///
-/// 通过 Composio 平台访问 1000+ 已接入 OAuth 的工具。
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ComposioConfig {
-    /// 是否启用 Composio 集成以访问 1000+ OAuth 工具。
-    #[serde(default, alias = "enable")]
-    pub enabled: bool,
-    /// Composio API Key；当 `secrets.encrypt = true` 时会以加密方式存储。
-    #[serde(default)]
-    pub api_key: Option<String>,
-    /// 多用户场景下使用的默认实体 ID。
-    #[serde(default = "default_entity_id")]
-    pub entity_id: String,
-}
-
-fn default_entity_id() -> String {
-    "default".into()
-}
-
-impl Default for ComposioConfig {
-    fn default() -> Self {
-        Self { enabled: false, api_key: None, entity_id: default_entity_id() }
-    }
-}
-
 /// `computer_use` sidecar 配置（`[browser.computer_use]` 配置段）。
 ///
 /// 将操作系统级的鼠标、键盘与截图动作委托给本地辅助进程。

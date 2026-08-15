@@ -137,26 +137,20 @@ fn startup_agent_config_reload_rehydrates_gateway_backed_settings() {
     app.agents_settings.project_path = Some("/workspace/project".to_string());
 
     let mut config = vw_config_types::config::Config::default();
-    config.goal_loop.max_steps_per_cycle = 37;
     config.heartbeat.interval_minutes = 91;
-    config.research.max_iterations = 23;
     config.gateway.port = 19_321;
     config.memory.backend = "markdown".to_string();
     config.channels_config.cli = true;
     config.proxy.enabled = true;
-    config.transcription.enabled = true;
     config.acp.insert("claude".to_string(), vw_config_types::config::AcpAgentConfig::default());
 
     let _ = app.update(Message::StartupAgentConfigLoaded(Ok(Box::new(config))));
 
-    assert_eq!(app.goal_loop_settings.max_steps_per_cycle_input, "37");
     assert_eq!(app.heartbeat_settings.interval_minutes, 91);
-    assert_eq!(app.research_settings.max_iterations, 23);
     assert_eq!(app.gateway_settings.port, 19_321);
     assert_eq!(app.memory_settings.backend, "markdown");
     assert!(app.channels_settings.cli);
     assert!(app.proxy_settings.enabled);
-    assert!(app.transcription_settings.enabled);
     assert_eq!(app.acp_agents, ["claude"]);
     assert_eq!(app.agents_settings.project_path.as_deref(), Some("/workspace/project"));
 }

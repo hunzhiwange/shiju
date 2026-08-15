@@ -172,8 +172,6 @@ Ensure only one `vibewindow` process is using this bot token."
                         m
                     } else if let Some(m) = self.try_parse_approval_callback_query(update) {
                         m
-                    } else if let Some(m) = self.try_parse_voice_message(update).await {
-                        m
                     } else if let Some(m) = self.try_parse_attachment_message(update).await {
                         m
                     } else {

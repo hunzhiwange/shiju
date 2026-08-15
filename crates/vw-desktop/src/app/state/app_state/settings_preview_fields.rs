@@ -18,8 +18,6 @@
     pub(crate) model_routes_settings: ModelRoutesSettingsState,
     /// 查询分类设置状态
     pub(crate) query_classification_settings: QueryClassificationSettingsState,
-    /// 目标循环设置状态
-    pub(crate) goal_loop_settings: GoalLoopSettingsState,
     /// 心跳设置状态
     pub(crate) heartbeat_settings: HeartbeatSettingsState,
     /// Cron 设置状态
@@ -32,8 +30,6 @@
     pub(crate) runtime_settings: RuntimeSettingsState,
     /// 技能设置状态
     pub(crate) skills_settings: SkillsSettingsState,
-    /// 研究设置状态
-    pub(crate) research_settings: ResearchSettingsState,
     /// Web 搜索设置状态
     pub(crate) web_search_settings: WebSearchSettingsState,
     /// 浏览器设置状态
@@ -74,10 +70,6 @@
     pub(crate) tunnel_settings: TunnelSettingsState,
     /// 主题设置状态
     pub(crate) themes_settings: ThemesSettingsState,
-    /// Composio 设置状态
-    pub(crate) composio_settings: ComposioSettingsState,
-    /// 转录设置状态
-    pub(crate) transcription_settings: TranscriptionSettingsState,
     /// 最近项目编辑列表
     pub(crate) recent_projects_edits: Vec<String>,
     /// 确认删除的最近项目索引

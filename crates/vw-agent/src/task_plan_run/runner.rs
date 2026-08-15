@@ -537,7 +537,7 @@ where
         }
     }
 
-    run_goal_loop(
+    run_goal_completion_loop(
         task_id,
         request,
         runner,
@@ -552,7 +552,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn run_goal_loop<R, F>(
+async fn run_goal_completion_loop<R, F>(
     task_id: &str,
     request: &TaskPlanRunRequest,
     runner: &R,

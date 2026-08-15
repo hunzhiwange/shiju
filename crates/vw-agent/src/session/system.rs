@@ -77,10 +77,7 @@ fn runtime_capability_instructions(
         );
     }
     if has_tool(&tool_ids, &["glob"]) || has_tool(&tool_ids, &["grep"]) {
-        let search_rule = match (
-            has_tool(&tool_ids, &["glob"]),
-            has_tool(&tool_ids, &["grep"]),
-        ) {
+        let search_rule = match (has_tool(&tool_ids, &["glob"]), has_tool(&tool_ids, &["grep"])) {
             (true, true) => {
                 "Use `glob` to find paths and `grep` to search contents. After finding matches, read the required context."
             }
@@ -255,10 +252,7 @@ pub(crate) fn render_unified_prompt_with_modes(
         .replace("{{working_directory}}", working_directory)
         .replace(
             "{{runtime_capabilities}}",
-            &runtime_capability_instructions(
-                available_tool_ids,
-                rustcodegraph_skill_available,
-            ),
+            &runtime_capability_instructions(available_tool_ids, rustcodegraph_skill_available),
         )
         .replace("{{runtime_modes}}", &runtime_mode_instructions(runtime_modes))
         .trim()

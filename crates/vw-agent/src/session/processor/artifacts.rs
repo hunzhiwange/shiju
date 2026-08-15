@@ -11,13 +11,8 @@ use crate::session::session::{Role, Session};
 use crate::session::ui_types as models;
 use serde_json::{Value, json};
 
-const RAW_REQUEST_OPTION_ALLOWLIST: [&str; 5] = [
-    "reasoning_effort",
-    "temperature",
-    "top_p",
-    "max_tokens",
-    "max_output_tokens",
-];
+const RAW_REQUEST_OPTION_ALLOWLIST: [&str; 5] =
+    ["reasoning_effort", "temperature", "top_p", "max_tokens", "max_output_tokens"];
 
 fn raw_request_config(req: &Request, resolved_model: &str) -> Value {
     let mut config = serde_json::Map::new();

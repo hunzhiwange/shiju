@@ -910,67 +910,6 @@ impl Default for ThemesSettingsState {
     }
 }
 
-/// Composio 设置面板状态
-///
-/// 管理 Composio 工具集成的启用状态、API 密钥和实体标识。
-#[derive(Debug, Clone)]
-pub(crate) struct ComposioSettingsState {
-    /// 是否启用 Composio 集成
-    pub(crate) enabled: bool,
-    /// API 密钥输入
-    pub(crate) api_key_input: String,
-    /// 默认实体 ID 输入
-    pub(crate) entity_id_input: String,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for ComposioSettingsState {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            api_key_input: String::new(),
-            entity_id_input: "default".to_string(),
-            save_error: None,
-        }
-    }
-}
-
-/// 转录设置面板状态
-///
-/// 管理音频转录功能的配置，包括 API 地址、模型和语言等。
-#[derive(Debug, Clone)]
-pub(crate) struct TranscriptionSettingsState {
-    /// 是否启用转录
-    pub(crate) enabled: bool,
-    /// API URL
-    pub(crate) api_url: String,
-    /// 转录模型
-    pub(crate) model: String,
-    /// 语言代码
-    pub(crate) language: String,
-    /// 最大录音时长（秒）
-    pub(crate) max_duration_secs: u64,
-    /// 是否显示帮助对话框
-    pub(crate) show_help_modal: bool,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for TranscriptionSettingsState {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            api_url: "https://api.groq.com/openai/v1/audio/transcriptions".to_string(),
-            model: "whisper-large-v3-turbo".to_string(),
-            language: String::new(),
-            max_duration_secs: 120,
-            show_help_modal: false,
-            save_error: None,
-        }
-    }
-}
-
 #[cfg(test)]
 #[path = "infrastructure_tests.rs"]
 mod infrastructure_tests;

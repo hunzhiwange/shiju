@@ -26,6 +26,27 @@ fn typed_tool_event_keeps_call_id_status_and_sanitized_payload() {
     assert_eq!(event.payload["input"], "{\"token\":\"[REDACTED]\"}");
 }
 
+#[test]
+fn tool_stream_event_has_occurrence_time() {
+    let start = super::tool_stream_event(
+        "call-1".to_string(),
+        "shell",
+        super::running_tool_payload("{}", "shell"),
+    );
+    let complete = super::tool_update_event(
+        "call-1".to_string(),
+        "shell",
+        serde_json::json!({"status": "completed", "output": "done"}),
+    );
+
+    let (StreamEvent::Tool(start), StreamEvent::Tool(complete)) = (start, complete) else {
+        panic!("expected typed tool events");
+    };
+    assert_eq!(start.call_id, complete.call_id);
+    assert!(start.occurred_ms > 0);
+    assert!(start.occurred_ms <= complete.occurred_ms);
+}
+
 struct EnabledTraceSubscriber;
 
 impl tracing::Subscriber for EnabledTraceSubscriber {

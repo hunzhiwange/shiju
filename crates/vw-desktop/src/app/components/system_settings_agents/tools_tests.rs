@@ -454,6 +454,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
     let entry = app.agents_settings.entries[0].clone();
     app.agents_settings.available_tools = vec![
         "bash".to_string(),
+        "rustcodegraph".to_string(),
         "custom_optional".to_string(),
         "AgentTool".to_string(),
         "proxy_config".to_string(),
@@ -482,7 +483,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         &app.agents_settings.available_tools,
         &app.agents_settings.active_tools_list_tab,
     );
-    assert_eq!(builtin_ids, vec!["bash", "AgentTool"]);
+    assert_eq!(builtin_ids, vec!["bash", "rustcodegraph", "AgentTool"]);
     assert!(builtin_ids.iter().all(|id| is_builtin_required_tool_id(id)));
 
     let builtin_view = super::tools::view(&app, &entry);

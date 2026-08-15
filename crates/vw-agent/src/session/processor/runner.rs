@@ -59,18 +59,31 @@ impl DesktopSessionProtocol {
         instructions: &[crate::session::instruction::Resolved],
         skill_tool_enabled: bool,
         default_tool_ids: &[String],
-    ) -> Result<Vec<Value>, String> {
+    ) -> Result<llm_messages::AssembledProtocolMessages, String> {
         let invoked_skill_messages = self
             .skill_state
             .restore_invoked(&self.agent_id)?
             .into_iter()
-            .map(|replay| json!({ "role": "user", "content": replay.content }))
+            .map(|replay| {
+                let entries = vec![replay.stable_id];
+                llm_messages::sourced_protocol_message(
+                    json!({ "role": "user", "content": replay.content }),
+                    llm_messages::context_message_source("invoked_skill", &entries),
+                )
+            })
             .collect::<Vec<_>>();
         let skill_listing = self
             .skill_state
             .prepare(&self.agent_id, &self.skills, skill_tool_enabled, self.context_window_tokens)
-            .map(|reminder| json!({ "role": "user", "content": reminder.content }));
-        Ok(llm_messages::assemble_session_protocol_messages(
+            .map(|reminder| {
+                let source =
+                    llm_messages::context_message_source("skill_catalog", &reminder.skill_names);
+                llm_messages::sourced_protocol_message(
+                    json!({ "role": "user", "content": reminder.content }),
+                    source,
+                )
+            });
+        Ok(llm_messages::assemble_session_protocol_messages_with_sources(
             history,
             instructions,
             &invoked_skill_messages,
@@ -157,6 +170,14 @@ fn prepare_context_before_llm_step(
         model_limit,
         observed_input_tokens,
     )
+}
+
+pub(crate) fn provider_request_options(options: &Value) -> Value {
+    let mut options = options.clone();
+    if let Some(object) = options.as_object_mut() {
+        object.retain(|key, _| !key.starts_with("_vw_") && key != "source");
+    }
+    options
 }
 
 /// Replace only the covered transient history after the shared internal summary service returns
@@ -602,6 +623,9 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
     let mut llm_messages = llm_messages::session_messages_to_llm_messages(&session);
+    if let Some(source) = llm_messages::input_source_from_options(&req.options) {
+        llm_messages::annotate_current_user_source(&mut llm_messages, source);
+    }
     let mut image_turn = match build_image_turn_context_for_request(&req, &session, &config) {
         Ok(ctx) => ctx,
         Err(message) => {
@@ -680,7 +704,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 .cloned()
                 .collect::<Vec<_>>()
         };
-        let mut provider_messages = match session_protocol.assemble(
+        let assembled_messages = match session_protocol.assemble(
             &llm_messages,
             base_system.instruction_context(),
             tools_for_step.contains("skill"),
@@ -692,6 +716,8 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 return;
             }
         };
+        let mut provider_messages = assembled_messages.messages;
+        let message_sources = assembled_messages.message_sources;
         let compaction = match prepare_context_before_llm_step(
             &mut provider_messages,
             &system,
@@ -761,12 +787,13 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             return;
         }
 
+        let provider_options = provider_request_options(&req.options);
         let step_out = match llm_runner::run_llm_step_with_retry(
             &req.session,
             &provider_messages,
             &system,
             Some(selected_model.model.clone()),
-            &req.options,
+            &provider_options,
             &available_tool_specs,
             tools_for_step,
             &mut on_event,
@@ -829,24 +856,37 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             app_session_scope.as_deref(),
         );
 
+        let finished_ms = utils::now_ms();
+        if let Err(error) = artifacts::persist_llm_raw_step_payload(
+            &req,
+            &ctx.session,
+            step_index,
+            &provider_messages,
+            &message_sources,
+            &selected_model.model,
+            &system,
+            &tool_specs_for_context,
+            &step_out,
+            app_session_scope.as_deref(),
+        ) {
+            tracing::warn!(
+                target: "vw_agent",
+                session_id = %ctx.session,
+                step_index,
+                error = %error,
+                "failed to persist raw LLM step payload"
+            );
+        }
+
         if !on_event(StreamEvent::StepFinish {
             step_index,
-            finished_ms: utils::now_ms(),
+            finished_ms,
             usage: step_out.usage.clone(),
             finish_reason: step_out.finish_reason.clone(),
             model: Some(selected_model.model.clone()),
         }) {
             return;
         }
-
-        artifacts::persist_llm_raw_step_payload(
-            &req,
-            &ctx.session,
-            step_index,
-            &provider_messages,
-            &step_out,
-            app_session_scope.as_deref(),
-        );
 
         total_usage.input_tokens += step_out.usage.input_tokens;
         total_usage.output_tokens += step_out.usage.output_tokens;

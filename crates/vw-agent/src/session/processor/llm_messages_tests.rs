@@ -122,6 +122,46 @@ fn session_protocol_injects_agents_and_skills_on_every_desktop_step() {
 }
 
 #[test]
+fn assemble_session_protocol_messages_tracks_context_sources() {
+    let user_source = json!({
+        "kind": "user",
+        "rpcId": "desktop-request-42",
+        "clientTimeZone": "Asia/Shanghai",
+    });
+    let mut history = vec![json!({"role": "user", "content": "current question"})];
+    super::annotate_current_user_source(&mut history, user_source.clone());
+    let listing = Some(super::sourced_protocol_message(
+        json!({
+            "role": "user",
+            "content": "<system-reminder>Available skills: rustcodegraph</system-reminder>"
+        }),
+        super::context_message_source("skill_catalog", &["rustcodegraph".to_string()]),
+    ));
+
+    let messages = super::assemble_session_protocol_messages_with_sources(
+        &history,
+        &[],
+        &[],
+        listing,
+        None,
+    );
+
+    assert_eq!(
+        messages.message_sources[0],
+        json!({
+            "kind": "context",
+            "form": "skill_catalog",
+            "entries": ["rustcodegraph"],
+        })
+    );
+    assert_eq!(messages.message_sources[1], user_source);
+    assert!(messages[0].get("_vw_source").is_none());
+    assert!(messages[0].get("source").is_none());
+    assert!(messages[1].get("_vw_source").is_none());
+    assert!(messages[1].get("source").is_none());
+}
+
+#[test]
 fn session_protocol_places_agents_immediately_before_current_user_turn() {
     let instructions = vec![crate::session::instruction::Resolved {
         filepath: "/workspace/AGENTS.md".to_string(),

@@ -23,23 +23,39 @@ pub enum ChatPanelMode {
     Trajectory,
 }
 
-/// 轨迹详情检查器的三个稳定标签。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// 轨迹详情检查器的稳定标签集合。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum TrajectoryDetailsTab {
+    SystemPrompt,
+    Tools,
     #[default]
     Summary,
     Preview,
     Raw,
+    Source,
+    Options,
+    Usage,
+    Timing,
+    Payload,
+    Result,
+    Schema,
 }
 
 impl TrajectoryDetailsTab {
-    pub(crate) const ALL: [Self; 3] = [Self::Summary, Self::Preview, Self::Raw];
-
     pub(crate) const fn label(self) -> &'static str {
         match self {
+            Self::SystemPrompt => "System Prompt",
+            Self::Tools => "Tools",
             Self::Summary => "Summary",
             Self::Preview => "Preview",
             Self::Raw => "Raw",
+            Self::Source => "Source",
+            Self::Options => "Options",
+            Self::Usage => "Usage",
+            Self::Timing => "Timing",
+            Self::Payload => "Payload",
+            Self::Result => "Result",
+            Self::Schema => "Schema",
         }
     }
 }
@@ -254,8 +270,13 @@ pub struct App {
     /// 轨迹详情选择与标签状态。
     pub(crate) trajectory_details:
         crate::app::components::chat_panel::trajectory::TrajectoryDetailsState,
+    /// Duration、Turns 与 Calls 的瞬时轨迹控制状态。
+    pub(crate) trajectory_controls:
+        crate::app::components::chat_panel::trajectory::TrajectoryControlsState,
     /// 正在补载的轨迹原始步骤载荷。
     pub(crate) trajectory_raw_loading: HashSet<UsageStepRawKey>,
+    /// 轨迹原始步骤载荷当前或待执行的有限重试次数。
+    pub(crate) trajectory_raw_attempts: HashMap<UsageStepRawKey, u8>,
     /// 轨迹原始步骤载荷的可恢复错误。
     pub(crate) trajectory_raw_errors: HashMap<UsageStepRawKey, String>,
     /// 当前模型的使用信息

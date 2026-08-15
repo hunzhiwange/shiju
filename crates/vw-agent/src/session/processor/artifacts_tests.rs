@@ -87,6 +87,18 @@ fn llm_step() -> LlmStep {
     }
 }
 
+fn tool_spec() -> crate::app::agent::tools::ToolSpec {
+    crate::app::agent::tools::ToolSpec::new(
+        "shell",
+        "Run a shell command",
+        json!({
+            "type": "object",
+            "properties": {"command": {"type": "string"}},
+            "required": ["command"],
+        }),
+    )
+}
+
 fn register_scope_project(scope: &str) -> tempfile::TempDir {
     let temp = tempfile::tempdir().expect("project tempdir");
     let info = project::Info {
@@ -101,6 +113,20 @@ fn register_scope_project(scope: &str) -> tempfile::TempDir {
     };
     project::store_local_test_project(&info).expect("project should write");
     temp
+}
+
+fn register_ui_session(session_id: &str, scope: &str) {
+    let session = models::ChatSession {
+        id: session_id.to_string(),
+        title: "Raw payload fixture".to_string(),
+        messages: Vec::new(),
+        message_ids: Vec::new(),
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 1,
+    };
+    ui_store::save_session_scoped(&session, Some(scope)).expect("parent session should persist");
 }
 
 #[test]
@@ -263,14 +289,28 @@ fn final_ai_call_payload_uses_explicit_persist_decision() {
 }
 
 #[test]
-fn raw_llm_step_payload_persists_system_messages_output_and_tool_calls() {
+fn raw_payload_persists_system_messages_output_and_tool_calls() {
     let session_id = unique_id("raw");
     let scope = unique_id("scope");
+    let _project = register_scope_project(&scope);
+    register_ui_session(&session_id, &scope);
     let req = request(&session_id, 91, true);
     let step = llm_step();
     let llm_messages = vec![json!({"role": "user", "content": "hello"})];
 
-    persist_llm_raw_step_payload(&req, &session_id, 3, &llm_messages, &step, Some(&scope));
+    persist_llm_raw_step_payload(
+        &req,
+        &session_id,
+        3,
+        &llm_messages,
+        &[],
+        "test-model",
+        &["system one".to_string()],
+        &[],
+        &step,
+        Some(&scope),
+    )
+    .expect("raw payload should persist");
 
     let payload = ui_store::load_llm_raw_step_scoped(&session_id, 3, Some(&scope))
         .expect("raw payload should load")
@@ -280,6 +320,7 @@ fn raw_llm_step_payload_persists_system_messages_output_and_tool_calls() {
     assert_eq!(payload["model"], "test-model");
     assert_eq!(payload["system"], json!(["system one"]));
     assert_eq!(payload["messages"], json!([{"role": "user", "content": "hello"}]));
+    assert_eq!(payload["message_sources"], json!([null]));
     assert_eq!(payload["output"]["text"], "step answer");
     assert_eq!(payload["output"]["reasoning_content"], "reasoning");
     assert_eq!(payload["output"]["finish_reason"], "stop");
@@ -291,9 +332,171 @@ fn raw_llm_step_payload_persists_system_messages_output_and_tool_calls() {
 }
 
 #[test]
-fn raw_llm_step_payload_serializes_empty_optional_output() {
+fn raw_payload_persists_message_sources_without_provider_metadata() {
+    let session_id = unique_id("raw-message-sources");
+    let scope = unique_id("scope");
+    let _project = register_scope_project(&scope);
+    register_ui_session(&session_id, &scope);
+    let mut req = request(&session_id, 98, true);
+    req.options[super::super::llm_messages::INTERNAL_INPUT_SOURCE_OPTION] = json!({
+        "kind": "user",
+        "rpcId": "desktop-request-98",
+        "clientTimeZone": "Asia/Shanghai",
+    });
+    let llm_messages = vec![json!({"role": "user", "content": "hello"})];
+    let message_sources = vec![req.options
+        .get(super::super::llm_messages::INTERNAL_INPUT_SOURCE_OPTION)
+        .cloned()
+        .expect("input source")];
+
+    persist_llm_raw_step_payload(
+        &req,
+        &session_id,
+        8,
+        &llm_messages,
+        &message_sources,
+        "test-model",
+        &[],
+        &[],
+        &llm_step(),
+        Some(&scope),
+    )
+    .expect("raw payload should persist");
+
+    let payload = ui_store::load_llm_raw_step_scoped(&session_id, 8, Some(&scope))
+        .expect("raw payload should load")
+        .expect("raw payload should exist");
+    assert_eq!(
+        payload["message_sources"],
+        json!([{
+            "kind": "user",
+            "rpcId": "desktop-request-98",
+            "clientTimeZone": "Asia/Shanghai",
+        }])
+    );
+    assert!(payload["messages"][0].get("_vw_source").is_none());
+    assert!(payload["messages"][0].get("source").is_none());
+    let provider_options = super::super::runner::provider_request_options(&req.options);
+    assert!(provider_options.get("_vw_input_source").is_none());
+    assert!(provider_options.get("source").is_none());
+}
+
+#[test]
+fn raw_payload_persists_request_snapshot_and_tool_catalog() {
+    let session_id = unique_id("raw-request-snapshot");
+    let scope = unique_id("scope");
+    let _project = register_scope_project(&scope);
+    register_ui_session(&session_id, &scope);
+    let mut req = request(&session_id, 99, true);
+    req.options = json!({
+        "reasoning_effort": "high",
+        "temperature": 0.2,
+        "top_p": 0.9,
+        "max_tokens": 2048,
+    });
+
+    persist_llm_raw_step_payload(
+        &req,
+        &session_id,
+        9,
+        &[],
+        &[],
+        "resolved/test-model",
+        &["final system prompt".to_string()],
+        &[tool_spec()],
+        &llm_step(),
+        Some(&scope),
+    )
+    .expect("raw payload should persist");
+
+    let payload = ui_store::load_llm_raw_step_scoped(&session_id, 9, Some(&scope))
+        .expect("raw payload should load")
+        .expect("raw payload should exist");
+    assert_eq!(
+        payload["request"],
+        json!({
+            "config": {
+                "model": "resolved/test-model",
+                "reasoning_effort": "high",
+                "temperature": 0.2,
+                "top_p": 0.9,
+                "max_tokens": 2048,
+            },
+            "tools": [{
+                "id": "shell",
+                "description": "Run a shell command",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"command": {"type": "string"}},
+                    "required": ["command"],
+                },
+            }],
+        })
+    );
+    assert_eq!(payload["system"], json!(["final system prompt"]));
+    assert_eq!(payload["output"]["usage"]["reasoning_tokens"], 40);
+}
+
+#[test]
+fn raw_payload_options_are_explicitly_allowlisted() {
+    let session_id = unique_id("raw-options-allowlist");
+    let scope = unique_id("scope");
+    let _project = register_scope_project(&scope);
+    register_ui_session(&session_id, &scope);
+    let mut req = request(&session_id, 100, true);
+    req.options = json!({
+        "reasoning_effort": "medium",
+        "max_output_tokens": 1024,
+        "api_key": "secret-key",
+        "headers": {"Authorization": "Bearer secret-token"},
+        "approval": {"mode": "bypass"},
+        "private_option": "must-not-persist",
+        "_vw_input_source": {"kind": "user"},
+    });
+
+    persist_llm_raw_step_payload(
+        &req,
+        &session_id,
+        10,
+        &[],
+        &[],
+        "resolved/test-model",
+        &[],
+        &[],
+        &llm_step(),
+        Some(&scope),
+    )
+    .expect("raw payload should persist");
+
+    let payload = ui_store::load_llm_raw_step_scoped(&session_id, 10, Some(&scope))
+        .expect("raw payload should load")
+        .expect("raw payload should exist");
+    assert_eq!(
+        payload["request"]["config"],
+        json!({
+            "model": "resolved/test-model",
+            "reasoning_effort": "medium",
+            "max_output_tokens": 1024,
+        })
+    );
+    let serialized = serde_json::to_string(&payload).expect("payload should serialize");
+    for secret in [
+        "secret-key",
+        "secret-token",
+        "private_option",
+        "_vw_input_source",
+        "approval",
+    ] {
+        assert!(!serialized.contains(secret), "raw payload leaked {secret}");
+    }
+}
+
+#[test]
+fn raw_payload_serializes_empty_optional_output() {
     let session_id = unique_id("raw-empty-output");
     let scope = unique_id("scope");
+    let _project = register_scope_project(&scope);
+    register_ui_session(&session_id, &scope);
     let mut req = request(&session_id, 94, true);
     req.model = None;
     let step = LlmStep {
@@ -309,7 +512,19 @@ fn raw_llm_step_payload_serializes_empty_optional_output() {
         ],
     };
 
-    persist_llm_raw_step_payload(&req, &session_id, 6, &[], &step, Some(&scope));
+    persist_llm_raw_step_payload(
+        &req,
+        &session_id,
+        6,
+        &[],
+        &[],
+        "test-model",
+        &[],
+        &[],
+        &step,
+        Some(&scope),
+    )
+    .expect("raw payload should persist");
 
     let payload = ui_store::load_llm_raw_step_scoped(&session_id, 6, Some(&scope))
         .expect("raw payload should load")
@@ -325,13 +540,26 @@ fn raw_llm_step_payload_serializes_empty_optional_output() {
 }
 
 #[test]
-fn raw_llm_step_payload_respects_persistence_guards() {
+fn raw_payload_respects_persistence_guards() {
     let session_id = unique_id("raw-skip");
     let scope = unique_id("scope");
+    let _project = register_scope_project(&scope);
     let step = llm_step();
     let no_persist = request(&session_id, 92, false);
 
-    persist_llm_raw_step_payload(&no_persist, &session_id, 4, &[], &step, Some(&scope));
+    persist_llm_raw_step_payload(
+        &no_persist,
+        &session_id,
+        4,
+        &[],
+        &[],
+        "test-model",
+        &[],
+        &[],
+        &step,
+        Some(&scope),
+    )
+    .expect("disabled persistence should skip without error");
     assert!(
         ui_store::load_llm_raw_step_scoped(&session_id, 4, Some(&scope))
             .expect("raw payload load should be readable")
@@ -339,10 +567,39 @@ fn raw_llm_step_payload_respects_persistence_guards() {
     );
 
     let empty_session = request("", 93, true);
-    persist_llm_raw_step_payload(&empty_session, "", 5, &[], &step, Some(&scope));
-    assert!(
-        ui_store::load_llm_raw_step_scoped("", 5, Some(&scope))
-            .expect("raw payload load should be readable")
-            .is_none()
-    );
+    persist_llm_raw_step_payload(
+        &empty_session,
+        "",
+        5,
+        &[],
+        &[],
+        "test-model",
+        &[],
+        &[],
+        &step,
+        Some(""),
+    )
+    .expect("empty sessions should skip without error");
+}
+
+#[test]
+fn raw_payload_persistence_reports_storage_failure() {
+    let session_id = unique_id("raw-error");
+    let req = request(&session_id, 97, true);
+
+    let error = persist_llm_raw_step_payload(
+        &req,
+        &session_id,
+        7,
+        &[],
+        &[],
+        "test-model",
+        &[],
+        &[],
+        &llm_step(),
+        Some(""),
+    )
+    .expect_err("invalid scope must remain observable to the processor");
+
+    assert!(error.to_string().contains("non-empty project scope"));
 }

@@ -1242,7 +1242,10 @@ fn available_tools_exclude_mcp_dynamic_ids() {
         )))),
     );
 
-    assert_eq!(app.agents_settings.available_tools, vec!["bash".to_string(), "read".to_string()]);
+    assert_eq!(
+        app.agents_settings.available_tools,
+        vec!["bash".to_string(), "read".to_string(), "rustcodegraph".to_string()]
+    );
     assert!(!app.agents_settings.available_tools.iter().any(|tool| tool.starts_with("mcp__")));
 }
 

@@ -10,6 +10,7 @@ use axum::extract::Query;
 use axum::http::HeaderMap;
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::BTreeSet;
 use vw_api_types::session::GatewaySessionScopeBody;
 
 use super::shared::resolve_scope_from_query;
@@ -39,6 +40,8 @@ pub(super) struct SessionWithRaw {
     pub calls: Vec<Value>,
     #[serde(default)]
     pub steps: Vec<SessionStepWithRaw>,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub llm_raw_step_indices: BTreeSet<u32>,
     #[serde(default)]
     pub created_ms: u64,
     #[serde(default)]
@@ -64,6 +67,13 @@ pub(super) async fn session_ui_get(
                 };
             let mut steps = Vec::with_capacity(session.steps.len());
             let session_id = session.id.clone();
+            let llm_raw_step_indices = ui_store::load_llm_raw_step_indices_scoped_for_tenant(
+                &tenant,
+                &session_id,
+                scope.as_deref(),
+            )?
+            .into_iter()
+            .collect();
             for step in session.steps {
                 let llm_raw =
                     ui_store::load_llm_raw_step_scoped(&session_id, step.index, scope.as_deref())?;
@@ -76,6 +86,7 @@ pub(super) async fn session_ui_get(
                 message_ids: session.message_ids,
                 calls: session.calls,
                 steps,
+                llm_raw_step_indices,
                 created_ms: session.created_ms,
                 updated_ms: session.updated_ms,
             }))
@@ -84,6 +95,27 @@ pub(super) async fn session_ui_get(
         .map_err(|e| ApiError::internal(e.to_string()))?;
     let session = session.map_err(|e| ApiError::internal(e.to_string()))?;
     Ok(Json(session))
+}
+
+pub(super) async fn session_step_llm_raw_get(
+    Path((session_id, step_index)): Path<(String, u32)>,
+    Query(query): Query<InstanceQuery>,
+    headers: HeaderMap,
+) -> Result<Json<Option<Value>>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
+    let scope = resolve_scope_from_query(&tenant, &query, &headers);
+    let raw = crate::global_database::run_isolated(move || {
+        ui_store::load_llm_raw_step_scoped_for_tenant(
+            &tenant,
+            &session_id,
+            step_index,
+            scope.as_deref(),
+        )
+    })
+    .await
+    .map_err(|error| ApiError::internal(error.to_string()))?;
+    let raw = raw.map_err(|error| ApiError::internal(error.to_string()))?;
+    Ok(Json(raw))
 }
 
 pub(super) async fn session_ui_save(

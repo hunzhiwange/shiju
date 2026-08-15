@@ -1801,6 +1801,8 @@ async fn stream_task_plan_run_resumable(
 fn gateway_request_options(
     req: &AgentRequest,
     subagent_system_prompt: Option<&str>,
+    rpc_id: &str,
+    client_time_zone: &str,
 ) -> Option<serde_json::Value> {
     use serde_json::{Value, json};
 
@@ -1839,7 +1841,23 @@ fn gateway_request_options(
         // 目标模式由会话处理器依据 Todo 状态决定是否续轮。
         options.insert("goal_mode".to_string(), json!(true));
     }
+    if !req.resume_history_only && !req.query.trim().is_empty() {
+        options.insert(
+            "_vw_input_source".to_string(),
+            json!({
+                "kind": "user",
+                "rpcId": rpc_id,
+                "clientTimeZone": client_time_zone,
+            }),
+        );
+    }
     (!options.is_empty()).then_some(Value::Object(options))
+}
+
+fn chat_tool_message(request_id: u64, payload: &serde_json::Value) -> Option<Message> {
+    vw_gateway_client::normalize_chat_tool_event(payload).map(|event| {
+        Message::Chat(message::ChatMessage::AgentToolLifecycle(request_id, event))
+    })
 }
 
 fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
@@ -1854,6 +1872,11 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
         100,
         move |mut output: iced::futures::channel::mpsc::Sender<Message>| async move {
             let endpoint = crate::app::config::gateway_client_endpoint();
+            let rpc_id = desktop_stream_request_id(&req);
+            let client_time_zone = crate::app::config::load_system_settings_config_async()
+                .await
+                .map(|config| config.timezone)
+                .unwrap_or_else(|_| vw_config_types::ui::default_timezone());
 
             let subagent_system_prompt = req
                 .history
@@ -1889,7 +1912,12 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 "messages": messages,
                 "model": req.model,
             });
-            let options = gateway_request_options(&req, subagent_system_prompt.as_deref());
+            let options = gateway_request_options(
+                &req,
+                subagent_system_prompt.as_deref(),
+                &rpc_id,
+                &client_time_zone,
+            );
             // 仅工作流开启才进入 task_plan_run；目标模式由网关固定开启。
             let workflow_mode_active =
                 task_plan_run_active(req.workflow_mode_enabled, req.resume_history_only);
@@ -1953,7 +1981,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 "starting gateway agent stream"
             );
 
-            let mut reconnect = GatewayReconnectState::new(desktop_stream_request_id(&req));
+            let mut reconnect = GatewayReconnectState::new(rpc_id);
             stream_done = false;
 
             loop {
@@ -2216,6 +2244,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         .and_then(serde_json::Value::as_str)
                                         .unwrap_or_default()
                                     {
+                                        "chat.tool" => chat_tool_message(req.id, &payload),
                                         "chat.context_loaded" => {
                                             let paths = payload
                                                 .get("paths")

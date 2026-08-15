@@ -35,6 +35,7 @@ fn session_with_step(finish_reason: Option<&str>, finished_ms: Option<u64>) -> C
             cost_usd: None,
             finish_reason: finish_reason.map(ToOwned::to_owned),
             model: Some("model-a".to_string()),
+            tool_timings: Vec::new(),
         }],
         created_ms: 1,
         updated_ms: 2,

@@ -57,6 +57,7 @@ fn step(input_tokens: i64) -> ChatSessionStep {
         cost_usd: None,
         finish_reason: None,
         model: Some("gpt-test".to_string()),
+        tool_timings: Vec::new(),
     }
 }
 

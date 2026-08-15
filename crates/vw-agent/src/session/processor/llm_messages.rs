@@ -17,6 +17,66 @@ use crate::session::context_injection;
 use crate::session::instruction::Resolved;
 use serde_json::Value;
 
+pub(crate) const INTERNAL_INPUT_SOURCE_OPTION: &str = "_vw_input_source";
+const INTERNAL_MESSAGE_SOURCE_FIELD: &str = "_vw_source";
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct AssembledProtocolMessages {
+    pub(crate) messages: Vec<Value>,
+    pub(crate) message_sources: Vec<Value>,
+}
+
+impl std::ops::Deref for AssembledProtocolMessages {
+    type Target = [Value];
+
+    fn deref(&self) -> &Self::Target {
+        &self.messages
+    }
+}
+
+pub(crate) fn context_message_source(form: &str, entries: &[String]) -> Value {
+    serde_json::json!({
+        "kind": "context",
+        "form": form,
+        "entries": entries,
+    })
+}
+
+pub(crate) fn sourced_protocol_message(mut message: Value, source: Value) -> Value {
+    if let Some(object) = message.as_object_mut() {
+        object.insert(INTERNAL_MESSAGE_SOURCE_FIELD.to_string(), source);
+    }
+    message
+}
+
+pub(crate) fn annotate_current_user_source(messages: &mut [Value], source: Value) {
+    let Some(message) = messages
+        .iter_mut()
+        .rfind(|message| message.get("role").and_then(Value::as_str) == Some("user"))
+    else {
+        return;
+    };
+    if let Some(object) = message.as_object_mut() {
+        object.insert(INTERNAL_MESSAGE_SOURCE_FIELD.to_string(), source);
+    }
+}
+
+pub(crate) fn input_source_from_options(options: &Value) -> Option<Value> {
+    options.get(INTERNAL_INPUT_SOURCE_OPTION).filter(|source| source.is_object()).cloned()
+}
+
+fn split_message_sources(mut messages: Vec<Value>) -> AssembledProtocolMessages {
+    let message_sources = messages
+        .iter_mut()
+        .map(|message| {
+            let Some(object) = message.as_object_mut() else { return Value::Null };
+            object.remove("source");
+            object.remove(INTERNAL_MESSAGE_SOURCE_FIELD).unwrap_or(Value::Null)
+        })
+        .collect();
+    AssembledProtocolMessages { messages, message_sources }
+}
+
 pub(crate) fn session_message_to_llm_message(message: &Message) -> Option<serde_json::Value> {
     match message.role {
         Role::User => Some(serde_json::json!({ "role": "user", "content": message.content })),
@@ -104,15 +164,40 @@ pub(crate) fn assemble_session_protocol_messages(
     skill_listing: Option<Value>,
     default_tool_reminder: Option<Value>,
 ) -> Vec<Value> {
+    assemble_session_protocol_messages_with_sources(
+        history,
+        instructions,
+        invoked_skill_messages,
+        skill_listing,
+        default_tool_reminder,
+    )
+    .messages
+}
+
+pub(crate) fn assemble_session_protocol_messages_with_sources(
+    history: &[Value],
+    instructions: &[Resolved],
+    invoked_skill_messages: &[Value],
+    skill_listing: Option<Value>,
+    default_tool_reminder: Option<Value>,
+) -> AssembledProtocolMessages {
     let injection = context_injection::assemble_agents_context(instructions, history);
+    let instruction_entries = instructions
+        .iter()
+        .map(|instruction| instruction.filepath.clone())
+        .collect::<Vec<_>>();
+    let instruction_source = context_message_source("instructions", &instruction_entries);
     let agents_messages = injection
         .transient_messages
         .iter()
         .map(|message| {
-            serde_json::json!({
-                "role": message.role.as_str(),
-                "content": message.content,
-            })
+            sourced_protocol_message(
+                serde_json::json!({
+                    "role": message.role.as_str(),
+                    "content": message.content,
+                }),
+                instruction_source.clone(),
+            )
         })
         .collect::<Vec<_>>();
     let mut protocol_messages = invoked_skill_messages.to_vec();
@@ -138,19 +223,22 @@ pub(crate) fn assemble_session_protocol_messages(
     messages.extend(injection.history[..insertion_index].iter().cloned());
     messages.extend(protocol_messages);
     messages.extend(injection.history[insertion_index..].iter().cloned());
-    messages
+    split_message_sources(messages)
 }
 
 /// 构建临近当前用户请求的默认工具提醒；它不构成可见性白名单。
 pub(crate) fn default_tool_reminder(default_tool_ids: &[String]) -> Option<Value> {
     (!default_tool_ids.is_empty()).then(|| {
-        serde_json::json!({
-            "role": "user",
-            "content": format!(
-                "<system-reminder>Default tools for this delegated agent: {}. This is a default selection, not a restriction on other available tools.</system-reminder>",
-                default_tool_ids.join(", ")
-            ),
-        })
+        sourced_protocol_message(
+            serde_json::json!({
+                "role": "user",
+                "content": format!(
+                    "<system-reminder>Default tools for this delegated agent: {}. This is a default selection, not a restriction on other available tools.</system-reminder>",
+                    default_tool_ids.join(", ")
+                ),
+            }),
+            context_message_source("default_tools", default_tool_ids),
+        )
     })
 }
 

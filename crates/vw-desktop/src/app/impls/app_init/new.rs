@@ -443,7 +443,10 @@ impl App {
             trajectory_search_text: String::new(),
             trajectory_details:
                 crate::app::components::chat_panel::trajectory::TrajectoryDetailsState::default(),
+            trajectory_controls:
+                crate::app::components::chat_panel::trajectory::TrajectoryControlsState::default(),
             trajectory_raw_loading: std::collections::HashSet::new(),
+            trajectory_raw_attempts: std::collections::HashMap::new(),
             trajectory_raw_errors: std::collections::HashMap::new(),
             usage_model_info: None,
             usage_step_expanded: std::collections::HashSet::new(),
@@ -1224,7 +1227,9 @@ impl App {
                         if value.is_empty() { "auto".to_string() } else { value }
                     };
                 }
-                let available_tools = config::load_tools_list_via_gateway();
+                let available_tools = super::state::filter_mcp_from_available_tools(
+                    config::load_tools_list_via_gateway(),
+                );
                 super::state::apply_default_allowed_tools(&mut entries, &available_tools);
                 super::state::AgentsSettingsState {
                     loading: true,

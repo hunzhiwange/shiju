@@ -361,6 +361,7 @@ fn historical_session_model_restore_uses_latest_recorded_model() {
             cost_usd: None,
             finish_reason: None,
             model: Some("provider/old-model".to_string()),
+            tool_timings: Vec::new(),
         },
         crate::app::models::ChatSessionStep {
             index: 2,
@@ -372,6 +373,7 @@ fn historical_session_model_restore_uses_latest_recorded_model() {
             cost_usd: None,
             finish_reason: None,
             model: Some(" provider/history-model ".to_string()),
+            tool_timings: Vec::new(),
         },
     ];
 
@@ -406,6 +408,7 @@ fn historical_session_model_restore_preserves_existing_session_selection() {
         cost_usd: None,
         finish_reason: None,
         model: Some("provider/history-model".to_string()),
+        tool_timings: Vec::new(),
     }];
 
     assert!(!app.restore_session_model_from_steps("history", &steps));

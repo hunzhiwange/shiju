@@ -8,7 +8,7 @@ use crate::session::ui_config::{load_app_config, set_config_field};
 /// 当前公开项是模块对外契约的一部分。
 pub use crate::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
-    ThinkTiming, TokenUsage,
+    ThinkTiming, TokenUsage, ToolTiming,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use anyhow::{Context, Result};
@@ -382,6 +382,27 @@ pub fn load_llm_raw_step_scoped(
         let tenant = current_tenant_scope();
         let project_scope = project_scope(&tenant, Some(scope))
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))?;
+        let store = runtime_session_store().map_err(|error| io::Error::other(error.to_string()))?;
+        store
+            .load_session_step_llm_raw(&project_scope, session_id, step_index)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
+    };
+
+    #[cfg(target_arch = "wasm32")]
+    ui_store::load_llm_raw_step(data_dir(), session_id, step_index, scope)
+}
+
+/// 按显式租户和项目 scope 读取单个步骤的原始 LLM 载荷。
+pub(crate) fn load_llm_raw_step_scoped_for_tenant(
+    tenant: &TenantScope,
+    session_id: &str,
+    step_index: u32,
+    scope: Option<&str>,
+) -> std::io::Result<Option<serde_json::Value>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return {
+        let project_scope = project_scope(tenant, scope)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))?;
         let store = runtime_session_store()
             .map_err(|error| io::Error::new(io::ErrorKind::Other, error.to_string()))?;
         store
@@ -390,7 +411,33 @@ pub fn load_llm_raw_step_scoped(
     };
 
     #[cfg(target_arch = "wasm32")]
-    ui_store::load_llm_raw_step(data_dir(), session_id, step_index, scope)
+    {
+        let _ = tenant;
+        ui_store::load_llm_raw_step(data_dir(), session_id, step_index, scope)
+    }
+}
+
+/// 按显式租户和项目 scope 列出会话已有的原始 LLM step 索引。
+pub(crate) fn load_llm_raw_step_indices_scoped_for_tenant(
+    tenant: &TenantScope,
+    session_id: &str,
+    scope: Option<&str>,
+) -> std::io::Result<Vec<u32>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return {
+        let project_scope = project_scope(tenant, scope)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))?;
+        let store = runtime_session_store().map_err(|error| io::Error::other(error.to_string()))?;
+        store
+            .load_session_llm_raw_step_indices(&project_scope, session_id)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
+    };
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (tenant, session_id, scope);
+        Ok(Vec::new())
+    }
 }
 
 /// 执行 save_session_step_snapshot 操作，并返回调用方需要的结果。
@@ -408,6 +455,31 @@ pub fn save_session_step_snapshot(
     )
 }
 
+/// 持久化原始 LLM 步骤，并保留 scope、存储初始化与数据库写入错误。
+pub(crate) fn try_persist_llm_raw_step(
+    session_id: &str,
+    step_index: u32,
+    payload: &serde_json::Value,
+    scope: Option<&str>,
+) -> anyhow::Result<PathBuf> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return {
+        let default_scope = session_scope();
+        let scope = scope
+            .or_else(|| default_scope.as_deref())
+            .ok_or_else(|| anyhow::anyhow!("persist LLM raw step requires a project scope"))?;
+        let tenant = current_tenant_scope();
+        let project_scope = project_scope(&tenant, Some(scope))?;
+        let store = runtime_session_store()?;
+        store.save_session_step_llm_raw(&project_scope, session_id, step_index, payload)?;
+        Ok(store.storage_path().map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
+    };
+
+    #[cfg(target_arch = "wasm32")]
+    ui_store::persist_llm_raw_step(data_dir(), session_id, step_index, payload, scope)
+        .ok_or_else(|| anyhow::anyhow!("persist LLM raw step failed"))
+}
+
 /// 执行 persist_llm_raw_step 操作，并返回调用方需要的结果。
 pub fn persist_llm_raw_step(
     session_id: &str,
@@ -415,27 +487,7 @@ pub fn persist_llm_raw_step(
     payload: &serde_json::Value,
     scope: Option<&str>,
 ) -> Option<PathBuf> {
-    #[cfg(not(target_arch = "wasm32"))]
-    return {
-        let default_scope = session_scope();
-        let Some(scope) = scope.or_else(|| default_scope.as_deref()) else {
-            return None;
-        };
-        let tenant = current_tenant_scope();
-        let project_scope = match project_scope(&tenant, Some(scope)) {
-            Ok(project_scope) => project_scope,
-            Err(_) => return None,
-        };
-        let store = match runtime_session_store() {
-            Ok(store) => store,
-            Err(_) => return None,
-        };
-        store.save_session_step_llm_raw(&project_scope, session_id, step_index, payload).ok()?;
-        Some(store.storage_path().map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
-    };
-
-    #[cfg(target_arch = "wasm32")]
-    ui_store::persist_llm_raw_step(data_dir(), session_id, step_index, payload, scope)
+    try_persist_llm_raw_step(session_id, step_index, payload, scope).ok()
 }
 
 /// 执行 resolve_session_scope_id 操作，并返回调用方需要的结果。

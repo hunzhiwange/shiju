@@ -71,6 +71,45 @@ pub struct GatewayChatPostToolRoundEvent {
     pub step_index: u32,
 }
 
+/// `chat.tool` 生命周期阶段。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GatewayChatToolEventKind {
+    Start,
+    Update,
+    Complete,
+}
+
+/// `chat.tool` 的协议中立状态。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GatewayChatToolStatus {
+    Running,
+    Waiting,
+    Completed,
+    Failed,
+    Denied,
+    Cancelled,
+    Other(String),
+}
+
+/// 网关规整后的类型化工具生命周期事件。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GatewayChatToolEvent {
+    pub step_index: u32,
+    pub call_id: String,
+    pub name: String,
+    pub kind: GatewayChatToolEventKind,
+    pub status: GatewayChatToolStatus,
+    pub occurred_ms: u64,
+    pub payload: serde_json::Value,
+}
+
+impl GatewayChatToolEvent {
+    /// 保留旧聊天工具卡消费的文本协议。
+    pub fn legacy_delta(&self) -> String {
+        format!("tool {}\n{}\n", self.name, self.payload)
+    }
+}
+
 /// 网关流事件经客户端规整后的 typed 结果。
 ///
 /// `GatewayChatStreamEvent` 仍保留原始兼容接口；新调用点应尽量改用
@@ -115,6 +154,44 @@ pub enum GatewayTypedChatStreamEvent {
     Unknown {
         event_type: Option<String>,
     },
+}
+
+/// 将 `chat.tool` JSON 规整为封闭的类型化工具事件。
+pub fn normalize_chat_tool_event(payload: &serde_json::Value) -> Option<GatewayChatToolEvent> {
+    if payload.get("type").and_then(serde_json::Value::as_str) != Some("chat.tool") {
+        return None;
+    }
+
+    let step_index = u32::try_from(payload.get("step_index")?.as_u64()?).ok()?;
+    let call_id = payload.get("call_id")?.as_str()?.to_string();
+    let name = payload.get("name")?.as_str()?.to_string();
+    let kind = match payload.get("kind")?.as_str()? {
+        "start" => GatewayChatToolEventKind::Start,
+        "update" => GatewayChatToolEventKind::Update,
+        "complete" => GatewayChatToolEventKind::Complete,
+        _ => return None,
+    };
+    let status = match payload.get("status")?.as_str()? {
+        "running" => GatewayChatToolStatus::Running,
+        "waiting" => GatewayChatToolStatus::Waiting,
+        "completed" => GatewayChatToolStatus::Completed,
+        "failed" => GatewayChatToolStatus::Failed,
+        "denied" => GatewayChatToolStatus::Denied,
+        "cancelled" => GatewayChatToolStatus::Cancelled,
+        other => GatewayChatToolStatus::Other(other.to_string()),
+    };
+    let occurred_ms = payload.get("occurred_ms")?.as_u64()?;
+    let event_payload = payload.get("payload")?.clone();
+
+    Some(GatewayChatToolEvent {
+        step_index,
+        call_id,
+        name,
+        kind,
+        status,
+        occurred_ms,
+        payload: event_payload,
+    })
 }
 
 #[deprecated(note = "use GatewayChatStreamEvent")]

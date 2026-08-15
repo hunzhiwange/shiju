@@ -10,7 +10,7 @@ use crate::app::agent::tools::context::ToolUseContext;
 use crate::app::agent::tools::traits::{Tool, ToolResult};
 use async_trait::async_trait;
 #[cfg(not(target_arch = "wasm32"))]
-use rustcodegraph::{CodeGraph, InitOptions};
+use ::rustcodegraph::{CodeGraph, InitOptions};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

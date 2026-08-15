@@ -88,6 +88,7 @@ fn usage_data_exposes_active_steps_and_raw_calls() {
         cost_usd: Some(0.1),
         finish_reason: Some("stop".to_string()),
         model: Some("model-a".to_string()),
+        tool_timings: Vec::new(),
     }];
 
     let usage = UsageData::from_app(&app);

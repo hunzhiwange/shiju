@@ -6,7 +6,7 @@ use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::session::info::Info as AgentSessionInfo;
 use vw_shared::session::ui_types::{
     ChatMessage, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming, SessionTodoItem,
-    ThinkTiming, TokenUsage,
+    ThinkTiming, TokenUsage, ToolTiming,
 };
 
 use super::{
@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS session_steps (
     cost_usd DOUBLE PRECISION,
     finish_reason TEXT,
     model TEXT,
+    tool_timings_json TEXT NOT NULL DEFAULT '[]',
     PRIMARY KEY (platform_id, company_id, project_id, session_id, step_index),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
@@ -129,6 +130,8 @@ CREATE TABLE IF NOT EXISTS session_steps (
         REFERENCES session_index(platform_id, company_id, project_id, session_id)
         ON DELETE CASCADE
 );
+
+ALTER TABLE session_steps ADD COLUMN IF NOT EXISTS tool_timings_json TEXT NOT NULL DEFAULT '[]';
 
 CREATE INDEX IF NOT EXISTS idx_session_steps_project_index
 ON session_steps(platform_id, company_id, project_id, session_id, step_index);
@@ -482,6 +485,29 @@ impl PostgresSessionStore {
         .transpose()
     }
 
+    pub(super) fn load_session_llm_raw_step_indices(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<Vec<u32>> {
+        self.database
+            .connect_postgres()?
+            .query(
+                "SELECT step_index FROM session_step_llm_raw
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND session_id = $4
+                 ORDER BY step_index",
+                scoped_id_params!(scope, session_id),
+            )
+            .context("load PostgreSQL session llm raw step indices")?
+            .iter()
+            .map(|row| {
+                let step_index: i64 = row.try_get(0)?;
+                u32::try_from(step_index).context("convert PostgreSQL LLM raw step index to u32")
+            })
+            .collect()
+    }
+
     pub(super) fn load_session_todos(
         &self,
         scope: &ProjectScope,
@@ -796,13 +822,15 @@ fn replace_session_steps(
             step.finished_ms.map(|value| to_i64(value, "step finished_ms")).transpose()?;
         let usage_json =
             serde_json::to_string(&step.usage).context("serialize token usage JSON")?;
+        let tool_timings_json = serde_json::to_string(&step.tool_timings)
+            .context("serialize step tool timings JSON")?;
         client
             .execute(
                 "INSERT INTO session_steps (
                      platform_id, company_id, project_id, session_id, step_index, started_ms,
                      finished_ms, start_snapshot_path, finish_snapshot_path, usage_json, cost_usd,
-                     finish_reason, model
-                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+                     finish_reason, model, tool_timings_json
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
@@ -817,6 +845,7 @@ fn replace_session_steps(
                     &step.cost_usd,
                     &step.finish_reason,
                     &step.model,
+                    &tool_timings_json,
                 ],
             )
             .context("insert scoped PostgreSQL session step")?;
@@ -964,7 +993,7 @@ fn load_steps(
     client
         .query(
             "SELECT step_index, started_ms, finished_ms, start_snapshot_path, finish_snapshot_path,
-                    usage_json, cost_usd, finish_reason, model
+                    usage_json, cost_usd, finish_reason, model, tool_timings_json
              FROM session_steps
              WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
              ORDER BY step_index",
@@ -990,6 +1019,7 @@ fn map_session_meta(row: &Row) -> Result<ChatSessionMeta> {
 fn map_session_step(row: &Row, session_id: &str) -> Result<ChatSessionStep> {
     let finished_ms: Option<i64> = row.try_get(2)?;
     let usage_json: String = row.try_get(5)?;
+    let tool_timings_json: String = row.try_get(9)?;
     Ok(ChatSessionStep {
         index: u32::try_from(row.try_get::<_, i64>(0)?).context("read session step_index")?,
         started_ms: from_i64(row.try_get(1)?, "step started_ms")?,
@@ -1001,6 +1031,8 @@ fn map_session_step(row: &Row, session_id: &str) -> Result<ChatSessionStep> {
         cost_usd: row.try_get(6)?,
         finish_reason: row.try_get(7)?,
         model: row.try_get(8)?,
+        tool_timings: serde_json::from_str::<Vec<ToolTiming>>(&tool_timings_json)
+            .with_context(|| format!("parse session step tool timings JSON: {session_id}"))?,
     })
 }
 

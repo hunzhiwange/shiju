@@ -36,6 +36,33 @@ fn agent_stream_tests_keeps_planned_coverage_targets() {
 }
 
 #[test]
+fn chat_tool_event_keeps_legacy_tool_content() {
+    let payload = serde_json::json!({
+        "type": "chat.tool",
+        "step_index": 3,
+        "call_id": "call-1",
+        "name": "shell",
+        "kind": "start",
+        "status": "running",
+        "occurred_ms": 99,
+        "payload": {"status": "running", "input": "{}"}
+    });
+
+    let message = super::chat_tool_message(7, &payload).expect("desktop tool message");
+    let crate::app::Message::Chat(
+        crate::app::message::chat::ChatMessage::AgentToolLifecycle(request_id, event),
+    ) = message
+    else {
+        panic!("expected dedicated tool lifecycle message");
+    };
+
+    assert_eq!(request_id, 7);
+    assert_eq!(event.step_index, 3);
+    assert_eq!(event.call_id, "call-1");
+    assert_eq!(event.legacy_delta(), "tool shell\n{\"input\":\"{}\",\"status\":\"running\"}\n");
+}
+
+#[test]
 fn gateway_stream_retries_incomplete_attempts_until_terminal() {
     use std::collections::VecDeque;
     use std::time::Duration;
@@ -260,6 +287,8 @@ fn subagent_mode_request_gateway_options_sets_requirement_and_preserves_tools() 
     let options = super::gateway_request_options(
         &request,
         Some(crate::app::message::chat::session::SUBAGENT_MODE_SYSTEM_PROMPT),
+        "desktop-test-92",
+        "Asia/Shanghai",
     )
     .expect("subagent options");
     assert_eq!(options["require_agent_tool"], true);
@@ -271,7 +300,13 @@ fn subagent_mode_request_gateway_options_sets_requirement_and_preserves_tools() 
 
     request.require_agent_tool = false;
     request.allowed_tools = Some(vec!["shell".to_string()]);
-    let disabled = super::gateway_request_options(&request, None).expect("restricted options");
+    let disabled = super::gateway_request_options(
+        &request,
+        None,
+        "desktop-test-92",
+        "Asia/Shanghai",
+    )
+    .expect("restricted options");
     assert!(disabled.get("require_agent_tool").is_none());
     assert_eq!(disabled["allowed_tools"], serde_json::json!(["shell"]));
 }
@@ -1802,6 +1837,28 @@ fn sample_agent_request(
 }
 
 #[test]
+fn gateway_request_options_include_input_source() {
+    let request = sample_agent_request(false, true, None);
+    let rpc_id = super::desktop_stream_request_id(&request);
+    let options = super::gateway_request_options(
+        &request,
+        None,
+        &rpc_id,
+        "America/New_York",
+    )
+    .expect("request options");
+
+    assert_eq!(
+        options["_vw_input_source"],
+        serde_json::json!({
+            "kind": "user",
+            "rpcId": rpc_id,
+            "clientTimeZone": "America/New_York",
+        })
+    );
+}
+
+#[test]
 fn goal_only_does_not_activate_task_plan_run() {
     assert!(!super::task_plan_run_active(false, false), "goal alone must not enter task_plan_run");
     let request = sample_agent_request(false, true, None);
@@ -1837,7 +1894,13 @@ fn lightweight_goal_gate_is_structural_and_language_agnostic() {
 #[test]
 fn lightweight_goal_mode_finishes_without_secondary_evaluation() {
     let request = sample_agent_request(false, true, Some("/tmp/project"));
-    let options = super::gateway_request_options(&request, None).expect("goal mode options");
+    let options = super::gateway_request_options(
+        &request,
+        None,
+        "desktop-goal-request",
+        "Asia/Shanghai",
+    )
+    .expect("goal mode options");
 
     assert_eq!(options.get("goal_mode").and_then(|value| value.as_bool()), Some(true));
     assert_eq!(
@@ -1989,7 +2052,13 @@ fn lightweight_goal_continues_until_evaluation_passes() {
     );
 
     let request = sample_agent_request(false, true, Some("/tmp/project"));
-    let options = super::gateway_request_options(&request, None).expect("goal-only options");
+    let options = super::gateway_request_options(
+        &request,
+        None,
+        "desktop-goal-request",
+        "Asia/Shanghai",
+    )
+    .expect("goal-only options");
     assert_eq!(options.get("goal_mode").and_then(|value| value.as_bool()), Some(true));
     assert!(
         super::build_task_plan_run_request(&request).expect("goal-only").is_none(),

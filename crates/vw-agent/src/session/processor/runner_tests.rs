@@ -228,6 +228,22 @@ fn request_with_session(session: &str) -> super::Request {
     }
 }
 
+fn register_scope_project(scope: &str) -> tempfile::TempDir {
+    let temp = tempfile::tempdir().expect("project tempdir");
+    let info = crate::project::Info {
+        id: scope.to_string(),
+        worktree: temp.path().to_string_lossy().to_string(),
+        vcs: None,
+        name: None,
+        icon: None,
+        commands: None,
+        time: crate::project::TimeInfo { created: 10, updated: 20, initialized: None },
+        sandboxes: Vec::new(),
+    };
+    crate::project::store_local_test_project(&info).expect("project should write");
+    temp
+}
+
 fn llm_step(text: &str) -> super::llm_runner::LlmStep {
     super::llm_runner::LlmStep {
         usage: models::TokenUsage {
@@ -514,6 +530,82 @@ fn run_routes_docs_request_without_starting_an_llm_step() {
 }
 
 #[test]
+fn raw_payload_is_visible_before_step_finish() {
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::app::agent::session::llm::StreamEvent::Delta("persisted answer".to_string()),
+        crate::app::agent::session::llm::StreamEvent::Done {
+            usage: models::TokenUsage::default(),
+            finish_reason: Some("stop".to_string()),
+        },
+    ]);
+    let session_id = unique_session_id("raw-before-step-finish");
+    let scope = unique_session_id("raw-before-step-finish-scope");
+    let _project = register_scope_project(&scope);
+    let mut req = request_with_session(&session_id);
+    req.query = "answer once".to_string();
+    req.persist_app_session_artifacts = true;
+    req.app_session_scope = Some(scope.clone());
+    let raw_visible = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let observed_raw = std::sync::Arc::clone(&raw_visible);
+    let observed_session_id = session_id.clone();
+
+    super::run(req, move |event| {
+        if let super::StreamEvent::StepFinish { step_index, .. } = event {
+            let raw = crate::session::ui_store::load_llm_raw_step_scoped(
+                &observed_session_id,
+                step_index,
+                Some(&scope),
+            )
+            .expect("raw payload read should succeed");
+            observed_raw.store(raw.is_some(), std::sync::atomic::Ordering::SeqCst);
+        }
+        true
+    });
+
+    assert!(
+        raw_visible.load(std::sync::atomic::Ordering::SeqCst),
+        "raw payload must be readable before StepFinish is observed"
+    );
+}
+
+#[test]
+fn raw_payload_survives_rejected_step_finish() {
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::app::agent::session::llm::StreamEvent::Delta("persisted answer".to_string()),
+        crate::app::agent::session::llm::StreamEvent::Done {
+            usage: models::TokenUsage::default(),
+            finish_reason: Some("stop".to_string()),
+        },
+    ]);
+    let session_id = unique_session_id("raw-rejected-step-finish");
+    let scope = unique_session_id("raw-rejected-step-finish-scope");
+    let _project = register_scope_project(&scope);
+    let mut req = request_with_session(&session_id);
+    req.query = "answer once".to_string();
+    req.persist_app_session_artifacts = true;
+    req.app_session_scope = Some(scope.clone());
+    let rejected_step = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+    let observed_step = std::sync::Arc::clone(&rejected_step);
+
+    super::run(req, move |event| {
+        if let super::StreamEvent::StepFinish { step_index, .. } = event {
+            observed_step.store(step_index, std::sync::atomic::Ordering::SeqCst);
+            return false;
+        }
+        true
+    });
+
+    let step_index = rejected_step.load(std::sync::atomic::Ordering::SeqCst);
+    assert_ne!(step_index, 0, "the fixture must observe a StepFinish event");
+    let raw =
+        crate::session::ui_store::load_llm_raw_step_scoped(&session_id, step_index, Some(&scope))
+            .expect("raw payload read should succeed");
+    assert!(raw.is_some(), "rejecting StepFinish must not discard the raw payload");
+}
+
+#[test]
 fn context_preflight_runs_before_next_llm_step_after_real_input_usage() {
     let mut messages = vec![serde_json::json!({"role": "system", "content": "system"})];
     for index in 0..9 {
@@ -571,7 +663,15 @@ fn transient_internal_compaction_replaces_only_covered_history_without_tools() {
         serde_json::json!({ "role": "system", "content": "system" }),
         serde_json::json!({ "role": "user", "content": "old request" }),
         serde_json::json!({ "role": "assistant", "content": "old response" }),
-        serde_json::json!({ "role": "user", "content": "latest request" }),
+        serde_json::json!({
+            "role": "user",
+            "content": "latest request",
+            "_vw_source": {
+                "kind": "user",
+                "rpcId": "desktop-compaction-request",
+                "clientTimeZone": "Asia/Shanghai",
+            }
+        }),
     ];
 
     let compacted = super::compact_transient_history_for_request(
@@ -587,6 +687,7 @@ fn transient_internal_compaction_replaces_only_covered_history_without_tools() {
         messages[0]["content"].as_str().is_some_and(|text| text.contains("remembered context"))
     );
     assert_eq!(messages[1]["content"], "latest request");
+    assert_eq!(messages[1]["_vw_source"]["rpcId"], "desktop-compaction-request");
     assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids(), vec![Vec::<String>::new()]);
 }
 

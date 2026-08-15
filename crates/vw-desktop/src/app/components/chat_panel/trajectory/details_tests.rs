@@ -6,12 +6,14 @@ use serde_json::json;
 
 use super::details::{
     DETAILS_SCROLLBAR_WIDTH, build_trajectory_details, detail_payload_font,
-    detail_payload_wrapping, details_scroll_direction, input_preview_text, trajectory_details,
+    detail_payload_wrapping, details_scroll_direction, input_preview_text,
+    trajectory_detail_values, trajectory_details,
 };
+use super::details_content::{TrajectoryDetailContent, build_details_content};
 use super::{
     MetricAvailability, TrajectoryDetailsAction, TrajectoryDetailsState, TrajectoryDetailsTab,
     TrajectoryMetrics, TrajectoryRecord, TrajectoryRecordDetail, TrajectoryRecordKind,
-    TrajectoryUsage,
+    TrajectoryToolDefinition, TrajectoryUsage,
 };
 
 fn record(kind: TrajectoryRecordKind) -> TrajectoryRecord {
@@ -28,6 +30,16 @@ fn record(kind: TrajectoryRecordKind) -> TrajectoryRecord {
         metrics: TrajectoryMetrics::default(),
         detail: TrajectoryRecordDetail::default(),
     }
+}
+
+fn details_state(record: &TrajectoryRecord, tab: TrajectoryDetailsTab) -> TrajectoryDetailsState {
+    let mut state = TrajectoryDetailsState::default();
+    state.select(record.id.clone());
+    if tab != TrajectoryDetailsTab::Summary {
+        state.apply(TrajectoryDetailsAction::SelectTab(tab));
+    }
+    state.sync_values(trajectory_detail_values(record, tab));
+    state
 }
 
 #[test]
@@ -104,12 +116,8 @@ fn trajectory_details_trims_input_and_builds_single_line_tooltip_view() {
     assert!(!preview.contains(['\n', '\t']));
     assert!(preview.ends_with('…'));
 
-    let element = trajectory_details(
-        &user,
-        TrajectoryDetailsTab::Preview,
-        TrajectoryDetailsAction::SelectTab,
-        TrajectoryDetailsAction::Close,
-    );
+    let state = details_state(&user, TrajectoryDetailsTab::Preview);
+    let element = trajectory_details(&user, &state);
     let tree = Tree::new(element.as_widget());
     assert!(!tree.children.is_empty());
 }
@@ -149,12 +157,8 @@ fn trajectory_details_tab_and_close_actions_are_observable() {
     assert!(!state.apply(TrajectoryDetailsAction::Close));
 
     let assistant = record(TrajectoryRecordKind::Assistant);
-    let element = trajectory_details(
-        &assistant,
-        TrajectoryDetailsTab::Preview,
-        TrajectoryDetailsAction::SelectTab,
-        TrajectoryDetailsAction::Close,
-    );
+    let state = details_state(&assistant, TrajectoryDetailsTab::Preview);
+    let element = trajectory_details(&assistant, &state);
     let tree = Tree::new(element.as_widget());
     assert!(!tree.children.is_empty());
 }
@@ -174,14 +178,24 @@ fn trajectory_details_wraps_payloads_and_uses_safe_fonts() {
 
     let mut assistant = record(TrajectoryRecordKind::Assistant);
     assistant.detail.output = Some("x".repeat(20_000));
-    let element = trajectory_details(
-        &assistant,
-        TrajectoryDetailsTab::Preview,
-        TrajectoryDetailsAction::SelectTab,
-        TrajectoryDetailsAction::Close,
-    );
+    let state = details_state(&assistant, TrajectoryDetailsTab::Preview);
+    let element = trajectory_details(&assistant, &state);
     let tree = Tree::new(element.as_widget());
     assert!(!tree.children.is_empty());
+}
+
+#[test]
+fn trajectory_details_values_are_selectable_and_copyable_from_context_menu() {
+    let assistant = record(TrajectoryRecordKind::Assistant);
+    let mut state = details_state(&assistant, TrajectoryDetailsTab::Summary);
+
+    assert!(state.editor(0).is_some());
+    state.open_context_menu(0, 12.0, 18.0);
+    assert_eq!(state.context_menu_position(0), Some((12.0, 18.0)));
+    assert_eq!(state.context_menu_copy_text().as_deref(), Some("—"));
+
+    state.close_context_menu();
+    assert_eq!(state.context_menu_position(0), None);
 }
 
 #[test]
@@ -199,4 +213,161 @@ fn trajectory_controls_use_rounded_search_and_close_styles() {
         let panel = super::styles::details_panel_style(&theme);
         assert_eq!(panel.shadow.blur_radius, 18.0);
     }
+}
+
+#[test]
+fn details_render_exact_reference_tabs_by_kind() {
+    let expected = [
+        (TrajectoryRecordKind::System, "SYSTEM", "Step 3 · Record #4"),
+        (TrajectoryRecordKind::User, "USER", "Turn 2 · Message"),
+        (TrajectoryRecordKind::Context, "CONTEXT", "Turn 2 · Message"),
+        (TrajectoryRecordKind::Assistant, "MODEL", "Turn 2 · Model"),
+        (TrajectoryRecordKind::Tool, "TOOL", "Turn 2 · Tool"),
+    ];
+
+    for (kind, badge, location) in expected {
+        let record = record(kind);
+        let first_tab = kind.detail_tabs()[0];
+        let model = build_details_content(&record, first_tab);
+        assert_eq!(model.badge, badge);
+        assert_eq!(model.location, location);
+        assert_eq!(model.tabs, kind.detail_tabs());
+
+        let state = details_state(&record, first_tab);
+        assert!(!Tree::new(trajectory_details(&record, &state).as_widget()).children.is_empty());
+    }
+
+    for theme in [iced::Theme::Dark, iced::Theme::Light] {
+        assert!(super::styles::details_tab_underline_style(&theme, true).background.is_some());
+        assert!(super::styles::details_tab_underline_style(&theme, false).background.is_none());
+    }
+}
+
+#[test]
+fn details_render_system_prompt_and_tools() {
+    let mut system = record(TrajectoryRecordKind::System);
+    system.turn_index = None;
+    system.detail.input = Some("# Rules\n\n保留中文换行。".to_string());
+    system.detail.request_tools = vec![TrajectoryToolDefinition {
+        id: "shell".to_string(),
+        description: "Run a shell command".to_string(),
+        input_schema: json!({"type": "object", "required": ["command"]}),
+    }];
+
+    assert_eq!(
+        build_details_content(&system, TrajectoryDetailsTab::SystemPrompt).body,
+        TrajectoryDetailContent::Text("# Rules\n\n保留中文换行。".to_string())
+    );
+    let TrajectoryDetailContent::Json(tools) =
+        build_details_content(&system, TrajectoryDetailsTab::Tools).body
+    else {
+        panic!("tools must use JSON inspector data");
+    };
+    assert_eq!(tools[0]["id"], "shell");
+    assert_eq!(tools[0]["description"], "Run a shell command");
+    assert_eq!(tools[0]["input_schema"]["required"], json!(["command"]));
+}
+
+#[test]
+fn details_render_user_context_source() {
+    for (kind, source) in [
+        (
+            TrajectoryRecordKind::User,
+            json!({"kind": "user", "rpcId": "rpc-7", "clientTimeZone": "Asia/Shanghai"}),
+        ),
+        (
+            TrajectoryRecordKind::Context,
+            json!({"kind": "context", "form": "skill_catalog"}),
+        ),
+    ] {
+        let mut message = record(kind);
+        message.detail.input = Some("请查询".to_string());
+        message.detail.source = Some(source.clone());
+        assert_eq!(
+            build_details_content(&message, TrajectoryDetailsTab::Preview).body,
+            TrajectoryDetailContent::Text("请查询".to_string())
+        );
+        assert_eq!(
+            build_details_content(&message, TrajectoryDetailsTab::Source).body,
+            TrajectoryDetailContent::Json(source)
+        );
+    }
+
+    let legacy = record(TrajectoryRecordKind::User);
+    assert_eq!(
+        build_details_content(&legacy, TrajectoryDetailsTab::Source).body,
+        TrajectoryDetailContent::Unavailable("Source not recorded".to_string())
+    );
+}
+
+#[test]
+fn details_render_model_options_usage_timing() {
+    let mut model = record(TrajectoryRecordKind::Assistant);
+    model.started_ms = Some(1_000);
+    model.finished_ms = Some(2_250);
+    model.metrics.duration_ms = MetricAvailability::Available(1_250);
+    model.usage = MetricAvailability::Available(TrajectoryUsage::new(12, 7, 3, 2));
+    model.detail.output = Some("回答".to_string());
+    model.detail.request_options = Some(json!({"model": "provider/model", "temperature": 0.2}));
+
+    assert_eq!(
+        build_details_content(&model, TrajectoryDetailsTab::Options).body,
+        TrajectoryDetailContent::Json(json!({"model": "provider/model", "temperature": 0.2}))
+    );
+    let usage = build_details_content(&model, TrajectoryDetailsTab::Usage).body;
+    assert!(matches!(usage, TrajectoryDetailContent::Fields(ref fields) if fields.contains(&("Input tokens".to_string(), "12".to_string())) && fields.contains(&("Reasoning tokens".to_string(), "2".to_string()))));
+    let timing = build_details_content(&model, TrajectoryDetailsTab::Timing).body;
+    assert!(matches!(timing, TrajectoryDetailContent::Fields(ref fields) if fields.contains(&("Started".to_string(), "1000 ms".to_string())) && fields.contains(&("Duration".to_string(), "1.2 s".to_string()))));
+}
+
+#[test]
+fn details_render_tool_payload_result_schema_timing() {
+    let mut tool = record(TrajectoryRecordKind::Tool);
+    tool.detail.tool_name = Some("shell".to_string());
+    tool.detail.call_id = Some("call-9".to_string());
+    tool.detail.arguments = Some(r#"{"command":"pwd"}"#.to_string());
+    tool.detail.result = Some(r#"{"stdout":"/workspace"}"#.to_string());
+    tool.detail.tool_schema = Some(json!({"type": "object", "required": ["command"]}));
+    tool.started_ms = Some(2_000);
+    tool.finished_ms = Some(2_080);
+    tool.metrics.tool_duration_ms = MetricAvailability::Available(80);
+
+    assert_eq!(
+        build_details_content(&tool, TrajectoryDetailsTab::Payload).body,
+        TrajectoryDetailContent::Json(json!({"command": "pwd"}))
+    );
+    assert_eq!(
+        build_details_content(&tool, TrajectoryDetailsTab::Result).body,
+        TrajectoryDetailContent::Json(json!({"stdout": "/workspace"}))
+    );
+    assert_eq!(
+        build_details_content(&tool, TrajectoryDetailsTab::Schema).body,
+        TrajectoryDetailContent::Json(json!({"type": "object", "required": ["command"]}))
+    );
+    assert!(matches!(
+        build_details_content(&tool, TrajectoryDetailsTab::Timing).body,
+        TrajectoryDetailContent::Fields(ref fields)
+            if fields.contains(&("Duration".to_string(), "80 ms".to_string()))
+    ));
+}
+
+#[test]
+fn details_state_rejects_tabs_not_supported_by_selected_record() {
+    let mut state = TrajectoryDetailsState::default();
+    let mut system = record(TrajectoryRecordKind::System);
+    system.id = "system:1".to_string();
+    state.select_record(&system);
+
+    assert!(!state.apply(TrajectoryDetailsAction::SelectTab(TrajectoryDetailsTab::Summary)));
+    assert_eq!(state.active_tab(), TrajectoryDetailsTab::SystemPrompt);
+    assert!(state.apply(TrajectoryDetailsAction::SelectTab(TrajectoryDetailsTab::Tools)));
+    assert!(!state.apply(TrajectoryDetailsAction::SelectTab(TrajectoryDetailsTab::Payload)));
+    assert_eq!(state.active_tab(), TrajectoryDetailsTab::Tools);
+    state.toggle_json_path("/0/input_schema".to_string());
+    assert!(state.json_collapsed_paths().contains("/0/input_schema"));
+
+    let user = record(TrajectoryRecordKind::User);
+    assert!(state.select_record(&user));
+    assert_eq!(state.active_tab(), TrajectoryDetailsTab::Summary);
+    assert!(state.json_collapsed_paths().is_empty());
 }

@@ -4,20 +4,22 @@ use iced::widget::{button, container};
 use iced::{Font, Theme};
 
 use super::ledger::{
-    MAX_LEDGER_SEARCH_RESULTS, build_ledger_groups, filter_ledger_records, trajectory_ledger,
+    LedgerFoldAction, MAX_LEDGER_SEARCH_RESULTS, build_ledger_groups, filter_ledger_records,
+    ledger_group_header, ledger_tool_group_button, trajectory_ledger,
 };
 use super::styles::{
     LEDGER_SCROLLBAR_WIDTH, ledger_record_row_style, ledger_scroll_direction, record_preview_font,
     role_badge_style,
 };
 use super::{
-    MetricAvailability, TrajectoryMetrics, TrajectoryProjection, TrajectoryRecord,
-    TrajectoryRecordDetail, TrajectoryRecordKind,
+    MetricAvailability, TrajectoryControlsState, TrajectoryMetrics, TrajectoryProjection,
+    TrajectoryRecord, TrajectoryRecordDetail, TrajectoryRecordKind,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TestMessage {
     Select(String),
+    Fold(LedgerFoldAction),
 }
 
 fn record(
@@ -55,9 +57,11 @@ fn trajectory_ledger_groups_turns_and_steps() {
         record("turn:1:user", 2, TrajectoryRecordKind::User, 1, Some(1), "weather?"),
         record("step:1:assistant", 3, TrajectoryRecordKind::Assistant, 1, Some(1), "checking"),
         record("system:0", 1, TrajectoryRecordKind::System, 1, None, "instructions"),
+        record("context:0", 6, TrajectoryRecordKind::Context, 1, None, "skill catalog"),
     ]);
 
-    let groups = build_ledger_groups(&projection, "", Some("tool:call-1"));
+    let controls = TrajectoryControlsState::default();
+    let groups = build_ledger_groups(&projection, "", Some("tool:call-1"), &controls);
 
     assert_eq!(
         groups.iter().map(|group| group.title.as_str()).collect::<Vec<_>>(),
@@ -78,7 +82,14 @@ fn trajectory_ledger_groups_turns_and_steps() {
             .flat_map(|step| step.records.iter())
             .map(|row| row.record.id.as_str())
             .collect::<Vec<_>>(),
-        ["system:0", "turn:1:user", "step:1:assistant", "tool:call-1", "turn:2:assistant"]
+        [
+            "system:0",
+            "context:0",
+            "turn:1:user",
+            "step:1:assistant",
+            "tool:call-1",
+            "turn:2:assistant",
+        ]
     );
     let selected = groups
         .iter()
@@ -89,7 +100,14 @@ fn trajectory_ledger_groups_turns_and_steps() {
         .collect::<Vec<_>>();
     assert_eq!(selected, ["tool:call-1"]);
 
-    let element = trajectory_ledger(&projection, "", Some("tool:call-1"), TestMessage::Select);
+    let element = trajectory_ledger(
+        &projection,
+        "",
+        Some("tool:call-1"),
+        &controls,
+        TestMessage::Select,
+        TestMessage::Fold,
+    );
     let tree = Tree::new(element.as_widget());
     assert_eq!(tree.children.len(), 1);
 }
@@ -142,6 +160,7 @@ fn trajectory_ledger_preserves_non_ascii_default_font() {
         for kind in [
             TrajectoryRecordKind::System,
             TrajectoryRecordKind::User,
+            TrajectoryRecordKind::Context,
             TrajectoryRecordKind::Assistant,
             TrajectoryRecordKind::Tool,
         ] {
@@ -164,4 +183,134 @@ fn trajectory_ledger_preserves_non_ascii_default_font() {
 
 fn ids(records: Vec<&TrajectoryRecord>) -> Vec<&str> {
     records.into_iter().map(|record| record.id.as_str()).collect()
+}
+
+#[test]
+fn ledger_headers_emit_fold_messages() {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    let actions = Rc::new(RefCell::new(Vec::new()));
+    let turn_actions = Rc::clone(&actions);
+    let turn_header = ledger_group_header("轮次 4", Some(4), false, move |action| {
+        turn_actions.borrow_mut().push(action);
+        TestMessage::Fold(action)
+    });
+    let turn_tree = Tree::new(turn_header.as_widget());
+    assert!(!turn_tree.children.is_empty());
+
+    let tool_actions = Rc::clone(&actions);
+    let tool_button = ledger_tool_group_button(9, true, move |action| {
+        tool_actions.borrow_mut().push(action);
+        TestMessage::Fold(action)
+    });
+    let tool_tree = Tree::new(tool_button.as_widget());
+    assert!(!tool_tree.children.is_empty());
+
+    assert_eq!(
+        actions.borrow().as_slice(),
+        [LedgerFoldAction::Turn(4), LedgerFoldAction::ToolStep(9)]
+    );
+}
+
+mod trajectory_controls {
+    use super::*;
+    use crate::app::components::chat_panel::trajectory::TrajectoryTurn;
+
+    fn collapsible_projection() -> TrajectoryProjection {
+        TrajectoryProjection {
+            records: vec![
+                record("user:1", 1, TrajectoryRecordKind::User, 1, Some(1), "question"),
+                record("assistant:1", 2, TrajectoryRecordKind::Assistant, 1, Some(1), "working"),
+                record("tool:1", 3, TrajectoryRecordKind::Tool, 1, Some(1), "needle"),
+                record("user:2", 4, TrajectoryRecordKind::User, 2, Some(2), "next"),
+            ],
+            turns: vec![
+                TrajectoryTurn {
+                    index: 1,
+                    user_record_id: Some("user:1".to_string()),
+                    step_indices: vec![1],
+                    record_ids: vec![
+                        "user:1".to_string(),
+                        "assistant:1".to_string(),
+                        "tool:1".to_string(),
+                    ],
+                },
+                TrajectoryTurn {
+                    index: 2,
+                    user_record_id: Some("user:2".to_string()),
+                    step_indices: vec![2],
+                    record_ids: vec!["user:2".to_string()],
+                },
+            ],
+            ..TrajectoryProjection::default()
+        }
+    }
+
+    #[test]
+    fn turns_toggle_collapses_all_groups() {
+        let projection = collapsible_projection();
+        let mut controls = TrajectoryControlsState::default();
+
+        controls.toggle_all_turns(&projection);
+        let collapsed = build_ledger_groups(&projection, "", None, &controls);
+        assert_eq!(collapsed.len(), 2);
+        assert!(collapsed.iter().all(|group| group.collapsed));
+        assert!(collapsed.iter().all(|group| group.steps.is_empty()));
+
+        controls.toggle_turn(1);
+        let partly_expanded = build_ledger_groups(&projection, "", None, &controls);
+        assert!(!partly_expanded[0].collapsed);
+        assert!(partly_expanded[1].collapsed);
+
+        controls.toggle_all_turns(&projection);
+        let collapsed_again = build_ledger_groups(&projection, "", None, &controls);
+        assert!(collapsed_again.iter().all(|group| group.collapsed));
+
+        controls.toggle_all_turns(&projection);
+        let expanded = build_ledger_groups(&projection, "", None, &controls);
+        assert!(expanded.iter().all(|group| !group.collapsed));
+    }
+
+    #[test]
+    fn calls_toggle_hides_tool_rows() {
+        let projection = collapsible_projection();
+        let mut controls = TrajectoryControlsState::default();
+
+        controls.toggle_all_calls(&projection);
+        let groups = build_ledger_groups(&projection, "", None, &controls);
+        let visible_ids = groups
+            .iter()
+            .flat_map(|group| &group.steps)
+            .flat_map(|step| &step.records)
+            .map(|row| row.record.id.as_str())
+            .collect::<Vec<_>>();
+        assert!(visible_ids.contains(&"assistant:1"));
+        assert!(!visible_ids.contains(&"tool:1"));
+
+        controls.toggle_tool_step(1);
+        let expanded = build_ledger_groups(&projection, "", None, &controls);
+        assert!(
+            expanded
+                .iter()
+                .flat_map(|group| &group.steps)
+                .flat_map(|step| &step.records)
+                .any(|row| row.record.id == "tool:1")
+        );
+    }
+
+    #[test]
+    fn search_reveals_matching_collapsed_record() {
+        let projection = collapsible_projection();
+        let mut controls = TrajectoryControlsState::default();
+        controls.toggle_all_turns(&projection);
+        controls.toggle_all_calls(&projection);
+
+        let groups = build_ledger_groups(&projection, "needle", None, &controls);
+        assert_eq!(groups.len(), 1);
+        assert!(!groups[0].collapsed);
+        assert_eq!(groups[0].steps[0].records[0].record.id, "tool:1");
+        assert!(controls.is_turn_collapsed(1));
+        assert!(controls.is_tool_step_collapsed(1));
+    }
 }

@@ -12,6 +12,7 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
         "ls",
         "glob",
         "grep",
+        "rustcodegraph",
         "apply_patch",
         "bash",
         "http_request",

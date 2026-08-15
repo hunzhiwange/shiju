@@ -1055,6 +1055,7 @@ fn snapshot_step_from_ui_step(step: &UiStep) -> ChatSessionStep {
         cost_usd: None,
         finish_reason: step.finish_reason.clone(),
         model: step.model.clone(),
+        tool_timings: Vec::new(),
     }
 }
 

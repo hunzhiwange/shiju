@@ -7,7 +7,7 @@ fn test_module_is_wired() {
 
 use super::{
     AgentsSettingsState, DelegateAgentSettingsEntry, apply_default_allowed_tools,
-    ordered_agent_keys,
+    filter_mcp_from_available_tools, ordered_agent_keys,
 };
 use crate::app::state::{
     AGENT_DETAIL_BASIC_TAB, AGENT_PROMPT_SYSTEM_TAB, AGENT_TOOLS_OPTIONAL_TAB,
@@ -208,6 +208,20 @@ fn ordered_agent_keys_excludes_retired_builtin_agents_from_legacy_config() {
     for key in ["build", "plan", "compaction", "title", "summary"] {
         assert!(!keys.iter().any(|actual| actual == key), "{key} must not be shown");
     }
+}
+
+#[test]
+fn available_tools_always_include_contextual_rustcodegraph_builtin() {
+    assert_eq!(filter_mcp_from_available_tools(Vec::new()), vec!["rustcodegraph"]);
+    assert_eq!(
+        filter_mcp_from_available_tools(vec![
+            "rustcodegraph".to_string(),
+            "bash".to_string(),
+            "mcp__rustcodegraph__search".to_string(),
+            "rustcodegraph".to_string(),
+        ]),
+        vec!["bash", "rustcodegraph"]
+    );
 }
 
 #[test]

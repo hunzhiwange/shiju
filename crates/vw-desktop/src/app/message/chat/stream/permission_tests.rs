@@ -143,6 +143,7 @@ fn load_session_or_default_uses_active_chat_and_steps_for_active_session() {
         cost_usd: None,
         finish_reason: None,
         model: Some("model".to_string()),
+        tool_timings: Vec::new(),
     }];
 
     let loaded = super::load_session_or_default(&app, "s1".to_string());

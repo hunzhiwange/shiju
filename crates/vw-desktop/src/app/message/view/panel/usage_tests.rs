@@ -153,6 +153,10 @@ fn usage_step_raw_loaded_for_active_session_caches_success_and_error() {
 
         assert!(!app.usage_step_raw_loading.contains(&key));
         assert_eq!(app.usage_step_raw_payloads.get(&key), Some(&result));
+        if let Ok(Some(raw)) = result {
+            assert_eq!(app.active_session_view_state.step_llm_raw.get(&key.1), Some(&raw));
+            assert!(app.active_session_view_state.llm_raw_step_indices.contains(&key.1));
+        }
     }
 }
 

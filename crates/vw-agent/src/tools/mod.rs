@@ -90,6 +90,8 @@ pub mod list_mcp_resources;
 pub mod ls;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod lsp;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod rustcodegraph;
 pub mod mcp_auth;
 pub mod mcp_common;
 pub mod mcp_inspect;
@@ -199,7 +201,7 @@ pub use list_mcp_resources::ListMcpResourcesTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use ls::LsTool;
 #[cfg(not(target_arch = "wasm32"))]
-pub use lsp::{LspTool, RustCodeGraphTool};
+pub use lsp::LspTool;
 pub use mcp_auth::McpAuthTool;
 pub use mcp_status::McpStatusTool;
 pub use memory_forget::MemoryForgetTool;
@@ -215,6 +217,8 @@ pub use powershell::PowerShellTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use process::ProcessTool;
 pub use proxy_config::ProxyConfigTool;
+#[cfg(not(target_arch = "wasm32"))]
+pub use rustcodegraph::RustCodeGraphTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use pushover::PushoverTool;
 pub use question::QuestionTool;

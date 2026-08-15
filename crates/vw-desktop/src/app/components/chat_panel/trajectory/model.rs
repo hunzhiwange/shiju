@@ -1,5 +1,8 @@
 //! 轨迹领域模型。
 
+use std::collections::{HashMap, HashSet};
+
+use iced::widget::text_editor;
 use serde_json::Value;
 
 use crate::app::state::TrajectoryDetailsTab;
@@ -22,8 +25,22 @@ impl<T> Default for MetricAvailability<T> {
 pub(crate) enum TrajectoryRecordKind {
     System,
     User,
+    Context,
     Assistant,
     Tool,
+}
+
+impl TrajectoryRecordKind {
+    pub(crate) const fn detail_tabs(self) -> &'static [TrajectoryDetailsTab] {
+        use TrajectoryDetailsTab as Tab;
+
+        match self {
+            Self::System => &[Tab::SystemPrompt, Tab::Tools],
+            Self::User | Self::Context => &[Tab::Summary, Tab::Preview, Tab::Raw, Tab::Source],
+            Self::Assistant => &[Tab::Summary, Tab::Options, Tab::Usage, Tab::Timing],
+            Self::Tool => &[Tab::Summary, Tab::Payload, Tab::Result, Tab::Schema, Tab::Timing],
+        }
+    }
 }
 
 /// 详情检查器可由上层应用直接处理的交互。
@@ -33,11 +50,133 @@ pub(crate) enum TrajectoryDetailsAction {
     Close,
 }
 
-/// 详情选择和标签状态；关闭时始终清除记录选择。
+/// 时间线块宽度的瞬时计算模式。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum TrajectoryDurationMode {
+    #[default]
+    Timed,
+    Equal,
+}
+
+/// 当前会话的轨迹控制状态；这些字段不持久化到会话。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct TrajectoryControlsState {
+    duration_mode: TrajectoryDurationMode,
+    collapsed_turns: HashSet<u32>,
+    collapsed_tool_steps: HashSet<u32>,
+    session_id: Option<String>,
+}
+
+impl TrajectoryControlsState {
+    pub(crate) const fn duration_mode(&self) -> TrajectoryDurationMode {
+        self.duration_mode
+    }
+
+    pub(crate) fn sync_session(&mut self, session_id: Option<&str>) {
+        if self.session_id.as_deref() == session_id {
+            return;
+        }
+        self.collapsed_turns.clear();
+        self.collapsed_tool_steps.clear();
+        self.session_id = session_id.map(ToString::to_string);
+    }
+
+    pub(crate) fn for_session(&self, session_id: Option<&str>) -> Self {
+        let mut controls = self.clone();
+        controls.sync_session(session_id);
+        controls
+    }
+
+    pub(crate) fn toggle_duration_mode(&mut self) {
+        self.duration_mode = match self.duration_mode {
+            TrajectoryDurationMode::Timed => TrajectoryDurationMode::Equal,
+            TrajectoryDurationMode::Equal => TrajectoryDurationMode::Timed,
+        };
+    }
+
+    pub(crate) fn toggle_all_turns(&mut self, projection: &TrajectoryProjection) {
+        let turn_indices = projection.turns.iter().map(|turn| turn.index).collect::<Vec<_>>();
+        if turn_indices.iter().any(|index| !self.collapsed_turns.contains(index)) {
+            self.collapsed_turns.extend(turn_indices);
+        } else {
+            for index in turn_indices {
+                self.collapsed_turns.remove(&index);
+            }
+        }
+    }
+
+    pub(crate) fn toggle_turn(&mut self, turn_index: u32) {
+        if !self.collapsed_turns.insert(turn_index) {
+            self.collapsed_turns.remove(&turn_index);
+        }
+    }
+
+    pub(crate) fn toggle_all_calls(&mut self, projection: &TrajectoryProjection) {
+        let step_indices = projection
+            .records
+            .iter()
+            .filter(|record| record.kind == TrajectoryRecordKind::Tool)
+            .map(|record| record.step_index)
+            .collect::<HashSet<_>>();
+        if step_indices.iter().any(|index| !self.collapsed_tool_steps.contains(index)) {
+            self.collapsed_tool_steps.extend(step_indices);
+        } else {
+            for index in step_indices {
+                self.collapsed_tool_steps.remove(&index);
+            }
+        }
+    }
+
+    pub(crate) fn toggle_tool_step(&mut self, step_index: u32) {
+        if !self.collapsed_tool_steps.insert(step_index) {
+            self.collapsed_tool_steps.remove(&step_index);
+        }
+    }
+
+    pub(crate) fn reveal_record(&mut self, record: &TrajectoryRecord) {
+        if let Some(turn_index) = record.turn_index {
+            self.collapsed_turns.remove(&turn_index);
+        }
+        if record.kind == TrajectoryRecordKind::Tool {
+            self.collapsed_tool_steps.remove(&record.step_index);
+        }
+    }
+
+    pub(crate) fn is_turn_collapsed(&self, turn_index: u32) -> bool {
+        self.collapsed_turns.contains(&turn_index)
+    }
+
+    pub(crate) fn is_tool_step_collapsed(&self, step_index: u32) -> bool {
+        self.collapsed_tool_steps.contains(&step_index)
+    }
+}
+
+/// 详情选择和标签状态；关闭时始终清除记录选择。
+#[derive(Debug, Clone)]
 pub(crate) struct TrajectoryDetailsState {
     selected_record_id: Option<String>,
+    selected_record_kind: Option<TrajectoryRecordKind>,
     active_tab: TrajectoryDetailsTab,
+    collapsed_json_paths: HashMap<TrajectoryDetailsTab, HashSet<String>>,
+    values: Vec<String>,
+    editors: Vec<Option<text_editor::Content>>,
+    context_menu_target: Option<usize>,
+    context_menu_position: Option<(f32, f32)>,
+}
+
+impl Default for TrajectoryDetailsState {
+    fn default() -> Self {
+        Self {
+            selected_record_id: None,
+            selected_record_kind: None,
+            active_tab: TrajectoryDetailsTab::Summary,
+            collapsed_json_paths: HashMap::new(),
+            values: Vec::new(),
+            editors: Vec::new(),
+            context_menu_target: None,
+            context_menu_position: None,
+        }
+    }
 }
 
 impl TrajectoryDetailsState {
@@ -49,29 +188,125 @@ impl TrajectoryDetailsState {
         self.active_tab
     }
 
+    pub(crate) fn json_collapsed_paths(&self) -> HashSet<String> {
+        self.collapsed_json_paths.get(&self.active_tab).cloned().unwrap_or_default()
+    }
+
+    pub(crate) fn toggle_json_path(&mut self, path: String) {
+        let paths = self.collapsed_json_paths.entry(self.active_tab).or_default();
+        if !paths.insert(path.clone()) {
+            paths.remove(&path);
+        }
+        self.close_context_menu();
+    }
+
+    pub(crate) fn editor(&self, index: usize) -> Option<&text_editor::Content> {
+        self.editors.get(index).and_then(Option::as_ref)
+    }
+
+    pub(crate) fn context_menu_position(&self, index: usize) -> Option<(f32, f32)> {
+        (self.context_menu_target == Some(index)).then_some(self.context_menu_position).flatten()
+    }
+
+    pub(crate) fn sync_values(&mut self, values: Vec<String>) {
+        self.editors = values
+            .iter()
+            .map(|value| {
+                crate::app::components::chat_panel::selectable_text::read_only_editor_content(value)
+            })
+            .collect();
+        self.values = values;
+        self.close_context_menu();
+    }
+
+    pub(crate) fn perform_editor_action(&mut self, index: usize, action: text_editor::Action) {
+        self.close_context_menu();
+        if let Some(Some(editor)) = self.editors.get_mut(index)
+            && !matches!(action, text_editor::Action::Edit(_))
+        {
+            editor.perform(action);
+        }
+    }
+
+    pub(crate) fn open_context_menu(&mut self, index: usize, x: f32, y: f32) {
+        if index < self.values.len() {
+            self.context_menu_target = Some(index);
+            self.context_menu_position = Some((x, y));
+        }
+    }
+
+    pub(crate) fn close_context_menu(&mut self) {
+        self.context_menu_target = None;
+        self.context_menu_position = None;
+    }
+
+    pub(crate) fn context_menu_copy_text(&self) -> Option<String> {
+        let index = self.context_menu_target?;
+        self.editor(index)
+            .and_then(text_editor::Content::selection)
+            .filter(|selection| !selection.is_empty())
+            .or_else(|| self.values.get(index).cloned())
+    }
+
     pub(crate) fn select(&mut self, record_id: impl Into<String>) -> bool {
-        let record_id = record_id.into();
-        if self.selected_record_id.as_deref() == Some(record_id.as_str()) {
+        self.select_id(record_id.into(), None, TrajectoryDetailsTab::Summary)
+    }
+
+    pub(crate) fn select_record(&mut self, record: &TrajectoryRecord) -> bool {
+        let first_tab = record
+            .kind
+            .detail_tabs()
+            .first()
+            .copied()
+            .unwrap_or(TrajectoryDetailsTab::Summary);
+        self.select_id(record.id.clone(), Some(record.kind), first_tab)
+    }
+
+    fn select_id(
+        &mut self,
+        record_id: String,
+        record_kind: Option<TrajectoryRecordKind>,
+        first_tab: TrajectoryDetailsTab,
+    ) -> bool {
+        if self.selected_record_id.as_deref() == Some(record_id.as_str())
+            && self.selected_record_kind == record_kind
+        {
             return false;
         }
         self.selected_record_id = Some(record_id);
-        self.active_tab = TrajectoryDetailsTab::Summary;
+        self.selected_record_kind = record_kind;
+        self.active_tab = first_tab;
+        self.collapsed_json_paths.clear();
+        self.values.clear();
+        self.editors.clear();
+        self.close_context_menu();
         true
     }
 
     pub(crate) fn apply(&mut self, action: TrajectoryDetailsAction) -> bool {
         match action {
             TrajectoryDetailsAction::SelectTab(tab) => {
-                if self.selected_record_id.is_none() || self.active_tab == tab {
+                if self.selected_record_id.is_none()
+                    || self.active_tab == tab
+                    || self
+                        .selected_record_kind
+                        .is_some_and(|kind| !kind.detail_tabs().contains(&tab))
+                {
                     return false;
                 }
                 self.active_tab = tab;
+                self.close_context_menu();
                 true
             }
             TrajectoryDetailsAction::Close => {
                 let changed = self.selected_record_id.take().is_some()
                     || self.active_tab != TrajectoryDetailsTab::Summary;
+                self.selected_record_kind = None;
                 self.active_tab = TrajectoryDetailsTab::Summary;
+                self.collapsed_json_paths.clear();
+                self.values.clear();
+                self.editors.clear();
+                self.close_context_menu();
                 changed
             }
         }
@@ -105,7 +340,7 @@ impl TrajectoryUsage {
     }
 }
 
-/// 只暴露真实记录的时间指标；其余指标保持明确不可用。
+/// 只暴露真实记录的时间指标；工具记录的总耗时与工具耗时来自同一持久化生命周期。
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub(crate) struct TrajectoryMetrics {
     pub(crate) duration_ms: MetricAvailability<u64>,
@@ -113,6 +348,14 @@ pub(crate) struct TrajectoryMetrics {
     pub(crate) tool_duration_ms: MetricAvailability<u64>,
     pub(crate) generation_ms: MetricAvailability<u64>,
     pub(crate) throughput_tokens_per_second: MetricAvailability<f64>,
+}
+
+/// 一条记录在详情检查器中需要的完整来源数据。
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct TrajectoryToolDefinition {
+    pub(crate) id: String,
+    pub(crate) description: String,
+    pub(crate) input_schema: Value,
 }
 
 /// 一条记录在详情检查器中需要的完整来源数据。
@@ -126,6 +369,10 @@ pub(crate) struct TrajectoryRecordDetail {
     pub(crate) arguments: Option<String>,
     pub(crate) result: Option<String>,
     pub(crate) result_step_index: Option<u32>,
+    pub(crate) source: Option<Value>,
+    pub(crate) request_options: Option<Value>,
+    pub(crate) request_tools: Vec<TrajectoryToolDefinition>,
+    pub(crate) tool_schema: Option<Value>,
     pub(crate) raw_fragments: Vec<Value>,
 }
 
@@ -152,7 +399,7 @@ impl TrajectoryRecord {
         if query.is_empty() {
             return true;
         }
-        [
+        let text_matches = [
             Some(self.preview.as_str()),
             self.detail.input.as_deref(),
             self.detail.output.as_deref(),
@@ -164,7 +411,21 @@ impl TrajectoryRecord {
         ]
         .into_iter()
         .flatten()
-        .any(|text| text.to_lowercase().contains(&query))
+        .any(|text| text.to_lowercase().contains(&query));
+        text_matches
+            || [
+                self.detail.source.as_ref(),
+                self.detail.request_options.as_ref(),
+                self.detail.tool_schema.as_ref(),
+            ]
+            .into_iter()
+            .flatten()
+            .any(|value| value.to_string().to_lowercase().contains(&query))
+            || self.detail.request_tools.iter().any(|tool| {
+                tool.id.to_lowercase().contains(&query)
+                    || tool.description.to_lowercase().contains(&query)
+                    || tool.input_schema.to_string().to_lowercase().contains(&query)
+            })
     }
 }
 
@@ -197,6 +458,7 @@ pub(crate) struct TrajectorySummary {
     pub(crate) total_records: usize,
     pub(crate) system_records: usize,
     pub(crate) user_records: usize,
+    pub(crate) context_records: usize,
     pub(crate) assistant_records: usize,
     pub(crate) tool_records: usize,
     pub(crate) usage: TrajectoryUsage,

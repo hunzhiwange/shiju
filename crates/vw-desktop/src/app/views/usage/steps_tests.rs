@@ -50,6 +50,7 @@ fn step(index: u32, finished_ms: Option<u64>) -> ChatSessionStep {
         cost_usd: Some(0.012345),
         finish_reason: Some("stop".to_string()),
         model: Some("model-a".to_string()),
+        tool_timings: Vec::new(),
     }
 }
 

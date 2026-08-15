@@ -30,6 +30,12 @@ pub struct TextEditorContextMenuMessages<Message> {
     pub delete: Message,
 }
 
+#[derive(Debug, Clone)]
+pub struct CopyTextContextMenuMessages<Message> {
+    pub close: Message,
+    pub copy: Message,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// `SelectionActionOutcome` 枚举，用于表达本模块对该领域对象的建模。
 ///
@@ -67,6 +73,27 @@ pub fn wrap_with_context_menu<'a, Message: Clone + 'a>(
     let close_message = messages.close.clone();
 
     PointBelowOverlay::new(content, context_menu(messages))
+        .show(show)
+        .anchor(Point::new(anchor.0, anchor.1))
+        .gap(0.0)
+        .on_close(close_message)
+        .into()
+}
+
+/// 为只读文本区域提供仅包含“复制”的右键菜单。
+pub fn wrap_with_copy_context_menu<'a, Message: Clone + 'a>(
+    content: impl Into<Element<'a, Message>>,
+    menu_state: TextEditorContextMenuState,
+    on_open: impl Fn(Point) -> Message + 'a,
+    messages: CopyTextContextMenuMessages<Message>,
+) -> Element<'a, Message> {
+    let content: Element<'a, Message> =
+        RightClickArea::new(content.into(), Box::new(on_open)).preserve_on_right_click().into();
+    let anchor = menu_state.position.unwrap_or_default();
+    let show = menu_state.open && menu_state.position.is_some();
+    let close_message = messages.close.clone();
+
+    PointBelowOverlay::new(content, copy_context_menu(messages.copy))
         .show(show)
         .anchor(Point::new(anchor.0, anchor.1))
         .gap(0.0)
@@ -277,6 +304,18 @@ pub(super) fn context_menu<'a, Message: Clone + 'a>(
         ]
         .spacing(4)
         .width(Length::Fixed(132.0)),
+    )
+    .padding(6)
+    .style(popover_style)
+    .into()
+}
+
+fn copy_context_menu<'a, Message: Clone + 'a>(copy: Message) -> Element<'a, Message> {
+    container(
+        button(text("复制").size(12))
+            .width(Length::Fixed(112.0))
+            .style(menu_button_style)
+            .on_press(copy),
     )
     .padding(6)
     .style(popover_style)

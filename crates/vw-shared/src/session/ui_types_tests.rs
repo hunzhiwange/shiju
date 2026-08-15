@@ -82,3 +82,35 @@ fn chat_session_defaults_collection_fields() {
     assert!(session.calls.is_empty());
     assert_eq!(session.created_ms, 0);
 }
+
+#[test]
+fn chat_session_step_round_trips_tool_timings() {
+    let legacy: super::ChatSessionStep = serde_json::from_str(
+        r#"{"index":1,"started_ms":100,"usage":{"input_tokens":0,"output_tokens":0,"cached_tokens":0}}"#,
+    )
+    .unwrap();
+    assert!(legacy.tool_timings.is_empty());
+
+    let step = super::ChatSessionStep {
+        index: 2,
+        started_ms: 200,
+        finished_ms: Some(400),
+        start_snapshot_path: None,
+        finish_snapshot_path: None,
+        usage: super::TokenUsage::default(),
+        cost_usd: None,
+        finish_reason: Some("tool_calls".to_string()),
+        model: Some("provider/model".to_string()),
+        tool_timings: vec![super::ToolTiming {
+            call_id: "call-1".to_string(),
+            name: "shell".to_string(),
+            started_ms: Some(225),
+            finished_ms: Some(375),
+        }],
+    };
+
+    let value = serde_json::to_value(&step).unwrap();
+    let reloaded: super::ChatSessionStep = serde_json::from_value(value).unwrap();
+
+    assert_eq!(reloaded.tool_timings, step.tool_timings);
+}

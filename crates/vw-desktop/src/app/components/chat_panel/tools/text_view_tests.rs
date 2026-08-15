@@ -1,4 +1,7 @@
-use super::text_view::{copy_content_hash, tool_text_view, workflow_preview_message};
+use super::text_view::{
+    copy_content_hash, tool_text_expanded, tool_text_header_label, tool_text_view,
+    workflow_preview_message,
+};
 use super::tool_text_key;
 use crate::app::{App, Message};
 use iced::widget::text_editor;
@@ -17,6 +20,23 @@ fn text_view_test_module_is_linked() {
 fn copy_hash_is_stable_and_content_sensitive() {
     assert_eq!(copy_content_hash("same"), copy_content_hash("same"));
     assert_ne!(copy_content_hash("same"), copy_content_hash("different"));
+}
+
+#[test]
+fn text_tool_header_includes_canonical_tool_name() {
+    assert_eq!(tool_text_header_label("rustcodegraph", "工具"), "工具 rustcodegraph");
+    assert_eq!(tool_text_header_label("shell", "运行"), "运行 bash");
+}
+
+#[test]
+fn text_tool_result_is_collapsed_until_user_expands_it() {
+    let mut app = app();
+    let key = (3_u64 << 32) | 4;
+
+    assert!(!tool_text_expanded(&app, key, true));
+    app.chat_tool_expanded.insert(key);
+    assert!(tool_text_expanded(&app, key, true));
+    assert!(!tool_text_expanded(&app, key, false));
 }
 
 #[test]

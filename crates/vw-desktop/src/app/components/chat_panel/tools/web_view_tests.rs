@@ -479,6 +479,15 @@ fn tool_web_view_accepts_http_request() {
 }
 
 #[test]
+fn tool_web_view_renders_request_with_url_without_output() {
+    let app = app();
+    let visible = r#"tool web_fetch
+{"data":{"url":"https://example.test"}}"#;
+
+    assert!(tool_web_view(&app, 0, 0, visible).is_some());
+}
+
+#[test]
 fn tool_web_view_renders_summary_only_completed_result() {
     let app = app();
     let visible = r#"tool web_search

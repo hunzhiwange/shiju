@@ -257,6 +257,7 @@ fn gateway_stream_preserves_existing_tool_payloads() {
         name: "shell".to_string(),
         kind: agent_session::processor::ToolEventKind::Complete,
         status: agent_session::processor::ToolCallStatus::Completed,
+        occurred_ms: 123,
         payload: payload.clone(),
     });
     let stream_payload = stream_payload_for_non_done_event(
@@ -274,6 +275,96 @@ fn gateway_stream_preserves_existing_tool_payloads() {
 
     assert_eq!(stream_payload, serde_json::json!({"type": "chat.delta", "delta": legacy_delta}));
     assert_eq!(assistant_text, legacy_delta);
+}
+
+#[test]
+fn gateway_tool_event_preserves_step_and_payload() {
+    let mut assistant_text = String::new();
+    let mut finish_reason = None;
+    let mut assistant_model = None;
+    let mut recorder = StreamPatchRecorder::default();
+
+    let _ = stream_payload_for_non_done_event(
+        agent_session::processor::StreamEvent::StepStart {
+            step_index: 6,
+            created_ms: 10,
+            model: None,
+        },
+        &mut assistant_text,
+        &mut finish_reason,
+        &mut assistant_model,
+        &mut recorder,
+        "session-id",
+        None,
+        "/unused",
+    );
+
+    let start_payload = serde_json::json!({
+        "status": "running",
+        "input": "{\"command\":\"pwd\"}"
+    });
+    let start = stream_payload_for_non_done_event(
+        agent_session::processor::StreamEvent::Tool(agent_session::processor::ToolEvent {
+            call_id: "call-1".to_string(),
+            name: "shell".to_string(),
+            kind: agent_session::processor::ToolEventKind::Start,
+            status: agent_session::processor::ToolCallStatus::Running,
+            occurred_ms: 100,
+            payload: start_payload.clone(),
+        }),
+        &mut assistant_text,
+        &mut finish_reason,
+        &mut assistant_model,
+        &mut recorder,
+        "session-id",
+        None,
+        "/unused",
+    )
+    .expect("tool start payload");
+
+    let complete_payload = serde_json::json!({
+        "status": "completed",
+        "input": "{\"command\":\"pwd\"}",
+        "output": "/workspace"
+    });
+    let complete = stream_payload_for_non_done_event(
+        agent_session::processor::StreamEvent::Tool(agent_session::processor::ToolEvent {
+            call_id: "call-1".to_string(),
+            name: "shell".to_string(),
+            kind: agent_session::processor::ToolEventKind::Complete,
+            status: agent_session::processor::ToolCallStatus::Completed,
+            occurred_ms: 123,
+            payload: complete_payload.clone(),
+        }),
+        &mut assistant_text,
+        &mut finish_reason,
+        &mut assistant_model,
+        &mut recorder,
+        "session-id",
+        None,
+        "/unused",
+    )
+    .expect("tool complete payload");
+
+    assert_eq!(start["type"], "chat.tool");
+    assert_eq!(start["step_index"], 6);
+    assert_eq!(start["call_id"], "call-1");
+    assert_eq!(start["kind"], "start");
+    assert_eq!(start["occurred_ms"], 100);
+    assert_eq!(start["payload"], start_payload);
+
+    assert_eq!(complete["type"], "chat.tool");
+    assert_eq!(complete["step_index"], start["step_index"]);
+    assert_eq!(complete["call_id"], start["call_id"]);
+    assert_eq!(complete["name"], "shell");
+    assert_eq!(complete["kind"], "complete");
+    assert_eq!(complete["status"], "completed");
+    assert!(complete["occurred_ms"].as_u64() >= start["occurred_ms"].as_u64());
+    assert_eq!(complete["payload"], complete_payload);
+    assert_eq!(
+        assistant_text,
+        format!("tool shell\n{start_payload}\ntool shell\n{complete_payload}\n")
+    );
 }
 
 #[test]
@@ -898,6 +989,7 @@ fn stream_patch_recorder_begin_step_records_start_and_active_step() {
 #[test]
 fn stream_patch_recorder_mismatched_step_discards_active_step_without_snapshot_io() {
     let mut recorder = StreamPatchRecorder {
+        current_step_index: Some(2),
         active_step: Some(StreamStepSnapshot {
             step_index: 2,
             snapshot: Some("snapshot-before".to_string()),
@@ -921,7 +1013,8 @@ fn stream_patch_recorder_take_parts_drains_recorded_parts() {
         vec!["src/lib.rs".to_string()],
         None,
     );
-    let mut recorder = StreamPatchRecorder { active_step: None, parts: vec![part] };
+    let mut recorder =
+        StreamPatchRecorder { current_step_index: None, active_step: None, parts: vec![part] };
 
     let first = recorder.take_parts();
     let second = recorder.take_parts();

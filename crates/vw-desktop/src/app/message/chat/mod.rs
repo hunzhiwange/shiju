@@ -406,6 +406,9 @@ pub enum ChatMessage {
     /// 接收 Agent 响应的增量文本内容
     AgentStreamDelta(u64, String),
 
+    /// Agent 工具调用的类型化生命周期事件。
+    AgentToolLifecycle(u64, vw_gateway_client::GatewayChatToolEvent),
+
     /// 合并一小段时间内的 Agent 流式增量，降低 UI 重绘和会话保存频率。
     AgentStreamDeltaFlush(String),
 
@@ -448,6 +451,21 @@ pub enum ChatMessage {
     /// 更新轨迹账本搜索文本。
     TrajectorySearchChanged(String),
 
+    /// 在真实耗时与等宽时间线间切换。
+    TrajectoryDurationToggled,
+
+    /// 按全局规则展开或折叠所有轮次。
+    TrajectoryTurnsToggled,
+
+    /// 按全局规则展开或折叠所有工具调用步骤。
+    TrajectoryCallsToggled,
+
+    /// 独立展开或折叠一个轮次。
+    TrajectoryTurnToggled(u32),
+
+    /// 独立展开或折叠一个工具调用步骤。
+    TrajectoryToolStepToggled(u32),
+
     /// 选中一条稳定轨迹记录。
     TrajectoryRecordSelected(String),
 
@@ -457,10 +475,40 @@ pub enum ChatMessage {
     /// 关闭轨迹详情。
     TrajectoryDetailsClosed,
 
+    /// 在只读轨迹详情中移动光标或更新选区。
+    TrajectoryDetailsEditorAction(usize, text_editor::Action),
+
+    /// 在指定详情字段上打开右键复制菜单。
+    TrajectoryDetailsContextMenuOpened {
+        index: usize,
+        x: f32,
+        y: f32,
+    },
+
+    /// 关闭轨迹详情的右键菜单。
+    TrajectoryDetailsContextMenuClosed,
+
+    /// 复制轨迹详情的当前选区，未选中时复制整个字段。
+    TrajectoryDetailsContextMenuCopy,
+
+    /// 展开或折叠当前详情标签中的 JSON 路径。
+    TrajectoryDetailsJsonToggled(String),
+
+    /// 复制 JSON 树节点或完整树。
+    TrajectoryDetailsJsonCopied(serde_json::Value),
+
+    /// 延迟后重试补载某一步骤的原始 LLM 载荷。
+    TrajectoryRawRetry {
+        session_id: String,
+        step_index: u32,
+        attempt: u8,
+    },
+
     /// 某一步骤的原始 LLM 载荷补载完成。
     TrajectoryRawLoaded {
         session_id: String,
         step_index: u32,
+        attempt: u8,
         result: Result<Option<serde_json::Value>, String>,
     },
 
@@ -986,7 +1034,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     // 检查是否为流式增量消息，用于后续特殊处理
     let is_stream_delta = matches!(
         message,
-        ChatMessage::AgentStreamDelta(_, _) | ChatMessage::AgentStreamDeltaFlush(_)
+        ChatMessage::AgentStreamDelta(_, _)
+            | ChatMessage::AgentToolLifecycle(_, _)
+            | ChatMessage::AgentStreamDeltaFlush(_)
     );
 
     // 根据消息类型路由到对应的子模块处理函数
@@ -1098,13 +1148,26 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
         ChatMessage::ChatPanelModeSelected(_)
         | ChatMessage::TrajectorySearchChanged(_)
+        | ChatMessage::TrajectoryDurationToggled
+        | ChatMessage::TrajectoryTurnsToggled
+        | ChatMessage::TrajectoryCallsToggled
+        | ChatMessage::TrajectoryTurnToggled(_)
+        | ChatMessage::TrajectoryToolStepToggled(_)
         | ChatMessage::TrajectoryRecordSelected(_)
         | ChatMessage::TrajectoryDetailsTabSelected(_)
         | ChatMessage::TrajectoryDetailsClosed
+        | ChatMessage::TrajectoryDetailsEditorAction(_, _)
+        | ChatMessage::TrajectoryDetailsContextMenuOpened { .. }
+        | ChatMessage::TrajectoryDetailsContextMenuClosed
+        | ChatMessage::TrajectoryDetailsContextMenuCopy
+        | ChatMessage::TrajectoryDetailsJsonToggled(_)
+        | ChatMessage::TrajectoryDetailsJsonCopied(_)
+        | ChatMessage::TrajectoryRawRetry { .. }
         | ChatMessage::TrajectoryRawLoaded { .. } => trajectory::update(app, message),
 
         // 流式响应相关消息：Agent 增量更新、步骤状态、会话标题、问题应答等
         ChatMessage::AgentStreamDelta(_, _)
+        | ChatMessage::AgentToolLifecycle(_, _)
         | ChatMessage::AgentStreamDeltaFlush(_)
         | ChatMessage::AgentContextLoaded(_, _)
         | ChatMessage::AgentWorkflowNodeUpdate(_, _)

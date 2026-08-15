@@ -162,7 +162,9 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
         prompt.contains("## RustCodeGraph")
             && prompt.contains("explore")
             && prompt.contains("impact")
-            && prompt.contains("affected"),
+            && prompt.contains("affected")
+            && prompt.contains("`sync` operation once")
+            && prompt.contains("watched automatically"),
         "unified prompt must preserve the indexed Rust navigation workflow"
     );
     assert!(template.lines().count() <= 80, "unified prompt template should remain compact");

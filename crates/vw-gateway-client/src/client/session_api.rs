@@ -44,6 +44,8 @@ struct ChatSessionWithRaw {
     #[serde(default)]
     pub steps: Vec<SessionStepWithRaw>,
     #[serde(default)]
+    pub llm_raw_step_indices: Vec<u32>,
+    #[serde(default)]
     pub created_ms: u64,
     #[serde(default)]
     pub updated_ms: u64,
@@ -57,6 +59,7 @@ struct ChatSessionWithRaw {
 pub struct SessionUiLoadResult {
     pub session: ChatSession,
     pub step_llm_raw: HashMap<u32, Value>,
+    pub llm_raw_step_indices: Vec<u32>,
 }
 
 impl From<ChatSessionWithRaw> for SessionUiLoadResult {
@@ -82,7 +85,7 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
             created_ms: value.created_ms,
             updated_ms: value.updated_ms,
         };
-        Self { session, step_llm_raw }
+        Self { session, step_llm_raw, llm_raw_step_indices: value.llm_raw_step_indices }
     }
 }
 
@@ -355,9 +358,11 @@ impl GatewayClient {
         step_index: u32,
         directory: Option<&str>,
     ) -> Result<Option<serde_json::Value>, String> {
-        let raw = self.session_ui_get_with_raw(session_id, directory).await?;
-        let payload = raw.and_then(|session| session.step_llm_raw.get(&step_index).cloned());
-        Ok(payload)
+        self.get_json_with_404(
+            &format!("/v1/session/{session_id}/step/{step_index}/llm-raw"),
+            &directory_query(directory),
+        )
+        .await
     }
 
     /// 获取当前目录下被归档的会话 ID 列表。

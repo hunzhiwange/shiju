@@ -1378,6 +1378,7 @@ fn loaded_session_preserves_step_llm_raw_for_active_view() {
     );
     prepared.step_llm_raw =
         std::collections::HashMap::from([(3, json!({"output": {"reasoning_content": "kept"}}))]);
+    prepared.llm_raw_step_indices = vec![3, 8];
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -1394,6 +1395,10 @@ fn loaded_session_preserves_step_llm_raw_for_active_view() {
     assert_eq!(
         app.active_session_view_state.step_llm_raw[&3]["output"]["reasoning_content"],
         "kept"
+    );
+    assert_eq!(
+        app.active_session_view_state.llm_raw_step_indices,
+        std::collections::HashSet::from([3, 8])
     );
 }
 

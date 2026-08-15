@@ -1,10 +1,10 @@
 //! RustCodeGraph 库内查询适配器的真实索引与结果映射测试。
 
-use super::rustcodegraph::SUPPORTED_OPERATIONS;
+use super::SUPPORTED_OPERATIONS;
 use crate::tools::RustCodeGraphTool;
 use crate::tools::traits::Tool;
-use rustcodegraph::sync::watcher::__emit_watch_event_for_tests;
-use rustcodegraph::{CodeGraph, InitOptions, WatchOptions};
+use ::rustcodegraph::sync::watcher::__emit_watch_event_for_tests;
+use ::rustcodegraph::{CodeGraph, InitOptions, WatchOptions};
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -92,6 +92,7 @@ fn rustcodegraph_spec_is_read_only_strict_and_concurrent() {
     assert!(spec.strict);
     assert_eq!(spec.input_schema["additionalProperties"], false);
     assert!(spec.description.contains("Use `explore` first"));
+    assert!(spec.description.contains("call `sync` once"));
 }
 
 #[tokio::test]
@@ -133,6 +134,36 @@ async fn rustcodegraph_first_call_syncs_preexisting_edits() {
     assert!(result.is_success());
     assert!(result.model_text().contains("added_before_first_query"));
     assert!(!result.model_text().contains("No results found"));
+}
+
+#[tokio::test]
+async fn rustcodegraph_explicit_sync_refreshes_index_and_starts_watch() {
+    let workspace = indexed_workspace();
+    let tool = test_tool(workspace.path());
+    std::fs::write(
+        workspace.path().join("src/lib.rs"),
+        "pub fn added_before_explicit_sync() -> usize { 17 }\n",
+    )
+    .unwrap();
+
+    let sync = tool.call(json!({ "operation": "sync" })).await.unwrap();
+
+    assert!(sync.is_success());
+    assert_eq!(sync.data["operation"], "sync");
+    assert_eq!(sync.data["library_tool"], "rustcodegraph_sync");
+    assert!(sync.model_text().contains("sync complete"));
+    assert!(sync.model_text().contains("Live watch is active"));
+
+    let search = tool
+        .call(json!({
+            "operation": "search",
+            "query": "added_before_explicit_sync"
+        }))
+        .await
+        .unwrap();
+    assert!(search.is_success());
+    assert!(search.model_text().contains("added_before_explicit_sync"));
+    assert!(!search.model_text().contains("No results found"));
 }
 
 #[tokio::test]

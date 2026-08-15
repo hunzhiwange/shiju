@@ -81,6 +81,7 @@ fn backend_maps_runtime_events_without_parsing_display_text() {
         name: "shell".to_string(),
         kind: ToolEventKind::Complete,
         status: ToolCallStatus::Completed,
+        occurred_ms: 1,
         payload: payload.clone(),
     });
 

@@ -1,5 +1,6 @@
 use crate::app::models::{ChatMessage, ChatRole, ChatSession, ChatSessionStep, TokenUsage};
 use crate::app::state::{AcpHistoryReplayMode, AgentRequest};
+use vw_gateway_client::{GatewayChatToolEvent, GatewayChatToolEventKind, GatewayChatToolStatus};
 
 fn empty_session() -> ChatSession {
     ChatSession {
@@ -41,6 +42,65 @@ fn agent_request(id: u64, session_id: &str) -> AgentRequest {
         goal_mode_enabled: false,
         history: Vec::new(),
     }
+}
+
+fn tool_event(kind: GatewayChatToolEventKind, occurred_ms: u64) -> GatewayChatToolEvent {
+    GatewayChatToolEvent {
+        step_index: 3,
+        call_id: "call-1".to_string(),
+        name: "shell".to_string(),
+        kind,
+        status: GatewayChatToolStatus::Running,
+        occurred_ms,
+        payload: serde_json::json!({}),
+    }
+}
+
+#[test]
+fn tool_lifecycle_merges_idempotently() {
+    let mut session = empty_session();
+    super::upsert_step_start(&mut session, 3, 80, None, None);
+
+    super::merge_tool_lifecycle(&mut session, &tool_event(GatewayChatToolEventKind::Update, 90));
+    super::merge_tool_lifecycle(&mut session, &tool_event(GatewayChatToolEventKind::Complete, 160));
+    super::merge_tool_lifecycle(&mut session, &tool_event(GatewayChatToolEventKind::Start, 100));
+    super::merge_tool_lifecycle(&mut session, &tool_event(GatewayChatToolEventKind::Start, 110));
+    super::merge_tool_lifecycle(&mut session, &tool_event(GatewayChatToolEventKind::Complete, 170));
+
+    let timings = &session.steps[0].tool_timings;
+    assert_eq!(timings.len(), 1);
+    assert_eq!(timings[0].call_id, "call-1");
+    assert_eq!(timings[0].name, "shell");
+    assert_eq!(timings[0].started_ms, Some(100));
+    assert_eq!(timings[0].finished_ms, Some(160));
+    assert_eq!(session.updated_ms, 170);
+}
+
+#[test]
+fn tool_timing_lifecycle_handler_updates_active_step() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+    let _task = super::handle_agent_step_start(
+        &mut app,
+        42,
+        session_id,
+        3,
+        80,
+        Some("provider/model".to_string()),
+    );
+
+    let _task = super::handle_agent_tool_lifecycle(
+        &mut app,
+        42,
+        &tool_event(GatewayChatToolEventKind::Start, 100),
+    );
+
+    let timing = &app.active_session_view_state.steps[0].tool_timings[0];
+    assert_eq!(timing.call_id, "call-1");
+    assert_eq!(timing.started_ms, Some(100));
 }
 
 // ============ upsert_step_start ============
@@ -104,6 +164,7 @@ fn upsert_step_start_preserves_existing_optional_fields_when_none() {
         cost_usd: None,
         finish_reason: None,
         model: Some("old-model".to_string()),
+        tool_timings: Vec::new(),
     });
 
     super::upsert_step_start(&mut session, 7, 30, None, None);

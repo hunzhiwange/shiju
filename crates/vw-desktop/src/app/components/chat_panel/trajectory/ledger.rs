@@ -5,7 +5,9 @@ use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length, Theme};
 
 use super::styles;
-use super::{TrajectoryProjection, TrajectoryRecord, TrajectoryRecordKind};
+use super::{
+    TrajectoryControlsState, TrajectoryProjection, TrajectoryRecord, TrajectoryRecordKind,
+};
 
 const MAX_LEDGER_QUERY_CHARS: usize = 256;
 pub(crate) const MAX_LEDGER_SEARCH_RESULTS: usize = 500;
@@ -18,14 +20,25 @@ pub(crate) struct LedgerRecord<'a> {
 
 #[derive(Debug)]
 pub(crate) struct LedgerStep<'a> {
+    pub(crate) step_index: u32,
     pub(crate) title: String,
+    pub(crate) has_tools: bool,
+    pub(crate) tools_collapsed: bool,
     pub(crate) records: Vec<LedgerRecord<'a>>,
 }
 
 #[derive(Debug)]
 pub(crate) struct LedgerGroup<'a> {
     pub(crate) title: String,
+    pub(crate) turn_index: Option<u32>,
+    pub(crate) collapsed: bool,
     pub(crate) steps: Vec<LedgerStep<'a>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LedgerFoldAction {
+    Turn(u32),
+    ToolStep(u32),
 }
 
 pub(crate) fn filter_ledger_records<'a>(
@@ -55,24 +68,50 @@ pub(crate) fn build_ledger_groups<'a>(
     projection: &'a TrajectoryProjection,
     query: &str,
     selected_record_id: Option<&str>,
+    controls: &TrajectoryControlsState,
 ) -> Vec<LedgerGroup<'a>> {
     let mut groups = Vec::<LedgerGroup<'a>>::new();
+    let search_active = !query.trim().is_empty();
     for record in filter_ledger_records(projection, query) {
         let group_title =
             record.turn_index.map_or_else(|| "上下文".to_string(), |index| format!("轮次 {index}"));
         if groups.last().is_none_or(|group| group.title != group_title) {
-            groups.push(LedgerGroup { title: group_title, steps: Vec::new() });
+            groups.push(LedgerGroup {
+                title: group_title,
+                turn_index: record.turn_index,
+                collapsed: record.turn_index.is_some_and(|index| controls.is_turn_collapsed(index))
+                    && !search_active,
+                steps: Vec::new(),
+            });
         }
 
         let group = groups.last_mut().expect("ledger group was just inserted");
+        let selected = selected_record_id.is_some_and(|selected| selected == record.id);
+        let revealed = search_active || selected;
+        if revealed {
+            group.collapsed = false;
+        }
+        if group.collapsed {
+            continue;
+        }
         let step_title = format!("步骤 {}", record.step_index);
         if group.steps.last().is_none_or(|step| step.title != step_title) {
-            group.steps.push(LedgerStep { title: step_title, records: Vec::new() });
+            group.steps.push(LedgerStep {
+                step_index: record.step_index,
+                title: step_title,
+                has_tools: false,
+                tools_collapsed: controls.is_tool_step_collapsed(record.step_index) && !revealed,
+                records: Vec::new(),
+            });
         }
-        group.steps.last_mut().expect("ledger step was just inserted").records.push(LedgerRecord {
-            record,
-            selected: selected_record_id.is_some_and(|selected| selected == record.id),
-        });
+        let step = group.steps.last_mut().expect("ledger step was just inserted");
+        if record.kind == TrajectoryRecordKind::Tool {
+            step.has_tools = true;
+            if step.tools_collapsed {
+                continue;
+            }
+        }
+        step.records.push(LedgerRecord { record, selected });
     }
     groups
 }
@@ -81,9 +120,11 @@ pub(crate) fn trajectory_ledger<'a, Message: Clone + 'a>(
     projection: &TrajectoryProjection,
     query: &str,
     selected_record_id: Option<&str>,
+    controls: &TrajectoryControlsState,
     on_select: impl Fn(String) -> Message,
+    on_fold: impl Fn(LedgerFoldAction) -> Message,
 ) -> Element<'a, Message> {
-    let groups = build_ledger_groups(projection, query, selected_record_id);
+    let groups = build_ledger_groups(projection, query, selected_record_id, controls);
     let mut ledger = column![].spacing(8).width(Length::Fill);
 
     if groups.is_empty() {
@@ -100,19 +141,25 @@ pub(crate) fn trajectory_ledger<'a, Message: Clone + 'a>(
     }
 
     for group in groups {
-        let mut group_content = column![
-            container(text(group.title).size(12))
-                .padding([5, 8])
-                .width(Length::Fill)
-                .style(styles::group_header_style)
-        ]
-        .spacing(4)
-        .width(Length::Fill);
+        let mut group_content =
+            column![ledger_group_header(group.title, group.turn_index, group.collapsed, &on_fold,)]
+                .spacing(4)
+                .width(Length::Fill);
 
         for step in group.steps {
-            group_content = group_content.push(text(step.title).size(11).style(|theme: &Theme| {
+            let mut step_header = row![text(step.title).size(11).style(|theme: &Theme| {
                 iced::widget::text::Style { color: Some(styles::step_header_text_color(theme)) }
-            }));
+            })]
+            .spacing(6)
+            .align_y(Alignment::Center);
+            if step.has_tools {
+                step_header = step_header.push(ledger_tool_group_button(
+                    step.step_index,
+                    step.tools_collapsed,
+                    &on_fold,
+                ));
+            }
+            group_content = group_content.push(step_header);
             for record in step.records {
                 group_content = group_content.push(record_row(record, &on_select));
             }
@@ -125,6 +172,49 @@ pub(crate) fn trajectory_ledger<'a, Message: Clone + 'a>(
         .height(Length::Fill)
         .direction(styles::ledger_scroll_direction())
         .into()
+}
+
+pub(crate) fn ledger_group_header<'a, Message: Clone + 'a>(
+    title: impl Into<String>,
+    turn_index: Option<u32>,
+    collapsed: bool,
+    on_fold: impl Fn(LedgerFoldAction) -> Message,
+) -> Element<'a, Message> {
+    let title = title.into();
+    if let Some(turn_index) = turn_index {
+        return button(
+            row![text(fold_arrow(collapsed)).size(11), text(title).size(12)]
+                .spacing(6)
+                .align_y(Alignment::Center),
+        )
+        .padding([5, 8])
+        .width(Length::Fill)
+        .style(move |theme, status| styles::ledger_fold_button_style(theme, status, collapsed))
+        .on_press(on_fold(LedgerFoldAction::Turn(turn_index)))
+        .into();
+    }
+
+    container(text(title).size(12))
+        .padding([5, 8])
+        .width(Length::Fill)
+        .style(styles::group_header_style)
+        .into()
+}
+
+pub(crate) fn ledger_tool_group_button<'a, Message: Clone + 'a>(
+    step_index: u32,
+    collapsed: bool,
+    on_fold: impl Fn(LedgerFoldAction) -> Message,
+) -> Element<'a, Message> {
+    button(text(format!("{} Tools", fold_arrow(collapsed))).size(10))
+        .padding([3, 6])
+        .style(move |theme, status| styles::ledger_tool_fold_button_style(theme, status, collapsed))
+        .on_press(on_fold(LedgerFoldAction::ToolStep(step_index)))
+        .into()
+}
+
+const fn fold_arrow(collapsed: bool) -> &'static str {
+    if collapsed { "▸" } else { "▾" }
 }
 
 fn record_row<'a, Message: Clone + 'a>(
@@ -183,6 +273,7 @@ const fn role_label(kind: TrajectoryRecordKind) -> &'static str {
     match kind {
         TrajectoryRecordKind::System => "SYSTEM",
         TrajectoryRecordKind::User => "USER",
+        TrajectoryRecordKind::Context => "CONTEXT",
         TrajectoryRecordKind::Assistant => "ASSISTANT",
         TrajectoryRecordKind::Tool => "TOOL",
     }

@@ -22,6 +22,7 @@ fn session_step(finished_ms: Option<u64>) -> ChatSessionStep {
         cost_usd: None,
         finish_reason: None,
         model: Some("model-a".to_string()),
+        tool_timings: Vec::new(),
     }
 }
 

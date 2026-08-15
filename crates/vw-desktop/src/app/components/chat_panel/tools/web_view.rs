@@ -83,8 +83,39 @@ pub fn tool_web_view<'a>(
         .unwrap_or_default();
     let metadata_text = web_metadata_text(tool_name, &value);
 
-    if !is_running && summary.trim().is_empty() && body_text.is_empty() {
+    if !is_running && summary.trim().is_empty() && body_text.is_empty() && metadata_text.is_empty() {
         return None;
+    }
+
+    if matches!(tool_name, "web_fetch" | "fetch_webpage" | "http_request") {
+        let mut content = column![tool_header_title(tool_name, title, is_error)].spacing(8);
+
+        if !metadata_text.is_empty() {
+            content = content.push(text(metadata_text).size(12).style(|theme: &Theme| {
+                iced::widget::text::Style {
+                    color: Some(chat_secondary_muted_text_color(theme)),
+                }
+            }));
+        } else if !summary.trim().is_empty() {
+            content = content.push(text(summary).size(12).style(|theme: &Theme| {
+                iced::widget::text::Style {
+                    color: Some(chat_secondary_muted_text_color(theme)),
+                }
+            }));
+        }
+
+        return Some(
+            button(container(content).width(Length::Fill).padding([2, 6]))
+                .width(Length::Fill)
+                .padding(0)
+                .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
+                .on_press(Message::Chat(message::ChatMessage::OpenToolDetail(
+                    msg_idx,
+                    tool_idx,
+                    visible.to_string(),
+                )))
+                .into(),
+        );
     }
 
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);

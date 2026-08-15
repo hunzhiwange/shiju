@@ -75,6 +75,7 @@ fn scoped_session(id: &str, title: &str, content: &str, updated_ms: u64) -> ui_m
             cost_usd: Some(0.01),
             finish_reason: Some("stop".to_string()),
             model: Some("test-model".to_string()),
+            tool_timings: Vec::new(),
         }],
         created_ms: 10,
         updated_ms,
@@ -122,6 +123,240 @@ fn ui_handlers_are_available() {
     let _ = session_scope_get;
     let _ = session_scope_put;
     let _ = session_ui_get_any;
+    let _ = session_step_llm_raw_get;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_step_llm_raw_get_returns_requested_step_and_null_for_missing() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("project dir");
+    let project_path = project.path();
+    let body = scoped_session("single-step-raw", "Single step", "hello", 20);
+    let Json(saved) = session_ui_save(
+        Path(body.id.clone()),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(body.clone()),
+    )
+    .await
+    .expect("session should save");
+    assert!(saved);
+    let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
+        .expect("project directory should resolve to a scope");
+    ui_store::persist_llm_raw_step(&body.id, 7, &serde_json::json!({"step": 7}), Some(&scope))
+        .expect("step 7 raw payload should persist");
+    ui_store::persist_llm_raw_step(&body.id, 8, &serde_json::json!({"step": 8}), Some(&scope))
+        .expect("step 8 raw payload should persist");
+
+    let Json(with_raw_indices) =
+        session_ui_get(Path(body.id.clone()), Query(query_for(project_path)), HeaderMap::new())
+            .await
+            .expect("session UI should load raw step indices");
+    assert_eq!(
+        with_raw_indices.expect("session exists").llm_raw_step_indices,
+        BTreeSet::from([7, 8])
+    );
+
+    let Json(found) = session_step_llm_raw_get(
+        Path((body.id.clone(), 7)),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("requested raw payload should load");
+    let Json(missing) = session_step_llm_raw_get(
+        Path((body.id, 9)),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("missing raw payload should return null");
+
+    assert_eq!(found, Some(serde_json::json!({"step": 7})));
+    assert_eq!(missing, None);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_step_llm_raw_get_isolates_project_scope() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project_a = TempDir::new().expect("project A dir");
+    let project_b = TempDir::new().expect("project B dir");
+    let session_id = "scope-isolated-raw";
+    for (project, value) in [(&project_a, "project-a"), (&project_b, "project-b")] {
+        let body = scoped_session(session_id, value, value, 20);
+        let Json(saved) = session_ui_save(
+            Path(body.id.clone()),
+            Query(query_for(project.path())),
+            HeaderMap::new(),
+            Json(body),
+        )
+        .await
+        .expect("scoped session should save");
+        assert!(saved);
+        let scope =
+            ui_store::resolve_session_scope_id(Some(&project.path().to_string_lossy()), None)
+                .expect("project directory should resolve to a scope");
+        ui_store::persist_llm_raw_step(
+            session_id,
+            3,
+            &serde_json::json!({"project": value}),
+            Some(&scope),
+        )
+        .expect("scoped raw payload should persist");
+    }
+
+    let Json(raw_a) = session_step_llm_raw_get(
+        Path((session_id.to_string(), 3)),
+        Query(query_for(project_a.path())),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("project A raw payload should load");
+    let Json(raw_b) = session_step_llm_raw_get(
+        Path((session_id.to_string(), 3)),
+        Query(query_for(project_b.path())),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("project B raw payload should load");
+
+    assert_eq!(raw_a, Some(serde_json::json!({"project": "project-a"})));
+    assert_eq!(raw_b, Some(serde_json::json!({"project": "project-b"})));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_step_llm_raw_get_isolates_tenants() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("shared project dir");
+    let session_id = "tenant-isolated-raw";
+    let tenant_a =
+        vw_api_types::id::TenantScope::new("platform-raw-a", "company-raw-a").expect("tenant A");
+    let tenant_b =
+        vw_api_types::id::TenantScope::new("platform-raw-b", "company-raw-b").expect("tenant B");
+
+    for (tenant, value) in [(tenant_a.clone(), "tenant-a"), (tenant_b.clone(), "tenant-b")] {
+        ui_store::with_tenant_scope(tenant.clone(), async {
+            let body = scoped_session(session_id, value, value, 20);
+            let Json(saved) = session_ui_save(
+                Path(body.id.clone()),
+                Query(query_for(project.path())),
+                HeaderMap::new(),
+                Json(body),
+            )
+            .await
+            .expect("tenant session should save");
+            assert!(saved);
+            let scope = ui_store::resolve_session_scope_id_for_tenant(
+                &tenant,
+                Some(&project.path().to_string_lossy()),
+                None,
+            )
+            .expect("tenant project scope should resolve");
+            ui_store::persist_llm_raw_step(
+                session_id,
+                4,
+                &serde_json::json!({"tenant": value}),
+                Some(&scope),
+            )
+            .expect("tenant raw payload should persist");
+        })
+        .await;
+    }
+
+    let raw_a = ui_store::with_tenant_scope(
+        tenant_a,
+        session_step_llm_raw_get(
+            Path((session_id.to_string(), 4)),
+            Query(query_for(project.path())),
+            HeaderMap::new(),
+        ),
+    )
+    .await
+    .expect("tenant A raw payload should load")
+    .0;
+    let raw_b = ui_store::with_tenant_scope(
+        tenant_b,
+        session_step_llm_raw_get(
+            Path((session_id.to_string(), 4)),
+            Query(query_for(project.path())),
+            HeaderMap::new(),
+        ),
+    )
+    .await
+    .expect("tenant B raw payload should load")
+    .0;
+
+    assert_eq!(raw_a, Some(serde_json::json!({"tenant": "tenant-a"})));
+    assert_eq!(raw_b, Some(serde_json::json!({"tenant": "tenant-b"})));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_step_llm_raw_get_maps_storage_error_to_internal_error() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("project dir");
+    let project_path = project.path();
+    let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
+        .expect("project directory should resolve to a scope");
+    let session_id = format!("invalid-single-step-raw-{}", std::process::id());
+    let body = scoped_session(&session_id, "Invalid JSON", "hello", 20);
+    let Json(saved) = session_ui_save(
+        Path(session_id.clone()),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(body),
+    )
+    .await
+    .expect("session should save");
+    assert!(saved);
+    ui_store::persist_llm_raw_step(
+        &session_id,
+        7,
+        &serde_json::json!({"valid": true}),
+        Some(&scope),
+    )
+    .expect("raw payload should persist before injection");
+    let tenant = ui_store::current_tenant_scope();
+    let connection =
+        Connection::open(ui_store::session_file_path(&session_id).expect("session store path"))
+            .expect("open session store database");
+    connection
+        .execute(
+            "UPDATE session_step_llm_raw
+             SET payload_json = ?1
+             WHERE platform_id = ?2 AND company_id = ?3 AND project_id = ?4
+               AND session_id = ?5 AND step_index = ?6",
+            params![
+                "{definitely not json",
+                tenant.platform_id().as_ref(),
+                tenant.company_id().as_ref(),
+                &scope,
+                &session_id,
+                7i64,
+            ],
+        )
+        .expect("raw payload should be corrupted for the error case");
+
+    let error = session_step_llm_raw_get(
+        Path((session_id, 7)),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect_err("invalid raw payload should fail");
+
+    assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
 }
 
 #[tokio::test(flavor = "multi_thread")]

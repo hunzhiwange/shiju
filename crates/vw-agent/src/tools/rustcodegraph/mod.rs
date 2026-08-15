@@ -1,10 +1,12 @@
-//! RustCodeGraph 库内只读查询适配器。
+//! RustCodeGraph 库内索引与只读查询工具。
 
-use super::super::traits::{
+use super::traits::{
     Tool, ToolCallResult, ToolCallTelemetry, ToolRenderHint, ToolResult, ToolSpec,
 };
-use ::rustcodegraph::mcp::tools::{ToolHandler, ToolResult as LibraryToolResult};
-use ::rustcodegraph::{CodeGraph, IndexOptions, WatchOptions};
+use ::rustcodegraph::mcp::tools::{
+    ToolContent as LibraryToolContent, ToolHandler, ToolResult as LibraryToolResult,
+};
+use ::rustcodegraph::{CodeGraph, IndexOptions, SyncResult, WatchOptions};
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
@@ -15,7 +17,7 @@ use vw_api_types::tools::ToolResultContentDto;
 
 const TOOL_ID: &str = "rustcodegraph";
 pub(super) const SUPPORTED_OPERATIONS: &[&str] =
-    &["explore", "node", "search", "callers", "callees", "impact", "files", "status"];
+    &["explore", "node", "search", "callers", "callees", "impact", "files", "status", "sync"];
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -28,6 +30,7 @@ enum Operation {
     Impact,
     Files,
     Status,
+    Sync,
 }
 
 impl Operation {
@@ -41,6 +44,7 @@ impl Operation {
             Self::Impact => "impact",
             Self::Files => "files",
             Self::Status => "status",
+            Self::Sync => "sync",
         }
     }
 
@@ -54,6 +58,7 @@ impl Operation {
             Self::Impact => "rustcodegraph_impact",
             Self::Files => "rustcodegraph_files",
             Self::Status => "rustcodegraph_status",
+            Self::Sync => "rustcodegraph_sync",
         }
     }
 }
@@ -112,7 +117,7 @@ impl Args {
                     anyhow::bail!("node requires a non-empty symbol or file");
                 }
             }
-            Operation::Files | Operation::Status => {}
+            Operation::Files | Operation::Status | Operation::Sync => {}
         }
 
         if !matches!(self.operation, Operation::Node) {
@@ -161,7 +166,7 @@ impl Args {
                 insert_bool(&mut args, "includeMetadata", self.include_metadata);
                 insert_number(&mut args, "maxDepth", self.max_depth);
             }
-            Operation::Status => {}
+            Operation::Status | Operation::Sync => {}
         }
         args
     }
@@ -169,6 +174,7 @@ impl Args {
 
 enum LifecycleCommand {
     SyncOnceAndWatch(mpsc::SyncSender<()>),
+    SyncNow(mpsc::SyncSender<SyncResult>),
     Shutdown,
 }
 
@@ -250,6 +256,14 @@ impl RustCodeGraphTool {
                             }
                             let _ = done.send(());
                         }
+                        LifecycleCommand::SyncNow(done) => {
+                            let result = graph.sync(IndexOptions::default());
+                            if first_sync_pending {
+                                graph.watch(watch_options.clone());
+                                first_sync_pending = false;
+                            }
+                            let _ = done.send(result);
+                        }
                         LifecycleCommand::Shutdown => break,
                     }
                 }
@@ -318,6 +332,17 @@ impl RustCodeGraphTool {
         let operation = args.operation;
         let library_args = args.library_args();
         tokio::task::spawn_blocking(move || -> anyhow::Result<LibraryToolResult> {
+            if matches!(operation, Operation::Sync) {
+                let (done, completed) = mpsc::sync_channel(1);
+                lifecycle_commands
+                    .send(LifecycleCommand::SyncNow(done))
+                    .map_err(|_| anyhow::anyhow!("RustCodeGraph lifecycle worker stopped"))?;
+                let result = completed
+                    .recv()
+                    .map_err(|_| anyhow::anyhow!("RustCodeGraph lifecycle sync was interrupted"))?;
+                return Ok(sync_library_result(result));
+            }
+
             if !matches!(operation, Operation::Status) {
                 let (done, completed) = mpsc::sync_channel(1);
                 lifecycle_commands
@@ -372,6 +397,23 @@ impl RustCodeGraphTool {
             telemetry: Some(ToolCallTelemetry { success, ..ToolCallTelemetry::default() }),
             ..ToolCallResult::default()
         }
+    }
+}
+
+fn sync_library_result(result: SyncResult) -> LibraryToolResult {
+    let changed = result.files_added + result.files_modified + result.files_removed;
+    let text = format!(
+        "RustCodeGraph sync complete: checked {} file(s), changed {changed} file(s) ({} added, {} modified, {} removed), updated {} node(s) in {}ms. Live watch is active for subsequent edits.",
+        result.files_checked,
+        result.files_added,
+        result.files_modified,
+        result.files_removed,
+        result.nodes_updated,
+        result.duration_ms,
+    );
+    LibraryToolResult {
+        content: vec![LibraryToolContent { content_type: "text".to_string(), text }],
+        is_error: None,
     }
 }
 
@@ -432,6 +474,9 @@ impl Tool for RustCodeGraphTool {
         Ok(Self::map_result(args.operation, result))
     }
 }
+
+#[cfg(test)]
+mod tests;
 
 fn parse_args(input: Value) -> anyhow::Result<Args> {
     if !input.is_object() {

@@ -31,6 +31,7 @@ fn step(index: u32, usage: TokenUsage) -> ChatSessionStep {
         cost_usd: None,
         finish_reason: None,
         model: None,
+        tool_timings: Vec::new(),
     }
 }
 

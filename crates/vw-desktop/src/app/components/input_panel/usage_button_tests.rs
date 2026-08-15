@@ -39,6 +39,7 @@ fn step(input_tokens: i64) -> ChatSessionStep {
         cost_usd: None,
         finish_reason: None,
         model: None,
+        tool_timings: Vec::new(),
     }
 }
 

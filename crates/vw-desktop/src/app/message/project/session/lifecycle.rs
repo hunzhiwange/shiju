@@ -311,6 +311,7 @@ fn upsert_loaded_step_start(
             cost_usd: None,
             finish_reason: None,
             model,
+            tool_timings: Vec::new(),
         });
     }
 }
@@ -351,6 +352,7 @@ fn upsert_loaded_step_finish(
             cost_usd,
             finish_reason,
             model,
+            tool_timings: Vec::new(),
         });
     }
 }
@@ -441,6 +443,7 @@ pub(crate) fn steps_from_gateway_messages(
                     cost_usd: (info.cost > 0.0).then_some(info.cost),
                     finish_reason: info.finish.clone(),
                     model: assistant_model_label(info),
+                    tool_timings: Vec::new(),
                 });
             }
         }
@@ -627,6 +630,7 @@ fn apply_prepared_session_open(app: &mut App, prepared: crate::app::session::Pre
         steps,
         calls,
         step_llm_raw,
+        llm_raw_step_indices,
         updated_ms,
         content_signature: _,
         session_model,
@@ -643,6 +647,7 @@ fn apply_prepared_session_open(app: &mut App, prepared: crate::app::session::Pre
     app.replace_active_session_steps(steps);
     app.replace_active_session_calls(calls);
     app.replace_active_session_step_llm_raw(step_llm_raw);
+    app.replace_active_session_llm_raw_step_indices(llm_raw_step_indices);
     let restored_session_model_from_history = session_model
         .as_deref()
         .is_some_and(|model| app.restore_session_model_from_history(&session_id, model));
@@ -1091,6 +1096,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
                 if !prepared.step_llm_raw.is_empty() {
                     app.replace_active_session_step_llm_raw(prepared.step_llm_raw);
+                }
+                if !prepared.llm_raw_step_indices.is_empty() {
+                    app.replace_active_session_llm_raw_step_indices(prepared.llm_raw_step_indices);
                 }
                 if let Some(summary) = app.session_view_cache.record_open_commit(
                     &target_session_id,

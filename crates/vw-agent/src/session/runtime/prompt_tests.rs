@@ -54,6 +54,7 @@ fn prompt_runtime_emits_typed_tool_lifecycle() {
                 name: "shell".to_string(),
                 kind,
                 status,
+                occurred_ms: 1,
                 payload,
             }));
         }

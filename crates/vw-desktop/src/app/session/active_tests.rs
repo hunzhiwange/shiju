@@ -34,6 +34,7 @@ fn step(index: u32, started_ms: u64, finished_ms: Option<u64>, model: &str) -> C
         cost_usd: None,
         finish_reason: None,
         model: Some(model.to_string()),
+        tool_timings: Vec::new(),
     }
 }
 

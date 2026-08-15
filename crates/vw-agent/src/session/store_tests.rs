@@ -8,7 +8,7 @@ use vw_shared::session::info::{
 };
 use vw_shared::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming,
-    SessionTodoItem, ThinkTiming, TokenUsage,
+    SessionTodoItem, ThinkTiming, TokenUsage, ToolTiming,
 };
 
 use super::store::SessionStore;
@@ -154,6 +154,40 @@ fn session_store_processing_elapsed_round_trips() -> Result<()> {
         assert_eq!(
             loaded.messages[1].processing_timing.as_ref().and_then(|timing| timing.llm_elapsed_ms),
             Some(75)
+        );
+        Ok(())
+    })?;
+    Ok(())
+}
+
+#[test]
+fn session_store_tool_timings_round_trip() -> Result<()> {
+    let sqlite_home = tempfile::tempdir()?;
+    let database = GlobalDatabase::new(sqlite_home.path().join("database/_index.sqlite3"))?;
+    let fixture = StoreFixture::new(database)?;
+    let scope = fixture.create_project(&fixture.tenant_a, "tool-timings")?;
+    let session = sample_session("tool-timings", "Tool timings", 200);
+
+    fixture.store.save_session(&scope, &session)?;
+    let loaded = fixture.store.load_session(&scope, &session.id)?.expect("stored session");
+
+    assert_eq!(loaded.steps[0].tool_timings, session.steps[0].tool_timings);
+    Ok(())
+}
+
+#[test]
+fn session_store_lists_llm_raw_step_indices_without_session_steps() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "raw-step-indices")?;
+        let mut session = sample_session("raw-step-indices", "Raw step indices", 200);
+        session.steps.clear();
+        fixture.store.save_session(&scope, &session)?;
+        fixture.store.save_session_step_llm_raw(&scope, &session.id, 9, &json!({"step": 9}))?;
+        fixture.store.save_session_step_llm_raw(&scope, &session.id, 3, &json!({"step": 3}))?;
+
+        assert_eq!(
+            fixture.store.load_session_llm_raw_step_indices(&scope, &session.id)?,
+            vec![3, 9]
         );
         Ok(())
     })?;
@@ -578,6 +612,12 @@ fn sample_session(id: &str, title: &str, updated_ms: u64) -> ChatSession {
             cost_usd: Some(0.25),
             finish_reason: Some("stop".to_owned()),
             model: Some("model-a".to_owned()),
+            tool_timings: vec![ToolTiming {
+                call_id: "call-1".to_owned(),
+                name: "shell".to_owned(),
+                started_ms: Some(105),
+                finished_ms: Some(125),
+            }],
         }],
         created_ms: 40,
         updated_ms,

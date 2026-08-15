@@ -332,7 +332,7 @@ pub fn tool_header_title<'a>(
             }
         })
     ]
-    .spacing(8)
+    .spacing(4)
     .align_y(Alignment::Center)
     .into()
 }

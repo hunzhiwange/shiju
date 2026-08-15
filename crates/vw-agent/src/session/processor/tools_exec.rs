@@ -19,8 +19,8 @@
 
 use super::types::{StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
 use super::utils::{
-    compact_tool_output, compact_tool_output_for_ui, maybe_inject_file_link, sanitize_tool_input,
-    sanitize_tool_input_for_ui, tool_fingerprint,
+    compact_tool_output, compact_tool_output_for_ui, maybe_inject_file_link, now_ms,
+    sanitize_tool_input, sanitize_tool_input_for_ui, tool_fingerprint,
 };
 use crate::app::agent::tools::traits::{ToolContextUpdate, ToolExtraMessage};
 use crate::app::agent::tools::{self, ToolCallError, ToolRuntimeContext};
@@ -88,6 +88,7 @@ fn tool_stream_event(call_id: String, name: &str, payload: serde_json::Value) ->
         name: name.to_string(),
         kind: lifecycle_kind(&status),
         status,
+        occurred_ms: now_ms(),
         payload,
     })
 }
@@ -99,7 +100,14 @@ fn tool_update_event(call_id: String, name: &str, payload: serde_json::Value) ->
     } else {
         ToolEventKind::Complete
     };
-    StreamEvent::Tool(ToolEvent { call_id, name: name.to_string(), kind, status, payload })
+    StreamEvent::Tool(ToolEvent {
+        call_id,
+        name: name.to_string(),
+        kind,
+        status,
+        occurred_ms: now_ms(),
+        payload,
+    })
 }
 
 fn fallback_tool_call_id(name: &str, sanitized_input: &str) -> String {

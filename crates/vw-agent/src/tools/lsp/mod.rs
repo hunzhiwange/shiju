@@ -6,10 +6,6 @@
 mod backend;
 mod config;
 mod format;
-mod rustcodegraph;
-
-pub use rustcodegraph::RustCodeGraphTool;
-
 use self::backend::LspBackendSession;
 use self::format::{LspPayload, format_operation_result};
 use super::external_directory;
@@ -503,7 +499,3 @@ impl Tool for LspTool {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "rustcodegraph_tests.rs"]
-mod rustcodegraph_tests;

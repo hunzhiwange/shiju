@@ -5,11 +5,45 @@ use iced::widget::{button, container, text_input};
 use iced::{Background, Border, Color, Font, Theme};
 
 use super::TrajectoryRecordKind;
+use super::json_tree::JsonTreeTokenKind;
 use super::timeline::TimelineLane;
 use crate::app::components::chat_panel::utils::{chat_scroll_direction, is_dark_theme};
 
 pub(crate) const LEDGER_SCROLLBAR_WIDTH: f32 = 4.0;
 pub(crate) const DETAILS_SCROLLBAR_WIDTH: f32 = 4.0;
+
+pub(crate) fn json_tree_token_color(theme: &Theme, kind: JsonTreeTokenKind) -> Color {
+    let dark = is_dark_theme(theme);
+    match kind {
+        JsonTreeTokenKind::Punctuation => theme.palette().text.scale_alpha(0.82),
+        JsonTreeTokenKind::Key => {
+            if dark { Color::from_rgb8(196, 148, 255) } else { Color::from_rgb8(112, 66, 170) }
+        }
+        JsonTreeTokenKind::String => {
+            if dark { Color::from_rgb8(244, 139, 152) } else { Color::from_rgb8(174, 48, 66) }
+        }
+        JsonTreeTokenKind::Number => {
+            if dark { Color::from_rgb8(113, 190, 255) } else { Color::from_rgb8(26, 106, 174) }
+        }
+        JsonTreeTokenKind::Boolean => {
+            if dark { Color::from_rgb8(240, 178, 100) } else { Color::from_rgb8(164, 92, 20) }
+        }
+        JsonTreeTokenKind::Null => theme.palette().text.scale_alpha(0.54),
+    }
+}
+
+pub(crate) fn json_tree_action_style(theme: &Theme, status: button::Status) -> button::Style {
+    let mut style = button::Style {
+        text_color: theme.palette().text.scale_alpha(0.66),
+        ..button::Style::default()
+    };
+    if matches!(status, button::Status::Hovered | button::Status::Pressed) {
+        style.background = Some(Background::Color(
+            theme.extended_palette().background.strong.color.scale_alpha(0.32),
+        ));
+    }
+    style
+}
 
 pub(crate) fn ledger_scroll_direction() -> Direction {
     chat_scroll_direction()
@@ -28,6 +62,7 @@ pub(crate) fn role_badge_style(theme: &Theme, kind: TrajectoryRecordKind) -> con
     let color = match kind {
         TrajectoryRecordKind::System => palette.secondary.base.color,
         TrajectoryRecordKind::User => palette.success.base.color,
+        TrajectoryRecordKind::Context => palette.success.weak.color,
         TrajectoryRecordKind::Assistant => palette.primary.base.color,
         TrajectoryRecordKind::Tool => palette.warning.base.color,
     };
@@ -256,13 +291,7 @@ pub(crate) fn details_tab_style(
     selected: bool,
 ) -> button::Style {
     let palette = theme.extended_palette();
-    let background = if selected {
-        Some(Background::Color(palette.primary.weak.color.scale_alpha(if is_dark_theme(theme) {
-            0.42
-        } else {
-            0.28
-        })))
-    } else if matches!(status, button::Status::Hovered | button::Status::Pressed) {
+    let background = if matches!(status, button::Status::Hovered | button::Status::Pressed) {
         Some(Background::Color(
             palette.background.strong.color.scale_alpha(if is_dark_theme(theme) {
                 0.38
@@ -275,13 +304,17 @@ pub(crate) fn details_tab_style(
     };
     button::Style {
         background,
-        text_color: theme.palette().text,
-        border: Border {
-            width: if selected { 1.0 } else { 0.0 },
-            color: palette.primary.base.color.scale_alpha(if selected { 0.72 } else { 0.0 }),
-            radius: 5.0.into(),
-        },
+        text_color: theme.palette().text.scale_alpha(if selected { 1.0 } else { 0.68 }),
+        border: Border { radius: 4.0.into(), ..Border::default() },
         ..button::Style::default()
+    }
+}
+
+pub(crate) fn details_tab_underline_style(theme: &Theme, selected: bool) -> container::Style {
+    container::Style {
+        background: selected.then(|| Background::Color(theme.extended_palette().primary.base.color)),
+        border: Border { radius: 1.0.into(), ..Border::default() },
+        ..container::Style::default()
     }
 }
 
@@ -292,10 +325,10 @@ pub(crate) fn details_label_color(theme: &Theme) -> Color {
 pub(crate) fn timeline_block_style(
     theme: &Theme,
     status: button::Status,
-    lane: TimelineLane,
+    kind: TrajectoryRecordKind,
     selected: bool,
 ) -> button::Style {
-    let color = timeline_lane_color(theme, lane);
+    let color = timeline_record_color(theme, kind);
     let alpha = if selected {
         if is_dark_theme(theme) { 0.48 } else { 0.30 }
     } else {
@@ -331,6 +364,82 @@ pub(crate) fn timeline_block_style(
             color: color.scale_alpha(if selected { 0.92 } else { 0.0 }),
             radius: 4.0.into(),
         },
+        ..button::Style::default()
+    }
+}
+
+pub(crate) fn timeline_toolbar_button_style(
+    theme: &Theme,
+    status: button::Status,
+    active: bool,
+) -> button::Style {
+    let palette = theme.extended_palette();
+    let background = match status {
+        button::Status::Hovered => palette.background.strong.color.scale_alpha(0.48),
+        button::Status::Pressed => palette.primary.weak.color.scale_alpha(0.52),
+        button::Status::Active | button::Status::Disabled if active => {
+            palette.primary.weak.color.scale_alpha(if is_dark_theme(theme) { 0.38 } else { 0.24 })
+        }
+        button::Status::Active | button::Status::Disabled => palette
+            .background
+            .strong
+            .color
+            .scale_alpha(if is_dark_theme(theme) { 0.24 } else { 0.18 }),
+    };
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: theme.palette().text,
+        border: Border {
+            width: if active { 1.0 } else { 0.0 },
+            color: palette.primary.base.color.scale_alpha(0.68),
+            radius: 6.0.into(),
+        },
+        ..button::Style::default()
+    }
+}
+
+pub(crate) fn timeline_tooltip_style(theme: &Theme) -> container::Style {
+    details_tooltip_style(theme)
+}
+
+pub(crate) fn ledger_fold_button_style(
+    theme: &Theme,
+    status: button::Status,
+    collapsed: bool,
+) -> button::Style {
+    fold_button_style(theme, status, collapsed, 6.0)
+}
+
+pub(crate) fn ledger_tool_fold_button_style(
+    theme: &Theme,
+    status: button::Status,
+    collapsed: bool,
+) -> button::Style {
+    fold_button_style(theme, status, collapsed, 999.0)
+}
+
+fn fold_button_style(
+    theme: &Theme,
+    status: button::Status,
+    collapsed: bool,
+    radius: f32,
+) -> button::Style {
+    let palette = theme.extended_palette();
+    let background = match status {
+        button::Status::Hovered => palette.background.strong.color.scale_alpha(0.48),
+        button::Status::Pressed => palette.background.strong.color.scale_alpha(0.64),
+        button::Status::Active | button::Status::Disabled => {
+            palette.background.weak.color.scale_alpha(if collapsed { 0.30 } else { 0.46 })
+        }
+    };
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: theme.palette().text.scale_alpha(if is_dark_theme(theme) {
+            0.84
+        } else {
+            0.76
+        }),
+        border: Border { radius: radius.into(), ..Border::default() },
         ..button::Style::default()
     }
 }
@@ -400,11 +509,20 @@ pub(crate) fn timeline_stat_value_color(theme: &Theme) -> Color {
     theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.94 } else { 0.88 })
 }
 
-fn timeline_lane_color(theme: &Theme, lane: TimelineLane) -> Color {
-    let palette = theme.extended_palette();
+fn timeline_lane_color(_theme: &Theme, lane: TimelineLane) -> Color {
     match lane {
-        TimelineLane::Input => palette.success.base.color,
-        TimelineLane::Model => palette.primary.base.color,
-        TimelineLane::Tools => palette.warning.base.color,
+        TimelineLane::Input => Color::from_rgb8(64, 184, 166),
+        TimelineLane::Model => Color::from_rgb8(156, 112, 235),
+        TimelineLane::Tools => Color::from_rgb8(236, 145, 63),
+    }
+}
+
+fn timeline_record_color(_theme: &Theme, kind: TrajectoryRecordKind) -> Color {
+    match kind {
+        TrajectoryRecordKind::System => Color::from_rgb8(126, 136, 150),
+        TrajectoryRecordKind::User => Color::from_rgb8(56, 166, 154),
+        TrajectoryRecordKind::Context => Color::from_rgb8(89, 143, 135),
+        TrajectoryRecordKind::Assistant => Color::from_rgb8(156, 112, 235),
+        TrajectoryRecordKind::Tool => Color::from_rgb8(236, 145, 63),
     }
 }

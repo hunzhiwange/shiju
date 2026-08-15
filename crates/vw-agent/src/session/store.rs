@@ -7,7 +7,7 @@ use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::session::info::Info as AgentSessionInfo;
 use vw_shared::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming,
-    SessionTodoItem, ThinkTiming, TokenUsage,
+    SessionTodoItem, ThinkTiming, TokenUsage, ToolTiming,
 };
 
 use crate::global_database::config::DatabaseProvider;
@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS session_steps (
     cost_usd REAL,
     finish_reason TEXT,
     model TEXT,
+    tool_timings_json TEXT NOT NULL DEFAULT '[]',
     PRIMARY KEY (platform_id, company_id, project_id, session_id, step_index),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
@@ -198,6 +199,7 @@ impl SessionStore {
                         .context("initialize SQLite session schema")?;
                     ensure_sqlite_message_model_column(connection)?;
                     ensure_sqlite_message_processing_timing_columns(connection)?;
+                    ensure_sqlite_step_tool_timings_column(connection)?;
                     Ok(())
                 })?;
                 SessionStoreProvider::Sqlite(database)
@@ -590,6 +592,37 @@ impl SessionStore {
         }
     }
 
+    pub fn load_session_llm_raw_step_indices(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<Vec<u32>> {
+        validate_id("session id", session_id)?;
+
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let mut statement = connection.prepare(
+                    "SELECT step_index
+                     FROM session_step_llm_raw
+                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                       AND session_id = ?4
+                     ORDER BY step_index",
+                )?;
+                statement
+                    .query_map(scoped_id_params(scope, session_id), |row| row.get::<_, i64>(0))?
+                    .map(|step_index| {
+                        let step_index = step_index?;
+                        u32::try_from(step_index).context("convert LLM raw step index to u32")
+                    })
+                    .collect()
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.load_session_llm_raw_step_indices(scope, session_id))
+            }
+        }
+    }
+
     pub fn load_session_todos(
         &self,
         scope: &ProjectScope,
@@ -953,12 +986,14 @@ fn replace_session_steps(
     for step in &session.steps {
         let usage_json =
             serde_json::to_string(&step.usage).context("serialize token usage JSON")?;
+        let tool_timings_json = serde_json::to_string(&step.tool_timings)
+            .context("serialize step tool timings JSON")?;
         transaction.execute(
             "INSERT INTO session_steps (
                  platform_id, company_id, project_id, session_id, step_index, started_ms,
                  finished_ms, start_snapshot_path, finish_snapshot_path, usage_json, cost_usd,
-                 finish_reason, model
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                 finish_reason, model, tool_timings_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
@@ -973,6 +1008,7 @@ fn replace_session_steps(
                 step.cost_usd,
                 step.finish_reason,
                 step.model,
+                tool_timings_json,
             ],
         )?;
     }
@@ -1114,6 +1150,21 @@ fn ensure_sqlite_message_processing_timing_columns(connection: &Connection) -> R
     Ok(())
 }
 
+fn ensure_sqlite_step_tool_timings_column(connection: &Connection) -> Result<()> {
+    let mut statement = connection.prepare("PRAGMA table_info(session_steps)")?;
+    let rows = statement.query_map([], |row| row.get::<_, String>(1))?;
+    if rows.collect::<rusqlite::Result<HashSet<_>>>()?.contains("tool_timings_json") {
+        return Ok(());
+    }
+    connection
+        .execute(
+            "ALTER TABLE session_steps ADD COLUMN tool_timings_json TEXT NOT NULL DEFAULT '[]'",
+            [],
+        )
+        .context("add SQLite session step tool timings column")?;
+    Ok(())
+}
+
 fn load_calls(
     connection: &Connection,
     scope: &ProjectScope,
@@ -1143,7 +1194,7 @@ fn load_steps(
 ) -> Result<Vec<ChatSessionStep>> {
     let mut statement = connection.prepare(
         "SELECT step_index, started_ms, finished_ms, start_snapshot_path, finish_snapshot_path,
-                usage_json, cost_usd, finish_reason, model
+                usage_json, cost_usd, finish_reason, model, tool_timings_json
          FROM session_steps
          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
          ORDER BY step_index",
@@ -1152,6 +1203,7 @@ fn load_steps(
     let mut steps = Vec::new();
     while let Some(row) = rows.next()? {
         let usage_json: String = row.get(5)?;
+        let tool_timings_json: String = row.get(9)?;
         let finished_ms: Option<i64> = row.get(2)?;
         steps.push(ChatSessionStep {
             index: u32::try_from(row.get::<_, i64>(0)?).context("read session step_index")?,
@@ -1166,6 +1218,8 @@ fn load_steps(
             cost_usd: row.get(6)?,
             finish_reason: row.get(7)?,
             model: row.get(8)?,
+            tool_timings: serde_json::from_str::<Vec<ToolTiming>>(&tool_timings_json)
+                .with_context(|| format!("parse session step tool timings JSON: {session_id}"))?,
         });
     }
     Ok(steps)

@@ -3,35 +3,40 @@
 #![allow(dead_code)]
 
 mod details;
+mod details_content;
+mod json_tree;
 mod ledger;
 mod model;
 mod projection;
 mod styles;
 mod timeline;
 
+pub(crate) use details::trajectory_detail_values;
 #[allow(unused_imports)]
 pub(crate) use ledger::{
-    MAX_LEDGER_SEARCH_RESULTS, build_ledger_groups, filter_ledger_records, trajectory_ledger,
+    LedgerFoldAction, MAX_LEDGER_SEARCH_RESULTS, build_ledger_groups, filter_ledger_records,
+    trajectory_ledger,
 };
 
 pub(crate) use crate::app::state::TrajectoryDetailsTab;
 #[allow(unused_imports)]
 pub(crate) use model::{
-    MetricAvailability, TrajectoryDetailsAction, TrajectoryDetailsState, TrajectoryMetrics,
-    TrajectoryProjection, TrajectoryRecord, TrajectoryRecordDetail, TrajectoryRecordKind,
-    TrajectoryStep, TrajectorySummary, TrajectoryTurn, TrajectoryUsage,
+    MetricAvailability, TrajectoryControlsState, TrajectoryDetailsAction, TrajectoryDetailsState,
+    TrajectoryDurationMode, TrajectoryMetrics, TrajectoryProjection, TrajectoryRecord,
+    TrajectoryRecordDetail, TrajectoryRecordKind, TrajectoryStep, TrajectorySummary,
+    TrajectoryToolDefinition, TrajectoryTurn, TrajectoryUsage,
 };
 #[allow(unused_imports)]
 pub(crate) use projection::project_trajectory;
 #[allow(unused_imports)]
 pub(crate) use timeline::{
-    MIN_TIMELINE_BLOCK_UNITS, TimelineBlock, TimelineLane, TimelineSummary, TrajectoryTimeline,
-    build_timeline, format_timeline_duration, trajectory_timeline,
+    MIN_TIMELINE_BLOCK_UNITS, TimelineBlock, TimelineLane, TimelineSummary, TimelineToolbarAction,
+    TrajectoryTimeline, build_timeline, format_timeline_duration, trajectory_timeline,
 };
 
 use crate::app::message::chat::ChatMessage;
 use crate::app::{App, Message};
-use iced::widget::{Space, column, container, mouse_area, row, stack, text, text_input};
+use iced::widget::{Space, column, container, mouse_area, opaque, row, stack, text, text_input};
 use iced::{Element, Length, Theme};
 
 /// 组合概览、搜索账本和详情检查器，数据始终来自当前活跃会话快照。
@@ -42,8 +47,33 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     );
     let selected_record_id = app.trajectory_details.selected_record_id();
     let select_record = |record_id| Message::Chat(ChatMessage::TrajectoryRecordSelected(record_id));
+    let trajectory_controls = app.trajectory_controls.for_session(app.active_session_id.as_deref());
+    let turns_collapsed = !projection.turns.is_empty()
+        && projection.turns.iter().all(|turn| trajectory_controls.is_turn_collapsed(turn.index));
+    let tool_steps = projection
+        .records
+        .iter()
+        .filter(|record| record.kind == TrajectoryRecordKind::Tool)
+        .map(|record| record.step_index)
+        .collect::<std::collections::HashSet<_>>();
+    let calls_collapsed = !tool_steps.is_empty()
+        && tool_steps.iter().all(|step| trajectory_controls.is_tool_step_collapsed(*step));
 
-    let timeline = trajectory_timeline(&projection, selected_record_id, select_record);
+    let timeline = trajectory_timeline(
+        &projection,
+        trajectory_controls.duration_mode(),
+        turns_collapsed,
+        calls_collapsed,
+        selected_record_id,
+        |action| {
+            Message::Chat(match action {
+                TimelineToolbarAction::ToggleDuration => ChatMessage::TrajectoryDurationToggled,
+                TimelineToolbarAction::ToggleTurns => ChatMessage::TrajectoryTurnsToggled,
+                TimelineToolbarAction::ToggleCalls => ChatMessage::TrajectoryCallsToggled,
+            })
+        },
+        select_record,
+    );
     let search = text_input("搜索角色、工具、内容或 ID", &app.trajectory_search_text)
         .on_input(|search| Message::Chat(ChatMessage::TrajectorySearchChanged(search)))
         .padding([7, 9])
@@ -53,7 +83,18 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         &projection,
         &app.trajectory_search_text,
         selected_record_id,
+        &trajectory_controls,
         select_record,
+        |action| {
+            Message::Chat(match action {
+                LedgerFoldAction::Turn(turn_index) => {
+                    ChatMessage::TrajectoryTurnToggled(turn_index)
+                }
+                LedgerFoldAction::ToolStep(step_index) => {
+                    ChatMessage::TrajectoryToolStepToggled(step_index)
+                }
+            })
+        },
     );
     let session_id = app.active_session_id.as_deref().unwrap_or_default();
     let loading_count = app
@@ -77,23 +118,18 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         selected_record_id.and_then(|record_id| projection.record(record_id))
     {
         let close = Message::Chat(ChatMessage::TrajectoryDetailsClosed);
-        let dismiss_layer = mouse_area(
-            container(Space::new().width(Length::Fill).height(Length::Fill))
-                .width(Length::Fill)
-                .height(Length::Fill),
-        )
-        .on_press(close.clone());
-        let details = details::trajectory_details(
-            record,
-            app.trajectory_details.active_tab(),
-            |tab| Message::Chat(ChatMessage::TrajectoryDetailsTabSelected(tab)),
-            close,
+        let dismiss_layer = opaque(
+            mouse_area(
+                container(Space::new().width(Length::Fill).height(Length::Fill))
+                    .width(Length::Fill)
+                    .height(Length::Fill),
+            )
+            .on_press(close),
         );
+        let details = details::trajectory_details(record, &app.trajectory_details);
         let details_layer = row![
             Space::new().width(Length::FillPortion(3)),
-            container(mouse_area(details).on_press(Message::None))
-                .width(Length::FillPortion(2))
-                .height(Length::Fill),
+            container(opaque(details)).width(Length::FillPortion(2)).height(Length::Fill),
         ]
         .spacing(10)
         .width(Length::Fill)
@@ -109,7 +145,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
 
 fn raw_refresh_status<'a>(loading_count: usize, error_count: usize) -> Element<'a, Message> {
     if loading_count > 0 {
-        return text(format!("正在补载 {loading_count} 个步骤的原始数据…"))
+        return text(format!("正在自动补载 {loading_count} 个步骤的原始数据（最多 3 次）…"))
             .size(11)
             .style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(theme.extended_palette().primary.base.color),
@@ -117,7 +153,7 @@ fn raw_refresh_status<'a>(loading_count: usize, error_count: usize) -> Element<'
             .into();
     }
     if error_count > 0 {
-        return text(format!("{error_count} 个步骤暂未取得原始数据；切回对话后重新进入轨迹可重试"))
+        return text(format!("{error_count} 个步骤自动重试后仍未取得原始数据，可稍后重试"))
             .size(11)
             .style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(theme.extended_palette().warning.base.color),
@@ -138,6 +174,10 @@ mod ledger_tests;
 #[cfg(test)]
 #[path = "details_tests.rs"]
 mod details_tests;
+
+#[cfg(test)]
+#[path = "json_tree_tests.rs"]
+mod json_tree_tests;
 
 #[cfg(test)]
 #[path = "timeline_tests.rs"]

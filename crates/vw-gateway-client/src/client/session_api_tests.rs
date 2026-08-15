@@ -117,8 +117,66 @@ async fn session_optional_reads_distinguish_not_found_from_server_errors() {
 
     assert!(error.contains("gateway request failed: 500"));
     assert_eq!(server.take_request().path, "/v1/session/missing/ui?directory=%2Frepo");
-    assert_eq!(server.take_request().path, "/v1/session/missing/ui");
+    assert_eq!(server.take_request().path, "/v1/session/missing/step/0/llm-raw");
     assert_eq!(server.take_request().path, "/v1/session/failed/ui");
+    server.join();
+}
+
+#[tokio::test]
+async fn session_step_llm_raw_get_reads_only_requested_step() {
+    let server = test_support::server(vec![(
+        200,
+        json!({"messages": [{"role": "user", "content": "requested step"}]}),
+    )]);
+
+    let response =
+        server.client().session_step_llm_raw_get("requested-session", 17, Some("/repo path")).await;
+    let request = server.take_request();
+
+    assert_eq!(request.method, "GET");
+    assert_eq!(
+        request.path,
+        "/v1/session/requested-session/step/17/llm-raw?directory=%2Frepo+path"
+    );
+    let payload = response.expect("raw payload request").expect("raw payload");
+    assert_eq!(payload["messages"][0]["content"], "requested step");
+    server.join();
+}
+
+#[tokio::test]
+async fn session_step_llm_raw_get_distinguishes_null_not_found_and_server_errors() {
+    let server = test_support::server(vec![
+        (200, json!(null)),
+        (404, json!({"message": "missing raw payload"})),
+        (500, json!({"message": "storage failed"})),
+    ]);
+
+    assert!(
+        server
+            .client()
+            .session_step_llm_raw_get("s1", 1, None)
+            .await
+            .expect("JSON null should be an absent payload")
+            .is_none()
+    );
+    assert!(
+        server
+            .client()
+            .session_step_llm_raw_get("s1", 2, None)
+            .await
+            .expect("404 should be an absent payload")
+            .is_none()
+    );
+    let error = server
+        .client()
+        .session_step_llm_raw_get("s1", 3, None)
+        .await
+        .expect_err("storage failure should be surfaced");
+
+    assert!(error.contains("gateway request failed: 500"));
+    assert_eq!(server.take_request().path, "/v1/session/s1/step/1/llm-raw");
+    assert_eq!(server.take_request().path, "/v1/session/s1/step/2/llm-raw");
+    assert_eq!(server.take_request().path, "/v1/session/s1/step/3/llm-raw");
     server.join();
 }
 
@@ -129,6 +187,7 @@ async fn session_ui_get_with_raw_preserves_step_payloads() {
         json!({
             "id": "s1",
             "title": "Session",
+            "llm_raw_step_indices": [1, 7, 9],
             "steps": [
                 {
                     "index": 1,
@@ -151,6 +210,7 @@ async fn session_ui_get_with_raw_preserves_step_payloads() {
     assert_eq!(loaded.session.steps.len(), 2);
     assert_eq!(loaded.step_llm_raw[&1]["messages"][0]["content"], "hello");
     assert!(!loaded.step_llm_raw.contains_key(&2));
+    assert_eq!(loaded.llm_raw_step_indices, vec![1, 7, 9]);
     assert_eq!(server.take_request().path, "/v1/session/s1/ui?directory=%2Frepo");
     server.join();
 }
@@ -231,23 +291,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
         ),
         (404, json!({"missing": true})),
         (404, json!({"missing": true})),
-        (
-            200,
-            json!({
-                "id": "s1",
-                "title": "Session",
-                "messages": [{"role": "User", "content": "hello"}],
-                "message_ids": ["m1"],
-                "calls": [],
-                "steps": [{
-                    "index": 2,
-                    "started_ms": 1,
-                    "llm_raw": {"messages": [{"role": "User", "content": "hello"}]}
-                }],
-                "created_ms": 0,
-                "updated_ms": 2
-            }),
-        ),
+        (200, json!({"messages": [{"role": "User", "content": "hello"}]})),
         (200, json!(["s-old"])),
         (200, json!(true)),
         (200, json!("global-scope")),
@@ -478,7 +522,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
     assert_eq!(server.take_request().path, "/v1/session/ui-previews?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/missing/preview?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/missing/path?directory=%2Frepo");
-    assert_eq!(server.take_request().path, "/v1/session/s1/ui?directory=%2Frepo");
+    assert_eq!(server.take_request().path, "/v1/session/s1/step/2/llm-raw?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/archived?directory=%2Frepo");
     let request = server.take_request();
     assert_eq!(request.method, "PUT");

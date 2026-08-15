@@ -11,6 +11,38 @@ use crate::session::session::{Role, Session};
 use crate::session::ui_types as models;
 use serde_json::{Value, json};
 
+const RAW_REQUEST_OPTION_ALLOWLIST: [&str; 5] = [
+    "reasoning_effort",
+    "temperature",
+    "top_p",
+    "max_tokens",
+    "max_output_tokens",
+];
+
+fn raw_request_config(req: &Request, resolved_model: &str) -> Value {
+    let mut config = serde_json::Map::new();
+    config.insert("model".to_string(), Value::String(resolved_model.to_string()));
+    for key in RAW_REQUEST_OPTION_ALLOWLIST {
+        if let Some(value) = req.options.get(key) {
+            config.insert(key.to_string(), value.clone());
+        }
+    }
+    Value::Object(config)
+}
+
+fn raw_request_tools(tool_specs: &[crate::app::agent::tools::ToolSpec]) -> Vec<Value> {
+    tool_specs
+        .iter()
+        .map(|tool| {
+            json!({
+                "id": tool.id,
+                "description": tool.description,
+                "input_schema": tool.input_schema,
+            })
+        })
+        .collect()
+}
+
 /// UI 会话中的 `calls` 只用于计数和诊断；完整 prompt 已按 step 单独保存在
 /// `session_step_llm_raw`，这里不能再次把不断增长的历史完整复制进去。
 const COMPACT_CALL_PROMPT_BYTES: usize = 4 * 1024;
@@ -121,11 +153,15 @@ pub(crate) fn persist_llm_raw_step_payload(
     session_id: &str,
     step_index: u32,
     llm_messages: &[Value],
+    message_sources: &[Value],
+    resolved_model: &str,
+    system: &[String],
+    tool_specs: &[crate::app::agent::tools::ToolSpec],
     step: &LlmStep,
     app_session_scope: Option<&str>,
-) {
+) -> anyhow::Result<()> {
     if !req.persist_app_session_artifacts || session_id.is_empty() {
-        return;
+        return Ok(());
     }
 
     let tool_calls = step
@@ -139,20 +175,22 @@ pub(crate) fn persist_llm_raw_step_payload(
             })
         })
         .collect::<Vec<_>>();
-    let system_messages = step
-        .full_messages
+    let message_sources = llm_messages
         .iter()
-        .filter(|message| message.get("role").and_then(Value::as_str) == Some("system"))
-        .filter_map(|message| {
-            message.get("content").and_then(Value::as_str).map(|content| content.to_string())
-        })
+        .enumerate()
+        .map(|(index, _)| message_sources.get(index).cloned().unwrap_or(Value::Null))
         .collect::<Vec<_>>();
     let payload = json!({
         "session_id": session_id,
         "step_index": step_index,
         "model": req.model.clone(),
-        "system": system_messages,
+        "system": system,
         "messages": llm_messages,
+        "message_sources": message_sources,
+        "request": {
+            "config": raw_request_config(req, resolved_model),
+            "tools": raw_request_tools(tool_specs),
+        },
         "output": {
             "text": step.text,
             "reasoning_content": step.reasoning_content,
@@ -161,12 +199,13 @@ pub(crate) fn persist_llm_raw_step_payload(
             "usage": step.usage,
         }
     });
-    let _ = crate::session::ui_store::persist_llm_raw_step(
+    crate::session::ui_store::try_persist_llm_raw_step(
         session_id,
         step_index,
         &payload,
         app_session_scope,
-    );
+    )?;
+    Ok(())
 }
 
 /// 持久化最终 AI 调用载荷。

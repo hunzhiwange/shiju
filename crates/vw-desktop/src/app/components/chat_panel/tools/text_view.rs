@@ -41,6 +41,14 @@ pub(super) fn copy_content_hash(text: &str) -> u64 {
     hasher.finish()
 }
 
+pub(super) fn tool_text_header_label(tool_name: &str, label: &str) -> String {
+    format!("{label} {}", canonical_tool_name(tool_name))
+}
+
+pub(super) fn tool_text_expanded(app: &App, key: u64, show_body: bool) -> bool {
+    show_body && app.chat_tool_expanded.contains(&key)
+}
+
 fn error_copy_button<'a>(app: &'a App, text: &str) -> Element<'a, Message> {
     let content_hash = copy_content_hash(text);
     let recently_copied = is_recent_copy(app, content_hash);
@@ -208,11 +216,11 @@ pub fn tool_text_view<'a>(
     }
 
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
-    let expanded = show_body;
+    let expanded = tool_text_expanded(app, key, show_body);
     let is_hovered = app.chat_tool_hovered_idx == Some(key);
     let context_key = chat_context_target_key(msg_idx, Some(tool_idx));
 
-    let label = tool_header_label(tool_name);
+    let label = tool_text_header_label(tool_name, &tool_header_label(tool_name));
     let title = if let Some(permission_state) = permission_state {
         tool_permission_title(&label, permission_state)
     } else if is_error {
@@ -244,6 +252,20 @@ pub fn tool_text_view<'a>(
         } else {
             detail_button
         };
+    let toggle_slot: Element<'a, Message> = if show_body {
+        button(
+            icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+                .width(Length::Fixed(10.0))
+                .height(Length::Fixed(10.0))
+                .style(eye_icon_svg_style),
+        )
+        .padding([2, 4])
+        .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
+        .on_press(Message::Chat(message::ChatMessage::ToggleTool(msg_idx, tool_idx)))
+        .into()
+    } else {
+        Space::new().width(Length::Fixed(18.0)).into()
+    };
 
     let head_row: Element<'a, Message> = row![
         row![
@@ -255,8 +277,10 @@ pub fn tool_text_view<'a>(
         .spacing(10)
         .align_y(Alignment::Center),
         container(Space::new()).width(Length::Fill),
+        toggle_slot,
         detail_slot
     ]
+    .spacing(4)
     .align_y(Alignment::Center)
     .into();
 
@@ -371,70 +395,14 @@ pub fn tool_text_view<'a>(
             .preserve_on_right_click()
             .into()
         }
-    } else if is_error {
-        let copy_button = error_copy_button(app, display_text);
-        let err_body = tool_text_editor(
-            app,
-            ToolTextTarget::ToolCardText { msg_idx, tool_idx, text_idx: 0 },
-            "Noto Sans CJK SC",
-            14.0,
-            false,
-            true,
-        )
-        .unwrap_or_else(|| {
-            container(text(truncate_chars(display_text, 120)).size(14).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().danger.base.color.scale_alpha(0.95)),
-                }
-            }))
-            .width(Length::Fill)
-            .into()
-        });
-        let err_content = row![container(err_body).width(Length::Fill), copy_button]
-            .spacing(8)
-            .align_y(Alignment::Start);
-        RightClickArea::new(
-            container(err_content)
-                .padding([10, 12])
-                .width(Length::Fill)
-                .style(|theme: &Theme| {
-                    let ext = theme.extended_palette();
-                    iced::widget::container::Style {
-                        background: Some(Background::Color(
-                            ext.danger.base.color.scale_alpha(0.07),
-                        )),
-                        border: Border {
-                            width: 1.0,
-                            color: ext.danger.base.color.scale_alpha(0.30),
-                            radius: 14.0.into(),
-                        },
-                        ..Default::default()
-                    }
-                })
-                .into(),
-            Box::new({
-                let text = context_text;
-                move |point| {
-                    Message::Chat(message::ChatMessage::OpenMessageContextMenu {
-                        target: context_key,
-                        x: point.x,
-                        y: point.y,
-                        text: text.clone(),
-                    })
-                }
-            }),
-        )
-        .use_global_position()
-        .preserve_on_right_click()
-        .into()
     } else {
         container(text("")).height(Length::Fixed(0.0)).into()
     };
 
-    Some(
-        container(column![head, body].spacing(8))
-            .width(Length::Fill)
-            .style(simplified_block_style)
-            .into(),
-    )
+    let mut content = column![head].width(Length::Fill);
+    if expanded {
+        content = content.spacing(8).push(body);
+    }
+
+    Some(container(content).width(Length::Fill).style(simplified_block_style).into())
 }

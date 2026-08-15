@@ -124,6 +124,8 @@ pub struct ToolEvent {
     pub kind: ToolEventKind,
     /// 当前工具状态。
     pub status: ToolCallStatus,
+    /// 生命周期事件发生时的 Unix 毫秒时间戳。
+    pub occurred_ms: u64,
     /// 已复用 UI 脱敏规则处理的结构化载荷。
     pub payload: Value,
 }

@@ -76,6 +76,17 @@ pub struct SessionTodoItem {
     pub id: String,
 }
 
+/// 一次工具调用在会话步骤内持久化的生命周期时间。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolTiming {
+    pub call_id: String,
+    pub name: String,
+    #[serde(default)]
+    pub started_ms: Option<u64>,
+    #[serde(default)]
+    pub finished_ms: Option<u64>,
+}
+
 /// 会话中单个执行步骤的统计信息。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatSessionStep {
@@ -95,6 +106,8 @@ pub struct ChatSessionStep {
     pub finish_reason: Option<String>,
     #[serde(default)]
     pub model: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_timings: Vec<ToolTiming>,
 }
 
 /// UI 层完整会话对象。

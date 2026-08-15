@@ -69,12 +69,18 @@ struct StreamStepSnapshot {
 
 #[derive(Debug, Default)]
 struct StreamPatchRecorder {
+    current_step_index: Option<u32>,
     active_step: Option<StreamStepSnapshot>,
     parts: Vec<agent_session::message::Part>,
 }
 
 impl StreamPatchRecorder {
+    fn note_step_start(&mut self, step_index: u32) {
+        self.current_step_index = Some(step_index);
+    }
+
     fn begin_step(&mut self, session_id: &str, assistant_id: &str, root: &str, step_index: u32) {
+        self.note_step_start(step_index);
         let snapshot = snapshot::track(root).ok().flatten();
         self.active_step = Some(StreamStepSnapshot { step_index, snapshot: snapshot.clone() });
 
@@ -131,6 +137,26 @@ impl StreamPatchRecorder {
 
     fn take_parts(&mut self) -> Vec<agent_session::message::Part> {
         std::mem::take(&mut self.parts)
+    }
+}
+
+fn tool_event_kind_name(kind: agent_session::processor::ToolEventKind) -> &'static str {
+    match kind {
+        agent_session::processor::ToolEventKind::Start => "start",
+        agent_session::processor::ToolEventKind::Update => "update",
+        agent_session::processor::ToolEventKind::Complete => "complete",
+    }
+}
+
+fn tool_call_status_name(status: &agent_session::processor::ToolCallStatus) -> &str {
+    match status {
+        agent_session::processor::ToolCallStatus::Running => "running",
+        agent_session::processor::ToolCallStatus::Waiting => "waiting",
+        agent_session::processor::ToolCallStatus::Completed => "completed",
+        agent_session::processor::ToolCallStatus::Failed => "failed",
+        agent_session::processor::ToolCallStatus::Denied => "denied",
+        agent_session::processor::ToolCallStatus::Cancelled => "cancelled",
+        agent_session::processor::ToolCallStatus::Other(status) => status,
     }
 }
 
@@ -448,9 +474,22 @@ fn stream_payload_for_non_done_event(
         agent_session::processor::StreamEvent::Tool(event) => {
             let delta = format!("tool {}\n{}\n", event.name, event.payload);
             assistant_text.push_str(&delta);
-            Some(serde_json::json!({ "type": "chat.delta", "delta": delta }))
+            let Some(step_index) = patch_recorder.current_step_index else {
+                return Some(serde_json::json!({ "type": "chat.delta", "delta": delta }));
+            };
+            Some(serde_json::json!({
+                "type": "chat.tool",
+                "step_index": step_index,
+                "call_id": event.call_id,
+                "name": event.name,
+                "kind": tool_event_kind_name(event.kind),
+                "status": tool_call_status_name(&event.status),
+                "occurred_ms": event.occurred_ms,
+                "payload": event.payload,
+            }))
         }
         agent_session::processor::StreamEvent::StepStart { step_index, created_ms, model } => {
+            patch_recorder.note_step_start(step_index);
             if let Some(assistant_id) =
                 stream_message_ids.as_ref().map(|ids| ids.assistant_id.as_str())
             {

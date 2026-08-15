@@ -369,6 +369,7 @@ pub(crate) struct ActiveSessionViewState {
     pub(crate) steps: Vec<ChatSessionStep>,
     pub(crate) calls: Vec<Value>,
     pub(crate) step_llm_raw: HashMap<u32, Value>,
+    pub(crate) llm_raw_step_indices: HashSet<u32>,
     pub(crate) step_index_map: HashMap<u32, StepUiMeta>,
     pub(crate) message_meta_texts: Vec<Option<String>>,
     pub(crate) user_question_markers: Vec<UserQuestionMarker>,

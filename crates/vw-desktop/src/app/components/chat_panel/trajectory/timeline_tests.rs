@@ -7,17 +7,18 @@ use iced::widget::button;
 
 use super::styles::timeline_block_style;
 use super::timeline::{
-    MIN_TIMELINE_BLOCK_UNITS, TimelineLane, build_timeline, format_timeline_duration,
-    trajectory_timeline,
+    MIN_TIMELINE_BLOCK_UNITS, TimelineLane, TimelineToolbarAction, build_timeline,
+    format_timeline_duration, timeline_block_tooltip, timeline_toolbar, trajectory_timeline,
 };
 use super::{
-    MetricAvailability, TrajectoryMetrics, TrajectoryProjection, TrajectoryRecord,
-    TrajectoryRecordDetail, TrajectoryRecordKind, TrajectoryTurn,
+    MetricAvailability, TrajectoryDurationMode, TrajectoryMetrics, TrajectoryProjection,
+    TrajectoryRecord, TrajectoryRecordDetail, TrajectoryRecordKind, TrajectoryTurn,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TestMessage {
     Select(String),
+    Control(TimelineToolbarAction),
 }
 
 fn record(id: &str, index: usize, kind: TrajectoryRecordKind) -> TrajectoryRecord {
@@ -46,17 +47,24 @@ fn trajectory_timeline_assigns_three_lanes() {
         records: vec![
             record("system:stable", 1, TrajectoryRecordKind::System),
             record("user:stable", 2, TrajectoryRecordKind::User),
-            record("assistant:stable", 3, TrajectoryRecordKind::Assistant),
-            record("tool:stable", 4, TrajectoryRecordKind::Tool),
+            record("context:stable", 3, TrajectoryRecordKind::Context),
+            record("assistant:stable", 4, TrajectoryRecordKind::Assistant),
+            record("tool:stable", 5, TrajectoryRecordKind::Tool),
         ],
         ..TrajectoryProjection::default()
     };
 
-    let timeline = build_timeline(&projection);
+    let timeline = build_timeline(&projection, TrajectoryDurationMode::Timed);
 
     assert_eq!(
         timeline.blocks.iter().map(|block| block.lane).collect::<Vec<_>>(),
-        [TimelineLane::Input, TimelineLane::Input, TimelineLane::Model, TimelineLane::Tools]
+        [
+            TimelineLane::Input,
+            TimelineLane::Input,
+            TimelineLane::Input,
+            TimelineLane::Model,
+            TimelineLane::Tools,
+        ]
     );
     assert!(timeline.blocks.iter().all(|block| block.normalized_width > 0.0));
     assert_eq!(timeline.blocks[0].units, MIN_TIMELINE_BLOCK_UNITS);
@@ -82,21 +90,21 @@ fn trajectory_timeline_counts_only_recorded_metrics() {
         ..TrajectoryProjection::default()
     };
 
-    let timeline = build_timeline(&projection);
+    let timeline = build_timeline(&projection, TrajectoryDurationMode::Timed);
 
     assert_eq!(timeline.summary.duration_ms, MetricAvailability::Available(450));
     assert_eq!(timeline.summary.turns, 2);
     assert_eq!(timeline.summary.calls, 1);
     assert_eq!(timeline.blocks[1].recorded_duration_ms, Some(450));
     assert_eq!(timeline.blocks[2].recorded_duration_ms, None);
-    assert_eq!(timeline.blocks[3].recorded_duration_ms, None);
+    assert_eq!(timeline.blocks[3].recorded_duration_ms, Some(12_000));
     assert!(timeline.blocks[2].normalized_width > 0.0);
 
     let unknown = TrajectoryProjection {
         records: vec![record("assistant:unknown", 1, TrajectoryRecordKind::Assistant)],
         ..TrajectoryProjection::default()
     };
-    let unknown_summary = build_timeline(&unknown).summary;
+    let unknown_summary = build_timeline(&unknown, TrajectoryDurationMode::Timed).summary;
     assert_eq!(unknown_summary.duration_ms, MetricAvailability::Unavailable);
     assert_eq!(format_timeline_duration(unknown_summary.duration_ms), "—");
 }
@@ -114,10 +122,18 @@ fn trajectory_timeline_selects_stable_record() {
     let selected_ids = Rc::new(RefCell::new(Vec::new()));
     let captured_ids = Rc::clone(&selected_ids);
 
-    let element = trajectory_timeline(&projection, Some("tool:stable-call"), move |record_id| {
-        captured_ids.borrow_mut().push(record_id.clone());
-        TestMessage::Select(record_id)
-    });
+    let element = trajectory_timeline(
+        &projection,
+        TrajectoryDurationMode::Timed,
+        false,
+        false,
+        Some("tool:stable-call"),
+        TestMessage::Control,
+        move |record_id| {
+            captured_ids.borrow_mut().push(record_id.clone());
+            TestMessage::Select(record_id)
+        },
+    );
     let tree = Tree::new(element.as_widget());
 
     assert!(!tree.children.is_empty());
@@ -127,12 +143,104 @@ fn trajectory_timeline_selects_stable_record() {
     );
 
     for theme in [Theme::Light, Theme::Dark] {
-        for lane in [TimelineLane::Input, TimelineLane::Model, TimelineLane::Tools] {
-            let normal = timeline_block_style(&theme, button::Status::Active, lane, false);
-            let selected = timeline_block_style(&theme, button::Status::Active, lane, true);
+        for kind in [
+            TrajectoryRecordKind::System,
+            TrajectoryRecordKind::User,
+            TrajectoryRecordKind::Context,
+            TrajectoryRecordKind::Assistant,
+            TrajectoryRecordKind::Tool,
+        ] {
+            let normal = timeline_block_style(&theme, button::Status::Active, kind, false);
+            let selected = timeline_block_style(&theme, button::Status::Active, kind, true);
             assert!(normal.background.is_some());
             assert_ne!(normal.background, selected.background);
             assert_eq!(selected.border.width, 1.0);
         }
+    }
+}
+
+#[test]
+fn timeline_toolbar_emits_control_messages() {
+    let projection = TrajectoryProjection {
+        records: vec![record("assistant:1", 1, TrajectoryRecordKind::Assistant)],
+        turns: vec![turn(1)],
+        ..TrajectoryProjection::default()
+    };
+    let summary = build_timeline(&projection, TrajectoryDurationMode::Timed).summary;
+    let actions = Rc::new(RefCell::new(Vec::new()));
+    let captured_actions = Rc::clone(&actions);
+
+    let toolbar =
+        timeline_toolbar(summary, TrajectoryDurationMode::Timed, false, true, move |action| {
+            captured_actions.borrow_mut().push(action);
+            TestMessage::Control(action)
+        });
+    let tree = Tree::new(toolbar.as_widget());
+
+    assert!(!tree.children.is_empty());
+    assert_eq!(
+        actions.borrow().as_slice(),
+        [
+            TimelineToolbarAction::ToggleDuration,
+            TimelineToolbarAction::ToggleTurns,
+            TimelineToolbarAction::ToggleCalls,
+        ]
+    );
+}
+
+#[test]
+fn timeline_block_tooltip_uses_full_preview() {
+    let mut assistant = record("assistant:1", 7, TrajectoryRecordKind::Assistant);
+    assistant.step_index = 7;
+    assistant.turn_index = Some(3);
+    assistant.preview = "第一行 第二行…".to_string();
+    assistant.detail.output = Some(format!("  第一行\n第二行   完整内容 {}  ", "长".repeat(180)));
+    assistant.metrics.duration_ms = MetricAvailability::Available(1_250);
+
+    let tooltip = timeline_block_tooltip(&assistant);
+
+    assert!(tooltip.contains("ASSISTANT"));
+    assert!(tooltip.contains("第一行 第二行 完整内容"));
+    assert!(tooltip.contains(&"长".repeat(180)));
+    assert!(tooltip.contains("step 7"));
+    assert!(tooltip.contains("turn 3"));
+    assert!(tooltip.contains("1.2 s"));
+    assert!(!tooltip.contains('\n'));
+
+    let unknown = record("user:2", 8, TrajectoryRecordKind::User);
+    assert!(timeline_block_tooltip(&unknown).contains("不可用"));
+}
+
+mod trajectory_controls {
+    use super::*;
+    #[test]
+    fn duration_toggle_switches_timed_and_equal_layout() {
+        let input = record("user:1", 1, TrajectoryRecordKind::User);
+        let mut assistant = record("assistant:1", 2, TrajectoryRecordKind::Assistant);
+        assistant.metrics.duration_ms = MetricAvailability::Available(480);
+        let mut tool = record("tool:1", 3, TrajectoryRecordKind::Tool);
+        tool.metrics.tool_duration_ms = MetricAvailability::Available(240);
+        let projection = TrajectoryProjection {
+            records: vec![input, assistant, tool],
+            ..TrajectoryProjection::default()
+        };
+
+        let timed = build_timeline(&projection, TrajectoryDurationMode::Timed);
+        assert_eq!(timed.blocks[0].recorded_duration_ms, None);
+        assert_eq!(timed.blocks[0].units, MIN_TIMELINE_BLOCK_UNITS);
+        assert_eq!(timed.blocks[1].recorded_duration_ms, Some(480));
+        assert_eq!(timed.blocks[1].units, 480);
+        assert_eq!(timed.blocks[2].recorded_duration_ms, Some(240));
+        assert_eq!(timed.blocks[2].units, 240);
+        assert!(timed.blocks[1].normalized_width > timed.blocks[2].normalized_width);
+
+        let equal = build_timeline(&projection, TrajectoryDurationMode::Equal);
+        assert!(equal.blocks.iter().all(|block| block.units == MIN_TIMELINE_BLOCK_UNITS));
+        assert!(
+            equal
+                .blocks
+                .windows(2)
+                .all(|blocks| blocks[0].normalized_width == blocks[1].normalized_width)
+        );
     }
 }

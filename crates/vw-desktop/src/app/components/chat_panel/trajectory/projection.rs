@@ -8,7 +8,7 @@ use vw_shared::session::ui_types::{ChatSessionStep, TokenUsage};
 use super::model::{
     MetricAvailability, TrajectoryMetrics, TrajectoryProjection, TrajectoryRecord,
     TrajectoryRecordDetail, TrajectoryRecordKind, TrajectoryStep, TrajectorySummary,
-    TrajectoryTurn, TrajectoryUsage,
+    TrajectoryToolDefinition, TrajectoryTurn, TrajectoryUsage,
 };
 
 const PREVIEW_CHAR_LIMIT: usize = 160;
@@ -22,8 +22,21 @@ struct ToolCallData {
 }
 
 #[derive(Debug, Clone)]
+struct ToolTimingData {
+    name: String,
+    started_ms: Option<u64>,
+    finished_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
 struct AssistantEcho {
     content: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct RequestSnapshot {
+    config: Option<Value>,
+    tools: Vec<TrajectoryToolDefinition>,
 }
 
 #[derive(Default)]
@@ -34,13 +47,26 @@ struct ProjectionBuilder {
     seen_system: HashSet<String>,
     assistant_echoes: Vec<AssistantEcho>,
     tool_record_indices: HashMap<String, usize>,
+    tool_timings: HashMap<String, ToolTimingData>,
     current_turn: Option<u32>,
     next_turn: u32,
 }
 
 impl ProjectionBuilder {
-    fn new() -> Self {
-        Self { next_turn: 1, ..Self::default() }
+    fn new(steps: &[ChatSessionStep]) -> Self {
+        let mut ordered_steps = steps.iter().collect::<Vec<_>>();
+        ordered_steps.sort_by_key(|step| step.index);
+        let mut tool_timings = HashMap::new();
+        for step in ordered_steps {
+            for timing in &step.tool_timings {
+                tool_timings.entry(timing.call_id.clone()).or_insert_with(|| ToolTimingData {
+                    name: timing.name.clone(),
+                    started_ms: timing.started_ms,
+                    finished_ms: timing.finished_ms,
+                });
+            }
+        }
+        Self { next_turn: 1, tool_timings, ..Self::default() }
     }
 
     fn project_step(
@@ -57,10 +83,19 @@ impl ProjectionBuilder {
         let duration_ms = duration(started_ms, finished_ms);
 
         if let Some(raw) = raw.and_then(Value::as_object) {
-            self.project_system(step_index, raw.get("system"), &mut record_ids, &mut turn_indices);
+            let request = parse_request_snapshot(raw.get("request"));
+            self.project_system(
+                step_index,
+                raw.get("system"),
+                &request.tools,
+                &mut record_ids,
+                &mut turn_indices,
+            );
             self.project_messages(
                 step_index,
                 raw.get("messages"),
+                raw.get("message_sources"),
+                &request.tools,
                 &mut record_ids,
                 &mut turn_indices,
             );
@@ -68,6 +103,7 @@ impl ProjectionBuilder {
                 step_index,
                 step,
                 raw.get("output"),
+                &request,
                 usage,
                 &mut record_ids,
                 &mut turn_indices,
@@ -89,6 +125,7 @@ impl ProjectionBuilder {
         &mut self,
         step_index: u32,
         system: Option<&Value>,
+        request_tools: &[TrajectoryToolDefinition],
         record_ids: &mut Vec<String>,
         turn_indices: &mut Vec<u32>,
     ) {
@@ -118,6 +155,7 @@ impl ProjectionBuilder {
                 metrics: TrajectoryMetrics::default(),
                 detail: TrajectoryRecordDetail {
                     input: Some(content),
+                    request_tools: request_tools.to_vec(),
                     raw_fragments: vec![raw.clone()],
                     ..TrajectoryRecordDetail::default()
                 },
@@ -131,18 +169,24 @@ impl ProjectionBuilder {
         &mut self,
         step_index: u32,
         messages: Option<&Value>,
+        message_sources: Option<&Value>,
+        request_tools: &[TrajectoryToolDefinition],
         record_ids: &mut Vec<String>,
         turn_indices: &mut Vec<u32>,
     ) {
         let Some(messages) = messages.and_then(Value::as_array) else {
             return;
         };
+        let message_sources = message_sources.and_then(Value::as_array);
         let prefix_len = common_prefix_len(&self.previous_messages, messages);
         for (offset, message) in messages[prefix_len..].iter().enumerate() {
+            let message_index = prefix_len + offset;
             self.project_message(
                 step_index,
-                prefix_len + offset,
+                message_index,
                 message,
+                message_sources.and_then(|sources| sources.get(message_index)),
+                request_tools,
                 record_ids,
                 turn_indices,
             );
@@ -155,6 +199,8 @@ impl ProjectionBuilder {
         step_index: u32,
         message_index: usize,
         message: &Value,
+        source: Option<&Value>,
+        request_tools: &[TrajectoryToolDefinition],
         record_ids: &mut Vec<String>,
         turn_indices: &mut Vec<u32>,
     ) {
@@ -186,6 +232,7 @@ impl ProjectionBuilder {
                     metrics: TrajectoryMetrics::default(),
                     detail: TrajectoryRecordDetail {
                         input: Some(content),
+                        request_tools: request_tools.to_vec(),
                         raw_fragments: vec![message.clone()],
                         ..TrajectoryRecordDetail::default()
                     },
@@ -193,23 +240,44 @@ impl ProjectionBuilder {
                 self.push_record(record, record_ids, turn_indices);
             }
             "user" => {
-                let turn = self.next_turn;
-                self.next_turn = self.next_turn.saturating_add(1);
-                self.current_turn = Some(turn);
+                let source = source.filter(|source| !source.is_null()).cloned();
+                let kind = if source
+                    .as_ref()
+                    .and_then(|source| source.get("kind"))
+                    .and_then(Value::as_str)
+                    == Some("user")
+                    || source.is_none()
+                {
+                    TrajectoryRecordKind::User
+                } else {
+                    TrajectoryRecordKind::Context
+                };
+                let turn_index = if kind == TrajectoryRecordKind::User {
+                    let turn = self.next_turn;
+                    self.next_turn = self.next_turn.saturating_add(1);
+                    self.current_turn = Some(turn);
+                    Some(turn)
+                } else {
+                    None
+                };
                 let preview = content.as_deref().map(preview_text).filter(|text| !text.is_empty());
                 let record = TrajectoryRecord {
                     id: format!("step:{step_index}:message:{message_index}:user"),
                     index: 0,
-                    kind: TrajectoryRecordKind::User,
+                    kind,
                     step_index,
-                    turn_index: Some(turn),
-                    preview: preview.unwrap_or_else(|| "User message".to_string()),
+                    turn_index,
+                    preview: preview.unwrap_or_else(|| match kind {
+                        TrajectoryRecordKind::Context => "Context message".to_string(),
+                        _ => "User message".to_string(),
+                    }),
                     started_ms: None,
                     finished_ms: None,
                     usage: MetricAvailability::Unavailable,
                     metrics: TrajectoryMetrics::default(),
                     detail: TrajectoryRecordDetail {
                         input: content,
+                        source,
                         raw_fragments: vec![message.clone()],
                         ..TrajectoryRecordDetail::default()
                     },
@@ -241,7 +309,14 @@ impl ProjectionBuilder {
                 };
                 self.push_record(record, record_ids, turn_indices);
                 for (ordinal, call) in calls.into_iter().enumerate() {
-                    self.upsert_tool_call(step_index, ordinal, call, record_ids, turn_indices);
+                    self.upsert_tool_call(
+                        step_index,
+                        ordinal,
+                        call,
+                        request_tools,
+                        record_ids,
+                        turn_indices,
+                    );
                 }
             }
             "tool" => {
@@ -270,6 +345,7 @@ impl ProjectionBuilder {
         step_index: u32,
         step: Option<&ChatSessionStep>,
         output: Option<&Value>,
+        request: &RequestSnapshot,
         usage: MetricAvailability<TrajectoryUsage>,
         record_ids: &mut Vec<String>,
         turn_indices: &mut Vec<u32>,
@@ -303,6 +379,7 @@ impl ProjectionBuilder {
             detail: TrajectoryRecordDetail {
                 output: content.clone(),
                 reasoning,
+                request_options: request.config.clone(),
                 raw_fragments: vec![Value::Object(output_object.clone())],
                 ..TrajectoryRecordDetail::default()
             },
@@ -310,7 +387,14 @@ impl ProjectionBuilder {
         self.push_record(record, record_ids, turn_indices);
         self.assistant_echoes.push(AssistantEcho { content });
         for (ordinal, call) in calls.into_iter().enumerate() {
-            self.upsert_tool_call(step_index, ordinal, call, record_ids, turn_indices);
+            self.upsert_tool_call(
+                step_index,
+                ordinal,
+                call,
+                &request.tools,
+                record_ids,
+                turn_indices,
+            );
         }
     }
 
@@ -331,12 +415,14 @@ impl ProjectionBuilder {
         step_index: u32,
         ordinal: usize,
         call: ToolCallData,
+        request_tools: &[TrajectoryToolDefinition],
         record_ids: &mut Vec<String>,
         turn_indices: &mut Vec<u32>,
     ) {
         if let Some(call_id) = call.id.as_deref()
             && let Some(&record_index) = self.tool_record_indices.get(call_id)
         {
+            let timing = self.tool_timings.get(call_id).cloned();
             let record = &mut self.records[record_index];
             if record.detail.tool_name.is_none() {
                 record.detail.tool_name.clone_from(&call.name);
@@ -349,33 +435,47 @@ impl ProjectionBuilder {
                 record.detail.tool_name.as_deref(),
                 record.detail.arguments.as_deref(),
             );
+            apply_tool_timing(record, timing.as_ref());
             return;
         }
+
+        let timing = call.id.as_deref().and_then(|call_id| self.tool_timings.get(call_id)).cloned();
+        let tool_name = call
+            .name
+            .or_else(|| timing.as_ref().map(|timing| timing.name.clone()).filter(non_empty));
+        let tool_schema = tool_name.as_deref().and_then(|tool_name| {
+            request_tools
+                .iter()
+                .find(|tool| tool.id == tool_name)
+                .map(|tool| tool.input_schema.clone())
+        });
 
         let id = call
             .id
             .as_deref()
             .map(|call_id| format!("tool:{call_id}"))
             .unwrap_or_else(|| format!("step:{step_index}:tool:{ordinal}"));
-        let record = TrajectoryRecord {
+        let mut record = TrajectoryRecord {
             id,
             index: 0,
             kind: TrajectoryRecordKind::Tool,
             step_index,
             turn_index: self.current_turn,
-            preview: tool_preview(call.name.as_deref(), call.arguments.as_deref()),
+            preview: tool_preview(tool_name.as_deref(), call.arguments.as_deref()),
             started_ms: None,
             finished_ms: None,
             usage: MetricAvailability::Unavailable,
             metrics: TrajectoryMetrics::default(),
             detail: TrajectoryRecordDetail {
-                tool_name: call.name,
+                tool_name,
                 call_id: call.id.clone(),
                 arguments: call.arguments,
+                tool_schema,
                 raw_fragments: vec![call.raw],
                 ..TrajectoryRecordDetail::default()
             },
         };
+        apply_tool_timing(&mut record, timing.as_ref());
         let record_index = self.push_record(record, record_ids, turn_indices);
         if let Some(call_id) = call.id {
             self.tool_record_indices.insert(call_id, record_index);
@@ -474,7 +574,7 @@ pub(crate) fn project_trajectory(
     }
     indices.extend(step_llm_raw.keys().copied());
 
-    let mut builder = ProjectionBuilder::new();
+    let mut builder = ProjectionBuilder::new(steps);
     let projected_steps = indices
         .into_iter()
         .map(|index| {
@@ -538,6 +638,7 @@ fn build_summary(
         match record.kind {
             TrajectoryRecordKind::System => summary.system_records += 1,
             TrajectoryRecordKind::User => summary.user_records += 1,
+            TrajectoryRecordKind::Context => summary.context_records += 1,
             TrajectoryRecordKind::Assistant => summary.assistant_records += 1,
             TrajectoryRecordKind::Tool => summary.tool_records += 1,
         }
@@ -577,6 +678,17 @@ fn duration(started_ms: Option<u64>, finished_ms: Option<u64>) -> MetricAvailabi
         }
         _ => MetricAvailability::Unavailable,
     }
+}
+
+fn apply_tool_timing(record: &mut TrajectoryRecord, timing: Option<&ToolTimingData>) {
+    let Some(timing) = timing else {
+        return;
+    };
+    record.started_ms = timing.started_ms;
+    record.finished_ms = timing.finished_ms;
+    let duration_ms = duration(timing.started_ms, timing.finished_ms);
+    record.metrics.duration_ms = duration_ms;
+    record.metrics.tool_duration_ms = duration_ms;
 }
 
 fn usage_for(
@@ -622,6 +734,36 @@ fn nonnegative_integer(value: &Value) -> Option<u64> {
 
 fn common_prefix_len(previous: &[Value], current: &[Value]) -> usize {
     previous.iter().zip(current).take_while(|(left, right)| left == right).count()
+}
+
+fn parse_request_snapshot(value: Option<&Value>) -> RequestSnapshot {
+    let Some(request) = value.and_then(Value::as_object) else {
+        return RequestSnapshot::default();
+    };
+    let config = request.get("config").filter(|value| value.is_object()).cloned();
+    let tools = request
+        .get("tools")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|tool| {
+            let tool = tool.as_object()?;
+            let id = tool.get("id")?.as_str()?.trim();
+            if id.is_empty() {
+                return None;
+            }
+            Some(TrajectoryToolDefinition {
+                id: id.to_string(),
+                description: tool
+                    .get("description")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                input_schema: tool.get("input_schema").cloned().unwrap_or(Value::Null),
+            })
+        })
+        .collect();
+    RequestSnapshot { config, tools }
 }
 
 fn parse_tool_calls(value: Option<&Value>) -> Vec<ToolCallData> {

@@ -231,6 +231,7 @@ impl App {
         self.active_session_view_state.steps.clear();
         self.active_session_view_state.calls.clear();
         self.active_session_view_state.step_llm_raw.clear();
+        self.active_session_view_state.llm_raw_step_indices.clear();
         self.active_session_view_state.step_index_map.clear();
     }
 
@@ -254,7 +255,16 @@ impl App {
 
     /// 替换当前会话按 step index 保存的原始 LLM 载荷。
     pub(crate) fn replace_active_session_step_llm_raw(&mut self, raw: HashMap<u32, Value>) {
+        self.active_session_view_state.llm_raw_step_indices.extend(raw.keys().copied());
         self.active_session_view_state.step_llm_raw = raw;
+    }
+
+    /// 替换当前会话在存储层已存在的原始 LLM step 索引。
+    pub(crate) fn replace_active_session_llm_raw_step_indices(&mut self, indices: Vec<u32>) {
+        self.active_session_view_state.llm_raw_step_indices = indices.into_iter().collect();
+        self.active_session_view_state
+            .llm_raw_step_indices
+            .extend(self.active_session_view_state.step_llm_raw.keys().copied());
     }
 
     /// 执行 upsert_active_session_step 对应的领域操作。

@@ -1046,12 +1046,14 @@ pub(crate) fn load_prepared_session_open_from_ui_store_task(
     let target_project_path = project_path.clone();
     Task::perform(
         async move {
-            let mut loaded =
-                crate::app::session_gateway::gateway_load_session_any_with_raw_async(&session_id)
-                    .await?
-                    .filter(|loaded| !loaded.session.messages.is_empty())
-                    .ok_or_else(|| "session UI store has no message history".to_string())?;
+            let client = crate::app::gateway_client()?;
+            let mut loaded = client
+                .session_ui_get_with_raw(&session_id, Some(&project_path))
+                .await?
+                .filter(|loaded| !loaded.session.messages.is_empty())
+                .ok_or_else(|| "session UI store has no message history".to_string())?;
             let step_llm_raw = std::mem::take(&mut loaded.step_llm_raw);
+            let llm_raw_step_indices = std::mem::take(&mut loaded.llm_raw_step_indices);
             let mut session = loaded.session;
 
             let missing_message_model_count =
@@ -1076,6 +1078,7 @@ pub(crate) fn load_prepared_session_open_from_ui_store_task(
                     show_reasoning_summary,
                 );
                 prepared.step_llm_raw = step_llm_raw;
+                prepared.llm_raw_step_indices = llm_raw_step_indices;
                 Some(prepared)
             })
             .await
@@ -1117,10 +1120,10 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
             client
                 .session_get::<vw_shared::session::info::Info>(&session_id, Some(&project_path))
                 .await?;
-            let step_llm_raw =
+            let (step_llm_raw, llm_raw_step_indices) =
                 match client.session_ui_get_with_raw(&session_id, Some(&project_path)).await {
-                    Ok(Some(loaded)) => loaded.step_llm_raw,
-                    Ok(None) => std::collections::HashMap::new(),
+                    Ok(Some(loaded)) => (loaded.step_llm_raw, loaded.llm_raw_step_indices),
+                    Ok(None) => (std::collections::HashMap::new(), Vec::new()),
                     Err(error) => {
                         tracing::warn!(
                             target: "vw_desktop",
@@ -1128,7 +1131,7 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
                             error = %error,
                             "session raw step payloads were unavailable"
                         );
-                        std::collections::HashMap::new()
+                        (std::collections::HashMap::new(), Vec::new())
                     }
                 };
 
@@ -1161,6 +1164,7 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
                     show_reasoning_summary,
                 );
                 prepared.step_llm_raw = step_llm_raw;
+                prepared.llm_raw_step_indices = llm_raw_step_indices;
                 Some(prepared)
             })
             .await

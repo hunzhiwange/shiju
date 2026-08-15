@@ -59,6 +59,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             let key = (session_id.clone(), step_index);
             app.usage_step_raw_loading.remove(&key);
             if app.active_session_id.as_deref() == Some(session_id.as_str()) {
+                if let Ok(Some(raw)) = &result {
+                    app.active_session_view_state.llm_raw_step_indices.insert(step_index);
+                    app.active_session_view_state.step_llm_raw.insert(step_index, raw.clone());
+                }
                 app.usage_step_raw_payloads.insert(key, result);
             }
             Task::none()

@@ -418,6 +418,7 @@ pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
     "ls",
     "glob",
     "grep",
+    "rustcodegraph",
     "apply_patch",
     "bash",
     "http_request",

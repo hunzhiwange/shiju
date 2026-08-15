@@ -561,6 +561,7 @@ fn isolation_session(label: &str) -> ChatSession {
             cost_usd: None,
             finish_reason: Some("stop".to_string()),
             model: Some("test-model".to_string()),
+            tool_timings: Vec::new(),
         }],
         created_ms: 1,
         updated_ms: 2,

@@ -6,6 +6,7 @@ use super::{
 };
 use crate::app::{App, Message, models};
 use iced::Task;
+use vw_gateway_client::{GatewayChatToolEvent, GatewayChatToolEventKind};
 
 fn upsert_step_start(
     session: &mut models::ChatSession,
@@ -34,6 +35,7 @@ fn upsert_step_start(
             cost_usd: None,
             finish_reason: None,
             model,
+            tool_timings: Vec::new(),
         });
     }
     if let Some(model) = message_model.as_deref() {
@@ -72,6 +74,7 @@ fn upsert_step_finish(
             cost_usd: None,
             finish_reason,
             model,
+            tool_timings: Vec::new(),
         });
     }
     if let Some(model) = message_model.as_deref() {
@@ -79,6 +82,53 @@ fn upsert_step_finish(
     }
     session.updated_ms = session.updated_ms.max(finished_ms);
     session.steps.sort_by_key(|s| s.index);
+}
+
+fn merge_tool_lifecycle(session: &mut models::ChatSession, event: &GatewayChatToolEvent) {
+    let step_position = session.steps.iter().position(|step| step.index == event.step_index);
+    let step_position = step_position.unwrap_or_else(|| {
+        session.steps.push(models::ChatSessionStep {
+            index: event.step_index,
+            started_ms: event.occurred_ms,
+            finished_ms: None,
+            start_snapshot_path: None,
+            finish_snapshot_path: None,
+            usage: models::TokenUsage::default(),
+            cost_usd: None,
+            finish_reason: None,
+            model: None,
+            tool_timings: Vec::new(),
+        });
+        session.steps.len() - 1
+    });
+    let step = &mut session.steps[step_position];
+    let timing_position =
+        step.tool_timings.iter().position(|timing| timing.call_id == event.call_id).unwrap_or_else(
+            || {
+                step.tool_timings.push(models::ToolTiming {
+                    call_id: event.call_id.clone(),
+                    name: event.name.clone(),
+                    started_ms: None,
+                    finished_ms: None,
+                });
+                step.tool_timings.len() - 1
+            },
+        );
+    let timing = &mut step.tool_timings[timing_position];
+    if timing.name.is_empty() && !event.name.is_empty() {
+        timing.name.clone_from(&event.name);
+    }
+    match event.kind {
+        GatewayChatToolEventKind::Start => {
+            timing.started_ms.get_or_insert(event.occurred_ms);
+        }
+        GatewayChatToolEventKind::Update => {}
+        GatewayChatToolEventKind::Complete => {
+            timing.finished_ms.get_or_insert(event.occurred_ms);
+        }
+    }
+    session.updated_ms = session.updated_ms.max(event.occurred_ms);
+    session.steps.sort_by_key(|step| step.index);
 }
 
 async fn compute_step_cost(
@@ -315,6 +365,33 @@ pub(super) fn handle_agent_step_finish(
     ])
 }
 
+pub(super) fn handle_agent_tool_lifecycle(
+    app: &mut App,
+    id: u64,
+    event: &GatewayChatToolEvent,
+) -> Task<Message> {
+    let Some(session_id) = app.find_session_by_request_id(id) else {
+        return Task::none();
+    };
+    let mut session = load_session_or_default(app, session_id.clone());
+    merge_tool_lifecycle(&mut session, event);
+    let save_task =
+        save_session_task(session.clone(), session_directory_for_save(app, &session_id));
+    if app.active_session_id.as_ref() == Some(&session_id) {
+        app.active_session_view_state.updated_ms = session.updated_ms;
+        if let Some(step) = session.steps.iter().find(|step| step.index == event.step_index) {
+            app.upsert_active_session_step(step.clone());
+        }
+    } else if !session.messages.is_empty() {
+        app.store_session_chat_snapshot(
+            session_id,
+            crate::app::session::shared_chat_messages(session.messages.clone()),
+            session.message_ids.clone(),
+        );
+    }
+    save_task
+}
+
 /// 模块内可见函数，执行 handle_agent_step_cost_loaded 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_agent_step_cost_loaded(
@@ -347,6 +424,7 @@ pub(super) fn handle_agent_step_cost_loaded(
             cost_usd: cost,
             finish_reason: None,
             model: resolved_model,
+            tool_timings: Vec::new(),
         });
         session.steps.sort_by_key(|s| s.index);
     }

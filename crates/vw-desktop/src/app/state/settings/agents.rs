@@ -174,9 +174,21 @@ pub(crate) fn ordered_agent_keys(
     builtin_agent_keys().into_iter().map(str::to_string).chain(custom_agent_keys).collect()
 }
 
-/// 从可选工具列表中剔除 MCP 动态工具（`mcp__{server}__{tool}`）。
+/// 规范化委托代理设置页工具清单，并补入按项目动态注册的内置工具。
+///
+/// gateway 的 `/v1/tools` 清单绑定其启动工作区，而 RustCodeGraph 按当前会话项目
+/// 动态注册，因此不能仅依赖 gateway 清单决定它是否在设置页可见。
 pub(crate) fn filter_mcp_from_available_tools(tools: Vec<String>) -> Vec<String> {
-    tools.into_iter().filter(|tool_id| !is_mcp_dynamic_tool_id(tool_id)).collect()
+    let mut tools = tools
+        .into_iter()
+        .filter(|tool_id| !is_mcp_dynamic_tool_id(tool_id))
+        .collect::<Vec<_>>();
+    if !tools.iter().any(|tool_id| tool_id == "rustcodegraph") {
+        tools.push("rustcodegraph".to_string());
+    }
+    tools.sort();
+    tools.dedup();
+    tools
 }
 
 /// 将用户可选选择与当前可见内置必选合并：`allowed ∪ (available ∩ 内置必选)`。

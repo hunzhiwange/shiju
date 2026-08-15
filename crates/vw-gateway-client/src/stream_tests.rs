@@ -366,6 +366,30 @@ fn normalize_chat_stream_event_maps_structured_other_events() {
 }
 
 #[test]
+fn normalize_chat_tool_event() {
+    let payload = json!({
+        "type": "chat.tool",
+        "step_index": 4,
+        "call_id": "call-1",
+        "name": "shell",
+        "kind": "complete",
+        "status": "completed",
+        "occurred_ms": 123,
+        "payload": {"status": "completed", "output": "done"}
+    });
+
+    let event = super::normalize_chat_tool_event(&payload).expect("typed tool event");
+    assert_eq!(event.step_index, 4);
+    assert_eq!(event.call_id, "call-1");
+    assert_eq!(event.name, "shell");
+    assert_eq!(event.kind, super::GatewayChatToolEventKind::Complete);
+    assert_eq!(event.status, super::GatewayChatToolStatus::Completed);
+    assert_eq!(event.occurred_ms, 123);
+    assert_eq!(event.payload["output"], "done");
+    assert_eq!(event.legacy_delta(), "tool shell\n{\"output\":\"done\",\"status\":\"completed\"}\n");
+}
+
+#[test]
 fn normalize_chat_stream_event_maps_session_side_effect_events() {
     assert_eq!(
         super::normalize_chat_stream_event(GatewayChatStreamEvent::Other(json!({

@@ -179,6 +179,7 @@ fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
         cost_usd: None,
         finish_reason: Some("stop".to_string()),
         model: Some("step-model-a".to_string()),
+        tool_timings: Vec::new(),
     });
     app.upsert_active_session_step(ChatSessionStep {
         index: 2,
@@ -190,6 +191,7 @@ fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
         cost_usd: None,
         finish_reason: Some("stop".to_string()),
         model: Some("step-model-b".to_string()),
+        tool_timings: Vec::new(),
     });
 
     app.rebuild_active_session_message_meta();
@@ -234,6 +236,7 @@ fn rebuild_active_session_message_meta_does_not_relabel_unrecorded_model() {
         cost_usd: None,
         finish_reason: Some("stop".to_string()),
         model: None,
+        tool_timings: Vec::new(),
     });
 
     app.current_session_runtime_mut().model = "model-b".to_string();
@@ -311,6 +314,7 @@ fn legacy_backfill_does_not_overwrite_persisted_message_models() {
         cost_usd: None,
         finish_reason: None,
         model: Some("step-model".to_string()),
+        tool_timings: Vec::new(),
     }];
 
     backfill_message_models_from_steps(&mut messages, &steps);

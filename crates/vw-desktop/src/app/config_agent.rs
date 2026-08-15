@@ -10,7 +10,6 @@ use vw_config_types::{
     agent::{AgentConfig, AgentsIpcConfig, CoordinationConfig, DelegateAgentConfig},
     automation::{
         CronConfig, GoalLoopConfig, HeartbeatConfig, ResearchPhaseConfig, SchedulerConfig,
-        SopConfig,
     },
     channels::ChannelsConfig,
     config::{AcpAgentConfig, Config},
@@ -1062,24 +1061,6 @@ pub fn load_identity_config() -> IdentityConfig {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_sop_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_sop_config() -> SopConfig {
-    load_agent_config_via_gateway().sop
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 /// 读取、保存或转换 `load_full_agent_config` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1447,23 +1428,6 @@ pub fn load_identity_config() -> IdentityConfig {
     IdentityConfig::default()
 }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_sop_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_sop_config() -> SopConfig {
-    SopConfig::default()
-}
-#[cfg(target_arch = "wasm32")]
 /// 读取、保存或转换 `load_full_agent_config` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1640,7 +1604,6 @@ define_agent_config_update_result_fns!(
     (update_heartbeat_config_result, update_heartbeat_config, HeartbeatConfig, heartbeat, &["heartbeat"]),
     (update_goal_loop_config_result, update_goal_loop_config, GoalLoopConfig, goal_loop, &["goal_loop"]),
     (update_cron_config_result, update_cron_config, CronConfig, cron, &["cron"]),
-    (update_sop_config_result, update_sop_config, SopConfig, sop, &["sop"]),
     (update_scheduler_config_result, update_scheduler_config, SchedulerConfig, scheduler, &["scheduler"]),
     (update_reliability_config_result, update_reliability_config, ReliabilityConfig, reliability, &["reliability"]),
     (update_memory_config_result, update_memory_config, MemoryConfig, memory, &["memory"]),
@@ -1673,7 +1636,6 @@ define_agent_config_update_result_async_fns!(
     (update_heartbeat_config_result_async, HeartbeatConfig, heartbeat, &["heartbeat"]),
     (update_goal_loop_config_result_async, GoalLoopConfig, goal_loop, &["goal_loop"]),
     (update_cron_config_result_async, CronConfig, cron, &["cron"]),
-    (update_sop_config_result_async, SopConfig, sop, &["sop"]),
     (update_scheduler_config_result_async, SchedulerConfig, scheduler, &["scheduler"]),
     (update_reliability_config_result_async, ReliabilityConfig, reliability, &["reliability"]),
     (update_memory_config_result_async, MemoryConfig, memory, &["memory"]),
@@ -1706,7 +1668,6 @@ define_agent_config_update_async_fns!(
     (update_heartbeat_config_async, update_heartbeat_config_result_async, HeartbeatConfig, heartbeat, &["heartbeat"]),
     (update_goal_loop_config_async, update_goal_loop_config_result_async, GoalLoopConfig, goal_loop, &["goal_loop"]),
     (update_cron_config_async, update_cron_config_result_async, CronConfig, cron, &["cron"]),
-    (update_sop_config_async, update_sop_config_result_async, SopConfig, sop, &["sop"]),
     (update_scheduler_config_async, update_scheduler_config_result_async, SchedulerConfig, scheduler, &["scheduler"]),
     (update_reliability_config_async, update_reliability_config_result_async, ReliabilityConfig, reliability, &["reliability"]),
     (update_memory_config_async, update_memory_config_result_async, MemoryConfig, memory, &["memory"]),

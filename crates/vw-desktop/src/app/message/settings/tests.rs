@@ -46,7 +46,6 @@ fn every_non_staff_save_tag_routes_error_and_success_to_its_own_state() {
     assert_route!("heartbeat", heartbeat_settings);
     assert_route!("goal_loop", goal_loop_settings);
     assert_route!("cron", cron_settings);
-    assert_route!("sop", sop_settings);
     assert_route!("scheduler", scheduler_settings);
     assert_route!("reliability", reliability_settings);
     assert_route!("memory", memory_settings);
@@ -295,11 +294,6 @@ fn settings_update_routes_nested_messages_to_their_owned_state() {
         &mut app,
         SettingsMessage::Tunnel(TunnelMessage::ProviderChanged("ngrok".to_string())),
     );
-    let _ = update(
-        &mut app,
-        SettingsMessage::Sop(SopMessage::SopsDirChanged("workspace/sops".to_string())),
-    );
-
     assert_eq!(app.embedding_routes_settings.routes.len(), embedding_route_count + 1);
     assert!(app.hooks_settings.enabled);
     assert_eq!(app.storage_settings.provider, "postgres");
@@ -312,7 +306,6 @@ fn settings_update_routes_nested_messages_to_their_owned_state() {
     assert_eq!(app.memory_settings.backend, "none");
     assert!(app.multimodal_settings.allow_remote_fetch);
     assert_eq!(app.tunnel_settings.provider, "ngrok");
-    assert_eq!(app.sop_settings.sops_dir_input, "workspace/sops");
 }
 
 #[test]

@@ -41,6 +41,13 @@ mod processing_timing_tests;
 const STREAM_AUTOSCROLL_THROTTLE_MS: u64 = 120;
 const AUTOSCROLL_HOLD_MS: u64 = 280;
 
+pub(crate) fn refresh_active_trajectory_raw_task(app: &mut App, session_id: &str) -> Task<Message> {
+    if app.chat_panel_mode != crate::app::state::ChatPanelMode::Trajectory {
+        return Task::none();
+    }
+    trajectory::refresh_missing_raw_task(app, session_id, None)
+}
+
 fn now_ms() -> u64 {
     crate::app::time::now_ms()
 }

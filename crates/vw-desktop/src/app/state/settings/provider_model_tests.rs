@@ -307,15 +307,7 @@ fn cron_tabs_job_types_and_draft_defaults_match_api_contract() {
 }
 
 #[test]
-fn sop_and_scheduler_defaults_match_safe_runtime_limits() {
-    let sop = SopSettingsState::default();
-    assert!(sop.sops_dir_input.is_empty());
-    assert_eq!(sop.default_execution_mode, "supervised");
-    assert_eq!(sop.max_finished_runs, 50);
-    assert_eq!(sop.max_concurrent_total, 5);
-    assert_eq!(sop.approval_timeout_secs, 300);
-    assert!(sop.save_error.is_none());
-
+fn scheduler_defaults_match_safe_runtime_limits() {
     let scheduler = SchedulerSettingsState::default();
     assert!(scheduler.enabled);
     assert_eq!(scheduler.max_tasks, 64);

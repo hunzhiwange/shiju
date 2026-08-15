@@ -7,7 +7,7 @@
 //! - **编排与执行**：代理的核心调度、任务分类、研究与提示构建
 //! - **通道集成**：多平台消息通道（Telegram、Slack、Discord、WhatsApp 等）
 //! - **模型调用**：Provider trait 及各类 LLM/AI 模型适配器
-//! - **工具执行**：Shell、文件、检索、计划任务、SOP 等工具面
+//! - **工具执行**：Shell、文件、检索、计划任务等工具面
 //! - **记忆系统**：多后端记忆层（Markdown、SQLite、Postgres、Vector 等）
 //! - **安全策略**：访问控制、隔离、泄漏检测、紧急停止
 //! - **运行时适配**：Native、Docker、WASM 等运行时环境
@@ -330,9 +330,6 @@ pub mod skills;
 
 // 快照系统
 pub mod snapshot;
-
-// SOP 系统
-pub mod sop;
 
 // 存储层
 pub mod storage;

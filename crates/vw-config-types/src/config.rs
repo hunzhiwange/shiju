@@ -21,7 +21,7 @@ use crate::agent::{
     AgentConfig, AgentsIpcConfig, CoordinationConfig, DelegateAgentConfig, WorkspacesConfig,
 };
 use crate::automation::{
-    CronConfig, GoalLoopConfig, HeartbeatConfig, ResearchPhaseConfig, SchedulerConfig, SopConfig,
+    CronConfig, GoalLoopConfig, HeartbeatConfig, ResearchPhaseConfig, SchedulerConfig,
 };
 use crate::channels::ChannelsConfig;
 use crate::gateway::GatewayConfig;
@@ -194,9 +194,6 @@ pub struct Config {
 
     #[serde(default)]
     pub cron: CronConfig,
-
-    #[serde(default)]
-    pub sop: SopConfig,
 
     #[serde(default)]
     pub goal_loop: GoalLoopConfig,
@@ -392,7 +389,6 @@ impl Default for Config {
             embedding_routes: Vec::new(),
             heartbeat: HeartbeatConfig::default(),
             cron: CronConfig::default(),
-            sop: SopConfig::default(),
             goal_loop: GoalLoopConfig::default(),
             channels_config: ChannelsConfig::default(),
             memory: MemoryConfig::default(),

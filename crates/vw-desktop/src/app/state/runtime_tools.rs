@@ -688,11 +688,7 @@ pub(crate) fn tool_bucket(tool_id: &str) -> SessionToolBucket {
         | "skill"
         | "memory_store"
         | "memory_forget"
-        | "sop_execute"
-        | "sop_advance"
-        | "sop_approve"
-        | "sop_list"
-        | "sop_status" => SessionToolBucket::Agent,
+        => SessionToolBucket::Agent,
         _ => SessionToolBucket::Other,
     }
 }
@@ -736,11 +732,7 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         | "verify_plan_execution"
         | "enter_worktree"
         | "exit_worktree"
-        | "sop_execute"
-        | "sop_advance"
-        | "sop_approve"
-        | "sop_list"
-        | "sop_status" => SessionToolGroup::Collaboration,
+        => SessionToolGroup::Collaboration,
         "memory_recall" | "memory_store" | "memory_forget" => SessionToolGroup::Memory,
         "tool_search"
         | "proxy_config"

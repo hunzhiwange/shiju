@@ -58,7 +58,6 @@ pub(crate) mod agent {
 
     pub use crate::skills;
     pub use crate::snapshot;
-    pub use crate::sop;
     pub use crate::storage;
     pub use crate::tools;
     #[cfg(not(target_arch = "wasm32"))]

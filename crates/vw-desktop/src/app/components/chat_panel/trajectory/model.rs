@@ -189,7 +189,11 @@ impl TrajectoryDetailsState {
     }
 
     pub(crate) fn json_collapsed_paths(&self) -> HashSet<String> {
-        self.collapsed_json_paths.get(&self.active_tab).cloned().unwrap_or_default()
+        self.collapsed_paths_for(self.active_tab)
+    }
+
+    pub(crate) fn collapsed_paths_for(&self, tab: TrajectoryDetailsTab) -> HashSet<String> {
+        self.collapsed_json_paths.get(&tab).cloned().unwrap_or_default()
     }
 
     pub(crate) fn toggle_json_path(&mut self, path: String) {
@@ -259,7 +263,16 @@ impl TrajectoryDetailsState {
             .first()
             .copied()
             .unwrap_or(TrajectoryDetailsTab::Summary);
-        self.select_id(record.id.clone(), Some(record.kind), first_tab)
+        let changed = self.select_id(record.id.clone(), Some(record.kind), first_tab);
+        if changed && record.kind == TrajectoryRecordKind::System {
+            let collapsed_tools = (1..record.detail.request_tools.len())
+                .map(|index| format!("/tools/{index}"))
+                .collect::<HashSet<_>>();
+            if !collapsed_tools.is_empty() {
+                self.collapsed_json_paths.insert(TrajectoryDetailsTab::Tools, collapsed_tools);
+            }
+        }
+        changed
     }
 
     fn select_id(

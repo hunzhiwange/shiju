@@ -749,38 +749,6 @@ impl Default for CronSettingsState {
     }
 }
 
-/// SOP 设置面板状态
-///
-/// 管理 SOP 目录、默认执行模式以及运行限制配置。
-#[derive(Debug, Clone)]
-pub(crate) struct SopSettingsState {
-    /// SOP 目录覆盖输入
-    pub(crate) sops_dir_input: String,
-    /// 默认执行模式（`supervised` / `autonomous`）
-    pub(crate) default_execution_mode: String,
-    /// 最大完成运行保留数，0 表示不限制
-    pub(crate) max_finished_runs: u32,
-    /// 全局最大并发运行数
-    pub(crate) max_concurrent_total: u32,
-    /// 审批超时时间（秒），0 表示禁用超时
-    pub(crate) approval_timeout_secs: u32,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for SopSettingsState {
-    fn default() -> Self {
-        Self {
-            sops_dir_input: String::new(),
-            default_execution_mode: "supervised".to_string(),
-            max_finished_runs: 50,
-            max_concurrent_total: 5,
-            approval_timeout_secs: 300,
-            save_error: None,
-        }
-    }
-}
-
 /// 调度器设置面板状态
 ///
 /// 管理任务调度器的配置，包括并发限制等。

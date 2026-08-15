@@ -105,6 +105,8 @@ pub enum Icon {
     Keyboard,
     /// 齿轮/设置图标
     Gear,
+    /// 扳手/工具图标
+    Wrench,
     /// 宽齿轮连接图标
     GearWideConnected,
     /// 网关/网络存储图标

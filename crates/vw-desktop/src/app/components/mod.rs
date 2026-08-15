@@ -371,10 +371,6 @@ pub mod system_settings_web_search;
 /// 配置任务调度器、优先级队列、并发控制等。
 pub mod system_settings_scheduler;
 
-/// 系统设置：SOP 配置
-///
-/// 配置 SOP 目录、默认执行模式与运行队列限制。
-pub mod system_settings_sop;
 
 /// 系统设置：浏览器配置
 ///

@@ -5,7 +5,6 @@ use crate::app::agent::config::{Config, DelegateAgentConfig};
 use crate::app::agent::memory::Memory;
 use crate::app::agent::runtime::{NativeRuntime, RuntimeAdapter};
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
-use crate::app::agent::sop::{SopAuditLogger, SopEngine, SopMetricsCollector};
 use crate::session::runtime::SessionToolset;
 use anyhow::Context;
 use async_trait::async_trait;
@@ -13,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use vw_config_types::agent::merged_agent_configs;
 
 /// Claude Tools V2 运行时上下文。
@@ -670,27 +669,6 @@ pub fn all_tools_with_runtime(
         #[cfg(not(target_arch = "wasm32"))]
         Arc::new(PushoverTool::new(security.clone(), workspace_dir.to_path_buf())),
     ];
-
-    let sop_engine = Arc::new(Mutex::new(SopEngine::new(root_config.sop.clone())));
-    if let Ok(mut engine) = sop_engine.lock() {
-        engine.reload(workspace_dir);
-    }
-    let sop_audit = Arc::new(SopAuditLogger::new(memory.clone()));
-    let sop_collector = Arc::new(SopMetricsCollector::new());
-
-    tool_arcs.push(Arc::new(SopExecuteTool::new(sop_engine.clone()).with_audit(sop_audit.clone())));
-    tool_arcs.push(Arc::new(
-        SopAdvanceTool::new(sop_engine.clone())
-            .with_audit(sop_audit.clone())
-            .with_collector(sop_collector.clone()),
-    ));
-    tool_arcs.push(Arc::new(
-        SopApproveTool::new(sop_engine.clone())
-            .with_audit(sop_audit.clone())
-            .with_collector(sop_collector.clone()),
-    ));
-    tool_arcs.push(Arc::new(SopListTool::new(sop_engine.clone())));
-    tool_arcs.push(Arc::new(SopStatusTool::new(sop_engine).with_collector(sop_collector.clone())));
 
     #[cfg(not(target_arch = "wasm32"))]
     if has_shell_access {

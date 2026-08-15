@@ -43,6 +43,19 @@ fn test_tool_with_short_debounce(workspace: &Path) -> RustCodeGraphTool {
 }
 
 #[tokio::test]
+async fn rustcodegraph_registration_and_status_do_not_start_index_lifecycle() {
+    let workspace = indexed_workspace();
+    let tool = test_tool(workspace.path());
+
+    assert!(tool.lifecycle.lock().unwrap().is_none());
+
+    let status = tool.call(json!({ "operation": "status" })).await.unwrap();
+
+    assert!(status.is_success());
+    assert!(tool.lifecycle.lock().unwrap().is_none());
+}
+
+#[tokio::test]
 async fn rustcodegraph_execute_explore_returns_indexed_flow() {
     let workspace = indexed_workspace();
 

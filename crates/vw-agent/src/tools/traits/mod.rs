@@ -600,8 +600,6 @@ fn default_tool_read_only(tool_id: &str) -> bool {
             | "cron_list"
             | "cron_runs"
             | "delegate_coordination_status"
-            | "sop_list"
-            | "sop_status"
             | "pdf_read"
             | "image_info"
             | "image_asset_read"
@@ -633,9 +631,6 @@ fn default_tool_destructive(tool_id: &str) -> bool {
             | "todowrite"
             | "browser"
             | "browser_open"
-            | "sop_execute"
-            | "sop_advance"
-            | "sop_approve"
     )
 }
 

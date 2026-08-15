@@ -682,18 +682,6 @@ pub enum StaffTeamMemberDraftField {
     MatrixUserId,
 }
 
-/// SOP 设置页消息。
-#[derive(Debug, Clone)]
-pub enum SopMessage {
-    SopsDirChanged(String),
-    SopsDirPickFolder,
-    SopsDirPicked(Option<String>),
-    DefaultExecutionModeChanged(String),
-    MaxFinishedRunsChanged(u32),
-    MaxConcurrentTotalChanged(u32),
-    ApprovalTimeoutSecsChanged(u32),
-}
-
 /// 聊天快捷消息设置消息。
 #[derive(Debug, Clone)]
 pub enum QuickMessagesMessage {
@@ -750,7 +738,6 @@ pub enum SettingsMessage {
         tag: &'static str,
         result: Result<(), String>,
     },
-    Sop(SopMessage),
     ProvidersRefresh,
     ProvidersRefreshed(ProvidersLoaded),
     ProviderModelsSyncRemote,

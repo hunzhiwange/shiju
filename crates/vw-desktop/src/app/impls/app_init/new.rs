@@ -257,7 +257,6 @@ impl App {
         let heartbeat_cfg = full_agent_cfg.heartbeat.clone();
         let goal_loop_cfg = full_agent_cfg.goal_loop.clone();
         let cron_cfg = full_agent_cfg.cron.clone();
-        let sop_cfg = full_agent_cfg.sop.clone();
         let scheduler_cfg = full_agent_cfg.scheduler.clone();
         let embedding_routes_cfg = full_agent_cfg.embedding_routes.clone();
         let autonomy_cfg = full_agent_cfg.autonomy.clone();
@@ -886,18 +885,6 @@ impl App {
                 action_status: None,
             },
 
-            // ========== SOP 设置 ==========
-            sop_settings: super::state::SopSettingsState {
-                sops_dir_input: sop_cfg.sops_dir.unwrap_or_default(),
-                default_execution_mode: match sop_cfg.default_execution_mode {
-                    vw_config_types::automation::SopExecutionMode::Auto => "autonomous".to_string(),
-                    _ => "supervised".to_string(),
-                },
-                max_finished_runs: sop_cfg.max_finished_runs.min(100_000),
-                max_concurrent_total: sop_cfg.max_concurrent_total.clamp(1, 1_000),
-                approval_timeout_secs: sop_cfg.approval_timeout_secs.min(86_400),
-                save_error: None,
-            },
 
             // ========== 调度器设置 ==========
             scheduler_settings: super::state::SchedulerSettingsState {

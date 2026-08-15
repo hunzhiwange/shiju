@@ -671,31 +671,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "工具错误回退入口，用于报告无效或未识别的工具请求。",
             group: ToolGroup::Other,
         },
-        "sop_execute" => ToolMeta {
-            name: "启动 SOP",
-            description: "启动一条标准操作流程实例。",
-            group: ToolGroup::Collaboration,
-        },
-        "sop_advance" => ToolMeta {
-            name: "推进 SOP",
-            description: "将 SOP 流程推进到下一步。",
-            group: ToolGroup::Collaboration,
-        },
-        "sop_approve" => ToolMeta {
-            name: "审批 SOP",
-            description: "对 SOP 中待审批步骤执行批准。",
-            group: ToolGroup::Collaboration,
-        },
-        "sop_list" => ToolMeta {
-            name: "SOP 列表",
-            description: "列出当前可见的 SOP 运行实例。",
-            group: ToolGroup::Collaboration,
-        },
-        "sop_status" => ToolMeta {
-            name: "SOP 状态",
-            description: "查看指定 SOP 实例的当前状态和进度。",
-            group: ToolGroup::Collaboration,
-        },
         "agents_list" => ToolMeta {
             name: "代理列表",
             description: "列出 IPC 代理及其运行状态。",

@@ -1110,12 +1110,20 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 ) {
                     summary.emit();
                 }
-                return Some(iced::Task::none());
+                return Some(crate::app::message::chat::refresh_active_trajectory_raw_task(
+                    app,
+                    &target_session_id,
+                ));
             }
 
             let commit_started_at = Instant::now();
             let message_count = prepared.messages.len();
             apply_prepared_session_open(app, prepared);
+            let trajectory_refresh_task =
+                crate::app::message::chat::refresh_active_trajectory_raw_task(
+                    app,
+                    &target_session_id,
+                );
             let finalize = source == PreparedSessionOpenSource::RemoteHistory;
             if let Some(summary) = app.session_view_cache.record_open_commit(
                 &target_session_id,
@@ -1128,14 +1136,17 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 summary.emit();
             }
             if source == PreparedSessionOpenSource::UiStore {
-                return Some(load_prepared_session_open_from_gateway_task(
-                    project_path,
-                    target_session_id,
-                    open_generation,
-                    app.dialogue_flow_show_reasoning_summary,
-                ));
+                return Some(iced::Task::batch([
+                    load_prepared_session_open_from_gateway_task(
+                        project_path,
+                        target_session_id,
+                        open_generation,
+                        app.dialogue_flow_show_reasoning_summary,
+                    ),
+                    trajectory_refresh_task,
+                ]));
             }
-            Some(iced::Task::none())
+            Some(trajectory_refresh_task)
         }
         ProjectMessage::SessionMessagesLoaded(res) => {
             match res {

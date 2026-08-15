@@ -153,12 +153,6 @@ pub struct BrowserSettingsDto {
     pub headless: bool,
 }
 
-/// SOP 开关设置。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SopSettingsDto {
-    pub enabled: bool,
-}
-
 /// 委派代理配置。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DelegateAgentDto {
@@ -189,8 +183,6 @@ pub struct SettingsDto {
     pub channels: ChannelsSettingsDto,
     /// 浏览器设置。
     pub browser: BrowserSettingsDto,
-    /// SOP 设置。
-    pub sop: SopSettingsDto,
     /// 委派代理列表。
     #[serde(default)]
     pub delegates: Vec<DelegateAgentDto>,
@@ -271,13 +263,6 @@ pub struct BrowserSettingsPatchDto {
     pub headless: Option<bool>,
 }
 
-/// SOP 设置补丁。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct SopSettingsPatchDto {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub enabled: Option<bool>,
-}
-
 /// 完整设置补丁请求。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct SettingsPatchDto {
@@ -295,8 +280,6 @@ pub struct SettingsPatchDto {
     pub channels: Option<ChannelsSettingsPatchDto>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub browser: Option<BrowserSettingsPatchDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sop: Option<SopSettingsPatchDto>,
 }
 
 /// 获取委派代理列表响应。

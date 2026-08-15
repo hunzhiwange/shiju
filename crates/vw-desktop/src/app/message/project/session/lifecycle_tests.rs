@@ -1403,6 +1403,41 @@ fn loaded_session_preserves_step_llm_raw_for_active_view() {
 }
 
 #[test]
+fn loaded_session_refreshes_raw_when_trajectory_is_already_open() {
+    let mut app = app();
+    app.active_session_id = Some("session-1".to_string());
+    app.chat_panel_mode = crate::app::state::ChatPanelMode::Trajectory;
+    let mut prepared = crate::app::session::prepare_session_open(
+        "session-1".to_string(),
+        Vec::new(),
+        Vec::new(),
+        crate::app::models::TokenUsage::default(),
+        Vec::new(),
+        Vec::new(),
+        0,
+        None,
+        false,
+    );
+    prepared.llm_raw_step_indices = vec![3, 8];
+
+    let task = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "session-1".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(prepared),
+        },
+    )
+    .expect("prepared session should be handled");
+
+    assert_eq!(task.units(), 2);
+    assert!(app.trajectory_raw_loading.contains(&("session-1".to_string(), 3)));
+    assert!(app.trajectory_raw_loading.contains(&("session-1".to_string(), 8)));
+}
+
+#[test]
 fn reset_boundary_loaded_end_prefers_last_known_id_and_falls_back_to_bounded_length() {
     let loaded_ids = vec![
         Some("message-1".to_string()),

@@ -63,6 +63,7 @@ fn register_icons_populates_canvas_icon_group_without_clearing_existing_entries(
         Icon::Palette,
         Icon::Keyboard,
         Icon::Gear,
+        Icon::Wrench,
         Icon::GearWideConnected,
         Icon::HddNetwork,
         Icon::Braces,

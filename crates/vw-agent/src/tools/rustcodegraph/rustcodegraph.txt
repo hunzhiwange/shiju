@@ -4,4 +4,6 @@ Use `explore` first for most code-understanding questions and before edits. It r
 
 Freshness policy: the first non-status query automatically performs one incremental sync and starts live watch. Ordinary saved edits are refreshed by that watcher. After switching branches, pulling or generating many files, call `sync` once before relying on graph results. If `status` or any query reports pending, stale, or degraded index state, call `sync` once and then retry the original operation. Do not call `sync` before every normal query.
 
+Startup policy: tool registration only checks whether the current workspace already contains an index. It never opens or syncs the index and never starts live watch during system startup. Those lifecycle operations are initialized lazily by the first non-status query or explicit `sync` call.
+
 All file and directory filters must be relative to the current workspace. This tool never accepts `projectPath`, never searches parent directories, and never creates an index. A recoverable no-match or missing-index response is returned as a successful text result; only safety refusals and actual RustCodeGraph errors fail the call.

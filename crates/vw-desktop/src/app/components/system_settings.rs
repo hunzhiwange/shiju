@@ -24,7 +24,6 @@
 //! - **目标循环 (GoalLoop)**：自治目标循环设置
 //! - **心跳配置 (Heartbeat)**：心跳检测设置
 //! - **定时任务配置 (Cron)**：定时任务配置
-//! - **标准流程配置 (Sop)**：标准操作流程目录、执行模式与队列限制
 //! - **调度配置 (Scheduler)**：任务调度设置
 //! - **委托代理配置 (Agents)**：委托代理 researcher/coder/reviewer 配置
 //! - **员工配置 (Staff)**：任务看板员工名册、绑定和能力配置
@@ -83,7 +82,6 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Vector
 /// - `GoalLoop` - 目标循环设置，配置自治目标执行节奏与投递目标
 /// - `Heartbeat` - 心跳设置，配置心跳检测参数
 /// - `Cron` - Cron 设置，配置定时任务
-/// - `Sop` - SOP 设置，配置 SOP 目录和执行策略
 /// - `Scheduler` - 调度器设置，配置任务调度策略
 /// - `Agents` - Agents 设置，配置 researcher / coder / reviewer 等委托代理
 /// - `Staff` - 员工配置，配置任务看板员工名册、绑定和能力
@@ -141,8 +139,6 @@ pub enum SystemTab {
     Heartbeat,
     /// 定时任务配置标签页
     Cron,
-    /// 标准流程配置标签页
-    Sop,
     /// 调度配置标签页
     Scheduler,
     /// 委托代理配置标签页
@@ -216,7 +212,7 @@ impl SystemTab {
     ///     println!("{}", tab);
     /// }
     /// ```
-    pub(super) fn all() -> [SystemTab; 43] {
+    pub(super) fn all() -> [SystemTab; 42] {
         [
             SystemTab::General,
             SystemTab::Themes,
@@ -233,7 +229,6 @@ impl SystemTab {
             SystemTab::GoalLoop,
             SystemTab::Heartbeat,
             SystemTab::Cron,
-            SystemTab::Sop,
             SystemTab::Scheduler,
             SystemTab::Agents,
             SystemTab::Staff,
@@ -294,7 +289,6 @@ impl std::fmt::Display for SystemTab {
             SystemTab::GoalLoop => write!(f, "目标循环配置"),
             SystemTab::Heartbeat => write!(f, "心跳配置"),
             SystemTab::Cron => write!(f, "定时任务配置"),
-            SystemTab::Sop => write!(f, "标准流程配置"),
             SystemTab::Scheduler => write!(f, "调度配置"),
             SystemTab::Agents => write!(f, "委托代理配置"),
             SystemTab::Staff => write!(f, "员工配置"),
@@ -370,9 +364,6 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
         }
         SystemTab::Cron => {
             "定时任务配置 cron schedule task 自动化 启用 历史留存 history retention max history"
-        }
-        SystemTab::Sop => {
-            "标准流程配置 sop workflow run 运行 SOP 目录 选择目录 执行模式 队列限制 sops_dir"
         }
         SystemTab::Scheduler => {
             "调度配置 scheduler tasks run 运行 执行能力 启用 最大任务 并发上限 最大并发 max_tasks max_concurrent"
@@ -507,7 +498,6 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::GoalLoop => app.goal_loop_settings.save_error.as_deref(),
         SystemTab::Heartbeat => app.heartbeat_settings.save_error.as_deref(),
         SystemTab::Cron => app.cron_settings.save_error.as_deref(),
-        SystemTab::Sop => app.sop_settings.save_error.as_deref(),
         SystemTab::Scheduler => app.scheduler_settings.save_error.as_deref(),
         SystemTab::Agents => app.agents_settings.save_error.as_deref(),
         SystemTab::Staff => app.staff_settings.save_error.as_deref(),
@@ -736,7 +726,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SystemTab::GoalLoop => crate::app::components::system_settings_goal_loop::view(app),
         SystemTab::Heartbeat => crate::app::components::system_settings_heartbeat::view(app),
         SystemTab::Cron => crate::app::components::system_settings_cron::view(app),
-        SystemTab::Sop => crate::app::components::system_settings_sop::view(app),
         SystemTab::Scheduler => crate::app::components::system_settings_scheduler::view(app),
         SystemTab::Agents => crate::app::components::system_settings_agents::view(app),
         SystemTab::Staff => crate::app::components::system_settings_staff::view(app),

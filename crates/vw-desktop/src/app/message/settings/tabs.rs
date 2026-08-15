@@ -126,9 +126,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             } else if tab == SystemTab::Tunnel {
                 app.tunnel_settings.save_error = None;
                 Task::none()
-            } else if tab == SystemTab::Sop {
-                app.sop_settings.save_error = None;
-                Task::none()
             } else if tab == SystemTab::Themes {
                 app.themes_settings.error = None;
                 Task::done(Message::Settings(SettingsMessage::Themes(

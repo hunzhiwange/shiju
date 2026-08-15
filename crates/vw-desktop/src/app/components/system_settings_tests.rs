@@ -145,7 +145,6 @@ fn system_tab_search_metadata_covers_every_tab() {
         (SystemTab::GoalLoop, "automation"),
         (SystemTab::Heartbeat, "monitor"),
         (SystemTab::Cron, "history retention"),
-        (SystemTab::Sop, "workflow"),
         (SystemTab::Scheduler, "max_concurrent"),
         (SystemTab::Agents, "subagent"),
         (SystemTab::Staff, "roster"),
@@ -308,7 +307,6 @@ fn active_tab_save_error_routes_each_settings_state_and_rejects_static_tabs() {
     assert_error_route!(GoalLoop, goal_loop_settings);
     assert_error_route!(Heartbeat, heartbeat_settings);
     assert_error_route!(Cron, cron_settings);
-    assert_error_route!(Sop, sop_settings);
     assert_error_route!(Scheduler, scheduler_settings);
     assert_error_route!(Agents, agents_settings);
     assert_error_route!(Staff, staff_settings);

@@ -212,6 +212,15 @@ fn trajectory_controls_use_rounded_search_and_close_styles() {
 
         let panel = super::styles::details_panel_style(&theme);
         assert_eq!(panel.shadow.blur_radius, 18.0);
+
+        let tool = super::styles::tool_definition_style(&theme);
+        assert!(tool.background.is_some());
+        assert_eq!(tool.border.width, 1.0);
+        assert!(
+            super::styles::tool_definition_header_style(&theme, button::Status::Hovered)
+                .background
+                .is_some()
+        );
     }
 }
 
@@ -253,19 +262,38 @@ fn details_render_system_prompt_and_tools() {
         description: "Run a shell command".to_string(),
         input_schema: json!({"type": "object", "required": ["command"]}),
     }];
+    let expected_tools = system.detail.request_tools.clone();
 
     assert_eq!(
         build_details_content(&system, TrajectoryDetailsTab::SystemPrompt).body,
         TrajectoryDetailContent::Text("# Rules\n\n保留中文换行。".to_string())
     );
-    let TrajectoryDetailContent::Json(tools) =
-        build_details_content(&system, TrajectoryDetailsTab::Tools).body
-    else {
-        panic!("tools must use JSON inspector data");
-    };
-    assert_eq!(tools[0]["id"], "shell");
-    assert_eq!(tools[0]["description"], "Run a shell command");
-    assert_eq!(tools[0]["input_schema"]["required"], json!(["command"]));
+    assert_eq!(
+        build_details_content(&system, TrajectoryDetailsTab::Tools).body,
+        TrajectoryDetailContent::Tools(expected_tools)
+    );
+
+    let state = details_state(&system, TrajectoryDetailsTab::Tools);
+    assert!(!Tree::new(trajectory_details(&system, &state).as_widget()).children.is_empty());
+}
+
+#[test]
+fn system_tools_open_first_definition_and_collapse_the_rest() {
+    let mut system = record(TrajectoryRecordKind::System);
+    system.detail.request_tools = (0..3)
+        .map(|index| TrajectoryToolDefinition {
+            id: format!("tool_{index}"),
+            description: format!("Tool {index}"),
+            input_schema: json!({"type": "object"}),
+        })
+        .collect();
+    let mut state = TrajectoryDetailsState::default();
+
+    assert!(state.select_record(&system));
+    assert_eq!(
+        state.collapsed_paths_for(TrajectoryDetailsTab::Tools),
+        std::collections::HashSet::from(["/tools/1".to_string(), "/tools/2".to_string()])
+    );
 }
 
 #[test]

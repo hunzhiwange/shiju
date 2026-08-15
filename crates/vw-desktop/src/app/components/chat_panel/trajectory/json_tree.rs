@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, hover, row, scrollable, text};
 use iced::{Element, Font, Length, Theme};
 use serde_json::Value;
 
@@ -237,6 +237,13 @@ pub(crate) const fn json_token_font(token: &str) -> Font {
     if token.is_ascii() { Font::MONOSPACE } else { Font::DEFAULT }
 }
 
+pub(crate) const fn json_tree_copy_visible_in_layer(
+    show_copy_layer: bool,
+    line_kind: JsonTreeLineKind,
+) -> bool {
+    show_copy_layer && !matches!(line_kind, JsonTreeLineKind::Close)
+}
+
 pub(crate) fn json_tree_scroll_direction() -> Direction {
     Direction::Horizontal(
         Scrollbar::new()
@@ -253,47 +260,49 @@ pub(crate) fn json_tree<'a, Message: Clone + 'a>(
 ) -> Element<'a, Message> {
     let mut content = column![].spacing(2).width(Length::Shrink);
     for tree_row in project_json_tree(value, collapsed_paths) {
-        let toggle: Element<'a, Message> = if tree_row.expandable {
-            let marker = if tree_row.expanded { "▾" } else { "▸" };
-            button(text(marker).font(Font::DEFAULT).size(11))
-                .padding(0)
-                .style(styles::json_tree_action_style)
-                .on_press(on_toggle.clone()(tree_row.path.clone()))
-                .into()
-        } else {
-            Space::new().width(Length::Fixed(13.0)).into()
+        let line = |show_copy: bool| {
+            let toggle: Element<'a, Message> = if tree_row.expandable {
+                let marker = if tree_row.expanded { "▾" } else { "▸" };
+                button(text(marker).font(Font::DEFAULT).size(11))
+                    .padding(0)
+                    .style(styles::json_tree_action_style)
+                    .on_press(on_toggle.clone()(tree_row.path.clone()))
+                    .into()
+            } else {
+                Space::new().width(Length::Fixed(13.0)).into()
+            };
+            let mut tokens = row![].spacing(0).align_y(iced::Alignment::Center);
+            for tree_token in &tree_row.tokens {
+                let token_kind = tree_token.kind;
+                tokens = tokens.push(
+                    text(tree_token.text.clone()).font(tree_token.font).size(11).style(
+                        move |theme: &Theme| iced::widget::text::Style {
+                            color: Some(styles::json_tree_token_color(theme, token_kind)),
+                        },
+                    ),
+                );
+            }
+            let copy: Element<'a, Message> =
+                if json_tree_copy_visible_in_layer(show_copy, tree_row.kind) {
+                    button(text("复制").font(Font::DEFAULT).size(10))
+                        .padding([1, 4])
+                        .style(styles::json_tree_action_style)
+                        .on_press(on_copy.clone()(tree_row.copy_value.clone()))
+                        .into()
+                } else {
+                    Space::new().width(Length::Fixed(31.0)).into()
+                };
+            row![
+                Space::new().width(Length::Fixed(tree_row.depth as f32 * JSON_TREE_INDENT)),
+                toggle,
+                tokens,
+                Space::new().width(Length::Fixed(8.0)),
+                copy,
+            ]
+            .spacing(3)
+            .align_y(iced::Alignment::Center)
         };
-        let mut tokens = row![].spacing(0).align_y(iced::Alignment::Center);
-        for tree_token in tree_row.tokens {
-            let token_kind = tree_token.kind;
-            tokens = tokens.push(
-                text(tree_token.text)
-                    .font(tree_token.font)
-                    .size(11)
-                    .style(move |theme: &Theme| iced::widget::text::Style {
-                        color: Some(styles::json_tree_token_color(theme, token_kind)),
-                    }),
-            );
-        }
-        let copy: Element<'a, Message> = if tree_row.kind == JsonTreeLineKind::Close {
-            Space::new().width(Length::Fixed(31.0)).into()
-        } else {
-            button(text("复制").font(Font::DEFAULT).size(10))
-                .padding([1, 4])
-                .style(styles::json_tree_action_style)
-                .on_press(on_copy.clone()(tree_row.copy_value))
-                .into()
-        };
-        let line = row![
-            Space::new().width(Length::Fixed(tree_row.depth as f32 * JSON_TREE_INDENT)),
-            toggle,
-            tokens,
-            Space::new().width(Length::Fixed(8.0)),
-            copy,
-        ]
-        .spacing(3)
-        .align_y(iced::Alignment::Center);
-        content = content.push(line);
+        content = content.push(hover(line(false), line(true)));
     }
 
     scrollable(container(content).padding([4, 6]))

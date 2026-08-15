@@ -1,11 +1,4 @@
 #[test]
-fn sop_execution_mode_display_and_defaults_are_consistent() {
-    assert_eq!(super::SopExecutionMode::Auto.to_string(), "auto");
-    assert_eq!(super::SopExecutionMode::PriorityBased.to_string(), "priority_based");
-    assert_eq!(super::SopExecutionMode::default(), super::SopExecutionMode::Supervised);
-}
-
-#[test]
 fn automation_defaults_cover_research_scheduler_and_goal_loop() {
     let research = super::ResearchPhaseConfig::default();
     assert!(!research.enabled);
@@ -37,12 +30,6 @@ fn heartbeat_deserializes_legacy_aliases() {
     assert!(heartbeat.enabled);
     assert_eq!(heartbeat.target.as_deref(), Some("telegram"));
     assert_eq!(heartbeat.to.as_deref(), Some("chat-1"));
-}
-
-#[test]
-fn sop_execution_mode_display_covers_remaining_modes() {
-    assert_eq!(super::SopExecutionMode::Supervised.to_string(), "supervised");
-    assert_eq!(super::SopExecutionMode::StepByStep.to_string(), "step_by_step");
 }
 
 #[test]

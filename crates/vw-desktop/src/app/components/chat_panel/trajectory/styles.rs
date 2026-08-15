@@ -271,6 +271,49 @@ pub(crate) fn details_section_style(theme: &Theme) -> container::Style {
     }
 }
 
+pub(crate) fn tool_definition_style(theme: &Theme) -> container::Style {
+    let palette = theme.extended_palette();
+    container::Style {
+        background: Some(Background::Color(
+            palette.background.weak.color.scale_alpha(if is_dark_theme(theme) {
+                0.22
+            } else {
+                0.16
+            }),
+        )),
+        border: Border {
+            width: 1.0,
+            color: palette.background.strong.color.scale_alpha(if is_dark_theme(theme) {
+                0.42
+            } else {
+                0.26
+            }),
+            radius: 6.0.into(),
+        },
+        ..container::Style::default()
+    }
+}
+
+pub(crate) fn tool_definition_header_style(theme: &Theme, status: button::Status) -> button::Style {
+    let background =
+        matches!(status, button::Status::Hovered | button::Status::Pressed).then(|| {
+            Background::Color(
+                theme
+                    .extended_palette()
+                    .background
+                    .strong
+                    .color
+                    .scale_alpha(if is_dark_theme(theme) { 0.32 } else { 0.20 }),
+            )
+        });
+    button::Style {
+        background,
+        text_color: theme.palette().text,
+        border: Border { radius: 6.0.into(), ..Border::default() },
+        ..button::Style::default()
+    }
+}
+
 pub(crate) fn details_tooltip_style(_theme: &Theme) -> container::Style {
     container::Style {
         text_color: Some(Color::WHITE),

@@ -149,26 +149,6 @@ pub(super) fn build_cron_settings(
     }
 }
 
-/// 模块内可见函数，执行 build_sop_settings 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_sop_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
-) -> crate::app::state::SopSettingsState {
-    let sop_cfg = &full_agent_cfg.sop;
-
-    crate::app::state::SopSettingsState {
-        sops_dir_input: sop_cfg.sops_dir.clone().unwrap_or_default(),
-        default_execution_mode: match sop_cfg.default_execution_mode {
-            vw_config_types::automation::SopExecutionMode::Auto => "autonomous".to_string(),
-            _ => "supervised".to_string(),
-        },
-        max_finished_runs: sop_cfg.max_finished_runs.min(100_000),
-        max_concurrent_total: sop_cfg.max_concurrent_total.clamp(1, 1_000),
-        approval_timeout_secs: sop_cfg.approval_timeout_secs.min(86_400),
-        save_error: None,
-    }
-}
-
 /// 模块内可见函数，执行 build_scheduler_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_scheduler_settings(
@@ -902,7 +882,6 @@ pub(super) fn apply_bootstrap_agent_config(
     app.goal_loop_settings = build_goal_loop_settings(full_agent_cfg);
     app.heartbeat_settings = build_heartbeat_settings(full_agent_cfg);
     app.cron_settings = build_cron_settings(full_agent_cfg);
-    app.sop_settings = build_sop_settings(full_agent_cfg);
     app.scheduler_settings = build_scheduler_settings(full_agent_cfg);
     app.hooks_settings = build_hooks_settings(full_agent_cfg);
     app.runtime_settings = build_runtime_settings(full_agent_cfg);

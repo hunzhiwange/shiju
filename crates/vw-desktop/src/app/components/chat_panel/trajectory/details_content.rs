@@ -3,17 +3,19 @@
 use serde_json::Value;
 
 use iced::widget::text::Wrapping;
-use iced::widget::{column, container, row, text, text_editor};
+use iced::widget::{button, column, container, row, text, text_editor};
 use iced::{Alignment, Element, Font, Length, Theme};
 
 use super::{
     MetricAvailability, TrajectoryDetailsState, TrajectoryDetailsTab, TrajectoryRecord,
-    TrajectoryRecordKind, TrajectoryUsage,
+    TrajectoryRecordKind, TrajectoryToolDefinition, TrajectoryUsage,
 };
 use super::{json_tree, styles};
+use crate::app::assets::Icon;
 use crate::app::components::chat_panel::tool_text_support::{
     READ_ONLY_EDITOR_MAX_HEIGHT, read_only_text_style,
 };
+use crate::app::components::chat_panel::utils::icon_svg;
 use crate::app::components::text_editor_context_menu::{
     CopyTextContextMenuMessages, TextEditorContextMenuState, wrap_with_copy_context_menu,
 };
@@ -25,6 +27,7 @@ pub(crate) enum TrajectoryDetailContent {
     Fields(Vec<(String, String)>),
     Text(String),
     Json(Value),
+    Tools(Vec<TrajectoryToolDefinition>),
     Unavailable(String),
 }
 
@@ -59,6 +62,7 @@ pub(crate) fn detail_content_values(body: &TrajectoryDetailContent) -> Vec<Strin
         TrajectoryDetailContent::Json(value) => vec![
             serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string()),
         ],
+        TrajectoryDetailContent::Tools(_) => Vec::new(),
     }
 }
 
@@ -92,6 +96,7 @@ pub(crate) fn trajectory_details_body<'a>(
                 },
             )
         }
+        TrajectoryDetailContent::Tools(tools) => tool_definitions_view(tools, state),
         TrajectoryDetailContent::Unavailable(value) => text(value)
             .font(Font::DEFAULT)
             .size(12)
@@ -100,6 +105,91 @@ pub(crate) fn trajectory_details_body<'a>(
             })
             .into(),
     }
+}
+
+fn tool_definitions_view<'a>(
+    tools: Vec<TrajectoryToolDefinition>,
+    state: &'a TrajectoryDetailsState,
+) -> Element<'a, Message> {
+    let collapsed_paths = state.collapsed_paths_for(TrajectoryDetailsTab::Tools);
+    let mut content = column![].spacing(6).width(Length::Fill);
+
+    for (index, tool) in tools.into_iter().enumerate() {
+        let tool_path = format!("/tools/{index}");
+        let expanded = !collapsed_paths.contains(&tool_path);
+        let marker = if expanded { "▾" } else { "›" };
+        let tool_icon = icon_svg(Icon::Wrench)
+            .width(Length::Fixed(13.0))
+            .height(Length::Fixed(13.0))
+            .style(|theme: &Theme, _status| iced::widget::svg::Style {
+                color: Some(styles::details_label_color(theme)),
+            });
+        let header = row![
+            text(marker).font(Font::DEFAULT).size(12).width(Length::Fixed(12.0)),
+            tool_icon,
+            text(tool.id.clone()).font(json_tree::json_token_font(&tool.id)).size(12),
+            text(tool.description.clone())
+                .font(Font::DEFAULT)
+                .size(11)
+                .width(Length::Fill)
+                .wrapping(Wrapping::WordOrGlyph)
+                .style(|theme: &Theme| iced::widget::text::Style {
+                    color: Some(styles::details_label_color(theme)),
+                }),
+        ]
+        .spacing(7)
+        .align_y(Alignment::Center);
+        let header = button(header)
+            .width(Length::Fill)
+            .padding([7, 6])
+            .style(styles::tool_definition_header_style)
+            .on_press(Message::Chat(message::ChatMessage::TrajectoryDetailsJsonToggled(
+                tool_path.clone(),
+            )));
+        let mut card = column![header].width(Length::Fill);
+
+        if expanded {
+            let schema_prefix = format!("{tool_path}/schema");
+            let schema_collapsed_paths = collapsed_paths
+                .iter()
+                .filter_map(|path| path.strip_prefix(&schema_prefix))
+                .map(str::to_string)
+                .collect();
+            let toggle_prefix = schema_prefix.clone();
+            let schema = json_tree::json_tree(
+                &tool.input_schema,
+                &schema_collapsed_paths,
+                move |path| {
+                    Message::Chat(message::ChatMessage::TrajectoryDetailsJsonToggled(format!(
+                        "{toggle_prefix}{path}"
+                    )))
+                },
+                |value| Message::Chat(message::ChatMessage::TrajectoryDetailsJsonCopied(value)),
+            );
+            card = card.push(
+                column![
+                    text(tool.description)
+                        .font(Font::DEFAULT)
+                        .size(12)
+                        .width(Length::Fill)
+                        .wrapping(Wrapping::WordOrGlyph),
+                    schema,
+                ]
+                .spacing(8)
+                .padding(iced::Padding {
+                    top: 2.0,
+                    right: 10.0,
+                    bottom: 9.0,
+                    left: 34.0,
+                }),
+            );
+        }
+
+        content =
+            content.push(container(card).width(Length::Fill).style(styles::tool_definition_style));
+    }
+
+    container(content).width(Length::Fill).padding([2, 0]).into()
 }
 
 fn fields_view<'a>(
@@ -210,20 +300,7 @@ fn content_for_tab(
             if record.detail.request_tools.is_empty() {
                 unavailable("No tools in this request")
             } else {
-                TrajectoryDetailContent::Json(Value::Array(
-                    record
-                        .detail
-                        .request_tools
-                        .iter()
-                        .map(|tool| {
-                            serde_json::json!({
-                                "id": tool.id,
-                                "description": tool.description,
-                                "input_schema": tool.input_schema,
-                            })
-                        })
-                        .collect(),
-                ))
+                TrajectoryDetailContent::Tools(record.detail.request_tools.clone())
             }
         }
         (

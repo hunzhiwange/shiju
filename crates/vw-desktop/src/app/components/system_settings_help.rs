@@ -211,25 +211,6 @@ const GOAL_LOOP_HELP: &str = r#"目标循环说明
 - channel 和 target 留空时，只执行循环本身，不额外发消息。
 "#;
 
-const SOP_HELP: &str = r#"标准流程说明
-
-一、作用
-- 本页配置 SOP 目录来源、默认执行模式以及运行队列限制。
-- SOP 适合承载可复用的流程模板、审批链路与受控自动化任务。
-
-二、主要字段
-1) 流程目录
-- 指定 SOP 文件所在目录；留空时回退到工作区下的 sops。
-2) 默认执行模式
-- 在 SOP 文件未显式声明时，决定走 supervised 还是 autonomous。
-3) 已完成记录上限 / 全局并发上限 / 审批超时
-- 控制历史保留、系统吞吐和人工等待窗口。
-
-三、建议
-- 生产环境先用 supervised，确认流程安全后再局部转 autonomous。
-- 并发上限不要一开始设太高，优先观察队列与审批时延。
-"#;
-
 const AGENTS_HELP: &str = r#"委托代理配置说明
 
 一、作用
@@ -467,7 +448,6 @@ fn help_content(tab: SystemTab) -> Option<(&'static str, &'static str)> {
         SystemTab::ModelRoutes => Some(("模型路由帮助", MODEL_ROUTES_HELP)),
         SystemTab::QueryClassification => Some(("查询分类帮助", QUERY_CLASSIFICATION_HELP)),
         SystemTab::GoalLoop => Some(("目标循环帮助", GOAL_LOOP_HELP)),
-        SystemTab::Sop => Some(("标准流程帮助", SOP_HELP)),
         SystemTab::Agents => Some(("委托代理配置帮助", AGENTS_HELP)),
         SystemTab::Channels => Some(("通道配置帮助", CHANNELS_HELP)),
         SystemTab::Memory => Some(("记忆系统帮助", MEMORY_HELP)),

@@ -1,33 +1,5 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-
-/// 代理执行 SOP 时的自治程度。
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum SopExecutionMode {
-    /// 无需人工批准，直接执行全部步骤。
-    Auto,
-    /// 启动前请求一次批准，随后执行全部步骤。
-    #[default]
-    Supervised,
-    /// 每一步执行前都请求批准。
-    StepByStep,
-    /// `Critical` / `High` 使用 `Auto`，`Normal` / `Low` 使用 `Supervised`。
-    PriorityBased,
-}
-
-impl fmt::Display for SopExecutionMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Auto => write!(f, "auto"),
-            Self::Supervised => write!(f, "supervised"),
-            Self::StepByStep => write!(f, "step_by_step"),
-            Self::PriorityBased => write!(f, "priority_based"),
-        }
-    }
-}
-
 /// 研究阶段触发模式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
 #[serde(rename_all = "lowercase")]
@@ -180,49 +152,6 @@ fn default_max_run_history() -> u32 {
 impl Default for CronConfig {
     fn default() -> Self {
         Self { enabled: true, max_run_history: default_max_run_history() }
-    }
-}
-
-/// SOP（标准操作流程）配置（`[sop]` 配置段）。
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SopConfig {
-    /// SOP 目录的可选覆盖值。默认路径为 `<workspace>/sops`。
-    pub sops_dir: Option<String>,
-    /// 当 SOP.toml 未指定时使用的默认执行模式。
-    #[serde(default)]
-    pub default_execution_mode: SopExecutionMode,
-    /// 保留的已完成 SOP 运行记录数量上限。默认值为 `50`。
-    #[serde(default = "default_sop_max_finished_runs")]
-    pub max_finished_runs: u32,
-    /// SOP 并发运行数量上限。默认值为 `5`。
-    #[serde(default = "default_sop_max_concurrent_total")]
-    pub max_concurrent_total: u32,
-    /// 审批超时时间，单位为秒。默认值为 `300`（5 分钟）。
-    #[serde(default = "default_sop_approval_timeout_secs")]
-    pub approval_timeout_secs: u32,
-}
-
-fn default_sop_max_finished_runs() -> u32 {
-    50
-}
-
-fn default_sop_max_concurrent_total() -> u32 {
-    5
-}
-
-fn default_sop_approval_timeout_secs() -> u32 {
-    300
-}
-
-impl Default for SopConfig {
-    fn default() -> Self {
-        Self {
-            sops_dir: None,
-            default_execution_mode: SopExecutionMode::Supervised,
-            max_finished_runs: default_sop_max_finished_runs(),
-            max_concurrent_total: default_sop_max_concurrent_total(),
-            approval_timeout_secs: default_sop_approval_timeout_secs(),
-        }
     }
 }
 

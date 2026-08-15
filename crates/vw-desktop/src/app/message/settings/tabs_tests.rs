@@ -219,14 +219,12 @@ fn state_only_system_tabs_clear_stale_feedback_without_scheduling_work() {
     app.goal_loop_settings.save_error = Some("goal".to_string());
     app.multimodal_settings.save_error = Some("multimodal".to_string());
     app.tunnel_settings.save_error = Some("tunnel".to_string());
-    app.sop_settings.save_error = Some("sop".to_string());
 
     for tab in [
         SystemTab::EmbeddingRoutes,
         SystemTab::GoalLoop,
         SystemTab::Multimodal,
         SystemTab::Tunnel,
-        SystemTab::Sop,
     ] {
         assert!(!has_scheduled_action(update(&mut app, SettingsMessage::SystemTabSelected(tab),)));
     }
@@ -236,7 +234,6 @@ fn state_only_system_tabs_clear_stale_feedback_without_scheduling_work() {
     assert_eq!(app.goal_loop_settings.save_error, None);
     assert_eq!(app.multimodal_settings.save_error, None);
     assert_eq!(app.tunnel_settings.save_error, None);
-    assert_eq!(app.sop_settings.save_error, None);
 }
 
 #[tokio::test(flavor = "multi_thread")]

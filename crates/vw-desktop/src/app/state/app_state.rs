@@ -821,8 +821,6 @@ pub struct App {
     pub(crate) heartbeat_settings: HeartbeatSettingsState,
     /// Cron 设置状态
     pub(crate) cron_settings: CronSettingsState,
-    /// SOP 设置状态
-    pub(crate) sop_settings: SopSettingsState,
     /// 调度器设置状态
     pub(crate) scheduler_settings: SchedulerSettingsState,
     /// Hooks 设置状态

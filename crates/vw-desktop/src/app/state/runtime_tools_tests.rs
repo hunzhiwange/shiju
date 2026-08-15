@@ -474,7 +474,6 @@ fn tool_buckets_cover_supported_runtime_aliases() {
         ("cron_add", SessionToolBucket::Agent),
         ("cron_runs", SessionToolBucket::Agent),
         ("todoread", SessionToolBucket::Agent),
-        ("sop_status", SessionToolBucket::Agent),
     ];
 
     for (tool_id, expected) in cases {
@@ -494,7 +493,6 @@ fn tool_groups_cover_supported_runtime_aliases() {
         ("Agent", SessionToolGroup::Collaboration),
         ("cron_update", SessionToolGroup::Collaboration),
         ("todoread", SessionToolGroup::Collaboration),
-        ("sop_approve", SessionToolGroup::Collaboration),
         ("proxy_config", SessionToolGroup::Integration),
         ("agents_send", SessionToolGroup::Integration),
         ("wasm_module", SessionToolGroup::Integration),

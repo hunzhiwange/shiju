@@ -323,6 +323,12 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
         svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/gear.svg")),
     );
 
+    // 扳手/工具图标
+    m.insert(
+        Icon::Wrench,
+        svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/wrench.svg")),
+    );
+
     // 宽齿轮连接图标
     m.insert(
         Icon::GearWideConnected,

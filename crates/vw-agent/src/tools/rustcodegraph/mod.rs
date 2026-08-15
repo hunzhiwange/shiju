@@ -6,10 +6,11 @@ use super::traits::{
 use ::rustcodegraph::mcp::tools::{
     ToolContent as LibraryToolContent, ToolHandler, ToolResult as LibraryToolResult,
 };
-use ::rustcodegraph::{CodeGraph, IndexOptions, SyncResult, WatchOptions};
+use ::rustcodegraph::{CodeGraph, IndexOptions, OpenOptions, SyncResult, WatchOptions};
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
+use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Mutex, mpsc};
 use std::thread::{self, JoinHandle};
@@ -185,7 +186,8 @@ struct IndexLifecycleWorker {
 
 pub struct RustCodeGraphTool {
     project_root: PathBuf,
-    lifecycle: IndexLifecycleWorker,
+    watch_options: WatchOptions,
+    lifecycle: Mutex<Option<IndexLifecycleWorker>>,
 }
 
 impl RustCodeGraphTool {
@@ -215,12 +217,31 @@ impl RustCodeGraphTool {
                 project_root.display()
             );
         }
+        validate_index_header(&project_root)?;
 
-        let lifecycle = Self::start_lifecycle_worker(&project_root, watch_options)?;
         Ok(Self {
             project_root,
-            lifecycle,
+            watch_options,
+            lifecycle: Mutex::new(None),
         })
+    }
+
+    fn lifecycle_commands(&self) -> anyhow::Result<mpsc::Sender<LifecycleCommand>> {
+        let mut lifecycle = match self.lifecycle.lock() {
+            Ok(lifecycle) => lifecycle,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        if lifecycle.is_none() {
+            *lifecycle = Some(Self::start_lifecycle_worker(
+                &self.project_root,
+                self.watch_options.clone(),
+            )?);
+        }
+        Ok(lifecycle
+            .as_ref()
+            .expect("RustCodeGraph lifecycle must exist after initialization")
+            .commands
+            .clone())
     }
 
     fn start_lifecycle_worker(
@@ -233,7 +254,13 @@ impl RustCodeGraphTool {
         let thread = thread::Builder::new()
             .name("vw-rustcodegraph-lifecycle".to_string())
             .spawn(move || {
-                let mut graph = match CodeGraph::open_sync(&worker_root) {
+                let mut graph = match CodeGraph::open(
+                    &worker_root,
+                    OpenOptions {
+                        sync: false,
+                        read_only: false,
+                    },
+                ) {
                     Ok(graph) => graph,
                     Err(error) => {
                         let _ = initialized_tx.send(Err(error.to_string()));
@@ -328,13 +355,19 @@ impl RustCodeGraphTool {
 
     async fn execute_query(&self, args: &Args) -> anyhow::Result<LibraryToolResult> {
         let project_root = self.project_root.clone();
-        let lifecycle_commands = self.lifecycle.commands.clone();
         let operation = args.operation;
+        let lifecycle_commands = if matches!(operation, Operation::Status) {
+            None
+        } else {
+            Some(self.lifecycle_commands()?)
+        };
         let library_args = args.library_args();
         tokio::task::spawn_blocking(move || -> anyhow::Result<LibraryToolResult> {
             if matches!(operation, Operation::Sync) {
                 let (done, completed) = mpsc::sync_channel(1);
                 lifecycle_commands
+                    .as_ref()
+                    .expect("sync operation must initialize RustCodeGraph lifecycle")
                     .send(LifecycleCommand::SyncNow(done))
                     .map_err(|_| anyhow::anyhow!("RustCodeGraph lifecycle worker stopped"))?;
                 let result = completed
@@ -346,6 +379,8 @@ impl RustCodeGraphTool {
             if !matches!(operation, Operation::Status) {
                 let (done, completed) = mpsc::sync_channel(1);
                 lifecycle_commands
+                    .as_ref()
+                    .expect("query operation must initialize RustCodeGraph lifecycle")
                     .send(LifecycleCommand::SyncOnceAndWatch(done))
                     .map_err(|_| anyhow::anyhow!("RustCodeGraph lifecycle worker stopped"))?;
                 completed
@@ -400,6 +435,32 @@ impl RustCodeGraphTool {
     }
 }
 
+fn validate_index_header(project_root: &Path) -> anyhow::Result<()> {
+    const SQLITE_HEADER: &[u8; 16] = b"SQLite format 3\0";
+
+    let database_path = ::rustcodegraph::get_database_path(project_root);
+    let mut file = std::fs::File::open(&database_path).map_err(|error| {
+        anyhow::anyhow!(
+            "RustCodeGraph index is unavailable at {}: {error}",
+            database_path.display()
+        )
+    })?;
+    let mut header = [0_u8; SQLITE_HEADER.len()];
+    file.read_exact(&mut header).map_err(|error| {
+        anyhow::anyhow!(
+            "RustCodeGraph index is invalid at {}: {error}",
+            database_path.display()
+        )
+    })?;
+    if &header != SQLITE_HEADER {
+        anyhow::bail!(
+            "RustCodeGraph index is invalid at {}: unexpected database header",
+            database_path.display()
+        );
+    }
+    Ok(())
+}
+
 fn sync_library_result(result: SyncResult) -> LibraryToolResult {
     let changed = result.files_added + result.files_modified + result.files_removed;
     let text = format!(
@@ -419,8 +480,16 @@ fn sync_library_result(result: SyncResult) -> LibraryToolResult {
 
 impl Drop for RustCodeGraphTool {
     fn drop(&mut self) {
-        let _ = self.lifecycle.commands.send(LifecycleCommand::Shutdown);
-        let mut thread = match self.lifecycle.thread.lock() {
+        let lifecycle = match self.lifecycle.get_mut() {
+            Ok(lifecycle) => lifecycle.take(),
+            Err(poisoned) => poisoned.into_inner().take(),
+        };
+        let Some(lifecycle) = lifecycle else {
+            return;
+        };
+
+        let _ = lifecycle.commands.send(LifecycleCommand::Shutdown);
+        let mut thread = match lifecycle.thread.lock() {
             Ok(thread) => thread,
             Err(poisoned) => poisoned.into_inner(),
         };

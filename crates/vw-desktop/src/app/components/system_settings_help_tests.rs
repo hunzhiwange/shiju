@@ -13,7 +13,6 @@ const SUPPORTED_HELP: &[(SystemTab, &str, &str)] = &[
     (SystemTab::ModelRoutes, "模型路由帮助", MODEL_ROUTES_HELP),
     (SystemTab::QueryClassification, "查询分类帮助", QUERY_CLASSIFICATION_HELP),
     (SystemTab::GoalLoop, "目标循环帮助", GOAL_LOOP_HELP),
-    (SystemTab::Sop, "标准流程帮助", SOP_HELP),
     (SystemTab::Agents, "委托代理配置帮助", AGENTS_HELP),
     (SystemTab::Channels, "通道配置帮助", CHANNELS_HELP),
     (SystemTab::Memory, "记忆系统帮助", MEMORY_HELP),

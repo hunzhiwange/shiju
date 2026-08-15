@@ -7,7 +7,7 @@ use serde_json::json;
 
 use super::json_tree::{
     JSON_TREE_SCROLLBAR_WIDTH, JsonTreeLineKind, JsonTreeTokenKind, json_token_font, json_tree,
-    json_tree_scroll_direction, project_json_tree,
+    json_tree_copy_visible_in_layer, json_tree_scroll_direction, project_json_tree,
 };
 use super::styles::json_tree_token_color;
 
@@ -116,4 +116,13 @@ fn json_tree_uses_safe_fonts_for_non_ascii_values() {
             assert_ne!(color, punctuation);
         }
     }
+}
+
+#[test]
+fn json_tree_copy_action_is_only_visible_on_hover() {
+    assert!(!json_tree_copy_visible_in_layer(false, JsonTreeLineKind::Open));
+    assert!(!json_tree_copy_visible_in_layer(false, JsonTreeLineKind::Leaf));
+    assert!(json_tree_copy_visible_in_layer(true, JsonTreeLineKind::Open));
+    assert!(json_tree_copy_visible_in_layer(true, JsonTreeLineKind::Leaf));
+    assert!(!json_tree_copy_visible_in_layer(true, JsonTreeLineKind::Close));
 }

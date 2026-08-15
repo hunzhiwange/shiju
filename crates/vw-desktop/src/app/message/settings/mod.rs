@@ -37,7 +37,6 @@ mod scheduler;
 mod security;
 mod sessions;
 mod skills;
-mod sop;
 mod staff;
 mod storage;
 mod tabs;
@@ -57,7 +56,7 @@ pub(crate) use messages::{
     ChannelsMessage, EmbeddingRoutesMessage, GatewayClientMessage, GatewayMessage,
     GeneralSettingsMessage, GoalLoopMessage, HooksMessage, HttpRequestMessage, McpMessage,
     MemoryMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
-    QuickMessagesMessage, RuntimeMessage, SettingsMessage, SopMessage, StaffMessage,
+    QuickMessagesMessage, RuntimeMessage, SettingsMessage, StaffMessage,
     StaffResourceMessage, StaffTeamDraftField, StaffTeamMemberDraftField, StaffWorkerDraftField,
     StorageMessage, ThemeChromeField, ThemeColorPickerTarget, ThemePaletteField, ThemesMessage,
     TunnelMessage, WebSearchMessage,
@@ -74,7 +73,6 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
         "heartbeat" => app.heartbeat_settings.save_error = save_error,
         "goal_loop" => app.goal_loop_settings.save_error = save_error,
         "cron" => app.cron_settings.save_error = save_error,
-        "sop" => app.sop_settings.save_error = save_error,
         "scheduler" => app.scheduler_settings.save_error = save_error,
         "reliability" => app.reliability_settings.save_error = save_error,
         "memory" => app.memory_settings.save_error = save_error,
@@ -157,7 +155,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Task::none()
             }
         }
-        SettingsMessage::Sop(_) => sop::update(app, message),
         SettingsMessage::ProvidersRefresh
         | SettingsMessage::ProvidersRefreshed(_)
         | SettingsMessage::ProviderModelsSyncRemote

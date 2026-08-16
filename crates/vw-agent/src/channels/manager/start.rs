@@ -23,7 +23,6 @@
 //! 此模块通常在 VibeWindow 的通道服务器模式下被调用，用于启动多通道消息监听服务。
 
 use super::*;
-use anyhow::Context;
 
 /// 启动所有已配置的通道并将消息路由到代理核心
 ///
@@ -477,17 +476,7 @@ fn channel_interrupt_on_new_message(config: &Config) -> bool {
 fn build_channel_hooks(
     config: &Config,
 ) -> Result<Option<Arc<crate::app::agent::hooks::HookRunner>>> {
-    if !config.hooks.enabled {
-        return Ok(None);
-    }
-
-    let mut runner = crate::app::agent::hooks::HookRunner::new();
-    if config.hooks.builtin.command_logger {
-        runner.register(Box::new(crate::app::agent::hooks::builtin::CommandLoggerHook::new()));
-    }
-    crate::plugins::register_trusted_plugin_hooks(&mut runner, config)
-        .context("failed to register trusted plugin hooks")?;
-    Ok(Some(Arc::new(runner)))
+    Ok(crate::app::agent::hooks::build_hook_runtime(config)?.runner_snapshot())
 }
 
 #[cfg(test)]

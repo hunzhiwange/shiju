@@ -19,20 +19,73 @@
 //! 该钩子优先级为 `-50`（较低），确保在其他业务钩子执行完毕后再记录日志。
 
 use async_trait::async_trait;
+use serde::Serialize;
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::app::agent::hooks::traits::HookHandler;
 use crate::app::agent::tools::traits::ToolResult;
 
+/// 默认保留的命令审计条目数。
+pub const DEFAULT_COMMAND_AUDIT_CAPACITY: usize = 256;
+
+/// 不包含工具参数、输出或错误正文的安全审计条目。
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct CommandAuditEntry {
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub tool_name: String,
+    pub duration_ms: u64,
+    pub success: bool,
+}
+
+/// 可克隆、有界的命令审计存储。
+#[derive(Clone)]
+pub struct CommandAuditStore {
+    entries: Arc<Mutex<VecDeque<CommandAuditEntry>>>,
+    capacity: usize,
+}
+
+impl CommandAuditStore {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            entries: Arc::new(Mutex::new(VecDeque::with_capacity(capacity.max(1)))),
+            capacity: capacity.max(1),
+        }
+    }
+
+    pub fn entries(&self) -> Vec<CommandAuditEntry> {
+        self.entries
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .iter()
+            .cloned()
+            .collect()
+    }
+
+    fn push(&self, entry: CommandAuditEntry) {
+        let mut entries = self.entries.lock().unwrap_or_else(|error| error.into_inner());
+        if entries.len() == self.capacity {
+            entries.pop_front();
+        }
+        entries.push_back(entry);
+    }
+}
+
+impl Default for CommandAuditStore {
+    fn default() -> Self {
+        Self::new(DEFAULT_COMMAND_AUDIT_CAPACITY)
+    }
+}
+
 /// 命令日志记录钩子
 ///
 /// 该钩子实现 [`HookHandler`] trait，用于在工具调用完成后记录审计日志。
-/// 所有日志条目存储在内存中的线程安全缓冲区中，同时输出到 tracing 系统。
+/// 安全字段存储在有界、线程安全的内存缓冲区中，同时输出到 tracing 系统。
 ///
 /// # 线程安全性
 ///
-/// 内部使用 `Arc<Mutex<Vec<String>>>` 存储日志，支持多线程并发写入。
+/// 内部审计存储支持多线程并发写入，并在达到容量后淘汰最旧条目。
 ///
 /// # 示例
 ///
@@ -45,13 +98,7 @@ use crate::app::agent::tools::traits::ToolResult;
 /// assert_eq!(hook.priority(), -50);
 /// ```
 pub struct CommandLoggerHook {
-    /// 日志条目缓冲区
-    ///
-    /// 使用 `Arc<Mutex<>>` 包装以支持：
-    /// - 多线程安全访问
-    /// - 跨异步任务共享
-    /// - 内部可变性
-    log: Arc<Mutex<Vec<String>>>,
+    audit_store: CommandAuditStore,
 }
 
 impl CommandLoggerHook {
@@ -69,10 +116,14 @@ impl CommandLoggerHook {
     /// let hook = CommandLoggerHook::new();
     /// ```
     pub fn new() -> Self {
-        Self { log: Arc::new(Mutex::new(Vec::new())) }
+        Self::with_store(CommandAuditStore::default())
     }
 
-    /// 获取已记录的所有日志条目（仅测试可用）
+    pub fn with_store(audit_store: CommandAuditStore) -> Self {
+        Self { audit_store }
+    }
+
+    /// 获取已记录的所有结构化审计条目（仅测试可用）
     ///
     /// 返回日志缓冲区的完整副本，用于测试验证。
     ///
@@ -84,8 +135,8 @@ impl CommandLoggerHook {
     ///
     /// 此方法仅在测试配置下可用（`#[cfg(test)]`）。
     #[cfg(test)]
-    pub fn entries(&self) -> Vec<String> {
-        self.log.lock().unwrap().clone()
+    pub fn entries(&self) -> Vec<CommandAuditEntry> {
+        self.audit_store.entries()
     }
 }
 
@@ -143,30 +194,27 @@ impl HookHandler for CommandLoggerHook {
     ///
     /// # 行为说明
     ///
-    /// 1. 格式化日志条目：`[HH:MM:SS] tool_name (XXXms) success=true/false`
+    /// 1. 构造仅含时间、工具名、耗时与成功状态的结构化条目
     /// 2. 使用 tracing 输出 INFO 级别日志
-    /// 3. 将条目追加到内存缓冲区
-    ///
-    /// # 示例输出
-    ///
-    /// ```text
-    /// [14:30:45] shell (150ms) success=true
-    /// ```
+    /// 3. 将条目追加到有界内存缓冲区
     async fn on_after_tool_call(&self, tool: &str, result: &ToolResult, duration: Duration) {
-        // 构建日志条目：时间戳 + 工具名 + 耗时 + 成功状态
-        let entry = format!(
-            "[{}] {} ({}ms) success={}",
-            chrono::Utc::now().format("%H:%M:%S"),
-            tool,
-            duration.as_millis(),
-            result.success,
+        let duration_ms = duration.as_millis().min(u128::from(u64::MAX)) as u64;
+        let entry = CommandAuditEntry {
+            timestamp: chrono::Utc::now(),
+            tool_name: tool.to_string(),
+            duration_ms,
+            success: result.success,
+        };
+
+        tracing::info!(
+            hook = "command-logger",
+            tool = entry.tool_name,
+            duration_ms = entry.duration_ms,
+            success = entry.success,
+            "tool call completed"
         );
 
-        // 输出到 tracing 系统（INFO 级别）
-        tracing::info!(hook = "command-logger", "{}", entry);
-
-        // 追加到内存缓冲区
-        self.log.lock().unwrap().push(entry);
+        self.audit_store.push(entry);
     }
 }
 

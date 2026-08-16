@@ -69,6 +69,15 @@ fn view_builds_each_autonomy_level() {
 }
 
 #[test]
+fn autonomy_save_error_banner_follows_tabs() {
+    let mut app = test_app();
+    assert_eq!(Tree::new(view(&app).as_widget()).children.len(), 4);
+
+    app.autonomy_settings.save_error = Some("autonomy save failed".to_string());
+    assert_eq!(Tree::new(view(&app).as_widget()).children.len(), 5);
+}
+
+#[test]
 fn view_builds_each_redirect_and_natural_language_mode_combination() {
     let mut app = test_app();
 

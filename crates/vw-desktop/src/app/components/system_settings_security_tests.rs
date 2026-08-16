@@ -170,6 +170,15 @@ fn view_builds_default_disabled_firejail_and_threshold_states() {
 }
 
 #[test]
+fn security_save_error_banner_follows_tabs() {
+    let mut app = test_app();
+    assert_eq!(view(&app).as_widget().children().len(), 3);
+
+    app.security_settings.save_error = Some("security save failed".to_string());
+    assert_eq!(view(&app).as_widget().children().len(), 4);
+}
+
+#[test]
 fn view_builds_each_security_tab_and_unicode_list_items() {
     let mut app = test_app();
     app.security_settings.otp_gated_domains = vec!["内部.example".to_string()];

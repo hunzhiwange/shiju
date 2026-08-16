@@ -31,11 +31,18 @@ fn runtime_rows_accept_controls_and_callbacks() {
         text_row("镜像", "默认执行镜像。", "alpine:3.20", "ubuntu:24.04", |_| {
             Message::GatewayHealthTick
         });
-    let hint: Element<'_, Message> = hint_row("建议仅放行明确需要挂载的根目录。");
+    let hinted_input: Element<'_, Message> = text_row_with_hint(
+        "根目录",
+        "说明",
+        "路径",
+        "/workspace",
+        "建议仅放行明确需要挂载的根目录。",
+        |_| Message::GatewayHealthTick,
+    );
 
     assert_eq!(element_tree(field).children.len(), 2);
     assert_eq!(element_tree(input).children.len(), 2);
-    assert_eq!(element_tree(hint).children.len(), 2);
+    assert_eq!(element_tree(hinted_input).children[1].children.len(), 2);
 }
 
 #[test]
@@ -116,10 +123,10 @@ fn view_adds_only_the_selected_runtime_specific_section() {
     app.runtime_settings.kind = "docker".to_string();
     let docker = element_tree(view(&app));
     assert_eq!(docker.children.len(), 6);
-    assert_eq!(docker.children[5].children.len(), 3);
+    assert_eq!(docker.children[5].children.len(), 2);
 
     app.runtime_settings.kind = "wasm".to_string();
     let wasm = element_tree(view(&app));
     assert_eq!(wasm.children.len(), 6);
-    assert_eq!(wasm.children[5].children.len(), 3);
+    assert_eq!(wasm.children[5].children.len(), 2);
 }

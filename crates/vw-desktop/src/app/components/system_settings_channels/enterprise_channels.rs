@@ -10,9 +10,9 @@ use iced::widget::column;
 
 use super::common::{
     GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, add_instance_row,
-    bool_row, group_reply_mode_value, hint_row, instance_title_row, lark_receive_mode_value,
-    number_row, number_row_with_key, panel, pick_row, pick_row_with_key, qq_receive_mode_value,
-    text_row, text_row_with_key,
+    bool_row, group_reply_mode_value, instance_title_row, lark_receive_mode_value,
+    number_row, number_row_with_hint, number_row_with_key, panel, pick_row, pick_row_with_key,
+    qq_receive_mode_value, text_row, text_row_with_key,
 };
 
 /// 构建或处理 `lark_panel` 对应的界面片段与交互数据。
@@ -184,15 +184,15 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
                 &LARK_RECEIVE_MODE_OPTIONS,
                 "feishu.receive_mode",
             ))
-            .push(number_row(
+            .push(number_row_with_hint(
                 "port",
                 cfg.port.unwrap_or(3000) as u32,
                 1,
                 u16::MAX as u32,
                 "",
                 "feishu.port",
+                "Webhook 模式需要公网 HTTPS 入口；WebSocket 模式会忽略 port。",
             ))
-            .push(hint_row("Webhook 模式需要公网 HTTPS 入口；WebSocket 模式会忽略 port。"))
             .push(number_row(
                 "draft_update_interval_ms",
                 cfg.draft_update_interval_ms as u32,

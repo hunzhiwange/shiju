@@ -41,6 +41,7 @@ async fn metrics_endpoint_returns_hint_when_prometheus_is_disabled() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     let response: Response = crate::app::agent::gateway::health::handle_metrics(
@@ -102,6 +103,7 @@ async fn metrics_endpoint_renders_prometheus_output() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     let response: Response = crate::app::agent::gateway::health::handle_metrics(
@@ -149,6 +151,7 @@ async fn metrics_endpoint_rejects_public_clients_when_pairing_is_disabled() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     let response: Response = crate::app::agent::gateway::health::handle_metrics(
@@ -197,6 +200,7 @@ async fn metrics_endpoint_requires_bearer_token_when_pairing_is_enabled() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     let unauthorized: Response = crate::app::agent::gateway::health::handle_metrics(

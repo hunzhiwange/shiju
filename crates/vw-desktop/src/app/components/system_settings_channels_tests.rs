@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::{App, Message};
+use iced::advanced::widget::Tree;
 use vw_config_types::channels::{TelegramConfig, WebhookConfig};
 
 fn test_app() -> App {
@@ -43,6 +44,30 @@ fn channel_tabs_builds_five_column_grid() {
 
     assert_eq!(CHANNEL_TAB_COLUMNS, 5);
     keep_element(channel_tabs(app.channels_settings.active_tab));
+}
+
+#[test]
+fn channels_error_banner_follows_channel_tabs() {
+    let mut app = test_app();
+
+    for descriptor in channel_tab_descriptors() {
+        app.channels_settings.active_tab = descriptor.tab;
+        let clean_children = {
+            let clean = view(&app);
+            let clean_tree = Tree::new(clean.as_widget());
+            clean_tree.children[0].children.len()
+        };
+        assert_eq!(clean_children, 6);
+
+        app.channels_settings.save_error = Some("channel save failed".to_string());
+        let error_children = {
+            let error = view(&app);
+            let error_tree = Tree::new(error.as_widget());
+            error_tree.children[0].children.len()
+        };
+        assert_eq!(error_children, 7);
+        app.channels_settings.save_error = None;
+    }
 }
 
 #[test]

@@ -4,9 +4,9 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
-    settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_control_with_hint, settings_divider,
+    settings_muted_text_style, settings_panel, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_text_input_style,
 };
 use crate::app::message::settings::StorageMessage;
 use crate::app::{App, Message, message};
@@ -90,26 +90,23 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 
     let provider_row = field_row("存储类型", "选择后端数据库类型。", provider_pick);
 
-    let db_url_row = text_row(
+    let db_url_row = field_row(
         "数据库地址",
-        "远程 SQL 存储使用连接串；留空时不写入数据库地址。",
-        "postgres://user:pass@host:5432/db",
-        &s.db_url_input,
-        |value| {
-            Message::Settings(message::SettingsMessage::Storage(StorageMessage::DbUrlChanged(
-                value,
-            )))
-        },
+        "",
+        settings_control_with_hint(
+            text_input("postgres://user:pass@host:5432/db", &s.db_url_input)
+                .on_input(|value| {
+                    Message::Settings(message::SettingsMessage::Storage(
+                        StorageMessage::DbUrlChanged(value),
+                    ))
+                })
+                .padding([10, 12])
+                .size(13)
+                .style(settings_text_input_style)
+                .width(Length::Fill),
+            "远程 SQL 存储使用连接串；留空时不写入数据库地址。",
+        ),
     );
-
-    let db_url_hint = row![
-        container(text(" ")).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-        text("远程 SQL 存储使用连接串；留空时不写入数据库地址。")
-            .size(12)
-            .style(settings_muted_text_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
 
     let schema_row =
         text_row("Schema 名称", "数据库 schema 名称。", "public", &s.schema, |value| {
@@ -130,24 +127,23 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let timeout_row = text_row(
+    let timeout_row = field_row(
         "连接超时",
-        "仅接受整数秒；留空会写入 None。",
-        "秒；留空表示使用默认",
-        &s.connect_timeout_secs_input,
-        |value| {
-            Message::Settings(message::SettingsMessage::Storage(
-                StorageMessage::ConnectTimeoutSecsChanged(value),
-            ))
-        },
+        "",
+        settings_control_with_hint(
+            text_input("秒；留空表示使用默认", &s.connect_timeout_secs_input)
+                .on_input(|value| {
+                    Message::Settings(message::SettingsMessage::Storage(
+                        StorageMessage::ConnectTimeoutSecsChanged(value),
+                    ))
+                })
+                .padding([10, 12])
+                .size(13)
+                .style(settings_text_input_style)
+                .width(Length::Fill),
+            "仅接受整数秒；留空会写入 None。",
+        ),
     );
-
-    let timeout_hint = row![
-        container(text(" ")).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-        text("仅接受整数秒；留空会写入 None。").size(12).style(settings_muted_text_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
 
     let tls_row = field_row(
         "TLS 加密",
@@ -165,13 +161,11 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     let content = column![
         settings_section_card("连接参数", "选择数据库类型并配置基础连接信息。"),
         settings_panel(column![provider_row, settings_divider(), db_url_row].spacing(0)),
-        db_url_hint,
         settings_section_card("命名与超时", "配置 schema、表名和连接超时。"),
         settings_panel(
             column![schema_row, settings_divider(), table_row, settings_divider(), timeout_row]
                 .spacing(0),
         ),
-        timeout_hint,
         settings_section_card("安全", "配置与远程存储的加密连接策略。"),
         settings_panel(column![tls_row].spacing(0)),
     ]

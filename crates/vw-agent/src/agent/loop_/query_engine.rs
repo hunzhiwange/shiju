@@ -96,6 +96,7 @@ pub(crate) struct QueryEngine {
     min_memory_relevance_score: f64,
     turn_count: usize,
     timezone: Tz,
+    hook_runtime: Option<crate::app::agent::hooks::HookRuntime>,
 }
 
 #[derive(Debug, Default)]
@@ -185,6 +186,16 @@ impl QueryEngine {
         config: Config,
         session_id: &str,
         provider_override: Option<Arc<dyn Provider>>,
+    ) -> Result<Self> {
+        Self::new_with_provider_and_hook_runtime(config, session_id, provider_override, None).await
+    }
+
+    /// 从配置构建引擎，并复用网关持有的可热替换钩子运行时。
+    pub(crate) async fn new_with_provider_and_hook_runtime(
+        config: Config,
+        session_id: &str,
+        provider_override: Option<Arc<dyn Provider>>,
+        hook_runtime: Option<crate::app::agent::hooks::HookRuntime>,
     ) -> Result<Self> {
         let timezone = crate::app::agent::util::locale::parse_timezone(
             &config.app_ui.system_settings.timezone,
@@ -311,6 +322,7 @@ impl QueryEngine {
             min_memory_relevance_score: config.memory.min_relevance_score,
             turn_count: 0,
             timezone,
+            hook_runtime,
         })
     }
 
@@ -351,6 +363,7 @@ impl QueryEngine {
             true,
             &self.multimodal_config,
             self.max_tool_iterations,
+            self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
         )
         .await;
 
@@ -381,6 +394,7 @@ impl QueryEngine {
                     true,
                     &self.multimodal_config,
                     self.max_tool_iterations,
+                    self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
                 )
                 .await;
                 if retry.is_ok() {

@@ -4,9 +4,10 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_control_with_hint, settings_divider,
+    settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_text_input_style,
 };
 use crate::app::message::settings::{RuntimeMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -67,14 +68,27 @@ fn text_row<'a>(
     )
 }
 
-fn hint_row<'a>(message: &'a str) -> Element<'a, Message> {
-    row![
-        container(text("")).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-        text(message).size(12).style(settings_muted_text_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center)
-    .into()
+fn text_row_with_hint<'a>(
+    label: &'static str,
+    description: &'static str,
+    placeholder: &'static str,
+    value: &'a str,
+    hint: &'static str,
+    on_input: impl Fn(String) -> Message + 'a,
+) -> Element<'a, Message> {
+    field_row(
+        label,
+        description,
+        settings_control_with_hint(
+            text_input(placeholder, value)
+                .on_input(on_input)
+                .padding([10, 12])
+                .size(13)
+                .style(settings_text_input_style)
+                .width(Length::Fill),
+            hint,
+        ),
+    )
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -243,11 +257,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .style(settings_checkbox_style),
                 ),
                 settings_divider(),
-                text_row(
+                text_row_with_hint(
                     "允许的工作区根目录 (allowed_workspace_roots)",
                     "仅放行明确需要挂载的根目录。",
                     "逗号或换行分隔路径",
                     &s.docker_allowed_workspace_roots_input,
+                    "建议仅放行明确需要挂载的根目录。",
                     |value| {
                         Message::Settings(SettingsMessage::Runtime(
                             RuntimeMessage::DockerAllowedWorkspaceRootsChanged(value),
@@ -257,7 +272,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0)
         ),
-        hint_row("建议仅放行明确需要挂载的根目录。"),
     ]
     .spacing(16);
 
@@ -448,11 +462,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .width(Length::Fixed(280.0)),
                 ),
                 settings_divider(),
-                text_row(
+                text_row_with_hint(
                     "模块 SHA256 (security.module_sha256)",
                     "每行一条 module:sha256 记录。",
                     "每行 module:sha256",
                     &s.wasm_module_sha256_input,
+                    "`enforce` 模式下建议至少配置一条模块哈希。",
                     |value| {
                         Message::Settings(SettingsMessage::Runtime(
                             RuntimeMessage::WasmModuleSha256Changed(value),
@@ -462,7 +477,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0)
         ),
-        hint_row("`enforce` 模式下建议至少配置一条模块哈希。"),
     ]
     .spacing(16);
 

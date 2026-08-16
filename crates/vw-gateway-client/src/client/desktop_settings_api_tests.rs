@@ -525,3 +525,48 @@ async fn desktop_settings_api_routes_plugins() {
     assert_eq!(server.take_request().path, "/v1/plugins/delete");
     server.join();
 }
+
+#[tokio::test]
+async fn hooks_client_uses_typed_contracts() {
+    let hook = json!({
+        "plugin_id": "demo-plugin",
+        "event": "before_tool_call",
+        "command": "/bin/sh",
+        "args": ["-c", "exit 0"],
+        "working_dir": "/tmp/demo-plugin",
+        "mode": "blocking",
+        "hook_hash": "abc123",
+        "trusted": false
+    });
+    let audit = json!({
+        "timestamp": "2026-08-17T00:00:00Z",
+        "tool_name": "shell",
+        "duration_ms": 12,
+        "success": true
+    });
+    let server = test_support::server(vec![
+        (200, json!([hook])),
+        (200, json!({"plugin_id": "demo-plugin", "hook_hash": "abc123", "trusted": true})),
+        (200, json!({"plugin_id": "demo-plugin", "hook_hash": "abc123", "trusted": false})),
+        (200, json!([audit])),
+    ]);
+
+    let hooks = server.client().hooks_get().await.expect("hooks");
+    assert_eq!(hooks[0].plugin_id, "demo-plugin");
+    assert!(!hooks[0].trusted);
+    assert!(server.client().hook_trust("demo-plugin", "abc123").await.expect("trust").trusted);
+    assert!(!server.client().hook_revoke("demo-plugin", "abc123").await.expect("revoke").trusted);
+    let audit = server.client().hook_audit_get().await.expect("audit");
+    assert_eq!(audit[0].tool_name, "shell");
+    assert_eq!(audit[0].duration_ms, 12);
+
+    assert_eq!(server.take_request().path, "/v1/hooks");
+    let trust = server.take_request();
+    assert_eq!(trust.path, "/v1/hooks/trust");
+    assert_eq!(trust.body, json!({"plugin_id": "demo-plugin", "hook_hash": "abc123"}));
+    let revoke = server.take_request();
+    assert_eq!(revoke.path, "/v1/hooks/revoke");
+    assert_eq!(revoke.body, json!({"plugin_id": "demo-plugin", "hook_hash": "abc123"}));
+    assert_eq!(server.take_request().path, "/v1/hooks/audit");
+    server.join();
+}

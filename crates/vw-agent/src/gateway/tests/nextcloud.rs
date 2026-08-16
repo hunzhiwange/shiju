@@ -103,6 +103,7 @@ async fn nextcloud_talk_webhook_returns_not_found_when_not_configured() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 调用 webhook 处理器，传入空请求头和测试请求体
@@ -187,6 +188,7 @@ async fn nextcloud_talk_webhook_rejects_invalid_signature() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 构建请求头，携带随机值和无效签名

@@ -257,8 +257,10 @@ fn preview_lines(value: &str, max_lines: usize) -> String {
 fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Message> {
     let s = &app.cron_settings;
     let selected = s.selected_job_ids.iter().any(|id| id == &job.id);
+    let details_expanded = s.expanded_job_ids.iter().any(|id| id == &job.id);
     let is_editing = s.editing_job_id.as_deref() == Some(job.id.as_str());
     let id_for_select = job.id.clone();
+    let id_for_details = job.id.clone();
     let id_for_toggle = job.id.clone();
     let id_for_edit = job.id.clone();
     let id_for_runs = job.id.clone();
@@ -279,21 +281,42 @@ fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Message> {
                 message::SettingsMessage::CronJobSelectionToggled(id_for_select.clone(), v)
             ))
             .style(settings_checkbox_style),
-        column![
-            text(job_title(job)).size(14),
-            text(format!("ID: {}", job.id)).size(11).style(settings_muted_text_style),
-        ]
-        .spacing(3)
-        .width(Length::Fill),
-        settings_value_badge(type_label),
-        settings_value_badge(status_label),
-        settings_value_badge(delivery_label),
-        settings_value_badge(last_status),
+        button(
+            row![
+                text(job_title(job)).size(14).width(Length::Fill),
+                text(if details_expanded { "收起" } else { "展开" })
+                    .size(12)
+                    .style(settings_muted_text_style),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center)
+        )
+        .padding([8, 10])
+        .width(Length::Fill)
+        .style(rounded_action_btn_style)
+        .on_press(Message::Settings(message::SettingsMessage::CronJobDetailsToggled(
+            id_for_details,
+            !details_expanded,
+        ))),
     ]
     .spacing(10)
     .align_y(Alignment::Center);
 
     let mut meta = column![
+        row![
+            text("ID").size(12).style(settings_muted_text_style),
+            text(job.id.clone()).size(12),
+        ]
+        .spacing(10),
+        row![
+            text("概况").size(12).style(settings_muted_text_style),
+            settings_value_badge(type_label),
+            settings_value_badge(status_label),
+            settings_value_badge(delivery_label),
+            settings_value_badge(last_status),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center),
         row![
             text("表达式").size(12).style(settings_muted_text_style),
             text(job.expression.clone()).size(12),
@@ -376,9 +399,12 @@ fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Message> {
     ]
     .spacing(8);
 
-    let mut content = column![header, meta, actions].spacing(12).width(Length::Fill);
-    if is_editing {
-        content = content.push(settings_divider()).push(edit_form(app));
+    let mut content = column![header].spacing(12).width(Length::Fill);
+    if details_expanded {
+        content = content.push(meta).push(actions);
+        if is_editing {
+            content = content.push(settings_divider()).push(edit_form(app));
+        }
     }
 
     container(content).padding([14, 0]).width(Length::Fill).into()
@@ -1205,16 +1231,27 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .align_y(Alignment::Start),
         tabs,
-        tab_content,
     ]
     .spacing(16)
     .width(Length::Fill);
+
+    if let Some(error) = active_save_error(app) {
+        col = col.push(settings_error_banner(error));
+    }
+    col = col.push(tab_content);
 
     if let Some(status) = &s.action_status {
         col = col.push(settings_success_banner(status));
     }
 
     col.into()
+}
+
+fn active_save_error(app: &App) -> Option<&str> {
+    app.cron_settings
+        .save_error
+        .as_deref()
+        .or(app.scheduler_settings.save_error.as_deref())
 }
 
 fn with_runs_modal<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {

@@ -3,7 +3,9 @@ use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::multimodal::ocr::ImageTextExtractor;
-use crate::app::agent::providers::Provider;
+use crate::app::agent::providers::{ChatRequest, ChatResponse, Provider, ToolCall};
+use crate::providers::traits::ProviderCapabilities;
+use std::collections::VecDeque;
 use crate::app::agent::security::pairing::PairingGuard;
 use crate::app::agent::tools::ToolResult;
 use std::sync::Arc;
@@ -30,6 +32,69 @@ impl Provider for StaticProvider {
 }
 
 struct FailingProvider;
+
+struct ToolCallingProvider {
+    responses: std::sync::Mutex<VecDeque<ChatResponse>>,
+}
+
+impl ToolCallingProvider {
+    fn new(responses: Vec<ChatResponse>) -> Self {
+        Self { responses: std::sync::Mutex::new(responses.into()) }
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl Provider for ToolCallingProvider {
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities { native_tool_calling: true, vision: false }
+    }
+
+    async fn chat_with_system(
+        &self,
+        _system_prompt: Option<&str>,
+        _message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<String> {
+        anyhow::bail!("tool test uses structured chat")
+    }
+
+    async fn chat(
+        &self,
+        _request: ChatRequest<'_>,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<ChatResponse> {
+        self.responses
+            .lock()
+            .expect("provider responses")
+            .pop_front()
+            .ok_or_else(|| anyhow::anyhow!("tool response script exhausted"))
+    }
+}
+
+fn tool_call_response(id: &str) -> ChatResponse {
+    ChatResponse {
+        text: None,
+        tool_calls: vec![ToolCall {
+            id: id.to_string(),
+            name: "Sleep".to_string(),
+            arguments: r#"{"duration_ms":0}"#.to_string(),
+        }],
+        usage: None,
+        reasoning_content: None,
+    }
+}
+
+fn text_response(text: &str) -> ChatResponse {
+    ChatResponse {
+        text: Some(text.to_string()),
+        tool_calls: Vec::new(),
+        usage: None,
+        reasoning_content: None,
+    }
+}
 
 #[derive(Default)]
 struct RecordingProvider {
@@ -155,6 +220,7 @@ fn state() -> AppState {
         max_tool_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 
@@ -299,6 +365,39 @@ async fn run_gateway_chat_with_tools_reuses_injected_provider() {
 
     assert!(response.contains("hello"));
     assert!(state.session_query_engines.lock().await.contains_key("session-1"));
+}
+
+#[tokio::test]
+async fn gateway_chat_uses_shared_hook_runtime() {
+    let mut state = state();
+    let provider = ToolCallingProvider::new(vec![
+        tool_call_response("enabled-call"),
+        text_response("enabled"),
+        tool_call_response("disabled-call"),
+        text_response("disabled"),
+    ]);
+    state.provider = Arc::new(provider);
+    let mut hook_config = state.config.lock().clone();
+    hook_config.hooks.enabled = true;
+    hook_config.hooks.builtin.command_logger = true;
+    hook_config.hooks.plugins.enabled = false;
+    let runtime = crate::app::agent::hooks::build_hook_runtime(&hook_config).unwrap();
+    state.hook_runtime = Some(runtime.clone());
+
+    assert_eq!(
+        run_gateway_chat_with_tools(&state, "run enabled tool", "hooks-enabled").await.unwrap(),
+        "enabled"
+    );
+    assert_eq!(runtime.audit_store().entries().len(), 1);
+
+    hook_config.hooks.enabled = false;
+    let disabled = runtime.build_candidate(&hook_config).unwrap();
+    runtime.replace(disabled);
+    assert_eq!(
+        run_gateway_chat_with_tools(&state, "run disabled tool", "hooks-disabled").await.unwrap(),
+        "disabled"
+    );
+    assert_eq!(runtime.audit_store().entries().len(), 1);
 }
 
 #[test]

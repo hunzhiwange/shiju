@@ -9,7 +9,7 @@ use iced::Task;
 use super::messages::{
     AcpMessage, AgentConfigTabMessage, AgentsMessage, BrowserMessage, ChannelsMessage,
     GatewayMessage, GeneralSettingsMessage, HttpRequestMessage, McpMessage, MemoryMessage,
-    ModelConfigTabMessage, ModelRoutesMessage, RuntimeMessage, SettingsMessage, StaffMessage,
+    HooksMessage, ModelConfigTabMessage, ModelRoutesMessage, RuntimeMessage, SettingsMessage, StaffMessage,
     StaffResourceMessage, WebSearchMessage,
 };
 use super::models::models_refresh_task;
@@ -74,6 +74,15 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             } else if tab == SystemTab::Runtime {
                 app.runtime_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Runtime(RuntimeMessage::Refresh)))
+            } else if tab == SystemTab::Hooks {
+                Task::batch([
+                    Task::done(Message::Settings(SettingsMessage::Hooks(
+                        HooksMessage::CatalogRefresh,
+                    ))),
+                    Task::done(Message::Settings(SettingsMessage::Hooks(
+                        HooksMessage::AuditRefresh,
+                    ))),
+                ])
             } else if tab == SystemTab::Agents {
                 app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Agents;
                 app.agents_settings.loading = true;

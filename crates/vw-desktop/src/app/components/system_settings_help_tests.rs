@@ -47,6 +47,16 @@ fn help_content_maps_every_supported_tab_to_its_title_and_copy() {
 }
 
 #[test]
+fn hooks_help_describes_live_behavior_and_safe_fields() {
+    assert!(HOOKS_HELP.contains("插件 hook"));
+    assert!(HOOKS_HELP.contains("信任"));
+    assert!(HOOKS_HELP.contains("撤销"));
+    assert!(HOOKS_HELP.contains("时间、工具名、耗时和成功状态"));
+    assert!(HOOKS_HELP.contains("不记录工具参数、结果正文、令牌或密钥"));
+    assert!(!HOOKS_HELP.contains("预留"));
+}
+
+#[test]
 fn help_content_rejects_every_tab_without_help_copy() {
     for &tab in UNSUPPORTED_TABS {
         assert_eq!(help_content(tab), None);

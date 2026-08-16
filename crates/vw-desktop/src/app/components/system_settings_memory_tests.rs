@@ -102,6 +102,32 @@ fn view_builds_intro_tabs_and_selected_section() {
 }
 
 #[test]
+fn memory_save_error_banner_follows_dynamic_tabs() {
+    let mut app = test_app();
+    app.memory_settings.save_error = Some("memory save failed".to_string());
+    app.storage_settings.save_error = Some("storage save failed".to_string());
+
+    app.memory_settings.active_tab = MemorySettingsTab::General;
+    let general = element_tree(view(&app));
+    assert_eq!(active_save_error(&app), Some("memory save failed"));
+    assert_eq!(general.children.len(), 4);
+    assert_eq!(general.children[1].children.len(), MEMORY_TABS.len());
+
+    app.memory_settings.active_tab = MemorySettingsTab::Storage;
+    let storage = element_tree(view(&app));
+    assert_eq!(active_save_error(&app), Some("storage save failed"));
+    assert_eq!(storage.children.len(), 4);
+    assert_eq!(storage.children[1].children.len(), MEMORY_TABS.len());
+
+    app.memory_settings.backend = "qdrant".to_string();
+    app.memory_settings.active_tab = MemorySettingsTab::Qdrant;
+    let qdrant = element_tree(view(&app));
+    assert_eq!(active_save_error(&app), Some("memory save failed"));
+    assert_eq!(qdrant.children.len(), 4);
+    assert_eq!(qdrant.children[1].children.len(), MEMORY_TABS.len() + QDRANT_TAB.len());
+}
+
+#[test]
 fn view_switches_between_memory_configuration_tabs() {
     let mut app = test_app();
 
@@ -151,5 +177,5 @@ fn view_builds_boundary_memory_state() {
     custom.memory_settings.qdrant_api_key_input = "secret".to_string();
     custom.memory_settings.save_error = Some("memory save failed".to_string());
 
-    assert_eq!(element_tree(view(&custom)).children.len(), 3);
+    assert_eq!(element_tree(view(&custom)).children.len(), 4);
 }

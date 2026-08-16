@@ -54,6 +54,9 @@ pub mod builtin;
 /// - 处理钩子执行错误和超时
 mod runner;
 
+/// Shared hook runtime assembly and replacement support.
+mod runtime;
+
 /// 钩子 trait 定义模块（内部）
 ///
 /// 定义钩子系统的核心接口：
@@ -68,6 +71,7 @@ mod traits;
 /// - 触发钩子执行
 /// - 查询已注册的钩子状态
 pub use runner::HookRunner;
+pub use runtime::{HookRuntime, HookRuntimeCandidate, build_hook_runtime};
 
 /// 重导出钩子处理器 trait 和执行结果
 ///
@@ -85,3 +89,7 @@ pub use traits::{HookHandler, HookResult};
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "runtime_tests.rs"]
+mod runtime_tests;

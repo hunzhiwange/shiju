@@ -107,19 +107,18 @@ impl HookHandler for CommandPluginHookHandler {
     }
 }
 
-pub(crate) fn register_trusted_plugin_hooks(
-    runner: &mut HookRunner,
+pub(crate) fn trusted_plugin_hook_handlers(
     config: &Config,
-) -> Result<usize> {
+) -> Result<Vec<Box<dyn HookHandler>>> {
     if !config.hooks.enabled || !config.hooks.plugins.enabled {
-        return Ok(0);
+        return Ok(Vec::new());
     }
 
     let options = plugin_hook_discovery_options(config);
     let discovery = discover_plugins(&options).context("failed to discover plugin hooks")?;
     let trust_store =
         PluginHookTrustStore::load_or_default(&plugin_hook_trust_file(&options.config_dir))?;
-    let mut registered = 0;
+    let mut handlers: Vec<Box<dyn HookHandler>> = Vec::new();
 
     for plugin in discovery.enabled {
         for hooks_path in &plugin.manifest.hooks {
@@ -156,15 +155,26 @@ pub(crate) fn register_trusted_plugin_hooks(
                     continue;
                 }
 
-                runner.register(Box::new(CommandPluginHookHandler::new(
+                handlers.push(Box::new(CommandPluginHookHandler::new(
                     plugin.manifest.name.clone(),
                     hook,
                 )));
-                registered += 1;
             }
         }
     }
 
+    Ok(handlers)
+}
+
+pub(crate) fn register_trusted_plugin_hooks(
+    runner: &mut HookRunner,
+    config: &Config,
+) -> Result<usize> {
+    let handlers = trusted_plugin_hook_handlers(config)?;
+    let registered = handlers.len();
+    for handler in handlers {
+        runner.register(handler);
+    }
     Ok(registered)
 }
 

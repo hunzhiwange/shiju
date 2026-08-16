@@ -52,6 +52,7 @@ mod turn_tests;
 /// * `silent` - 是否抑制标准输出（为 true 时用于通道场景）
 /// * `multimodal_config` - 多模态配置，控制图像等非文本输入
 /// * `max_tool_iterations` - 最大工具迭代次数，防止无限循环
+/// * `hooks` - 当前轮次使用的钩子运行器快照
 ///
 /// # 返回值
 ///
@@ -72,6 +73,7 @@ mod turn_tests;
 ///     false,
 ///     &multimodal_config,
 ///     10,
+///     None,
 /// ).await?;
 /// println!("Agent response: {}", response);
 /// ```
@@ -93,6 +95,7 @@ pub(crate) async fn agent_turn(
     silent: bool,
     multimodal_config: &crate::app::agent::config::MultimodalConfig,
     max_tool_iterations: usize,
+    hooks: Option<Arc<HookRunner>>,
 ) -> Result<String> {
     // 调用工具调用循环，使用默认参数（无审批管理器、无取消令牌等）
     run_tool_call_loop(
@@ -110,7 +113,7 @@ pub(crate) async fn agent_turn(
         max_tool_iterations,
         None, // 无取消令牌
         None, // 无增量回调
-        None, // 无钩子执行器
+        hooks,
         None, // 无安全策略上下文
         &[],  // 无排除的工具
     )

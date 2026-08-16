@@ -60,6 +60,7 @@ fn state_with_config(config: Arc<parking_lot::Mutex<Config>>, require_pairing: b
         max_tool_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 

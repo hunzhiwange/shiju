@@ -3,10 +3,15 @@ const SOURCE: &str = include_str!("system_settings.rs");
 
 use super::system_settings::{
     SystemTab, active_tab_help_modal_open, active_tab_save_error, is_network_tab, search_results,
-    system_tab_matches_query, view,
+    system_tab_matches_query, tabbed_page_owns_save_error, view,
 };
 use super::system_settings_help::help_button_bar;
 use super::system_settings_search::SystemSettingsSearchTarget;
+use iced::advanced::widget::Tree;
+
+fn tree_node_count(tree: &Tree) -> usize {
+    1 + tree.children.iter().map(tree_node_count).sum::<usize>()
+}
 
 fn source_declares_symbol(name: &str) -> bool {
     let needles = [
@@ -390,6 +395,67 @@ fn active_tab_save_error_routes_each_settings_state_and_rejects_static_tabs() {
         assert_eq!(active_tab_save_error(&app, tab), None);
     }
     assert_eq!(active_tab_save_error(&app, SystemTab::Providers), None);
+}
+
+#[test]
+fn root_settings_skips_errors_owned_by_tabbed_pages() {
+    for tab in [
+        SystemTab::Models,
+        SystemTab::Cron,
+        SystemTab::Agents,
+        SystemTab::Staff,
+        SystemTab::Channels,
+        SystemTab::Memory,
+        SystemTab::Autonomy,
+        SystemTab::Security,
+        SystemTab::Gateway,
+        SystemTab::WebSearch,
+        SystemTab::HttpRequest,
+        SystemTab::Browser,
+        SystemTab::Proxy,
+        SystemTab::Tunnel,
+    ] {
+        assert!(tabbed_page_owns_save_error(tab), "{tab:?} should own its save error");
+    }
+
+    let mut app = crate::app::App::new().0;
+    app.show_system_settings = true;
+    app.system_settings_tab = SystemTab::Models;
+
+    let local_without_error = Tree::new(super::system_settings_models::view(&app).as_widget());
+    let root_without_error = Tree::new(view(&app).as_widget());
+
+    app.model_settings.save_error = Some("model save failed".to_string());
+    let local_with_error = Tree::new(super::system_settings_models::view(&app).as_widget());
+    let root_with_error = Tree::new(view(&app).as_widget());
+
+    let local_delta = tree_node_count(&local_with_error) - tree_node_count(&local_without_error);
+    let root_delta = tree_node_count(&root_with_error) - tree_node_count(&root_without_error);
+    assert!(local_delta > 0);
+    assert_eq!(root_delta, local_delta);
+}
+
+#[test]
+fn root_settings_keeps_errors_for_plain_pages() {
+    for tab in [
+        SystemTab::Providers,
+        SystemTab::Runtime,
+        SystemTab::GatewayClient,
+        SystemTab::Observability,
+        SystemTab::Hooks,
+    ] {
+        assert!(!tabbed_page_owns_save_error(tab), "{tab:?} should use the root banner");
+    }
+
+    let mut app = crate::app::App::new().0;
+    app.show_system_settings = true;
+    app.system_settings_tab = SystemTab::Providers;
+    let without_error = Tree::new(view(&app).as_widget());
+
+    app.provider_settings.save_error = Some("provider save failed".to_string());
+    let with_error = Tree::new(view(&app).as_widget());
+
+    assert!(tree_node_count(&with_error) > tree_node_count(&without_error));
 }
 
 #[test]

@@ -48,7 +48,8 @@ pub use client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 pub use client::{
     DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
     DesktopPluginPathDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto,
-    ExternalAppsStateDto, PendingPermissionReplyDto, PendingPermissionRequestDto,
+    ExternalAppsStateDto, HookAuditEntryDto, HookCatalogEntryDto, HookMutationRequestDto,
+    HookMutationResponseDto, PendingPermissionReplyDto, PendingPermissionRequestDto,
     PendingPermissionToolDto,
 };
 /// Workflow streaming 请求与事件类型。

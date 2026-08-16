@@ -71,6 +71,7 @@ fn make_pair_state(pairing: PairingGuard, rate_limit: u32) -> AppState {
         max_tool_iterations: 5,
         event_tx: tokio::sync::broadcast::channel(1).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 

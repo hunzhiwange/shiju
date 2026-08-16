@@ -284,6 +284,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::CronJobsRefresh
         | SettingsMessage::CronJobsLoaded(_)
         | SettingsMessage::CronJobSelectionToggled(_, _)
+        | SettingsMessage::CronJobDetailsToggled(_, _)
         | SettingsMessage::CronJobsSelectAllToggled(_)
         | SettingsMessage::CronJobRunsOpen(_)
         | SettingsMessage::CronJobRunsLoaded(_, _)

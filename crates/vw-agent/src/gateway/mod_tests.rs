@@ -63,6 +63,7 @@ fn auth_state(require_pairing: bool, paired_tokens: &[String]) -> AppState {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 
@@ -206,6 +207,17 @@ async fn bootstrap_router_rejects_client_routes_without_tenant_headers() {
         app.oneshot(Request::get("/v1/global/health").body(Body::empty()).unwrap()).await.unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn bootstrap_hooks_routes_remain_behind_gateway_authentication() {
+    let token = String::from("paired-token");
+    let app = bootstrap_rest_app(auth_state(true, &[token]));
+
+    for path in ["/v1/hooks", "/v1/hooks/audit"] {
+        let response = app.clone().oneshot(tenant_request(path)).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{path}");
+    }
 }
 
 #[tokio::test]

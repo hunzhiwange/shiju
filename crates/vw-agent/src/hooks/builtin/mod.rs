@@ -38,4 +38,6 @@ pub mod command_logger;
 ///
 /// 外部模块可直接使用 `hooks::builtin::CommandLoggerHook`
 /// 而无需显式引用 `hooks::builtin::command_logger::CommandLoggerHook`
-pub use command_logger::CommandLoggerHook;
+pub use command_logger::{
+    CommandAuditEntry, CommandAuditStore, CommandLoggerHook, DEFAULT_COMMAND_AUDIT_CAPACITY,
+};

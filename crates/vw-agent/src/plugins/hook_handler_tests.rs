@@ -1,6 +1,6 @@
 use super::{
     PluginDiscoveryOptions, PluginHookTrustStore, discover_plugins, load_plugin_hooks_manifest,
-    plugin_hook_trust_file, register_trusted_plugin_hooks,
+    plugin_hook_trust_file, trusted_plugin_hook_handlers,
 };
 use crate::app::agent::config::Config;
 use crate::app::agent::hooks::{HookResult, HookRunner};
@@ -12,6 +12,15 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::subscriber::Interest;
 use vw_config_types::plugins::PluginsConfig;
+
+fn register_trusted_plugin_hooks(runner: &mut HookRunner, config: &Config) -> anyhow::Result<usize> {
+    let handlers = trusted_plugin_hook_handlers(config)?;
+    let registered = handlers.len();
+    for handler in handlers {
+        runner.register(handler);
+    }
+    Ok(registered)
+}
 
 fn write_json(path: &Path, value: Value) {
     if let Some(parent) = path.parent() {

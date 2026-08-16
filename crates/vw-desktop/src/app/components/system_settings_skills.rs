@@ -7,8 +7,9 @@ pub(super) mod plugins;
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_help_button, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_segment_button_style, settings_text_input_style,
+    settings_error_banner, settings_page_intro, settings_panel, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_segment_button_style,
+    settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::SkillsSettingsTab;
@@ -178,7 +179,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SkillsSettingsTab::SystemConfig => system_config_view(app),
     };
 
-    column![
+    let mut page = column![
         row![
             container(settings_page_intro(
                 "技能配置",
@@ -193,11 +194,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .fold(row![].spacing(8).align_y(Alignment::Center), |row, (label, tab)| {
                 row.push(settings_tab_button(label, *tab, s.active_tab))
             }),
-        content,
     ]
     .spacing(16)
-    .width(Length::Fill)
-    .into()
+    .width(Length::Fill);
+
+    if let Some(error) = &s.save_error {
+        page = page.push(settings_error_banner(error));
+    }
+    page.push(content).into()
 }
 
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {

@@ -171,6 +171,17 @@ pub fn settings_value_badge(value: impl ToString) -> Element<'static, Message> {
         .into()
 }
 
+/// 将字段提示紧贴在对应控件下方，避免提示脱离字段落到面板底部。
+pub fn settings_control_with_hint<'a>(
+    control: impl Into<Element<'a, Message>>,
+    hint: &'a str,
+) -> Element<'a, Message> {
+    column![control.into(), text(hint).size(12).style(settings_muted_text_style)]
+        .spacing(6)
+        .width(Length::Fill)
+        .into()
+}
+
 /// 构建或处理 `settings_error_banner` 对应的界面片段与交互数据。
 ///
 /// # 参数

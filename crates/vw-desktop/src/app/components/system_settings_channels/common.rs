@@ -6,9 +6,9 @@
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_muted_text_style, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_text_editor_style, settings_text_input_style,
-    settings_value_badge,
+    settings_control_with_hint, settings_muted_text_style, settings_panel,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_text_editor_style,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -407,6 +407,48 @@ pub(super) fn number_row<'a>(
     key: &'static str,
 ) -> Element<'a, Message> {
     number_row_with_key(label, value, min, max, suffix, key.to_string())
+}
+
+pub(super) fn number_row_with_hint<'a>(
+    label: &'static str,
+    value: u32,
+    min: u32,
+    max: u32,
+    suffix: &'static str,
+    key: &'static str,
+    hint: &'static str,
+) -> Element<'a, Message> {
+    let display = if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") };
+    let key = key.to_string();
+
+    row![
+        text(localized_label(label)).size(13).width(Length::Fixed(LABEL_WIDTH)),
+        settings_control_with_hint(
+            row![
+                NumberInput::new(
+                    value as f32,
+                    min as f32,
+                    max as f32,
+                    1.0,
+                    0,
+                    0.15,
+                    move |raw| {
+                        Message::Settings(SettingsMessage::Channels(
+                            ChannelsMessage::NumberChanged(key.clone(), raw.round() as u32),
+                        ))
+                    },
+                )
+                .settings_style(),
+                settings_value_badge(display),
+            ]
+            .spacing(16)
+            .align_y(Alignment::Center),
+            hint,
+        ),
+    ]
+    .spacing(16)
+    .align_y(Alignment::Center)
+    .into()
 }
 
 pub(super) fn number_row_with_key<'a>(

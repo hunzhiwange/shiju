@@ -60,30 +60,23 @@ mod tests {
         // 验证：应该只有一条日志记录
         assert_eq!(entries.len(), 1);
 
-        // 验证：日志条目应包含工具名称
-        assert!(entries[0].contains("shell"));
-
-        // 验证：日志条目应包含执行时间
-        assert!(entries[0].contains("42ms"));
-
-        // 验证：日志条目应包含成功状态
-        assert!(entries[0].contains("success=true"));
+        assert_eq!(entries[0].tool_name, "shell");
+        assert_eq!(entries[0].duration_ms, 42);
+        assert!(entries[0].success);
     }
 
     #[tokio::test]
-    async fn log_entry_uses_hh_mm_ss_timestamp_and_exact_payload_format() {
+    async fn log_entry_uses_utc_timestamp_and_structured_fields() {
         let hook = CommandLoggerHook::new();
         let result = ToolResult { success: true, output: "ok".into(), error: None };
 
         hook.on_after_tool_call("shell", &result, Duration::from_millis(7)).await;
 
         let entries = hook.entries();
-        let (timestamp, payload) = entries[0]
-            .strip_prefix('[')
-            .and_then(|entry| entry.split_once("] "))
-            .expect("log entry should contain a bracketed timestamp");
-        assert!(chrono::NaiveTime::parse_from_str(timestamp, "%H:%M:%S").is_ok());
-        assert_eq!(payload, "shell (7ms) success=true");
+        assert_eq!(entries[0].tool_name, "shell");
+        assert_eq!(entries[0].duration_ms, 7);
+        assert!(entries[0].success);
+        assert!(entries[0].timestamp <= chrono::Utc::now());
     }
 
     #[tokio::test]
@@ -99,9 +92,12 @@ mod tests {
 
         let entries = hook.entries();
         assert_eq!(entries.len(), 1);
-        assert!(entries[0].ends_with("fetch (5ms) success=false"));
-        assert!(!entries[0].contains("private-output-marker"));
-        assert!(!entries[0].contains("private-error-marker"));
+        assert_eq!(entries[0].tool_name, "fetch");
+        assert_eq!(entries[0].duration_ms, 5);
+        assert!(!entries[0].success);
+        let serialized = serde_json::to_string(&entries[0]).expect("serialize audit entry");
+        assert!(!serialized.contains("private-output-marker"));
+        assert!(!serialized.contains("private-error-marker"));
     }
 
     #[tokio::test]
@@ -112,13 +108,14 @@ mod tests {
         hook.on_after_tool_call("shell", &result, Duration::from_millis(1)).await;
 
         let mut snapshot = hook.entries();
-        snapshot[0].push_str("-changed");
+        snapshot[0].tool_name.push_str("-changed");
         snapshot.clear();
 
         let persisted = hook.entries();
         assert_eq!(persisted.len(), 1);
-        assert!(persisted[0].ends_with("shell (1ms) success=true"));
-        assert!(!persisted[0].contains("-changed"));
+        assert_eq!(persisted[0].tool_name, "shell");
+        assert_eq!(persisted[0].duration_ms, 1);
+        assert!(persisted[0].success);
     }
 
     #[tokio::test]
@@ -141,7 +138,11 @@ mod tests {
 
         let entries = hook.entries();
         assert_eq!(entries.len(), 2);
-        assert!(entries.iter().any(|entry| entry.ends_with("first (1ms) success=true")));
-        assert!(entries.iter().any(|entry| entry.ends_with("second (2ms) success=false")));
+        assert!(entries.iter().any(|entry| {
+            entry.tool_name == "first" && entry.duration_ms == 1 && entry.success
+        }));
+        assert!(entries.iter().any(|entry| {
+            entry.tool_name == "second" && entry.duration_ms == 2 && !entry.success
+        }));
     }
 }

@@ -91,6 +91,7 @@ fn state() -> AppState {
         max_tool_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 

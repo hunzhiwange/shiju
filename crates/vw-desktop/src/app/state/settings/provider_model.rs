@@ -683,6 +683,8 @@ pub(crate) struct CronSettingsState {
     pub(crate) jobs: Vec<vw_gateway_client::CronJobDto>,
     /// 被批量操作选中的任务 ID。
     pub(crate) selected_job_ids: Vec<String>,
+    /// 当前展开详情的任务 ID。
+    pub(crate) expanded_job_ids: Vec<String>,
     /// 当前正在编辑的任务 ID。
     pub(crate) editing_job_id: Option<String>,
     /// 编辑表单草稿。
@@ -716,6 +718,7 @@ impl Default for CronSettingsState {
             jobs_loading: false,
             jobs: Vec::new(),
             selected_job_ids: Vec::new(),
+            expanded_job_ids: Vec::new(),
             editing_job_id: None,
             edit_draft: CronJobDraft::default(),
             add_draft: CronJobDraft::default(),

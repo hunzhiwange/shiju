@@ -210,6 +210,7 @@ fn rows_and_forms_build_shell_agent_and_editing_states() {
     keep_element(job_row(&app, &shell));
 
     app.cron_settings.selected_job_ids.push("job-1".to_string());
+    app.cron_settings.expanded_job_ids.push("job-1".to_string());
     app.cron_settings.editing_job_id = Some("job-1".to_string());
     app.cron_settings.edit_draft.job_type = CronAddJobType::Agent;
     app.cron_settings.edit_draft.schedule_kind = CronAddScheduleKind::At;
@@ -227,7 +228,7 @@ fn rows_and_forms_build_shell_agent_and_editing_states() {
 
 #[test]
 fn job_row_builds_disabled_announced_agent_with_complete_execution_metadata() {
-    let app = test_app();
+    let mut app = test_app();
     let mut item = job("agent-job");
     item.name = Some("Nightly agent".to_string());
     item.job_type = "AGENT".to_string();
@@ -246,6 +247,7 @@ fn job_row_builds_disabled_announced_agent_with_complete_execution_metadata() {
     item.last_run = Some("2026-06-11T01:02:03Z".to_string());
     item.last_status = Some("success".to_string());
     item.enabled = false;
+    app.cron_settings.expanded_job_ids.push(item.id.clone());
 
     assert!(job_is_agent(&item));
     keep_element(job_row(&app, &item));
@@ -292,6 +294,23 @@ fn tabs_and_view_cover_loading_empty_jobs_config_and_add_forms() {
     app.cron_settings.add_draft.schedule_kind = CronAddScheduleKind::Cron;
     keep_element(add_tab(&app));
     keep_element(view(&app));
+}
+
+#[test]
+fn cron_save_error_banner_follows_tabs() {
+    let mut app = test_app();
+
+    assert_eq!(active_save_error(&app), None);
+    assert_eq!(view(&app).as_widget().children().len(), 3);
+
+    app.cron_settings.save_error = Some("cron save failed".to_string());
+    app.scheduler_settings.save_error = Some("scheduler save failed".to_string());
+    assert_eq!(active_save_error(&app), Some("cron save failed"));
+    assert_eq!(view(&app).as_widget().children().len(), 4);
+
+    app.cron_settings.save_error = None;
+    assert_eq!(active_save_error(&app), Some("scheduler save failed"));
+    assert_eq!(view(&app).as_widget().children().len(), 4);
 }
 
 #[test]

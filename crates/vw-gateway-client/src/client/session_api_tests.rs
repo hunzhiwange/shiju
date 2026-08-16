@@ -117,10 +117,7 @@ async fn session_optional_reads_distinguish_not_found_from_server_errors() {
 
     assert!(error.contains("gateway request failed: 500"));
     assert_eq!(server.take_request().path, "/v1/session/missing/ui?directory=%2Frepo");
-    assert_eq!(
-        server.take_request().path,
-        "/v1/session/missing/turn/turn-missing/step/0/llm-raw"
-    );
+    assert_eq!(server.take_request().path, "/v1/session/missing/turn/turn-missing/step/0/llm-raw");
     assert_eq!(server.take_request().path, "/v1/session/failed/ui");
     server.join();
 }
@@ -132,11 +129,10 @@ async fn session_step_llm_raw_get_reads_only_requested_step() {
         json!({"messages": [{"role": "user", "content": "requested step"}]}),
     )]);
 
-    let response =
-        server
-            .client()
-            .session_step_llm_raw_get("requested-session", "turn-17", 17, Some("/repo path"))
-            .await;
+    let response = server
+        .client()
+        .session_step_llm_raw_get("requested-session", "turn-17", 17, Some("/repo path"))
+        .await;
     let request = server.take_request();
 
     assert_eq!(request.method, "GET");
@@ -242,14 +238,12 @@ async fn session_ui_get_with_raw_preserves_step_payloads() {
     assert_eq!(loaded.session.id, "s1");
     assert_eq!(loaded.session.steps.len(), 3);
     assert_eq!(
-        loaded.step_llm_raw[&("s1".to_string(), "turn-a".to_string(), 1)]["messages"][0]
-            ["content"],
+        loaded.step_llm_raw[&("s1".to_string(), "turn-a".to_string(), 1)]["messages"][0]["content"],
         "hello"
     );
     assert!(!loaded.step_llm_raw.contains_key(&("s1".to_string(), "turn-b".to_string(), 2)));
     assert_eq!(
-        loaded.step_llm_raw[&("s1".to_string(), "legacy-step-7".to_string(), 7)]["messages"]
-            [0]["content"],
+        loaded.step_llm_raw[&("s1".to_string(), "legacy-step-7".to_string(), 7)]["messages"][0]["content"],
         "legacy"
     );
     assert_eq!(loaded.session.steps[2].turn_id, None);

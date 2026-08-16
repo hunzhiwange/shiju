@@ -359,6 +359,20 @@ pub async fn handle_api_config_put(
             .into_response();
     }
 
+    let hook_candidate = match &state.hook_runtime {
+        Some(runtime) => match runtime.build_candidate(&new_config) {
+            Ok(candidate) => Some(candidate),
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({"error": format!("Failed to build hook runtime: {e}")})),
+                )
+                    .into_response();
+            }
+        },
+        None => None,
+    };
+
     if let Err(e) =
         config::replace_gateway_skeys_for_tenant(&tenant, &new_config.gateway.skeys).await
     {
@@ -389,8 +403,12 @@ pub async fn handle_api_config_put(
             .into_response();
     }
 
-    // 更新内存中的运行时配置，使新配置立即生效
+    // 候选已完整构建且配置已持久化，此后一次发布运行时状态并失效旧会话装配。
+    if let (Some(runtime), Some(candidate)) = (&state.hook_runtime, hook_candidate) {
+        runtime.replace(candidate);
+    }
     *state.config.lock() = new_config;
+    crate::app::agent::gateway::chat::invalidate_all_session_query_engines(&state).await;
     state.pairing.update_from_skeys(runtime_auth_enabled, &runtime_skeys);
 
     // 返回成功响应

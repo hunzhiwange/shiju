@@ -290,6 +290,20 @@ fn view_builds_servers_runtime_and_json_tabs_with_state_variants() {
 }
 
 #[test]
+fn mcp_error_banner_follows_mcp_tabs() {
+    let (mut app, _) = crate::app::App::new();
+
+    for (_, tab) in mcp_tab_labels() {
+        app.mcp_settings.active_tab = *tab;
+        app.mcp_settings.save_error = None;
+        let clean_children = view(&app).as_widget().children().len();
+
+        app.mcp_settings.save_error = Some("mcp save failed".to_string());
+        assert_eq!(view(&app).as_widget().children().len(), clean_children + 1);
+    }
+}
+
+#[test]
 fn delete_confirmation_uses_shared_modal_overlay_and_only_shows_on_servers_tab() {
     let (mut app, _) = crate::app::App::new();
     app.mcp_settings.editor =

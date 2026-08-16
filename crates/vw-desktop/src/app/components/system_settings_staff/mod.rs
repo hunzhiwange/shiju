@@ -3,8 +3,9 @@
 mod teams;
 mod workers;
 
+use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
+    danger_action_btn_style, icon_btn, primary_action_btn_style, rounded_action_btn_style,
     settings_checkbox_style, settings_error_banner, settings_muted_text_style, settings_page_intro,
     settings_panel_style, settings_pick_list_menu_style, settings_pick_list_style,
     settings_section_card, settings_segment_button_style, settings_success_banner,
@@ -149,6 +150,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .wrap();
 
     let mut content = column![intro, inner_tabs].spacing(14).height(Length::Fill);
+    if let Some(error) = app.staff_settings.save_error.as_deref() {
+        content = content.push(settings_error_banner(error));
+    }
 
     let main_panel = match active_tab {
         StaffSettingsTab::Teams => teams::view(app),
@@ -203,10 +207,11 @@ fn roster_panel(
     rows: Vec<RosterMemberSummary>,
     selected_id: Option<String>,
 ) -> Element<'static, Message> {
-    let add_button = button(text("新增员工").size(12))
-        .padding([8, 14])
-        .on_press(Message::Settings(SettingsMessage::Staff(StaffMessage::AddMemberRequested)))
-        .style(rounded_action_btn_style);
+    let add_button = icon_btn(
+        Icon::Plus,
+        "新增员工",
+        Some(Message::Settings(SettingsMessage::Staff(StaffMessage::AddMemberRequested))),
+    );
 
     let roster_items: Element<'static, Message> = if rows.is_empty() {
         column![text("暂无员工").size(12).style(settings_muted_text_style)].spacing(8).into()

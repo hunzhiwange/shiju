@@ -1001,6 +1001,7 @@ async fn knowledge_store_helper_uses_state_config() {
         max_tool_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     let tenant = TenantScope::new("platform-knowledge", "company-knowledge").expect("tenant");

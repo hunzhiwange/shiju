@@ -5,10 +5,9 @@ use vw_api_types::id::{
 };
 use vw_api_types::staff::{
     StaffAutoSchedulePlanRequest, StaffCapabilityIoSummaryDto, StaffCapabilityKindDto,
-    StaffCommandDto, StaffCommandRequest,
-    StaffProjectCapabilityCatalogRequest, StaffProjectCapabilityDto,
-    StaffProjectOrchestrationRequest, StaffProjectStateDto, StaffStageAssignmentDto,
-    StaffWorkflowOrchestrationDto, StaffWorkflowOrchestrationRequest,
+    StaffCommandDto, StaffCommandRequest, StaffProjectCapabilityCatalogRequest,
+    StaffProjectCapabilityDto, StaffProjectOrchestrationRequest, StaffProjectStateDto,
+    StaffStageAssignmentDto, StaffWorkflowOrchestrationDto, StaffWorkflowOrchestrationRequest,
 };
 use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
 

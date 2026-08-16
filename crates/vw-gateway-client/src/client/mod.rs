@@ -54,7 +54,8 @@ pub use self::cron_api::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateReque
 pub use self::desktop_settings_api::{
     DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
     DesktopPluginPathDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto,
-    ExternalAppsStateDto,
+    ExternalAppsStateDto, HookAuditEntryDto, HookCatalogEntryDto, HookMutationRequestDto,
+    HookMutationResponseDto,
 };
 pub use self::permission_api::{
     PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto,

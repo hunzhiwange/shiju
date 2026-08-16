@@ -1,11 +1,10 @@
 use vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_types::staff::{
     StaffAutoSchedulePlanRequest, StaffAutoSchedulePlanResponse, StaffCommandRequest,
-    StaffCommandResponse,
-    StaffProjectCapabilityCatalogRequest, StaffProjectCapabilityCatalogResponse,
-    StaffProjectOrchestrationRequest, StaffProjectOrchestrationResponse, StaffProjectionResponse,
-    StaffStageCapabilitiesResponse, StaffWorkflowOrchestrationRequest,
-    StaffWorkflowOrchestrationResponse,
+    StaffCommandResponse, StaffProjectCapabilityCatalogRequest,
+    StaffProjectCapabilityCatalogResponse, StaffProjectOrchestrationRequest,
+    StaffProjectOrchestrationResponse, StaffProjectionResponse, StaffStageCapabilitiesResponse,
+    StaffWorkflowOrchestrationRequest, StaffWorkflowOrchestrationResponse,
 };
 
 use super::GatewayClient;

@@ -100,6 +100,7 @@ fn state(config: config::Config, require_pairing: bool, tokens: &[String]) -> Ap
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 

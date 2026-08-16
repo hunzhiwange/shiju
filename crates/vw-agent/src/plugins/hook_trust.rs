@@ -67,6 +67,15 @@ impl PluginHookTrustStore {
         self.save()
     }
 
+    /// Remove one previously reviewed declaration by its exact stable hash.
+    pub(crate) fn revoke_hash(&mut self, hook_hash: &str) -> Result<bool> {
+        let removed = self.trusted_hashes.remove(hook_hash);
+        if removed {
+            self.save()?;
+        }
+        Ok(removed)
+    }
+
     fn save(&self) -> Result<()> {
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent).with_context(|| {

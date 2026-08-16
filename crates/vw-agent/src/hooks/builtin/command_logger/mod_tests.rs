@@ -21,12 +21,12 @@ async fn on_after_tool_call_records_success_and_failure_entries_in_order() {
 
     let entries = hook.entries();
     assert_eq!(entries.len(), 2);
-    assert!(entries[0].contains("shell"));
-    assert!(entries[0].contains("42ms"));
-    assert!(entries[0].contains("success=true"));
-    assert!(entries[1].contains("git"));
-    assert!(entries[1].contains("1ms"));
-    assert!(entries[1].contains("success=false"));
+    assert_eq!(entries[0].tool_name, "shell");
+    assert_eq!(entries[0].duration_ms, 42);
+    assert!(entries[0].success);
+    assert_eq!(entries[1].tool_name, "git");
+    assert_eq!(entries[1].duration_ms, 1);
+    assert!(!entries[1].success);
 }
 
 #[tokio::test]
@@ -38,6 +38,21 @@ async fn on_after_tool_call_records_zero_duration_without_dropping_tool_name() {
 
     let entries = hook.entries();
     assert_eq!(entries.len(), 1);
-    assert!(entries[0].contains("noop"));
-    assert!(entries[0].contains("0ms"));
+    assert_eq!(entries[0].tool_name, "noop");
+    assert_eq!(entries[0].duration_ms, 0);
+}
+
+#[tokio::test]
+async fn command_audit_store_evicts_oldest_entries() {
+    let store = CommandAuditStore::new(2);
+    let hook = CommandLoggerHook::with_store(store.clone());
+
+    for tool in ["first", "second", "third"] {
+        hook.on_after_tool_call(tool, &ToolResult::default(), Duration::from_millis(1)).await;
+    }
+
+    let entries = store.entries();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].tool_name, "second");
+    assert_eq!(entries[1].tool_name, "third");
 }

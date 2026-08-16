@@ -70,10 +70,19 @@ fn row_helpers_build_empty_and_populated_controls() {
         keep_element(text_row("密钥", "说明", "placeholder", value, |value| {
             Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ApiKeyChanged(value)))
         }));
+        keep_element(text_row_with_hint(
+            "密钥",
+            "说明",
+            "placeholder",
+            value,
+            "提示",
+            |value| {
+                Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ApiKeyChanged(
+                    value,
+                )))
+            },
+        ));
     }
-
-    keep_element(hint_row(""));
-    keep_element(hint_row("提示"));
 }
 
 #[test]
@@ -106,11 +115,15 @@ fn view_builds_supported_and_fallback_provider_layouts() {
 fn provider_layouts_include_only_their_conditional_rows() {
     let mut app = test_app();
 
-    for (provider, expected_rows) in [("duckduckgo", 8), ("brave", 12), ("serper", 10)] {
+    for (provider, expected_controls) in [("duckduckgo", 1), ("brave", 5), ("serper", 3)] {
         app.web_search_settings.provider = provider.to_string();
         let element = content(&app);
         let tree = Tree::new(element.as_widget());
+        let provider_section = &tree.children[2];
+        let provider_panel = &provider_section.children[1];
 
-        assert_eq!(tree.children.len(), expected_rows - 1, "provider={provider}");
+        assert_eq!(tree.children.len(), 5, "provider={provider}");
+        assert_eq!(provider_section.children.len(), 2, "provider={provider}");
+        assert_eq!(provider_panel.children.len(), expected_controls, "provider={provider}");
     }
 }

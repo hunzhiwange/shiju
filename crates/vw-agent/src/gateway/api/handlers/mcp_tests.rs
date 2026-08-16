@@ -59,6 +59,7 @@ fn state(config: Config, require_pairing: bool, paired_tokens: &[&str]) -> AppSt
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 

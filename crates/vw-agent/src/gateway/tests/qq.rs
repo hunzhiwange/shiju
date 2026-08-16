@@ -81,6 +81,7 @@ async fn qq_webhook_returns_not_found_when_not_configured() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 调用 QQ Webhook 处理器，发送一个模拟的验证请求体
@@ -170,6 +171,7 @@ async fn qq_webhook_validation_returns_signed_challenge() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 构建请求头，包含 X-Bot-Appid 用于验证请求来源

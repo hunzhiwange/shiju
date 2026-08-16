@@ -2,8 +2,8 @@ use super::common::{
     GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, add_instance_row,
     bool_row, bool_row_with_key, enabled_channels, group_reply_mode_value, hint_row,
     instance_title_row, is_multiline_list_key, lark_receive_mode_value, localized_label,
-    multiline_placeholder, number_row, number_row_with_key, panel, pick_row, pick_row_with_key,
-    qq_receive_mode_value, text_row, text_row_with_key,
+    multiline_placeholder, number_row, number_row_with_hint, number_row_with_key, panel, pick_row,
+    pick_row_with_key, qq_receive_mode_value, text_row, text_row_with_key,
 };
 use crate::app::{App, Message};
 use iced::widget::text;
@@ -436,6 +436,15 @@ fn row_helpers_build_static_and_dynamic_single_line_multiline_and_control_rows()
     ));
     keep_element(number_row("port", 3000, 1, 65_535, "", "lark.port"));
     keep_element(number_row("draft_update_interval_ms", 3000, 100, 60_000, "ms", "lark.delay"));
+    keep_element(number_row_with_hint(
+        "port",
+        3000,
+        1,
+        65_535,
+        "",
+        "feishu.port",
+        "Webhook 模式提示",
+    ));
     keep_element(number_row_with_key(
         "port",
         3001,

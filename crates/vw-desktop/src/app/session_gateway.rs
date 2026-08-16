@@ -10,6 +10,9 @@ use vw_gateway_client::DesktopPluginCatalogEntryDto;
 use vw_gateway_client::DesktopSkillCatalogEntryDto;
 use vw_gateway_client::DesktopSkillDetailDto;
 use vw_gateway_client::ExternalAppsStateDto;
+use vw_gateway_client::HookAuditEntryDto;
+use vw_gateway_client::HookCatalogEntryDto;
+use vw_gateway_client::HookMutationResponseDto;
 use vw_gateway_client::PendingPermissionReplyDto;
 use vw_gateway_client::PendingPermissionRequestDto;
 use vw_gateway_client::ProjectChangeRecordDto;
@@ -685,6 +688,36 @@ pub async fn gateway_skill_market_skill_set_install_async(
 pub async fn gateway_plugins_async() -> Result<Vec<DesktopPluginCatalogEntryDto>, String> {
     let client = gateway_client()?;
     client.plugins_get().await
+}
+
+/// 读取当前已发现插件声明的 hook 清单。
+pub async fn gateway_hooks_async() -> Result<Vec<HookCatalogEntryDto>, String> {
+    let client = gateway_client()?;
+    client.hooks_get().await
+}
+
+/// 使用服务端重新解析后的稳定哈希信任当前 hook 声明。
+pub async fn gateway_hook_trust_async(
+    plugin_id: &str,
+    hook_hash: &str,
+) -> Result<HookMutationResponseDto, String> {
+    let client = gateway_client()?;
+    client.hook_trust(plugin_id, hook_hash).await
+}
+
+/// 使用服务端重新解析后的稳定哈希撤销当前 hook 声明。
+pub async fn gateway_hook_revoke_async(
+    plugin_id: &str,
+    hook_hash: &str,
+) -> Result<HookMutationResponseDto, String> {
+    let client = gateway_client()?;
+    client.hook_revoke(plugin_id, hook_hash).await
+}
+
+/// 读取只包含时间、工具名、耗时和成功状态的有界审计记录。
+pub async fn gateway_hook_audit_async() -> Result<Vec<HookAuditEntryDto>, String> {
+    let client = gateway_client()?;
+    client.hook_audit_get().await
 }
 
 /// 执行 gateway_plugin_set_enabled_async 对应的领域操作。

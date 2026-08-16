@@ -6,8 +6,8 @@
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_text_input_style, settings_value_badge,
+    settings_control_with_hint, settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_section_card, settings_text_input_style, settings_value_badge,
 };
 use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -70,16 +70,6 @@ fn bool_row<'a>(
     )
 }
 
-fn hint_row<'a>(message: &'a str) -> Element<'a, Message> {
-    row![
-        container(text("")).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-        text(message).size(12).style(settings_muted_text_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center)
-    .into()
-}
-
 fn number_display(value: u32, suffix: &str) -> String {
     if suffix.is_empty() { value.to_string() } else { format!("{value} {suffix}") }
 }
@@ -95,23 +85,26 @@ fn number_row<'a>(
     min: u32,
     max: u32,
     suffix: &'static str,
+    hint: Option<&'static str>,
     on_change: impl Fn(u32) -> Message + 'a,
 ) -> Element<'a, Message> {
     let display = number_display(value, suffix);
+    let control = row![
+        NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
+            on_change(normalize_number_value(raw, min, max))
+        })
+        .settings_style(),
+        settings_value_badge(display),
+    ]
+    .spacing(16)
+    .align_y(Alignment::Center);
+    let control: Element<'_, Message> = if let Some(hint) = hint {
+        settings_control_with_hint(control, hint)
+    } else {
+        control.into()
+    };
 
-    field_row(
-        label,
-        description,
-        row![
-            NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
-                on_change(normalize_number_value(raw, min, max))
-            })
-            .settings_style(),
-            settings_value_badge(display),
-        ]
-        .spacing(16)
-        .align_y(Alignment::Center),
-    )
+    field_row(label, description, control)
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -162,6 +155,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         0,
         u32::MAX,
         "字节",
+        Some("`0` 表示不限制响应体大小；较大的响应会增加内存占用与模型上下文成本。"),
         |value| {
             Message::Settings(SettingsMessage::HttpRequest(
                 HttpRequestMessage::MaxResponseSizeChanged(value),
@@ -176,6 +170,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         0,
         86_400,
         "秒",
+        Some("`0` 会在运行时回退到安全默认值 30 秒。"),
         |value| {
             Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::TimeoutSecsChanged(
                 value,
@@ -199,24 +194,27 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         column![field_row(
             "新增域名",
             "支持精确域名、子域模式或 *。",
-            row![
-                text_input("example.com 或 *.example.org 或 *", &s.new_allowed_domain_input)
-                    .on_input(|value| Message::Settings(SettingsMessage::HttpRequest(
-                        HttpRequestMessage::NewAllowedDomainChanged(value),
-                    )))
-                    .padding([10, 12])
-                    .size(13)
-                    .style(settings_text_input_style)
-                    .width(Length::Fill),
-                button(text("添加"))
-                    .padding([6, 12])
-                    .on_press(Message::Settings(SettingsMessage::HttpRequest(
-                        HttpRequestMessage::AddAllowedDomain,
-                    )))
-                    .style(rounded_action_btn_style),
-            ]
-            .spacing(12)
-            .align_y(Alignment::Center),
+            settings_control_with_hint(
+                row![
+                    text_input("example.com 或 *.example.org 或 *", &s.new_allowed_domain_input)
+                        .on_input(|value| Message::Settings(SettingsMessage::HttpRequest(
+                            HttpRequestMessage::NewAllowedDomainChanged(value),
+                        )))
+                        .padding([10, 12])
+                        .size(13)
+                        .style(settings_text_input_style)
+                        .width(Length::Fill),
+                    button(text("添加"))
+                        .padding([6, 12])
+                        .on_press(Message::Settings(SettingsMessage::HttpRequest(
+                            HttpRequestMessage::AddAllowedDomain,
+                        )))
+                        .style(rounded_action_btn_style),
+                ]
+                .spacing(12)
+                .align_y(Alignment::Center),
+                "支持精确域名、子域模式或 `*`；建议只放行业务 API 域名。",
+            ),
         )]
         .spacing(0),
     );
@@ -265,15 +263,12 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             column![enabled_row, max_response_size_row, timeout_secs_row, user_agent_row]
                 .spacing(0)
         ),
-        hint_row("`0` 表示不限制响应体大小；较大的响应会增加内存占用与模型上下文成本。"),
-        hint_row("`0` 会在运行时回退到安全默认值 30 秒。"),
         settings_section_card(
             "允许域名",
             "维护 http_request.allowed_domains 白名单。列表为空时默认拒绝所有外部请求。",
         ),
         allowed_domains_section,
         allowed_domains_list,
-        hint_row("支持精确域名、子域模式或 `*`；建议只放行业务 API 域名。"),
     ]
     .spacing(16)
     .width(Length::Fill);

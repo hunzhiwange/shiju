@@ -32,6 +32,41 @@ fn agent_config_tabs_render_each_existing_settings_page() {
 }
 
 #[test]
+fn agents_error_banner_follows_agent_tabs() {
+    let (mut app, _) = crate::app::App::new();
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Agents;
+
+    assert_eq!(super::view(&app).as_widget().children().len(), 2);
+
+    app.agents_settings.save_error = Some("agents save failed".to_string());
+    assert_eq!(super::active_tab_save_error(&app), Some("agents save failed"));
+    assert_eq!(super::view(&app).as_widget().children().len(), 3);
+
+    app.runtime_settings.save_error = Some("runtime save failed".to_string());
+    app.acp_settings.save_error = Some("acp save failed".to_string());
+    app.reliability_settings.save_error = Some("reliability save failed".to_string());
+    app.heartbeat_settings.save_error = Some("heartbeat save failed".to_string());
+    for (tab, expected) in [
+        (crate::app::state::AgentConfigTab::Runtime, Some("runtime save failed")),
+        (crate::app::state::AgentConfigTab::Acp, Some("acp save failed")),
+        (
+            crate::app::state::AgentConfigTab::Reliability,
+            Some("reliability save failed"),
+        ),
+        (crate::app::state::AgentConfigTab::Heartbeat, Some("heartbeat save failed")),
+        (crate::app::state::AgentConfigTab::Channels, None),
+        (crate::app::state::AgentConfigTab::Mcp, None),
+        (crate::app::state::AgentConfigTab::Skills, None),
+        (crate::app::state::AgentConfigTab::Plugins, None),
+        (crate::app::state::AgentConfigTab::DialogueFlow, None),
+        (crate::app::state::AgentConfigTab::QuickMessages, None),
+    ] {
+        app.agents_settings.active_config_tab = tab;
+        assert_eq!(super::active_tab_save_error(&app), expected);
+    }
+}
+
+#[test]
 fn agent_project_options_put_current_first_and_deduplicate_recent_paths() {
     let (mut app, _) = crate::app::App::new();
     app.project_path = Some("/repo/current".to_string());

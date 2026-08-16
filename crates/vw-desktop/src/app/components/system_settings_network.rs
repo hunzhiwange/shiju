@@ -2,7 +2,7 @@
 
 use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
-    settings_page_intro, settings_segment_button_style,
+    settings_error_banner, settings_page_intro, settings_segment_button_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::{App, Message, message};
@@ -114,15 +114,34 @@ pub fn view(app: &App) -> Element<'_, Message> {
         _ => crate::app::components::system_settings_web_search::content(app),
     };
 
-    column![
+    let mut sections = column![
         settings_page_intro(
             "网络配置",
             "通过标签切换网页搜索、网络请求、浏览器、代理与隧道配置。",
         ),
         tabs,
-        content,
     ]
     .spacing(16)
-    .width(Length::Fill)
-    .into()
+    .width(Length::Fill);
+
+    if let Some(error) = active_save_error(app) {
+        sections = sections.push(settings_error_banner(error));
+    }
+
+    sections.push(content).into()
 }
+
+fn active_save_error(app: &App) -> Option<&str> {
+    match app.system_settings_tab {
+        SystemTab::WebSearch => app.web_search_settings.save_error.as_deref(),
+        SystemTab::HttpRequest => app.http_request_settings.save_error.as_deref(),
+        SystemTab::Browser => app.browser_settings.save_error.as_deref(),
+        SystemTab::Proxy => app.proxy_settings.save_error.as_deref(),
+        SystemTab::Tunnel => app.tunnel_settings.save_error.as_deref(),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+#[path = "system_settings_network_tests.rs"]
+mod system_settings_network_tests;

@@ -30,10 +30,11 @@ async fn session_query_engine(
 
     let config = state.config.lock().clone();
     let created = Arc::new(tokio::sync::Mutex::new(
-        crate::app::agent::agent::loop_::query_engine::QueryEngine::new_with_provider(
+        crate::app::agent::agent::loop_::query_engine::QueryEngine::new_with_provider_and_hook_runtime(
             config,
             session_id,
             Some(Arc::clone(&state.provider)),
+            state.hook_runtime.clone(),
         )
         .await?,
     ));
@@ -45,6 +46,10 @@ async fn session_query_engine(
 pub(crate) async fn invalidate_session_query_engine(state: &AppState, session_id: &str) {
     let mut engines = state.session_query_engines.lock().await;
     engines.remove(session_id);
+}
+
+pub(crate) async fn invalidate_all_session_query_engines(state: &AppState) {
+    state.session_query_engines.lock().await.clear();
 }
 
 pub(crate) async fn fork_session_query_engine(
@@ -64,10 +69,11 @@ pub(crate) async fn fork_session_query_engine(
     let snapshot = source_engine.lock().await.snapshot();
     let config = state.config.lock().clone();
     let mut forked_engine =
-        crate::app::agent::agent::loop_::query_engine::QueryEngine::new_with_provider(
+        crate::app::agent::agent::loop_::query_engine::QueryEngine::new_with_provider_and_hook_runtime(
             config,
             target_session_id,
             Some(Arc::clone(&state.provider)),
+            state.hook_runtime.clone(),
         )
         .await?;
     forked_engine.restore_snapshot(snapshot);

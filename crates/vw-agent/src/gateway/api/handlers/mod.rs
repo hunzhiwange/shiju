@@ -58,6 +58,9 @@ pub(crate) mod desktop_skills;
 /// Gateway 插件目录与本地管理处理器模块
 pub(crate) mod plugins;
 
+/// Gateway plugin hook management and command audit handlers.
+pub(crate) mod hooks;
+
 /// 统一技能市场只读 API 处理器模块
 pub(crate) mod skill_market;
 

@@ -36,7 +36,7 @@ use self::shared::{
 use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_muted_text_style, settings_page_intro, settings_panel_style,
     settings_pick_list_menu_style, settings_pick_list_style, settings_segment_button_style,
-    settings_text_input_style, settings_value_badge,
+    settings_error_banner, settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, SettingsMessage};
@@ -240,16 +240,32 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
     };
 
-    column![tabs, content].spacing(16).width(Length::Fill).height(Length::Fill).into()
+    let mut page = column![tabs].spacing(16).width(Length::Fill).height(Length::Fill);
+    if let Some(error) = active_tab_save_error(app) {
+        page = page.push(settings_error_banner(error));
+    }
+    page.push(content).into()
+}
+
+fn active_tab_save_error(app: &App) -> Option<&str> {
+    match app.agents_settings.active_config_tab {
+        AgentConfigTab::Agents => app.agents_settings.save_error.as_deref(),
+        AgentConfigTab::Runtime => app.runtime_settings.save_error.as_deref(),
+        AgentConfigTab::Acp => app.acp_settings.save_error.as_deref(),
+        AgentConfigTab::Reliability => app.reliability_settings.save_error.as_deref(),
+        AgentConfigTab::Heartbeat => app.heartbeat_settings.save_error.as_deref(),
+        AgentConfigTab::Channels
+        | AgentConfigTab::Mcp
+        | AgentConfigTab::Skills
+        | AgentConfigTab::Plugins
+        | AgentConfigTab::DialogueFlow
+        | AgentConfigTab::QuickMessages => None,
+    }
 }
 
 fn agents_view(app: &App) -> Element<'_, Message> {
     let settings = &app.agents_settings;
     if !settings.config_ready {
-        let status = settings
-            .save_error
-            .as_deref()
-            .unwrap_or("正在等待 Gateway 返回当前作用域的智能体配置；完成前不会使用默认值保存。");
         return column![
             settings_page_intro(
                 "智能体配置",
@@ -259,7 +275,9 @@ fn agents_view(app: &App) -> Element<'_, Message> {
                 "配置尚未就绪",
                 "为防止启动默认值覆盖已保存配置，加载成功前此页面保持只读。",
             ),
-            text(status).size(12).style(settings_muted_text_style),
+            text("正在等待 Gateway 返回当前作用域的智能体配置；完成前不会使用默认值保存。")
+                .size(12)
+                .style(settings_muted_text_style),
             button(text("重新加载").size(12))
                 .padding([8, 14])
                 .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh)))

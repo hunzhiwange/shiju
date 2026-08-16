@@ -78,10 +78,6 @@ fn field_rows_build_text_secure_bool_hint_and_number_controls() {
     let _: iced::Element<'_, Message> =
         field_row("标签", "说明", iced::widget::text("control").size(12));
     let _: iced::Element<'_, Message> =
-        text_row("文本", "说明", "placeholder", "value", |value| {
-            Message::Settings(SettingsMessage::Gateway(GatewayMessage::HostChanged(value)))
-        });
-    let _: iced::Element<'_, Message> =
         secure_text_row("密钥", "说明", "placeholder", "secret", |value| {
             Message::Settings(SettingsMessage::Gateway(
                 GatewayMessage::NodeControlAuthTokenChanged(value),
@@ -90,7 +86,22 @@ fn field_rows_build_text_secure_bool_hint_and_number_controls() {
     let _: iced::Element<'_, Message> = bool_row("开关", "说明", true, "开启", |value| {
         Message::Settings(SettingsMessage::Gateway(GatewayMessage::AuthEnabledToggled(value)))
     });
-    let _: iced::Element<'_, Message> = hint_row("提示文本");
+    let _: iced::Element<'_, Message> = text_row_with_hint(
+        "文本",
+        "说明",
+        "占位",
+        "值",
+        "提示文本",
+        |_| Message::None,
+    );
+    let _: iced::Element<'_, Message> = bool_row_with_hint(
+        "开关",
+        "说明",
+        true,
+        "开启",
+        "提示文本",
+        |_| Message::None,
+    );
     let _: iced::Element<'_, Message> = number_row("数字", "说明", 7, 1, 10, "秒", |value| {
         Message::Settings(SettingsMessage::Gateway(GatewayMessage::IdempotencyTtlSecsChanged(
             value,
@@ -104,6 +115,15 @@ fn gateway_tab_labels_returns_config_and_skeys_labels() {
     assert_eq!(labels.len(), 2);
     assert_eq!(labels[0], ("配置", GatewaySettingsTab::Config));
     assert_eq!(labels[1], ("skey 管理", GatewaySettingsTab::Skeys));
+}
+
+#[test]
+fn gateway_save_error_banner_follows_tabs() {
+    let mut app = test_app();
+    assert_eq!(view(&app).as_widget().children().len(), 3);
+
+    app.gateway_settings.save_error = Some("gateway save failed".to_string());
+    assert_eq!(view(&app).as_widget().children().len(), 4);
 }
 
 #[test]

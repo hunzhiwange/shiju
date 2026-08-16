@@ -14,7 +14,8 @@ use vw_config_types::ui::{QuickMessageGroup, QuickMessageKind};
 
 use super::types::{
     AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded, ModelStatusChange,
-    ModelsLoaded, PluginsLoaded, ProvidersLoaded, SkillsLoaded, StaffLoaded,
+    HookAuditLoaded, HookCatalogLoaded, HookMutationCompleted, ModelsLoaded, PluginsLoaded,
+    ProvidersLoaded, SkillsLoaded, StaffLoaded,
 };
 
 /// Embedding 路由设置页消息。
@@ -92,6 +93,14 @@ pub enum ModelRoutesMessage {
 pub enum HooksMessage {
     EnabledToggled(bool),
     CommandLoggerToggled(bool),
+    PluginHooksToggled(bool),
+    CatalogRefresh,
+    CatalogLoaded(HookCatalogLoaded),
+    AuditRefresh,
+    AuditLoaded(HookAuditLoaded),
+    TrustRequested { plugin_id: String, hook_hash: String },
+    RevokeRequested { plugin_id: String, hook_hash: String },
+    MutationCompleted(HookMutationCompleted),
 }
 
 /// 存储设置页消息。
@@ -868,6 +877,7 @@ pub enum SettingsMessage {
     CronJobsRefresh,
     CronJobsLoaded(Result<Vec<vw_gateway_client::CronJobDto>, String>),
     CronJobSelectionToggled(String, bool),
+    CronJobDetailsToggled(String, bool),
     CronJobsSelectAllToggled(bool),
     CronJobRunsOpen(String),
     CronJobRunsLoaded(String, Result<Vec<vw_gateway_client::CronRunDto>, String>),

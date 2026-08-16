@@ -53,6 +53,7 @@ fn state() -> AppState {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 
@@ -124,6 +125,10 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
         "/v1/cli-tools",
         "/v1/api-health",
         "/v1/dashboard/config",
+        "/v1/hooks",
+        "/v1/hooks/trust",
+        "/v1/hooks/revoke",
+        "/v1/hooks/audit",
         "/v1/node-control",
         "/v1/shiju/account/login",
         "/v1/shiju/account/login/poll",

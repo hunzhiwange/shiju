@@ -3,9 +3,9 @@ use super::panels::{
     settings_success_banner_style, settings_value_badge_style,
 };
 use super::{
-    settings_divider, settings_error_banner, settings_modal_card, settings_modal_overlay,
-    settings_page_intro, settings_panel, settings_section_card, settings_success_banner,
-    settings_value_badge,
+    settings_control_with_hint, settings_divider, settings_error_banner, settings_modal_card,
+    settings_modal_overlay, settings_page_intro, settings_panel, settings_section_card,
+    settings_success_banner, settings_value_badge,
 };
 use crate::app::Message;
 use iced::widget::text;
@@ -82,6 +82,14 @@ fn settings_value_badge_stringifies_non_string_values() {
     let element = settings_value_badge(42);
 
     assert_size(&element, Length::Shrink, Length::Shrink);
+}
+
+#[test]
+fn settings_control_with_hint_stacks_hint_below_control() {
+    let element = settings_control_with_hint(text("control"), "hint");
+
+    assert_eq!(element.as_widget().children().len(), 2);
+    assert_size(&element, Length::Fill, Length::Shrink);
 }
 
 #[test]

@@ -145,6 +145,9 @@ pub struct AppState {
 
     /// 会话级查询引擎缓存，用于按 session_id 复用多轮历史与运行时装配
     pub(crate) session_query_engines: SessionQueryEngineStore,
+
+    /// 可热替换的共享钩子运行时；测试 fixture 可用 `None` 保持原有语义。
+    pub(crate) hook_runtime: Option<crate::app::agent::hooks::HookRuntime>,
 }
 
 #[cfg(test)]

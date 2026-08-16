@@ -80,6 +80,7 @@ async fn agent_endpoint_requires_bearer_token_when_pairing_enabled() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 构造请求体，包含简单的测试消息

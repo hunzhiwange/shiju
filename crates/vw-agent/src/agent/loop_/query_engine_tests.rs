@@ -5,6 +5,8 @@ use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
 use crate::app::agent::observability::{NoopObserver, Observer, ObserverEvent};
 use crate::app::agent::providers::traits::TokenUsage;
 use crate::app::agent::providers::{ChatMessage, ChatRequest, ChatResponse, Provider};
+use crate::app::agent::tools::ToolResult;
+use crate::providers::traits::ProviderCapabilities;
 use crate::observability::traits::ObserverMetric;
 use std::any::Any;
 use std::collections::VecDeque;
@@ -137,6 +139,10 @@ impl ScriptedProvider {
 
 #[async_trait::async_trait]
 impl Provider for ScriptedProvider {
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities { native_tool_calling: true, vision: false }
+    }
+
     async fn chat_with_system(
         &self,
         _system_prompt: Option<&str>,
@@ -206,6 +212,48 @@ fn chat_text(text: &str, usage: Option<TokenUsage>) -> ChatResponse {
     }
 }
 
+fn chat_tool_call(id: &str) -> ChatResponse {
+    ChatResponse {
+        text: None,
+        tool_calls: vec![crate::app::agent::providers::ToolCall {
+            id: id.to_string(),
+            name: "hook_probe".to_string(),
+            arguments: "{}".to_string(),
+        }],
+        usage: None,
+        reasoning_content: None,
+    }
+}
+
+struct HookProbeTool;
+
+#[async_trait::async_trait]
+impl Tool for HookProbeTool {
+    fn name(&self) -> &str {
+        "hook_probe"
+    }
+
+    fn description(&self) -> &str {
+        "Records one deterministic tool completion for hook tests"
+    }
+
+    fn parameters_schema(&self) -> serde_json::Value {
+        serde_json::json!({"type": "object", "properties": {}})
+    }
+
+    async fn execute(&self, _args: serde_json::Value) -> anyhow::Result<ToolResult> {
+        Ok(ToolResult { success: true, output: "ok".to_string(), error: None })
+    }
+}
+
+fn command_logger_runtime(enabled: bool) -> crate::app::agent::hooks::HookRuntime {
+    let mut config = Config::default();
+    config.hooks.enabled = enabled;
+    config.hooks.builtin.command_logger = true;
+    config.hooks.plugins.enabled = false;
+    crate::app::agent::hooks::build_hook_runtime(&config).expect("hook runtime")
+}
+
 fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngine {
     QueryEngine {
         history: Vec::new(),
@@ -229,7 +277,40 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
         min_memory_relevance_score: 0.5,
         turn_count: 0,
         timezone: chrono_tz::Asia::Shanghai,
+        hook_runtime: None,
     }
+}
+
+#[tokio::test]
+async fn query_engine_uses_hook_runtime_for_primary_and_retry_turns() {
+    let runtime = command_logger_runtime(true);
+    let provider = ScriptedProvider::with_steps(vec![
+        ProviderStep::Response(chat_tool_call("primary-tool")),
+        ProviderStep::Error("prompt too long"),
+        ProviderStep::Response(chat_tool_call("retry-tool")),
+        ProviderStep::Response(chat_text("recovered", None)),
+    ]);
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    engine.tools_registry = vec![Box::new(HookProbeTool)];
+    engine.compact_context = true;
+    engine.hook_runtime = Some(runtime.clone());
+
+    let response = engine.submit_message("exercise primary and retry").await.unwrap();
+
+    assert_eq!(response, "recovered");
+    assert_eq!(runtime.audit_store().entries().len(), 2);
+
+    let disabled = command_logger_runtime(false);
+    let provider = ScriptedProvider::with_steps(vec![
+        ProviderStep::Response(chat_tool_call("disabled-tool")),
+        ProviderStep::Response(chat_text("disabled", None)),
+    ]);
+    let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+    engine.tools_registry = vec![Box::new(HookProbeTool)];
+    engine.hook_runtime = Some(disabled.clone());
+
+    assert_eq!(engine.submit_message("hooks disabled").await.unwrap(), "disabled");
+    assert!(disabled.audit_store().entries().is_empty());
 }
 
 #[tokio::test]

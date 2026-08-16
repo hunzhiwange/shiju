@@ -64,6 +64,7 @@ async fn webhook_idempotency_skips_duplicate_provider_calls() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 准备包含幂等键的请求头
@@ -152,6 +153,7 @@ async fn webhook_rejects_public_traffic_without_auth_layers() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 使用公共连接信息发送请求（模拟来自公网的流量）
@@ -223,6 +225,7 @@ async fn webhook_autosave_stores_distinct_keys_per_request() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     let headers = HeaderMap::new();
@@ -349,6 +352,7 @@ async fn webhook_secret_hash_rejects_missing_header() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 发送不带 X-Webhook-Secret 头的请求
@@ -421,6 +425,7 @@ async fn webhook_secret_hash_rejects_invalid_header() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 准备包含错误密钥的请求头
@@ -496,6 +501,7 @@ async fn webhook_secret_hash_accepts_valid_header() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 准备包含正确密钥的请求头

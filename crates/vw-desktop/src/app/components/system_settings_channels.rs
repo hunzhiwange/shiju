@@ -19,7 +19,7 @@ mod extended_channels_tests;
 
 use crate::app::components::system_settings_common::{
     settings_checkbox_style, settings_divider, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_section_card, settings_text_input_style,
+    settings_error_banner, settings_panel, settings_section_card, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
@@ -275,16 +275,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ChannelsSettingsTab::ClawdTalk => enterprise_channels::clawdtalk_panel(app),
     };
 
-    let content = column![
+    let mut content = column![
         settings_page_intro("通道配置", "集中配置 CLI 与外部消息通道的接入参数。"),
         settings_section_card("已启用通道", "快速查看当前已打开的入口，便于核对多通道部署状态。"),
         settings_panel(column![text(enabled_text).size(12).style(settings_muted_text_style)]),
         settings_section_card("通道", "选择一个通道进行配置。"),
         channel_tabs(active_tab),
-        selected_panel,
     ]
     .spacing(16)
     .width(Length::Fill);
+
+    if let Some(error) = &app.channels_settings.save_error {
+        content = content.push(settings_error_banner(error));
+    }
+    content = content.push(selected_panel);
 
     container(content).width(Length::Fill).into()
 }

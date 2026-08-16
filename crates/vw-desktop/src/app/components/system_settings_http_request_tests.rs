@@ -38,13 +38,12 @@ fn row_helpers_build_each_http_request_control() {
     keep_element(bool_row("启用", "说明", true, "启用网络请求工具", |value| {
         Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::EnabledToggled(value)))
     }));
-    keep_element(hint_row("安全提示"));
-    keep_element(number_row("无限制", "说明", 0, 0, u32::MAX, "", |value| {
+    keep_element(number_row("无限制", "说明", 0, 0, u32::MAX, "", None, |value| {
         Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::MaxResponseSizeChanged(
             value,
         )))
     }));
-    keep_element(number_row("超时", "说明", 30, 0, 86_400, "秒", |value| {
+    keep_element(number_row("超时", "说明", 30, 0, 86_400, "秒", Some("安全提示"), |value| {
         Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::TimeoutSecsChanged(
             value,
         )))
@@ -82,6 +81,6 @@ fn view_renders_one_allowlist_row_for_each_configured_domain() {
         vec!["api.example.com".to_string(), "*.internal.example".to_string()];
 
     let tree = Tree::new(view(&app).as_widget());
-    assert_eq!(tree.children.len(), 9);
-    assert_eq!(tree.children[7].children.len(), 2);
+    assert_eq!(tree.children.len(), 6);
+    assert_eq!(tree.children[5].children.len(), 2);
 }

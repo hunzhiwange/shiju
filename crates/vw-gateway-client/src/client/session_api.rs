@@ -70,21 +70,15 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
             .steps
             .into_iter()
             .map(|mut step| {
-                step.step.turn_id = step
-                    .step
-                    .turn_id
-                    .take()
-                    .filter(|turn_id| !turn_id.trim().is_empty());
+                step.step.turn_id =
+                    step.step.turn_id.take().filter(|turn_id| !turn_id.trim().is_empty());
                 if let Some(raw) = step.llm_raw {
                     let turn_id = step
                         .step
                         .turn_id
                         .clone()
                         .unwrap_or_else(|| format!("legacy-step-{}", step.step.index));
-                    step_llm_raw.insert(
-                        (session_id.clone(), turn_id, step.step.index),
-                        raw,
-                    );
+                    step_llm_raw.insert((session_id.clone(), turn_id, step.step.index), raw);
                 }
                 step.step
             })
@@ -93,10 +87,8 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
             .iter()
             .filter(|step| value.llm_raw_step_indices.contains(&step.index))
             .map(|step| {
-                let turn_id = step
-                    .turn_id
-                    .clone()
-                    .unwrap_or_else(|| format!("legacy-step-{}", step.index));
+                let turn_id =
+                    step.turn_id.clone().unwrap_or_else(|| format!("legacy-step-{}", step.index));
                 (session_id.clone(), turn_id, step.index)
             })
             .collect();
@@ -391,9 +383,7 @@ impl GatewayClient {
             turn_id
         };
         self.get_json_with_404(
-            &format!(
-                "/v1/session/{session_id}/turn/{request_turn_id}/step/{step_index}/llm-raw"
-            ),
+            &format!("/v1/session/{session_id}/turn/{request_turn_id}/step/{step_index}/llm-raw"),
             &directory_query(directory),
         )
         .await

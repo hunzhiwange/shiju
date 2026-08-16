@@ -4,9 +4,9 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_control_with_hint, settings_divider,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_text_input_style,
 };
 use crate::app::message::settings::{SettingsMessage, WebSearchMessage};
 use crate::app::{App, Message};
@@ -69,14 +69,27 @@ fn text_row<'a>(
     )
 }
 
-fn hint_row<'a>(message: &'a str) -> Element<'a, Message> {
-    row![
-        container(text("")).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-        text(message).size(12).style(settings_muted_text_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center)
-    .into()
+fn text_row_with_hint<'a>(
+    label: &'static str,
+    description: &'static str,
+    placeholder: &'static str,
+    value: &'a str,
+    hint: &'static str,
+    on_input: impl Fn(String) -> Message + 'a,
+) -> Element<'a, Message> {
+    field_row(
+        label,
+        description,
+        settings_control_with_hint(
+            text_input(placeholder, value)
+                .on_input(on_input)
+                .padding([10, 12])
+                .size(13)
+                .style(settings_text_input_style)
+                .width(Length::Fill),
+            hint,
+        ),
+    )
 }
 
 fn shows_api_key(provider: &str) -> bool {
@@ -106,10 +119,7 @@ fn shows_brave_api_key(provider: &str) -> bool {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro(
-            "网页搜索配置",
-            "配置网页搜索工具的提供方、鉴权信息和请求参数。",
-        ),
+        settings_page_intro("网页搜索配置", "配置网页搜索工具的提供方、鉴权信息和请求参数。",),
         content(app),
     ]
     .spacing(16)
@@ -149,113 +159,133 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(220.0));
 
-    let provider_row = field_row("搜索服务", "选择搜索提供方。", provider_pick);
+    let provider_row = field_row("搜索后端", "选择网页搜索使用的后端。", provider_pick);
 
-    let mut content = column![]
-        .push(settings_section_card("基础行为", "控制开关与默认搜索服务。"))
-        .push(settings_panel(column![enabled_row, settings_divider(), provider_row].spacing(0)))
+    let provider_section: Element<'_, Message> = if s.provider == "duckduckgo" {
+        column![
+            settings_section_card("DuckDuckGo", "公开搜索页面模式，无需额外鉴权配置。",),
+            settings_panel(column![
+                text("当前后端会直接使用 DuckDuckGo 公开搜索页面，无需 API Key。")
+                    .size(12)
+                    .style(settings_muted_text_style)
+            ]),
+        ]
         .spacing(16)
-        .width(Length::Fill);
-
-    if s.provider == "duckduckgo" {
-        content = content.push(hint_row("DuckDuckGo 模式无需 API Key，会直接使用公开搜索页面。"));
-    }
-
-    if shows_brave_api_key(&s.provider) {
-        content = content
-            .push(text_row(
-                "Brave 密钥",
-                "仅 provider=brave 时生效。",
-                "Brave Search API Key",
-                &s.brave_api_key_input,
-                |value| {
-                    Message::Settings(SettingsMessage::WebSearch(
-                        WebSearchMessage::BraveApiKeyChanged(value),
-                    ))
-                },
-            ))
-            .push(hint_row("Brave 优先使用 `brave_api_key`；留空时会回退到 `api_key`。"));
-    }
-
-    if shows_api_key(&s.provider) {
+        .into()
+    } else {
+        let (title, description) = if s.provider == "brave" {
+            ("Brave Search", "配置专用密钥、备用密钥和兼容接口地址。")
+        } else {
+            ("后端连接", "配置当前搜索后端的鉴权信息和兼容接口地址。")
+        };
         let placeholder = if s.provider == "brave" {
             "可选，作为 Brave 的备用 API Key"
         } else {
             "搜索服务 API 密钥"
         };
-        content = content.push(text_row(
-            "API 密钥",
-            "搜索服务请求所需的认证密钥。",
-            placeholder,
-            &s.api_key_input,
-            |value| {
-                Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ApiKeyChanged(
-                    value,
-                )))
-            },
-        ));
-    }
+        let mut fields = column![];
 
-    if shows_api_url(&s.provider) {
-        content = content
-            .push(text_row(
+        if shows_brave_api_key(&s.provider) {
+            fields = fields
+                .push(text_row_with_hint(
+                    "Brave 密钥",
+                    "仅 provider=brave 时生效。",
+                    "Brave Search API Key",
+                    &s.brave_api_key_input,
+                    "Brave 优先使用 `brave_api_key`；留空时会回退到 `api_key`。",
+                    |value| {
+                        Message::Settings(SettingsMessage::WebSearch(
+                            WebSearchMessage::BraveApiKeyChanged(value),
+                        ))
+                    },
+                ))
+                .push(settings_divider());
+        }
+
+        if shows_api_key(&s.provider) {
+            fields = fields.push(text_row(
+                "API 密钥",
+                "搜索服务请求所需的认证密钥。",
+                placeholder,
+                &s.api_key_input,
+                |value| {
+                    Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ApiKeyChanged(
+                        value,
+                    )))
+                },
+            ));
+        }
+
+        if shows_api_url(&s.provider) {
+            fields = fields.push(settings_divider()).push(text_row_with_hint(
                 "接口地址",
                 "可选，自定义兼容接口地址。",
                 "可选，自定义搜索服务接口地址",
                 &s.api_url_input,
+                "留空时使用默认接口；适合代理层或自托管兼容端点。",
                 |value| {
                     Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ApiUrlChanged(
                         value,
                     )))
                 },
-            ))
-            .push(hint_row("留空时使用默认接口；适合代理层或自托管兼容端点。"));
-    }
+            ));
+        }
 
-    content = content
-        .push(settings_section_card("请求参数", "控制返回数量、超时和请求头。"))
-        .push(settings_panel(
-            column![
-                text_row(
-                    "结果数量",
-                    "最终会限制在 1-10 之间。",
-                    "1-10",
-                    &s.max_results_input,
-                    |value| {
-                        Message::Settings(SettingsMessage::WebSearch(
-                            WebSearchMessage::MaxResultsChanged(value),
-                        ))
-                    }
-                ),
-                settings_divider(),
-                text_row(
-                    "超时时间",
-                    "留空时回退到默认值 15 秒。",
-                    "15",
-                    &s.timeout_secs_input,
-                    |value| {
-                        Message::Settings(SettingsMessage::WebSearch(
-                            WebSearchMessage::TimeoutSecsChanged(value),
-                        ))
-                    }
-                ),
-                settings_divider(),
-                text_row(
-                    "User-Agent",
-                    "搜索请求携带的 User-Agent。",
-                    vw_config_types::tools::DEFAULT_USER_AGENT,
-                    &s.user_agent,
-                    |value| {
-                        Message::Settings(SettingsMessage::WebSearch(
-                            WebSearchMessage::UserAgentChanged(value),
-                        ))
-                    }
-                )
-            ]
-            .spacing(0),
-        ))
-        .push(hint_row("仅接受正整数；最终会限制在 1-10 之间。"))
-        .push(hint_row("仅接受正整数秒；留空时回退到默认值 15。"));
+        column![settings_section_card(title, description), settings_panel(fields.spacing(0))]
+            .spacing(16)
+            .into()
+    };
+
+    let content = column![
+        settings_section_card("基础行为", "控制开关与默认搜索后端。"),
+        settings_panel(column![enabled_row, settings_divider(), provider_row].spacing(0)),
+        provider_section,
+    ]
+    .spacing(16)
+    .width(Length::Fill)
+    .push(settings_section_card("请求参数", "控制返回数量、超时和请求头。"))
+    .push(settings_panel(
+        column![
+            text_row_with_hint(
+                "结果数量",
+                "最终会限制在 1-10 之间。",
+                "1-10",
+                &s.max_results_input,
+                "仅接受正整数；最终会限制在 1-10 之间。",
+                |value| {
+                    Message::Settings(SettingsMessage::WebSearch(
+                        WebSearchMessage::MaxResultsChanged(value),
+                    ))
+                }
+            ),
+            settings_divider(),
+            text_row_with_hint(
+                "超时时间",
+                "留空时回退到默认值 15 秒。",
+                "15",
+                &s.timeout_secs_input,
+                "仅接受正整数秒；留空时回退到默认值 15。",
+                |value| {
+                    Message::Settings(SettingsMessage::WebSearch(
+                        WebSearchMessage::TimeoutSecsChanged(value),
+                    ))
+                }
+            ),
+            settings_divider(),
+            text_row(
+                "User-Agent",
+                "搜索请求携带的 User-Agent。",
+                vw_config_types::tools::DEFAULT_USER_AGENT,
+                &s.user_agent,
+                |value| {
+                    Message::Settings(SettingsMessage::WebSearch(
+                        WebSearchMessage::UserAgentChanged(value),
+                    ))
+                }
+            )
+        ]
+        .spacing(0),
+    ));
 
     content.into()
 }

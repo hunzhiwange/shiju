@@ -85,6 +85,43 @@ pub struct DesktopPluginPathDto {
     pub path: String,
 }
 
+/// One statically audited hook declaration from an installed plugin.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HookCatalogEntryDto {
+    pub plugin_id: String,
+    pub event: String,
+    pub command: String,
+    pub args: Vec<String>,
+    pub working_dir: String,
+    pub mode: String,
+    pub hook_hash: String,
+    pub trusted: bool,
+}
+
+/// Trust mutation request containing no executable declaration fields.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HookMutationRequestDto {
+    pub plugin_id: String,
+    pub hook_hash: String,
+}
+
+/// Result of trusting or revoking one current hook declaration.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HookMutationResponseDto {
+    pub plugin_id: String,
+    pub hook_hash: String,
+    pub trusted: bool,
+}
+
+/// Bounded command audit record without tool arguments, output, or error text.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HookAuditEntryDto {
+    pub timestamp: String,
+    pub tool_name: String,
+    pub duration_ms: u64,
+    pub success: bool,
+}
+
 /// 外部应用探测结果的精简表示。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ExternalAppsStateDto {
@@ -101,6 +138,50 @@ pub struct DesktopServiceCommandResponseDto {
 }
 
 impl GatewayClient {
+    /// List statically audited plugin hook declarations in stable order.
+    pub async fn hooks_get(&self) -> Result<Vec<HookCatalogEntryDto>, String> {
+        self.get_json("/v1/hooks", &[]).await
+    }
+
+    /// Trust one current hook declaration by server-verified hash.
+    pub async fn hook_trust(
+        &self,
+        plugin_id: &str,
+        hook_hash: &str,
+    ) -> Result<HookMutationResponseDto, String> {
+        self.post_json(
+            "/v1/hooks/trust",
+            &[],
+            &HookMutationRequestDto {
+                plugin_id: plugin_id.to_string(),
+                hook_hash: hook_hash.to_string(),
+            },
+        )
+        .await
+    }
+
+    /// Revoke one current hook declaration by server-verified hash.
+    pub async fn hook_revoke(
+        &self,
+        plugin_id: &str,
+        hook_hash: &str,
+    ) -> Result<HookMutationResponseDto, String> {
+        self.post_json(
+            "/v1/hooks/revoke",
+            &[],
+            &HookMutationRequestDto {
+                plugin_id: plugin_id.to_string(),
+                hook_hash: hook_hash.to_string(),
+            },
+        )
+        .await
+    }
+
+    /// Read bounded command audit records containing only safe fields.
+    pub async fn hook_audit_get(&self) -> Result<Vec<HookAuditEntryDto>, String> {
+        self.get_json("/v1/hooks/audit", &[]).await
+    }
+
     /// 读取 Skills 目录页可展示的技能列表。
     pub async fn skills_get(
         &self,

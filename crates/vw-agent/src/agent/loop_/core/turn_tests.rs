@@ -154,6 +154,7 @@ async fn agent_turn_delegates_to_tool_loop_with_channel_defaults() {
         true,
         &crate::app::agent::config::MultimodalConfig::default(),
         1,
+        None,
     )
     .await
     .expect("plain agent turn should return provider text");

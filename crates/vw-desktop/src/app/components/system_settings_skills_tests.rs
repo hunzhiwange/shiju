@@ -83,6 +83,20 @@ fn view_builds_every_skills_settings_tab() {
 }
 
 #[test]
+fn skills_error_banner_follows_skills_tabs() {
+    let mut app = test_app();
+
+    for (_, tab) in skills_tab_labels() {
+        app.skills_settings.active_tab = *tab;
+        app.skills_settings.save_error = None;
+        assert_eq!(view(&app).as_widget().children().len(), 3);
+
+        app.skills_settings.save_error = Some("skills save failed".to_string());
+        assert_eq!(view(&app).as_widget().children().len(), 4);
+    }
+}
+
+#[test]
 fn view_overlays_builds_with_help_closed_and_open() {
     let app = test_app();
     keep_element(view_overlays(&app, text("基础对话框").into()));

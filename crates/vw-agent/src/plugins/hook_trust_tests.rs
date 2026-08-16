@@ -54,6 +54,23 @@ fn plugin_hook_trust_marks_unreviewed_hooks_pending() {
 }
 
 #[test]
+fn plugin_hook_trust_revokes_only_the_exact_hash() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let trust_path = dir.path().join("plugin-hook-trust.json");
+    let mut store = PluginHookTrustStore::load_or_default(&trust_path).expect("load store");
+    let first = hook("first-command");
+    let second = hook("second-command");
+    store.trust_hook("demo-plugin", &first).expect("trust first");
+    store.trust_hook("demo-plugin", &second).expect("trust second");
+
+    assert!(store.revoke_hash(&plugin_hook_trust_hash("demo-plugin", &first)).unwrap());
+
+    let reloaded = PluginHookTrustStore::load_or_default(&trust_path).expect("reload store");
+    assert_eq!(reloaded.review_status("demo-plugin", &first), PluginHookTrustStatus::Pending);
+    assert_eq!(reloaded.review_status("demo-plugin", &second), PluginHookTrustStatus::Trusted);
+}
+
+#[test]
 fn plugin_hook_trust_rejects_malformed_store() {
     let dir = tempfile::tempdir().expect("temp dir");
     let trust_path = dir.path().join("plugin-hook-trust.json");

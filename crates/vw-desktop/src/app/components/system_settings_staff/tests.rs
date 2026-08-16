@@ -71,6 +71,29 @@ fn staff_settings_view_shows_bound_agent_and_unbound_warning() {
 }
 
 #[test]
+fn staff_save_error_banner_follows_tabs_and_precedes_validation() {
+    let (mut app, _) = App::new();
+
+    for member in &mut app.staff_settings.member_drafts {
+        member.delegate_agent = Some("main".to_string());
+    }
+    app.staff_settings.save_success = false;
+    app.staff_settings.save_error = Some("staff save failed".to_string());
+    assert_eq!(super::view(&app).as_widget().children().len(), 5);
+
+    let member = app.staff_settings.member_drafts.first_mut().expect("default staff member");
+    member.enabled = true;
+    member.delegate_agent = None;
+    member.acp_agent = None;
+    assert_eq!(super::view(&app).as_widget().children().len(), 6);
+
+    for tab in [StaffSettingsTab::Teams, StaffSettingsTab::Workers] {
+        app.staff_settings.active_tab = tab;
+        assert_eq!(super::view(&app).as_widget().children().len(), 4);
+    }
+}
+
+#[test]
 fn staff_channel_binding_staff_settings_view_builds_channel_binding_controls() {
     let (mut app, _) = App::new();
     app.channels_settings.matrix = Some(MatrixConfig {

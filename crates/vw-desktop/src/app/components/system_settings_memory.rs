@@ -6,9 +6,9 @@
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
-    settings_checkbox_style, settings_divider, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_segment_button_style, settings_text_input_style,
+    settings_checkbox_style, settings_divider, settings_error_banner, settings_muted_text_style,
+    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{MemoryMessage, SettingsMessage};
@@ -617,14 +617,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
     };
 
-    column![
+    let mut sections = column![
         settings_page_intro("记忆系统配置", "统一配置后端、保留策略、缓存和向量检索参数。"),
         tabs,
-        selected_section,
     ]
     .spacing(16)
-    .width(Length::Fill)
-    .into()
+    .width(Length::Fill);
+
+    if let Some(error) = active_save_error(app) {
+        sections = sections.push(settings_error_banner(error));
+    }
+
+    sections.push(selected_section).into()
+}
+
+fn active_save_error(app: &App) -> Option<&str> {
+    match app.memory_settings.active_tab {
+        MemorySettingsTab::Storage => app.storage_settings.save_error.as_deref(),
+        _ => app.memory_settings.save_error.as_deref(),
+    }
 }
 #[cfg(test)]
 #[path = "system_settings_memory_tests.rs"]

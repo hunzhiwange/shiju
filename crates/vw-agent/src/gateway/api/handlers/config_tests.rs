@@ -95,6 +95,7 @@ fn state(config: config::Config, require_pairing: bool, tokens: &[String]) -> Ap
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 
@@ -756,14 +757,36 @@ async fn handle_api_config_put_reports_gateway_skey_store_failure_without_mutati
 
 #[tokio::test]
 async fn handle_api_config_put_reports_config_save_failure_without_mutating_runtime_state() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let mut current = config::Config::default();
     current.config_path = std::path::PathBuf::new();
     current.default_provider = Some("anthropic".to_string());
+    current.hooks.enabled = true;
+    current.hooks.builtin.command_logger = true;
+    current.hooks.plugins.enabled = false;
 
     let mut incoming = current.clone();
     incoming.default_provider = Some("openai".to_string());
+    incoming.hooks.builtin.command_logger = false;
     let body = toml::to_string_pretty(&incoming).expect("config should serialize as toml");
-    let state = state(current, false, &[]);
+    let mut state = state(current.clone(), false, &[]);
+    let runtime = crate::app::agent::hooks::build_hook_runtime(&current).expect("hook runtime");
+    let initial_runner = runtime.runner_snapshot().expect("initial runner");
+    state.hook_runtime = Some(runtime.clone());
+    crate::app::agent::gateway::chat::run_gateway_chat_with_tools(
+        &state,
+        "cache this session",
+        "save-failure-session",
+    )
+    .await
+    .expect("gateway chat");
+    let cached_engine = state
+        .session_query_engines
+        .lock()
+        .await
+        .get("save-failure-session")
+        .cloned()
+        .expect("cached engine");
 
     let response = handle_api_config_put(
         State(state.clone()),
@@ -779,11 +802,162 @@ async fn handle_api_config_put_reports_config_save_failure_without_mutating_runt
         response_json(response).await["error"].as_str().unwrap().contains("Failed to save config")
     );
     assert_eq!(state.config.lock().default_provider.as_deref(), Some("anthropic"));
+    let retained_runner = runtime.runner_snapshot().expect("runner retained after save failure");
+    assert!(Arc::ptr_eq(&initial_runner, &retained_runner));
+    let retained_engine = state
+        .session_query_engines
+        .lock()
+        .await
+        .get("save-failure-session")
+        .cloned()
+        .expect("engine retained after save failure");
+    assert!(Arc::ptr_eq(&cached_engine, &retained_engine));
+}
+
+#[tokio::test]
+async fn config_put_reloads_hooks_and_invalidates_query_engines() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let temp = TempDir::new().expect("temp dir");
+    let _home = EnvGuard::set("HOME", temp.path().as_os_str());
+    let mut current = config::Config::default();
+    current.config_path = temp.path().join("vibewindow.json");
+    current.hooks.enabled = true;
+    current.hooks.builtin.command_logger = true;
+    current.hooks.plugins.enabled = false;
+
+    let mut state = state(current.clone(), false, &[]);
+    let runtime = crate::app::agent::hooks::build_hook_runtime(&current).expect("hook runtime");
+    let initial_runner = runtime.runner_snapshot().expect("initial runner");
+    state.hook_runtime = Some(runtime.clone());
+    crate::app::agent::gateway::chat::run_gateway_chat_with_tools(
+        &state,
+        "cache this session",
+        "reload-session",
+    )
+    .await
+    .expect("gateway chat");
+    assert!(state.session_query_engines.lock().await.contains_key("reload-session"));
+
+    let mut incoming = current;
+    incoming.hooks.builtin.command_logger = false;
+    let body = toml::to_string_pretty(&incoming).expect("config should serialize as toml");
+    let response = handle_api_config_put(
+        State(state.clone()),
+        Extension(TenantScope::default()),
+        HeaderMap::new(),
+        body,
+    )
+    .await
+    .into_response();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let reloaded_runner = runtime.runner_snapshot().expect("reloaded runner");
+    assert!(!Arc::ptr_eq(&initial_runner, &reloaded_runner));
+    assert!(!state.config.lock().hooks.builtin.command_logger);
+    assert!(state.session_query_engines.lock().await.is_empty());
+
+    let audit_store = runtime.audit_store();
+    reloaded_runner
+        .fire_after_tool_call(
+            "sleep",
+            &crate::app::agent::tools::ToolResult {
+                success: true,
+                output: String::new(),
+                error: None,
+            },
+            Duration::from_millis(1),
+        )
+        .await;
+    assert!(audit_store.entries().is_empty());
+}
+
+#[tokio::test]
+async fn config_put_hook_build_failure_is_atomic() {
+    let temp = TempDir::new().expect("temp dir");
+    let mut current = config::Config::default();
+    current.workspace_dir = temp.path().join("workspace");
+    current.config_path = temp.path().join("config/vibewindow.json");
+    current.hooks.enabled = true;
+    current.hooks.builtin.command_logger = true;
+    current.hooks.plugins.enabled = false;
+
+    let broken_plugin = current.workspace_dir.join(".vibewindow/plugins/broken");
+    let manifest_path = broken_plugin.join(".vibewindow-plugin/plugin.json");
+    std::fs::create_dir_all(manifest_path.parent().expect("manifest parent"))
+        .expect("create manifest parent");
+    std::fs::write(
+        &manifest_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "name": "broken",
+            "version": "0.1.0",
+            "description": "broken runtime test plugin",
+            "hooks": "./hooks/hooks.json"
+        }))
+        .expect("manifest bytes"),
+    )
+    .expect("write plugin manifest");
+    let hooks_path = broken_plugin.join("hooks/hooks.json");
+    std::fs::create_dir_all(hooks_path.parent().expect("hooks parent"))
+        .expect("create hooks parent");
+    std::fs::write(&hooks_path, "{not json").expect("write broken hooks");
+
+    let mut state = state(current.clone(), false, &[]);
+    let runtime = crate::app::agent::hooks::build_hook_runtime(&current).expect("hook runtime");
+    let initial_runner = runtime.runner_snapshot().expect("initial runner");
+    state.hook_runtime = Some(runtime.clone());
+    crate::app::agent::gateway::chat::run_gateway_chat_with_tools(
+        &state,
+        "cache this session",
+        "build-failure-session",
+    )
+    .await
+    .expect("gateway chat");
+    let cached_engine = state
+        .session_query_engines
+        .lock()
+        .await
+        .get("build-failure-session")
+        .cloned()
+        .expect("cached engine");
+
+    let mut incoming = current.clone();
+    incoming.hooks.plugins.enabled = true;
+    let body = toml::to_string_pretty(&incoming).expect("config should serialize as toml");
+    let response = handle_api_config_put(
+        State(state.clone()),
+        Extension(TenantScope::default()),
+        HeaderMap::new(),
+        body,
+    )
+    .await
+    .into_response();
+
+    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(
+        response_json(response).await["error"]
+            .as_str()
+            .expect("error message")
+            .contains("Failed to build hook runtime")
+    );
+    assert!(!state.config.lock().hooks.plugins.enabled);
+    let retained_runner = runtime.runner_snapshot().expect("runner retained after build failure");
+    assert!(Arc::ptr_eq(&initial_runner, &retained_runner));
+    let retained_engine = state
+        .session_query_engines
+        .lock()
+        .await
+        .get("build-failure-session")
+        .cloned()
+        .expect("engine retained after build failure");
+    assert!(Arc::ptr_eq(&cached_engine, &retained_engine));
+    assert!(!current.config_path.exists());
 }
 
 #[tokio::test]
 async fn handle_api_config_put_hydrates_validates_saves_and_updates_runtime_config() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let temp = TempDir::new().expect("temp dir");
+    let _home = EnvGuard::set("HOME", temp.path().as_os_str());
     let mut current = config::Config::default();
     current.config_path = temp.path().join(".vibewindow.json");
     current.api_key = Some("sk-current".to_string());
@@ -811,7 +985,12 @@ async fn handle_api_config_put_hydrates_validates_saves_and_updates_runtime_conf
     assert_eq!(state.config.lock().default_provider.as_deref(), Some("openai"));
     assert_eq!(state.config.lock().api_key.as_deref(), Some("sk-current"));
     assert_eq!(state.config.lock().gateway.paired_tokens, vec!["paired-current"]);
-    assert!(state.config.lock().config_path.exists());
+    let stored = local_store(temp.path())
+        .get(&TenantScope::default())
+        .expect("read stored config")
+        .expect("stored config row");
+    let stored: config::Config = serde_json::from_str(&stored).expect("parse stored config");
+    assert_eq!(stored.default_provider.as_deref(), Some("openai"));
 }
 
 #[tokio::test]

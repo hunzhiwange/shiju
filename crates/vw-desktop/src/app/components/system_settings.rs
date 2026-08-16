@@ -474,18 +474,9 @@ fn active_settings_help_tab(app: &App, active_tab: SystemTab) -> SystemTab {
 pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<&str> {
     match active_tab {
         SystemTab::Providers => app.provider_settings.save_error.as_deref(),
-        SystemTab::Models => match app.model_settings.active_tab {
-            crate::app::state::ModelConfigTab::Models => app.model_settings.save_error.as_deref(),
-            crate::app::state::ModelConfigTab::ModelRoutes => {
-                app.model_routes_settings.save_error.as_deref()
-            }
-            crate::app::state::ModelConfigTab::QueryClassification => {
-                app.query_classification_settings.save_error.as_deref()
-            }
-            crate::app::state::ModelConfigTab::Multimodal => {
-                app.multimodal_settings.save_error.as_deref()
-            }
-        },
+        SystemTab::Models => {
+            crate::app::components::system_settings_models::active_tab_save_error(app)
+        }
         SystemTab::Cron => {
             app.cron_settings.save_error.as_deref().or(app.scheduler_settings.save_error.as_deref())
         }
@@ -535,6 +526,26 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         },
         SystemTab::Editor | SystemTab::Projects => None,
     }
+}
+
+pub(super) fn tabbed_page_owns_save_error(active_tab: SystemTab) -> bool {
+    matches!(
+        active_tab,
+        SystemTab::Models
+            | SystemTab::Cron
+            | SystemTab::Agents
+            | SystemTab::Staff
+            | SystemTab::Channels
+            | SystemTab::Memory
+            | SystemTab::Autonomy
+            | SystemTab::Security
+            | SystemTab::Gateway
+            | SystemTab::WebSearch
+            | SystemTab::HttpRequest
+            | SystemTab::Browser
+            | SystemTab::Proxy
+            | SystemTab::Tunnel
+    )
 }
 
 /// 渲染系统设置面板视图
@@ -827,7 +838,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     {
                         content_with_help = content_with_help.push(help_bar);
                     }
-                    if let Some(err) = active_tab_save_error(app, active_tab) {
+                    if !tabbed_page_owns_save_error(active_tab)
+                        && let Some(err) = active_tab_save_error(app, active_tab)
+                    {
                         content_with_help = content_with_help.push(settings_error_banner(err));
                     }
                     content_with_help = content_with_help.push(content);

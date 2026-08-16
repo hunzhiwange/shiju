@@ -14,7 +14,7 @@ mod types;
 
 pub use crate::cli_commands::PluginCommands;
 pub use cli::handle_command;
-pub(crate) use hook_handler::register_trusted_plugin_hooks;
+pub(crate) use hook_handler::trusted_plugin_hook_handlers;
 pub use hook_trust::{
     PluginHookTrustStatus, PluginHookTrustStore, plugin_hook_trust_file, plugin_hook_trust_hash,
 };

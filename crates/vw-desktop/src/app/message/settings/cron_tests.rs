@@ -121,12 +121,14 @@ fn jobs_loaded_reconciles_selection_and_preserves_jobs_on_error() {
     app.cron_settings.jobs_loading = true;
     app.cron_settings.selected_job_ids =
         vec!["a".to_string(), "missing".to_string(), "b".to_string()];
+    app.cron_settings.expanded_job_ids = vec!["missing".to_string(), "b".to_string()];
     app.cron_settings.save_error = Some("old error".to_string());
 
     let _ = update(&mut app, SettingsMessage::CronJobsLoaded(Ok(vec![job("a"), job("b")])));
 
     assert!(!app.cron_settings.jobs_loading);
     assert_eq!(app.cron_settings.selected_job_ids, vec!["a".to_string(), "b".to_string()]);
+    assert_eq!(app.cron_settings.expanded_job_ids, vec!["b".to_string()]);
     assert_eq!(app.cron_settings.jobs.len(), 2);
     assert_eq!(app.cron_settings.save_error, None);
 
@@ -152,6 +154,19 @@ fn job_selection_is_idempotent_and_select_all_can_be_cleared() {
     assert_eq!(app.cron_settings.selected_job_ids, vec!["a".to_string(), "b".to_string()]);
     let _ = update(&mut app, SettingsMessage::CronJobsSelectAllToggled(false));
     assert!(app.cron_settings.selected_job_ids.is_empty());
+}
+
+#[test]
+fn job_details_are_collapsed_by_default_and_toggle_idempotently() {
+    let mut app = app();
+    assert!(app.cron_settings.expanded_job_ids.is_empty());
+
+    let _ = update(&mut app, SettingsMessage::CronJobDetailsToggled("a".to_string(), true));
+    let _ = update(&mut app, SettingsMessage::CronJobDetailsToggled("a".to_string(), true));
+    assert_eq!(app.cron_settings.expanded_job_ids, vec!["a".to_string()]);
+
+    let _ = update(&mut app, SettingsMessage::CronJobDetailsToggled("a".to_string(), false));
+    assert!(app.cron_settings.expanded_job_ids.is_empty());
 }
 
 #[test]

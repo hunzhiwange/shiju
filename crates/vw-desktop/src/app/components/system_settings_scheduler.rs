@@ -16,8 +16,9 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, icon_btn, settings_checkbox_style, settings_close_button,
-    settings_help_button, settings_help_copy_state, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_section_card, settings_value_badge,
+    settings_control_with_hint, settings_help_button, settings_help_copy_state,
+    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
+    settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{Space, checkbox, column, container, row, slider, text};
@@ -149,19 +150,13 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
     let max_concurrent_row = field_row(
         "并发上限",
         "允许并行执行的任务数量上限。",
-        row![max_concurrent_slider, settings_value_badge(format!("{}", s.max_concurrent))]
-            .spacing(16)
-            .align_y(Alignment::Center),
+        settings_control_with_hint(
+            row![max_concurrent_slider, settings_value_badge(format!("{}", s.max_concurrent))]
+                .spacing(16)
+                .align_y(Alignment::Center),
+            "建议 max_tasks=64、max_concurrent=4；高并发场景可按资源逐步上调。",
+        ),
     );
-
-    let hint_row = row![
-        container(text("")).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-        text("建议 max_tasks=64、max_concurrent=4；高并发场景可按资源逐步上调。")
-            .size(12)
-            .style(settings_muted_text_style),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
 
     let mut col = column![
         row![
@@ -180,8 +175,7 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
 
     col = col
         .push(settings_section_card("执行能力", "控制调度器处理任务的吞吐和并发上限。"))
-        .push(settings_panel(column![enabled_row, max_tasks_row, max_concurrent_row].spacing(0)))
-        .push(hint_row);
+        .push(settings_panel(column![enabled_row, max_tasks_row, max_concurrent_row].spacing(0)));
 
     col.into()
 }

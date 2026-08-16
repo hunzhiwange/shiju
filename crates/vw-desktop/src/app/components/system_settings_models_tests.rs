@@ -3,6 +3,7 @@ use crate::app::state::{
     ModelConfigTab, ModelDetailModalState, ModelDetailRow, ModelSummary, ProviderModelsSummary,
 };
 use crate::app::{App, Message};
+use iced::advanced::widget::Tree;
 use iced::widget::text;
 use serde_json::json;
 
@@ -11,17 +12,29 @@ fn test_app() -> App {
 }
 
 #[test]
-fn view_switches_between_model_configuration_tabs() {
+fn model_settings_error_banner_is_local_to_tabbed_view() {
     let mut app = test_app();
+    let cases = [
+        (ModelConfigTab::Models, "models error"),
+        (ModelConfigTab::ModelRoutes, "routes error"),
+        (ModelConfigTab::QueryClassification, "classification error"),
+        (ModelConfigTab::Multimodal, "multimodal error"),
+    ];
 
-    for tab in [
-        ModelConfigTab::Models,
-        ModelConfigTab::ModelRoutes,
-        ModelConfigTab::QueryClassification,
-        ModelConfigTab::Multimodal,
-    ] {
+    for (tab, _) in cases {
         app.model_settings.active_tab = tab;
-        keep_element(view(&app));
+        assert_eq!(Tree::new(view(&app).as_widget()).children.len(), 2);
+    }
+
+    app.model_settings.save_error = Some(cases[0].1.to_string());
+    app.model_routes_settings.save_error = Some(cases[1].1.to_string());
+    app.query_classification_settings.save_error = Some(cases[2].1.to_string());
+    app.multimodal_settings.save_error = Some(cases[3].1.to_string());
+
+    for (tab, expected) in cases {
+        app.model_settings.active_tab = tab;
+        assert_eq!(active_tab_save_error(&app), Some(expected));
+        assert_eq!(Tree::new(view(&app).as_widget()).children.len(), 3);
     }
 }
 

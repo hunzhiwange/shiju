@@ -83,6 +83,7 @@ fn make_state_no_pairing() -> AppState {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 
@@ -146,6 +147,7 @@ fn make_state_with_pairing(token: &str) -> AppState {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     }
 }
 

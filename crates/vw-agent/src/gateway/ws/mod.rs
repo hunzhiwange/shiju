@@ -393,6 +393,37 @@ pub async fn handle_ws_chat(
         .into_response()
 }
 
+#[allow(clippy::too_many_arguments)]
+async fn run_websocket_tool_loop(
+    state: &AppState,
+    history: &mut Vec<ChatMessage>,
+    provider_label: &str,
+    approval_manager: Option<Arc<ApprovalManager>>,
+    security: Option<Arc<SecurityPolicy>>,
+    delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
+) -> anyhow::Result<String> {
+    run_tool_call_loop(
+        state.provider.as_ref(),
+        history,
+        state.tools_registry_exec.as_ref(),
+        state.observer.as_ref(),
+        provider_label,
+        &state.model,
+        state.temperature,
+        true,
+        approval_manager,
+        "webchat",
+        &state.multimodal,
+        state.max_tool_iterations,
+        None,
+        delta_tx,
+        state.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
+        security,
+        &[],
+    )
+    .await
+}
+
 /// 处理 WebSocket 连接会话。
 ///
 /// 该函数管理整个 WebSocket 会话的生命周期，包括：
@@ -524,24 +555,13 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
             let (delta_tx, mut delta_rx) = tokio::sync::mpsc::channel::<String>(128);
 
             // 固定代理循环的 future，以便在 select! 中使用
-            let mut loop_future = std::pin::pin!(run_tool_call_loop(
-                state.provider.as_ref(),
+            let mut loop_future = std::pin::pin!(run_websocket_tool_loop(
+                &state,
                 &mut history,
-                state.tools_registry_exec.as_ref(),
-                state.observer.as_ref(),
                 &provider_label,
-                &state.model,
-                state.temperature,
-                true, // silent - 不输出到控制台
                 Some(approval_manager.clone()),
-                "webchat",
-                &state.multimodal,
-                state.max_tool_iterations,
-                None,           // cancellation token - 取消令牌
-                Some(delta_tx), // delta streaming - 增量流式传输
-                None,           // hooks - 钩子
                 Some(security.clone()),
-                &[], // excluded tools - 排除的工具
+                Some(delta_tx),
             ));
 
             // 同时运行代理循环和处理增量事件

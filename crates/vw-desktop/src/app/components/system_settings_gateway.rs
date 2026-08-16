@@ -9,9 +9,10 @@ use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
     danger_action_btn_style, icon_svg, rounded_action_btn_style, settings_checkbox_style,
-    settings_divider, settings_help_button, settings_modal_card, settings_modal_overlay,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_segment_button_style, settings_text_input_style, settings_value_badge,
+    settings_control_with_hint, settings_divider, settings_error_banner, settings_help_button,
+    settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
+    settings_panel, settings_section_card, settings_segment_button_style,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{GatewayMessage, SettingsMessage};
@@ -59,22 +60,26 @@ fn field_row<'a>(
     .into()
 }
 
-fn text_row<'a>(
+fn text_row_with_hint<'a>(
     label: &'static str,
     description: &'static str,
     placeholder: &'static str,
     value: &'a str,
+    hint: &'static str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
     field_row(
         label,
         description,
-        text_input(placeholder, value)
-            .on_input(on_input)
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        settings_control_with_hint(
+            text_input(placeholder, value)
+                .on_input(on_input)
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .style(settings_text_input_style)
+                .width(Length::Fill),
+            hint,
+        ),
     )
 }
 
@@ -112,18 +117,25 @@ fn bool_row<'a>(
     )
 }
 
-fn hint_row<'a>(message: &'a str) -> Element<'a, Message> {
-    container(
-        row![
-            container(text("")).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
-            container(text(message).size(12).style(settings_muted_text_style)).width(Length::Fill),
-        ]
-        .spacing(22)
-        .align_y(Alignment::Center),
+fn bool_row_with_hint<'a>(
+    label: &'static str,
+    description: &'static str,
+    checked: bool,
+    checkbox_label: &'static str,
+    hint: &'static str,
+    on_toggle: impl Fn(bool) -> Message + 'a,
+) -> Element<'a, Message> {
+    field_row(
+        label,
+        description,
+        settings_control_with_hint(
+            checkbox(checked)
+                .label(checkbox_label)
+                .on_toggle(on_toggle)
+                .style(settings_checkbox_style),
+            hint,
+        ),
     )
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
 }
 
 fn number_row<'a>(
@@ -512,11 +524,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::PortChanged(value as u16)))
         },
     );
-    let host_row = text_row(
+    let host_row = text_row_with_hint(
         "主机地址",
         "控制服务端 Gateway 的监听地址。",
         "127.0.0.1",
         &s.host_input,
+        "若 host 非本地地址，建议仅在可信反向代理或隧道环境下使用。",
         |value| Message::Settings(SettingsMessage::Gateway(GatewayMessage::HostChanged(value))),
     );
 
@@ -540,11 +553,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             )))
         },
     );
-    let trust_forwarded_headers_row = bool_row(
+    let trust_forwarded_headers_row = bool_row_with_hint(
         "信任转发头",
         "仅在可信反向代理后开启。",
         s.trust_forwarded_headers,
         "信任 X-Forwarded-For / X-Real-IP",
+        "仅在你完全信任前置代理时开启 forwarded headers。",
         |value| {
             Message::Settings(SettingsMessage::Gateway(
                 GatewayMessage::TrustForwardedHeadersToggled(value),
@@ -768,11 +782,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ))
         },
     );
-    let node_control_allowed_ids_row = text_row(
+    let node_control_allowed_ids_row = text_row_with_hint(
         "节点控制.允许的节点ID",
         "留空表示不设置显式 allowlist；可使用 * 允许所有节点。",
         "逗号或换行分隔，支持 *",
         &s.node_control_allowed_node_ids_input,
+        "allowed_node_ids 留空表示不设置显式 allowlist；可使用 * 允许所有节点。",
         |value| {
             Message::Settings(SettingsMessage::Gateway(
                 GatewayMessage::NodeControlAllowedNodeIdsChanged(value),
@@ -807,8 +822,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 port_row,
                 settings_divider(),
                 host_row,
-                settings_divider(),
-                hint_row("若 host 非本地地址，建议仅在可信反向代理或隧道环境下使用。")
             ]
             .spacing(0)
         ),
@@ -820,8 +833,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 allow_public_bind_row,
                 settings_divider(),
                 trust_forwarded_headers_row,
-                settings_divider(),
-                hint_row("仅在你完全信任前置代理时开启 forwarded headers。"),
             ]
             .spacing(0),
         ),
@@ -844,8 +855,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 node_control_auth_token_row,
                 settings_divider(),
                 node_control_allowed_ids_row,
-                settings_divider(),
-                hint_row("allowed_node_ids 留空表示不设置显式 allowlist；可使用 * 允许所有节点。"),
             ]
             .spacing(0),
         ),
@@ -870,7 +879,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         GatewaySettingsTab::Skeys => skeys_content,
     };
 
-    let content = column![
+    let mut content = column![
         row![
             container(settings_page_intro(
                 "服务端网关配置",
@@ -883,12 +892,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .align_y(Alignment::Start)
         .width(Length::Fill),
         tab_bar,
-        active_content,
     ]
     .spacing(16)
     .width(Length::Fill);
 
-    content.into()
+    if let Some(error) = s.save_error.as_deref() {
+        content = content.push(settings_error_banner(error));
+    }
+
+    content.push(active_content).into()
 }
 
 /// 构建或处理 `view_overlays` 对应的界面片段与交互数据。

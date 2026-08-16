@@ -12,6 +12,15 @@ fn hooks_and_runtime_defaults_match_secure_native_runtime() {
     let hooks = HooksSettingsState::default();
     assert!(hooks.enabled);
     assert!(!hooks.command_logger);
+    assert!(hooks.plugins_enabled);
+    assert!(hooks.catalog.is_empty());
+    assert!(!hooks.catalog_loading);
+    assert!(hooks.catalog_error.is_none());
+    assert!(hooks.audit.is_empty());
+    assert!(!hooks.audit_loading);
+    assert!(hooks.audit_error.is_none());
+    assert!(!hooks.mutation_loading);
+    assert!(hooks.mutation_error.is_none());
     assert!(hooks.save_error.is_none());
 
     let runtime = RuntimeSettingsState::default();

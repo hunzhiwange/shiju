@@ -9,13 +9,44 @@ pub(crate) struct HooksSettingsState {
     pub(crate) enabled: bool,
     /// 是否启用 command_logger 内置钩子
     pub(crate) command_logger: bool,
+    /// 是否允许加载已启用插件声明的 hooks
+    pub(crate) plugins_enabled: bool,
+    /// 最近一次成功加载的插件 hook 清单
+    pub(crate) catalog: Vec<vw_gateway_client::HookCatalogEntryDto>,
+    /// 插件 hook 清单是否正在加载
+    pub(crate) catalog_loading: bool,
+    /// 最近一次插件 hook 清单加载错误
+    pub(crate) catalog_error: Option<String>,
+    /// 最近一次成功加载的安全审计记录
+    pub(crate) audit: Vec<vw_gateway_client::HookAuditEntryDto>,
+    /// 审计记录是否正在加载
+    pub(crate) audit_loading: bool,
+    /// 最近一次审计记录加载错误
+    pub(crate) audit_error: Option<String>,
+    /// 信任或撤销请求是否正在执行
+    pub(crate) mutation_loading: bool,
+    /// 最近一次信任或撤销错误
+    pub(crate) mutation_error: Option<String>,
     /// 保存错误信息
     pub(crate) save_error: Option<String>,
 }
 
 impl Default for HooksSettingsState {
     fn default() -> Self {
-        Self { enabled: true, command_logger: false, save_error: None }
+        Self {
+            enabled: true,
+            command_logger: false,
+            plugins_enabled: true,
+            catalog: Vec::new(),
+            catalog_loading: false,
+            catalog_error: None,
+            audit: Vec::new(),
+            audit_loading: false,
+            audit_error: None,
+            mutation_loading: false,
+            mutation_error: None,
+            save_error: None,
+        }
     }
 }
 

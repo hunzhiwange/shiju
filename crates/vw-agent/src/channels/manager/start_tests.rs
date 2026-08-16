@@ -237,6 +237,29 @@ fn build_channel_hooks_respects_enabled_flag() {
     assert!(build_channel_hooks(&config).expect("hooks enabled with logger").is_some());
 }
 
+#[tokio::test]
+async fn channel_hooks_use_shared_runtime_builder() {
+    let mut config = Config::default();
+    config.hooks.enabled = true;
+    config.hooks.builtin.command_logger = true;
+    config.hooks.plugins.enabled = false;
+
+    let hooks = build_channel_hooks(&config)
+        .expect("build channel hooks")
+        .expect("enabled hook runner");
+    hooks
+        .fire_after_tool_call("channel-tool", &ToolResult::default(), Duration::from_millis(3))
+        .await;
+
+    let runtime = crate::app::agent::hooks::build_hook_runtime(&config)
+        .expect("build shared hook runtime");
+    let shared_hooks = runtime.runner_snapshot().expect("shared hook runner");
+    shared_hooks
+        .fire_after_tool_call("shared-tool", &ToolResult::default(), Duration::from_millis(4))
+        .await;
+    assert_eq!(runtime.audit_store().entries()[0].tool_name, "shared-tool");
+}
+
 #[test]
 fn registered_agent_tool_flag_matches_registry_name_check() {
     let tools: Vec<Box<dyn Tool>> = vec![Box::new(AgentToolStub)];

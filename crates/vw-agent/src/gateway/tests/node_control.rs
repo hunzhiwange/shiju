@@ -76,6 +76,7 @@ async fn node_control_returns_not_found_when_disabled() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 构造节点控制请求，请求方法为 node.list
@@ -161,6 +162,7 @@ async fn node_control_list_returns_stub_nodes_when_enabled() {
         max_tool_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
+        hook_runtime: None,
     };
 
     // 构造节点控制请求，请求方法为 node.list

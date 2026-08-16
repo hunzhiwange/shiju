@@ -44,15 +44,8 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         .map_err(|error| anyhow::anyhow!(error.to_string()))?;
     let config_state = Arc::new(Mutex::new(config.clone()));
 
-    let hooks: Option<std::sync::Arc<crate::app::agent::hooks::HookRunner>> =
-        if config.hooks.enabled {
-            let mut runner = crate::app::agent::hooks::HookRunner::new();
-            crate::plugins::register_trusted_plugin_hooks(&mut runner, &config)
-                .context("failed to register trusted plugin hooks")?;
-            Some(std::sync::Arc::new(runner))
-        } else {
-            None
-        };
+    let hook_runtime = crate::app::agent::hooks::build_hook_runtime(&config)
+        .context("failed to build gateway hook runtime")?;
 
     let addr: SocketAddr = format!("{host}:{port}").parse()?;
     let listener = tokio::net::TcpListener::bind(addr)
@@ -289,7 +282,7 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
 
     crate::app::agent::health::mark_component_ok("gateway");
 
-    if let Some(ref hooks) = hooks {
+    if let Some(hooks) = hook_runtime.runner_snapshot() {
         hooks.fire_gateway_start(host, actual_port).await;
     }
 
@@ -327,6 +320,7 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         max_tool_iterations,
         event_tx,
         session_query_engines: Default::default(),
+        hook_runtime: Some(hook_runtime),
     };
 
     let openai_compat_route = Router::<AppState>::new()
@@ -478,6 +472,10 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("GET", "/v1/config", "runtime config"),
         client_route("PATCH", "/v1/config", "update runtime config"),
         client_route("GET", "/v1/config/providers", "provider config catalog"),
+        client_route("GET", "/v1/hooks", "plugin hook catalog"),
+        client_route("POST", "/v1/hooks/trust", "trust current plugin hook"),
+        client_route("POST", "/v1/hooks/revoke", "revoke current plugin hook"),
+        client_route("GET", "/v1/hooks/audit", "bounded command audit"),
         client_route("GET", "/v1/global/health", "global health"),
         client_route("GET", "/v1/global/event", "global event stream"),
         client_route("GET", "/v1/global/config", "global config"),
@@ -966,6 +964,7 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
         .merge(api::handlers::skill_market::router())
         .merge(api::handlers::desktop_skills::router())
         .merge(api::handlers::plugins::router())
+        .merge(api::handlers::hooks::router())
         .merge(api::handlers::desktop::router())
 }
 

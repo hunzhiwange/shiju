@@ -19,8 +19,8 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, danger_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_error_banner, settings_help_button, settings_muted_text_style, settings_page_intro,
+    settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
     settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
@@ -1005,7 +1005,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .into(),
     };
 
-    let col = column![
+    let mut col = column![
         row![
             settings_page_intro("安全配置", "配置沙箱、资源限制、审计与安全门控策略。"),
             container(text(" ")).width(Length::Fill),
@@ -1013,12 +1013,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .align_y(Alignment::Start),
         tabs,
-        content,
     ]
     .spacing(16)
     .width(Length::Fill);
 
-    col.into()
+    if let Some(error) = s.save_error.as_deref() {
+        col = col.push(settings_error_banner(error));
+    }
+
+    col.push(content).into()
 }
 
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {

@@ -28,8 +28,8 @@ use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     bool_support_label, format_context_limit, icon_btn, provider_logo_svg,
     rounded_action_btn_style, settings_close_button, settings_divider, settings_modal_card,
-    settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_panel_style, settings_section_card, settings_segment_button_style,
+    settings_error_banner, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
+    settings_panel, settings_panel_style, settings_section_card, settings_segment_button_style,
     settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
@@ -71,6 +71,17 @@ pub(super) const MODEL_TABS: &[SettingsTabDescriptor<ModelConfigTab>] = &[
     ),
 ];
 
+pub(super) fn active_tab_save_error(app: &App) -> Option<&str> {
+    match app.model_settings.active_tab {
+        ModelConfigTab::Models => app.model_settings.save_error.as_deref(),
+        ModelConfigTab::ModelRoutes => app.model_routes_settings.save_error.as_deref(),
+        ModelConfigTab::QueryClassification => {
+            app.query_classification_settings.save_error.as_deref()
+        }
+        ModelConfigTab::Multimodal => app.multimodal_settings.save_error.as_deref(),
+    }
+}
+
 /// 渲染模型配置页及其内部标签。
 pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.model_settings.active_tab;
@@ -101,7 +112,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ModelConfigTab::Multimodal => crate::app::components::system_settings_multimodal::view(app),
     };
 
-    column![tabs, content].spacing(16).width(Length::Fill).into()
+    let mut sections = column![tabs].spacing(16).width(Length::Fill);
+    if let Some(error) = active_tab_save_error(app) {
+        sections = sections.push(settings_error_banner(error));
+    }
+
+    sections.push(content).into()
 }
 
 /// 渲染模型设置的主视图

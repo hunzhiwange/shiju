@@ -117,6 +117,7 @@ pub(super) fn build_cron_settings(
         jobs_loading: false,
         jobs: Vec::new(),
         selected_job_ids: Vec::new(),
+        expanded_job_ids: Vec::new(),
         editing_job_id: None,
         edit_draft: crate::app::state::CronJobDraft::default(),
         add_draft: crate::app::state::CronJobDraft::default(),
@@ -157,6 +158,15 @@ pub(super) fn build_hooks_settings(
     crate::app::state::HooksSettingsState {
         enabled: hooks_cfg.enabled,
         command_logger: hooks_cfg.builtin.command_logger,
+        plugins_enabled: hooks_cfg.plugins.enabled,
+        catalog: Vec::new(),
+        catalog_loading: false,
+        catalog_error: None,
+        audit: Vec::new(),
+        audit_loading: false,
+        audit_error: None,
+        mutation_loading: false,
+        mutation_error: None,
         save_error: None,
     }
 }

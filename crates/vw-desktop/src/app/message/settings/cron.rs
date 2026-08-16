@@ -153,6 +153,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings
                         .selected_job_ids
                         .retain(|id| app.cron_settings.jobs.iter().any(|job| job.id == *id));
+                    app.cron_settings
+                        .expanded_job_ids
+                        .retain(|id| app.cron_settings.jobs.iter().any(|job| job.id == *id));
                 }
                 Err(err) => {
                     app.cron_settings.save_error = Some(err);
@@ -167,6 +170,16 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
             } else {
                 app.cron_settings.selected_job_ids.retain(|id| id != &job_id);
+            }
+            Task::none()
+        }
+        SettingsMessage::CronJobDetailsToggled(job_id, expanded) => {
+            if expanded {
+                if !app.cron_settings.expanded_job_ids.iter().any(|id| id == &job_id) {
+                    app.cron_settings.expanded_job_ids.push(job_id);
+                }
+            } else {
+                app.cron_settings.expanded_job_ids.retain(|id| id != &job_id);
             }
             Task::none()
         }

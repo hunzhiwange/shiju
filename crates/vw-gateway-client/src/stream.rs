@@ -106,13 +106,7 @@ pub struct GatewayChatToolEvent {
 impl GatewayChatToolEvent {
     /// 保留旧聊天工具卡消费的文本协议。
     pub fn legacy_delta(&self) -> String {
-        let mut payload = self.payload.clone();
-        if let Some(payload) = payload.as_object_mut() {
-            payload
-                .entry("tool_call_id")
-                .or_insert_with(|| serde_json::Value::String(self.call_id.clone()));
-        }
-        format!("tool {}\n{}\n", self.name, payload)
+        format!("tool {}\n{}\n", self.name, self.payload)
     }
 }
 

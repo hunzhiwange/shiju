@@ -616,14 +616,6 @@ pub(super) fn handle_agent_workflow_node_update(
     handle_agent_tool_blocks_update(app, id, vec![raw_tool_block])
 }
 
-pub(super) fn handle_agent_tool_lifecycle_update(
-    app: &mut App,
-    id: u64,
-    raw_tool_block: String,
-) -> Task<Message> {
-    handle_agent_tool_blocks_update(app, id, vec![raw_tool_block])
-}
-
 fn handle_agent_tool_blocks_update(
     app: &mut App,
     id: u64,

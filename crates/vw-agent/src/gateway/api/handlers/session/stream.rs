@@ -572,13 +572,7 @@ fn stream_payload_for_non_done_event(
             Some(serde_json::json!({ "type": "chat.delta", "delta": delta }))
         }
         agent_session::processor::StreamEvent::Tool(event) => {
-            let mut payload = event.payload;
-            if let Some(payload) = payload.as_object_mut() {
-                payload
-                    .entry("tool_call_id")
-                    .or_insert_with(|| Value::String(event.call_id.clone()));
-            }
-            let delta = format!("tool {}\n{}\n", event.name, payload);
+            let delta = format!("tool {}\n{}\n", event.name, event.payload);
             assistant_text.push_str(&delta);
             let Some(step_index) = patch_recorder.current_step_index else {
                 return Some(serde_json::json!({ "type": "chat.delta", "delta": delta }));
@@ -591,7 +585,7 @@ fn stream_payload_for_non_done_event(
                 "kind": tool_event_kind_name(event.kind),
                 "status": tool_call_status_name(&event.status),
                 "occurred_ms": event.occurred_ms,
-                "payload": payload,
+                "payload": event.payload,
             }))
         }
         agent_session::processor::StreamEvent::StepStart { step_index, created_ms, model } => {

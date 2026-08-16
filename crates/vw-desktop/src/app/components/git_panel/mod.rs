@@ -25,7 +25,8 @@ use iced::{Background, Border, Color, Length};
 use std::collections::HashSet;
 
 use crate::app::components::system_settings_common::{
-    settings_text_editor_style, settings_text_input_style, with_settings_help_modal,
+    settings_close_button, settings_text_editor_style, settings_text_input_style,
+    with_settings_help_modal,
 };
 use crate::app::{App, DiffTheme, Message, message};
 
@@ -554,9 +555,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .size(16)
                     .line_height(iced::widget::text::LineHeight::Relative(1.0)),
                 container(Space::new()).width(Length::Fill),
-                button(text("关闭").line_height(iced::widget::text::LineHeight::Relative(1.0)))
-                    .on_press(Message::Git(message::GitMessage::CloseCustomDiffModal))
-                    .padding([6, 10]),
+                settings_close_button(Message::Git(message::GitMessage::CloseCustomDiffModal)),
             ]
             .align_y(iced::Alignment::Center)
             .spacing(10);

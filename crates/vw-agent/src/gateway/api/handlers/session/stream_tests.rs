@@ -271,13 +271,7 @@ fn gateway_stream_preserves_existing_tool_payloads() {
         "/unused",
     )
     .expect("tool payload");
-    let payload_with_call_id = serde_json::json!({
-        "status": "completed",
-        "input": "{\"command\":\"pwd\"}",
-        "output": "/workspace",
-        "tool_call_id": "call-1"
-    });
-    let legacy_delta = format!("tool shell\n{payload_with_call_id}\n");
+    let legacy_delta = format!("tool shell\n{payload}\n");
 
     assert_eq!(stream_payload, serde_json::json!({"type": "chat.delta", "delta": legacy_delta}));
     assert_eq!(assistant_text, legacy_delta);
@@ -357,9 +351,7 @@ fn gateway_tool_event_preserves_step_and_payload() {
     assert_eq!(start["call_id"], "call-1");
     assert_eq!(start["kind"], "start");
     assert_eq!(start["occurred_ms"], 100);
-    assert_eq!(start["payload"]["status"], start_payload["status"]);
-    assert_eq!(start["payload"]["input"], start_payload["input"]);
-    assert_eq!(start["payload"]["tool_call_id"], "call-1");
+    assert_eq!(start["payload"], start_payload);
 
     assert_eq!(complete["type"], "chat.tool");
     assert_eq!(complete["step_index"], start["step_index"]);
@@ -368,26 +360,10 @@ fn gateway_tool_event_preserves_step_and_payload() {
     assert_eq!(complete["kind"], "complete");
     assert_eq!(complete["status"], "completed");
     assert!(complete["occurred_ms"].as_u64() >= start["occurred_ms"].as_u64());
-    assert_eq!(complete["payload"]["status"], complete_payload["status"]);
-    assert_eq!(complete["payload"]["input"], complete_payload["input"]);
-    assert_eq!(complete["payload"]["output"], complete_payload["output"]);
-    assert_eq!(complete["payload"]["tool_call_id"], "call-1");
-    let start_payload_with_call_id = serde_json::json!({
-        "status": "running",
-        "input": "{\"command\":\"pwd\"}",
-        "tool_call_id": "call-1"
-    });
-    let complete_payload_with_call_id = serde_json::json!({
-        "status": "completed",
-        "input": "{\"command\":\"pwd\"}",
-        "output": "/workspace",
-        "tool_call_id": "call-1"
-    });
+    assert_eq!(complete["payload"], complete_payload);
     assert_eq!(
         assistant_text,
-        format!(
-            "tool shell\n{start_payload_with_call_id}\ntool shell\n{complete_payload_with_call_id}\n"
-        )
+        format!("tool shell\n{start_payload}\ntool shell\n{complete_payload}\n")
     );
 }
 

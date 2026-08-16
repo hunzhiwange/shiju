@@ -60,10 +60,7 @@ fn chat_tool_event_keeps_legacy_tool_content() {
     assert_eq!(request_id, 7);
     assert_eq!(event.step_index, 3);
     assert_eq!(event.call_id, "call-1");
-    assert_eq!(
-        event.legacy_delta(),
-        "tool shell\n{\"input\":\"{}\",\"status\":\"running\",\"tool_call_id\":\"call-1\"}\n"
-    );
+    assert_eq!(event.legacy_delta(), "tool shell\n{\"input\":\"{}\",\"status\":\"running\"}\n");
 }
 
 #[test]

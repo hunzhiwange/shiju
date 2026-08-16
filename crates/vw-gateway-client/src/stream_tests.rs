@@ -388,7 +388,7 @@ fn normalize_chat_tool_event() {
     assert_eq!(event.payload["output"], "done");
     assert_eq!(
         event.legacy_delta(),
-        "tool shell\n{\"output\":\"done\",\"status\":\"completed\",\"tool_call_id\":\"call-1\"}\n"
+        "tool shell\n{\"output\":\"done\",\"status\":\"completed\"}\n"
     );
 }
 

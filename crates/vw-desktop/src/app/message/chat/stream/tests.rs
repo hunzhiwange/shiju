@@ -165,6 +165,63 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
 }
 
 #[test]
+fn tool_lifecycle_replaces_same_memory_call_in_chat() {
+    use vw_gateway_client::{
+        GatewayChatToolEvent, GatewayChatToolEventKind, GatewayChatToolStatus,
+    };
+
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-memory".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.sessions = vec![session_info(&session_id, "Memory", "/project")];
+    app.chat = vec![chat_message(ChatRole::User, "他的爸爸是谁？")];
+    app.chat_message_ids = vec![None];
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(61, &session_id));
+
+    let event = |kind, status, payload| GatewayChatToolEvent {
+        step_index: 0,
+        call_id: "memory-call-1".to_string(),
+        name: "memory_recall".to_string(),
+        kind,
+        status,
+        occurred_ms: 100,
+        payload,
+    };
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AgentToolLifecycle(
+            61,
+            event(
+                GatewayChatToolEventKind::Start,
+                GatewayChatToolStatus::Running,
+                serde_json::json!({"status": "running", "input": "{\"query\":\"爸爸\"}"}),
+            ),
+        ),
+    );
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AgentToolLifecycle(
+            61,
+            event(
+                GatewayChatToolEventKind::Complete,
+                GatewayChatToolStatus::Completed,
+                serde_json::json!({
+                    "status": "completed",
+                    "input": "{\"query\":\"爸爸\"}",
+                    "output": "No memories found matching that query."
+                }),
+            ),
+        ),
+    );
+
+    assert_eq!(app.chat.len(), 2);
+    assert_eq!(app.chat[1].content.matches("tool memory_recall").count(), 1);
+    assert!(app.chat[1].content.contains("\"status\":\"completed\""));
+    assert!(!app.chat[1].content.contains("\"status\":\"running\""));
+}
+
+#[test]
 fn session_directory_for_save_skips_blank_session_directory() {
     let (mut app, _task) = crate::app::App::new();
     app.sessions = vec![session_info("session-1", "Title", "  \n")];

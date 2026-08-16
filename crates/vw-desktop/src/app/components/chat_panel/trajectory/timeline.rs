@@ -10,10 +10,12 @@ use super::{
     MetricAvailability, TrajectoryDurationMode, TrajectoryProjection, TrajectoryRecord,
     TrajectoryRecordKind,
 };
+use crate::app::components::chat_panel::utils::truncate_chars;
 
 /// 无可信时长的记录仍保留一个可见、可点击的布局单元。
 pub(crate) const MIN_TIMELINE_BLOCK_UNITS: u64 = 120;
 const TIMELINE_FILL_PORTIONS: f32 = 1_000.0;
+const TIMELINE_TOOLTIP_PREVIEW_CHAR_LIMIT: usize = 100;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum TimelineLane {
@@ -224,7 +226,7 @@ pub(crate) fn timeline_block_tooltip(record: &TrajectoryRecord) -> String {
             .as_deref()
             .map_or_else(|| "TOOL".to_string(), |name| format!("TOOL ({})", clean_line(name))),
     };
-    let preview = full_preview(record);
+    let preview = truncate_chars(&full_preview(record), TIMELINE_TOOLTIP_PREVIEW_CHAR_LIMIT);
     let preview = if preview.is_empty() { "—" } else { preview.as_str() };
     let turn = record.turn_index.map_or_else(|| "不可用".to_string(), |turn| turn.to_string());
     let duration = recorded_timeline_duration(record).map_or_else(

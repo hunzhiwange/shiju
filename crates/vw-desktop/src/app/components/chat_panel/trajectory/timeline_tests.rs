@@ -189,7 +189,7 @@ fn timeline_toolbar_emits_control_messages() {
 }
 
 #[test]
-fn timeline_block_tooltip_uses_full_preview() {
+fn timeline_block_tooltip_truncates_preview_to_100_characters() {
     let mut assistant = record("assistant:1", 7, TrajectoryRecordKind::Assistant);
     assistant.step_index = 7;
     assistant.turn_index = Some(3);
@@ -201,7 +201,8 @@ fn timeline_block_tooltip_uses_full_preview() {
 
     assert!(tooltip.contains("ASSISTANT"));
     assert!(tooltip.contains("第一行 第二行 完整内容"));
-    assert!(tooltip.contains(&"长".repeat(180)));
+    assert!(tooltip.contains(&format!("{}{}…", "第一行 第二行 完整内容 ", "长".repeat(87))));
+    assert!(!tooltip.contains(&"长".repeat(88)));
     assert!(tooltip.contains("step 7"));
     assert!(tooltip.contains("turn 3"));
     assert!(tooltip.contains("1.2 s"));

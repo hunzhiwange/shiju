@@ -333,8 +333,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::AgentToolLifecycle(id, event) => {
             let timing_task = steps::handle_agent_tool_lifecycle(app, id, &event);
-            let delta_task = stream_events::queue_agent_stream_delta(app, id, event.legacy_delta());
-            Task::batch([timing_task, delta_task])
+            let tool_task = stream_events::handle_agent_tool_lifecycle_update(
+                app,
+                id,
+                event.legacy_delta(),
+            );
+            Task::batch([timing_task, tool_task])
         }
         ChatMessage::AgentStreamDeltaFlush(session_id) => {
             stream_events::flush_agent_stream_delta(app, session_id)

@@ -18,10 +18,10 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_segment_button_style,
-    settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, danger_action_btn_style, settings_checkbox_style, settings_divider,
+    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
 use crate::app::{App, Message, message};
@@ -96,6 +96,7 @@ fn list_editor<'a>(
     description: &'static str,
     items: &'a [String],
     draft: &'a str,
+    pending_remove_index: Option<usize>,
     available_tools: &'a [String],
 ) -> Element<'a, Message> {
     let draft_changed = move |value| {
@@ -144,22 +145,47 @@ fn list_editor<'a>(
 
     let mut item_rows = column![].spacing(6);
     for (index, item) in items.iter().enumerate() {
-        item_rows = item_rows.push(
-            container(
+        let mut item_content = column![
+            row![
+                text(item).size(13).width(Length::Fill),
+                button(text("删除").size(12))
+                    .on_press(Message::Settings(
+                        message::SettingsMessage::AutonomyListRemoveRequested(kind, index),
+                    ))
+                    .padding([6, 10])
+                    .style(|theme, status| {
+                        settings_segment_button_style(theme, status, false)
+                    }),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center),
+        ]
+        .spacing(6);
+        if pending_remove_index == Some(index) {
+            item_content = item_content.push(
                 row![
-                    text(item).size(13).width(Length::Fill),
-                    button(text("删除").size(12))
-                        .on_press(Message::Settings(message::SettingsMessage::AutonomyListRemove(
-                            kind, index
-                        ),))
+                    text("确认删除该列表项？").size(12).width(Length::Fill),
+                    button(text("取消").size(12))
+                        .on_press(Message::Settings(
+                            message::SettingsMessage::AutonomyListRemoveCanceled,
+                        ))
                         .padding([6, 10])
                         .style(|theme, status| {
                             settings_segment_button_style(theme, status, false)
                         }),
+                    button(text("确认删除").size(12))
+                        .on_press(Message::Settings(
+                            message::SettingsMessage::AutonomyListRemoveConfirmed(kind, index),
+                        ))
+                        .padding([6, 10])
+                        .style(danger_action_btn_style),
                 ]
                 .spacing(10)
                 .align_y(Alignment::Center),
-            )
+            );
+        }
+        item_rows = item_rows.push(
+            container(item_content)
             .padding([6, 8])
             .width(Length::Fill),
         );
@@ -438,6 +464,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "Shell 白名单，每次添加一个命令。",
             &s.allowed_commands,
             s.list_editor.draft(AutonomyListKind::AllowedCommands),
+            s.list_editor.pending_remove_index(AutonomyListKind::AllowedCommands),
             available_tools,
         )
     };
@@ -449,6 +476,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "限制代理访问这些路径，即使在工作区外也保持拒绝。",
             &s.forbidden_paths,
             s.list_editor.draft(AutonomyListKind::ForbiddenPaths),
+            s.list_editor.pending_remove_index(AutonomyListKind::ForbiddenPaths),
             available_tools,
         )
     };
@@ -460,6 +488,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "允许透传到 shell 的环境变量名，每次添加一个。",
             &s.shell_env_passthrough,
             s.list_editor.draft(AutonomyListKind::ShellEnvPassthrough),
+            s.list_editor.pending_remove_index(AutonomyListKind::ShellEnvPassthrough),
             available_tools,
         )
     };
@@ -471,6 +500,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "从现有工具中选择无需额外审批即可执行的工具。",
             &s.auto_approve,
             s.list_editor.draft(AutonomyListKind::AutoApprove),
+            s.list_editor.pending_remove_index(AutonomyListKind::AutoApprove),
             available_tools,
         )
     };
@@ -482,6 +512,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "从现有工具中选择始终要求确认的工具。",
             &s.always_ask,
             s.list_editor.draft(AutonomyListKind::AlwaysAsk),
+            s.list_editor.pending_remove_index(AutonomyListKind::AlwaysAsk),
             available_tools,
         )
     };
@@ -493,6 +524,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "额外允许访问的目录，每次添加一个。",
             &s.allowed_roots,
             s.list_editor.draft(AutonomyListKind::AllowedRoots),
+            s.list_editor.pending_remove_index(AutonomyListKind::AllowedRoots),
             available_tools,
         )
     };
@@ -504,6 +536,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "从现有工具中选择在非 CLI 通道里默认禁用的工具。",
             &s.non_cli_excluded_tools,
             s.list_editor.draft(AutonomyListKind::NonCliExcludedTools),
+            s.list_editor.pending_remove_index(AutonomyListKind::NonCliExcludedTools),
             available_tools,
         )
     };

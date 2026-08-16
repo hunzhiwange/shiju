@@ -156,6 +156,7 @@ fn upsert_step_start_preserves_existing_optional_fields_when_none() {
     let mut session = empty_session();
     session.steps.push(ChatSessionStep {
         index: 7,
+        turn_id: None,
         started_ms: 1,
         finished_ms: None,
         start_snapshot_path: Some("old.snap".to_string()),
@@ -474,7 +475,8 @@ fn handle_agent_step_finish_updates_token_usage_for_active_session() {
     assert_eq!(app.active_session_view_state.steps.len(), 1);
     assert_eq!(app.active_session_view_state.steps[0].index, 1);
     assert_eq!(app.active_session_view_state.steps[0].usage.input_tokens, 10);
-    assert!(app.trajectory_raw_loading.contains(&("session-1".to_string(), 1)));
+    assert_eq!(app.active_session_view_state.steps[0].turn_id, None);
+    assert!(app.trajectory_raw_loading.is_empty());
 }
 
 #[test]

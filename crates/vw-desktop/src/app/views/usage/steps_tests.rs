@@ -37,6 +37,7 @@ fn usage_data_with_steps(steps: Vec<ChatSessionStep>) -> super::UsageData {
 fn step(index: u32, finished_ms: Option<u64>) -> ChatSessionStep {
     ChatSessionStep {
         index,
+        turn_id: None,
         started_ms: 1_700_000_000_000 + u64::from(index) * 1_000,
         finished_ms,
         start_snapshot_path: Some(format!("/tmp/session/{index}-start.snap")),
@@ -143,15 +144,18 @@ fn build_steps_panel_handles_expanded_step_without_optional_fields() {
 fn raw_payload_status_reports_loaded_loading_error_and_missing_states() {
     let (mut app, _task) = App::new();
     app.usage_step_raw_payloads.insert(
-        ("session-1".to_string(), 1),
+        ("session-1".to_string(), String::new(), 1),
         Ok(Some(serde_json::json!({
             "messages": [{"role": "user", "content": "hello"}],
             "output": {"tool_calls": [{"id": "call-1"}]}
         }))),
     );
     app.usage_step_raw_payloads
-        .insert(("session-1".to_string(), 2), Err("gateway request failed".to_string()));
-    app.usage_step_raw_loading.insert(("session-1".to_string(), 3));
+        .insert(
+            ("session-1".to_string(), String::new(), 2),
+            Err("gateway request failed".to_string()),
+        );
+    app.usage_step_raw_loading.insert(("session-1".to_string(), String::new(), 3));
 
     assert!(super::raw_payload_status(&app, "session-1", 1).contains("历史消息 1 条"));
     assert!(super::raw_payload_status(&app, "session-1", 2).contains("加载失败"));
@@ -162,7 +166,7 @@ fn raw_payload_status_reports_loaded_loading_error_and_missing_states() {
 #[test]
 fn raw_payload_status_reports_absent_record_state() {
     let (mut app, _task) = App::new();
-    app.usage_step_raw_payloads.insert(("session-1".to_string(), 5), Ok(None));
+    app.usage_step_raw_payloads.insert(("session-1".to_string(), String::new(), 5), Ok(None));
 
     assert!(super::raw_payload_status(&app, "session-1", 5).contains("暂无记录"));
 }
@@ -170,7 +174,7 @@ fn raw_payload_status_reports_absent_record_state() {
 #[test]
 fn raw_payload_status_prefers_loading_state_over_cached_payload() {
     let (mut app, _task) = App::new();
-    let key = ("session-1".to_string(), 6);
+    let key = ("session-1".to_string(), String::new(), 6);
     app.usage_step_raw_payloads
         .insert(key.clone(), Ok(Some(serde_json::json!({"messages": [{"role": "user"}]}))));
     app.usage_step_raw_loading.insert(key);
@@ -194,7 +198,7 @@ fn raw_payload_summary_counts_missing_and_present_fields() {
 fn raw_payload_panel_builds_for_loaded_and_missing_payload() {
     let (mut app, _task) = App::new();
     app.usage_step_raw_payloads.insert(
-        ("session-1".to_string(), 1),
+        ("session-1".to_string(), String::new(), 1),
         Ok(Some(serde_json::json!({
             "messages": [{"role": "user", "content": "hello"}],
             "output": {"tool_calls": []}

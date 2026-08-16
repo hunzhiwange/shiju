@@ -6,7 +6,7 @@
 use super::loading::{SharedChatMessages, shared_chat_messages};
 use super::view_cache::{SessionViewCacheInsertResult, SessionViewSnapshot};
 use super::{App, ChatMessage, ChatRole, ChatSessionStep, HashMap, StepUiMeta};
-use crate::app::state::UserQuestionMarker;
+use crate::app::state::{SessionStepRawKey, UserQuestionMarker};
 use serde_json::Value;
 
 fn message_meta_text(model: Option<&str>, time_ms: Option<u64>) -> Option<String> {
@@ -253,18 +253,24 @@ impl App {
         self.active_session_view_state.calls = calls;
     }
 
-    /// 替换当前会话按 step index 保存的原始 LLM 载荷。
-    pub(crate) fn replace_active_session_step_llm_raw(&mut self, raw: HashMap<u32, Value>) {
-        self.active_session_view_state.llm_raw_step_indices.extend(raw.keys().copied());
+    /// 替换当前会话按稳定 turn/step 键保存的原始 LLM 载荷。
+    pub(crate) fn replace_active_session_step_llm_raw(
+        &mut self,
+        raw: HashMap<SessionStepRawKey, Value>,
+    ) {
+        self.active_session_view_state.llm_raw_step_indices.extend(raw.keys().cloned());
         self.active_session_view_state.step_llm_raw = raw;
     }
 
-    /// 替换当前会话在存储层已存在的原始 LLM step 索引。
-    pub(crate) fn replace_active_session_llm_raw_step_indices(&mut self, indices: Vec<u32>) {
+    /// 替换当前会话在存储层已存在的原始 LLM 稳定 turn/step 键。
+    pub(crate) fn replace_active_session_llm_raw_step_indices(
+        &mut self,
+        indices: Vec<SessionStepRawKey>,
+    ) {
         self.active_session_view_state.llm_raw_step_indices = indices.into_iter().collect();
         self.active_session_view_state
             .llm_raw_step_indices
-            .extend(self.active_session_view_state.step_llm_raw.keys().copied());
+            .extend(self.active_session_view_state.step_llm_raw.keys().cloned());
     }
 
     /// 执行 upsert_active_session_step 对应的领域操作。
@@ -277,12 +283,16 @@ impl App {
             .active_session_view_state
             .steps
             .iter_mut()
-            .find(|existing| existing.index == step.index)
+            .find(|existing| {
+                existing.index == step.index && existing.turn_id.as_deref() == step.turn_id.as_deref()
+            })
         {
             *existing_step = step;
         } else {
             self.active_session_view_state.steps.push(step);
-            self.active_session_view_state.steps.sort_by_key(|existing| existing.index);
+            self.active_session_view_state
+                .steps
+                .sort_by_key(|existing| (existing.started_ms, existing.index));
         }
     }
 

@@ -72,7 +72,7 @@ fn field_row<'a>(
 /// 3. 字体大小 - 滑块控件，调整编辑器字体大小（10-30px）
 /// 4. 行高 - 滑块控件，调整编辑器行高（10-60px）
 /// 5. 自动行高 - 复选框，控制是否根据字体大小自动调整行高
-pub fn view(app: &App) -> Element<'_, Message> {
+pub(crate) fn content(app: &App) -> Element<'_, Message> {
     let editor_theme = if app.editor_follow_system_theme {
         app.app_theme.clone()
     } else {
@@ -134,7 +134,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     column![
-        settings_page_intro("编辑器配置", "配置主题、字号与行高等编辑体验参数。"),
         settings_section_card("主题与显示", "统一编辑器主题来源及排版参数。"),
         settings_panel(
             column![
@@ -150,6 +149,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0)
         )
+    ]
+    .spacing(16)
+    .into()
+}
+
+pub fn view(app: &App) -> Element<'_, Message> {
+    column![
+        settings_page_intro("编辑器配置", "配置主题、字号与行高等编辑体验参数。"),
+        content(app),
     ]
     .spacing(16)
     .into()

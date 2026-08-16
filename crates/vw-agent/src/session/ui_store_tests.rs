@@ -413,6 +413,19 @@ fn native_session_operations_skip_missing_project_scope() -> Result<()> {
 }
 
 #[test]
+fn fallible_ui_save_rejects_missing_project_scope() -> Result<()> {
+    let fixture = FacadeFixture::new("ui-store-fallible-save")?;
+    let session = test_session("missing-fallible-scope");
+
+    let error = save_session_ui_scoped_for_tenant(&TenantScope::default(), &session, None, true)
+        .expect_err("missing scope must fail the UI save");
+
+    assert!(error.to_string().contains("non-empty project scope"));
+    assert!(!fixture.data_dir.join("storage/session/index.sqlite3").exists());
+    Ok(())
+}
+
+#[test]
 fn facade_lists_and_finds_sessions_and_agent_metadata_across_local_projects() -> Result<()> {
     let _global_state = GlobalStateGuard::new();
     let fixture = FacadeFixture::new("facade-project-a")?;

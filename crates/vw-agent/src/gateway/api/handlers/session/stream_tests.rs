@@ -1145,6 +1145,91 @@ async fn collect_gateway_chat_stream_runs_docs_request_and_persists_done_message
     assert_eq!(stored.len(), 2);
 }
 
+#[test]
+fn stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save() {
+    let project = tempfile::tempdir().expect("project directory");
+    let project_path = project.path().to_string_lossy().to_string();
+    let scope = crate::session::ui_store::resolve_session_scope_id(Some(&project_path), None)
+        .expect("project scope");
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let session_id = format!("stream-raw-{}", uuid::Uuid::new_v4());
+    let ids = StreamTurnMessageIds::new("turn-stream", "user-stream");
+    let raw = serde_json::json!({
+        "session_id": session_id.clone(),
+        "step_index": 1,
+        "model": "provider/model",
+        "system": ["system"],
+        "messages": [{"role": "user", "content": "inspect"}],
+        "message_sources": [null],
+        "request": {"config": {"model": "provider/model"}, "tools": [{"name": "shell"}]},
+        "output": {"text": "done"}
+    });
+    let artifact = crate::session::llm_raw::LlmRawArtifact::from_full_raw_rounds(
+        &ids.assistant_id,
+        &[raw],
+    )
+    .expect("raw artifact");
+    raw_commit::register(&tenant, Some(&scope), artifact).expect("register raw artifact");
+
+    let mut recorder = StreamTrajectoryRecorder::new(ids.assistant_id.clone());
+    recorder.record(&agent_session::processor::StreamEvent::StepStart {
+        step_index: 1,
+        created_ms: 10,
+        model: Some("provider/model".to_string()),
+    });
+    recorder.record(&agent_session::processor::StreamEvent::Tool(
+        agent_session::processor::ToolEvent {
+            call_id: "call-1".to_string(),
+            name: "shell".to_string(),
+            kind: agent_session::processor::ToolEventKind::Complete,
+            status: agent_session::processor::ToolCallStatus::Completed,
+            occurred_ms: 15,
+            payload: serde_json::json!({"status": "completed", "output": "ok"}),
+        },
+    ));
+    recorder.record(&agent_session::processor::StreamEvent::StepFinish {
+        step_index: 1,
+        finished_ms: 20,
+        usage: ui_models::TokenUsage::default(),
+        finish_reason: Some("stop".to_string()),
+        model: Some("provider/model".to_string()),
+    });
+
+    commit_stream_session_trajectory(
+        &tenant,
+        Some(&scope),
+        &session_id,
+        "inspect",
+        "done",
+        Some("provider/model"),
+        &ids,
+        &recorder,
+        5,
+        25,
+    )
+    .expect("stream endpoint should commit trajectory");
+
+    let stored = crate::session::ui_store::load_session_scoped_for_tenant(
+        &tenant,
+        &session_id,
+        Some(&scope),
+    )
+    .expect("stored session");
+    assert_eq!(stored.steps.len(), 1);
+    assert_eq!(stored.steps[0].turn_id.as_deref(), Some("turn-stream"));
+    assert_eq!(stored.steps[0].tool_timings[0].call_id, "call-1");
+    let stored_raw = crate::session::ui_store::load_llm_raw_turn_step_scoped_for_tenant(
+        &tenant,
+        &session_id,
+        "turn-stream",
+        1,
+        Some(&scope),
+    )
+    .expect("raw read")
+    .expect("raw value");
+    assert_eq!(stored_raw["output"]["text"], "done");
+}
+
 #[tokio::test]
 async fn stream_processing_elapsed_persists_and_reloads_explicit_request_bounds() {
     let temp = tempfile::tempdir().expect("temporary workspace");
@@ -1279,8 +1364,8 @@ async fn chat_stream_returns_sse_response_for_docs_request() {
 
     let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.expect("sse body");
     let body = String::from_utf8(body.to_vec()).expect("utf8 body");
-    assert!(body.contains(r#""type":"chat.delta""#));
-    assert!(body.contains(r#""type":"chat.done""#));
+    assert!(body.contains(r#""type":"chat.delta""#), "{body}");
+    assert!(body.contains(r#""type":"chat.done""#), "{body}");
     assert!(body.contains("docs/guide.md"));
     let event_ids = body
         .lines()

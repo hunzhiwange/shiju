@@ -29,11 +29,53 @@ use crate::app::components::system_settings_common::{
     bool_support_label, format_context_limit, icon_btn, provider_logo_svg,
     rounded_action_btn_style, settings_close_button, settings_divider, settings_modal_card,
     settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_panel_style, settings_section_card, settings_text_input_style, settings_value_badge,
+    settings_panel_style, settings_section_card, settings_segment_button_style,
+    settings_text_input_style, settings_value_badge,
 };
+use crate::app::message::settings::{ModelConfigTabMessage, SettingsMessage};
+use crate::app::state::ModelConfigTab;
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, scrollable, text, text_input, toggler};
-use iced::{Alignment, Element, Length};
+use iced::{Alignment, Element, Length, Theme};
+
+/// 渲染模型配置页及其内部标签。
+pub fn view(app: &App) -> Element<'_, Message> {
+    let active_tab = app.model_settings.active_tab;
+    let tab_button = |tab, label| {
+        let is_active = tab == active_tab;
+        button(text(label).size(13))
+            .on_press(Message::Settings(SettingsMessage::ModelConfigTab(
+                ModelConfigTabMessage::Selected(tab),
+            )))
+            .padding([8, 14])
+            .style(move |theme: &Theme, status| {
+                settings_segment_button_style(theme, status, is_active)
+            })
+    };
+
+    let tabs = row![
+        tab_button(ModelConfigTab::Models, "模型"),
+        tab_button(ModelConfigTab::ModelRoutes, "模型路由"),
+        tab_button(ModelConfigTab::QueryClassification, "模型分类"),
+        tab_button(ModelConfigTab::Multimodal, "多模态"),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    let content = match active_tab {
+        ModelConfigTab::Models => main_view(app),
+        ModelConfigTab::ModelRoutes => {
+            crate::app::components::system_settings_model_routes::view(app)
+        }
+        ModelConfigTab::QueryClassification => {
+            crate::app::components::system_settings_query_classification::view(app)
+        }
+        ModelConfigTab::Multimodal => {
+            crate::app::components::system_settings_multimodal::view(app)
+        }
+    };
+
+    column![tabs, content].spacing(16).width(Length::Fill).into()
+}
 
 /// 渲染模型设置的主视图
 ///

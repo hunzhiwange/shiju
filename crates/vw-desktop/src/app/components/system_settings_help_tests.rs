@@ -4,37 +4,24 @@ use crate::app::components::system_settings::SystemTab;
 
 const SUPPORTED_HELP: &[(SystemTab, &str, &str)] = &[
     (SystemTab::General, "常规设置帮助", GENERAL_HELP),
-    (SystemTab::DialogueFlow, "对话流设置帮助", DIALOGUE_FLOW_HELP),
     (SystemTab::Editor, "编辑器设置帮助", EDITOR_HELP),
     (SystemTab::Projects, "项目设置帮助", PROJECTS_HELP),
     (SystemTab::Providers, "模型提供商帮助", PROVIDERS_HELP),
     (SystemTab::Models, "模型设置帮助", MODELS_HELP),
-    (SystemTab::EmbeddingRoutes, "嵌入路由帮助", EMBEDDING_ROUTES_HELP),
-    (SystemTab::ModelRoutes, "模型路由帮助", MODEL_ROUTES_HELP),
-    (
-        SystemTab::QueryClassification,
-        "查询模型分类帮助",
-        QUERY_CLASSIFICATION_HELP,
-    ),
-    (SystemTab::Agents, "委托代理配置帮助", AGENTS_HELP),
+    (SystemTab::Agents, "智能体配置帮助", AGENTS_HELP),
     (SystemTab::Channels, "通道配置帮助", CHANNELS_HELP),
     (SystemTab::Memory, "记忆系统帮助", MEMORY_HELP),
     (SystemTab::Runtime, "运行时配置帮助", RUNTIME_HELP),
-    (SystemTab::Storage, "存储配置帮助", STORAGE_HELP),
     (SystemTab::Tunnel, "隧道配置帮助", TUNNEL_HELP),
     (SystemTab::Hooks, "钩子配置帮助", HOOKS_HELP),
+    (SystemTab::WebSearch, "网页搜索帮助", WEB_SEARCH_HELP),
     (SystemTab::HttpRequest, "网络请求帮助", HTTP_REQUEST_HELP),
     (SystemTab::Browser, "浏览器配置帮助", BROWSER_HELP),
-    (SystemTab::Multimodal, "多模态配置帮助", MULTIMODAL_HELP),
 ];
 
 const UNSUPPORTED_TABS: &[SystemTab] = &[
-    SystemTab::QuickMessages,
-    SystemTab::Heartbeat,
     SystemTab::Cron,
     SystemTab::Staff,
-    SystemTab::AgentsIpc,
-    SystemTab::Coordination,
     SystemTab::Reliability,
     SystemTab::Acp,
     SystemTab::Mcp,
@@ -45,7 +32,6 @@ const UNSUPPORTED_TABS: &[SystemTab] = &[
     SystemTab::Observability,
     SystemTab::Proxy,
     SystemTab::Skills,
-    SystemTab::WebSearch,
 ];
 
 fn test_app() -> App {

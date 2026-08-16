@@ -117,6 +117,18 @@ pub enum QueryClassificationMessage {
     PriorityChanged(usize, String),
 }
 
+/// 模型配置内的子标签切换消息。
+#[derive(Debug, Clone, Copy)]
+pub enum ModelConfigTabMessage {
+    Selected(crate::app::state::ModelConfigTab),
+}
+
+/// 智能体配置内的子标签切换消息。
+#[derive(Debug, Clone, Copy)]
+pub enum AgentConfigTabMessage {
+    Selected(crate::app::state::AgentConfigTab),
+}
+
 /// 运行时设置页消息。
 #[derive(Debug, Clone)]
 pub enum RuntimeMessage {
@@ -687,6 +699,7 @@ pub enum QuickMessagesMessage {
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum GeneralSettingsMessage {
+    TabSelected(crate::app::state::GeneralSettingsTab),
     TimezoneSelected(String),
 }
 
@@ -695,6 +708,8 @@ pub enum GeneralSettingsMessage {
 pub enum SettingsMessage {
     TabSelected(SettingsTab),
     SystemTabSelected(SystemTab),
+    ModelConfigTab(ModelConfigTabMessage),
+    AgentConfigTab(AgentConfigTabMessage),
     SystemTabQueryChanged(String),
     SystemHelpOpen(SystemTab),
     SystemHelpClose,
@@ -924,21 +939,6 @@ pub enum SettingsMessage {
     SchedulerSave,
     SchedulerHelpOpen,
     SchedulerHelpClose,
-    AgentsIpcEnabledToggled(bool),
-    AgentsIpcDbPathChanged(String),
-    AgentsIpcStalenessSecsChanged(u64),
-    AgentsIpcSave,
-    AgentsIpcHelpOpen,
-    AgentsIpcHelpClose,
-    CoordinationEnabledToggled(bool),
-    CoordinationLeadAgentChanged(String),
-    CoordinationMaxInboxMessagesPerAgentChanged(u32),
-    CoordinationMaxDeadLettersChanged(u32),
-    CoordinationMaxContextEntriesChanged(u32),
-    CoordinationMaxSeenMessageIdsChanged(u32),
-    CoordinationSave,
-    CoordinationHelpOpen,
-    CoordinationHelpClose,
     ReliabilityProviderRetriesChanged(u32),
     ReliabilityProviderBackoffMsChanged(u64),
     ReliabilityChannelInitialBackoffSecsChanged(u64),
@@ -954,7 +954,9 @@ pub enum SettingsMessage {
     SecurityTabSelected(SecuritySettingsTab),
     SecurityListDraftChanged(SecurityListKind, String),
     SecurityListAdd(SecurityListKind),
-    SecurityListRemove(SecurityListKind, usize),
+    SecurityListRemoveRequested(SecurityListKind, usize),
+    SecurityListRemoveConfirmed(SecurityListKind, usize),
+    SecurityListRemoveCanceled,
     SecuritySandboxEnabledChanged(String),
     SecuritySandboxBackendChanged(String),
     SecurityResourcesMaxMemoryMbChanged(u32),
@@ -992,7 +994,9 @@ pub enum SettingsMessage {
     AutonomyWorkspaceOnlyToggled(bool),
     AutonomyListDraftChanged(AutonomyListKind, String),
     AutonomyListAdd(AutonomyListKind),
-    AutonomyListRemove(AutonomyListKind, usize),
+    AutonomyListRemoveRequested(AutonomyListKind, usize),
+    AutonomyListRemoveConfirmed(AutonomyListKind, usize),
+    AutonomyListRemoveCanceled,
     AutonomyMaxActionsPerHourChanged(u32),
     AutonomyMaxCostPerDayCentsChanged(u32),
     AutonomyRequireApprovalForMediumRiskToggled(bool),

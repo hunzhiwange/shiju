@@ -278,8 +278,6 @@ impl App {
         let runtime_cfg = full_agent_cfg.runtime.clone();
         let skills_cfg = full_agent_cfg.skills.clone();
         let web_search_cfg = full_agent_cfg.web_search.clone();
-        let agents_ipc_cfg = full_agent_cfg.agents_ipc.clone();
-        let coordination_cfg = full_agent_cfg.coordination.clone();
         let model_routes_cfg = full_agent_cfg.model_routes.clone();
         let query_classification_cfg = full_agent_cfg.query_classification.clone();
 
@@ -774,6 +772,7 @@ impl App {
             // ========== 设置标签页 ==========
             settings_tab: SettingsTab::Sessions,
             system_settings_tab: components::system_settings::SystemTab::General,
+            general_settings_tab: super::state::GeneralSettingsTab::default(),
             system_settings_query: String::new(),
             system_settings_help_tab: None,
             top_bar_gateway_tab: super::state::TopBarGatewayTab::default(),
@@ -1160,15 +1159,6 @@ impl App {
                 save_error: None,
             },
 
-            // ========== Agent IPC设置 ==========
-            agents_ipc_settings: super::state::AgentsIpcSettingsState {
-                enabled: agents_ipc_cfg.enabled,
-                db_path_input: agents_ipc_cfg.db_path,
-                staleness_secs: agents_ipc_cfg.staleness_secs.clamp(1, 86_400),
-                show_help_modal: false,
-                save_error: None,
-            },
-
             agents_settings: {
                 let mut entries = super::state::agent_settings_entries_from_config(&full_agent_cfg);
                 if let Some(main) = entries.iter_mut().find(|entry| entry.key == "main") {
@@ -1198,6 +1188,7 @@ impl App {
                     entries,
                     new_agent_key_input: String::new(),
                     selected_agent: super::state::MAIN_AGENT_KEY.to_string(),
+                    active_config_tab: super::state::AgentConfigTab::Agents,
                     active_detail_tab: super::state::AGENT_DETAIL_BASIC_TAB.to_string(),
                     active_tools_list_tab: super::state::AGENT_TOOLS_OPTIONAL_TAB.to_string(),
                     active_prompt_tab: super::state::AGENT_PROMPT_SYSTEM_TAB.to_string(),
@@ -1219,21 +1210,6 @@ impl App {
                 }
             },
             staff_settings: settings_builders::build_staff_settings(&full_agent_cfg),
-
-            // ========== 协调设置 ==========
-            coordination_settings: super::state::CoordinationSettingsState {
-                enabled: coordination_cfg.enabled,
-                lead_agent_input: coordination_cfg.lead_agent,
-                max_inbox_messages_per_agent: coordination_cfg
-                    .max_inbox_messages_per_agent
-                    .clamp(1, 10_000) as u32,
-                max_dead_letters: coordination_cfg.max_dead_letters.clamp(1, 10_000) as u32,
-                max_context_entries: coordination_cfg.max_context_entries.clamp(1, 20_000) as u32,
-                max_seen_message_ids: coordination_cfg.max_seen_message_ids.clamp(1, 100_000)
-                    as u32,
-                show_help_modal: false,
-                save_error: None,
-            },
 
             // ========== 成本控制设置 ==========
             cost_settings: super::state::CostSettingsState::default(),

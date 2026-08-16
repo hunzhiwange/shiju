@@ -576,7 +576,7 @@ fn edit_form(app: &App) -> Element<'_, Message> {
             ))
             .push(field_row(
                 "模型提供商",
-                "与委托代理配置中的模型选择一致。",
+                "与智能体配置中的模型选择一致。",
                 pick_field(provider_options, selected_provider, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditModelProviderChanged(v))
                 }),
@@ -813,7 +813,6 @@ fn config_tab(app: &App) -> Element<'_, Message> {
     column![
         settings_section_card("基础行为", "控制 Cron 子系统是否运行与历史留存数量。"),
         settings_panel(column![enabled_row, history_row].spacing(0)),
-        crate::app::components::system_settings_scheduler::embedded_view(app),
     ]
     .spacing(14)
     .into()
@@ -1009,7 +1008,7 @@ fn add_tab(app: &App) -> Element<'_, Message> {
             ))
             .push(field_row(
                 "模型提供商",
-                "与委托代理配置中的模型选择一致。",
+                "与智能体配置中的模型选择一致。",
                 pick_field(provider_options, selected_provider, |v| {
                     Message::Settings(message::SettingsMessage::CronAddModelProviderChanged(v))
                 }),
@@ -1157,6 +1156,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let tabs = row![
         tab_button(CronSettingsTab::Jobs, s.active_tab, "任务"),
         tab_button(CronSettingsTab::Config, s.active_tab, "配置"),
+        tab_button(CronSettingsTab::Scheduler, s.active_tab, "调度器"),
         tab_button(CronSettingsTab::Add, s.active_tab, "添加"),
     ]
     .spacing(8);
@@ -1164,6 +1164,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let tab_content = match s.active_tab {
         CronSettingsTab::Jobs => jobs_tab(app),
         CronSettingsTab::Config => config_tab(app),
+        CronSettingsTab::Scheduler => {
+            crate::app::components::system_settings_scheduler::embedded_view(app)
+        }
         CronSettingsTab::Add => add_tab(app),
     };
 

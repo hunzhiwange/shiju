@@ -135,6 +135,16 @@ fn bool_row<'a>(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
+    column![
+        settings_page_intro("浏览器配置", "配置允许站点、打开方式与浏览器自动化后端。"),
+        content(app),
+    ]
+    .spacing(16)
+    .width(Length::Fill)
+    .into()
+}
+
+pub(super) fn content(app: &App) -> Element<'_, Message> {
     let s = &app.browser_settings;
 
     let enabled_row = bool_row(
@@ -374,7 +384,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16);
 
     let mut content = column![
-        settings_page_intro("浏览器配置", "配置允许站点、打开方式与浏览器自动化后端。"),
         settings_section_card("基础行为", "域名范围、窗口行为与运行后端。"),
         settings_panel(
             column![

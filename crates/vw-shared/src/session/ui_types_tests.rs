@@ -90,9 +90,11 @@ fn chat_session_step_round_trips_tool_timings() {
     )
     .unwrap();
     assert!(legacy.tool_timings.is_empty());
+    assert_eq!(legacy.turn_id, None);
 
     let step = super::ChatSessionStep {
         index: 2,
+        turn_id: Some("assistant-message-2".to_string()),
         started_ms: 200,
         finished_ms: Some(400),
         start_snapshot_path: None,
@@ -112,5 +114,6 @@ fn chat_session_step_round_trips_tool_timings() {
     let value = serde_json::to_value(&step).unwrap();
     let reloaded: super::ChatSessionStep = serde_json::from_value(value).unwrap();
 
+    assert_eq!(reloaded.turn_id, step.turn_id);
     assert_eq!(reloaded.tool_timings, step.tool_timings);
 }

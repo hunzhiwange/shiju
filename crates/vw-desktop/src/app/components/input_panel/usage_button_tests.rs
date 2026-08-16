@@ -31,6 +31,7 @@ fn model_info() -> UsageModelInfo {
 fn step(input_tokens: i64) -> ChatSessionStep {
     ChatSessionStep {
         index: 1,
+        turn_id: None,
         started_ms: 1,
         finished_ms: None,
         start_snapshot_path: None,

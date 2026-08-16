@@ -14,11 +14,6 @@ pub const HOME_CONFIG_DIR_NAME: &str = DEV_HOME_CONFIG_DIR_NAME;
 pub const HOME_CONFIG_DIR_NAME: &str = PROD_HOME_CONFIG_DIR_NAME;
 
 #[cfg(debug_assertions)]
-pub const AGENTS_IPC_DB_PATH: &str = "~/.vibewindowdev/agents.db";
-#[cfg(not(debug_assertions))]
-pub const AGENTS_IPC_DB_PATH: &str = "~/.vibewindow/agents.db";
-
-#[cfg(debug_assertions)]
 pub const ESTOP_STATE_FILE_PATH: &str = "~/.vibewindowdev/estop-state.json";
 #[cfg(not(debug_assertions))]
 pub const ESTOP_STATE_FILE_PATH: &str = "~/.vibewindow/estop-state.json";
@@ -55,10 +50,6 @@ pub fn tilde_config_path(relative: &str) -> String {
     } else {
         format!("~/{HOME_CONFIG_DIR_NAME}/{relative}")
     }
-}
-
-pub fn agents_ipc_db_path() -> String {
-    AGENTS_IPC_DB_PATH.to_string()
 }
 
 pub fn estop_state_file_path() -> String {

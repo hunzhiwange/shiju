@@ -219,12 +219,8 @@
     pub(crate) gateway_settings: GatewaySettingsState,
     /// 客户端网关连接设置状态
     pub(crate) gateway_client_settings: GatewayClientSettingsState,
-    /// Agent 间 IPC 设置状态
-    pub(crate) agents_ipc_settings: AgentsIpcSettingsState,
     /// 委托代理设置状态
     pub(crate) agents_settings: AgentsSettingsState,
-    /// 协调设置状态
-    pub(crate) coordination_settings: CoordinationSettingsState,
     /// 成本控制设置状态
     pub(crate) cost_settings: CostSettingsState,
     /// 记忆系统设置状态

@@ -11,11 +11,12 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_divider, settings_muted_text_style, settings_page_intro,
     settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_value_badge,
+    settings_segment_button_style, settings_value_badge,
 };
 use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
+use crate::app::state::GeneralSettingsTab;
 use crate::app::{App, Message, PreviewAutoSaveMode, Shell, TerminalTheme, message};
-use iced::widget::{column, container, pick_list, row, slider, text};
+use iced::widget::{button, column, container, pick_list, row, slider, text};
 use iced::{Alignment, Element, Length, Theme};
 
 fn setting_row<'a>(
@@ -189,62 +190,101 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let size_slider =
         slider(10.0..=18.0, app.terminal.font_size, terminal_font_size_changed).width(Length::Fill);
 
-    column![
-        settings_page_intro("常规", "统一管理界面语言、主题与终端基础体验。"),
-        settings_section_card("界面", "应用外观与预览行为。"),
-        settings_panel(
-            column![
-                setting_row(
-                    "语言",
-                    "当前桌面端使用的界面语言。",
-                    settings_value_badge("简体中文"),
-                ),
-                settings_divider(),
-                setting_row(
-                    "应用主题",
-                    "快速切换内置、预设和自定义主题；完整管理见「主题」页。",
-                    theme_pick,
-                ),
-                settings_divider(),
-                setting_row(
-                    "自动保存",
-                    "控制预览编辑器自动保存的时机。",
-                    column![
-                        auto_save_pick,
-                        text(app.preview_auto_save_mode.description())
-                            .size(11)
-                            .style(settings_muted_text_style),
-                    ]
-                    .spacing(8),
-                ),
-                settings_divider(),
-                setting_row(
-                    "聊天时区",
-                    "用于模型时间上下文，新会话生效。",
-                    timezone_pick,
-                ),
-            ]
-            .spacing(0)
-        ),
-        settings_section_card("终端", "默认 Shell、主题与字体。"),
-        settings_panel(
-            column![
-                setting_row("终端 Shell", "新终端默认使用的 Shell。", shell_pick),
-                settings_divider(),
-                setting_row("终端主题", "当前仅跟随系统主题。", term_theme_pick),
-                settings_divider(),
-                setting_row("终端字体", "选择终端字体家族。", font_pick),
-                settings_divider(),
-                setting_row(
-                    "字体大小",
-                    "在 10pt 到 18pt 之间调整终端字号。",
-                    row![size_slider, settings_value_badge(format!("{} pt", app.terminal.font_size as u32))]
+    let active_tab = app.general_settings_tab;
+    let tab_button = |tab, label| {
+        let is_active = tab == active_tab;
+        button(text(label).size(13))
+            .on_press(Message::Settings(message::SettingsMessage::General(
+                message::GeneralSettingsMessage::TabSelected(tab),
+            )))
+            .padding([8, 14])
+            .style(move |theme: &Theme, status| {
+                settings_segment_button_style(theme, status, is_active)
+            })
+    };
+    let tabs = row![
+        tab_button(GeneralSettingsTab::Interface, "界面"),
+        tab_button(GeneralSettingsTab::Terminal, "终端"),
+        tab_button(GeneralSettingsTab::Editor, "编辑器"),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+
+    let content: Element<'_, Message> = match active_tab {
+        GeneralSettingsTab::Interface => column![
+            settings_section_card("界面", "应用外观与预览行为。"),
+            settings_panel(
+                column![
+                    setting_row(
+                        "语言",
+                        "当前桌面端使用的界面语言。",
+                        settings_value_badge("简体中文"),
+                    ),
+                    settings_divider(),
+                    setting_row(
+                        "应用主题",
+                        "快速切换内置、预设和自定义主题；完整管理见「主题」页。",
+                        theme_pick,
+                    ),
+                    settings_divider(),
+                    setting_row(
+                        "自动保存",
+                        "控制预览编辑器自动保存的时机。",
+                        column![
+                            auto_save_pick,
+                            text(app.preview_auto_save_mode.description())
+                                .size(11)
+                                .style(settings_muted_text_style),
+                        ]
+                        .spacing(8),
+                    ),
+                    settings_divider(),
+                    setting_row(
+                        "聊天时区",
+                        "用于模型时间上下文，新会话生效。",
+                        timezone_pick,
+                    ),
+                ]
+                .spacing(0)
+            ),
+        ]
+        .spacing(16)
+        .into(),
+        GeneralSettingsTab::Terminal => column![
+            settings_section_card("终端", "默认 Shell、主题与字体。"),
+            settings_panel(
+                column![
+                    setting_row("终端 Shell", "新终端默认使用的 Shell。", shell_pick),
+                    settings_divider(),
+                    setting_row("终端主题", "当前仅跟随系统主题。", term_theme_pick),
+                    settings_divider(),
+                    setting_row("终端字体", "选择终端字体家族。", font_pick),
+                    settings_divider(),
+                    setting_row(
+                        "字体大小",
+                        "在 10pt 到 18pt 之间调整终端字号。",
+                        row![
+                            size_slider,
+                            settings_value_badge(format!("{} pt", app.terminal.font_size as u32))
+                        ]
                         .spacing(12)
                         .align_y(Alignment::Center),
-                ),
-            ]
-            .spacing(0)
-        ),
+                    ),
+                ]
+                .spacing(0)
+            ),
+        ]
+        .spacing(16)
+        .into(),
+        GeneralSettingsTab::Editor => {
+            crate::app::components::system_settings_editor::content(app)
+        }
+    };
+
+    column![
+        settings_page_intro("常规", "通过标签切换界面、终端与编辑器配置。"),
+        tabs,
+        content,
     ]
     .spacing(16)
     .into()

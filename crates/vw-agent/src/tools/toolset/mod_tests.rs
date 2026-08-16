@@ -706,7 +706,7 @@ fn all_tools_wrapper_uses_native_runtime_and_browser_open_default_mode() {
 }
 
 #[test]
-fn all_tools_with_runtime_registers_brave_search_and_ipc_tools() {
+fn all_tools_with_runtime_registers_brave_search_without_ipc_tools() {
     let dir = tempfile::tempdir().unwrap();
     let workspace = dir.path().join("workspace");
     std::fs::create_dir_all(&workspace).unwrap();
@@ -715,8 +715,6 @@ fn all_tools_with_runtime_registers_brave_search_and_ipc_tools() {
     root_config.web_search.enabled = true;
     root_config.web_search.provider = "brave".to_string();
     root_config.web_search.brave_api_key = Some("brave-key".to_string());
-    root_config.agents_ipc.enabled = true;
-    root_config.agents_ipc.db_path = workspace.join("agents.sqlite").to_string_lossy().to_string();
 
     let security = Arc::new(SecurityPolicy::default());
     let tools = all_tools_with_runtime(
@@ -736,21 +734,17 @@ fn all_tools_with_runtime_registers_brave_search_and_ipc_tools() {
     let names = tool_names(&tools);
 
     assert!(names.contains(&"web_search_tool"));
-    assert!(names.contains(&"agents_list"));
-    assert!(names.contains(&"agents_send"));
-    assert!(names.contains(&"agents_inbox"));
-    assert!(names.contains(&"state_get"));
-    assert!(names.contains(&"state_set"));
+    assert!(!names.contains(&"state_get"));
+    assert!(!names.contains(&"state_set"));
 }
 
 #[test]
-fn all_tools_with_runtime_filters_delegate_agents_and_disables_coordination() {
+fn all_tools_with_runtime_filters_delegate_agents() {
     let dir = tempfile::tempdir().unwrap();
     let workspace = dir.path().join("workspace");
     std::fs::create_dir_all(&workspace).unwrap();
     let memory = test_memory(&workspace);
-    let mut root_config = test_config(&workspace);
-    root_config.coordination.enabled = false;
+    let root_config = test_config(&workspace);
 
     let mut agents = HashMap::new();
     agents.insert("disabled".to_string(), agent_config("all", false, Vec::new()));
@@ -776,18 +770,15 @@ fn all_tools_with_runtime_filters_delegate_agents_and_disables_coordination() {
     let names = tool_names(&tools);
 
     assert!(names.contains(&"AgentTool"));
-    assert!(!names.contains(&"delegate_coordination_status"));
 }
 
 #[test]
-fn canonical_agent_tool_does_not_register_legacy_coordination_status() {
+fn canonical_agent_tool_registers_when_delegate_agent_exists() {
     let dir = tempfile::tempdir().unwrap();
     let workspace = dir.path().join("workspace");
     std::fs::create_dir_all(&workspace).unwrap();
     let memory = test_memory(&workspace);
     let mut root_config = test_config(&workspace);
-    root_config.coordination.enabled = true;
-    root_config.coordination.lead_agent = " ".to_string();
     root_config.agent.compact_context = true;
 
     let mut agents = HashMap::new();
@@ -809,36 +800,6 @@ fn canonical_agent_tool_does_not_register_legacy_coordination_status() {
     let names = tool_names(&tools);
 
     assert!(names.contains(&"AgentTool"));
-    assert!(!names.contains(&"delegate_coordination_status"));
-}
-
-#[test]
-fn all_tools_with_runtime_continues_when_agents_ipc_database_cannot_open() {
-    let dir = tempfile::tempdir().unwrap();
-    let workspace = dir.path().join("workspace");
-    std::fs::create_dir_all(&workspace).unwrap();
-    let memory = test_memory(&workspace);
-    let mut root_config = test_config(&workspace);
-    root_config.agents_ipc.enabled = true;
-    root_config.agents_ipc.db_path = workspace.to_string_lossy().to_string();
-
-    let tools = build_all_tools(
-        root_config.clone(),
-        Arc::new(NativeRuntime::new()),
-        memory,
-        &BrowserConfig::default(),
-        &HttpRequestConfig::default(),
-        &WebFetchConfig::default(),
-        &workspace,
-        &HashMap::new(),
-        None,
-        &root_config,
-        None,
-    );
-    let names = tool_names(&tools);
-
-    assert!(names.contains(&"McpStatus"));
-    assert!(!names.contains(&"agents_list"));
 }
 
 #[test]

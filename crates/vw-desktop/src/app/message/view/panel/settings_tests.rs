@@ -164,6 +164,7 @@ fn opening_system_settings_tab_closes_transient_popovers() {
 fn opening_model_detail_selects_models_and_closes_transient_popovers() {
     use crate::app::components::system_settings::SystemTab;
     use crate::app::message::view::{MenuType, ViewMessage};
+    use crate::app::state::ModelConfigTab;
 
     let mut app = crate::app::App::new().0;
     app.active_menu = Some(MenuType::GatewayServices);
@@ -171,6 +172,7 @@ fn opening_model_detail_selects_models_and_closes_transient_popovers() {
     app.show_mode_popover = true;
     app.show_file_popover = true;
     app.show_usage_popover = true;
+    app.model_settings.active_tab = ModelConfigTab::QueryClassification;
 
     let _ = super::update(
         &mut app,
@@ -179,6 +181,7 @@ fn opening_model_detail_selects_models_and_closes_transient_popovers() {
 
     assert!(app.show_system_settings);
     assert_eq!(app.system_settings_tab, SystemTab::Models);
+    assert_eq!(app.model_settings.active_tab, ModelConfigTab::Models);
     assert_eq!(app.active_menu, None);
     assert!(!app.show_model_popover);
     assert!(!app.show_mode_popover);

@@ -378,6 +378,7 @@ pub(crate) async fn run_session_processor_for_channel(
     let mut output = String::new();
     while let Some(ev) = event_rx.recv().await {
         match ev {
+            crate::app::agent::session::processor::StreamEvent::LlmRawArtifact(_) => {}
             crate::app::agent::session::processor::StreamEvent::Delta(delta) => {
                 output.push_str(&delta);
                 if let Some(tx) = delta_tx.as_ref() {

@@ -336,7 +336,6 @@ pub(super) fn render_assistant_body<'a>(
         for (block_i, block) in blocks.iter().enumerate() {
             match block {
                 ParsedChatBlock::Think { content, open } => {
-                    body = flush_command_summary(body, app, idx, &mut command_items);
                     let timing = think_timing.get(think_idx);
                     let think_running = think_block_is_running(*open, timing);
                     let should_render = should_render_think_block(
@@ -347,6 +346,7 @@ pub(super) fn render_assistant_body<'a>(
                     );
 
                     if should_render {
+                        body = flush_command_summary(body, app, idx, &mut command_items);
                         body = push_explore_summary(
                             body,
                             app,

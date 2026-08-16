@@ -206,6 +206,30 @@ fn run_project_operation<T>(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn run_project_operation_fallible<T>(
+    operation: &str,
+    tenant: &TenantScope,
+    scope: Option<&str>,
+    callback: impl FnOnce(&SessionStore, &ProjectScope) -> Result<T>,
+) -> Result<T> {
+    let scope = scope.map(str::trim).filter(|value| !value.is_empty()).ok_or_else(|| {
+        anyhow::anyhow!("native session operation requires a non-empty project scope")
+    })?;
+    let result = (|| {
+        let project_scope = project_scope(tenant, Some(scope))?;
+        let store = runtime_session_store()?;
+        callback(&store, &project_scope)
+    })();
+    match result {
+        Ok(value) => Ok(value),
+        Err(error) => {
+            log_session_store_error(operation, tenant, Some(scope), &error);
+            Err(error)
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn run_tenant_operation<T>(
     operation: &str,
     tenant: &TenantScope,
@@ -413,6 +437,29 @@ pub(crate) fn load_llm_raw_step_scoped_for_tenant(
     #[cfg(target_arch = "wasm32")]
     {
         let _ = tenant;
+        ui_store::load_llm_raw_step(data_dir(), session_id, step_index, scope)
+    }
+}
+
+pub(crate) fn load_llm_raw_turn_step_scoped_for_tenant(
+    tenant: &TenantScope,
+    session_id: &str,
+    turn_id: &str,
+    step_index: u32,
+    scope: Option<&str>,
+) -> std::io::Result<Option<serde_json::Value>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return {
+        let project_scope = project_scope(tenant, scope)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))?;
+        runtime_session_store()
+            .map_err(|error| io::Error::other(error.to_string()))?
+            .load_session_turn_step_llm_raw(&project_scope, session_id, turn_id, step_index)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
+    };
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (tenant, turn_id);
         ui_store::load_llm_raw_step(data_dir(), session_id, step_index, scope)
     }
 }
@@ -725,6 +772,18 @@ pub fn load_session_scoped_for_tenant(
     }
 }
 
+/// 按显式租户读取项目会话，并保留存储初始化与查询错误。
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn load_session_scoped_for_tenant_fallible(
+    tenant: &TenantScope,
+    id: &str,
+    scope: Option<&str>,
+) -> anyhow::Result<Option<ChatSession>> {
+    run_project_operation_fallible("load session", tenant, scope, |store, project_scope| {
+        store.load_session(project_scope, id)
+    })
+}
+
 /// 执行 load_session 操作，并返回调用方需要的结果。
 pub fn load_session(id: &str) -> Option<ChatSession> {
     load_session_scoped(id, session_scope().as_deref())
@@ -935,6 +994,60 @@ pub fn save_session_scoped_for_tenant(
     {
         ui_store::save_session_scoped(data_dir(), session, scope)
     }
+}
+
+/// 按显式租户保存 UI 会话，并将持久化失败返回给调用方。
+pub fn save_session_ui_scoped_for_tenant(
+    tenant: &TenantScope,
+    session: &ChatSession,
+    scope: Option<&str>,
+    preserve_calls: bool,
+) -> anyhow::Result<PathBuf> {
+    ensure_scope_project_metadata(scope);
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        run_project_operation_fallible("save session UI", tenant, scope, |store, project_scope| {
+            if preserve_calls {
+                store.save_session_ui_snapshot(project_scope, session)?;
+            } else {
+                store.save_session(project_scope, session)?;
+            }
+            Ok(store.storage_path().map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
+        })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = preserve_calls;
+        ui_store::save_session_scoped(data_dir(), session, scope)
+            .ok_or_else(|| anyhow::anyhow!("save session UI failed"))
+    }
+}
+
+/// 按显式租户原子提交 UI 快照与 Gateway 已声明的原始 LLM 工件。
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn commit_session_ui_snapshot_scoped_for_tenant(
+    tenant: &TenantScope,
+    session: &ChatSession,
+    scope: Option<&str>,
+    raw_artifacts: &[crate::session::llm_raw::LlmRawArtifact],
+    expected_finished_steps: &[crate::session::store::LlmRawStepKey],
+) -> anyhow::Result<PathBuf> {
+    ensure_scope_project_metadata(scope);
+    run_project_operation_fallible(
+        "commit session UI raw snapshot",
+        tenant,
+        scope,
+        |store, project_scope| {
+            store.commit_session_ui_snapshot(
+                project_scope,
+                session,
+                raw_artifacts,
+                expected_finished_steps,
+            )?;
+            Ok(store.storage_path().map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
+        },
+    )
 }
 
 /// 按显式租户保存 UI 快照，但保留独立持久化的原始调用记录。

@@ -47,6 +47,106 @@ fn session(id: &str, title: &str) -> ui_models::ChatSession {
     scoped_session(id, title, "hello", 20)
 }
 
+fn pending_raw_artifact(
+    session_id: &str,
+    turn_id: &str,
+    step_index: u32,
+) -> crate::session::llm_raw::LlmRawArtifact {
+    pending_raw_artifact_with_output(session_id, turn_id, step_index, "answer")
+}
+
+fn pending_raw_artifact_with_output(
+    session_id: &str,
+    turn_id: &str,
+    step_index: u32,
+    output: &str,
+) -> crate::session::llm_raw::LlmRawArtifact {
+    crate::session::llm_raw::LlmRawArtifact::from_full_raw_rounds(
+        turn_id,
+        &[serde_json::json!({
+            "session_id": session_id,
+            "step_index": step_index,
+            "model": "provider/model",
+            "system": ["system"],
+            "messages": [{"role": "user", "content": "hello"}],
+            "message_sources": [null],
+            "request": {"config": {"model": "provider/model"}, "tools": []},
+            "output": {"text": output}
+        })],
+    )
+    .expect("valid pending raw artifact")
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn llm_raw_endpoint_distinguishes_turns_with_same_step_index() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("project dir");
+    let project_path = project.path();
+    let session_id = "same-step-two-turns";
+    let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
+        .expect("project directory should resolve to a scope");
+    let tenant = ui_store::current_tenant_scope();
+    let mut body = scoped_session(session_id, "Two turns", "hello", 20);
+    body.steps = [
+        ("turn-a", 1_u64, "first"),
+        ("turn-b", 3_u64, "second"),
+    ]
+    .into_iter()
+    .map(|(turn_id, started_ms, _)| ui_models::ChatSessionStep {
+        index: 1,
+        turn_id: Some(turn_id.to_string()),
+        started_ms,
+        finished_ms: Some(started_ms + 1),
+        start_snapshot_path: None,
+        finish_snapshot_path: None,
+        usage: ui_models::TokenUsage::default(),
+        cost_usd: None,
+        finish_reason: Some("stop".to_string()),
+        model: Some("test-model".to_string()),
+        tool_timings: Vec::new(),
+    })
+    .collect();
+    for (turn_id, output) in [("turn-a", "first"), ("turn-b", "second")] {
+        super::super::raw_commit::register(
+            &tenant,
+            Some(&scope),
+            pending_raw_artifact_with_output(session_id, turn_id, 1, output),
+        )
+        .expect("raw artifact should register");
+    }
+    let Json(saved) = session_ui_save(
+        Path(session_id.to_string()),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(body),
+    )
+    .await
+    .expect("session and raw artifacts should commit");
+    assert!(saved);
+
+    let Json(first) = session_step_llm_raw_get(
+        Path((session_id.to_string(), "turn-a".to_string(), 1)),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("first turn raw");
+    let Json(second) = session_step_llm_raw_get(
+        Path((session_id.to_string(), "turn-b".to_string(), 1)),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("second turn raw");
+
+    assert_eq!(first.as_ref().and_then(|raw| raw.pointer("/output/text")), Some(&serde_json::json!("first")));
+    assert_eq!(second.as_ref().and_then(|raw| raw.pointer("/output/text")), Some(&serde_json::json!("second")));
+    assert_ne!(first, second);
+}
+
 fn scoped_session(id: &str, title: &str, content: &str, updated_ms: u64) -> ui_models::ChatSession {
     ui_models::ChatSession {
         id: id.to_string(),
@@ -62,6 +162,7 @@ fn scoped_session(id: &str, title: &str, content: &str, updated_ms: u64) -> ui_m
         calls: vec![serde_json::json!({"tool": "noop"})],
         steps: vec![ui_models::ChatSessionStep {
             index: 0,
+            turn_id: None,
             started_ms: 1,
             finished_ms: Some(2),
             start_snapshot_path: None,
@@ -161,14 +262,14 @@ async fn session_step_llm_raw_get_returns_requested_step_and_null_for_missing() 
     );
 
     let Json(found) = session_step_llm_raw_get(
-        Path((body.id.clone(), 7)),
+        Path((body.id.clone(), "legacy".to_string(), 7)),
         Query(query_for(project_path)),
         HeaderMap::new(),
     )
     .await
     .expect("requested raw payload should load");
     let Json(missing) = session_step_llm_raw_get(
-        Path((body.id, 9)),
+        Path((body.id, "legacy".to_string(), 9)),
         Query(query_for(project_path)),
         HeaderMap::new(),
     )
@@ -212,14 +313,14 @@ async fn session_step_llm_raw_get_isolates_project_scope() {
     }
 
     let Json(raw_a) = session_step_llm_raw_get(
-        Path((session_id.to_string(), 3)),
+        Path((session_id.to_string(), "legacy".to_string(), 3)),
         Query(query_for(project_a.path())),
         HeaderMap::new(),
     )
     .await
     .expect("project A raw payload should load");
     let Json(raw_b) = session_step_llm_raw_get(
-        Path((session_id.to_string(), 3)),
+        Path((session_id.to_string(), "legacy".to_string(), 3)),
         Query(query_for(project_b.path())),
         HeaderMap::new(),
     )
@@ -275,7 +376,7 @@ async fn session_step_llm_raw_get_isolates_tenants() {
     let raw_a = ui_store::with_tenant_scope(
         tenant_a,
         session_step_llm_raw_get(
-            Path((session_id.to_string(), 4)),
+            Path((session_id.to_string(), "legacy".to_string(), 4)),
             Query(query_for(project.path())),
             HeaderMap::new(),
         ),
@@ -286,7 +387,7 @@ async fn session_step_llm_raw_get_isolates_tenants() {
     let raw_b = ui_store::with_tenant_scope(
         tenant_b,
         session_step_llm_raw_get(
-            Path((session_id.to_string(), 4)),
+            Path((session_id.to_string(), "legacy".to_string(), 4)),
             Query(query_for(project.path())),
             HeaderMap::new(),
         ),
@@ -349,7 +450,7 @@ async fn session_step_llm_raw_get_maps_storage_error_to_internal_error() {
         .expect("raw payload should be corrupted for the error case");
 
     let error = session_step_llm_raw_get(
-        Path((session_id, 7)),
+        Path((session_id, "legacy".to_string(), 7)),
         Query(query_for(project_path)),
         HeaderMap::new(),
     )
@@ -357,6 +458,269 @@ async fn session_step_llm_raw_get_maps_storage_error_to_internal_error() {
     .expect_err("invalid raw payload should fail");
 
     assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_ui_save_propagates_session_store_failure() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("project dir");
+    let project_path = project.path();
+    let session_id = format!("locked-ui-save-{}", std::process::id());
+    let mut body = scoped_session(&session_id, "Locked save", "hello", 20);
+    let _ = session_ui_save(
+        Path(session_id.clone()),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(body.clone()),
+    )
+    .await
+    .expect("initial session save should succeed");
+
+    let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
+        .expect("project directory should resolve to a scope");
+    let turn_id = "turn-locked-save";
+    body.steps[0].turn_id = Some(turn_id.to_string());
+    super::super::raw_commit::register(
+        &ui_store::current_tenant_scope(),
+        Some(&scope),
+        pending_raw_artifact(&session_id, turn_id, 0),
+    )
+    .expect("raw artifact should buffer");
+
+    let connection =
+        Connection::open(ui_store::session_file_path(&session_id).expect("session store path"))
+            .expect("open session store database");
+    connection.execute_batch("BEGIN EXCLUSIVE").expect("acquire database write lock");
+
+    let error = session_ui_save(
+        Path(session_id.clone()),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(body),
+    )
+    .await
+    .expect_err("session store write failure must fail the request");
+
+    assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    let claims = super::super::raw_commit::claim(
+        &ui_store::current_tenant_scope(),
+        Some(&scope),
+        &session_id,
+        &[(turn_id.to_string(), 0)],
+    )
+    .expect("failed save must retain the raw artifact");
+    assert_eq!(claims.raw_artifacts().len(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_ui_save_commits_pending_raw_atomically() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("project dir");
+    let project_path = project.path();
+    let session_id = format!("raw-atomic-save-{}", std::process::id());
+    let turn_id = "turn-raw-atomic-save";
+    let mut body = scoped_session(&session_id, "Raw atomic save", "hello", 20);
+    body.steps[0].turn_id = Some(turn_id.to_string());
+    let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
+        .expect("project directory should resolve to a scope");
+    super::super::raw_commit::register(
+        &ui_store::current_tenant_scope(),
+        Some(&scope),
+        pending_raw_artifact(&session_id, turn_id, 0),
+    )
+    .expect("raw artifact should buffer");
+
+    let Json(saved) = session_ui_save(
+        Path(session_id.clone()),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+        Json(body),
+    )
+    .await
+    .expect("atomic UI save should succeed");
+    assert!(saved);
+    let raw = ui_store::load_llm_raw_step_scoped(&session_id, 0, Some(&scope))
+        .expect("raw read should succeed");
+    assert_eq!(raw.expect("raw must commit with snapshot")["output"]["text"], "answer");
+    let claims = super::super::raw_commit::claim(
+        &ui_store::current_tenant_scope(),
+        Some(&scope),
+        &session_id,
+        &[(turn_id.to_string(), 0)],
+    )
+    .expect("claim should succeed");
+    assert!(claims.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn simple_answer_and_tool_rounds_commit_without_raw_duplication() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    ui_store::set_session_scope(None);
+
+    let project = TempDir::new().expect("project dir");
+    let project_path = project.path();
+    let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
+        .expect("project directory should resolve to a scope");
+    let tenant = ui_store::current_tenant_scope();
+
+    let cases = [
+        (
+            "e2e-simple-answer",
+            "turn-simple",
+            vec![serde_json::json!({
+                "session_id": "e2e-simple-answer",
+                "step_index": 0,
+                "model": "provider/model",
+                "system": ["system"],
+                "messages": [{"role": "user", "content": "hello"}],
+                "message_sources": [null],
+                "request": {"config": {"model": "provider/model"}, "tools": []},
+                "output": {"text": "answer"}
+            })],
+        ),
+        (
+            "e2e-tool-rounds",
+            "turn-tools",
+            vec![
+                serde_json::json!({
+                    "session_id": "e2e-tool-rounds",
+                    "step_index": 0,
+                    "model": "provider/model",
+                    "system": ["system"],
+                    "messages": [{"role": "user", "content": "inspect"}],
+                    "message_sources": [null],
+                    "request": {
+                        "config": {"model": "provider/model"},
+                        "tools": [{"name": "shell"}]
+                    },
+                    "output": {"tool_call": {"id": "call-1", "name": "shell"}}
+                }),
+                serde_json::json!({
+                    "session_id": "e2e-tool-rounds",
+                    "step_index": 1,
+                    "model": "provider/model",
+                    "system": ["system"],
+                    "messages": [
+                        {"role": "user", "content": "inspect"},
+                        {"role": "assistant", "content": "calling shell"},
+                        {"role": "tool", "content": "done"}
+                    ],
+                    "message_sources": [null, null, null],
+                    "request": {
+                        "config": {"model": "provider/model"},
+                        "tools": [{"name": "shell"}]
+                    },
+                    "output": {"text": "finished"}
+                }),
+            ],
+        ),
+    ];
+
+    for (session_id, turn_id, raw_rounds) in cases {
+        let mut body = scoped_session(session_id, "E2E raw", "hello", 20);
+        body.steps = raw_rounds
+            .iter()
+            .enumerate()
+            .map(|(step_index, _)| ui_models::ChatSessionStep {
+                index: u32::try_from(step_index).expect("small step index"),
+                turn_id: Some(turn_id.to_string()),
+                started_ms: 10 + u64::try_from(step_index).expect("small step index") * 10,
+                finished_ms: Some(15 + u64::try_from(step_index).expect("small step index") * 10),
+                start_snapshot_path: None,
+                finish_snapshot_path: None,
+                usage: ui_models::TokenUsage::default(),
+                cost_usd: None,
+                finish_reason: Some("stop".to_string()),
+                model: Some("provider/model".to_string()),
+                tool_timings: if session_id == "e2e-tool-rounds" && step_index == 0 {
+                    vec![ui_models::ToolTiming {
+                        call_id: "call-1".to_string(),
+                        name: "shell".to_string(),
+                        started_ms: Some(11),
+                        finished_ms: Some(14),
+                    }]
+                } else {
+                    Vec::new()
+                },
+            })
+            .collect();
+        let artifact = crate::session::llm_raw::LlmRawArtifact::from_full_raw_rounds(
+            turn_id,
+            &raw_rounds,
+        )
+        .expect("valid raw artifact");
+        for round in artifact.rounds {
+            super::super::raw_commit::register(
+                &tenant,
+                Some(&scope),
+                crate::session::llm_raw::LlmRawArtifact {
+                    context: artifact.context.clone(),
+                    rounds: vec![round],
+                },
+            )
+            .expect("raw artifact round should register");
+        }
+
+        let Json(saved) = session_ui_save(
+            Path(session_id.to_string()),
+            Query(query_for(project_path)),
+            HeaderMap::new(),
+            Json(body.clone()),
+        )
+        .await
+        .expect("session and raw artifact should commit atomically");
+        assert!(saved);
+
+        let connection = Connection::open(
+            ui_store::session_file_path(session_id).expect("session database path"),
+        )
+        .expect("open session database");
+        let turn_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM session_llm_raw_turns WHERE project_id = ?1 AND session_id = ?2",
+                params![scope, session_id],
+                |row| row.get(0),
+            )
+            .expect("count turn contexts");
+        let round_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM session_llm_raw_rounds WHERE project_id = ?1 AND session_id = ?2",
+                params![scope, session_id],
+                |row| row.get(0),
+            )
+            .expect("count round deltas");
+        assert_eq!(turn_count, 1, "one shared context per turn");
+        assert_eq!(round_count, raw_rounds.len() as i64, "one delta per LLM round");
+
+        for (step_index, expected) in raw_rounds.iter().enumerate() {
+            let Json(rebuilt) = session_step_llm_raw_get(
+                Path((
+                    session_id.to_string(),
+                    turn_id.to_string(),
+                    u32::try_from(step_index).expect("small step index"),
+                )),
+                Query(query_for(project_path)),
+                HeaderMap::new(),
+            )
+            .await
+            .expect("rebuilt raw round should load");
+            assert_eq!(rebuilt.as_ref(), Some(expected));
+        }
+
+        let stored = ui_store::load_session_scoped(session_id, Some(&scope))
+            .expect("stored session should exist");
+        assert_eq!(
+            serde_json::to_value(&stored.steps).expect("serialize stored steps"),
+            serde_json::to_value(&body.steps).expect("serialize expected steps")
+        );
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -66,8 +66,6 @@ fn every_non_staff_save_tag_routes_error_and_success_to_its_own_state() {
     assert_route!("embedding_routes", embedding_routes_settings);
     assert_route!("query_classification", query_classification_settings);
     assert_route!("autonomy", autonomy_settings);
-    assert_route!("agents_ipc", agents_ipc_settings);
-    assert_route!("coordination", coordination_settings);
 }
 
 #[test]
@@ -308,8 +306,6 @@ fn settings_update_routes_standalone_help_messages() {
 
     let _ = update(&mut app, SettingsMessage::CronHelpOpen);
     let _ = update(&mut app, SettingsMessage::SchedulerHelpOpen);
-    let _ = update(&mut app, SettingsMessage::AgentsIpcHelpOpen);
-    let _ = update(&mut app, SettingsMessage::CoordinationHelpOpen);
     let _ = update(&mut app, SettingsMessage::ReliabilityHelpOpen);
     let _ = update(&mut app, SettingsMessage::SecurityHelpOpen);
     let _ = update(&mut app, SettingsMessage::AutonomyHelpOpen);
@@ -319,8 +315,6 @@ fn settings_update_routes_standalone_help_messages() {
 
     assert!(app.cron_settings.show_help_modal);
     assert!(app.scheduler_settings.show_help_modal);
-    assert!(app.agents_ipc_settings.show_help_modal);
-    assert!(app.coordination_settings.show_help_modal);
     assert!(app.reliability_settings.show_help_modal);
     assert!(app.security_settings.show_help_modal);
     assert!(app.autonomy_settings.show_help_modal);

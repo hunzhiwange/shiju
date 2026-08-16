@@ -16,7 +16,6 @@ pub(crate) mod agent {
     pub use crate::channels;
     pub use crate::command;
     pub use crate::config;
-    pub use crate::coordination;
     pub(crate) use crate::cron;
     #[cfg(not(target_arch = "wasm32"))]
     pub use crate::daemon;

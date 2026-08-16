@@ -142,7 +142,9 @@ pub(crate) fn persist_step_ai_call_payload(
     );
 }
 
-/// 持久化原始 LLM 步骤载荷。
+/// 构造原始 LLM 步骤载荷。
+///
+/// 处理器不拥有数据库提交边界；调用方将此载荷交给 Gateway 聚合并原子提交。
 pub(crate) fn persist_llm_raw_step_payload(
     req: &Request,
     session_id: &str,
@@ -153,10 +155,9 @@ pub(crate) fn persist_llm_raw_step_payload(
     system: &[String],
     tool_specs: &[crate::app::agent::tools::ToolSpec],
     step: &LlmStep,
-    app_session_scope: Option<&str>,
-) -> anyhow::Result<()> {
+) -> Option<Value> {
     if !req.persist_app_session_artifacts || session_id.is_empty() {
-        return Ok(());
+        return None;
     }
 
     let tool_calls = step
@@ -194,13 +195,7 @@ pub(crate) fn persist_llm_raw_step_payload(
             "usage": step.usage,
         }
     });
-    crate::session::ui_store::try_persist_llm_raw_step(
-        session_id,
-        step_index,
-        &payload,
-        app_session_scope,
-    )?;
-    Ok(())
+    Some(payload)
 }
 
 /// 持久化最终 AI 调用载荷。

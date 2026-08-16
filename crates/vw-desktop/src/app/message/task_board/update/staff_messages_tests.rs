@@ -3,11 +3,9 @@
 use super::maybe_record_task_handoff_message;
 use crate::app::state::TaskBoardViewMode;
 use crate::app::task::staff::{
-    TaskBoardStaffConfig, TaskBoardStaffEvent, TaskBoardStaffMember,
-    TaskBoardStaffMessageDeliveryStatus, TaskBoardStaffRole, TaskBoardStageAssignment,
+    TaskBoardStaffConfig, TaskBoardStaffMember, TaskBoardStaffRole, TaskBoardStageAssignment,
 };
 use crate::app::task::{Task, TaskStatus};
-use serde_json::Value;
 
 fn staff_member(id: &str, name: &str, role: TaskBoardStaffRole) -> TaskBoardStaffMember {
     TaskBoardStaffMember::new(id, name, role)
@@ -154,94 +152,4 @@ fn handoff_body_truncation_counts_unicode_characters() {
 
     assert_eq!(truncated.chars().count(), super::STAFF_HANDOFF_BODY_MAX_CHARS);
     assert!(truncated.chars().all(|character| character == '交'));
-}
-
-#[test]
-fn ipc_payload_contains_handoff_metadata_and_rejects_oversized_body() {
-    let task = Task::new(9);
-    let from = staff_member("executor", "Executor", TaskBoardStaffRole::Executor);
-    let to = staff_member("reviewer", "Reviewer", TaskBoardStaffRole::Reviewer);
-
-    let payload = super::build_staff_handoff_ipc_payload(
-        &task,
-        TaskStatus::Running,
-        TaskStatus::CodeReview,
-        &from,
-        &to,
-        "handoff body",
-    )
-    .expect("valid payload");
-    let value: Value = serde_json::from_str(&payload).expect("payload json");
-
-    assert_eq!(value["kind"], "staff_handoff");
-    assert_eq!(value["task_id"].as_str(), Some(task.id.as_str()));
-    assert_eq!(value["from_member_id"], "executor");
-    assert_eq!(value["to_member_id"], "reviewer");
-    assert_eq!(value["from_status"], "running");
-    assert_eq!(value["to_status"], "code_review");
-    assert_eq!(value["body"], "handoff body");
-
-    let oversized =
-        "x".repeat(vw_gateway_client::vw_api_types::staff::STAFF_IPC_MESSAGE_PAYLOAD_LIMIT + 1);
-    let error = super::build_staff_handoff_ipc_payload(
-        &task,
-        TaskStatus::Running,
-        TaskStatus::CodeReview,
-        &from,
-        &to,
-        &oversized,
-    )
-    .expect_err("oversized payload should fail");
-    assert!(error.contains("payload must be at most"));
-}
-
-#[test]
-fn ipc_delivery_result_updates_matching_message_and_task_logs() {
-    let task = Task::new(10);
-    let task_id = task.id.clone();
-    let mut app = staff_app_with_task(task, TaskBoardStaffConfig::default());
-    app.task_board_staff_events.push(TaskBoardStaffEvent::staff_message(
-        task_id.clone(),
-        "executor",
-        "reviewer",
-        "body",
-        123,
-        Some(TaskBoardStaffMessageDeliveryStatus::Pending),
-    ));
-
-    let _ = super::apply_staff_handoff_ipc_delivery_result(
-        &mut app,
-        task_id.clone(),
-        "executor".to_string(),
-        "reviewer".to_string(),
-        "reviewer-agent".to_string(),
-        123,
-        Ok(()),
-    );
-    let message = app.task_board_staff_events[0].staff_message.as_ref().expect("message");
-    assert_eq!(message.delivery_status, Some(TaskBoardStaffMessageDeliveryStatus::Delivered));
-    assert!(
-        app.task_board_tasks[0]
-            .logs
-            .iter()
-            .any(|entry| entry.message.contains("IPC 交接消息已投递"))
-    );
-
-    let _ = super::apply_staff_handoff_ipc_delivery_result(
-        &mut app,
-        task_id,
-        "executor".to_string(),
-        "reviewer".to_string(),
-        "reviewer-agent".to_string(),
-        123,
-        Err("network ".repeat(80)),
-    );
-    let message = app.task_board_staff_events[0].staff_message.as_ref().expect("message");
-    assert_eq!(message.delivery_status, Some(TaskBoardStaffMessageDeliveryStatus::Failed));
-    assert!(
-        app.task_board_tasks[0]
-            .logs
-            .iter()
-            .any(|entry| entry.message.contains("IPC 交接消息投递失败"))
-    );
 }

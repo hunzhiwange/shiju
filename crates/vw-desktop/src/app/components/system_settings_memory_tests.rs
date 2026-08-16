@@ -91,13 +91,13 @@ fn view_builds_intro_tabs_and_selected_section() {
     let sqlite = element_tree(view(&app));
     assert_eq!(sqlite.children.len(), 3);
     assert_eq!(sqlite.children[0].children.len(), 2);
-    assert_eq!(sqlite.children[1].children.len(), 3);
+    assert_eq!(sqlite.children[1].children.len(), 5);
     assert_eq!(sqlite.children[2].children.len(), 2);
 
     app.memory_settings.backend = "qdrant".to_string();
     let qdrant = element_tree(view(&app));
     assert_eq!(qdrant.children.len(), 3);
-    assert_eq!(qdrant.children[1].children.len(), 4);
+    assert_eq!(qdrant.children[1].children.len(), 6);
     assert_eq!(qdrant.children[2].children.len(), 2);
 }
 
@@ -109,6 +109,8 @@ fn view_switches_between_memory_configuration_tabs() {
         MemorySettingsTab::General,
         MemorySettingsTab::RetentionAndCache,
         MemorySettingsTab::Embedding,
+        MemorySettingsTab::EmbeddingRoutes,
+        MemorySettingsTab::Storage,
     ] {
         app.memory_settings.active_tab = tab;
         assert_eq!(element_tree(view(&app)).children.len(), 3);

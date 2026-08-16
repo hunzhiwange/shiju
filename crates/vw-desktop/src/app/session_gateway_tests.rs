@@ -201,6 +201,17 @@ fn gateway_save_session_result_preserves_original_gateway_error() {
     assert_eq!(result, Err("original gateway save failure".to_string()));
 }
 
+#[test]
+fn permanent_session_save_error_only_classifies_payload_too_large() {
+    assert!(super::is_permanent_session_save_error(
+        "gateway request failed: 413 Payload Too Large"
+    ));
+    assert!(!super::is_permanent_session_save_error(
+        "gateway request failed: 503 Service Unavailable"
+    ));
+    assert!(!super::is_permanent_session_save_error("database is locked"));
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn block_on_gateway_runs_future_inside_multithread_runtime() {

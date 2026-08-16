@@ -225,6 +225,7 @@ impl SecurityListKind {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SecurityListEditorState {
     drafts: [String; 5],
+    pending_remove: Option<(SecurityListKind, usize)>,
 }
 
 impl SecurityListEditorState {
@@ -234,6 +235,22 @@ impl SecurityListEditorState {
 
     pub(crate) fn set_draft(&mut self, kind: SecurityListKind, value: String) {
         self.drafts[kind.index()] = value;
+    }
+
+    pub(crate) fn request_remove(&mut self, kind: SecurityListKind, index: usize) {
+        self.pending_remove = Some((kind, index));
+    }
+
+    pub(crate) fn is_remove_pending(&self, kind: SecurityListKind, index: usize) -> bool {
+        self.pending_remove == Some((kind, index))
+    }
+
+    pub(crate) fn pending_remove_index(&self, kind: SecurityListKind) -> Option<usize> {
+        self.pending_remove.and_then(|(pending_kind, index)| (pending_kind == kind).then_some(index))
+    }
+
+    pub(crate) fn cancel_remove(&mut self) {
+        self.pending_remove = None;
     }
 }
 
@@ -450,6 +467,7 @@ impl AutonomyListKind {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct AutonomyListEditorState {
     drafts: [String; 7],
+    pending_remove: Option<(AutonomyListKind, usize)>,
 }
 
 impl AutonomyListEditorState {
@@ -459,6 +477,22 @@ impl AutonomyListEditorState {
 
     pub(crate) fn set_draft(&mut self, kind: AutonomyListKind, value: String) {
         self.drafts[kind.index()] = value;
+    }
+
+    pub(crate) fn request_remove(&mut self, kind: AutonomyListKind, index: usize) {
+        self.pending_remove = Some((kind, index));
+    }
+
+    pub(crate) fn is_remove_pending(&self, kind: AutonomyListKind, index: usize) -> bool {
+        self.pending_remove == Some((kind, index))
+    }
+
+    pub(crate) fn pending_remove_index(&self, kind: AutonomyListKind) -> Option<usize> {
+        self.pending_remove.and_then(|(pending_kind, index)| (pending_kind == kind).then_some(index))
+    }
+
+    pub(crate) fn cancel_remove(&mut self) {
+        self.pending_remove = None;
     }
 }
 

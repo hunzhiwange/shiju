@@ -194,6 +194,10 @@ fn add_list_item(app: &mut App, kind: AutonomyListKind) -> Task<Message> {
 }
 
 fn remove_list_item(app: &mut App, kind: AutonomyListKind, index: usize) -> Task<Message> {
+    if !app.autonomy_settings.list_editor.is_remove_pending(kind, index) {
+        return Task::none();
+    }
+    app.autonomy_settings.list_editor.cancel_remove();
     if index >= app.autonomy_settings.list(kind).len() {
         app.autonomy_settings.save_error = Some("要删除的列表项不存在".to_string());
         return Task::none();
@@ -228,7 +232,7 @@ fn remove_list_item(app: &mut App, kind: AutonomyListKind, index: usize) -> Task
 /// ## 逐项列表管理
 /// - `AutonomyListDraftChanged`：更新指定列表的单项草稿
 /// - `AutonomyListAdd`：校验并添加指定列表项
-/// - `AutonomyListRemove`：按索引删除指定列表项
+/// - `AutonomyListRemoveRequested/Confirmed/Canceled`：确认后按索引删除指定列表项
 ///
 /// ## 资源限制
 /// - `AutonomyMaxActionsPerHourChanged`：每小时最大操作数变更
@@ -286,7 +290,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
         SettingsMessage::AutonomyListAdd(kind) => add_list_item(app, kind),
 
-        SettingsMessage::AutonomyListRemove(kind, index) => remove_list_item(app, kind, index),
+        SettingsMessage::AutonomyListRemoveRequested(kind, index) => {
+            if index < app.autonomy_settings.list(kind).len() {
+                app.autonomy_settings.list_editor.request_remove(kind, index);
+            }
+            Task::none()
+        }
+
+        SettingsMessage::AutonomyListRemoveConfirmed(kind, index) => {
+            remove_list_item(app, kind, index)
+        }
+
+        SettingsMessage::AutonomyListRemoveCanceled => {
+            app.autonomy_settings.list_editor.cancel_remove();
+            Task::none()
+        }
 
         // 每小时最大操作数变更
         SettingsMessage::AutonomyMaxActionsPerHourChanged(v) => {

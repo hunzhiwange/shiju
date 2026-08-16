@@ -13,6 +13,22 @@ use super::model::{
 
 const PREVIEW_CHAR_LIMIT: usize = 160;
 
+pub(crate) trait ProjectionRawKey {
+    fn projection_key(&self) -> (String, u32);
+}
+
+impl ProjectionRawKey for u32 {
+    fn projection_key(&self) -> (String, u32) {
+        (format!("legacy-step-{self}"), *self)
+    }
+}
+
+impl ProjectionRawKey for (String, String, u32) {
+    fn projection_key(&self) -> (String, u32) {
+        (self.1.clone(), self.2)
+    }
+}
+
 #[derive(Debug, Clone)]
 struct ToolCallData {
     id: Option<String>,
@@ -562,27 +578,59 @@ impl ProjectionBuilder {
 }
 
 /// 将当前会话的步骤与原始载荷转换为稳定的只读轨迹模型。
-pub(crate) fn project_trajectory(
+pub(crate) fn project_trajectory<K: ProjectionRawKey>(
     steps: &[ChatSessionStep],
-    step_llm_raw: &HashMap<u32, Value>,
+    step_llm_raw: &HashMap<K, Value>,
 ) -> TrajectoryProjection {
-    let mut steps_by_index = BTreeMap::new();
-    let mut indices = BTreeSet::new();
+    let mut steps_by_key = BTreeMap::new();
     for step in steps {
-        indices.insert(step.index);
-        steps_by_index.insert(step.index, step);
+        let turn_id = step
+            .turn_id
+            .clone()
+            .unwrap_or_else(|| format!("legacy-step-{}", step.index));
+        steps_by_key.insert((turn_id, step.index), step);
     }
-    indices.extend(step_llm_raw.keys().copied());
+    let raw_by_key = step_llm_raw
+        .iter()
+        .map(|(key, raw)| (key.projection_key(), raw))
+        .collect::<BTreeMap<_, _>>();
+    let keys = steps_by_key.keys().chain(raw_by_key.keys()).cloned().collect::<BTreeSet<_>>();
+    let mut ordered_keys = keys.into_iter().collect::<Vec<_>>();
+    ordered_keys.sort_by_key(|key| {
+        steps_by_key
+            .get(key)
+            .map_or((u64::MAX, key.1, key.0.clone()), |step| {
+                (step.started_ms, step.index, key.0.clone())
+            })
+    });
+    let duplicate_step_indices = ordered_keys
+        .iter()
+        .map(|(_, step_index)| *step_index)
+        .filter(|step_index| {
+            ordered_keys.iter().filter(|(_, candidate)| candidate == step_index).count() > 1
+        })
+        .collect::<BTreeSet<_>>();
 
     let mut builder = ProjectionBuilder::new(steps);
-    let projected_steps = indices
+    let projected_steps = ordered_keys
         .into_iter()
-        .map(|index| {
-            builder.project_step(
-                index,
-                steps_by_index.get(&index).copied(),
-                step_llm_raw.get(&index),
-            )
+        .map(|key| {
+            let record_start = builder.records.len();
+            let mut projected = builder.project_step(
+                key.1,
+                steps_by_key.get(&key).copied(),
+                raw_by_key.get(&key).copied(),
+            );
+            if duplicate_step_indices.contains(&key.1) {
+                let prefix = format!("turn:{}:", key.0);
+                for record_id in &mut projected.record_ids {
+                    record_id.insert_str(0, &prefix);
+                }
+                for record in &mut builder.records[record_start..] {
+                    record.id.insert_str(0, &prefix);
+                }
+            }
+            projected
         })
         .collect::<Vec<_>>();
     let turns = build_turns(&builder.records, &projected_steps);

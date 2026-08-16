@@ -136,6 +136,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.show_file_popover = false;
             app.show_usage_popover = false;
             app.system_settings_tab = crate::app::components::system_settings::SystemTab::Models;
+            app.model_settings.active_tab = crate::app::state::ModelConfigTab::Models;
             Task::done(Message::Settings(SettingsMessage::ModelDetailOpen(provider_id, model_id)))
         }
         ViewMessage::ToggleAboutModal => {

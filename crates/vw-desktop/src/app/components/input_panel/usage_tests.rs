@@ -44,6 +44,7 @@ fn usage_rate_uses_the_same_effective_input_window_as_agent_defaults() {
 fn step(input_tokens: i64) -> ChatSessionStep {
     ChatSessionStep {
         index: 1,
+        turn_id: None,
         started_ms: 1,
         finished_ms: Some(2),
         start_snapshot_path: None,

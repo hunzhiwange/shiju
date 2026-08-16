@@ -127,6 +127,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
 
             app.memory_settings.active_tab = tab;
+            if tab == MemorySettingsTab::EmbeddingRoutes {
+                app.embedding_routes_settings.save_error = None;
+                app.embedding_routes_settings.save_success = false;
+            }
             return Task::none();
         }
         MemoryMessage::BackendChanged(value) => {

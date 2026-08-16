@@ -2,11 +2,9 @@
 
 mod acp;
 mod agents;
-mod agents_ipc;
 mod autonomy;
 mod browser;
 mod channels;
-mod coordination;
 mod cron;
 mod dialogue_flow;
 mod embedding_routes;
@@ -48,11 +46,12 @@ use crate::app::{App, Message};
 use iced::Task;
 
 pub(crate) use messages::{
-    AcpMessage, AgentsMessage, BashPolicyCheck, BashValidatorCheck, BrowserMessage,
+    AcpMessage, AgentConfigTabMessage, AgentsMessage, BashPolicyCheck, BashValidatorCheck, BrowserMessage,
     ChannelsMessage, EmbeddingRoutesMessage, GatewayClientMessage, GatewayMessage,
     GeneralSettingsMessage, HooksMessage, HttpRequestMessage, McpMessage, MemoryMessage,
-    ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage, QuickMessagesMessage,
-    RuntimeMessage, SettingsMessage, StaffMessage, StaffResourceMessage, StaffTeamDraftField,
+    ModelConfigTabMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
+    QuickMessagesMessage, RuntimeMessage, SettingsMessage, StaffMessage, StaffResourceMessage,
+    StaffTeamDraftField,
     StaffTeamMemberDraftField, StaffWorkerDraftField, StorageMessage, ThemeChromeField,
     ThemeColorPickerTarget, ThemePaletteField, ThemesMessage, TunnelMessage, WebSearchMessage,
 };
@@ -94,8 +93,6 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
         "embedding_routes" => app.embedding_routes_settings.save_error = save_error,
         "query_classification" => app.query_classification_settings.save_error = save_error,
         "autonomy" => app.autonomy_settings.save_error = save_error,
-        "agents_ipc" => app.agents_ipc_settings.save_error = save_error,
-        "coordination" => app.coordination_settings.save_error = save_error,
         _ => {}
     }
 }
@@ -111,6 +108,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::TabSelected(_)
         | SettingsMessage::SystemTabSelected(_)
+        | SettingsMessage::ModelConfigTab(_)
+        | SettingsMessage::AgentConfigTab(_)
         | SettingsMessage::SystemTabQueryChanged(_)
         | SettingsMessage::SystemHelpOpen(_)
         | SettingsMessage::SystemHelpClose
@@ -357,21 +356,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SchedulerSave
         | SettingsMessage::SchedulerHelpOpen
         | SettingsMessage::SchedulerHelpClose => scheduler::update(app, message),
-        SettingsMessage::AgentsIpcEnabledToggled(_)
-        | SettingsMessage::AgentsIpcDbPathChanged(_)
-        | SettingsMessage::AgentsIpcStalenessSecsChanged(_)
-        | SettingsMessage::AgentsIpcSave
-        | SettingsMessage::AgentsIpcHelpOpen
-        | SettingsMessage::AgentsIpcHelpClose => agents_ipc::update(app, message),
-        SettingsMessage::CoordinationEnabledToggled(_)
-        | SettingsMessage::CoordinationLeadAgentChanged(_)
-        | SettingsMessage::CoordinationMaxInboxMessagesPerAgentChanged(_)
-        | SettingsMessage::CoordinationMaxDeadLettersChanged(_)
-        | SettingsMessage::CoordinationMaxContextEntriesChanged(_)
-        | SettingsMessage::CoordinationMaxSeenMessageIdsChanged(_)
-        | SettingsMessage::CoordinationSave
-        | SettingsMessage::CoordinationHelpOpen
-        | SettingsMessage::CoordinationHelpClose => coordination::update(app, message),
         SettingsMessage::ReliabilityProviderRetriesChanged(_)
         | SettingsMessage::ReliabilityProviderBackoffMsChanged(_)
         | SettingsMessage::ReliabilityChannelInitialBackoffSecsChanged(_)
@@ -387,7 +371,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SecurityTabSelected(_)
         | SettingsMessage::SecurityListDraftChanged(_, _)
         | SettingsMessage::SecurityListAdd(_)
-        | SettingsMessage::SecurityListRemove(_, _)
+        | SettingsMessage::SecurityListRemoveRequested(_, _)
+        | SettingsMessage::SecurityListRemoveConfirmed(_, _)
+        | SettingsMessage::SecurityListRemoveCanceled
         | SettingsMessage::SecuritySandboxEnabledChanged(_)
         | SettingsMessage::SecuritySandboxBackendChanged(_)
         | SettingsMessage::SecurityResourcesMaxMemoryMbChanged(_)
@@ -425,7 +411,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::AutonomyWorkspaceOnlyToggled(_)
         | SettingsMessage::AutonomyListDraftChanged(_, _)
         | SettingsMessage::AutonomyListAdd(_)
-        | SettingsMessage::AutonomyListRemove(_, _)
+        | SettingsMessage::AutonomyListRemoveRequested(_, _)
+        | SettingsMessage::AutonomyListRemoveConfirmed(_, _)
+        | SettingsMessage::AutonomyListRemoveCanceled
         | SettingsMessage::AutonomyMaxActionsPerHourChanged(_)
         | SettingsMessage::AutonomyMaxCostPerDayCentsChanged(_)
         | SettingsMessage::AutonomyRequireApprovalForMediumRiskToggled(_)

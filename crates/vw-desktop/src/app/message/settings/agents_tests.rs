@@ -1297,22 +1297,6 @@ fn allowed_tool_messages_keep_builtin_required_tools() {
 }
 
 #[test]
-fn collab_preset_omits_legacy_delegate_coordination_status() {
-    let available_tools = vec![
-        "AgentTool".to_string(),
-        "delegate_coordination_status".to_string(),
-        "schedule".to_string(),
-        "plan_enter".to_string(),
-    ];
-
-    assert!(!tool_in_preset("delegate_coordination_status", "collab"));
-    assert_eq!(
-        tools_for_preset(&available_tools, "collab"),
-        vec!["AgentTool", "plan_enter", "schedule"]
-    );
-}
-
-#[test]
 fn allowed_tool_messages_sort_select_invert_and_apply_presets() {
     let mut app = test_app();
     app.agents_settings.available_tools = vec![

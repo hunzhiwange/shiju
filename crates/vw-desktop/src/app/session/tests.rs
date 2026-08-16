@@ -171,6 +171,7 @@ fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
 
     app.upsert_active_session_step(ChatSessionStep {
         index: 1,
+        turn_id: None,
         started_ms: 1_000,
         finished_ms: Some(1_400),
         start_snapshot_path: None,
@@ -183,6 +184,7 @@ fn rebuild_active_session_message_meta_keeps_tool_outside_step_indexing() {
     });
     app.upsert_active_session_step(ChatSessionStep {
         index: 2,
+        turn_id: None,
         started_ms: 2_000,
         finished_ms: Some(2_200),
         start_snapshot_path: None,
@@ -228,6 +230,7 @@ fn rebuild_active_session_message_meta_does_not_relabel_unrecorded_model() {
 
     app.upsert_active_session_step(ChatSessionStep {
         index: 1,
+        turn_id: None,
         started_ms: 1_000,
         finished_ms: Some(1_400),
         start_snapshot_path: None,
@@ -306,6 +309,7 @@ fn legacy_backfill_does_not_overwrite_persisted_message_models() {
     ];
     let steps = vec![ChatSessionStep {
         index: 1,
+        turn_id: None,
         started_ms: 1,
         finished_ms: Some(2),
         start_snapshot_path: None,

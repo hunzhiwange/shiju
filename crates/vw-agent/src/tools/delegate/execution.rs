@@ -1,7 +1,7 @@
 //! 委派工具的执行入口。
 //!
 //! 本模块负责校验委派参数、执行安全策略、创建模型 provider，并根据代理配置
-//! 选择普通聊天或 agentic 执行路径。协调追踪只记录执行状态，不影响主结果。
+//! 选择普通聊天或 agentic 执行路径。
 
 use super::super::traits::ToolResult;
 use super::{DELEGATE_TIMEOUT_SECS, DelegateTool};
@@ -98,9 +98,6 @@ async fn execute_with_provider_factory(
         return Ok(ToolResult { success: false, output: String::new(), error: Some(error) });
     }
 
-    let coordination_trace =
-        tool.start_coordination_trace(agent_name, prompt, context, agent_config);
-
     // 优先使用子代理显式凭据，缺省时才回退到工具级凭据，避免无意覆盖代理配置。
     let provider_credential_owned =
         agent_config.api_key.clone().or_else(|| tool.fallback_credential.clone());
@@ -118,7 +115,6 @@ async fn execute_with_provider_factory(
                 "Failed to create provider '{}' for agent '{agent_name}': {error}",
                 agent_config.provider
             );
-            tool.finish_coordination_trace(agent_name, &coordination_trace, false, &error_message);
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),
@@ -148,12 +144,6 @@ async fn execute_with_provider_factory(
             )
             .await?;
 
-        let summary = if result.success {
-            result.output.as_str()
-        } else {
-            result.error.as_deref().unwrap_or("delegate agentic execution failed")
-        };
-        tool.finish_coordination_trace(agent_name, &coordination_trace, result.success, summary);
         return Ok(result);
     }
 
@@ -175,12 +165,6 @@ async fn execute_with_provider_factory(
         Err(_) => {
             let timeout_message =
                 format!("Agent '{agent_name}' timed out after {DELEGATE_TIMEOUT_SECS}s");
-            tool.finish_coordination_trace(
-                agent_name,
-                &coordination_trace,
-                false,
-                &timeout_message,
-            );
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),
@@ -201,17 +185,10 @@ async fn execute_with_provider_factory(
                 provider = agent_config.provider,
                 model = agent_config.model
             );
-            tool.finish_coordination_trace(agent_name, &coordination_trace, true, &output);
             Ok(ToolResult { success: true, output, error: None })
         }
         Err(error) => {
             let failure_message = format!("Agent '{agent_name}' failed: {error}");
-            tool.finish_coordination_trace(
-                agent_name,
-                &coordination_trace,
-                false,
-                &failure_message,
-            );
             Ok(ToolResult { success: false, output: String::new(), error: Some(failure_message) })
         }
     }

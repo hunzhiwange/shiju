@@ -410,6 +410,7 @@ fn option_string_values(options: &Value, key: &str) -> Vec<String> {
 /// 这里仅将实现迁移至独立文件，方便后续按职责维护。
 pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static) {
     let mut session = Session::new(req.session.clone());
+    let mut raw_rounds = Vec::new();
     let is_acp = is_acp_request(&req.options);
     let model_selected_by_auto = !is_acp && is_auto_model_request(req.model.as_deref());
     let app_session_scope = req.app_session_scope.as_deref();
@@ -857,7 +858,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         );
 
         let finished_ms = utils::now_ms();
-        if let Err(error) = artifacts::persist_llm_raw_step_payload(
+        if let Some(raw_payload) = artifacts::persist_llm_raw_step_payload(
             &req,
             &ctx.session,
             step_index,
@@ -867,15 +868,35 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             &system,
             &tool_specs_for_context,
             &step_out,
-            app_session_scope.as_deref(),
         ) {
-            tracing::warn!(
-                target: "vw_agent",
-                session_id = %ctx.session,
-                step_index,
-                error = %error,
-                "failed to persist raw LLM step payload"
-            );
+            let Some(turn_id) = req.assistant_message_id.as_deref() else {
+                let message =
+                    "cannot buffer raw LLM step without a preallocated assistant message id";
+                tracing::error!(target: "vw_agent", session_id = %ctx.session, step_index, "{message}");
+                on_event(StreamEvent::Error(message.to_string()));
+                return;
+            };
+            raw_rounds.push(raw_payload);
+            let raw_artifact = match crate::session::llm_raw::LlmRawArtifact::from_full_raw_rounds(
+                turn_id,
+                &raw_rounds,
+            ) {
+                Ok(mut artifact) => {
+                    let round = artifact.rounds.pop().expect("raw artifact must contain its round");
+                    artifact.rounds = vec![round];
+                    artifact
+                }
+                Err(error) => {
+                    tracing::error!(target: "vw_agent", session_id = %ctx.session, step_index, error = %error, "failed to construct raw LLM artifact");
+                    on_event(StreamEvent::Error(
+                        "failed to construct raw LLM artifact".to_string(),
+                    ));
+                    return;
+                }
+            };
+            if !on_event(StreamEvent::LlmRawArtifact(raw_artifact)) {
+                return;
+            }
         }
 
         if !on_event(StreamEvent::StepFinish {

@@ -548,6 +548,7 @@ fn isolation_session(label: &str) -> ChatSession {
         calls: vec![json!({"scope": label})],
         steps: vec![ChatSessionStep {
             index: 0,
+            turn_id: None,
             started_ms: 1,
             finished_ms: Some(2),
             start_snapshot_path: None,

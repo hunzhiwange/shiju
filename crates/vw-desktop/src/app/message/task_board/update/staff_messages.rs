@@ -3,7 +3,6 @@
 use super::*;
 
 const STAFF_HANDOFF_BODY_MAX_CHARS: usize = 240;
-const STAFF_HANDOFF_IPC_FAILURE_LOG_MAX_CHARS: usize = 240;
 
 pub(super) fn maybe_record_task_handoff_message(
     app: &mut crate::app::App,
@@ -58,70 +57,15 @@ pub(super) fn maybe_record_task_handoff_message(
         to_member.name,
         to_member.id
     ));
-    let ipc_delivery = build_staff_handoff_ipc_delivery(
-        app,
-        task,
-        from_status,
-        to_status,
-        &from_member,
-        &to_member,
-        &body,
-        timestamp_ms,
-    );
     let event = crate::app::task::staff::TaskBoardStaffEvent::staff_message(
         task.id.clone(),
         from_member.id.clone(),
         to_member.id.clone(),
         body,
         timestamp_ms,
-        ipc_delivery
-            .as_ref()
-            .map(|_| crate::app::task::staff::TaskBoardStaffMessageDeliveryStatus::Pending),
+        None,
     );
     record_staff_event(app, event);
-    ipc_delivery.unwrap_or_else(iced::Task::none)
-}
-
-pub(super) fn apply_staff_handoff_ipc_delivery_result(
-    app: &mut crate::app::App,
-    task_id: String,
-    from_member_id: String,
-    to_member_id: String,
-    to_agent: String,
-    timestamp_ms: u64,
-    result: Result<(), String>,
-) -> iced::Task<crate::app::Message> {
-    let delivery_status = if result.is_ok() {
-        crate::app::task::staff::TaskBoardStaffMessageDeliveryStatus::Delivered
-    } else {
-        crate::app::task::staff::TaskBoardStaffMessageDeliveryStatus::Failed
-    };
-
-    if let Some(message) =
-        staff_handoff_message_mut(app, &task_id, &from_member_id, &to_member_id, timestamp_ms)
-    {
-        message.delivery_status = Some(delivery_status);
-    }
-
-    if let Some(task) = app.task_board_tasks.iter_mut().find(|task| task.id == task_id) {
-        match result {
-            Ok(()) => {
-                task.add_log(format!("IPC 交接消息已投递: to_agent={to_agent}"));
-            }
-            Err(error) => {
-                let detail = truncate_for_ui(&error, STAFF_HANDOFF_IPC_FAILURE_LOG_MAX_CHARS);
-                task.add_log(format!("IPC 交接消息投递失败: to_agent={to_agent}; {detail}"));
-                tracing::warn!(
-                    target: "vw_desktop",
-                    task_id = %task_id,
-                    to_agent = %to_agent,
-                    error = %error,
-                    "staff handoff IPC delivery failed"
-                );
-            }
-        }
-    }
-
     iced::Task::none()
 }
 
@@ -164,146 +108,6 @@ fn add_handoff_skip_log(app: &mut crate::app::App, task_id: &str, message: &str)
     if let Some(task) = app.task_board_tasks.iter_mut().find(|task| task.id == task_id) {
         task.add_log(message.to_string());
     }
-}
-
-fn build_staff_handoff_ipc_delivery(
-    app: &mut crate::app::App,
-    task: &Task,
-    from_status: TaskStatus,
-    to_status: TaskStatus,
-    from_member: &TaskBoardStaffMember,
-    to_member: &TaskBoardStaffMember,
-    body: &str,
-    timestamp_ms: u64,
-) -> Option<iced::Task<crate::app::Message>> {
-    if !app.agents_ipc_settings.enabled {
-        add_handoff_skip_log(app, &task.id, "agents_ipc 未启用，跳过 IPC 交接消息投递");
-        return None;
-    }
-
-    let Some(to_agent) =
-        to_member.ipc_agent_id.as_deref().map(str::trim).filter(|value| !value.is_empty())
-    else {
-        add_handoff_skip_log(app, &task.id, "收件员工未配置 ipc_agent_id，跳过 IPC 交接消息投递");
-        return None;
-    };
-
-    let payload = match build_staff_handoff_ipc_payload(
-        task,
-        from_status,
-        to_status,
-        from_member,
-        to_member,
-        body,
-    ) {
-        Ok(payload) => payload,
-        Err(error) => {
-            add_handoff_skip_log(app, &task.id, &format!("IPC 交接消息 payload 无效: {error}"));
-            return None;
-        }
-    };
-    let request = vw_gateway_client::vw_api_types::staff::StaffIpcMessageRequest {
-        to_agent: to_agent.to_string(),
-        payload,
-        task_id: Some(task.id.clone()),
-        from_member_id: Some(from_member.id.clone()),
-        to_member_id: Some(to_member.id.clone()),
-    };
-    if let Err(error) = request.validate() {
-        add_handoff_skip_log(app, &task.id, &format!("IPC 交接消息请求无效: {error}"));
-        return None;
-    }
-
-    Some(schedule_staff_handoff_ipc_delivery(
-        task.id.clone(),
-        from_member.id.clone(),
-        to_member.id.clone(),
-        to_agent.to_string(),
-        timestamp_ms,
-        request,
-    ))
-}
-
-fn build_staff_handoff_ipc_payload(
-    task: &Task,
-    from_status: TaskStatus,
-    to_status: TaskStatus,
-    from_member: &TaskBoardStaffMember,
-    to_member: &TaskBoardStaffMember,
-    body: &str,
-) -> Result<String, String> {
-    let payload = serde_json::json!({
-        "version": 1,
-        "kind": "staff_handoff",
-        "task_id": task.id.as_str(),
-        "from_member_id": from_member.id.as_str(),
-        "to_member_id": to_member.id.as_str(),
-        "from_status": from_status.to_string_key(),
-        "to_status": to_status.to_string_key(),
-        "body": body,
-    });
-    let payload = serde_json::to_string(&payload).map_err(|error| error.to_string())?;
-    if payload.chars().count()
-        > vw_gateway_client::vw_api_types::staff::STAFF_IPC_MESSAGE_PAYLOAD_LIMIT
-    {
-        return Err(format!(
-            "payload must be at most {} characters",
-            vw_gateway_client::vw_api_types::staff::STAFF_IPC_MESSAGE_PAYLOAD_LIMIT
-        ));
-    }
-    Ok(payload)
-}
-
-fn schedule_staff_handoff_ipc_delivery(
-    task_id: String,
-    from_member_id: String,
-    to_member_id: String,
-    to_agent: String,
-    timestamp_ms: u64,
-    request: vw_gateway_client::vw_api_types::staff::StaffIpcMessageRequest,
-) -> iced::Task<crate::app::Message> {
-    let message_task_id = task_id.clone();
-    let message_from_member_id = from_member_id.clone();
-    let message_to_member_id = to_member_id.clone();
-    let message_to_agent = to_agent.clone();
-    iced::Task::perform(
-        async move {
-            let client = crate::app::config::gateway_client()?;
-            let response = client.staff_ipc_message(&request).await?;
-            if response.accepted {
-                Ok(())
-            } else {
-                Err("gateway rejected staff IPC handoff message".to_string())
-            }
-        },
-        move |result| {
-            Message::TaskBoard(TaskBoardMessage::StaffHandoffIpcDeliveryCompleted {
-                task_id: message_task_id.clone(),
-                from_member_id: message_from_member_id.clone(),
-                to_member_id: message_to_member_id.clone(),
-                to_agent: message_to_agent.clone(),
-                timestamp_ms,
-                result,
-            })
-        },
-    )
-}
-
-fn staff_handoff_message_mut<'a>(
-    app: &'a mut crate::app::App,
-    task_id: &str,
-    from_member_id: &str,
-    to_member_id: &str,
-    timestamp_ms: u64,
-) -> Option<&'a mut crate::app::task::staff::TaskBoardStaffMessageEvent> {
-    app.task_board_staff_events.iter_mut().rev().find_map(|event| {
-        let message = event.staff_message.as_mut()?;
-        (message.task_id == task_id
-            && message.from_member_id == from_member_id
-            && message.to_member_id == to_member_id
-            && message.timestamp_ms == timestamp_ms)
-            .then_some(message)
-    })
 }
 
 fn truncate_handoff_body(body: String) -> String {

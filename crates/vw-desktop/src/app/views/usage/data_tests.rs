@@ -23,6 +23,7 @@ fn session_info(id: &str, title: &str, created: u64, updated: u64) -> Info {
 fn step(index: u32, usage: TokenUsage) -> ChatSessionStep {
     ChatSessionStep {
         index,
+        turn_id: None,
         started_ms: 10,
         finished_ms: Some(20),
         start_snapshot_path: None,

@@ -14,6 +14,7 @@ fn unique_request_id() -> u64 {
 fn session_step(finished_ms: Option<u64>) -> ChatSessionStep {
     ChatSessionStep {
         index: 7,
+        turn_id: None,
         started_ms: 1_000,
         finished_ms,
         start_snapshot_path: None,

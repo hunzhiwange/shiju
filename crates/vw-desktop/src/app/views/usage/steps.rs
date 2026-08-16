@@ -264,10 +264,18 @@ fn vertical_scrollbar() -> iced::widget::scrollable::Direction {
     )
 }
 
-fn raw_payload_status(app: &App, session_id: &str, step_index: u32) -> String {
-    let key = (session_id.to_string(), step_index);
+fn raw_payload_status_for_turn(
+    app: &App,
+    session_id: &str,
+    turn_id: &str,
+    step_index: u32,
+) -> String {
+    let key = (session_id.to_string(), turn_id.to_string(), step_index);
     if app.usage_step_raw_loading.contains(&key) {
         return "原始记录：加载中...".to_string();
+    }
+    if let Some(value) = app.active_session_view_state.step_llm_raw.get(&key) {
+        return format!("原始记录：{}", raw_payload_summary(value));
     }
     match app.usage_step_raw_payloads.get(&key) {
         Some(Ok(Some(value))) => format!("原始记录：{}", raw_payload_summary(value)),
@@ -277,14 +285,22 @@ fn raw_payload_status(app: &App, session_id: &str, step_index: u32) -> String {
     }
 }
 
-fn raw_payload_panel(app: &App, session_id: &str, step_index: u32) -> Element<'static, Message> {
-    let key = (session_id.to_string(), step_index);
-    let status = text(raw_payload_status(app, session_id, step_index)).size(12);
-    let can_open = matches!(app.usage_step_raw_payloads.get(&key), Some(Ok(Some(_))));
+fn raw_payload_panel_for_turn(
+    app: &App,
+    session_id: &str,
+    turn_id: &str,
+    step_index: u32,
+) -> Element<'static, Message> {
+    let key = (session_id.to_string(), turn_id.to_string(), step_index);
+    let status = text(raw_payload_status_for_turn(app, session_id, turn_id, step_index)).size(12);
+    let can_open = app.active_session_view_state.step_llm_raw.contains_key(&key);
     let mut open_btn =
         button(text("查看原始记录").size(12)).padding([6, 12]).style(rounded_action_btn_style);
     if can_open {
-        open_btn = open_btn.on_press(Message::View(ViewMessage::UsageStepRawOpen(step_index)));
+        open_btn = open_btn.on_press(Message::View(ViewMessage::UsageTurnStepRawOpen(
+            turn_id.to_string(),
+            step_index,
+        )));
     }
 
     container(row![status.width(Length::Fill), open_btn].spacing(10).align_y(Alignment::Center))
@@ -299,6 +315,30 @@ fn raw_payload_panel(app: &App, session_id: &str, step_index: u32) -> Element<'s
             }
         })
         .into()
+}
+
+#[cfg(test)]
+fn raw_payload_status(app: &App, session_id: &str, step_index: u32) -> String {
+    let turn_id = app
+        .active_session_view_state
+        .steps
+        .iter()
+        .find(|step| step.index == step_index)
+        .and_then(|step| step.turn_id.as_deref())
+        .unwrap_or_default();
+    raw_payload_status_for_turn(app, session_id, turn_id, step_index)
+}
+
+#[cfg(test)]
+fn raw_payload_panel(app: &App, session_id: &str, step_index: u32) -> Element<'static, Message> {
+    let turn_id = app
+        .active_session_view_state
+        .steps
+        .iter()
+        .find(|step| step.index == step_index)
+        .and_then(|step| step.turn_id.as_deref())
+        .unwrap_or_default();
+    raw_payload_panel_for_turn(app, session_id, turn_id, step_index)
 }
 
 /// 构建步骤面板
@@ -353,6 +393,7 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
 
         // 倒序遍历步骤，最新的显示在最上面
         for s in steps.iter().rev() {
+            let turn_id = s.turn_id.clone().unwrap_or_default();
             // 计算该步骤的总 token 数
             let total = s.usage.input_tokens
                 + s.usage.output_tokens
@@ -385,7 +426,7 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
                 icon_btn(
                     toggle_icon,
                     if expanded { "折叠" } else { "展开" },
-                    Message::View(ViewMessage::UsageStepToggled(s.index)),
+                    Message::View(ViewMessage::UsageTurnStepToggled(turn_id.clone(), s.index)),
                 ),
             ]
             .align_y(Alignment::Center);
@@ -402,7 +443,7 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
                     kv("总 token", total.to_string()),
                     kv("成本(估算)", cost),
                     kv("完成原因", s.finish_reason.clone().unwrap_or_else(|| "暂无".to_string())),
-                    raw_payload_panel(app, &session_id, s.index),
+                    raw_payload_panel_for_turn(app, &session_id, &turn_id, s.index),
                 ]
                 .spacing(8)
                 .into()

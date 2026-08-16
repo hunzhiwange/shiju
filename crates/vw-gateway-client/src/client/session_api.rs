@@ -53,26 +53,39 @@ struct ChatSessionWithRaw {
 
 /// 会话 UI 批量加载结果。
 ///
-/// 普通会话数据保持可直接保存的 `ChatSession` 形状；每步原始 LLM 载荷单独按 step
-/// index 保存，避免把只读加载数据混入持久化模型。
+/// 普通会话数据保持可直接保存的 `ChatSession` 形状；每步原始 LLM 载荷单独按稳定的
+/// `(session_id, turn_id, step_index)` 保存，避免把只读加载数据混入持久化模型。
 #[derive(Debug, Clone)]
 pub struct SessionUiLoadResult {
     pub session: ChatSession,
-    pub step_llm_raw: HashMap<u32, Value>,
-    pub llm_raw_step_indices: Vec<u32>,
+    pub step_llm_raw: HashMap<(String, String, u32), Value>,
+    pub llm_raw_step_indices: Vec<(String, String, u32)>,
 }
 
 impl From<ChatSessionWithRaw> for SessionUiLoadResult {
     fn from(value: ChatSessionWithRaw) -> Self {
         let mut step_llm_raw = HashMap::new();
+        let session_id = value.id.clone();
         let steps = value
             .steps
             .into_iter()
             .map(|step| {
-                if let Some(raw) = step.llm_raw {
-                    step_llm_raw.insert(step.step.index, raw);
+                if let (Some(turn_id), Some(raw)) = (step.step.turn_id.as_ref(), step.llm_raw) {
+                    step_llm_raw.insert(
+                        (session_id.clone(), turn_id.clone(), step.step.index),
+                        raw,
+                    );
                 }
                 step.step
+            })
+            .collect::<Vec<_>>();
+        let llm_raw_step_indices = steps
+            .iter()
+            .filter(|step| value.llm_raw_step_indices.contains(&step.index))
+            .filter_map(|step| {
+                step.turn_id
+                    .as_ref()
+                    .map(|turn_id| (session_id.clone(), turn_id.clone(), step.index))
             })
             .collect();
         let session = ChatSession {
@@ -85,7 +98,7 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
             created_ms: value.created_ms,
             updated_ms: value.updated_ms,
         };
-        Self { session, step_llm_raw, llm_raw_step_indices: value.llm_raw_step_indices }
+        Self { session, step_llm_raw, llm_raw_step_indices }
     }
 }
 
@@ -355,11 +368,12 @@ impl GatewayClient {
     pub async fn session_step_llm_raw_get(
         &self,
         session_id: &str,
+        turn_id: &str,
         step_index: u32,
         directory: Option<&str>,
     ) -> Result<Option<serde_json::Value>, String> {
         self.get_json_with_404(
-            &format!("/v1/session/{session_id}/step/{step_index}/llm-raw"),
+            &format!("/v1/session/{session_id}/turn/{turn_id}/step/{step_index}/llm-raw"),
             &directory_query(directory),
         )
         .await

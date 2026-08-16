@@ -721,6 +721,7 @@ pub(super) fn handle_agent_stream_done(
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
     let completed_ms = now_ms();
     let has_pending_queue = !app.get_session_runtime(&session_id).queue.is_empty();
+    let request_started_ms = app.get_session_runtime(&session_id).request_started_ms;
     let resume_history_only = app
         .get_session_runtime(&session_id)
         .active_agent_request
@@ -782,6 +783,17 @@ pub(super) fn handle_agent_stream_done(
     local_session.messages = persisted_chat.clone();
     local_session.message_ids = persisted_ids.clone();
     local_session.updated_ms = completed_ms;
+    if let Some(turn_id) = assistant_message_id.as_deref() {
+        for step in local_session.steps.iter_mut().filter(|step| {
+            step.turn_id.is_none()
+                && (request_started_ms == 0 || step.started_ms >= request_started_ms)
+        }) {
+            step.turn_id = Some(turn_id.to_string());
+        }
+        if is_active_session {
+            app.replace_active_session_steps(local_session.steps.clone());
+        }
+    }
     let save_task = save_session_task(local_session, session_directory_for_save(app, &session_id));
     app.store_session_chat_snapshot(
         session_id.clone(),
@@ -873,6 +885,11 @@ pub(super) fn handle_agent_stream_done(
     } else {
         Task::none()
     };
+    let trajectory_raw_task = if is_active_session {
+        super::super::trajectory::refresh_missing_raw_task(app, &session_id, None)
+    } else {
+        Task::none()
+    };
 
     if is_active_session && app.chat_auto_scroll {
         scroll_chat_to_bottom_task(app)
@@ -882,6 +899,7 @@ pub(super) fn handle_agent_stream_done(
     .chain(session_todos_task)
     .chain(refresh_message_ids)
     .chain(save_task)
+    .chain(trajectory_raw_task)
     .chain(next)
     .chain(handoff_task.unwrap_or_else(Task::none))
 }

@@ -19,17 +19,23 @@ fn persist_timezone(timezone: String) {
 }
 
 pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
-    let SettingsMessage::General(GeneralSettingsMessage::TimezoneSelected(timezone)) = message
-    else {
+    let SettingsMessage::General(message) = message else {
         return Task::none();
     };
 
-    if !vw_config_types::ui::timezone_options().contains(&timezone.as_str()) {
-        return Task::none();
-    }
+    match message {
+        GeneralSettingsMessage::TabSelected(tab) => {
+            app.general_settings_tab = tab;
+        }
+        GeneralSettingsMessage::TimezoneSelected(timezone) => {
+            if !vw_config_types::ui::timezone_options().contains(&timezone.as_str()) {
+                return Task::none();
+            }
 
-    app.chat_timezone = timezone.clone();
-    persist_timezone(timezone);
+            app.chat_timezone = timezone.clone();
+            persist_timezone(timezone);
+        }
+    }
     Task::none()
 }
 

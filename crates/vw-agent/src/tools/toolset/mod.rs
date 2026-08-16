@@ -839,29 +839,6 @@ pub fn all_tools_with_runtime(
         tool_arcs.push(agent_tool);
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    if root_config.agents_ipc.enabled {
-        match agents_ipc::IpcDb::open(workspace_dir, &root_config.agents_ipc) {
-            Ok(ipc_db) => {
-                let ipc_db = Arc::new(ipc_db);
-                tool_arcs.push(Arc::new(agents_ipc::AgentsListTool::new(ipc_db.clone())));
-                tool_arcs.push(Arc::new(agents_ipc::AgentsSendTool::new(
-                    ipc_db.clone(),
-                    security.clone(),
-                )));
-                tool_arcs.push(Arc::new(agents_ipc::AgentsInboxTool::new(ipc_db.clone())));
-                tool_arcs.push(Arc::new(agents_ipc::StateGetTool::new(ipc_db.clone())));
-                tool_arcs.push(Arc::new(SendMessageTool::new(ipc_db.clone(), security.clone())));
-                tool_arcs.push(Arc::new(TeamCreateTool::new(ipc_db.clone(), security.clone())));
-                tool_arcs.push(Arc::new(TeamDeleteTool::new(ipc_db.clone(), security.clone())));
-                tool_arcs.push(Arc::new(agents_ipc::StateSetTool::new(ipc_db, security.clone())));
-            }
-            Err(error) => {
-                tracing::warn!("agents_ipc: failed to open IPC database: {error}");
-            }
-        }
-    }
-
     tool_arcs.push(Arc::new(ListMcpResourcesTool::new()));
     tool_arcs.push(Arc::new(ReadMcpResourceTool::new()));
     tool_arcs.push(Arc::new(ListMcpResourceTemplatesTool::new()));

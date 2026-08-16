@@ -514,7 +514,6 @@ fn all_tools_includes_agent_tool_when_agents_configured() {
     let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
     assert!(names.contains(&"AgentTool"));
     assert!(!names.contains(&"delegate"));
-    assert!(names.contains(&"delegate_coordination_status"));
 }
 
 #[test]
@@ -545,7 +544,6 @@ fn all_tools_excludes_agent_tool_when_no_agents() {
     let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
     assert!(!names.contains(&"AgentTool"));
     assert!(!names.contains(&"delegate"));
-    assert!(!names.contains(&"delegate_coordination_status"));
 }
 
 #[test]
@@ -610,11 +608,10 @@ fn all_tools_excludes_agent_tool_when_only_primary_agents() {
     let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
     assert!(!names.contains(&"AgentTool"));
     assert!(!names.contains(&"delegate"));
-    assert!(!names.contains(&"delegate_coordination_status"));
 }
 
 #[test]
-fn all_tools_disables_coordination_tool_when_coordination_is_disabled() {
+fn all_tools_registers_agent_tool_for_delegate_agents() {
     let tmp = TempDir::new().unwrap();
     let security = Arc::new(SecurityPolicy::default());
     let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
@@ -623,8 +620,7 @@ fn all_tools_disables_coordination_tool_when_coordination_is_disabled() {
 
     let browser = BrowserConfig::default();
     let http = crate::app::agent::config::HttpRequestConfig::default();
-    let mut cfg = test_config(&tmp);
-    cfg.coordination.enabled = false;
+    let cfg = test_config(&tmp);
 
     let mut agents = HashMap::new();
     agents.insert(
@@ -676,5 +672,4 @@ fn all_tools_disables_coordination_tool_when_coordination_is_disabled() {
     let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
     assert!(names.contains(&"AgentTool"));
     assert!(!names.contains(&"delegate"));
-    assert!(!names.contains(&"delegate_coordination_status"));
 }

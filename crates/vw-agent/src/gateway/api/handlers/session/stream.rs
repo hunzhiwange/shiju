@@ -18,6 +18,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use vw_api_types::chat::{GatewayChatStreamRequest, ReasoningEffortDto};
 use vw_api_types::id::TenantScope;
 
+use super::raw_commit;
 use super::shared::with_tenant_instance;
 use crate::app::agent::gateway::api::handlers::resumable_stream::{
     StreamKind, StreamOpenError, global_stream_store, last_event_id, request_signature,
@@ -65,6 +66,103 @@ impl StreamTurnMessageIds {
 struct StreamStepSnapshot {
     step_index: u32,
     snapshot: Option<String>,
+}
+
+#[derive(Debug)]
+struct StreamTrajectoryRecorder {
+    turn_id: String,
+    steps: Vec<ui_models::ChatSessionStep>,
+}
+
+impl StreamTrajectoryRecorder {
+    fn new(turn_id: String) -> Self {
+        Self { turn_id, steps: Vec::new() }
+    }
+
+    fn step_mut(&mut self, step_index: u32, occurred_ms: u64) -> &mut ui_models::ChatSessionStep {
+        if let Some(position) = self.steps.iter().position(|step| step.index == step_index) {
+            return &mut self.steps[position];
+        }
+        self.steps.push(ui_models::ChatSessionStep {
+            index: step_index,
+            turn_id: Some(self.turn_id.clone()),
+            started_ms: occurred_ms,
+            finished_ms: None,
+            start_snapshot_path: None,
+            finish_snapshot_path: None,
+            usage: ui_models::TokenUsage::default(),
+            cost_usd: None,
+            finish_reason: None,
+            model: None,
+            tool_timings: Vec::new(),
+        });
+        self.steps.last_mut().expect("stream trajectory step was just inserted")
+    }
+
+    fn record(&mut self, event: &agent_session::processor::StreamEvent) {
+        match event {
+            agent_session::processor::StreamEvent::StepStart {
+                step_index,
+                created_ms,
+                model,
+            } => {
+                let step = self.step_mut(*step_index, *created_ms);
+                step.started_ms = *created_ms;
+                if model.is_some() {
+                    step.model.clone_from(model);
+                }
+            }
+            agent_session::processor::StreamEvent::Tool(event) => {
+                let step_index = event_step_index(self.steps.as_slice());
+                let step = self.step_mut(step_index, event.occurred_ms);
+                let timing = if let Some(position) =
+                    step.tool_timings.iter().position(|timing| timing.call_id == event.call_id)
+                {
+                    &mut step.tool_timings[position]
+                } else {
+                    step.tool_timings.push(ui_models::ToolTiming {
+                        call_id: event.call_id.clone(),
+                        name: event.name.clone(),
+                        started_ms: None,
+                        finished_ms: None,
+                    });
+                    step.tool_timings
+                        .last_mut()
+                        .expect("stream tool timing was just inserted")
+                };
+                match event.kind {
+                    agent_session::processor::ToolEventKind::Start => {
+                        timing.started_ms.get_or_insert(event.occurred_ms);
+                    }
+                    agent_session::processor::ToolEventKind::Update => {}
+                    agent_session::processor::ToolEventKind::Complete => {
+                        timing.started_ms.get_or_insert(event.occurred_ms);
+                        timing.finished_ms.get_or_insert(event.occurred_ms);
+                    }
+                }
+            }
+            agent_session::processor::StreamEvent::StepFinish {
+                step_index,
+                finished_ms,
+                usage,
+                finish_reason,
+                model,
+            } => {
+                let step = self.step_mut(*step_index, *finished_ms);
+                step.finished_ms = Some(*finished_ms);
+                step.usage = usage.clone();
+                step.finish_reason.clone_from(finish_reason);
+                if model.is_some() {
+                    step.model.clone_from(model);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn event_step_index(steps: &[ui_models::ChatSessionStep]) -> u32 {
+    steps.last().map(|step| step.index).unwrap_or_default()
 }
 
 #[derive(Debug, Default)]
@@ -463,6 +561,7 @@ fn stream_payload_for_non_done_event(
     root_dir: &str,
 ) -> Option<Value> {
     match ev {
+        agent_session::processor::StreamEvent::LlmRawArtifact(_) => None,
         agent_session::processor::StreamEvent::ContextLoaded { paths } => Some(serde_json::json!({
             "type": "chat.context_loaded",
             "paths": paths
@@ -551,6 +650,9 @@ fn processor_event_from_prompt_event(
     event: agent_session::runtime::PromptEvent,
 ) -> agent_session::processor::StreamEvent {
     match event {
+        agent_session::runtime::PromptEvent::LlmRawArtifact(artifact) => {
+            agent_session::processor::StreamEvent::LlmRawArtifact(artifact)
+        }
         agent_session::runtime::PromptEvent::ContextLoaded { paths } => {
             agent_session::processor::StreamEvent::ContextLoaded { paths }
         }
@@ -776,10 +878,18 @@ async fn start_gateway_chat_producer(
 
     let history_messages = messages;
     let root_dir = dir;
-    let stream_session_id = session_id.as_ref().map(|value| value.0.clone()).unwrap_or_default();
     let goal_evaluation = options.get("goal_evaluation").and_then(Value::as_bool).unwrap_or(false);
-    let should_persist_app_session_artifacts =
-        !stream_session_id.trim().is_empty() && !goal_evaluation;
+    let stream_session_id = match session_id
+        .as_ref()
+        .map(|value| value.0.trim())
+        .filter(|value| !value.is_empty())
+    {
+        Some(session_id) => session_id.to_string(),
+        None if goal_evaluation => String::new(),
+        None => id::ascending(id::Prefix::Session, None)
+            .map_err(|error| ApiError::internal(error.to_string()))?,
+    };
+    let should_persist_app_session_artifacts = !goal_evaluation;
     let app_session_scope = if should_persist_app_session_artifacts || goal_evaluation {
         crate::app::agent::session::processor::app_session_scope_from_root_async(Some(
             root_dir.as_str(),
@@ -791,7 +901,7 @@ async fn start_gateway_chat_producer(
     let stream_message_ids = if !should_persist_app_session_artifacts {
         None
     } else {
-        preallocate_stream_turn_message_ids().ok()
+        Some(preallocate_stream_turn_message_ids()?)
     };
     let runtime_handle = tokio::runtime::Handle::current();
 
@@ -813,6 +923,12 @@ async fn start_gateway_chat_producer(
             let mut assistant_finish_reason: Option<String> = None;
             let mut assistant_model = model.clone();
             let mut patch_recorder = StreamPatchRecorder::default();
+            let mut trajectory_recorder = StreamTrajectoryRecorder::new(
+                stream_message_ids
+                    .as_ref()
+                    .map(|ids| ids.assistant_id.clone())
+                    .unwrap_or_default(),
+            );
             let mut llm_timer = vw_shared::time::ActiveTimer::default();
             let approval_reply_target = if stream_session_id.trim().is_empty() {
                 "desktop".to_string()
@@ -846,7 +962,24 @@ async fn start_gateway_chat_producer(
             });
             let cancel = turn.cancel.clone();
             while let Ok(prompt_event) = turn.events.recv() {
-                let ev = processor_event_from_prompt_event(prompt_event);
+                let mut ev = processor_event_from_prompt_event(prompt_event);
+                if let agent_session::processor::StreamEvent::LlmRawArtifact(artifact) = ev {
+                    match raw_commit::register(&tenant, app_session_scope.as_deref(), artifact) {
+                        Ok(()) => continue,
+                        Err(error) => {
+                            tracing::error!(
+                                target: "vw_agent",
+                                session_id = %stream_session_id,
+                                error = %error,
+                                "failed to buffer raw LLM artifact"
+                            );
+                            ev = agent_session::processor::StreamEvent::Error(
+                                "failed to buffer raw LLM artifact".to_string(),
+                            );
+                        }
+                    }
+                }
+                trajectory_recorder.record(&ev);
                 let timer_now = web_time::Instant::now();
                 match &ev {
                     agent_session::processor::StreamEvent::StepStart { .. } => {
@@ -869,53 +1002,90 @@ async fn start_gateway_chat_producer(
                 let payload = match ev {
                     agent_session::processor::StreamEvent::Done(usage) => {
                         let processing_completed_ms = agent_session::session::now_ms();
-                        let (message_id, parent_message_id) =
-                            if should_persist_app_session_artifacts
-                                && !(resume_history_only && query.trim().is_empty())
-                            {
-                                let stream_message_ids = stream_message_ids.clone();
-                                let patch_parts = patch_recorder.take_parts();
-                                match runtime_handle.block_on(
-                                    crate::session::ui_store::with_tenant_scope(
-                                        tenant.clone(),
-                                        persist_stream_chat_turn_for_agent(
-                                            &stream_session_id,
-                                            &query,
-                                            &assistant_text,
-                                            assistant_model.as_deref(),
-                                            &usage,
-                                            assistant_finish_reason.as_deref(),
-                                            stream_message_ids.as_ref(),
-                                            &patch_parts,
-                                            &message_agent,
-                                            None,
-                                            Some(agent_session::message::AssistantTime {
-                                                created: processing_started_ms,
-                                                completed: Some(processing_completed_ms),
-                                                processing_elapsed_ms: Some(
-                                                    processing_timer.elapsed_ms_at(timer_now),
-                                                ),
-                                                llm_elapsed_ms: Some(
-                                                    llm_timer.elapsed_ms_at(timer_now),
-                                                ),
-                                            }),
-                                        ),
+                        let persisted_turn = if should_persist_app_session_artifacts
+                            && !(resume_history_only && query.trim().is_empty())
+                        {
+                            let stream_message_ids = stream_message_ids.clone();
+                            let patch_parts = patch_recorder.take_parts();
+                            match runtime_handle.block_on(
+                                crate::session::ui_store::with_tenant_scope(
+                                    tenant.clone(),
+                                    persist_stream_chat_turn_for_agent(
+                                        &stream_session_id,
+                                        &query,
+                                        &assistant_text,
+                                        assistant_model.as_deref(),
+                                        &usage,
+                                        assistant_finish_reason.as_deref(),
+                                        stream_message_ids.as_ref(),
+                                        &patch_parts,
+                                        &message_agent,
+                                        None,
+                                        Some(agent_session::message::AssistantTime {
+                                            created: processing_started_ms,
+                                            completed: Some(processing_completed_ms),
+                                            processing_elapsed_ms: Some(
+                                                processing_timer.elapsed_ms_at(timer_now),
+                                            ),
+                                            llm_elapsed_ms: Some(
+                                                llm_timer.elapsed_ms_at(timer_now),
+                                            ),
+                                        }),
                                     ),
-                                ) {
-                                    Ok((assistant_id, user_id)) => {
-                                        (Some(assistant_id), Some(user_id))
+                                ),
+                            ) {
+                                Ok((assistant_id, user_id)) => {
+                                    let ids = stream_message_ids
+                                        .as_ref()
+                                        .expect("persistent streams preallocate message ids");
+                                    if let Err(error) = commit_stream_session_trajectory(
+                                        &tenant,
+                                        app_session_scope.as_deref(),
+                                        &stream_session_id,
+                                        &query,
+                                        &assistant_text,
+                                        assistant_model.as_deref(),
+                                        ids,
+                                        &trajectory_recorder,
+                                        processing_started_ms,
+                                        processing_completed_ms,
+                                    ) {
+                                        tracing::error!(
+                                            target: "vw_agent",
+                                            session_id = %stream_session_id,
+                                            error = %error,
+                                            "failed to commit streamed session trajectory"
+                                        );
+                                        Err(error.to_string())
+                                    } else {
+                                        Ok((Some(assistant_id), Some(user_id)))
                                     }
-                                    Err(_) => (None, None),
                                 }
-                            } else {
-                                (None, None)
-                            };
-                        serde_json::json!({
-                            "type": "chat.done",
-                            "usage": usage,
-                            "message_id": message_id,
-                            "parent_message_id": parent_message_id
-                        })
+                                Err(error) => {
+                                    tracing::error!(
+                                        target: "vw_agent",
+                                        session_id = %stream_session_id,
+                                        error = %error.message,
+                                        "failed to persist streamed chat turn"
+                                    );
+                                    Err(error.message)
+                                }
+                            }
+                        } else {
+                            Ok((None, None))
+                        };
+                        match persisted_turn {
+                            Ok((message_id, parent_message_id)) => serde_json::json!({
+                                "type": "chat.done",
+                                "session_id": stream_session_id,
+                                "usage": usage,
+                                "message_id": message_id,
+                                "parent_message_id": parent_message_id
+                            }),
+                            Err(error) => {
+                                serde_json::json!({ "type": "chat.error", "error": error })
+                            }
+                        }
                     }
                     agent_session::processor::StreamEvent::Error(error) => {
                         let processing_completed_ms = agent_session::session::now_ms();
@@ -968,7 +1138,7 @@ async fn start_gateway_chat_producer(
                         }
                         serde_json::json!({ "type": "chat.error", "error": error })
                     }
-                    other => stream_payload_for_non_done_event(
+                    other => match stream_payload_for_non_done_event(
                         other,
                         &mut assistant_text,
                         &mut assistant_finish_reason,
@@ -977,8 +1147,10 @@ async fn start_gateway_chat_producer(
                         &stream_session_id,
                         stream_message_ids.as_ref(),
                         &root_dir,
-                    )
-                    .expect("done events are handled before non-done event encoding"),
+                    ) {
+                        Some(payload) => payload,
+                        None => continue,
+                    },
                 };
                 let mut sink =
                     sink_for_run.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -1397,6 +1569,158 @@ fn preallocate_stream_turn_message_ids() -> Result<StreamTurnMessageIds, ApiErro
     let user_id = id::ascending(id::Prefix::Message, None)
         .map_err(|err| ApiError::internal(err.to_string()))?;
     Ok(StreamTurnMessageIds { assistant_id, user_id })
+}
+
+fn initial_stream_session_title(query: &str) -> String {
+    query
+        .trim()
+        .lines()
+        .next()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .unwrap_or("新会话")
+        .to_string()
+}
+
+fn upsert_stream_ui_message(
+    session: &mut ui_models::ChatSession,
+    message_id: &str,
+    message: ui_models::ChatMessage,
+) {
+    if session.message_ids.len() < session.messages.len() {
+        session.message_ids.resize(session.messages.len(), None);
+    }
+    if let Some(position) = session
+        .message_ids
+        .iter()
+        .position(|existing| existing.as_deref() == Some(message_id))
+    {
+        session.messages[position] = message;
+        return;
+    }
+    if let Some(position) = session
+        .messages
+        .iter()
+        .enumerate()
+        .rev()
+        .find(|(position, existing)| {
+            session.message_ids.get(*position).is_none_or(Option::is_none)
+                && existing.role == message.role
+                && existing.content == message.content
+        })
+        .map(|(position, _)| position)
+    {
+        session.messages[position] = message;
+        session.message_ids[position] = Some(message_id.to_string());
+        return;
+    }
+    session.messages.push(message);
+    session.message_ids.push(Some(message_id.to_string()));
+}
+
+#[allow(clippy::too_many_arguments)]
+fn commit_stream_session_trajectory(
+    tenant: &TenantScope,
+    scope: Option<&str>,
+    session_id: &str,
+    query: &str,
+    assistant_text: &str,
+    model: Option<&str>,
+    ids: &StreamTurnMessageIds,
+    recorder: &StreamTrajectoryRecorder,
+    created_ms: u64,
+    completed_ms: u64,
+) -> anyhow::Result<()> {
+    let finished_steps = recorder
+        .steps
+        .iter()
+        .filter(|step| step.finished_ms.is_some())
+        .map(|step| (recorder.turn_id.clone(), step.index))
+        .collect::<Vec<_>>();
+    let claims = raw_commit::claim(tenant, scope, session_id, &finished_steps)?;
+    if claims.expected_steps().len() != finished_steps.len() {
+        anyhow::bail!(
+            "stream trajectory is missing raw LLM artifacts: expected {}, found {}",
+            finished_steps.len(),
+            claims.expected_steps().len()
+        );
+    }
+
+    let mut session = crate::session::ui_store::load_session_scoped_for_tenant_fallible(
+        tenant, session_id, scope,
+    )?
+    .unwrap_or_else(|| ui_models::ChatSession {
+        id: session_id.to_string(),
+        title: initial_stream_session_title(query),
+        messages: Vec::new(),
+        message_ids: Vec::new(),
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms,
+        updated_ms: completed_ms,
+    });
+
+    upsert_stream_ui_message(
+        &mut session,
+        &ids.user_id,
+        ui_models::ChatMessage {
+            role: ui_models::ChatRole::User,
+            content: query.to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+    );
+    upsert_stream_ui_message(
+        &mut session,
+        &ids.assistant_id,
+        ui_models::ChatMessage {
+            role: ui_models::ChatRole::Assistant,
+            content: assistant_text.to_string(),
+            model: model.map(str::to_string),
+            think_timing: Vec::new(),
+            processing_timing: Some(ui_models::ProcessingTiming {
+                started_ms: created_ms,
+                completed_ms: Some(completed_ms),
+                processing_elapsed_ms: Some(completed_ms.saturating_sub(created_ms)),
+                llm_elapsed_ms: None,
+            }),
+        },
+    );
+    for step in &recorder.steps {
+        session.steps.retain(|existing| {
+            !(existing.index == step.index
+                && (existing.turn_id.is_none()
+                    || existing.turn_id.as_deref() == Some(recorder.turn_id.as_str())))
+        });
+        session.steps.push(step.clone());
+    }
+    session.steps.sort_by_key(|step| (step.started_ms, step.index));
+    if session.created_ms == 0 {
+        session.created_ms = created_ms;
+    } else {
+        session.created_ms = session.created_ms.min(created_ms);
+    }
+    session.updated_ms = session.updated_ms.max(completed_ms);
+
+    if claims.is_empty() {
+        crate::session::ui_store::save_session_ui_scoped_for_tenant(
+            tenant,
+            &session,
+            scope,
+            true,
+        )?;
+    } else {
+        crate::session::ui_store::commit_session_ui_snapshot_scoped_for_tenant(
+            tenant,
+            &session,
+            scope,
+            claims.raw_artifacts(),
+            claims.expected_steps(),
+        )?;
+    }
+    raw_commit::acknowledge(&claims);
+    Ok(())
 }
 
 #[cfg(test)]

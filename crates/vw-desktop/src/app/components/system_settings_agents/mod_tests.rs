@@ -10,6 +10,21 @@ fn agents_view_builds_default_loading_and_error_states() {
 }
 
 #[test]
+fn agent_config_tabs_render_each_existing_settings_page() {
+    let (mut app, _) = crate::app::App::new();
+
+    for tab in [
+        crate::app::state::AgentConfigTab::Agents,
+        crate::app::state::AgentConfigTab::DialogueFlow,
+        crate::app::state::AgentConfigTab::QuickMessages,
+        crate::app::state::AgentConfigTab::Heartbeat,
+    ] {
+        app.agents_settings.active_config_tab = tab;
+        let _: iced::Element<'_, crate::app::Message> = super::view(&app);
+    }
+}
+
+#[test]
 fn agent_project_options_put_current_first_and_deduplicate_recent_paths() {
     let (mut app, _) = crate::app::App::new();
     app.project_path = Some("/repo/current".to_string());
@@ -78,7 +93,7 @@ fn agents_view_builds_main_enabled_disabled_and_model_metadata() {
     app.agents_settings.entries = vec![main, enabled, disabled];
     app.agents_settings.selected_agent = "enabled-worker".to_string();
 
-    let element = super::view(&app);
+    let element = super::agents_view(&app);
 
     assert_eq!(element.as_widget().children().len(), 4);
 }

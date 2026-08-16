@@ -11,11 +11,12 @@ use vw_shared::session::ui_types::{
     SessionTodoItem, ThinkTiming, TokenUsage, ToolTiming,
 };
 
-use super::store::SessionStore;
+use super::store::{LlmRawStepKey, SessionStore};
 use crate::global_database::GlobalDatabase;
 use crate::global_database::config::DatabaseProvider;
 use crate::global_database::test_support::PostgresTestDatabase;
 use crate::project::store::ProjectStore;
+use crate::session::llm_raw::LlmRawArtifact;
 
 macro_rules! assert_json_eq {
     ($left:expr, $right:expr) => {
@@ -23,10 +24,12 @@ macro_rules! assert_json_eq {
     };
 }
 
-const SESSION_TABLES: [&str; 7] = [
+const SESSION_TABLES: [&str; 9] = [
     "session_agent_sessions",
     "session_calls",
     "session_index",
+    "session_llm_raw_rounds",
+    "session_llm_raw_turns",
     "session_messages",
     "session_step_llm_raw",
     "session_steps",
@@ -54,9 +57,12 @@ fn session_store_schema_uses_project_scoped_session_tables() -> Result<()> {
             "idx_session_calls_project_seq",
             "idx_session_index_project_updated",
             "idx_session_index_tenant_updated",
+            "idx_session_llm_raw_rounds_project_turn_step",
+            "idx_session_llm_raw_turns_project_session",
             "idx_session_messages_project_seq",
             "idx_session_step_llm_raw_project_step",
             "idx_session_steps_project_index",
+            "idx_session_steps_project_turn_index",
             "idx_session_todos_project_order",
         ]
     );
@@ -191,6 +197,187 @@ fn session_store_lists_llm_raw_step_indices_without_session_steps() -> Result<()
         );
         Ok(())
     })?;
+    Ok(())
+}
+
+#[test]
+fn session_ui_commit_rejects_finished_step_without_raw() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "commit-missing-raw")?;
+        let mut session = sample_session("commit-missing-raw", "Missing raw", 200);
+        session.steps[0].turn_id = Some("turn-missing-raw".to_owned());
+        session.steps[0].index = 0;
+        let expected_steps = [LlmRawStepKey::new("turn-missing-raw", 0)?];
+
+        let error = fixture
+            .store
+            .commit_session_ui_snapshot(&scope, &session, &[], &expected_steps)
+            .expect_err("a finished step without raw must reject the whole commit");
+
+        assert!(error.to_string().contains("missing LLM raw artifact"));
+        assert!(fixture.store.load_session(&scope, &session.id)?.is_none());
+        assert!(fixture
+            .store
+            .load_session_step_llm_raw(&scope, &session.id, 0)?
+            .is_none());
+        Ok(())
+    })?;
+    Ok(())
+}
+
+#[test]
+fn session_ui_commit_reconstructs_shared_turn_raw() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "commit-reconstruct-raw")?;
+        let (mut session, raw_rounds) = session_with_raw_rounds("commit-reconstruct-raw");
+        session.title = "Committed raw".to_owned();
+        let artifact = LlmRawArtifact::from_full_raw_rounds("turn-raw", &raw_rounds)?;
+        let expected_steps = [
+            LlmRawStepKey::new("turn-raw", 0)?,
+            LlmRawStepKey::new("turn-raw", 1)?,
+        ];
+
+        fixture.store.commit_session_ui_snapshot(
+            &scope,
+            &session,
+            &[artifact],
+            &expected_steps,
+        )?;
+
+        let mut expected_session = session.clone();
+        expected_session.calls.clear();
+        assert_json_eq!(
+            fixture.store.load_session(&scope, &session.id)?,
+            Some(expected_session)
+        );
+        assert_json_eq!(
+            fixture
+                .store
+                .load_session_turn_step_llm_raw(&scope, "commit-reconstruct-raw", "turn-raw", 0)?,
+            Some(raw_rounds[0].clone())
+        );
+        assert_json_eq!(
+            fixture
+                .store
+                .load_session_turn_step_llm_raw(&scope, "commit-reconstruct-raw", "turn-raw", 1)?,
+            Some(raw_rounds[1].clone())
+        );
+        assert_eq!(
+            fixture
+                .store
+                .load_session_llm_raw_step_indices(&scope, "commit-reconstruct-raw")?,
+            vec![0, 1]
+        );
+        Ok(())
+    })?;
+    Ok(())
+}
+
+#[test]
+fn session_ui_commit_distinguishes_reused_step_indices_by_turn() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "commit-reused-step-index")?;
+        let (mut session, first_turn_raw_rounds) = session_with_raw_rounds("commit-reused-step-index");
+        let second_turn_raw = json!({
+            "session_id": "commit-reused-step-index",
+            "step_index": 0,
+            "model": "provider/model-a",
+            "system": "system prompt",
+            "messages": [{"role": "user", "content": "follow-up"}],
+            "message_sources": [{"kind": "user"}],
+            "request": {
+                "config": {"temperature": 0.2},
+                "tools": [{"name": "shell"}]
+            },
+            "output": {"content": "follow-up final"}
+        });
+        session.steps.push(ChatSessionStep {
+            index: 0,
+            turn_id: Some("turn-follow-up".to_owned()),
+            ..session.steps[0].clone()
+        });
+        let first_artifact = LlmRawArtifact::from_full_raw_rounds("turn-raw", &first_turn_raw_rounds)?;
+        let second_artifact = LlmRawArtifact::from_full_raw_rounds(
+            "turn-follow-up",
+            std::slice::from_ref(&second_turn_raw),
+        )?;
+        let expected_steps = [
+            LlmRawStepKey::new("turn-raw", 0)?,
+            LlmRawStepKey::new("turn-raw", 1)?,
+            LlmRawStepKey::new("turn-follow-up", 0)?,
+        ];
+
+        fixture.store.commit_session_ui_snapshot(
+            &scope,
+            &session,
+            &[first_artifact, second_artifact],
+            &expected_steps,
+        )?;
+
+        assert_json_eq!(
+            fixture.store.load_session_turn_step_llm_raw(
+                &scope,
+                &session.id,
+                "turn-raw",
+                0,
+            )?,
+            Some(first_turn_raw_rounds[0].clone())
+        );
+        assert_json_eq!(
+            fixture.store.load_session_turn_step_llm_raw(
+                &scope,
+                &session.id,
+                "turn-follow-up",
+                0,
+            )?,
+            Some(second_turn_raw)
+        );
+        Ok(())
+    })?;
+    Ok(())
+}
+
+#[test]
+fn session_ui_commit_rolls_back_snapshot_when_raw_insert_fails() -> Result<()> {
+    let sqlite_home = tempfile::tempdir()?;
+    let database = GlobalDatabase::new(sqlite_home.path().join("database/_index.sqlite3"))?;
+    let fixture = StoreFixture::new(database)?;
+    let scope = fixture.create_project(&fixture.tenant_a, "commit-raw-rollback")?;
+    let original = sample_session("commit-raw-rollback", "Original", 100);
+    fixture.store.save_session(&scope, &original)?;
+    fixture.database.connect_sqlite()?.execute_batch(
+        "CREATE TRIGGER fail_session_llm_raw_round_insert
+         BEFORE INSERT ON session_llm_raw_rounds
+         BEGIN
+             SELECT RAISE(ABORT, 'injected raw round failure');
+         END;",
+    )?;
+    let (mut replacement, raw_rounds) = session_with_raw_rounds("commit-raw-rollback");
+    replacement.title = "Must roll back".to_owned();
+    let artifact = LlmRawArtifact::from_full_raw_rounds("turn-raw", &raw_rounds)?;
+    let expected_steps = [
+        LlmRawStepKey::new("turn-raw", 0)?,
+        LlmRawStepKey::new("turn-raw", 1)?,
+    ];
+
+    let error = fixture
+        .store
+        .commit_session_ui_snapshot(&scope, &replacement, &[artifact], &expected_steps)
+        .expect_err("raw insert failure must roll back the snapshot");
+
+    assert!(error.to_string().contains("injected raw round failure"));
+    assert_json_eq!(
+        fixture.store.load_session(&scope, "commit-raw-rollback")?,
+        Some(original)
+    );
+    assert_eq!(
+        scoped_row_count(&fixture.database, "session_llm_raw_turns", &scope)?,
+        0
+    );
+    assert_eq!(
+        scoped_row_count(&fixture.database, "session_llm_raw_rounds", &scope)?,
+        0
+    );
     Ok(())
 }
 
@@ -599,6 +786,7 @@ fn sample_session(id: &str, title: &str, updated_ms: u64) -> ChatSession {
         calls: vec![json!({"name": "shell", "args": {"cmd": "true"}})],
         steps: vec![ChatSessionStep {
             index: 7,
+            turn_id: None,
             started_ms: 100,
             finished_ms: Some(130),
             start_snapshot_path: Some("start.json".to_owned()),
@@ -622,6 +810,57 @@ fn sample_session(id: &str, title: &str, updated_ms: u64) -> ChatSession {
         created_ms: 40,
         updated_ms,
     }
+}
+
+fn session_with_raw_rounds(session_id: &str) -> (ChatSession, Vec<serde_json::Value>) {
+    let mut session = sample_session(session_id, "Raw rounds", 200);
+    session.steps = vec![
+        ChatSessionStep {
+            index: 0,
+            turn_id: Some("turn-raw".to_owned()),
+            ..session.steps[0].clone()
+        },
+        ChatSessionStep {
+            index: 1,
+            turn_id: Some("turn-raw".to_owned()),
+            ..session.steps[0].clone()
+        },
+    ];
+    let first = json!({
+        "session_id": session_id,
+        "step_index": 0,
+        "model": "provider/model-a",
+        "system": "system prompt",
+        "messages": [{"role": "user", "content": "question"}],
+        "message_sources": [{"kind": "user"}],
+        "request": {
+            "config": {"temperature": 0.2},
+            "tools": [{"name": "shell"}]
+        },
+        "output": {"content": "call tool"}
+    });
+    let second = json!({
+        "session_id": session_id,
+        "step_index": 1,
+        "model": "provider/model-a",
+        "system": "system prompt",
+        "messages": [
+            {"role": "user", "content": "question"},
+            {"role": "assistant", "content": "call tool"},
+            {"role": "tool", "content": "done"}
+        ],
+        "message_sources": [
+            {"kind": "user"},
+            {"kind": "assistant"},
+            {"kind": "tool"}
+        ],
+        "request": {
+            "config": {"temperature": 0.2},
+            "tools": [{"name": "shell"}]
+        },
+        "output": {"content": "final"}
+    });
+    (session, vec![first, second])
 }
 
 fn sample_todos(label: &str) -> Vec<SessionTodoItem> {

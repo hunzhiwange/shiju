@@ -353,6 +353,7 @@ fn historical_session_model_restore_uses_latest_recorded_model() {
     let steps = vec![
         crate::app::models::ChatSessionStep {
             index: 1,
+            turn_id: None,
             started_ms: 1,
             finished_ms: Some(2),
             start_snapshot_path: None,
@@ -365,6 +366,7 @@ fn historical_session_model_restore_uses_latest_recorded_model() {
         },
         crate::app::models::ChatSessionStep {
             index: 2,
+            turn_id: None,
             started_ms: 3,
             finished_ms: Some(4),
             start_snapshot_path: None,
@@ -400,6 +402,7 @@ fn historical_session_model_restore_preserves_existing_session_selection() {
     app.prepare_historical_session_model("history");
     let steps = vec![crate::app::models::ChatSessionStep {
         index: 1,
+        turn_id: None,
         started_ms: 1,
         finished_ms: Some(2),
         start_snapshot_path: None,

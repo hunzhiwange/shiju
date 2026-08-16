@@ -483,73 +483,6 @@ impl Default for GatewayClientSettingsState {
     }
 }
 
-/// Agent 间 IPC 设置面板状态
-///
-/// 管理 Agent 间进程间通信的配置。
-#[derive(Debug, Clone)]
-pub(crate) struct AgentsIpcSettingsState {
-    /// 是否启用 IPC
-    pub(crate) enabled: bool,
-    /// 数据库路径输入
-    pub(crate) db_path_input: String,
-    /// 过期时间（秒）
-    pub(crate) staleness_secs: u64,
-    /// 是否显示帮助对话框
-    pub(crate) show_help_modal: bool,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for AgentsIpcSettingsState {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            db_path_input: vw_config_types::paths::agents_ipc_db_path(),
-            staleness_secs: 300,
-            show_help_modal: false,
-            save_error: None,
-        }
-    }
-}
-
-/// 协调设置面板状态
-///
-/// 管理 Agent 协调系统的配置，包括消息限制和上下文管理等。
-#[derive(Debug, Clone)]
-pub(crate) struct CoordinationSettingsState {
-    /// 是否启用协调
-    pub(crate) enabled: bool,
-    /// 主 Agent 输入
-    pub(crate) lead_agent_input: String,
-    /// 每个 Agent 的最大收件箱消息数
-    pub(crate) max_inbox_messages_per_agent: u32,
-    /// 最大死信数量
-    pub(crate) max_dead_letters: u32,
-    /// 最大上下文条目数
-    pub(crate) max_context_entries: u32,
-    /// 最大已见消息 ID 数
-    pub(crate) max_seen_message_ids: u32,
-    /// 是否显示帮助对话框
-    pub(crate) show_help_modal: bool,
-    /// 保存错误信息
-    pub(crate) save_error: Option<String>,
-}
-
-impl Default for CoordinationSettingsState {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            lead_agent_input: "delegate-lead".to_string(),
-            max_inbox_messages_per_agent: 256,
-            max_dead_letters: 256,
-            max_context_entries: 512,
-            max_seen_message_ids: 4096,
-            show_help_modal: false,
-            save_error: None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 #[allow(dead_code)]
 pub(crate) struct CostPriceInput {
@@ -591,6 +524,8 @@ pub enum MemorySettingsTab {
     General,
     RetentionAndCache,
     Embedding,
+    EmbeddingRoutes,
+    Storage,
     Qdrant,
 }
 

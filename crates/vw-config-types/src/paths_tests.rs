@@ -23,6 +23,5 @@ fn tilde_config_path_normalizes_empty_and_leading_slash_inputs() {
 
 #[test]
 fn fixed_state_paths_match_build_profile_constants() {
-    assert_eq!(super::agents_ipc_db_path(), super::AGENTS_IPC_DB_PATH);
     assert_eq!(super::estop_state_file_path(), super::ESTOP_STATE_FILE_PATH);
 }

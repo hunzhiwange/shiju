@@ -4,6 +4,10 @@ fn test_app() -> App {
     App::new().0
 }
 
+fn raw_key(session_id: &str, step_index: u32) -> (String, String, u32) {
+    (session_id.to_string(), format!("legacy-step-{step_index}"), step_index)
+}
+
 fn model_info(model_id: &str) -> UsageModelInfo {
     UsageModelInfo {
         provider_id: "provider-id".to_string(),
@@ -91,14 +95,14 @@ fn usage_step_toggled_without_active_session_only_expands_step() {
 #[test]
 fn usage_step_toggled_with_cached_payload_does_not_reload() {
     let mut app = test_app();
-    let key = ("active-session".to_string(), 5);
+    let key = raw_key("active-session", 5);
     app.active_session_id = Some(key.0.clone());
     app.usage_step_raw_payloads
         .insert(key.clone(), Ok(Some(serde_json::json!({ "cached": true }))));
 
-    let _task = super::update(&mut app, ViewMessage::UsageStepToggled(key.1));
+    let _task = super::update(&mut app, ViewMessage::UsageStepToggled(key.2));
 
-    assert!(app.usage_step_expanded.contains(&key.1));
+    assert!(app.usage_step_expanded.contains(&key.2));
     assert!(!app.usage_step_raw_loading.contains(&key));
     assert_eq!(
         app.usage_step_raw_payloads.get(&key),
@@ -109,13 +113,13 @@ fn usage_step_toggled_with_cached_payload_does_not_reload() {
 #[test]
 fn usage_step_toggled_while_loading_does_not_duplicate_load() {
     let mut app = test_app();
-    let key = ("active-session".to_string(), 9);
+    let key = raw_key("active-session", 9);
     app.active_session_id = Some(key.0.clone());
     app.usage_step_raw_loading.insert(key.clone());
 
-    let _task = super::update(&mut app, ViewMessage::UsageStepToggled(key.1));
+    let _task = super::update(&mut app, ViewMessage::UsageStepToggled(key.2));
 
-    assert!(app.usage_step_expanded.contains(&key.1));
+    assert!(app.usage_step_expanded.contains(&key.2));
     assert_eq!(app.usage_step_raw_loading.len(), 1);
     assert!(app.usage_step_raw_loading.contains(&key));
 }
@@ -123,12 +127,12 @@ fn usage_step_toggled_while_loading_does_not_duplicate_load() {
 #[test]
 fn usage_step_toggled_uncached_step_marks_it_loading() {
     let mut app = test_app();
-    let key = ("active-session".to_string(), 11);
+    let key = raw_key("active-session", 11);
     app.active_session_id = Some(key.0.clone());
 
-    let _task = super::update(&mut app, ViewMessage::UsageStepToggled(key.1));
+    let _task = super::update(&mut app, ViewMessage::UsageStepToggled(key.2));
 
-    assert!(app.usage_step_expanded.contains(&key.1));
+    assert!(app.usage_step_expanded.contains(&key.2));
     assert!(app.usage_step_raw_loading.contains(&key));
     assert!(!app.usage_step_raw_payloads.contains_key(&key));
 }
@@ -142,20 +146,22 @@ fn usage_step_raw_loaded_for_active_session_caches_success_and_error() {
 
     for (step_index, result) in cases.into_iter().enumerate() {
         let mut app = test_app();
-        let key = ("active-session".to_string(), step_index as u32);
+        let key = raw_key("active-session", step_index as u32);
         app.active_session_id = Some(key.0.clone());
         app.usage_step_raw_loading.insert(key.clone());
 
         let _task = super::update(
             &mut app,
-            ViewMessage::UsageStepRawLoaded(key.0.clone(), key.1, result.clone()),
+            ViewMessage::UsageStepRawLoaded(key.0.clone(), key.2, result.clone()),
         );
 
         assert!(!app.usage_step_raw_loading.contains(&key));
-        assert_eq!(app.usage_step_raw_payloads.get(&key), Some(&result));
         if let Ok(Some(raw)) = result {
-            assert_eq!(app.active_session_view_state.step_llm_raw.get(&key.1), Some(&raw));
-            assert!(app.active_session_view_state.llm_raw_step_indices.contains(&key.1));
+            assert_eq!(app.active_session_view_state.step_llm_raw.get(&key), Some(&raw));
+            assert!(app.active_session_view_state.llm_raw_step_indices.contains(&key));
+            assert!(!app.usage_step_raw_payloads.contains_key(&key));
+        } else {
+            assert_eq!(app.usage_step_raw_payloads.get(&key), Some(&result));
         }
     }
 }
@@ -163,12 +169,12 @@ fn usage_step_raw_loaded_for_active_session_caches_success_and_error() {
 #[test]
 fn usage_step_raw_loaded_caches_explicit_empty_payload() {
     let mut app = test_app();
-    let key = ("active-session".to_string(), 21);
+    let key = raw_key("active-session", 21);
     app.active_session_id = Some(key.0.clone());
     app.usage_step_raw_loading.insert(key.clone());
 
     let _task =
-        super::update(&mut app, ViewMessage::UsageStepRawLoaded(key.0.clone(), key.1, Ok(None)));
+        super::update(&mut app, ViewMessage::UsageStepRawLoaded(key.0.clone(), key.2, Ok(None)));
 
     assert!(!app.usage_step_raw_loading.contains(&key));
     assert_eq!(app.usage_step_raw_payloads.get(&key), Some(&Ok(None)));
@@ -177,7 +183,7 @@ fn usage_step_raw_loaded_caches_explicit_empty_payload() {
 #[test]
 fn usage_step_raw_loaded_for_stale_session_discards_result_and_clears_loading() {
     let mut app = test_app();
-    let key = ("stale-session".to_string(), 13);
+    let key = raw_key("stale-session", 13);
     app.active_session_id = Some("active-session".to_string());
     app.usage_step_raw_loading.insert(key.clone());
 
@@ -185,7 +191,7 @@ fn usage_step_raw_loaded_for_stale_session_discards_result_and_clears_loading() 
         &mut app,
         ViewMessage::UsageStepRawLoaded(
             key.0.clone(),
-            key.1,
+            key.2,
             Ok(Some(serde_json::json!({ "stale": true }))),
         ),
     );
@@ -197,16 +203,16 @@ fn usage_step_raw_loaded_for_stale_session_discards_result_and_clears_loading() 
 #[test]
 fn usage_step_raw_open_builds_modal_from_cached_payload() {
     let mut app = test_app();
-    let key = ("active-session".to_string(), 4);
+    let key = raw_key("active-session", 4);
     app.active_session_id = Some(key.0.clone());
-    app.usage_step_raw_payloads.insert(
+    app.active_session_view_state.step_llm_raw.insert(
         key.clone(),
-        Ok(Some(serde_json::json!({
+        serde_json::json!({
             "messages": [{"role": "user"}]
-        }))),
+        }),
     );
 
-    let _task = super::update(&mut app, ViewMessage::UsageStepRawOpen(key.1));
+    let _task = super::update(&mut app, ViewMessage::UsageStepRawOpen(key.2));
 
     let modal = app.usage_step_raw_modal.as_ref().expect("modal should open");
     assert_eq!(modal.step_index, 4);
@@ -217,7 +223,7 @@ fn usage_step_raw_open_builds_modal_from_cached_payload() {
 fn usage_step_raw_open_ignores_missing_or_empty_payload() {
     let mut app = test_app();
     app.active_session_id = Some("active-session".to_string());
-    app.usage_step_raw_payloads.insert(("active-session".to_string(), 8), Ok(None));
+    app.usage_step_raw_payloads.insert(raw_key("active-session", 8), Ok(None));
 
     let _task = super::update(&mut app, ViewMessage::UsageStepRawOpen(8));
     assert!(app.usage_step_raw_modal.is_none());
@@ -239,16 +245,16 @@ fn usage_step_raw_close_clears_modal() {
 #[test]
 fn unrelated_message_preserves_usage_panel_state() {
     let mut app = test_app();
-    let key = ("active-session".to_string(), 17);
+    let key = raw_key("active-session", 17);
     app.active_session_id = Some(key.0.clone());
-    app.usage_step_expanded.insert(key.1);
+    app.usage_step_expanded.insert(key.2);
     app.usage_step_raw_loading.insert(key.clone());
     app.usage_step_raw_modal =
-        Some(crate::app::state::UsageStepRawModal { step_index: key.1, content: "{}".to_string() });
+        Some(crate::app::state::UsageStepRawModal { step_index: key.2, content: "{}".to_string() });
 
     let _task = super::update(&mut app, ViewMessage::OpenUsage);
 
-    assert!(app.usage_step_expanded.contains(&key.1));
+    assert!(app.usage_step_expanded.contains(&key.2));
     assert!(app.usage_step_raw_loading.contains(&key));
     assert!(app.usage_step_raw_modal.is_some());
 }

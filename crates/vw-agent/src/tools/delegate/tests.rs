@@ -9,7 +9,6 @@
 //! - **深度限制**：全局深度限制和每个代理的深度限制
 //! - **安全策略**：只读模式、速率限制对委托的影响
 //! - **代理模式**：agentic 模式下的工具调用循环、迭代限制、错误传播
-//! - **协调追踪**：协调总线（coordination bus）中的事件记录和状态转换
 //!
 //! # 测试架构
 //!
@@ -20,11 +19,8 @@
 //! - `EchoTool`：简单的回显工具，返回输入值
 
 use super::super::*;
-use crate::app::agent::coordination::CoordinationPayload;
-use crate::app::agent::coordination::InMemoryMessageBus;
 use crate::app::agent::providers::{ChatRequest, ChatResponse, Provider, ToolCall};
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
-use crate::app::agent::tools::delegate::DEFAULT_COORDINATION_LEAD_AGENT;
 use anyhow::anyhow;
 use async_trait::async_trait;
 use serde_json::{Value, json};
@@ -734,7 +730,7 @@ fn delegate_merges_workspace_skill_and_agent_sections_in_order() {
 }
 
 #[test]
-fn delegate_builders_store_multimodal_config_and_disable_coordination() {
+fn delegate_builders_store_multimodal_config() {
     let multimodal = crate::app::agent::config::MultimodalConfig {
         max_images: 7,
         max_image_size_mb: 9,
@@ -742,22 +738,11 @@ fn delegate_builders_store_multimodal_config_and_disable_coordination() {
         ocr: Default::default(),
     };
     let tool = DelegateTool::new(sample_agents(), None, test_security())
-        .with_multimodal_config(multimodal)
-        .with_coordination_disabled();
+        .with_multimodal_config(multimodal);
 
     assert_eq!(tool.multimodal_config.max_images, 7);
     assert_eq!(tool.multimodal_config.max_image_size_mb, 9);
     assert!(tool.multimodal_config.allow_remote_fetch);
-    assert!(tool.coordination_bus_snapshot().is_none());
-}
-
-#[test]
-fn delegate_coordination_builder_normalizes_blank_lead_agent() {
-    let tool = DelegateTool::new(sample_agents(), None, test_security())
-        .with_coordination_bus(InMemoryMessageBus::new(), " \n ");
-
-    assert_eq!(tool.coordination_lead_agent, DEFAULT_COORDINATION_LEAD_AGENT);
-    assert!(tool.coordination_bus_snapshot().is_some());
 }
 
 /// 测试无代理配置时的执行错误
@@ -885,158 +870,4 @@ async fn execute_agentic_propagates_provider_errors() {
 
     assert!(!result.success);
     assert!(result.error.as_deref().unwrap_or("").contains("provider boom"));
-}
-
-/// 测试执行失败时在协调总线中记录事件
-///
-/// 验证：
-/// - 工作代理（worker）的收件箱中有一条消息
-/// - 主代理（lead）的收件箱中有三条消息
-/// - 主代理收件箱中包含失败的任务结果事件
-/// - 状态上下文中记录了失败状态
-#[tokio::test]
-async fn execute_records_failure_events_in_coordination_bus() {
-    let mut agents = HashMap::new();
-    agents.insert(
-        "broken".to_string(),
-        DelegateAgentConfig {
-            label: None,
-            description: None,
-            builtin: false,
-            mode: "all".to_string(),
-            enabled: true,
-            allow_as_subagent: false,
-            max_parallel_subagents: 4,
-            provider: "totally-invalid-provider".to_string(),
-            model: "model".to_string(),
-            force_model_selection: false,
-            system_prompt: None,
-            api_key: None,
-            temperature: None,
-            top_p: None,
-            identity_format: None,
-            hidden: false,
-            max_depth: 3,
-            agentic: false,
-            tool_policy: Default::default(),
-            allowed_tools: Vec::new(),
-            skill_policy: Default::default(),
-            allowed_skills: Vec::new(),
-            enabled_identity_files: Vec::new(),
-            options: HashMap::new(),
-            permission: Value::Null,
-            max_iterations: 10,
-            steps: None,
-        },
-    );
-
-    let tool = DelegateTool::new(agents, None, test_security());
-    let result = tool
-        .execute(json!({
-            "agent": "broken",
-            "prompt": "Investigate failing integration test",
-            "context": "CI logs attached"
-        }))
-        .await
-        .unwrap();
-    assert!(!result.success);
-    assert!(result.error.as_deref().unwrap_or("").contains("Failed to create provider"));
-
-    // 获取协调总线快照进行验证
-    let bus = tool.coordination_bus_snapshot().expect("coordination bus should be initialized");
-
-    // 验证工作代理收件箱
-    let worker_messages = bus.drain_for_agent("broken", 0).expect("worker inbox should exist");
-    assert_eq!(worker_messages.len(), 1);
-    let correlation_id = worker_messages[0]
-        .envelope
-        .correlation_id
-        .clone()
-        .expect("request should have correlation id");
-
-    // 验证主代理收件箱
-    let lead_messages =
-        bus.drain_for_agent(DEFAULT_COORDINATION_LEAD_AGENT, 0).expect("lead inbox should exist");
-    assert_eq!(lead_messages.len(), 3);
-
-    // 验证主代理收件箱中包含失败的任务结果事件
-    assert!(
-        lead_messages.iter().any(|entry| matches!(
-            entry.envelope.payload,
-            CoordinationPayload::TaskResult { success: false, .. }
-        )),
-        "lead inbox should contain failed task result event"
-    );
-
-    // 验证状态上下文
-    let state_key = format!("delegate/{correlation_id}/state");
-    let state_entry = bus.context_entry(&state_key).expect("state context should exist");
-    assert_eq!(state_entry.version, 2);
-    assert_eq!(state_entry.value["phase"], json!("failed"));
-    assert_eq!(state_entry.value["success"], json!(false));
-}
-
-/// 测试协调追踪正确转换状态到已完成
-///
-/// 验证：
-/// - 调用 `start_coordination_trace` 创建初始追踪
-/// - 调用 `finish_coordination_trace` 更新状态为已完成
-/// - 状态上下文中记录了成功状态
-#[test]
-fn coordination_trace_transitions_state_to_completed() {
-    let mut agents = HashMap::new();
-    agents.insert(
-        "tester".to_string(),
-        DelegateAgentConfig {
-            label: None,
-            description: None,
-            builtin: false,
-            mode: "all".to_string(),
-            enabled: true,
-            allow_as_subagent: false,
-            max_parallel_subagents: 4,
-            provider: "openrouter".to_string(),
-            model: "model-test".to_string(),
-            force_model_selection: false,
-            system_prompt: None,
-            api_key: Some("delegate-test-credential".to_string()),
-            temperature: Some(0.2),
-            top_p: None,
-            identity_format: None,
-            hidden: false,
-            max_depth: 2,
-            agentic: false,
-            tool_policy: Default::default(),
-            allowed_tools: Vec::new(),
-            skill_policy: Default::default(),
-            allowed_skills: Vec::new(),
-            enabled_identity_files: Vec::new(),
-            options: HashMap::new(),
-            permission: Value::Null,
-            max_iterations: 10,
-            steps: None,
-        },
-    );
-    let tool = DelegateTool::new(agents, None, test_security());
-    let agent_config = tool.agents.get("tester").expect("tester config should exist");
-
-    // 启动协调追踪
-    let trace = tool.start_coordination_trace(
-        "tester",
-        "Summarize findings",
-        "runbook notes",
-        agent_config,
-    );
-
-    // 完成协调追踪
-    tool.finish_coordination_trace("tester", &trace, true, "done");
-
-    // 验证状态上下文
-    let bus = tool.coordination_bus_snapshot().expect("coordination bus should be initialized");
-    let state_key = format!("delegate/{}/state", trace.correlation_id);
-    let state_entry = bus.context_entry(&state_key).expect("state context should exist");
-
-    assert_eq!(state_entry.version, 2);
-    assert_eq!(state_entry.value["phase"], json!("completed"));
-    assert_eq!(state_entry.value["success"], json!(true));
 }

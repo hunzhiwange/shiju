@@ -91,6 +91,9 @@ pub struct ToolTiming {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatSessionStep {
     pub index: u32,
+    /// 所属助手轮次的稳定身份；旧会话未迁移时为空。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_id: Option<String>,
     pub started_ms: u64,
     #[serde(default)]
     pub finished_ms: Option<u64>,

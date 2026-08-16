@@ -104,7 +104,7 @@ async fn session_optional_reads_distinguish_not_found_from_server_errors() {
     assert!(
         server
             .client()
-            .session_step_llm_raw_get("missing", 0, None)
+            .session_step_llm_raw_get("missing", "turn-missing", 0, None)
             .await
             .expect("missing raw payload is not an error")
             .is_none()
@@ -117,7 +117,10 @@ async fn session_optional_reads_distinguish_not_found_from_server_errors() {
 
     assert!(error.contains("gateway request failed: 500"));
     assert_eq!(server.take_request().path, "/v1/session/missing/ui?directory=%2Frepo");
-    assert_eq!(server.take_request().path, "/v1/session/missing/step/0/llm-raw");
+    assert_eq!(
+        server.take_request().path,
+        "/v1/session/missing/turn/turn-missing/step/0/llm-raw"
+    );
     assert_eq!(server.take_request().path, "/v1/session/failed/ui");
     server.join();
 }
@@ -130,13 +133,16 @@ async fn session_step_llm_raw_get_reads_only_requested_step() {
     )]);
 
     let response =
-        server.client().session_step_llm_raw_get("requested-session", 17, Some("/repo path")).await;
+        server
+            .client()
+            .session_step_llm_raw_get("requested-session", "turn-17", 17, Some("/repo path"))
+            .await;
     let request = server.take_request();
 
     assert_eq!(request.method, "GET");
     assert_eq!(
         request.path,
-        "/v1/session/requested-session/step/17/llm-raw?directory=%2Frepo+path"
+        "/v1/session/requested-session/turn/turn-17/step/17/llm-raw?directory=%2Frepo+path"
     );
     let payload = response.expect("raw payload request").expect("raw payload");
     assert_eq!(payload["messages"][0]["content"], "requested step");
@@ -154,7 +160,7 @@ async fn session_step_llm_raw_get_distinguishes_null_not_found_and_server_errors
     assert!(
         server
             .client()
-            .session_step_llm_raw_get("s1", 1, None)
+            .session_step_llm_raw_get("s1", "turn-a", 1, None)
             .await
             .expect("JSON null should be an absent payload")
             .is_none()
@@ -162,21 +168,21 @@ async fn session_step_llm_raw_get_distinguishes_null_not_found_and_server_errors
     assert!(
         server
             .client()
-            .session_step_llm_raw_get("s1", 2, None)
+            .session_step_llm_raw_get("s1", "turn-b", 2, None)
             .await
             .expect("404 should be an absent payload")
             .is_none()
     );
     let error = server
         .client()
-        .session_step_llm_raw_get("s1", 3, None)
+        .session_step_llm_raw_get("s1", "turn-c", 3, None)
         .await
         .expect_err("storage failure should be surfaced");
 
     assert!(error.contains("gateway request failed: 500"));
-    assert_eq!(server.take_request().path, "/v1/session/s1/step/1/llm-raw");
-    assert_eq!(server.take_request().path, "/v1/session/s1/step/2/llm-raw");
-    assert_eq!(server.take_request().path, "/v1/session/s1/step/3/llm-raw");
+    assert_eq!(server.take_request().path, "/v1/session/s1/turn/turn-a/step/1/llm-raw");
+    assert_eq!(server.take_request().path, "/v1/session/s1/turn/turn-b/step/2/llm-raw");
+    assert_eq!(server.take_request().path, "/v1/session/s1/turn/turn-c/step/3/llm-raw");
     server.join();
 }
 
@@ -191,10 +197,11 @@ async fn session_ui_get_with_raw_preserves_step_payloads() {
             "steps": [
                 {
                     "index": 1,
+                    "turn_id": "turn-a",
                     "started_ms": 10,
                     "llm_raw": {"messages": [{"role": "user", "content": "hello"}]}
                 },
-                {"index": 2, "started_ms": 20}
+                {"index": 2, "turn_id": "turn-b", "started_ms": 20}
             ]
         }),
     )]);
@@ -208,9 +215,16 @@ async fn session_ui_get_with_raw_preserves_step_payloads() {
 
     assert_eq!(loaded.session.id, "s1");
     assert_eq!(loaded.session.steps.len(), 2);
-    assert_eq!(loaded.step_llm_raw[&1]["messages"][0]["content"], "hello");
-    assert!(!loaded.step_llm_raw.contains_key(&2));
-    assert_eq!(loaded.llm_raw_step_indices, vec![1, 7, 9]);
+    assert_eq!(
+        loaded.step_llm_raw[&("s1".to_string(), "turn-a".to_string(), 1)]["messages"][0]
+            ["content"],
+        "hello"
+    );
+    assert!(!loaded.step_llm_raw.contains_key(&("s1".to_string(), "turn-b".to_string(), 2)));
+    assert_eq!(
+        loaded.llm_raw_step_indices,
+        vec![("s1".to_string(), "turn-a".to_string(), 1)]
+    );
     assert_eq!(server.take_request().path, "/v1/session/s1/ui?directory=%2Frepo");
     server.join();
 }
@@ -446,7 +460,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
     );
     let raw_payload = server
         .client()
-        .session_step_llm_raw_get("s1", 2, Some("/repo"))
+        .session_step_llm_raw_get("s1", "turn-2", 2, Some("/repo"))
         .await
         .expect("raw payload")
         .expect("raw payload");
@@ -522,7 +536,10 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
     assert_eq!(server.take_request().path, "/v1/session/ui-previews?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/missing/preview?directory=%2Frepo");
     assert_eq!(server.take_request().path, "/v1/session/missing/path?directory=%2Frepo");
-    assert_eq!(server.take_request().path, "/v1/session/s1/step/2/llm-raw?directory=%2Frepo");
+    assert_eq!(
+        server.take_request().path,
+        "/v1/session/s1/turn/turn-2/step/2/llm-raw?directory=%2Frepo"
+    );
     assert_eq!(server.take_request().path, "/v1/session/archived?directory=%2Frepo");
     let request = server.take_request();
     assert_eq!(request.method, "PUT");

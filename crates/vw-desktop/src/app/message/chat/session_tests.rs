@@ -1224,6 +1224,21 @@ fn processing_timing_start_uses_runtime_request_start_and_cancel_creates_indepen
 
 #[test]
 fn send_starts_turn_focused_on_new_user_message() {
+    let (mut first_turn_app, _task) = crate::app::App::new();
+    first_turn_app.active_session_id = Some("first-turn".to_string());
+    first_turn_app.sessions = vec![session_info("first-turn", "Session", "/repo")];
+    first_turn_app.chat_auto_scroll = true;
+
+    let first_turn_task = super::start(
+        &mut first_turn_app,
+        queue_item("first question", crate::app::state::ChatSendBehavior::Queue),
+        true,
+    );
+
+    assert_eq!(first_turn_app.chat_virtualizer.turn_focus_user_index(), Some(0));
+    assert!(!first_turn_app.chat_auto_scroll);
+    assert_eq!(first_turn_task.units(), 3);
+
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("s1".to_string());
     app.sessions = vec![session_info("s1", "Session", "/repo")];

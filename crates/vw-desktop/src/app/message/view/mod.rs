@@ -558,6 +558,8 @@ pub enum ViewMessage {
     /// # 参数
     /// - 步骤索引
     UsageStepToggled(u32),
+    /// 按稳定 turn 身份展开或折叠使用量步骤。
+    UsageTurnStepToggled(String, u32),
     /// 使用量步骤原始 LLM 载荷加载完成
     ///
     /// # 参数
@@ -565,11 +567,15 @@ pub enum ViewMessage {
     /// - 步骤索引
     /// - 原始载荷读取结果
     UsageStepRawLoaded(String, u32, Result<Option<serde_json::Value>, String>),
+    /// 按稳定 turn 身份完成原始 LLM 载荷加载。
+    UsageTurnStepRawLoaded(String, String, u32, Result<Option<serde_json::Value>, String>),
     /// 打开使用量步骤原始记录弹窗
     ///
     /// # 参数
     /// - 步骤索引
     UsageStepRawOpen(u32),
+    /// 按稳定 turn 身份打开使用量步骤原始记录弹窗。
+    UsageTurnStepRawOpen(String, u32),
     /// 关闭使用量步骤原始记录弹窗
     UsageStepRawClose,
     /// 在系统文件管理器中打开指定路径
@@ -872,8 +878,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::OpenUrlExternal(_)
         | ViewMessage::UsageModelInfoLoaded(_)
         | ViewMessage::UsageStepToggled(_)
+        | ViewMessage::UsageTurnStepToggled(_, _)
         | ViewMessage::UsageStepRawLoaded(_, _, _)
+        | ViewMessage::UsageTurnStepRawLoaded(_, _, _, _)
         | ViewMessage::UsageStepRawOpen(_)
+        | ViewMessage::UsageTurnStepRawOpen(_, _)
         | ViewMessage::UsageStepRawClose
         | ViewMessage::OpenPathInFinder(_)
         | ViewMessage::OpenProjectInExternalPreferred

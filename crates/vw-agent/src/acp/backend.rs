@@ -256,6 +256,7 @@ fn map_tool_event(event: ToolEvent) -> BackendEvent {
 
 pub(crate) fn map_runtime_event(event: PromptEvent) -> Option<BackendEvent> {
     match event {
+        PromptEvent::LlmRawArtifact(_) => None,
         PromptEvent::ContextLoaded { paths } => {
             Some(BackendEvent::Status(format!("loaded context: {}", paths.join(", "))))
         }

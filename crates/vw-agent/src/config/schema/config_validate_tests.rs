@@ -159,9 +159,6 @@ fn validate_config_accepts_boundary_and_explicit_success_paths() {
     config.proxy.http_proxy = Some("http://127.0.0.1:8080".to_string());
     config.proxy.scope = ProxyScope::Services;
     config.proxy.services = vec!["tool.browser".to_string()];
-    config.coordination.enabled = true;
-    config.coordination.lead_agent = "lead".to_string();
-
     validate_config(&config).unwrap();
 
     config.security.semantic_guard_threshold = 1.0;
@@ -588,23 +585,9 @@ fn validate_config_accepts_local_ollama_model_without_cloud_credential() {
 }
 
 #[test]
-fn validate_config_rejects_proxy_and_coordination_errors() {
+fn validate_config_rejects_proxy_errors() {
     invalid_with(
         |config| config.proxy.enabled = true,
         "Proxy is enabled but no proxy URL is configured",
     );
-    invalid_with(
-        |config| {
-            config.coordination.enabled = true;
-            config.coordination.lead_agent = " ".to_string();
-        },
-        "lead_agent",
-    );
-    invalid_with(
-        |config| config.coordination.max_inbox_messages_per_agent = 0,
-        "max_inbox_messages_per_agent",
-    );
-    invalid_with(|config| config.coordination.max_dead_letters = 0, "max_dead_letters");
-    invalid_with(|config| config.coordination.max_context_entries = 0, "max_context_entries");
-    invalid_with(|config| config.coordination.max_seen_message_ids = 0, "max_seen_message_ids");
 }

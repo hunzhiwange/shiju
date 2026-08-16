@@ -54,30 +54,30 @@ fn template_button_builds_two_line_action_content() {
 }
 
 #[test]
-fn view_empty_routes_shows_empty_panel_between_section_and_save_action() {
+fn embedded_view_empty_routes_shows_empty_panel_between_section_and_save_action() {
     let app = test_app();
-    let tree = element_tree(view(&app));
+    let tree = element_tree(embedded_view(&app));
     let content = content_tree(&tree);
 
     assert_eq!(content.children.len(), 5);
-    assert_eq!(content.children[0].children.len(), 3);
+    assert_eq!(content.children[0].children.len(), 2);
     assert_eq!(content.children[4].children.len(), 2);
 }
 
 #[test]
-fn view_success_banner_requires_success_without_error() {
+fn embedded_view_success_banner_requires_success_without_error() {
     let mut app = test_app();
     app.embedding_routes_settings.save_success = true;
-    let success_tree = element_tree(view(&app));
+    let success_tree = element_tree(embedded_view(&app));
     assert_eq!(content_tree(&success_tree).children.len(), 6);
 
     app.embedding_routes_settings.save_error = Some("保存失败".to_string());
-    let error_tree = element_tree(view(&app));
-    assert_eq!(content_tree(&error_tree).children.len(), 5);
+    let error_tree = element_tree(embedded_view(&app));
+    assert_eq!(content_tree(&error_tree).children.len(), 6);
 }
 
 #[test]
-fn view_route_cards_replace_empty_state_and_keep_one_card_per_route() {
+fn embedded_view_route_cards_replace_empty_state_and_keep_one_card_per_route() {
     let mut app = test_app();
     app.embedding_routes_settings.routes = vec![
         EmbeddingRouteDraft {
@@ -96,7 +96,7 @@ fn view_route_cards_replace_empty_state_and_keep_one_card_per_route() {
         },
     ];
 
-    let tree = element_tree(view(&app));
+    let tree = element_tree(embedded_view(&app));
     let content = content_tree(&tree);
 
     assert_eq!(content.children.len(), 6);
@@ -109,7 +109,7 @@ fn view_route_cards_replace_empty_state_and_keep_one_card_per_route() {
 }
 
 #[test]
-fn route_card_contains_five_complete_field_rows() {
+fn embedded_route_card_contains_five_complete_field_rows() {
     let mut app = test_app();
     app.embedding_routes_settings.routes = vec![EmbeddingRouteDraft {
         pattern: "memory".to_string(),
@@ -119,7 +119,7 @@ fn route_card_contains_five_complete_field_rows() {
         api_key_input: "secret".to_string(),
     }];
 
-    let tree = element_tree(view(&app));
+    let tree = element_tree(embedded_view(&app));
     let card = &content_tree(&tree).children[3];
     let fields = &card.children[1];
 

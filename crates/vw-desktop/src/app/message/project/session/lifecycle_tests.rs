@@ -1376,9 +1376,13 @@ fn loaded_session_preserves_step_llm_raw_for_active_view() {
         None,
         false,
     );
-    prepared.step_llm_raw =
-        std::collections::HashMap::from([(3, json!({"output": {"reasoning_content": "kept"}}))]);
-    prepared.llm_raw_step_indices = vec![3, 8];
+    let raw_key = ("session-1".to_string(), "turn-3".to_string(), 3);
+    let other_key = ("session-1".to_string(), "turn-8".to_string(), 8);
+    prepared.step_llm_raw = std::collections::HashMap::from([(
+        raw_key.clone(),
+        json!({"output": {"reasoning_content": "kept"}}),
+    )]);
+    prepared.llm_raw_step_indices = vec![raw_key.clone(), other_key.clone()];
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -1393,12 +1397,12 @@ fn loaded_session_preserves_step_llm_raw_for_active_view() {
 
     assert!(task.is_some());
     assert_eq!(
-        app.active_session_view_state.step_llm_raw[&3]["output"]["reasoning_content"],
+        app.active_session_view_state.step_llm_raw[&raw_key]["output"]["reasoning_content"],
         "kept"
     );
     assert_eq!(
         app.active_session_view_state.llm_raw_step_indices,
-        std::collections::HashSet::from([3, 8])
+        std::collections::HashSet::from([raw_key, other_key])
     );
 }
 
@@ -1418,7 +1422,10 @@ fn loaded_session_refreshes_raw_when_trajectory_is_already_open() {
         None,
         false,
     );
-    prepared.llm_raw_step_indices = vec![3, 8];
+    prepared.llm_raw_step_indices = vec![
+        ("session-1".to_string(), "turn-3".to_string(), 3),
+        ("session-1".to_string(), "turn-8".to_string(), 8),
+    ];
 
     let task = super::lifecycle::handle(
         &mut app,
@@ -1433,8 +1440,16 @@ fn loaded_session_refreshes_raw_when_trajectory_is_already_open() {
     .expect("prepared session should be handled");
 
     assert_eq!(task.units(), 2);
-    assert!(app.trajectory_raw_loading.contains(&("session-1".to_string(), 3)));
-    assert!(app.trajectory_raw_loading.contains(&("session-1".to_string(), 8)));
+    assert!(app.trajectory_raw_loading.contains(&(
+        "session-1".to_string(),
+        "turn-3".to_string(),
+        3,
+    )));
+    assert!(app.trajectory_raw_loading.contains(&(
+        "session-1".to_string(),
+        "turn-8".to_string(),
+        8,
+    )));
 }
 
 #[test]

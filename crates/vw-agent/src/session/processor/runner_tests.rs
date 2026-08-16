@@ -264,6 +264,7 @@ fn event_texts(events: &[super::StreamEvent]) -> Vec<String> {
     events
         .iter()
         .filter_map(|event| match event {
+            super::StreamEvent::LlmRawArtifact(_) => None,
             super::StreamEvent::Delta(text) => Some(format!("delta:{text}")),
             super::StreamEvent::Tool(event) => {
                 Some(format!("tool:{}:{}", event.name, event.payload))
@@ -530,7 +531,7 @@ fn run_routes_docs_request_without_starting_an_llm_step() {
 }
 
 #[test]
-fn raw_payload_is_visible_before_step_finish() {
+fn raw_artifact_is_buffered_before_step_finish() {
     let _guard = super::llm_runner::test_llm_stream_guard();
     super::llm_runner::enqueue_test_llm_stream(vec![
         crate::app::agent::session::llm::StreamEvent::Delta("persisted answer".to_string()),
@@ -540,37 +541,32 @@ fn raw_payload_is_visible_before_step_finish() {
         },
     ]);
     let session_id = unique_session_id("raw-before-step-finish");
-    let scope = unique_session_id("raw-before-step-finish-scope");
-    let _project = register_scope_project(&scope);
     let mut req = request_with_session(&session_id);
     req.query = "answer once".to_string();
     req.persist_app_session_artifacts = true;
-    req.app_session_scope = Some(scope.clone());
-    let raw_visible = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let observed_raw = std::sync::Arc::clone(&raw_visible);
-    let observed_session_id = session_id.clone();
+    req.assistant_message_id = Some("assistant-turn-raw-before-step-finish".to_string());
+    let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let observed_events = std::sync::Arc::clone(&events);
 
     super::run(req, move |event| {
-        if let super::StreamEvent::StepFinish { step_index, .. } = event {
-            let raw = crate::session::ui_store::load_llm_raw_step_scoped(
-                &observed_session_id,
-                step_index,
-                Some(&scope),
-            )
-            .expect("raw payload read should succeed");
-            observed_raw.store(raw.is_some(), std::sync::atomic::Ordering::SeqCst);
-        }
+        observed_events.lock().expect("events lock should not be poisoned").push(event);
         true
     });
 
-    assert!(
-        raw_visible.load(std::sync::atomic::Ordering::SeqCst),
-        "raw payload must be readable before StepFinish is observed"
-    );
+    let events = events.lock().expect("events lock should not be poisoned");
+    let raw_index = events
+        .iter()
+        .position(|event| matches!(event, super::StreamEvent::LlmRawArtifact(_)))
+        .expect("processor must emit a raw artifact");
+    let finish_index = events
+        .iter()
+        .position(|event| matches!(event, super::StreamEvent::StepFinish { .. }))
+        .expect("processor must emit StepFinish");
+    assert!(raw_index < finish_index);
 }
 
 #[test]
-fn raw_payload_survives_rejected_step_finish() {
+fn rejected_raw_artifact_stops_before_step_finish() {
     let _guard = super::llm_runner::test_llm_stream_guard();
     super::llm_runner::enqueue_test_llm_stream(vec![
         crate::app::agent::session::llm::StreamEvent::Delta("persisted answer".to_string()),
@@ -580,29 +576,25 @@ fn raw_payload_survives_rejected_step_finish() {
         },
     ]);
     let session_id = unique_session_id("raw-rejected-step-finish");
-    let scope = unique_session_id("raw-rejected-step-finish-scope");
-    let _project = register_scope_project(&scope);
     let mut req = request_with_session(&session_id);
     req.query = "answer once".to_string();
     req.persist_app_session_artifacts = true;
-    req.app_session_scope = Some(scope.clone());
-    let rejected_step = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
-    let observed_step = std::sync::Arc::clone(&rejected_step);
+    req.assistant_message_id = Some("assistant-turn-rejected-raw".to_string());
+    let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let observed_events = std::sync::Arc::clone(&events);
 
     super::run(req, move |event| {
-        if let super::StreamEvent::StepFinish { step_index, .. } = event {
-            observed_step.store(step_index, std::sync::atomic::Ordering::SeqCst);
+        let reject = matches!(event, super::StreamEvent::LlmRawArtifact(_));
+        observed_events.lock().expect("events lock should not be poisoned").push(event);
+        if reject {
             return false;
         }
         true
     });
 
-    let step_index = rejected_step.load(std::sync::atomic::Ordering::SeqCst);
-    assert_ne!(step_index, 0, "the fixture must observe a StepFinish event");
-    let raw =
-        crate::session::ui_store::load_llm_raw_step_scoped(&session_id, step_index, Some(&scope))
-            .expect("raw payload read should succeed");
-    assert!(raw.is_some(), "rejecting StepFinish must not discard the raw payload");
+    let events = events.lock().expect("events lock should not be poisoned");
+    assert!(events.iter().any(|event| matches!(event, super::StreamEvent::LlmRawArtifact(_))));
+    assert!(!events.iter().any(|event| matches!(event, super::StreamEvent::StepFinish { .. })));
 }
 
 #[test]

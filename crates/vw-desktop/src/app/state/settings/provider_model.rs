@@ -395,6 +395,20 @@ pub(crate) struct ModelDetailModalState {
     pub(crate) show_raw: bool,
 }
 
+/// 模型配置内的子标签。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ModelConfigTab {
+    /// 已连接模型目录。
+    #[default]
+    Models,
+    /// 按请求提示选择模型的路由规则。
+    ModelRoutes,
+    /// 将查询匹配到模型路由的分类规则。
+    QueryClassification,
+    /// 图片输入、远程抓取与 OCR 配置。
+    Multimodal,
+}
+
 /// 模型设置面板状态
 ///
 /// 管理模型设置页面的状态，包括模型列表、
@@ -402,6 +416,8 @@ pub(crate) struct ModelDetailModalState {
 #[derive(Debug, Clone)]
 #[derive(Default)]
 pub(crate) struct ModelSettingsState {
+    /// 当前显示的模型配置子标签。
+    pub(crate) active_tab: ModelConfigTab,
     /// 是否正在加载
     pub(crate) loading: bool,
     /// 是否正在保存模型启用状态
@@ -538,6 +554,7 @@ impl Default for HeartbeatSettingsState {
 pub enum CronSettingsTab {
     Jobs,
     Config,
+    Scheduler,
     Add,
 }
 

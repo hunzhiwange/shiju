@@ -938,6 +938,19 @@ fn stream_done_clears_active_request_and_applies_ids_and_usage() {
     let runtime = app.get_session_runtime_mut(&session_id);
     runtime.is_requesting = true;
     runtime.active_agent_request = Some(agent_request(42, &session_id));
+    app.active_session_view_state.steps = vec![crate::app::models::ChatSessionStep {
+        index: 1,
+        turn_id: None,
+        started_ms: 10,
+        finished_ms: Some(20),
+        start_snapshot_path: None,
+        finish_snapshot_path: None,
+        usage: crate::app::models::TokenUsage::default(),
+        cost_usd: None,
+        finish_reason: Some("stop".to_string()),
+        model: Some("provider/model".to_string()),
+        tool_timings: Vec::new(),
+    }];
     let usage = crate::app::models::TokenUsage {
         input_tokens: 11,
         output_tokens: 22,
@@ -956,6 +969,10 @@ fn stream_done_clears_active_request_and_applies_ids_and_usage() {
     assert_eq!(app.chat_message_ids[0].as_deref(), Some("parent-id"));
     assert_eq!(app.chat_message_ids[1].as_deref(), Some("assistant-id"));
     assert_eq!(app.usage, usage);
+    assert_eq!(
+        app.active_session_view_state.steps[0].turn_id.as_deref(),
+        Some("assistant-id")
+    );
     assert!(!app.show_send_mode_popover);
     let runtime = app.get_session_runtime(&session_id);
     assert!(!runtime.is_requesting);

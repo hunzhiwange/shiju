@@ -2,7 +2,8 @@
 const SOURCE: &str = include_str!("system_settings.rs");
 
 use super::system_settings::{
-    SystemTab, active_tab_help_modal_open, active_tab_save_error, system_tab_matches_query, view,
+    SystemTab, active_tab_help_modal_open, active_tab_save_error, is_network_tab,
+    system_tab_matches_query, view,
 };
 use super::system_settings_help::help_button_bar;
 
@@ -36,12 +37,14 @@ fn system_settings_tests_keeps_planned_coverage_targets() {
 #[test]
 fn system_settings_search_matches_child_items() {
     assert!(system_tab_matches_query(SystemTab::General, "语言"));
-    assert!(system_tab_matches_query(SystemTab::QuickMessages, "创建新会话"));
+    assert!(system_tab_matches_query(SystemTab::Agents, "创建新会话"));
+    assert!(system_tab_matches_query(SystemTab::Agents, "接收者"));
     assert!(system_tab_matches_query(SystemTab::Agents, "API 密钥"));
     assert!(system_tab_matches_query(SystemTab::Cron, "最大并发"));
     assert!(system_tab_matches_query(SystemTab::Acp, "初始化"));
     assert!(system_tab_matches_query(SystemTab::Mcp, "stdio"));
     assert!(system_tab_matches_query(SystemTab::WebSearch, "Brave 密钥"));
+    assert!(system_tab_matches_query(SystemTab::WebSearch, "webdriver"));
     assert!(system_tab_matches_query(SystemTab::HttpRequest, "允许域名"));
 }
 
@@ -49,20 +52,27 @@ fn system_settings_search_matches_child_items() {
 fn system_tab_all_contains_every_display_label_once_in_order() {
     let tabs = SystemTab::all();
 
-    assert_eq!(tabs.len(), 37);
+    assert_eq!(tabs.len(), 24);
     assert_eq!(tabs.first(), Some(&SystemTab::General));
     assert_eq!(tabs.get(1), Some(&SystemTab::Themes));
-    assert_eq!(tabs.last(), Some(&SystemTab::Multimodal));
-    assert_eq!(tabs.iter().filter(|tab| **tab == SystemTab::HttpRequest).count(), 1);
+    assert_eq!(tabs.last(), Some(&SystemTab::WebSearch));
+    assert!(!tabs.contains(&SystemTab::HttpRequest));
+    assert!(!tabs.contains(&SystemTab::Browser));
 
     let labels = tabs.iter().map(ToString::to_string).collect::<Vec<_>>();
     assert!(labels.contains(&"常规设置".to_string()));
     assert!(labels.contains(&"主题".to_string()));
-    assert!(labels.contains(&"快捷消息".to_string()));
+    assert!(!labels.contains(&"对话流".to_string()));
+    assert!(!labels.contains(&"快捷消息".to_string()));
+    assert!(!labels.contains(&"心跳配置".to_string()));
     assert!(labels.contains(&"ACP 配置".to_string()));
     assert!(labels.contains(&"MCP 配置".to_string()));
-    assert!(labels.contains(&"委托代理配置".to_string()));
+    assert!(labels.contains(&"智能体配置".to_string()));
+    assert!(!labels.contains(&"模型路由".to_string()));
+    assert!(!labels.contains(&"查询模型分类".to_string()));
+    assert!(!labels.contains(&"多模态配置".to_string()));
     assert!(!labels.contains(&"调度配置".to_string()));
+    assert!(!labels.contains(&"存储配置".to_string()));
 }
 
 #[test]
@@ -79,22 +89,13 @@ fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
     let expected = [
         "常规设置",
         "主题",
-        "对话流",
-        "快捷消息",
-        "编辑器",
         "项目",
         "提供商",
         "模型",
-        "嵌入路由",
         "记忆配置",
-        "模型路由",
-        "查询模型分类",
-        "心跳配置",
         "定时任务配置",
-        "委托代理配置",
+        "智能体配置",
         "员工配置",
-        "代理通信配置",
-        "协调配置",
         "可靠性配置",
         "通道配置",
         "运行时配置",
@@ -105,15 +106,11 @@ fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
         "客户端网关",
         "服务端网关",
         "可观测性配置",
-        "存储配置",
         "代理配置",
         "隧道配置",
         "技能配置",
         "钩子配置",
-        "网页搜索配置",
-        "网络请求配置",
-        "浏览器配置",
-        "多模态配置",
+        "网络配置",
     ];
 
     for (tab, expected_label) in SystemTab::all().into_iter().zip(expected) {
@@ -122,26 +119,28 @@ fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
 }
 
 #[test]
+fn network_settings_groups_three_internal_tabs() {
+    assert!(is_network_tab(SystemTab::WebSearch));
+    assert!(is_network_tab(SystemTab::HttpRequest));
+    assert!(is_network_tab(SystemTab::Browser));
+    assert!(!is_network_tab(SystemTab::Proxy));
+}
+
+#[test]
 fn system_tab_search_metadata_covers_every_tab() {
     let cases = [
-        (SystemTab::General, "auto save"),
+        (SystemTab::General, "editor"),
         (SystemTab::Themes, "gallery"),
-        (SystemTab::DialogueFlow, "reasoning summary"),
-        (SystemTab::QuickMessages, "quick messages"),
-        (SystemTab::Editor, "code"),
         (SystemTab::Projects, "workspace"),
         (SystemTab::Providers, "catalog"),
-        (SystemTab::Models, "llm"),
-        (SystemTab::EmbeddingRoutes, "vector"),
+        (SystemTab::Models, "vision"),
         (SystemTab::Memory, "sqlite"),
-        (SystemTab::ModelRoutes, "routing"),
-        (SystemTab::QueryClassification, "category"),
-        (SystemTab::Heartbeat, "monitor"),
         (SystemTab::Cron, "max_concurrent"),
         (SystemTab::Agents, "subagent"),
+        (SystemTab::Agents, "reasoning summary"),
+        (SystemTab::Agents, "quick messages"),
+        (SystemTab::Agents, "monitor"),
         (SystemTab::Staff, "roster"),
-        (SystemTab::AgentsIpc, "communication"),
-        (SystemTab::Coordination, "agents"),
         (SystemTab::Reliability, "retry"),
         (SystemTab::Channels, "slack"),
         (SystemTab::Runtime, "docker"),
@@ -152,7 +151,6 @@ fn system_tab_search_metadata_covers_every_tab() {
         (SystemTab::GatewayClient, "connection"),
         (SystemTab::Gateway, "webhook"),
         (SystemTab::Observability, "otel"),
-        (SystemTab::Storage, "database"),
         (SystemTab::Proxy, "all_proxy"),
         (SystemTab::Tunnel, "tailscale"),
         (SystemTab::Skills, "plugins"),
@@ -160,7 +158,6 @@ fn system_tab_search_metadata_covers_every_tab() {
         (SystemTab::WebSearch, "duckduckgo"),
         (SystemTab::HttpRequest, "allowlist"),
         (SystemTab::Browser, "webdriver"),
-        (SystemTab::Multimodal, "vision"),
     ];
 
     for (tab, query) in cases {
@@ -179,16 +176,13 @@ fn active_tab_help_modal_recognizes_shared_and_tab_specific_help() {
     app.system_settings_help_tab = None;
 
     app.heartbeat_settings.show_help_modal = true;
-    assert!(active_tab_help_modal_open(&app, SystemTab::Heartbeat));
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Heartbeat;
+    assert!(active_tab_help_modal_open(&app, SystemTab::Agents));
     app.cron_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::Cron));
     app.cron_settings.show_help_modal = false;
     app.scheduler_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::Cron));
-    app.agents_ipc_settings.show_help_modal = true;
-    assert!(active_tab_help_modal_open(&app, SystemTab::AgentsIpc));
-    app.coordination_settings.show_help_modal = true;
-    assert!(active_tab_help_modal_open(&app, SystemTab::Coordination));
     app.reliability_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::Reliability));
     app.autonomy_settings.show_help_modal = true;
@@ -205,8 +199,9 @@ fn active_tab_help_modal_recognizes_shared_and_tab_specific_help() {
     assert!(active_tab_help_modal_open(&app, SystemTab::Proxy));
     app.skills_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::Skills));
-    app.web_search_settings.show_help_modal = true;
+    app.system_settings_help_tab = Some(SystemTab::WebSearch);
     assert!(active_tab_help_modal_open(&app, SystemTab::WebSearch));
+    app.system_settings_help_tab = None;
 }
 
 #[test]
@@ -222,7 +217,7 @@ fn active_tab_help_modal_matches_shared_help_tab_for_every_category() {
         );
 
         let other_tab =
-            if tab == SystemTab::General { SystemTab::Multimodal } else { SystemTab::General };
+            if tab == SystemTab::General { SystemTab::Browser } else { SystemTab::General };
         assert!(
             !active_tab_help_modal_open(&app, other_tab),
             "{tab:?} help should not leak into {other_tab:?}"
@@ -236,8 +231,6 @@ fn active_tab_help_modal_does_not_open_static_tabs_from_tab_specific_flags() {
     app.heartbeat_settings.show_help_modal = true;
     app.cron_settings.show_help_modal = true;
     app.scheduler_settings.show_help_modal = true;
-    app.agents_ipc_settings.show_help_modal = true;
-    app.coordination_settings.show_help_modal = true;
     app.reliability_settings.show_help_modal = true;
     app.autonomy_settings.show_help_modal = true;
     app.security_settings.show_help_modal = true;
@@ -250,17 +243,15 @@ fn active_tab_help_modal_does_not_open_static_tabs_from_tab_specific_flags() {
 
     for tab in [
         SystemTab::General,
-        SystemTab::DialogueFlow,
-        SystemTab::QuickMessages,
+        SystemTab::Agents,
         SystemTab::Editor,
         SystemTab::Projects,
         SystemTab::Providers,
-        SystemTab::Storage,
         SystemTab::Tunnel,
         SystemTab::Hooks,
+        SystemTab::WebSearch,
         SystemTab::HttpRequest,
         SystemTab::Browser,
-        SystemTab::Multimodal,
     ] {
         assert!(
             !active_tab_help_modal_open(&app, tab),
@@ -283,19 +274,25 @@ fn active_tab_save_error_routes_each_settings_state_and_rejects_static_tabs() {
     }
 
     assert_error_route!(Providers, provider_settings);
-    assert_error_route!(Models, model_settings);
-    assert_error_route!(EmbeddingRoutes, embedding_routes_settings);
-    assert_error_route!(ModelRoutes, model_routes_settings);
-    assert_error_route!(QueryClassification, query_classification_settings);
-    assert_error_route!(Heartbeat, heartbeat_settings);
+    app.model_settings.save_error = Some("model_settings".to_string());
+    assert_eq!(active_tab_save_error(&app, SystemTab::Models), Some("model_settings"));
+    app.model_settings.save_error = None;
+    app.model_settings.active_tab = crate::app::state::ModelConfigTab::ModelRoutes;
+    assert_error_route!(Models, model_routes_settings);
+    app.model_settings.active_tab = crate::app::state::ModelConfigTab::QueryClassification;
+    assert_error_route!(Models, query_classification_settings);
+    app.model_settings.active_tab = crate::app::state::ModelConfigTab::Multimodal;
+    assert_error_route!(Models, multimodal_settings);
+    app.model_settings.active_tab = crate::app::state::ModelConfigTab::Models;
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Heartbeat;
+    assert_error_route!(Agents, heartbeat_settings);
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Agents;
     assert_error_route!(Cron, cron_settings);
     app.scheduler_settings.save_error = Some("scheduler_settings".to_string());
     assert_eq!(active_tab_save_error(&app, SystemTab::Cron), Some("scheduler_settings"));
     app.scheduler_settings.save_error = None;
     assert_error_route!(Agents, agents_settings);
     assert_error_route!(Staff, staff_settings);
-    assert_error_route!(AgentsIpc, agents_ipc_settings);
-    assert_error_route!(Coordination, coordination_settings);
     assert_error_route!(Reliability, reliability_settings);
     assert_error_route!(Channels, channels_settings);
     assert_error_route!(Memory, memory_settings);
@@ -307,7 +304,8 @@ fn active_tab_save_error_routes_each_settings_state_and_rejects_static_tabs() {
     assert_error_route!(GatewayClient, gateway_client_settings);
     assert_error_route!(Gateway, gateway_settings);
     assert_error_route!(Observability, observability_settings);
-    assert_error_route!(Storage, storage_settings);
+    app.memory_settings.active_tab = crate::app::state::MemorySettingsTab::Storage;
+    assert_error_route!(Memory, storage_settings);
     assert_error_route!(Proxy, proxy_settings);
     assert_error_route!(Tunnel, tunnel_settings);
     assert_error_route!(Skills, skills_settings);
@@ -315,12 +313,8 @@ fn active_tab_save_error_routes_each_settings_state_and_rejects_static_tabs() {
     assert_error_route!(WebSearch, web_search_settings);
     assert_error_route!(HttpRequest, http_request_settings);
     assert_error_route!(Browser, browser_settings);
-    assert_error_route!(Multimodal, multimodal_settings);
-
     for tab in [
         SystemTab::General,
-        SystemTab::DialogueFlow,
-        SystemTab::QuickMessages,
         SystemTab::Editor,
         SystemTab::Projects,
     ] {
@@ -345,13 +339,18 @@ fn view_builds_hidden_empty_search_and_every_visible_tab() {
         app.system_settings_tab = tab;
         drop(view(&app));
     }
+    for tab in [SystemTab::HttpRequest, SystemTab::Browser] {
+        app.system_settings_tab = tab;
+        drop(view(&app));
+    }
 }
 
 #[test]
 fn view_builds_active_tab_help_and_save_error_state() {
     let mut app = crate::app::App::new().0;
     app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::Heartbeat;
+    app.system_settings_tab = SystemTab::Agents;
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Heartbeat;
     app.heartbeat_settings.show_help_modal = true;
     app.heartbeat_settings.save_error = Some("heartbeat save failed".to_string());
 

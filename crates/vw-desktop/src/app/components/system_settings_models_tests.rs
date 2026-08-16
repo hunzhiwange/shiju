@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::state::{
-    ModelDetailModalState, ModelDetailRow, ModelSummary, ProviderModelsSummary,
+    ModelConfigTab, ModelDetailModalState, ModelDetailRow, ModelSummary, ProviderModelsSummary,
 };
 use crate::app::{App, Message};
 use iced::widget::text;
@@ -8,6 +8,21 @@ use serde_json::json;
 
 fn test_app() -> App {
     App::new().0
+}
+
+#[test]
+fn view_switches_between_model_configuration_tabs() {
+    let mut app = test_app();
+
+    for tab in [
+        ModelConfigTab::Models,
+        ModelConfigTab::ModelRoutes,
+        ModelConfigTab::QueryClassification,
+        ModelConfigTab::Multimodal,
+    ] {
+        app.model_settings.active_tab = tab;
+        keep_element(view(&app));
+    }
 }
 
 fn keep_element(element: iced::Element<'_, Message>) {

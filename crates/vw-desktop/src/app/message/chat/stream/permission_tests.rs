@@ -135,6 +135,7 @@ fn load_session_or_default_uses_active_chat_and_steps_for_active_session() {
     app.chat_message_ids = vec![Some("m1".to_string())];
     app.active_session_view_state.steps = vec![crate::app::models::ChatSessionStep {
         index: 1,
+        turn_id: None,
         started_ms: 10,
         finished_ms: None,
         start_snapshot_path: None,

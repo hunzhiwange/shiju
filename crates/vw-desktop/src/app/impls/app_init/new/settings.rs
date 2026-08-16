@@ -417,22 +417,6 @@ pub(super) fn build_gateway_settings(
 
 /// 模块内可见函数，执行 build_gateway_client_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-/// 模块内可见函数，执行 build_agents_ipc_settings 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_agents_ipc_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
-) -> crate::app::state::AgentsIpcSettingsState {
-    let agents_ipc_cfg = &full_agent_cfg.agents_ipc;
-
-    crate::app::state::AgentsIpcSettingsState {
-        enabled: agents_ipc_cfg.enabled,
-        db_path_input: agents_ipc_cfg.db_path.clone(),
-        staleness_secs: agents_ipc_cfg.staleness_secs.clamp(1, 86_400),
-        show_help_modal: false,
-        save_error: None,
-    }
-}
-
 /// 模块内可见函数，执行 build_agents_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 /// 模块内可见函数，执行 build_staff_settings 对应的应用流程。
@@ -441,26 +425,6 @@ pub(super) fn build_staff_settings(
     full_agent_cfg: &vw_config_types::config::Config,
 ) -> crate::app::state::StaffSettingsState {
     crate::app::state::StaffSettingsState::from_config(full_agent_cfg.staff.clone())
-}
-
-/// 模块内可见函数，执行 build_coordination_settings 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_coordination_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
-) -> crate::app::state::CoordinationSettingsState {
-    let coordination_cfg = &full_agent_cfg.coordination;
-
-    crate::app::state::CoordinationSettingsState {
-        enabled: coordination_cfg.enabled,
-        lead_agent_input: coordination_cfg.lead_agent.clone(),
-        max_inbox_messages_per_agent: coordination_cfg.max_inbox_messages_per_agent.clamp(1, 10_000)
-            as u32,
-        max_dead_letters: coordination_cfg.max_dead_letters.clamp(1, 10_000) as u32,
-        max_context_entries: coordination_cfg.max_context_entries.clamp(1, 20_000) as u32,
-        max_seen_message_ids: coordination_cfg.max_seen_message_ids.clamp(1, 100_000) as u32,
-        show_help_modal: false,
-        save_error: None,
-    }
 }
 
 /// 模块内可见函数，执行 build_memory_settings 对应的应用流程。
@@ -815,9 +779,7 @@ pub(super) fn apply_bootstrap_agent_config(
     app.browser_settings = build_browser_settings(full_agent_cfg);
     app.http_request_settings = build_http_request_settings(full_agent_cfg);
     app.gateway_settings = build_gateway_settings(&gateway_cfg_result);
-    app.agents_ipc_settings = build_agents_ipc_settings(full_agent_cfg);
     app.staff_settings = build_staff_settings(full_agent_cfg);
-    app.coordination_settings = build_coordination_settings(full_agent_cfg);
     app.memory_settings = build_memory_settings(full_agent_cfg);
     app.channels_settings =
         super::settings_builders::build_channels_settings(&full_agent_cfg.channels_config);

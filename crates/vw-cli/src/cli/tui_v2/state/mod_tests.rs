@@ -27,6 +27,7 @@ fn session_with_step(finish_reason: Option<&str>, finished_ms: Option<u64>) -> C
         calls: Vec::new(),
         steps: vec![ChatSessionStep {
             index: 1,
+            turn_id: None,
             started_ms: 10,
             finished_ms,
             start_snapshot_path: Some("start.json".to_string()),

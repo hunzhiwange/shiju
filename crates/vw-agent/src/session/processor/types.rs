@@ -6,6 +6,7 @@
 use crate::agent::loop_::NonCliApprovalContext;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::provider::provider::ModelLimit;
+use crate::session::llm_raw::LlmRawArtifact;
 use crate::session::runtime::SessionToolset;
 use crate::session::ui_types as models;
 use serde_json::Value;
@@ -136,6 +137,9 @@ pub struct ToolEvent {
 /// 这些事件用于实时通知客户端会话处理的进度和状态变化。
 #[derive(Debug, Clone)]
 pub enum StreamEvent {
+    /// 仅供 Gateway 暂存、不会编码给客户端的原始 LLM 工件。
+    LlmRawArtifact(LlmRawArtifact),
+
     /// 系统提示词已加载协议文件，客户端可据此展示真实的上下文读取记录。
     ContextLoaded {
         /// 实际读取并注入系统提示词的协议文件路径。

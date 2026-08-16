@@ -1047,6 +1047,7 @@ fn snapshot_chat_message_from_ui_message(
 fn snapshot_step_from_ui_step(step: &UiStep) -> ChatSessionStep {
     ChatSessionStep {
         index: step.step_index,
+        turn_id: None,
         started_ms: step.started_ms,
         finished_ms: step.finished_ms,
         start_snapshot_path: step.base.parent_id.as_ref().map(|parent| parent.as_str().to_string()),

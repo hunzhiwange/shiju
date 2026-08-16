@@ -7,6 +7,7 @@ use super::{
     App, Arc, ChatMessage, ChatSession, ChatSessionMeta, ChatSessionStep, PreparedChatUiChunk,
     PreparedChatUiPhase, TokenUsage,
 };
+use crate::app::state::SessionStepRawKey;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -25,8 +26,8 @@ pub struct PreparedSessionOpen {
     pub usage: TokenUsage,
     pub steps: Vec<ChatSessionStep>,
     pub calls: Vec<Value>,
-    pub step_llm_raw: HashMap<u32, Value>,
-    pub llm_raw_step_indices: Vec<u32>,
+    pub step_llm_raw: HashMap<SessionStepRawKey, Value>,
+    pub llm_raw_step_indices: Vec<SessionStepRawKey>,
     pub updated_ms: u64,
     pub content_signature: u64,
     pub session_model: Option<String>,

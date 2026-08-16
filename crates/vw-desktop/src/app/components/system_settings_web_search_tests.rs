@@ -97,6 +97,7 @@ fn view_builds_supported_and_fallback_provider_layouts() {
             app.web_search_settings.user_agent =
                 populated.then_some("VibeWindow/Test").unwrap_or("").into();
             keep_element(view(&app));
+            keep_element(content(&app));
         }
     }
 }
@@ -107,18 +108,9 @@ fn provider_layouts_include_only_their_conditional_rows() {
 
     for (provider, expected_rows) in [("duckduckgo", 8), ("brave", 12), ("serper", 10)] {
         app.web_search_settings.provider = provider.to_string();
-        let element = view(&app);
+        let element = content(&app);
         let tree = Tree::new(element.as_widget());
 
-        assert_eq!(tree.children.len(), expected_rows, "provider={provider}");
+        assert_eq!(tree.children.len(), expected_rows - 1, "provider={provider}");
     }
-}
-
-#[test]
-fn inline_help_panel_is_visible_only_when_open() {
-    let mut app = test_app();
-    assert!(inline_help_panel(&app).is_none());
-
-    app.web_search_settings.show_help_modal = true;
-    assert!(inline_help_panel(&app).is_some());
 }

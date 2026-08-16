@@ -13,6 +13,7 @@ pub(crate) type EventSink = Box<dyn FnMut(StreamEvent) -> bool + Send>;
 
 fn map_non_terminal(event: StreamEvent) -> Option<PromptEvent> {
     match event {
+        StreamEvent::LlmRawArtifact(artifact) => Some(PromptEvent::LlmRawArtifact(artifact)),
         StreamEvent::ContextLoaded { paths } => Some(PromptEvent::ContextLoaded { paths }),
         StreamEvent::Delta(text) => Some(PromptEvent::Text(text)),
         StreamEvent::Tool(event) => Some(PromptEvent::Tool(event)),

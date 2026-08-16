@@ -324,21 +324,5 @@ pub fn validate_config(config: &Config) -> Result<()> {
 
     validate_proxy_config(&config.proxy)?;
 
-    if config.coordination.enabled && config.coordination.lead_agent.trim().is_empty() {
-        anyhow::bail!("coordination.lead_agent must not be empty when coordination is enabled");
-    }
-    if config.coordination.max_inbox_messages_per_agent == 0 {
-        anyhow::bail!("coordination.max_inbox_messages_per_agent must be greater than 0");
-    }
-    if config.coordination.max_dead_letters == 0 {
-        anyhow::bail!("coordination.max_dead_letters must be greater than 0");
-    }
-    if config.coordination.max_context_entries == 0 {
-        anyhow::bail!("coordination.max_context_entries must be greater than 0");
-    }
-    if config.coordination.max_seen_message_ids == 0 {
-        anyhow::bail!("coordination.max_seen_message_ids must be greater than 0");
-    }
-
     Ok(())
 }

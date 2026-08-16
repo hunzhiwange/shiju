@@ -1,5 +1,20 @@
 use super::*;
 use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
+use crate::app::state::GeneralSettingsTab;
+
+#[test]
+fn tab_selection_updates_general_settings_content() {
+    let mut app = App::new().0;
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::TabSelected(
+            GeneralSettingsTab::Editor,
+        )),
+    );
+
+    assert_eq!(app.general_settings_tab, GeneralSettingsTab::Editor);
+}
 
 #[test]
 fn timezone_selection_updates_state_and_persists_config() {

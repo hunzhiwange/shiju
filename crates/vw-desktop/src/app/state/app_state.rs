@@ -76,7 +76,7 @@ pub(crate) enum QuickMessageHandoffState {
     },
 }
 
-pub(crate) type UsageStepRawKey = (String, u32);
+pub(crate) type UsageStepRawKey = SessionStepRawKey;
 pub(crate) type UsageStepRawPayloadResult = Result<Option<serde_json::Value>, String>;
 
 #[allow(dead_code)]
@@ -799,6 +799,8 @@ pub struct App {
     pub(crate) settings_tab: SettingsTab,
     /// 系统设置标签页
     pub(crate) system_settings_tab: crate::app::components::system_settings::SystemTab,
+    /// 常规配置页内标签
+    pub(crate) general_settings_tab: GeneralSettingsTab,
     /// 系统设置分类搜索词
     pub(crate) system_settings_query: String,
     /// 当前打开的系统设置帮助标签页
@@ -837,14 +839,10 @@ pub struct App {
     pub(crate) gateway_settings: GatewaySettingsState,
     /// 客户端网关连接设置状态
     pub(crate) gateway_client_settings: GatewayClientSettingsState,
-    /// Agent 间 IPC 设置状态
-    pub(crate) agents_ipc_settings: AgentsIpcSettingsState,
     /// 委托代理设置状态
     pub(crate) agents_settings: AgentsSettingsState,
     /// 员工配置设置状态
     pub(crate) staff_settings: StaffSettingsState,
-    /// 协调设置状态
-    pub(crate) coordination_settings: CoordinationSettingsState,
     /// 成本控制设置状态
     pub(crate) cost_settings: CostSettingsState,
     /// 记忆系统设置状态

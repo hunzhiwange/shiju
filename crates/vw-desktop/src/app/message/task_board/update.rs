@@ -3700,22 +3700,6 @@ pub fn update(
             }
             iced::Task::none()
         }
-        TaskBoardMessage::StaffHandoffIpcDeliveryCompleted {
-            task_id,
-            from_member_id,
-            to_member_id,
-            to_agent,
-            timestamp_ms,
-            result,
-        } => staff_messages_update::apply_staff_handoff_ipc_delivery_result(
-            app,
-            task_id,
-            from_member_id,
-            to_member_id,
-            to_agent,
-            timestamp_ms,
-            result,
-        ),
         TaskBoardMessage::PollMatrixTaskPoolEvents => poll_task_pool_matrix_events(app),
         TaskBoardMessage::MatrixTaskPoolEventsLoaded(result) => {
             match result {

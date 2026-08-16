@@ -18,10 +18,10 @@
 //! 通过 [`view`] 函数创建安全设置界面的 UI 元素，该函数返回一个 Iced 框架的 `Element`。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_segment_button_style,
-    settings_text_input_style, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, danger_action_btn_style, settings_checkbox_style, settings_divider,
+    settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::state::{SecurityListKind, SecuritySettingsTab};
 use crate::app::{App, Message, message};
@@ -104,6 +104,7 @@ fn list_editor<'a>(
     placeholder: &'static str,
     items: &'a [String],
     draft: &'a str,
+    pending_remove_index: Option<usize>,
 ) -> Element<'a, Message> {
     let draft_changed = move |value| {
         Message::Settings(message::SettingsMessage::SecurityListDraftChanged(kind, value))
@@ -118,22 +119,47 @@ fn list_editor<'a>(
 
     let mut item_rows = column![].spacing(6);
     for (index, item) in items.iter().enumerate() {
-        item_rows = item_rows.push(
-            container(
+        let mut item_content = column![
+            row![
+                text(item).size(13).width(Length::Fill),
+                button(text("删除").size(12))
+                    .on_press(Message::Settings(
+                        message::SettingsMessage::SecurityListRemoveRequested(kind, index),
+                    ))
+                    .padding([6, 10])
+                    .style(|theme, status| {
+                        settings_segment_button_style(theme, status, false)
+                    }),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center),
+        ]
+        .spacing(6);
+        if pending_remove_index == Some(index) {
+            item_content = item_content.push(
                 row![
-                    text(item).size(13).width(Length::Fill),
-                    button(text("删除").size(12))
-                        .on_press(Message::Settings(message::SettingsMessage::SecurityListRemove(
-                            kind, index
-                        ),))
+                    text("确认删除该列表项？").size(12).width(Length::Fill),
+                    button(text("取消").size(12))
+                        .on_press(Message::Settings(
+                            message::SettingsMessage::SecurityListRemoveCanceled,
+                        ))
                         .padding([6, 10])
                         .style(|theme, status| {
                             settings_segment_button_style(theme, status, false)
                         }),
+                    button(text("确认删除").size(12))
+                        .on_press(Message::Settings(
+                            message::SettingsMessage::SecurityListRemoveConfirmed(kind, index),
+                        ))
+                        .padding([6, 10])
+                        .style(danger_action_btn_style),
                 ]
                 .spacing(10)
                 .align_y(Alignment::Center),
-            )
+            );
+        }
+        item_rows = item_rows.push(
+            container(item_content)
             .padding([6, 8])
             .width(Length::Fill),
         );
@@ -496,6 +522,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "例如 --private",
         &s.sandbox_firejail_args,
         s.list_editor.draft(SecurityListKind::SandboxFirejailArgs),
+        s.list_editor.pending_remove_index(SecurityListKind::SandboxFirejailArgs),
     );
 
     let max_memory_row = slider_row(
@@ -624,6 +651,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "例如 shell",
         &s.otp_gated_actions,
         s.list_editor.draft(SecurityListKind::OtpGatedActions),
+        s.list_editor.pending_remove_index(SecurityListKind::OtpGatedActions),
     );
 
     let otp_domains_row = list_editor(
@@ -633,6 +661,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "例如 admin.example.com",
         &s.otp_gated_domains,
         s.list_editor.draft(SecurityListKind::OtpGatedDomains),
+        s.list_editor.pending_remove_index(SecurityListKind::OtpGatedDomains),
     );
 
     let otp_domain_categories_row = list_editor(
@@ -642,6 +671,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "例如 payments",
         &s.otp_gated_domain_categories,
         s.list_editor.draft(SecurityListKind::OtpGatedDomainCategories),
+        s.list_editor.pending_remove_index(SecurityListKind::OtpGatedDomainCategories),
     );
 
     let estop_enabled_row = bool_row(
@@ -767,6 +797,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "例如 openat",
         &s.syscall_anomaly_baseline_syscalls,
         s.list_editor.draft(SecurityListKind::SyscallAnomalyBaselineSyscalls),
+        s.list_editor
+            .pending_remove_index(SecurityListKind::SyscallAnomalyBaselineSyscalls),
     );
 
     let canary_row = bool_row(

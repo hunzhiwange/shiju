@@ -10,8 +10,8 @@ use vw_shared::session::ui_types::{
 };
 
 use super::{
-    from_i64, from_i64_usize, parse_agent_info, role_from_db, role_to_db, session_last_content,
-    to_i64, usize_to_i64,
+    LlmRawArtifact, LlmRawRound, LlmRawTurnContext, from_i64, from_i64_usize, parse_agent_info,
+    role_from_db, role_to_db, session_last_content, to_i64, usize_to_i64,
 };
 use crate::global_database::GlobalDatabase;
 
@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS session_steps (
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     step_index BIGINT NOT NULL,
+    turn_id TEXT NOT NULL DEFAULT '',
     started_ms BIGINT NOT NULL,
     finished_ms BIGINT,
     start_snapshot_path TEXT,
@@ -123,7 +124,7 @@ CREATE TABLE IF NOT EXISTS session_steps (
     finish_reason TEXT,
     model TEXT,
     tool_timings_json TEXT NOT NULL DEFAULT '[]',
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, step_index),
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
     FOREIGN KEY (platform_id, company_id, project_id, session_id)
@@ -132,9 +133,31 @@ CREATE TABLE IF NOT EXISTS session_steps (
 );
 
 ALTER TABLE session_steps ADD COLUMN IF NOT EXISTS tool_timings_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE session_steps ADD COLUMN IF NOT EXISTS turn_id TEXT NOT NULL DEFAULT '';
+UPDATE session_steps SET turn_id = '' WHERE turn_id IS NULL;
+ALTER TABLE session_steps ALTER COLUMN turn_id SET DEFAULT '';
+ALTER TABLE session_steps ALTER COLUMN turn_id SET NOT NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conrelid = 'session_steps'::regclass
+          AND contype = 'p'
+          AND pg_get_constraintdef(oid) =
+              'PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index)'
+    ) THEN
+        ALTER TABLE session_steps DROP CONSTRAINT session_steps_pkey;
+        ALTER TABLE session_steps
+            ADD PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index);
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_session_steps_project_index
 ON session_steps(platform_id, company_id, project_id, session_id, step_index);
+
+CREATE INDEX IF NOT EXISTS idx_session_steps_project_turn_index
+ON session_steps(platform_id, company_id, project_id, session_id, turn_id, step_index);
 
 CREATE TABLE IF NOT EXISTS session_todos (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
@@ -175,6 +198,52 @@ CREATE TABLE IF NOT EXISTS session_step_llm_raw (
 
 CREATE INDEX IF NOT EXISTS idx_session_step_llm_raw_project_step
 ON session_step_llm_raw(platform_id, company_id, project_id, session_id, step_index);
+
+CREATE TABLE IF NOT EXISTS session_llm_raw_turns (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    turn_id TEXT NOT NULL CHECK (trim(turn_id) <> ''),
+    model_json TEXT NOT NULL,
+    system_json TEXT NOT NULL,
+    tools_json TEXT NOT NULL,
+    initial_request_config_json TEXT NOT NULL,
+    initial_provider_messages_json TEXT NOT NULL,
+    initial_message_sources_json TEXT NOT NULL,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_llm_raw_turns_project_session
+ON session_llm_raw_turns(platform_id, company_id, project_id, session_id, turn_id);
+
+CREATE TABLE IF NOT EXISTS session_llm_raw_rounds (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    turn_id TEXT NOT NULL CHECK (trim(turn_id) <> ''),
+    step_index BIGINT NOT NULL,
+    provider_message_prefix_len BIGINT NOT NULL,
+    provider_message_suffix_json TEXT NOT NULL,
+    message_source_suffix_json TEXT NOT NULL,
+    request_config_delta_json TEXT,
+    output_json TEXT NOT NULL,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, session_id, turn_id)
+        REFERENCES session_llm_raw_turns(platform_id, company_id, project_id, session_id, turn_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_llm_raw_rounds_project_turn_step
+ON session_llm_raw_rounds(platform_id, company_id, project_id, session_id, turn_id, step_index);
 
 CREATE TABLE IF NOT EXISTS session_agent_sessions (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
@@ -249,6 +318,35 @@ impl PostgresSessionStore {
         replace_session_messages(&mut transaction, scope, session)?;
         replace_session_steps(&mut transaction, scope, session)?;
         transaction.commit().context("commit PostgreSQL session UI snapshot save")?;
+        Ok(())
+    }
+
+    pub(super) fn commit_session_ui_snapshot(
+        &self,
+        scope: &ProjectScope,
+        session: &ChatSession,
+        raw_artifacts: &[LlmRawArtifact],
+    ) -> Result<()> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection
+            .transaction()
+            .context("begin PostgreSQL session UI raw commit")?;
+        let call_count = transaction
+            .query_opt(
+                "SELECT call_count FROM session_index
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                scoped_id_params!(scope, &session.id),
+            )?
+            .map(|row| from_i64_usize(row.get(0), "session call_count"))
+            .transpose()?
+            .unwrap_or(session.calls.len());
+        upsert_session_header(&mut transaction, scope, session, call_count)?;
+        replace_session_messages(&mut transaction, scope, session)?;
+        replace_session_steps(&mut transaction, scope, session)?;
+        upsert_session_llm_raw_artifacts(&mut transaction, scope, raw_artifacts)?;
+        transaction
+            .commit()
+            .context("commit PostgreSQL session UI raw commit")?;
         Ok(())
     }
 
@@ -373,7 +471,12 @@ impl PostgresSessionStore {
                 "DELETE FROM session_index
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
                    AND session_id = $4",
-                scoped_id_params!(scope, session_id),
+                &[
+                    &scope.platform_id().as_ref(),
+                    &scope.company_id().as_ref(),
+                    &scope.project_id().as_ref(),
+                    &session_id,
+                ],
             )
             .context("delete scoped PostgreSQL session")?;
         Ok(changed == 1)
@@ -453,16 +556,107 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    pub(super) fn load_session_turn_step_llm_raw(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        turn_id: &str,
+        step_index: u32,
+    ) -> Result<Option<serde_json::Value>> {
+        let mut connection = self.database.connect_postgres()?;
+        let context = connection
+            .query_opt(
+                "SELECT model_json, system_json, tools_json, initial_request_config_json,
+                        initial_provider_messages_json, initial_message_sources_json
+                 FROM session_llm_raw_turns
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND session_id = $4 AND turn_id = $5",
+                &[
+                    &scope.platform_id().as_ref(),
+                    &scope.company_id().as_ref(),
+                    &scope.project_id().as_ref(),
+                    &session_id,
+                    &turn_id,
+                ],
+            )?
+            .map(|row| {
+                Ok::<LlmRawTurnContext, anyhow::Error>(LlmRawTurnContext {
+                    turn_id: turn_id.to_owned(),
+                    session_id: session_id.to_owned(),
+                    model: parse_raw_json(row.try_get(0)?, "turn model")?,
+                    system: parse_raw_json(row.try_get(1)?, "turn system")?,
+                    tools: parse_raw_json(row.try_get(2)?, "turn tools")?,
+                    initial_request_config: parse_raw_json(
+                        row.try_get(3)?,
+                        "turn initial request config",
+                    )?,
+                    initial_provider_messages: parse_raw_json(
+                        row.try_get(4)?,
+                        "turn initial provider messages",
+                    )?,
+                    initial_message_sources: parse_raw_json(
+                        row.try_get(5)?,
+                        "turn initial message sources",
+                    )?,
+                })
+            })
+            .transpose()?;
+        let Some(context) = context else {
+            return Ok(None);
+        };
+        let rows = connection.query(
+            "SELECT step_index, provider_message_prefix_len, provider_message_suffix_json,
+                    message_source_suffix_json, request_config_delta_json, output_json
+             FROM session_llm_raw_rounds
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+               AND session_id = $4 AND turn_id = $5 AND step_index <= $6
+             ORDER BY step_index",
+            &[
+                &scope.platform_id().as_ref(),
+                &scope.company_id().as_ref(),
+                &scope.project_id().as_ref(),
+                &session_id,
+                &turn_id,
+                &i64::from(step_index),
+            ],
+        )?;
+        let rounds = rows
+            .iter()
+            .map(|row| postgres_raw_round(row, turn_id))
+            .collect::<Result<Vec<_>>>()?;
+        if rounds.last().map(|round| round.step_index) != Some(step_index) {
+            return Ok(None);
+        }
+        Ok(Some(LlmRawArtifact { context, rounds }.reconstruct_round(step_index)?))
+    }
+
     pub(super) fn load_session_step_llm_raw(
         &self,
         scope: &ProjectScope,
         session_id: &str,
         step_index: u32,
     ) -> Result<Option<serde_json::Value>> {
+        let mut connection = self.database.connect_postgres()?;
+        let turn_id = connection
+            .query_opt(
+                "SELECT turn_id FROM session_steps
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND session_id = $4 AND step_index = $5",
+                &[
+                    &scope.platform_id().as_ref(),
+                    &scope.company_id().as_ref(),
+                    &scope.project_id().as_ref(),
+                    &session_id,
+                    &to_i64(step_index as u64, "step index")?,
+                ],
+            )?
+            .map(|row| row.try_get::<_, Option<String>>(0))
+            .transpose()?;
+        if let Some(turn_id) = turn_id.flatten().filter(|turn_id| !turn_id.is_empty()) {
+            return self.load_session_turn_step_llm_raw(scope, session_id, &turn_id, step_index);
+        }
         let step_index = to_i64(step_index as u64, "step index")?;
-        let row = self
-            .database
-            .connect_postgres()?
+        let row = connection
             .query_opt(
                 "SELECT payload_json FROM session_step_llm_raw
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
@@ -493,11 +687,20 @@ impl PostgresSessionStore {
         self.database
             .connect_postgres()?
             .query(
-                "SELECT step_index FROM session_step_llm_raw
+                "SELECT step_index FROM session_llm_raw_rounds
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
+                   AND session_id = $4
+                 UNION
+                 SELECT step_index FROM session_step_llm_raw
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
                    AND session_id = $4
                  ORDER BY step_index",
-                scoped_id_params!(scope, session_id),
+                &[
+                    &scope.platform_id().as_ref(),
+                    &scope.company_id().as_ref(),
+                    &scope.project_id().as_ref(),
+                    &session_id,
+                ],
             )
             .context("load PostgreSQL session llm raw step indices")?
             .iter()
@@ -827,16 +1030,17 @@ fn replace_session_steps(
         client
             .execute(
                 "INSERT INTO session_steps (
-                     platform_id, company_id, project_id, session_id, step_index, started_ms,
+                     platform_id, company_id, project_id, session_id, step_index, turn_id, started_ms,
                      finished_ms, start_snapshot_path, finish_snapshot_path, usage_json, cost_usd,
                      finish_reason, model, tool_timings_json
-                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
                 &[
                     &scope.platform_id().as_ref(),
                     &scope.company_id().as_ref(),
                     &scope.project_id().as_ref(),
                     &session.id,
                     &step_index,
+                    &step.turn_id.as_deref().unwrap_or(""),
                     &started_ms,
                     &finished_ms,
                     &step.start_snapshot_path,
@@ -850,6 +1054,110 @@ fn replace_session_steps(
             )
             .context("insert scoped PostgreSQL session step")?;
     }
+    Ok(())
+}
+
+fn upsert_session_llm_raw_artifacts(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    raw_artifacts: &[LlmRawArtifact],
+) -> Result<()> {
+    for artifact in raw_artifacts {
+        upsert_session_llm_raw_turn(client, scope, &artifact.context)?;
+        for round in &artifact.rounds {
+            upsert_session_llm_raw_round(client, scope, &artifact.context.session_id, round)?;
+        }
+    }
+    Ok(())
+}
+
+fn upsert_session_llm_raw_turn(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    context: &LlmRawTurnContext,
+) -> Result<()> {
+    let model_json = serde_json::to_string(&context.model)?;
+    let system_json = serde_json::to_string(&context.system)?;
+    let tools_json = serde_json::to_string(&context.tools)?;
+    let initial_request_config_json = serde_json::to_string(&context.initial_request_config)?;
+    let initial_provider_messages_json = serde_json::to_string(&context.initial_provider_messages)?;
+    let initial_message_sources_json = serde_json::to_string(&context.initial_message_sources)?;
+    client
+        .execute(
+            "INSERT INTO session_llm_raw_turns (
+                 platform_id, company_id, project_id, session_id, turn_id, model_json, system_json,
+                 tools_json, initial_request_config_json, initial_provider_messages_json,
+                 initial_message_sources_json
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             ON CONFLICT (platform_id, company_id, project_id, session_id, turn_id) DO UPDATE SET
+                 model_json = excluded.model_json,
+                 system_json = excluded.system_json,
+                 tools_json = excluded.tools_json,
+                 initial_request_config_json = excluded.initial_request_config_json,
+                 initial_provider_messages_json = excluded.initial_provider_messages_json,
+                 initial_message_sources_json = excluded.initial_message_sources_json",
+            &[
+                &scope.platform_id().as_ref(),
+                &scope.company_id().as_ref(),
+                &scope.project_id().as_ref(),
+                &context.session_id,
+                &context.turn_id,
+                &model_json,
+                &system_json,
+                &tools_json,
+                &initial_request_config_json,
+                &initial_provider_messages_json,
+                &initial_message_sources_json,
+            ],
+        )
+        .context("upsert PostgreSQL session LLM raw turn")?;
+    Ok(())
+}
+
+fn upsert_session_llm_raw_round(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    session_id: &str,
+    round: &LlmRawRound,
+) -> Result<()> {
+    let step_index = i64::from(round.step_index);
+    let prefix_len = usize_to_i64(
+        round.provider_message_prefix_len,
+        "LLM raw provider message prefix length",
+    )?;
+    let provider_message_suffix_json = serde_json::to_string(&round.provider_message_suffix)?;
+    let message_source_suffix_json = serde_json::to_string(&round.message_source_suffix)?;
+    let request_config_delta_json = round.request_config_delta.as_ref().map(serde_json::to_string).transpose()?;
+    let output_json = serde_json::to_string(&round.output)?;
+    client
+        .execute(
+            "INSERT INTO session_llm_raw_rounds (
+                 platform_id, company_id, project_id, session_id, turn_id, step_index,
+                 provider_message_prefix_len, provider_message_suffix_json, message_source_suffix_json,
+                 request_config_delta_json, output_json
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             ON CONFLICT (platform_id, company_id, project_id, session_id, turn_id, step_index)
+                 DO UPDATE SET
+                     provider_message_prefix_len = excluded.provider_message_prefix_len,
+                     provider_message_suffix_json = excluded.provider_message_suffix_json,
+                     message_source_suffix_json = excluded.message_source_suffix_json,
+                     request_config_delta_json = excluded.request_config_delta_json,
+                     output_json = excluded.output_json",
+            &[
+                &scope.platform_id().as_ref(),
+                &scope.company_id().as_ref(),
+                &scope.project_id().as_ref(),
+                &session_id,
+                &round.turn_id,
+                &step_index,
+                &prefix_len,
+                &provider_message_suffix_json,
+                &message_source_suffix_json,
+                &request_config_delta_json,
+                &output_json,
+            ],
+        )
+        .context("upsert PostgreSQL session LLM raw round")?;
     Ok(())
 }
 
@@ -992,7 +1300,7 @@ fn load_steps(
 ) -> Result<Vec<ChatSessionStep>> {
     client
         .query(
-            "SELECT step_index, started_ms, finished_ms, start_snapshot_path, finish_snapshot_path,
+            "SELECT step_index, turn_id, started_ms, finished_ms, start_snapshot_path, finish_snapshot_path,
                     usage_json, cost_usd, finish_reason, model, tool_timings_json
              FROM session_steps
              WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
@@ -1017,23 +1325,52 @@ fn map_session_meta(row: &Row) -> Result<ChatSessionMeta> {
 }
 
 fn map_session_step(row: &Row, session_id: &str) -> Result<ChatSessionStep> {
-    let finished_ms: Option<i64> = row.try_get(2)?;
-    let usage_json: String = row.try_get(5)?;
-    let tool_timings_json: String = row.try_get(9)?;
+    let finished_ms: Option<i64> = row.try_get(3)?;
+    let usage_json: String = row.try_get(6)?;
+    let tool_timings_json: String = row.try_get(10)?;
+    let turn_id: String = row.try_get(1)?;
     Ok(ChatSessionStep {
         index: u32::try_from(row.try_get::<_, i64>(0)?).context("read session step_index")?,
-        started_ms: from_i64(row.try_get(1)?, "step started_ms")?,
+        turn_id: (!turn_id.is_empty()).then_some(turn_id),
+        started_ms: from_i64(row.try_get(2)?, "step started_ms")?,
         finished_ms: finished_ms.map(|value| from_i64(value, "step finished_ms")).transpose()?,
-        start_snapshot_path: row.try_get(3)?,
-        finish_snapshot_path: row.try_get(4)?,
+        start_snapshot_path: row.try_get(4)?,
+        finish_snapshot_path: row.try_get(5)?,
         usage: serde_json::from_str::<TokenUsage>(&usage_json)
             .with_context(|| format!("parse session step usage JSON: {session_id}"))?,
-        cost_usd: row.try_get(6)?,
-        finish_reason: row.try_get(7)?,
-        model: row.try_get(8)?,
+        cost_usd: row.try_get(7)?,
+        finish_reason: row.try_get(8)?,
+        model: row.try_get(9)?,
         tool_timings: serde_json::from_str::<Vec<ToolTiming>>(&tool_timings_json)
             .with_context(|| format!("parse session step tool timings JSON: {session_id}"))?,
     })
+}
+
+fn postgres_raw_round(row: &Row, turn_id: &str) -> Result<LlmRawRound> {
+    Ok(LlmRawRound {
+        turn_id: turn_id.to_owned(),
+        step_index: u32::try_from(row.try_get::<_, i64>(0)?)
+            .context("read PostgreSQL LLM raw step_index")?,
+        provider_message_prefix_len: usize::try_from(row.try_get::<_, i64>(1)?)
+            .context("read PostgreSQL LLM raw provider message prefix length")?,
+        provider_message_suffix: parse_raw_json::<Vec<serde_json::Value>>(
+            row.try_get(2)?,
+            "provider message suffix",
+        )?,
+        message_source_suffix: parse_raw_json::<Vec<serde_json::Value>>(
+            row.try_get(3)?,
+            "message source suffix",
+        )?,
+        request_config_delta: row
+            .try_get::<_, Option<String>>(4)?
+            .map(|json| parse_raw_json::<serde_json::Value>(json, "request config delta"))
+            .transpose()?,
+        output: parse_raw_json::<serde_json::Value>(row.try_get(5)?, "output")?,
+    })
+}
+
+fn parse_raw_json<T: serde::de::DeserializeOwned>(json: String, field: &str) -> Result<T> {
+    serde_json::from_str(&json).with_context(|| format!("parse stored PostgreSQL LLM raw {field} JSON"))
 }
 
 fn parse_agent_row(row: &Row, project_id: &str) -> Result<AgentSessionInfo> {

@@ -72,7 +72,6 @@ pub fn is_known_tool_name(tool_name: &str) -> bool {
             | "lsp"
             | "agent"
             | "agenttool"
-            | "delegate_coordination_status"
             | "codesearch"
             | "glob_search"
             | "content_search"

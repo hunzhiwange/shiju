@@ -440,14 +440,6 @@ pub enum TaskBoardMessage {
         task_id: String,
         result: Result<(), String>,
     },
-    StaffHandoffIpcDeliveryCompleted {
-        task_id: String,
-        from_member_id: String,
-        to_member_id: String,
-        to_agent: String,
-        timestamp_ms: u64,
-        result: Result<(), String>,
-    },
     MatrixTaskPoolEventsLoaded(
         Result<vw_gateway_client::vw_api_types::task::TaskPoolMatrixEventsResponse, String>,
     ),

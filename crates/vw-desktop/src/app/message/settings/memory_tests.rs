@@ -50,8 +50,20 @@ fn tab_selection_updates_only_visible_memory_section() {
     assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::Embedding);
     assert_eq!(app.memory_settings.save_error.as_deref(), Some("keep"));
 
+    apply(&mut app, MemoryMessage::TabSelected(MemorySettingsTab::EmbeddingRoutes));
+    assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::EmbeddingRoutes);
+
+    apply(&mut app, MemoryMessage::TabSelected(MemorySettingsTab::Storage));
+    assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::Storage);
+
+    app.embedding_routes_settings.save_error = Some("route error".to_string());
+    app.embedding_routes_settings.save_success = true;
+    apply(&mut app, MemoryMessage::TabSelected(MemorySettingsTab::EmbeddingRoutes));
+    assert!(app.embedding_routes_settings.save_error.is_none());
+    assert!(!app.embedding_routes_settings.save_success);
+
     apply(&mut app, MemoryMessage::TabSelected(MemorySettingsTab::Qdrant));
-    assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::Embedding);
+    assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::EmbeddingRoutes);
 
     apply(&mut app, MemoryMessage::BackendChanged("qdrant".to_string()));
     apply(&mut app, MemoryMessage::TabSelected(MemorySettingsTab::Qdrant));

@@ -2467,7 +2467,6 @@ async fn staff_handoff_with_ipc_target_schedules_gateway_delivery() {
     let _guard = super::TEST_GATEWAY_ENV_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());
     let (mut app, _task) = crate::app::App::new();
     app.task_board_view_mode = TaskBoardViewMode::Staff;
-    app.agents_ipc_settings.enabled = true;
     app.task_board_staff_config = staff_handoff_config();
     set_staff_ipc_target(&mut app.task_board_staff_config, "staff-orchestrator", "agent-next");
 
@@ -2540,7 +2539,6 @@ async fn staff_handoff_ipc_failure_keeps_task_status() {
     let _guard = super::TEST_GATEWAY_ENV_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());
     let (mut app, _task) = crate::app::App::new();
     app.task_board_view_mode = TaskBoardViewMode::Staff;
-    app.agents_ipc_settings.enabled = true;
     app.task_board_staff_config = staff_handoff_config();
     set_staff_ipc_target(&mut app.task_board_staff_config, "staff-orchestrator", "agent-next");
 

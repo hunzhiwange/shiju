@@ -203,7 +203,17 @@ fn security_lists_add_trimmed_values_remove_items_and_reject_duplicates() {
         assert_eq!(app.security_settings.list(kind).len(), 1);
         assert!(app.security_settings.save_error.is_some());
 
-        apply(&mut app, SettingsMessage::SecurityListRemove(kind, 0));
+        apply(&mut app, SettingsMessage::SecurityListRemoveConfirmed(kind, 0));
+        assert_eq!(app.security_settings.list(kind).len(), 1);
+
+        apply(&mut app, SettingsMessage::SecurityListRemoveRequested(kind, 0));
+        assert!(app.security_settings.list_editor.is_remove_pending(kind, 0));
+        assert_eq!(app.security_settings.list(kind).len(), 1);
+        apply(&mut app, SettingsMessage::SecurityListRemoveCanceled);
+        assert!(!app.security_settings.list_editor.is_remove_pending(kind, 0));
+
+        apply(&mut app, SettingsMessage::SecurityListRemoveRequested(kind, 0));
+        apply(&mut app, SettingsMessage::SecurityListRemoveConfirmed(kind, 0));
         assert!(app.security_settings.list(kind).is_empty());
     }
 }

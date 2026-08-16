@@ -100,12 +100,12 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let loading_count = app
         .trajectory_raw_loading
         .iter()
-        .filter(|(loading_session_id, _)| loading_session_id == session_id)
+        .filter(|(loading_session_id, _, _)| loading_session_id == session_id)
         .count();
     let error_count = app
         .trajectory_raw_errors
         .keys()
-        .filter(|(error_session_id, _)| error_session_id == session_id)
+        .filter(|(error_session_id, _, _)| error_session_id == session_id)
         .count();
     let status = raw_refresh_status(loading_count, error_count);
 

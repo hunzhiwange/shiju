@@ -1,6 +1,6 @@
 use crate::staff::{
     StaffCapabilityIoSummaryDto, StaffCapabilityKindDto, StaffCommandActionDto, StaffCommandDto,
-    StaffCommandRequest, StaffIpcMessageRequest, StaffProjectCapabilityCatalogRequest,
+    StaffCommandRequest, StaffProjectCapabilityCatalogRequest,
     StaffProjectCapabilityCatalogResponse, StaffProjectCapabilityDto, StaffStageActionDto,
     StaffStageActionInputsDto, StaffStageAssignmentDto, StaffStageCapabilityDto,
     StaffStageWorkflowBindingDto, StaffWorkflowOrchestrationDto, StaffWorkflowOrchestrationRequest,
@@ -193,57 +193,4 @@ fn staff_workflow_orchestration_dto_roundtrips_without_project_assignments() {
             .expect("decode workflow orchestration response"),
         response
     );
-}
-
-#[test]
-fn staff_ipc_message_request_validates_text_limits() {
-    let valid = StaffIpcMessageRequest {
-        to_agent: "agent-a".to_string(),
-        payload: "handoff ready".to_string(),
-        task_id: Some("task-1".to_string()),
-        from_member_id: Some("planner".to_string()),
-        to_member_id: Some("coder".to_string()),
-    };
-    assert!(valid.validate().is_ok());
-
-    let mut empty_target = valid.clone();
-    empty_target.to_agent = "  ".to_string();
-    let error = empty_target.validate().expect_err("blank target should be rejected");
-    assert!(error.contains("to_agent"));
-
-    let mut empty_payload = valid.clone();
-    empty_payload.payload = "\n\t ".to_string();
-    let error = empty_payload.validate().expect_err("blank payload should be rejected");
-    assert!(error.contains("payload"));
-
-    let mut oversized = valid;
-    oversized.payload = "x".repeat(1025);
-    let error = oversized.validate().expect_err("oversized payload should be rejected");
-    assert!(error.contains("1024"));
-}
-
-#[test]
-fn staff_ipc_message_request_rejects_blank_optional_identifiers() {
-    let request = StaffIpcMessageRequest {
-        to_agent: "agent-a".to_string(),
-        payload: "handoff ready".to_string(),
-        task_id: None,
-        from_member_id: None,
-        to_member_id: None,
-    };
-    assert!(request.validate().is_ok());
-
-    for (field, invalid) in [
-        ("task_id", StaffIpcMessageRequest { task_id: Some(" ".to_string()), ..request.clone() }),
-        (
-            "from_member_id",
-            StaffIpcMessageRequest { from_member_id: Some("\n".to_string()), ..request.clone() },
-        ),
-        (
-            "to_member_id",
-            StaffIpcMessageRequest { to_member_id: Some("\t".to_string()), ..request.clone() },
-        ),
-    ] {
-        assert_eq!(invalid.validate(), Err(format!("{field} must not be empty when provided")));
-    }
 }

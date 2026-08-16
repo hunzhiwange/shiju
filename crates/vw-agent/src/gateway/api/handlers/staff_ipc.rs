@@ -10,7 +10,7 @@ use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_api_types::staff::{
     StaffAutoSchedulePlanRequest, StaffAutoSchedulePlanResponse, StaffCapabilityKindDto,
-    StaffCommandRequest, StaffCommandResponse, StaffIpcMessageRequest, StaffIpcMessageResponse,
+    StaffCommandRequest, StaffCommandResponse,
     StaffMemberTaskAssignmentDto, StaffProjectCapabilityCatalogRequest,
     StaffProjectCapabilityCatalogResponse, StaffProjectCapabilityDto,
     StaffProjectOrchestrationRequest, StaffProjectOrchestrationResponse, StaffProjectStateDto,
@@ -37,7 +37,6 @@ use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentScheduler
 use crate::agent_scheduler::task_board::task_board_status_key;
 use crate::app::agent::config::schema::save_config;
 use crate::app::agent::gateway::{ApiError, AppState};
-use crate::app::agent::tools::agents_ipc::IpcDb;
 use crate::gateway::api::handlers::agent_scheduler::{
     AgentSchedulerGateway, StoreBackedAgentSchedulerGateway,
 };
@@ -71,7 +70,6 @@ pub(crate) fn router() -> Router<AppState> {
             "/staff/projects/{project_id}/auto-schedule-plan",
             post(handle_api_staff_auto_schedule_plan),
         )
-        .route("/staff/ipc/messages", post(handle_api_staff_ipc_message))
 }
 
 pub async fn handle_api_staff_stage_capabilities(
@@ -311,34 +309,6 @@ pub async fn handle_api_staff_auto_schedule_plan(
     )
     .map_err(ApiError::bad_request)?;
     Ok(Json(StaffAutoSchedulePlanResponse { project_id: project_id.into(), plan }))
-}
-
-pub async fn handle_api_staff_ipc_message(
-    State(state): State<AppState>,
-    Extension(_tenant): Extension<TenantScope>,
-    Json(body): Json<StaffIpcMessageRequest>,
-) -> Result<Json<StaffIpcMessageResponse>, ApiError> {
-    body.validate()
-        .map_err(|error| ApiError::bad_request(format!("invalid staff IPC message: {error}")))?;
-
-    let (workspace_dir, agents_ipc) = {
-        let config = state.config.lock();
-        if !config.agents_ipc.enabled {
-            return Err(ApiError::not_implemented(
-                "staff IPC messages require agents_ipc.enabled = true",
-            ));
-        }
-        (config.workspace_dir.clone(), config.agents_ipc.clone())
-    };
-
-    let ipc_db = IpcDb::open(&workspace_dir, &agents_ipc).map_err(|error| {
-        ApiError::internal(format!("failed to open agents_ipc database: {error}"))
-    })?;
-    ipc_db.send_message(body.to_agent.trim(), body.payload.trim()).map_err(|error| {
-        ApiError::internal(format!("failed to send staff IPC message: {error}"))
-    })?;
-
-    Ok(Json(StaffIpcMessageResponse { accepted: true }))
 }
 
 fn project_capability_catalog_response(
@@ -877,7 +847,3 @@ fn push_unique(values: &mut Vec<String>, value: String) {
         values.push(value);
     }
 }
-
-#[cfg(test)]
-#[path = "staff_ipc_tests.rs"]
-mod staff_ipc_tests;

@@ -12,21 +12,16 @@
 //!
 //! 系统设置面板包含以下配置类别：
 //!
-//! - **常规设置 (General)**：应用基础配置
-//! - **对话流 (DialogueFlow)**：对话流程相关配置
-//! - **编辑器 (Editor)**：代码编辑器设置
+//! - **常规设置 (General)**：界面、终端与编辑器配置
 //! - **项目 (Projects)**：项目管理配置
 //! - **提供商 (Providers)**：AI 服务提供商配置
 //! - **模型 (Models)**：AI 模型配置
-//! - **嵌入路由 (EmbeddingRoutes)**：嵌入模型路由配置
 //! - **模型路由 (ModelRoutes)**：模式到模型的路由配置
 //! - **查询模型分类 (QueryClassification)**：查询模型分类规则配置
 //! - **心跳配置 (Heartbeat)**：心跳检测设置
 //! - **定时任务配置 (Cron)**：定时任务配置
-//! - **委托代理配置 (Agents)**：委托代理 researcher/coder/reviewer 配置
+//! - **智能体配置 (Agents)**：智能体、对话流、快捷消息与心跳配置
 //! - **员工配置 (Staff)**：任务看板员工名册、绑定和能力配置
-//! - **代理通信配置 (AgentsIpc)**：代理间通信配置
-//! - **协调配置 (Coordination)**：多代理协调设置
 //! - **可靠性配置 (Reliability)**：系统可靠性配置
 //! - **通道配置 (Channels)**：CLI 与多通道消息集成配置
 //! - **记忆配置 (Memory)**：记忆后端、缓存和嵌入检索配置
@@ -37,16 +32,11 @@
 //! - **安全配置 (Security)**：安全策略配置
 //! - **网关配置 (Gateway)**：HTTP 网关、Auth 鉴权与 node-control 配置
 //! - **可观测性配置 (Observability)**：日志与监控配置
-//! - **存储配置 (Storage)**：持久化存储 provider 与连接参数
 //! - **代理配置 (Proxy)**：网络代理设置
 //! - **隧道配置 (Tunnel)**：网关公网暴露隧道配置
 //! - **技能配置 (Skills)**：代理技能配置
 //! - **钩子配置 (Hooks)**：运行时钩子配置
-//! - **网页搜索配置 (WebSearch)**：Web 搜索工具 provider 与请求参数配置
-//! - **网络请求配置 (HttpRequest)**：HTTP 请求工具配置
-//! - **浏览器配置 (Browser)**：浏览器工具与自动化后端配置
-//! - **多模态配置 (Multimodal)**：图像输入数量、大小限制与远程抓取配置
-//! - **网络请求配置 (HttpRequest)**：HTTP 请求工具白名单与请求限制
+//! - **网络配置 (WebSearch / HttpRequest / Browser)**：网页搜索、HTTP 请求与浏览器工具配置
 
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
@@ -65,21 +55,18 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Vector
 ///
 /// # 变体说明
 ///
-/// - `General` - 常规设置，包含应用基础配置项
+/// - `General` - 常规设置，包含界面、终端与编辑器配置项
 /// - `DialogueFlow` - 对话流设置，控制对话流程行为
-/// - `Editor` - 编辑器设置，配置代码编辑器选项
+/// - `Editor` - 兼容旧入口，选择时转入常规设置的编辑器标签
 /// - `Projects` - 项目设置，管理项目相关配置
 /// - `Providers` - 提供商设置，配置 AI 服务提供商
 /// - `Models` - 模型设置，管理可用 AI 模型
-/// - `EmbeddingRoutes` - 嵌入路由设置，管理嵌入模型路由规则
 /// - `ModelRoutes` - 模型路由设置，配置模式到模型的映射
 /// - `QueryClassification` - 查询模型分类设置，配置匹配规则与模型路由目标
 /// - `Heartbeat` - 心跳设置，配置心跳检测参数
 /// - `Cron` - Cron 设置，配置定时任务
 /// - `Agents` - Agents 设置，配置 researcher / coder / reviewer 等委托代理
 /// - `Staff` - 员工配置，配置任务看板员工名册、绑定和能力
-/// - `AgentsIpc` - Agents IPC 设置，配置代理间通信
-/// - `Coordination` - 协调设置，配置多代理协调策略
 /// - `Reliability` - 可靠性设置，配置容错与恢复机制
 /// - `Channels` - 通道设置，配置 CLI 与外部消息通道
 /// - `Memory` - 记忆设置，配置记忆后端和向量检索参数
@@ -97,7 +84,6 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Vector
 /// - `WebSearch` - Web 搜索设置，配置搜索 provider、凭据与请求参数
 /// - `HttpRequest` - HTTP 请求设置，配置 http_request 工具白名单与网络限制
 /// - `Browser` - 浏览器设置，配置 browser/browser_open 工具与后端
-/// - `Multimodal` - 多模态设置，配置图像输入限制与远程抓取策略
 /// - `HttpRequest` - HTTP 请求设置，配置 http_request 工具白名单与请求限制
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemTab {
@@ -105,10 +91,6 @@ pub enum SystemTab {
     General,
     /// 主题管理标签页
     Themes,
-    /// 对话流设置标签页
-    DialogueFlow,
-    /// 快捷消息设置标签页
-    QuickMessages,
     /// 编辑器设置标签页
     Editor,
     /// 项目设置标签页
@@ -117,24 +99,12 @@ pub enum SystemTab {
     Providers,
     /// 模型设置标签页
     Models,
-    /// 嵌入路由设置标签页
-    EmbeddingRoutes,
-    /// 模型路由设置标签页
-    ModelRoutes,
-    /// 查询模型分类设置标签页
-    QueryClassification,
-    /// 心跳配置标签页
-    Heartbeat,
     /// 定时任务配置标签页
     Cron,
-    /// 委托代理配置标签页
+    /// 智能体配置标签页
     Agents,
     /// 员工配置标签页
     Staff,
-    /// 代理通信配置标签页
-    AgentsIpc,
-    /// 协调配置标签页
-    Coordination,
     /// 可靠性配置标签页
     Reliability,
     /// 通道配置标签页
@@ -157,8 +127,6 @@ pub enum SystemTab {
     Gateway,
     /// 可观测性配置标签页
     Observability,
-    /// 存储配置标签页
-    Storage,
     /// 代理配置标签页
     Proxy,
     /// 隧道配置标签页
@@ -173,8 +141,6 @@ pub enum SystemTab {
     HttpRequest,
     /// 浏览器配置标签页
     Browser,
-    /// 多模态配置标签页
-    Multimodal,
 }
 
 impl SystemTab {
@@ -192,26 +158,17 @@ impl SystemTab {
     ///     println!("{}", tab);
     /// }
     /// ```
-    pub(super) fn all() -> [SystemTab; 37] {
+    pub(super) fn all() -> [SystemTab; 24] {
         [
             SystemTab::General,
             SystemTab::Themes,
-            SystemTab::DialogueFlow,
-            SystemTab::QuickMessages,
-            SystemTab::Editor,
             SystemTab::Projects,
             SystemTab::Providers,
             SystemTab::Models,
-            SystemTab::EmbeddingRoutes,
             SystemTab::Memory,
-            SystemTab::ModelRoutes,
-            SystemTab::QueryClassification,
-            SystemTab::Heartbeat,
             SystemTab::Cron,
             SystemTab::Agents,
             SystemTab::Staff,
-            SystemTab::AgentsIpc,
-            SystemTab::Coordination,
             SystemTab::Reliability,
             SystemTab::Channels,
             SystemTab::Runtime,
@@ -222,17 +179,17 @@ impl SystemTab {
             SystemTab::GatewayClient,
             SystemTab::Gateway,
             SystemTab::Observability,
-            SystemTab::Storage,
             SystemTab::Proxy,
             SystemTab::Tunnel,
             SystemTab::Skills,
             SystemTab::Hooks,
             SystemTab::WebSearch,
-            SystemTab::HttpRequest,
-            SystemTab::Browser,
-            SystemTab::Multimodal,
         ]
     }
+}
+
+pub(super) fn is_network_tab(tab: SystemTab) -> bool {
+    matches!(tab, SystemTab::WebSearch | SystemTab::HttpRequest | SystemTab::Browser)
 }
 
 impl std::fmt::Display for SystemTab {
@@ -252,21 +209,13 @@ impl std::fmt::Display for SystemTab {
         match self {
             SystemTab::General => write!(f, "常规设置"),
             SystemTab::Themes => write!(f, "主题"),
-            SystemTab::DialogueFlow => write!(f, "对话流"),
-            SystemTab::QuickMessages => write!(f, "快捷消息"),
             SystemTab::Editor => write!(f, "编辑器"),
             SystemTab::Projects => write!(f, "项目"),
             SystemTab::Providers => write!(f, "提供商"),
             SystemTab::Models => write!(f, "模型"),
-            SystemTab::EmbeddingRoutes => write!(f, "嵌入路由"),
-            SystemTab::ModelRoutes => write!(f, "模型路由"),
-            SystemTab::QueryClassification => write!(f, "查询模型分类"),
-            SystemTab::Heartbeat => write!(f, "心跳配置"),
             SystemTab::Cron => write!(f, "定时任务配置"),
-            SystemTab::Agents => write!(f, "委托代理配置"),
+            SystemTab::Agents => write!(f, "智能体配置"),
             SystemTab::Staff => write!(f, "员工配置"),
-            SystemTab::AgentsIpc => write!(f, "代理通信配置"),
-            SystemTab::Coordination => write!(f, "协调配置"),
             SystemTab::Reliability => write!(f, "可靠性配置"),
             SystemTab::Channels => write!(f, "通道配置"),
             SystemTab::Memory => write!(f, "记忆配置"),
@@ -278,15 +227,13 @@ impl std::fmt::Display for SystemTab {
             SystemTab::GatewayClient => write!(f, "客户端网关"),
             SystemTab::Gateway => write!(f, "服务端网关"),
             SystemTab::Observability => write!(f, "可观测性配置"),
-            SystemTab::Storage => write!(f, "存储配置"),
             SystemTab::Proxy => write!(f, "代理配置"),
             SystemTab::Tunnel => write!(f, "隧道配置"),
             SystemTab::Skills => write!(f, "技能配置"),
             SystemTab::Hooks => write!(f, "钩子配置"),
-            SystemTab::WebSearch => write!(f, "网页搜索配置"),
+            SystemTab::WebSearch => write!(f, "网络配置"),
             SystemTab::HttpRequest => write!(f, "网络请求配置"),
             SystemTab::Browser => write!(f, "浏览器配置"),
-            SystemTab::Multimodal => write!(f, "多模态配置"),
         }
     }
 }
@@ -294,16 +241,10 @@ impl std::fmt::Display for SystemTab {
 fn system_tab_search_text(tab: SystemTab) -> &'static str {
     match tab {
         SystemTab::General => {
-            "常规设置 general app basic 基础 界面 语言 应用主题 自动保存 终端 终端 Shell 终端主题 终端字体 字体大小 preview auto save"
+            "常规设置 general app basic 基础 界面 语言 应用主题 自动保存 终端 终端 Shell 终端主题 终端字体 字体大小 编辑器 editor code 编辑器主题 行高 preview auto save"
         }
         SystemTab::Themes => {
             "主题 themes gallery palette custom builtin 画廊 配色 色板 自定义主题 内置主题 应用 删除 新建主题"
-        }
-        SystemTab::DialogueFlow => {
-            "对话流 dialogue flow permission 对话 权限 时间线 显示推理摘要 展开 shell 工具 展开编辑工具 reasoning summary edit patch"
-        }
-        SystemTab::QuickMessages => {
-            "快捷消息 quick messages chat 输入框 常用操作 Git 操作 创建新会话 自定义消息 动作"
         }
         SystemTab::Editor => {
             "编辑器 editor code 编辑 主题与显示 编辑器主题 跟随系统主题 字体大小 行高 自动调整行高"
@@ -315,34 +256,16 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
             "提供商 providers api key model 模型 API Key 密钥 连接 自定义提供商 base url endpoint catalog"
         }
         SystemTab::Models => {
-            "模型 models llm ai provider 搜索模型 模型详情 提供商 模型 id 上下文窗口 最大输出 温度"
-        }
-        SystemTab::EmbeddingRoutes => {
-            "嵌入路由 embedding routes vector model 模型 添加路由 匹配模式 提供商/模型 API Key 密钥 DashScope 阿里 前往记忆配置"
-        }
-        SystemTab::ModelRoutes => {
-            "模型路由 model routes routing 模型 新增路由 匹配模式 pattern provider model priority 优先级"
-        }
-        SystemTab::QueryClassification => {
-            "查询模型分类 查询分类 query model classification rules 规则 启用 新增规则 规则优先级 pattern category priority 模型 分类"
-        }
-        SystemTab::Heartbeat => {
-            "心跳配置 heartbeat monitor follow up 自动化 启用 执行间隔 兜底消息 目标通道 接收者 投递内容"
+            "模型 models llm ai provider 搜索模型 模型详情 提供商 模型 id 上下文窗口 最大输出 温度 模型路由 routing 匹配模式 pattern priority 优先级 查询模型分类 classification rules 规则 分类 多模态配置 multimodal image vision 图片模型 OCR 文字提取 最大图片数量 单张图片大小上限 远程抓取 remote fetch"
         }
         SystemTab::Cron => {
             "定时任务配置 cron schedule task 自动化 启用 历史留存 history retention 调度器 scheduler 执行能力 最大任务 并发上限 最大并发 max_tasks max_concurrent"
         }
         SystemTab::Agents => {
-            "委托代理配置 agents subagent model tools 模型 工具 Agent 工作台 新增智能体 key 基础 身份 工具 技能 提供商 API 密钥 温度 启用 最大深度 上下文压缩 历史消息上限 并行工具 工具调度器 最大迭代次数 智能体模式"
+            "智能体配置 agents subagent model tools 模型 工具 Agent 工作台 新增智能体 key 基础 身份 工具 技能 提供商 API 密钥 温度 启用 最大深度 上下文压缩 历史消息上限 并行工具 工具调度器 最大迭代次数 智能体模式 对话流 dialogue flow permission 对话 权限 时间线 显示推理摘要 展开 shell 展开编辑工具 reasoning summary edit patch 快捷消息 quick messages chat 输入框 常用操作 Git 操作 创建新会话 自定义消息 动作 心跳配置 heartbeat monitor follow up 自动化 执行间隔 兜底消息 目标通道 接收者 投递内容"
         }
         SystemTab::Staff => {
             "员工配置 staff roster task board agent binding capability 员工 名册 任务看板 绑定 能力 工具 技能"
-        }
-        SystemTab::AgentsIpc => {
-            "代理通信配置 agents ipc communication 基础行为 IPC 开关 共享数据库路径 离线阈值 db_path"
-        }
-        SystemTab::Coordination => {
-            "协调配置 coordination agents 运行开关 协调总线 主协调 agent 容量控制 收件箱 死信 上下文 消息去重"
         }
         SystemTab::Reliability => {
             "可靠性配置 reliability retry run 运行 Provider 重试次数 退避 频道与调度 频道重连 调度器重试"
@@ -351,7 +274,7 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
             "通道配置 channels cli message CLI 通道 项目目录 已启用通道 workspace Slack Teams 外部消息"
         }
         SystemTab::Memory => {
-            "记忆配置 memory embedding vector 模型 存储后端 持久化 清理 快照 自动恢复 保留 缓存 归档 SQLite 打开超时 嵌入与检索 嵌入模型 维度 混合检索 权重"
+            "记忆配置 memory embedding routes vector 模型 记忆存储 storage database 存储后端 连接串 Schema 表名 TLS 持久化 清理 快照 自动恢复 保留 缓存 归档 SQLite 打开超时 嵌入与检索 嵌入模型 嵌入路由 路由规则 匹配模式 提供商 API Key 维度 混合检索 权重"
         }
         SystemTab::Runtime => {
             "运行时配置 runtime native docker wasm run 运行 运行时类型 推理级别 只读根文件系统 挂载工作区 workspace read write symlink host validation"
@@ -377,9 +300,6 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
         SystemTab::Observability => {
             "可观测性配置 observability log monitor 观测后端 OTel 端点 运行时追踪 trace 模式 文件路径 rolling 保留量"
         }
-        SystemTab::Storage => {
-            "存储配置 storage database 连接参数 存储类型 连接串 Schema 名称 表名 连接超时 TLS 加密"
-        }
         SystemTab::Proxy => {
             "代理配置 proxy network 生效范围 代理地址 HTTP HTTPS ALL_PROXY NO_PROXY 排除与路由 指定服务 selector"
         }
@@ -393,16 +313,13 @@ fn system_tab_search_text(tab: SystemTab) -> &'static str {
             "钩子配置 hooks tool command 工具 基础行为 启用 command_logger 内置钩子 自定义 hooks"
         }
         SystemTab::WebSearch => {
-            "网页搜索配置 web search brave tool 工具 搜索 基础行为 启用 搜索服务 DuckDuckGo Brave Serper Google Bing Brave 密钥 API 密钥 接口地址 请求参数 结果数量 超时时间 User-Agent"
+            "网络配置 network 网页搜索 web search brave tool 工具 搜索 基础行为 启用 搜索服务 DuckDuckGo Brave Serper Google Bing Brave 密钥 API 密钥 接口地址 请求参数 结果数量 超时时间 User-Agent 网络请求 http request allowlist 允许域名 白名单 请求限制 max body method headers 浏览器配置 browser computer use 窗口行为 运行后端 default webdriver sidecar viewport 自动化"
         }
         SystemTab::HttpRequest => {
             "网络请求配置 http request tool allowlist 工具 基础行为 启用 允许域名 白名单 请求限制 max body timeout User-Agent method headers"
         }
         SystemTab::Browser => {
             "浏览器配置 browser computer use tool 工具 基础行为 允许域名 窗口行为 运行后端 default webdriver sidecar viewport 自动化"
-        }
-        SystemTab::Multimodal => {
-            "多模态配置 multimodal image vision model 模型 图片模型 OCR 文字提取 最大图片数量 单张图片大小上限 远程抓取 remote fetch"
         }
     }
 }
@@ -423,12 +340,13 @@ pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bo
         app.system_settings_help_tab,
         active_tab,
     ) || match active_tab {
-        SystemTab::Heartbeat => app.heartbeat_settings.show_help_modal,
+        SystemTab::Agents => {
+            app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Heartbeat
+                && app.heartbeat_settings.show_help_modal
+        }
         SystemTab::Cron => {
             app.cron_settings.show_help_modal || app.scheduler_settings.show_help_modal
         }
-        SystemTab::AgentsIpc => app.agents_ipc_settings.show_help_modal,
-        SystemTab::Coordination => app.coordination_settings.show_help_modal,
         SystemTab::Reliability => app.reliability_settings.show_help_modal,
         SystemTab::Autonomy => app.autonomy_settings.show_help_modal,
         SystemTab::Security => app.security_settings.show_help_modal,
@@ -437,7 +355,6 @@ pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bo
         SystemTab::Observability => app.observability_settings.show_help_modal,
         SystemTab::Proxy => app.proxy_settings.show_help_modal,
         SystemTab::Skills => app.skills_settings.show_help_modal,
-        SystemTab::WebSearch => app.web_search_settings.show_help_modal,
         _ => false,
     }
 }
@@ -445,23 +362,42 @@ pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bo
 pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<&str> {
     match active_tab {
         SystemTab::Providers => app.provider_settings.save_error.as_deref(),
-        SystemTab::Models => app.model_settings.save_error.as_deref(),
-        SystemTab::EmbeddingRoutes => app.embedding_routes_settings.save_error.as_deref(),
-        SystemTab::ModelRoutes => app.model_routes_settings.save_error.as_deref(),
-        SystemTab::QueryClassification => app.query_classification_settings.save_error.as_deref(),
-        SystemTab::Heartbeat => app.heartbeat_settings.save_error.as_deref(),
+        SystemTab::Models => match app.model_settings.active_tab {
+            crate::app::state::ModelConfigTab::Models => app.model_settings.save_error.as_deref(),
+            crate::app::state::ModelConfigTab::ModelRoutes => {
+                app.model_routes_settings.save_error.as_deref()
+            }
+            crate::app::state::ModelConfigTab::QueryClassification => {
+                app.query_classification_settings.save_error.as_deref()
+            }
+            crate::app::state::ModelConfigTab::Multimodal => {
+                app.multimodal_settings.save_error.as_deref()
+            }
+        },
         SystemTab::Cron => app
             .cron_settings
             .save_error
             .as_deref()
             .or(app.scheduler_settings.save_error.as_deref()),
-        SystemTab::Agents => app.agents_settings.save_error.as_deref(),
+        SystemTab::Agents => match app.agents_settings.active_config_tab {
+            crate::app::state::AgentConfigTab::Agents => {
+                app.agents_settings.save_error.as_deref()
+            }
+            crate::app::state::AgentConfigTab::Heartbeat => {
+                app.heartbeat_settings.save_error.as_deref()
+            }
+            crate::app::state::AgentConfigTab::DialogueFlow
+            | crate::app::state::AgentConfigTab::QuickMessages => None,
+        },
         SystemTab::Staff => app.staff_settings.save_error.as_deref(),
-        SystemTab::AgentsIpc => app.agents_ipc_settings.save_error.as_deref(),
-        SystemTab::Coordination => app.coordination_settings.save_error.as_deref(),
         SystemTab::Reliability => app.reliability_settings.save_error.as_deref(),
         SystemTab::Channels => app.channels_settings.save_error.as_deref(),
-        SystemTab::Memory => app.memory_settings.save_error.as_deref(),
+        SystemTab::Memory => match app.memory_settings.active_tab {
+            crate::app::state::MemorySettingsTab::Storage => {
+                app.storage_settings.save_error.as_deref()
+            }
+            _ => app.memory_settings.save_error.as_deref(),
+        },
         SystemTab::Runtime => app.runtime_settings.save_error.as_deref(),
         SystemTab::Acp => app.acp_settings.save_error.as_deref(),
         SystemTab::Mcp => app.mcp_settings.save_error.as_deref(),
@@ -470,7 +406,6 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::GatewayClient => app.gateway_client_settings.save_error.as_deref(),
         SystemTab::Gateway => app.gateway_settings.save_error.as_deref(),
         SystemTab::Observability => app.observability_settings.save_error.as_deref(),
-        SystemTab::Storage => app.storage_settings.save_error.as_deref(),
         SystemTab::Proxy => app.proxy_settings.save_error.as_deref(),
         SystemTab::Tunnel => app.tunnel_settings.save_error.as_deref(),
         SystemTab::Skills => app.skills_settings.save_error.as_deref(),
@@ -478,13 +413,8 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::WebSearch => app.web_search_settings.save_error.as_deref(),
         SystemTab::HttpRequest => app.http_request_settings.save_error.as_deref(),
         SystemTab::Browser => app.browser_settings.save_error.as_deref(),
-        SystemTab::Multimodal => app.multimodal_settings.save_error.as_deref(),
         SystemTab::Themes => app.themes_settings.error.as_deref(),
-        SystemTab::General
-        | SystemTab::DialogueFlow
-        | SystemTab::QuickMessages
-        | SystemTab::Editor
-        | SystemTab::Projects => None,
+        SystemTab::General | SystemTab::Editor | SystemTab::Projects => None,
     }
 }
 
@@ -569,7 +499,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .iter()
                 .map(|tab| {
                     // 判断当前标签页是否处于激活状态
-                    let is_active = *tab == active_tab;
+                    let is_active = *tab == active_tab
+                        || (*tab == SystemTab::WebSearch && is_network_tab(active_tab));
                     // 创建标签页文本标签
                     let label = text(tab.to_string()).size(13);
 
@@ -659,29 +590,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let content: Element<'_, Message> = match active_tab {
         SystemTab::General => crate::app::components::system_settings_general::view(app),
         SystemTab::Themes => crate::app::components::system_settings_themes::view(app),
-        SystemTab::DialogueFlow => crate::app::components::system_settings_dialogue_flow::view(app),
-        SystemTab::QuickMessages => {
-            crate::app::components::system_settings_quick_messages::view(app)
-        }
         SystemTab::Editor => crate::app::components::system_settings_editor::view(app),
         SystemTab::Projects => crate::app::components::system_settings_projects::view(app),
         SystemTab::Providers => {
             crate::app::components::system_settings_providers::connected::view(app)
         }
-        SystemTab::Models => crate::app::components::system_settings_models::main_view(app),
-        SystemTab::EmbeddingRoutes => {
-            crate::app::components::system_settings_embedding_routes::view(app)
-        }
-        SystemTab::ModelRoutes => crate::app::components::system_settings_model_routes::view(app),
-        SystemTab::QueryClassification => {
-            crate::app::components::system_settings_query_classification::view(app)
-        }
-        SystemTab::Heartbeat => crate::app::components::system_settings_heartbeat::view(app),
+        SystemTab::Models => crate::app::components::system_settings_models::view(app),
         SystemTab::Cron => crate::app::components::system_settings_cron::view(app),
         SystemTab::Agents => crate::app::components::system_settings_agents::view(app),
         SystemTab::Staff => crate::app::components::system_settings_staff::view(app),
-        SystemTab::AgentsIpc => crate::app::components::system_settings_agents_ipc::view(app),
-        SystemTab::Coordination => crate::app::components::system_settings_coordination::view(app),
         SystemTab::Reliability => crate::app::components::system_settings_reliability::view(app),
         SystemTab::Channels => crate::app::components::system_settings_channels::view(app),
         SystemTab::Memory => crate::app::components::system_settings_memory::view(app),
@@ -697,15 +614,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SystemTab::Observability => {
             crate::app::components::system_settings_observability::view(app)
         }
-        SystemTab::Storage => crate::app::components::system_settings_storage::view(app),
         SystemTab::Proxy => crate::app::components::system_settings_proxy::view(app),
         SystemTab::Tunnel => crate::app::components::system_settings_tunnel::view(app),
         SystemTab::Skills => crate::app::components::system_settings_skills::view(app),
         SystemTab::Hooks => crate::app::components::system_settings_hooks::view(app),
-        SystemTab::WebSearch => crate::app::components::system_settings_web_search::view(app),
-        SystemTab::HttpRequest => crate::app::components::system_settings_http_request::view(app),
-        SystemTab::Browser => crate::app::components::system_settings_browser::view(app),
-        SystemTab::Multimodal => crate::app::components::system_settings_multimodal::view(app),
+        SystemTab::WebSearch | SystemTab::HttpRequest | SystemTab::Browser => {
+            crate::app::components::system_settings_network::view(app)
+        }
     };
 
     // 左侧返回按钮和右侧关闭按钮执行相同的关闭操作
@@ -873,20 +788,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
         dialog = crate::app::components::system_settings_models::view_overlays(app, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Heartbeat {
+    if app.system_settings_tab == SystemTab::Agents
+        && app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Heartbeat
+    {
         dialog = crate::app::components::system_settings_heartbeat::view_overlays(app, dialog);
     }
 
     if app.system_settings_tab == SystemTab::Cron {
         dialog = crate::app::components::system_settings_cron::view_overlays(app, dialog);
-    }
-
-    if app.system_settings_tab == SystemTab::AgentsIpc {
-        dialog = crate::app::components::system_settings_agents_ipc::view_overlays(app, dialog);
-    }
-
-    if app.system_settings_tab == SystemTab::Coordination {
-        dialog = crate::app::components::system_settings_coordination::view_overlays(app, dialog);
     }
 
     if app.system_settings_tab == SystemTab::Reliability {

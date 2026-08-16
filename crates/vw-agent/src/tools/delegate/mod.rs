@@ -5,7 +5,6 @@
 
 use super::traits::{Tool, ToolResult};
 use crate::app::agent::config::DelegateAgentConfig;
-use crate::app::agent::coordination::InMemoryMessageBus;
 use crate::app::agent::providers::{Provider, ProviderRuntimeOptions};
 use crate::app::agent::security::SecurityPolicy;
 use async_trait::async_trait;
@@ -14,7 +13,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 mod agentic;
-mod coordination;
 mod execution;
 mod support;
 
@@ -23,12 +21,6 @@ const DELEGATE_TIMEOUT_SECS: u64 = 120;
 
 /// 智能体模式子智能体运行的默认超时时间（秒）
 const DELEGATE_AGENTIC_TIMEOUT_SECS: u64 = 300;
-
-/// 协调事件追踪使用的默认合成主智能体名称
-const DEFAULT_COORDINATION_LEAD_AGENT: &str = "delegate-lead";
-
-/// 协调事件预览中保留的最大字符数
-const COORDINATION_PREVIEW_MAX_CHARS: usize = 240;
 
 /// 任务委托工具
 pub struct DelegateTool {
@@ -41,8 +33,6 @@ pub struct DelegateTool {
     multimodal_config: crate::app::agent::config::MultimodalConfig,
     workspace_identity_context: String,
     skill_contexts: HashMap<String, String>,
-    coordination_bus: Option<InMemoryMessageBus>,
-    coordination_lead_agent: String,
 }
 
 impl DelegateTool {
@@ -65,8 +55,6 @@ impl DelegateTool {
         security: Arc<SecurityPolicy>,
         provider_runtime_options: ProviderRuntimeOptions,
     ) -> Self {
-        let coordination_bus =
-            coordination::build_coordination_bus(&agents, DEFAULT_COORDINATION_LEAD_AGENT);
         Self {
             agents: Arc::new(agents),
             security,
@@ -77,8 +65,6 @@ impl DelegateTool {
             multimodal_config: crate::app::agent::config::MultimodalConfig::default(),
             workspace_identity_context: String::new(),
             skill_contexts: HashMap::new(),
-            coordination_bus,
-            coordination_lead_agent: DEFAULT_COORDINATION_LEAD_AGENT.to_string(),
         }
     }
 
@@ -104,8 +90,6 @@ impl DelegateTool {
         depth: u32,
         provider_runtime_options: ProviderRuntimeOptions,
     ) -> Self {
-        let coordination_bus =
-            coordination::build_coordination_bus(&agents, DEFAULT_COORDINATION_LEAD_AGENT);
         Self {
             agents: Arc::new(agents),
             security,
@@ -116,8 +100,6 @@ impl DelegateTool {
             multimodal_config: crate::app::agent::config::MultimodalConfig::default(),
             workspace_identity_context: String::new(),
             skill_contexts: HashMap::new(),
-            coordination_bus,
-            coordination_lead_agent: DEFAULT_COORDINATION_LEAD_AGENT.to_string(),
         }
     }
 
@@ -144,40 +126,6 @@ impl DelegateTool {
         self
     }
 
-    pub fn with_coordination_bus(
-        mut self,
-        bus: InMemoryMessageBus,
-        lead_agent: impl Into<String>,
-    ) -> Self {
-        let lead_agent = {
-            let lead = lead_agent.into();
-            if lead.trim().is_empty() {
-                DEFAULT_COORDINATION_LEAD_AGENT.to_string()
-            } else {
-                lead.trim().to_string()
-            }
-        };
-
-        if let Err(error) = bus.register_agent(lead_agent.clone()) {
-            tracing::warn!(
-                "delegate coordination: failed to register lead agent '{lead_agent}': {error}"
-            );
-        }
-
-        self.coordination_bus = Some(bus);
-        self.coordination_lead_agent = lead_agent;
-        self
-    }
-
-    pub fn with_coordination_disabled(mut self) -> Self {
-        self.coordination_bus = None;
-        self
-    }
-
-    #[cfg(test)]
-    fn coordination_bus_snapshot(&self) -> Option<InMemoryMessageBus> {
-        self.coordination_bus.clone()
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -274,25 +222,6 @@ impl DelegateTool {
         .await
     }
 
-    fn start_coordination_trace(
-        &self,
-        agent_name: &str,
-        prompt: &str,
-        context: &str,
-        agent_config: &DelegateAgentConfig,
-    ) -> coordination::CoordinationTrace {
-        coordination::start_coordination_trace(self, agent_name, prompt, context, agent_config)
-    }
-
-    fn finish_coordination_trace(
-        &self,
-        agent_name: &str,
-        trace: &coordination::CoordinationTrace,
-        success: bool,
-        detail: &str,
-    ) {
-        coordination::finish_coordination_trace(self, agent_name, trace, success, detail)
-    }
 }
 
 #[cfg(test)]

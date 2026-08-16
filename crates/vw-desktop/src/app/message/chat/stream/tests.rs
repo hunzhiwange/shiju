@@ -468,6 +468,100 @@ fn stream_session_saves_coalesce_to_latest_snapshot_while_in_flight() {
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
+fn stream_session_save_retains_latest_snapshot_after_failure() {
+    use std::sync::{Arc, Mutex, mpsc};
+    use std::time::Duration;
+
+    let coordinator = Arc::new(super::StreamSessionSaveCoordinator::default());
+    let attempts = Arc::new(Mutex::new(Vec::new()));
+    let (first_save_started_tx, first_save_started_rx) = mpsc::channel();
+    let (release_first_save_tx, release_first_save_rx) = mpsc::channel();
+    let snapshot = |content: &str| crate::app::models::ChatSession {
+        id: "retry-session".to_string(),
+        title: "Session".to_string(),
+        messages: vec![chat_message(ChatRole::Assistant, content)],
+        message_ids: vec![None],
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 2,
+    };
+
+    let first_coordinator = Arc::clone(&coordinator);
+    let first_attempts = Arc::clone(&attempts);
+    let first = std::thread::spawn(move || {
+        first_coordinator.save(snapshot("first"), None, move |session, _| {
+            first_attempts
+                .lock()
+                .expect("attempts lock")
+                .push(session.messages[0].content.clone());
+            first_save_started_tx.send(()).expect("signal first save start");
+            release_first_save_rx
+                .recv_timeout(Duration::from_secs(10))
+                .expect("release first save");
+            Err("gateway request failed: 503 Service Unavailable".to_string())
+        })
+    });
+    first_save_started_rx.recv_timeout(Duration::from_secs(10)).expect("first save should start");
+
+    let queued = coordinator.save(snapshot("queued-latest"), None, |_, _| {
+        panic!("an in-flight save must use the active runner")
+    });
+    assert_eq!(queued, super::StreamSessionSaveResult::Coalesced);
+    release_first_save_tx.send(()).expect("release first save");
+    assert!(matches!(
+        first.join().expect("first save thread"),
+        super::StreamSessionSaveResult::Deferred(_)
+    ));
+    assert_eq!(attempts.lock().expect("attempts lock").as_slice(), ["first"]);
+
+    let retry_attempts = Arc::clone(&attempts);
+    let retried = coordinator.save(snapshot("newest"), None, move |session, _| {
+        retry_attempts
+            .lock()
+            .expect("attempts lock")
+            .push(session.messages[0].content.clone());
+        Ok(Some(std::path::PathBuf::from(&session.id)))
+    });
+
+    assert_eq!(retried, super::StreamSessionSaveResult::Committed);
+    assert_eq!(attempts.lock().expect("attempts lock").as_slice(), ["first", "newest"]);
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn stream_session_save_ack_requires_atomic_commit() {
+    let coordinator = super::StreamSessionSaveCoordinator::default();
+    let snapshot = crate::app::models::ChatSession {
+        id: "ack-session".to_string(),
+        title: "Session".to_string(),
+        messages: vec![chat_message(ChatRole::Assistant, "answer")],
+        message_ids: vec![None],
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 2,
+    };
+
+    let failed = coordinator.save(snapshot.clone(), None, |_, _| {
+        Err("database is locked".to_string())
+    });
+    assert!(matches!(&failed, super::StreamSessionSaveResult::Deferred(_)));
+    assert!(matches!(
+        super::stream_session_save_message(Some(failed)),
+        crate::app::Message::None
+    ));
+
+    let committed = coordinator.save(snapshot, None, |_, _| Ok(None));
+    assert_eq!(committed, super::StreamSessionSaveResult::Committed);
+    assert!(matches!(
+        super::stream_session_save_message(Some(committed)),
+        crate::app::Message::Chat(super::ChatMessage::SessionSaveAck)
+    ));
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
 fn stream_session_save_stops_retries_after_payload_too_large() {
     use std::sync::{Arc, Mutex};
 
@@ -485,17 +579,27 @@ fn stream_session_save_stops_retries_after_payload_too_large() {
         updated_ms: 2,
     };
 
-    coordinator.save(snapshot.clone(), None, move |_, _| {
+    let failed = coordinator.save(snapshot.clone(), None, move |_, _| {
         *first_count.lock().expect("save count lock") += 1;
         Err("gateway request failed: 413 Payload Too Large".to_string())
     });
+    assert!(matches!(&failed, super::StreamSessionSaveResult::PermanentlyFailed(_)));
+    assert!(matches!(
+        super::stream_session_save_message(Some(failed)),
+        crate::app::Message::Chat(super::ChatMessage::SessionSaveFailed(_))
+    ));
 
     let second_count = Arc::clone(&saved_count);
-    coordinator.save(snapshot, None, move |_, _| {
+    let blocked = coordinator.save(snapshot, None, move |_, _| {
         *second_count.lock().expect("save count lock") += 1;
         Ok(None)
     });
 
+    assert_eq!(blocked, super::StreamSessionSaveResult::Blocked);
+    assert!(matches!(
+        super::stream_session_save_message(Some(blocked)),
+        crate::app::Message::None
+    ));
     assert_eq!(*saved_count.lock().expect("save count lock"), 1);
 }
 

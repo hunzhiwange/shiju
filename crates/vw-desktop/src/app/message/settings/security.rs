@@ -387,6 +387,10 @@ fn add_list_item(app: &mut App, kind: SecurityListKind) -> Task<Message> {
 }
 
 fn remove_list_item(app: &mut App, kind: SecurityListKind, index: usize) -> Task<Message> {
+    if !app.security_settings.list_editor.is_remove_pending(kind, index) {
+        return Task::none();
+    }
+    app.security_settings.list_editor.cancel_remove();
     if index >= app.security_settings.list(kind).len() {
         app.security_settings.save_error = Some("要删除的列表项不存在".to_string());
         return Task::none();
@@ -416,7 +420,7 @@ fn remove_list_item(app: &mut App, kind: SecurityListKind, index: usize) -> Task
 /// ## 沙箱配置
 /// - `SecuritySandboxEnabledChanged`：沙箱启用状态变更
 /// - `SecuritySandboxBackendChanged`：沙箱后端类型变更
-/// - `SecurityListDraftChanged/Add/Remove`：Firejail、OTP 与系统调用列表变更
+/// - `SecurityListDraftChanged/Add/Remove*`：Firejail、OTP 与系统调用列表变更
 ///
 /// ## 资源限制
 /// - `SecurityResourcesMaxMemoryMbChanged`：内存限制变更
@@ -539,7 +543,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
         SettingsMessage::SecurityListAdd(kind) => add_list_item(app, kind),
 
-        SettingsMessage::SecurityListRemove(kind, index) => remove_list_item(app, kind, index),
+        SettingsMessage::SecurityListRemoveRequested(kind, index) => {
+            if index < app.security_settings.list(kind).len() {
+                app.security_settings.list_editor.request_remove(kind, index);
+            }
+            Task::none()
+        }
+
+        SettingsMessage::SecurityListRemoveConfirmed(kind, index) => {
+            remove_list_item(app, kind, index)
+        }
+
+        SettingsMessage::SecurityListRemoveCanceled => {
+            app.security_settings.list_editor.cancel_remove();
+            Task::none()
+        }
 
         // 沙箱启用状态变更
         SettingsMessage::SecuritySandboxEnabledChanged(v) => {

@@ -320,7 +320,6 @@ fn new_initializes_settings_panels_gateway_drafts_and_timezone() {
     assert_eq!(app.agents_settings.new_agent_key_input, "");
     assert!(!app.agents_settings.loading);
     assert_eq!(app.agents_settings.selected_agent, crate::app::state::MAIN_AGENT_KEY);
-    assert_eq!(app.coordination_settings.save_error, None);
 }
 
 #[test]

@@ -57,6 +57,17 @@ pub(super) fn arm_autoscroll_hold(app: &mut App) {
     app.chat_autoscroll_hold_until_ms = now_ms().saturating_add(AUTOSCROLL_HOLD_MS);
 }
 
+pub(super) fn focus_chat_on_turn(app: &mut App, user_index: usize) -> bool {
+    if user_index >= app.chat_virtualizer.len() {
+        return false;
+    }
+
+    app.chat_auto_scroll = false;
+    app.chat_virtualizer.focus_turn_on_user(user_index);
+    app.sync_chat_virtualizer_compat_fields();
+    true
+}
+
 pub(super) fn scroll_chat_to_bottom_task(app: &mut App) -> Task<Message> {
     arm_autoscroll_hold(app);
     app.chat_virtualizer.snap_to_tail();
@@ -69,13 +80,10 @@ pub(super) fn scroll_chat_to_bottom_task(app: &mut App) -> Task<Message> {
 }
 
 pub(super) fn scroll_chat_to_turn_top_task(app: &mut App, user_index: usize) -> Task<Message> {
-    if user_index >= app.chat_virtualizer.len() {
+    if !focus_chat_on_turn(app, user_index) {
         return Task::none();
     }
 
-    app.chat_auto_scroll = false;
-    app.chat_virtualizer.focus_turn_on_user(user_index);
-    app.sync_chat_virtualizer_compat_fields();
     let relative_y = app.chat_virtualizer.relative_y();
 
     Task::batch([
@@ -507,6 +515,7 @@ pub enum ChatMessage {
     /// 延迟后重试补载某一步骤的原始 LLM 载荷。
     TrajectoryRawRetry {
         session_id: String,
+        turn_id: String,
         step_index: u32,
         attempt: u8,
     },
@@ -514,6 +523,7 @@ pub enum ChatMessage {
     /// 某一步骤的原始 LLM 载荷补载完成。
     TrajectoryRawLoaded {
         session_id: String,
+        turn_id: String,
         step_index: u32,
         attempt: u8,
         result: Result<Option<serde_json::Value>, String>,
@@ -543,6 +553,11 @@ pub enum ChatMessage {
     ///
     /// 用于接收 WASM 端异步保存的回执，不触发额外状态更新。
     SessionSaveAck,
+
+    /// 会话保存永久失败
+    ///
+    /// 通过现有 toast 组件向用户暴露无法自动恢复的保存错误。
+    SessionSaveFailed(String),
 
     /// Agent 流式响应完成
     ///
@@ -1188,6 +1203,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::AgentStepCostLoaded(_, _, _, _, _)
         | ChatMessage::AgentPostToolRound(_, _, _)
         | ChatMessage::SessionSaveAck
+        | ChatMessage::SessionSaveFailed(_)
         | ChatMessage::AgentStreamDone(_, _, _, _)
         | ChatMessage::AgentStreamCancelled(_)
         | ChatMessage::AgentStreamError(_, _)

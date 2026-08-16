@@ -5,13 +5,12 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, danger_action_btn_style, primary_action_btn_style,
-    rounded_action_btn_style, settings_muted_text_style, settings_page_intro, settings_panel,
+    rounded_action_btn_style, settings_error_banner, settings_muted_text_style, settings_panel,
     settings_panel_style, settings_section_card, settings_success_banner,
     settings_text_input_style,
 };
-use crate::app::message::SettingsMessage;
 use crate::app::message::settings::EmbeddingRoutesMessage;
-use crate::app::{App, Message, components::system_settings::SystemTab, message};
+use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
 
@@ -91,7 +90,7 @@ fn template_button<'a>(
     .into()
 }
 
-/// 构建或处理 `view` 对应的界面片段与交互数据。
+/// 构建记忆配置中嵌入路由页签的界面片段与交互数据。
 ///
 /// # 参数
 ///
@@ -104,21 +103,12 @@ fn template_button<'a>(
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn view(app: &App) -> Element<'_, Message> {
+pub fn embedded_view(app: &App) -> Element<'_, Message> {
     let s = &app.embedding_routes_settings;
 
-    let goto_memory_btn = button(text("前往记忆配置"))
-        .on_press(Message::Settings(SettingsMessage::SystemTabSelected(SystemTab::Memory)))
-        .padding([8, 12])
-        .style(rounded_action_btn_style);
-
     let header = row![
-        container(settings_page_intro(
-            "嵌入路由",
-            "配置不同语义场景使用的嵌入提供商、模型、维度和 API Key。在记忆配置中用 hint:模式名 引用路由。"
-        ))
-        .width(Length::Fill),
-        goto_memory_btn,
+        container(text("按场景配置嵌入提供商、模型、维度和 API Key；在“嵌入与检索”中用 hint:模式名 引用。").style(settings_muted_text_style))
+            .width(Length::Fill),
         button(text("添加路由"))
             .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(
                 EmbeddingRoutesMessage::AddRoute,
@@ -171,6 +161,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if s.save_error.is_none() && s.save_success {
         content = content.push(settings_success_banner("保存成功"));
+    }
+    if let Some(error) = s.save_error.as_deref() {
+        content = content.push(settings_error_banner(error));
     }
 
     if s.routes.is_empty() {

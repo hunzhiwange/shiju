@@ -62,7 +62,6 @@ fn known_tool_name_accepts_representative_file_runtime_search_and_integration_to
         "task",
         "fetch_webpage",
         "open_browser_page",
-        "delegate_coordination_status",
         "codesearch",
         "glob_search",
         "content_search",

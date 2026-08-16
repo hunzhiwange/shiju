@@ -227,7 +227,6 @@ pub(super) fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                     tool_id,
                     &[
                         "AgentTool",
-                        "delegate_coordination_status",
                         "schedule",
                         "cron_add",
                         "cron_list",
@@ -441,11 +440,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "把子任务交给专门智能体；默认单次提示，agentic=true 时可带过滤工具循环迭代。",
             group: ToolGroup::Collaboration,
         },
-        "delegate_coordination_status" => ToolMeta {
-            name: "委托状态",
-            description: "检查委托协调运行时状态，包括收件箱积压、上下文状态和死信记录。",
-            group: ToolGroup::Collaboration,
-        },
         "schedule" => ToolMeta {
             name: "任务调度",
             description: "创建、列出、暂停、恢复或取消基于 Shell 的计划任务。",
@@ -535,16 +529,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             name: "准备用户附件",
             description: "为当前会话准备可发送给用户的本地文件附件标记。",
             group: ToolGroup::Collaboration,
-        },
-        "TeamCreate" | "team_create" => ToolMeta {
-            name: "创建团队",
-            description: "创建或覆盖一个团队对象，并定义成员边界。",
-            group: ToolGroup::Integration,
-        },
-        "TeamDelete" | "team_delete" => ToolMeta {
-            name: "删除团队",
-            description: "删除一个已存在的团队对象。",
-            group: ToolGroup::Integration,
         },
         "skill" => ToolMeta {
             name: "加载技能",
@@ -665,31 +649,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             name: "无效调用",
             description: "工具错误回退入口，用于报告无效或未识别的工具请求。",
             group: ToolGroup::Other,
-        },
-        "agents_list" => ToolMeta {
-            name: "代理列表",
-            description: "列出 IPC 代理及其运行状态。",
-            group: ToolGroup::Integration,
-        },
-        "agents_send" => ToolMeta {
-            name: "发送代理消息",
-            description: "向指定 IPC 代理发送消息或任务。",
-            group: ToolGroup::Integration,
-        },
-        "agents_inbox" => ToolMeta {
-            name: "代理收件箱",
-            description: "查看 IPC 代理的收件箱消息。",
-            group: ToolGroup::Integration,
-        },
-        "state_get" => ToolMeta {
-            name: "读取状态",
-            description: "读取共享状态存储中的键值。",
-            group: ToolGroup::Integration,
-        },
-        "state_set" => ToolMeta {
-            name: "写入状态",
-            description: "写入共享状态存储中的键值。",
-            group: ToolGroup::Integration,
         },
         "batch" => ToolMeta {
             name: "批处理",

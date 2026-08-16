@@ -16,7 +16,9 @@ fn upsert_step_start(
     start_snapshot_path: Option<String>,
 ) {
     let message_model = model.clone();
-    if let Some(step) = session.steps.iter_mut().find(|s| s.index == step_index) {
+    if let Some(step) =
+        session.steps.iter_mut().find(|s| s.index == step_index && s.turn_id.is_none())
+    {
         step.started_ms = created_ms;
         if model.is_some() {
             step.model = model;
@@ -27,6 +29,7 @@ fn upsert_step_start(
     } else {
         session.steps.push(models::ChatSessionStep {
             index: step_index,
+            turn_id: None,
             started_ms: created_ms,
             finished_ms: None,
             start_snapshot_path,
@@ -54,7 +57,9 @@ fn upsert_step_finish(
     model: Option<String>,
 ) {
     let message_model = model.clone();
-    if let Some(step) = session.steps.iter_mut().find(|s| s.index == step_index) {
+    if let Some(step) =
+        session.steps.iter_mut().find(|s| s.index == step_index && s.turn_id.is_none())
+    {
         step.finished_ms = Some(finished_ms);
         step.usage = usage;
         if finish_reason.is_some() {
@@ -66,6 +71,7 @@ fn upsert_step_finish(
     } else {
         session.steps.push(models::ChatSessionStep {
             index: step_index,
+            turn_id: None,
             started_ms: finished_ms,
             finished_ms: Some(finished_ms),
             start_snapshot_path: None,
@@ -85,10 +91,14 @@ fn upsert_step_finish(
 }
 
 fn merge_tool_lifecycle(session: &mut models::ChatSession, event: &GatewayChatToolEvent) {
-    let step_position = session.steps.iter().position(|step| step.index == event.step_index);
+    let step_position = session
+        .steps
+        .iter()
+        .position(|step| step.index == event.step_index && step.turn_id.is_none());
     let step_position = step_position.unwrap_or_else(|| {
         session.steps.push(models::ChatSessionStep {
             index: event.step_index,
+            turn_id: None,
             started_ms: event.occurred_ms,
             finished_ms: None,
             start_snapshot_path: None,
@@ -416,6 +426,7 @@ pub(super) fn handle_agent_step_cost_loaded(
     } else if resolved_model.is_some() || cost.is_some() {
         session.steps.push(models::ChatSessionStep {
             index: step_index,
+            turn_id: None,
             started_ms: now_ms(),
             finished_ms: None,
             start_snapshot_path: None,

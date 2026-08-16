@@ -196,7 +196,6 @@ pub mod system_settings_staff;
 /// 系统设置：代理间通信
 ///
 /// 配置多个代理之间的进程间通信（IPC）机制。
-pub mod system_settings_agents_ipc;
 
 /// 系统设置：自主性配置
 ///
@@ -227,11 +226,6 @@ pub mod system_settings_help;
 ///
 /// 配置 CLI 与多种消息/语音通道的启用状态和参数。
 pub mod system_settings_channels;
-
-/// 系统设置：协调配置
-///
-/// 配置多代理协作、任务分发和结果汇总机制。
-pub mod system_settings_coordination;
 
 /// 系统设置：定时任务
 ///
@@ -301,7 +295,7 @@ pub mod system_settings_query_classification;
 /// 配置日志、指标、追踪等可观测性功能。
 pub mod system_settings_observability;
 
-/// 系统设置：存储配置
+/// 记忆设置：记忆存储
 ///
 /// 配置持久化存储 provider、连接参数与 TLS 选项。
 pub mod system_settings_storage;
@@ -345,6 +339,11 @@ pub mod system_settings_multimodal;
 ///
 /// 配置 runtime 类型以及 Docker/WASM 执行环境参数。
 pub mod system_settings_runtime;
+
+/// 系统设置：网络配置
+///
+/// 通过内部标签统一展示网页搜索、HTTP 请求与浏览器配置。
+pub mod system_settings_network;
 
 /// 系统设置：Web 搜索
 ///

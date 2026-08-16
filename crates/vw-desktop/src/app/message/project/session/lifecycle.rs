@@ -303,6 +303,7 @@ fn upsert_loaded_step_start(
     } else {
         steps.push(models::ChatSessionStep {
             index,
+            turn_id: None,
             started_ms,
             finished_ms: None,
             start_snapshot_path: snapshot,
@@ -344,6 +345,7 @@ fn upsert_loaded_step_finish(
     } else {
         steps.push(models::ChatSessionStep {
             index,
+            turn_id: None,
             started_ms: finished_ms,
             finished_ms: Some(finished_ms),
             start_snapshot_path: None,
@@ -435,6 +437,7 @@ pub(crate) fn steps_from_gateway_messages(
                 next_index = next_index.saturating_add(1);
                 steps.push(models::ChatSessionStep {
                     index,
+                    turn_id: None,
                     started_ms: info.time.created,
                     finished_ms: info.time.completed,
                     start_snapshot_path: None,

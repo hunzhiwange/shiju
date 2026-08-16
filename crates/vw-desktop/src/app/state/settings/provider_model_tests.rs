@@ -244,6 +244,7 @@ fn route_classification_and_heartbeat_defaults_are_ready_to_edit() {
 #[test]
 fn cron_tabs_job_types_and_draft_defaults_match_api_contract() {
     assert_eq!(CronSettingsTab::default(), CronSettingsTab::Jobs);
+    assert_eq!(CronSettingsTab::Scheduler, CronSettingsTab::Scheduler);
     assert_eq!(CronAddJobType::default(), CronAddJobType::Shell);
     assert_eq!(CronAddJobType::Shell.as_api_value(), "shell");
     assert_eq!(CronAddJobType::Agent.as_api_value(), "agent");

@@ -215,7 +215,6 @@ pub use task_pool_matrix::{
 };
 
 /// 重新导出员工任务流 IPC 消息处理器
-pub use staff_ipc::handle_api_staff_ipc_message;
 
 /// 重新导出任务池 worktree pool 处理器
 pub use task_pool::{

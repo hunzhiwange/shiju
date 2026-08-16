@@ -20,6 +20,11 @@ pub mod instruction;
 pub mod instruction_discovery;
 /// 声明 llm 子模块，保持当前领域的职责拆分清晰。
 pub mod llm;
+/// 声明 LLM 原始记录的增量模型与重建器。
+pub mod llm_raw;
+#[cfg(test)]
+#[path = "llm_raw_tests.rs"]
+mod llm_raw_tests;
 /// 声明 message 子模块，保持当前领域的职责拆分清晰。
 pub mod message;
 /// 声明 processor 子模块，保持当前领域的职责拆分清晰。

@@ -200,6 +200,7 @@ fn list_editor_builds_bounded_scrolling_saved_items() {
         "例如 openat",
         &items,
         "",
+        None,
     ));
 
     assert!(SOURCE.contains("LIST_EDITOR_MAX_HEIGHT"));

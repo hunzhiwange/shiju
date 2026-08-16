@@ -4,72 +4,14 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, icon_btn, settings_checkbox_style, settings_close_button,
-    settings_divider, settings_help_button, settings_help_copy_state, settings_muted_text_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
     settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
     settings_section_card, settings_text_input_style,
 };
 use crate::app::message::settings::{SettingsMessage, WebSearchMessage};
 use crate::app::{App, Message};
-use iced::widget::{Space, checkbox, column, container, pick_list, row, text, text_input};
+use iced::widget::{checkbox, column, container, pick_list, row, text, text_input};
 use iced::{Alignment, Element, Length};
-
-const WEB_SEARCH_HELP: &str = r#"网页搜索配置说明
-
-一、作用
-- web_search 用于让代理主动检索公开网页搜索结果。
-- 当前支持 duckduckgo、brave、serper、google、bing。
-
-二、字段含义
-1) enabled
-- 是否启用 web_search_tool。
-
-2) provider
-- duckduckgo：免 API Key，直接抓取 DuckDuckGo 公共 HTML 搜索结果。
-- brave：使用 Brave Search API，优先读取 brave_api_key，留空时回退 api_key。
-- serper：使用 Serper Google Search API。
-- google：当前通过 Serper 的 Google 兼容端点执行。
-- bing：当前通过 Serper 的 Bing 兼容端点执行。
-
-3) api_key
-- 通用 API Key。
-- 对 serper / google / bing 必填。
-- 对 brave 可作为 brave_api_key 的回退值。
-
-4) brave_api_key
-- Brave 专用 API Key。
-- 仅 provider=brave 时使用。
-
-5) api_url
-- 可选，自定义兼容端点。
-- 适用于代理网关、自托管兼容层或测试环境。
-
-6) max_results
-- 每次搜索返回的最大结果数。
-- UI 接受正整数，最终限制在 1-10。
-
-7) timeout_secs
-- HTTP 请求超时秒数。
-- 留空时回退默认值 15。
-
-8) user_agent
-- 搜索请求携带的 User-Agent。
-- 留空时回退为桌面浏览器兼容的默认值。
-
-三、示例
-{
-  "web_search": {
-    "enabled": true,
-    "provider": "serper",
-    "api_key": "your-serper-key",
-    "api_url": null,
-    "brave_api_key": null,
-    "max_results": 5,
-    "timeout_secs": 15,
-    "user_agent": "Mozilla/5.0 (...) Chrome/148.0.0.0 Safari/537.36"
-  }
-}
-"#;
 
 fn field_row<'a>(
     label: &'static str,
@@ -149,35 +91,6 @@ fn shows_brave_api_key(provider: &str) -> bool {
     matches!(provider, "brave")
 }
 
-fn inline_help_panel(app: &App) -> Option<Element<'static, Message>> {
-    app.web_search_settings.show_help_modal.then(|| {
-        let close_message =
-            Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::HelpClose));
-        let close_btn = settings_close_button(close_message);
-        let (copy_icon, copy_tip) =
-            settings_help_copy_state(app.last_copied_code_hash, WEB_SEARCH_HELP);
-        let copy_btn =
-            icon_btn(copy_icon, copy_tip, Some(Message::CopyCode(WEB_SEARCH_HELP.to_string())));
-
-        settings_panel(
-            column![
-                row![
-                    text("Web Search 配置帮助").size(16),
-                    Space::new().width(Length::Fill),
-                    copy_btn,
-                    close_btn
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center),
-                text(WEB_SEARCH_HELP).size(13).style(settings_muted_text_style),
-            ]
-            .spacing(12)
-            .width(Length::Fill),
-        )
-        .into()
-    })
-}
-
 /// 构建或处理 `view` 对应的界面片段与交互数据。
 ///
 /// # 参数
@@ -192,11 +105,20 @@ fn inline_help_panel(app: &App) -> Option<Element<'static, Message>> {
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
-    let s = &app.web_search_settings;
+    column![
+        settings_page_intro(
+            "网页搜索配置",
+            "配置网页搜索工具的提供方、鉴权信息和请求参数。",
+        ),
+        content(app),
+    ]
+    .spacing(16)
+    .width(Length::Fill)
+    .into()
+}
 
-    let help_btn = settings_help_button(Message::Settings(SettingsMessage::WebSearch(
-        WebSearchMessage::HelpOpen,
-    )));
+pub(super) fn content(app: &App) -> Element<'_, Message> {
+    let s = &app.web_search_settings;
 
     let enabled_row = bool_row(
         "启用",
@@ -229,27 +151,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let provider_row = field_row("搜索服务", "选择搜索提供方。", provider_pick);
 
-    let mut content = column![
-        row![
-            container(settings_page_intro(
-                "网页搜索配置",
-                "配置网页搜索工具的提供方、鉴权信息和请求参数。"
-            ))
-            .width(Length::Fill),
-            help_btn
-        ]
-        .align_y(Alignment::Start),
-    ]
-    .spacing(16)
-    .width(Length::Fill);
-
-    if let Some(help_panel) = inline_help_panel(app) {
-        content = content.push(help_panel);
-    }
-
-    content = content
+    let mut content = column![]
         .push(settings_section_card("基础行为", "控制开关与默认搜索服务。"))
-        .push(settings_panel(column![enabled_row, settings_divider(), provider_row].spacing(0)));
+        .push(settings_panel(column![enabled_row, settings_divider(), provider_row].spacing(0)))
+        .spacing(16)
+        .width(Length::Fill);
 
     if s.provider == "duckduckgo" {
         content = content.push(hint_row("DuckDuckGo 模式无需 API Key，会直接使用公开搜索页面。"));

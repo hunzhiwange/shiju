@@ -2,6 +2,7 @@ use super::*;
 use crate::app::theme_catalog::{
     ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore, set_test_themes_root,
 };
+use crate::app::state::GeneralSettingsTab;
 use crate::app::{App, PreviewAutoSaveMode, Shell, TerminalTheme, message};
 use iced::widget::text;
 
@@ -80,6 +81,20 @@ fn timezone_helper_preserves_supported_iana_timezone() {
             message::GeneralSettingsMessage::TimezoneSelected(timezone),
         )) => assert_eq!(timezone, "America/New_York"),
         other => panic!("unexpected timezone message: {other:?}"),
+    }
+}
+
+#[test]
+fn view_builds_each_general_settings_tab() {
+    let mut app = test_app();
+
+    for tab in [
+        GeneralSettingsTab::Interface,
+        GeneralSettingsTab::Terminal,
+        GeneralSettingsTab::Editor,
+    ] {
+        app.general_settings_tab = tab;
+        keep_element(view(&app));
     }
 }
 

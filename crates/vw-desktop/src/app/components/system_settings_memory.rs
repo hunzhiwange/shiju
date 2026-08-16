@@ -4,7 +4,6 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::number_input::NumberInput;
-use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
     settings_checkbox_style, settings_divider, settings_muted_text_style, settings_page_intro,
@@ -393,11 +392,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             row![
                                 text("模型名称，可用").size(11).style(settings_muted_text_style),
                                 button(text("hint:模式名").size(11))
-                                    .on_press(Message::Settings(
-                                        SettingsMessage::SystemTabSelected(
-                                            SystemTab::EmbeddingRoutes
-                                        )
-                                    ))
+                                    .on_press(Message::Settings(SettingsMessage::Memory(
+                                        MemoryMessage::TabSelected(MemorySettingsTab::EmbeddingRoutes),
+                                    )))
                                     .padding([1, 6])
                                     .style(|theme: &iced::Theme, _status| {
                                         let palette = theme.extended_palette();
@@ -562,6 +559,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         tab_button("基础行为", MemorySettingsTab::General, s.active_tab),
         tab_button("保留与缓存", MemorySettingsTab::RetentionAndCache, s.active_tab,),
         tab_button("嵌入与检索", MemorySettingsTab::Embedding, s.active_tab),
+        tab_button("嵌入路由", MemorySettingsTab::EmbeddingRoutes, s.active_tab),
+        tab_button("记忆存储", MemorySettingsTab::Storage, s.active_tab),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -574,6 +573,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         MemorySettingsTab::General => general_section.into(),
         MemorySettingsTab::RetentionAndCache => retention_section.into(),
         MemorySettingsTab::Embedding => embedding_section.into(),
+        MemorySettingsTab::EmbeddingRoutes => {
+            crate::app::components::system_settings_embedding_routes::embedded_view(app)
+        }
+        MemorySettingsTab::Storage => {
+            crate::app::components::system_settings_storage::embedded_view(app)
+        }
         MemorySettingsTab::Qdrant => {
             qdrant_section.map(Into::into).unwrap_or_else(|| general_section.into())
         }

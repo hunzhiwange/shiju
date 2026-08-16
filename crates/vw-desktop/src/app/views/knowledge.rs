@@ -578,12 +578,6 @@ fn build_embedding_model_section(app: &App) -> Element<'_, Message> {
                 .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Memory)))
                 .padding([8, 10])
                 .style(knowledge_toolbar_button_style),
-            button(row![icon_svg(Icon::Sliders, 13.0), text("嵌入路由").size(12)].spacing(6))
-                .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(
-                    SystemTab::EmbeddingRoutes
-                )))
-                .padding([8, 10])
-                .style(knowledge_toolbar_button_style),
         ]
         .spacing(8)
         .align_y(Alignment::Center),

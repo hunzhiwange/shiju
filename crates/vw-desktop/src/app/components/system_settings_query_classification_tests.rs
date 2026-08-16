@@ -114,5 +114,5 @@ fn source_wires_each_editor_action_to_query_classification_message() {
     assert!(source.contains("QueryClassificationMessage::CategoryChanged(idx, value)"));
     assert!(source.contains("QueryClassificationMessage::PriorityChanged(idx, value)"));
     assert!(source.contains("pick_list"));
-    assert!(source.contains("ViewMessage::OpenSystemSettingsTab(SystemTab::ModelRoutes)"));
+    assert!(source.contains("ModelConfigTabMessage::Selected(ModelConfigTab::ModelRoutes)"));
 }

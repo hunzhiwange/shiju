@@ -17,9 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::agent::{
-    AgentConfig, AgentsIpcConfig, CoordinationConfig, DelegateAgentConfig, WorkspacesConfig,
-};
+use crate::agent::{AgentConfig, DelegateAgentConfig, WorkspacesConfig};
 use crate::automation::{CronConfig, HeartbeatConfig, SchedulerConfig};
 use crate::channels::ChannelsConfig;
 use crate::gateway::GatewayConfig;
@@ -234,13 +232,7 @@ pub struct Config {
     pub staff: StaffConfig,
 
     #[serde(default)]
-    pub coordination: CoordinationConfig,
-
-    #[serde(default)]
     pub hooks: HooksConfig,
-
-    #[serde(default)]
-    pub agents_ipc: AgentsIpcConfig,
 
     #[serde(default)]
     pub model_support_vision: Option<bool>,
@@ -387,10 +379,8 @@ impl Default for Config {
             identity: IdentityConfig::default(),
             agents: HashMap::new(),
             staff: StaffConfig::default(),
-            coordination: CoordinationConfig::default(),
             hooks: HooksConfig::default(),
             query_classification: QueryClassificationConfig::default(),
-            agents_ipc: AgentsIpcConfig::default(),
             model_support_vision: None,
             app_ui: AppUiConfig::default(),
             acp: HashMap::new(),

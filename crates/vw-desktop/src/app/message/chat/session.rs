@@ -2145,7 +2145,13 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
     save_tasks.push(submit);
     save_tasks.push(Task::done(Message::Chat(ChatMessage::LoadInputPanelTodos)));
     if let Some(user_idx) = appended_user_idx {
-        save_tasks.push(super::scroll_chat_to_turn_top_task(app, user_idx));
+        if user_idx == 0 {
+            // 首轮消息天然位于顶部。此时滚动容器刚从空会话视图挂载，
+            // 避免在首个有效视口回执前执行 snap_to 和布局测量。
+            super::focus_chat_on_turn(app, user_idx);
+        } else {
+            save_tasks.push(super::scroll_chat_to_turn_top_task(app, user_idx));
+        }
         save_tasks.push(title_task);
     } else if app.chat_auto_scroll {
         save_tasks.push(super::scroll_chat_to_bottom_task(app).chain(title_task));

@@ -7,7 +7,7 @@ use crate::app::Message;
 use iced::Task;
 use std::collections::{BTreeMap, HashMap};
 use vw_config_types::{
-    agent::{AgentConfig, AgentsIpcConfig, CoordinationConfig, DelegateAgentConfig},
+    agent::{AgentConfig, DelegateAgentConfig},
     automation::{CronConfig, HeartbeatConfig, SchedulerConfig},
     channels::ChannelsConfig,
     config::{AcpAgentConfig, Config},
@@ -950,42 +950,6 @@ pub fn load_autonomy_config() -> AutonomyConfig {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_agents_ipc_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_agents_ipc_config() -> AgentsIpcConfig {
-    load_agent_config_via_gateway().agents_ipc
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// 读取、保存或转换 `load_coordination_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_coordination_config() -> CoordinationConfig {
-    load_agent_config_via_gateway().coordination
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 /// 读取、保存或转换 `load_identity_config` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1251,40 +1215,6 @@ pub fn load_autonomy_config() -> AutonomyConfig {
     AutonomyConfig::default()
 }
 #[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_agents_ipc_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_agents_ipc_config() -> AgentsIpcConfig {
-    AgentsIpcConfig::default()
-}
-#[cfg(target_arch = "wasm32")]
-/// 读取、保存或转换 `load_coordination_config` 对应的配置数据与运行时状态。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的配置快照、用户输入或网关返回值，用于保持持久化状态与运行时状态同步。
-///
-/// # 返回值
-///
-/// 返回加载后的配置、归一化后的状态或持久化操作结果，供上层设置流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
-pub fn load_coordination_config() -> CoordinationConfig {
-    CoordinationConfig::default()
-}
-#[cfg(target_arch = "wasm32")]
 /// 读取、保存或转换 `load_identity_config` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1481,8 +1411,6 @@ define_agent_config_update_result_fns!(
     (update_embedding_routes_config_result, update_embedding_routes_config, Vec<EmbeddingRouteConfig>, embedding_routes, &["embedding_routes"]),
     (update_query_classification_config_result, update_query_classification_config, QueryClassificationConfig, query_classification, &["query_classification"]),
     (update_autonomy_config_result, update_autonomy_config, AutonomyConfig, autonomy, &["autonomy"]),
-    (update_agents_ipc_config_result, update_agents_ipc_config, AgentsIpcConfig, agents_ipc, &["agents_ipc"]),
-    (update_coordination_config_result, update_coordination_config, CoordinationConfig, coordination, &["coordination"]),
 );
 
 define_agent_config_update_result_async_fns!(
@@ -1509,8 +1437,6 @@ define_agent_config_update_result_async_fns!(
     (update_embedding_routes_config_result_async, Vec<EmbeddingRouteConfig>, embedding_routes, &["embedding_routes"]),
     (update_query_classification_config_result_async, QueryClassificationConfig, query_classification, &["query_classification"]),
     (update_autonomy_config_result_async, AutonomyConfig, autonomy, &["autonomy"]),
-    (update_agents_ipc_config_result_async, AgentsIpcConfig, agents_ipc, &["agents_ipc"]),
-    (update_coordination_config_result_async, CoordinationConfig, coordination, &["coordination"]),
 );
 
 define_agent_config_update_async_fns!(
@@ -1537,8 +1463,6 @@ define_agent_config_update_async_fns!(
     (update_embedding_routes_config_async, update_embedding_routes_config_result_async, Vec<EmbeddingRouteConfig>, embedding_routes, &["embedding_routes"]),
     (update_query_classification_config_async, update_query_classification_config_result_async, QueryClassificationConfig, query_classification, &["query_classification"]),
     (update_autonomy_config_async, update_autonomy_config_result_async, AutonomyConfig, autonomy, &["autonomy"]),
-    (update_agents_ipc_config_async, update_agents_ipc_config_result_async, AgentsIpcConfig, agents_ipc, &["agents_ipc"]),
-    (update_coordination_config_async, update_coordination_config_result_async, CoordinationConfig, coordination, &["coordination"]),
 );
 
 /// 读取、保存或转换 `update_gateway_config_async` 对应的配置数据与运行时状态。

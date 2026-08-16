@@ -1,5 +1,8 @@
 use super::*;
-use crate::app::SettingsTab;
+use crate::app::{
+    SettingsTab,
+    state::{AgentConfigTab, GeneralSettingsTab, ModelConfigTab},
+};
 
 fn app() -> App {
     App::new().0
@@ -64,10 +67,21 @@ fn ordinary_system_tab_selection_changes_tab_closes_help_and_stays_idle() {
     let mut app = app();
     app.system_settings_help_tab = Some(SystemTab::Runtime);
 
-    let task = update(&mut app, SettingsMessage::SystemTabSelected(SystemTab::QuickMessages));
+    let task = update(&mut app, SettingsMessage::SystemTabSelected(SystemTab::Projects));
 
-    assert_eq!(app.system_settings_tab, SystemTab::QuickMessages);
+    assert_eq!(app.system_settings_tab, SystemTab::Projects);
     assert_eq!(app.system_settings_help_tab, None);
+    assert!(!has_scheduled_action(task));
+}
+
+#[test]
+fn legacy_editor_tab_selection_opens_general_editor_tab() {
+    let mut app = app();
+
+    let task = update(&mut app, SettingsMessage::SystemTabSelected(SystemTab::Editor));
+
+    assert_eq!(app.system_settings_tab, SystemTab::General);
+    assert_eq!(app.general_settings_tab, GeneralSettingsTab::Editor);
     assert!(!has_scheduled_action(task));
 }
 
@@ -95,16 +109,21 @@ fn providers_and_models_selection_prepare_loading_before_refresh() {
 }
 
 #[test]
-fn multimodal_tab_refreshes_model_catalog() {
+fn multimodal_model_tab_refreshes_model_catalog() {
     let mut app = app();
     app.model_settings.loading = false;
     app.model_settings.save_error = Some("stale catalog error".to_string());
     app.multimodal_settings.save_error = Some("stale OCR error".to_string());
     app.multimodal_settings.ocr_model = "openai/vision".to_string();
 
-    let task = update(&mut app, SettingsMessage::SystemTabSelected(SystemTab::Multimodal));
+    let task = update(
+        &mut app,
+        SettingsMessage::ModelConfigTab(ModelConfigTabMessage::Selected(
+            ModelConfigTab::Multimodal,
+        )),
+    );
 
-    assert_eq!(app.system_settings_tab, SystemTab::Multimodal);
+    assert_eq!(app.model_settings.active_tab, ModelConfigTab::Multimodal);
     assert!(app.model_settings.loading);
     assert_eq!(app.model_settings.save_error, None);
     assert_eq!(app.multimodal_settings.save_error, None);
@@ -129,10 +148,7 @@ async fn direct_refresh_tabs_emit_their_expected_messages() {
     app.gateway_settings.save_error = Some("gateway".to_string());
 
     let cases = [
-        (SystemTab::DialogueFlow, "dialogue_flow"),
         (SystemTab::Skills, "skills"),
-        (SystemTab::ModelRoutes, "model_routes"),
-        (SystemTab::QueryClassification, "query_classification"),
         (SystemTab::Runtime, "runtime"),
         (SystemTab::Browser, "browser"),
         (SystemTab::WebSearch, "web_search"),
@@ -151,16 +167,7 @@ async fn direct_refresh_tabs_emit_their_expected_messages() {
         assert_eq!(messages.len(), 1, "unexpected message count for {expected}");
         let matches_expected = matches!(
             (expected, &messages[0]),
-            ("dialogue_flow", Message::Settings(SettingsMessage::DialogueFlowPermissionRefresh))
-                | ("skills", Message::Settings(SettingsMessage::SkillsRefresh))
-                | (
-                    "model_routes",
-                    Message::Settings(SettingsMessage::ModelRoutes(ModelRoutesMessage::Refresh))
-                )
-                | (
-                    "query_classification",
-                    Message::Settings(SettingsMessage::ModelRoutes(ModelRoutesMessage::Refresh))
-                )
+            ("skills", Message::Settings(SettingsMessage::SkillsRefresh))
                 | ("runtime", Message::Settings(SettingsMessage::Runtime(RuntimeMessage::Refresh)))
                 | ("browser", Message::Settings(SettingsMessage::Browser(BrowserMessage::Refresh)))
                 | (
@@ -197,21 +204,76 @@ async fn direct_refresh_tabs_emit_their_expected_messages() {
     assert_eq!(app.gateway_settings.save_error, None);
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn model_config_tab_selection_switches_internal_tab_and_refreshes_its_data() {
+    let mut app = app();
+
+    let routes = collect_task_messages(update(
+        &mut app,
+        SettingsMessage::ModelConfigTab(ModelConfigTabMessage::Selected(ModelConfigTab::ModelRoutes)),
+    ))
+    .await;
+    assert_eq!(app.model_settings.active_tab, ModelConfigTab::ModelRoutes);
+    assert!(matches!(
+        routes.as_slice(),
+        [Message::Settings(SettingsMessage::ModelRoutes(ModelRoutesMessage::Refresh))]
+    ));
+
+    let classification = collect_task_messages(update(
+        &mut app,
+        SettingsMessage::ModelConfigTab(ModelConfigTabMessage::Selected(
+            ModelConfigTab::QueryClassification,
+        )),
+    ))
+    .await;
+    assert_eq!(app.model_settings.active_tab, ModelConfigTab::QueryClassification);
+    assert!(matches!(
+        classification.as_slice(),
+        [Message::Settings(SettingsMessage::ModelRoutes(ModelRoutesMessage::Refresh))]
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn agent_config_tab_selection_updates_state_and_refreshes_dialogue_flow() {
+    let mut app = app();
+
+    let messages = collect_task_messages(update(
+        &mut app,
+        SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+            AgentConfigTab::DialogueFlow,
+        )),
+    ))
+    .await;
+
+    assert_eq!(app.agents_settings.active_config_tab, AgentConfigTab::DialogueFlow);
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::Settings(SettingsMessage::DialogueFlowPermissionRefresh)]
+    ));
+
+    app.heartbeat_settings.save_error = Some("stale".to_string());
+    let heartbeat_task = update(
+        &mut app,
+        SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+            AgentConfigTab::Heartbeat,
+        )),
+    );
+    assert_eq!(app.agents_settings.active_config_tab, AgentConfigTab::Heartbeat);
+    assert_eq!(app.heartbeat_settings.save_error, None);
+    assert!(!has_scheduled_action(heartbeat_task));
+}
+
 #[test]
 fn state_only_system_tabs_clear_stale_feedback_without_scheduling_work() {
     let mut app = app();
-    app.embedding_routes_settings.save_error = Some("embedding".to_string());
-    app.embedding_routes_settings.save_success = true;
     app.multimodal_settings.save_error = Some("multimodal".to_string());
     app.tunnel_settings.save_error = Some("tunnel".to_string());
 
-    for tab in [SystemTab::EmbeddingRoutes, SystemTab::Multimodal, SystemTab::Tunnel] {
-        assert!(!has_scheduled_action(update(&mut app, SettingsMessage::SystemTabSelected(tab),)));
-    }
+    assert!(!has_scheduled_action(update(
+        &mut app,
+        SettingsMessage::SystemTabSelected(SystemTab::Tunnel),
+    )));
 
-    assert_eq!(app.embedding_routes_settings.save_error, None);
-    assert!(!app.embedding_routes_settings.save_success);
-    assert_eq!(app.multimodal_settings.save_error, None);
     assert_eq!(app.tunnel_settings.save_error, None);
 }
 
@@ -247,6 +309,7 @@ async fn agents_selection_prepares_state_and_requests_agents_and_skills() {
     app.agents_settings.loading = false;
     app.agents_settings.save_error = Some("agents".to_string());
     app.skills_settings.loading = false;
+    app.agents_settings.active_config_tab = AgentConfigTab::Heartbeat;
 
     let messages = collect_task_messages(update(
         &mut app,
@@ -255,6 +318,7 @@ async fn agents_selection_prepares_state_and_requests_agents_and_skills() {
     .await;
 
     assert!(app.agents_settings.loading);
+    assert_eq!(app.agents_settings.active_config_tab, AgentConfigTab::Agents);
     assert_eq!(app.agents_settings.save_error, None);
     assert!(app.skills_settings.loading);
     assert_eq!(messages.len(), 2);

@@ -59,7 +59,6 @@ fn tool_in_preset_accepts_declared_members_and_inheritance() {
     ];
     let collaboration_only = [
         "AgentTool",
-        "delegate_coordination_status",
         "schedule",
         "cron_add",
         "cron_list",
@@ -208,7 +207,6 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("WebSearch", "联网搜索", ToolGroup::Web),
         ("AgentTool", "委托子代理", ToolGroup::Collaboration),
         ("delegate", "委托执行", ToolGroup::Collaboration),
-        ("delegate_coordination_status", "委托状态", ToolGroup::Collaboration),
         ("schedule", "任务调度", ToolGroup::Collaboration),
         ("cron_add", "新增定时任务", ToolGroup::Collaboration),
         ("cron_list", "定时任务列表", ToolGroup::Collaboration),
@@ -234,10 +232,7 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("AskUserQuestion", "用户提问", ToolGroup::Collaboration),
         ("Brief", "发送简报", ToolGroup::Collaboration),
         ("Sleep", "短暂等待", ToolGroup::Collaboration),
-        ("SendMessage", "发送 IPC 消息", ToolGroup::Integration),
         ("SendUserFile", "准备用户附件", ToolGroup::Collaboration),
-        ("TeamCreate", "创建团队", ToolGroup::Integration),
-        ("TeamDelete", "删除团队", ToolGroup::Integration),
         ("verify_plan_execution", "验证计划执行", ToolGroup::Collaboration),
         ("VerifyPlanExecution", "验证计划执行", ToolGroup::Collaboration),
         ("skill", "加载技能", ToolGroup::Collaboration),
@@ -265,11 +260,6 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("notebook_edit", "编辑笔记本", ToolGroup::Files),
         ("PowerShell", "PowerShell", ToolGroup::Execute),
         ("invalid", "无效调用", ToolGroup::Other),
-        ("agents_list", "代理列表", ToolGroup::Integration),
-        ("agents_send", "发送代理消息", ToolGroup::Integration),
-        ("agents_inbox", "代理收件箱", ToolGroup::Integration),
-        ("state_get", "读取状态", ToolGroup::Integration),
-        ("state_set", "写入状态", ToolGroup::Integration),
         ("batch", "批处理", ToolGroup::Integration),
         ("wasm_module", "WASM 模块", ToolGroup::Integration),
     ];

@@ -666,7 +666,6 @@ pub(crate) fn tool_bucket(tool_id: &str) -> SessionToolBucket {
         "AgentTool"
         | "Agent"
         | "agent"
-        | "delegate_coordination_status"
         | "schedule"
         | "cron_add"
         | "cron_list"
@@ -712,7 +711,6 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         "AgentTool"
         | "Agent"
         | "agent"
-        | "delegate_coordination_status"
         | "question"
         | "skill"
         | "schedule"
@@ -736,11 +734,6 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         | "proxy_config"
         | "model_routing_config"
         | "pushover"
-        | "agents_list"
-        | "agents_send"
-        | "agents_inbox"
-        | "state_get"
-        | "state_set"
         | "batch"
         | "wasm_module" => SessionToolGroup::Integration,
         _ => SessionToolGroup::Other,

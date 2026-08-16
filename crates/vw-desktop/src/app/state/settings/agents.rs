@@ -288,6 +288,15 @@ pub(crate) fn agent_settings_entries_from_config(
         .collect()
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum AgentConfigTab {
+    #[default]
+    Agents,
+    DialogueFlow,
+    QuickMessages,
+    Heartbeat,
+}
+
 #[derive(Debug, Clone)]
 /// 表示 AgentsSettingsState 相关的应用状态或派生数据。
 pub(crate) struct AgentsSettingsState {
@@ -300,6 +309,7 @@ pub(crate) struct AgentsSettingsState {
     pub(crate) entries: Vec<DelegateAgentSettingsEntry>,
     pub(crate) new_agent_key_input: String,
     pub(crate) selected_agent: String,
+    pub(crate) active_config_tab: AgentConfigTab,
     pub(crate) active_detail_tab: String,
     pub(crate) active_tools_list_tab: String,
     pub(crate) active_prompt_tab: String,
@@ -330,6 +340,7 @@ impl Default for AgentsSettingsState {
                 .collect(),
             new_agent_key_input: String::new(),
             selected_agent: MAIN_AGENT_KEY.to_string(),
+            active_config_tab: AgentConfigTab::Agents,
             active_detail_tab: AGENT_DETAIL_BASIC_TAB.to_string(),
             active_tools_list_tab: AGENT_TOOLS_OPTIONAL_TAB.to_string(),
             active_prompt_tab: AGENT_PROMPT_SYSTEM_TAB.to_string(),

@@ -142,7 +142,17 @@ fn each_autonomy_list_adds_trimmed_values_and_removes_by_index_in_isolation() {
         }
         assert!(app.autonomy_settings.list_editor.draft(kind).is_empty());
 
-        apply(&mut app, SettingsMessage::AutonomyListRemove(kind, 0));
+        apply(&mut app, SettingsMessage::AutonomyListRemoveConfirmed(kind, 0));
+        assert_eq!(app.autonomy_settings.list(kind).len(), 1);
+
+        apply(&mut app, SettingsMessage::AutonomyListRemoveRequested(kind, 0));
+        assert!(app.autonomy_settings.list_editor.is_remove_pending(kind, 0));
+        assert_eq!(app.autonomy_settings.list(kind).len(), 1);
+        apply(&mut app, SettingsMessage::AutonomyListRemoveCanceled);
+        assert!(!app.autonomy_settings.list_editor.is_remove_pending(kind, 0));
+
+        apply(&mut app, SettingsMessage::AutonomyListRemoveRequested(kind, 0));
+        apply(&mut app, SettingsMessage::AutonomyListRemoveConfirmed(kind, 0));
         assert!(app.autonomy_settings.list(kind).is_empty());
     }
 }

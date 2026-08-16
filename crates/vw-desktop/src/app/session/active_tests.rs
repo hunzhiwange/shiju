@@ -26,6 +26,7 @@ fn message_with_model(role: ChatRole, content: &str, model: &str) -> ChatMessage
 fn step(index: u32, started_ms: u64, finished_ms: Option<u64>, model: &str) -> ChatSessionStep {
     ChatSessionStep {
         index,
+        turn_id: None,
         started_ms,
         finished_ms,
         start_snapshot_path: None,
@@ -191,7 +192,10 @@ fn active_session_clear_removes_step_raw_payloads() {
     let raw = serde_json::json!({
         "messages": [{"role": "user", "content": "retained raw payload"}]
     });
-    app.replace_active_session_step_llm_raw(std::collections::HashMap::from([(1, raw)]));
+    app.replace_active_session_step_llm_raw(std::collections::HashMap::from([(
+        ("session-1".to_string(), "turn-1".to_string(), 1),
+        raw,
+    )]));
     let estimated_with_raw = app.active_session_view_state.estimated_bytes();
 
     assert!(estimated_with_raw > 0);

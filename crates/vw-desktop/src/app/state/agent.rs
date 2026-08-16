@@ -368,8 +368,8 @@ pub(crate) struct ActiveSessionViewState {
     pub(crate) updated_ms: u64,
     pub(crate) steps: Vec<ChatSessionStep>,
     pub(crate) calls: Vec<Value>,
-    pub(crate) step_llm_raw: HashMap<u32, Value>,
-    pub(crate) llm_raw_step_indices: HashSet<u32>,
+    pub(crate) step_llm_raw: HashMap<SessionStepRawKey, Value>,
+    pub(crate) llm_raw_step_indices: HashSet<SessionStepRawKey>,
     pub(crate) step_index_map: HashMap<u32, StepUiMeta>,
     pub(crate) message_meta_texts: Vec<Option<String>>,
     pub(crate) user_question_markers: Vec<UserQuestionMarker>,
@@ -382,6 +382,9 @@ pub(crate) struct ActiveSessionViewState {
     pub(crate) last_visited_chat_ui_chunk_start: Option<usize>,
     pub(crate) pinned_chat_ui_chunk_start: Option<usize>,
 }
+
+/// 会话原始 LLM 载荷的稳定读取键。
+pub(crate) type SessionStepRawKey = (String, String, u32);
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]

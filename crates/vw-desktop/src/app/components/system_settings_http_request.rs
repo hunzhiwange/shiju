@@ -128,6 +128,19 @@ fn number_row<'a>(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
+    column![
+        settings_page_intro(
+            "网络请求配置",
+            "配置网络请求工具的开关、超时、响应大小限制和域名白名单。",
+        ),
+        content(app),
+    ]
+    .spacing(16)
+    .width(Length::Fill)
+    .into()
+}
+
+pub(super) fn content(app: &App) -> Element<'_, Message> {
     let s = &app.http_request_settings;
 
     let enabled_row = bool_row(
@@ -244,10 +257,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let content = column![
-        settings_page_intro(
-            "网络请求配置",
-            "配置网络请求工具的开关、超时、响应大小限制和域名白名单。"
-        ),
         settings_section_card(
             "基础行为",
             "控制 http_request 工具的启用状态、超时、最大响应体大小和默认 User-Agent。",

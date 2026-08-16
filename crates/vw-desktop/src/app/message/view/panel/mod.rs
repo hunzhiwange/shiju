@@ -137,8 +137,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
 
         ViewMessage::UsageModelInfoLoaded(_)
         | ViewMessage::UsageStepToggled(_)
+        | ViewMessage::UsageTurnStepToggled(_, _)
         | ViewMessage::UsageStepRawLoaded(_, _, _)
+        | ViewMessage::UsageTurnStepRawLoaded(_, _, _, _)
         | ViewMessage::UsageStepRawOpen(_)
+        | ViewMessage::UsageTurnStepRawOpen(_, _)
         | ViewMessage::UsageStepRawClose => usage::update(app, message),
 
         ViewMessage::OpenWebUrl(_)

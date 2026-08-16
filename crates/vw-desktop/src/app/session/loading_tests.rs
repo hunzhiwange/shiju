@@ -26,6 +26,7 @@ fn session_meta(id: &str, last_content: Option<&str>) -> ChatSessionMeta {
 fn session_step(index: u32, usage: TokenUsage) -> ChatSessionStep {
     ChatSessionStep {
         index,
+        turn_id: None,
         started_ms: u64::from(index),
         finished_ms: None,
         start_snapshot_path: None,

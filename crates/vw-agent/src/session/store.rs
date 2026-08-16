@@ -12,6 +12,7 @@ use vw_shared::session::ui_types::{
 
 use crate::global_database::config::DatabaseProvider;
 use crate::global_database::{GlobalDatabase, run_sync_database};
+use crate::session::llm_raw::{LlmRawArtifact, LlmRawRound, LlmRawTurnContext};
 
 mod postgres;
 
@@ -91,6 +92,7 @@ CREATE TABLE IF NOT EXISTS session_steps (
     project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
     session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
     step_index INTEGER NOT NULL,
+    turn_id TEXT NOT NULL DEFAULT '',
     started_ms INTEGER NOT NULL,
     finished_ms INTEGER,
     start_snapshot_path TEXT,
@@ -100,7 +102,7 @@ CREATE TABLE IF NOT EXISTS session_steps (
     finish_reason TEXT,
     model TEXT,
     tool_timings_json TEXT NOT NULL DEFAULT '[]',
-    PRIMARY KEY (platform_id, company_id, project_id, session_id, step_index),
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
     FOREIGN KEY (platform_id, company_id, project_id)
         REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
     FOREIGN KEY (platform_id, company_id, project_id, session_id)
@@ -110,6 +112,9 @@ CREATE TABLE IF NOT EXISTS session_steps (
 
 CREATE INDEX IF NOT EXISTS idx_session_steps_project_index
 ON session_steps(platform_id, company_id, project_id, session_id, step_index);
+
+CREATE INDEX IF NOT EXISTS idx_session_steps_project_turn_index
+ON session_steps(platform_id, company_id, project_id, session_id, turn_id, step_index);
 
 CREATE TABLE IF NOT EXISTS session_todos (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
@@ -151,6 +156,52 @@ CREATE TABLE IF NOT EXISTS session_step_llm_raw (
 CREATE INDEX IF NOT EXISTS idx_session_step_llm_raw_project_step
 ON session_step_llm_raw(platform_id, company_id, project_id, session_id, step_index);
 
+CREATE TABLE IF NOT EXISTS session_llm_raw_turns (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    turn_id TEXT NOT NULL CHECK (trim(turn_id) <> ''),
+    model_json TEXT NOT NULL,
+    system_json TEXT NOT NULL,
+    tools_json TEXT NOT NULL,
+    initial_request_config_json TEXT NOT NULL,
+    initial_provider_messages_json TEXT NOT NULL,
+    initial_message_sources_json TEXT NOT NULL,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, session_id)
+        REFERENCES session_index(platform_id, company_id, project_id, session_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_llm_raw_turns_project_session
+ON session_llm_raw_turns(platform_id, company_id, project_id, session_id, turn_id);
+
+CREATE TABLE IF NOT EXISTS session_llm_raw_rounds (
+    platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+    company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+    project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+    session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+    turn_id TEXT NOT NULL CHECK (trim(turn_id) <> ''),
+    step_index INTEGER NOT NULL,
+    provider_message_prefix_len INTEGER NOT NULL,
+    provider_message_suffix_json TEXT NOT NULL,
+    message_source_suffix_json TEXT NOT NULL,
+    request_config_delta_json TEXT,
+    output_json TEXT NOT NULL,
+    PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
+    FOREIGN KEY (platform_id, company_id, project_id)
+        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+    FOREIGN KEY (platform_id, company_id, project_id, session_id, turn_id)
+        REFERENCES session_llm_raw_turns(platform_id, company_id, project_id, session_id, turn_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_llm_raw_rounds_project_turn_step
+ON session_llm_raw_rounds(platform_id, company_id, project_id, session_id, turn_id, step_index);
+
 CREATE TABLE IF NOT EXISTS session_agent_sessions (
     platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
     company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
@@ -183,6 +234,29 @@ pub struct SessionStore {
     provider: SessionStoreProvider,
 }
 
+/// 一个已完成 LLM 调用的稳定标识。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LlmRawStepKey {
+    turn_id: String,
+    step_index: u32,
+}
+
+impl LlmRawStepKey {
+    pub fn new(turn_id: impl Into<String>, step_index: u32) -> Result<Self> {
+        let turn_id = turn_id.into();
+        validate_id("LLM raw turn id", &turn_id)?;
+        Ok(Self { turn_id, step_index })
+    }
+
+    pub fn turn_id(&self) -> &str {
+        &self.turn_id
+    }
+
+    pub fn step_index(&self) -> u32 {
+        self.step_index
+    }
+}
+
 #[derive(Debug, Clone)]
 enum SessionStoreProvider {
     Sqlite(GlobalDatabase),
@@ -200,6 +274,7 @@ impl SessionStore {
                     ensure_sqlite_message_model_column(connection)?;
                     ensure_sqlite_message_processing_timing_columns(connection)?;
                     ensure_sqlite_step_tool_timings_column(connection)?;
+                    ensure_sqlite_step_turn_id_column(connection)?;
                     Ok(())
                 })?;
                 SessionStoreProvider::Sqlite(database)
@@ -260,6 +335,38 @@ impl SessionStore {
             SessionStoreProvider::Postgres(store) => {
                 run_sync_database(|| store.save_session_ui_snapshot(scope, session))
             }
+        }
+    }
+
+    /// 原子提交 UI 会话快照与本次已完成步骤对应的 LLM raw 工件。
+    pub fn commit_session_ui_snapshot(
+        &self,
+        scope: &ProjectScope,
+        session: &ChatSession,
+        raw_artifacts: &[LlmRawArtifact],
+        expected_finished_steps: &[LlmRawStepKey],
+    ) -> Result<()> {
+        validate_id("session id", &session.id)?;
+        validate_raw_commit(session, raw_artifacts, expected_finished_steps)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    let call_count = existing_session_call_count(
+                        transaction,
+                        scope,
+                        &session.id,
+                        session.calls.len(),
+                    )?;
+                    upsert_session_header(transaction, scope, session, call_count)?;
+                    replace_session_messages(transaction, scope, session)?;
+                    replace_session_steps(transaction, scope, session)?;
+                    upsert_session_llm_raw_artifacts(transaction, scope, raw_artifacts)?;
+                    Ok(())
+                })
+            }
+            SessionStoreProvider::Postgres(store) => run_sync_database(|| {
+                store.commit_session_ui_snapshot(scope, session, raw_artifacts)
+            }),
         }
     }
 
@@ -547,6 +654,29 @@ impl SessionStore {
         }
     }
 
+    /// 以稳定的 turn_id 和 step_index 重建一条 LLM 原始记录。
+    pub fn load_session_turn_step_llm_raw(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        turn_id: &str,
+        step_index: u32,
+    ) -> Result<Option<serde_json::Value>> {
+        validate_id("session id", session_id)?;
+        validate_id("LLM raw turn id", turn_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                load_sqlite_session_turn_step_llm_raw(
+                    &connection, scope, session_id, turn_id, step_index,
+                )
+            }
+            SessionStoreProvider::Postgres(store) => run_sync_database(|| {
+                store.load_session_turn_step_llm_raw(scope, session_id, turn_id, step_index)
+            }),
+        }
+    }
+
     pub fn load_session_step_llm_raw(
         &self,
         scope: &ProjectScope,
@@ -554,37 +684,19 @@ impl SessionStore {
         step_index: u32,
     ) -> Result<Option<serde_json::Value>> {
         validate_id("session id", session_id)?;
-        let step_index_sqlite = to_i64(step_index as u64, "step index")?;
 
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
-                let payload_json = database
-                    .connect_sqlite()?
-                    .query_row(
-                        "SELECT payload_json
-                         FROM session_step_llm_raw
-                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                           AND session_id = ?4 AND step_index = ?5",
-                        params![
-                            scope.platform_id().as_ref(),
-                            scope.company_id().as_ref(),
-                            scope.project_id().as_ref(),
-                            session_id,
-                            step_index_sqlite,
-                        ],
-                        |row| row.get::<_, String>(0),
-                    )
-                    .optional()?;
-                payload_json
-                    .map(|payload_json| {
-                        serde_json::from_str::<serde_json::Value>(&payload_json)
-                            .with_context(|| {
-                                format!(
-                                    "parse session llm raw step payload JSON: {session_id}/{step_index}"
-                                )
-                            })
-                    })
-                    .transpose()
+                let connection = database.connect_sqlite()?;
+                let turn_id = sqlite_session_step_turn_id(&connection, scope, session_id, step_index)?;
+                match turn_id {
+                    Some(turn_id) => load_sqlite_session_turn_step_llm_raw(
+                        &connection, scope, session_id, &turn_id, step_index,
+                    ),
+                    None => load_sqlite_legacy_session_step_llm_raw(
+                        &connection, scope, session_id, step_index,
+                    ),
+                }
             }
             SessionStoreProvider::Postgres(store) => {
                 run_sync_database(|| store.load_session_step_llm_raw(scope, session_id, step_index))
@@ -603,14 +715,25 @@ impl SessionStore {
             SessionStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
-                    "SELECT step_index
-                     FROM session_step_llm_raw
+                    "SELECT step_index FROM session_llm_raw_rounds
+                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                       AND session_id = ?4
+                     UNION
+                     SELECT step_index FROM session_step_llm_raw
                      WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
                        AND session_id = ?4
                      ORDER BY step_index",
                 )?;
                 statement
-                    .query_map(scoped_id_params(scope, session_id), |row| row.get::<_, i64>(0))?
+                    .query_map(
+                        params![
+                            scope.platform_id().as_ref(),
+                            scope.company_id().as_ref(),
+                            scope.project_id().as_ref(),
+                            session_id,
+                        ],
+                        |row| row.get::<_, i64>(0),
+                    )?
                     .map(|step_index| {
                         let step_index = step_index?;
                         u32::try_from(step_index).context("convert LLM raw step index to u32")
@@ -830,6 +953,185 @@ impl SessionStore {
     }
 }
 
+fn sqlite_session_step_turn_id(
+    connection: &Connection,
+    scope: &ProjectScope,
+    session_id: &str,
+    step_index: u32,
+) -> Result<Option<String>> {
+    let turn_id = connection
+        .query_row(
+            "SELECT turn_id FROM session_steps
+             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+               AND session_id = ?4 AND step_index = ?5",
+            params![
+                scope.platform_id().as_ref(),
+                scope.company_id().as_ref(),
+                scope.project_id().as_ref(),
+                session_id,
+                i64::from(step_index),
+            ],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .optional()?;
+    Ok(turn_id.flatten().filter(|turn_id| !turn_id.is_empty()))
+}
+
+fn load_sqlite_legacy_session_step_llm_raw(
+    connection: &Connection,
+    scope: &ProjectScope,
+    session_id: &str,
+    step_index: u32,
+) -> Result<Option<serde_json::Value>> {
+    let payload_json = connection
+        .query_row(
+            "SELECT payload_json
+             FROM session_step_llm_raw
+             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+               AND session_id = ?4 AND step_index = ?5",
+            params![
+                scope.platform_id().as_ref(),
+                scope.company_id().as_ref(),
+                scope.project_id().as_ref(),
+                session_id,
+                i64::from(step_index),
+            ],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    payload_json
+        .map(|payload_json| {
+            serde_json::from_str::<serde_json::Value>(&payload_json).with_context(|| {
+                format!("parse session llm raw step payload JSON: {session_id}/{step_index}")
+            })
+        })
+        .transpose()
+}
+
+fn load_sqlite_session_turn_step_llm_raw(
+    connection: &Connection,
+    scope: &ProjectScope,
+    session_id: &str,
+    turn_id: &str,
+    step_index: u32,
+) -> Result<Option<serde_json::Value>> {
+    let stored_context = connection
+        .query_row(
+            "SELECT model_json, system_json, tools_json, initial_request_config_json,
+                    initial_provider_messages_json, initial_message_sources_json
+             FROM session_llm_raw_turns
+             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+               AND session_id = ?4 AND turn_id = ?5",
+            params![
+                scope.platform_id().as_ref(),
+                scope.company_id().as_ref(),
+                scope.project_id().as_ref(),
+                session_id,
+                turn_id,
+            ],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((model, system, tools, initial_request_config, initial_provider_messages, initial_message_sources)) = stored_context else {
+        return Ok(None);
+    };
+    let context = LlmRawTurnContext {
+        turn_id: turn_id.to_owned(),
+        session_id: session_id.to_owned(),
+        model: parse_raw_json(model, "turn model")?,
+        system: parse_raw_json(system, "turn system")?,
+        tools: parse_raw_json(tools, "turn tools")?,
+        initial_request_config: parse_raw_json(initial_request_config, "turn initial request config")?,
+        initial_provider_messages: parse_raw_json(
+            initial_provider_messages,
+            "turn initial provider messages",
+        )?,
+        initial_message_sources: parse_raw_json(initial_message_sources, "turn initial message sources")?,
+    };
+    let mut statement = connection.prepare(
+        "SELECT step_index, provider_message_prefix_len, provider_message_suffix_json,
+                message_source_suffix_json, request_config_delta_json, output_json
+         FROM session_llm_raw_rounds
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+           AND session_id = ?4 AND turn_id = ?5 AND step_index <= ?6
+         ORDER BY step_index",
+    )?;
+    let rounds = statement
+        .query_map(
+            params![
+                scope.platform_id().as_ref(),
+                scope.company_id().as_ref(),
+                scope.project_id().as_ref(),
+                session_id,
+                turn_id,
+                i64::from(step_index),
+            ],
+            |row| sqlite_raw_round(row, turn_id),
+        )?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    if rounds.last().map(|round| round.step_index) != Some(step_index) {
+        return Ok(None);
+    }
+    Ok(Some(LlmRawArtifact { context, rounds }.reconstruct_round(step_index)?))
+}
+
+fn sqlite_raw_round(row: &rusqlite::Row<'_>, turn_id: &str) -> rusqlite::Result<LlmRawRound> {
+    let parse_value = |json: String, field: &str| -> rusqlite::Result<serde_json::Value> {
+        serde_json::from_str(&json).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Text,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("parse LLM raw {field}: {error}"),
+                )),
+            )
+        })
+    };
+    let parse_values = |json: String, field: &str| -> rusqlite::Result<Vec<serde_json::Value>> {
+        serde_json::from_str(&json).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Text,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("parse LLM raw {field}: {error}"),
+                )),
+            )
+        })
+    };
+    let prefix_len: i64 = row.get(1)?;
+    Ok(LlmRawRound {
+        turn_id: turn_id.to_owned(),
+        step_index: u32::try_from(row.get::<_, i64>(0)?).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Integer, Box::new(error))
+        })?,
+        provider_message_prefix_len: usize::try_from(prefix_len).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Integer, Box::new(error))
+        })?,
+        provider_message_suffix: parse_values(row.get(2)?, "provider message suffix")?,
+        message_source_suffix: parse_values(row.get(3)?, "message source suffix")?,
+        request_config_delta: row
+            .get::<_, Option<String>>(4)?
+            .map(|json| parse_value(json, "request config delta"))
+            .transpose()?,
+        output: parse_value(row.get(5)?, "output")?,
+    })
+}
+
+fn parse_raw_json<T: serde::de::DeserializeOwned>(json: String, field: &str) -> Result<T> {
+    serde_json::from_str(&json).with_context(|| format!("parse stored LLM raw {field} JSON"))
+}
+
 fn upsert_session_header(
     transaction: &Transaction<'_>,
     scope: &ProjectScope,
@@ -990,16 +1292,17 @@ fn replace_session_steps(
             .context("serialize step tool timings JSON")?;
         transaction.execute(
             "INSERT INTO session_steps (
-                 platform_id, company_id, project_id, session_id, step_index, started_ms,
+                 platform_id, company_id, project_id, session_id, step_index, turn_id, started_ms,
                  finished_ms, start_snapshot_path, finish_snapshot_path, usage_json, cost_usd,
                  finish_reason, model, tool_timings_json
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
                 scope.platform_id().as_ref(),
                 scope.company_id().as_ref(),
                 scope.project_id().as_ref(),
                 session.id,
                 i64::from(step.index),
+                step.turn_id.as_deref().unwrap_or(""),
                 to_i64(step.started_ms, "step started_ms")?,
                 step.finished_ms.map(|value| to_i64(value, "step finished_ms")).transpose()?,
                 step.start_snapshot_path,
@@ -1012,6 +1315,153 @@ fn replace_session_steps(
             ],
         )?;
     }
+    Ok(())
+}
+
+fn validate_raw_commit(
+    session: &ChatSession,
+    raw_artifacts: &[LlmRawArtifact],
+    expected_finished_steps: &[LlmRawStepKey],
+) -> Result<()> {
+    let mut expected = HashSet::with_capacity(expected_finished_steps.len());
+    for key in expected_finished_steps {
+        validate_id("LLM raw turn id", key.turn_id())?;
+        if !expected.insert((key.turn_id(), key.step_index())) {
+            bail!(
+                "duplicate expected LLM raw finished step: {}/{}",
+                key.turn_id(),
+                key.step_index()
+            );
+        }
+        let has_finished_step = session.steps.iter().any(|step| {
+            step.finished_ms.is_some()
+                && step.index == key.step_index()
+                && step.turn_id.as_deref() == Some(key.turn_id())
+        });
+        if !has_finished_step {
+            bail!(
+                "expected LLM raw finished step is absent from session snapshot: {}/{}",
+                key.turn_id(),
+                key.step_index()
+            );
+        }
+    }
+
+    let mut actual = HashSet::new();
+    for artifact in raw_artifacts {
+        validate_id("LLM raw turn id", &artifact.context.turn_id)?;
+        if artifact.context.session_id != session.id {
+            bail!("LLM raw artifact session_id does not match the UI snapshot");
+        }
+        for round in &artifact.rounds {
+            if round.turn_id != artifact.context.turn_id {
+                bail!("LLM raw round turn_id does not match its context");
+            }
+            if !actual.insert((round.turn_id.as_str(), round.step_index)) {
+                bail!(
+                    "duplicate LLM raw artifact round: {}/{}",
+                    round.turn_id,
+                    round.step_index
+                );
+            }
+        }
+    }
+
+    for key in &expected {
+        if !actual.contains(key) {
+            bail!("missing LLM raw artifact for finished step: {}/{}", key.0, key.1);
+        }
+    }
+    for key in &actual {
+        if !expected.contains(key) {
+            bail!("LLM raw artifact has no expected finished step: {}/{}", key.0, key.1);
+        }
+    }
+    Ok(())
+}
+
+fn upsert_session_llm_raw_artifacts(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    raw_artifacts: &[LlmRawArtifact],
+) -> Result<()> {
+    for artifact in raw_artifacts {
+        upsert_session_llm_raw_turn(transaction, scope, &artifact.context)?;
+        for round in &artifact.rounds {
+            upsert_session_llm_raw_round(transaction, scope, &artifact.context.session_id, round)?;
+        }
+    }
+    Ok(())
+}
+
+fn upsert_session_llm_raw_turn(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    context: &LlmRawTurnContext,
+) -> Result<()> {
+    transaction.execute(
+        "INSERT INTO session_llm_raw_turns (
+             platform_id, company_id, project_id, session_id, turn_id, model_json, system_json,
+             tools_json, initial_request_config_json, initial_provider_messages_json,
+             initial_message_sources_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+         ON CONFLICT (platform_id, company_id, project_id, session_id, turn_id) DO UPDATE SET
+             model_json = excluded.model_json,
+             system_json = excluded.system_json,
+             tools_json = excluded.tools_json,
+             initial_request_config_json = excluded.initial_request_config_json,
+             initial_provider_messages_json = excluded.initial_provider_messages_json,
+             initial_message_sources_json = excluded.initial_message_sources_json",
+        params![
+            scope.platform_id().as_ref(),
+            scope.company_id().as_ref(),
+            scope.project_id().as_ref(),
+            context.session_id,
+            context.turn_id,
+            serde_json::to_string(&context.model)?,
+            serde_json::to_string(&context.system)?,
+            serde_json::to_string(&context.tools)?,
+            serde_json::to_string(&context.initial_request_config)?,
+            serde_json::to_string(&context.initial_provider_messages)?,
+            serde_json::to_string(&context.initial_message_sources)?,
+        ],
+    )?;
+    Ok(())
+}
+
+fn upsert_session_llm_raw_round(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session_id: &str,
+    round: &LlmRawRound,
+) -> Result<()> {
+    transaction.execute(
+        "INSERT INTO session_llm_raw_rounds (
+             platform_id, company_id, project_id, session_id, turn_id, step_index,
+             provider_message_prefix_len, provider_message_suffix_json, message_source_suffix_json,
+             request_config_delta_json, output_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+         ON CONFLICT (platform_id, company_id, project_id, session_id, turn_id, step_index)
+             DO UPDATE SET
+                 provider_message_prefix_len = excluded.provider_message_prefix_len,
+                 provider_message_suffix_json = excluded.provider_message_suffix_json,
+                 message_source_suffix_json = excluded.message_source_suffix_json,
+                 request_config_delta_json = excluded.request_config_delta_json,
+                 output_json = excluded.output_json",
+        params![
+            scope.platform_id().as_ref(),
+            scope.company_id().as_ref(),
+            scope.project_id().as_ref(),
+            session_id,
+            round.turn_id,
+            i64::from(round.step_index),
+            usize_to_i64(round.provider_message_prefix_len, "LLM raw provider message prefix length")?,
+            serde_json::to_string(&round.provider_message_suffix)?,
+            serde_json::to_string(&round.message_source_suffix)?,
+            round.request_config_delta.as_ref().map(serde_json::to_string).transpose()?,
+            serde_json::to_string(&round.output)?,
+        ],
+    )?;
     Ok(())
 }
 
@@ -1165,6 +1615,75 @@ fn ensure_sqlite_step_tool_timings_column(connection: &Connection) -> Result<()>
     Ok(())
 }
 
+fn ensure_sqlite_step_turn_id_column(connection: &Connection) -> Result<()> {
+    let mut statement = connection.prepare("PRAGMA table_info(session_steps)")?;
+    let columns = statement
+        .query_map([], |row| Ok((row.get::<_, String>(1)?, row.get::<_, i64>(5)?)))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    if !columns.iter().any(|(name, _)| name == "turn_id") {
+        connection
+            .execute(
+                "ALTER TABLE session_steps ADD COLUMN turn_id TEXT NOT NULL DEFAULT ''",
+                [],
+            )
+            .context("add SQLite session step turn_id column")?;
+    }
+
+    if columns
+        .iter()
+        .any(|(name, primary_key_order)| name == "turn_id" && *primary_key_order > 0)
+    {
+        return Ok(());
+    }
+
+    connection
+        .execute_batch(
+            "BEGIN IMMEDIATE;
+             ALTER TABLE session_steps RENAME TO session_steps_legacy;
+             CREATE TABLE session_steps (
+                 platform_id TEXT NOT NULL CHECK (trim(platform_id) <> ''),
+                 company_id TEXT NOT NULL CHECK (trim(company_id) <> ''),
+                 project_id TEXT NOT NULL CHECK (trim(project_id) <> ''),
+                 session_id TEXT NOT NULL CHECK (trim(session_id) <> ''),
+                 step_index INTEGER NOT NULL,
+                 turn_id TEXT NOT NULL DEFAULT '',
+                 started_ms INTEGER NOT NULL,
+                 finished_ms INTEGER,
+                 start_snapshot_path TEXT,
+                 finish_snapshot_path TEXT,
+                 usage_json TEXT NOT NULL,
+                 cost_usd REAL,
+                 finish_reason TEXT,
+                 model TEXT,
+                 tool_timings_json TEXT NOT NULL DEFAULT '[]',
+                 PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
+                 FOREIGN KEY (platform_id, company_id, project_id)
+                     REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT,
+                 FOREIGN KEY (platform_id, company_id, project_id, session_id)
+                     REFERENCES session_index(platform_id, company_id, project_id, session_id)
+                     ON DELETE CASCADE
+             );
+             INSERT INTO session_steps (
+                 platform_id, company_id, project_id, session_id, step_index, turn_id, started_ms,
+                 finished_ms, start_snapshot_path, finish_snapshot_path, usage_json, cost_usd,
+                 finish_reason, model, tool_timings_json
+             )
+             SELECT
+                 platform_id, company_id, project_id, session_id, step_index, COALESCE(turn_id, ''),
+                 started_ms, finished_ms, start_snapshot_path, finish_snapshot_path, usage_json,
+                 cost_usd, finish_reason, model, tool_timings_json
+             FROM session_steps_legacy;
+             DROP TABLE session_steps_legacy;
+             CREATE INDEX idx_session_steps_project_index
+                 ON session_steps(platform_id, company_id, project_id, session_id, step_index);
+             CREATE INDEX idx_session_steps_project_turn_index
+                 ON session_steps(platform_id, company_id, project_id, session_id, turn_id, step_index);
+             COMMIT;",
+        )
+        .context("migrate SQLite session step key to turn identity")?;
+    Ok(())
+}
+
 fn load_calls(
     connection: &Connection,
     scope: &ProjectScope,
@@ -1193,7 +1712,7 @@ fn load_steps(
     session_id: &str,
 ) -> Result<Vec<ChatSessionStep>> {
     let mut statement = connection.prepare(
-        "SELECT step_index, started_ms, finished_ms, start_snapshot_path, finish_snapshot_path,
+        "SELECT step_index, turn_id, started_ms, finished_ms, start_snapshot_path, finish_snapshot_path,
                 usage_json, cost_usd, finish_reason, model, tool_timings_json
          FROM session_steps
          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
@@ -1202,22 +1721,24 @@ fn load_steps(
     let mut rows = statement.query(scoped_id_params(scope, session_id))?;
     let mut steps = Vec::new();
     while let Some(row) = rows.next()? {
-        let usage_json: String = row.get(5)?;
-        let tool_timings_json: String = row.get(9)?;
-        let finished_ms: Option<i64> = row.get(2)?;
+        let usage_json: String = row.get(6)?;
+        let tool_timings_json: String = row.get(10)?;
+        let finished_ms: Option<i64> = row.get(3)?;
+        let turn_id: String = row.get(1)?;
         steps.push(ChatSessionStep {
             index: u32::try_from(row.get::<_, i64>(0)?).context("read session step_index")?,
-            started_ms: from_i64(row.get(1)?, "step started_ms")?,
+            turn_id: (!turn_id.is_empty()).then_some(turn_id),
+            started_ms: from_i64(row.get(2)?, "step started_ms")?,
             finished_ms: finished_ms
                 .map(|value| from_i64(value, "step finished_ms"))
                 .transpose()?,
-            start_snapshot_path: row.get(3)?,
-            finish_snapshot_path: row.get(4)?,
+            start_snapshot_path: row.get(4)?,
+            finish_snapshot_path: row.get(5)?,
             usage: serde_json::from_str::<TokenUsage>(&usage_json)
                 .with_context(|| format!("parse session step usage JSON: {session_id}"))?,
-            cost_usd: row.get(6)?,
-            finish_reason: row.get(7)?,
-            model: row.get(8)?,
+            cost_usd: row.get(7)?,
+            finish_reason: row.get(8)?,
+            model: row.get(9)?,
             tool_timings: serde_json::from_str::<Vec<ToolTiming>>(&tool_timings_json)
                 .with_context(|| format!("parse session step tool timings JSON: {session_id}"))?,
         });

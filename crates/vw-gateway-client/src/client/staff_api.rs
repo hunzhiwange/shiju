@@ -1,7 +1,7 @@
 use vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_types::staff::{
     StaffAutoSchedulePlanRequest, StaffAutoSchedulePlanResponse, StaffCommandRequest,
-    StaffCommandResponse, StaffIpcMessageRequest, StaffIpcMessageResponse,
+    StaffCommandResponse,
     StaffProjectCapabilityCatalogRequest, StaffProjectCapabilityCatalogResponse,
     StaffProjectOrchestrationRequest, StaffProjectOrchestrationResponse, StaffProjectionResponse,
     StaffStageCapabilitiesResponse, StaffWorkflowOrchestrationRequest,
@@ -10,7 +10,6 @@ use vw_api_types::staff::{
 
 use super::GatewayClient;
 
-const STAFF_IPC_MESSAGES_PATH: &str = "/v1/staff/ipc/messages";
 const STAFF_STAGE_CAPABILITIES_PATH: &str = "/v1/staff/stage-capabilities";
 
 impl GatewayClient {
@@ -137,14 +136,6 @@ impl GatewayClient {
         self.ensure_staff_tenant_scope(scope)?;
         let path = staff_auto_schedule_plan_path(scope);
         self.post_json(&path, &[], request).await
-    }
-
-    /// 通过网关向员工绑定的本机 agent 发送短文本 IPC 消息。
-    pub async fn staff_ipc_message(
-        &self,
-        request: &StaffIpcMessageRequest,
-    ) -> Result<StaffIpcMessageResponse, String> {
-        self.post_json(STAFF_IPC_MESSAGES_PATH, &[], request).await
     }
 
     fn ensure_staff_tenant_scope(&self, scope: &AgentSchedulerScopeDto) -> Result<(), String> {

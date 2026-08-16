@@ -4,8 +4,13 @@ use crate::app::models::{ChatSessionStep, TokenUsage};
 use crate::app::state::ChatPanelMode;
 
 fn completed_step(index: u32) -> ChatSessionStep {
+    completed_step_for_turn(index, &format!("turn-{index}"))
+}
+
+fn completed_step_for_turn(index: u32, turn_id: &str) -> ChatSessionStep {
     ChatSessionStep {
         index,
+        turn_id: Some(turn_id.to_string()),
         started_ms: 10,
         finished_ms: Some(20),
         start_snapshot_path: None,
@@ -16,6 +21,94 @@ fn completed_step(index: u32) -> ChatSessionStep {
         model: Some("test-model".to_string()),
         tool_timings: Vec::new(),
     }
+}
+
+#[test]
+fn trajectory_raw_cache_keys_include_turn_id() {
+    let (mut app, _) = App::new();
+    app.active_session_id = Some("shared-session".to_string());
+    app.active_session_view_state.steps = vec![
+        completed_step_for_turn(1, "turn-a"),
+        completed_step_for_turn(1, "turn-b"),
+    ];
+    let first_key = ("shared-session".to_string(), "turn-a".to_string(), 1);
+    let second_key = ("shared-session".to_string(), "turn-b".to_string(), 1);
+    for key in [&first_key, &second_key] {
+        app.trajectory_raw_loading.insert(key.clone());
+        app.trajectory_raw_attempts.insert(key.clone(), 1);
+    }
+
+    for (key, value) in [
+        (&first_key, serde_json::json!({"output": {"text": "first"}})),
+        (&second_key, serde_json::json!({"output": {"text": "second"}})),
+    ] {
+        let _task = super::update(
+            &mut app,
+            super::ChatMessage::TrajectoryRawLoaded {
+                session_id: key.0.clone(),
+                turn_id: key.1.clone(),
+                step_index: key.2,
+                attempt: 1,
+                result: Ok(Some(value)),
+            },
+        );
+    }
+
+    assert_eq!(app.active_session_view_state.step_llm_raw.len(), 2);
+    assert_eq!(
+        app.active_session_view_state.step_llm_raw[&first_key]["output"]["text"],
+        "first"
+    );
+    assert_eq!(
+        app.active_session_view_state.step_llm_raw[&second_key]["output"]["text"],
+        "second"
+    );
+}
+
+mod trajectory_raw {
+    use super::*;
+
+    #[test]
+    fn raw_modal_and_trajectory_share_reconstructed_payload() {
+        let (mut app, _) = App::new();
+        app.active_session_id = Some("shared-session".to_string());
+        app.active_session_view_state.steps = vec![completed_step_for_turn(1, "turn-a")];
+        let key = ("shared-session".to_string(), "turn-a".to_string(), 1);
+        let reconstructed = serde_json::json!({
+            "system": ["system prompt"],
+            "messages": [{"role": "user", "content": "question"}],
+            "request": {"config": {"model": "provider/model"}, "tools": []},
+            "output": {"text": "answer", "tool_calls": []}
+        });
+
+        let _task = crate::app::message::view::panel::update(
+            &mut app,
+            crate::app::message::ViewMessage::UsageTurnStepRawLoaded(
+                key.0.clone(),
+                key.1.clone(),
+                key.2,
+                Ok(Some(reconstructed.clone())),
+            ),
+        );
+        let projection = crate::app::components::chat_panel::trajectory::project_trajectory(
+            &app.active_session_view_state.steps,
+            &app.active_session_view_state.step_llm_raw,
+        );
+        let _task = crate::app::message::view::panel::update(
+            &mut app,
+            crate::app::message::ViewMessage::UsageTurnStepRawOpen(key.1.clone(), key.2),
+        );
+
+        assert!(!projection.records.is_empty());
+        assert_eq!(app.active_session_view_state.step_llm_raw.get(&key), Some(&reconstructed));
+        assert!(!app.usage_step_raw_payloads.contains_key(&key));
+        let modal = app.usage_step_raw_modal.as_ref().expect("shared raw modal");
+        assert_eq!(serde_json::from_str::<serde_json::Value>(&modal.content).unwrap(), reconstructed);
+    }
+}
+
+fn raw_key(session_id: &str, step_index: u32) -> (String, String, u32) {
+    (session_id.to_string(), format!("turn-{step_index}"), step_index)
 }
 
 #[test]
@@ -44,31 +137,33 @@ fn trajectory_mode_toggle_refreshes_missing_completed_raw() {
     app.active_session_view_state.steps = vec![completed_step(3), completed_step(4)];
     app.active_session_view_state
         .step_llm_raw
-        .insert(4, serde_json::json!({ "already": "loaded" }));
+        .insert(raw_key("active-session", 4), serde_json::json!({ "already": "loaded" }));
 
     let _task = super::update(
         &mut app,
         super::ChatMessage::ChatPanelModeSelected(ChatPanelMode::Trajectory),
     );
 
-    assert!(app.trajectory_raw_loading.contains(&("active-session".to_string(), 3)));
-    assert_eq!(app.trajectory_raw_attempts.get(&("active-session".to_string(), 3)), Some(&1));
-    assert!(!app.trajectory_raw_loading.contains(&("active-session".to_string(), 4)));
+    assert!(app.trajectory_raw_loading.contains(&raw_key("active-session", 3)));
+    assert_eq!(app.trajectory_raw_attempts.get(&raw_key("active-session", 3)), Some(&1));
+    assert!(!app.trajectory_raw_loading.contains(&raw_key("active-session", 4)));
 }
 
 #[test]
 fn trajectory_mode_refreshes_known_raw_steps_without_session_step_metadata() {
     let (mut app, _) = App::new();
     app.active_session_id = Some("raw-only-session".to_string());
-    app.active_session_view_state.llm_raw_step_indices.extend([3, 7]);
+    app.active_session_view_state
+        .llm_raw_step_indices
+        .extend([raw_key("raw-only-session", 3), raw_key("raw-only-session", 7)]);
 
     let _task = super::update(
         &mut app,
         super::ChatMessage::ChatPanelModeSelected(ChatPanelMode::Trajectory),
     );
 
-    assert!(app.trajectory_raw_loading.contains(&("raw-only-session".to_string(), 3)));
-    assert!(app.trajectory_raw_loading.contains(&("raw-only-session".to_string(), 7)));
+    assert!(app.trajectory_raw_loading.contains(&raw_key("raw-only-session", 3)));
+    assert!(app.trajectory_raw_loading.contains(&raw_key("raw-only-session", 7)));
 }
 
 #[test]
@@ -127,7 +222,7 @@ mod trajectory_controls {
         let (mut app, _) = App::new();
         app.active_session_view_state.steps = vec![completed_step(1)];
         app.active_session_view_state.step_llm_raw.insert(
-            1,
+            raw_key("", 1),
             serde_json::json!({
                 "messages": [{"role": "user", "content": "question"}],
                 "output": {
@@ -159,7 +254,7 @@ mod trajectory_controls {
         app.active_session_id = Some("session-1".to_string());
         app.active_session_view_state.steps = vec![completed_step(1)];
         app.active_session_view_state.step_llm_raw.insert(
-            1,
+            raw_key("session-1", 1),
             serde_json::json!({
                 "messages": [{"role": "user", "content": "question"}],
                 "output": {
@@ -202,8 +297,11 @@ fn trajectory_raw_refresh_ignores_stale_session() {
     let (mut app, _) = App::new();
     app.active_session_id = Some("active-session".to_string());
     app.active_session_view_state.steps = vec![completed_step(7)];
-    app.active_session_view_state.step_llm_raw.insert(7, serde_json::json!({ "current": true }));
-    let stale_key = ("stale-session".to_string(), 7);
+    let current_key = raw_key("active-session", 7);
+    app.active_session_view_state
+        .step_llm_raw
+        .insert(current_key.clone(), serde_json::json!({ "current": true }));
+    let stale_key = raw_key("stale-session", 7);
     app.trajectory_raw_loading.insert(stale_key.clone());
     app.trajectory_raw_attempts.insert(stale_key.clone(), 1);
     app.trajectory_raw_errors.insert(stale_key.clone(), "old error".to_string());
@@ -212,7 +310,8 @@ fn trajectory_raw_refresh_ignores_stale_session() {
         &mut app,
         super::ChatMessage::TrajectoryRawRetry {
             session_id: stale_key.0.clone(),
-            step_index: stale_key.1,
+            turn_id: stale_key.1.clone(),
+            step_index: stale_key.2,
             attempt: 1,
         },
     );
@@ -227,6 +326,7 @@ fn trajectory_raw_refresh_ignores_stale_session() {
         &mut app,
         super::ChatMessage::TrajectoryRawLoaded {
             session_id: "stale-session".to_string(),
+            turn_id: stale_key.1.clone(),
             step_index: 7,
             attempt: 1,
             result: Ok(Some(serde_json::json!({ "stale": true }))),
@@ -234,7 +334,7 @@ fn trajectory_raw_refresh_ignores_stale_session() {
     );
 
     assert_eq!(
-        app.active_session_view_state.step_llm_raw.get(&7),
+        app.active_session_view_state.step_llm_raw.get(&current_key),
         Some(&serde_json::json!({ "current": true }))
     );
     assert!(!app.trajectory_raw_loading.contains(&stale_key));
@@ -245,14 +345,15 @@ fn trajectory_raw_refresh_ignores_stale_session() {
         &mut app,
         super::ChatMessage::TrajectoryRawLoaded {
             session_id: "active-session".to_string(),
+            turn_id: "turn-8".to_string(),
             step_index: 8,
             attempt: 1,
             result: Ok(Some(serde_json::json!({ "wrong_step": true }))),
         },
     );
-    assert!(!app.active_session_view_state.step_llm_raw.contains_key(&8));
+    assert!(!app.active_session_view_state.step_llm_raw.contains_key(&raw_key("active-session", 8)));
 
-    let active_key = ("active-session".to_string(), 7);
+    let active_key = current_key.clone();
     app.trajectory_raw_loading.insert(active_key.clone());
     app.trajectory_raw_attempts.insert(active_key.clone(), 1);
     app.trajectory_raw_errors.insert(active_key.clone(), "old error".to_string());
@@ -260,13 +361,14 @@ fn trajectory_raw_refresh_ignores_stale_session() {
         &mut app,
         super::ChatMessage::TrajectoryRawLoaded {
             session_id: "active-session".to_string(),
+            turn_id: active_key.1.clone(),
             step_index: 7,
             attempt: 1,
             result: Err("temporary gateway failure".to_string()),
         },
     );
     assert_eq!(
-        app.active_session_view_state.step_llm_raw.get(&7),
+        app.active_session_view_state.step_llm_raw.get(&current_key),
         Some(&serde_json::json!({ "current": true }))
     );
     assert!(!app.trajectory_raw_loading.contains(&active_key));
@@ -277,9 +379,9 @@ fn trajectory_raw_refresh_ignores_stale_session() {
 #[test]
 fn trajectory_raw_refresh_error_is_recoverable() {
     let (mut app, _) = App::new();
-    let key = ("active-session".to_string(), 7);
+    let key = raw_key("active-session", 7);
     app.active_session_id = Some(key.0.clone());
-    app.active_session_view_state.steps = vec![completed_step(key.1)];
+    app.active_session_view_state.steps = vec![completed_step(key.2)];
     app.trajectory_raw_loading.insert(key.clone());
     app.trajectory_raw_attempts.insert(key.clone(), 3);
 
@@ -287,13 +389,14 @@ fn trajectory_raw_refresh_error_is_recoverable() {
         &mut app,
         super::ChatMessage::TrajectoryRawLoaded {
             session_id: key.0.clone(),
-            step_index: key.1,
+            turn_id: key.1.clone(),
+            step_index: key.2,
             attempt: 3,
             result: Err("temporary gateway failure".to_string()),
         },
     );
     assert!(app.trajectory_raw_errors.contains_key(&key));
-    assert!(!app.active_session_view_state.step_llm_raw.contains_key(&key.1));
+    assert!(!app.active_session_view_state.step_llm_raw.contains_key(&key));
 
     let _task = super::update(
         &mut app,
@@ -307,9 +410,9 @@ fn trajectory_raw_refresh_error_is_recoverable() {
 #[test]
 fn trajectory_raw_none_schedules_bounded_retry() {
     let (mut app, _) = App::new();
-    let key = ("active-session".to_string(), 7);
+    let key = raw_key("active-session", 7);
     app.active_session_id = Some(key.0.clone());
-    app.active_session_view_state.steps = vec![completed_step(key.1)];
+    app.active_session_view_state.steps = vec![completed_step(key.2)];
     app.trajectory_raw_loading.insert(key.clone());
     app.trajectory_raw_attempts.insert(key.clone(), 1);
 
@@ -317,7 +420,8 @@ fn trajectory_raw_none_schedules_bounded_retry() {
         &mut app,
         super::ChatMessage::TrajectoryRawLoaded {
             session_id: key.0.clone(),
-            step_index: key.1,
+            turn_id: key.1.clone(),
+            step_index: key.2,
             attempt: 1,
             result: Ok(None),
         },
@@ -332,7 +436,8 @@ fn trajectory_raw_none_schedules_bounded_retry() {
         &mut app,
         super::ChatMessage::TrajectoryRawLoaded {
             session_id: key.0.clone(),
-            step_index: key.1,
+            turn_id: key.1.clone(),
+            step_index: key.2,
             attempt: 2,
             result: Ok(None),
         },
@@ -344,7 +449,8 @@ fn trajectory_raw_none_schedules_bounded_retry() {
         &mut app,
         super::ChatMessage::TrajectoryRawLoaded {
             session_id: key.0.clone(),
-            step_index: key.1,
+            turn_id: key.1.clone(),
+            step_index: key.2,
             attempt: 3,
             result: Ok(None),
         },
@@ -358,9 +464,9 @@ fn trajectory_raw_none_schedules_bounded_retry() {
 #[test]
 fn trajectory_raw_retry_stops_after_success() {
     let (mut app, _) = App::new();
-    let key = ("active-session".to_string(), 8);
+    let key = raw_key("active-session", 8);
     app.active_session_id = Some(key.0.clone());
-    app.active_session_view_state.steps = vec![completed_step(key.1)];
+    app.active_session_view_state.steps = vec![completed_step(key.2)];
     app.trajectory_raw_loading.insert(key.clone());
     app.trajectory_raw_attempts.insert(key.clone(), 2);
 
@@ -368,7 +474,8 @@ fn trajectory_raw_retry_stops_after_success() {
         &mut app,
         super::ChatMessage::TrajectoryRawLoaded {
             session_id: key.0.clone(),
-            step_index: key.1,
+            turn_id: key.1.clone(),
+            step_index: key.2,
             attempt: 2,
             result: Ok(Some(serde_json::json!({ "loaded": true }))),
         },
@@ -376,7 +483,7 @@ fn trajectory_raw_retry_stops_after_success() {
 
     assert_eq!(next.units(), 0);
     assert_eq!(
-        app.active_session_view_state.step_llm_raw.get(&key.1),
+        app.active_session_view_state.step_llm_raw.get(&key),
         Some(&serde_json::json!({ "loaded": true }))
     );
     assert!(!app.trajectory_raw_loading.contains(&key));
@@ -387,7 +494,8 @@ fn trajectory_raw_retry_stops_after_success() {
         &mut app,
         super::ChatMessage::TrajectoryRawRetry {
             session_id: key.0.clone(),
-            step_index: key.1,
+            turn_id: key.1.clone(),
+            step_index: key.2,
             attempt: 3,
         },
     );
@@ -397,9 +505,9 @@ fn trajectory_raw_retry_stops_after_success() {
 #[test]
 fn trajectory_raw_retry_exhaustion_reports_error() {
     let (mut app, _) = App::new();
-    let key = ("active-session".to_string(), 9);
+    let key = raw_key("active-session", 9);
     app.active_session_id = Some(key.0.clone());
-    app.active_session_view_state.steps = vec![completed_step(key.1)];
+    app.active_session_view_state.steps = vec![completed_step(key.2)];
     app.trajectory_raw_loading.insert(key.clone());
     app.trajectory_raw_attempts.insert(key.clone(), 1);
 
@@ -408,7 +516,8 @@ fn trajectory_raw_retry_exhaustion_reports_error() {
             &mut app,
             super::ChatMessage::TrajectoryRawLoaded {
                 session_id: key.0.clone(),
-                step_index: key.1,
+                turn_id: key.1.clone(),
+                step_index: key.2,
                 attempt,
                 result: Err("temporary gateway failure".to_string()),
             },
@@ -431,7 +540,12 @@ fn trajectory_raw_retry_exhaustion_reports_error() {
 
     let fourth_attempt = super::update(
         &mut app,
-        super::ChatMessage::TrajectoryRawRetry { session_id: key.0, step_index: key.1, attempt: 4 },
+        super::ChatMessage::TrajectoryRawRetry {
+            session_id: key.0,
+            turn_id: key.1,
+            step_index: key.2,
+            attempt: 4,
+        },
     );
     assert_eq!(fourth_attempt.units(), 0);
 }

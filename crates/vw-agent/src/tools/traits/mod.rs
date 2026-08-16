@@ -599,7 +599,6 @@ fn default_tool_read_only(tool_id: &str) -> bool {
             | "memory_recall"
             | "cron_list"
             | "cron_runs"
-            | "delegate_coordination_status"
             | "pdf_read"
             | "image_info"
             | "image_asset_read"
@@ -636,7 +635,7 @@ fn default_tool_destructive(tool_id: &str) -> bool {
 
 fn default_tool_concurrency_safe(tool_id: &str) -> bool {
     default_tool_read_only(tool_id)
-        || matches!(tool_id, "memory_recall" | "delegate_coordination_status")
+        || matches!(tool_id, "memory_recall")
 }
 
 fn default_tool_requires_user_interaction(tool_id: &str) -> bool {

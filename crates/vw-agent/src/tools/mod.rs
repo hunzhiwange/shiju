@@ -27,7 +27,6 @@
 
 pub mod agent_tool;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod agents_ipc;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod apply_patch;
 pub mod batch;
@@ -51,7 +50,6 @@ pub mod cron_runs;
 pub mod cron_update;
 mod decision;
 pub mod delegate;
-pub mod delegate_coordination_status;
 pub(crate) mod delegated_tools;
 pub mod enter_plan_mode;
 #[cfg(not(target_arch = "wasm32"))]
@@ -121,15 +119,12 @@ mod scheduler;
 pub mod schema;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod screenshot;
-pub mod send_message;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod send_user_file;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod shell;
 pub mod skill;
 pub mod sleep;
-pub mod team_create;
-pub mod team_delete;
 pub mod todo;
 pub mod tool_search;
 mod toolset;
@@ -162,7 +157,6 @@ pub use cron_remove::CronRemoveTool;
 pub use cron_run::CronRunTool;
 pub use cron_runs::CronRunsTool;
 pub use cron_update::CronUpdateTool;
-pub use delegate_coordination_status::DelegateCoordinationStatusTool;
 pub use enter_plan_mode::EnterPlanModeTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use enter_worktree::EnterWorktreeTool;
@@ -223,15 +217,12 @@ pub use schedule::ScheduleTool;
 pub use schema::{CleaningStrategy, SchemaCleanr};
 #[cfg(not(target_arch = "wasm32"))]
 pub use screenshot::ScreenshotTool;
-pub use send_message::SendMessageTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use send_user_file::SendUserFileTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use shell::ShellTool;
 pub use skill::SkillTool;
 pub use sleep::SleepTool;
-pub use team_create::TeamCreateTool;
-pub use team_delete::TeamDeleteTool;
 pub use todo::{Todo, TodoReadTool, TodoWriteTool};
 pub use tool_search::ToolSearchTool;
 pub use traits::Tool;

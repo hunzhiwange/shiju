@@ -46,24 +46,24 @@ fn text_row_accepts_unicode_and_multiline_connection_values() {
 }
 
 #[test]
-fn view_builds_all_storage_sections_and_field_rows() {
-    let tree = element_tree(view(&test_app()));
+fn embedded_view_builds_all_storage_sections_and_field_rows() {
+    let tree = element_tree(embedded_view(&test_app()));
 
-    assert_eq!(tree.children.len(), 9);
+    assert_eq!(tree.children.len(), 8);
     assert_eq!(tree.children[0].children.len(), 2);
 
-    for section_index in [1, 4, 7] {
+    for section_index in [0, 3, 6] {
         let section = &tree.children[section_index];
         assert_eq!(section.children.len(), 2);
     }
 
-    let connection_panel = &tree.children[2];
+    let connection_panel = &tree.children[1];
     assert_eq!(connection_panel.children.len(), 3);
 
-    let naming_panel = &tree.children[5];
+    let naming_panel = &tree.children[4];
     assert_eq!(naming_panel.children.len(), 5);
 
-    let security_panel = &tree.children[8];
+    let security_panel = &tree.children[7];
     assert_eq!(security_panel.children.len(), 1);
 }
 
@@ -73,11 +73,11 @@ fn view_builds_each_supported_and_unknown_provider_state() {
 
     for provider in STORAGE_PROVIDER_OPTIONS {
         app.storage_settings.provider = provider.to_string();
-        assert_eq!(element_tree(view(&app)).children.len(), 9, "provider={provider}");
+        assert_eq!(element_tree(embedded_view(&app)).children.len(), 8, "provider={provider}");
     }
 
     app.storage_settings.provider = "unsupported".to_string();
-    assert_eq!(element_tree(view(&app)).children.len(), 9);
+    assert_eq!(element_tree(embedded_view(&app)).children.len(), 8);
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn view_builds_empty_and_populated_connection_states() {
     app.storage_settings.table.clear();
     app.storage_settings.connect_timeout_secs_input.clear();
     app.storage_settings.tls = false;
-    assert_eq!(element_tree(view(&app)).children.len(), 9);
+    assert_eq!(element_tree(embedded_view(&app)).children.len(), 8);
 
     app.storage_settings.provider = "postgres".to_string();
     app.storage_settings.db_url_input = "postgres://user:pass@localhost/db".to_string();
@@ -97,5 +97,5 @@ fn view_builds_empty_and_populated_connection_states() {
     app.storage_settings.table = "memories".to_string();
     app.storage_settings.connect_timeout_secs_input = "30".to_string();
     app.storage_settings.tls = true;
-    assert_eq!(element_tree(view(&app)).children.len(), 9);
+    assert_eq!(element_tree(embedded_view(&app)).children.len(), 8);
 }

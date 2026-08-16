@@ -312,10 +312,11 @@ pub async fn gateway_session_file_path_async(
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_session_step_llm_raw_async(
     id: &str,
+    turn_id: &str,
     step_index: u32,
 ) -> Result<Option<serde_json::Value>, String> {
     let client = gateway_client()?;
-    client.session_step_llm_raw_get(id, step_index, None).await
+    client.session_step_llm_raw_get(id, turn_id, step_index, None).await
 }
 
 /// 执行 gateway_resolve_session_scope_id_async 对应的领域操作。
@@ -806,6 +807,11 @@ pub fn gateway_save_session_result(
     directory: Option<&str>,
 ) -> Result<Option<std::path::PathBuf>, String> {
     gateway_save_session_result_from_future(gateway_save_session_async(session, directory))
+}
+
+/// 判断会话保存错误是否无法通过后续快照重试恢复。
+pub fn is_permanent_session_save_error(error: &str) -> bool {
+    error.to_ascii_lowercase().contains("413 payload too large")
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -8,6 +8,7 @@ use super::{MetricAvailability, TrajectoryRecordKind, TrajectoryUsage, project_t
 fn step(index: u32, started_ms: u64, finished_ms: Option<u64>, usage: [i64; 4]) -> ChatSessionStep {
     ChatSessionStep {
         index,
+        turn_id: None,
         started_ms,
         finished_ms,
         start_snapshot_path: None,

@@ -60,8 +60,11 @@ fn open_usage_inserts_after_home_and_clears_stale_usage_state() {
         cost_cache_write_per_million: 0.0,
     });
     app.usage_step_raw_payloads
-        .insert(("session".to_string(), 1), Ok(Some(serde_json::json!({"stale": true}))));
-    app.usage_step_raw_loading.insert(("session".to_string(), 2));
+        .insert(
+            ("session".to_string(), "turn-1".to_string(), 1),
+            Ok(Some(serde_json::json!({"stale": true}))),
+        );
+    app.usage_step_raw_loading.insert(("session".to_string(), "turn-2".to_string(), 2));
     app.usage_step_raw_modal =
         Some(crate::app::state::UsageStepRawModal { step_index: 1, content: "{}".to_string() });
 

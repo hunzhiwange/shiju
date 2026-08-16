@@ -297,6 +297,19 @@ fn render_assistant_body_groups_adjacent_commands_into_one_top_level_summary() {
 }
 
 #[test]
+fn render_assistant_body_keeps_commands_grouped_across_hidden_reasoning() {
+    let mut app = App::new().0;
+    app.dialogue_flow_show_reasoning_summary = false;
+    let blocks = vec![
+        command_block("bash", "call-1", "printf first"),
+        ParsedChatBlock::Think { content: "hidden reasoning".to_string(), open: false },
+        command_block("shell", "call-2", "printf second"),
+    ];
+
+    assert_eq!(rendered_top_level_count(&app, blocks, Vec::new(), &[]), 1);
+}
+
+#[test]
 fn render_assistant_body_flushes_command_groups_at_visible_boundaries() {
     let app = App::new().0;
 

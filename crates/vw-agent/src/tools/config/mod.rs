@@ -305,30 +305,6 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         options: &[],
     },
     SettingSpec {
-        key: "coordination.enabled",
-        aliases: &["coordination.enabled"],
-        path: &["coordination", "enabled"],
-        kind: SettingKind::Boolean,
-        description: "是否启用委派协同。",
-        options: &[],
-    },
-    SettingSpec {
-        key: "coordination.leadAgent",
-        aliases: &["coordination.lead_agent"],
-        path: &["coordination", "lead_agent"],
-        kind: SettingKind::String,
-        description: "协调器主代理标识。",
-        options: &[],
-    },
-    SettingSpec {
-        key: "agentsIpc.enabled",
-        aliases: &["agents_ipc.enabled"],
-        path: &["agents_ipc", "enabled"],
-        kind: SettingKind::Boolean,
-        description: "是否启用进程间 agent IPC。",
-        options: &[],
-    },
-    SettingSpec {
         key: "appUi.theme",
         aliases: &["app_ui.theme", "app_ui.system_settings.app_theme"],
         path: &["app_ui", "system_settings", "app_theme"],
@@ -574,8 +550,6 @@ fn snapshot_value(config: &Config) -> Value {
         "web_fetch": config.web_fetch,
         "web_search": config.web_search,
         "autonomy": config.autonomy,
-        "coordination": config.coordination,
-        "agents_ipc": config.agents_ipc,
         "app_ui": config.app_ui,
     })
 }

@@ -4,15 +4,16 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::assets::Icon;
-use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, icon_btn, primary_action_btn_style, settings_checkbox_style,
     settings_muted_text_style, settings_page_intro, settings_panel, settings_panel_style,
     settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
     settings_text_input_style,
 };
-use crate::app::message::settings::{QueryClassificationMessage, SettingsMessage};
-use crate::app::message::view::ViewMessage;
+use crate::app::message::settings::{
+    ModelConfigTabMessage, QueryClassificationMessage, SettingsMessage,
+};
+use crate::app::state::ModelConfigTab;
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
 use iced::{Alignment, Element, Length};
@@ -70,7 +71,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ))
         .width(Length::Fill),
         button(text("前往模型路由"))
-            .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::ModelRoutes)))
+            .on_press(Message::Settings(SettingsMessage::ModelConfigTab(
+                ModelConfigTabMessage::Selected(ModelConfigTab::ModelRoutes),
+            )))
             .padding([8, 12])
             .style(primary_action_btn_style),
         button(text("新增规则"))

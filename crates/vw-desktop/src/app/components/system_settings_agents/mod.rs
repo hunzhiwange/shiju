@@ -35,13 +35,13 @@ use self::shared::{
 };
 use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_muted_text_style, settings_page_intro, settings_panel_style,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_text_input_style,
-    settings_value_badge,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_segment_button_style,
+    settings_text_input_style, settings_value_badge,
 };
-use crate::app::message::settings::{AgentsMessage, SettingsMessage};
+use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, SettingsMessage};
 use crate::app::state::{
     AGENT_DETAIL_BASIC_TAB, AGENT_DETAIL_IDENTITY_TAB, AGENT_DETAIL_SKILLS_TAB,
-    AGENT_DETAIL_TOOLS_TAB,
+    AGENT_DETAIL_TOOLS_TAB, AgentConfigTab,
 };
 use crate::app::{App, Message};
 use iced::widget::{
@@ -76,15 +76,73 @@ pub(super) fn agent_project_options(app: &App) -> Vec<String> {
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
+    let active_tab = app.agents_settings.active_config_tab;
+    let tab_button = |tab, label| {
+        let is_active = tab == active_tab;
+        button(text(label).size(13))
+            .on_press(Message::Settings(SettingsMessage::AgentConfigTab(
+                AgentConfigTabMessage::Selected(tab),
+            )))
+            .padding([8, 14])
+            .style(move |theme: &Theme, status| {
+                settings_segment_button_style(theme, status, is_active)
+            })
+    };
+    let tabs = row![
+        tab_button(AgentConfigTab::Agents, "智能体"),
+        tab_button(AgentConfigTab::DialogueFlow, "对话流"),
+        tab_button(AgentConfigTab::QuickMessages, "快捷消息"),
+        tab_button(AgentConfigTab::Heartbeat, "心跳配置"),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .wrap();
+
+    let content = match active_tab {
+        AgentConfigTab::Agents => agents_view(app),
+        AgentConfigTab::DialogueFlow => {
+            scrollable(container(
+                crate::app::components::system_settings_dialogue_flow::view(app),
+            ))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fill)
+            .into()
+        }
+        AgentConfigTab::QuickMessages => {
+            scrollable(container(
+                crate::app::components::system_settings_quick_messages::view(app),
+            ))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fill)
+            .into()
+        }
+        AgentConfigTab::Heartbeat => {
+            scrollable(container(
+                crate::app::components::system_settings_heartbeat::view(app),
+            ))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fill)
+            .into()
+        }
+    };
+
+    column![tabs, content]
+        .spacing(16)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+}
+
+fn agents_view(app: &App) -> Element<'_, Message> {
     let settings = &app.agents_settings;
     if !settings.config_ready {
         let status = settings
             .save_error
             .as_deref()
-            .unwrap_or("正在等待 Gateway 返回当前作用域的委托代理配置；完成前不会使用默认值保存。");
+            .unwrap_or("正在等待 Gateway 返回当前作用域的智能体配置；完成前不会使用默认值保存。");
         return column![
             settings_page_intro(
-                "委托代理配置",
+                "智能体配置",
                 "按项目分别管理主 Agent、内建 Worker 与自定义 Agent 的模型、身份文件、工具与技能。",
             ),
             section_card(
@@ -188,13 +246,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .collect::<Vec<Element<'_, Message>>>();
 
     let title = settings_page_intro(
-        "委托代理配置",
+        "智能体配置",
         "按项目分别管理主 Agent、内建 Worker 与自定义 Agent 的模型、身份文件、工具与技能。",
     );
     let project_options = agent_project_options(app);
     let selected_project = settings.project_path.clone().or_else(|| app.project_path.clone());
     let project_switcher: Element<'_, Message> = if project_options.is_empty() {
-        text("尚未打开项目；当前编辑全局委托代理配置。")
+        text("尚未打开项目；当前编辑全局智能体配置。")
             .size(12)
             .style(settings_muted_text_style)
             .into()
@@ -259,7 +317,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         title,
         section_card(
             "项目配置作用域",
-            "切换项目会恢复该项目的委托代理配置；修改保存到项目配置数据库。",
+            "切换项目会恢复该项目的智能体配置；修改保存到项目配置数据库。",
         ),
         project_switcher,
         row![

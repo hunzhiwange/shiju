@@ -5,8 +5,8 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_text_input_style,
+    settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_text_input_style,
 };
 use crate::app::message::settings::StorageMessage;
 use crate::app::{App, Message, message};
@@ -70,7 +70,7 @@ fn text_row<'a>(
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn view(app: &App) -> Element<'_, Message> {
+pub fn embedded_view(app: &App) -> Element<'_, Message> {
     let s = &app.storage_settings;
 
     let provider_pick = pick_list(
@@ -163,7 +163,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let content = column![
-        settings_page_intro("存储配置", "配置存储后端、连接串、schema、表名和连接超时。"),
         settings_section_card("连接参数", "选择数据库类型并配置基础连接信息。"),
         settings_panel(column![provider_row, settings_divider(), db_url_row].spacing(0)),
         db_url_hint,

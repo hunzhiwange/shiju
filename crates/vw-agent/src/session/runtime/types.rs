@@ -124,6 +124,9 @@ pub enum PromptTermination {
 /// 共享提示运行时输出的协议中立事件。
 #[derive(Debug, Clone)]
 pub enum PromptEvent {
+    /// 仅供 Gateway 暂存的原始 LLM 工件。
+    LlmRawArtifact(crate::session::llm_raw::LlmRawArtifact),
+
     /// 实际加载的上下文文件。
     ContextLoaded {
         /// 文件路径列表。

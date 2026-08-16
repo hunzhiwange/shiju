@@ -5,7 +5,7 @@ use vw_api_types::id::{
 };
 use vw_api_types::staff::{
     StaffAutoSchedulePlanRequest, StaffCapabilityIoSummaryDto, StaffCapabilityKindDto,
-    StaffCommandDto, StaffCommandRequest, StaffIpcMessageRequest,
+    StaffCommandDto, StaffCommandRequest,
     StaffProjectCapabilityCatalogRequest, StaffProjectCapabilityDto,
     StaffProjectOrchestrationRequest, StaffProjectStateDto, StaffStageAssignmentDto,
     StaffWorkflowOrchestrationDto, StaffWorkflowOrchestrationRequest,
@@ -429,34 +429,6 @@ async fn staff_client_uses_workflow_orchestration_paths() {
     assert_eq!(catalog_put.header(PLATFORM_ID_HEADER), Some("10000"));
     assert_eq!(catalog_put.header(COMPANY_ID_HEADER), Some("100000000"));
     assert_eq!(catalog_put.body["capabilities"][0]["id"], "release_workflow");
-    server.join();
-}
-
-#[tokio::test]
-async fn staff_ipc_message_posts_request() {
-    let server = test_support::server(vec![(200, json!({"accepted": true}))]);
-    let request = StaffIpcMessageRequest {
-        to_agent: "agent-a".to_string(),
-        payload: "handoff ready".to_string(),
-        task_id: Some("task-1".to_string()),
-        from_member_id: Some("planner".to_string()),
-        to_member_id: Some("coder".to_string()),
-    };
-
-    let response =
-        server.client().staff_ipc_message(&request).await.expect("post staff IPC message");
-
-    assert!(response.accepted);
-    let recorded = server.take_request();
-    assert_eq!(recorded.method, "POST");
-    assert_eq!(recorded.path, "/v1/staff/ipc/messages");
-    assert_eq!(recorded.header(PLATFORM_ID_HEADER), Some("10000"));
-    assert_eq!(recorded.header(COMPANY_ID_HEADER), Some("100000000"));
-    assert_eq!(recorded.body["to_agent"], "agent-a");
-    assert_eq!(recorded.body["payload"], "handoff ready");
-    assert_eq!(recorded.body["task_id"], "task-1");
-    assert_eq!(recorded.body["from_member_id"], "planner");
-    assert_eq!(recorded.body["to_member_id"], "coder");
     server.join();
 }
 

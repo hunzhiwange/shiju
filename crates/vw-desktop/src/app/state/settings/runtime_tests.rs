@@ -317,23 +317,6 @@ fn gateway_client_agents_coordination_and_cost_defaults_are_stable() {
     assert!(!client.show_help_modal);
     assert!(client.save_error.is_none());
 
-    let ipc = AgentsIpcSettingsState::default();
-    assert!(!ipc.enabled);
-    assert_eq!(ipc.db_path_input, vw_config_types::paths::AGENTS_IPC_DB_PATH);
-    assert_eq!(ipc.staleness_secs, 300);
-    assert!(!ipc.show_help_modal);
-    assert!(ipc.save_error.is_none());
-
-    let coordination = CoordinationSettingsState::default();
-    assert!(coordination.enabled);
-    assert_eq!(coordination.lead_agent_input, "delegate-lead");
-    assert_eq!(coordination.max_inbox_messages_per_agent, 256);
-    assert_eq!(coordination.max_dead_letters, 256);
-    assert_eq!(coordination.max_context_entries, 512);
-    assert_eq!(coordination.max_seen_message_ids, 4096);
-    assert!(!coordination.show_help_modal);
-    assert!(coordination.save_error.is_none());
-
     let price = CostPriceInput::default();
     assert!(price.model.is_empty());
     assert!(price.input_price.is_empty());

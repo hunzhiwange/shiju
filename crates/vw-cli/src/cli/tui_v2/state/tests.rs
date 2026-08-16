@@ -55,6 +55,7 @@ fn chat_session_round_trip_preserves_snapshot_payloads() {
         calls: vec![json!({"tool": "search", "state": "complete"})],
         steps: vec![ChatSessionStep {
             index: 1,
+            turn_id: None,
             started_ms: 21,
             finished_ms: Some(34),
             start_snapshot_path: Some("snapshots/start.json".to_string()),
@@ -464,6 +465,7 @@ fn selectors_derive_visible_window_status_and_search_matches() {
         calls: Vec::new(),
         steps: vec![ChatSessionStep {
             index: 1,
+            turn_id: None,
             started_ms: 30,
             finished_ms: Some(40),
             start_snapshot_path: None,
@@ -599,6 +601,7 @@ fn transcript_projection_cache_refreshes_after_message_append() {
         calls: Vec::new(),
         steps: vec![ChatSessionStep {
             index: 1,
+            turn_id: None,
             started_ms: 30,
             finished_ms: Some(31),
             start_snapshot_path: None,

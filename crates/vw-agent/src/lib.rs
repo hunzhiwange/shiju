@@ -182,9 +182,6 @@ pub mod config;
 // 命令定义
 pub mod command;
 
-// 协调模块
-pub mod coordination;
-
 // 定时任务
 pub mod cron;
 

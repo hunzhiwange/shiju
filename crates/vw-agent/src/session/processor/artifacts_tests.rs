@@ -289,16 +289,15 @@ fn final_ai_call_payload_uses_explicit_persist_decision() {
 }
 
 #[test]
-fn raw_payload_persists_system_messages_output_and_tool_calls() {
+fn raw_payload_builds_system_messages_output_and_tool_calls() {
     let session_id = unique_id("raw");
     let scope = unique_id("scope");
     let _project = register_scope_project(&scope);
-    register_ui_session(&session_id, &scope);
     let req = request(&session_id, 91, true);
     let step = llm_step();
     let llm_messages = vec![json!({"role": "user", "content": "hello"})];
 
-    persist_llm_raw_step_payload(
+    let payload = persist_llm_raw_step_payload(
         &req,
         &session_id,
         3,
@@ -308,13 +307,8 @@ fn raw_payload_persists_system_messages_output_and_tool_calls() {
         &["system one".to_string()],
         &[],
         &step,
-        Some(&scope),
     )
-    .expect("raw payload should persist");
-
-    let payload = ui_store::load_llm_raw_step_scoped(&session_id, 3, Some(&scope))
-        .expect("raw payload should load")
-        .expect("raw payload should exist");
+    .expect("raw payload should build");
     assert_eq!(payload["session_id"], session_id);
     assert_eq!(payload["step_index"], 3);
     assert_eq!(payload["model"], "test-model");
@@ -332,11 +326,10 @@ fn raw_payload_persists_system_messages_output_and_tool_calls() {
 }
 
 #[test]
-fn raw_payload_persists_message_sources_without_provider_metadata() {
+fn raw_payload_builds_message_sources_without_provider_metadata() {
     let session_id = unique_id("raw-message-sources");
     let scope = unique_id("scope");
     let _project = register_scope_project(&scope);
-    register_ui_session(&session_id, &scope);
     let mut req = request(&session_id, 98, true);
     req.options[super::super::llm_messages::INTERNAL_INPUT_SOURCE_OPTION] = json!({
         "kind": "user",
@@ -351,7 +344,7 @@ fn raw_payload_persists_message_sources_without_provider_metadata() {
             .expect("input source"),
     ];
 
-    persist_llm_raw_step_payload(
+    let payload = persist_llm_raw_step_payload(
         &req,
         &session_id,
         8,
@@ -361,13 +354,8 @@ fn raw_payload_persists_message_sources_without_provider_metadata() {
         &[],
         &[],
         &llm_step(),
-        Some(&scope),
     )
-    .expect("raw payload should persist");
-
-    let payload = ui_store::load_llm_raw_step_scoped(&session_id, 8, Some(&scope))
-        .expect("raw payload should load")
-        .expect("raw payload should exist");
+    .expect("raw payload should build");
     assert_eq!(
         payload["message_sources"],
         json!([{
@@ -384,11 +372,10 @@ fn raw_payload_persists_message_sources_without_provider_metadata() {
 }
 
 #[test]
-fn raw_payload_persists_request_snapshot_and_tool_catalog() {
+fn raw_payload_builds_request_snapshot_and_tool_catalog() {
     let session_id = unique_id("raw-request-snapshot");
     let scope = unique_id("scope");
     let _project = register_scope_project(&scope);
-    register_ui_session(&session_id, &scope);
     let mut req = request(&session_id, 99, true);
     req.options = json!({
         "reasoning_effort": "high",
@@ -397,7 +384,7 @@ fn raw_payload_persists_request_snapshot_and_tool_catalog() {
         "max_tokens": 2048,
     });
 
-    persist_llm_raw_step_payload(
+    let payload = persist_llm_raw_step_payload(
         &req,
         &session_id,
         9,
@@ -407,13 +394,8 @@ fn raw_payload_persists_request_snapshot_and_tool_catalog() {
         &["final system prompt".to_string()],
         &[tool_spec()],
         &llm_step(),
-        Some(&scope),
     )
-    .expect("raw payload should persist");
-
-    let payload = ui_store::load_llm_raw_step_scoped(&session_id, 9, Some(&scope))
-        .expect("raw payload should load")
-        .expect("raw payload should exist");
+    .expect("raw payload should build");
     assert_eq!(
         payload["request"],
         json!({
@@ -444,7 +426,6 @@ fn raw_payload_options_are_explicitly_allowlisted() {
     let session_id = unique_id("raw-options-allowlist");
     let scope = unique_id("scope");
     let _project = register_scope_project(&scope);
-    register_ui_session(&session_id, &scope);
     let mut req = request(&session_id, 100, true);
     req.options = json!({
         "reasoning_effort": "medium",
@@ -456,7 +437,7 @@ fn raw_payload_options_are_explicitly_allowlisted() {
         "_vw_input_source": {"kind": "user"},
     });
 
-    persist_llm_raw_step_payload(
+    let payload = persist_llm_raw_step_payload(
         &req,
         &session_id,
         10,
@@ -466,13 +447,8 @@ fn raw_payload_options_are_explicitly_allowlisted() {
         &[],
         &[],
         &llm_step(),
-        Some(&scope),
     )
-    .expect("raw payload should persist");
-
-    let payload = ui_store::load_llm_raw_step_scoped(&session_id, 10, Some(&scope))
-        .expect("raw payload should load")
-        .expect("raw payload should exist");
+    .expect("raw payload should build");
     assert_eq!(
         payload["request"]["config"],
         json!({
@@ -492,7 +468,6 @@ fn raw_payload_serializes_empty_optional_output() {
     let session_id = unique_id("raw-empty-output");
     let scope = unique_id("scope");
     let _project = register_scope_project(&scope);
-    register_ui_session(&session_id, &scope);
     let mut req = request(&session_id, 94, true);
     req.model = None;
     let step = LlmStep {
@@ -508,23 +483,9 @@ fn raw_payload_serializes_empty_optional_output() {
         ],
     };
 
-    persist_llm_raw_step_payload(
-        &req,
-        &session_id,
-        6,
-        &[],
-        &[],
-        "test-model",
-        &[],
-        &[],
-        &step,
-        Some(&scope),
-    )
-    .expect("raw payload should persist");
-
-    let payload = ui_store::load_llm_raw_step_scoped(&session_id, 6, Some(&scope))
-        .expect("raw payload should load")
-        .expect("raw payload should exist");
+    let payload =
+        persist_llm_raw_step_payload(&req, &session_id, 6, &[], &[], "test-model", &[], &[], &step)
+            .expect("raw payload should build");
     assert_eq!(payload["model"], Value::Null);
     assert_eq!(payload["system"], json!([]));
     assert_eq!(payload["messages"], json!([]));
@@ -543,7 +504,7 @@ fn raw_payload_respects_persistence_guards() {
     let step = llm_step();
     let no_persist = request(&session_id, 92, false);
 
-    persist_llm_raw_step_payload(
+    let payload = persist_llm_raw_step_payload(
         &no_persist,
         &session_id,
         4,
@@ -553,17 +514,11 @@ fn raw_payload_respects_persistence_guards() {
         &[],
         &[],
         &step,
-        Some(&scope),
-    )
-    .expect("disabled persistence should skip without error");
-    assert!(
-        ui_store::load_llm_raw_step_scoped(&session_id, 4, Some(&scope))
-            .expect("raw payload load should be readable")
-            .is_none()
     );
+    assert!(payload.is_none());
 
     let empty_session = request("", 93, true);
-    persist_llm_raw_step_payload(
+    let payload = persist_llm_raw_step_payload(
         &empty_session,
         "",
         5,
@@ -573,17 +528,16 @@ fn raw_payload_respects_persistence_guards() {
         &[],
         &[],
         &step,
-        Some(""),
-    )
-    .expect("empty sessions should skip without error");
+    );
+    assert!(payload.is_none());
 }
 
 #[test]
-fn raw_payload_persistence_reports_storage_failure() {
+fn raw_payload_build_does_not_access_storage() {
     let session_id = unique_id("raw-error");
     let req = request(&session_id, 97, true);
 
-    let error = persist_llm_raw_step_payload(
+    let payload = persist_llm_raw_step_payload(
         &req,
         &session_id,
         7,
@@ -593,9 +547,7 @@ fn raw_payload_persistence_reports_storage_failure() {
         &[],
         &[],
         &llm_step(),
-        Some(""),
     )
-    .expect_err("invalid scope must remain observable to the processor");
-
-    assert!(error.to_string().contains("non-empty project scope"));
+    .expect("raw construction must produce a payload");
+    assert_eq!(payload["step_index"], 7);
 }

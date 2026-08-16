@@ -60,6 +60,7 @@ fn run(status: &str) -> CronRunDto {
 fn small_building_blocks_return_elements() {
     keep_element(field_row("标签", "说明", text("control")));
     keep_element(tab_button(CronSettingsTab::Jobs, CronSettingsTab::Jobs, "任务"));
+    keep_element(tab_button(CronSettingsTab::Scheduler, CronSettingsTab::Jobs, "调度器"));
     keep_element(tab_button(CronSettingsTab::Add, CronSettingsTab::Jobs, "添加"));
     keep_element(segment_button("Shell", true, Message::None));
     keep_element(segment_button("Agent", false, Message::None));
@@ -282,6 +283,9 @@ fn tabs_and_view_cover_loading_empty_jobs_config_and_add_forms() {
     app.scheduler_settings.max_tasks = 64;
     app.scheduler_settings.max_concurrent = 4;
     keep_element(config_tab(&app));
+
+    app.cron_settings.active_tab = CronSettingsTab::Scheduler;
+    keep_element(view(&app));
 
     app.cron_settings.active_tab = CronSettingsTab::Add;
     app.cron_settings.add_draft.job_type = CronAddJobType::Shell;

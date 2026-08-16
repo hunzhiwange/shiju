@@ -437,40 +437,6 @@ async fn config_rejects_invalid_setting_values_without_persisting_changes() {
 }
 
 #[tokio::test]
-async fn config_reports_cross_field_validation_errors_without_persisting_changes() {
-    let tmp = TempDir::new().expect("tempdir should create");
-    let mut config = Config::default();
-    config.workspace_dir = tmp.path().join("workspace");
-    config.config_path = tmp.path().join("vibewindow.json");
-    config.coordination.enabled = false;
-    config.coordination.lead_agent.clear();
-    std::fs::create_dir_all(&config.workspace_dir).expect("workspace should create");
-    config.save().await.expect("disabled coordination config should write");
-    let config = Arc::new(config);
-    let original = serde_json::to_value(persisted_config(&config).await)
-        .expect("persisted config should serialize");
-    let tool = ConfigTool::new(config.clone(), Arc::new(SecurityPolicy::default()));
-
-    let result = tool
-        .execute(json!({ "setting": "coordination.enabled", "value": true }))
-        .await
-        .expect("validation failure should produce a structured response");
-    let output = parse_output(&result);
-
-    assert!(!result.success);
-    assert_eq!(output["previousValue"], json!(false));
-    assert_eq!(
-        output["error"],
-        json!("coordination.lead_agent must not be empty when coordination is enabled")
-    );
-    assert_eq!(
-        serde_json::to_value(persisted_config(&config).await)
-            .expect("persisted config should serialize"),
-        original
-    );
-}
-
-#[tokio::test]
 async fn config_blocks_writes_in_read_only_mode_without_persisting_changes() {
     let (_tmp, config) = test_config().await;
     let original = serde_json::to_value(persisted_config(&config).await)

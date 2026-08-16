@@ -75,6 +75,7 @@ fn usage_data_exposes_active_steps_and_raw_calls() {
     app.active_session_view_state.calls = vec![json!({"prompt": "system", "messages": []})];
     app.active_session_view_state.steps = vec![ChatSessionStep {
         index: 1,
+        turn_id: None,
         started_ms: 10,
         finished_ms: Some(20),
         start_snapshot_path: None,

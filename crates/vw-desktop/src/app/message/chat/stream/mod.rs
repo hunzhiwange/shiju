@@ -88,6 +88,37 @@ struct PendingSessionSave {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum StreamSessionSaveResult {
+    Committed,
+    Coalesced,
+    Deferred(String),
+    PermanentlyFailed(String),
+    Blocked,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn stream_session_save_message(completed: Option<StreamSessionSaveResult>) -> Message {
+    match completed {
+        Some(StreamSessionSaveResult::Committed) => Message::Chat(ChatMessage::SessionSaveAck),
+        Some(
+            StreamSessionSaveResult::Coalesced
+            | StreamSessionSaveResult::Deferred(_)
+            | StreamSessionSaveResult::Blocked,
+        ) => Message::None,
+        Some(StreamSessionSaveResult::PermanentlyFailed(error)) => {
+            Message::Chat(ChatMessage::SessionSaveFailed(error))
+        }
+        None => {
+            tracing::warn!(target: "vw_desktop", "stream session save task failed");
+            Message::Chat(ChatMessage::SessionSaveFailed(
+                "会话保存任务异常终止".to_string(),
+            ))
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Default)]
 struct StreamSessionSaveCoordinator {
     state: Mutex<StreamSessionSaveState>,
@@ -96,13 +127,25 @@ struct StreamSessionSaveCoordinator {
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Default)]
 struct StreamSessionSaveState {
-    in_flight: HashMap<String, Option<PendingSessionSave>>,
+    sessions: HashMap<String, StreamSessionSaveSlot>,
     blocked_sessions: HashSet<String>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[derive(Default)]
+struct StreamSessionSaveSlot {
+    in_flight: bool,
+    pending: Option<PendingSessionSave>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl StreamSessionSaveCoordinator {
-    fn save<F>(&self, session: models::ChatSession, directory: Option<String>, mut save: F)
+    fn save<F>(
+        &self,
+        session: models::ChatSession,
+        directory: Option<String>,
+        mut save: F,
+    ) -> StreamSessionSaveResult
     where
         F: FnMut(&models::ChatSession, Option<&str>) -> Result<Option<std::path::PathBuf>, String>,
     {
@@ -111,42 +154,56 @@ impl StreamSessionSaveCoordinator {
         {
             let mut state = self.state.lock().expect("stream session save lock");
             if state.blocked_sessions.contains(&session_id) {
-                return;
+                return StreamSessionSaveResult::Blocked;
             }
-            if let Some(pending) = state.in_flight.get_mut(&session_id) {
-                *pending = Some(current);
-                return;
+            let slot = state.sessions.entry(session_id.clone()).or_default();
+            if slot.in_flight {
+                slot.pending = Some(current);
+                return StreamSessionSaveResult::Coalesced;
             }
-            state.in_flight.insert(session_id.clone(), None);
+            slot.in_flight = true;
+            slot.pending = None;
         }
 
         loop {
             let result = save(&current.session, current.directory.as_deref());
-            if matches!(&result, Err(error) if error.contains("413 Payload Too Large")) {
+            if let Err(error) = result {
                 let mut state = self.state.lock().expect("stream session save lock");
-                state.blocked_sessions.insert(session_id.clone());
-                state.in_flight.remove(&session_id);
-                tracing::warn!(
-                    target: "vw_desktop",
-                    session_id = %session_id,
-                    "disabling stream session saves after payload-too-large response"
-                );
-                break;
+                if session_gateway::is_permanent_session_save_error(&error) {
+                    state.blocked_sessions.insert(session_id.clone());
+                    state.sessions.remove(&session_id);
+                    tracing::warn!(
+                        target: "vw_desktop",
+                        session_id = %session_id,
+                        "disabling stream session saves after permanent failure"
+                    );
+                    return StreamSessionSaveResult::PermanentlyFailed(error);
+                }
+                let slot = state
+                    .sessions
+                    .get_mut(&session_id)
+                    .expect("stream session save slot should remain registered");
+                slot.in_flight = false;
+                if slot.pending.is_none() {
+                    slot.pending = Some(current);
+                }
+                return StreamSessionSaveResult::Deferred(error);
             }
             let next = {
                 let mut state = self.state.lock().expect("stream session save lock");
                 let pending = state
-                    .in_flight
+                    .sessions
                     .get_mut(&session_id)
-                    .expect("in-flight stream session save should remain registered")
+                    .expect("stream session save slot should remain registered")
+                    .pending
                     .take();
                 if pending.is_none() {
-                    state.in_flight.remove(&session_id);
+                    state.sessions.remove(&session_id);
                 }
                 pending
             };
             let Some(pending) = next else {
-                break;
+                return StreamSessionSaveResult::Committed;
             };
             current = pending;
         }
@@ -166,11 +223,12 @@ pub(super) fn save_session_task(
 ) -> Task<Message> {
     Task::perform(
         async move { session_gateway::gateway_save_session_async(&session, directory.as_deref()).await },
-        |result| {
-            if let Err(error) = result {
+        |result| match result {
+            Ok(_) => Message::Chat(ChatMessage::SessionSaveAck),
+            Err(error) => {
                 tracing::warn!(target: "vw_desktop", error = %error, "failed to save session");
+                Message::Chat(ChatMessage::SessionSaveFailed(error))
             }
-            Message::Chat(ChatMessage::SessionSaveAck)
         },
     )
 }
@@ -184,8 +242,11 @@ pub(super) fn save_session_task(
 ) -> Task<Message> {
     Task::perform(
         async move {
-            let completed = crate::app::message::spawn_blocking_opt(move || {
-                STREAM_SESSION_SAVE_COORDINATOR.save(session, directory, |session, directory| {
+            crate::app::message::spawn_blocking_opt(move || {
+                let result = STREAM_SESSION_SAVE_COORDINATOR.save(
+                    session,
+                    directory,
+                    |session, directory| {
                     let result = gateway_save_session_for_stream(session, directory);
                     if let Err(error) = &result {
                         tracing::warn!(
@@ -197,15 +258,13 @@ pub(super) fn save_session_task(
                         );
                     }
                     result
-                });
-                Some(())
+                    },
+                );
+                Some(result)
             })
-            .await;
-            if completed.is_none() {
-                tracing::warn!(target: "vw_desktop", "stream session save task failed");
-            }
+            .await
         },
-        |_| Message::Chat(ChatMessage::SessionSaveAck),
+        stream_session_save_message,
     )
 }
 
@@ -340,6 +399,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             )
         }
         ChatMessage::SessionSaveAck => Task::none(),
+        ChatMessage::SessionSaveFailed(error) => {
+            app.show_error_toast(format!("会话保存失败：{error}"))
+        }
         ChatMessage::AgentStepCostLoaded(_id, session_id, step_index, resolved_model, cost) => {
             steps::handle_agent_step_cost_loaded(app, session_id, step_index, resolved_model, cost)
         }

@@ -144,8 +144,8 @@ fn view_covers_loading_error_selected_and_empty_catalog_states() {
 fn multimodal_search_keywords_include_ocr_and_image_model() {
     use crate::app::components::system_settings::{SystemTab, system_tab_matches_query};
 
-    assert!(system_tab_matches_query(SystemTab::Multimodal, "OCR"));
-    assert!(system_tab_matches_query(SystemTab::Multimodal, "图片模型"));
+    assert!(system_tab_matches_query(SystemTab::Models, "OCR"));
+    assert!(system_tab_matches_query(SystemTab::Models, "图片模型"));
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -19,9 +19,9 @@ fn content_tree(tree: &Tree) -> &Tree {
 
 fn provider_controls(tree: &Tree) -> &Tree {
     let content = content_tree(tree);
-    assert_eq!(content.children.len(), 4);
+    assert_eq!(content.children.len(), 3);
 
-    let provider_section = &content.children[3];
+    let provider_section = &content.children[2];
     assert_eq!(provider_section.children.len(), 2);
 
     let panel = &provider_section.children[1];
@@ -163,17 +163,16 @@ fn custom_callbacks_preserve_command_health_url_and_pattern_inputs() {
 }
 
 #[test]
-fn view_keeps_shared_page_structure_for_disabled_provider() {
+fn content_keeps_shared_page_structure_for_disabled_provider() {
     let mut app = test_app();
     app.tunnel_settings.provider = "none".to_string();
 
-    let tree = element_tree(view(&app));
+    let tree = element_tree(content(&app));
     let content = content_tree(&tree);
 
-    assert_eq!(content.children.len(), 4);
+    assert_eq!(content.children.len(), 3);
     assert_eq!(content.children[0].children.len(), 2);
-    assert_eq!(content.children[1].children.len(), 2);
-    assert_eq!(content.children[2].children.len(), 1);
+    assert_eq!(content.children[1].children.len(), 1);
 
     let controls = provider_controls(&tree);
     assert_eq!(controls.children.len(), 1);
@@ -181,7 +180,7 @@ fn view_keeps_shared_page_structure_for_disabled_provider() {
 }
 
 #[test]
-fn view_builds_each_provider_section_and_unknown_fallback() {
+fn content_builds_each_provider_section_and_unknown_fallback() {
     let mut app = test_app();
     app.tunnel_settings.cloudflare_token = "sample token".to_string();
     app.tunnel_settings.tailscale_funnel = true;
@@ -201,7 +200,7 @@ fn view_builds_each_provider_section_and_unknown_fallback() {
         ("unsupported", 1, true),
     ] {
         app.tunnel_settings.provider = provider.to_string();
-        let tree = element_tree(view(&app));
+        let tree = element_tree(content(&app));
         let controls = provider_controls(&tree);
 
         assert_eq!(controls.children.len(), expected_controls, "provider={provider}");

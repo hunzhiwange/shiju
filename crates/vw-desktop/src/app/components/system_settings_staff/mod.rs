@@ -10,6 +10,9 @@ use crate::app::components::system_settings_common::{
     settings_section_card, settings_segment_button_style, settings_success_banner,
     settings_text_input_style, settings_value_badge,
 };
+use crate::app::components::system_settings_search::{
+    SettingsTabDescriptor, StaffSettingsSearchTab,
+};
 use crate::app::message::settings::{SettingsMessage, StaffMessage};
 use crate::app::state::{
     SkillsCatalogItem, StaffSettingsCapabilitiesDraft, StaffSettingsChannelBindingDraft,
@@ -29,6 +32,33 @@ const STAFF_TAB_ROSTER: &str = "名册";
 const STAFF_TAB_CAPABILITIES: &str = "能力";
 const STAFF_TAB_TEAMS: &str = "Teams";
 const STAFF_TAB_WORKERS: &str = "Workers";
+
+const STAFF_SEARCH_TABS: &[SettingsTabDescriptor<StaffSettingsSearchTab>] = &[
+    SettingsTabDescriptor::new(
+        StaffSettingsSearchTab::Roster,
+        STAFF_TAB_ROSTER,
+        &["roster", "员工", "名册", "agent binding", "绑定"],
+    ),
+    SettingsTabDescriptor::new(
+        StaffSettingsSearchTab::Capabilities,
+        STAFF_TAB_CAPABILITIES,
+        &["capability", "能力", "工具", "技能"],
+    ),
+    SettingsTabDescriptor::new(
+        StaffSettingsSearchTab::Teams,
+        STAFF_TAB_TEAMS,
+        &["team", "团队", "编排"],
+    ),
+    SettingsTabDescriptor::new(
+        StaffSettingsSearchTab::Workers,
+        STAFF_TAB_WORKERS,
+        &["worker", "执行器", "任务"],
+    ),
+];
+
+pub(super) fn search_tabs() -> &'static [SettingsTabDescriptor<StaffSettingsSearchTab>] {
+    STAFF_SEARCH_TABS
+}
 const CUSTOM_OPTION_PREFIX: &str = "自定义：";
 const DEFAULT_CHANNEL_INSTANCE_ID: &str = "default";
 const STAFF_CHANNEL_TYPE_OPTIONS: &[(&str, &str)] =

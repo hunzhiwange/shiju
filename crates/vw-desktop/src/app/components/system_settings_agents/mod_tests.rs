@@ -15,6 +15,13 @@ fn agent_config_tabs_render_each_existing_settings_page() {
 
     for tab in [
         crate::app::state::AgentConfigTab::Agents,
+        crate::app::state::AgentConfigTab::Channels,
+        crate::app::state::AgentConfigTab::Runtime,
+        crate::app::state::AgentConfigTab::Acp,
+        crate::app::state::AgentConfigTab::Mcp,
+        crate::app::state::AgentConfigTab::Skills,
+        crate::app::state::AgentConfigTab::Plugins,
+        crate::app::state::AgentConfigTab::Reliability,
         crate::app::state::AgentConfigTab::DialogueFlow,
         crate::app::state::AgentConfigTab::QuickMessages,
         crate::app::state::AgentConfigTab::Heartbeat,

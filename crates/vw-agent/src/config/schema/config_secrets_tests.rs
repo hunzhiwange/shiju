@@ -97,8 +97,6 @@ fn config_secrets_encrypt_and_decrypt_representative_fields() {
     config.browser.computer_use.api_key = Some("computer-use-key".to_string());
     config.web_search.brave_api_key = Some("brave-key".to_string());
     config.storage.provider.config.db_url = Some("postgres://user:pass@localhost/db".to_string());
-    config.reliability.api_keys = vec!["fallback-key".to_string()];
-    config.reliability.fallback_api_keys.insert("openai".to_string(), "openai-key".to_string());
     config.gateway.paired_tokens = vec!["paired-token".to_string()];
     config.embedding_routes = vec![EmbeddingRouteConfig {
         hint: "semantic".to_string(),
@@ -138,8 +136,6 @@ fn config_secrets_encrypt_and_decrypt_representative_fields() {
     assert!(SecretStore::is_encrypted(config.browser.computer_use.api_key.as_deref().unwrap()));
     assert!(SecretStore::is_encrypted(config.web_search.brave_api_key.as_deref().unwrap()));
     assert!(SecretStore::is_encrypted(config.storage.provider.config.db_url.as_deref().unwrap()));
-    assert!(SecretStore::is_encrypted(&config.reliability.api_keys[0]));
-    assert!(SecretStore::is_encrypted(&config.reliability.fallback_api_keys["openai"]));
     assert!(SecretStore::is_encrypted(&config.gateway.paired_tokens[0]));
     assert!(SecretStore::is_encrypted(config.embedding_routes[0].api_key.as_deref().unwrap()));
     assert!(SecretStore::is_encrypted(config.agents["writer"].api_key.as_deref().unwrap()));
@@ -158,11 +154,6 @@ fn config_secrets_encrypt_and_decrypt_representative_fields() {
     assert_eq!(
         config.storage.provider.config.db_url.as_deref(),
         Some("postgres://user:pass@localhost/db")
-    );
-    assert_eq!(config.reliability.api_keys, vec!["fallback-key".to_string()]);
-    assert_eq!(
-        config.reliability.fallback_api_keys.get("openai").map(String::as_str),
-        Some("openai-key")
     );
     assert_eq!(config.gateway.paired_tokens, vec!["paired-token".to_string()]);
     assert_eq!(config.embedding_routes[0].api_key.as_deref(), Some("embedding-key"));

@@ -34,6 +34,7 @@ fn request(session_id: &str, stream: u64, persist: bool) -> Request {
         query: "Explain the fixture".to_string(),
         root: Some("/tmp/project".to_string()),
         model: Some("test-model".to_string()),
+        reliability: crate::app::agent::config::ReliabilityConfig::default(),
         options: json!({"mode": "test"}),
         approval: None,
         channel_name: None,

@@ -1199,6 +1199,7 @@ fn stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save() {
         &tenant,
         Some(&scope),
         &session_id,
+        &project_path,
         "inspect",
         "done",
         Some("provider/model"),
@@ -1218,6 +1219,14 @@ fn stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save() {
     assert_eq!(stored.steps.len(), 1);
     assert_eq!(stored.steps[0].turn_id.as_deref(), Some("turn-stream"));
     assert_eq!(stored.steps[0].tool_timings[0].call_id, "call-1");
+    let stored_info = crate::session::ui_store::load_agent_session_scoped_for_tenant(
+        &tenant,
+        &session_id,
+        Some(&scope),
+    )
+    .expect("stored session metadata");
+    assert_eq!(stored_info.directory, project_path);
+    assert_eq!(stored_info.title, "inspect");
     let stored_raw = crate::session::ui_store::load_llm_raw_turn_step_scoped_for_tenant(
         &tenant,
         &session_id,

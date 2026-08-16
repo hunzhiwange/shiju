@@ -81,15 +81,6 @@ pub(super) fn check_config_semantics(config: &Config, items: &mut Vec<DiagItem>)
         items.push(DiagItem::error(cat, "gateway port is 0 (invalid)"));
     }
 
-    for fallback in &config.reliability.fallback_providers {
-        if let Some(reason) = provider_validation_error(fallback) {
-            items.push(DiagItem::warn(
-                cat,
-                format!("fallback provider \"{fallback}\" is invalid: {reason}"),
-            ));
-        }
-    }
-
     for route in &config.model_routes {
         if route.hint.is_empty() {
             items.push(DiagItem::warn(cat, "model route with empty hint"));

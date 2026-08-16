@@ -179,9 +179,13 @@ mod search_panel_tests;
 ///
 /// 系统设置的入口和容器组件，协调各设置子模块。
 pub mod system_settings;
+pub mod system_settings_search;
 #[cfg(test)]
 #[path = "system_settings_tests.rs"]
 mod system_settings_tests;
+#[cfg(test)]
+#[path = "system_settings_search_tests.rs"]
+mod system_settings_search_tests;
 
 /// 系统设置：多代理配置
 ///

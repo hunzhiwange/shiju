@@ -67,6 +67,44 @@ fn overlays_return_dialog_or_help_modal() {
 }
 
 #[test]
+fn reliability_help_explains_affected_features_and_omits_removed_fields() {
+    let help_text = RELIABILITY_HELP_TEXT;
+
+    for expected in [
+        "桌面聊天、Gateway、Channel、Task Plan 和 ACP",
+        "首次模型请求失败后",
+        "重试次数越大",
+        "首次重试前",
+        "等待越长",
+        "聊天通道监听断开后",
+        "后续重连等待",
+        "cron 扫描",
+        "扫描越频繁",
+        "cron 任务执行失败后",
+        "Provider 设置保存后对新发起的模型请求生效",
+        "频道退避设置在聊天通道监听器下次启动或重启时生效",
+        "调度设置在 cron 调度器下次启动或重启时生效",
+        r#""provider_retries": 3"#,
+        r#""provider_backoff_ms": 500"#,
+        r#""channel_initial_backoff_secs": 1"#,
+        r#""channel_max_backoff_secs": 60"#,
+        r#""scheduler_poll_secs": 60"#,
+        r#""scheduler_retries": 3"#,
+    ] {
+        assert!(help_text.contains(expected), "missing help text: {expected}");
+    }
+
+    for removed in [
+        "fallback_providers",
+        "fallback_api_keys",
+        "api_keys",
+        "model_fallbacks",
+    ] {
+        assert!(!help_text.contains(removed), "removed field remains in help: {removed}");
+    }
+}
+
+#[test]
 fn slider_callbacks_round_into_reliability_messages() {
     match settings_message(provider_retries_changed(2.4)) {
         message::SettingsMessage::ReliabilityProviderRetriesChanged(value) => assert_eq!(value, 2),

@@ -2,10 +2,11 @@
 const SOURCE: &str = include_str!("system_settings.rs");
 
 use super::system_settings::{
-    SystemTab, active_tab_help_modal_open, active_tab_save_error, is_network_tab,
+    SystemTab, active_tab_help_modal_open, active_tab_save_error, is_network_tab, search_results,
     system_tab_matches_query, view,
 };
 use super::system_settings_help::help_button_bar;
+use super::system_settings_search::SystemSettingsSearchTarget;
 
 fn source_declares_symbol(name: &str) -> bool {
     let needles = [
@@ -41,32 +42,97 @@ fn system_settings_search_matches_child_items() {
     assert!(system_tab_matches_query(SystemTab::Agents, "接收者"));
     assert!(system_tab_matches_query(SystemTab::Agents, "API 密钥"));
     assert!(system_tab_matches_query(SystemTab::Cron, "最大并发"));
-    assert!(system_tab_matches_query(SystemTab::Acp, "初始化"));
-    assert!(system_tab_matches_query(SystemTab::Mcp, "stdio"));
+    assert!(system_tab_matches_query(SystemTab::Agents, "初始化"));
+    assert!(system_tab_matches_query(SystemTab::Agents, "stdio"));
     assert!(system_tab_matches_query(SystemTab::WebSearch, "Brave 密钥"));
     assert!(system_tab_matches_query(SystemTab::WebSearch, "webdriver"));
     assert!(system_tab_matches_query(SystemTab::HttpRequest, "允许域名"));
 }
 
 #[test]
+fn system_settings_search_results_extract_matching_child_tabs_with_parent_paths() {
+    let app = crate::app::App::new().0;
+
+    let agent_results = search_results(&app, "zntpz");
+    assert!(agent_results.iter().any(|entry| {
+        entry.label == "智能体配置"
+            && entry.parent_label.is_none()
+            && entry.target == SystemSettingsSearchTarget::TopLevel(SystemTab::Agents)
+    }));
+    assert!(agent_results.iter().any(|entry| {
+        entry.parent_label == Some("智能体配置")
+            && matches!(entry.target, SystemSettingsSearchTarget::Agents(_))
+    }));
+
+    let stdio_results = search_results(&app, "stdio");
+    assert_eq!(stdio_results.len(), 1);
+    assert_eq!(stdio_results[0].label, "全局服务器");
+    assert_eq!(stdio_results[0].parent_label, Some("智能体配置 / MCP"));
+    assert!(matches!(
+        stdio_results[0].target,
+        SystemSettingsSearchTarget::AgentMcp(_)
+    ));
+
+    let slack_results = search_results(&app, "slack");
+    assert!(slack_results.iter().any(|entry| {
+        entry.label == "Slack"
+            && entry.parent_label == Some("智能体配置 / 通道")
+            && matches!(entry.target, SystemSettingsSearchTarget::Channels(_))
+    }));
+
+    let proxy_results = search_results(&app, "all_proxy");
+    assert_eq!(proxy_results.len(), 1);
+    assert_eq!(proxy_results[0].label, "代理");
+    assert_eq!(proxy_results[0].parent_label, Some("网络配置"));
+    assert_eq!(
+        proxy_results[0].target,
+        SystemSettingsSearchTarget::Network(SystemTab::Proxy)
+    );
+
+    let tunnel_results = search_results(&app, "tailscale");
+    assert_eq!(tunnel_results.len(), 1);
+    assert_eq!(tunnel_results[0].label, "隧道");
+    assert_eq!(tunnel_results[0].parent_label, Some("网络配置"));
+    assert_eq!(
+        tunnel_results[0].target,
+        SystemSettingsSearchTarget::Network(SystemTab::Tunnel)
+    );
+
+    let theme_results = search_results(&app, "gallery");
+    assert_eq!(theme_results.len(), 1);
+    assert_eq!(theme_results[0].label, "主题");
+    assert_eq!(theme_results[0].parent_label, Some("常规设置"));
+    assert_eq!(
+        theme_results[0].target,
+        SystemSettingsSearchTarget::General(crate::app::state::GeneralSettingsTab::Themes)
+    );
+}
+
+#[test]
 fn system_tab_all_contains_every_display_label_once_in_order() {
     let tabs = SystemTab::all();
 
-    assert_eq!(tabs.len(), 24);
+    assert_eq!(tabs.len(), 15);
     assert_eq!(tabs.first(), Some(&SystemTab::General));
-    assert_eq!(tabs.get(1), Some(&SystemTab::Themes));
+    assert_eq!(tabs.get(1), Some(&SystemTab::Projects));
     assert_eq!(tabs.last(), Some(&SystemTab::WebSearch));
+    assert!(!tabs.contains(&SystemTab::Proxy));
+    assert!(!tabs.contains(&SystemTab::Tunnel));
+    assert!(!tabs.contains(&SystemTab::Channels));
+    assert!(!tabs.contains(&SystemTab::Runtime));
     assert!(!tabs.contains(&SystemTab::HttpRequest));
     assert!(!tabs.contains(&SystemTab::Browser));
 
     let labels = tabs.iter().map(ToString::to_string).collect::<Vec<_>>();
     assert!(labels.contains(&"常规设置".to_string()));
-    assert!(labels.contains(&"主题".to_string()));
+    assert!(!labels.contains(&"主题".to_string()));
     assert!(!labels.contains(&"对话流".to_string()));
     assert!(!labels.contains(&"快捷消息".to_string()));
     assert!(!labels.contains(&"心跳配置".to_string()));
-    assert!(labels.contains(&"ACP 配置".to_string()));
-    assert!(labels.contains(&"MCP 配置".to_string()));
+    assert!(!labels.contains(&"ACP 配置".to_string()));
+    assert!(!labels.contains(&"MCP 配置".to_string()));
+    assert!(!labels.contains(&"技能配置".to_string()));
+    assert!(!labels.contains(&"可靠性配置".to_string()));
     assert!(labels.contains(&"智能体配置".to_string()));
     assert!(!labels.contains(&"模型路由".to_string()));
     assert!(!labels.contains(&"查询模型分类".to_string()));
@@ -78,8 +144,8 @@ fn system_tab_all_contains_every_display_label_once_in_order() {
 #[test]
 fn system_tab_search_is_trimmed_case_insensitive_and_empty_matches_all() {
     assert!(system_tab_matches_query(SystemTab::Providers, "  API KEY "));
-    assert!(system_tab_matches_query(SystemTab::Acp, "CODEX"));
-    assert!(system_tab_matches_query(SystemTab::Mcp, "MCP"));
+    assert!(system_tab_matches_query(SystemTab::Agents, "CODEX"));
+    assert!(system_tab_matches_query(SystemTab::Agents, "MCP"));
     assert!(system_tab_matches_query(SystemTab::General, "   "));
     assert!(!system_tab_matches_query(SystemTab::General, "definitely-not-a-tab"));
 }
@@ -88,7 +154,6 @@ fn system_tab_search_is_trimmed_case_insensitive_and_empty_matches_all() {
 fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
     let expected = [
         "常规设置",
-        "主题",
         "项目",
         "提供商",
         "模型",
@@ -96,19 +161,11 @@ fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
         "定时任务配置",
         "智能体配置",
         "员工配置",
-        "可靠性配置",
-        "通道配置",
-        "运行时配置",
-        "ACP 配置",
-        "MCP 配置",
         "自治配置",
         "安全配置",
         "客户端网关",
         "服务端网关",
         "可观测性配置",
-        "代理配置",
-        "隧道配置",
-        "技能配置",
         "钩子配置",
         "网络配置",
     ];
@@ -119,18 +176,19 @@ fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
 }
 
 #[test]
-fn network_settings_groups_three_internal_tabs() {
+fn network_settings_groups_five_internal_tabs() {
     assert!(is_network_tab(SystemTab::WebSearch));
     assert!(is_network_tab(SystemTab::HttpRequest));
     assert!(is_network_tab(SystemTab::Browser));
-    assert!(!is_network_tab(SystemTab::Proxy));
+    assert!(is_network_tab(SystemTab::Proxy));
+    assert!(is_network_tab(SystemTab::Tunnel));
 }
 
 #[test]
 fn system_tab_search_metadata_covers_every_tab() {
     let cases = [
         (SystemTab::General, "editor"),
-        (SystemTab::Themes, "gallery"),
+        (SystemTab::General, "gallery"),
         (SystemTab::Projects, "workspace"),
         (SystemTab::Providers, "catalog"),
         (SystemTab::Models, "vision"),
@@ -141,11 +199,11 @@ fn system_tab_search_metadata_covers_every_tab() {
         (SystemTab::Agents, "quick messages"),
         (SystemTab::Agents, "monitor"),
         (SystemTab::Staff, "roster"),
-        (SystemTab::Reliability, "retry"),
-        (SystemTab::Channels, "slack"),
-        (SystemTab::Runtime, "docker"),
-        (SystemTab::Acp, "protocol"),
-        (SystemTab::Mcp, "allowedtools"),
+        (SystemTab::Agents, "retry"),
+        (SystemTab::Agents, "slack"),
+        (SystemTab::Agents, "docker"),
+        (SystemTab::Agents, "protocol"),
+        (SystemTab::Agents, "allowedtools"),
         (SystemTab::Autonomy, "approval"),
         (SystemTab::Security, "canary"),
         (SystemTab::GatewayClient, "connection"),
@@ -153,7 +211,7 @@ fn system_tab_search_metadata_covers_every_tab() {
         (SystemTab::Observability, "otel"),
         (SystemTab::Proxy, "all_proxy"),
         (SystemTab::Tunnel, "tailscale"),
-        (SystemTab::Skills, "plugins"),
+        (SystemTab::Agents, "plugins"),
         (SystemTab::Hooks, "command_logger"),
         (SystemTab::WebSearch, "duckduckgo"),
         (SystemTab::HttpRequest, "allowlist"),
@@ -184,7 +242,8 @@ fn active_tab_help_modal_recognizes_shared_and_tab_specific_help() {
     app.scheduler_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::Cron));
     app.reliability_settings.show_help_modal = true;
-    assert!(active_tab_help_modal_open(&app, SystemTab::Reliability));
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Reliability;
+    assert!(active_tab_help_modal_open(&app, SystemTab::Agents));
     app.autonomy_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::Autonomy));
     app.security_settings.show_help_modal = true;
@@ -198,7 +257,11 @@ fn active_tab_help_modal_recognizes_shared_and_tab_specific_help() {
     app.proxy_settings.show_help_modal = true;
     assert!(active_tab_help_modal_open(&app, SystemTab::Proxy));
     app.skills_settings.show_help_modal = true;
-    assert!(active_tab_help_modal_open(&app, SystemTab::Skills));
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Skills;
+    assert!(active_tab_help_modal_open(&app, SystemTab::Agents));
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Runtime;
+    app.system_settings_help_tab = Some(SystemTab::Runtime);
+    assert!(active_tab_help_modal_open(&app, SystemTab::Agents));
     app.system_settings_help_tab = Some(SystemTab::WebSearch);
     assert!(active_tab_help_modal_open(&app, SystemTab::WebSearch));
     app.system_settings_help_tab = None;
@@ -292,13 +355,20 @@ fn active_tab_save_error_routes_each_settings_state_and_rejects_static_tabs() {
     assert_eq!(active_tab_save_error(&app, SystemTab::Cron), Some("scheduler_settings"));
     app.scheduler_settings.save_error = None;
     assert_error_route!(Agents, agents_settings);
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Acp;
+    assert_error_route!(Agents, acp_settings);
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Mcp;
+    assert_error_route!(Agents, mcp_settings);
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Skills;
+    assert_error_route!(Agents, skills_settings);
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Runtime;
+    assert_error_route!(Agents, runtime_settings);
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Reliability;
+    assert_error_route!(Agents, reliability_settings);
     assert_error_route!(Staff, staff_settings);
-    assert_error_route!(Reliability, reliability_settings);
     assert_error_route!(Channels, channels_settings);
     assert_error_route!(Memory, memory_settings);
     assert_error_route!(Runtime, runtime_settings);
-    assert_error_route!(Acp, acp_settings);
-    assert_error_route!(Mcp, mcp_settings);
     assert_error_route!(Autonomy, autonomy_settings);
     assert_error_route!(Security, security_settings);
     assert_error_route!(GatewayClient, gateway_client_settings);
@@ -308,7 +378,6 @@ fn active_tab_save_error_routes_each_settings_state_and_rejects_static_tabs() {
     assert_error_route!(Memory, storage_settings);
     assert_error_route!(Proxy, proxy_settings);
     assert_error_route!(Tunnel, tunnel_settings);
-    assert_error_route!(Skills, skills_settings);
     assert_error_route!(Hooks, hooks_settings);
     assert_error_route!(WebSearch, web_search_settings);
     assert_error_route!(HttpRequest, http_request_settings);
@@ -354,6 +423,25 @@ fn view_builds_active_tab_help_and_save_error_state() {
     app.heartbeat_settings.show_help_modal = true;
     app.heartbeat_settings.save_error = Some("heartbeat save failed".to_string());
 
+    drop(view(&app));
+}
+
+#[test]
+fn view_builds_agent_config_overlays_for_each_nested_owner() {
+    let mut app = crate::app::App::new().0;
+    app.show_system_settings = true;
+    app.system_settings_tab = SystemTab::Agents;
+
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Mcp;
+    app.mcp_settings.delete_pending = Some(0);
+    drop(view(&app));
+
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Skills;
+    app.skills_settings.show_help_modal = true;
+    drop(view(&app));
+
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Reliability;
+    app.reliability_settings.show_help_modal = true;
     drop(view(&app));
 }
 

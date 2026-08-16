@@ -23,6 +23,7 @@ use crate::app::components::system_settings_common::{
     settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
     settings_segment_button_style, settings_text_input_style,
 };
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -34,6 +35,29 @@ use vw_config_types::security::NonCliNaturalLanguageApprovalMode;
 use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
 
 const LIST_EDITOR_MAX_HEIGHT: f32 = 176.0;
+
+pub(super) const AUTONOMY_TABS: &[SettingsTabDescriptor<AutonomySettingsTab>] = &[
+    SettingsTabDescriptor::new(
+        AutonomySettingsTab::Permissions,
+        "权限与审批",
+        &["approval", "执行级别", "审批阈值", "重定向"],
+    ),
+    SettingsTabDescriptor::new(
+        AutonomySettingsTab::Budget,
+        "预算",
+        &["budget", "每小时操作", "每日成本"],
+    ),
+    SettingsTabDescriptor::new(
+        AutonomySettingsTab::ToolsAndPaths,
+        "工具与路径",
+        &["shell", "命令", "禁止路径", "自动审批", "允许根目录"],
+    ),
+    SettingsTabDescriptor::new(
+        AutonomySettingsTab::NonCli,
+        "非 CLI",
+        &["non cli", "审批人", "通道模式", "自然语言审批"],
+    ),
+];
 
 /// 构建与可观测性配置一致的 Tab 风格按钮。
 ///
@@ -153,9 +177,7 @@ fn list_editor<'a>(
                         message::SettingsMessage::AutonomyListRemoveRequested(kind, index),
                     ))
                     .padding([6, 10])
-                    .style(|theme, status| {
-                        settings_segment_button_style(theme, status, false)
-                    }),
+                    .style(|theme, status| { settings_segment_button_style(theme, status, false) }),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
@@ -184,11 +206,7 @@ fn list_editor<'a>(
                 .align_y(Alignment::Center),
             );
         }
-        item_rows = item_rows.push(
-            container(item_content)
-            .padding([6, 8])
-            .width(Length::Fill),
-        );
+        item_rows = item_rows.push(container(item_content).padding([6, 8]).width(Length::Fill));
     }
 
     let item_list = container(
@@ -569,38 +587,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
         )
     };
 
-    let tabs = row![
-        tab_button(
-            "权限与审批",
-            s.active_tab == AutonomySettingsTab::Permissions,
-            Message::Settings(message::SettingsMessage::AutonomyTabSelected(
-                AutonomySettingsTab::Permissions,
-            )),
-        ),
-        tab_button(
-            "预算",
-            s.active_tab == AutonomySettingsTab::Budget,
-            Message::Settings(message::SettingsMessage::AutonomyTabSelected(
-                AutonomySettingsTab::Budget,
-            )),
-        ),
-        tab_button(
-            "工具与路径",
-            s.active_tab == AutonomySettingsTab::ToolsAndPaths,
-            Message::Settings(message::SettingsMessage::AutonomyTabSelected(
-                AutonomySettingsTab::ToolsAndPaths,
-            )),
-        ),
-        tab_button(
-            "非 CLI",
-            s.active_tab == AutonomySettingsTab::NonCli,
-            Message::Settings(message::SettingsMessage::AutonomyTabSelected(
-                AutonomySettingsTab::NonCli,
-            )),
-        ),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let tabs = AUTONOMY_TABS.iter().fold(
+        row![].spacing(8).align_y(Alignment::Center),
+        |row, descriptor| {
+            row.push(tab_button(
+                descriptor.label,
+                s.active_tab == descriptor.tab,
+                Message::Settings(message::SettingsMessage::AutonomyTabSelected(descriptor.tab)),
+            ))
+        },
+    );
 
     let (section, panel): (Element<'_, Message>, Element<'_, Message>) = match s.active_tab {
         AutonomySettingsTab::Permissions => (

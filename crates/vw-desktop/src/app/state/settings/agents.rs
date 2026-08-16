@@ -292,6 +292,13 @@ pub(crate) fn agent_settings_entries_from_config(
 pub enum AgentConfigTab {
     #[default]
     Agents,
+    Channels,
+    Runtime,
+    Acp,
+    Mcp,
+    Skills,
+    Plugins,
+    Reliability,
     DialogueFlow,
     QuickMessages,
     Heartbeat,

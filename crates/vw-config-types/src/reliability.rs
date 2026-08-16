@@ -1,8 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-/// 可靠性配置：重试、回退 provider 与退避策略（`[reliability]`）。
+/// 可靠性配置：重试与退避策略（`[reliability]`）。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReliabilityConfig {
     /// provider 调用失败后的最大重试次数。默认值为 `3`。
@@ -28,18 +27,6 @@ pub struct ReliabilityConfig {
     /// 调度器重试次数。
     #[serde(default = "default_scheduler_retries")]
     pub scheduler_retries: u32,
-
-    /// 主 provider 失败时可使用的回退 provider 列表。
-    #[serde(default)]
-    pub fallback_providers: Vec<String>,
-
-    /// 回退 provider 对应的 API Key。
-    #[serde(default)]
-    pub fallback_api_keys: HashMap<String, String>,
-
-    /// 用于轮换或可靠性策略的通用 API Key 列表。
-    #[serde(default)]
-    pub api_keys: Vec<String>,
 }
 
 fn default_provider_retries() -> u32 {
@@ -70,9 +57,6 @@ impl Default for ReliabilityConfig {
             channel_max_backoff_secs: default_channel_max_backoff_secs(),
             scheduler_poll_secs: default_scheduler_poll_secs(),
             scheduler_retries: default_scheduler_retries(),
-            fallback_providers: Vec::new(),
-            fallback_api_keys: HashMap::new(),
-            api_keys: Vec::new(),
         }
     }
 }

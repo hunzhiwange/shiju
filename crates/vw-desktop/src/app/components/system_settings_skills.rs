@@ -3,13 +3,14 @@
 mod browser;
 mod catalog;
 mod help;
-mod plugins;
+pub(super) mod plugins;
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_help_button, settings_muted_text_style,
     settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
     settings_section_card, settings_segment_button_style, settings_text_input_style,
 };
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::SkillsSettingsTab;
 use crate::app::{App, Message, message};
 use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
@@ -55,13 +56,31 @@ fn settings_tab_button(
         .into()
 }
 
+const SKILLS_TAB_LABELS: &[(&str, SkillsSettingsTab)] = &[
+    ("技能", SkillsSettingsTab::Skills),
+    ("顺序", SkillsSettingsTab::DiscoveryOrder),
+    ("系统配置", SkillsSettingsTab::SystemConfig),
+];
+pub(super) const SKILLS_TABS: &[SettingsTabDescriptor<SkillsSettingsTab>] = &[
+    SettingsTabDescriptor::new(
+        SKILLS_TAB_LABELS[0].1,
+        SKILLS_TAB_LABELS[0].0,
+        &["skills", "open-skills", "catalog", "技能目录"],
+    ),
+    SettingsTabDescriptor::new(
+        SKILLS_TAB_LABELS[1].1,
+        SKILLS_TAB_LABELS[1].0,
+        &["discovery order", "发现顺序", "project", "ancestor", "global", "bundled"],
+    ),
+    SettingsTabDescriptor::new(
+        SKILLS_TAB_LABELS[2].1,
+        SKILLS_TAB_LABELS[2].0,
+        &["directory provider", "提示注入", "prompt injection", "技能目录路径"],
+    ),
+];
+
 pub(super) fn skills_tab_labels() -> &'static [(&'static str, SkillsSettingsTab)] {
-    &[
-        ("技能", SkillsSettingsTab::Skills),
-        ("顺序", SkillsSettingsTab::DiscoveryOrder),
-        ("插件", SkillsSettingsTab::Plugins),
-        ("系统配置", SkillsSettingsTab::SystemConfig),
-    ]
+    SKILLS_TAB_LABELS
 }
 
 fn system_config_view(app: &App) -> Element<'_, Message> {
@@ -156,7 +175,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let content = match s.active_tab {
         SkillsSettingsTab::Skills => browser::view(app),
         SkillsSettingsTab::DiscoveryOrder => browser::discovery_order_view(app),
-        SkillsSettingsTab::Plugins => plugins::view(app),
         SkillsSettingsTab::SystemConfig => system_config_view(app),
     };
 
@@ -164,7 +182,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         row![
             container(settings_page_intro(
                 "技能配置",
-                "技能、发现顺序、插件与系统配置分开展示；技能页只保留浏览和搜索。",
+                "技能、发现顺序与系统配置分开展示；技能页只保留浏览和搜索。",
             ))
             .width(Length::Fill),
             help_btn,

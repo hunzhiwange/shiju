@@ -55,8 +55,16 @@ pub trait SessionRunner: Send + Sync {
 }
 
 /// 默认实现：走 gateway/session processor。
-#[derive(Debug, Default, Clone, Copy)]
-pub struct GatewaySessionRunner;
+#[derive(Debug, Default, Clone)]
+pub struct GatewaySessionRunner {
+    tenant: vw_api_types::id::TenantScope,
+}
+
+impl GatewaySessionRunner {
+    pub fn new(tenant: vw_api_types::id::TenantScope) -> Self {
+        Self { tenant }
+    }
+}
 
 /// 构建规划/执行子会话的 processor options。
 ///
@@ -97,6 +105,11 @@ impl SessionRunner for GatewaySessionRunner {
         delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
     ) -> Result<String, String> {
         let options = gateway_session_options(&request);
+        let reliability =
+            crate::config::get_project_for_tenant(&self.tenant, Path::new(&request.root))
+            .await
+            .map_err(|error| error.to_string())?
+            .reliability;
 
         let processor_request = crate::app::agent::session::processor::Request {
             stream: crate::app::agent::session::session::now_ms(),
@@ -104,6 +117,7 @@ impl SessionRunner for GatewaySessionRunner {
             query: request.query,
             root: Some(request.root),
             model: request.model,
+            reliability,
             options: Value::Object(options),
             approval: None,
             channel_name: None,

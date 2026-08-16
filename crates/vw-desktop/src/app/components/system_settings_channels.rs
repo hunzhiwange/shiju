@@ -21,6 +21,7 @@ use crate::app::components::system_settings_common::{
     settings_checkbox_style, settings_divider, settings_muted_text_style, settings_page_intro,
     settings_panel, settings_section_card, settings_text_input_style,
 };
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::state::ChannelsSettingsTab;
 use crate::app::{App, Message};
@@ -30,6 +31,72 @@ use iced::{Alignment, Background, Border, Color, Element, Length};
 use self::common::{LABEL_WIDTH, enabled_channels, number_row};
 
 const CHANNEL_TAB_COLUMNS: usize = 5;
+
+pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSettingsTab>> {
+    let mut tabs = vec![
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::Global,
+            "全局",
+            &["CLI 通道", "项目目录", "workspace", "消息超时"],
+        ),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::Telegram,
+            "Telegram",
+            &["bot token", "allowed users"],
+        ),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::Discord,
+            "Discord",
+            &["bot token", "guild"],
+        ),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::Slack,
+            "Slack",
+            &["外部消息", "bot token", "app token"],
+        ),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::Mattermost,
+            "Mattermost",
+            &["server url", "token"],
+        ),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Webhook, "Webhook", &["webhook", "secret"]),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::IMessage,
+            "iMessage",
+            &["imessage", "联系人"],
+        ),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Matrix, "Matrix", &["homeserver", "room"]),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Signal, "Signal", &["signal cli"]),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::WhatsApp, "WhatsApp", &["whatsapp"]),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Linq, "Linq", &["linq"]),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Wati, "WATI", &["wati"]),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::NextcloudTalk,
+            "Nextcloud Talk",
+            &["nextcloud", "talk"],
+        ),
+    ];
+    #[cfg(not(target_arch = "wasm32"))]
+    tabs.push(SettingsTabDescriptor::new(
+        ChannelsSettingsTab::Email,
+        "Email",
+        &["email", "imap", "smtp"],
+    ));
+    tabs.extend([
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Irc, "IRC", &["irc"]),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Lark, "Lark", &["lark", "飞书"]),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Feishu, "Feishu", &["feishu", "飞书"]),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::DingTalk,
+            "DingTalk",
+            &["dingtalk", "钉钉"],
+        ),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Qq, "QQ", &["qq"]),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Nostr, "Nostr", &["nostr"]),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::ClawdTalk, "ClawdTalk", &["clawdtalk"]),
+    ]);
+    tabs
+}
 
 fn global_settings_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
@@ -83,10 +150,12 @@ fn global_settings_panel(app: &App) -> Element<'_, Message> {
 fn tab_button(
     tab: ChannelsSettingsTab,
     active_tab: ChannelsSettingsTab,
+    label: &'static str,
 ) -> Element<'static, Message> {
     let active = tab == active_tab;
+    debug_assert_eq!(label, tab.label());
 
-    button(text(tab.label()).size(12))
+    button(text(label).size(12))
         .padding([7, 12])
         .width(Length::Fill)
         .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(tab))))
@@ -137,39 +206,16 @@ fn tab_button(
 }
 
 fn channel_tabs(active_tab: ChannelsSettingsTab) -> Element<'static, Message> {
-    let mut tabs = vec![
-        ChannelsSettingsTab::Global,
-        ChannelsSettingsTab::Telegram,
-        ChannelsSettingsTab::Discord,
-        ChannelsSettingsTab::Slack,
-        ChannelsSettingsTab::Mattermost,
-        ChannelsSettingsTab::Webhook,
-        ChannelsSettingsTab::IMessage,
-        ChannelsSettingsTab::Matrix,
-        ChannelsSettingsTab::Signal,
-        ChannelsSettingsTab::WhatsApp,
-        ChannelsSettingsTab::Linq,
-        ChannelsSettingsTab::Wati,
-        ChannelsSettingsTab::NextcloudTalk,
-    ];
-    #[cfg(not(target_arch = "wasm32"))]
-    tabs.push(ChannelsSettingsTab::Email);
-    tabs.extend([
-        ChannelsSettingsTab::Irc,
-        ChannelsSettingsTab::Lark,
-        ChannelsSettingsTab::Feishu,
-        ChannelsSettingsTab::DingTalk,
-        ChannelsSettingsTab::Qq,
-        ChannelsSettingsTab::Nostr,
-        ChannelsSettingsTab::ClawdTalk,
-    ]);
+    let tabs = channel_tab_descriptors();
 
     let mut rows = column![].spacing(8).width(Length::Fill);
     for tabs_in_row in tabs.chunks(CHANNEL_TAB_COLUMNS) {
         let mut tab_row = row![].spacing(8).width(Length::Fill);
-        for tab in tabs_in_row {
-            tab_row =
-                tab_row.push(container(tab_button(*tab, active_tab)).width(Length::FillPortion(1)));
+        for descriptor in tabs_in_row {
+            tab_row = tab_row.push(
+                container(tab_button(descriptor.tab, active_tab, descriptor.label))
+                    .width(Length::FillPortion(1)),
+            );
         }
         for _ in tabs_in_row.len()..CHANNEL_TAB_COLUMNS {
             tab_row = tab_row.push(container(text("")).width(Length::FillPortion(1)));

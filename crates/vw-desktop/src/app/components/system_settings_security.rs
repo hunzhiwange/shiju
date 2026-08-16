@@ -23,6 +23,7 @@ use crate::app::components::system_settings_common::{
     settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
     settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{SecurityListKind, SecuritySettingsTab};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -32,6 +33,31 @@ use iced::widget::{
 use iced::{Alignment, Element, Length, Padding};
 
 const LIST_EDITOR_MAX_HEIGHT: f32 = 176.0;
+
+pub(super) const SECURITY_TABS: &[SettingsTabDescriptor<SecuritySettingsTab>] = &[
+    SettingsTabDescriptor::new(SecuritySettingsTab::Bash, "Bash", &["bash", "命令安全", "policy"]),
+    SettingsTabDescriptor::new(
+        SecuritySettingsTab::SandboxAndResources,
+        "沙箱与资源",
+        &["sandbox", "沙箱后端", "资源限制", "内存", "CPU", "子进程"],
+    ),
+    SettingsTabDescriptor::new(SecuritySettingsTab::Audit, "审计", &["audit", "审计日志", "签名"]),
+    SettingsTabDescriptor::new(
+        SecuritySettingsTab::OtpAndEstop,
+        "OTP 与急停",
+        &["OTP", "紧急停止", "E-Stop", "一次性密码"],
+    ),
+    SettingsTabDescriptor::new(
+        SecuritySettingsTab::Syscall,
+        "系统调用",
+        &["syscall", "异常检测", "基线系统调用"],
+    ),
+    SettingsTabDescriptor::new(
+        SecuritySettingsTab::Guard,
+        "防护",
+        &["Canary Token", "语义注入防护", "semantic guard"],
+    ),
+];
 
 #[derive(Clone, PartialEq)]
 struct LabeledOption {
@@ -127,9 +153,7 @@ fn list_editor<'a>(
                         message::SettingsMessage::SecurityListRemoveRequested(kind, index),
                     ))
                     .padding([6, 10])
-                    .style(|theme, status| {
-                        settings_segment_button_style(theme, status, false)
-                    }),
+                    .style(|theme, status| { settings_segment_button_style(theme, status, false) }),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
@@ -158,11 +182,7 @@ fn list_editor<'a>(
                 .align_y(Alignment::Center),
             );
         }
-        item_rows = item_rows.push(
-            container(item_content)
-            .padding([6, 8])
-            .width(Length::Fill),
-        );
+        item_rows = item_rows.push(container(item_content).padding([6, 8]).width(Length::Fill));
     }
 
     let item_list = container(
@@ -797,8 +817,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         "例如 openat",
         &s.syscall_anomaly_baseline_syscalls,
         s.list_editor.draft(SecurityListKind::SyscallAnomalyBaselineSyscalls),
-        s.list_editor
-            .pending_remove_index(SecurityListKind::SyscallAnomalyBaselineSyscalls),
+        s.list_editor.pending_remove_index(SecurityListKind::SyscallAnomalyBaselineSyscalls),
     );
 
     let canary_row = bool_row(
@@ -844,52 +863,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
         sandbox_rows = sandbox_rows.push(settings_divider()).push(firejail_args_row);
     }
 
-    let tabs = row![
-        tab_button(
-            "Bash",
-            s.active_tab == SecuritySettingsTab::Bash,
-            Message::Settings(message::SettingsMessage::SecurityTabSelected(
-                SecuritySettingsTab::Bash,
-            )),
-        ),
-        tab_button(
-            "沙箱与资源",
-            s.active_tab == SecuritySettingsTab::SandboxAndResources,
-            Message::Settings(message::SettingsMessage::SecurityTabSelected(
-                SecuritySettingsTab::SandboxAndResources,
-            )),
-        ),
-        tab_button(
-            "审计",
-            s.active_tab == SecuritySettingsTab::Audit,
-            Message::Settings(message::SettingsMessage::SecurityTabSelected(
-                SecuritySettingsTab::Audit,
-            )),
-        ),
-        tab_button(
-            "OTP 与急停",
-            s.active_tab == SecuritySettingsTab::OtpAndEstop,
-            Message::Settings(message::SettingsMessage::SecurityTabSelected(
-                SecuritySettingsTab::OtpAndEstop,
-            )),
-        ),
-        tab_button(
-            "系统调用",
-            s.active_tab == SecuritySettingsTab::Syscall,
-            Message::Settings(message::SettingsMessage::SecurityTabSelected(
-                SecuritySettingsTab::Syscall,
-            )),
-        ),
-        tab_button(
-            "防护",
-            s.active_tab == SecuritySettingsTab::Guard,
-            Message::Settings(message::SettingsMessage::SecurityTabSelected(
-                SecuritySettingsTab::Guard,
-            )),
-        ),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let tabs = SECURITY_TABS.iter().fold(
+        row![].spacing(8).align_y(Alignment::Center),
+        |row, descriptor| {
+            row.push(tab_button(
+                descriptor.label,
+                s.active_tab == descriptor.tab,
+                Message::Settings(message::SettingsMessage::SecurityTabSelected(descriptor.tab)),
+            ))
+        },
+    );
 
     let content: Element<'_, Message> = match s.active_tab {
         SecuritySettingsTab::Bash => column![

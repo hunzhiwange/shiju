@@ -1,4 +1,4 @@
-//! Plugin management page for the skills settings surface.
+//! Plugin management page for the agent settings surface.
 
 use super::browser::{
     DetailActionStyle, catalog_panel_style, detail_action_button, empty_state, header_panel_style,
@@ -242,7 +242,7 @@ pub(super) fn plugin_detail_panel(
     .into()
 }
 
-pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
+pub(in crate::app::components) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let s = &app.skills_settings;
     let plugins = s
         .plugin_catalog

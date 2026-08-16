@@ -20,8 +20,6 @@ fn full_config() -> Config {
     config.config_path = "/tmp/current/vibewindow.json".into();
     config.workspace_dir = "/tmp/current/workspace".into();
     config.api_key = secret("api-key");
-    config.reliability.api_keys =
-        vec!["reliability-a".to_string(), String::new(), "reliability-c".to_string()];
     config.gateway.paired_tokens =
         vec!["paired-a".to_string(), String::new(), "paired-c".to_string()];
     config.proxy.http_proxy = secret("http://user:pass@proxy.local:8080");
@@ -210,9 +208,6 @@ fn full_config() -> Config {
 
 fn assert_all_config_secrets_masked(config: &Config) {
     assert_eq!(config.api_key.as_deref(), Some(MASKED_SECRET));
-    assert_eq!(config.reliability.api_keys[0], MASKED_SECRET);
-    assert_eq!(config.reliability.api_keys[1], "");
-    assert_eq!(config.reliability.api_keys[2], MASKED_SECRET);
     assert_eq!(
         config.gateway.paired_tokens,
         vec![MASKED_SECRET.to_string(), String::new(), MASKED_SECRET.to_string()]
@@ -407,8 +402,6 @@ fn hydrate_config_for_save_restores_masked_fields_and_preserves_user_changes() {
     incoming.config_path = "/tmp/incoming/ignored.json".into();
     incoming.workspace_dir = "/tmp/incoming/ignored".into();
     incoming.default_model = Some("new-model".into());
-    incoming.reliability.api_keys =
-        vec![MASKED_SECRET.to_string(), "new-reliability".into(), MASKED_SECRET.to_string()];
     incoming.web_fetch.api_key = secret("new-web-fetch");
     incoming.agents.insert(
         "new-agent".into(),
@@ -442,14 +435,6 @@ fn hydrate_config_for_save_restores_masked_fields_and_preserves_user_changes() {
     assert_eq!(restored.config_path, current.config_path);
     assert_eq!(restored.workspace_dir, current.workspace_dir);
     assert_eq!(restored.default_model.as_deref(), Some("new-model"));
-    assert_eq!(
-        restored.reliability.api_keys,
-        vec![
-            "reliability-a".to_string(),
-            "new-reliability".to_string(),
-            "reliability-c".to_string()
-        ]
-    );
     assert_eq!(restored.web_fetch.api_key.as_deref(), Some("new-web-fetch"));
     assert_eq!(
         restored.agents.get("coder").and_then(|value| value.api_key.as_deref()),
@@ -509,60 +494,4 @@ fn restore_masked_sensitive_fields_leaves_missing_current_sections_masked() {
         incoming.channels_config.clawdtalk.as_ref().map(|value| value.api_key.as_str()),
         Some(MASKED_SECRET)
     );
-}
-
-#[test]
-fn normalize_dashboard_config_toml_converts_single_string_api_key_to_array() {
-    let mut root: toml::Value = toml::toml! {
-        [reliability]
-        api_keys = "single-key"
-    }
-    .into();
-
-    normalize_dashboard_config_toml(&mut root);
-
-    let keys = root
-        .get("reliability")
-        .and_then(|value| value.get("api_keys"))
-        .and_then(toml::Value::as_array)
-        .expect("api_keys should be an array");
-    assert_eq!(keys[0].as_str(), Some("single-key"));
-}
-
-#[test]
-fn normalize_dashboard_config_toml_keeps_non_string_and_missing_shapes_unchanged() {
-    let mut scalar = toml::Value::String("root".into());
-    normalize_dashboard_config_toml(&mut scalar);
-    assert_eq!(scalar.as_str(), Some("root"));
-
-    let mut without_reliability: toml::Value = toml::toml! {
-        [provider]
-        name = "openrouter"
-    }
-    .into();
-    normalize_dashboard_config_toml(&mut without_reliability);
-    assert!(without_reliability.get("reliability").is_none());
-
-    let mut without_api_keys: toml::Value = toml::toml! {
-        [reliability]
-        attempts = 2
-    }
-    .into();
-    normalize_dashboard_config_toml(&mut without_api_keys);
-    assert!(without_api_keys["reliability"].get("api_keys").is_none());
-
-    let mut array: toml::Value = toml::toml! {
-        [reliability]
-        api_keys = ["a", "b"]
-    }
-    .into();
-    normalize_dashboard_config_toml(&mut array);
-    assert_eq!(array["reliability"]["api_keys"].as_array().map(Vec::len), Some(2));
-
-    let mut non_table_reliability: toml::Value = toml::toml! {
-        reliability = "not-table"
-    }
-    .into();
-    normalize_dashboard_config_toml(&mut non_table_reliability);
-    assert_eq!(non_table_reliability["reliability"].as_str(), Some("not-table"));
 }

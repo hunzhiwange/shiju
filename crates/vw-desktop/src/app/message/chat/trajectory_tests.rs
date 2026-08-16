@@ -65,6 +65,24 @@ fn trajectory_raw_cache_keys_include_turn_id() {
     );
 }
 
+#[test]
+fn trajectory_raw_refresh_normalizes_blank_turn_id() {
+    let (mut app, _) = App::new();
+    app.active_session_id = Some("active-session".to_string());
+    app.active_session_view_state.steps = vec![completed_step_for_turn(12, "  \t")];
+    let legacy_key = (
+        "active-session".to_string(),
+        "legacy-step-12".to_string(),
+        12,
+    );
+
+    let task = super::trajectory::refresh_missing_raw_task(&mut app, "active-session", None);
+
+    assert!(task.units() > 0);
+    assert!(app.trajectory_raw_loading.contains(&legacy_key));
+    assert_eq!(app.trajectory_raw_attempts.get(&legacy_key), Some(&1));
+}
+
 mod trajectory_raw {
     use super::*;
 

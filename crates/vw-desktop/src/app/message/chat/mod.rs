@@ -802,8 +802,10 @@ pub enum ChatMessage {
     ///
     /// 聊天消息列表的滚动位置发生改变
     ScrollChanged {
-        /// 垂直偏移量
+        /// 垂直相对偏移量
         offset_y: f32,
+        /// 垂直绝对偏移量（像素）
+        absolute_offset_y: f32,
         /// 视口高度
         viewport_h: f32,
     },

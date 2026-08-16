@@ -68,7 +68,6 @@ fn mask_required_secret(value: &mut String) {
 /// 掩码字符串数组中的敏感字段
 ///
 /// 遍历数组中的所有字符串，将非空字符串替换为 `MASKED_SECRET`。
-/// 主要用于处理如 `reliability.api_keys` 这样的多值字段。
 ///
 /// # 参数
 ///
@@ -189,7 +188,6 @@ pub fn mask_sensitive_fields(config: &Config) -> Config {
 
     // 掩码全局配置中的敏感字段
     mask_optional_secret(&mut masked.api_key);
-    mask_vec_secrets(&mut masked.reliability.api_keys);
     mask_vec_secrets(&mut masked.gateway.paired_tokens);
 
     // 掩码代理配置
@@ -349,7 +347,6 @@ pub fn mask_sensitive_fields(config: &Config) -> Config {
 fn restore_masked_sensitive_fields(incoming: &mut Config, current: &Config) {
     // 恢复全局配置中的敏感字段
     restore_optional_secret(&mut incoming.api_key, &current.api_key);
-    restore_vec_secrets(&mut incoming.reliability.api_keys, &current.reliability.api_keys);
     restore_vec_secrets(&mut incoming.gateway.paired_tokens, &current.gateway.paired_tokens);
 
     // 恢复代理配置
@@ -593,59 +590,6 @@ pub fn hydrate_config_for_save(mut incoming: Config, current: &Config) -> Config
     incoming.workspace_dir = current.workspace_dir.clone();
 
     incoming
-}
-
-/// 规范化 Dashboard 发送的 TOML 配置
-///
-/// Dashboard 可能以非标准格式发送某些配置字段。
-/// 此函数处理这些特殊情况，确保配置格式正确。
-///
-/// 当前处理的特殊情况：
-/// - `reliability.api_keys`：可以是字符串或数组，统一转换为数组格式
-///
-/// # 参数
-///
-/// - `root`: TOML 值的可变引用，指向配置树的根节点
-///
-/// # 处理逻辑
-///
-/// 如果 `reliability.api_keys` 是单个字符串，将其转换为包含该字符串的数组。
-/// 这样可以支持用户输入单个 API 密钥或多个密钥列表。
-///
-/// # 示例
-///
-/// 输入 TOML:
-/// ```toml
-/// [reliability]
-/// api_keys = "single_key"
-/// ```
-///
-/// 规范化后:
-/// ```toml
-/// [reliability]
-/// api_keys = ["single_key"]
-/// ```
-pub fn normalize_dashboard_config_toml(root: &mut toml::Value) {
-    // 获取根表，如果不是表则直接返回
-    let Some(root_table) = root.as_table_mut() else {
-        return;
-    };
-
-    // 获取 reliability 表，如果不存在则直接返回
-    let Some(reliability) = root_table.get_mut("reliability").and_then(toml::Value::as_table_mut)
-    else {
-        return;
-    };
-
-    // 获取 api_keys 字段，如果不存在则直接返回
-    let Some(api_keys) = reliability.get_mut("api_keys") else {
-        return;
-    };
-
-    // 如果 api_keys 是单个字符串，转换为数组格式
-    if let Some(single) = api_keys.as_str() {
-        *api_keys = toml::Value::Array(vec![toml::Value::String(single.to_string())]);
-    }
 }
 
 #[cfg(test)]

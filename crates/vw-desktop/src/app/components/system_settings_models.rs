@@ -32,11 +32,44 @@ use crate::app::components::system_settings_common::{
     settings_panel_style, settings_section_card, settings_segment_button_style,
     settings_text_input_style, settings_value_badge,
 };
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{ModelConfigTabMessage, SettingsMessage};
 use crate::app::state::ModelConfigTab;
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, scrollable, text, text_input, toggler};
 use iced::{Alignment, Element, Length, Theme};
+
+pub(super) const MODEL_TABS: &[SettingsTabDescriptor<ModelConfigTab>] = &[
+    SettingsTabDescriptor::new(
+        ModelConfigTab::Models,
+        "模型",
+        &["搜索模型", "模型详情", "提供商", "模型 id", "上下文窗口", "最大输出", "温度"],
+    ),
+    SettingsTabDescriptor::new(
+        ModelConfigTab::ModelRoutes,
+        "模型路由",
+        &["routing", "匹配模式", "pattern", "priority", "优先级"],
+    ),
+    SettingsTabDescriptor::new(
+        ModelConfigTab::QueryClassification,
+        "模型分类",
+        &["classification", "rules", "查询分类", "规则"],
+    ),
+    SettingsTabDescriptor::new(
+        ModelConfigTab::Multimodal,
+        "多模态",
+        &[
+            "multimodal",
+            "image",
+            "vision",
+            "图片模型",
+            "OCR",
+            "文字提取",
+            "远程抓取",
+            "remote fetch",
+        ],
+    ),
+];
 
 /// 渲染模型配置页及其内部标签。
 pub fn view(app: &App) -> Element<'_, Message> {
@@ -53,14 +86,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
             })
     };
 
-    let tabs = row![
-        tab_button(ModelConfigTab::Models, "模型"),
-        tab_button(ModelConfigTab::ModelRoutes, "模型路由"),
-        tab_button(ModelConfigTab::QueryClassification, "模型分类"),
-        tab_button(ModelConfigTab::Multimodal, "多模态"),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let tabs =
+        MODEL_TABS.iter().fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
+            row.push(tab_button(descriptor.tab, descriptor.label))
+        });
     let content = match active_tab {
         ModelConfigTab::Models => main_view(app),
         ModelConfigTab::ModelRoutes => {
@@ -69,9 +98,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ModelConfigTab::QueryClassification => {
             crate::app::components::system_settings_query_classification::view(app)
         }
-        ModelConfigTab::Multimodal => {
-            crate::app::components::system_settings_multimodal::view(app)
-        }
+        ModelConfigTab::Multimodal => crate::app::components::system_settings_multimodal::view(app),
     };
 
     column![tabs, content].spacing(16).width(Length::Fill).into()

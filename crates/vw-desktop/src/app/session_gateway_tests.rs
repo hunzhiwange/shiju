@@ -202,6 +202,39 @@ fn gateway_save_session_result_preserves_original_gateway_error() {
 }
 
 #[test]
+fn desktop_ui_snapshot_omits_runtime_trajectory() {
+    let session = vw_shared::session::ui_types::ChatSession {
+        id: "session-1".to_string(),
+        title: "Session".to_string(),
+        messages: Vec::new(),
+        message_ids: Vec::new(),
+        calls: vec![serde_json::json!({"tool": "shell"})],
+        steps: vec![vw_shared::session::ui_types::ChatSessionStep {
+            index: 1,
+            turn_id: Some("turn-1".to_string()),
+            started_ms: 1,
+            finished_ms: Some(2),
+            start_snapshot_path: None,
+            finish_snapshot_path: None,
+            usage: vw_shared::session::ui_types::TokenUsage::default(),
+            cost_usd: None,
+            finish_reason: Some("stop".to_string()),
+            model: Some("provider/model".to_string()),
+            tool_timings: Vec::new(),
+        }],
+        created_ms: 1,
+        updated_ms: 2,
+    };
+
+    let snapshot = super::session_ui_content_snapshot(&session);
+
+    assert!(snapshot.calls.is_empty());
+    assert!(snapshot.steps.is_empty());
+    assert_eq!(snapshot.id, session.id);
+    assert_eq!(snapshot.updated_ms, session.updated_ms);
+}
+
+#[test]
 fn permanent_session_save_error_only_classifies_payload_too_large() {
     assert!(super::is_permanent_session_save_error(
         "gateway request failed: 413 Payload Too Large"

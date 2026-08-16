@@ -4,6 +4,7 @@ use super::view_cache::{
 };
 use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole};
+use crate::app::state::ChatPanelMode;
 
 fn snapshot_with_message(content: String) -> SessionViewSnapshot {
     let (mut app, _task) = App::new();
@@ -24,6 +25,18 @@ fn session_view_cache_moves_snapshot_without_reallocating_chat() {
     let snapshot = snapshot_with_message(content);
 
     assert_eq!(snapshot.chat()[0].content.as_ptr(), expected_pointer);
+}
+
+#[test]
+fn session_view_snapshot_keeps_chat_panel_mode_independent() {
+    let (mut app, _task) = App::new();
+    app.chat_panel_mode = ChatPanelMode::Trajectory;
+
+    let snapshot = SessionViewSnapshot::take_from(&mut app);
+
+    assert_eq!(app.chat_panel_mode, ChatPanelMode::Conversation);
+    snapshot.restore_into(&mut app);
+    assert_eq!(app.chat_panel_mode, ChatPanelMode::Trajectory);
 }
 
 #[test]

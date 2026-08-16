@@ -338,6 +338,33 @@ impl SessionStore {
         }
     }
 
+    /// 保存 UI 可编辑的会话字段，保留由会话运行时独立持久化的调用与步骤。
+    pub fn save_session_ui_content(
+        &self,
+        scope: &ProjectScope,
+        session: &ChatSession,
+    ) -> Result<()> {
+        validate_id("session id", &session.id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    let call_count = existing_session_call_count(
+                        transaction,
+                        scope,
+                        &session.id,
+                        session.calls.len(),
+                    )?;
+                    upsert_session_header(transaction, scope, session, call_count)?;
+                    replace_session_messages(transaction, scope, session)?;
+                    Ok(())
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.save_session_ui_content(scope, session))
+            }
+        }
+    }
+
     /// 原子提交 UI 会话快照与本次已完成步骤对应的 LLM raw 工件。
     pub fn commit_session_ui_snapshot(
         &self,

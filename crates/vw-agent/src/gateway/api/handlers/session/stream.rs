@@ -5,6 +5,7 @@
 //! session 可理解的文本，以及在流结束后补写桌面会话消息。
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use axum::Json;
@@ -875,6 +876,10 @@ async fn start_gateway_chat_producer(
     let resume_history_only =
         options.get("desktop_resume_history_only").and_then(Value::as_bool).unwrap_or(false);
     let approval_manager = approval_state::approval_manager_for_current_instance().await;
+    let reliability = crate::config::get_project_for_tenant(&tenant, Path::new(&dir))
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?
+        .reliability;
 
     let history_messages = messages;
     let root_dir = dir;
@@ -943,6 +948,7 @@ async fn start_gateway_chat_producer(
                 query: query.clone(),
                 root: Some(root_dir.clone()),
                 model: model.clone(),
+                reliability: reliability.clone(),
                 options: options.clone(),
                 approval: Some(approval_manager.clone()),
                 channel_name: Some("desktop".to_string()),
@@ -1042,6 +1048,7 @@ async fn start_gateway_chat_producer(
                                         &tenant,
                                         app_session_scope.as_deref(),
                                         &stream_session_id,
+                                        &root_dir,
                                         &query,
                                         &assistant_text,
                                         assistant_model.as_deref(),
@@ -1623,6 +1630,7 @@ fn commit_stream_session_trajectory(
     tenant: &TenantScope,
     scope: Option<&str>,
     session_id: &str,
+    directory: &str,
     query: &str,
     assistant_text: &str,
     model: Option<&str>,
@@ -1703,6 +1711,16 @@ fn commit_stream_session_trajectory(
     }
     session.updated_ms = session.updated_ms.max(completed_ms);
 
+    ensure_stream_agent_session(
+        tenant,
+        scope,
+        session_id,
+        directory,
+        &session.title,
+        session.created_ms,
+        session.updated_ms,
+    )?;
+
     if claims.is_empty() {
         crate::session::ui_store::save_session_ui_scoped_for_tenant(
             tenant,
@@ -1720,6 +1738,58 @@ fn commit_stream_session_trajectory(
         )?;
     }
     raw_commit::acknowledge(&claims);
+    Ok(())
+}
+
+fn ensure_stream_agent_session(
+    tenant: &TenantScope,
+    scope: Option<&str>,
+    session_id: &str,
+    directory: &str,
+    title: &str,
+    created_ms: u64,
+    updated_ms: u64,
+) -> anyhow::Result<()> {
+    let project_id = scope
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| anyhow::anyhow!("stream session is missing project scope"))?;
+    let existing = crate::session::ui_store::load_agent_session_scoped_for_tenant(
+        tenant,
+        session_id,
+        Some(project_id),
+    );
+    let info = if let Some(mut info) = existing {
+        info.time.created = info.time.created.min(created_ms);
+        info.time.updated = info.time.updated.max(updated_ms);
+        info
+    } else {
+        agent_session::session::Info {
+            id: session_id.to_string(),
+            slug: agent_session::session::create_slug(),
+            project_id: project_id.to_string(),
+            directory: directory.to_string(),
+            parent_id: None,
+            summary: None,
+            share: None,
+            title: title.to_string(),
+            version: crate::app::agent::installation::version(),
+            time: agent_session::session::TimeInfo {
+                created: created_ms,
+                updated: updated_ms,
+                compacting: None,
+                archived: None,
+            },
+            permission: None,
+            revert: None,
+        }
+    };
+    crate::session::ui_store::save_agent_session_scoped_for_tenant(
+        tenant,
+        &info,
+        Some(project_id),
+    )
+    .ok_or_else(|| anyhow::anyhow!("failed to persist stream session metadata"))?;
     Ok(())
 }
 

@@ -109,23 +109,31 @@ async fn llm_raw_endpoint_distinguishes_turns_with_same_step_index() {
         tool_timings: Vec::new(),
     })
     .collect();
-    for (turn_id, output) in [("turn-a", "first"), ("turn-b", "second")] {
-        super::super::raw_commit::register(
-            &tenant,
-            Some(&scope),
-            pending_raw_artifact_with_output(session_id, turn_id, 1, output),
-        )
-        .expect("raw artifact should register");
-    }
-    let Json(saved) = session_ui_save(
-        Path(session_id.to_string()),
-        Query(query_for(project_path)),
-        HeaderMap::new(),
-        Json(body),
+    let raw_artifacts = [("turn-a", "first"), ("turn-b", "second")]
+        .into_iter()
+        .map(|(turn_id, output)| {
+            pending_raw_artifact_with_output(session_id, turn_id, 1, output)
+        })
+        .collect::<Vec<_>>();
+    let expected_steps = body
+        .steps
+        .iter()
+        .map(|step| {
+            crate::session::store::LlmRawStepKey::new(
+                step.turn_id.clone().expect("turn id"),
+                step.index,
+            )
+            .expect("valid raw step key")
+        })
+        .collect::<Vec<_>>();
+    ui_store::commit_session_ui_snapshot_scoped_for_tenant(
+        &tenant,
+        &body,
+        Some(&scope),
+        &raw_artifacts,
+        &expected_steps,
     )
-    .await
-    .expect("session and raw artifacts should commit");
-    assert!(saved);
+    .expect("runtime trajectory should commit");
 
     let Json(first) = session_step_llm_raw_get(
         Path((session_id.to_string(), "turn-a".to_string(), 1)),
@@ -183,6 +191,19 @@ fn scoped_session(id: &str, title: &str, content: &str, updated_ms: u64) -> ui_m
     }
 }
 
+fn save_runtime_session(project_path: &FsPath, session: &ui_models::ChatSession) -> String {
+    let tenant = ui_store::current_tenant_scope();
+    let scope = ui_store::resolve_session_scope_id_for_tenant(
+        &tenant,
+        Some(&project_path.to_string_lossy()),
+        None,
+    )
+    .expect("project directory should resolve to a scope");
+    ui_store::save_session_scoped_for_tenant(&tenant, session, Some(&scope))
+        .expect("runtime session should save");
+    scope
+}
+
 fn agent_session(id: &str, project_id: &str, title: &str, updated: u64) -> AgentSessionInfo {
     AgentSessionInfo {
         id: id.to_string(),
@@ -235,7 +256,12 @@ async fn session_step_llm_raw_get_returns_requested_step_and_null_for_missing() 
 
     let project = TempDir::new().expect("project dir");
     let project_path = project.path();
-    let body = scoped_session("single-step-raw", "Single step", "hello", 20);
+    let mut body = scoped_session("single-step-raw", "Single step", "hello", 20);
+    body.steps[0].index = 7;
+    let mut step_eight = body.steps[0].clone();
+    step_eight.index = 8;
+    body.steps.push(step_eight);
+    save_runtime_session(project_path, &body);
     let Json(saved) = session_ui_save(
         Path(body.id.clone()),
         Query(query_for(project_path)),
@@ -268,6 +294,20 @@ async fn session_step_llm_raw_get_returns_requested_step_and_null_for_missing() 
     )
     .await
     .expect("requested raw payload should load");
+    let Json(found_with_blank_turn) = session_step_llm_raw_get(
+        Path((body.id.clone(), "  ".to_string(), 7)),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("blank turn id should use legacy lookup");
+    let Json(found_with_legacy_cache_key) = session_step_llm_raw_get(
+        Path((body.id.clone(), "legacy-step-7".to_string(), 7)),
+        Query(query_for(project_path)),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("legacy cache key should use legacy lookup");
     let Json(missing) = session_step_llm_raw_get(
         Path((body.id, "legacy".to_string(), 9)),
         Query(query_for(project_path)),
@@ -277,6 +317,8 @@ async fn session_step_llm_raw_get_returns_requested_step_and_null_for_missing() 
     .expect("missing raw payload should return null");
 
     assert_eq!(found, Some(serde_json::json!({"step": 7})));
+    assert_eq!(found_with_blank_turn, found);
+    assert_eq!(found_with_legacy_cache_key, found);
     assert_eq!(missing, None);
 }
 
@@ -290,7 +332,9 @@ async fn session_step_llm_raw_get_isolates_project_scope() {
     let project_b = TempDir::new().expect("project B dir");
     let session_id = "scope-isolated-raw";
     for (project, value) in [(&project_a, "project-a"), (&project_b, "project-b")] {
-        let body = scoped_session(session_id, value, value, 20);
+        let mut body = scoped_session(session_id, value, value, 20);
+        body.steps[0].index = 3;
+        save_runtime_session(project.path(), &body);
         let Json(saved) = session_ui_save(
             Path(body.id.clone()),
             Query(query_for(project.path())),
@@ -346,7 +390,9 @@ async fn session_step_llm_raw_get_isolates_tenants() {
 
     for (tenant, value) in [(tenant_a.clone(), "tenant-a"), (tenant_b.clone(), "tenant-b")] {
         ui_store::with_tenant_scope(tenant.clone(), async {
-            let body = scoped_session(session_id, value, value, 20);
+            let mut body = scoped_session(session_id, value, value, 20);
+            body.steps[0].index = 4;
+            save_runtime_session(project.path(), &body);
             let Json(saved) = session_ui_save(
                 Path(body.id.clone()),
                 Query(query_for(project.path())),
@@ -411,7 +457,9 @@ async fn session_step_llm_raw_get_maps_storage_error_to_internal_error() {
     let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
         .expect("project directory should resolve to a scope");
     let session_id = format!("invalid-single-step-raw-{}", std::process::id());
-    let body = scoped_session(&session_id, "Invalid JSON", "hello", 20);
+    let mut body = scoped_session(&session_id, "Invalid JSON", "hello", 20);
+    body.steps[0].index = 7;
+    save_runtime_session(project_path, &body);
     let Json(saved) = session_ui_save(
         Path(session_id.clone()),
         Query(query_for(project_path)),
@@ -516,7 +564,7 @@ async fn session_ui_save_propagates_session_store_failure() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn session_ui_save_commits_pending_raw_atomically() {
+async fn session_ui_save_leaves_pending_raw_for_runtime_commit() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
     ui_store::set_session_scope(None);
@@ -547,7 +595,11 @@ async fn session_ui_save_commits_pending_raw_atomically() {
     assert!(saved);
     let raw = ui_store::load_llm_raw_step_scoped(&session_id, 0, Some(&scope))
         .expect("raw read should succeed");
-    assert_eq!(raw.expect("raw must commit with snapshot")["output"]["text"], "answer");
+    assert!(raw.is_none(), "UI content save must not commit runtime raw data");
+    let stored = ui_store::load_session_scoped(&session_id, Some(&scope))
+        .expect("UI content should create the session");
+    assert!(stored.calls.is_empty(), "UI content save must not persist calls");
+    assert!(stored.steps.is_empty(), "UI content save must not persist steps");
     let claims = super::super::raw_commit::claim(
         &ui_store::current_tenant_scope(),
         Some(&scope),
@@ -555,7 +607,8 @@ async fn session_ui_save_commits_pending_raw_atomically() {
         &[(turn_id.to_string(), 0)],
     )
     .expect("claim should succeed");
-    assert!(claims.is_empty());
+    assert_eq!(claims.raw_artifacts().len(), 1);
+    super::super::raw_commit::acknowledge(&claims);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -656,27 +709,33 @@ async fn simple_answer_and_tool_rounds_commit_without_raw_duplication() {
             &raw_rounds,
         )
         .expect("valid raw artifact");
-        for round in artifact.rounds {
-            super::super::raw_commit::register(
-                &tenant,
-                Some(&scope),
-                crate::session::llm_raw::LlmRawArtifact {
-                    context: artifact.context.clone(),
-                    rounds: vec![round],
-                },
-            )
-            .expect("raw artifact round should register");
-        }
-
-        let Json(saved) = session_ui_save(
-            Path(session_id.to_string()),
-            Query(query_for(project_path)),
-            HeaderMap::new(),
-            Json(body.clone()),
+        let raw_artifacts = artifact
+            .rounds
+            .into_iter()
+            .map(|round| crate::session::llm_raw::LlmRawArtifact {
+                context: artifact.context.clone(),
+                rounds: vec![round],
+            })
+            .collect::<Vec<_>>();
+        let expected_steps = body
+            .steps
+            .iter()
+            .map(|step| {
+                crate::session::store::LlmRawStepKey::new(
+                    step.turn_id.clone().expect("turn id"),
+                    step.index,
+                )
+                .expect("valid raw step key")
+            })
+            .collect::<Vec<_>>();
+        ui_store::commit_session_ui_snapshot_scoped_for_tenant(
+            &tenant,
+            &body,
+            Some(&scope),
+            &raw_artifacts,
+            &expected_steps,
         )
-        .await
-        .expect("session and raw artifact should commit atomically");
-        assert!(saved);
+        .expect("runtime trajectory should commit atomically");
 
         let connection = Connection::open(
             ui_store::session_file_path(session_id).expect("session database path"),
@@ -735,6 +794,8 @@ async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
     let project_b_path = project_b.path();
     let body_a = scoped_session("ui-round-trip", "Project A", "project-a", 20);
     let body_b = scoped_session("ui-round-trip", "Project B", "project-b", 30);
+    save_runtime_session(project_a_path, &body_a);
+    save_runtime_session(project_b_path, &body_b);
 
     let Json(saved_a) = session_ui_save(
         Path(body_a.id.clone()),
@@ -899,7 +960,7 @@ async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn empty_calls_in_ui_snapshot_preserve_existing_raw_call_records() {
+async fn ui_content_save_preserves_runtime_calls_and_steps() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
     ui_store::set_session_scope(None);
@@ -908,6 +969,8 @@ async fn empty_calls_in_ui_snapshot_preserve_existing_raw_call_records() {
     let project_path = project.path();
     let initial = scoped_session("preserve-calls", "Session", "initial", 20);
     let expected_calls = initial.calls.clone();
+    let expected_steps = initial.steps.clone();
+    save_runtime_session(project_path, &initial);
     let Json(initial_saved) = session_ui_save(
         Path(initial.id.clone()),
         Query(query_for(project_path)),
@@ -921,6 +984,7 @@ async fn empty_calls_in_ui_snapshot_preserve_existing_raw_call_records() {
     let mut snapshot = initial;
     snapshot.messages[0].content = "updated".to_string();
     snapshot.calls.clear();
+    snapshot.steps.clear();
     let Json(snapshot_saved) = session_ui_save(
         Path(snapshot.id.clone()),
         Query(query_for(project_path)),
@@ -938,7 +1002,16 @@ async fn empty_calls_in_ui_snapshot_preserve_existing_raw_call_records() {
     )
     .await
     .expect("saved session should load");
-    assert_eq!(loaded.expect("saved session").calls, expected_calls);
+    let loaded = loaded.expect("saved session");
+    assert_eq!(loaded.calls, expected_calls);
+    assert_eq!(
+        serde_json::to_value(
+            loaded.steps.into_iter().map(|step| step.step).collect::<Vec<_>>()
+        )
+        .expect("serialize loaded steps"),
+        serde_json::to_value(expected_steps).expect("serialize expected steps")
+    );
+    assert_eq!(loaded.messages[0].content, "updated");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -1079,15 +1152,16 @@ async fn session_ui_get_maps_invalid_json_llm_raw_to_internal_error() {
     let scope = ui_store::resolve_session_scope_id(Some(&project_path.to_string_lossy()), None)
         .expect("project directory should resolve to a scope");
     let session_id = format!("invalid-raw-session-{}", std::process::id());
-    let _ = ui_store::persist_llm_raw_step(
+    let mut session = session(&session_id, "Invalid JSON");
+    session.steps[0].index = 7;
+    save_runtime_session(project_path, &session);
+    ui_store::persist_llm_raw_step(
         &session_id,
         7,
         &serde_json::json!({"valid": true}),
         Some(&scope),
     )
     .expect("raw payload should persist before injection");
-    let mut session = session("invalid-json-session", "Invalid JSON");
-    session.steps[0].index = 7;
     let Json(saved) = session_ui_save(
         Path(session_id.clone()),
         Query(query_for(project_path)),

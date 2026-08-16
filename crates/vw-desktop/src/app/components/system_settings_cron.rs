@@ -11,6 +11,7 @@ use crate::app::components::system_settings_common::{
     settings_section_card, settings_segment_button_style, settings_success_banner,
     settings_text_editor_style, settings_text_input_style, settings_value_badge,
 };
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
 use crate::app::{App, Message, message};
 use chrono::{DateTime, Local};
@@ -24,6 +25,33 @@ use vw_gateway_client::{CronJobDto, CronRunDto};
 
 const NO_ACP_AGENT_LABEL: &str = "不使用 ACP";
 const RUN_HISTORY_PREVIEW_LINES: usize = 3;
+
+pub(super) const CRON_TABS: &[SettingsTabDescriptor<CronSettingsTab>] = &[
+    SettingsTabDescriptor::new(
+        CronSettingsTab::Jobs,
+        "任务",
+        &["cron", "schedule", "任务列表", "启用"],
+    ),
+    SettingsTabDescriptor::new(
+        CronSettingsTab::Config,
+        "配置",
+        &["history retention", "执行历史", "历史留存"],
+    ),
+    SettingsTabDescriptor::new(
+        CronSettingsTab::Scheduler,
+        "调度器",
+        &[
+            "scheduler",
+            "执行能力",
+            "最大任务",
+            "并发上限",
+            "最大并发",
+            "max_tasks",
+            "max_concurrent",
+        ],
+    ),
+    SettingsTabDescriptor::new(CronSettingsTab::Add, "添加", &["新增任务", "shell", "agent"]),
+];
 
 fn field_row<'a>(
     label: &'static str,
@@ -1153,13 +1181,9 @@ fn add_tab(app: &App) -> Element<'_, Message> {
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.cron_settings;
     let help_btn = settings_help_button(Message::Settings(message::SettingsMessage::CronHelpOpen));
-    let tabs = row![
-        tab_button(CronSettingsTab::Jobs, s.active_tab, "任务"),
-        tab_button(CronSettingsTab::Config, s.active_tab, "配置"),
-        tab_button(CronSettingsTab::Scheduler, s.active_tab, "调度器"),
-        tab_button(CronSettingsTab::Add, s.active_tab, "添加"),
-    ]
-    .spacing(8);
+    let tabs = CRON_TABS.iter().fold(row![].spacing(8), |row, descriptor| {
+        row.push(tab_button(descriptor.tab, s.active_tab, descriptor.label))
+    });
 
     let tab_content = match s.active_tab {
         CronSettingsTab::Jobs => jobs_tab(app),

@@ -42,6 +42,7 @@ fn call_update(
             true
         },
         &mut tool_state,
+        &crate::app::agent::config::ReliabilityConfig::default(),
     );
 
     (updated, session, events)

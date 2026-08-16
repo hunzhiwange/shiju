@@ -281,7 +281,7 @@ fn raw_payload_status_for_turn(
         Some(Ok(Some(value))) => format!("原始记录：{}", raw_payload_summary(value)),
         Some(Ok(None)) => "原始记录：暂无记录".to_string(),
         Some(Err(err)) => format!("原始记录：加载失败（{err}）"),
-        None => "原始记录：等待加载".to_string(),
+        None => "原始记录：点击后按需加载".to_string(),
     }
 }
 
@@ -293,10 +293,20 @@ fn raw_payload_panel_for_turn(
 ) -> Element<'static, Message> {
     let key = (session_id.to_string(), turn_id.to_string(), step_index);
     let status = text(raw_payload_status_for_turn(app, session_id, turn_id, step_index)).size(12);
-    let can_open = app.active_session_view_state.step_llm_raw.contains_key(&key);
+    let unavailable = matches!(app.usage_step_raw_payloads.get(&key), Some(Ok(None)));
+    let loading = app.usage_step_raw_loading.contains(&key);
+    let label = if loading {
+        "加载中..."
+    } else if unavailable {
+        "暂无原始记录"
+    } else if matches!(app.usage_step_raw_payloads.get(&key), Some(Err(_))) {
+        "重试加载"
+    } else {
+        "查看原始记录"
+    };
     let mut open_btn =
-        button(text("查看原始记录").size(12)).padding([6, 12]).style(rounded_action_btn_style);
-    if can_open {
+        button(text(label).size(12)).padding([6, 12]).style(rounded_action_btn_style);
+    if !loading && !unavailable {
         open_btn = open_btn.on_press(Message::View(ViewMessage::UsageTurnStepRawOpen(
             turn_id.to_string(),
             step_index,

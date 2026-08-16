@@ -22,16 +22,12 @@ const SUPPORTED_HELP: &[(SystemTab, &str, &str)] = &[
 const UNSUPPORTED_TABS: &[SystemTab] = &[
     SystemTab::Cron,
     SystemTab::Staff,
-    SystemTab::Reliability,
-    SystemTab::Acp,
-    SystemTab::Mcp,
     SystemTab::Autonomy,
     SystemTab::Security,
     SystemTab::GatewayClient,
     SystemTab::Gateway,
     SystemTab::Observability,
     SystemTab::Proxy,
-    SystemTab::Skills,
 ];
 
 fn test_app() -> App {

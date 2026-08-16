@@ -502,7 +502,8 @@ pub(crate) fn run_llm_step(
 /// * `model` - 指定使用的模型名称（可选，使用默认模型）
 /// * `allowed_tools` - 允许调用的工具 ID 集合
 /// * `on_event` - 流式事件回调函数，返回 `false` 可中断处理
-/// * `max_attempts` - 最大尝试次数（包括首次调用）
+/// * `additional_retries` - 首次调用失败后的最大额外重试次数
+/// * `initial_backoff_ms` - 首次重试前的等待时间（毫秒）
 ///
 /// # 返回值
 ///
@@ -510,9 +511,9 @@ pub(crate) fn run_llm_step(
 ///
 /// # 重试策略
 ///
-/// - 采用指数退避策略：首次重试等待 300ms，之后每次翻倍
+/// - 采用指数退避策略：首次重试使用配置的初始等待，之后每次翻倍
 /// - 最大退避时间：5000ms（5 秒）
-/// - 退避公式：`min(5000, 300 * 2^(attempt-1))`
+/// - 退避公式：`min(5000, initial_backoff_ms * 2^retry_index)`
 ///
 /// # 示例
 ///
@@ -521,7 +522,7 @@ pub(crate) fn run_llm_step(
 /// let system = vec!["你是一个有帮助的助手".to_string()];
 /// let tools = std::collections::HashSet::from(["search"]);
 ///
-/// // 最多尝试 3 次
+/// // 首次调用失败后最多额外重试 2 次
 /// let result = run_llm_step_with_retry(
 ///     &messages,
 ///     &system,
@@ -533,13 +534,14 @@ pub(crate) fn run_llm_step(
 ///         }
 ///         true
 ///     },
-///     3,
+///     2,
+///     500,
 /// )?;
 /// ```
 ///
 /// # 注意事项
 ///
-/// - 当 `max_attempts` 为 0 时，会被调整为 1（至少尝试一次）
+/// - 当 `additional_retries` 为 0 时仍会执行首次调用
 /// - 所有尝试都会调用同一个 `on_event` 回调，请注意处理重复事件
 /// - 退避期间会阻塞当前线程
 pub(crate) fn run_llm_step_with_retry(
@@ -551,14 +553,14 @@ pub(crate) fn run_llm_step_with_retry(
     available_tools: &[ToolSpec],
     allowed_tools: &std::collections::HashSet<String>,
     on_event: &mut dyn FnMut(StreamEvent) -> bool,
-    max_attempts: usize,
+    additional_retries: u32,
+    initial_backoff_ms: u64,
 ) -> Result<LlmStep, String> {
     // 保存最后一次错误信息
     let mut last_err: Option<String> = None;
     let is_acp = is_acp_request(options);
 
-    // 确保至少尝试一次
-    let attempts = std::cmp::max(1, max_attempts);
+    let attempts = (additional_retries as usize).saturating_add(1);
 
     // 逐次尝试调用
     for attempt in 1..=attempts {
@@ -608,9 +610,8 @@ pub(crate) fn run_llm_step_with_retry(
                 }
 
                 // 计算退避时间（指数退避，最大 5000ms）
-                // 公式：min(5000, 300 * 2^(attempt-1))
-                let backoff_ms =
-                    std::cmp::min(5000, 300u64.saturating_mul(2u64.pow((attempt - 1) as u32)));
+                // 公式：min(5000, initial_backoff_ms * 2^(attempt-1))
+                let backoff_ms = provider_retry_backoff_ms(initial_backoff_ms, attempt as u32 - 1);
 
                 // 等待后重试
                 std::thread::sleep(std::time::Duration::from_millis(backoff_ms));
@@ -620,6 +621,15 @@ pub(crate) fn run_llm_step_with_retry(
 
     // 所有尝试都失败，返回最后一次错误
     Err(last_err.unwrap_or_else(|| "模型调用失败".to_string()))
+}
+
+const MAX_PROVIDER_RETRY_BACKOFF_MS: u64 = 5_000;
+
+pub(crate) fn provider_retry_backoff_ms(initial_backoff_ms: u64, retry_index: u32) -> u64 {
+    let multiplier = 1u64.checked_shl(retry_index).unwrap_or(u64::MAX);
+    initial_backoff_ms
+        .saturating_mul(multiplier)
+        .min(MAX_PROVIDER_RETRY_BACKOFF_MS)
 }
 #[cfg(test)]
 #[path = "llm_runner_tests.rs"]

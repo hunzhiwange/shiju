@@ -160,7 +160,7 @@ fn raw_payload_status_reports_loaded_loading_error_and_missing_states() {
     assert!(super::raw_payload_status(&app, "session-1", 1).contains("历史消息 1 条"));
     assert!(super::raw_payload_status(&app, "session-1", 2).contains("加载失败"));
     assert!(super::raw_payload_status(&app, "session-1", 3).contains("加载中"));
-    assert!(super::raw_payload_status(&app, "session-1", 4).contains("等待加载"));
+    assert!(super::raw_payload_status(&app, "session-1", 4).contains("点击后按需加载"));
 }
 
 #[test]

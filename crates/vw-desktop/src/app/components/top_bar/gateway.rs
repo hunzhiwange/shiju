@@ -4,9 +4,11 @@ use super::widgets::{color_with_alpha, icon_svg, menu_item_btn};
 use crate::app::assets::Icon;
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings::SystemTab;
-use crate::app::message::settings::{GatewayClientMessage, McpMessage, SettingsMessage};
+use crate::app::message::settings::{
+    AgentConfigTabMessage, GatewayClientMessage, McpMessage, SettingsMessage,
+};
 use crate::app::message::view::MenuType;
-use crate::app::state::{SkillsSettingsTab, TopBarGatewayTab};
+use crate::app::state::{AgentConfigTab, TopBarGatewayTab};
 use crate::app::{App, Message, message};
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
@@ -404,7 +406,12 @@ fn mcp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
     rows.push(menu_item_btn(
         "管理 MCP 配置",
         None,
-        Some(Message::View(message::ViewMessage::OpenSystemSettingsTab(SystemTab::Mcp))),
+        Some(Message::Batch(vec![
+            Message::View(message::ViewMessage::OpenSystemSettingsTab(SystemTab::Agents)),
+            Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+                AgentConfigTab::Mcp,
+            ))),
+        ])),
     ));
 
     rows
@@ -440,12 +447,18 @@ fn plugin_tab_content(app: &App) -> Vec<Element<'_, Message>> {
     rows.push(menu_item_btn(
         "管理插件",
         None,
-        Some(Message::Batch(vec![
-            Message::Settings(SettingsMessage::SkillsTabChanged(SkillsSettingsTab::Plugins)),
-            Message::View(message::ViewMessage::OpenSystemSettingsTab(SystemTab::Skills)),
-        ])),
+        Some(manage_plugins_message()),
     ));
     rows
+}
+
+fn manage_plugins_message() -> Message {
+    Message::Batch(vec![
+        Message::View(message::ViewMessage::OpenSystemSettingsTab(SystemTab::Agents)),
+        Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+            AgentConfigTab::Plugins,
+        ))),
+    ])
 }
 
 fn gateway_tab_content(app: &App) -> Vec<Element<'_, Message>> {

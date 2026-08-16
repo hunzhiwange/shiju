@@ -9,7 +9,7 @@ use crate::app::components::chat_panel::height_index::ChatHeightIndex;
 use crate::app::components::chat_panel::message_view::MarkdownBlock;
 use crate::app::components::chat_panel::virtualizer::ChatVirtualizer;
 use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ParsedChatBlock, TokenUsage};
-use crate::app::state::ActiveSessionViewState;
+use crate::app::state::{ActiveSessionViewState, ChatPanelMode};
 use iced::widget::text_editor;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::mem;
@@ -25,6 +25,7 @@ pub(crate) struct SessionViewSnapshot {
     chat_message_ids: Vec<Option<String>>,
     usage: TokenUsage,
     active_session_view_state: ActiveSessionViewState,
+    chat_panel_mode: ChatPanelMode,
     chat_render_cache: HashMap<usize, ChatRenderCacheEntry>,
     chat_visible_text_cache: Vec<Option<String>>,
     chat_copy_hash_cache: Vec<Option<u64>>,
@@ -60,6 +61,7 @@ impl SessionViewSnapshot {
             chat_message_ids: mem::take(&mut app.chat_message_ids),
             usage: mem::take(&mut app.usage),
             active_session_view_state: mem::take(&mut app.active_session_view_state),
+            chat_panel_mode: mem::take(&mut app.chat_panel_mode),
             chat_render_cache: mem::take(&mut app.chat_render_cache),
             chat_visible_text_cache: mem::take(&mut app.chat_visible_text_cache),
             chat_copy_hash_cache: mem::take(&mut app.chat_copy_hash_cache),
@@ -92,6 +94,7 @@ impl SessionViewSnapshot {
         app.chat_message_ids = self.chat_message_ids;
         app.usage = self.usage;
         app.active_session_view_state = self.active_session_view_state;
+        app.chat_panel_mode = self.chat_panel_mode;
         app.chat_render_cache = self.chat_render_cache;
         app.chat_visible_text_cache = self.chat_visible_text_cache;
         app.chat_copy_hash_cache = self.chat_copy_hash_cache;

@@ -86,6 +86,21 @@ fn channel_session_options_enable_full_access() {
     assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
 }
 
+#[test]
+fn channel_request_uses_runtime_reliability_snapshot() {
+    let workspace = tempfile::tempdir().expect("workspace temp dir");
+    let mut ctx = context(workspace.path().to_path_buf());
+    ctx.reliability = Arc::new(crate::app::agent::config::ReliabilityConfig {
+        provider_retries: 8,
+        provider_backoff_ms: 1_750,
+        ..Default::default()
+    });
+
+    let reliability = channel_request_reliability(&ctx);
+    assert_eq!(reliability.provider_retries, 8);
+    assert_eq!(reliability.provider_backoff_ms, 1_750);
+}
+
 async fn cleanup_sender_session(ctx: &ChannelRuntimeContext, msg: &traits::ChannelMessage) {
     let scope = resolve_channel_project_scope_id(ctx).await;
     let key = format!("{scope}::{}", sender_session_key(msg));

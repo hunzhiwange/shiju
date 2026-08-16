@@ -262,42 +262,6 @@ mod tests {
         assert_eq!(prov_item.unwrap().severity, Severity::Ok);
     }
 
-    /// 测试配置校验 - 警告无效的备用 Provider
-    ///
-    /// 当配置的备用 Provider 列表中包含未知 Provider 时，
-    /// 应该发出警告（而非错误），因为这不会阻止主 Provider 的工作。
-    #[test]
-    fn config_validation_warns_bad_fallback() {
-        let mut config = Config::default();
-        // 设置一个不存在的备用 Provider
-        config.reliability.fallback_providers = vec!["fake-provider".into()];
-        let mut items = Vec::new();
-        check_config_semantics(&config, &mut items);
-        let fb_item = items.iter().find(|i| i.message.contains("fallback provider"));
-        assert!(fb_item.is_some());
-        // 应该被标记为警告级别（备用 Provider 失败不会阻止主功能）
-        assert_eq!(fb_item.unwrap().severity, Severity::Warn);
-    }
-
-    /// 测试配置校验 - 警告格式错误的自定义备用 Provider
-    ///
-    /// 自定义备用 Provider 也必须遵循正确的 URL 格式，格式错误时应该发出警告。
-    #[test]
-    fn config_validation_warns_bad_custom_fallback() {
-        let mut config = Config::default();
-        // 设置格式错误的自定义备用 Provider
-        config.reliability.fallback_providers = vec!["custom:".into()];
-        let mut items = Vec::new();
-        check_config_semantics(&config, &mut items);
-
-        let fb_item = items
-            .iter()
-            .find(|item| item.message.contains("fallback provider \"custom:\" is invalid"));
-        assert!(fb_item.is_some());
-        // 应该被标记为警告级别
-        assert_eq!(fb_item.unwrap().severity, Severity::Warn);
-    }
-
     /// 测试配置校验 - 警告模型路由配置中模型名称为空
     ///
     /// 模型路由配置中的 model 字段不应为空，空模型名称会导致路由失败，

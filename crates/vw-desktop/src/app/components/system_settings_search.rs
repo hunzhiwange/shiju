@@ -1,0 +1,215 @@
+use pinyin::ToPinyin;
+
+use crate::app::App;
+use crate::app::components::system_settings::SystemTab;
+use crate::app::state::{
+    AgentConfigTab, AutonomySettingsTab, ChannelsSettingsTab, CronSettingsTab, GatewaySettingsTab,
+    GeneralSettingsTab, McpSettingsTab, MemorySettingsTab, ModelConfigTab, SecuritySettingsTab,
+    SkillsSettingsTab,
+};
+
+/// Stable search identities for staff tabs whose UI state remains crate-private.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StaffSettingsSearchTab {
+    Roster,
+    Capabilities,
+    Teams,
+    Workers,
+}
+
+/// A stable, typed destination represented by a system settings search result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemSettingsSearchTarget {
+    TopLevel(SystemTab),
+    General(GeneralSettingsTab),
+    Models(ModelConfigTab),
+    Cron(CronSettingsTab),
+    Agents(AgentConfigTab),
+    Staff(StaffSettingsSearchTab),
+    Channels(ChannelsSettingsTab),
+    Memory(MemorySettingsTab),
+    Autonomy(AutonomySettingsTab),
+    Security(SecuritySettingsTab),
+    Gateway(GatewaySettingsTab),
+    Network(SystemTab),
+    AgentMcp(McpSettingsTab),
+    AgentSkills(SkillsSettingsTab),
+}
+
+/// Shared UI/search metadata for one settings tab.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SettingsTabDescriptor<T> {
+    pub tab: T,
+    pub label: &'static str,
+    pub keywords: &'static [&'static str],
+}
+
+impl<T> SettingsTabDescriptor<T> {
+    pub const fn new(tab: T, label: &'static str, keywords: &'static [&'static str]) -> Self {
+        Self { tab, label, keywords }
+    }
+}
+
+/// Search metadata for one navigable system settings destination.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SystemSettingsSearchEntry {
+    pub label: &'static str,
+    pub parent_label: Option<&'static str>,
+    pub keywords: &'static [&'static str],
+    pub target: SystemSettingsSearchTarget,
+}
+
+impl SystemSettingsSearchEntry {
+    pub const fn new(
+        label: &'static str,
+        parent_label: Option<&'static str>,
+        keywords: &'static [&'static str],
+        target: SystemSettingsSearchTarget,
+    ) -> Self {
+        Self { label, parent_label, keywords, target }
+    }
+
+    pub fn matches(&self, query: &str) -> bool {
+        let query_forms = literal_search_forms(query);
+        if query_forms.is_empty() {
+            return true;
+        }
+
+        self.searchable_texts().any(|text| {
+            let candidate_forms = search_forms(text);
+            query_forms.iter().any(|query_form| {
+                candidate_forms.iter().any(|candidate| candidate.contains(query_form))
+            })
+        })
+    }
+
+    fn searchable_texts(&self) -> impl Iterator<Item = &'static str> + '_ {
+        std::iter::once(self.label).chain(self.parent_label).chain(self.keywords.iter().copied())
+    }
+}
+
+/// Builds the searchable settings catalog for the current reachable UI state.
+pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
+    use crate::app::components::{
+        system_settings_agents, system_settings_autonomy, system_settings_channels,
+        system_settings_cron, system_settings_gateway, system_settings_general,
+        system_settings_mcp, system_settings_memory, system_settings_models,
+        system_settings_network, system_settings_security, system_settings_skills,
+        system_settings_staff,
+    };
+
+    let mut entries = SystemTab::all()
+        .into_iter()
+        .map(|tab| {
+            SystemSettingsSearchEntry::new(
+                tab.label(),
+                None,
+                super::system_settings::system_tab_keywords(tab),
+                SystemSettingsSearchTarget::TopLevel(tab),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    macro_rules! extend_tabs {
+        ($descriptors:expr, $parent:expr, $target:ident) => {
+            entries.extend($descriptors.iter().map(|descriptor| {
+                SystemSettingsSearchEntry::new(
+                    descriptor.label,
+                    Some($parent),
+                    descriptor.keywords,
+                    SystemSettingsSearchTarget::$target(descriptor.tab),
+                )
+            }));
+        };
+    }
+
+    extend_tabs!(system_settings_general::GENERAL_TABS, "常规设置", General);
+    extend_tabs!(system_settings_models::MODEL_TABS, "模型", Models);
+    extend_tabs!(system_settings_cron::CRON_TABS, "定时任务配置", Cron);
+    extend_tabs!(system_settings_agents::AGENT_CONFIG_TABS, "智能体配置", Agents);
+    extend_tabs!(system_settings_staff::search_tabs(), "员工配置", Staff);
+    let channel_tabs = system_settings_channels::channel_tab_descriptors();
+    extend_tabs!(channel_tabs, "智能体配置 / 通道", Channels);
+    extend_tabs!(system_settings_memory::MEMORY_TABS, "记忆配置", Memory);
+    if app.memory_settings.backend == "qdrant" {
+        extend_tabs!(system_settings_memory::QDRANT_TAB, "记忆配置", Memory);
+    }
+    extend_tabs!(system_settings_autonomy::AUTONOMY_TABS, "自治配置", Autonomy);
+    extend_tabs!(system_settings_security::SECURITY_TABS, "安全配置", Security);
+    extend_tabs!(system_settings_gateway::GATEWAY_TABS, "服务端网关", Gateway);
+    extend_tabs!(system_settings_network::NETWORK_TABS, "网络配置", Network);
+    extend_tabs!(system_settings_mcp::MCP_TABS, "智能体配置 / MCP", AgentMcp);
+    extend_tabs!(system_settings_skills::SKILLS_TABS, "智能体配置 / 技能", AgentSkills);
+    entries
+}
+
+fn literal_search_forms(text: &str) -> Vec<String> {
+    let literal = normalized_literal(text);
+    if literal.is_empty() {
+        return Vec::new();
+    }
+
+    let compact = literal.replace(' ', "");
+    if compact == literal { vec![literal] } else { vec![literal, compact] }
+}
+
+fn search_forms(text: &str) -> Vec<String> {
+    let mut forms = literal_search_forms(text);
+    let mut full_pinyin = String::new();
+    let mut spaced_pinyin = String::new();
+    let mut initials = String::new();
+
+    for character in text.to_lowercase().chars() {
+        if let Some(pinyin) = character.to_pinyin() {
+            let plain = pinyin.plain();
+            full_pinyin.push_str(plain);
+            push_token(&mut spaced_pinyin, plain);
+            if let Some(initial) = plain.chars().next() {
+                initials.push(initial);
+            }
+        } else if character.is_alphanumeric() {
+            full_pinyin.push(character);
+            spaced_pinyin.push(character);
+            initials.push(character);
+        } else if !spaced_pinyin.ends_with(' ') && !spaced_pinyin.is_empty() {
+            spaced_pinyin.push(' ');
+        }
+    }
+
+    push_unique(&mut forms, full_pinyin);
+    push_unique(&mut forms, spaced_pinyin.trim().to_owned());
+    push_unique(&mut forms, initials);
+    forms
+}
+
+fn normalized_literal(text: &str) -> String {
+    let mut normalized = String::new();
+    let mut pending_space = false;
+
+    for character in text.to_lowercase().chars() {
+        if character.is_alphanumeric() {
+            if pending_space && !normalized.is_empty() {
+                normalized.push(' ');
+            }
+            normalized.push(character);
+            pending_space = false;
+        } else {
+            pending_space = true;
+        }
+    }
+
+    normalized
+}
+
+fn push_token(output: &mut String, token: &str) {
+    if !output.is_empty() && !output.ends_with(' ') {
+        output.push(' ');
+    }
+    output.push_str(token);
+}
+
+fn push_unique(forms: &mut Vec<String>, form: String) {
+    if !form.is_empty() && !forms.contains(&form) {
+        forms.push(form);
+    }
+}

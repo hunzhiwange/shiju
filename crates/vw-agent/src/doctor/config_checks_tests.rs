@@ -142,10 +142,9 @@ fn config_semantics_reports_model_route_hint_provider_and_model_issues() {
 }
 
 #[test]
-fn config_semantics_reports_invalid_default_provider_and_fallback() {
+fn config_semantics_reports_invalid_default_provider() {
     let mut config = Config::default();
     config.default_provider = Some("provider-that-does-not-exist".into());
-    config.reliability.fallback_providers = vec!["custom:".into()];
     let mut items = Vec::new();
 
     check_config_semantics(&config, &mut items);
@@ -153,10 +152,6 @@ fn config_semantics_reports_invalid_default_provider_and_fallback() {
     assert!(items.iter().any(|item| {
         item.severity == Severity::Error
             && item.message.contains("default provider \"provider-that-does-not-exist\" is invalid")
-    }));
-    assert!(items.iter().any(|item| {
-        item.severity == Severity::Warn
-            && item.message.contains("fallback provider \"custom:\" is invalid")
     }));
 }
 

@@ -318,7 +318,7 @@ pub async fn handle_api_config_put(
     }
 
     // 解析 TOML 格式的请求体为通用 TOML 值
-    let mut incoming_toml: toml::Value = match toml::from_str(&body) {
+    let incoming_toml: toml::Value = match toml::from_str(&body) {
         Ok(v) => v,
         Err(e) => {
             // TOML 解析失败，返回请求格式错误
@@ -329,9 +329,6 @@ pub async fn handle_api_config_put(
                 .into_response();
         }
     };
-
-    // 规范化配置结构，处理仪表板特定的配置格式差异
-    super::super::secrets::normalize_dashboard_config_toml(&mut incoming_toml);
 
     // 将 TOML 值转换为强类型的 Config 结构
     let incoming: crate::app::agent::config::Config = match incoming_toml.try_into() {

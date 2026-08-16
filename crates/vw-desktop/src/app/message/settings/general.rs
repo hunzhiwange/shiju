@@ -26,6 +26,12 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         GeneralSettingsMessage::TabSelected(tab) => {
             app.general_settings_tab = tab;
+            if tab == crate::app::state::GeneralSettingsTab::Themes {
+                app.themes_settings.error = None;
+                return Task::done(Message::Settings(SettingsMessage::Themes(
+                    super::ThemesMessage::Refresh,
+                )));
+            }
         }
         GeneralSettingsMessage::TimezoneSelected(timezone) => {
             if !vw_config_types::ui::timezone_options().contains(&timezone.as_str()) {

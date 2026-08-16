@@ -24,7 +24,7 @@ fn chat_panel_scroll_schedules_visible_measurement() {
     app.chat = (0..120).map(chat_entry).collect();
     app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&vec![80.0; app.chat.len()]);
 
-    let outcome = super::apply_chat_scroll_changed(&mut app, 0.5, 240.0);
+    let outcome = super::apply_chat_scroll_changed(&mut app, 0.5, 200.0, 240.0);
 
     assert!(outcome.measure_visible_messages);
     assert_eq!(app.chat_virtualizer.viewport_height_px(), 240.0);

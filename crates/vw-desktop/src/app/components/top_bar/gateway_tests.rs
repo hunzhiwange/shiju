@@ -2,13 +2,18 @@ use super::{
     active_gateway_healthy, compact_gateway_label, gateway_menu_container,
     gateway_menu_item_btn_keep_open, gateway_press_message, gateway_row, gateway_row_keep_open,
     gateway_server_healthy, gateway_services_button, gateway_services_module, gateway_tab_content,
-    lsp_tab_content, mcp_server_summaries, mcp_tab_content, plugin_tab_content, status_dot,
-    tab_label,
+    lsp_tab_content, manage_plugins_message, mcp_server_summaries, mcp_tab_content,
+    plugin_tab_content, status_dot, tab_label,
 };
+use crate::app::components::system_settings::SystemTab;
 use crate::app::components::editor::Editor;
-use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
+use crate::app::message::settings::{
+    AgentConfigTabMessage, GatewayClientMessage, SettingsMessage,
+};
 use crate::app::message::view::MenuType;
-use crate::app::state::{GatewayClientServerDraft, PluginCatalogItem, TopBarGatewayTab};
+use crate::app::state::{
+    AgentConfigTab, GatewayClientServerDraft, PluginCatalogItem, TopBarGatewayTab,
+};
 use crate::app::{App, LspProgress, Message, PreviewTab, message};
 use iced::widget::Space;
 use iced::{Element, Length};
@@ -207,6 +212,25 @@ fn gateway_press_message_can_keep_menu_open() {
     assert!(matches!(
         wrapped,
         Message::View(crate::app::message::view::ViewMessage::MenuAction(_))
+    ));
+}
+
+#[test]
+fn manage_plugins_opens_the_standalone_agent_plugin_tab() {
+    let Message::Batch(messages) = manage_plugins_message() else {
+        panic!("管理插件应批量打开设置与插件页签");
+    };
+
+    assert!(matches!(
+        messages.as_slice(),
+        [
+            Message::View(crate::app::message::view::ViewMessage::OpenSystemSettingsTab(
+                SystemTab::Agents
+            )),
+            Message::Settings(SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+                AgentConfigTab::Plugins
+            )))
+        ]
     ));
 }
 

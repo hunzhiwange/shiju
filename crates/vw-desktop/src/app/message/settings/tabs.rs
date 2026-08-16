@@ -1,13 +1,16 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 use crate::app::{App, Message, components::system_settings::SystemTab};
+use crate::app::components::system_settings_search::{
+    StaffSettingsSearchTab, SystemSettingsSearchTarget,
+};
 use iced::Task;
 
 use super::messages::{
     AcpMessage, AgentConfigTabMessage, AgentsMessage, BrowserMessage, ChannelsMessage,
-    GatewayMessage, HttpRequestMessage, McpMessage, MemoryMessage, ModelConfigTabMessage,
-    ModelRoutesMessage, RuntimeMessage, SettingsMessage, StaffMessage, StaffResourceMessage,
-    WebSearchMessage,
+    GatewayMessage, GeneralSettingsMessage, HttpRequestMessage, McpMessage, MemoryMessage,
+    ModelConfigTabMessage, ModelRoutesMessage, RuntimeMessage, SettingsMessage, StaffMessage,
+    StaffResourceMessage, WebSearchMessage,
 };
 use super::models::models_refresh_task;
 use super::providers::refresh_task;
@@ -24,14 +27,30 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::SystemTabSelected(tab) => {
-            app.system_settings_tab = if tab == SystemTab::Editor {
-                app.general_settings_tab = crate::app::state::GeneralSettingsTab::Editor;
-                SystemTab::General
-            } else {
-                tab
+            app.system_settings_tab = match tab {
+                SystemTab::Editor => {
+                    app.general_settings_tab = crate::app::state::GeneralSettingsTab::Editor;
+                    SystemTab::General
+                }
+                SystemTab::Themes => {
+                    app.general_settings_tab = crate::app::state::GeneralSettingsTab::Themes;
+                    SystemTab::General
+                }
+                SystemTab::Channels => {
+                    app.agents_settings.active_config_tab =
+                        crate::app::state::AgentConfigTab::Channels;
+                    SystemTab::Agents
+                }
+                SystemTab::Runtime => {
+                    app.agents_settings.active_config_tab =
+                        crate::app::state::AgentConfigTab::Runtime;
+                    SystemTab::Agents
+                }
+                _ => tab,
             };
             app.system_settings_help_tab = None;
             if tab == SystemTab::Themes {
+                app.themes_settings.error = None;
                 Task::done(Message::Settings(SettingsMessage::Themes(
                     super::messages::ThemesMessage::Refresh,
                 )))
@@ -45,9 +64,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.model_settings.loading = true;
                 app.model_settings.save_error = None;
                 models_refresh_task()
-            } else if tab == SystemTab::Skills {
-                app.skills_settings.loading = true;
-                Task::done(Message::Settings(SettingsMessage::SkillsRefresh))
             } else if tab == SystemTab::Cron {
                 app.cron_settings.save_error = None;
                 app.agents_settings.loading = true;
@@ -98,28 +114,113 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             } else if tab == SystemTab::Channels {
                 app.channels_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Channels(ChannelsMessage::Refresh)))
-            } else if tab == SystemTab::Acp {
-                app.acp_settings.loading = true;
-                app.acp_settings.save_error = None;
-                Task::done(Message::Settings(SettingsMessage::Acp(AcpMessage::Refresh)))
-            } else if tab == SystemTab::Mcp {
-                app.mcp_settings.loading = true;
-                app.mcp_settings.save_error = None;
-                Task::done(Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)))
             } else if tab == SystemTab::Gateway {
                 app.gateway_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Gateway(GatewayMessage::Refresh)))
             } else if tab == SystemTab::Tunnel {
                 app.tunnel_settings.save_error = None;
                 Task::none()
-            } else if tab == SystemTab::Themes {
-                app.themes_settings.error = None;
-                Task::done(Message::Settings(SettingsMessage::Themes(
-                    super::messages::ThemesMessage::Refresh,
-                )))
             } else {
                 Task::none()
             }
+        }
+        SettingsMessage::SystemSearchTargetSelected(target) => {
+            let parent = match target {
+                SystemSettingsSearchTarget::TopLevel(tab)
+                | SystemSettingsSearchTarget::Network(tab) => tab,
+                SystemSettingsSearchTarget::General(_) => SystemTab::General,
+                SystemSettingsSearchTarget::Models(_) => SystemTab::Models,
+                SystemSettingsSearchTarget::Cron(_) => SystemTab::Cron,
+                SystemSettingsSearchTarget::Agents(_)
+                | SystemSettingsSearchTarget::AgentMcp(_)
+                | SystemSettingsSearchTarget::AgentSkills(_) => SystemTab::Agents,
+                SystemSettingsSearchTarget::Staff(_) => SystemTab::Staff,
+                SystemSettingsSearchTarget::Channels(_) => SystemTab::Agents,
+                SystemSettingsSearchTarget::Memory(_) => SystemTab::Memory,
+                SystemSettingsSearchTarget::Autonomy(_) => SystemTab::Autonomy,
+                SystemSettingsSearchTarget::Security(_) => SystemTab::Security,
+                SystemSettingsSearchTarget::Gateway(_) => SystemTab::Gateway,
+            };
+            let mut tasks = vec![update(app, SettingsMessage::SystemTabSelected(parent))];
+
+            let child_task = match target {
+                SystemSettingsSearchTarget::TopLevel(_) | SystemSettingsSearchTarget::Network(_) => {
+                    Task::none()
+                }
+                SystemSettingsSearchTarget::General(tab) => super::general::update(
+                    app,
+                    SettingsMessage::General(GeneralSettingsMessage::TabSelected(tab)),
+                ),
+                SystemSettingsSearchTarget::Models(tab) => update(
+                    app,
+                    SettingsMessage::ModelConfigTab(ModelConfigTabMessage::Selected(tab)),
+                ),
+                SystemSettingsSearchTarget::Cron(tab) => {
+                    super::cron::update(app, SettingsMessage::CronTabSelected(tab))
+                }
+                SystemSettingsSearchTarget::Agents(tab) => update(
+                    app,
+                    SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(tab)),
+                ),
+                SystemSettingsSearchTarget::Staff(tab) => {
+                    let key = match tab {
+                        StaffSettingsSearchTab::Roster => "roster",
+                        StaffSettingsSearchTab::Capabilities => "capabilities",
+                        StaffSettingsSearchTab::Teams => "teams",
+                        StaffSettingsSearchTab::Workers => "workers",
+                    };
+                    super::staff::update(
+                        app,
+                        SettingsMessage::Staff(StaffMessage::TabChanged(key.to_string())),
+                    )
+                }
+                SystemSettingsSearchTarget::Channels(tab) => {
+                    tasks.push(update(
+                        app,
+                        SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+                            crate::app::state::AgentConfigTab::Channels,
+                        )),
+                    ));
+                    super::channels::update(
+                        app,
+                        SettingsMessage::Channels(ChannelsMessage::TabSelected(tab)),
+                    )
+                }
+                SystemSettingsSearchTarget::Memory(tab) => super::memory::update(
+                    app,
+                    SettingsMessage::Memory(MemoryMessage::TabSelected(tab)),
+                ),
+                SystemSettingsSearchTarget::Autonomy(tab) => {
+                    super::autonomy::update(app, SettingsMessage::AutonomyTabSelected(tab))
+                }
+                SystemSettingsSearchTarget::Security(tab) => {
+                    super::security::update(app, SettingsMessage::SecurityTabSelected(tab))
+                }
+                SystemSettingsSearchTarget::Gateway(tab) => super::gateway::update(
+                    app,
+                    SettingsMessage::Gateway(GatewayMessage::TabSelected(tab)),
+                ),
+                SystemSettingsSearchTarget::AgentMcp(tab) => {
+                    tasks.push(update(
+                        app,
+                        SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+                            crate::app::state::AgentConfigTab::Mcp,
+                        )),
+                    ));
+                    super::mcp::update(app, SettingsMessage::Mcp(McpMessage::TabSelected(tab)))
+                }
+                SystemSettingsSearchTarget::AgentSkills(tab) => {
+                    tasks.push(update(
+                        app,
+                        SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(
+                            crate::app::state::AgentConfigTab::Skills,
+                        )),
+                    ));
+                    super::skills::update(app, SettingsMessage::SkillsTabChanged(tab))
+                }
+            };
+            tasks.push(child_task);
+            Task::batch(tasks)
         }
         SettingsMessage::ModelConfigTab(ModelConfigTabMessage::Selected(tab)) => {
             app.model_settings.active_tab = tab;
@@ -148,6 +249,38 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.active_config_tab = tab;
             app.system_settings_help_tab = None;
             match tab {
+                crate::app::state::AgentConfigTab::Acp => {
+                    app.acp_settings.loading = true;
+                    app.acp_settings.save_error = None;
+                    Task::done(Message::Settings(SettingsMessage::Acp(AcpMessage::Refresh)))
+                }
+                crate::app::state::AgentConfigTab::Mcp => {
+                    app.mcp_settings.loading = true;
+                    app.mcp_settings.save_error = None;
+                    Task::done(Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)))
+                }
+                crate::app::state::AgentConfigTab::Skills => {
+                    app.skills_settings.loading = true;
+                    app.skills_settings.save_error = None;
+                    Task::done(Message::Settings(SettingsMessage::SkillsRefresh))
+                }
+                crate::app::state::AgentConfigTab::Plugins => {
+                    app.skills_settings.plugin_loading = true;
+                    Task::done(Message::Settings(SettingsMessage::PluginsRefresh))
+                }
+                crate::app::state::AgentConfigTab::Channels => {
+                    app.channels_settings.save_error = None;
+                    Task::done(Message::Settings(SettingsMessage::Channels(
+                        ChannelsMessage::Refresh,
+                    )))
+                }
+                crate::app::state::AgentConfigTab::Runtime => {
+                    app.runtime_settings.save_error = None;
+                    Task::done(Message::Settings(SettingsMessage::Runtime(
+                        RuntimeMessage::Refresh,
+                    )))
+                }
+                crate::app::state::AgentConfigTab::Reliability => Task::none(),
                 crate::app::state::AgentConfigTab::DialogueFlow => {
                     Task::done(Message::Settings(SettingsMessage::DialogueFlowPermissionRefresh))
                 }

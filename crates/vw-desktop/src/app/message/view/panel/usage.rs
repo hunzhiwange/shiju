@@ -33,7 +33,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.usage_model_info = info;
             Task::none()
         }
-        ViewMessage::UsageTurnStepToggled(turn_id, step_index) => {
+        ViewMessage::UsageTurnStepToggled(_turn_id, step_index) => {
             if app.usage_step_expanded.contains(&step_index) {
                 app.usage_step_expanded.remove(&step_index);
                 if app
@@ -46,16 +46,43 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 return Task::none();
             }
             app.usage_step_expanded.insert(step_index);
+            Task::none()
+        }
+        ViewMessage::UsageTurnStepRawLoaded(session_id, turn_id, step_index, result) => {
+            let key = (session_id.clone(), turn_id, step_index);
+            app.usage_step_raw_loading.remove(&key);
+            if app.active_session_id.as_deref() == Some(session_id.as_str()) {
+                match result {
+                    Ok(Some(raw)) => {
+                        app.active_session_view_state.llm_raw_step_indices.insert(key.clone());
+                        app.active_session_view_state.step_llm_raw.insert(key.clone(), raw);
+                        app.usage_step_raw_payloads.remove(&key);
+                        if app.usage_step_expanded.contains(&step_index) {
+                            open_raw_modal(app, &key);
+                        }
+                    }
+                    result => {
+                        app.usage_step_raw_payloads.insert(key, result);
+                    }
+                }
+            }
+            Task::none()
+        }
+        ViewMessage::UsageTurnStepRawOpen(turn_id, step_index) => {
             let Some(session_id) = app.active_session_id.clone() else {
                 return Task::none();
             };
             let key = (session_id.clone(), turn_id.clone(), step_index);
-            if app.active_session_view_state.step_llm_raw.contains_key(&key)
-                || app.usage_step_raw_payloads.contains_key(&key)
-                || app.usage_step_raw_loading.contains(&key)
+            if app.active_session_view_state.step_llm_raw.contains_key(&key) {
+                open_raw_modal(app, &key);
+                return Task::none();
+            }
+            if app.usage_step_raw_loading.contains(&key)
+                || matches!(app.usage_step_raw_payloads.get(&key), Some(Ok(None)))
             {
                 return Task::none();
             }
+            app.usage_step_raw_payloads.remove(&key);
             app.usage_step_raw_loading.insert(key);
             Task::perform(
                 async move {
@@ -77,35 +104,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 },
             )
         }
-        ViewMessage::UsageTurnStepRawLoaded(session_id, turn_id, step_index, result) => {
-            let key = (session_id.clone(), turn_id, step_index);
-            app.usage_step_raw_loading.remove(&key);
-            if app.active_session_id.as_deref() == Some(session_id.as_str()) {
-                match result {
-                    Ok(Some(raw)) => {
-                        app.active_session_view_state.llm_raw_step_indices.insert(key.clone());
-                        app.active_session_view_state.step_llm_raw.insert(key.clone(), raw);
-                        app.usage_step_raw_payloads.remove(&key);
-                    }
-                    result => {
-                        app.usage_step_raw_payloads.insert(key, result);
-                    }
-                }
-            }
-            Task::none()
-        }
-        ViewMessage::UsageTurnStepRawOpen(turn_id, step_index) => {
-            let Some(session_id) = app.active_session_id.as_deref() else {
-                return Task::none();
-            };
-            let key = (session_id.to_string(), turn_id.clone(), step_index);
-            let Some(value) = app.active_session_view_state.step_llm_raw.get(&key) else {
-                return Task::none();
-            };
-            let content = serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
-            app.usage_step_raw_modal = Some(UsageStepRawModal { step_index, content });
-            Task::none()
-        }
         ViewMessage::UsageStepRawClose => {
             app.usage_step_raw_modal = None;
             Task::none()
@@ -114,12 +112,21 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     }
 }
 
+fn open_raw_modal(app: &mut App, key: &(String, String, u32)) {
+    let Some(value) = app.active_session_view_state.step_llm_raw.get(key) else {
+        return;
+    };
+    let content = serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
+    app.usage_step_raw_modal = Some(UsageStepRawModal { step_index: key.2, content });
+}
+
 fn turn_id_for_step(app: &App, step_index: u32) -> String {
     app.active_session_view_state
         .steps
         .iter()
         .find(|step| step.index == step_index)
         .and_then(|step| step.turn_id.clone())
+        .filter(|turn_id| !turn_id.trim().is_empty())
         .unwrap_or_else(|| format!("legacy-step-{step_index}"))
 }
 

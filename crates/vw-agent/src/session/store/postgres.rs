@@ -321,6 +321,29 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    pub(super) fn save_session_ui_content(
+        &self,
+        scope: &ProjectScope,
+        session: &ChatSession,
+    ) -> Result<()> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction =
+            connection.transaction().context("begin PostgreSQL session UI content save")?;
+        let call_count = transaction
+            .query_opt(
+                "SELECT call_count FROM session_index
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                scoped_id_params!(scope, &session.id),
+            )?
+            .map(|row| from_i64_usize(row.get(0), "session call_count"))
+            .transpose()?
+            .unwrap_or(session.calls.len());
+        upsert_session_header(&mut transaction, scope, session, call_count)?;
+        replace_session_messages(&mut transaction, scope, session)?;
+        transaction.commit().context("commit PostgreSQL session UI content save")?;
+        Ok(())
+    }
+
     pub(super) fn commit_session_ui_snapshot(
         &self,
         scope: &ProjectScope,

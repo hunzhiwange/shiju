@@ -1095,6 +1095,7 @@ fn legacy_shadow_request_from_state(
         query: submission.text.clone(),
         root,
         model: submission.model.clone(),
+        reliability: crate::app::agent::config::ReliabilityConfig::default(),
         options: json!({}),
         approval: None,
         channel_name: None,

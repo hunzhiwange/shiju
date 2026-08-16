@@ -25,3 +25,31 @@ fn resolved_request_model_keeps_full_reference_and_limit() {
     assert_eq!(resolved.model, "provider/model");
     assert_eq!(resolved.limit.context, 16_384);
 }
+
+#[test]
+fn request_keeps_strongly_typed_reliability_snapshot() {
+    let mut request = super::Request {
+        stream: 1,
+        session: "reliability-snapshot".to_string(),
+        query: String::new(),
+        root: None,
+        model: None,
+        reliability: crate::app::agent::config::ReliabilityConfig::default(),
+        options: serde_json::json!({}),
+        approval: None,
+        channel_name: None,
+        non_cli_approval_context: None,
+        assistant_message_id: None,
+        history: Vec::new(),
+        persist_app_session_artifacts: false,
+        app_session_scope: None,
+        abort_token: None,
+        session_tools: crate::session::runtime::SessionToolset::default(),
+    };
+    request.reliability.provider_retries = 9;
+    request.reliability.provider_backoff_ms = 2_500;
+
+    let cloned = request.clone();
+    assert_eq!(cloned.reliability.provider_retries, 9);
+    assert_eq!(cloned.reliability.provider_backoff_ms, 2_500);
+}

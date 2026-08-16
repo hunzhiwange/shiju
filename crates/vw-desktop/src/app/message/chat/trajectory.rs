@@ -175,10 +175,12 @@ pub(super) fn refresh_missing_raw_task(
         .iter()
         .filter(|step| step.finished_ms.is_some())
         .filter(|step| only_step_index.is_none_or(|index| index == step.index))
-        .filter_map(|step| {
-            step.turn_id.as_ref().map(|turn_id| {
-                (session_id.to_string(), turn_id.clone(), step.index)
-            })
+        .map(|step| {
+            (
+                session_id.to_string(),
+                trajectory_turn_id(step),
+                step.index,
+            )
         })
         .collect::<BTreeSet<_>>();
     candidate_keys.extend(
@@ -348,9 +350,16 @@ fn is_current_completed_missing_raw(
                 .iter()
                 .any(|step| {
                     step.index == step_index
-                        && step.turn_id.as_deref() == Some(turn_id)
+                        && trajectory_turn_id(step) == turn_id
                         && step.finished_ms.is_some()
                 }))
+}
+
+fn trajectory_turn_id(step: &crate::app::models::ChatSessionStep) -> String {
+    step.turn_id
+        .clone()
+        .filter(|turn_id| !turn_id.trim().is_empty())
+        .unwrap_or_else(|| format!("legacy-step-{}", step.index))
 }
 
 fn clear_raw_load_state(app: &mut App, key: &SessionStepRawKey) {

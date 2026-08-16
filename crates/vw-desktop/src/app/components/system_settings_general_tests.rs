@@ -92,6 +92,7 @@ fn view_builds_each_general_settings_tab() {
         GeneralSettingsTab::Interface,
         GeneralSettingsTab::Terminal,
         GeneralSettingsTab::Editor,
+        GeneralSettingsTab::Themes,
     ] {
         app.general_settings_tab = tab;
         keep_element(view(&app));

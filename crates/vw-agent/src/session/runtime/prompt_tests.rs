@@ -14,6 +14,7 @@ fn request() -> Request {
         query: "hello".to_string(),
         root: None,
         model: None,
+        reliability: crate::app::agent::config::ReliabilityConfig::default(),
         options: json!({}),
         approval: None,
         channel_name: None,

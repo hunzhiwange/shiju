@@ -10,6 +10,7 @@ pub enum GeneralSettingsTab {
     Interface,
     Terminal,
     Editor,
+    Themes,
 }
 
 /// 对外暴露当前模块需要复用的能力。

@@ -264,6 +264,20 @@ fn agents_settings_default_initializes_complete_idle_state() {
     assert!(state.provider_models.is_empty());
     assert_eq!(state.selected_agent, MAIN_AGENT_KEY);
     assert_eq!(state.active_config_tab, AgentConfigTab::Agents);
+    let config_tabs = [
+        AgentConfigTab::Agents,
+        AgentConfigTab::Channels,
+        AgentConfigTab::Runtime,
+        AgentConfigTab::Acp,
+        AgentConfigTab::Mcp,
+        AgentConfigTab::Skills,
+        AgentConfigTab::Plugins,
+        AgentConfigTab::Reliability,
+        AgentConfigTab::DialogueFlow,
+        AgentConfigTab::QuickMessages,
+        AgentConfigTab::Heartbeat,
+    ];
+    assert_eq!(config_tabs.len(), 11);
     assert_eq!(state.active_detail_tab, AGENT_DETAIL_BASIC_TAB);
     assert_eq!(state.active_tools_list_tab, AGENT_TOOLS_OPTIONAL_TAB);
     assert_eq!(state.active_prompt_tab, AGENT_PROMPT_SYSTEM_TAB);

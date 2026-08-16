@@ -368,7 +368,14 @@ fn scroll_changed_clamps_offsets_and_updates_autoscroll() {
     app.chat_auto_scroll = false;
 
     let _ =
-        super::update(&mut app, ChatMessage::ScrollChanged { offset_y: 1.5, viewport_h: -10.0 });
+        super::update(
+            &mut app,
+            ChatMessage::ScrollChanged {
+                offset_y: 1.5,
+                absolute_offset_y: 0.0,
+                viewport_h: -10.0,
+            },
+        );
 
     assert_eq!(app.chat_scroll_offset_y, 0.0);
     assert_eq!(app.chat_scroll_viewport_h, 0.0);
@@ -592,7 +599,7 @@ fn unchanged_scroll_geometry_reports_no_viewport_or_offset_change() {
     let (mut app, _) = crate::app::App::new();
     app.chat_auto_scroll = false;
 
-    let outcome = super::input::apply_chat_scroll_changed(&mut app, 0.0, 0.0);
+    let outcome = super::input::apply_chat_scroll_changed(&mut app, 0.0, 0.0, 0.0);
 
     assert!(!outcome.viewport_or_offset_changed);
     assert!(outcome.pending_chunk_starts.is_empty());
@@ -611,7 +618,12 @@ fn scroll_within_rendered_window_skips_redundant_measurement() {
 
     let max_scroll_top = app.chat_virtualizer.max_scroll_top_px();
     let outcome =
-        super::input::apply_chat_scroll_changed(&mut app, 1_510.0 / max_scroll_top, 300.0);
+        super::input::apply_chat_scroll_changed(
+            &mut app,
+            1_510.0 / max_scroll_top,
+            1_510.0,
+            300.0,
+        );
 
     assert!(outcome.viewport_or_offset_changed);
     assert!(!outcome.measure_visible_messages);
@@ -628,7 +640,12 @@ fn scroll_across_rendered_window_boundary_requests_measurement() {
 
     let max_scroll_top = app.chat_virtualizer.max_scroll_top_px();
     let outcome =
-        super::input::apply_chat_scroll_changed(&mut app, 1_200.0 / max_scroll_top, 300.0);
+        super::input::apply_chat_scroll_changed(
+            &mut app,
+            1_200.0 / max_scroll_top,
+            1_200.0,
+            300.0,
+        );
 
     assert!(outcome.measure_visible_messages);
 }
@@ -639,14 +656,14 @@ fn scroll_autoscroll_threshold_is_relaxed_during_hold_window() {
     held_app.chat_auto_scroll = true;
     held_app.chat_autoscroll_hold_until_ms = u64::MAX;
 
-    let _ = super::input::apply_chat_scroll_changed(&mut held_app, 0.85, 100.0);
+    let _ = super::input::apply_chat_scroll_changed(&mut held_app, 0.85, 0.0, 100.0);
     assert!(held_app.chat_auto_scroll);
 
     let (mut regular_app, _) = crate::app::App::new();
     regular_app.chat_auto_scroll = true;
     regular_app.chat_autoscroll_hold_until_ms = 0;
 
-    let _ = super::input::apply_chat_scroll_changed(&mut regular_app, 0.85, 100.0);
+    let _ = super::input::apply_chat_scroll_changed(&mut regular_app, 0.85, 0.0, 100.0);
     assert!(!regular_app.chat_auto_scroll);
 }
 
@@ -655,10 +672,10 @@ fn manual_scroll_requires_tail_threshold_to_resume_autoscroll() {
     let (mut app, _) = crate::app::App::new();
     app.chat_auto_scroll = false;
 
-    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.974, 100.0);
+    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.974, 0.0, 100.0);
     assert!(!app.chat_auto_scroll);
 
-    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.975, 100.0);
+    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.975, 0.0, 100.0);
     assert!(app.chat_auto_scroll);
 }
 
@@ -675,10 +692,40 @@ fn matching_scroll_callback_preserves_turn_focus() {
     app.chat_virtualizer.focus_turn_on_user(1);
     app.chat_auto_scroll = false;
     let expected_relative_y = app.chat_virtualizer.relative_y();
+    let expected_absolute_y = app.chat_virtualizer.scroll_top_px();
 
-    let _ = super::input::apply_chat_scroll_changed(&mut app, expected_relative_y, 300.0);
+    let _ = super::input::apply_chat_scroll_changed(
+        &mut app,
+        expected_relative_y,
+        expected_absolute_y,
+        300.0,
+    );
 
     assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(1));
+}
+
+#[test]
+fn stale_tail_relative_callback_preserves_turn_focus_after_stream_growth() {
+    let (mut app, _) = crate::app::App::new();
+    app.chat = vec![
+        chat_entry(ChatRole::Assistant, "history"),
+        chat_entry(ChatRole::User, "question"),
+        chat_entry(ChatRole::Assistant, "answer"),
+    ];
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[600.0, 100.0, 0.0]);
+    app.chat_virtualizer.set_viewport_height(300.0);
+    app.chat_virtualizer.focus_turn_on_user(1);
+    app.chat_auto_scroll = false;
+    let anchored_top = app.chat_virtualizer.scroll_top_px();
+
+    app.chat_virtualizer.apply_measured_height(2, 500.0);
+    assert!(app.chat_virtualizer.relative_y() < 1.0);
+
+    let _ = super::input::apply_chat_scroll_changed(&mut app, 1.0, anchored_top, 300.0);
+
+    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(1));
+    assert!(!app.chat_auto_scroll);
+    assert_eq!(app.chat_virtualizer.scroll_top_px(), anchored_top);
 }
 
 #[test]
@@ -694,7 +741,9 @@ fn manual_scroll_and_explicit_navigation_release_turn_focus() {
     app.chat_virtualizer.focus_turn_on_user(1);
     app.chat_auto_scroll = false;
 
-    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.5, 300.0);
+    let manual_absolute_y = app.chat_virtualizer.max_scroll_top_px() * 0.5;
+    let _ =
+        super::input::apply_chat_scroll_changed(&mut app, 0.5, manual_absolute_y, 300.0);
 
     assert_eq!(app.chat_virtualizer.turn_focus_user_index(), None);
 

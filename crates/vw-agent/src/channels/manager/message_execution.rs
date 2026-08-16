@@ -18,6 +18,12 @@ fn channel_session_options() -> serde_json::Value {
     })
 }
 
+fn channel_request_reliability(
+    ctx: &ChannelRuntimeContext,
+) -> crate::app::agent::config::ReliabilityConfig {
+    ctx.reliability.as_ref().clone()
+}
+
 /// 执行消息处理流程
 ///
 /// 该函数是通道管理器中处理用户消息的核心入口点，负责将消息
@@ -98,6 +104,7 @@ pub(crate) async fn run_message_execution(
                     root: Some(request_root_dir.to_string_lossy().to_string()),
                     // 指定使用的模型
                     model: Some(channel_model_request_model(&route.provider, &route.model)),
+                    reliability: channel_request_reliability(ctx),
                     options: channel_session_options(),
                     approval: Some(ctx.approval_manager.clone()),
                     channel_name: Some(msg.channel.clone()),

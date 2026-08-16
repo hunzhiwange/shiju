@@ -187,6 +187,20 @@ fn active_session_step_mutations_keep_steps_calls_and_index_map_consistent() {
 }
 
 #[test]
+fn active_session_step_mutations_normalize_blank_turn_ids() {
+    let (mut app, _task) = App::new();
+    let mut loaded = step(1, 1_000, Some(1_500), "model-a");
+    loaded.turn_id = Some("  \t".to_string());
+    app.replace_active_session_steps(vec![loaded]);
+    assert_eq!(app.active_session_view_state.steps[0].turn_id, None);
+
+    let mut streamed = step(2, 2_000, Some(2_500), "model-b");
+    streamed.turn_id = Some(String::new());
+    app.upsert_active_session_step(streamed);
+    assert_eq!(app.active_session_view_state.steps[1].turn_id, None);
+}
+
+#[test]
 fn active_session_clear_removes_step_raw_payloads() {
     let (mut app, _task) = App::new();
     let raw = serde_json::json!({

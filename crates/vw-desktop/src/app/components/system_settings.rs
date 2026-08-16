@@ -22,26 +22,23 @@
 //! - **定时任务配置 (Cron)**：定时任务配置
 //! - **智能体配置 (Agents)**：智能体、对话流、快捷消息与心跳配置
 //! - **员工配置 (Staff)**：任务看板员工名册、绑定和能力配置
-//! - **可靠性配置 (Reliability)**：系统可靠性配置
-//! - **通道配置 (Channels)**：CLI 与多通道消息集成配置
+//! - 智能体配置内的 **通道** 标签：CLI 与多通道消息集成配置
 //! - **记忆配置 (Memory)**：记忆后端、缓存和嵌入检索配置
-//! - **运行时配置 (Runtime)**：native/docker/wasm 运行时配置
-//! - **ACP 配置 (Acp)**：ACP 智能体目录、初始化说明与启用状态
-//! - **MCP 配置 (Mcp)**：全局 MCP 服务器配置
+//! - 智能体配置内的 **运行时** 标签：native/docker/wasm 运行时配置
 //! - **自治配置 (Autonomy)**：代理自治能力设置
 //! - **安全配置 (Security)**：安全策略配置
 //! - **网关配置 (Gateway)**：HTTP 网关、Auth 鉴权与 node-control 配置
 //! - **可观测性配置 (Observability)**：日志与监控配置
-//! - **代理配置 (Proxy)**：网络代理设置
-//! - **隧道配置 (Tunnel)**：网关公网暴露隧道配置
-//! - **技能配置 (Skills)**：代理技能配置
 //! - **钩子配置 (Hooks)**：运行时钩子配置
-//! - **网络配置 (WebSearch / HttpRequest / Browser)**：网页搜索、HTTP 请求与浏览器工具配置
+//! - **网络配置 (WebSearch / HttpRequest / Browser / Proxy / Tunnel)**：网页搜索、HTTP 请求、浏览器、代理与隧道配置
 
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     icon_btn, settings_close_button, settings_error_banner, settings_muted_text_style,
     settings_panel_style, settings_text_input_style,
+};
+use crate::app::components::system_settings_search::{
+    SystemSettingsSearchEntry, SystemSettingsSearchTarget,
 };
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -89,7 +86,7 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Vector
 pub enum SystemTab {
     /// 常规设置标签页
     General,
-    /// 主题管理标签页
+    /// 兼容旧主题入口，选择时转入常规设置的主题标签
     Themes,
     /// 编辑器设置标签页
     Editor,
@@ -105,18 +102,12 @@ pub enum SystemTab {
     Agents,
     /// 员工配置标签页
     Staff,
-    /// 可靠性配置标签页
-    Reliability,
     /// 通道配置标签页
     Channels,
     /// 记忆配置标签页
     Memory,
     /// 运行时配置标签页
     Runtime,
-    /// ACP 配置标签页
-    Acp,
-    /// MCP 配置标签页
-    Mcp,
     /// 自治配置标签页
     Autonomy,
     /// 安全配置标签页
@@ -131,8 +122,6 @@ pub enum SystemTab {
     Proxy,
     /// 隧道配置标签页
     Tunnel,
-    /// 技能配置标签页
-    Skills,
     /// 钩子配置标签页
     Hooks,
     /// 网页搜索配置标签页
@@ -144,6 +133,33 @@ pub enum SystemTab {
 }
 
 impl SystemTab {
+    pub(super) fn label(self) -> &'static str {
+        match self {
+            SystemTab::General => "常规设置",
+            SystemTab::Themes => "主题",
+            SystemTab::Editor => "编辑器",
+            SystemTab::Projects => "项目",
+            SystemTab::Providers => "提供商",
+            SystemTab::Models => "模型",
+            SystemTab::Cron => "定时任务配置",
+            SystemTab::Agents => "智能体配置",
+            SystemTab::Staff => "员工配置",
+            SystemTab::Channels => "通道配置",
+            SystemTab::Memory => "记忆配置",
+            SystemTab::Runtime => "运行时配置",
+            SystemTab::Autonomy => "自治配置",
+            SystemTab::Security => "安全配置",
+            SystemTab::GatewayClient => "客户端网关",
+            SystemTab::Gateway => "服务端网关",
+            SystemTab::Observability => "可观测性配置",
+            SystemTab::Proxy => "代理配置",
+            SystemTab::Tunnel => "隧道配置",
+            SystemTab::Hooks => "钩子配置",
+            SystemTab::WebSearch => "网络配置",
+            SystemTab::HttpRequest => "网络请求配置",
+            SystemTab::Browser => "浏览器配置",
+        }
+    }
     /// 返回所有系统设置标签页的数组
     ///
     /// # 返回值
@@ -158,10 +174,9 @@ impl SystemTab {
     ///     println!("{}", tab);
     /// }
     /// ```
-    pub(super) fn all() -> [SystemTab; 24] {
+    pub(super) fn all() -> [SystemTab; 15] {
         [
             SystemTab::General,
-            SystemTab::Themes,
             SystemTab::Projects,
             SystemTab::Providers,
             SystemTab::Models,
@@ -169,19 +184,11 @@ impl SystemTab {
             SystemTab::Cron,
             SystemTab::Agents,
             SystemTab::Staff,
-            SystemTab::Reliability,
-            SystemTab::Channels,
-            SystemTab::Runtime,
-            SystemTab::Acp,
-            SystemTab::Mcp,
             SystemTab::Autonomy,
             SystemTab::Security,
             SystemTab::GatewayClient,
             SystemTab::Gateway,
             SystemTab::Observability,
-            SystemTab::Proxy,
-            SystemTab::Tunnel,
-            SystemTab::Skills,
             SystemTab::Hooks,
             SystemTab::WebSearch,
         ]
@@ -189,7 +196,14 @@ impl SystemTab {
 }
 
 pub(super) fn is_network_tab(tab: SystemTab) -> bool {
-    matches!(tab, SystemTab::WebSearch | SystemTab::HttpRequest | SystemTab::Browser)
+    matches!(
+        tab,
+        SystemTab::WebSearch
+            | SystemTab::HttpRequest
+            | SystemTab::Browser
+            | SystemTab::Proxy
+            | SystemTab::Tunnel
+    )
 }
 
 impl std::fmt::Display for SystemTab {
@@ -206,124 +220,43 @@ impl std::fmt::Display for SystemTab {
     ///
     /// 返回 `fmt::Result`，表示格式化操作的结果。
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SystemTab::General => write!(f, "常规设置"),
-            SystemTab::Themes => write!(f, "主题"),
-            SystemTab::Editor => write!(f, "编辑器"),
-            SystemTab::Projects => write!(f, "项目"),
-            SystemTab::Providers => write!(f, "提供商"),
-            SystemTab::Models => write!(f, "模型"),
-            SystemTab::Cron => write!(f, "定时任务配置"),
-            SystemTab::Agents => write!(f, "智能体配置"),
-            SystemTab::Staff => write!(f, "员工配置"),
-            SystemTab::Reliability => write!(f, "可靠性配置"),
-            SystemTab::Channels => write!(f, "通道配置"),
-            SystemTab::Memory => write!(f, "记忆配置"),
-            SystemTab::Runtime => write!(f, "运行时配置"),
-            SystemTab::Acp => write!(f, "ACP 配置"),
-            SystemTab::Mcp => write!(f, "MCP 配置"),
-            SystemTab::Autonomy => write!(f, "自治配置"),
-            SystemTab::Security => write!(f, "安全配置"),
-            SystemTab::GatewayClient => write!(f, "客户端网关"),
-            SystemTab::Gateway => write!(f, "服务端网关"),
-            SystemTab::Observability => write!(f, "可观测性配置"),
-            SystemTab::Proxy => write!(f, "代理配置"),
-            SystemTab::Tunnel => write!(f, "隧道配置"),
-            SystemTab::Skills => write!(f, "技能配置"),
-            SystemTab::Hooks => write!(f, "钩子配置"),
-            SystemTab::WebSearch => write!(f, "网络配置"),
-            SystemTab::HttpRequest => write!(f, "网络请求配置"),
-            SystemTab::Browser => write!(f, "浏览器配置"),
-        }
+        f.write_str(self.label())
     }
 }
 
-fn system_tab_search_text(tab: SystemTab) -> &'static str {
+pub(super) fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
     match tab {
-        SystemTab::General => {
-            "常规设置 general app basic 基础 界面 语言 应用主题 自动保存 终端 终端 Shell 终端主题 终端字体 字体大小 编辑器 editor code 编辑器主题 行高 preview auto save"
-        }
+        SystemTab::General => &["general", "app", "basic", "基础", "themes", "主题"],
         SystemTab::Themes => {
-            "主题 themes gallery palette custom builtin 画廊 配色 色板 自定义主题 内置主题 应用 删除 新建主题"
+            &["themes", "gallery", "palette", "custom", "builtin", "画廊", "配色", "色板"]
         }
-        SystemTab::Editor => {
-            "编辑器 editor code 编辑 主题与显示 编辑器主题 跟随系统主题 字体大小 行高 自动调整行高"
-        }
-        SystemTab::Projects => {
-            "项目 projects workspace 工作区 当前项目 打开文件夹 Worktree 历史项目 项目名称 打开项目 保存 删除"
-        }
+        SystemTab::Editor => &["editor", "code", "编辑", "主题与显示", "字体大小", "行高"],
+        SystemTab::Projects => &["projects", "workspace", "工作区", "Worktree", "历史项目"],
         SystemTab::Providers => {
-            "提供商 providers api key model 模型 API Key 密钥 连接 自定义提供商 base url endpoint catalog"
+            &["providers", "api key", "model", "模型", "密钥", "base url", "catalog"]
         }
-        SystemTab::Models => {
-            "模型 models llm ai provider 搜索模型 模型详情 提供商 模型 id 上下文窗口 最大输出 温度 模型路由 routing 匹配模式 pattern priority 优先级 查询模型分类 classification rules 规则 分类 多模态配置 multimodal image vision 图片模型 OCR 文字提取 最大图片数量 单张图片大小上限 远程抓取 remote fetch"
-        }
-        SystemTab::Cron => {
-            "定时任务配置 cron schedule task 自动化 启用 历史留存 history retention 调度器 scheduler 执行能力 最大任务 并发上限 最大并发 max_tasks max_concurrent"
-        }
-        SystemTab::Agents => {
-            "智能体配置 agents subagent model tools 模型 工具 Agent 工作台 新增智能体 key 基础 身份 工具 技能 提供商 API 密钥 温度 启用 最大深度 上下文压缩 历史消息上限 并行工具 工具调度器 最大迭代次数 智能体模式 对话流 dialogue flow permission 对话 权限 时间线 显示推理摘要 展开 shell 展开编辑工具 reasoning summary edit patch 快捷消息 quick messages chat 输入框 常用操作 Git 操作 创建新会话 自定义消息 动作 心跳配置 heartbeat monitor follow up 自动化 执行间隔 兜底消息 目标通道 接收者 投递内容"
-        }
-        SystemTab::Staff => {
-            "员工配置 staff roster task board agent binding capability 员工 名册 任务看板 绑定 能力 工具 技能"
-        }
-        SystemTab::Reliability => {
-            "可靠性配置 reliability retry run 运行 Provider 重试次数 退避 频道与调度 频道重连 调度器重试"
-        }
-        SystemTab::Channels => {
-            "通道配置 channels cli message CLI 通道 项目目录 已启用通道 workspace Slack Teams 外部消息"
-        }
-        SystemTab::Memory => {
-            "记忆配置 memory embedding routes vector 模型 记忆存储 storage database 存储后端 连接串 Schema 表名 TLS 持久化 清理 快照 自动恢复 保留 缓存 归档 SQLite 打开超时 嵌入与检索 嵌入模型 嵌入路由 路由规则 匹配模式 提供商 API Key 维度 混合检索 权重"
-        }
-        SystemTab::Runtime => {
-            "运行时配置 runtime native docker wasm run 运行 运行时类型 推理级别 只读根文件系统 挂载工作区 workspace read write symlink host validation"
-        }
-        SystemTab::Acp => {
-            "acp agent client protocol 智能体 后端 启用 禁用 初始化 环境 配置 codex claude gemini copilot pi npx"
-        }
-        SystemTab::Mcp => {
-            "mcp model context protocol mcpServers server tool 工具 服务器 stdio http sse headers env allowedTools deniedTools timeout 插件 plugin"
-        }
-        SystemTab::Autonomy => {
-            "自治配置 autonomy agent run approval 运行 权限与审批 执行级别 审批阈值 重定向 预算 工具与路径 shell 命令 自动审批 非 CLI 暴露 审批人"
-        }
-        SystemTab::Security => {
-            "安全配置 security policy permission 沙箱 后端说明 资源限制 内存 CPU 子进程 审计日志 OTP 紧急停止 E-Stop 系统调用异常检测 Canary Token 语义注入防护"
-        }
-        SystemTab::GatewayClient => {
-            "客户端网关 gateway client connection 用户名 密码 网关地址 skey Auth 连接 heartbeat"
-        }
-        SystemTab::Gateway => {
-            "服务端网关 gateway server api 监听地址 端口 skey auth_enabled Auth 公网绑定 反向代理 webhook 幂等性 node-control"
-        }
-        SystemTab::Observability => {
-            "可观测性配置 observability log monitor 观测后端 OTel 端点 运行时追踪 trace 模式 文件路径 rolling 保留量"
-        }
-        SystemTab::Proxy => {
-            "代理配置 proxy network 生效范围 代理地址 HTTP HTTPS ALL_PROXY NO_PROXY 排除与路由 指定服务 selector"
-        }
-        SystemTab::Tunnel => {
-            "隧道配置 tunnel public gateway 接入方式 提供者 tailscale funnel tailnet 主机名 端口 公网暴露"
-        }
-        SystemTab::Skills => {
-            "技能配置 skills tools plugins 工具 插件 open-skills 目录 模式 catalog browser"
-        }
-        SystemTab::Hooks => {
-            "钩子配置 hooks tool command 工具 基础行为 启用 command_logger 内置钩子 自定义 hooks"
-        }
-        SystemTab::WebSearch => {
-            "网络配置 network 网页搜索 web search brave tool 工具 搜索 基础行为 启用 搜索服务 DuckDuckGo Brave Serper Google Bing Brave 密钥 API 密钥 接口地址 请求参数 结果数量 超时时间 User-Agent 网络请求 http request allowlist 允许域名 白名单 请求限制 max body method headers 浏览器配置 browser computer use 窗口行为 运行后端 default webdriver sidecar viewport 自动化"
-        }
-        SystemTab::HttpRequest => {
-            "网络请求配置 http request tool allowlist 工具 基础行为 启用 允许域名 白名单 请求限制 max body timeout User-Agent method headers"
-        }
-        SystemTab::Browser => {
-            "浏览器配置 browser computer use tool 工具 基础行为 允许域名 窗口行为 运行后端 default webdriver sidecar viewport 自动化"
-        }
+        SystemTab::Models => &["models", "llm", "ai", "provider"],
+        SystemTab::Cron => &["cron", "schedule", "task", "自动化"],
+        SystemTab::Agents => &["agents", "subagent", "智能体"],
+        SystemTab::Staff => &["staff", "员工"],
+        SystemTab::Channels => &["channels", "message", "通道"],
+        SystemTab::Memory => &["memory", "记忆"],
+        SystemTab::Runtime => &["runtime", "native", "docker", "wasm", "运行时"],
+        SystemTab::Autonomy => &["autonomy", "agent run", "自治"],
+        SystemTab::Security => &["security", "policy", "安全"],
+        SystemTab::GatewayClient => &["gateway client", "connection", "客户端"],
+        SystemTab::Gateway => &["gateway server", "api", "服务端"],
+        SystemTab::Observability => &["observability", "log", "monitor", "OTel", "trace"],
+        SystemTab::Proxy => &["proxy", "代理", "HTTP", "HTTPS", "ALL_PROXY", "NO_PROXY"],
+        SystemTab::Tunnel => &["tunnel", "public gateway", "tailscale", "funnel", "tailnet"],
+        SystemTab::Hooks => &["hooks", "tool", "command", "钩子"],
+        SystemTab::WebSearch => &["network", "网络"],
+        SystemTab::HttpRequest => &["http request", "network request"],
+        SystemTab::Browser => &["browser", "computer use"],
     }
 }
 
+#[cfg(test)]
 pub(super) fn system_tab_matches_query(tab: SystemTab, query: &str) -> bool {
     let query = query.trim();
     if query.is_empty() {
@@ -331,31 +264,210 @@ pub(super) fn system_tab_matches_query(tab: SystemTab, query: &str) -> bool {
     }
 
     let needle = query.to_lowercase();
-    tab.to_string().to_lowercase().contains(&needle)
-        || system_tab_search_text(tab).to_lowercase().contains(&needle)
+    if tab.to_string().to_lowercase().contains(&needle)
+        || system_tab_keywords(tab).iter().any(|text| text.to_lowercase().contains(&needle))
+    {
+        return true;
+    }
+
+    use crate::app::components::system_settings_search::SettingsTabDescriptor;
+    fn descriptors_match<T>(descriptors: &[SettingsTabDescriptor<T>], needle: &str) -> bool {
+        descriptors.iter().any(|descriptor| {
+            descriptor.label.to_lowercase().contains(needle)
+                || descriptor.keywords.iter().any(|text| text.to_lowercase().contains(needle))
+        })
+    }
+
+    match tab {
+        SystemTab::General => {
+            descriptors_match(super::system_settings_general::GENERAL_TABS, &needle)
+        }
+        SystemTab::Models => descriptors_match(super::system_settings_models::MODEL_TABS, &needle),
+        SystemTab::Cron => descriptors_match(super::system_settings_cron::CRON_TABS, &needle),
+        SystemTab::Agents => {
+            descriptors_match(super::system_settings_agents::AGENT_CONFIG_TABS, &needle)
+                || descriptors_match(
+                    &super::system_settings_channels::channel_tab_descriptors(),
+                    &needle,
+                )
+                || descriptors_match(super::system_settings_mcp::MCP_TABS, &needle)
+                || descriptors_match(super::system_settings_skills::SKILLS_TABS, &needle)
+        }
+        SystemTab::Staff => descriptors_match(super::system_settings_staff::search_tabs(), &needle),
+        SystemTab::Channels => {
+            descriptors_match(&super::system_settings_channels::channel_tab_descriptors(), &needle)
+        }
+        SystemTab::Memory => {
+            descriptors_match(super::system_settings_memory::MEMORY_TABS, &needle)
+                || descriptors_match(super::system_settings_memory::QDRANT_TAB, &needle)
+        }
+        SystemTab::Autonomy => {
+            descriptors_match(super::system_settings_autonomy::AUTONOMY_TABS, &needle)
+        }
+        SystemTab::Security => {
+            descriptors_match(super::system_settings_security::SECURITY_TABS, &needle)
+        }
+        SystemTab::Gateway => {
+            descriptors_match(super::system_settings_gateway::GATEWAY_TABS, &needle)
+        }
+        SystemTab::WebSearch => {
+            descriptors_match(super::system_settings_network::NETWORK_TABS, &needle)
+        }
+        SystemTab::HttpRequest | SystemTab::Browser | SystemTab::Proxy | SystemTab::Tunnel => {
+            super::system_settings_network::NETWORK_TABS
+                .iter()
+                .find(|descriptor| descriptor.tab == tab)
+                .is_some_and(|descriptor| {
+                    descriptors_match(std::slice::from_ref(descriptor), &needle)
+                })
+        }
+        _ => false,
+    }
+}
+
+fn search_target_parent_tab(target: SystemSettingsSearchTarget) -> SystemTab {
+    match target {
+        SystemSettingsSearchTarget::TopLevel(tab) => tab,
+        SystemSettingsSearchTarget::General(_) => SystemTab::General,
+        SystemSettingsSearchTarget::Models(_) => SystemTab::Models,
+        SystemSettingsSearchTarget::Cron(_) => SystemTab::Cron,
+        SystemSettingsSearchTarget::Agents(_)
+        | SystemSettingsSearchTarget::AgentMcp(_)
+        | SystemSettingsSearchTarget::AgentSkills(_) => SystemTab::Agents,
+        SystemSettingsSearchTarget::Staff(_) => SystemTab::Staff,
+        SystemSettingsSearchTarget::Channels(_) => SystemTab::Agents,
+        SystemSettingsSearchTarget::Memory(_) => SystemTab::Memory,
+        SystemSettingsSearchTarget::Autonomy(_) => SystemTab::Autonomy,
+        SystemSettingsSearchTarget::Security(_) => SystemTab::Security,
+        SystemSettingsSearchTarget::Gateway(_) => SystemTab::Gateway,
+        SystemSettingsSearchTarget::Network(_) => SystemTab::WebSearch,
+    }
+}
+
+pub(super) fn search_results(
+    app: &App,
+    query: &str,
+) -> Vec<SystemSettingsSearchEntry> {
+    let query = query.trim();
+    let mut results = crate::app::components::system_settings_search::catalog(app)
+        .into_iter()
+        .filter(|entry| {
+            if query.is_empty() {
+                matches!(entry.target, SystemSettingsSearchTarget::TopLevel(_))
+            } else {
+                entry.matches(query)
+            }
+        })
+        .collect::<Vec<_>>();
+
+    results.sort_by_key(|entry| {
+        let parent = search_target_parent_tab(entry.target);
+        SystemTab::all().iter().position(|tab| *tab == parent).unwrap_or(usize::MAX)
+    });
+    results
+}
+
+fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> bool {
+    use crate::app::components::system_settings_search::StaffSettingsSearchTab;
+
+    match target {
+        SystemSettingsSearchTarget::TopLevel(tab) => {
+            tab == app.system_settings_tab
+                || (tab == SystemTab::WebSearch && is_network_tab(app.system_settings_tab))
+        }
+        SystemSettingsSearchTarget::General(tab) => {
+            app.system_settings_tab == SystemTab::General && app.general_settings_tab == tab
+        }
+        SystemSettingsSearchTarget::Models(tab) => {
+            app.system_settings_tab == SystemTab::Models && app.model_settings.active_tab == tab
+        }
+        SystemSettingsSearchTarget::Cron(tab) => {
+            app.system_settings_tab == SystemTab::Cron && app.cron_settings.active_tab == tab
+        }
+        SystemSettingsSearchTarget::Agents(tab) => {
+            app.system_settings_tab == SystemTab::Agents
+                && app.agents_settings.active_config_tab == tab
+        }
+        SystemSettingsSearchTarget::Staff(tab) => {
+            let key = match tab {
+                StaffSettingsSearchTab::Roster => "roster",
+                StaffSettingsSearchTab::Capabilities => "capabilities",
+                StaffSettingsSearchTab::Teams => "teams",
+                StaffSettingsSearchTab::Workers => "workers",
+            };
+            app.system_settings_tab == SystemTab::Staff
+                && app.staff_settings.active_tab.key() == key
+        }
+        SystemSettingsSearchTarget::Channels(tab) => {
+            app.system_settings_tab == SystemTab::Agents
+                && app.agents_settings.active_config_tab
+                    == crate::app::state::AgentConfigTab::Channels
+                && app.channels_settings.active_tab == tab
+        }
+        SystemSettingsSearchTarget::Memory(tab) => {
+            app.system_settings_tab == SystemTab::Memory && app.memory_settings.active_tab == tab
+        }
+        SystemSettingsSearchTarget::Autonomy(tab) => {
+            app.system_settings_tab == SystemTab::Autonomy && app.autonomy_settings.active_tab == tab
+        }
+        SystemSettingsSearchTarget::Security(tab) => {
+            app.system_settings_tab == SystemTab::Security && app.security_settings.active_tab == tab
+        }
+        SystemSettingsSearchTarget::Gateway(tab) => {
+            app.system_settings_tab == SystemTab::Gateway && app.gateway_settings.active_tab == tab
+        }
+        SystemSettingsSearchTarget::Network(tab) => app.system_settings_tab == tab,
+        SystemSettingsSearchTarget::AgentMcp(tab) => {
+            app.system_settings_tab == SystemTab::Agents
+                && app.agents_settings.active_config_tab
+                    == crate::app::state::AgentConfigTab::Mcp
+                && app.mcp_settings.active_tab == tab
+        }
+        SystemSettingsSearchTarget::AgentSkills(tab) => {
+            app.system_settings_tab == SystemTab::Agents
+                && app.agents_settings.active_config_tab
+                    == crate::app::state::AgentConfigTab::Skills
+                && app.skills_settings.active_tab == tab
+        }
+    }
 }
 
 pub(super) fn active_tab_help_modal_open(app: &App, active_tab: SystemTab) -> bool {
+    let help_tab = active_settings_help_tab(app, active_tab);
     crate::app::components::system_settings_help::help_open_for_tab(
         app.system_settings_help_tab,
-        active_tab,
+        help_tab,
     ) || match active_tab {
-        SystemTab::Agents => {
-            app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Heartbeat
-                && app.heartbeat_settings.show_help_modal
-        }
+        SystemTab::Agents => match app.agents_settings.active_config_tab {
+            crate::app::state::AgentConfigTab::Heartbeat => app.heartbeat_settings.show_help_modal,
+            crate::app::state::AgentConfigTab::Skills => app.skills_settings.show_help_modal,
+            crate::app::state::AgentConfigTab::Reliability => {
+                app.reliability_settings.show_help_modal
+            }
+            _ => false,
+        },
         SystemTab::Cron => {
             app.cron_settings.show_help_modal || app.scheduler_settings.show_help_modal
         }
-        SystemTab::Reliability => app.reliability_settings.show_help_modal,
         SystemTab::Autonomy => app.autonomy_settings.show_help_modal,
         SystemTab::Security => app.security_settings.show_help_modal,
         SystemTab::GatewayClient => app.gateway_client_settings.show_help_modal,
         SystemTab::Gateway => app.gateway_settings.show_help_modal,
         SystemTab::Observability => app.observability_settings.show_help_modal,
         SystemTab::Proxy => app.proxy_settings.show_help_modal,
-        SystemTab::Skills => app.skills_settings.show_help_modal,
         _ => false,
+    }
+}
+
+fn active_settings_help_tab(app: &App, active_tab: SystemTab) -> SystemTab {
+    if active_tab != SystemTab::Agents {
+        return active_tab;
+    }
+
+    match app.agents_settings.active_config_tab {
+        crate::app::state::AgentConfigTab::Channels => SystemTab::Channels,
+        crate::app::state::AgentConfigTab::Runtime => SystemTab::Runtime,
+        _ => active_tab,
     }
 }
 
@@ -374,23 +486,29 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
                 app.multimodal_settings.save_error.as_deref()
             }
         },
-        SystemTab::Cron => app
-            .cron_settings
-            .save_error
-            .as_deref()
-            .or(app.scheduler_settings.save_error.as_deref()),
+        SystemTab::Cron => {
+            app.cron_settings.save_error.as_deref().or(app.scheduler_settings.save_error.as_deref())
+        }
         SystemTab::Agents => match app.agents_settings.active_config_tab {
-            crate::app::state::AgentConfigTab::Agents => {
-                app.agents_settings.save_error.as_deref()
+            crate::app::state::AgentConfigTab::Agents => app.agents_settings.save_error.as_deref(),
+            crate::app::state::AgentConfigTab::Channels => {
+                app.channels_settings.save_error.as_deref()
             }
+            crate::app::state::AgentConfigTab::Runtime => app.runtime_settings.save_error.as_deref(),
             crate::app::state::AgentConfigTab::Heartbeat => {
                 app.heartbeat_settings.save_error.as_deref()
+            }
+            crate::app::state::AgentConfigTab::Acp => app.acp_settings.save_error.as_deref(),
+            crate::app::state::AgentConfigTab::Mcp => app.mcp_settings.save_error.as_deref(),
+            crate::app::state::AgentConfigTab::Skills => app.skills_settings.save_error.as_deref(),
+            crate::app::state::AgentConfigTab::Plugins => None,
+            crate::app::state::AgentConfigTab::Reliability => {
+                app.reliability_settings.save_error.as_deref()
             }
             crate::app::state::AgentConfigTab::DialogueFlow
             | crate::app::state::AgentConfigTab::QuickMessages => None,
         },
         SystemTab::Staff => app.staff_settings.save_error.as_deref(),
-        SystemTab::Reliability => app.reliability_settings.save_error.as_deref(),
         SystemTab::Channels => app.channels_settings.save_error.as_deref(),
         SystemTab::Memory => match app.memory_settings.active_tab {
             crate::app::state::MemorySettingsTab::Storage => {
@@ -399,8 +517,6 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
             _ => app.memory_settings.save_error.as_deref(),
         },
         SystemTab::Runtime => app.runtime_settings.save_error.as_deref(),
-        SystemTab::Acp => app.acp_settings.save_error.as_deref(),
-        SystemTab::Mcp => app.mcp_settings.save_error.as_deref(),
         SystemTab::Autonomy => app.autonomy_settings.save_error.as_deref(),
         SystemTab::Security => app.security_settings.save_error.as_deref(),
         SystemTab::GatewayClient => app.gateway_client_settings.save_error.as_deref(),
@@ -408,13 +524,16 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::Observability => app.observability_settings.save_error.as_deref(),
         SystemTab::Proxy => app.proxy_settings.save_error.as_deref(),
         SystemTab::Tunnel => app.tunnel_settings.save_error.as_deref(),
-        SystemTab::Skills => app.skills_settings.save_error.as_deref(),
         SystemTab::Hooks => app.hooks_settings.save_error.as_deref(),
         SystemTab::WebSearch => app.web_search_settings.save_error.as_deref(),
         SystemTab::HttpRequest => app.http_request_settings.save_error.as_deref(),
         SystemTab::Browser => app.browser_settings.save_error.as_deref(),
         SystemTab::Themes => app.themes_settings.error.as_deref(),
-        SystemTab::General | SystemTab::Editor | SystemTab::Projects => None,
+        SystemTab::General => match app.general_settings_tab {
+            crate::app::state::GeneralSettingsTab::Themes => app.themes_settings.error.as_deref(),
+            _ => None,
+        },
+        SystemTab::Editor | SystemTab::Projects => None,
     }
 }
 
@@ -475,11 +594,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     // 获取当前激活的标签页
     let active_tab = app.system_settings_tab;
-    let filtered_tabs = SystemTab::all()
-        .iter()
-        .copied()
-        .filter(|tab| system_tab_matches_query(*tab, &app.system_settings_query))
-        .collect::<Vec<_>>();
+    let help_tab = active_settings_help_tab(app, active_tab);
+    let filtered_tabs = search_results(app, &app.system_settings_query);
     let query_input = text_input("搜索配置", &app.system_settings_query)
         .on_input(|value| Message::Settings(message::SettingsMessage::SystemTabQueryChanged(value)))
         .padding([8, 10])
@@ -497,19 +613,27 @@ pub fn view(app: &App) -> Element<'_, Message> {
         column(
             filtered_tabs
                 .iter()
-                .map(|tab| {
+                .map(|entry| {
                     // 判断当前标签页是否处于激活状态
-                    let is_active = *tab == active_tab
-                        || (*tab == SystemTab::WebSearch && is_network_tab(active_tab));
+                    let is_active = search_target_is_active(app, entry.target);
                     // 创建标签页文本标签
-                    let label = text(tab.to_string()).size(13);
+                    let label: Element<'_, Message> = if let Some(parent) = entry.parent_label {
+                        column![
+                            text(entry.label).size(13),
+                            text(parent).size(11).style(settings_muted_text_style),
+                        ]
+                        .spacing(2)
+                        .into()
+                    } else {
+                        text(entry.label).size(13).into()
+                    };
 
                     // 构建标签页按钮
                     let btn = button(container(label).width(Length::Fill).padding([8, 12]))
                         .width(Length::Fill)
-                        .on_press(Message::Settings(message::SettingsMessage::SystemTabSelected(
-                            *tab,
-                        )))
+                        .on_press(Message::Settings(
+                            message::SettingsMessage::SystemSearchTargetSelected(entry.target),
+                        ))
                         .style(move |theme: &iced::Theme, status| {
                             let palette = theme.extended_palette();
                             let is_dark = theme.palette().background.r
@@ -599,12 +723,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SystemTab::Cron => crate::app::components::system_settings_cron::view(app),
         SystemTab::Agents => crate::app::components::system_settings_agents::view(app),
         SystemTab::Staff => crate::app::components::system_settings_staff::view(app),
-        SystemTab::Reliability => crate::app::components::system_settings_reliability::view(app),
         SystemTab::Channels => crate::app::components::system_settings_channels::view(app),
         SystemTab::Memory => crate::app::components::system_settings_memory::view(app),
         SystemTab::Runtime => crate::app::components::system_settings_runtime::view(app),
-        SystemTab::Acp => crate::app::components::system_settings_acp::view(app),
-        SystemTab::Mcp => crate::app::components::system_settings_mcp::view(app),
         SystemTab::Autonomy => crate::app::components::system_settings_autonomy::view(app),
         SystemTab::Security => crate::app::components::system_settings_security::view(app),
         SystemTab::GatewayClient => {
@@ -614,11 +735,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SystemTab::Observability => {
             crate::app::components::system_settings_observability::view(app)
         }
-        SystemTab::Proxy => crate::app::components::system_settings_proxy::view(app),
-        SystemTab::Tunnel => crate::app::components::system_settings_tunnel::view(app),
-        SystemTab::Skills => crate::app::components::system_settings_skills::view(app),
         SystemTab::Hooks => crate::app::components::system_settings_hooks::view(app),
-        SystemTab::WebSearch | SystemTab::HttpRequest | SystemTab::Browser => {
+        SystemTab::WebSearch
+        | SystemTab::HttpRequest
+        | SystemTab::Browser
+        | SystemTab::Proxy
+        | SystemTab::Tunnel => {
             crate::app::components::system_settings_network::view(app)
         }
     };
@@ -701,7 +823,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 container({
                     let mut content_with_help = column![].spacing(12).width(Length::Fill);
                     if let Some(help_bar) =
-                        crate::app::components::system_settings_help::help_button_bar(active_tab)
+                        crate::app::components::system_settings_help::help_button_bar(help_tab)
                     {
                         content_with_help = content_with_help.push(help_bar);
                     }
@@ -788,18 +910,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
         dialog = crate::app::components::system_settings_models::view_overlays(app, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Agents
-        && app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Heartbeat
-    {
-        dialog = crate::app::components::system_settings_heartbeat::view_overlays(app, dialog);
+    if app.system_settings_tab == SystemTab::Agents {
+        dialog = match app.agents_settings.active_config_tab {
+            crate::app::state::AgentConfigTab::Heartbeat => {
+                crate::app::components::system_settings_heartbeat::view_overlays(app, dialog)
+            }
+            crate::app::state::AgentConfigTab::Mcp => {
+                crate::app::components::system_settings_mcp::view_overlays(app, dialog)
+            }
+            crate::app::state::AgentConfigTab::Skills => {
+                crate::app::components::system_settings_skills::view_overlays(app, dialog)
+            }
+            crate::app::state::AgentConfigTab::Reliability => {
+                crate::app::components::system_settings_reliability::view_overlays(app, dialog)
+            }
+            _ => dialog,
+        };
     }
 
     if app.system_settings_tab == SystemTab::Cron {
         dialog = crate::app::components::system_settings_cron::view_overlays(app, dialog);
-    }
-
-    if app.system_settings_tab == SystemTab::Reliability {
-        dialog = crate::app::components::system_settings_reliability::view_overlays(app, dialog);
     }
 
     if app.system_settings_tab == SystemTab::Autonomy {
@@ -814,10 +944,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         dialog = crate::app::components::system_settings_gateway_client::view_overlays(app, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Mcp {
-        dialog = crate::app::components::system_settings_mcp::view_overlays(app, dialog);
-    }
-
     if app.system_settings_tab == SystemTab::Gateway {
         dialog = crate::app::components::system_settings_gateway::view_overlays(app, dialog);
     }
@@ -830,14 +956,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         dialog = crate::app::components::system_settings_proxy::view_overlays(app, dialog);
     }
 
-    if app.system_settings_tab == SystemTab::Skills {
-        dialog = crate::app::components::system_settings_skills::view_overlays(app, dialog);
-    }
-
     dialog = crate::app::components::system_settings_help::with_help_modal(
         app,
         dialog,
-        app.system_settings_tab,
+        help_tab,
         app.system_settings_help_tab,
     );
 

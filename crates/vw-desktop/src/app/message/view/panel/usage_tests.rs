@@ -1,3 +1,4 @@
+use crate::app::models::{ChatSessionStep, TokenUsage};
 use crate::app::{App, message::ViewMessage, state::UsageModelInfo};
 
 fn test_app() -> App {
@@ -125,7 +126,7 @@ fn usage_step_toggled_while_loading_does_not_duplicate_load() {
 }
 
 #[test]
-fn usage_step_toggled_uncached_step_marks_it_loading() {
+fn usage_step_toggled_uncached_step_does_not_load_raw_payload() {
     let mut app = test_app();
     let key = raw_key("active-session", 11);
     app.active_session_id = Some(key.0.clone());
@@ -133,8 +134,41 @@ fn usage_step_toggled_uncached_step_marks_it_loading() {
     let _task = super::update(&mut app, ViewMessage::UsageStepToggled(key.2));
 
     assert!(app.usage_step_expanded.contains(&key.2));
-    assert!(app.usage_step_raw_loading.contains(&key));
+    assert!(!app.usage_step_raw_loading.contains(&key));
     assert!(!app.usage_step_raw_payloads.contains_key(&key));
+}
+
+#[test]
+fn usage_step_raw_open_uncached_step_starts_loading() {
+    let mut app = test_app();
+    let key = raw_key("active-session", 11);
+    app.active_session_id = Some(key.0.clone());
+    app.usage_step_expanded.insert(key.2);
+
+    let _task = super::update(&mut app, ViewMessage::UsageStepRawOpen(key.2));
+
+    assert!(app.usage_step_raw_loading.contains(&key));
+    assert!(app.usage_step_raw_modal.is_none());
+}
+
+#[test]
+fn usage_step_blank_turn_id_uses_legacy_cache_key() {
+    let mut app = test_app();
+    app.active_session_view_state.steps.push(ChatSessionStep {
+        index: 12,
+        turn_id: Some("  \t".to_string()),
+        started_ms: 1,
+        finished_ms: Some(2),
+        start_snapshot_path: None,
+        finish_snapshot_path: None,
+        usage: TokenUsage::default(),
+        cost_usd: None,
+        finish_reason: Some("stop".to_string()),
+        model: None,
+        tool_timings: Vec::new(),
+    });
+
+    assert_eq!(super::turn_id_for_step(&app, 12), "legacy-step-12");
 }
 
 #[test]
@@ -178,6 +212,28 @@ fn usage_step_raw_loaded_caches_explicit_empty_payload() {
 
     assert!(!app.usage_step_raw_loading.contains(&key));
     assert_eq!(app.usage_step_raw_payloads.get(&key), Some(&Ok(None)));
+}
+
+#[test]
+fn usage_step_raw_loaded_after_click_opens_modal() {
+    let mut app = test_app();
+    let key = raw_key("active-session", 22);
+    app.active_session_id = Some(key.0.clone());
+    app.usage_step_expanded.insert(key.2);
+    app.usage_step_raw_loading.insert(key.clone());
+
+    let _task = super::update(
+        &mut app,
+        ViewMessage::UsageStepRawLoaded(
+            key.0.clone(),
+            key.2,
+            Ok(Some(serde_json::json!({ "messages": [] }))),
+        ),
+    );
+
+    let modal = app.usage_step_raw_modal.as_ref().expect("modal should open after loading");
+    assert_eq!(modal.step_index, key.2);
+    assert!(modal.content.contains("\"messages\""));
 }
 
 #[test]
@@ -230,6 +286,7 @@ fn usage_step_raw_open_ignores_missing_or_empty_payload() {
 
     let _task = super::update(&mut app, ViewMessage::UsageStepRawOpen(9));
     assert!(app.usage_step_raw_modal.is_none());
+    assert!(app.usage_step_raw_loading.contains(&raw_key("active-session", 9)));
 }
 
 #[test]

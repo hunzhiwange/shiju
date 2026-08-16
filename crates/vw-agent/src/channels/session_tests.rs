@@ -77,6 +77,7 @@ fn processor_request(root: &std::path::Path) -> crate::app::agent::session::proc
         query: "请读取 docs 文件列表".to_string(),
         root: Some(root.to_string_lossy().to_string()),
         model: None,
+        reliability: crate::app::agent::config::ReliabilityConfig::default(),
         options: serde_json::json!({}),
         approval: None,
         channel_name: Some("test".to_string()),

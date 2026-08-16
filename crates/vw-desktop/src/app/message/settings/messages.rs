@@ -7,6 +7,7 @@ use crate::app::state::{
     MemorySettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab, ThemeEditorTab,
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
+use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
 use iced::widget::text_editor;
 use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
 use vw_config_types::ui::{QuickMessageGroup, QuickMessageKind};
@@ -708,6 +709,7 @@ pub enum GeneralSettingsMessage {
 pub enum SettingsMessage {
     TabSelected(SettingsTab),
     SystemTabSelected(SystemTab),
+    SystemSearchTargetSelected(SystemSettingsSearchTarget),
     ModelConfigTab(ModelConfigTabMessage),
     AgentConfigTab(AgentConfigTabMessage),
     SystemTabQueryChanged(String),

@@ -108,6 +108,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::TabSelected(_)
         | SettingsMessage::SystemTabSelected(_)
+        | SettingsMessage::SystemSearchTargetSelected(_)
         | SettingsMessage::ModelConfigTab(_)
         | SettingsMessage::AgentConfigTab(_)
         | SettingsMessage::SystemTabQueryChanged(_)

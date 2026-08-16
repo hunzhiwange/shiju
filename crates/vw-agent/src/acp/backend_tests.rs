@@ -47,7 +47,11 @@ async fn backend_prompt_persists_turn_once() {
         &backend,
         &created.id,
         vec![PromptContent::Text("hello".to_string())],
-        |_request, mut emit| {
+        |request, mut emit| {
+            assert_eq!(
+                request.reliability.provider_retries,
+                crate::app::agent::config::ReliabilityConfig::default().provider_retries
+            );
             emit(StreamEvent::Delta("answer".to_string()));
             emit(StreamEvent::Done(TokenUsage::default()));
         },

@@ -187,6 +187,26 @@ async fn session_step_llm_raw_get_distinguishes_null_not_found_and_server_errors
 }
 
 #[tokio::test]
+async fn session_step_llm_raw_get_normalizes_legacy_turn_ids() {
+    let server = test_support::server(vec![(200, json!(null)), (200, json!(null))]);
+
+    server
+        .client()
+        .session_step_llm_raw_get("s1", "  ", 4, None)
+        .await
+        .expect("blank turn id should use legacy lookup");
+    server
+        .client()
+        .session_step_llm_raw_get("s1", "legacy-step-5", 5, None)
+        .await
+        .expect("legacy cache key should use legacy lookup");
+
+    assert_eq!(server.take_request().path, "/v1/session/s1/turn/legacy/step/4/llm-raw");
+    assert_eq!(server.take_request().path, "/v1/session/s1/turn/legacy/step/5/llm-raw");
+    server.join();
+}
+
+#[tokio::test]
 async fn session_ui_get_with_raw_preserves_step_payloads() {
     let server = test_support::server(vec![(
         200,
@@ -201,7 +221,13 @@ async fn session_ui_get_with_raw_preserves_step_payloads() {
                     "started_ms": 10,
                     "llm_raw": {"messages": [{"role": "user", "content": "hello"}]}
                 },
-                {"index": 2, "turn_id": "turn-b", "started_ms": 20}
+                {"index": 2, "turn_id": "turn-b", "started_ms": 20},
+                {
+                    "index": 7,
+                    "turn_id": "  ",
+                    "started_ms": 30,
+                    "llm_raw": {"messages": [{"role": "user", "content": "legacy"}]}
+                }
             ]
         }),
     )]);
@@ -214,7 +240,7 @@ async fn session_ui_get_with_raw_preserves_step_payloads() {
         .expect("session exists");
 
     assert_eq!(loaded.session.id, "s1");
-    assert_eq!(loaded.session.steps.len(), 2);
+    assert_eq!(loaded.session.steps.len(), 3);
     assert_eq!(
         loaded.step_llm_raw[&("s1".to_string(), "turn-a".to_string(), 1)]["messages"][0]
             ["content"],
@@ -222,8 +248,17 @@ async fn session_ui_get_with_raw_preserves_step_payloads() {
     );
     assert!(!loaded.step_llm_raw.contains_key(&("s1".to_string(), "turn-b".to_string(), 2)));
     assert_eq!(
+        loaded.step_llm_raw[&("s1".to_string(), "legacy-step-7".to_string(), 7)]["messages"]
+            [0]["content"],
+        "legacy"
+    );
+    assert_eq!(loaded.session.steps[2].turn_id, None);
+    assert_eq!(
         loaded.llm_raw_step_indices,
-        vec![("s1".to_string(), "turn-a".to_string(), 1)]
+        vec![
+            ("s1".to_string(), "turn-a".to_string(), 1),
+            ("s1".to_string(), "legacy-step-7".to_string(), 7),
+        ]
     );
     assert_eq!(server.take_request().path, "/v1/session/s1/ui?directory=%2Frepo");
     server.join();

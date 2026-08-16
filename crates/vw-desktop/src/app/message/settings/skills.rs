@@ -317,13 +317,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SkillsTabChanged(tab) => {
             app.skills_settings.active_tab = tab;
             clear_selected_detail(app);
-            if matches!(tab, crate::app::state::SkillsSettingsTab::Plugins)
-                && app.skills_settings.plugin_catalog.is_empty()
-                && !app.skills_settings.plugin_loading
-            {
-                app.skills_settings.plugin_loading = true;
-                return plugins_refresh_task();
-            }
             Task::none()
         }
         SettingsMessage::SkillsDetailClosed => {

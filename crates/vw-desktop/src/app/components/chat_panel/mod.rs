@@ -478,6 +478,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .on_scroll(|v| {
         Message::Chat(message::ChatMessage::ScrollChanged {
             offset_y: v.relative_offset().y,
+            absolute_offset_y: v.absolute_offset().y,
             viewport_h: v.bounds().height,
         })
     });

@@ -187,6 +187,7 @@ fn compact_transient_history_for_request(
     session_id: &str,
     llm_messages: &mut Vec<Value>,
     model: &str,
+    reliability: &crate::app::agent::config::ReliabilityConfig,
 ) -> Result<bool, String> {
     let Some(boundary) = llm_messages
         .iter()
@@ -228,7 +229,8 @@ fn compact_transient_history_for_request(
         &[],
         &HashSet::new(),
         &mut discard_events,
-        1,
+        reliability.provider_retries,
+        reliability.provider_backoff_ms,
     )?
     .text;
     let summary = summary.trim();
@@ -243,6 +245,10 @@ fn compact_transient_history_for_request(
         })),
     );
     Ok(true)
+}
+
+fn request_provider_retry_policy(req: &Request) -> (u32, u64) {
+    (req.reliability.provider_retries, req.reliability.provider_backoff_ms)
 }
 
 fn request_full_access_enabled(options: &Value) -> bool {
@@ -669,18 +675,13 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         let system = base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
         let tools_for_step = if is_last_step { &empty_tools } else { &allowed_tools };
 
-        let retry_budget = if is_acp {
-            2
-        } else if todos::has_incomplete_todos(&ctx) {
-            5
-        } else {
-            3
-        };
+        let (provider_retries, provider_backoff_ms) = request_provider_retry_policy(&req);
         tracing::info!(
             target: "vw_agent",
             session_id = %req.session,
             step_index = step_index.saturating_add(1),
-            retry_budget,
+            provider_retries,
+            provider_backoff_ms,
             is_acp,
             max_tool_iterations = turn_policy.max_tool_iterations,
             "session processor selected retry budget"
@@ -762,6 +763,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 &req.session,
                 &mut llm_messages,
                 &selected_model.model,
+                &req.reliability,
             ) {
                 Ok(true) => {
                     internal_compaction_attempted = true;
@@ -798,7 +800,8 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             &available_tool_specs,
             tools_for_step,
             &mut on_event,
-            retry_budget,
+            provider_retries,
+            provider_backoff_ms,
         ) {
             Ok(output) => {
                 if let Some(image_ctx) = image_turn.as_mut() {
@@ -819,6 +822,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                         &req.session,
                         &mut llm_messages,
                         &selected_model.model,
+                        &req.reliability,
                     ) {
                         Ok(true) => {
                             internal_compaction_attempted = true;
@@ -1208,6 +1212,7 @@ fn handle_structured_tool_calls(
             total_usage,
             on_event,
             tool_state,
+            &req.reliability,
         );
     tracing::info!(
         target: "vw_agent",

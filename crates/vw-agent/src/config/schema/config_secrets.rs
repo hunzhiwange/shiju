@@ -90,7 +90,7 @@ pub(crate) fn encrypt_map_secrets(
 /// 解密配置对象中的所有敏感字段。
 ///
 /// `vibewindow_dir` 用于定位或初始化密钥存储。函数会原地更新 `config` 中的 API key、代理凭据、
-/// 数据库 URL、fallback key、gateway token、agent key 以及各渠道密钥。
+/// 数据库 URL、gateway token、agent key 以及各渠道密钥。
 ///
 /// 任一字段解密失败都会返回错误，避免后续请求带着不可用或仍加密的凭据继续运行。
 pub(crate) fn decrypt_config_secrets(config: &mut Config, vibewindow_dir: &Path) -> Result<()> {
@@ -114,12 +114,6 @@ pub(crate) fn decrypt_config_secrets(config: &mut Config, vibewindow_dir: &Path)
         &store,
         &mut config.storage.provider.config.db_url,
         "config.storage.provider.config.db_url",
-    )?;
-    decrypt_vec_secrets(&store, &mut config.reliability.api_keys, "config.reliability.api_keys")?;
-    decrypt_map_secrets(
-        &store,
-        &mut config.reliability.fallback_api_keys,
-        "config.reliability.fallback_api_keys",
     )?;
     decrypt_vec_secrets(&store, &mut config.gateway.paired_tokens, "config.gateway.paired_tokens")?;
     for route in &mut config.embedding_routes {
@@ -173,16 +167,6 @@ pub(crate) fn encrypt_config_secrets(config_to_save: &mut Config) -> Result<()> 
         &store,
         &mut config_to_save.storage.provider.config.db_url,
         "config.storage.provider.config.db_url",
-    )?;
-    encrypt_vec_secrets(
-        &store,
-        &mut config_to_save.reliability.api_keys,
-        "config.reliability.api_keys",
-    )?;
-    encrypt_map_secrets(
-        &store,
-        &mut config_to_save.reliability.fallback_api_keys,
-        "config.reliability.fallback_api_keys",
     )?;
     encrypt_vec_secrets(
         &store,

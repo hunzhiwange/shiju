@@ -69,10 +69,20 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
         let steps = value
             .steps
             .into_iter()
-            .map(|step| {
-                if let (Some(turn_id), Some(raw)) = (step.step.turn_id.as_ref(), step.llm_raw) {
+            .map(|mut step| {
+                step.step.turn_id = step
+                    .step
+                    .turn_id
+                    .take()
+                    .filter(|turn_id| !turn_id.trim().is_empty());
+                if let Some(raw) = step.llm_raw {
+                    let turn_id = step
+                        .step
+                        .turn_id
+                        .clone()
+                        .unwrap_or_else(|| format!("legacy-step-{}", step.step.index));
                     step_llm_raw.insert(
-                        (session_id.clone(), turn_id.clone(), step.step.index),
+                        (session_id.clone(), turn_id, step.step.index),
                         raw,
                     );
                 }
@@ -82,10 +92,12 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
         let llm_raw_step_indices = steps
             .iter()
             .filter(|step| value.llm_raw_step_indices.contains(&step.index))
-            .filter_map(|step| {
-                step.turn_id
-                    .as_ref()
-                    .map(|turn_id| (session_id.clone(), turn_id.clone(), step.index))
+            .map(|step| {
+                let turn_id = step
+                    .turn_id
+                    .clone()
+                    .unwrap_or_else(|| format!("legacy-step-{}", step.index));
+                (session_id.clone(), turn_id, step.index)
             })
             .collect();
         let session = ChatSession {
@@ -372,8 +384,16 @@ impl GatewayClient {
         step_index: u32,
         directory: Option<&str>,
     ) -> Result<Option<serde_json::Value>, String> {
+        let legacy_step_turn_id = format!("legacy-step-{step_index}");
+        let request_turn_id = if turn_id.trim().is_empty() || turn_id == legacy_step_turn_id {
+            "legacy"
+        } else {
+            turn_id
+        };
         self.get_json_with_404(
-            &format!("/v1/session/{session_id}/turn/{turn_id}/step/{step_index}/llm-raw"),
+            &format!(
+                "/v1/session/{session_id}/turn/{request_turn_id}/step/{step_index}/llm-raw"
+            ),
             &directory_query(directory),
         )
         .await

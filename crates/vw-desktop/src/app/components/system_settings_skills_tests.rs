@@ -21,7 +21,6 @@ fn skills_tab_labels_keep_expected_order_and_unique_tabs() {
         &[
             ("技能", SkillsSettingsTab::Skills),
             ("顺序", SkillsSettingsTab::DiscoveryOrder),
-            ("插件", SkillsSettingsTab::Plugins),
             ("系统配置", SkillsSettingsTab::SystemConfig),
         ]
     );

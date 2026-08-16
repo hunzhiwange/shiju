@@ -281,8 +281,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::ThinkEditorAction(msg_idx, think_idx, action) => {
             editor_actions::handle_think_editor_action(app, msg_idx, think_idx, action)
         }
-        ChatMessage::ScrollChanged { offset_y: rel_y, viewport_h } => {
-            let outcome = apply_chat_scroll_changed(app, rel_y, viewport_h);
+        ChatMessage::ScrollChanged { offset_y: rel_y, absolute_offset_y, viewport_h } => {
+            let outcome =
+                apply_chat_scroll_changed(app, rel_y, absolute_offset_y, viewport_h);
             let chunk_task = if !outcome.pending_chunk_starts.is_empty()
                 && let Some(session_id) = app.active_session_id.clone()
             {
@@ -640,6 +641,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 pub(crate) fn apply_chat_scroll_changed(
     app: &mut App,
     rel_y: f32,
+    absolute_offset_y: f32,
     viewport_h: f32,
 ) -> ChatScrollUpdateOutcome {
     let next_offset_y = rel_y.clamp(0.0, 1.0);
@@ -653,7 +655,7 @@ pub(crate) fn apply_chat_scroll_changed(
         (app.chat_virtualizer.viewport_height_px() - next_viewport_h).abs() > 0.5;
     app.chat_virtualizer.set_viewport_height(next_viewport_h);
     let matches_turn_focus = app.chat_virtualizer.turn_focus_user_index().is_some()
-        && (app.chat_virtualizer.relative_y() - next_offset_y).abs() <= 0.0005;
+        && (app.chat_virtualizer.scroll_top_px() - absolute_offset_y.max(0.0)).abs() <= 1.0;
     let within_hold_window = super::now_ms() < app.chat_autoscroll_hold_until_ms;
     let next_auto_scroll = if matches_turn_focus {
         false
@@ -667,7 +669,8 @@ pub(crate) fn apply_chat_scroll_changed(
 
     app.chat_auto_scroll = next_auto_scroll;
     if matches_turn_focus {
-        // 程序化顶部定位的滚动回执只确认视口，不释放本轮锚点。
+        // 内容增长会改变相对偏移，但绝对偏移仍然对齐本轮锚点。
+        // 这类布局回执只确认视口，不释放本轮置顶状态。
     } else if next_auto_scroll {
         app.chat_virtualizer.snap_to_tail();
     } else {

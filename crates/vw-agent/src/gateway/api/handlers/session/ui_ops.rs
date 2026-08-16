@@ -13,7 +13,6 @@ use serde_json::Value;
 use std::collections::BTreeSet;
 use vw_api_types::session::GatewaySessionScopeBody;
 
-use super::raw_commit;
 use super::shared::resolve_scope_from_query;
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::gateway::instance::InstanceQuery;
@@ -120,13 +119,23 @@ pub(super) async fn session_step_llm_raw_get(
     let tenant = ui_store::current_tenant_scope();
     let scope = resolve_scope_from_query(&tenant, &query, &headers);
     let raw = crate::global_database::run_isolated(move || {
-        ui_store::load_llm_raw_turn_step_scoped_for_tenant(
+        let legacy_step_turn_id = format!("legacy-step-{step_index}");
+        if turn_id.trim().is_empty() || turn_id == "legacy" || turn_id == legacy_step_turn_id {
+            return ui_store::load_llm_raw_step_scoped_for_tenant(
+                &tenant,
+                &session_id,
+                step_index,
+                scope.as_deref(),
+            );
+        }
+        let raw = ui_store::load_llm_raw_turn_step_scoped_for_tenant(
             &tenant,
             &session_id,
             &turn_id,
             step_index,
             scope.as_deref(),
-        )
+        )?;
+        Ok(raw)
     })
     .await
     .map_err(|error| ApiError::internal(error.to_string()))?;
@@ -148,51 +157,23 @@ pub(super) async fn session_ui_save(
 
     let directory = resolve_directory(&query, &headers);
     let scope = ui_store::resolve_session_scope_id_for_tenant(&tenant, Some(&directory), None);
-    let preserve_calls = body.calls.is_empty();
-    let finished_steps = body
-        .steps
-        .iter()
-        .filter(|step| step.finished_ms.is_some())
-        .filter_map(|step| step.turn_id.as_ref().map(|turn_id| (turn_id.clone(), step.index)))
-        .collect::<Vec<_>>();
-    let claims = raw_commit::claim(&tenant, scope.as_deref(), &body.id, &finished_steps)
-        .map_err(|error| ApiError::internal(error.to_string()))?;
-    let raw_artifacts = claims.raw_artifacts().to_vec();
-    let expected_finished_steps = claims.expected_steps().to_vec();
-    let has_pending_raw = !claims.is_empty();
     tracing::debug!(
         target: "vw_agent",
         session_id = %body.id,
         directory = %directory,
         scope = ?scope,
         message_count = body.messages.len(),
-        step_count = body.steps.len(),
-        "gateway saving session ui snapshot"
+        omitted_step_count = body.steps.len(),
+        omitted_call_count = body.calls.len(),
+        "gateway saving session ui content"
     );
-    // 保存完整 UI 快照可能触发磁盘写入，继续隔离到阻塞线程池中执行。
-    // 空 calls 只更新 UI 表，避免重复序列化和写入大型原始调用记录。
+    // calls、steps 与 Raw 由会话运行时统一持久化；UI 接口只保存消息和元数据。
     let path = crate::global_database::run_isolated(move || {
-        if has_pending_raw {
-            ui_store::commit_session_ui_snapshot_scoped_for_tenant(
-                &tenant,
-                &body,
-                scope.as_deref(),
-                &raw_artifacts,
-                &expected_finished_steps,
-            )
-        } else {
-            ui_store::save_session_ui_scoped_for_tenant(
-                &tenant,
-                &body,
-                scope.as_deref(),
-                preserve_calls,
-            )
-        }
+        ui_store::save_session_ui_content_scoped_for_tenant(&tenant, &body, scope.as_deref())
     })
     .await
     .map_err(|e| ApiError::internal(e.to_string()))?;
     let _path = path.map_err(|error| ApiError::internal(error.to_string()))?;
-    raw_commit::acknowledge(&claims);
     Ok(Json(true))
 }
 

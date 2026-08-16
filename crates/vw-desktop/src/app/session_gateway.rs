@@ -351,16 +351,16 @@ pub async fn gateway_save_session_async(
     directory: Option<&str>,
 ) -> Result<Option<std::path::PathBuf>, String> {
     let client = gateway_client()?;
-    // 原始 calls 由网关/流处理器独立持久化；UI 快照不再重复携带它们。
-    let mut session_to_save = session.clone();
-    let omitted_call_count = session_to_save.calls.len();
-    session_to_save.calls.clear();
-    if omitted_call_count > 0 {
+    let session_to_save = session_ui_content_snapshot(session);
+    let omitted_call_count = session.calls.len();
+    let omitted_step_count = session.steps.len();
+    if omitted_call_count > 0 || omitted_step_count > 0 {
         tracing::debug!(
             target: "vw_desktop",
             session_id = %session_to_save.id,
             omitted_call_count,
-            "omitted raw call records from session ui snapshot"
+            omitted_step_count,
+            "omitted runtime trajectory from session ui snapshot"
         );
     }
     tracing::debug!(
@@ -368,12 +368,18 @@ pub async fn gateway_save_session_async(
         session_id = %session_to_save.id,
         directory = ?directory,
         message_count = session_to_save.messages.len(),
-        step_count = session_to_save.steps.len(),
-        call_count = session_to_save.calls.len(),
-        "desktop saving session ui snapshot"
+        "desktop saving session ui content"
     );
     client.session_ui_save(&session_to_save.id, directory, &session_to_save).await?;
     Ok(Some(std::path::PathBuf::from(&session_to_save.id)))
+}
+
+fn session_ui_content_snapshot(session: &ChatSession) -> ChatSession {
+    // calls 与 steps 由会话运行时独立持久化；UI 快照只携带消息和元数据。
+    let mut snapshot = session.clone();
+    snapshot.calls.clear();
+    snapshot.steps.clear();
+    snapshot
 }
 
 /// 执行 gateway_set_session_scope_async 对应的领域操作。

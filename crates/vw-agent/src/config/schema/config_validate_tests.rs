@@ -108,8 +108,6 @@ fn validate_config_accepts_boundary_and_explicit_success_paths() {
         },
         GatewaySkey { skey: Some("raw-skey".to_string()), ..gateway_skey("") },
     ];
-    config.reliability.fallback_providers = vec![" backup ".to_string()];
-    config.reliability.fallback_api_keys.insert("backup".to_string(), "key".to_string());
     config.autonomy.shell_env_passthrough =
         vec!["VALID_NAME".to_string(), "_ALSO_VALID2".to_string()];
     config.autonomy.non_cli_excluded_tools = vec!["tool-name".to_string(), "tool_name".to_string()];
@@ -223,43 +221,6 @@ fn validate_config_rejects_whitespace_only_raw_skey_with_invalid_hash() {
         },
         "SHA-256 hex hash",
     );
-}
-
-#[test]
-fn validate_config_rejects_invalid_fallback_entries() {
-    invalid_with(
-        |config| {
-            config.reliability.fallback_api_keys.insert(" ".to_string(), "key".to_string());
-        },
-        "contains an empty key",
-    );
-
-    invalid_with(
-        |config| {
-            config.reliability.fallback_providers.push("backup".to_string());
-            config.reliability.fallback_api_keys.insert("backup".to_string(), " ".to_string());
-        },
-        "fallback_api_keys.backup must not be empty",
-    );
-
-    invalid_with(
-        |config| {
-            config
-                .reliability
-                .fallback_api_keys
-                .insert("missing-provider".to_string(), "key".to_string());
-        },
-        "no matching entry",
-    );
-}
-
-#[test]
-fn validate_config_accepts_trimmed_fallback_api_key_entry() {
-    let mut config = Config::default();
-    config.reliability.fallback_providers = vec![" backup ".to_string()];
-    config.reliability.fallback_api_keys.insert(" backup ".to_string(), " key ".to_string());
-
-    validate_config(&config).unwrap();
 }
 
 #[test]

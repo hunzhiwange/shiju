@@ -22,6 +22,49 @@ use crate::app::{App, Message, message};
 use iced::widget::{column, container, row, slider, text};
 use iced::{Alignment, Element, Length};
 
+const RELIABILITY_HELP_TEXT: &str = r#"可靠性配置说明
+
+1) provider_retries
+- 影响桌面聊天、Gateway、Channel、Task Plan 和 ACP 发起的模型请求。
+- 首次模型请求失败后，仅遇到可重试的瞬时错误时额外重试；总尝试次数为该值加 1。
+- 重试次数越大，短暂故障下成功机会越高，但最终失败前可能等待更久；设为 0 表示不额外重试。
+- Provider 设置保存后对新发起的模型请求生效，已在执行或等待中的请求不变。
+
+2) provider_backoff_ms
+- 控制上述模型请求首次重试前的等待毫秒数，后续重试采用指数退避，并受最大等待上限约束。
+- 数值越大可减轻故障时的请求压力，但恢复响应更慢；数值越小重试更快，但可能更快再次触发限流。
+
+3) channel_initial_backoff_secs
+- 聊天通道监听断开后，控制首次重新连接前等待的秒数。
+- 数值越大可减少频繁重连，数值越小恢复更快；必须不大于频道最大退避。
+- 频道退避设置在聊天通道监听器下次启动或重启时生效。
+
+4) channel_max_backoff_secs
+- 限制聊天通道连续重连失败时，后续重连等待增长到的最大秒数。
+- 数值越大可降低长期故障时的重连压力，数值越小会更频繁尝试恢复。
+
+5) scheduler_poll_secs
+- 控制调度器执行 cron 扫描、发现到期 cron 任务的间隔秒数。
+- 数值越小扫描越频繁、任务发现更及时但轮询开销更高；数值越大开销更低但触发延迟可能更长。
+- 调度设置在 cron 调度器下次启动或重启时生效。
+
+6) scheduler_retries
+- cron 任务执行失败后，控制额外重试次数。
+- 数值越大可提高瞬时失败后的成功机会，但会增加失败任务的总执行时间；设为 0 表示不额外重试。
+
+默认配置示例
+{
+  "reliability": {
+    "provider_retries": 3,
+    "provider_backoff_ms": 500,
+    "channel_initial_backoff_secs": 1,
+    "channel_max_backoff_secs": 60,
+    "scheduler_poll_secs": 60,
+    "scheduler_retries": 3
+  }
+}
+"#;
+
 fn field_row<'a>(
     label: &'static str,
     description: &'static str,
@@ -228,53 +271,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         return dialog;
     }
 
-    let help_text = r#"可靠性配置说明
-
-一、作用
-- reliability 控制 provider 重试、退避、频道重连退避、调度重试与轮询间隔。
-- 这些参数影响故障恢复速度与系统稳定性。
-
-二、字段含义
-1) provider_retries
-- provider 请求失败时的重试次数。
-
-2) provider_backoff_ms
-- provider 重试的基础退避毫秒。
-
-3) channel_initial_backoff_secs
-- 频道/守护重连的初始退避秒数。
-
-4) channel_max_backoff_secs
-- 频道/守护重连的最大退避秒数。
-
-5) scheduler_poll_secs
-- 调度器轮询间隔秒数。
-
-6) scheduler_retries
-- 调度任务执行失败时的重试次数。
-
-三、示例
-{
-  "reliability": {
-    "provider_retries": 2,
-    "provider_backoff_ms": 500,
-    "fallback_providers": [],
-    "fallback_api_keys": {},
-    "api_keys": [],
-    "model_fallbacks": {},
-    "channel_initial_backoff_secs": 2,
-    "channel_max_backoff_secs": 60,
-    "scheduler_poll_secs": 15,
-    "scheduler_retries": 2
-  }
-}
-"#;
-
     crate::app::components::system_settings_common::with_settings_help_modal(
         app,
         dialog,
         "Reliability 配置帮助",
-        help_text,
+        RELIABILITY_HELP_TEXT,
         Message::Settings(message::SettingsMessage::ReliabilityHelpClose),
     )
 }

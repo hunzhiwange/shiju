@@ -186,6 +186,7 @@ fn runtime_request(
     approval: Arc<ApprovalManager>,
     non_cli_approval_context: NonCliApprovalContext,
     session_tools: SessionToolset,
+    reliability: crate::app::agent::config::ReliabilityConfig,
 ) -> Request {
     Request {
         stream: 0,
@@ -193,6 +194,7 @@ fn runtime_request(
         query,
         root: Some(scope.directory().to_string_lossy().into_owned()),
         model: None,
+        reliability,
         options: json!({
             "acp_agent": "vibewindow",
         }),
@@ -494,7 +496,9 @@ async fn start_prompt_core(
     let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
     let history = backend_history(snapshot.history);
     let query = prompt_query(prompt);
-    let config = crate::config::get().await;
+    let config = crate::config::get_project_for_tenant(&backend.tenant, scope.directory())
+        .await
+        .map_err(|error| BackendError::Internal(error.to_string()))?;
     let approval = Arc::new(ApprovalManager::from_config(&config.autonomy));
     let (approval_tx, approval_rx) = tokio::sync::mpsc::unbounded_channel();
     let request = runtime_request(
@@ -509,6 +513,7 @@ async fn start_prompt_core(
             prompt_tx: approval_tx,
         },
         tools,
+        config.reliability,
     );
     let runtime = starter(request);
     Ok(bridge_prompt(

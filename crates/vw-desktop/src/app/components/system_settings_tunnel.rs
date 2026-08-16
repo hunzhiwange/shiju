@@ -151,6 +151,19 @@ fn bool_row<'a>(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
+    column![
+        settings_page_intro(
+            "隧道配置",
+            "配置网关的暴露方式与 provider 细节。修改后需重启网关生效。",
+        ),
+        content(app),
+    ]
+    .spacing(16)
+    .width(Length::Fill)
+    .into()
+}
+
+pub(super) fn content(app: &App) -> Element<'_, Message> {
     let s = &app.tunnel_settings;
 
     let provider_pick =
@@ -301,10 +314,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let content = column![
-        settings_page_intro(
-            "隧道配置",
-            "配置网关的暴露方式与 provider 细节。修改后会写入配置，需重启网关进程后才会真正生效。",
-        ),
         settings_section_card("接入方式", "选择隧道 provider，并根据 provider 展开对应参数。"),
         settings_panel(column![provider_row].spacing(0)),
         provider_section,

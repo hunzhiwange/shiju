@@ -82,29 +82,6 @@ pub fn validate_config(config: &Config) -> Result<()> {
         }
     }
 
-    let configured_fallbacks = config
-        .reliability
-        .fallback_providers
-        .iter()
-        .map(|provider| provider.trim())
-        .filter(|provider| !provider.is_empty())
-        .collect::<std::collections::HashSet<_>>();
-    for (entry, api_key) in &config.reliability.fallback_api_keys {
-        // fallback API key 必须绑定到明确启用的 provider，避免保存孤立密钥后被误认为可用回退路径。
-        let normalized_entry = entry.trim();
-        if normalized_entry.is_empty() {
-            anyhow::bail!("reliability.fallback_api_keys contains an empty key");
-        }
-        if api_key.trim().is_empty() {
-            anyhow::bail!("reliability.fallback_api_keys.{normalized_entry} must not be empty");
-        }
-        if !configured_fallbacks.contains(normalized_entry) {
-            anyhow::bail!(
-                "reliability.fallback_api_keys.{normalized_entry} has no matching entry in reliability.fallback_providers"
-            );
-        }
-    }
-
     if config.autonomy.max_actions_per_hour == 0 {
         anyhow::bail!("autonomy.max_actions_per_hour must be greater than 0");
     }

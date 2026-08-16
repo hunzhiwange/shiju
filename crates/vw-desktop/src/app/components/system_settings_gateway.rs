@@ -13,6 +13,7 @@ use crate::app::components::system_settings_common::{
     settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
     settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{GatewayMessage, SettingsMessage};
 use crate::app::state::{GatewaySettingsState, GatewaySettingsTab};
 use crate::app::{App, Message};
@@ -167,8 +168,32 @@ fn gateway_tab_button(
         .into()
 }
 
+const GATEWAY_TAB_LABELS: &[(&str, GatewaySettingsTab)] =
+    &[("配置", GatewaySettingsTab::Config), ("skey 管理", GatewaySettingsTab::Skeys)];
+pub(super) const GATEWAY_TABS: &[SettingsTabDescriptor<GatewaySettingsTab>] = &[
+    SettingsTabDescriptor::new(
+        GATEWAY_TAB_LABELS[0].1,
+        GATEWAY_TAB_LABELS[0].0,
+        &[
+            "监听地址",
+            "端口",
+            "auth_enabled",
+            "公网绑定",
+            "反向代理",
+            "webhook",
+            "幂等性",
+            "node-control",
+        ],
+    ),
+    SettingsTabDescriptor::new(
+        GATEWAY_TAB_LABELS[1].1,
+        GATEWAY_TAB_LABELS[1].0,
+        &["skey", "密钥", "过期时间", "鉴权"],
+    ),
+];
+
 fn gateway_tab_labels() -> &'static [(&'static str, GatewaySettingsTab)] {
-    &[("配置", GatewaySettingsTab::Config), ("skey 管理", GatewaySettingsTab::Skeys)]
+    GATEWAY_TAB_LABELS
 }
 
 fn service_action_button(

@@ -10,11 +10,46 @@ use crate::app::components::system_settings_common::{
     settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
     settings_segment_button_style, settings_text_input_style,
 };
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{MemoryMessage, SettingsMessage};
 use crate::app::state::MemorySettingsTab;
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
 use iced::{Alignment, Border, Element, Length};
+
+pub(super) const MEMORY_TABS: &[SettingsTabDescriptor<MemorySettingsTab>] = &[
+    SettingsTabDescriptor::new(
+        MemorySettingsTab::General,
+        "基础行为",
+        &["backend", "auto save", "自动保存", "清理"],
+    ),
+    SettingsTabDescriptor::new(
+        MemorySettingsTab::RetentionAndCache,
+        "保留与缓存",
+        &["保留", "缓存", "归档", "快照", "自动恢复", "SQLite 打开超时"],
+    ),
+    SettingsTabDescriptor::new(
+        MemorySettingsTab::Embedding,
+        "嵌入与检索",
+        &["embedding", "嵌入模型", "维度", "混合检索", "权重"],
+    ),
+    SettingsTabDescriptor::new(
+        MemorySettingsTab::EmbeddingRoutes,
+        "嵌入路由",
+        &["embedding routes", "路由规则", "匹配模式", "提供商", "API Key"],
+    ),
+    SettingsTabDescriptor::new(
+        MemorySettingsTab::Storage,
+        "记忆存储",
+        &["storage", "database", "存储后端", "连接串", "Schema", "表名", "TLS", "持久化"],
+    ),
+];
+pub(super) const QDRANT_TAB: &[SettingsTabDescriptor<MemorySettingsTab>] =
+    &[SettingsTabDescriptor::new(
+        MemorySettingsTab::Qdrant,
+        "Qdrant 连接",
+        &["qdrant", "向量数据库", "collection", "API Key"],
+    )];
 
 fn field_row<'a>(
     label: &'static str,
@@ -393,7 +428,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 text("模型名称，可用").size(11).style(settings_muted_text_style),
                                 button(text("hint:模式名").size(11))
                                     .on_press(Message::Settings(SettingsMessage::Memory(
-                                        MemoryMessage::TabSelected(MemorySettingsTab::EmbeddingRoutes),
+                                        MemoryMessage::TabSelected(
+                                            MemorySettingsTab::EmbeddingRoutes
+                                        ),
                                     )))
                                     .padding([1, 6])
                                     .style(|theme: &iced::Theme, _status| {
@@ -555,18 +592,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
         None
     };
 
-    let mut tabs = row![
-        tab_button("基础行为", MemorySettingsTab::General, s.active_tab),
-        tab_button("保留与缓存", MemorySettingsTab::RetentionAndCache, s.active_tab,),
-        tab_button("嵌入与检索", MemorySettingsTab::Embedding, s.active_tab),
-        tab_button("嵌入路由", MemorySettingsTab::EmbeddingRoutes, s.active_tab),
-        tab_button("记忆存储", MemorySettingsTab::Storage, s.active_tab),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let mut tabs =
+        MEMORY_TABS.iter().fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
+            row.push(tab_button(descriptor.label, descriptor.tab, s.active_tab))
+        });
 
     if s.backend == "qdrant" {
-        tabs = tabs.push(tab_button("Qdrant 连接", MemorySettingsTab::Qdrant, s.active_tab));
+        let descriptor = QDRANT_TAB[0];
+        tabs = tabs.push(tab_button(descriptor.label, descriptor.tab, s.active_tab));
     }
 
     let selected_section: Element<'_, Message> = match s.active_tab {

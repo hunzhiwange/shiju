@@ -38,6 +38,7 @@ use crate::app::components::system_settings_common::{
     settings_pick_list_menu_style, settings_pick_list_style, settings_segment_button_style,
     settings_text_input_style, settings_value_badge,
 };
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, SettingsMessage};
 use crate::app::state::{
     AGENT_DETAIL_BASIC_TAB, AGENT_DETAIL_IDENTITY_TAB, AGENT_DETAIL_SKILLS_TAB,
@@ -50,6 +51,86 @@ use iced::widget::{
     text, text_input,
 };
 use iced::{Alignment, Element, Length, Theme};
+
+pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &[
+    SettingsTabDescriptor::new(
+        AgentConfigTab::Agents,
+        "智能体",
+        &[
+            "Agent 工作台",
+            "新增智能体",
+            "模型",
+            "工具",
+            "身份",
+            "提供商",
+            "API 密钥",
+            "最大深度",
+            "上下文压缩",
+            "并行工具",
+            "工具调度器",
+        ],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::Channels,
+        "通道",
+        &["channels", "message", "CLI", "外部消息", "Telegram", "Slack", "飞书"],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::Runtime,
+        "运行时",
+        &["runtime", "native", "docker", "wasm", "隔离", "工作区挂载"],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::Acp,
+        "ACP",
+        &[
+            "agent client protocol",
+            "后端",
+            "初始化",
+            "codex",
+            "claude",
+            "gemini",
+            "copilot",
+            "pi",
+            "npx",
+        ],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::Mcp,
+        "MCP",
+        &["model context protocol", "mcpServers", "server"],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::Skills,
+        "技能",
+        &["skills", "open-skills", "catalog"],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::Plugins,
+        "插件",
+        &["plugin", "plugins", "插件目录", "启用"],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::Reliability,
+        "可靠性",
+        &["reliability", "retry", "Provider 重试次数", "退避", "频道重连", "调度器重试"],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::DialogueFlow,
+        "对话流",
+        &["dialogue flow", "permission", "时间线", "推理摘要", "reasoning summary", "edit patch"],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::QuickMessages,
+        "快捷消息",
+        &["quick messages", "chat", "输入框", "Git 操作", "创建新会话", "自定义消息"],
+    ),
+    SettingsTabDescriptor::new(
+        AgentConfigTab::Heartbeat,
+        "心跳配置",
+        &["heartbeat", "monitor", "follow up", "执行间隔", "兜底消息", "目标通道", "接收者"],
+    ),
+];
 
 pub(super) fn agent_project_options(app: &App) -> Vec<String> {
     let mut options = Vec::new();
@@ -88,49 +169,78 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 settings_segment_button_style(theme, status, is_active)
             })
     };
-    let tabs = row![
-        tab_button(AgentConfigTab::Agents, "智能体"),
-        tab_button(AgentConfigTab::DialogueFlow, "对话流"),
-        tab_button(AgentConfigTab::QuickMessages, "快捷消息"),
-        tab_button(AgentConfigTab::Heartbeat, "心跳配置"),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .wrap();
+    let tabs = AGENT_CONFIG_TABS
+        .iter()
+        .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
+            row.push(tab_button(descriptor.tab, descriptor.label))
+        })
+        .wrap();
 
     let content = match active_tab {
         AgentConfigTab::Agents => agents_view(app),
+        AgentConfigTab::Channels => {
+            scrollable(container(crate::app::components::system_settings_channels::view(app)))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into()
+        }
+        AgentConfigTab::Runtime => {
+            scrollable(container(crate::app::components::system_settings_runtime::view(app)))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into()
+        }
+        AgentConfigTab::Acp => {
+            scrollable(container(crate::app::components::system_settings_acp::view(app)))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into()
+        }
+        AgentConfigTab::Mcp => {
+            scrollable(container(crate::app::components::system_settings_mcp::view(app)))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into()
+        }
+        AgentConfigTab::Skills => {
+            scrollable(container(crate::app::components::system_settings_skills::view(app)))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into()
+        }
+        AgentConfigTab::Plugins => scrollable(container(
+            crate::app::components::system_settings_skills::plugins::view(app),
+        ))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill)
+        .into(),
+        AgentConfigTab::Reliability => {
+            scrollable(container(crate::app::components::system_settings_reliability::view(app)))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into()
+        }
         AgentConfigTab::DialogueFlow => {
-            scrollable(container(
-                crate::app::components::system_settings_dialogue_flow::view(app),
-            ))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill)
-            .into()
+            scrollable(container(crate::app::components::system_settings_dialogue_flow::view(app)))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into()
         }
         AgentConfigTab::QuickMessages => {
-            scrollable(container(
-                crate::app::components::system_settings_quick_messages::view(app),
-            ))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill)
-            .into()
+            scrollable(container(crate::app::components::system_settings_quick_messages::view(app)))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into()
         }
         AgentConfigTab::Heartbeat => {
-            scrollable(container(
-                crate::app::components::system_settings_heartbeat::view(app),
-            ))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Fill)
-            .into()
+            scrollable(container(crate::app::components::system_settings_heartbeat::view(app)))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into()
         }
     };
 
-    column![tabs, content]
-        .spacing(16)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    column![tabs, content].spacing(16).width(Length::Fill).height(Length::Fill).into()
 }
 
 fn agents_view(app: &App) -> Element<'_, Message> {

@@ -115,7 +115,6 @@ impl Default for RuntimeSettingsState {
 pub enum SkillsSettingsTab {
     Skills,
     DiscoveryOrder,
-    Plugins,
     SystemConfig,
 }
 

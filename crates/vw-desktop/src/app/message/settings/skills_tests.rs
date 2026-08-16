@@ -565,13 +565,13 @@ fn skill_mapping_loading_detail_and_config_paths() {
     assert!(app.skills_settings.selected_skill_id.is_none());
 
     app.project_path = None;
-    let _ = update(&mut app, SettingsMessage::SkillsTabChanged(SkillsSettingsTab::Plugins));
+    let _ = update(&mut app, SettingsMessage::SkillsTabChanged(SkillsSettingsTab::SystemConfig));
     let _ = update(&mut app, SettingsMessage::SkillsQueryChanged("rust".to_string()));
     let _ = update(
         &mut app,
         SettingsMessage::SkillsDirectoryScopeChanged(SkillsDirectoryScope::Global),
     );
-    assert_eq!(app.skills_settings.active_tab, SkillsSettingsTab::Plugins);
+    assert_eq!(app.skills_settings.active_tab, SkillsSettingsTab::SystemConfig);
     assert_eq!(app.skills_settings.query, "rust");
     assert_eq!(app.skills_settings.directory_scope, SkillsDirectoryScope::Global);
     let _ = update(&mut app, SettingsMessage::SkillsCreateNewRequested);
@@ -642,7 +642,7 @@ fn skill_mapping_loading_detail_and_config_paths() {
 }
 
 #[test]
-fn plugins_tab_with_loaded_catalog_clears_skill_detail_without_reloading() {
+fn skills_tab_change_clears_skill_detail() {
     let mut app = app();
     app.skills_settings.plugin_catalog = map_plugin_catalog_items(vec![plugin("plugin-a")]);
     app.skills_settings.plugin_loading = false;
@@ -652,28 +652,11 @@ fn plugins_tab_with_loaded_catalog_clears_skill_detail_without_reloading() {
     app.skills_settings.detail_loading = true;
     app.skills_settings.detail_error = Some("stale detail error".to_string());
 
-    let _ = update(&mut app, SettingsMessage::SkillsTabChanged(SkillsSettingsTab::Plugins));
+    let _ = update(&mut app, SettingsMessage::SkillsTabChanged(SkillsSettingsTab::DiscoveryOrder));
 
-    assert_eq!(app.skills_settings.active_tab, SkillsSettingsTab::Plugins);
+    assert_eq!(app.skills_settings.active_tab, SkillsSettingsTab::DiscoveryOrder);
     assert!(app.skills_settings.selected_skill_id.is_none());
     assert!(app.skills_settings.selected_skill_detail.is_none());
     assert!(!app.skills_settings.detail_loading);
     assert!(app.skills_settings.detail_error.is_none());
-    assert!(!app.skills_settings.plugin_loading);
-}
-
-#[test]
-fn plugins_tab_refreshes_empty_catalog_only_when_not_already_loading() {
-    let mut app = app();
-    app.skills_settings.plugin_catalog.clear();
-    app.skills_settings.plugin_loading = false;
-
-    let _ = update(&mut app, SettingsMessage::SkillsTabChanged(SkillsSettingsTab::Plugins));
-
-    assert!(app.skills_settings.plugin_loading);
-
-    app.skills_settings.plugin_loading = true;
-    let _ = update(&mut app, SettingsMessage::SkillsTabChanged(SkillsSettingsTab::Plugins));
-
-    assert!(app.skills_settings.plugin_loading);
 }

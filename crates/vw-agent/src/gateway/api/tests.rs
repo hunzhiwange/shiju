@@ -12,15 +12,13 @@ mod tests {
     };
     use crate::app::agent::gateway::api::secrets::{
         MASKED_SECRET, hydrate_config_for_save, mask_sensitive_fields,
-        normalize_dashboard_config_toml,
     };
     use std::collections::BTreeMap;
 
     #[test]
-    fn masking_keeps_toml_valid_and_preserves_api_keys_type() {
+    fn masking_keeps_toml_valid() {
         let mut cfg = crate::app::agent::config::Config::default();
         cfg.api_key = Some("sk-live-123".to_string());
-        cfg.reliability.api_keys = vec!["rk-1".to_string(), "rk-2".to_string()];
 
         let masked = mask_sensitive_fields(&cfg);
         let toml = toml::to_string_pretty(&masked).expect("masked config should serialize");
@@ -28,10 +26,6 @@ mod tests {
             toml::from_str(&toml).expect("masked config should remain valid TOML for Config");
 
         assert_eq!(parsed.api_key.as_deref(), Some(MASKED_SECRET));
-        assert_eq!(
-            parsed.reliability.api_keys,
-            vec![MASKED_SECRET.to_string(), MASKED_SECRET.to_string()]
-        );
     }
 
     #[test]
@@ -40,12 +34,9 @@ mod tests {
         current.config_path = std::path::PathBuf::from("/tmp/current/vibewindow.json");
         current.workspace_dir = std::path::PathBuf::from("/tmp/current/workspace");
         current.api_key = Some("real-key".to_string());
-        current.reliability.api_keys = vec!["r1".to_string(), "r2".to_string()];
 
         let mut incoming = mask_sensitive_fields(&current);
         incoming.default_model = Some("gpt-4.1-mini".to_string());
-        // Simulate UI changing only one key and keeping the first masked.
-        incoming.reliability.api_keys = vec![MASKED_SECRET.to_string(), "r2-new".to_string()];
 
         let hydrated = hydrate_config_for_save(incoming, &current);
 
@@ -53,28 +44,6 @@ mod tests {
         assert_eq!(hydrated.workspace_dir, current.workspace_dir);
         assert_eq!(hydrated.api_key, current.api_key);
         assert_eq!(hydrated.default_model.as_deref(), Some("gpt-4.1-mini"));
-        assert_eq!(hydrated.reliability.api_keys, vec!["r1".to_string(), "r2-new".to_string()]);
-    }
-
-    #[test]
-    fn normalize_dashboard_config_toml_promotes_single_api_key_string_to_array() {
-        let mut cfg = crate::app::agent::config::Config::default();
-        cfg.reliability.api_keys = vec!["rk-live".to_string()];
-        let raw_toml = toml::to_string_pretty(&cfg).expect("config should serialize");
-        let mut raw =
-            toml::from_str::<toml::Value>(&raw_toml).expect("serialized config should parse");
-        raw.as_table_mut()
-            .and_then(|root| root.get_mut("reliability"))
-            .and_then(toml::Value::as_table_mut)
-            .and_then(|reliability| reliability.get_mut("api_keys"))
-            .map(|api_keys| *api_keys = toml::Value::String(MASKED_SECRET.to_string()))
-            .expect("reliability.api_keys should exist");
-
-        normalize_dashboard_config_toml(&mut raw);
-
-        let parsed: crate::app::agent::config::Config =
-            raw.try_into().expect("normalized toml should parse as Config");
-        assert_eq!(parsed.reliability.api_keys, vec![MASKED_SECRET.to_string()]);
     }
 
     #[test]

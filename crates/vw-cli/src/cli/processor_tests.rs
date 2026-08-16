@@ -17,6 +17,7 @@ fn sample_request() -> legacy_processor::Request {
         query: "continue the migration".to_string(),
         root: Some("/tmp/bridge-workspace".to_string()),
         model: Some("provider/model".to_string()),
+        reliability: crate::app::agent::config::ReliabilityConfig::default(),
         options: json!({
             "chat_system_prompt": "be precise",
             "temperature": 0.1,

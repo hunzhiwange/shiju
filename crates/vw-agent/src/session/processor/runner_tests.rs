@@ -225,7 +225,17 @@ fn request_with_session(session: &str) -> super::Request {
         app_session_scope: None,
         abort_token: None,
         session_tools: crate::session::runtime::SessionToolset::default(),
+        reliability: crate::app::agent::config::ReliabilityConfig::default(),
     }
+}
+
+#[test]
+fn request_reliability_values_feed_main_model_step_policy() {
+    let mut request = request_with_session("configured-provider-policy");
+    request.reliability.provider_retries = 7;
+    request.reliability.provider_backoff_ms = 1_250;
+
+    assert_eq!(super::request_provider_retry_policy(&request), (7, 1_250));
 }
 
 fn register_scope_project(scope: &str) -> tempfile::TempDir {
@@ -670,6 +680,10 @@ fn transient_internal_compaction_replaces_only_covered_history_without_tools() {
         "runner-transient-compaction",
         &mut messages,
         "provider/model",
+        &crate::app::agent::config::ReliabilityConfig {
+            provider_retries: 0,
+            ..Default::default()
+        },
     )
     .expect("summary should succeed");
 
@@ -704,6 +718,10 @@ fn transient_internal_compaction_keeps_history_when_summary_fails() {
         "runner-transient-compaction-failure",
         &mut messages,
         "provider/model",
+        &crate::app::agent::config::ReliabilityConfig {
+            provider_retries: 0,
+            ..Default::default()
+        },
     )
     .expect_err("failed summaries must not change history");
 

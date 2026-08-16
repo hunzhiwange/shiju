@@ -35,6 +35,9 @@ pub struct Request {
     /// 模型标识符，指定要使用的 AI 模型（如 "gpt-4"、"claude-3" 等）
     pub model: Option<String>,
 
+    /// 当前请求使用的 Provider 重试与退避配置快照
+    pub reliability: crate::app::agent::config::ReliabilityConfig,
+
     /// 额外调用选项，用于透传 ACP 等适配器特定参数
     pub options: Value,
 

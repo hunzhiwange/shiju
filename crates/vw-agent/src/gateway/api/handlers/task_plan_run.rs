@@ -113,7 +113,7 @@ fn task_plan_run_streaming_response(
         tokio::spawn(async move {
             // spawn 脱离请求中间件，必须显式带上租户；否则 ui_store/project 落到默认租户。
             crate::session::ui_store::with_tenant_scope(tenant.clone(), async move {
-                let runner = GatewaySessionRunner;
+                let runner = GatewaySessionRunner::new(tenant.clone());
                 let run = AssertUnwindSafe(run_task_plan_with_cancellation(
                     &task_id,
                     &request,

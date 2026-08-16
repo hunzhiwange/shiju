@@ -943,7 +943,8 @@ fn run_llm_step_with_retry_retries_retryable_error_then_succeeds() {
             }
             true
         },
-        2,
+        1,
+        0,
     )
     .expect("second scripted attempt should succeed");
 
@@ -951,6 +952,42 @@ fn run_llm_step_with_retry_retries_retryable_error_then_succeeds() {
     assert_eq!(step.usage.input_tokens, 3);
     assert_eq!(deltas, vec!["second attempt"]);
     assert_eq!(take_test_llm_stream_tool_ids().len(), 2);
+}
+
+#[test]
+fn configured_provider_retries_control_total_attempts() {
+    let _guard = test_llm_stream_guard();
+    for _ in 0..3 {
+        enqueue_test_llm_stream(vec![llm::StreamEvent::Error(AssistantError::Unknown {
+            message: "temporary timeout".to_string(),
+        })]);
+    }
+
+    let error = super::run_llm_step_with_retry(
+        "session-configured-retries",
+        &[],
+        &[],
+        None,
+        &serde_json::json!({}),
+        &[],
+        &HashSet::new(),
+        &mut |_event| true,
+        2,
+        0,
+    )
+    .unwrap_err();
+
+    assert!(error.contains("temporary timeout"));
+    assert_eq!(take_test_llm_stream_tool_ids().len(), 3);
+}
+
+#[test]
+fn configured_provider_backoff_controls_retry_delay() {
+    assert_eq!(super::provider_retry_backoff_ms(750, 0), 750);
+    assert_eq!(super::provider_retry_backoff_ms(750, 1), 1_500);
+    assert_eq!(super::provider_retry_backoff_ms(750, 2), 3_000);
+    assert_eq!(super::provider_retry_backoff_ms(750, 3), 5_000);
+    assert_eq!(super::provider_retry_backoff_ms(u64::MAX, u32::MAX), 5_000);
 }
 
 #[test]
@@ -969,7 +1006,8 @@ fn run_llm_step_with_retry_stops_on_non_retryable_error() {
         &[],
         &HashSet::new(),
         &mut |_event| true,
-        3,
+        2,
+        0,
     )
     .unwrap_err();
 
@@ -978,7 +1016,7 @@ fn run_llm_step_with_retry_stops_on_non_retryable_error() {
 }
 
 #[test]
-fn run_llm_step_with_retry_treats_zero_attempts_as_one() {
+fn run_llm_step_with_retry_treats_zero_retries_as_one_attempt() {
     let _guard = test_llm_stream_guard();
     enqueue_test_llm_stream(vec![llm::StreamEvent::Error(AssistantError::Unknown {
         message: "temporary timeout".to_string(),
@@ -993,6 +1031,7 @@ fn run_llm_step_with_retry_treats_zero_attempts_as_one() {
         &[],
         &HashSet::new(),
         &mut |_event| true,
+        0,
         0,
     )
     .unwrap_err();

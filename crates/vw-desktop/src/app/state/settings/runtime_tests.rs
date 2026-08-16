@@ -45,7 +45,7 @@ fn hooks_and_runtime_defaults_match_secure_native_runtime() {
 #[test]
 fn skills_enums_and_default_state_are_stable() {
     assert_eq!(SkillsSettingsState::default().active_tab, SkillsSettingsTab::Skills);
-    assert_ne!(SkillsSettingsTab::Skills, SkillsSettingsTab::Plugins);
+    assert_ne!(SkillsSettingsTab::Skills, SkillsSettingsTab::SystemConfig);
     assert_ne!(SkillsDirectoryScope::Project, SkillsDirectoryScope::Global);
 
     let item = SkillsCatalogItem {
@@ -115,10 +115,9 @@ fn skills_catalog_models_preserve_metadata_and_support_every_kind() {
     let tabs = [
         SkillsSettingsTab::Skills,
         SkillsSettingsTab::DiscoveryOrder,
-        SkillsSettingsTab::Plugins,
         SkillsSettingsTab::SystemConfig,
     ];
-    assert_eq!(tabs.len(), 4);
+    assert_eq!(tabs.len(), 3);
 
     let scopes = [
         SkillsDirectoryScope::Project,

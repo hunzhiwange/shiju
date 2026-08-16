@@ -70,6 +70,7 @@ pub(crate) fn maybe_update_todos_after_work(
     total_usage: &mut models::TokenUsage,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     tool_state: &mut super::ToolSessionState,
+    reliability: &crate::app::agent::config::ReliabilityConfig,
 ) -> bool {
     // 检查 todowrite 工具是否在允许列表中，若不存在则直接返回
     if !allowed_tools.iter().any(|name| is_todo_write_tool_id(name)) {
@@ -109,7 +110,8 @@ pub(crate) fn maybe_update_todos_after_work(
         &available_tool_specs,
         &only_todowrite,
         &mut noop,
-        2,
+        reliability.provider_retries,
+        reliability.provider_backoff_ms,
     ) {
         Ok(v) => v,
         Err(_) => return false, // LLM 调用失败，返回 false

@@ -7,6 +7,7 @@ use crate::app::components::system_settings_common::{
     settings_segment_button_style, settings_success_banner, settings_text_editor_style,
     settings_text_input_style, settings_value_badge,
 };
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{McpMessage, SettingsMessage};
 use crate::app::state::{McpNewServerTransport, McpSettingsState, McpSettingsTab};
 use crate::app::{App, Message};
@@ -57,12 +58,42 @@ fn form_field<'a>(
         .into()
 }
 
+const MCP_TAB_LABELS: &[(&str, McpSettingsTab)] = &[
+    ("全局服务器", McpSettingsTab::Servers),
+    ("运行时 MCP", McpSettingsTab::Runtime),
+    ("高级 JSON", McpSettingsTab::Json),
+];
+pub(super) const MCP_TABS: &[SettingsTabDescriptor<McpSettingsTab>] = &[
+    SettingsTabDescriptor::new(
+        MCP_TAB_LABELS[0].1,
+        MCP_TAB_LABELS[0].0,
+        &[
+            "mcpServers",
+            "server",
+            "stdio",
+            "http",
+            "sse",
+            "headers",
+            "env",
+            "allowedTools",
+            "deniedTools",
+            "timeout",
+        ],
+    ),
+    SettingsTabDescriptor::new(
+        MCP_TAB_LABELS[1].1,
+        MCP_TAB_LABELS[1].0,
+        &["runtime", "运行时覆盖", "inspect", "工具预览"],
+    ),
+    SettingsTabDescriptor::new(
+        MCP_TAB_LABELS[2].1,
+        MCP_TAB_LABELS[2].0,
+        &["json", "原始配置", "高级编辑"],
+    ),
+];
+
 fn mcp_tab_labels() -> &'static [(&'static str, McpSettingsTab)] {
-    &[
-        ("全局服务器", McpSettingsTab::Servers),
-        ("运行时 MCP", McpSettingsTab::Runtime),
-        ("高级 JSON", McpSettingsTab::Json),
-    ]
+    MCP_TAB_LABELS
 }
 
 fn mcp_tab_button(

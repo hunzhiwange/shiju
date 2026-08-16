@@ -13,11 +13,35 @@ use crate::app::components::system_settings_common::{
     settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
     settings_segment_button_style, settings_value_badge,
 };
-use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::GeneralSettingsTab;
+use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
 use crate::app::{App, Message, PreviewAutoSaveMode, Shell, TerminalTheme, message};
 use iced::widget::{button, column, container, pick_list, row, slider, text};
 use iced::{Alignment, Element, Length, Theme};
+
+pub(super) const GENERAL_TABS: &[SettingsTabDescriptor<GeneralSettingsTab>] = &[
+    SettingsTabDescriptor::new(
+        GeneralSettingsTab::Interface,
+        "界面",
+        &["语言", "应用主题", "自动保存", "preview auto save"],
+    ),
+    SettingsTabDescriptor::new(
+        GeneralSettingsTab::Terminal,
+        "终端",
+        &["Shell", "终端主题", "终端字体", "字体大小"],
+    ),
+    SettingsTabDescriptor::new(
+        GeneralSettingsTab::Editor,
+        "编辑器",
+        &["editor", "code", "编辑器主题", "行高"],
+    ),
+    SettingsTabDescriptor::new(
+        GeneralSettingsTab::Themes,
+        "主题",
+        &["themes", "gallery", "palette", "custom", "builtin", "画廊", "配色", "色板"],
+    ),
+];
 
 fn setting_row<'a>(
     label: &'static str,
@@ -202,13 +226,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 settings_segment_button_style(theme, status, is_active)
             })
     };
-    let tabs = row![
-        tab_button(GeneralSettingsTab::Interface, "界面"),
-        tab_button(GeneralSettingsTab::Terminal, "终端"),
-        tab_button(GeneralSettingsTab::Editor, "编辑器"),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let tabs = GENERAL_TABS
+        .iter()
+        .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
+            row.push(tab_button(descriptor.tab, descriptor.label))
+        });
 
     let content: Element<'_, Message> = match active_tab {
         GeneralSettingsTab::Interface => column![
@@ -223,7 +245,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     settings_divider(),
                     setting_row(
                         "应用主题",
-                        "快速切换内置、预设和自定义主题；完整管理见「主题」页。",
+                        "快速切换内置、预设和自定义主题；完整管理见「主题」标签。",
                         theme_pick,
                     ),
                     settings_divider(),
@@ -239,11 +261,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .spacing(8),
                     ),
                     settings_divider(),
-                    setting_row(
-                        "聊天时区",
-                        "用于模型时间上下文，新会话生效。",
-                        timezone_pick,
-                    ),
+                    setting_row("聊天时区", "用于模型时间上下文，新会话生效。", timezone_pick,),
                 ]
                 .spacing(0)
             ),
@@ -276,18 +294,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .spacing(16)
         .into(),
-        GeneralSettingsTab::Editor => {
-            crate::app::components::system_settings_editor::content(app)
+        GeneralSettingsTab::Editor => crate::app::components::system_settings_editor::content(app),
+        GeneralSettingsTab::Themes => {
+            crate::app::components::system_settings_themes::view(app)
         }
     };
 
-    column![
-        settings_page_intro("常规", "通过标签切换界面、终端与编辑器配置。"),
-        tabs,
-        content,
-    ]
-    .spacing(16)
-    .into()
+    column![settings_page_intro("常规", "通过标签切换界面、终端、编辑器与主题配置。"), tabs, content,]
+        .spacing(16)
+        .into()
 }
 #[cfg(test)]
 #[path = "system_settings_general_tests.rs"]

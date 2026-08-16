@@ -21,6 +21,12 @@ fn message_meta_text(model: Option<&str>, time_ms: Option<u64>) -> Option<String
     Some(format!("{model} · {time_label}"))
 }
 
+fn normalize_step_turn_id(step: &mut ChatSessionStep) {
+    if step.turn_id.as_ref().is_some_and(|turn_id| turn_id.trim().is_empty()) {
+        step.turn_id = None;
+    }
+}
+
 fn build_message_meta_labels(
     chat: &[ChatMessage],
     step_index_map: &HashMap<u32, StepUiMeta>,
@@ -240,7 +246,8 @@ impl App {
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-    pub(crate) fn replace_active_session_steps(&mut self, steps: Vec<ChatSessionStep>) {
+    pub(crate) fn replace_active_session_steps(&mut self, mut steps: Vec<ChatSessionStep>) {
+        steps.iter_mut().for_each(normalize_step_turn_id);
         self.active_session_view_state.step_index_map =
             steps.iter().map(|step| (step.index, StepUiMeta::from(step))).collect();
         self.active_session_view_state.steps = steps;
@@ -277,7 +284,8 @@ impl App {
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
-    pub(crate) fn upsert_active_session_step(&mut self, step: ChatSessionStep) {
+    pub(crate) fn upsert_active_session_step(&mut self, mut step: ChatSessionStep) {
+        normalize_step_turn_id(&mut step);
         self.active_session_view_state.step_index_map.insert(step.index, StepUiMeta::from(&step));
         if let Some(existing_step) = self
             .active_session_view_state

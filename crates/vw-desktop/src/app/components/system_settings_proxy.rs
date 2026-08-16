@@ -61,6 +61,19 @@ fn field_row<'a>(
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
+    column![
+        settings_page_intro(
+            "代理配置",
+            "配置 HTTP、HTTPS、SOCKS5 代理以及生效范围。",
+        ),
+        content(app),
+    ]
+    .spacing(16)
+    .width(Length::Fill)
+    .into()
+}
+
+pub(super) fn content(app: &App) -> Element<'_, Message> {
     let s = &app.proxy_settings;
 
     let help_btn = settings_help_button(Message::Settings(message::SettingsMessage::ProxyHelpOpen));
@@ -141,15 +154,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let col = column![
-        row![
-            container(settings_page_intro(
-                "代理配置",
-                "配置 HTTP、HTTPS、SOCKS5 代理以及生效范围。",
-            ))
-            .width(Length::Fill),
-            help_btn
-        ]
-        .align_y(Alignment::Start),
+        row![container(text("代理设置").size(16)).width(Length::Fill), help_btn]
+            .align_y(Alignment::Center),
         settings_section_card("基础行为", "控制代理开关与作用域选择。"),
         settings_panel(column![enabled_row, settings_divider(), scope_row].spacing(0)),
         settings_section_card("代理地址", "分别配置 HTTP、HTTPS 与兜底代理地址。"),

@@ -4,8 +4,6 @@
 //! 直接访问，复杂历史分区仍桥接到专用工具。写操作会经过自治策略和配置校验，
 //! 避免工具在只读或无效配置状态下静默修改本地设置。
 
-use super::model_routing_config::ModelRoutingConfigTool;
-use super::proxy_config::ProxyConfigTool;
 use super::traits::{
     Tool, ToolCallResult, ToolCallTelemetry, ToolRenderHint, ToolResult, ToolSpec,
 };
@@ -18,19 +16,12 @@ use std::sync::Arc;
 use vw_api_types::tools::ToolResultContentDto;
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Args {
     #[serde(default)]
     setting: Option<String>,
     #[serde(default)]
     value: Option<Value>,
-    #[serde(default = "default_section")]
-    section: String,
-    #[serde(default)]
-    payload: Option<Value>,
-}
-
-fn default_section() -> String {
-    "all".to_string()
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -125,11 +116,6 @@ impl ConfigResponse {
             _ => "Configuration".to_string(),
         }
     }
-}
-
-enum ConfigExecutionOutcome {
-    Structured(ConfigResponse),
-    Legacy(ToolResult),
 }
 
 const AUTONOMY_LEVEL_OPTIONS: &[&str] = &["read_only", "supervised", "full"];
@@ -724,42 +710,23 @@ impl ConfigTool {
         })
     }
 
-    async fn execute_request(&self, args: Args) -> anyhow::Result<ConfigExecutionOutcome> {
+    async fn execute_request(&self, args: Args) -> anyhow::Result<ConfigResponse> {
         if let Some(setting) =
             args.setting.as_deref().map(str::trim).filter(|value| !value.is_empty())
         {
-            return Ok(ConfigExecutionOutcome::Structured(
-                self.handle_setting_request(setting, args.value).await?,
-            ));
+            return self.handle_setting_request(setting, args.value).await;
         }
 
-        match args.section.as_str() {
-            "all" => {
-                let current = self.load_current_config().await?;
-                Ok(ConfigExecutionOutcome::Structured(ConfigResponse {
-                    success: true,
-                    operation: Some("get"),
-                    setting: None,
-                    value: Some(snapshot_value(&current)),
-                    previous_value: None,
-                    new_value: None,
-                    error: None,
-                }))
-            }
-            "proxy" => Ok(ConfigExecutionOutcome::Legacy(
-                // 保留旧版高级配置工具的行为，避免把 proxy/model_routing 的
-                // 专用语义塞进通用 setting 表。
-                ProxyConfigTool::new(self.config.clone(), self.security.clone())
-                    .execute(args.payload.unwrap_or_else(|| json!({ "action": "get" })))
-                    .await?,
-            )),
-            "model_routing" => Ok(ConfigExecutionOutcome::Legacy(
-                ModelRoutingConfigTool::new(self.config.clone(), self.security.clone())
-                    .execute(args.payload.unwrap_or_else(|| json!({ "action": "get" })))
-                    .await?,
-            )),
-            other => anyhow::bail!("unsupported config section '{other}'"),
-        }
+        let current = self.load_current_config().await?;
+        Ok(ConfigResponse {
+            success: true,
+            operation: Some("get"),
+            setting: None,
+            value: Some(snapshot_value(&current)),
+            previous_value: None,
+            new_value: None,
+            error: None,
+        })
     }
 }
 
@@ -771,7 +738,7 @@ impl Tool for ConfigTool {
     }
 
     fn description(&self) -> &str {
-        "获取或设置 VibeWindow 配置。简单 setting/value 改动优先使用本工具；高级代理和模型路由配置请使用 proxy_config 或 model_routing_config。"
+        "获取或设置 VibeWindow 配置。使用 setting/value 读取或更新支持的配置项。"
     }
 
     fn parameters_schema(&self) -> Value {
@@ -793,16 +760,6 @@ impl Tool for ConfigTool {
                     "type": ["string", "boolean", "number"],
                     "description": "新的配置值。省略时执行读取；传入字符串 \"default\" 可重置部分可选设置。"
                 },
-                "section": {
-                    "type": "string",
-                    "enum": ["all", "proxy", "model_routing"],
-                    "default": "all",
-                    "description": "兼容旧调用的配置分区。未指定 setting 时才会使用。"
-                },
-                "payload": {
-                    "type": "object",
-                    "description": "传给旧版子配置工具的原始参数。section=all 时忽略。"
-                }
             }
         })
     }
@@ -820,53 +777,34 @@ impl Tool for ConfigTool {
 
     async fn call(&self, args: Value) -> anyhow::Result<ToolCallResult> {
         let args: Args = serde_json::from_value(args)?;
-        match self.execute_request(args).await? {
-            ConfigExecutionOutcome::Structured(response) => {
-                let data = response.to_value()?;
-                let success = response.success;
-                let summary = response.summary();
-                let metadata = json!({
-                    "operation": response.operation,
-                    "setting": response.setting,
-                    "success": success,
-                });
+        let response = self.execute_request(args).await?;
+        let data = response.to_value()?;
+        let success = response.success;
+        let summary = response.summary();
+        let metadata = json!({
+            "operation": response.operation,
+            "setting": response.setting,
+            "success": success,
+        });
 
-                Ok(ToolCallResult {
-                    data: data.clone(),
-                    model_result: Value::String(response.model_text()),
-                    content_blocks: vec![ToolResultContentDto::Json { value: data.clone() }],
-                    render_hint: Some(ToolRenderHint {
-                        title: Some("Config".to_string()),
-                        kind: Some("config".to_string()),
-                        summary: (!summary.trim().is_empty()).then_some(summary),
-                        metadata,
-                    }),
-                    telemetry: Some(ToolCallTelemetry { success, ..ToolCallTelemetry::default() }),
-                    ..ToolCallResult::default()
-                })
-            }
-            ConfigExecutionOutcome::Legacy(legacy) => {
-                let success = legacy.success;
-                Ok(ToolCallResult {
-                    render_hint: Some(ToolRenderHint {
-                        title: Some("Config".to_string()),
-                        kind: Some("config".to_string()),
-                        summary: Some("高级配置".to_string()),
-                        metadata: json!({}),
-                    }),
-                    telemetry: Some(ToolCallTelemetry { success, ..ToolCallTelemetry::default() }),
-                    ..ToolCallResult::from_legacy_result(legacy)
-                })
-            }
-        }
+        Ok(ToolCallResult {
+            data: data.clone(),
+            model_result: Value::String(response.model_text()),
+            content_blocks: vec![ToolResultContentDto::Json { value: data.clone() }],
+            render_hint: Some(ToolRenderHint {
+                title: Some("Config".to_string()),
+                kind: Some("config".to_string()),
+                summary: (!summary.trim().is_empty()).then_some(summary),
+                metadata,
+            }),
+            telemetry: Some(ToolCallTelemetry { success, ..ToolCallTelemetry::default() }),
+            ..ToolCallResult::default()
+        })
     }
 
     async fn execute(&self, args: Value) -> anyhow::Result<ToolResult> {
         let args: Args = serde_json::from_value(args)?;
-        match self.execute_request(args).await? {
-            ConfigExecutionOutcome::Structured(response) => response.to_legacy_result(),
-            ConfigExecutionOutcome::Legacy(result) => Ok(result),
-        }
+        self.execute_request(args).await?.to_legacy_result()
     }
 }
 

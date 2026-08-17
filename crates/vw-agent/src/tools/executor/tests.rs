@@ -180,23 +180,3 @@ fn snapshot_for_input_path_reads_relative_absolute_and_missing_files() {
     assert!(snapshot_for_input_path(Some(root.path()), &json!({ "path": "missing" })).is_none());
     assert!(snapshot_for_input_path(Some(root.path()), &json!({})).is_none());
 }
-
-#[test]
-fn plan_mode_allows_read_only_and_planning_tools_but_denies_writes() {
-    let read_only = ToolSpec::new("reader", "reader", json!({})).with_read_only(true);
-    let todo_write = ToolSpec::new(TODO_WRITE_TOOL_ID, "todo", json!({}));
-    let plan_exit = ToolSpec::new("plan_exit", "exit", json!({}));
-    let write = ToolSpec::new("file_write", "writer", json!({}));
-
-    assert!(tool_allowed_in_plan_mode(&read_only));
-    assert!(tool_allowed_in_plan_mode(&todo_write));
-    assert!(tool_allowed_in_plan_mode(&plan_exit));
-    assert!(!tool_allowed_in_plan_mode(&write));
-
-    let context = ToolUseContext::new("executor-plan-mode", None);
-    assert!(ensure_tool_allowed_in_plan_mode(&context, &write).is_ok());
-    context.enter_plan_mode(None, None);
-    let error = ensure_tool_allowed_in_plan_mode(&context, &write)
-        .expect_err("write tools should be denied in plan mode");
-    assert!(matches!(error, ToolCallError::Denied { .. }));
-}

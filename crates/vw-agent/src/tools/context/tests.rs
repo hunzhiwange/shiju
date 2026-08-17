@@ -5,10 +5,8 @@ use crate::app::agent::observability::NoopObserver;
 use std::sync::Arc;
 
 #[test]
-fn default_workflow_state_is_inactive_and_unbound() {
+fn default_workflow_state_is_unbound() {
     let state = WorkflowState::default();
-    assert!(!state.plan_mode.active);
-    assert!(state.plan_mode.goal.is_none());
     assert!(state.worktree.directory.is_none());
 }
 
@@ -21,21 +19,14 @@ fn context_preserves_session_and_root() {
 }
 
 #[test]
-fn workflow_transitions_preserve_plan_details_and_reset_worktree() {
+fn workflow_transitions_reset_worktree() {
     let context = ToolUseContext::new("session-a", Some("/workspace".into()));
-
-    let entered = context.enter_plan_mode(Some("ship".into()), Some("carefully".into()));
-    assert!(entered.active);
-    assert_eq!(entered.goal.as_deref(), Some("ship"));
-    assert_eq!(entered.note.as_deref(), Some("carefully"));
-    assert!(entered.entered_at_ms.is_some());
 
     let binding =
         context.bind_worktree("/worktrees/task".into(), "task".into(), "codex/task".into());
     assert_eq!(binding.directory.as_deref(), Some("/worktrees/task"));
     assert_eq!(context.workspace_root().as_deref(), Some(std::path::Path::new("/worktrees/task")));
 
-    assert!(!context.exit_plan_mode().active);
     let cleared = context.clear_worktree_binding();
     assert!(cleared.directory.is_none());
     assert_eq!(context.workspace_root().as_deref(), Some(std::path::Path::new("/workspace")));
@@ -181,10 +172,6 @@ fn shared_read_state_and_workflow_handles_are_reused() {
     let second = ToolUseContext::new("second", Some("/workspace".into()))
         .with_read_state_handle(read_state)
         .with_workflow_handle(workflow);
-
-    first.enter_plan_mode(Some("goal".to_string()), None);
-    assert!(second.plan_mode_state().active);
-    assert_eq!(second.plan_mode_state().goal.as_deref(), Some("goal"));
 
     let mut other = FileReadStateCache::new(8, 1024);
     other.note_read(Some(Path::new("/workspace")), "src/lib.rs", 12, false, None, None, None);

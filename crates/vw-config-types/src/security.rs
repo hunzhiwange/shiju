@@ -205,8 +205,6 @@ fn default_non_cli_excluded_tools() -> Vec<String> {
         "cron_run",
         "memory_store",
         "memory_forget",
-        "proxy_config",
-        "model_routing_config",
         "delegate",
         "screenshot",
         "image_info",

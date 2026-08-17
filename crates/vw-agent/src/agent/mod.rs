@@ -448,8 +448,6 @@ async fn load_state() -> State {
         "external_directory": external_directory,  // 外部目录权限
         "question": "deny",              // 默认禁止问题工具
         "AskUserQuestion": "deny",       // Claude 风格问题工具名
-        "plan_enter": "deny",            // 默认禁止进入计划模式
-        "plan_exit": "deny",             // 默认禁止退出计划模式
         "read": {
             "*": "allow",                // 允许读取所有文件
             "*.env": "ask",              // .env 文件需要询问

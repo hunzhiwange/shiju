@@ -655,8 +655,6 @@ pub fn all_tools_with_runtime(
         Arc::new(MemoryRecallTool::new(memory.clone())),
         Arc::new(MemoryForgetTool::new(memory.clone(), security.clone())),
         Arc::new(ScheduleTool::new(security.clone(), root_config.clone())),
-        Arc::new(ModelRoutingConfigTool::new(config.clone(), security.clone())),
-        Arc::new(ProxyConfigTool::new(config.clone(), security.clone())),
     ];
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -687,9 +685,6 @@ pub fn all_tools_with_runtime(
         tool_arcs.push(Arc::new(ExitWorktreeTool::new()));
     }
 
-    tool_arcs.push(Arc::new(EnterPlanModeTool::new()));
-    tool_arcs.push(Arc::new(ExitPlanModeTool::new()));
-    tool_arcs.push(Arc::new(VerifyPlanExecutionTool::new()));
     tool_arcs.push(Arc::new(ToolSearchTool::new()));
 
     if runtime.as_any().is::<crate::app::agent::runtime::WasmRuntime>() {

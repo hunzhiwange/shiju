@@ -17,8 +17,6 @@ fn tool_selector_buckets_match_runtime_surfaces() {
     assert_eq!(tool_bucket("browser"), SessionToolBucket::Browser);
     assert_eq!(tool_bucket("AgentTool"), SessionToolBucket::Agent);
     assert_eq!(tool_bucket("tool_search"), SessionToolBucket::Agent);
-    assert_eq!(tool_bucket("plan_enter"), SessionToolBucket::Agent);
-    assert_eq!(tool_bucket("verify_plan_execution"), SessionToolBucket::Agent);
 }
 
 #[test]
@@ -209,14 +207,6 @@ fn tool_selector_group_and_display_name_match_known_tools() {
 #[test]
 fn advanced_surface_specs_mark_available_and_planned() {
     assert_eq!(
-        explicit_advanced_tool_surface_spec("enter_plan_mode").map(|spec| spec.state),
-        Some(AdvancedToolSurfaceState::Available)
-    );
-    assert_eq!(
-        explicit_advanced_tool_surface_spec("verify_plan_execution").map(|spec| spec.state),
-        Some(AdvancedToolSurfaceState::Available)
-    );
-    assert_eq!(
         explicit_advanced_tool_surface_spec("mcp_auth").map(|spec| spec.state),
         Some(AdvancedToolSurfaceState::Planned)
     );
@@ -273,9 +263,6 @@ fn tool_display_name_title_cases_unknown_ids() {
 #[test]
 fn advanced_surface_specs_cover_exact_mappings_and_reject_unknown_tools() {
     let expected = [
-        ("enter_plan_mode", "进入规划模式", AdvancedToolSurfaceState::Available),
-        ("exit_plan_mode", "退出规划模式", AdvancedToolSurfaceState::Available),
-        ("verify_plan_execution", "校验计划执行", AdvancedToolSurfaceState::Available),
         ("enter_worktree", "进入 worktree", AdvancedToolSurfaceState::Available),
         ("exit_worktree", "退出 worktree", AdvancedToolSurfaceState::Available),
         ("mcp_linear", "mcp_* 集成", AdvancedToolSurfaceState::Planned),
@@ -492,7 +479,6 @@ fn tool_groups_cover_supported_runtime_aliases() {
         ("Agent", SessionToolGroup::Collaboration),
         ("cron_update", SessionToolGroup::Collaboration),
         ("todoread", SessionToolGroup::Collaboration),
-        ("proxy_config", SessionToolGroup::Integration),
         ("wasm_module", SessionToolGroup::Integration),
     ];
 

@@ -17,16 +17,6 @@ fn tool_id_helpers_accept_supported_ids_and_aliases() {
     assert!(
         [BROWSER_OPEN_TOOL_ID, BROWSER_OPEN_TOOL_ALIAS].into_iter().all(is_browser_open_tool_id)
     );
-    assert!(
-        [ENTER_PLAN_MODE_TOOL_ID, "EnterPlanMode", "enter_plan_mode",]
-            .into_iter()
-            .all(is_enter_plan_mode_tool_id)
-    );
-    assert!(
-        [EXIT_PLAN_MODE_TOOL_ID, "ExitPlanMode", "exit_plan_mode",]
-            .into_iter()
-            .all(is_exit_plan_mode_tool_id)
-    );
 }
 
 #[test]
@@ -39,7 +29,5 @@ fn tool_id_helpers_reject_unknown_and_case_mismatched_ids() {
         assert!(!is_web_search_tool_id(id));
         assert!(!is_browser_tool_id(id));
         assert!(!is_browser_open_tool_id(id));
-        assert!(!is_enter_plan_mode_tool_id(id));
-        assert!(!is_exit_plan_mode_tool_id(id));
     }
 }

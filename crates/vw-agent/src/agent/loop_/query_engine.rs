@@ -523,7 +523,6 @@ fn build_tool_descriptions(config: &Config) -> Vec<(&'static str, &'static str)>
         ("memory_store", "Save to memory."),
         ("memory_recall", "Search memory."),
         ("memory_forget", "Delete a memory entry."),
-        ("model_routing_config", "Configure default model, scenario routing, and delegate agents."),
         ("screenshot", "Capture a screenshot."),
         ("image_info", "Read image metadata."),
     ];

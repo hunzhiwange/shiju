@@ -125,8 +125,6 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
         "process",
         "batch",
         "AskUserQuestion",
-        "plan_enter",
-        "plan_exit",
         "tool_search",
         "WebSearch",
         "Browser",

@@ -11,7 +11,7 @@ use crate::app::{App, Message};
 use super::{
     tool_advanced_view, tool_apply_patch_view, tool_bash_view, tool_config_view,
     tool_files_view, tool_git_diff_view, tool_lsp_view, tool_mcp_view, tool_name_from_raw,
-    tool_plan_mode_view, tool_question_view, tool_read_view, tool_search_view, tool_skill_view,
+    tool_question_view, tool_read_view, tool_search_view, tool_skill_view,
     tool_text_view, tool_todos_view, tool_todowrite_compact_view, tool_web_view,
     tool_workflow_view,
 };
@@ -34,7 +34,6 @@ pub(crate) enum SharedToolRenderKind {
     GitDiff,
     Question,
     Web,
-    PlanMode,
     Advanced,
     Skill,
     Workflow,
@@ -76,14 +75,6 @@ pub(crate) fn shared_tool_render_kind(raw: &str) -> Option<SharedToolRenderKind>
         "web_fetch" | "fetch_webpage" | "http_request" | "web_search" => {
             // SharedToolRenderKind 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             SharedToolRenderKind::Web
-        }
-        "enter_plan_mode"
-        | "exit_plan_mode"
-        | "plan_enter"
-        | "plan_exit"
-        | "verify_plan_execution" => {
-            // SharedToolRenderKind 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            SharedToolRenderKind::PlanMode
         }
         "skill" => SharedToolRenderKind::Skill,
         "workflow_node" => SharedToolRenderKind::Workflow,
@@ -149,8 +140,6 @@ pub(crate) fn render_shared_tool_view<'a>(
             .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
         // SharedToolRenderKind 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         SharedToolRenderKind::Web => tool_web_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::PlanMode => tool_plan_mode_view(app, msg_idx, tool_idx, visible)
             .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
         SharedToolRenderKind::Advanced => tool_advanced_view(app, msg_idx, tool_idx, visible)
             .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),

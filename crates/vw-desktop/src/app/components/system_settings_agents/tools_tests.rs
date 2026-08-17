@@ -70,8 +70,6 @@ fn tool_in_preset_accepts_declared_members_and_inheritance() {
         "memory_forget",
         "todoread",
         "todowrite",
-        "plan_enter",
-        "plan_exit",
     ];
 
     for tool_id in minimal {
@@ -189,6 +187,7 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("glob_search", "组合搜索", ToolGroup::Search),
         ("code_search", "代码检索", ToolGroup::Search),
         ("codesearch", "代码检索", ToolGroup::Search),
+        ("rustcodegraph", "RustCodeGraph", ToolGroup::Search),
         ("bash", "命令行", ToolGroup::Execute),
         ("shell", "命令行", ToolGroup::Execute),
         ("process", "后台进程", ToolGroup::Execute),
@@ -218,12 +217,6 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("TodoRead", "读取任务计划", ToolGroup::Collaboration),
         ("todowrite", "写入任务计划", ToolGroup::Collaboration),
         ("TodoWrite", "写入任务计划", ToolGroup::Collaboration),
-        ("plan_enter", "进入规划模式", ToolGroup::Collaboration),
-        ("EnterPlanMode", "进入规划模式", ToolGroup::Collaboration),
-        ("enter_plan_mode", "进入规划模式", ToolGroup::Collaboration),
-        ("plan_exit", "退出规划模式", ToolGroup::Collaboration),
-        ("ExitPlanMode", "退出规划模式", ToolGroup::Collaboration),
-        ("exit_plan_mode", "退出规划模式", ToolGroup::Collaboration),
         ("enter_worktree", "进入 Worktree", ToolGroup::Execute),
         ("EnterWorktree", "进入 Worktree", ToolGroup::Execute),
         ("exit_worktree", "退出 Worktree", ToolGroup::Execute),
@@ -231,14 +224,10 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("question", "用户提问", ToolGroup::Collaboration),
         ("AskUserQuestion", "用户提问", ToolGroup::Collaboration),
         ("Sleep", "短暂等待", ToolGroup::Collaboration),
-        ("verify_plan_execution", "验证计划执行", ToolGroup::Collaboration),
-        ("VerifyPlanExecution", "验证计划执行", ToolGroup::Collaboration),
         ("skill", "加载技能", ToolGroup::Collaboration),
         ("memory_recall", "读取记忆", ToolGroup::Memory),
         ("memory_store", "写入记忆", ToolGroup::Memory),
         ("memory_forget", "删除记忆", ToolGroup::Memory),
-        ("proxy_config", "代理配置", ToolGroup::Integration),
-        ("model_routing_config", "模型路由", ToolGroup::Integration),
         ("Config", "配置管理", ToolGroup::Integration),
         ("tool_search", "工具搜索", ToolGroup::Integration),
         ("ToolSearch", "工具搜索", ToolGroup::Integration),
@@ -373,7 +362,6 @@ fn tools_view_distinguishes_empty_and_all_grouped_tool_lists() {
         "web_search",
         "AgentTool",
         "memory_store",
-        "proxy_config",
         "custom_tool",
     ]
     .map(str::to_string)
@@ -389,8 +377,8 @@ fn tools_view_distinguishes_empty_and_all_grouped_tool_lists() {
     assert_eq!(tools_list.children[0].children.len(), 2);
     assert_eq!(tools_list.children[1].children.len(), 3);
     assert_eq!(tools_list.children[3].children.len(), 5);
-    // optional only: read(Files), proxy_config(Integration), custom_tool(Other)
-    assert_eq!(tools_list.children[4].children.len(), 3);
+    // optional only: read(Files), custom_tool(Other)
+    assert_eq!(tools_list.children[4].children.len(), 2);
 }
 
 #[test]
@@ -438,7 +426,6 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         "rustcodegraph".to_string(),
         "custom_optional".to_string(),
         "AgentTool".to_string(),
-        "proxy_config".to_string(),
     ];
 
     assert_eq!(app.agents_settings.active_tools_list_tab, AGENT_TOOLS_OPTIONAL_TAB);
@@ -447,7 +434,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         &app.agents_settings.available_tools,
         &app.agents_settings.active_tools_list_tab,
     );
-    assert_eq!(optional_ids, vec!["custom_optional", "proxy_config"]);
+    assert_eq!(optional_ids, vec!["custom_optional"]);
     assert!(optional_ids.iter().all(|id| !is_builtin_required_tool_id(id)));
 
     {

@@ -352,9 +352,6 @@ pub(super) fn advanced_success_body(tool_name: &str, raw_output: &str, value: &V
             format_browser_success_body(tool_name, value).unwrap_or_else(|| raw_output.to_string())
         }
         "tool_search" => format_tool_search_body(value).unwrap_or_else(|| raw_output.to_string()),
-        "verify_plan_execution" => {
-            format_verify_plan_execution_body(value).unwrap_or_else(|| raw_output.to_string())
-        }
         _ => raw_output.to_string(),
     }
 }
@@ -400,36 +397,6 @@ pub(super) fn format_tool_search_body(value: &Value) -> Option<String> {
         lines.push(format!("... 还有 {} 个结果", total.saturating_sub(lines.len())));
     }
     Some(lines.join("\n"))
-}
-
-pub(super) fn format_verify_plan_execution_body(value: &Value) -> Option<String> {
-    let data = tool_result_data(value)?.as_object()?;
-    let ready = data.get("ready").and_then(Value::as_bool).unwrap_or(false);
-    let todo_count = data.get("todo_count").and_then(Value::as_u64).unwrap_or(0);
-    let pending_count = data.get("pending_count").and_then(Value::as_u64).unwrap_or(0);
-    let in_progress_count = data.get("in_progress_count").and_then(Value::as_u64).unwrap_or(0);
-
-    if ready {
-        return Some(format!(
-            "已满足执行条件。\nTodo: {}，待处理: {}，进行中: {}",
-            todo_count, pending_count, in_progress_count
-        ));
-    }
-
-    let blockers = data
-        .get("blockers")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .map(str::trim)
-        .filter(|text| !text.is_empty())
-        .map(|text| format!("- {text}"))
-        .collect::<Vec<_>>();
-    if blockers.is_empty() {
-        return None;
-    }
-    Some(blockers.join("\n"))
 }
 
 pub(super) fn format_browser_success_body(tool_name: &str, value: &Value) -> Option<String> {

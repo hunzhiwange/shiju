@@ -784,8 +784,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
       "cron_run",
       "memory_store",
       "memory_forget",
-      "proxy_config",
-      "model_routing_config",
       "screenshot",
       "image_info"
     ],

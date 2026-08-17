@@ -165,15 +165,6 @@ fn runtime_capability_instructions(
         );
     }
 
-    if has_tool(&tool_ids, &["plan_enter", "enterplanmode", "enter_plan_mode"])
-        && has_tool(&tool_ids, &["plan_exit", "exitplanmode", "exit_plan_mode"])
-    {
-        sections.push(
-            "## Plan Mode\n- Enter plan mode only when the user asks for a plan or the task genuinely requires the design to be settled first. After completing the plan, exit according to the tool protocol; do not implement during a read-only planning phase without authorization."
-                .to_string(),
-        );
-    }
-
     if has_tool(&tool_ids, &["tool_search"]) {
         sections.push(
             "## Tool Discovery\n- When you need a capability that is not currently shown, search for it with `tool_search` first. Search results remain filtered by the current model, client, and permissions."

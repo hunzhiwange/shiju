@@ -48,14 +48,6 @@ fn shared_tool_render_kind_keeps_existing_specialized_routes() {
     );
     assert_eq!(shared_tool_render_kind("tool unknown_tool\n{}"), Some(SharedToolRenderKind::Text));
     assert_eq!(
-        shared_tool_render_kind("tool plan_enter\n{}"),
-        Some(SharedToolRenderKind::PlanMode)
-    );
-    assert_eq!(
-        shared_tool_render_kind("tool verify_plan_execution\n{}"),
-        Some(SharedToolRenderKind::PlanMode)
-    );
-    assert_eq!(
         shared_tool_render_kind("tool task_complete\n{}"),
         Some(SharedToolRenderKind::Advanced)
     );

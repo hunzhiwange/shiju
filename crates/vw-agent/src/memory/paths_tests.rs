@@ -1,6 +1,31 @@
 use super::*;
+use git2::Repository;
 use std::path::Path;
 use tempfile::TempDir;
+
+fn commit_tree(repo: &Repository, message: &str) {
+    let tree_id = {
+        let mut index = repo.index().expect("index");
+        index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None).expect("add all");
+        index.write().expect("index write");
+        index.write_tree().expect("tree")
+    };
+    let tree = repo.find_tree(tree_id).expect("tree");
+    let signature = git2::Signature::now("Vibe Window", "vw@example.com").expect("signature");
+    repo.commit(Some("HEAD"), &signature, &signature, message, &tree, &[]).expect("commit");
+}
+
+fn repo_with_initial_commit(path: &Path) -> Repository {
+    let repo = Repository::init(path).expect("repo init");
+    std::fs::write(path.join("README.md"), "demo\n").expect("readme");
+    commit_tree(&repo, "initial");
+    repo
+}
+
+fn add_linked_worktree(repo: &Repository, name: &str, path: &Path) {
+    let mut options = git2::WorktreeAddOptions::new();
+    repo.worktree(name, path, Some(&mut options)).expect("linked worktree");
+}
 
 #[test]
 fn project_data_dir_is_user_scoped() {
@@ -88,20 +113,8 @@ fn git_common_dir_returns_none_when_working_directory_is_missing() {
 
 #[test]
 fn git_common_dir_returns_absolute_common_dir_inside_repo() {
-    if !git_is_available() {
-        return;
-    }
-
     let workspace = TempDir::new().unwrap();
-    assert!(
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(workspace.path())
-            .output()
-            .unwrap()
-            .status
-            .success()
-    );
+    repo_with_initial_commit(workspace.path());
 
     let common_dir = git_common_dir(workspace.path()).unwrap();
 
@@ -111,42 +124,23 @@ fn git_common_dir_returns_absolute_common_dir_inside_repo() {
 
 #[test]
 fn project_state_id_uses_git_common_dir_when_available() {
-    if !git_is_available() {
-        return;
-    }
-
     let workspace = TempDir::new().unwrap();
-    assert!(
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(workspace.path())
-            .output()
-            .unwrap()
-            .status
-            .success()
-    );
+    let primary = workspace.path().join("primary");
+    let linked = workspace.path().join("linked");
+    std::fs::create_dir(&primary).expect("primary dir");
+    let repo = repo_with_initial_commit(&primary);
+    add_linked_worktree(&repo, "linked-memory", &linked);
 
-    let common_dir = git_common_dir(workspace.path()).unwrap();
+    let common_dir = git_common_dir(&primary).unwrap();
 
-    assert_eq!(project_state_id(workspace.path()), scoped_id(&common_dir));
+    assert_eq!(project_state_id(&linked), scoped_id(&common_dir));
+    assert_eq!(project_state_id(&linked), project_state_id(&primary));
 }
 
 #[test]
 fn workspace_state_id_uses_workspace_path_not_git_common_dir() {
-    if !git_is_available() {
-        return;
-    }
-
     let workspace = TempDir::new().unwrap();
-    assert!(
-        std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(workspace.path())
-            .output()
-            .unwrap()
-            .status
-            .success()
-    );
+    repo_with_initial_commit(workspace.path());
 
     let canonical_workspace = canonical_path(workspace.path());
 
@@ -171,10 +165,7 @@ fn safe_name_replaces_unsafe_chars_and_falls_back_for_empty_names() {
     assert_eq!(safe_name("..."), "workspace");
 }
 
-fn git_is_available() -> bool {
-    std::process::Command::new("git")
-        .arg("--version")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+#[test]
+fn git_common_dir_does_not_start_system_git() {
+    assert!(!include_str!("paths.rs").contains("Command::new(\"git\")"));
 }

@@ -19,9 +19,6 @@ pub fn canonical_tool_name(tool_name: &str) -> &str {
         "browser" => "browser",
         "browseropen" | "browser_open" => "browser_open",
         "lsp" => "lsp",
-        "enterplanmode" | "enter_plan_mode" | "plan_enter" => "enter_plan_mode",
-        "exitplanmode" | "exit_plan_mode" | "plan_exit" => "exit_plan_mode",
-        "verifyplanexecution" | "verify_plan_execution" => "verify_plan_execution",
         "enterworktree" | "enter_worktree" => "enter_worktree",
         "exitworktree" | "exit_worktree" => "exit_worktree",
         "toolsearch" | "tool_search" => "tool_search",
@@ -98,9 +95,6 @@ pub fn is_known_tool_name(tool_name: &str) -> bool {
             | "view_image"
             | "wasm_module"
             | "process"
-            | "enter_plan_mode"
-            | "exit_plan_mode"
-            | "verify_plan_execution"
             | "enter_worktree"
             | "exit_worktree"
             | "tool_search"

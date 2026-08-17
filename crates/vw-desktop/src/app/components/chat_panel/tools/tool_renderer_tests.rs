@@ -16,10 +16,6 @@ fn keep_element(element: iced::Element<'_, Message>) {
 #[test]
 fn shared_tool_render_kind_routes_known_tools() {
     assert_eq!(shared_tool_render_kind("tool bash\n{}"), Some(SharedToolRenderKind::Bash));
-    assert_eq!(
-        shared_tool_render_kind("tool enter_plan_mode\n{}"),
-        Some(SharedToolRenderKind::PlanMode)
-    );
     assert_eq!(shared_tool_render_kind("tool skill\n{}"), Some(SharedToolRenderKind::Skill));
     assert_eq!(
         shared_tool_render_kind("tool workflow_node\n{}"),
@@ -66,10 +62,6 @@ fn shared_tool_render_kind_routes_all_supported_kinds() {
         ("tool fetch_webpage\n{}", SharedToolRenderKind::Web),
         ("tool http_request\n{}", SharedToolRenderKind::Web),
         ("tool web_search\n{}", SharedToolRenderKind::Web),
-        ("tool exit_plan_mode\n{}", SharedToolRenderKind::PlanMode),
-        ("tool plan_enter\n{}", SharedToolRenderKind::PlanMode),
-        ("tool plan_exit\n{}", SharedToolRenderKind::PlanMode),
-        ("tool verify_plan_execution\n{}", SharedToolRenderKind::PlanMode),
         ("tool AgentTool\n{}", SharedToolRenderKind::Advanced),
         ("tool Agent\n{}", SharedToolRenderKind::Advanced),
         ("tool browser\n{}", SharedToolRenderKind::Advanced),
@@ -172,11 +164,6 @@ fn render_shared_tool_view_dispatches_each_tool_kind() {
             11,
             r#"tool web_fetch
 {"status":"completed","summary":"Fetched","output":"body"}"#,
-        ),
-        (
-            12,
-            r#"tool enter_plan_mode
-{"status":"completed","result":{"data":{"active":true,"message":"Plan mode enabled","goal":"cover tests"}}}"#,
         ),
         (
             13,

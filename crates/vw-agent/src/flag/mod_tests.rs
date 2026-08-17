@@ -120,7 +120,6 @@ fn static_bool_flags_are_readable() {
         *super::VIBEWINDOW_EXPERIMENTAL_LSP_TY,
         *super::VIBEWINDOW_EXPERIMENTAL_LSP_TOOL,
         *super::VIBEWINDOW_DISABLE_FILETIME_CHECK,
-        *super::VIBEWINDOW_EXPERIMENTAL_PLAN_MODE,
         *super::VIBEWINDOW_EXPERIMENTAL_MARKDOWN,
     ];
 

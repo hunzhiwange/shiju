@@ -1,7 +1,6 @@
 use super::{
-    list_tool_specs_response, openai_tools_json, should_enable_plan_tools,
-    should_enable_question_tool, should_enable_search, should_use_apply_patch, spec_dtos, specs,
-    specs_json,
+    list_tool_specs_response, openai_tools_json, should_enable_question_tool, should_enable_search,
+    should_use_apply_patch, spec_dtos, specs, specs_json,
 };
 use crate::app::agent::flag;
 use serde_json::Value;
@@ -29,15 +28,6 @@ fn question_tool_is_limited_to_exact_interactive_client_names() {
 
     for client in ["", "api", "webhook", "CLI", " cli "] {
         assert!(!should_enable_question_tool(client), "{client:?} should be rejected");
-    }
-}
-
-#[test]
-fn plan_tools_require_cli_and_experimental_flag() {
-    assert_eq!(should_enable_plan_tools("cli"), *flag::VIBEWINDOW_EXPERIMENTAL_PLAN_MODE);
-
-    for client in ["", "app", "desktop", "CLI", " cli "] {
-        assert!(!should_enable_plan_tools(client), "{client:?} should be rejected");
     }
 }
 

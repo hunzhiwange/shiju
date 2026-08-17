@@ -50,11 +50,9 @@ pub mod cron_update;
 mod decision;
 pub mod delegate;
 pub(crate) mod delegated_tools;
-pub mod enter_plan_mode;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod enter_worktree;
 mod executor;
-pub mod exit_plan_mode;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod exit_worktree;
 #[cfg(not(target_arch = "wasm32"))]
@@ -94,14 +92,12 @@ pub mod mcp_tool;
 pub mod memory_forget;
 pub mod memory_recall;
 pub mod memory_store;
-pub mod model_routing_config;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod pdf_read;
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
 pub mod powershell;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod process;
-pub mod proxy_config;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod question;
 pub mod read_mcp_resource;
@@ -125,7 +121,6 @@ mod toolset;
 pub mod traits;
 pub mod truncation;
 pub mod url_validation;
-pub mod verify_plan_execution;
 pub mod wasm_module;
 pub mod web_fetch;
 pub mod web_search_tool;
@@ -150,11 +145,9 @@ pub use cron_remove::CronRemoveTool;
 pub use cron_run::CronRunTool;
 pub use cron_runs::CronRunsTool;
 pub use cron_update::CronUpdateTool;
-pub use enter_plan_mode::EnterPlanModeTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use enter_worktree::EnterWorktreeTool;
 pub(crate) use executor::{ToolResultHistoryEntry, build_tool_result_history_messages};
-pub use exit_plan_mode::ExitPlanModeTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use exit_worktree::ExitWorktreeTool;
 #[cfg(not(target_arch = "wasm32"))]
@@ -187,14 +180,12 @@ pub use mcp_status::McpStatusTool;
 pub use memory_forget::MemoryForgetTool;
 pub use memory_recall::MemoryRecallTool;
 pub use memory_store::MemoryStoreTool;
-pub use model_routing_config::ModelRoutingConfigTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use pdf_read::PdfReadTool;
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
 pub use powershell::PowerShellTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use process::ProcessTool;
-pub use proxy_config::ProxyConfigTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use question::QuestionTool;
 pub use read_mcp_resource::ReadMcpResourceTool;
@@ -229,7 +220,6 @@ pub use toolset::{
     is_binary, tool_specs_for_context,
 };
 pub(crate) use toolset::{agent_tool_parallel_limit_for_context, execute_agent_tool_call};
-pub use verify_plan_execution::VerifyPlanExecutionTool;
 pub use wasm_module::WasmModuleTool;
 pub use web_fetch::WebFetchTool;
 pub use web_search_tool::WebSearchTool;
@@ -249,16 +239,10 @@ pub const WEB_FETCH_TOOL_ALIAS: &str = "web_fetch";
 pub const WEB_SEARCH_TOOL_ALIAS: &str = "web_search_tool";
 pub const BROWSER_TOOL_ALIAS: &str = "browser";
 pub const BROWSER_OPEN_TOOL_ALIAS: &str = "browser_open";
-pub const ENTER_PLAN_MODE_TOOL_ID: &str = "plan_enter";
-pub const EXIT_PLAN_MODE_TOOL_ID: &str = "plan_exit";
-pub const VERIFY_PLAN_EXECUTION_TOOL_ID: &str = "verify_plan_execution";
 pub const ENTER_WORKTREE_TOOL_ID: &str = "enter_worktree";
 pub const EXIT_WORKTREE_TOOL_ID: &str = "exit_worktree";
 pub const TOOL_SEARCH_TOOL_ID: &str = "tool_search";
 
-pub const ENTER_PLAN_MODE_TOOL_ALIASES: [&str; 2] = ["EnterPlanMode", "enter_plan_mode"];
-pub const EXIT_PLAN_MODE_TOOL_ALIASES: [&str; 2] = ["ExitPlanMode", "exit_plan_mode"];
-pub const VERIFY_PLAN_EXECUTION_TOOL_ALIASES: [&str; 1] = ["VerifyPlanExecution"];
 pub const ENTER_WORKTREE_TOOL_ALIASES: [&str; 1] = ["EnterWorktree"];
 pub const EXIT_WORKTREE_TOOL_ALIASES: [&str; 1] = ["ExitWorktree"];
 pub const TOOL_SEARCH_TOOL_ALIASES: [&str; 1] = ["ToolSearch"];
@@ -289,14 +273,6 @@ pub fn is_browser_tool_id(id: &str) -> bool {
 
 pub fn is_browser_open_tool_id(id: &str) -> bool {
     matches!(id, BROWSER_OPEN_TOOL_ID | BROWSER_OPEN_TOOL_ALIAS)
-}
-
-pub fn is_enter_plan_mode_tool_id(id: &str) -> bool {
-    matches!(id, ENTER_PLAN_MODE_TOOL_ID | "EnterPlanMode" | "enter_plan_mode")
-}
-
-pub fn is_exit_plan_mode_tool_id(id: &str) -> bool {
-    matches!(id, EXIT_PLAN_MODE_TOOL_ID | "ExitPlanMode" | "exit_plan_mode")
 }
 
 #[cfg(test)]

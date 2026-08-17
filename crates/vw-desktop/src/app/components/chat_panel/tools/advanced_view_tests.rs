@@ -2,7 +2,7 @@ use super::advanced_view::{
     advanced_base_title, advanced_fallback_body, advanced_metadata_text, advanced_success_body,
     advanced_summary, agent_tool_detail_message, agent_tool_primary_message, agent_tool_session_id,
     compact_browser_success_summary, format_browser_success_body, format_tool_search_body,
-    format_verify_plan_execution_body, is_advanced_surface_tool, nested_string,
+    is_advanced_surface_tool, nested_string,
     result_data_message, tool_advanced_view,
 };
 use crate::app::state::explicit_advanced_tool_surface_spec;
@@ -16,7 +16,6 @@ fn advanced_surface_tool_accepts_known_tools_and_mcp_prefixes() {
     assert!(is_advanced_surface_tool("browser_open"));
     assert!(is_advanced_surface_tool("open_browser_page"));
     assert!(is_advanced_surface_tool("tool_search"));
-    assert!(is_advanced_surface_tool("verify_plan_execution"));
     assert!(is_advanced_surface_tool("mcp_linear"));
     assert!(!is_advanced_surface_tool("bash"));
 }
@@ -161,14 +160,6 @@ fn advanced_metadata_text_formats_tool_specific_parts() {
 fn advanced_fallback_body_formats_explicit_and_agent_defaults() {
     assert_eq!(
         advanced_fallback_body(
-            "enter_plan_mode",
-            &json!({}),
-            explicit_advanced_tool_surface_spec("enter_plan_mode")
-        ),
-        "进入规划模式 已接入当前会话工具面。"
-    );
-    assert_eq!(
-        advanced_fallback_body(
             "mcp_linear",
             &json!({}),
             explicit_advanced_tool_surface_spec("mcp_linear")
@@ -217,14 +208,6 @@ fn advanced_success_body_formats_agent_browser_search_and_plan_results() {
             &json!({"result":{"data":{"items":[{"id":"tool","reason":"match"}]}}})
         ),
         "- tool: match"
-    );
-    assert_eq!(
-        advanced_success_body(
-            "verify_plan_execution",
-            "raw",
-            &json!({"result":{"data":{"ready":true,"todo_count":2,"pending_count":1,"in_progress_count":0}}})
-        ),
-        "已满足执行条件。\nTodo: 2，待处理: 1，进行中: 0"
     );
     assert_eq!(advanced_success_body("unknown", "raw", &json!({})), "raw");
 }
@@ -306,23 +289,6 @@ fn compact_browser_success_summary_merges_multiline_snapshot_text() {
         compact_browser_success_summary("Captured page snapshot\n\nsnapshot · browser\n  Get text"),
         "Captured page snapshot snapshot · browser Get text"
     );
-}
-
-#[test]
-fn format_verify_plan_execution_body_covers_blockers_and_empty_state() {
-    assert_eq!(
-        format_verify_plan_execution_body(
-            &json!({"result":{"data":{"blockers":[" missing plan ",""]}}})
-        ),
-        Some("- missing plan".to_string())
-    );
-    assert_eq!(
-        format_verify_plan_execution_body(
-            &json!({"result":{"data":{"ready":false,"blockers":[]}}})
-        ),
-        None
-    );
-    assert_eq!(format_verify_plan_execution_body(&json!({})), None);
 }
 
 #[test]
@@ -430,16 +396,6 @@ fn advanced_view_renders_agent_browser_tool_search_and_errors() {
 fn advanced_view_renders_running_and_planned_explicit_surfaces() {
     let app = App::new().0;
 
-    assert!(
-        tool_advanced_view(
-            &app,
-            0,
-            0,
-            r#"tool verify_plan_execution
-{"status":"running","input":"{}"}"#
-        )
-        .is_some()
-    );
     assert!(
         tool_advanced_view(
             &app,

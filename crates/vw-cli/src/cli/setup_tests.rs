@@ -53,7 +53,6 @@ fn tool_descriptions_always_include_core_tools() {
         "cron_add",
         "screenshot",
         "schedule",
-        "model_routing_config",
     ] {
         assert!(has_tool(&descriptions, name), "missing core tool description: {name}");
     }

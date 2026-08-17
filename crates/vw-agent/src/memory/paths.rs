@@ -61,21 +61,7 @@ fn canonical_path(path: &Path) -> PathBuf {
 }
 
 fn git_common_dir(workspace_dir: &Path) -> Option<PathBuf> {
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", "--git-common-dir"])
-        .current_dir(workspace_dir)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if raw.is_empty() {
-        return None;
-    }
-    let path = PathBuf::from(raw);
-    let path = if path.is_absolute() { path } else { workspace_dir.join(path) };
-    Some(std::fs::canonicalize(&path).unwrap_or(path))
+    crate::git_repository::discover(workspace_dir).map(|repository| repository.common_dir)
 }
 
 fn scoped_id(path: &Path) -> String {

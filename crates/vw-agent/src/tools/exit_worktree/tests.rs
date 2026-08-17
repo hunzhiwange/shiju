@@ -8,9 +8,9 @@ use crate::app::agent::tools::context::{
     ToolUseContext, WorktreeBindingState, scope_tool_use_context,
 };
 use crate::app::agent::tools::{Tool, ToolCallResult};
+use git2::{Repository, WorktreeAddOptions};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::{Arc, OnceLock};
 use tempfile::TempDir;
 
@@ -30,27 +30,36 @@ fn configure_test_instance_paths() {
     }
 }
 
-fn git(cwd: &Path, args: &[&str]) {
-    let status =
-        Command::new("git").args(args).current_dir(cwd).status().expect("git command should run");
-    assert!(status.success(), "git {:?} should succeed", args);
-}
-
-fn init_git_repo(dir: &TempDir) {
-    git(dir.path(), &["init", "-b", "main"]);
-    git(dir.path(), &["config", "user.email", "test@example.com"]);
-    git(dir.path(), &["config", "user.name", "Test User"]);
+fn init_git_repo(dir: &TempDir) -> Repository {
+    let repo = Repository::init(dir.path()).expect("git2 init should succeed");
     std::fs::write(dir.path().join("README.md"), "seed\n").expect("seed file should write");
-    git(dir.path(), &["add", "."]);
-    git(dir.path(), &["commit", "-m", "init"]);
+    let mut index = repo.index().expect("index should open");
+    index.add_path(Path::new("README.md")).expect("readme should stage");
+    index.write().expect("index should write");
+    let tree_id = index.write_tree().expect("tree should write");
+    let tree = repo.find_tree(tree_id).expect("tree should open");
+    let signature = git2::Signature::now("Test User", "test@example.com").expect("signature");
+    repo.commit(Some("HEAD"), &signature, &signature, "init", &tree, &[])
+        .expect("initial commit should succeed");
+    drop(tree);
+    repo
 }
 
-fn create_worktree(dir: &TempDir, name: &str) -> (PathBuf, String) {
+fn create_worktree(repo: &Repository, dir: &TempDir, name: &str) -> (PathBuf, String) {
     let worktree_dir = dir.path().join(format!("{name}-worktree"));
     let branch = format!("test/{name}");
-    let worktree_arg = worktree_dir.to_string_lossy().to_string();
-    git(dir.path(), &["worktree", "add", "-b", &branch, &worktree_arg, "HEAD"]);
+    let mut options = WorktreeAddOptions::new();
+    repo.worktree(name, &worktree_dir, Some(&mut options)).expect("linked worktree should create");
     (worktree_dir, branch)
+}
+
+#[test]
+fn exit_worktree_production_status_check_does_not_spawn_system_git() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/tools/exit_worktree/mod.rs"))
+        .expect("exit worktree source should read");
+
+    assert!(!source.contains("git_tokio_command"));
+    assert!(!source.contains("Command::new(\"git\")"));
 }
 
 async fn call_exit_worktree_in_instance(
@@ -59,6 +68,8 @@ async fn call_exit_worktree_in_instance(
     branch: &str,
     input: Value,
 ) -> (anyhow::Result<ToolCallResult>, WorktreeBindingState) {
+    let _env_lock =
+        crate::test_support::global_env_lock().lock().unwrap_or_else(|error| error.into_inner());
     configure_test_instance_paths();
 
     let tool = ExitWorktreeTool::new();
@@ -190,8 +201,8 @@ async fn exit_worktree_fails_when_bound_directory_is_not_a_git_worktree() {
 #[tokio::test]
 async fn exit_worktree_blocks_untracked_worktree_without_force() {
     let dir = TempDir::new().expect("tempdir should create");
-    init_git_repo(&dir);
-    let (worktree_dir, branch) = create_worktree(&dir, "untracked-blocked");
+    let repo = init_git_repo(&dir);
+    let (worktree_dir, branch) = create_worktree(&repo, &dir, "untracked-blocked");
     std::fs::write(worktree_dir.join("draft.txt"), "draft\n").expect("untracked file should write");
 
     let (result, binding) = call_exit_worktree_in_instance(
@@ -213,8 +224,8 @@ async fn exit_worktree_blocks_untracked_worktree_without_force() {
 #[tokio::test]
 async fn exit_worktree_blocks_dirty_worktree_without_force() {
     let dir = TempDir::new().expect("tempdir should create");
-    init_git_repo(&dir);
-    let (worktree_dir, branch) = create_worktree(&dir, "dirty-blocked");
+    let repo = init_git_repo(&dir);
+    let (worktree_dir, branch) = create_worktree(&repo, &dir, "dirty-blocked");
     std::fs::write(worktree_dir.join("README.md"), "dirty\n").expect("dirty file should write");
 
     let (result, binding) = call_exit_worktree_in_instance(
@@ -248,7 +259,7 @@ async fn exit_worktree_blocks_dirty_worktree_without_force() {
 #[tokio::test]
 async fn exit_worktree_preserves_binding_when_remove_fails() {
     let dir = TempDir::new().expect("tempdir should create");
-    init_git_repo(&dir);
+    let _repo = init_git_repo(&dir);
     let directory = dir.path().to_path_buf();
 
     let (result, binding) =
@@ -265,8 +276,8 @@ async fn exit_worktree_preserves_binding_when_remove_fails() {
 #[tokio::test]
 async fn exit_worktree_removes_clean_worktree_and_clears_binding() {
     let dir = TempDir::new().expect("tempdir should create");
-    init_git_repo(&dir);
-    let (worktree_dir, branch) = create_worktree(&dir, "clean-exit");
+    let repo = init_git_repo(&dir);
+    let (worktree_dir, branch) = create_worktree(&repo, &dir, "clean-exit");
 
     let (result, binding) = call_exit_worktree_in_instance(
         dir.path().to_path_buf(),
@@ -298,8 +309,8 @@ async fn exit_worktree_removes_clean_worktree_and_clears_binding() {
 #[tokio::test]
 async fn exit_worktree_force_removes_dirty_worktree_and_clears_binding() {
     let dir = TempDir::new().expect("tempdir should create");
-    init_git_repo(&dir);
-    let (worktree_dir, branch) = create_worktree(&dir, "force-exit");
+    let repo = init_git_repo(&dir);
+    let (worktree_dir, branch) = create_worktree(&repo, &dir, "force-exit");
     std::fs::write(worktree_dir.join("README.md"), "dirty\n").expect("dirty file should write");
 
     let (result, binding) = call_exit_worktree_in_instance(

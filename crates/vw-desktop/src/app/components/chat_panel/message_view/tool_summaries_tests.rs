@@ -244,13 +244,6 @@ fn tool_card_texts_cover_browser_and_advanced_tool_fallbacks() {
         ]
     );
 
-    let ready = tool_card(
-        "verify_plan_execution",
-        serde_json::json!({"output":"ready","result":{"data":{"ready":true,"pending_count":2}}}),
-    );
-    assert_eq!(ready[0], "状态: available");
-    assert_eq!(ready[1], "已满足执行条件，待处理 2 项");
-
     let planned = tool_card("mcp_demo", serde_json::json!({}));
     assert_eq!(
         planned,
@@ -259,7 +252,7 @@ fn tool_card_texts_cover_browser_and_advanced_tool_fallbacks() {
 }
 
 #[test]
-fn tool_card_texts_cover_browser_open_sparse_fields_and_verify_blockers() {
+fn tool_card_texts_cover_browser_open_sparse_fields() {
     assert_eq!(
         tool_card(
             "browser_open",
@@ -278,16 +271,6 @@ fn tool_card_texts_cover_browser_open_sparse_fields_and_verify_blockers() {
         tool_card("browser_open", serde_json::json!({"output":"opened","result":{"data":{}}})),
         vec!["opened".to_string()]
     );
-
-    let blocked = tool_card(
-        "verify_plan_execution",
-        serde_json::json!({
-            "output":"blocked",
-            "result":{"data":{"ready":false,"blockers":[" missing dependency ",""]}}
-        }),
-    );
-    assert_eq!(blocked[0], "状态: available");
-    assert_eq!(blocked[1], "missing dependency");
 
     let available = tool_card("tool_search", serde_json::json!({}));
     assert_eq!(available[0], "状态: available");

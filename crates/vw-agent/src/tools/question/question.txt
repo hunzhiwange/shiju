@@ -11,4 +11,3 @@ Usage:
 - If you recommend a specific option, place it first and append " (Recommended)" to its label.
 - When users need to compare concrete artifacts, options may include an optional `preview` field, such as a UI sketch, code snippet, or configuration example. Use previews only for single-choice questions.
 - Tool results include `questions`, `answers` indexed by question text, and optional `annotations`.
-- In plan mode, use this tool to clarify requirements or choose between approaches. Do not use it to ask whether to begin executing the plan; use `plan_exit` instead.

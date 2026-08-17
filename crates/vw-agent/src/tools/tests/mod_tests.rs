@@ -184,8 +184,8 @@ fn all_tools_excludes_browser_when_disabled() {
     assert!(names.contains(&"schedule"));
     assert!(names.contains(&"Config"));
     assert!(names.contains(&"Sleep"));
-    assert!(names.contains(&"model_routing_config"));
-    assert!(names.contains(&"proxy_config"));
+    assert!(!names.contains(&"model_routing_config"));
+    assert!(!names.contains(&"proxy_config"));
 }
 
 #[test]
@@ -225,8 +225,8 @@ fn all_tools_includes_browser_when_enabled() {
     assert!(!names.contains(&"process"));
     assert!(!names.contains(&"glob_search"));
     assert!(!names.contains(&"content_search"));
-    assert!(names.contains(&"model_routing_config"));
-    assert!(names.contains(&"proxy_config"));
+    assert!(!names.contains(&"model_routing_config"));
+    assert!(!names.contains(&"proxy_config"));
     assert!(names.contains(&"Config"));
     assert!(names.contains(&"Sleep"));
 }

@@ -623,44 +623,14 @@ fn tool_card_text_blocks_extract_browser_snapshot_preview() {
 #[test]
 fn tool_card_text_blocks_extract_tool_search_matches() {
     let blocks = tool_card_text_blocks(
-        "tool tool_search\n{\"status\":\"completed\",\"result\":{\"data\":{\"query\":\"plan\",\"count\":2,\"items\":[{\"id\":\"plan_enter\",\"display_name\":\"EnterPlanMode\",\"reason\":\"name match\"},{\"id\":\"verify_plan_execution\",\"display_name\":\"VerifyPlanExecution\",\"reason\":\"description keyword match\"}]},\"model_result\":\"Found 2 matching tool(s)\"},\"render_hint\":{\"summary\":\"Found 2 matching tool(s)\",\"kind\":\"tool_search\",\"metadata\":{\"query\":\"plan\"}}}",
+        "tool tool_search\n{\"status\":\"completed\",\"result\":{\"data\":{\"query\":\"search\",\"count\":1,\"items\":[{\"id\":\"tool_search\",\"display_name\":\"ToolSearch\",\"reason\":\"name match\"}]},\"model_result\":\"Found 1 matching tool(s)\"},\"render_hint\":{\"summary\":\"Found 1 matching tool(s)\",\"kind\":\"tool_search\",\"metadata\":{\"query\":\"search\"}}}",
     );
 
     assert_eq!(
         blocks,
         vec![vec![
             "状态: available".to_string(),
-            "EnterPlanMode: name match".to_string(),
-            "VerifyPlanExecution: description keyword match".to_string(),
-        ]]
-    );
-}
-
-#[test]
-fn tool_card_text_blocks_emit_explicit_available_status_for_plan_mode() {
-    let blocks = tool_card_text_blocks("tool plan_enter\n{\"status\":\"completed\"}");
-
-    assert_eq!(
-        blocks,
-        vec![vec![
-            "状态: available".to_string(),
-            "进入规划模式 已接入当前会话工具面。".to_string(),
-        ]]
-    );
-}
-
-#[test]
-fn tool_card_text_blocks_emit_plan_mode_guidance_from_result_text() {
-    let blocks = tool_card_text_blocks(
-        "tool plan_enter\n{\"status\":\"completed\",\"result\":{\"data\":{\"message\":\"Entered plan mode. You should now focus on exploring the codebase and designing an implementation approach.\",\"instructions\":[\"Thoroughly explore the codebase to understand existing patterns.\",\"Design a concrete implementation strategy.\"]},\"content\":[{\"type\":\"text\",\"text\":\"Entered plan mode. You should now focus on exploring the codebase and designing an implementation approach.\\n\\nIn plan mode, you should:\\n1. Thoroughly explore the codebase to understand existing patterns.\\n2. Design a concrete implementation strategy.\"}]}}",
-    );
-
-    assert_eq!(
-        blocks,
-        vec![vec![
-            "状态: available".to_string(),
-            "Entered plan mode. You should now focus on exploring the codebase and designing an implementation approach.\n\nIn plan mode, you should:\n1. Thoroughly explore the codebase to understand existing patterns.\n2. Design a concrete implementation strategy."
-                .to_string(),
+            "ToolSearch: name match".to_string(),
         ]]
     );
 }

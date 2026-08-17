@@ -214,8 +214,6 @@ fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                         "memory_forget",
                         "todoread",
                         "todowrite",
-                        "plan_enter",
-                        "plan_exit",
                     ],
                 )
         }

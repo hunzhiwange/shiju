@@ -238,8 +238,6 @@ pub(super) fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                         "memory_forget",
                         "todoread",
                         "todowrite",
-                        "plan_enter",
-                        "plan_exit",
                     ],
                 )
         }
@@ -380,6 +378,11 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "调用语义代码搜索服务，返回与查询最相关的代码片段和上下文。",
             group: ToolGroup::Search,
         },
+        "rustcodegraph" => ToolMeta {
+            name: "RustCodeGraph",
+            description: "通过现有索引查询并增量同步当前工作区代码，支持符号、调用关系、影响分析和索引状态查询；源码始终只读。",
+            group: ToolGroup::Search,
+        },
         "bash" | "shell" => ToolMeta {
             name: "命令行",
             description: "在受限工作目录执行 Bash 命令，支持超时、审批和风险控制。",
@@ -485,16 +488,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "覆盖或合并当前会话任务清单，用于持续更新执行进度。",
             group: ToolGroup::Collaboration,
         },
-        "plan_enter" | "EnterPlanMode" | "enter_plan_mode" => ToolMeta {
-            name: "进入规划模式",
-            description: "进入显式规划工作流，开始先列计划再执行。",
-            group: ToolGroup::Collaboration,
-        },
-        "plan_exit" | "ExitPlanMode" | "exit_plan_mode" => ToolMeta {
-            name: "退出规划模式",
-            description: "结束规划模式并回到正常执行流程；默认会先检查是否满足进入执行的最小条件。",
-            group: ToolGroup::Collaboration,
-        },
         "enter_worktree" | "EnterWorktree" => ToolMeta {
             name: "进入 Worktree",
             description: "创建并绑定真实 Git worktree，后续工具调用切换到该隔离工作区。",
@@ -540,16 +533,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "按键删除记忆，适合清理过时事实或敏感内容。",
             group: ToolGroup::Memory,
         },
-        "proxy_config" => ToolMeta {
-            name: "代理配置",
-            description: "管理环境、VibeWindow 和服务级代理设置，并支持应用或清理环境变量。",
-            group: ToolGroup::Integration,
-        },
-        "model_routing_config" => ToolMeta {
-            name: "模型路由",
-            description: "管理默认模型、场景路由规则和委托子代理的 provider/model 配置。",
-            group: ToolGroup::Integration,
-        },
         "Config" => ToolMeta {
             name: "配置管理",
             description: "读取或调整运行时配置项，用于会话内配置查询与变更。",
@@ -579,11 +562,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             name: "工具搜索",
             description: "搜索当前上下文中真实可见的工具，并解释每个结果为何命中。",
             group: ToolGroup::Integration,
-        },
-        "verify_plan_execution" | "VerifyPlanExecution" => ToolMeta {
-            name: "验证计划执行",
-            description: "校验当前计划模式是否已满足进入执行阶段的最小条件。",
-            group: ToolGroup::Collaboration,
         },
         "lsp" => ToolMeta {
             name: "语义分析",

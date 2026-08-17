@@ -1,7 +1,6 @@
 //! Config 工具行为测试。
 //!
-//! 覆盖完整快照读取、旧版分区桥接、单项配置读写和结构化 call 结果，确保
-//! 兼容路径与新的 setting/value 接口同时工作。
+//! 覆盖完整快照读取、单项配置读写和结构化 call 结果。
 
 use super::{
     Args, ConfigResponse, ConfigTool, SettingKind, SettingSpec, coerce_bool, coerce_integer,
@@ -39,13 +38,11 @@ fn parse_output(result: &crate::app::agent::tools::ToolResult) -> serde_json::Va
 }
 
 #[test]
-fn config_args_default_to_all_section() {
+fn config_args_default_to_empty_request() {
     let args: Args = serde_json::from_value(json!({})).expect("empty args should deserialize");
 
-    assert_eq!(args.section, "all");
     assert!(args.setting.is_none());
     assert!(args.value.is_none());
-    assert!(args.payload.is_none());
 }
 
 #[test]
@@ -277,24 +274,6 @@ async fn config_returns_snapshot_for_all_section() {
 }
 
 #[tokio::test]
-async fn config_bridges_proxy_section() {
-    let (_tmp, config) = test_config().await;
-    let tool = ConfigTool::new(config, Arc::new(SecurityPolicy::default()));
-    let result = tool
-        .execute(json!({
-            "section": "proxy",
-            "payload": {
-                "action": "get"
-            }
-        }))
-        .await
-        .expect("proxy bridge should succeed");
-
-    assert!(result.success);
-    assert!(result.output.contains("scope"));
-}
-
-#[tokio::test]
 async fn config_reads_supported_setting() {
     let (_tmp, config) = test_config().await;
     let tool = ConfigTool::new(config, Arc::new(SecurityPolicy::default()));
@@ -370,7 +349,7 @@ fn config_spec_exposes_strict_non_concurrent_write_contract() {
     assert!(!spec.requires_user_interaction);
     assert!(spec.strict);
     assert_eq!(spec.input_schema["additionalProperties"], json!(false));
-    assert_eq!(spec.input_schema["properties"]["section"]["default"], json!("all"));
+    assert!(spec.input_schema["properties"].get("section").is_none());
     assert!(
         spec.input_schema["properties"]["setting"]["enum"]
             .as_array()
@@ -509,14 +488,14 @@ async fn config_resets_optional_setting_and_coerces_integer_string() {
 }
 
 #[tokio::test]
-async fn config_empty_setting_falls_back_to_section_and_unknown_section_errors() {
+async fn config_empty_setting_returns_snapshot_and_rejects_unknown_fields() {
     let (_tmp, config) = test_config().await;
     let tool = ConfigTool::new(config, Arc::new(SecurityPolicy::default()));
 
     let all = tool
-        .execute(json!({ "setting": "   ", "section": "all" }))
+        .execute(json!({ "setting": "   " }))
         .await
-        .expect("blank setting should use section");
+        .expect("blank setting should return the full snapshot");
     let all_output = parse_output(&all);
     assert!(all.success);
     assert!(all_output["setting"].is_null());
@@ -525,23 +504,8 @@ async fn config_empty_setting_falls_back_to_section_and_unknown_section_errors()
     let error = tool
         .execute(json!({ "section": "credentials" }))
         .await
-        .expect_err("unknown section should fail");
-    assert_eq!(error.to_string(), "unsupported config section 'credentials'");
-}
-
-#[tokio::test]
-async fn config_bridges_model_routing_section_with_default_payload() {
-    let (_tmp, config) = test_config().await;
-    let tool = ConfigTool::new(config, Arc::new(SecurityPolicy::default()));
-
-    let result = tool
-        .execute(json!({ "section": "model_routing" }))
-        .await
-        .expect("model routing bridge should succeed");
-
-    assert!(result.success);
-    assert!(result.output.contains("\"default\""));
-    assert!(result.output.contains("\"query_classification\""));
+        .expect_err("unknown fields should fail");
+    assert!(error.to_string().contains("unknown field `section`"));
 }
 
 #[tokio::test]
@@ -562,22 +526,4 @@ async fn config_call_preserves_structured_failure_details() {
     assert_eq!(render_hint.summary.as_deref(), Some("Unknown setting: \"unknown.setting\""));
     assert_eq!(render_hint.metadata["operation"], json!("get"));
     assert_eq!(render_hint.metadata["success"], json!(false));
-}
-
-#[tokio::test]
-async fn config_call_adapts_legacy_section_result() {
-    let (_tmp, config) = test_config().await;
-    let tool = ConfigTool::new(config, Arc::new(SecurityPolicy::default()));
-
-    let result = tool
-        .call(json!({ "section": "proxy", "payload": { "action": "get" } }))
-        .await
-        .expect("legacy proxy call should succeed");
-
-    assert_eq!(result.telemetry.as_ref().map(|telemetry| telemetry.success), Some(true));
-    assert_eq!(
-        result.render_hint.as_ref().and_then(|hint| hint.summary.as_deref()),
-        Some("高级配置")
-    );
-    assert!(result.model_result.as_str().is_some_and(|output| output.contains("scope")));
 }

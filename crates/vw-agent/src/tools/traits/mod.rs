@@ -622,8 +622,6 @@ fn default_tool_destructive(tool_id: &str) -> bool {
             | "memory_store"
             | "memory_forget"
             | "schedule"
-            | "model_routing_config"
-            | "proxy_config"
             | "todowrite"
             | "browser"
             | "browser_open"

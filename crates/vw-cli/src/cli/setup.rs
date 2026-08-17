@@ -187,11 +187,6 @@ pub(super) fn build_tool_descriptions(
         "schedule",
         "Manage scheduled tasks (create/list/get/cancel/pause/resume). Supports recurring cron and one-shot delays.",
     ));
-    tool_descs.push((
-        "model_routing_config",
-        "Configure default model, scenario routing, and delegate agents. Use for natural-language requests like: 'set conversation to kimi and coding to gpt-5.3-codex'.",
-    ));
-
     if has_agent_tool {
         tool_descs.push((
             "AgentTool",

@@ -355,13 +355,6 @@ pub static VIBEWINDOW_EXPERIMENTAL_LSP_TOOL: LazyLock<bool> =
 pub static VIBEWINDOW_DISABLE_FILETIME_CHECK: LazyLock<bool> =
     LazyLock::new(|| truthy("VIBEWINDOW_DISABLE_FILETIME_CHECK"));
 
-/// 实验性计划模式
-///
-/// 启用实验性的任务计划模式，允许代理先制定计划再执行。
-/// 如果 `VIBEWINDOW_EXPERIMENTAL` 总开关已启用，则此功能自动启用。
-pub static VIBEWINDOW_EXPERIMENTAL_PLAN_MODE: LazyLock<bool> =
-    LazyLock::new(|| *VIBEWINDOW_EXPERIMENTAL || truthy("VIBEWINDOW_EXPERIMENTAL_PLAN_MODE"));
-
 /// 实验性 Markdown 渲染
 ///
 /// 启用实验性的 Markdown 渲染引擎。

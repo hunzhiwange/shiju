@@ -34,14 +34,6 @@ tokio::task_local! {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct PlanModeState {
-    pub active: bool,
-    pub goal: Option<String>,
-    pub note: Option<String>,
-    pub entered_at_ms: Option<u64>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WorktreeBindingState {
     pub directory: Option<String>,
     pub name: Option<String>,
@@ -51,7 +43,6 @@ pub struct WorktreeBindingState {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WorkflowState {
-    pub plan_mode: PlanModeState,
     pub worktree: WorktreeBindingState,
 }
 
@@ -367,31 +358,9 @@ impl ToolUseContext {
         self.workflow.lock().unwrap_or_else(|error| error.into_inner()).clone()
     }
 
-    /// 返回当前 plan mode 状态。
-    pub fn plan_mode_state(&self) -> PlanModeState {
-        self.workflow_state().plan_mode
-    }
-
     /// 返回当前绑定的 worktree 状态。
     pub fn worktree_binding_state(&self) -> WorktreeBindingState {
         self.workflow_state().worktree
-    }
-
-    /// 标记进入 plan mode。
-    pub fn enter_plan_mode(&self, goal: Option<String>, note: Option<String>) -> PlanModeState {
-        let mut workflow = self.workflow.lock().unwrap_or_else(|error| error.into_inner());
-        workflow.plan_mode.active = true;
-        workflow.plan_mode.goal = goal;
-        workflow.plan_mode.note = note;
-        workflow.plan_mode.entered_at_ms = Some(current_time_ms());
-        workflow.plan_mode.clone()
-    }
-
-    /// 标记退出 plan mode。
-    pub fn exit_plan_mode(&self) -> PlanModeState {
-        let mut workflow = self.workflow.lock().unwrap_or_else(|error| error.into_inner());
-        workflow.plan_mode.active = false;
-        workflow.plan_mode.clone()
     }
 
     /// 绑定当前会话使用的 worktree。

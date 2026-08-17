@@ -160,19 +160,8 @@ pub(crate) struct AdvancedToolSurfaceSpec {
     pub(crate) state: AdvancedToolSurfaceState,
 }
 
-const ADVANCED_TOOL_SURFACES: [AdvancedToolSurfaceSpec; 7] = [
-    AdvancedToolSurfaceSpec {
-        label: "进入规划模式", state: AdvancedToolSurfaceState::Available
-    },
-    AdvancedToolSurfaceSpec {
-        label: "退出规划模式", state: AdvancedToolSurfaceState::Available
-    },
-    AdvancedToolSurfaceSpec {
-        label: "校验计划执行", state: AdvancedToolSurfaceState::Available
-    },
-    AdvancedToolSurfaceSpec {
-        label: "进入 worktree", state: AdvancedToolSurfaceState::Available
-    },
+const ADVANCED_TOOL_SURFACES: [AdvancedToolSurfaceSpec; 4] = [
+    AdvancedToolSurfaceSpec { label: "进入 worktree", state: AdvancedToolSurfaceState::Available },
     AdvancedToolSurfaceSpec {
         label: "退出 worktree", state: AdvancedToolSurfaceState::Available
     },
@@ -188,13 +177,10 @@ pub(crate) fn explicit_advanced_tool_surface_spec(
     tool_id: &str,
 ) -> Option<AdvancedToolSurfaceSpec> {
     match tool_id {
-        "enter_plan_mode" => Some(ADVANCED_TOOL_SURFACES[0]),
-        "exit_plan_mode" => Some(ADVANCED_TOOL_SURFACES[1]),
-        "verify_plan_execution" => Some(ADVANCED_TOOL_SURFACES[2]),
-        "enter_worktree" => Some(ADVANCED_TOOL_SURFACES[3]),
-        "exit_worktree" => Some(ADVANCED_TOOL_SURFACES[4]),
-        "tool_search" => Some(ADVANCED_TOOL_SURFACES[6]),
-        _ if tool_id.starts_with("mcp_") => Some(ADVANCED_TOOL_SURFACES[5]),
+        "enter_worktree" => Some(ADVANCED_TOOL_SURFACES[0]),
+        "exit_worktree" => Some(ADVANCED_TOOL_SURFACES[1]),
+        "tool_search" => Some(ADVANCED_TOOL_SURFACES[3]),
+        _ if tool_id.starts_with("mcp_") => Some(ADVANCED_TOOL_SURFACES[2]),
         _ => None,
     }
 }
@@ -675,11 +661,6 @@ pub(crate) fn tool_bucket(tool_id: &str) -> SessionToolBucket {
         | "cron_runs"
         | "todoread"
         | "todowrite"
-        | "plan_enter"
-        | "enter_plan_mode"
-        | "plan_exit"
-        | "exit_plan_mode"
-        | "verify_plan_execution"
         | "enter_worktree"
         | "exit_worktree"
         | "tool_search"
@@ -722,18 +703,10 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         | "cron_runs"
         | "todoread"
         | "todowrite"
-        | "plan_enter"
-        | "enter_plan_mode"
-        | "plan_exit"
-        | "exit_plan_mode"
-        | "verify_plan_execution"
         | "enter_worktree"
         | "exit_worktree" => SessionToolGroup::Collaboration,
         "memory_recall" | "memory_store" | "memory_forget" => SessionToolGroup::Memory,
-        "tool_search"
-        | "proxy_config"
-        | "model_routing_config"
-        | "batch"
+        "tool_search" | "batch"
         | "wasm_module" => SessionToolGroup::Integration,
         _ => SessionToolGroup::Other,
     }

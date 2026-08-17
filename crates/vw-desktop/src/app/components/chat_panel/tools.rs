@@ -58,7 +58,6 @@ mod files_view;
 mod git_diff_view;
 mod lsp_view;
 mod mcp_view;
-mod plan_mode_view;
 mod question_view;
 mod read_view;
 mod skill_view;
@@ -96,8 +95,6 @@ mod git_diff_view_tests;
 mod lsp_view_tests;
 #[cfg(test)]
 mod mcp_view_tests;
-#[cfg(test)]
-mod plan_mode_view_tests;
 #[cfg(test)]
 mod read_view_tests;
 #[cfg(test)]
@@ -142,7 +139,6 @@ pub use files_view::tool_files_view;
 pub use git_diff_view::tool_git_diff_view;
 pub use lsp_view::tool_lsp_view;
 pub use mcp_view::tool_mcp_view;
-pub use plan_mode_view::tool_plan_mode_view;
 #[cfg(test)]
 pub(crate) use question_view::question_request_targets_message;
 pub use question_view::tool_question_view;

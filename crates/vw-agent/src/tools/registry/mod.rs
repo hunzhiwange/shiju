@@ -19,7 +19,6 @@
 //! - **联网搜索工具**（websearch）：仅对 VibeWindow 提供商或启用 EXA 标志时可用
 //! - **补丁工具**（apply_patch）：默认对外启用
 //! - **提问工具**（question）：仅在 app、cli、desktop 客户端可用
-//! - **计划工具**（plan_enter、plan_exit）：仅在 CLI 客户端且启用实验性计划模式时可用
 //! - **LSP 工具**：仅在启用实验性 LSP 工具标志时可用
 //!
 //! # 使用示例
@@ -111,13 +110,6 @@ fn filtered_specs(
             return false;
         }
 
-        if (crate::app::agent::tools::is_enter_plan_mode_tool_id(t.id.as_str())
-            || crate::app::agent::tools::is_exit_plan_mode_tool_id(t.id.as_str()))
-            && !should_enable_plan_tools(client)
-        {
-            return false;
-        }
-
         if t.id == "lsp" && !*flag::VIBEWINDOW_EXPERIMENTAL_LSP_TOOL {
             return false;
         }
@@ -157,39 +149,6 @@ fn should_enable_question_tool(client: &str) -> bool {
     matches!(client, "app" | "cli" | "desktop")
 }
 
-/// 判断是否应启用计划模式工具（plan_enter 和 plan_exit）
-///
-/// 计划模式工具允许代理进入和退出结构化的任务规划模式，目前仅作为实验性功能
-/// 在 CLI 客户端中提供。
-///
-/// # 参数
-///
-/// - `client`: 客户端类型标识符
-///
-/// # 返回值
-///
-/// 如果同时满足以下条件，则返回 `true`：
-/// - 启用了实验性计划模式标志（VIBEWINDOW_EXPERIMENTAL_PLAN_MODE）
-/// - 客户端类型为 "cli"
-///
-/// # 说明
-///
-/// 计划模式是一个实验性功能，目前仅在 CLI 客户端中测试。未来可能会扩展到
-/// 其他客户端类型。启用此功能后，代理将获得两个额外工具：
-/// - `plan_enter`: 进入计划模式，开始制定任务计划
-/// - `plan_exit`: 退出计划模式，返回正常执行模式
-///
-/// # 示例
-///
-/// ```ignore
-/// // 假设 VIBEWINDOW_EXPERIMENTAL_PLAN_MODE 已启用
-/// assert!(should_enable_plan_tools("cli"));
-/// assert!(!should_enable_plan_tools("app"));
-/// ```
-fn should_enable_plan_tools(client: &str) -> bool {
-    *flag::VIBEWINDOW_EXPERIMENTAL_PLAN_MODE && client == "cli"
-}
-
 /// 根据模型和客户端类型生成过滤后的工具规格列表
 ///
 /// 此函数是工具注册表的核心函数，负责根据模型能力、客户端类型和特性标志
@@ -211,8 +170,7 @@ fn should_enable_plan_tools(client: &str) -> bool {
 /// 1. **联网搜索工具**（websearch）：仅在 VibeWindow 提供商或启用 EXA 时可用
 /// 2. **补丁工具**（apply_patch）：默认对外启用
 /// 3. **提问工具**（question）：仅在交互式客户端（app/cli/desktop）可用
-/// 4. **计划工具**（plan_enter、plan_exit）：仅在 CLI 客户端且启用实验性标志时可用
-/// 5. **LSP 工具**：仅在启用实验性 LSP 工具标志时可用
+/// 4. **LSP 工具**：仅在启用实验性 LSP 工具标志时可用
 ///
 /// # 示例
 ///

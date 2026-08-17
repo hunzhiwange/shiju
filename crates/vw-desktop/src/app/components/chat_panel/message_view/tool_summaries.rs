@@ -211,26 +211,6 @@ fn tool_search_preview_texts(value: &serde_json::Value) -> Vec<String> {
     lines
 }
 
-fn verify_plan_execution_preview_texts(value: &serde_json::Value) -> Vec<String> {
-    let Some(data) = tool_result_data_object(value) else {
-        return Vec::new();
-    };
-    if data.get("ready").and_then(|item| item.as_bool()) == Some(true) {
-        let pending_count = data.get("pending_count").and_then(|item| item.as_u64()).unwrap_or(0);
-        return vec![format!("已满足执行条件，待处理 {} 项", pending_count)];
-    }
-
-    data.get("blockers")
-        .and_then(|item| item.as_array())
-        .into_iter()
-        .flatten()
-        .filter_map(|item| item.as_str())
-        .map(str::trim)
-        .filter(|text| !text.is_empty())
-        .map(ToString::to_string)
-        .collect()
-}
-
 fn browser_preview_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String> {
     let Some(data) = tool_result_data_object(value) else {
         return Vec::new();
@@ -586,13 +566,6 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
                 } else if !output.is_empty() {
                     if tool_name == "tool_search" {
                         let previews = tool_search_preview_texts(value);
-                        if previews.is_empty() {
-                            tool_texts.push(output.to_string());
-                        } else {
-                            tool_texts.extend(previews);
-                        }
-                    } else if tool_name == "verify_plan_execution" {
-                        let previews = verify_plan_execution_preview_texts(value);
                         if previews.is_empty() {
                             tool_texts.push(output.to_string());
                         } else {

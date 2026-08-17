@@ -1,11 +1,7 @@
 use super::context::{ToolUseContext, scope_tool_use_context};
 use super::decision::finalize_tool_input;
 use super::hooks::{PostToolHook, PreToolHook};
-use super::{
-    TODO_READ_TOOL_ID, TODO_WRITE_TOOL_ID, TOOL_SEARCH_TOOL_ID, Tool, ToolCallResult,
-    ToolRenderHint, ToolSpec, VERIFY_PLAN_EXECUTION_TOOL_ID, is_enter_plan_mode_tool_id,
-    is_exit_plan_mode_tool_id, is_question_tool_id, is_web_fetch_tool_id,
-};
+use super::{Tool, ToolCallResult, ToolRenderHint, ToolSpec, is_web_fetch_tool_id};
 use crate::app::agent::providers::{ChatMessage, ToolCall};
 use crate::app::agent::tools::FileSnapshot;
 use serde_json::Value;
@@ -225,7 +221,6 @@ async fn prepare_tool_input(
     let normalized = normalize_tool_args(spec.id.as_str(), input);
     let validated = tool.validate_input(normalized).map_err(classify_anyhow_error)?;
     let approved_input = finalize_tool_input(tool, validated, context).await?;
-    ensure_tool_allowed_in_plan_mode(context, &spec)?;
     Ok((spec.id, approved_input))
 }
 
@@ -314,34 +309,6 @@ fn classify_message(message: String) -> ToolCallError {
     } else {
         ToolCallError::Failed(message)
     }
-}
-
-fn ensure_tool_allowed_in_plan_mode(
-    context: &ToolUseContext,
-    spec: &ToolSpec,
-) -> Result<(), ToolCallError> {
-    if !context.plan_mode_state().active || tool_allowed_in_plan_mode(spec) {
-        return Ok(());
-    }
-
-    Err(ToolCallError::denied(format!(
-        "tool `{}` is not allowed while plan mode is active",
-        spec.id
-    )))
-}
-
-fn tool_allowed_in_plan_mode(spec: &ToolSpec) -> bool {
-    spec.read_only
-        || is_question_tool_id(spec.id.as_str())
-        || is_enter_plan_mode_tool_id(spec.id.as_str())
-        || is_exit_plan_mode_tool_id(spec.id.as_str())
-        || matches!(
-            spec.id.as_str(),
-            TODO_READ_TOOL_ID
-                | TODO_WRITE_TOOL_ID
-                | VERIFY_PLAN_EXECUTION_TOOL_ID
-                | TOOL_SEARCH_TOOL_ID
-        )
 }
 
 fn update_read_state(

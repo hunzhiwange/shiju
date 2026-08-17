@@ -146,17 +146,67 @@ impl Tool for ExitWorktreeTool {
 }
 
 fn git_status_porcelain(directory: &Path) -> anyhow::Result<String> {
-    let output = std::process::Command::new("git")
-        .args(["status", "--porcelain=v1"])
-        .current_dir(directory)
-        .output()?;
-    if !output.status.success() {
-        return Err(anyhow::anyhow!(
-            "failed to read worktree status: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
+    let repo = git2::Repository::open(directory)
+        .map_err(|error| anyhow::anyhow!("failed to read worktree status: {error}"))?;
+    let mut options = git2::StatusOptions::new();
+    options.include_untracked(true).recurse_untracked_dirs(true).include_ignored(false);
+    let statuses = repo
+        .statuses(Some(&mut options))
+        .map_err(|error| anyhow::anyhow!("failed to read worktree status: {error}"))?;
+
+    let mut lines = statuses
+        .iter()
+        .filter_map(|entry| {
+            let path = entry.path().ok()?;
+            let status = entry.status();
+            let [index, worktree] = porcelain_status_code(status);
+            Some(format!("{index}{worktree} {path}\n"))
+        })
+        .collect::<Vec<_>>();
+    lines.sort_unstable();
+    Ok(lines.concat())
+}
+
+fn porcelain_status_code(status: git2::Status) -> [char; 2] {
+    if status.contains(git2::Status::WT_NEW) {
+        return ['?', '?'];
     }
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+
+    [porcelain_index_status(status), porcelain_worktree_status(status)]
+}
+
+fn porcelain_index_status(status: git2::Status) -> char {
+    if status.contains(git2::Status::INDEX_NEW) {
+        'A'
+    } else if status.contains(git2::Status::INDEX_MODIFIED) {
+        'M'
+    } else if status.contains(git2::Status::INDEX_DELETED) {
+        'D'
+    } else if status.contains(git2::Status::INDEX_RENAMED) {
+        'R'
+    } else if status.contains(git2::Status::INDEX_TYPECHANGE) {
+        'T'
+    } else if status.contains(git2::Status::CONFLICTED) {
+        'U'
+    } else {
+        ' '
+    }
+}
+
+fn porcelain_worktree_status(status: git2::Status) -> char {
+    if status.contains(git2::Status::WT_MODIFIED) {
+        'M'
+    } else if status.contains(git2::Status::WT_DELETED) {
+        'D'
+    } else if status.contains(git2::Status::WT_RENAMED) {
+        'R'
+    } else if status.contains(git2::Status::WT_TYPECHANGE) {
+        'T'
+    } else if status.contains(git2::Status::WT_UNREADABLE) || status.contains(git2::Status::CONFLICTED) {
+        'U'
+    } else {
+        ' '
+    }
 }
 
 #[cfg(test)]

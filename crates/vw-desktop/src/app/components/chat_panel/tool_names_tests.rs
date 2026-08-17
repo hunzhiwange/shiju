@@ -6,7 +6,6 @@ fn canonical_tool_name_normalizes_common_aliases() {
     assert_eq!(canonical_tool_name("execute"), "bash");
     assert_eq!(canonical_tool_name("Terminal"), "bash");
     assert_eq!(canonical_tool_name("ask_user_question"), "question");
-    assert_eq!(canonical_tool_name("plan_enter"), "enter_plan_mode");
 }
 
 #[test]
@@ -27,8 +26,6 @@ fn canonical_tool_name_covers_every_declared_alias_group() {
         ("webSearch", "web_search"),
         ("browserOpen", "browser_open"),
         ("lsp", "lsp"),
-        ("exitPlanMode", "exit_plan_mode"),
-        ("verifyPlanExecution", "verify_plan_execution"),
         ("exitWorktree", "exit_worktree"),
         ("toolSearch", "tool_search"),
     ];
@@ -121,5 +118,4 @@ fn compact_tool_call_trace_rejects_uppercase_and_missing_prefix() {
 fn known_tool_name_covers_canonicalized_advanced_tools() {
     assert!(is_known_tool_name("ToolSearch"));
     assert!(is_known_tool_name("enterWorktree"));
-    assert!(is_known_tool_name("verify_plan_execution"));
 }

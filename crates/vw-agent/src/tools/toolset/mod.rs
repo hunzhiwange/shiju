@@ -828,12 +828,6 @@ pub fn all_tools_with_runtime(
         tool_arcs.push(agent_tool);
     }
 
-    tool_arcs.push(Arc::new(ListMcpResourcesTool::new()));
-    tool_arcs.push(Arc::new(ReadMcpResourceTool::new()));
-    tool_arcs.push(Arc::new(ListMcpResourceTemplatesTool::new()));
-    tool_arcs.push(Arc::new(ListMcpPromptsTool::new()));
-    tool_arcs.push(Arc::new(GetMcpPromptTool::new()));
-    tool_arcs.push(Arc::new(McpAuthTool::new()));
     tool_arcs.push(Arc::new(McpStatusTool::new()));
     register_dynamic_mcp_tools(&mut tool_arcs, workspace_dir);
 

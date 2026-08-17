@@ -416,12 +416,6 @@ pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
     "image_asset_read",
     "tool_search",
     "Sleep",
-    "ListMcpResources",
-    "ListMcpResourceTemplates",
-    "ReadMcpResource",
-    "ListMcpPrompts",
-    "GetMcpPrompt",
-    "McpAuth",
     "McpStatus",
 ];
 
@@ -438,12 +432,6 @@ const BUILTIN_REQUIRED_TOOL_ALIASES: &[&str] = &[
     "web_search_tool",
     "edit",
     "sleep",
-    "list_mcp_resources",
-    "list_mcp_resource_templates",
-    "read_mcp_resource",
-    "list_mcp_prompts",
-    "get_mcp_prompt",
-    "mcp_auth",
     "mcp_status",
 ];
 

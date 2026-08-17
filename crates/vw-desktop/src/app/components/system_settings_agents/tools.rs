@@ -568,36 +568,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "实验性语言服务入口，用于文件级语义分析与导航，当前仍在开发中。",
             group: ToolGroup::Integration,
         },
-        "ListMcpResources" | "list_mcp_resources" => ToolMeta {
-            name: "MCP 资源列表",
-            description: "列出当前会话可真实连通的 MCP 服务器资源。",
-            group: ToolGroup::Integration,
-        },
-        "ListMcpResourceTemplates" | "list_mcp_resource_templates" => ToolMeta {
-            name: "MCP 资源模板",
-            description: "列出当前会话可真实连通的 MCP 服务器资源模板。",
-            group: ToolGroup::Integration,
-        },
-        "ReadMcpResource" | "read_mcp_resource" => ToolMeta {
-            name: "读取 MCP 资源",
-            description: "读取指定 MCP 资源的真实内容。",
-            group: ToolGroup::Integration,
-        },
-        "ListMcpPrompts" | "list_mcp_prompts" => ToolMeta {
-            name: "MCP Prompt 列表",
-            description: "列出当前会话可真实连通的 MCP 服务器 prompts。",
-            group: ToolGroup::Integration,
-        },
-        "GetMcpPrompt" | "get_mcp_prompt" => ToolMeta {
-            name: "获取 MCP Prompt",
-            description: "按 server 与 prompt 名称获取 MCP prompt 消息。",
-            group: ToolGroup::Integration,
-        },
-        "McpAuth" | "mcp_auth" => ToolMeta {
-            name: "MCP 认证信息",
-            description: "读取当前会话的 MCP 认证桥接信息，包括策略、认证方法和目标 server。",
-            group: ToolGroup::Integration,
-        },
         "McpStatus" | "mcp_status" => ToolMeta {
             name: "MCP 状态",
             description: "读取 MCP server 的启用状态、连接状态、工具数量和认证方法摘要。",

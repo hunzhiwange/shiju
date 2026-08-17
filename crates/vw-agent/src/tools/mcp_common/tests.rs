@@ -832,31 +832,6 @@ fn mcp_resource_contents_json_preserves_text_blob_and_empty_inputs() {
 }
 
 #[tokio::test]
-async fn read_mcp_resource_rejects_blank_inputs_before_loading_config() {
-    let tool = ReadMcpResourceTool::new();
-    let error = tool
-        .execute(json!({
-            "server": "   ",
-            "uri": ""
-        }))
-        .await
-        .expect_err("blank inputs should be rejected");
-    assert!(error.to_string().contains("must not be empty"));
-}
-
-#[test]
-fn mcp_tools_expose_expected_aliases() {
-    let list_spec = ListMcpResourcesTool::new().spec();
-    assert!(list_spec.aliases.iter().any(|alias| alias == "list_mcp_resources"));
-
-    let read_spec = ReadMcpResourceTool::new().spec();
-    assert!(read_spec.aliases.iter().any(|alias| alias == "read_mcp_resource"));
-
-    let auth_spec = McpAuthTool::new().spec();
-    assert!(auth_spec.aliases.iter().any(|alias| alias == "mcp_auth"));
-}
-
-#[tokio::test]
 async fn plugin_mcp_servers_are_visible_in_resolved_acp_config() {
     let _lock = env_lock();
     let dir = tempfile::tempdir().expect("temp dir");

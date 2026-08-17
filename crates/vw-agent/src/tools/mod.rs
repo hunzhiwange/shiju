@@ -63,7 +63,6 @@ pub mod file_edit;
 pub mod file_read;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod file_write;
-pub mod get_mcp_prompt;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod git_operations;
 #[cfg(not(target_arch = "wasm32"))]
@@ -77,14 +76,10 @@ mod http_headers;
 pub mod http_request;
 pub mod image_asset_read;
 pub mod image_info;
-pub mod list_mcp_prompts;
-pub mod list_mcp_resource_templates;
-pub mod list_mcp_resources;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ls;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod lsp;
-pub mod mcp_auth;
 pub mod mcp_common;
 pub mod mcp_inspect;
 pub mod mcp_status;
@@ -100,7 +95,6 @@ pub mod powershell;
 pub mod process;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod question;
-pub mod read_mcp_resource;
 mod read_state;
 pub mod registry;
 pub mod remote_trigger;
@@ -156,7 +150,6 @@ pub use file_edit::FileEditTool;
 pub use file_read::FileReadTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use file_write::FileWriteTool;
-pub use get_mcp_prompt::GetMcpPromptTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use git_operations::GitOperationsTool;
 #[cfg(not(target_arch = "wasm32"))]
@@ -168,14 +161,10 @@ pub use grep::GrepTool;
 pub use http_request::HttpRequestTool;
 pub use image_asset_read::ImageAssetReadTool;
 pub use image_info::ImageInfoTool;
-pub use list_mcp_prompts::ListMcpPromptsTool;
-pub use list_mcp_resource_templates::ListMcpResourceTemplatesTool;
-pub use list_mcp_resources::ListMcpResourcesTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use ls::LsTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use lsp::LspTool;
-pub use mcp_auth::McpAuthTool;
 pub use mcp_status::McpStatusTool;
 pub use memory_forget::MemoryForgetTool;
 pub use memory_recall::MemoryRecallTool;
@@ -188,7 +177,6 @@ pub use powershell::PowerShellTool;
 pub use process::ProcessTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use question::QuestionTool;
-pub use read_mcp_resource::ReadMcpResourceTool;
 pub use read_state::{FileReadStateCache, FileReadStateEntry, FileSnapshot};
 pub use remote_trigger::RemoteTriggerTool;
 #[cfg(not(target_arch = "wasm32"))]

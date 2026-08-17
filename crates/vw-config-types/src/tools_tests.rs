@@ -36,12 +36,6 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
         "image_asset_read",
         "tool_search",
         "Sleep",
-        "ListMcpResources",
-        "ListMcpResourceTemplates",
-        "ReadMcpResource",
-        "ListMcpPrompts",
-        "GetMcpPrompt",
-        "McpAuth",
         "McpStatus",
     ];
     assert_eq!(super::BUILTIN_REQUIRED_TOOL_IDS, expected_primary);
@@ -62,12 +56,6 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
         ("web_search_tool", "WebSearch"),
         ("edit", "file_edit"),
         ("sleep", "Sleep"),
-        ("list_mcp_resources", "ListMcpResources"),
-        ("list_mcp_resource_templates", "ListMcpResourceTemplates"),
-        ("read_mcp_resource", "ReadMcpResource"),
-        ("list_mcp_prompts", "ListMcpPrompts"),
-        ("get_mcp_prompt", "GetMcpPrompt"),
-        ("mcp_auth", "McpAuth"),
         ("mcp_status", "McpStatus"),
     ] {
         assert!(

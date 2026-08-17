@@ -207,10 +207,6 @@ fn tool_selector_group_and_display_name_match_known_tools() {
 #[test]
 fn advanced_surface_specs_mark_available_and_planned() {
     assert_eq!(
-        explicit_advanced_tool_surface_spec("mcp_auth").map(|spec| spec.state),
-        Some(AdvancedToolSurfaceState::Planned)
-    );
-    assert_eq!(
         explicit_advanced_tool_surface_spec("tool_search").map(|spec| spec.state),
         Some(AdvancedToolSurfaceState::Available)
     );

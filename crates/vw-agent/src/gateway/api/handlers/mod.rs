@@ -230,9 +230,8 @@ pub use task_pool::{
 /// 重新导出工具管理处理器
 ///
 /// - `handle_api_tools`: 获取可用工具列表（GET /api/tools）
-/// - `handle_api_cli_tools`: CLI 工具管理（GET /api/cli-tools）
 /// - `handle_api_doctor`: 系统诊断（GET /api/doctor）
-pub use tools::{handle_api_cli_tools, handle_api_doctor, handle_api_tools};
+pub use tools::{handle_api_doctor, handle_api_tools};
 
 #[cfg(test)]
 mod tests;

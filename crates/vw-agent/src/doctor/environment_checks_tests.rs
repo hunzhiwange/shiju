@@ -1,11 +1,7 @@
-use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
-use super::environment_checks::{
-    append_cli_tool_items, check_cli_tools, check_command_available, check_environment,
-};
+use super::environment_checks::{check_command_available, check_environment};
 use super::{DiagItem, Severity};
-use crate::tools::cli_discovery::{CliCategory, DiscoveredCli};
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
@@ -140,107 +136,4 @@ fn environment_accepts_userprofile_as_home_fallback() {
             .iter()
             .any(|item| item.severity == Severity::Ok && item.message == "home directory env set")
     );
-}
-
-#[test]
-fn cli_tools_check_reports_at_least_one_diagnostic() {
-    let mut items = Vec::<DiagItem>::new();
-
-    check_cli_tools(&mut items);
-
-    assert!(!items.is_empty());
-}
-
-#[test]
-fn empty_cli_discovery_reports_warning() {
-    let mut items = Vec::<DiagItem>::new();
-
-    append_cli_tool_items(&[], "cli-tools", &mut items);
-
-    assert_eq!(items.len(), 1);
-    assert_eq!(items[0].severity, Severity::Warn);
-    assert_eq!(items[0].message, "No CLI tools found in PATH");
-}
-
-#[test]
-fn discovered_cli_tools_report_version_and_summary() {
-    let discovered = vec![
-        DiscoveredCli {
-            name: "demo".to_string(),
-            path: PathBuf::from("/tmp/demo"),
-            version: Some(format!("{}-tail", "v".repeat(80))),
-            category: CliCategory::Build,
-        },
-        DiscoveredCli {
-            name: "plain".to_string(),
-            path: PathBuf::from("/tmp/plain"),
-            version: None,
-            category: CliCategory::Language,
-        },
-    ];
-    let mut items = Vec::<DiagItem>::new();
-
-    append_cli_tool_items(&discovered, "cli-tools", &mut items);
-
-    assert_eq!(items.len(), 3);
-    assert_eq!(items[0].severity, Severity::Ok);
-    assert!(items[0].message.contains("demo (Build) — "));
-    assert!(!items[0].message.contains("-tail"));
-    assert_eq!(items[1].message, "plain (Language) — unknown version");
-    assert_eq!(items[2].message, "2 CLI tools discovered");
-}
-
-#[test]
-fn discovered_cli_tool_preserves_short_version_and_category() {
-    let discovered = vec![DiscoveredCli {
-        name: "git".to_string(),
-        path: PathBuf::from("/tmp/git"),
-        version: Some("git version 2.45.1".to_string()),
-        category: CliCategory::VersionControl,
-    }];
-    let mut items = Vec::<DiagItem>::new();
-
-    append_cli_tool_items(&discovered, "custom-cli", &mut items);
-
-    assert_eq!(items.len(), 2);
-    assert_eq!(items[0].category, "custom-cli");
-    assert_eq!(items[0].message, "git (Version Control) — git version 2.45.1");
-    assert_eq!(items[1].category, "custom-cli");
-    assert_eq!(items[1].message, "1 CLI tools discovered");
-}
-
-#[test]
-fn explicit_empty_cli_version_is_not_reported_as_unknown() {
-    let discovered = vec![DiscoveredCli {
-        name: "empty-version".to_string(),
-        path: PathBuf::from("/tmp/empty-version"),
-        version: Some(String::new()),
-        category: CliCategory::Build,
-    }];
-    let mut items = Vec::<DiagItem>::new();
-
-    append_cli_tool_items(&discovered, "cli-tools", &mut items);
-
-    assert_eq!(items[0].message, "empty-version (Build) — ");
-    assert!(!items[0].message.contains("unknown version"));
-}
-
-#[test]
-fn cli_tool_items_append_after_existing_diagnostics() {
-    let discovered = vec![DiscoveredCli {
-        name: "cargo".to_string(),
-        path: PathBuf::from("/tmp/cargo"),
-        version: None,
-        category: CliCategory::PackageManager,
-    }];
-    let mut items = vec![DiagItem::error("existing", "keep me")];
-
-    append_cli_tool_items(&discovered, "cli-tools", &mut items);
-
-    assert_eq!(items.len(), 3);
-    assert_eq!(items[0].severity, Severity::Error);
-    assert_eq!(items[0].category, "existing");
-    assert_eq!(items[0].message, "keep me");
-    assert_eq!(items[1].message, "cargo (Package Manager) — unknown version");
-    assert_eq!(items[2].message, "1 CLI tools discovered");
 }

@@ -924,7 +924,6 @@ pub(super) fn client_router(
         .route("/v1/memory", get(api::handle_api_memory_list))
         .route("/v1/memory", post(api::handle_api_memory_store))
         .route("/v1/memory/{key}", delete(api::handle_api_memory_delete))
-        .route("/v1/cli-tools", get(api::handle_api_cli_tools))
         .route("/v1/api-health", get(api::handle_api_health))
         .nest("/v1/dashboard", dashboard_config_route)
         // 未使用 skey 的客户端入口也必须解析租户。

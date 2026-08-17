@@ -1,6 +1,6 @@
 //! 工具相关 API 处理器。
 //!
-//! 本模块提供网关工具列表、CLI 工具发现和系统诊断接口。
+//! 本模块提供网关工具列表和系统诊断接口。
 
 use crate::app::agent::gateway::AppState;
 use axum::{Json, extract::State, http::HeaderMap, response::IntoResponse};
@@ -20,19 +20,6 @@ pub async fn handle_api_tools(
     let tools = state.tools_registry.iter().map(|tool| tool.to_dto()).collect();
 
     Json(ListToolSpecsResponse { items: tools }).into_response()
-}
-
-/// 处理 CLI 工具发现 API 请求。
-pub async fn handle_api_cli_tools(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    if let Err(e) = super::super::auth::require_auth(&state, &headers) {
-        return e.into_response();
-    }
-
-    let tools = crate::app::agent::tools::cli_discovery::discover_cli_tools(&[], &[]);
-    Json(serde_json::json!({ "cli_tools": tools })).into_response()
 }
 
 /// 处理系统诊断 API 请求。

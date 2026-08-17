@@ -30,7 +30,6 @@
 //!
 //! ## 工具管理
 //! - [`handle_api_tools`] - 列出可用工具
-//! - [`handle_api_cli_tools`] - CLI 工具管理接口
 //!
 //! ## 定时任务（Cron）
 //! - [`handle_api_cron_list`] - 列出所有定时任务
@@ -84,7 +83,7 @@ pub mod types;
 /// 将各子模块中的处理函数统一导出，便于路由注册和外部调用。
 /// 调用方可通过 `crate::app::agent::gateway::api::handle_api_*` 直接访问。
 pub use handlers::{
-    handle_api_cli_tools, handle_api_config_get, handle_api_config_put, handle_api_cron_add,
+    handle_api_config_get, handle_api_config_put, handle_api_cron_add,
     handle_api_cron_delete, handle_api_cron_list, handle_api_cron_runs, handle_api_cron_update,
     handle_api_doctor, handle_api_health, handle_api_integration_credentials_put,
     handle_api_integrations, handle_api_integrations_settings, handle_api_mcp_inspect,

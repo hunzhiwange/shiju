@@ -87,7 +87,6 @@ async fn assert_unauthorized(response: axum::response::Response) {
 #[test]
 fn tool_handlers_are_available() {
     let _ = handle_api_tools;
-    let _ = handle_api_cli_tools;
     let _ = handle_api_doctor;
 }
 
@@ -145,17 +144,6 @@ async fn handle_api_tools_preserves_registry_order_and_capabilities() {
 }
 
 #[tokio::test]
-async fn handle_api_cli_tools_returns_discovery_array_when_authorized() {
-    let response =
-        handle_api_cli_tools(State(state(false, &[])), HeaderMap::new()).await.into_response();
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response_json(response).await;
-    assert!(body["cli_tools"].is_array());
-    assert_eq!(body.as_object().expect("body should be an object").len(), 1);
-}
-
-#[tokio::test]
 async fn handle_api_doctor_returns_results_and_summary_when_authorized() {
     let response =
         handle_api_doctor(State(state(false, &[])), HeaderMap::new()).await.into_response();
@@ -179,11 +167,6 @@ async fn tool_handlers_reject_missing_or_wrong_bearer_when_pairing_required() {
         .await
         .into_response();
     assert_unauthorized(tools).await;
-
-    let cli_tools = handle_api_cli_tools(State(state(true, &["paired-token"])), HeaderMap::new())
-        .await
-        .into_response();
-    assert_unauthorized(cli_tools).await;
 
     let mut headers = HeaderMap::new();
     headers.insert(header::AUTHORIZATION, "Bearer wrong-token".parse().unwrap());

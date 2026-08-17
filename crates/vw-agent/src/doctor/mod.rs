@@ -9,7 +9,6 @@
 //! - **工作空间完整性**：验证工作目录存在性、可写性、磁盘空间
 //! - **守护进程状态**：检查守护进程心跳、调度器健康度、通道状态
 //! - **运行环境检查**：验证必要的系统工具（git、shell、curl 等）
-//! - **CLI 工具发现**：扫描并报告可用的命令行工具
 //! - **模型探测**：提供者模型目录探测（当前已禁用）
 //! - **运行时追踪**：查询和展示运行时事件追踪数据
 
@@ -51,7 +50,7 @@ mod workspace_checks_tests;
 
 use self::config_checks::check_config_semantics;
 use self::daemon_checks::check_daemon_state;
-use self::environment_checks::{check_cli_tools, check_environment};
+use self::environment_checks::check_environment;
 pub use self::model_probe::run_models;
 pub use self::traces::run_traces;
 use self::workspace_checks::check_workspace;
@@ -149,7 +148,6 @@ pub fn diagnose(config: &Config) -> Vec<DiagResult> {
     check_workspace(config, &mut items);
     check_daemon_state(config, &mut items);
     check_environment(&mut items);
-    check_cli_tools(&mut items);
 
     items.into_iter().map(DiagItem::into_result).collect()
 }

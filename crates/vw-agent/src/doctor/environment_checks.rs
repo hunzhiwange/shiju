@@ -36,43 +36,6 @@ pub(super) fn check_environment(items: &mut Vec<DiagItem>) {
     check_command_available("curl", &["--version"], cat, items);
 }
 
-/// 发现 PATH 中可用的外部 CLI 工具。
-///
-/// 参数：
-/// - `items`：收集诊断结果的输出列表。
-///
-/// 错误处理：
-/// 当前发现逻辑返回可用列表；未发现工具会记录为警告，而不是作为硬错误处理。
-pub(super) fn check_cli_tools(items: &mut Vec<DiagItem>) {
-    let cat = "cli-tools";
-    let discovered = crate::app::agent::tools::cli_discovery::discover_cli_tools(&[], &[]);
-
-    append_cli_tool_items(&discovered, cat, items);
-}
-
-pub(super) fn append_cli_tool_items(
-    discovered: &[crate::app::agent::tools::cli_discovery::DiscoveredCli],
-    cat: &'static str,
-    items: &mut Vec<DiagItem>,
-) {
-    if discovered.is_empty() {
-        items.push(DiagItem::warn(cat, "No CLI tools found in PATH"));
-        return;
-    }
-
-    for cli in discovered {
-        let version_info = cli
-            .version
-            .as_deref()
-            .map(|version| truncate_for_display(version, COMMAND_VERSION_PREVIEW_CHARS))
-            .unwrap_or_else(|| "unknown version".to_string());
-        items
-            .push(DiagItem::ok(cat, format!("{} ({}) — {}", cli.name, cli.category, version_info)));
-    }
-
-    items.push(DiagItem::ok(cat, format!("{} CLI tools discovered", discovered.len())));
-}
-
 /// 执行带版本参数的命令可用性检查。
 ///
 /// 参数：

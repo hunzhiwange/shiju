@@ -34,8 +34,6 @@ pub mod batch;
 pub mod browser;
 pub mod browser_open;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod cli_discovery;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod codesearch;
 pub mod config;
 #[cfg(not(target_arch = "wasm32"))]

@@ -420,11 +420,6 @@ fn build_channel_tool_descriptions(
         "schedule",
         "Manage scheduled tasks (create/list/get/cancel/pause/resume). Supports recurring cron and one-shot delays.",
     ));
-    tool_descs.push((
-        "pushover",
-        "Send a Pushover notification to your device. Requires PUSHOVER_TOKEN and PUSHOVER_USER_KEY in .env file.",
-    ));
-
     if agent_tool_registered {
         tool_descs.push((
             "AgentTool",

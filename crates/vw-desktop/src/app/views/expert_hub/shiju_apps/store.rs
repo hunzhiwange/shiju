@@ -3,7 +3,7 @@ use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
 use vw_gateway_client::{ShijuAppCatalogDto, ShijuCatalogAppDto};
 
-use super::styles;
+use super::{app_title, card_grid, styles};
 use crate::app::Message;
 use crate::app::message::{AccountMessage, ShijuAppsMessage};
 use crate::app::shiju_apps::{ShijuAppDetailTarget, ShijuAppsLoadState};
@@ -20,7 +20,10 @@ fn catalog_card(index: usize, app: &ShijuCatalogAppDto) -> Element<'static, Mess
     let title = row![
         badge,
         column![
-            text(app.name.clone()).size(16),
+            text(app_title(&app.name))
+                .size(16)
+                .width(Length::Fill)
+                .wrapping(iced::widget::text::Wrapping::None),
             text(app.app_id.clone()).size(11).font(Font::MONOSPACE),
         ]
         .spacing(3)
@@ -99,7 +102,7 @@ pub(super) fn view(state: &ShijuAppsLoadState<ShijuAppCatalogDto>) -> Element<'s
                 .enumerate()
                 .map(|(index, app)| catalog_card(index, app))
                 .collect::<Vec<_>>();
-            scrollable(row(cards).spacing(12).wrap())
+            scrollable(card_grid(cards))
                 .direction(Direction::Vertical(
                     Scrollbar::new()
                         .width(styles::SCROLLBAR_WIDTH)

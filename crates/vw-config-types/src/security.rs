@@ -207,7 +207,6 @@ fn default_non_cli_excluded_tools() -> Vec<String> {
         "memory_forget",
         "proxy_config",
         "model_routing_config",
-        "pushover",
         "delegate",
         "screenshot",
         "image_info",

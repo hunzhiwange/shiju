@@ -510,11 +510,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "向用户发起澄清问题，支持单选、多选和自定义输入。",
             group: ToolGroup::Collaboration,
         },
-        "Brief" | "brief" => ToolMeta {
-            name: "发送简报",
-            description: "向用户发送一条可见消息，可附带本地文件附件。",
-            group: ToolGroup::Collaboration,
-        },
         "Sleep" | "sleep" => ToolMeta {
             name: "短暂等待",
             description: "暂停执行一小段时间，适合等待外部状态收敛或短暂退避。",
@@ -524,11 +519,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             name: "发送 IPC 消息",
             description: "向单个 agent、团队成员或全部在线 agent 发送 IPC 消息。",
             group: ToolGroup::Integration,
-        },
-        "SendUserFile" | "send_user_file" => ToolMeta {
-            name: "准备用户附件",
-            description: "为当前会话准备可发送给用户的本地文件附件标记。",
-            group: ToolGroup::Collaboration,
         },
         "skill" => ToolMeta {
             name: "加载技能",
@@ -563,11 +553,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
         "Config" => ToolMeta {
             name: "配置管理",
             description: "读取或调整运行时配置项，用于会话内配置查询与变更。",
-            group: ToolGroup::Integration,
-        },
-        "pushover" => ToolMeta {
-            name: "推送通知",
-            description: "向 Pushover 设备发送通知，支持标题、优先级和提示音。",
             group: ToolGroup::Integration,
         },
         "screenshot" => ToolMeta {

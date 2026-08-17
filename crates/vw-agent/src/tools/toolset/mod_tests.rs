@@ -701,7 +701,6 @@ fn all_tools_wrapper_uses_native_runtime_and_browser_open_default_mode() {
 
     assert!(names.contains(&"browser_open"));
     assert!(names.contains(&"browser"));
-    assert!(names.contains(&"Brief"));
     assert!(names.contains(&"batch"));
 }
 

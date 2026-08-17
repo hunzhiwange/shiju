@@ -549,7 +549,6 @@ pub fn default_tools_with_runtime(
     #[cfg(not(target_arch = "wasm32"))]
     if has_filesystem_access {
         tool_arcs.push(Arc::new(FileReadTool::new(security.clone())));
-        tool_arcs.push(Arc::new(NotebookEditTool::new(security.clone())));
         tool_arcs.push(Arc::new(FileEditTool::new(security.clone())));
         tool_arcs.push(Arc::new(FileWriteTool::new(security.clone())));
         tool_arcs.push(Arc::new(ApplyPatchTool::new(security.clone())));
@@ -658,8 +657,6 @@ pub fn all_tools_with_runtime(
         Arc::new(ScheduleTool::new(security.clone(), root_config.clone())),
         Arc::new(ModelRoutingConfigTool::new(config.clone(), security.clone())),
         Arc::new(ProxyConfigTool::new(config.clone(), security.clone())),
-        #[cfg(not(target_arch = "wasm32"))]
-        Arc::new(PushoverTool::new(security.clone(), workspace_dir.to_path_buf())),
     ];
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -678,10 +675,8 @@ pub fn all_tools_with_runtime(
     #[cfg(not(target_arch = "wasm32"))]
     if has_filesystem_access {
         tool_arcs.push(Arc::new(FileReadTool::with_session(security.clone(), session_id)));
-        tool_arcs.push(Arc::new(NotebookEditTool::new(security.clone())));
         tool_arcs.push(Arc::new(FileEditTool::new(security.clone())));
         tool_arcs.push(Arc::new(FileWriteTool::new(security.clone())));
-        tool_arcs.push(Arc::new(SendUserFileTool::new(security.clone())));
         tool_arcs.push(Arc::new(ApplyPatchTool::new(security.clone())));
         tool_arcs.push(Arc::new(LsTool::new(security.clone())));
         tool_arcs.push(Arc::new(LspTool::new(security.clone())));
@@ -814,7 +809,6 @@ pub fn all_tools_with_runtime(
         workspace_dir.to_path_buf(),
         config.clone(),
     )));
-    tool_arcs.push(Arc::new(BriefTool::new(security.clone())));
     tool_arcs.push(Arc::new(SleepTool::new()));
     tool_arcs
         .push(Arc::new(TodoReadTool::new_scoped(session_id.to_string(), project_scope.clone())));

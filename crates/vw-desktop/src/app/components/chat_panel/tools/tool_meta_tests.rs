@@ -212,7 +212,6 @@ fn search_web_and_agent_summaries_handle_multiple_shapes() {
 fn emoji_mappings_cover_specialized_tools_and_fallback() {
     for (tool_name, expected) in [
         ("config", "⚙️"),
-        ("brief", "💬"),
         ("read", "📖"),
         ("write", "👁️"),
         ("apply_patch", "📝"),
@@ -234,7 +233,6 @@ fn emoji_mappings_cover_specialized_tools_and_fallback() {
         ("get_errors", "🧪"),
         ("get_changed_files", "🔀"),
         ("wasm_module", "⚙️"),
-        ("pushover", "🔔"),
         ("process", "💻"),
         ("workflow_node", "🔁"),
         ("unknown_tool", "🔧"),
@@ -247,7 +245,6 @@ fn emoji_mappings_cover_specialized_tools_and_fallback() {
 fn icon_mappings_cover_specialized_tools_mcp_and_fallback() {
     for (tool_name, expected) in [
         ("config", Icon::Sliders),
-        ("brief", Icon::ChatTextFill),
         ("read", Icon::ChevronRight),
         ("write", Icon::ChevronRight),
         ("apply_patch", Icon::Pencil),
@@ -278,7 +275,6 @@ fn icon_mappings_cover_specialized_tools_mcp_and_fallback() {
 fn verb_mappings_cover_specialized_tools_mcp_and_fallback() {
     for (tool_name, expected) in [
         ("config", "配置"),
-        ("brief", "消息"),
         ("read", "读取"),
         ("write", "写入"),
         ("file_edit", "编辑"),
@@ -304,7 +300,6 @@ fn verb_mappings_cover_specialized_tools_mcp_and_fallback() {
         ("view_image", "图片信息"),
         ("get_errors", "诊断"),
         ("wasm_module", "WASM"),
-        ("pushover", "通知"),
         ("process", "进程"),
         ("workflow_node", "工作流"),
         ("mcp_linear", "MCP"),

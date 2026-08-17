@@ -77,13 +77,6 @@ fn normalize_tool_args_maps_supported_aliases_without_overwriting_canonical_valu
         })
     );
     assert_eq!(
-        normalize_tool_args(
-            "notebook_edit",
-            json!({ "file_path": "notes.ipynb", "editType": "replace", "cellId": "cell-1" })
-        )["edit_type"],
-        "replace"
-    );
-    assert_eq!(
         normalize_tool_args("web_fetch", json!({ "href": "https://example.com" }))["url"],
         "https://example.com"
     );

@@ -15,7 +15,6 @@ fn canonical_tool_name_covers_every_declared_alias_group() {
         ("agent_tool", "AgentTool"),
         ("file_read", "read"),
         ("read_file", "read"),
-        ("brief", "brief"),
         ("file_edit", "file_edit"),
         ("edit_file", "file_edit"),
         ("editfile", "file_edit"),
@@ -89,7 +88,6 @@ fn known_tool_name_accepts_representative_file_runtime_search_and_integration_to
         "get_changed_files",
         "view_image",
         "wasm_module",
-        "pushover",
         "process",
     ] {
         assert!(is_known_tool_name(name), "expected known tool {name}");

@@ -113,7 +113,7 @@ fn sanitize_json_value(
         omit_keys = false;
     }
     let omit_by_tool =
-        matches!(tool, "write" | "file_write" | "file_edit" | "notebook_edit" | "apply_patch")
+        matches!(tool, "write" | "file_write" | "file_edit" | "apply_patch")
             && matches!(
                 key,
                 "content"

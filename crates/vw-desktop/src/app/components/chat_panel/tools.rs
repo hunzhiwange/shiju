@@ -48,7 +48,6 @@ mod advanced_view;
 mod apply_patch_preview;
 mod apply_patch_view;
 mod bash_view;
-mod brief_view;
 mod changes;
 mod command_summary_view;
 mod config_view;
@@ -81,8 +80,6 @@ mod advanced_view_tests;
 mod apply_patch_view_tests;
 #[cfg(test)]
 mod bash_view_tests;
-#[cfg(test)]
-mod brief_view_tests;
 #[cfg(test)]
 mod command_summary_view_tests;
 #[cfg(test)]
@@ -133,7 +130,6 @@ pub use crate::app::components::chat_panel::tool_text_support::{
 pub use advanced_view::tool_advanced_view;
 pub use apply_patch_view::tool_apply_patch_view;
 pub use bash_view::tool_bash_view;
-pub use brief_view::tool_brief_view;
 pub(crate) use command_summary_view::{is_command_tool, tool_command_summary_view};
 pub use config_view::tool_config_view;
 pub(crate) use diff_utils::{extract_diff_block, file_preview};

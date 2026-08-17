@@ -131,7 +131,6 @@ fn channel_tool_descriptions_track_optional_tools_and_exclusions() {
 
     assert!(base_names.contains(&"shell"));
     assert!(!base_names.contains(&"schedule"));
-    assert!(!base_names.contains(&"pushover"));
     assert!(!base_names.contains(&"Browser"));
     assert!(!base_names.contains(&"AgentTool"));
 

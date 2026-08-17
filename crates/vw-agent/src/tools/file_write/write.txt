@@ -4,7 +4,6 @@ Usage:
 - Use it to create a new file or replace an existing file in full.
 - If the target already exists, you must read it with the Read tool first; the write will fail otherwise.
 - Prefer the Edit tool for partial changes to an existing file instead of replacing the entire file with Write.
-- Do not use it for `.ipynb` notebooks; notebooks must be edited with the NotebookEdit tool.
 - Always prefer editing existing files in the codebase. Never create a new file unless explicitly requested.
 - Never proactively create documentation files (`*.md`) or README files. Create documentation only when the user explicitly asks for it.
 - Use emoji only when the user explicitly requests them. Otherwise, avoid writing emoji to files.

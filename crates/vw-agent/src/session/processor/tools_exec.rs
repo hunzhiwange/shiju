@@ -33,7 +33,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 const FULL_SESSION_OUTPUT_TOOLS: &[&str] =
-    &["apply_patch", "write", "file_write", "file_edit", "notebook_edit"];
+    &["apply_patch", "write", "file_write", "file_edit"];
 
 /// 工具执行后仅供下一轮模型请求消费的协议数据。
 #[derive(Debug, Clone, Default)]
@@ -1651,7 +1651,7 @@ fn describe_batch_call(tool: &str, params: &serde_json::Value) -> String {
                     (None, true) => None,
                 }
             }
-            "write" | "file_write" | "file_edit" | "notebook_edit" | "apply_patch" => {
+            "write" | "file_write" | "file_edit" | "apply_patch" => {
                 get(&["file_path", "filePath", "path"])
             }
             "glob" => get(&["pattern"]).map(|v| v),

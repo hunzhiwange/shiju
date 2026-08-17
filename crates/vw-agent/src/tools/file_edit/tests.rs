@@ -328,15 +328,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn edit_rejects_notebook_paths() {
-        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_notebook_reject");
+    async fn edit_supports_notebook_paths() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_edit_notebook");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
         tokio::fs::write(dir.join("demo.ipynb"), "{}\n").await.unwrap();
 
         let tool = FileEditTool::new(test_security(dir.clone()));
         let context = Arc::new(ToolUseContext::new(
-            "file-edit-notebook-reject",
+            "file-edit-notebook",
             Some(dir.to_string_lossy().to_string()),
         ));
         seed_read_state(&context, dir.as_path(), "demo.ipynb", "{}\n");
@@ -352,8 +352,11 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(!result.is_success());
-        assert!(result.error_text().unwrap_or_default().contains("use notebook_edit instead"));
+        assert!(result.is_success(), "error: {:?}", result.error_text());
+        assert_eq!(
+            tokio::fs::read_to_string(dir.join("demo.ipynb")).await.unwrap(),
+            "{\"cells\": []}\n"
+        );
 
         let _ = tokio::fs::remove_dir_all(&dir).await;
     }

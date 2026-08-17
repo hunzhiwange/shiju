@@ -576,7 +576,6 @@ fn default_tool_aliases(tool_id: &str) -> Vec<String> {
     match tool_id {
         "shell" => vec!["bash".to_string()],
         "edit" => vec!["file_edit".to_string()],
-        "notebook_edit" => vec!["edit_notebook".to_string()],
         "file_read" => vec!["read".to_string()],
         "file_write" => vec!["write".to_string()],
         "web_fetch" => vec!["webfetch".to_string()],
@@ -611,7 +610,6 @@ fn default_tool_destructive(tool_id: &str) -> bool {
     matches!(
         tool_id,
         "edit"
-            | "notebook_edit"
             | "file_write"
             | "apply_patch"
             | "shell"
@@ -626,7 +624,6 @@ fn default_tool_destructive(tool_id: &str) -> bool {
             | "schedule"
             | "model_routing_config"
             | "proxy_config"
-            | "pushover"
             | "todowrite"
             | "browser"
             | "browser_open"

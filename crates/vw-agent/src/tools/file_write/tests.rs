@@ -814,8 +814,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn file_write_rejects_notebook_paths() {
-        let dir = std::env::temp_dir().join("vibewindow_test_file_write_notebook_reject");
+    async fn file_write_supports_notebook_paths() {
+        let dir = std::env::temp_dir().join("vibewindow_test_file_write_notebook");
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
 
@@ -828,8 +828,8 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(!result.is_success());
-        assert!(result.error_text().unwrap_or_default().contains("use notebook_edit instead"));
+        assert!(result.is_success(), "error: {:?}", result.error_text());
+        assert_eq!(tokio::fs::read_to_string(dir.join("demo.ipynb")).await.unwrap(), "{}\n");
 
         let _ = tokio::fs::remove_dir_all(&dir).await;
     }

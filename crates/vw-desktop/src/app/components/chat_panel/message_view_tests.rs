@@ -574,21 +574,6 @@ fn tool_card_text_blocks_use_web_fetch_body_preview() {
 }
 
 #[test]
-fn tool_card_text_blocks_extract_brief_message_and_attachments() {
-    let blocks = tool_card_text_blocks(
-        "tool Brief\n{\"status\":\"completed\",\"result\":{\"data\":{\"message\":\"## 已完成\\n请查看附件。\",\"attachments\":[{\"path\":\"/tmp/reports/chart.png\",\"size\":2048,\"isImage\":true}],\"status\":\"proactive\",\"sentAt\":\"2026-04-29T10:20:30Z\"},\"model_result\":\"Message delivered to user. (1 attachment included)\"},\"renderHint\":{\"kind\":\"brief\",\"summary\":\"## 已完成 请查看附件。\",\"metadata\":{\"canonical_tool_id\":\"brief\",\"attachment_count\":1,\"status\":\"proactive\"}}}",
-    );
-
-    assert_eq!(
-        blocks,
-        vec![vec![
-            "## 已完成\n请查看附件。".to_string(),
-            "[image] reports/chart.png (2.0 KB)".to_string(),
-        ]]
-    );
-}
-
-#[test]
 fn tool_card_text_blocks_use_agenttool_summary_before_output() {
     let blocks = tool_card_text_blocks(
         "tool AgentTool\n{\"input\":\"{\\\"agent\\\":\\\"reviewer\\\",\\\"prompt\\\":\\\"Review auth flow for regressions\\\"}\",\"status\":\"completed\",\"output\":\"[Agent 'reviewer' (openai/gpt-4)]\\nLooks good.\"}",

@@ -275,86 +275,6 @@ fn browser_preview_texts(tool_name: &str, value: &serde_json::Value) -> Vec<Stri
     lines
 }
 
-fn brief_attachment_preview_path(path: &str) -> String {
-    let path_ref = Path::new(path);
-    let file_name = path_ref
-        .file_name()
-        .and_then(|item| item.to_str())
-        .filter(|text| !text.is_empty())
-        .unwrap_or(path);
-    let parent = path_ref
-        .parent()
-        .and_then(|item| item.file_name())
-        .and_then(|item| item.to_str())
-        .filter(|text| !text.is_empty());
-
-    match parent {
-        Some(parent) => truncate_chars(&format!("{parent}/{file_name}"), 80).to_string(),
-        None => truncate_chars(file_name, 80).to_string(),
-    }
-}
-
-fn brief_attachment_size_text(size: u64) -> String {
-    const KB: f64 = 1024.0;
-    const MB: f64 = KB * 1024.0;
-
-    let size = size as f64;
-    if size >= MB {
-        format!("{:.1} MB", size / MB)
-    } else if size >= KB {
-        format!("{:.1} KB", size / KB)
-    } else {
-        format!("{} B", size as u64)
-    }
-}
-
-fn brief_preview_texts(value: &serde_json::Value) -> Vec<String> {
-    let Some(data) = tool_result_data_object(value) else {
-        return Vec::new();
-    };
-
-    let mut lines = Vec::new();
-    if let Some(message) = data
-        .get("message")
-        .and_then(|item| item.as_str())
-        .map(str::trim)
-        .filter(|text| !text.is_empty())
-    {
-        lines.push(message.to_string());
-    }
-
-    let attachments =
-        data.get("attachments").and_then(|item| item.as_array()).cloned().unwrap_or_default();
-    for attachment in attachments.iter().take(3) {
-        let Some(object) = attachment.as_object() else {
-            continue;
-        };
-        let Some(path) = object.get("path").and_then(|item| item.as_str()).map(str::trim) else {
-            continue;
-        };
-        if path.is_empty() {
-            continue;
-        }
-        let label = if object.get("isImage").and_then(|item| item.as_bool()) == Some(true) {
-            "[image]"
-        } else {
-            "[file]"
-        };
-        let size = object.get("size").and_then(|item| item.as_u64()).unwrap_or(0);
-        lines.push(format!(
-            "{} {} ({})",
-            label,
-            brief_attachment_preview_path(path),
-            brief_attachment_size_text(size)
-        ));
-    }
-    if attachments.len() > 3 {
-        lines.push(format!("... 还有 {} 个附件", attachments.len() - 3));
-    }
-
-    lines
-}
-
 pub(super) fn count_code_blocks(text: &str) -> usize {
     text.match_indices("```").count() / 2
 }
@@ -534,26 +454,6 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
     let permission_error_text = permission_error_text.trim();
 
     match tool_name {
-        "brief" => {
-            if is_error {
-                if !permission_error_text.is_empty() {
-                    tool_texts.push(permission_error_text.to_string());
-                } else if !err_text.is_empty() {
-                    tool_texts.push(err_text.to_string());
-                }
-            } else {
-                let previews = brief_preview_texts(value);
-                if previews.is_empty() {
-                    if let Some(summary) = tool_summary_text(value)
-                        && !summary.trim().is_empty()
-                    {
-                        tool_texts.push(summary);
-                    }
-                } else {
-                    tool_texts.extend(previews);
-                }
-            }
-        }
         "bash" => {
             let input = tool_input(value);
             tool_texts.push(bash_command_title(input));

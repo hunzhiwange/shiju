@@ -70,18 +70,6 @@ fn tool_card_text_blocks_cover_advanced_tool_previews() {
 }
 
 #[test]
-fn tool_card_text_blocks_cover_brief_attachments_and_overflow() {
-    let blocks = tool_card_text_blocks(
-        "tool brief\n{\"result\":{\"data\":{\"message\":\"ready\",\"attachments\":[{\"path\":\"/tmp/a/image.png\",\"isImage\":true,\"size\":2048},{\"path\":\"/tmp/b/doc.txt\",\"size\":5},{\"path\":\"/tmp/c/notes.md\",\"size\":1048576},{\"path\":\"/tmp/d/more.md\",\"size\":1}]}}}",
-    );
-
-    assert_eq!(blocks[0][0], "ready");
-    assert!(blocks[0][1].contains("[image] a/image.png (2.0 KB)"));
-    assert!(blocks[0][3].contains("1.0 MB"));
-    assert_eq!(blocks[0][4], "... 还有 1 个附件");
-}
-
-#[test]
 fn normalized_visible_text_strips_internal_traces() {
     assert_eq!(
         normalized_visible_text("tool bash({\"command\":\"pwd\"})\nfinal"),

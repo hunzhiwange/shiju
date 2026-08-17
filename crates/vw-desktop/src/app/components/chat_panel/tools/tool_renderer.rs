@@ -9,7 +9,7 @@ use crate::app::{App, Message};
 
 /// 重新导出 use super::{，让上层模块通过稳定路径访问。
 use super::{
-    tool_advanced_view, tool_apply_patch_view, tool_bash_view, tool_brief_view, tool_config_view,
+    tool_advanced_view, tool_apply_patch_view, tool_bash_view, tool_config_view,
     tool_files_view, tool_git_diff_view, tool_lsp_view, tool_mcp_view, tool_name_from_raw,
     tool_plan_mode_view, tool_question_view, tool_read_view, tool_search_view, tool_skill_view,
     tool_text_view, tool_todos_view, tool_todowrite_compact_view, tool_web_view,
@@ -22,7 +22,6 @@ use super::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SharedToolRenderKind {
     Bash,
-    Brief,
     Config,
     TodoCompact,
     TodoRead,
@@ -64,7 +63,6 @@ pub(crate) fn shared_tool_render_kind(raw: &str) -> Option<SharedToolRenderKind>
     Some(match tool_name.as_str() {
         "bash" | "shell" => SharedToolRenderKind::Bash,
         "image_info" => SharedToolRenderKind::Bash,
-        "brief" => SharedToolRenderKind::Brief,
         "Config" | "config" => SharedToolRenderKind::Config,
         "todowrite" => SharedToolRenderKind::TodoCompact,
         "todoread" => SharedToolRenderKind::TodoRead,
@@ -121,8 +119,6 @@ pub(crate) fn render_shared_tool_view<'a>(
     match shared_tool_render_kind(visible)? {
         // SharedToolRenderKind 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         SharedToolRenderKind::Bash => tool_bash_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::Brief => tool_brief_view(app, msg_idx, tool_idx, visible)
             .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
         SharedToolRenderKind::Config => tool_config_view(app, msg_idx, tool_idx, visible)
             .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),

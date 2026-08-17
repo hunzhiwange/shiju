@@ -33,14 +33,6 @@ fn truncate_tool_args_covers_path_aliases_and_fallback_fields() {
         "/tmp/output.txt"
     );
     assert_eq!(
-        truncate_tool_args_for_progress("notebook_edit", &json!({"filePath": "nb.ipynb"}), 30),
-        "nb.ipynb"
-    );
-    assert_eq!(
-        truncate_tool_args_for_progress("notebook_edit", &json!({"file_path": "alt.ipynb"}), 30),
-        "alt.ipynb"
-    );
-    assert_eq!(
         truncate_tool_args_for_progress("file_edit", &json!({"file_path": "src/lib.rs"}), 30),
         "src/lib.rs"
     );
@@ -57,22 +49,6 @@ fn truncate_tool_args_covers_path_aliases_and_fallback_fields() {
 
 #[test]
 fn truncate_tool_args_uses_primary_paths_and_skips_non_string_aliases() {
-    assert_eq!(
-        truncate_tool_args_for_progress(
-            "notebook_edit",
-            &json!({"path": "primary.ipynb", "filePath": "secondary.ipynb"}),
-            30,
-        ),
-        "primary.ipynb"
-    );
-    assert_eq!(
-        truncate_tool_args_for_progress(
-            "notebook_edit",
-            &json!({"path": 1, "filePath": false, "file_path": "fallback.ipynb"}),
-            30,
-        ),
-        "fallback.ipynb"
-    );
     assert_eq!(
         truncate_tool_args_for_progress(
             "file_edit",

@@ -518,7 +518,6 @@ fn build_tool_descriptions(config: &Config) -> Vec<(&'static str, &'static str)>
     let mut tool_descs = vec![
         ("bash", "Execute terminal commands."),
         ("file_read", "Read file contents."),
-        ("notebook_edit", "Edit existing notebook cells by structured notebook operations."),
         ("file_edit", "Edit existing file contents by targeted replacement."),
         ("file_write", "Create files or fully overwrite files."),
         ("memory_store", "Save to memory."),

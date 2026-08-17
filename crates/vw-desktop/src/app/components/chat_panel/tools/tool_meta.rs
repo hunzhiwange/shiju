@@ -35,7 +35,6 @@ pub fn tool_emoji(tool_name: &str) -> &'static str {
     let tool_name = canonical_tool_name(tool_name).to_ascii_lowercase();
     match tool_name.as_str() {
         "config" => "⚙️",
-        "brief" => "💬",
         "read" | "file_read" | "pdf_read" | "read_file" => "📖",
         "write" | "file_write" | "file_edit" | "notebook_edit" => "👁️",
         "apply_patch" => "📝",
@@ -71,7 +70,6 @@ pub fn tool_emoji(tool_name: &str) -> &'static str {
         "get_errors" => "🧪",
         "get_changed_files" => "🔀",
         "wasm_module" => "⚙️",
-        "pushover" => "🔔",
         "process" => "💻",
         "workflow_node" => "🔁",
         _ => "🔧",
@@ -95,7 +93,6 @@ pub fn tool_icon(tool_name: &str) -> Icon {
     let tool_name = canonical_tool_name(tool_name).to_ascii_lowercase();
     match tool_name.as_str() {
         "config" => Icon::Sliders,
-        "brief" => Icon::ChatTextFill,
         "read" | "file_read" | "pdf_read" | "read_file" => Icon::ChevronRight,
         "write" | "file_write" | "file_edit" | "notebook_edit" => Icon::ChevronRight,
         "apply_patch" => Icon::Pencil,
@@ -193,7 +190,6 @@ pub fn tool_verb(tool_name: &str) -> &'static str {
     let tool_name = canonical_tool_name(tool_name).to_ascii_lowercase();
     match tool_name.as_str() {
         "config" => "配置",
-        "brief" => "消息",
         "read" | "file_read" | "pdf_read" | "read_file" => "读取",
         "write" | "file_write" => "写入",
         "file_edit" | "notebook_edit" | "apply_patch" => "编辑",
@@ -234,7 +230,6 @@ pub fn tool_verb(tool_name: &str) -> &'static str {
         "image_info" | "view_image" => "图片信息",
         "get_errors" => "诊断",
         "wasm_module" => "WASM",
-        "pushover" => "通知",
         "process" => "进程",
         "workflow_node" => "工作流",
         name if name.starts_with("mcp_") => "MCP",

@@ -53,8 +53,8 @@ pub(crate) enum TrajectoryDetailsAction {
 /// 时间线块宽度的瞬时计算模式。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum TrajectoryDurationMode {
-    #[default]
     Timed,
+    #[default]
     Equal,
 }
 

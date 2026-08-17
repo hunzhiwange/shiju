@@ -84,12 +84,15 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             app.usage_step_raw_payloads.remove(&key);
             app.usage_step_raw_loading.insert(key);
+            let directory =
+                app.known_session_directory(&session_id).or_else(|| app.project_path.clone());
             Task::perform(
                 async move {
                     let result = crate::app::session_gateway::gateway_session_step_llm_raw_async(
                         &session_id,
                         &turn_id,
                         step_index,
+                        directory.as_deref(),
                     )
                     .await;
                     (session_id, turn_id, step_index, result)

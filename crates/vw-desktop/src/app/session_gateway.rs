@@ -317,9 +317,10 @@ pub async fn gateway_session_step_llm_raw_async(
     id: &str,
     turn_id: &str,
     step_index: u32,
+    directory: Option<&str>,
 ) -> Result<Option<serde_json::Value>, String> {
     let client = gateway_client()?;
-    client.session_step_llm_raw_get(id, turn_id, step_index, None).await
+    client.session_step_llm_raw_get(id, turn_id, step_index, directory).await
 }
 
 /// 执行 gateway_resolve_session_scope_id_async 对应的领域操作。

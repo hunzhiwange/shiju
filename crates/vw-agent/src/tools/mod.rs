@@ -30,7 +30,6 @@ pub mod agent_tool;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod apply_patch;
 pub mod batch;
-pub mod brief;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod browser;
 pub mod browser_open;
@@ -97,8 +96,6 @@ pub mod memory_recall;
 pub mod memory_store;
 pub mod model_routing_config;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod notebook_edit;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod pdf_read;
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
 pub mod powershell;
@@ -106,7 +103,6 @@ pub mod powershell;
 pub mod process;
 pub mod proxy_config;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod pushover;
 pub mod question;
 pub mod read_mcp_resource;
 mod read_state;
@@ -119,8 +115,6 @@ mod scheduler;
 pub mod schema;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod screenshot;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod send_user_file;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod shell;
 pub mod skill;
@@ -141,7 +135,6 @@ pub use agent_tool::AgentTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use apply_patch::ApplyPatchTool;
 pub use batch::BatchTool;
-pub use brief::BriefTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use browser::{BrowserTool, ComputerUseConfig};
 pub use browser_open::BrowserOpenTool;
@@ -196,8 +189,6 @@ pub use memory_recall::MemoryRecallTool;
 pub use memory_store::MemoryStoreTool;
 pub use model_routing_config::ModelRoutingConfigTool;
 #[cfg(not(target_arch = "wasm32"))]
-pub use notebook_edit::NotebookEditTool;
-#[cfg(not(target_arch = "wasm32"))]
 pub use pdf_read::PdfReadTool;
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
 pub use powershell::PowerShellTool;
@@ -205,7 +196,6 @@ pub use powershell::PowerShellTool;
 pub use process::ProcessTool;
 pub use proxy_config::ProxyConfigTool;
 #[cfg(not(target_arch = "wasm32"))]
-pub use pushover::PushoverTool;
 pub use question::QuestionTool;
 pub use read_mcp_resource::ReadMcpResourceTool;
 pub use read_state::{FileReadStateCache, FileReadStateEntry, FileSnapshot};
@@ -217,8 +207,6 @@ pub use schedule::ScheduleTool;
 pub use schema::{CleaningStrategy, SchemaCleanr};
 #[cfg(not(target_arch = "wasm32"))]
 pub use screenshot::ScreenshotTool;
-#[cfg(not(target_arch = "wasm32"))]
-pub use send_user_file::SendUserFileTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use shell::ShellTool;
 pub use skill::SkillTool;

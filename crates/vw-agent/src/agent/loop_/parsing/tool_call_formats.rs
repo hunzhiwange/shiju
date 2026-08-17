@@ -612,7 +612,6 @@ pub(crate) fn parse_function_call_tool_calls(response: &str) -> Vec<ParsedToolCa
 /// | 命令 | shell, bash, sh, exec, command, cmd | shell |
 /// | 消息 | send_message, sendmessage | message_send |
 /// | 文件读取 | fileread, file_read, readfile, read_file, file | file_read |
-/// | Notebook 编辑 | notebook_edit, edit_notebook, notebookedit | notebook_edit |
 /// | 文件编辑 | edit, file_edit, editfile, edit_file | edit |
 /// | 文件写入 | write, filewrite, file_write, writefile, write_file | file_write |
 /// | 文件列表 | filelist, file_list, listfiles, list_files | file_list |
@@ -637,7 +636,6 @@ pub(crate) fn canonicalize_tool_name(tool_name: &str) -> &str {
         "send_message" | "sendmessage" => "message_send",
         // 文件工具变体
         "fileread" | "file_read" | "readfile" | "read_file" | "file" => "file_read",
-        "notebook_edit" | "edit_notebook" | "notebookedit" => "notebook_edit",
         "file_edit" | "editfile" | "edit_file" => "file_edit",
         "write" | "filewrite" | "file_write" | "writefile" | "write_file" => "file_write",
         "filelist" | "file_list" | "listfiles" | "list_files" => "file_list",
@@ -791,8 +789,7 @@ pub(crate) fn default_param_for_tool(tool: &str) -> &'static str {
     match tool {
         "shell" | "bash" | "sh" | "exec" | "command" | "cmd" => "command",
         // 所有文件工具默认使用 path 参数
-        "file_read" | "fileread" | "readfile" | "read_file" | "file" | "notebook_edit"
-        | "edit_notebook" | "notebookedit" | "write" | "file_write" | "filewrite" | "writefile"
+        "file_read" | "fileread" | "readfile" | "read_file" | "file" | "write" | "file_write" | "filewrite" | "writefile"
         | "write_file" | "file_list" | "filelist" | "listfiles" | "list_files" => "path",
         "grep" | "glob" => "pattern",
         "codesearch" => "query",

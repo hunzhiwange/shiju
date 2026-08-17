@@ -282,6 +282,8 @@ mod trajectory_controls {
             }),
         );
 
+        assert_eq!(app.trajectory_controls.duration_mode(), TrajectoryDurationMode::Equal);
+
         let _task =
             super::super::update(&mut app, super::super::ChatMessage::TrajectoryDurationToggled);
         let _task =
@@ -289,13 +291,13 @@ mod trajectory_controls {
         let _task =
             super::super::update(&mut app, super::super::ChatMessage::TrajectoryCallsToggled);
 
-        assert_eq!(app.trajectory_controls.duration_mode(), TrajectoryDurationMode::Equal);
+        assert_eq!(app.trajectory_controls.duration_mode(), TrajectoryDurationMode::Timed);
         assert!(app.trajectory_controls.is_turn_collapsed(1));
         assert!(app.trajectory_controls.is_tool_step_collapsed(1));
 
         app.active_session_id = Some("session-2".to_string());
         let switched = app.trajectory_controls.for_session(app.active_session_id.as_deref());
-        assert_eq!(switched.duration_mode(), TrajectoryDurationMode::Equal);
+        assert_eq!(switched.duration_mode(), TrajectoryDurationMode::Timed);
         assert!(!switched.is_turn_collapsed(1));
         assert!(!switched.is_tool_step_collapsed(1));
 
@@ -304,7 +306,7 @@ mod trajectory_controls {
             super::super::ChatMessage::TrajectorySearchChanged(String::new()),
         );
 
-        assert_eq!(app.trajectory_controls.duration_mode(), TrajectoryDurationMode::Equal);
+        assert_eq!(app.trajectory_controls.duration_mode(), TrajectoryDurationMode::Timed);
         assert!(!app.trajectory_controls.is_turn_collapsed(1));
         assert!(!app.trajectory_controls.is_tool_step_collapsed(1));
     }

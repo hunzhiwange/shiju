@@ -32,12 +32,6 @@ fn shared_tool_render_kind_routes_structured_tool_cards() {
         shared_tool_render_kind("tool workflow_node\n{}"),
         Some(SharedToolRenderKind::Workflow)
     );
-    assert_eq!(
-        shared_tool_render_kind(
-            "tool Brief\n{\"renderHint\":{\"metadata\":{\"canonical_tool_id\":\"brief\"}}}"
-        ),
-        Some(SharedToolRenderKind::Brief)
-    );
 }
 
 #[test]

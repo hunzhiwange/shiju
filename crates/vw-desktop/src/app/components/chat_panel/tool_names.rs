@@ -9,7 +9,6 @@ pub fn canonical_tool_name(tool_name: &str) -> &str {
         "agent" | "agenttool" | "agent_tool" => "AgentTool",
         "read" | "file_read" | "read_file" => "read",
         "bash" | "shell" | "execute" | "tool_execute" | "terminal" => "bash",
-        "brief" => "brief",
         "edit" | "file_edit" | "edit_file" | "editfile" => "file_edit",
         "notebook_edit" | "edit_notebook" | "notebookedit" => "notebook_edit",
         "askuserquestion" | "ask_user_question" | "question" => "question",
@@ -68,7 +67,6 @@ pub fn is_known_tool_name(tool_name: &str) -> bool {
             | "browser"
             | "browser_open"
             | "open_browser_page"
-            | "brief"
             | "lsp"
             | "agent"
             | "agenttool"
@@ -99,7 +97,6 @@ pub fn is_known_tool_name(tool_name: &str) -> bool {
             | "get_changed_files"
             | "view_image"
             | "wasm_module"
-            | "pushover"
             | "process"
             | "enter_plan_mode"
             | "exit_plan_mode"

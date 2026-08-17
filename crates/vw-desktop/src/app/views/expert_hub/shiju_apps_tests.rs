@@ -99,6 +99,31 @@ fn shiju_apps_cards_surface_runtime_readiness() {
     assert_eq!(shiju_apps::styles::SCROLLBAR_WIDTH, 4);
 }
 
+#[test]
+fn shiju_apps_grid_limits_each_row_to_four_cards() {
+    let cards = (0..9)
+        .map(|index| iced::widget::text(index.to_string()).into())
+        .collect::<Vec<iced::Element<'static, Message>>>();
+
+    let row_sizes = shiju_apps::card_grid(cards)
+        .as_widget()
+        .children()
+        .into_iter()
+        .map(|row| row.children.len())
+        .collect::<Vec<_>>();
+
+    assert_eq!(row_sizes, vec![4, 4, 1]);
+}
+
+#[test]
+fn shiju_apps_title_uses_single_line_ellipsis_when_too_long() {
+    assert_eq!(shiju_apps::app_title("会议纪要助手"), "会议纪要助手");
+    assert_eq!(
+        shiju_apps::app_title("AI 智能托管数据日志查询"),
+        "AI 智能托管数据日志..."
+    );
+}
+
 async fn assert_draws(app: &App, theme: Theme) {
     let mut element = shiju_apps::view(app);
     let mut renderer =

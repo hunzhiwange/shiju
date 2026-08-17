@@ -45,7 +45,6 @@ fn shared_tool_render_kind_routes_aliases_and_special_tools() {
 fn shared_tool_render_kind_routes_all_supported_kinds() {
     for (raw, expected) in [
         ("tool shell\n{}", SharedToolRenderKind::Bash),
-        ("tool brief\n{}", SharedToolRenderKind::Brief),
         ("tool Config\n{}", SharedToolRenderKind::Config),
         ("tool todowrite\n{}", SharedToolRenderKind::TodoCompact),
         ("tool todoread\n{}", SharedToolRenderKind::TodoRead),
@@ -123,11 +122,6 @@ fn render_shared_tool_view_dispatches_each_tool_kind() {
             0,
             r#"tool bash
 {"input":"echo ok","output":"ok"}"#,
-        ),
-        (
-            1,
-            r#"tool brief
-{"result":{"data":{"message":"sent","attachments":[]}}}"#,
         ),
         (
             2,

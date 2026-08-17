@@ -29,7 +29,6 @@ pub const SUPPORTED_PROXY_SERVICE_KEYS: &[&str] = &[
     "channel.whatsapp",
     "tool.browser",
     "tool.http_request",
-    "tool.pushover",
     "memory.embeddings",
     "tunnel.custom",
 ];

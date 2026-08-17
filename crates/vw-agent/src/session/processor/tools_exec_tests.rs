@@ -100,7 +100,7 @@ fn delta_texts(events: &[StreamEvent]) -> Vec<String> {
 
 #[test]
 fn preserve_full_output_only_for_editing_tools() {
-    for name in ["apply_patch", "write", "file_write", "file_edit", "notebook_edit"] {
+    for name in ["apply_patch", "write", "file_write", "file_edit"] {
         assert!(super::preserve_full_output_in_session(name), "{name}");
     }
     for name in ["read", "file_read", "bash", "todowrite"] {
@@ -916,7 +916,7 @@ fn describe_batch_call_handles_aliases_trimmed_values_and_missing_paths() {
         super::describe_batch_call("file_write", &json!({ "file_path": "snake.md" })),
         "- file_write snake.md"
     );
-    for tool in ["write", "file_write", "notebook_edit", "apply_patch"] {
+    for tool in ["write", "file_write", "apply_patch"] {
         assert_eq!(
             super::describe_batch_call(tool, &json!({ "path": "notes.md" })),
             format!("- {tool} notes.md")

@@ -280,27 +280,6 @@ fn normalize_tool_args(tool_id: &str, args: Value) -> Value {
                 obj.entry("replace_all".to_string()).or_insert(value);
             }
         }
-        "notebook_edit" => {
-            if !obj.contains_key("path")
-                && let Some(value) = obj
-                    .get("filePath")
-                    .cloned()
-                    .or_else(|| obj.get("file_path").cloned())
-                    .or_else(|| obj.get("path").cloned())
-            {
-                obj.entry("path".to_string()).or_insert(value);
-            }
-            if !obj.contains_key("edit_type")
-                && let Some(value) = obj.get("editType").cloned()
-            {
-                obj.entry("edit_type".to_string()).or_insert(value);
-            }
-            if !obj.contains_key("cell_id")
-                && let Some(value) = obj.get("cellId").cloned()
-            {
-                obj.entry("cell_id".to_string()).or_insert(value);
-            }
-        }
         id if is_web_fetch_tool_id(id) => {
             if !obj.contains_key("url")
                 && let Some(value) = obj.get("href").cloned()

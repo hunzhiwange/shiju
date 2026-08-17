@@ -255,7 +255,6 @@ fn canonicalizes_known_tool_aliases_and_preserves_unknown_names() {
     }
     assert_eq!(canonicalize_tool_name("sendmessage"), "message_send");
     assert_eq!(canonicalize_tool_name("read_file"), "file_read");
-    assert_eq!(canonicalize_tool_name("edit_notebook"), "notebook_edit");
     assert_eq!(canonicalize_tool_name("editfile"), "file_edit");
     assert_eq!(canonicalize_tool_name("writefile"), "file_write");
     assert_eq!(canonicalize_tool_name("list_files"), "file_list");

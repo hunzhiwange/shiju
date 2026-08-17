@@ -139,7 +139,6 @@ fn default_tools_with_runtime_excludes_shell_and_fs_for_wasm_runtime() {
     let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
     assert!(!names.contains(&"shell"));
     assert!(!names.contains(&"file_read"));
-    assert!(!names.contains(&"notebook_edit"));
     assert!(!names.contains(&"file_write"));
     assert!(!names.contains(&"file_edit"));
     assert!(!names.contains(&"apply_patch"));
@@ -184,12 +183,9 @@ fn all_tools_excludes_browser_when_disabled() {
     assert!(!names.contains(&"browser_open"));
     assert!(names.contains(&"schedule"));
     assert!(names.contains(&"Config"));
-    assert!(names.contains(&"Brief"));
     assert!(names.contains(&"Sleep"));
     assert!(names.contains(&"model_routing_config"));
-    assert!(names.contains(&"pushover"));
     assert!(names.contains(&"proxy_config"));
-    assert!(names.contains(&"SendUserFile"));
 }
 
 #[test]
@@ -230,12 +226,9 @@ fn all_tools_includes_browser_when_enabled() {
     assert!(!names.contains(&"glob_search"));
     assert!(!names.contains(&"content_search"));
     assert!(names.contains(&"model_routing_config"));
-    assert!(names.contains(&"pushover"));
     assert!(names.contains(&"proxy_config"));
     assert!(names.contains(&"Config"));
-    assert!(names.contains(&"Brief"));
     assert!(names.contains(&"Sleep"));
-    assert!(names.contains(&"SendUserFile"));
 }
 
 #[test]
@@ -271,12 +264,10 @@ fn all_tools_with_runtime_includes_wasm_module_for_wasm_runtime() {
     assert!(!names.contains(&"process"));
     assert!(!names.contains(&"git_operations"));
     assert!(!names.contains(&"file_read"));
-    assert!(!names.contains(&"notebook_edit"));
     assert!(!names.contains(&"file_write"));
     assert!(!names.contains(&"file_edit"));
     assert!(!names.contains(&"ls"));
     assert!(!names.contains(&"grep"));
-    assert!(!names.contains(&"SendUserFile"));
 }
 
 #[test]
@@ -286,7 +277,6 @@ fn default_tools_names() {
     let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
     assert!(names.contains(&"shell"));
     assert!(names.contains(&"file_read"));
-    assert!(names.contains(&"notebook_edit"));
     assert!(names.contains(&"file_edit"));
     assert!(names.contains(&"file_write"));
     assert!(names.contains(&"apply_patch"));
@@ -380,9 +370,7 @@ fn registry_specs_expose_bash_and_compact_search_surface() {
     assert!(names.iter().any(|name| name == "grep"));
     assert!(names.iter().any(|name| name == "tool_search"));
     assert!(names.iter().any(|name| name == "Config"));
-    assert!(names.iter().any(|name| name == "Brief"));
     assert!(names.iter().any(|name| name == "Sleep"));
-    assert!(names.iter().any(|name| name == "SendUserFile"));
     assert!(!names.iter().any(|name| name == "RemoteTrigger"));
     assert!(!names.iter().any(|name| name == "glob_search"));
     assert!(!names.iter().any(|name| name == "content_search"));

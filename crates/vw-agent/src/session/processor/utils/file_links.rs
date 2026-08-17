@@ -107,7 +107,6 @@ pub(crate) fn maybe_inject_file_link(
             | "write"
             | "file_write"
             | "file_edit"
-            | "notebook_edit"
             | "apply_patch"
     );
     if !eligible {

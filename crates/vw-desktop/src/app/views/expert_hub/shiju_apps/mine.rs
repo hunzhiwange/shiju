@@ -3,7 +3,7 @@ use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
 use vw_gateway_client::{ShijuAppListDto, ShijuInstalledAppDto};
 
-use super::styles;
+use super::{app_title, card_grid, styles};
 use crate::app::Message;
 use crate::app::message::{AccountMessage, ShijuAppsMessage};
 use crate::app::shiju_apps::{ShijuAppDetailTarget, ShijuAppsLoadState};
@@ -35,7 +35,10 @@ fn installed_card(index: usize, app: &ShijuInstalledAppDto) -> Element<'static, 
             .center(Length::Fixed(44.0))
             .style(styles::badge_style),
         column![
-            text(app.name.clone()).size(16),
+            text(app_title(&app.name))
+                .size(16)
+                .width(Length::Fill)
+                .wrapping(iced::widget::text::Wrapping::None),
             text(app.installation_id.clone()).size(11).font(Font::MONOSPACE),
         ]
         .spacing(3)
@@ -117,7 +120,7 @@ pub(super) fn view(state: &ShijuAppsLoadState<ShijuAppListDto>) -> Element<'stat
                 .enumerate()
                 .map(|(index, app)| installed_card(index, app))
                 .collect::<Vec<_>>();
-            scrollable(row(cards).spacing(12).wrap())
+            scrollable(card_grid(cards))
                 .direction(Direction::Vertical(
                     Scrollbar::new()
                         .width(styles::SCROLLBAR_WIDTH)

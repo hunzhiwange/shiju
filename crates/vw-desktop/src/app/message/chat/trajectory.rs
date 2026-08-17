@@ -202,11 +202,13 @@ pub(super) fn refresh_missing_raw_task(
         .collect::<Vec<_>>();
 
     let mut tasks = Vec::with_capacity(missing.len());
+    let directory =
+        app.known_session_directory(session_id).or_else(|| app.project_path.clone());
     for key in missing {
         app.trajectory_raw_errors.remove(&key);
         app.trajectory_raw_loading.insert(key.clone());
         app.trajectory_raw_attempts.insert(key.clone(), 1);
-        tasks.push(raw_load_task(key.0, key.1, key.2, 1));
+        tasks.push(raw_load_task(key.0, key.1, key.2, directory.clone(), 1));
     }
     Task::batch(tasks)
 }
@@ -234,13 +236,16 @@ fn retry_raw_load_task(
         clear_raw_load_state(app, &key);
         return Task::none();
     }
-    raw_load_task(session_id, turn_id, step_index, attempt)
+    let directory =
+        app.known_session_directory(&session_id).or_else(|| app.project_path.clone());
+    raw_load_task(session_id, turn_id, step_index, directory, attempt)
 }
 
 fn raw_load_task(
     session_id: String,
     turn_id: String,
     step_index: u32,
+    directory: Option<String>,
     attempt: u8,
 ) -> Task<Message> {
     Task::perform(
@@ -249,6 +254,7 @@ fn raw_load_task(
                 &session_id,
                 &turn_id,
                 step_index,
+                directory.as_deref(),
             )
             .await;
             (session_id, turn_id, step_index, attempt, result)

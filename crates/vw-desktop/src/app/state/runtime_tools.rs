@@ -733,7 +733,6 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         "tool_search"
         | "proxy_config"
         | "model_routing_config"
-        | "pushover"
         | "batch"
         | "wasm_module" => SessionToolGroup::Integration,
         _ => SessionToolGroup::Other,

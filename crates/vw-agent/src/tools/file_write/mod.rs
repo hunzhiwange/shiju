@@ -148,15 +148,6 @@ impl FileWriteTool {
         }
 
         let requested_path = self.resolve_path(&args.path);
-        if requested_path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("ipynb"))
-        {
-            anyhow::bail!(
-                "Notebook files are not supported by file_write; use notebook_edit instead"
-            )
-        }
         let requested_path_string = normalize_slashes(&requested_path);
         external_directory::assert_external_directory(
             &self.security,

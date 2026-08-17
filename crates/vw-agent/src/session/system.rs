@@ -104,11 +104,6 @@ fn runtime_capability_instructions(
             "Use `file_write` only for new files or when a complete replacement is genuinely necessary. Read an existing file before overwriting it.",
         );
     }
-    if has_tool(&tool_ids, &["notebook_edit", "notebookedit"]) {
-        file_rules.push(
-            "Use the dedicated editing tool for notebooks; do not modify them with ordinary text-writing tools.",
-        );
-    }
     if !file_rules.is_empty() {
         sections.push(format!("## Files and Search\n- {}", file_rules.join("\n- ")));
     }

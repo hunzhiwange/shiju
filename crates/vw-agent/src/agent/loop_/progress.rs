@@ -137,7 +137,7 @@ pub(crate) const DRAFT_WS_EVENT_SENTINEL: &str = "\x00WS_EVENT\x00";
 /// 不同工具会从不同字段提取提示信息：
 ///
 /// - `shell`: 从 `command` 字段提取命令内容
-/// - `file_read` / `notebook_edit` / `file_write` / `edit`: 从路径字段提取文件路径
+/// - `file_read` / `file_write` / `edit`: 从路径字段提取文件路径
 /// - 其他工具: 依次尝试 `action` 字段和 `query` 字段
 ///
 /// # 使用示例
@@ -172,11 +172,6 @@ pub(crate) fn truncate_tool_args_for_progress(
         "shell" => args.get("command").and_then(|v| v.as_str()),
         // 文件操作工具：提取文件路径
         "file_read" | "file_write" => args.get("path").and_then(|v| v.as_str()),
-        "notebook_edit" => args
-            .get("path")
-            .and_then(|v| v.as_str())
-            .or_else(|| args.get("filePath").and_then(|v| v.as_str()))
-            .or_else(|| args.get("file_path").and_then(|v| v.as_str())),
         "file_edit" => args
             .get("file_path")
             .and_then(|v| v.as_str())

@@ -521,12 +521,13 @@ pub(crate) fn render_git_diff_content<'a>(
 ) -> Element<'a, Message> {
     // 聊天虚拟列表不能吞下整文件 diff：无高度上限会撑爆消息高度，
     // 导致 spacer/测量错乱，表现为点击「查看变更」后整页空白。
-    const INLINE_DIFF_MAX_HEIGHT: f32 = 360.0;
+    const INLINE_DIFF_MAX_HEIGHT: f32 = 540.0;
     let diff = scrollable(embedded_custom_text_diff_view(app, title, path, before, after, None))
         .direction(chat_scroll_direction())
-        .height(Length::Fixed(INLINE_DIFF_MAX_HEIGHT));
+        .height(Length::Shrink);
     container(diff)
         .width(Length::Fill)
+        .max_height(INLINE_DIFF_MAX_HEIGHT)
         .style(|theme: &Theme| tool_content_style(theme, false))
         .padding(6)
         .into()

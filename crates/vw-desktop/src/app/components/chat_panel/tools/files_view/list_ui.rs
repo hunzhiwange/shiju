@@ -3,7 +3,7 @@
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, mouse_area, row, text};
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use iced::{Alignment, Border, Color, Element, Length, Theme};
 use std::collections::HashMap;
 
 use crate::app::assets::Icon;
@@ -24,7 +24,7 @@ pub(crate) fn build_file_list_column<'a>(
     view_ctx: &super::FilesViewContext<'a>,
     changes_by_path: &HashMap<String, ChangeFile>,
 ) -> iced::widget::Column<'a, Message> {
-    let mut column_view = column![].spacing(6);
+    let mut column_view = column![].spacing(2);
 
     for (index, (display, abs)) in render_state.items_for_display.iter().enumerate() {
         if render_state.truncated_middle && index == (render_state.max_items / 2) {
@@ -50,7 +50,7 @@ pub(crate) fn build_file_list_column<'a>(
             )
         };
 
-        let open_row = container(open_content).padding([6, 10]).width(Length::Fill);
+        let open_row = container(open_content).padding([3, 10]).width(Length::Fill);
 
         if view_ctx.is_edit_like
             && !render_state.is_search
@@ -218,14 +218,13 @@ pub(super) fn edit_file_change_block<'a>(
 
     header = header.push(view_changes_toggle_button(file_expanded, toggle_message));
 
-    let header = container(header).padding([6, 0]).width(Length::Fill);
+    let header = container(header).width(Length::Fill);
 
     let block: Element<'a, Message> = if file_expanded {
         let diff_body = container(render_git_diff_content(app, title, Some(file), before, after))
             .width(Length::Fill)
-            .clip(true)
-            .padding([4, 0]);
-        column![header, diff_body].spacing(4).into()
+            .clip(true);
+        column![header, diff_body].spacing(0).into()
     } else {
         header.into()
     };
@@ -294,48 +293,14 @@ pub(super) fn view_changes_toggle_button<'a>(
         .spacing(8)
         .align_y(Alignment::Center),
     )
-    .padding([2, 4])
+    .padding([0, 2])
     .style(edit_file_change_button_style)
     .on_press(on_press)
     .into()
 }
 
 pub(super) fn view_changes_pill<'a>() -> Element<'a, Message> {
-    container(text("查看变更").size(14).style(|theme: &Theme| {
-        let is_dark = theme.palette().background.r
-            + theme.palette().background.g
-            + theme.palette().background.b
-            < 1.5;
-        iced::widget::text::Style {
-            color: Some(if is_dark {
-                theme.palette().text.scale_alpha(0.88)
-            } else {
-                theme.extended_palette().secondary.base.text
-            }),
-        }
-    }))
-    .padding([2, 8])
-    .style(|theme: &Theme| {
-        let ext = theme.extended_palette();
-        let is_dark = theme.palette().background.r
-            + theme.palette().background.g
-            + theme.palette().background.b
-            < 1.5;
-        iced::widget::container::Style {
-            background: Some(Background::Color(if is_dark {
-                ext.background.weak.color.scale_alpha(0.24)
-            } else {
-                ext.background.base.color.scale_alpha(0.76)
-            })),
-            border: Border {
-                width: 1.0,
-                color: ext.background.strong.color.scale_alpha(if is_dark { 0.48 } else { 0.75 }),
-                radius: 999.0.into(),
-            },
-            ..Default::default()
-        }
-    })
-    .into()
+    text("查看变更").size(14).into()
 }
 
 pub(super) fn view_changes_secondary_text(theme: &Theme) -> Color {
@@ -353,23 +318,15 @@ pub(super) fn edit_file_change_button_style(
     theme: &Theme,
     status: iced::widget::button::Status,
 ) -> iced::widget::button::Style {
-    let ext = theme.extended_palette();
-    let is_dark =
-        theme.palette().background.r + theme.palette().background.g + theme.palette().background.b
-            < 1.5;
-    let background = match status {
+    let text_color = match status {
         iced::widget::button::Status::Hovered | iced::widget::button::Status::Pressed => {
-            Some(Background::Color(if is_dark {
-                ext.background.weak.color.scale_alpha(0.28)
-            } else {
-                ext.background.weak.color.scale_alpha(0.55)
-            }))
+            theme.extended_palette().primary.base.color
         }
-        _ => None,
+        _ => view_changes_secondary_text(theme),
     };
     iced::widget::button::Style {
-        background,
-        text_color: theme.palette().text,
+        background: None,
+        text_color,
         border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
         shadow: Default::default(),
         ..Default::default()

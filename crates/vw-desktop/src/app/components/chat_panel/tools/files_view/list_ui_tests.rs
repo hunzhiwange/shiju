@@ -263,9 +263,13 @@ fn edit_row_helpers_build_hovered_and_idle_elements() {
         "after".to_string(),
     ));
 
-    let _ = edit_file_change_button_style(&iced::Theme::Dark, iced::widget::button::Status::Active);
-    let _ =
+    let dark_hovered =
         edit_file_change_button_style(&iced::Theme::Dark, iced::widget::button::Status::Hovered);
+    let dark_active =
+        edit_file_change_button_style(&iced::Theme::Dark, iced::widget::button::Status::Active);
+    assert!(dark_active.background.is_none());
+    assert!(dark_hovered.background.is_none());
+    assert_ne!(dark_active.text_color, dark_hovered.text_color);
     let _ = view_changes_secondary_text(&iced::Theme::Dark);
     let _ = view_changes_secondary_text(&iced::Theme::Light);
 }

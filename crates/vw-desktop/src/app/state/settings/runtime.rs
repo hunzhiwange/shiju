@@ -52,7 +52,7 @@ impl Default for HooksSettingsState {
 
 /// 运行时设置面板状态
 ///
-/// 管理 runtime 配置，包括 kind 选择、Docker/WASM 子配置与推理覆盖选项。
+/// 管理 runtime 配置，包括 kind 选择、Docker 子配置与推理覆盖选项。
 #[derive(Debug, Clone)]
 pub(crate) struct RuntimeSettingsState {
     /// 运行时类型
@@ -71,34 +71,6 @@ pub(crate) struct RuntimeSettingsState {
     pub(crate) docker_mount_workspace: bool,
     /// Docker 允许挂载的工作区根目录输入
     pub(crate) docker_allowed_workspace_roots_input: String,
-    /// WASM 工具目录
-    pub(crate) wasm_tools_dir: String,
-    /// WASM 燃料限制输入
-    pub(crate) wasm_fuel_limit_input: String,
-    /// WASM 内存限制输入（MB）
-    pub(crate) wasm_memory_limit_mb_input: String,
-    /// WASM 模块大小限制输入（MB）
-    pub(crate) wasm_max_module_size_mb_input: String,
-    /// 是否允许读取工作区
-    pub(crate) wasm_allow_workspace_read: bool,
-    /// 是否允许写入工作区
-    pub(crate) wasm_allow_workspace_write: bool,
-    /// 允许访问的主机输入
-    pub(crate) wasm_allowed_hosts_input: String,
-    /// 工具目录必须位于工作区内
-    pub(crate) wasm_require_workspace_relative_tools_dir: bool,
-    /// 拒绝符号链接模块
-    pub(crate) wasm_reject_symlink_modules: bool,
-    /// 拒绝符号链接工具目录
-    pub(crate) wasm_reject_symlink_tools_dir: bool,
-    /// 严格主机校验
-    pub(crate) wasm_strict_host_validation: bool,
-    /// 能力升级模式
-    pub(crate) wasm_capability_escalation_mode: String,
-    /// 模块哈希策略
-    pub(crate) wasm_module_hash_policy: String,
-    /// 模块 SHA-256 映射输入
-    pub(crate) wasm_module_sha256_input: String,
     /// 推理覆盖开关输入（自动/启用/禁用，对应 auto/true/false）
     pub(crate) reasoning_enabled_input: String,
     /// 推理级别输入
@@ -118,20 +90,6 @@ impl Default for RuntimeSettingsState {
             docker_read_only_rootfs: true,
             docker_mount_workspace: true,
             docker_allowed_workspace_roots_input: String::new(),
-            wasm_tools_dir: "tools/wasm".to_string(),
-            wasm_fuel_limit_input: "1000000".to_string(),
-            wasm_memory_limit_mb_input: "64".to_string(),
-            wasm_max_module_size_mb_input: "50".to_string(),
-            wasm_allow_workspace_read: false,
-            wasm_allow_workspace_write: false,
-            wasm_allowed_hosts_input: String::new(),
-            wasm_require_workspace_relative_tools_dir: true,
-            wasm_reject_symlink_modules: true,
-            wasm_reject_symlink_tools_dir: true,
-            wasm_strict_host_validation: true,
-            wasm_capability_escalation_mode: "deny".to_string(),
-            wasm_module_hash_policy: "warn".to_string(),
-            wasm_module_sha256_input: String::new(),
             reasoning_enabled_input: "auto".to_string(),
             reasoning_level_input: String::new(),
             save_error: None,

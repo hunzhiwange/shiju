@@ -396,7 +396,6 @@ pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
     "apply_patch",
     "bash",
     "http_request",
-    "image_info",
     "screenshot",
     "AgentTool",
     "skill",

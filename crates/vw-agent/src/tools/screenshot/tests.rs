@@ -10,7 +10,9 @@
 //! 这些测试确保截图工具在各种边界情况下都能安全可靠地运行。
 
 use super::super::*;
+use super::{CaptureRectangle, CaptureRequest};
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
+use base64::Engine;
 use serde_json::json;
 use std::path::Path;
 
@@ -66,6 +68,14 @@ fn test_security() -> Arc<SecurityPolicy> {
     })
 }
 
+fn tiny_png_bytes() -> Vec<u8> {
+    base64::engine::general_purpose::STANDARD
+        .decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aU+0AAAAASUVORK5CYII=",
+        )
+        .expect("decode tiny PNG")
+}
+
 /// 测试截图工具的名称是否正确
 ///
 /// 验证 `ScreenshotTool` 实例返回的工具名称为 "screenshot"，
@@ -101,6 +111,83 @@ fn screenshot_tool_schema() {
     let schema = tool.parameters_schema();
     assert!(schema["properties"]["filename"].is_object());
     assert!(schema["properties"]["region"].is_object());
+    assert!(schema["properties"]["display"].is_object());
+    assert!(schema["properties"]["x"].is_object());
+    assert!(schema["properties"]["y"].is_object());
+    assert!(schema["properties"]["width"].is_object());
+    assert!(schema["properties"]["height"].is_object());
+}
+
+#[tokio::test]
+async fn screenshot_rejects_invalid_capture_geometry() {
+    let tool = ScreenshotTool::new(test_security());
+
+    for args in [
+        json!({"display": 0}),
+        json!({"display": -1}),
+        json!({"x": -1, "y": 0, "width": 10, "height": 10}),
+        json!({"x": 0, "y": -1, "width": 10, "height": 10}),
+        json!({"x": 0, "y": 0, "width": 0, "height": 10}),
+        json!({"x": 0, "y": 0, "width": 10, "height": 0}),
+        json!({"x": 0, "y": 0, "width": 10}),
+        json!({"display": 1, "x": 0, "y": 0, "width": 10, "height": 10}),
+        json!({"region": "selection", "display": 1}),
+        json!({"region": "window", "x": 0, "y": 0, "width": 10, "height": 10}),
+        json!({"region": "unsupported"}),
+    ] {
+        let result = tool.execute(args).await.expect("invalid geometry must return a tool result");
+
+        assert!(!result.success);
+        assert!(result.output.is_empty());
+        assert!(result.error.is_some());
+    }
+}
+
+#[test]
+fn screenshot_command_includes_supported_capture_target() {
+    let output_path = "/tmp/target.png";
+
+    #[cfg(target_os = "macos")]
+    {
+        assert_eq!(
+            ScreenshotTool::screenshot_commands(output_path, &CaptureRequest::Display(2)),
+            vec![vec![
+                "screencapture".to_string(),
+                "-x".to_string(),
+                "-D".to_string(),
+                "2".to_string(),
+                output_path.to_string(),
+            ]]
+        );
+        assert_eq!(
+            ScreenshotTool::screenshot_commands(
+                output_path,
+                &CaptureRequest::Rectangle(CaptureRectangle { x: 1, y: 2, width: 3, height: 4 }),
+            ),
+            vec![vec![
+                "screencapture".to_string(),
+                "-x".to_string(),
+                "-R".to_string(),
+                "1,2,3,4".to_string(),
+                output_path.to_string(),
+            ]]
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        assert!(
+            ScreenshotTool::screenshot_commands(output_path, &CaptureRequest::Display(2))
+                .is_empty()
+        );
+        assert!(
+            ScreenshotTool::screenshot_commands(
+                output_path,
+                &CaptureRequest::Rectangle(CaptureRectangle { x: 1, y: 2, width: 3, height: 4 }),
+            )
+            .is_empty()
+        );
+    }
 }
 
 /// 测试截图工具的完整规范
@@ -128,7 +215,8 @@ fn screenshot_tool_spec() {
 #[test]
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 fn screenshot_command_exists() {
-    let commands = ScreenshotTool::screenshot_commands("/tmp/test.png");
+    let commands =
+        ScreenshotTool::screenshot_commands("/tmp/test.png", &CaptureRequest::FullScreen);
     assert!(!commands.is_empty());
     assert!(commands.iter().all(|cmd| !cmd.is_empty()));
 }
@@ -219,7 +307,8 @@ async fn screenshot_rejects_other_shell_control_characters() {
 #[test]
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 fn screenshot_command_contains_output_path() {
-    let commands = ScreenshotTool::screenshot_commands("/tmp/my_screenshot.png");
+    let commands =
+        ScreenshotTool::screenshot_commands("/tmp/my_screenshot.png", &CaptureRequest::FullScreen);
     assert!(!commands.is_empty());
     let joined = commands[0].join(" ");
     assert!(joined.contains("/tmp/my_screenshot.png"), "Command should contain the output path");
@@ -228,7 +317,7 @@ fn screenshot_command_contains_output_path() {
 #[test]
 fn screenshot_commands_match_platform_contract() {
     let output_path = "/tmp/contract.png";
-    let commands = ScreenshotTool::screenshot_commands(output_path);
+    let commands = ScreenshotTool::screenshot_commands(output_path, &CaptureRequest::FullScreen);
 
     #[cfg(target_os = "macos")]
     assert_eq!(
@@ -535,4 +624,43 @@ async fn screenshot_read_and_encode_keeps_medium_image_inline() {
     assert!(result.output.contains("data:image/png;base64,"));
     assert!(!result.output.contains("too large to base64-encode inline"));
     assert!(!result.output.contains("truncated"));
+}
+
+#[tokio::test]
+async fn screenshot_call_exposes_inline_image_marker() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let tool = ScreenshotTool::new(test_security());
+    let small_path = temp.path().join("pixel.png");
+    tokio::fs::write(&small_path, tiny_png_bytes()).await.expect("fixture should be written");
+
+    let small = tool.call_result_from_capture(
+        ScreenshotTool::read_and_encode(&small_path).await.expect("small screenshot should encode"),
+    );
+    let model = small.model_result.as_str().expect("model result should be text");
+    assert!(model.starts_with("Screenshot captured:"));
+    assert_eq!(model.matches("[IMAGE:").count(), 1);
+    assert!(model.contains("[IMAGE:data:image/png;base64,"));
+    assert_eq!(small.data["path"], json!(small_path.to_string_lossy()));
+    assert_eq!(small.data["mime_type"], json!("image/png"));
+    assert_eq!(small.data["width"], json!(1));
+    assert_eq!(small.data["height"], json!(1));
+    assert!(!small.data.to_string().contains("base64"));
+
+    let large_path = temp.path().join("large.png");
+    let large_file = tokio::fs::File::create(&large_path).await.expect("fixture should be created");
+    large_file.set_len(super::MAX_RAW_BYTES + 1).await.expect("fixture size should be set");
+    let large = tool.call_result_from_capture(
+        ScreenshotTool::read_and_encode(&large_path).await.expect("large screenshot should report path"),
+    );
+    assert!(!large.model_text().contains("[IMAGE:"));
+    assert!(large.model_text().contains("Screenshot captured:"));
+
+    let missing = tool.call_result_from_capture(
+        ScreenshotTool::read_and_encode(&temp.path().join("missing.png"))
+            .await
+            .expect("missing screenshot should produce a tool result"),
+    );
+    assert!(!missing.is_success());
+    assert!(!missing.model_text().contains("[IMAGE:"));
+    assert!(missing.model_text().contains("Failed to read screenshot file"));
 }

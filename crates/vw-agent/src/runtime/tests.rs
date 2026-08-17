@@ -5,7 +5,7 @@
 //!
 //! ## 测试覆盖范围
 //!
-//! - **有效运行时类型测试**：验证 native、docker、wasm 三种运行时的正确创建
+//! - **有效运行时类型测试**：验证 native、docker 两种运行时的正确创建
 //! - **错误处理测试**：验证未实现、未知类型、空字符串等错误场景的处理
 //!
 //! ## 测试策略
@@ -60,25 +60,6 @@ mod tests {
         assert!(rt.has_shell_access());
     }
 
-    /// 测试创建 wasm 运行时适配器
-    ///
-    /// 验证使用 "wasm" 类型配置时，能够成功创建运行时实例，并具备以下特性：
-    /// - 运行时名称为 "wasm"
-    /// - **不**具有 shell 访问权限（WASM 沙箱环境限制）
-    ///
-    /// # 测试步骤
-    /// 1. 创建 kind 为 "wasm" 的运行时配置
-    /// 2. 调用工厂函数创建运行时实例
-    /// 3. 断言运行时名称为 "wasm"
-    /// 4. 断言不具有 shell 访问权限（WASM 安全限制）
-    #[test]
-    fn factory_wasm() {
-        let cfg = RuntimeConfig { kind: "wasm".into(), ..RuntimeConfig::default() };
-        let rt = create_runtime(&cfg).unwrap();
-        assert_eq!(rt.name(), "wasm");
-        assert!(!rt.has_shell_access());
-    }
-
     /// 测试创建 cloudflare 运行时适配器应返回错误
     ///
     /// 验证使用 "cloudflare" 类型配置时，工厂函数应返回错误而非成功创建实例。
@@ -107,7 +88,7 @@ mod tests {
     /// 错误信息应包含 "Unknown runtime kind" 以便于诊断问题。
     ///
     /// # 测试步骤
-    /// 1. 创建 kind 为 "wasm-edge-unknown" 的运行时配置（不存在的类型）
+    /// 1. 创建 kind 为 "unsupported" 的运行时配置（不存在的类型）
     /// 2. 调用工厂函数创建运行时实例
     /// 3. 断言返回错误（而非成功）
     /// 4. 断言错误信息包含 "Unknown runtime kind"
@@ -116,7 +97,7 @@ mod tests {
     /// 返回 `Err`，错误信息包含 "Unknown runtime kind" 字样
     #[test]
     fn factory_unknown_errors() {
-        let cfg = RuntimeConfig { kind: "wasm-edge-unknown".into(), ..RuntimeConfig::default() };
+        let cfg = RuntimeConfig { kind: "unsupported".into(), ..RuntimeConfig::default() };
         match create_runtime(&cfg) {
             Err(err) => assert!(err.to_string().contains("Unknown runtime kind")),
             Ok(_) => panic!("unknown runtime should error"),
@@ -161,9 +142,5 @@ mod tests {
         let docker = RuntimeConfig { kind: "docker".into(), ..RuntimeConfig::default() };
         let docker_rt = create_runtime(&docker).unwrap();
         assert!(docker_rt.as_any().downcast_ref::<DockerRuntime>().is_some());
-
-        let wasm = RuntimeConfig { kind: "wasm".into(), ..RuntimeConfig::default() };
-        let wasm_rt = create_runtime(&wasm).unwrap();
-        assert!(wasm_rt.as_any().downcast_ref::<WasmRuntime>().is_some());
     }
 }

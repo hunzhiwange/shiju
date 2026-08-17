@@ -55,7 +55,6 @@ fn tool_in_preset_accepts_declared_members_and_inheritance() {
         "websearch",
         "web_search_tool",
         "screenshot",
-        "image_info",
     ];
     let collaboration_only = [
         "AgentTool",
@@ -97,6 +96,11 @@ fn tool_in_preset_accepts_declared_members_and_inheritance() {
         for preset in ["minimal", "coding", "research"] {
             assert!(!tool_in_preset(tool_id, preset), "{tool_id} should not be in {preset}");
         }
+    }
+
+    let removed_tool_id = ["image", "info"].join("_");
+    for preset in ["minimal", "coding", "research", "collab"] {
+        assert!(!tool_in_preset(&removed_tool_id, preset));
     }
 
     assert!(!tool_in_preset("Read", "minimal"));
@@ -232,7 +236,6 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("tool_search", "工具搜索", ToolGroup::Integration),
         ("ToolSearch", "工具搜索", ToolGroup::Integration),
         ("screenshot", "屏幕截图", ToolGroup::Web),
-        ("image_info", "图像信息", ToolGroup::Web),
         ("image_asset_read", "重载图像资源", ToolGroup::Web),
         ("lsp", "语义分析", ToolGroup::Integration),
         ("McpStatus", "MCP 状态", ToolGroup::Integration),
@@ -241,7 +244,6 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("PowerShell", "PowerShell", ToolGroup::Execute),
         ("invalid", "无效调用", ToolGroup::Other),
         ("batch", "批处理", ToolGroup::Integration),
-        ("wasm_module", "WASM 模块", ToolGroup::Integration),
     ];
 
     for (tool_id, expected_name, expected_group) in cases {
@@ -349,17 +351,10 @@ fn tools_view_distinguishes_empty_and_all_grouped_tool_lists() {
     assert_eq!(empty_tree.children.len(), 3);
     assert!(empty_tree.children[2].children.is_empty());
 
-    app.agents_settings.available_tools = [
-        "read",
-        "grep",
-        "bash",
-        "web_search",
-        "AgentTool",
-        "memory_store",
-        "custom_tool",
-    ]
-    .map(str::to_string)
-    .to_vec();
+    app.agents_settings.available_tools =
+        ["read", "grep", "bash", "web_search", "AgentTool", "memory_store", "custom_tool"]
+            .map(str::to_string)
+            .to_vec();
     entry.allowed_tools = vec!["read".to_string(), "custom_tool".to_string()];
 
     let grouped = super::tools::view(&app, &entry);

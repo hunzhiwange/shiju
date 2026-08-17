@@ -11,11 +11,12 @@
 //! - 超时保护：防止截图命令无限期挂起
 //! - 工作区限制：确保截图保存在允许的目录内
 
-use super::traits::{Tool, ToolResult};
+use super::traits::{Tool, ToolCallResult, ToolRenderHint, ToolResult};
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::shell::tokio_command;
 use async_trait::async_trait;
 use serde_json::json;
+use serde_json::Value;
 use std::fmt::Write;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -43,6 +44,91 @@ const MAX_RAW_BYTES: u64 = 5 * 1024 * 1024;
 /// - 响应体过大
 /// - 传输性能问题
 const MAX_BASE64_BYTES: usize = 7 * 1024 * 1024;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CaptureRequest {
+    FullScreen,
+    Display(u32),
+    Rectangle(CaptureRectangle),
+    Selection,
+    Window,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CaptureRectangle {
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+}
+
+impl CaptureRequest {
+    fn from_args(args: &serde_json::Value) -> anyhow::Result<Self> {
+        let object = args
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("Screenshot arguments must be an object"))?;
+        let region = object
+            .get("region")
+            .map(|value| value.as_str().ok_or_else(|| anyhow::anyhow!("region must be a string")))
+            .transpose()?;
+        let display = object.get("display").map(parse_u32).transpose()?;
+        let rectangle_fields = ["x", "y", "width", "height"];
+        let has_rectangle = rectangle_fields.iter().any(|field| object.contains_key(*field));
+
+        if display.is_some() && (region.is_some() || has_rectangle) {
+            anyhow::bail!("display cannot be combined with region or rectangle coordinates");
+        }
+        if region.is_some() && has_rectangle {
+            anyhow::bail!("region cannot be combined with rectangle coordinates");
+        }
+
+        if let Some(display) = display {
+            if display == 0 {
+                anyhow::bail!("display must be a positive integer");
+            }
+            return Ok(Self::Display(display));
+        }
+
+        if has_rectangle {
+            let x = parse_required_u32(object, "x")?;
+            let y = parse_required_u32(object, "y")?;
+            let width = parse_required_u32(object, "width")?;
+            let height = parse_required_u32(object, "height")?;
+            if width == 0 || height == 0 {
+                anyhow::bail!("rectangle width and height must be positive integers");
+            }
+            return Ok(Self::Rectangle(CaptureRectangle { x, y, width, height }));
+        }
+
+        match region {
+            None => Ok(Self::FullScreen),
+            Some("selection") => Ok(Self::Selection),
+            Some("window") => Ok(Self::Window),
+            Some(_) => anyhow::bail!("region must be either 'selection' or 'window'"),
+        }
+    }
+
+    fn requires_directed_capture(&self) -> bool {
+        matches!(self, Self::Display(_) | Self::Rectangle(_))
+    }
+}
+
+fn parse_required_u32(
+    object: &serde_json::Map<String, serde_json::Value>,
+    field: &str,
+) -> anyhow::Result<u32> {
+    object
+        .get(field)
+        .ok_or_else(|| anyhow::anyhow!("rectangle requires {field}"))
+        .and_then(parse_u32)
+}
+
+fn parse_u32(value: &serde_json::Value) -> anyhow::Result<u32> {
+    let number = value
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("capture coordinates must be non-negative integers"))?;
+    u32::try_from(number).map_err(|_| anyhow::anyhow!("capture coordinates exceed supported range"))
+}
 
 /// 屏幕截图工具
 ///
@@ -248,14 +334,34 @@ impl ScreenshotTool {
     ///   2. `scrot`: 轻量级命令行截图工具
     ///   3. `import -window root`: ImageMagick 的截图工具
     /// - **其他平台**: 返回空列表（不支持）
-    fn screenshot_commands(output_path: &str) -> Vec<Vec<String>> {
+    fn screenshot_commands(output_path: &str, request: &CaptureRequest) -> Vec<Vec<String>> {
         if cfg!(target_os = "macos") {
-            vec![vec![
-                "screencapture".into(),
-                "-x".into(), // 静默模式：不播放快门声音
-                output_path.into(),
-            ]]
+            let mut command = vec!["screencapture".into(), "-x".into()];
+            match request {
+                CaptureRequest::FullScreen => {}
+                CaptureRequest::Display(display) => {
+                    command.extend(["-D".into(), display.to_string()]);
+                }
+                CaptureRequest::Rectangle(rectangle) => {
+                    command.extend([
+                        "-R".into(),
+                        format!(
+                            "{},{},{},{}",
+                            rectangle.x, rectangle.y, rectangle.width, rectangle.height
+                        ),
+                    ]);
+                }
+                CaptureRequest::Selection => command.push("-s".into()),
+                CaptureRequest::Window => command.push("-w".into()),
+            }
+            command.push(output_path.into());
+            vec![command]
         } else if cfg!(target_os = "linux") {
+            if request.requires_directed_capture()
+                || matches!(request, CaptureRequest::Selection | CaptureRequest::Window)
+            {
+                return Vec::new();
+            }
             vec![
                 // 优先尝试 GNOME 截图工具
                 vec!["gnome-screenshot".into(), "-f".into(), output_path.into()],
@@ -306,6 +412,17 @@ impl ScreenshotTool {
     /// 所有截图命令都有 `SCREENSHOT_TIMEOUT_SECS` 秒的超时限制，
     /// 防止命令因用户交互（如选择区域）或其他原因无限期挂起。
     async fn capture(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
+        let request = match CaptureRequest::from_args(&args) {
+            Ok(request) => request,
+            Err(error) => {
+                return Ok(ToolResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Invalid screenshot capture request: {error}")),
+                });
+            }
+        };
+
         // 生成时间戳用于默认文件名
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
 
@@ -349,28 +466,24 @@ impl ScreenshotTool {
         let output_str = output_path.to_string_lossy().to_string();
 
         // 获取当前平台的候选截图命令
-        let mut commands = Self::screenshot_commands(&output_str);
+        #[cfg(target_os = "linux")]
+        if request.requires_directed_capture()
+            || matches!(request, CaptureRequest::Selection | CaptureRequest::Window)
+        {
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some("Screenshot display, rectangle, and interactive capture are not supported on Linux".into()),
+            });
+        }
+
+        let commands = Self::screenshot_commands(&output_str, &request);
         if commands.is_empty() {
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),
                 error: Some("Screenshot not supported on this platform".into()),
             });
-        }
-
-        // macOS 特有功能：区域选择模式
-        // 这些选项在 Linux 上会被忽略
-        if cfg!(target_os = "macos") {
-            if let Some(region) = args.get("region").and_then(|v| v.as_str()) {
-                match region {
-                    // -s: 交互式选择区域模式
-                    "selection" => commands[0].insert(1, "-s".into()),
-                    // -w: 截取前台窗口模式
-                    "window" => commands[0].insert(1, "-w".into()),
-                    // 未知区域选项：忽略
-                    _ => {}
-                }
-            }
         }
 
         // 跟踪是否找到可执行的命令
@@ -558,6 +671,89 @@ impl ScreenshotTool {
             }),
         }
     }
+
+    fn call_result_from_capture(&self, capture: ToolResult) -> ToolCallResult {
+        let mut result = ToolCallResult::from_legacy_result(capture);
+        let output = result.data["output"].as_str().unwrap_or_default();
+        let path = output
+            .strip_prefix("Screenshot saved to: ")
+            .and_then(|value| value.lines().next())
+            .map(str::to_string);
+        let size_bytes = output.lines().find_map(|line| {
+            line.strip_prefix("Size: ")?
+                .split_whitespace()
+                .next()?
+                .parse::<u64>()
+                .ok()
+        });
+
+        let image_marker = output
+            .lines()
+            .find_map(|line| line.strip_prefix("data:"))
+            .and_then(|data| {
+                let (mime_type, base64) = data.split_once(";base64,")?;
+                (!mime_type.is_empty() && !base64.is_empty())
+                    .then(|| (mime_type.to_string(), format!("data:{data}")))
+            });
+        let mime_type = image_marker
+            .as_ref()
+            .map(|(mime_type, _)| mime_type.clone())
+            .or_else(|| path.as_deref().map(Self::mime_type_from_path));
+        let dimensions = path
+            .as_deref()
+            .and_then(|path| image::image_dimensions(path).ok());
+
+        result.data = json!({
+            "success": result.is_success(),
+            "path": path,
+            "size_bytes": size_bytes,
+            "mime_type": mime_type,
+            "width": dimensions.map(|(width, _)| width),
+            "height": dimensions.map(|(_, height)| height),
+            "error": result.data["error"].clone(),
+        });
+
+        let summary = if result.is_success() {
+            match (path.as_deref(), size_bytes, mime_type.as_deref(), dimensions) {
+                (Some(path), Some(size), Some(mime), Some((width, height))) => {
+                    format!("Screenshot captured: {path} ({size} bytes, {mime}, {width}x{height})")
+                }
+                (Some(path), Some(size), Some(mime), None) => {
+                    format!("Screenshot captured: {path} ({size} bytes, {mime})")
+                }
+                _ => "Screenshot captured".to_string(),
+            }
+        } else {
+            result.error_text().unwrap_or_else(|| "Screenshot capture failed".to_string())
+        };
+
+        result.model_result = Value::String(match image_marker {
+            Some((_, marker)) if result.is_success() => format!("{summary}\n[IMAGE:{marker}]"),
+            _ => summary,
+        });
+        result.render_hint = Some(ToolRenderHint {
+            title: Some("Screenshot".to_string()),
+            kind: Some("screenshot".to_string()),
+            summary: Some(if result.is_success() {
+                "Screenshot captured".to_string()
+            } else {
+                "Screenshot capture failed".to_string()
+            }),
+            metadata: result.data.clone(),
+        });
+        result
+    }
+
+    fn mime_type_from_path(path: &str) -> String {
+        match Path::new(path).extension().and_then(|extension| extension.to_str()) {
+            Some("jpg" | "jpeg") => "image/jpeg",
+            Some("bmp") => "image/bmp",
+            Some("gif") => "image/gif",
+            Some("webp") => "image/webp",
+            _ => "image/png",
+        }
+        .to_string()
+    }
 }
 
 /// 为 ScreenshotTool 实现 Tool trait
@@ -601,7 +797,33 @@ impl Tool for ScreenshotTool {
                 },
                 "region": {
                     "type": "string",
-                    "description": "macOS 可选区域：'selection' 用于交互式裁剪，'window' 用于前台窗口。Linux 上忽略此参数。"
+                    "enum": ["selection", "window"],
+                    "description": "macOS 可选交互模式。不能与 display 或矩形参数组合；Linux 不支持。"
+                },
+                "display": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "macOS 显示器编号。不能与 region 或矩形参数组合；Linux 不支持。"
+                },
+                "x": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "矩形左上角 X 坐标；须与 y、width、height 一起提供。"
+                },
+                "y": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "矩形左上角 Y 坐标；须与 x、width、height 一起提供。"
+                },
+                "width": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "矩形宽度；须与 x、y、height 一起提供。"
+                },
+                "height": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "矩形高度；须与 x、y、width 一起提供。"
                 }
             }
         })
@@ -636,6 +858,10 @@ impl Tool for ScreenshotTool {
         }
         // 执行实际的截图操作
         self.capture(args).await
+    }
+
+    async fn call(&self, input: serde_json::Value) -> anyhow::Result<ToolCallResult> {
+        Ok(self.call_result_from_capture(self.execute(input).await?))
     }
 }
 

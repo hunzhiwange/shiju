@@ -1,6 +1,6 @@
 //! 运行时适配器模块
 //!
-//! 本模块提供运行时抽象层，支持多种执行环境（native、docker、wasm）。
+//! 本模块提供运行时抽象层，支持 native 和 docker 执行环境。
 //! 采用 trait + 工厂模式，允许代理在不同运行时环境中执行工具和任务。
 //!
 //! # 核心组件
@@ -8,7 +8,6 @@
 //! - [`RuntimeAdapter`] - 运行时适配器 trait，定义所有运行时的统一接口
 //! - [`NativeRuntime`] - 本机运行时，直接在宿主系统执行
 //! - [`DockerRuntime`] - Docker 容器运行时，提供隔离环境
-//! - [`WasmRuntime`] - WebAssembly 运行时，提供沙箱化执行
 //!
 //! # 使用示例
 //!
@@ -27,12 +26,10 @@
 pub mod docker;
 pub mod native;
 pub mod traits;
-pub mod wasm;
 
 pub use docker::DockerRuntime;
 pub use native::NativeRuntime;
 pub use traits::RuntimeAdapter;
-pub use wasm::{WasmCapabilities, WasmRuntime};
 
 use crate::app::agent::config::RuntimeConfig;
 
@@ -54,7 +51,6 @@ use crate::app::agent::config::RuntimeConfig;
 ///
 /// - `"native"` - 本机运行时，直接在宿主系统执行（默认推荐）
 /// - `"docker"` - Docker 容器运行时，提供进程级隔离
-/// - `"wasm"` - WebAssembly 运行时，提供沙箱化执行
 ///
 /// # 错误
 ///
@@ -87,15 +83,14 @@ pub fn create_runtime(config: &RuntimeConfig) -> anyhow::Result<Box<dyn RuntimeA
     match config.kind.as_str() {
         "native" => Ok(Box::new(NativeRuntime::new())),
         "docker" => Ok(Box::new(DockerRuntime::new(config.docker.clone()))),
-        "wasm" => Ok(Box::new(WasmRuntime::new(config.wasm.clone()))),
         "cloudflare" => anyhow::bail!(
             "runtime.kind='cloudflare' is not implemented yet. Use runtime.kind='native' for now."
         ),
         other if other.trim().is_empty() => {
-            anyhow::bail!("runtime.kind cannot be empty. Supported values: native, docker, wasm")
+            anyhow::bail!("runtime.kind cannot be empty. Supported values: native, docker")
         }
         other => {
-            anyhow::bail!("Unknown runtime kind '{other}'. Supported values: native, docker, wasm")
+            anyhow::bail!("Unknown runtime kind '{other}'. Supported values: native, docker")
         }
     }
 }

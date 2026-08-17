@@ -559,10 +559,6 @@ pub fn default_tools_with_runtime(
         tool_arcs.push(Arc::new(GrepTool::new(security.clone())));
     }
 
-    if runtime.as_any().is::<crate::app::agent::runtime::WasmRuntime>() {
-        tool_arcs.push(Arc::new(WasmModuleTool::new(security, runtime)));
-    }
-
     if !tool_arcs.is_empty() {
         let batch_tools = Arc::new(tool_arcs.clone());
         tool_arcs.push(Arc::new(BatchTool::new(batch_tools)));
@@ -687,10 +683,6 @@ pub fn all_tools_with_runtime(
 
     tool_arcs.push(Arc::new(ToolSearchTool::new()));
 
-    if runtime.as_any().is::<crate::app::agent::runtime::WasmRuntime>() {
-        tool_arcs.push(Arc::new(WasmModuleTool::new(security.clone(), runtime.clone())));
-    }
-
     #[cfg(not(target_arch = "wasm32"))]
     if browser_config.enabled {
         tracing::info!(
@@ -794,7 +786,6 @@ pub fn all_tools_with_runtime(
 
     #[cfg(not(target_arch = "wasm32"))]
     tool_arcs.push(Arc::new(ScreenshotTool::new(security.clone())));
-    tool_arcs.push(Arc::new(ImageInfoTool::new(security.clone())));
     tool_arcs.push(Arc::new(ImageAssetReadTool::new()));
 
     tool_arcs.push(Arc::new(SkillTool::new_with_runtime_config(

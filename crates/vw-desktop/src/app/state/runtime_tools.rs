@@ -161,7 +161,9 @@ pub(crate) struct AdvancedToolSurfaceSpec {
 }
 
 const ADVANCED_TOOL_SURFACES: [AdvancedToolSurfaceSpec; 4] = [
-    AdvancedToolSurfaceSpec { label: "进入 worktree", state: AdvancedToolSurfaceState::Available },
+    AdvancedToolSurfaceSpec {
+        label: "进入 worktree", state: AdvancedToolSurfaceState::Available
+    },
     AdvancedToolSurfaceSpec {
         label: "退出 worktree", state: AdvancedToolSurfaceState::Available
     },
@@ -646,28 +648,13 @@ pub(crate) fn tool_bucket(tool_id: &str) -> SessionToolBucket {
         | "file_edit" | "notebook_edit" => SessionToolBucket::Edit,
         "bash" | "shell" | "process" | "git_operations" => SessionToolBucket::Execution,
         "browser" | "browser_open" | "http_request" | "web_fetch" | "fetch_webpage"
-        | "web_search" | "websearch" | "web_search_tool" | "screenshot" | "image_info" => {
+        | "web_search" | "websearch" | "web_search_tool" | "screenshot" => {
             SessionToolBucket::Browser
         }
-        "AgentTool"
-        | "Agent"
-        | "agent"
-        | "schedule"
-        | "cron_add"
-        | "cron_list"
-        | "cron_remove"
-        | "cron_update"
-        | "cron_run"
-        | "cron_runs"
-        | "todoread"
-        | "todowrite"
-        | "enter_worktree"
-        | "exit_worktree"
-        | "tool_search"
-        | "question"
-        | "skill"
-        | "memory_store"
-        | "memory_forget" => SessionToolBucket::Agent,
+        "AgentTool" | "Agent" | "agent" | "schedule" | "cron_add" | "cron_list" | "cron_remove"
+        | "cron_update" | "cron_run" | "cron_runs" | "todoread" | "todowrite"
+        | "enter_worktree" | "exit_worktree" | "tool_search" | "question" | "skill"
+        | "memory_store" | "memory_forget" => SessionToolBucket::Agent,
         _ => SessionToolBucket::Other,
     }
 }
@@ -686,28 +673,12 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         "apply_patch" | "edit" | "edit_file" | "editfile" | "file_edit" | "notebook_edit"
         | "bash" | "shell" | "process" | "git_operations" => SessionToolGroup::Execute,
         "browser" | "browser_open" | "http_request" | "web_fetch" | "fetch_webpage"
-        | "web_search" | "websearch" | "web_search_tool" | "screenshot" | "image_info" => {
-            SessionToolGroup::Web
-        }
-        "AgentTool"
-        | "Agent"
-        | "agent"
-        | "question"
-        | "skill"
-        | "schedule"
-        | "cron_add"
-        | "cron_list"
-        | "cron_remove"
-        | "cron_update"
-        | "cron_run"
-        | "cron_runs"
-        | "todoread"
-        | "todowrite"
-        | "enter_worktree"
-        | "exit_worktree" => SessionToolGroup::Collaboration,
+        | "web_search" | "websearch" | "web_search_tool" | "screenshot" => SessionToolGroup::Web,
+        "AgentTool" | "Agent" | "agent" | "question" | "skill" | "schedule" | "cron_add"
+        | "cron_list" | "cron_remove" | "cron_update" | "cron_run" | "cron_runs" | "todoread"
+        | "todowrite" | "enter_worktree" | "exit_worktree" => SessionToolGroup::Collaboration,
         "memory_recall" | "memory_store" | "memory_forget" => SessionToolGroup::Memory,
-        "tool_search" | "batch"
-        | "wasm_module" => SessionToolGroup::Integration,
+        "tool_search" | "batch" => SessionToolGroup::Integration,
         _ => SessionToolGroup::Other,
     }
 }

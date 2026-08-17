@@ -66,10 +66,9 @@ pub fn tool_emoji(tool_name: &str) -> &'static str {
         "schedule" | "cron_add" | "cron_list" | "cron_run" | "cron_update" | "cron_remove" => "⏰",
         "memory_store" | "memory_recall" | "memory_forget" => "🧠",
         "git_operations" | "git_diff" => "🔀",
-        "image_info" | "view_image" => "🖼️",
+        "view_image" => "🖼️",
         "get_errors" => "🧪",
         "get_changed_files" => "🔀",
-        "wasm_module" => "⚙️",
         "process" => "💻",
         "workflow_node" => "🔁",
         _ => "🔧",
@@ -131,7 +130,7 @@ pub fn tool_icon(tool_name: &str) -> Icon {
         }
         "memory_store" | "memory_recall" | "memory_forget" => Icon::Box,
         "git_operations" | "git_diff" | "get_changed_files" => Icon::GitBranch,
-        "image_info" | "view_image" => Icon::Image,
+        "view_image" => Icon::Image,
         "workflow_node" => Icon::Grid1x2,
         name if name.starts_with("mcp_") => Icon::Box,
         _ => Icon::FileText,
@@ -227,9 +226,8 @@ pub fn tool_verb(tool_name: &str) -> &'static str {
         "memory_recall" => "回忆记忆",
         "memory_forget" => "遗忘记忆",
         "git_operations" | "git_diff" | "get_changed_files" => "Git Diff",
-        "image_info" | "view_image" => "图片信息",
+        "view_image" => "图片信息",
         "get_errors" => "诊断",
-        "wasm_module" => "WASM",
         "process" => "进程",
         "workflow_node" => "工作流",
         name if name.starts_with("mcp_") => "MCP",
@@ -523,7 +521,7 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                     .unwrap_or_default();
                 if path.is_empty() { Some("当前仓库".to_string()) } else { Some(path) }
             }
-            "image_info" | "view_image" => {
+            "view_image" => {
                 let path = v
                     .get("path")
                     .or_else(|| v.get("filePath"))

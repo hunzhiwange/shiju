@@ -323,7 +323,7 @@ fn render_assistant_body_flushes_command_groups_at_visible_boundaries() {
     let other_tool_blocks = vec![
         command_block("bash", "call-1", "first"),
         ParsedChatBlock::Tool {
-            raw: "tool image_info\n{\"input\":\"image.png\",\"status\":\"completed\"}".to_string(),
+            raw: "tool custom_tool\n{\"input\":\"data\",\"status\":\"completed\"}".to_string(),
         },
         command_block("execute", "call-2", "second"),
     ];

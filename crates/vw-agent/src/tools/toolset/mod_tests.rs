@@ -1,10 +1,9 @@
 use super::*;
 use crate::app::agent::config::{
-    BrowserConfig, Config, DelegateAgentConfig, HttpRequestConfig, MemoryConfig, WasmRuntimeConfig,
-    WebFetchConfig,
+    BrowserConfig, Config, DelegateAgentConfig, HttpRequestConfig, MemoryConfig, WebFetchConfig,
 };
 use crate::app::agent::memory::{self, Memory};
-use crate::app::agent::runtime::{NativeRuntime, RuntimeAdapter, WasmRuntime};
+use crate::app::agent::runtime::{NativeRuntime, RuntimeAdapter};
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::context::ToolUseContext;
 use crate::app::agent::tools::traits::{Tool, ToolResult};
@@ -461,16 +460,6 @@ fn default_tools_wrapper_uses_native_runtime() {
 }
 
 #[test]
-fn default_tools_with_runtime_includes_wasm_module_for_wasm_runtime() {
-    let runtime: Arc<dyn RuntimeAdapter> = Arc::new(WasmRuntime::new(WasmRuntimeConfig::default()));
-    let tools = default_tools_with_runtime(Arc::new(SecurityPolicy::default()), runtime);
-    let names = tool_names(&tools);
-
-    assert!(names.contains(&"wasm_module"));
-    assert!(names.contains(&"batch"));
-}
-
-#[test]
 fn default_tools_with_runtime_omits_batch_when_runtime_has_no_capabilities() {
     let dir = tempfile::tempdir().unwrap();
     let runtime: Arc<dyn RuntimeAdapter> =
@@ -586,27 +575,6 @@ fn toolsets_omit_rustcodegraph_without_filesystem_or_valid_index() {
     let all_tools = build_all_tools(
         root_config.clone(),
         no_filesystem,
-        test_memory(indexed.path()),
-        &BrowserConfig::default(),
-        &HttpRequestConfig::default(),
-        &WebFetchConfig::default(),
-        indexed.path(),
-        &HashMap::new(),
-        None,
-        &root_config,
-        None,
-    );
-    assert!(!tool_names(&all_tools).contains(&"rustcodegraph"));
-
-    let wasm_runtime: Arc<dyn RuntimeAdapter> =
-        Arc::new(WasmRuntime::new(WasmRuntimeConfig::default()));
-    let default_tools =
-        default_tools_with_runtime(security_for_workspace(indexed.path()), wasm_runtime.clone());
-    assert!(!tool_names(&default_tools).contains(&"rustcodegraph"));
-
-    let all_tools = build_all_tools(
-        root_config.clone(),
-        wasm_runtime,
         test_memory(indexed.path()),
         &BrowserConfig::default(),
         &HttpRequestConfig::default(),

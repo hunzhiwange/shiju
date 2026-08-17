@@ -319,6 +319,47 @@ fn validate_action_covers_computer_use_specific_rules() {
 }
 
 #[test]
+fn screen_capture_rejects_invalid_geometry() {
+    let c = client(
+        ComputerUseConfig {
+            max_coordinate_x: Some(10),
+            max_coordinate_y: Some(20),
+            ..Default::default()
+        },
+        vec![],
+    );
+
+    for params in [
+        serde_json::json!({"display_id": 0}),
+        serde_json::json!({"display_id": -1}),
+        serde_json::json!({"display_id": "1"}),
+        serde_json::json!({"display_id": 1, "x": 0, "y": 0, "width": 1, "height": 1}),
+        serde_json::json!({"x": -1, "y": 0, "width": 1, "height": 1}),
+        serde_json::json!({"x": 0, "y": -1, "width": 1, "height": 1}),
+        serde_json::json!({"x": 0, "y": 0, "width": 0, "height": 1}),
+        serde_json::json!({"x": 0, "y": 0, "width": 1, "height": 0}),
+        serde_json::json!({"x": 0, "y": 0, "width": 1}),
+        serde_json::json!({"x": 11, "y": 0, "width": 1, "height": 1}),
+        serde_json::json!({"x": 0, "y": 21, "width": 1, "height": 1}),
+        serde_json::json!({"unexpected": true}),
+    ] {
+        let error = c
+            .validate_action("screen_capture", params.as_object().unwrap())
+            .expect_err("invalid screen capture geometry should fail");
+        assert!(!error.to_string().is_empty());
+    }
+
+    for params in [
+        serde_json::json!({}),
+        serde_json::json!({"path": "screens/capture.png"}),
+        serde_json::json!({"display_id": 1}),
+        serde_json::json!({"x": 0, "y": 0, "width": 1, "height": 1}),
+    ] {
+        assert!(c.validate_action("screen_capture", params.as_object().unwrap()).is_ok());
+    }
+}
+
+#[test]
 fn validate_action_reports_missing_or_invalid_parameters() {
     let c = client(
         ComputerUseConfig {
@@ -367,7 +408,7 @@ fn validate_action_accepts_keyboard_boundaries_and_optional_capture_path() {
 }
 
 #[test]
-fn validate_action_applies_utf8_byte_limit_and_ignores_non_string_optional_path() {
+fn validate_action_applies_utf8_byte_limit_and_rejects_non_string_capture_path() {
     let c = client(ComputerUseConfig::default(), vec![]);
     let multibyte_text = serde_json::json!({"text": "界".repeat(1366)});
     let error = c
@@ -376,7 +417,10 @@ fn validate_action_applies_utf8_byte_limit_and_ignores_non_string_optional_path(
     assert!(error.to_string().contains("exceeds maximum length"));
 
     let non_string_path = serde_json::json!({"path": 7});
-    assert!(c.validate_action("screen_capture", non_string_path.as_object().unwrap()).is_ok());
+    let error = c
+        .validate_action("screen_capture", non_string_path.as_object().unwrap())
+        .expect_err("non-string capture path should be rejected");
+    assert!(error.to_string().contains("must be a string"));
 }
 
 #[test]

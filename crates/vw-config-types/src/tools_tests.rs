@@ -16,7 +16,6 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
         "apply_patch",
         "bash",
         "http_request",
-        "image_info",
         "screenshot",
         "AgentTool",
         "skill",

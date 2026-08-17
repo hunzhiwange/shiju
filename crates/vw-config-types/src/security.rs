@@ -207,7 +207,6 @@ fn default_non_cli_excluded_tools() -> Vec<String> {
         "memory_forget",
         "delegate",
         "screenshot",
-        "image_info",
     ]
     .into_iter()
     .map(std::string::ToString::to_string)

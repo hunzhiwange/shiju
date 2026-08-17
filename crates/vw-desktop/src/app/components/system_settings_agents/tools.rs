@@ -217,7 +217,6 @@ pub(super) fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                         "websearch",
                         "web_search_tool",
                         "screenshot",
-                        "image_info",
                     ],
                 )
         }
@@ -543,11 +542,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "截取当前屏幕并返回文件路径及 Base64 PNG 数据。",
             group: ToolGroup::Web,
         },
-        "image_info" => ToolMeta {
-            name: "图像信息",
-            description: "读取图像格式、尺寸、大小等元数据，并可选返回 Base64 数据。",
-            group: ToolGroup::Web,
-        },
         "image_asset_read" => ToolMeta {
             name: "重载图像资源",
             description: "按 image_id 请求在下一步模型调用中重新加载已存储图像；不直接返回图像字节。",
@@ -586,11 +580,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
         "batch" => ToolMeta {
             name: "批处理",
             description: "将多个工具调用打包在一次批处理请求中执行。",
-            group: ToolGroup::Integration,
-        },
-        "wasm_module" => ToolMeta {
-            name: "WASM 模块",
-            description: "调用已注册的 WebAssembly 模块能力。",
             group: ToolGroup::Integration,
         },
         _ => ToolMeta {

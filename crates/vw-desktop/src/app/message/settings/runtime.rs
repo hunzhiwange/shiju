@@ -1,17 +1,15 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
-use std::collections::BTreeMap;
-
 use crate::app::config::update_runtime_config_async;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_config_types::runtime::{RuntimeConfig, WasmCapabilityEscalationMode, WasmModuleHashPolicy};
+use vw_config_types::runtime::RuntimeConfig;
 
 use super::messages::{RuntimeMessage, SettingsMessage};
 
 fn normalize_runtime_kind(raw: &str) -> String {
     match raw.trim().to_ascii_lowercase().as_str() {
-        "native" | "docker" | "wasm" => raw.trim().to_ascii_lowercase(),
+        "native" | "docker" => raw.trim().to_ascii_lowercase(),
         _ => "native".to_string(),
     }
 }
@@ -57,11 +55,6 @@ fn parse_optional_f64(input: &str, field: &str) -> Result<Option<f64>, String> {
     Ok(Some(parsed))
 }
 
-fn parse_required_u64(input: &str, field: &str, min: u64, max: u64) -> Result<u64, String> {
-    let parsed = input.trim().parse::<u64>().map_err(|_| format!("{field} 必须是整数"))?;
-    Ok(parsed.clamp(min, max))
-}
-
 fn parse_csv_lines(input: &str) -> Vec<String> {
     input
         .split([',', '\n'])
@@ -69,44 +62,6 @@ fn parse_csv_lines(input: &str) -> Vec<String> {
         .filter(|item| !item.is_empty())
         .map(ToString::to_string)
         .collect()
-}
-
-fn parse_module_sha256_map(input: &str) -> Result<BTreeMap<String, String>, String> {
-    let mut map = BTreeMap::new();
-    for (index, line) in input.split([',', '\n']).enumerate() {
-        let line = line.trim();
-        if line.is_empty() {
-            continue;
-        }
-
-        let Some((module, hash)) = line.split_once(':') else {
-            return Err(format!("第 {} 行模块摘要必须使用 module:sha256 格式", index + 1));
-        };
-
-        let module = module.trim();
-        let hash = hash.trim();
-        if module.is_empty() || hash.is_empty() {
-            return Err(format!("第 {} 行模块摘要不能为空", index + 1));
-        }
-
-        map.insert(module.to_string(), hash.to_string());
-    }
-    Ok(map)
-}
-
-fn normalize_capability_mode(raw: &str) -> String {
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "clamp" => "clamp".to_string(),
-        _ => "deny".to_string(),
-    }
-}
-
-fn normalize_module_hash_policy(raw: &str) -> String {
-    match raw.trim().to_ascii_lowercase().as_str() {
-        "disabled" => "disabled".to_string(),
-        "enforce" => "enforce".to_string(),
-        _ => "warn".to_string(),
-    }
 }
 
 fn persist_runtime_settings(app: &mut App) -> Result<Task<Message>, String> {
@@ -117,26 +72,9 @@ fn persist_runtime_settings(app: &mut App) -> Result<Task<Message>, String> {
     let docker_read_only_rootfs = s.docker_read_only_rootfs;
     let docker_mount_workspace = s.docker_mount_workspace;
     let docker_allowed_workspace_roots = parse_csv_lines(&s.docker_allowed_workspace_roots_input);
-    let wasm_tools_dir = s.wasm_tools_dir.trim().to_string();
-    let wasm_allow_workspace_read = s.wasm_allow_workspace_read;
-    let wasm_allow_workspace_write = s.wasm_allow_workspace_write;
-    let wasm_allowed_hosts = parse_csv_lines(&s.wasm_allowed_hosts_input);
-    let wasm_require_workspace_relative_tools_dir = s.wasm_require_workspace_relative_tools_dir;
-    let wasm_reject_symlink_modules = s.wasm_reject_symlink_modules;
-    let wasm_reject_symlink_tools_dir = s.wasm_reject_symlink_tools_dir;
-    let wasm_strict_host_validation = s.wasm_strict_host_validation;
     let docker_memory_limit_mb =
         parse_optional_u64(&s.docker_memory_limit_mb_input, "Docker 内存限制")?;
     let docker_cpu_limit = parse_optional_f64(&s.docker_cpu_limit_input, "Docker CPU 限制")?;
-    let wasm_fuel_limit =
-        parse_required_u64(&s.wasm_fuel_limit_input, "WASM fuel_limit", 1, 100_000_000)?;
-    let wasm_memory_limit_mb =
-        parse_required_u64(&s.wasm_memory_limit_mb_input, "WASM memory_limit_mb", 1, 4096)?;
-    let wasm_max_module_size_mb =
-        parse_required_u64(&s.wasm_max_module_size_mb_input, "WASM max_module_size_mb", 1, 4096)?;
-    let capability_mode = normalize_capability_mode(&s.wasm_capability_escalation_mode);
-    let module_hash_policy = normalize_module_hash_policy(&s.wasm_module_hash_policy);
-    let module_sha256 = parse_module_sha256_map(&s.wasm_module_sha256_input)?;
     let reasoning_enabled = match normalize_reasoning_enabled(&s.reasoning_enabled_input).as_str() {
         "true" => Some(true),
         "false" => Some(false),
@@ -163,33 +101,6 @@ fn persist_runtime_settings(app: &mut App) -> Result<Task<Message>, String> {
         runtime.docker.mount_workspace = docker_mount_workspace;
         runtime.docker.allowed_workspace_roots = docker_allowed_workspace_roots;
 
-        runtime.wasm.tools_dir = if wasm_tools_dir.is_empty() {
-            RuntimeConfig::default().wasm.tools_dir
-        } else {
-            wasm_tools_dir
-        };
-        runtime.wasm.fuel_limit = wasm_fuel_limit;
-        runtime.wasm.memory_limit_mb = wasm_memory_limit_mb;
-        runtime.wasm.max_module_size_mb = wasm_max_module_size_mb;
-        runtime.wasm.allow_workspace_read = wasm_allow_workspace_read;
-        runtime.wasm.allow_workspace_write = wasm_allow_workspace_write;
-        runtime.wasm.allowed_hosts = wasm_allowed_hosts;
-        runtime.wasm.security.require_workspace_relative_tools_dir =
-            wasm_require_workspace_relative_tools_dir;
-        runtime.wasm.security.reject_symlink_modules = wasm_reject_symlink_modules;
-        runtime.wasm.security.reject_symlink_tools_dir = wasm_reject_symlink_tools_dir;
-        runtime.wasm.security.strict_host_validation = wasm_strict_host_validation;
-        runtime.wasm.security.capability_escalation_mode = if capability_mode == "clamp" {
-            WasmCapabilityEscalationMode::Clamp
-        } else {
-            WasmCapabilityEscalationMode::Deny
-        };
-        runtime.wasm.security.module_hash_policy = match module_hash_policy.as_str() {
-            "disabled" => WasmModuleHashPolicy::Disabled,
-            "enforce" => WasmModuleHashPolicy::Enforce,
-            _ => WasmModuleHashPolicy::Warn,
-        };
-        runtime.wasm.security.module_sha256 = module_sha256.clone();
         runtime.reasoning_enabled = reasoning_enabled;
         runtime.reasoning_level = reasoning_level.clone();
     }))
@@ -229,46 +140,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         RuntimeMessage::DockerAllowedWorkspaceRootsChanged(value) => {
             app.runtime_settings.docker_allowed_workspace_roots_input = value
-        }
-        RuntimeMessage::WasmToolsDirChanged(value) => app.runtime_settings.wasm_tools_dir = value,
-        RuntimeMessage::WasmFuelLimitChanged(value) => {
-            app.runtime_settings.wasm_fuel_limit_input = value
-        }
-        RuntimeMessage::WasmMemoryLimitMbChanged(value) => {
-            app.runtime_settings.wasm_memory_limit_mb_input = value
-        }
-        RuntimeMessage::WasmMaxModuleSizeMbChanged(value) => {
-            app.runtime_settings.wasm_max_module_size_mb_input = value
-        }
-        RuntimeMessage::WasmAllowWorkspaceReadToggled(value) => {
-            app.runtime_settings.wasm_allow_workspace_read = value
-        }
-        RuntimeMessage::WasmAllowWorkspaceWriteToggled(value) => {
-            app.runtime_settings.wasm_allow_workspace_write = value
-        }
-        RuntimeMessage::WasmAllowedHostsChanged(value) => {
-            app.runtime_settings.wasm_allowed_hosts_input = value
-        }
-        RuntimeMessage::WasmRequireWorkspaceRelativeToolsDirToggled(value) => {
-            app.runtime_settings.wasm_require_workspace_relative_tools_dir = value
-        }
-        RuntimeMessage::WasmRejectSymlinkModulesToggled(value) => {
-            app.runtime_settings.wasm_reject_symlink_modules = value
-        }
-        RuntimeMessage::WasmRejectSymlinkToolsDirToggled(value) => {
-            app.runtime_settings.wasm_reject_symlink_tools_dir = value
-        }
-        RuntimeMessage::WasmStrictHostValidationToggled(value) => {
-            app.runtime_settings.wasm_strict_host_validation = value
-        }
-        RuntimeMessage::WasmCapabilityEscalationModeChanged(value) => {
-            app.runtime_settings.wasm_capability_escalation_mode = normalize_capability_mode(&value)
-        }
-        RuntimeMessage::WasmModuleHashPolicyChanged(value) => {
-            app.runtime_settings.wasm_module_hash_policy = normalize_module_hash_policy(&value)
-        }
-        RuntimeMessage::WasmModuleSha256Changed(value) => {
-            app.runtime_settings.wasm_module_sha256_input = value
         }
         RuntimeMessage::ReasoningEnabledChanged(value) => {
             app.runtime_settings.reasoning_enabled_input = normalize_reasoning_enabled(&value)

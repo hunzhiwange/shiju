@@ -452,7 +452,6 @@ fn tool_buckets_cover_supported_runtime_aliases() {
         ("browser_open", SessionToolBucket::Browser),
         ("fetch_webpage", SessionToolBucket::Browser),
         ("screenshot", SessionToolBucket::Browser),
-        ("image_info", SessionToolBucket::Browser),
         ("cron_add", SessionToolBucket::Agent),
         ("cron_runs", SessionToolBucket::Agent),
         ("todoread", SessionToolBucket::Agent),
@@ -475,7 +474,6 @@ fn tool_groups_cover_supported_runtime_aliases() {
         ("Agent", SessionToolGroup::Collaboration),
         ("cron_update", SessionToolGroup::Collaboration),
         ("todoread", SessionToolGroup::Collaboration),
-        ("wasm_module", SessionToolGroup::Integration),
     ];
 
     for (tool_id, expected) in cases {

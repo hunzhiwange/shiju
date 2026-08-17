@@ -226,6 +226,46 @@ async fn execute_action_allows_screen_capture_without_path_and_builds_default_su
 }
 
 #[tokio::test]
+async fn screen_capture_forwards_valid_geometry() {
+    let (endpoint, server) = sidecar_server(200, r#"{"success":true}"#).await;
+    let geometry_client = client(endpoint, None);
+
+    let result = geometry_client
+        .execute_action(
+            "screen_capture",
+            &serde_json::json!({
+                "action": "screen_capture",
+                "x": 10,
+                "y": 20,
+                "width": 30,
+                "height": 40,
+            }),
+        )
+        .await
+        .unwrap();
+
+    assert!(result.success);
+    let request = server.await.unwrap();
+    let payload = serde_json::from_str::<Value>(request_body(&request)).unwrap();
+    assert_eq!(payload["params"], serde_json::json!({"x": 10, "y": 20, "width": 30, "height": 40}));
+
+    let (endpoint, server) = sidecar_server(200, r#"{"success":true}"#).await;
+    let display_client = client(endpoint, None);
+    let result = display_client
+        .execute_action(
+            "screen_capture",
+            &serde_json::json!({"action": "screen_capture", "display_id": 2}),
+        )
+        .await
+        .unwrap();
+
+    assert!(result.success);
+    let request = server.await.unwrap();
+    let payload = serde_json::from_str::<Value>(request_body(&request)).unwrap();
+    assert_eq!(payload["params"], serde_json::json!({"display_id": 2}));
+}
+
+#[tokio::test]
 async fn execute_action_preserves_explicit_structured_error() {
     let (endpoint, server) =
         sidecar_server(400, r#"{"success":false,"error":"window denied"}"#).await;

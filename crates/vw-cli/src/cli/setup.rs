@@ -170,10 +170,6 @@ pub(super) fn build_tool_descriptions(
             "screenshot",
             "Capture a screenshot of the current screen. Returns file path and base64-encoded PNG. Use when: visual verification, UI inspection, debugging displays.",
         ),
-        (
-            "image_info",
-            "Read image file metadata (format, dimensions, size) and optionally base64-encode it. Use when: inspecting images, preparing visual data for analysis.",
-        ),
     ];
 
     if browser_enabled {

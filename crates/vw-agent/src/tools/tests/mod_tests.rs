@@ -4,9 +4,8 @@
 //! 不同配置下被意外扩大或遗漏。
 
 use super::*;
-use crate::app::agent::config::{BrowserConfig, Config, MemoryConfig, WasmRuntimeConfig};
+use crate::app::agent::config::{BrowserConfig, Config, MemoryConfig};
 use crate::app::agent::memory;
-use crate::app::agent::runtime::WasmRuntime;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -123,33 +122,6 @@ fn default_tools_include_apply_patch_once() {
 }
 
 #[test]
-fn default_tools_with_runtime_includes_wasm_module_for_wasm_runtime() {
-    let security = Arc::new(SecurityPolicy::default());
-    let runtime: Arc<dyn RuntimeAdapter> = Arc::new(WasmRuntime::new(WasmRuntimeConfig::default()));
-    let tools = default_tools_with_runtime(security, runtime);
-    let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(names.contains(&"wasm_module"));
-}
-
-#[test]
-fn default_tools_with_runtime_excludes_shell_and_fs_for_wasm_runtime() {
-    let security = Arc::new(SecurityPolicy::default());
-    let runtime: Arc<dyn RuntimeAdapter> = Arc::new(WasmRuntime::new(WasmRuntimeConfig::default()));
-    let tools = default_tools_with_runtime(security, runtime);
-    let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(!names.contains(&"shell"));
-    assert!(!names.contains(&"file_read"));
-    assert!(!names.contains(&"file_write"));
-    assert!(!names.contains(&"file_edit"));
-    assert!(!names.contains(&"apply_patch"));
-    assert!(!names.contains(&"ls"));
-    assert!(!names.contains(&"glob"));
-    assert!(!names.contains(&"glob_search"));
-    assert!(!names.contains(&"content_search"));
-    assert!(!names.contains(&"grep"));
-}
-
-#[test]
 fn all_tools_excludes_browser_when_disabled() {
     let tmp = TempDir::new().unwrap();
     let security = Arc::new(SecurityPolicy::default());
@@ -229,45 +201,6 @@ fn all_tools_includes_browser_when_enabled() {
     assert!(!names.contains(&"proxy_config"));
     assert!(names.contains(&"Config"));
     assert!(names.contains(&"Sleep"));
-}
-
-#[test]
-fn all_tools_with_runtime_includes_wasm_module_for_wasm_runtime() {
-    let tmp = TempDir::new().unwrap();
-    let security = Arc::new(SecurityPolicy::default());
-    let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
-    let mem: Arc<dyn Memory> =
-        Arc::from(memory::create_memory(&mem_cfg, tmp.path(), None).unwrap());
-    let runtime: Arc<dyn RuntimeAdapter> = Arc::new(WasmRuntime::new(WasmRuntimeConfig::default()));
-
-    let browser = BrowserConfig::default();
-    let http = crate::app::agent::config::HttpRequestConfig::default();
-    let cfg = test_config(&tmp);
-
-    let tools = all_tools_with_runtime(
-        Arc::new(Config::default()),
-        &security,
-        runtime,
-        mem,
-        &browser,
-        &http,
-        &crate::app::agent::config::WebFetchConfig::default(),
-        tmp.path(),
-        &HashMap::new(),
-        None,
-        &cfg,
-        None,
-    );
-    let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(names.contains(&"wasm_module"));
-    assert!(!names.contains(&"shell"));
-    assert!(!names.contains(&"process"));
-    assert!(!names.contains(&"git_operations"));
-    assert!(!names.contains(&"file_read"));
-    assert!(!names.contains(&"file_write"));
-    assert!(!names.contains(&"file_edit"));
-    assert!(!names.contains(&"ls"));
-    assert!(!names.contains(&"grep"));
 }
 
 #[test]

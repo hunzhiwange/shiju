@@ -15,7 +15,7 @@ use iced::{Alignment, Color, Element, Length, Theme};
 use crate::app::assets::Icon;
 use crate::app::{App, Message, message};
 
-use super::{canonical_tool_name, tool_header_label, tool_header_title, tool_inline_summary};
+use super::canonical_tool_name;
 use crate::app::components::chat_panel::tool_text_support::content_safe_font;
 use crate::app::components::chat_panel::utils::{
     chat_secondary_muted_text_color, chat_secondary_text_color, eye_icon_button_style,
@@ -81,8 +81,7 @@ pub fn tool_bash_view<'a>(
     let (first, rest) = visible.split_once('\n')?;
     let tool_name = canonical_tool_name(first.trim().strip_prefix("tool ")?.trim());
 
-    // 统一处理 bash / shell 两种命名，并让 image_info 复用相同的弹窗展示模式。
-    if !matches!(tool_name, "bash" | "image_info") {
+    if tool_name != "bash" {
         return None;
     }
 
@@ -108,10 +107,6 @@ pub fn tool_bash_view<'a>(
 
     // 生成命令标题，空命令显示"运行命令"，否则截断显示
     let cmd_title = bash_command_preview(&cmd_line);
-    let image_info_title = tool_inline_summary(tool_name, &input)
-        .filter(|summary| !summary.trim().is_empty())
-        .unwrap_or_else(|| "查看详情".to_string());
-
     let detail_btn = button(
         icon_svg(Icon::ChevronRight)
             .width(Length::Fixed(10.0))
@@ -128,44 +123,26 @@ pub fn tool_bash_view<'a>(
     let detail_slot: Element<'a, Message> =
         if is_hovered { detail_btn.into() } else { Space::new().width(Length::Fixed(22.0)).into() };
     // 构建头部行：仅显示摘要，详细输出统一进弹窗。
-    let head_row = if tool_name == "bash" {
-        let cmd_font = content_safe_font(&cmd_title, "JetBrains Mono");
-        let cmd_title_view = text(cmd_title)
-            .size(14)
-            .font(cmd_font)
-            .width(Length::Fill)
-            .wrapping(Wrapping::None)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(chat_secondary_muted_text_color(theme)),
-            });
-
-        row![
-            text("运行").size(14).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(chat_secondary_text_color(theme)) }
-            }),
-            cmd_title_view,
-            detail_slot,
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center)
+    let cmd_font = content_safe_font(&cmd_title, "JetBrains Mono");
+    let cmd_title_view = text(cmd_title)
+        .size(14)
+        .font(cmd_font)
         .width(Length::Fill)
-    } else {
-        row![
-            row![
-                tool_header_title(tool_name, tool_header_label(tool_name), false),
-                text(image_info_title).size(13).style(|theme: &Theme| {
-                    iced::widget::text::Style {
-                        color: Some(chat_secondary_muted_text_color(theme)),
-                    }
-                })
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
-            detail_slot,
-            container(Space::new()).width(Length::Fill),
-        ]
-        .align_y(Alignment::Center)
-    };
+        .wrapping(Wrapping::None)
+        .style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(chat_secondary_muted_text_color(theme)),
+        });
+
+    let head_row = row![
+        text("运行").size(14).style(|theme: &Theme| {
+            iced::widget::text::Style { color: Some(chat_secondary_text_color(theme)) }
+        }),
+        cmd_title_view,
+        detail_slot,
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .width(Length::Fill);
     let head = mouse_area(container(head_row).width(Length::Fill))
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
         .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave));

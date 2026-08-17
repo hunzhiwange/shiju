@@ -125,7 +125,6 @@ impl DelegateTool {
         self.skill_contexts = skill_contexts;
         self
     }
-
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -221,7 +220,6 @@ impl DelegateTool {
         )
         .await
     }
-
 }
 
 #[cfg(test)]

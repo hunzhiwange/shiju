@@ -32,20 +32,6 @@ fn hooks_and_runtime_defaults_match_secure_native_runtime() {
     assert!(runtime.docker_read_only_rootfs);
     assert!(runtime.docker_mount_workspace);
     assert!(runtime.docker_allowed_workspace_roots_input.is_empty());
-    assert_eq!(runtime.wasm_tools_dir, "tools/wasm");
-    assert_eq!(runtime.wasm_fuel_limit_input, "1000000");
-    assert_eq!(runtime.wasm_memory_limit_mb_input, "64");
-    assert_eq!(runtime.wasm_max_module_size_mb_input, "50");
-    assert!(!runtime.wasm_allow_workspace_read);
-    assert!(!runtime.wasm_allow_workspace_write);
-    assert!(runtime.wasm_allowed_hosts_input.is_empty());
-    assert!(runtime.wasm_require_workspace_relative_tools_dir);
-    assert!(runtime.wasm_reject_symlink_modules);
-    assert!(runtime.wasm_reject_symlink_tools_dir);
-    assert!(runtime.wasm_strict_host_validation);
-    assert_eq!(runtime.wasm_capability_escalation_mode, "deny");
-    assert_eq!(runtime.wasm_module_hash_policy, "warn");
-    assert!(runtime.wasm_module_sha256_input.is_empty());
     assert_eq!(runtime.reasoning_enabled_input, "auto");
     assert!(runtime.reasoning_level_input.is_empty());
     assert!(runtime.save_error.is_none());
@@ -353,7 +339,7 @@ fn gateway_tab_variants_and_runtime_state_clones_are_independent() {
     };
     let cloned = original.clone();
 
-    original.kind = "wasm".to_string();
+    original.kind = "native".to_string();
     original.docker_image = "changed".to_string();
     original.save_error = None;
 

@@ -18,7 +18,7 @@ fn bash_view_rejects_malformed_or_non_bash_payloads() {
 #[test]
 fn bash_view_rejects_unknown_tool_name_after_normalization() {
     let app = app();
-    // "context" is not "bash" or "image_info" after normalization
+    // "context" is not a recognized shell alias after normalization.
     assert!(tool_bash_view(&app, 0, 0, "tool context\n{\"input\":\"ls\"}").is_none());
 }
 
@@ -32,12 +32,8 @@ fn bash_view_accepts_plain_command_input() {
 }
 
 #[test]
-fn bash_rows_remove_left_indent_without_changing_image_info_padding() {
+fn bash_rows_remove_left_indent() {
     assert_eq!(bash_view_padding("bash"), Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 0.0 });
-    assert_eq!(
-        bash_view_padding("image_info"),
-        Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 6.0 }
-    );
 }
 
 #[test]
@@ -106,25 +102,6 @@ fn bash_view_accepts_json_command_input_and_hovered_detail_slot() {
 }
 
 #[test]
-fn image_info_reuses_bash_view_detail_surface() {
-    let app = app();
-    let visible = r#"tool image_info
-{"input":"{\"path\":\"/tmp/image.png\"}","output":"metadata"}"#;
-
-    assert!(tool_bash_view(&app, 0, 1, visible).is_some());
-}
-
-#[test]
-fn image_info_with_hovered_state() {
-    let mut app = app();
-    app.chat_tool_hovered_idx = Some((2_u64 << 32) | 7);
-    let visible = r#"tool image_info
-{"input":"screenshot.png","output":"640x480"}"#;
-
-    assert!(tool_bash_view(&app, 2, 7, visible).is_some());
-}
-
-#[test]
 fn bash_view_ignores_cached_multiline_text_for_compact_summary() {
     use super::tool_text_key;
     use iced::widget::text_editor;
@@ -136,11 +113,4 @@ fn bash_view_ignores_cached_multiline_text_for_compact_summary() {
     );
 
     assert!(tool_bash_view(&app, 8, 9, "tool bash\n{\"input\":\"echo ignored\"}").is_some());
-}
-
-#[test]
-fn image_info_empty_input_uses_detail_fallback() {
-    let app = app();
-
-    assert!(tool_bash_view(&app, 10, 11, "tool image_info\n{\"input\":\"   \"}").is_some());
 }

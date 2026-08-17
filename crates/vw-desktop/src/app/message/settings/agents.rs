@@ -194,7 +194,6 @@ fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                         "websearch",
                         "web_search_tool",
                         "screenshot",
-                        "image_info",
                     ],
                 )
         }

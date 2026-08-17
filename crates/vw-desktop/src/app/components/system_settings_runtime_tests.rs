@@ -86,31 +86,6 @@ fn view_builds_docker_runtime_settings() {
 }
 
 #[test]
-fn view_builds_wasm_runtime_settings() {
-    let mut app = test_app();
-    app.runtime_settings.kind = "wasm".to_string();
-    app.runtime_settings.wasm_tools_dir = "tools/custom".to_string();
-    app.runtime_settings.wasm_fuel_limit_input = "2000000".to_string();
-    app.runtime_settings.wasm_memory_limit_mb_input = "128".to_string();
-    app.runtime_settings.wasm_max_module_size_mb_input = "80".to_string();
-    app.runtime_settings.wasm_allow_workspace_read = true;
-    app.runtime_settings.wasm_allow_workspace_write = true;
-    app.runtime_settings.wasm_allowed_hosts_input = "example.com:443\napi.example.com".to_string();
-    app.runtime_settings.wasm_require_workspace_relative_tools_dir = false;
-    app.runtime_settings.wasm_reject_symlink_modules = false;
-    app.runtime_settings.wasm_reject_symlink_tools_dir = false;
-    app.runtime_settings.wasm_strict_host_validation = false;
-    app.runtime_settings.wasm_capability_escalation_mode = "clamp".to_string();
-    app.runtime_settings.wasm_module_hash_policy = "enforce".to_string();
-    app.runtime_settings.wasm_module_sha256_input =
-        "tool:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
-    app.runtime_settings.reasoning_enabled_input = "false".to_string();
-    app.runtime_settings.reasoning_level_input = "xhigh".to_string();
-
-    let _: Element<'_, Message> = view(&app);
-}
-
-#[test]
 fn view_adds_only_the_selected_runtime_specific_section() {
     let mut app = test_app();
 
@@ -124,9 +99,4 @@ fn view_adds_only_the_selected_runtime_specific_section() {
     let docker = element_tree(view(&app));
     assert_eq!(docker.children.len(), 6);
     assert_eq!(docker.children[5].children.len(), 2);
-
-    app.runtime_settings.kind = "wasm".to_string();
-    let wasm = element_tree(view(&app));
-    assert_eq!(wasm.children.len(), 6);
-    assert_eq!(wasm.children[5].children.len(), 2);
 }

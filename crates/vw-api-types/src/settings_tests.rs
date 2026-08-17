@@ -11,13 +11,10 @@ fn settings_patches_omit_unset_fields_and_keep_policy_names() {
     assert_eq!(security.autonomy_level, None);
     assert_eq!(security.network_access, None);
 
-    let runtime = RuntimeSettingsPatchDto {
-        sandbox_backend: Some(SandboxBackendDto::Wasm),
-        ..RuntimeSettingsPatchDto::default()
-    };
+    let runtime = RuntimeSettingsPatchDto { sandbox_backend: Some(SandboxBackendDto::Docker) };
     assert_eq!(
         serde_json::to_value(runtime).expect("serialize"),
-        json!({ "sandbox_backend": "wasm" })
+        json!({ "sandbox_backend": "docker" })
     );
 
     assert!(!ProxySettingsDto::default().enabled);

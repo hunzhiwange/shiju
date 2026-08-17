@@ -245,8 +245,35 @@ impl ComputerUseClient {
                 }
             }
             "screen_capture" => {
-                if let Some(path) = params.get("path").and_then(Value::as_str) {
+                validate_screen_capture_fields(params)?;
+                if let Some(path) = params.get("path") {
+                    let path = path.as_str().ok_or_else(|| {
+                        anyhow::anyhow!("'path' for screen_capture must be a string")
+                    })?;
                     self.validate_output_path("path", path)?;
+                }
+                if let Some(display_id) = params.get("display_id") {
+                    let display_id = read_u32(display_id, "display_id")?;
+                    if display_id == 0 {
+                        anyhow::bail!("'display_id' must be a positive integer");
+                    }
+                }
+                if params.contains_key("x") {
+                    let x = read_required_i64(params, "x")?;
+                    let y = read_required_i64(params, "y")?;
+                    let width = read_required_i64(params, "width")?;
+                    let height = read_required_i64(params, "height")?;
+                    self.validate_coordinate("x", x, self.config.max_coordinate_x)?;
+                    self.validate_coordinate("y", y, self.config.max_coordinate_y)?;
+                    if width <= 0 || height <= 0 {
+                        anyhow::bail!("screen capture width and height must be positive integers");
+                    }
+                    u32::try_from(width).map_err(|_| {
+                        anyhow::anyhow!("screen capture width exceeds supported range")
+                    })?;
+                    u32::try_from(height).map_err(|_| {
+                        anyhow::anyhow!("screen capture height exceeds supported range")
+                    })?;
                 }
             }
             _ => {}
@@ -260,6 +287,33 @@ fn read_required_i64(params: &serde_json::Map<String, Value>, key: &str) -> anyh
         .get(key)
         .and_then(Value::as_i64)
         .ok_or_else(|| anyhow::anyhow!("Missing or invalid '{key}' parameter"))
+}
+
+fn validate_screen_capture_fields(params: &serde_json::Map<String, Value>) -> anyhow::Result<()> {
+    const ALLOWED_FIELDS: &[&str] = &["path", "display_id", "x", "y", "width", "height"];
+    if let Some(field) = params.keys().find(|field| !ALLOWED_FIELDS.contains(&field.as_str())) {
+        anyhow::bail!("Unknown screen_capture parameter '{field}'");
+    }
+
+    let rectangle_fields = ["x", "y", "width", "height"];
+    let has_rectangle = rectangle_fields.iter().any(|field| params.contains_key(*field));
+    if params.contains_key("display_id") && has_rectangle {
+        anyhow::bail!("'display_id' cannot be combined with rectangle coordinates");
+    }
+    if has_rectangle {
+        for field in rectangle_fields {
+            if !params.contains_key(field) {
+                anyhow::bail!("screen capture rectangle requires '{field}'");
+            }
+        }
+    }
+    Ok(())
+}
+
+fn read_u32(value: &Value, key: &str) -> anyhow::Result<u32> {
+    let value =
+        value.as_u64().ok_or_else(|| anyhow::anyhow!("Missing or invalid '{key}' parameter"))?;
+    u32::try_from(value).map_err(|_| anyhow::anyhow!("'{key}' exceeds supported range"))
 }
 #[cfg(test)]
 #[path = "validation_tests.rs"]

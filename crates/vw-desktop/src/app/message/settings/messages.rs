@@ -1,5 +1,6 @@
 //! 定义系统设置页面的消息枚举，作为 UI 事件与状态更新之间的显式契约。
 
+use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
 use crate::app::state::{
     AutonomyListKind, AutonomySettingsTab, ChannelsSettingsTab, CronAddJobType,
     CronAddScheduleKind, CronSettingsTab, CustomProviderModelFilter, CustomProviderModelTab,
@@ -7,14 +8,13 @@ use crate::app::state::{
     MemorySettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab, ThemeEditorTab,
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
-use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
 use iced::widget::text_editor;
 use vw_config_types::security::{AutonomyLevel, ShellRedirectPolicy};
 use vw_config_types::ui::{QuickMessageGroup, QuickMessageKind};
 
 use super::types::{
-    AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded, ModelStatusChange,
-    HookAuditLoaded, HookCatalogLoaded, HookMutationCompleted, ModelsLoaded, PluginsLoaded,
+    AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded, HookAuditLoaded,
+    HookCatalogLoaded, HookMutationCompleted, ModelStatusChange, ModelsLoaded, PluginsLoaded,
     ProvidersLoaded, SkillsLoaded, StaffLoaded,
 };
 
@@ -151,20 +151,6 @@ pub enum RuntimeMessage {
     DockerReadOnlyRootfsToggled(bool),
     DockerMountWorkspaceToggled(bool),
     DockerAllowedWorkspaceRootsChanged(String),
-    WasmToolsDirChanged(String),
-    WasmFuelLimitChanged(String),
-    WasmMemoryLimitMbChanged(String),
-    WasmMaxModuleSizeMbChanged(String),
-    WasmAllowWorkspaceReadToggled(bool),
-    WasmAllowWorkspaceWriteToggled(bool),
-    WasmAllowedHostsChanged(String),
-    WasmRequireWorkspaceRelativeToolsDirToggled(bool),
-    WasmRejectSymlinkModulesToggled(bool),
-    WasmRejectSymlinkToolsDirToggled(bool),
-    WasmStrictHostValidationToggled(bool),
-    WasmCapabilityEscalationModeChanged(String),
-    WasmModuleHashPolicyChanged(String),
-    WasmModuleSha256Changed(String),
     ReasoningEnabledChanged(String),
     ReasoningLevelChanged(String),
 }

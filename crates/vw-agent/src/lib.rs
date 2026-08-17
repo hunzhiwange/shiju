@@ -280,9 +280,6 @@ pub mod provider;
 // 模型提供者
 pub mod providers;
 
-// 检索增强生成
-pub mod rag;
-
 // PTY（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 pub mod pty;

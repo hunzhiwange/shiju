@@ -264,17 +264,15 @@ pub struct BuiltinAgentSpec {
     pub max_iterations: usize,
 }
 
-const READONLY_CODE_TOOLS: &[&str] = &["file_read", "ls", "glob", "grep", "lsp"];
+const READONLY_CODE_TOOLS: &[&str] = &["file_read", "ls", "glob", "grep"];
 const RESEARCHER_TOOLS: &[&str] = &[
     "file_read",
     "ls",
     "glob",
     "grep",
-    "lsp",
     "web_fetch",
     "web_search_tool",
     "pdf_read",
-    "image_info",
 ];
 const CODER_TOOLS: &[&str] = &[
     "file_read",
@@ -285,8 +283,6 @@ const CODER_TOOLS: &[&str] = &[
     "ls",
     "glob",
     "grep",
-    "lsp",
-    "git_operations",
 ];
 const MAIN_TOOLS: &[&str] = &[
     "AgentTool",
@@ -298,8 +294,6 @@ const MAIN_TOOLS: &[&str] = &[
     "ls",
     "glob",
     "grep",
-    "lsp",
-    "git_operations",
 ];
 
 const READONLY_PERMISSION: &str = r#"{
@@ -307,8 +301,7 @@ const READONLY_PERMISSION: &str = r#"{
     "file_read": "allow",
     "ls": "allow",
     "glob": "allow",
-    "grep": "allow",
-    "lsp": "allow"
+    "grep": "allow"
 }"#;
 const RESEARCHER_PERMISSION: &str = r#"{
     "*": "deny",
@@ -316,11 +309,9 @@ const RESEARCHER_PERMISSION: &str = r#"{
     "ls": "allow",
     "glob": "allow",
     "grep": "allow",
-    "lsp": "allow",
     "web_fetch": "allow",
     "web_search_tool": "allow",
-    "pdf_read": "allow",
-    "image_info": "allow"
+    "pdf_read": "allow"
 }"#;
 const CODER_PERMISSION: &str = r#"{
     "*": "deny",
@@ -331,9 +322,7 @@ const CODER_PERMISSION: &str = r#"{
     "bash": "allow",
     "ls": "allow",
     "glob": "allow",
-    "grep": "allow",
-    "lsp": "allow",
-    "git_operations": "allow"
+    "grep": "allow"
 }"#;
 const MAIN_PERMISSION: &str = r#"{
     "*": "deny",
@@ -345,9 +334,7 @@ const MAIN_PERMISSION: &str = r#"{
     "bash": "allow",
     "ls": "allow",
     "glob": "allow",
-    "grep": "allow",
-    "lsp": "allow",
-    "git_operations": "allow"
+    "grep": "allow"
 }"#;
 pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 5] = [
     BuiltinAgentSpec {

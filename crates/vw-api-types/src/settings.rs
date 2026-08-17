@@ -2,7 +2,7 @@
 //!
 //! 本模块定义用户可配置的系统设置视图，覆盖：
 //! - 安全约束与自主程度
-//! - 沙箱与 Wasm 执行策略
+//! - 沙箱执行策略
 //! - 网络代理、记忆后端、Web 搜索与浏览器能力
 //! - 外部渠道开关与委派代理列表
 //!
@@ -54,32 +54,6 @@ pub enum SandboxBackendDto {
     Native,
     /// 使用 Docker 承载命令执行。
     Docker,
-    /// 使用 Wasm 承载命令执行。
-    Wasm,
-}
-
-/// Wasm 能力升级策略。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WasmCapabilityEscalationModeDto {
-    /// 拒绝能力升级。
-    Deny,
-    /// 升级前询问用户。
-    Ask,
-    /// 自动允许升级。
-    Allow,
-}
-
-/// Wasm 模块哈希校验策略。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WasmModuleHashPolicyDto {
-    /// 忽略模块哈希校验。
-    Ignore,
-    /// 哈希不匹配时仅警告。
-    Warn,
-    /// 哈希不匹配时拒绝执行。
-    Enforce,
 }
 
 /// 安全设置。
@@ -97,15 +71,11 @@ pub struct SecuritySettingsDto {
 
 /// 运行时设置。
 ///
-/// 描述命令执行后端及 Wasm 安全相关策略。
+/// 描述命令执行后端。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeSettingsDto {
     /// 沙箱后端。
     pub sandbox_backend: SandboxBackendDto,
-    /// Wasm 能力升级模式。
-    pub wasm_capability_escalation_mode: WasmCapabilityEscalationModeDto,
-    /// Wasm 模块哈希校验策略。
-    pub wasm_module_hash_policy: WasmModuleHashPolicyDto,
 }
 
 /// 代理设置。
@@ -210,10 +180,6 @@ pub struct SecuritySettingsPatchDto {
 pub struct RuntimeSettingsPatchDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox_backend: Option<SandboxBackendDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub wasm_capability_escalation_mode: Option<WasmCapabilityEscalationModeDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub wasm_module_hash_policy: Option<WasmModuleHashPolicyDto>,
 }
 
 /// 代理设置补丁。

@@ -524,7 +524,6 @@ fn build_tool_descriptions(config: &Config) -> Vec<(&'static str, &'static str)>
         ("memory_recall", "Search memory."),
         ("memory_forget", "Delete a memory entry."),
         ("screenshot", "Capture a screenshot."),
-        ("image_info", "Read image metadata."),
     ];
 
     if config.browser.enabled {

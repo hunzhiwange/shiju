@@ -73,7 +73,6 @@ mod hooks;
 mod http_headers;
 pub mod http_request;
 pub mod image_asset_read;
-pub mod image_info;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ls;
 #[cfg(not(target_arch = "wasm32"))]
@@ -90,8 +89,6 @@ pub mod pdf_read;
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
 pub mod powershell;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod process;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod question;
 mod read_state;
 pub mod registry;
@@ -100,7 +97,6 @@ pub mod remote_trigger;
 pub mod rustcodegraph;
 pub mod schedule;
 mod scheduler;
-pub mod schema;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod screenshot;
 #[cfg(not(target_arch = "wasm32"))]
@@ -111,9 +107,7 @@ pub mod todo;
 pub mod tool_search;
 mod toolset;
 pub mod traits;
-pub mod truncation;
 pub mod url_validation;
-pub mod wasm_module;
 pub mod web_fetch;
 pub mod web_search_tool;
 pub mod websearch;
@@ -158,7 +152,6 @@ pub use glob_search::GlobSearchTool;
 pub use grep::GrepTool;
 pub use http_request::HttpRequestTool;
 pub use image_asset_read::ImageAssetReadTool;
-pub use image_info::ImageInfoTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use ls::LsTool;
 #[cfg(not(target_arch = "wasm32"))]
@@ -172,8 +165,6 @@ pub use pdf_read::PdfReadTool;
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
 pub use powershell::PowerShellTool;
 #[cfg(not(target_arch = "wasm32"))]
-pub use process::ProcessTool;
-#[cfg(not(target_arch = "wasm32"))]
 pub use question::QuestionTool;
 pub use read_state::{FileReadStateCache, FileReadStateEntry, FileSnapshot};
 pub use remote_trigger::RemoteTriggerTool;
@@ -181,7 +172,6 @@ pub use remote_trigger::RemoteTriggerTool;
 pub use rustcodegraph::RustCodeGraphTool;
 pub use schedule::ScheduleTool;
 #[allow(unused_imports)]
-pub use schema::{CleaningStrategy, SchemaCleanr};
 #[cfg(not(target_arch = "wasm32"))]
 pub use screenshot::ScreenshotTool;
 #[cfg(not(target_arch = "wasm32"))]
@@ -206,7 +196,6 @@ pub use toolset::{
     is_binary, tool_specs_for_context,
 };
 pub(crate) use toolset::{agent_tool_parallel_limit_for_context, execute_agent_tool_call};
-pub use wasm_module::WasmModuleTool;
 pub use web_fetch::WebFetchTool;
 pub use web_search_tool::WebSearchTool;
 

@@ -217,6 +217,36 @@ fn builtin_agent_configs_apply_role_specific_permissions() {
 }
 
 #[test]
+fn builtin_agent_configs_do_not_enable_git_or_semantic_analysis_by_default() {
+    for key in super::builtin_agent_keys() {
+        let config = super::builtin_agent_config(key).expect("builtin config");
+        assert!(
+            !config.allowed_tools.iter().any(|tool| tool == "lsp"),
+            "{key} must not select semantic analysis by default"
+        );
+        assert!(
+            !config.permission.as_object().is_some_and(|rules| rules.contains_key("lsp")),
+            "{key} must not permit semantic analysis by default"
+        );
+    }
+
+    for key in ["main", "coder"] {
+        let config = super::builtin_agent_config(key).expect("builtin config");
+        assert!(
+            !config.allowed_tools.iter().any(|tool| tool == "git_operations"),
+            "{key} must not select Git operations by default"
+        );
+        assert!(
+            !config
+                .permission
+                .as_object()
+                .is_some_and(|rules| rules.contains_key("git_operations")),
+            "{key} must not permit Git operations by default"
+        );
+    }
+}
+
+#[test]
 fn merged_agent_configs_fill_builtin_metadata_and_preserve_custom_entries() {
     let mut configured = HashMap::new();
     configured.insert(

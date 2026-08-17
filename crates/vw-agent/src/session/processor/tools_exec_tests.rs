@@ -205,6 +205,16 @@ fn completed_tool_payload_for_ui_keeps_structured_patch_content() {
 }
 
 #[test]
+fn model_tool_result_preserves_image_marker() {
+    let marker = "[IMAGE:data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB]";
+    let output = format!("Screenshot captured: /tmp/pixel.png (1 bytes, image/png, 1x1)\n{marker}");
+
+    assert_eq!(super::compact_tool_output("screenshot", &output), output);
+    assert!(super::batch_model_output(1, &[computed_success("screenshot", Some(&output))])
+        .contains(marker));
+}
+
+#[test]
 fn agent_tool_running_event_exposes_persistent_child_before_completion() {
     let created = crate::app::agent::tools::agent_tool::AgentToolChildSessionCreated {
         parent_session_id: "parent-session".to_string(),

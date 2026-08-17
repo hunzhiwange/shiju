@@ -784,8 +784,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
       "cron_run",
       "memory_store",
       "memory_forget",
-      "screenshot",
-      "image_info"
+      "screenshot"
     ],
     "non_cli_approval_approvers": [],
     "non_cli_natural_language_approval_mode": "direct",

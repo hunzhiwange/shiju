@@ -61,7 +61,6 @@ pub(crate) fn shared_tool_render_kind(raw: &str) -> Option<SharedToolRenderKind>
 
     Some(match tool_name.as_str() {
         "bash" | "shell" => SharedToolRenderKind::Bash,
-        "image_info" => SharedToolRenderKind::Bash,
         "Config" | "config" => SharedToolRenderKind::Config,
         "todowrite" => SharedToolRenderKind::TodoCompact,
         "todoread" => SharedToolRenderKind::TodoRead,

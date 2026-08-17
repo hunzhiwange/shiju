@@ -93,7 +93,6 @@ pub fn is_known_tool_name(tool_name: &str) -> bool {
             | "get_errors"
             | "get_changed_files"
             | "view_image"
-            | "wasm_module"
             | "process"
             | "enter_worktree"
             | "exit_worktree"

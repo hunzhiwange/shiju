@@ -180,7 +180,7 @@ pub(super) fn build_runtime_settings(
 
     crate::app::state::RuntimeSettingsState {
         kind: match runtime_cfg.kind.trim() {
-            "native" | "docker" | "wasm" => runtime_cfg.kind.clone(),
+            "native" | "docker" => runtime_cfg.kind.clone(),
             _ => "native".to_string(),
         },
         docker_image: {
@@ -204,45 +204,6 @@ pub(super) fn build_runtime_settings(
         docker_read_only_rootfs: runtime_cfg.docker.read_only_rootfs,
         docker_mount_workspace: runtime_cfg.docker.mount_workspace,
         docker_allowed_workspace_roots_input: runtime_cfg.docker.allowed_workspace_roots.join(", "),
-        wasm_tools_dir: {
-            let value = runtime_cfg.wasm.tools_dir.trim().to_string();
-            if value.is_empty() { "tools/wasm".to_string() } else { value }
-        },
-        wasm_fuel_limit_input: runtime_cfg.wasm.fuel_limit.clamp(1, 100_000_000).to_string(),
-        wasm_memory_limit_mb_input: runtime_cfg.wasm.memory_limit_mb.clamp(1, 4096).to_string(),
-        wasm_max_module_size_mb_input: runtime_cfg
-            .wasm
-            .max_module_size_mb
-            .clamp(1, 4096)
-            .to_string(),
-        wasm_allow_workspace_read: runtime_cfg.wasm.allow_workspace_read,
-        wasm_allow_workspace_write: runtime_cfg.wasm.allow_workspace_write,
-        wasm_allowed_hosts_input: runtime_cfg.wasm.allowed_hosts.join(", "),
-        wasm_require_workspace_relative_tools_dir: runtime_cfg
-            .wasm
-            .security
-            .require_workspace_relative_tools_dir,
-        wasm_reject_symlink_modules: runtime_cfg.wasm.security.reject_symlink_modules,
-        wasm_reject_symlink_tools_dir: runtime_cfg.wasm.security.reject_symlink_tools_dir,
-        wasm_strict_host_validation: runtime_cfg.wasm.security.strict_host_validation,
-        wasm_capability_escalation_mode: match runtime_cfg.wasm.security.capability_escalation_mode
-        {
-            vw_config_types::runtime::WasmCapabilityEscalationMode::Deny => "deny".to_string(),
-            vw_config_types::runtime::WasmCapabilityEscalationMode::Clamp => "clamp".to_string(),
-        },
-        wasm_module_hash_policy: match runtime_cfg.wasm.security.module_hash_policy {
-            vw_config_types::runtime::WasmModuleHashPolicy::Disabled => "disabled".to_string(),
-            vw_config_types::runtime::WasmModuleHashPolicy::Warn => "warn".to_string(),
-            vw_config_types::runtime::WasmModuleHashPolicy::Enforce => "enforce".to_string(),
-        },
-        wasm_module_sha256_input: runtime_cfg
-            .wasm
-            .security
-            .module_sha256
-            .iter()
-            .map(|(module, hash)| format!("{module}:{hash}"))
-            .collect::<Vec<_>>()
-            .join("\n"),
         reasoning_enabled_input: match runtime_cfg.reasoning_enabled {
             None => "auto".to_string(),
             Some(true) => "true".to_string(),

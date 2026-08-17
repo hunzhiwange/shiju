@@ -20,7 +20,6 @@ fn shared_tool_render_kind_routes_structured_tool_cards() {
     assert_eq!(shared_tool_render_kind("tool lsp\n{}"), Some(SharedToolRenderKind::Lsp));
     assert_eq!(shared_tool_render_kind("tool web_fetch\n{}"), Some(SharedToolRenderKind::Web));
     assert_eq!(shared_tool_render_kind("tool web_search\n{}"), Some(SharedToolRenderKind::Web));
-    assert_eq!(shared_tool_render_kind("tool image_info\n{}"), Some(SharedToolRenderKind::Bash));
     assert_eq!(shared_tool_render_kind("tool AgentTool\n{}"), Some(SharedToolRenderKind::Advanced));
     assert_eq!(shared_tool_render_kind("tool browser\n{}"), Some(SharedToolRenderKind::Advanced));
     assert_eq!(

@@ -202,7 +202,9 @@ fn porcelain_worktree_status(status: git2::Status) -> char {
         'R'
     } else if status.contains(git2::Status::WT_TYPECHANGE) {
         'T'
-    } else if status.contains(git2::Status::WT_UNREADABLE) || status.contains(git2::Status::CONFLICTED) {
+    } else if status.contains(git2::Status::WT_UNREADABLE)
+        || status.contains(git2::Status::CONFLICTED)
+    {
         'U'
     } else {
         ' '

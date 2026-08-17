@@ -300,7 +300,6 @@ fn fresh_agents_settings_patch_preserves_builtin_role_boundaries() {
             "file_read",
             "glob",
             "grep",
-            "image_info",
             "ls",
             "lsp",
             "pdf_read",

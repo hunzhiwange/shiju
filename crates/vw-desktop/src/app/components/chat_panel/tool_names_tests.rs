@@ -84,7 +84,6 @@ fn known_tool_name_accepts_representative_file_runtime_search_and_integration_to
         "get_errors",
         "get_changed_files",
         "view_image",
-        "wasm_module",
         "process",
     ] {
         assert!(is_known_tool_name(name), "expected known tool {name}");

@@ -26,7 +26,6 @@ fn shared_tool_render_kind_routes_known_tools() {
 
 #[test]
 fn shared_tool_render_kind_routes_aliases_and_special_tools() {
-    assert_eq!(shared_tool_render_kind("tool image_info\n{}"), Some(SharedToolRenderKind::Bash));
     assert_eq!(shared_tool_render_kind("tool glob_search\n{}"), Some(SharedToolRenderKind::Files));
     assert_eq!(
         shared_tool_render_kind("tool browser_open\n{}"),

@@ -7,18 +7,21 @@
 //! - 首次 step 网络失败不切换状态，重试仍可携带图片
 
 use super::analysis::{
-    ImageAnalysisCache, ImageAnalysisResult, format_image_reference_text, resolve_analysis_model,
+    ANALYSIS_PROMPT_VERSION, ImageAnalysisCache, ImageAnalysisResult, format_image_reference_text,
+    resolve_analysis_model,
 };
 use super::assets::{ImageAssetId, ImageAssetScope, ImageAssetStore};
 use super::ocr::ImageTextExtractor;
 use super::{
-    IMAGE_MARKER_PREFIX, MaterializedImage, materialize_image_reference, parse_image_markers,
+    IMAGE_MARKER_PREFIX, MaterializedImage, MultimodalError, materialize_image_reference,
+    parse_image_markers,
 };
 use crate::app::agent::config::MultimodalConfig;
 use crate::app::agent::providers::ChatMessage;
 use anyhow::Result;
 
 const DATA_IMAGE_PREFIX: &str = "data:image";
+const ANALYSIS_UNAVAILABLE_TEXT: &str = "图片识别暂不可用";
 
 /// 单张受跟踪图片。
 #[derive(Debug, Clone)]
@@ -451,8 +454,21 @@ async fn tracked_from_materialized(
         &materialized.model_input_bytes,
         &materialized.model_input_mime,
     )?;
-    let analysis =
-        analysis_cache.analyze_or_load(store, scope, &image_id, model_ref, extractor).await?;
+    let analysis = match analysis_cache
+        .analyze_or_load(store, scope, &image_id, model_ref, extractor)
+        .await
+    {
+        Ok(analysis) => analysis,
+        Err(error) if is_exhausted_recoverable_analysis_error(&error) => ImageAnalysisResult {
+            version: 1,
+            image_id: image_id.clone(),
+            visible_text: String::new(),
+            visual_summary: ANALYSIS_UNAVAILABLE_TEXT.to_string(),
+            model_ref: model_ref.to_string(),
+            prompt_version: ANALYSIS_PROMPT_VERSION.to_string(),
+        },
+        Err(error) => return Err(error),
+    };
     let reference_text = format_image_reference_text(&image_id, &analysis);
     Ok(TrackedImage {
         image_id,
@@ -462,6 +478,17 @@ async fn tracked_from_materialized(
         reference_text,
         analysis,
     })
+}
+
+fn is_exhausted_recoverable_analysis_error(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<MultimodalError>(),
+        Some(
+            MultimodalError::OcrModelUnavailable { .. }
+                | MultimodalError::OcrExtractionFailed { .. }
+                | MultimodalError::EmptyOcrOutput { .. }
+        )
+    )
 }
 
 /// 从内容快速判断是否仍含图片字节或本地路径标记。

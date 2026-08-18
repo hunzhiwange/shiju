@@ -69,6 +69,34 @@ fn raw_rounds_reconstruct_provider_messages_after_tools() {
 }
 
 #[test]
+fn raw_rounds_reconstruct_final_step_system_and_tool_changes() {
+    let first = raw_round(
+        0,
+        vec![json!({"role": "user", "content": "inspect the workspace"})],
+        json!({"model": "provider/model-a"}),
+        json!({"text": "", "tool_calls": [{"id": "call-1", "name": "shell"}]}),
+    );
+    let mut final_round = raw_round(
+        1,
+        vec![
+            json!({"role": "user", "content": "inspect the workspace"}),
+            json!({"role": "tool", "tool_call_id": "call-1", "content": "Cargo.toml"}),
+        ],
+        json!({"model": "provider/model-a"}),
+        json!({"text": "done", "tool_calls": []}),
+    );
+    final_round["system"] = json!(["Final answer only"]);
+    final_round["request"]["tools"] = json!([]);
+
+    let artifact =
+        LlmRawArtifact::from_full_raw_rounds("turn-a", &[first, final_round.clone()]).unwrap();
+
+    assert_eq!(artifact.rounds[1].system_delta, Some(json!(["Final answer only"])));
+    assert_eq!(artifact.rounds[1].tools_delta, Some(json!([])));
+    assert_eq!(artifact.reconstruct_round(1).unwrap(), final_round);
+}
+
+#[test]
 fn raw_round_delta_handles_compacted_prefix() {
     let before_compaction = raw_round(
         0,

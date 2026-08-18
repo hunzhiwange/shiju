@@ -238,6 +238,77 @@ fn request_reliability_values_feed_main_model_step_policy() {
     assert_eq!(super::request_provider_retry_policy(&request), (7, 1_250));
 }
 
+#[test]
+fn processor_image_assembly_does_not_emit_terminal_error_after_analysis_exhaustion() {
+    use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
+    use crate::app::agent::multimodal::context::ImageTurnContext;
+    use crate::app::agent::multimodal::ocr::ImageTextExtractor;
+    use async_trait::async_trait;
+
+    struct FailingExtractor;
+
+    #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+    #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+    impl ImageTextExtractor for FailingExtractor {
+        async fn supports_image_input(&self, _model_ref: &str) -> anyhow::Result<bool> {
+            Ok(true)
+        }
+
+        async fn extract_text(
+            &self,
+            _model_ref: &str,
+            _image_data_uri: &str,
+        ) -> anyhow::Result<String> {
+            anyhow::bail!("private upstream extraction failure")
+        }
+    }
+
+    let temp = tempfile::tempdir().expect("image workspace");
+    let path = temp.path().join("processor-image.png");
+    let image = image::ImageBuffer::from_pixel(4, 4, image::Rgb([1_u8, 2, 3]));
+    image.save(&path).expect("write PNG fixture");
+    let source = path.to_string_lossy().to_string();
+    let store = ImageAssetStore::new(temp.path());
+    let mut config = crate::app::agent::config::MultimodalConfig::default();
+    config.ocr.enabled = true;
+    config.ocr.model_supports_images = false;
+    config.ocr.model = Some("vision/reader".to_string());
+
+    let build_result = crate::session::prompt::block_on(ImageTurnContext::build(
+        &store,
+        ImageAssetScope::new("processor-exhaustion").expect("valid scope"),
+        &[],
+        Some(&format!("inspect [IMAGE:{source}]")),
+        false,
+        &config,
+        Some("vision/reader"),
+        &FailingExtractor,
+    ));
+    let mut events = Vec::new();
+    let mut messages = vec![serde_json::json!({
+        "role": "user",
+        "content": format!("inspect [IMAGE:{source}]")
+    })];
+    let assembled = match build_result {
+        Ok(context) => {
+            context.rewrite_json_messages(&mut messages);
+            Some(context)
+        }
+        Err(error) => {
+            events.push(super::StreamEvent::Error(format!(
+                "image OCR preprocessing failed: {error}"
+            )));
+            None
+        }
+    };
+
+    assert!(assembled.is_some());
+    assert!(!events.iter().any(|event| matches!(event, super::StreamEvent::Error(_))));
+    assert!(messages[0]["content"].as_str().is_some_and(|content| {
+        content.contains("图片识别暂不可用") && !content.contains("data:image")
+    }));
+}
+
 fn register_scope_project(scope: &str) -> tempfile::TempDir {
     let temp = tempfile::tempdir().expect("project tempdir");
     let info = crate::project::Info {

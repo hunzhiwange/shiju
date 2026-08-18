@@ -26,6 +26,10 @@ pub struct LlmRawRound {
     pub provider_message_suffix: Vec<Value>,
     pub message_source_suffix: Vec<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_delta: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools_delta: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub request_config_delta: Option<Value>,
     pub output: Value,
 }
@@ -62,6 +66,8 @@ impl LlmRawArtifact {
 
         let mut previous_messages = context.initial_provider_messages.clone();
         let mut previous_sources = context.initial_message_sources.clone();
+        let mut previous_system = context.system.clone();
+        let mut previous_tools = context.tools.clone();
         let mut previous_config = context.initial_request_config.clone();
         let mut rounds = Vec::with_capacity(raw_rounds.len());
 
@@ -76,17 +82,23 @@ impl LlmRawArtifact {
             );
             let request_config_delta =
                 (current.request_config != previous_config).then(|| current.request_config.clone());
+            let system_delta = (current.system != previous_system).then(|| current.system.clone());
+            let tools_delta = (current.tools != previous_tools).then(|| current.tools.clone());
             rounds.push(LlmRawRound {
                 turn_id: turn_id.clone(),
                 step_index: current.step_index,
                 provider_message_prefix_len: prefix_len,
                 provider_message_suffix: current.messages[prefix_len..].to_vec(),
                 message_source_suffix: current.message_sources[prefix_len..].to_vec(),
+                system_delta,
+                tools_delta,
                 request_config_delta,
                 output: current.output.clone(),
             });
             previous_messages = current.messages;
             previous_sources = current.message_sources;
+            previous_system = current.system;
+            previous_tools = current.tools;
             previous_config = current.request_config;
         }
 
@@ -97,6 +109,8 @@ impl LlmRawArtifact {
     pub fn reconstruct_round(&self, step_index: u32) -> Result<Value> {
         let mut messages = self.context.initial_provider_messages.clone();
         let mut message_sources = self.context.initial_message_sources.clone();
+        let mut system = self.context.system.clone();
+        let mut tools = self.context.tools.clone();
         let mut request_config = self.context.initial_request_config.clone();
 
         for round in &self.rounds {
@@ -118,6 +132,12 @@ impl LlmRawArtifact {
             if messages.len() != message_sources.len() {
                 bail!("LLM raw round has unaligned provider messages and message sources");
             }
+            if let Some(system_delta) = &round.system_delta {
+                system = system_delta.clone();
+            }
+            if let Some(tools_delta) = &round.tools_delta {
+                tools = tools_delta.clone();
+            }
             if let Some(config_delta) = &round.request_config_delta {
                 request_config = config_delta.clone();
             }
@@ -127,6 +147,8 @@ impl LlmRawArtifact {
                     round.step_index,
                     messages,
                     message_sources,
+                    system,
+                    tools,
                     request_config,
                     round.output.clone(),
                 ));
@@ -203,12 +225,6 @@ fn ensure_turn_context_matches(context: &LlmRawTurnContext, current: &RawRoundVi
     if current.model != context.model {
         bail!("LLM raw rounds in one artifact must share model");
     }
-    if current.system != context.system {
-        bail!("LLM raw rounds in one artifact must share system");
-    }
-    if current.tools != context.tools {
-        bail!("LLM raw rounds in one artifact must share tools");
-    }
     Ok(())
 }
 
@@ -247,18 +263,20 @@ fn reconstruct_raw_value(
     step_index: u32,
     messages: Vec<Value>,
     message_sources: Vec<Value>,
+    system: Value,
+    tools: Value,
     request_config: Value,
     output: Value,
 ) -> Value {
     let mut request = Map::new();
     request.insert("config".to_string(), request_config);
-    request.insert("tools".to_string(), context.tools.clone());
+    request.insert("tools".to_string(), tools);
 
     let mut raw = Map::new();
     raw.insert("session_id".to_string(), Value::String(context.session_id.clone()));
     raw.insert("step_index".to_string(), Value::from(step_index));
     raw.insert("model".to_string(), context.model.clone());
-    raw.insert("system".to_string(), context.system.clone());
+    raw.insert("system".to_string(), system);
     raw.insert("messages".to_string(), Value::Array(messages));
     raw.insert("message_sources".to_string(), Value::Array(message_sources));
     raw.insert("request".to_string(), Value::Object(request));

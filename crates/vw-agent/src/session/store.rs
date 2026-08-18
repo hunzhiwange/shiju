@@ -189,6 +189,8 @@ CREATE TABLE IF NOT EXISTS session_llm_raw_rounds (
     provider_message_prefix_len INTEGER NOT NULL,
     provider_message_suffix_json TEXT NOT NULL,
     message_source_suffix_json TEXT NOT NULL,
+    system_delta_json TEXT,
+    tools_delta_json TEXT,
     request_config_delta_json TEXT,
     output_json TEXT NOT NULL,
     PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
@@ -275,6 +277,7 @@ impl SessionStore {
                     ensure_sqlite_message_processing_timing_columns(connection)?;
                     ensure_sqlite_step_tool_timings_column(connection)?;
                     ensure_sqlite_step_turn_id_column(connection)?;
+                    ensure_sqlite_llm_raw_round_context_delta_columns(connection)?;
                     Ok(())
                 })?;
                 SessionStoreProvider::Sqlite(database)
@@ -1086,7 +1089,8 @@ fn load_sqlite_session_turn_step_llm_raw(
     };
     let mut statement = connection.prepare(
         "SELECT step_index, provider_message_prefix_len, provider_message_suffix_json,
-                message_source_suffix_json, request_config_delta_json, output_json
+                message_source_suffix_json, system_delta_json, tools_delta_json,
+                request_config_delta_json, output_json
          FROM session_llm_raw_rounds
          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
            AND session_id = ?4 AND turn_id = ?5 AND step_index <= ?6
@@ -1147,11 +1151,19 @@ fn sqlite_raw_round(row: &rusqlite::Row<'_>, turn_id: &str) -> rusqlite::Result<
         })?,
         provider_message_suffix: parse_values(row.get(2)?, "provider message suffix")?,
         message_source_suffix: parse_values(row.get(3)?, "message source suffix")?,
-        request_config_delta: row
+        system_delta: row
             .get::<_, Option<String>>(4)?
+            .map(|json| parse_value(json, "system delta"))
+            .transpose()?,
+        tools_delta: row
+            .get::<_, Option<String>>(5)?
+            .map(|json| parse_value(json, "tools delta"))
+            .transpose()?,
+        request_config_delta: row
+            .get::<_, Option<String>>(6)?
             .map(|json| parse_value(json, "request config delta"))
             .transpose()?,
-        output: parse_value(row.get(5)?, "output")?,
+        output: parse_value(row.get(7)?, "output")?,
     })
 }
 
@@ -1466,13 +1478,15 @@ fn upsert_session_llm_raw_round(
         "INSERT INTO session_llm_raw_rounds (
              platform_id, company_id, project_id, session_id, turn_id, step_index,
              provider_message_prefix_len, provider_message_suffix_json, message_source_suffix_json,
-             request_config_delta_json, output_json
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+             system_delta_json, tools_delta_json, request_config_delta_json, output_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
          ON CONFLICT (platform_id, company_id, project_id, session_id, turn_id, step_index)
              DO UPDATE SET
                  provider_message_prefix_len = excluded.provider_message_prefix_len,
                  provider_message_suffix_json = excluded.provider_message_suffix_json,
                  message_source_suffix_json = excluded.message_source_suffix_json,
+                 system_delta_json = excluded.system_delta_json,
+                 tools_delta_json = excluded.tools_delta_json,
                  request_config_delta_json = excluded.request_config_delta_json,
                  output_json = excluded.output_json",
         params![
@@ -1485,6 +1499,8 @@ fn upsert_session_llm_raw_round(
             usize_to_i64(round.provider_message_prefix_len, "LLM raw provider message prefix length")?,
             serde_json::to_string(&round.provider_message_suffix)?,
             serde_json::to_string(&round.message_source_suffix)?,
+            round.system_delta.as_ref().map(serde_json::to_string).transpose()?,
+            round.tools_delta.as_ref().map(serde_json::to_string).transpose()?,
             round.request_config_delta.as_ref().map(serde_json::to_string).transpose()?,
             serde_json::to_string(&round.output)?,
         ],
@@ -1639,6 +1655,24 @@ fn ensure_sqlite_step_tool_timings_column(connection: &Connection) -> Result<()>
             [],
         )
         .context("add SQLite session step tool timings column")?;
+    Ok(())
+}
+
+fn ensure_sqlite_llm_raw_round_context_delta_columns(connection: &Connection) -> Result<()> {
+    let mut statement = connection.prepare("PRAGMA table_info(session_llm_raw_rounds)")?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<rusqlite::Result<HashSet<_>>>()?;
+    if !columns.contains("system_delta_json") {
+        connection
+            .execute("ALTER TABLE session_llm_raw_rounds ADD COLUMN system_delta_json TEXT", [])
+            .context("add SQLite LLM raw round system delta column")?;
+    }
+    if !columns.contains("tools_delta_json") {
+        connection
+            .execute("ALTER TABLE session_llm_raw_rounds ADD COLUMN tools_delta_json TEXT", [])
+            .context("add SQLite LLM raw round tools delta column")?;
+    }
     Ok(())
 }
 

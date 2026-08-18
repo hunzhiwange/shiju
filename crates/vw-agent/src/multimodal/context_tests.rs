@@ -1,4 +1,4 @@
-use super::analysis::ImageAnalysisResult;
+use super::analysis::{ImageAnalysisResult, analysis_cache_path_for_tests};
 use super::assets::{ImageAssetId, ImageAssetScope, ImageAssetStore};
 use super::context::{ImageTurnContext, TrackedImage, content_contains_image_bytes};
 use super::ocr::ImageTextExtractor;
@@ -9,6 +9,45 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 struct CountingExtractor {
     calls: AtomicUsize,
+}
+
+struct AlwaysFailingExtractor {
+    calls: AtomicUsize,
+}
+
+struct UnsupportedExtractor;
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ImageTextExtractor for AlwaysFailingExtractor {
+    async fn supports_image_input(&self, _model_ref: &str) -> anyhow::Result<bool> {
+        Ok(true)
+    }
+
+    async fn extract_text(
+        &self,
+        _model_ref: &str,
+        _image_data_uri: &str,
+    ) -> anyhow::Result<String> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        anyhow::bail!("secret upstream error containing data:image/png;base64,LEAK")
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ImageTextExtractor for UnsupportedExtractor {
+    async fn supports_image_input(&self, _model_ref: &str) -> anyhow::Result<bool> {
+        Ok(false)
+    }
+
+    async fn extract_text(
+        &self,
+        _model_ref: &str,
+        _image_data_uri: &str,
+    ) -> anyhow::Result<String> {
+        panic!("unsupported models must not reach extraction")
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -64,6 +103,18 @@ fn context_with(images: Vec<TrackedImage>, resume_history_only: bool) -> ImageTu
 
 fn context_with_ocr(images: Vec<TrackedImage>) -> ImageTurnContext {
     ImageTurnContext::from_tracked(ImageAssetScope::new("proj").unwrap(), images, false, true)
+}
+
+fn png_fixture() -> Vec<u8> {
+    use image::{DynamicImage, ImageBuffer, ImageFormat, Rgb};
+    use std::io::Cursor;
+
+    let image = ImageBuffer::from_fn(32, 24, |x, y| Rgb([(x % 255) as u8, (y % 255) as u8, 1]));
+    let mut bytes = Vec::new();
+    DynamicImage::ImageRgb8(image)
+        .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
+        .unwrap();
+    bytes
 }
 
 #[test]
@@ -158,16 +209,7 @@ async fn legacy_loop_reuses_cached_analysis() {
     config.ocr.model = Some("vision/reader".to_string());
 
     // 生成可用 PNG fixture。
-    let png = {
-        use image::{DynamicImage, ImageBuffer, ImageFormat, Rgb};
-        use std::io::Cursor;
-        let image = ImageBuffer::from_fn(32, 24, |x, y| Rgb([(x % 255) as u8, (y % 255) as u8, 1]));
-        let mut bytes = Vec::new();
-        DynamicImage::ImageRgb8(image)
-            .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
-            .unwrap();
-        bytes
-    };
+    let png = png_fixture();
     let path = temp.path().join("shot.png");
     std::fs::write(&path, &png).unwrap();
     let source = path.to_string_lossy().to_string();
@@ -212,4 +254,139 @@ async fn legacy_loop_reuses_cached_analysis() {
         "cached analysis must not call the model again"
     );
     assert_eq!(ctx1.images[0].image_id, ctx2.images[0].image_id);
+}
+
+#[tokio::test]
+async fn image_context_continues_with_unavailable_reference_after_analysis_exhaustion() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ImageAssetStore::new(temp.path());
+    let scope = ImageAssetScope::new("analysis-exhaustion").unwrap();
+    let path = temp.path().join("failure.png");
+    std::fs::write(&path, png_fixture()).unwrap();
+    let source = path.to_string_lossy().to_string();
+    let extractor = AlwaysFailingExtractor { calls: AtomicUsize::new(0) };
+    let mut config = MultimodalConfig::default();
+    config.ocr.enabled = true;
+    config.ocr.model_supports_images = false;
+    config.ocr.model = Some("vision/reader".to_string());
+
+    let context = ImageTurnContext::build(
+        &store,
+        scope.clone(),
+        &[],
+        Some(&format!("inspect [IMAGE:{source}]")),
+        false,
+        &config,
+        Some("vision/reader"),
+        &extractor,
+    )
+    .await
+    .expect("exhausted recoverable analysis must degrade without ending the turn");
+
+    assert_eq!(extractor.calls.load(Ordering::SeqCst), 4);
+    assert_eq!(context.images.len(), 1);
+    let image = &context.images[0];
+    let rewritten = context.rewrite_content(&format!("inspect [IMAGE:{source}]"));
+    assert!(rewritten.contains("[VW_IMAGE:"));
+    assert!(rewritten.contains("图片识别暂不可用"));
+    assert!(!rewritten.contains("data:image"));
+    assert!(!rewritten.contains("secret upstream error"));
+    assert!(!context.should_attach_image_bytes());
+    assert!(
+        !analysis_cache_path_for_tests(&store, &scope, &image.image_id, "vision/reader").exists(),
+        "unavailable fallback must not be persisted as a successful analysis"
+    );
+}
+
+#[tokio::test]
+async fn image_context_keeps_current_image_for_visual_model_after_analysis_exhaustion() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ImageAssetStore::new(temp.path());
+    let scope = ImageAssetScope::new("visual-analysis-exhaustion").unwrap();
+    let path = temp.path().join("visual-failure.png");
+    std::fs::write(&path, png_fixture()).unwrap();
+    let source = path.to_string_lossy().to_string();
+    let extractor = AlwaysFailingExtractor { calls: AtomicUsize::new(0) };
+    let mut config = MultimodalConfig::default();
+    config.ocr.model = Some("vision/reader".to_string());
+
+    let mut context = ImageTurnContext::build(
+        &store,
+        scope,
+        &[],
+        Some(&format!("inspect [IMAGE:{source}]")),
+        false,
+        &config,
+        Some("vision/reader"),
+        &extractor,
+    )
+    .await
+    .expect("visual mode should keep the persisted current image after analysis exhaustion");
+
+    let first = context.rewrite_content(&format!("inspect [IMAGE:{source}]"));
+    assert!(context.should_attach_image_bytes());
+    assert!(first.contains("data:image"));
+    context.mark_first_success();
+    let later = context.rewrite_content(&format!("inspect [IMAGE:{source}]"));
+    assert!(!later.contains("data:image"));
+    assert!(later.contains("图片识别暂不可用"));
+}
+
+#[tokio::test]
+async fn image_context_rejects_model_without_image_support() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ImageAssetStore::new(temp.path());
+    let scope = ImageAssetScope::new("unsupported-analysis-model").unwrap();
+    let path = temp.path().join("unsupported.png");
+    std::fs::write(&path, png_fixture()).unwrap();
+    let source = path.to_string_lossy().to_string();
+    let mut config = MultimodalConfig::default();
+    config.ocr.enabled = true;
+    config.ocr.model_supports_images = false;
+    config.ocr.model = Some("text/only".to_string());
+
+    let error = ImageTurnContext::build(
+        &store,
+        scope,
+        &[],
+        Some(&format!("inspect [IMAGE:{source}]")),
+        false,
+        &config,
+        Some("text/only"),
+        &UnsupportedExtractor,
+    )
+    .await
+    .expect_err("capability mismatch must remain an explicit error");
+
+    assert!(error.to_string().contains("does not support image input"));
+}
+
+#[tokio::test]
+async fn image_context_does_not_hide_asset_store_failure() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("asset-store-failure.png");
+    std::fs::write(&path, png_fixture()).unwrap();
+    let source = path.to_string_lossy().to_string();
+    let store_root = temp.path().join("not-a-directory");
+    std::fs::write(&store_root, b"blocks asset directory creation").unwrap();
+    let store = ImageAssetStore::new(&store_root);
+    let extractor = AlwaysFailingExtractor { calls: AtomicUsize::new(0) };
+    let mut config = MultimodalConfig::default();
+    config.ocr.model = Some("vision/reader".to_string());
+
+    let error = ImageTurnContext::build(
+        &store,
+        ImageAssetScope::new("asset-store-failure").unwrap(),
+        &[],
+        Some(&format!("inspect [IMAGE:{source}]")),
+        false,
+        &config,
+        Some("vision/reader"),
+        &extractor,
+    )
+    .await
+    .expect_err("asset persistence failures must remain explicit");
+
+    assert!(!error.to_string().is_empty());
+    assert_eq!(extractor.calls.load(Ordering::SeqCst), 0);
 }

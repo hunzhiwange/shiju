@@ -21,6 +21,65 @@ struct CountingAnalyzer {
     delay_ms: u64,
 }
 
+struct SequentialAnalyzer {
+    support_calls: AtomicUsize,
+    extraction_calls: AtomicUsize,
+}
+
+impl SequentialAnalyzer {
+    fn new() -> Self {
+        Self {
+            support_calls: AtomicUsize::new(0),
+            extraction_calls: AtomicUsize::new(0),
+        }
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ImageTextExtractor for SequentialAnalyzer {
+    async fn supports_image_input(&self, _model_ref: &str) -> anyhow::Result<bool> {
+        let call = self.support_calls.fetch_add(1, Ordering::SeqCst);
+        if call == 0 {
+            anyhow::bail!("temporary model catalog failure");
+        }
+        Ok(true)
+    }
+
+    async fn extract_text(
+        &self,
+        _model_ref: &str,
+        _image_data_uri: &str,
+    ) -> anyhow::Result<String> {
+        match self.extraction_calls.fetch_add(1, Ordering::SeqCst) {
+            0 => anyhow::bail!("temporary extraction failure"),
+            1 => Ok(analysis_json("", "")),
+            _ => Ok(analysis_json("recovered", "final valid result")),
+        }
+    }
+}
+
+struct UnsupportedAnalyzer {
+    support_calls: AtomicUsize,
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl ImageTextExtractor for UnsupportedAnalyzer {
+    async fn supports_image_input(&self, _model_ref: &str) -> anyhow::Result<bool> {
+        self.support_calls.fetch_add(1, Ordering::SeqCst);
+        Ok(false)
+    }
+
+    async fn extract_text(
+        &self,
+        _model_ref: &str,
+        _image_data_uri: &str,
+    ) -> anyhow::Result<String> {
+        panic!("unsupported models must not reach extraction")
+    }
+}
+
 impl CountingAnalyzer {
     fn new(payload: impl Into<String>) -> Self {
         Self {
@@ -102,6 +161,44 @@ async fn cache_miss_analyzes_and_persists_once() {
     assert_eq!(result.model_ref, "vision/reader");
     assert_eq!(result.prompt_version, ANALYSIS_PROMPT_VERSION);
     assert!(analysis_cache_path_for_tests(&store, &scope, &image_id, "vision/reader").is_file());
+}
+
+#[tokio::test]
+async fn image_analysis_retries_recoverable_failures_until_success() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ImageAssetStore::new(temp.path());
+    let scope = ImageAssetScope::new("proj-retry").unwrap();
+    let image_id = put_asset(&store, &scope);
+    let extractor = SequentialAnalyzer::new();
+    let cache = ImageAnalysisCache::new();
+
+    let result = cache
+        .analyze_or_load(&store, &scope, &image_id, "vision/reader", &extractor)
+        .await
+        .expect("recoverable failures should eventually succeed");
+
+    assert_eq!(extractor.support_calls.load(Ordering::SeqCst), 4);
+    assert_eq!(extractor.extraction_calls.load(Ordering::SeqCst), 3);
+    assert_eq!(result.visible_text, "recovered");
+    assert_eq!(result.visual_summary, "final valid result");
+    assert!(analysis_cache_path_for_tests(&store, &scope, &image_id, "vision/reader").is_file());
+}
+
+#[tokio::test]
+async fn image_analysis_does_not_retry_unsupported_model() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = ImageAssetStore::new(temp.path());
+    let scope = ImageAssetScope::new("proj-unsupported").unwrap();
+    let image_id = put_asset(&store, &scope);
+    let extractor = UnsupportedAnalyzer { support_calls: AtomicUsize::new(0) };
+
+    let error = ImageAnalysisCache::new()
+        .analyze_or_load(&store, &scope, &image_id, "vision/reader", &extractor)
+        .await
+        .expect_err("unsupported models must fail immediately");
+
+    assert!(error.to_string().contains("does not support image input"));
+    assert_eq!(extractor.support_calls.load(Ordering::SeqCst), 1);
 }
 
 #[tokio::test]

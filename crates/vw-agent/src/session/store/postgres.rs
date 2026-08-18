@@ -232,6 +232,8 @@ CREATE TABLE IF NOT EXISTS session_llm_raw_rounds (
     provider_message_prefix_len BIGINT NOT NULL,
     provider_message_suffix_json TEXT NOT NULL,
     message_source_suffix_json TEXT NOT NULL,
+    system_delta_json TEXT,
+    tools_delta_json TEXT,
     request_config_delta_json TEXT,
     output_json TEXT NOT NULL,
     PRIMARY KEY (platform_id, company_id, project_id, session_id, turn_id, step_index),
@@ -241,6 +243,9 @@ CREATE TABLE IF NOT EXISTS session_llm_raw_rounds (
         REFERENCES session_llm_raw_turns(platform_id, company_id, project_id, session_id, turn_id)
         ON DELETE CASCADE
 );
+
+ALTER TABLE session_llm_raw_rounds ADD COLUMN IF NOT EXISTS system_delta_json TEXT;
+ALTER TABLE session_llm_raw_rounds ADD COLUMN IF NOT EXISTS tools_delta_json TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_session_llm_raw_rounds_project_turn_step
 ON session_llm_raw_rounds(platform_id, company_id, project_id, session_id, turn_id, step_index);
@@ -629,7 +634,8 @@ impl PostgresSessionStore {
         };
         let rows = connection.query(
             "SELECT step_index, provider_message_prefix_len, provider_message_suffix_json,
-                    message_source_suffix_json, request_config_delta_json, output_json
+                    message_source_suffix_json, system_delta_json, tools_delta_json,
+                    request_config_delta_json, output_json
              FROM session_llm_raw_rounds
              WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
                AND session_id = $4 AND turn_id = $5 AND step_index <= $6
@@ -1150,6 +1156,8 @@ fn upsert_session_llm_raw_round(
     )?;
     let provider_message_suffix_json = serde_json::to_string(&round.provider_message_suffix)?;
     let message_source_suffix_json = serde_json::to_string(&round.message_source_suffix)?;
+    let system_delta_json = round.system_delta.as_ref().map(serde_json::to_string).transpose()?;
+    let tools_delta_json = round.tools_delta.as_ref().map(serde_json::to_string).transpose()?;
     let request_config_delta_json = round.request_config_delta.as_ref().map(serde_json::to_string).transpose()?;
     let output_json = serde_json::to_string(&round.output)?;
     client
@@ -1157,13 +1165,15 @@ fn upsert_session_llm_raw_round(
             "INSERT INTO session_llm_raw_rounds (
                  platform_id, company_id, project_id, session_id, turn_id, step_index,
                  provider_message_prefix_len, provider_message_suffix_json, message_source_suffix_json,
-                 request_config_delta_json, output_json
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                 system_delta_json, tools_delta_json, request_config_delta_json, output_json
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
              ON CONFLICT (platform_id, company_id, project_id, session_id, turn_id, step_index)
                  DO UPDATE SET
                      provider_message_prefix_len = excluded.provider_message_prefix_len,
                      provider_message_suffix_json = excluded.provider_message_suffix_json,
                      message_source_suffix_json = excluded.message_source_suffix_json,
+                     system_delta_json = excluded.system_delta_json,
+                     tools_delta_json = excluded.tools_delta_json,
                      request_config_delta_json = excluded.request_config_delta_json,
                      output_json = excluded.output_json",
             &[
@@ -1176,6 +1186,8 @@ fn upsert_session_llm_raw_round(
                 &prefix_len,
                 &provider_message_suffix_json,
                 &message_source_suffix_json,
+                &system_delta_json,
+                &tools_delta_json,
                 &request_config_delta_json,
                 &output_json,
             ],
@@ -1384,11 +1396,19 @@ fn postgres_raw_round(row: &Row, turn_id: &str) -> Result<LlmRawRound> {
             row.try_get(3)?,
             "message source suffix",
         )?,
-        request_config_delta: row
+        system_delta: row
             .try_get::<_, Option<String>>(4)?
+            .map(|json| parse_raw_json::<serde_json::Value>(json, "system delta"))
+            .transpose()?,
+        tools_delta: row
+            .try_get::<_, Option<String>>(5)?
+            .map(|json| parse_raw_json::<serde_json::Value>(json, "tools delta"))
+            .transpose()?,
+        request_config_delta: row
+            .try_get::<_, Option<String>>(6)?
             .map(|json| parse_raw_json::<serde_json::Value>(json, "request config delta"))
             .transpose()?,
-        output: parse_raw_json::<serde_json::Value>(row.try_get(5)?, "output")?,
+        output: parse_raw_json::<serde_json::Value>(row.try_get(7)?, "output")?,
     })
 }
 

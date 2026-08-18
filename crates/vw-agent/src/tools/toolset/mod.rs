@@ -553,7 +553,6 @@ pub fn default_tools_with_runtime(
         tool_arcs.push(Arc::new(FileWriteTool::new(security.clone())));
         tool_arcs.push(Arc::new(ApplyPatchTool::new(security.clone())));
         tool_arcs.push(Arc::new(LsTool::new(security.clone())));
-        tool_arcs.push(Arc::new(LspTool::new(security.clone())));
         register_rustcodegraph_tool(&mut tool_arcs, &security.workspace_dir);
         tool_arcs.push(Arc::new(GlobTool::new(security.clone())));
         tool_arcs.push(Arc::new(GrepTool::new(security.clone())));
@@ -673,15 +672,12 @@ pub fn all_tools_with_runtime(
         tool_arcs.push(Arc::new(FileWriteTool::new(security.clone())));
         tool_arcs.push(Arc::new(ApplyPatchTool::new(security.clone())));
         tool_arcs.push(Arc::new(LsTool::new(security.clone())));
-        tool_arcs.push(Arc::new(LspTool::new(security.clone())));
         register_rustcodegraph_tool(&mut tool_arcs, &security.workspace_dir);
         tool_arcs.push(Arc::new(GlobTool::new(security.clone())));
         tool_arcs.push(Arc::new(GrepTool::new(security.clone())));
         tool_arcs.push(Arc::new(EnterWorktreeTool::new()));
         tool_arcs.push(Arc::new(ExitWorktreeTool::new()));
     }
-
-    tool_arcs.push(Arc::new(ToolSearchTool::new()));
 
     #[cfg(not(target_arch = "wasm32"))]
     if browser_config.enabled {

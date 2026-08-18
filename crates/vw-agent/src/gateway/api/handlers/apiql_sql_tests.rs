@@ -2,8 +2,8 @@ use serde_json::json;
 use vw_api_types::apiql::{
     ApiQlEntityConfig, ApiQlFieldConfig, ApiQlListMode, ApiQlRelationConfig,
 };
-use vw_api_types::data::AiDataCountMode;
 
+use super::executor::ApiQlCountMode;
 use super::params::normalize_apiql_query;
 use super::schema::ApiQlEntityRegistry;
 use super::sql::{ApiQlSqlQuery, build_apiql_sql};
@@ -124,7 +124,7 @@ fn apiql_sql_builds_default_select_object_fields_and_relation_join() {
         "SELECT apiql_base.id AS id, apiql_base.name AS name, apiql_base.vendor_id AS vendorId FROM product AS apiql_base LEFT JOIN catalog.vendor AS vendor ON apiql_base.vendor_id = vendor.id"
     );
     assert_eq!(query.limit, 1);
-    assert_eq!(query.count_mode, AiDataCountMode::Enabled);
+    assert_eq!(query.count_mode, ApiQlCountMode::Enabled);
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn apiql_sql_builds_where_in_and_search_key_conditions() {
     assert_eq!(query.params.get("search_2"), Some(&json!("%archived%")));
     assert_eq!(query.page, 1);
     assert_eq!(query.limit, 25);
-    assert_eq!(query.count_mode, AiDataCountMode::Disabled);
+    assert_eq!(query.count_mode, ApiQlCountMode::Disabled);
     assert_eq!(query.order_by.as_deref(), Some("id DESC"));
 }
 
@@ -301,7 +301,7 @@ fn apiql_sql_builds_cursor_grouping_and_clamps_pagination() {
     assert_eq!(query.params.get("cursor_id"), Some(&json!(9)));
     assert_eq!(query.page, 1);
     assert_eq!(query.limit, 10_000);
-    assert_eq!(query.count_mode, AiDataCountMode::Only);
+    assert_eq!(query.count_mode, ApiQlCountMode::Only);
     assert_eq!(query.cursor_fields, vec!["created_at", "id"]);
 }
 

@@ -594,7 +594,6 @@ fn default_tool_read_only(tool_id: &str) -> bool {
             | "content_search"
             | "grep"
             | "codesearch"
-            | "lsp"
             | "memory_recall"
             | "cron_list"
             | "cron_runs"

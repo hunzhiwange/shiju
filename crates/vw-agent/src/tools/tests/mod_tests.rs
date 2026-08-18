@@ -216,6 +216,7 @@ fn default_tools_names() {
     assert!(names.contains(&"ls"));
     assert!(names.contains(&"glob"));
     assert!(names.contains(&"grep"));
+    assert!(!names.contains(&"lsp"));
     assert!(!names.contains(&"glob_search"));
     assert!(!names.contains(&"content_search"));
 }
@@ -301,7 +302,6 @@ fn registry_specs_expose_bash_and_compact_search_surface() {
     assert!(!names.iter().any(|name| name == "process"));
     assert!(names.iter().any(|name| name == "glob"));
     assert!(names.iter().any(|name| name == "grep"));
-    assert!(names.iter().any(|name| name == "tool_search"));
     assert!(names.iter().any(|name| name == "Config"));
     assert!(names.iter().any(|name| name == "Sleep"));
     assert!(!names.iter().any(|name| name == "RemoteTrigger"));

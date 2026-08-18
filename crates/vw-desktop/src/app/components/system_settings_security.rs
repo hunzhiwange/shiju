@@ -20,8 +20,9 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, danger_action_btn_style, settings_checkbox_style, settings_divider,
     settings_error_banner, settings_help_button, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_segment_button_style, settings_text_input_style, settings_value_badge,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_section_content, settings_segment_button_style, settings_text_input_style,
+    settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{SecurityListKind, SecuritySettingsTab};
@@ -880,20 +881,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 "Bash 安全检查",
                 "优先级为总开关 → 分组开关 → 单项开关；关闭父级不会改写已保存的子项。"
             ),
-            settings_panel(bash_security_row),
+            settings_section_content(bash_security_row),
             settings_section_card("策略检查", "命令、路径、风险与重定向策略。"),
-            settings_panel(policy_rows),
+            settings_section_content(policy_rows),
             settings_section_card("Shell 语法检测", "按 validator 独立控制 Shell 语法检查。"),
-            settings_panel(validator_rows),
+            settings_section_content(validator_rows),
         ]
         .spacing(16)
         .into(),
         SecuritySettingsTab::SandboxAndResources => column![
             settings_section_card("沙箱", "控制是否启用沙箱以及选择具体后端。"),
-            settings_panel(sandbox_rows),
+            settings_section_content(sandbox_rows),
             sandbox_backend_card,
             settings_section_card("资源限制", "约束进程的内存、CPU 与子进程数量。"),
-            settings_panel(
+            settings_section_content(
                 column![
                     max_memory_row,
                     settings_divider(),
@@ -910,7 +911,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .into(),
         SecuritySettingsTab::Audit => column![
             settings_section_card("审计日志", "记录并限制安全事件日志。"),
-            settings_panel(
+            settings_section_content(
                 column![
                     audit_enabled_row,
                     settings_divider(),
@@ -927,7 +928,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .into(),
         SecuritySettingsTab::OtpAndEstop => column![
             settings_section_card("OTP", "对敏感动作启用二次验证。"),
-            settings_panel(
+            settings_section_content(
                 column![
                     otp_enabled_row,
                     settings_divider(),
@@ -946,7 +947,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .spacing(0)
             ),
             settings_section_card("紧急停止", "配置 E-Stop 状态与恢复要求。"),
-            settings_panel(
+            settings_section_content(
                 column![
                     estop_enabled_row,
                     settings_divider(),
@@ -961,7 +962,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .into(),
         SecuritySettingsTab::Syscall => column![
             settings_section_card("系统调用异常检测", "监控系统调用行为并限制告警节奏。"),
-            settings_panel(
+            settings_section_content(
                 column![
                     syscall_enabled_row,
                     settings_divider(),
@@ -988,7 +989,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .into(),
         SecuritySettingsTab::Guard => column![
             settings_section_card("防护", "配置 Canary Token 与语义注入防护。"),
-            settings_panel(
+            settings_section_content(
                 column![
                     canary_row,
                     settings_divider(),

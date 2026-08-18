@@ -75,8 +75,6 @@ pub mod http_request;
 pub mod image_asset_read;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ls;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod lsp;
 pub mod mcp_common;
 pub mod mcp_inspect;
 pub mod mcp_status;
@@ -104,7 +102,6 @@ pub mod shell;
 pub mod skill;
 pub mod sleep;
 pub mod todo;
-pub mod tool_search;
 mod toolset;
 pub mod traits;
 pub mod url_validation;
@@ -154,8 +151,6 @@ pub use http_request::HttpRequestTool;
 pub use image_asset_read::ImageAssetReadTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use ls::LsTool;
-#[cfg(not(target_arch = "wasm32"))]
-pub use lsp::LspTool;
 pub use mcp_status::McpStatusTool;
 pub use memory_forget::MemoryForgetTool;
 pub use memory_recall::MemoryRecallTool;
@@ -179,7 +174,6 @@ pub use shell::ShellTool;
 pub use skill::SkillTool;
 pub use sleep::SleepTool;
 pub use todo::{Todo, TodoReadTool, TodoWriteTool};
-pub use tool_search::ToolSearchTool;
 pub use traits::Tool;
 #[allow(unused_imports)]
 pub use traits::{
@@ -216,11 +210,9 @@ pub const BROWSER_TOOL_ALIAS: &str = "browser";
 pub const BROWSER_OPEN_TOOL_ALIAS: &str = "browser_open";
 pub const ENTER_WORKTREE_TOOL_ID: &str = "enter_worktree";
 pub const EXIT_WORKTREE_TOOL_ID: &str = "exit_worktree";
-pub const TOOL_SEARCH_TOOL_ID: &str = "tool_search";
 
 pub const ENTER_WORKTREE_TOOL_ALIASES: [&str; 1] = ["EnterWorktree"];
 pub const EXIT_WORKTREE_TOOL_ALIASES: [&str; 1] = ["ExitWorktree"];
-pub const TOOL_SEARCH_TOOL_ALIASES: [&str; 1] = ["ToolSearch"];
 
 pub fn is_question_tool_id(id: &str) -> bool {
     matches!(id, ASK_USER_QUESTION_TOOL_ID | QUESTION_TOOL_ALIAS)

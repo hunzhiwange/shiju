@@ -15,8 +15,8 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_value_badge,
+    settings_page_intro, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_section_content, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, pick_list, row, slider, text};
@@ -72,6 +72,7 @@ fn field_row<'a>(
 /// 3. 字体大小 - 滑块控件，调整编辑器字体大小（10-30px）
 /// 4. 行高 - 滑块控件，调整编辑器行高（10-60px）
 /// 5. 自动行高 - 复选框，控制是否根据字体大小自动调整行高
+/// 6. LSP 语言服务 - 复选框，控制代码补全、悬停与跳转定义
 pub(crate) fn content(app: &App) -> Element<'_, Message> {
     let editor_theme = if app.editor_follow_system_theme {
         app.app_theme.clone()
@@ -133,22 +134,39 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
             .style(settings_checkbox_style),
     );
 
+    #[cfg(not(target_arch = "wasm32"))]
+    let lsp_enabled = field_row(
+        "LSP 语言服务",
+        "启用代码补全、悬停提示与跳转定义；需要对应语言服务器可用。",
+        checkbox(!app.lsp_disabled)
+            .label("启用")
+            .on_toggle(|enabled| {
+                Message::Preview(message::PreviewMessage::LspToggleDisabled(!enabled))
+            })
+            .style(settings_checkbox_style),
+    );
+
+    let mut fields = column![
+        follow_system_theme,
+        settings_divider(),
+        editor_theme_row,
+        settings_divider(),
+        size_row,
+        settings_divider(),
+        line_height_row,
+        settings_divider(),
+        auto_line_height,
+    ]
+    .spacing(0);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        fields = fields.push(settings_divider()).push(lsp_enabled);
+    }
+
     column![
         settings_section_card("主题与显示", "统一编辑器主题来源及排版参数。"),
-        settings_panel(
-            column![
-                follow_system_theme,
-                settings_divider(),
-                editor_theme_row,
-                settings_divider(),
-                size_row,
-                settings_divider(),
-                line_height_row,
-                settings_divider(),
-                auto_line_height
-            ]
-            .spacing(0)
-        )
+        settings_section_content(fields)
     ]
     .spacing(16)
     .into()

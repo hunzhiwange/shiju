@@ -16,7 +16,7 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_help_button, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_section_card, settings_value_badge,
+    settings_section_card, settings_section_content, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{column, container, row, slider, text};
@@ -247,9 +247,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .align_y(Alignment::Start),
         settings_section_card("Provider", "控制模型请求失败时的重试次数和退避时间。"),
-        settings_panel(column![provider_retries_row, provider_backoff_row].spacing(0)),
+        settings_section_content(column![provider_retries_row, provider_backoff_row].spacing(0)),
         settings_section_card("频道与调度", "控制频道重连与调度器重试节奏。"),
-        settings_panel(
+        settings_section_content(
             column![
                 channel_initial_row,
                 channel_max_row,

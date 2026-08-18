@@ -343,7 +343,7 @@ fn blocked_path(input: &Value, security: &SecurityPolicy) -> Option<String> {
         return None;
     };
 
-    for key in ["path", "filePath", "file_path", "dirPath", "dir", "cwd", "oldPath", "newPath"] {
+    for key in ["path", "dirPath", "dir", "cwd", "oldPath", "newPath"] {
         let Some(value) = map.get(key) else {
             continue;
         };

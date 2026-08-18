@@ -60,7 +60,11 @@ fn image_model_options_only_include_active_image_input_models() {
 
     assert_eq!(
         image_model_options(&app),
-        vec!["openai/vision".to_string(), "google/gemini-vision".to_string()]
+        vec![
+            NO_IMAGE_MODEL_OPTION.to_string(),
+            "openai/vision".to_string(),
+            "google/gemini-vision".to_string(),
+        ]
     );
 }
 

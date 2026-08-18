@@ -19,8 +19,9 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_text_input_style,
+    settings_muted_text_style, settings_page_intro, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_section_content,
+    settings_text_input_style,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, pick_list, row, text, text_input};
@@ -157,14 +158,16 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         row![container(text("代理设置").size(16)).width(Length::Fill), help_btn]
             .align_y(Alignment::Center),
         settings_section_card("基础行为", "控制代理开关与作用域选择。"),
-        settings_panel(column![enabled_row, settings_divider(), scope_row].spacing(0)),
+        settings_section_content(column![enabled_row, settings_divider(), scope_row].spacing(0)),
         settings_section_card("代理地址", "分别配置 HTTP、HTTPS 与兜底代理地址。"),
-        settings_panel(
+        settings_section_content(
             column![http_row, settings_divider(), https_row, settings_divider(), all_row]
                 .spacing(0),
         ),
         settings_section_card("排除与路由", "配置 NO_PROXY 和指定服务选择器。"),
-        settings_panel(column![no_proxy_row, settings_divider(), services_row].spacing(0)),
+        settings_section_content(
+            column![no_proxy_row, settings_divider(), services_row].spacing(0),
+        ),
     ]
     .spacing(16)
     .width(Length::Fill);

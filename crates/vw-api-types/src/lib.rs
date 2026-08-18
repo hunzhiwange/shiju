@@ -11,7 +11,6 @@
 //! - [`agent_scheduler`][]: Agent Scheduler 任务、Worker、Team、lease、事件与 outbox DTO
 //! - [`apiql`][]: ApiQL 只读列表、分页响应与实体配置 DTO
 //! - [`chat`][]: 聊天消息、流式事件与聊天请求体
-//! - [`data`][]: AI-DATA 连接、报表、查询与 AI 规划协议
 //! - [`session`][]: 会话详情、列表、归档、分叉与网关会话操作
 //! - [`project`][]: 项目实体、项目列表与项目级变更记录
 //! - [`file`][]: 文件树、文件读写、搜索与文件元信息
@@ -42,7 +41,6 @@ pub mod agent_scheduler;
 pub mod apiql;
 pub mod chat;
 pub mod common;
-pub mod data;
 pub mod error;
 pub mod file;
 pub mod git;
@@ -74,9 +72,6 @@ mod chat_tests;
 #[cfg(test)]
 #[path = "common_tests.rs"]
 mod common_tests;
-#[cfg(test)]
-#[path = "data_tests.rs"]
-mod data_tests;
 #[cfg(test)]
 #[path = "error_tests.rs"]
 mod error_tests;

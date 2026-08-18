@@ -300,8 +300,8 @@ async fn recent_hover_none_clears_hover_and_schedules_todo_refresh() {
     ));
 }
 
-#[test]
-fn open_project_session_uses_known_directory_and_restores_cached_state() {
+#[tokio::test(flavor = "multi_thread")]
+async fn open_requesting_session_prepares_restored_cached_state() {
     let mut app = app();
     let previous_scroll_id = app.chat_scroll_id.clone();
     let mut target = session_info("target", 1, 1);
@@ -329,7 +329,7 @@ fn open_project_session_uses_known_directory_and_restores_cached_state() {
         ),
     );
 
-    assert!(task.is_some());
+    let messages = collect_task_messages(task.expect("session open should return a task")).await;
     assert_eq!(app.project_path.as_deref(), Some("/tmp/known-project"));
     assert_eq!(app.active_session_id.as_deref(), Some("target"));
     assert_eq!(app.chat.len(), 1);
@@ -340,6 +340,25 @@ fn open_project_session_uses_known_directory_and_restores_cached_state() {
     assert!(app.active_session_view_state.ui_preparing);
     assert!(!app.active_session_view_state.base_ready);
     assert_ne!(app.chat_scroll_id, previous_scroll_id);
+
+    let prepared = messages
+        .into_iter()
+        .find(|message| {
+            matches!(
+                message,
+                crate::app::Message::Project(
+                    crate::app::message::project::ProjectMessage::SessionUiPrepared { .. }
+                )
+            )
+        })
+        .expect("requesting cache should schedule local UI preparation");
+    let crate::app::Message::Project(prepared) = prepared else {
+        unreachable!("matched project message above");
+    };
+    super::super::lifecycle::handle(&mut app, prepared);
+
+    assert!(!app.active_session_view_state.ui_preparing);
+    assert!(app.active_session_view_state.base_ready);
 }
 
 #[test]

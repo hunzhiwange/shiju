@@ -19,7 +19,8 @@ mod extended_channels_tests;
 
 use crate::app::components::system_settings_common::{
     settings_checkbox_style, settings_divider, settings_muted_text_style, settings_page_intro,
-    settings_error_banner, settings_panel, settings_section_card, settings_text_input_style,
+    settings_error_banner, settings_section_card, settings_section_content,
+    settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
@@ -98,10 +99,10 @@ pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSet
     tabs
 }
 
-fn global_settings_panel(app: &App) -> Element<'_, Message> {
+fn global_settings_content(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
 
-    settings_panel(
+    settings_section_content(
         column![
             row![
                 text("CLI 通道").size(13).width(Length::Fixed(LABEL_WIDTH)),
@@ -249,7 +250,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let active_tab = app.channels_settings.active_tab;
     let selected_panel: Element<'_, Message> = match active_tab {
-        ChannelsSettingsTab::Global => global_settings_panel(app),
+        ChannelsSettingsTab::Global => global_settings_content(app),
         ChannelsSettingsTab::Telegram => basic_channels::telegram_panel(app),
         ChannelsSettingsTab::Discord => basic_channels::discord_panel(app),
         ChannelsSettingsTab::Slack => basic_channels::slack_panel(app),
@@ -265,7 +266,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         #[cfg(not(target_arch = "wasm32"))]
         ChannelsSettingsTab::Email => extended_channels::email_panel(app),
         #[cfg(target_arch = "wasm32")]
-        ChannelsSettingsTab::Email => global_settings_panel(app),
+        ChannelsSettingsTab::Email => global_settings_content(app),
         ChannelsSettingsTab::Irc => extended_channels::irc_panel(app),
         ChannelsSettingsTab::Lark => enterprise_channels::lark_panel(app),
         ChannelsSettingsTab::Feishu => enterprise_channels::feishu_panel(app),
@@ -278,7 +279,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut content = column![
         settings_page_intro("通道配置", "集中配置 CLI 与外部消息通道的接入参数。"),
         settings_section_card("已启用通道", "快速查看当前已打开的入口，便于核对多通道部署状态。"),
-        settings_panel(column![text(enabled_text).size(12).style(settings_muted_text_style)]),
+        settings_section_content(column![
+            text(enabled_text).size(12).style(settings_muted_text_style)
+        ]),
         settings_section_card("通道", "选择一个通道进行配置。"),
         channel_tabs(active_tab),
     ]

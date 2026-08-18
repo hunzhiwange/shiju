@@ -27,7 +27,6 @@ fn canonical_tool_name_covers_every_declared_alias_group() {
         ("browserOpen", "browser_open"),
         ("lsp", "lsp"),
         ("exitWorktree", "exit_worktree"),
-        ("toolSearch", "tool_search"),
     ];
 
     for (raw, expected) in cases {
@@ -115,6 +114,5 @@ fn compact_tool_call_trace_rejects_uppercase_and_missing_prefix() {
 
 #[test]
 fn known_tool_name_covers_canonicalized_advanced_tools() {
-    assert!(is_known_tool_name("ToolSearch"));
     assert!(is_known_tool_name("enterWorktree"));
 }

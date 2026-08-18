@@ -59,17 +59,6 @@ fn tool_card_text_blocks_cover_todo_and_browser_previews() {
 }
 
 #[test]
-fn tool_card_text_blocks_cover_advanced_tool_previews() {
-    let blocks = tool_card_text_blocks(
-        "tool tool_search\n{\"result\":{\"data\":{\"items\":[{\"display_name\":\"GitHub\",\"reason\":\"repo access\"},{\"id\":\"slack\",\"reason\":\"messages\"}]}},\"status\":\"completed\",\"output\":\"matches\"}",
-    );
-
-    assert!(blocks[0][0].starts_with("状态:"));
-    assert!(blocks[0].contains(&"GitHub: repo access".to_string()));
-    assert!(blocks[0].contains(&"slack: messages".to_string()));
-}
-
-#[test]
 fn normalized_visible_text_strips_internal_traces() {
     assert_eq!(
         normalized_visible_text("tool bash({\"command\":\"pwd\"})\nfinal"),
@@ -272,9 +261,6 @@ fn tool_card_texts_cover_browser_open_sparse_fields() {
         vec!["opened".to_string()]
     );
 
-    let available = tool_card("tool_search", serde_json::json!({}));
-    assert_eq!(available[0], "状态: available");
-    assert!(available[1].contains("已接入当前会话工具面"));
 }
 
 #[test]

@@ -23,8 +23,8 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_divider, settings_help_button, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_section_card, settings_segment_button_style,
-    settings_text_input_style, settings_value_badge,
+    settings_page_intro, settings_section_card, settings_section_content,
+    settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, slider, text, text_input};
@@ -206,7 +206,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .align_y(Alignment::Start),
         settings_section_card("观测后端", "选择观测后端并配置 OTel 端点。"),
-        settings_panel(
+        settings_section_content(
             column![
                 backend_row,
                 settings_divider(),
@@ -217,7 +217,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .spacing(0),
         ),
         settings_section_card("运行时追踪", "控制 trace 模式、文件路径和 rolling 保留量。"),
-        settings_panel(
+        settings_section_content(
             column![
                 trace_mode_row,
                 settings_divider(),

@@ -11,8 +11,8 @@ use crate::app::components::system_settings_common::{
     danger_action_btn_style, icon_svg, rounded_action_btn_style, settings_checkbox_style,
     settings_control_with_hint, settings_divider, settings_error_banner, settings_help_button,
     settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_section_card, settings_segment_button_style,
-    settings_text_input_style, settings_value_badge,
+    settings_panel, settings_section_card, settings_section_content,
+    settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{GatewayMessage, SettingsMessage};
@@ -307,7 +307,7 @@ fn service_action_cell(
     .into()
 }
 
-fn service_controls_panel(app: &App) -> Element<'_, Message> {
+fn service_controls_content(app: &App) -> Element<'_, Message> {
     let s = &app.gateway_settings;
     let running = s.service_action_running.as_deref();
     let copied_command = s.copied_service_command.as_deref();
@@ -338,7 +338,7 @@ fn service_controls_panel(app: &App) -> Element<'_, Message> {
         );
     }
 
-    settings_panel(content).into()
+    settings_section_content(content).into()
 }
 
 fn parse_skey_date(raw: &str) -> Option<NaiveDate> {
@@ -812,12 +812,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "服务管理",
             "通过本机 gateway 调用 vibewindow service 管理 OS 服务生命周期。"
         ),
-        service_controls_panel(app),
+        service_controls_content(app),
         settings_section_card(
             "监听地址",
             "控制网关监听 host / port。默认仅绑定回环地址，避免意外暴露到公网。"
         ),
-        settings_panel(
+        settings_section_content(
             column![
                 port_row,
                 settings_divider(),
@@ -826,7 +826,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .spacing(0)
         ),
         settings_section_card("安全开关", "控制 skey 鉴权、公网绑定与反向代理头信任策略。"),
-        settings_panel(
+        settings_section_content(
             column![
                 auth_enabled_row,
                 settings_divider(),
@@ -837,18 +837,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .spacing(0),
         ),
         settings_section_card("速率限制", "限制 /webhook 请求频率，并约束网关内部 key map 规模。"),
-        settings_panel(
+        settings_section_content(
             column![webhook_rate_row, settings_divider(), rate_limit_max_keys_row].spacing(0),
         ),
         settings_section_card("幂等性", "控制 webhook 幂等 key 的存活时间与内存上限。"),
-        settings_panel(
+        settings_section_content(
             column![idempotency_ttl_row, settings_divider(), idempotency_max_keys_row].spacing(0)
         ),
         settings_section_card(
             "Node Control",
             "配置实验性的 node-control 协议，包括额外鉴权和允许的远端节点 ID。"
         ),
-        settings_panel(
+        settings_section_content(
             column![
                 node_control_enabled_row,
                 settings_divider(),

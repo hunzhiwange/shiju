@@ -148,7 +148,6 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
         "/v1/agent-scheduler/projects/{project_id}/tasks",
         "/v1/staff/projects/{project_id}/projection",
         "/v1/session/{session_id}/message/{message_id}/part/{part_id}",
-        "/v1/data/connections/{connection_id}/catalog",
         "/v1/workflow/applications/{uuid}/chat-messages",
         "/v1/knowledge/datasets/{dataset_id}/documents/import-async",
     ] {

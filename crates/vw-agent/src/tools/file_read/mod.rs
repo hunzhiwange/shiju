@@ -31,9 +31,8 @@ const MAX_BYTES: usize = 50 * 1024;
 /// 允许内联到模型结果中的原始图片最大字节数。
 const MAX_INLINE_IMAGE_BYTES: usize = 24 * 1024;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 struct Args {
-    #[serde(alias = "filePath", alias = "file_path")]
     path: String,
     offset: Option<usize>,
     limit: Option<usize>,
@@ -44,28 +43,20 @@ fn parse_args(input: Value) -> anyhow::Result<Args> {
         .as_object()
         .ok_or_else(|| anyhow::anyhow!("Missing or invalid parameters: expected object"))?;
 
-    let mut path: Option<String> = None;
-    for key in ["path", "filePath", "file_path"] {
-        let Some(value) = object.get(key) else {
-            continue;
-        };
-        let value = value.as_str().ok_or_else(|| {
-            anyhow::anyhow!("Missing or invalid parameters: `{key}` must be a string")
-        })?;
-        if let Some(existing) = &path {
-            if existing != value {
-                anyhow::bail!(
-                    "Missing or invalid parameters: conflicting path aliases `{existing}` and `{value}`"
-                );
-            }
-        } else {
-            path = Some(value.to_string());
+    for key in object.keys() {
+        if !matches!(key.as_str(), "path" | "offset" | "limit") {
+            anyhow::bail!("Missing or invalid parameters: unknown field `{key}`");
         }
     }
 
-    let path = path.ok_or_else(|| {
-        anyhow::anyhow!("Missing or invalid parameters: missing required field `path`")
-    })?;
+    let path = object
+        .get("path")
+        .ok_or_else(|| {
+            anyhow::anyhow!("Missing or invalid parameters: missing required field `path`")
+        })?
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Missing or invalid parameters: `path` must be a string"))?
+        .to_string();
     let offset = parse_optional_usize(object, "offset")?;
     let limit = parse_optional_usize(object, "limit")?;
 
@@ -1249,14 +1240,6 @@ impl Tool for FileReadTool {
         json!({
             "type": "object",
             "properties": {
-                "filePath": {
-                    "type": "string",
-                    "description": "文件路径，兼容别名。"
-                },
-                "file_path": {
-                    "type": "string",
-                    "description": "文件路径，兼容别名。"
-                },
                 "path": {
                     "type": "string",
                     "description": "文件路径。相对路径从工作区解析；外部路径需要策略白名单。"
@@ -1270,7 +1253,8 @@ impl Tool for FileReadTool {
                     "description": "返回的最大数量（文本按行、PDF 按页、notebook 按 cell；默认：2000）"
                 }
             },
-            "required": ["path"]
+            "required": ["path"],
+            "additionalProperties": false
         })
     }
 

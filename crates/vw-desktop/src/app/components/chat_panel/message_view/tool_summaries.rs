@@ -180,37 +180,6 @@ fn tool_result_data_object(
         .and_then(|data| data.as_object())
 }
 
-fn tool_search_preview_texts(value: &serde_json::Value) -> Vec<String> {
-    let Some(data) = tool_result_data_object(value) else {
-        return Vec::new();
-    };
-    let Some(items) = data.get("items").and_then(|item| item.as_array()) else {
-        return Vec::new();
-    };
-
-    let mut lines = Vec::new();
-    for item in items.iter().take(3) {
-        let Some(object) = item.as_object() else {
-            continue;
-        };
-        let label = object
-            .get("display_name")
-            .and_then(|item| item.as_str())
-            .map(str::trim)
-            .filter(|text| !text.is_empty())
-            .or_else(|| object.get("id").and_then(|item| item.as_str()).map(str::trim))
-            .unwrap_or("unknown");
-        let reason = object
-            .get("reason")
-            .and_then(|item| item.as_str())
-            .map(str::trim)
-            .filter(|text| !text.is_empty())
-            .unwrap_or("matched");
-        lines.push(format!("{label}: {reason}"));
-    }
-    lines
-}
-
 fn browser_preview_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String> {
     let Some(data) = tool_result_data_object(value) else {
         return Vec::new();
@@ -564,16 +533,7 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
                         tool_texts.push(err_text.to_string());
                     }
                 } else if !output.is_empty() {
-                    if tool_name == "tool_search" {
-                        let previews = tool_search_preview_texts(value);
-                        if previews.is_empty() {
-                            tool_texts.push(output.to_string());
-                        } else {
-                            tool_texts.extend(previews);
-                        }
-                    } else {
-                        tool_texts.push(output.to_string());
-                    }
+                    tool_texts.push(output.to_string());
                 } else {
                     let state_text = match spec.state {
                         AdvancedToolSurfaceState::Available => {

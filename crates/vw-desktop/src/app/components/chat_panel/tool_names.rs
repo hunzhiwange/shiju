@@ -21,7 +21,6 @@ pub fn canonical_tool_name(tool_name: &str) -> &str {
         "lsp" => "lsp",
         "enterworktree" | "enter_worktree" => "enter_worktree",
         "exitworktree" | "exit_worktree" => "exit_worktree",
-        "toolsearch" | "tool_search" => "tool_search",
         "workflownode" | "workflow_node" => "workflow_node",
         _ => trimmed,
     }
@@ -96,7 +95,6 @@ pub fn is_known_tool_name(tool_name: &str) -> bool {
             | "process"
             | "enter_worktree"
             | "exit_worktree"
-            | "tool_search"
             | "workflow_node"
     )
 }

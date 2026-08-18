@@ -342,13 +342,6 @@ pub static VIBEWINDOW_EXPERIMENTAL_OXFMT: LazyLock<bool> =
 pub static VIBEWINDOW_EXPERIMENTAL_LSP_TY: LazyLock<bool> =
     LazyLock::new(|| truthy("VIBEWINDOW_EXPERIMENTAL_LSP_TY"));
 
-/// 实验性 LSP 工具
-///
-/// 启用实验性的 LSP 工具集成。
-/// 如果 `VIBEWINDOW_EXPERIMENTAL` 总开关已启用，则此功能自动启用。
-pub static VIBEWINDOW_EXPERIMENTAL_LSP_TOOL: LazyLock<bool> =
-    LazyLock::new(|| *VIBEWINDOW_EXPERIMENTAL || truthy("VIBEWINDOW_EXPERIMENTAL_LSP_TOOL"));
-
 /// 禁用文件时间检查
 ///
 /// 控制是否禁用基于文件修改时间的缓存验证。

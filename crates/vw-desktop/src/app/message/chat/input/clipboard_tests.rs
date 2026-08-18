@@ -27,8 +27,8 @@ fn clipboard_text_payload_preserves_non_empty_text() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn clipboard_text_payload_caches_text_above_two_hundred_characters_as_attachment() {
-    let content = "中".repeat(201);
+fn clipboard_text_payload_caches_text_above_five_hundred_characters_as_attachment() {
+    let content = "中".repeat(501);
     let payload = clipboard_text_payload(Some(content.clone()));
 
     let ClipboardPastePayload::AttachmentPath(path) = payload else {

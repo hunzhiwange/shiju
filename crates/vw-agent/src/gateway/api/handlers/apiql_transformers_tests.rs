@@ -2,8 +2,9 @@ use super::*;
 use serde_json::json;
 use std::collections::BTreeMap;
 use vw_api_types::apiql::{ApiQlEntityConfig, ApiQlFieldConfig};
-use vw_api_types::data::{AiDataConnectionDto, AiDataConnectionKind};
 use vw_api_types::id::TenantScope;
+
+use super::super::connections::ApiQlConnectionKind;
 
 fn field(name: &str, column: &str) -> ApiQlFieldConfig {
     ApiQlFieldConfig {
@@ -44,23 +45,17 @@ fn transformer_arg(has_many: bool) -> ApiTransformerArg {
     }
 }
 
-fn connection() -> AiDataConnectionDto {
-    AiDataConnectionDto {
+fn connection() -> ApiQlConnection {
+    ApiQlConnection {
         id: "main".to_string(),
         name: "Main".to_string(),
-        kind: AiDataConnectionKind::Sqlite,
+        kind: ApiQlConnectionKind::Sqlite,
         description: None,
         enabled: true,
         read_only: true,
-        base_url: None,
         connection_url: None,
         sqlite_path: Some(":memory:".to_string()),
-        default_path: None,
-        auth_token: None,
-        headers: BTreeMap::new(),
-        schema_hint: None,
         updated_at_ms: 0,
-        last_used_ms: None,
     }
 }
 

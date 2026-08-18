@@ -23,7 +23,7 @@ fn tui_paste_file_references_vim_and_external_editor_match_reference() {
     paste.finish(&mut prompt);
     assert_eq!(prompt.value, "短文本");
 
-    let large_text = "一".repeat(201);
+    let large_text = "一".repeat(501);
     apply_terminal_paste(&mut prompt, &large_text);
     let path = prompt
         .value

@@ -125,11 +125,11 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
 
     extend_tabs!(system_settings_general::GENERAL_TABS, "常规设置", General);
     extend_tabs!(system_settings_models::MODEL_TABS, "模型", Models);
-    extend_tabs!(system_settings_cron::CRON_TABS, "定时任务配置", Cron);
-    extend_tabs!(system_settings_agents::AGENT_CONFIG_TABS, "智能体配置", Agents);
+    extend_tabs!(system_settings_cron::CRON_TABS, "定时任务", Cron);
+    extend_tabs!(system_settings_agents::AGENT_CONFIG_TABS, "智能体", Agents);
     extend_tabs!(system_settings_staff::search_tabs(), "员工配置", Staff);
     let channel_tabs = system_settings_channels::channel_tab_descriptors();
-    extend_tabs!(channel_tabs, "智能体配置 / 通道", Channels);
+    extend_tabs!(channel_tabs, "智能体 / 通道", Channels);
     extend_tabs!(system_settings_memory::MEMORY_TABS, "记忆配置", Memory);
     if app.memory_settings.backend == "qdrant" {
         extend_tabs!(system_settings_memory::QDRANT_TAB, "记忆配置", Memory);
@@ -138,8 +138,8 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     extend_tabs!(system_settings_security::SECURITY_TABS, "安全配置", Security);
     extend_tabs!(system_settings_gateway::GATEWAY_TABS, "服务端网关", Gateway);
     extend_tabs!(system_settings_network::NETWORK_TABS, "网络配置", Network);
-    extend_tabs!(system_settings_mcp::MCP_TABS, "智能体配置 / MCP", AgentMcp);
-    extend_tabs!(system_settings_skills::SKILLS_TABS, "智能体配置 / 技能", AgentSkills);
+    extend_tabs!(system_settings_mcp::MCP_TABS, "智能体 / MCP", AgentMcp);
+    extend_tabs!(system_settings_skills::SKILLS_TABS, "智能体 / 技能", AgentSkills);
     entries
 }
 

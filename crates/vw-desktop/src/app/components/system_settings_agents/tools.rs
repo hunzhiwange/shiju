@@ -192,7 +192,6 @@ pub(super) fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                 "pdf_read",
                 "grep",
                 "glob",
-                "lsp",
                 "memory_recall",
                 "question",
             ],
@@ -551,11 +550,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             name: "编辑文件",
             description: "对已有文件做局部编辑，适合小范围精确修改。",
             group: ToolGroup::Files,
-        },
-        "tool_search" | "ToolSearch" => ToolMeta {
-            name: "工具搜索",
-            description: "搜索当前上下文中真实可见的工具，并解释每个结果为何命中。",
-            group: ToolGroup::Integration,
         },
         "lsp" => ToolMeta {
             name: "语义分析",

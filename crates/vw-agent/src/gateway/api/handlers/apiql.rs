@@ -7,14 +7,17 @@ use axum::{Router, routing::get};
 #[path = "apiql_handlers.rs"]
 mod handlers;
 
+#[path = "apiql_connections.rs"]
+pub(crate) mod connections;
+
 #[path = "apiql_params.rs"]
 pub(crate) mod params;
 
 #[path = "apiql_schema.rs"]
 pub(crate) mod schema;
 
-#[path = "apiql_data_bridge.rs"]
-pub(crate) mod data_bridge;
+#[path = "apiql_executor.rs"]
+pub(crate) mod executor;
 
 #[path = "apiql_sql.rs"]
 pub(crate) mod sql;
@@ -65,8 +68,8 @@ mod apiql_schema_tests;
 mod apiql_params_tests;
 
 #[cfg(test)]
-#[path = "apiql_data_bridge_tests.rs"]
-mod apiql_data_bridge_tests;
+#[path = "apiql_executor_tests.rs"]
+mod apiql_executor_tests;
 
 #[cfg(test)]
 #[path = "apiql_sql_tests.rs"]

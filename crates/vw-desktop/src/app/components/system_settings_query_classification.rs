@@ -8,7 +8,7 @@ use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, icon_btn, primary_action_btn_style, settings_checkbox_style,
     settings_muted_text_style, settings_page_intro, settings_panel, settings_panel_style,
     settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_text_input_style,
+    settings_section_content, settings_text_input_style,
 };
 use crate::app::message::settings::{
     ModelConfigTabMessage, QueryClassificationMessage, SettingsMessage,
@@ -102,7 +102,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut list = column![
         header,
         settings_section_card("基础行为", "控制查询模型分类总开关以及规则优先级行为。"),
-        settings_panel(column![enabled_row].spacing(0)),
+        settings_section_content(column![enabled_row].spacing(0)),
         settings_section_card(
             "模型分类规则",
             "pattern 会匹配用户请求；模型分类从已配置的模型路由中选择。"

@@ -314,6 +314,48 @@ fn build_resolved_agent_orders_permission_layers() {
 }
 
 #[test]
+fn build_resolved_agent_allows_selected_skills() {
+    let resolved = build_resolved_agent(
+        "main",
+        DelegateAgentConfig {
+            allowed_skills: vec!["shiju".to_string()],
+            permission: json!({"skill": {"*": "deny"}}),
+            ..DelegateAgentConfig::default()
+        },
+        &Vec::new(),
+        &Vec::new(),
+    );
+
+    assert_eq!(
+        permission_next::evaluate("skill", "shiju", &[resolved.permission.clone()]).action,
+        Action::Allow
+    );
+    assert_eq!(
+        permission_next::evaluate("skill", "other", &[resolved.permission]).action,
+        Action::Deny
+    );
+}
+
+#[test]
+fn build_resolved_agent_keeps_global_skill_deny_authoritative() {
+    let user = permission_next::from_config(&json!({"skill": {"*": "deny"}}));
+    let resolved = build_resolved_agent(
+        "main",
+        DelegateAgentConfig {
+            allowed_skills: vec!["shiju".to_string()],
+            ..DelegateAgentConfig::default()
+        },
+        &Vec::new(),
+        &user,
+    );
+
+    assert_eq!(
+        permission_next::evaluate("skill", "shiju", &[resolved.permission]).action,
+        Action::Deny
+    );
+}
+
+#[test]
 fn build_resolved_agent_preserves_custom_builtin_prompts() {
     for key in ["researcher", "coder", "reviewer", "explore"] {
         let resolved = build_resolved_agent(

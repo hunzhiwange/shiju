@@ -10,11 +10,10 @@ use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_api_types::staff::{
     StaffAutoSchedulePlanRequest, StaffAutoSchedulePlanResponse, StaffCapabilityKindDto,
-    StaffCommandRequest, StaffCommandResponse,
-    StaffMemberTaskAssignmentDto, StaffProjectCapabilityCatalogRequest,
-    StaffProjectCapabilityCatalogResponse, StaffProjectCapabilityDto,
-    StaffProjectOrchestrationRequest, StaffProjectOrchestrationResponse, StaffProjectStateDto,
-    StaffProjectionResponse, StaffStageActionDto, StaffStageActionInputsDto,
+    StaffCommandRequest, StaffCommandResponse, StaffMemberTaskAssignmentDto,
+    StaffProjectCapabilityCatalogRequest, StaffProjectCapabilityCatalogResponse,
+    StaffProjectCapabilityDto, StaffProjectOrchestrationRequest, StaffProjectOrchestrationResponse,
+    StaffProjectStateDto, StaffProjectionResponse, StaffStageActionDto, StaffStageActionInputsDto,
     StaffStageAssignmentDto, StaffStageCapabilitiesResponse, StaffWorkflowOrchestrationDto,
     StaffWorkflowOrchestrationRequest, StaffWorkflowOrchestrationResponse,
 };

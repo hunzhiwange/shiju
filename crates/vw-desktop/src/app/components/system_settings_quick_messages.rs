@@ -1,9 +1,9 @@
 //! 系统设置中的聊天快捷消息配置面板。
 
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_muted_text_style, settings_panel,
+    primary_action_btn_style, rounded_action_btn_style, settings_muted_text_style,
     settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_text_input_style,
+    settings_section_content, settings_text_input_style,
 };
 use crate::app::message::SettingsMessage;
 use crate::app::message::settings::QuickMessagesMessage;
@@ -156,7 +156,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     column![
         settings_section_card("快捷消息", "配置聊天输入框上方的常用消息、摘要接力与 Git 动作。"),
-        settings_panel(column![items, footer].spacing(14).width(Length::Fill)),
+        settings_section_content(column![items, footer].spacing(14).width(Length::Fill)),
     ]
     .spacing(10)
     .width(Length::Fill)

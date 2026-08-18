@@ -7,8 +7,8 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
     settings_close_button, settings_divider, settings_error_banner, settings_modal_card,
-    settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_segment_button_style, settings_text_input_style,
+    settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_section_card,
+    settings_section_content, settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::state::CustomProviderModelTab;
 use crate::app::{App, Message, message};
@@ -320,7 +320,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 "模型信息",
                 "模型 ID 会直接用于请求；显示名称和家族仅用于元数据。"
             ),
-            settings_panel(
+            settings_section_content(
                 column![id_row, settings_divider(), name_row, settings_divider(), family_row]
                     .spacing(0),
             ),
@@ -331,7 +331,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 "限制",
                 "空值明确表示沿用内置基线或安全默认值，数值单位为 token。"
             ),
-            settings_panel(
+            settings_section_content(
                 column![
                     context_limit_row,
                     settings_divider(),
@@ -348,7 +348,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 "能力与模态",
                 "只保存用户显式设置的覆盖，保持自动发现模型的其它配置。"
             ),
-            settings_panel(
+            settings_section_content(
                 column![capabilities_row, settings_divider(), modalities_row].spacing(0)
             ),
         ]

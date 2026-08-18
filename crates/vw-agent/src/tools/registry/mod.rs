@@ -110,10 +110,6 @@ fn filtered_specs(
             return false;
         }
 
-        if t.id == "lsp" && !*flag::VIBEWINDOW_EXPERIMENTAL_LSP_TOOL {
-            return false;
-        }
-
         true
     })
     .collect()

@@ -73,7 +73,10 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/session/archived", get(session_archived_get).put(session_archived_put))
         .route("/session/scope", get(session_scope_get).put(session_scope_put))
         .route("/session/{session_id}/ui", get(session_ui_get).put(session_ui_save))
-        .route("/session/{session_id}/turn/{turn_id}/step/{step_index}/llm-raw", get(session_step_llm_raw_get))
+        .route(
+            "/session/{session_id}/turn/{turn_id}/step/{step_index}/llm-raw",
+            get(session_step_llm_raw_get),
+        )
         .route("/session/{session_id}/preview", get(session_ui_preview_meta))
         .route("/session/{session_id}/path", get(session_path_get))
         .route("/session/{session_id}/any", get(session_ui_get_any))

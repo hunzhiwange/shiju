@@ -1,16 +1,18 @@
 //! ApiQL 查询运行时。
 //!
-//! 运行时负责调用 SQL 编译器、复用 AI-DATA 只读执行桥接，并把结果适配为
+//! 运行时负责调用 SQL 编译器、复用 ApiQL 只读执行桥接，并把结果适配为
 //! PHP ApiQL 的 `data` + 可选 `page` 响应形状。
 
 use serde_json::{Map, Value, json};
 use vw_api_types::apiql::{ApiQlFieldConfig, ApiQlListMode, ApiQlPageDto, ApiQlResponse};
-use vw_api_types::data::{AiDataConnectionDto, AiDataCountMode, AiDataQueryResponse};
 use vw_api_types::id::TenantScope;
 
 use crate::app::agent::gateway::ApiError;
 
-use super::data_bridge::{ApiQlDataQuery, execute_apiql_data_query};
+use super::connections::ApiQlConnection;
+use super::executor::{
+    ApiQlCountMode, ApiQlDatabaseQuery, ApiQlQueryResult, execute_read_only_query,
+};
 use super::formatters::{field_format, format_field_value};
 use super::params::{ApiQlFieldNameCase, ApiQlReadParams};
 use super::schema::{ApiQlEntityRegistry, ApiQlResolvedEntity};
@@ -30,7 +32,7 @@ pub(crate) struct ApiQlRuntimeResponse {
 
 pub(crate) async fn run_apiql_query(
     tenant: TenantScope,
-    connection: AiDataConnectionDto,
+    connection: ApiQlConnection,
     registry: &ApiQlEntityRegistry,
     entity: ApiQlResolvedEntity<'_>,
     params: &ApiQlReadParams,
@@ -49,7 +51,7 @@ pub(crate) async fn run_apiql_query(
 }
 
 pub(crate) async fn run_apiql_query_base(
-    connection: AiDataConnectionDto,
+    connection: ApiQlConnection,
     registry: &ApiQlEntityRegistry,
     entity: ApiQlResolvedEntity<'_>,
     params: &ApiQlReadParams,
@@ -62,9 +64,9 @@ pub(crate) async fn run_apiql_query_base(
     }
 
     let compiled = build_apiql_sql(registry, entity, params)?;
-    let data_response = execute_apiql_data_query(
+    let data_response = execute_read_only_query(
         connection,
-        ApiQlDataQuery {
+        ApiQlDatabaseQuery {
             sql: compiled.sql.clone(),
             count_sql: compiled.count_sql.clone(),
             params: compiled.params.clone(),
@@ -72,7 +74,6 @@ pub(crate) async fn run_apiql_query_base(
             limit: compiled.limit,
             count_mode: compiled.count_mode.clone(),
             order_by: compiled.order_by.clone(),
-            debug: false,
         },
     )
     .await
@@ -85,9 +86,9 @@ fn adapt_apiql_response(
     params: &ApiQlReadParams,
     entity: ApiQlResolvedEntity<'_>,
     compiled: &ApiQlSqlQuery,
-    data_response: AiDataQueryResponse,
+    data_response: ApiQlQueryResult,
 ) -> Result<ApiQlRuntimeResponse, ApiError> {
-    if matches!(compiled.count_mode, AiDataCountMode::Only) {
+    if matches!(compiled.count_mode, ApiQlCountMode::Only) {
         return Ok(ApiQlRuntimeResponse {
             response: build_response(json!(data_response.page.total_record), None, None, params),
             next_cursor: None,
@@ -137,7 +138,7 @@ fn build_response(
 }
 
 fn build_next_cursor(
-    response: &AiDataQueryResponse,
+    response: &ApiQlQueryResult,
     fields: &[String],
     entity: ApiQlResolvedEntity<'_>,
     params: &ApiQlReadParams,

@@ -15,13 +15,11 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde_json::Value;
 use vw_api_types::apiql::{ApiQlListMode, ApiQlResponse};
-use vw_api_types::data::AiDataConnectionDto;
 use vw_api_types::id::TenantScope;
 
-use crate::app::agent::gateway::ApiError;
-use crate::gateway::api::handlers::data::storage_support::{AiDataConfigStore, local_config_store};
-
+use super::connections::{ApiQlConnection, ApiQlConnectionStore, local_connection_store};
 use super::functions::api_ql_with_mode;
+use crate::app::agent::gateway::ApiError;
 
 #[cfg(not(test))]
 const APIQL_CONNECTION_CACHE_TTL: Duration = Duration::from_secs(2);
@@ -35,7 +33,7 @@ static APIQL_CONNECTION_CACHE: Lazy<Mutex<Option<ApiQlConnectionCache>>> =
 struct ApiQlConnectionCache {
     tenant: TenantScope,
     loaded_at: Instant,
-    connections: Arc<Vec<AiDataConnectionDto>>,
+    connections: Arc<Vec<ApiQlConnection>>,
 }
 
 pub(super) async fn apiql_index(
@@ -85,21 +83,23 @@ async fn dispatch_apiql_query(
 pub(super) async fn load_connection(
     tenant: TenantScope,
     connection_id: &str,
-) -> Result<AiDataConnectionDto, ApiError> {
+) -> Result<ApiQlConnection, ApiError> {
     let connections = load_connections(tenant).await;
-    connections.iter().find(|connection| connection.id == connection_id).cloned().ok_or_else(|| {
-        ApiError::not_found(format!("ApiQL AI-DATA connection not found: {connection_id}"))
-    })
+    connections
+        .iter()
+        .find(|connection| connection.id == connection_id)
+        .cloned()
+        .ok_or_else(|| ApiError::not_found(format!("ApiQL connection not found: {connection_id}")))
 }
 
 pub(super) fn load_connections_from_store(
-    store: &AiDataConfigStore,
-) -> anyhow::Result<Vec<AiDataConnectionDto>> {
+    store: &ApiQlConnectionStore,
+) -> anyhow::Result<Vec<ApiQlConnection>> {
     store.load_connections()
 }
 
 #[cfg(not(test))]
-async fn load_connections(tenant: TenantScope) -> Arc<Vec<AiDataConnectionDto>> {
+async fn load_connections(tenant: TenantScope) -> Arc<Vec<ApiQlConnection>> {
     if let Some(cached) = APIQL_CONNECTION_CACHE.lock().clone()
         && cached.tenant == tenant
         && cached.loaded_at.elapsed() <= APIQL_CONNECTION_CACHE_TTL
@@ -107,7 +107,7 @@ async fn load_connections(tenant: TenantScope) -> Arc<Vec<AiDataConnectionDto>> 
         return cached.connections;
     }
 
-    let connections: Arc<Vec<AiDataConnectionDto>> =
+    let connections: Arc<Vec<ApiQlConnection>> =
         Arc::new(load_connections_uncached(tenant.clone()));
     *APIQL_CONNECTION_CACHE.lock() = Some(ApiQlConnectionCache {
         tenant,
@@ -118,18 +118,18 @@ async fn load_connections(tenant: TenantScope) -> Arc<Vec<AiDataConnectionDto>> 
 }
 
 #[cfg(test)]
-async fn load_connections(tenant: TenantScope) -> Vec<AiDataConnectionDto> {
+async fn load_connections(tenant: TenantScope) -> Vec<ApiQlConnection> {
     load_connections_uncached(tenant)
 }
 
-fn load_connections_uncached(tenant: TenantScope) -> Vec<AiDataConnectionDto> {
-    match local_config_store(tenant)
+fn load_connections_uncached(tenant: TenantScope) -> Vec<ApiQlConnection> {
+    match local_connection_store(tenant)
         .map_err(|error| error.to_string())
         .and_then(|store| load_connections_from_store(&store).map_err(|error| error.to_string()))
     {
         Ok(connections) => connections,
         Err(error) => {
-            tracing::warn!(target: "vw_gateway", error = %error, "failed to load ApiQL AI-DATA connections");
+            tracing::warn!(target: "vw_gateway", error = %error, "failed to load ApiQL connections");
             Vec::new()
         }
     }

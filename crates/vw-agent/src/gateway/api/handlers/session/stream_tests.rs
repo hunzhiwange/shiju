@@ -1164,11 +1164,9 @@ fn stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save() {
         "request": {"config": {"model": "provider/model"}, "tools": [{"name": "shell"}]},
         "output": {"text": "done"}
     });
-    let artifact = crate::session::llm_raw::LlmRawArtifact::from_full_raw_rounds(
-        &ids.assistant_id,
-        &[raw],
-    )
-    .expect("raw artifact");
+    let artifact =
+        crate::session::llm_raw::LlmRawArtifact::from_full_raw_rounds(&ids.assistant_id, &[raw])
+            .expect("raw artifact");
     raw_commit::register(&tenant, Some(&scope), artifact).expect("register raw artifact");
 
     let mut recorder = StreamTrajectoryRecorder::new(ids.assistant_id.clone());

@@ -165,13 +165,6 @@ fn runtime_capability_instructions(
         );
     }
 
-    if has_tool(&tool_ids, &["tool_search"]) {
-        sections.push(
-            "## Tool Discovery\n- When you need a capability that is not currently shown, search for it with `tool_search` first. Search results remain filtered by the current model, client, and permissions."
-                .to_string(),
-        );
-    }
-
     if has_tool(
         &tool_ids,
         &[

@@ -29,8 +29,8 @@ use crate::app::components::system_settings_common::{
     bool_support_label, format_context_limit, icon_btn, provider_logo_svg,
     rounded_action_btn_style, settings_close_button, settings_divider, settings_modal_card,
     settings_error_banner, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_panel_style, settings_section_card, settings_segment_button_style,
-    settings_text_input_style, settings_value_badge,
+    settings_panel, settings_panel_style, settings_section_card, settings_section_content,
+    settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{ModelConfigTabMessage, SettingsMessage};
@@ -390,7 +390,7 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
         },
     );
 
-    let filter_panel = settings_panel(
+    let filter_content = settings_section_content(
         column![
             query_input,
             row![
@@ -418,7 +418,7 @@ pub fn main_view(app: &App) -> Element<'_, Message> {
             "搜索与过滤",
             "按 provider 名称、provider ID、模型名称或模型 ID 过滤结果。"
         ),
-        filter_panel,
+        filter_content,
     ]
     .spacing(16)
     .width(Length::Fill);

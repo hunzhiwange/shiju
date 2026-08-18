@@ -6,7 +6,8 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_control_with_hint, settings_divider,
     settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_text_input_style,
+    settings_pick_list_style, settings_section_card, settings_section_content,
+    settings_text_input_style,
 };
 use crate::app::message::settings::{SettingsMessage, WebSearchMessage};
 use crate::app::{App, Message};
@@ -238,13 +239,13 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let content = column![
         settings_section_card("基础行为", "控制开关与默认搜索后端。"),
-        settings_panel(column![enabled_row, settings_divider(), provider_row].spacing(0)),
+        settings_section_content(column![enabled_row, settings_divider(), provider_row].spacing(0)),
         provider_section,
     ]
     .spacing(16)
     .width(Length::Fill)
     .push(settings_section_card("请求参数", "控制返回数量、超时和请求头。"))
-    .push(settings_panel(
+    .push(settings_section_content(
         column![
             text_row_with_hint(
                 "结果数量",

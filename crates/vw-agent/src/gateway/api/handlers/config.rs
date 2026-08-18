@@ -360,16 +360,18 @@ pub async fn handle_api_config_put(
     }
 
     let hook_candidate = match &state.hook_runtime {
-        Some(runtime) => match runtime.build_candidate(&new_config) {
-            Ok(candidate) => Some(candidate),
-            Err(e) => {
-                return (
+        Some(runtime) => {
+            match runtime.build_candidate(&new_config) {
+                Ok(candidate) => Some(candidate),
+                Err(e) => {
+                    return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(serde_json::json!({"error": format!("Failed to build hook runtime: {e}")})),
                 )
                     .into_response();
+                }
             }
-        },
+        }
         None => None,
     };
 

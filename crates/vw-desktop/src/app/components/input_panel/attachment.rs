@@ -12,7 +12,7 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::widget::image::{Handle as ImageHandle, Image};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::Position;
-use iced::widget::{Space, button, container, row, scrollable, text, tooltip};
+use iced::widget::{Space, button, container, rich_text, row, scrollable, span, text, tooltip};
 use iced::{Color, ContentFit, Element, Length, Theme};
 
 use crate::app::assets::Icon;
@@ -241,6 +241,10 @@ fn truncate_attachment_name_middle(name: &str, max_chars: usize) -> String {
     format!("{head}{ATTACHMENT_NAME_ELLIPSIS}{tail}")
 }
 
+fn open_attachment_message(path: String) -> Message {
+    Message::Preview(message::PreviewMessage::Open(path))
+}
+
 fn attachment_chip(
     item: AttachmentDisplayItem,
     remove_message: Option<Message>,
@@ -258,13 +262,22 @@ fn attachment_chip(
         AttachmentDisplayKind::Image => "图片",
         AttachmentDisplayKind::Document => "文件",
     };
+    let open_path = path.clone();
+    let name_view: Element<'static, Message> =
+        rich_text([span(truncated_name).underline(true).link(open_path)])
+            .size(12)
+            .style(|theme: &Theme| iced::widget::text::Style {
+                color: Some(theme.extended_palette().primary.base.color.scale_alpha(0.92)),
+            })
+            .on_link_click(open_attachment_message)
+            .into();
 
     let mut chip_row = row![
         attachment_thumbnail(path.clone(), kind.clone()),
         text(label).size(11).style(|theme: &Theme| iced::widget::text::Style {
             color: Some(theme.palette().primary.scale_alpha(0.92)),
         }),
-        text(truncated_name).size(12),
+        name_view,
     ]
     .spacing(8)
     .align_y(iced::Alignment::Center);

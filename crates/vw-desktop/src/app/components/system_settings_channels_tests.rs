@@ -19,15 +19,15 @@ fn system_settings_channels_tests_are_wired() {
 #[test]
 fn global_settings_panel_builds_default_and_boundary_values() {
     let mut app = test_app();
-    keep_element(global_settings_panel(&app));
+    keep_element(global_settings_content(&app));
 
     app.channels_settings.cli = true;
     app.channels_settings.message_timeout_secs = 0;
     app.channels_settings.project_dir_input = "/tmp/project".to_string();
-    keep_element(global_settings_panel(&app));
+    keep_element(global_settings_content(&app));
 
     app.channels_settings.message_timeout_secs = 86_400;
-    keep_element(global_settings_panel(&app));
+    keep_element(global_settings_content(&app));
 }
 
 #[test]

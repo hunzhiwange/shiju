@@ -11,7 +11,7 @@ use crate::app::{App, Message};
 use super::{
     tool_advanced_view, tool_apply_patch_view, tool_bash_view, tool_config_view,
     tool_files_view, tool_git_diff_view, tool_lsp_view, tool_mcp_view, tool_name_from_raw,
-    tool_question_view, tool_read_view, tool_search_view, tool_skill_view,
+    tool_question_view, tool_read_view, tool_skill_view,
     tool_text_view, tool_todos_view, tool_todowrite_compact_view, tool_web_view,
     tool_workflow_view,
 };
@@ -30,7 +30,6 @@ pub(crate) enum SharedToolRenderKind {
     Files,
     Lsp,
     Mcp,
-    ToolSearch,
     GitDiff,
     Question,
     Web,
@@ -79,7 +78,6 @@ pub(crate) fn shared_tool_render_kind(raw: &str) -> Option<SharedToolRenderKind>
         "workflow_node" => SharedToolRenderKind::Workflow,
         "AgentTool" | "Agent" | "browser" | "browser_open" | "open_browser_page"
         | "enter_worktree" | "exit_worktree" | "task_complete" => SharedToolRenderKind::Advanced,
-        "tool_search" => SharedToolRenderKind::ToolSearch,
         _ => SharedToolRenderKind::Text,
     })
 }
@@ -129,8 +127,6 @@ pub(crate) fn render_shared_tool_view<'a>(
         SharedToolRenderKind::Lsp => tool_lsp_view(app, msg_idx, tool_idx, visible)
             .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
         SharedToolRenderKind::Mcp => tool_mcp_view(app, msg_idx, tool_idx, visible)
-            .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
-        SharedToolRenderKind::ToolSearch => tool_search_view(app, msg_idx, tool_idx, visible)
             .or_else(|| tool_text_view(app, msg_idx, tool_idx, visible)),
         // SharedToolRenderKind 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         SharedToolRenderKind::GitDiff => tool_git_diff_view(app, msg_idx, tool_idx, visible)

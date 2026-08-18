@@ -151,11 +151,10 @@ fn basic_view_renders_main_runtime_boolean_and_text_variants() {
     entry.compact_context = true;
     entry.parallel_tools = true;
     entry.agentic = true;
-    entry.tool_dispatcher = "sequential".to_string();
 
     let tree = view_tree(&app, &entry, vec![entry.provider.clone()]);
 
     assert_common_field_structure(&tree);
     assert!(tree.children[1].children.is_empty());
-    assert_eq!(tree.children[10].children.len(), 6);
+    assert_eq!(tree.children[10].children.len(), 5);
 }

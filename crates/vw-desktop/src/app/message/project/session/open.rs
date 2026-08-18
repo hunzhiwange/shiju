@@ -8,7 +8,7 @@ use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::load_prepared_session_open_from_ui_store_task;
 use crate::app::message::project::helpers::{
     create_gateway_session_in_directory, load_prepared_session_open_from_gateway_task,
-    load_project_worktree_picker_options,
+    load_project_worktree_picker_options, prepare_session_ui_task,
 };
 use crate::app::projects::save_recent_projects_meta_background;
 use crate::app::{App, Message, models};
@@ -141,6 +141,25 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.sync_active_session_preferences();
             let has_requesting_cache =
                 app.session_is_requesting(&id) && app.session_chat_cache.contains_key(&id);
+            let requesting_cache_prewarm_task = if has_requesting_cache && !app.chat.is_empty() {
+                let base_chunk_start = app.preferred_base_chat_ui_chunk_start();
+                app.pin_chat_ui_chunk(Some(base_chunk_start));
+                app.mark_chat_ui_chunks_preparing(&[base_chunk_start]);
+                prepare_session_ui_task(
+                    id.clone(),
+                    app.active_shared_chat_messages(),
+                    base_chunk_start,
+                    true,
+                    app.dialogue_flow_show_reasoning_summary,
+                )
+            } else {
+                if has_requesting_cache {
+                    app.active_session_view_state.ui_preparing = false;
+                    app.active_session_view_state.base_ready = true;
+                    app.pin_chat_ui_chunk(None);
+                }
+                iced::Task::none()
+            };
             #[cfg(not(target_arch = "wasm32"))]
             let history_load_task = if app.chat.is_empty() && !app.session_is_requesting(&id) {
                 load_prepared_session_open_from_ui_store_task(
@@ -172,6 +191,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             };
             Some(iced::Task::batch(vec![
                 open_task,
+                requesting_cache_prewarm_task,
                 history_load_task,
                 iced::Task::done(Message::Chat(
                     crate::app::message::ChatMessage::LoadInputPanelTodos,

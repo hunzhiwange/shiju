@@ -20,8 +20,8 @@ use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, danger_action_btn_style, settings_checkbox_style, settings_divider,
     settings_error_banner, settings_help_button, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_segment_button_style, settings_text_input_style,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_section_content, settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
@@ -601,7 +601,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let (section, panel): (Element<'_, Message>, Element<'_, Message>) = match s.active_tab {
         AutonomySettingsTab::Permissions => (
             settings_section_card("权限与审批", "核心执行级别、审批阈值与重定向策略。").into(),
-            settings_panel(
+            settings_section_content(
                 column![
                     level_row(),
                     settings_divider(),
@@ -621,7 +621,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ),
         AutonomySettingsTab::Budget => (
             settings_section_card("预算", "限制单位时间的动作量与成本。").into(),
-            settings_panel(
+            settings_section_content(
                 column![max_actions_row(), settings_divider(), max_cost_row()].spacing(0),
             )
             .into(),
@@ -629,7 +629,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         AutonomySettingsTab::ToolsAndPaths => (
             settings_section_card("工具与路径", "为 shell 命令、路径访问和自动审批设置边界。")
                 .into(),
-            settings_panel(
+            settings_section_content(
                 column![
                     allowed_commands_row(),
                     settings_divider(),
@@ -649,7 +649,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ),
         AutonomySettingsTab::NonCli => (
             settings_section_card("非 CLI 暴露", "控制外部通道中的工具暴露与审批人。").into(),
-            settings_panel(
+            settings_section_content(
                 column![
                     excluded_tools_row(),
                     settings_divider(),

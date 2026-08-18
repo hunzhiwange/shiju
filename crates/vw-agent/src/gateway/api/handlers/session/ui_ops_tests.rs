@@ -90,30 +90,25 @@ async fn llm_raw_endpoint_distinguishes_turns_with_same_step_index() {
         .expect("project directory should resolve to a scope");
     let tenant = ui_store::current_tenant_scope();
     let mut body = scoped_session(session_id, "Two turns", "hello", 20);
-    body.steps = [
-        ("turn-a", 1_u64, "first"),
-        ("turn-b", 3_u64, "second"),
-    ]
-    .into_iter()
-    .map(|(turn_id, started_ms, _)| ui_models::ChatSessionStep {
-        index: 1,
-        turn_id: Some(turn_id.to_string()),
-        started_ms,
-        finished_ms: Some(started_ms + 1),
-        start_snapshot_path: None,
-        finish_snapshot_path: None,
-        usage: ui_models::TokenUsage::default(),
-        cost_usd: None,
-        finish_reason: Some("stop".to_string()),
-        model: Some("test-model".to_string()),
-        tool_timings: Vec::new(),
-    })
-    .collect();
+    body.steps = [("turn-a", 1_u64, "first"), ("turn-b", 3_u64, "second")]
+        .into_iter()
+        .map(|(turn_id, started_ms, _)| ui_models::ChatSessionStep {
+            index: 1,
+            turn_id: Some(turn_id.to_string()),
+            started_ms,
+            finished_ms: Some(started_ms + 1),
+            start_snapshot_path: None,
+            finish_snapshot_path: None,
+            usage: ui_models::TokenUsage::default(),
+            cost_usd: None,
+            finish_reason: Some("stop".to_string()),
+            model: Some("test-model".to_string()),
+            tool_timings: Vec::new(),
+        })
+        .collect();
     let raw_artifacts = [("turn-a", "first"), ("turn-b", "second")]
         .into_iter()
-        .map(|(turn_id, output)| {
-            pending_raw_artifact_with_output(session_id, turn_id, 1, output)
-        })
+        .map(|(turn_id, output)| pending_raw_artifact_with_output(session_id, turn_id, 1, output))
         .collect::<Vec<_>>();
     let expected_steps = body
         .steps
@@ -150,8 +145,14 @@ async fn llm_raw_endpoint_distinguishes_turns_with_same_step_index() {
     .await
     .expect("second turn raw");
 
-    assert_eq!(first.as_ref().and_then(|raw| raw.pointer("/output/text")), Some(&serde_json::json!("first")));
-    assert_eq!(second.as_ref().and_then(|raw| raw.pointer("/output/text")), Some(&serde_json::json!("second")));
+    assert_eq!(
+        first.as_ref().and_then(|raw| raw.pointer("/output/text")),
+        Some(&serde_json::json!("first"))
+    );
+    assert_eq!(
+        second.as_ref().and_then(|raw| raw.pointer("/output/text")),
+        Some(&serde_json::json!("second"))
+    );
     assert_ne!(first, second);
 }
 
@@ -704,11 +705,9 @@ async fn simple_answer_and_tool_rounds_commit_without_raw_duplication() {
                 },
             })
             .collect();
-        let artifact = crate::session::llm_raw::LlmRawArtifact::from_full_raw_rounds(
-            turn_id,
-            &raw_rounds,
-        )
-        .expect("valid raw artifact");
+        let artifact =
+            crate::session::llm_raw::LlmRawArtifact::from_full_raw_rounds(turn_id, &raw_rounds)
+                .expect("valid raw artifact");
         let raw_artifacts = artifact
             .rounds
             .into_iter()
@@ -1005,10 +1004,8 @@ async fn ui_content_save_preserves_runtime_calls_and_steps() {
     let loaded = loaded.expect("saved session");
     assert_eq!(loaded.calls, expected_calls);
     assert_eq!(
-        serde_json::to_value(
-            loaded.steps.into_iter().map(|step| step.step).collect::<Vec<_>>()
-        )
-        .expect("serialize loaded steps"),
+        serde_json::to_value(loaded.steps.into_iter().map(|step| step.step).collect::<Vec<_>>())
+            .expect("serialize loaded steps"),
         serde_json::to_value(expected_steps).expect("serialize expected steps")
     );
     assert_eq!(loaded.messages[0].content, "updated");

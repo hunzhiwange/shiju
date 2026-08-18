@@ -12,7 +12,7 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_error_banner,
-    settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_muted_text_style, settings_page_intro, settings_section_content,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, text};
@@ -138,7 +138,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut col = column![
         settings_page_intro("对话流", "配置时间线中的推理摘要、工具展开和跟进行为。"),
-        settings_panel(
+        settings_section_content(
             column![
                 reasoning_row,
                 settings_divider(),

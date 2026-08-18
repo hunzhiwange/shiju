@@ -518,6 +518,32 @@ fn handle_lsp_hover_from_mouse_schedules_hide_for_other_visible_hover_without_an
 }
 
 #[test]
+fn handle_lsp_hover_from_mouse_keeps_pending_deadline_for_same_symbol() {
+    let path = "/tmp/main.rs";
+    let mut app = app();
+    app.active_preview_path = Some(path.to_string());
+    app.preview_tabs.push(preview_tab(path, "fn main() {}"));
+    let point = iced::Point::new(100.0, 10.0);
+
+    super::lsp::handle_lsp_hover_from_mouse(&mut app, point);
+    let first_ready_at = app
+        .lsp_hover_pending
+        .as_ref()
+        .expect("first hover should schedule a request")
+        .ready_at;
+
+    super::lsp::handle_lsp_hover_from_mouse(&mut app, point);
+
+    assert_eq!(
+        app.lsp_hover_pending
+            .as_ref()
+            .expect("same-symbol hover should keep the pending request")
+            .ready_at,
+        first_ready_at
+    );
+}
+
+#[test]
 fn drain_lsp_events_without_receiver_returns_none_and_preserves_state() {
     let mut app = app();
     app.lsp_status = Some("unchanged".to_string());

@@ -764,31 +764,6 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("GET", "/v1/session/{session_id}/path", "session path"),
         client_route("GET", "/v1/session/{session_id}/any", "session by any ID"),
         client_route("POST", "/v1/session/{session_id}/title", "generate session title"),
-        client_route("GET", "/v1/data/settings", "data settings"),
-        client_route("PUT", "/v1/data/settings", "update data settings"),
-        client_route("GET", "/v1/data/connections", "data connections"),
-        client_route("POST", "/v1/data/connections", "create data connection"),
-        client_route("GET", "/v1/data/connections/{connection_id}", "data connection"),
-        client_route("PUT", "/v1/data/connections/{connection_id}", "update data connection"),
-        client_route("DELETE", "/v1/data/connections/{connection_id}", "delete data connection"),
-        client_route(
-            "POST",
-            "/v1/data/connections/{connection_id}/activate",
-            "activate data connection",
-        ),
-        client_route("POST", "/v1/data/connections/{connection_id}/test", "test data connection"),
-        client_route(
-            "GET",
-            "/v1/data/connections/{connection_id}/catalog",
-            "data connection catalog",
-        ),
-        client_route("GET", "/v1/data/reports", "data reports"),
-        client_route("POST", "/v1/data/reports", "create data report"),
-        client_route("GET", "/v1/data/reports/{report_id}", "data report"),
-        client_route("PUT", "/v1/data/reports/{report_id}", "update data report"),
-        client_route("DELETE", "/v1/data/reports/{report_id}", "delete data report"),
-        client_route("POST", "/v1/data/query", "data query"),
-        client_route("POST", "/v1/data/ai/query", "AI data query"),
         client_route("GET", "/v1/task-lifecycle/workflows", "task lifecycle workflows"),
         client_route("POST", "/v1/task-lifecycle/workflows", "create task lifecycle workflow"),
         client_route("GET", "/v1/task-lifecycle/workflows/{id}", "task lifecycle workflow"),
@@ -946,7 +921,6 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
         .merge(api::handlers::provider::router())
         .merge(api::handlers::pty::router())
         .merge(api::handlers::question::router())
-        .merge(api::handlers::data::router())
         .merge(api::handlers::staff_ipc::router())
         .merge(api::handlers::task_pool::router())
         .merge(api::handlers::task_pool_matrix::router())

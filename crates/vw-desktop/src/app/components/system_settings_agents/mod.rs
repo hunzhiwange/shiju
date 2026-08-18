@@ -67,7 +67,6 @@ pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &
             "最大深度",
             "上下文压缩",
             "并行工具",
-            "工具调度器",
         ],
     ),
     SettingsTabDescriptor::new(

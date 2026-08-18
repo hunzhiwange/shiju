@@ -160,7 +160,7 @@ pub(crate) struct AdvancedToolSurfaceSpec {
     pub(crate) state: AdvancedToolSurfaceState,
 }
 
-const ADVANCED_TOOL_SURFACES: [AdvancedToolSurfaceSpec; 4] = [
+const ADVANCED_TOOL_SURFACES: [AdvancedToolSurfaceSpec; 3] = [
     AdvancedToolSurfaceSpec {
         label: "进入 worktree", state: AdvancedToolSurfaceState::Available
     },
@@ -168,7 +168,6 @@ const ADVANCED_TOOL_SURFACES: [AdvancedToolSurfaceSpec; 4] = [
         label: "退出 worktree", state: AdvancedToolSurfaceState::Available
     },
     AdvancedToolSurfaceSpec { label: "mcp_* 集成", state: AdvancedToolSurfaceState::Planned },
-    AdvancedToolSurfaceSpec { label: "tool_search", state: AdvancedToolSurfaceState::Available },
 ];
 
 /// 执行 explicit_advanced_tool_surface_spec 对应的领域操作。
@@ -181,7 +180,6 @@ pub(crate) fn explicit_advanced_tool_surface_spec(
     match tool_id {
         "enter_worktree" => Some(ADVANCED_TOOL_SURFACES[0]),
         "exit_worktree" => Some(ADVANCED_TOOL_SURFACES[1]),
-        "tool_search" => Some(ADVANCED_TOOL_SURFACES[3]),
         _ if tool_id.starts_with("mcp_") => Some(ADVANCED_TOOL_SURFACES[2]),
         _ => None,
     }
@@ -653,7 +651,7 @@ pub(crate) fn tool_bucket(tool_id: &str) -> SessionToolBucket {
         }
         "AgentTool" | "Agent" | "agent" | "schedule" | "cron_add" | "cron_list" | "cron_remove"
         | "cron_update" | "cron_run" | "cron_runs" | "todoread" | "todowrite"
-        | "enter_worktree" | "exit_worktree" | "tool_search" | "question" | "skill"
+        | "enter_worktree" | "exit_worktree" | "question" | "skill"
         | "memory_store" | "memory_forget" => SessionToolBucket::Agent,
         _ => SessionToolBucket::Other,
     }
@@ -678,7 +676,7 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         | "cron_list" | "cron_remove" | "cron_update" | "cron_run" | "cron_runs" | "todoread"
         | "todowrite" | "enter_worktree" | "exit_worktree" => SessionToolGroup::Collaboration,
         "memory_recall" | "memory_store" | "memory_forget" => SessionToolGroup::Memory,
-        "tool_search" | "batch" => SessionToolGroup::Integration,
+        "batch" => SessionToolGroup::Integration,
         _ => SessionToolGroup::Other,
     }
 }
@@ -713,7 +711,6 @@ pub(crate) fn tool_display_name(tool_id: &str) -> String {
         "memory_recall" => "读取记忆".to_string(),
         "memory_store" => "写入记忆".to_string(),
         "memory_forget" => "删除记忆".to_string(),
-        "tool_search" => "工具搜索".to_string(),
         _ => tool_id
             .split(['_', '-'])
             .filter(|segment| !segment.is_empty())

@@ -6,7 +6,7 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, danger_action_btn_style, primary_action_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_panel_style, settings_section_card,
+    settings_page_intro, settings_panel_style, settings_section_card, settings_section_content,
     settings_text_input_style,
 };
 use crate::app::{App, Message, message};
@@ -99,7 +99,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "配置项目打开入口、当前项目 Worktree 行为，以及历史项目管理。"
         ),
         settings_section_card("当前项目", "打开项目并控制当前项目的新会话 Worktree 策略。"),
-        settings_panel(column![open_folder_btn, worktree_toggle].spacing(12)),
+        settings_section_content(column![open_folder_btn, worktree_toggle].spacing(12)),
         settings_section_card("历史项目", "管理最近打开过的项目名称与快捷入口。"),
     ]
     .spacing(16);

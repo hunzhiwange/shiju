@@ -10,8 +10,8 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_divider, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_segment_button_style, settings_value_badge,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_section_content, settings_segment_button_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::GeneralSettingsTab;
@@ -235,42 +235,40 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let content: Element<'_, Message> = match active_tab {
         GeneralSettingsTab::Interface => column![
             settings_section_card("界面", "应用外观与预览行为。"),
-            settings_panel(
-                column![
-                    setting_row(
-                        "语言",
-                        "当前桌面端使用的界面语言。",
-                        settings_value_badge("简体中文"),
-                    ),
-                    settings_divider(),
-                    setting_row(
-                        "应用主题",
-                        "快速切换内置、预设和自定义主题；完整管理见「主题」标签。",
-                        theme_pick,
-                    ),
-                    settings_divider(),
-                    setting_row(
-                        "自动保存",
-                        "控制预览编辑器自动保存的时机。",
-                        column![
-                            auto_save_pick,
-                            text(app.preview_auto_save_mode.description())
-                                .size(11)
-                                .style(settings_muted_text_style),
-                        ]
-                        .spacing(8),
-                    ),
-                    settings_divider(),
-                    setting_row("聊天时区", "用于模型时间上下文，新会话生效。", timezone_pick,),
-                ]
-                .spacing(0)
-            ),
+            settings_section_content(column![
+                setting_row(
+                    "语言",
+                    "当前桌面端使用的界面语言。",
+                    settings_value_badge("简体中文"),
+                ),
+                settings_divider(),
+                setting_row(
+                    "应用主题",
+                    "快速切换内置、预设和自定义主题；完整管理见「主题」标签。",
+                    theme_pick,
+                ),
+                settings_divider(),
+                setting_row(
+                    "自动保存",
+                    "控制预览编辑器自动保存的时机。",
+                    column![
+                        auto_save_pick,
+                        text(app.preview_auto_save_mode.description())
+                            .size(11)
+                            .style(settings_muted_text_style),
+                    ]
+                    .spacing(8),
+                ),
+                settings_divider(),
+                setting_row("聊天时区", "用于模型时间上下文，新会话生效。", timezone_pick,),
+            ]
+            .spacing(0)),
         ]
         .spacing(16)
         .into(),
         GeneralSettingsTab::Terminal => column![
             settings_section_card("终端", "默认 Shell、主题与字体。"),
-            settings_panel(
+            settings_section_content(
                 column![
                     setting_row("终端 Shell", "新终端默认使用的 Shell。", shell_pick),
                     settings_divider(),

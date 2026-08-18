@@ -1,8 +1,8 @@
 use super::advanced_view::{
     advanced_base_title, advanced_fallback_body, advanced_metadata_text, advanced_success_body,
     advanced_summary, agent_tool_detail_message, agent_tool_primary_message, agent_tool_session_id,
-    compact_browser_success_summary, format_browser_success_body, format_tool_search_body,
-    is_advanced_surface_tool, nested_string,
+    compact_browser_success_summary, format_browser_success_body, is_advanced_surface_tool,
+    nested_string,
     result_data_message, tool_advanced_view,
 };
 use crate::app::state::explicit_advanced_tool_surface_spec;
@@ -15,7 +15,6 @@ fn advanced_surface_tool_accepts_known_tools_and_mcp_prefixes() {
     assert!(is_advanced_surface_tool("Agent"));
     assert!(is_advanced_surface_tool("browser_open"));
     assert!(is_advanced_surface_tool("open_browser_page"));
-    assert!(is_advanced_surface_tool("tool_search"));
     assert!(is_advanced_surface_tool("mcp_linear"));
     assert!(!is_advanced_surface_tool("bash"));
 }
@@ -33,12 +32,6 @@ fn result_data_message_reads_nested_message() {
     assert_eq!(
         result_data_message(&json!({"result":{"data":{"message":"ok"}}})),
         Some("ok".to_string())
-    );
-    assert!(
-        format_tool_search_body(&json!({
-            "result": {"data": {"items": [{"display_name": "alpha"}]}}
-        }))
-        .is_some()
     );
 }
 
@@ -167,14 +160,6 @@ fn advanced_fallback_body_formats_explicit_and_agent_defaults() {
         "mcp_* 集成 当前已明确标记为 planned，桌面端先提供清晰状态，不补完整后端。"
     );
     assert_eq!(
-        advanced_fallback_body(
-            "tool_search",
-            &json!({"error":"backend failed"}),
-            explicit_advanced_tool_surface_spec("tool_search")
-        ),
-        "backend failed"
-    );
-    assert_eq!(
         advanced_fallback_body("AgentTool", &json!({"result":{"data":{"message":"done"}}}), None),
         "done"
     );
@@ -182,7 +167,7 @@ fn advanced_fallback_body_formats_explicit_and_agent_defaults() {
 }
 
 #[test]
-fn advanced_success_body_formats_agent_browser_search_and_plan_results() {
+fn advanced_success_body_formats_agent_browser_and_plan_results() {
     assert_eq!(advanced_success_body("AgentTool", r#"{"message":" done "}"#, &json!({})), "done");
     assert_eq!(
         advanced_success_body(
@@ -200,14 +185,6 @@ fn advanced_success_body_formats_agent_browser_search_and_plan_results() {
             &json!({"result":{"data":{"result":{"message":"loaded"}}}})
         ),
         "loaded"
-    );
-    assert_eq!(
-        advanced_success_body(
-            "tool_search",
-            "raw",
-            &json!({"result":{"data":{"items":[{"id":"tool","reason":"match"}]}}})
-        ),
-        "- tool: match"
     );
     assert_eq!(advanced_success_body("unknown", "raw", &json!({})), "raw");
 }
@@ -292,39 +269,6 @@ fn compact_browser_success_summary_merges_multiline_snapshot_text() {
 }
 
 #[test]
-fn format_tool_search_body_handles_empty_and_truncated_results() {
-    assert_eq!(
-        format_tool_search_body(&json!({"result":{"data":{"items":[]}}})),
-        Some("未找到匹配工具。".to_string())
-    );
-    assert!(
-        format_tool_search_body(&json!({
-            "result": {
-                "data": {
-                    "count": 8,
-                    "items": [
-                        {"display_name":"a","reason":"ra"},
-                        {"id":"b","reason":"rb"},
-                        {"display_name":"c"},
-                        {"display_name":"d"},
-                        {"display_name":"e"},
-                        {"display_name":"f"}
-                    ]
-                }
-            }
-        }))
-        .expect("tool search body")
-        .contains("还有 2 个结果")
-    );
-    assert!(format_tool_search_body(&json!({"result":{"data":{"items":[42]}}})).is_none());
-    assert_eq!(
-        format_tool_search_body(&json!({"result":{"data":{"items":[{"reason":"  "}]}}})),
-        Some("- unknown: matched".to_string())
-    );
-    assert!(format_tool_search_body(&json!({"result":{"data":{}}})).is_none());
-}
-
-#[test]
 fn advanced_view_rejects_unknown_tools_and_invalid_json() {
     let app = App::new().0;
 
@@ -336,7 +280,7 @@ fn advanced_view_rejects_unknown_tools_and_invalid_json() {
 }
 
 #[test]
-fn advanced_view_renders_agent_browser_tool_search_and_errors() {
+fn advanced_view_renders_agent_browser_and_errors() {
     let mut app = App::new().0;
     app.chat_tool_hovered_idx = Some((4_u64 << 32) | 2);
 
@@ -367,16 +311,6 @@ fn advanced_view_renders_agent_browser_tool_search_and_errors() {
             2,
             r#"tool browser
 {"result":{"data":{"result":{"text":"Captured page snapshot\n\nsnapshot · browser\nGet text"}}}}"#
-        )
-        .is_some()
-    );
-    assert!(
-        tool_advanced_view(
-            &app,
-            4,
-            2,
-            r#"tool tool_search
-{"result":{"data":{"items":[{"display_name":"Browser","reason":"navigation"}]}}}"#
         )
         .is_some()
     );

@@ -511,9 +511,6 @@ pub struct AgentConfig {
     /// 是否在单次迭代内启用并行工具执行。默认值为 `false`。
     #[serde(default)]
     pub parallel_tools: bool,
-    /// 工具分发策略，例如 `"auto"`。默认值为 `"auto"`。
-    #[serde(default = "default_agent_tool_dispatcher")]
-    pub tool_dispatcher: String,
 }
 
 fn default_agent_max_tool_iterations() -> usize {
@@ -524,10 +521,6 @@ fn default_agent_max_history_messages() -> usize {
     100
 }
 
-fn default_agent_tool_dispatcher() -> String {
-    "auto".into()
-}
-
 impl Default for AgentConfig {
     fn default() -> Self {
         Self {
@@ -535,7 +528,6 @@ impl Default for AgentConfig {
             max_tool_iterations: default_agent_max_tool_iterations(),
             max_history_messages: default_agent_max_history_messages(),
             parallel_tools: false,
-            tool_dispatcher: default_agent_tool_dispatcher(),
         }
     }
 }

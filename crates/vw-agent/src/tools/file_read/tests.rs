@@ -158,6 +158,7 @@ mod tests {
         assert!(schema["properties"]["offset"].is_object());
         assert!(schema["properties"]["limit"].is_object());
         assert!(schema["required"].as_array().unwrap().contains(&json!("path")));
+        assert_eq!(schema["additionalProperties"], json!(false));
         // offset 和 limit 是可选参数
         assert!(!schema["required"].as_array().unwrap().contains(&json!("offset")));
     }
@@ -222,13 +223,18 @@ mod tests {
     }
 
     #[test]
-    fn file_read_parse_args_rejects_non_object_and_non_string_path_aliases() {
+    fn file_read_parse_args_rejects_non_object_unknown_fields_and_non_string_path() {
         let error = parse_args(json!(["notes.txt"])).unwrap_err();
         assert!(error.to_string().contains("expected object"));
 
         let error = parse_args(json!({"filePath": 7})).unwrap_err();
-        assert!(error.to_string().contains("filePath"));
-        assert!(error.to_string().contains("must be a string"));
+        assert!(error.to_string().contains("unknown field `filePath`"));
+
+        let error = parse_args(json!({"file_path": "notes.txt"})).unwrap_err();
+        assert!(error.to_string().contains("unknown field `file_path`"));
+
+        let error = parse_args(json!({"path": 7})).unwrap_err();
+        assert!(error.to_string().contains("`path` must be a string"));
     }
 
     #[test]
@@ -497,35 +503,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn file_read_accepts_duplicate_path_aliases_when_equal() {
-        let dir = std::env::temp_dir().join("vibewindow_test_file_read_duplicate_aliases");
-        let _ = tokio::fs::remove_dir_all(&dir).await;
-        tokio::fs::create_dir_all(&dir).await.unwrap();
-        tokio::fs::write(dir.join("test.txt"), "alias ok").await.unwrap();
-
-        let tool = FileReadTool::new(test_security(dir.clone()));
-        let result = tool
-            .execute(json!({
-                "path": "test.txt",
-                "filePath": "test.txt",
-                "file_path": "test.txt"
-            }))
-            .await
-            .unwrap();
-
-        assert!(result.success);
-        assert!(result.output.contains("alias ok"));
-
-        let _ = tokio::fs::remove_dir_all(&dir).await;
-    }
-
-    #[tokio::test]
-    async fn file_read_rejects_conflicting_path_aliases() {
+    async fn file_read_rejects_unknown_fields() {
         let tool = FileReadTool::new(test_security(std::env::temp_dir()));
         let result = tool.execute(json!({"path": "a.txt", "filePath": "b.txt"})).await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("conflicting path aliases"));
+        assert!(result.unwrap_err().to_string().contains("unknown field `filePath`"));
     }
 
     /// 测试读取空文件

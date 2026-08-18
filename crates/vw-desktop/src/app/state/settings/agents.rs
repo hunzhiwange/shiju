@@ -8,7 +8,9 @@ use vw_config_types::agent::{
     BuiltinAgentKind, DelegateAgentConfig, DelegateCapabilityPolicy, builtin_agent_config,
     builtin_agent_keys, builtin_agent_spec, is_retired_builtin_agent_key, merged_agent_configs,
 };
-use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
+use vw_config_types::tools::{
+    is_builtin_required_tool_id, is_mcp_dynamic_tool_id, is_retired_tool_id,
+};
 
 #[derive(Debug, Clone)]
 /// 表示 DelegateAgentSettingsEntry 相关的应用状态或派生数据。
@@ -34,7 +36,6 @@ pub(crate) struct DelegateAgentSettingsEntry {
     pub(crate) max_tool_iterations: u32,
     pub(crate) max_history_messages: u32,
     pub(crate) parallel_tools: bool,
-    pub(crate) tool_dispatcher: String,
     pub(crate) max_depth: u32,
     pub(crate) agentic: bool,
     pub(crate) tool_policy: DelegateCapabilityPolicy,
@@ -93,11 +94,14 @@ impl DelegateAgentSettingsEntry {
             max_tool_iterations: 50_000,
             max_history_messages: 100,
             parallel_tools: false,
-            tool_dispatcher: "auto".to_string(),
             max_depth: config.max_depth.clamp(1, 32),
             agentic: config.agentic,
             tool_policy: config.tool_policy,
-            allowed_tools: config.allowed_tools,
+            allowed_tools: config
+                .allowed_tools
+                .into_iter()
+                .filter(|tool_id| !is_retired_tool_id(tool_id))
+                .collect(),
             skill_policy: config.skill_policy,
             allowed_skills: config.allowed_skills,
             enabled_identity_files: config.enabled_identity_files,
@@ -179,8 +183,10 @@ pub(crate) fn ordered_agent_keys(
 /// gateway 的 `/v1/tools` 清单绑定其启动工作区，而 RustCodeGraph 按当前会话项目
 /// 动态注册，因此不能仅依赖 gateway 清单决定它是否在设置页可见。
 pub(crate) fn filter_mcp_from_available_tools(tools: Vec<String>) -> Vec<String> {
-    let mut tools =
-        tools.into_iter().filter(|tool_id| !is_mcp_dynamic_tool_id(tool_id)).collect::<Vec<_>>();
+    let mut tools = tools
+        .into_iter()
+        .filter(|tool_id| !is_mcp_dynamic_tool_id(tool_id) && !is_retired_tool_id(tool_id))
+        .collect::<Vec<_>>();
     if !tools.iter().any(|tool_id| tool_id == "rustcodegraph") {
         tools.push("rustcodegraph".to_string());
     }
@@ -279,10 +285,6 @@ pub(crate) fn agent_settings_entries_from_config(
                 u32::try_from(agent_cfg.max_tool_iterations).unwrap_or(u32::MAX).max(1);
             ui_entry.max_history_messages = agent_cfg.max_history_messages.clamp(1, 1000) as u32;
             ui_entry.parallel_tools = agent_cfg.parallel_tools;
-            ui_entry.tool_dispatcher = {
-                let value = agent_cfg.tool_dispatcher.trim().to_string();
-                if value.is_empty() { "auto".to_string() } else { value }
-            };
             ui_entry
         })
         .collect()

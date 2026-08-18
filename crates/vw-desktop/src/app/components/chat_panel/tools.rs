@@ -68,7 +68,6 @@ mod tool_meta;
 mod tool_parse;
 mod tool_permission;
 mod tool_renderer;
-mod tool_search_view;
 mod types;
 mod web_view;
 mod workflow_view;
@@ -112,8 +111,6 @@ mod tool_permission_tests;
 #[cfg(test)]
 mod tool_renderer_tests;
 #[cfg(test)]
-mod tool_search_view_tests;
-#[cfg(test)]
 mod types_tests;
 #[cfg(test)]
 mod web_view_tests;
@@ -152,7 +149,6 @@ pub(crate) use tool_meta::tool_header_title;
 pub(crate) use tool_renderer::render_shared_tool_view;
 #[cfg(test)]
 pub(crate) use tool_renderer::{SharedToolRenderKind, shared_tool_render_kind};
-pub use tool_search_view::tool_search_view;
 pub use web_view::tool_web_view;
 pub use workflow_view::tool_workflow_view;
 pub(crate) use workflow_view::workflow_node_detail_body;

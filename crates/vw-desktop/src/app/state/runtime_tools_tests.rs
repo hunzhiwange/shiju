@@ -16,7 +16,6 @@ fn tool_selector_buckets_match_runtime_surfaces() {
     assert_eq!(tool_bucket("bash"), SessionToolBucket::Execution);
     assert_eq!(tool_bucket("browser"), SessionToolBucket::Browser);
     assert_eq!(tool_bucket("AgentTool"), SessionToolBucket::Agent);
-    assert_eq!(tool_bucket("tool_search"), SessionToolBucket::Agent);
 }
 
 #[test]
@@ -205,14 +204,6 @@ fn tool_selector_group_and_display_name_match_known_tools() {
 }
 
 #[test]
-fn advanced_surface_specs_mark_available_and_planned() {
-    assert_eq!(
-        explicit_advanced_tool_surface_spec("tool_search").map(|spec| spec.state),
-        Some(AdvancedToolSurfaceState::Available)
-    );
-}
-
-#[test]
 fn labels_and_descriptions_cover_all_groups() {
     let labels = SessionToolGroup::ALL
         .into_iter()
@@ -262,7 +253,6 @@ fn advanced_surface_specs_cover_exact_mappings_and_reject_unknown_tools() {
         ("enter_worktree", "进入 worktree", AdvancedToolSurfaceState::Available),
         ("exit_worktree", "退出 worktree", AdvancedToolSurfaceState::Available),
         ("mcp_linear", "mcp_* 集成", AdvancedToolSurfaceState::Planned),
-        ("tool_search", "tool_search", AdvancedToolSurfaceState::Available),
     ];
 
     for (tool_id, expected_label, expected_state) in expected {
@@ -508,7 +498,6 @@ fn tool_display_names_cover_known_runtime_surfaces() {
         ("memory_recall", "读取记忆"),
         ("memory_store", "写入记忆"),
         ("memory_forget", "删除记忆"),
-        ("tool_search", "工具搜索"),
     ];
 
     for (tool_id, expected) in cases {

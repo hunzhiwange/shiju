@@ -7,7 +7,8 @@ use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
     settings_help_button, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_text_input_style, with_settings_help_modal,
+    settings_section_card, settings_section_content, settings_text_input_style,
+    with_settings_help_modal,
 };
 use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -362,7 +363,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "认证",
             "可选填写 skey。请求会通过 Authorization: Bearer <skey> 发送。",
         ),
-        settings_panel(column![skey_row].spacing(0)),
+        settings_section_content(column![skey_row].spacing(0)),
     ]
     .spacing(16)
     .width(Length::Fill);

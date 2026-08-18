@@ -351,7 +351,6 @@ pub(super) fn advanced_success_body(tool_name: &str, raw_output: &str, value: &V
         "browser" | "browser_open" | "open_browser_page" => {
             format_browser_success_body(tool_name, value).unwrap_or_else(|| raw_output.to_string())
         }
-        "tool_search" => format_tool_search_body(value).unwrap_or_else(|| raw_output.to_string()),
         _ => raw_output.to_string(),
     }
 }
@@ -364,39 +363,6 @@ pub(super) fn result_data_message(value: &Value) -> Option<String> {
         .map(str::trim)
         .filter(|message| !message.is_empty())
         .map(ToString::to_string)
-}
-
-pub(super) fn format_tool_search_body(value: &Value) -> Option<String> {
-    let data = tool_result_data(value)?.as_object()?;
-    let items = data.get("items")?.as_array()?;
-    if items.is_empty() {
-        return Some("未找到匹配工具。".to_string());
-    }
-
-    let mut lines = Vec::new();
-    for item in items.iter().take(6) {
-        let object = item.as_object()?;
-        let label = object
-            .get("display_name")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|text| !text.is_empty())
-            .or_else(|| object.get("id").and_then(Value::as_str).map(str::trim))
-            .unwrap_or("unknown");
-        let reason = object
-            .get("reason")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|text| !text.is_empty())
-            .unwrap_or("matched");
-        lines.push(format!("- {label}: {reason}"));
-    }
-
-    let total = data.get("count").and_then(Value::as_u64).unwrap_or(items.len() as u64) as usize;
-    if total > lines.len() {
-        lines.push(format!("... 还有 {} 个结果", total.saturating_sub(lines.len())));
-    }
-    Some(lines.join("\n"))
 }
 
 pub(super) fn format_browser_success_body(tool_name: &str, value: &Value) -> Option<String> {
@@ -599,7 +565,7 @@ pub fn tool_advanced_view<'a>(
         );
     }
 
-    // 浏览器成功态：单行摘要 + 右侧详情入口，完整结果进弹窗（对齐 skill/mcp/tool_search）。
+    // 浏览器成功态：单行摘要 + 右侧详情入口，完整结果进弹窗（对齐 skill/mcp）。
     if collapse_success_body {
         let summary_text =
             text(truncate_chars(summary.trim(), 80)).size(13).style(|theme: &Theme| {

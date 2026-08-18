@@ -9,11 +9,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use futures_util::future::try_join_all;
 use serde_json::{Map, Value};
 use vw_api_types::apiql::{ApiQlFieldConfig, ApiQlListMode};
-use vw_api_types::data::AiDataConnectionDto;
 use vw_api_types::id::TenantScope;
 
 use crate::app::agent::gateway::ApiError;
 
+use super::connections::ApiQlConnection;
 use super::handlers::load_connection;
 use super::params::{ApiQlFieldNameCase, ApiQlReadParams};
 use super::runtime::run_apiql_query_base;
@@ -73,7 +73,7 @@ pub(crate) fn transformer_source_fields(
 
 pub(crate) async fn apply_apiql_transformers(
     tenant: TenantScope,
-    connection: AiDataConnectionDto,
+    connection: ApiQlConnection,
     registry: &ApiQlEntityRegistry,
     entity: ApiQlResolvedEntity<'_>,
     params: &ApiQlReadParams,
@@ -113,7 +113,7 @@ pub(crate) async fn apply_apiql_transformers(
 
 async fn apply_api_transformer(
     tenant: TenantScope,
-    connection: AiDataConnectionDto,
+    connection: ApiQlConnection,
     registry: &ApiQlEntityRegistry,
     entity: ApiQlResolvedEntity<'_>,
     params: &ApiQlReadParams,

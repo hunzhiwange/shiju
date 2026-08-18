@@ -118,12 +118,11 @@ fn static_bool_flags_are_readable() {
         *super::VIBEWINDOW_ENABLE_EXA,
         *super::VIBEWINDOW_EXPERIMENTAL_OXFMT,
         *super::VIBEWINDOW_EXPERIMENTAL_LSP_TY,
-        *super::VIBEWINDOW_EXPERIMENTAL_LSP_TOOL,
         *super::VIBEWINDOW_DISABLE_FILETIME_CHECK,
         *super::VIBEWINDOW_EXPERIMENTAL_MARKDOWN,
     ];
 
-    assert_eq!(flags.len(), 24);
+    assert_eq!(flags.len(), 23);
 }
 
 #[test]

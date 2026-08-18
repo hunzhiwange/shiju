@@ -155,7 +155,6 @@ fn build_fills_defaults_when_optional_fields_are_absent() {
     assert_eq!(agent.config.max_tool_iterations, 50_000);
     assert_eq!(agent.config.max_history_messages, 100);
     assert!(!agent.config.parallel_tools);
-    assert_eq!(agent.config.tool_dispatcher, "auto");
     assert_eq!(agent.model_name, "anthropic/claude-sonnet-4-20250514");
     assert_eq!(agent.temperature, 0.7);
     assert_eq!(agent.workspace_dir, PathBuf::from("."));

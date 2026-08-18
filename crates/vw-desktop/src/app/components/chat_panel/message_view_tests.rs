@@ -621,21 +621,6 @@ fn tool_card_text_blocks_extract_browser_snapshot_preview() {
 }
 
 #[test]
-fn tool_card_text_blocks_extract_tool_search_matches() {
-    let blocks = tool_card_text_blocks(
-        "tool tool_search\n{\"status\":\"completed\",\"result\":{\"data\":{\"query\":\"search\",\"count\":1,\"items\":[{\"id\":\"tool_search\",\"display_name\":\"ToolSearch\",\"reason\":\"name match\"}]},\"model_result\":\"Found 1 matching tool(s)\"},\"render_hint\":{\"summary\":\"Found 1 matching tool(s)\",\"kind\":\"tool_search\",\"metadata\":{\"query\":\"search\"}}}",
-    );
-
-    assert_eq!(
-        blocks,
-        vec![vec![
-            "状态: available".to_string(),
-            "ToolSearch: name match".to_string(),
-        ]]
-    );
-}
-
-#[test]
 fn tool_card_text_blocks_emit_planned_status_for_mcp_surface() {
     let blocks = tool_card_text_blocks("tool mcp_example\n{\"status\":\"completed\"}");
 

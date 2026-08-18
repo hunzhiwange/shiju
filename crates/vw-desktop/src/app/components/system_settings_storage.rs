@@ -5,8 +5,8 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_control_with_hint, settings_divider,
-    settings_muted_text_style, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_text_input_style,
+    settings_muted_text_style, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_section_content, settings_text_input_style,
 };
 use crate::app::message::settings::StorageMessage;
 use crate::app::{App, Message, message};
@@ -160,14 +160,14 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 
     let content = column![
         settings_section_card("连接参数", "选择数据库类型并配置基础连接信息。"),
-        settings_panel(column![provider_row, settings_divider(), db_url_row].spacing(0)),
+        settings_section_content(column![provider_row, settings_divider(), db_url_row].spacing(0)),
         settings_section_card("命名与超时", "配置 schema、表名和连接超时。"),
-        settings_panel(
+        settings_section_content(
             column![schema_row, settings_divider(), table_row, settings_divider(), timeout_row]
                 .spacing(0),
         ),
         settings_section_card("安全", "配置与远程存储的加密连接策略。"),
-        settings_panel(column![tls_row].spacing(0)),
+        settings_section_content(column![tls_row].spacing(0)),
     ]
     .spacing(16)
     .width(Length::Fill);

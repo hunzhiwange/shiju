@@ -4,9 +4,10 @@ use crate::app::components::color_picker::{parse_color, render_color_picker};
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, primary_action_btn_style, rounded_action_btn_style,
-    settings_error_banner, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_panel_style, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_segment_button_style, settings_text_input_style,
+    settings_error_banner, settings_muted_text_style, settings_page_intro, settings_panel_style,
+    settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_section_content, settings_segment_button_style,
+    settings_text_input_style,
 };
 use crate::app::components::system_settings_themes::preview::theme_preview_panel;
 use crate::app::message::settings::{
@@ -1002,7 +1003,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         body = body.push(settings_error_banner(error));
     }
 
-    settings_panel(
+    settings_section_content(
         scrollable(body.width(Length::Fill))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
             .height(Length::Fill),

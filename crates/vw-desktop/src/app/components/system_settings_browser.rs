@@ -6,7 +6,8 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
     settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_text_editor_style, settings_text_input_style,
+    settings_section_card, settings_section_content, settings_text_editor_style,
+    settings_text_input_style,
 };
 use crate::app::message::settings::{BrowserMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -385,7 +386,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let mut content = column![
         settings_section_card("基础行为", "域名范围、窗口行为与运行后端。"),
-        settings_panel(
+        settings_section_content(
             column![
                 enabled_row,
                 settings_divider(),

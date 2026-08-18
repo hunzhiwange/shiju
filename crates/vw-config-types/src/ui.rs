@@ -210,6 +210,9 @@ pub struct AppSystemSettingsConfig {
     /// Preview editor auto save mode.
     #[serde(default)]
     pub preview_auto_save: PreviewAutoSaveMode,
+    /// Whether language-server features are enabled in the desktop preview editor.
+    #[serde(default = "default_false")]
+    pub lsp_enabled: bool,
     #[serde(default = "default_false")]
     pub dialogue_flow_show_reasoning_summary: bool,
     #[serde(default = "default_false")]
@@ -548,6 +551,7 @@ impl Default for AppSystemSettingsConfig {
             editor_line_height: default_editor_line_height(),
             editor_auto_line_height: default_true(),
             preview_auto_save: PreviewAutoSaveMode::default(),
+            lsp_enabled: default_false(),
             dialogue_flow_show_reasoning_summary: default_false(),
             dialogue_flow_expand_shell_tool_section: default_false(),
             dialogue_flow_expand_edit_tool_section: default_false(),

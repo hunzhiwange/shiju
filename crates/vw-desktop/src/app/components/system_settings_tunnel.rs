@@ -6,7 +6,7 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_muted_text_style,
     settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_text_input_style,
+    settings_section_card, settings_section_content, settings_text_input_style,
 };
 use crate::app::message::settings::{SettingsMessage, TunnelMessage};
 use crate::app::{App, Message};
@@ -315,7 +315,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let content = column![
         settings_section_card("接入方式", "选择隧道 provider，并根据 provider 展开对应参数。"),
-        settings_panel(column![provider_row].spacing(0)),
+        settings_section_content(column![provider_row].spacing(0)),
         provider_section,
     ]
     .spacing(16)

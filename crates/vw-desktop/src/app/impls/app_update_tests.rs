@@ -392,6 +392,24 @@ fn bootstrap_system_settings_updates_runtime_timezone_and_normalizes_active_gate
     assert!(!app.gateway_client_settings.health.contains_key(&stale_health_key));
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn bootstrap_system_settings_applies_lsp_enabled_state() {
+    let mut app = test_app();
+    app.lsp_disabled = true;
+    let mut system = vw_config_types::ui::AppSystemSettingsConfig::default();
+    system.lsp_enabled = true;
+
+    app.apply_bootstrap_system_settings(system.clone());
+
+    assert!(!app.lsp_disabled);
+
+    system.lsp_enabled = false;
+    app.apply_bootstrap_system_settings(system);
+
+    assert!(app.lsp_disabled);
+}
+
 #[test]
 fn app_bootstrap_preserves_custom_items_and_adds_missing_builtin_git_actions() {
     let mut app = test_app();

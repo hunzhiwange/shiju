@@ -7,8 +7,9 @@ use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
     settings_checkbox_style, settings_divider, settings_error_banner, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_segment_button_style, settings_text_input_style,
+    settings_page_intro, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_section_content, settings_segment_button_style,
+    settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{MemoryMessage, SettingsMessage};
@@ -194,7 +195,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let general_section = column![
         settings_section_card("基础行为", "控制持久化、清理、快照和自动恢复等核心记忆行为。"),
-        settings_panel(
+        settings_section_content(
             column![
                 backend_row,
                 settings_divider(),
@@ -277,7 +278,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let retention_section = column![
         settings_section_card("保留与缓存", "配置归档、清理、SQLite 打开超时与缓存容量。"),
-        settings_panel(
+        settings_section_content(
             column![
                 number_row(
                     "归档天数",
@@ -406,7 +407,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let embedding_section = column![
         settings_section_card("嵌入与检索", "配置 embedding provider/model、维度和混合检索权重。"),
-        settings_panel(
+        settings_section_content(
             column![
                 text_row(
                     "嵌入提供者",
@@ -545,7 +546,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     "Qdrant 连接",
                     "仅在 backend=qdrant 时显示，用于配置向量数据库地址、集合和 API Key。",
                 ),
-                settings_panel(
+                settings_section_content(
                     column![
                         text_row(
                             "Qdrant 地址",

@@ -1,50 +1,34 @@
 use std::collections::BTreeMap;
 
+use super::connections::{ApiQlConnection, ApiQlConnectionKind};
+use super::executor::{ApiQlCountMode, ApiQlDatabaseQuery, execute_read_only_query};
 use serde_json::json;
-use vw_api_types::data::{AiDataConnectionDto, AiDataConnectionKind, AiDataCountMode};
 
-use super::data_bridge::{ApiQlDataQuery, execute_apiql_data_query};
-
-fn sqlite_connection(path: &str) -> AiDataConnectionDto {
-    AiDataConnectionDto {
+fn sqlite_connection(path: &str) -> ApiQlConnection {
+    ApiQlConnection {
         id: "apiql-sqlite".to_string(),
         name: "ApiQL SQLite".to_string(),
-        kind: AiDataConnectionKind::Sqlite,
+        kind: ApiQlConnectionKind::Sqlite,
         description: None,
         enabled: true,
         read_only: true,
-        base_url: None,
         connection_url: None,
         sqlite_path: Some(path.to_string()),
-        default_path: None,
-        auth_token: None,
-        headers: BTreeMap::new(),
-        schema_hint: None,
         updated_at_ms: 0,
-        last_used_ms: None,
     }
 }
 
-fn database_connection(
-    kind: AiDataConnectionKind,
-    connection_url: Option<&str>,
-) -> AiDataConnectionDto {
-    AiDataConnectionDto {
+fn database_connection(kind: ApiQlConnectionKind, connection_url: Option<&str>) -> ApiQlConnection {
+    ApiQlConnection {
         id: "apiql-database".to_string(),
         name: "ApiQL Database".to_string(),
         kind,
         description: None,
         enabled: true,
         read_only: true,
-        base_url: None,
         connection_url: connection_url.map(ToOwned::to_owned),
         sqlite_path: None,
-        default_path: None,
-        auth_token: None,
-        headers: BTreeMap::new(),
-        schema_hint: None,
         updated_at_ms: 0,
-        last_used_ms: None,
     }
 }
 
@@ -67,21 +51,21 @@ fn make_sqlite_fixture(path: &std::path::Path) {
 }
 
 #[tokio::test]
-async fn apiql_data_bridge_executes_read_only_sqlite_query() {
+async fn apiql_executor_executes_read_only_sqlite_query() {
     let dir = tempfile::tempdir().unwrap();
     let db_path = dir.path().join("apiql.db");
     make_sqlite_fixture(&db_path);
 
-    let response = execute_apiql_data_query(
+    let response = execute_read_only_query(
         sqlite_connection(db_path.to_str().unwrap()),
-        ApiQlDataQuery {
+        ApiQlDatabaseQuery {
             sql: "SELECT id, name FROM items WHERE active = {{ active }}".to_string(),
             params: BTreeMap::from([("active".to_string(), json!(true))]),
             page: 1,
             limit: 1,
-            count_mode: AiDataCountMode::Enabled,
+            count_mode: ApiQlCountMode::Enabled,
             order_by: Some("id DESC".to_string()),
-            ..ApiQlDataQuery::default()
+            ..ApiQlDatabaseQuery::default()
         },
     )
     .await
@@ -94,26 +78,29 @@ async fn apiql_data_bridge_executes_read_only_sqlite_query() {
 }
 
 #[tokio::test]
-async fn apiql_data_bridge_rejects_write_sql() {
+async fn apiql_executor_rejects_write_sql() {
     let dir = tempfile::tempdir().unwrap();
     let db_path = dir.path().join("apiql.db");
     make_sqlite_fixture(&db_path);
 
-    let err = execute_apiql_data_query(
+    let err = execute_read_only_query(
         sqlite_connection(db_path.to_str().unwrap()),
-        ApiQlDataQuery { sql: "DELETE FROM items".to_string(), ..ApiQlDataQuery::default() },
+        ApiQlDatabaseQuery {
+            sql: "DELETE FROM items".to_string(),
+            ..ApiQlDatabaseQuery::default()
+        },
     )
     .await
     .unwrap_err();
 
-    assert!(err.contains("只读 SELECT/CTE"));
+    assert!(err.contains("read-only SELECT/CTE"));
 }
 
 #[tokio::test]
-async fn apiql_data_bridge_mysql_requires_connection_url() {
-    let err = execute_apiql_data_query(
-        database_connection(AiDataConnectionKind::Mysql, None),
-        ApiQlDataQuery { sql: "SELECT 1".to_string(), ..ApiQlDataQuery::default() },
+async fn apiql_executor_mysql_requires_connection_url() {
+    let err = execute_read_only_query(
+        database_connection(ApiQlConnectionKind::Mysql, None),
+        ApiQlDatabaseQuery { sql: "SELECT 1".to_string(), ..ApiQlDatabaseQuery::default() },
     )
     .await
     .unwrap_err();
@@ -122,10 +109,10 @@ async fn apiql_data_bridge_mysql_requires_connection_url() {
 }
 
 #[tokio::test]
-async fn apiql_data_bridge_postgres_requires_connection_url() {
-    let err = execute_apiql_data_query(
-        database_connection(AiDataConnectionKind::Postgres, None),
-        ApiQlDataQuery { sql: "SELECT 1".to_string(), ..ApiQlDataQuery::default() },
+async fn apiql_executor_postgres_requires_connection_url() {
+    let err = execute_read_only_query(
+        database_connection(ApiQlConnectionKind::Postgres, None),
+        ApiQlDatabaseQuery { sql: "SELECT 1".to_string(), ..ApiQlDatabaseQuery::default() },
     )
     .await
     .unwrap_err();
@@ -135,10 +122,10 @@ async fn apiql_data_bridge_postgres_requires_connection_url() {
 
 #[cfg(not(feature = "memory-mariadb"))]
 #[tokio::test]
-async fn apiql_data_bridge_mysql_reports_disabled_executor() {
-    let err = execute_apiql_data_query(
-        database_connection(AiDataConnectionKind::Mysql, Some("mysql://localhost/apiql")),
-        ApiQlDataQuery { sql: "SELECT 1".to_string(), ..ApiQlDataQuery::default() },
+async fn apiql_executor_mysql_reports_disabled_executor() {
+    let err = execute_read_only_query(
+        database_connection(ApiQlConnectionKind::Mysql, Some("mysql://localhost/apiql")),
+        ApiQlDatabaseQuery { sql: "SELECT 1".to_string(), ..ApiQlDatabaseQuery::default() },
     )
     .await
     .unwrap_err();
@@ -148,10 +135,10 @@ async fn apiql_data_bridge_mysql_reports_disabled_executor() {
 
 #[cfg(not(feature = "memory-postgres"))]
 #[tokio::test]
-async fn apiql_data_bridge_postgres_reports_disabled_executor() {
-    let err = execute_apiql_data_query(
-        database_connection(AiDataConnectionKind::Postgres, Some("postgres://localhost/apiql")),
-        ApiQlDataQuery { sql: "SELECT 1".to_string(), ..ApiQlDataQuery::default() },
+async fn apiql_executor_postgres_reports_disabled_executor() {
+    let err = execute_read_only_query(
+        database_connection(ApiQlConnectionKind::Postgres, Some("postgres://localhost/apiql")),
+        ApiQlDatabaseQuery { sql: "SELECT 1".to_string(), ..ApiQlDatabaseQuery::default() },
     )
     .await
     .unwrap_err();

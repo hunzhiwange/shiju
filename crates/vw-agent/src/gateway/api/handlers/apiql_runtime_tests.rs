@@ -5,32 +5,26 @@ use serde_json::{Value, json};
 use vw_api_types::apiql::{ApiQlEntityConfig, ApiQlFieldConfig, ApiQlListMode, ApiQlPageDto};
 use vw_api_types::id::TenantScope;
 
-use crate::global_database::GlobalDatabase;
-use vw_api_types::data::{AiDataConnectionDto, AiDataConnectionKind, AiDataCountMode};
-
+use super::connections::{ApiQlConnection, ApiQlConnectionKind};
+use super::executor::ApiQlCountMode;
 use super::params::normalize_apiql_query;
 use super::runtime;
 use super::runtime::{run_apiql_query, run_apiql_query_base};
 use super::schema::{ApiQlEntityConfigStore, ApiQlEntityRegistry};
 use super::sql::ApiQlSqlQuery;
+use crate::global_database::GlobalDatabase;
 
-fn sqlite_connection(path: &str) -> AiDataConnectionDto {
-    AiDataConnectionDto {
+fn sqlite_connection(path: &str) -> ApiQlConnection {
+    ApiQlConnection {
         id: "product-main".to_string(),
         name: "Product SQLite".to_string(),
-        kind: AiDataConnectionKind::Sqlite,
+        kind: ApiQlConnectionKind::Sqlite,
         description: None,
         enabled: true,
         read_only: true,
-        base_url: None,
         connection_url: None,
         sqlite_path: Some(path.to_string()),
-        default_path: None,
-        auth_token: None,
-        headers: BTreeMap::new(),
-        schema_hint: None,
         updated_at_ms: 0,
-        last_used_ms: None,
     }
 }
 
@@ -406,7 +400,7 @@ fn empty_compiled_query() -> ApiQlSqlQuery {
         params: BTreeMap::new(),
         page: 1,
         limit: 25,
-        count_mode: AiDataCountMode::Disabled,
+        count_mode: ApiQlCountMode::Disabled,
         order_by: None,
         cursor_fields: Vec::new(),
         virtual_fields: Vec::new(),

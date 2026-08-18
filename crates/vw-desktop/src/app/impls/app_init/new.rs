@@ -1122,10 +1122,6 @@ impl App {
                     main.max_history_messages =
                         full_agent_cfg.agent.max_history_messages.clamp(1, 1000) as u32;
                     main.parallel_tools = full_agent_cfg.agent.parallel_tools;
-                    main.tool_dispatcher = {
-                        let value = full_agent_cfg.agent.tool_dispatcher.trim().to_string();
-                        if value.is_empty() { "auto".to_string() } else { value }
-                    };
                 }
                 let available_tools = super::state::filter_mcp_from_available_tools(
                     config::load_tools_list_via_gateway(),
@@ -1498,7 +1494,7 @@ impl App {
             #[cfg(not(target_arch = "wasm32"))]
             lsp_overlay: iced_code_editor::LspOverlayState::new(),
             #[cfg(not(target_arch = "wasm32"))]
-            lsp_disabled: false,
+            lsp_disabled: !system_settings_cfg.lsp_enabled,
             #[cfg(not(target_arch = "wasm32"))]
             lsp_applying_completion: false,
             #[cfg(not(target_arch = "wasm32"))]

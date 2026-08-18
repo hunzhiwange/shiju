@@ -169,7 +169,6 @@ fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                 "pdf_read",
                 "grep",
                 "glob",
-                "lsp",
                 "memory_recall",
                 "question",
             ],
@@ -575,8 +574,6 @@ fn build_agents_settings_patch(
         {
             patch.insert("default_temperature".to_string(), serde_json::Value::Number(temperature));
         }
-        let tool_dispatcher = main.tool_dispatcher.trim();
-        let tool_dispatcher = if tool_dispatcher.is_empty() { "auto" } else { tool_dispatcher };
         patch.insert(
             "agent".to_string(),
             serde_json::json!({
@@ -584,7 +581,6 @@ fn build_agents_settings_patch(
                 "max_tool_iterations": main.max_tool_iterations.max(1),
                 "max_history_messages": main.max_history_messages.clamp(1, 1000),
                 "parallel_tools": main.parallel_tools,
-                "tool_dispatcher": tool_dispatcher,
             }),
         );
     }
@@ -1017,13 +1013,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::ParallelToolsToggled(agent_key, value) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.parallel_tools = value;
-            }
-            app.agents_settings.save_error = None;
-            persist_agents_settings(app)
-        }
-        AgentsMessage::ToolDispatcherChanged(agent_key, value) => {
-            if let Some(entry) = find_entry_mut(app, &agent_key) {
-                entry.tool_dispatcher = value;
             }
             app.agents_settings.save_error = None;
             persist_agents_settings(app)

@@ -9,8 +9,10 @@ use crate::app::components::system_settings_common::styles::{
     settings_panel_style,
 };
 use crate::app::components::system_settings_common::theme::is_dark_theme;
-use iced::widget::{Space, column, container, mouse_area, opaque, stack, text};
-use iced::{Background, Border, Color, Element, Length, Theme};
+use iced::widget::{Space, column, container, mouse_area, opaque, row, stack, text};
+use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme};
+
+pub(super) const SETTINGS_SECTION_CONTENT_PADDING: Padding = Padding::ZERO;
 
 /// 构建或处理 `settings_panel` 对应的界面片段与交互数据。
 ///
@@ -28,7 +30,30 @@ use iced::{Background, Border, Color, Element, Length, Theme};
 pub fn settings_panel<'a>(
     content: impl Into<Element<'a, Message>>,
 ) -> iced::widget::Container<'a, Message> {
-    container(content.into()).padding([18, 20]).width(Length::Fill).style(settings_panel_style)
+    container(content.into())
+        .padding([18, 20])
+        .width(Length::Fill)
+        .style(settings_content_panel_style)
+}
+
+pub(super) fn settings_content_panel_style(theme: &Theme) -> iced::widget::container::Style {
+    let mut style = settings_panel_style(theme);
+    style.border.radius = 9.0.into();
+    style
+}
+
+/// 构建系统设置一级分区的无框内容容器。
+pub fn settings_section_content<'a>(
+    content: impl Into<Element<'a, Message>>,
+) -> iced::widget::Container<'a, Message> {
+    container(content.into())
+        .padding(SETTINGS_SECTION_CONTENT_PADDING)
+        .width(Length::Fill)
+        .style(settings_section_content_style)
+}
+
+pub(super) fn settings_section_content_style(_theme: &Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style::default()
 }
 
 /// 构建或处理 `settings_modal_card` 对应的界面片段与交互数据。
@@ -107,8 +132,9 @@ pub fn settings_section_card<'a>(
     description: &'a str,
 ) -> iced::widget::Container<'a, Message> {
     container(
-        column![text(title).size(14), text(description).size(12).style(settings_muted_text_style),]
-            .spacing(6),
+        row![text(title).size(14), text(description).size(12).style(settings_muted_text_style),]
+            .spacing(10)
+            .align_y(Alignment::Center),
     )
     .padding([14, 16])
     .width(Length::Fill)
@@ -129,8 +155,9 @@ pub fn settings_section_card<'a>(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn settings_page_intro<'a>(title: &'a str, description: &'a str) -> Element<'a, Message> {
-    column![text(title).size(18), text(description).size(12).style(settings_muted_text_style),]
-        .spacing(4)
+    row![text(title).size(18), text(description).size(12).style(settings_muted_text_style),]
+        .spacing(12)
+        .align_y(Alignment::Center)
         .into()
 }
 
@@ -241,7 +268,7 @@ pub(super) fn settings_section_card_style(theme: &Theme) -> iced::widget::contai
             } else {
                 Color::from_rgba8(15, 23, 42, 0.06)
             },
-            radius: 16.0.into(),
+            radius: 8.0.into(),
         },
         ..Default::default()
     }

@@ -95,6 +95,24 @@ fn model_supports_images_defaults_on_and_allows_ocr_without_fallback_model() {
 }
 
 #[test]
+fn selecting_empty_image_model_clears_the_configured_model() {
+    let mut app = app();
+    app.multimodal_settings.ocr_model = "provider/model".to_string();
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Multimodal(MultimodalMessage::OcrModelChanged(String::new())),
+    );
+
+    assert!(app.multimodal_settings.ocr_model.is_empty());
+    assert!(multimodal_config_from_state(&app.multimodal_settings)
+        .expect("empty image model should be valid when the active model supports images")
+        .ocr
+        .model
+        .is_none());
+}
+
+#[test]
 fn max_images_changed_clamps_out_of_range_and_preserves_in_range_values() {
     let mut app = app();
     app.multimodal_settings.save_error = Some("old".to_string());

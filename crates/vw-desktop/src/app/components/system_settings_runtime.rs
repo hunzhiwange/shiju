@@ -5,8 +5,9 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_control_with_hint, settings_divider,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_text_input_style,
+    settings_muted_text_style, settings_page_intro, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_section_content,
+    settings_text_input_style,
 };
 use crate::app::message::settings::{RuntimeMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -179,7 +180,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "Docker 配置",
             "当 kind=docker 时生效，用于控制镜像、资源限制和工作区挂载。",
         ),
-        settings_panel(
+        settings_section_content(
             column![
                 text_row(
                     "镜像 (image)",
@@ -276,12 +277,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut content = column![
         settings_page_intro("运行时配置", "配置 native、docker 执行环境及推理覆盖项。"),
         settings_section_card("基础行为", "运行时类型。"),
-        settings_panel(column![kind_row].spacing(0)),
+        settings_section_content(column![kind_row].spacing(0)),
         settings_section_card(
             "推理覆盖",
             "该区域用于配置 runtime.reasoning_enabled 与兼容别名 runtime.reasoning_level。",
         ),
-        settings_panel(
+        settings_section_content(
             column![reasoning_enabled_row, settings_divider(), reasoning_level_row].spacing(0),
         ),
     ]

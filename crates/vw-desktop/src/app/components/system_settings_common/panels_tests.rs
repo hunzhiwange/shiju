@@ -1,15 +1,16 @@
 use super::panels::{
-    settings_divider_style, settings_error_banner_style, settings_section_card_style,
+    SETTINGS_SECTION_CONTENT_PADDING, settings_content_panel_style, settings_divider_style,
+    settings_error_banner_style, settings_section_card_style, settings_section_content_style,
     settings_success_banner_style, settings_value_badge_style,
 };
 use super::{
     settings_control_with_hint, settings_divider, settings_error_banner, settings_modal_card,
     settings_modal_overlay, settings_page_intro, settings_panel, settings_section_card,
-    settings_success_banner, settings_value_badge,
+    settings_section_content, settings_success_banner, settings_value_badge,
 };
 use crate::app::Message;
 use iced::widget::text;
-use iced::{Background, Element, Length, Theme};
+use iced::{Background, Element, Length, Padding, Shadow, Theme};
 
 fn assert_size(element: &Element<'_, Message>, width: Length, height: Length) {
     let size = element.as_widget().size();
@@ -23,6 +24,21 @@ fn settings_panel_fills_available_width() {
     let element: Element<'_, Message> = settings_panel(text("panel")).into();
 
     assert_size(&element, Length::Fill, Length::Shrink);
+}
+
+#[test]
+fn settings_section_content_is_frameless_and_fills_width() {
+    let element: Element<'_, Message> = settings_section_content(text("content")).into();
+    let dark = settings_section_content_style(&Theme::Dark);
+    let light = settings_section_content_style(&Theme::Light);
+
+    assert_size(&element, Length::Fill, Length::Shrink);
+    assert_eq!(SETTINGS_SECTION_CONTENT_PADDING, Padding::ZERO);
+    for style in [dark, light] {
+        assert_eq!(style.background, None);
+        assert_eq!(style.border.width, 0.0);
+        assert_eq!(style.shadow, Shadow::default());
+    }
 }
 
 #[test]
@@ -109,7 +125,16 @@ fn settings_section_card_style_differs_between_themes() {
     assert_ne!(dark.background, light.background);
     assert_ne!(dark.border.color, light.border.color);
     assert_eq!(dark.border.width, 1.0);
-    assert_eq!(dark.border.radius, 16.0.into());
+    assert_eq!(dark.border.radius, 8.0.into());
+}
+
+#[test]
+fn settings_content_panel_uses_half_radius() {
+    let dark = settings_content_panel_style(&Theme::Dark);
+    let light = settings_content_panel_style(&Theme::Light);
+
+    assert_eq!(dark.border.radius, 9.0.into());
+    assert_eq!(light.border.radius, 9.0.into());
 }
 
 #[test]

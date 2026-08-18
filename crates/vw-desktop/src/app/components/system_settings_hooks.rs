@@ -6,7 +6,8 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_control_with_hint,
     settings_error_banner, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_segment_button_style, settings_value_badge,
+    settings_section_card, settings_section_content, settings_segment_button_style,
+    settings_value_badge,
 };
 use crate::app::message::settings::HooksMessage;
 use crate::app::{App, Message, message};
@@ -252,11 +253,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut content = column![
         settings_page_intro("钩子配置", "配置运行时 hooks 总开关与内置钩子的启用状态。"),
         settings_section_card("基础行为", "关闭总开关后将暂停 hooks 执行。"),
-        settings_panel(column![enabled_row].spacing(0)),
+        settings_section_content(column![enabled_row].spacing(0)),
         builtin_header,
-        settings_panel(column![command_logger_row].spacing(0)),
+        settings_section_content(column![command_logger_row].spacing(0)),
         settings_section_card("插件 hooks", "控制可信插件 hooks 的执行并审核当前声明。"),
-        settings_panel(column![plugin_hooks_row].spacing(0)),
+        settings_section_content(column![plugin_hooks_row].spacing(0)),
         catalog_header,
         hook_catalog_panel(app),
     ]

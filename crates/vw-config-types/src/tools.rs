@@ -413,7 +413,6 @@ pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
     "WebSearch",
     "file_edit",
     "image_asset_read",
-    "tool_search",
     "Sleep",
     "McpStatus",
 ];
@@ -437,6 +436,14 @@ const BUILTIN_REQUIRED_TOOL_ALIASES: &[&str] = &[
 /// 判断工具 ID 是否属于内置必选目录（含主 ID 与既有别名）。
 pub fn is_builtin_required_tool_id(tool_id: &str) -> bool {
     BUILTIN_REQUIRED_TOOL_IDS.contains(&tool_id) || BUILTIN_REQUIRED_TOOL_ALIASES.contains(&tool_id)
+}
+
+/// 已从运行时移除、只可能残留在旧配置或旧网关目录中的工具 ID。
+pub const RETIRED_TOOL_IDS: &[&str] = &["lsp"];
+
+/// 判断工具 ID 是否已退出运行时工具目录。
+pub fn is_retired_tool_id(tool_id: &str) -> bool {
+    RETIRED_TOOL_IDS.contains(&tool_id)
 }
 
 /// 判断工具 ID 是否为 MCP 动态工具（形如 `mcp__{server}__{tool}`）。

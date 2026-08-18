@@ -125,7 +125,6 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
         "process",
         "batch",
         "AskUserQuestion",
-        "tool_search",
         "WebSearch",
         "Browser",
         "list_mcp_resources",
@@ -152,7 +151,6 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
     assert!(
         prompt.contains("file_read")
             && prompt.contains("apply_patch")
-            && prompt.contains("tool_search")
             && prompt.contains("TodoWrite"),
         "unified prompt must describe the built-in tool routing contract"
     );

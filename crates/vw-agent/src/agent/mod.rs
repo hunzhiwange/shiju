@@ -369,10 +369,21 @@ fn build_resolved_agent(
         };
     }
 
+    let selected_skills = config
+        .allowed_skills
+        .iter()
+        .map(|name| permission_next::Rule {
+            permission: "skill".to_string(),
+            pattern: name.clone(),
+            action: permission_next::Action::Allow,
+        })
+        .collect::<Ruleset>();
+
     ResolvedAgentDefinition {
         permission: permission_next::merge(&[
             defaults.clone(),
             permission_next::from_config(&config.permission),
+            selected_skills,
             user.clone(),
         ]),
         definition: config,

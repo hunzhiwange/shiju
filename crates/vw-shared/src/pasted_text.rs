@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::io::Write as _;
 
 /// 超过此字符数的粘贴文本会保存到系统临时目录。
-pub const PASTED_TEXT_FILE_REFERENCE_THRESHOLD_CHARS: usize = 200;
+pub const PASTED_TEXT_FILE_REFERENCE_THRESHOLD_CHARS: usize = 500;
 
 /// 将超过阈值的粘贴文本保存为私有临时文件。
 ///

@@ -179,7 +179,6 @@ fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
     main.max_history_messages = 456;
     main.max_iterations = 50_001;
     main.parallel_tools = true;
-    main.tool_dispatcher = " manual ".to_string();
     main.allow_as_subagent = true;
     main.max_parallel_subagents = 3;
 
@@ -199,7 +198,6 @@ fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
     assert_eq!(patch["agent"]["max_tool_iterations"], 50_002);
     assert_eq!(patch["agent"]["max_history_messages"], 456);
     assert_eq!(patch["agent"]["parallel_tools"], true);
-    assert_eq!(patch["agent"]["tool_dispatcher"], "manual");
 }
 
 #[test]
@@ -301,7 +299,6 @@ fn fresh_agents_settings_patch_preserves_builtin_role_boundaries() {
             "glob",
             "grep",
             "ls",
-            "lsp",
             "pdf_read",
             "web_fetch",
             "web_search_tool"
@@ -1190,13 +1187,6 @@ fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
     );
     let _ = update(
         &mut app,
-        SettingsMessage::Agents(AgentsMessage::ToolDispatcherChanged(
-            "main".to_string(),
-            "manual".to_string(),
-        )),
-    );
-    let _ = update(
-        &mut app,
         SettingsMessage::Agents(AgentsMessage::AgenticToggled("main".to_string(), true)),
     );
     let _ = update(
@@ -1217,13 +1207,12 @@ fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
     assert_eq!(main.max_iterations, 50_001);
     assert!(main.compact_context);
     assert!(main.parallel_tools);
-    assert_eq!(main.tool_dispatcher, "manual");
     assert!(main.agentic);
     assert_eq!(main.api_key_input, "sk-test");
 }
 
 #[test]
-fn available_tools_exclude_mcp_dynamic_ids() {
+fn available_tools_exclude_mcp_dynamic_and_retired_ids() {
     let mut app = test_app();
     app.agents_settings.available_tools.clear();
 
@@ -1234,6 +1223,7 @@ fn available_tools_exclude_mcp_dynamic_ids() {
             vec![],
             vec![
                 "bash".to_string(),
+                "lsp".to_string(),
                 "mcp__rustcodegraph__search".to_string(),
                 "read".to_string(),
                 "mcp__github__list_issues".to_string(),

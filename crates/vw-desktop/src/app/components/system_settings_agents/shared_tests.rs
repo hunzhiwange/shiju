@@ -27,7 +27,6 @@ fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry 
         max_tool_iterations: 50_000,
         max_history_messages: 100,
         parallel_tools: false,
-        tool_dispatcher: "auto".to_string(),
         max_depth: 1,
         agentic: false,
         tool_policy: vw_config_types::agent::DelegateCapabilityPolicy::default(),

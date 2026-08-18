@@ -68,7 +68,6 @@ fn shared_tool_render_kind_routes_all_supported_kinds() {
         ("tool enter_worktree\n{}", SharedToolRenderKind::Advanced),
         ("tool exit_worktree\n{}", SharedToolRenderKind::Advanced),
         ("tool task_complete\n{}", SharedToolRenderKind::Advanced),
-        ("tool tool_search\n{}", SharedToolRenderKind::ToolSearch),
         ("tool mcp_linear\n{}", SharedToolRenderKind::Mcp),
         ("tool custom\n{}", SharedToolRenderKind::Text),
     ] {
@@ -183,11 +182,6 @@ fn render_shared_tool_view_dispatches_each_tool_kind() {
             16,
             r#"tool custom
 {"status":"completed","output":"custom output"}"#,
-        ),
-        (
-            17,
-            r#"tool tool_search
-{"status":"completed","summary":"Found 2 tools","output":"large result"}"#,
         ),
         (
             18,

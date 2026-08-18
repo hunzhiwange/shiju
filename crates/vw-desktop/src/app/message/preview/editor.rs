@@ -776,7 +776,9 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             } else {
                 lsp::enable_lsp(app);
             }
-            Task::none()
+            crate::app::config::update_system_settings_config_async(move |system| {
+                system.lsp_enabled = !disabled;
+            })
         }
 
         // 处理其他未实现的消息变体，或由其他机制处理的消息（如选择变更）

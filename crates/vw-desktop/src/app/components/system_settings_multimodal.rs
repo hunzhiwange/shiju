@@ -6,13 +6,15 @@
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_value_badge,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_section_content, settings_value_badge,
 };
 use crate::app::message::settings::{MultimodalMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{checkbox, column, container, pick_list, row, text};
 use iced::{Alignment, Element, Length};
+
+const NO_IMAGE_MODEL_OPTION: &str = "请选择";
 
 fn field_row<'a>(
     label: &'static str,
@@ -78,33 +80,41 @@ fn bool_row<'a>(
 }
 
 fn image_model_options(app: &App) -> Vec<String> {
-    app.model_settings
-        .providers
-        .iter()
-        .filter(|provider| !provider.id.trim().is_empty())
-        .flat_map(|provider| {
-            provider
-                .models
+    std::iter::once(NO_IMAGE_MODEL_OPTION.to_string())
+        .chain(
+            app.model_settings
+                .providers
                 .iter()
-                .filter(|model| {
-                    model.enabled
-                        && !model.id.trim().is_empty()
-                        && model.detail["capabilities"]["input"]["image"].as_bool() == Some(true)
-                })
-                .map(|model| format!("{}/{}", provider.id, model.id))
-        })
+                .filter(|provider| !provider.id.trim().is_empty())
+                .flat_map(|provider| {
+                    provider
+                        .models
+                        .iter()
+                        .filter(|model| {
+                            model.enabled
+                                && !model.id.trim().is_empty()
+                                && model.detail["capabilities"]["input"]["image"].as_bool() == Some(true)
+                        })
+                        .map(|model| format!("{}/{}", provider.id, model.id))
+                }),
+        )
         .collect()
 }
 
 fn image_model_control(app: &App) -> Element<'_, Message> {
     let options = image_model_options(app);
     let configured = app.multimodal_settings.ocr_model.trim();
-    let selected = options.iter().find(|model| model.as_str() == configured).cloned();
-    let has_options = !options.is_empty();
+    let selected = if configured.is_empty() {
+        Some(NO_IMAGE_MODEL_OPTION.to_string())
+    } else {
+        options.iter().find(|model| model.as_str() == configured).cloned()
+    };
+    let has_options = options.len() > 1;
     let configured_is_available = selected.is_some();
 
     let picker = pick_list(options, selected, |value| {
-        Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::OcrModelChanged(value)))
+        let model = (value != NO_IMAGE_MODEL_OPTION).then_some(value).unwrap_or_default();
+        Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::OcrModelChanged(model)))
     })
     .placeholder("请选择支持图片输入的模型")
     .padding([10, 14])
@@ -168,7 +178,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "图像输入限制",
             "输入框附件优先使用本地文件；这里控制单次请求最多允许的图片数量、每张图片大小上限，以及是否允许抓取远程图片 URL。",
         ),
-        settings_panel(
+        settings_section_content(
             column![
                 number_row("最大图片数量", "单次请求最多允许上传的图片数。", s.max_images, 1, 16, "张", |value| {
                     Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::MaxImagesChanged(
@@ -198,7 +208,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "图片文字提取（OCR）",
             "使用独立图片模型把附件转换为受限文本，再交给主模型处理。提取结果是不可信附件数据，且不等于完整视觉理解。",
         ),
-        settings_panel(
+        settings_section_content(
             column![
                 bool_row(
                     "模型支持图片",

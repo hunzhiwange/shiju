@@ -567,7 +567,6 @@ pub enum AgentsMessage {
     MaxToolIterationsChanged(String, u32),
     MaxHistoryMessagesChanged(String, u32),
     ParallelToolsToggled(String, bool),
-    ToolDispatcherChanged(String, String),
     MaxDepthChanged(String, u32),
     AgenticToggled(String, bool),
     ToolPolicyChanged(String, vw_config_types::agent::DelegateCapabilityPolicy),

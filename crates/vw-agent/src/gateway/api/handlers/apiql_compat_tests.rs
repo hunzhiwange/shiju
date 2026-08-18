@@ -3,7 +3,6 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 use vw_api_types::apiql::{ApiQlEntityConfig, ApiQlFieldConfig, ApiQlListMode, ApiQlPageDto};
-use vw_api_types::data::{AiDataConnectionDto, AiDataConnectionKind};
 use vw_api_types::id::TenantScope;
 
 use super::params::normalize_apiql_query;
@@ -16,23 +15,17 @@ use super::schema::ApiQlEntityRegistry;
 // - Relations are never silently dropped; unregistered relation names return a clear error.
 // - Non-SQLite product databases require the corresponding cargo feature and connection config.
 
-fn sqlite_connection(path: &str) -> AiDataConnectionDto {
-    AiDataConnectionDto {
+fn sqlite_connection(path: &str) -> ApiQlConnection {
+    ApiQlConnection {
         id: "apiql-compat-main".to_string(),
         name: "ApiQL compat SQLite".to_string(),
-        kind: AiDataConnectionKind::Sqlite,
+        kind: ApiQlConnectionKind::Sqlite,
         description: None,
         enabled: true,
         read_only: true,
-        base_url: None,
         connection_url: None,
         sqlite_path: Some(path.to_string()),
-        default_path: None,
-        auth_token: None,
-        headers: BTreeMap::new(),
-        schema_hint: None,
         updated_at_ms: 0,
-        last_used_ms: None,
     }
 }
 
@@ -99,7 +92,7 @@ fn make_sqlite_fixture(path: &Path) {
 }
 
 async fn run_fixture_query(
-    connection: AiDataConnectionDto,
+    connection: ApiQlConnection,
     registry: &ApiQlEntityRegistry,
     raw_query: &str,
     mode: ApiQlListMode,
@@ -215,3 +208,4 @@ async fn apiql_compat_reports_unsupported_relation_without_silent_drop() {
 
     assert_eq!(error.to_string(), "Unknown ApiQL relation: category");
 }
+use super::connections::{ApiQlConnection, ApiQlConnectionKind};

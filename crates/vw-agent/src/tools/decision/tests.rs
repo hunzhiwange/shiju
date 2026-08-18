@@ -186,7 +186,7 @@ fn blocked_path_checks_string_and_array_fields() {
     assert_eq!(blocked_path(&json!("not an object"), &security), None);
     assert_eq!(blocked_path(&json!({"dir": "src"}), &security), None);
     assert_eq!(
-        blocked_path(&json!({"filePath": "../secret"}), &security).as_deref(),
+        blocked_path(&json!({"path": "../secret"}), &security).as_deref(),
         Some("../secret")
     );
     assert_eq!(

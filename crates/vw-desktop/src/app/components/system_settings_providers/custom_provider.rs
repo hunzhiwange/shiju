@@ -16,8 +16,8 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH, icon_btn,
     primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_divider,
     settings_error_banner, settings_modal_card, settings_modal_overlay, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_section_card, settings_segment_button_style,
-    settings_text_input_style, settings_value_badge,
+    settings_page_intro, settings_section_card, settings_section_content,
+    settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::state::{CustomProviderModelFilter, CustomProviderTab};
 use crate::app::{App, Message, message};
@@ -429,7 +429,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 "基础信息",
                 "命名 provider，并指定展示名称与 OpenAI 兼容接口地址。",
             ),
-            settings_panel(
+            settings_section_content(
                 column![
                     provider_id_row,
                     settings_divider(),
@@ -446,7 +446,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 "认证与请求头",
                 "设置默认 API Key，并为需要额外 header 的网关场景补充请求头。",
             ),
-            settings_panel(column![api_key_row, settings_divider(), headers_row].spacing(0)),
+            settings_section_content(column![api_key_row, settings_divider(), headers_row].spacing(0)),
         ]
         .spacing(16);
         let models_tab = column![
@@ -454,7 +454,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 "模型",
                 "维护该 provider 的模型列表，后续聊天与生成界面会复用这里的配置。",
             ),
-            settings_panel(models_panel),
+            settings_section_content(models_panel),
         ]
         .spacing(16);
 

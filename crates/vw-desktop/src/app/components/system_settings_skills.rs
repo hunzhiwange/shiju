@@ -7,9 +7,9 @@ pub(super) mod plugins;
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_help_button, settings_muted_text_style,
-    settings_error_banner, settings_page_intro, settings_panel, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_segment_button_style,
-    settings_text_input_style,
+    settings_error_banner, settings_page_intro, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_section_content,
+    settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::SkillsSettingsTab;
@@ -157,7 +157,7 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
             "系统配置",
             "这里配置项目技能默认加载、社区同步与 prompt injection；目录顺序单独展示。",
         ),
-        settings_panel(
+        settings_section_content(
             column![provider_row, project_auto_load_row, open_enabled_row, open_dir_row, mode_row]
                 .spacing(0),
         ),

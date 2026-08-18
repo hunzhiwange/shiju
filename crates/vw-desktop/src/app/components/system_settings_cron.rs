@@ -8,8 +8,9 @@ use crate::app::components::system_settings_common::{
     settings_checkbox_style, settings_close_button, settings_divider, settings_error_banner,
     settings_help_button, settings_modal_card, settings_modal_overlay, settings_muted_text_style,
     settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_segment_button_style, settings_success_banner,
-    settings_text_editor_style, settings_text_input_style, settings_value_badge,
+    settings_section_card, settings_section_content, settings_segment_button_style,
+    settings_success_banner, settings_text_editor_style, settings_text_input_style,
+    settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
@@ -866,7 +867,7 @@ fn config_tab(app: &App) -> Element<'_, Message> {
 
     column![
         settings_section_card("基础行为", "控制 Cron 子系统是否运行与历史留存数量。"),
-        settings_panel(column![enabled_row, history_row].spacing(0)),
+        settings_section_content(column![enabled_row, history_row].spacing(0)),
     ]
     .spacing(14)
     .into()
@@ -1198,7 +1199,7 @@ fn add_tab(app: &App) -> Element<'_, Message> {
             "添加任务",
             "创建 Shell 或 Agent 定时任务，支持 Cron、指定时间和固定间隔。"
         ),
-        settings_panel(form),
+        settings_section_content(form),
     ]
     .spacing(14)
     .into()

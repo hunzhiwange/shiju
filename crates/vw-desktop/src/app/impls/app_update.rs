@@ -274,6 +274,17 @@ impl App {
         vw_config_types::ui::append_missing_builtin_git_quick_messages(&mut self.quick_messages);
         self.preview_auto_save_mode = system.preview_auto_save;
         self.editor_follow_system_theme = system.editor_follow_system_theme;
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let lsp_disabled = !system.lsp_enabled;
+            if self.lsp_disabled != lsp_disabled {
+                if system.lsp_enabled {
+                    crate::app::message::preview::lsp::enable_lsp(self);
+                } else {
+                    crate::app::message::preview::lsp::disable_lsp(self);
+                }
+            }
+        }
         let theme_store = crate::app::theme_catalog::theme_store_from_home();
         match crate::app::theme_catalog::resolve_app_theme_name(
             &system.app_theme,

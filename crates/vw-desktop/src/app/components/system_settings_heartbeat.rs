@@ -18,8 +18,8 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_text_input_style, settings_value_badge,
+    settings_muted_text_style, settings_page_intro, settings_section_card,
+    settings_section_content, settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, slider, text, text_input};
@@ -160,9 +160,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .align_y(Alignment::Start),
         settings_section_card("基础行为", "控制心跳开关与执行间隔。"),
-        settings_panel(column![enabled_row, settings_divider(), interval_row].spacing(0)),
+        settings_section_content(column![enabled_row, settings_divider(), interval_row].spacing(0)),
         settings_section_card("投递内容", "配置兜底消息、目标通道和接收者。"),
-        settings_panel(
+        settings_section_content(
             column![message_row, settings_divider(), target_row, settings_divider(), to_row]
                 .spacing(0),
         ),

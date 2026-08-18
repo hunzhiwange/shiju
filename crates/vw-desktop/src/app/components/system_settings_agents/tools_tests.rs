@@ -43,8 +43,7 @@ fn tool_capability_policy_controls_use_typed_messages_and_expected_labels() {
 
 #[test]
 fn tool_in_preset_accepts_declared_members_and_inheritance() {
-    let minimal =
-        ["ls", "read", "file_read", "pdf_read", "grep", "glob", "lsp", "memory_recall", "question"];
+    let minimal = ["ls", "read", "file_read", "pdf_read", "grep", "glob", "memory_recall", "question"];
     let coding_only = ["write", "file_write", "apply_patch", "bash", "shell", "git_operations"];
     let research_only = [
         "browser",
@@ -233,8 +232,6 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("memory_store", "写入记忆", ToolGroup::Memory),
         ("memory_forget", "删除记忆", ToolGroup::Memory),
         ("Config", "配置管理", ToolGroup::Integration),
-        ("tool_search", "工具搜索", ToolGroup::Integration),
-        ("ToolSearch", "工具搜索", ToolGroup::Integration),
         ("screenshot", "屏幕截图", ToolGroup::Web),
         ("image_asset_read", "重载图像资源", ToolGroup::Web),
         ("lsp", "语义分析", ToolGroup::Integration),

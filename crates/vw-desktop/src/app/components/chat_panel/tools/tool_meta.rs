@@ -49,7 +49,6 @@ pub fn tool_emoji(tool_name: &str) -> &'static str {
         | "file_search"
         | "semantic_search"
         | "web_search"
-        | "tool_search"
         | "github_repo"
         | "copilot_getnotebooksummary"
         | "vscode_listcodeusages" => "🔍",
@@ -215,7 +214,6 @@ pub fn tool_verb(tool_name: &str) -> &'static str {
         "question" => "提问",
         "screenshot" => "截图",
         "agenttool" | "agent" => "AgentTool",
-        "tool_search" => "tool_search",
         "mcp" | "list_mcp_resources" | "list_mcp_resource_templates" | "read_mcp_resource" => "MCP",
         "todowrite" => "写任务",
         "todoread" => "读任务",

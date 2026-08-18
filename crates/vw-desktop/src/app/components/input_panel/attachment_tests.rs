@@ -6,7 +6,7 @@ use super::{
     AttachmentDisplayItem, AttachmentDisplayKind, attachment_button, attachment_chip,
     attachment_preview_strip, attachment_strip, attachment_thumbnail, chip_close_style, chip_style,
     chip_thumb_style, is_supported_image_attachment, parse_attachment_markers,
-    split_attachment_name_extension, truncate_attachment_name_middle,
+    open_attachment_message, split_attachment_name_extension, truncate_attachment_name_middle,
 };
 use crate::app::{App, Message, message};
 use iced::widget::button;
@@ -214,6 +214,16 @@ fn attachment_chip_builds_with_optional_remove_action_and_display_name_sources()
         None,
     );
     assert_size(&empty_path, Length::Shrink, Length::Shrink);
+}
+
+#[test]
+fn attachment_click_opens_file_in_preview_editor() {
+    let path = "/tmp/vibewindow-paste-example.txt".to_string();
+
+    assert!(matches!(
+        open_attachment_message(path.clone()),
+        Message::Preview(message::PreviewMessage::Open(opened_path)) if opened_path == path
+    ));
 }
 
 #[test]

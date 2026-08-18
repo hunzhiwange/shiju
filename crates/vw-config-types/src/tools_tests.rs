@@ -33,7 +33,6 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
         "WebSearch",
         "file_edit",
         "image_asset_read",
-        "tool_search",
         "Sleep",
         "McpStatus",
     ];
@@ -66,6 +65,14 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
     assert!(!super::is_builtin_required_tool_id("mcp__rustcodegraph__search"));
     assert!(!super::is_builtin_required_tool_id("web_fetch"));
     assert!(!super::is_builtin_required_tool_id(""));
+}
+
+#[test]
+fn retired_tool_catalog_only_matches_removed_tools() {
+    assert_eq!(super::RETIRED_TOOL_IDS, ["lsp"]);
+    assert!(super::is_retired_tool_id("lsp"));
+    assert!(!super::is_retired_tool_id("Lsp"));
+    assert!(!super::is_retired_tool_id("read"));
 }
 
 #[test]

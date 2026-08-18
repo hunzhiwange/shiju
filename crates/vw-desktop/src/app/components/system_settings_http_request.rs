@@ -7,7 +7,8 @@ use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style,
     settings_control_with_hint, settings_muted_text_style, settings_page_intro, settings_panel,
-    settings_section_card, settings_text_input_style, settings_value_badge,
+    settings_section_card, settings_section_content, settings_text_input_style,
+    settings_value_badge,
 };
 use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -259,7 +260,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             "基础行为",
             "控制 http_request 工具的启用状态、超时、最大响应体大小和默认 User-Agent。",
         ),
-        settings_panel(
+        settings_section_content(
             column![enabled_row, max_response_size_row, timeout_secs_row, user_agent_row]
                 .spacing(0)
         ),

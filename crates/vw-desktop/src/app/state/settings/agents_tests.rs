@@ -103,7 +103,6 @@ fn delegate_agent_entry_clamps_and_copies_config_values() {
     assert_eq!(entry.max_tool_iterations, 50_000);
     assert_eq!(entry.max_history_messages, 100);
     assert!(!entry.parallel_tools);
-    assert_eq!(entry.tool_dispatcher, "auto");
 }
 
 #[test]
@@ -222,6 +221,20 @@ fn available_tools_always_include_contextual_rustcodegraph_builtin() {
         ]),
         vec!["bash", "rustcodegraph"]
     );
+}
+
+#[test]
+fn retired_tools_are_removed_from_catalog_and_saved_selections() {
+    assert_eq!(
+        filter_mcp_from_available_tools(vec!["lsp".to_string(), "read".to_string()]),
+        vec!["read", "rustcodegraph"]
+    );
+
+    let mut config = DelegateAgentConfig::default();
+    config.allowed_tools = vec!["lsp".to_string(), "read".to_string()];
+    let entry = DelegateAgentSettingsEntry::from_config("custom", Some(config));
+
+    assert_eq!(entry.allowed_tools, ["read"]);
 }
 
 #[test]

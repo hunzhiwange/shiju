@@ -597,6 +597,15 @@ pub(crate) fn handle_lsp_hover_from_mouse(app: &mut App, point: iced::Point) {
         anchor_point
     );
 
+    // 鼠标在同一符号内轻微移动时保持已有防抖计时，避免请求被无限推迟。
+    if let Some((last_path, last_position)) = app.lsp_hover_anchor.as_ref()
+        && last_path == &path
+        && last_position.line == position.line
+        && last_position.character == position.character
+    {
+        return;
+    }
+
     // 更新悬停锚点（用于防抖，避免重复查询）
     app.lsp_hover_anchor = Some((path.clone(), position));
     app.lsp_overlay.hover_interactive = false;

@@ -277,7 +277,6 @@ fn verb_mappings_cover_specialized_tools_mcp_and_fallback() {
         ("question", "提问"),
         ("screenshot", "截图"),
         ("agent", "AgentTool"),
-        ("tool_search", "tool_search"),
         ("mcp", "MCP"),
         ("todowrite", "写任务"),
         ("todoread", "读任务"),
@@ -514,7 +513,5 @@ fn header_components_construct_for_skill_file_and_error_states() {
 
     let skill_badge = tool_icon_badge("skill", false);
     let file_error_badge = tool_icon_badge("read", true);
-    let error_title = tool_header_title("tool_search", "tool_search 失败", true);
-
-    std::hint::black_box((skill_badge, file_error_badge, error_title));
+    std::hint::black_box((skill_badge, file_error_badge));
 }

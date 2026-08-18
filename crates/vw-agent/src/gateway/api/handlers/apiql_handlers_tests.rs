@@ -5,16 +5,16 @@ use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use tower::ServiceExt;
 use vw_api_types::apiql::{ApiQlEntityConfig, ApiQlFieldConfig};
-use vw_api_types::data::{AiDataConnectionDto, AiDataConnectionKind};
 
 use crate::app::agent::gateway::router::build_router;
+use crate::gateway::api::handlers::apiql::connections::{
+    APIQL_CONNECTION_STORAGE_TEST_LOCK as APIQL_HANDLER_STORAGE_LOCK, ApiQlConnection,
+    ApiQlConnectionKind, ApiQlConnectionStore, local_connection_store,
+};
 use crate::gateway::api::handlers::apiql::schema::local_entity_config_store;
-use crate::gateway::api::handlers::data::storage_support::AiDataConfigStore;
 use crate::global_database::GlobalDatabase;
 use crate::security::SecretStore;
 use vw_api_types::id::TenantScope;
-
-use crate::gateway::api::handlers::data::storage_support::AI_DATA_STORAGE_TEST_LOCK as APIQL_HANDLER_STORAGE_LOCK;
 
 fn apiql_tenant() -> TenantScope {
     TenantScope::new("platform-test", "company-test").expect("ApiQL test tenant")
@@ -22,14 +22,12 @@ fn apiql_tenant() -> TenantScope {
 
 struct ApiQlStorageSnapshot {
     product_entity: Option<ApiQlEntityConfig>,
-    connections: Option<Vec<AiDataConnectionDto>>,
+    connections: Option<Vec<ApiQlConnection>>,
 }
 
 impl ApiQlStorageSnapshot {
     async fn capture() -> Self {
-        let config_store =
-            crate::gateway::api::handlers::data::storage_support::local_config_store(apiql_tenant())
-                .expect("AI-DATA config store");
+        let config_store = local_connection_store(apiql_tenant()).expect("ApiQL config store");
         let entity_store =
             local_entity_config_store(apiql_tenant()).expect("ApiQL entity config store");
         Self {
@@ -38,9 +36,7 @@ impl ApiQlStorageSnapshot {
                 .expect("capture ApiQL entity configs")
                 .into_iter()
                 .find(|config| config.entity_class == "product:product"),
-            connections: Some(
-                config_store.load_connections().expect("capture AI-DATA connections"),
-            ),
+            connections: Some(config_store.load_connections().expect("capture ApiQL connections")),
         }
     }
 
@@ -55,12 +51,10 @@ impl ApiQlStorageSnapshot {
                 entity_store.delete_config("product:product").expect("remove ApiQL entity config")
             }
         }
-        let config_store =
-            crate::gateway::api::handlers::data::storage_support::local_config_store(apiql_tenant())
-                .expect("AI-DATA config store");
+        let config_store = local_connection_store(apiql_tenant()).expect("ApiQL config store");
         config_store
             .save_connections(self.connections.as_deref().unwrap_or_default())
-            .expect("restore AI-DATA connections");
+            .expect("restore ApiQL connections");
     }
 }
 
@@ -94,23 +88,17 @@ fn product_config() -> ApiQlEntityConfig {
     }
 }
 
-fn sqlite_connection(path: &str) -> AiDataConnectionDto {
-    AiDataConnectionDto {
+fn sqlite_connection(path: &str) -> ApiQlConnection {
+    ApiQlConnection {
         id: "apiql-route-main".to_string(),
         name: "ApiQL route SQLite".to_string(),
-        kind: AiDataConnectionKind::Sqlite,
+        kind: ApiQlConnectionKind::Sqlite,
         description: None,
         enabled: true,
         read_only: true,
-        base_url: None,
         connection_url: None,
         sqlite_path: Some(path.to_string()),
-        default_path: None,
-        auth_token: Some("super-secret-token".to_string()),
-        headers: BTreeMap::new(),
-        schema_hint: None,
         updated_at_ms: 0,
-        last_used_ms: None,
     }
 }
 
@@ -139,19 +127,19 @@ async fn apiql_loads_connections_from_gateway_settings() {
     let home = tempfile::tempdir().expect("temp home");
     let database =
         GlobalDatabase::new(home.path().join("database.sqlite3")).expect("global database");
-    let store = AiDataConfigStore::new(
+    let store = ApiQlConnectionStore::new(
         database,
         SecretStore::new(&home.path().join("secrets"), true),
         TenantScope::default(),
     )
-    .expect("AI-DATA config store");
+    .expect("ApiQL config store");
     let database_connection = sqlite_connection("/tmp/database.sqlite");
     store
         .save_connections(std::slice::from_ref(&database_connection))
         .expect("database connection should save");
     let legacy_dir =
-        vw_config_types::paths::home_config_dir(home.path()).join("storage").join("ai_data");
-    std::fs::create_dir_all(&legacy_dir).expect("legacy AI-DATA dir");
+        vw_config_types::paths::home_config_dir(home.path()).join("storage").join("apiql");
+    std::fs::create_dir_all(&legacy_dir).expect("legacy ApiQL dir");
     std::fs::write(
         legacy_dir.join("connections.json"),
         serde_json::to_vec(&vec![sqlite_connection("/tmp/legacy.sqlite")])
@@ -160,7 +148,7 @@ async fn apiql_loads_connections_from_gateway_settings() {
     .expect("legacy connection input");
 
     let loaded = super::handlers::load_connections_from_store(&store)
-        .expect("ApiQL should load the AI-DATA store");
+        .expect("ApiQL should load the ApiQL store");
 
     assert_eq!(loaded, vec![database_connection]);
     assert!(legacy_dir.join("connections.json").exists());
@@ -175,10 +163,7 @@ async fn apiql_load_connection_reports_unknown_connection_id() {
         .await
         .expect_err("unknown connection should fail");
 
-    assert_eq!(
-        error.to_string(),
-        "ApiQL AI-DATA connection not found: definitely-missing-connection"
-    );
+    assert_eq!(error.to_string(), "ApiQL connection not found: definitely-missing-connection");
 }
 
 async fn install_apiql_fixture(db_path: &std::path::Path) {
@@ -186,12 +171,12 @@ async fn install_apiql_fixture(db_path: &std::path::Path) {
         .expect("ApiQL entity config store")
         .save_configs(&[product_config()])
         .expect("write ApiQL entity config");
-    crate::gateway::api::handlers::data::storage_support::local_config_store(apiql_tenant())
-        .expect("AI-DATA config store")
+    local_connection_store(apiql_tenant())
+        .expect("ApiQL config store")
         .save_connections(&[sqlite_connection(
             db_path.to_str().expect("fixture path should be UTF-8"),
         )])
-        .expect("write AI-DATA connection");
+        .expect("write ApiQL connection");
 }
 
 async fn get_json(uri: &str) -> (StatusCode, Value) {
@@ -357,10 +342,7 @@ async fn apiql_runtime_uses_the_requested_tenant_for_same_entity_and_connection_
         local_entity_config_store(second_tenant.clone()).expect("second entity store");
     second_entity_store.save_configs(&[product_config()]).expect("save second entity");
     let second_connection_store =
-        crate::gateway::api::handlers::data::storage_support::local_config_store(
-            second_tenant.clone(),
-        )
-        .expect("second connection store");
+        local_connection_store(second_tenant.clone()).expect("second connection store");
     second_connection_store
         .save_connections(&[sqlite_connection(second_path.to_str().expect("second fixture UTF-8"))])
         .expect("save second connection");

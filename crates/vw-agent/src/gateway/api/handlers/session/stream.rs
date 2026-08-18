@@ -102,11 +102,7 @@ impl StreamTrajectoryRecorder {
 
     fn record(&mut self, event: &agent_session::processor::StreamEvent) {
         match event {
-            agent_session::processor::StreamEvent::StepStart {
-                step_index,
-                created_ms,
-                model,
-            } => {
+            agent_session::processor::StreamEvent::StepStart { step_index, created_ms, model } => {
                 let step = self.step_mut(*step_index, *created_ms);
                 step.started_ms = *created_ms;
                 if model.is_some() {
@@ -127,9 +123,7 @@ impl StreamTrajectoryRecorder {
                         started_ms: None,
                         finished_ms: None,
                     });
-                    step.tool_timings
-                        .last_mut()
-                        .expect("stream tool timing was just inserted")
+                    step.tool_timings.last_mut().expect("stream tool timing was just inserted")
                 };
                 match event.kind {
                     agent_session::processor::ToolEventKind::Start => {
@@ -884,16 +878,13 @@ async fn start_gateway_chat_producer(
     let history_messages = messages;
     let root_dir = dir;
     let goal_evaluation = options.get("goal_evaluation").and_then(Value::as_bool).unwrap_or(false);
-    let stream_session_id = match session_id
-        .as_ref()
-        .map(|value| value.0.trim())
-        .filter(|value| !value.is_empty())
-    {
-        Some(session_id) => session_id.to_string(),
-        None if goal_evaluation => String::new(),
-        None => id::ascending(id::Prefix::Session, None)
-            .map_err(|error| ApiError::internal(error.to_string()))?,
-    };
+    let stream_session_id =
+        match session_id.as_ref().map(|value| value.0.trim()).filter(|value| !value.is_empty()) {
+            Some(session_id) => session_id.to_string(),
+            None if goal_evaluation => String::new(),
+            None => id::ascending(id::Prefix::Session, None)
+                .map_err(|error| ApiError::internal(error.to_string()))?,
+        };
     let should_persist_app_session_artifacts = !goal_evaluation;
     let app_session_scope = if should_persist_app_session_artifacts || goal_evaluation {
         crate::app::agent::session::processor::app_session_scope_from_root_async(Some(
@@ -929,10 +920,7 @@ async fn start_gateway_chat_producer(
             let mut assistant_model = model.clone();
             let mut patch_recorder = StreamPatchRecorder::default();
             let mut trajectory_recorder = StreamTrajectoryRecorder::new(
-                stream_message_ids
-                    .as_ref()
-                    .map(|ids| ids.assistant_id.clone())
-                    .unwrap_or_default(),
+                stream_message_ids.as_ref().map(|ids| ids.assistant_id.clone()).unwrap_or_default(),
             );
             let mut llm_timer = vw_shared::time::ActiveTimer::default();
             let approval_reply_target = if stream_session_id.trim().is_empty() {
@@ -1597,10 +1585,8 @@ fn upsert_stream_ui_message(
     if session.message_ids.len() < session.messages.len() {
         session.message_ids.resize(session.messages.len(), None);
     }
-    if let Some(position) = session
-        .message_ids
-        .iter()
-        .position(|existing| existing.as_deref() == Some(message_id))
+    if let Some(position) =
+        session.message_ids.iter().position(|existing| existing.as_deref() == Some(message_id))
     {
         session.messages[position] = message;
         return;
@@ -1722,12 +1708,7 @@ fn commit_stream_session_trajectory(
     )?;
 
     if claims.is_empty() {
-        crate::session::ui_store::save_session_ui_scoped_for_tenant(
-            tenant,
-            &session,
-            scope,
-            true,
-        )?;
+        crate::session::ui_store::save_session_ui_scoped_for_tenant(tenant, &session, scope, true)?;
     } else {
         crate::session::ui_store::commit_session_ui_snapshot_scoped_for_tenant(
             tenant,
@@ -1784,12 +1765,8 @@ fn ensure_stream_agent_session(
             revert: None,
         }
     };
-    crate::session::ui_store::save_agent_session_scoped_for_tenant(
-        tenant,
-        &info,
-        Some(project_id),
-    )
-    .ok_or_else(|| anyhow::anyhow!("failed to persist stream session metadata"))?;
+    crate::session::ui_store::save_agent_session_scoped_for_tenant(tenant, &info, Some(project_id))
+        .ok_or_else(|| anyhow::anyhow!("failed to persist stream session metadata"))?;
     Ok(())
 }
 

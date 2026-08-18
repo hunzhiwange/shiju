@@ -60,19 +60,19 @@ fn system_settings_search_results_extract_matching_child_tabs_with_parent_paths(
 
     let agent_results = search_results(&app, "zntpz");
     assert!(agent_results.iter().any(|entry| {
-        entry.label == "智能体配置"
+        entry.label == "智能体"
             && entry.parent_label.is_none()
             && entry.target == SystemSettingsSearchTarget::TopLevel(SystemTab::Agents)
     }));
     assert!(agent_results.iter().any(|entry| {
-        entry.parent_label == Some("智能体配置")
+        entry.parent_label == Some("智能体")
             && matches!(entry.target, SystemSettingsSearchTarget::Agents(_))
     }));
 
     let stdio_results = search_results(&app, "stdio");
     assert_eq!(stdio_results.len(), 1);
     assert_eq!(stdio_results[0].label, "全局服务器");
-    assert_eq!(stdio_results[0].parent_label, Some("智能体配置 / MCP"));
+    assert_eq!(stdio_results[0].parent_label, Some("智能体 / MCP"));
     assert!(matches!(
         stdio_results[0].target,
         SystemSettingsSearchTarget::AgentMcp(_)
@@ -81,7 +81,7 @@ fn system_settings_search_results_extract_matching_child_tabs_with_parent_paths(
     let slack_results = search_results(&app, "slack");
     assert!(slack_results.iter().any(|entry| {
         entry.label == "Slack"
-            && entry.parent_label == Some("智能体配置 / 通道")
+            && entry.parent_label == Some("智能体 / 通道")
             && matches!(entry.target, SystemSettingsSearchTarget::Channels(_))
     }));
 
@@ -119,8 +119,8 @@ fn system_tab_all_contains_every_display_label_once_in_order() {
 
     assert_eq!(tabs.len(), 15);
     assert_eq!(tabs.first(), Some(&SystemTab::General));
-    assert_eq!(tabs.get(1), Some(&SystemTab::Projects));
-    assert_eq!(tabs.last(), Some(&SystemTab::WebSearch));
+    assert_eq!(tabs.get(1), Some(&SystemTab::Providers));
+    assert_eq!(tabs.last(), Some(&SystemTab::Observability));
     assert!(!tabs.contains(&SystemTab::Proxy));
     assert!(!tabs.contains(&SystemTab::Tunnel));
     assert!(!tabs.contains(&SystemTab::Channels));
@@ -138,7 +138,7 @@ fn system_tab_all_contains_every_display_label_once_in_order() {
     assert!(!labels.contains(&"MCP 配置".to_string()));
     assert!(!labels.contains(&"技能配置".to_string()));
     assert!(!labels.contains(&"可靠性配置".to_string()));
-    assert!(labels.contains(&"智能体配置".to_string()));
+    assert!(labels.contains(&"智能体".to_string()));
     assert!(!labels.contains(&"模型路由".to_string()));
     assert!(!labels.contains(&"查询模型分类".to_string()));
     assert!(!labels.contains(&"多模态配置".to_string()));
@@ -159,20 +159,20 @@ fn system_tab_search_is_trimmed_case_insensitive_and_empty_matches_all() {
 fn system_tab_display_labels_cover_every_tab_in_navigation_order() {
     let expected = [
         "常规设置",
-        "项目",
         "提供商",
         "模型",
-        "记忆配置",
-        "定时任务配置",
-        "智能体配置",
+        "智能体",
         "员工配置",
-        "自治配置",
-        "安全配置",
-        "客户端网关",
+        "定时任务",
+        "记忆配置",
+        "项目",
+        "客服端网关",
         "服务端网关",
-        "可观测性配置",
-        "钩子配置",
         "网络配置",
+        "安全配置",
+        "自治配置",
+        "钩子配置",
+        "可观测性",
     ];
 
     for (tab, expected_label) in SystemTab::all().into_iter().zip(expected) {

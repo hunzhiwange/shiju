@@ -346,25 +346,6 @@ pub(super) fn view<'a>(
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let tool_dispatcher_row = row![
-        label_col("工具调度器", "主 Agent 的工具分发策略，默认 auto。"),
-        text_input("auto", &entry.tool_dispatcher)
-            .on_input({
-                let key = entry.key.clone();
-                move |value| {
-                    Message::Settings(SettingsMessage::Agents(
-                        AgentsMessage::ToolDispatcherChanged(key.clone(), value),
-                    ))
-                }
-            })
-            .padding([10, 12])
-            .size(13)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
-
     let max_iterations_row = row![
         label_col("最大迭代次数", "智能体模式下最多运行多少轮工具循环。"),
         NumberInput::new(entry.max_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, {
@@ -409,7 +390,6 @@ pub(super) fn view<'a>(
             max_tool_iterations_row,
             max_history_messages_row,
             parallel_tools_row,
-            tool_dispatcher_row,
         ]
         .spacing(14)
         .into()

@@ -1,16 +1,16 @@
 //! ApiQL 只读查询 SQL 编译。
 //!
 //! 本模块只把已归一化参数和登记实体元数据编译为只读 SQL 模板，
-//! 实际 SQL 安全检查、分页追加和数据库执行继续复用 AI-DATA runtime。
+//! 实际 SQL 安全检查、分页追加和数据库执行继续复用 ApiQL runtime。
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Map, Value};
 use vw_api_types::apiql::{ApiQlFieldConfig, ApiQlListMode};
-use vw_api_types::data::AiDataCountMode;
 
 use crate::app::agent::gateway::ApiError;
 
+use super::executor::ApiQlCountMode;
 use super::params::{ApiQlFieldNameCase, ApiQlReadParams};
 use super::schema::{ApiQlEntityRegistry, ApiQlOrderBy, ApiQlResolvedEntity, ApiQlSortDirection};
 use super::transformers::transformer_source_fields;
@@ -26,7 +26,7 @@ pub(crate) struct ApiQlSqlQuery {
     pub(crate) params: BTreeMap<String, Value>,
     pub(crate) page: u32,
     pub(crate) limit: u32,
-    pub(crate) count_mode: AiDataCountMode,
+    pub(crate) count_mode: ApiQlCountMode,
     pub(crate) order_by: Option<String>,
     pub(crate) cursor_fields: Vec<String>,
     pub(crate) virtual_fields: Vec<String>,
@@ -74,11 +74,9 @@ pub(crate) fn build_apiql_sql(
         page: params.page.unwrap_or(1).max(1),
         limit: params.limit.or(params.page_size).unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT),
         count_mode: match (params.count, params.expect_page, params.mode) {
-            (true, _, _) => AiDataCountMode::Only,
-            (false, true, ApiQlListMode::IndexPage) | (false, false, _) => {
-                AiDataCountMode::Disabled
-            }
-            (false, true, _) => AiDataCountMode::Enabled,
+            (true, _, _) => ApiQlCountMode::Only,
+            (false, true, ApiQlListMode::IndexPage) | (false, false, _) => ApiQlCountMode::Disabled,
+            (false, true, _) => ApiQlCountMode::Enabled,
         },
         order_by: order_by_clause(&order),
         cursor_fields: order.into_iter().map(|item| item.field).collect(),

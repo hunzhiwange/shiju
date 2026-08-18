@@ -494,7 +494,7 @@ fn session_agent_selection_normalizes_value_and_resets_tool_context() {
     assert_eq!(runtime.agent.as_deref(), Some("worker"));
     assert_eq!(
         runtime.tool_selector.active_tab(),
-        crate::app::state::SessionToolSelectorTab::Tools
+        crate::app::state::SessionToolSelectorTab::Skills
     );
     assert!(runtime.tool_selector.selected_manual_tools().is_empty());
     assert!(runtime.tool_selector.selected_manual_skills().is_empty());

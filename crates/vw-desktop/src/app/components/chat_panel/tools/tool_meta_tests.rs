@@ -1,6 +1,6 @@
 /// 重新导出 use super::{tool_emoji, tool_header_label, tool_icon, tool_inline_summary, tool_verb}，让上层模块通过稳定路径访问。
 use super::{
-    tool_emoji, tool_header_label, tool_header_title, tool_icon, tool_icon_badge,
+    tool_emoji, tool_header_label, tool_icon, tool_icon_badge,
     tool_icon_badge_color, tool_icon_badge_size, tool_inline_summary, tool_verb,
 };
 /// 重新导出 use crate::app::assets::Icon，让上层模块通过稳定路径访问。

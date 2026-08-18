@@ -100,7 +100,7 @@ impl CapabilityFilteredSkillTool {
         Self {
             inner,
             allowed_skills,
-            description: format!("加载委托代理允许的技能。可用技能：{allowed}"),
+            description: format!("Load a skill allowed for the delegated agent. Available skills: {allowed}"),
         }
     }
 }

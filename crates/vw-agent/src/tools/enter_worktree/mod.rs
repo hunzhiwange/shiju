@@ -44,7 +44,7 @@ impl Tool for EnterWorktreeTool {
     }
 
     fn description(&self) -> &str {
-        "创建并绑定一个真实的 Git worktree。后续工具调用会切换到该隔离工作区。"
+        "Create and bind a real Git worktree. Subsequent tool calls switch to that isolated workspace."
     }
 
     fn parameters_schema(&self) -> Value {
@@ -54,11 +54,11 @@ impl Tool for EnterWorktreeTool {
             "properties": {
                 "name": {
                     "type": "string",
-                    "description": "可选的 worktree 名称。"
+                    "description": "Optional worktree name."
                 },
                 "startCommand": {
                     "type": "string",
-                    "description": "创建成功后在 worktree 中执行的启动命令。"
+                    "description": "Startup command to run in the worktree after creation."
                 }
             }
         })

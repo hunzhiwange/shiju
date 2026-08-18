@@ -97,11 +97,7 @@ impl DelegateAgentSettingsEntry {
             max_depth: config.max_depth.clamp(1, 32),
             agentic: config.agentic,
             tool_policy: config.tool_policy,
-            allowed_tools: config
-                .allowed_tools
-                .into_iter()
-                .filter(|tool_id| !is_retired_tool_id(tool_id))
-                .collect(),
+            allowed_tools: config.allowed_tools,
             skill_policy: config.skill_policy,
             allowed_skills: config.allowed_skills,
             enabled_identity_files: config.enabled_identity_files,
@@ -183,9 +179,17 @@ pub(crate) fn ordered_agent_keys(
 /// gateway 的 `/v1/tools` 清单绑定其启动工作区，而 RustCodeGraph 按当前会话项目
 /// 动态注册，因此不能仅依赖 gateway 清单决定它是否在设置页可见。
 pub(crate) fn filter_mcp_from_available_tools(tools: Vec<String>) -> Vec<String> {
+    normalize_available_tool_catalog(tools)
+        .into_iter()
+        .filter(|tool_id| !is_mcp_dynamic_tool_id(tool_id))
+        .collect()
+}
+
+/// 规范化网关实际注册的完整工具目录，保留仍有效的动态 MCP 工具。
+pub(crate) fn normalize_available_tool_catalog(tools: Vec<String>) -> Vec<String> {
     let mut tools = tools
         .into_iter()
-        .filter(|tool_id| !is_mcp_dynamic_tool_id(tool_id) && !is_retired_tool_id(tool_id))
+        .filter(|tool_id| !tool_id.trim().is_empty() && !is_retired_tool_id(tool_id))
         .collect::<Vec<_>>();
     if !tools.iter().any(|tool_id| tool_id == "rustcodegraph") {
         tools.push("rustcodegraph".to_string());
@@ -224,6 +228,28 @@ pub(crate) fn apply_default_allowed_tools(
             entry.allowed_tools = merge_builtin_required_tools(available_tools, available_tools);
         }
     }
+}
+
+/// 删除当前运行时工具目录中已不存在的历史选择。
+pub(crate) fn retain_available_allowed_tools(
+    entries: &mut [DelegateAgentSettingsEntry],
+    available_tools: &[String],
+) -> bool {
+    let available = available_tools
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut changed = false;
+
+    for entry in entries {
+        let original = entry.allowed_tools.clone();
+        entry.allowed_tools.retain(|tool_id| available.contains(tool_id.as_str()));
+        entry.allowed_tools.sort();
+        entry.allowed_tools.dedup();
+        changed |= entry.allowed_tools != original;
+    }
+
+    changed
 }
 
 pub(crate) fn agent_settings_entries_from_config(
@@ -324,6 +350,8 @@ pub(crate) struct AgentsSettingsState {
     pub(crate) active_prompt_tab: String,
     pub(crate) workspace_identity_files: Vec<WorkspaceIdentityFileState>,
     pub(crate) workspace_identity_root_path: Option<String>,
+    /// 网关成功返回的完整工具目录；`None` 表示本轮结果不可用于清理。
+    pub(crate) registered_tools: Option<Vec<String>>,
     pub(crate) available_tools: Vec<String>,
     pub(crate) save_error: Option<String>,
     pub(crate) save_in_flight: bool,
@@ -364,6 +392,7 @@ impl Default for AgentsSettingsState {
                 })
                 .collect(),
             workspace_identity_root_path: None,
+            registered_tools: None,
             available_tools: Vec::new(),
             save_error: None,
             save_in_flight: false,

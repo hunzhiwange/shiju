@@ -826,7 +826,7 @@ impl Tool for WebSearchTool {
     /// # 返回值
     /// 中文描述，说明工具用途：搜索网络信息，返回标题、URL 和描述
     fn description(&self) -> &str {
-        "在网络搜索信息。返回包含标题、URL 和描述的相关搜索结果。用于查找当前信息、新闻或研究主题。"
+        "Search the web for information. Returns relevant results with titles, URLs, and descriptions. Use it for current information, news, or research topics."
     }
 
     /// 返回工具参数 JSON Schema
@@ -840,19 +840,19 @@ impl Tool for WebSearchTool {
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "搜索查询词。建议具体明确以获得更好的结果。"
+                    "description": "Search query. Be specific for better results."
                 },
                 "num": {
                     "type": "integer",
-                    "description": "返回结果数量的兼容字段，范围 1-10。"
+                    "description": "Compatibility field for the number of results to return, from 1 to 10."
                 },
                 "numResults": {
                     "type": "integer",
-                    "description": "num 的兼容别名。"
+                    "description": "Compatibility alias for num."
                 },
                 "lr": {
                     "type": "string",
-                    "description": "可选语言限制提示，当前先兼容输入表面。"
+                    "description": "Optional language restriction hint, currently accepted for input compatibility."
                 }
             },
             "required": ["query"]

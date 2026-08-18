@@ -32,10 +32,10 @@ impl Tool for ScheduleTool {
     }
 
     fn description(&self) -> &str {
-        "管理计划的 Shell 专用任务。操作：create/add/once/list/get/cancel/remove/pause/resume。\
-         警告：此工具创建的 Shell 任务输出仅记录日志，不会发送到任何频道。\
-         要向 Discord/Telegram/Slack 发送计划消息，请使用 cron_add 工具并设置 job_type='agent' \
-         以及投递配置，如 {\"mode\":\"announce\",\"channel\":\"discord\",\"to\":\"<channel_id>\"}。"
+        "Manage scheduled Shell-only tasks. Operations: create/add/once/list/get/cancel/remove/pause/resume.\
+         Warning: output from Shell tasks created by this tool is logged only and is not sent to any channel.\
+         To send scheduled messages to Discord, Telegram, or Slack, use cron_add with job_type='agent' \
+         and delivery configuration such as {\"mode\":\"announce\",\"channel\":\"discord\",\"to\":\"<channel_id>\"}."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -45,32 +45,32 @@ impl Tool for ScheduleTool {
                 "action": {
                     "type": "string",
                     "enum": ["create", "add", "once", "list", "get", "cancel", "remove", "pause", "resume"],
-                    "description": "要执行的操作"
+                    "description": "Operation to perform"
                 },
                 "expression": {
                     "type": "string",
-                    "description": "周期性任务的 Cron 表达式（例如 '*/5 * * * *'）"
+                    "description": "Cron expression for a recurring task, such as '*/5 * * * *'"
                 },
                 "delay": {
                     "type": "string",
-                    "description": "一次性任务的延迟时间（例如 '30m'、'2h'、'1d'）"
+                    "description": "Delay for a one-time task, such as '30m', '2h', or '1d'"
                 },
                 "run_at": {
                     "type": "string",
-                    "description": "一次性任务的绝对 RFC3339 时间（例如 '2030-01-01T00:00:00Z'）"
+                    "description": "Absolute RFC3339 time for a one-time task, such as '2030-01-01T00:00:00Z'"
                 },
                 "command": {
                     "type": "string",
-                    "description": "要执行的 Shell 命令。create/add/once 必需。"
+                    "description": "Shell command to execute. Required for create/add/once."
                 },
                 "approved": {
                     "type": "boolean",
-                    "description": "设为 true 以在监督模式下显式批准中/高风险 Shell 命令",
+                    "description": "Set to true to explicitly approve medium/high-risk Shell commands in supervised mode",
                     "default": false
                 },
                 "id": {
                     "type": "string",
-                    "description": "任务 ID。get/cancel/remove/pause/resume 必需。"
+                    "description": "Task ID. Required for get/cancel/remove/pause/resume."
                 }
             },
             "required": ["action"]

@@ -154,7 +154,10 @@ fn filtered_skill_tool_exposes_sorted_trimmed_skill_contract() {
 
     assert_eq!(tools.len(), 1);
     assert_eq!(tools[0].name(), "skill");
-    assert_eq!(tools[0].description(), "加载委托代理允许的技能。可用技能：alpha, zeta");
+    assert_eq!(
+        tools[0].description(),
+        "Load a skill allowed for the delegated agent. Available skills: alpha, zeta"
+    );
     assert_eq!(
         tools[0].parameters_schema()["properties"]["name"]["enum"],
         json!(["alpha", "zeta"])

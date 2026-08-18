@@ -13,7 +13,7 @@ fn remote_trigger_exposes_stable_metadata() {
     assert_eq!(tool.name(), "RemoteTrigger");
     assert_eq!(
         tool.description(),
-        "触发远端任务或环境动作。当前运行时未接入稳定远端触发后端时会显式报错。"
+        "Trigger a remote task or environment action. Returns an explicit error when the runtime has no stable remote-trigger backend configured."
     );
 }
 

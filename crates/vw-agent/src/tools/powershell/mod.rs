@@ -69,7 +69,7 @@ impl Tool for PowerShellTool {
     }
 
     fn description(&self) -> &str {
-        "在 Windows 上执行 PowerShell 命令。"
+        "Execute a PowerShell command on Windows."
     }
 
     fn parameters_schema(&self) -> Value {
@@ -79,20 +79,20 @@ impl Tool for PowerShellTool {
             "properties": {
                 "command": {
                     "type": "string",
-                    "description": "要执行的 PowerShell 命令。"
+                    "description": "PowerShell command to execute."
                 },
                 "description": {
                     "type": "string",
-                    "description": "命令用途说明。"
+                    "description": "Explanation of the command's purpose."
                 },
                 "cwd": {
                     "type": "string",
-                    "description": "可选工作目录。"
+                    "description": "Optional working directory."
                 },
                 "approved": {
                     "type": "boolean",
                     "default": false,
-                    "description": "在监督模式下显式批准中高风险命令。"
+                    "description": "Explicitly approve medium/high-risk commands in supervised mode."
                 }
             },
             "required": ["command", "description"]

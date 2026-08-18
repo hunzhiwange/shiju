@@ -788,6 +788,7 @@ fn refresh_marks_loading_and_clears_stale_error_before_task_runs() {
 
     assert!(app.agents_settings.loading);
     assert!(!app.agents_settings.config_ready);
+    assert!(app.agents_settings.registered_tools.is_none());
     assert!(app.agents_settings.project_path.is_none());
     assert!(app.agents_settings.save_error.is_none());
 }
@@ -1236,6 +1237,56 @@ fn available_tools_exclude_mcp_dynamic_and_retired_ids() {
         vec!["bash".to_string(), "read".to_string(), "rustcodegraph".to_string()]
     );
     assert!(!app.agents_settings.available_tools.iter().any(|tool| tool.starts_with("mcp__")));
+}
+
+#[test]
+fn loaded_tool_catalog_removes_all_stale_selections_and_schedules_save() {
+    let mut app = test_app();
+    entry_mut(&mut app, "main").allowed_tools = vec![
+        "removed_a".to_string(),
+        "read".to_string(),
+        "removed_b".to_string(),
+    ];
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::Loaded(Ok((
+            vec![],
+            vec![],
+            vec!["read".to_string()],
+        )))),
+    );
+
+    assert_eq!(
+        app.agents_settings.registered_tools.as_deref().expect("tool catalog"),
+        ["read".to_string(), "rustcodegraph".to_string()]
+    );
+    assert_eq!(entry(&app, "main").allowed_tools, ["read"]);
+    assert!(app.agents_settings.save_in_flight);
+}
+
+#[test]
+fn config_loaded_after_tool_catalog_removes_stale_selections_and_schedules_save() {
+    let mut app = test_app();
+    app.agents_settings.config_ready = false;
+    app.agents_settings.available_tools = vec!["read".to_string(), "rustcodegraph".to_string()];
+    app.agents_settings.registered_tools = Some(app.agents_settings.available_tools.clone());
+
+    let mut config = vw_config_types::config::Config::default();
+    let mut custom = vw_config_types::agent::DelegateAgentConfig::default();
+    custom.allowed_tools = vec!["removed_a".to_string(), "removed_b".to_string()];
+    config.agents.insert("custom".to_string(), custom);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ConfigLoaded {
+            project_path: None,
+            result: Ok(Box::new(config)),
+        }),
+    );
+
+    assert!(entry(&app, "custom").allowed_tools.is_empty());
+    assert!(app.agents_settings.save_in_flight);
 }
 
 #[test]

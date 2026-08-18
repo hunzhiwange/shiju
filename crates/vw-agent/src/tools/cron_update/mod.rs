@@ -172,7 +172,7 @@ impl Tool for CronUpdateTool {
     ///
     /// 返回描述字符串，说明此工具可以更新的任务属性类型
     fn description(&self) -> &str {
-        "更新现有定时任务（调度、命令、提示、启用状态、投递配置、模型等）"
+        "Update an existing scheduled task, including its schedule, command, prompt, enabled state, delivery configuration, or model"
     }
 
     /// 返回工具参数的 JSON Schema
@@ -197,15 +197,15 @@ impl Tool for CronUpdateTool {
             "properties": {
                 "job_id": {
                     "type": "string",
-                    "description": "要更新的定时任务的唯一标识符"
+                    "description": "Unique identifier of the scheduled task to update"
                 },
                 "patch": {
                     "type": "object",
-                    "description": "包含要更新字段的补丁对象，仅包含需要修改的字段"
+                    "description": "Patch object containing only the fields to update"
                 },
                 "approved": {
                     "type": "boolean",
-                    "description": "设为 true 以在监督模式下显式批准中/高风险 Shell 命令",
+                    "description": "Set to true to explicitly approve medium/high-risk Shell commands in supervised mode",
                     "default": false
                 }
             },

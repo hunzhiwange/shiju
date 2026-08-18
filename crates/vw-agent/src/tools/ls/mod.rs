@@ -182,12 +182,12 @@ impl LsTool {
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "要列出的目录路径。相对路径基于工作区解析；工作区外路径需被安全策略允许。"
+                    "description": "Directory path to list. Relative paths are resolved from the workspace; paths outside it must be allowed by the security policy."
                 },
                 "ignore": {
                     "type": "array",
                     "items": { "type": "string" },
-                    "description": "需要忽略的 glob 模式列表"
+                    "description": "List of glob patterns to ignore"
                 }
             }
         })

@@ -290,19 +290,19 @@ impl Tool for FileWriteTool {
             "properties": {
                 "filePath": {
                     "type": "string",
-                    "description": "path 的兼容别名。"
+                    "description": "Compatibility alias for path."
                 },
                 "file_path": {
                     "type": "string",
-                    "description": "path 的兼容别名。"
+                    "description": "Compatibility alias for path."
                 },
                 "path": {
                     "type": "string",
-                    "description": "文件路径。相对路径从工作区解析；外部路径需要策略白名单。"
+                    "description": "File path. Relative paths are resolved from the workspace; external paths require a policy allowlist entry."
                 },
                 "content": {
                     "type": "string",
-                    "description": "要写入文件的完整内容。已有文件会被整文件覆盖。"
+                    "description": "Complete content to write. Existing files are overwritten in full."
                 }
             },
             "required": ["path", "content"]

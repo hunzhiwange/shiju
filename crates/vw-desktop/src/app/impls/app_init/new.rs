@@ -1123,10 +1123,20 @@ impl App {
                         full_agent_cfg.agent.max_history_messages.clamp(1, 1000) as u32;
                     main.parallel_tools = full_agent_cfg.agent.parallel_tools;
                 }
+                let loaded_tools = config::load_tools_list_via_gateway();
+                let tool_catalog_ready = !loaded_tools.is_empty();
+                let registered_tools = tool_catalog_ready
+                    .then(|| super::state::normalize_available_tool_catalog(loaded_tools));
                 let available_tools = super::state::filter_mcp_from_available_tools(
-                    config::load_tools_list_via_gateway(),
+                    registered_tools.clone().unwrap_or_default(),
                 );
                 super::state::apply_default_allowed_tools(&mut entries, &available_tools);
+                if let Some(registered_tools) = registered_tools.as_deref() {
+                    super::state::retain_available_allowed_tools(
+                        &mut entries,
+                        registered_tools,
+                    );
+                }
                 super::state::AgentsSettingsState {
                     loading: true,
                     config_ready: false,
@@ -1151,6 +1161,7 @@ impl App {
                         })
                         .collect(),
                     workspace_identity_root_path: None,
+                    registered_tools,
                     available_tools,
                     save_error: None,
                     save_in_flight: false,

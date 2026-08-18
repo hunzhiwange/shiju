@@ -29,7 +29,7 @@ impl Tool for MemoryRecallTool {
     }
 
     fn description(&self) -> &str {
-        "在长期记忆中搜索相关的事实、偏好或上下文。返回按相关性排序的评分结果。"
+        "Search long-term memory for relevant facts, preferences, or context. Returns scored results ordered by relevance."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -38,11 +38,11 @@ impl Tool for MemoryRecallTool {
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "要在记忆中搜索的关键词或短语"
+                    "description": "Keyword or phrase to search for in memory"
                 },
                 "limit": {
                     "type": "integer",
-                    "description": "返回的最大结果数（默认：5）"
+                    "description": "Maximum number of results to return. Defaults to 5."
                 }
             },
             "required": ["query"]

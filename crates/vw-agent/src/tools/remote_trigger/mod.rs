@@ -40,7 +40,7 @@ impl Tool for RemoteTriggerTool {
     }
 
     fn description(&self) -> &str {
-        "触发远端任务或环境动作。当前运行时未接入稳定远端触发后端时会显式报错。"
+        "Trigger a remote task or environment action. Returns an explicit error when the runtime has no stable remote-trigger backend configured."
     }
 
     fn parameters_schema(&self) -> Value {
@@ -50,11 +50,11 @@ impl Tool for RemoteTriggerTool {
             "properties": {
                 "target": {
                     "type": "string",
-                    "description": "远端目标标识，例如环境名、节点名或任务路由键。"
+                    "description": "Remote target identifier, such as an environment name, node name, or task routing key."
                 },
                 "payload": {
                     "type": "object",
-                    "description": "可选附加参数。"
+                    "description": "Optional additional arguments."
                 }
             },
             "required": ["target"]

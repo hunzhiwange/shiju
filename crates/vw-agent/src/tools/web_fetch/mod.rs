@@ -837,29 +837,29 @@ impl Tool for WebFetchTool {
             "properties": {
                 "url": {
                     "type": "string",
-                    "description": "要获取的 HTTP 或 HTTPS URL"
+                    "description": "HTTP or HTTPS URL to fetch"
                 },
                 "href": {
                     "type": "string",
-                    "description": "url 的兼容别名。"
+                    "description": "Compatibility alias for url."
                 },
                 "prompt": {
                     "type": "string",
-                    "description": "可选提炼提示词。当前先兼容输入表面，抓取主干仍以 URL 获取为准。"
+                    "description": "Optional extraction prompt. Currently accepted for compatibility; the fetch path still retrieves content by URL."
                 },
                 "format": {
                     "type": "string",
                     "enum": ["text", "markdown", "html"],
                     "default": "markdown",
-                    "description": "输出格式"
+                    "description": "Output format"
                 },
                 "timeout": {
                     "type": "number",
-                    "description": "可选请求超时时间（秒，最大 120）"
+                    "description": "Optional request timeout in seconds, capped at 120"
                 },
                 "timeout_secs": {
                     "type": "number",
-                    "description": "timeout 的兼容别名。"
+                    "description": "Compatibility alias for timeout."
                 }
             },
             "required": ["url"]

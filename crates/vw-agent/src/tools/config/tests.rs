@@ -152,17 +152,17 @@ fn setting_formatting_and_labels_cover_defaults_scalars_and_compounds() {
 fn supported_settings_description_reports_types_options_and_descriptions() {
     let description = supported_settings_description();
 
-    assert!(description.contains("- browser.enabled: true/false - 是否启用 browser_open。"));
+    assert!(description.contains("- browser.enabled: true/false - Whether browser_open is enabled."));
     assert!(
         description
-            .contains("- agent.maxToolIterations: integer - 单条消息最多允许的工具迭代次数。")
+            .contains("- agent.maxToolIterations: integer - Maximum number of tool iterations allowed per message.")
     );
-    assert!(description.contains("- defaultTemperature: number - 默认 temperature。"));
+    assert!(description.contains("- defaultTemperature: number - Default temperature."));
     assert!(
         description
-            .contains("- autonomy.level: \"read_only\", \"supervised\", \"full\" - 自治等级。")
+            .contains("- autonomy.level: \"read_only\", \"supervised\", \"full\" - Autonomy level.")
     );
-    assert!(description.contains("- defaultModel: string - 默认模型名称。"));
+    assert!(description.contains("- defaultModel: string - Default model name."));
 }
 
 #[test]

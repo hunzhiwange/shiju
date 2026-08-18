@@ -100,11 +100,11 @@ impl Tool for ContentSearchTool {
     ///
     /// 返回工具的详细描述字符串,说明工具的功能、支持的参数和使用示例
     fn description(&self) -> &str {
-        "在工作区内按正则表达式模式搜索文件内容。\
-         支持 ripgrep (rg) 并可回退到 grep。\
-         输出模式：'content'(带上下文的匹配行)，\
-         'files_with_matches'(仅文件路径)，'count'(每个文件的匹配计数)。\
-         示例：pattern='fn main'，include='*.rs'，output_mode='content'。"
+        "Search file contents in the workspace using a regular expression.\
+         Uses ripgrep (rg) with a grep fallback.\
+         Output modes: 'content' (matching lines with context),\
+         'files_with_matches' (file paths only), and 'count' (match count per file).\
+         Example: pattern='fn main', include='*.rs', output_mode='content'."
     }
 
     /// 获取参数 JSON Schema
@@ -118,26 +118,26 @@ impl Tool for ContentSearchTool {
             "properties": {
                 "pattern": {
                     "type": "string",
-                    "description": "要搜索的正则表达式模式"
+                    "description": "Regular expression to search for"
                 },
                 "path": {
                     "type": "string",
-                    "description": "要搜索的目录,相对于工作区根目录。默认为 '.'",
+                    "description": "Directory to search, relative to the workspace root. Defaults to '.'.",
                     "default": "."
                 },
                 "output_mode": {
                     "type": "string",
-                    "description": "输出格式：'content'(匹配行)，'files_with_matches'(仅路径)，'count'(匹配计数)",
+                    "description": "Output format: 'content' (matching lines), 'files_with_matches' (paths only), or 'count' (match counts)",
                     "enum": ["content", "files_with_matches", "count"],
                     "default": "content"
                 },
                 "include": {
                     "type": "string",
-                    "description": "文件 glob 筛选,例如 '*.rs'、'*.{ts,tsx}'"
+                    "description": "File glob filter, such as '*.rs' or '*.{ts,tsx}'"
                 },
                 "case_sensitive": {
                     "type": "boolean",
-                    "description": "区分大小写。默认为 true",
+                    "description": "Whether matching is case-sensitive. Defaults to true.",
                     "default": true
                 },
                 "context_before": {

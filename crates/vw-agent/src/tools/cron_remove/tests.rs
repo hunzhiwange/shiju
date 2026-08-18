@@ -69,7 +69,7 @@ async fn tool_metadata_declares_cron_remove_contract() {
     let tool = CronRemoveTool::new(cfg.clone(), test_security(&cfg));
 
     assert_eq!(tool.name(), "cron_remove");
-    assert_eq!(tool.description(), "根据 ID 移除定时任务");
+    assert_eq!(tool.description(), "Remove a scheduled task by ID");
     assert_eq!(
         tool.parameters_schema(),
         json!({

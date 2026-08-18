@@ -77,7 +77,7 @@ impl Tool for MemoryForgetTool {
     ///
     /// 描述说明工具的用途和行为，供代理理解和决策使用
     fn description(&self) -> &str {
-        "按键移除记忆。用于删除过时的事实或敏感数据。返回是否找到并移除了记忆。"
+        "Remove a memory by key. Use it to delete outdated facts or sensitive data. Returns whether the memory was found and removed."
     }
 
     /// 返回工具参数的 JSON Schema
@@ -90,7 +90,7 @@ impl Tool for MemoryForgetTool {
             "properties": {
                 "key": {
                     "type": "string",
-                    "description": "要遗忘的记忆键"
+                    "description": "Key of the memory to forget"
                 }
             },
             "required": ["key"]

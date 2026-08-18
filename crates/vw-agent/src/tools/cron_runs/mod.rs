@@ -41,7 +41,7 @@ impl Tool for CronRunsTool {
     }
 
     fn description(&self) -> &str {
-        "列出定时任务的最近运行历史"
+        "List recent run history for a scheduled task"
     }
 
     fn parameters_schema(&self) -> serde_json::Value {

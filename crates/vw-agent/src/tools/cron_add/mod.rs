@@ -227,11 +227,11 @@ impl Tool for CronAddTool {
     /// - 投递配置的使用方法
     /// - 推荐的使用场景
     fn description(&self) -> &str {
-        "创建计划的定时任务（Shell 或智能体），支持 cron/at/every 调度。\
-         使用 job_type='agent' 配合 prompt 可按计划运行 AI 智能体。\
-         要将输出发送到频道（Discord、Telegram、Slack、Mattermost、QQ、Email），设置 \
-         delivery={\"mode\":\"announce\",\"channel\":\"discord\",\"to\":\"<频道ID或聊天ID>\"}。\
-         这是通过频道向用户发送计划/延迟消息的首选工具。"
+        "Create a scheduled task (Shell or agent) using cron, at, or every scheduling.\
+         Set job_type='agent' with prompt to run an AI agent on schedule.\
+         To send output to a channel (Discord, Telegram, Slack, Mattermost, QQ, or Email), set \
+         delivery={\"mode\":\"announce\",\"channel\":\"discord\",\"to\":\"<channel-or-chat-id>\"}.\
+         This is the preferred tool for sending scheduled or delayed messages to users through a channel."
     }
 
     /// 返回工具参数的 JSON Schema 定义
@@ -268,7 +268,7 @@ impl Tool for CronAddTool {
                 // 调度配置 - 核心参数，定义任务的执行时间
                 "schedule": {
                     "type": "object",
-                    "description": "调度对象：{kind:'cron',expr,tz?} | {kind:'at',at} | {kind:'every',every_ms}"
+                    "description": "Schedule object: {kind:'cron',expr,tz?} | {kind:'at',at} | {kind:'every',every_ms}"
                 },
 
                 // 任务类型 - 决定执行引擎
@@ -289,37 +289,37 @@ impl Tool for CronAddTool {
                 // 项目目录 - 省略时继承当前工具调用所在的工作区
                 "project_path": {
                     "type": "string",
-                    "description": "任务执行项目目录；省略时继承当前工作区"
+                    "description": "Project directory in which to run the task; inherits the current workspace when omitted"
                 },
 
                 // 完全访问权限 - 省略时继承当前工具调用权限
                 "full_access": {
                     "type": "boolean",
-                    "description": "任务是否以完全访问权限执行；省略时继承当前会话权限"
+                    "description": "Whether the task runs with full access; inherits current session permissions when omitted"
                 },
 
                 // 投递配置 - 控制输出如何发送到外部渠道
                 "delivery": {
                     "type": "object",
-                    "description": "将任务输出发送到频道的投递配置。示例：{\"mode\":\"announce\",\"channel\":\"discord\",\"to\":\"<频道ID>\"}",
+                    "description": "Delivery configuration for sending task output to a channel. Example: {\"mode\":\"announce\",\"channel\":\"discord\",\"to\":\"<channel-id>\"}",
                     "properties": {
                         "mode": {
                             "type": "string",
                             "enum": ["none", "announce"],
-                            "description": "设为 'announce' 以将输出发送到频道"
+                            "description": "Set to 'announce' to send output to a channel"
                         },
                         "channel": {
                             "type": "string",
                             "enum": ["telegram", "discord", "slack", "mattermost", "qq", "email"],
-                            "description": "要投递到的频道类型"
+                            "description": "Type of channel to deliver to"
                         },
                         "to": {
                             "type": "string",
-                            "description": "目标：Discord 频道 ID、Telegram 聊天 ID、Slack 频道等"
+                            "description": "Destination, such as a Discord channel ID, Telegram chat ID, or Slack channel"
                         },
                         "best_effort": {
                             "type": "boolean",
-                            "description": "如果为 true，投递失败不会导致任务失败"
+                            "description": "When true, a delivery failure does not fail the task"
                         }
                     }
                 },
@@ -330,7 +330,7 @@ impl Tool for CronAddTool {
                 // 预先批准标志 - 用于监督模式下的高风险命令
                 "approved": {
                     "type": "boolean",
-                    "description": "设为 true 以在监督模式下显式批准中/高风险 Shell 命令",
+                    "description": "Set to true to explicitly approve medium/high-risk Shell commands in supervised mode",
                     "default": false
                 }
             },

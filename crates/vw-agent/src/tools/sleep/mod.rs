@@ -62,7 +62,7 @@ impl Tool for SleepTool {
     }
 
     fn description(&self) -> &str {
-        "暂停执行一小段时间，适合等待外部状态收敛或短暂退避。"
+        "Pause execution briefly while waiting for external state to settle or applying a short backoff."
     }
 
     fn parameters_schema(&self) -> Value {
@@ -74,13 +74,13 @@ impl Tool for SleepTool {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": MAX_SLEEP_MS,
-                    "description": "暂停时长，单位毫秒。"
+                    "description": "Pause duration in milliseconds."
                 },
                 "seconds": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 60,
-                    "description": "暂停时长，单位秒。"
+                    "description": "Pause duration in seconds."
                 }
             }
         })

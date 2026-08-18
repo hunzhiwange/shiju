@@ -125,7 +125,7 @@ impl Tool for CronRemoveTool {
     ///
     /// 返回中文描述 `"根据 ID 移除定时任务"`，用于向用户说明工具功能
     fn description(&self) -> &str {
-        "根据 ID 移除定时任务"
+        "Remove a scheduled task by ID"
     }
 
     /// 返回工具参数的 JSON Schema

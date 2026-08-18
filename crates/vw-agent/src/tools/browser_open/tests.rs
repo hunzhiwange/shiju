@@ -81,7 +81,7 @@ fn browser_open_metadata_declares_one_required_url() {
 
     assert_eq!(tool.name(), "browser_open");
     assert!(tool.description().contains("HTTPS URL"));
-    assert!(tool.description().contains("`browser` 工具"));
+    assert!(tool.description().contains("`browser` tool"));
     assert_eq!(
         tool.parameters_schema(),
         json!({
@@ -89,7 +89,7 @@ fn browser_open_metadata_declares_one_required_url() {
             "properties": {
                 "url": {
                     "type": "string",
-                    "description": "在浏览器中打开的 HTTPS URL"
+                    "description": "HTTPS URL to open in the browser"
                 }
             },
             "required": ["url"]

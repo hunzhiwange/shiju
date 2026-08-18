@@ -442,10 +442,10 @@ impl Tool for GitOperationsTool {
         "git_operations"
     }
     fn description(&self) -> &str {
-        "执行结构化 Git 操作（status、diff、log、branch、commit、add、checkout、stash）。提供解析后的 JSON 输出，并与安全策略集成实现自主控制。"
+        "Perform structured Git operations (status, diff, log, branch, commit, add, checkout, and stash). Returns parsed JSON output and integrates with the security policy for autonomous control."
     }
     fn parameters_schema(&self) -> serde_json::Value {
-        json!({"type":"object","properties":{"operation":{"type":"string","enum":["status","diff","log","branch","commit","add","checkout","stash"],"description":"要执行的 Git 操作"},"message":{"type":"string","description":"提交消息（用于 'commit' 操作）"},"paths":{"type":"string","description":"要暂存的文件路径（用于 'add' 操作）"},"branch":{"type":"string","description":"分支名称（用于 'checkout' 操作）"},"files":{"type":"string","description":"要对比的文件或路径（用于 'diff' 操作，默认：'.'）"},"cached":{"type":"boolean","description":"显示暂存差异（用于 'diff' 操作）"},"limit":{"type":"integer","description":"日志条目数量（用于 'log' 操作，默认：10）"},"action":{"type":"string","enum":["push","pop","list","drop"],"description":"Stash 操作（用于 'stash' 操作）"},"index":{"type":"integer","description":"Stash 索引（用于带 'drop' 操作的 'stash'）"}},"required":["operation"]})
+        json!({"type":"object","properties":{"operation":{"type":"string","enum":["status","diff","log","branch","commit","add","checkout","stash"],"description":"Git operation to perform"},"message":{"type":"string","description":"Commit message for the 'commit' operation"},"paths":{"type":"string","description":"File paths to stage for the 'add' operation"},"branch":{"type":"string","description":"Branch name for the 'checkout' operation"},"files":{"type":"string","description":"File or path to compare for the 'diff' operation. Defaults to '.'."},"cached":{"type":"boolean","description":"Show staged changes for the 'diff' operation"},"limit":{"type":"integer","description":"Number of entries for the 'log' operation. Defaults to 10."},"action":{"type":"string","enum":["push","pop","list","drop"],"description":"Stash action for the 'stash' operation"},"index":{"type":"integer","description":"Stash index for the 'drop' action of the 'stash' operation"}},"required":["operation"]})
     }
     async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
         let operation = match args.get("operation").and_then(|value| value.as_str()) {

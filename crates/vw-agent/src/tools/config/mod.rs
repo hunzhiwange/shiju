@@ -135,7 +135,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["default_provider", "model_provider"],
         path: &["default_provider"],
         kind: SettingKind::String,
-        description: "默认 provider 名称。传入 \"default\" 可清除显式覆盖。",
+        description: "Default provider name. Pass \"default\" to clear an explicit override.",
         options: &[],
     },
     SettingSpec {
@@ -143,7 +143,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["default_model", "model"],
         path: &["default_model"],
         kind: SettingKind::String,
-        description: "默认模型名称。传入 \"default\" 可清除显式覆盖。",
+        description: "Default model name. Pass \"default\" to clear an explicit override.",
         options: &[],
     },
     SettingSpec {
@@ -151,7 +151,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["default_temperature"],
         path: &["default_temperature"],
         kind: SettingKind::Number,
-        description: "默认 temperature。传入 \"default\" 恢复默认值。",
+        description: "Default temperature. Pass \"default\" to restore the default value.",
         options: &[],
     },
     SettingSpec {
@@ -159,7 +159,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["autonomy.level"],
         path: &["autonomy", "level"],
         kind: SettingKind::String,
-        description: "自治等级。",
+        description: "Autonomy level.",
         options: AUTONOMY_LEVEL_OPTIONS,
     },
     SettingSpec {
@@ -167,7 +167,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["autonomy.workspace_only"],
         path: &["autonomy", "workspace_only"],
         kind: SettingKind::Boolean,
-        description: "是否仅允许工作区内操作。",
+        description: "Whether operations are restricted to the workspace.",
         options: &[],
     },
     SettingSpec {
@@ -175,7 +175,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["autonomy.require_approval_for_medium_risk"],
         path: &["autonomy", "require_approval_for_medium_risk"],
         kind: SettingKind::Boolean,
-        description: "中风险操作是否要求审批。",
+        description: "Whether medium-risk operations require approval.",
         options: &[],
     },
     SettingSpec {
@@ -183,7 +183,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["autonomy.block_high_risk_commands"],
         path: &["autonomy", "block_high_risk_commands"],
         kind: SettingKind::Boolean,
-        description: "是否阻止高风险命令。",
+        description: "Whether high-risk commands are blocked.",
         options: &[],
     },
     SettingSpec {
@@ -191,7 +191,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["agent.compact_context"],
         path: &["agent", "compact_context"],
         kind: SettingKind::Boolean,
-        description: "是否启用紧凑上下文。",
+        description: "Whether compact context is enabled.",
         options: &[],
     },
     SettingSpec {
@@ -199,7 +199,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["agent.parallel_tools"],
         path: &["agent", "parallel_tools"],
         kind: SettingKind::Boolean,
-        description: "是否允许并行工具执行。",
+        description: "Whether parallel tool execution is allowed.",
         options: &[],
     },
     SettingSpec {
@@ -207,7 +207,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["agent.max_tool_iterations"],
         path: &["agent", "max_tool_iterations"],
         kind: SettingKind::Integer,
-        description: "单条消息最多允许的工具迭代次数。",
+        description: "Maximum number of tool iterations allowed per message.",
         options: &[],
     },
     SettingSpec {
@@ -215,7 +215,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["browser.enabled"],
         path: &["browser", "enabled"],
         kind: SettingKind::Boolean,
-        description: "是否启用 browser_open。",
+        description: "Whether browser_open is enabled.",
         options: &[],
     },
     SettingSpec {
@@ -223,7 +223,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["browser.backend"],
         path: &["browser", "backend"],
         kind: SettingKind::String,
-        description: "浏览器自动化后端。",
+        description: "Browser automation backend.",
         options: BROWSER_BACKEND_OPTIONS,
     },
     SettingSpec {
@@ -231,7 +231,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["browser.browser_open"],
         path: &["browser", "browser_open"],
         kind: SettingKind::String,
-        description: "browser_open 的打开模式。",
+        description: "Opening mode for browser_open.",
         options: BROWSER_OPEN_OPTIONS,
     },
     SettingSpec {
@@ -239,7 +239,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["http_request.enabled"],
         path: &["http_request", "enabled"],
         kind: SettingKind::Boolean,
-        description: "是否启用 http_request 工具。",
+        description: "Whether the http_request tool is enabled.",
         options: &[],
     },
     SettingSpec {
@@ -247,7 +247,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["http_request.timeout_secs"],
         path: &["http_request", "timeout_secs"],
         kind: SettingKind::Integer,
-        description: "http_request 超时时间，单位秒。",
+        description: "Timeout for http_request in seconds.",
         options: &[],
     },
     SettingSpec {
@@ -255,7 +255,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["web_fetch.enabled"],
         path: &["web_fetch", "enabled"],
         kind: SettingKind::Boolean,
-        description: "是否启用 web_fetch 工具。",
+        description: "Whether the web_fetch tool is enabled.",
         options: &[],
     },
     SettingSpec {
@@ -263,7 +263,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["web_fetch.provider"],
         path: &["web_fetch", "provider"],
         kind: SettingKind::String,
-        description: "web_fetch 提供方。",
+        description: "Provider for web_fetch.",
         options: WEB_FETCH_PROVIDER_OPTIONS,
     },
     SettingSpec {
@@ -271,7 +271,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["web_search.enabled"],
         path: &["web_search", "enabled"],
         kind: SettingKind::Boolean,
-        description: "是否启用 web_search。",
+        description: "Whether web_search is enabled.",
         options: &[],
     },
     SettingSpec {
@@ -279,7 +279,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["web_search.provider"],
         path: &["web_search", "provider"],
         kind: SettingKind::String,
-        description: "web_search 提供方。",
+        description: "Provider for web_search.",
         options: WEB_SEARCH_PROVIDER_OPTIONS,
     },
     SettingSpec {
@@ -287,7 +287,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["web_search.max_results"],
         path: &["web_search", "max_results"],
         kind: SettingKind::Integer,
-        description: "web_search 最大返回条数。",
+        description: "Maximum number of results returned by web_search.",
         options: &[],
     },
     SettingSpec {
@@ -295,7 +295,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["app_ui.theme", "app_ui.system_settings.app_theme"],
         path: &["app_ui", "system_settings", "app_theme"],
         kind: SettingKind::String,
-        description: "桌面应用主题。",
+        description: "Desktop application theme.",
         options: &[],
     },
     SettingSpec {
@@ -303,7 +303,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["app_ui.terminal_theme", "app_ui.system_settings.terminal_theme"],
         path: &["app_ui", "system_settings", "terminal_theme"],
         kind: SettingKind::String,
-        description: "终端主题。",
+        description: "Terminal theme.",
         options: TERMINAL_THEME_OPTIONS,
     },
     SettingSpec {
@@ -311,7 +311,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         aliases: &["app_ui.terminal_shell", "app_ui.system_settings.terminal_shell"],
         path: &["app_ui", "system_settings", "terminal_shell"],
         kind: SettingKind::String,
-        description: "终端 shell。",
+        description: "Terminal shell.",
         options: TERMINAL_SHELL_OPTIONS,
     },
     SettingSpec {
@@ -322,7 +322,7 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         ],
         path: &["app_ui", "system_settings", "editor_follow_system_theme"],
         kind: SettingKind::Boolean,
-        description: "编辑器主题是否跟随系统。",
+        description: "Whether the editor theme follows the system theme.",
         options: &[],
     },
 ];
@@ -738,7 +738,7 @@ impl Tool for ConfigTool {
     }
 
     fn description(&self) -> &str {
-        "获取或设置 VibeWindow 配置。使用 setting/value 读取或更新支持的配置项。"
+        "Get or set VibeWindow configuration. Use setting/value to read or update a supported setting."
     }
 
     fn parameters_schema(&self) -> Value {
@@ -752,13 +752,13 @@ impl Tool for ConfigTool {
                     "type": "string",
                     "enum": setting_enum,
                     "description": format!(
-                        "配置键。省略 value 表示读取。支持的设置：\n{}",
+                        "Configuration key. Omit value to read it. Supported settings:\n{}",
                         supported_settings_description()
                     )
                 },
                 "value": {
                     "type": ["string", "boolean", "number"],
-                    "description": "新的配置值。省略时执行读取；传入字符串 \"default\" 可重置部分可选设置。"
+                    "description": "New configuration value. Omit it to read the setting; pass the string \"default\" to reset supported optional settings."
                 },
             }
         })

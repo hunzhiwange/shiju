@@ -84,19 +84,19 @@ impl GlobTool {
             "properties": {
                 "pattern": {
                     "type": "string",
-                    "description": "用于匹配文件的 glob 模式"
+                    "description": "Glob pattern used to match files"
                 },
                 "path": {
                     "type": "string",
-                    "description": "要搜索的目录。不填写则使用当前工作目录。重要：使用默认目录时请省略该字段，不要填写 \"undefined\" 或 \"null\"。如果填写，必须是有效的目录路径。"
+                    "description": "Directory to search. Omit this field to use the current working directory; do not pass \"undefined\" or \"null\". When provided, it must be a valid directory path."
                 },
                 "cwd": {
                     "type": "string",
-                    "description": "path 的兼容别名。"
+                    "description": "Compatibility alias for path."
                 },
                 "root": {
                     "type": "string",
-                    "description": "path 的兼容别名。"
+                    "description": "Compatibility alias for path."
                 }
             },
             "required": ["pattern"]

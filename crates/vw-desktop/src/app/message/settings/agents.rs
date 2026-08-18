@@ -130,11 +130,16 @@ pub(super) fn config_task(project_path: Option<String>) -> Task<Message> {
     )
 }
 
-fn apply_config(app: &mut App, config: &vw_config_types::config::Config) {
+fn apply_config(app: &mut App, config: &vw_config_types::config::Config) -> bool {
     let mut entries = crate::app::state::agent_settings_entries_from_config(config);
     crate::app::state::apply_default_allowed_tools(
         &mut entries,
         &app.agents_settings.available_tools,
+    );
+    let removed_stale_tools = app.agents_settings.registered_tools.as_deref().is_some_and(
+        |registered_tools| {
+            crate::app::state::retain_available_allowed_tools(&mut entries, registered_tools)
+        },
     );
     app.agents_settings.entries = entries;
     if !app
@@ -145,6 +150,7 @@ fn apply_config(app: &mut App, config: &vw_config_types::config::Config) {
     {
         app.agents_settings.selected_agent = MAIN_AGENT_KEY.to_string();
     }
+    removed_stale_tools
 }
 
 fn find_entry_mut<'a>(
@@ -652,17 +658,24 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::Refresh => {
             app.agents_settings.loading = true;
             app.agents_settings.config_ready = false;
+            app.agents_settings.registered_tools = None;
             app.agents_settings.save_error = None;
             app.agents_settings.project_path = app.project_path.clone();
             Task::batch(vec![refresh_task(), config_task(app.agents_settings.project_path.clone())])
         }
         AgentsMessage::Loaded(res) => {
-            match res {
+            let removed_stale_tools = match res {
                 Ok((providers, provider_models, available_tools)) => {
                     app.agents_settings.providers = providers;
                     app.agents_settings.provider_models = provider_models;
-                    let available_tools =
-                        crate::app::state::filter_mcp_from_available_tools(available_tools);
+                    if available_tools.is_empty() {
+                        return Task::none();
+                    }
+                    let registered_tools =
+                        crate::app::state::normalize_available_tool_catalog(available_tools);
+                    let available_tools = crate::app::state::filter_mcp_from_available_tools(
+                        registered_tools.clone(),
+                    );
                     if app.agents_settings.available_tools.is_empty() && !available_tools.is_empty()
                     {
                         crate::app::state::apply_default_allowed_tools(
@@ -670,16 +683,25 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                             &available_tools,
                         );
                     }
-                    if !available_tools.is_empty() || app.agents_settings.available_tools.is_empty()
-                    {
-                        app.agents_settings.available_tools = available_tools;
-                    }
+                    let removed_stale_tools =
+                        crate::app::state::retain_available_allowed_tools(
+                            &mut app.agents_settings.entries,
+                            &registered_tools,
+                        );
+                    app.agents_settings.available_tools = available_tools;
+                    app.agents_settings.registered_tools = Some(registered_tools);
+                    removed_stale_tools
                 }
                 Err(error) => {
                     app.agents_settings.save_error = Some(error);
+                    false
                 }
+            };
+            if removed_stale_tools && app.agents_settings.config_ready {
+                persist_agents_settings(app)
+            } else {
+                Task::none()
             }
-            Task::none()
         }
         AgentsMessage::ConfigLoaded { project_path, result } => {
             if app.agents_settings.project_path != project_path {
@@ -689,8 +711,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.loading = false;
             match result {
                 Ok(config) => {
-                    apply_config(app, config.as_ref());
+                    let removed_stale_tools = apply_config(app, config.as_ref());
                     app.agents_settings.config_ready = true;
+                    if removed_stale_tools {
+                        return persist_agents_settings(app);
+                    }
                 }
                 Err(error) => {
                     app.agents_settings.config_ready = false;
@@ -720,9 +745,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.loading = false;
             match result {
                 Ok(config) => {
-                    apply_config(app, config.as_ref());
+                    let removed_stale_tools = apply_config(app, config.as_ref());
                     app.agents_settings.config_ready = true;
                     app.agents_settings.save_error = None;
+                    if removed_stale_tools {
+                        return persist_agents_settings(app);
+                    }
                 }
                 Err(error) => {
                     app.agents_settings.config_ready = false;

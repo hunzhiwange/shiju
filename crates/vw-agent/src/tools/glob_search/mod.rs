@@ -68,11 +68,11 @@ impl GlobSearchTool {
             "properties": {
                 "pattern": {
                     "type": "string",
-                    "description": "匹配文件的 Glob 模式，例如 '**/*.rs'、'src/**/mod.rs'"
+                    "description": "Glob pattern for matching files, such as '**/*.rs' or 'src/**/mod.rs'"
                 },
                 "path": {
                     "type": "string",
-                    "description": "可选的搜索起始目录。省略时使用工作区根目录。"
+                    "description": "Optional directory from which to start the search. Defaults to the workspace root."
                 }
             },
             "required": ["pattern"]
@@ -143,9 +143,9 @@ impl Tool for GlobSearchTool {
     ///
     /// 返回工具的功能描述字符串，包括使用说明和示例
     fn description(&self) -> &str {
-        "在工作区内搜索匹配 glob 模式的文件。\
-         返回相对于工作区根目录的匹配文件路径排序列表。\
-         示例：'**/*.rs'（所有 Rust 文件），'src/**/mod.rs'（src 下所有 mod.rs）。"
+        "Search the workspace for files matching a glob pattern.\
+         Returns a sorted list of matching paths relative to the workspace root.\
+         Examples: '**/*.rs' (all Rust files) and 'src/**/mod.rs' (all mod.rs files under src)."
     }
 
     /// 获取工具参数的 JSON Schema

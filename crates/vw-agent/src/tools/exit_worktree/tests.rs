@@ -106,7 +106,7 @@ fn exit_worktree_reports_expected_metadata() {
     assert_eq!(tool.name(), crate::app::agent::tools::EXIT_WORKTREE_TOOL_ID);
     assert_eq!(
         tool.description(),
-        "退出当前绑定的 worktree。默认要求工作树干净，force 模式会强制移除。"
+        "Exit the currently bound worktree. By default the worktree must be clean; force removes it regardless."
     );
     assert_eq!(
         tool.parameters_schema(),
@@ -116,7 +116,7 @@ fn exit_worktree_reports_expected_metadata() {
             "properties": {
                 "force": {
                     "type": "boolean",
-                    "description": "为 true 时强制移除 worktree。"
+                    "description": "Force removal of the worktree when true."
                 }
             }
         })

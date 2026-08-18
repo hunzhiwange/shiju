@@ -123,7 +123,7 @@ impl Tool for BrowserOpenTool {
     ///
     /// 描述工具的功能、用途和安全约束
     fn description(&self) -> &str {
-        "在系统默认浏览器中打开已批准的 HTTPS URL。仅用于简单的URL打开操作。注意：此工具不能进行页面交互（如点击、输入、提取文本），如果需要 DOM 操作请使用 `browser` 工具。安全约束：仅限白名单域名、禁止本地/私有主机、禁止抓取。"
+        "Open an approved HTTPS URL in the system browser. This tool only opens URLs and cannot interact with pages (click, type, or extract text); use the `browser` tool for DOM operations. Security constraints: allowlisted domains only, no local/private hosts, and no page fetching."
     }
 
     /// 返回工具参数的 JSON Schema
@@ -136,7 +136,7 @@ impl Tool for BrowserOpenTool {
             "properties": {
                 "url": {
                     "type": "string",
-                    "description": "在浏览器中打开的 HTTPS URL"
+                    "description": "HTTPS URL to open in the browser"
                 }
             },
             "required": ["url"]

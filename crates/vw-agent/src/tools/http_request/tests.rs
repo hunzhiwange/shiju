@@ -473,8 +473,8 @@ fn description_advertises_supported_methods_and_safety_constraints() {
     let description = tool.description();
 
     assert!(description.contains("GET、POST、PUT、DELETE、PATCH、HEAD、OPTIONS"));
-    assert!(description.contains("白名单域名"));
-    assert!(description.contains("禁止本地/私有主机"));
+    assert!(description.contains("allowlisted domains"));
+    assert!(description.contains("no local/private hosts"));
 }
 
 #[tokio::test]

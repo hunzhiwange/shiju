@@ -94,65 +94,65 @@ impl GrepTool {
             "properties": {
                 "pattern": {
                     "type": "string",
-                    "description": "用于在文件内容中搜索的正则表达式"
+                    "description": "Regular expression to search for in file contents"
                 },
                 "path": {
                     "type": "string",
-                    "description": "要搜索的目录。默认是当前工作目录。"
+                    "description": "Directory to search. Defaults to the current working directory."
                 },
                 "include": {
                     "type": "string",
-                    "description": "要包含的文件模式（例如 \"*.js\"、\"*.{ts,tsx}\"）"
+                    "description": "File pattern to include, such as \"*.js\" or \"*.{ts,tsx}\""
                 },
                 "glob": {
                     "type": "string",
-                    "description": "include 的兼容别名。"
+                    "description": "Compatibility alias for include."
                 },
                 "output_mode": {
                     "type": "string",
                     "enum": ["content", "files_with_matches", "count"],
-                    "description": "输出模式。默认 files_with_matches。"
+                    "description": "Output mode. Defaults to files_with_matches."
                 },
                 "-n": {
                     "type": "boolean",
-                    "description": "在 content 模式下显示行号。"
+                    "description": "Show line numbers in content mode."
                 },
                 "-i": {
                     "type": "boolean",
-                    "description": "大小写不敏感搜索。"
+                    "description": "Perform a case-insensitive search."
                 },
                 "head_limit": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "限制返回的最大条目数。默认 100。"
+                    "description": "Maximum number of entries to return. Defaults to 100."
                 },
                 "offset": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "跳过前 N 个结果后再返回。默认 0。"
+                    "description": "Skip the first N results before returning entries. Defaults to 0."
                 },
                 "-A": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "暂未支持。"
+                    "description": "Not currently supported."
                 },
                 "-B": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "暂未支持。"
+                    "description": "Not currently supported."
                 },
                 "-C": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "暂未支持。"
+                    "description": "Not currently supported."
                 },
                 "type": {
                     "type": "string",
-                    "description": "暂未支持的文件类型过滤。"
+                    "description": "File type filter; not currently supported."
                 },
                 "multiline": {
                     "type": "boolean",
-                    "description": "暂未支持的跨行匹配开关。"
+                    "description": "Multiline matching switch; not currently supported."
                 }
             },
             "required": ["pattern"]

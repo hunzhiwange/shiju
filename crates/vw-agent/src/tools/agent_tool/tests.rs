@@ -257,12 +257,12 @@ fn schema_is_closed_and_agent_description_is_stable() {
     }
 
     let empty = build_tool_with_agents(HashMap::new());
-    assert_eq!(empty.available_agents_description(), "（未配置）");
+    assert_eq!(empty.available_agents_description(), "(not configured)");
     assert!(
         empty.parameters_schema()["properties"]["agent"]["description"]
             .as_str()
             .unwrap()
-            .contains("（未配置）")
+            .contains("(not configured)")
     );
 }
 

@@ -266,7 +266,7 @@ impl AgentTool {
         let mut agents = self.agents.iter().collect::<Vec<_>>();
         agents.sort_by_key(|(name, _)| *name);
         if agents.is_empty() {
-            return "（未配置）".to_string();
+            return "(not configured)".to_string();
         }
 
         agents
@@ -688,17 +688,17 @@ impl Tool for AgentTool {
                 "action": {
                     "type": "string",
                     "enum": ["launch", "run", "spawn", "status", "wait", "stop"],
-                    "description": "操作。省略时默认 launch；launch/spawn 后台启动，run 前台等待。"
+                    "description": "Operation to perform. Defaults to launch when omitted; launch/spawn starts a background task, while run waits in the foreground."
                 },
                 "agent": {
                     "type": "string",
                     "enum": agent_names,
-                    "description": format!("要调用的 agent 名称。可用候选（名称、标签与用途）：{}", self.available_agents_description())
+                    "description": format!("Name of the agent to invoke. Available candidates (name, label, and purpose): {}", self.available_agents_description())
                 },
                 "subagent_type": {
                     "type": "string",
                     "enum": self.available_agent_names(),
-                    "description": "Claude Code 兼容别名，等价于 agent；必须从 agent 候选中选择。"
+                    "description": "Claude Code-compatible alias for agent; the value must be one of the available agent candidates."
                 },
                 "prompt": {
                     "type": "string",
@@ -710,23 +710,23 @@ impl Tool for AgentTool {
                 },
                 "child_session_id": {
                     "type": "string",
-                    "description": "status、wait 或 stop 的单个子会话 ID。"
+                    "description": "A single child session ID for status, wait, or stop."
                 },
                 "child_session_ids": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "status、wait 或 stop 的子会话 ID 列表；status/wait 省略时使用当前父会话全部任务。"
+                    "description": "Child session IDs for status, wait, or stop. When omitted for status/wait, all tasks of the current parent session are used."
                 },
                 "condition": {
                     "type": "string",
                     "enum": ["any", "all"],
-                    "description": "wait 返回条件，默认 all。"
+                    "description": "Return condition for wait. Defaults to all."
                 },
                 "timeout_ms": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 60000,
-                    "description": "wait 的有界超时毫秒数，默认 30000，最大 60000。"
+                    "description": "Bounded timeout for wait in milliseconds. Defaults to 30000 and is capped at 60000."
                 }
             }
         })

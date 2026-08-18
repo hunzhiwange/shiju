@@ -606,23 +606,23 @@ impl Tool for ShellTool {
             "properties": {
                 "command": {
                     "type": "string",
-                    "description": "要执行的 Shell 命令"
+                    "description": "Shell command to execute"
                 },
                 "description": {
                     "type": "string",
-                    "description": "用 5-10 个词描述命令的作用"
+                    "description": "Describe the command's purpose in 5-10 words"
                 },
                 "timeout": {
                     "type": "number",
-                    "description": "超时时间（毫秒），默认 120000"
+                    "description": "Timeout in milliseconds. Defaults to 120000."
                 },
                 "workdir": {
                     "type": "string",
-                    "description": "命令的工作目录，推荐使用此参数而非 cd"
+                    "description": "Working directory for the command. Prefer this argument over cd."
                 },
                 "approved": {
                     "type": "boolean",
-                    "description": "设为 true 以在监督模式下显式批准中/高风险命令",
+                    "description": "Set to true to explicitly approve medium/high-risk commands in supervised mode",
                     "default": false
                 }
             },

@@ -234,39 +234,39 @@ impl Tool for FileEditTool {
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "目标文件路径。相对路径从工作区解析。"
+                    "description": "Target file path. Relative paths are resolved from the workspace."
                 },
                 "filePath": {
                     "type": "string",
-                    "description": "file_path 的兼容别名。"
+                    "description": "Compatibility alias for file_path."
                 },
                 "path": {
                     "type": "string",
-                    "description": "file_path 的兼容别名。"
+                    "description": "Compatibility alias for file_path."
                 },
                 "old_string": {
                     "type": "string",
-                    "description": "需要匹配的原始文本。默认必须唯一。"
+                    "description": "Original text to match. It must be unique by default."
                 },
                 "oldString": {
                     "type": "string",
-                    "description": "old_string 的兼容别名。"
+                    "description": "Compatibility alias for old_string."
                 },
                 "new_string": {
                     "type": "string",
-                    "description": "替换后的文本。"
+                    "description": "Replacement text."
                 },
                 "newString": {
                     "type": "string",
-                    "description": "new_string 的兼容别名。"
+                    "description": "Compatibility alias for new_string."
                 },
                 "replace_all": {
                     "type": "boolean",
-                    "description": "是否替换所有匹配项。默认 false。"
+                    "description": "Whether to replace all matches. Defaults to false."
                 },
                 "replaceAll": {
                     "type": "boolean",
-                    "description": "replace_all 的兼容别名。"
+                    "description": "Compatibility alias for replace_all."
                 }
             },
             "required": ["file_path", "old_string", "new_string"]

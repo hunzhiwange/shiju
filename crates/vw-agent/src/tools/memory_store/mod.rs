@@ -69,7 +69,7 @@ impl Tool for MemoryStoreTool {
     /// 提供给 LLM 的工具说明，帮助模型理解何时以及如何使用此工具。
     /// 描述中包含了各类别的用途说明，便于模型选择合适的记忆类别。
     fn description(&self) -> &str {
-        "将事实、偏好或笔记存储到长期记忆中。使用类别 'core' 存储永久事实，'daily' 存储会话笔记，'conversation' 存储聊天上下文，或使用自定义类别名称。"
+        "Store facts, preferences, or notes in long-term memory. Use category 'core' for permanent facts, 'daily' for session notes, 'conversation' for chat context, or provide a custom category name."
     }
 
     /// 返回工具参数的 JSON Schema 定义
@@ -84,15 +84,15 @@ impl Tool for MemoryStoreTool {
             "properties": {
                 "key": {
                     "type": "string",
-                    "description": "此记忆的唯一键（例如 'user_lang'、'project_stack'）"
+                    "description": "Unique key for this memory, such as 'user_lang' or 'project_stack'"
                 },
                 "content": {
                     "type": "string",
-                    "description": "要记住的信息"
+                    "description": "Information to remember"
                 },
                 "category": {
                     "type": "string",
-                    "description": "记忆类别：'core'（永久）、'daily'（会话）、'conversation'（聊天）或自定义类别名称。默认为 'core'。"
+                    "description": "Memory category: 'core' (permanent), 'daily' (session), 'conversation' (chat), or a custom category name. Defaults to 'core'."
                 }
             },
             "required": ["key", "content"]

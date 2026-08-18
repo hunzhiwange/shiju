@@ -54,7 +54,7 @@ impl BatchTool {
                         "type": "object",
                         "additionalProperties": true,
                         "properties": {
-                            "tool": { "type": "string", "description": "要执行的工具名称" }
+                            "tool": { "type": "string", "description": "Name of the tool to execute" }
                         },
                         "required": ["tool"]
                     }

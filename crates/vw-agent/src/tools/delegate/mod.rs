@@ -135,8 +135,8 @@ impl Tool for DelegateTool {
     }
 
     fn description(&self) -> &str {
-        "将子任务委托给专门的智能体。适用场景：任务受益于不同的模型（例如快速摘要、深度推理、代码生成）。\
-         子智能体默认运行单个提示；设置 agentic=true 时可进行带过滤工具调用循环的迭代。"
+        "Delegate a subtask to a specialized agent. Use when a task benefits from a different model, such as fast summarization, deep reasoning, or code generation.\
+         The subagent runs a single prompt by default; set agentic=true to enable an iterative loop with filtered tool access."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -149,7 +149,7 @@ impl Tool for DelegateTool {
                     "type": "string",
                     "minLength": 1,
                     "description": format!(
-                        "要委托的智能体名称。可用：{}",
+                        "Name of the agent to delegate to. Available agents: {}",
                         if agent_names.is_empty() {
                             "none configured".to_string()
                         } else {
@@ -160,11 +160,11 @@ impl Tool for DelegateTool {
                 "prompt": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "发送给子智能体的任务/提示"
+                    "description": "Task or prompt to send to the subagent"
                 },
                 "context": {
                     "type": "string",
-                    "description": "可选的前置上下文（例如相关代码、先前发现）"
+                    "description": "Optional prefixed context, such as relevant code or prior findings"
                 }
             },
             "required": ["agent", "prompt"]

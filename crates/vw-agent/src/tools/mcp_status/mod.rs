@@ -39,7 +39,7 @@ impl Tool for McpStatusTool {
     }
 
     fn description(&self) -> &str {
-        "读取当前 MCP server 的启用状态、连接状态、工具数量和认证方法摘要。"
+        "Read the current MCP server enablement, connection state, tool count, and authentication-method summary."
     }
 
     fn parameters_schema(&self) -> Value {
@@ -49,7 +49,7 @@ impl Tool for McpStatusTool {
             "properties": {
                 "server": {
                     "type": "string",
-                    "description": "可选的 server 名称，用于只返回目标 server 的状态。"
+                    "description": "Optional server name used to return status only for the target server."
                 }
             }
         })

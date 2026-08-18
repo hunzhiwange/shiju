@@ -793,37 +793,37 @@ impl Tool for ScreenshotTool {
             "properties": {
                 "filename": {
                     "type": "string",
-                    "description": "可选文件名（默认：screenshot_<时间戳>.png）。保存在工作区中。"
+                    "description": "Optional file name (default: screenshot_<timestamp>.png). Saved in the workspace."
                 },
                 "region": {
                     "type": "string",
                     "enum": ["selection", "window"],
-                    "description": "macOS 可选交互模式。不能与 display 或矩形参数组合；Linux 不支持。"
+                    "description": "Optional interactive mode on macOS. Cannot be combined with display or rectangle arguments; unsupported on Linux."
                 },
                 "display": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "macOS 显示器编号。不能与 region 或矩形参数组合；Linux 不支持。"
+                    "description": "Display number on macOS. Cannot be combined with region or rectangle arguments; unsupported on Linux."
                 },
                 "x": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "矩形左上角 X 坐标；须与 y、width、height 一起提供。"
+                    "description": "X coordinate of the rectangle's top-left corner; must be provided with y, width, and height."
                 },
                 "y": {
                     "type": "integer",
                     "minimum": 0,
-                    "description": "矩形左上角 Y 坐标；须与 x、width、height 一起提供。"
+                    "description": "Y coordinate of the rectangle's top-left corner; must be provided with x, width, and height."
                 },
                 "width": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "矩形宽度；须与 x、y、height 一起提供。"
+                    "description": "Rectangle width; must be provided with x, y, and height."
                 },
                 "height": {
                     "type": "integer",
                     "minimum": 1,
-                    "description": "矩形高度；须与 x、y、width 一起提供。"
+                    "description": "Rectangle height; must be provided with x, y, and width."
                 }
             }
         })

@@ -41,15 +41,15 @@ impl CodeSearchTool {
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "用于检索 API/库/SDK 相关上下文的查询语句。例如：'React useState hook examples'、'Python pandas dataframe filtering'。"
+                    "description": "Query for API, library, or SDK context. Examples: 'React useState hook examples' and 'Python pandas dataframe filtering'."
                 },
                 "information_request": {
                     "type": "string",
-                    "description": "兼容字段：与 query 等价。"
+                    "description": "Compatibility field equivalent to query."
                 },
                 "tokensNum": {
                     "type": "number",
-                    "description": "返回 token 数（1000-50000），默认 5000。"
+                    "description": "Number of tokens to return (1000-50000). Defaults to 5000."
                 }
             },
             "required": []

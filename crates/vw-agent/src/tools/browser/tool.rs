@@ -388,15 +388,15 @@ impl Tool for BrowserTool {
 
     fn description(&self) -> &str {
         concat!(
-            "Web/浏览器自动化，支持可插拔后端（agent-browser、rust-native、computer_use）。",
-            "支持 DOM 操作以及通过 computer-use 旁路实现的可选 OS 级操作（mouse_move、mouse_click、mouse_drag、",
-            "key_type、key_press、screen_capture）。使用 'snapshot' 将可交互元素映射到引用（@e1、@e2）。",
-            "对 open 操作强制执行 browser.allowed_domains。\n",
-            "【重要防错指南】:\n",
-            "1. 执行 'find' 操作时，必须提供 'value' 和 'find_action' 参数。\n",
-            "2. 执行 click/fill/type/get_text/hover/is_visible 时，必须提供非空字符串 'selector'（优先用 snapshot 返回的 @e1、@e2；也可 CSS 或 text=...）。",
-            "get_text 不会读取整页，缺少 selector 会直接失败。\n",
-            "3. 如果执行操作（如 click/type）超时或报错元素被遮挡/不可交互，请务必先运行 'snapshot' 重新获取当前页面最新的 DOM 状态和元素引用，不要盲目重试。"
+            "Web/browser automation with pluggable backends (agent-browser, rust-native, and computer_use). ",
+            "Supports DOM operations and optional OS-level actions through the computer-use sidecar (mouse_move, mouse_click, mouse_drag, ",
+            "key_type, key_press, and screen_capture). Use 'snapshot' to map interactive elements to references such as @e1 and @e2. ",
+            "The open action enforces browser.allowed_domains.\n",
+            "Important usage rules:\n",
+            "1. The 'find' action requires both 'value' and 'find_action'.\n",
+            "2. click/fill/type/get_text/hover/is_visible require a non-empty 'selector'. Prefer references returned by snapshot (@e1, @e2); CSS and text=... selectors are also supported. ",
+            "get_text does not read the entire page and fails when selector is missing.\n",
+            "3. If an action such as click or type times out or reports that an element is obscured or not interactive, run 'snapshot' first to refresh the current DOM state and element references instead of retrying blindly."
         )
     }
 
@@ -412,80 +412,80 @@ impl Tool for BrowserTool {
                              "mouse_move", "mouse_click", "mouse_drag", "key_type",
                              "key_press", "screen_capture"],
                     "description": concat!(
-                        "要执行的浏览器操作（OS 级操作需要 backend=computer_use）。",
-                        "click/fill/type/get_text/hover/is_visible 必须同时提供 selector；",
-                        "get_text 只读取指定元素文本，不能省略 selector。"
+                        "Browser action to perform (OS-level actions require backend=computer_use). ",
+                        "click/fill/type/get_text/hover/is_visible also require selector. ",
+                        "get_text reads only the selected element's text, so selector cannot be omitted."
                     )
                 },
                 "url": {
                     "type": "string",
-                    "description": "要导航到的 URL（用于 'open' 操作）"
+                    "description": "URL to navigate to for the 'open' action"
                 },
                 "selector": {
                     "type": "string",
                     "description": concat!(
-                        "元素选择器：@ref（例如 @e1）、CSS（#id、.class）或 text=...。",
-                        "click、fill、type、get_text、hover、is_visible 必须提供此参数；",
-                        "get_text 缺少 selector 会报错，不会回退为整页文本。"
+                        "Element selector: @ref (for example @e1), CSS (#id or .class), or text=.... ",
+                        "Required for click, fill, type, get_text, hover, and is_visible. ",
+                        "get_text fails when selector is missing and does not fall back to reading the whole page."
                     )
                 },
                 "value": {
                     "type": "string",
-                    "description": "要填充或输入的值 (注意：find 操作必须提供此参数)"
+                    "description": "Value to fill or enter. Required for the find action."
                 },
                 "text": {
                     "type": "string",
-                    "description": "要输入或等待的文本 (注意：type 操作必须提供此参数)"
+                    "description": "Text to type or wait for. Required for the type action."
                 },
                 "key": {
                     "type": "string",
-                    "description": "要按下的键（Enter、Tab、Escape 等）"
+                    "description": "Key to press, such as Enter, Tab, or Escape"
                 },
                 "x": {
                     "type": "integer",
-                    "description": "屏幕 X 坐标（computer_use：mouse_move/mouse_click）"
+                    "description": "Screen X coordinate for computer_use mouse_move/mouse_click"
                 },
                 "y": {
                     "type": "integer",
-                    "description": "屏幕 Y 坐标（computer_use：mouse_move/mouse_click）"
+                    "description": "Screen Y coordinate for computer_use mouse_move/mouse_click"
                 },
                 "from_x": {
                     "type": "integer",
-                    "description": "拖动源 X 坐标（computer_use：mouse_drag）"
+                    "description": "Drag source X coordinate for computer_use mouse_drag"
                 },
                 "from_y": {
                     "type": "integer",
-                    "description": "拖动源 Y 坐标（computer_use：mouse_drag）"
+                    "description": "Drag source Y coordinate for computer_use mouse_drag"
                 },
                 "to_x": {
                     "type": "integer",
-                    "description": "拖动目标 X 坐标（computer_use：mouse_drag）"
+                    "description": "Drag destination X coordinate for computer_use mouse_drag"
                 },
                 "to_y": {
                     "type": "integer",
-                    "description": "拖动目标 Y 坐标（computer_use：mouse_drag）"
+                    "description": "Drag destination Y coordinate for computer_use mouse_drag"
                 },
                 "button": {
                     "type": "string",
                     "enum": ["left", "right", "middle"],
-                    "description": "computer_use mouse_click 的鼠标按钮"
+                    "description": "Mouse button for computer_use mouse_click"
                 },
                 "direction": {
                     "type": "string",
                     "enum": ["up", "down", "left", "right"],
-                    "description": "滚动方向"
+                    "description": "Scroll direction"
                 },
                 "pixels": {
                     "type": "integer",
-                    "description": "滚动像素数"
+                    "description": "Number of pixels to scroll"
                 },
                 "interactive_only": {
                     "type": "boolean",
-                    "description": "用于 snapshot：仅显示可交互元素"
+                    "description": "For snapshot: show only interactive elements"
                 },
                 "compact": {
                     "type": "boolean",
-                    "description": "用于 snapshot：移除空的结构元素"
+                    "description": "For snapshot: remove empty structural elements"
                 },
                 "depth": {
                     "type": "integer",

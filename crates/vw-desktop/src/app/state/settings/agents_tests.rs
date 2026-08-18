@@ -7,7 +7,7 @@ fn test_module_is_wired() {
 
 use super::{
     AgentsSettingsState, DelegateAgentSettingsEntry, apply_default_allowed_tools,
-    filter_mcp_from_available_tools, ordered_agent_keys,
+    filter_mcp_from_available_tools, ordered_agent_keys, retain_available_allowed_tools,
 };
 use crate::app::state::{
     AGENT_DETAIL_BASIC_TAB, AGENT_PROMPT_SYSTEM_TAB, AGENT_TOOLS_OPTIONAL_TAB,
@@ -230,11 +230,13 @@ fn retired_tools_are_removed_from_catalog_and_saved_selections() {
         vec!["read", "rustcodegraph"]
     );
 
-    let mut config = DelegateAgentConfig::default();
-    config.allowed_tools = vec!["lsp".to_string(), "read".to_string()];
-    let entry = DelegateAgentSettingsEntry::from_config("custom", Some(config));
+    let mut entries = vec![DelegateAgentSettingsEntry::from_config("custom", None)];
+    entries[0].allowed_tools =
+        vec!["removed_a".to_string(), "read".to_string(), "removed_b".to_string()];
 
-    assert_eq!(entry.allowed_tools, ["read"]);
+    assert!(retain_available_allowed_tools(&mut entries, &["read".to_string()]));
+    assert_eq!(entries[0].allowed_tools, ["read"]);
+    assert!(!retain_available_allowed_tools(&mut entries, &["read".to_string()]));
 }
 
 #[test]

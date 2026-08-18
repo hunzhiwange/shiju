@@ -111,9 +111,9 @@ impl Tool for PdfReadTool {
     ///
     /// 返回描述此工具功能的中文说明字符串
     fn description(&self) -> &str {
-        "从工作区中的 PDF 文件提取纯文本。\
-         返回所有可读文本。纯图像或加密的 PDF 返回空结果。\
-         需要 'rag-pdf' 构建特性。"
+        "Extract plain text from a PDF file in the workspace.\
+         Returns all readable text. Image-only or encrypted PDFs return an empty result.\
+         Requires the 'rag-pdf' build feature."
     }
 
     /// 返回工具参数的 JSON Schema 定义。
@@ -131,11 +131,11 @@ impl Tool for PdfReadTool {
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "PDF 文件路径。相对路径从工作区解析；外部路径需要策略白名单。"
+                    "description": "PDF file path. Relative paths are resolved from the workspace; external paths require a policy allowlist entry."
                 },
                 "max_chars": {
                     "type": "integer",
-                    "description": "返回的最大字符数（默认：50000，最大：200000）",
+                    "description": "Maximum number of characters to return (default: 50000; maximum: 200000)",
                     "minimum": 1,
                     "maximum": 200_000
                 }

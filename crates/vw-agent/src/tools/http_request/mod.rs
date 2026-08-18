@@ -343,8 +343,8 @@ impl Tool for HttpRequestTool {
     ///
     /// 描述了工具的功能、支持的 HTTP 方法以及安全约束
     fn description(&self) -> &str {
-        "向外部 API 发送 HTTP 请求。支持 GET、POST、PUT、DELETE、PATCH、HEAD、OPTIONS 方法。\
-        安全约束：仅限白名单域名、禁止本地/私有主机、可配置超时和响应大小限制。"
+        "Send HTTP requests to external APIs. Supports GET, POST, PUT, DELETE, PATCH, HEAD, and OPTIONS.\
+        Security constraints: allowlisted domains only, no local/private hosts, and configurable timeout and response-size limits."
     }
 
     /// 返回工具参数的 JSON Schema 定义
@@ -360,21 +360,21 @@ impl Tool for HttpRequestTool {
             "properties": {
                 "url": {
                     "type": "string",
-                    "description": "要请求的 HTTP 或 HTTPS URL"
+                    "description": "HTTP or HTTPS URL to request"
                 },
                 "method": {
                     "type": "string",
-                    "description": "HTTP 方法（GET、POST、PUT、DELETE、PATCH、HEAD、OPTIONS）",
+                    "description": "HTTP method (GET, POST, PUT, DELETE, PATCH, HEAD, or OPTIONS)",
                     "default": "GET"
                 },
                 "headers": {
                     "type": "object",
-                    "description": "可选的 HTTP 头部键值对（例如 {\"Authorization\": \"Bearer token\", \"Content-Type\": \"application/json\"}）",
+                    "description": "Optional HTTP header key-value pairs, for example {\"Authorization\": \"Bearer token\", \"Content-Type\": \"application/json\"}",
                     "default": {}
                 },
                 "body": {
                     "type": "string",
-                    "description": "可选的请求体（用于 POST、PUT、PATCH 请求）"
+                    "description": "Optional request body for POST, PUT, or PATCH requests"
                 }
             },
             "required": ["url"]

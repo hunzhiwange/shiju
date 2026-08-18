@@ -43,7 +43,7 @@ impl Tool for ExitWorktreeTool {
     }
 
     fn description(&self) -> &str {
-        "退出当前绑定的 worktree。默认要求工作树干净，force 模式会强制移除。"
+        "Exit the currently bound worktree. By default the worktree must be clean; force removes it regardless."
     }
 
     fn parameters_schema(&self) -> Value {
@@ -53,7 +53,7 @@ impl Tool for ExitWorktreeTool {
             "properties": {
                 "force": {
                     "type": "boolean",
-                    "description": "为 true 时强制移除 worktree。"
+                    "description": "Force removal of the worktree when true."
                 }
             }
         })

@@ -1233,7 +1233,7 @@ impl Tool for FileReadTool {
     }
 
     fn description(&self) -> &str {
-        "读取文件内容并返回结构化 Read 结果。文本按行分页，PDF 按页分页，notebook 按 cell 分页；图片会返回元数据与可选内联预览；重复请求会返回 file_unchanged。"
+        "Read file content and return a structured Read result. Text is paginated by line, PDFs by page, and notebooks by cell. Images return metadata with an optional inline preview. Repeated requests return file_unchanged."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -1242,15 +1242,15 @@ impl Tool for FileReadTool {
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "文件路径。相对路径从工作区解析；外部路径需要策略白名单。"
+                    "description": "File path. Relative paths are resolved from the workspace; external paths require a policy allowlist entry."
                 },
                 "offset": {
                     "type": "integer",
-                    "description": "起始位置（文本按行、PDF 按页、notebook 按 cell；从 1 开始，0 表示开头）"
+                    "description": "Starting position (line for text, page for PDF, or cell for notebook). Positions are 1-based; 0 means the beginning."
                 },
                 "limit": {
                     "type": "integer",
-                    "description": "返回的最大数量（文本按行、PDF 按页、notebook 按 cell；默认：2000）"
+                    "description": "Maximum number to return (lines for text, pages for PDF, or cells for notebook). Defaults to 2000."
                 }
             },
             "required": ["path"],

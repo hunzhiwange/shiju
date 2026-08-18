@@ -27,7 +27,7 @@ impl Tool for CronListTool {
     }
 
     fn description(&self) -> &str {
-        "列出所有计划的定时任务"
+        "List all scheduled tasks"
     }
 
     fn parameters_schema(&self) -> serde_json::Value {

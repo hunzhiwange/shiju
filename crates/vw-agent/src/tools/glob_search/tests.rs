@@ -29,7 +29,7 @@ fn test_security_with(
 fn glob_search_name_and_schema() {
     let tool = GlobSearchTool::new(test_security(std::env::temp_dir()));
     assert_eq!(tool.name(), "glob_search");
-    assert!(tool.description().contains("glob 模式"));
+    assert!(tool.description().contains("glob pattern"));
     assert!(tool.description().contains("src/**/mod.rs"));
 
     let schema = tool.parameters_schema();

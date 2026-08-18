@@ -82,7 +82,7 @@ impl Tool for CronRunTool {
     ///
     /// 返回工具的功能描述字符串，说明该工具用于立即强制运行定时任务并记录运行历史
     fn description(&self) -> &str {
-        "立即强制运行定时任务并记录运行历史"
+        "Run a scheduled task immediately and record its run history"
     }
 
     /// 返回工具参数的 JSON Schema
@@ -112,7 +112,7 @@ impl Tool for CronRunTool {
                 "job_id": { "type": "string" },
                 "approved": {
                     "type": "boolean",
-                    "description": "设为 true 以在监督模式下显式批准中/高风险 Shell 命令",
+                    "description": "Set to true to explicitly approve medium/high-risk Shell commands in supervised mode",
                     "default": false
                 }
             },

@@ -370,7 +370,7 @@ fn tool_contract_exposes_browser_schema_and_safety_flags() {
     assert_eq!(tool.name(), "browser");
     assert!(tool.description().contains("browser.allowed_domains"));
     assert!(tool.description().contains("get_text"));
-    assert!(tool.description().contains("必须提供非空字符串 'selector'"));
+    assert!(tool.description().contains("require a non-empty 'selector'"));
     assert!(
         schema["properties"]["selector"]["description"].as_str().unwrap_or("").contains("get_text")
     );

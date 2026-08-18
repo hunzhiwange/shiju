@@ -88,10 +88,10 @@ impl DelegateAgentSettingsEntry {
                 .or_else(|| builtin_agent_spec(key).and_then(|spec| spec.default_temperature))
                 .unwrap_or(0.7)
                 .clamp(0.0, 2.0) as f32,
-            compact_context: false,
+            compact_context: config.compact_context,
             max_tool_iterations: 50_000,
-            max_history_messages: 100,
-            parallel_tools: false,
+            max_history_messages: config.max_history_messages.clamp(1, 1000) as u32,
+            parallel_tools: config.parallel_tools,
             max_depth: config.max_depth.clamp(1, 32),
             agentic: config.agentic,
             tool_policy: config.tool_policy,
@@ -301,6 +301,9 @@ pub(crate) fn agent_settings_entries_from_config(
                 options: config.options,
                 permission: config.permission,
                 max_iterations: config.max_iterations,
+                compact_context: config.compact_context,
+                max_history_messages: config.max_history_messages,
+                parallel_tools: config.parallel_tools,
                 steps: config.steps,
             };
             let mut ui_entry = DelegateAgentSettingsEntry::from_config(MAIN_AGENT_KEY, Some(entry));

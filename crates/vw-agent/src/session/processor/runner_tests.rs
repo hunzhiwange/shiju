@@ -837,6 +837,7 @@ fn handle_structured_tool_calls_records_denied_result_for_unallowed_tool() {
         &step_out,
         "",
         false,
+        false,
         1,
     );
 
@@ -883,6 +884,7 @@ fn handle_structured_tool_calls_denies_allowed_tool_on_last_step() {
         &mut session_protocol,
         &step_out,
         "",
+        false,
         true,
         101,
     );

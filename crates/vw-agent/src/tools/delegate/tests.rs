@@ -75,6 +75,9 @@ fn sample_agents() -> HashMap<String, DelegateAgentConfig> {
             options: HashMap::new(),
             permission: Value::Null,
             max_iterations: 10,
+            compact_context: false,
+            max_history_messages: 100,
+            parallel_tools: false,
             steps: None,
         },
     );
@@ -109,6 +112,9 @@ fn sample_agents() -> HashMap<String, DelegateAgentConfig> {
             options: HashMap::new(),
             permission: Value::Null,
             max_iterations: 10,
+            compact_context: false,
+            max_history_messages: 100,
+            parallel_tools: false,
             steps: None,
         },
     );
@@ -342,6 +348,9 @@ fn agentic_config(allowed_tools: Vec<String>, max_iterations: usize) -> Delegate
         options: HashMap::new(),
         permission: Value::Null,
         max_iterations,
+        compact_context: false,
+        max_history_messages: 100,
+        parallel_tools: false,
         steps: None,
     }
 }
@@ -503,6 +512,9 @@ async fn invalid_provider_returns_error() {
             options: HashMap::new(),
             permission: Value::Null,
             max_iterations: 10,
+            compact_context: false,
+            max_history_messages: 100,
+            parallel_tools: false,
             steps: None,
         },
     );
@@ -613,6 +625,9 @@ async fn delegate_context_is_prepended_to_prompt() {
             options: HashMap::new(),
             permission: Value::Null,
             max_iterations: 10,
+            compact_context: false,
+            max_history_messages: 100,
+            parallel_tools: false,
             steps: None,
         },
     );
@@ -665,6 +680,9 @@ async fn delegate_empty_context_omits_prefix() {
             options: HashMap::new(),
             permission: Value::Null,
             max_iterations: 10,
+            compact_context: false,
+            max_history_messages: 100,
+            parallel_tools: false,
             steps: None,
         },
     );

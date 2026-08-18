@@ -1,4 +1,4 @@
-use super::basic::{is_main_agent, shows_delegation_controls, shows_registration_controls, view};
+use super::basic::{shows_delegation_controls, shows_registration_controls, view};
 use crate::app::state::DelegateAgentSettingsEntry;
 use iced::advanced::widget::Tree;
 
@@ -12,7 +12,7 @@ fn view_tree(
 }
 
 fn assert_common_field_structure(tree: &Tree) {
-    assert_eq!(tree.children.len(), 11);
+    assert_eq!(tree.children.len(), 13);
     for row_index in 5..=9 {
         assert_eq!(tree.children[row_index].children.len(), 2);
     }
@@ -22,7 +22,7 @@ fn assert_common_field_structure(tree: &Tree) {
 }
 
 #[test]
-fn basic_view_main_hides_availability_and_shows_runtime_controls() {
+fn basic_view_main_hides_availability_and_shows_common_runtime_controls() {
     let (app, _) = crate::app::App::new();
     let main = app
         .agents_settings
@@ -35,7 +35,6 @@ fn basic_view_main_hides_availability_and_shows_runtime_controls() {
 
     assert_common_field_structure(&tree);
     assert!(tree.children[1].children.is_empty());
-    assert_eq!(tree.children[10].children.len(), 6);
 }
 
 #[test]
@@ -54,9 +53,7 @@ fn basic_agent_visibility_helpers_distinguish_main_from_workers() {
         .find(|entry| entry.key != "main")
         .expect("worker agent exists");
 
-    assert!(is_main_agent(main));
     assert!(!shows_registration_controls(main));
-    assert!(!is_main_agent(worker));
     assert!(shows_registration_controls(worker));
 }
 
@@ -77,7 +74,7 @@ fn builtin_agent_settings_show_chinese_description_and_fixed_role_controls() {
 }
 
 #[test]
-fn basic_view_worker_shows_availability_and_hides_main_runtime_controls() {
+fn basic_view_worker_shows_availability_and_common_runtime_controls() {
     let (app, _) = crate::app::App::new();
     let worker = app
         .agents_settings
@@ -92,7 +89,6 @@ fn basic_view_worker_shows_availability_and_hides_main_runtime_controls() {
     assert_eq!(tree.children[1].children.len(), 2);
     assert_eq!(tree.children[1].children[1].children.len(), 1);
     assert_eq!(tree.children[1].children[1].children[0].children.len(), 2);
-    assert!(tree.children[10].children.is_empty());
 }
 
 #[test]
@@ -133,12 +129,11 @@ fn basic_view_preserves_fields_for_blank_selections_and_numeric_boundaries() {
 
         assert_common_field_structure(&tree);
         assert!(tree.children[1].children.is_empty());
-        assert_eq!(tree.children[10].children.len(), 6);
     }
 }
 
 #[test]
-fn basic_view_renders_main_runtime_boolean_and_text_variants() {
+fn basic_view_renders_runtime_boolean_and_text_variants() {
     let (app, _) = crate::app::App::new();
     let mut entry = app
         .agents_settings
@@ -156,5 +151,4 @@ fn basic_view_renders_main_runtime_boolean_and_text_variants() {
 
     assert_common_field_structure(&tree);
     assert!(tree.children[1].children.is_empty());
-    assert_eq!(tree.children[10].children.len(), 5);
 }

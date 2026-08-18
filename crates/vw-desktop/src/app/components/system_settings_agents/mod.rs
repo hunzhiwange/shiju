@@ -268,7 +268,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         return column![
             settings_page_intro(
                 "智能体配置",
-                "按项目分别管理主 Agent、内建 Worker 与自定义 Agent 的模型、身份文件、工具与技能。",
+                "按项目分别管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。",
             ),
             section_card(
                 "配置尚未就绪",
@@ -374,7 +374,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
 
     let title = settings_page_intro(
         "智能体配置",
-        "按项目分别管理主 Agent、内建 Worker 与自定义 Agent 的模型、身份文件、工具与技能。",
+        "按项目分别管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。",
     );
     let project_options = agent_project_options(app);
     let selected_project = settings.project_path.clone().or_else(|| app.project_path.clone());

@@ -936,6 +936,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                     &mut session_protocol,
                     &step_out,
                     &step_text_preview,
+                    turn_policy.parallel_tools,
                     is_last_step,
                     step_index,
                 );
@@ -1070,6 +1071,7 @@ fn handle_structured_tool_calls(
     session_protocol: &mut DesktopSessionProtocol,
     step_out: &llm_runner::LlmStep,
     step_text_preview: &str,
+    parallel_tools: bool,
     is_last_step: bool,
     step_index: u32,
 ) -> bool {
@@ -1141,8 +1143,11 @@ fn handle_structured_tool_calls(
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
                 .unwrap_or("main");
-            let max_parallel =
-                crate::app::agent::tools::agent_tool_parallel_limit_for_context(ctx, current_agent);
+            let max_parallel = if parallel_tools {
+                crate::app::agent::tools::agent_tool_parallel_limit_for_context(ctx, current_agent)
+            } else {
+                1
+            };
             let contents = tools_exec::run_agent_tools_and_record(
                 session,
                 &planned,

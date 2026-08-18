@@ -10,16 +10,23 @@ fn turn_policy_uses_selected_agent_and_positive_fallbacks() {
     );
     config.agents.insert(
         "reviewer".to_string(),
-        crate::config::DelegateAgentConfig { max_iterations: 7, ..Default::default() },
+        crate::config::DelegateAgentConfig {
+            max_iterations: 7,
+            max_history_messages: 31,
+            ..Default::default()
+        },
     );
     config.agent.max_tool_iterations = 23;
+    config.agent.parallel_tools = true;
 
     let selected = ChatTurnPolicy::from_config(&config, Some(" reviewer "));
     assert_eq!(selected.max_tool_iterations, 7);
-    assert_eq!(selected.max_history_messages, 64);
+    assert_eq!(selected.max_history_messages, 31);
+    assert!(!selected.parallel_tools);
 
     let main = ChatTurnPolicy::from_config(&config, None);
     assert_eq!(main.max_tool_iterations, 23);
+    assert!(main.parallel_tools);
 
     config.agents.get_mut("reviewer").expect("reviewer agent").max_iterations = 0;
     config.agent.max_history_messages = 0;

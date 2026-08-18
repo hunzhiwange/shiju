@@ -23,6 +23,9 @@ fn agent_definition_defaults_and_builtin_specs_are_stable() {
     assert_eq!(definition.max_parallel_subagents, 4);
     assert_eq!(definition.max_depth, 3);
     assert_eq!(definition.max_iterations, 50_000);
+    assert!(!definition.compact_context);
+    assert_eq!(definition.max_history_messages, 100);
+    assert!(!definition.parallel_tools);
 
     assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 5);
     assert_eq!(super::BUILTIN_AGENT_SPECS[0].key, "main");
@@ -43,6 +46,9 @@ fn agent_definition_defaults_include_subagent_controls() {
     let value = serde_json::to_value(&definition).expect("agent config should serialize");
     assert_eq!(value["allow_as_subagent"], true);
     assert_eq!(value["max_parallel_subagents"], 4);
+    assert_eq!(value["compact_context"], false);
+    assert_eq!(value["max_history_messages"], 100);
+    assert_eq!(value["parallel_tools"], false);
 }
 
 #[test]
@@ -425,7 +431,7 @@ fn configured_builtin_override_cannot_broaden_role_safety_boundary() {
                 max_depth: 99,
                 allowed_tools: vec!["AgentTool".into(), "shell".into()],
                 permission: serde_json::json!({"*": "allow"}),
-                max_iterations: usize::MAX,
+                max_iterations: 777,
                 provider: "openrouter".into(),
                 model: "main-model".into(),
                 system_prompt: Some("覆盖提示词".into()),
@@ -440,7 +446,7 @@ fn configured_builtin_override_cannot_broaden_role_safety_boundary() {
                 max_depth: 99,
                 allowed_tools: vec!["shell".into(), "file_read".into()],
                 permission: serde_json::json!({"*": "allow"}),
-                max_iterations: usize::MAX,
+                max_iterations: 888,
                 provider: "openrouter".into(),
                 model: "review-model".into(),
                 ..Default::default()
@@ -457,7 +463,7 @@ fn configured_builtin_override_cannot_broaden_role_safety_boundary() {
     assert_eq!(main.max_depth, 0);
     assert!(!main.hidden);
     assert_eq!(main.permission["*"], "deny");
-    assert_eq!(main.max_iterations, 64);
+    assert_eq!(main.max_iterations, 777);
     assert_eq!(main.provider, "openrouter");
     assert_eq!(main.model, "main-model");
     assert_eq!(main.system_prompt.as_deref(), Some("覆盖提示词"));
@@ -466,7 +472,7 @@ fn configured_builtin_override_cannot_broaden_role_safety_boundary() {
     assert!(reviewer.allow_as_subagent);
     assert_eq!(reviewer.max_depth, 1);
     assert_eq!(reviewer.permission["*"], "deny");
-    assert_eq!(reviewer.max_iterations, 32);
+    assert_eq!(reviewer.max_iterations, 888);
     assert_eq!(reviewer.allowed_tools, vec!["file_read"]);
     assert_eq!(reviewer.provider, "openrouter");
     assert_eq!(reviewer.model, "review-model");

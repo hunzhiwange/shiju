@@ -193,7 +193,7 @@ pub(super) fn selected_entry(app: &App) -> Option<&DelegateAgentSettingsEntry> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn entry_kind_label(entry: &DelegateAgentSettingsEntry) -> &'static str {
     match entry.kind {
-        AgentSettingsEntryKind::Main => "主 Agent",
+        AgentSettingsEntryKind::Main => "内建 Agent",
         AgentSettingsEntryKind::BuiltinWorker => "内建 Worker",
         AgentSettingsEntryKind::Custom => "自定义",
     }

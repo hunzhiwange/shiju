@@ -130,6 +130,15 @@ pub struct AgentDefinitionConfig {
     /// agentic 模式下最大工具调用迭代次数。
     #[serde(default = "default_max_tool_iterations", alias = "max_turns")]
     pub max_iterations: usize,
+    /// 是否为该智能体启用紧凑上下文。
+    #[serde(default)]
+    pub compact_context: bool,
+    /// 该智能体每个会话保留的历史消息上限。
+    #[serde(default = "default_agent_max_history_messages")]
+    pub max_history_messages: usize,
+    /// 是否允许该智能体在同一轮并行执行工具。
+    #[serde(default)]
+    pub parallel_tools: bool,
     /// 最大执行步数限制。
     #[serde(default)]
     pub steps: Option<i64>,
@@ -195,6 +204,9 @@ impl Default for AgentDefinitionConfig {
             options: HashMap::new(),
             permission: Value::Null,
             max_iterations: default_max_tool_iterations(),
+            compact_context: false,
+            max_history_messages: default_agent_max_history_messages(),
+            parallel_tools: false,
             steps: None,
         }
     }
@@ -229,6 +241,9 @@ impl std::fmt::Debug for AgentDefinitionConfig {
             .field("options", &self.options)
             .field("permission", &self.permission)
             .field("max_iterations", &self.max_iterations)
+            .field("compact_context", &self.compact_context)
+            .field("max_history_messages", &self.max_history_messages)
+            .field("parallel_tools", &self.parallel_tools)
             .field("steps", &self.steps)
             .finish()
     }
@@ -485,6 +500,10 @@ pub fn merged_agent_configs(
             builtin.skill_policy = value.skill_policy;
             builtin.enabled_identity_files = value.enabled_identity_files.clone();
             builtin.options = value.options.clone();
+            builtin.compact_context = value.compact_context;
+            builtin.max_history_messages = value.max_history_messages;
+            builtin.parallel_tools = value.parallel_tools;
+            builtin.max_iterations = value.max_iterations;
             builtin.steps = value.steps;
             merged.insert(key.clone(), builtin);
         } else {

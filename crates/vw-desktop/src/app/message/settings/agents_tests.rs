@@ -181,6 +181,19 @@ fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
     main.parallel_tools = true;
     main.allow_as_subagent = true;
     main.max_parallel_subagents = 3;
+    let worker_key = app
+        .agents_settings
+        .entries
+        .iter()
+        .find(|entry| entry.key != "main")
+        .expect("builtin worker exists")
+        .key
+        .clone();
+    let worker = entry_mut(&mut app, &worker_key);
+    worker.compact_context = true;
+    worker.max_history_messages = 234;
+    worker.max_iterations = 777;
+    worker.parallel_tools = true;
 
     let patch =
         build_agents_settings_patch(&app.agents_settings.entries).expect("patch should serialize");
@@ -198,6 +211,10 @@ fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
     assert_eq!(patch["agent"]["max_tool_iterations"], 50_002);
     assert_eq!(patch["agent"]["max_history_messages"], 456);
     assert_eq!(patch["agent"]["parallel_tools"], true);
+    assert_eq!(patch["agents"][&worker_key]["compact_context"], true);
+    assert_eq!(patch["agents"][&worker_key]["max_history_messages"], 234);
+    assert_eq!(patch["agents"][&worker_key]["max_iterations"], 777);
+    assert_eq!(patch["agents"][&worker_key]["parallel_tools"], true);
 }
 
 #[test]

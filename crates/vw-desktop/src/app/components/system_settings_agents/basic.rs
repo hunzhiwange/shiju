@@ -15,10 +15,6 @@ use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, pick_list, row, slider, text, text_input};
 use iced::{Alignment, Element, Length, Theme};
 
-pub(super) fn is_main_agent(entry: &DelegateAgentSettingsEntry) -> bool {
-    entry.key == "main"
-}
-
 pub(super) fn shows_registration_controls(entry: &DelegateAgentSettingsEntry) -> bool {
     entry.can_disable
 }
@@ -153,7 +149,6 @@ pub(super) fn view<'a>(
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let is_main = is_main_agent(entry);
     let has_complete_model_binding =
         !entry.provider.trim().is_empty() && !entry.model.trim().is_empty();
     let force_model_selection_row = row![
@@ -281,7 +276,7 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let compact_context_row = row![
-        label_col("上下文压缩", "适合小模型，压缩主 Agent 的上下文体积。"),
+        label_col("上下文压缩", "适合小模型，压缩该智能体的上下文体积。"),
         checkbox(entry.compact_context)
             .label("启用上下文压缩")
             .on_toggle({
@@ -297,24 +292,8 @@ pub(super) fn view<'a>(
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let max_tool_iterations_row = row![
-        label_col("最大迭代次数", "主 Agent 单次请求中允许的最大工具循环轮次。"),
-        NumberInput::new(entry.max_tool_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, {
-            let key = entry.key.clone();
-            move |value| {
-                Message::Settings(SettingsMessage::Agents(AgentsMessage::MaxToolIterationsChanged(
-                    key.clone(),
-                    value.round() as u32,
-                )))
-            }
-        })
-        .settings_style(),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
-
     let max_history_messages_row = row![
-        label_col("历史消息上限", "主 Agent 保留给模型的会话历史消息上限。"),
+        label_col("历史消息上限", "该智能体保留给模型的会话历史消息上限。"),
         NumberInput::new(entry.max_history_messages as f32, 1.0, 1000.0, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -329,7 +308,7 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let parallel_tools_row = row![
-        label_col("并行工具", "主 Agent 是否允许同一轮并行执行多个工具。"),
+        label_col("并行工具", "该智能体是否允许同一轮并行执行多个工具。"),
         checkbox(entry.parallel_tools)
             .label("启用并行工具执行")
             .on_toggle({
@@ -380,23 +359,6 @@ pub(super) fn view<'a>(
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let main_runtime_section: Element<'_, Message> = if is_main {
-        column![
-            section_card(
-                "主 Agent 运行时",
-                "这些参数原本在单独的 Agent 页面中，现在统一并入 Main Agent。",
-            ),
-            compact_context_row,
-            max_tool_iterations_row,
-            max_history_messages_row,
-            parallel_tools_row,
-        ]
-        .spacing(14)
-        .into()
-    } else {
-        column![].into()
-    };
-
     column![
         section_card(&entry.label, &entry.description),
         registration_section,
@@ -409,7 +371,9 @@ pub(super) fn view<'a>(
         shows_delegation_controls(entry).then_some(max_depth_row),
         max_iterations_row,
         agentic_row,
-        main_runtime_section,
+        compact_context_row,
+        max_history_messages_row,
+        parallel_tools_row,
     ]
     .spacing(14)
     .into()

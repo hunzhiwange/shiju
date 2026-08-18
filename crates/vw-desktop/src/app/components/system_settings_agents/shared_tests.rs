@@ -87,7 +87,7 @@ fn with_selected_option_trims_missing_nonempty_selection() {
 fn entry_kind_label_maps_all_entry_kinds() {
     let mut entry = entry("main", AgentSettingsEntryKind::Main);
 
-    assert_eq!(entry_kind_label(&entry), "主 Agent");
+    assert_eq!(entry_kind_label(&entry), "内建 Agent");
     entry.kind = AgentSettingsEntryKind::BuiltinWorker;
     assert_eq!(entry_kind_label(&entry), "内建 Worker");
     entry.kind = AgentSettingsEntryKind::Custom;

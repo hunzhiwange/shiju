@@ -141,6 +141,9 @@ fn agent_config(mode: &str, enabled: bool, allowed_skills: Vec<String>) -> Deleg
         options: HashMap::new(),
         permission: serde_json::Value::Null,
         max_iterations: 10,
+        compact_context: false,
+        max_history_messages: 100,
+        parallel_tools: false,
         steps: None,
     }
 }

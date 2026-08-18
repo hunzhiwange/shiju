@@ -415,6 +415,9 @@ fn all_tools_includes_agent_tool_when_agents_configured() {
             options: HashMap::new(),
             permission: serde_json::Value::Null,
             max_iterations: 10,
+            compact_context: false,
+            max_history_messages: 100,
+            parallel_tools: false,
             steps: None,
         },
     );
@@ -509,6 +512,9 @@ fn all_tools_excludes_agent_tool_when_only_primary_agents() {
             options: HashMap::new(),
             permission: serde_json::Value::Null,
             max_iterations: 10,
+            compact_context: false,
+            max_history_messages: 100,
+            parallel_tools: false,
             steps: None,
         },
     );
@@ -573,6 +579,9 @@ fn all_tools_registers_agent_tool_for_delegate_agents() {
             options: HashMap::new(),
             permission: serde_json::Value::Null,
             max_iterations: 10,
+            compact_context: false,
+            max_history_messages: 100,
+            parallel_tools: false,
             steps: None,
         },
     );

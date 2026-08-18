@@ -543,12 +543,21 @@ fn build_agents_settings_patch(
                 "skill_policy": entry.skill_policy,
                 "allowed_skills": allowed_skills,
                 "enabled_identity_files": enabled_identity_files,
-                "max_iterations": entry.max_iterations.max(1),
             })
             .as_object()
             .expect("agent settings patch is an object")
             .clone();
         }
+        agent.insert("compact_context".to_string(), serde_json::json!(entry.compact_context));
+        agent.insert(
+            "max_history_messages".to_string(),
+            serde_json::json!(entry.max_history_messages.clamp(1, 1000)),
+        );
+        agent.insert("parallel_tools".to_string(), serde_json::json!(entry.parallel_tools));
+        agent.insert(
+            "max_iterations".to_string(),
+            serde_json::json!(entry.max_iterations.max(1)),
+        );
         agents.insert(entry.key.clone(), serde_json::Value::Object(agent));
     }
     agents.insert("general".to_string(), serde_json::Value::Null);

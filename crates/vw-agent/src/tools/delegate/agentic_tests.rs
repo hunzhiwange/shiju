@@ -87,6 +87,9 @@ fn agentic_config() -> DelegateAgentConfig {
         options: HashMap::new(),
         permission: Value::Null,
         max_iterations: 2,
+        compact_context: false,
+        max_history_messages: 100,
+        parallel_tools: false,
         steps: None,
     }
 }

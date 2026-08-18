@@ -581,6 +581,7 @@ fn custom_model_discovery_tracks_busy_state_and_merges_results() {
     let mut app = app();
     app.provider_settings.custom_provider_modal_open = true;
     app.provider_settings.custom_editing_provider_id = Some("custom".to_string());
+    app.provider_settings.custom.provider_id = "custom".to_string();
     app.provider_settings.custom.models = vec![CustomProviderModelDraft {
         model_id: "model-b".to_string(),
         display_name: "保留名称".to_string(),
@@ -622,12 +623,14 @@ fn custom_model_discovery_tracks_busy_state_and_merges_results() {
 }
 
 #[test]
-fn custom_model_discovery_only_starts_while_editing() {
+fn custom_model_discovery_starts_for_new_provider_while_modal_is_open() {
     let mut app = app();
+    app.provider_settings.custom_provider_modal_open = true;
+    app.provider_settings.custom.provider_id = "new-provider".to_string();
 
     let _ = update(&mut app, SettingsMessage::CustomProviderModelsDiscover);
 
-    assert!(!app.provider_settings.custom_models_discovering);
+    assert!(app.provider_settings.custom_models_discovering);
 }
 
 #[test]
@@ -635,6 +638,25 @@ fn custom_model_discovery_ignores_stale_provider_results() {
     let mut app = app();
     app.provider_settings.custom_provider_modal_open = true;
     app.provider_settings.custom_editing_provider_id = Some("provider-b".to_string());
+    app.provider_settings.custom_models_discovering = true;
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderModelsDiscovered {
+            provider_id: "provider-a".to_string(),
+            result: Ok(vec!["stale-model".to_string()]),
+        },
+    );
+
+    assert!(app.provider_settings.custom_models_discovering);
+    assert!(app.provider_settings.custom.models[0].model_id.is_empty());
+}
+
+#[test]
+fn custom_model_discovery_ignores_stale_results_for_new_provider() {
+    let mut app = app();
+    app.provider_settings.custom_provider_modal_open = true;
+    app.provider_settings.custom.provider_id = "provider-b".to_string();
     app.provider_settings.custom_models_discovering = true;
 
     let _ = update(
@@ -660,10 +682,6 @@ fn custom_provider_save_validates_each_boundary_and_handles_results() {
     assert_eq!(app.provider_settings.save_error.as_deref(), Some("基础 URL 不能为空"));
 
     app.provider_settings.custom.base_url = "https://example.test".to_string();
-    let _ = update(&mut app, SettingsMessage::CustomProviderSave);
-    assert_eq!(app.provider_settings.save_error.as_deref(), Some("至少添加一个模型"));
-
-    app.provider_settings.custom.models[0].model_id = "model".to_string();
     let _ = update(&mut app, SettingsMessage::CustomProviderSave);
     assert!(app.provider_settings.loading);
     assert!(app.provider_settings.save_error.is_none());

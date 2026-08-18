@@ -233,9 +233,9 @@ pub(super) fn skill_scope_button(
 pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
     let runtime = app.current_session_runtime();
     let mut manual_tools = app
-        .agents_settings
-        .available_tools
-        .iter()
+        .session_tool_inventory(&runtime)
+        .base_tools
+        .into_iter()
         .filter_map(|tool| {
             let trimmed = tool.trim();
             (!trimmed.is_empty()).then(|| trimmed.to_string())
@@ -271,11 +271,17 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
         app.skills_settings.catalog.iter().filter(|skill| skill.installed && skill.enabled).count();
     let selected_tool_count = runtime.tool_selector.selected_manual_tools().len();
     let selected_skill_count = runtime.tool_selector.selected_manual_skills().len();
-    let summary = if manual_tools.is_empty() {
+    let summary = if manual_tools.is_empty() && app.agents_settings.available_tools.is_empty() {
         format!(
             "可切换 {} 个代理；工具清单等待网关返回；已选 {} 个技能。",
             available_agents.len(),
             selected_skill_count,
+        )
+    } else if manual_tools.is_empty() {
+        format!(
+            "可切换 {} 个代理；当前代理未包含已注册工具；可选 {} 个技能。",
+            available_agents.len(),
+            usable_skill_count,
         )
     } else {
         format!(
@@ -289,8 +295,10 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
     };
     let scope_hint = match runtime.tool_selector.active_tab() {
         SessionToolSelectorTab::Agent => "代理只决定本会话委托目标，不改写系统设置。",
-        SessionToolSelectorTab::Tools => "工具会随下一次发送写入提示词，可多选，不会立即执行。",
-        SessionToolSelectorTab::Skills => "技能会随下一次发送写入提示词，可多选，不会立即加载。",
+        SessionToolSelectorTab::Tools => {
+            "只显示当前代理包含且已注册的工具；选择会随下一次发送写入提示词。"
+        }
+        SessionToolSelectorTab::Skills => "技能不受代理工具范围限制，可在需要时动态读取。",
     };
 
     let tabs = row![
@@ -318,9 +326,9 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                 has_agents = true;
                 let selected = selected_agent_key == entry.key;
                 let allowlist_text = if entry.allowed_tools.is_empty() {
-                    "未声明默认工具范围".to_string()
+                    "未包含工具".to_string()
                 } else {
-                    format!("默认工具范围 {} 项", entry.allowed_tools.len())
+                    format!("工具范围 {} 项", entry.allowed_tools.len())
                 };
                 let subtitle = if entry.model.trim().is_empty() {
                     allowlist_text

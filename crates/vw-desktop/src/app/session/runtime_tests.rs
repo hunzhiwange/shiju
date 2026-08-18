@@ -129,7 +129,7 @@ fn selected_static_allowed_tools_uses_selected_agent_and_normalizes_entries() {
 }
 
 #[test]
-fn selected_static_allowed_tools_treats_blank_main_configuration_as_unrestricted() {
+fn selected_static_allowed_tools_treats_blank_main_configuration_as_empty_restriction() {
     let mut app = test_app();
     let runtime = SessionRuntimeState::default();
     let main = app
@@ -140,8 +140,8 @@ fn selected_static_allowed_tools_treats_blank_main_configuration_as_unrestricted
         .expect("main agent should exist");
     main.allowed_tools = vec!["   ".to_string(), String::new()];
 
-    assert_eq!(app.selected_static_allowed_tools(&runtime), None);
-    assert!(!app.session_tool_inventory(&runtime).restricts_tools);
+    assert_eq!(app.selected_static_allowed_tools(&runtime), Some(Vec::new()));
+    assert!(app.session_tool_inventory(&runtime).restricts_tools);
 }
 
 #[test]
@@ -158,9 +158,9 @@ fn session_tool_inventory_handles_unrestricted_intersection_and_static_fallbacks
     app.agents_settings.available_tools =
         vec![" write ".to_string(), "read".to_string(), "read".to_string(), String::new()];
 
-    let unrestricted = app.session_tool_inventory(&runtime);
-    assert_eq!(unrestricted.base_tools, vec!["read", "write"]);
-    assert!(!unrestricted.restricts_tools);
+    let restricted_empty = app.session_tool_inventory(&runtime);
+    assert!(restricted_empty.base_tools.is_empty());
+    assert!(restricted_empty.restricts_tools);
 
     app.agents_settings
         .entries
@@ -179,7 +179,7 @@ fn session_tool_inventory_handles_unrestricted_intersection_and_static_fallbacks
         .expect("main agent should exist")
         .allowed_tools = vec!["shell".to_string()];
     let disjoint = app.session_tool_inventory(&runtime);
-    assert_eq!(disjoint.base_tools, vec!["shell"]);
+    assert!(disjoint.base_tools.is_empty());
     assert!(disjoint.restricts_tools);
 
     app.agents_settings.available_tools.clear();

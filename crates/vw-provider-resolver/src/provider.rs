@@ -577,7 +577,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                 provider.models.retain(|_, m| m.status == "active");
             }
 
-            if provider.models.is_empty() {
+            if apply_enabled_filter && provider.models.is_empty() {
                 continue;
             }
 

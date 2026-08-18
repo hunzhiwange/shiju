@@ -680,8 +680,8 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
             provider.models.retain(|_, m| m.status == "active");
         }
 
-        // 跳过没有模型的提供商
-        if provider.models.is_empty() {
+        // 运行时跳过没有模型的提供商；设置页仍需保留，便于后续编辑或发现模型。
+        if apply_enabled_filter && provider.models.is_empty() {
             continue;
         }
 

@@ -40,8 +40,7 @@ impl App {
     fn selected_static_allowed_tools(&self, runtime: &SessionRuntimeState) -> Option<Vec<String>> {
         let selected_key = runtime.agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
         let entry = self.agents_settings.entries.iter().find(|entry| entry.key == selected_key)?;
-        let allowed_tools = sorted_unique_tools(entry.allowed_tools.clone());
-        (!allowed_tools.is_empty()).then_some(allowed_tools)
+        Some(sorted_unique_tools(entry.allowed_tools.clone()))
     }
 
     fn default_session_model(&self) -> String {
@@ -160,8 +159,7 @@ impl App {
             if available_tools.is_empty() {
                 static_tools
             } else {
-                let merged = intersect_tools(&available_tools, &static_tools);
-                if merged.is_empty() { static_tools } else { merged }
+                intersect_tools(&available_tools, &static_tools)
             }
         } else {
             available_tools.clone()

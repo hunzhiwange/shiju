@@ -1247,13 +1247,20 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::SessionAgentSelected(agent) => {
             let normalized_agent = normalize_delegate_agent(agent);
-            let runtime = app.current_session_runtime_mut();
-            runtime.agent = normalized_agent.clone();
-            runtime.tool_selector.reset();
-            runtime.tool_selector.select_tab(SessionToolSelectorTab::Agent);
+            {
+                let runtime = app.current_session_runtime_mut();
+                runtime.agent = normalized_agent.clone();
+                runtime.tool_selector.reset();
+                // 切换智能体后立即展示该智能体的工具范围，避免旧智能体工具清单
+                // 仍停留在用户视野中。
+                runtime.tool_selector.select_tab(SessionToolSelectorTab::Tools);
+            }
+            let selectable_tool_count =
+                app.session_tool_inventory(&app.current_session_runtime()).base_tools.len();
             info!(
                 target: "vw_desktop",
                 selected_agent = ?normalized_agent,
+                selectable_tool_count,
                 "desktop session delegate agent updated"
             );
             Task::none()

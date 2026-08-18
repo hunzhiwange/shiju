@@ -9,7 +9,6 @@ use crate::tools;
 use serde_json::Value;
 use std::collections::HashSet;
 use vw_config_types::agent::DelegateCapabilityPolicy;
-use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
 
 /// 获取允许使用的工具 ID 集合。
 ///
@@ -59,15 +58,10 @@ pub(crate) fn allowed_tool_ids_for_request_from_specs(
         return base;
     }
 
-    // 非空白名单下仍强制保留 base 中的内置必选与 MCP 动态工具，
-    // 避免 UI/会话过滤把它们剔掉后进度跟踪或 MCP 能力静默失效。
-    // 不把 base 外的工具塞进结果。
+    // 技能通过轻量目录动态读取，不属于智能体注册工具白名单的限制范围。
+    // 其余工具必须同时存在于请求白名单和当前注册表中。
     base.iter()
-        .filter(|tool| {
-            requested.contains(*tool)
-                || is_builtin_required_tool_id(tool)
-                || is_mcp_dynamic_tool_id(tool)
-        })
+        .filter(|tool| requested.contains(*tool) || tool.eq_ignore_ascii_case("skill"))
         .cloned()
         .collect()
 }
@@ -77,7 +71,7 @@ pub(crate) fn delegated_tool_policy_resolution_from_specs(
     specs: &[tools::ToolSpec],
     options: &Value,
 ) -> Option<CapabilityPolicyResolution> {
-    let policy = options
+    let _policy = options
         .get("delegate_tool_policy")
         .cloned()
         .and_then(|value| serde_json::from_value::<DelegateCapabilityPolicy>(value).ok())?;
@@ -95,13 +89,18 @@ pub(crate) fn delegated_tool_policy_resolution_from_specs(
         })
         .map(|spec| spec.id.as_str())
         .collect::<Vec<_>>();
-    let mut resolution =
-        resolve_tool_capabilities(specs, defaults, trusted_user_selection, policy, hard_disabled);
+    // 智能体声明的工具集合是硬上界；用户选择与历史 unrestricted 策略都不能
+    // 把列表外工具重新加入 provider 的工具定义。
+    let mut resolution = resolve_tool_capabilities(
+        specs,
+        defaults,
+        trusted_user_selection,
+        DelegateCapabilityPolicy::Strict,
+        hard_disabled,
+    );
 
     for spec in specs {
-        if (is_builtin_required_tool_id(&spec.id) || is_mcp_dynamic_tool_id(&spec.id))
-            && !crate::session::processor::tools_exec::is_agent_tool(&spec.id)
-        {
+        if spec.id.eq_ignore_ascii_case("skill") {
             resolution.visible_ids.insert(spec.id.to_lowercase());
         }
     }

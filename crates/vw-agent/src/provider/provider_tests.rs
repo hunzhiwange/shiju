@@ -85,6 +85,33 @@ fn suggestions_handle_empty_inputs() {
 }
 
 #[tokio::test]
+async fn agent_provider_without_models_is_kept_for_settings_and_dropped_at_runtime() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().expect("temp home should be created");
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+
+    config::update(serde_json::json!({
+        "providers": {
+            "empty-provider": {
+                "name": "Empty Provider",
+                "models": {}
+            }
+        }
+    }))
+    .await
+    .expect("isolated provider config should be saved");
+
+    let settings = load_state_impl(false).await;
+    let provider =
+        settings.providers.get("empty-provider").expect("settings should keep editable provider");
+    assert!(provider.models.is_empty());
+    assert!(!load_state_impl(true).await.providers.contains_key("empty-provider"));
+}
+
+#[tokio::test]
 async fn agent_provider_state_includes_remote_models() {
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let home = TempDir::new().expect("temp home should be created");

@@ -162,14 +162,12 @@ pub(crate) fn assemble_session_protocol_messages(
     instructions: &[Resolved],
     invoked_skill_messages: &[Value],
     skill_listing: Option<Value>,
-    default_tool_reminder: Option<Value>,
 ) -> Vec<Value> {
     assemble_session_protocol_messages_with_sources(
         history,
         instructions,
         invoked_skill_messages,
         skill_listing,
-        default_tool_reminder,
     )
     .messages
 }
@@ -179,7 +177,6 @@ pub(crate) fn assemble_session_protocol_messages_with_sources(
     instructions: &[Resolved],
     invoked_skill_messages: &[Value],
     skill_listing: Option<Value>,
-    default_tool_reminder: Option<Value>,
 ) -> AssembledProtocolMessages {
     let injection = context_injection::assemble_agents_context(instructions, history);
     let instruction_entries =
@@ -202,11 +199,8 @@ pub(crate) fn assemble_session_protocol_messages_with_sources(
     if let Some(skill_listing) = skill_listing {
         protocol_messages.push(skill_listing);
     }
-    if let Some(default_tool_reminder) = default_tool_reminder {
-        protocol_messages.push(default_tool_reminder);
-    }
-    // AGENTS 必须是当前真实用户指令前的最后一条协议消息，避免后续技能目录或默认工具
-    // 提醒稀释仓库约束的近因权重。
+    // AGENTS 必须是当前真实用户指令前的最后一条协议消息，避免技能目录
+    // 稀释仓库约束的近因权重。
     protocol_messages.extend(agents_messages);
 
     // 协议提醒必须紧邻本轮用户请求。若始终放在整段历史最前面，长会话中的模型会把它
@@ -222,22 +216,6 @@ pub(crate) fn assemble_session_protocol_messages_with_sources(
     messages.extend(protocol_messages);
     messages.extend(injection.history[insertion_index..].iter().cloned());
     split_message_sources(messages)
-}
-
-/// 构建临近当前用户请求的默认工具提醒；它不构成可见性白名单。
-pub(crate) fn default_tool_reminder(default_tool_ids: &[String]) -> Option<Value> {
-    (!default_tool_ids.is_empty()).then(|| {
-        sourced_protocol_message(
-            serde_json::json!({
-                "role": "user",
-                "content": format!(
-                    "<system-reminder>Default tools for this delegated agent: {}. This is a default selection, not a restriction on other available tools.</system-reminder>",
-                    default_tool_ids.join(", ")
-                ),
-            }),
-            context_message_source("default_tools", default_tool_ids),
-        )
-    })
 }
 
 /// 按图片上下文状态改写 LLM JSON 消息。

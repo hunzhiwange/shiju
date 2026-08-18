@@ -130,7 +130,6 @@ fn claude_protocol_parity_covers_agents_skills_compaction_and_entrypoints() {
         &instructions,
         &invoked,
         Some(json!({ "role": "user", "content": listing.content })),
-        None,
     );
     assert_eq!(desktop.last(), history.last());
     assert_eq!(desktop[0]["role"], "user");

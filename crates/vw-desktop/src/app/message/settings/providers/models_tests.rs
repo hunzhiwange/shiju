@@ -314,6 +314,22 @@ fn custom_provider_patch_from_draft_trims_values_and_preserves_existing_model_co
 }
 
 #[test]
+fn custom_provider_patch_accepts_empty_model_list() {
+    let draft = CustomProviderDraft {
+        provider_id: "custom".to_string(),
+        display_name: "Custom".to_string(),
+        base_url: "https://api.example.test/v1".to_string(),
+        api_key: String::new(),
+        headers: vec![],
+        models: vec![CustomProviderModelDraft::default()],
+    };
+
+    let (_, patch) = custom_provider_patch_from_draft(&draft, None).unwrap();
+
+    assert_eq!(patch.pointer("/providers/custom/models"), Some(&json!({})));
+}
+
+#[test]
 fn custom_provider_patch_nulls_removed_and_renamed_models_for_deep_merge() {
     let draft = CustomProviderDraft {
         provider_id: "custom".to_string(),

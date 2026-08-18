@@ -576,7 +576,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CustomProviderModelsDiscover => {
             if !app.provider_settings.custom_provider_modal_open
-                || app.provider_settings.custom_editing_provider_id.is_none()
                 || app.provider_settings.custom_models_discovering
             {
                 return Task::none();
@@ -593,9 +592,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             })
         }
         SettingsMessage::CustomProviderModelsDiscovered { provider_id, result } => {
-            if app.provider_settings.custom_editing_provider_id.as_deref()
-                != Some(provider_id.as_str())
-            {
+            if app.provider_settings.custom.provider_id.trim() != provider_id {
                 return Task::none();
             }
             app.provider_settings.custom_models_discovering = false;
@@ -630,11 +627,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return Task::none();
             }
 
-            let has_models = draft.models.iter().any(|m| !m.model_id.trim().is_empty());
-            if !has_models {
-                app.provider_settings.save_error = Some("至少添加一个模型".to_string());
-                return Task::none();
-            }
             if let Err(error) = validate_model_drafts(&draft.models) {
                 app.provider_settings.save_error = Some(error);
                 return Task::none();

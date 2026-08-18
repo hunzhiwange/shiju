@@ -494,7 +494,7 @@ fn session_agent_selection_normalizes_value_and_resets_tool_context() {
     assert_eq!(runtime.agent.as_deref(), Some("worker"));
     assert_eq!(
         runtime.tool_selector.active_tab(),
-        crate::app::state::SessionToolSelectorTab::Agent
+        crate::app::state::SessionToolSelectorTab::Tools
     );
     assert!(runtime.tool_selector.selected_manual_tools().is_empty());
     assert!(runtime.tool_selector.selected_manual_skills().is_empty());
@@ -506,6 +506,41 @@ fn session_agent_selection_normalizes_value_and_resets_tool_context() {
         )),
     );
     assert_eq!(app.current_session_runtime().agent, None);
+}
+
+#[test]
+fn session_agent_selection_switches_selectable_tools_to_selected_agent_range() {
+    let (mut app, _task) = crate::app::App::new();
+    app.agents_settings.available_tools =
+        vec!["file_read".to_string(), "bash".to_string(), "grep".to_string()];
+    let mut worker = crate::app::state::DelegateAgentSettingsEntry::from_config(
+        "focused-worker",
+        None,
+    );
+    worker.allowed_tools = vec!["bash".to_string()];
+    app.agents_settings.entries.push(worker);
+
+    super::update(
+        &mut app,
+        super::ChatMessage::SessionAgentSelected(Some("focused-worker".to_string())),
+    );
+
+    assert_eq!(
+        app.session_tool_inventory(&app.current_session_runtime()).base_tools,
+        vec!["bash".to_string()]
+    );
+
+    super::update(
+        &mut app,
+        super::ChatMessage::SessionAgentSelected(Some(
+            crate::app::state::MAIN_AGENT_KEY.to_string(),
+        )),
+    );
+
+    assert_eq!(
+        app.session_tool_inventory(&app.current_session_runtime()).base_tools,
+        vec!["bash".to_string(), "file_read".to_string(), "grep".to_string()]
+    );
 }
 
 #[test]

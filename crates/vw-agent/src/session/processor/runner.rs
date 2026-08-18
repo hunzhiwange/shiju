@@ -58,7 +58,6 @@ impl DesktopSessionProtocol {
         history: &[Value],
         instructions: &[crate::session::instruction::Resolved],
         skill_tool_enabled: bool,
-        default_tool_ids: &[String],
     ) -> Result<llm_messages::AssembledProtocolMessages, String> {
         let invoked_skill_messages = self
             .skill_state
@@ -88,7 +87,6 @@ impl DesktopSessionProtocol {
             instructions,
             &invoked_skill_messages,
             skill_listing,
-            llm_messages::default_tool_reminder(default_tool_ids),
         ))
     }
 
@@ -385,14 +383,14 @@ fn delegated_skill_policy_resolution(
     skills: &[crate::app::agent::skills::Skill],
     options: &Value,
 ) -> Option<crate::session::capability_policy::CapabilityPolicyResolution> {
-    let policy = options.get("delegate_skill_policy").cloned().and_then(|value| {
+    options.get("delegate_skill_policy").cloned().and_then(|value| {
         serde_json::from_value::<vw_config_types::agent::DelegateCapabilityPolicy>(value).ok()
     })?;
     Some(crate::session::capability_policy::resolve_skill_capabilities(
         skills.iter().map(|skill| skill.name.as_str()),
         option_string_values(options, "delegate_default_allowed_skills"),
         option_string_values(options, "delegate_trusted_user_selected_skills"),
-        policy,
+        vw_config_types::agent::DelegateCapabilityPolicy::Unrestricted,
         std::iter::empty::<&str>(),
     ))
 }
@@ -461,17 +459,6 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     if !trusted_user_selected_skills.is_empty() {
         tool_use_context =
             tool_use_context.with_trusted_user_selected_skills(trusted_user_selected_skills);
-    }
-    if let Some(policy) = req
-        .options
-        .get("delegate_skill_policy")
-        .cloned()
-        .and_then(|value| serde_json::from_value(value).ok())
-    {
-        tool_use_context = tool_use_context.with_delegate_skill_policy(
-            policy,
-            option_string_values(&req.options, "delegate_default_allowed_skills"),
-        );
     }
     if let Some(channel_name) = req.channel_name.clone() {
         tool_use_context = tool_use_context.with_channel(channel_name);
@@ -582,10 +569,6 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         .unwrap_or_else(|| {
             allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options)
         });
-    let default_tool_ids = tool_policy_resolution
-        .as_ref()
-        .map(|resolution| resolution.default_injected_ids.iter().cloned().collect::<Vec<_>>())
-        .unwrap_or_default();
     let prompt_tool_ids = allowed_tools.iter().cloned().collect::<Vec<_>>();
     base_system = base_system.with_runtime_context_and_modes(
         selected_model.step_event_model(),
@@ -710,7 +693,6 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             &llm_messages,
             base_system.instruction_context(),
             tools_for_step.contains("skill"),
-            &default_tool_ids,
         ) {
             Ok(messages) => messages,
             Err(message) => {

@@ -93,7 +93,7 @@ fn session_protocol_initial_step_contains_explicit_workspace_agents() {
     let mut protocol = super::DesktopSessionProtocol::default();
 
     let messages = protocol
-        .assemble(&history, base_system.instruction_context(), false, &[])
+        .assemble(&history, base_system.instruction_context(), false)
         .expect("assemble initial protocol messages");
 
     assert_eq!(messages.last(), history.last());
@@ -132,7 +132,7 @@ fn agents_referenced_skill_is_preloaded_before_first_user_request() {
     protocol.preload_skills(&referenced).expect("preload AGENTS skill");
     let history = vec![serde_json::json!({"role": "user", "content": "inspect callers"})];
     let messages =
-        protocol.assemble(&history, &instructions, true, &[]).expect("assemble protocol");
+        protocol.assemble(&history, &instructions, true).expect("assemble protocol");
 
     assert!(
         messages[0]["content"]
@@ -144,7 +144,7 @@ fn agents_referenced_skill_is_preloaded_before_first_user_request() {
 }
 
 #[test]
-fn delegate_skill_policy_preloads_defaults_and_honors_trusted_user_override() {
+fn delegate_skill_policy_keeps_all_skills_visible_and_preloads_defaults() {
     let workspace = tempfile::tempdir().expect("skill workspace");
     let default_path = workspace.path().join("default/SKILL.md");
     let user_path = workspace.path().join("user/SKILL.md");
@@ -176,8 +176,8 @@ fn delegate_skill_policy_preloads_defaults_and_honors_trusted_user_override() {
     let mut protocol = super::DesktopSessionProtocol::new(skills, "delegate", 20_000);
     protocol.preload_skills(&resolution.default_injected_ids).expect("preload default");
     let history = vec![serde_json::json!({"role": "user", "content": "work"})];
-    let first = protocol.assemble(&history, &[], true, &[]).expect("first protocol");
-    let second = protocol.assemble(&history, &[], true, &[]).expect("second protocol");
+    let first = protocol.assemble(&history, &[], true).expect("first protocol");
+    let second = protocol.assemble(&history, &[], true).expect("second protocol");
     let default_count = |messages: &[serde_json::Value]| {
         messages
             .iter()

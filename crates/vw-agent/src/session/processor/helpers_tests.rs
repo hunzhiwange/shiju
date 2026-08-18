@@ -1,7 +1,6 @@
 use super::*;
 use serde_json::json;
 use std::collections::HashSet;
-use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
 
 #[test]
 fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
@@ -10,28 +9,18 @@ fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
 
     let selected = base
         .iter()
-        .find(|tool| !is_builtin_required_tool_id(tool) && !is_mcp_dynamic_tool_id(tool))
-        .expect("at least one optional non-MCP registered tool")
+        .find(|tool| !tool.eq_ignore_ascii_case("skill"))
+        .expect("at least one registered non-skill tool")
         .clone();
     let filtered = allowed_tool_ids_for_request(
         None,
         &json!({"allowed_tools": [selected.clone(), "missing-tool", "  ", 42]}),
     );
     assert!(filtered.contains(&selected));
-    for tool in &base {
-        if is_builtin_required_tool_id(tool) || is_mcp_dynamic_tool_id(tool) {
-            assert!(
-                filtered.contains(tool),
-                "required/MCP tool `{tool}` must stay available under session tool filters"
-            );
-        }
+    if base.contains("skill") {
+        assert!(filtered.contains("skill"));
     }
-    let expected_retained = base
-        .iter()
-        .filter(|tool| {
-            *tool == &selected || is_builtin_required_tool_id(tool) || is_mcp_dynamic_tool_id(tool)
-        })
-        .count();
+    let expected_retained = usize::from(selected != "skill") + usize::from(base.contains("skill"));
     assert_eq!(filtered.len(), expected_retained);
 
     assert_eq!(allowed_tool_ids_for_request(None, &json!({})), base);
@@ -39,7 +28,7 @@ fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
 }
 
 #[test]
-fn request_filter_always_retains_builtin_required_and_mcp_tools_when_present_in_specs() {
+fn request_filter_only_retains_requested_tools_and_dynamic_skill_loader() {
     let specs = vec![
         crate::app::agent::tools::ToolSpec::new(
             crate::app::agent::tools::TODO_WRITE_TOOL_ID,
@@ -69,6 +58,11 @@ fn request_filter_always_retains_builtin_required_and_mcp_tools_when_present_in_
             "Fetch URL",
             json!({"type": "object"}),
         ),
+        crate::app::agent::tools::ToolSpec::new(
+            "skill",
+            "Read skill instructions",
+            json!({"type": "object"}),
+        ),
     ];
 
     let allowed =
@@ -78,14 +72,13 @@ fn request_filter_always_retains_builtin_required_and_mcp_tools_when_present_in_
         allowed,
         HashSet::from([
             "file_read".to_string(),
-            crate::app::agent::tools::TODO_WRITE_TOOL_ID.to_string(),
-            crate::app::agent::tools::TODO_WRITE_TOOL_ALIAS.to_string(),
-            "AskUserQuestion".to_string(),
-            "question".to_string(),
-            "mcp__rustcodegraph__search".to_string(),
+            "skill".to_string(),
         ])
     );
     assert!(!allowed.contains("web_fetch"));
+    assert!(!allowed.contains(crate::app::agent::tools::TODO_WRITE_TOOL_ID));
+    assert!(!allowed.contains("AskUserQuestion"));
+    assert!(!allowed.contains("mcp__rustcodegraph__search"));
     assert!(!allowed.contains("mcp_alias"));
     assert!(!allowed.contains("missing-tool"));
 }
@@ -111,10 +104,7 @@ fn allowed_tool_ids_for_request_uses_dynamic_specs() {
         &json!({"allowed_tools": ["mcp__rustcodegraph__search", "missing"]}),
     );
 
-    assert_eq!(
-        allowed,
-        HashSet::from(["mcp__rustcodegraph__search".to_string(), "file_read".to_string(),])
-    );
+    assert_eq!(allowed, HashSet::from(["mcp__rustcodegraph__search".to_string()]));
     assert!(allowed_tool_ids_from_specs(&specs).contains("mcp_alias"));
 }
 
@@ -210,7 +200,7 @@ fn request_filter_trims_names_accepts_aliases_and_discards_unknown_tools() {
 }
 
 #[test]
-fn delegated_request_tool_policy_uses_shared_resolution_and_removes_recursive_agent_tool() {
+fn delegated_request_tool_policy_caps_visibility_to_agent_tools_and_keeps_skill_dynamic() {
     let specs = vec![
         crate::app::agent::tools::ToolSpec::new(
             "file_read",
@@ -224,6 +214,11 @@ fn delegated_request_tool_policy_uses_shared_resolution_and_removes_recursive_ag
             json!({"type": "object"}),
         )
         .with_aliases(["agent"]),
+        crate::app::agent::tools::ToolSpec::new(
+            "skill",
+            "Read skill instructions",
+            json!({"type": "object"}),
+        ),
     ];
     let options = json!({
         "delegate_default_allowed_tools": ["file_read"],
@@ -235,7 +230,7 @@ fn delegated_request_tool_policy_uses_shared_resolution_and_removes_recursive_ag
         .expect("delegate policy should resolve");
     assert_eq!(
         resolution.visible_ids,
-        std::collections::BTreeSet::from(["file_read".to_string(), "shell".to_string()]),
+        std::collections::BTreeSet::from(["file_read".to_string(), "skill".to_string()]),
     );
 }
 

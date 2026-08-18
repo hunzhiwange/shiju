@@ -166,7 +166,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 if is_editing {
                     "调整现有 provider 的连接地址、默认鉴权信息和模型列表。"
                 } else {
-                    "按 base URL 接入一个与 OpenAI 兼容的 provider，并配置默认模型。"
+                    "按 base URL 接入一个与 OpenAI 兼容的 provider；模型可稍后配置。"
                 },
             ))
             .width(Length::Fill),
@@ -288,24 +288,22 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(10)
         .align_y(Alignment::Center);
-        if is_editing {
-            model_actions = model_actions.push(
-                button(text(if s.custom_models_discovering {
-                    "发现中…"
-                } else {
-                    "自动发现模型"
-                }))
-                .on_press_maybe((!s.custom_models_discovering).then_some(Message::Settings(
-                    message::SettingsMessage::CustomProviderModelsDiscover,
-                )))
-                .padding([7, 12])
-                .style(if s.custom_models_discovering {
-                    rounded_action_btn_style
-                } else {
-                    primary_action_btn_style
-                }),
-            );
-        }
+        model_actions = model_actions.push(
+            button(text(if s.custom_models_discovering {
+                "发现中…"
+            } else {
+                "自动发现模型"
+            }))
+            .on_press_maybe((!s.custom_models_discovering).then_some(Message::Settings(
+                message::SettingsMessage::CustomProviderModelsDiscover,
+            )))
+            .padding([7, 12])
+            .style(if s.custom_models_discovering {
+                rounded_action_btn_style
+            } else {
+                primary_action_btn_style
+            }),
+        );
         model_actions = model_actions.push(icon_btn(
             Icon::Plus,
             "添加模型",
@@ -331,7 +329,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let mut models_panel = column![
             field_row(
                 "模型",
-                "维护该 provider 可用的模型列表；可启用/禁用，展示名称可留空。",
+                "可留空，或自动发现该 provider 的模型；也可手动添加并启用/禁用。",
                 model_actions,
             ),
             settings_divider(),

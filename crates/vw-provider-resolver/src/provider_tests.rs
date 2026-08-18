@@ -213,7 +213,7 @@ async fn settings_state_keeps_disabled_config_models() {
 }
 
 #[tokio::test]
-async fn provider_without_models_is_dropped() {
+async fn provider_without_models_is_kept_for_settings_and_dropped_at_runtime() {
     let env = ProviderTestEnv::new().await;
     env.write_config(config_with_default(
         Value::Null,
@@ -225,7 +225,10 @@ async fn provider_without_models_is_dropped() {
     ))
     .await;
 
-    assert!(!list_for_settings().await.contains_key("empty-provider"));
+    let settings = list_for_settings().await;
+    let provider = settings.get("empty-provider").expect("settings should keep editable provider");
+    assert!(provider.models.is_empty());
+    assert!(!list().await.contains_key("empty-provider"));
 }
 
 #[tokio::test]

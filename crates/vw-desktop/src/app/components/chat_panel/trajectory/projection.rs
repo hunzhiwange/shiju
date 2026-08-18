@@ -59,6 +59,7 @@ struct RequestSnapshot {
 struct ProjectionBuilder {
     records: Vec<TrajectoryRecord>,
     previous_messages: Vec<Value>,
+    previous_message_sources: Vec<Value>,
     previous_system: Vec<Value>,
     seen_system: HashSet<String>,
     assistant_echoes: Vec<AssistantEcho>,
@@ -193,21 +194,27 @@ impl ProjectionBuilder {
         let Some(messages) = messages.and_then(Value::as_array) else {
             return;
         };
-        let message_sources = message_sources.and_then(Value::as_array);
-        let prefix_len = common_prefix_len(&self.previous_messages, messages);
+        let message_sources = aligned_message_sources(messages, message_sources);
+        let prefix_len = common_message_prefix_len(
+            &self.previous_messages,
+            &self.previous_message_sources,
+            messages,
+            &message_sources,
+        );
         for (offset, message) in messages[prefix_len..].iter().enumerate() {
             let message_index = prefix_len + offset;
             self.project_message(
                 step_index,
                 message_index,
                 message,
-                message_sources.and_then(|sources| sources.get(message_index)),
+                message_sources.get(message_index),
                 request_tools,
                 record_ids,
                 turn_indices,
             );
         }
         self.previous_messages.clone_from(messages);
+        self.previous_message_sources = message_sources;
     }
 
     fn project_message(
@@ -782,6 +789,33 @@ fn nonnegative_integer(value: &Value) -> Option<u64> {
 
 fn common_prefix_len(previous: &[Value], current: &[Value]) -> usize {
     previous.iter().zip(current).take_while(|(left, right)| left == right).count()
+}
+
+fn aligned_message_sources(messages: &[Value], sources: Option<&Value>) -> Vec<Value> {
+    let sources = sources.and_then(Value::as_array);
+    messages
+        .iter()
+        .enumerate()
+        .map(|(index, _)| {
+            sources.and_then(|sources| sources.get(index)).cloned().unwrap_or(Value::Null)
+        })
+        .collect()
+}
+
+fn common_message_prefix_len(
+    previous_messages: &[Value],
+    previous_sources: &[Value],
+    current_messages: &[Value],
+    current_sources: &[Value],
+) -> usize {
+    previous_messages
+        .iter()
+        .zip(previous_sources)
+        .zip(current_messages.iter().zip(current_sources))
+        .take_while(|((previous_message, previous_source), (current_message, current_source))| {
+            previous_message == current_message && previous_source == current_source
+        })
+        .count()
 }
 
 fn parse_request_snapshot(value: Option<&Value>) -> RequestSnapshot {

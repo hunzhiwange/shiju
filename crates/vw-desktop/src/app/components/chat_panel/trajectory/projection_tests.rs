@@ -350,6 +350,37 @@ fn projection_classifies_user_and_context_from_message_source() {
 }
 
 #[test]
+fn projection_reprojects_message_when_only_source_changes() {
+    let message = json!({"role": "user", "content": "protocol reminder"});
+    let first = raw_step(vec![message.clone()], "", "", Vec::new());
+    let mut second = raw_step(vec![message], "answer", "", Vec::new());
+    second["message_sources"] = json!([
+        {"kind": "context", "form": "default_tools", "entries": ["file_read"]},
+    ]);
+
+    let projection = project_trajectory(
+        &[
+            step(1, 100, Some(200), [3, 2, 0, 0]),
+            step(2, 300, Some(400), [3, 2, 0, 0]),
+        ],
+        &HashMap::from([(1, first), (2, second)]),
+    );
+    let inputs = projection
+        .records
+        .iter()
+        .filter(|record| {
+            matches!(record.kind, TrajectoryRecordKind::User | TrajectoryRecordKind::Context)
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(inputs.len(), 2);
+    assert_eq!(inputs[0].kind, TrajectoryRecordKind::User);
+    assert!(inputs[0].detail.source.is_none());
+    assert_eq!(inputs[1].kind, TrajectoryRecordKind::Context);
+    assert_eq!(inputs[1].detail.source.as_ref().unwrap()["form"], "default_tools");
+}
+
+#[test]
 fn projection_attaches_request_and_tool_inspection_facts() {
     let mut raw = raw_step(
         vec![json!({"role": "user", "content": "run shell"})],

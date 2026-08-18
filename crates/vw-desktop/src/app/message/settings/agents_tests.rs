@@ -1213,7 +1213,7 @@ fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
 }
 
 #[test]
-fn available_tools_exclude_mcp_dynamic_and_retired_ids() {
+fn available_tools_exclude_mcp_dynamic_ids() {
     let mut app = test_app();
     app.agents_settings.available_tools.clear();
 
@@ -1224,7 +1224,6 @@ fn available_tools_exclude_mcp_dynamic_and_retired_ids() {
             vec![],
             vec![
                 "bash".to_string(),
-                "lsp".to_string(),
                 "mcp__rustcodegraph__search".to_string(),
                 "read".to_string(),
                 "mcp__github__list_issues".to_string(),

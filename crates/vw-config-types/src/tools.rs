@@ -438,14 +438,6 @@ pub fn is_builtin_required_tool_id(tool_id: &str) -> bool {
     BUILTIN_REQUIRED_TOOL_IDS.contains(&tool_id) || BUILTIN_REQUIRED_TOOL_ALIASES.contains(&tool_id)
 }
 
-/// 已从运行时移除、只可能残留在旧配置或旧网关目录中的工具 ID。
-pub const RETIRED_TOOL_IDS: &[&str] = &["lsp"];
-
-/// 判断工具 ID 是否已退出运行时工具目录。
-pub fn is_retired_tool_id(tool_id: &str) -> bool {
-    RETIRED_TOOL_IDS.contains(&tool_id)
-}
-
 /// 判断工具 ID 是否为 MCP 动态工具（形如 `mcp__{server}__{tool}`）。
 ///
 /// 要求以 `mcp__` 为前缀，且 `__` 分隔后至少两段非空（server 与 tool）。

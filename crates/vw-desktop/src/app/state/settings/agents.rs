@@ -8,9 +8,7 @@ use vw_config_types::agent::{
     BuiltinAgentKind, DelegateAgentConfig, DelegateCapabilityPolicy, builtin_agent_config,
     builtin_agent_keys, builtin_agent_spec, is_retired_builtin_agent_key, merged_agent_configs,
 };
-use vw_config_types::tools::{
-    is_builtin_required_tool_id, is_mcp_dynamic_tool_id, is_retired_tool_id,
-};
+use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id};
 
 #[derive(Debug, Clone)]
 /// 表示 DelegateAgentSettingsEntry 相关的应用状态或派生数据。
@@ -189,7 +187,7 @@ pub(crate) fn filter_mcp_from_available_tools(tools: Vec<String>) -> Vec<String>
 pub(crate) fn normalize_available_tool_catalog(tools: Vec<String>) -> Vec<String> {
     let mut tools = tools
         .into_iter()
-        .filter(|tool_id| !tool_id.trim().is_empty() && !is_retired_tool_id(tool_id))
+        .filter(|tool_id| !tool_id.trim().is_empty())
         .collect::<Vec<_>>();
     if !tools.iter().any(|tool_id| tool_id == "rustcodegraph") {
         tools.push("rustcodegraph".to_string());

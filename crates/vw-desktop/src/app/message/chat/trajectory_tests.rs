@@ -185,6 +185,87 @@ fn trajectory_mode_refreshes_known_raw_steps_without_session_step_metadata() {
 }
 
 #[test]
+fn trajectory_snapshot_refresh_populates_raw_without_opening_usage_modal() {
+    let (mut app, _) = App::new();
+    let session_id = "active-session".to_string();
+    let key = raw_key(&session_id, 3);
+    app.active_session_id = Some(session_id.clone());
+    app.chat_panel_mode = ChatPanelMode::Trajectory;
+
+    let _task = super::update(
+        &mut app,
+        super::ChatMessage::TrajectorySnapshotLoaded {
+            session_id: session_id.clone(),
+            result: Ok(Some(vw_gateway_client::SessionUiLoadResult {
+                session: crate::app::models::ChatSession {
+                    id: session_id,
+                    title: "test".to_string(),
+                    messages: Vec::new(),
+                    message_ids: Vec::new(),
+                    calls: Vec::new(),
+                    steps: vec![completed_step(3)],
+                    created_ms: 10,
+                    updated_ms: 20,
+                },
+                step_llm_raw: std::collections::HashMap::from([(
+                    key.clone(),
+                    serde_json::json!({
+                        "messages": [{"role": "user", "content": "hello"}],
+                        "output": {"text": "hi"}
+                    }),
+                )]),
+                llm_raw_step_indices: vec![key.clone()],
+            })),
+        },
+    );
+
+    assert!(
+        app.active_session_view_state
+            .steps
+            .iter()
+            .any(|step| step.index == 3)
+    );
+    assert!(app.active_session_view_state.step_llm_raw.contains_key(&key));
+    assert!(app.active_session_view_state.llm_raw_step_indices.contains(&key));
+    assert!(app.usage_step_raw_modal.is_none());
+}
+
+#[test]
+fn trajectory_snapshot_refresh_ignores_inactive_session() {
+    let (mut app, _) = App::new();
+    app.active_session_id = Some("active-session".to_string());
+    app.chat_panel_mode = ChatPanelMode::Trajectory;
+    let stale_key = raw_key("stale-session", 3);
+
+    let _task = super::update(
+        &mut app,
+        super::ChatMessage::TrajectorySnapshotLoaded {
+            session_id: "stale-session".to_string(),
+            result: Ok(Some(vw_gateway_client::SessionUiLoadResult {
+                session: crate::app::models::ChatSession {
+                    id: "stale-session".to_string(),
+                    title: "stale".to_string(),
+                    messages: Vec::new(),
+                    message_ids: Vec::new(),
+                    calls: Vec::new(),
+                    steps: vec![completed_step(3)],
+                    created_ms: 10,
+                    updated_ms: 20,
+                },
+                step_llm_raw: std::collections::HashMap::from([(
+                    stale_key.clone(),
+                    serde_json::json!({"stale": true}),
+                )]),
+                llm_raw_step_indices: vec![stale_key.clone()],
+            })),
+        },
+    );
+
+    assert!(!app.active_session_view_state.step_llm_raw.contains_key(&stale_key));
+    assert!(app.active_session_view_state.steps.is_empty());
+}
+
+#[test]
 fn trajectory_interactions_update_state() {
     let (mut app, _) = App::new();
 

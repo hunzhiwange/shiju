@@ -224,9 +224,9 @@ fn available_tools_always_include_contextual_rustcodegraph_builtin() {
 }
 
 #[test]
-fn retired_tools_are_removed_from_catalog_and_saved_selections() {
+fn stale_selections_are_removed_against_the_current_tool_catalog() {
     assert_eq!(
-        filter_mcp_from_available_tools(vec!["lsp".to_string(), "read".to_string()]),
+        filter_mcp_from_available_tools(vec!["read".to_string()]),
         vec!["read", "rustcodegraph"]
     );
 

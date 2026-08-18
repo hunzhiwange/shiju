@@ -529,6 +529,12 @@ pub enum ChatMessage {
         result: Result<Option<serde_json::Value>, String>,
     },
 
+    /// 进入轨迹模式时主动刷新的会话 UI 快照。
+    TrajectorySnapshotLoaded {
+        session_id: String,
+        result: Result<Option<vw_gateway_client::SessionUiLoadResult>, String>,
+    },
+
     /// Agent 步骤开始
     ///
     /// 标记 Agent 处理流程中的一个步骤开始执行
@@ -1187,7 +1193,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::TrajectoryDetailsJsonToggled(_)
         | ChatMessage::TrajectoryDetailsJsonCopied(_)
         | ChatMessage::TrajectoryRawRetry { .. }
-        | ChatMessage::TrajectoryRawLoaded { .. } => trajectory::update(app, message),
+        | ChatMessage::TrajectoryRawLoaded { .. }
+        | ChatMessage::TrajectorySnapshotLoaded { .. } => trajectory::update(app, message),
 
         // 流式响应相关消息：Agent 增量更新、步骤状态、会话标题、问题应答等
         ChatMessage::AgentStreamDelta(_, _)

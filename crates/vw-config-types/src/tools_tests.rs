@@ -68,14 +68,6 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
 }
 
 #[test]
-fn retired_tool_catalog_only_matches_removed_tools() {
-    assert_eq!(super::RETIRED_TOOL_IDS, ["lsp"]);
-    assert!(super::is_retired_tool_id("lsp"));
-    assert!(!super::is_retired_tool_id("Lsp"));
-    assert!(!super::is_retired_tool_id("read"));
-}
-
-#[test]
 fn is_mcp_dynamic_tool_id_detects_prefix() {
     assert!(super::is_mcp_dynamic_tool_id("mcp__rustcodegraph__search"));
     assert!(super::is_mcp_dynamic_tool_id("mcp__github__list_issues"));

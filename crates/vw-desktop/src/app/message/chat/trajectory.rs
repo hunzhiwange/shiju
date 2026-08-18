@@ -24,7 +24,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 let Some(session_id) = app.active_session_id.clone() else {
                     return Task::none();
                 };
-                return refresh_missing_raw_task(app, &session_id, None);
+                return refresh_trajectory_task(app, session_id);
             }
             Task::none()
         }
@@ -124,8 +124,67 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::TrajectoryRawLoaded { session_id, turn_id, step_index, attempt, result } => {
             apply_raw_result(app, session_id, turn_id, step_index, attempt, result)
         }
+        ChatMessage::TrajectorySnapshotLoaded { session_id, result } => {
+            apply_snapshot_result(app, session_id, result)
+        }
         _ => Task::none(),
     }
+}
+
+fn refresh_trajectory_task(app: &mut App, session_id: String) -> Task<Message> {
+    let raw_task = refresh_missing_raw_task(app, &session_id, None);
+    let snapshot_session_id = session_id.clone();
+    let snapshot_task = Task::perform(
+        async move {
+            crate::app::session_gateway::gateway_load_session_any_with_raw_async(&session_id).await
+        },
+        move |result| {
+            Message::Chat(ChatMessage::TrajectorySnapshotLoaded {
+                session_id: snapshot_session_id,
+                result,
+            })
+        },
+    );
+    Task::batch([raw_task, snapshot_task])
+}
+
+fn apply_snapshot_result(
+    app: &mut App,
+    session_id: String,
+    result: Result<Option<vw_gateway_client::SessionUiLoadResult>, String>,
+) -> Task<Message> {
+    if app.chat_panel_mode != ChatPanelMode::Trajectory
+        || app.active_session_id.as_deref() != Some(&session_id)
+    {
+        return Task::none();
+    }
+    let Ok(Some(loaded)) = result else {
+        return Task::none();
+    };
+    if loaded.session.id != session_id {
+        return Task::none();
+    }
+
+    for step in loaded.session.steps {
+        let already_present = app.active_session_view_state.steps.iter().any(|existing| {
+            existing.index == step.index && existing.turn_id.as_deref() == step.turn_id.as_deref()
+        });
+        if !already_present {
+            app.upsert_active_session_step(step);
+        }
+    }
+    app.active_session_view_state
+        .llm_raw_step_indices
+        .extend(loaded.llm_raw_step_indices);
+    for (key, raw) in loaded.step_llm_raw {
+        app.active_session_view_state.llm_raw_step_indices.insert(key.clone());
+        app.active_session_view_state
+            .step_llm_raw
+            .entry(key)
+            .or_insert(raw);
+    }
+    sync_details_values(app);
+    refresh_missing_raw_task(app, &session_id, None)
 }
 
 fn sync_controls_session(app: &mut App) {

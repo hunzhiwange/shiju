@@ -269,6 +269,10 @@ impl crate::app::webview_runtime::BrowserProcess for WorkBrowserMemoryProcess {
         probe.terminations += 1;
         Ok(())
     }
+
+    fn terminate_now(&mut self) -> std::io::Result<()> {
+        self.terminate()
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

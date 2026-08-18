@@ -65,6 +65,7 @@ pub(crate) trait BrowserProcess: Send {
     fn take_events(&mut self) -> Vec<WorkBrowserEvent>;
     fn is_running(&mut self) -> io::Result<bool>;
     fn terminate(&mut self) -> io::Result<()>;
+    fn terminate_now(&mut self) -> io::Result<()>;
 }
 
 struct ChildBrowserProcess {
@@ -92,6 +93,13 @@ impl BrowserProcess for ChildBrowserProcess {
             self.child.kill()?;
         }
         let _ = self.child.wait();
+        Ok(())
+    }
+
+    fn terminate_now(&mut self) -> io::Result<()> {
+        if self.child.try_wait()?.is_none() {
+            self.child.kill()?;
+        }
         Ok(())
     }
 }
@@ -237,6 +245,16 @@ impl WorkBrowserController {
         protocol_result.and(terminate_result)
     }
 
+    /// 关机专用快速终止：不写控制管道，也不等待子进程退出。
+    pub(crate) fn shutdown(&mut self) {
+        if let Some(mut process) = self.process.take() {
+            let _ = process.terminate_now();
+        }
+        self.visible = false;
+        self.last_bounds = None;
+        self.always_on_top = false;
+    }
+
     fn send_command(&mut self, command: &str) -> Result<(), String> {
         let process = self.process.as_mut().ok_or_else(|| "内置浏览器进程尚未启动".to_string())?;
         let mut line = String::with_capacity(command.len() + 1);
@@ -250,7 +268,7 @@ impl WorkBrowserController {
 
 impl Drop for WorkBrowserController {
     fn drop(&mut self) {
-        let _ = self.close();
+        self.shutdown();
     }
 }
 

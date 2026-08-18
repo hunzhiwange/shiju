@@ -114,7 +114,7 @@ fn gateway_stream_error_is_retryable(error: &str) -> bool {
     true
 }
 
-fn desktop_stream_request_id(req: &AgentRequest) -> String {
+pub(crate) fn desktop_stream_request_id(req: &AgentRequest) -> String {
     use std::hash::{Hash, Hasher};
     use std::sync::OnceLock;
 
@@ -1725,7 +1725,10 @@ async fn stream_workflow_chat_messages(
 ///
 /// 门控只认工作流开关：单独开启目标不会进入严格 plan-run。
 /// 网关 plan-run 固定目标模式，不再区分 Goal/Workflow 参数。
-fn task_plan_run_active(workflow_mode_enabled: bool, resume_history_only: bool) -> bool {
+pub(crate) fn task_plan_run_active(
+    workflow_mode_enabled: bool,
+    resume_history_only: bool,
+) -> bool {
     workflow_mode_enabled && !resume_history_only
 }
 

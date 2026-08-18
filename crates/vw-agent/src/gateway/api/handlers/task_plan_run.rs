@@ -27,6 +27,8 @@ use crate::task_plan_run::{
 
 /// 相对 `/v1` 的路由路径，与桌面客户端 `/v1/task-plan-run/stream` 对齐。
 pub(crate) const TASK_PLAN_RUN_STREAM_ROUTE: &str = "/task-plan-run/stream";
+pub(crate) const TASK_PLAN_RUN_STREAM_STOP_ROUTE: &str =
+    "/task-plan-run/stream/{request_id}/stop";
 pub(crate) const TASK_PLAN_RUN_STATUS_ROUTE: &str = "/task-plan-run/{task_id}/status";
 pub(crate) const TASK_PLAN_RUN_STOP_ROUTE: &str = "/task-plan-run/{task_id}/stop";
 
@@ -36,8 +38,17 @@ where
 {
     Router::new()
         .route(TASK_PLAN_RUN_STREAM_ROUTE, post(task_plan_run_stream))
+        .route(TASK_PLAN_RUN_STREAM_STOP_ROUTE, post(task_plan_run_stream_stop))
         .route(TASK_PLAN_RUN_STATUS_ROUTE, get(task_plan_run_status))
         .route(TASK_PLAN_RUN_STOP_ROUTE, post(task_plan_run_stop))
+}
+
+async fn task_plan_run_stream_stop(
+    Extension(tenant): Extension<TenantScope>,
+    Path(request_id): Path<String>,
+) -> Json<serde_json::Value> {
+    let cancelled = global_stream_store().cancel(tenant, StreamKind::TaskPlanRun, &request_id);
+    Json(serde_json::json!({ "cancelled": cancelled }))
 }
 
 async fn task_plan_run_status(
@@ -110,6 +121,22 @@ fn task_plan_run_streaming_response(
         let control_registry = global_plan_run_control_registry();
         let cancellation =
             control_registry.register(tenant.clone(), &task_id).map_err(ApiError::internal)?;
+        let cancellation_tenant = tenant.clone();
+        let cancellation_task_id = task_id.clone();
+        producer.install_cancellation(move || {
+            if let Err(error) = global_plan_run_control_registry().stop(
+                &cancellation_tenant,
+                &cancellation_task_id,
+                &global_child_agent_coordinator(),
+            ) {
+                tracing::warn!(
+                    target: "vw_agent::task_plan_run",
+                    task_id = %cancellation_task_id,
+                    error = %error,
+                    "按流请求停止 plan-run 失败"
+                );
+            }
+        });
         tokio::spawn(async move {
             // spawn 脱离请求中间件，必须显式带上租户；否则 ui_store/project 落到默认租户。
             crate::session::ui_store::with_tenant_scope(tenant.clone(), async move {

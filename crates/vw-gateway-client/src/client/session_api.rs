@@ -51,6 +51,11 @@ struct ChatSessionWithRaw {
     pub updated_ms: u64,
 }
 
+#[derive(Debug, Deserialize)]
+struct StreamStopResponse {
+    cancelled: bool,
+}
+
 /// 会话 UI 批量加载结果。
 ///
 /// 普通会话数据保持可直接保存的 `ChatSession` 形状；每步原始 LLM 载荷单独按稳定的
@@ -107,6 +112,13 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
 }
 
 impl GatewayClient {
+    /// 按可恢复流请求标识幂等停止聊天运行。
+    pub async fn chat_stream_stop(&self, request_id: &str) -> Result<bool, String> {
+        let path = format!("/v1/chat/stream/{request_id}/stop");
+        let response: StreamStopResponse = self.post_json(&path, &[], &serde_json::json!({})).await?;
+        Ok(response.cancelled)
+    }
+
     /// 读取会话 UI 数据，并保留响应中每步的原始 LLM 载荷。
     pub async fn session_ui_get_with_raw(
         &self,

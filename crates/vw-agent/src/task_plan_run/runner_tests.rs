@@ -1256,3 +1256,15 @@ fn gateway_session_options_use_approve_all_for_acp() {
     );
     assert_eq!(options.get("acp_test").and_then(serde_json::Value::as_bool), Some(true));
 }
+
+#[test]
+fn gateway_plan_run_preallocates_assistant_message_id() {
+    let first = super::runner::preallocate_assistant_message_id()
+        .expect("first assistant message id");
+    let second = super::runner::preallocate_assistant_message_id()
+        .expect("second assistant message id");
+
+    assert!(!first.trim().is_empty());
+    assert!(!second.trim().is_empty());
+    assert_ne!(first, second);
+}

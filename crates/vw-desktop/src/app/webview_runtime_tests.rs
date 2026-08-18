@@ -40,6 +40,10 @@ impl BrowserProcess for MemoryProcess {
         probe.terminations += 1;
         Ok(())
     }
+
+    fn terminate_now(&mut self) -> io::Result<()> {
+        self.terminate()
+    }
 }
 
 #[test]
@@ -91,6 +95,25 @@ fn work_browser_controller_keeps_single_child_and_writes_navigation_commands() {
             "close\n",
         )
     );
+    assert_eq!(probe.terminations, 1);
+}
+
+#[test]
+fn shutdown_does_not_write_browser_protocol() {
+    let probe = Arc::new(Mutex::new(ProcessProbe { running: true, ..ProcessProbe::default() }));
+    let mut controller = WorkBrowserController::default();
+    controller
+        .ensure_started_with(
+            "https://example.com/",
+            WebviewBounds { x: 0, y: 0, width: 800, height: 600 },
+            |_| Ok(Box::new(MemoryProcess { probe: Arc::clone(&probe) })),
+        )
+        .expect("controlled browser should start");
+
+    controller.shutdown();
+
+    let probe = probe.lock().expect("process probe lock");
+    assert!(probe.protocol.is_empty(), "shutdown must not write to a possibly blocked pipe");
     assert_eq!(probe.terminations, 1);
 }
 

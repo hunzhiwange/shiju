@@ -19,6 +19,25 @@ use std::process::Command;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_shared::update;
 
+#[cfg(not(target_arch = "wasm32"))]
+const SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+#[cfg(all(not(target_arch = "wasm32"), not(test)))]
+const SHUTDOWN_EXIT_WATCHDOG_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, Copy)]
+enum ShutdownStreamKind {
+    Chat,
+    TaskPlanRun,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug)]
+struct ShutdownStreamRequest {
+    request_id: String,
+    kind: ShutdownStreamKind,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct CloseRequestedWindows {
     pub(crate) main_window_id: Option<iced::window::Id>,
@@ -42,6 +61,14 @@ pub(crate) fn close_requested_windows(
     }
 
     CloseRequestedWindows { main_window_id: None, task_pet_window_id: None }
+}
+
+pub(crate) fn begin_shutdown(shutdown_requested: &mut bool) -> bool {
+    if *shutdown_requested {
+        return false;
+    }
+    *shutdown_requested = true;
+    true
 }
 
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
@@ -439,17 +466,109 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
 
 pub fn close_requested(app: &mut App, window_id: iced::window::Id) -> Task<Message> {
     let windows = close_requested_windows(app.main_window_id, app.task_pet_window_id, window_id);
-    let mut tasks = Vec::new();
+
+    if windows.main_window_id.is_some() {
+        #[cfg(not(target_arch = "wasm32"))]
+        return start_shutdown(app, window_id);
+
+        #[cfg(target_arch = "wasm32")]
+        return iced::window::close(window_id);
+    }
 
     if let Some(task_pet_window_id) = windows.task_pet_window_id {
-        tasks.push(iced::window::close(task_pet_window_id));
+        return iced::window::close(task_pet_window_id);
     }
 
-    if let Some(main_window_id) = windows.main_window_id {
-        tasks.push(iced::window::close(main_window_id));
+    Task::none()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn start_shutdown(app: &mut App, window_id: iced::window::Id) -> Task<Message> {
+    if !begin_shutdown(&mut app.shutdown_requested) {
+        return Task::none();
     }
 
-    Task::batch(tasks)
+    arm_shutdown_exit_watchdog();
+    let requests = take_shutdown_stream_requests(app);
+    app.work_browser_controller.shutdown();
+    if let Some(manager) = app.lsp_manager.as_mut() {
+        manager.shutdown_all();
+    }
+    for child in &mut app.independent_webview_children {
+        let _ = child.kill();
+    }
+    app.independent_webview_children.clear();
+
+    Task::batch([
+        iced::window::set_mode(window_id, iced::window::Mode::Hidden),
+        Task::perform(stop_shutdown_streams(requests), |_| {
+            Message::View(ViewMessage::ShutdownFinished)
+        }),
+    ])
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(test)))]
+fn arm_shutdown_exit_watchdog() {
+    let _ = std::thread::Builder::new()
+        .name("vw-desktop-shutdown-watchdog".to_string())
+        .spawn(|| {
+            std::thread::sleep(SHUTDOWN_EXIT_WATCHDOG_TIMEOUT);
+            std::process::exit(0);
+        });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), test))]
+fn arm_shutdown_exit_watchdog() {}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn take_shutdown_stream_requests(app: &mut App) -> Vec<ShutdownStreamRequest> {
+    let requests = app
+        .session_runtime_states
+        .values_mut()
+        .filter_map(|runtime| runtime.active_agent_request.take())
+        .map(|request| ShutdownStreamRequest {
+            request_id: crate::app::impls::desktop_stream_request_id(&request),
+            kind: if crate::app::impls::task_plan_run_active(
+                request.workflow_mode_enabled,
+                request.resume_history_only,
+            ) {
+                ShutdownStreamKind::TaskPlanRun
+            } else {
+                ShutdownStreamKind::Chat
+            },
+        })
+        .collect();
+    app.active_agent_request = None;
+    app.is_requesting = false;
+    requests
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn stop_shutdown_streams(requests: Vec<ShutdownStreamRequest>) {
+    let Ok(client) = crate::app::gateway_client() else {
+        return;
+    };
+    let mut stops = tokio::task::JoinSet::new();
+    for request in requests {
+        let client = client.clone();
+        stops.spawn(async move {
+            match request.kind {
+                ShutdownStreamKind::Chat => {
+                    let _ = client.chat_stream_stop(&request.request_id).await;
+                }
+                ShutdownStreamKind::TaskPlanRun => {
+                    let _ = client.task_plan_run_stream_stop(&request.request_id).await;
+                }
+            }
+        });
+    }
+
+    let wait_for_stops = async {
+        while stops.join_next().await.is_some() {}
+    };
+    if tokio::time::timeout(SHUTDOWN_TIMEOUT, wait_for_stops).await.is_err() {
+        stops.abort_all();
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

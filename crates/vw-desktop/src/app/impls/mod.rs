@@ -15,6 +15,7 @@ pub(super) use crate::app::{
 };
 
 mod agent_stream;
+pub(crate) use agent_stream::{desktop_stream_request_id, task_plan_run_active};
 mod app_basic;
 mod app_init;
 mod app_subscription;

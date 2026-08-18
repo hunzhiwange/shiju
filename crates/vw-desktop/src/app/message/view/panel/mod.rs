@@ -174,6 +174,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::ReplaySessionFromSnapshot(_) => Task::none(),
 
         ViewMessage::CloseRequested(window_id) => settings::close_requested(app, window_id),
+        ViewMessage::ShutdownFinished => {
+            #[cfg(not(target_arch = "wasm32"))]
+            std::process::exit(0);
+
+            #[cfg(target_arch = "wasm32")]
+            iced::exit()
+        }
         _ => Task::none(),
     }
 }
@@ -183,8 +190,4 @@ mod tests;
 
 pub(crate) fn sync_work_browser(app: &mut App) -> Task<Message> {
     work_browser::sync_lifecycle(app)
-}
-
-pub(crate) fn close_work_browser(app: &mut App) {
-    work_browser::close(app);
 }

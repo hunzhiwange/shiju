@@ -97,6 +97,28 @@ fn same_file_contents_reports_missing_metadata_path() {
     assert!(error.contains(missing.to_string_lossy().as_ref()));
 }
 
+#[cfg(unix)]
+#[test]
+fn install_cli_from_source_atomically_replaces_running_target() {
+    use std::io::{Read, Seek, SeekFrom};
+
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let source = tmp.path().join("source-shiju");
+    let target = tmp.path().join("shiju");
+    write_test_cli(&source);
+    fs::write(&target, b"old running executable").expect("write old target");
+    let mut running_file = fs::File::open(&target).expect("open running target");
+
+    install_cli_from_source(&source, &target).expect("install cli atomically");
+
+    assert!(same_file_contents(&source, &target).expect("compare installed cli"));
+    running_file.seek(SeekFrom::Start(0)).expect("rewind old target");
+    let mut old_contents = String::new();
+    running_file.read_to_string(&mut old_contents).expect("read old target handle");
+    assert_eq!(old_contents, "old running executable");
+    assert!(!tmp.path().join(format!(".shiju.installing-{}", std::process::id())).exists());
+}
+
 #[test]
 fn ensure_profile_contains_path_creates_parent_and_is_idempotent() {
     let tmp = tempfile::tempdir().expect("tempdir");

@@ -143,13 +143,7 @@ fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
 
     let install_result = match source_bin {
         Ok(source_bin) => {
-            fs::copy(&source_bin, &target_bin).map_err(|err| {
-                format!(
-                    "复制 CLI 可执行文件失败: {} -> {}: {err}",
-                    source_bin.display(),
-                    target_bin.display()
-                )
-            })?;
+            install_cli_from_source(&source_bin, &target_bin)?;
             Ok(())
         }
         Err(source_error) => match std::env::var("VIBEWINDOW_CLI_URL") {
@@ -192,6 +186,57 @@ fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
     }
 
     Err(install_result.expect_err("install_result is an error"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn install_cli_from_source(source: &Path, target: &Path) -> Result<(), String> {
+    let file_name = target
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| format!("CLI 安装路径无效: {}", target.display()))?;
+    let staged = target.with_file_name(format!(".{file_name}.installing-{}", std::process::id()));
+    let _ = fs::remove_file(&staged);
+
+    let install_result = (|| {
+        fs::copy(source, &staged).map_err(|err| {
+            format!(
+                "复制 CLI 可执行文件失败: {} -> {}: {err}",
+                source.display(),
+                staged.display()
+            )
+        })?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&staged, fs::Permissions::from_mode(0o755))
+                .map_err(|err| format!("设置 CLI 临时文件权限失败: {err}"))?;
+        }
+
+        verify_cli_binary(&staged)?;
+        replace_staged_cli(&staged, target)
+    })();
+
+    if install_result.is_err() {
+        let _ = fs::remove_file(&staged);
+    }
+    install_result
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(windows)))]
+fn replace_staged_cli(staged: &Path, target: &Path) -> Result<(), String> {
+    fs::rename(staged, target)
+        .map_err(|err| format!("原子替换 CLI 可执行文件失败 {}: {err}", target.display()))
+}
+
+#[cfg(all(not(target_arch = "wasm32"), windows))]
+fn replace_staged_cli(staged: &Path, target: &Path) -> Result<(), String> {
+    if target.exists() {
+        fs::remove_file(target)
+            .map_err(|err| format!("移除旧 CLI 可执行文件失败 {}: {err}", target.display()))?;
+    }
+    fs::rename(staged, target)
+        .map_err(|err| format!("替换 CLI 可执行文件失败 {}: {err}", target.display()))
 }
 
 #[cfg(not(target_arch = "wasm32"))]

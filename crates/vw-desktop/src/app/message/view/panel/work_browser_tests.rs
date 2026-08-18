@@ -47,6 +47,10 @@ impl BrowserProcess for NavigationProcess {
     fn terminate(&mut self) -> io::Result<()> {
         Ok(())
     }
+
+    fn terminate_now(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 fn visible_work_browser_app() -> App {

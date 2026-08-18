@@ -603,6 +603,7 @@ impl App {
             window_position: (0.0, 0.0),
             main_window_id: None,
             task_pet_window_id: None,
+            shutdown_requested: false,
 
             // ========== 最近项目编辑 ==========
             recent_projects_edits: {

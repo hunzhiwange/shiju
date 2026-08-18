@@ -97,6 +97,11 @@ pub(crate) fn gateway_session_options(request: &SessionRunRequest) -> Map<String
     options
 }
 
+/// 为需要持久化应用会话工件的 plan-run 轮次预分配 assistant 消息 ID。
+pub(super) fn preallocate_assistant_message_id() -> Result<String, String> {
+    crate::id::ascending(crate::id::Prefix::Message, None).map_err(|error| error.to_string())
+}
+
 #[async_trait]
 impl SessionRunner for GatewaySessionRunner {
     async fn run_session(
@@ -110,6 +115,7 @@ impl SessionRunner for GatewaySessionRunner {
             .await
             .map_err(|error| error.to_string())?
             .reliability;
+        let assistant_message_id = preallocate_assistant_message_id()?;
 
         let processor_request = crate::app::agent::session::processor::Request {
             stream: crate::app::agent::session::session::now_ms(),
@@ -122,7 +128,7 @@ impl SessionRunner for GatewaySessionRunner {
             approval: None,
             channel_name: None,
             non_cli_approval_context: None,
-            assistant_message_id: None,
+            assistant_message_id: Some(assistant_message_id),
             history: Vec::new(),
             persist_app_session_artifacts: true,
             app_session_scope: None,

@@ -8,7 +8,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use axum::Json;
+use axum::{Extension, Json};
 use axum::extract::Query;
 use axum::http::HeaderMap;
 use axum::http::StatusCode;
@@ -814,7 +814,7 @@ async fn start_gateway_chat_stream(
     body: GatewayChatStreamRequest,
 ) -> Result<UnboundedReceiver<Value>, ApiError> {
     let (tx, rx) = mpsc::unbounded_channel::<Value>();
-    start_gateway_chat_producer(tenant, dir, body, None, move |payload, _terminal| {
+    start_gateway_chat_producer(tenant, dir, body, None, None, move |payload, _terminal| {
         tx.send(payload).is_ok()
     })
     .await?;
@@ -826,6 +826,7 @@ async fn start_gateway_chat_producer(
     dir: String,
     body: GatewayChatStreamRequest,
     delegate_overrides: Option<DelegateRequestOverrides>,
+    abort_token: Option<tokio_util::sync::CancellationToken>,
     send: impl FnMut(Value, bool) -> bool + Send + 'static,
 ) -> Result<(), ApiError> {
     let GatewayChatStreamRequest {
@@ -951,7 +952,7 @@ async fn start_gateway_chat_producer(
                 history,
                 persist_app_session_artifacts: should_persist_app_session_artifacts,
                 app_session_scope: app_session_scope.clone(),
-                abort_token: None,
+                abort_token,
                 session_tools: crate::session::runtime::SessionToolset::default(),
             });
             let cancel = turn.cancel.clone();
@@ -1298,11 +1299,15 @@ pub(super) async fn chat_stream(
                     },
                 })?;
             if let Some(producer) = opened.producer.take() {
+                let cancellation = tokio_util::sync::CancellationToken::new();
+                let cancellation_for_stop = cancellation.clone();
+                producer.install_cancellation(move || cancellation_for_stop.cancel());
                 start_gateway_chat_producer(
                     tenant_for_stream,
                     dir,
                     body,
                     Some(delegate_overrides),
+                    Some(cancellation),
                     move |payload, terminal| producer.publish(payload.to_string(), terminal),
                 )
                 .await?;
@@ -1313,6 +1318,14 @@ pub(super) async fn chat_stream(
     .await?;
 
     Ok(sse)
+}
+
+pub(super) async fn chat_stream_stop(
+    Extension(tenant): Extension<TenantScope>,
+    axum::extract::Path(request_id): axum::extract::Path<String>,
+) -> Json<Value> {
+    let cancelled = global_stream_store().cancel(tenant, StreamKind::Chat, &request_id);
+    Json(serde_json::json!({ "cancelled": cancelled }))
 }
 
 /// 拆分流式请求中的模型引用。

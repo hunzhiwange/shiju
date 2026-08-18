@@ -727,7 +727,13 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("PUT", "/v1/workflow/applications/{uuid}", "update workflow application"),
         client_route("DELETE", "/v1/workflow/applications/{uuid}", "delete workflow application"),
         client_route("POST", "/v1/chat/stream", "session chat stream"),
+        client_route("POST", "/v1/chat/stream/{request_id}/stop", "stop session chat stream"),
         client_route("POST", "/v1/task-plan-run/stream", "task plan-run stream"),
+        client_route(
+            "POST",
+            "/v1/task-plan-run/stream/{request_id}/stop",
+            "stop task plan-run stream",
+        ),
         client_route("GET", "/v1/session", "sessions"),
         client_route("POST", "/v1/session", "create session"),
         client_route("GET", "/v1/session/status", "session status"),

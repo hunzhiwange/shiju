@@ -102,6 +102,7 @@ fn close_request_routes_without_mutating_window_registration() {
 
     assert_eq!(app.main_window_id, Some(main_window_id));
     assert_eq!(app.task_pet_window_id, Some(task_pet_window_id));
+    assert!(app.shutdown_requested);
 }
 
 #[test]

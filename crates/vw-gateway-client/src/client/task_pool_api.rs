@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use vw_api_types::task::{
     TaskPlanRunRequest, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto,
     TaskPoolMatrixEventsResponse, TaskPoolMatrixPublishRequest, TaskPoolMatrixPublishResponse,
@@ -28,7 +29,19 @@ const TASK_POOL_WORKTREE_SLOT_RECYCLE_PATH: &str = "/v1/task-pool/worktrees/slot
 const TASK_POOL_WORKTREE_MERGE_LOCK_PATH: &str = "/v1/task-pool/worktrees/merge-lock";
 const TASK_POOL_WORKTREE_MERGE_UNLOCK_PATH: &str = "/v1/task-pool/worktrees/merge-unlock";
 
+#[derive(Debug, Deserialize)]
+struct StreamStopResponse {
+    cancelled: bool,
+}
+
 impl GatewayClient {
+    /// 按可恢复流请求标识幂等停止 plan-run 运行。
+    pub async fn task_plan_run_stream_stop(&self, request_id: &str) -> Result<bool, String> {
+        let path = format!("{TASK_PLAN_RUN_STREAM_PATH}/{request_id}/stop");
+        let response: StreamStopResponse = self.post_json(&path, &[], &serde_json::json!({})).await?;
+        Ok(response.cancelled)
+    }
+
     /// 订阅聊天 workflow 模式的计划执行 SSE。
     pub async fn stream_task_plan_run(
         endpoint: &crate::endpoint::GatewayEndpoint,

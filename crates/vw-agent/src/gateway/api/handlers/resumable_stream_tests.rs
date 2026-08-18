@@ -100,6 +100,28 @@ fn request_ids_are_isolated_by_tenant_and_stream_kind() {
 }
 
 #[test]
+fn registered_stream_cancellation_is_tenant_and_kind_scoped() {
+    let store = ResumableStreamStore::new(8, Duration::from_secs(60));
+    let signature = request_signature(b"same request");
+    let cancellations = Arc::new(AtomicUsize::new(0));
+    let producer = store
+        .open(tenant("company-a"), StreamKind::Chat, "shared", signature, 0)
+        .expect("chat stream")
+        .producer
+        .expect("chat producer");
+    let cancellations_for_callback = Arc::clone(&cancellations);
+    producer.install_cancellation(move || {
+        cancellations_for_callback.fetch_add(1, Ordering::SeqCst);
+    });
+
+    assert!(!store.cancel(tenant("company-b"), StreamKind::Chat, "shared"));
+    assert!(!store.cancel(tenant("company-a"), StreamKind::TaskPlanRun, "shared"));
+    assert!(store.cancel(tenant("company-a"), StreamKind::Chat, "shared"));
+    assert!(store.cancel(tenant("company-a"), StreamKind::Chat, "shared"));
+    assert_eq!(cancellations.load(Ordering::SeqCst), 1, "cancellation remains idempotent");
+}
+
+#[test]
 fn capacity_evicts_oldest_terminal_run_but_never_active_run() {
     let store = ResumableStreamStore::new(1, Duration::from_secs(60));
     let signature = request_signature(b"same request");

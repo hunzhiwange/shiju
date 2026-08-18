@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::convert::Infallible;
+use std::fmt;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -54,6 +55,23 @@ struct RunState {
     terminal: bool,
     completed_at: Option<Instant>,
     completion_order: Option<u64>,
+    cancellation: Option<StreamCancellation>,
+    cancellation_requested: bool,
+}
+
+#[derive(Clone)]
+struct StreamCancellation(Arc<dyn Fn() + Send + Sync>);
+
+impl fmt::Debug for StreamCancellation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("StreamCancellation(..)")
+    }
+}
+
+impl StreamCancellation {
+    fn invoke(&self) {
+        (self.0)();
+    }
 }
 
 #[derive(Debug)]
@@ -136,6 +154,8 @@ impl ResumableStreamStore {
                 terminal: false,
                 completed_at: None,
                 completion_order: None,
+                cancellation: None,
+                cancellation_requested: false,
             }),
             changes,
         });
@@ -168,6 +188,38 @@ impl ResumableStreamStore {
         self.prune_locked(&mut store_state, Instant::now());
     }
 
+    /// 请求停止一个仍在运行的可恢复流。
+    ///
+    /// 返回 `false` 表示目标流不存在；重复请求保持幂等并返回 `true`。
+    pub(super) fn cancel(
+        &self,
+        tenant: TenantScope,
+        kind: StreamKind,
+        request_id: &str,
+    ) -> bool {
+        let key = StreamKey { tenant, kind, request_id: request_id.to_string() };
+        let run = {
+            let state = lock_or_recover(&self.state);
+            state.runs.get(&key).cloned()
+        };
+        let Some(run) = run else {
+            return false;
+        };
+
+        let cancellation = {
+            let mut state = lock_or_recover(&run.state);
+            if state.terminal || state.cancellation_requested {
+                return true;
+            }
+            state.cancellation_requested = true;
+            state.cancellation.clone()
+        };
+        if let Some(cancellation) = cancellation {
+            cancellation.invoke();
+        }
+        true
+    }
+
     fn prune_locked(&self, state: &mut StoreState, now: Instant) {
         state.runs.retain(|_, run| {
             let run_state = lock_or_recover(&run.state);
@@ -196,6 +248,22 @@ impl ResumableStreamStore {
 }
 
 impl ResumableProducer {
+    /// 注册显式停止回调。若停止请求先于注册到达，会在注册后立即触发。
+    pub(super) fn install_cancellation(&self, cancel: impl Fn() + Send + Sync + 'static) {
+        let cancellation = StreamCancellation(Arc::new(cancel));
+        let invoke_now = {
+            let mut state = lock_or_recover(&self.run.state);
+            if state.terminal {
+                return;
+            }
+            state.cancellation = Some(cancellation.clone());
+            state.cancellation_requested
+        };
+        if invoke_now {
+            cancellation.invoke();
+        }
+    }
+
     /// 发布已编码的 JSON 事件。
     ///
     /// 返回 `false` 只表示该运行已经到达终态；订阅断开不会停止生产者。
@@ -210,6 +278,7 @@ impl ResumableProducer {
         if terminal {
             state.terminal = true;
             state.completed_at = Some(Instant::now());
+            state.cancellation = None;
         }
         drop(state);
 

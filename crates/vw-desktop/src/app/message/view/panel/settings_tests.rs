@@ -65,6 +65,15 @@ fn shared_window_id_is_closed_only_once() {
 }
 
 #[test]
+fn main_window_close_starts_shutdown_once() {
+    let mut app = crate::app::App::new().0;
+
+    assert!(super::begin_shutdown(&mut app.shutdown_requested));
+    assert!(app.shutdown_requested);
+    assert!(!super::begin_shutdown(&mut app.shutdown_requested));
+}
+
+#[test]
 fn gateway_plugins_tab_selection_starts_plugin_refresh() {
     let mut app = crate::app::App::new().0;
 

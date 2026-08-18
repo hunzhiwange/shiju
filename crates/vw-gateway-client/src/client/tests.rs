@@ -78,6 +78,28 @@ fn endpoint_returns_bound_configuration() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn chat_stream_stop_uses_request_scoped_route() {
+    let server = crate::client::test_support::server(vec![(
+        200,
+        serde_json::json!({ "cancelled": true }),
+    )]);
+
+    let cancelled = server
+        .client()
+        .chat_stream_stop("desktop-request-1")
+        .await
+        .expect("chat stream stop");
+
+    assert!(cancelled);
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/chat/stream/desktop-request-1/stop");
+    assert_eq!(request.body, serde_json::json!({}));
+    server.join();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn stream_chat_blocking_delegates_to_stream_module() {
     let mut server =

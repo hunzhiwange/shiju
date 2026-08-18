@@ -59,6 +59,24 @@ async fn task_plan_run_control_client_uses_status_and_stop_routes() {
 }
 
 #[tokio::test]
+async fn task_plan_run_stream_stop_uses_request_scoped_route() {
+    let server = test_support::server(vec![(200, json!({ "cancelled": true }))]);
+
+    let cancelled = server
+        .client()
+        .task_plan_run_stream_stop("desktop-plan-request")
+        .await
+        .expect("plan stream stop");
+
+    assert!(cancelled);
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/task-plan-run/stream/desktop-plan-request/stop");
+    assert_eq!(request.body, json!({}));
+    server.join();
+}
+
+#[tokio::test]
 async fn task_plan_run_control_stream_treats_cancelled_as_terminal() {
     let cancelled = TaskPlanRunStreamEventDto::Cancelled {
         task_id: "task-control".to_string(),

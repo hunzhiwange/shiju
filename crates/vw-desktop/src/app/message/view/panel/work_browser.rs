@@ -224,14 +224,6 @@ pub(super) fn sync_lifecycle(_app: &mut App) -> Task<Message> {
     Task::none()
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-pub(super) fn close(app: &mut App) {
-    let _ = app.work_browser_controller.close();
-}
-
-#[cfg(target_arch = "wasm32")]
-pub(super) fn close(_app: &mut App) {}
-
 #[derive(Debug, Clone, Copy)]
 enum BrowserAction {
     Back,

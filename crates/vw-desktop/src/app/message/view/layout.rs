@@ -58,7 +58,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.main_window_id == Some(window_id) {
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    let _ = app.work_browser_controller.close();
+                    app.work_browser_controller.shutdown();
                 }
             }
             if mark_window_closed(&mut app.main_window_id, &mut app.task_pet_window_id, window_id)

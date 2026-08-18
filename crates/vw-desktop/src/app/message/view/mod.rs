@@ -548,6 +548,8 @@ pub enum ViewMessage {
     OpenWebUrlWithTitleAndSize(String, String, Option<i32>, Option<i32>),
     /// 窗口关闭请求（用户点击关闭按钮）
     CloseRequested(iced::window::Id),
+    /// 有界关机清理已经完成或超时
+    ShutdownFinished,
     /// 使用量统计中的模型信息加载完成
     ///
     /// # 参数
@@ -668,11 +670,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::GlobalMouseReleased
             if app.dragging_work_sidebar || app.dragging_work_split
     );
-    let close_work_browser = matches!(
-        &message,
-        ViewMessage::CloseRequested(window_id) if app.main_window_id == Some(*window_id)
-    );
-
     let task = match message {
         ViewMessage::GlobalKeyPressed(key, modifiers) => handle_global_key(app, key, modifiers),
         ViewMessage::ActivityAnimationTick => {
@@ -907,7 +904,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WebBookmarkEditSave
         | ViewMessage::WebBookmarkEditCancel
         | ViewMessage::WebBookmarkRemove(_)
-        | ViewMessage::CloseRequested(_) => panel::update(app, message),
+        | ViewMessage::CloseRequested(_)
+        | ViewMessage::ShutdownFinished => panel::update(app, message),
 
         // 布局相关消息：包括窗口拖拽、调整大小、鼠标移动等
         // 这些消息统一委托给 layout 子模块处理
@@ -934,9 +932,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::AppThemeSelected(_) => theme::update(app, message),
     };
 
-    if close_work_browser {
-        panel::close_work_browser(app);
-    }
     if sync_work_browser { Task::batch(vec![task, panel::sync_work_browser(app)]) } else { task }
 }
 

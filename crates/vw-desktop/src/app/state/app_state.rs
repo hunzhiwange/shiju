@@ -342,6 +342,8 @@ pub struct App {
     pub(crate) main_window_id: Option<iced::window::Id>,
     /// 独立小宠物窗口 ID
     pub(crate) task_pet_window_id: Option<iced::window::Id>,
+    /// 主窗口是否已进入一次性关机流程
+    pub(crate) shutdown_requested: bool,
     /// 是否显示设置面板
     pub(crate) show_settings: bool,
     /// 设置侧边栏是否折叠

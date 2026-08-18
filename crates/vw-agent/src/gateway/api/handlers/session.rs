@@ -30,7 +30,7 @@ use session_ops::{
     session_title_generate, session_todo_get, session_todo_put, ui_session_create,
     ui_session_delete, ui_session_get, ui_session_list, ui_session_patch, ui_session_status,
 };
-use stream::chat_stream;
+use stream::{chat_stream, chat_stream_stop};
 use ui_ops::{
     session_archived_get, session_archived_put, session_path_get, session_scope_get,
     session_scope_put, session_step_llm_raw_get, session_ui_get, session_ui_get_any,
@@ -51,6 +51,7 @@ use vw_api_types::id::TenantScope;
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/chat/stream", post(chat_stream))
+        .route("/chat/stream/{request_id}/stop", post(chat_stream_stop))
         .route("/session", get(ui_session_list).post(ui_session_create))
         .route("/session/status", get(ui_session_status))
         .route(

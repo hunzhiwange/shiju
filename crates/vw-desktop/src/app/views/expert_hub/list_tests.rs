@@ -2,14 +2,16 @@ use super::list::{
     SCROLLBAR_GUTTER, SCROLLBAR_WIDTH, access_action_message, description_preview,
     description_tooltip, detail_action_message, grid_column_count, install_action_message,
     installed_quick_upgrade_message, market_search_messages, marketplace_quick_upgrade_action,
-    pagination_messages, skill_tab_specs,
+    mine_filter_menu_entry_style, mine_filter_menu_style, mine_status_filter_label,
+    mine_tag_filter_label, mine_tag_filter_options, pagination_messages, skill_tab_specs,
 };
 use super::styles::{
     action_button_style, card_style, search_input_style, selected_tab_style, skill_badge_style,
 };
 use crate::app::message::{AccountMessage, SkillHubMessage};
 use crate::app::skill_hub::{
-    CursorPage, InstalledSkill, LoadState, MarketplaceSkill, Page, SkillTab, SkillVersionDirection,
+    CursorPage, InstalledSkill, LoadState, MarketplaceSkill, MineSkillStatus, Page, SkillTab,
+    SkillTag, SkillVersionDirection,
 };
 use crate::app::{App, Message};
 use iced::Theme;
@@ -75,17 +77,11 @@ fn set_state(app: &mut App, tab: SkillTab, state: usize) {
 }
 
 #[test]
-fn expert_hub_view_builds_all_skill_tabs_and_access_states() {
+fn expert_hub_view_builds_all_visible_skill_tabs_and_access_states() {
     let (mut app, _) = App::new();
 
-    for tab in [
-        SkillTab::Marketplace,
-        SkillTab::Installed,
-        SkillTab::System,
-        SkillTab::Company,
-        SkillTab::Mine,
-        SkillTab::Install,
-    ] {
+    assert!(!skill_tab_specs().iter().any(|(_, tab)| *tab == SkillTab::System));
+    for &(_, tab) in skill_tab_specs() {
         for state in 0..4 {
             set_state(&mut app, tab, state);
             let element: iced::Element<'_, Message> = super::view(&app);
@@ -146,6 +142,41 @@ fn expert_hub_market_search_and_pagination_emit_scoped_messages() {
 }
 
 #[test]
+fn mine_multi_select_labels_and_tag_fallbacks_are_stable() {
+    let tags = [
+        SkillTag { id: 9, name: "设计".to_string(), sort_order: 0 },
+        SkillTag { id: 2, name: "开发".to_string(), sort_order: 1 },
+        SkillTag { id: 9, name: "重复名称".to_string(), sort_order: 2 },
+    ];
+    let options = mine_tag_filter_options(tags.iter(), &[2, 7]);
+
+    assert_eq!(options.iter().map(|option| option.id).collect::<Vec<_>>(), vec![9, 2, 7]);
+    assert_eq!(
+        options.iter().map(|option| option.label.as_str()).collect::<Vec<_>>(),
+        vec!["设计", "开发", "标签 7"]
+    );
+    assert_eq!(mine_tag_filter_label(&[]), "选择标签");
+    assert_eq!(mine_tag_filter_label(&[9, 2]), "已选 2 个标签");
+    assert_eq!(mine_status_filter_label(&MineSkillStatus::ALL), "已选 4 个状态");
+}
+
+#[test]
+fn mine_filter_menu_styles_are_readable_in_light_and_dark_themes() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let menu = mine_filter_menu_style(&theme);
+        assert!(menu.background.is_some());
+        assert!(menu.text_color.is_some());
+        assert_ne!(menu.background.unwrap(), menu.text_color.unwrap().into());
+
+        let selected = mine_filter_menu_entry_style(&theme, true);
+        let unselected = mine_filter_menu_entry_style(&theme, false);
+        assert!(selected.background.is_some());
+        assert_ne!(selected.background, unselected.background);
+        assert_eq!(selected.text_color, Some(theme.palette().text));
+    }
+}
+
+#[test]
 fn business_skill_list_actions_use_installed_server_state() {
     let market = MarketplaceSkill {
         id: 7,
@@ -192,6 +223,10 @@ fn business_skill_list_actions_use_installed_server_state() {
         installed_quick_upgrade_message(&installed),
         Some(Message::SkillHub(SkillHubMessage::UpgradeSkill(7)))
     ));
+
+    let mut versionless_market = market.clone();
+    versionless_market.current_version_id = 0;
+    assert!(marketplace_quick_upgrade_action(&versionless_market, &[installed.clone()]).is_none());
 
     let (mut app, _) = App::new();
     app.expert_hub.marketplace =

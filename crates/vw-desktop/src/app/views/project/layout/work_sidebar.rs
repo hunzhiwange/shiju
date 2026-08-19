@@ -1295,7 +1295,7 @@ fn project_navigation_control(app: &App) -> Element<'static, Message> {
                     .width(Length::Fill)
                     .align_x(iced::alignment::Horizontal::Right)
                     .align_y(iced::alignment::Vertical::Center)
-                    .padding([0, 12]),
+                    .padding([9, 12]),
             )
             .width(Length::Fill)
             .into()

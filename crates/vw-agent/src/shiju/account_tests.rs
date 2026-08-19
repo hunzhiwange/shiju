@@ -61,6 +61,12 @@ fn envelope(data: serde_json::Value) -> String {
     serde_json::json!({"code": 200, "message": "", "data": data}).to_string()
 }
 
+#[test]
+fn shiju_account_production_routes_login_and_iam_separately() {
+    assert_eq!(PASSPORT_BASE_URL, "https://passport.shiju.cloud");
+    assert_eq!(GATEWAY_BASE_URL, "https://gateway.shiju.cloud/sj/");
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn shiju_account_adapter_maps_login_poll_and_profile() {
     let credential = "fixture-credential-secret";

@@ -1,19 +1,24 @@
 use super::styles;
+use crate::app::assets::Icon;
+use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::system_settings_common::{
-    settings_pick_list_menu_style, settings_pick_list_style,
+    icon_svg, settings_checkbox_style, settings_pick_list_menu_style, settings_pick_list_style,
 };
 use crate::app::message::{AccountMessage, SkillHubMessage};
 use crate::app::skill_hub::{
-    InstalledSkill, LoadState, MarketplaceSkill, Page, SkillTab, SkillVersionAction,
-    SkillVersionDirection, SystemSkill, TenantSkill,
+    InstalledSkill, LoadState, MarketplaceSkill, MineFilterMenu, MineSkillStatus, Page, SkillTab,
+    SkillVersionAction, SkillVersionDirection, SystemSkill, TenantSkill,
 };
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{
-    Space, button, column, container, pick_list, responsive, row, scrollable, text, text_input,
+    Space, button, checkbox, column, container, pick_list, responsive, row, scrollable, text,
+    text_input,
 };
-use iced::{Alignment, Background, Border, Color, Element, Font, Length, Theme};
+use iced::{
+    Alignment, Background, Border, Color, Element, Font, Length, Point, Shadow, Theme, Vector,
+};
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -27,6 +32,12 @@ const CARD_GAP: f32 = 12.0;
 struct TagFilterOption {
     id: Option<u64>,
     label: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct MineTagFilterOption {
+    pub(super) id: u64,
+    pub(super) label: String,
 }
 
 impl fmt::Display for TagFilterOption {
@@ -89,6 +100,9 @@ pub(super) fn marketplace_quick_upgrade_action(
     skill: &MarketplaceSkill,
     installed: &[InstalledSkill],
 ) -> Option<SkillVersionAction> {
+    if skill.current_version_id == 0 {
+        return None;
+    }
     let installed =
         installed.iter().find(|item| item.skill_id == skill.id && item.upgrade_available)?;
     Some(SkillVersionAction {
@@ -135,7 +149,6 @@ pub(super) fn skill_tab_specs() -> &'static [(&'static str, SkillTab)] {
     &[
         ("技能市场", SkillTab::Marketplace),
         ("已安装技能", SkillTab::Installed),
-        ("系统技能", SkillTab::System),
         ("公司技能", SkillTab::Company),
         ("我的技能", SkillTab::Mine),
         ("安装识矩技能", SkillTab::Install),
@@ -517,6 +530,204 @@ fn current_tag_options(app: &App, selected_id: Option<u64>) -> Vec<TagFilterOpti
     }
 }
 
+pub(super) fn mine_tag_filter_options<'a>(
+    tags: impl Iterator<Item = &'a crate::app::skill_hub::SkillTag>,
+    selected_ids: &[u64],
+) -> Vec<MineTagFilterOption> {
+    let mut options = Vec::new();
+    for tag in tags {
+        if !options.iter().any(|option: &MineTagFilterOption| option.id == tag.id) {
+            options.push(MineTagFilterOption { id: tag.id, label: tag.name.clone() });
+        }
+    }
+    for selected_id in selected_ids {
+        if !options.iter().any(|option| option.id == *selected_id) {
+            options.push(MineTagFilterOption {
+                id: *selected_id,
+                label: format!("标签 {selected_id}"),
+            });
+        }
+    }
+    options
+}
+
+pub(super) fn mine_tag_filter_label(selected_ids: &[u64]) -> String {
+    if selected_ids.is_empty() {
+        "选择标签".to_string()
+    } else {
+        format!("已选 {} 个标签", selected_ids.len())
+    }
+}
+
+pub(super) fn mine_status_filter_label(selected: &[MineSkillStatus]) -> String {
+    format!("已选 {} 个状态", selected.len())
+}
+
+pub(super) fn mine_filter_menu_style(theme: &Theme) -> iced::widget::container::Style {
+    let palette = theme.extended_palette();
+    let is_dark = {
+        let background = theme.palette().background;
+        background.r + background.g + background.b < 1.5
+    };
+    iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark {
+            palette.background.weak.color
+        } else {
+            Color::WHITE
+        })),
+        text_color: Some(theme.palette().text),
+        border: Border {
+            color: palette.background.strong.color.scale_alpha(if is_dark { 0.72 } else { 0.28 }),
+            width: 1.0,
+            radius: 10.0.into(),
+        },
+        shadow: Shadow {
+            color: Color::BLACK.scale_alpha(if is_dark { 0.30 } else { 0.14 }),
+            offset: Vector::new(0.0, 6.0),
+            blur_radius: 18.0,
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn mine_filter_menu_entry_style(
+    theme: &Theme,
+    selected: bool,
+) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: selected.then(|| Background::Color(theme.palette().primary.scale_alpha(0.16))),
+        text_color: Some(theme.palette().text),
+        border: Border { radius: 8.0.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+fn mine_filter_trigger_style(
+    theme: &Theme,
+    status: iced::widget::button::Status,
+) -> iced::widget::button::Style {
+    let mut style = styles::quiet_button_style(theme, status);
+    style.border.radius = 8.0.into();
+    style
+}
+
+fn mine_filter_trigger(
+    label: String,
+    open: bool,
+    message: SkillHubMessage,
+) -> Element<'static, Message> {
+    let chevron = icon_svg(if open { Icon::ChevronUp } else { Icon::ChevronDown }, 12.0)
+        .style(|theme: &Theme, _| iced::widget::svg::Style { color: Some(theme.palette().text) });
+    button(
+        row![text(label).size(13).width(Length::Fill), chevron]
+            .spacing(8)
+            .align_y(Alignment::Center),
+    )
+    .on_press(Message::SkillHub(message))
+    .padding([9, 12])
+    .width(Length::Fixed(160.0))
+    .style(mine_filter_trigger_style)
+    .into()
+}
+
+fn mine_tag_filter(app: &App) -> Element<'_, Message> {
+    let open = app.expert_hub.mine_filter_menu == Some(MineFilterMenu::Tags);
+    let trigger = mine_filter_trigger(
+        mine_tag_filter_label(&app.expert_hub.mine_tag_ids_draft),
+        open,
+        SkillHubMessage::ToggleMineTagFilterMenu,
+    );
+    let tags = match &app.expert_hub.mine {
+        LoadState::Loaded(page) => mine_tag_filter_options(
+            page.items.iter().flat_map(|skill| skill.tags.iter()),
+            &app.expert_hub.mine_tag_ids_draft,
+        ),
+        _ => mine_tag_filter_options(std::iter::empty(), &app.expert_hub.mine_tag_ids_draft),
+    };
+    let tags_empty = tags.is_empty();
+    let mut entries = column![].spacing(2);
+    for option in tags {
+        let selected = app.expert_hub.mine_tag_ids_draft.contains(&option.id);
+        let tag_id = option.id;
+        entries = entries.push(
+            container(
+                checkbox(selected)
+                    .label(option.label)
+                    .on_toggle(move |_| Message::SkillHub(SkillHubMessage::MineTagToggled(tag_id)))
+                    .size(16)
+                    .spacing(8)
+                    .style(settings_checkbox_style)
+                    .width(Length::Fill),
+            )
+            .padding([8, 10])
+            .width(Length::Fill)
+            .style(move |theme| mine_filter_menu_entry_style(theme, selected)),
+        );
+    }
+    if tags_empty {
+        entries = entries.push(
+            container(text("暂无可选标签").size(13).style(styles::muted_text_style))
+                .padding([8, 10]),
+        );
+    }
+    let menu = container(
+        scrollable(entries)
+            .direction(Direction::Vertical(
+                Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
+            ))
+            .width(Length::Fill),
+    )
+    .padding(6)
+    .width(Length::Fixed(200.0))
+    .max_height(240.0)
+    .style(mine_filter_menu_style);
+
+    PointBelowOverlay::new(trigger, menu)
+        .show(open)
+        .anchor(Point::new(0.0, 40.0))
+        .gap(4.0)
+        .on_close(Message::SkillHub(SkillHubMessage::CloseMineFilterMenu))
+        .into()
+}
+
+fn mine_status_filter(app: &App) -> Element<'_, Message> {
+    let open = app.expert_hub.mine_filter_menu == Some(MineFilterMenu::Statuses);
+    let trigger = mine_filter_trigger(
+        mine_status_filter_label(&app.expert_hub.mine_statuses_draft),
+        open,
+        SkillHubMessage::ToggleMineStatusFilterMenu,
+    );
+    let mut entries = column![].spacing(2);
+    for status in MineSkillStatus::ALL {
+        let selected = app.expert_hub.mine_statuses_draft.contains(&status);
+        entries = entries.push(
+            container(
+                checkbox(selected)
+                    .label(status.label())
+                    .on_toggle(move |_| {
+                        Message::SkillHub(SkillHubMessage::MineStatusToggled(status))
+                    })
+                    .size(16)
+                    .spacing(8)
+                    .style(settings_checkbox_style)
+                    .width(Length::Fill),
+            )
+            .padding([8, 10])
+            .width(Length::Fill)
+            .style(move |theme| mine_filter_menu_entry_style(theme, selected)),
+        );
+    }
+    let menu =
+        container(entries).padding(6).width(Length::Fixed(180.0)).style(mine_filter_menu_style);
+
+    PointBelowOverlay::new(trigger, menu)
+        .show(open)
+        .anchor(Point::new(0.0, 40.0))
+        .gap(4.0)
+        .on_close(Message::SkillHub(SkillHubMessage::CloseMineFilterMenu))
+        .into()
+}
+
 fn list_search_input<'a>(value: &'a str) -> iced::widget::TextInput<'a, Message> {
     text_input("搜索技能名称或描述", value)
         .on_input(|value| Message::SkillHub(SkillHubMessage::FilterKeywordChanged(value)))
@@ -567,12 +778,16 @@ fn search_controls(app: &App) -> Element<'_, Message> {
             .into()
         }
         SkillTab::Installed | SkillTab::Install => Space::new().height(Length::Shrink).into(),
-        SkillTab::System | SkillTab::Company | SkillTab::Mine => {
+        SkillTab::System | SkillTab::Company => {
             let filter = match app.expert_hub.skill_tab {
                 SkillTab::System => &app.expert_hub.system_filter,
                 SkillTab::Company => &app.expert_hub.company_filter,
-                SkillTab::Mine => &app.expert_hub.mine_filter,
-                SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => unreachable!(),
+                SkillTab::Marketplace
+                | SkillTab::Installed
+                | SkillTab::Mine
+                | SkillTab::Install => {
+                    unreachable!()
+                }
             };
             let options = current_tag_options(app, filter.tag_id_draft);
             let selected = options.iter().find(|option| option.id == filter.tag_id_draft).cloned();
@@ -608,6 +823,16 @@ fn search_controls(app: &App) -> Element<'_, Message> {
             }
             controls.push(filter_buttons()).wrap().into()
         }
+        SkillTab::Mine => row![
+            list_search_input(&app.expert_hub.mine_filter.keyword_draft),
+            mine_tag_filter(app),
+            mine_status_filter(app),
+            filter_buttons(),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .wrap()
+        .into(),
     }
 }
 

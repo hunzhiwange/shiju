@@ -386,7 +386,11 @@ fn rendered_markdown<'a>(app: &App, detail: &'a PublicDetailState) -> Element<'a
     markdown_style.inline_code_font = Font::default();
     markdown_style.code_block_font = Font::default();
     let settings = markdown::Settings::with_text_size(14, markdown_style);
-    markdown::view(detail.markdown_items.iter(), settings).map(|_| Message::None).into()
+    container(markdown::view(detail.markdown_items.iter(), settings).map(|_| Message::None))
+        .padding(18)
+        .width(Length::Fill)
+        .style(styles::inset_panel_style)
+        .into()
 }
 
 fn content_text(detail: &PublicDetailState) -> Option<&str> {

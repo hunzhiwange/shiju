@@ -8,7 +8,7 @@ use reqwest::header::{HeaderValue, SET_COOKIE};
 use serde::de::DeserializeOwned;
 use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto};
 
-const PRODUCTION_BASE_URL: &str = "https://gateway.shiju.cloud/app-platform/api/";
+const PRODUCTION_BASE_URL: &str = "https://gateway.shiju.cloud/sj/app-platform/api/";
 const CATALOG_PATH: &str = "catalog";
 const APPS_PATH: &str = "apps";
 const BROWSER_SESSION_PATH: &str = "runtime/browser-session";

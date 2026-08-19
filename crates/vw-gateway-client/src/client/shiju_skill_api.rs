@@ -1,6 +1,6 @@
 //! SHIJU private-skill gateway transport contract.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use super::{GatewayClient, ShijuCredential};
 
@@ -45,7 +45,8 @@ pub struct ShijuMaintainedSkillQuery {
     pub page: u32,
     pub page_size: u32,
     pub keyword: Option<String>,
-    pub tag_id: Option<u64>,
+    pub tag_ids: Vec<u64>,
+    pub statuses: Vec<String>,
 }
 
 /// One SHIJU skill tag.
@@ -53,6 +54,7 @@ pub struct ShijuMaintainedSkillQuery {
 pub struct ShijuSkillTagDto {
     pub id: u64,
     pub name: String,
+    #[serde(default)]
     pub sort_order: i64,
 }
 
@@ -63,28 +65,68 @@ pub struct ShijuMarketplaceSkillDto {
     pub slug: String,
     pub name: String,
     pub description: String,
+    #[serde(default)]
     pub level: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub modality: String,
+    #[serde(default, deserialize_with = "deserialize_string_or_default")]
     pub format: String,
+    #[serde(
+        default,
+        alias = "publisher_company_id",
+        deserialize_with = "deserialize_string_or_default"
+    )]
     pub company_id: String,
+    #[serde(default)]
     pub created_uid: String,
+    #[serde(default)]
     pub maintainer_uid: String,
+    #[serde(
+        default,
+        alias = "marketplace_status",
+        deserialize_with = "deserialize_string_or_default"
+    )]
     pub status: String,
+    #[serde(default)]
     pub is_all_company_accessible: u8,
+    #[serde(default)]
     pub current_version_id: u64,
+    #[serde(default)]
     pub created_at: String,
+    #[serde(default)]
     pub updated_at: String,
+    #[serde(default)]
     pub deleted_at: Option<i64>,
+    #[serde(default)]
     pub is_installed: bool,
+    #[serde(default, deserialize_with = "deserialize_vec_or_default")]
     pub tags: Vec<ShijuSkillTagDto>,
 }
 
 /// Cursor page returned by the SHIJU private marketplace.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShijuSkillCursorPageDto {
+    #[serde(default, deserialize_with = "deserialize_vec_or_default")]
     pub items: Vec<ShijuMarketplaceSkillDto>,
+    #[serde(default)]
     pub next_cursor: Option<String>,
+    #[serde(default)]
     pub has_more: bool,
+}
+
+fn deserialize_string_or_default<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer).map(Option::unwrap_or_default)
+}
+
+fn deserialize_vec_or_default<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<Vec<T>>::deserialize(deserializer).map(Option::unwrap_or_default)
 }
 
 /// Skill installed in the active SHIJU account.
@@ -134,6 +176,7 @@ pub struct ShijuTenantSkillDto {
     pub name: String,
     pub description: String,
     pub status: String,
+    #[serde(default)]
     pub is_all_company_accessible: u8,
     pub has_pending_review: bool,
     pub pending_review_version_id: Option<u64>,
@@ -167,6 +210,7 @@ pub struct ShijuSkillDetailDto {
     pub slug: String,
     pub name: String,
     pub description: String,
+    #[serde(default)]
     pub level: String,
     pub modality: String,
     pub format: String,
@@ -174,12 +218,57 @@ pub struct ShijuSkillDetailDto {
     pub created_uid: String,
     pub maintainer_uid: String,
     pub status: String,
+    #[serde(default)]
     pub is_all_company_accessible: u8,
     pub current_version_id: u64,
     pub current_version: Option<ShijuSkillVersionContentDto>,
     pub created_at: String,
     pub updated_at: String,
     pub tags: Vec<ShijuSkillTagDto>,
+}
+
+/// README content for one SHIJU private skill.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ShijuSkillReadmeDto {
+    pub markdown: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for ShijuSkillReadmeDto {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct WireDto {
+            #[serde(default)]
+            markdown: Option<String>,
+            #[serde(default)]
+            content: Option<String>,
+        }
+
+        let wire = WireDto::deserialize(deserializer)?;
+        let markdown = wire.markdown.or_else(|| wire.content.and_then(legacy_readme_markdown));
+        Ok(Self { markdown })
+    }
+}
+
+fn legacy_readme_markdown(content: String) -> Option<String> {
+    #[derive(Deserialize)]
+    struct LegacyEnvelope {
+        code: i64,
+        data: Option<LegacyData>,
+    }
+
+    #[derive(Deserialize)]
+    struct LegacyData {
+        markdown: Option<String>,
+    }
+
+    match serde_json::from_str::<LegacyEnvelope>(&content) {
+        Ok(envelope) if envelope.code == 200 => envelope.data.and_then(|data| data.markdown),
+        Ok(_) => None,
+        Err(_) => Some(content),
+    }
 }
 
 /// SHIJU scan result attached to a published skill version.
@@ -278,7 +367,8 @@ impl GatewayClient {
     ) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, String> {
         let mut query_pairs = page_query(query.page, query.page_size);
         push_text_filter(&mut query_pairs, "keyword", query.keyword.as_deref());
-        push_tag_filter(&mut query_pairs, query.tag_id);
+        push_tag_ids_filter(&mut query_pairs, &query.tag_ids);
+        push_statuses_filter(&mut query_pairs, &query.statuses);
         self.shiju_skill_get(&format!("{SHIJU_SKILLS_PATH}/maintained"), &query_pairs, credential)
             .await
     }
@@ -290,6 +380,20 @@ impl GatewayClient {
         skill_id: u64,
     ) -> Result<ShijuSkillDetailDto, String> {
         self.shiju_skill_get(&format!("{SHIJU_SKILLS_PATH}/{skill_id}"), &[], credential).await
+    }
+
+    /// Reads the README for one SHIJU private skill.
+    pub async fn shiju_skill_readme(
+        &self,
+        credential: &ShijuCredential,
+        skill_id: u64,
+    ) -> Result<ShijuSkillReadmeDto, String> {
+        self.shiju_skill_get(
+            &format!("{SHIJU_SKILLS_PATH}/{skill_id}/readme"),
+            &[],
+            credential,
+        )
+        .await
     }
 
     /// Lists published versions for one SHIJU private skill.
@@ -387,5 +491,18 @@ fn push_text_filter(query: &mut Vec<(String, String)>, key: &str, value: Option<
 fn push_tag_filter(query: &mut Vec<(String, String)>, tag_id: Option<u64>) {
     if let Some(tag_id) = tag_id {
         query.push(("tag_id".to_string(), tag_id.to_string()));
+    }
+}
+
+fn push_tag_ids_filter(query: &mut Vec<(String, String)>, tag_ids: &[u64]) {
+    if !tag_ids.is_empty() {
+        let tag_ids = tag_ids.iter().map(u64::to_string).collect::<Vec<_>>().join(",");
+        query.push(("tag_ids".to_string(), tag_ids));
+    }
+}
+
+fn push_statuses_filter(query: &mut Vec<(String, String)>, statuses: &[String]) {
+    if !statuses.is_empty() {
+        query.push(("statuses".to_string(), statuses.join(",")));
     }
 }

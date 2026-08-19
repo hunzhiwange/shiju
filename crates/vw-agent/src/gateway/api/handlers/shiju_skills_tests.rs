@@ -22,7 +22,10 @@ async fn response(request: Request<Body>) -> (StatusCode, Value) {
     (status, value)
 }
 
-fn upstream_fixture(request_count: usize) -> (String, thread::JoinHandle<Vec<String>>) {
+fn upstream_fixture_with_response(
+    request_count: usize,
+    response: Vec<u8>,
+) -> (String, thread::JoinHandle<Vec<String>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind SHIJU route fixture");
     let address = listener.local_addr().expect("fixture address");
     let handle = thread::spawn(move || {
@@ -54,16 +57,89 @@ fn upstream_fixture(request_count: usize) -> (String, thread::JoinHandle<Vec<Str
                         }
                     }
                 }
-                stream
-                    .write_all(
-                        b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                    )
-                    .expect("write SHIJU route response");
+                stream.write_all(&response).expect("write SHIJU route response");
                 String::from_utf8(request).expect("request UTF-8")
             })
             .collect()
     });
     (format!("http://{address}"), handle)
+}
+
+fn upstream_fixture(request_count: usize) -> (String, thread::JoinHandle<Vec<String>>) {
+    upstream_fixture_with_response(
+        request_count,
+        b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+    )
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_readme_route_forwards_markdown_content() {
+    let markdown = "# 使用说明\n支持 UTF-8 正文。";
+    let body = serde_json::json!({
+        "code": 200,
+        "message": "",
+        "data": {"skill_id": 31, "version": "0.1.3", "markdown": markdown}
+    })
+    .to_string();
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let (base, requests) = upstream_fixture_with_response(1, response.into_bytes());
+    let router = super::router_with_client::<()>(
+        crate::skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
+    );
+
+    let response = router
+        .oneshot(
+            Request::get("/shiju/skills/31/readme")
+                .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
+                .body(Body::empty())
+                .expect("README request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let response_body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    assert_eq!(
+        serde_json::from_slice::<Value>(&response_body).expect("README JSON"),
+        serde_json::json!({"markdown": markdown})
+    );
+
+    let requests = requests.join().expect("join fixture");
+    assert!(requests[0].starts_with("GET /skills/31/readme "));
+    assert!(!requests[0].contains(markdown));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_routes_forward_maintained_multi_value_filters() {
+    let body = r#"{"code":200,"message":"","data":{"items":[],"page":1,"page_size":20,"total":0}}"#;
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let (base, requests) = upstream_fixture_with_response(1, response.into_bytes());
+    let router = super::router_with_client::<()>(
+        crate::skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
+    );
+
+    let response = router
+        .oneshot(
+            Request::get(
+                "/shiju/skills/maintained?page=1&page_size=20&tag_ids=2%2C1%2C3%2C4&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished",
+            )
+            .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
+            .body(Body::empty())
+            .expect("maintained request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let requests = requests.join().expect("join fixture");
+    assert!(requests[0].starts_with(
+        "GET /me/maintained-skills?page=1&page_size=20&tag_ids=2%2C1%2C3%2C4&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished "
+    ));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -133,6 +209,24 @@ async fn shiju_skill_routes_reject_missing_credential_and_invalid_filters() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(body["error"].as_str().unwrap_or_default().contains("status"));
     assert!(!body.to_string().contains("fixture-handler-secret"));
+
+    for (query, expected) in [
+        ("tag_ids=2,,1", "tag_ids"),
+        ("tag_ids=2,0,1", "tag_ids"),
+        ("statuses=draft,archived", "statuses"),
+    ] {
+        let (status, body) = response(
+            Request::get(format!(
+                "/shiju/skills/maintained?page=1&page_size=20&{query}"
+            ))
+            .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
+            .body(Body::empty())
+            .expect("maintained request"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(body["error"].as_str().unwrap_or_default().contains(expected));
+    }
 
     let (status, body) = response(
         Request::post("/shiju/skills/31/install")

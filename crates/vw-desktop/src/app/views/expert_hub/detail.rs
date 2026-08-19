@@ -3,12 +3,13 @@ use super::styles;
 use crate::app::assets::{self, Icon};
 use crate::app::message::SkillHubMessage;
 use crate::app::skill_hub::{
-    InstalledSkill, LoadState, SkillDetail, SkillVersion, SkillVersionAction, SkillVersionDirection,
+    InstalledSkill, LoadState, PublicDetailMode, SkillDetail, SkillDetailState, SkillVersion,
+    SkillVersionAction, SkillVersionDirection,
 };
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg::{self, Svg};
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, markdown, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length, Theme};
 use std::cmp::Ordering;
 
@@ -210,12 +211,84 @@ fn version_row(
     .into()
 }
 
-fn loaded_view(
-    app: &App,
+fn readme_mode_button(
+    label: &'static str,
+    mode: PublicDetailMode,
+    selected: bool,
+) -> Element<'static, Message> {
+    button(text(label).size(12))
+        .on_press(Message::SkillHub(SkillHubMessage::SetSkillReadmeMode(mode)))
+        .padding([7, 12])
+        .style(move |theme, status| styles::selected_tab_style(theme, status, selected))
+        .into()
+}
+
+fn readme_panel<'a>(app: &'a App, state: &'a SkillDetailState) -> Element<'a, Message> {
+    let body: Element<'a, Message> = match &state.readme {
+        LoadState::Loaded(content) if content.trim().is_empty() => {
+            text("当前版本暂无 README。").size(13).style(styles::muted_text_style).into()
+        }
+        LoadState::Loaded(content) if state.readme_mode == PublicDetailMode::Markdown => {
+            text(content).size(13).font(Font::default()).width(Length::Fill).into()
+        }
+        LoadState::Loaded(_) => {
+            let mut markdown_style = markdown::Style::from(&app.theme());
+            markdown_style.inline_code_font = Font::default();
+            markdown_style.code_block_font = Font::default();
+            let settings = markdown::Settings::with_text_size(14, markdown_style);
+            markdown::view(state.readme_items.iter(), settings).map(|_| Message::None).into()
+        }
+        LoadState::Error(error) => text(format!("README 加载失败：{error}"))
+            .size(13)
+            .style(styles::muted_text_style)
+            .into(),
+        LoadState::NeedsLogin => text("登录识矩账户后查看 README")
+            .size(13)
+            .style(styles::muted_text_style)
+            .into(),
+        LoadState::Idle | LoadState::Loading { .. } => text("README 正在加载…")
+            .size(13)
+            .style(styles::muted_text_style)
+            .into(),
+    };
+
+    container(
+        column![
+            row![
+                text("README")
+                    .size(18)
+                    .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() })
+                    .width(Length::Fill),
+                readme_mode_button(
+                    "可视化",
+                    PublicDetailMode::Visual,
+                    state.readme_mode == PublicDetailMode::Visual,
+                ),
+                readme_mode_button(
+                    "Markdown",
+                    PublicDetailMode::Markdown,
+                    state.readme_mode == PublicDetailMode::Markdown,
+                ),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
+            container(body).padding(18).width(Length::Fill).style(styles::inset_panel_style),
+        ]
+        .spacing(12),
+    )
+    .padding(22)
+    .width(Length::Fill)
+    .style(styles::detail_panel_style)
+    .into()
+}
+
+fn loaded_view<'a>(
+    app: &'a App,
+    state: &'a SkillDetailState,
     detail: &SkillDetail,
     versions: &[SkillVersion],
     versions_notice: Option<String>,
-) -> Element<'static, Message> {
+) -> Element<'a, Message> {
     let installed = is_installed(app, detail.id);
     let installed_version =
         installed_skill(app, detail.id).map(|skill| skill.installed_version.as_str());
@@ -375,6 +448,7 @@ fn loaded_view(
             .width(Length::Fill)
             .style(styles::divider_style),
         information,
+        readme_panel(app, state),
         versions_content,
     ]
     .spacing(20)
@@ -420,16 +494,34 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     };
     match (&state.detail, &state.versions) {
         (LoadState::Loaded(detail), LoadState::Loaded(versions)) => {
-            loaded_view(app, detail, versions, None)
+            loaded_view(app, state, detail, versions, None)
         }
         (LoadState::Loaded(detail), LoadState::Error(error)) => {
-            loaded_view(app, detail, &[], Some(format!("版本列表加载失败：{error}")))
+            loaded_view(
+                app,
+                state,
+                detail,
+                &[],
+                Some(format!("版本列表加载失败：{error}")),
+            )
         }
         (LoadState::Loaded(detail), LoadState::NeedsLogin) => {
-            loaded_view(app, detail, &[], Some("登录识矩账户后查看版本列表".to_string()))
+            loaded_view(
+                app,
+                state,
+                detail,
+                &[],
+                Some("登录识矩账户后查看版本列表".to_string()),
+            )
         }
         (LoadState::Loaded(detail), LoadState::Idle | LoadState::Loading { .. }) => {
-            loaded_view(app, detail, &[], Some("版本列表正在加载…".to_string()))
+            loaded_view(
+                app,
+                state,
+                detail,
+                &[],
+                Some("版本列表正在加载…".to_string()),
+            )
         }
         (LoadState::Error(error), _) => status_view("技能详情加载失败", error.clone()),
         _ => status_view("正在加载技能详情", "正在同步技能信息与可下载版本…".to_string()),

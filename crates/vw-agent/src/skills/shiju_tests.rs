@@ -8,6 +8,11 @@ use vw_gateway_client::{
     ShijuSystemSkillQuery,
 };
 
+#[test]
+fn shiju_skills_production_gateway_uses_sj_prefix() {
+    assert_eq!(SHIJU_SKILL_BASE_URL, "https://gateway.shiju.cloud/sj/skill-hub/api/v1/");
+}
+
 fn fixture(responses: Vec<(String, String)>) -> (String, thread::JoinHandle<Vec<String>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind SHIJU skill fixture");
     let address = listener.local_addr().expect("fixture address");
@@ -43,6 +48,49 @@ fn envelope(data: serde_json::Value) -> String {
 
 fn credential() -> ShijuCredential {
     ShijuCredential::new("fixture-private-skill-secret").expect("credential")
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_adapter_reads_markdown_readme_envelope() {
+    let content = "# 使用说明\n支持 UTF-8 正文。";
+    let (base, requests) = fixture(vec![(
+        "200 OK".to_string(),
+        envelope(serde_json::json!({
+            "skill_id": 31,
+            "version": "0.1.3",
+            "markdown": content
+        })),
+    )]);
+    let client = ShijuSkillClient::with_base_url(&base).expect("client");
+
+    let readme = client.readme(&credential(), 31).await.expect("README");
+
+    assert_eq!(readme.markdown.as_deref(), Some(content));
+    let requests = requests.join().expect("join fixture");
+    assert!(requests[0].starts_with("GET /skills/31/readme "));
+    assert!(
+        requests[0]
+            .to_ascii_lowercase()
+            .contains("x-api-key: fixture-private-skill-secret\r\n")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_adapter_accepts_missing_version_readme() {
+    let (base, requests) = fixture(vec![(
+        "200 OK".to_string(),
+        envelope(serde_json::json!({
+            "skill_id": 31,
+            "version": "0.1.3",
+            "markdown": null
+        })),
+    )]);
+    let client = ShijuSkillClient::with_base_url(&base).expect("client");
+
+    let readme = client.readme(&credential(), 31).await.expect("README");
+
+    assert_eq!(readme.markdown, None);
+    requests.join().expect("join fixture");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -138,7 +186,13 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
                 page: 4,
                 page_size: 20,
                 keyword: Some("个人".to_string()),
-                tag_id: Some(1),
+                tag_ids: vec![2, 1, 3, 4],
+                statuses: vec![
+                    "draft".to_string(),
+                    "pending_review".to_string(),
+                    "published".to_string(),
+                    "unpublished".to_string(),
+                ],
             },
         )
         .await
@@ -150,11 +204,11 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
     assert_eq!(detail.name, "视觉技能");
     let requests = requests.join().expect("join fixture");
     let expected = [
-        "GET /skills/search?page_size=20&q=%E8%A7%86%E8%A7%89+%26+%E5%88%86%E6%9E%90&cursor=cursor%2Fnext ",
+        "GET /marketplace/skills?page_size=20&q=%E8%A7%86%E8%A7%89+%26+%E5%88%86%E6%9E%90&cursor=cursor%2Fnext ",
         "GET /me/skills ",
         "GET /tenant/system-skills?page=2&page_size=20&name=%E8%A7%86%E8%A7%89&tag_id=2 ",
-        "GET /tenant/company-skills?page=3&page_size=20&keyword=%E5%88%86%E6%9E%90&tag_id=1&status=draft ",
-        "GET /me/maintained-skills?page=4&page_size=20&keyword=%E4%B8%AA%E4%BA%BA&tag_id=1 ",
+        "GET /tenant/skills?page=3&page_size=20&keyword=%E5%88%86%E6%9E%90&tag_id=1&statuses=draft ",
+        "GET /me/maintained-skills?page=4&page_size=20&keyword=%E4%B8%AA%E4%BA%BA&tag_ids=2%2C1%2C3%2C4&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished ",
         "GET /skills/31 ",
         "GET /skills/31/versions ",
     ];
@@ -164,6 +218,67 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
             request.to_ascii_lowercase().contains("x-api-key: fixture-private-skill-secret\r\n")
         );
         assert!(!request.lines().next().unwrap_or_default().contains(credential.expose()));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_adapter_uses_current_default_catalog_contracts() {
+    let page = envelope(serde_json::json!({
+        "items": [],
+        "page": 1,
+        "page_size": 20,
+        "total": 0
+    }));
+    let (base, requests) = fixture(vec![
+        ("200 OK".to_string(), page.clone()),
+        ("200 OK".to_string(), page.clone()),
+        ("200 OK".to_string(), page),
+    ]);
+    let client = ShijuSkillClient::with_base_url(&base).expect("client");
+    let credential = credential();
+
+    client
+        .search(
+            &credential,
+            &ShijuSkillSearchQuery { query: None, cursor: None, page_size: 20 },
+        )
+        .await
+        .expect("marketplace");
+    client
+        .company(
+            &credential,
+            &ShijuCompanySkillQuery {
+                page: 1,
+                page_size: 20,
+                keyword: None,
+                tag_id: None,
+                status: None,
+            },
+        )
+        .await
+        .expect("company");
+    client
+        .maintained(
+            &credential,
+            &ShijuMaintainedSkillQuery {
+                page: 1,
+                page_size: 20,
+                keyword: None,
+                tag_ids: Vec::new(),
+                statuses: Vec::new(),
+            },
+        )
+        .await
+        .expect("maintained");
+
+    let requests = requests.join().expect("join fixture");
+    let expected = [
+        "GET /marketplace/skills?page_size=20 ",
+        "GET /tenant/skills?page=1&page_size=20&statuses=draft%2Cpending_review%2Cpublished ",
+        "GET /me/maintained-skills?page=1&page_size=20 ",
+    ];
+    for (request, expected) in requests.iter().zip(expected) {
+        assert!(request.starts_with(expected), "{request}");
     }
 }
 
@@ -218,6 +333,39 @@ async fn shiju_skill_adapter_rejects_invalid_paging_and_upstream_errors_without_
         .await
         .expect_err("zero page");
     assert!(invalid.to_string().contains("page"));
+
+    let invalid = client.readme(&credential, 0).await.expect_err("zero skill ID");
+    assert!(invalid.to_string().contains("skill id"));
+
+    let invalid = client
+        .maintained(
+            &credential,
+            &ShijuMaintainedSkillQuery {
+                page: 1,
+                page_size: 20,
+                keyword: None,
+                tag_ids: vec![2, 0, 1],
+                statuses: vec!["draft".to_string()],
+            },
+        )
+        .await
+        .expect_err("zero tag ID");
+    assert!(invalid.to_string().contains("tag_ids"));
+
+    let invalid = client
+        .maintained(
+            &credential,
+            &ShijuMaintainedSkillQuery {
+                page: 1,
+                page_size: 20,
+                keyword: None,
+                tag_ids: vec![2, 1],
+                statuses: vec!["archived".to_string()],
+            },
+        )
+        .await
+        .expect_err("unknown status");
+    assert!(invalid.to_string().contains("statuses"));
 
     let (base, requests) = fixture(vec![
         (

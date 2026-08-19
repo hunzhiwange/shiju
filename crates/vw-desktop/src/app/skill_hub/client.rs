@@ -7,7 +7,7 @@ use std::error::Error;
 use std::fmt;
 use std::time::Duration;
 
-const SKILL_HUB_BASE_URL: &str = "https://gateway.shiju.cloud/skill-hub/api/v1/";
+pub(super) const SKILL_HUB_BASE_URL: &str = "https://gateway.shiju.cloud/sj/skill-hub/api/v1/";
 
 #[derive(Clone)]
 pub(crate) struct SkillHubClient {

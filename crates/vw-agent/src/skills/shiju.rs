@@ -8,12 +8,16 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use vw_gateway_client::{
     ShijuCompanySkillQuery, ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
-    ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillSearchQuery,
-    ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
+    ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
+    ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
+    ShijuTenantSkillDto,
 };
 
-const SHIJU_SKILL_BASE_URL: &str = "https://gateway.shiju.cloud/skill-hub/api/v1/";
+const SHIJU_SKILL_BASE_URL: &str = "https://gateway.shiju.cloud/sj/skill-hub/api/v1/";
 const MAX_PAGE_SIZE: u32 = 100;
+const VISIBLE_SKILL_STATUSES: &str = "draft,pending_review,published";
+const MAINTAINED_SKILL_STATUSES: [&str; 4] =
+    ["draft", "pending_review", "published", "unpublished"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub(crate) struct ShijuSkillInstallRequest {
@@ -100,7 +104,7 @@ impl ShijuSkillClient {
         let mut parameters = vec![("page_size", query.page_size.to_string())];
         push_text_filter(&mut parameters, "q", query.query.as_deref());
         push_text_filter(&mut parameters, "cursor", query.cursor.as_deref());
-        self.get("skills/search", &parameters, credential).await
+        self.get("marketplace/skills", &parameters, credential).await
     }
 
     pub(crate) async fn installed(
@@ -136,8 +140,11 @@ impl ShijuSkillClient {
         let mut parameters = page_parameters(query.page, query.page_size);
         push_text_filter(&mut parameters, "keyword", query.keyword.as_deref());
         push_tag_filter(&mut parameters, query.tag_id);
-        push_text_filter(&mut parameters, "status", query.status.as_deref());
-        self.get("tenant/company-skills", &parameters, credential).await
+        parameters.push((
+            "statuses",
+            query.status.as_deref().unwrap_or(VISIBLE_SKILL_STATUSES).to_string(),
+        ));
+        self.get("tenant/skills", &parameters, credential).await
     }
 
     pub(crate) async fn maintained(
@@ -147,10 +154,12 @@ impl ShijuSkillClient {
     ) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, ShijuSkillError> {
         validate_page(query.page, query.page_size)?;
         validate_optional_text(query.keyword.as_deref(), "keyword")?;
-        validate_tag_id(query.tag_id)?;
+        validate_tag_ids(&query.tag_ids)?;
+        validate_statuses(&query.statuses)?;
         let mut parameters = page_parameters(query.page, query.page_size);
         push_text_filter(&mut parameters, "keyword", query.keyword.as_deref());
-        push_tag_filter(&mut parameters, query.tag_id);
+        push_tag_ids_filter(&mut parameters, &query.tag_ids);
+        push_statuses_filter(&mut parameters, &query.statuses);
         self.get("me/maintained-skills", &parameters, credential).await
     }
 
@@ -161,6 +170,15 @@ impl ShijuSkillClient {
     ) -> Result<ShijuSkillDetailDto, ShijuSkillError> {
         validate_skill_id(skill_id)?;
         self.get(&format!("skills/{skill_id}"), &[], credential).await
+    }
+
+    pub(crate) async fn readme(
+        &self,
+        credential: &ShijuCredential,
+        skill_id: u64,
+    ) -> Result<ShijuSkillReadmeDto, ShijuSkillError> {
+        validate_skill_id(skill_id)?;
+        self.get(&format!("skills/{skill_id}/readme"), &[], credential).await
     }
 
     pub(crate) async fn versions(
@@ -290,10 +308,10 @@ async fn decode_response<T: DeserializeOwned>(
     if !status.is_success() {
         return Err(http_error(status));
     }
-    let envelope = response
-        .json::<ApiEnvelope<T>>()
-        .await
-        .map_err(|_| ShijuSkillError::upstream("SHIJU skill upstream response is invalid"))?;
+    let envelope = response.json::<ApiEnvelope<T>>().await.map_err(|error| {
+        tracing::warn!(error = %error, "failed to decode SHIJU skill upstream response");
+        ShijuSkillError::upstream("SHIJU skill upstream response is invalid")
+    })?;
     if envelope.code != 200 {
         return Err(business_error(envelope.code));
     }
@@ -353,6 +371,26 @@ fn validate_tag_id(tag_id: Option<u64>) -> Result<(), ShijuSkillError> {
     }
 }
 
+fn validate_tag_ids(tag_ids: &[u64]) -> Result<(), ShijuSkillError> {
+    if tag_ids.contains(&0) {
+        Err(ShijuSkillError::invalid(
+            "SHIJU skill tag_ids must contain only positive integers",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_statuses(statuses: &[String]) -> Result<(), ShijuSkillError> {
+    if statuses.iter().any(|status| !MAINTAINED_SKILL_STATUSES.contains(&status.as_str())) {
+        Err(ShijuSkillError::invalid(
+            "SHIJU skill statuses contains an unsupported value",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn validate_optional_text(value: Option<&str>, name: &str) -> Result<(), ShijuSkillError> {
     if value.is_some_and(|value| value.trim().is_empty()) {
         Err(ShijuSkillError::invalid(format!("SHIJU skill {name} filter cannot be blank")))
@@ -374,6 +412,19 @@ fn push_text_filter<'a>(query: &mut Vec<(&'a str, String)>, key: &'a str, value:
 fn push_tag_filter(query: &mut Vec<(&str, String)>, tag_id: Option<u64>) {
     if let Some(tag_id) = tag_id {
         query.push(("tag_id", tag_id.to_string()));
+    }
+}
+
+fn push_tag_ids_filter(query: &mut Vec<(&str, String)>, tag_ids: &[u64]) {
+    if !tag_ids.is_empty() {
+        let tag_ids = tag_ids.iter().map(u64::to_string).collect::<Vec<_>>().join(",");
+        query.push(("tag_ids", tag_ids));
+    }
+}
+
+fn push_statuses_filter(query: &mut Vec<(&str, String)>, statuses: &[String]) {
+    if !statuses.is_empty() {
+        query.push(("statuses", statuses.join(",")));
     }
 }
 

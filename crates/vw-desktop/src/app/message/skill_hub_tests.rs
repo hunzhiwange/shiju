@@ -1,20 +1,21 @@
 use super::SkillHubMessage;
 use super::skill_hub::{
     ShijuDownloadChunk, agent_install_text, dispatch_download_with, dispatch_shiju_download_with,
-    open_shiju_install_dir_with, write_shiju_download_chunks,
+    mine_query, open_shiju_install_dir_with, write_shiju_download_chunks,
 };
 use crate::app::account::{
     AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount,
 };
 use crate::app::skill_hub::{
-    CursorPage, InstalledSkill, LoadState, MarketplaceSkill, PackageVersionCacheEntry, Page,
-    ShijuDirectInstallState, ShijuInstallItem, ShijuInstallation, ShijuInstallationsReport,
-    ShijuKeySyncOutcome, ShijuKeySyncReport, ShijuMultiInstallReport, ShijuPackageId,
-    ShijuPackageRelease, ShijuPackageStatus, ShijuTargetInstallation, ShijuTargetKeySync,
-    ShijuTargetUninstall, ShijuUninstallReport, SkillActionKind, SkillCacheSyncReport,
-    SkillCacheSyncState, SkillDetail, SkillDetailState, SkillDownloadUrl, SkillInstallScope,
-    SkillInstallSelection, SkillInstallTarget, SkillTag, SkillVersion, SkillVersionAction,
-    SkillVersionDirection, resolve_skill_destinations,
+    CursorPage, InstalledSkill, LoadState, MarketplaceSkill, MineFilterMenu, MineSkillStatus,
+    PackageVersionCacheEntry, Page, PublicDetailMode, ShijuDirectInstallState, ShijuInstallItem,
+    ShijuInstallation,
+    ShijuInstallationsReport, ShijuKeySyncOutcome, ShijuKeySyncReport, ShijuMultiInstallReport,
+    ShijuPackageId, ShijuPackageRelease, ShijuPackageStatus, ShijuTargetInstallation,
+    ShijuTargetKeySync, ShijuTargetUninstall, ShijuUninstallReport, SkillActionKind,
+    SkillCacheSyncReport, SkillCacheSyncState, SkillDetail, SkillDetailState, SkillDownloadUrl,
+    SkillHubError, SkillInstallScope, SkillInstallSelection, SkillInstallTarget, SkillTag,
+    SkillVersion, SkillVersionAction, SkillVersionDirection, resolve_skill_destinations,
 };
 use crate::app::skill_hub::{ExpertHubSection, SkillTab};
 use crate::app::state::ToastKind;
@@ -90,6 +91,7 @@ fn private_shiju_tabs_dispatch_gateway_requests() {
 #[test]
 fn private_shiju_detail_and_actions_use_gateway() {
     let _ = crate::app::session_gateway::gateway_shiju_skill_detail_async;
+    let _ = crate::app::session_gateway::gateway_shiju_skill_readme_async;
     let _ = crate::app::session_gateway::gateway_shiju_skill_versions_async;
     let _ = crate::app::session_gateway::gateway_shiju_skill_remote_install_async;
     let _ = crate::app::session_gateway::gateway_shiju_skill_remote_install_version_async;
@@ -121,6 +123,9 @@ fn business_skill_version_actions_use_server_upgrade_flag_and_immutable_version_
         skill_id: 7,
         generation: 1,
         detail: LoadState::Loaded(skill_detail(7)),
+        readme: LoadState::Loaded(String::new()),
+        readme_mode: PublicDetailMode::Visual,
+        readme_items: Vec::new(),
         versions: LoadState::Loaded(vec![skill_version(7)]),
     });
     let target = SkillVersionAction {
@@ -494,6 +499,62 @@ fn skill_hub_list_filters_submit_reset_and_restart_pagination() {
 }
 
 #[test]
+fn mine_filters_toggle_without_loading_then_submit_and_reset() {
+    let (mut app, _) = App::new();
+    app.account.replace_repository(repository_with_account("account-secret", "company-1"));
+    let _ = app.update(Message::SkillHub(SkillHubMessage::SelectSkillTab(SkillTab::Mine)));
+    let generation_before_drafts = app.expert_hub.request_generation;
+    app.expert_hub.mine_page = 3;
+
+    assert_eq!(app.update(Message::SkillHub(SkillHubMessage::ToggleMineTagFilterMenu)).units(), 0);
+    assert_eq!(app.expert_hub.mine_filter_menu, Some(MineFilterMenu::Tags));
+    let _ = app.update(Message::SkillHub(SkillHubMessage::MineTagToggled(9)));
+    let _ = app.update(Message::SkillHub(SkillHubMessage::MineTagToggled(2)));
+    let _ =
+        app.update(Message::SkillHub(SkillHubMessage::MineStatusToggled(MineSkillStatus::Draft)));
+    assert_eq!(app.expert_hub.request_generation, generation_before_drafts);
+    assert_eq!(app.expert_hub.mine_tag_ids_draft, vec![9, 2]);
+    assert!(!app.expert_hub.mine_statuses_draft.contains(&MineSkillStatus::Draft));
+
+    let submitted = app.update(Message::SkillHub(SkillHubMessage::FiltersSubmitted));
+    assert_eq!(submitted.units(), 1);
+    assert_eq!(app.expert_hub.mine_page, 1);
+    assert_eq!(app.expert_hub.submitted_mine_tag_ids, vec![9, 2]);
+    assert!(!app.expert_hub.submitted_mine_statuses.contains(&MineSkillStatus::Draft));
+    assert_eq!(app.expert_hub.mine_filter_menu, None);
+
+    let _ = app.update(Message::SkillHub(SkillHubMessage::FiltersReset));
+    assert!(app.expert_hub.mine_tag_ids_draft.is_empty());
+    assert_eq!(app.expert_hub.mine_statuses_draft, MineSkillStatus::ALL);
+    assert_eq!(app.expert_hub.submitted_mine_statuses, MineSkillStatus::ALL);
+    assert_eq!(app.expert_hub.mine_page, 1);
+}
+
+#[test]
+fn mine_query_uses_only_submitted_multi_value_filters() {
+    let (mut app, _) = App::new();
+    app.expert_hub.mine_page = 4;
+    app.expert_hub.mine_filter.keyword_draft = "未提交".to_string();
+    app.expert_hub.mine_filter.submitted_keyword = "已提交".to_string();
+    app.expert_hub.mine_tag_ids_draft = vec![7];
+    app.expert_hub.submitted_mine_tag_ids = vec![9, 2];
+    app.expert_hub.mine_statuses_draft = vec![MineSkillStatus::Draft];
+    app.expert_hub.submitted_mine_statuses =
+        vec![MineSkillStatus::PendingReview, MineSkillStatus::Unpublished];
+
+    let query = mine_query(&app);
+
+    assert_eq!(query.page, 4);
+    assert_eq!(query.keyword.as_deref(), Some("已提交"));
+    assert_eq!(query.tag_ids, vec![9, 2]);
+    assert_eq!(query.statuses, vec!["pending_review", "unpublished"]);
+
+    app.expert_hub.reset_mine_filters();
+    let reset_query = mine_query(&app);
+    assert_eq!(reset_query.statuses, vec!["draft", "pending_review", "published", "unpublished"]);
+}
+
+#[test]
 fn installed_skill_load_does_not_invalidate_marketplace_results() {
     let (mut app, _) = App::new();
     app.account.replace_repository(repository_with_account("account-secret", "company-1"));
@@ -828,6 +889,74 @@ fn skill_hub_detail_ignores_late_results_and_close_preserves_list() {
     assert!(app.expert_hub.detail.is_none());
     assert!(app.expert_hub.version_confirmation.is_none());
     assert!(matches!(app.expert_hub.marketplace, LoadState::Loaded(_)));
+}
+
+#[test]
+fn skill_detail_readme_ignores_stale_results_and_preserves_detail() {
+    let (mut app, _) = App::new();
+    app.account.replace_repository(repository_with_account("account-secret", "company-1"));
+    app.expert_hub.account_id =
+        app.account.active_account().map(|account| account.id().to_string());
+
+    let _ = app.update(Message::SkillHub(SkillHubMessage::OpenSkillDetail(7)));
+    let generation = app.expert_hub.detail.as_ref().unwrap().generation;
+    let account_id = app.expert_hub.account_id.clone().unwrap();
+    let requests = app.update(Message::SkillHub(SkillHubMessage::SkillDetailLoaded {
+        generation,
+        account_id: account_id.clone(),
+        skill_id: 7,
+        result: Ok(skill_detail(7)),
+    }));
+    assert_eq!(requests.units(), 2, "versions and README should load independently");
+    assert!(matches!(
+        app.expert_hub.detail.as_ref().unwrap().readme,
+        LoadState::Loading { generation: active } if active == generation
+    ));
+
+    for (result_generation, result_account_id, result_skill_id) in [
+        (generation.wrapping_sub(1), account_id.clone(), 7),
+        (generation, "other-account".to_string(), 7),
+        (generation, account_id.clone(), 8),
+    ] {
+        let _ = app.update(Message::SkillHub(SkillHubMessage::SkillReadmeLoaded {
+            generation: result_generation,
+            account_id: result_account_id,
+            skill_id: result_skill_id,
+            result: Err(SkillHubError::from("stale README failure".to_string())),
+        }));
+    }
+    let detail = app.expert_hub.detail.as_ref().unwrap();
+    assert!(matches!(detail.detail, LoadState::Loaded(_)));
+    assert!(matches!(detail.readme, LoadState::Loading { .. }));
+
+    let _ = app.update(Message::SkillHub(SkillHubMessage::SkillReadmeLoaded {
+        generation,
+        account_id: account_id.clone(),
+        skill_id: 7,
+        result: Ok("# 使用说明\n支持 UTF-8 正文。".to_string()),
+    }));
+    let detail = app.expert_hub.detail.as_ref().unwrap();
+    assert!(matches!(&detail.readme, LoadState::Loaded(content) if content.starts_with('#')));
+    assert!(!detail.readme_items.is_empty());
+    assert!(matches!(detail.detail, LoadState::Loaded(_)));
+
+    let _ = app.update(Message::SkillHub(SkillHubMessage::SetSkillReadmeMode(
+        PublicDetailMode::Markdown,
+    )));
+    assert_eq!(
+        app.expert_hub.detail.as_ref().unwrap().readme_mode,
+        PublicDetailMode::Markdown
+    );
+
+    let _ = app.update(Message::SkillHub(SkillHubMessage::SkillReadmeLoaded {
+        generation,
+        account_id,
+        skill_id: 7,
+        result: Err(SkillHubError::from("README unavailable".to_string())),
+    }));
+    let detail = app.expert_hub.detail.as_ref().unwrap();
+    assert!(matches!(&detail.readme, LoadState::Error(error) if error == "README unavailable"));
+    assert!(matches!(detail.detail, LoadState::Loaded(_)));
 }
 
 #[test]

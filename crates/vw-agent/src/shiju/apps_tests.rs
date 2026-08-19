@@ -7,6 +7,11 @@ use super::*;
 const CREDENTIAL: &str = "fixture-app-credential-secret";
 const INSTALLATION_ID: &str = "01K1APP0000000000000000001";
 
+#[test]
+fn shiju_apps_production_gateway_uses_sj_prefix() {
+    assert_eq!(PRODUCTION_BASE_URL, "https://gateway.shiju.cloud/sj/app-platform/api/");
+}
+
 struct FixtureResponse {
     status: u16,
     headers: Vec<(&'static str, String)>,

@@ -1,20 +1,22 @@
 use crate::app::session_gateway::{
     gateway_shiju_company_skills_async, gateway_shiju_maintained_skills_async,
     gateway_shiju_skill_detail_async, gateway_shiju_skill_installed_async,
+    gateway_shiju_skill_readme_async,
     gateway_shiju_skill_remote_install_async, gateway_shiju_skill_remote_install_version_async,
     gateway_shiju_skill_remote_uninstall_async, gateway_shiju_skill_search_async,
     gateway_shiju_skill_versions_async, gateway_shiju_system_skills_async,
 };
 use crate::app::skill_hub::{
-    CursorPage, ExpertHubSection, InstalledSkill, LoadState, MarketplaceSkill,
-    PackageVersionCacheEntry, Page, ShijuDirectInstallState, ShijuInstallGuideState,
-    ShijuInstallationsReport, ShijuKeySyncOutcome, ShijuKeySyncReport, ShijuMultiInstallReport,
-    ShijuPackageId, ShijuPackageRelease, ShijuUninstallReport, SkillActionKind,
-    SkillCacheSyncReport, SkillDetail, SkillDetailState, SkillHubClient, SkillHubError,
-    SkillInstallScope, SkillInstallSelection, SkillInstallTarget, SkillTab, SkillVersion,
-    SkillVersionAction, SkillVersionDirection, SystemSkill, TenantSkill,
+    CursorPage, ExpertHubSection, InstalledSkill, LoadState, MarketplaceSkill, MineFilterMenu,
+    MineSkillStatus, PackageVersionCacheEntry, Page, PublicDetailMode, ShijuDirectInstallState,
+    ShijuInstallGuideState, ShijuInstallationsReport, ShijuKeySyncOutcome, ShijuKeySyncReport,
+    ShijuMultiInstallReport, ShijuPackageId, ShijuPackageRelease, ShijuUninstallReport,
+    SkillActionKind, SkillCacheSyncReport, SkillDetail, SkillDetailState, SkillHubClient,
+    SkillHubError, SkillInstallScope, SkillInstallSelection, SkillInstallTarget, SkillTab,
+    SkillVersion, SkillVersionAction, SkillVersionDirection, SystemSkill, TenantSkill,
     install_shiju_archive_for_targets, package_version_cache_path, resolve_skill_destinations,
-    shiju_installation, shiju_installations_for_targets, sync_business_skill_cache,
+    parse_public_markdown, shiju_installation, shiju_installations_for_targets,
+    sync_business_skill_cache,
     sync_shiju_key_for_targets, uninstall_shiju_for_targets, write_package_version_cache,
 };
 use crate::app::{App, AppTab, Message, Screen};
@@ -128,6 +130,11 @@ pub(crate) enum SkillHubMessage {
     FilterKeywordChanged(String),
     FilterTagChanged(Option<u64>),
     CompanyStatusChanged(Option<String>),
+    ToggleMineTagFilterMenu,
+    ToggleMineStatusFilterMenu,
+    CloseMineFilterMenu,
+    MineTagToggled(u64),
+    MineStatusToggled(MineSkillStatus),
     FiltersSubmitted,
     FiltersReset,
     PreviousPage,
@@ -138,11 +145,18 @@ pub(crate) enum SkillHubMessage {
     RefreshInstalledSkills,
     OpenSkillDetail(u64),
     CloseSkillDetail,
+    SetSkillReadmeMode(PublicDetailMode),
     SkillDetailLoaded {
         generation: u64,
         account_id: String,
         skill_id: u64,
         result: Result<SkillDetail, SkillHubError>,
+    },
+    SkillReadmeLoaded {
+        generation: u64,
+        account_id: String,
+        skill_id: u64,
+        result: Result<String, SkillHubError>,
     },
     SkillVersionsLoaded {
         generation: u64,
@@ -314,6 +328,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
         }
         SkillHubMessage::SelectSection(section) => {
             app.expert_hub.install_guide.close();
+            app.expert_hub.close_mine_filter_menu();
             if app.expert_hub.skill_tab == SkillTab::Install {
                 app.expert_hub.skill_tab = SkillTab::Marketplace;
             }
@@ -329,6 +344,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                 return open_install_guide(app);
             }
             app.expert_hub.install_guide.close();
+            app.expert_hub.close_mine_filter_menu();
             app.expert_hub.skill_tab = tab;
             load_current_tab(app)
         }
@@ -338,6 +354,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
         }
         SkillHubMessage::SearchSubmitted => {
             app.expert_hub.install_guide.close();
+            app.expert_hub.close_mine_filter_menu();
             app.expert_hub.skill_tab = SkillTab::Marketplace;
             app.expert_hub.submitted_search = app.expert_hub.search_draft.trim().to_string();
             load_current_tab(app)
@@ -355,7 +372,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             match app.expert_hub.skill_tab {
                 SkillTab::System => app.expert_hub.system_filter.tag_id_draft = tag_id,
                 SkillTab::Company => app.expert_hub.company_filter.tag_id_draft = tag_id,
-                SkillTab::Mine => app.expert_hub.mine_filter.tag_id_draft = tag_id,
+                SkillTab::Mine => {}
                 SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => {}
             }
             Task::none()
@@ -363,6 +380,35 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
         SkillHubMessage::CompanyStatusChanged(status) => {
             if app.expert_hub.skill_tab == SkillTab::Company {
                 app.expert_hub.company_status_draft = status;
+            }
+            Task::none()
+        }
+        SkillHubMessage::ToggleMineTagFilterMenu => {
+            if app.expert_hub.skill_tab == SkillTab::Mine {
+                app.expert_hub.toggle_mine_filter_menu(MineFilterMenu::Tags);
+            }
+            Task::none()
+        }
+        SkillHubMessage::ToggleMineStatusFilterMenu => {
+            if app.expert_hub.skill_tab == SkillTab::Mine {
+                app.expert_hub.toggle_mine_filter_menu(MineFilterMenu::Statuses);
+            }
+            Task::none()
+        }
+        SkillHubMessage::CloseMineFilterMenu => {
+            app.expert_hub.close_mine_filter_menu();
+            Task::none()
+        }
+        SkillHubMessage::MineTagToggled(tag_id) => {
+            if app.expert_hub.skill_tab == SkillTab::Mine {
+                let option_order = mine_tag_option_order(app);
+                app.expert_hub.toggle_mine_tag(tag_id, &option_order);
+            }
+            Task::none()
+        }
+        SkillHubMessage::MineStatusToggled(status) => {
+            if app.expert_hub.skill_tab == SkillTab::Mine {
+                app.expert_hub.toggle_mine_status(status);
             }
             Task::none()
         }
@@ -379,7 +425,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                     app.expert_hub.company_page = 1;
                 }
                 SkillTab::Mine => {
-                    app.expert_hub.mine_filter.submit();
+                    app.expert_hub.submit_mine_filters();
                     app.expert_hub.mine_page = 1;
                 }
                 SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => {
@@ -405,7 +451,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                     app.expert_hub.company_page = 1;
                 }
                 SkillTab::Mine => {
-                    app.expert_hub.mine_filter.reset();
+                    app.expert_hub.reset_mine_filters();
                     app.expert_hub.mine_page = 1;
                 }
                 SkillTab::Installed | SkillTab::Install => return Task::none(),
@@ -428,7 +474,12 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                 }
                 _ => false,
             };
-            if changed { load_current_tab(app) } else { Task::none() }
+            if changed {
+                app.expert_hub.close_mine_filter_menu();
+                load_current_tab(app)
+            } else {
+                Task::none()
+            }
         }
         SkillHubMessage::NextPage => {
             let changed = match app.expert_hub.skill_tab {
@@ -446,7 +497,12 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                 }
                 _ => false,
             };
-            if changed { load_current_tab(app) } else { Task::none() }
+            if changed {
+                app.expert_hub.close_mine_filter_menu();
+                load_current_tab(app)
+            } else {
+                Task::none()
+            }
         }
         SkillHubMessage::Retry | SkillHubMessage::ReloadAfterAccountChange => {
             if app.expert_hub.install_guide.open {
@@ -463,6 +519,12 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             app.expert_hub.cancel_version_action();
             Task::none()
         }
+        SkillHubMessage::SetSkillReadmeMode(mode) => {
+            if let Some(detail) = app.expert_hub.detail.as_mut() {
+                detail.readme_mode = mode;
+            }
+            Task::none()
+        }
         SkillHubMessage::SkillDetailLoaded { generation, account_id, skill_id, result } => {
             if !detail_response_is_current(app, generation, &account_id, skill_id) {
                 return Task::none();
@@ -476,13 +538,23 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                     let Some(account) = app.account.active_account() else {
                         return Task::none();
                     };
-                    load_skill_versions(
-                        account.skill_hub_credential(),
-                        generation,
-                        account_id,
-                        skill_id,
-                        canonical_skill_id,
-                    )
+                    let credential = account.skill_hub_credential();
+                    Task::batch([
+                        load_skill_versions(
+                            credential.clone(),
+                            generation,
+                            account_id.clone(),
+                            skill_id,
+                            canonical_skill_id,
+                        ),
+                        load_skill_readme(
+                            credential,
+                            generation,
+                            account_id,
+                            skill_id,
+                            canonical_skill_id,
+                        ),
+                    ])
                 }
                 Err(error) => {
                     if let Some(detail) = app.expert_hub.detail.as_mut() {
@@ -491,6 +563,23 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                     Task::none()
                 }
             }
+        }
+        SkillHubMessage::SkillReadmeLoaded { generation, account_id, skill_id, result } => {
+            if detail_response_is_current(app, generation, &account_id, skill_id)
+                && let Some(detail) = app.expert_hub.detail.as_mut()
+            {
+                match result {
+                    Ok(content) => {
+                        detail.readme_items = parse_public_markdown(&content);
+                        detail.readme = LoadState::Loaded(content);
+                    }
+                    Err(error) => {
+                        detail.readme_items.clear();
+                        detail.readme = LoadState::Error(error.to_string());
+                    }
+                }
+            }
+            Task::none()
         }
         SkillHubMessage::SkillVersionsLoaded { generation, account_id, skill_id, result } => {
             if detail_response_is_current(app, generation, &account_id, skill_id)
@@ -1420,6 +1509,9 @@ fn open_skill_detail(app: &mut App, skill_id: u64) -> Task<Message> {
         skill_id,
         generation,
         detail: LoadState::Loading { generation },
+        readme: LoadState::Loading { generation },
+        readme_mode: PublicDetailMode::Visual,
+        readme_items: Vec::new(),
         versions: LoadState::Loading { generation },
     });
     Task::perform(
@@ -1437,6 +1529,34 @@ fn open_skill_detail(app: &mut App, skill_id: u64) -> Task<Message> {
                 generation,
                 account_id,
                 skill_id,
+                result,
+            })
+        },
+    )
+}
+
+fn load_skill_readme(
+    credential: crate::app::account::SecretSkey,
+    generation: u64,
+    account_id: String,
+    requested_skill_id: u64,
+    canonical_skill_id: u64,
+) -> Task<Message> {
+    Task::perform(
+        async move {
+            let credential = credential
+                .gateway_credential()
+                .map_err(|error| SkillHubError::from(error.to_string()))?;
+            gateway_shiju_skill_readme_async(&credential, canonical_skill_id)
+                .await
+                .map(|readme| readme.markdown.unwrap_or_default())
+                .map_err(SkillHubError::from)
+        },
+        move |result| {
+            Message::SkillHub(SkillHubMessage::SkillReadmeLoaded {
+                generation,
+                account_id,
+                skill_id: requested_skill_id,
                 result,
             })
         },
@@ -1946,6 +2066,39 @@ fn mark_current_needs_login(app: &mut App) {
     }
 }
 
+fn mine_tag_option_order(app: &App) -> Vec<u64> {
+    let mut ids = Vec::new();
+    if let LoadState::Loaded(page) = &app.expert_hub.mine {
+        for tag in page.items.iter().flat_map(|skill| skill.tags.iter()) {
+            if !ids.contains(&tag.id) {
+                ids.push(tag.id);
+            }
+        }
+    }
+    for selected_id in &app.expert_hub.mine_tag_ids_draft {
+        if !ids.contains(selected_id) {
+            ids.push(*selected_id);
+        }
+    }
+    ids
+}
+
+pub(super) fn mine_query(app: &App) -> ShijuMaintainedSkillQuery {
+    let keyword = app.expert_hub.mine_filter.submitted_keyword.clone();
+    ShijuMaintainedSkillQuery {
+        page: app.expert_hub.mine_page,
+        page_size: SHIJU_PAGE_SIZE,
+        keyword: (!keyword.is_empty()).then_some(keyword),
+        tag_ids: app.expert_hub.submitted_mine_tag_ids.clone(),
+        statuses: app
+            .expert_hub
+            .submitted_mine_statuses
+            .iter()
+            .map(|status| status.as_str().to_string())
+            .collect(),
+    }
+}
+
 fn load_current_tab(app: &mut App) -> Task<Message> {
     if app.expert_hub.skill_tab == SkillTab::Installed {
         return load_installed_skills(app, true);
@@ -2038,20 +2191,12 @@ fn load_current_tab(app: &mut App) -> Task<Message> {
         }
         SkillTab::Mine => {
             app.expert_hub.mine = LoadState::Loading { generation };
-            let page = app.expert_hub.mine_page;
-            let keyword = app.expert_hub.mine_filter.submitted_keyword.clone();
-            let tag_id = app.expert_hub.mine_filter.submitted_tag_id;
+            let query = mine_query(app);
             Task::perform(
                 async move {
                     let credential = credential
                         .gateway_credential()
                         .map_err(|error| SkillHubError::from(error.to_string()))?;
-                    let query = ShijuMaintainedSkillQuery {
-                        page,
-                        page_size: SHIJU_PAGE_SIZE,
-                        keyword: (!keyword.is_empty()).then_some(keyword),
-                        tag_id,
-                    };
                     gateway_shiju_maintained_skills_async(&credential, &query)
                         .await
                         .map(Page::from)

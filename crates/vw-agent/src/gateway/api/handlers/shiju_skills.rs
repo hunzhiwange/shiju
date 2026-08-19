@@ -10,8 +10,8 @@ use serde::Deserialize;
 use vw_gateway_client::{
     SHIJU_CREDENTIAL_HEADER, ShijuCompanySkillQuery, ShijuCredential, ShijuInstalledSkillDto,
     ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
-    ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
-    ShijuTenantSkillDto,
+    ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto,
+    ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
 
 use crate::gateway::ApiError;
@@ -37,6 +37,7 @@ where
         .route("/shiju/skills/company", get(company_get))
         .route("/shiju/skills/maintained", get(maintained_get))
         .route("/shiju/skills/{skill_id}", get(detail_get))
+        .route("/shiju/skills/{skill_id}/readme", get(readme_get))
         .route("/shiju/skills/{skill_id}/versions", get(versions_get))
         .route("/shiju/skills/{skill_id}/install", post(install_post).delete(install_delete))
         .layer(Extension(Arc::new(client)))
@@ -72,7 +73,8 @@ struct MaintainedParams {
     page: u32,
     page_size: u32,
     keyword: Option<String>,
-    tag_id: Option<u64>,
+    tag_ids: Option<String>,
+    statuses: Option<String>,
 }
 
 async fn search_get(
@@ -138,7 +140,8 @@ async fn maintained_get(
         page: params.page,
         page_size: params.page_size,
         keyword: params.keyword,
-        tag_id: params.tag_id,
+        tag_ids: parse_tag_ids(params.tag_ids.as_deref())?,
+        statuses: parse_statuses(params.statuses.as_deref())?,
     };
     client.maintained(&credential, &query).await.map(Json).map_err(map_error)
 }
@@ -150,6 +153,15 @@ async fn detail_get(
 ) -> Result<Json<ShijuSkillDetailDto>, ApiError> {
     let credential = credential(&headers)?;
     client.detail(&credential, skill_id).await.map(Json).map_err(map_error)
+}
+
+async fn readme_get(
+    Extension(client): Extension<Arc<ShijuSkillClient>>,
+    headers: HeaderMap,
+    Path(skill_id): Path<u64>,
+) -> Result<Json<ShijuSkillReadmeDto>, ApiError> {
+    let credential = credential(&headers)?;
+    client.readme(&credential, skill_id).await.map(Json).map_err(map_error)
 }
 
 async fn versions_get(
@@ -201,6 +213,55 @@ fn map_error(error: ShijuSkillError) -> ApiError {
     } else {
         ApiError::internal("SHIJU skill upstream request failed")
     }
+}
+
+fn parse_tag_ids(value: Option<&str>) -> Result<Vec<u64>, ApiError> {
+    let Some(value) = value else {
+        return Ok(Vec::new());
+    };
+    value
+        .split(',')
+        .map(|tag_id| {
+            let tag_id = tag_id.trim();
+            if tag_id.is_empty() {
+                return Err(ApiError::bad_request("SHIJU skill tag_ids cannot contain empty items"));
+            }
+            let tag_id = tag_id.parse::<u64>().map_err(|_| {
+                ApiError::bad_request("SHIJU skill tag_ids must contain only positive integers")
+            })?;
+            if tag_id == 0 {
+                return Err(ApiError::bad_request(
+                    "SHIJU skill tag_ids must contain only positive integers",
+                ));
+            }
+            Ok(tag_id)
+        })
+        .collect()
+}
+
+fn parse_statuses(value: Option<&str>) -> Result<Vec<String>, ApiError> {
+    const ALLOWED_STATUSES: [&str; 4] = ["draft", "pending_review", "published", "unpublished"];
+
+    let Some(value) = value else {
+        return Ok(Vec::new());
+    };
+    value
+        .split(',')
+        .map(|status| {
+            let status = status.trim();
+            if status.is_empty() {
+                return Err(ApiError::bad_request(
+                    "SHIJU skill statuses cannot contain empty items",
+                ));
+            }
+            if !ALLOWED_STATUSES.contains(&status) {
+                return Err(ApiError::bad_request(format!(
+                    "SHIJU skill statuses contains unsupported value: {status}"
+                )));
+            }
+            Ok(status.to_string())
+        })
+        .collect()
 }
 
 #[cfg(test)]

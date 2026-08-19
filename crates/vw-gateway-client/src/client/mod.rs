@@ -74,8 +74,9 @@ pub use self::shiju_app_api::{
 pub use self::shiju_skill_api::{
     ShijuCompanySkillQuery, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
     ShijuMarketplaceSkillDto, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
-    ShijuSkillScanResultDto, ShijuSkillSearchQuery, ShijuSkillTagDto, ShijuSkillVersionContentDto,
-    ShijuSkillVersionDto, ShijuSkillVisibilityDto, ShijuSkillVisibilityScopeDto,
+    ShijuSkillReadmeDto, ShijuSkillScanResultDto, ShijuSkillSearchQuery, ShijuSkillTagDto,
+    ShijuSkillVersionContentDto, ShijuSkillVersionDto, ShijuSkillVisibilityDto,
+    ShijuSkillVisibilityScopeDto,
     ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
 pub use self::skill_market_api::{

@@ -508,11 +508,14 @@ pub(crate) struct SkillActionState {
     pub(crate) kind: SkillActionKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct SkillDetailState {
     pub(crate) skill_id: u64,
     pub(crate) generation: u64,
     pub(crate) detail: LoadState<super::SkillDetail>,
+    pub(crate) readme: LoadState<String>,
+    pub(crate) readme_mode: PublicDetailMode,
+    pub(crate) readme_items: Vec<iced::widget::markdown::Item>,
     pub(crate) versions: LoadState<Vec<super::SkillVersion>>,
 }
 
@@ -533,6 +536,43 @@ impl SkillListFilter {
     pub(crate) fn reset(&mut self) {
         *self = Self::default();
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MineSkillStatus {
+    Draft,
+    PendingReview,
+    Published,
+    Unpublished,
+}
+
+impl MineSkillStatus {
+    pub(crate) const ALL: [Self; 4] =
+        [Self::Draft, Self::PendingReview, Self::Published, Self::Unpublished];
+
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Draft => "draft",
+            Self::PendingReview => "pending_review",
+            Self::Published => "published",
+            Self::Unpublished => "unpublished",
+        }
+    }
+
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Draft => "草稿",
+            Self::PendingReview => "待审核",
+            Self::Published => "已发布",
+            Self::Unpublished => "已下架",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MineFilterMenu {
+    Tags,
+    Statuses,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -919,6 +959,11 @@ pub(crate) struct ExpertHubState {
     pub(crate) system_filter: SkillListFilter,
     pub(crate) company_filter: SkillListFilter,
     pub(crate) mine_filter: SkillListFilter,
+    pub(crate) mine_tag_ids_draft: Vec<u64>,
+    pub(crate) submitted_mine_tag_ids: Vec<u64>,
+    pub(crate) mine_statuses_draft: Vec<MineSkillStatus>,
+    pub(crate) submitted_mine_statuses: Vec<MineSkillStatus>,
+    pub(crate) mine_filter_menu: Option<MineFilterMenu>,
     pub(crate) company_status_draft: Option<String>,
     pub(crate) submitted_company_status: Option<String>,
     pub(crate) system_page: u32,
@@ -946,6 +991,63 @@ pub(crate) struct ExpertHubState {
 }
 
 impl ExpertHubState {
+    pub(crate) fn toggle_mine_tag(&mut self, tag_id: u64, option_order: &[u64]) {
+        if self.mine_tag_ids_draft.contains(&tag_id) {
+            self.mine_tag_ids_draft.retain(|selected| *selected != tag_id);
+            return;
+        }
+
+        self.mine_tag_ids_draft.push(tag_id);
+        let selected = self.mine_tag_ids_draft.clone();
+        self.mine_tag_ids_draft.clear();
+        for option_id in option_order {
+            if selected.contains(option_id) && !self.mine_tag_ids_draft.contains(option_id) {
+                self.mine_tag_ids_draft.push(*option_id);
+            }
+        }
+        for selected_id in selected {
+            if !self.mine_tag_ids_draft.contains(&selected_id) {
+                self.mine_tag_ids_draft.push(selected_id);
+            }
+        }
+    }
+
+    pub(crate) fn toggle_mine_status(&mut self, status: MineSkillStatus) {
+        if self.mine_statuses_draft.contains(&status) {
+            self.mine_statuses_draft.retain(|selected| *selected != status);
+        } else {
+            self.mine_statuses_draft.push(status);
+            self.mine_statuses_draft = MineSkillStatus::ALL
+                .into_iter()
+                .filter(|option| self.mine_statuses_draft.contains(option))
+                .collect();
+        }
+    }
+
+    pub(crate) fn toggle_mine_filter_menu(&mut self, menu: MineFilterMenu) {
+        self.mine_filter_menu = (self.mine_filter_menu != Some(menu)).then_some(menu);
+    }
+
+    pub(crate) fn close_mine_filter_menu(&mut self) {
+        self.mine_filter_menu = None;
+    }
+
+    pub(crate) fn submit_mine_filters(&mut self) {
+        self.mine_filter.submit();
+        self.submitted_mine_tag_ids.clone_from(&self.mine_tag_ids_draft);
+        self.submitted_mine_statuses.clone_from(&self.mine_statuses_draft);
+        self.close_mine_filter_menu();
+    }
+
+    pub(crate) fn reset_mine_filters(&mut self) {
+        self.mine_filter.reset();
+        self.mine_tag_ids_draft.clear();
+        self.submitted_mine_tag_ids.clear();
+        self.mine_statuses_draft = MineSkillStatus::ALL.to_vec();
+        self.submitted_mine_statuses = MineSkillStatus::ALL.to_vec();
+        self.close_mine_filter_menu();
+    }
+
     pub(crate) fn reset_navigation(&mut self) {
         self.install_guide.close();
         self.section = ExpertHubSection::Skills;
@@ -957,7 +1059,7 @@ impl ExpertHubState {
         self.submitted_search.clear();
         self.system_filter.reset();
         self.company_filter.reset();
-        self.mine_filter.reset();
+        self.reset_mine_filters();
         self.company_status_draft = None;
         self.submitted_company_status = None;
         self.system_page = 1;
@@ -1086,6 +1188,11 @@ impl Default for ExpertHubState {
             system_filter: SkillListFilter::default(),
             company_filter: SkillListFilter::default(),
             mine_filter: SkillListFilter::default(),
+            mine_tag_ids_draft: Vec::new(),
+            submitted_mine_tag_ids: Vec::new(),
+            mine_statuses_draft: MineSkillStatus::ALL.to_vec(),
+            submitted_mine_statuses: MineSkillStatus::ALL.to_vec(),
+            mine_filter_menu: None,
             company_status_draft: None,
             submitted_company_status: None,
             system_page: 1,

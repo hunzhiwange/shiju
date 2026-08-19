@@ -16,7 +16,58 @@ fn expert_hub_state_defaults_to_skills_marketplace() {
     assert!(matches!(state.system, LoadState::Idle));
     assert!(matches!(state.company, LoadState::Idle));
     assert!(matches!(state.mine, LoadState::Idle));
+    assert!(state.mine_tag_ids_draft.is_empty());
+    assert!(state.submitted_mine_tag_ids.is_empty());
+    assert_eq!(state.mine_statuses_draft, MineSkillStatus::ALL);
+    assert_eq!(state.submitted_mine_statuses, MineSkillStatus::ALL);
+    assert_eq!(state.mine_filter_menu, None);
     assert_eq!(state.shiju_apps, crate::app::shiju_apps::ShijuAppsState::default());
+}
+
+#[test]
+fn expert_hub_state_toggles_mine_filters_in_option_order_and_resets_defaults() {
+    let mut state = ExpertHubState::default();
+
+    state.toggle_mine_tag(2, &[9, 2, 5]);
+    state.toggle_mine_tag(9, &[9, 2, 5]);
+    state.toggle_mine_tag(5, &[9, 2, 5]);
+    state.toggle_mine_tag(2, &[9, 2, 5]);
+    assert_eq!(state.mine_tag_ids_draft, vec![9, 5]);
+
+    state.toggle_mine_status(MineSkillStatus::Published);
+    state.toggle_mine_status(MineSkillStatus::Draft);
+    assert_eq!(
+        state.mine_statuses_draft,
+        vec![MineSkillStatus::PendingReview, MineSkillStatus::Unpublished]
+    );
+
+    state.mine_filter.keyword_draft = "  我的搜索  ".to_string();
+    state.submit_mine_filters();
+    assert_eq!(state.mine_filter.submitted_keyword, "我的搜索");
+    assert_eq!(state.submitted_mine_tag_ids, vec![9, 5]);
+    assert_eq!(
+        state.submitted_mine_statuses,
+        vec![MineSkillStatus::PendingReview, MineSkillStatus::Unpublished]
+    );
+
+    state.reset_mine_filters();
+    assert_eq!(state.mine_filter, SkillListFilter::default());
+    assert!(state.mine_tag_ids_draft.is_empty());
+    assert!(state.submitted_mine_tag_ids.is_empty());
+    assert_eq!(state.mine_statuses_draft, MineSkillStatus::ALL);
+    assert_eq!(state.submitted_mine_statuses, MineSkillStatus::ALL);
+}
+
+#[test]
+fn expert_hub_state_keeps_only_one_mine_filter_menu_open() {
+    let mut state = ExpertHubState::default();
+
+    state.toggle_mine_filter_menu(MineFilterMenu::Tags);
+    assert_eq!(state.mine_filter_menu, Some(MineFilterMenu::Tags));
+    state.toggle_mine_filter_menu(MineFilterMenu::Statuses);
+    assert_eq!(state.mine_filter_menu, Some(MineFilterMenu::Statuses));
+    state.toggle_mine_filter_menu(MineFilterMenu::Statuses);
+    assert_eq!(state.mine_filter_menu, None);
 }
 
 #[test]
@@ -93,6 +144,11 @@ fn expert_hub_state_clears_account_scoped_results_and_pages() {
         system_page: 4,
         company_page: 3,
         mine_page: 2,
+        mine_tag_ids_draft: vec![9, 2],
+        submitted_mine_tag_ids: vec![9],
+        mine_statuses_draft: vec![MineSkillStatus::Draft],
+        submitted_mine_statuses: vec![MineSkillStatus::Draft],
+        mine_filter_menu: Some(MineFilterMenu::Tags),
         ..ExpertHubState::default()
     };
     state.marketplace =
@@ -106,6 +162,11 @@ fn expert_hub_state_clears_account_scoped_results_and_pages() {
     assert_eq!(state.system_filter, SkillListFilter::default());
     assert_eq!(state.company_status_draft, None);
     assert_eq!(state.submitted_company_status, None);
+    assert!(state.mine_tag_ids_draft.is_empty());
+    assert!(state.submitted_mine_tag_ids.is_empty());
+    assert_eq!(state.mine_statuses_draft, MineSkillStatus::ALL);
+    assert_eq!(state.submitted_mine_statuses, MineSkillStatus::ALL);
+    assert_eq!(state.mine_filter_menu, None);
     assert_eq!((state.system_page, state.company_page, state.mine_page), (1, 1, 1));
     assert!(matches!(state.marketplace, LoadState::Idle));
     assert!(state.detail.is_none());

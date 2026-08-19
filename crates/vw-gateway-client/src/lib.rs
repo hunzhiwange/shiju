@@ -73,8 +73,9 @@ pub use client::{
 pub use client::{
     ShijuCompanySkillQuery, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
     ShijuMarketplaceSkillDto, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
-    ShijuSkillScanResultDto, ShijuSkillSearchQuery, ShijuSkillTagDto, ShijuSkillVersionContentDto,
-    ShijuSkillVersionDto, ShijuSkillVisibilityDto, ShijuSkillVisibilityScopeDto,
+    ShijuSkillReadmeDto, ShijuSkillScanResultDto, ShijuSkillSearchQuery, ShijuSkillTagDto,
+    ShijuSkillVersionContentDto, ShijuSkillVersionDto, ShijuSkillVisibilityDto,
+    ShijuSkillVisibilityScopeDto,
     ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
 /// Unified skill-market transport contract.

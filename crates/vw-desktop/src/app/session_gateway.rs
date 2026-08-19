@@ -36,8 +36,9 @@ use vw_gateway_client::{
     ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuAppCatalogDto,
     ShijuAppLaunchDto, ShijuAppListDto, ShijuCompanySkillQuery, ShijuCredential,
     ShijuInstalledSkillDto, ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMaintainedSkillQuery,
-    ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillSearchQuery,
-    ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
+    ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
+    ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
+    ShijuTenantSkillDto,
 };
 use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
 
@@ -193,6 +194,15 @@ pub(crate) async fn gateway_shiju_skill_detail_async(
 ) -> Result<ShijuSkillDetailDto, String> {
     let client = gateway_client()?;
     client.shiju_skill_detail(credential, skill_id).await
+}
+
+#[allow(dead_code)]
+pub(crate) async fn gateway_shiju_skill_readme_async(
+    credential: &ShijuCredential,
+    skill_id: u64,
+) -> Result<ShijuSkillReadmeDto, String> {
+    let client = gateway_client()?;
+    client.shiju_skill_readme(credential, skill_id).await
 }
 
 pub(crate) async fn gateway_shiju_skill_versions_async(

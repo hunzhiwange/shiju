@@ -1,9 +1,15 @@
 use super::*;
 use crate::app::account::SecretSkey;
+use crate::app::skill_hub::client::SKILL_HUB_BASE_URL;
 use crate::app::skill_hub::models::ShijuPackageId;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
+
+#[test]
+fn skill_hub_production_gateway_uses_sj_prefix() {
+    assert_eq!(SKILL_HUB_BASE_URL, "https://gateway.shiju.cloud/sj/skill-hub/api/v1/");
+}
 
 fn fixture(status: &str, body: serde_json::Value) -> (String, thread::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind skill hub fixture");

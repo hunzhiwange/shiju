@@ -1,8 +1,8 @@
 use super::detail::{VersionRowAction, close_message, download_message, version_action_spec};
 use crate::app::message::SkillHubMessage;
 use crate::app::skill_hub::{
-    InstalledSkill, LoadState, SkillActionKind, SkillActionState, SkillDetail, SkillDetailState,
-    SkillDownloadUrl, SkillVersion, SkillVersionDirection,
+    InstalledSkill, LoadState, PublicDetailMode, SkillActionKind, SkillActionState, SkillDetail,
+    SkillDetailState, SkillDownloadUrl, SkillVersion, SkillVersionDirection, parse_public_markdown,
 };
 use crate::app::{App, Message};
 use iced::Theme;
@@ -21,6 +21,9 @@ fn expert_hub_detail_view_binds_only_close_download_and_skill_actions() {
         skill_id: 7,
         generation: 1,
         detail: LoadState::Loading { generation: 1 },
+        readme: LoadState::Loading { generation: 1 },
+        readme_mode: PublicDetailMode::Visual,
+        readme_items: Vec::new(),
         versions: LoadState::Loading { generation: 1 },
     });
     let loading: iced::Element<'_, Message> = super::view(&app);
@@ -67,8 +70,27 @@ fn expert_hub_detail_view_binds_only_close_download_and_skill_actions() {
     let state = app.expert_hub.detail.as_mut().unwrap();
     state.detail = LoadState::Loaded(detail);
     state.versions = LoadState::Loaded(vec![version]);
-    let loaded: iced::Element<'_, Message> = super::view(&app);
-    std::hint::black_box(loaded);
+    let readme_loading: iced::Element<'_, Message> = super::view(&app);
+    std::hint::black_box(readme_loading);
+
+    let state = app.expert_hub.detail.as_mut().unwrap();
+    state.readme = LoadState::Loaded("# 使用说明\n支持 UTF-8 正文。".to_string());
+    state.readme_items = parse_public_markdown("# 使用说明\n支持 UTF-8 正文。");
+    let readme_loaded: iced::Element<'_, Message> = super::view(&app);
+    std::hint::black_box(readme_loaded);
+
+    app.expert_hub.detail.as_mut().unwrap().readme_mode = PublicDetailMode::Markdown;
+    let readme_markdown: iced::Element<'_, Message> = super::view(&app);
+    std::hint::black_box(readme_markdown);
+
+    app.expert_hub.detail.as_mut().unwrap().readme = LoadState::Loaded(String::new());
+    let readme_empty: iced::Element<'_, Message> = super::view(&app);
+    std::hint::black_box(readme_empty);
+
+    app.expert_hub.detail.as_mut().unwrap().readme =
+        LoadState::Error("fixture README error".to_string());
+    let readme_error: iced::Element<'_, Message> = super::view(&app);
+    std::hint::black_box(readme_error);
 
     app.expert_hub.detail.as_mut().unwrap().versions =
         LoadState::Error("fixture versions error".to_string());
@@ -178,6 +200,9 @@ fn business_skill_detail_labels_current_upgrade_rollback_and_unknown_versions() 
             updated_at: String::new(),
             tags: Vec::new(),
         }),
+        readme: LoadState::Loaded(String::new()),
+        readme_mode: PublicDetailMode::Visual,
+        readme_items: Vec::new(),
         versions: LoadState::Loaded(vec![version.clone()]),
     });
     app.expert_hub.action = Some(SkillActionState {

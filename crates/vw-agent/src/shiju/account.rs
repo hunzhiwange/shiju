@@ -13,7 +13,7 @@ use vw_gateway_client::{
 };
 
 const PASSPORT_BASE_URL: &str = "https://passport.shiju.cloud";
-const GATEWAY_BASE_URL: &str = "https://gateway.shiju.cloud";
+const GATEWAY_BASE_URL: &str = "https://gateway.shiju.cloud/sj/";
 const LOGIN_PATH: &str = "/api/v1/plugin/login";
 const POLL_PATH: &str = "/api/v1/plugin/auth/token";
 const PROFILE_PATH: &str = "/iam/api/v1/dashboard/basic-info";

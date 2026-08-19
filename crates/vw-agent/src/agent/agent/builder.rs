@@ -67,7 +67,7 @@ pub struct AgentBuilder {
     prompt_builder: Option<SystemPromptBuilder>,
     approval: Option<Arc<ApprovalManager>>,
     memory_loader: Option<Box<dyn MemoryLoader>>,
-    config: Option<crate::app::agent::config::AgentConfig>,
+    config: Option<vw_config_types::agent::AgentDefinitionConfig>,
     model_name: Option<String>,
     temperature: Option<f64>,
     workspace_dir: Option<std::path::PathBuf>,
@@ -156,7 +156,7 @@ impl AgentBuilder {
         self
     }
 
-    pub fn config(mut self, config: crate::app::agent::config::AgentConfig) -> Self {
+    pub fn config(mut self, config: vw_config_types::agent::AgentDefinitionConfig) -> Self {
         self.config = Some(config);
         self
     }

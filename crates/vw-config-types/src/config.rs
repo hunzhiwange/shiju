@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::agent::{AgentConfig, DelegateAgentConfig, WorkspacesConfig};
+use crate::agent::{DelegateAgentConfig, WorkspacesConfig};
 use crate::automation::{CronConfig, HeartbeatConfig, SchedulerConfig};
 use crate::channels::ChannelsConfig;
 use crate::gateway::GatewayConfig;
@@ -158,9 +158,6 @@ pub struct Config {
 
     #[serde(default)]
     pub scheduler: SchedulerConfig,
-
-    #[serde(default)]
-    pub agent: AgentConfig,
 
     #[serde(default)]
     pub workspaces: WorkspacesConfig,
@@ -356,7 +353,6 @@ impl Default for Config {
             runtime: RuntimeConfig::default(),
             reliability: ReliabilityConfig::default(),
             scheduler: SchedulerConfig::default(),
-            agent: AgentConfig::default(),
             workspaces: WorkspacesConfig::default(),
             skills: SkillsConfig::default(),
             plugins: PluginsConfig::default(),

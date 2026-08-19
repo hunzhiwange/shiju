@@ -110,7 +110,6 @@ pub struct ToolUseContext {
     approval: Option<Arc<ApprovalManager>>,
     messages_view: Option<Arc<Vec<ChatMessage>>>,
     explicitly_requested_skills: Arc<BTreeSet<String>>,
-    trusted_user_selected_tools: Arc<BTreeSet<String>>,
     trusted_user_selected_skills: Arc<BTreeSet<String>>,
     delegate_skill_policy: Option<DelegateCapabilityPolicy>,
     delegate_default_allowed_skills: Arc<BTreeSet<String>>,
@@ -179,7 +178,6 @@ impl ToolUseContext {
             approval: None,
             messages_view: None,
             explicitly_requested_skills: Arc::new(BTreeSet::new()),
-            trusted_user_selected_tools: Arc::new(BTreeSet::new()),
             trusted_user_selected_skills: Arc::new(BTreeSet::new()),
             delegate_skill_policy: None,
             delegate_default_allowed_skills: Arc::new(BTreeSet::new()),
@@ -254,13 +252,6 @@ impl ToolUseContext {
     /// 判断技能是否由当前用户或仓库协议明确指定。
     pub fn is_skill_explicitly_requested(&self, name: &str) -> bool {
         self.explicitly_requested_skills.contains(&name.trim().to_lowercase())
-    }
-
-    /// 返回仅由运行时注入的可信用户工具选择。
-    ///
-    /// 工具调用 JSON 和模型生成文本无法修改这个集合。
-    pub fn trusted_user_selected_tools(&self) -> &BTreeSet<String> {
-        self.trusted_user_selected_tools.as_ref()
     }
 
     /// 返回仅由运行时注入的可信用户技能选择。
@@ -442,18 +433,6 @@ impl ToolUseContext {
                 .filter(|skill| !skill.is_empty())
                 .collect(),
         );
-        self
-    }
-
-    /// 注入可信用户明确选择的工具。
-    ///
-    /// 此方法仅供请求边界在解析原始用户输入后调用；子工具克隆上下文时会保留该集合。
-    pub fn with_trusted_user_selected_tools<I, S>(mut self, tools: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        self.trusted_user_selected_tools = Arc::new(normalize_capability_selection(tools));
         self
     }
 

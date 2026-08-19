@@ -180,7 +180,7 @@ Examples:
 
         /// 每条消息最大工具调用迭代次数
         #[arg(long)]
-        max_tool_iterations: Option<usize>,
+        max_iterations: Option<usize>,
 
         /// 最大对话历史消息数
         #[arg(long)]

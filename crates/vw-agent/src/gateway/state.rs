@@ -138,7 +138,7 @@ pub struct AppState {
     pub multimodal: crate::app::agent::config::MultimodalConfig,
 
     /// 代理循环的最大工具迭代次数，防止无限循环
-    pub max_tool_iterations: usize,
+    pub max_iterations: usize,
 
     /// SSE（Server-Sent Events）广播通道发送端，用于实时事件推送
     pub event_tx: tokio::sync::broadcast::Sender<serde_json::Value>,

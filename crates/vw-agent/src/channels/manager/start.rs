@@ -299,6 +299,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
     let message_timeout_secs =
         effective_channel_message_timeout_secs(config.channels_config.message_timeout_secs);
     let interrupt_on_new_message = channel_interrupt_on_new_message(&config);
+    let main_agent = vw_config_types::agent::effective_main_agent_config(&config.agents);
 
     // 构建通道运行时上下文
     let runtime_ctx = Arc::new(ChannelRuntimeContext {
@@ -312,7 +313,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
         model: Arc::new(model.clone()),
         temperature,
         auto_save_memory: config.memory.auto_save,
-        max_tool_iterations: config.agent.max_tool_iterations,
+        max_iterations: main_agent.max_iterations,
         min_relevance_score: config.memory.min_relevance_score,
         conversation_histories: Arc::new(Mutex::new(HashMap::new())),
         provider_cache: Arc::new(Mutex::new(provider_cache_seed)),
@@ -436,7 +437,9 @@ fn build_channel_tool_descriptions(
 }
 
 fn bootstrap_max_chars(config: &Config) -> Option<usize> {
-    if config.agent.compact_context { Some(6000) } else { None }
+    vw_config_types::agent::effective_main_agent_config(&config.agents)
+        .compact_context
+        .then_some(6000)
 }
 
 fn channel_listener_backoff_secs(config: &Config) -> (u64, u64) {

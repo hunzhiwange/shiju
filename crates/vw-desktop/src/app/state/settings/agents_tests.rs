@@ -100,7 +100,6 @@ fn delegate_agent_entry_clamps_and_copies_config_values() {
     assert_eq!(entry.allowed_skills, vec!["skill-a"]);
     assert_eq!(entry.enabled_identity_files, vec!["SOUL.md", "MEMORY.md"]);
     assert!(!entry.compact_context);
-    assert_eq!(entry.max_tool_iterations, 50_000);
     assert_eq!(entry.max_history_messages, 100);
     assert!(!entry.parallel_tools);
 }

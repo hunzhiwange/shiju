@@ -1,14 +1,10 @@
 use super::tools::{
-    ToolGroup, capability_policy_label, preset_tool_count, tool_card_button_style,
-    tool_english_name, tool_group_meta, tool_group_order, tool_in_preset, tool_matches_any,
-    tool_meta, tool_policy_message, tool_preset_meta,
+    ToolGroup, preset_tool_count, tool_card_button_style, tool_english_name, tool_group_meta,
+    tool_group_order, tool_in_preset, tool_matches_any, tool_meta, tool_preset_meta,
 };
-use crate::app::Message;
-use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use iced::advanced::widget::Tree;
 use iced::widget::button;
 use iced::{Background, Color, Theme};
-use vw_config_types::agent::DelegateCapabilityPolicy;
 
 fn background_color(style: &button::Style) -> Color {
     match style.background.as_ref() {
@@ -22,23 +18,6 @@ fn tool_in_preset_rejects_unknown_preset() {
     assert!(!tool_in_preset("shell", "missing"));
     assert!(!tool_in_preset("", "minimal"));
     assert!(tool_in_preset("", "full"));
-}
-
-#[test]
-fn tool_capability_policy_controls_use_typed_messages_and_expected_labels() {
-    assert_eq!(capability_policy_label(DelegateCapabilityPolicy::Strict), "严格限制");
-    assert_eq!(
-        capability_policy_label(DelegateCapabilityPolicy::UserOverride),
-        "限制但允许用户选择"
-    );
-    assert_eq!(capability_policy_label(DelegateCapabilityPolicy::Unrestricted), "不限制");
-    assert!(matches!(
-        tool_policy_message("main".to_string(), DelegateCapabilityPolicy::Unrestricted),
-        Message::Settings(SettingsMessage::Agents(AgentsMessage::ToolPolicyChanged(
-            ref agent,
-            DelegateCapabilityPolicy::Unrestricted,
-        ))) if agent == "main"
-    ));
 }
 
 #[test]

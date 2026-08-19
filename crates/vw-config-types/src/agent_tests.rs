@@ -52,19 +52,14 @@ fn agent_definition_defaults_include_subagent_controls() {
 }
 
 #[test]
-fn delegate_capability_policies_default_to_unrestricted_and_round_trip() {
+fn skill_capability_policy_defaults_to_unrestricted_and_round_trips() {
     let legacy: super::AgentDefinitionConfig = serde_json::from_value(serde_json::json!({
         "provider": "openai",
         "model": "gpt-test"
     }))
     .expect("legacy-shaped agent config should deserialize");
 
-    assert_eq!(legacy.tool_policy, super::DelegateCapabilityPolicy::Unrestricted);
     assert_eq!(legacy.skill_policy, super::DelegateCapabilityPolicy::Unrestricted);
-    assert_eq!(
-        super::AgentDefinitionConfig::default().tool_policy,
-        super::DelegateCapabilityPolicy::Unrestricted
-    );
     assert_eq!(
         super::AgentDefinitionConfig::default().skill_policy,
         super::DelegateCapabilityPolicy::Unrestricted
@@ -73,31 +68,28 @@ fn delegate_capability_policies_default_to_unrestricted_and_round_trip() {
     let definition = super::AgentDefinitionConfig {
         provider: "openai".into(),
         model: "gpt-test".into(),
-        tool_policy: super::DelegateCapabilityPolicy::Strict,
-        skill_policy: super::DelegateCapabilityPolicy::UserOverride,
+        skill_policy: super::DelegateCapabilityPolicy::Strict,
         ..Default::default()
     };
     let value = serde_json::to_value(&definition).expect("agent config should serialize");
-    assert_eq!(value["tool_policy"], "strict");
-    assert_eq!(value["skill_policy"], "user_override");
+    assert!(value.get("tool_policy").is_none());
+    assert_eq!(value["skill_policy"], "strict");
 
     let policy_schema =
         serde_json::to_value(schemars::schema_for!(super::DelegateCapabilityPolicy))
             .expect("capability policy schema should serialize");
-    assert_eq!(
-        policy_schema["enum"],
-        serde_json::json!(["strict", "user_override", "unrestricted"])
-    );
+    let policy_schema = policy_schema.to_string();
+    assert!(policy_schema.contains("strict"));
+    assert!(policy_schema.contains("unrestricted"));
 
     let decoded: super::AgentDefinitionConfig =
         serde_json::from_value(value).expect("agent config should deserialize");
-    assert_eq!(decoded.tool_policy, super::DelegateCapabilityPolicy::Strict);
-    assert_eq!(decoded.skill_policy, super::DelegateCapabilityPolicy::UserOverride);
+    assert_eq!(decoded.skill_policy, super::DelegateCapabilityPolicy::Strict);
 
     let error = serde_json::from_value::<super::AgentDefinitionConfig>(serde_json::json!({
         "provider": "openai",
         "model": "gpt-test",
-        "tool_policy": "unknown"
+        "skill_policy": "unknown"
     }))
     .expect_err("invalid capability policy must fail to deserialize");
     assert!(error.to_string().contains("unknown variant"));

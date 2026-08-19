@@ -393,7 +393,9 @@ pub(crate) fn setup_cli(
 
     // 确定上下文压缩设置
     // 启用时会限制初始上下文大小以优化性能
-    let bootstrap_max_chars = compact_context_max_chars(config.agent.compact_context);
+    let bootstrap_max_chars = compact_context_max_chars(
+        vw_config_types::agent::effective_main_agent_config(&config.agents).compact_context,
+    );
 
     // 检查 Provider 是否支持原生工具调用
     let native_tools = provider.supports_native_tools();

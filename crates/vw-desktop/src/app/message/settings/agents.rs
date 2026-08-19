@@ -515,10 +515,7 @@ fn build_agents_settings_patch(
                     serde_json::json!(entry.max_parallel_subagents.clamp(1, 32)),
                 );
             }
-            if builtin_agent_spec(&entry.key).is_some_and(|spec| spec.allow_as_subagent) {
-                agent.insert("allowed_tools".to_string(), serde_json::json!(allowed_tools));
-            }
-            agent.insert("tool_policy".to_string(), serde_json::json!(entry.tool_policy));
+            agent.insert("allowed_tools".to_string(), serde_json::json!(allowed_tools));
             agent.insert("allowed_skills".to_string(), serde_json::json!(allowed_skills));
             agent.insert("skill_policy".to_string(), serde_json::json!(entry.skill_policy));
             agent.insert(
@@ -538,7 +535,6 @@ fn build_agents_settings_patch(
                 "temperature": entry.temperature.clamp(0.0, 2.0),
                 "max_depth": entry.max_depth.clamp(1, 32),
                 "agentic": entry.agentic,
-                "tool_policy": entry.tool_policy,
                 "allowed_tools": allowed_tools,
                 "skill_policy": entry.skill_policy,
                 "allowed_skills": allowed_skills,
@@ -589,15 +585,6 @@ fn build_agents_settings_patch(
         {
             patch.insert("default_temperature".to_string(), serde_json::Value::Number(temperature));
         }
-        patch.insert(
-            "agent".to_string(),
-            serde_json::json!({
-                "compact_context": main.compact_context,
-                "max_tool_iterations": main.max_tool_iterations.max(1),
-                "max_history_messages": main.max_history_messages.clamp(1, 1000),
-                "parallel_tools": main.parallel_tools,
-            }),
-        );
     }
 
     Ok(serde_json::Value::Object(patch))
@@ -1033,13 +1020,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.save_error = None;
             persist_agents_settings(app)
         }
-        AgentsMessage::MaxToolIterationsChanged(agent_key, value) => {
-            if let Some(entry) = find_entry_mut(app, &agent_key) {
-                entry.max_tool_iterations = value.max(1);
-            }
-            app.agents_settings.save_error = None;
-            persist_agents_settings(app)
-        }
         AgentsMessage::MaxHistoryMessagesChanged(agent_key, value) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.max_history_messages = value.clamp(1, 1000);
@@ -1064,13 +1044,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::AgenticToggled(agent_key, agentic) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.agentic = agentic;
-            }
-            app.agents_settings.save_error = None;
-            persist_agents_settings(app)
-        }
-        AgentsMessage::ToolPolicyChanged(agent_key, tool_policy) => {
-            if let Some(entry) = find_entry_mut(app, &agent_key) {
-                entry.tool_policy = tool_policy;
             }
             app.agents_settings.save_error = None;
             persist_agents_settings(app)

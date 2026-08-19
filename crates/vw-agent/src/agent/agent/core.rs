@@ -73,7 +73,7 @@ pub struct Agent {
     pub(super) prompt_builder: SystemPromptBuilder,
     pub(super) approval: Option<Arc<ApprovalManager>>,
     pub(super) memory_loader: Box<dyn MemoryLoader>,
-    pub(super) config: crate::app::agent::config::AgentConfig,
+    pub(super) config: vw_config_types::agent::AgentDefinitionConfig,
     pub(super) model_name: String,
     pub(super) temperature: f64,
     pub(super) workspace_dir: std::path::PathBuf,
@@ -241,7 +241,7 @@ impl Agent {
             .approval(approval)
             .memory_loader(Box::new(DefaultMemoryLoader::new(5, config.memory.min_relevance_score)))
             .prompt_builder(SystemPromptBuilder::with_defaults())
-            .config(config.agent.clone())
+            .config(vw_config_types::agent::effective_main_agent_config(&config.agents))
             .model_name(model_name)
             .temperature(config.default_temperature)
             .workspace_dir(config.workspace_dir.clone())

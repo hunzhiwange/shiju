@@ -409,9 +409,9 @@ pub(crate) async fn handle_llm_result(
             }
             // 子情况 3c：达到工具迭代限制
             else if is_tool_iteration_limit_error(&e) {
-                let limit = ctx.max_tool_iterations.max(1);
+                let limit = ctx.max_iterations.max(1);
                 let pause_text = format!(
-                    "⚠️ Reached tool-iteration limit ({limit}) for this turn. Context and progress were preserved. Reply \"continue\" to resume, or increase `agent.max_tool_iterations`."
+                    "⚠️ Reached tool-iteration limit ({limit}) for this turn. Context and progress were preserved. Reply \"continue\" to resume, or increase `agents.main.max_iterations`."
                 );
 
                 runtime_trace::record_event(
@@ -425,7 +425,7 @@ pub(crate) async fn handle_llm_result(
                     serde_json::json!({
                         "sender": msg.sender,
                         "elapsed_ms": started_at.elapsed().as_millis(),
-                        "max_tool_iterations": limit,
+                        "max_iterations": limit,
                     }),
                 );
 
@@ -512,13 +512,13 @@ pub(crate) async fn handle_llm_result(
         LlmExecutionResult::Completed(Err(_)) => {
             // 构建超时错误消息
             let timeout_msg = format!(
-                "LLM response timed out after {}s (base={}s, max_tool_iterations={})",
+                "LLM response timed out after {}s (base={}s, max_iterations={})",
                 channel_message_timeout_budget_secs(
                     ctx.message_timeout_secs,
-                    ctx.max_tool_iterations
+                    ctx.max_iterations
                 ),
                 ctx.message_timeout_secs,
-                ctx.max_tool_iterations
+                ctx.max_iterations
             );
 
             runtime_trace::record_event(

@@ -32,7 +32,6 @@ fn delegate_config(provider: &str) -> DelegateAgentConfig {
         hidden: false,
         max_depth: 2,
         agentic: false,
-        tool_policy: Default::default(),
         allowed_tools: Vec::new(),
         skill_policy: Default::default(),
         allowed_skills: Vec::new(),

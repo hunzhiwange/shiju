@@ -133,7 +133,6 @@ fn agent_config(mode: &str, enabled: bool, allowed_skills: Vec<String>) -> Deleg
         hidden: false,
         max_depth: 3,
         agentic: false,
-        tool_policy: Default::default(),
         allowed_tools: Vec::new(),
         skill_policy: Default::default(),
         allowed_skills,
@@ -749,7 +748,7 @@ fn canonical_agent_tool_registers_when_delegate_agent_exists() {
     std::fs::create_dir_all(&workspace).unwrap();
     let memory = test_memory(&workspace);
     let mut root_config = test_config(&workspace);
-    root_config.agent.compact_context = true;
+    vw_config_types::agent::ensure_main_agent_config(&mut root_config.agents).compact_context = true;
 
     let mut agents = HashMap::new();
     agents.insert("researcher".to_string(), agent_config("all", true, Vec::new()));

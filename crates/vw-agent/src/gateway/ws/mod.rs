@@ -414,7 +414,7 @@ async fn run_websocket_tool_loop(
         approval_manager,
         "webchat",
         &state.multimodal,
-        state.max_tool_iterations,
+        state.max_iterations,
         None,
         delta_tx,
         state.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),

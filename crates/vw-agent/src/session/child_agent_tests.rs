@@ -81,9 +81,7 @@ fn input(parent_session_id: String, directory: String, prompt: &str) -> ChildAge
         model: None,
         prompt: prompt.to_string(),
         context: vec![json!({"role": "system", "content": "review carefully"})],
-        default_allowed_tools: Vec::new(),
-        tool_policy: Default::default(),
-        trusted_user_selected_tools: Vec::new(),
+        allowed_tools: Vec::new(),
         default_allowed_skills: Vec::new(),
         skill_policy: Default::default(),
         trusted_user_selected_skills: Vec::new(),
@@ -99,8 +97,6 @@ fn child_agent_stream_request_keeps_complete_model_reference() {
         "inspect",
         Vec::new(),
         Vec::new(),
-        Default::default(),
-        Vec::new(),
         Vec::new(),
         Default::default(),
         Vec::new(),
@@ -110,7 +106,7 @@ fn child_agent_stream_request_keeps_complete_model_reference() {
 }
 
 #[test]
-fn child_agent_tool_policy_preserves_trusted_user_selection_across_gateway_boundary() {
+fn child_agent_stream_request_registers_configured_tools_and_preserves_skill_policy() {
     let request = super::child_agent::stream_request(
         "child-session",
         "reviewer",
@@ -118,20 +114,16 @@ fn child_agent_tool_policy_preserves_trusted_user_selection_across_gateway_bound
         "inspect",
         Vec::new(),
         vec!["file_read".to_string()],
-        vw_config_types::agent::DelegateCapabilityPolicy::UserOverride,
-        vec!["shell".to_string()],
         vec!["review".to_string()],
-        vw_config_types::agent::DelegateCapabilityPolicy::UserOverride,
+        vw_config_types::agent::DelegateCapabilityPolicy::Strict,
         vec!["rustcodegraph".to_string()],
     );
 
-    assert_eq!(request.allowed_tools, None, "policy inputs must not become a Gateway whitelist");
+    assert_eq!(request.allowed_tools, Some(vec!["file_read".to_string()]));
     let options = request.options.as_ref().expect("child request options");
-    assert_eq!(options["delegate_default_allowed_tools"], json!(["file_read"]),);
-    assert_eq!(options["delegate_tool_policy"], json!("user_override"));
-    assert_eq!(options["delegate_trusted_user_selected_tools"], json!(["shell"]),);
+    assert!(options.get("delegate_tool_policy").is_none());
     assert_eq!(options["delegate_default_allowed_skills"], json!(["review"]));
-    assert_eq!(options["delegate_skill_policy"], json!("user_override"));
+    assert_eq!(options["delegate_skill_policy"], json!("strict"));
     assert_eq!(options["delegate_trusted_user_selected_skills"], json!(["rustcodegraph"]));
 }
 
@@ -148,8 +140,6 @@ fn session_protocol_child_agent_uses_same_contract() {
         None,
         "inspect",
         protocol_context.clone(),
-        Vec::new(),
-        Default::default(),
         Vec::new(),
         Vec::new(),
         Default::default(),
@@ -316,9 +306,7 @@ async fn delegated_child_first_provider_request_auto_loads_workspace_agents() {
             model: Some("delegated-child-test-provider/test-model".to_string()),
             prompt: "complete the delegated task".to_string(),
             context: Vec::new(),
-            default_allowed_tools: Vec::new(),
-            tool_policy: Default::default(),
-            trusted_user_selected_tools: Vec::new(),
+            allowed_tools: Vec::new(),
             default_allowed_skills: Vec::new(),
             skill_policy: Default::default(),
             trusted_user_selected_skills: Vec::new(),

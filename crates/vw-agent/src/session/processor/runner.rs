@@ -6,9 +6,7 @@
 use super::artifacts;
 use super::context_governance;
 use super::helpers::{
-    allowed_tool_ids_for_request_from_specs, delegated_tool_policy_resolution_from_specs,
-    is_acp_request, response_preview, tool_call_preview,
-    trusted_user_selected_tool_ids_from_options,
+    allowed_tool_ids_for_request_from_specs, is_acp_request, response_preview, tool_call_preview,
 };
 use super::llm_messages;
 use super::llm_runner;
@@ -449,11 +447,6 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         selected_model.step_event_model(),
     )
     .with_auto_model_selection(model_selected_by_auto);
-    let trusted_user_selected_tools = trusted_user_selected_tool_ids_from_options(&req.options);
-    if !trusted_user_selected_tools.is_empty() {
-        tool_use_context =
-            tool_use_context.with_trusted_user_selected_tools(trusted_user_selected_tools);
-    }
     let trusted_user_selected_skills =
         option_string_values(&req.options, "delegate_trusted_user_selected_skills");
     if !trusted_user_selected_skills.is_empty() {
@@ -561,14 +554,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     // 否则 deny 规则会提前从 skill 工具描述中移除这些技能，模型只能看到一个
     // 无法执行的协议要求。
     let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
-    let tool_policy_resolution =
-        delegated_tool_policy_resolution_from_specs(&available_tool_specs, &req.options);
-    let allowed_tools = tool_policy_resolution
-        .as_ref()
-        .map(|resolution| resolution.visible_ids.iter().cloned().collect())
-        .unwrap_or_else(|| {
-            allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options)
-        });
+    let allowed_tools = allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
     let prompt_tool_ids = allowed_tools.iter().cloned().collect::<Vec<_>>();
     base_system = base_system.with_runtime_context_and_modes(
         selected_model.step_event_model(),
@@ -653,7 +639,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     let mut internal_compaction_attempted = false;
 
     loop {
-        let is_last_step = step >= turn_policy.max_tool_iterations;
+        let is_last_step = step >= turn_policy.max_iterations;
         let empty_tools = HashSet::<String>::new();
         let system = base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
         let tools_for_step = if is_last_step { &empty_tools } else { &allowed_tools };
@@ -666,7 +652,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             provider_retries,
             provider_backoff_ms,
             is_acp,
-            max_tool_iterations = turn_policy.max_tool_iterations,
+            max_iterations = turn_policy.max_iterations,
             "session processor selected retry budget"
         );
         step_index = step_index.saturating_add(1);

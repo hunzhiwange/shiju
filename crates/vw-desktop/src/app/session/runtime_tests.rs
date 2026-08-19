@@ -157,6 +157,7 @@ fn session_tool_inventory_handles_unrestricted_intersection_and_static_fallbacks
     main.allowed_tools.clear();
     app.agents_settings.available_tools =
         vec![" write ".to_string(), "read".to_string(), "read".to_string(), String::new()];
+    app.agents_settings.registered_tools = None;
 
     let restricted_empty = app.session_tool_inventory(&runtime);
     assert!(restricted_empty.base_tools.is_empty());
@@ -184,6 +185,67 @@ fn session_tool_inventory_handles_unrestricted_intersection_and_static_fallbacks
 
     app.agents_settings.available_tools.clear();
     assert_eq!(app.session_allowed_tools_for_request(&runtime), Some(vec!["shell".to_string()]));
+}
+
+#[test]
+fn session_tool_inventory_includes_registered_builtin_tools_locked_by_settings() {
+    let mut app = test_app();
+    let runtime = SessionRuntimeState::default();
+    let main = app
+        .agents_settings
+        .entries
+        .iter_mut()
+        .find(|entry| entry.key == MAIN_AGENT_KEY)
+        .expect("main agent should exist");
+    main.allowed_tools = vec!["custom_tool".to_string()];
+    app.agents_settings.available_tools = vec![
+        "custom_tool".to_string(),
+        "schedule".to_string(),
+        "bash".to_string(),
+        "file_read".to_string(),
+    ];
+    app.agents_settings.registered_tools = Some(app.agents_settings.available_tools.clone());
+
+    let inventory = app.session_tool_inventory(&runtime);
+
+    assert_eq!(inventory.base_tools, ["bash", "custom_tool", "file_read", "schedule"]);
+    assert!(inventory.restricts_tools);
+    assert_eq!(
+        app.session_allowed_tools_for_request(&runtime),
+        Some(vec![
+            "bash".to_string(),
+            "custom_tool".to_string(),
+            "file_read".to_string(),
+            "schedule".to_string(),
+        ])
+    );
+}
+
+#[test]
+fn session_tool_inventory_preserves_selected_custom_registered_tools() {
+    let mut app = test_app();
+    let runtime = SessionRuntimeState::default();
+    let main = app
+        .agents_settings
+        .entries
+        .iter_mut()
+        .find(|entry| entry.key == MAIN_AGENT_KEY)
+        .expect("main agent should exist");
+    main.allowed_tools = vec!["custom_tool".to_string(), "mcp__custom__run".to_string()];
+    app.agents_settings.available_tools = vec!["custom_tool".to_string()];
+    app.agents_settings.registered_tools = Some(vec![
+        "custom_tool".to_string(),
+        "mcp__custom__run".to_string(),
+        "unselected_custom_tool".to_string(),
+    ]);
+
+    let inventory = app.session_tool_inventory(&runtime);
+
+    assert_eq!(inventory.base_tools, ["custom_tool", "mcp__custom__run"]);
+    assert_eq!(
+        app.session_allowed_tools_for_request(&runtime),
+        Some(vec!["custom_tool".to_string(), "mcp__custom__run".to_string()])
+    );
 }
 
 #[test]

@@ -28,8 +28,8 @@
 //! 验证 Agent 在各种边界条件下的行为符合预期。
 
 use crate::app::agent::agent::dispatcher::NativeToolDispatcher;
-use crate::app::agent::config::AgentConfig;
 use crate::app::agent::providers::{ChatResponse, ToolCall};
+use vw_config_types::agent::AgentDefinitionConfig;
 
 use super::helpers::{
     CountingTool, EchoTool, FailingProvider, FailingTool, PanickingTool, ScriptedProvider,
@@ -124,7 +124,7 @@ async fn turn_handles_multi_step_tool_chain() {
 ///
 /// # 测试场景
 ///
-/// - 配置 max_tool_iterations 为 3
+/// - 配置 max_iterations 为 3
 /// - Provider 返回 8 个（超过限制）连续的工具调用响应
 /// - Agent 应在执行 3 次工具调用后停止并报错
 ///
@@ -134,7 +134,7 @@ async fn turn_handles_multi_step_tool_chain() {
 /// - 错误消息包含 "maximum tool iterations" 关键词
 #[tokio::test]
 async fn turn_bails_out_at_max_iterations() {
-    // 创建超过 max_tool_iterations 限制的工具调用响应序列
+    // 创建超过 max_iterations 限制的工具调用响应序列
     let max_iters = 3;
     let mut responses = Vec::new();
     for i in 0..max_iters + 5 {
@@ -147,7 +147,10 @@ async fn turn_bails_out_at_max_iterations() {
 
     let provider = Box::new(ScriptedProvider::new(responses));
 
-    let config = AgentConfig { max_tool_iterations: max_iters, ..AgentConfig::default() };
+    let config = AgentDefinitionConfig {
+        max_iterations: max_iters,
+        ..AgentDefinitionConfig::default()
+    };
 
     let mut agent = build_agent_with_config(provider, vec![Box::new(EchoTool)], config);
 

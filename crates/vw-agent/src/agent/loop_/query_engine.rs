@@ -58,7 +58,7 @@ impl QueryEngineUsage {
 
 #[derive(Debug, Clone)]
 pub(crate) struct QueryEngineBudgetSnapshot {
-    pub max_tool_iterations: usize,
+    pub max_iterations: usize,
     pub max_history_messages: usize,
     pub non_system_messages: usize,
     pub remaining_history_messages: usize,
@@ -91,7 +91,7 @@ pub(crate) struct QueryEngine {
     multimodal_config: crate::app::agent::config::MultimodalConfig,
     compact_context: bool,
     model_limit: crate::app::agent::provider::provider::ModelLimit,
-    max_tool_iterations: usize,
+    max_iterations: usize,
     max_history_messages: usize,
     min_memory_relevance_score: f64,
     turn_count: usize,
@@ -270,7 +270,8 @@ impl QueryEngine {
         let skills =
             crate::app::agent::skills::load_skills_with_config(&config.workspace_dir, &config);
         let tool_descs = build_tool_descriptions(&config);
-        let bootstrap_max_chars = if config.agent.compact_context { Some(6000) } else { None };
+        let main_agent = vw_config_types::agent::effective_main_agent_config(&config.agents);
+        let bootstrap_max_chars = main_agent.compact_context.then_some(6000);
         let native_tools = provider.supports_native_tools();
 
         let mut system_prompt = crate::app::agent::channels::build_system_prompt_with_mode(
@@ -315,10 +316,10 @@ impl QueryEngine {
             model_name,
             default_temperature: config.default_temperature,
             multimodal_config: config.multimodal,
-            compact_context: config.agent.compact_context,
+            compact_context: main_agent.compact_context,
             model_limit,
-            max_tool_iterations: config.agent.max_tool_iterations,
-            max_history_messages: config.agent.max_history_messages,
+            max_iterations: main_agent.max_iterations,
+            max_history_messages: main_agent.max_history_messages,
             min_memory_relevance_score: config.memory.min_relevance_score,
             turn_count: 0,
             timezone,
@@ -362,7 +363,7 @@ impl QueryEngine {
             self.default_temperature,
             true,
             &self.multimodal_config,
-            self.max_tool_iterations,
+            self.max_iterations,
             self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
         )
         .await;
@@ -393,7 +394,7 @@ impl QueryEngine {
                     self.default_temperature,
                     true,
                     &self.multimodal_config,
-                    self.max_tool_iterations,
+                    self.max_iterations,
                     self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
                 )
                 .await;
@@ -466,7 +467,7 @@ impl QueryEngine {
             turn_count: self.turn_count,
             usage: self.observer.usage_snapshot(),
             budget: QueryEngineBudgetSnapshot {
-                max_tool_iterations: self.max_tool_iterations,
+                max_iterations: self.max_iterations,
                 max_history_messages: self.max_history_messages,
                 non_system_messages,
                 remaining_history_messages: self

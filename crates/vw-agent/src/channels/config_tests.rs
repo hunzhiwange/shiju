@@ -103,7 +103,7 @@ fn context(vibewindow_dir: Option<PathBuf>, excluded_tools: Vec<String>) -> Chan
         model: Arc::new("ctx-model".to_string()),
         temperature: 0.8,
         auto_save_memory: false,
-        max_tool_iterations: 2,
+        max_iterations: 2,
         min_relevance_score: 0.0,
         conversation_histories: Arc::new(Mutex::new(HashMap::<String, Vec<ChatMessage>>::new())),
         provider_cache: Arc::new(Mutex::new(HashMap::new())),

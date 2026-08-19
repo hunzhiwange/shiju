@@ -175,9 +175,8 @@ fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
     main.model = " glm-5 ".to_string();
     main.temperature = 0.2;
     main.compact_context = true;
-    main.max_tool_iterations = 50_002;
     main.max_history_messages = 456;
-    main.max_iterations = 50_001;
+    main.max_iterations = 50_002;
     main.parallel_tools = true;
     main.allow_as_subagent = true;
     main.max_parallel_subagents = 3;
@@ -202,15 +201,15 @@ fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
     assert_eq!(patch["agents"]["main"]["model"], "glm-5");
     assert_eq!(patch["agents"]["main"]["allow_as_subagent"], true);
     assert_eq!(patch["agents"]["main"]["max_parallel_subagents"], 3);
-    assert_eq!(patch["agents"]["main"]["max_iterations"], 50_001);
+    assert_eq!(patch["agents"]["main"]["max_iterations"], 50_002);
+    assert_eq!(patch["agents"]["main"]["compact_context"], true);
+    assert_eq!(patch["agents"]["main"]["max_history_messages"], 456);
+    assert_eq!(patch["agents"]["main"]["parallel_tools"], true);
     assert_eq!(patch["default_provider"], "openrouter");
     assert_eq!(patch["default_model"], "openrouter/glm-5");
     assert_eq!(patch["default_temperature"], 0.2);
     assert!(patch.get("identity").is_none());
-    assert_eq!(patch["agent"]["compact_context"], true);
-    assert_eq!(patch["agent"]["max_tool_iterations"], 50_002);
-    assert_eq!(patch["agent"]["max_history_messages"], 456);
-    assert_eq!(patch["agent"]["parallel_tools"], true);
+    assert!(patch.get("agent").is_none());
     assert_eq!(patch["agents"][&worker_key]["compact_context"], true);
     assert_eq!(patch["agents"][&worker_key]["max_history_messages"], 234);
     assert_eq!(patch["agents"][&worker_key]["max_iterations"], 777);
@@ -418,52 +417,39 @@ fn agent_subagent_messages_update_and_clamp() {
 }
 
 #[test]
-fn capability_policy_controls_round_trip_without_rewriting_default_selections() {
+fn skill_policy_round_trips_without_rewriting_tool_selection() {
     let mut app = test_app();
     let main = entry_mut(&mut app, "main");
     main.allowed_tools = vec!["read".to_string()];
     main.allowed_skills = vec!["skill-a".to_string()];
 
-    assert_eq!(main.tool_policy, DelegateCapabilityPolicy::Unrestricted);
     assert_eq!(main.skill_policy, DelegateCapabilityPolicy::Unrestricted);
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::Agents(AgentsMessage::ToolPolicyChanged(
-            "main".to_string(),
-            DelegateCapabilityPolicy::Strict,
-        )),
-    );
     let _ = update(
         &mut app,
         SettingsMessage::Agents(AgentsMessage::SkillPolicyChanged(
             "main".to_string(),
-            DelegateCapabilityPolicy::UserOverride,
+            DelegateCapabilityPolicy::Strict,
         )),
     );
 
     let main = entry(&app, "main");
-    assert_eq!(main.tool_policy, DelegateCapabilityPolicy::Strict);
-    assert_eq!(main.skill_policy, DelegateCapabilityPolicy::UserOverride);
+    assert_eq!(main.skill_policy, DelegateCapabilityPolicy::Strict);
     assert_eq!(main.allowed_tools, ["read"]);
     assert_eq!(main.allowed_skills, ["skill-a"]);
 
     let patch =
         build_agents_settings_patch(&app.agents_settings.entries).expect("patch should serialize");
-    assert_eq!(patch["agents"]["main"]["tool_policy"], "strict");
-    assert_eq!(patch["agents"]["main"]["skill_policy"], "user_override");
+    assert!(patch["agents"]["main"].get("tool_policy").is_none());
+    assert_eq!(patch["agents"]["main"]["skill_policy"], "strict");
     assert_eq!(patch["agents"]["main"]["allowed_tools"], serde_json::json!(["read"]));
     assert_eq!(patch["agents"]["main"]["allowed_skills"], serde_json::json!(["skill-a"]));
 
-    let reloaded: vw_config_types::config::Config =
-        serde_json::from_value(patch).expect("patch should deserialize as config");
-    let reloaded_entries = crate::app::state::agent_settings_entries_from_config(&reloaded);
-    let reloaded_main = reloaded_entries
-        .iter()
-        .find(|entry| entry.key == "main")
-        .expect("main entry should reload");
-    assert_eq!(reloaded_main.tool_policy, DelegateCapabilityPolicy::Strict);
-    assert_eq!(reloaded_main.skill_policy, DelegateCapabilityPolicy::UserOverride);
+    let reloaded_config: vw_config_types::agent::DelegateAgentConfig =
+        serde_json::from_value(patch["agents"]["main"].clone())
+            .expect("main agent patch should deserialize");
+    let reloaded_main =
+        crate::app::state::DelegateAgentSettingsEntry::from_config("main", Some(reloaded_config));
+    assert_eq!(reloaded_main.skill_policy, DelegateCapabilityPolicy::Strict);
     assert_eq!(reloaded_main.allowed_tools, ["read"]);
     assert_eq!(reloaded_main.allowed_skills, ["skill-a"]);
 }
@@ -1175,13 +1161,6 @@ fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
     );
     let _ = update(
         &mut app,
-        SettingsMessage::Agents(AgentsMessage::MaxToolIterationsChanged(
-            "main".to_string(),
-            50_002,
-        )),
-    );
-    let _ = update(
-        &mut app,
         SettingsMessage::Agents(AgentsMessage::MaxHistoryMessagesChanged(
             "main".to_string(),
             2_000,
@@ -1219,7 +1198,6 @@ fn agent_core_field_messages_update_entries_and_clamp_numeric_bounds() {
     assert_eq!(main.model, "model-a");
     assert!(main.enabled);
     assert_eq!(main.temperature, 2.0);
-    assert_eq!(main.max_tool_iterations, 50_002);
     assert_eq!(main.max_history_messages, 1_000);
     assert_eq!(main.max_depth, 32);
     assert_eq!(main.max_iterations, 50_001);

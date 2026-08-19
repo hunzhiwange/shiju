@@ -168,7 +168,7 @@ fn state(require_pairing: bool, paired_tokens: &[String], agent_rate_limit: u32)
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
         multimodal: crate::app::agent::config::MultimodalConfig::default(),
-        max_tool_iterations: 10,
+        max_iterations: 10,
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,

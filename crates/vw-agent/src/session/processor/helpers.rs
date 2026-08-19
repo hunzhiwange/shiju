@@ -4,11 +4,9 @@
 //! 预览裁剪与 ACP 请求识别等细节职责。
 
 use super::utils;
-use crate::session::capability_policy::{CapabilityPolicyResolution, resolve_tool_capabilities};
 use crate::tools;
 use serde_json::Value;
 use std::collections::HashSet;
-use vw_config_types::agent::DelegateCapabilityPolicy;
 
 /// 获取允许使用的工具 ID 集合。
 ///
@@ -54,66 +52,14 @@ pub(crate) fn allowed_tool_ids_for_request_from_specs(
         .map(ToOwned::to_owned)
         .collect::<HashSet<_>>();
 
-    if requested.is_empty() {
-        return base;
-    }
-
-    // 技能通过轻量目录动态读取，不属于智能体注册工具白名单的限制范围。
-    // 其余工具必须同时存在于请求白名单和当前注册表中。
+    // 内置必需工具始终注册；其余工具必须同时存在于请求清单和当前注册表中。
     base.iter()
-        .filter(|tool| requested.contains(*tool) || tool.eq_ignore_ascii_case("skill"))
+        .filter(|tool| {
+            requested.contains(*tool)
+                || vw_config_types::tools::is_builtin_required_tool_id(tool)
+        })
         .cloned()
         .collect()
-}
-
-/// 解析委托会话的工具能力策略；缺少策略输入时保持旧请求过滤语义。
-pub(crate) fn delegated_tool_policy_resolution_from_specs(
-    specs: &[tools::ToolSpec],
-    options: &Value,
-) -> Option<CapabilityPolicyResolution> {
-    let _policy = options
-        .get("delegate_tool_policy")
-        .cloned()
-        .and_then(|value| serde_json::from_value::<DelegateCapabilityPolicy>(value).ok())?;
-    let defaults = option_string_values(options, "delegate_default_allowed_tools");
-    let trusted_user_selection =
-        option_string_values(options, "delegate_trusted_user_selected_tools");
-    let hard_disabled = specs
-        .iter()
-        .filter(|spec| {
-            crate::session::processor::tools_exec::is_agent_tool(&spec.id)
-                || spec
-                    .aliases
-                    .iter()
-                    .any(|alias| crate::session::processor::tools_exec::is_agent_tool(alias))
-        })
-        .map(|spec| spec.id.as_str())
-        .collect::<Vec<_>>();
-    // 智能体声明的工具集合是硬上界；用户选择与历史 unrestricted 策略都不能
-    // 把列表外工具重新加入 provider 的工具定义。
-    let mut resolution = resolve_tool_capabilities(
-        specs,
-        defaults,
-        trusted_user_selection,
-        DelegateCapabilityPolicy::Strict,
-        hard_disabled,
-    );
-
-    for spec in specs {
-        if spec.id.eq_ignore_ascii_case("skill") {
-            resolution.visible_ids.insert(spec.id.to_lowercase());
-        }
-    }
-    Some(resolution)
-}
-
-/// 返回 Gateway 请求边界中已固化的可信用户工具选择。
-pub(crate) fn trusted_user_selected_tool_ids_from_options(options: &Value) -> Vec<String> {
-    let delegated = option_string_values(options, "delegate_trusted_user_selected_tools");
-    if !delegated.is_empty() {
-        return delegated;
-    }
-    option_string_values(options, "allowed_tools")
 }
 
 fn option_string_values(options: &Value, key: &str) -> Vec<String> {

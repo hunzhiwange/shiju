@@ -1114,16 +1114,6 @@ impl App {
 
             agents_settings: {
                 let mut entries = super::state::agent_settings_entries_from_config(&full_agent_cfg);
-                if let Some(main) = entries.iter_mut().find(|entry| entry.key == "main") {
-                    main.compact_context = full_agent_cfg.agent.compact_context;
-                    main.max_tool_iterations =
-                        u32::try_from(full_agent_cfg.agent.max_tool_iterations)
-                            .unwrap_or(u32::MAX)
-                            .max(1);
-                    main.max_history_messages =
-                        full_agent_cfg.agent.max_history_messages.clamp(1, 1000) as u32;
-                    main.parallel_tools = full_agent_cfg.agent.parallel_tools;
-                }
                 let loaded_tools = config::load_tools_list_via_gateway();
                 let tool_catalog_ready = !loaded_tools.is_empty();
                 let registered_tools = tool_catalog_ready

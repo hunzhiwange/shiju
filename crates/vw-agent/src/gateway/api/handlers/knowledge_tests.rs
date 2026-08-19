@@ -998,7 +998,7 @@ async fn knowledge_store_helper_uses_state_config() {
         tools_registry: std::sync::Arc::new(Vec::new()),
         tools_registry_exec: std::sync::Arc::new(Vec::new()),
         multimodal: crate::app::agent::config::MultimodalConfig::default(),
-        max_tool_iterations: 10,
+        max_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
         hook_runtime: None,

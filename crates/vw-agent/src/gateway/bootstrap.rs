@@ -110,7 +110,8 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
     ));
     let tools_registry: Arc<Vec<ToolSpec>> =
         Arc::new(tools_registry_exec.iter().map(|t| t.spec()).collect());
-    let max_tool_iterations = config.agent.max_tool_iterations;
+    let max_iterations =
+        vw_config_types::agent::effective_main_agent_config(&config.agents).max_iterations;
     let multimodal_config = config.multimodal.clone();
 
     let (event_tx, _event_rx) = tokio::sync::broadcast::channel::<serde_json::Value>(256);
@@ -317,7 +318,7 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         tools_registry,
         tools_registry_exec,
         multimodal: multimodal_config,
-        max_tool_iterations,
+        max_iterations,
         event_tx,
         session_query_engines: Default::default(),
         hook_runtime: Some(hook_runtime),

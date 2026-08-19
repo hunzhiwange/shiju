@@ -54,7 +54,7 @@ pub use timeouts::{effective_message_timeout_secs, message_timeout_budget_secs};
 #[cfg(test)]
 pub(crate) use constants::DEFAULT_MAX_HISTORY_MESSAGES;
 #[cfg(test)]
-pub(crate) use constants::DEFAULT_MAX_TOOL_ITERATIONS;
+pub(crate) use constants::DEFAULT_MAX_ITERATIONS;
 #[cfg(test)]
 pub(crate) use history::{
     build_native_assistant_history, build_native_assistant_history_from_parsed_calls,

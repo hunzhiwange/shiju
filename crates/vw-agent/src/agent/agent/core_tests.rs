@@ -1,7 +1,5 @@
 use super::core::Agent;
-use crate::app::agent::config::{
-    AgentConfig, ClassificationRule, ModelRouteConfig, QueryClassificationConfig,
-};
+use crate::app::agent::config::{ClassificationRule, ModelRouteConfig, QueryClassificationConfig};
 use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
 use crate::app::agent::provider::provider;
@@ -11,6 +9,7 @@ use crate::providers::traits::ProviderCapabilities;
 use crate::session::llm::{
     AutoModelSelectionRequest, ModelCandidate, ModelReference, select_auto_model,
 };
+use vw_config_types::agent::AgentDefinitionConfig;
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -197,7 +196,10 @@ fn clear_history_is_idempotent_for_empty_history() {
 #[test]
 fn trim_history_keeps_system_messages_and_recent_non_system_messages() {
     let mut agent = build_agent();
-    agent.config = AgentConfig { max_history_messages: 2, ..AgentConfig::default() };
+    agent.config = AgentDefinitionConfig {
+        max_history_messages: 2,
+        ..AgentDefinitionConfig::default()
+    };
     agent.history.push(ChatMessage::system("system one"));
     agent.history.push(ChatMessage::user("first"));
     agent.history.push(ChatMessage::assistant("second"));
@@ -214,7 +216,10 @@ fn trim_history_keeps_system_messages_and_recent_non_system_messages() {
 #[test]
 fn trim_history_keeps_all_non_system_messages_when_only_system_messages_exceed_limit() {
     let mut agent = build_agent();
-    agent.config = AgentConfig { max_history_messages: 2, ..AgentConfig::default() };
+    agent.config = AgentDefinitionConfig {
+        max_history_messages: 2,
+        ..AgentDefinitionConfig::default()
+    };
     agent.history.push(ChatMessage::system("system one"));
     agent.history.push(ChatMessage::system("system two"));
     agent.history.push(ChatMessage::system("system three"));

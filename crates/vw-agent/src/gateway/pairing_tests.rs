@@ -92,7 +92,7 @@ fn state_with(pairing: PairingGuard, rate_limit: u32, config: Config) -> AppStat
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
         multimodal: Default::default(),
-        max_tool_iterations: 5,
+        max_iterations: 5,
         event_tx: tokio::sync::broadcast::channel(1).0,
         session_query_engines: Default::default(),
         hook_runtime: None,

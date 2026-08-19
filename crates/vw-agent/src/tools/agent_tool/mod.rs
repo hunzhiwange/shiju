@@ -456,11 +456,7 @@ impl AgentTool {
             model: Self::model_for_child_request(agent_config),
             prompt: prompt.to_string(),
             context,
-            default_allowed_tools: agent_config.allowed_tools.clone(),
-            tool_policy: agent_config.tool_policy,
-            trusted_user_selected_tools: current_tool_use_context()
-                .map(|context| context.trusted_user_selected_tools().iter().cloned().collect())
-                .unwrap_or_default(),
+            allowed_tools: agent_config.allowed_tools.clone(),
             default_allowed_skills: agent_config.allowed_skills.clone(),
             skill_policy: agent_config.skill_policy,
             trusted_user_selected_skills: current_tool_use_context()

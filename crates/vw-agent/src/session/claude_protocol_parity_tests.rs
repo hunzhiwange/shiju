@@ -2,7 +2,7 @@ use crate::app::agent::config::{DelegateAgentConfig, DelegateCapabilityPolicy};
 use crate::app::agent::skills::{InvokedSkillRecord, Skill, SkillListingSessionState};
 use crate::app::agent::tools::{Tool, ToolResult};
 use crate::channels::prompt::build_entrypoint_protocol_messages;
-use crate::session::capability_policy::{resolve_skill_capabilities, resolve_tool_capabilities};
+use crate::session::capability_policy::resolve_skill_capabilities;
 use crate::session::child_agent::stream_request;
 use crate::session::instruction_discovery::{self, DiscoveryRoots, SourceKind};
 use crate::session::processor::llm_messages::assemble_session_protocol_messages;
@@ -175,8 +175,6 @@ fn claude_protocol_parity_covers_agents_skills_compaction_and_entrypoints() {
         "inspect the same protocol",
         desktop.clone(),
         Vec::new(),
-        Default::default(),
-        Vec::new(),
         Vec::new(),
         Default::default(),
         Vec::new(),
@@ -253,22 +251,14 @@ fn delegate_capability_policy_is_consistent_across_agenttool_gateway_and_legacy_
         Arc::new(DelegateParityTool { name: "skill" }),
         Arc::new(DelegateParityTool { name: "AgentTool" }),
     ];
-    let specs = parent_tools.iter().map(|tool| tool.spec()).collect::<Vec<_>>();
     let defaults = vec!["file_read".to_string(), "skill".to_string()];
-    let trusted_tools = vec!["shell".to_string()];
     let trusted_skills = vec!["extra".to_string()];
 
-    for (policy, expected_tools, expected_skill_enum) in [
-        (DelegateCapabilityPolicy::Strict, vec!["file_read", "skill"], Some(json!(["review"]))),
-        (
-            DelegateCapabilityPolicy::UserOverride,
-            vec!["file_read", "shell", "skill"],
-            Some(json!(["extra", "review"])),
-        ),
-        (DelegateCapabilityPolicy::Unrestricted, vec!["file_read", "shell", "skill"], None),
+    for (policy, expected_skill_enum) in [
+        (DelegateCapabilityPolicy::Strict, Some(json!(["review"]))),
+        (DelegateCapabilityPolicy::Unrestricted, None),
     ] {
         let config = DelegateAgentConfig {
-            tool_policy: policy,
             allowed_tools: defaults.clone(),
             skill_policy: policy,
             allowed_skills: vec!["review".to_string()],
@@ -277,18 +267,10 @@ fn delegate_capability_policy_is_consistent_across_agenttool_gateway_and_legacy_
         let legacy = crate::app::agent::tools::delegated_tools::build_agentic_tools(
             &parent_tools,
             &config,
-            &trusted_tools,
             &trusted_skills,
         );
         let legacy_names = legacy.iter().map(|tool| tool.name()).collect::<Vec<_>>();
-        assert_eq!(legacy_names, expected_tools);
-
-        let modern =
-            resolve_tool_capabilities(&specs, &defaults, &trusted_tools, policy, ["AgentTool"]);
-        assert_eq!(
-            legacy_names.into_iter().collect::<std::collections::BTreeSet<_>>(),
-            modern.visible_ids.iter().map(String::as_str).collect(),
-        );
+        assert_eq!(legacy_names, vec!["file_read", "skill"]);
 
         let skill = legacy.iter().find(|tool| tool.name() == "skill").expect("skill tool");
         match expected_skill_enum {

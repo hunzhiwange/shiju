@@ -87,7 +87,7 @@ pub fn effective_message_timeout_secs(configured: u64) -> u64 {
 /// # 参数
 ///
 /// - `message_timeout_secs`: 基础消息超时时间（秒），通常来自 `effective_message_timeout_secs` 的结果
-/// - `max_tool_iterations`: 最大工具迭代次数，表示任务的复杂度
+/// - `max_iterations`: 最大工具迭代次数，表示任务的复杂度
 ///
 /// # 返回值
 ///
@@ -96,7 +96,7 @@ pub fn effective_message_timeout_secs(configured: u64) -> u64 {
 /// # 计算逻辑
 ///
 /// ```text
-/// iterations = max(max_tool_iterations, 1)  // 确保至少为1
+/// iterations = max(max_iterations, 1)  // 确保至少为1
 /// scale = min(iterations, CHANNEL_MESSAGE_TIMEOUT_SCALE_CAP)  // 缩放因子上限为4
 /// budget = message_timeout_secs * scale  // 饱和乘法，防止溢出
 /// ```
@@ -131,9 +131,9 @@ pub fn effective_message_timeout_secs(configured: u64) -> u64 {
 /// - 设置整个消息处理循环的超时上限
 /// - 为工具链式调用预留足够的总时间
 /// - 平衡响应速度和任务完成率
-pub fn message_timeout_budget_secs(message_timeout_secs: u64, max_tool_iterations: usize) -> u64 {
+pub fn message_timeout_budget_secs(message_timeout_secs: u64, max_iterations: usize) -> u64 {
     // 确保迭代次数至少为1，避免0次迭代导致预算为0
-    let iterations = max_tool_iterations.max(1) as u64;
+    let iterations = max_iterations.max(1) as u64;
 
     // 限制缩放因子不超过上限（4），防止超时预算过大
     // 这样即使迭代次数很多，超时预算也不会无限增长

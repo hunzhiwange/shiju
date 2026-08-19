@@ -272,7 +272,7 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
             input: None,
             output: 0,
         },
-        max_tool_iterations: 2,
+        max_iterations: 2,
         max_history_messages: 10,
         min_memory_relevance_score: 0.5,
         turn_count: 0,
@@ -490,7 +490,7 @@ fn session_state_counts_non_system_messages_and_remaining_budget() {
         ChatMessage::tool("three"),
     ];
     engine.max_history_messages = 2;
-    engine.max_tool_iterations = 4;
+    engine.max_iterations = 4;
     engine.turn_count = 9;
     engine.observer.replace_usage(QueryEngineUsage {
         input_tokens: 1,
@@ -504,7 +504,7 @@ fn session_state_counts_non_system_messages_and_remaining_budget() {
 
     assert_eq!(state.turn_count, 9);
     assert_eq!(state.usage.total_tokens(), 6);
-    assert_eq!(state.budget.max_tool_iterations, 4);
+    assert_eq!(state.budget.max_iterations, 4);
     assert_eq!(state.budget.max_history_messages, 2);
     assert_eq!(state.budget.non_system_messages, 3);
     assert_eq!(state.budget.remaining_history_messages, 0);

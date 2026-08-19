@@ -116,13 +116,12 @@ fn basic_view_preserves_fields_for_blank_selections_and_numeric_boundaries() {
     entry.provider = "   ".to_string();
     entry.model = "\t".to_string();
 
-    for (temperature, max_depth, max_iterations, max_tool_iterations, max_history_messages) in
-        [(0.0, 1, 1, 1, 1), (2.0, 32, 50_001, 50_002, 1000)]
+    for (temperature, max_depth, max_iterations, max_history_messages) in
+        [(0.0, 1, 1, 1), (2.0, 32, 50_001, 1000)]
     {
         entry.temperature = temperature;
         entry.max_depth = max_depth;
         entry.max_iterations = max_iterations;
-        entry.max_tool_iterations = max_tool_iterations;
         entry.max_history_messages = max_history_messages;
 
         let tree = view_tree(&app, &entry, Vec::new());

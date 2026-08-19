@@ -17,7 +17,7 @@
 
 use crate::app::agent::agent::agent::Agent;
 use crate::app::agent::agent::dispatcher::{ToolDispatcher, ToolExecutionResult};
-use crate::app::agent::config::{AgentConfig, MemoryConfig};
+use crate::app::agent::config::MemoryConfig;
 use crate::app::agent::memory::{self, Memory};
 use crate::app::agent::observability::{NoopObserver, Observer};
 use crate::app::agent::providers::{ChatMessage, ChatRequest, ChatResponse, Provider, ToolCall};
@@ -25,6 +25,7 @@ use crate::app::agent::tools::{Tool, ToolResult};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
+use vw_config_types::agent::AgentDefinitionConfig;
 
 /// 脚本化 LLM Provider
 ///
@@ -511,7 +512,7 @@ pub(super) fn build_agent_with_memory(
 
 /// 使用完整配置构建 Agent
 ///
-/// 使用自定义的 AgentConfig 构建实例，支持细粒度的行为配置。
+/// 使用自定义的 AgentDefinitionConfig 构建实例，支持细粒度的行为配置。
 ///
 /// # 参数
 ///
@@ -535,7 +536,7 @@ pub(super) fn build_agent_with_memory(
 pub(super) fn build_agent_with_config(
     provider: Box<dyn Provider>,
     tools: Vec<Box<dyn Tool>>,
-    config: AgentConfig,
+    config: AgentDefinitionConfig,
 ) -> Agent {
     Agent::builder()
         .provider(provider)

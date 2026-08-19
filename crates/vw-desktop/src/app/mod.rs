@@ -79,7 +79,7 @@ pub(crate) fn project_dirs() -> Option<directories::ProjectDirs> {
 
 /// 对外暴露当前模块需要复用的能力。
 pub use self::config::{
-    gateway_client, gateway_client_endpoint, load_agent_runtime_config,
+    gateway_client, gateway_client_endpoint,
     load_app_config, load_autonomy_config, load_browser_config, load_browser_config_async,
     load_channels_config, load_cron_config, load_delegate_agents_config,
     load_embedding_routes_config, load_full_agent_config, load_gateway_client_config,
@@ -91,8 +91,7 @@ pub use self::config::{
     load_skills_config, load_sql_tool_content, load_staff_config, load_staff_config_result,
     load_storage_config, load_system_settings_config, load_tunnel_config, load_web_search_config,
     save_app_config, save_html_tool_content, save_json_tool_content, save_project_chat_preferences,
-    set_config_field, update_agent_runtime_config, update_agent_runtime_config_async,
-    update_agent_runtime_config_result, update_autonomy_config, update_autonomy_config_async,
+    set_config_field, update_autonomy_config, update_autonomy_config_async,
     update_autonomy_config_result, update_browser_config, update_browser_config_async,
     update_browser_config_result, update_channels_config, update_channels_config_result,
     update_cron_config, update_cron_config_async,

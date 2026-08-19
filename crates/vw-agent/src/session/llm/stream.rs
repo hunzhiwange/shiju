@@ -178,7 +178,7 @@ fn resolve_stream_provider_info(
 /// ```ignore
 /// let input = StreamInput {
 ///     model: ModelConfig { provider_id: "openai".into(), id: "gpt-4".into(), ... },
-///     agent: AgentConfig { name: "assistant".into(), mode: "chat".into(), ... },
+///     agent: AgentInfo { name: "assistant".into(), mode: "chat".into(), ... },
 ///     messages: vec![Message { role: "user".into(), content: "你好".into(), ... }],
 ///     session_id: "session-123".into(),
 ///     user: UserInfo { id: "user-456".into(), ... },

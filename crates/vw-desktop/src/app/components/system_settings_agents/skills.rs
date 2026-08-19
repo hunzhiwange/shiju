@@ -10,15 +10,26 @@ use crate::app::components::system_settings_common::{
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{DelegateAgentSettingsEntry, SkillsCatalogItem, SkillsDirectoryScope};
 use crate::app::{App, Message};
-use iced::widget::{button, column, row, text};
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
+use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use vw_config_types::agent::DelegateCapabilityPolicy;
 
 pub(super) fn capability_policy_label(policy: DelegateCapabilityPolicy) -> &'static str {
     match policy {
         DelegateCapabilityPolicy::Strict => "严格限制",
-        DelegateCapabilityPolicy::UserOverride => "限制但允许用户选择",
         DelegateCapabilityPolicy::Unrestricted => "不限制",
+    }
+}
+
+pub(super) fn capability_policy_tooltip(policy: DelegateCapabilityPolicy) -> &'static str {
+    match policy {
+        DelegateCapabilityPolicy::Strict => {
+            "仅允许下方已选且已启用的技能，不允许在会话中临时添加其他技能。"
+        }
+        DelegateCapabilityPolicy::Unrestricted => {
+            "默认提示使用下方已选技能，同时允许在会话中临时选择其他已启用技能。"
+        }
     }
 }
 
@@ -31,11 +42,15 @@ fn skill_policy_button(
     policy: DelegateCapabilityPolicy,
 ) -> Element<'static, Message> {
     let selected = entry.skill_policy == policy;
-    button(text(capability_policy_label(policy)).size(12))
+    let policy_button = button(text(capability_policy_label(policy)).size(12))
         .padding([8, 12])
         .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, selected))
-        .on_press(skill_policy_message(entry.key.clone(), policy))
-        .into()
+        .on_press(skill_policy_message(entry.key.clone(), policy));
+    let tip = container(text(capability_policy_tooltip(policy)).size(12))
+        .padding([6, 10])
+        .style(settings_panel_style);
+
+    Tooltip::new(policy_button, tip, TooltipPosition::Bottom).gap(6.0).into()
 }
 
 pub(super) fn skill_card_button_style(
@@ -291,21 +306,24 @@ pub(super) fn view<'a>(
         .spacing(12)
         .into()
     };
+    let policy_controls = row![
+        skill_policy_button(entry, DelegateCapabilityPolicy::Strict),
+        skill_policy_button(entry, DelegateCapabilityPolicy::Unrestricted),
+    ]
+        .spacing(8)
+        .wrap();
 
     column![
-        section_card("默认技能", "选择会在委托代理首步默认注入的技能；它们不是技能白名单。",),
+        section_card(
+            "默认技能",
+            "选择会在委托代理首步默认提示的技能；严格限制时它们同时构成技能白名单。",
+        ),
         column![
             text("技能访问策略").size(14),
-            text("控制委托代理可见技能的范围；不限制为默认策略。")
+            text("严格限制使用固定技能范围；不限制允许会话临时选择。")
                 .size(12)
                 .style(settings_muted_text_style),
-            row![
-                skill_policy_button(entry, DelegateCapabilityPolicy::Strict),
-                skill_policy_button(entry, DelegateCapabilityPolicy::UserOverride),
-                skill_policy_button(entry, DelegateCapabilityPolicy::Unrestricted),
-            ]
-            .spacing(8)
-            .wrap(),
+            policy_controls,
         ]
         .spacing(8),
         scope_filter,

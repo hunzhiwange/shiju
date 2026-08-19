@@ -249,7 +249,7 @@ const MIN_CHANNEL_MESSAGE_TIMEOUT_SECS: u64 = 30;
 const CHANNEL_MESSAGE_TIMEOUT_SECS: u64 = 300;
 
 /// 超时缩放上限系数。
-/// 防止过大的 `max_tool_iterations` 配置导致无界等待。
+/// 防止过大的 `max_iterations` 配置导致无界等待。
 /// 实际超时 = 基础超时 × min(缩放系数, 此上限)
 const CHANNEL_MESSAGE_TIMEOUT_SCALE_CAP: u64 = 4;
 
@@ -487,7 +487,7 @@ pub(crate) struct ChannelRuntimeContext {
     /// 是否启用自动记忆保存
     pub(crate) auto_save_memory: bool,
     /// 单次请求中工具迭代的最大次数
-    pub(crate) max_tool_iterations: usize,
+    pub(crate) max_iterations: usize,
     /// 记忆检索的最小相关性分数阈值
     pub(crate) min_relevance_score: f64,
     /// 各发送者的会话历史

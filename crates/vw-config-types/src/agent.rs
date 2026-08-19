@@ -4,6 +4,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+pub const DEFAULT_MAX_ITERATIONS: usize = 50_000;
+
 /// 多工作区注册表配置（`[workspaces]`）。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[derive(Default)]
@@ -34,15 +36,13 @@ impl WorkspacesConfig {
     }
 }
 
-/// 委托代理访问默认能力及用户显式选择的方式。
+/// 委托代理技能的可见范围。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[schemars(rename_all = "snake_case")]
 pub enum DelegateCapabilityPolicy {
     /// 仅允许配置的默认选择。
     Strict,
-    /// 允许配置的默认选择和可信的用户显式选择。
-    UserOverride,
     /// 允许全部可用能力。
     #[default]
     Unrestricted,
@@ -106,10 +106,7 @@ pub struct AgentDefinitionConfig {
     /// 是否启用 agentic 子代理模式（多轮工具调用循环）。
     #[serde(default = "default_delegate_agentic")]
     pub agentic: bool,
-    /// 委托代理工具的访问策略。
-    #[serde(default)]
-    pub tool_policy: DelegateCapabilityPolicy,
-    /// agentic 模式下注入的默认工具选择。
+    /// agentic 模式下注册给模型的工具选择。
     #[serde(default, alias = "tools")]
     pub allowed_tools: Vec<String>,
     /// 委托代理技能的访问策略。
@@ -128,7 +125,7 @@ pub struct AgentDefinitionConfig {
     #[serde(default)]
     pub permission: Value,
     /// agentic 模式下最大工具调用迭代次数。
-    #[serde(default = "default_max_tool_iterations", alias = "max_turns")]
+    #[serde(default = "default_max_iterations")]
     pub max_iterations: usize,
     /// 是否为该智能体启用紧凑上下文。
     #[serde(default)]
@@ -171,8 +168,8 @@ fn default_max_parallel_subagents() -> usize {
     4
 }
 
-fn default_max_tool_iterations() -> usize {
-    50_000
+fn default_max_iterations() -> usize {
+    DEFAULT_MAX_ITERATIONS
 }
 
 impl Default for AgentDefinitionConfig {
@@ -196,14 +193,13 @@ impl Default for AgentDefinitionConfig {
             hidden: false,
             max_depth: default_max_depth(),
             agentic: default_delegate_agentic(),
-            tool_policy: DelegateCapabilityPolicy::default(),
             allowed_tools: Vec::new(),
             skill_policy: DelegateCapabilityPolicy::default(),
             allowed_skills: Vec::new(),
             enabled_identity_files: Vec::new(),
             options: HashMap::new(),
             permission: Value::Null,
-            max_iterations: default_max_tool_iterations(),
+            max_iterations: default_max_iterations(),
             compact_context: false,
             max_history_messages: default_agent_max_history_messages(),
             parallel_tools: false,
@@ -233,7 +229,6 @@ impl std::fmt::Debug for AgentDefinitionConfig {
             .field("hidden", &self.hidden)
             .field("max_depth", &self.max_depth)
             .field("agentic", &self.agentic)
-            .field("tool_policy", &self.tool_policy)
             .field("allowed_tools", &self.allowed_tools)
             .field("skill_policy", &self.skill_policy)
             .field("allowed_skills", &self.allowed_skills)
@@ -495,7 +490,6 @@ pub fn merged_agent_configs(
                 builtin.temperature = value.temperature;
             }
             builtin.top_p = value.top_p;
-            builtin.tool_policy = value.tool_policy;
             builtin.allowed_skills = value.allowed_skills.clone();
             builtin.skill_policy = value.skill_policy;
             builtin.enabled_identity_files = value.enabled_identity_files.clone();
@@ -513,42 +507,26 @@ pub fn merged_agent_configs(
     merged
 }
 
-/// 代理编排配置（`[agent]` 配置段）。
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AgentConfig {
-    /// 为 `true` 时使用紧凑上下文：`bootstrap_max_chars=6000`、`rag_chunk_limit=2`。
-    /// 适合 13B 或更小规模的模型。
-    #[serde(default)]
-    pub compact_context: bool,
-    /// 每条用户消息允许的最大工具调用循环轮数。默认值为 `50000`。
-    /// 设置为 `0` 时会回退到默认值 `50000`。
-    #[serde(default = "default_agent_max_tool_iterations")]
-    pub max_tool_iterations: usize,
-    /// 每个会话保留的历史消息上限。默认值为 `100`。
-    #[serde(default = "default_agent_max_history_messages")]
-    pub max_history_messages: usize,
-    /// 是否在单次迭代内启用并行工具执行。默认值为 `false`。
-    #[serde(default)]
-    pub parallel_tools: bool,
+/// 返回合并内建边界和用户配置后的主代理定义。
+pub fn effective_main_agent_config(
+    configured: &HashMap<String, AgentDefinitionConfig>,
+) -> AgentDefinitionConfig {
+    merged_agent_configs(configured)
+        .remove("main")
+        .expect("builtin main agent configuration exists")
 }
 
-fn default_agent_max_tool_iterations() -> usize {
-    50_000
+/// 确保可变配置中存在主代理定义，用于显式运行时覆盖。
+pub fn ensure_main_agent_config(
+    configured: &mut HashMap<String, AgentDefinitionConfig>,
+) -> &mut AgentDefinitionConfig {
+    configured.entry("main".to_string()).or_insert_with(|| {
+        builtin_agent_config("main").expect("builtin main agent configuration exists")
+    })
 }
 
 fn default_agent_max_history_messages() -> usize {
     100
-}
-
-impl Default for AgentConfig {
-    fn default() -> Self {
-        Self {
-            compact_context: false,
-            max_tool_iterations: default_agent_max_tool_iterations(),
-            max_history_messages: default_agent_max_history_messages(),
-            parallel_tools: false,
-        }
-    }
 }
 #[cfg(test)]
 #[path = "agent_tests.rs"]

@@ -166,7 +166,6 @@ fn channel_tool_descriptions_include_browser_open_when_not_disabled() {
 #[test]
 fn bootstrap_and_listener_backoff_use_runtime_defaults() {
     let mut config = Config::default();
-    config.agent.compact_context = false;
     config.reliability.channel_initial_backoff_secs = 0;
     config.reliability.channel_max_backoff_secs = 0;
 
@@ -176,7 +175,7 @@ fn bootstrap_and_listener_backoff_use_runtime_defaults() {
         (DEFAULT_CHANNEL_INITIAL_BACKOFF_SECS, DEFAULT_CHANNEL_MAX_BACKOFF_SECS)
     );
 
-    config.agent.compact_context = true;
+    vw_config_types::agent::ensure_main_agent_config(&mut config.agents).compact_context = true;
     config.reliability.channel_initial_backoff_secs = DEFAULT_CHANNEL_INITIAL_BACKOFF_SECS + 7;
     config.reliability.channel_max_backoff_secs = DEFAULT_CHANNEL_MAX_BACKOFF_SECS + 9;
 

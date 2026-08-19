@@ -48,7 +48,7 @@ use super::types::StreamInput;
 ///
 /// ```ignore
 /// let input = StreamInput {
-///     agent: AgentConfig { prompt: Some("你是助手".to_string()), ... },
+///     agent: AgentInfo { prompt: Some("你是助手".to_string()), ... },
 ///     model: ModelInfo { ... },
 ///     system: vec!["系统规则".to_string()],
 ///     user: UserInfo { system: Some("用户规则".to_string()), ... },

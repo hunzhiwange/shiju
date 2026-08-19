@@ -395,7 +395,7 @@ pub async fn run() -> Result<()> {
             peripheral,
             autonomy_level,
             max_actions_per_hour,
-            max_tool_iterations,
+            max_iterations,
             max_history_messages,
             compact_context,
             memory_backend,
@@ -408,17 +408,19 @@ pub async fn run() -> Result<()> {
             if let Some(n) = max_actions_per_hour {
                 config.autonomy.max_actions_per_hour = n;
             }
+            let main_agent =
+                vw_config_types::agent::ensure_main_agent_config(&mut config.agents);
             // 应用工具迭代次数限制
-            if let Some(n) = max_tool_iterations {
-                config.agent.max_tool_iterations = n;
+            if let Some(n) = max_iterations {
+                main_agent.max_iterations = n;
             }
             // 应用历史消息数量限制
             if let Some(n) = max_history_messages {
-                config.agent.max_history_messages = n;
+                main_agent.max_history_messages = n;
             }
             // 启用上下文压缩模式
             if compact_context {
-                config.agent.compact_context = true;
+                main_agent.compact_context = true;
             }
             // 应用记忆后端配置
             if let Some(ref backend) = memory_backend {

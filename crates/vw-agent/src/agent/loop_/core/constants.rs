@@ -23,7 +23,7 @@
 //! ```ignore
 //! use crate::app::agent::agent::loop_::core::constants::*;
 //!
-//! if iterations >= DEFAULT_MAX_TOOL_ITERATIONS {
+//! if iterations >= DEFAULT_MAX_ITERATIONS {
 //!     warn!("Maximum tool iterations reached");
 //! }
 //! ```
@@ -61,20 +61,20 @@ pub(crate) const STREAM_CHUNK_MIN_CHARS: usize = 5;
 /// # Configuration
 ///
 /// This value is used as a fallback when:
-/// - `max_tool_iterations` is not configured in the agent config
-/// - `max_tool_iterations` is explicitly set to `0`
+/// - `agents.main.max_iterations` is not configured
+/// - `agents.main.max_iterations` is explicitly set to `0`
 ///
 /// Users can override this in their agent configuration:
 ///
 /// ```toml
-/// [agent]
-/// max_tool_iterations = 50000
+/// [agents.main]
+/// max_iterations = 50000
 /// ```
 ///
 /// # See Also
 ///
-/// - [`crate::app::agent::config::schema::AgentConfig::max_tool_iterations`]
-pub(crate) const DEFAULT_MAX_TOOL_ITERATIONS: usize = 50_000;
+/// - [`vw_config_types::agent::AgentDefinitionConfig::max_iterations`]
+pub(crate) use vw_config_types::agent::DEFAULT_MAX_ITERATIONS;
 
 /// Default maximum number of messages to retain in conversation history.
 ///

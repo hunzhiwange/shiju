@@ -155,7 +155,7 @@ fn supported_settings_description_reports_types_options_and_descriptions() {
     assert!(description.contains("- browser.enabled: true/false - Whether browser_open is enabled."));
     assert!(
         description
-            .contains("- agent.maxToolIterations: integer - Maximum number of tool iterations allowed per message.")
+            .contains("- agents.main.maxIterations: integer - Maximum number of tool iterations allowed per message.")
     );
     assert!(description.contains("- defaultTemperature: number - Default temperature."));
     assert!(
@@ -474,17 +474,17 @@ async fn config_resets_optional_setting_and_coerces_integer_string() {
     assert_eq!(reset_output["newValue"], json!("openrouter"));
 
     let integer = tool
-        .execute(json!({ "setting": "agent.max_tool_iterations", "value": " 7 " }))
+        .execute(json!({ "setting": "agents.main.max_iterations", "value": " 7 " }))
         .await
         .expect("integer string should succeed");
     let integer_output = parse_output(&integer);
     assert!(integer.success);
-    assert_eq!(integer_output["setting"], json!("agent.maxToolIterations"));
+    assert_eq!(integer_output["setting"], json!("agents.main.maxIterations"));
     assert_eq!(integer_output["newValue"], json!(7));
 
     let saved = persisted_config(&config).await;
     assert_eq!(saved.default_provider.as_deref(), Some("openrouter"));
-    assert_eq!(saved.agent.max_tool_iterations, 7);
+    assert_eq!(saved.agents["main"].max_iterations, 7);
 }
 
 #[tokio::test]

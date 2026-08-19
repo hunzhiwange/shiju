@@ -147,8 +147,11 @@ pub(super) fn prepare_project_override(
 ) -> Result<Value> {
     let mut next_override = raw_override;
     merge_raw_project_patch(&mut next_override, patch);
-    if let Some(gateway) = next_override.get_mut("gateway").and_then(Value::as_object_mut) {
-        gateway.remove("skeys");
+    if let Some(override_object) = next_override.as_object_mut() {
+        override_object.remove(super::CONFIG_AGENT_KEY);
+        if let Some(gateway) = override_object.get_mut("gateway").and_then(Value::as_object_mut) {
+            gateway.remove("skeys");
+        }
     }
 
     let mut effective_payload =

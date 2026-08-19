@@ -147,7 +147,7 @@ fn explicit_skill_directory_access_accepts_display_name_and_file_id() {
 }
 
 #[tokio::test]
-async fn skill_tool_filters_to_policy_visible_skills_without_model_authorization() {
+async fn strict_skill_policy_ignores_temporary_skill_selection() {
     let skills = vec![
         skill("default", None, vec![]),
         skill("trusted", None, vec![]),
@@ -157,7 +157,7 @@ async fn skill_tool_filters_to_policy_visible_skills_without_model_authorization
         ToolUseContext::new("child", Some("/workspace".to_string()))
             .with_trusted_user_selected_skills(["trusted"])
             .with_delegate_skill_policy(
-                vw_config_types::agent::DelegateCapabilityPolicy::UserOverride,
+                vw_config_types::agent::DelegateCapabilityPolicy::Strict,
                 ["default"],
             ),
     );
@@ -166,7 +166,7 @@ async fn skill_tool_filters_to_policy_visible_skills_without_model_authorization
         let visible = filter_delegate_skills(skills);
         assert_eq!(
             visible.into_iter().map(|skill| skill.name).collect::<Vec<_>>(),
-            vec!["default", "trusted"],
+            vec!["default"],
         );
     })
     .await;

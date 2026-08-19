@@ -120,7 +120,7 @@ pub(crate) async fn process_channel_message(
 
     // 超时预算随工具迭代上限增长，避免合法的多工具回合被固定短超时截断。
     let timeout_budget_secs =
-        channel_message_timeout_budget_secs(ctx.message_timeout_secs, ctx.max_tool_iterations);
+        channel_message_timeout_budget_secs(ctx.message_timeout_secs, ctx.max_iterations);
     let llm_result = run_message_execution(
         ctx.as_ref(),
         &msg,

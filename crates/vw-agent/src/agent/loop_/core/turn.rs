@@ -51,7 +51,7 @@ mod turn_tests;
 /// * `temperature` - 生成温度参数，控制响应的随机性（0.0-2.0）
 /// * `silent` - 是否抑制标准输出（为 true 时用于通道场景）
 /// * `multimodal_config` - 多模态配置，控制图像等非文本输入
-/// * `max_tool_iterations` - 最大工具迭代次数，防止无限循环
+/// * `max_iterations` - 最大工具迭代次数，防止无限循环
 /// * `hooks` - 当前轮次使用的钩子运行器快照
 ///
 /// # 返回值
@@ -94,7 +94,7 @@ pub(crate) async fn agent_turn(
     temperature: f64,
     silent: bool,
     multimodal_config: &crate::app::agent::config::MultimodalConfig,
-    max_tool_iterations: usize,
+    max_iterations: usize,
     hooks: Option<Arc<HookRunner>>,
 ) -> Result<String> {
     // 调用工具调用循环，使用默认参数（无审批管理器、无取消令牌等）
@@ -110,7 +110,7 @@ pub(crate) async fn agent_turn(
         None,      // 无审批管理器
         "channel", // 默认通道名称
         multimodal_config,
-        max_tool_iterations,
+        max_iterations,
         None, // 无取消令牌
         None, // 无增量回调
         hooks,
@@ -139,7 +139,7 @@ pub(crate) async fn agent_turn(
 /// * `channel_name` - 通道名称标识符
 /// * `reply_target` - 可选的回复目标地址，用于后续消息投递
 /// * `multimodal_config` - 多模态配置
-/// * `max_tool_iterations` - 最大工具迭代次数
+/// * `max_iterations` - 最大工具迭代次数
 /// * `cancellation_token` - 可选的取消令牌，用于提前终止执行
 /// * `on_delta` - 可选的增量响应发送器，用于流式输出
 /// * `hooks` - 可选的钩子执行器引用
@@ -191,7 +191,7 @@ pub(crate) async fn run_tool_call_loop_with_reply_target(
     channel_name: &str,
     reply_target: Option<&str>,
     multimodal_config: &crate::app::agent::config::MultimodalConfig,
-    max_tool_iterations: usize,
+    max_iterations: usize,
     cancellation_token: Option<CancellationToken>,
     on_delta: Option<tokio::sync::mpsc::Sender<String>>,
     hooks: Option<Arc<HookRunner>>,
@@ -216,7 +216,7 @@ pub(crate) async fn run_tool_call_loop_with_reply_target(
                 approval,
                 channel_name,
                 multimodal_config,
-                max_tool_iterations,
+                max_iterations,
                 cancellation_token,
                 on_delta,
                 hooks,
@@ -246,7 +246,7 @@ pub(crate) async fn run_tool_call_loop_with_reply_target(
 /// * `channel_name` - 通道名称标识符
 /// * `non_cli_approval_context` - 可选的非 CLI 审批上下文，包含审批所需信息
 /// * `multimodal_config` - 多模态配置
-/// * `max_tool_iterations` - 最大工具迭代次数
+/// * `max_iterations` - 最大工具迭代次数
 /// * `cancellation_token` - 可选的取消令牌
 /// * `on_delta` - 可选的增量响应发送器
 /// * `hooks` - 可选的钩子执行器引用
@@ -306,7 +306,7 @@ pub(crate) async fn run_tool_call_loop_with_non_cli_approval_context(
     channel_name: &str,
     non_cli_approval_context: Option<NonCliApprovalContext>,
     multimodal_config: &crate::app::agent::config::MultimodalConfig,
-    max_tool_iterations: usize,
+    max_iterations: usize,
     cancellation_token: Option<CancellationToken>,
     on_delta: Option<tokio::sync::mpsc::Sender<String>>,
     hooks: Option<Arc<HookRunner>>,
@@ -338,7 +338,7 @@ pub(crate) async fn run_tool_call_loop_with_non_cli_approval_context(
                     approval,
                     channel_name,
                     multimodal_config,
-                    max_tool_iterations,
+                    max_iterations,
                     cancellation_token,
                     on_delta,
                     hooks,

@@ -110,7 +110,7 @@ fn agent_command_preserves_defaults_and_explicit_values() {
         peripheral,
         autonomy_level,
         max_actions_per_hour,
-        max_tool_iterations,
+        max_iterations,
         max_history_messages,
         compact_context,
         memory_backend,
@@ -125,7 +125,7 @@ fn agent_command_preserves_defaults_and_explicit_values() {
     assert!(peripheral.is_empty());
     assert_eq!(autonomy_level, None);
     assert_eq!(max_actions_per_hour, None);
-    assert_eq!(max_tool_iterations, None);
+    assert_eq!(max_iterations, None);
     assert_eq!(max_history_messages, None);
     assert!(!compact_context);
     assert_eq!(memory_backend, None);
@@ -147,7 +147,7 @@ fn agent_command_preserves_defaults_and_explicit_values() {
         "board:/dev/two",
         "--max-actions-per-hour",
         "12",
-        "--max-tool-iterations",
+        "--max-iterations",
         "7",
         "--max-history-messages",
         "33",
@@ -163,7 +163,7 @@ fn agent_command_preserves_defaults_and_explicit_values() {
         temperature,
         peripheral,
         max_actions_per_hour,
-        max_tool_iterations,
+        max_iterations,
         max_history_messages,
         compact_context,
         memory_backend,
@@ -178,7 +178,7 @@ fn agent_command_preserves_defaults_and_explicit_values() {
     assert_eq!(temperature, 2.0);
     assert_eq!(peripheral, ["board:/dev/one", "board:/dev/two"]);
     assert_eq!(max_actions_per_hour, Some(12));
-    assert_eq!(max_tool_iterations, Some(7));
+    assert_eq!(max_iterations, Some(7));
     assert_eq!(max_history_messages, Some(33));
     assert!(compact_context);
     assert_eq!(memory_backend.as_deref(), Some("none"));

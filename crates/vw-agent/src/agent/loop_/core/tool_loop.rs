@@ -32,7 +32,7 @@ use super::super::approval::TOOL_LOOP_NON_CLI_APPROVAL_CONTEXT;
 use super::super::utils::scrub_credentials;
 use super::TOOL_LOOP_REPLY_TARGET;
 use super::constants::{
-    DEFAULT_MAX_TOOL_ITERATIONS, EMPTY_FINAL_RESPONSE_RETRY_PROMPT, MISSING_TOOL_CALL_RETRY_PROMPT,
+    DEFAULT_MAX_ITERATIONS, EMPTY_FINAL_RESPONSE_RETRY_PROMPT, MISSING_TOOL_CALL_RETRY_PROMPT,
 };
 use super::errors::ToolLoopCancelled;
 use llm_round::run_llm_round;
@@ -55,7 +55,7 @@ pub async fn run_tool_call_loop(
     approval: Option<Arc<ApprovalManager>>,
     channel_name: &str,
     multimodal_config: &crate::app::agent::config::MultimodalConfig,
-    max_tool_iterations: usize,
+    max_iterations: usize,
     cancellation_token: Option<CancellationToken>,
     on_delta: Option<tokio::sync::mpsc::Sender<String>>,
     hooks: Option<Arc<HookRunner>>,
@@ -70,7 +70,7 @@ pub async fn run_tool_call_loop(
         .flatten()
         .or_else(|| non_cli_approval_context.as_ref().map(|ctx| ctx.reply_target.clone()));
     let max_iterations =
-        if max_tool_iterations == 0 { DEFAULT_MAX_TOOL_ITERATIONS } else { max_tool_iterations };
+        if max_iterations == 0 { DEFAULT_MAX_ITERATIONS } else { max_iterations };
     let tool_specs: Vec<crate::app::agent::tools::ToolSpec> = tools_registry
         .iter()
         .filter(|tool| {

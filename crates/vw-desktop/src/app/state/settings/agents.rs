@@ -31,12 +31,10 @@ pub(crate) struct DelegateAgentSettingsEntry {
     pub(crate) api_key_input: String,
     pub(crate) temperature: f32,
     pub(crate) compact_context: bool,
-    pub(crate) max_tool_iterations: u32,
     pub(crate) max_history_messages: u32,
     pub(crate) parallel_tools: bool,
     pub(crate) max_depth: u32,
     pub(crate) agentic: bool,
-    pub(crate) tool_policy: DelegateCapabilityPolicy,
     pub(crate) allowed_tools: Vec<String>,
     pub(crate) skill_policy: DelegateCapabilityPolicy,
     pub(crate) allowed_skills: Vec<String>,
@@ -89,12 +87,10 @@ impl DelegateAgentSettingsEntry {
                 .unwrap_or(0.7)
                 .clamp(0.0, 2.0) as f32,
             compact_context: config.compact_context,
-            max_tool_iterations: 50_000,
             max_history_messages: config.max_history_messages.clamp(1, 1000) as u32,
             parallel_tools: config.parallel_tools,
             max_depth: config.max_depth.clamp(1, 32),
             agentic: config.agentic,
-            tool_policy: config.tool_policy,
             allowed_tools: config.allowed_tools,
             skill_policy: config.skill_policy,
             allowed_skills: config.allowed_skills,
@@ -254,7 +250,6 @@ pub(crate) fn agent_settings_entries_from_config(
     full_agent_cfg: &vw_config_types::config::Config,
 ) -> Vec<DelegateAgentSettingsEntry> {
     let delegate_agents_cfg = merged_agent_configs(&full_agent_cfg.agents);
-    let agent_cfg = &full_agent_cfg.agent;
     let default_provider_cfg = full_agent_cfg.default_provider.clone();
     let default_model_cfg = full_agent_cfg.default_model.clone();
     let default_temperature_cfg = full_agent_cfg.default_temperature;
@@ -293,7 +288,6 @@ pub(crate) fn agent_settings_entries_from_config(
                 hidden: config.hidden,
                 max_depth: config.max_depth,
                 agentic: config.agentic,
-                tool_policy: config.tool_policy,
                 allowed_tools: config.allowed_tools,
                 skill_policy: config.skill_policy,
                 allowed_skills: config.allowed_skills,
@@ -306,13 +300,7 @@ pub(crate) fn agent_settings_entries_from_config(
                 parallel_tools: config.parallel_tools,
                 steps: config.steps,
             };
-            let mut ui_entry = DelegateAgentSettingsEntry::from_config(MAIN_AGENT_KEY, Some(entry));
-            ui_entry.compact_context = agent_cfg.compact_context;
-            ui_entry.max_tool_iterations =
-                u32::try_from(agent_cfg.max_tool_iterations).unwrap_or(u32::MAX).max(1);
-            ui_entry.max_history_messages = agent_cfg.max_history_messages.clamp(1, 1000) as u32;
-            ui_entry.parallel_tools = agent_cfg.parallel_tools;
-            ui_entry
+            DelegateAgentSettingsEntry::from_config(MAIN_AGENT_KEY, Some(entry))
         })
         .collect()
 }

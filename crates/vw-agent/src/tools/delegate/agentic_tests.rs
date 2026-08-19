@@ -79,7 +79,6 @@ fn agentic_config() -> DelegateAgentConfig {
         hidden: false,
         max_depth: 2,
         agentic: true,
-        tool_policy: Default::default(),
         allowed_tools: Vec::new(),
         skill_policy: Default::default(),
         allowed_skills: Vec::new(),

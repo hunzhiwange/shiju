@@ -4,7 +4,9 @@
 //! 不改变任何运行时行为。
 
 use super::{App, EMPTY_SESSION_ID};
-use crate::app::state::{MAIN_AGENT_KEY, SessionRuntimeState, SessionToolInventory};
+use crate::app::state::{
+    MAIN_AGENT_KEY, SessionRuntimeState, SessionToolInventory, merge_builtin_required_tools,
+};
 
 fn sorted_unique_tools(mut tools: Vec<String>) -> Vec<String> {
     tools = tools
@@ -153,16 +155,24 @@ impl App {
         runtime: &SessionRuntimeState,
     ) -> SessionToolInventory {
         let available_tools = sorted_unique_tools(self.agents_settings.available_tools.clone());
+        let registered_tools = self
+            .agents_settings
+            .registered_tools
+            .clone()
+            .map(sorted_unique_tools)
+            .unwrap_or_else(|| available_tools.clone());
         let static_tools = self.selected_static_allowed_tools(runtime);
         let restricts_tools = static_tools.is_some();
         let base_tools = if let Some(static_tools) = static_tools {
-            if available_tools.is_empty() {
+            if registered_tools.is_empty() {
                 static_tools
             } else {
-                intersect_tools(&available_tools, &static_tools)
+                let effective_tools =
+                    merge_builtin_required_tools(&static_tools, &registered_tools);
+                intersect_tools(&registered_tools, &effective_tools)
             }
         } else {
-            available_tools.clone()
+            registered_tools
         };
 
         SessionToolInventory { base_tools, restricts_tools }

@@ -38,7 +38,7 @@ fn context(workspace_dir: PathBuf) -> ChannelRuntimeContext {
         model: Arc::new("model".to_string()),
         temperature: 0.0,
         auto_save_memory: false,
-        max_tool_iterations: 1,
+        max_iterations: 1,
         min_relevance_score: 0.0,
         conversation_histories: Arc::new(Mutex::new(HashMap::new())),
         provider_cache: Arc::new(Mutex::new(HashMap::new())),

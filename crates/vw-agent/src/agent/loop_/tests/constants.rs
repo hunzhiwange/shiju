@@ -9,7 +9,7 @@
 //!
 //! ## 验证的常量
 //!
-//! - `DEFAULT_MAX_TOOL_ITERATIONS`：工具调用最大迭代次数
+//! - `DEFAULT_MAX_ITERATIONS`：工具调用最大迭代次数
 //! - `DEFAULT_MAX_HISTORY_MESSAGES`：历史消息最大保留数量
 //!
 //! ## 设计原理
@@ -33,7 +33,7 @@ use super::*;
 ///
 /// | 常量名 | 下界 | 说明 |
 /// |--------|------|------|
-/// | `DEFAULT_MAX_TOOL_ITERATIONS` | 1 | 确保至少能执行一次工具调用 |
+/// | `DEFAULT_MAX_ITERATIONS` | 1 | 确保至少能执行一次工具调用 |
 /// | `DEFAULT_MAX_HISTORY_MESSAGES` | 1 | 确保至少保留一条历史消息 |
 ///
 /// # 失败行为
@@ -43,12 +43,12 @@ use super::*;
 /// # 示例
 ///
 /// ```compile_fail
-/// // 如果 DEFAULT_MAX_TOOL_ITERATIONS 设置为 0，编译将失败
+/// // 如果 DEFAULT_MAX_ITERATIONS 设置为 0，编译将失败
 /// const _: () = { assert!(0 > 0); }; // 编译错误！
 /// ```
 const _: () = {
     // 必须大于 0，确保至少可以执行一次工具调用。
-    assert!(DEFAULT_MAX_TOOL_ITERATIONS > 0);
+    assert!(DEFAULT_MAX_ITERATIONS > 0);
 
     // 必须大于 0，确保至少保留一条消息用于上下文。
     assert!(DEFAULT_MAX_HISTORY_MESSAGES > 0);

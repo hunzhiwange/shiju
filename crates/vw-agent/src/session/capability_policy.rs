@@ -3,7 +3,6 @@
 //! 该模块只把可信运行时输入归一化为实际可见能力和默认注入能力；不读取
 //! Gateway、工具调用参数或模型生成的文本。
 
-use crate::app::agent::tools::ToolSpec;
 use std::collections::{BTreeMap, BTreeSet};
 use vw_config_types::agent::DelegateCapabilityPolicy;
 
@@ -44,38 +43,6 @@ pub(crate) fn normalize_capability_id(id: &str) -> Option<String> {
     (!id.is_empty()).then(|| id.to_lowercase())
 }
 
-/// 用真实工具规格的稳定 ID 和别名解析委托工具能力。
-pub(crate) fn resolve_tool_capabilities<D, U, H, DS, US, HS>(
-    available: &[ToolSpec],
-    defaults: D,
-    trusted_user_selection: U,
-    policy: DelegateCapabilityPolicy,
-    hard_disabled: H,
-) -> CapabilityPolicyResolution
-where
-    D: IntoIterator<Item = DS>,
-    U: IntoIterator<Item = US>,
-    H: IntoIterator<Item = HS>,
-    DS: AsRef<str>,
-    US: AsRef<str>,
-    HS: AsRef<str>,
-{
-    let mut aliases = BTreeMap::new();
-    for spec in available {
-        let Some(id) = normalize_capability_id(&spec.id) else {
-            continue;
-        };
-        aliases.insert(id.clone(), id.clone());
-        for alias in &spec.aliases {
-            if let Some(alias) = normalize_capability_id(alias) {
-                aliases.entry(alias).or_insert_with(|| id.clone());
-            }
-        }
-    }
-
-    resolve_capabilities(aliases, defaults, trusted_user_selection, policy, hard_disabled)
-}
-
 /// 用稳定技能 ID 解析委托技能能力。
 pub(crate) fn resolve_skill_capabilities<A, D, U, H, AS, DS, US, HS>(
     available: A,
@@ -106,7 +73,7 @@ where
 fn resolve_capabilities<D, U, H, DS, US, HS>(
     aliases: BTreeMap<String, String>,
     defaults: D,
-    trusted_user_selection: U,
+    _trusted_user_selection: U,
     policy: DelegateCapabilityPolicy,
     hard_disabled: H,
 ) -> CapabilityPolicyResolution
@@ -119,13 +86,9 @@ where
     HS: AsRef<str>,
 {
     let defaults = resolve_selected_ids(defaults, &aliases);
-    let user_selection = resolve_selected_ids(trusted_user_selection, &aliases);
     let hard_disabled = resolve_selected_ids(hard_disabled, &aliases);
     let mut visible_ids = match policy {
         DelegateCapabilityPolicy::Strict => defaults.clone(),
-        DelegateCapabilityPolicy::UserOverride => {
-            defaults.union(&user_selection).cloned().collect()
-        }
         DelegateCapabilityPolicy::Unrestricted => aliases.values().cloned().collect(),
     };
     visible_ids.retain(|id| !hard_disabled.contains(id));

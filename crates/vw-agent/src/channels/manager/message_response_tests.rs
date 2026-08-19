@@ -167,7 +167,7 @@ fn route() -> ChannelRouteSelection {
     }
 }
 
-fn context(max_tool_iterations: usize) -> ChannelRuntimeContext {
+fn context(max_iterations: usize) -> ChannelRuntimeContext {
     let provider: Arc<dyn Provider> = Arc::new(StaticProvider);
     ChannelRuntimeContext {
         channels_by_name: Arc::new(HashMap::new()),
@@ -180,7 +180,7 @@ fn context(max_tool_iterations: usize) -> ChannelRuntimeContext {
         model: Arc::new("model".to_string()),
         temperature: 0.0,
         auto_save_memory: false,
-        max_tool_iterations,
+        max_iterations,
         min_relevance_score: 0.0,
         conversation_histories: Arc::new(Mutex::new(HashMap::new())),
         provider_cache: Arc::new(Mutex::new(HashMap::new())),

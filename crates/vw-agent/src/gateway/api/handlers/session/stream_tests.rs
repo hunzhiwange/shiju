@@ -447,12 +447,12 @@ fn merge_gateway_request_options_forwards_allowed_tools_to_acp() {
 }
 
 #[test]
-fn delegated_gateway_options_pass_policy_inputs_without_writing_a_whitelist() {
+fn delegated_gateway_options_preserve_tool_registration_and_pass_skill_policy() {
     let options = merge_delegate_capability_policy_options(
         merge_gateway_request_options(
             None,
             Some("reviewer".to_string()),
-            None,
+            Some(vec!["file_read".to_string()]),
             None,
             None,
             None,
@@ -460,20 +460,15 @@ fn delegated_gateway_options_pass_policy_inputs_without_writing_a_whitelist() {
             None,
             None,
         ),
-        Some(vec!["file_read".to_string()]),
-        Some(vw_config_types::agent::DelegateCapabilityPolicy::UserOverride),
-        Some(vec!["shell".to_string()]),
         Some(vec!["review".to_string()]),
-        Some(vw_config_types::agent::DelegateCapabilityPolicy::UserOverride),
+        Some(vw_config_types::agent::DelegateCapabilityPolicy::Strict),
         Some(vec!["rustcodegraph".to_string()]),
     );
 
-    assert!(options.get("allowed_tools").is_none());
-    assert_eq!(options["delegate_default_allowed_tools"], serde_json::json!(["file_read"]));
-    assert_eq!(options["delegate_tool_policy"], "user_override");
-    assert_eq!(options["delegate_trusted_user_selected_tools"], serde_json::json!(["shell"]),);
+    assert_eq!(options["allowed_tools"], serde_json::json!(["file_read"]));
+    assert!(options.get("delegate_tool_policy").is_none());
     assert_eq!(options["delegate_default_allowed_skills"], serde_json::json!(["review"]));
-    assert_eq!(options["delegate_skill_policy"], "user_override");
+    assert_eq!(options["delegate_skill_policy"], "strict");
     assert_eq!(
         options["delegate_trusted_user_selected_skills"],
         serde_json::json!(["rustcodegraph"]),
@@ -833,6 +828,31 @@ async fn resolve_delegate_request_overrides_without_agent_returns_explicit_value
     assert_eq!(overrides.chat_system_prompt, None);
     assert_eq!(overrides.temperature, None);
     assert_eq!(overrides.top_p, None);
+}
+
+#[tokio::test]
+async fn resolve_main_request_overrides_preserves_registered_tool_selection() {
+    let overrides = resolve_delegate_request_overrides(
+        Some("main".to_string()),
+        Some(vec![
+            "file_read".to_string(),
+            "memory_store".to_string(),
+            "schedule".to_string(),
+        ]),
+        Some("provider/model".to_string()),
+    )
+    .await
+    .expect("main overrides");
+
+    assert_eq!(overrides.agent.as_deref(), Some("main"));
+    assert_eq!(
+        overrides.allowed_tools,
+        Some(vec![
+            "file_read".to_string(),
+            "memory_store".to_string(),
+            "schedule".to_string(),
+        ])
+    );
 }
 
 #[tokio::test]

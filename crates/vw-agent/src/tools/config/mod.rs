@@ -187,25 +187,25 @@ const SUPPORTED_SETTINGS: &[SettingSpec] = &[
         options: &[],
     },
     SettingSpec {
-        key: "agent.compactContext",
-        aliases: &["agent.compact_context"],
-        path: &["agent", "compact_context"],
+        key: "agents.main.compactContext",
+        aliases: &["agents.main.compact_context"],
+        path: &["agents", "main", "compact_context"],
         kind: SettingKind::Boolean,
         description: "Whether compact context is enabled.",
         options: &[],
     },
     SettingSpec {
-        key: "agent.parallelTools",
-        aliases: &["agent.parallel_tools"],
-        path: &["agent", "parallel_tools"],
+        key: "agents.main.parallelTools",
+        aliases: &["agents.main.parallel_tools"],
+        path: &["agents", "main", "parallel_tools"],
         kind: SettingKind::Boolean,
         description: "Whether parallel tool execution is allowed.",
         options: &[],
     },
     SettingSpec {
-        key: "agent.maxToolIterations",
-        aliases: &["agent.max_tool_iterations"],
-        path: &["agent", "max_tool_iterations"],
+        key: "agents.main.maxIterations",
+        aliases: &["agents.main.max_iterations"],
+        path: &["agents", "main", "max_iterations"],
         kind: SettingKind::Integer,
         description: "Maximum number of tool iterations allowed per message.",
         options: &[],
@@ -411,6 +411,12 @@ fn read_setting_value(config: &Config, spec: &SettingSpec) -> anyhow::Result<Val
     Ok(format_setting_value(spec, raw))
 }
 
+fn materialize_setting_defaults(config: &mut Config, spec: &SettingSpec) {
+    if spec.path.starts_with(&["agents", "main"]) {
+        vw_config_types::agent::ensure_main_agent_config(&mut config.agents);
+    }
+}
+
 fn format_setting_value(spec: &SettingSpec, value: Value) -> Value {
     match spec.key {
         "defaultProvider" | "defaultModel" => {
@@ -595,13 +601,14 @@ impl ConfigTool {
         };
 
         let canonical_setting = spec.key.to_string();
-        let current = if value.is_some() {
+        let mut current = if value.is_some() {
             config::get_project(&self.config.workspace_dir)
                 .await
                 .map_err(|error| anyhow::anyhow!(error.to_string()))?
         } else {
             self.load_current_config().await?
         };
+        materialize_setting_defaults(&mut current, spec);
 
         if let Some(value) = value {
             if !self.security.can_act() {

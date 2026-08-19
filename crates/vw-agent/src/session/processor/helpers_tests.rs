@@ -17,14 +17,21 @@ fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
         &json!({"allowed_tools": [selected.clone(), "missing-tool", "  ", 42]}),
     );
     assert!(filtered.contains(&selected));
-    if base.contains("skill") {
-        assert!(filtered.contains("skill"));
-    }
-    let expected_retained = usize::from(selected != "skill") + usize::from(base.contains("skill"));
-    assert_eq!(filtered.len(), expected_retained);
+    let expected = base
+        .iter()
+        .filter(|tool| {
+            tool.as_str() == selected || vw_config_types::tools::is_builtin_required_tool_id(tool)
+        })
+        .cloned()
+        .collect::<HashSet<_>>();
+    assert_eq!(filtered, expected);
 
     assert_eq!(allowed_tool_ids_for_request(None, &json!({})), base);
-    assert_eq!(allowed_tool_ids_for_request(None, &json!({"allowed_tools": ["  ", 42]})), base);
+    let empty_selection =
+        allowed_tool_ids_for_request(None, &json!({"allowed_tools": ["  ", 42]}));
+    assert!(empty_selection.iter().all(|tool| {
+        vw_config_types::tools::is_builtin_required_tool_id(tool)
+    }));
 }
 
 #[test]
@@ -84,7 +91,7 @@ fn request_filter_only_retains_requested_tools_and_dynamic_skill_loader() {
 }
 
 #[test]
-fn allowed_tool_ids_for_request_uses_dynamic_specs() {
+fn allowed_tool_ids_for_request_does_not_expand_to_unselected_dynamic_mcp_specs() {
     let specs = vec![
         crate::app::agent::tools::ToolSpec::new(
             "mcp__rustcodegraph__search",
@@ -101,10 +108,10 @@ fn allowed_tool_ids_for_request_uses_dynamic_specs() {
 
     let allowed = allowed_tool_ids_for_request_from_specs(
         &specs,
-        &json!({"allowed_tools": ["mcp__rustcodegraph__search", "missing"]}),
+        &json!({"allowed_tools": ["file_read", "missing"]}),
     );
 
-    assert_eq!(allowed, HashSet::from(["mcp__rustcodegraph__search".to_string()]));
+    assert_eq!(allowed, HashSet::from(["file_read".to_string()]));
     assert!(allowed_tool_ids_from_specs(&specs).contains("mcp_alias"));
 }
 
@@ -139,22 +146,36 @@ fn allowed_tool_ids_from_specs_collects_ids_aliases_and_deduplicates_collisions(
 }
 
 #[test]
-fn request_filter_uses_base_set_when_allowed_tools_is_not_a_non_empty_string_array() {
-    let specs = vec![crate::app::agent::tools::ToolSpec::new(
-        "file_read",
-        "Read file",
-        json!({"type": "object"}),
-    )];
-    let expected = HashSet::from(["file_read".to_string()]);
+fn request_filter_distinguishes_missing_list_from_explicit_empty_list() {
+    let specs = vec![
+        crate::app::agent::tools::ToolSpec::new(
+            "file_read",
+            "Read file",
+            json!({"type": "object"}),
+        ),
+        crate::app::agent::tools::ToolSpec::new(
+            "custom_tool",
+            "Custom tool",
+            json!({"type": "object"}),
+        ),
+    ];
+    let all = HashSet::from(["file_read".to_string(), "custom_tool".to_string()]);
 
     for options in [
         json!({}),
         json!({"allowed_tools": null}),
         json!({"allowed_tools": "file_read"}),
+    ] {
+        assert_eq!(allowed_tool_ids_for_request_from_specs(&specs, &options), all);
+    }
+    for options in [
         json!({"allowed_tools": []}),
         json!({"allowed_tools": [null, false, 42, "  "]}),
     ] {
-        assert_eq!(allowed_tool_ids_for_request_from_specs(&specs, &options), expected);
+        assert_eq!(
+            allowed_tool_ids_for_request_from_specs(&specs, &options),
+            HashSet::from(["file_read".to_string()])
+        );
     }
 }
 
@@ -200,37 +221,39 @@ fn request_filter_trims_names_accepts_aliases_and_discards_unknown_tools() {
 }
 
 #[test]
-fn delegated_request_tool_policy_caps_visibility_to_agent_tools_and_keeps_skill_dynamic() {
+fn request_tool_list_keeps_registered_builtins_without_expanding_custom_tools() {
     let specs = vec![
         crate::app::agent::tools::ToolSpec::new(
             "file_read",
             "Read file",
             json!({"type": "object"}),
         ),
-        crate::app::agent::tools::ToolSpec::new("shell", "Run command", json!({"type": "object"})),
         crate::app::agent::tools::ToolSpec::new(
-            "AgentTool",
-            "Delegate work",
+            "memory_store",
+            "Store memory",
             json!({"type": "object"}),
-        )
-        .with_aliases(["agent"]),
+        ),
         crate::app::agent::tools::ToolSpec::new(
-            "skill",
-            "Read skill instructions",
+            "custom_tool",
+            "Custom tool",
+            json!({"type": "object"}),
+        ),
+        crate::app::agent::tools::ToolSpec::new(
+            "other_custom_tool",
+            "Other custom tool",
             json!({"type": "object"}),
         ),
     ];
-    let options = json!({
-        "delegate_default_allowed_tools": ["file_read"],
-        "delegate_tool_policy": "user_override",
-        "delegate_trusted_user_selected_tools": ["shell"],
-    });
+    let options = json!({"allowed_tools": ["custom_tool"]});
 
-    let resolution = delegated_tool_policy_resolution_from_specs(&specs, &options)
-        .expect("delegate policy should resolve");
+    let allowed = allowed_tool_ids_for_request_from_specs(&specs, &options);
     assert_eq!(
-        resolution.visible_ids,
-        std::collections::BTreeSet::from(["file_read".to_string(), "skill".to_string()]),
+        allowed,
+        HashSet::from([
+            "file_read".to_string(),
+            "memory_store".to_string(),
+            "custom_tool".to_string(),
+        ]),
     );
 }
 

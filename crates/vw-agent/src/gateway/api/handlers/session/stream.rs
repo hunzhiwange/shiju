@@ -464,9 +464,6 @@ struct DelegateRequestOverrides {
     chat_system_prompt: Option<String>,
     temperature: Option<f64>,
     top_p: Option<f64>,
-    default_allowed_tools: Option<Vec<String>>,
-    tool_policy: Option<vw_config_types::agent::DelegateCapabilityPolicy>,
-    trusted_user_selected_tools: Option<Vec<String>>,
     default_allowed_skills: Option<Vec<String>>,
     skill_policy: Option<vw_config_types::agent::DelegateCapabilityPolicy>,
     trusted_user_selected_skills: Option<Vec<String>>,
@@ -714,23 +711,44 @@ async fn resolve_delegate_request_overrides(
     };
 
     let model = delegated_model_override(&config, explicit_model);
+    let chat_system_prompt = config
+        .system_prompt
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+
+    // `main` 是交互式主代理，不是委托代理。它的工具清单已经由桌面根据当前
+    // 注册目录和用户选择生成，不能再套用子代理的静态默认能力上限。
+    if agent_name == "main" {
+        return Ok(DelegateRequestOverrides {
+            agent: Some(agent_name),
+            model,
+            allowed_tools: explicit_allowed_tools,
+            chat_system_prompt,
+            temperature: config.temperature,
+            top_p: config.top_p,
+            ..DelegateRequestOverrides::default()
+        });
+    }
+
+    let mut registered_tools = explicit_allowed_tools
+        .unwrap_or_else(|| normalize_tool_ids(config.allowed_tools).unwrap_or_default());
+    registered_tools.retain(|tool| {
+        !matches!(
+            tool.trim().to_ascii_lowercase().as_str(),
+            "agenttool" | "agent_tool" | "agent"
+        )
+    });
 
     Ok(DelegateRequestOverrides {
         agent: Some(agent_name),
         model,
-        allowed_tools: None,
-        default_allowed_tools: normalize_tool_ids(config.allowed_tools),
-        tool_policy: Some(config.tool_policy),
-        trusted_user_selected_tools: explicit_allowed_tools,
+        allowed_tools: Some(registered_tools),
         default_allowed_skills: normalize_tool_ids(config.allowed_skills),
         skill_policy: Some(config.skill_policy),
         trusted_user_selected_skills: None,
-        chat_system_prompt: config
-            .system_prompt
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToOwned::to_owned),
+        chat_system_prompt,
         temperature: config.temperature,
         top_p: config.top_p,
     })
@@ -738,36 +756,11 @@ async fn resolve_delegate_request_overrides(
 
 fn merge_delegate_capability_policy_options(
     mut options: Value,
-    default_allowed_tools: Option<Vec<String>>,
-    tool_policy: Option<vw_config_types::agent::DelegateCapabilityPolicy>,
-    trusted_user_selected_tools: Option<Vec<String>>,
     default_allowed_skills: Option<Vec<String>>,
     skill_policy: Option<vw_config_types::agent::DelegateCapabilityPolicy>,
     trusted_user_selected_skills: Option<Vec<String>>,
 ) -> Value {
-    let delegated = tool_policy.is_some() || skill_policy.is_some();
     if let Some(options) = options.as_object_mut() {
-        if let Some(default_allowed_tools) = default_allowed_tools {
-            options.insert(
-                "delegate_default_allowed_tools".to_string(),
-                Value::Array(default_allowed_tools.into_iter().map(Value::String).collect()),
-            );
-        }
-        if let Some(tool_policy) = tool_policy {
-            options.insert(
-                "delegate_tool_policy".to_string(),
-                serde_json::to_value(tool_policy)
-                    .expect("DelegateCapabilityPolicy always serializes to a string"),
-            );
-        }
-        if let Some(trusted_user_selected_tools) = trusted_user_selected_tools
-            && !options.contains_key("delegate_trusted_user_selected_tools")
-        {
-            options.insert(
-                "delegate_trusted_user_selected_tools".to_string(),
-                Value::Array(trusted_user_selected_tools.into_iter().map(Value::String).collect()),
-            );
-        }
         if let Some(default_allowed_skills) = default_allowed_skills {
             options.insert(
                 "delegate_default_allowed_skills".to_string(),
@@ -788,9 +781,6 @@ fn merge_delegate_capability_policy_options(
                 "delegate_trusted_user_selected_skills".to_string(),
                 Value::Array(trusted_user_selected_skills.into_iter().map(Value::String).collect()),
             );
-        }
-        if delegated {
-            options.remove("allowed_tools");
         }
     }
     options
@@ -861,9 +851,6 @@ async fn start_gateway_chat_producer(
     );
     let options = merge_delegate_capability_policy_options(
         options,
-        delegate_overrides.default_allowed_tools,
-        delegate_overrides.tool_policy,
-        delegate_overrides.trusted_user_selected_tools,
         delegate_overrides.default_allowed_skills,
         delegate_overrides.skill_policy,
         delegate_overrides.trusted_user_selected_skills,

@@ -1,6 +1,7 @@
 use super::skills::{
-    capability_policy_label, discovery_order_text, enabled_skill_ids, scope_description,
-    scope_source_matches, skill_card_button_style, skill_policy_message, skill_source_label, view,
+    capability_policy_label, capability_policy_tooltip, discovery_order_text, enabled_skill_ids,
+    scope_description, scope_source_matches, skill_card_button_style, skill_policy_message,
+    skill_source_label, view,
 };
 use crate::app::Message;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
@@ -22,10 +23,6 @@ fn skill_source_label_maps_known_and_unknown_sources() {
 #[test]
 fn skill_capability_policy_controls_use_typed_messages_and_expected_labels() {
     assert_eq!(capability_policy_label(DelegateCapabilityPolicy::Strict), "严格限制");
-    assert_eq!(
-        capability_policy_label(DelegateCapabilityPolicy::UserOverride),
-        "限制但允许用户选择"
-    );
     assert_eq!(capability_policy_label(DelegateCapabilityPolicy::Unrestricted), "不限制");
     assert!(matches!(
         skill_policy_message("main".to_string(), DelegateCapabilityPolicy::Unrestricted),
@@ -34,6 +31,12 @@ fn skill_capability_policy_controls_use_typed_messages_and_expected_labels() {
             DelegateCapabilityPolicy::Unrestricted,
         ))) if agent == "main"
     ));
+}
+
+#[test]
+fn skill_capability_policy_tooltips_distinguish_fixed_and_temporary_selection() {
+    assert!(capability_policy_tooltip(DelegateCapabilityPolicy::Strict).contains("不允许"));
+    assert!(capability_policy_tooltip(DelegateCapabilityPolicy::Unrestricted).contains("临时选择"));
 }
 
 #[test]

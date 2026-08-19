@@ -1,6 +1,5 @@
 use super::core::Agent;
 use crate::app::agent::agent::memory_loader::MemoryLoader;
-use crate::app::agent::config::AgentConfig;
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry, NoneMemory};
 use crate::app::agent::observability::{NoopObserver, Observer};
 use crate::app::agent::providers::traits::ProviderCapabilities;
@@ -12,6 +11,7 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use vw_config_types::agent::AgentDefinitionConfig;
 
 #[derive(Default)]
 struct ProviderState {
@@ -224,7 +224,7 @@ fn build_agent(
     provider: Box<dyn Provider>,
     memory: Arc<dyn Memory>,
     memory_loader: Box<dyn MemoryLoader>,
-    config: AgentConfig,
+    config: AgentDefinitionConfig,
 ) -> Agent {
     let observer: Arc<dyn Observer> = Arc::new(NoopObserver);
 
@@ -242,7 +242,12 @@ fn build_agent(
 }
 
 fn default_agent(provider: Box<dyn Provider>, memory_loader: Box<dyn MemoryLoader>) -> Agent {
-    build_agent(provider, Arc::new(NoneMemory::new()), memory_loader, AgentConfig::default())
+    build_agent(
+        provider,
+        Arc::new(NoneMemory::new()),
+        memory_loader,
+        AgentDefinitionConfig::default(),
+    )
 }
 
 fn final_user_message(messages: &[ChatMessage]) -> &ChatMessage {
@@ -379,7 +384,7 @@ async fn turn_auto_save_records_user_message_without_blocking_response() {
         provider.provider(),
         memory.clone(),
         Box::new(StaticMemoryLoader { result: Ok(String::new()) }),
-        AgentConfig::default(),
+        AgentDefinitionConfig::default(),
     );
     agent.auto_save = true;
 
@@ -458,7 +463,7 @@ async fn turn_propagates_provider_error() {
 #[tokio::test]
 async fn turn_trims_history_after_success() {
     let provider = ProviderHandle::with_responses(vec![Ok(text_response("trimmed"))]);
-    let mut config = AgentConfig::default();
+    let mut config = AgentDefinitionConfig::default();
     config.max_history_messages = 1;
     let mut agent = build_agent(
         provider.provider(),
@@ -523,7 +528,7 @@ async fn turn_with_stream_auto_saves_and_uses_memory_context() {
         provider.provider(),
         memory.clone(),
         Box::new(StaticMemoryLoader { result: Ok("[Memory context]\n".to_string()) }),
-        AgentConfig::default(),
+        AgentDefinitionConfig::default(),
     );
     agent.auto_save = true;
     let (tx, rx) = tokio::sync::mpsc::channel(8);

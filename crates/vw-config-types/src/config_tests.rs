@@ -42,6 +42,25 @@ fn config_defaults_promote_shiju_as_primary_provider() {
 }
 
 #[test]
+fn config_serialization_omits_removed_agent_section() {
+    let serialized = serde_json::to_value(super::Config::default()).expect("serialize config");
+
+    assert!(serialized.get("agent").is_none());
+    assert!(serialized.get("agents").is_some());
+}
+
+#[test]
+fn config_deserialization_does_not_route_removed_agent_section() {
+    let config: super::Config = serde_json::from_value(serde_json::json!({
+        "agent": {"max_iterations": 1}
+    }))
+    .expect("deserialize config with ignored removed section");
+
+    assert!(config.agents.is_empty());
+    assert!(serde_json::to_value(config).expect("serialize config").get("agent").is_none());
+}
+
+#[test]
 fn config_deserialization_preserves_explicit_provider_and_model() {
     let config: super::Config = serde_json::from_value(serde_json::json!({
         "default_provider": "openrouter",

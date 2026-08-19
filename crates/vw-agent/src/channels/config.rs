@@ -62,7 +62,7 @@ pub(crate) fn effective_channel_message_timeout_secs(configured: u64) -> u64 {
 /// # 参数
 ///
 /// - `message_timeout_secs`: 单次消息的基本超时时间（秒）
-/// - `max_tool_iterations`: 最大工具迭代次数
+/// - `max_iterations`: 最大工具迭代次数
 ///
 /// # 返回值
 ///
@@ -84,10 +84,10 @@ pub(crate) fn effective_channel_message_timeout_secs(configured: u64) -> u64 {
 /// ```
 pub(crate) fn channel_message_timeout_budget_secs(
     message_timeout_secs: u64,
-    max_tool_iterations: usize,
+    max_iterations: usize,
 ) -> u64 {
     // 确保迭代次数至少为 1，避免除零错误
-    let iterations = max_tool_iterations.max(1) as u64;
+    let iterations = max_iterations.max(1) as u64;
     // 限制缩放因子的最大值，防止预算过大
     let scale = iterations.min(CHANNEL_MESSAGE_TIMEOUT_SCALE_CAP);
     // 饱和乘法，防止整数溢出

@@ -24,17 +24,15 @@ fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry 
         api_key_input: String::new(),
         temperature: 0.7,
         compact_context: false,
-        max_tool_iterations: 50_000,
         max_history_messages: 100,
         parallel_tools: false,
         max_depth: 1,
         agentic: false,
-        tool_policy: vw_config_types::agent::DelegateCapabilityPolicy::default(),
         allowed_tools: Vec::new(),
         skill_policy: vw_config_types::agent::DelegateCapabilityPolicy::default(),
         allowed_skills: Vec::new(),
         enabled_identity_files: Vec::new(),
-        max_iterations: 1,
+        max_iterations: 50_000,
     }
 }
 

@@ -1,6 +1,6 @@
 use super::traits::{Tool, ToolResult};
 use crate::app::agent::config::DelegateAgentConfig;
-use crate::session::capability_policy::{resolve_skill_capabilities, resolve_tool_capabilities};
+use crate::session::capability_policy::resolve_skill_capabilities;
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -12,17 +12,14 @@ const BLOCKED_DELEGATE_TOOL_IDS: [&str; 6] =
 pub(crate) fn build_agentic_tools(
     parent_tools: &[Arc<dyn Tool>],
     agent_config: &DelegateAgentConfig,
-    trusted_user_selected_tools: &[String],
     trusted_user_selected_skills: &[String],
 ) -> Vec<Box<dyn Tool>> {
-    let specs = parent_tools.iter().map(|tool| tool.spec()).collect::<Vec<_>>();
-    let tool_capabilities = resolve_tool_capabilities(
-        &specs,
-        &agent_config.allowed_tools,
-        trusted_user_selected_tools,
-        agent_config.tool_policy,
-        BLOCKED_DELEGATE_TOOL_IDS,
-    );
+    let allowed_tool_ids = agent_config
+        .allowed_tools
+        .iter()
+        .map(|tool| tool.trim().to_lowercase())
+        .filter(|tool| !tool.is_empty())
+        .collect::<BTreeSet<_>>();
     let skill_capabilities = resolve_skill_capabilities(
         agent_config.allowed_skills.iter().chain(trusted_user_selected_skills.iter()),
         &agent_config.allowed_skills,
@@ -36,7 +33,13 @@ pub(crate) fn build_agentic_tools(
         .filter_map(|tool| {
             let spec = tool.spec();
             let tool_id = spec.id.as_str();
-            if !tool_capabilities.visible_ids.contains(&tool_id.to_lowercase()) {
+            let blocked = std::iter::once(tool_id)
+                .chain(spec.aliases.iter().map(String::as_str))
+                .any(|id| BLOCKED_DELEGATE_TOOL_IDS.iter().any(|blocked| id.eq_ignore_ascii_case(blocked)));
+            let selected = vw_config_types::tools::is_builtin_required_tool_id(tool_id)
+                || allowed_tool_ids.contains(&tool_id.to_lowercase())
+                || spec.aliases.iter().any(|alias| allowed_tool_ids.contains(&alias.to_lowercase()));
+            if blocked || !selected {
                 return None;
             }
             if tool_id == "skill" {

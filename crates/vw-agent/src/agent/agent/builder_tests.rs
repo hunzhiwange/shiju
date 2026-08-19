@@ -3,7 +3,7 @@ use crate::app::agent::agent::memory_loader::MemoryLoader;
 use crate::app::agent::agent::prompt::SystemPromptBuilder;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::{
-    AgentConfig, AutonomyConfig, IdentityConfig, MultimodalConfig, QueryClassificationConfig,
+    AutonomyConfig, IdentityConfig, MultimodalConfig, QueryClassificationConfig,
     SkillsPromptInjectionMode,
 };
 use crate::app::agent::memory::NoneMemory;
@@ -13,6 +13,7 @@ use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::skills::Skill;
 use crate::app::agent::tools::{Tool, ToolResult};
 use async_trait::async_trait;
+use vw_config_types::agent::AgentDefinitionConfig;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -152,7 +153,7 @@ fn build_fills_defaults_when_optional_fields_are_absent() {
     assert_eq!(agent.tool_specs[0].id, "first_tool");
     assert_eq!(agent.memory.name(), "none");
     assert_eq!(agent.observer.name(), "noop");
-    assert_eq!(agent.config.max_tool_iterations, 50_000);
+    assert_eq!(agent.config.max_iterations, 50_000);
     assert_eq!(agent.config.max_history_messages, 100);
     assert!(!agent.config.parallel_tools);
     assert_eq!(agent.model_name, "anthropic/claude-sonnet-4-20250514");
@@ -205,7 +206,10 @@ fn build_uses_configured_optional_fields() {
         ..Skill::default()
     };
     let classification_config = QueryClassificationConfig { enabled: true, rules: Vec::new() };
-    let config = AgentConfig { max_history_messages: 7, ..AgentConfig::default() };
+    let config = AgentDefinitionConfig {
+        max_history_messages: 7,
+        ..AgentDefinitionConfig::default()
+    };
     let identity_config = IdentityConfig {
         format: "test-format".into(),
         aieos_path: None,

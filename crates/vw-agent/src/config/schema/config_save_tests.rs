@@ -274,6 +274,7 @@ fn prepare_project_override_encrypts_secrets_and_removes_gateway_skeys() {
     let plain_secret = "project-api-key";
     let raw_override = serde_json::json!({
         "default_provider": "before",
+        "agent": {"max_iterations": 1},
         "gateway": {"skeys": [{"skey": "must-not-persist"}]}
     });
     let patch = serde_json::json!({
@@ -286,6 +287,7 @@ fn prepare_project_override_encrypts_secrets_and_removes_gateway_skeys() {
 
     assert_eq!(prepared["default_provider"], "after");
     assert!(SecretStore::is_encrypted(prepared["api_key"].as_str().expect("encrypted api key")));
+    assert!(prepared.get("agent").is_none());
     assert!(prepared["gateway"].get("skeys").is_none());
     assert!(!serde_json::to_string(&prepared).expect("prepared json").contains(plain_secret));
 }

@@ -134,7 +134,7 @@ pub(crate) async fn run_single_message(
     // - approval_manager: 工具审批管理器
     // - channel_name: 通道名称（CLI）
     // - multimodal: 多模态配置
-    // - max_tool_iterations: 最大工具调用迭代次数
+    // - max_iterations: 最大工具调用迭代次数
     // - 后续 None/空参数: 不指定特定约束
     let approval = Some(Arc::new(ApprovalManager::from_config(&config.autonomy)));
     let security = Some(Arc::new(SecurityPolicy::from_configs(
@@ -155,7 +155,7 @@ pub(crate) async fn run_single_message(
         approval,
         setup.channel_name,
         &config.multimodal,
-        config.agent.max_tool_iterations,
+        vw_config_types::agent::effective_main_agent_config(&config.agents).max_iterations,
         None, // 无特定系统提示覆盖
         None, // 无特定工具约束
         None, // 无特定上下文约束

@@ -165,13 +165,13 @@ fn delegate_skill_policy_keeps_all_skills_visible_and_preloads_defaults() {
         },
     ];
     let options = serde_json::json!({
-        "delegate_skill_policy": "user_override",
+        "delegate_skill_policy": "strict",
         "delegate_default_allowed_skills": ["default"],
         "delegate_trusted_user_selected_skills": ["user"],
     });
     let resolution = super::delegated_skill_policy_resolution(&skills, &options)
         .expect("delegated policy should resolve");
-    assert_eq!(resolution.visible_ids, ["default", "user"].into_iter().map(String::from).collect());
+    assert_eq!(resolution.visible_ids, ["default"].into_iter().map(String::from).collect());
 
     let mut protocol = super::DesktopSessionProtocol::new(skills, "delegate", 20_000);
     protocol.preload_skills(&resolution.default_injected_ids).expect("preload default");

@@ -11,8 +11,8 @@
 //! - 历史清理：重置对话并确保系统提示正确重新注入
 
 use crate::app::agent::agent::dispatcher::NativeToolDispatcher;
-use crate::app::agent::config::AgentConfig;
 use crate::app::agent::providers::{ChatMessage, ToolCall};
+use vw_config_types::agent::AgentDefinitionConfig;
 
 use super::helpers::{
     EchoTool, ScriptedProvider, build_agent_with, build_agent_with_config, text_response,
@@ -39,7 +39,10 @@ async fn history_trims_after_max_messages() {
     }
 
     let provider = Box::new(ScriptedProvider::new(responses));
-    let config = AgentConfig { max_history_messages: max_history, ..AgentConfig::default() };
+    let config = AgentDefinitionConfig {
+        max_history_messages: max_history,
+        ..AgentDefinitionConfig::default()
+    };
 
     let mut agent = build_agent_with_config(provider, vec![], config);
 

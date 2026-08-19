@@ -15,7 +15,6 @@ use crate::app::state::{
 use crate::app::{App, Message};
 use iced::widget::{button, column, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
-use vw_config_types::agent::DelegateCapabilityPolicy;
 use vw_config_types::tools::is_builtin_required_tool_id;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -266,30 +265,6 @@ pub(super) fn tool_card_is_locked(tool_id: &str) -> bool {
 
 pub(super) fn builtin_tool_badge_label() -> &'static str {
     "内置"
-}
-
-pub(super) fn capability_policy_label(policy: DelegateCapabilityPolicy) -> &'static str {
-    match policy {
-        DelegateCapabilityPolicy::Strict => "严格限制",
-        DelegateCapabilityPolicy::UserOverride => "限制但允许用户选择",
-        DelegateCapabilityPolicy::Unrestricted => "不限制",
-    }
-}
-
-pub(super) fn tool_policy_message(agent_key: String, policy: DelegateCapabilityPolicy) -> Message {
-    Message::Settings(SettingsMessage::Agents(AgentsMessage::ToolPolicyChanged(agent_key, policy)))
-}
-
-fn tool_policy_button(
-    entry: &DelegateAgentSettingsEntry,
-    policy: DelegateCapabilityPolicy,
-) -> Element<'static, Message> {
-    let selected = entry.tool_policy == policy;
-    button(text(capability_policy_label(policy)).size(12))
-        .padding([8, 12])
-        .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, selected))
-        .on_press(tool_policy_message(entry.key.clone(), policy))
-        .into()
 }
 
 pub(super) fn tool_card_press_message(
@@ -831,21 +806,7 @@ pub(super) fn view<'a>(
     };
 
     column![
-        section_card("默认工具", "选择会在委托代理首步默认注入的工具；它们不是工具白名单。",),
-        column![
-            text("工具访问策略").size(14),
-            text("控制委托代理可见工具的范围；不限制为默认策略。")
-                .size(12)
-                .style(settings_muted_text_style),
-            row![
-                tool_policy_button(entry, DelegateCapabilityPolicy::Strict),
-                tool_policy_button(entry, DelegateCapabilityPolicy::UserOverride),
-                tool_policy_button(entry, DelegateCapabilityPolicy::Unrestricted),
-            ]
-            .spacing(8)
-            .wrap(),
-        ]
-        .spacing(8),
+        section_card("注册工具", "选择在对话开始时注册给模型的工具。未选择的工具不可调用。"),
         tools_list,
     ]
     .spacing(14)

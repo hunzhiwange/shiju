@@ -442,14 +442,13 @@ async fn main_child_inherits_parent_provider_and_model_as_one_reference() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn agent_tool_fixes_trusted_parent_tool_selection_into_child_request() {
+async fn agent_tool_registers_only_configured_tools_in_child_request() {
     let workspace = tempfile::tempdir().expect("temporary workspace");
     let directory = workspace.path().to_string_lossy().to_string();
     let parent = create_parent(directory.clone()).await;
     let agents = HashMap::from([(
         "writer".to_string(),
         DelegateAgentConfig {
-            tool_policy: vw_config_types::agent::DelegateCapabilityPolicy::UserOverride,
             allowed_tools: vec!["file_read".to_string()],
             ..DelegateAgentConfig::default()
         },
@@ -457,10 +456,9 @@ async fn agent_tool_fixes_trusted_parent_tool_selection_into_child_request() {
     let tool = AgentTool::new(agents, Some(parent.id), directory.into())
         .with_child_agent_stream_executor(Arc::new(|request| {
             Box::pin(async move {
-                let options = request.options.expect("child policy options");
-                assert_eq!(options["delegate_default_allowed_tools"], json!(["file_read"]));
-                assert_eq!(options["delegate_tool_policy"], json!("user_override"));
-                assert_eq!(options["delegate_trusted_user_selected_tools"], json!(["shell"]),);
+                assert_eq!(request.allowed_tools, Some(vec!["file_read".to_string()]));
+                let options = request.options.expect("child skill policy options");
+                assert!(options.get("delegate_tool_policy").is_none());
                 Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
                     output: "child completed".to_string(),
                     message_id: None,
@@ -468,8 +466,7 @@ async fn agent_tool_fixes_trusted_parent_tool_selection_into_child_request() {
                 })
             })
         }));
-    let context =
-        Arc::new(ToolUseContext::new("parent", None).with_trusted_user_selected_tools(["shell"]));
+    let context = Arc::new(ToolUseContext::new("parent", None));
 
     let result = scope_tool_use_context(
         context,

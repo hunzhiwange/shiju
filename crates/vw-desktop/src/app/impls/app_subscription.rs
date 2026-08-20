@@ -171,7 +171,7 @@ impl App {
             };
 
         let todo_poll = if self.current_session_is_requesting() {
-            iced::time::every(std::time::Duration::from_secs(2))
+            iced::time::every(std::time::Duration::from_secs(10))
                 .map(|_| Message::Chat(message::ChatMessage::TodoPollTick))
         } else {
             Subscription::none()

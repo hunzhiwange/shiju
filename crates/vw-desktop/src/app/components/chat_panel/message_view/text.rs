@@ -267,25 +267,6 @@ pub(super) fn message_editor_body<'a>(
     idx: usize,
     value: Color,
 ) -> Option<Element<'a, Message>> {
-    message_editor_body_with_width(app, idx, value, None)
-}
-
-pub(super) fn user_message_editor_body<'a>(
-    app: &'a App,
-    idx: usize,
-    value: Color,
-) -> Option<Element<'a, Message>> {
-    let editor_content = app.chat_message_editors.get(idx)?;
-    let width = estimated_user_message_editor_width(&editor_content.text());
-    message_editor_body_with_width(app, idx, value, Some(width))
-}
-
-fn message_editor_body_with_width<'a>(
-    app: &'a App,
-    idx: usize,
-    value: Color,
-    fixed_width: Option<f32>,
-) -> Option<Element<'a, Message>> {
     let editor_content = app.chat_message_editors.get(idx)?;
     let on_action =
         move |action| Message::Chat(message::ChatMessage::MessageEditorAction(idx, action));
@@ -300,29 +281,16 @@ fn message_editor_body_with_width<'a>(
         .style(move |theme: &Theme, _status: text_editor::Status| {
             read_only_text_style(theme, value)
         });
-    let editor = if let Some(width) = fixed_width { editor.width(width) } else { editor };
-    let container_width =
-        if fixed_width.is_some() { Length::Shrink } else { Length::Fill };
 
-    Some(container(pass_wheel_to_parent(editor)).width(container_width).into())
+    Some(container(pass_wheel_to_parent(editor)).width(Length::Fill).into())
 }
 
-pub(super) fn estimated_user_message_editor_width(text: &str) -> f32 {
-    const MIN_WIDTH: f32 = 32.0;
-    const MAX_WIDTH: f32 = 612.0;
-
-    text.lines()
-        .map(|line| {
-            line.chars()
-                .map(|character| match character {
-                    '\t' => 32.0,
-                    character if character.is_ascii() => 8.25,
-                    _ => MESSAGE_TEXT_SIZE,
-                })
-                .sum::<f32>()
-        })
-        .fold(MIN_WIDTH, f32::max)
-        .clamp(MIN_WIDTH, MAX_WIDTH)
+pub(super) fn user_message_editor_body<'a>(
+    app: &'a App,
+    idx: usize,
+    value: Color,
+) -> Option<Element<'a, Message>> {
+    message_editor_body(app, idx, value)
 }
 
 pub(super) fn think_text_body<'a>(

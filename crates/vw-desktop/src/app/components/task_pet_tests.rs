@@ -75,6 +75,7 @@ fn pet_control_covers_avatar_badge_code_and_collapse_controls() {
     keep_element(pet_control(&app, PET_EXPANDED_SIZE, false));
 
     app.task_pet_robot_hovered = true;
+    keep_element(pet_control(&app, PET_COLLAPSED_SIZE, true));
     keep_element(pet_control(&app, PET_EXPANDED_SIZE, false));
 
     app.task_pet_avatar_kind = TaskPetAvatarKind::Beauty;
@@ -138,7 +139,8 @@ fn leaf_widgets_and_status_icons_build() {
     keep_element(code_effect(7));
     keep_element(avatar_cycle_button());
     keep_element(badge_button(12));
-    keep_element(collapse_button());
+    keep_element(expand_collapse_button(true));
+    keep_element(expand_collapse_button(false));
     keep_element(reply_button(1));
     keep_element(reply_input("hello"));
     keep_element(centered_button_label("发送", 12));

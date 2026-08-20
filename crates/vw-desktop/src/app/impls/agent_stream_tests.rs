@@ -36,6 +36,235 @@ fn agent_stream_tests_keeps_planned_coverage_targets() {
 }
 
 #[test]
+fn plan_run_delta_buffer_coalesces_before_ui_dispatch() {
+    use std::time::Duration;
+
+    let mut buffer = super::PlanRunDeltaBuffer::default();
+    let mut dispatched = Vec::new();
+    let mut send = |batch: &super::PlanRunDeltaBatch| {
+        dispatched.push(batch.clone());
+        Ok::<(), ()>(())
+    };
+    let inputs = [
+        (0, "session-a", "你", 1),
+        (10, "session-a", "好", 2),
+        (20, "session-b", "B1", 3),
+        (30, "session-b", "B2", 4),
+        (40, "session-a", "!", 5),
+        (300, "session-a", "done", 6),
+    ];
+
+    for (millis, session_id, delta, event_id) in inputs {
+        buffer
+            .push_delta(
+                session_id,
+                delta,
+                event_id,
+                Duration::from_millis(millis),
+                &mut send,
+            )
+            .expect("delta dispatch");
+    }
+    buffer.flush(&mut send).expect("final flush");
+
+    assert!(dispatched.len() < inputs.len());
+    assert_eq!(
+        dispatched
+            .iter()
+            .map(|batch| (batch.session_id.as_str(), batch.delta.as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            ("session-a", "你好"),
+            ("session-b", "B1B2"),
+            ("session-a", "!"),
+            ("session-a", "done"),
+        ]
+    );
+    assert_eq!(
+        dispatched.iter().map(|batch| batch.delta.as_str()).collect::<String>(),
+        inputs.iter().map(|(_, _, delta, _)| *delta).collect::<String>()
+    );
+    assert_eq!(dispatched[0].event_count, 2);
+    assert_eq!(dispatched[0].first_event_id, 1);
+    assert_eq!(dispatched[0].last_event_id, 2);
+
+    let mut threshold_buffer = super::PlanRunDeltaBuffer::default();
+    let mut threshold_batches = Vec::new();
+    threshold_buffer
+        .push_delta(
+            "session-a",
+            &"x".repeat(super::PLAN_RUN_DELTA_SOFT_LIMIT_CHARS - 1),
+            7,
+            Duration::ZERO,
+            &mut |batch| {
+                threshold_batches.push(batch.clone());
+                Ok::<(), ()>(())
+            },
+        )
+        .expect("buffer below soft threshold");
+    threshold_buffer
+        .push_delta(
+            "session-a",
+            "y",
+            8,
+            Duration::from_millis(1),
+            &mut |batch| {
+                threshold_batches.push(batch.clone());
+                Ok::<(), ()>(())
+            },
+        )
+        .expect("flush at soft threshold");
+    assert_eq!(threshold_batches.len(), 1);
+    assert_eq!(
+        threshold_batches[0].delta.chars().count(),
+        super::PLAN_RUN_DELTA_SOFT_LIMIT_CHARS
+    );
+
+    let oversized = "z".repeat(super::PLAN_RUN_DELTA_HARD_LIMIT_BYTES + 1);
+    threshold_buffer
+        .push_delta(
+            "session-hard-limit",
+            &oversized,
+            9,
+            Duration::from_millis(2),
+            &mut |batch| {
+                threshold_batches.push(batch.clone());
+                Ok::<(), ()>(())
+            },
+        )
+        .expect("split oversized delta");
+    threshold_buffer
+        .flush(&mut |batch| {
+            threshold_batches.push(batch.clone());
+            Ok::<(), ()>(())
+        })
+        .expect("flush oversized remainder");
+    assert!(
+        threshold_batches
+            .iter()
+            .all(|batch| batch.delta.len() <= super::PLAN_RUN_DELTA_HARD_LIMIT_BYTES)
+    );
+    assert_eq!(
+        threshold_batches
+            .iter()
+            .filter(|batch| batch.first_event_id == 9)
+            .map(|batch| batch.delta.as_str())
+            .collect::<String>(),
+        oversized
+    );
+}
+
+#[test]
+fn plan_run_delta_buffer_flushes_before_lifecycle_event() {
+    use std::time::Duration;
+
+    #[derive(Debug, PartialEq, Eq)]
+    enum Dispatch {
+        Delta(String),
+        Lifecycle(&'static str),
+    }
+
+    let mut buffer = super::PlanRunDeltaBuffer::default();
+    let mut dispatched = Vec::new();
+    buffer
+        .push_delta(
+            "session-a",
+            "partial ",
+            20,
+            Duration::ZERO,
+            &mut |batch| {
+                dispatched.push(Dispatch::Delta(batch.delta.clone()));
+                Ok::<(), ()>(())
+            },
+        )
+        .expect("first delta");
+    buffer
+        .push_delta(
+            "session-a",
+            "answer",
+            21,
+            Duration::from_millis(10),
+            &mut |batch| {
+                dispatched.push(Dispatch::Delta(batch.delta.clone()));
+                Ok::<(), ()>(())
+            },
+        )
+        .expect("second delta");
+
+    let flushed_cursor = buffer
+        .flush(&mut |batch| {
+            dispatched.push(Dispatch::Delta(batch.delta.clone()));
+            Ok::<(), ()>(())
+        })
+        .expect("flush before lifecycle");
+    dispatched.push(Dispatch::Lifecycle("session_waiting"));
+
+    assert_eq!(flushed_cursor, Some(21));
+    assert_eq!(
+        dispatched,
+        vec![Dispatch::Delta("partial answer".to_string()), Dispatch::Lifecycle("session_waiting")]
+    );
+}
+
+#[test]
+fn plan_run_delta_buffer_preserves_cursor_on_backpressure() {
+    use std::time::Duration;
+
+    let mut buffer = super::PlanRunDeltaBuffer::default();
+    let mut delivered = Vec::new();
+    let mut resume_cursor = None;
+    for (event_id, delta) in [(30, "one"), (31, " two")] {
+        buffer
+            .push_delta(
+                "session-a",
+                delta,
+                event_id,
+                Duration::from_millis(event_id),
+                &mut |batch| {
+                    delivered.push(batch.clone());
+                    Ok::<(), &'static str>(())
+                },
+            )
+            .expect("buffer initial delta");
+    }
+    resume_cursor = buffer
+        .flush(&mut |batch| {
+            delivered.push(batch.clone());
+            Ok::<(), &'static str>(())
+        })
+        .expect("initial delivery")
+        .or(resume_cursor);
+    assert_eq!(resume_cursor, Some(31));
+
+    for (event_id, delta) in [(32, "three"), (33, " four")] {
+        buffer
+            .push_delta(
+                "session-a",
+                delta,
+                event_id,
+                Duration::from_millis(event_id),
+                &mut |_batch| Err::<(), _>("full"),
+            )
+            .expect("no threshold flush");
+    }
+    let failed = buffer.flush(&mut |_batch| Err::<(), _>("full"));
+    assert_eq!(failed, Err("full"));
+    assert_eq!(resume_cursor, Some(31), "failed delivery must not advance the cursor");
+    assert!(buffer.has_pending());
+
+    resume_cursor = buffer
+        .flush(&mut |batch| {
+            delivered.push(batch.clone());
+            Ok::<(), &'static str>(())
+        })
+        .expect("retry delivery")
+        .or(resume_cursor);
+    assert_eq!(resume_cursor, Some(33));
+    assert_eq!(delivered.last().expect("retried batch").delta, "three four");
+    assert!(!buffer.has_pending());
+}
+
+#[test]
 fn chat_tool_event_keeps_legacy_tool_content() {
     let payload = serde_json::json!({
         "type": "chat.tool",

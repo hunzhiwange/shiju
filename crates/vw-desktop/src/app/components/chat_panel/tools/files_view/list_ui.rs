@@ -1,9 +1,8 @@
 //! 文件视图中的列表项与按钮构建。
 
 use iced::widget::svg;
-use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, mouse_area, row, text};
-use iced::{Alignment, Border, Color, Element, Length, Theme};
+use iced::{Alignment, Border, Color, Element, Length, Theme, mouse};
 use std::collections::HashMap;
 
 use crate::app::assets::Icon;
@@ -13,7 +12,7 @@ use crate::app::components::chat_panel::utils::{
 use crate::app::{App, Message, message};
 
 use super::super::diff_utils::file_preview;
-use super::super::file_link::{file_name_link, file_name_only, file_path_tooltip};
+use super::super::file_link::{file_name_link, file_name_only};
 use super::super::git_diff_view::render_git_diff_content;
 use super::super::tool_parse::tool_input_path;
 use super::super::types::ChangeFile;
@@ -216,9 +215,11 @@ pub(super) fn edit_file_change_block<'a>(
         header = header.push(edit_change_counts(adds, dels));
     }
 
-    header = header.push(view_changes_toggle_button(file_expanded, toggle_message));
+    header = header.push(view_changes_toggle_button(file_expanded, toggle_message.clone()));
 
-    let header = container(header).width(Length::Fill);
+    let header = mouse_area(container(header).width(Length::Fill))
+        .on_press(toggle_message)
+        .interaction(mouse::Interaction::Pointer);
 
     let block: Element<'a, Message> = if file_expanded {
         let diff_body = container(render_git_diff_content(app, title, Some(file), before, after))
@@ -258,21 +259,11 @@ pub(super) fn edit_verb_text<'a>(verb: &'static str) -> Element<'a, Message> {
         .into()
 }
 
-pub(super) fn file_name_tooltip<'a>(label: String) -> Element<'a, Message> {
-    file_path_tooltip(label)
-}
-
 pub(super) fn external_diff_button<'a>(on_press: Message) -> Element<'a, Message> {
-    let eye =
-        icon_svg(Icon::ChevronRight).width(Length::Fixed(12.0)).height(Length::Fixed(12.0)).style(
-            |theme: &Theme, _status| svg::Style { color: Some(view_changes_secondary_text(theme)) },
-        );
-
-    let button: Element<'a, Message> =
-        button(eye).padding([2, 4]).style(edit_file_change_button_style).on_press(on_press).into();
-
-    Tooltip::new(button, file_name_tooltip("查找变更".to_string()), TooltipPosition::Top)
-        .gap(6)
+    button(view_changes_pill())
+        .padding([0, 2])
+        .style(edit_file_change_button_style)
+        .on_press(on_press)
         .into()
 }
 
@@ -281,19 +272,14 @@ pub(super) fn view_changes_toggle_button<'a>(
     on_press: Message,
 ) -> Element<'a, Message> {
     button(
-        row![
-            view_changes_pill(),
-            icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
-                .width(Length::Fixed(10.0))
-                .height(Length::Fixed(10.0))
-                .style(|theme: &Theme, _status| svg::Style {
-                    color: Some(view_changes_secondary_text(theme)),
-                })
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center),
+        icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+            .width(Length::Fixed(10.0))
+            .height(Length::Fixed(10.0))
+            .style(|theme: &Theme, _status| svg::Style {
+                color: Some(view_changes_secondary_text(theme)),
+            }),
     )
-    .padding([0, 2])
+    .padding([2, 4])
     .style(edit_file_change_button_style)
     .on_press(on_press)
     .into()

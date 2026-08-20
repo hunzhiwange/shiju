@@ -338,7 +338,7 @@ fn pet_control(app: &App, size: f32, collapsed: bool) -> Element<'_, Message> {
         );
     }
 
-    if collapsed {
+    if collapsed && !app.task_pet_robot_hovered {
         let count = app.task_pet_active_count().max(app.task_pet_visible_count());
         if count > 0 {
             pet_stack = pet_stack.push(
@@ -350,9 +350,11 @@ fn pet_control(app: &App, size: f32, collapsed: bool) -> Element<'_, Message> {
                     .padding(iced::Padding::default().top(14).right(12).bottom(0).left(0)),
             );
         }
-    } else {
+    }
+
+    if app.task_pet_robot_hovered {
         pet_stack = pet_stack.push(
-            container(collapse_button())
+            container(expand_collapse_button(collapsed))
                 .width(Length::Fixed(PET_CONTROL_SIZE))
                 .height(Length::Fixed(PET_CONTROL_SIZE))
                 .align_x(iced::alignment::Horizontal::Right)
@@ -550,9 +552,9 @@ fn badge_button(count: usize) -> Element<'static, Message> {
         .into()
 }
 
-fn collapse_button() -> Element<'static, Message> {
+fn expand_collapse_button(collapsed: bool) -> Element<'static, Message> {
     button(
-        svg::Svg::new(assets::get_icon(Icon::ChevronDown))
+        svg::Svg::new(assets::get_icon(if collapsed { Icon::ChevronUp } else { Icon::ChevronDown }))
             .width(Length::Fixed(13.0))
             .height(Length::Fixed(13.0))
             .style(|_theme: &Theme, _status| svg::Style {

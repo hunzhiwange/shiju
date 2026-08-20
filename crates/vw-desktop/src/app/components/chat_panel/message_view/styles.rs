@@ -39,8 +39,8 @@ pub(crate) fn message_surface_contract(is_user: bool) -> MessageSurfaceContract 
     if is_user {
         MessageSurfaceContract {
             padding: Padding { top: 8.0, right: 14.0, bottom: 8.0, left: 14.0 },
-            width: Length::Shrink,
-            max_width: Some(640.0),
+            width: Length::Fill,
+            max_width: None,
             corner_radius: 12.0,
             has_background: true,
         }

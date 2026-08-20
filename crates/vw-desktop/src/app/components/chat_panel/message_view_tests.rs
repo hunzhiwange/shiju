@@ -49,7 +49,7 @@ fn user_message_falls_back_to_source_text_while_selectable_editor_is_empty() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread")]
-async fn selectable_user_message_keeps_a_readable_bubble_shape() {
+async fn selectable_user_message_fills_available_width() {
     const CONTENT: &str = "这是一条纯文本用户消息，用来确认可选择文本不会被压成竖直长条。";
 
     let (mut app, _) = App::new();
@@ -87,20 +87,11 @@ async fn selectable_user_message_keeps_a_readable_bubble_shape() {
         "user bubble was unexpectedly tall: {:?}",
         node.bounds()
     );
-    assert!(
-        bubble.bounds().width > 100.0,
-        "user bubble was unexpectedly narrow: {:?}",
-        bubble.bounds()
-    );
-    assert!(
-        bubble.bounds().width <= 640.0,
-        "user bubble exceeded its maximum width: {:?}",
-        bubble.bounds()
-    );
+    assert_eq!(bubble.bounds().width, node.bounds().width);
 }
 
 #[test]
-fn message_visual_contract_keeps_assistant_flat_and_user_compact() {
+fn message_visual_contract_keeps_assistant_flat_and_user_full_width() {
     let (app, _) = App::new();
     let cache = ChatRenderCacheEntry::default();
     let user = message_view(
@@ -129,8 +120,8 @@ fn message_visual_contract_keeps_assistant_flat_and_user_compact() {
 
     let user = message_surface_contract(true);
     let assistant = message_surface_contract(false);
-    assert!(matches!(user.width, Length::Shrink));
-    assert_eq!(user.max_width, Some(640.0));
+    assert!(matches!(user.width, Length::Fill));
+    assert_eq!(user.max_width, None);
     assert_eq!(user.padding, iced::Padding::from([8, 14]));
     assert_eq!(user.corner_radius, 12.0);
     assert!(user.has_background);

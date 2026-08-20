@@ -9,6 +9,146 @@ const GATEWAY_STREAM_INITIAL_RETRY_DELAY: std::time::Duration =
     std::time::Duration::from_millis(500);
 const GATEWAY_STREAM_MAX_RETRY_DELAY: std::time::Duration =
     std::time::Duration::from_secs(3 * 60 * 60);
+const PLAN_RUN_DELTA_FLUSH_INTERVAL: std::time::Duration =
+    std::time::Duration::from_millis(220);
+const PLAN_RUN_DELTA_SOFT_LIMIT_CHARS: usize = 360;
+const PLAN_RUN_DELTA_HARD_LIMIT_BYTES: usize = 16 * 1024;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PlanRunDeltaBatch {
+    session_id: String,
+    delta: String,
+    event_count: usize,
+    first_event_id: u64,
+    last_event_id: u64,
+    started_at: std::time::Duration,
+    char_count: usize,
+    cursor_event_id: Option<u64>,
+}
+
+impl PlanRunDeltaBatch {
+    fn new(
+        session_id: &str,
+        delta: &str,
+        event_id: u64,
+        started_at: std::time::Duration,
+        event_complete: bool,
+    ) -> Self {
+        Self {
+            session_id: session_id.to_string(),
+            delta: delta.to_string(),
+            event_count: 1,
+            first_event_id: event_id,
+            last_event_id: event_id,
+            started_at,
+            char_count: delta.chars().count(),
+            cursor_event_id: event_complete.then_some(event_id),
+        }
+    }
+
+    fn append_complete_event(&mut self, delta: &str, event_id: u64) {
+        self.delta.push_str(delta);
+        self.event_count = self.event_count.saturating_add(1);
+        self.last_event_id = event_id;
+        self.char_count = self.char_count.saturating_add(delta.chars().count());
+        self.cursor_event_id = Some(event_id);
+    }
+}
+
+#[derive(Debug, Default)]
+struct PlanRunDeltaBuffer {
+    pending: Option<PlanRunDeltaBatch>,
+}
+
+impl PlanRunDeltaBuffer {
+    fn has_pending(&self) -> bool {
+        self.pending.is_some()
+    }
+
+    fn push_delta<E>(
+        &mut self,
+        session_id: &str,
+        delta: &str,
+        event_id: u64,
+        now: std::time::Duration,
+        send: &mut impl FnMut(&PlanRunDeltaBatch) -> Result<(), E>,
+    ) -> Result<Option<u64>, E> {
+        let mut forwarded_cursor = None;
+        let should_flush = self.pending.as_ref().is_some_and(|pending| {
+            pending.session_id != session_id
+                || now.saturating_sub(pending.started_at) >= PLAN_RUN_DELTA_FLUSH_INTERVAL
+        });
+        if should_flush {
+            merge_forwarded_cursor(&mut forwarded_cursor, self.flush(send)?);
+        }
+
+        if self
+            .pending
+            .as_ref()
+            .is_some_and(|pending| pending.delta.len().saturating_add(delta.len()) > PLAN_RUN_DELTA_HARD_LIMIT_BYTES)
+        {
+            merge_forwarded_cursor(&mut forwarded_cursor, self.flush(send)?);
+        }
+
+        let mut remaining = delta;
+        while remaining.len() > PLAN_RUN_DELTA_HARD_LIMIT_BYTES {
+            let split_at = utf8_prefix_at_most(remaining, PLAN_RUN_DELTA_HARD_LIMIT_BYTES);
+            let (chunk, rest) = remaining.split_at(split_at);
+            self.pending = Some(PlanRunDeltaBatch::new(session_id, chunk, event_id, now, false));
+            merge_forwarded_cursor(&mut forwarded_cursor, self.flush(send)?);
+            remaining = rest;
+        }
+
+        match self.pending.as_mut() {
+            Some(pending) => pending.append_complete_event(remaining, event_id),
+            None => {
+                self.pending = Some(PlanRunDeltaBatch::new(
+                    session_id,
+                    remaining,
+                    event_id,
+                    now,
+                    true,
+                ));
+            }
+        }
+
+        if self.pending.as_ref().is_some_and(|pending| {
+            pending.char_count >= PLAN_RUN_DELTA_SOFT_LIMIT_CHARS
+                || pending.delta.len() >= PLAN_RUN_DELTA_HARD_LIMIT_BYTES
+        }) {
+            merge_forwarded_cursor(&mut forwarded_cursor, self.flush(send)?);
+        }
+
+        Ok(forwarded_cursor)
+    }
+
+    fn flush<E>(
+        &mut self,
+        send: &mut impl FnMut(&PlanRunDeltaBatch) -> Result<(), E>,
+    ) -> Result<Option<u64>, E> {
+        let Some(pending) = self.pending.as_ref() else {
+            return Ok(None);
+        };
+        send(pending)?;
+        let cursor_event_id = pending.cursor_event_id;
+        self.pending = None;
+        Ok(cursor_event_id)
+    }
+}
+
+fn merge_forwarded_cursor(current: &mut Option<u64>, next: Option<u64>) {
+    if let Some(next) = next {
+        *current = Some(current.map_or(next, |current| current.max(next)));
+    }
+}
+
+fn utf8_prefix_at_most(value: &str, max_bytes: usize) -> usize {
+    let mut split_at = value.len().min(max_bytes);
+    while !value.is_char_boundary(split_at) {
+        split_at = split_at.saturating_sub(1);
+    }
+    split_at
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GatewayStreamStopReason {
@@ -53,8 +193,7 @@ impl GatewayReconnectState {
         stop_reason: Option<GatewayStreamStopReason>,
     ) -> GatewayStreamNext {
         if let Some(event_id) = last_forwarded_event_id {
-            self.last_event_id =
-                Some(self.last_event_id.map_or(event_id, |current| current.max(event_id)));
+            self.record_forwarded_event(event_id);
         }
         if saw_new_event {
             self.next_delay = GATEWAY_STREAM_INITIAL_RETRY_DELAY;
@@ -86,6 +225,11 @@ impl GatewayReconnectState {
             }
             Err(error) => GatewayStreamNext::Failed(error),
         }
+    }
+
+    fn record_forwarded_event(&mut self, event_id: u64) {
+        self.last_event_id =
+            Some(self.last_event_id.map_or(event_id, |current| current.max(event_id)));
     }
 
     fn take_retry_delay(&mut self) -> std::time::Duration {
@@ -1136,6 +1280,29 @@ fn gateway_stream_stop_after_forward_err(
     false
 }
 
+fn try_send_plan_run_delta_batch(
+    output: &mut iced::futures::channel::mpsc::Sender<Message>,
+    request_id: u64,
+    batch: &PlanRunDeltaBatch,
+) -> Result<(), iced::futures::channel::mpsc::TrySendError<Message>> {
+    output.try_send(Message::Chat(message::ChatMessage::PlanRunSessionDelta {
+        session_id: batch.session_id.clone(),
+        delta: batch.delta.clone(),
+    }))?;
+    tracing::debug!(
+        target: "vw_desktop",
+        request_id,
+        session_id = %batch.session_id,
+        first_event_id = batch.first_event_id,
+        last_event_id = batch.last_event_id,
+        event_count = batch.event_count,
+        char_count = batch.char_count,
+        byte_count = batch.delta.len(),
+        "desktop forwarded coalesced task plan-run session delta"
+    );
+    Ok(())
+}
+
 fn plan_run_event_type(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> &'static str {
     match event {
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { .. } => "planning_started",
@@ -1957,6 +2124,8 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             let mut plan_run_terminal_error: Option<String> = None;
             let mut plan_run_cancelled = false;
             let mut attempt = 0_u64;
+            let mut plan_run_delta_buffer = PlanRunDeltaBuffer::default();
+            let plan_run_delta_clock = std::time::Instant::now();
 
             info!(
                 target: "vw_desktop",
@@ -1988,12 +2157,26 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
 
             loop {
                 attempt = attempt.saturating_add(1);
-                let resume = reconnect.resume();
                 let mut saw_new_event = false;
                 let mut last_forwarded_event_id = None;
                 let mut stop_reason = None;
 
-                let result = if let Some(plan_run_body) = plan_run_body.as_ref() {
+                if plan_run_body.is_some() && plan_run_delta_buffer.has_pending() {
+                    match plan_run_delta_buffer.flush(&mut |batch| {
+                        try_send_plan_run_delta_batch(&mut output, req.id, batch)
+                    }) {
+                        Ok(Some(event_id)) => reconnect.record_forwarded_event(event_id),
+                        Ok(None) => {}
+                        Err(err) => {
+                            gateway_stream_stop_after_forward_err(err, &mut stop_reason);
+                        }
+                    }
+                }
+                let resume = reconnect.resume();
+
+                let result = if stop_reason.is_some() {
+                    Ok(vw_gateway_client::GatewayStreamAttemptResult::CallerStopped)
+                } else if let Some(plan_run_body) = plan_run_body.as_ref() {
                     let root = req.root.as_deref().expect("validated workflow root");
                     stream_task_plan_run_resumable(
                         &endpoint,
@@ -2029,13 +2212,75 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                             };
                             let event_type = plan_run_event_type(&event);
                             last_plan_run_event = Some(event_type);
-                            info!(
-                                target: "vw_desktop",
-                                request_id = req.id,
-                                event_id,
-                                event_type,
-                                "desktop received task plan-run event"
-                            );
+                            match &event {
+                                vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta {
+                                    session_id,
+                                    delta,
+                                    ..
+                                } => debug!(
+                                    target: "vw_desktop",
+                                    request_id = req.id,
+                                    event_id,
+                                    event_type,
+                                    session_id = %session_id,
+                                    char_count = delta.chars().count(),
+                                    byte_count = delta.len(),
+                                    "desktop received task plan-run session delta"
+                                ),
+                                _ => info!(
+                                    target: "vw_desktop",
+                                    request_id = req.id,
+                                    event_id,
+                                    event_type,
+                                    "desktop received task plan-run event"
+                                ),
+                            }
+
+                            if let vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta {
+                                session_id,
+                                delta,
+                                ..
+                            } = &event
+                            {
+                                match plan_run_delta_buffer.push_delta(
+                                    session_id,
+                                    delta,
+                                    event_id,
+                                    plan_run_delta_clock.elapsed(),
+                                    &mut |batch| {
+                                        try_send_plan_run_delta_batch(&mut output, req.id, batch)
+                                    },
+                                ) {
+                                    Ok(forwarded_event_id) => {
+                                        merge_forwarded_cursor(
+                                            &mut last_forwarded_event_id,
+                                            forwarded_event_id,
+                                        );
+                                        return true;
+                                    }
+                                    Err(err) => {
+                                        return gateway_stream_stop_after_forward_err(
+                                            err,
+                                            &mut stop_reason,
+                                        );
+                                    }
+                                }
+                            }
+
+                            match plan_run_delta_buffer.flush(&mut |batch| {
+                                try_send_plan_run_delta_batch(&mut output, req.id, batch)
+                            }) {
+                                Ok(forwarded_event_id) => merge_forwarded_cursor(
+                                    &mut last_forwarded_event_id,
+                                    forwarded_event_id,
+                                ),
+                                Err(err) => {
+                                    return gateway_stream_stop_after_forward_err(
+                                        err,
+                                        &mut stop_reason,
+                                    );
+                                }
+                            }
 
                             if let Some(started_message) = plan_run_session_started_message(
                                 &event,
@@ -2052,31 +2297,6 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                 }
                                 if let Some(session_id) = plan_run_event_session_id(&event) {
                                     plan_run_session_ids.insert(session_id.to_string());
-                                }
-                            }
-
-                            if let vw_api_types::task::TaskPlanRunStreamEventDto::SessionDelta {
-                                session_id,
-                                delta,
-                                ..
-                            } = &event
-                            {
-                                match output.try_send(Message::Chat(
-                                    message::ChatMessage::PlanRunSessionDelta {
-                                        session_id: session_id.clone(),
-                                        delta: delta.clone(),
-                                    },
-                                )) {
-                                    Ok(()) => {
-                                        last_forwarded_event_id = Some(event_id);
-                                        return true;
-                                    }
-                                    Err(err) => {
-                                        return gateway_stream_stop_after_forward_err(
-                                            err,
-                                            &mut stop_reason,
-                                        );
-                                    }
                                 }
                             }
 
@@ -2379,6 +2599,20 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                     )
                     .await
                 };
+
+                if plan_run_body.is_some() && stop_reason.is_none() {
+                    match plan_run_delta_buffer.flush(&mut |batch| {
+                        try_send_plan_run_delta_batch(&mut output, req.id, batch)
+                    }) {
+                        Ok(forwarded_event_id) => merge_forwarded_cursor(
+                            &mut last_forwarded_event_id,
+                            forwarded_event_id,
+                        ),
+                        Err(err) => {
+                            gateway_stream_stop_after_forward_err(err, &mut stop_reason);
+                        }
+                    }
+                }
 
                 match reconnect.finish_attempt(
                     result,

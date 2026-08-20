@@ -4,7 +4,7 @@
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, mouse_area, row, scrollable, text};
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use iced::{Alignment, Background, Border, Color, Element, Length, Theme, mouse};
 use std::path::Path;
 
 use crate::app::assets::{self, Icon};
@@ -314,30 +314,33 @@ pub fn tool_apply_patch_view<'a>(
                     } else {
                         Space::new().width(Length::Fixed(20.0)).into()
                     };
+                    let toggle_message = Message::Chat(message::ChatMessage::ToggleToolFile(
+                        msg_idx,
+                        tool_idx,
+                        path.clone(),
+                    ));
                     let view_changes_btn = view_changes_toggle_button(
                         file_expanded,
-                        Message::Chat(message::ChatMessage::ToggleToolFile(
-                            msg_idx,
-                            tool_idx,
-                            path.clone(),
-                        )),
+                        toggle_message.clone(),
                     );
                     let header_row = row![
-                        row![apply_patch_file_icon(icon), file_ref]
+                        row![apply_patch_file_icon(icon), file_ref, external_diff_btn, eye_btn]
                             .spacing(10)
                             .align_y(Alignment::Center),
-                        eye_btn,
-                        external_diff_btn,
                         container(Space::new()).width(Length::Fill),
                         count_meta,
                         view_changes_btn,
                     ]
                     .align_y(Alignment::Center)
                     .spacing(10);
-                    let header = container(header_row)
-                        .padding([8, 0])
-                        .width(Length::Fill)
-                        .style(apply_patch_inner_card_style);
+                    let header = mouse_area(
+                        container(header_row)
+                            .padding([8, 0])
+                            .width(Length::Fill)
+                            .style(apply_patch_inner_card_style),
+                    )
+                    .on_press(toggle_message)
+                    .interaction(mouse::Interaction::Pointer);
 
                     if file_expanded {
                         let diff_body: Element<'a, Message> = if let Some(change) = resolved_change
@@ -526,17 +529,12 @@ fn view_changes_pill<'a>() -> Element<'a, Message> {
 
 fn view_changes_toggle_button<'a>(expanded: bool, on_press: Message) -> Element<'a, Message> {
     button(
-        row![
-            view_changes_pill(),
-            icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
-                .width(Length::Fixed(10.0))
-                .height(Length::Fixed(10.0))
-                .style(|theme: &Theme, _status| svg::Style {
-                    color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
-                })
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center),
+        icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+            .width(Length::Fixed(10.0))
+            .height(Length::Fixed(10.0))
+            .style(|theme: &Theme, _status| svg::Style {
+                color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
+            }),
     )
     .padding([2, 4])
     .style(apply_patch_file_button_style)
@@ -545,37 +543,11 @@ fn view_changes_toggle_button<'a>(expanded: bool, on_press: Message) -> Element<
 }
 
 fn external_diff_button<'a>(on_press: Message) -> Element<'a, Message> {
-    let eye = icon_svg(Icon::ChevronRight)
-        .width(Length::Fixed(12.0))
-        .height(Length::Fixed(12.0))
-        .style(|theme: &Theme, _status| {
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            svg::Style {
-                color: Some(if is_dark {
-                    theme.palette().text.scale_alpha(0.9)
-                } else {
-                    theme.extended_palette().secondary.base.text
-                }),
-            }
-        });
-    let btn = button(eye).padding([2, 4]).style(apply_patch_file_button_style).on_press(on_press);
-    Tooltip::new(
-        btn,
-        container(text("查找变更").size(12)).padding([6, 8]).style(|_theme: &Theme| {
-            iced::widget::container::Style {
-                text_color: Some(Color::WHITE),
-                background: Some(Background::Color(Color::from_rgba8(0, 0, 0, 0.94))),
-                border: Border { radius: 6.0.into(), ..Default::default() },
-                ..Default::default()
-            }
-        }),
-        TooltipPosition::Top,
-    )
-    .gap(6)
-    .into()
+    button(view_changes_pill())
+        .padding(0)
+        .style(apply_patch_file_button_style)
+        .on_press(on_press)
+        .into()
 }
 
 fn resolve_apply_patch_change_preview(

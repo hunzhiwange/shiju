@@ -2,9 +2,9 @@ use super::super::types::ChangeFile;
 use super::list_ui::{
     build_file_list_column, edit_change_counts, edit_file_change_block,
     edit_file_change_button_style, edit_file_expand_key, edit_file_name_link, edit_result_label,
-    edit_verb_text, external_diff_button, fallback_edit_diff_payload, file_name_tooltip,
-    file_row_label, tool_file_hover_key, tool_file_left, view_changes_pill,
-    view_changes_secondary_text, view_changes_toggle_button,
+    edit_verb_text, external_diff_button, fallback_edit_diff_payload, file_row_label,
+    tool_file_hover_key, tool_file_left, view_changes_pill, view_changes_secondary_text,
+    view_changes_toggle_button,
 };
 use super::{FileListState, FilesViewContext};
 use crate::app::components::chat_panel::tools::file_link::file_name_link;
@@ -209,7 +209,6 @@ fn edit_file_expand_key_includes_indices_and_path() {
 
 #[test]
 fn edit_row_helpers_build_hovered_and_idle_elements() {
-    keep_element(file_name_tooltip("src/main.rs".to_string()));
     keep_element(external_diff_button(Message::None));
     keep_element(view_changes_toggle_button(false, Message::None));
     keep_element(view_changes_toggle_button(true, Message::None));

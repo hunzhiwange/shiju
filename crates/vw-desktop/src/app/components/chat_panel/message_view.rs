@@ -71,8 +71,8 @@ use self::styles::{
     processing_duration_text_color,
 };
 use self::text::{
-    message_editor_body, message_text_body, session_control_selection_card,
-    split_session_control_selection,
+    message_text_body, session_control_selection_card, split_session_control_selection,
+    user_message_editor_body,
 };
 
 use super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
@@ -332,7 +332,7 @@ pub fn message_view<'a>(
             should_use_user_message_editor(app, idx, content, attachment_items.is_empty());
         let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
         if use_editor {
-            if let Some(view) = message_editor_body(app, idx, app.theme().palette().text) {
+            if let Some(view) = user_message_editor_body(app, idx, app.theme().palette().text) {
                 body = body.push(view);
             }
         } else {

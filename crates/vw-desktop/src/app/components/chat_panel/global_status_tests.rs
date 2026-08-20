@@ -1,10 +1,14 @@
 use super::global_status::{
     COMPACT_ACTIVITY_ICON_SIZE, COMPACT_ACTIVITY_SLOT_SIZE, chat_global_status,
     chat_global_status_view, compact_activity_geometry, compact_activity_glyph, format_elapsed,
-    think_pulse_glyph, think_pulse_size, tokens_label,
+    think_pulse_glyph, think_pulse_opacity, tokens_label,
 };
 use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole, TokenUsage};
+#[cfg(not(target_arch = "wasm32"))]
+use iced::advanced::{Layout, layout, renderer::Headless, widget::Tree};
+#[cfg(not(target_arch = "wasm32"))]
+use iced::{Font, Pixels, Size};
 
 fn assistant(content: &str) -> ChatMessage {
     ChatMessage {
@@ -37,6 +41,21 @@ fn running_read_tool_becomes_latest_status() {
     let status = status.expect("running status should render");
     assert_eq!(status.action, "正在读取");
     assert_eq!(status.detail, "src/main.rs");
+}
+
+#[test]
+fn running_tool_status_keeps_full_detail_for_layout_clipping() {
+    let long_path = format!("/workspace/{}target.rs", "deeply_nested_directory/".repeat(8));
+    let input = serde_json::json!({ "filePath": long_path }).to_string();
+    let content = format!(
+        "tool read\n{}",
+        serde_json::json!({ "status": "running", "input": input })
+    );
+
+    let status = chat_global_status(&[assistant(&content)], true).expect("running read status");
+
+    assert_eq!(status.detail, long_path);
+    assert!(status.detail.chars().count() > 80);
 }
 
 #[test]
@@ -113,10 +132,10 @@ fn thinking_pulse_cycles_shapes_and_breathes() {
     assert_eq!(think_pulse_glyph(18), "❋");
     assert_eq!(think_pulse_glyph(24), "✳");
 
-    assert!((think_pulse_size(0) - 14.0).abs() < 0.001);
-    assert!((think_pulse_size(6) - 34.0).abs() < 0.001);
+    assert!((think_pulse_opacity(0) - 0.35).abs() < 0.001);
+    assert!((think_pulse_opacity(6) - 1.0).abs() < 0.001);
     for frame in 0..30 {
-        assert!((14.0..=34.0).contains(&think_pulse_size(frame)));
+        assert!((0.35..=1.0).contains(&think_pulse_opacity(frame)));
     }
 }
 
@@ -278,6 +297,33 @@ fn global_status_view_builds_for_hidden_and_visible_states() {
     app.status_animation_frame = 7;
 
     let _visible = chat_global_status_view(&app);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn global_status_detail_fills_remaining_width() {
+    async fn detail_width(viewport_width: f32) -> f32 {
+        let renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("tiny-skia headless renderer should be available");
+        let mut app = App::new().0;
+        app.current_session_runtime_mut().is_requesting = true;
+        app.chat.push(assistant(&format!("<think>{}</think>", "很长的思考内容".repeat(40))));
+
+        let mut element = chat_global_status_view(&app);
+        let limits = layout::Limits::new(Size::ZERO, Size::new(viewport_width, 100.0));
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        let row = Layout::new(&node).children().next().expect("status row");
+
+        row.children().nth(1).expect("status detail").bounds().width
+    }
+
+    let narrow = detail_width(360.0).await;
+    let wide = detail_width(800.0).await;
+
+    assert!(wide > narrow + 400.0, "narrow={narrow}, wide={wide}");
 }
 
 #[test]

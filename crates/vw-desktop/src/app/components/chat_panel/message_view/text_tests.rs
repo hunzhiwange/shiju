@@ -1,5 +1,6 @@
 use super::text::{
     SessionControlSelection, estimate_message_height_rough, estimate_text_height,
+    estimated_user_message_editor_width,
     message_editor_body, message_text_body, session_control_selection_card,
     should_prefer_plain_think_body, should_segment_text_block, split_session_control_selection,
     split_text_segments, think_text_body,
@@ -11,6 +12,16 @@ use iced::widget::text_editor;
 #[test]
 fn estimate_text_height_grows_with_lines() {
     assert!(estimate_text_height("one\ntwo\nthree") > estimate_text_height("one"));
+}
+
+#[test]
+fn user_message_editor_width_is_bounded_and_accounts_for_wide_text() {
+    assert_eq!(estimated_user_message_editor_width(""), 32.0);
+    assert!(
+        estimated_user_message_editor_width("中文中文")
+            > estimated_user_message_editor_width("abcd")
+    );
+    assert_eq!(estimated_user_message_editor_width(&"中".repeat(100)), 612.0);
 }
 
 #[test]

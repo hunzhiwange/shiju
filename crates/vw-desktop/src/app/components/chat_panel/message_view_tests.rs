@@ -47,6 +47,58 @@ fn user_message_falls_back_to_source_text_while_selectable_editor_is_empty() {
     assert!(!should_use_user_message_editor(&app, 0, "刚发送的消息", false));
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn selectable_user_message_keeps_a_readable_bubble_shape() {
+    const CONTENT: &str = "这是一条纯文本用户消息，用来确认可选择文本不会被压成竖直长条。";
+
+    let (mut app, _) = App::new();
+    app.chat_message_editors.push(iced::widget::text_editor::Content::with_text(CONTENT));
+    let cache = ChatRenderCacheEntry::default();
+    let mut element = message_view(
+        &app,
+        0,
+        ChatRole::User,
+        CONTENT,
+        &[],
+        None,
+        None,
+        &cache,
+        true,
+    );
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer");
+    let limits = layout::Limits::new(Size::ZERO, Size::new(1_000.0, 1_200.0));
+    let mut tree = Tree::new(element.as_widget());
+    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let bubble_shell = Layout::new(&node)
+        .children()
+        .next()
+        .expect("message column should contain a bubble shell");
+    let bubble = bubble_shell
+        .children()
+        .next()
+        .expect("bubble shell should contain the user bubble");
+
+    assert!(
+        node.bounds().height < 240.0,
+        "user bubble was unexpectedly tall: {:?}",
+        node.bounds()
+    );
+    assert!(
+        bubble.bounds().width > 100.0,
+        "user bubble was unexpectedly narrow: {:?}",
+        bubble.bounds()
+    );
+    assert!(
+        bubble.bounds().width <= 640.0,
+        "user bubble exceeded its maximum width: {:?}",
+        bubble.bounds()
+    );
+}
+
 #[test]
 fn message_visual_contract_keeps_assistant_flat_and_user_compact() {
     let (app, _) = App::new();
@@ -92,8 +144,7 @@ fn message_visual_contract_keeps_assistant_flat_and_user_compact() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread")]
 async fn message_visual_contract_renders_complex_content_in_light_and_dark_themes() {
-    const USER_CONTENT: &str =
-        "请检查 the visual hierarchy\n\n[DOCUMENT:/tmp/界面-spec.pdf]";
+    const USER_CONTENT: &str = "请检查 the visual hierarchy，确认纯文本用户消息保持可见且紧凑。";
     const MARKDOWN_CONTENT: &str = concat!(
         "# 中文标题与 English heading\n\n",
         "这是一段较长的正文，用来检查中英文混排、行高与消息阅读节奏。",
@@ -114,6 +165,8 @@ async fn message_visual_contract_renders_complex_content_in_light_and_dark_theme
     {
         let (mut app, _) = App::new();
         app.app_theme = theme.clone();
+        app.chat_message_editors
+            .push(iced::widget::text_editor::Content::with_text(USER_CONTENT));
         app.chat_message_ids = vec![None, None, Some("msg-visual".to_string())];
         app.chat_markdown_blocks.insert(1_u64 << 32, parse_markdown_blocks(MARKDOWN_CONTENT));
         let request = vw_gateway_client::PendingPermissionRequestDto {

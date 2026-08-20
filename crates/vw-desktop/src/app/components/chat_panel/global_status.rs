@@ -8,8 +8,8 @@ use iced::{Alignment, Color, Element, Length, Theme};
 use serde_json::Value;
 
 use crate::app::components::chat_panel::tools::{
-    ToolVisual, ToolVisualState, tool_inline_summary, tool_input, tool_name_from_raw, tool_status,
-    tool_verb, tool_visual_state,
+    ToolVisual, ToolVisualState, tool_inline_summary_unbounded, tool_input, tool_name_from_raw,
+    tool_status, tool_verb, tool_visual_state,
 };
 use crate::app::components::status_animation::spinner_frame;
 use crate::app::models::{ChatMessage, ChatRole};
@@ -129,7 +129,7 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
 
     // 思考中恢复原有星形呼吸动画；工具状态继续使用紧凑状态图标。
     let (activity_icon, line_height) = if is_thinking {
-        (think_pulse_indicator(app.status_animation_frame), THINK_PULSE_MAX_SIZE)
+        (think_pulse_indicator(app.status_animation_frame), THINK_PULSE_SLOT_SIZE)
     } else {
         (
             compact_activity_indicator(status.visual, app.status_animation_frame),
@@ -137,12 +137,12 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
         )
     };
 
-    // 进行内容：状态文案（思考中/运行等）打头，后接最新 detail 单行、最多 40 字符、超出以 … 截断。
+    // 进行内容保留完整单行，由剩余布局宽度动态裁切，不再按固定字符数提前截短。
     let detail_line = single_line(&status.detail);
     let content = if detail_line.is_empty() {
         action
     } else {
-        format!("{} {}", action, truncate_chars(&detail_line, 40))
+        format!("{action} {detail_line}")
     };
 
     // 时间、token 紧跟图标，进行内容放到最后。
@@ -161,16 +161,21 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
     let meta_view = container(
         text(meta_text)
             .size(COMPACT_ACTIVITY_TEXT_SIZE)
+            .width(Length::Fill)
             .wrapping(iced::widget::text::Wrapping::None)
             .style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(chat_secondary_subtle_text_color(theme)),
             }),
-    );
+    )
+    .width(Length::Fill)
+    .clip(true);
 
     let line = row![activity_icon, meta_view]
         .spacing(5)
+        .width(Length::Fill)
         .height(Length::Fixed(line_height))
-        .align_y(Alignment::Center);
+        .align_y(Alignment::Center)
+        .clip(true);
 
     container(line)
         .width(Length::Fill)
@@ -190,29 +195,39 @@ pub(crate) fn think_pulse_glyph(frame: usize) -> &'static str {
         [(frame / THINK_PULSE_FRAMES_PER_GLYPH) % THINK_PULSE_GLYPHS.len()]
 }
 
-const THINK_PULSE_MIN_SIZE: f32 = 14.0;
-const THINK_PULSE_MAX_SIZE: f32 = 34.0;
+const THINK_PULSE_SLOT_SIZE: f32 = 34.0;
 const THINK_PULSE_BREATH_PERIOD: usize = THINK_PULSE_FRAMES_PER_GLYPH * 2;
 
-pub(crate) fn think_pulse_size(frame: usize) -> f32 {
+/// 固定字号避免动画帧反复触发文本布局与字形整形，仅用透明度保留呼吸感。
+const THINK_PULSE_ICON_SIZE: f32 = 24.0;
+const THINK_PULSE_MIN_OPACITY: f32 = 0.35;
+const THINK_PULSE_VERTICAL_OFFSET: f32 = 3.0;
+
+pub(crate) fn think_pulse_opacity(frame: usize) -> f32 {
     let phase = (frame % THINK_PULSE_BREATH_PERIOD) as f32 / THINK_PULSE_BREATH_PERIOD as f32
         * std::f32::consts::TAU;
     let wave = (1.0 - phase.cos()) / 2.0;
-    THINK_PULSE_MIN_SIZE + wave * (THINK_PULSE_MAX_SIZE - THINK_PULSE_MIN_SIZE)
+    THINK_PULSE_MIN_OPACITY + wave * (1.0 - THINK_PULSE_MIN_OPACITY)
 }
 
 fn think_pulse_indicator<'a>(frame: usize) -> Element<'a, Message> {
+    let color = Color { a: think_pulse_opacity(frame), ..THINK_PULSE_ACCENT };
     container(
         text(think_pulse_glyph(frame))
-            .size(think_pulse_size(frame))
+            .size(THINK_PULSE_ICON_SIZE)
             .line_height(iced::widget::text::LineHeight::Relative(1.0))
             .font(bold_font())
-            .style(|_theme: &Theme| iced::widget::text::Style {
-                color: Some(THINK_PULSE_ACCENT),
-            }),
+            .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(color) }),
     )
-    .width(Length::Fixed(THINK_PULSE_MAX_SIZE))
-    .height(Length::Fixed(THINK_PULSE_MAX_SIZE))
+    .width(Length::Fixed(THINK_PULSE_SLOT_SIZE))
+    .height(Length::Fixed(THINK_PULSE_SLOT_SIZE))
+    // 固定高度内增加 6px 底部留白，使居中的图标视觉中心上移 3px。
+    .padding(iced::Padding {
+        top: 0.0,
+        right: 0.0,
+        bottom: THINK_PULSE_VERTICAL_OFFSET * 2.0,
+        left: 0.0,
+    })
     .align_x(Alignment::Center)
     .align_y(Alignment::Center)
     .into()
@@ -294,7 +309,7 @@ fn status_from_tool_raw(raw: &str, is_requesting: bool) -> Option<ChatGlobalStat
     let value = serde_json::from_str::<Value>(rest.trim()).ok()?;
     let status = tool_status(&value);
     let input = tool_input(&value);
-    let summary = tool_inline_summary(&tool_name, input).unwrap_or_default();
+    let summary = tool_inline_summary_unbounded(&tool_name, input).unwrap_or_default();
     let verb = tool_verb(&tool_name);
     let detail = if summary.trim().is_empty() { tool_name.clone() } else { summary };
 

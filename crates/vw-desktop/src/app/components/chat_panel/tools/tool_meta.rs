@@ -437,13 +437,13 @@ pub fn tool_activity_header<'a>(
 ) -> iced::widget::Row<'a, Message> {
     let summary = summary.into();
     let summary_view: Element<'a, Message> = if summary.trim().is_empty() {
-        Space::new().width(Length::Fill).into()
+        Space::new().width(Length::Shrink).into()
     } else {
         let font = content_safe_font(&summary, "JetBrains Mono");
         text(summary)
             .size(13)
             .font(font)
-            .width(Length::Fill)
+            .width(Length::Shrink)
             .wrapping(Wrapping::None)
             .style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(chat_secondary_muted_text_color(theme)),
@@ -476,6 +476,19 @@ pub fn tool_activity_header<'a>(
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
+    tool_inline_summary_with_max_chars(tool_name, input, 80)
+}
+
+/// 返回不预先按字符数截短的工具摘要，供按真实布局宽度裁切的状态栏使用。
+pub fn tool_inline_summary_unbounded(tool_name: &str, input: &str) -> Option<String> {
+    tool_inline_summary_with_max_chars(tool_name, input, usize::MAX)
+}
+
+fn tool_inline_summary_with_max_chars(
+    tool_name: &str,
+    input: &str,
+    max_chars: usize,
+) -> Option<String> {
     let tool_name = canonical_tool_name(tool_name).to_ascii_lowercase();
     if !input.trim_start().starts_with('{') {
         let t = input.trim();
@@ -495,12 +508,15 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                                 serde_json::to_string(other).unwrap_or_else(|_| other.to_string())
                             }
                         };
-                        Some(truncate_chars(&format!("{} = {}", setting, display), 80).to_string())
+                        Some(
+                            truncate_chars(&format!("{} = {}", setting, display), max_chars)
+                                .to_string(),
+                        )
                     } else {
-                        Some(truncate_chars(setting, 80).to_string())
+                        Some(truncate_chars(setting, max_chars).to_string())
                     }
                 } else if !section.is_empty() && section != "all" {
-                    Some(truncate_chars(section, 80).to_string())
+                    Some(truncate_chars(section, max_chars).to_string())
                 } else {
                     None
                 }
@@ -527,7 +543,7 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                 } else {
                     Some(format!("{path} ({})", parts.join(", ")))
                 };
-                summary.map(|s| truncate_chars(&s, 80).to_string())
+                summary.map(|s| truncate_chars(&s, max_chars).to_string())
             }
             "write" | "file_write" | "file_edit" | "notebook_edit" => {
                 let path = v
@@ -537,11 +553,19 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                     .and_then(|x| x.as_str())
                     .unwrap_or("")
                     .trim();
-                if path.is_empty() { None } else { Some(truncate_chars(path, 80).to_string()) }
+                if path.is_empty() {
+                    None
+                } else {
+                    Some(truncate_chars(path, max_chars).to_string())
+                }
             }
             "apply_patch" => {
                 let path = v.get("path").and_then(|x| x.as_str()).unwrap_or("").trim();
-                if path.is_empty() { None } else { Some(truncate_chars(path, 80).to_string()) }
+                if path.is_empty() {
+                    None
+                } else {
+                    Some(truncate_chars(path, max_chars).to_string())
+                }
             }
             "grep"
             | "glob"
@@ -574,10 +598,13 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                     .unwrap_or_default();
                 match (pattern.is_empty(), path.is_empty()) {
                     (true, true) => None,
-                    (false, true) => Some(truncate_chars(pattern, 80).to_string()),
-                    (true, false) => Some(truncate_chars(&path, 80).to_string()),
+                    (false, true) => Some(truncate_chars(pattern, max_chars).to_string()),
+                    (true, false) => Some(truncate_chars(&path, max_chars).to_string()),
                     (false, false) => {
-                        Some(truncate_chars(&format!("{} in {}", pattern, path), 80).to_string())
+                        Some(
+                            truncate_chars(&format!("{} in {}", pattern, path), max_chars)
+                                .to_string(),
+                        )
                     }
                 }
             }
@@ -589,7 +616,11 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                     .and_then(|x| x.as_str())
                     .and_then(normalize_file_reference_to_path)
                     .unwrap_or_default();
-                if path.is_empty() { None } else { Some(truncate_chars(&path, 80).to_string()) }
+                if path.is_empty() {
+                    None
+                } else {
+                    Some(truncate_chars(&path, max_chars).to_string())
+                }
             }
             "bash" | "shell" => {
                 let cmd = v
@@ -598,7 +629,11 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                     .and_then(|x| x.as_str())
                     .unwrap_or("")
                     .trim();
-                if cmd.is_empty() { None } else { Some(truncate_chars(cmd, 80).to_string()) }
+                if cmd.is_empty() {
+                    None
+                } else {
+                    Some(truncate_chars(cmd, max_chars).to_string())
+                }
             }
             "webfetch" | "web_fetch" | "fetch_webpage" => {
                 let url = v
@@ -611,10 +646,12 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                 let query = v.get("query").and_then(|x| x.as_str()).unwrap_or("").trim();
                 match (url.is_empty(), query.is_empty()) {
                     (true, true) => None,
-                    (false, true) => Some(truncate_chars(url, 80).to_string()),
-                    (true, false) => Some(truncate_chars(query, 80).to_string()),
+                    (false, true) => Some(truncate_chars(url, max_chars).to_string()),
+                    (true, false) => Some(truncate_chars(query, max_chars).to_string()),
                     (false, false) => {
-                        Some(truncate_chars(&format!("{} in {}", query, url), 80).to_string())
+                        Some(
+                            truncate_chars(&format!("{} in {}", query, url), max_chars).to_string(),
+                        )
                     }
                 }
             }
@@ -634,9 +671,10 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                     (true, 0) => None,
                     (true, 1) => Some("1 个问题".to_string()),
                     (true, count) => Some(format!("{} 个问题", count)),
-                    (false, 1) => Some(truncate_chars(label, 80).to_string()),
+                    (false, 1) => Some(truncate_chars(label, max_chars).to_string()),
                     (false, count) => Some(
-                        truncate_chars(&format!("{} 等 {} 个问题", label, count), 80).to_string(),
+                        truncate_chars(&format!("{} 等 {} 个问题", label, count), max_chars)
+                            .to_string(),
                     ),
                 }
             }
@@ -663,11 +701,19 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                     .and_then(|x| x.as_str())
                     .and_then(normalize_file_reference_to_path)
                     .unwrap_or_default();
-                if path.is_empty() { None } else { Some(truncate_chars(&path, 80).to_string()) }
+                if path.is_empty() {
+                    None
+                } else {
+                    Some(truncate_chars(&path, max_chars).to_string())
+                }
             }
             "browser_open" | "open_browser_page" => {
                 let url = v.get("url").and_then(|x| x.as_str()).unwrap_or("").trim();
-                if url.is_empty() { None } else { Some(truncate_chars(url, 80).to_string()) }
+                if url.is_empty() {
+                    None
+                } else {
+                    Some(truncate_chars(url, max_chars).to_string())
+                }
             }
             "agenttool" | "agent" => {
                 let agent = v
@@ -685,10 +731,17 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                 match (agent.is_empty(), prompt.is_empty()) {
                     (true, true) => None,
                     (false, true) => Some(format!("调用 {}", agent)),
-                    (true, false) => Some(truncate_chars(prompt, 80).to_string()),
+                    (true, false) => Some(truncate_chars(prompt, max_chars).to_string()),
                     (false, false) => Some(
-                        truncate_chars(&format!("{} · {}", agent, truncate_chars(prompt, 56)), 80)
-                            .to_string(),
+                        truncate_chars(
+                            &format!(
+                                "{} · {}",
+                                agent,
+                                truncate_chars(prompt, max_chars.saturating_sub(24))
+                            ),
+                            max_chars,
+                        )
+                        .to_string(),
                     ),
                 }
             }
@@ -697,13 +750,17 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                 let url = v.get("url").and_then(|x| x.as_str()).unwrap_or("").trim();
                 let selector = v.get("selector").and_then(|x| x.as_str()).unwrap_or("").trim();
                 if !url.is_empty() {
-                    Some(truncate_chars(&format!("{} · {}", action, url), 80).to_string())
+                    Some(
+                        truncate_chars(&format!("{} · {}", action, url), max_chars).to_string(),
+                    )
                 } else if !selector.is_empty() {
-                    Some(truncate_chars(&format!("{} · {}", action, selector), 80).to_string())
+                    Some(
+                        truncate_chars(&format!("{} · {}", action, selector), max_chars).to_string(),
+                    )
                 } else if action.is_empty() {
                     None
                 } else {
-                    Some(truncate_chars(action, 80).to_string())
+                    Some(truncate_chars(action, max_chars).to_string())
                 }
             }
             "git_operations" | "git_diff" => {
@@ -717,7 +774,10 @@ pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
                     let mut summary = if files.is_empty() || files == "." {
                         "git diff".to_string()
                     } else {
-                        format!("git diff {}", truncate_chars(files, 64))
+                        format!(
+                            "git diff {}",
+                            truncate_chars(files, max_chars.saturating_sub(16))
+                        )
                     };
                     if cached {
                         summary.push_str(" --cached");

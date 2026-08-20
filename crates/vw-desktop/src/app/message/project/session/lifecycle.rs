@@ -1195,10 +1195,16 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                                     (converted, converted_ids)
                                 };
 
-                            if reset_boundary.is_some()
-                                && let Some(local) = local_messages.clone()
+                            if let Some(local) = local_messages.clone()
                                 && converted.len() < local.len()
                             {
+                                tracing::warn!(
+                                    target: "vw_desktop",
+                                    session_id = %id,
+                                    gateway_messages = converted.len(),
+                                    cached_messages = local.len(),
+                                    "preserved cached session history because gateway history was shorter"
+                                );
                                 let ids =
                                     local_message_ids.unwrap_or_else(|| vec![None; local.len()]);
                                 (local, ids)

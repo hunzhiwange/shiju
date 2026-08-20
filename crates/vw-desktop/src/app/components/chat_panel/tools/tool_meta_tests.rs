@@ -1,12 +1,24 @@
 /// 重新导出 use super::{tool_emoji, tool_header_label, tool_icon, tool_inline_summary, tool_verb}，让上层模块通过稳定路径访问。
 use super::{
     ToolVisualState, ToolVisualTone, tool_emoji, tool_header_label, tool_icon, tool_icon_badge,
-    tool_icon_badge_color, tool_icon_badge_size, tool_inline_summary, tool_verb,
-    tool_visual_state,
+    tool_icon_badge_color, tool_icon_badge_size, tool_inline_summary,
+    tool_inline_summary_unbounded, tool_verb, tool_visual_state,
 };
 /// 重新导出 use crate::app::assets::Icon，让上层模块通过稳定路径访问。
 use crate::app::assets::Icon;
 use iced::Theme;
+
+#[test]
+fn unbounded_inline_summary_preserves_full_tool_detail() {
+    let path = format!("/workspace/{}target.rs", "nested/".repeat(20));
+    let input = serde_json::json!({ "filePath": path }).to_string();
+
+    let bounded = tool_inline_summary("read", &input).expect("bounded summary");
+    let unbounded = tool_inline_summary_unbounded("read", &input).expect("unbounded summary");
+
+    assert!(bounded.ends_with('…'));
+    assert_eq!(unbounded, path);
+}
 
 #[test]
 fn tool_icons_distinguish_common_activity_types() {

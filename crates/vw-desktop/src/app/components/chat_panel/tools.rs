@@ -156,7 +156,8 @@ pub(crate) use workflow_view::workflow_node_detail_body;
 pub use super::tool_names::canonical_tool_name;
 pub(crate) use mcp_view::{format_mcp_detail_content, is_mcp_tool_raw};
 pub(crate) use tool_meta::{
-    ToolVisual, ToolVisualState, tool_inline_summary, tool_verb, tool_visual_state,
+    ToolVisual, ToolVisualState, tool_inline_summary, tool_inline_summary_unbounded, tool_verb,
+    tool_visual_state,
 };
 pub(crate) use tool_parse::{
     AgentToolSessionPayload, AgentToolSessionStatus, agent_tool_session_payloads_from_content,

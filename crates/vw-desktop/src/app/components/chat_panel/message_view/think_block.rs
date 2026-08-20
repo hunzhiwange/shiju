@@ -78,19 +78,24 @@ pub(super) fn think_block_view<'a>(
         ("思考".to_string(), None)
     };
 
-    let toggle_icon = if expanded { Icon::ChevronDown } else { Icon::ChevronRight };
     let is_hovered = app.chat_think_hovered_idx == Some(key);
-    let toggle_icon = icon_svg(toggle_icon)
-        .width(Length::Fixed(10.0))
-        .height(Length::Fixed(10.0))
-        .style(move |theme: &Theme, _status| {
-            let fg = if is_hovered {
-                chat_secondary_muted_text_color(theme)
-            } else {
-                chat_secondary_subtle_text_color(theme)
-            };
-            svg::Style { color: Some(fg) }
-        });
+    let toggle_icon: Element<'_, Message> = if is_hovered {
+        let icon_kind = if expanded { Icon::ChevronDown } else { Icon::ChevronRight };
+        icon_svg(icon_kind)
+            .width(Length::Fixed(10.0))
+            .height(Length::Fixed(10.0))
+            .style(move |theme: &Theme, _status| {
+                svg::Style {
+                    color: Some(chat_secondary_muted_text_color(theme)),
+                }
+            })
+            .into()
+    } else {
+        container(iced::widget::Space::new())
+            .width(Length::Fixed(10.0))
+            .height(Length::Fixed(10.0))
+            .into()
+    };
 
     let status_text: Element<'_, Message> = if is_thinking {
         thinking_status_text(&status_label, now_ms, app.status_animation_frame)

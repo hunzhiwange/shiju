@@ -1387,6 +1387,68 @@ fn session_messages_loaded_empty_gateway_history_restores_cached_chat() {
 }
 
 #[test]
+fn session_messages_loaded_shorter_gateway_history_preserves_cached_chat() {
+    let mut app = app();
+    let session_id = "session-shorter-gateway-history";
+    app.active_session_id = Some(session_id.to_string());
+    let cached = vec![
+        crate::app::models::ChatMessage {
+            role: ChatRole::User,
+            content: "original question".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+        crate::app::models::ChatMessage {
+            role: ChatRole::Assistant,
+            content: "original answer".to_string(),
+            model: Some("provider-a/model-a".to_string()),
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+        crate::app::models::ChatMessage {
+            role: ChatRole::User,
+            content: "latest question".to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+    ];
+    app.store_session_chat_snapshot(
+        session_id.to_string(),
+        crate::app::session::shared_chat_messages(cached),
+        vec![
+            Some("original-user".to_string()),
+            Some("original-assistant".to_string()),
+            Some("latest-user".to_string()),
+        ],
+    );
+
+    let task = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionMessagesLoaded(Ok((
+            session_id.to_string(),
+            vec![text_message(user_info("latest-user"), "latest question")],
+            crate::app::models::TokenUsage::default(),
+        ))),
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.chat.len(), 3);
+    assert_eq!(app.chat[0].content, "original question");
+    assert_eq!(app.chat[1].content, "original answer");
+    assert_eq!(app.chat[2].content, "latest question");
+    assert_eq!(
+        app.chat_message_ids,
+        vec![
+            Some("original-user".to_string()),
+            Some("original-assistant".to_string()),
+            Some("latest-user".to_string()),
+        ]
+    );
+}
+
+#[test]
 fn session_messages_loaded_error_without_cached_history_sets_error_message() {
     let mut app = app();
     app.active_session_id = Some("session-1".to_string());

@@ -66,9 +66,9 @@ use crate::app::{App, Message, message};
 use self::assistant_body::render_assistant_body;
 use self::render_cache::resolve_visible_text_and_copy_hash;
 use self::styles::{
-    ASSISTANT_HEADER_BODY_SPACING, COMPACT_ACTION_BUTTON_RADIUS, MESSAGE_META_TEXT_SIZE,
-    PROCESSING_DURATION_TEXT_SIZE, PROCESSING_HEADER_RULE_SPACING, is_dark_theme,
-    message_meta_text_color, processing_duration_separator_color, processing_duration_text_color,
+    ASSISTANT_HEADER_BODY_SPACING, MESSAGE_META_TEXT_SIZE, PROCESSING_DURATION_TEXT_SIZE,
+    is_dark_theme, message_action_button_style, message_action_icon_color, message_meta_text_color,
+    processing_duration_text_color,
 };
 use self::text::{
     message_editor_body, message_text_body, session_control_selection_card,
@@ -82,8 +82,7 @@ use super::tools::{
     pending_permission_request_for_message, pending_permission_targets_message,
 };
 use super::utils::{
-    chat_context_target_key, chat_secondary_muted_text_color, chat_secondary_text_color,
-    copy_tooltip_content, icon_svg, is_recent_copy, normalize_display_text,
+    chat_context_target_key, copy_tooltip_content, icon_svg, is_recent_copy, normalize_display_text,
 };
 
 pub(crate) use self::assistant_body::deduped_tool_last_indices;
@@ -94,6 +93,7 @@ pub(crate) use self::parse::hash_chat_content;
 pub(crate) use self::render_cache::{
     assistant_render_blocks, build_render_cache_entry, effective_assistant_render_cache,
 };
+pub(crate) use self::styles::{message_surface_contract, message_surface_style};
 pub(crate) use self::text::estimate_message_height_rough;
 #[cfg(test)]
 pub(crate) use self::text::should_prefer_plain_think_body;
@@ -229,17 +229,17 @@ pub fn message_view<'a>(
         let icon_size = if compact_square { MESSAGE_META_TEXT_SIZE } else { 12.0 };
         let compact_button_size = MESSAGE_META_TEXT_SIZE;
         let btn = button(
-            icon_svg(icon).width(Length::Fixed(icon_size)).height(Length::Fixed(icon_size)).style(
-                move |theme: &Theme, _status| svg::Style {
-                    color: Some(if highlighted {
-                        theme.extended_palette().success.base.color
-                    } else if compact_square {
-                        chat_secondary_muted_text_color(theme)
-                    } else {
-                        chat_secondary_text_color(theme)
-                    }),
-                },
-            ),
+            icon_svg(icon)
+                .width(Length::Fixed(icon_size))
+                .height(Length::Fixed(icon_size))
+                .style(move |theme: &Theme, status| svg::Style {
+                    color: Some(message_action_icon_color(
+                        theme,
+                        status,
+                        highlighted,
+                        compact_square,
+                    )),
+                }),
         )
         .width(if compact_square {
             Length::Fixed(compact_button_size)
@@ -253,41 +253,7 @@ pub fn message_view<'a>(
         })
         .padding(0)
         .style(move |theme: &Theme, status| {
-            let (bg, show_bg) = match status {
-                iced::widget::button::Status::Hovered => {
-                    if is_dark_theme(theme) {
-                        (Color::from_rgba8(31, 33, 38, 0.94), true)
-                    } else {
-                        (Color::from_rgb8(0xF1, 0xF3, 0xF6), true)
-                    }
-                }
-                iced::widget::button::Status::Pressed => {
-                    if is_dark_theme(theme) {
-                        (Color::from_rgba8(36, 38, 44, 0.98), true)
-                    } else {
-                        (Color::from_rgb8(0xE8, 0xEC, 0xF1), true)
-                    }
-                }
-                _ => (Color::TRANSPARENT, false),
-            };
-            iced::widget::button::Style {
-                background: if show_bg { Some(Background::Color(bg)) } else { None },
-                border: Border {
-                    width: if show_bg { 1.0 } else { 0.0 },
-                    color: if is_dark_theme(theme) {
-                        Color::from_rgba8(52, 56, 63, 0.9)
-                    } else {
-                        Color::from_rgba8(218, 223, 230, 1.0)
-                    },
-                    radius: if compact_square {
-                        COMPACT_ACTION_BUTTON_RADIUS.into()
-                    } else {
-                        8.0.into()
-                    },
-                },
-                text_color: chat_secondary_muted_text_color(theme),
-                ..Default::default()
-            }
+            message_action_button_style(theme, status, compact_square)
         })
         .on_press(on_press);
 
@@ -362,10 +328,8 @@ pub fn message_view<'a>(
         )
     } else {
         let mut body = column![].spacing(8);
-        let use_editor = attachment_items.is_empty()
-            && selectable_text_policy(content, false)
-                != SelectableTextPolicy::PreviewWithCopyFallback
-            && app.chat_message_editors.get(idx).is_some();
+        let use_editor =
+            should_use_user_message_editor(app, idx, content, attachment_items.is_empty());
         let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
         if use_editor {
             if let Some(view) = message_editor_body(app, idx, app.theme().palette().text) {
@@ -417,22 +381,11 @@ pub fn message_view<'a>(
         if let Some(label) =
             processing_duration_label(processing_timing, live_processing_elapsed_ms)
         {
-            let processing_header = column![
+            assistant_content = assistant_content.push(
                 iced_text(label).size(PROCESSING_DURATION_TEXT_SIZE).style(|theme: &Theme| {
                     iced::widget::text::Style { color: Some(processing_duration_text_color(theme)) }
                 }),
-                container(Space::new().width(Length::Fill).height(Length::Fixed(1.0)))
-                    .width(Length::Fill)
-                    .style(|theme: &Theme| {
-                        let color = processing_duration_separator_color(theme);
-                        iced::widget::container::Style {
-                            background: Some(Background::Color(color)),
-                            ..Default::default()
-                        }
-                    })
-            ]
-            .spacing(PROCESSING_HEADER_RULE_SPACING);
-            assistant_content = assistant_content.push(processing_header);
+            );
         }
         assistant_content.push(body)
     } else {
@@ -440,60 +393,16 @@ pub fn message_view<'a>(
     };
 
     let context_key = chat_context_target_key(idx, None);
+    let surface_contract = message_surface_contract(is_user);
     let bubble_inner = container(body)
-        .padding(if is_user {
-            iced::Padding { top: 4.0, right: 14.0, bottom: 4.0, left: 14.0 }
-        } else {
-            iced::Padding { top: 2.0, right: 2.0, bottom: 2.0, left: 0.0 }
-        })
-        .width(Length::Fill)
-        .style(move |theme: &Theme| {
-            if !is_user {
-                if is_permission_target {
-                    let is_dark = is_dark_theme(theme);
-                    return iced::widget::container::Style {
-                        background: Some(Background::Color(if is_dark {
-                            Color::from_rgba8(61, 49, 19, 0.34)
-                        } else {
-                            Color::from_rgba8(255, 248, 229, 0.96)
-                        })),
-                        border: Border {
-                            width: 1.0,
-                            color: if is_dark {
-                                Color::from_rgba8(168, 132, 45, 0.82)
-                            } else {
-                                Color::from_rgba8(214, 169, 68, 0.96)
-                            },
-                            radius: 14.0.into(),
-                        },
-                        ..Default::default()
-                    };
-                }
-                return iced::widget::container::Style {
-                    background: None,
-                    border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 0.0.into() },
-                    shadow: iced::Shadow::default(),
-                    ..Default::default()
-                };
-            }
-
-            let background = if is_dark_theme(theme) {
-                Color::from_rgba(
-                    theme.palette().primary.r * 0.18 + 18.0 / 255.0 * 0.82,
-                    theme.palette().primary.g * 0.18 + 19.0 / 255.0 * 0.82,
-                    theme.palette().primary.b * 0.18 + 22.0 / 255.0 * 0.82,
-                    0.92,
-                )
-            } else {
-                Color::from_rgba8(244, 247, 251, 1.0)
-            };
-            iced::widget::container::Style {
-                background: Some(Background::Color(background)),
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 8.0.into() },
-                shadow: iced::Shadow::default(),
-                ..Default::default()
-            }
-        });
+        .padding(surface_contract.padding)
+        .width(surface_contract.width)
+        .style(move |theme: &Theme| message_surface_style(theme, is_user, is_permission_target));
+    let bubble_inner = if let Some(max_width) = surface_contract.max_width {
+        bubble_inner.max_width(max_width)
+    } else {
+        bubble_inner
+    };
 
     let context_text = selected_chat_text_for_message(app, idx).unwrap_or_else(|| {
         if !visible_for_copy.trim().is_empty() {
@@ -670,17 +579,35 @@ pub fn message_view<'a>(
 
     if is_user {
         column![
-            row![bubble_inner].align_y(Alignment::End),
+            container(bubble_inner)
+                .width(Length::Fill)
+                .align_x(iced::alignment::Horizontal::Right),
             row![footer_container].align_y(Alignment::Center)
         ]
-        .spacing(5)
+        .spacing(4)
         .into()
     } else {
         column![
-            row![bubble_inner].align_y(Alignment::Start),
+            container(bubble_inner)
+                .width(Length::Fill)
+                .align_x(iced::alignment::Horizontal::Left),
             row![footer_container].align_y(Alignment::Center)
         ]
-        .spacing(5)
+        .spacing(4)
         .into()
     }
+}
+
+pub(super) fn should_use_user_message_editor(
+    app: &App,
+    idx: usize,
+    content: &str,
+    has_no_attachments: bool,
+) -> bool {
+    has_no_attachments
+        && selectable_text_policy(content, false) != SelectableTextPolicy::PreviewWithCopyFallback
+        && app
+            .chat_message_editors
+            .get(idx)
+            .is_some_and(|editor| !editor.text().trim().is_empty())
 }

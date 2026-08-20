@@ -2,7 +2,7 @@
 //! 视图解析结构化配置操作结果，并以明确状态展示成功、失败和变更值。
 
 use iced::widget::{Space, button, column, container, mouse_area, row, text};
-use iced::{Alignment, Background, Border, Element, Length, Theme};
+use iced::{Background, Border, Element, Length, Theme};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -14,7 +14,7 @@ use crate::app::components::chat_panel::utils::{
 use crate::app::{App, Message, message};
 
 use super::canonical_tool_name;
-use super::tool_meta::tool_header_title;
+use super::tool_meta::{tool_activity_header, tool_visual_state};
 use super::tool_parse::{
     tool_error_text, tool_input, tool_output_text, tool_result_data, tool_status,
 };
@@ -227,27 +227,40 @@ pub fn tool_config_view<'a>(
     let value = serde_json::from_str::<Value>(rest.trim()).ok()?;
     let status = tool_status(&value);
     let is_running = status == "running";
+    let is_waiting = matches!(status, "waiting" | "queued");
+    let visual = tool_visual_state(status);
     let result = parse_config_result(&value);
+    let has_lifecycle = matches!(
+        status,
+        "waiting" | "queued" | "running" | "completed" | "success" | "error" | "failed"
+            | "denied" | "cancelled"
+    );
+    let allows_header_without_result = matches!(
+        status,
+        "waiting" | "queued" | "running" | "error" | "failed" | "denied" | "cancelled"
+    );
 
-    if !is_running && result.is_none() {
+    if result.is_none() && !allows_header_without_result {
         return None;
     }
 
     let input = parse_config_input(tool_input(&value));
     let is_error =
-        matches!(status, "error" | "denied") || result.as_ref().is_some_and(|item| !item.success);
-    let summary = if is_running {
-        input.as_ref().map(summary_from_input).unwrap_or_default()
-    } else {
-        result.as_ref().map(summary_from_result).unwrap_or_default()
-    };
+        matches!(status, "error" | "failed" | "denied")
+            || result.as_ref().is_some_and(|item| !item.success);
+    let summary = result
+        .as_ref()
+        .map(summary_from_result)
+        .filter(|summary| !summary.trim().is_empty())
+        .or_else(|| input.as_ref().map(summary_from_input))
+        .unwrap_or_default();
     let summary = truncate_chars(summary.replace(['\n', '\r'], " ").trim(), 120).to_string();
 
-    if summary.is_empty() && !is_error {
+    if summary.is_empty() && !has_lifecycle && !is_error {
         return None;
     }
 
-    let title = if is_running {
+    let title = if is_running || is_waiting {
         if input.as_ref().and_then(|item| item.value.as_ref()).is_some() {
             "设置配置"
         } else {
@@ -279,19 +292,7 @@ pub fn tool_config_view<'a>(
     let detail_slot: Element<'a, Message> =
         if is_hovered { detail_btn.into() } else { Space::new().width(Length::Fixed(22.0)).into() };
 
-    let head_row = row![
-        row![
-            tool_header_title("config", title, is_error),
-            text(summary).size(13).style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(chat_secondary_muted_text_color(theme)),
-            })
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center),
-        container(Space::new()).width(Length::Fill),
-        detail_slot,
-    ]
-    .align_y(Alignment::Center);
+    let head_row = tool_activity_header("config", title, summary, visual, detail_slot);
 
     let body: Option<Element<'a, Message>> = if is_error {
         let error_text = result
@@ -323,11 +324,11 @@ pub fn tool_config_view<'a>(
             })
             .into(),
         )
-    } else if is_running {
+    } else if is_running || is_waiting {
         let pending = if input.as_ref().and_then(|item| item.value.as_ref()).is_some() {
-            "正在写入配置…"
+            if is_waiting { "等待写入配置…" } else { "正在写入配置…" }
         } else {
-            "正在读取配置…"
+            if is_waiting { "等待读取配置…" } else { "正在读取配置…" }
         };
         Some(
             text(pending)

@@ -21,7 +21,7 @@ use super::diff_utils::{
 };
 use super::file_link::{file_name_link, file_name_only, file_path_tooltip};
 use super::git_diff_view::render_git_diff_content;
-use super::tool_meta::tool_header_title;
+use super::tool_meta::{tool_activity_header, tool_visual_state};
 use super::tool_parse::{
     resolve_output_path, tool_change_file_summaries, tool_change_files, tool_error_text,
     tool_input, tool_output_path, tool_output_text, tool_status, tool_structured_diff_text,
@@ -53,7 +53,8 @@ pub fn tool_apply_patch_view<'a>(
     }
     let v = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
     let status = tool_status(&v);
-    let is_error = matches!(status, "error" | "denied");
+    let visual = tool_visual_state(status);
+    let is_error = matches!(status, "error" | "failed" | "denied");
     let is_running = status == "running";
 
     let input = tool_input(&v);
@@ -144,41 +145,40 @@ pub fn tool_apply_patch_view<'a>(
         files.first().map(|(_, path)| path.as_str()).unwrap_or(primary_name.as_str()),
     );
 
-    let mut head_row = row![
-        tool_header_title("apply_patch", title.clone(), is_error),
-        container(header_file_type_icon(header_icon)).width(Length::Fixed(16.0)),
-    ]
-    .spacing(6)
-    .align_y(Alignment::Center);
-
-    if !primary_name.is_empty() {
-        head_row = head_row.push(text(primary_name.clone()).size(13).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.92)) }
-        }));
-    } else if let Some(permission_target) = permission_target {
-        head_row = head_row.push(text(permission_target).size(13).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(apply_patch_secondary_text(theme, 0.68, 0.74)) }
-        }));
-    }
-    if let Some(extra) = trailing_summary.clone() {
-        head_row = head_row.push(text(extra).size(13).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(apply_patch_secondary_text(theme, 0.60, 0.68)) }
-        }));
+    let mut header_summary = if primary_name.is_empty() {
+        permission_target.unwrap_or_default()
+    } else {
+        primary_name
+    };
+    if let Some(extra) = trailing_summary {
+        if !header_summary.is_empty() {
+            header_summary.push_str(" · ");
+        }
+        header_summary.push_str(&extra);
     }
 
-    head_row = head_row.push(container(Space::new()).width(Length::Fill));
+    let mut actions = row![container(header_file_type_icon(header_icon)).width(Length::Fixed(16.0))]
+        .spacing(6)
+        .align_y(Alignment::Center);
 
     if line_adds + line_dels > 0 {
-        head_row = head_row.push(apply_patch_change_totals(line_adds, line_dels));
+        actions = actions.push(apply_patch_change_totals(line_adds, line_dels));
     } else if adds + mods + dels > 0 {
-        head_row = head_row.push(text(format!("+{}  ~{}  -{}", adds, mods, dels)).size(14).style(
+        actions = actions.push(text(format!("+{}  ~{}  -{}", adds, mods, dels)).size(14).style(
             |theme: &Theme| iced::widget::text::Style {
                 color: Some(apply_patch_secondary_text(theme, 0.64, 0.72)),
             },
         ));
     }
 
-    head_row = head_row.push(detail_btn);
+    actions = actions.push(detail_btn);
+    let head_row = tool_activity_header(
+        "apply_patch",
+        title,
+        header_summary,
+        visual,
+        actions.into(),
+    );
 
     let head_with_hover = mouse_area(container(head_row).width(Length::Fill).padding([1, 0]))
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))

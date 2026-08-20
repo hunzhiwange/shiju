@@ -83,7 +83,7 @@ mod virtualizer_tests;
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{Space, button, column, container, opaque, row, scrollable, stack, text};
-use iced::{Background, Border, Color, Element, Length, Point, Theme};
+use iced::{Background, Border, Color, Element, Length, Padding, Point, Theme};
 use once_cell::sync::Lazy;
 use std::borrow::Cow;
 
@@ -110,9 +110,35 @@ static FALLBACK_RENDER_CACHE_ENTRY: Lazy<ChatRenderCacheEntry> =
     Lazy::new(ChatRenderCacheEntry::default);
 
 const MAX_USER_QUESTION_MARKERS: usize = 40;
+pub(crate) const CONVERSATION_READING_COLUMN_MAX_WIDTH: f32 = 880.0;
 
 fn chat_message_column<'a>() -> iced::widget::Column<'a, Message> {
-    column![].spacing(CHAT_MESSAGE_GAP).width(Length::Fill)
+    column![]
+        .spacing(CHAT_MESSAGE_GAP)
+        .width(Length::Fill)
+        .max_width(CONVERSATION_READING_COLUMN_MAX_WIDTH)
+}
+
+pub(crate) fn conversation_reading_column<'a>(
+    content: impl Into<Element<'a, Message>>,
+    padding: Padding,
+) -> iced::widget::Container<'a, Message> {
+    container(
+        container(content)
+            .width(Length::Fill)
+            .max_width(CONVERSATION_READING_COLUMN_MAX_WIDTH),
+    )
+    .width(Length::Fill)
+    .center_x(Length::Fill)
+    .padding(padding)
+}
+
+fn chat_global_status_reading_column(app: &App) -> Element<'_, Message> {
+    conversation_reading_column(
+        chat_global_status_view(app),
+        Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 },
+    )
+    .into()
 }
 
 #[cfg(test)]
@@ -170,10 +196,17 @@ fn chat_panel_context_menu_overlay<'a>(
 
 fn session_loading_panel(app: &App) -> Element<'_, Message> {
     column![
-        stack![session_loading_placeholder(app), empty_fullscreen_controls(app)]
+        stack![
+            conversation_reading_column(
+                session_loading_placeholder(app),
+                Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 },
+            )
+            .height(Length::Fill),
+            empty_fullscreen_controls(app)
+        ]
             .width(Length::Fill)
             .height(Length::Fill),
-        chat_global_status_view(app)
+        chat_global_status_reading_column(app)
     ]
     .width(Length::Fill)
     .height(Length::Fill)
@@ -464,14 +497,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     // 创建可滚动容器，包含消息列
-    let scroll_content = scrollable(
-        container(col).width(Length::Fill).center_x(Length::Fill).padding(iced::Padding {
+    let scroll_content = scrollable(conversation_reading_column(
+        col,
+        Padding {
             top: 16.0,
             right: 18.0,
             bottom: 20.0,
             left: 18.0,
-        }),
-    )
+        },
+    ))
     .direction(chat_scroll_direction())
     .id(app.chat_scroll_id.clone())
     // 监听滚动事件，更新滚动位置和视口高度
@@ -518,17 +552,24 @@ pub fn view(app: &App) -> Element<'_, Message> {
             })
             .unwrap_or_default();
         let body = with_panel_background(body_base, body_bg, fit);
-        let panel_base = column![header, body, chat_global_status_view(app)]
+        let panel_base = column![header, body, chat_global_status_reading_column(app)]
             .spacing(6)
             .width(Length::Fill)
             .height(Length::Fill);
         chat_panel_context_menu_overlay(app, panel_base)
     } else {
         column![
-            stack![empty_session_placeholder(app), empty_fullscreen_controls(app)]
+            stack![
+                conversation_reading_column(
+                    empty_session_placeholder(app),
+                    Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 },
+                )
+                .height(Length::Fill),
+                empty_fullscreen_controls(app)
+            ]
                 .width(Length::Fill)
                 .height(Length::Fill),
-            chat_global_status_view(app)
+            chat_global_status_reading_column(app)
         ]
         .width(Length::Fill)
         .height(Length::Fill)

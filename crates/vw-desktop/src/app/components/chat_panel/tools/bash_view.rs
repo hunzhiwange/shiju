@@ -8,18 +8,18 @@
 //! - 支持鼠标悬停和展开/折叠交互
 //! - 自动截断过长的命令和输出内容
 
-use iced::widget::text::Wrapping;
-use iced::widget::{Space, button, container, mouse_area, row, text};
-use iced::{Alignment, Color, Element, Length, Theme};
+use iced::widget::{Space, button, container, mouse_area};
+use iced::{Color, Element, Length, Theme};
 
 use crate::app::assets::Icon;
 use crate::app::{App, Message, message};
 
 use super::canonical_tool_name;
-use crate::app::components::chat_panel::tool_text_support::content_safe_font;
+use super::tool_meta::{tool_activity_header, tool_visual_state};
+use super::tool_parse::tool_status;
 use crate::app::components::chat_panel::utils::{
-    chat_secondary_muted_text_color, chat_secondary_text_color, eye_icon_button_style,
-    eye_icon_svg_style, icon_svg, simplified_block_style, single_line_preview,
+    eye_icon_button_style, eye_icon_svg_style, icon_svg, simplified_block_style,
+    single_line_preview,
 };
 
 fn bash_block_style(theme: &Theme) -> iced::widget::container::Style {
@@ -87,6 +87,7 @@ pub fn tool_bash_view<'a>(
 
     // 解析 JSON 格式的工具输入输出数据
     let v = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
+    let visual = tool_visual_state(tool_status(&v));
     let input = v.get("input").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
 
     // 生成工具的唯一标识键（高位存储消息索引，低位存储工具索引）
@@ -123,26 +124,7 @@ pub fn tool_bash_view<'a>(
     let detail_slot: Element<'a, Message> =
         if is_hovered { detail_btn.into() } else { Space::new().width(Length::Fixed(22.0)).into() };
     // 构建头部行：仅显示摘要，详细输出统一进弹窗。
-    let cmd_font = content_safe_font(&cmd_title, "JetBrains Mono");
-    let cmd_title_view = text(cmd_title)
-        .size(14)
-        .font(cmd_font)
-        .width(Length::Fill)
-        .wrapping(Wrapping::None)
-        .style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(chat_secondary_muted_text_color(theme)),
-        });
-
-    let head_row = row![
-        text("运行").size(14).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(chat_secondary_text_color(theme)) }
-        }),
-        cmd_title_view,
-        detail_slot,
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .width(Length::Fill);
+    let head_row = tool_activity_header("bash", "运行", cmd_title, visual, detail_slot);
     let head = mouse_area(container(head_row).width(Length::Fill))
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
         .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave));

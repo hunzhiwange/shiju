@@ -2,9 +2,9 @@
 //!
 //! 本模块解析语言服务返回的位置、符号和调用层级数据，并渲染可跳转的结果列表。
 
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, mouse_area, scrollable, text};
 /// 重新导出 use iced::{Alignment, Background, Border, Element, Length, Theme}，让上层模块通过稳定路径访问。
-use iced::{Alignment, Background, Border, Element, Length, Theme};
+use iced::{Background, Border, Element, Length, Theme};
 /// 重新导出 use serde::Deserialize，让上层模块通过稳定路径访问。
 use serde::Deserialize;
 
@@ -12,15 +12,15 @@ use serde::Deserialize;
 use crate::app::assets::Icon;
 /// 重新导出 use crate::app::components::chat_panel::utils::{，让上层模块通过稳定路径访问。
 use crate::app::components::chat_panel::utils::{
-    chat_scroll_direction, chat_secondary_muted_text_color, eye_icon_button_style,
-    eye_icon_svg_style, icon_svg, simplified_block_style, simplified_code_block_style,
-    truncate_chars, truncate_lines_middle, weak_file_button_style,
+    chat_scroll_direction, eye_icon_button_style, eye_icon_svg_style, icon_svg,
+    simplified_block_style, simplified_code_block_style, truncate_chars, truncate_lines_middle,
+    weak_file_button_style,
 };
 /// 重新导出 use crate::app::{App, Message, message}，让上层模块通过稳定路径访问。
 use crate::app::{App, Message, message};
 
 /// 重新导出 use super::tool_meta::tool_header_title，让上层模块通过稳定路径访问。
-use super::tool_meta::tool_header_title;
+use super::tool_meta::{tool_activity_header, tool_visual_state};
 /// 重新导出 use super::tool_parse::{，让上层模块通过稳定路径访问。
 use super::tool_parse::{
     tool_error_text, tool_input, tool_output_text, tool_result_data, tool_status, tool_summary_text,
@@ -172,7 +172,7 @@ struct LspCallSite {
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn tool_lsp_view<'a>(
-    _app: &'a App,
+    app: &'a App,
     // msg_idx 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     msg_idx: usize,
     // tool_idx 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -189,8 +189,10 @@ pub fn tool_lsp_view<'a>(
     // LSP 工具输出可能来自不同后端版本，解析失败时保留原始文本展示更稳妥。
     let value = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
     let status = tool_status(&value);
-    let is_error = matches!(status, "error" | "denied");
+    let is_error = matches!(status, "error" | "failed" | "denied");
     let is_running = status == "running";
+    let is_waiting = matches!(status, "waiting" | "queued");
+    let visual = tool_visual_state(status);
     let data = tool_result_data(&value)
         .cloned()
         .and_then(|data| serde_json::from_value::<LspToolData>(data).ok());
@@ -208,7 +210,7 @@ pub fn tool_lsp_view<'a>(
         )
     });
 
-    let title = if is_running {
+    let title = if is_running || is_waiting {
         "LSP 中".to_string()
     } else if is_error || data.as_ref().is_some_and(|data| !data.success) {
         "LSP 失败".to_string()
@@ -218,7 +220,7 @@ pub fn tool_lsp_view<'a>(
         "LSP".to_string()
     };
 
-    let detail_btn: Element<'a, Message> = button(
+    let detail_btn = button(
         icon_svg(Icon::ChevronRight)
             .width(Length::Fixed(10.0))
             .height(Length::Fixed(10.0))
@@ -230,36 +232,35 @@ pub fn tool_lsp_view<'a>(
         msg_idx,
         tool_idx,
         visible.to_string(),
-    )))
-    .into();
+    )));
+    let key = ((msg_idx as u64) << 32) | tool_idx as u64;
+    let detail_slot: Element<'a, Message> = if app.chat_tool_hovered_idx == Some(key) {
+        detail_btn.into()
+    } else {
+        Space::new().width(Length::Fixed(22.0)).into()
+    };
 
     let meta_label = data.as_ref().map(meta_text).unwrap_or_default();
 
-    let head = container(
-        row![
-            row![
-                tool_header_title("lsp", title, is_error),
-                text(summary.clone()).size(13).style(|theme: &Theme| iced::widget::text::Style {
-                    // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    color: Some(chat_secondary_muted_text_color(theme)),
-                })
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
-            container(Space::new()).width(Length::Fill),
-            text(meta_label).size(13).style(|theme: &Theme| iced::widget::text::Style {
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.72)),
-            }),
-            detail_btn
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center),
-    )
+    let header_summary = if meta_label.is_empty() {
+        summary.clone()
+    } else if summary.is_empty() || summary == meta_label {
+        meta_label
+    } else {
+        format!("{summary} · {meta_label}")
+    };
+    let head = container(tool_activity_header(
+        "lsp",
+        title,
+        header_summary,
+        visual,
+        detail_slot,
+    ))
     .width(Length::Fill);
 
-    let body: Element<'a, Message> = if is_running {
-        container(text("正在等待 LSP 响应...").size(14))
+    let body: Element<'a, Message> = if is_running || is_waiting {
+        let pending = if is_waiting { "等待 LSP 响应..." } else { "正在等待 LSP 响应..." };
+        container(text(pending).size(14))
             .padding([10, 12])
             .width(Length::Fill)
             .into()
@@ -272,11 +273,15 @@ pub fn tool_lsp_view<'a>(
     };
 
     Some(
-        container(column![head, body].spacing(8))
-            .padding([2, 6])
-            .width(Length::Fill)
-            .style(simplified_block_style)
-            .into(),
+        mouse_area(
+            container(column![head, body].spacing(8))
+                .padding([2, 6])
+                .width(Length::Fill)
+                .style(simplified_block_style),
+        )
+        .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
+        .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
+        .into(),
     )
 }
 

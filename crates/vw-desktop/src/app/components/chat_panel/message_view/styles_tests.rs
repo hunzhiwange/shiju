@@ -1,12 +1,13 @@
 use super::styles::{
     ASSISTANT_BLOCK_SPACING, ASSISTANT_HEADER_BODY_SPACING, COMPACT_ACTION_BUTTON_RADIUS,
     MARKDOWN_BLOCK_SPACING, MESSAGE_META_TEXT_SIZE, MESSAGE_TEXT_SIZE,
-    PROCESSING_DURATION_TEXT_SIZE, PROCESSING_HEADER_RULE_SPACING, THINK_BLOCK_CONTENT_SPACING,
-    THINK_META_TEXT_SIZE, THINK_STATUS_TEXT_SIZE, is_dark_theme, message_body_text_color,
-    message_meta_text_color, message_text_line_height, processing_duration_separator_color,
-    processing_duration_text_color, subtle_card_shadow, think_block_text_color,
-    thinking_status_text,
+    PROCESSING_DURATION_TEXT_SIZE, THINK_BLOCK_CONTENT_SPACING, THINK_META_TEXT_SIZE,
+    THINK_STATUS_TEXT_SIZE, is_dark_theme, message_body_text_color,
+    message_action_button_style, message_action_icon_color, message_meta_text_color,
+    message_text_line_height, processing_duration_text_color, subtle_card_shadow,
+    think_block_text_color, thinking_status_text,
 };
+use iced::widget::{button, svg};
 use iced::{Color, Theme, theme::Palette};
 
 #[test]
@@ -53,27 +54,44 @@ fn style_constants_have_expected_values() {
     assert_eq!(MESSAGE_TEXT_SIZE, 15.0);
     assert_eq!(MESSAGE_META_TEXT_SIZE, 13.0);
     assert_eq!(PROCESSING_DURATION_TEXT_SIZE, 14.0);
-    assert_eq!(THINK_STATUS_TEXT_SIZE, 13.0);
+    assert_eq!(THINK_STATUS_TEXT_SIZE, 12.0);
     assert_eq!(THINK_META_TEXT_SIZE, 12.0);
     assert_eq!(COMPACT_ACTION_BUTTON_RADIUS, 5.0);
-    assert_eq!(ASSISTANT_BLOCK_SPACING, 14.0);
-    assert_eq!(ASSISTANT_HEADER_BODY_SPACING, 16.0);
-    assert_eq!(PROCESSING_HEADER_RULE_SPACING, 8.0);
-    assert_eq!(MARKDOWN_BLOCK_SPACING, 10.0);
+    assert_eq!(ASSISTANT_BLOCK_SPACING, 12.0);
+    assert_eq!(ASSISTANT_HEADER_BODY_SPACING, 10.0);
+    assert_eq!(MARKDOWN_BLOCK_SPACING, 8.0);
     assert_eq!(THINK_BLOCK_CONTENT_SPACING, 6.0);
+}
+
+#[test]
+fn message_actions_remain_accessible_with_subtle_idle_style() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let idle = message_action_button_style(&theme, button::Status::Active, true);
+        let hovered = message_action_button_style(&theme, button::Status::Hovered, true);
+        let pressed = message_action_button_style(&theme, button::Status::Pressed, true);
+        assert!(idle.background.is_none());
+        assert_eq!(idle.border.width, 0.0);
+        assert!(hovered.background.is_some());
+        assert_eq!(hovered.border.width, 1.0);
+        assert!(pressed.background.is_some());
+
+        let idle_icon = message_action_icon_color(&theme, svg::Status::Idle, false, true);
+        let hovered_icon = message_action_icon_color(&theme, svg::Status::Hovered, false, true);
+        assert!(idle_icon.a < hovered_icon.a);
+        assert_eq!(
+            message_action_icon_color(&theme, svg::Status::Idle, true, true),
+            theme.extended_palette().success.base.color
+        );
+    }
 }
 
 #[test]
 fn processing_duration_colors_adapt_to_light_and_dark_themes() {
     let light_text = processing_duration_text_color(&Theme::Light);
     let dark_text = processing_duration_text_color(&Theme::Dark);
-    let light_separator = processing_duration_separator_color(&Theme::Light);
-    let dark_separator = processing_duration_separator_color(&Theme::Dark);
 
     assert_eq!(light_text, Theme::Light.palette().text.scale_alpha(0.52));
     assert_eq!(dark_text, Theme::Dark.palette().text.scale_alpha(0.58));
-    assert_eq!(light_separator, Theme::Light.palette().text.scale_alpha(0.12));
-    assert_eq!(dark_separator, Theme::Dark.palette().text.scale_alpha(0.14));
 }
 
 #[test]
@@ -115,6 +133,15 @@ fn think_block_text_color_is_valid_in_both_themes() {
 fn thinking_status_text_builds_for_non_empty_label() {
     let _ = thinking_status_text("thinking", 9999, 0);
     let _ = thinking_status_text("思考中", 9999, 1);
+}
+
+#[test]
+fn thinking_status_uses_shared_compact_activity_treatment() {
+    for frame in 0..24 {
+        let _ = thinking_status_text("思考中", 9999, frame);
+    }
+    assert_eq!(THINK_STATUS_TEXT_SIZE, 12.0);
+    assert_eq!(THINK_META_TEXT_SIZE, 12.0);
 }
 
 #[test]

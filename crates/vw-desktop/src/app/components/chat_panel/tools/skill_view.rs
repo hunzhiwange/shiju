@@ -2,18 +2,17 @@
 //!
 //! 该视图只展示技能名称，完整技能内容交给已有工具详情弹窗承载。
 
-use iced::widget::{Space, button, container, mouse_area, row, text};
-use iced::{Alignment, Element, Length, Padding, Theme};
+use iced::widget::{button, container, mouse_area};
+use iced::{Element, Length, Padding, Theme};
 use serde_json::Value;
 
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
-    chat_secondary_muted_text_color, eye_icon_button_style, eye_icon_svg_style, icon_svg,
-    truncate_chars,
+    eye_icon_button_style, eye_icon_svg_style, icon_svg, truncate_chars,
 };
 use crate::app::{App, Message, message};
 
-use super::tool_meta::tool_header_title;
+use super::tool_meta::{tool_activity_header, tool_visual_state};
 use super::tool_parse::{tool_error_text, tool_input, tool_output_text, tool_status};
 use super::{canonical_tool_name, tool_permission_error_text};
 
@@ -31,7 +30,8 @@ pub fn tool_skill_view<'a>(
 
     let value = serde_json::from_str::<Value>(rest.trim()).ok()?;
     let status = tool_status(&value);
-    let is_error = matches!(status, "error" | "denied");
+    let is_error = matches!(status, "error" | "failed" | "denied");
+    let visual = tool_visual_state(status);
     let output = tool_output_text(&value).unwrap_or_default();
     let error = tool_permission_error_text(tool_name, &value)
         .or_else(|| tool_error_text(&value))
@@ -53,25 +53,9 @@ pub fn tool_skill_view<'a>(
         visible.to_string(),
     )));
 
-    let name_text =
-        text(skill_name).size(13).style(move |theme: &Theme| iced::widget::text::Style {
-            color: Some(if is_error {
-                theme.extended_palette().danger.base.color
-            } else {
-                chat_secondary_muted_text_color(theme)
-            }),
-        });
-
     let content: Element<'a, Message> = mouse_area(
         container(
-            row![
-                tool_header_title("skill", title, is_error),
-                name_text,
-                container(Space::new()).width(Length::Fill),
-                detail_btn,
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
+            tool_activity_header("skill", title, skill_name, visual, detail_btn.into()),
         )
         .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
         .width(Length::Fill),

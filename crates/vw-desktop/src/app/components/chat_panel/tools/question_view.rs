@@ -5,9 +5,9 @@
 use std::collections::BTreeMap;
 
 /// 重新导出 use iced::widget::{Space, button, column, container, mouse_area, row, text}，让上层模块通过稳定路径访问。
-use iced::widget::{Space, button, column, container, mouse_area, row, text};
+use iced::widget::{Space, button, column, container, mouse_area, text};
 /// 重新导出 use iced::{Alignment, Element, Length, Theme}，让上层模块通过稳定路径访问。
-use iced::{Alignment, Element, Length, Theme};
+use iced::{Element, Length, Theme};
 
 /// 重新导出 use crate::app::assets::Icon，让上层模块通过稳定路径访问。
 use crate::app::assets::Icon;
@@ -21,8 +21,8 @@ use crate::app::{App, Message, message};
 
 /// 重新导出 use super::canonical_tool_name，让上层模块通过稳定路径访问。
 use super::canonical_tool_name;
-/// 重新导出 use super::tool_meta::tool_header_title，让上层模块通过稳定路径访问。
-use super::tool_meta::tool_header_title;
+/// 共享工具活动头部与生命周期展示语义。
+use super::tool_meta::{tool_activity_header, tool_visual_state};
 /// 重新导出 use super::tool_parse::{tool_input, tool_output_text, tool_result_data, tool_status, tool_summary_text}，让上层模块通过稳定路径访问。
 use super::tool_parse::{
     tool_input, tool_output_text, tool_result_data, tool_status, tool_summary_text,
@@ -229,8 +229,9 @@ pub fn tool_question_view<'a>(
 
     let value = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
     let status = tool_status(&value);
+    let visual = tool_visual_state(status);
     let is_running = status == "running";
-    let is_error = matches!(status, "error" | "denied");
+    let is_error = matches!(status, "error" | "failed" | "denied");
     let input = tool_input(&value);
     let output = tool_output_text(&value).unwrap_or_default();
     let questions = parse_questions(input);
@@ -280,20 +281,7 @@ pub fn tool_question_view<'a>(
     let detail_slot: Element<'a, Message> =
         if is_hovered { detail_btn.into() } else { Space::new().width(Length::Fixed(22.0)).into() };
 
-    let head_row = row![
-        row![
-            tool_header_title(tool_name, title, is_error),
-            text(summary).size(13).style(|theme: &Theme| iced::widget::text::Style {
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: Some(chat_secondary_muted_text_color(theme)),
-            })
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center),
-        container(Space::new()).width(Length::Fill),
-        detail_slot,
-    ]
-    .align_y(Alignment::Center);
+    let head_row = tool_activity_header(tool_name, title, summary, visual, detail_slot);
 
     let mut body = column![].spacing(8);
     for (index, question) in questions.iter().take(3).enumerate() {

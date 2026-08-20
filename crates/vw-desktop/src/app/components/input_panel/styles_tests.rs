@@ -369,9 +369,9 @@ fn input_card_style_blends_primary_color_only_during_drop_hover() {
             if is_dark { 0.96 } else { 1.0 },
         );
         let normal_border = if is_dark {
-            theme.extended_palette().background.strong.color.scale_alpha(0.98)
+            theme.extended_palette().background.strong.color.scale_alpha(0.72)
         } else {
-            theme.extended_palette().background.strong.color.scale_alpha(0.70)
+            theme.extended_palette().background.strong.color.scale_alpha(0.48)
         };
         let primary = theme.palette().primary;
         let blended = Color::from_rgba(
@@ -393,12 +393,38 @@ fn input_card_style_blends_primary_color_only_during_drop_hover() {
             assert_eq!(style.border.width, 1.0);
             assert_color(
                 style.shadow.color,
-                Color::BLACK.scale_alpha(if is_dark { 0.18 } else { 0.05 }),
+                Color::BLACK.scale_alpha(if is_dark { 0.10 } else { 0.035 }),
             );
-            assert_eq!(style.shadow.offset, iced::Vector::new(0.0, 12.0));
-            assert_eq!(style.shadow.blur_radius, 32.0);
+            assert_eq!(style.shadow.offset, iced::Vector::new(0.0, 4.0));
+            assert_eq!(style.shadow.blur_radius, 14.0);
         }
     }
+}
+
+#[test]
+fn input_surface_shadow_is_subtle_and_skin_overrides_survive() {
+    for (theme, max_shadow_alpha) in [(Theme::Light, 0.04), (Theme::Dark, 0.12)] {
+        let style = input_card_style(&theme, false, None);
+        assert!(style.shadow.color.a <= max_shadow_alpha);
+        assert!(style.shadow.offset.y <= 6.0);
+        assert!(style.shadow.blur_radius <= 18.0);
+        assert_eq!(style.border.radius, 16.0.into());
+    }
+
+    let chrome = crate::app::theme_catalog::ChromeStyleOverrides {
+        input_bg: Some(Color::from_rgb8(0x11, 0x22, 0x33)),
+        input_border: Some(Color::from_rgb8(0x44, 0x55, 0x66)),
+        radius_px: Some(11.0),
+        ..Default::default()
+    };
+    let skinned = input_card_style(&Theme::Dark, false, Some(&chrome));
+    assert_color(background_color(&skinned.background), Color::from_rgb8(0x11, 0x22, 0x33));
+    assert_color(skinned.border.color, Color::from_rgb8(0x44, 0x55, 0x66));
+    assert_eq!(skinned.border.radius, 11.0.into());
+
+    let hovered = input_card_style(&Theme::Dark, true, Some(&chrome));
+    assert_color(hovered.border.color, Theme::Dark.palette().primary.scale_alpha(0.82));
+    assert_ne!(hovered.background, skinned.background);
 }
 
 #[test]

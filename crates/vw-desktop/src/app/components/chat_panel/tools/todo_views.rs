@@ -16,7 +16,8 @@ use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
 use vw_shared::todo::Todo;
 
-use super::tool_meta::tool_emoji;
+use super::tool_meta::{ToolVisual, tool_activity_header, tool_visual_state};
+use super::tool_parse::tool_status;
 use super::{ToolTextTarget, canonical_tool_name, selected_chat_text_for_target, tool_text_editor};
 
 pub(super) fn tool_expanded(app: &App, key: u64, _is_running: bool) -> bool {
@@ -35,24 +36,15 @@ fn todo_tool_header<'a>(
     app: &'a App,
     msg_idx: usize,
     tool_idx: usize,
-    _emoji: &'static str,
+    tool_name: &str,
     detail_raw: String,
     label: String,
     meta: Element<'a, Message>,
-    is_running: bool,
+    visual: ToolVisual,
     expanded: bool,
 ) -> Element<'a, Message> {
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
     let is_hovered = app.chat_tool_hovered_idx == Some(key);
-    let title = text(label).size(13).font(chat_text_font()).style(move |theme: &Theme| {
-        iced::widget::text::Style {
-            color: Some(if is_running {
-                chat_secondary_text_color(theme)
-            } else {
-                chat_secondary_subtle_text_color(theme)
-            }),
-        }
-    });
     let detail_btn = button(
         icon_svg(Icon::ChevronRight).width(Length::Fixed(10.0)).height(Length::Fixed(10.0)).style(
             |theme: &Theme, _status| iced::widget::svg::Style {
@@ -76,12 +68,15 @@ fn todo_tool_header<'a>(
     .padding([0, 1])
     .style(todo_header_button_style)
     .on_press(Message::Chat(message::ChatMessage::ToggleTool(msg_idx, tool_idx)));
+    let actions = row![meta, toggle_btn, detail_slot].spacing(7).align_y(Alignment::Center);
     mouse_area(
-        container(
-            row![title, meta, toggle_btn, detail_slot, container(Space::new()).width(Length::Fill)]
-                .spacing(7)
-                .align_y(Alignment::Center),
-        )
+        container(tool_activity_header(
+            tool_name,
+            label,
+            "",
+            visual,
+            actions.into(),
+        ))
         .width(Length::Fill),
     )
     .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
@@ -164,9 +159,10 @@ pub fn tool_todowrite_compact_view<'a>(
 
     let v = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
     let tool_status = v.get("status").and_then(|s| s.as_str()).unwrap_or("");
-    let is_error = matches!(tool_status, "error" | "denied");
-    let is_completed = tool_status == "completed";
-    let is_running = tool_status == "running";
+    let visual = tool_visual_state(tool_status);
+    let is_error = matches!(tool_status, "error" | "failed" | "denied");
+    let is_completed = matches!(tool_status, "completed" | "success");
+    let is_running = matches!(tool_status, "running" | "waiting");
 
     let merge = v
         .get("input")
@@ -197,15 +193,18 @@ pub fn tool_todowrite_compact_view<'a>(
         })
         .collect();
 
-    let emoji = tool_emoji("todowrite");
     let label = if is_error {
         "更新任务失败".to_string()
     } else if is_completed {
         if merge { "任务已更新".to_string() } else { "任务已写入".to_string() }
+    } else if tool_status == "cancelled" {
+        "任务已取消".to_string()
+    } else if tool_status == "waiting" {
+        "等待更新任务".to_string()
     } else if is_running {
         "写任务中".to_string()
     } else {
-        "更新任务中".to_string()
+        "更新任务".to_string()
     };
 
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
@@ -217,7 +216,7 @@ pub fn tool_todowrite_compact_view<'a>(
         app,
         msg_idx,
         tool_idx,
-        emoji,
+        tool_name,
         visible.to_string(),
         label,
         todo_meta_pill(if todos_list.is_empty() {
@@ -225,7 +224,7 @@ pub fn tool_todowrite_compact_view<'a>(
         } else {
             format!("{} 项", todos_list.len())
         }),
-        is_running,
+        visual,
         expanded,
     );
 
@@ -360,6 +359,7 @@ pub fn tool_todos_view<'a>(
     }
 
     let v = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
+    let visual = tool_visual_state(tool_status(&v));
     let output = v.get("output")?.as_str()?;
     let parsed: Option<Vec<Todo>> = serde_json::from_str::<Vec<Todo>>(output.trim()).ok();
     let (mut todos, load_error) = match parsed {
@@ -385,7 +385,7 @@ pub fn tool_todos_view<'a>(
         app,
         msg_idx,
         tool_idx,
-        tool_emoji("todoread"),
+        tool_name,
         visible.to_string(),
         "读取当前任务".to_string(),
         todo_summary_pill(if total == 0 {
@@ -393,7 +393,7 @@ pub fn tool_todos_view<'a>(
         } else {
             format!("{}/{} 任务完成", done, total)
         }),
-        is_running,
+        visual,
         expanded,
     );
 

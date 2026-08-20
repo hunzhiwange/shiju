@@ -3,20 +3,18 @@
 //! 聊天流只保留节点标题、状态与短摘要；完整节点输出统一交给工具详情弹窗。
 
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, container, mouse_area, row, text};
-use iced::{Alignment, Background, Border, Element, Length, Padding, Theme};
+use iced::widget::{button, container, mouse_area, row};
+use iced::{Alignment, Element, Length, Padding, Theme};
 use serde_json::Value;
 
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
-    chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style,
-    eye_icon_svg_style, icon_svg, truncate_chars,
+    copy_tooltip_content, eye_icon_button_style, eye_icon_svg_style, icon_svg, truncate_chars,
 };
 use crate::app::{App, Message, message};
 
-use super::{
-    canonical_tool_name, tool_error_text, tool_header_title, tool_output_text, tool_status,
-};
+use super::tool_meta::{tool_activity_header, tool_visual_state};
+use super::{canonical_tool_name, tool_error_text, tool_output_text, tool_status};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WorkflowNodeState {
@@ -70,16 +68,6 @@ fn icon_button<'a>(icon: Icon, label: &'static str, message: Message) -> Element
     Tooltip::new(button, copy_tooltip_content(label), TooltipPosition::Top).gap(6).into()
 }
 
-fn status_label(state: WorkflowNodeState) -> &'static str {
-    match state {
-        WorkflowNodeState::Running => "运行中",
-        WorkflowNodeState::Waiting => "等待中",
-        WorkflowNodeState::Completed => "完成",
-        WorkflowNodeState::Failed => "失败",
-        WorkflowNodeState::Cancelled => "已取消",
-    }
-}
-
 fn status_text(state: WorkflowNodeState) -> &'static str {
     match state {
         WorkflowNodeState::Running => "正在执行节点",
@@ -87,23 +75,6 @@ fn status_text(state: WorkflowNodeState) -> &'static str {
         WorkflowNodeState::Completed => "节点执行完成",
         WorkflowNodeState::Failed => "节点执行失败",
         WorkflowNodeState::Cancelled => "节点执行已取消",
-    }
-}
-
-fn status_badge_style(theme: &Theme, state: WorkflowNodeState) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-    let color = match state {
-        WorkflowNodeState::Running => palette.primary.base.color,
-        WorkflowNodeState::Waiting => palette.secondary.base.color,
-        WorkflowNodeState::Completed => palette.success.base.color,
-        WorkflowNodeState::Failed => palette.danger.base.color,
-        WorkflowNodeState::Cancelled => palette.secondary.base.color,
-    };
-    iced::widget::container::Style {
-        background: Some(Background::Color(color.scale_alpha(0.10))),
-        border: Border { width: 1.0, color: color.scale_alpha(0.24), radius: 999.0.into() },
-        text_color: Some(color),
-        ..Default::default()
     }
 }
 
@@ -329,8 +300,9 @@ pub fn tool_workflow_view<'a>(
     }
 
     let value = serde_json::from_str::<Value>(rest.trim()).ok()?;
-    let state = workflow_node_state(tool_status(&value));
-    let is_error = state == WorkflowNodeState::Failed;
+    let status = tool_status(&value);
+    let state = workflow_node_state(status);
+    let visual = tool_visual_state(status);
     let title = metadata_string(&value, "title");
     let title = if title.is_empty() { "工作流节点".to_string() } else { title };
     let summary = chat_summary_text(&value, state);
@@ -370,29 +342,16 @@ pub fn tool_workflow_view<'a>(
     }
     actions = actions.push(detail_btn);
 
-    let summary_text =
-        text(summary).size(13).style(move |theme: &Theme| iced::widget::text::Style {
-            color: Some(if is_error {
-                theme.extended_palette().danger.base.color
-            } else {
-                chat_secondary_muted_text_color(theme)
-            }),
-        });
-
     Some(
         mouse_area(
             container(
-                row![
-                    tool_header_title("workflow_node", title, is_error),
-                    container(text(status_label(state)).size(12))
-                        .padding([2, 8])
-                        .style(move |theme: &Theme| status_badge_style(theme, state)),
-                    summary_text,
-                    container(Space::new()).width(Length::Fill),
-                    actions,
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center),
+                tool_activity_header(
+                    "workflow_node",
+                    title,
+                    summary,
+                    visual,
+                    actions.into(),
+                ),
             )
             .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
             .width(Length::Fill),

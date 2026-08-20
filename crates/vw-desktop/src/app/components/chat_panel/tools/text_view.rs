@@ -11,14 +11,14 @@
 //! - 提供悬停交互效果
 
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, container, mouse_area, row, text};
+use iced::widget::{Space, button, container, mouse_area, row};
 use iced::{Alignment, Element, Length, Theme};
 use serde_json::Value;
 
 use crate::app::assets::Icon;
 use crate::app::{App, Message, message};
 
-use super::tool_meta::{tool_header_label, tool_header_title, tool_inline_summary};
+use super::tool_meta::{tool_activity_header, tool_header_label, tool_inline_summary, tool_visual_state};
 use super::tool_parse::{
     tool_error_text, tool_input, tool_output_text, tool_status, tool_summary_text,
 };
@@ -27,8 +27,8 @@ use super::{
     tool_permission_title,
 };
 use crate::app::components::chat_panel::utils::{
-    chat_secondary_muted_text_color, copy_tooltip_content, eye_icon_button_style,
-    eye_icon_svg_style, icon_svg, simplified_block_style, truncate_chars,
+    copy_tooltip_content, eye_icon_button_style, eye_icon_svg_style, icon_svg,
+    simplified_block_style, truncate_chars,
 };
 
 pub(super) fn tool_text_header_label(tool_name: &str, label: &str) -> String {
@@ -150,7 +150,8 @@ pub fn tool_text_view<'a>(
     let tool_name = canonical_tool_name(first.trim().strip_prefix("tool ")?.trim());
     let v = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
     let status = tool_status(&v);
-    let is_error = matches!(status, "error" | "denied");
+    let is_error = matches!(status, "error" | "failed" | "denied");
+    let visual = tool_visual_state(status);
     if tool_name.is_empty()
         || matches!(
             tool_name,
@@ -229,21 +230,7 @@ pub fn tool_text_view<'a>(
         } else {
             detail_button
         };
-    let head_row: Element<'a, Message> = row![
-        row![
-            tool_header_title(tool_name, title.clone(), is_error),
-            text(summary.clone()).size(13).style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(chat_secondary_muted_text_color(theme))
-            })
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center),
-        container(Space::new()).width(Length::Fill),
-        detail_slot
-    ]
-    .spacing(4)
-    .align_y(Alignment::Center)
-    .into();
+    let head_row = tool_activity_header(tool_name, title, summary, visual, detail_slot);
 
     let head = mouse_area(container(head_row).width(Length::Fill))
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))

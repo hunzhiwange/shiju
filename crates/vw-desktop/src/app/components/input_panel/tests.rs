@@ -10,7 +10,13 @@ use crate::app::state::{
     AcpHistoryReplayMode, ChatSendBehavior, SkillsCatalogItem, SkillsCatalogKind,
 };
 use crate::app::{Message, QueueItem, TodoPanelPlacement, message};
+#[cfg(not(target_arch = "wasm32"))]
+use iced::advanced::renderer::Headless;
+#[cfg(not(target_arch = "wasm32"))]
+use iced::advanced::{Layout, layout, widget::Tree};
 use iced::widget::{button, text};
+#[cfg(not(target_arch = "wasm32"))]
+use iced::{Font, Pixels, Size};
 use iced::{Element, Length, Theme};
 use vw_shared::todo::Todo;
 
@@ -170,6 +176,54 @@ fn input_panel_view_falls_back_when_active_session_has_no_runtime() {
 
     let element = view(&app);
     assert_eq!(element.as_widget().size().width, Length::Fill);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn input_panel_aligns_with_chat_column_on_wide_and_narrow_layouts() {
+    const EXPECTED_MAX_WIDTH: f32 = 880.0;
+    const CHAT_AREA_HORIZONTAL_PADDING: f32 = 16.0;
+    const INPUT_ALIGNMENT_INSET: f32 = 2.0;
+
+    async fn input_column_bounds(viewport_width: f32) -> iced::Rectangle {
+        let renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("tiny-skia headless renderer should be available");
+        let (mut app, _) = crate::app::App::new();
+        app.quick_messages.clear();
+        let mut element: Element<'_, Message> = iced::widget::container(view(&app))
+            .width(Length::Fill)
+            .padding(iced::Padding {
+                top: 0.0,
+                right: CHAT_AREA_HORIZONTAL_PADDING,
+                bottom: 0.0,
+                left: CHAT_AREA_HORIZONTAL_PADDING,
+            })
+            .into();
+        let limits = layout::Limits::new(Size::ZERO, Size::new(viewport_width, 600.0));
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        let panel_shell = Layout::new(&node)
+            .children()
+            .next()
+            .expect("chat area should contain the input shell");
+
+        panel_shell
+            .children()
+            .next()
+            .expect("input shell should contain the aligned panel column")
+            .bounds()
+    }
+
+    let wide = input_column_bounds(1_200.0).await;
+    assert_eq!(wide.width, EXPECTED_MAX_WIDTH);
+    assert_eq!(wide.x, (1_200.0 - EXPECTED_MAX_WIDTH) / 2.0);
+
+    let narrow = input_column_bounds(540.0).await;
+    let expected_padding = CHAT_AREA_HORIZONTAL_PADDING + INPUT_ALIGNMENT_INSET;
+    assert_eq!(narrow.width, 540.0 - expected_padding * 2.0);
+    assert_eq!(narrow.x, expected_padding);
 }
 
 #[test]

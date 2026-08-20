@@ -103,7 +103,9 @@ mod usage_button_tests;
 mod usage_tests;
 
 use crate::app::assets::Icon;
-use crate::app::components::chat_panel::tool_selector::session_tool_selector_popover;
+use crate::app::components::chat_panel::{
+    conversation_reading_column, tool_selector::session_tool_selector_popover,
+};
 use crate::app::components::input_panel::icons::acp_agent_icon;
 use crate::app::components::overlays::AboveOverlay;
 use crate::app::state::{AcpHistoryReplayMode, tool_display_name};
@@ -812,5 +814,9 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     if let Some(quick_messages) = quick_messages::view(app) {
         panel = panel.push(quick_messages);
     }
-    panel.push(card).into()
+    conversation_reading_column(
+        panel.push(card),
+        Padding { top: 0.0, right: 2.0, bottom: 0.0, left: 2.0 },
+    )
+    .into()
 }

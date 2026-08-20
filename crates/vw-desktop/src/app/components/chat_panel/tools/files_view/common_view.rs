@@ -1,21 +1,22 @@
 //! read、glob、grep 等通用文件视图布局。
 
-use iced::widget::{Space, button, container, row, scrollable, text, text_input};
-use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme};
+use iced::widget::{Space, button, container, mouse_area, scrollable, text, text_input};
+use iced::{Background, Border, Color, Element, Length, Padding, Theme};
 
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
-    chat_context_target_key, chat_scroll_direction, chat_secondary_muted_text_color,
-    eye_icon_button_style, eye_icon_svg_style, icon_svg, simplified_block_style,
-    simplified_code_block_style, truncate_chars, truncate_lines_middle,
+    chat_context_target_key, chat_scroll_direction, eye_icon_button_style, eye_icon_svg_style,
+    icon_svg, simplified_block_style, simplified_code_block_style, truncate_chars,
+    truncate_lines_middle,
 };
 use crate::app::components::widgets::RightClickArea;
 use crate::app::{Message, message};
 
+use super::super::tool_meta::{tool_activity_header, tool_visual_state};
 use super::super::{
-    ToolPermissionState, ToolTextTarget, tool_header_label, tool_header_title, tool_inline_summary,
-    tool_permission_error_text, tool_permission_state, tool_permission_title, tool_summary_text,
-    tool_text_editor,
+    ToolPermissionState, ToolTextTarget, tool_header_label, tool_inline_summary,
+    tool_permission_error_text, tool_permission_state, tool_permission_title, tool_status,
+    tool_summary_text, tool_text_editor,
 };
 use super::{FileListState, FilesViewContext};
 
@@ -119,19 +120,16 @@ pub(crate) fn build_common_tool_view<'a>(
 
     let meta = common_tool_meta_text(render_state);
 
-    let meta_view: Element<'a, Message> = text(meta)
-        .size(14)
-        .style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.70)),
-        })
-        .into();
-
     let tool_value = view_ctx
         .visible
         .split_once('\n')
         .and_then(|(_, rest)| serde_json::from_str::<serde_json::Value>(rest.trim()).ok());
     let permission_state =
         tool_value.as_ref().and_then(|value| tool_permission_state(&view_ctx.tool_name, value));
+    let visual = tool_value
+        .as_ref()
+        .map(|value| tool_visual_state(tool_status(value)))
+        .unwrap_or_else(|| tool_visual_state(""));
     let mut summary =
         tool_value.as_ref().and_then(|value| tool_summary_text(value)).unwrap_or_default();
     if summary.is_empty() {
@@ -159,22 +157,24 @@ pub(crate) fn build_common_tool_view<'a>(
         view_ctx.visible.to_string(),
     )));
 
-    let mut title_row = row![tool_header_title(&view_ctx.tool_name, title, view_ctx.is_error)]
-        .spacing(10)
-        .align_y(Alignment::Center);
-    if !summary.trim().is_empty() {
-        title_row = title_row.push(text(summary).size(13).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(chat_secondary_muted_text_color(theme)) }
-        }));
-    }
-
-    let head: Element<'a, Message> = container(
-        row![title_row, container(Space::new()).width(Length::Fill), meta_view, detail_btn]
-            .spacing(10)
-            .align_y(Alignment::Center),
-    )
-    .width(Length::Fill)
-    .into();
+    let key = ((view_ctx.msg_idx as u64) << 32) | view_ctx.tool_idx as u64;
+    let detail_slot: Element<'a, Message> = if view_ctx.app.chat_tool_hovered_idx == Some(key) {
+        detail_btn.into()
+    } else {
+        Space::new().width(Length::Fixed(22.0)).into()
+    };
+    let header_summary = if summary.trim().is_empty() {
+        meta
+    } else {
+        format!("{summary} · {meta}")
+    };
+    let head = tool_activity_header(
+        &view_ctx.tool_name,
+        title,
+        header_summary,
+        visual,
+        detail_slot,
+    );
 
     let filter_row: Element<'a, Message> = if render_state.is_search {
         let filter_input = text_input("筛选文件...", &view_ctx.app.tool_files_filter)
@@ -370,9 +370,16 @@ pub(crate) fn build_common_tool_view<'a>(
         content = content.push(list_view);
     }
 
-    container(content)
-        .padding(Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 0.0 })
-        .width(Length::Fill)
-        .style(simplified_block_style)
-        .into()
+    mouse_area(
+        container(content)
+            .padding(Padding { top: 2.0, right: 6.0, bottom: 2.0, left: 0.0 })
+            .width(Length::Fill)
+            .style(simplified_block_style),
+    )
+    .on_enter(Message::Chat(message::ChatMessage::ToolHover(
+        view_ctx.msg_idx,
+        view_ctx.tool_idx,
+    )))
+    .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
+    .into()
 }

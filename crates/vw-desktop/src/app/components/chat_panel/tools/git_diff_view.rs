@@ -21,8 +21,8 @@ use crate::app::{App, Message, message};
 
 /// 重新导出 use super::canonical_tool_name，让上层模块通过稳定路径访问。
 use super::canonical_tool_name;
-/// 重新导出 use super::tool_meta::{tool_header_title, tool_inline_summary}，让上层模块通过稳定路径访问。
-use super::tool_meta::{tool_header_title, tool_inline_summary};
+/// 共享工具活动头部与摘要语义。
+use super::tool_meta::{tool_activity_header, tool_inline_summary, tool_visual_state};
 /// 重新导出 use super::tool_parse::{tool_error_text, tool_input, tool_status}，让上层模块通过稳定路径访问。
 use super::tool_parse::{tool_error_text, tool_input, tool_status};
 
@@ -663,12 +663,13 @@ pub fn tool_git_diff_view<'a>(
 
     let v = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
     let status = tool_status(&v);
+    let visual = tool_visual_state(status);
     let input = tool_input(&v).trim();
     if !is_git_diff_tool(tool_name, input) {
         return None;
     }
 
-    let is_error = matches!(status, "error" | "denied");
+    let is_error = matches!(status, "error" | "failed" | "denied");
     let is_running = status == "running";
     let err_text = tool_error_text(&v).unwrap_or_default();
     let previews = if is_error { None } else { parse_git_diff_previews(input, &v) };
@@ -735,23 +736,15 @@ pub fn tool_git_diff_view<'a>(
     )))
     .into();
 
-    let mut head_row =
-        row![tool_header_title("git_diff", title, is_error),].spacing(8).align_y(Alignment::Center);
-
-    if !summary.is_empty() {
-        head_row = head_row.push(text(summary).size(13).style(|theme: &Theme| {
-            // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            iced::widget::text::Style { color: Some(secondary_text(theme, 0.72, 0.72)) }
-        }));
-    }
-
-    head_row = head_row.push(container(Space::new()).width(Length::Fill));
+    let mut actions = row![].spacing(6).align_y(Alignment::Center);
 
     if let Some(meta) = header_meta {
-        head_row = head_row.push(meta);
+        actions = actions.push(meta);
     }
 
-    head_row = head_row.push(detail_btn);
+    actions = actions.push(detail_btn);
+    let head_row =
+        tool_activity_header("git_diff", title, summary, visual, actions.into());
 
     let head = mouse_area(container(head_row).width(Length::Fill).padding([2, 2]))
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))

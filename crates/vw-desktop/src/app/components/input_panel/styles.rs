@@ -578,9 +578,9 @@ pub fn input_card_style(
     let base_bg = chrome_bg.unwrap_or(default_bg);
     let palette = theme.extended_palette();
     let default_border = if is_dark {
-        palette.background.strong.color.scale_alpha(0.98)
+        palette.background.strong.color.scale_alpha(0.72)
     } else {
-        palette.background.strong.color.scale_alpha(0.70)
+        palette.background.strong.color.scale_alpha(0.48)
     };
     let chrome_border = chrome.and_then(|c| c.input_border.or(c.panel_border));
     let border_color = if drop_hovered {
@@ -598,14 +598,14 @@ pub fn input_card_style(
     } else {
         base_bg
     };
-    let radius = chrome.and_then(|c| c.radius_px).unwrap_or(20.0);
+    let radius = chrome.and_then(|c| c.radius_px).unwrap_or(16.0);
     container::Style {
         background: Some(Background::Color(background)),
         border: Border { width: 1.0, color: border_color, radius: radius.into() },
         shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(if is_dark { 0.18 } else { 0.05 }),
-            offset: iced::Vector::new(0.0, 12.0),
-            blur_radius: 32.0,
+            color: Color::BLACK.scale_alpha(if is_dark { 0.10 } else { 0.035 }),
+            offset: iced::Vector::new(0.0, 4.0),
+            blur_radius: 14.0,
         },
         ..Default::default()
     }

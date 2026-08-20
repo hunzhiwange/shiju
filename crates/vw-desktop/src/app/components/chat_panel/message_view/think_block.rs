@@ -22,6 +22,7 @@ use super::styles::{
     THINK_BLOCK_CONTENT_SPACING, THINK_META_TEXT_SIZE, THINK_STATUS_TEXT_SIZE,
     think_block_text_color, thinking_status_text,
 };
+use super::super::global_status::COMPACT_ACTIVITY_SLOT_SIZE;
 use super::text::{should_segment_text_block, think_text_body};
 
 /// 渲染思考块视图
@@ -103,7 +104,10 @@ pub(super) fn think_block_view<'a>(
             .into()
     };
 
-    let mut head_row = row![status_text].spacing(5).align_y(Alignment::Center);
+    let mut head_row = row![status_text]
+        .spacing(5)
+        .height(Length::Fixed(COMPACT_ACTIVITY_SLOT_SIZE))
+        .align_y(Alignment::Center);
 
     if let Some(duration) = duration_label {
         head_row = head_row.push(

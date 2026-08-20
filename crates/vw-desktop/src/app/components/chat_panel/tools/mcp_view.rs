@@ -2,18 +2,17 @@
 //!
 //! 聊天流只保留 MCP 名称和详情入口，完整输入输出统一交给工具详情弹窗展示。
 
-use iced::widget::{Space, button, container, mouse_area, row, text};
-use iced::{Alignment, Element, Length, Padding, Theme};
+use iced::widget::{button, container, mouse_area};
+use iced::{Element, Length, Padding, Theme};
 use serde_json::Value;
 
 use crate::app::assets::Icon;
 use crate::app::components::chat_panel::utils::{
-    chat_secondary_muted_text_color, eye_icon_button_style, eye_icon_svg_style, icon_svg,
-    truncate_chars,
+    eye_icon_button_style, eye_icon_svg_style, icon_svg, truncate_chars,
 };
 use crate::app::{App, Message, message};
 
-use super::tool_meta::tool_header_title;
+use super::tool_meta::{tool_activity_header, tool_visual_state};
 use super::tool_parse::{
     tool_input, tool_name_from_raw, tool_output_text, tool_status, tool_summary_text,
 };
@@ -32,10 +31,10 @@ pub fn tool_mcp_view<'a>(
 
     let value = serde_json::from_str::<Value>(rest.trim()).ok()?;
     let status = tool_status(&value);
-    let is_error = matches!(status, "error" | "denied");
+    let visual = tool_visual_state(status);
     let title = match status {
         "running" => "MCP 运行中",
-        "error" | "denied" => "MCP 失败",
+        "error" | "failed" | "denied" => "MCP 失败",
         _ => "MCP",
     };
     let summary = mcp_display_name(&tool_name, &value);
@@ -54,25 +53,10 @@ pub fn tool_mcp_view<'a>(
         visible.to_string(),
     )));
 
-    let summary = text(summary).size(13).style(move |theme: &Theme| iced::widget::text::Style {
-        color: Some(if is_error {
-            theme.extended_palette().danger.base.color
-        } else {
-            chat_secondary_muted_text_color(theme)
-        }),
-    });
-
     Some(
         mouse_area(
             container(
-                row![
-                    tool_header_title("MCP", title, is_error),
-                    summary,
-                    container(Space::new()).width(Length::Fill),
-                    detail_btn,
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center),
+                tool_activity_header("MCP", title, summary, visual, detail_btn.into()),
             )
             .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
             .width(Length::Fill),

@@ -9,6 +9,12 @@ use crate::app::components::chat_panel::virtualizer::ChatVirtualizer;
 use crate::app::models::{ChatMessage, ChatRole};
 use crate::app::state::UserQuestionMarker;
 use crate::app::{App, Message, TodoPanelPlacement};
+#[cfg(not(target_arch = "wasm32"))]
+use iced::advanced::renderer::Headless;
+#[cfg(not(target_arch = "wasm32"))]
+use iced::advanced::{Layout, layout, widget::Tree};
+#[cfg(not(target_arch = "wasm32"))]
+use iced::{Font, Pixels, Size};
 use vw_shared::todo::Todo;
 
 fn message(role: ChatRole, content: &str) -> ChatMessage {
@@ -39,6 +45,261 @@ fn chat_message_column_fills_available_width() {
     let element: iced::Element<'_, Message> = chat_message_column().into();
 
     assert_eq!(element.as_widget().size().width, iced::Length::Fill);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn conversation_shell_uses_shared_reading_column_width() {
+    const EXPECTED_MAX_WIDTH: f32 = 880.0;
+    const HORIZONTAL_PADDING: f32 = 18.0;
+
+    async fn message_column_bounds(viewport_width: f32) -> iced::Rectangle {
+        let renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("tiny-skia headless renderer should be available");
+        let mut element: iced::Element<'_, Message> = iced::widget::container(chat_message_column())
+            .width(iced::Length::Fill)
+            .center_x(iced::Length::Fill)
+            .padding(iced::Padding {
+                top: 0.0,
+                right: HORIZONTAL_PADDING,
+                bottom: 0.0,
+                left: HORIZONTAL_PADDING,
+            })
+            .into();
+        let limits = layout::Limits::new(Size::ZERO, Size::new(viewport_width, 600.0));
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+
+        Layout::new(&node)
+            .children()
+            .next()
+            .expect("conversation shell should contain the message column")
+            .bounds()
+    }
+
+    let wide = message_column_bounds(1_200.0).await;
+    assert_eq!(wide.width, EXPECTED_MAX_WIDTH);
+    assert_eq!(wide.x, (1_200.0 - EXPECTED_MAX_WIDTH) / 2.0);
+
+    let narrow = message_column_bounds(540.0).await;
+    assert_eq!(narrow.width, 540.0 - HORIZONTAL_PADDING * 2.0);
+    assert_eq!(narrow.x, HORIZONTAL_PADDING);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn conversation_shell_renders_visual_regression_scenarios_without_panic() {
+    #[derive(Clone, Copy)]
+    enum Scenario {
+        Empty,
+        Short,
+        Long,
+        Running,
+        WaitingPermission,
+        ToolFailure,
+        Narrow,
+    }
+
+    impl Scenario {
+        fn name(self) -> &'static str {
+            match self {
+                Self::Empty => "empty",
+                Self::Short => "short",
+                Self::Long => "long",
+                Self::Running => "running",
+                Self::WaitingPermission => "waiting-permission",
+                Self::ToolFailure => "tool-failure",
+                Self::Narrow => "narrow",
+            }
+        }
+    }
+
+    fn visual_app(scenario: Scenario, theme: iced::Theme, skinned: bool) -> App {
+        let (mut app, _) = App::new();
+        app.app_theme = theme;
+
+        if skinned {
+            let background = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../assets/themes/presets/tahoe-beach-night/background.webp");
+            assert!(background.is_file(), "visual regression skin asset should exist");
+            app.active_theme_skin = Some(crate::app::theme_catalog::ActiveThemeSkin {
+                theme_id: "batch-6-visual-regression".to_string(),
+                background_path: Some(background.clone()),
+                cover_path: None,
+                chat_header_path: None,
+                chat_body_path: Some(background),
+                chat_input_path: None,
+                chrome: crate::app::theme_catalog::ThemeChrome::default(),
+            });
+        }
+
+        if matches!(scenario, Scenario::Empty) {
+            return app;
+        }
+
+        app.active_session_id = Some(format!("batch-6-{}", scenario.name()));
+        app.chat = match scenario {
+            Scenario::Long => (0..80)
+                .map(|idx| {
+                    let role = if idx % 2 == 0 { ChatRole::User } else { ChatRole::Assistant };
+                    message(
+                        role,
+                        &format!(
+                            "第 {idx} 条消息：用于检查长会话虚拟滚动、中文正文与阅读列宽度。\n\n- item {idx}\n- 第二项"
+                        ),
+                    )
+                })
+                .collect(),
+            Scenario::Running => vec![
+                message(ChatRole::User, "请读取中文路径并总结。"),
+                message(
+                    ChatRole::Assistant,
+                    concat!(
+                        "<think>正在分析中文状态与工具摘要</think>\n",
+                        "tool read\n",
+                        "{\"tool_call_id\":\"call-running\",\"status\":\"running\",",
+                        "\"input\":\"{\\\"filePath\\\":\\\"src/中文路径.rs\\\"}\"}"
+                    ),
+                ),
+            ],
+            Scenario::WaitingPermission => vec![
+                message(ChatRole::User, "请执行需要审批的命令。"),
+                message(
+                    ChatRole::Assistant,
+                    concat!(
+                        "tool bash\n",
+                        "{\"tool_call_id\":\"call-permission\",\"status\":\"waiting\",",
+                        "\"input\":\"{\\\"command\\\":\\\"printf batch-6\\\"}\"}"
+                    ),
+                ),
+            ],
+            Scenario::ToolFailure => vec![
+                message(ChatRole::User, "运行失败场景。"),
+                message(
+                    ChatRole::Assistant,
+                    concat!(
+                        "tool bash\n",
+                        "{\"tool_call_id\":\"call-failed\",\"status\":\"failed\",",
+                        "\"input\":\"{\\\"command\\\":\\\"echo failed\\\"}\",",
+                        "\"error\":\"命令执行失败\"}"
+                    ),
+                ),
+            ],
+            Scenario::Short | Scenario::Narrow => vec![
+                message(ChatRole::User, "请用简短中文回答这个问题。"),
+                message(
+                    ChatRole::Assistant,
+                    "## 简短回答\n\n正文、`inline code` 与元信息沿同一阅读轴排列。",
+                ),
+            ],
+            Scenario::Empty => unreachable!(),
+        };
+
+        if matches!(scenario, Scenario::Running) {
+            app.current_session_runtime_mut().is_requesting = true;
+        }
+        if matches!(scenario, Scenario::WaitingPermission) {
+            app.chat_message_ids = vec![None, Some("msg-permission".to_string())];
+            let request = vw_gateway_client::PendingPermissionRequestDto {
+                id: "req-permission".to_string(),
+                session_id: app.active_session_id.clone().unwrap_or_default(),
+                permission: "bash".to_string(),
+                patterns: vec![],
+                metadata: serde_json::Map::new(),
+                always: vec![],
+                tool: Some(vw_gateway_client::PendingPermissionToolDto {
+                    message_id: "msg-permission".to_string(),
+                    call_id: "call-permission".to_string(),
+                }),
+            };
+            app.permission_modal_request_id = Some(request.id.clone());
+            app.permission_modal_request = Some(request.clone());
+            app.permission_modal_requests = vec![request];
+        }
+
+        let heights = rough_message_heights(&app.chat);
+        app.chat_message_estimated_heights = heights.clone();
+        app.chat_height_index = super::height_index::ChatHeightIndex::from_heights(&heights);
+        app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&heights);
+        app.chat_virtualizer.set_viewport_height(520.0);
+        app.rebuild_active_session_message_meta();
+        app
+    }
+
+    let scenarios = [
+        Scenario::Empty,
+        Scenario::Short,
+        Scenario::Long,
+        Scenario::Running,
+        Scenario::WaitingPermission,
+        Scenario::ToolFailure,
+        Scenario::Narrow,
+    ];
+    let variants = [
+        ("light", iced::Theme::Light, false),
+        ("dark", iced::Theme::Dark, false),
+        ("skin", iced::Theme::Dark, true),
+    ];
+
+    for (variant_name, theme, skinned) in variants {
+        for scenario in scenarios {
+            let mut renderer =
+                <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                    .await
+                    .expect("tiny-skia headless renderer should be available");
+            let app = visual_app(scenario, theme.clone(), skinned);
+            let width = if matches!(scenario, Scenario::Narrow) { 420.0 } else { 1_000.0 };
+            let bounds = Size::new(width, 720.0);
+            let shell = iced::widget::column![
+                iced::widget::container(view(&app)).width(iced::Length::Fill).height(iced::Length::Fill),
+                iced::widget::container(crate::app::components::input_panel::view(&app))
+                    .width(iced::Length::Fill)
+                    .padding(iced::Padding { top: 0.0, right: 16.0, bottom: 8.0, left: 16.0 })
+            ]
+            .width(iced::Length::Fill)
+            .height(iced::Length::Fill);
+            let mut element: iced::Element<'_, Message> = iced::widget::container(shell)
+                .width(iced::Length::Fill)
+                .height(iced::Length::Fill)
+                .style(|theme: &iced::Theme| iced::widget::container::Style {
+                    background: Some(iced::Background::Color(theme.palette().background)),
+                    ..Default::default()
+                })
+                .into();
+            let limits = layout::Limits::new(Size::ZERO, bounds);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+            assert!(node.bounds().width <= bounds.width);
+            assert!(node.bounds().height <= bounds.height);
+            let viewport = iced::Rectangle::with_size(bounds);
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &iced::advanced::renderer::Style::default(),
+                Layout::new(&node),
+                iced::mouse::Cursor::Unavailable,
+                &viewport,
+            );
+            let screenshot_size = Size::new(width as u32, bounds.height as u32);
+            let pixels = renderer.screenshot(screenshot_size, 1.0, iced::Color::TRANSPARENT);
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+
+            if let Ok(directory) = std::env::var("VW_CONVERSATION_VISUAL_SCREENSHOT_DIR") {
+                image::save_buffer(
+                    std::path::Path::new(&directory)
+                        .join(format!("{variant_name}-{}.png", scenario.name())),
+                    &pixels,
+                    screenshot_size.width,
+                    screenshot_size.height,
+                    image::ColorType::Rgba8,
+                )
+                .expect("save conversation visual regression screenshot");
+            }
+        }
+    }
 }
 
 #[test]

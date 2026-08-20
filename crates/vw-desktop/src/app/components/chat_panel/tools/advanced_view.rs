@@ -13,7 +13,9 @@ use crate::app::state::{
 };
 use crate::app::{App, Message, message};
 
-use super::tool_meta::{tool_header_label, tool_header_title, tool_inline_summary};
+use super::tool_meta::{
+    tool_activity_header, tool_header_label, tool_inline_summary, tool_visual_state,
+};
 use super::tool_parse::{
     tool_error_text, tool_input, tool_output_text, tool_render_hint_metadata, tool_result_data,
     tool_status, tool_summary_text,
@@ -57,36 +59,6 @@ fn agent_tool_card_state(status: &str) -> AgentToolCardState {
         "error" | "failed" | "denied" => AgentToolCardState::Failed,
         "cancelled" => AgentToolCardState::Cancelled,
         _ => AgentToolCardState::Completed,
-    }
-}
-
-fn agent_tool_status_label(state: AgentToolCardState) -> &'static str {
-    match state {
-        AgentToolCardState::Running => "运行中",
-        AgentToolCardState::Waiting => "等待中",
-        AgentToolCardState::Completed => "完成",
-        AgentToolCardState::Failed => "失败",
-        AgentToolCardState::Cancelled => "已取消",
-    }
-}
-
-fn agent_tool_status_badge_style(
-    theme: &Theme,
-    state: AgentToolCardState,
-) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
-    let color = match state {
-        AgentToolCardState::Running => palette.primary.base.color,
-        AgentToolCardState::Waiting => palette.secondary.base.color,
-        AgentToolCardState::Completed => palette.success.base.color,
-        AgentToolCardState::Failed => palette.danger.base.color,
-        AgentToolCardState::Cancelled => palette.secondary.base.color,
-    };
-    iced::widget::container::Style {
-        background: Some(Background::Color(color.scale_alpha(0.10))),
-        border: Border { width: 1.0, color: color.scale_alpha(0.24), radius: 999.0.into() },
-        text_color: Some(color),
-        ..Default::default()
     }
 }
 
@@ -427,6 +399,7 @@ pub fn tool_advanced_view<'a>(
     let value = serde_json::from_str::<Value>(rest.trim()).ok()?;
     let explicit_spec = explicit_advanced_tool_surface_spec(tool_name);
     let status = tool_status(&value);
+    let visual = tool_visual_state(status);
     let is_error = matches!(status, "error" | "failed" | "denied");
     let is_running = matches!(status, "running" | "waiting");
     let output = tool_output_text(&value).unwrap_or_default();
@@ -493,7 +466,6 @@ pub fn tool_advanced_view<'a>(
 
     if matches!(tool_name, "AgentTool" | "Agent") {
         let state = agent_tool_card_state(status);
-        let agent_is_error = matches!(state, AgentToolCardState::Failed);
         if summary.trim().is_empty() && !body_text.is_empty() {
             summary = truncate_chars(body_text.as_str(), 80).to_string();
         }
@@ -529,25 +501,13 @@ pub fn tool_advanced_view<'a>(
 
         let card: Element<'a, Message> = mouse_area(
             container(
-                row![
-                    tool_header_title(tool_name, base_title, agent_is_error),
-                    container(text(agent_tool_status_label(state)).size(12))
-                        .padding([2, 8])
-                        .style(move |theme: &Theme| agent_tool_status_badge_style(theme, state)),
-                    text(summary).size(13).style(move |theme: &Theme| {
-                        iced::widget::text::Style {
-                            color: Some(if agent_is_error {
-                                theme.extended_palette().danger.base.color
-                            } else {
-                                chat_secondary_muted_text_color(theme)
-                            }),
-                        }
-                    }),
-                    container(Space::new()).width(Length::Fill),
-                    actions,
-                ]
-                .spacing(10)
-                .align_y(Alignment::Center),
+                tool_activity_header(
+                    tool_name,
+                    base_title,
+                    summary,
+                    visual,
+                    actions.into(),
+                ),
             )
             .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
             .width(Length::Fill),
@@ -567,21 +527,16 @@ pub fn tool_advanced_view<'a>(
 
     // 浏览器成功态：单行摘要 + 右侧详情入口，完整结果进弹窗（对齐 skill/mcp）。
     if collapse_success_body {
-        let summary_text =
-            text(truncate_chars(summary.trim(), 80)).size(13).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(chat_secondary_muted_text_color(theme)) }
-            });
         return Some(
             mouse_area(
                 container(
-                    row![
-                        tool_header_title(tool_name, title, is_error),
-                        summary_text,
-                        container(Space::new()).width(Length::Fill),
-                        detail_btn,
-                    ]
-                    .spacing(10)
-                    .align_y(Alignment::Center),
+                    tool_activity_header(
+                        tool_name,
+                        title,
+                        truncate_chars(summary.trim(), 80),
+                        visual,
+                        detail_btn.into(),
+                    ),
                 )
                 .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
                 .width(Length::Fill),
@@ -601,18 +556,8 @@ pub fn tool_advanced_view<'a>(
     let detail_slot: Element<'a, Message> =
         if is_hovered { detail_btn.into() } else { Space::new().width(Length::Fixed(22.0)).into() };
 
-    let mut head_left =
-        row![tool_header_title(tool_name, title, is_error)].spacing(10).align_y(Alignment::Center);
-    if !summary.trim().is_empty() {
-        head_left = head_left.push(text(summary.clone()).size(13).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(chat_secondary_muted_text_color(theme)) }
-        }));
-    }
-
     let head_row: Element<'a, Message> =
-        row![head_left, container(Space::new()).width(Length::Fill), detail_slot]
-            .align_y(Alignment::Center)
-            .into();
+        tool_activity_header(tool_name, title, summary.clone(), visual, detail_slot).into();
 
     let mut content = column![container(head_row).width(Length::Fill)].spacing(8);
     if !metadata_text.is_empty() {

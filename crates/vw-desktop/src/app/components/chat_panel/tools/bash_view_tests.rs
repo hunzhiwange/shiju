@@ -1,6 +1,11 @@
 use super::bash_view::{bash_command_preview, bash_view_padding, tool_bash_view};
-use crate::app::App;
+use super::tool_meta::{tool_header_title, tool_status_badge, tool_visual_state};
+use crate::app::{App, Message};
 use iced::Padding;
+
+fn keep_element(element: iced::Element<'_, Message>) {
+    std::hint::black_box(element);
+}
 
 fn app() -> App {
     App::new().0
@@ -113,4 +118,31 @@ fn bash_view_ignores_cached_multiline_text_for_compact_summary() {
     );
 
     assert!(tool_bash_view(&app, 8, 9, "tool bash\n{\"input\":\"echo ignored\"}").is_some());
+}
+
+#[test]
+fn bash_tool_header_uses_shared_type_and_status_slots() {
+    let app = app();
+
+    for (idx, status) in ["waiting", "running", "completed", "failed", "cancelled"]
+        .into_iter()
+        .enumerate()
+    {
+        let visible = format!(
+            "tool bash\n{}",
+            serde_json::json!({
+                "status": status,
+                "input": "{\"command\":\"printf 中文\"}",
+                "output": "ok",
+            })
+        );
+        keep_element(
+            tool_bash_view(&app, 12, idx, &visible)
+                .unwrap_or_else(|| panic!("expected {status} bash view")),
+        );
+
+        let visual = tool_visual_state(status);
+        keep_element(tool_header_title("bash", "运行", visual));
+        keep_element(tool_status_badge(visual));
+    }
 }

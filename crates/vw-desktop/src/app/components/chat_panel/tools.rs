@@ -145,7 +145,6 @@ pub use text_view::tool_text_view;
 pub use todo_views::{tool_todos_view, tool_todowrite_compact_view};
 pub use tool_detail_dialog::tool_detail_dialog_view;
 pub use tool_meta::tool_header_label;
-pub(crate) use tool_meta::tool_header_title;
 pub(crate) use tool_renderer::render_shared_tool_view;
 #[cfg(test)]
 pub(crate) use tool_renderer::{SharedToolRenderKind, shared_tool_render_kind};
@@ -156,8 +155,9 @@ pub(crate) use workflow_view::workflow_node_detail_body;
 // 工具解析功能重导出
 pub use super::tool_names::canonical_tool_name;
 pub(crate) use mcp_view::{format_mcp_detail_content, is_mcp_tool_raw};
-pub(crate) use tool_meta::tool_inline_summary;
-pub(crate) use tool_meta::tool_verb;
+pub(crate) use tool_meta::{
+    ToolVisual, ToolVisualState, tool_inline_summary, tool_verb, tool_visual_state,
+};
 pub(crate) use tool_parse::{
     AgentToolSessionPayload, AgentToolSessionStatus, agent_tool_session_payloads_from_content,
     explore_item_dedupe_key, tool_error_text, tool_input, tool_output_text, tool_status,

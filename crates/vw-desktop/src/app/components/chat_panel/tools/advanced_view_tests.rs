@@ -5,8 +5,22 @@ use super::advanced_view::{
     nested_string,
     result_data_message, tool_advanced_view,
 };
+use super::apply_patch_view::tool_apply_patch_view;
+use super::git_diff_view::tool_git_diff_view;
+use super::mcp_view::tool_mcp_view;
+use super::question_view::tool_question_view;
+use super::skill_view::tool_skill_view;
+use super::todo_views::tool_todowrite_compact_view;
+use super::tool_renderer::render_shared_tool_view;
+use super::web_view::tool_web_view;
+use super::workflow_view::tool_workflow_view;
 use crate::app::state::explicit_advanced_tool_surface_spec;
 use crate::app::{App, Message, message};
+use iced::advanced::renderer::Headless;
+use iced::advanced::widget::Tree;
+use iced::advanced::{Layout, layout, mouse, renderer};
+use iced::widget::{column, container};
+use iced::{Color, Font, Length, Pixels, Rectangle, Size, Theme};
 use serde_json::json;
 
 #[test]
@@ -475,5 +489,205 @@ fn advanced_view_renders_agent_tool_compact_cards_for_all_states() {
             tool_advanced_view(&app, 8, index, raw).is_some(),
             "expected compact AgentTool card for state {index}"
         );
+    }
+}
+
+#[test]
+fn specialized_tool_headers_use_shared_lifecycle_contract() {
+    for (name, source) in [
+        ("advanced", include_str!("advanced_view.rs")),
+        ("apply_patch", include_str!("apply_patch_view.rs")),
+        ("git_diff", include_str!("git_diff_view.rs")),
+        ("mcp", include_str!("mcp_view.rs")),
+        ("question", include_str!("question_view.rs")),
+        ("skill", include_str!("skill_view.rs")),
+        ("todo", include_str!("todo_views.rs")),
+        ("web", include_str!("web_view.rs")),
+        ("workflow", include_str!("workflow_view.rs")),
+    ] {
+        assert!(
+            source.contains("tool_activity_header("),
+            "{name} must render its lifecycle through the shared activity header"
+        );
+    }
+
+    let app = App::new().0;
+    let fixtures = [
+        tool_advanced_view(
+            &app,
+            20,
+            0,
+            r#"tool AgentTool
+{"status":"waiting","input":"{\"agent\":\"reviewer\",\"task\":\"检查变更\"}"}"#,
+        ),
+        tool_apply_patch_view(
+            &app,
+            20,
+            1,
+            r#"tool apply_patch
+{"status":"running","input":"*** Begin Patch\n*** End Patch"}"#,
+        ),
+        tool_git_diff_view(
+            &app,
+            20,
+            2,
+            r#"tool git_diff
+{"status":"running","input":"{}"}"#,
+        ),
+        tool_mcp_view(
+            &app,
+            20,
+            3,
+            r#"tool mcp_linear
+{"status":"completed","summary":"Linear"}"#,
+        ),
+        tool_question_view(
+            &app,
+            20,
+            4,
+            r#"tool question
+{"status":"completed","input":"{\"questions\":[{\"header\":\"范围\",\"question\":\"继续吗？\",\"options\":[]}]}","output":"{}"}"#,
+        ),
+        tool_skill_view(
+            &app,
+            20,
+            5,
+            r#"tool skill
+{"status":"failed","input":"{\"name\":\"review\"}","error":"加载失败"}"#,
+        ),
+        tool_todowrite_compact_view(
+            &app,
+            20,
+            6,
+            r#"tool todowrite
+{"status":"cancelled","input":"{\"todos\":[]}"}"#,
+        ),
+        tool_web_view(
+            &app,
+            20,
+            7,
+            r#"tool web_search
+{"status":"denied","summary":"查询资料","error":"permission denied","permission":{"state":"denied"}}"#,
+        ),
+        tool_workflow_view(
+            &app,
+            20,
+            8,
+            r#"tool workflow_node
+{"status":"cancelled","metadata":{"title":"整理结果"}}"#,
+        ),
+    ];
+
+    for (index, element) in fixtures.into_iter().enumerate() {
+        assert!(element.is_some(), "specialized fixture {index} must render");
+    }
+}
+
+#[test]
+fn specialized_tool_actions_survive_header_migration() {
+    let agent_visible = "tool AgentTool\n{\"status\":\"running\"}";
+    let agent_value = json!({
+        "status": "running",
+        "metadata": {"child_session_id": "child-activity-row"}
+    });
+    assert!(matches!(
+        agent_tool_primary_message(Some("/work/project"), &agent_value, 3, 4, agent_visible),
+        Message::Chat(message::ChatMessage::OpenAgentSession {
+            ref project_path,
+            ref session_id,
+        }) if project_path == "/work/project" && session_id == "child-activity-row"
+    ));
+    assert!(matches!(
+        agent_tool_detail_message(3, 4, agent_visible),
+        Message::Chat(message::ChatMessage::OpenToolDetail(3, 4, ref raw))
+            if raw == agent_visible
+    ));
+}
+
+#[test]
+fn legacy_boolean_tool_header_has_no_callers() {
+    assert!(!include_str!("tool_meta.rs").contains("impl From<bool> for ToolVisual"));
+
+    for (name, source) in [
+        ("advanced", include_str!("advanced_view.rs")),
+        ("apply_patch", include_str!("apply_patch_view.rs")),
+        ("git_diff", include_str!("git_diff_view.rs")),
+        ("mcp", include_str!("mcp_view.rs")),
+        ("question", include_str!("question_view.rs")),
+        ("skill", include_str!("skill_view.rs")),
+        ("todo", include_str!("todo_views.rs")),
+        ("web", include_str!("web_view.rs")),
+        ("workflow", include_str!("workflow_view.rs")),
+    ] {
+        assert!(
+            !source.contains("tool_header_title("),
+            "{name} still calls the legacy title-only header"
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn specialized_tool_headers_dark_permission_and_failure_render_path_is_safe() {
+    let mut app = App::new().0;
+    app.project_path = Some("/work/project".to_string());
+    app.chat_tool_hovered_idx = Some((40_u64 << 32) | 3);
+    let payloads = [
+        r#"tool AgentTool
+{"status":"waiting","input":"{\"agent\":\"reviewer\",\"task\":\"检查中文界面\"}","metadata":{"child_session_id":"child-1"}}"#,
+        r#"tool apply_patch
+{"status":"denied","input":"*** Begin Patch\n*** Update File: src/界面.rs\n*** End Patch","error":"用户拒绝补丁","permission":{"state":"denied"}}"#,
+        r#"tool git_diff
+{"status":"running","input":"{}"}"#,
+        r#"tool mcp_linear
+{"status":"completed","summary":"Linear 项目"}"#,
+        r#"tool question
+{"status":"completed","input":"{\"questions\":[{\"header\":\"范围\",\"question\":\"继续执行吗？\",\"options\":[]}]}","output":"{}"}"#,
+        r#"tool skill
+{"status":"failed","input":"{\"name\":\"review\"}","error":"技能加载失败"}"#,
+        r#"tool todowrite
+{"status":"cancelled","input":"{\"todos\":[{\"status\":\"pending\",\"content\":\"检查状态槽\"}]}"}"#,
+        r#"tool web_search
+{"status":"error","summary":"搜索工具活动行","error":"approval required before web search"}"#,
+        r#"tool workflow_node
+{"status":"completed","output":"{\"answer\":\"已整理\"}","metadata":{"title":"整理结果","workflow_yaml":"nodes: []"}}"#,
+    ];
+
+    let mut rows = column![].spacing(12).width(Length::Fill);
+    for (tool_idx, payload) in payloads.iter().enumerate() {
+        rows = rows.push(
+            render_shared_tool_view(&app, 40, tool_idx, payload)
+                .unwrap_or_else(|| panic!("expected specialized payload: {payload}")),
+        );
+    }
+
+    let mut element: iced::Element<'_, Message> =
+        container(rows).padding(24).width(Length::Fill).into();
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let bounds = Size::new(1120.0, 900.0);
+    let mut tree = Tree::new(element.as_widget());
+    let node = element.as_widget_mut().layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, bounds),
+    );
+    let viewport = Rectangle::with_size(bounds);
+    element.as_widget().draw(
+        &tree,
+        &mut renderer,
+        &Theme::Dark,
+        &renderer::Style::default(),
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &viewport,
+    );
+    let pixels = renderer.screenshot(Size::new(1120, 900), 1.0, Color::TRANSPARENT);
+    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+
+    if let Ok(path) = std::env::var("VW_SPECIALIZED_TOOL_HEADERS_SCREENSHOT") {
+        image::save_buffer(path, &pixels, 1120, 900, image::ColorType::Rgba8)
+            .expect("save specialized tool header screenshot");
     }
 }

@@ -1,7 +1,14 @@
 use super::tool_renderer::{
     SharedToolRenderKind, render_shared_tool_view, shared_tool_render_kind,
 };
+use super::tool_meta::{tool_header_title, tool_status_badge, tool_visual_state};
+use super::{CommandItem, tool_command_summary_view};
 use crate::app::{App, Message};
+use iced::advanced::renderer::Headless;
+use iced::advanced::widget::Tree;
+use iced::advanced::{Layout, layout, mouse, renderer};
+use iced::widget::{column, container};
+use iced::{Color, Font, Length, Pixels, Rectangle, Size, Theme};
 
 fn app() -> App {
     let mut app = App::new().0;
@@ -192,5 +199,153 @@ fn render_shared_tool_view_dispatches_each_tool_kind() {
         let element = render_shared_tool_view(&app, 9, idx, visible)
             .unwrap_or_else(|| panic!("expected shared tool view for {idx}"));
         keep_element(element);
+    }
+}
+
+#[test]
+fn shared_tool_headers_build_for_all_lifecycle_states() {
+    let app = app();
+
+    for (idx, status) in ["waiting", "running", "completed", "failed", "cancelled"]
+        .into_iter()
+        .enumerate()
+    {
+        let visible = format!(
+            "tool custom\n{}",
+            serde_json::json!({
+                "status": status,
+                "input": "{\"query\":\"中文摘要\"}",
+                "output": "detail",
+                "error": (status == "failed").then_some("failed"),
+            })
+        );
+        keep_element(
+            render_shared_tool_view(&app, 20, idx, &visible)
+                .unwrap_or_else(|| panic!("expected {status} tool view")),
+        );
+
+        for (tool_idx, visible) in [
+            (
+                100 + idx,
+                format!(
+                    "tool config\n{}",
+                    serde_json::json!({
+                        "status": status,
+                        "input": "{\"setting\":\"theme\"}",
+                        "result": {"data": {
+                            "success": status != "failed",
+                            "operation": "get",
+                            "setting": "theme",
+                            "value": "dark",
+                            "error": (status == "failed").then_some("failed"),
+                        }},
+                    })
+                ),
+            ),
+            (
+                200 + idx,
+                format!(
+                    "tool grep\n{}",
+                    serde_json::json!({
+                        "status": status,
+                        "input": "{\"pattern\":\"工具\",\"path\":\"src\"}",
+                        "output": "- src/main.rs",
+                    })
+                ),
+            ),
+            (
+                300 + idx,
+                format!(
+                    "tool lsp\n{}",
+                    serde_json::json!({
+                        "status": status,
+                        "input": "{\"query\":\"工具\"}",
+                        "output": "plain lsp output",
+                        "error": (status == "failed").then_some("failed"),
+                    })
+                ),
+            ),
+        ] {
+            keep_element(
+                render_shared_tool_view(&app, 20, tool_idx, &visible)
+                    .unwrap_or_else(|| panic!("expected {status} basic tool view: {visible}")),
+            );
+        }
+
+        keep_element(
+            tool_command_summary_view(
+                &app,
+                20,
+                &[CommandItem {
+                    tool_idx: 400 + idx,
+                    raw: format!(
+                        "tool bash\n{}",
+                        serde_json::json!({"status": status, "input": "printf 中文"})
+                    ),
+                }],
+            )
+            .unwrap_or_else(|| panic!("expected {status} command summary")),
+        );
+
+        let visual = tool_visual_state(status);
+        keep_element(tool_header_title("custom", "工具 custom", visual));
+        keep_element(tool_status_badge(visual));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shared_tool_headers_dark_chinese_render_path_is_safe() {
+    let mut app = app();
+    app.chat_tool_hovered_idx = Some((30_u64 << 32) | 3);
+    let payloads = [
+        r#"tool bash
+{"status":"running","input":"{\"command\":\"cargo test --package vw-desktop -- 中文长命令摘要\"}"}"#,
+        r#"tool grep
+{"status":"waiting","input":"{\"pattern\":\"工具活动行\",\"path\":\"crates/vw-desktop/src\"}","output":"- crates/vw-desktop/src/app.rs"}"#,
+        r#"tool config
+{"status":"completed","input":"{\"setting\":\"theme\"}","result":{"data":{"success":true,"operation":"get","setting":"theme","value":"dark"}}}"#,
+        r#"tool lsp
+{"status":"failed","input":"{\"query\":\"中文符号\"}","error":"诊断请求失败"}"#,
+        r#"tool file_write
+{"status":"cancelled","input":"{\"path\":\"src/中文路径.rs\",\"content\":\"\"}"}"#,
+    ];
+
+    let mut rows = column![].spacing(12).width(Length::Fill);
+    for (tool_idx, payload) in payloads.iter().enumerate() {
+        rows = rows.push(
+            render_shared_tool_view(&app, 30, tool_idx, payload)
+                .unwrap_or_else(|| panic!("expected renderable payload: {payload}")),
+        );
+    }
+
+    let mut element: iced::Element<'_, Message> =
+        container(rows).padding(24).width(Length::Fill).into();
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let bounds = Size::new(960.0, 640.0);
+    let mut tree = Tree::new(element.as_widget());
+    let node = element.as_widget_mut().layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, bounds),
+    );
+    let viewport = Rectangle::with_size(bounds);
+    element.as_widget().draw(
+        &tree,
+        &mut renderer,
+        &Theme::Dark,
+        &renderer::Style::default(),
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &viewport,
+    );
+    let pixels = renderer.screenshot(Size::new(960, 640), 1.0, Color::TRANSPARENT);
+    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+
+    if let Ok(path) = std::env::var("VW_TOOL_HEADERS_SCREENSHOT") {
+        image::save_buffer(path, &pixels, 960, 640, image::ColorType::Rgba8)
+            .expect("save tool header screenshot");
     }
 }

@@ -5,7 +5,7 @@
 
 use super::markdown::{
     MarkdownBlock, MarkdownBlockKind, link_click_message, markdown_block_font, markdown_block_key,
-    markdown_body_view, parse_markdown_blocks, strip_inline_markdown,
+    markdown_body_view, markdown_visual_contract, parse_markdown_blocks, strip_inline_markdown,
 };
 use crate::app::message::ViewMessage;
 use crate::app::{App, Message};
@@ -15,6 +15,31 @@ use iced::widget::text_editor;
 
 fn element_child_count(element: Element<'_, Message>) -> usize {
     Tree::new(element.as_widget()).children.len()
+}
+
+#[test]
+fn markdown_visual_contract_preserves_readable_block_hierarchy() {
+    let markdown = concat!(
+        "# 中文标题\n\n",
+        "A long English paragraph with **emphasis**.\n\n",
+        "- first\n  - nested\n\n",
+        "> 引用内容\n\n",
+        "```rust\n// 中文注释\nlet value = 1;\n```",
+    );
+    let blocks = parse_markdown_blocks(markdown);
+    let (app, _) = App::new();
+    assert_eq!(element_child_count(markdown_body_view(&app, 7, 0, &blocks)), blocks.len());
+
+    let contract = markdown_visual_contract();
+    assert_eq!(contract.heading_sizes, [21.0, 19.0, 17.0, 16.0, 16.0, 16.0]);
+    assert_eq!(contract.block_spacing, 8.0);
+    assert_eq!(contract.list_base_indent, 18.0);
+    assert_eq!(contract.list_nested_indent, 14.0);
+    assert_eq!(contract.quote_bar_width, 2.0);
+    assert_eq!(contract.quote_content_inset, 12.0);
+    assert_eq!(contract.code_padding, iced::Padding::from([10, 12]));
+    assert_eq!(contract.code_corner_radius, 8.0);
+    assert_eq!(contract.code_border_width, 1.0);
 }
 
 #[test]

@@ -2,25 +2,35 @@
 
 use std::cell::RefCell;
 
+use iced::widget::svg;
 use iced::widget::{Space, container, row, text};
 use iced::{Alignment, Color, Element, Length, Theme};
 use serde_json::Value;
 
 use crate::app::components::chat_panel::tools::{
-    tool_inline_summary, tool_input, tool_name_from_raw, tool_status, tool_verb,
+    ToolVisual, ToolVisualState, tool_inline_summary, tool_input, tool_name_from_raw, tool_status,
+    tool_verb, tool_visual_state,
 };
+use crate::app::components::status_animation::spinner_frame;
 use crate::app::models::{ChatMessage, ChatRole};
 use crate::app::{App, Message};
 
-use super::utils::{bold_font, chat_secondary_subtle_text_color, truncate_chars};
+use super::utils::{bold_font, chat_secondary_subtle_text_color, icon_svg, truncate_chars};
 
-/// 运行状态强调色：主题蓝。
-const PULSE_ACCENT: Color = Color::from_rgb(0.235, 0.510, 0.961);
+/// 全局状态和思考头部共用的固定活动槽位。
+pub(crate) const COMPACT_ACTIVITY_SLOT_SIZE: f32 = 18.0;
+pub(crate) const COMPACT_ACTIVITY_ICON_SIZE: f32 = 14.0;
+pub(crate) const COMPACT_ACTIVITY_TEXT_SIZE: f32 = 12.0;
+
+/// 底部思考状态的强调色：主题蓝。
+const THINK_PULSE_ACCENT: Color = Color::from_rgb(0.235, 0.510, 0.961);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ChatGlobalStatus {
     pub action: String,
     pub detail: String,
+    visual: ToolVisual,
+    is_thinking: bool,
 }
 
 thread_local! {
@@ -98,8 +108,10 @@ pub(crate) fn chat_global_status(
     let (thinks, _, _thinking_open) = crate::app::ui::chat::split_think(&last_assistant.content);
     if is_requesting && !thinks.is_empty() {
         return Some(ChatGlobalStatus {
-            action: "正在思考".to_string(),
+            action: "思考中".to_string(),
             detail: latest_think_detail(&thinks),
+            visual: tool_visual_state("running"),
+            is_thinking: true,
         });
     }
 
@@ -112,23 +124,18 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
     else {
         return Space::new().height(Length::Fixed(0.0)).into();
     };
+    let is_thinking = status.is_thinking;
     let action = status.action;
 
-    // 单行：呼吸放大缩小的脉冲图标 + 运行时长 · token 消耗 · 当前进行内容。
-    let glyph = pulse_glyph(app.status_animation_frame);
-    let glyph_size = pulse_size(app.status_animation_frame);
-    // 固定尺寸容器内居中承载图标：字号变化时整行不抖动，且呼吸从中心向四周对称扩张。
-    let pulse_icon = container(
-        text(glyph)
-            .size(glyph_size)
-            .line_height(iced::widget::text::LineHeight::Relative(1.0))
-            .font(bold_font())
-            .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(PULSE_ACCENT) }),
-    )
-    .width(Length::Fixed(PULSE_MAX_SIZE))
-    .height(Length::Fixed(PULSE_MAX_SIZE))
-    .align_x(Alignment::Center)
-    .align_y(Alignment::Center);
+    // 思考中恢复原有星形呼吸动画；工具状态继续使用紧凑状态图标。
+    let (activity_icon, line_height) = if is_thinking {
+        (think_pulse_indicator(app.status_animation_frame), THINK_PULSE_MAX_SIZE)
+    } else {
+        (
+            compact_activity_indicator(status.visual, app.status_animation_frame),
+            COMPACT_ACTIVITY_SLOT_SIZE,
+        )
+    };
 
     // 进行内容：状态文案（思考中/运行等）打头，后接最新 detail 单行、最多 40 字符、超出以 … 截断。
     let detail_line = single_line(&status.detail);
@@ -151,16 +158,19 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
     meta_parts.push(content);
     let meta_text = meta_parts.join(" · ");
 
-    // 文字顶部加内边距使其整体下移；整行居中后文字中心与图标中心对齐。
-    let meta_view =
-        container(text(meta_text).size(12).wrapping(iced::widget::text::Wrapping::None).style(
-            |theme: &Theme| iced::widget::text::Style {
+    let meta_view = container(
+        text(meta_text)
+            .size(COMPACT_ACTIVITY_TEXT_SIZE)
+            .wrapping(iced::widget::text::Wrapping::None)
+            .style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(chat_secondary_subtle_text_color(theme)),
-            },
-        ))
-        .padding(iced::Padding { top: 6.0, right: 0.0, bottom: 0.0, left: 0.0 });
+            }),
+    );
 
-    let line = row![pulse_icon, meta_view].spacing(5).align_y(Alignment::Center);
+    let line = row![activity_icon, meta_view]
+        .spacing(5)
+        .height(Length::Fixed(line_height))
+        .align_y(Alignment::Center);
 
     container(line)
         .width(Length::Fill)
@@ -170,29 +180,83 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
 }
 
 /// 脉冲图标循环的四种星型字形，靠近 Claude Code 的跳动效果。
-const PULSE_GLYPHS: [&str; 4] = ["✳", "✶", "✷", "❋"];
+const THINK_PULSE_GLYPHS: [&str; 4] = ["✳", "✶", "✷", "❋"];
 
-/// 动画帧每 90ms 自增；每约半秒（6 帧）切换一种字形，循环四种形状。
-const PULSE_FRAMES_PER_GLYPH: usize = 6;
+/// 动画帧每 90ms 自增；每约半秒切换一种字形。
+const THINK_PULSE_FRAMES_PER_GLYPH: usize = 6;
 
-/// 依据动画帧返回当前应显示的脉冲字形。
-pub(crate) fn pulse_glyph(frame: usize) -> &'static str {
-    PULSE_GLYPHS[(frame / PULSE_FRAMES_PER_GLYPH) % PULSE_GLYPHS.len()]
+pub(crate) fn think_pulse_glyph(frame: usize) -> &'static str {
+    THINK_PULSE_GLYPHS
+        [(frame / THINK_PULSE_FRAMES_PER_GLYPH) % THINK_PULSE_GLYPHS.len()]
 }
 
-/// 呼吸动画的最小、最大字号；幅度更大以显华丽。
-const PULSE_MIN_SIZE: f32 = 14.0;
-const PULSE_MAX_SIZE: f32 = 34.0;
+const THINK_PULSE_MIN_SIZE: f32 = 14.0;
+const THINK_PULSE_MAX_SIZE: f32 = 34.0;
+const THINK_PULSE_BREATH_PERIOD: usize = THINK_PULSE_FRAMES_PER_GLYPH * 2;
 
-/// 呼吸一次完整放大缩小所用帧数；比字形切换慢一倍，呼吸更从容。
-const PULSE_BREATH_PERIOD: usize = PULSE_FRAMES_PER_GLYPH * 2;
+pub(crate) fn think_pulse_size(frame: usize) -> f32 {
+    let phase = (frame % THINK_PULSE_BREATH_PERIOD) as f32 / THINK_PULSE_BREATH_PERIOD as f32
+        * std::f32::consts::TAU;
+    let wave = (1.0 - phase.cos()) / 2.0;
+    THINK_PULSE_MIN_SIZE + wave * (THINK_PULSE_MAX_SIZE - THINK_PULSE_MIN_SIZE)
+}
 
-/// 依据动画帧在 `PULSE_MIN_SIZE`~`PULSE_MAX_SIZE` 间做正弦呼吸。
-pub(crate) fn pulse_size(frame: usize) -> f32 {
-    let phase =
-        (frame % PULSE_BREATH_PERIOD) as f32 / PULSE_BREATH_PERIOD as f32 * std::f32::consts::TAU;
-    let wave = (1.0 - phase.cos()) / 2.0; // 0 → 1 → 0
-    PULSE_MIN_SIZE + wave * (PULSE_MAX_SIZE - PULSE_MIN_SIZE)
+fn think_pulse_indicator<'a>(frame: usize) -> Element<'a, Message> {
+    container(
+        text(think_pulse_glyph(frame))
+            .size(think_pulse_size(frame))
+            .line_height(iced::widget::text::LineHeight::Relative(1.0))
+            .font(bold_font())
+            .style(|_theme: &Theme| iced::widget::text::Style {
+                color: Some(THINK_PULSE_ACCENT),
+            }),
+    )
+    .width(Length::Fixed(THINK_PULSE_MAX_SIZE))
+    .height(Length::Fixed(THINK_PULSE_MAX_SIZE))
+    .align_x(Alignment::Center)
+    .align_y(Alignment::Center)
+    .into()
+}
+
+/// 活动帧只替换图形，几何尺寸始终保持不变。
+pub(crate) fn compact_activity_geometry(_frame: usize) -> (f32, f32) {
+    (COMPACT_ACTIVITY_SLOT_SIZE, COMPACT_ACTIVITY_ICON_SIZE)
+}
+
+pub(crate) fn compact_activity_glyph(frame: usize) -> &'static str {
+    spinner_frame(frame)
+}
+
+pub(crate) fn compact_running_activity_indicator<'a>(frame: usize) -> Element<'a, Message> {
+    compact_activity_indicator(tool_visual_state("running"), frame)
+}
+
+fn compact_activity_indicator<'a>(visual: ToolVisual, frame: usize) -> Element<'a, Message> {
+    let (slot_size, icon_size) = compact_activity_geometry(frame);
+    let indicator: Element<'a, Message> = if visual.is_animated {
+        text(compact_activity_glyph(frame))
+            .size(icon_size)
+            .line_height(iced::widget::text::LineHeight::Relative(1.0))
+            .style(move |theme: &Theme| iced::widget::text::Style {
+                color: Some(visual.color(theme)),
+            })
+            .into()
+    } else {
+        icon_svg(visual.icon)
+            .width(Length::Fixed(icon_size))
+            .height(Length::Fixed(icon_size))
+            .style(move |theme: &Theme, _status| svg::Style {
+                color: Some(visual.color(theme)),
+            })
+            .into()
+    };
+
+    container(indicator)
+        .width(Length::Fixed(slot_size))
+        .height(Length::Fixed(slot_size))
+        .align_x(Alignment::Center)
+        .align_y(Alignment::Center)
+        .into()
 }
 
 /// 把可能含换行的进行内容压成单行（空白折叠为单个空格）。
@@ -234,15 +298,20 @@ fn status_from_tool_raw(raw: &str, is_requesting: bool) -> Option<ChatGlobalStat
     let verb = tool_verb(&tool_name);
     let detail = if summary.trim().is_empty() { tool_name.clone() } else { summary };
 
-    let action = match status {
-        "completed" => return None,
-        "error" => format!("{}失败", verb),
-        "running" => format!("正在{}", verb),
-        _ if is_requesting && status.is_empty() => format!("正在{}", verb),
-        _ => return None,
+    let visual = if is_requesting && status.is_empty() {
+        tool_visual_state("running")
+    } else {
+        tool_visual_state(status)
+    };
+    let action = match visual.state {
+        ToolVisualState::Waiting => format!("等待{}", verb),
+        ToolVisualState::Running => format!("正在{}", verb),
+        ToolVisualState::Failed => format!("{}失败", verb),
+        ToolVisualState::Cancelled => format!("{}已取消", verb),
+        ToolVisualState::Completed | ToolVisualState::Unknown => return None,
     };
 
-    Some(ChatGlobalStatus { action, detail })
+    Some(ChatGlobalStatus { action, detail, visual, is_thinking: false })
 }
 
 fn latest_think_detail(thinks: &[String]) -> String {

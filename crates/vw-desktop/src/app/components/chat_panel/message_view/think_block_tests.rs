@@ -173,3 +173,28 @@ fn think_block_view_builds_running_body() {
         Some(&running),
     ));
 }
+
+#[test]
+fn think_block_running_header_builds_chinese_across_animation_frames() {
+    let (mut app, _) = App::new();
+    app.chat.push(ChatMessage {
+        role: ChatRole::Assistant,
+        content: "<think>分析中文路径</think>".to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    let running = ThinkTiming { start_ms: 1, end_ms: None, last_update_ms: 1 };
+
+    for frame in 0..24 {
+        app.status_animation_frame = frame;
+        keep_element(think_block_view(
+            &app,
+            0,
+            0,
+            "正在分析 含中文/很长的工具摘要.rs".to_string(),
+            true,
+            Some(&running),
+        ));
+    }
+}

@@ -253,6 +253,27 @@ fn text_tool_error_card_keeps_detail_entry_without_inline_editor() {
     ));
 }
 
+#[test]
+fn tool_header_keeps_permission_and_detail_actions() {
+    let mut app = app();
+    let msg_idx = 13;
+    let tool_idx = 14;
+    app.chat_tool_hovered_idx = Some(((msg_idx as u64) << 32) | tool_idx as u64);
+    let visible = r#"tool custom
+{"status":"error","input":"中文路径","error":"approval required before running command"}"#;
+
+    let element = tool_text_view(&app, msg_idx, tool_idx, visible).expect("permission card");
+    assert_card_has_no_inline_editor(&element);
+    assert_eq!(
+        super::tool_permission_summary("custom", &serde_json::from_str(visible.split_once('\n').unwrap().1).unwrap()),
+        Some("需要权限批准")
+    );
+    assert!(matches!(
+        tool_text_detail_message(msg_idx, tool_idx, visible),
+        Message::Chat(message::ChatMessage::OpenToolDetail(13, 14, ref raw)) if raw == visible
+    ));
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn text_tool_error_card_dark_chinese_detail_render_path_is_safe() {
     let mut app = app();

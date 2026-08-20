@@ -1,6 +1,7 @@
 use super::global_status::{
-    chat_global_status, chat_global_status_view, format_elapsed, pulse_glyph, pulse_size,
-    tokens_label,
+    COMPACT_ACTIVITY_ICON_SIZE, COMPACT_ACTIVITY_SLOT_SIZE, chat_global_status,
+    chat_global_status_view, compact_activity_geometry, compact_activity_glyph, format_elapsed,
+    think_pulse_glyph, think_pulse_size, tokens_label,
 };
 use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole, TokenUsage};
@@ -59,7 +60,7 @@ fn open_think_without_tool_reports_thinking() {
     let status = chat_global_status(&chat, true);
 
     let status = status.expect("thinking status should render");
-    assert_eq!(status.action, "正在思考");
+    assert_eq!(status.action, "思考中");
     assert_eq!(status.detail, "第二行\n第三行");
 }
 
@@ -95,24 +96,47 @@ fn format_elapsed_switches_to_minutes_after_a_minute() {
 }
 
 #[test]
-fn pulse_glyph_cycles_four_shapes_every_half_second() {
-    // 每 6 帧（约半秒）切换一次，循环四种形状后回到起点。
-    assert_eq!(pulse_glyph(0), "✳");
-    assert_eq!(pulse_glyph(5), "✳");
-    assert_eq!(pulse_glyph(6), "✶");
-    assert_eq!(pulse_glyph(12), "✷");
-    assert_eq!(pulse_glyph(18), "❋");
-    assert_eq!(pulse_glyph(24), "✳");
+fn global_status_indicator_uses_shared_spinner_frames() {
+    for frame in 0..24 {
+        assert_eq!(
+            compact_activity_glyph(frame),
+            crate::app::components::status_animation::spinner_frame(frame)
+        );
+    }
 }
 
 #[test]
-fn pulse_size_breathes_within_bounds() {
-    // 呼吸周期 12 帧：起点最小，第 6 帧放到最大，再回到最小。
-    assert!((pulse_size(0) - 14.0).abs() < 0.001);
-    assert!((pulse_size(6) - 34.0).abs() < 0.001);
+fn thinking_pulse_cycles_shapes_and_breathes() {
+    assert_eq!(think_pulse_glyph(0), "✳");
+    assert_eq!(think_pulse_glyph(6), "✶");
+    assert_eq!(think_pulse_glyph(12), "✷");
+    assert_eq!(think_pulse_glyph(18), "❋");
+    assert_eq!(think_pulse_glyph(24), "✳");
+
+    assert!((think_pulse_size(0) - 14.0).abs() < 0.001);
+    assert!((think_pulse_size(6) - 34.0).abs() < 0.001);
     for frame in 0..30 {
-        let size = pulse_size(frame);
-        assert!((14.0..=34.0).contains(&size), "frame {frame} -> {size}");
+        assert!((14.0..=34.0).contains(&think_pulse_size(frame)));
+    }
+}
+
+#[test]
+fn global_status_indicator_keeps_fixed_geometry_across_frames() {
+    let mut app = App::new().0;
+    app.current_session_runtime_mut().is_requesting = true;
+    app.chat.push(assistant(
+        "tool read\n{\"status\":\"running\",\"input\":\"{\\\"filePath\\\":\\\"含中文/很长的工具摘要.rs\\\"}\"}",
+    ));
+    app.usage = TokenUsage { input_tokens: 1200, output_tokens: 34, ..Default::default() };
+
+    for frame in 0..30 {
+        app.status_animation_frame = frame;
+        std::hint::black_box(chat_global_status_view(&app));
+        assert_eq!(
+            compact_activity_geometry(frame),
+            (COMPACT_ACTIVITY_SLOT_SIZE, COMPACT_ACTIVITY_ICON_SIZE),
+            "frame {frame}"
+        );
     }
 }
 
@@ -140,7 +164,7 @@ fn closed_think_keeps_status_until_request_finishes() {
     let chat = vec![assistant("<think>分析现有模块</think>")];
 
     let status = chat_global_status(&chat, true).expect("requesting think status should render");
-    assert_eq!(status.action, "正在思考");
+    assert_eq!(status.action, "思考中");
     assert_eq!(status.detail, "分析现有模块");
     assert_eq!(chat_global_status(&chat, false), None);
 }
@@ -163,6 +187,31 @@ fn failed_tool_reports_failure_while_request_is_active() {
 }
 
 #[test]
+fn global_status_distinguishes_waiting_running_failed_and_cancelled() {
+    let cases = [
+        ("waiting", "等待运行"),
+        ("queued", "等待运行"),
+        ("running", "正在运行"),
+        ("failed", "运行失败"),
+        ("denied", "运行失败"),
+        ("cancelled", "运行已取消"),
+    ];
+
+    for (raw_status, expected_action) in cases {
+        let chat = vec![assistant(&format!(
+            "tool shell\n{{\"status\":\"{raw_status}\",\"input\":\"{{\\\"command\\\":\\\"cargo check\\\"}}\"}}"
+        ))];
+
+        let status = chat_global_status(&chat, true)
+            .unwrap_or_else(|| panic!("{raw_status} status should render during the request"));
+
+        assert_eq!(status.action, expected_action, "raw status: {raw_status}");
+        assert_eq!(status.detail, "cargo check");
+        assert_eq!(chat_global_status(&chat, false), None);
+    }
+}
+
+#[test]
 fn statusless_tool_is_running_only_during_active_request() {
     let chat = vec![assistant("tool read\n{\"input\":\"{\\\"filePath\\\":\\\"src/lib.rs\\\"}\"}")];
 
@@ -174,12 +223,14 @@ fn statusless_tool_is_running_only_during_active_request() {
 }
 
 #[test]
-fn unknown_tool_status_hides_status() {
+fn waiting_tool_status_is_visible_during_request() {
     let chat = vec![assistant(
         "tool shell\n{\"status\":\"queued\",\"input\":\"{\\\"command\\\":\\\"pwd\\\"}\"}",
     )];
 
-    assert_eq!(chat_global_status(&chat, true), None);
+    let status = chat_global_status(&chat, true).expect("queued tool should render");
+    assert_eq!(status.action, "等待运行");
+    assert_eq!(status.detail, "pwd");
 }
 
 #[test]

@@ -575,6 +575,36 @@ fn gateway_health_checked_retains_known_servers_and_ignores_unknown_results() {
 }
 
 #[test]
+fn selected_gateway_health_transition_triggers_only_when_becoming_healthy() {
+    let mut app = test_app();
+    let selected_server = app.gateway_client_settings.servers[0].clone();
+    let selected_key = crate::app::message::gateway_health::server_health_key(&selected_server)
+        .expect("selected server has a health key");
+    let other_key = "http://other.example:42617/v1/health".to_string();
+
+    assert!(selected_gateway_became_healthy(
+        &app.gateway_client_settings,
+        &[(selected_key.clone(), true)],
+    ));
+    assert!(!selected_gateway_became_healthy(
+        &app.gateway_client_settings,
+        &[(other_key, true)],
+    ));
+
+    app.gateway_client_settings.health.insert(selected_key.clone(), false);
+    assert!(selected_gateway_became_healthy(
+        &app.gateway_client_settings,
+        &[(selected_key.clone(), true)],
+    ));
+
+    app.gateway_client_settings.health.insert(selected_key.clone(), true);
+    assert!(!selected_gateway_became_healthy(
+        &app.gateway_client_settings,
+        &[(selected_key, true)],
+    ));
+}
+
+#[test]
 fn copy_code_records_content_hash_without_executing_clipboard_task() {
     use std::hash::{Hash, Hasher};
 

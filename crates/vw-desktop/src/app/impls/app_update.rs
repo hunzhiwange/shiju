@@ -35,6 +35,27 @@ fn sort_acp_agent_names(mut acp_agents: Vec<String>) -> Vec<String> {
     acp_agents
 }
 
+fn selected_gateway_became_healthy(
+    settings: &crate::app::state::GatewayClientSettingsState,
+    results: &[(String, bool)],
+) -> bool {
+    let Some(selected_server) = settings
+        .servers
+        .iter()
+        .find(|server| server.id == settings.selected_server_id)
+    else {
+        return false;
+    };
+    let Some(selected_key) =
+        crate::app::message::gateway_health::server_health_key(selected_server)
+    else {
+        return false;
+    };
+
+    settings.health.get(&selected_key) != Some(&true)
+        && results.iter().any(|(key, healthy)| key == &selected_key && *healthy)
+}
+
 fn route_clipboard_shortcut(app: &App, kind: ClipboardShortcutKind) -> Task<Message> {
     iced::widget::operation::is_focused(app.input_editor_id.clone())
         .map(move |input_focused| Message::ClipboardShortcutRouted { kind, input_focused })
@@ -576,6 +597,8 @@ impl App {
                 }
             }
             Message::GatewayHealthChecked(results) => {
+                let selected_gateway_became_healthy =
+                    selected_gateway_became_healthy(&self.gateway_client_settings, &results);
                 let known_keys = self
                     .gateway_client_settings
                     .servers
@@ -588,7 +611,19 @@ impl App {
                         self.gateway_client_settings.health.insert(key, healthy);
                     }
                 }
-                Task::none()
+                if selected_gateway_became_healthy {
+                    Task::batch(vec![
+                        Task::perform(
+                            crate::app::config::load_full_agent_config_async(),
+                            |result| Message::StartupAgentConfigLoaded(result.map(Box::new)),
+                        ),
+                        crate::app::message::settings::reload_agents_config_task(
+                            self.agents_settings.project_path.clone(),
+                        ),
+                    ])
+                } else {
+                    Task::none()
+                }
             }
             #[cfg(not(target_arch = "wasm32"))]
             Message::Account(msg) => message::account::update(self, msg),

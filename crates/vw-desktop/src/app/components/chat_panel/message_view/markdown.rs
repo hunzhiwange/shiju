@@ -6,7 +6,7 @@
 //! 等标记被清理为纯文本，仅保留块级排版。
 
 use iced::widget::{Space, column, container, row, text, text_editor};
-use iced::{Background, Border, Color, Element, Length, Theme};
+use iced::{Background, Border, Color, Element, Length, Padding, Theme};
 
 use crate::app::components::text_editor_scroll_panel::pass_wheel_to_parent;
 use crate::app::{App, Message, message};
@@ -40,6 +40,40 @@ pub(crate) enum MarkdownBlockKind {
 pub(crate) struct MarkdownBlock {
     pub(crate) kind: MarkdownBlockKind,
     pub(crate) text: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct MarkdownVisualContract {
+    pub(crate) heading_sizes: [f32; 6],
+    pub(crate) block_spacing: f32,
+    pub(crate) list_base_indent: f32,
+    pub(crate) list_nested_indent: f32,
+    pub(crate) quote_bar_width: f32,
+    pub(crate) quote_content_inset: f32,
+    pub(crate) code_padding: Padding,
+    pub(crate) code_corner_radius: f32,
+    pub(crate) code_border_width: f32,
+}
+
+pub(crate) fn markdown_visual_contract() -> MarkdownVisualContract {
+    MarkdownVisualContract {
+        heading_sizes: [
+            MESSAGE_TEXT_SIZE + 6.0,
+            MESSAGE_TEXT_SIZE + 4.0,
+            MESSAGE_TEXT_SIZE + 2.0,
+            MESSAGE_TEXT_SIZE + 1.0,
+            MESSAGE_TEXT_SIZE + 1.0,
+            MESSAGE_TEXT_SIZE + 1.0,
+        ],
+        block_spacing: MARKDOWN_BLOCK_SPACING,
+        list_base_indent: 18.0,
+        list_nested_indent: 14.0,
+        quote_bar_width: 2.0,
+        quote_content_inset: 12.0,
+        code_padding: [10, 12].into(),
+        code_corner_radius: 8.0,
+        code_border_width: 1.0,
+    }
 }
 
 /// Markdown 块编辑器键：消息索引 + 文本块索引 + 块索引。
@@ -341,11 +375,11 @@ fn parse_ordered_item(trimmed: &str) -> Option<(String, &str)> {
 }
 
 fn block_text_size(kind: &MarkdownBlockKind) -> f32 {
+    let contract = markdown_visual_contract();
     match kind {
-        MarkdownBlockKind::Heading(1) => MESSAGE_TEXT_SIZE + 8.0,
-        MarkdownBlockKind::Heading(2) => MESSAGE_TEXT_SIZE + 5.0,
-        MarkdownBlockKind::Heading(3) => MESSAGE_TEXT_SIZE + 3.0,
-        MarkdownBlockKind::Heading(_) => MESSAGE_TEXT_SIZE + 1.0,
+        MarkdownBlockKind::Heading(level) => {
+            contract.heading_sizes[usize::from((*level).clamp(1, 6) - 1)]
+        }
         MarkdownBlockKind::CodeBlock(_) => MESSAGE_TEXT_SIZE - 1.0,
         _ => MESSAGE_TEXT_SIZE,
     }
@@ -367,6 +401,7 @@ fn markdown_block_view<'a>(
     block_idx: usize,
     block: &'a MarkdownBlock,
 ) -> Element<'a, Message> {
+    let contract = markdown_visual_contract();
     let theme = app.theme();
     let key = markdown_block_key(msg_idx, text_idx, block_idx);
     let size = block_text_size(&block.kind);
@@ -402,28 +437,39 @@ fn markdown_block_view<'a>(
 
     match &block.kind {
         MarkdownBlockKind::CodeBlock(_) => container(editor)
-            .padding([8, 10])
+            .padding(contract.code_padding)
             .width(Length::Fill)
             .style(move |theme: &Theme| code_block_style(theme))
             .into(),
-        MarkdownBlockKind::Quote => row![
-            container(Space::new())
-                .width(Length::Fixed(3.0))
-                .height(Length::Shrink)
-                .style(move |theme: &Theme| quote_bar_style(theme)),
-            container(editor)
-                .padding(iced::Padding { top: 0.0, right: 0.0, bottom: 0.0, left: 10.0 })
-                .width(Length::Fill),
-        ]
-        .into(),
+        MarkdownBlockKind::Quote => {
+            let line_count = block.text.lines().count().max(1) as f32;
+            let quote_bar_height = size * 1.52 * line_count;
+            row![
+                container(Space::new())
+                    .width(Length::Fixed(contract.quote_bar_width))
+                    .height(Length::Fixed(quote_bar_height))
+                    .style(move |theme: &Theme| quote_bar_style(theme)),
+                container(editor)
+                    .padding(iced::Padding {
+                        top: 0.0,
+                        right: 0.0,
+                        bottom: 0.0,
+                        left: contract.quote_content_inset,
+                    })
+                    .width(Length::Fill),
+            ]
+            .into()
+        }
         MarkdownBlockKind::BulletItem(level) => {
-            let indent = 14.0 + f32::from(*level) * 14.0;
+            let indent =
+                contract.list_base_indent + f32::from(*level) * contract.list_nested_indent;
             row![
                 container(text("•").size(size).style(move |_theme: &Theme| {
                     iced::widget::text::Style { color: Some(body_color) }
                 }))
                 .padding(iced::Padding { top: 0.0, right: 6.0, bottom: 0.0, left: 0.0 })
-                .width(Length::Fixed(indent)),
+                .width(Length::Fixed(indent))
+                .align_x(iced::alignment::Horizontal::Right),
                 container(editor).width(Length::Fill),
             ]
             .into()
@@ -444,6 +490,7 @@ fn markdown_block_view<'a>(
 }
 
 fn code_block_style(theme: &Theme) -> iced::widget::container::Style {
+    let contract = markdown_visual_contract();
     let is_dark = is_dark_theme(theme);
     iced::widget::container::Style {
         background: Some(Background::Color(if is_dark {
@@ -452,13 +499,13 @@ fn code_block_style(theme: &Theme) -> iced::widget::container::Style {
             Color::from_rgba8(15, 23, 42, 0.05)
         })),
         border: Border {
-            width: 1.0,
+            width: contract.code_border_width,
             color: if is_dark {
                 Color::from_rgba8(255, 255, 255, 0.10)
             } else {
                 Color::from_rgba8(15, 23, 42, 0.10)
             },
-            radius: 8.0.into(),
+            radius: contract.code_corner_radius.into(),
         },
         ..Default::default()
     }
@@ -479,7 +526,7 @@ pub(crate) fn markdown_body_view<'a>(
     text_idx: usize,
     blocks: &'a [MarkdownBlock],
 ) -> Element<'a, Message> {
-    let mut body = column![].spacing(MARKDOWN_BLOCK_SPACING).width(Length::Fill);
+    let mut body = column![].spacing(markdown_visual_contract().block_spacing).width(Length::Fill);
     for (block_idx, block) in blocks.iter().enumerate() {
         body = body.push(markdown_block_view(app, msg_idx, text_idx, block_idx, block));
     }

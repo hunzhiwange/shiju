@@ -32,12 +32,17 @@ mod parse_tests;
 #[cfg(test)]
 mod write_view_tests;
 
-use iced::Element;
+use iced::widget::{Space, button, column, container, mouse_area};
+use iced::{Element, Length, Theme};
 
-use crate::app::{App, Message};
+use crate::app::assets::Icon;
+use crate::app::components::chat_panel::utils::{
+    eye_icon_button_style, eye_icon_svg_style, icon_svg, simplified_block_style,
+};
+use crate::app::{App, Message, message};
 
-use super::canonical_tool_name;
-use super::tool_meta::tool_verb;
+use super::{canonical_tool_name, tool_permission_state, tool_permission_target_summary};
+use super::tool_meta::{tool_activity_header, tool_verb, tool_visual_state};
 use super::tool_parse::{tool_error_text, tool_input, tool_output_text, tool_status};
 
 struct FilesViewContext<'a> {
@@ -113,9 +118,9 @@ pub fn tool_files_view<'a>(
         return None;
     }
 
-    let tool_status = tool_status(&v);
-    let is_error = matches!(tool_status, "error" | "denied");
-    let is_running = tool_status == "running";
+    let raw_status = tool_status(&v);
+    let is_error = matches!(raw_status, "error" | "failed" | "denied");
+    let is_running = matches!(raw_status, "waiting" | "queued" | "running");
     let output = tool_output_text(&v).unwrap_or_default();
     let error_text = tool_error_text(&v);
     let (changes_by_path, items) = parse::parse_output_files(app, tool_name, input, &output, &v);
@@ -150,7 +155,54 @@ pub fn tool_files_view<'a>(
         list_ui::build_file_list_column(app, &render_state, &view_ctx, &changes_by_path);
 
     if matches!(tool_name, "write" | "file_write" | "file_edit" | "notebook_edit") {
-        return Some(write_view::build_write_tool_view(&view_ctx, &render_state, list_column));
+        let permission_state = tool_permission_state(tool_name, &v);
+        let title = write_view::write_tool_title(
+            view_ctx.verb,
+            view_ctx.is_running,
+            permission_state,
+            view_ctx.is_error,
+        );
+        let summary = tool_permission_target_summary(tool_name, &v)
+            .or_else(|| write_view::write_tool_summary(&render_state))
+            .unwrap_or_default();
+        let key = ((msg_idx as u64) << 32) | tool_idx as u64;
+        let detail_btn = button(
+            icon_svg(Icon::ChevronRight)
+                .width(Length::Fixed(10.0))
+                .height(Length::Fixed(10.0))
+                .style(eye_icon_svg_style),
+        )
+        .padding([2, 4])
+        .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
+        .on_press(Message::Chat(message::ChatMessage::OpenToolDetail(
+            msg_idx,
+            tool_idx,
+            visible.to_string(),
+        )));
+        let detail_slot: Element<'a, Message> = if app.chat_tool_hovered_idx == Some(key) {
+            detail_btn.into()
+        } else {
+            Space::new().width(Length::Fixed(22.0)).into()
+        };
+        let head = tool_activity_header(
+            tool_name,
+            title,
+            summary,
+            tool_visual_state(raw_status),
+            detail_slot,
+        );
+        let body = write_view::build_write_tool_view(&view_ctx, &render_state, list_column);
+        return Some(
+            mouse_area(
+                container(column![head, body].spacing(8))
+                    .padding([2, 6])
+                    .width(Length::Fill)
+                    .style(simplified_block_style),
+            )
+            .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
+            .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
+            .into(),
+        );
     }
 
     Some(common_view::build_common_tool_view(&view_ctx, &render_state, list_column))

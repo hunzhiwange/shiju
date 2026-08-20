@@ -1,13 +1,12 @@
 use super::{
     WorkflowNodeState, chat_summary_text, elapsed_label, metadata_string, metadata_value,
-    node_meta_label, output_preview_text, output_value, status_badge_style, status_label,
-    status_text, token_value, tool_workflow_view, usage_label, usage_value,
+    node_meta_label, output_preview_text, output_value, status_text, token_value,
+    tool_workflow_view, usage_label, usage_value,
     workflow_node_detail_body, workflow_node_primary_message, workflow_node_state,
     workflow_preview_message,
 };
 use crate::app::message;
 use crate::app::{App, Message};
-use iced::Theme;
 use serde_json::json;
 
 fn test_app() -> App {
@@ -77,33 +76,11 @@ fn workflow_preview_message_requires_nonempty_yaml_and_trims_focus_node() {
 
 #[test]
 fn status_copy_matches_each_workflow_state() {
-    assert_eq!(status_label(WorkflowNodeState::Running), "运行中");
-    assert_eq!(status_label(WorkflowNodeState::Waiting), "等待中");
-    assert_eq!(status_label(WorkflowNodeState::Completed), "完成");
-    assert_eq!(status_label(WorkflowNodeState::Failed), "失败");
-    assert_eq!(status_label(WorkflowNodeState::Cancelled), "已取消");
     assert_eq!(status_text(WorkflowNodeState::Running), "正在执行节点");
     assert_eq!(status_text(WorkflowNodeState::Waiting), "正在等待后代智能体");
     assert_eq!(status_text(WorkflowNodeState::Completed), "节点执行完成");
     assert_eq!(status_text(WorkflowNodeState::Failed), "节点执行失败");
     assert_eq!(status_text(WorkflowNodeState::Cancelled), "节点执行已取消");
-}
-
-#[test]
-fn status_badge_styles_use_state_specific_palette_colors() {
-    let theme = Theme::Dark;
-    let palette = theme.extended_palette();
-
-    let running = status_badge_style(&theme, WorkflowNodeState::Running);
-    let waiting = status_badge_style(&theme, WorkflowNodeState::Waiting);
-    let completed = status_badge_style(&theme, WorkflowNodeState::Completed);
-    let failed = status_badge_style(&theme, WorkflowNodeState::Failed);
-    let cancelled = status_badge_style(&theme, WorkflowNodeState::Cancelled);
-    assert_eq!(running.text_color, Some(palette.primary.base.color));
-    assert_eq!(waiting.text_color, Some(palette.secondary.base.color));
-    assert_eq!(completed.text_color, Some(palette.success.base.color));
-    assert_eq!(failed.text_color, Some(palette.danger.base.color));
-    assert_eq!(cancelled.text_color, Some(palette.secondary.base.color));
 }
 
 #[test]
@@ -418,4 +395,29 @@ fn plan_run_node_click_falls_back_to_detail_without_project_path() {
             "expected detail fallback for project_path={project_path:?}"
         );
     }
+}
+
+#[test]
+fn specialized_tool_actions_survive_header_migration() {
+    let visible = "tool workflow_node\n{\"status\":\"completed\"}";
+    let value = json!({
+        "status": "completed",
+        "metadata": {
+            "plan_run": true,
+            "session_id": "task-activity-row",
+            "workflow_yaml": "nodes: []"
+        }
+    });
+
+    assert!(matches!(
+        workflow_node_primary_message(Some("/work/project"), &value, 5, 6, visible),
+        Message::Project(message::ProjectMessage::OpenProjectSessionPressed(ref path, ref id))
+            if path == "/work/project" && id == "task-activity-row"
+    ));
+    assert!(matches!(
+        workflow_preview_message(&value),
+        Some(Message::WorkflowTool(
+            crate::apps::workflow::WorkflowMessage::OpenInlineYaml { .. }
+        ))
+    ));
 }

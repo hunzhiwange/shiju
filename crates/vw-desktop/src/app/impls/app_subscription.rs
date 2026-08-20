@@ -240,8 +240,22 @@ impl App {
         #[cfg(target_arch = "wasm32")]
         let work_browser_runtime_tick = Subscription::none();
 
-        let gateway_health_tick = iced::time::every(std::time::Duration::from_secs(60))
-            .map(|_| Message::GatewayHealthTick);
+        let selected_gateway_is_healthy = self
+            .gateway_client_settings
+            .servers
+            .iter()
+            .find(|server| server.id == self.gateway_client_settings.selected_server_id)
+            .and_then(crate::app::message::gateway_health::server_health_key)
+            .and_then(|key| self.gateway_client_settings.health.get(&key))
+            .copied()
+            .unwrap_or(false);
+        let gateway_health_interval = if selected_gateway_is_healthy {
+            std::time::Duration::from_secs(60)
+        } else {
+            std::time::Duration::from_secs(2)
+        };
+        let gateway_health_tick =
+            iced::time::every(gateway_health_interval).map(|_| Message::GatewayHealthTick);
 
         Subscription::batch(vec![
             agent,

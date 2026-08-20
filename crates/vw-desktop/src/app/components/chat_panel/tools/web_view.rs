@@ -2,9 +2,9 @@
 //!
 //! 本模块渲染搜索、抓取和浏览类工具结果，并从 JSON 输出中提取 URL、标题和统计信息。
 
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, scrollable, text};
 /// 重新导出 use iced::{Alignment, Background, Border, Element, Length, Theme}，让上层模块通过稳定路径访问。
-use iced::{Alignment, Background, Border, Element, Length, Theme};
+use iced::{Background, Border, Element, Length, Theme};
 
 /// 重新导出 use crate::app::assets::Icon，让上层模块通过稳定路径访问。
 use crate::app::assets::Icon;
@@ -13,8 +13,10 @@ use crate::app::components::widgets::RightClickArea;
 /// 重新导出 use crate::app::{App, Message, message}，让上层模块通过稳定路径访问。
 use crate::app::{App, Message, message};
 
-/// 重新导出 use super::tool_meta::{tool_header_label, tool_header_title, tool_inline_summary}，让上层模块通过稳定路径访问。
-use super::tool_meta::{tool_header_label, tool_header_title, tool_inline_summary};
+/// 共享工具活动头部、标题与摘要语义。
+use super::tool_meta::{
+    tool_activity_header, tool_header_label, tool_inline_summary, tool_visual_state,
+};
 /// 重新导出 use super::tool_parse::{tool_error_text, tool_input, tool_output_text, tool_status, tool_summary_text}，让上层模块通过稳定路径访问。
 use super::tool_parse::{
     tool_error_text, tool_input, tool_output_text, tool_status, tool_summary_text,
@@ -61,7 +63,8 @@ pub fn tool_web_view<'a>(
 
     let value = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
     let status = tool_status(&value);
-    let is_error = matches!(status, "error" | "denied");
+    let visual = tool_visual_state(status);
+    let is_error = matches!(status, "error" | "failed" | "denied");
     let is_running = status == "running";
     let output = tool_output_text(&value).unwrap_or_default();
     let output = output.trim();
@@ -89,17 +92,15 @@ pub fn tool_web_view<'a>(
     }
 
     if matches!(tool_name, "web_fetch" | "fetch_webpage" | "http_request") {
-        let mut content = column![tool_header_title(tool_name, title, is_error)].spacing(8);
-
-        if !metadata_text.is_empty() {
-            content = content.push(text(metadata_text).size(12).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(chat_secondary_muted_text_color(theme)) }
-            }));
-        } else if !summary.trim().is_empty() {
-            content = content.push(text(summary).size(12).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(chat_secondary_muted_text_color(theme)) }
-            }));
-        }
+        let header_summary =
+            if metadata_text.is_empty() { summary } else { metadata_text.clone() };
+        let content = tool_activity_header(
+            tool_name,
+            title,
+            header_summary,
+            visual,
+            Space::new().width(Length::Shrink).into(),
+        );
 
         return Some(
             button(container(content).width(Length::Fill).padding([2, 6]))
@@ -141,22 +142,8 @@ pub fn tool_web_view<'a>(
         Space::new().width(Length::Fixed(22.0)).into()
     };
 
-    let mut head_left =
-        row![tool_header_title(tool_name, title, is_error)].spacing(10).align_y(Alignment::Center);
-    if !summary.trim().is_empty() {
-        head_left = head_left.push(text(summary.clone()).size(13).style(|theme: &Theme| {
-            // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            iced::widget::text::Style {
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: Some(chat_secondary_muted_text_color(theme)),
-            }
-        }));
-    }
-
     let head_row: Element<'a, Message> =
-        row![head_left, container(Space::new()).width(Length::Fill), detail_slot]
-            .align_y(Alignment::Center)
-            .into();
+        tool_activity_header(tool_name, title, summary.clone(), visual, detail_slot).into();
 
     let mut content = column![container(head_row).width(Length::Fill)].spacing(8);
     if !metadata_text.is_empty() {

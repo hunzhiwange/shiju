@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use iced::keyboard::{self, Modifiers};
 
@@ -50,8 +50,8 @@ fn preview_tab(path: &str) -> PreviewTab {
     }
 }
 
-fn agent_request(id: u64, session: &str) -> crate::app::AgentRequest {
-    crate::app::AgentRequest {
+fn agent_request(id: u64, session: &str) -> Arc<crate::app::AgentRequest> {
+    Arc::new(crate::app::AgentRequest {
         id,
         session: session.to_string(),
         query: "hello".to_string(),
@@ -72,7 +72,7 @@ fn agent_request(id: u64, session: &str) -> crate::app::AgentRequest {
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
         history: Vec::new(),
-    }
+    })
 }
 
 #[test]
@@ -355,6 +355,38 @@ fn subscription_builds_agent_runtime_states() {
     app.session_runtime_states.insert("inactive".to_string(), inactive_runtime);
 
     subscription_builds(&app);
+}
+
+#[test]
+fn subscription_request_collection_reuses_shared_request_allocation() {
+    let mut app = test_app();
+    app.active_session_id = Some("active".to_string());
+
+    let mut active_request = agent_request(1, "active");
+    Arc::make_mut(&mut active_request).history = (0..1_024)
+        .map(|index| crate::app::models::ChatMessage {
+            role: crate::app::models::ChatRole::User,
+            content: format!("large history message {index}"),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        })
+        .collect();
+    let mut active_runtime = SessionRuntimeState::new();
+    active_runtime.active_agent_request = Some(active_request);
+    app.session_runtime_states.insert("active".to_string(), active_runtime);
+
+    let mut background_runtime = SessionRuntimeState::new();
+    background_runtime.active_agent_request = Some(agent_request(2, "background"));
+    app.session_runtime_states.insert("background".to_string(), background_runtime);
+
+    let first = collect_agent_subscription_requests(&app);
+    let second = collect_agent_subscription_requests(&app);
+
+    assert_eq!(first.iter().map(|request| request.id).collect::<Vec<_>>(), vec![1, 2]);
+    assert_eq!(second.iter().map(|request| request.id).collect::<Vec<_>>(), vec![1, 2]);
+    assert!(Arc::ptr_eq(&first[0], &second[0]));
+    assert!(Arc::ptr_eq(&first[1], &second[1]));
 }
 
 #[test]

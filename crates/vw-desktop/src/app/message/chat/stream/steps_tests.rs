@@ -19,8 +19,8 @@ fn usage(input_tokens: i64, output_tokens: i64) -> TokenUsage {
     TokenUsage { input_tokens, output_tokens, cached_tokens: 3, reasoning_tokens: 4 }
 }
 
-fn agent_request(id: u64, session_id: &str) -> AgentRequest {
-    AgentRequest {
+fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<AgentRequest> {
+    std::sync::Arc::new(AgentRequest {
         id,
         session: session_id.to_string(),
         query: String::new(),
@@ -41,7 +41,7 @@ fn agent_request(id: u64, session_id: &str) -> AgentRequest {
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
         history: Vec::new(),
-    }
+    })
 }
 
 fn tool_event(kind: GatewayChatToolEventKind, occurred_ms: u64) -> GatewayChatToolEvent {

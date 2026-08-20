@@ -16,6 +16,7 @@ use crate::app::state::{
 use crate::app::{AgentRequest, App, Message, QueueItem, message, models};
 use iced::Task;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
 use vw_gateway_client::vw_api_types::project::ResolveProjectRequest;
@@ -524,7 +525,7 @@ fn reset_runtime_history_snapshots(
 ) {
     let runtime = app.get_session_runtime_mut(session_id);
     if let Some(request) = runtime.active_agent_request.as_mut() {
-        request.history = retained_chat.to_vec();
+        Arc::make_mut(request).history = retained_chat.to_vec();
     }
     for item in &mut runtime.queue {
         if item.resume_history_only || item.request_history_override.is_some() {
@@ -2074,7 +2075,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             keep_input = keep,
             "desktop agent request started"
         );
-        runtime.active_agent_request = Some(AgentRequest {
+        runtime.active_agent_request = Some(Arc::new(AgentRequest {
             id: stream_id,
             session: session_id.clone(),
             query: request_query,
@@ -2095,7 +2096,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             workflow_mode_enabled: item.workflow_mode_enabled,
             goal_mode_enabled: item.goal_mode_enabled,
             history: request_history,
-        });
+        }));
         if runtime
             .queue
             .first()

@@ -33,6 +33,7 @@ fn action_icon_maps_every_supported_label_and_falls_back_for_other_text() {
         ("打开", Icon::ChevronRight),
         ("打开最近", Icon::ArrowClockwise),
         ("打开文件夹", Icon::FolderOpen),
+        ("项目管理", Icon::Gear),
         ("添加", Icon::Plus),
         ("独立窗口", Icon::Box),
         ("浏览器", Icon::ArrowUp),

@@ -34,6 +34,13 @@ fn clear_control_child_count(app: &App, blocked: bool) -> usize {
     clear_overlay.children.len()
 }
 
+fn first_tile_action_count(app: &App) -> usize {
+    let grid_children = super::render_tiles_grid(app, false).as_widget().children();
+    let tile_button = &grid_children[0].children[0];
+    let tile_content = &tile_button.children[0];
+    tile_content.children[2].children.len()
+}
+
 #[test]
 fn compute_tile_columns_clamps_widths_below_one_tile_to_one() {
     let mut app = test_app();
@@ -77,6 +84,17 @@ fn render_tiles_grid_matches_english_knowledge_query_case_insensitively() {
     app.apps_search_query = "  KNOWLEDGE  ".to_string();
 
     assert_eq!(grid_row_tile_counts(&app, false), vec![1]);
+}
+
+#[test]
+fn project_management_tile_uses_new_title_and_exposes_three_actions() {
+    let mut app = test_app();
+    app.apps_search_query = "项目管理".to_string();
+
+    assert_eq!(grid_row_tile_counts(&app, false), vec![1]);
+    assert_eq!(first_tile_action_count(&app), 3);
+    assert!(super::builtin_tile_titles().contains(&"项目管理"));
+    assert!(!super::builtin_tile_titles().contains(&"历史项目"));
 }
 
 #[test]

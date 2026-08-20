@@ -124,6 +124,40 @@ fn collect_events_with_delta_consumer(
     (result, deltas, *abort_rx.borrow_and_update())
 }
 
+fn observe_first_delta_before_stream_continues(
+    first_event: llm::StreamEvent,
+    remaining_events: impl IntoIterator<Item = llm::StreamEvent>,
+) -> String {
+    let (stream_tx, stream_rx) = mpsc::channel();
+    let (observed_tx, observed_rx) = mpsc::channel();
+    let collector = std::thread::spawn(move || {
+        let (abort_tx, _abort_rx) = tokio::sync::watch::channel(false);
+        super::collect_llm_step_from_stream(
+            stream_rx,
+            &mut |event| {
+                if let super::StreamEvent::Delta(delta) = event {
+                    let _ = observed_tx.send(delta);
+                }
+                true
+            },
+            &abort_tx,
+            Duration::from_secs(5),
+        )
+    });
+
+    stream_tx.send(first_event).expect("first stream event should be sent");
+    let first_delta = observed_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("first delta should be observed before another stream event arrives");
+    for event in remaining_events {
+        stream_tx.send(event).expect("remaining stream event should be sent");
+    }
+    drop(stream_tx);
+
+    collector.join().expect("stream collector should not panic").expect("stream should complete");
+    first_delta
+}
+
 fn usage(input_tokens: i64, output_tokens: i64) -> models::TokenUsage {
     models::TokenUsage { input_tokens, output_tokens, cached_tokens: 3, reasoning_tokens: 4 }
 }
@@ -212,6 +246,35 @@ fn collect_stream_returns_text_tool_calls_usage_and_full_messages() {
     assert_eq!(step.usage.input_tokens, 11);
     assert_eq!(step.usage.output_tokens, 7);
     assert_eq!(deltas.join(""), "hello world");
+}
+
+#[test]
+fn llm_stream_emits_first_text_delta_immediately() {
+    let first_delta = observe_first_delta_before_stream_continues(
+        llm::StreamEvent::Delta("hello".to_string()),
+        [llm::StreamEvent::Done {
+            usage: models::TokenUsage::default(),
+            finish_reason: Some("stop".to_string()),
+        }],
+    );
+
+    assert_eq!(first_delta, "hello");
+}
+
+#[test]
+fn llm_stream_emits_first_reasoning_delta_immediately() {
+    let first_delta = observe_first_delta_before_stream_continues(
+        llm::StreamEvent::ReasoningDelta("plan".to_string()),
+        [
+            llm::StreamEvent::Delta("answer".to_string()),
+            llm::StreamEvent::Done {
+                usage: models::TokenUsage::default(),
+                finish_reason: Some("stop".to_string()),
+            },
+        ],
+    );
+
+    assert_eq!(first_delta, "<think>plan");
 }
 
 #[test]

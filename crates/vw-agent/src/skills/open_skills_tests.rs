@@ -57,6 +57,20 @@ fn write_fake_git(bin_dir: &std::path::Path, script: &str) {
     std::fs::set_permissions(&git, perms).unwrap();
 }
 
+#[cfg(unix)]
+fn wait_for_git_invocations(log: &std::path::Path, expected: usize) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    loop {
+        let count = std::fs::read_to_string(log).map_or(0, |contents| contents.lines().count());
+        if count >= expected {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            return;
+        }
+        assert!(std::time::Instant::now() < deadline, "timed out waiting for git invocation");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
 #[test]
 fn open_skills_enabled_sources_prefer_valid_env_override() {
     assert!(open_skills_enabled_from_sources(Some(false), Some("yes")));
@@ -141,17 +155,40 @@ fn open_skills_env_wrappers_fall_back_to_config_when_environment_is_absent() {
 }
 
 #[test]
-fn ensure_repo_uses_existing_config_dir_and_respects_disabled_state() {
+fn local_repo_resolution_uses_existing_config_dir_and_respects_disabled_state() {
     let _lock = env_lock();
     let dir = tempfile::tempdir().unwrap();
     let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
     let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
 
-    assert_eq!(ensure_open_skills_repo(Some(false), Some(dir.path().to_str().unwrap())), None);
+    assert_eq!(
+        resolve_local_open_skills_repo(Some(false), Some(dir.path().to_str().unwrap())),
+        None
+    );
 
-    let resolved = ensure_open_skills_repo(Some(true), Some(dir.path().to_str().unwrap()));
+    let resolved = resolve_local_open_skills_repo(Some(true), Some(dir.path().to_str().unwrap()));
     assert_eq!(resolved, Some(dir.path().to_path_buf()));
-    assert!(dir.path().join(OPEN_SKILLS_SYNC_MARKER).is_file());
+    assert!(!dir.path().join(OPEN_SKILLS_SYNC_MARKER).is_file());
+}
+
+#[cfg(unix)]
+#[test]
+fn disabled_open_skills_does_not_schedule_background_sync() {
+    let _lock = env_lock();
+    let dir = tempfile::tempdir().unwrap();
+    let bin = dir.path().join("bin");
+    let log = dir.path().join("git.log");
+    write_fake_git(&bin, &format!("#!/bin/sh\nprintf called > '{}'\n", log.display()));
+    let _path = fake_git_path_guard(&bin);
+    let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
+    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+    let repo = dir.path().join("missing-repo");
+
+    schedule_open_skills_sync(Some(false), Some(repo.to_str().unwrap()));
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    assert!(!log.exists());
+    assert!(!repo.exists());
 }
 
 #[test]
@@ -246,24 +283,15 @@ exit 23
     assert!(!clone_open_skills_repo(&dir.path().join("repo")));
 }
 
-#[cfg(unix)]
 #[test]
-fn ensure_open_skills_repo_returns_none_when_initial_clone_fails() {
+fn missing_open_skills_repo_is_unavailable_before_background_sync() {
     let _lock = env_lock();
     let dir = tempfile::tempdir().unwrap();
-    let bin = dir.path().join("bin");
-    write_fake_git(
-        &bin,
-        r#"#!/bin/sh
-exit 42
-"#,
-    );
-    let _path = fake_git_path_guard(&bin);
     let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
     let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
     let repo_dir = dir.path().join("missing-repo");
 
-    assert_eq!(ensure_open_skills_repo(Some(true), Some(repo_dir.to_str().unwrap())), None);
+    assert_eq!(resolve_local_open_skills_repo(Some(true), Some(repo_dir.to_str().unwrap())), None);
 }
 
 #[cfg(unix)]
@@ -303,27 +331,46 @@ esac
 
 #[cfg(unix)]
 #[test]
-fn ensure_open_skills_repo_keeps_existing_repo_when_pull_fails() {
+fn failed_background_sync_keeps_existing_repo_available() {
     let _lock = env_lock();
     let dir = tempfile::tempdir().unwrap();
     let bin = dir.path().join("bin");
+    let log = dir.path().join("git.log");
     write_fake_git(
         &bin,
-        r#"#!/bin/sh
-exit 17
-"#,
+        &format!("#!/bin/sh\nprintf 'called\\n' >> '{}'\nexit 17\n", log.display()),
     );
     let _path = fake_git_path_guard(&bin);
     let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
     let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
     let repo = dir.path().join("repo");
     std::fs::create_dir_all(repo.join(".git")).unwrap();
+    let skill_dir = repo.join("skills").join("existing");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(skill_dir.join("SKILL.md"), "# Existing\nKept after failure.\n").unwrap();
     mark_open_skills_synced(&repo).unwrap();
     let marker = repo.join(OPEN_SKILLS_SYNC_MARKER);
     let file = std::fs::OpenOptions::new().write(true).open(&marker).unwrap();
     file.set_times(std::fs::FileTimes::new().set_modified(SystemTime::UNIX_EPOCH)).unwrap();
 
-    assert_eq!(ensure_open_skills_repo(Some(true), Some(repo.to_str().unwrap())), Some(repo));
+    assert_eq!(
+        resolve_local_open_skills_repo(Some(true), Some(repo.to_str().unwrap())),
+        Some(repo.clone())
+    );
+    schedule_open_skills_sync(Some(true), Some(repo.to_str().unwrap()));
+    wait_for_git_invocations(&log, 1);
+    assert_eq!(
+        load_open_skills(
+            &repo,
+            SkillLoadMode::Full,
+            &vw_config_types::skills::SkillSecurityConfig::default(),
+        )[0]
+        .name,
+        "existing"
+    );
+
+    schedule_open_skills_sync(Some(true), Some(repo.to_str().unwrap()));
+    wait_for_git_invocations(&log, 2);
     assert_eq!(std::fs::read(marker).unwrap(), b"synced");
 }
 

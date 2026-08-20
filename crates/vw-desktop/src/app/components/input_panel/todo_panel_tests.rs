@@ -20,8 +20,8 @@ fn todo(id: &str, status: &str, content: &str) -> Todo {
     }
 }
 
-fn agent_request(query: &str) -> AgentRequest {
-    AgentRequest {
+fn agent_request(query: &str) -> std::sync::Arc<AgentRequest> {
+    std::sync::Arc::new(AgentRequest {
         id: 1,
         session: "session".to_string(),
         query: query.to_string(),
@@ -42,7 +42,7 @@ fn agent_request(query: &str) -> AgentRequest {
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
         history: Vec::new(),
-    }
+    })
 }
 
 fn keep(element: iced::Element<'_, Message>) {

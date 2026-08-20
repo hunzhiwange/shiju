@@ -10,11 +10,12 @@
 //! ## 瓦片类型
 //!
 //! 模块支持以下类型的瓦片：
-//! - 历史项目
+//! - 项目管理
 //! - 网址书签（用户自定义）
 
 use super::ui;
 use crate::app::assets::Icon;
+use crate::app::components::system_settings::SystemTab;
 use crate::app::message::{ProjectMessage, ViewMessage};
 use crate::app::{App, Message};
 use iced::widget::{Space, button, column, container, row, stack, text, text_input};
@@ -56,7 +57,7 @@ fn compute_tile_columns(app: &App, tile_width: f32, gap: f32) -> usize {
 
 #[cfg(test)]
 fn builtin_tile_titles() -> Vec<&'static str> {
-    vec!["历史项目", "添加网址", "知识库", "工作流", "任务编排"]
+    vec!["项目管理", "添加网址", "知识库", "工作流", "任务编排"]
 }
 
 /// 渲染应用瓦片网格
@@ -97,15 +98,19 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
     // 存储所有匹配的瓦片元素
     let mut tiles: Vec<Element<'_, Message>> = Vec::new();
 
-    // 历史项目瓦片
-    if matches("历史项目") {
+    // 项目管理瓦片
+    if matches("项目管理") {
         tiles.push(ui::tile(
             Icon::FolderOpen,
-            "历史项目".to_string(),
+            "项目管理".to_string(),
             Color::from_rgb8(0x94, 0x5B, 0xFF), // 紫色主题色
             vec![
                 ("打开最近", msg(Message::View(ViewMessage::AppsOpenMostRecent))),
                 ("打开文件夹", msg(Message::Project(ProjectMessage::OpenFolderPressed))),
+                (
+                    "项目管理",
+                    msg(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Projects))),
+                ),
             ],
             msg(Message::View(ViewMessage::AppsOpenMostRecent)),
         ));

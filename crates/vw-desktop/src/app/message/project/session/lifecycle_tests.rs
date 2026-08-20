@@ -5,12 +5,49 @@
 use super::lifecycle::{
     loaded_chat_from_gateway_messages, reset_boundary_loaded_end, steps_from_gateway_messages,
 };
-use crate::app::models::ChatRole;
+use crate::app::models::{ChatRenderCacheEntry, ChatRole};
 use serde_json::{Map, Value, json};
 use vw_shared::message::types as agent_message;
 
 fn app() -> crate::app::App {
     crate::app::App::new().0
+}
+
+#[test]
+fn stale_stream_ui_phase_is_ignored() {
+    let mut app = app();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![crate::app::models::ChatMessage {
+        role: ChatRole::Assistant,
+        content: "current tail".to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    }];
+    app.chat_render_cache.insert(
+        0,
+        ChatRenderCacheEntry {
+            content_hash: 77,
+            display_text: "kept".to_string(),
+            ..ChatRenderCacheEntry::default()
+        },
+    );
+    let phase = crate::app::session::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
+    app.get_session_runtime_mut(&session_id).stream_tail_state.advance_ui_generation();
+
+    let task = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionUiPrepared {
+            session_id,
+            stream_generation: Some(0),
+            phase,
+        },
+    );
+
+    assert!(task.is_some());
+    assert_eq!(app.chat_render_cache[&0].content_hash, 77);
+    assert_eq!(app.chat_render_cache[&0].display_text, "kept");
 }
 
 fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {
@@ -253,7 +290,7 @@ fn session_messages_loaded_same_content_preserves_scroll_and_ui_cache() {
     let mut app = app();
     app.active_session_id = Some("session-1".to_string());
     let messages = vec![
-        text_message(assistant_info_at_with_parent("assistant-1", "user-1", 1_000), "answer"),
+        text_message(assistant_info_with_usage("assistant-1"), "answer"),
         text_message(user_info_at("user-1", 900), "question"),
     ];
     let (live_chat, _) = loaded_chat_from_gateway_messages(messages.clone());
@@ -263,27 +300,102 @@ fn session_messages_loaded_same_content_preserves_scroll_and_ui_cache() {
     app.chat_virtualizer.set_viewport_height(100.0);
     app.chat_virtualizer.focus_turn_on_user(0);
     app.active_session_view_state.base_ready = true;
+    app.active_session_view_state.updated_ms = 77;
+    app.active_session_view_state.calls.push(json!({ "id": "call-live" }));
+    app.active_session_view_state.message_meta_texts =
+        vec![Some("stale".to_string()); app.chat.len()];
     app.chat_render_cache.insert(0, Default::default());
     let previous_scroll_id = app.chat_scroll_id.clone();
+    let usage = crate::app::models::TokenUsage {
+        input_tokens: 2,
+        output_tokens: 3,
+        cached_tokens: 4,
+        reasoning_tokens: 5,
+    };
 
-    let _ = super::lifecycle::handle(
+    let task = super::lifecycle::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::SessionMessagesLoaded(Ok((
             "session-1".to_string(),
             messages,
-            crate::app::models::TokenUsage::default(),
+            usage,
         ))),
     );
 
+    assert!(task.is_some());
     assert_eq!(app.chat_scroll_id, previous_scroll_id);
     assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(0));
     assert!(app.active_session_view_state.base_ready);
     assert!(!app.active_session_view_state.ui_preparing);
+    assert_eq!(app.active_session_view_state.updated_ms, 77);
+    assert_eq!(app.active_session_view_state.calls, vec![json!({ "id": "call-live" })]);
     assert!(app.chat_render_cache.contains_key(&0));
     assert_eq!(
         app.chat_message_ids,
         vec![Some("user-1".to_string()), Some("assistant-1".to_string())]
     );
+    assert_eq!(app.usage.input_tokens, 2);
+    assert_eq!(app.usage.output_tokens, 3);
+    assert_eq!(app.usage.cached_tokens, 4);
+    assert_eq!(app.usage.reasoning_tokens, 5);
+    assert_eq!(app.active_session_view_state.steps.len(), 1);
+    assert_eq!(app.active_session_view_state.steps[0].usage.input_tokens, 11);
+    assert_eq!(app.active_session_view_state.steps[0].usage.output_tokens, 12);
+    assert_eq!(app.active_session_view_state.steps[0].usage.cached_tokens, 3);
+    assert_eq!(app.active_session_view_state.steps[0].usage.reasoning_tokens, 4);
+    assert_eq!(app.active_session_view_state.message_meta_texts.len(), app.chat.len());
+    assert!(
+        app.active_session_view_state
+            .message_meta_texts
+            .iter()
+            .all(|meta| meta.as_deref() != Some("stale"))
+    );
+}
+
+#[test]
+fn session_messages_loaded_changed_content_replaces_history_and_invalidates_ui_cache() {
+    for (stale_role, stale_content) in
+        [(ChatRole::Assistant, "stale answer"), (ChatRole::User, "answer")]
+    {
+        let mut app = app();
+        app.active_session_id = Some("session-1".to_string());
+        let messages = vec![
+            text_message(
+                assistant_info_at_with_parent("assistant-1", "user-1", 1_000),
+                "answer",
+            ),
+            text_message(user_info_at("user-1", 900), "question"),
+        ];
+        let (live_chat, _) = loaded_chat_from_gateway_messages(messages.clone());
+        app.chat = live_chat;
+        app.chat[1].role = stale_role;
+        app.chat[1].content = stale_content.to_string();
+        app.chat_message_ids = vec![None; app.chat.len()];
+        app.active_session_view_state.base_ready = true;
+        app.chat_render_cache.insert(0, Default::default());
+        let previous_scroll_id = app.chat_scroll_id.clone();
+
+        let task = super::lifecycle::handle(
+            &mut app,
+            crate::app::message::project::ProjectMessage::SessionMessagesLoaded(Ok((
+                "session-1".to_string(),
+                messages,
+                crate::app::models::TokenUsage::default(),
+            ))),
+        );
+
+        assert!(task.is_some());
+        assert_ne!(app.chat_scroll_id, previous_scroll_id);
+        assert_eq!(app.chat[1].role, ChatRole::Assistant);
+        assert_eq!(app.chat[1].content, "answer");
+        assert!(app.chat_render_cache.is_empty());
+        assert!(!app.active_session_view_state.base_ready);
+        assert!(app.active_session_view_state.ui_preparing);
+        assert_eq!(
+            app.chat_message_ids,
+            vec![Some("user-1".to_string()), Some("assistant-1".to_string())]
+        );
+    }
 }
 
 #[test]

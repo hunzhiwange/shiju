@@ -730,6 +730,7 @@ async fn prepare_stream_message_ui_task_prepares_only_target() {
         "session-1".to_string(),
         message,
         47,
+        9,
         false,
     ))
     .await;
@@ -737,6 +738,7 @@ async fn prepare_stream_message_ui_task_prepares_only_target() {
     let [
         crate::app::Message::Project(crate::app::message::ProjectMessage::SessionUiPrepared {
             session_id,
+            stream_generation,
             phase: crate::app::session::PreparedChatUiPhase::Message(prepared),
         }),
     ] = messages.as_slice()
@@ -744,6 +746,7 @@ async fn prepare_stream_message_ui_task_prepares_only_target() {
         panic!("single-message task should return one prepared message")
     };
     assert_eq!(session_id, "session-1");
+    assert_eq!(*stream_generation, Some(9));
     assert_eq!(prepared.message_idx, 47);
     assert_eq!(prepared.render_cache.display_text, "stream tail");
 }

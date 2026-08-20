@@ -1360,8 +1360,36 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             Some(iced::Task::none())
         }
-        ProjectMessage::SessionUiPrepared { session_id, phase } => {
-            if app.active_session_id.as_ref() == Some(&session_id) {
+        ProjectMessage::SessionUiPrepared { session_id, stream_generation, phase } => {
+            let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
+            if let Some(generation) = stream_generation {
+                let reprepare = {
+                    let state = &mut app.get_session_runtime_mut(&session_id).stream_tail_state;
+                    state.finish_ui_preparation(generation);
+                    if state.ui_generation() == generation || !is_active_session {
+                        None
+                    } else {
+                        state.message_idx().zip(state.begin_ui_preparation())
+                    }
+                };
+                if let Some((message_idx, latest_generation)) = reprepare
+                    && let Some(message) = app.chat.get(message_idx).cloned()
+                {
+                    return Some(crate::app::message::project::prepare_stream_message_ui_task(
+                        session_id,
+                        message,
+                        message_idx,
+                        latest_generation,
+                        app.dialogue_flow_show_reasoning_summary,
+                    ));
+                }
+                if app.get_session_runtime(&session_id).stream_tail_state.ui_generation()
+                    != generation
+                {
+                    return Some(iced::Task::none());
+                }
+            }
+            if is_active_session {
                 let is_base_phase =
                     matches!(phase, crate::app::session::PreparedChatUiPhase::Base(_));
                 app.apply_prepared_chat_ui_phase(phase);

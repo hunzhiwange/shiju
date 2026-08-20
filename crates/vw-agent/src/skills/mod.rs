@@ -403,15 +403,17 @@ fn load_skills_with_open_skills_config_and_provider(
         );
     }
 
-    if let Some(open_skills_dir) =
-        open_skills::ensure_open_skills_repo(config_open_skills_enabled, config_open_skills_dir)
-    {
+    if let Some(open_skills_dir) = open_skills::resolve_local_open_skills_repo(
+        config_open_skills_enabled,
+        config_open_skills_dir,
+    ) {
         extend_unique_skills(
             &mut skills,
             &mut seen,
             open_skills::load_open_skills(&open_skills_dir, load_mode, security),
         );
     }
+    open_skills::schedule_open_skills_sync(config_open_skills_enabled, config_open_skills_dir);
 
     skills
 }

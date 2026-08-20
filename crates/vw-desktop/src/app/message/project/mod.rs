@@ -271,6 +271,7 @@ pub enum ProjectMessage {
     },
     SessionUiPrepared {
         session_id: String,
+        stream_generation: Option<u64>,
         phase: crate::app::session::PreparedChatUiPhase,
     },
     StartDeferredTasks {

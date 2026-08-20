@@ -32,8 +32,11 @@ fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::i
     }
 }
 
-fn agent_request(id: u64, session_id: &str) -> crate::app::state::AgentRequest {
-    crate::app::state::AgentRequest {
+fn agent_request(
+    id: u64,
+    session_id: &str,
+) -> std::sync::Arc<crate::app::state::AgentRequest> {
+    std::sync::Arc::new(crate::app::state::AgentRequest {
         id,
         session: session_id.to_string(),
         query: "query".to_string(),
@@ -54,7 +57,7 @@ fn agent_request(id: u64, session_id: &str) -> crate::app::state::AgentRequest {
         workflow_mode_enabled: true,
         goal_mode_enabled: false,
         history: Vec::new(),
-    }
+    })
 }
 
 #[test]
@@ -131,6 +134,7 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
     assert_eq!(done_app.chat[1].content, "done tail");
     assert!(done_app.get_session_runtime(&done_session).pending_stream_delta.is_empty());
     assert!(!done_app.get_session_runtime(&done_session).stream_delta_flush_scheduled);
+    assert!(!done_app.get_session_runtime(&done_session).stream_save_flush_scheduled);
     assert_eq!(
         super::stream_events::flush_agent_stream_delta(&mut done_app, done_session).units(),
         0
@@ -147,6 +151,7 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
     assert_eq!(cancelled_app.chat[1].content, "cancelled tail");
     assert!(cancelled_app.get_session_runtime(&cancelled_session).pending_stream_delta.is_empty());
     assert!(!cancelled_app.get_session_runtime(&cancelled_session).stream_delta_flush_scheduled);
+    assert!(!cancelled_app.get_session_runtime(&cancelled_session).stream_save_flush_scheduled);
 
     let mut error_app = active_app(53);
     let error_session = error_app.active_session_id.clone().unwrap();
@@ -162,6 +167,7 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
     assert_eq!(error_app.chat[1].content, "error tail");
     assert!(error_app.get_session_runtime(&error_session).pending_stream_delta.is_empty());
     assert!(!error_app.get_session_runtime(&error_session).stream_delta_flush_scheduled);
+    assert!(!error_app.get_session_runtime(&error_session).stream_save_flush_scheduled);
 }
 
 #[test]
@@ -269,18 +275,18 @@ fn load_session_or_default_preserves_matching_cached_message_ids() {
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
 fn save_session_hook_observes_arguments_and_is_cleared_after_scope() {
-    use std::cell::RefCell;
     use std::path::PathBuf;
-    use std::rc::Rc;
+    use std::sync::{Arc, Mutex};
 
     let session =
         super::load_session_or_default(&crate::app::App::new().0, "session-1".to_string());
-    let observed = Rc::new(RefCell::new(None));
-    let hook_observed = Rc::clone(&observed);
+    let observed = Arc::new(Mutex::new(None));
+    let hook_observed = Arc::clone(&observed);
 
     let result = super::with_save_session_hook(
         move |session, directory| {
-            *hook_observed.borrow_mut() = Some((session.id.clone(), directory.map(str::to_string)));
+            *hook_observed.lock().unwrap() =
+                Some((session.id.clone(), directory.map(str::to_string)));
             Some(PathBuf::from("/saved/session.json"))
         },
         || super::call_save_session_hook(&session, Some("/project")),
@@ -288,7 +294,7 @@ fn save_session_hook_observes_arguments_and_is_cleared_after_scope() {
 
     assert_eq!(result, Some(Some(PathBuf::from("/saved/session.json"))));
     assert_eq!(
-        observed.borrow().as_ref(),
+        observed.lock().unwrap().as_ref(),
         Some(&("session-1".to_string(), Some("/project".to_string())))
     );
     assert!(super::call_save_session_hook(&session, None).is_none());

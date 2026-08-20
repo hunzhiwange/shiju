@@ -21,7 +21,9 @@ use crate::app::agent::shell::git_std_command;
 use crate::app::agent::skills::loader::load_skills_from_directory;
 use crate::app::agent::skills::types::SkillLoadMode;
 use directories::UserDirs;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime};
 
 /// 开放技能仓库的远程 URL 地址
@@ -41,6 +43,8 @@ const OPEN_SKILLS_SYNC_MARKER: &str = ".vibewindow-open-skills-sync";
 /// 定义两次自动同步之间的最小间隔时间。
 /// 默认值为 7 天（604800 秒），以避免过于频繁的网络请求。
 const OPEN_SKILLS_SYNC_INTERVAL_SECS: u64 = 60 * 60 * 24 * 7;
+
+static OPEN_SKILLS_SYNCS_IN_FLIGHT: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
 /// 解析开放技能启用状态的字符串值
 ///
@@ -218,39 +222,8 @@ fn resolve_open_skills_dir(config_open_skills_dir: Option<&str>) -> Option<PathB
     )
 }
 
-/// 确保开放技能仓库可用
-///
-/// 该函数是开放技能管理的主入口，负责：
-/// 1. 检查开放技能功能是否启用（如未启用则直接返回 `None`）
-/// 2. 解析技能仓库的存储路径
-/// 3. 如果仓库不存在，自动克隆远程仓库
-/// 4. 如果仓库存在且超过同步间隔，尝试拉取最新更新
-/// 5. 记录同步时间戳以避免频繁同步
-///
-/// # 参数
-///
-/// - `config_open_skills_enabled`: 配置文件中的启用设置（可能为 `None`）
-/// - `config_open_skills_dir`: 配置文件指定的仓库路径（可能为 `None`）
-///
-/// # 返回值
-///
-/// - `Some(PathBuf)`: 技能仓库的本地路径
-/// - `None`: 功能未启用或发生严重错误
-///
-/// # 同步策略
-///
-/// - 使用浅克隆（`--depth 1`）以减少下载量
-/// - 使用快进合并（`--ff-only`）以避免合并冲突
-/// - 同步失败时继续使用本地副本，仅记录警告
-///
-/// # 示例
-///
-/// ```ignore
-/// if let Some(repo_dir) = ensure_open_skills_repo(Some(true), None) {
-///     println!("技能仓库已就绪：{}", repo_dir.display());
-/// }
-/// ```
-pub(crate) fn ensure_open_skills_repo(
+/// 返回当前已经存在的本地 OpenSkills 副本，不执行网络或 Git 命令。
+pub(crate) fn resolve_local_open_skills_repo(
     config_open_skills_enabled: Option<bool>,
     config_open_skills_dir: Option<&str>,
 ) -> Option<PathBuf> {
@@ -259,27 +232,120 @@ pub(crate) fn ensure_open_skills_repo(
     }
 
     let repo_dir = resolve_open_skills_dir(config_open_skills_dir)?;
+    repo_dir.is_dir().then_some(repo_dir)
+}
 
-    if !repo_dir.exists() {
-        if !clone_open_skills_repo(&repo_dir) {
-            return None;
-        }
-        let _ = mark_open_skills_synced(&repo_dir);
-        return Some(repo_dir);
+/// 在后台安排 OpenSkills 同步；同一规范化路径同一时刻只运行一个任务。
+pub(crate) fn schedule_open_skills_sync(
+    config_open_skills_enabled: Option<bool>,
+    config_open_skills_dir: Option<&str>,
+) {
+    if !open_skills_enabled(config_open_skills_enabled) {
+        return;
     }
 
-    if should_sync_open_skills(&repo_dir) {
-        if pull_open_skills_repo(&repo_dir) {
-            let _ = mark_open_skills_synced(&repo_dir);
-        } else {
+    let Some(repo_dir) = resolve_open_skills_dir(config_open_skills_dir) else {
+        return;
+    };
+    if repo_dir.is_dir() && !should_sync_open_skills(&repo_dir) {
+        return;
+    }
+
+    let sync_key = normalize_open_skills_repo_path(&repo_dir);
+    {
+        let mut in_flight =
+            open_skills_syncs_in_flight().lock().unwrap_or_else(|error| error.into_inner());
+        if !in_flight.insert(sync_key.clone()) {
+            return;
+        }
+    }
+
+    let thread_key = sync_key.clone();
+    let spawn_result =
+        std::thread::Builder::new().name("open-skills-sync".to_string()).spawn(move || {
+            let _guard = OpenSkillsSyncGuard { sync_key: thread_key };
+            sync_open_skills_repo(&repo_dir);
+        });
+
+    if let Err(error) = spawn_result {
+        release_open_skills_sync(&sync_key);
+        tracing::warn!("failed to start open-skills background sync: {error}");
+    }
+}
+
+fn open_skills_syncs_in_flight() -> &'static Mutex<HashSet<PathBuf>> {
+    OPEN_SKILLS_SYNCS_IN_FLIGHT.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+fn normalize_open_skills_repo_path(repo_dir: &Path) -> PathBuf {
+    let absolute = if repo_dir.is_absolute() {
+        repo_dir.to_path_buf()
+    } else {
+        std::env::current_dir().map_or_else(|_| repo_dir.to_path_buf(), |cwd| cwd.join(repo_dir))
+    };
+    let mut current = absolute.as_path();
+    let mut missing_components = Vec::new();
+
+    loop {
+        if let Ok(mut normalized) = current.canonicalize() {
+            for component in missing_components.iter().rev() {
+                normalized.push(component);
+            }
+            return normalized;
+        }
+        let Some(file_name) = current.file_name() else {
+            return absolute;
+        };
+        missing_components.push(file_name.to_os_string());
+        let Some(parent) = current.parent() else {
+            return absolute;
+        };
+        current = parent;
+    }
+}
+
+fn sync_open_skills_repo(repo_dir: &Path) {
+    let synced = if repo_dir.is_dir() {
+        if !should_sync_open_skills(repo_dir) {
+            return;
+        }
+        if !pull_open_skills_repo(repo_dir) {
             tracing::warn!(
-                "open-skills update failed; using local copy from {}",
+                "open-skills background update failed; using existing local copy from {}",
+                repo_dir.display()
+            );
+            return;
+        }
+        true
+    } else {
+        clone_open_skills_repo(repo_dir)
+    };
+
+    if synced {
+        if let Err(error) = mark_open_skills_synced(repo_dir) {
+            tracing::warn!(
+                "failed to record open-skills background sync for {}: {error}",
                 repo_dir.display()
             );
         }
     }
+}
 
-    Some(repo_dir)
+fn release_open_skills_sync(sync_key: &Path) {
+    open_skills_syncs_in_flight()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .remove(sync_key);
+}
+
+struct OpenSkillsSyncGuard {
+    sync_key: PathBuf,
+}
+
+impl Drop for OpenSkillsSyncGuard {
+    fn drop(&mut self) {
+        release_open_skills_sync(&self.sync_key);
+    }
 }
 
 /// 克隆开放技能仓库
@@ -317,8 +383,7 @@ fn clone_open_skills_repo(repo_dir: &Path) -> bool {
             true
         }
         Ok(result) => {
-            let stderr = String::from_utf8_lossy(&result.stderr);
-            tracing::warn!("failed to clone open-skills: {stderr}");
+            tracing::warn!("failed to clone open-skills: git exited with {}", result.status);
             false
         }
         Err(err) => {
@@ -356,8 +421,7 @@ fn pull_open_skills_repo(repo_dir: &Path) -> bool {
     match output {
         Ok(result) if result.status.success() => true,
         Ok(result) => {
-            let stderr = String::from_utf8_lossy(&result.stderr);
-            tracing::warn!("failed to pull open-skills updates: {stderr}");
+            tracing::warn!("failed to pull open-skills updates: git exited with {}", result.status);
             false
         }
         Err(err) => {

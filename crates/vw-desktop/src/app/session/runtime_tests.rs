@@ -7,8 +7,8 @@ fn test_app() -> App {
     App::new().0
 }
 
-fn agent_request(id: u64, session: &str) -> AgentRequest {
-    AgentRequest {
+fn agent_request(id: u64, session: &str) -> std::sync::Arc<AgentRequest> {
+    std::sync::Arc::new(AgentRequest {
         id,
         session: session.to_string(),
         query: "query".to_string(),
@@ -29,7 +29,7 @@ fn agent_request(id: u64, session: &str) -> AgentRequest {
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
         history: Vec::new(),
-    }
+    })
 }
 
 #[test]

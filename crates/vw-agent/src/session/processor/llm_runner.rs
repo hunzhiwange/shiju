@@ -15,7 +15,7 @@
 //!
 //! # 流式处理策略
 //!
-//! 本模块实现了智能的流式内容刷新策略，基于两个维度：
+//! 本模块会立即发送各内容通道的首个非空增量，后续流式内容刷新基于两个维度：
 //! - 时间间隔：至少间隔 33ms 刷新一次，避免过于频繁的事件发送
 //! - 内容长度：累积至少 1024 字符后刷新，减少小包传输的开销
 //!
@@ -226,6 +226,8 @@ fn collect_llm_step_from_stream(
     let mut last_flush = Instant::now(); // 上次普通文本刷新时间
     let mut last_reasoning_flush = Instant::now(); // 上次推理文本刷新时间
     let mut content_started = false; // 标记是否开始接收普通内容
+    let mut text_delta_emitted = false; // 标记是否已立即输出首个普通文本增量
+    let mut reasoning_delta_emitted = false; // 标记是否已立即输出首个推理增量
     let mut thinking_open = false; // 标记 thinking 标签是否已打开
     let mut thinking_emitted = false; // 标记是否已输出推理内容
 
@@ -265,6 +267,9 @@ fn collect_llm_step_from_stream(
         match ev {
             // 处理普通文本增量
             llm::StreamEvent::Delta(delta) => {
+                if delta.is_empty() {
+                    continue;
+                }
                 // 检测是否首次接收到普通内容
                 if !content_started {
                     content_started = true;
@@ -285,15 +290,22 @@ fn collect_llm_step_from_stream(
                 // 累积普通文本
                 text.push_str(&delta);
                 pending.push_str(&delta);
-                // 检查是否满足刷新条件（内容长度或时间间隔）
-                if pending.len() >= FLUSH_MIN_CHARS || last_flush.elapsed() >= FLUSH_MIN_INTERVAL {
+                // 首个非空普通文本不等待合并窗口；后续才按长度或时间节流。
+                if !text_delta_emitted
+                    || pending.len() >= FLUSH_MIN_CHARS
+                    || last_flush.elapsed() >= FLUSH_MIN_INTERVAL
+                {
                     let chunk = std::mem::take(&mut pending);
                     last_flush = Instant::now();
                     emit_stream_event(on_event, abort_tx, StreamEvent::Delta(chunk))?;
+                    text_delta_emitted = true;
                 }
             }
             // 处理推理内容增量
             llm::StreamEvent::ReasoningDelta(delta) => {
+                if delta.is_empty() {
+                    continue;
+                }
                 // 累积推理内容
                 reasoning_content.push_str(&delta);
                 // 如果还未开始接收普通内容，则流式输出推理内容
@@ -305,13 +317,15 @@ fn collect_llm_step_from_stream(
                         thinking_emitted = true;
                     }
                     pending_reasoning.push_str(&delta);
-                    // 检查是否满足刷新条件
-                    if pending_reasoning.len() >= FLUSH_MIN_CHARS
+                    // 首个非空推理增量不等待合并窗口；后续才按长度或时间节流。
+                    if !reasoning_delta_emitted
+                        || pending_reasoning.len() >= FLUSH_MIN_CHARS
                         || last_reasoning_flush.elapsed() >= FLUSH_MIN_INTERVAL
                     {
                         let chunk = std::mem::take(&mut pending_reasoning);
                         last_reasoning_flush = Instant::now();
                         emit_stream_event(on_event, abort_tx, StreamEvent::Delta(chunk))?;
+                        reasoning_delta_emitted = true;
                     }
                 }
             }

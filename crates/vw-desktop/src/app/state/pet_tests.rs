@@ -21,8 +21,13 @@ fn chat_message(role: ChatRole, content: &str) -> ChatMessage {
     }
 }
 
-fn agent_request(id: u64, session: &str, query: &str, root: Option<&str>) -> AgentRequest {
-    AgentRequest {
+fn agent_request(
+    id: u64,
+    session: &str,
+    query: &str,
+    root: Option<&str>,
+) -> std::sync::Arc<AgentRequest> {
+    std::sync::Arc::new(AgentRequest {
         id,
         session: session.to_string(),
         query: query.to_string(),
@@ -43,7 +48,7 @@ fn agent_request(id: u64, session: &str, query: &str, root: Option<&str>) -> Age
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
         history: Vec::new(),
-    }
+    })
 }
 
 fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::info::Info {

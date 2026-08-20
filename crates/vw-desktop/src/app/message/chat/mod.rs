@@ -427,6 +427,9 @@ pub enum ChatMessage {
     /// 合并一小段时间内的 Agent 流式增量，降低 UI 重绘和会话保存频率。
     AgentStreamDeltaFlush(String),
 
+    /// 保存流式会话的最新完整快照。
+    AgentStreamSessionSaveFlush(String),
+
     /// 系统提示词实际加载的协议文件。
     AgentContextLoaded(u64, Vec<String>),
 
@@ -1049,7 +1052,7 @@ pub enum ChatMessage {
 ///
 /// 对于 `AgentStreamDelta` 消息，函数会额外执行以下操作：
 ///
-/// 1. 解析最新消息中的思考块数量和状态
+/// 1. 读取流式尾状态中的思考块数量和开闭状态
 /// 2. 跟踪当前正在展开的思考块索引
 /// 3. 清理已删除思考块的编辑器状态
 /// 4. 自动将思考块滚动到底部以显示最新内容
@@ -1200,6 +1203,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamDelta(_, _)
         | ChatMessage::AgentToolLifecycle(_, _)
         | ChatMessage::AgentStreamDeltaFlush(_)
+        | ChatMessage::AgentStreamSessionSaveFlush(_)
         | ChatMessage::AgentContextLoaded(_, _)
         | ChatMessage::AgentWorkflowNodeUpdate(_, _)
         | ChatMessage::PlanRunSessionStarted { .. }
@@ -1299,15 +1303,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
     // 对流式增量消息执行特殊处理：同步思考块状态
     if is_stream_delta {
-        // 获取最新的消息索引
-        if let Some(i) = app.chat.len().checked_sub(1)
-            && let Some(m) = app.chat.get(i)
-        {
-            // 解析消息内容中的思考块
-            // 返回：(思考块列表, 可见性标志, 是否有展开的思考块)
-            let (thinks, _visible, thinking_open) = crate::app::ui::chat::split_think(&m.content);
-            let think_count = thinks.len();
-
+        let stream_tail = app.active_session_id.as_deref().and_then(|session_id| {
+            let state = &app.get_session_runtime(session_id).stream_tail_state;
+            state
+                .message_idx()
+                .map(|message_idx| (message_idx, state.think_count(), state.thinking_open()))
+        });
+        if let Some((i, think_count, thinking_open)) = stream_tail {
             // 计算当前应该展开的思考块索引
             // 如果有正在思考的块且存在思考块，则展开最后一个
             let open_idx = if thinking_open && think_count > 0 {

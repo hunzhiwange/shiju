@@ -42,8 +42,8 @@ fn session(id: &str, parent_id: Option<&str>, title: &str, directory: &str) -> I
     }
 }
 
-fn agent_request(id: u64, session_id: &str) -> AgentRequest {
-    AgentRequest {
+fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<AgentRequest> {
+    std::sync::Arc::new(AgentRequest {
         id,
         session: session_id.to_string(),
         query: "delegate".to_string(),
@@ -64,7 +64,7 @@ fn agent_request(id: u64, session_id: &str) -> AgentRequest {
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
         history: Vec::new(),
-    }
+    })
 }
 
 fn agent_tool_event(

@@ -115,6 +115,7 @@ pub(super) fn tooltip_bubble<'a>(tip: &'a str) -> iced::widget::Container<'a, Me
 /// | 打开 | ChevronRight |
 /// | 打开最近 | ArrowClockwise |
 /// | 打开文件夹 | FolderOpen |
+/// | 项目管理 | Gear |
 /// | 添加 | Plus |
 /// | 独立窗口 | Box |
 /// | 浏览器 | ArrowUp |
@@ -128,6 +129,7 @@ pub(super) fn action_icon(label: &str) -> Icon {
         "打开" => Icon::ChevronRight,
         "打开最近" => Icon::ArrowClockwise,
         "打开文件夹" => Icon::FolderOpen,
+        "项目管理" => Icon::Gear,
         "添加" => Icon::Plus,
         "独立窗口" => Icon::Box,
         "浏览器" => Icon::ArrowUp,

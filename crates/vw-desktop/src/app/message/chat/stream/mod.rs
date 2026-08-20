@@ -25,11 +25,13 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::{LazyLock, Mutex};
+#[cfg(all(test, not(target_arch = "wasm32")))]
+use std::sync::Arc;
 use vw_shared::session::session_utils::is_default_title;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 type SaveSessionHook =
-    Box<dyn FnMut(&models::ChatSession, Option<&str>) -> Option<std::path::PathBuf>>;
+    Arc<Mutex<Box<dyn FnMut(&models::ChatSession, Option<&str>) -> Option<std::path::PathBuf> + Send>>>;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 thread_local! {
@@ -50,11 +52,11 @@ impl Drop for SaveSessionHookGuard {
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub(super) fn with_save_session_hook<R>(
-    hook: impl FnMut(&models::ChatSession, Option<&str>) -> Option<std::path::PathBuf> + 'static,
+    hook: impl FnMut(&models::ChatSession, Option<&str>) -> Option<std::path::PathBuf> + Send + 'static,
     f: impl FnOnce() -> R,
 ) -> R {
     SAVE_SESSION_HOOK.with(|slot| {
-        *slot.borrow_mut() = Some(Box::new(hook));
+        *slot.borrow_mut() = Some(Arc::new(Mutex::new(Box::new(hook))));
     });
     let _guard = SaveSessionHookGuard;
     f()
@@ -65,7 +67,12 @@ fn call_save_session_hook(
     session: &models::ChatSession,
     directory: Option<&str>,
 ) -> Option<Option<std::path::PathBuf>> {
-    SAVE_SESSION_HOOK.with(|hook| hook.borrow_mut().as_mut().map(|hook| hook(session, directory)))
+    SAVE_SESSION_HOOK.with(|hook| {
+        hook.borrow().as_ref().map(|hook| {
+            let mut hook = hook.lock().expect("save session hook lock");
+            hook(session, directory)
+        })
+    })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -240,6 +247,8 @@ pub(super) fn save_session_task(
     session: models::ChatSession,
     directory: Option<String>,
 ) -> Task<Message> {
+    #[cfg(test)]
+    let save_hook = SAVE_SESSION_HOOK.with(|hook| hook.borrow().clone());
     Task::perform(
         async move {
             crate::app::message::spawn_blocking_opt(move || {
@@ -247,6 +256,11 @@ pub(super) fn save_session_task(
                     session,
                     directory,
                     |session, directory| {
+                    #[cfg(test)]
+                    if let Some(hook) = save_hook.as_ref() {
+                        let mut hook = hook.lock().expect("save session hook lock");
+                        return Ok(hook(session, directory));
+                    }
                     let result = gateway_save_session_for_stream(session, directory);
                     if let Err(error) = &result {
                         tracing::warn!(
@@ -339,6 +353,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamDeltaFlush(session_id) => {
             stream_events::flush_agent_stream_delta(app, session_id)
         }
+        ChatMessage::AgentStreamSessionSaveFlush(session_id) => {
+            stream_events::flush_agent_stream_session_save(app, session_id)
+        }
         ChatMessage::AgentContextLoaded(id, paths) => {
             stream_events::handle_agent_context_loaded(app, id, paths)
         }
@@ -374,8 +391,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             stream_events::handle_plan_run_session_finished(app, session_id)
         }
         ChatMessage::AgentStepStart(id, session_id, step_index, created_ms, model) => {
-            let _ = stream_events::flush_agent_stream_delta_for_request(app, id);
-            steps::handle_agent_step_start(app, id, session_id, step_index, created_ms, model)
+            let delta_task = stream_events::flush_agent_stream_delta_for_request(app, id);
+            Task::batch([
+                delta_task,
+                steps::handle_agent_step_start(app, id, session_id, step_index, created_ms, model),
+            ])
         }
         ChatMessage::AgentStepFinish(
             id,
@@ -386,17 +406,20 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             finish_reason,
             model,
         ) => {
-            let _ = stream_events::flush_agent_stream_delta_for_request(app, id);
-            steps::handle_agent_step_finish(
-                app,
-                id,
-                session_id,
-                step_index,
-                finished_ms,
-                usage,
-                finish_reason,
-                model,
-            )
+            let delta_task = stream_events::flush_agent_stream_delta_for_request(app, id);
+            Task::batch([
+                delta_task,
+                steps::handle_agent_step_finish(
+                    app,
+                    id,
+                    session_id,
+                    step_index,
+                    finished_ms,
+                    usage,
+                    finish_reason,
+                    model,
+                ),
+            ])
         }
         ChatMessage::SessionSaveAck => Task::none(),
         ChatMessage::SessionSaveFailed(error) => {
@@ -509,7 +532,8 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
-    let flush_task = stream_events::flush_agent_stream_delta(app, session_id.clone());
+    let _ = stream_events::flush_agent_stream_delta(app, session_id.clone());
+    let save_task = stream_events::force_save_agent_stream_session(app, &session_id);
     crate::app::state::clear_pending_guide_handoff(id);
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
     {
@@ -524,7 +548,7 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
     if is_active_session {
         app.sync_active_session_from_chat();
     }
-    flush_task.chain(start_next(app, &session_id))
+    save_task.chain(start_next(app, &session_id))
 }
 
 /// 模块内可见函数，执行 maybe_generate_session_title 对应的应用流程。

@@ -1287,7 +1287,11 @@ pub(crate) fn prepare_session_ui_task(
         },
         |res| match res {
             Some((session_id, phase)) => {
-                Message::Project(ProjectMessage::SessionUiPrepared { session_id, phase })
+                Message::Project(ProjectMessage::SessionUiPrepared {
+                    session_id,
+                    stream_generation: None,
+                    phase,
+                })
             }
             None => Message::None,
         },
@@ -1298,6 +1302,7 @@ pub(crate) fn prepare_stream_message_ui_task(
     session_id: String,
     message: crate::app::models::ChatMessage,
     message_idx: usize,
+    stream_generation: u64,
     show_reasoning_summary: bool,
 ) -> Task<Message> {
     Task::perform(
@@ -1305,6 +1310,7 @@ pub(crate) fn prepare_stream_message_ui_task(
             crate::app::message::spawn_blocking_opt(move || {
                 Some((
                     session_id,
+                    stream_generation,
                     crate::app::session::prepare_chat_ui_message_phase(
                         &message,
                         message_idx,
@@ -1315,8 +1321,12 @@ pub(crate) fn prepare_stream_message_ui_task(
             .await
         },
         |res| match res {
-            Some((session_id, phase)) => {
-                Message::Project(ProjectMessage::SessionUiPrepared { session_id, phase })
+            Some((session_id, stream_generation, phase)) => {
+                Message::Project(ProjectMessage::SessionUiPrepared {
+                    session_id,
+                    stream_generation: Some(stream_generation),
+                    phase,
+                })
             }
             None => Message::None,
         },

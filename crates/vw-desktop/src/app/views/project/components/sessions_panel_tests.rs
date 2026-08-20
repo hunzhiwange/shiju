@@ -57,8 +57,8 @@ fn child_session(id: &str, parent_id: &str, updated: u64) -> Info {
     info
 }
 
-fn agent_request(id: u64, session_id: &str) -> AgentRequest {
-    AgentRequest {
+fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<AgentRequest> {
+    std::sync::Arc::new(AgentRequest {
         id,
         session: session_id.to_string(),
         query: "执行计划".to_string(),
@@ -79,7 +79,7 @@ fn agent_request(id: u64, session_id: &str) -> AgentRequest {
         workflow_mode_enabled: true,
         goal_mode_enabled: false,
         history: Vec::new(),
-    }
+    })
 }
 
 fn queue_item(query: &str) -> QueueItem {

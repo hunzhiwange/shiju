@@ -133,8 +133,8 @@ fn initial_session_title_uses_only_trimmed_first_line() {
     assert_eq!(super::initial_session_title_for_input(" \n\t "), "新会话");
 }
 
-fn agent_request(id: u64, session: &str) -> crate::app::AgentRequest {
-    crate::app::AgentRequest {
+fn agent_request(id: u64, session: &str) -> std::sync::Arc<crate::app::AgentRequest> {
+    std::sync::Arc::new(crate::app::AgentRequest {
         id,
         session: session.to_string(),
         query: "active".to_string(),
@@ -155,7 +155,7 @@ fn agent_request(id: u64, session: &str) -> crate::app::AgentRequest {
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
         history: Vec::new(),
-    }
+    })
 }
 
 #[test]

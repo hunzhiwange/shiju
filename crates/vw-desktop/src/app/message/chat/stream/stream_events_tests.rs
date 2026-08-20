@@ -7,6 +7,7 @@ use crate::app::components::chat_panel::virtualizer::{ChatScrollMode, ChatVirtua
 use crate::app::models::{ChatMessage, ChatRole, ThinkTiming};
 use crate::app::state::{
     AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QuickMessageHandoffState,
+    StreamTailState,
 };
 use crate::app::{Message, QueueItem};
 use std::sync::{
@@ -64,8 +65,8 @@ fn queue_item(send_behavior: ChatSendBehavior) -> QueueItem {
     }
 }
 
-fn agent_request(id: u64, session_id: &str) -> AgentRequest {
-    AgentRequest {
+fn agent_request(id: u64, session_id: &str) -> Arc<AgentRequest> {
+    Arc::new(AgentRequest {
         id,
         session: session_id.to_string(),
         query: "query".to_string(),
@@ -86,7 +87,7 @@ fn agent_request(id: u64, session_id: &str) -> AgentRequest {
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
         history: Vec::new(),
-    }
+    })
 }
 
 #[test]
@@ -343,9 +344,10 @@ fn plan_run_subtask_session_registers_streams_and_finishes_in_background() {
 #[test]
 fn update_think_timing_ignores_empty_delta() {
     let mut message = message(ChatRole::Assistant, "<think>open");
+    let state = StreamTailState::default();
     message.think_timing.push(ThinkTiming { start_ms: 1, end_ms: None, last_update_ms: 1 });
 
-    super::update_think_timing_from_delta(&mut message, "", 99);
+    super::update_think_timing_from_delta(&mut message, &state, 99);
 
     assert_eq!(message.think_timing[0].last_update_ms, 1);
     assert_eq!(message.think_timing[0].end_ms, None);
@@ -354,10 +356,47 @@ fn update_think_timing_ignores_empty_delta() {
 #[test]
 fn update_think_timing_ignores_plain_delta_without_think_blocks() {
     let mut message = message(ChatRole::Assistant, "plain");
+    let mut state = StreamTailState::default();
+    state.apply_delta(" text");
 
-    super::update_think_timing_from_delta(&mut message, " text", 42);
+    super::update_think_timing_from_delta(&mut message, &state, 42);
 
     assert!(message.think_timing.is_empty());
+}
+
+#[test]
+fn stream_tail_state_handles_split_think_tags_from_deltas() {
+    let cases = [
+        vec!["plain response"],
+        vec!["<thi", "nk>working", "</thi", "nk>done"],
+        vec!["<thinking", ">first</think", "ing><think>", "second</think>", "tail"],
+        vec!["<think>reasoning", "\ntool read\n{\"status\":\"completed\"}\n", "</think>answer"],
+    ];
+
+    for deltas in cases {
+        let mut state = StreamTailState::default();
+        let mut full_message = String::new();
+        for delta in deltas {
+            state.apply_delta(delta);
+            full_message.push_str(delta);
+        }
+
+        let (thinks, _visible, thinking_open) = crate::app::ui::chat::split_think(&full_message);
+        assert_eq!(state.think_count(), thinks.len(), "message: {full_message:?}");
+        assert_eq!(state.thinking_open(), thinking_open, "message: {full_message:?}");
+    }
+}
+
+#[test]
+fn stream_tail_height_uses_delta_without_full_message_scan() {
+    let mut state = StreamTailState::default();
+
+    state.apply_delta("short");
+    let initial_height = state.estimated_height();
+    state.apply_delta("\nsecond line\nthird line");
+
+    assert_eq!(state.processed_bytes(), "short\nsecond line\nthird line".len());
+    assert!(state.estimated_height() > initial_height);
 }
 
 #[test]
@@ -415,7 +454,7 @@ fn stream_delta_defers_session_save_off_update_path() {
 }
 
 #[test]
-fn queued_stream_deltas_are_coalesced_until_flush() {
+fn active_stream_followup_deltas_are_coalesced_until_flush() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
@@ -426,29 +465,237 @@ fn queued_stream_deltas_are_coalesced_until_flush() {
 
     let first_task = super::queue_agent_stream_delta(&mut app, 42, "hello".to_string());
     let second_task = super::queue_agent_stream_delta(&mut app, 42, " world".to_string());
+    let third_task = super::queue_agent_stream_delta(&mut app, 42, "!".to_string());
 
     assert!(first_task.units() > 0);
-    assert_eq!(second_task.units(), 0);
-    assert_eq!(app.chat.len(), 1);
-    assert_eq!(app.chat.last().unwrap().content, "question");
-    assert_eq!(app.get_session_runtime(&session_id).pending_stream_delta, "hello world");
+    assert!(second_task.units() > 0);
+    assert_eq!(third_task.units(), 0);
+    assert_eq!(app.chat.len(), 2);
+    assert_eq!(app.chat.last().unwrap().content, "hello");
+    assert_eq!(app.get_session_runtime(&session_id).pending_stream_delta, " world!");
 
     let _flush_task = super::flush_agent_stream_delta(&mut app, session_id.clone());
 
-    assert_eq!(app.chat.last().unwrap().content, "hello world");
+    assert_eq!(app.chat.last().unwrap().content, "hello world!");
     assert!(app.get_session_runtime(&session_id).pending_stream_delta.is_empty());
     assert!(!app.get_session_runtime(&session_id).stream_delta_flush_scheduled);
 }
 
 #[test]
-fn active_stream_delta_flush_interval_is_one_second() {
+fn active_stream_applies_first_delta_without_flush_timer() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "active-session".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![message(ChatRole::User, "question")];
+    app.chat_message_ids = vec![None];
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+
+    let first_task = super::queue_agent_stream_delta(&mut app, 42, "hello".to_string());
+
+    assert_eq!(app.chat.last().unwrap().content, "hello");
+    assert!(app.get_session_runtime(&session_id).pending_stream_delta.is_empty());
+    assert!(!app.get_session_runtime(&session_id).stream_delta_flush_scheduled);
+    assert!(first_task.units() > 0, "the applied delta should schedule UI and save work");
+
+    let second_task = super::queue_agent_stream_delta(&mut app, 42, " world".to_string());
+    assert_eq!(app.chat.last().unwrap().content, "hello");
+    assert_eq!(app.get_session_runtime(&session_id).pending_stream_delta, " world");
+    assert!(app.get_session_runtime(&session_id).stream_delta_flush_scheduled);
+    assert!(second_task.units() > 0, "the second delta should schedule the merge timer");
+}
+
+#[test]
+fn active_stream_terminal_flushes_pending_delta() {
+    fn active_app(request_id: u64) -> crate::app::App {
+        let (mut app, _) = crate::app::App::new();
+        let session_id = format!("active-session-{request_id}");
+        app.active_session_id = Some(session_id.clone());
+        app.sessions = vec![session_info(&session_id, "/workspace/demo", None)];
+        app.chat = vec![message(ChatRole::User, "question")];
+        app.chat_message_ids = vec![None];
+        let runtime = app.get_session_runtime_mut(&session_id);
+        runtime.is_requesting = true;
+        runtime.active_agent_request = Some(agent_request(request_id, &session_id));
+        app
+    }
+
+    fn queue_first_and_pending(app: &mut crate::app::App, request_id: u64) {
+        let session_id = app.active_session_id.clone().unwrap();
+        let _first_task =
+            super::queue_agent_stream_delta(app, request_id, "hello".to_string());
+        assert_eq!(app.chat.last().unwrap().content, "hello");
+        let _merge_timer =
+            super::queue_agent_stream_delta(app, request_id, " tail".to_string());
+        assert_eq!(app.get_session_runtime(&session_id).pending_stream_delta, " tail");
+    }
+
+    fn assert_flushed(app: &crate::app::App) {
+        let session_id = app.active_session_id.as_deref().unwrap();
+        assert_eq!(
+            app.chat.iter().find(|message| message.role == ChatRole::Assistant).unwrap().content,
+            "hello tail"
+        );
+        assert!(app.get_session_runtime(session_id).pending_stream_delta.is_empty());
+        assert!(!app.get_session_runtime(session_id).stream_delta_flush_scheduled);
+    }
+
+    let mut done_app = active_app(42);
+    queue_first_and_pending(&mut done_app, 42);
+    let _terminal_task = super::handle_agent_stream_done(
+        &mut done_app,
+        42,
+        crate::app::models::TokenUsage::default(),
+        None,
+        None,
+    );
+    assert_flushed(&done_app);
+
+    let mut error_app = active_app(43);
+    queue_first_and_pending(&mut error_app, 43);
+    let _terminal_task =
+        super::handle_agent_stream_error(&mut error_app, 43, "failed".to_string());
+    assert_flushed(&error_app);
+
+    let mut cancelled_app = active_app(44);
+    queue_first_and_pending(&mut cancelled_app, 44);
+    let _terminal_task = super::super::handle_agent_stream_cancelled(&mut cancelled_app, 44);
+    assert_flushed(&cancelled_app);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[cfg(not(target_arch = "wasm32"))]
+async fn stream_deltas_debounce_full_session_save() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "background-session".to_string();
+    app.active_session_id = Some("foreground-session".to_string());
+    app.sessions = vec![session_info(&session_id, "/workspace/demo", None)];
+    app.store_session_chat_snapshot(
+        session_id.clone(),
+        crate::app::session::shared_chat_messages(vec![message(ChatRole::User, "question")]),
+        vec![None],
+    );
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+
+    let saved_sessions = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let observed_sessions = Arc::clone(&saved_sessions);
+    let (first_save, duplicate_save, flush_save, late_flush) =
+        super::super::with_save_session_hook(
+            move |session, _| {
+                observed_sessions.lock().unwrap().push(session.clone());
+                Some(std::path::PathBuf::from("/saved/session.json"))
+            },
+            || {
+                let first_save = super::handle_agent_session_delta(
+                    &mut app,
+                    session_id.clone(),
+                    "hello".to_string(),
+                );
+                let duplicate_save = super::handle_agent_session_delta(
+                    &mut app,
+                    session_id.clone(),
+                    " world".to_string(),
+                );
+                assert!(app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+                let flush_save =
+                    super::flush_agent_stream_session_save(&mut app, session_id.clone());
+                assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+                let late_flush =
+                    super::flush_agent_stream_session_save(&mut app, session_id.clone());
+                (first_save, duplicate_save, flush_save, late_flush)
+            },
+        );
+
+    assert!(first_save.units() > 0, "the first delta should schedule a save flush");
+    assert_eq!(
+        duplicate_save.units(),
+        0,
+        "a second delta inside the debounce window must not schedule another full save"
+    );
+    assert_eq!(
+        app.cached_chat_messages(&session_id).unwrap().last().unwrap().content,
+        "hello world"
+    );
+    assert_eq!(late_flush.units(), 0, "a late timer message must be a no-op");
+
+    let _messages = collect_task_messages(flush_save).await;
+    let saved_sessions = saved_sessions.lock().unwrap();
+    assert_eq!(saved_sessions.len(), 1);
+    assert_eq!(saved_sessions[0].messages.last().unwrap().content, "hello world");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[cfg(not(target_arch = "wasm32"))]
+async fn stream_done_persists_latest_delta_and_cancels_debounce() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "background-session".to_string();
+    app.active_session_id = Some("foreground-session".to_string());
+    app.sessions = vec![session_info(&session_id, "/workspace/demo", None)];
+    app.store_session_chat_snapshot(
+        session_id.clone(),
+        crate::app::session::shared_chat_messages(vec![message(ChatRole::User, "question")]),
+        vec![None],
+    );
+    let runtime = app.get_session_runtime_mut(&session_id);
+    runtime.is_requesting = true;
+    runtime.active_agent_request = Some(agent_request(43, &session_id));
+
+    let saved_sessions = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let observed_sessions = Arc::clone(&saved_sessions);
+    let (duplicate_save, terminal_save, late_flush) = super::super::with_save_session_hook(
+        move |session, _| {
+            observed_sessions.lock().unwrap().push(session.clone());
+            Some(std::path::PathBuf::from("/saved/session.json"))
+        },
+        || {
+            let _first_save = super::handle_agent_session_delta(
+                &mut app,
+                session_id.clone(),
+                "latest".to_string(),
+            );
+            let duplicate_save = super::handle_agent_session_delta(
+                &mut app,
+                session_id.clone(),
+                " delta".to_string(),
+            );
+            let terminal_save = super::handle_agent_stream_done(
+                &mut app,
+                43,
+                crate::app::models::TokenUsage::default(),
+                None,
+                None,
+            );
+            assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+            let late_flush =
+                super::flush_agent_stream_session_save(&mut app, session_id.clone());
+            (duplicate_save, terminal_save, late_flush)
+        },
+    );
+
+    assert_eq!(duplicate_save.units(), 0);
+    assert!(terminal_save.units() > 0, "the terminal path must force a final save");
+    assert_eq!(
+        app.cached_chat_messages(&session_id).unwrap().last().unwrap().content,
+        "latest delta"
+    );
+    assert_eq!(late_flush.units(), 0, "the cancelled debounce must not save twice");
+
+    let _messages = collect_task_messages(terminal_save).await;
+    let saved_sessions = saved_sessions.lock().unwrap();
+    assert_eq!(saved_sessions.len(), 1);
+    assert_eq!(saved_sessions[0].messages.last().unwrap().content, "latest delta");
+}
+
+#[test]
+fn active_stream_delta_flush_interval_is_fifty_milliseconds() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "active-session".to_string();
     app.active_session_id = Some(session_id.clone());
 
     assert_eq!(
         super::stream_delta_flush_interval(&app, &session_id),
-        std::time::Duration::from_secs(1)
+        std::time::Duration::from_millis(50)
     );
 }
 
@@ -530,8 +777,10 @@ fn tail_message_prewarm_does_not_mark_chunk_state() {
     let first_task = super::handle_agent_stream_delta(&mut app, 42, "hello".to_string());
     let second_task = super::handle_agent_stream_delta(&mut app, 42, " world".to_string());
 
-    assert_eq!(first_task.units(), 2);
-    assert_eq!(second_task.units(), 2);
+    assert!(
+        first_task.units() > second_task.units(),
+        "only one tail prewarm should be in flight"
+    );
     assert!(app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
     assert!(app.active_session_view_state.dirty_preparing_chat_ui_chunks.is_empty());
     assert_eq!(app.chat.last().unwrap().content, "hello world");
@@ -567,10 +816,13 @@ fn active_stream_growth_preserves_turn_top_focus() {
 #[test]
 fn update_think_timing_opens_and_closes_think_block() {
     let mut message = message(ChatRole::Assistant, "");
+    let mut state = StreamTailState::default();
 
-    super::update_think_timing_from_delta(&mut message, "<think>working", 10);
+    state.apply_delta("<think>working");
+    super::update_think_timing_from_delta(&mut message, &state, 10);
     message.content.push_str("<think>working");
-    super::update_think_timing_from_delta(&mut message, "</think>done", 25);
+    state.apply_delta("</think>done");
+    super::update_think_timing_from_delta(&mut message, &state, 25);
 
     assert_eq!(message.think_timing.len(), 1);
     assert_eq!(message.think_timing[0].start_ms, 10);
@@ -581,8 +833,10 @@ fn update_think_timing_opens_and_closes_think_block() {
 #[test]
 fn update_think_timing_closes_previous_block_and_keeps_latest_open() {
     let mut message = message(ChatRole::Assistant, "");
+    let mut state = StreamTailState::default();
 
-    super::update_think_timing_from_delta(&mut message, "<think>first</think><think>second", 40);
+    state.apply_delta("<think>first</think><think>second");
+    super::update_think_timing_from_delta(&mut message, &state, 40);
 
     assert_eq!(message.think_timing.len(), 2);
     assert_eq!(message.think_timing[0].end_ms, Some(40));
@@ -766,6 +1020,7 @@ fn append_stream_delta_to_tail_appends_or_creates_assistant_message() {
         &mut assistant_ids,
         " world".to_string(),
         10,
+        &mut StreamTailState::default(),
     );
 
     assert_eq!(changed_idx, 0);
@@ -774,8 +1029,13 @@ fn append_stream_delta_to_tail_appends_or_creates_assistant_message() {
 
     let mut user_chat = vec![message(ChatRole::User, "question")];
     let mut user_ids = Vec::new();
-    let changed_idx =
-        super::append_stream_delta_to_tail(&mut user_chat, &mut user_ids, "answer".to_string(), 20);
+    let changed_idx = super::append_stream_delta_to_tail(
+        &mut user_chat,
+        &mut user_ids,
+        "answer".to_string(),
+        20,
+        &mut StreamTailState::default(),
+    );
 
     assert_eq!(changed_idx, 1);
     assert_eq!(user_chat[1].role, ChatRole::Assistant);

@@ -7,19 +7,23 @@ use super::{
 use crate::app::message::ProjectMessage;
 use crate::app::message::chat::scroll_chat_to_bottom_task;
 use crate::app::message::chat::session as chat_session;
-use crate::app::state::{ChatSendBehavior, QuickMessageGitCommitAction, QuickMessageHandoffState};
+use crate::app::state::{
+    ChatSendBehavior, QuickMessageGitCommitAction, QuickMessageHandoffState, StreamTailState,
+};
 use crate::app::ui::chat;
 use crate::app::{App, Message, QueueItem, models};
 use iced::Task;
 use serde::Deserialize;
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::info;
 use vw_shared::message::types as message;
 use vw_shared::session::info as session_info;
 
 /// 将连续的模型增量合并后再交给 UI，避免每个 token 都触发重排、预热和保存。
-pub(super) const ACTIVE_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_secs(1);
+pub(super) const ACTIVE_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(50);
 pub(super) const BACKGROUND_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(100);
+pub(super) const STREAM_SESSION_SAVE_FLUSH_INTERVAL: Duration = Duration::from_secs(1);
 
 pub(super) fn stream_delta_flush_interval(app: &App, session_id: &str) -> Duration {
     if app.active_session_id.as_deref() == Some(session_id) {
@@ -29,16 +33,12 @@ pub(super) fn stream_delta_flush_interval(app: &App, session_id: &str) -> Durati
     }
 }
 
-fn update_think_timing_from_delta(message: &mut models::ChatMessage, delta: &str, now: u64) {
-    if delta.is_empty() {
-        return;
-    }
-    let mut combined = String::with_capacity(message.content.len() + delta.len());
-    combined.push_str(&message.content);
-    combined.push_str(delta);
-
-    let (thinks, _visible, thinking_open) = chat::split_think(&combined);
-    let think_count = thinks.len();
+fn update_think_timing_from_delta(
+    message: &mut models::ChatMessage,
+    tail_state: &StreamTailState,
+    now: u64,
+) {
+    let think_count = tail_state.think_count();
 
     if message.think_timing.len() < think_count {
         for _ in message.think_timing.len()..think_count {
@@ -54,7 +54,7 @@ fn update_think_timing_from_delta(message: &mut models::ChatMessage, delta: &str
         return;
     }
 
-    if thinking_open {
+    if tail_state.thinking_open() {
         let last_index = message.think_timing.len().saturating_sub(1);
         for (idx, entry) in message.think_timing.iter_mut().enumerate() {
             if idx == last_index {
@@ -74,6 +74,72 @@ fn update_think_timing_from_delta(message: &mut models::ChatMessage, delta: &str
             }
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct TerminalTailCalibration {
+    message_idx: usize,
+    think_count: usize,
+    thinking_open: bool,
+    estimated_height: f32,
+}
+
+fn calibrate_stream_tail_at_terminal(
+    app: &mut App,
+    session_id: &str,
+    chat: &mut [models::ChatMessage],
+    now: u64,
+) -> Option<TerminalTailCalibration> {
+    let message_idx = app
+        .get_session_runtime(session_id)
+        .stream_tail_state
+        .message_idx()
+        .filter(|idx| {
+            chat.get(*idx).is_some_and(|message| message.role == models::ChatRole::Assistant)
+        })
+        .or_else(|| {
+            chat.iter().rposition(|message| message.role == models::ChatRole::Assistant)
+        })?;
+    let message = &mut chat[message_idx];
+    let (thinks, _visible, thinking_open) = chat::split_think(&message.content);
+    let estimated_height =
+        crate::app::components::chat_panel::message_view::estimate_message_height_rough(
+            &message.content,
+        );
+    message.think_timing.truncate(thinks.len());
+    let calibrated_state = {
+        let state = &mut app.get_session_runtime_mut(session_id).stream_tail_state;
+        state.calibrate(
+            message_idx,
+            message.content.len(),
+            thinks.len(),
+            thinking_open,
+            estimated_height,
+        );
+        state.advance_ui_generation();
+        state.clone()
+    };
+    update_think_timing_from_delta(message, &calibrated_state, now);
+    app.get_session_runtime_mut(session_id).stream_tail_state.clear_tail();
+    Some(TerminalTailCalibration {
+        message_idx,
+        think_count: thinks.len(),
+        thinking_open,
+        estimated_height,
+    })
+}
+
+fn apply_active_terminal_tail_calibration(app: &mut App, calibration: TerminalTailCalibration) {
+    app.chat_stream_think_msg_idx = Some(calibration.message_idx);
+    app.chat_stream_think_count = calibration.think_count;
+    app.chat_stream_think_open_idx = calibration
+        .thinking_open
+        .then(|| calibration.think_count.saturating_sub(1))
+        .filter(|_| calibration.think_count > 0);
+    app.apply_stream_tail_estimated_height(
+        calibration.message_idx,
+        calibration.estimated_height,
+    );
 }
 
 fn apply_stream_done_message_ids(
@@ -300,12 +366,15 @@ fn append_stream_delta_to_tail(
     message_ids: &mut Vec<Option<String>>,
     delta: String,
     now: u64,
+    tail_state: &mut StreamTailState,
 ) -> usize {
     if let Some(last_idx) = chat.len().checked_sub(1)
         && chat[last_idx].role == models::ChatRole::Assistant
     {
         let last = &mut chat[last_idx];
-        update_think_timing_from_delta(last, &delta, now);
+        tail_state.begin_message(last_idx);
+        tail_state.apply_delta(&delta);
+        update_think_timing_from_delta(last, tail_state, now);
         if !last.content.is_empty() && !last.content.ends_with('\n') && delta.starts_with("tool ") {
             last.content.push('\n');
         }
@@ -316,16 +385,18 @@ fn append_stream_delta_to_tail(
     if message_ids.len() < chat.len() {
         message_ids.resize(chat.len(), None);
     }
+    tail_state.begin_message(chat.len());
+    tail_state.apply_delta(&delta);
     chat.push(models::ChatMessage {
         role: models::ChatRole::Assistant,
-        content: delta.clone(),
+        content: delta,
         model: None,
         think_timing: Vec::new(),
         processing_timing: None,
     });
     message_ids.push(None);
     let last_idx = chat.len() - 1;
-    update_think_timing_from_delta(&mut chat[last_idx], &delta, now);
+    update_think_timing_from_delta(&mut chat[last_idx], tail_state, now);
     last_idx
 }
 
@@ -367,17 +438,23 @@ fn finish_active_stream_tail_update(
     app.session_chat_message_id_cache.remove(&session_id);
     prepare_scroll_for_active_stream_growth(app);
     app.sync_task_pet_from_runtime();
-    app.sync_chat_message_estimated_heights_len();
+    let (estimated_height, stream_generation) = {
+        let tail_state = &mut app.get_session_runtime_mut(&session_id).stream_tail_state;
+        tail_state.advance_ui_generation();
+        (tail_state.estimated_height(), tail_state.begin_ui_preparation())
+    };
+    app.apply_stream_tail_estimated_height(changed_idx, estimated_height);
 
     let mut tail_prewarm_task = Task::none();
-    let mut should_snap_to_bottom = false;
-    if let Some(message) = app.chat.get(changed_idx).cloned() {
-        app.refine_chat_message_estimated_heights(changed_idx, changed_idx + 1);
-        should_snap_to_bottom = app.chat_virtualizer.should_follow_tail_after_growth();
+    let should_snap_to_bottom = app.chat_virtualizer.should_follow_tail_after_growth();
+    if let Some(stream_generation) = stream_generation
+        && let Some(message) = app.chat.get(changed_idx).cloned()
+    {
         tail_prewarm_task = crate::app::message::project::prepare_stream_message_ui_task(
             session_id.clone(),
             message,
             changed_idx,
+            stream_generation,
             app.dialogue_flow_show_reasoning_summary,
         );
     }
@@ -385,15 +462,90 @@ fn finish_active_stream_tail_update(
     app.active_session_view_state.updated_ms = now;
     app.refresh_active_session_tail_message_meta(changed_idx);
 
-    let mut session = load_session_or_default(app, session_id.clone());
-    session.updated_ms = now;
-    let save_task = save_session_task(session, session_directory_for_save(app, &session_id));
+    let save_task = schedule_agent_stream_session_save(app, &session_id);
 
     if should_snap_to_bottom {
         Task::batch(vec![scroll_chat_to_bottom_task(app), tail_prewarm_task, save_task])
     } else {
         Task::batch(vec![tail_prewarm_task, save_task])
     }
+}
+
+fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<Message> {
+    let schedule_flush = {
+        let runtime = app.get_session_runtime_mut(session_id);
+        if runtime.stream_save_flush_scheduled {
+            false
+        } else {
+            runtime.stream_save_flush_scheduled = true;
+            true
+        }
+    };
+
+    if schedule_flush {
+        crate::app::message::after(
+            STREAM_SESSION_SAVE_FLUSH_INTERVAL,
+            Message::Chat(super::ChatMessage::AgentStreamSessionSaveFlush(
+                session_id.to_string(),
+            )),
+        )
+    } else {
+        Task::none()
+    }
+}
+
+pub(super) fn flush_agent_stream_session_save(
+    app: &mut App,
+    session_id: String,
+) -> Task<Message> {
+    let should_save = {
+        let runtime = app.get_session_runtime_mut(&session_id);
+        std::mem::take(&mut runtime.stream_save_flush_scheduled)
+    };
+    if !should_save {
+        return Task::none();
+    }
+
+    save_latest_agent_stream_session(app, &session_id)
+}
+
+fn clear_agent_stream_session_save_flush(app: &mut App, session_id: &str) {
+    app.get_session_runtime_mut(session_id).stream_save_flush_scheduled = false;
+}
+
+fn save_latest_agent_stream_session(app: &App, session_id: &str) -> Task<Message> {
+    let mut session = load_session_or_default(app, session_id.to_string());
+    session.updated_ms = now_ms();
+    save_session_task(session, session_directory_for_save(app, session_id))
+}
+
+pub(super) fn force_save_agent_stream_session(app: &mut App, session_id: &str) -> Task<Message> {
+    clear_agent_stream_session_save_flush(app, session_id);
+    let now = now_ms();
+    if app.active_session_id.as_deref() == Some(session_id) {
+        let mut chat = std::mem::take(&mut app.chat);
+        let calibration = calibrate_stream_tail_at_terminal(app, session_id, &mut chat, now);
+        app.chat = chat;
+        if let Some(calibration) = calibration {
+            apply_active_terminal_tail_calibration(app, calibration);
+        }
+    } else if let Some(cached) = app.session_chat_cache.get(session_id).cloned() {
+        let mut chat = cached.iter().cloned().collect::<Vec<_>>();
+        let calibration = calibrate_stream_tail_at_terminal(app, session_id, &mut chat, now);
+        if calibration.is_some() {
+            let message_ids = app
+                .session_chat_message_id_cache
+                .get(session_id)
+                .cloned()
+                .unwrap_or_else(|| vec![None; chat.len()]);
+            app.store_session_chat_snapshot(
+                session_id.to_string(),
+                crate::app::session::shared_chat_messages(chat),
+                message_ids,
+            );
+        }
+    }
+    save_latest_agent_stream_session(app, session_id)
 }
 
 pub(super) fn queue_agent_stream_delta(app: &mut App, id: u64, delta: String) -> Task<Message> {
@@ -411,6 +563,24 @@ pub(super) fn queue_agent_session_delta(
 ) -> Task<Message> {
     if delta.is_empty() {
         return Task::none();
+    }
+
+    let is_active = app.active_session_id.as_deref() == Some(session_id.as_str());
+    let immediate_delta = if is_active {
+        let runtime = app.get_session_runtime_mut(&session_id);
+        if runtime.stream_tail_state.message_idx().is_none() {
+            runtime.stream_delta_flush_scheduled = false;
+            let mut immediate_delta = std::mem::take(&mut runtime.pending_stream_delta);
+            immediate_delta.push_str(&delta);
+            Some(immediate_delta)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    if let Some(immediate_delta) = immediate_delta {
+        return apply_agent_session_delta(app, session_id, immediate_delta);
     }
 
     let flush_interval = stream_delta_flush_interval(app, &session_id);
@@ -473,38 +643,43 @@ pub(super) fn handle_agent_session_delta(
 fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -> Task<Message> {
     let now = now_ms();
     let is_active = app.active_session_id.as_ref() == Some(&session_id);
+    let mut tail_state = {
+        let runtime = app.get_session_runtime_mut(&session_id);
+        std::mem::take(&mut runtime.stream_tail_state)
+    };
     if is_active {
-        let changed_idx =
-            append_stream_delta_to_tail(&mut app.chat, &mut app.chat_message_ids, delta, now);
+        let changed_idx = append_stream_delta_to_tail(
+            &mut app.chat,
+            &mut app.chat_message_ids,
+            delta,
+            now,
+            &mut tail_state,
+        );
+        app.get_session_runtime_mut(&session_id).stream_tail_state = tail_state;
         return finish_active_stream_tail_update(app, session_id, changed_idx, now);
     }
 
-    let mut live_chat: Vec<models::ChatMessage> =
-        if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
-            cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
-        } else {
-            load_session_or_default(app, session_id.clone()).messages
-        };
+    let mut live_chat: Vec<models::ChatMessage> = app
+        .session_chat_cache
+        .get(&session_id)
+        .map(|cached| cached.iter().cloned().collect())
+        .unwrap_or_default();
     let mut live_ids = app
         .session_chat_message_id_cache
         .get(&session_id)
         .cloned()
         .unwrap_or_else(|| vec![None; live_chat.len()]);
 
-    append_stream_delta_to_tail(&mut live_chat, &mut live_ids, delta, now);
+    append_stream_delta_to_tail(&mut live_chat, &mut live_ids, delta, now, &mut tail_state);
+    app.get_session_runtime_mut(&session_id).stream_tail_state = tail_state;
 
     app.store_session_chat_snapshot(
         session_id.clone(),
-        crate::app::session::shared_chat_messages(live_chat.clone()),
-        live_ids.clone(),
+        crate::app::session::shared_chat_messages(live_chat),
+        live_ids,
     );
-
-    let mut session = load_session_or_default(app, session_id.clone());
-    session.messages = live_chat.clone();
-    session.message_ids = live_ids;
-    session.updated_ms = now;
     app.sync_task_pet_from_runtime();
-    save_session_task(session, session_directory_for_save(app, &session_id))
+    schedule_agent_stream_session_save(app, &session_id)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -597,13 +772,14 @@ pub(super) fn handle_plan_run_session_finished(app: &mut App, session_id: String
     if session_id.trim().is_empty() {
         return Task::none();
     }
-    let flush_task = flush_agent_stream_delta(app, session_id.clone());
+    let _ = flush_agent_stream_delta(app, session_id.clone());
+    let save_task = force_save_agent_stream_session(app, &session_id);
     app.get_session_runtime_mut(&session_id).is_requesting = false;
     app.sync_task_pet_from_runtime();
     if app.active_session_id.as_ref() == Some(&session_id) {
         app.sync_active_session_from_chat();
     }
-    flush_task
+    save_task
 }
 
 /// 模块内可见函数，执行 handle_agent_workflow_node_update 对应的应用流程。
@@ -629,28 +805,43 @@ fn handle_agent_tool_blocks_update(
     };
 
     // 工具事件必须排在尚未刷新的正文之后，避免合并窗口改变消息顺序。
-    let _ = flush_agent_stream_delta(app, session_id.clone());
+    let delta_task = flush_agent_stream_delta(app, session_id.clone());
 
     let now = now_ms();
     let is_active = app.active_session_id.as_ref() == Some(&session_id);
+    let mut tail_state = {
+        let runtime = app.get_session_runtime_mut(&session_id);
+        std::mem::take(&mut runtime.stream_tail_state)
+    };
     if is_active {
         let mut changed_idx = app.chat.len().saturating_sub(1);
         for raw_tool_block in raw_tool_blocks {
+            let target_idx = app
+                .chat
+                .last()
+                .is_some_and(|message| message.role == models::ChatRole::Assistant)
+                .then_some(app.chat.len().saturating_sub(1))
+                .unwrap_or(app.chat.len());
+            tail_state.begin_message(target_idx);
+            tail_state.apply_delta(&raw_tool_block);
             changed_idx = upsert_workflow_tool_to_tail(
                 &mut app.chat,
                 &mut app.chat_message_ids,
                 raw_tool_block,
             );
         }
-        return finish_active_stream_tail_update(app, session_id, changed_idx, now);
+        app.get_session_runtime_mut(&session_id).stream_tail_state = tail_state;
+        return Task::batch([
+            delta_task,
+            finish_active_stream_tail_update(app, session_id, changed_idx, now),
+        ]);
     }
 
-    let mut live_chat: Vec<models::ChatMessage> =
-        if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
-            cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
-        } else {
-            load_session_or_default(app, session_id.clone()).messages
-        };
+    let mut live_chat: Vec<models::ChatMessage> = app
+        .session_chat_cache
+        .get(&session_id)
+        .map(|cached| cached.iter().cloned().collect())
+        .unwrap_or_default();
     let mut live_ids = app
         .session_chat_message_id_cache
         .get(&session_id)
@@ -658,21 +849,24 @@ fn handle_agent_tool_blocks_update(
         .unwrap_or_else(|| vec![None; live_chat.len()]);
 
     for raw_tool_block in raw_tool_blocks {
+        let target_idx = live_chat
+            .last()
+            .is_some_and(|message| message.role == models::ChatRole::Assistant)
+            .then_some(live_chat.len().saturating_sub(1))
+            .unwrap_or(live_chat.len());
+        tail_state.begin_message(target_idx);
+        tail_state.apply_delta(&raw_tool_block);
         upsert_workflow_tool_to_tail(&mut live_chat, &mut live_ids, raw_tool_block);
     }
+    app.get_session_runtime_mut(&session_id).stream_tail_state = tail_state;
 
     app.store_session_chat_snapshot(
         session_id.clone(),
-        crate::app::session::shared_chat_messages(live_chat.clone()),
-        live_ids.clone(),
+        crate::app::session::shared_chat_messages(live_chat),
+        live_ids,
     );
-
-    let mut session = load_session_or_default(app, session_id.clone());
-    session.messages = live_chat.clone();
-    session.message_ids = live_ids;
-    session.updated_ms = now;
     app.sync_task_pet_from_runtime();
-    save_session_task(session, session_directory_for_save(app, &session_id))
+    Task::batch([delta_task, schedule_agent_stream_session_save(app, &session_id)])
 }
 
 fn instruction_read_tool_block(path: &str) -> String {
@@ -717,6 +911,7 @@ pub(super) fn handle_agent_stream_done(
         return Task::none();
     };
     let _ = flush_agent_stream_delta(app, session_id.clone());
+    clear_agent_stream_session_save_flush(app, &session_id);
     crate::app::state::clear_pending_guide_handoff(id);
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
     let completed_ms = now_ms();
@@ -746,6 +941,8 @@ pub(super) fn handle_agent_stream_done(
         elapsed.processing_ms,
         elapsed.llm_ms,
     );
+    let terminal_tail =
+        calibrate_stream_tail_at_terminal(app, &session_id, &mut persisted_chat, completed_ms);
     let handoff_task = complete_quick_message_handoff(app, id, &session_id, &persisted_chat);
     let mut persisted_ids = if is_active_session {
         app.chat_message_ids.clone()
@@ -777,6 +974,9 @@ pub(super) fn handle_agent_stream_done(
         app.chat_message_ids = persisted_ids.clone();
         app.usage = usage;
         app.last_call_log_path = None;
+        if let Some(calibration) = terminal_tail {
+            apply_active_terminal_tail_calibration(app, calibration);
+        }
     }
 
     let mut local_session = load_session_or_default(app, session_id.clone());
@@ -920,9 +1120,10 @@ pub(super) fn handle_agent_post_tool_round(
     }
 
     let _ = flush_agent_stream_delta(app, session_id.clone());
+    clear_agent_stream_session_save_flush(app, &session_id);
 
     let runtime = app.get_session_runtime(&session_id);
-    let Some(active_request) = runtime.active_agent_request.clone() else {
+    let Some(active_request) = runtime.active_agent_request.as_ref().map(Arc::clone) else {
         return Task::none();
     };
     let subagent_mode_enabled = runtime.subagent_mode_enabled;
@@ -1051,6 +1252,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         return app.show_error_toast(display_err);
     };
     let _ = flush_agent_stream_delta(app, session_id.clone());
+    clear_agent_stream_session_save_flush(app, &session_id);
     crate::app::state::clear_pending_guide_handoff(id);
     let is_active_session = app.active_session_id.as_ref() == Some(&session_id);
     let completed_ms = now_ms();
@@ -1090,6 +1292,8 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         elapsed.processing_ms,
         elapsed.llm_ms,
     );
+    let terminal_tail =
+        calibrate_stream_tail_at_terminal(app, &session_id, &mut persisted_chat, completed_ms);
     persisted_chat.push(models::ChatMessage {
         role: models::ChatRole::System,
         content: display_err,
@@ -1107,6 +1311,9 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     if is_active_session {
         app.chat = persisted_chat.clone();
         app.chat_message_ids = persisted_ids.clone();
+        if let Some(calibration) = terminal_tail {
+            apply_active_terminal_tail_calibration(app, calibration);
+        }
         app.sync_active_session_from_chat();
     }
 

@@ -2,6 +2,7 @@
 //! 本模块集中注册定时器、网关轮询和窗口事件，保持订阅来源可审计。
 
 use iced::Subscription;
+use std::sync::Arc;
 
 use super::agent_stream::agent_stream;
 use super::message;
@@ -116,30 +117,18 @@ impl App {
     /// 公开函数，执行 subscription 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn subscription(&self) -> Subscription<Message> {
-        let mut agent_reqs = Vec::new();
-        if let Some(active_id) = &self.active_session_id
-            && let Some(req) = self
-                .session_runtime_states
-                .get(active_id)
-                .and_then(|s| s.active_agent_request.clone())
-        {
-            agent_reqs.push(req);
-        }
-        for (session_id, runtime) in &self.session_runtime_states {
-            if self.active_session_id.as_ref() == Some(session_id) {
-                continue;
-            }
-            if let Some(req) = runtime.active_agent_request.clone() {
-                agent_reqs.push(req);
-            }
-        }
+        let agent_reqs = collect_agent_subscription_requests(self);
 
         let agent = if agent_reqs.is_empty() {
             Subscription::none()
         } else {
             let subs = agent_reqs
                 .into_iter()
-                .map(|req| Subscription::run_with(req, agent_stream))
+                .map(|req| {
+                    Subscription::run_with(req, |req: &Arc<crate::app::AgentRequest>| {
+                        agent_stream(req)
+                    })
+                })
                 .collect::<Vec<_>>();
             Subscription::batch(subs)
         };
@@ -276,6 +265,27 @@ impl App {
             gateway_health_tick,
         ])
     }
+}
+
+fn collect_agent_subscription_requests(app: &App) -> Vec<Arc<crate::app::AgentRequest>> {
+    let mut requests = Vec::new();
+    if let Some(active_id) = &app.active_session_id
+        && let Some(request) = app
+            .session_runtime_states
+            .get(active_id)
+            .and_then(|runtime| runtime.active_agent_request.as_ref().map(Arc::clone))
+    {
+        requests.push(request);
+    }
+    for (session_id, runtime) in &app.session_runtime_states {
+        if app.active_session_id.as_ref() == Some(session_id) {
+            continue;
+        }
+        if let Some(request) = runtime.active_agent_request.as_ref().map(Arc::clone) {
+            requests.push(request);
+        }
+    }
+    requests
 }
 
 pub(super) fn workflow_run_subscription_request(

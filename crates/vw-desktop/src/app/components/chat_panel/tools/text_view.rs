@@ -39,6 +39,18 @@ pub(super) fn tool_text_failure_title(label: &str) -> String {
     format!("{label} 失败")
 }
 
+pub(super) fn tool_text_detail_message(
+    msg_idx: usize,
+    tool_idx: usize,
+    visible: &str,
+) -> Message {
+    Message::Chat(message::ChatMessage::OpenToolDetail(
+        msg_idx,
+        tool_idx,
+        visible.to_string(),
+    ))
+}
+
 pub(super) fn workflow_preview_message(tool_name: &str, value: &Value) -> Option<Message> {
     if canonical_tool_name(tool_name) != "workflow_node" {
         return None;
@@ -205,11 +217,7 @@ pub fn tool_text_view<'a>(
     )
     .padding([2, 4])
     .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
-    .on_press(Message::Chat(message::ChatMessage::OpenToolDetail(
-        msg_idx,
-        tool_idx,
-        visible.to_string(),
-    )));
+    .on_press(tool_text_detail_message(msg_idx, tool_idx, visible));
     let detail_button: Element<'a, Message> =
         if is_hovered { detail_btn.into() } else { Space::new().width(Length::Fixed(22.0)).into() };
     let detail_slot: Element<'a, Message> =

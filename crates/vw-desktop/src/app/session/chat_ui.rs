@@ -461,6 +461,18 @@ impl App {
         self.sync_chat_scroll_compat_fields();
     }
 
+    pub(crate) fn apply_stream_tail_estimated_height(
+        &mut self,
+        message_idx: usize,
+        estimated_height: f32,
+    ) {
+        self.sync_active_session_user_question_index();
+        self.chat_virtualizer.sync_len(self.chat.len(), CHAT_INITIAL_MESSAGE_HEIGHT);
+        self.chat_message_measured_heights.remove(&message_idx);
+        self.chat_virtualizer.apply_measured_height(message_idx, estimated_height);
+        self.sync_chat_virtualizer_compat_fields();
+    }
+
     pub(crate) fn sync_chat_scroll_compat_fields(&mut self) {
         self.chat_scroll_offset_y = self.chat_virtualizer.relative_y();
         self.chat_scroll_viewport_h = self.chat_virtualizer.viewport_height_px();

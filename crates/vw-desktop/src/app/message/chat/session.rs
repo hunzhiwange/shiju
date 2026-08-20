@@ -652,7 +652,6 @@ fn save_session_task(session: models::ChatSession, directory: Option<String>) ->
     stream::save_session_task(session, directory)
 }
 
-#[cfg(target_arch = "wasm32")]
 fn save_agent_session_scoped_task(info: session::Info, scope: Option<String>) -> Task<Message> {
     Task::perform(
         async move {
@@ -669,12 +668,6 @@ fn save_agent_session_scoped_task(info: session::Info, scope: Option<String>) ->
             Message::Chat(ChatMessage::SessionSaveAck)
         },
     )
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn save_agent_session_scoped_task(info: session::Info, scope: Option<String>) -> Task<Message> {
-    let _ = crate::app::session_gateway::gateway_save_agent_session_scoped(&info, scope.as_deref());
-    Task::none()
 }
 
 fn restore_cached_chat_for_session(app: &mut App, session_id: &str) {

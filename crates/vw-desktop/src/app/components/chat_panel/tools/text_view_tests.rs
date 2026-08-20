@@ -1,11 +1,7 @@
 use super::text_view::{
-    copy_content_hash, tool_text_expanded, tool_text_header_label, tool_text_view,
-    workflow_preview_message,
+    tool_text_failure_title, tool_text_header_label, tool_text_view, workflow_preview_message,
 };
-use super::tool_text_key;
 use crate::app::{App, Message};
-use iced::widget::text_editor;
-use web_time::{Duration as WebDuration, SystemTime as WebSystemTime};
 
 fn app() -> App {
     App::new().0
@@ -17,26 +13,10 @@ fn text_view_test_module_is_linked() {
 }
 
 #[test]
-fn copy_hash_is_stable_and_content_sensitive() {
-    assert_eq!(copy_content_hash("same"), copy_content_hash("same"));
-    assert_ne!(copy_content_hash("same"), copy_content_hash("different"));
-}
-
-#[test]
 fn text_tool_header_includes_canonical_tool_name() {
     assert_eq!(tool_text_header_label("rustcodegraph", "工具"), "工具 rustcodegraph");
     assert_eq!(tool_text_header_label("shell", "运行"), "运行 bash");
-}
-
-#[test]
-fn text_tool_result_is_collapsed_until_user_expands_it() {
-    let mut app = app();
-    let key = (3_u64 << 32) | 4;
-
-    assert!(!tool_text_expanded(&app, key, true));
-    app.chat_tool_expanded.insert(key);
-    assert!(tool_text_expanded(&app, key, true));
-    assert!(!tool_text_expanded(&app, key, false));
+    assert_eq!(tool_text_failure_title("工具 rustcodegraph"), "工具 rustcodegraph 失败");
 }
 
 #[test]
@@ -175,57 +155,13 @@ fn text_view_builds_cards_from_result_content_and_render_hint_summary() {
 }
 
 #[test]
-fn text_view_handles_context_menu_workflow_preview_and_text_editors() {
-    let mut app = app();
+fn text_view_builds_workflow_preview_card() {
+    let app = app();
     let msg_idx = 3;
     let tool_idx = 4;
-    app.chat_context_menu_target = Some((msg_idx as u64) << 32 | ((tool_idx as u64) + 1));
-    app.chat_context_menu_pos = Some((24.0, 48.0));
-    app.chat_tool_text_editors.insert(
-        tool_text_key(msg_idx, tool_idx, 0),
-        text_editor::Content::with_text("editor output"),
-    );
 
     let visible = r#"tool workflow_node
 {"status":"completed","input":"{\"node\":\"alpha\"}","output":"workflow output","metadata":{"workflow_yaml":"nodes: []","node_id":"alpha"}}"#;
-
-    assert!(tool_text_view(&app, msg_idx, tool_idx, visible).is_some());
-}
-
-#[test]
-fn text_view_context_menu_prefers_selected_tool_editor_text() {
-    let mut app = app();
-    let msg_idx = 7;
-    let tool_idx = 8;
-    let context_key = (msg_idx as u64) << 32 | ((tool_idx as u64) + 1);
-    let editor_key = tool_text_key(msg_idx, tool_idx, 0);
-    app.chat_context_menu_target = Some(context_key);
-    app.chat_tool_text_editors
-        .insert(editor_key, text_editor::Content::with_text("selected output text"));
-    app.chat_tool_text_editors
-        .get_mut(&editor_key)
-        .expect("editor")
-        .perform(text_editor::Action::SelectAll);
-
-    let visible = r#"tool grep
-{"status":"completed","input":"{}","output":"fallback output"}"#;
-
-    assert!(tool_text_view(&app, msg_idx, tool_idx, visible).is_some());
-}
-
-#[test]
-fn text_view_error_card_uses_recent_copy_and_editor_paths() {
-    let mut app = app();
-    let msg_idx = 4;
-    let tool_idx = 5;
-    let error_text = "failed hard";
-    app.last_copied_code_hash = Some(copy_content_hash(error_text));
-    app.last_copy_time = Some(WebSystemTime::now() - WebDuration::from_millis(500));
-    app.chat_tool_text_editors
-        .insert(tool_text_key(msg_idx, tool_idx, 0), text_editor::Content::with_text(error_text));
-
-    let visible = r#"tool grep
-{"status":"error","input":"{}","error":"failed hard"}"#;
 
     assert!(tool_text_view(&app, msg_idx, tool_idx, visible).is_some());
 }

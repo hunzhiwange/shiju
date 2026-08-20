@@ -249,6 +249,44 @@ fn session_messages_loaded_preserves_parent_order_after_completion_refresh() {
 }
 
 #[test]
+fn session_messages_loaded_same_content_preserves_scroll_and_ui_cache() {
+    let mut app = app();
+    app.active_session_id = Some("session-1".to_string());
+    let messages = vec![
+        text_message(assistant_info_at_with_parent("assistant-1", "user-1", 1_000), "answer"),
+        text_message(user_info_at("user-1", 900), "question"),
+    ];
+    let (live_chat, _) = loaded_chat_from_gateway_messages(messages.clone());
+    app.chat = live_chat;
+    app.chat_message_ids = vec![None; app.chat.len()];
+    app.chat_virtualizer.sync_len(app.chat.len(), 120.0);
+    app.chat_virtualizer.set_viewport_height(100.0);
+    app.chat_virtualizer.focus_turn_on_user(0);
+    app.active_session_view_state.base_ready = true;
+    app.chat_render_cache.insert(0, Default::default());
+    let previous_scroll_id = app.chat_scroll_id.clone();
+
+    let _ = super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionMessagesLoaded(Ok((
+            "session-1".to_string(),
+            messages,
+            crate::app::models::TokenUsage::default(),
+        ))),
+    );
+
+    assert_eq!(app.chat_scroll_id, previous_scroll_id);
+    assert_eq!(app.chat_virtualizer.turn_focus_user_index(), Some(0));
+    assert!(app.active_session_view_state.base_ready);
+    assert!(!app.active_session_view_state.ui_preparing);
+    assert!(app.chat_render_cache.contains_key(&0));
+    assert_eq!(
+        app.chat_message_ids,
+        vec![Some("user-1".to_string()), Some("assistant-1".to_string())]
+    );
+}
+
+#[test]
 fn loaded_chat_from_gateway_messages_splits_tool_parts_into_tool_rows() {
     let mut metadata = Map::new();
     metadata.insert("summary".to_string(), Value::String("2 次匹配".to_string()));

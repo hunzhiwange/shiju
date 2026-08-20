@@ -1215,14 +1215,43 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             }
                         };
 
+                        let next_ids = if next_chat.len() == next_ids.len() {
+                            next_ids
+                        } else {
+                            vec![None; next_chat.len()]
+                        };
+                        let same_visible_history = app.chat.len() == next_chat.len()
+                            && app.chat.iter().zip(&next_chat).all(|(current, loaded)| {
+                                current.role == loaded.role && current.content == loaded.content
+                            });
+                        if same_visible_history {
+                            app.chat_message_ids = next_ids;
+                            let shared_chat =
+                                crate::app::session::shared_chat_messages(app.chat.clone());
+                            app.store_session_chat_snapshot(
+                                id.clone(),
+                                shared_chat,
+                                app.chat_message_ids.clone(),
+                            );
+                            app.usage = usage;
+                            if !loaded_steps.is_empty() {
+                                app.replace_active_session_steps(loaded_steps);
+                            }
+                            if restored_session_model {
+                                app.sync_active_session_preferences();
+                            }
+                            app.rebuild_active_session_message_meta();
+                            return Some(
+                                crate::app::message::chat::refresh_active_trajectory_raw_task(
+                                    app, &id,
+                                ),
+                            );
+                        }
+
                         let shared_chat = crate::app::session::shared_chat_messages(next_chat);
                         app.chat_scroll_id = iced::widget::Id::unique();
                         app.chat = shared_chat.iter().cloned().collect();
-                        app.chat_message_ids = if app.chat.len() == next_ids.len() {
-                            next_ids
-                        } else {
-                            vec![None; app.chat.len()]
-                        };
+                        app.chat_message_ids = next_ids;
                         app.store_session_chat_snapshot(
                             id.clone(),
                             shared_chat.clone(),

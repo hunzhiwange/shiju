@@ -1311,6 +1311,27 @@ fn send_starts_turn_focused_on_new_user_message() {
 }
 
 #[test]
+fn start_new_session_appends_user_message_before_background_gateway_save() {
+    let (mut app, _task) = crate::app::App::new();
+    app.project_id = Some("project-1".to_string());
+    app.project_path = Some("/repo".to_string());
+
+    let task = super::start(
+        &mut app,
+        queue_item("first question", crate::app::state::ChatSendBehavior::Queue),
+        false,
+    );
+
+    assert!(app.active_session_id.is_some());
+    assert_eq!(app.chat.len(), 2);
+    assert_eq!(app.chat[0].role, crate::app::models::ChatRole::User);
+    assert_eq!(app.chat[0].content, "first question");
+    assert_eq!(app.chat[1].role, crate::app::models::ChatRole::Assistant);
+    assert!(app.current_session_is_requesting());
+    assert!(task.units() >= 4, "gateway persistence must remain a background task");
+}
+
+#[test]
 fn start_without_project_reports_error_before_creating_session() {
     let (mut app, _task) = crate::app::App::new();
 

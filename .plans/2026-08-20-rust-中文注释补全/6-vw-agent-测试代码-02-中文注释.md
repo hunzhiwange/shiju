@@ -1,0 +1,159 @@
+# 任务 6: 补充 vw-agent 测试代码第 2 组的中文注释
+
+批次：【批次 1】 无
+
+状态：未开始
+
+目的：为清单中的 97 个 Rust 文件补充真实中文注释，不改变代码行为。
+
+来源任务：无
+
+预计会话范围：本任务仅覆盖 vw-agent 的 97 个文件（生产 0 个、测试 97 个），改动类型统一为注释，文件清单与其它任务互斥，适合一个聚焦会话。
+
+## 文件
+
+- 修改：`crates/vw-agent/src/channels/config_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/attachments_outgoing_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/attachments_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/client_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/content_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/gateway_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/ids_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/message_split_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/mod_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/permissions_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/reactions_tests.rs`
+- 修改：`crates/vw-agent/src/channels/discord/typing_tests.rs`
+- 修改：`crates/vw-agent/src/channels/email_channel/mod_tests.rs`
+- 修改：`crates/vw-agent/src/channels/format_tests.rs`
+- 修改：`crates/vw-agent/src/channels/history_tests.rs`
+- 修改：`crates/vw-agent/src/channels/imessage/mod_tests.rs`
+- 修改：`crates/vw-agent/src/channels/irc/mod_tests.rs`
+- 修改：`crates/vw-agent/src/channels/lark/ack_tests.rs`
+- 修改：`crates/vw-agent/src/channels/lark/constants_tests.rs`
+- 修改：`crates/vw-agent/src/channels/lark/mod_tests.rs`
+- 修改：`crates/vw-agent/src/channels/lark/parsing_tests.rs`
+- 修改：`crates/vw-agent/src/channels/lark/platform_tests.rs`
+- 修改：`crates/vw-agent/src/channels/lark/token_bot_tests.rs`
+- 修改：`crates/vw-agent/src/channels/lark/token_http_tests.rs`
+- 修改：`crates/vw-agent/src/channels/lark/token_tests.rs`
+- 修改：`crates/vw-agent/src/channels/lark/types_tests.rs`
+- 修改：`crates/vw-agent/src/channels/lark/webhook_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/command_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/listener_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/message_execution_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/message_helpers_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/message_response_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/message_result_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/message_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/provider_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/start_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/telegram_tests.rs`
+- 修改：`crates/vw-agent/src/channels/manager/tests.rs`
+- 修改：`crates/vw-agent/src/channels/matrix/api_tests.rs`
+- 修改：`crates/vw-agent/src/channels/matrix/channel_impl_tests.rs`
+- 修改：`crates/vw-agent/src/channels/matrix/core_tests.rs`
+- 修改：`crates/vw-agent/src/channels/matrix/listener_tests.rs`
+- 修改：`crates/vw-agent/src/channels/matrix/mod_tests.rs`
+- 修改：`crates/vw-agent/src/channels/matrix/outbound_tests.rs`
+- 修改：`crates/vw-agent/src/channels/matrix/types_tests.rs`
+- 修改：`crates/vw-agent/src/channels/nextcloud_talk/mod_tests.rs`
+- 修改：`crates/vw-agent/src/channels/prompt_tests.rs`
+- 修改：`crates/vw-agent/src/channels/qq/auth_tests.rs`
+- 修改：`crates/vw-agent/src/channels/qq/channel_impl_tests.rs`
+- 修改：`crates/vw-agent/src/channels/qq/content_tests.rs`
+- 修改：`crates/vw-agent/src/channels/qq/gateway_tests.rs`
+- 修改：`crates/vw-agent/src/channels/qq/outbound_tests.rs`
+- 修改：`crates/vw-agent/src/channels/qq/webhook_tests.rs`
+- 修改：`crates/vw-agent/src/channels/routing_tests.rs`
+- 修改：`crates/vw-agent/src/channels/runtime_command/approval_commands_tests.rs`
+- 修改：`crates/vw-agent/src/channels/runtime_command/approval_config_tests.rs`
+- 修改：`crates/vw-agent/src/channels/runtime_command/command_tests.rs`
+- 修改：`crates/vw-agent/src/channels/runtime_command/handler_tests.rs`
+- 修改：`crates/vw-agent/src/channels/runtime_command/session_commands_tests.rs`
+- 修改：`crates/vw-agent/src/channels/runtime_command/task_mode_tests.rs`
+- 修改：`crates/vw-agent/src/channels/runtime_command_tests.rs`
+- 修改：`crates/vw-agent/src/channels/slack/tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/attachments_incoming_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/attachments_outbound_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/attachments_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/callbacks_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/channel_impl_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/config_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/core_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/draft_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/file_io_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/formatting_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/incoming_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/mentions_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/message_utils_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/outbound_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/pairing_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/polling_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/reactions_tests.rs`
+- 修改：`crates/vw-agent/src/channels/telegram/sending_media_tests.rs`
+- 修改：`crates/vw-agent/src/channels/wati/tests.rs`
+- 修改：`crates/vw-agent/src/channels/whatsapp/mod_tests.rs`
+- 修改：`crates/vw-agent/src/channels/whatsapp_storage/app_sync_store_tests.rs`
+- 修改：`crates/vw-agent/src/channels/whatsapp_storage/device_store_tests.rs`
+- 修改：`crates/vw-agent/src/channels/whatsapp_storage/mod_tests.rs`
+- 修改：`crates/vw-agent/src/channels/whatsapp_storage/protocol_store_tests.rs`
+- 修改：`crates/vw-agent/src/channels/whatsapp_storage/schema_tests.rs`
+- 修改：`crates/vw-agent/src/channels/whatsapp_storage/signal_store_tests.rs`
+- 修改：`crates/vw-agent/src/channels/whatsapp_web/mod_tests.rs`
+- 修改：`crates/vw-agent/src/cli_commands_tests.rs`
+- 修改：`crates/vw-agent/src/command/command_tests.rs`
+- 修改：`crates/vw-agent/src/config/migration_tests.rs`
+- 修改：`crates/vw-agent/src/config/mod_tests.rs`
+- 修改：`crates/vw-agent/src/config/schema/channels/chat_tests.rs`
+- 修改：`crates/vw-agent/src/config/schema/channels/email_tests.rs`
+- 修改：`crates/vw-agent/src/config/schema/channels/helpers_tests.rs`
+- 修改：`crates/vw-agent/src/config/schema/channels/lark_tests.rs`
+- 测试：无新增测试；使用现有编译面并由最终审计任务统一运行 Clippy。
+
+## 上下文
+
+- 涉及区域：channels、command、config、根模块。
+- 参考 `crates/vw-acp/src/agent_registry.rs`：模块级说明职责和边界，公开 API 说明契约，复杂逻辑只解释原因。
+- 每个目标文件当前均未命中“注释行包含中文”的审计；不要用无意义占位注释只为通过正则。
+- 普通模块可用 `//!`；由 `include!` 拼接的文件必须结合包含位置选择普通 `//` 或合法外部文档注释。
+
+## 验证计划
+
+- 测试驱动开发不适用：本任务只添加注释，不改变可执行行为或测试行为。
+- 覆盖检查：从本任务文件提取全部修改路径，逐个确认至少存在一条含中文的 Rust 注释。
+- 差异检查：运行 `git diff --check`，并人工确认目标差异只包含准确注释及其必要空行。
+- 回归策略：本任务不运行 Cargo，避免批次 1 并行任务争用构建资源；全仓库 Clippy 由批次 2 统一执行。
+
+## 步骤
+
+1. 逐个读取目标文件、模块声明、相邻测试与必要调用者，确认真实职责。
+2. 为普通模块补充简洁中文模块文档；为公开类型、字段和函数补充契约说明。
+3. 仅在状态转换、安全边界、回退或兼容逻辑不直观时添加行内中文注释。
+4. 测试文件说明覆盖的行为与 fixture 意图，不复述测试名和断言。
+5. 运行覆盖检查与差异检查，修正遗漏、误导说明和非注释变更。
+
+## 验证
+
+- 运行：
+  ```zsh
+  task_plan_file=".plans/2026-08-20-rust-中文注释补全/6-vw-agent-测试代码-02-中文注释.md"
+  comment_audit_failed=0
+  while IFS= read -r rust_file; do
+    if ! grep -Eq '//.*[一-龥]|^[[:space:]]*(/\*+|\*)[^[:cntrl:]]*[一-龥]' "$rust_file"; then
+      print -r -- "$rust_file"
+      comment_audit_failed=1
+    fi
+  done < <(sed -n 's/^- 修改：`\([^`]*\.rs\)`$/\1/p' "$task_plan_file")
+  test "$comment_audit_failed" -eq 0
+  sed -n 's/^- 修改：`\([^`]*\.rs\)`$/\1/p' "$task_plan_file" |
+    tr '\n' '\0' |
+    xargs -0 git diff --check --
+  ```
+- 预期：覆盖检查不输出路径，两条检查均以退出码 0 结束。
+- 所需证据：97 个目标全部命中中文注释；`git diff --check` 成功；人工差异审查确认没有行为、字符串、断言或结构变更。
+
+## 完成
+
+仅当清单中的 97 个文件全部获得与实际语义一致的中文注释、聚焦验证通过且差异仅含注释及必要空行时，才可标记为 `已完成`。
+

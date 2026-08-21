@@ -33,7 +33,7 @@ fn compact_and_truncate(value: &str, max_chars: usize) -> String {
     if chars.next().is_some() { format!("{truncated}…") } else { truncated }
 }
 
-fn planning_task_label(title: &str, session_id: &str) -> String {
+fn planning_row_label(title: &str, session_id: &str) -> String {
     let task_id = title
         .trim()
         .strip_prefix(PLANNING_TITLE_PREFIX)
@@ -42,7 +42,7 @@ fn planning_task_label(title: &str, session_id: &str) -> String {
         .or_else(|| session_id.trim().strip_suffix("-plan"))
         .filter(|value| !value.is_empty())
         .unwrap_or(session_id.trim());
-    format!("计划 {task_id}")
+    format!("规划 · {task_id} · 计划任务")
 }
 
 pub(super) fn agent_session_status_label(
@@ -81,6 +81,13 @@ fn plan_run_controls(app: &App, sessions: &[&Info]) -> HashMap<String, PlanRunSe
     let mut controls = HashMap::new();
     for message in &app.chat {
         for control in plan_run_session_controls_from_content(&message.content) {
+            let previous_task_path = controls
+                .get(&control.session_id)
+                .and_then(|previous: &PlanRunSessionControl| previous.task_path.clone());
+            let mut control = control;
+            if control.task_path.is_none() {
+                control.task_path = previous_task_path;
+            }
             controls.insert(control.session_id.clone(), control);
         }
     }
@@ -90,6 +97,13 @@ fn plan_run_controls(app: &App, sessions: &[&Info]) -> HashMap<String, PlanRunSe
         };
         for message in chat.iter() {
             for control in plan_run_session_controls_from_content(&message.content) {
+                let previous_task_path = controls
+                    .get(&control.session_id)
+                    .and_then(|previous| previous.task_path.clone());
+                let mut control = control;
+                if control.task_path.is_none() {
+                    control.task_path = previous_task_path;
+                }
                 controls.insert(control.session_id.clone(), control);
             }
         }
@@ -143,12 +157,12 @@ fn append_running_descendants(
         projected.push(AgentChildSession {
             session_id: session.id.clone(),
             agent: "子智能体".to_string(),
-            task: if is_planning {
-                planning_task_label(&session.title, &session.id)
+            task: if is_planning { String::new() } else { "工作流执行".to_string() },
+            title: if is_planning {
+                planning_row_label(&session.title, &session.id)
             } else {
-                "工作流执行".to_string()
+                session.title.clone()
             },
-            title: if is_planning { "规划".to_string() } else { session.title.clone() },
             directory: session.directory.clone(),
             kind: if is_planning {
                 AgentChildSessionKind::WorkflowPlanning
@@ -160,6 +174,7 @@ fn append_running_descendants(
                 .unwrap_or(AgentChildSessionStatus::Running),
             depth,
             plan_run_task_id: control.map(|control| control.task_id.clone()),
+            task_path: control.and_then(|control| control.task_path.clone()),
         });
         append_running_descendants(
             app,
@@ -326,44 +341,64 @@ pub(super) fn agent_session_stop_message(child: &AgentChildSession) -> Option<Me
     Some(Message::Chat(message::ChatMessage::StopPlanRun(task_id.to_string())))
 }
 
+pub(super) fn agent_session_tooltip_text(child: &AgentChildSession) -> Option<&str> {
+    child
+        .task_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .or_else(|| {
+            let directory = child.directory.trim();
+            (!directory.is_empty()).then_some(directory)
+        })
+}
+
 fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Message> {
     let running_color = Color::from_rgb8(96, 165, 250);
-    let title = compact_and_truncate(&child.title, TITLE_MAX_CHARS);
-    let task = compact_and_truncate(&child.task, TASK_MAX_CHARS);
-    let agent = compact_and_truncate(&child.agent, 22);
-
-    let title_line = row![
-        text(title).size(12).width(Length::Fill).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.96)) }
-        }),
-        container(text(agent).size(9)).padding([2, 6]).style(move |_theme: &Theme| {
-            iced::widget::container::Style {
-                background: Some(Background::Color(running_color.scale_alpha(0.14))),
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
-                text_color: Some(running_color),
-                ..Default::default()
-            }
-        }),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
-
-    let status_label = agent_session_status_label(child.kind, child.status);
-    let running = row![
-        text(spinner_frame(app.status_animation_frame))
-            .size(10)
-            .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(running_color) }),
-        text(status_label).size(10).style(move |_theme: &Theme| {
-            iced::widget::text::Style { color: Some(running_color) }
-        }),
-        text(task).size(10).width(Length::Fill).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.62)) }
-        }),
-    ]
-    .spacing(5)
-    .align_y(Alignment::Center);
-
-    let content = column![title_line, running].spacing(4).width(Length::Fill);
+    let content: Element<'a, Message> = if child.kind == AgentChildSessionKind::WorkflowPlanning {
+        text(child.title.clone())
+            .size(12)
+            .width(Length::Fill)
+            .wrapping(iced::widget::text::Wrapping::None)
+            .style(|theme: &Theme| iced::widget::text::Style {
+                color: Some(theme.palette().text.scale_alpha(0.96)),
+            })
+            .into()
+    } else {
+        let title = compact_and_truncate(&child.title, TITLE_MAX_CHARS);
+        let task = compact_and_truncate(&child.task, TASK_MAX_CHARS);
+        let agent = compact_and_truncate(&child.agent, 22);
+        let title_line = row![
+            text(title).size(12).width(Length::Fill).style(|theme: &Theme| {
+                iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.96)) }
+            }),
+            container(text(agent).size(9)).padding([2, 6]).style(move |_theme: &Theme| {
+                iced::widget::container::Style {
+                    background: Some(Background::Color(running_color.scale_alpha(0.14))),
+                    border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 999.0.into() },
+                    text_color: Some(running_color),
+                    ..Default::default()
+                }
+            }),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center);
+        let status_label = agent_session_status_label(child.kind, child.status);
+        let running = row![
+            text(spinner_frame(app.status_animation_frame)).size(10).style(
+                move |_theme: &Theme| iced::widget::text::Style { color: Some(running_color) }
+            ),
+            text(status_label).size(10).style(move |_theme: &Theme| {
+                iced::widget::text::Style { color: Some(running_color) }
+            }),
+            text(task).size(10).width(Length::Fill).style(|theme: &Theme| {
+                iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.62)) }
+            }),
+        ]
+        .spacing(5)
+        .align_y(Alignment::Center);
+        column![title_line, running].spacing(4).width(Length::Fill).into()
+    };
     let row_button =
         button(content).width(Length::Fill).padding([9, 10]).style(agent_sessions_row_style);
 
@@ -385,19 +420,19 @@ fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Me
         );
     }
     let session_row: Element<'a, Message> = session_row.into();
-    let directory = child.directory.trim();
-    if directory.is_empty() {
-        session_row
-    } else {
-        let tooltip = container(
-            text(directory.to_string())
-                .size(12)
-                .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
-        )
-        .padding([6, 10])
-        .max_width(320.0)
-        .style(super::styles::tooltip_dark_style);
-        Tooltip::new(session_row, tooltip, TooltipPosition::Top).gap(6.0).into()
+    match agent_session_tooltip_text(child) {
+        None => session_row,
+        Some(tooltip_text) => {
+            let tooltip = container(
+                text(tooltip_text.to_string())
+                    .size(12)
+                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+            )
+            .padding([6, 10])
+            .max_width(320.0)
+            .style(super::styles::tooltip_dark_style);
+            Tooltip::new(session_row, tooltip, TooltipPosition::Top).gap(6.0).into()
+        }
     }
 }
 

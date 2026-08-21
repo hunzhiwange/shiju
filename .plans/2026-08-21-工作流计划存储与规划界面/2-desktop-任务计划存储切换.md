@@ -2,7 +2,7 @@
 
 批次：【批次 2】 依赖批次 1
 
-状态：未开始
+状态：已完成，待回归
 
 目的：让桌面任务执行器的计划拆分产物和执行上下文统一使用用户级 `storage/plan/task-<id>/`，不再写入项目目录。
 
@@ -44,6 +44,10 @@
 - 运行：`cargo clippy -p vw-desktop --all-targets --all-features -- -D warnings`
 - 预期：退出码 0；runner 的全部调用者与测试编译通过，错误分支不产生项目级缓存。
 - 所需证据：失败验证编译错误、通过验证退出码、临时 home 路径断言、冲突历史缓存被忽略且未复制的断言、调用者搜索结果与已审查差异。
+- 验证结果：失败验证退出码 101，17 处编译错误证明旧路径函数仍接收项目 `&str`；实现后聚焦 clippy 退出码 0。
+- 回归门禁：`cargo clippy --all-targets --all-features -- -D warnings` 退出码 0，`git diff --check` 退出码 0。
+- 差异与调用者审查：runner 生产路径无 `.plans` 或旧 `tasks/plan`构造；规划与执行入口各自解析一次 home，公开兼容入口也委托到同一显式 home helper；项目路径仍仅用于代码执行与 Git 流程。
+- 待回归：仓库禁令要求不执行 `cargo test`，新增的临时 home、历史缓存冲突与缺失 prompt 行为测试仅由 all-targets clippy 证明可编译，尚未实际运行。
 
 ## 完成
 

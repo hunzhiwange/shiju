@@ -1,7 +1,7 @@
 //! `run_task_plan` 注入式 SessionRunner 行为测试。
 
 use super::{
-    PlanTaskEntry, PlanTasksDocument, SessionRunRequest, SessionRunner, run_task_plan,
+    PlanTaskEntry, PlanTasksDocument, SessionRunRequest, SessionRunner,
     run_task_plan_with_cancellation,
 };
 use crate::session::child_agent::coordinator::global_child_agent_coordinator;
@@ -26,13 +26,14 @@ struct ScriptedSessionRunner {
 
 #[derive(Clone)]
 struct PlanFixture {
-    plan_dir_rel: String,
+    plan_dir: PathBuf,
     tasks: Vec<PlanTaskEntry>,
 }
 
 #[derive(Clone)]
 struct GatedStreamingSessionRunner {
     plan_fixture: Arc<Mutex<Option<PlanFixture>>>,
+    plan_dir: PathBuf,
     subtask_release: Arc<Semaphore>,
 }
 
@@ -48,6 +49,7 @@ struct GoalSessionRunner {
 #[derive(Clone)]
 struct DescendantGatedSessionRunner {
     plan_fixture: Arc<Mutex<Option<PlanFixture>>>,
+    plan_dir: PathBuf,
     descendant_started: Arc<Semaphore>,
     descendant_release: Arc<Semaphore>,
 }
@@ -88,6 +90,7 @@ impl ScriptedSessionRunner {
 impl GatedStreamingSessionRunner {
     fn new(plan_fixture: PlanFixture) -> Self {
         Self {
+            plan_dir: plan_fixture.plan_dir.clone(),
             plan_fixture: Arc::new(Mutex::new(Some(plan_fixture))),
             subtask_release: Arc::new(Semaphore::new(0)),
         }
@@ -113,6 +116,7 @@ impl GoalSessionRunner {
 impl DescendantGatedSessionRunner {
     fn new(plan_fixture: PlanFixture) -> Self {
         Self {
+            plan_dir: plan_fixture.plan_dir.clone(),
             plan_fixture: Arc::new(Mutex::new(Some(plan_fixture))),
             descendant_started: Arc::new(Semaphore::new(0)),
             descendant_release: Arc::new(Semaphore::new(0)),
@@ -151,7 +155,7 @@ impl SessionRunner for ScriptedSessionRunner {
         // 首次规划调用：在计划目录落盘 tasks.json / plan.md / 任务文件。
         if let Some(fixture) = self.plan_fixture.lock().expect("fixture lock").take() {
             write_plan_fixture(&request.root, &fixture)?;
-            let plan_abs = PathBuf::from(&request.root).join(&fixture.plan_dir_rel);
+            let plan_abs = fixture.plan_dir.clone();
             *self.task_files.lock().expect("task files lock") =
                 fixture.tasks.iter().map(|task| plan_abs.join(&task.file)).collect();
         }
@@ -209,7 +213,7 @@ impl SessionRunner for GatedStreamingSessionRunner {
             .await
             .map_err(|_| "subtask release closed".to_string())?
             .forget();
-        complete_task_mds(Path::new(&request.root));
+        complete_task_mds(&self.plan_dir);
         Ok(format!("done:{}", request.session_id))
     }
 }
@@ -229,7 +233,7 @@ impl SessionRunner for GoalSessionRunner {
 
         if let Some(fixture) = self.plan_fixture.lock().expect("fixture lock").take() {
             write_plan_fixture(&request.root, &fixture)?;
-            let plan_abs = PathBuf::from(&request.root).join(&fixture.plan_dir_rel);
+            let plan_abs = fixture.plan_dir.clone();
             *self.task_files.lock().expect("task files lock") =
                 fixture.tasks.iter().map(|task| plan_abs.join(&task.file)).collect();
         } else if call_index == 2 {
@@ -323,46 +327,38 @@ impl SessionRunner for DescendantGatedSessionRunner {
             }
         });
 
-        complete_task_mds(Path::new(&request.root));
+        complete_task_mds(&self.plan_dir);
         Ok("parent session returned".to_string())
     }
 }
 
-fn complete_task_mds(root: &Path) {
-    let plans = root.join(".plans");
-    let Ok(entries) = std::fs::read_dir(plans) else {
+fn complete_task_mds(plan_dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(plan_dir) else {
         return;
     };
     for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let Ok(files) = std::fs::read_dir(path) else {
-            continue;
-        };
-        for file in files.flatten() {
-            let task_file = file.path();
-            if task_file.extension().and_then(|ext| ext.to_str()) == Some("md")
-                && task_file.file_name().and_then(|name| name.to_str()) != Some("plan.md")
-                && task_file.file_name().and_then(|name| name.to_str()) != Some("prompt.md")
-            {
-                let _ = std::fs::write(
-                    task_file,
-                    "# 任务\n\n状态：已完成\n\n完成条件：子任务已实现\n\n验证命令：cargo test -p vw-agent --lib\n\n验证结果：退出码：0；通过\n",
-                );
-            }
+        let task_file = entry.path();
+        if task_file.extension().and_then(|ext| ext.to_str()) == Some("md")
+            && task_file.file_name().and_then(|name| name.to_str()) != Some("plan.md")
+            && task_file.file_name().and_then(|name| name.to_str()) != Some("prompt.md")
+        {
+            let _ = std::fs::write(
+                task_file,
+                "# 任务\n\n状态：已完成\n\n完成条件：子任务已实现\n\n验证命令：cargo test -p vw-agent --lib\n\n验证结果：退出码：0；通过\n",
+            );
         }
     }
 }
 
-fn write_plan_fixture(root: &str, fixture: &PlanFixture) -> Result<(), String> {
-    let plan_abs = PathBuf::from(root).join(&fixture.plan_dir_rel);
+fn write_plan_fixture(_root: &str, fixture: &PlanFixture) -> Result<(), String> {
+    let plan_abs = &fixture.plan_dir;
     std::fs::create_dir_all(&plan_abs)
         .map_err(|error| format!("create plan dir failed: {error}"))?;
 
-    let doc =
-        PlanTasksDocument { plan_dir: fixture.plan_dir_rel.clone(), tasks: fixture.tasks.clone() };
+    let doc = PlanTasksDocument {
+        plan_dir: plan_abs.to_string_lossy().to_string(),
+        tasks: fixture.tasks.clone(),
+    };
     let tasks_json = serde_json::to_string_pretty(&doc)
         .map_err(|error| format!("serialize tasks.json failed: {error}"))?;
     std::fs::write(plan_abs.join("tasks.json"), tasks_json)
@@ -395,6 +391,24 @@ fn entry(
         depends_on_batches,
         status: "未开始".to_string(),
     }
+}
+
+fn plan_fixture(home: &Path, task_id: &str, tasks: Vec<PlanTaskEntry>) -> PlanFixture {
+    PlanFixture { plan_dir: super::plan_dir_abs(home, task_id), tasks }
+}
+
+async fn run_task_plan<R, F>(
+    task_id: &str,
+    request: &TaskPlanRunRequest,
+    runner: &R,
+    on_event: F,
+) -> Result<(), String>
+where
+    R: SessionRunner + ?Sized,
+    F: FnMut(TaskPlanRunStreamEventDto) -> bool,
+{
+    let home = PathBuf::from(&request.root);
+    super::runner::run_task_plan_in_home(task_id, request, runner, &home, on_event).await
 }
 
 fn event_kind(event: &TaskPlanRunStreamEventDto) -> &'static str {
@@ -440,8 +454,8 @@ fn batch_of(event: &TaskPlanRunStreamEventDto) -> Option<u32> {
     }
 }
 
-fn plan_dir_exists(root: &Path, rel: &str) -> bool {
-    root.join(rel).join("tasks.json").is_file()
+fn plan_dir_exists(home: &Path, task_id: &str) -> bool {
+    super::plan_dir_abs(home, task_id).join("tasks.json").is_file()
 }
 
 fn assert_subtask_delta_precedes_finished(
@@ -562,15 +576,15 @@ async fn run_plan_delays_subtask_finished_until_nested_agents_are_terminal() {
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
     let task_id = "demo-nested-barrier";
-    let plan_dir_rel = format!(".plans/task-{task_id}");
-    let runner = DescendantGatedSessionRunner::new(PlanFixture {
-        plan_dir_rel,
-        tasks: vec![
+    let runner = DescendantGatedSessionRunner::new(plan_fixture(
+        temp.path(),
+        task_id,
+        vec![
             entry("1", "父任务一", "1-parent.md", 1, vec![]),
             entry("2", "父任务二", "2-parent.md", 1, vec![]),
             entry("3", "父任务三", "3-parent.md", 1, vec![]),
         ],
-    });
+    ));
     let descendant_started = Arc::clone(&runner.descendant_started);
     let descendant_release = Arc::clone(&runner.descendant_release);
     let events = Arc::new(Mutex::new(Vec::new()));
@@ -671,16 +685,16 @@ async fn run_plan_emits_full_success_event_sequence() {
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
     let task_id = "demo-success";
-    let plan_dir_rel = format!(".plans/task-{}", task_id);
 
-    let fixture = PlanFixture {
-        plan_dir_rel: plan_dir_rel.clone(),
-        tasks: vec![
+    let fixture = plan_fixture(
+        temp.path(),
+        task_id,
+        vec![
             entry("1", "第一批 A", "1-a.md", 1, vec![]),
             entry("2", "第一批 B", "2-b.md", 1, vec![]),
             entry("3", "第二批", "3-c.md", 2, vec![1]),
         ],
-    };
+    );
 
     let runner = ScriptedSessionRunner::new(
         vec![
@@ -711,7 +725,7 @@ async fn run_plan_emits_full_success_event_sequence() {
     .await
     .expect("run_task_plan should succeed");
 
-    assert!(plan_dir_exists(temp.path(), &plan_dir_rel));
+    assert!(plan_dir_exists(temp.path(), task_id));
 
     let events = events.lock().expect("events").clone();
     let kinds: Vec<_> = events
@@ -742,9 +756,12 @@ async fn run_plan_emits_full_success_event_sequence() {
         &events[0],
         TaskPlanRunStreamEventDto::PlanningStarted {
             task_id: id,
+            plan_dir,
             session_id,
             ..
-        } if id == task_id && session_id == "demo-success-plan"
+        } if id == task_id
+            && plan_dir == &super::plan_dir_abs(temp.path(), task_id).to_string_lossy()
+            && session_id == "demo-success-plan"
     ));
     assert!(matches!(
         &events[1],
@@ -795,6 +812,95 @@ async fn run_plan_emits_full_success_event_sequence() {
     let calls = runner.calls.lock().expect("calls").clone();
     assert_eq!(calls.len(), 4, "1 planning + 3 subtasks");
     assert_eq!(calls[0].session_id, "demo-success-plan");
+    assert!(calls.iter().all(|call| call.root == root));
+    assert!(
+        calls[0]
+            .query
+            .contains(&super::plan_dir_abs(temp.path(), task_id).to_string_lossy().to_string())
+    );
+}
+
+#[tokio::test]
+async fn run_plan_ignores_legacy_project_cache() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let home = temp.path().join("home");
+    let project_root = temp.path().join("project");
+    let task_id = "legacy-conflict";
+    let legacy_dir = project_root.join(".plans").join(format!("task-{task_id}"));
+    std::fs::create_dir_all(&legacy_dir).expect("create legacy plan dir");
+    std::fs::write(legacy_dir.join("legacy-only.txt"), "must stay isolated")
+        .expect("write legacy marker");
+
+    let plan_abs = super::plan_dir_abs(&home, task_id);
+    let runner = ScriptedSessionRunner::new(
+        vec![Ok("plan ready".to_string()), Ok("subtask done".to_string())],
+        PlanFixture {
+            plan_dir: plan_abs.clone(),
+            tasks: vec![entry("1", "实现新路径", "1-storage.md", 1, vec![])],
+        },
+    );
+    let request = TaskPlanRunRequest {
+        query: "使用用户级计划缓存".to_string(),
+        root: project_root.to_string_lossy().to_string(),
+        model: None,
+        agent: None,
+        acp_agent: None,
+        parent_session_id: Some("main-session".to_string()),
+    };
+
+    super::runner::run_task_plan_in_home(task_id, &request, &runner, &home, |_| true)
+        .await
+        .expect("run_task_plan should use the injected home");
+
+    assert!(plan_abs.join("tasks.json").is_file());
+    assert!(!plan_abs.join("legacy-only.txt").exists());
+    assert_eq!(
+        std::fs::read_to_string(legacy_dir.join("legacy-only.txt")).expect("read legacy marker"),
+        "must stay isolated"
+    );
+    let calls = runner.calls.lock().expect("calls lock");
+    assert!(calls.iter().all(|call| call.root == request.root));
+    assert!(calls[0].query.contains(&plan_abs.to_string_lossy().to_string()));
+}
+
+#[tokio::test]
+async fn run_plan_reports_missing_home_and_creation_target() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let request = TaskPlanRunRequest {
+        query: "生成计划".to_string(),
+        root: temp.path().to_string_lossy().to_string(),
+        model: None,
+        agent: None,
+        acp_agent: None,
+        parent_session_id: None,
+    };
+    let runner = ScriptedSessionRunner::without_plan_files(Vec::new());
+
+    let missing_home_error = super::runner::run_task_plan_in_home(
+        "missing-home",
+        &request,
+        &runner,
+        Path::new(""),
+        |_| true,
+    )
+    .await
+    .expect_err("empty home must fail explicitly");
+    assert!(missing_home_error.contains("无法解析用户 home"));
+    assert!(missing_home_error.contains("task-missing-home"));
+
+    let home_file = temp.path().join("home-file");
+    std::fs::write(&home_file, "not a directory").expect("write home blocker");
+    let target = super::plan_dir_abs(&home_file, "create-failure");
+    let creation_error = super::runner::run_task_plan_in_home(
+        "create-failure",
+        &request,
+        &runner,
+        &home_file,
+        |_| true,
+    )
+    .await
+    .expect_err("non-directory home must fail directory creation");
+    assert!(creation_error.contains(&target.to_string_lossy().to_string()));
 }
 
 #[tokio::test]
@@ -802,14 +908,11 @@ async fn run_plan_streams_each_subtask_before_completion() {
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
     let task_id = "demo-live-subtasks";
-    let plan_dir_rel = format!(".plans/task-{task_id}");
-    let runner = GatedStreamingSessionRunner::new(PlanFixture {
-        plan_dir_rel,
-        tasks: vec![
-            entry("1", "并发 A", "1-a.md", 1, vec![]),
-            entry("2", "并发 B", "2-b.md", 1, vec![]),
-        ],
-    });
+    let runner = GatedStreamingSessionRunner::new(plan_fixture(
+        temp.path(),
+        task_id,
+        vec![entry("1", "并发 A", "1-a.md", 1, vec![]), entry("2", "并发 B", "2-b.md", 1, vec![])],
+    ));
     let request = TaskPlanRunRequest {
         query: "实时查看并发子任务".to_string(),
         root,
@@ -891,15 +994,15 @@ async fn run_plan_retries_failed_subtask_without_replanning() {
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
     let task_id = "demo-recovered";
-    let plan_dir_rel = format!(".plans/task-{task_id}");
 
-    let fixture = PlanFixture {
-        plan_dir_rel,
-        tasks: vec![
+    let fixture = plan_fixture(
+        temp.path(),
+        task_id,
+        vec![
             entry("1", "重试后恢复", "1-recover.md", 1, vec![]),
             entry("2", "继续后续批次", "2-later.md", 2, vec![1]),
         ],
-    };
+    );
 
     let runner = ScriptedSessionRunner::new(
         vec![
@@ -971,15 +1074,15 @@ async fn goal_mode_continues_after_subtask_retries_and_finishes_via_checklist() 
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
     let task_id = "demo-blocked";
-    let plan_dir_rel = format!(".plans/task-{}", task_id);
 
-    let fixture = PlanFixture {
-        plan_dir_rel: plan_dir_rel.clone(),
-        tasks: vec![
+    let fixture = plan_fixture(
+        temp.path(),
+        task_id,
+        vec![
             entry("1", "会失败", "1-fail.md", 1, vec![]),
             entry("2", "后续批次可继续", "2-later.md", 2, vec![1]),
         ],
-    };
+    );
 
     let runner = ScriptedSessionRunner::new(
         vec![
@@ -1080,7 +1183,7 @@ async fn run_plan_errors_when_planning_session_skips_writing_tasks_json() {
     let events = events.lock().expect("events").clone();
     assert_eq!(event_kind(&events[0]), "planning_started");
     assert_eq!(event_kind(events.last().expect("error event")), "error");
-    assert!(temp.path().join(".plans").join(format!("task-{task_id}")).is_dir());
+    assert!(super::plan_dir_abs(temp.path(), task_id).is_dir());
 }
 
 #[tokio::test]
@@ -1090,10 +1193,7 @@ async fn goal_mode_finishes_from_completed_task_checklist_without_evaluator() {
     let task_id = "demo-goal-checklist";
     let runner = ScriptedSessionRunner::new(
         vec![Ok("plan ready".to_string()), Ok("implementation complete".to_string())],
-        PlanFixture {
-            plan_dir_rel: format!(".plans/task-{task_id}"),
-            tasks: vec![entry("1", "实现目标", "1-goal.md", 1, vec![])],
-        },
+        plan_fixture(temp.path(), task_id, vec![entry("1", "实现目标", "1-goal.md", 1, vec![])]),
     );
     let request = TaskPlanRunRequest {
         query: "完成目标并提供验证证据".to_string(),
@@ -1139,10 +1239,7 @@ async fn goal_mode_never_finishes_without_validation_evidence() {
             Ok("claimed done without deleting task".to_string()),
             Ok(r#"{"achieved":true,"reason":"模型声称完成"}"#.to_string()),
         ],
-        PlanFixture {
-            plan_dir_rel: format!(".plans/task-{task_id}"),
-            tasks: vec![entry("1", "验证目标", "1-verify.md", 1, vec![])],
-        },
+        plan_fixture(temp.path(), task_id, vec![entry("1", "验证目标", "1-verify.md", 1, vec![])]),
         None,
     );
     let request = TaskPlanRunRequest {
@@ -1182,10 +1279,11 @@ async fn goal_mode_blocks_on_explicit_external_blocker() {
     let task_id = "demo-goal-blocked";
     let runner = GoalSessionRunner::new(
         vec![Ok("plan ready".to_string()), Ok("需要外部凭据".to_string())],
-        PlanFixture {
-            plan_dir_rel: format!(".plans/task-{task_id}"),
-            tasks: vec![entry("1", "外部系统", "1-external.md", 1, vec![])],
-        },
+        plan_fixture(
+            temp.path(),
+            task_id,
+            vec![entry("1", "外部系统", "1-external.md", 1, vec![])],
+        ),
         Some("缺少部署凭据"),
     );
     let request = TaskPlanRunRequest {

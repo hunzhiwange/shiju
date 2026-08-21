@@ -91,6 +91,7 @@ tool AgentTool
                 status: super::AgentChildSessionStatus::Running,
                 depth: 0,
                 plan_run_task_id: None,
+                task_path: None,
             },
             AgentChildSession {
                 session_id: "child-fallback".to_string(),
@@ -103,6 +104,7 @@ tool AgentTool
                 status: super::AgentChildSessionStatus::Running,
                 depth: 0,
                 plan_run_task_id: None,
+                task_path: None,
             },
         ]
     );
@@ -153,6 +155,29 @@ fn plan_run_controls_extract_latest_task_owner_and_waiting_state() {
             session_id: "task-1-1".to_string(),
             task_id: "task-1".to_string(),
             status: super::AgentChildSessionStatus::Waiting,
+            task_path: None,
+        }]
+    );
+}
+
+#[test]
+fn plan_run_controls_preserve_known_task_path_across_deltas() {
+    let content = concat!(
+        "tool workflow_node\n",
+        "{\"status\":\"running\",\"metadata\":{\"plan_run\":true,\"task_id\":\"task-1\",",
+        "\"session_id\":\"task-1-plan\",\"task_path\":\"/plans/task-1\"}}\n",
+        "tool workflow_node\n",
+        "{\"status\":\"waiting\",\"metadata\":{\"plan_run\":true,\"task_id\":\"task-1\",",
+        "\"session_id\":\"task-1-plan\"}}\n",
+    );
+
+    assert_eq!(
+        super::plan_run_session_controls_from_content(content),
+        vec![super::PlanRunSessionControl {
+            session_id: "task-1-plan".to_string(),
+            task_id: "task-1".to_string(),
+            status: super::AgentChildSessionStatus::Waiting,
+            task_path: Some("/plans/task-1".to_string()),
         }]
     );
 }

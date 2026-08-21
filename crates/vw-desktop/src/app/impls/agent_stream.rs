@@ -10,8 +10,7 @@ const GATEWAY_STREAM_INITIAL_RETRY_DELAY: std::time::Duration =
 const GATEWAY_STREAM_MAX_RETRY_DELAY: std::time::Duration =
     std::time::Duration::from_secs(3 * 60 * 60);
 const PLAN_RUN_DELTA_FLUSH_INTERVAL: std::time::Duration =
-    std::time::Duration::from_millis(220);
-const PLAN_RUN_DELTA_SOFT_LIMIT_CHARS: usize = 360;
+    std::time::Duration::from_secs(10);
 const PLAN_RUN_DELTA_HARD_LIMIT_BYTES: usize = 16 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -112,10 +111,11 @@ impl PlanRunDeltaBuffer {
             }
         }
 
-        if self.pending.as_ref().is_some_and(|pending| {
-            pending.char_count >= PLAN_RUN_DELTA_SOFT_LIMIT_CHARS
-                || pending.delta.len() >= PLAN_RUN_DELTA_HARD_LIMIT_BYTES
-        }) {
+        if self
+            .pending
+            .as_ref()
+            .is_some_and(|pending| pending.delta.len() >= PLAN_RUN_DELTA_HARD_LIMIT_BYTES)
+        {
             merge_forwarded_cursor(&mut forwarded_cursor, self.flush(send)?);
         }
 
@@ -1678,6 +1678,25 @@ fn plan_run_event_output_text(event: &vw_api_types::task::TaskPlanRunStreamEvent
     }
 }
 
+fn plan_run_event_task_path(
+    event: &vw_api_types::task::TaskPlanRunStreamEventDto,
+) -> Option<&str> {
+    match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { plan_dir, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { plan_dir, .. } => {
+            Some(plan_dir)
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { task_file, .. }
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+            task_file, ..
+        } => Some(task_file),
+        _ => None,
+    }
+    .map(String::as_str)
+    .map(str::trim)
+    .filter(|path| !path.is_empty())
+}
+
 fn plan_run_event_is_terminal(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> bool {
     matches!(
         event,
@@ -1714,6 +1733,9 @@ fn plan_run_tool_block(event: &vw_api_types::task::TaskPlanRunStreamEventDto) ->
     }
     if let Some(title) = plan_run_event_session_title(event) {
         metadata["title"] = json!(title);
+    }
+    if let Some(task_path) = plan_run_event_task_path(event) {
+        metadata["task_path"] = json!(task_path);
     }
     let payload = json!({
         "tool_call_id": plan_run_tool_call_id(event),

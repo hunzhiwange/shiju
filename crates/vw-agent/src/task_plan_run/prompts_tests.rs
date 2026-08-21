@@ -2,8 +2,12 @@
 
 #[test]
 fn build_planning_prompt_requires_fixed_plan_dir_and_tool_writes() {
-    let prompt = super::build_planning_prompt("abc-123", "实现工作流执行");
-    assert!(prompt.contains(".plans/task-abc-123/"));
+    let plan_dir = std::path::Path::new("/tmp/user/.vibewindowdev/storage/plan/task-abc-123");
+    let prompt =
+        super::prompts::build_planning_prompt_for_dir("abc-123", "实现工作流执行", plan_dir);
+    assert!(prompt.contains("`/tmp/user/.vibewindowdev/storage/plan/task-abc-123/`"));
+    assert!(!prompt.contains("仓库相对路径"));
+    assert!(!prompt.contains(".plans/task-abc-123"));
     assert!(prompt.contains("必须通过写文件工具实际创建文件"));
     assert!(prompt.contains("忽略技能模板里的 `YYYY-MM-DD-<功能名称>` 路径"));
     assert!(prompt.contains("tasks.json"));
@@ -11,8 +15,22 @@ fn build_planning_prompt_requires_fixed_plan_dir_and_tool_writes() {
 }
 
 #[test]
+fn plan_dir_abs_uses_user_storage_and_sanitizes_task_id() {
+    let home = std::path::Path::new("/tmp/user");
+
+    assert_eq!(
+        super::plan_dir_abs(home, "unsafe/id.part"),
+        vw_config_types::paths::task_plan_storage_dir(home).join("task-unsafeid-part")
+    );
+}
+
+#[test]
 fn goal_mode_planning_prompt_requires_final_validation_task() {
-    let prompt = super::build_goal_planning_prompt("goal-1", "实现目标模式");
+    let prompt = super::prompts::build_goal_planning_prompt_for_dir(
+        "goal-1",
+        "实现目标模式",
+        std::path::Path::new("/tmp/user/.vibewindowdev/storage/plan/task-goal-1"),
+    );
     assert!(prompt.contains("持续目标模式"));
     assert!(prompt.contains("独立的目标验收任务"));
     assert!(prompt.contains("命令、退出码和结果"));

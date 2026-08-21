@@ -2,7 +2,7 @@
 
 批次：【批次 3】 依赖批次 1,2
 
-状态：未开始
+状态：已完成，待回归
 
 目的：将规划子会话压缩为 `规划 · <UUID> · 计划任务` 一行，并在 hover 时展示真实计划目录或任务文件路径。
 
@@ -54,3 +54,12 @@
 
 - 事件元数据到 UI 投影全链路具有独立 `task_path`，规划行满足精简文案且 tooltip 不再误用项目目录。
 - 若无法进行实际 GUI 渲染检查，状态必须为 `已完成，待回归` 并记录缺失证据。
+
+## 验证结果
+
+- 失败验证：聚焦 clippy 退出码 101；7 处编译错误证明 `task_path` 字段与 tooltip helper 尚不存在。
+- 通过验证：`cargo clippy -p vw-desktop --all-targets --all-features -- -D warnings` 退出码 0。
+- 全量门禁：`cargo clippy --all-targets --all-features -- -D warnings` 退出码 0；`git diff --check` 退出码 0。
+- 路径与交互断言：新增测试覆盖 plan 目录/编号任务文件元数据、跨 delta 保留、tooltip 优先 `task_path`，并断言打开会话仍使用项目 `directory`；停止消息逻辑未变。
+- 启动检查：`cargo run -p vw-desktop --bin shi-ju` 成功启动，未见非 ASCII 字形整形 panic；因本环境 `screencapture` 返回 `could not create image from display`，无法完成真实规划行的浅色/暗色 hover 截图验收。
+- 待回归：仓库禁令要求不执行 `cargo test`，新增行为测试仅由 all-targets clippy 证明可编译；实际浅色/暗色 hover 仍需在有显示环境中手工验收。

@@ -35,6 +35,7 @@ pub struct AgentChildSession {
     pub status: AgentChildSessionStatus,
     pub depth: usize,
     pub plan_run_task_id: Option<String>,
+    pub task_path: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,6 +43,7 @@ pub(crate) struct PlanRunSessionControl {
     pub(crate) session_id: String,
     pub(crate) task_id: String,
     pub(crate) status: AgentChildSessionStatus,
+    pub(crate) task_path: Option<String>,
 }
 
 fn compact_text(value: &str) -> String {
@@ -85,8 +87,14 @@ fn plan_run_control_from_value(value: &serde_json::Value) -> Option<PlanRunSessi
     } else {
         AgentChildSessionStatus::Running
     };
+    let task_path = metadata
+        .get("task_path")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .map(str::to_string);
 
-    Some(PlanRunSessionControl { session_id, task_id, status })
+    Some(PlanRunSessionControl { session_id, task_id, status, task_path })
 }
 
 fn is_tool_block_boundary(content: &str, start: usize) -> bool {
@@ -94,7 +102,7 @@ fn is_tool_block_boundary(content: &str, start: usize) -> bool {
 }
 
 pub(crate) fn plan_run_session_controls_from_content(content: &str) -> Vec<PlanRunSessionControl> {
-    let mut controls = Vec::new();
+    let mut controls = Vec::<PlanRunSessionControl>::new();
     let mut positions = HashMap::<String, usize>::new();
     let mut cursor = 0;
 
@@ -126,10 +134,13 @@ pub(crate) fn plan_run_session_controls_from_content(content: &str) -> Vec<PlanR
         if tool_name != Some("workflow_node") {
             continue;
         }
-        let Some(control) = plan_run_control_from_value(&value) else {
+        let Some(mut control) = plan_run_control_from_value(&value) else {
             continue;
         };
         if let Some(position) = positions.get(&control.session_id).copied() {
+            if control.task_path.is_none() {
+                control.task_path.clone_from(&controls[position].task_path);
+            }
             controls[position] = control;
         } else {
             positions.insert(control.session_id.clone(), controls.len());
@@ -232,6 +243,7 @@ pub fn agent_child_session_projection<'a>(
                 },
                 depth: 0,
                 plan_run_task_id: None,
+                task_path: None,
             }
         })
         .collect()

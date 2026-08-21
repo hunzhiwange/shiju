@@ -4,7 +4,7 @@ use super::goal::{
     GoalTaskFilesState, build_goal_continuation_prompt, goal_turn_session_id,
     inspect_goal_task_files,
 };
-use super::prompts::{build_execution_prompt, build_goal_planning_prompt, plan_dir_abs};
+use super::prompts::{build_execution_prompt, build_goal_planning_prompt_for_dir, plan_dir_abs};
 use super::session_bind::{ensure_plan_run_session_info, persist_plan_run_session_history};
 use super::{PlanTaskEntry, build_batch_stages, load_tasks_json};
 use crate::session::child_agent::coordinator::{
@@ -176,6 +176,20 @@ pub async fn run_task_plan<R, F>(
     task_id: &str,
     request: &TaskPlanRunRequest,
     runner: &R,
+    on_event: F,
+) -> Result<(), String>
+where
+    R: SessionRunner + ?Sized,
+    F: FnMut(TaskPlanRunStreamEventDto) -> bool,
+{
+    run_task_plan_in_home(task_id, request, runner, &crate::global::paths().home, on_event).await
+}
+
+pub(super) async fn run_task_plan_in_home<R, F>(
+    task_id: &str,
+    request: &TaskPlanRunRequest,
+    runner: &R,
+    home: &Path,
     mut on_event: F,
 ) -> Result<(), String>
 where
@@ -200,8 +214,16 @@ where
         return Err(message);
     }
 
-    let plan_abs = plan_dir_abs(root, task_id);
+    let plan_abs = plan_dir_abs(home, task_id);
     let plan_dir_display = path_display(&plan_abs);
+    if home.as_os_str().is_empty() {
+        let message = format!("无法解析用户 home，计划目录目标: {plan_dir_display}");
+        let _ = on_event(TaskPlanRunStreamEventDto::Error {
+            task_id: Some(task_id.to_string()),
+            message: message.clone(),
+        });
+        return Err(message);
+    }
     let planning_session = planning_session_id(task_id);
     let parent_session_id =
         request.parent_session_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
@@ -243,7 +265,7 @@ where
     }
 
     // 网关 plan-run 固定目标模式：规划提示始终要求独立验收关卡。
-    let planning_prompt = build_goal_planning_prompt(task_id, &request.query);
+    let planning_prompt = build_goal_planning_prompt_for_dir(task_id, &request.query, &plan_abs);
     let (planning_delta_tx, mut planning_delta_rx) = tokio::sync::mpsc::channel(64);
     let planning_run = runner.run_session(
         SessionRunRequest {

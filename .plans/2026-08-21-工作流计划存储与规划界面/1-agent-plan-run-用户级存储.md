@@ -2,7 +2,7 @@
 
 批次：【批次 1】 无
 
-状态：未开始
+状态：已完成，待回归
 
 目的：让网关 plan-run 只在用户级 `<HOME_CONFIG_DIR_NAME>/storage/plan/task-<id>/` 生成计划，同时保持项目目录为代码执行 root。
 
@@ -49,6 +49,8 @@
 - 运行：`cargo clippy -p vw-config-types -p vw-agent --all-targets --all-features -- -D warnings`
 - 预期：退出码 0；全部新增/更新测试可编译，生产路径不再把 `request.root` 用作计划目录根。
 - 所需证据：失败验证的编译错误或旧路径差异、通过验证退出码、共享 helper 的路径断言、runner 忽略冲突历史缓存且未复制数据的断言、已审查差异。
+- 验证结果：失败验证退出码 101，新增测试因 `task_plan_storage_dir` 尚不存在而编译失败；实现后通过验证退出码 0。
+- 待回归：仓库禁令要求不执行 `cargo test`，新增行为测试仅由 all-targets clippy 证明可编译，尚未实际运行。
 
 ## 完成
 

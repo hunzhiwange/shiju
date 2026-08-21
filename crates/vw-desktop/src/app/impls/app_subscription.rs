@@ -156,7 +156,7 @@ impl App {
 
         let question_poll =
             if self.any_session_requesting() || self.question_modal_request_id.is_some() {
-                iced::time::every(std::time::Duration::from_secs(2))
+                iced::time::every(std::time::Duration::from_secs(10))
                     .map(|_| Message::Chat(message::ChatMessage::QuestionPollTick))
             } else {
                 Subscription::none()
@@ -164,7 +164,7 @@ impl App {
 
         let permission_poll =
             if self.any_session_requesting() || self.permission_modal_request_id.is_some() {
-                iced::time::every(std::time::Duration::from_secs(2))
+                iced::time::every(std::time::Duration::from_secs(10))
                     .map(|_| Message::Chat(message::ChatMessage::PermissionPollTick))
             } else {
                 Subscription::none()

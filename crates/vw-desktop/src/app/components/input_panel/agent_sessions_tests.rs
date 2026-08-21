@@ -1,6 +1,7 @@
 use super::agent_sessions::{
     agent_session_open_message, agent_session_status_label, agent_session_stop_message,
-    agent_sessions_badge_label, agent_sessions_badge_style, agent_sessions_entry,
+    agent_session_tooltip_text, agent_sessions_badge_label, agent_sessions_badge_style,
+    agent_sessions_entry,
     agent_sessions_popover, agent_sessions_popover_style, agent_sessions_row_style,
     agent_sessions_stop_style, running_agent_sessions,
 };
@@ -115,6 +116,7 @@ fn child(session_id: &str, agent: &str, title: &str, task: &str) -> AgentChildSe
         status: AgentChildSessionStatus::Running,
         depth: 0,
         plan_run_task_id: None,
+        task_path: None,
     }
 }
 
@@ -198,7 +200,10 @@ async fn agent_sessions_popover_layouts_nested_non_ascii_text_in_light_and_dark_
             .expect("tiny-skia headless renderer should be available");
     let app = crate::app::App::new().0;
     let mut workflow = child("workflow-child", "子智能体", "递归工作流", "等待孙会话");
-    workflow.kind = AgentChildSessionKind::WorkflowExecution;
+    workflow.kind = AgentChildSessionKind::WorkflowPlanning;
+    workflow.title = "规划 · 019fb6ed-fc1c-7c21-8d82-c13454526594 · 计划任务".to_string();
+    workflow.task.clear();
+    workflow.task_path = Some("/home/user/.vibewindow/storage/plan/task-render".to_string());
     workflow.status = AgentChildSessionStatus::Waiting;
     workflow.plan_run_task_id = Some("task-render".to_string());
     let mut nested = child("agent-grandchild", "reviewer", "检查中文动态文本", "等待递归后代完成");
@@ -258,7 +263,7 @@ fn workflow_plan_run_children_reuse_input_session_list() {
 }
 
 #[test]
-fn workflow_planning_child_uses_planning_copy_and_keeps_directory_for_tooltip() {
+fn workflow_planning_child_uses_compact_label_and_task_path_tooltip() {
     const TASK_ID: &str = "019fb6ed-fc1c-7c21-8d82-c13454526594";
     const SESSION_ID: &str = "019fb6ed-fc1c-7c21-8d82-c13454526594-plan";
     const DIRECTORY: &str = "/workspace/project";
@@ -271,15 +276,63 @@ fn workflow_planning_child_uses_planning_copy_and_keeps_directory_for_tooltip() 
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some(PARENT_ID.to_string());
     app.sessions = vec![session(PARENT_ID, None, "父会话", DIRECTORY), planning_child];
+    app.chat = vec![
+        assistant(&format!(
+            "tool workflow_node\n{}\n",
+            serde_json::json!({
+                "status": "running",
+                "metadata": {
+                    "canonical_tool_id": "workflow_node",
+                    "plan_run": true,
+                    "event_type": "planning_started",
+                    "task_id": TASK_ID,
+                    "session_id": SESSION_ID,
+                    "task_path": "/home/user/.vibewindow/storage/plan/task-compact",
+                },
+            })
+        )),
+        assistant(&format!(
+            "tool workflow_node\n{}\n",
+            serde_json::json!({
+                "status": "waiting",
+                "metadata": {
+                    "canonical_tool_id": "workflow_node",
+                    "plan_run": true,
+                    "event_type": "session_delta",
+                    "task_id": TASK_ID,
+                    "session_id": SESSION_ID,
+                },
+            })
+        )),
+    ];
+    app.chat_message_ids = vec![None, None];
     app.get_session_runtime_mut(SESSION_ID).is_requesting = true;
 
     let children = running_agent_sessions(&app);
     assert_eq!(children.len(), 1);
-    assert_eq!(children[0].title, "规划");
-    assert_eq!(children[0].task, format!("计划 {TASK_ID}"));
+    assert_eq!(children[0].title, format!("规划 · {TASK_ID} · 计划任务"));
+    assert!(children[0].task.is_empty());
     assert_eq!(children[0].directory, DIRECTORY);
+    assert_eq!(
+        children[0].task_path.as_deref(),
+        Some("/home/user/.vibewindow/storage/plan/task-compact")
+    );
+    assert_eq!(
+        agent_session_tooltip_text(&children[0]),
+        Some("/home/user/.vibewindow/storage/plan/task-compact")
+    );
     assert_eq!(children[0].kind, AgentChildSessionKind::WorkflowPlanning);
-    assert_eq!(agent_session_status_label(children[0].kind, children[0].status), "正在规划");
+    assert_eq!(children[0].status, AgentChildSessionStatus::Waiting);
+    match agent_session_open_message(&children[0]) {
+        Some(Message::Chat(message::ChatMessage::OpenAgentSession {
+            project_path,
+            session_id,
+        })) => {
+            assert_eq!(project_path, DIRECTORY);
+            assert_eq!(session_id, SESSION_ID);
+        }
+        other => panic!("expected planning session open message, got {other:?}"),
+    }
     assert!(!agent_sessions_popover(&app, &children).as_widget().children().is_empty());
 }
 
@@ -304,6 +357,7 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
             "task_id": TASK_ID,
             "session_id": WORKFLOW_SESSION_ID,
             "title": "实现递归会话树",
+            "task_path": "/home/user/.vibewindow/storage/plan/task-nested/3-实现递归会话树.md",
         },
     });
     let workflow_chat = vec![assistant(&format!("tool workflow_node\n{workflow_event}\n"))];
@@ -350,6 +404,10 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
     );
     assert_eq!(children[0].depth, 0);
     assert_eq!(children[0].plan_run_task_id.as_deref(), Some(TASK_ID));
+    assert_eq!(
+        agent_session_tooltip_text(&children[0]),
+        Some("/home/user/.vibewindow/storage/plan/task-nested/3-实现递归会话树.md")
+    );
     assert_eq!(children[1].depth, 1);
     assert_eq!(children[1].status, AgentChildSessionStatus::Waiting);
     assert_eq!(agent_session_status_label(children[1].kind, children[1].status), "等待中");

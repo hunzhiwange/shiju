@@ -627,24 +627,20 @@ pub struct TaskPlanSubTask {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn task_plan_root_dir(project_path: &str) -> std::path::PathBuf {
-    let mut path = std::path::PathBuf::from(project_path);
-    path.push(vw_config_types::paths::HOME_CONFIG_DIR_NAME);
-    path.push("tasks");
-    path.push("plan");
+fn task_plan_root_dir(home: &std::path::Path) -> std::path::PathBuf {
+    vw_config_types::paths::task_plan_storage_dir(home)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn task_plan_dir(home: &std::path::Path, task_id: &str) -> std::path::PathBuf {
+    let mut path = task_plan_root_dir(home);
+    path.push(format!("task-{}", sanitize_task_plan_file_part(task_id)));
     path
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn task_plan_dir(project_path: &str, task_id: &str) -> std::path::PathBuf {
-    let mut path = task_plan_root_dir(project_path);
-    path.push(task_id);
-    path
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn task_plan_file_path(project_path: &str, task_id: &str) -> std::path::PathBuf {
-    let mut path = task_plan_dir(project_path, task_id);
+fn task_plan_file_path(home: &std::path::Path, task_id: &str) -> std::path::PathBuf {
+    let mut path = task_plan_dir(home, task_id);
     path.push("plan.md");
     path
 }
@@ -669,12 +665,12 @@ fn subtask_plan_file_name(index: usize, subtask: &SubTask) -> String {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn subtask_plan_file_path(
-    project_path: &str,
+    home: &std::path::Path,
     task_id: &str,
     index: usize,
     subtask: &SubTask,
 ) -> std::path::PathBuf {
-    let mut path = task_plan_dir(project_path, task_id);
+    let mut path = task_plan_dir(home, task_id);
     path.push(subtask_plan_file_name(index, subtask));
     path
 }
@@ -734,9 +730,10 @@ fn format_markdown_list(items: &[String], empty: &str) -> String {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn write_task_plan_files(project_path: &str, task: &Task) -> Result<(), String> {
-    let dir = task_plan_dir(project_path, &task.id);
-    std::fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
+fn write_task_plan_files_in_home(home: &std::path::Path, task: &Task) -> Result<(), String> {
+    let dir = task_plan_dir(home, &task.id);
+    std::fs::create_dir_all(&dir)
+        .map_err(|err| format!("无法创建任务计划目录 {}: {err}", dir.display()))?;
 
     let expected_files = task
         .subtasks
@@ -745,14 +742,16 @@ pub fn write_task_plan_files(project_path: &str, task: &Task) -> Result<(), Stri
         .map(|(index, subtask)| subtask_plan_file_name(index, subtask))
         .collect::<std::collections::HashSet<_>>();
 
-    std::fs::write(task_plan_file_path(project_path, &task.id), build_task_plan_markdown(task))
-        .map_err(|err| err.to_string())?;
+    let plan_path = task_plan_file_path(home, &task.id);
+    std::fs::write(&plan_path, build_task_plan_markdown(task))
+        .map_err(|err| format!("无法写入任务计划 {}: {err}", plan_path.display()))?;
     for (index, subtask) in task.subtasks.iter().enumerate() {
+        let subtask_path = subtask_plan_file_path(home, &task.id, index, subtask);
         std::fs::write(
-            subtask_plan_file_path(project_path, &task.id, index, subtask),
+            &subtask_path,
             build_subtask_plan_markdown(task, subtask, index, task.subtasks.len()),
         )
-        .map_err(|err| err.to_string())?;
+        .map_err(|err| format!("无法写入子任务计划 {}: {err}", subtask_path.display()))?;
     }
 
     if let Ok(entries) = std::fs::read_dir(&dir) {
@@ -771,6 +770,12 @@ pub fn write_task_plan_files(project_path: &str, task: &Task) -> Result<(), Stri
     }
 
     Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn write_task_plan_files(_project_path: &str, task: &Task) -> Result<(), String> {
+    let home = resolve_task_plan_home()?;
+    write_task_plan_files_in_home(&home, task)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -906,19 +911,17 @@ fn task_split_plan_dir_name(task: &Task) -> String {
     format!("task-{}", sanitize_task_plan_file_part(&task.id))
 }
 
-/// 任务拆分使用的确定性计划目录（仓库相对路径）。
-#[cfg(not(target_arch = "wasm32"))]
-fn task_split_plan_dir_rel(task: &Task) -> String {
-    format!(".plans/{}", task_split_plan_dir_name(task))
-}
-
 /// 任务拆分确定性计划目录的绝对路径。
 #[cfg(not(target_arch = "wasm32"))]
-fn task_split_plan_abs_dir(project_path: &str, task: &Task) -> std::path::PathBuf {
-    let mut path = std::path::PathBuf::from(project_path);
-    path.push(".plans");
-    path.push(task_split_plan_dir_name(task));
-    path
+fn task_split_plan_abs_dir(home: &std::path::Path, task: &Task) -> std::path::PathBuf {
+    task_plan_root_dir(home).join(task_split_plan_dir_name(task))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn resolve_task_plan_home() -> Result<std::path::PathBuf, String> {
+    super::programs::user_home_dir().ok_or_else(|| {
+        "无法解析用户 home：HOME 与 USERPROFILE 均未设置，无法访问任务计划存储".to_string()
+    })
 }
 
 /// 读取确定性计划目录下由 create-task-plans 生成的 `prompt.md`。
@@ -926,8 +929,8 @@ fn task_split_plan_abs_dir(project_path: &str, task: &Task) -> std::path::PathBu
 /// 规划完成后执行器必须从此固定位置读取 `prompt.md`，缺失时返回包含路径的明确错误，
 /// 不静默回退旧 JSON 解析。
 #[cfg(not(target_arch = "wasm32"))]
-fn read_task_plan_prompt_md(project_path: &str, task: &Task) -> Result<String, String> {
-    let prompt_md_path = task_split_plan_abs_dir(project_path, task).join("prompt.md");
+fn read_task_plan_prompt_md(home: &std::path::Path, task: &Task) -> Result<String, String> {
+    let prompt_md_path = task_split_plan_abs_dir(home, task).join("prompt.md");
     std::fs::read_to_string(&prompt_md_path)
         .map_err(|err| format!("无法读取任务拆分结果 {}: {err}", prompt_md_path.display()))
 }
@@ -1098,10 +1101,10 @@ fn is_task_heading(line: &str) -> bool {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn build_task_split_prompt(task: &Task) -> String {
-    let plan_dir = task_split_plan_dir_rel(task);
+fn build_task_split_prompt(task: &Task, plan_dir: &std::path::Path) -> String {
+    let plan_dir = plan_dir.display();
     format!(
-        "请使用下面内置的 create-task-plans-runtime 技能语义，把这个开发需求拆分成可独立执行并跟踪的实施计划，不要直接写代码，只生成计划目录与文件。\n\n## 内置技能来源\n\n- create-task-plans-runtime: {CREATE_TASK_PLANS_SKILL_SOURCE}\n- do-task-plans-runtime: {DO_TASK_PLANS_SKILL_SOURCE}\n\n## 输出要求\n\n- 计划目录固定使用仓库相对路径 `{plan_dir}/`，不要按日期或功能名另起目录；目录不存在时创建它。\n- 在该目录下生成 `plan.md`（整体架构指南，生成后只读）、`prompt.md`（所有任务的执行提示列表）、`tasks.json`（运行时调度事实来源）以及 `1-<任务名>.md`、`2-<任务名>.md` 等编号任务文件。\n- `tasks.json` 必须与 Markdown 文件一一对应；每个任务条目必须包含 `id`、`title`、`file`、`batch`、`depends_on_batches`、`status`。\n- 所有计划内容使用中文，并严格遵循下方技能模板的 plan.md / prompt.md / tasks.json / 任务文件结构。\n- prompt.md 必须覆盖每个编号任务，并引用对应任务文件、当前批次和依赖批次。\n\n## 批次与依赖批次\n\n- 为每个编号任务在任务文件、prompt.md 和 tasks.json 中写明`当前批次`和可为多个的`依赖批次`（无依赖时写“无”或空数组）。\n- 同一批次只允许放入彼此没有任务依赖、不会争用同一文件、且验证资源不冲突的任务；不能证明可并发时必须升高批次数，不要把不能并行的任务塞进同一批次。\n- 用批次表达线性顺序与可并行集合：后批次依赖前批次完成，同批次内的任务可并发执行。\n\n## 自动化排障约束\n\n- 这是自动化执行，用户无法实时干预；不要询问用户、不要等待澄清。先用仓库上下文、现有模块、相邻测试和搜索自行收敛假设。\n- 只有遇到外部依赖缺失、权限不足或安全风险等无法自行解决的情况，才在对应任务文件中记录阻塞原因；其余情况自行查证并继续。\n- {TASK_AUTOMATION_TOOL_GUARDRAIL}\n\n## 内置 create-task-plans-runtime 技能\n\n{CREATE_TASK_PLANS_SKILL}\n\n## 本次需求\n\n任务ID: {}\n标题: {}\n需求:\n{}",
+        "请使用下面内置的 create-task-plans-runtime 技能语义，把这个开发需求拆分成可独立执行并跟踪的实施计划，不要直接写代码，只生成计划目录与文件。\n\n## 内置技能来源\n\n- create-task-plans-runtime: {CREATE_TASK_PLANS_SKILL_SOURCE}\n- do-task-plans-runtime: {DO_TASK_PLANS_SKILL_SOURCE}\n\n## 输出要求\n\n- 计划目录固定使用绝对路径 `{plan_dir}/`，不要按日期或功能名另起目录；目录不存在时创建它。\n- 在该目录下生成 `plan.md`（整体架构指南，生成后只读）、`prompt.md`（所有任务的执行提示列表）、`tasks.json`（运行时调度事实来源）以及 `1-<任务名>.md`、`2-<任务名>.md` 等编号任务文件。\n- `tasks.json` 必须与 Markdown 文件一一对应；每个任务条目必须包含 `id`、`title`、`file`、`batch`、`depends_on_batches`、`status`。\n- 所有计划内容使用中文，并严格遵循下方技能模板的 plan.md / prompt.md / tasks.json / 任务文件结构。\n- prompt.md 必须覆盖每个编号任务，并引用对应任务文件、当前批次和依赖批次。\n\n## 批次与依赖批次\n\n- 为每个编号任务在任务文件、prompt.md 和 tasks.json 中写明`当前批次`和可为多个的`依赖批次`（无依赖时写“无”或空数组）。\n- 同一批次只允许放入彼此没有任务依赖、不会争用同一文件、且验证资源不冲突的任务；不能证明可并发时必须升高批次数，不要把不能并行的任务塞进同一批次。\n- 用批次表达线性顺序与可并行集合：后批次依赖前批次完成，同批次内的任务可并发执行。\n\n## 自动化排障约束\n\n- 这是自动化执行，用户无法实时干预；不要询问用户、不要等待澄清。先用仓库上下文、现有模块、相邻测试和搜索自行收敛假设。\n- 只有遇到外部依赖缺失、权限不足或安全风险等无法自行解决的情况，才在对应任务文件中记录阻塞原因；其余情况自行查证并继续。\n- {TASK_AUTOMATION_TOOL_GUARDRAIL}\n\n## 内置 create-task-plans-runtime 技能\n\n{CREATE_TASK_PLANS_SKILL}\n\n## 本次需求\n\n任务ID: {}\n标题: {}\n需求:\n{}",
         task.id,
         task.description.trim(),
         task.prompt.trim()
@@ -1115,8 +1118,19 @@ fn execute_task_plan_blocking(
     log_sender: Option<Sender<TaskLogStream>>,
 ) -> (String, Result<TaskPlanGenerationOutcome, String>) {
     let sender_ref = log_sender.as_ref();
+    let home = match resolve_task_plan_home() {
+        Ok(home) => home,
+        Err(error) => return (task.id, Err(error)),
+    };
+    let plan_dir = task_split_plan_abs_dir(&home, &task);
+    if let Err(error) = std::fs::create_dir_all(&plan_dir) {
+        return (
+            task.id,
+            Err(format!("无法创建任务拆分目录 {}: {error}", plan_dir.display())),
+        );
+    }
     let model = if task.model == "auto" { "auto".to_string() } else { task.model.clone() };
-    let prompt = build_task_split_prompt(&task);
+    let prompt = build_task_split_prompt(&task, &plan_dir);
     let session_id = format!("{}-plan", task_session_id(&task.id));
     let result = execute_prompt_with_continue_retry_on_timeout(
         &session_id,
@@ -1141,8 +1155,7 @@ fn execute_task_plan_blocking(
     )
     .and_then(|raw_output| {
         // 模型完成后从确定性计划目录读取 prompt.md，解析失败直接报错，不回退旧 JSON。
-        let plan_dir = task_split_plan_abs_dir(&project_path, &task);
-        let prompt_md = read_task_plan_prompt_md(&project_path, &task)?;
+        let prompt_md = read_task_plan_prompt_md(&home, &task)?;
         let subtasks = parse_create_task_plans_prompt(&prompt_md)?;
         Ok(TaskPlanGenerationOutcome {
             subtasks,
@@ -1390,23 +1403,24 @@ fn execute_git_prepare_actions(
 
 #[cfg(not(target_arch = "wasm32"))]
 fn read_plan_context(
-    project_path: &str,
+    home: &std::path::Path,
     task: &Task,
     subtask: &SubTask,
     index: usize,
     total: usize,
 ) -> (String, String) {
-    let plan = std::fs::read_to_string(task_plan_file_path(project_path, &task.id))
+    let plan = std::fs::read_to_string(task_plan_file_path(home, &task.id))
         .unwrap_or_else(|_| build_task_plan_markdown(task));
-    let subtask_plan =
-        std::fs::read_to_string(subtask_plan_file_path(project_path, &task.id, index, subtask))
-            .unwrap_or_else(|_| build_subtask_plan_markdown(task, subtask, index, total));
+    let subtask_plan = std::fs::read_to_string(subtask_plan_file_path(
+        home, &task.id, index, subtask,
+    ))
+    .unwrap_or_else(|_| build_subtask_plan_markdown(task, subtask, index, total));
     (plan, subtask_plan)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn persist_subtask_status(
-    project_path: &str,
+    home: &std::path::Path,
     task: &mut Task,
     subtask_id: &str,
     update: impl FnOnce(&mut SubTask),
@@ -1414,7 +1428,7 @@ fn persist_subtask_status(
 ) {
     if let Some(subtask) = task.subtasks.iter_mut().find(|item| item.id == subtask_id) {
         update(subtask);
-        if let Err(error) = write_task_plan_files(project_path, task) {
+        if let Err(error) = write_task_plan_files_in_home(home, task) {
             emit_stderr_log(sender, format!("[PLAN] 子任务状态写入失败: {}", error));
         }
     }
@@ -1581,6 +1595,10 @@ fn execute_task_blocking_in_mode(
     initial_session_mode: GatewayPromptSessionMode,
 ) -> (String, Result<String, String>) {
     let sender_ref = log_sender.as_ref();
+    let home = match resolve_task_plan_home() {
+        Ok(home) => home,
+        Err(error) => return (task.id, Err(error)),
+    };
     let (workspace, _claim_guard) =
         match resolve_task_execution_workspace(&task, &project_path, sender_ref) {
             Ok(result) => result,
@@ -1615,7 +1633,7 @@ fn execute_task_blocking_in_mode(
             let subtask = &subtasks[index];
             let started_at_ms = crate::app::time::now_ms();
             persist_subtask_status(
-                &project_path,
+                &home,
                 &mut task_snapshot,
                 &subtask.id,
                 |subtask| subtask.start_execution_at(started_at_ms),
@@ -1629,7 +1647,7 @@ fn execute_task_blocking_in_mode(
                 });
             }
             let (plan_markdown, subtask_markdown) =
-                read_plan_context(&project_path, &task_snapshot, subtask, index, total);
+                read_plan_context(&home, &task_snapshot, subtask, index, total);
             launches.push((index, plan_markdown, subtask_markdown));
         }
 
@@ -1681,7 +1699,7 @@ fn execute_task_blocking_in_mode(
                 Ok(output) => {
                     let completed_at_ms = crate::app::time::now_ms();
                     persist_subtask_status(
-                        &project_path,
+                        &home,
                         &mut task_snapshot,
                         &subtask.id,
                         |subtask| subtask.mark_completed_at(completed_at_ms),
@@ -1701,7 +1719,7 @@ fn execute_task_blocking_in_mode(
                 Err(error) => {
                     let failed_at_ms = crate::app::time::now_ms();
                     persist_subtask_status(
-                        &project_path,
+                        &home,
                         &mut task_snapshot,
                         &subtask.id,
                         |subtask| subtask.mark_failed_at(failed_at_ms),

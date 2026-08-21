@@ -37,22 +37,22 @@ pub fn plan_dir_name(task_id: &str) -> String {
     format!("task-{}", sanitize_task_plan_id_part(task_id))
 }
 
-/// 仓库相对计划目录：`.plans/task-<sanitized-id>`。
-pub fn plan_dir_rel(task_id: &str) -> String {
-    format!(".plans/{}", plan_dir_name(task_id))
-}
-
-/// 计划目录绝对路径。
-pub fn plan_dir_abs(root: impl AsRef<Path>, task_id: &str) -> PathBuf {
-    root.as_ref().join(".plans").join(plan_dir_name(task_id))
+/// 用户级计划目录：`<home>/<HOME_CONFIG_DIR_NAME>/storage/plan/task-<sanitized-id>`。
+pub fn plan_dir_abs(home: impl AsRef<Path>, task_id: &str) -> PathBuf {
+    vw_config_types::paths::task_plan_storage_dir(home).join(plan_dir_name(task_id))
 }
 
 /// 构建规划阶段提示词（对齐桌面 `build_task_split_prompt`）。
 pub fn build_planning_prompt(task_id: &str, query: &str) -> String {
-    let plan_dir = plan_dir_rel(task_id);
+    let plan_dir = plan_dir_abs(&crate::global::paths().home, task_id);
+    build_planning_prompt_for_dir(task_id, query, &plan_dir)
+}
+
+pub(super) fn build_planning_prompt_for_dir(task_id: &str, query: &str, plan_dir: &Path) -> String {
+    let plan_dir = format!("{}/", plan_dir.display());
     let title = planning_title(query);
     format!(
-        "请使用下面内置的 create-task-plans-runtime 技能语义，把这个开发需求拆分成可独立执行并跟踪的实施计划，不要直接写代码，只生成计划目录与文件。\n\n{recursive_policy}\n\n## 硬性落盘要求（必须先满足）\n\n- 必须通过写文件工具实际创建文件；禁止只在聊天回复中粘贴计划内容而不落盘。\n- 计划目录固定且唯一：仓库相对路径 `{plan_dir}/`。忽略技能模板里的 `YYYY-MM-DD-<功能名称>` 路径，不要另起日期目录。\n- 目录已预创建；你必须在该目录下写出全部文件后才算完成：`plan.md`、`prompt.md`、`tasks.json`、以及 `1-<任务名>.md`、`2-<任务名>.md` 等编号任务文件。\n- 调度器只会读取 `{plan_dir}/tasks.json`；写到其他路径会导致执行失败。\n\n## 内置技能来源\n\n- create-task-plans-runtime: {CREATE_TASK_PLANS_SKILL_SOURCE}\n- do-task-plans-runtime: {DO_TASK_PLANS_SKILL_SOURCE}\n\n## 输出要求\n\n- `tasks.json` 必须与 Markdown 文件一一对应；每个任务条目必须包含 `id`、`title`、`file`、`batch`、`depends_on_batches`、`status`。\n- 所有计划内容使用中文，并严格遵循下方技能模板的 plan.md / prompt.md / tasks.json / 任务文件结构。\n- prompt.md 必须覆盖每个编号任务，并引用对应任务文件、当前批次和依赖批次。\n\n## 批次与依赖批次\n\n- 为每个编号任务在任务文件、prompt.md 和 tasks.json 中写明`当前批次`和可为多个的`依赖批次`（无依赖时写“无”或空数组）。\n- 同一批次只允许放入彼此没有任务依赖、不会争用同一文件、且验证资源不冲突的任务；不能证明可并发时必须升高批次数，不要把不能并行的任务塞进同一批次。\n- 用批次表达线性顺序与可并行集合：后批次依赖前批次完成，同批次内的任务可并发执行。\n\n## 自动化排障约束\n\n- 这是自动化执行，用户无法实时干预；不要询问用户、不要等待澄清。先用仓库上下文、现有模块、相邻测试和搜索自行收敛假设。\n- 只有遇到外部依赖缺失、权限不足或安全风险等无法自行解决的情况，才在对应任务文件中记录阻塞原因；其余情况自行查证并继续。\n- {TASK_AUTOMATION_TOOL_GUARDRAIL}\n\n## 内置 create-task-plans-runtime 技能\n\n{CREATE_TASK_PLANS_SKILL}\n\n## 本次需求\n\n任务ID: {task_id}\n标题: {title}\n需求:\n{}",
+        "请使用下面内置的 create-task-plans-runtime 技能语义，把这个开发需求拆分成可独立执行并跟踪的实施计划，不要直接写代码，只生成计划目录与文件。\n\n{recursive_policy}\n\n## 硬性落盘要求（必须先满足）\n\n- 必须通过写文件工具实际创建文件；禁止只在聊天回复中粘贴计划内容而不落盘。\n- 计划目录固定且唯一：绝对路径 `{plan_dir}`。忽略技能模板里的 `YYYY-MM-DD-<功能名称>` 路径，不要另起日期目录。\n- 目录已预创建；你必须在该目录下写出全部文件后才算完成：`plan.md`、`prompt.md`、`tasks.json`、以及 `1-<任务名>.md`、`2-<任务名>.md` 等编号任务文件。\n- 调度器只会读取 `{plan_dir}tasks.json`；写到其他路径会导致执行失败。\n\n## 内置技能来源\n\n- create-task-plans-runtime: {CREATE_TASK_PLANS_SKILL_SOURCE}\n- do-task-plans-runtime: {DO_TASK_PLANS_SKILL_SOURCE}\n\n## 输出要求\n\n- `tasks.json` 必须与 Markdown 文件一一对应；每个任务条目必须包含 `id`、`title`、`file`、`batch`、`depends_on_batches`、`status`。\n- 所有计划内容使用中文，并严格遵循下方技能模板的 plan.md / prompt.md / tasks.json / 任务文件结构。\n- prompt.md 必须覆盖每个编号任务，并引用对应任务文件、当前批次和依赖批次。\n\n## 批次与依赖批次\n\n- 为每个编号任务在任务文件、prompt.md 和 tasks.json 中写明`当前批次`和可为多个的`依赖批次`（无依赖时写“无”或空数组）。\n- 同一批次只允许放入彼此没有任务依赖、不会争用同一文件、且验证资源不冲突的任务；不能证明可并发时必须升高批次数，不要把不能并行的任务塞进同一批次。\n- 用批次表达线性顺序与可并行集合：后批次依赖前批次完成，同批次内的任务可并发执行。\n\n## 自动化排障约束\n\n- 这是自动化执行，用户无法实时干预；不要询问用户、不要等待澄清。先用仓库上下文、现有模块、相邻测试和搜索自行收敛假设。\n- 只有遇到外部依赖缺失、权限不足或安全风险等无法自行解决的情况，才在对应任务文件中记录阻塞原因；其余情况自行查证并继续。\n- {TASK_AUTOMATION_TOOL_GUARDRAIL}\n\n## 内置 create-task-plans-runtime 技能\n\n{CREATE_TASK_PLANS_SKILL}\n\n## 本次需求\n\n任务ID: {task_id}\n标题: {title}\n需求:\n{}",
         query.trim(),
         recursive_policy = recursive_orchestration_policy()
     )
@@ -60,6 +60,15 @@ pub fn build_planning_prompt(task_id: &str, query: &str) -> String {
 
 /// 构建目标模式规划提示词，要求计划最后包含独立验收关卡。
 pub fn build_goal_planning_prompt(task_id: &str, query: &str) -> String {
+    let plan_dir = plan_dir_abs(&crate::global::paths().home, task_id);
+    build_goal_planning_prompt_for_dir(task_id, query, &plan_dir)
+}
+
+pub(super) fn build_goal_planning_prompt_for_dir(
+    task_id: &str,
+    query: &str,
+    plan_dir: &Path,
+) -> String {
     format!(
         "{}\
 \n\n## 目标模式附加要求\
@@ -67,7 +76,7 @@ pub fn build_goal_planning_prompt(task_id: &str, query: &str) -> String {
 \n- 计划最后必须包含一个独立的目标验收任务，依赖全部实现批次。\
 \n- 验收任务必须运行仓库要求和本次变更相关的确切检查，并在输出中展示命令、退出码和结果。\
 \n- 编号任务文件是目标验收清单，不得删除。完成时必须保留文件，并填写 `状态：已完成`、非空 `完成条件：`、`验证命令：` 和包含 `退出码：0` 的 `验证结果：`；只有外部凭据、权限或安全风险无法自行解决时才能标记 `状态：已阻塞`。",
-        build_planning_prompt(task_id, query)
+        build_planning_prompt_for_dir(task_id, query, plan_dir)
     )
 }
 

@@ -13,6 +13,16 @@ fn path_helpers_build_expected_runtime_locations() {
 }
 
 #[test]
+fn task_plan_storage_dir_uses_build_specific_home_directory() {
+    let home = Path::new("/tmp/vibewindow-home");
+
+    assert_eq!(
+        super::task_plan_storage_dir(home),
+        home.join(super::HOME_CONFIG_DIR_NAME).join("storage/plan")
+    );
+}
+
+#[test]
 fn tilde_config_path_normalizes_empty_and_leading_slash_inputs() {
     assert_eq!(super::tilde_config_path(""), format!("~/{}", super::HOME_CONFIG_DIR_NAME));
     assert_eq!(

@@ -262,8 +262,8 @@ mod task_board_execution_worktree_gateway_runner {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn task_plan_root_path(project_root: &std::path::Path) -> std::path::PathBuf {
-    project_root.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks").join("plan")
+fn task_plan_root_path(home: &std::path::Path) -> std::path::PathBuf {
+    vw_config_types::paths::task_plan_storage_dir(home)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -686,8 +686,7 @@ fn spawn_failure_then_idle_timeout_falls_through_to_continue_retry() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn write_task_plan_files_uses_task_folder_with_subtask_files() {
-    let temp = tempfile::TempDir::new().expect("temp project should be created");
-    let project_path = temp.path().to_string_lossy().to_string();
+    let home = tempfile::TempDir::new().expect("temp home should be created");
     let mut task = crate::app::task::Task::new(1);
     task.id = "T20260529.0001".to_string();
     task.prompt = "Implement task pool split".to_string();
@@ -701,10 +700,10 @@ fn write_task_plan_files_uses_task_folder_with_subtask_files() {
     second.id = "SUB-two".to_string();
     task.subtasks = vec![first, second];
 
-    super::write_task_plan_files(&project_path, &task).expect("plan files should write");
+    super::write_task_plan_files_in_home(home.path(), &task).expect("plan files should write");
 
-    let plan_root = task_plan_root_path(temp.path());
-    let task_dir = plan_root.join("T20260529.0001");
+    let plan_root = task_plan_root_path(home.path());
+    let task_dir = plan_root.join("task-T20260529-0001");
     assert!(task_dir.join("plan.md").exists());
     assert!(task_dir.join("001-SUB-one.md").exists());
     assert!(task_dir.join("002-SUB-two.md").exists());
@@ -777,17 +776,17 @@ fn gateway_stream_requires_done_before_success() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn task_plan_paths_use_project_plan_directory() {
-    let root = super::task_plan_root_dir("/repo");
-    let dir = super::task_plan_dir("/repo", "T1");
-    let file = super::task_plan_file_path("/repo", "T1");
+fn task_plan_paths_use_user_storage_directory() {
+    let home = std::path::Path::new("/tmp/vibewindow-home");
+    let root = super::task_plan_root_dir(home);
+    let dir = super::task_plan_dir(home, "T1.unsafe/中文");
+    let file = super::task_plan_file_path(home, "T1.unsafe/中文");
 
-    let plan_dir = std::path::Path::new(vw_config_types::paths::HOME_CONFIG_DIR_NAME)
-        .join("tasks")
-        .join("plan");
-    assert!(root.ends_with(&plan_dir));
-    assert!(dir.ends_with(plan_dir.join("T1")));
-    assert!(file.ends_with(plan_dir.join("T1").join("plan.md")));
+    let plan_root = vw_config_types::paths::task_plan_storage_dir(home);
+    let task_dir = plan_root.join("task-T1-unsafe");
+    assert_eq!(root, plan_root);
+    assert_eq!(dir, task_dir);
+    assert_eq!(file, task_dir.join("plan.md"));
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -911,20 +910,19 @@ fn build_subtask_plan_markdown_uses_defaults_for_empty_fields() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn write_task_plan_files_removes_stale_markdown_files() {
-    let temp = tempfile::TempDir::new().expect("temp project should be created");
-    let project_path = temp.path().to_string_lossy().to_string();
+    let home = tempfile::TempDir::new().expect("temp home should be created");
     let mut task = crate::app::task::Task::new(1);
     task.id = "T-stale".to_string();
     task.prompt = "Prompt".to_string();
     let mut subtask = crate::app::task::SubTask::new("First".to_string());
     subtask.id = "SUB-one".to_string();
     task.subtasks = vec![subtask];
-    let task_dir = task_plan_root_path(temp.path()).join("T-stale");
+    let task_dir = task_plan_root_path(home.path()).join("task-T-stale");
     std::fs::create_dir_all(&task_dir).expect("task dir should exist");
     std::fs::write(task_dir.join("999-stale.md"), "old").expect("stale md should be written");
     std::fs::write(task_dir.join("notes.txt"), "keep").expect("txt should be written");
 
-    super::write_task_plan_files(&project_path, &task).expect("plan files should write");
+    super::write_task_plan_files_in_home(home.path(), &task).expect("plan files should write");
 
     assert!(!task_dir.join("999-stale.md").exists());
     assert!(task_dir.join("notes.txt").exists());
@@ -938,7 +936,9 @@ fn build_task_split_prompt_uses_create_task_plans_template_batches_and_fixed_out
     task.description = "Build tests".to_string();
     task.prompt = "Need coverage".to_string();
 
-    let prompt = super::build_task_split_prompt(&task);
+    let home = std::path::Path::new("/tmp/vibewindow-home");
+    let plan_dir = super::task_split_plan_abs_dir(home, &task);
+    let prompt = super::build_task_split_prompt(&task, &plan_dir);
 
     // 内置 runtime create-task-plans 语义，不再依赖根目录 skills。
     assert!(prompt.contains("create-task-plans-runtime"));
@@ -950,7 +950,8 @@ fn build_task_split_prompt_uses_create_task_plans_template_batches_and_fixed_out
     assert!(!prompt.contains("不要把一个任务机械拆成"));
 
     // 确定性计划目录与 create-task-plans 产物。
-    assert!(prompt.contains(".plans/"));
+    assert!(prompt.contains(plan_dir.to_string_lossy().as_ref()));
+    assert!(!prompt.contains(".plans/"));
     assert!(prompt.contains(&super::task_split_plan_dir_name(&task)));
     assert!(prompt.contains("plan.md"));
     assert!(prompt.contains("prompt.md"));
@@ -1024,8 +1025,7 @@ fn subtask_dependency_batch_labels_preserve_order_and_empty_state() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn read_plan_context_falls_back_to_generated_markdown() {
-    let temp = tempfile::TempDir::new().expect("temp project should be created");
-    let project_path = temp.path().to_string_lossy().to_string();
+    let home = tempfile::TempDir::new().expect("temp home should be created");
     let mut task = crate::app::task::Task::new(1);
     task.id = "T-fallback".to_string();
     task.prompt = "Prompt".to_string();
@@ -1033,7 +1033,7 @@ fn read_plan_context_falls_back_to_generated_markdown() {
     subtask.id = "SUB-one".to_string();
     task.subtasks = vec![subtask.clone()];
 
-    let (plan, subtask_plan) = super::read_plan_context(&project_path, &task, &subtask, 0, 1);
+    let (plan, subtask_plan) = super::read_plan_context(home.path(), &task, &subtask, 0, 1);
 
     assert!(plan.contains("# T-fallback"));
     assert!(subtask_plan.contains("# 子任务 001: First"));
@@ -1041,9 +1041,54 @@ fn read_plan_context_falls_back_to_generated_markdown() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn task_plan_reads_ignore_legacy_project_cache() {
+    let home = tempfile::TempDir::new().expect("temp home should be created");
+    let project = tempfile::TempDir::new().expect("temp project should be created");
+    let mut task = crate::app::task::Task::new(1);
+    task.id = "T.legacy/中文".to_string();
+    task.prompt = "Current prompt".to_string();
+    let mut subtask = crate::app::task::SubTask::new("Current subtask".to_string());
+    subtask.id = "SUB-one".to_string();
+    task.subtasks = vec![subtask.clone()];
+
+    let legacy_dir = project.path().join(".plans").join("task-T-legacy");
+    std::fs::create_dir_all(&legacy_dir).expect("legacy plan directory should be created");
+    std::fs::write(legacy_dir.join("prompt.md"), "legacy prompt")
+        .expect("legacy prompt should be written");
+    std::fs::write(legacy_dir.join("plan.md"), "legacy plan")
+        .expect("legacy plan should be written");
+    std::fs::write(legacy_dir.join("001-SUB-one.md"), "legacy subtask")
+        .expect("legacy subtask should be written");
+    std::fs::write(legacy_dir.join("tasks.json"), "legacy tasks")
+        .expect("legacy tasks should be written");
+
+    let current_dir = super::task_split_plan_abs_dir(home.path(), &task);
+    std::fs::create_dir_all(&current_dir).expect("current plan directory should be created");
+    std::fs::write(current_dir.join("prompt.md"), "current prompt")
+        .expect("current prompt should be written");
+
+    let prompt = super::read_task_plan_prompt_md(home.path(), &task)
+        .expect("current prompt should be read");
+    let (plan, subtask_plan) =
+        super::read_plan_context(home.path(), &task, &subtask, 0, task.subtasks.len());
+
+    assert_eq!(prompt, "current prompt");
+    assert!(plan.contains("Current prompt"));
+    assert!(subtask_plan.contains("Current subtask"));
+    assert!(!plan.contains("legacy plan"));
+    assert!(!subtask_plan.contains("legacy subtask"));
+    assert!(!current_dir.join("tasks.json").exists());
+    assert_eq!(
+        std::fs::read_to_string(legacy_dir.join("tasks.json"))
+            .expect("legacy cache should remain untouched"),
+        "legacy tasks"
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn persist_subtask_status_updates_matching_subtask_and_writes_plan() {
-    let temp = tempfile::TempDir::new().expect("temp project should be created");
-    let project_path = temp.path().to_string_lossy().to_string();
+    let home = tempfile::TempDir::new().expect("temp home should be created");
     let mut task = crate::app::task::Task::new(1);
     task.id = "T-status".to_string();
     task.prompt = "Prompt".to_string();
@@ -1052,7 +1097,7 @@ fn persist_subtask_status_updates_matching_subtask_and_writes_plan() {
     task.subtasks = vec![subtask];
 
     super::persist_subtask_status(
-        &project_path,
+        home.path(),
         &mut task,
         "SUB-one",
         |subtask| {
@@ -1062,14 +1107,13 @@ fn persist_subtask_status_updates_matching_subtask_and_writes_plan() {
     );
 
     assert_eq!(task.subtasks[0].status, crate::app::task::SubTaskStatus::Completed);
-    assert!(task_plan_root_path(temp.path()).join("T-status").join("plan.md").exists());
+    assert!(task_plan_root_path(home.path()).join("task-T-status").join("plan.md").exists());
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn persist_subtask_status_ignores_missing_subtask_without_writing_plan() {
-    let temp = tempfile::TempDir::new().expect("temp project should be created");
-    let project_path = temp.path().to_string_lossy().to_string();
+    let home = tempfile::TempDir::new().expect("temp home should be created");
     let mut task = crate::app::task::Task::new(1);
     task.id = "T-missing-status".to_string();
     task.prompt = "Prompt".to_string();
@@ -1078,7 +1122,7 @@ fn persist_subtask_status_ignores_missing_subtask_without_writing_plan() {
     task.subtasks = vec![subtask];
 
     super::persist_subtask_status(
-        &project_path,
+        home.path(),
         &mut task,
         "SUB-missing",
         |subtask| {
@@ -1088,7 +1132,9 @@ fn persist_subtask_status_ignores_missing_subtask_without_writing_plan() {
     );
 
     assert_eq!(task.subtasks[0].status, crate::app::task::SubTaskStatus::Pending);
-    assert!(!task_plan_root_path(temp.path()).join("T-missing-status").join("plan.md").exists());
+    assert!(
+        !task_plan_root_path(home.path()).join("task-T-missing-status").join("plan.md").exists()
+    );
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1308,19 +1354,19 @@ fn parse_create_task_plans_prompt_rejects_empty_prompt() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn execute_task_plan_reports_missing_prompt_md_explicitly() {
-    let dir = tempfile::tempdir().expect("临时目录");
-    let project_path = dir.path().to_string_lossy().to_string();
+    let home = tempfile::tempdir().expect("临时 home");
     let mut task = crate::app::task::Task::new(1);
     task.prompt = "Original".to_string();
 
     // 计划目录存在但缺少 prompt.md：必须返回包含 prompt.md 路径的明确错误，
     // 不静默回退旧 JSON 解析。
-    let plan_dir = super::task_split_plan_abs_dir(&project_path, &task);
+    let plan_dir = super::task_split_plan_abs_dir(home.path(), &task);
     std::fs::create_dir_all(&plan_dir).expect("创建计划目录");
 
-    let err =
-        super::read_task_plan_prompt_md(&project_path, &task).expect_err("缺失 prompt.md 必须报错");
+    let err = super::read_task_plan_prompt_md(home.path(), &task)
+        .expect_err("缺失 prompt.md 必须报错");
     assert!(err.contains("prompt.md"), "错误信息应包含 prompt.md: {err}");
+    assert!(err.contains(plan_dir.to_string_lossy().as_ref()));
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1600,17 +1646,16 @@ fn parse_create_task_plans_prompt_rejects_unclosed_or_empty_code_blocks() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn read_task_plan_prompt_md_returns_exact_generated_content() {
-    let dir = tempfile::tempdir().expect("temporary project should be created");
-    let project_path = dir.path().to_string_lossy().to_string();
+    let home = tempfile::tempdir().expect("temporary home should be created");
     let mut task = crate::app::task::Task::new(1);
     task.id = "T-read-plan".to_string();
-    let plan_dir = super::task_split_plan_abs_dir(&project_path, &task);
+    let plan_dir = super::task_split_plan_abs_dir(home.path(), &task);
     std::fs::create_dir_all(&plan_dir).expect("plan directory should be created");
     std::fs::write(plan_dir.join("prompt.md"), "# generated\n\ncontent\n")
         .expect("prompt should be written");
 
     let content =
-        super::read_task_plan_prompt_md(&project_path, &task).expect("prompt should be read");
+        super::read_task_plan_prompt_md(home.path(), &task).expect("prompt should be read");
 
     assert_eq!(content, "# generated\n\ncontent\n");
 }

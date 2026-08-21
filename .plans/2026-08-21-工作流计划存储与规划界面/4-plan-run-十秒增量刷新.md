@@ -2,7 +2,7 @@
 
 批次：【批次 4】 依赖批次 3
 
-状态：未开始
+状态：已完成，待回归
 
 目的：把 plan-run 普通文本增量的桌面转发窗口从 220ms/360 字符改为 10 秒，降低 Iced 唤醒和日志噪声。
 
@@ -49,3 +49,13 @@
 
 - `PlanRunDeltaBuffer` 的正常 UI 转发窗口为 10 秒，例外冲刷仅用于正确性和内存边界，密集 delta 不再产生 info 日志。
 - 行为测试未获准执行时状态使用 `已完成，待回归`。
+
+## 验证结果
+
+- 依赖核对：批次 3 已实现并通过聚焦与全量 clippy，未完成项仅为 GUI 手工回归，不阻塞本任务。
+- 失败验证：聚焦 clippy 退出码 101；编译期断言在原 220ms 常量上触发 `E0080`。
+- 通过验证：`cargo clippy -p vw-desktop --all-targets --all-features -- -D warnings` 退出码 0。
+- 全量门禁：`cargo clippy --all-targets --all-features -- -D warnings` 退出码 0；`git diff --check` 退出码 0。
+- 测试代码：覆盖 360 字符与 9.999 秒不冲刷、10 秒冲刷、session 切换、16KiB、UTF-8 顺序、事件范围及恢复游标；生命周期与背压测试保留。
+- 日志与范围审查：原始 `SessionDelta` 和聚合转发仍为 debug，结构化事件仍为 info；普通聊天 50ms/100ms 刷新常量未改。
+- 待回归：仓库禁令要求不执行 `cargo test`，新增行为测试仅由 all-targets clippy 证明可编译。

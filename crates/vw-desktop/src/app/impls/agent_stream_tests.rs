@@ -1,6 +1,11 @@
 // Tests for plan6 task 846.
 const SOURCE: &str = include_str!("agent_stream.rs");
 
+const _: () = assert!(
+    super::PLAN_RUN_DELTA_FLUSH_INTERVAL.as_secs() == 10
+        && super::PLAN_RUN_DELTA_FLUSH_INTERVAL.subsec_nanos() == 0
+);
+
 fn source_declares_symbol(name: &str) -> bool {
     let needles = [
         format!("fn {name}"),
@@ -73,12 +78,7 @@ fn plan_run_delta_buffer_coalesces_before_ui_dispatch() {
             .iter()
             .map(|batch| (batch.session_id.as_str(), batch.delta.as_str()))
             .collect::<Vec<_>>(),
-        vec![
-            ("session-a", "你好"),
-            ("session-b", "B1B2"),
-            ("session-a", "!"),
-            ("session-a", "done"),
-        ]
+        vec![("session-a", "你好"), ("session-b", "B1B2"), ("session-a", "!done")]
     );
     assert_eq!(
         dispatched.iter().map(|batch| batch.delta.as_str()).collect::<String>(),
@@ -88,66 +88,96 @@ fn plan_run_delta_buffer_coalesces_before_ui_dispatch() {
     assert_eq!(dispatched[0].first_event_id, 1);
     assert_eq!(dispatched[0].last_event_id, 2);
 
-    let mut threshold_buffer = super::PlanRunDeltaBuffer::default();
-    let mut threshold_batches = Vec::new();
-    threshold_buffer
+    let mut window_buffer = super::PlanRunDeltaBuffer::default();
+    let mut window_batches = Vec::new();
+    window_buffer
         .push_delta(
             "session-a",
-            &"x".repeat(super::PLAN_RUN_DELTA_SOFT_LIMIT_CHARS - 1),
+            &"x".repeat(360),
             7,
             Duration::ZERO,
             &mut |batch| {
-                threshold_batches.push(batch.clone());
+                window_batches.push(batch.clone());
                 Ok::<(), ()>(())
             },
         )
-        .expect("buffer below soft threshold");
-    threshold_buffer
+        .expect("buffer former soft threshold");
+    assert!(window_batches.is_empty(), "360 characters must not flush early");
+    window_buffer
         .push_delta(
             "session-a",
             "y",
             8,
-            Duration::from_millis(1),
+            Duration::from_millis(9_999),
             &mut |batch| {
-                threshold_batches.push(batch.clone());
+                window_batches.push(batch.clone());
                 Ok::<(), ()>(())
             },
         )
-        .expect("flush at soft threshold");
-    assert_eq!(threshold_batches.len(), 1);
+        .expect("buffer before ten-second window");
+    assert!(window_batches.is_empty(), "9.999 seconds must not flush");
+    window_buffer
+        .push_delta(
+            "session-a",
+            "界",
+            9,
+            Duration::from_secs(10),
+            &mut |batch| {
+                window_batches.push(batch.clone());
+                Ok::<(), ()>(())
+            },
+        )
+        .expect("flush at ten-second window");
+    assert_eq!(window_batches.len(), 1);
     assert_eq!(
-        threshold_batches[0].delta.chars().count(),
-        super::PLAN_RUN_DELTA_SOFT_LIMIT_CHARS
+        window_batches[0].delta,
+        format!("{}y", "x".repeat(360))
+    );
+    assert_eq!(window_batches[0].event_count, 2);
+    assert_eq!(window_batches[0].first_event_id, 7);
+    assert_eq!(window_batches[0].last_event_id, 8);
+    assert_eq!(window_batches[0].cursor_event_id, Some(8));
+    window_buffer
+        .flush(&mut |batch| {
+            window_batches.push(batch.clone());
+            Ok::<(), ()>(())
+        })
+        .expect("flush boundary remainder");
+    assert_eq!(
+        window_batches.iter().map(|batch| batch.delta.as_str()).collect::<String>(),
+        format!("{}y界", "x".repeat(360))
     );
 
+    let mut hard_limit_buffer = super::PlanRunDeltaBuffer::default();
+    let mut hard_limit_batches = Vec::new();
     let oversized = "z".repeat(super::PLAN_RUN_DELTA_HARD_LIMIT_BYTES + 1);
-    threshold_buffer
+    hard_limit_buffer
         .push_delta(
             "session-hard-limit",
             &oversized,
-            9,
-            Duration::from_millis(2),
+            10,
+            Duration::ZERO,
             &mut |batch| {
-                threshold_batches.push(batch.clone());
+                hard_limit_batches.push(batch.clone());
                 Ok::<(), ()>(())
             },
         )
         .expect("split oversized delta");
-    threshold_buffer
+    hard_limit_buffer
         .flush(&mut |batch| {
-            threshold_batches.push(batch.clone());
+            hard_limit_batches.push(batch.clone());
             Ok::<(), ()>(())
         })
         .expect("flush oversized remainder");
     assert!(
-        threshold_batches
+        hard_limit_batches
             .iter()
             .all(|batch| batch.delta.len() <= super::PLAN_RUN_DELTA_HARD_LIMIT_BYTES)
     );
     assert_eq!(
-        threshold_batches
+        hard_limit_batches
             .iter()
-            .filter(|batch| batch.first_event_id == 9)
+            .filter(|batch| batch.first_event_id == 10)
             .map(|batch| batch.delta.as_str())
             .collect::<String>(),
         oversized
@@ -1670,6 +1700,31 @@ fn plan_run_events() -> Vec<vw_gateway_client::vw_api_types::task::TaskPlanRunSt
         },
         TaskPlanRunStreamEventDto::Error { task_id: None, message: "连接失败".to_string() },
     ]
+}
+
+#[test]
+fn plan_run_tool_block_exposes_plan_or_task_path() {
+    let events = plan_run_events();
+    let task_paths = events
+        .iter()
+        .map(super::plan_run_tool_block)
+        .map(|block| {
+            let payload = block
+                .strip_prefix("tool workflow_node\n")
+                .and_then(|value| value.strip_suffix('\n'))
+                .expect("tool block payload");
+            serde_json::from_str::<serde_json::Value>(payload).expect("tool block json")
+        })
+        .map(|payload| {
+            payload["metadata"]["task_path"].as_str().map(str::to_string)
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(task_paths[0].as_deref(), Some("/plans/task-1"));
+    assert_eq!(task_paths[1], None, "session delta has no new path metadata");
+    assert_eq!(task_paths[3].as_deref(), Some("/plans/task-1"));
+    assert_eq!(task_paths[5].as_deref(), Some("1-entry.md"));
+    assert_eq!(task_paths[6].as_deref(), Some("1-entry.md"));
 }
 
 #[test]

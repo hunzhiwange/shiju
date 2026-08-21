@@ -1,7 +1,7 @@
 //! plan-run 子会话 Info 绑定与可渲染历史落盘测试。
 
 use super::{
-    PlanTaskEntry, PlanTasksDocument, SessionRunRequest, SessionRunner, run_task_plan,
+    PlanTaskEntry, PlanTasksDocument, SessionRunRequest, SessionRunner,
     session_bind::{ensure_plan_run_session_info, persist_plan_run_session_history},
 };
 use async_trait::async_trait;
@@ -14,11 +14,12 @@ use vw_api_types::task::TaskPlanRunRequest;
 struct ScriptedSessionRunner {
     responses: Arc<Mutex<VecDeque<Result<String, String>>>>,
     plan_fixture: Arc<Mutex<Option<PlanFixture>>>,
+    task_files: Arc<Mutex<Vec<PathBuf>>>,
 }
 
 #[derive(Clone)]
 struct PlanFixture {
-    plan_dir_rel: String,
+    plan_dir: PathBuf,
     tasks: Vec<PlanTaskEntry>,
 }
 
@@ -30,12 +31,13 @@ impl SessionRunner for ScriptedSessionRunner {
         _delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
     ) -> Result<String, String> {
         if let Some(fixture) = self.plan_fixture.lock().expect("fixture lock").take() {
-            write_plan_fixture(&request.root, &fixture)?;
+            write_plan_fixture(&fixture)?;
+            *self.task_files.lock().expect("task files lock") =
+                fixture.tasks.iter().map(|task| fixture.plan_dir.join(&task.file)).collect();
         }
         // 子任务成功后写入完成清单，使目标模式无需模型验收即可通过。
         if !request.session_id.ends_with("-plan") {
-            let plan_root = PathBuf::from(&request.root).join(".plans");
-            complete_task_mds(&plan_root);
+            complete_task_mds(&self.task_files.lock().expect("task files lock"));
         }
         self.responses
             .lock()
@@ -45,16 +47,8 @@ impl SessionRunner for ScriptedSessionRunner {
     }
 }
 
-fn complete_task_mds(dir: &std::path::Path) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            complete_task_mds(&path);
-            continue;
-        }
+fn complete_task_mds(task_files: &[PathBuf]) {
+    for path in task_files {
         if path.extension().and_then(|ext| ext.to_str()) == Some("md")
             && path.file_name().and_then(|name| name.to_str()) != Some("plan.md")
             && path.file_name().and_then(|name| name.to_str()) != Some("prompt.md")
@@ -67,13 +61,15 @@ fn complete_task_mds(dir: &std::path::Path) {
     }
 }
 
-fn write_plan_fixture(root: &str, fixture: &PlanFixture) -> Result<(), String> {
-    let plan_abs = PathBuf::from(root).join(&fixture.plan_dir_rel);
+fn write_plan_fixture(fixture: &PlanFixture) -> Result<(), String> {
+    let plan_abs = &fixture.plan_dir;
     std::fs::create_dir_all(&plan_abs)
         .map_err(|error| format!("create plan dir failed: {error}"))?;
 
-    let doc =
-        PlanTasksDocument { plan_dir: fixture.plan_dir_rel.clone(), tasks: fixture.tasks.clone() };
+    let doc = PlanTasksDocument {
+        plan_dir: plan_abs.to_string_lossy().to_string(),
+        tasks: fixture.tasks.clone(),
+    };
     let tasks_json = serde_json::to_string_pretty(&doc)
         .map_err(|error| format!("serialize tasks.json failed: {error}"))?;
     std::fs::write(plan_abs.join("tasks.json"), tasks_json)
@@ -182,7 +178,7 @@ async fn plan_run_binds_and_persists_history_through_run_task_plan() {
     let temp = tempfile::tempdir().expect("tempdir");
     let root = temp.path().to_string_lossy().to_string();
     let task_id = "bind-flow";
-    let plan_dir_rel = format!(".plans/task-{task_id}");
+    let plan_dir = super::plan_dir_abs(temp.path(), task_id);
     let parent_id = "parent-main";
 
     let runner = ScriptedSessionRunner {
@@ -191,9 +187,10 @@ async fn plan_run_binds_and_persists_history_through_run_task_plan() {
             Ok("subtask done".to_string()),
         ]))),
         plan_fixture: Arc::new(Mutex::new(Some(PlanFixture {
-            plan_dir_rel,
+            plan_dir,
             tasks: vec![entry("1", "实现绑定", "1-bind.md", 1)],
         }))),
+        task_files: Arc::new(Mutex::new(Vec::new())),
     };
 
     let request = TaskPlanRunRequest {
@@ -205,7 +202,7 @@ async fn plan_run_binds_and_persists_history_through_run_task_plan() {
         parent_session_id: Some(parent_id.to_string()),
     };
 
-    run_task_plan(task_id, &request, &runner, |_| true)
+    super::runner::run_task_plan_in_home(task_id, &request, &runner, temp.path(), |_| true)
         .await
         .expect("run_task_plan should succeed");
 

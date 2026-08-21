@@ -39,6 +39,11 @@ pub fn task_worktrees_dir(home: impl AsRef<Path>) -> PathBuf {
     home_config_dir(home).join(TASK_WORKTREES_DIR_NAME)
 }
 
+/// 用户级工作流计划存储根目录。
+pub fn task_plan_storage_dir(home: impl AsRef<Path>) -> PathBuf {
+    home_config_dir(home).join("storage").join("plan")
+}
+
 pub fn root_config_dir() -> PathBuf {
     PathBuf::from("/").join(HOME_CONFIG_DIR_NAME)
 }

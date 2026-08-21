@@ -1,7 +1,7 @@
 use super::global_status::{
     COMPACT_ACTIVITY_ICON_SIZE, COMPACT_ACTIVITY_SLOT_SIZE, chat_global_status,
     chat_global_status_view, compact_activity_geometry, compact_activity_glyph, format_elapsed,
-    think_pulse_glyph, think_pulse_opacity, tokens_label,
+    think_pulse_glyph, think_pulse_size, tokens_label,
 };
 use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole, TokenUsage};
@@ -132,10 +132,10 @@ fn thinking_pulse_cycles_shapes_and_breathes() {
     assert_eq!(think_pulse_glyph(18), "❋");
     assert_eq!(think_pulse_glyph(24), "✳");
 
-    assert!((think_pulse_opacity(0) - 0.35).abs() < 0.001);
-    assert!((think_pulse_opacity(6) - 1.0).abs() < 0.001);
+    assert!((think_pulse_size(0) - 14.0).abs() < 0.001);
+    assert!((think_pulse_size(6) - 44.0).abs() < 0.001);
     for frame in 0..30 {
-        assert!((0.35..=1.0).contains(&think_pulse_opacity(frame)));
+        assert!((14.0..=44.0).contains(&think_pulse_size(frame)));
     }
 }
 

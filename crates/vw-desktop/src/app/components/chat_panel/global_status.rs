@@ -129,7 +129,7 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
 
     // 思考中恢复原有星形呼吸动画；工具状态继续使用紧凑状态图标。
     let (activity_icon, line_height) = if is_thinking {
-        (think_pulse_indicator(app.status_animation_frame), THINK_PULSE_SLOT_SIZE)
+        (think_pulse_indicator(app.status_animation_frame), THINK_PULSE_MAX_SIZE)
     } else {
         (
             compact_activity_indicator(status.visual, app.status_animation_frame),
@@ -195,39 +195,29 @@ pub(crate) fn think_pulse_glyph(frame: usize) -> &'static str {
         [(frame / THINK_PULSE_FRAMES_PER_GLYPH) % THINK_PULSE_GLYPHS.len()]
 }
 
-const THINK_PULSE_SLOT_SIZE: f32 = 34.0;
+const THINK_PULSE_MIN_SIZE: f32 = 14.0;
+const THINK_PULSE_MAX_SIZE: f32 = 44.0;
 const THINK_PULSE_BREATH_PERIOD: usize = THINK_PULSE_FRAMES_PER_GLYPH * 2;
 
-/// 固定字号避免动画帧反复触发文本布局与字形整形，仅用透明度保留呼吸感。
-const THINK_PULSE_ICON_SIZE: f32 = 24.0;
-const THINK_PULSE_MIN_OPACITY: f32 = 0.35;
-const THINK_PULSE_VERTICAL_OFFSET: f32 = 3.0;
-
-pub(crate) fn think_pulse_opacity(frame: usize) -> f32 {
+pub(crate) fn think_pulse_size(frame: usize) -> f32 {
     let phase = (frame % THINK_PULSE_BREATH_PERIOD) as f32 / THINK_PULSE_BREATH_PERIOD as f32
         * std::f32::consts::TAU;
     let wave = (1.0 - phase.cos()) / 2.0;
-    THINK_PULSE_MIN_OPACITY + wave * (1.0 - THINK_PULSE_MIN_OPACITY)
+    THINK_PULSE_MIN_SIZE + wave * (THINK_PULSE_MAX_SIZE - THINK_PULSE_MIN_SIZE)
 }
 
 fn think_pulse_indicator<'a>(frame: usize) -> Element<'a, Message> {
-    let color = Color { a: think_pulse_opacity(frame), ..THINK_PULSE_ACCENT };
     container(
         text(think_pulse_glyph(frame))
-            .size(THINK_PULSE_ICON_SIZE)
+            .size(think_pulse_size(frame))
             .line_height(iced::widget::text::LineHeight::Relative(1.0))
             .font(bold_font())
-            .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(color) }),
+            .style(|_theme: &Theme| iced::widget::text::Style {
+                color: Some(THINK_PULSE_ACCENT),
+            }),
     )
-    .width(Length::Fixed(THINK_PULSE_SLOT_SIZE))
-    .height(Length::Fixed(THINK_PULSE_SLOT_SIZE))
-    // 固定高度内增加 6px 底部留白，使居中的图标视觉中心上移 3px。
-    .padding(iced::Padding {
-        top: 0.0,
-        right: 0.0,
-        bottom: THINK_PULSE_VERTICAL_OFFSET * 2.0,
-        left: 0.0,
-    })
+    .width(Length::Fixed(THINK_PULSE_MAX_SIZE))
+    .height(Length::Fixed(THINK_PULSE_MAX_SIZE))
     .align_x(Alignment::Center)
     .align_y(Alignment::Center)
     .into()

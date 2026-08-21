@@ -1,7 +1,7 @@
 //! 计划生成与按批次调度的子会话执行器。
 
 use super::goal::{
-    GoalTaskFilesState, build_goal_continuation_prompt, goal_turn_session_id,
+    GoalTaskFilesState, build_goal_continuation_prompt, goal_turn_session_id, inspect_goal_task_file,
     inspect_goal_task_files,
 };
 use super::prompts::{build_execution_prompt, build_goal_planning_prompt_for_dir, plan_dir_abs};
@@ -460,6 +460,8 @@ where
                 &request.query,
                 task.batch,
                 &task.depends_on_batches,
+                &plan_abs,
+                &task_file_abs,
                 &plan_markdown,
                 &subtask_markdown,
             );
@@ -514,10 +516,18 @@ where
             let session_id = subtask_session_id(task_id, &task.id);
             match result {
                 Ok(output) => {
-                    if !combined_output.is_empty() {
-                        combined_output.push_str("\n\n");
-                    }
-                    combined_output.push_str(&output);
+                    let completion_error = match inspect_goal_task_file(&plan_abs, &task) {
+                        Ok(GoalTaskFilesState::Complete) => None,
+                        Ok(GoalTaskFilesState::Pending(reason))
+                        | Ok(GoalTaskFilesState::Blocked(reason))
+                        | Err(reason) => Some(reason),
+                    };
+                    append_subtask_execution_evidence(
+                        &mut combined_output,
+                        &task,
+                        Some(&output),
+                        completion_error.as_deref(),
+                    );
                     if !emit(
                         &mut on_event,
                         TaskPlanRunStreamEventDto::SubtaskFinished {
@@ -526,16 +536,25 @@ where
                             subtask_id: task.id.clone(),
                             title: task.title.clone(),
                             task_file: task_file_display,
-                            success: true,
+                            success: completion_error.is_none(),
                             output: Some(output),
-                            error: None,
+                            error: completion_error.clone(),
                             session_id,
                         },
                     ) {
                         return Ok(());
                     }
+                    if let Some(error) = completion_error {
+                        stage_failed.get_or_insert((task.id.clone(), error));
+                    }
                 }
                 Err(error) => {
+                    append_subtask_execution_evidence(
+                        &mut combined_output,
+                        &task,
+                        None,
+                        Some(&error),
+                    );
                     if !emit(
                         &mut on_event,
                         TaskPlanRunStreamEventDto::SubtaskFinished {
@@ -567,15 +586,6 @@ where
             },
         ) {
             return Ok(());
-        }
-
-        if let Some((subtask_id, reason)) = stage_failed {
-            // 目标模式：子任务失败不立即阻塞，记入证据后进入独立验收/续轮。
-            if !combined_output.is_empty() {
-                combined_output.push_str("\n\n");
-            }
-            combined_output.push_str(&format!("子任务 {subtask_id} 执行失败：{reason}"));
-            continue;
         }
     }
 
@@ -669,9 +679,12 @@ where
         let continuation_title = format!("目标续轮 · 第 {turn} 轮");
         let continuation_prompt = build_goal_continuation_prompt(
             &request.query,
+            plan_abs,
+            tasks,
             plan_markdown,
             &reason,
             &task_files_state,
+            &execution_evidence,
         );
         if let Err(error) = ensure_plan_run_session_info(
             &continuation_session_id,
@@ -903,22 +916,28 @@ where
                 error
             });
 
-        match &result {
+        let persistence_result = match &result {
             Ok(output) => {
-                let _ =
-                    persist_plan_run_session_history(&session_id, &root, &title, &query, output)
-                        .await;
+                persist_plan_run_session_history(&session_id, &root, &title, &query, output).await
             }
             Err(error) => {
-                let _ = persist_plan_run_session_history(
+                persist_plan_run_session_history(
                     &session_id,
                     &root,
                     &title,
                     &query,
                     &format!("子任务失败: {error}"),
                 )
-                .await;
+                .await
             }
+        };
+        if let Err(error) = persistence_result {
+            return (
+                launch.index,
+                launch.task,
+                launch.task_file_display,
+                Err(format!("子任务会话持久化失败: {error}")),
+            );
         }
 
         match result {
@@ -959,6 +978,29 @@ where
                 );
             }
         }
+    }
+}
+
+fn append_subtask_execution_evidence(
+    evidence: &mut String,
+    task: &PlanTaskEntry,
+    output: Option<&str>,
+    error: Option<&str>,
+) {
+    if !evidence.is_empty() {
+        evidence.push_str("\n\n");
+    }
+    evidence.push_str(&format!("## 子任务 [{}] {}", task.id, task.title));
+    if let Some(output) = output {
+        evidence.push_str("\n会话输出：\n");
+        evidence.push_str(if output.trim().is_empty() { "（空）" } else { output.trim() });
+    }
+    match error {
+        Some(error) => {
+            evidence.push_str("\n验收结果：失败\n失败原因：");
+            evidence.push_str(error.trim());
+        }
+        None => evidence.push_str("\n验收结果：满足任务文件完成契约"),
     }
 }
 

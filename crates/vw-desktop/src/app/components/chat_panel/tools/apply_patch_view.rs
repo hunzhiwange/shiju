@@ -324,15 +324,14 @@ pub fn tool_apply_patch_view<'a>(
                         toggle_message.clone(),
                     );
                     let header_row = row![
-                        row![apply_patch_file_icon(icon), file_ref, external_diff_btn, eye_btn]
-                            .spacing(10)
+                        row![apply_patch_file_icon(icon), file_ref, eye_btn, external_diff_btn]
+                            .spacing(8)
                             .align_y(Alignment::Center),
-                        container(Space::new()).width(Length::Fill),
                         count_meta,
                         view_changes_btn,
                     ]
                     .align_y(Alignment::Center)
-                    .spacing(10);
+                    .spacing(8);
                     let header = mouse_area(
                         container(header_row)
                             .padding([8, 0])

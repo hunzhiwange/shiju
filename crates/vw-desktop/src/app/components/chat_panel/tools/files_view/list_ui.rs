@@ -206,7 +206,6 @@ pub(super) fn edit_file_change_block<'a>(
         edit_verb_text(verb),
         edit_file_name_link(abs, file_name),
         external_diff_button(open_diff_message),
-        container(Space::new()).width(Length::Fill),
     ]
     .spacing(8)
     .align_y(Alignment::Center);

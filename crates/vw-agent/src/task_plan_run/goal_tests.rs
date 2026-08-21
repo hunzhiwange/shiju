@@ -4,6 +4,7 @@ use super::{
     GoalTaskFilesState, PlanTaskEntry, build_goal_continuation_prompt, goal_turn_session_id,
     inspect_goal_task_files,
 };
+use super::goal::inspect_goal_task_file;
 
 fn task(file: &str) -> PlanTaskEntry {
     PlanTaskEntry {
@@ -46,6 +47,10 @@ fn goal_task_files_require_completed_status_and_validation_evidence() {
         inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("complete"),
         GoalTaskFilesState::Complete
     );
+    assert_eq!(
+        inspect_goal_task_file(temp.path(), &task("1-goal.md")).expect("single task complete"),
+        GoalTaskFilesState::Complete
+    );
 
     std::fs::write(&path, "# task\n\n状态：已阻塞\n\n阻塞原因：缺少凭据\n").expect("write blocked");
     assert!(matches!(
@@ -67,15 +72,24 @@ fn goal_mode_session_ids_are_stable() {
 
 #[test]
 fn goal_continuation_keeps_outer_plan_and_reuses_recursive_policy() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let task = task("1-实现.md");
     let prompt = build_goal_continuation_prompt(
         "完成递归智能体目标",
+        temp.path(),
+        std::slice::from_ref(&task),
         "# plan.md",
         "后代证据尚未综合",
         &GoalTaskFilesState::Pending("1-实现.md".to_string()),
+        "子任务 [1] 已完成实现，测试退出码 0",
     );
 
     assert!(prompt.contains("外层编号任务、批次依赖和任务文件所有权保持不变"));
     assert!(prompt.contains("自主拆分内部工作流"));
     assert!(prompt.contains("Launch independent read-only or non-overlapping work"));
     assert!(prompt.contains("verify evidence and synthesize required results"));
+    assert!(prompt.contains(&temp.path().to_string_lossy().to_string()));
+    assert!(prompt.contains(&temp.path().join(&task.file).to_string_lossy().to_string()));
+    assert!(prompt.contains("子任务 [1] 已完成实现，测试退出码 0"));
+    assert!(prompt.contains("不要重复实现已经达成的产物"));
 }

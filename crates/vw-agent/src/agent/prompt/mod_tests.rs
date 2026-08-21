@@ -287,14 +287,19 @@ fn base_and_task_plan_prompts_share_recursive_orchestration_policy() {
         "实现递归智能体编排",
         4,
         &[3],
+        temp.path(),
+        &temp.path().join("4-current-task.md"),
         "# plan.md\n保持外层编号任务",
         "# 当前任务\n在任务边界内实现",
     );
     let continuation = crate::task_plan_run::build_goal_continuation_prompt(
         "实现递归智能体编排",
+        temp.path(),
+        &[],
         "# plan.md",
         "缺少验收证据",
         &crate::task_plan_run::GoalTaskFilesState::Pending("任务仍存在".to_string()),
+        "",
     );
 
     for (name, prompt) in [

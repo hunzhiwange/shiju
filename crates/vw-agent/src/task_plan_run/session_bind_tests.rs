@@ -227,3 +227,113 @@ async fn plan_run_binds_and_persists_history_through_run_task_plan() {
         .expect("subtask ChatSession should load");
     assert!(!subtask_chat.messages.is_empty(), "subtask messages must be non-empty for desktop");
 }
+
+#[tokio::test]
+async fn run_plan_persists_clickable_subtask_session_before_finished_event() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let root = temp.path().join("project");
+    std::fs::create_dir_all(&root).expect("create project root");
+    let root = root.to_string_lossy().to_string();
+    let task_id = format!("clickable-{}", std::process::id());
+    let plan_dir = super::plan_dir_abs(temp.path(), &task_id);
+    let parent_id = "parent-clickable";
+    let subtask_id = format!("{task_id}-1");
+
+    let runner = ScriptedSessionRunner {
+        responses: Arc::new(Mutex::new(VecDeque::from(vec![
+            Ok("plan ready".to_string()),
+            Ok("subtask persisted".to_string()),
+        ]))),
+        plan_fixture: Arc::new(Mutex::new(Some(PlanFixture {
+            plan_dir,
+            tasks: vec![entry("1", "可点击子任务", "1-clickable.md", 1)],
+        }))),
+        task_files: Arc::new(Mutex::new(Vec::new())),
+    };
+    let request = TaskPlanRunRequest {
+        query: "完成子任务并在结束事件前持久化".to_string(),
+        root: root.clone(),
+        model: None,
+        agent: None,
+        acp_agent: None,
+        parent_session_id: Some(parent_id.to_string()),
+    };
+    let observed = Arc::new(Mutex::new(None));
+    let captured = Arc::clone(&observed);
+
+    super::runner::run_task_plan_in_home(&task_id, &request, &runner, temp.path(), |event| {
+        if let vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+            session_id,
+            success,
+            ..
+        } = event
+        {
+            assert!(success, "persisted subtask should finish successfully");
+            let info = crate::session::ui_store::load_agent_session_any(&session_id)
+                .expect("Info must be readable before SubtaskFinished");
+            let chat = crate::session::ui_store::load_session_any(&session_id)
+                .expect("ChatSession must be readable before SubtaskFinished");
+            *captured.lock().expect("observed lock") = Some((info, chat));
+            return false;
+        }
+        true
+    })
+    .await
+    .expect("plan run should reach persisted subtask event");
+
+    let (info, chat) = observed.lock().expect("observed lock").take().expect("finished snapshot");
+    assert_eq!(info.id, subtask_id);
+    assert_eq!(info.parent_id.as_deref(), Some(parent_id));
+    assert_eq!(info.directory, root);
+    assert!(!chat.messages.is_empty(), "persisted ChatSession messages must be non-empty");
+}
+
+#[tokio::test]
+async fn run_plan_does_not_report_subtask_success_when_session_persistence_fails() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let missing_root = temp.path().join("missing-project");
+    let task_id = format!("unpersisted-{}", std::process::id());
+    let runner = ScriptedSessionRunner {
+        responses: Arc::new(Mutex::new(VecDeque::from(vec![
+            Ok("plan ready".to_string()),
+            Ok("subtask output".to_string()),
+        ]))),
+        plan_fixture: Arc::new(Mutex::new(Some(PlanFixture {
+            plan_dir: super::plan_dir_abs(temp.path(), &task_id),
+            tasks: vec![entry("1", "不可持久化子任务", "1-unpersisted.md", 1)],
+        }))),
+        task_files: Arc::new(Mutex::new(Vec::new())),
+    };
+    let request = TaskPlanRunRequest {
+        query: "存储失败必须显式报告".to_string(),
+        root: missing_root.to_string_lossy().to_string(),
+        model: None,
+        agent: None,
+        acp_agent: None,
+        parent_session_id: Some("parent-unpersisted".to_string()),
+    };
+    let finished = Arc::new(Mutex::new(None));
+    let captured = Arc::clone(&finished);
+
+    super::runner::run_task_plan_in_home(&task_id, &request, &runner, temp.path(), |event| {
+        if let vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+            success,
+            error,
+            ..
+        } = event
+        {
+            *captured.lock().expect("finished lock") = Some((success, error));
+            return false;
+        }
+        true
+    })
+    .await
+    .expect("storage failure should be reported by event");
+
+    let (success, error) = finished.lock().expect("finished lock").take().expect("finished event");
+    assert!(!success, "unpersisted session must not report success");
+    assert!(
+        error.as_deref().is_some_and(|error| error.contains("plan-run root 不是目录")),
+        "storage failure should be visible in SubtaskFinished: {error:?}"
+    );
+}

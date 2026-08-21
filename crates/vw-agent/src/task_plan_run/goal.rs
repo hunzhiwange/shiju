@@ -17,22 +17,12 @@ pub fn inspect_goal_task_files(
 ) -> Result<GoalTaskFilesState, String> {
     let mut pending = Vec::new();
     for task in tasks {
-        let task_path = if Path::new(&task.file).is_absolute() {
-            Path::new(&task.file).to_path_buf()
-        } else {
-            plan_abs.join(&task.file)
-        };
-        if !task_path.exists() {
-            pending.push(format!("## {} ({})\n任务文件不存在", task.title, task.file));
-            continue;
-        }
-        let content = std::fs::read_to_string(&task_path)
-            .map_err(|error| format!("无法读取目标任务文件 {}: {error}", task_path.display()))?;
-        if has_blocked_status(&content) {
-            return Ok(GoalTaskFilesState::Blocked(blocked_reason(&task.id, &content)));
-        }
-        if let Some(reason) = incomplete_task_reason(&content) {
-            pending.push(format!("## {} ({})\n{reason}", task.title, task.file));
+        match inspect_goal_task_file(plan_abs, task)? {
+            GoalTaskFilesState::Complete => {}
+            GoalTaskFilesState::Pending(reason) => pending.push(reason),
+            GoalTaskFilesState::Blocked(reason) => {
+                return Ok(GoalTaskFilesState::Blocked(reason));
+            }
         }
     }
 
@@ -43,7 +33,32 @@ pub fn inspect_goal_task_files(
     }
 }
 
-pub fn build_goal_continuation_prompt(
+pub fn inspect_goal_task_file(
+    plan_abs: &Path,
+    task: &PlanTaskEntry,
+) -> Result<GoalTaskFilesState, String> {
+    let task_path = task_file_path(plan_abs, task);
+    if !task_path.exists() {
+        return Ok(GoalTaskFilesState::Pending(format!(
+            "## {} ({})\n任务文件不存在",
+            task.title, task.file
+        )));
+    }
+    let content = std::fs::read_to_string(&task_path)
+        .map_err(|error| format!("无法读取目标任务文件 {}: {error}", task_path.display()))?;
+    if has_blocked_status(&content) {
+        return Ok(GoalTaskFilesState::Blocked(blocked_reason(&task.id, &content)));
+    }
+    if let Some(reason) = incomplete_task_reason(&content) {
+        return Ok(GoalTaskFilesState::Pending(format!(
+            "## {} ({})\n{reason}",
+            task.title, task.file
+        )));
+    }
+    Ok(GoalTaskFilesState::Complete)
+}
+
+fn build_goal_continuation_prompt_base(
     original_goal: &str,
     plan_markdown: &str,
     reason: &str,
@@ -72,6 +87,50 @@ pub fn build_goal_continuation_prompt(
     )
 }
 
+pub fn build_goal_continuation_prompt(
+    original_goal: &str,
+    plan_abs: &Path,
+    tasks: &[PlanTaskEntry],
+    plan_markdown: &str,
+    reason: &str,
+    task_files_state: &GoalTaskFilesState,
+    execution_evidence: &str,
+) -> String {
+    let canonical_task_files = tasks
+        .iter()
+        .map(|task| {
+            format!(
+                "- [{}] {}：{}",
+                task.id,
+                task.title,
+                task_file_path(plan_abs, task).display()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let evidence = if execution_evidence.trim().is_empty() {
+        "（暂无已有执行证据）"
+    } else {
+        execution_evidence.trim()
+    };
+    format!(
+        "{}\
+\n\n# 规范计划目录\n{}\
+\n\n# 规范任务文件\n{}\
+\n\n# 已有执行证据\n{}\
+\n\n先复用上述已有执行证据修正未通过清单，不要重复实现已经达成的产物；只更新列出的规范任务文件。",
+        build_goal_continuation_prompt_base(
+            original_goal,
+            plan_markdown,
+            reason,
+            task_files_state,
+        ),
+        plan_abs.display(),
+        canonical_task_files,
+        evidence,
+    )
+}
+
 pub fn goal_turn_session_id(task_id: &str, turn: u32) -> String {
     format!("{}-goal-{turn}", super::prompts::sanitize_task_plan_id_part(task_id))
 }
@@ -81,6 +140,11 @@ fn has_blocked_status(content: &str) -> bool {
         let line = line.trim();
         line == "状态：已阻塞" || line == "状态: 已阻塞"
     })
+}
+
+fn task_file_path(plan_abs: &Path, task: &PlanTaskEntry) -> std::path::PathBuf {
+    let task_path = Path::new(&task.file);
+    if task_path.is_absolute() { task_path.to_path_buf() } else { plan_abs.join(task_path) }
 }
 
 fn incomplete_task_reason(content: &str) -> Option<String> {

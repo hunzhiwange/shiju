@@ -59,9 +59,58 @@ struct CancellationGatedSessionRunner {
     started: Arc<Semaphore>,
 }
 
+#[derive(Clone)]
+struct PromptPathSessionRunner {
+    plan_fixture: Arc<Mutex<Option<PlanFixture>>>,
+    canonical_plan_dir: PathBuf,
+    canonical_task_file: PathBuf,
+    decoy_task_file: PathBuf,
+    calls: Arc<Mutex<Vec<SessionRunRequest>>>,
+}
+
+#[derive(Clone)]
+struct ContinuationEvidenceSessionRunner {
+    plan_fixture: Arc<Mutex<Option<PlanFixture>>>,
+    canonical_plan_dir: PathBuf,
+    canonical_task_file: PathBuf,
+    decoy_task_file: PathBuf,
+    prior_output: String,
+    calls: Arc<Mutex<Vec<SessionRunRequest>>>,
+}
+
 impl Default for CancellationGatedSessionRunner {
     fn default() -> Self {
         Self { started: Arc::new(Semaphore::new(0)) }
+    }
+}
+
+impl PromptPathSessionRunner {
+    fn new(plan_fixture: PlanFixture, canonical_task_file: PathBuf, decoy_task_file: PathBuf) -> Self {
+        Self {
+            canonical_plan_dir: plan_fixture.plan_dir.clone(),
+            plan_fixture: Arc::new(Mutex::new(Some(plan_fixture))),
+            canonical_task_file,
+            decoy_task_file,
+            calls: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+}
+
+impl ContinuationEvidenceSessionRunner {
+    fn new(
+        plan_fixture: PlanFixture,
+        canonical_task_file: PathBuf,
+        decoy_task_file: PathBuf,
+        prior_output: &str,
+    ) -> Self {
+        Self {
+            canonical_plan_dir: plan_fixture.plan_dir.clone(),
+            plan_fixture: Arc::new(Mutex::new(Some(plan_fixture))),
+            canonical_task_file,
+            decoy_task_file,
+            prior_output: prior_output.to_string(),
+            calls: Arc::new(Mutex::new(Vec::new())),
+        }
     }
 }
 
@@ -133,6 +182,78 @@ impl SessionRunner for CancellationGatedSessionRunner {
     ) -> Result<String, String> {
         self.started.add_permits(1);
         std::future::pending().await
+    }
+}
+
+#[async_trait]
+impl SessionRunner for PromptPathSessionRunner {
+    async fn run_session(
+        &self,
+        request: SessionRunRequest,
+        _delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
+    ) -> Result<String, String> {
+        self.calls.lock().expect("calls lock").push(request.clone());
+        if let Some(fixture) = self.plan_fixture.lock().expect("fixture lock").take() {
+            write_plan_fixture(&request.root, &fixture)?;
+            return Ok("plan ready".to_string());
+        }
+
+        let names_canonical_paths = request
+            .query
+            .contains(&self.canonical_plan_dir.to_string_lossy().to_string())
+            && request
+                .query
+                .contains(&self.canonical_task_file.to_string_lossy().to_string());
+        let target =
+            if names_canonical_paths { &self.canonical_task_file } else { &self.decoy_task_file };
+        std::fs::write(
+            target,
+            "# 任务\n\n状态：已完成\n\n完成条件：路径绑定已验证\n\n验证命令：cargo test\n\n验证结果：退出码：0；通过\n",
+        )
+        .map_err(|error| format!("write selected task failed: {error}"))?;
+        Ok("subtask done".to_string())
+    }
+}
+
+#[async_trait]
+impl SessionRunner for ContinuationEvidenceSessionRunner {
+    async fn run_session(
+        &self,
+        request: SessionRunRequest,
+        _delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
+    ) -> Result<String, String> {
+        let call_index = {
+            let mut calls = self.calls.lock().expect("calls lock");
+            calls.push(request.clone());
+            calls.len()
+        };
+        if let Some(fixture) = self.plan_fixture.lock().expect("fixture lock").take() {
+            write_plan_fixture(&request.root, &fixture)?;
+            return Ok("plan ready".to_string());
+        }
+        if call_index == 2 {
+            return Ok(self.prior_output.clone());
+        }
+
+        let receives_required_context = request.query.contains(&self.prior_output)
+            && request
+                .query
+                .contains(&self.canonical_plan_dir.to_string_lossy().to_string())
+            && request
+                .query
+                .contains(&self.canonical_task_file.to_string_lossy().to_string())
+            && request.query.contains("状态不是");
+        let target = if receives_required_context {
+            &self.canonical_task_file
+        } else {
+            &self.decoy_task_file
+        };
+        std::fs::write(
+            target,
+            "# 任务\n\n状态：已完成\n\n完成条件：续轮复用证据完成修正\n\n验证命令：cargo test\n\n验证结果：退出码：0；通过\n",
+        )
+        .map_err(|error| format!("write selected continuation task failed: {error}"))?;
+        Ok("目标续轮已修正任务文件".to_string())
     }
 }
 
@@ -864,6 +985,60 @@ async fn run_plan_ignores_legacy_project_cache() {
 }
 
 #[tokio::test]
+async fn task_plan_run_updates_only_canonical_user_plan_task_file() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let home = temp.path().join("runtime-home");
+    let project_root = temp.path().join("project");
+    let task_id = "dynamic/path.id";
+    let task_file_name = "1-bind-path.md";
+    let canonical_plan_dir = super::plan_dir_abs(&home, task_id);
+    let canonical_task_file = canonical_plan_dir.join(task_file_name);
+    let decoy_plan_dir =
+        project_root.join(".plans").join(super::prompts::plan_dir_name(task_id));
+    let decoy_task_file = decoy_plan_dir.join(task_file_name);
+    std::fs::create_dir_all(&decoy_plan_dir).expect("create decoy plan dir");
+    let decoy_before = "# 诱饵任务\n\n状态：未开始\n";
+    std::fs::write(&decoy_task_file, decoy_before).expect("write decoy task");
+
+    let runner = PromptPathSessionRunner::new(
+        PlanFixture {
+            plan_dir: canonical_plan_dir.clone(),
+            tasks: vec![entry("1", "绑定路径", task_file_name, 1, vec![])],
+        },
+        canonical_task_file.clone(),
+        decoy_task_file.clone(),
+    );
+    let request = TaskPlanRunRequest {
+        query: "只更新规范任务文件".to_string(),
+        root: project_root.to_string_lossy().to_string(),
+        model: None,
+        agent: None,
+        acp_agent: None,
+        parent_session_id: Some("main-session".to_string()),
+    };
+
+    super::runner::run_task_plan_in_home(task_id, &request, &runner, &home, |event| {
+        !matches!(event, TaskPlanRunStreamEventDto::SubtaskFinished { .. })
+    })
+    .await
+    .expect("plan run should reach subtask completion");
+
+    assert_eq!(
+        std::fs::read_to_string(&canonical_task_file).expect("read canonical task"),
+        "# 任务\n\n状态：已完成\n\n完成条件：路径绑定已验证\n\n验证命令：cargo test\n\n验证结果：退出码：0；通过\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&decoy_task_file).expect("read decoy task"),
+        decoy_before
+    );
+    let calls = runner.calls.lock().expect("calls lock");
+    let execution_prompt = &calls[1].query;
+    assert!(execution_prompt.contains(&canonical_plan_dir.to_string_lossy().to_string()));
+    assert!(execution_prompt.contains(&canonical_task_file.to_string_lossy().to_string()));
+    assert!(!execution_prompt.contains(&decoy_task_file.to_string_lossy().to_string()));
+}
+
+#[tokio::test]
 async fn run_plan_reports_missing_home_and_creation_target() {
     let temp = tempfile::tempdir().expect("tempdir");
     let request = TaskPlanRunRequest {
@@ -1226,6 +1401,134 @@ async fn goal_mode_finishes_from_completed_task_checklist_without_evaluator() {
     let calls = runner.calls.lock().expect("calls");
     assert_eq!(calls.len(), 2, "planning + subtask only");
     assert!(calls.iter().all(|call| !call.session_id.contains("-goal-eval-")));
+}
+
+#[tokio::test]
+async fn subtask_finished_requires_canonical_task_file_completion() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let root = temp.path().to_string_lossy().to_string();
+    let task_id = "demo-subtask-contract";
+    let claimed_output = "子任务输出声称实现与验证均已完成";
+    let runner = GoalSessionRunner::new(
+        vec![Ok("plan ready".to_string()), Ok(claimed_output.to_string())],
+        plan_fixture(
+            temp.path(),
+            task_id,
+            vec![entry("1", "契约验收", "1-contract.md", 1, vec![])],
+        ),
+        None,
+    );
+    let request = TaskPlanRunRequest {
+        query: "完成目标并严格检查任务文件".to_string(),
+        root,
+        model: None,
+        agent: None,
+        acp_agent: None,
+        parent_session_id: None,
+    };
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let captured = Arc::clone(&events);
+
+    run_task_plan(task_id, &request, &runner, |event| {
+        let stop = matches!(event, TaskPlanRunStreamEventDto::SubtaskFinished { .. });
+        captured.lock().expect("events").push(event);
+        !stop
+    })
+    .await
+    .expect("stop after first subtask completion event");
+
+    let events = events.lock().expect("events");
+    let finished = events
+        .iter()
+        .find(|event| matches!(event, TaskPlanRunStreamEventDto::SubtaskFinished { .. }))
+        .expect("subtask finished event");
+    assert!(matches!(
+        finished,
+        TaskPlanRunStreamEventDto::SubtaskFinished {
+            success: false,
+            output: Some(output),
+            error: Some(error),
+            ..
+        } if output == claimed_output && error.contains("状态不是")
+    ));
+}
+
+#[tokio::test]
+async fn goal_continuation_receives_prior_execution_evidence_and_canonical_paths() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let home = temp.path().join("runtime-home");
+    let project_root = temp.path().join("project");
+    let task_id = "dynamic/continuation.id";
+    let task_file_name = "1-continuation.md";
+    let canonical_plan_dir = super::plan_dir_abs(&home, task_id);
+    let canonical_task_file = canonical_plan_dir.join(task_file_name);
+    let decoy_task_file = project_root
+        .join(".plans")
+        .join(super::prompts::plan_dir_name(task_id))
+        .join(task_file_name);
+    std::fs::create_dir_all(decoy_task_file.parent().expect("decoy parent"))
+        .expect("create decoy plan dir");
+    let decoy_before = "# 诱饵任务\n\n状态：未开始\n";
+    std::fs::write(&decoy_task_file, decoy_before).expect("write decoy task");
+    let prior_output = "既有执行证据：实现文件已修改，聚焦测试已通过";
+    let runner = ContinuationEvidenceSessionRunner::new(
+        PlanFixture {
+            plan_dir: canonical_plan_dir.clone(),
+            tasks: vec![entry("1", "续轮修正", task_file_name, 1, vec![])],
+        },
+        canonical_task_file.clone(),
+        decoy_task_file.clone(),
+        prior_output,
+    );
+    let request = TaskPlanRunRequest {
+        query: "目标续轮复用已有证据修正清单".to_string(),
+        root: project_root.to_string_lossy().to_string(),
+        model: None,
+        agent: None,
+        acp_agent: None,
+        parent_session_id: Some("main-session".to_string()),
+    };
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let captured = Arc::clone(&events);
+    let mut goal_evaluations = 0_u32;
+
+    super::runner::run_task_plan_in_home(task_id, &request, &runner, &home, |event| {
+        if matches!(event, TaskPlanRunStreamEventDto::GoalEvaluated { .. }) {
+            goal_evaluations += 1;
+        }
+        let keep_running = goal_evaluations < 2;
+        captured.lock().expect("events").push(event);
+        keep_running
+    })
+    .await
+    .expect("continuation workflow should run");
+
+    let calls = runner.calls.lock().expect("calls");
+    let continuation_prompt = &calls[2].query;
+    assert!(continuation_prompt.contains(prior_output));
+    assert!(continuation_prompt.contains(&canonical_plan_dir.to_string_lossy().to_string()));
+    assert!(continuation_prompt.contains(&canonical_task_file.to_string_lossy().to_string()));
+    assert!(continuation_prompt.contains("状态不是"));
+    drop(calls);
+
+    assert_eq!(
+        std::fs::read_to_string(&decoy_task_file).expect("read decoy task"),
+        decoy_before
+    );
+    let events = events.lock().expect("events");
+    assert!(events.iter().any(|event| matches!(
+        event,
+        TaskPlanRunStreamEventDto::SubtaskFinished {
+            success: false,
+            output: Some(output),
+            error: Some(error),
+            ..
+        } if output == prior_output && error.contains("状态不是")
+    )));
+    assert!(matches!(
+        events.last(),
+        Some(TaskPlanRunStreamEventDto::Finished { status, .. }) if status == "completed"
+    ));
 }
 
 #[tokio::test]

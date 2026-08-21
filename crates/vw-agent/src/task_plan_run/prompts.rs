@@ -85,6 +85,8 @@ pub fn build_execution_prompt(
     query: &str,
     batch: u32,
     depends_on_batches: &[u32],
+    plan_abs: &Path,
+    task_file_abs: &Path,
     plan_markdown: &str,
     subtask_markdown: &str,
 ) -> String {
@@ -100,6 +102,10 @@ pub fn build_execution_prompt(
 \n- 子任务获得所需验证证据后，保留对应编号任务文件，并填写 `状态：已完成`、非空 `完成条件：`、`验证命令：` 与包含成功退出码的 `验证结果：`；被阻塞时只在对应编号任务文件中更新为 `已阻塞`。\
 \n- 本流程为内置提示词，无需安装 do-task-plans 技能（不依赖用户项目安装该技能）即可执行。\
 \n- {TASK_AUTOMATION_TOOL_GUARDRAIL}\
+\n\n## 规范任务文件路径\
+\n\n- 规范计划目录: `{plan_abs}`\
+\n- 当前任务文件（唯一可写进度源）: `{task_file_abs}`\
+\n- 只允许在记录进度、完成或阻塞时更新上述当前任务文件；不搜索、不新建、不更新仓库内同名 `.plans` 文件。\
 \n\n## 当前批次上下文\
 \n\n- 当前批次: {batch}\
 \n- 依赖批次: {depends_on}\
@@ -114,6 +120,8 @@ pub fn build_execution_prompt(
         plan_markdown.trim(),
         subtask_markdown.trim(),
         query.trim(),
+        plan_abs = plan_abs.display(),
+        task_file_abs = task_file_abs.display(),
         recursive_policy = recursive_orchestration_policy()
     )
 }

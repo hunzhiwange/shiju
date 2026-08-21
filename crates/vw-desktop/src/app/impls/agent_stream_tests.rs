@@ -684,7 +684,7 @@ async fn workflow_mode_streams_task_plan_run_events_instead_of_temporary_workflo
         vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. }
     ));
 
-    let block = super::plan_run_tool_block(&events[1]);
+    let block = super::plan_run_tool_block(&events[1], "/work/project");
     assert!(block.contains("\"canonical_tool_id\":\"workflow_node\""));
     assert!(block.contains("\"plan_run\":true"));
     assert!(block.contains("\"event_type\":\"plan_created\""));
@@ -1640,7 +1640,7 @@ fn plan_run_events() -> Vec<vw_gateway_client::vw_api_types::task::TaskPlanRunSt
             plan_md_path: "/plans/task-1/plan.md".to_string(),
             prompt_md_path: "/plans/task-1/prompt.md".to_string(),
             tasks_json_path: "/plans/task-1/tasks.json".to_string(),
-            subtask_count: 2,
+            subtask_count: 3,
             session_id: "task-1-plan".to_string(),
         },
         TaskPlanRunStreamEventDto::BatchStarted {
@@ -1707,7 +1707,7 @@ fn plan_run_tool_block_exposes_plan_or_task_path() {
     let events = plan_run_events();
     let task_paths = events
         .iter()
-        .map(super::plan_run_tool_block)
+        .map(|event| super::plan_run_tool_block(event, "/work/project"))
         .map(|block| {
             let payload = block
                 .strip_prefix("tool workflow_node\n")
@@ -1723,8 +1723,29 @@ fn plan_run_tool_block_exposes_plan_or_task_path() {
     assert_eq!(task_paths[0].as_deref(), Some("/plans/task-1"));
     assert_eq!(task_paths[1], None, "session delta has no new path metadata");
     assert_eq!(task_paths[3].as_deref(), Some("/plans/task-1"));
+    let created_block = super::plan_run_tool_block(&events[3], "/work/project");
+    let created_payload = created_block
+        .strip_prefix("tool workflow_node\n")
+        .and_then(|value| value.strip_suffix('\n'))
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        .expect("plan created tool block json");
+    assert_eq!(created_payload["metadata"]["subtask_count"], 3);
     assert_eq!(task_paths[5].as_deref(), Some("1-entry.md"));
     assert_eq!(task_paths[6].as_deref(), Some("1-entry.md"));
+}
+
+#[test]
+fn plan_run_tool_block_carries_session_directory() {
+    let events = plan_run_events();
+    let block = super::plan_run_tool_block(&events[5], "/work/event-project");
+    let payload = block
+        .strip_prefix("tool workflow_node\n")
+        .and_then(|value| value.strip_suffix('\n'))
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        .expect("subtask tool block json");
+
+    assert_eq!(payload["metadata"]["session_id"], "task-1-sub-1");
+    assert_eq!(payload["metadata"]["session_directory"], "/work/event-project");
 }
 
 #[test]
@@ -1774,8 +1795,8 @@ fn desktop_plan_run_waiting_and_cancelled_events_keep_session_lifecycle_consiste
     assert_eq!(super::plan_run_session_finished_id(&cancelled), None);
     assert_eq!(super::plan_run_session_cancelled_id(&cancelled), Some("task-2-sub-9"));
 
-    let waiting_block = super::plan_run_tool_block(&waiting);
-    let cancelled_block = super::plan_run_tool_block(&cancelled);
+    let waiting_block = super::plan_run_tool_block(&waiting, "/work/project");
+    let cancelled_block = super::plan_run_tool_block(&cancelled, "/work/project");
     assert!(waiting_block.contains("\"status\":\"waiting\""));
     assert!(cancelled_block.contains("\"status\":\"cancelled\""));
     assert!(!cancelled_block.contains("\"status\":\"completed\""));
@@ -1832,7 +1853,7 @@ fn plan_run_event_helpers_map_every_variant_and_failure_branch() {
     assert_eq!(super::plan_run_event_output_text(&events[1]), "正在分析");
     assert_eq!(super::plan_run_event_summary(&events[2]), "等待后代智能体");
     assert!(super::plan_run_event_output_text(&events[2]).contains("task-1-plan-child"));
-    assert_eq!(super::plan_run_event_summary(&events[3]), "计划已创建 · 2 个子任务");
+    assert_eq!(super::plan_run_event_summary(&events[3]), "计划已创建 · 3 个子任务");
     assert_eq!(super::plan_run_event_summary(&events[7]), "批次 3 · 补测试 · 失败");
     assert!(super::plan_run_event_output_text(&events[4]).contains("sub-1, sub-2"));
     assert!(super::plan_run_event_output_text(&events[7]).ends_with("执行失败"));
@@ -1865,7 +1886,19 @@ fn completed_batch_reuses_started_node_and_marks_it_completed() {
 #[test]
 fn plan_run_tool_block_serializes_error_and_metadata() {
     let events = plan_run_events();
-    let block = super::plan_run_tool_block(&events[6]);
+    let failed = events
+        .iter()
+        .find(|event| {
+            matches!(
+                event,
+                vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
+                    success: false,
+                    ..
+                }
+            )
+        })
+        .expect("failed subtask event");
+    let block = super::plan_run_tool_block(failed, "/work/project");
     let payload_text = block
         .strip_prefix("tool workflow_node\n")
         .and_then(|value| value.strip_suffix('\n'))
@@ -1899,7 +1932,7 @@ fn plan_run_tool_block_uses_explicit_title_fallback_for_blank_subtask_title() {
         task_file: "9-verify.md".to_string(),
         session_id: "task-2-sub-9".to_string(),
     };
-    let block = super::plan_run_tool_block(&event);
+    let block = super::plan_run_tool_block(&event, "/work/project");
     let payload_text = block
         .strip_prefix("tool workflow_node\n")
         .and_then(|value| value.strip_suffix('\n'))
@@ -1998,7 +2031,7 @@ fn plan_run_blocked_subtask_and_success_without_output_use_stable_payloads() {
     assert!(output.starts_with("子任务完成，任务文件已处理: 10-verify.md\n"));
     assert!(!output.contains("ignored"));
 
-    let block = super::plan_run_tool_block(&blocked);
+    let block = super::plan_run_tool_block(&blocked, "/work/project");
     let payload_text = block
         .strip_prefix("tool workflow_node\n")
         .and_then(|value| value.strip_suffix('\n'))

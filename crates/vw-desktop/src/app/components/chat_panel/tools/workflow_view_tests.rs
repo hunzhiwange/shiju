@@ -1,12 +1,16 @@
 use super::{
-    WorkflowNodeState, chat_summary_text, elapsed_label, metadata_string, metadata_value,
-    node_meta_label, output_preview_text, output_value, status_text, token_value,
+    PLAN_RUN_CARD_MAX_WIDTH, WorkflowNodeState, chat_summary_text, elapsed_label, metadata_string,
+    metadata_value, node_meta_label, output_preview_text, output_value, plan_run_card_display,
+    plan_run_tooltip_content, status_text, token_value,
     tool_workflow_view, usage_label, usage_value,
     workflow_node_detail_body, workflow_node_primary_message, workflow_node_state,
     workflow_preview_message,
 };
 use crate::app::message;
 use crate::app::{App, Message};
+use iced::advanced::renderer::Headless;
+use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+use iced::{Font, Pixels, Rectangle, Size, Theme};
 use serde_json::json;
 
 fn test_app() -> App {
@@ -321,6 +325,205 @@ fn tool_workflow_view_builds_hovered_preview_card() {
     keep_element(element);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn plan_run_planning_card_uses_compact_state_copy_and_hover_details() {
+    let started = json!({
+        "status": "running",
+        "output": "{\"answer\":\"/plans/task-1\"}",
+        "metadata": {
+            "plan_run": true,
+            "event_type": "planning_started",
+            "task_id": "task-1-uuid",
+            "task_path": "/plans/task-1"
+        }
+    });
+    let created = json!({
+        "status": "completed",
+        "output": "{\"answer\":\"/plans/task-1/plan.md\"}",
+        "metadata": {
+            "plan_run": true,
+            "event_type": "plan_created",
+            "task_id": "task-1-uuid",
+            "task_path": "/plans/task-1",
+            "subtask_count": 3
+        }
+    });
+
+    let started_display = plan_run_card_display(&started).expect("planning display");
+    assert_eq!(started_display.primary_text, "正在规划计划任务");
+    assert!(!started_display.primary_text.contains("task-1-uuid"));
+    assert!(!started_display.primary_text.contains("/plans/task-1"));
+    assert_eq!(
+        started_display.tooltip_text.as_deref(),
+        Some("UUID：task-1-uuid\n任务路径：/plans/task-1")
+    );
+
+    let created_display = plan_run_card_display(&created).expect("created display");
+    assert_eq!(created_display.primary_text, "计划任务已创建，共 3 个任务。");
+    assert!(!created_display.primary_text.contains("task-1-uuid"));
+    assert!(!created_display.primary_text.contains("/plans/task-1"));
+
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut tooltip = plan_run_tooltip_content(
+            created_display.tooltip_text.clone().expect("created tooltip text"),
+        );
+        let limits = layout::Limits::new(Size::ZERO, Size::new(520.0, 160.0));
+        let mut tree = Tree::new(tooltip.as_widget());
+        let node = tooltip.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        tooltip.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &renderer::Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &Rectangle::with_size(Size::new(520.0, 160.0)),
+        );
+    }
+
+    let app = test_app();
+    for value in [started, created] {
+        let visible = format!("tool workflow_node\n{value}");
+        let element = tool_workflow_view(&app, 2, 4, &visible).expect("plan-run planning card");
+        keep_element(element);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn plan_run_subtask_card_hides_path_until_hover() {
+    let task_path = "/项目/计划/2026-08-21-子任务卡片路径精简/1-子任务路径移入-tooltip.md";
+    let cases = [
+        (
+            json!({
+                "status": "running",
+                "output": format!(r#"{{"answer":"子任务开始：整理卡片\n任务文件：{task_path}"}}"#),
+                "metadata": {
+                    "plan_run": true,
+                    "event_type": "subtask_started",
+                    "title": "整理卡片",
+                    "task_path": task_path
+                }
+            }),
+            "子任务开始",
+        ),
+        (
+            json!({
+                "status": "completed",
+                "output": format!(r#"{{"answer":"子任务完成，任务文件已处理：{task_path}\n执行输出：完成"}}"#),
+                "metadata": {
+                    "plan_run": true,
+                    "event_type": "subtask_finished",
+                    "title": "整理卡片",
+                    "task_path": task_path
+                }
+            }),
+            "执行输出：完成",
+        ),
+        (
+            json!({
+                "status": "failed",
+                "error": format!("子任务失败，任务文件保留：{task_path}\n执行失败"),
+                "metadata": {
+                    "plan_run": true,
+                    "event_type": "subtask_finished",
+                    "title": "整理卡片",
+                    "task_path": task_path
+                }
+            }),
+            "执行失败",
+        ),
+    ];
+
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let app = test_app();
+    for (value, detail_fragment) in cases {
+        let display = plan_run_card_display(&value).expect("subtask display");
+        assert_eq!(display.primary_text, "整理卡片");
+        assert!(display.summary_text.is_empty());
+        assert!(!display.primary_text.contains("任务文件"));
+        assert!(!display.primary_text.contains(task_path));
+        let expected_tooltip = format!("任务路径：{task_path}");
+        assert_eq!(display.tooltip_text.as_deref(), Some(expected_tooltip.as_str()));
+
+        let detail = workflow_node_detail_body(&value);
+        assert!(detail.contains(task_path));
+        assert!(detail.contains(detail_fragment));
+
+        let visible = format!("tool workflow_node\n{value}");
+        let mut element = tool_workflow_view(&app, 2, 4, &visible).expect("plan-run subtask card");
+        let viewport = Size::new(1_200.0, 180.0);
+        let limits = layout::Limits::new(Size::ZERO, viewport);
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        let width = Layout::new(&node).bounds().width;
+        assert!(width <= PLAN_RUN_CARD_MAX_WIDTH);
+        assert!(width < viewport.width);
+    }
+
+    let without_path = json!({
+        "status": "running",
+        "metadata": {
+            "plan_run": true,
+            "event_type": "subtask_started",
+            "title": "整理卡片",
+            "task_path": ""
+        }
+    });
+    assert_eq!(
+        plan_run_card_display(&without_path).and_then(|display| display.tooltip_text),
+        None
+    );
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut tooltip = plan_run_tooltip_content(format!("任务路径：{task_path}"));
+        let limits = layout::Limits::new(Size::ZERO, Size::new(440.0, 160.0));
+        let mut tree = Tree::new(tooltip.as_widget());
+        let node = tooltip.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        tooltip.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &renderer::Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &Rectangle::with_size(Size::new(440.0, 160.0)),
+        );
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn plan_run_planning_card_caps_width_in_wide_viewport() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let app = test_app();
+    let visible = r#"tool workflow_node
+{"status":"completed","metadata":{"plan_run":true,"event_type":"plan_created","task_id":"task-1-uuid","task_path":"/plans/task-1","subtask_count":3}}"#;
+    let mut element = tool_workflow_view(&app, 2, 4, visible).expect("plan-run planning card");
+    let viewport = Size::new(1_200.0, 160.0);
+    let limits = layout::Limits::new(Size::ZERO, viewport);
+    let mut tree = Tree::new(element.as_widget());
+    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let width = Layout::new(&node).bounds().width;
+
+    assert!(
+        width <= PLAN_RUN_CARD_MAX_WIDTH,
+        "plan-run planning card should be capped at {PLAN_RUN_CARD_MAX_WIDTH}px, got {width}px"
+    );
+    assert!(width < viewport.width, "planning card should not fill the viewport");
+}
+
 #[test]
 fn plan_run_node_click_opens_session_when_session_id_present() {
     let visible = "tool workflow_node\n{\"status\":\"completed\"}";
@@ -339,6 +542,30 @@ fn plan_run_node_click_opens_session_when_session_id_present() {
             assert_eq!(id, "task-1-plan");
         }
         other => panic!("expected OpenProjectSessionPressed, got {other:?}"),
+    }
+}
+
+#[test]
+fn plan_run_completed_node_uses_event_directory_to_open_session() {
+    let visible = "tool workflow_node\n{\"status\":\"completed\"}";
+    let value = json!({
+        "status": "completed",
+        "metadata": {
+            "plan_run": true,
+            "session_id": " task-1-sub ",
+            "session_directory": " /work/event-project "
+        }
+    });
+
+    for project_path in [None, Some("/work/other-project")] {
+        let message = workflow_node_primary_message(project_path, &value, 1, 2, visible);
+        match message {
+            Message::Project(message::ProjectMessage::OpenProjectSessionPressed(path, id)) => {
+                assert_eq!(path, "/work/event-project");
+                assert_eq!(id, "task-1-sub");
+            }
+            other => panic!("expected event directory navigation, got {other:?}"),
+        }
     }
 }
 

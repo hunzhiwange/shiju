@@ -3,8 +3,9 @@
 //! 聊天流只保留节点标题、状态与短摘要；完整节点输出统一交给工具详情弹窗。
 
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{button, container, mouse_area, row};
-use iced::{Alignment, Element, Length, Padding, Theme};
+use iced::widget::text::Wrapping;
+use iced::widget::{button, container, mouse_area, row, text};
+use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme};
 use serde_json::Value;
 
 use crate::app::assets::Icon;
@@ -23,6 +24,16 @@ enum WorkflowNodeState {
     Completed,
     Failed,
     Cancelled,
+}
+
+const PLAN_RUN_CARD_MAX_WIDTH: f32 = 520.0;
+const PLAN_RUN_TOOLTIP_MAX_WIDTH: f32 = 440.0;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PlanRunCardDisplay {
+    primary_text: String,
+    summary_text: String,
+    tooltip_text: Option<String>,
 }
 
 fn workflow_node_state(status: &str) -> WorkflowNodeState {
@@ -89,6 +100,71 @@ fn metadata_string(value: &Value, key: &str) -> String {
         .filter(|value| !value.is_empty())
         .unwrap_or_default()
         .to_string()
+}
+
+fn plan_run_card_display(value: &Value) -> Option<PlanRunCardDisplay> {
+    if metadata_value(value, "plan_run").and_then(Value::as_bool) != Some(true) {
+        return None;
+    }
+
+    let task_path = metadata_string(value, "task_path");
+    let (primary_text, tooltip_text) = match metadata_string(value, "event_type").as_str() {
+        "planning_started" | "plan_created" => {
+            let primary_text = if metadata_string(value, "event_type") == "planning_started" {
+                "正在规划计划任务".to_string()
+            } else {
+                metadata_value(value, "subtask_count")
+                    .and_then(Value::as_u64)
+                    .map(|count| format!("计划任务已创建，共 {count} 个任务。"))
+                    .unwrap_or_else(|| "计划任务已创建。".to_string())
+            };
+            let mut tooltip_lines = Vec::new();
+            let task_id = metadata_string(value, "task_id");
+            if !task_id.is_empty() {
+                tooltip_lines.push(format!("UUID：{task_id}"));
+            }
+            if !task_path.is_empty() {
+                tooltip_lines.push(format!("任务路径：{task_path}"));
+            }
+            (primary_text, (!tooltip_lines.is_empty()).then(|| tooltip_lines.join("\n")))
+        }
+        "subtask_started" | "subtask_finished" => {
+            let title = metadata_string(value, "title");
+            let primary_text = if title.is_empty() { "工作流节点".to_string() } else { title };
+            let tooltip_text =
+                (!task_path.is_empty()).then(|| format!("任务路径：{task_path}"));
+            (primary_text, tooltip_text)
+        }
+        _ => return None,
+    };
+
+    Some(PlanRunCardDisplay {
+        primary_text,
+        summary_text: String::new(),
+        tooltip_text,
+    })
+}
+
+fn plan_run_tooltip_content(label: String) -> Element<'static, Message> {
+    container(text(label).size(12).wrapping(Wrapping::WordOrGlyph))
+        .padding([6, 10])
+        .max_width(PLAN_RUN_TOOLTIP_MAX_WIDTH)
+        .style(|_theme: &Theme| iced::widget::container::Style {
+            text_color: Some(Color::from_rgb8(0xF3, 0xF4, 0xF6)),
+            background: Some(Background::Color(Color::from_rgb8(0x0B, 0x0B, 0x0B))),
+            border: Border {
+                width: 1.0,
+                color: Color::from_rgb8(0x14, 0x14, 0x14),
+                radius: 6.0.into(),
+            },
+            shadow: iced::Shadow {
+                color: Color::BLACK.scale_alpha(0.25),
+                offset: iced::Vector::new(0.0, 2.0),
+                blur_radius: 6.0,
+            },
+            ..Default::default()
+        })
+        .into()
 }
 
 fn elapsed_label(value: &Value) -> Option<String> {
@@ -275,8 +351,11 @@ fn workflow_node_primary_message(
     visible: &str,
 ) -> Message {
     let session_id = metadata_string(value, "session_id");
+    let session_directory = metadata_string(value, "session_directory");
+    let session_directory = (!session_directory.is_empty()).then_some(session_directory.as_str());
     if !session_id.is_empty()
-        && let Some(path) = project_path.map(str::trim).filter(|path| !path.is_empty())
+        && let Some(path) = session_directory
+            .or_else(|| project_path.map(str::trim).filter(|path| !path.is_empty()))
     {
         return Message::Project(message::ProjectMessage::OpenProjectSessionPressed(
             path.to_string(),
@@ -303,9 +382,14 @@ pub fn tool_workflow_view<'a>(
     let status = tool_status(&value);
     let state = workflow_node_state(status);
     let visual = tool_visual_state(status);
-    let title = metadata_string(&value, "title");
-    let title = if title.is_empty() { "工作流节点".to_string() } else { title };
-    let summary = chat_summary_text(&value, state);
+    let plan_run_card = plan_run_card_display(&value);
+    let (title, summary) = if let Some(display) = &plan_run_card {
+        (display.primary_text.clone(), display.summary_text.clone())
+    } else {
+        let title = metadata_string(&value, "title");
+        let title = if title.is_empty() { "工作流节点".to_string() } else { title };
+        (title, chat_summary_text(&value, state))
+    };
     let primary_message = workflow_node_primary_message(
         app.project_path.as_deref(),
         &value,
@@ -342,25 +426,35 @@ pub fn tool_workflow_view<'a>(
     }
     actions = actions.push(detail_btn);
 
-    Some(
-        mouse_area(
-            container(
-                tool_activity_header(
-                    "workflow_node",
-                    title,
-                    summary,
-                    visual,
-                    actions.into(),
-                ),
-            )
-            .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
-            .width(Length::Fill),
-        )
+    let card = container(tool_activity_header(
+        "workflow_node",
+        title,
+        summary,
+        visual,
+        actions.into(),
+    ))
+    .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 });
+    let card = if plan_run_card.is_some() {
+        card.width(Length::Shrink).max_width(PLAN_RUN_CARD_MAX_WIDTH)
+    } else {
+        card.width(Length::Fill)
+    };
+    let card: Element<'a, Message> = mouse_area(card)
         .on_press(primary_message)
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
         .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
+        .into();
+
+    Some(match plan_run_card.and_then(|display| display.tooltip_text) {
+        Some(tooltip_text) => Tooltip::new(
+            card,
+            plan_run_tooltip_content(tooltip_text),
+            TooltipPosition::Top,
+        )
+        .gap(6.0)
         .into(),
-    )
+        None => card,
+    })
 }
 
 /// 供详情弹窗复用的节点正文（pretty JSON / 错误文本）。

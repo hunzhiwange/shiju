@@ -1707,7 +1707,10 @@ fn plan_run_event_is_terminal(event: &vw_api_types::task::TaskPlanRunStreamEvent
     )
 }
 
-fn plan_run_tool_block(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> String {
+fn plan_run_tool_block(
+    event: &vw_api_types::task::TaskPlanRunStreamEventDto,
+    session_directory: &str,
+) -> String {
     use serde_json::json;
 
     let summary = plan_run_event_summary(event);
@@ -1730,12 +1733,19 @@ fn plan_run_tool_block(event: &vw_api_types::task::TaskPlanRunStreamEventDto) ->
     });
     if let Some(session_id) = plan_run_event_session_id(event) {
         metadata["session_id"] = json!(session_id);
+        metadata["session_directory"] = json!(session_directory);
     }
     if let Some(title) = plan_run_event_session_title(event) {
         metadata["title"] = json!(title);
     }
     if let Some(task_path) = plan_run_event_task_path(event) {
         metadata["task_path"] = json!(task_path);
+    }
+    if let vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated {
+        subtask_count, ..
+    } = event
+    {
+        metadata["subtask_count"] = json!(subtask_count);
     }
     let payload = json!({
         "tool_call_id": plan_run_tool_call_id(event),
@@ -2379,7 +2389,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                             if let Err(err) = output.try_send(Message::Chat(
                                 message::ChatMessage::AgentWorkflowNodeUpdate(
                                     req.id,
-                                    plan_run_tool_block(&event),
+                                    plan_run_tool_block(&event, root),
                                 ),
                             )) {
                                 return gateway_stream_stop_after_forward_err(

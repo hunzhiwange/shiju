@@ -39,10 +39,14 @@ fn goal_mode_planning_prompt_requires_final_validation_task() {
 
 #[test]
 fn execution_prompt_preserves_outer_task_and_allows_internal_orchestration() {
+    let plan_abs = std::path::Path::new("/tmp/runtime-home/plan/task-orchestration");
+    let task_file_abs = plan_abs.join("4-orchestration.md");
     let prompt = super::build_execution_prompt(
         "实现递归智能体编排",
         4,
         &[2, 3],
+        plan_abs,
+        &task_file_abs,
         "# plan.md\n整体架构",
         "# 子任务.md\n当前实现边界",
     );
@@ -56,4 +60,24 @@ fn execution_prompt_preserves_outer_task_and_allows_internal_orchestration() {
     assert!(prompt.contains("Retry only safely retryable failures, with a finite attempt limit"));
     assert!(prompt.contains("当前批次: 4"));
     assert!(prompt.contains("依赖批次: 2, 3"));
+}
+
+#[test]
+fn execution_prompt_names_canonical_plan_and_task_paths() {
+    let plan_abs = std::path::Path::new("/tmp/runtime-home/plan/task-dynamic");
+    let task_file_abs = plan_abs.join("1-dynamic.md");
+    let prompt = super::build_execution_prompt(
+        "执行动态任务",
+        1,
+        &[],
+        plan_abs,
+        &task_file_abs,
+        "# plan.md\n整体架构",
+        "# 子任务.md\n当前实现边界",
+    );
+
+    assert!(prompt.contains(&format!("`{}`", plan_abs.display())));
+    assert!(prompt.contains(&format!("`{}`", task_file_abs.display())));
+    assert!(prompt.contains("唯一可写进度源"));
+    assert!(prompt.contains("不搜索、不新建、不更新仓库内同名 `.plans` 文件"));
 }

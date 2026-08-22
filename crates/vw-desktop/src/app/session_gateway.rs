@@ -33,9 +33,10 @@ use vw_gateway_client::vw_api_types::id::ProjectId;
 use vw_gateway_client::vw_api_types::project::{ProjectScopeDto, TenantScopeDto};
 use vw_gateway_client::{
     ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto,
-    ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuAppCatalogDto,
-    ShijuAppLaunchDto, ShijuAppListDto, ShijuCompanySkillQuery, ShijuCredential,
-    ShijuInstalledSkillDto, ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMaintainedSkillQuery,
+    ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuAppApiKeyBindingDto,
+    ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto,
+    ShijuCompanySkillQuery, ShijuCredential, ShijuIamApiKeyListDto, ShijuInstalledSkillDto,
+    ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMaintainedSkillQuery,
     ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
     ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
     ShijuTenantSkillDto,
@@ -139,6 +140,30 @@ pub(crate) async fn gateway_shiju_apps_async(
 ) -> Result<ShijuAppListDto, String> {
     let client = gateway_client()?;
     client.shiju_apps(credential).await
+}
+
+pub(crate) async fn gateway_shiju_app_api_key_binding_async(
+    credential: &ShijuCredential,
+    installation_id: &str,
+) -> Result<ShijuAppApiKeyBindingDto, String> {
+    let client = gateway_client()?;
+    client.shiju_app_api_key_binding(credential, installation_id).await
+}
+
+pub(crate) async fn gateway_shiju_app_api_keys_async(
+    credential: &ShijuCredential,
+) -> Result<ShijuIamApiKeyListDto, String> {
+    let client = gateway_client()?;
+    client.shiju_app_api_keys(credential).await
+}
+
+pub(crate) async fn gateway_shiju_app_save_api_key_binding_async(
+    credential: &ShijuCredential,
+    installation_id: &str,
+    request: &ShijuAppApiKeyBindingSaveRequest,
+) -> Result<(), String> {
+    let client = gateway_client()?;
+    client.shiju_app_save_api_key_binding(credential, installation_id, request).await
 }
 
 pub(crate) async fn gateway_shiju_app_prepare_launch_async(

@@ -5,6 +5,7 @@ use crate::app::message::ShijuAppsMessage;
 use crate::app::shiju_apps::ShijuAppsTab;
 use crate::app::{App, Message};
 
+pub(super) mod api_key_binding;
 mod detail;
 pub(super) mod mine;
 mod store;
@@ -87,5 +88,10 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .into()
     };
 
-    container(content).width(Length::Fill).height(Length::Fill).padding([24, 28]).into()
+    let base = container(content)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .padding([24, 28])
+        .into();
+    api_key_binding::with_overlay(app, base)
 }

@@ -1,6 +1,6 @@
 //! State model for the SHIJU application catalog and installed list.
 
-use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppListDto};
+use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppListDto, ShijuIamApiKeyDto};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) enum ShijuAppsTab {
@@ -31,11 +31,55 @@ pub(crate) enum ShijuAppDetailTarget {
 pub(crate) enum ShijuAppLaunchState {
     #[default]
     Idle,
+    CheckingBinding {
+        generation: u64,
+        installation_id: String,
+    },
+    LoadingApiKeys {
+        generation: u64,
+        installation_id: String,
+        can_edit: bool,
+    },
+    SelectingApiKey {
+        generation: u64,
+        installation_id: String,
+        can_edit: bool,
+        api_keys: Vec<ShijuIamApiKeyDto>,
+        selected_api_key_id: Option<u64>,
+        error: Option<String>,
+    },
+    SavingApiKeyBinding {
+        generation: u64,
+        installation_id: String,
+        can_edit: bool,
+        api_keys: Vec<ShijuIamApiKeyDto>,
+        selected_api_key_id: u64,
+    },
     Preparing {
         generation: u64,
         installation_id: String,
     },
-    Error(String),
+    Error {
+        generation: u64,
+        installation_id: String,
+        message: String,
+    },
+}
+
+impl ShijuAppLaunchState {
+    fn request_identity(&self) -> Option<(u64, &str)> {
+        match self {
+            Self::CheckingBinding { generation, installation_id }
+            | Self::LoadingApiKeys { generation, installation_id, .. }
+            | Self::SelectingApiKey { generation, installation_id, .. }
+            | Self::SavingApiKeyBinding { generation, installation_id, .. }
+            | Self::Preparing { generation, installation_id }
+            | Self::Error { generation, installation_id, .. } => {
+                Some((*generation, installation_id))
+            }
+            Self::Idle => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,6 +110,16 @@ impl ShijuAppsState {
 
     pub(crate) fn response_is_current(&self, generation: u64, account_id: &str) -> bool {
         self.generation == generation && self.account_id.as_deref() == Some(account_id)
+    }
+
+    pub(crate) fn launch_response_is_current(
+        &self,
+        generation: u64,
+        account_id: &str,
+        installation_id: &str,
+    ) -> bool {
+        self.response_is_current(generation, account_id)
+            && self.launch.request_identity() == Some((generation, installation_id))
     }
 }
 

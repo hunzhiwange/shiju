@@ -570,7 +570,7 @@ pub fn tool_explore_summary_view<'a>(
         completed_explore_title(title)
     };
     let toggle_btn = button(
-        icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+        icon_svg(if expanded { Icon::ChevronDown } else { Icon::ChevronRight })
             .width(Length::Fixed(10.0))
             .height(Length::Fixed(10.0))
             .style(|theme: &Theme, _status| iced::widget::svg::Style {

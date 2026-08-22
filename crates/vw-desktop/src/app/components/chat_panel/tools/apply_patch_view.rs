@@ -528,7 +528,7 @@ fn view_changes_pill<'a>() -> Element<'a, Message> {
 
 fn view_changes_toggle_button<'a>(expanded: bool, on_press: Message) -> Element<'a, Message> {
     button(
-        icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+        icon_svg(if expanded { Icon::ChevronDown } else { Icon::ChevronRight })
             .width(Length::Fixed(10.0))
             .height(Length::Fixed(10.0))
             .style(|theme: &Theme, _status| svg::Style {

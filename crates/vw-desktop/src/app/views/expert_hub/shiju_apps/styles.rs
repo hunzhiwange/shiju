@@ -1,6 +1,8 @@
 use iced::widget::{button, container, text};
 use iced::{Background, Border, Color, Shadow, Theme, Vector};
 
+use crate::app::components::system_settings_common::primary_action_btn_style;
+
 pub(crate) const SCROLLBAR_WIDTH: u32 = 4;
 
 pub(super) fn tab_style(theme: &Theme, status: button::Status, selected: bool) -> button::Style {
@@ -71,4 +73,55 @@ pub(super) fn status_style(theme: &Theme, ready: bool) -> container::Style {
 
 pub(super) fn muted_text_style(theme: &Theme) -> text::Style {
     text::Style { color: Some(theme.extended_palette().background.strong.text) }
+}
+
+pub(super) fn binding_field_style(theme: &Theme) -> container::Style {
+    let palette = theme.extended_palette();
+    container::Style {
+        background: Some(Background::Color(palette.background.base.color)),
+        text_color: Some(theme.palette().text),
+        border: Border {
+            color: palette.background.strong.color,
+            width: 1.0,
+            radius: 9.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn binding_error_style(theme: &Theme) -> container::Style {
+    let palette = theme.extended_palette();
+    container::Style {
+        background: Some(Background::Color(palette.danger.weak.color)),
+        text_color: Some(palette.danger.weak.text),
+        border: Border {
+            color: palette.danger.base.color.scale_alpha(0.45),
+            width: 1.0,
+            radius: 9.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+pub(super) fn binding_state_style(theme: &Theme, error: bool) -> container::Style {
+    let palette = theme.extended_palette();
+    let pair = if error { palette.danger.weak } else { palette.primary.weak };
+    container::Style {
+        background: Some(Background::Color(pair.color)),
+        text_color: Some(pair.text),
+        border: Border { radius: 999.0.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+pub(super) fn binding_primary_action_style(
+    theme: &Theme,
+    status: button::Status,
+) -> button::Style {
+    let mut style = primary_action_btn_style(theme, status);
+    if status == button::Status::Disabled {
+        style.background = Some(Background::Color(theme.extended_palette().background.strong.color));
+        style.text_color = theme.palette().text.scale_alpha(0.48);
+    }
+    style
 }

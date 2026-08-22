@@ -64,7 +64,7 @@ pub(crate) fn tool_command_summary_view<'a>(
     let expanded = app.chat_tool_expanded.contains(&key);
 
     let toggle = button(
-        icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+        icon_svg(if expanded { Icon::ChevronDown } else { Icon::ChevronRight })
             .width(Length::Fixed(10.0))
             .height(Length::Fixed(10.0))
             .style(|theme: &Theme, _status| iced::widget::svg::Style {

@@ -1,11 +1,15 @@
 //! SHIJU application desktop lifecycle messages.
 
 use iced::Task;
-use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto};
+use vw_gateway_client::{
+    ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto,
+    ShijuAppLaunchDto, ShijuAppListDto, ShijuIamApiKeyListDto,
+};
 
 use crate::app::session_gateway::{
+    gateway_shiju_app_api_key_binding_async, gateway_shiju_app_api_keys_async,
     gateway_shiju_app_catalog_async, gateway_shiju_app_prepare_launch_async,
-    gateway_shiju_apps_async,
+    gateway_shiju_app_save_api_key_binding_async, gateway_shiju_apps_async,
 };
 use crate::app::shiju_apps::{
     ShijuAppDetailTarget, ShijuAppLaunchState, ShijuAppsLoadState, ShijuAppsTab,
@@ -22,6 +26,32 @@ pub(crate) enum ShijuAppsMessage {
     OpenDetail(ShijuAppDetailTarget),
     CloseDetail,
     OpenInstalled(String),
+    BindingLoaded {
+        generation: u64,
+        account_id: String,
+        installation_id: String,
+        result: Result<ShijuAppApiKeyBindingDto, String>,
+    },
+    ApiKeysLoaded {
+        generation: u64,
+        account_id: String,
+        installation_id: String,
+        result: Result<ShijuIamApiKeyListDto, String>,
+    },
+    #[allow(dead_code)] // Constructed by the API key binding overlay in the next batch.
+    SelectApiKey(u64),
+    #[allow(dead_code)] // Constructed by the API key binding overlay in the next batch.
+    RefreshApiKeys,
+    #[allow(dead_code)] // Constructed by the API key binding overlay in the next batch.
+    SaveApiKeyBinding,
+    ApiKeyBindingSaved {
+        generation: u64,
+        account_id: String,
+        installation_id: String,
+        result: Result<(), String>,
+    },
+    #[allow(dead_code)] // Constructed by the API key binding overlay in the next batch.
+    CancelApiKeyBinding,
     LaunchPrepared {
         generation: u64,
         account_id: String,
@@ -61,10 +91,45 @@ pub(crate) fn update(app: &mut App, message: ShijuAppsMessage) -> Task<Message> 
         }
         ShijuAppsMessage::CloseDetail => {
             app.expert_hub.shiju_apps.detail = None;
+            cancel_api_key_binding(app);
             Task::none()
         }
         ShijuAppsMessage::OpenInstalled(installation_id) => {
             prepare_installed_launch(app, installation_id)
+        }
+        ShijuAppsMessage::BindingLoaded {
+            generation,
+            account_id,
+            installation_id,
+            result,
+        } => finish_binding_check(app, generation, &account_id, &installation_id, result),
+        ShijuAppsMessage::ApiKeysLoaded {
+            generation,
+            account_id,
+            installation_id,
+            result,
+        } => finish_api_key_load(app, generation, &account_id, &installation_id, result),
+        ShijuAppsMessage::SelectApiKey(api_key_id) => {
+            select_api_key(app, api_key_id);
+            Task::none()
+        }
+        ShijuAppsMessage::RefreshApiKeys => refresh_api_keys(app),
+        ShijuAppsMessage::SaveApiKeyBinding => save_api_key_binding(app),
+        ShijuAppsMessage::ApiKeyBindingSaved {
+            generation,
+            account_id,
+            installation_id,
+            result,
+        } => finish_api_key_binding_save(
+            app,
+            generation,
+            &account_id,
+            &installation_id,
+            result,
+        ),
+        ShijuAppsMessage::CancelApiKeyBinding => {
+            cancel_api_key_binding(app);
+            Task::none()
         }
         ShijuAppsMessage::LaunchPrepared { generation, account_id, installation_id, result } => {
             finish_installed_launch(app, generation, &account_id, &installation_id, result)
@@ -105,9 +170,16 @@ fn open_shiju_apps_tab(app: &mut App) {
 }
 
 fn prepare_installed_launch(app: &mut App, installation_id: String) -> Task<Message> {
-    if matches!(app.expert_hub.shiju_apps.launch, ShijuAppLaunchState::Preparing { .. }) {
+    if !matches!(
+        app.expert_hub.shiju_apps.launch,
+        ShijuAppLaunchState::Idle | ShijuAppLaunchState::Error { .. }
+    ) {
         return Task::none();
     }
+    begin_binding_check(app, installation_id)
+}
+
+fn begin_binding_check(app: &mut App, installation_id: String) -> Task<Message> {
     let ready = matches!(
         &app.expert_hub.shiju_apps.mine,
         ShijuAppsLoadState::Loaded(apps)
@@ -129,8 +201,343 @@ fn prepare_installed_launch(app: &mut App, installation_id: String) -> Task<Mess
     }
     let credential = account.skill_hub_credential();
     let generation = app.expert_hub.shiju_apps.next_generation();
-    app.expert_hub.shiju_apps.launch =
-        ShijuAppLaunchState::Preparing { generation, installation_id: installation_id.clone() };
+    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::CheckingBinding {
+        generation,
+        installation_id: installation_id.clone(),
+    };
+    let requested_installation_id = installation_id.clone();
+    Task::perform(
+        async move {
+            let gateway_credential =
+                credential.gateway_credential().map_err(|error| error.to_string())?;
+            gateway_shiju_app_api_key_binding_async(
+                &gateway_credential,
+                &requested_installation_id,
+            )
+            .await
+        },
+        move |result| {
+            Message::ShijuApps(ShijuAppsMessage::BindingLoaded {
+                generation,
+                account_id,
+                installation_id,
+                result,
+            })
+        },
+    )
+}
+
+fn finish_binding_check(
+    app: &mut App,
+    generation: u64,
+    account_id: &str,
+    installation_id: &str,
+    result: Result<ShijuAppApiKeyBindingDto, String>,
+) -> Task<Message> {
+    let current = launch_result_is_current(app, generation, account_id, installation_id)
+        && matches!(
+            app.expert_hub.shiju_apps.launch,
+            ShijuAppLaunchState::CheckingBinding { .. }
+        );
+    if !current {
+        return Task::none();
+    }
+
+    let binding = match result {
+        Ok(binding) => binding,
+        Err(error) => {
+            set_launch_error(app, generation, installation_id, error.clone());
+            return app.show_error_toast(format!("识矩应用密钥绑定检查失败：{error}"));
+        }
+    };
+    if binding.personal.configured {
+        return continue_installed_launch(
+            app,
+            generation,
+            account_id.to_string(),
+            installation_id.to_string(),
+        );
+    }
+
+    if !binding.personal.can_edit {
+        let message = "当前应用的个人 API 密钥绑定不可修改".to_string();
+        app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
+            generation,
+            installation_id: installation_id.to_string(),
+            can_edit: false,
+            api_keys: Vec::new(),
+            selected_api_key_id: None,
+            error: Some(message.clone()),
+        };
+        return app.show_error_toast(message);
+    }
+
+    load_api_keys(app, generation, account_id.to_string(), installation_id.to_string(), true)
+}
+
+fn load_api_keys(
+    app: &mut App,
+    generation: u64,
+    account_id: String,
+    installation_id: String,
+    can_edit: bool,
+) -> Task<Message> {
+    let Some(account) = app.account.active_account() else {
+        return app.show_error_toast("登录识矩账户后选择 API 密钥");
+    };
+    if account.id() != account_id {
+        return Task::none();
+    }
+    let credential = account.skill_hub_credential();
+    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::LoadingApiKeys {
+        generation,
+        installation_id: installation_id.clone(),
+        can_edit,
+    };
+    Task::perform(
+        async move {
+            let gateway_credential =
+                credential.gateway_credential().map_err(|error| error.to_string())?;
+            gateway_shiju_app_api_keys_async(&gateway_credential).await
+        },
+        move |result| {
+            Message::ShijuApps(ShijuAppsMessage::ApiKeysLoaded {
+                generation,
+                account_id,
+                installation_id,
+                result,
+            })
+        },
+    )
+}
+
+fn finish_api_key_load(
+    app: &mut App,
+    generation: u64,
+    account_id: &str,
+    installation_id: &str,
+    result: Result<ShijuIamApiKeyListDto, String>,
+) -> Task<Message> {
+    let can_edit = match &app.expert_hub.shiju_apps.launch {
+        ShijuAppLaunchState::LoadingApiKeys {
+            generation: active_generation,
+            installation_id: active_installation_id,
+            can_edit,
+        } if *active_generation == generation && active_installation_id == installation_id => {
+            *can_edit
+        }
+        _ => return Task::none(),
+    };
+    if !launch_result_is_current(app, generation, account_id, installation_id) {
+        return Task::none();
+    }
+
+    let (api_keys, selected_api_key_id, error, toast_message) = match result {
+        Ok(keys) => {
+            let selected = keys
+                .api_keys
+                .iter()
+                .find(|key| key.status == "enabled")
+                .map(|key| key.api_key_id);
+            let error = selected.is_none().then(|| {
+                if keys.api_keys.is_empty() {
+                    "当前账户没有可选择的 IAM API 密钥".to_string()
+                } else {
+                    "当前账户没有已启用的 IAM API 密钥".to_string()
+                }
+            });
+            let toast_message = error.clone();
+            (keys.api_keys, selected, error, toast_message)
+        }
+        Err(error) => {
+            let toast_message = Some(format!("识矩 IAM API 密钥加载失败：{error}"));
+            (Vec::new(), None, Some(error), toast_message)
+        }
+    };
+    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
+        generation,
+        installation_id: installation_id.to_string(),
+        can_edit,
+        api_keys,
+        selected_api_key_id,
+        error: error.clone(),
+    };
+    match toast_message {
+        Some(message) => app.show_error_toast(message),
+        None => Task::none(),
+    }
+}
+
+fn select_api_key(app: &mut App, api_key_id: u64) {
+    let ShijuAppLaunchState::SelectingApiKey {
+        can_edit,
+        api_keys,
+        selected_api_key_id,
+        error,
+        ..
+    } = &mut app.expert_hub.shiju_apps.launch
+    else {
+        return;
+    };
+    if *can_edit && api_keys.iter().any(|key| key.api_key_id == api_key_id) {
+        *selected_api_key_id = Some(api_key_id);
+        *error = None;
+    }
+}
+
+fn refresh_api_keys(app: &mut App) -> Task<Message> {
+    let installation_id = match &app.expert_hub.shiju_apps.launch {
+        ShijuAppLaunchState::SelectingApiKey { installation_id, .. }
+        | ShijuAppLaunchState::Error { installation_id, .. } => installation_id.clone(),
+        _ => return Task::none(),
+    };
+    begin_binding_check(app, installation_id)
+}
+
+fn save_api_key_binding(app: &mut App) -> Task<Message> {
+    let (generation, installation_id, can_edit, api_keys, selected_api_key_id) =
+        match &app.expert_hub.shiju_apps.launch {
+            ShijuAppLaunchState::SelectingApiKey {
+                generation,
+                installation_id,
+                can_edit,
+                api_keys,
+                selected_api_key_id,
+                ..
+            } => (
+                *generation,
+                installation_id.clone(),
+                *can_edit,
+                api_keys.clone(),
+                *selected_api_key_id,
+            ),
+            _ => return Task::none(),
+        };
+    if !can_edit {
+        return reject_api_key_save(app, "当前应用的个人 API 密钥绑定不可修改");
+    }
+    let Some(selected_api_key_id) = selected_api_key_id else {
+        return reject_api_key_save(app, "请选择一个已启用的 IAM API 密钥");
+    };
+    if !api_keys
+        .iter()
+        .any(|key| key.api_key_id == selected_api_key_id && key.status == "enabled")
+    {
+        return reject_api_key_save(app, "所选 IAM API 密钥不存在或未启用");
+    }
+
+    let Some(account) = app.account.active_account() else {
+        return app.show_error_toast("登录识矩账户后保存 API 密钥绑定");
+    };
+    let account_id = account.id().to_string();
+    if app.expert_hub.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
+        return app.show_error_toast("识矩应用账户已变化，请刷新后重试");
+    }
+    if !launch_result_is_current(app, generation, &account_id, &installation_id) {
+        return reject_api_key_save(app, "识矩应用授权状态已失效，请刷新后重试");
+    }
+    let credential = account.skill_hub_credential();
+    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::SavingApiKeyBinding {
+        generation,
+        installation_id: installation_id.clone(),
+        can_edit,
+        api_keys,
+        selected_api_key_id,
+    };
+    let requested_installation_id = installation_id.clone();
+    Task::perform(
+        async move {
+            let gateway_credential =
+                credential.gateway_credential().map_err(|error| error.to_string())?;
+            gateway_shiju_app_save_api_key_binding_async(
+                &gateway_credential,
+                &requested_installation_id,
+                &ShijuAppApiKeyBindingSaveRequest { api_key_id: selected_api_key_id },
+            )
+            .await
+        },
+        move |result| {
+            Message::ShijuApps(ShijuAppsMessage::ApiKeyBindingSaved {
+                generation,
+                account_id,
+                installation_id,
+                result,
+            })
+        },
+    )
+}
+
+fn reject_api_key_save(app: &mut App, message: &str) -> Task<Message> {
+    if let ShijuAppLaunchState::SelectingApiKey { error, .. } =
+        &mut app.expert_hub.shiju_apps.launch
+    {
+        *error = Some(message.to_string());
+    }
+    app.show_error_toast(message)
+}
+
+fn finish_api_key_binding_save(
+    app: &mut App,
+    generation: u64,
+    account_id: &str,
+    installation_id: &str,
+    result: Result<(), String>,
+) -> Task<Message> {
+    let (can_edit, api_keys, selected_api_key_id) =
+        match &app.expert_hub.shiju_apps.launch {
+            ShijuAppLaunchState::SavingApiKeyBinding {
+                generation: active_generation,
+                installation_id: active_installation_id,
+                can_edit,
+                api_keys,
+                selected_api_key_id,
+            } if *active_generation == generation && active_installation_id == installation_id => {
+                (*can_edit, api_keys.clone(), *selected_api_key_id)
+            }
+            _ => return Task::none(),
+        };
+    if !launch_result_is_current(app, generation, account_id, installation_id) {
+        return Task::none();
+    }
+
+    match result {
+        Ok(()) => continue_installed_launch(
+            app,
+            generation,
+            account_id.to_string(),
+            installation_id.to_string(),
+        ),
+        Err(error) => {
+            app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::SelectingApiKey {
+                generation,
+                installation_id: installation_id.to_string(),
+                can_edit,
+                api_keys,
+                selected_api_key_id: Some(selected_api_key_id),
+                error: Some(error.clone()),
+            };
+            app.show_error_toast(format!("识矩应用 API 密钥绑定保存失败：{error}"))
+        }
+    }
+}
+
+fn continue_installed_launch(
+    app: &mut App,
+    generation: u64,
+    account_id: String,
+    installation_id: String,
+) -> Task<Message> {
+    if !launch_result_is_current(app, generation, &account_id, &installation_id) {
+        return Task::none();
+    }
+    let Some(account) = app.account.active_account() else {
+        return app.show_error_toast("登录识矩账户后打开应用");
+    };
+    let credential = account.skill_hub_credential();
+    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Preparing {
+        generation,
+        installation_id: installation_id.clone(),
+    };
     let requested_installation_id = installation_id.clone();
     Task::perform(
         async move {
@@ -150,6 +557,34 @@ fn prepare_installed_launch(app: &mut App, installation_id: String) -> Task<Mess
     )
 }
 
+fn launch_result_is_current(
+    app: &App,
+    generation: u64,
+    account_id: &str,
+    installation_id: &str,
+) -> bool {
+    app.expert_hub.shiju_apps.launch_response_is_current(
+        generation,
+        account_id,
+        installation_id,
+    ) && app.account.active_account().is_some_and(|account| account.id() == account_id)
+}
+
+fn set_launch_error(app: &mut App, generation: u64, installation_id: &str, message: String) {
+    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Error {
+        generation,
+        installation_id: installation_id.to_string(),
+        message,
+    };
+}
+
+fn cancel_api_key_binding(app: &mut App) {
+    if !matches!(app.expert_hub.shiju_apps.launch, ShijuAppLaunchState::Idle) {
+        app.expert_hub.shiju_apps.next_generation();
+        app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Idle;
+    }
+}
+
 fn finish_installed_launch(
     app: &mut App,
     generation: u64,
@@ -157,8 +592,7 @@ fn finish_installed_launch(
     installation_id: &str,
     result: Result<ShijuAppLaunchDto, String>,
 ) -> Task<Message> {
-    let current = app.expert_hub.shiju_apps.response_is_current(generation, account_id)
-        && app.account.active_account().is_some_and(|account| account.id() == account_id)
+    let current = launch_result_is_current(app, generation, account_id, installation_id)
         && matches!(
             &app.expert_hub.shiju_apps.launch,
             ShijuAppLaunchState::Preparing {
@@ -173,7 +607,7 @@ fn finish_installed_launch(
     let target = match result {
         Ok(target) => target,
         Err(error) => {
-            app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Error(error.clone());
+            set_launch_error(app, generation, installation_id, error.clone());
             return app.show_error_toast(format!("识矩应用启动预检失败：{error}"));
         }
     };
@@ -185,15 +619,19 @@ fn finish_installed_launch(
             app.show_success_toast("识矩应用已安全打开")
         }
         Err(error) => {
-            app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Error(error.clone());
+            set_launch_error(app, generation, installation_id, error.clone());
             app.show_error_toast(error)
         }
     }
     #[cfg(target_arch = "wasm32")]
     {
         let _ = target;
-        app.expert_hub.shiju_apps.launch =
-            ShijuAppLaunchState::Error("当前平台不支持识矩应用 WebView".to_string());
+        set_launch_error(
+            app,
+            generation,
+            installation_id,
+            "当前平台不支持识矩应用 WebView".to_string(),
+        );
         app.show_error_toast("当前平台不支持识矩应用 WebView")
     }
 }

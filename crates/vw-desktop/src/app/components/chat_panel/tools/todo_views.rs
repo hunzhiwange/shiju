@@ -58,7 +58,7 @@ fn todo_tool_header<'a>(
     let detail_slot: Element<'a, Message> =
         if is_hovered { detail_btn.into() } else { Space::new().width(Length::Fixed(14.0)).into() };
     let toggle_btn = button(
-        icon_svg(if expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+        icon_svg(if expanded { Icon::ChevronDown } else { Icon::ChevronRight })
             .width(Length::Fixed(10.0))
             .height(Length::Fixed(10.0))
             .style(|theme: &Theme, _status| iced::widget::svg::Style {

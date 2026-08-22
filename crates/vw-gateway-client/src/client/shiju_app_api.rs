@@ -8,6 +8,7 @@ use super::{GatewayClient, ShijuCredential};
 
 const CATALOG_PATH: &str = "/v1/shiju/apps/catalog";
 const APPS_PATH: &str = "/v1/shiju/apps";
+const API_KEYS_PATH: &str = "/v1/shiju/apps/api-keys";
 
 /// Application catalog returned by the local gateway.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -76,6 +77,54 @@ pub struct ShijuInstalledAppDto {
     pub created_at: Option<String>,
     #[serde(default)]
     pub updated_at: Option<String>,
+}
+
+/// The current personal API key binding for a SHIJU application installation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShijuAppApiKeyBindingDto {
+    pub personal: ShijuAppPersonalApiKeyBindingDto,
+}
+
+/// Non-sensitive fields describing a personal SHIJU application API key binding.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShijuAppPersonalApiKeyBindingDto {
+    pub configured: bool,
+    pub can_edit: bool,
+    pub api_key_id: Option<u64>,
+    pub key_name: Option<String>,
+    pub api_key_mask: Option<String>,
+    pub status: Option<String>,
+    pub expires_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+/// IAM API keys available to the current SHIJU account.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShijuIamApiKeyListDto {
+    #[serde(default)]
+    pub api_keys: Vec<ShijuIamApiKeyDto>,
+}
+
+/// Non-sensitive metadata for one SHIJU IAM API key.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShijuIamApiKeyDto {
+    pub api_key_id: u64,
+    pub key_name: String,
+    pub api_key_mask: String,
+    pub status: String,
+    pub expires_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+/// Selects an owned IAM API key for one SHIJU application installation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ShijuAppApiKeyBindingSaveRequest {
+    pub api_key_id: u64,
 }
 
 impl fmt::Debug for ShijuInstalledAppDto {
@@ -150,6 +199,56 @@ impl GatewayClient {
             APPS_PATH,
             &[],
             None,
+            Some(credential),
+        )
+        .await
+    }
+
+    /// Reads the personal API key binding for a SHIJU application installation.
+    pub async fn shiju_app_api_key_binding(
+        &self,
+        credential: &ShijuCredential,
+        installation_id: &str,
+    ) -> Result<ShijuAppApiKeyBindingDto, String> {
+        let path = format!("{APPS_PATH}/{installation_id}/api-key-binding");
+        self.shiju_account_sensitive_request::<ShijuAppLaunchRequest, _>(
+            reqwest::Method::GET,
+            &path,
+            &[],
+            None,
+            Some(credential),
+        )
+        .await
+    }
+
+    /// Reads IAM API keys available to the current SHIJU account.
+    pub async fn shiju_app_api_keys(
+        &self,
+        credential: &ShijuCredential,
+    ) -> Result<ShijuIamApiKeyListDto, String> {
+        self.shiju_account_sensitive_request::<ShijuAppLaunchRequest, _>(
+            reqwest::Method::GET,
+            API_KEYS_PATH,
+            &[],
+            None,
+            Some(credential),
+        )
+        .await
+    }
+
+    /// Saves a personal API key binding for a SHIJU application installation.
+    pub async fn shiju_app_save_api_key_binding(
+        &self,
+        credential: &ShijuCredential,
+        installation_id: &str,
+        request: &ShijuAppApiKeyBindingSaveRequest,
+    ) -> Result<(), String> {
+        let path = format!("{APPS_PATH}/{installation_id}/api-key-binding");
+        self.shiju_empty_sensitive_request(
+            reqwest::Method::PUT,
+            &path,
+            &[],
+            Some(request),
             Some(credential),
         )
         .await

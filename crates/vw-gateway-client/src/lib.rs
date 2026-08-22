@@ -66,8 +66,9 @@ pub use client::{
 };
 /// SHIJU application gateway transport contract.
 pub use client::{
-    ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuCatalogAppDto,
-    ShijuInstalledAppDto,
+    ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto,
+    ShijuAppLaunchDto, ShijuAppListDto, ShijuAppPersonalApiKeyBindingDto, ShijuCatalogAppDto,
+    ShijuIamApiKeyDto, ShijuIamApiKeyListDto, ShijuInstalledAppDto,
 };
 /// SHIJU private-skill gateway transport contract.
 pub use client::{

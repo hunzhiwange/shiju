@@ -3,12 +3,13 @@
 use std::sync::Arc;
 
 use axum::extract::{Extension, Path};
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use vw_gateway_client::{
-    SHIJU_CREDENTIAL_HEADER, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto,
-    ShijuCredential,
+    SHIJU_CREDENTIAL_HEADER, ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest,
+    ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuCredential,
+    ShijuIamApiKeyListDto,
 };
 
 use crate::gateway::ApiError;
@@ -30,6 +31,11 @@ where
     Router::new()
         .route("/shiju/apps/catalog", get(catalog_get))
         .route("/shiju/apps", get(installed_get))
+        .route("/shiju/apps/api-keys", get(api_keys_get))
+        .route(
+            "/shiju/apps/{installation_id}/api-key-binding",
+            get(api_key_binding_get).put(api_key_binding_put),
+        )
         .route("/shiju/apps/{installation_id}/launch", post(prepare_launch_post))
         .layer(Extension(Arc::new(client)))
 }
@@ -48,6 +54,41 @@ async fn installed_get(
 ) -> Result<Json<ShijuAppListDto>, ApiError> {
     let credential = credential(&headers)?;
     client.installed(credential.expose()).await.map(Json).map_err(map_error)
+}
+
+async fn api_keys_get(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+) -> Result<Json<ShijuIamApiKeyListDto>, ApiError> {
+    let credential = credential(&headers)?;
+    client.api_keys(credential.expose()).await.map(Json).map_err(map_error)
+}
+
+async fn api_key_binding_get(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+    Path(installation_id): Path<String>,
+) -> Result<Json<ShijuAppApiKeyBindingDto>, ApiError> {
+    let credential = credential(&headers)?;
+    client
+        .api_key_binding(credential.expose(), &installation_id)
+        .await
+        .map(Json)
+        .map_err(map_error)
+}
+
+async fn api_key_binding_put(
+    Extension(client): Extension<Arc<ShijuAppClient>>,
+    headers: HeaderMap,
+    Path(installation_id): Path<String>,
+    Json(request): Json<ShijuAppApiKeyBindingSaveRequest>,
+) -> Result<StatusCode, ApiError> {
+    let credential = credential(&headers)?;
+    client
+        .save_api_key_binding(credential.expose(), &installation_id, request.api_key_id)
+        .await
+        .map_err(map_error)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn prepare_launch_post(

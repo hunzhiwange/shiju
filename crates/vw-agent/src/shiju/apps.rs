@@ -6,11 +6,17 @@ use std::time::Duration;
 use reqwest::Url;
 use reqwest::header::{HeaderValue, SET_COOKIE};
 use serde::de::DeserializeOwned;
-use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto};
+use serde::{Deserialize, Serialize};
+use vw_gateway_client::{
+    ShijuAppApiKeyBindingDto, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto,
+    ShijuIamApiKeyDto, ShijuIamApiKeyListDto,
+};
 
-const PRODUCTION_BASE_URL: &str = "https://gateway.shiju.cloud/sj/app-platform/api/";
+const PRODUCTION_APP_BASE_URL: &str = "https://gateway.shiju.cloud/sj/app-platform/api/";
+const PRODUCTION_IAM_BASE_URL: &str = "https://gateway.shiju.cloud/sj/iam/api/v1/";
 const CATALOG_PATH: &str = "catalog";
 const APPS_PATH: &str = "apps";
+const IAM_API_KEYS_PATH: &str = "api-keys";
 const BROWSER_SESSION_PATH: &str = "runtime/browser-session";
 const API_KEY_HEADER: &str = "X-Api-Key";
 const RUNTIME_SESSION_COOKIE_NAME: &str = "app_runtime_session";
@@ -54,26 +60,31 @@ impl std::error::Error for ShijuAppError {}
 #[derive(Clone)]
 pub(crate) struct ShijuAppClient {
     http: reqwest::Client,
-    base_url: Url,
+    app_base_url: Url,
+    iam_base_url: Url,
 }
 
 impl ShijuAppClient {
     pub(crate) fn production() -> Result<Self, ShijuAppError> {
-        Self::new(PRODUCTION_BASE_URL)
+        Self::new(PRODUCTION_APP_BASE_URL, PRODUCTION_IAM_BASE_URL)
     }
 
     #[cfg(test)]
-    pub(crate) fn with_base_url(base_url: &str) -> Result<Self, ShijuAppError> {
-        Self::new(base_url)
+    pub(crate) fn with_base_urls(
+        app_base_url: &str,
+        iam_base_url: &str,
+    ) -> Result<Self, ShijuAppError> {
+        Self::new(app_base_url, iam_base_url)
     }
 
-    fn new(base_url: &str) -> Result<Self, ShijuAppError> {
+    fn new(app_base_url: &str, iam_base_url: &str) -> Result<Self, ShijuAppError> {
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(15))
             .build()
             .map_err(|_| ShijuAppError::upstream("failed to create SHIJU application client"))?;
-        let base_url = parse_base_url(base_url)?;
-        Ok(Self { http, base_url })
+        let app_base_url = parse_base_url(app_base_url)?;
+        let iam_base_url = parse_base_url(iam_base_url)?;
+        Ok(Self { http, app_base_url, iam_base_url })
     }
 
     pub(crate) async fn catalog(
@@ -90,16 +101,90 @@ impl ShijuAppClient {
         self.get_json(APPS_PATH, credential).await
     }
 
+    pub(crate) async fn api_key_binding(
+        &self,
+        credential: &str,
+        installation_id: &str,
+    ) -> Result<ShijuAppApiKeyBindingDto, ShijuAppError> {
+        validate_installation_id(installation_id)?;
+        let path = binding_path(installation_id);
+        self.get_json(&path, credential).await
+    }
+
+    pub(crate) async fn api_keys(
+        &self,
+        credential: &str,
+    ) -> Result<ShijuIamApiKeyListDto, ShijuAppError> {
+        let response = self.get_from(&self.iam_base_url, IAM_API_KEYS_PATH, credential).await?;
+        let envelope = response
+            .json::<IamApiKeyEnvelope>()
+            .await
+            .map_err(|_| ShijuAppError::upstream("SHIJU IAM API key response is invalid"))?;
+        if envelope.code != 200 {
+            return Err(ShijuAppError::upstream("SHIJU IAM API key request failed"));
+        }
+        let api_keys = envelope
+            .data
+            .list
+            .into_iter()
+            .map(IamApiKeyRecord::into_dto)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ShijuIamApiKeyListDto { api_keys })
+    }
+
+    pub(crate) async fn save_api_key_binding(
+        &self,
+        credential: &str,
+        installation_id: &str,
+        api_key_id: u64,
+    ) -> Result<(), ShijuAppError> {
+        validate_installation_id(installation_id)?;
+        let binding = self.api_key_binding(credential, installation_id).await?;
+        if !binding.personal.can_edit {
+            return Err(ShijuAppError::invalid_input(
+                "SHIJU application API key binding cannot be edited",
+            ));
+        }
+
+        let key = self
+            .api_keys(credential)
+            .await?
+            .api_keys
+            .into_iter()
+            .find(|key| key.api_key_id == api_key_id)
+            .ok_or_else(|| {
+                ShijuAppError::invalid_input("SHIJU application API key is not owned")
+            })?;
+        if key.status != "enabled" {
+            return Err(ShijuAppError::invalid_input(
+                "SHIJU application API key is not enabled",
+            ));
+        }
+
+        let endpoint = self
+            .app_base_url
+            .join(&binding_path(installation_id))
+            .map_err(|_| ShijuAppError::upstream("SHIJU application upstream URL is invalid"))?;
+        let response = self
+            .http
+            .put(endpoint)
+            .header(API_KEY_HEADER, credential_header(credential)?)
+            .json(&ApiKeyBindingSaveRecord::from(key))
+            .send()
+            .await
+            .map_err(|_| ShijuAppError::upstream("SHIJU API key binding request failed"))?;
+        if !response.status().is_success() {
+            return Err(ShijuAppError::upstream("SHIJU API key binding request failed"));
+        }
+        Ok(())
+    }
+
     pub(crate) async fn prepare_launch(
         &self,
         credential: &str,
         installation_id: &str,
     ) -> Result<ShijuAppLaunchDto, ShijuAppError> {
-        if !is_valid_installation_id(installation_id) {
-            return Err(ShijuAppError::invalid_input(
-                "SHIJU application installation ID is invalid",
-            ));
-        }
+        validate_installation_id(installation_id)?;
 
         let installed = self.installed(credential).await?;
         let app = installed
@@ -114,8 +199,12 @@ impl ShijuAppClient {
         }
         validate_runtime_url(&app.runtime_url, installation_id)?;
 
-        let binding_path = format!("tenant/installations/{installation_id}/api-key-binding");
-        self.get_success(&binding_path, credential).await?;
+        let binding = self.api_key_binding(credential, installation_id).await?;
+        if !binding.personal.configured {
+            return Err(ShijuAppError::invalid_input(
+                "SHIJU application API key binding is not configured",
+            ));
+        }
         let runtime_set_cookie = self.establish_browser_session(credential).await?;
 
         Ok(ShijuAppLaunchDto {
@@ -138,13 +227,9 @@ impl ShijuAppClient {
             .map_err(|_| ShijuAppError::upstream("SHIJU application response is invalid"))
     }
 
-    async fn get_success(&self, path: &str, credential: &str) -> Result<(), ShijuAppError> {
-        self.get(path, credential).await.map(|_| ())
-    }
-
     async fn establish_browser_session(&self, credential: &str) -> Result<String, ShijuAppError> {
         let endpoint = self
-            .base_url
+            .app_base_url
             .join(BROWSER_SESSION_PATH)
             .map_err(|_| ShijuAppError::upstream("SHIJU application upstream URL is invalid"))?;
         let response = self
@@ -171,8 +256,16 @@ impl ShijuAppClient {
     }
 
     async fn get(&self, path: &str, credential: &str) -> Result<reqwest::Response, ShijuAppError> {
-        let endpoint = self
-            .base_url
+        self.get_from(&self.app_base_url, path, credential).await
+    }
+
+    async fn get_from(
+        &self,
+        base_url: &Url,
+        path: &str,
+        credential: &str,
+    ) -> Result<reqwest::Response, ShijuAppError> {
+        let endpoint = base_url
             .join(path)
             .map_err(|_| ShijuAppError::upstream("SHIJU application upstream URL is invalid"))?;
         let response = self
@@ -187,6 +280,81 @@ impl ShijuAppClient {
         }
         Ok(response)
     }
+}
+
+#[derive(Deserialize)]
+struct IamApiKeyEnvelope {
+    code: i64,
+    data: IamApiKeyData,
+}
+
+#[derive(Deserialize)]
+struct IamApiKeyData {
+    list: Vec<IamApiKeyRecord>,
+}
+
+#[derive(Deserialize)]
+struct IamApiKeyRecord {
+    api_key_id: String,
+    key_name: String,
+    api_key_mask: String,
+    status: String,
+    expires_at: Option<String>,
+    updated_at: Option<String>,
+}
+
+impl IamApiKeyRecord {
+    fn into_dto(self) -> Result<ShijuIamApiKeyDto, ShijuAppError> {
+        let api_key_id = self
+            .api_key_id
+            .parse::<u64>()
+            .map_err(|_| ShijuAppError::upstream("SHIJU IAM API key response is invalid"))?;
+        Ok(ShijuIamApiKeyDto {
+            api_key_id,
+            key_name: self.key_name,
+            api_key_mask: self.api_key_mask,
+            status: self.status,
+            expires_at: self.expires_at,
+            updated_at: self.updated_at,
+        })
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ApiKeyBindingSaveRecord {
+    api_key_id: u64,
+    key_name: String,
+    api_key_mask: String,
+    status: String,
+    expires_at: Option<String>,
+    target: &'static str,
+}
+
+impl From<ShijuIamApiKeyDto> for ApiKeyBindingSaveRecord {
+    fn from(key: ShijuIamApiKeyDto) -> Self {
+        Self {
+            api_key_id: key.api_key_id,
+            key_name: key.key_name,
+            api_key_mask: key.api_key_mask,
+            status: key.status,
+            expires_at: key.expires_at,
+            target: "personal",
+        }
+    }
+}
+
+fn binding_path(installation_id: &str) -> String {
+    format!("tenant/installations/{installation_id}/api-key-binding")
+}
+
+fn validate_installation_id(installation_id: &str) -> Result<(), ShijuAppError> {
+    if !is_valid_installation_id(installation_id) {
+        return Err(ShijuAppError::invalid_input(
+            "SHIJU application installation ID is invalid",
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn is_valid_installation_id(installation_id: &str) -> bool {

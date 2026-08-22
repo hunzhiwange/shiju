@@ -313,6 +313,9 @@ fn desktop_gateway_async_surfaces_are_exposed_without_network_access() {
     let _ = super::gateway_shiju_account_profile_async;
     let _ = super::gateway_shiju_app_catalog_async;
     let _ = super::gateway_shiju_apps_async;
+    let _ = super::gateway_shiju_app_api_key_binding_async;
+    let _ = super::gateway_shiju_app_api_keys_async;
+    let _ = super::gateway_shiju_app_save_api_key_binding_async;
     let _ = super::gateway_shiju_app_prepare_launch_async;
     let _ = super::gateway_shiju_skill_search_async;
     let _ = super::gateway_shiju_skill_installed_async;

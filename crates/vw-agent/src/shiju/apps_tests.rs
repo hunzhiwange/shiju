@@ -9,7 +9,8 @@ const INSTALLATION_ID: &str = "01K1APP0000000000000000001";
 
 #[test]
 fn shiju_apps_production_gateway_uses_sj_prefix() {
-    assert_eq!(PRODUCTION_BASE_URL, "https://gateway.shiju.cloud/sj/app-platform/api/");
+    assert_eq!(PRODUCTION_APP_BASE_URL, "https://gateway.shiju.cloud/sj/app-platform/api/");
+    assert_eq!(PRODUCTION_IAM_BASE_URL, "https://gateway.shiju.cloud/sj/iam/api/v1/");
 }
 
 struct FixtureResponse {
@@ -18,7 +19,7 @@ struct FixtureResponse {
     body: String,
 }
 
-fn fixture(responses: Vec<FixtureResponse>) -> (String, thread::JoinHandle<Vec<String>>) {
+fn fixture(responses: Vec<FixtureResponse>) -> (String, String, thread::JoinHandle<Vec<String>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind SHIJU apps fixture");
     let address = listener.local_addr().expect("fixture address");
     let handle = thread::spawn(move || {
@@ -28,11 +29,29 @@ fn fixture(responses: Vec<FixtureResponse>) -> (String, thread::JoinHandle<Vec<S
                 let (mut stream, _) = listener.accept().expect("accept SHIJU apps request");
                 let mut request = Vec::new();
                 let mut buffer = [0_u8; 4096];
+                let mut expected_len = None;
                 loop {
                     let read = stream.read(&mut buffer).expect("read SHIJU apps request");
                     request.extend_from_slice(&buffer[..read]);
-                    if read == 0 || request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    if read == 0 {
                         break;
+                    }
+                    if let Some(header_end) = request.windows(4).position(|window| window == b"\r\n\r\n") {
+                        let header_end = header_end + 4;
+                        let content_length = expected_len.get_or_insert_with(|| {
+                            String::from_utf8_lossy(&request[..header_end])
+                                .lines()
+                                .find_map(|line| {
+                                    let (name, value) = line.split_once(':')?;
+                                    name.eq_ignore_ascii_case("content-length")
+                                        .then(|| value.trim().parse::<usize>().ok())
+                                        .flatten()
+                                })
+                                .unwrap_or(0)
+                        });
+                        if request.len() >= header_end + *content_length {
+                            break;
+                        }
                     }
                 }
                 let reason = match response.status {
@@ -56,7 +75,11 @@ fn fixture(responses: Vec<FixtureResponse>) -> (String, thread::JoinHandle<Vec<S
             })
             .collect()
     });
-    (format!("http://{address}/app-platform/api/"), handle)
+    (
+        format!("http://{address}/app-platform/api/"),
+        format!("http://{address}/iam/api/v1/"),
+        handle,
+    )
 }
 
 fn ok(items: serde_json::Value) -> FixtureResponse {
@@ -85,6 +108,48 @@ fn installed_app(
         "installedAt": "2026-07-30T09:30:00+08:00",
         "updatedAt": "2026-07-30T09:31:00+08:00"
     })
+}
+
+fn binding(configured: bool, can_edit: bool) -> serde_json::Value {
+    serde_json::json!({
+        "personal": {
+            "configured": configured,
+            "canEdit": can_edit,
+            "apiKeyId": configured.then_some(42),
+            "keyName": configured.then_some("Desktop automation"),
+            "apiKeyMask": configured.then_some("sk-****cafe"),
+            "status": configured.then_some("enabled"),
+            "expiresAt": null,
+            "updatedAt": configured.then_some("2026-08-22T09:30:00+08:00")
+        },
+        "internalPolicy": "must-not-leak"
+    })
+}
+
+fn iam_key(id: &str, status: &str) -> serde_json::Value {
+    serde_json::json!({
+        "api_key_id": id,
+        "key_name": format!("Key {id}"),
+        "api_key_mask": format!("sk-****{id}"),
+        "status": status,
+        "expires_at": null,
+        "updated_at": "2026-08-21T09:30:00+08:00",
+        "raw_api_key": "must-not-leak"
+    })
+}
+
+fn iam_keys(keys: serde_json::Value) -> FixtureResponse {
+    FixtureResponse {
+        status: 200,
+        headers: Vec::new(),
+        body: serde_json::json!({
+            "code": 200,
+            "message": "success",
+            "data": {"list": keys, "total": 99},
+            "traceId": "must-not-leak"
+        })
+        .to_string(),
+    }
 }
 
 fn assert_api_key(request: &str) {
@@ -117,14 +182,14 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
         "ready",
         &format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")
     )]);
-    let (base, requests) = fixture(vec![
+    let (app_base, iam_base, requests) = fixture(vec![
         ok(catalog),
         ok(installed.clone()),
         ok(installed),
         FixtureResponse {
             status: 200,
             headers: Vec::new(),
-            body: r#"{"binding":"fixture-sensitive-binding"}"#.to_string(),
+            body: binding(true, true).to_string(),
         },
         FixtureResponse {
             status: 204,
@@ -136,7 +201,7 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
             body: String::new(),
         },
     ]);
-    let client = ShijuAppClient::with_base_url(&base).expect("client");
+    let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
 
     let catalog = client.catalog(CREDENTIAL).await.expect("catalog");
     let apps = client.installed(CREDENTIAL).await.expect("installed");
@@ -173,8 +238,8 @@ async fn shiju_apps_adapter_maps_catalog_and_installed_lists() {
 }
 
 async fn assert_prepare_rejected(app: serde_json::Value, installation_id: &str) {
-    let (base, requests) = fixture(vec![ok(serde_json::json!([app]))]);
-    let client = ShijuAppClient::with_base_url(&base).expect("client");
+    let (app_base, iam_base, requests) = fixture(vec![ok(serde_json::json!([app]))]);
+    let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
 
     let error = client
         .prepare_launch(CREDENTIAL, installation_id)
@@ -192,8 +257,8 @@ async fn assert_prepare_rejected(app: serde_json::Value, installation_id: &str) 
 
 #[tokio::test(flavor = "multi_thread")]
 async fn shiju_app_prepare_launch_validates_owned_ready_runtime() {
-    let (base, requests) = fixture(Vec::new());
-    let client = ShijuAppClient::with_base_url(&base).expect("client");
+    let (app_base, iam_base, requests) = fixture(Vec::new());
+    let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
     for invalid_id in ["", "lowercase", "ABC-123", &"A".repeat(65)] {
         let error = client
             .prepare_launch(CREDENTIAL, invalid_id)
@@ -239,9 +304,9 @@ async fn shiju_apps_adapter_redacts_credentials_and_upstream_bodies() {
     let sensitive_body = format!(
         r#"{{"message":"upstream-body-secret","credential":"{CREDENTIAL}","runtimeUrl":"https://app.shiju.cloud/app/{INSTALLATION_ID}/?session=private"}}"#
     );
-    let (base, requests) =
+    let (app_base, iam_base, requests) =
         fixture(vec![FixtureResponse { status: 500, headers: Vec::new(), body: sensitive_body }]);
-    let client = ShijuAppClient::with_base_url(&base).expect("client");
+    let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
 
     let error = client.catalog(CREDENTIAL).await.expect_err("upstream error");
 
@@ -253,4 +318,186 @@ async fn shiju_apps_adapter_redacts_credentials_and_upstream_bodies() {
     let requests = requests.join().expect("join fixture");
     assert_api_key(&requests[0]);
     assert!(!requests[0].lines().next().unwrap().contains(CREDENTIAL));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_app_binding_flow_parses_configured_and_unconfigured_records() {
+    let (app_base, iam_base, requests) = fixture(vec![
+        FixtureResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: binding(true, true).to_string(),
+        },
+        FixtureResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: binding(false, true).to_string(),
+        },
+        iam_keys(serde_json::json!([
+            iam_key("42", "enabled"),
+            iam_key("43", "disabled")
+        ])),
+    ]);
+    let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
+
+    let configured = client.api_key_binding(CREDENTIAL, INSTALLATION_ID).await.expect("binding");
+    let unconfigured = client.api_key_binding(CREDENTIAL, INSTALLATION_ID).await.expect("binding");
+    let keys = client.api_keys(CREDENTIAL).await.expect("IAM keys");
+
+    assert!(configured.personal.configured);
+    assert_eq!(configured.personal.api_key_id, Some(42));
+    assert_eq!(configured.personal.api_key_mask.as_deref(), Some("sk-****cafe"));
+    assert!(!unconfigured.personal.configured);
+    assert!(unconfigured.personal.api_key_id.is_none());
+    assert_eq!(keys.api_keys.len(), 2);
+    assert_eq!(keys.api_keys[0].api_key_id, 42);
+    assert_eq!(keys.api_keys[0].status, "enabled");
+    let safe = serde_json::to_string(&(configured, unconfigured, keys)).expect("safe DTOs");
+    for secret in ["internalPolicy", "raw_api_key", "traceId", "must-not-leak"] {
+        assert!(!safe.contains(secret));
+    }
+
+    let requests = requests.join().expect("join fixture");
+    assert_eq!(requests.len(), 3);
+    assert!(requests[0].starts_with(&format!(
+        "GET /app-platform/api/tenant/installations/{INSTALLATION_ID}/api-key-binding "
+    )));
+    assert!(requests[1].starts_with(&format!(
+        "GET /app-platform/api/tenant/installations/{INSTALLATION_ID}/api-key-binding "
+    )));
+    assert!(requests[2].starts_with("GET /iam/api/v1/api-keys "));
+    for request in requests {
+        assert_api_key(&request);
+    }
+}
+
+async fn save_binding_result(
+    binding_response: serde_json::Value,
+    keys: serde_json::Value,
+    api_key_id: u64,
+    include_put: bool,
+) -> (Result<(), ShijuAppError>, Vec<String>) {
+    let mut responses = vec![FixtureResponse {
+        status: 200,
+        headers: Vec::new(),
+        body: binding_response.to_string(),
+    }];
+    if keys != serde_json::Value::Null {
+        responses.push(iam_keys(keys));
+    }
+    if include_put {
+        responses.push(FixtureResponse {
+            status: 204,
+            headers: Vec::new(),
+            body: String::new(),
+        });
+    }
+    let (app_base, iam_base, requests) = fixture(responses);
+    let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
+    let result = client.save_api_key_binding(CREDENTIAL, INSTALLATION_ID, api_key_id).await;
+    (result, requests.join().expect("join fixture"))
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_app_binding_save_reloads_and_accepts_only_enabled_owned_key() {
+    let (result, requests) = save_binding_result(
+        binding(false, true),
+        serde_json::json!([iam_key("42", "enabled"), iam_key("43", "disabled")]),
+        42,
+        true,
+    )
+    .await;
+    result.expect("enabled owned key is accepted");
+    assert_eq!(requests.len(), 3);
+    assert!(requests[0].starts_with(&format!(
+        "GET /app-platform/api/tenant/installations/{INSTALLATION_ID}/api-key-binding "
+    )));
+    assert!(requests[1].starts_with("GET /iam/api/v1/api-keys "));
+    assert!(requests[2].starts_with(&format!(
+        "PUT /app-platform/api/tenant/installations/{INSTALLATION_ID}/api-key-binding "
+    )));
+    let body = requests[2].split_once("\r\n\r\n").expect("PUT body").1;
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(body).expect("PUT JSON"),
+        serde_json::json!({
+            "apiKeyId": 42,
+            "keyName": "Key 42",
+            "apiKeyMask": "sk-****42",
+            "status": "enabled",
+            "expiresAt": null,
+            "target": "personal"
+        })
+    );
+    for request in &requests {
+        assert_api_key(request);
+    }
+
+    for (binding_response, keys, id, expected_requests) in [
+        (binding(false, false), serde_json::Value::Null, 42, 1),
+        (binding(false, true), serde_json::json!([iam_key("43", "disabled")]), 43, 2),
+        (binding(false, true), serde_json::json!([iam_key("42", "enabled")]), 999, 2),
+    ] {
+        let (result, requests) =
+            save_binding_result(binding_response, keys, id, false).await;
+        let error = result.expect_err("binding save must reject the key");
+        assert_eq!(error.kind(), ShijuAppErrorKind::InvalidInput);
+        assert_eq!(requests.len(), expected_requests);
+        assert!(!format!("{error:?} {error}").contains(CREDENTIAL));
+    }
+
+    let sensitive_body = format!(
+        r#"{{"credential":"{CREDENTIAL}","rawApiKey":"upstream-secret","message":"private"}}"#
+    );
+    let (app_base, iam_base, requests) = fixture(vec![
+        FixtureResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: binding(false, true).to_string(),
+        },
+        iam_keys(serde_json::json!([iam_key("42", "enabled")])),
+        FixtureResponse {
+            status: 500,
+            headers: Vec::new(),
+            body: sensitive_body,
+        },
+    ]);
+    let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
+    let error = client
+        .save_api_key_binding(CREDENTIAL, INSTALLATION_ID, 42)
+        .await
+        .expect_err("upstream PUT failure");
+    let rendered = format!("{error:?} {error}");
+    for secret in [CREDENTIAL, "upstream-secret", "private"] {
+        assert!(!rendered.contains(secret));
+    }
+    assert_eq!(requests.join().expect("join fixture").len(), 3);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_app_prepare_launch_rejects_unconfigured_binding() {
+    let (app_base, iam_base, requests) = fixture(vec![
+        ok(serde_json::json!([installed_app(
+            INSTALLATION_ID,
+            "ready",
+            "ready",
+            &format!("https://app.shiju.cloud/app/{INSTALLATION_ID}/")
+        )])),
+        FixtureResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: binding(false, true).to_string(),
+        },
+    ]);
+    let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
+
+    let error = client
+        .prepare_launch(CREDENTIAL, INSTALLATION_ID)
+        .await
+        .expect_err("unconfigured launch must be rejected");
+
+    assert_eq!(error.kind(), ShijuAppErrorKind::InvalidInput);
+    assert!(error.to_string().contains("API key binding is not configured"));
+    let requests = requests.join().expect("join fixture");
+    assert_eq!(requests.len(), 2);
+    assert!(!requests.iter().any(|request| request.starts_with("POST ")));
 }

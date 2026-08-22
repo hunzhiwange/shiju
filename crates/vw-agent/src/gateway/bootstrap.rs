@@ -790,6 +790,17 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("GET", "/v1/shiju/account/profile", "SHIJU account profile"),
         client_route("GET", "/v1/shiju/apps/catalog", "SHIJU application catalog"),
         client_route("GET", "/v1/shiju/apps", "installed SHIJU applications"),
+        client_route("GET", "/v1/shiju/apps/api-keys", "SHIJU IAM API keys"),
+        client_route(
+            "GET",
+            "/v1/shiju/apps/{installation_id}/api-key-binding",
+            "SHIJU application API key binding",
+        ),
+        client_route(
+            "PUT",
+            "/v1/shiju/apps/{installation_id}/api-key-binding",
+            "update SHIJU application API key binding",
+        ),
         client_route(
             "POST",
             "/v1/shiju/apps/{installation_id}/launch",

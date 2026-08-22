@@ -68,8 +68,9 @@ pub use self::shiju_account_api::{
     ShijuLoginChallengeDto, ShijuLoginPollDto,
 };
 pub use self::shiju_app_api::{
-    ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuCatalogAppDto,
-    ShijuInstalledAppDto,
+    ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto,
+    ShijuAppLaunchDto, ShijuAppListDto, ShijuAppPersonalApiKeyBindingDto, ShijuCatalogAppDto,
+    ShijuIamApiKeyDto, ShijuIamApiKeyListDto, ShijuInstalledAppDto,
 };
 pub use self::shiju_skill_api::{
     ShijuCompanySkillQuery, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,

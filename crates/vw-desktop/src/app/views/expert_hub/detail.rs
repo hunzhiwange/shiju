@@ -272,7 +272,7 @@ fn readme_panel<'a>(app: &'a App, state: &'a SkillDetailState) -> Element<'a, Me
             ]
             .spacing(6)
             .align_y(Alignment::Center),
-            container(body).padding(18).width(Length::Fill).style(styles::inset_panel_style),
+            container(body).padding(18).width(Length::Fill),
         ]
         .spacing(12),
     )

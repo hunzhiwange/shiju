@@ -1,3 +1,8 @@
+//! 验证聊天组件在不同运行状态和终端尺寸下的整体渲染契约。
+//! 测试夹具构造最小组件，并把终端缓冲区规范化为可审阅文本。
+//! 快照覆盖空闲、运行中、命令执行与状态并存时的布局。
+//! 交互场景还检查记录区滚动、键盘导航和审批浮层的连接关系。
+
 use super::*;
 use crate::vibe::action::{
     V3ApprovalChoice, V3ApprovalDecision, V3ApprovalKind, V3ApprovalRequest,
@@ -31,6 +36,7 @@ fn sample_widget() -> ChatWidget {
 
 #[test]
 fn v3_chatwidget_renders_without_codex_app_state() {
+    // 最小 v3 组件在缺少旧应用状态时仍应完成基础渲染。
     let source = include_str!("../chatwidget.rs");
     let fields = source
         .split("pub struct ChatWidget {")
@@ -74,6 +80,7 @@ fn v3_chatwidget_renders_without_codex_app_state() {
 
 #[test]
 fn chatwidget_running_layout() {
+    // 运行态快照固定活动状态与输入区在有限高度中的布局。
     let mut widget = sample_widget();
     widget.push_history(V3DisplayEvent::User {
         text: "Run the focused checks.".into(),
@@ -107,6 +114,7 @@ fn chatwidget_exec_and_status_layout() {
 
 #[test]
 fn chatwidget_transcript_scrollbar_and_navigation_are_wired() {
+    // 长记录同时验证滚动条可见性与导航按键确实改变视口。
     let mut widget = sample_widget();
     for index in 0..20 {
         widget.push_history(V3DisplayEvent::System { text: format!("history row {index:02}") });
@@ -138,6 +146,7 @@ fn chatwidget_transcript_scrollbar_and_navigation_are_wired() {
 
 #[test]
 fn chatwidget_approval_overlay_layout() {
+    // 审批浮层应覆盖内容区，同时保留明确的命令与操作提示层级。
     let mut widget = sample_widget();
     widget.push_history(V3DisplayEvent::Assistant {
         markdown: "The next action requires an explicit decision.".into(),

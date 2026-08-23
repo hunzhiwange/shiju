@@ -6,9 +6,7 @@
 //! - 忙碌期间的 queued commands
 //! - 一次提交请求的最小生命周期模型
 
-use crate::cli::tui::editor::{
-    EditorCommand, EditorState, apply_editor_command, grapheme_count,
-};
+use crate::cli::tui::editor::{EditorCommand, EditorState, apply_editor_command, grapheme_count};
 use crate::cli::tui::paste::PromptAttachment;
 use crate::cli::tui::vim::VimMode;
 
@@ -185,6 +183,7 @@ pub(crate) struct PromptSubmission {
     pub(crate) stream_id: Option<u64>,
     pub(crate) session_id: Option<String>,
     pub(crate) text: String,
+    pub(crate) attachments: Vec<PromptAttachment>,
     pub(crate) root: Option<String>,
     pub(crate) model: Option<String>,
     pub(crate) execution: Box<SessionExecutionSnapshot>,
@@ -199,6 +198,7 @@ impl PromptSubmission {
             stream_id: None,
             session_id: None,
             text: text.into(),
+            attachments: Vec::new(),
             root: None,
             model: None,
             execution: Box::new(SessionExecutionSnapshot::default()),
@@ -228,6 +228,12 @@ impl PromptSubmission {
     /// 绑定模型名。
     pub(crate) fn with_model(mut self, model: impl Into<String>) -> Self {
         self.model = Some(model.into());
+        self
+    }
+
+    /// 绑定本次提交已经校验的附件快照。
+    pub(crate) fn with_attachments(mut self, attachments: Vec<PromptAttachment>) -> Self {
+        self.attachments = attachments;
         self
     }
 

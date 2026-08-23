@@ -9,6 +9,10 @@
 //! spritesheet path that already exists and has app-compatible dimensions.
 //! Asset acquisition is intentionally out of scope here; callers must ensure a
 //! built-in pet has been downloaded before asking the model layer to load it.
+//!
+//! 本模块把内置 ID、CODEX_HOME 下的自定义 ID、旧版头像目录及显式路径统一规范化为 `Pet`。
+//! 返回模型的核心不变量是本地精灵表已经存在且尺寸兼容；资源获取刻意不在此层，
+//! 调用方必须先下载内置资源再加载模型。
 
 use std::collections::HashMap;
 use std::fs;
@@ -29,12 +33,14 @@ use super::catalog;
 const MAX_PET_FRAMES: usize = 256;
 const MAX_ANIMATION_FPS: f64 = 60.0;
 
+/// 单个动画帧引用精灵网格索引，并携带该帧持续时间。
 #[derive(Debug, Clone)]
 pub struct AnimationFrame {
     pub sprite_index: usize,
     pub duration: Duration,
 }
 
+/// 规范化后的动画轨道，包括循环起点与一次性动画的回退名称。
 #[derive(Debug, Clone)]
 pub struct Animation {
     pub frames: Vec<AnimationFrame>,
@@ -57,6 +63,9 @@ impl Animation {
 /// fallback animation name for one-shot sequences. Callers should not assume
 /// an animation loops just because it has multiple frames; `loop_start == None`
 /// means the final frame eventually hands off to `fallback`.
+/// 宠物精灵表的一条命名动画轨道。轨道引用已解码网格中的索引并可声明一次性序列的回退动画；
+/// 多帧不等于循环，`loop_start == None` 表示最终帧结束后转交给 `fallback`。
+/// 已完成路径、几何、动画和缓存键规范化的本地宠物定义。
 #[derive(Debug, Clone)]
 pub struct Pet {
     pub id: String,
@@ -79,6 +88,8 @@ impl Pet {
     /// has already been materialized into CODEX_HOME; if callers skip the
     /// asset-fetch step, they will get a missing-spritesheet error here on
     /// first use.
+    /// 把用户选择器加载为具体本地宠物。选择器可为内置 ID、自定义 ID、旧版头像 ID 或显式路径；
+    /// 内置资源必须已写入 CODEX_HOME，否则首次使用会返回精灵表缺失错误。
     pub(super) fn load_with_codex_home(value: &str, codex_home: Option<&Path>) -> Result<Self> {
         if path_like(value) {
             return load_pet_path(value);
@@ -112,6 +123,7 @@ impl Pet {
 
 pub(super) const CUSTOM_PET_PREFIX: &str = "custom:";
 
+/// 清单文件的反序列化形状；缺失字段在后续规范化阶段应用产品默认值。
 #[derive(Debug, Deserialize)]
 struct PetFile {
     #[serde(default)]
@@ -127,6 +139,7 @@ struct PetFile {
     animations: HashMap<String, AnimationSpec>,
 }
 
+/// 清单声明的单帧尺寸及网格列数。
 #[derive(Debug, Clone, Copy, Deserialize)]
 struct FrameSpec {
     width: u32,
@@ -150,6 +163,7 @@ pub(super) fn custom_pet_selector(id: &str) -> String {
     format!("{CUSTOM_PET_PREFIX}{id}")
 }
 
+/// 清单动画的帧索引、帧率、循环起点及回退轨道声明。
 #[derive(Debug, Deserialize)]
 struct AnimationSpec {
     #[serde(default)]
@@ -161,6 +175,7 @@ struct AnimationSpec {
     fallback: String,
 }
 
+/// 从版本化内置资源目录构造宠物，并应用 App 默认动画。
 fn load_builtin_pet(pet: catalog::BuiltinPet, codex_home: Option<&Path>) -> Result<Pet> {
     let codex_home = codex_home.context("CODEX_HOME is not available")?;
     let spritesheet_path = super::builtin_spritesheet_path(codex_home, pet.spritesheet_file);
@@ -182,6 +197,7 @@ fn load_builtin_pet(pet: catalog::BuiltinPet, codex_home: Option<&Path>) -> Resu
     })
 }
 
+/// 按新版 pets 目录优先、旧版 avatars 目录回退的顺序加载自定义宠物。
 fn load_custom_pet(value: &str, codex_home: Option<&Path>) -> Result<Pet> {
     let codex_home = codex_home.context("CODEX_HOME is not available")?;
     let pet_dir = codex_home.join("pets").join(value);
@@ -202,6 +218,7 @@ fn load_custom_pet(value: &str, codex_home: Option<&Path>) -> Result<Pet> {
     bail!("unknown pet {value}")
 }
 
+/// 将显式目录或 `pet.json` 路径归一到宠物目录后加载清单。
 fn load_pet_path(value: &str) -> Result<Pet> {
     let path = expand_path(value)?;
     let metadata = fs::metadata(&path).with_context(|| format!("pet path {}", path.display()))?;
@@ -229,6 +246,7 @@ fn load_pet_path(value: &str) -> Result<Pet> {
     load_pet_manifest(&pet_dir, manifest_file, fallback_id, fallback_id)
 }
 
+/// 读取清单、校验精灵表与帧网格，并生成稳定帧缓存键。
 fn load_pet_manifest(
     pet_dir: &Path,
     manifest_file: &str,
@@ -299,6 +317,8 @@ fn load_pet_manifest(
 /// Allowing absolute or parent-traversing paths here would let one custom pet
 /// manifest reach outside its own directory and make cache/debug behavior
 /// depend on unrelated local files.
+/// 解析相对清单的精灵表路径并把结果限制在宠物目录内。
+/// 清单只允许相对子路径；绝对路径或父目录穿越会越出用户宠物边界，因此明确拒绝。
 fn resolve_spritesheet_path(pet_dir: &Path, spritesheet_path: &str) -> Result<PathBuf> {
     let path = Path::new(spritesheet_path);
     if path.is_absolute()
@@ -311,6 +331,7 @@ fn resolve_spritesheet_path(pet_dir: &Path, spritesheet_path: &str) -> Result<Pa
     Ok(pet_dir.join(path))
 }
 
+/// 校验精灵表满足 Codex App 兼容的整体尺寸。
 fn validate_app_spritesheet_dimensions(path: &Path) -> Result<(u32, u32)> {
     let (width, height) =
         image::image_dimensions(path).with_context(|| format!("read {}", path.display()))?;
@@ -324,6 +345,7 @@ fn validate_app_spritesheet_dimensions(path: &Path) -> Result<(u32, u32)> {
     Ok((width, height))
 }
 
+/// 校验单帧尺寸、列数及计算出的帧总数均有效且受上限约束。
 fn validate_frame_spec(
     frame: &FrameSpec,
     spritesheet_width: u32,
@@ -373,6 +395,7 @@ fn path_like(value: &str) -> bool {
         || value.contains('\\')
 }
 
+/// 路径选择器只展开当前用户主目录前缀，不做环境变量或 shell 扩展。
 fn expand_path(value: &str) -> Result<PathBuf> {
     if value == "~" || value.starts_with("~/") {
         let home = std::env::var_os("HOME").context("HOME is not set")?;
@@ -385,6 +408,7 @@ fn expand_path(value: &str) -> Result<PathBuf> {
     Ok(PathBuf::from(value))
 }
 
+/// 把清单动画规范化为逐帧持续时间，并验证帧率与循环形状。
 fn load_animations(
     specs: HashMap<String, AnimationSpec>,
     frame_count: usize,
@@ -451,6 +475,7 @@ fn load_animations(
     Ok(animations)
 }
 
+/// 确保所有动画索引都落在精灵网格内，且回退名称指向现有动画。
 fn validate_animation_indices(
     animations: &HashMap<String, Animation>,
     frame_count: usize,
@@ -481,6 +506,7 @@ fn default_frame_count() -> usize {
     (catalog::DEFAULT_FRAME_COLUMNS * catalog::DEFAULT_FRAME_ROWS) as usize
 }
 
+/// 构造与 Codex App 各语义状态行相匹配的默认动画集合。
 fn default_animations() -> HashMap<String, Animation> {
     [
         ("idle", idle_animation()),
@@ -630,6 +656,7 @@ fn app_state_animation(
 mod tests {
     use super::*;
 
+    // 写入最小有效清单与标准精灵表，供成功路径测试复用。
     fn write_minimal_pet() -> tempfile::TempDir {
         write_pet_manifest(
             r#"{
@@ -657,6 +684,7 @@ mod tests {
     }
 
     #[test]
+    // 验证内置宠物从应用目录约定位置读取资源与默认元数据。
     fn load_builtin_pet_uses_app_catalog_storage() {
         let codex_home = tempfile::tempdir().unwrap();
         super::super::asset_pack::write_test_pack(codex_home.path());
@@ -678,6 +706,7 @@ mod tests {
     }
 
     #[test]
+    // 验证默认 idle 动画只循环平静区段。
     fn app_idle_animation_uses_calm_loop() {
         let animations = default_animations();
         let idle = &animations["idle"];
@@ -688,6 +717,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 running 动画重复工作帧后按声明回退到 idle。
     fn app_running_animation_repeats_then_settles_into_idle() {
         let animations = default_animations();
         let running = &animations["running"];
@@ -708,6 +738,7 @@ mod tests {
     }
 
     #[test]
+    // 验证通知语义状态使用产品精灵表约定的对应行。
     fn app_notification_states_use_expected_rows() {
         let animations = default_animations();
 
@@ -726,6 +757,7 @@ mod tests {
     }
 
     #[test]
+    // 验证自定义动画保留清单帧率、循环起点与回退形状。
     fn custom_animation_specs_keep_manifest_fps_and_loop_shape() {
         let animations = load_animations(
             HashMap::from([(
@@ -749,6 +781,7 @@ mod tests {
     }
 
     #[test]
+    // 验证目录选择器使用应用清单默认值补全缺失字段。
     fn load_pet_directory_uses_app_pet_manifest_defaults() {
         let dir = write_minimal_pet();
 
@@ -765,6 +798,7 @@ mod tests {
     }
 
     #[test]
+    // 验证精灵表内容变化会使帧缓存键变化。
     fn frame_cache_key_changes_with_spritesheet_contents() {
         let dir = write_minimal_pet();
         let spritesheet_path = dir.path().join("spritesheet.webp");
@@ -783,6 +817,7 @@ mod tests {
     }
 
     #[test]
+    // 验证帧几何变化会使帧缓存键变化。
     fn frame_cache_key_changes_with_frame_spec() {
         let default_dir = write_minimal_pet();
         let default_pet = load_pet_from_dir(&default_dir);
@@ -802,6 +837,7 @@ mod tests {
     }
 
     #[test]
+    // 验证显式 `pet.json` 路径使用其所在目录解析相对资源。
     fn load_pet_json_path_uses_containing_directory() {
         let dir = write_minimal_pet();
 
@@ -816,6 +852,7 @@ mod tests {
     }
 
     #[test]
+    // 验证自定义 selector 从 CODEX_HOME 的 pets 目录加载清单。
     fn custom_pet_selector_loads_codex_home_pet_manifest() {
         let dir = write_minimal_pet();
         let codex_home = tempfile::tempdir().unwrap();
@@ -839,6 +876,7 @@ mod tests {
     }
 
     #[test]
+    // 验证自定义 selector 可回退读取旧版 avatars 目录。
     fn custom_pet_selector_falls_back_to_legacy_avatar_manifest() {
         let dir = write_minimal_pet();
         let codex_home = tempfile::tempdir().unwrap();
@@ -862,6 +900,7 @@ mod tests {
     }
 
     #[test]
+    // 验证精灵表相对路径不能逃逸自定义宠物目录。
     fn custom_pet_rejects_spritesheet_path_escape() {
         let codex_home = tempfile::tempdir().unwrap();
         let pet_dir = codex_home.path().join("pets").join("escape");
@@ -888,6 +927,7 @@ mod tests {
     }
 
     #[test]
+    // 验证零尺寸帧在切图前被拒绝。
     fn custom_pet_rejects_zero_frame_dimensions() {
         let dir = write_pet_manifest(
             r#"{
@@ -906,6 +946,7 @@ mod tests {
     }
 
     #[test]
+    // 验证帧网格必须完整覆盖精灵表尺寸。
     fn custom_pet_rejects_frame_grid_that_does_not_cover_spritesheet() {
         let dir = write_pet_manifest(
             r#"{
@@ -924,6 +965,7 @@ mod tests {
     }
 
     #[test]
+    // 验证计算出的帧数超过安全上限时拒绝清单。
     fn custom_pet_rejects_excessive_frame_count() {
         let dir = write_pet_manifest(
             r#"{
@@ -939,6 +981,7 @@ mod tests {
     }
 
     #[test]
+    // 验证动画不允许声明空帧序列。
     fn custom_pet_rejects_empty_animation_frames() {
         let dir = write_pet_manifest(
             r#"{
@@ -959,6 +1002,7 @@ mod tests {
     }
 
     #[test]
+    // 验证动画帧索引不能越出精灵网格。
     fn custom_pet_rejects_animation_frame_outside_grid() {
         let dir = write_pet_manifest(
             r#"{
@@ -979,6 +1023,7 @@ mod tests {
     }
 
     #[test]
+    // 验证非有限、非正数或过高的动画帧率均被拒绝。
     fn custom_pet_rejects_invalid_animation_fps() {
         let dir = write_pet_manifest(
             r#"{
@@ -999,6 +1044,7 @@ mod tests {
     }
 
     #[test]
+    // 验证一次性动画的回退目标必须存在。
     fn custom_pet_rejects_animation_fallback_to_missing_animation() {
         let dir = write_pet_manifest(
             r#"{

@@ -1,15 +1,21 @@
+//! 保存会话选择器分页请求的令牌、游标来源与累计扫描进度。
+
 use super::PageCursor;
 
 /// Selects whether thread listing trusts indexed metadata or uses the store's normal behavior.
+/// 选择线程列表仅读取索引元数据，还是采用存储层的常规行为。
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum PageLoadMode {
     /// Return only the store's indexed metadata without repairing it from rollout files.
+    /// 只返回存储层索引元数据，不从 rollout 文件修复。
     StateDbOnly,
     /// Use the store's normal listing behavior, which may include repair for local stores.
+    /// 使用存储层常规列表行为，本地存储可能同时执行修复。
     StoreDefault,
 }
 
 /// Tracks the current request and the cursor policy inherited by its next page.
+/// 跟踪当前请求，以及下一页继承的游标读取策略。
 pub(super) struct PaginationState {
     pub(super) next_cursor: Option<PageCursor>,
     next_page_mode: PageLoadMode,
@@ -26,6 +32,7 @@ enum LoadingState {
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct PendingLoad {
+    // 请求令牌防止旧响应收尾新请求，搜索令牌进一步约束所属查询批次。
     request_token: usize,
     pub(super) search_token: Option<usize>,
     pub(super) mode: PageLoadMode,
@@ -60,6 +67,7 @@ impl PaginationState {
     }
 
     /// Completes only the matching in-flight request, leaving newer requests untouched.
+    /// 仅完成令牌匹配的在途请求，不影响更新的请求。
     pub(super) fn finish_load(&mut self, request_token: usize) -> Option<PendingLoad> {
         let LoadingState::Pending(pending) = self.loading else {
             return None;
@@ -73,6 +81,7 @@ impl PaginationState {
     }
 
     /// Records a page cursor and accumulates scan progress across the current listing.
+    /// 记录分页游标，并在当前列表周期内累加扫描进度。
     pub(super) fn complete_page(
         &mut self,
         next_cursor: Option<PageCursor>,
@@ -85,6 +94,7 @@ impl PaginationState {
     }
 
     /// Returns the next cursor together with the listing mode that produced it.
+    /// 返回下一页游标及生成该游标时采用的列表模式。
     pub(super) fn next_page(&self) -> Option<(PageCursor, PageLoadMode)> {
         if self.is_loading() {
             return None;

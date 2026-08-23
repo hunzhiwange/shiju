@@ -1,3 +1,6 @@
+//! 定义可测量、可绘制并可组合的轻量 TUI 渲染协议。
+//! 行、列、弹性布局与内边距包装器都通过同一 `Renderable` 契约协作。
+
 use std::cell::Cell;
 use std::sync::Arc;
 
@@ -13,24 +16,31 @@ use ratatui::widgets::WidgetRef;
 use crate::render::Insets;
 use crate::render::RectExt as _;
 
+/// 所有可组合 TUI 组件共同实现的测量、绘制与光标契约。
 pub trait Renderable {
+    /// 把当前对象绘制到给定区域，并尊重该区域边界。
     fn render(&self, area: Rect, buf: &mut Buffer);
+    /// 返回给定宽度下期望占用的行数。
     fn desired_height(&self, width: u16) -> u16;
     /// Renders visible rows after `scroll_offset` when direct scrolling is supported.
     ///
     /// Implementations returning `false` must leave `buf` unchanged so callers can use their
     /// existing full-height rendering fallback. Supporting wrappers must forward this method.
+    /// 支持直接滚动时只绘制 `scroll_offset` 后的可见行；返回 `false` 必须保持缓冲区不变，包装器需转发此能力。
     fn render_scrolled(&self, _area: Rect, _buf: &mut Buffer, _scroll_offset: u16) -> bool {
         false
     }
+    /// 如有文本输入光标，返回其在绝对渲染区域中的位置。
     fn cursor_pos(&self, _area: Rect) -> Option<(u16, u16)> {
         None
     }
+    /// 返回当前区域应使用的终端光标形状。
     fn cursor_style(&self, _area: Rect) -> SetCursorStyle {
         SetCursorStyle::DefaultUserShape
     }
 }
 
+/// 同时容纳拥有型与借用型渲染子项，便于组合布局统一存储。
 pub enum RenderableItem<'a> {
     Owned(Box<dyn Renderable + 'a>),
     Borrowed(&'a dyn Renderable),
@@ -176,6 +186,7 @@ impl<R: Renderable> Renderable for Arc<R> {
     }
 }
 
+/// 按垂直方向依次排列子项的组合渲染器。
 pub struct ColumnRenderable<'a> {
     children: Vec<RenderableItem<'a>>,
 }
@@ -204,6 +215,7 @@ impl Renderable for ColumnRenderable<'_> {
     /// child's position in the column.
     ///
     /// It is generally assumed that either zero or one child will have a cursor position.
+    /// 返回首个拥有光标的子项位置并保留其列内偏移；通常最多一个子项报告光标。
     fn cursor_pos(&self, area: Rect) -> Option<(u16, u16)> {
         let mut y = area.y;
         for child in &self.children {
@@ -234,10 +246,12 @@ impl Renderable for ColumnRenderable<'_> {
 }
 
 impl<'a> ColumnRenderable<'a> {
+    /// 创建空列布局。
     pub fn new() -> Self {
         Self { children: vec![] }
     }
 
+    /// 从可迭代子项批量构造列布局。
     pub fn with<I, T>(children: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -246,17 +260,20 @@ impl<'a> ColumnRenderable<'a> {
         Self { children: children.into_iter().map(Into::into).collect() }
     }
 
+    /// 向列尾追加一个拥有型渲染子项。
     pub fn push(&mut self, child: impl Into<Box<dyn Renderable + 'a>>) {
         self.children.push(RenderableItem::Owned(child.into()));
     }
 }
 
+/// 弹性列中的一个子项，缓存指定宽度下的期望高度。
 pub struct FlexChild<'a> {
     flex: i32,
     child: RenderableItem<'a>,
     cached_height: Cell<Option<(u16, u16)>>,
 }
 
+/// 在固定高度子项之外按权重分配剩余高度的列布局。
 pub struct FlexRenderable<'a> {
     children: Vec<FlexChild<'a>>,
 }
@@ -265,6 +282,7 @@ pub struct FlexRenderable<'a> {
 ///
 /// Children with flex factor > 0 will be allocated the remaining space after the non-flex children,
 /// proportional to the flex factor.
+/// 纵向排列子项，并把非弹性子项占用后的剩余空间按正权重分配。
 impl<'a> FlexRenderable<'a> {
     pub fn new() -> Self {
         Self { children: vec![] }
@@ -277,6 +295,7 @@ impl<'a> FlexRenderable<'a> {
     /// Loosely inspired by Flutter's Flex widget.
     ///
     /// Ref https://github.com/flutter/flutter/blob/3fd81edbf1e015221e143c92b2664f4371bdc04a/packages/flutter/lib/src/rendering/flex.dart#L1205-L1209
+    /// 分配算法宽松参考 Flutter 的 Flex 布局。
     fn allocate(&self, area: Rect) -> Vec<Rect> {
         let mut allocated_rects = Vec::with_capacity(self.children.len());
         let mut child_sizes = vec![0; self.children.len()];
@@ -284,6 +303,7 @@ impl<'a> FlexRenderable<'a> {
         let mut flex_children = Vec::new();
 
         // 1. Allocate space to non-flex children.
+        // 第一步先满足所有非弹性子项的期望高度。
         let max_size = area.height;
         for (i, child) in self.children.iter().enumerate() {
             let desired_height = if let Some((width, height)) = child.cached_height.get()
@@ -305,6 +325,7 @@ impl<'a> FlexRenderable<'a> {
         let free_space = max_size.saturating_sub(allocated_size);
         // 2. Satisfy flex children that need less than their proportional share so their unused
         // space can be redistributed instead of leaving blank rows.
+        // 第二步先满足低于比例份额的弹性子项，把其未用空间重新分配，避免空行。
         let mut remaining_space = free_space;
         while !flex_children.is_empty() {
             let total_flex = flex_children.iter().map(|(_, flex, _)| *flex).sum::<u16>();
@@ -326,6 +347,7 @@ impl<'a> FlexRenderable<'a> {
             }
         }
         // 3. Divide the remaining space proportionally. The final child absorbs rounding slack.
+        // 第三步按权重分配剩余空间，最后一个子项吸收整数除法余量。
         let total_flex = flex_children.iter().map(|(_, flex, _)| *flex).sum::<u16>();
         let mut allocated_flex_space = 0;
         let last_flex_child_idx = flex_children.last().map(|(i, _, _)| *i);
@@ -382,6 +404,7 @@ impl<'a> Renderable for FlexRenderable<'a> {
     }
 }
 
+/// 按水平方向以显式宽度排列子项的组合渲染器。
 pub struct RowRenderable<'a> {
     children: Vec<(u16, RenderableItem<'a>)>,
 }
@@ -455,6 +478,7 @@ impl<'a> RowRenderable<'a> {
     }
 }
 
+/// 为子项四周保留内边距的包装渲染器。
 pub struct InsetRenderable<'a> {
     child: RenderableItem<'a>,
     insets: Insets,
@@ -471,6 +495,7 @@ impl<'a> Renderable for InsetRenderable<'a> {
     }
 
     /// Preserve clipped inset padding while forwarding only visible child rows.
+    /// 转发子项可见行时仍保留被裁剪后的内边距。
     fn render_scrolled(&self, area: Rect, buf: &mut Buffer, scroll_offset: u16) -> bool {
         let top_padding = self.insets.top.saturating_sub(scroll_offset);
         let child_width =
@@ -481,6 +506,7 @@ impl<'a> Renderable for InsetRenderable<'a> {
 
         let child_offset = scroll_offset.saturating_sub(self.insets.top);
         // The fallback applies bottom padding to its clipped scratch buffer, even mid-scroll.
+        // 回退路径即使从中间滚动，也会在裁剪后的临时缓冲区应用底部内边距。
         let child_height = self
             .child
             .desired_height(child_width)
@@ -514,11 +540,13 @@ impl<'a> Renderable for InsetRenderable<'a> {
 }
 
 impl<'a> InsetRenderable<'a> {
+    /// 用指定内边距包装一个渲染子项。
     pub fn new(child: impl Into<RenderableItem<'a>>, insets: Insets) -> Self {
         Self { child: child.into(), insets }
     }
 }
 
+/// 为任意 `Renderable` 提供链式添加内边距的扩展方法。
 pub trait RenderableExt<'a> {
     fn inset(self, insets: Insets) -> RenderableItem<'a>;
 }

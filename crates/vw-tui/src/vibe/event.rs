@@ -1,10 +1,23 @@
 //! Product-neutral display events consumed by the copied Codex history cells.
+//! 复用 Codex 历史单元格消费的产品中立展示事件。
 
 /// A file attachment shown in a history entry.
+/// 历史条目中展示的文件附件。
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum V3AttachmentKind {
+    File,
+    Image,
+    PastedText,
+    Resource,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct V3Attachment {
+    pub kind: V3AttachmentKind,
     pub label: String,
     pub path: Option<String>,
+    pub media_type: Option<String>,
+    pub text: Option<String>,
 }
 
 /// The display-only event vocabulary owned by VibeWindow.
@@ -12,6 +25,7 @@ pub struct V3Attachment {
 /// This is deliberately not a wire-protocol enum.  An outer bridge may translate its
 /// events into this shape, while the TUI remains a pure renderer with no request or approval
 /// authority.
+/// VibeWindow 自有的纯展示事件词汇；它不是线协议枚举，外层桥接可转换事件，而 TUI 保持无请求或审批权限的纯渲染器。
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum V3DisplayEvent {
     User { text: String, attachments: Vec<V3Attachment> },
@@ -33,6 +47,8 @@ pub enum V3DisplayEvent {
 /// This is an internal UI contract, not a Gateway or app-server wire type. The
 /// outer CLI bridge translates runtime notifications into these deterministic
 /// events in the next migration batch.
+/// `ChatWidget` 消费的产品中立流式生命周期输入；这是内部 UI 契约，不是 Gateway 或 app-server 线协议。
+/// 外层 CLI 桥接将在迁移批次中把运行时通知翻译为这些确定性事件。
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum V3Event {
     TurnStarted {
@@ -94,6 +110,7 @@ pub enum V3Event {
 }
 
 /// Display status for one plan/goal step.
+/// 一个计划或目标步骤的纯展示状态。
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum V3StepStatus {
     Pending,

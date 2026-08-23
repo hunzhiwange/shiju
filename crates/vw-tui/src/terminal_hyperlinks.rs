@@ -1,3 +1,7 @@
+//! 将语义化终端超链接与可见 TUI 文本分离保存。
+//!
+//! 布局代码只测量和换行普通 Ratatui 行；到达终端缓冲区或回滚区 writer 时才应用
+//! 超链接标注，确保 OSC 8 字节不会影响几何计算。
 //! Semantic terminal hyperlinks carried separately from visible TUI text.
 //!
 //! Layout code measures and wraps ordinary ratatui lines. Hyperlink annotations are applied only
@@ -29,6 +33,7 @@ use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+// 超链接范围使用显示列而非字节偏移，以正确覆盖宽字符。
 pub(crate) struct TerminalHyperlink {
     pub(crate) columns: Range<usize>,
     pub(crate) destination: String,
@@ -47,6 +52,7 @@ impl TerminalHyperlink {
     }
 
     pub(crate) fn retarget_to_trusted_file(&mut self, destination: &Url) {
+        // 文件 URL 不进入通用 Markdown 链接路径，只有生成的可视化链接可提升为此目标类型。
         // Keep file URLs out of the general Markdown link path. Only generated visualization links
         // are promoted to this destination kind.
         debug_assert_eq!(destination.scheme(), "file");
@@ -71,6 +77,7 @@ impl TerminalHyperlink {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+// 渲染行与其链接元数据成对移动，换行后可重新映射各段范围。
 pub(crate) struct HyperlinkLine {
     pub(crate) line: Line<'static>,
     pub(crate) hyperlinks: Vec<TerminalHyperlink>,
@@ -189,6 +196,8 @@ pub(crate) fn annotate_web_urls_in_line(line: Line<'static>) -> HyperlinkLine {
     out
 }
 
+/// 可见文本换行拆分一行后重新附加源超链接范围；按展示顺序匹配链接文本，
+/// 忽略行边界增删的空白，但绝不从输出重建目标地址。
 /// Re-attach source hyperlink ranges after visible-text wrapping has split a line.
 ///
 /// Link text is matched in display order so a URL split across table rows retains the complete
@@ -277,6 +286,7 @@ fn push_link_range(line: &mut HyperlinkLine, range: Range<usize>, link: &Termina
 }
 
 pub(crate) fn web_links_in_text(text: &str) -> Vec<TerminalHyperlink> {
+    // 先按空白切分候选，再剔除外围标点并验证协议与主机。
     let mut links = Vec::new();
     let mut search_from = 0usize;
     for raw_token in text.split_ascii_whitespace() {
@@ -755,6 +765,8 @@ mod tests {
         let lines = vec![hidden, visible, trailing];
 
         let area = Rect::new(/*x*/ 0, /*y*/ 0, /*width*/ 8, /*height*/ 2);
+        // VibeWindow 适配：批次 5 先于复制的自定义终端/测试后端启用链接几何，
+        // 因而直接验证同一渲染缓冲区。
         // VibeWindow adaptation: batch 5 activates hyperlink geometry before
         // the copied custom terminal/test backend (batch 15), so validate the
         // same rendered buffer directly.
@@ -833,6 +845,7 @@ mod tests {
         line.push_span(" tail".into(), /*destination*/ None);
 
         let area = Rect::new(/*x*/ 0, /*y*/ 0, /*width*/ 14, /*height*/ 3);
+        // VibeWindow 适配：无需激活后续自定义终端批次即可覆盖复制的强制宽度逻辑。
         // VibeWindow adaptation: exercise the copied forced-width logic
         // without activating the later custom-terminal batch.
         let mut buf = Buffer::empty(area);

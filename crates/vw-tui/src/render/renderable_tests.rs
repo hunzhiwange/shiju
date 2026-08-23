@@ -1,3 +1,6 @@
+//! 覆盖纵向 Renderable 布局对固定高度与弹性子项的空间分配。
+//! 还验证同一帧的测量结果可跨布局、光标查询复用，避免重复昂贵计算。
+
 use super::*;
 use pretty_assertions::assert_eq;
 use std::cell::Cell;
@@ -5,6 +8,7 @@ use std::cell::Cell;
 struct HeightRenderable(u16);
 
 impl HeightRenderable {
+    // 固定高度替身让用例只观察容器分配算法。
     fn with_height(height: u16) -> Self {
         Self(height)
     }
@@ -19,6 +23,7 @@ impl Renderable for HeightRenderable {
 }
 
 #[test]
+// 较矮弹性子项未用完的空间应重新分给仍可增长的兄弟项。
 fn flex_redistributes_space_unused_by_short_children() {
     let mut flex = FlexRenderable::new();
     flex.push(
@@ -37,6 +42,7 @@ fn flex_redistributes_space_unused_by_short_children() {
 }
 
 #[test]
+// 固定子项应先获得所需空间，剩余高度才由弹性子项按权重分配。
 fn flex_reserves_non_flex_space_before_flexible_children() {
     let mut flex = FlexRenderable::new();
     flex.push(
@@ -59,6 +65,7 @@ fn flex_reserves_non_flex_space_before_flexible_children() {
 }
 
 #[test]
+// 一帧内的多次布局与光标查询应共享子项高度，不能重复触发测量。
 fn flex_caches_child_height_across_frame_passes() {
     struct CountingRenderable<'a>(&'a Cell<usize>);
 

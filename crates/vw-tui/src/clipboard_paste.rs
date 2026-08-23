@@ -46,6 +46,7 @@ pub struct PastedImageInfo {
     pub encoded_format: EncodedImageFormat, // Always PNG for now.
 }
 
+/// 从系统剪贴板捕获图片、编码为 PNG，并返回字节与图片信息。
 /// Capture image from system clipboard, encode to PNG, and return bytes + info.
 #[cfg(not(target_os = "android"))]
 pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageError> {
@@ -53,6 +54,8 @@ pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageErro
     tracing::debug!("attempting clipboard image read");
     let mut cb = arboard::Clipboard::new()
         .map_err(|e| PasteImageError::ClipboardUnavailable(e.to_string()))?;
+    // 剪贴板图片有时以文件形式出现（如 Finder），有时是原始图像数据（如 Chrome）；
+    // 两者都接受，并在同时存在时优先文件。
     // Sometimes images on the clipboard come as files (e.g. when copy/pasting from
     // Finder), sometimes they come as image data (e.g. when pasting from Chrome).
     // Accept both, and prefer files if both are present.
@@ -108,6 +111,7 @@ pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageErro
     ))
 }
 
+/// Android/Termux 不支持 arboard，因此返回明确错误。
 /// Android/Termux does not support arboard; return a clear error.
 #[cfg(target_os = "android")]
 pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageError> {
@@ -116,12 +120,15 @@ pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageErro
     ))
 }
 
+/// 便捷入口：写入临时文件并返回路径与图片信息。
 /// Convenience: write to a temp file and return its path + info.
 #[cfg(not(target_os = "android"))]
 pub fn paste_image_to_temp_png() -> Result<(PathBuf, PastedImageInfo), PasteImageError> {
+    // 首先通过 arboard 从系统剪贴板读取原生路径或图像数据。
     // First attempt: read image from system clipboard via arboard (native paths or image data).
     match paste_image_as_png() {
         Ok((png, info)) => {
+            // 创建带 `.png` 后缀的唯一临时文件以避免冲突。
             // Create a unique temporary file with a .png suffix to avoid collisions.
             let tmp = Builder::new()
                 .prefix("codex-clipboard-")
@@ -130,6 +137,7 @@ pub fn paste_image_to_temp_png() -> Result<(PathBuf, PastedImageInfo), PasteImag
                 .map_err(|e| PasteImageError::IoError(e.to_string()))?;
             std::fs::write(tmp.path(), &png)
                 .map_err(|e| PasteImageError::IoError(e.to_string()))?;
+            // 持久化临时文件，使句柄丢弃后文件仍存在，并返回其 `PathBuf`。
             // Persist the file (so it remains after the handle is dropped) and return its PathBuf.
             let (_file, path) = tmp
                 .keep()
@@ -149,6 +157,8 @@ pub fn paste_image_to_temp_png() -> Result<(PathBuf, PastedImageInfo), PasteImag
     }
 }
 
+/// 尝试 WSL 图片粘贴回退：arboard 无法访问 Windows 剪贴板时，调用 Windows 侧 PowerShell
+/// 把图片写入临时文件，再返回对应 WSL 路径。
 /// Attempt WSL fallback for clipboard image paste.
 ///
 /// If clipboard is unavailable (common under WSL because arboard cannot access
@@ -180,6 +190,7 @@ fn try_wsl_clipboard_fallback(
         return Err(error.clone());
     };
 
+    // 直接返回映射后的路径而不复制；序列化时才读取文件并进行 Base64 编码。
     // Return the mapped path directly without copying.
     // The file will be read and base64-encoded during serialization.
     Ok((
@@ -192,11 +203,15 @@ fn try_wsl_clipboard_fallback(
     ))
 }
 
+/// 依次尝试常见 Windows PowerShell 命令，把剪贴板图片保存为临时 PNG 并返回 Windows 路径；
+/// 没有命令成功或剪贴板无图片时返回 `None`。
 /// Try to call a Windows PowerShell command (several common names) to save the
 /// clipboard image to a temporary PNG and return the Windows path to that file.
 /// Returns None if no command succeeded or no image was present.
 #[cfg(target_os = "linux")]
 fn try_dump_windows_clipboard_image() -> Option<String> {
+    // PowerShell 脚本把剪贴板图片保存为临时 PNG 并打印路径；强制 UTF-8 输出，
+    // 避免 powershell.exe 默认 UTF-16LE 与 pwsh 默认 UTF-8 的差异。
     // Powershell script: save image from clipboard to a temp png and print the path.
     // Force UTF-8 output to avoid encoding issues between powershell.exe (UTF-16LE default)
     // and pwsh (UTF-8 default).
@@ -207,9 +222,11 @@ fn try_dump_windows_clipboard_image() -> Option<String> {
             .args(["-NoProfile", "-Command", script])
             .output()
         {
+            // 执行候选 PowerShell 命令。
             // Executing PowerShell command
             Ok(output) => {
                 if output.status.success() {
+                    // 按脚本上方强制的 UTF-8 解码。
                     // Decode as UTF-8 (forced by the script above).
                     let win_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
                     if !win_path.is_empty() {
@@ -230,18 +247,21 @@ fn try_dump_windows_clipboard_image() -> Option<String> {
 
 #[cfg(target_os = "android")]
 pub fn paste_image_to_temp_png() -> Result<(PathBuf, PastedImageInfo), PasteImageError> {
+    // 与 `paste_image_as_png` 保持一致的错误语义。
     // Keep error consistent with paste_image_as_png.
     Err(PasteImageError::ClipboardUnavailable(
         "clipboard image paste is unsupported on Android".into(),
     ))
 }
 
+/// 将粘贴文本规范化为单行搜索查询。
 /// Normalize pasted text for a single-line search query.
 pub(crate) fn normalize_pasted_search_query(pasted: &str) -> Option<String> {
     let normalized = pasted.split_whitespace().collect::<Vec<_>>().join(" ");
     (!normalized.is_empty()).then_some(normalized)
 }
 
+/// 规范化可能表示文件系统路径的粘贴文本；支持 `file://` URL、Windows/UNC 路径和 shlex 单路径。
 /// Normalize pasted text that may represent a filesystem path.
 ///
 /// Supports:
@@ -256,6 +276,7 @@ pub fn normalize_pasted_path(pasted: &str) -> Option<PathBuf> {
         .or_else(|| pasted.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
         .unwrap_or(pasted);
 
+    // 将 `file://` URL 转换为文件系统路径。
     // file:// URL → filesystem path
     if let Ok(url) = url::Url::parse(unquoted)
         && url.scheme() == "file"
@@ -263,6 +284,8 @@ pub fn normalize_pasted_path(pasted: &str) -> Option<PathBuf> {
         return url.to_file_path().ok();
     }
 
+    // TODO：后续按需要改进实现和单元测试，可考虑 typed-path。
+    // 未加引号的 Windows/UNC 路径绕过 POSIX shlex，因为后者会把反斜杠当转义符。
     // TODO: We'll improve the implementation/unit tests over time, as appropriate.
     // Possibly use typed-path: https://github.com/openai/codex/pull/2567/commits/3cc92b78e0a1f94e857cf4674d3a9db918ed352e
     //
@@ -273,6 +296,7 @@ pub fn normalize_pasted_path(pasted: &str) -> Option<PathBuf> {
         return Some(path);
     }
 
+    // 将 shell 转义的单一路径还原为未转义形式。
     // shell-escaped single path → unescaped
     let parts: Vec<String> = shlex::Shlex::new(pasted).collect();
     if parts.len() == 1 {
@@ -288,6 +312,7 @@ pub fn normalize_pasted_path(pasted: &str) -> Option<PathBuf> {
 
 #[cfg(target_os = "linux")]
 pub(crate) fn is_probably_wsl() -> bool {
+    // 首选检查 `/proc/version` 中的 `microsoft` 或 `WSL`，这是标准 WSL 最可靠的信号。
     // Primary: Check /proc/version for "microsoft" or "WSL" (most reliable for standard WSL).
     if let Ok(version) = std::fs::read_to_string("/proc/version") {
         let version_lower = version.to_lowercase();
@@ -296,6 +321,7 @@ pub(crate) fn is_probably_wsl() -> bool {
         }
     }
 
+    // 回退检查 WSL 环境变量，以覆盖自定义内核导致 `/proc/version` 不含标准标识的情况。
     // Fallback: Check WSL environment variables. This handles edge cases like
     // custom Linux kernels installed in WSL where /proc/version may not contain
     // "microsoft" or "WSL".
@@ -331,6 +357,7 @@ fn convert_windows_path_to_wsl(input: &str) -> Option<PathBuf> {
 }
 
 fn normalize_windows_path(input: &str) -> Option<PathBuf> {
+    // 识别 `C:\` 或 `C:/` 形式的盘符路径。
     // Drive letter path: C:\ or C:/
     let drive = input
         .chars()
@@ -342,6 +369,7 @@ fn normalize_windows_path(input: &str) -> Option<PathBuf> {
             .get(2..3)
             .map(|s| s == "\\" || s == "/")
             .unwrap_or(false);
+    // 识别 `\\server\share` 形式的 UNC 路径。
     // UNC path: \\server\share
     let unc = input.starts_with("\\\\");
     if !drive && !unc {
@@ -360,6 +388,7 @@ fn normalize_windows_path(input: &str) -> Option<PathBuf> {
     Some(PathBuf::from(input))
 }
 
+/// 根据给定路径扩展名推断图片格式。
 /// Infer an image format for the provided path based on its extension.
 pub fn pasted_image_format(path: &Path) -> EncodedImageFormat {
     match path
@@ -439,6 +468,7 @@ mod pasted_paths_tests {
 
     #[test]
     fn normalize_multiple_tokens_returns_none() {
+        // Shell 分词得到两个标记时，不应把输入误判为单一路径。
         // Two tokens after shell splitting → not a single path
         let input = "/home/user/a\\ b.png /home/user/c.png";
         let result = normalize_pasted_path(input);
@@ -553,8 +583,10 @@ mod pasted_paths_tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn normalize_windows_path_in_wsl() {
+        // 此测试只在真实 WSL 系统上运行。
         // This test only runs on actual WSL systems
         if !is_probably_wsl() {
+            // 非 WSL 环境跳过该场景。
             // Skip test if not on WSL
             return;
         }
@@ -566,3 +598,4 @@ mod pasted_paths_tests {
         );
     }
 }
+//! 从系统剪贴板读取图片或路径，并为 TUI 输入规范化跨平台粘贴文本。

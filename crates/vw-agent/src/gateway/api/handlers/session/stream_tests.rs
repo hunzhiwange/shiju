@@ -127,6 +127,7 @@ fn prepare_stream_history_maps_roles_tool_results_and_last_user_query() {
             serde_json::json!({"role": "user", "content": "next question"}),
         ],
         false,
+        false,
     );
 
     assert_eq!(prepared.query, "next question");
@@ -147,15 +148,37 @@ fn prepare_stream_history_promotes_last_prior_user_unless_resume_history_only() 
         serde_json::json!({"role": "assistant", "content": "latest assistant"}),
     ];
 
-    let normal = prepare_stream_history(messages.clone(), false);
+    let normal = prepare_stream_history(messages.clone(), false, false);
     assert_eq!(normal.query, "resume from here");
     assert_eq!(normal.history.len(), 1);
     assert!(matches!(normal.history[0].role, ui_models::ChatRole::Assistant));
 
-    let resume_only = prepare_stream_history(messages, true);
+    let resume_only = prepare_stream_history(messages, true, false);
     assert!(resume_only.query.is_empty());
     assert_eq!(resume_only.history.len(), 2);
     assert!(matches!(resume_only.history[0].role, ui_models::ChatRole::User));
+}
+
+#[test]
+fn prepare_stream_history_accepts_structured_attachment_blocks() {
+    let messages = vec![serde_json::json!({
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "inspect"},
+            {"type": "image", "mimeType": "image/png", "data": "QUJDRA=="},
+            {"type": "resource", "resource": {"uri": "file:///notes.md", "text": "body"}}
+        ]
+    })];
+
+    let native = prepare_stream_history(messages.clone(), false, false);
+    assert!(native.query.contains("inspect"));
+    assert!(native.query.contains("[IMAGE:data:image/png;base64,QUJDRA==]"));
+    assert!(native.query.contains("[Resource: file:///notes.md]\nbody"));
+
+    let acp = prepare_stream_history(messages, false, true);
+    let blocks: serde_json::Value = serde_json::from_str(&acp.query).expect("ACP blocks");
+    assert_eq!(blocks[1]["type"], "image");
+    assert_eq!(blocks[2]["type"], "resource");
 }
 
 // 不同流事件映射到稳定载荷字段，结束与错误状态不得伪装成普通文本增量。

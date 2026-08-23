@@ -4,7 +4,7 @@
 //! 进入渲染的外部错误会经过最小脱敏，避免直接显示常见凭据字段。
 
 /// 集成面板当前展示的资源类别。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum IntegrationKind {
     Mcp,
     Skill,
@@ -34,11 +34,35 @@ pub(crate) struct IntegrationAction {
 /// 一条集成资源的可显示快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct IntegrationItem {
+    pub(crate) kind: IntegrationKind,
     pub(crate) id: String,
     pub(crate) title: String,
     pub(crate) detail: String,
+    pub(crate) source: String,
     pub(crate) enabled: bool,
+    pub(crate) can_toggle: bool,
+    pub(crate) can_delete: bool,
+    pub(crate) prompt_prefix: Option<String>,
     pub(crate) actions: Vec<IntegrationAction>,
+}
+
+impl IntegrationItem {
+    pub(crate) fn stable_key(&self) -> String {
+        format!("{}:{}", self.kind.command_name(), self.id)
+    }
+}
+
+impl IntegrationKind {
+    pub(crate) fn command_name(self) -> &'static str {
+        match self {
+            Self::Mcp => "mcp",
+            Self::Skill => "skill",
+            Self::Plugin => "plugin",
+            Self::Hook => "hook",
+            Self::Memory => "memory",
+            Self::Doctor => "doctor",
+        }
+    }
 }
 
 /// 集成页面的列表、选中位置与技能平台子选择器。

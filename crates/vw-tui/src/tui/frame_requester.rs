@@ -11,6 +11,9 @@
 //! This follows the actor-style design from
 //! [“Actors with Tokio”](https://ryhl.io/blog/actors-with-tokio/), with a
 //! dedicated scheduler task and lightweight request handles.
+//!
+//! `FrameRequester` 是可跨任务克隆的轻量句柄；后台 `FrameScheduler` 把密集请求合并为
+//! 主事件循环的一次广播通知，并通过限速器避免无意义重绘。结构采用 actor/handler 分工。
 
 use std::time::Duration;
 use std::time::Instant;
@@ -27,6 +30,7 @@ use super::frame_rate_limiter::FrameRateLimiter;
 ///
 /// Clones of this type can be freely shared across tasks to make it possible to trigger frame draws
 /// from anywhere in the TUI code.
+/// 用于向 TUI 事件循环安排未来绘制；它是调度 actor 的句柄端，可安全克隆并跨任务共享。
 #[derive(Clone, Debug)]
 pub struct FrameRequester {
     frame_schedule_tx: mpsc::UnboundedSender<Instant>,
@@ -36,6 +40,7 @@ impl FrameRequester {
     /// Create a new FrameRequester and spawn its associated FrameScheduler task.
     ///
     /// The provided `draw_tx` is used to notify the TUI event loop of scheduled draws.
+    /// 创建请求器并启动关联调度任务；`draw_tx` 用于通知主事件循环。
     pub fn new(draw_tx: broadcast::Sender<()>) -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
         let scheduler = FrameScheduler::new(rx, draw_tx);
@@ -46,11 +51,13 @@ impl FrameRequester {
     }
 
     /// Schedule a frame draw as soon as possible.
+    /// 尽快安排一帧绘制，仍受全局帧率上限约束。
     pub fn schedule_frame(&self) {
         let _ = self.frame_schedule_tx.send(Instant::now());
     }
 
     /// Schedule a frame draw to occur after the specified duration.
+    /// 安排在指定延迟后绘制；更早的既有期限会优先。
     pub fn schedule_frame_in(&self, dur: Duration) {
         let _ = self.frame_schedule_tx.send(Instant::now() + dur);
     }
@@ -59,6 +66,7 @@ impl FrameRequester {
 #[cfg(test)]
 impl FrameRequester {
     /// Create a no-op frame requester for tests.
+    /// 创建不启动调度任务的测试请求器。
     pub(crate) fn test_dummy() -> Self {
         let (tx, _rx) = mpsc::unbounded_channel();
         FrameRequester {
@@ -73,6 +81,7 @@ impl FrameRequester {
 ///
 /// To avoid wasted redraw work, draw notifications are clamped to a maximum of 120 FPS (see
 /// [`FrameRateLimiter`]).
+/// 内部调度器负责合并请求并通知事件循环，所有通知都受 `FrameRateLimiter` 的 120 FPS 上限约束。
 struct FrameScheduler {
     receiver: mpsc::UnboundedReceiver<Instant>,
     draw_tx: broadcast::Sender<()>,
@@ -81,6 +90,7 @@ struct FrameScheduler {
 
 impl FrameScheduler {
     /// Create a new FrameScheduler with the provided receiver and draw notification sender.
+    /// 使用请求接收端与绘制广播发送端创建调度器。
     fn new(receiver: mpsc::UnboundedReceiver<Instant>, draw_tx: broadcast::Sender<()>) -> Self {
         Self {
             receiver,
@@ -93,6 +103,7 @@ impl FrameScheduler {
     ///
     /// This method runs indefinitely until all senders are dropped. A single draw notification
     /// is sent for multiple requests scheduled before the next draw deadline.
+    /// 持续运行直至所有发送端关闭；下个期限前的多个请求只产生一次绘制通知。
     async fn run(mut self) {
         const ONE_YEAR: Duration = Duration::from_secs(60 * 60 * 24 * 365);
         let mut next_deadline: Option<Instant> = None;
@@ -105,6 +116,7 @@ impl FrameScheduler {
                 draw_at = self.receiver.recv() => {
                     let Some(draw_at) = draw_at else {
                         // All senders dropped; exit the scheduler.
+                        // 所有请求发送端均已释放，调度任务可以退出。
                         break
                     };
                     let draw_at = self.rate_limiter.clamp_deadline(draw_at);
@@ -113,6 +125,7 @@ impl FrameScheduler {
                     // Do not send a draw immediately here. By continuing the loop,
                     // we recompute the sleep target so the draw fires once via the
                     // sleep branch, coalescing multiple requests into a single draw.
+                    // 此处分支不立即发送；重新计算睡眠目标，让同批请求经睡眠分支合并成一次绘制。
                     continue;
                 }
                 _ = &mut deadline => {
@@ -135,6 +148,7 @@ mod tests {
 
     impl FrameRequester {
         /// Create a frame requester and expose its request channel for deterministic tests.
+        /// 创建请求器并暴露请求通道，以便使用暂停时间做确定性测试。
         pub(crate) fn test_channel() -> (Self, mpsc::UnboundedReceiver<Instant>) {
             let (tx, rx) = mpsc::unbounded_channel();
             (
@@ -154,9 +168,11 @@ mod tests {
         requester.schedule_frame();
 
         // Advance time minimally to let the scheduler process and hit the deadline == now.
+        // 最小推进虚拟时间，让调度器处理请求并命中“期限等于当前时刻”的边界。
         time::advance(Duration::from_millis(1)).await;
 
         // First draw should arrive.
+        // 第一条绘制通知应到达。
         let first = draw_rx
             .recv()
             .timeout(Duration::from_millis(50))
@@ -165,6 +181,7 @@ mod tests {
         assert!(first.is_ok(), "broadcast closed unexpectedly");
 
         // No second draw should arrive.
+        // 同一请求不得产生第二条通知。
         let second = draw_rx.recv().timeout(Duration::from_millis(20)).await;
         assert!(second.is_err(), "unexpected extra draw received");
     }
@@ -177,11 +194,13 @@ mod tests {
         requester.schedule_frame_in(Duration::from_millis(50));
 
         // Advance less than the delay: no draw yet.
+        // 推进时间尚未达到延迟时不应绘制。
         time::advance(Duration::from_millis(30)).await;
         let early = draw_rx.recv().timeout(Duration::from_millis(10)).await;
         assert!(early.is_err(), "draw fired too early");
 
         // Advance past the deadline: one draw should fire.
+        // 越过期限后应恰好发出一次绘制。
         time::advance(Duration::from_millis(25)).await;
         let first = draw_rx
             .recv()
@@ -191,6 +210,7 @@ mod tests {
         assert!(first.is_ok(), "broadcast closed unexpectedly");
 
         // No second draw should arrive.
+        // 延迟请求也不得产生重复通知。
         let second = draw_rx.recv().timeout(Duration::from_millis(20)).await;
         assert!(second.is_err(), "unexpected extra draw received");
     }
@@ -201,14 +221,17 @@ mod tests {
         let requester = FrameRequester::new(draw_tx);
 
         // Schedule multiple immediate requests close together.
+        // 连续提交多个即时请求以验证合并。
         requester.schedule_frame();
         requester.schedule_frame();
         requester.schedule_frame();
 
         // Allow the scheduler to process and hit the coalesced deadline.
+        // 让调度器处理并到达合并后的期限。
         time::advance(Duration::from_millis(1)).await;
 
         // Expect only a single draw notification despite three requests.
+        // 三个请求仍只应产生一条绘制通知。
         let first = draw_rx
             .recv()
             .timeout(Duration::from_millis(50))
@@ -217,6 +240,7 @@ mod tests {
         assert!(first.is_ok(), "broadcast closed unexpectedly");
 
         // No additional draw should be sent for the same coalesced batch.
+        // 同一合并批次不得再发送额外通知。
         let second = draw_rx.recv().timeout(Duration::from_millis(20)).await;
         assert!(second.is_err(), "unexpected extra draw received");
     }
@@ -227,6 +251,7 @@ mod tests {
         let requester = FrameRequester::new(draw_tx);
 
         // Schedule a delayed draw and then an immediate one; should coalesce and fire at the earliest (immediate).
+        // 先延迟后即时的请求应合并，并按更早的即时期限触发。
         requester.schedule_frame_in(Duration::from_millis(100));
         requester.schedule_frame();
 
@@ -240,6 +265,7 @@ mod tests {
         assert!(first.is_ok(), "broadcast closed unexpectedly");
 
         // The later delayed request should have been coalesced into the earlier one; no second draw.
+        // 较晚期限已并入较早期限，不应再触发第二帧。
         let second = draw_rx.recv().timeout(Duration::from_millis(120)).await;
         assert!(second.is_err(), "unexpected extra draw received");
     }
@@ -375,16 +401,19 @@ mod tests {
         let requester = FrameRequester::new(draw_tx);
 
         // Schedule multiple delayed draws; they should coalesce to the earliest (10ms).
+        // 多个延迟请求应合并到最早的 10 毫秒期限。
         requester.schedule_frame_in(Duration::from_millis(100));
         requester.schedule_frame_in(Duration::from_millis(20));
         requester.schedule_frame_in(Duration::from_millis(120));
 
         // Advance to just before the earliest deadline: no draw yet.
+        // 推进到最早期限之前仍不应绘制。
         time::advance(Duration::from_millis(10)).await;
         let early = draw_rx.recv().timeout(Duration::from_millis(10)).await;
         assert!(early.is_err(), "draw fired too early");
 
         // Advance past the earliest deadline: one draw should fire.
+        // 越过最早期限后应发出一条通知。
         time::advance(Duration::from_millis(20)).await;
         let first = draw_rx
             .recv()
@@ -394,6 +423,7 @@ mod tests {
         assert!(first.is_ok(), "broadcast closed unexpectedly");
 
         // No additional draw should fire for the later delayed requests.
+        // 其余较晚延迟请求不应再触发绘制。
         let second = draw_rx.recv().timeout(Duration::from_millis(120)).await;
         assert!(second.is_err(), "unexpected extra draw received");
     }

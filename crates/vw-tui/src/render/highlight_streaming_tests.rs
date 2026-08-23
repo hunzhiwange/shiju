@@ -1,3 +1,6 @@
+//! 验证语法高亮器在流式追加代码行时复用解析状态的条件。
+//! 一旦输入形状、主题或资源限制变化，就必须回到规范的完整渲染路径。
+
 use super::super::MAX_HIGHLIGHT_BYTES;
 use super::super::MAX_HIGHLIGHT_LINE_BYTES;
 use super::super::MAX_HIGHLIGHT_LINES;
@@ -7,6 +10,7 @@ use super::StreamingCodeHighlighter;
 use pretty_assertions::assert_eq;
 
 #[test]
+// 连续追加的多行源码应继承前一行语法状态，并与一次性高亮结果一致。
 fn appended_lines_preserve_multiline_syntax_state() {
     let first = "fn main() {\n    /* comment\n";
     let appended = "       continues */\n    println!(\"界 e\u{301}\");\n}\n";
@@ -25,6 +29,7 @@ fn appended_lines_preserve_multiline_syntax_state() {
 }
 
 #[test]
+// 空语言与未知语言仍可增量追加，但应使用无语法色彩的安全表示。
 fn empty_and_unknown_language_fences_append() {
     for lang in ["rust", "unknown-language"] {
         let highlighter = StreamingCodeHighlighter::new("", lang, syntax_theme_revision()).unwrap();
@@ -34,6 +39,7 @@ fn empty_and_unknown_language_fences_append() {
 }
 
 #[test]
+// 未完成行或主题切换会使缓存状态失效，后续结果不得混用旧解析上下文。
 fn incomplete_lines_and_theme_changes_discard_state() {
     let highlighter =
         StreamingCodeHighlighter::new("fn first() {}\n", "rust", syntax_theme_revision()).unwrap();
@@ -47,6 +53,7 @@ fn incomplete_lines_and_theme_changes_discard_state() {
 }
 
 #[test]
+// 任一高亮资源上限被越过后都应要求完整重算，避免前后片段样式不一致。
 fn crossing_each_highlighting_limit_requires_a_canonical_render() {
     let cases = [
         (String::new(), format!("{}\n", "x".repeat(MAX_HIGHLIGHT_LINE_BYTES + 1))),

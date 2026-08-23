@@ -1,8 +1,11 @@
 //! Shared inventory of resolved runtime bindings.
+//! 已解析运行时快捷键的共享清单。
 //!
 //! `/keymap` lookup and chord-prefix conflict detection must inspect the same
 //! actions. Declaring those actions once prevents a new binding from appearing
 //! in the picker while being silently omitted from chord validation.
+//! `/keymap` 查询与组合键前缀冲突检测必须检查同一批动作；集中声明可防止新绑定只出现在
+//! 选择器中，却被组合键校验静默遗漏。
 
 use super::RuntimeKeymap;
 use crate::key_hint::KeyBinding;
@@ -11,6 +14,7 @@ use codex_config::types::TuiKeymap;
 use std::sync::Arc;
 
 /// Config context in which a keymap action is active.
+/// 快捷键动作生效时所处的配置上下文。
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum KeymapContext {
     Global,
@@ -51,6 +55,7 @@ impl KeymapContext {
     }
 
     pub(crate) fn overlaps(self, other: Self) -> bool {
+        // 共享主界面与编辑器上下文会沿同一输入路径竞争，因此必须参与交叉冲突检测。
         if self == other {
             return true;
         }
@@ -81,6 +86,7 @@ impl KeymapContext {
 }
 
 /// Stable identity for one configurable action.
+/// 一个可配置动作的稳定标识，由上下文和配置动作名共同组成。
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct KeymapActionId {
     pub(crate) context: KeymapContext,
@@ -95,6 +101,7 @@ impl KeymapActionId {
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct RuntimeActionBinding<'a> {
+    // 只借用运行时解析结果，供编辑器和冲突检查读取，不复制或改写绑定。
     pub(super) id: KeymapActionId,
     pub(super) bindings: &'a [KeyBinding],
 }
@@ -111,6 +118,7 @@ macro_rules! runtime_group_mut {
 macro_rules! define_runtime_action_bindings {
     ($($context:literal => $context_id:ident, $group:ident, $config_group:ident [$($action:ident),+ $(,)?]),+ $(,)?) => {
         /// Resolve a config context/action pair to its runtime identity.
+        /// 将配置中的上下文与动作二元组解析为运行时稳定标识。
         pub(crate) fn keymap_action_id(
             context: &str,
             action: &str,
@@ -129,6 +137,7 @@ macro_rules! define_runtime_action_bindings {
         }
 
         /// Return the root-config slot for one runtime action.
+        /// 返回某个运行时动作在根配置中的槽位。
         pub(super) fn configured_binding_for_action(
             keymap: &TuiKeymap,
             action: KeymapActionId,
@@ -146,6 +155,7 @@ macro_rules! define_runtime_action_bindings {
         }
 
         /// Iterate over every stable runtime action identity.
+        /// 按声明顺序遍历全部稳定运行时动作标识。
         pub(crate) fn keymap_action_ids() -> impl Iterator<Item = KeymapActionId> {
             [
                 $(
@@ -161,6 +171,7 @@ macro_rules! define_runtime_action_bindings {
         }
 
         /// Return resolved bindings for one stable config context and action.
+        /// 返回指定稳定配置上下文与动作已解析出的用户绑定。
         pub(crate) fn bindings_for_action<'a>(
             runtime_keymap: &'a RuntimeKeymap,
             context: &str,
@@ -181,6 +192,7 @@ macro_rules! define_runtime_action_bindings {
         }
 
         /// Append an internal dispatch binding to one resolved action.
+        /// 给已解析动作追加内部派发绑定，不改变其面向用户的配置标识。
         pub(super) fn push_binding_for_action(
             runtime_keymap: &mut RuntimeKeymap,
             action: KeymapActionId,
@@ -200,6 +212,7 @@ macro_rules! define_runtime_action_bindings {
         }
 
         /// Iterate over the same runtime bindings exposed to the keymap editor.
+        /// 遍历快捷键编辑器所展示的同一份运行时绑定清单。
         pub(super) fn runtime_action_bindings(
             runtime_keymap: &RuntimeKeymap,
         ) -> impl Iterator<Item = RuntimeActionBinding<'_>> {
@@ -224,6 +237,7 @@ macro_rules! define_runtime_action_bindings {
 }
 
 define_runtime_action_bindings! {
+    // 该声明同时生成查询、配置访问和内部派发映射，新增动作必须只在这里接线一次。
     "global" => Global, app, global [
         open_agents,
         open_transcript,

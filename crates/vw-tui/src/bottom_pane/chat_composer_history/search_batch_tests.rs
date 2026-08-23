@@ -1,3 +1,6 @@
+//! 验证远端历史批量搜索的游标推进、失效响应、重试上限与缓存复用。
+//! fixture 通过事件通道观察请求，避免把内部状态变化误当成已完成的搜索结果。
+
 use pretty_assertions::assert_eq;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::mpsc::unbounded_channel;
@@ -6,11 +9,13 @@ use super::*;
 use crate::app_event::AppEvent;
 use crate::app_event::HistoryBatchEntryResponse;
 
+// 构造稳定且可区分的线程标识，用于模拟搜索期间切换线程元数据。
 fn thread_id(value: u8) -> ThreadId {
     ThreadId::from_string(&format!("00000000-0000-0000-0000-{value:012}"))
         .expect("thread id should parse")
 }
 
+// 将偏移量和正文包装成批量接口返回的单条历史记录。
 fn batch_entry(offset: usize, entry: &str) -> HistoryBatchEntryResponse {
     HistoryBatchEntryResponse {
         offset,
@@ -18,10 +23,12 @@ fn batch_entry(offset: usize, entry: &str) -> HistoryBatchEntryResponse {
     }
 }
 
+// 统一构造命中结果，使测试聚焦请求时序而非结果样板。
 fn found(entry: &str) -> HistorySearchResult {
     HistorySearchResult::Found(HistoryEntry::new(entry.to_string()))
 }
 
+// 建立固定日志编号的历史状态及其可观测应用事件通道。
 fn history(
     entry_count: usize,
 ) -> (
@@ -36,6 +43,7 @@ fn history(
     (history, tx, rx)
 }
 
+// 读取下一条批量查询事件，并暴露游标与日志编号供测试核对。
 fn recv_batch_request(rx: &mut UnboundedReceiver<AppEvent>) -> (HistoryBatchCursor, u64) {
     let AppEvent::LookupMessageHistoryBatch { cursor, log_id, .. } =
         rx.try_recv().expect("batch request")
@@ -45,6 +53,7 @@ fn recv_batch_request(rx: &mut UnboundedReceiver<AppEvent>) -> (HistoryBatchCurs
     (cursor, log_id)
 }
 
+// 读取下一条单项查询事件，确认批量回退前先检查最新记录。
 fn recv_entry_request(rx: &mut UnboundedReceiver<AppEvent>) -> (usize, u64) {
     let AppEvent::LookupMessageHistoryEntry { offset, log_id, .. } =
         rx.try_recv().expect("entry request")
@@ -54,6 +63,7 @@ fn recv_entry_request(rx: &mut UnboundedReceiver<AppEvent>) -> (usize, u64) {
     (offset, log_id)
 }
 
+// 驱动“先查最新单项、未命中再向旧记录批查”的共同起始状态。
 fn start_older_search(
     history: &mut ChatComposerHistory,
     tx: &AppEventSender,
@@ -82,6 +92,7 @@ fn start_older_search(
 }
 
 #[test]
+// 取消或改写查询后的迟到批次只能填充缓存，不能完成当前搜索。
 fn search_batch_late_data_is_cache_only_after_cancel_or_query_edit() {
     let (mut cancelled, tx, mut rx) = history(/*entry_count*/ 5);
     start_older_search(
@@ -148,6 +159,7 @@ fn search_batch_late_data_is_cache_only_after_cancel_or_query_edit() {
 }
 
 #[test]
+// 线程或日志元数据变更后，旧日志响应既不能完成搜索也不能污染缓存。
 fn search_batch_rejects_stale_thread_and_log_metadata() {
     let (mut history, tx, mut rx) = history(/*entry_count*/ 5);
     start_older_search(
@@ -176,6 +188,7 @@ fn search_batch_rejects_stale_thread_and_log_metadata() {
 }
 
 #[test]
+// 批量读取失败按固定上限重试，耗尽后释放搜索状态并允许重新发起查询。
 fn search_batch_read_failure_stops_after_bounded_retries() {
     let (mut history, tx, mut rx) = history(/*entry_count*/ 5);
     let cursor = start_older_search(
@@ -214,6 +227,7 @@ fn search_batch_read_failure_stops_after_bounded_retries() {
 }
 
 #[test]
+// 当前批次命中后仍保存续查游标，下一次向旧搜索直接从更老批次继续。
 fn search_batch_match_preserves_cursor_for_next_older_search() {
     let (mut history, tx, mut rx) = history(/*entry_count*/ 7);
     let cursor = start_older_search(
@@ -266,6 +280,7 @@ fn search_batch_match_preserves_cursor_for_next_older_search() {
 }
 
 #[test]
+// 1024 条均未命中时，请求规模应稳定为一次单项查询加八个批次。
 fn search_batch_absent_1024_uses_one_single_and_eight_batches() {
     let (mut history, tx, mut rx) = history(/*entry_count*/ 1_024);
     let mut cursor = start_older_search(

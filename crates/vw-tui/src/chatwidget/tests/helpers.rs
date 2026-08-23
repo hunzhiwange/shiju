@@ -1,3 +1,8 @@
+//! 提供 chatwidget 测试共享的确定性配置、事件驱动器和渲染规范化工具。
+//! 夹具主动隔离宿主配置、认证、路径和模型目录，避免环境差异污染测试。
+//! 事件辅助函数按协议构造通知，并只消费目标操作以保留通道中的其他事件。
+//! 快照辅助函数统一路径、超链接和动态字段，使断言聚焦用户可见语义。
+
 use super::*;
 use codex_app_server_protocol::ImageGenerationItem;
 use codex_app_server_protocol::PluginAvailability;
@@ -5,6 +10,7 @@ use codex_utils_absolute_path::test_support::PathExt;
 use pretty_assertions::assert_eq;
 
 pub(super) async fn test_config() -> Config {
+    // 从内置默认值开始，避免测试继承宿主或系统配置。
     // Start from the built-in defaults so tests do not inherit host/system config.
     let codex_home = tempfile::Builder::new()
         .prefix("chatwidget-tests-")
@@ -36,6 +42,7 @@ pub(super) fn truncated_path_variants(path: &str) -> Vec<String> {
 }
 
 pub(super) fn normalize_snapshot_paths(text: impl Into<String>) -> String {
+    // 路径规范化消除平台临时目录差异，同时保留诊断文本的其余结构。
     let mut text = text.into();
 
     for unix_path in ["/tmp/project", "/tmp/hooks.json"] {
@@ -104,6 +111,7 @@ pub(super) fn invalid_value(
 }
 
 pub(super) fn snapshot(percent: f64) -> RateLimitSnapshot {
+    // 速率限制与遥测夹具提供稳定账户数据，不触发真实认证或网络请求。
     RateLimitSnapshot {
         limit_id: None,
         limit_name: None,
@@ -144,6 +152,7 @@ pub(super) fn test_model_catalog(_config: &Config) -> Arc<ModelCatalog> {
     ))
 }
 
+// 以下辅助函数供需要直接构造组件并排空事件的测试使用。
 // --- Helpers for tests that need direct construction and event draining ---
 pub(super) async fn make_chatwidget_manual(
     model_override: Option<&str>,
@@ -161,6 +170,7 @@ pub(super) async fn make_chatwidget_manual(
     .await
 }
 
+// 手工构造器显式传入认证能力，便于测试登录分支而不读取宿主凭据。
 pub(super) async fn make_chatwidget_manual_with_auth(
     model_override: Option<&str>,
     has_chatgpt_account: bool,
@@ -215,6 +225,7 @@ pub(crate) fn set_active_cell(chat: &mut ChatWidget, cell: Box<dyn HistoryCell>)
     chat.transcript.active_cell = Some(cell);
 }
 
+// `ChatWidget` 可能在同一通道发送历史或日志更新等其他 `Op`；此辅助函数会过滤到提交操作。
 // ChatWidget may emit other `Op`s (e.g. history/logging updates) on the same channel; this helper
 // filters until we see a submission op.
 pub(super) fn next_submit_op(op_rx: &mut tokio::sync::mpsc::UnboundedReceiver<Op>) -> Op {
@@ -320,6 +331,7 @@ pub(crate) async fn make_chatwidget_manual_with_sender() -> (
     (widget, app_event_tx, rx, op_rx)
 }
 
+// 历史排空器仅收集插入单元格事件，并保留其他事件供调用测试断言。
 pub(super) fn drain_insert_history(
     rx: &mut tokio::sync::mpsc::UnboundedReceiver<AppEvent>,
 ) -> Vec<Vec<ratatui::text::Line<'static>>> {
@@ -382,6 +394,7 @@ fn token_usage_breakdown(usage: TokenUsage) -> codex_app_server_protocol::TokenU
 }
 
 pub(super) fn handle_token_count(chat: &mut ChatWidget, info: Option<TokenUsageInfo>) {
+    // 协议通知驱动器统一线程标识与回放标志，避免各测试手写不一致载荷。
     match info {
         Some(info) => {
             chat.handle_server_notification(
@@ -493,6 +506,7 @@ pub(super) fn handle_model_verification(
 }
 
 pub(super) fn handle_agent_message_delta(chat: &mut ChatWidget, delta: impl Into<String>) {
+    // 消息与推理辅助函数覆盖增量、最终块及审查模式切换的标准时序。
     chat.handle_server_notification(
         ServerNotification::AgentMessageDelta(
             codex_app_server_protocol::AgentMessageDeltaNotification {
@@ -596,6 +610,7 @@ pub(super) fn handle_exited_review_mode(chat: &mut ChatWidget) {
     );
 }
 
+// 审批及补丁夹具把 TUI 文件变更转换为 app-server 协议格式。
 pub(super) fn handle_exec_approval_request(
     chat: &mut ChatWidget,
     id: impl Into<String>,
@@ -676,6 +691,7 @@ pub(super) fn handle_patch_apply_end(
     );
 }
 
+// 图片查看与生成调用使用合成完成事件，固定多模态历史的展示输入。
 pub(super) fn handle_view_image_tool_call(
     chat: &mut ChatWidget,
     call_id: impl Into<String>,
@@ -721,6 +737,7 @@ pub(super) fn handle_image_generation_end(
     );
 }
 
+// 回放辅助函数显式标注来源类型，使恢复测试不会误走实时副作用路径。
 pub(super) fn replay_user_message_inputs(
     chat: &mut ChatWidget,
     item_id: &str,
@@ -807,6 +824,7 @@ pub(super) fn replay_agent_message_delta(
     );
 }
 
+// 以下小型辅助函数用于简洁驱动执行起止事件并快照当前活动单元格。
 // --- Small helpers to tersely drive exec begin/end and snapshot active cell ---
 pub(super) fn begin_exec_with_source(
     chat: &mut ChatWidget,
@@ -814,6 +832,7 @@ pub(super) fn begin_exec_with_source(
     raw_cmd: &str,
     source: ExecCommandSource,
 ) -> AppServerThreadItem {
+    // 先构造完整命令向量并交给核心解析器，再转换为事件载荷所需的协议变体。
     // Build the full command vec and parse it using core's parser,
     // then convert to protocol variants for the event payload.
     let command = vec!["bash".to_string(), "-lc".to_string(), raw_cmd.to_string()];
@@ -969,6 +988,7 @@ pub(super) fn complete_user_message_for_inputs(
     );
 }
 
+// 轮次构造与起止辅助函数保证状态、耗时和错误字段组合一致。
 pub(super) fn app_server_turn(
     turn_id: &str,
     status: AppServerTurnStatus,
@@ -1115,6 +1135,7 @@ pub(super) fn handle_exec_end(chat: &mut ChatWidget, item: AppServerThreadItem) 
 }
 
 pub(super) fn active_blob(chat: &ChatWidget) -> String {
+    // 活动单元格与钩子文本规范化为单一字符串，供时序测试比较可见状态。
     let lines = chat
         .transcript
         .active_cell
@@ -1174,9 +1195,11 @@ pub(super) async fn assert_shift_left_edits_most_recent_queued_message_for_termi
     chat.bottom_pane
         .set_queued_message_edit_binding(chat.queued_message_edit_hint_binding);
 
+    // 模拟运行中的任务，使消息通常进入队列。
     // Simulate a running task so messages would normally be queued.
     chat.bottom_pane.set_task_running(/*running*/ true);
 
+    // 预置两条排队消息。
     // Seed two queued messages.
     chat.input_queue
         .queued_user_messages
@@ -1186,14 +1209,17 @@ pub(super) async fn assert_shift_left_edits_most_recent_queued_message_for_termi
         .push_back(UserMessage::from("second queued".to_string()).into());
     chat.refresh_pending_input_preview();
 
+    // 按 Shift+Left 编辑最近一条排队消息。
     // Press Shift+Left to edit the most recent (last) queued message.
     chat.handle_key_event(KeyEvent::new(KeyCode::Left, KeyModifiers::SHIFT));
 
+    // 此时编辑器应包含最后一条排队消息。
     // Composer should now contain the last queued message.
     assert_eq!(
         chat.bottom_pane.composer_text(),
         "second queued".to_string()
     );
+    // 队列中则只保留较早的那条消息。
     // And the queue should now contain only the remaining (older) item.
     assert_eq!(chat.input_queue.queued_user_messages.len(), 1);
     assert_eq!(
@@ -1256,6 +1282,7 @@ pub(crate) fn render_bottom_popup(chat: &ChatWidget, width: u16) -> String {
 }
 
 pub(super) fn strip_osc8_for_snapshot(text: &str) -> String {
+    // 快照应断言弹窗的可见文本，而不是终端超链接转义序列。
     // Snapshots should assert the visible popup text, not terminal hyperlink escapes.
     let bytes = text.as_bytes();
     let mut stripped = String::with_capacity(text.len());
@@ -1303,6 +1330,7 @@ pub(super) fn plugins_test_personal_marketplace_path() -> AbsolutePathBuf {
         .abs()
 }
 
+// 插件目录夹具分别构造本地、远程、市场与详情响应，保持来源元数据真实。
 pub(super) fn plugins_test_interface(
     display_name: Option<&str>,
     short_description: Option<&str>,
@@ -1639,6 +1667,7 @@ pub(super) fn hook_run(
     }
 }
 
+// 钩子快照夹具驱动开始与完成事件，验证折叠、延迟显示和诊断标签。
 pub(super) async fn assert_hook_events_snapshot(
     event_name: codex_app_server_protocol::HookEventName,
     run_id: &str,

@@ -1,3 +1,8 @@
+//! 验证状态行和终端标题设置界面的实时预览来源与组合顺序。
+//! 夹具缓存项目根、速率限制和线程用量，避免依赖真实机器状态之外的数据。
+//! 场景覆盖仅实时、仅固定值、混合配置以及不可用字段的省略行为。
+//! 状态行与标题对项目根和截断规则有意采用不同来源，测试固定该差异。
+
 use super::*;
 use crate::bottom_pane::preview_line_for_title_items;
 use crate::chatwidget::ThreadUsageOutcome;
@@ -87,6 +92,7 @@ fn cache_rate_limit_snapshot(chat: &mut ChatWidget) {
 
 #[tokio::test]
 async fn status_surface_hostname_preview_uses_current_machine_hostname() {
+    // 主机名是少数实时机器值，预览必须与当前运行环境一致。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     assert_eq!(
@@ -97,6 +103,7 @@ async fn status_surface_hostname_preview_uses_current_machine_hostname() {
 
 #[tokio::test]
 async fn status_surface_preview_lines_live_only_snapshot() {
+    // 仅实时项目同时固定状态行与标题的值来源和排列。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     cache_project_root(&mut chat, "preview-live-root");
     chat.status_line_branch = Some("feature/live-preview-branch".to_string());
@@ -141,6 +148,7 @@ async fn status_line_setup_popup_live_only_snapshot() {
 
 #[tokio::test]
 async fn status_surface_preview_lines_hardcoded_only_snapshot() {
+    // 仅固定文本不触发动态缓存查询，并保持用户配置顺序。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let snapshot = combined_preview_snapshot(
@@ -207,6 +215,7 @@ async fn status_line_setup_popup_workspace_headline_snapshot() {
 
 #[tokio::test]
 async fn status_surface_preview_lines_mixed_snapshot() {
+    // 混合配置把动态值与固定片段组合，而不丢失两者之间的分隔。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.status_line_branch = Some("feature/mixed-preview".to_string());
     chat.thread_name = Some("Mixed preview thread".to_string());
@@ -230,6 +239,7 @@ async fn status_surface_preview_lines_mixed_snapshot() {
 
 #[tokio::test]
 async fn status_surface_preview_lines_rate_limits_snapshot() {
+    // 速率限制和线程用量仅在缓存可用时出现，缺失字段会被省略。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     cache_rate_limit_snapshot(&mut chat);
 
@@ -391,6 +401,7 @@ async fn status_surface_preview_omits_unavailable_rate_limit_items() {
 
 #[tokio::test]
 async fn status_line_setup_popup_rate_limits_snapshot() {
+    // 状态行设置弹窗与独立预览使用同一项解析结果。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     cache_rate_limit_snapshot(&mut chat);
     chat.config.tui_status_line = Some(vec![
@@ -423,6 +434,7 @@ async fn status_line_setup_popup_mixed_snapshot() {
 
 #[tokio::test]
 async fn terminal_title_setup_popup_live_only_snapshot() {
+    // 标题设置覆盖实时、固定、混合与计费项目的选择界面。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     cache_project_root(&mut chat, "preview-live-root");
     chat.status_line_branch = Some("feature/live-preview-branch".to_string());
@@ -503,6 +515,7 @@ async fn terminal_title_setup_popup_thread_usage_snapshot() {
 
 #[tokio::test]
 async fn missing_project_root_uses_different_status_and_title_preview_sources() {
+    // 项目根缺失时，状态行和标题按各自契约回退，并采用标题专属截断。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let status_preview = status_preview_line(&mut chat, &[StatusLineItem::ProjectRoot]);

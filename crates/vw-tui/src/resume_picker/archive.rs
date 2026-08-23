@@ -1,3 +1,5 @@
+//! 管理会话选择器中的归档、恢复请求及其异步结果。
+
 use codex_protocol::ThreadId;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
@@ -17,6 +19,7 @@ use crate::keymap::KeymapContext;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(super) enum ArchiveState {
+    // 每次只允许一个归档或恢复操作，thread_id 用于丢弃过期异步结果。
     #[default]
     Idle,
     Pending {
@@ -29,6 +32,7 @@ pub(super) enum ArchiveState {
 
 impl PickerState {
     pub(super) fn archive_shortcut_available(&self) -> bool {
+        // Ctrl+A 仅在恢复视图且未被单键或列表组合键前缀占用时开放。
         if !matches!(self.action, SessionPickerAction::Resume)
             || self.status == SessionStatus::Archived
         {
@@ -44,6 +48,7 @@ impl PickerState {
     }
 
     pub(super) fn request_archive_for_selected_session(&mut self) {
+        // 当前会话不能从选择器内归档，因为该操作还需要退出当前运行会话。
         if !matches!(self.archive_state, ArchiveState::Idle) {
             return;
         }
@@ -80,6 +85,7 @@ impl PickerState {
         thread_id: ThreadId,
         result: std::io::Result<()>,
     ) {
+        // 只接受与当前 Pending 状态匹配的结果，旧请求不得覆盖新操作状态。
         if self.archive_state != (ArchiveState::Pending { thread_id }) {
             return;
         }
@@ -100,6 +106,7 @@ impl PickerState {
         self.all_rows.retain(|row| row.thread_id != Some(thread_id));
         // Keep the seen-row key as a tombstone so an older page that is already
         // in flight cannot put the archived session back into the picker.
+        // 保留已见行键作为墓碑，防止已经在途的旧分页把刚归档的会话重新放回选择器。
         self.transcript_previews.remove(&thread_id);
         self.transcript_cells.remove(&thread_id);
         if self.expanded_thread_id == Some(thread_id) {
@@ -130,6 +137,7 @@ impl PickerState {
             && !self.pagination.reached_scan_cap
             && !self.search_state.is_active()
         {
+            // 归档导致当前搜索页变空时，若仍有游标则继续扫描以寻找后续匹配项。
             let token = self.allocate_search_token();
             self.search_state = SearchState::Active { token };
             self.load_more_if_needed(LoadTrigger::Search { token });
@@ -137,6 +145,7 @@ impl PickerState {
     }
 
     pub(super) fn request_unarchive(&mut self, thread_id: ThreadId) {
+        // 恢复沿用同一互斥状态，避免与归档请求并发改变选择器数据源。
         if !matches!(self.archive_state, ArchiveState::Idle) {
             return;
         }
@@ -151,6 +160,7 @@ impl PickerState {
         thread_id: ThreadId,
         result: std::io::Result<SessionTarget>,
     ) -> Option<SessionSelection> {
+        // 成功结果直接转为恢复选择；失败留在选择器中显示可重试错误。
         if self.archive_state != (ArchiveState::Restoring { thread_id }) {
             return None;
         }

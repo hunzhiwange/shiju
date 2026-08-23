@@ -115,10 +115,24 @@ pub(crate) fn reduce_tui_state(state: &mut TuiState, action: TuiAction) {
         TuiAction::ReplaceFromSnapshot { snapshot, scope, path } => {
             let mut project = state.project.clone();
             project.memory_evidence = None;
+            let session_options = state.session_options.clone();
+            let session_capabilities = state.session_capabilities.clone();
+            let model_catalog = state.model_catalog.clone();
+            let theme_name = state.theme_name.clone();
+            let provider_name = state.status.provider_name.clone();
+            let model_name = state.status.model_name.clone();
             let mut next = TuiState::from_chat_session(&snapshot);
             next.project = project;
             next.session.scope = scope;
             next.session.path = path;
+            next.session_options = session_options;
+            next.session_capabilities = session_capabilities;
+            next.model_catalog = model_catalog;
+            next.theme_name = theme_name;
+            next.status.provider_name = provider_name;
+            if next.status.model_name.is_none() {
+                next.status.model_name = model_name;
+            }
             next.refresh_session_preview();
             *state = next;
         }
@@ -209,6 +223,9 @@ pub(crate) fn reduce_tui_state(state: &mut TuiState, action: TuiAction) {
         TuiAction::OverlayPushed(mut overlay) => {
             if let UiOverlay::Search(search) = &mut overlay {
                 refresh_search_overlay_matches(&state.messages, &state.search_index, search);
+            }
+            if matches!(overlay, UiOverlay::Confirm(_)) {
+                state.overlays.stack.retain(|current| !matches!(current, UiOverlay::Confirm(_)));
             }
             update_memory_evidence_from_overlay(state, Some(&overlay));
             state.overlays.push(overlay);

@@ -1,3 +1,7 @@
+//! 覆盖恢复选择器从旧式回滚文件与分页历史接口生成转录预览的规则。
+//! 反向扫描必须遵守字节、记录和可见项预算，并在无法证明安全时明确回退。
+//! 跨两种数据源的用例要求相同会话内容产生一致的用户/助手预览。
+
 use super::*;
 use crate::legacy_core::config::ConfigBuilder;
 use app_test_support::create_mock_responses_server_sequence;
@@ -23,6 +27,7 @@ use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 
 fn preview_line(speaker: TranscriptPreviewSpeaker, text: &str) -> TranscriptPreviewLine {
+    // 构造期望预览行，统一说话者与文本的比较形式。
     TranscriptPreviewLine {
         speaker,
         text: text.to_string(),
@@ -30,6 +35,7 @@ fn preview_line(speaker: TranscriptPreviewSpeaker, text: &str) -> TranscriptPrev
 }
 
 fn rollout_user_message(text: &str) -> RolloutItem {
+    // 生成旧式回滚日志中的用户消息记录。
     RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
         message: text.to_string(),
         ..Default::default()
@@ -37,6 +43,7 @@ fn rollout_user_message(text: &str) -> RolloutItem {
 }
 
 fn rollout_agent_message(text: &str) -> RolloutItem {
+    // 生成旧式回滚日志中的助手消息记录。
     RolloutItem::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
         message: text.to_string(),
         phase: None,
@@ -46,6 +53,7 @@ fn rollout_agent_message(text: &str) -> RolloutItem {
 }
 
 fn write_preview_rollout(path: &Path, items: Vec<RolloutItem>) {
+    // 写入最小 JSONL 回滚文件，保留真实反向扫描的文件边界行为。
     let contents = items
         .into_iter()
         .map(|item| {
@@ -62,6 +70,7 @@ fn write_preview_rollout(path: &Path, items: Vec<RolloutItem>) {
 }
 
 #[test]
+// 尾部包含压缩边界时，扫描应越过隐藏记录找到最近的可见对话。
 fn legacy_transcript_preview_scans_tail_across_compaction() {
     let temp_dir = tempdir().expect("tempdir");
     let path = temp_dir.path().join("rollout.jsonl");
@@ -108,6 +117,7 @@ fn legacy_transcript_preview_scans_tail_across_compaction() {
 }
 
 #[test]
+// 回滚标记落在尾部预算内会使新旧内容关系不确定，应改用完整回退路径。
 fn legacy_transcript_preview_falls_back_when_rollback_is_in_the_tail() {
     let temp_dir = tempdir().expect("tempdir");
     let path = temp_dir.path().join("rollout.jsonl");
@@ -135,6 +145,7 @@ fn legacy_transcript_preview_falls_back_when_rollback_is_in_the_tail() {
 }
 
 #[test]
+// 回滚标记位于扫描窗口之外时，预览只采用其后的稳定记录。
 fn legacy_transcript_preview_stops_before_rollback_outside_the_tail() {
     let temp_dir = tempdir().expect("tempdir");
     let path = temp_dir.path().join("rollout.jsonl");
@@ -173,6 +184,7 @@ fn legacy_transcript_preview_stops_before_rollback_outside_the_tail() {
 }
 
 #[test]
+// 单条可见记录超过大小上限时不能局部截取，应请求可靠的后备读取。
 fn legacy_transcript_preview_falls_back_for_oversized_visible_record() {
     let temp_dir = tempdir().expect("tempdir");
     let path = temp_dir.path().join("rollout.jsonl");
@@ -194,6 +206,7 @@ fn legacy_transcript_preview_falls_back_for_oversized_visible_record() {
 }
 
 #[test]
+// 即使超大记录最终不可见，也会破坏反向扫描边界，仍必须回退。
 fn legacy_transcript_preview_falls_back_for_oversized_hidden_record() {
     let temp_dir = tempdir().expect("tempdir");
     let path = temp_dir.path().join("rollout.jsonl");
@@ -225,6 +238,7 @@ fn legacy_transcript_preview_falls_back_for_oversized_hidden_record() {
 }
 
 #[test]
+// 在找到足够预览内容前耗尽扫描预算时，不能把不完整尾部当作最终结果。
 fn legacy_transcript_preview_falls_back_when_scan_budget_is_exhausted() {
     let temp_dir = tempdir().expect("tempdir");
     let path = temp_dir.path().join("rollout.jsonl");
@@ -253,6 +267,7 @@ fn legacy_transcript_preview_falls_back_when_scan_budget_is_exhausted() {
 }
 
 #[test]
+// 已收集足够的新记录后应停止反向扫描，不再读取更旧项目。
 fn transcript_preview_reverse_scan_stops_before_older_items() {
     let newest = ThreadItem::AgentMessage {
         id: String::from("final"),
@@ -289,6 +304,7 @@ async fn transcript_preview_for_history_mode(
     history_mode: ThreadHistoryMode,
     invisible_newer_turns: usize,
 ) -> Vec<TranscriptPreviewLine> {
+    // 用统一入口运行旧式或分页模式，便于直接比较两条实现路径。
     let model_response = responses::sse(vec![
         responses::ev_response_created("resp-1"),
         responses::ev_assistant_message("commentary", "commentary one\ncommentary two"),
@@ -414,6 +430,7 @@ async fn transcript_preview_for_history_mode(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// 相同回滚内容经旧式与分页读取后应得到相同的预览顺序与文本。
 async fn transcript_preview_preserves_legacy_and_paginated_output() {
     let invisible_newer_turns = TRANSCRIPT_PREVIEW_ITEMS_PAGE_SIZE as usize;
     let legacy =
@@ -437,6 +454,7 @@ async fn transcript_preview_preserves_legacy_and_paginated_output() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// 最新页被大量无关旧项目占满时，分页实现应继续翻页找到可见对话。
 async fn paginated_transcript_preview_pages_past_old_item_budget() {
     let invisible_newer_turns = TRANSCRIPT_PREVIEW_ITEMS_PAGE_SIZE as usize * 4;
 

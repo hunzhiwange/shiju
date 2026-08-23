@@ -368,6 +368,13 @@ async fn staff_client_uses_workflow_orchestration_paths() {
         }],
     };
 
+    let blank = server
+        .client()
+        .staff_workflow_capabilities(&staff_scope(), "  ")
+        .await
+        .expect_err("blank workflow id must fail before a request");
+    assert!(blank.contains("must not be empty"));
+
     let catalog = server
         .client()
         .staff_workflow_capabilities(&staff_scope(), "workflow/one")

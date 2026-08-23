@@ -211,6 +211,31 @@ async fn skills_get_trims_project_path_and_omits_blank_values() {
     server.join();
 }
 
+#[tokio::test]
+async fn extension_client_uses_skill_and_plugin_routes() {
+    let server = test_support::server(vec![(200, json!([])), (200, json!([]))]);
+
+    assert!(server.client().skills_get(Some("/repo")).await.expect("skills").is_empty());
+    assert!(server.client().plugins_get().await.expect("plugins").is_empty());
+    assert_eq!(server.take_request().path, "/v1/skills?project_path=%2Frepo");
+    assert_eq!(server.take_request().path, "/v1/plugins");
+    server.join();
+}
+
+#[tokio::test]
+async fn desktop_client_uses_all_desktop_routes() {
+    let server = test_support::server(vec![(200, json!({"command":"status","output":"ok"}))]);
+    let response = server
+        .client()
+        .desktop_service_command_typed(super::DesktopServiceCommand::Status)
+        .await
+        .expect("typed service command");
+    assert_eq!(response.output, "ok");
+    assert_eq!(server.take_request().path, "/v1/desktop/service/status");
+    assert!(server.client().desktop_service_command("shell").await.is_err());
+    server.join();
+}
+
 #[test]
 fn installed_skills_preserve_market_source_metadata() {
     let old: super::DesktopSkillCatalogEntryDto = serde_json::from_value(json!({
@@ -470,12 +495,12 @@ async fn desktop_skill_compatibility_wrappers_delegate_to_skill_routes() {
         server.client().desktop_system_settings_get().await.expect("no settings");
     assert!(settings.is_none());
 
-    assert_eq!(server.take_request().path, "/v1/skills");
-    assert_eq!(server.take_request().path, "/v1/skills/detail?skill_id=rust");
-    assert_eq!(server.take_request().path, "/v1/skills/create");
-    assert_eq!(server.take_request().path, "/v1/skills/install-built-in");
-    assert_eq!(server.take_request().path, "/v1/skills/set-enabled");
-    assert_eq!(server.take_request().path, "/v1/skills/delete");
+    assert_eq!(server.take_request().path, "/v1/desktop/skills");
+    assert_eq!(server.take_request().path, "/v1/desktop/skills/detail?skill_id=rust");
+    assert_eq!(server.take_request().path, "/v1/desktop/skills/create");
+    assert_eq!(server.take_request().path, "/v1/desktop/skills/install-built-in");
+    assert_eq!(server.take_request().path, "/v1/desktop/skills/set-enabled");
+    assert_eq!(server.take_request().path, "/v1/desktop/skills/delete");
     assert_eq!(server.take_request().path, "/v1/global/config");
     server.join();
 }

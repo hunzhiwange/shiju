@@ -1,3 +1,7 @@
+//! 源码驱动助手流的管道表格暂留扫描器。
+//!
+//! 活动表格保持为可变尾部，使新增行能重新排版之前的表格行，而非提交过期布局。
+//! 扫描器只识别决定尾部起点所需的结构，不验证完整表格；最终布局仍由 Markdown 渲染器负责。
 //! Pipe-table holdback scanner for source-backed agent streams.
 //!
 //! Agent streams with markdown tables keep the active table as mutable tail so
@@ -18,19 +22,26 @@ use crate::table_detect::is_table_header_line;
 use crate::table_detect::parse_table_segments;
 use crate::table_detect::strip_blockquote_prefix;
 
+/// 扫描累计原始源码中管道表格模式的结果。
 /// Result of scanning accumulated raw source for pipe-table patterns.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum TableHoldbackState {
+    /// 未检测到表格，所有渲染行都可进入稳定队列。
     /// No table detected -- all rendered lines can flow into the stable queue.
     None,
+    /// 最后一个非空行像表头，但尚未出现分隔行；暂留它以等待下一增量确认。
     /// The last non-blank line looks like a table header row but no delimiter
     /// row has followed yet. Hold back in case the next delta is a delimiter.
     PendingHeader { header_start: usize },
+    /// 已找到表头与分隔行对；从表头开始的源码都保持可变。
     /// A header + delimiter pair was found -- the source contains a confirmed
     /// table. Content from the table header onward stays mutable.
     Confirmed { table_start: usize },
 }
 
+/// 关于上一条已提交源码行所记住的事实。
+///
+/// 表格由紧邻的表头和分隔行确认，因此扫描器只需回看一行。
 /// Facts remembered about the previous committed source line.
 ///
 /// The scanner only needs one-line lookbehind because a table is confirmed by
@@ -42,6 +53,9 @@ struct PreviousLineState {
     is_header: bool,
 }
 
+/// 只追加源码流中表格暂留状态的增量扫描器。
+///
+/// 分块必须按最终追加顺序提供；扫描器保存逻辑源码缓冲区的字节偏移，乱序会让尾部边界失真。
 /// Incremental scanner for table holdback state on append-only source streams.
 ///
 /// `push_source_chunk` must receive source in the same order it will be
@@ -71,6 +85,9 @@ impl TableHoldbackScanner {
         *self = Self::new();
     }
 
+    /// 返回当前已提交源码前缀的暂留决定。
+    ///
+    /// 待定表头会乐观保留最新候选区域；确认表格后，表头及后续正文行一直留在实时尾部直至定稿。
     /// Return the current holdback decision for the committed source prefix.
     ///
     /// `PendingHeader` means the newest non-blank line looks like a table
@@ -88,6 +105,9 @@ impl TableHoldbackScanner {
         }
     }
 
+    /// 使用新提交源码推进扫描器。
+    ///
+    /// 分块通常是流收集器确认安全的换行终止行；排除局部行，避免把未完成行当作稳定结构信号。
     /// Advance the scanner with newly committed source.
     ///
     /// Chunks are expected to contain only source that is now safe to commit
@@ -115,6 +135,7 @@ impl TableHoldbackScanner {
         );
     }
 
+    /// 将一条已提交源码行折叠进扫描器状态机。
     /// Fold one committed source line into the scanner state machine.
     fn push_line(&mut self, source_line: &str) {
         let line = source_line.strip_suffix('\n').unwrap_or(source_line);
@@ -152,6 +173,9 @@ impl TableHoldbackScanner {
     }
 }
 
+/// 去除块引用前缀；若剩余文本具有管道表格片段则返回裁切结果，否则返回空。
+///
+/// 引用内表格仍按真实表格处理，但去除引用标记后仍必须满足管道表格形状。
 /// Strip blockquote prefixes and return the trimmed text if it contains
 /// pipe-table segments, or `None` otherwise.
 ///
@@ -162,6 +186,7 @@ fn table_candidate_text(line: &str) -> Option<&str> {
     parse_table_segments(stripped).map(|_| stripped)
 }
 
+/// 标注是否位于围栏代码块内的源码行。
 /// A source line annotated with whether it falls inside a fenced code block.
 #[cfg(test)]
 struct ParsedLine<'a> {
@@ -170,6 +195,7 @@ struct ParsedLine<'a> {
     source_start: usize,
 }
 
+/// 把源码解析为带围栏代码上下文标记的行，供表格扫描使用。
 /// Parse source into lines tagged with fenced-code context for table scanning.
 #[cfg(test)]
 fn parse_lines_with_fence_state(source: &str) -> Vec<ParsedLine<'_>> {
@@ -187,6 +213,7 @@ fn parse_lines_with_fence_state(source: &str) -> Vec<ParsedLine<'_>> {
     lines
 }
 
+/// 在非 Markdown 围栏代码块之外扫描 `source` 中的管道表格模式。
 /// Scan `source` for pipe-table patterns outside of non-markdown fenced code
 /// blocks.
 #[cfg(test)]

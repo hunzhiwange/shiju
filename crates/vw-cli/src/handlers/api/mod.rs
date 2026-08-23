@@ -1,17 +1,58 @@
 //! 远程 Gateway API CLI 的共享边界。
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand, ValueEnum};
 
 use self::context::ApiContext;
+use self::config::ConfigCommands;
+use self::apiql::ApiQlCommands;
+use self::control::{ControlCommands, ProviderCommands};
+use self::interactive::InteractiveCommands;
+use self::knowledge::KnowledgeCommands;
+use self::operations::OperationsCommands;
+use self::project::ProjectCommands;
+use self::realtime::RealtimeCommands;
+use self::scheduler::SchedulerCommands;
+use self::session::SessionCommands;
+use self::session_content::SessionContentCommands;
+use self::shiju_apps::ShijuAppsCommands;
+use self::skill_market::SkillMarketCommands;
+use self::extensions::ExtensionCommands;
+use self::desktop::DesktopCommands;
+use self::staff::StaffCommands;
+use self::task_pool::TaskPoolCommands;
+use self::task_lifecycle::TaskLifecycleCommands;
+use self::workspace::WorkspaceCommands;
+use self::workflow::WorkflowCommands;
 
+mod config;
+mod apiql;
+mod control;
 mod context;
 mod input;
+mod interactive;
+mod knowledge;
+mod operations;
 mod output;
+mod project;
+mod realtime;
+mod scheduler;
+mod session;
+mod session_content;
+mod shiju_apps;
+mod skill_market;
+mod extensions;
+mod desktop;
+mod coverage;
+mod staff;
 mod system;
+mod task_pool;
+mod task_lifecycle;
+mod workspace;
+mod workflow;
 
 use self::system::SystemCommands;
 
@@ -76,11 +117,131 @@ pub(crate) struct ApiArgs {
 /// API 领域命令注册表。
 #[derive(Subcommand, Debug)]
 enum ApiCommands {
+    /// 查询 APIQL 实体列表、行、计数与分页。
+    Apiql {
+        /// APIQL 只读查询模式。
+        #[command(subcommand)]
+        command: ApiQlCommands,
+    },
+    /// 读取或受控更新 Gateway 配置。
+    Config {
+        /// 配置读取与更新操作。
+        #[command(subcommand)]
+        command: ConfigCommands,
+    },
     /// 查询 Gateway 可见的 provider。
     Provider {
         /// Provider 操作。
         #[command(subcommand)]
         command: ProviderCommands,
+    },
+    /// 管理认证、plugin hooks 与 Gateway 实例。
+    Control {
+        /// 受控副作用操作。
+        #[command(subcommand)]
+        command: ControlCommands,
+    },
+    /// 管理 Cron、集成、记忆与诊断接口。
+    Operations {
+        /// 远程运维操作。
+        #[command(subcommand)]
+        command: OperationsCommands,
+    },
+    /// 处理权限、问题与 PTY 交互。
+    Interactive {
+        /// 远程交互操作。
+        #[command(subcommand)]
+        command: InteractiveCommands,
+    },
+    /// 管理远程项目与 worktree 生命周期。
+    Project {
+        /// 项目与 worktree 操作。
+        #[command(subcommand)]
+        command: ProjectCommands,
+    },
+    /// 执行推理并消费 Gateway 实时协议。
+    Realtime {
+        /// 推理、SSE、stop 与 WebSocket 操作。
+        #[command(subcommand)]
+        command: RealtimeCommands,
+    },
+    /// 管理知识库资源、索引与检索。
+    Knowledge {
+        /// 知识库操作。
+        #[command(subcommand)]
+        command: KnowledgeCommands,
+    },
+    /// 运维 Task Pool worktree 池和 Matrix 事件读取。
+    TaskPool {
+        /// Task Pool 操作。
+        #[command(subcommand)]
+        command: TaskPoolCommands,
+    },
+    /// 管理任务生命周期 Workflow 定义与状态。
+    TaskLifecycle {
+        /// 任务生命周期操作。
+        #[command(subcommand)]
+        command: TaskLifecycleCommands,
+    },
+    /// 管理 Agent Scheduler 项目任务、Worker、Team 与运维队列。
+    Scheduler {
+        /// Scheduler 项目操作。
+        #[command(subcommand)]
+        command: SchedulerCommands,
+    },
+    /// 管理 Session 核心资源与生命周期。
+    Session {
+        /// Session 核心操作。
+        #[command(subcommand)]
+        command: SessionCommands,
+    },
+    /// 管理 Session 消息内容、UI 快照与状态。
+    SessionContent {
+        /// Session 内容与 UI 操作。
+        #[command(subcommand)]
+        command: SessionContentCommands,
+    },
+    /// 访问 SHIJU 账号与应用接口。
+    ShijuApps {
+        /// SHIJU 账号与应用操作。
+        #[command(subcommand)]
+        command: ShijuAppsCommands,
+    },
+    /// 发现 SHIJU 与统一市场技能。
+    SkillMarket {
+        /// 技能市场操作。
+        #[command(subcommand)]
+        command: SkillMarketCommands,
+    },
+    /// 管理 Gateway 本地 skills 与 plugins。
+    Extensions {
+        /// 扩展管理操作。
+        #[command(subcommand)]
+        command: ExtensionCommands,
+    },
+    /// 访问远程 Gateway 主机的 desktop 专用接口。
+    Desktop {
+        /// Desktop 偏好、技能与宿主动作。
+        #[command(subcommand)]
+        command: DesktopCommands,
+    },
+    /// 管理 Staff 能力、编排、投影与调度命令。
+    Staff {
+        /// Staff 项目与 workflow 操作。
+        #[command(subcommand)]
+        command: StaffCommands,
+    },
+    /// 管理 Workflow 应用、恢复运行与聊天流。
+    Workflow {
+        /// Workflow 应用操作。
+        #[command(subcommand)]
+        command: WorkflowCommands,
+    },
+    /// 搜索、读取并受控修改远程工作区。
+    Workspace {
+        /// 文件、搜索与 Git 操作。
+        #[command(subcommand)]
+        command: WorkspaceCommands,
     },
     /// 查询 Gateway 系统状态与发现信息。
     System {
@@ -91,18 +252,45 @@ enum ApiCommands {
 }
 
 impl ApiCommands {
-    fn dangerous_operation(&self) -> Option<&'static str> {
+    fn dangerous_operation(
+        &self,
+        directory: Option<&str>,
+        platform: &str,
+        company: &str,
+        host: &str,
+        port: u16,
+    ) -> Option<String> {
         match self {
-            Self::Provider { command: ProviderCommands::List } | Self::System { .. } => None,
+            Self::Config { command } => {
+                command.dangerous_operation(directory, platform, company)
+            }
+            Self::Control { command } => {
+                command.dangerous_operation(directory, platform, company)
+            }
+            Self::Operations { command } => {
+                command.dangerous_operation(directory, platform, company)
+            }
+            Self::Interactive { command } => command.dangerous_operation(),
+            Self::Project { command } => command.dangerous_operation(),
+            Self::Realtime { command } => command.dangerous_operation(),
+            Self::Knowledge { command } => command.dangerous_operation(),
+            Self::TaskPool { command } => command.dangerous_operation(),
+            Self::TaskLifecycle { command } => command.dangerous_operation(),
+            Self::Scheduler { command } => command.dangerous_operation(),
+            Self::Session { command } => command.dangerous_operation(),
+            Self::SessionContent { command } => command.dangerous_operation(),
+            Self::ShijuApps { command } => command.dangerous_operation(),
+            Self::SkillMarket { command } => command.dangerous_operation(),
+            Self::Extensions { command } => command.dangerous_operation(),
+            Self::Desktop { command } => command.dangerous_operation(host, port),
+            Self::Staff { command } => command.dangerous_operation(),
+            Self::Workflow { command } => command.dangerous_operation(),
+            Self::Apiql { .. }
+            | Self::Provider { .. }
+            | Self::System { .. }
+            | Self::Workspace { .. } => None,
         }
     }
-}
-
-/// Provider 示例命令。
-#[derive(Subcommand, Debug)]
-enum ProviderCommands {
-    /// 列出 Gateway 可见的 provider。
-    List,
 }
 
 /// API 结构化输出格式。
@@ -116,26 +304,86 @@ enum ApiOutputFormat {
 
 /// 执行远程 Gateway API 命令。
 pub(crate) async fn run(args: ApiArgs) -> Result<()> {
+    let mut stdin = std::io::stdin().lock();
     let mut stdout = std::io::stdout().lock();
-    run_with_writer(args, &mut stdout).await
+    run_with_io(args, &mut stdin, &mut stdout).await
 }
 
 async fn run_with_writer<W: Write>(args: ApiArgs, writer: &mut W) -> Result<()> {
-    if let Some(operation) = args.command.dangerous_operation() {
-        ensure_confirmed(args.yes, operation)?;
+    let mut stdin = std::io::empty();
+    run_with_io(args, &mut stdin, writer).await
+}
+
+async fn run_with_io<R: Read, W: Write>(
+    args: ApiArgs,
+    stdin: &mut R,
+    writer: &mut W,
+) -> Result<()> {
+    let yes = args.yes;
+    if let Some(operation) = args.command.dangerous_operation(
+        args.directory.as_deref(),
+        &args.platform,
+        &args.company,
+        &args.host,
+        args.port,
+    ) {
+        ensure_confirmed(args.yes, &operation)?;
     }
 
     let context = ApiContext::from_args(&args)?;
     match args.command {
-        ApiCommands::Provider { command: ProviderCommands::List } => {
-            let response = context
-                .client()
-                .provider_list(context.directory())
-                .await
-                .map_err(anyhow::Error::msg)?;
-            output::write_json(writer, &response, context.output_format())
+        ApiCommands::Apiql { command } => apiql::run(command, &context, writer).await,
+        ApiCommands::Config { command } => config::run(command, &context, stdin, writer).await,
+        ApiCommands::Provider { command } => {
+            control::run_provider(command, &context, stdin, writer).await
+        }
+        ApiCommands::Control { command } => control::run(command, &context, stdin, writer).await,
+        ApiCommands::Operations { command } => {
+            operations::run(command, &context, stdin, writer).await
+        }
+        ApiCommands::Interactive { command } => {
+            interactive::run(command, &context, stdin, writer).await
+        }
+        ApiCommands::Project { command } => {
+            project::run(command, &context, yes, stdin, writer).await
+        }
+        ApiCommands::Realtime { command } => {
+            realtime::run(command, &context, stdin, writer).await
+        }
+        ApiCommands::Knowledge { command } => {
+            knowledge::run(command, &context, stdin, writer).await
+        }
+        ApiCommands::TaskPool { command } => {
+            task_pool::run(command, &context, stdin, writer).await
+        }
+        ApiCommands::TaskLifecycle { command } => {
+            task_lifecycle::run(command, &context, stdin, writer).await
+        }
+        ApiCommands::Scheduler { command } => {
+            scheduler::run(command, &context, stdin, writer).await
+        }
+        ApiCommands::Session { command } => session::run(command, &context, stdin, writer).await,
+        ApiCommands::SessionContent { command } => {
+            session_content::run(command, &context, stdin, writer).await
+        }
+        ApiCommands::ShijuApps { command } => {
+            shiju_apps::run(command, &context, stdin, writer).await
+        }
+        ApiCommands::SkillMarket { command } => {
+            skill_market::run(command, &context, stdin, writer).await
+        }
+        ApiCommands::Extensions { command } => {
+            extensions::run(command, &context, writer).await
+        }
+        ApiCommands::Desktop { command } => desktop::run(command, &context, stdin, writer).await,
+        ApiCommands::Staff { command } => staff::run(command, &context, stdin, writer).await,
+        ApiCommands::Workflow { command } => {
+            workflow::run(command, &context, stdin, writer).await
         }
         ApiCommands::System { command } => system::run(command, &context, writer).await,
+        ApiCommands::Workspace { command } => {
+            workspace::run(command, &context, yes, stdin, writer).await
+        }
     }
 }
 
@@ -154,6 +402,48 @@ fn ensure_confirmed(yes: bool, operation: &str) -> Result<()> {
 }
 
 #[cfg(test)]
+mod apiql_tests;
+#[cfg(test)]
+mod config_tests;
+#[cfg(test)]
+mod control_tests;
+#[cfg(test)]
+mod interactive_tests;
+#[cfg(test)]
+mod knowledge_tests;
+#[cfg(test)]
+mod operations_tests;
+#[cfg(test)]
+mod project_tests;
+#[cfg(test)]
+mod realtime_tests;
+#[cfg(test)]
+mod scheduler_tests;
+#[cfg(test)]
+mod session_tests;
+#[cfg(test)]
+mod session_content_tests;
+#[cfg(test)]
+mod shiju_apps_tests;
+#[cfg(test)]
+mod skill_market_tests;
+#[cfg(test)]
+mod extensions_tests;
+#[cfg(test)]
+mod desktop_tests;
+#[cfg(test)]
+mod coverage_tests;
+#[cfg(test)]
+mod staff_tests;
+#[cfg(test)]
 mod system_tests;
 #[cfg(test)]
+mod task_pool_tests;
+#[cfg(test)]
+mod task_lifecycle_tests;
+#[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod workspace_tests;
+#[cfg(test)]
+mod workflow_tests;

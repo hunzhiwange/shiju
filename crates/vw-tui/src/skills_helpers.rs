@@ -2,6 +2,7 @@ use codex_app_server_protocol::SkillMetadata;
 use codex_utils_fuzzy_match::fuzzy_match;
 
 pub(crate) fn skill_display_name(skill: &SkillMetadata) -> String {
+    // 界面元数据优先；插件技能缺少元数据时显示“技能名（插件名）”。
     if let Some(display_name) = skill
         .interface
         .as_ref()
@@ -21,6 +22,7 @@ pub(crate) fn skill_display_name(skill: &SkillMetadata) -> String {
 }
 
 pub(crate) fn skill_description(skill: &SkillMetadata) -> &str {
+    // 优先使用面向界面的短描述，再回退到技能元数据和完整描述。
     skill
         .interface
         .as_ref()
@@ -34,6 +36,7 @@ pub(crate) fn match_skill(
     display_name: &str,
     skill_name: &str,
 ) -> Option<(Option<Vec<usize>>, i32)> {
+    // 展示名命中时返回高亮索引；仅内部名命中时不高亮不可见文本。
     if let Some((indices, score)) = fuzzy_match(display_name, filter) {
         return Some((Some(indices), score));
     }
@@ -44,3 +47,4 @@ pub(crate) fn match_skill(
     }
     None
 }
+//! 统一技能的显示名称、简介回退顺序和模糊匹配规则。

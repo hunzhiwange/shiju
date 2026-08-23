@@ -1,3 +1,8 @@
+//! 由复制版 `exec_cell` 渲染器支持的工具执行历史单元。
+//!
+//! 本模块只负责把执行模型接入统一的历史单元接口。
+//! 命令、输出、活动指示和退出状态的具体布局仍由 `exec_cell` 负责。
+//! 完成事件携带输出与耗时；活动事件在结束前保持可刷新状态。
 //! Tool execution history cell backed by the copied `exec_cell` renderer.
 
 use std::time::Duration;

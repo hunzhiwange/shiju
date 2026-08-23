@@ -1,3 +1,7 @@
+//! 在写入器的单次解析过程中收集流式 Markdown 渲染元数据。
+//!
+//! 顶层块偏移始终对应传给本渲染器的精确源码；调用者若先规范化源码，
+//! 不得直接把这些偏移应用到原始源码。
 //! Streaming markdown render metadata collected during the writer's single parse pass.
 //!
 //! Top-level block offsets always refer to the exact source passed to this renderer; callers that
@@ -14,18 +18,26 @@ use super::never_hide_link_destination;
 use std::ops::Range;
 use std::path::Path;
 
+/// 渲染行以及仅保持最后一个块可变所需的块元数据。
 /// Rendered lines and the block metadata needed to keep only the final block mutable.
 pub(crate) struct StreamingMarkdownRender {
+    /// 与下列元数据由同一次解析生成的带样式输出。
     /// Styled output produced by the same parser pass that collected the metadata below.
     pub(crate) lines: Vec<HyperlinkLine>,
+    /// 存在更早块时，最后一个顶层块的字节偏移。
     /// Byte offset of the final top-level block when at least one earlier block exists.
     pub(crate) last_top_level_block_start: Option<usize>,
+    /// 引用定义是否可能回溯改变其他块的渲染。
     /// Whether a reference definition can retroactively change another block's rendering.
     pub(crate) has_reference_link_definition: bool,
+    /// 首块是否为原始 HTML；此类块与已保留前缀拼接时不插入分隔符。
     /// Whether the first block is raw HTML, which joins a retained prefix without a separator.
     pub(crate) first_top_level_block_is_html: bool,
 }
 
+/// 渲染 `input`，同时跟踪最后一个仍可能变化的顶层块。
+///
+/// 所有字节偏移都索引这里收到的精确 `input`；调用者转换源码后必须先映射回原始位置。
 /// Render `input` while tracking the final mutable top-level block.
 ///
 /// Every reported byte offset indexes the exact `input` passed here. Callers that transform source
@@ -57,6 +69,7 @@ pub(crate) fn render_streaming_markdown_lines_with_width_and_cwd(
     }
 }
 
+/// 不增加第二次解析遍历，在迭代过程中记录顶层块边界。
 /// Records top-level block boundaries without adding a second parser traversal.
 struct TopLevelBlockTracker<I> {
     iter: I,

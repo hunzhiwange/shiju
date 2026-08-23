@@ -826,7 +826,8 @@ pub(crate) fn select_visible_grouped_transcript_window(
 
     let total_items = projection.len();
     let top_message = state.scroll.top_message.min(state.messages.len().saturating_sub(1));
-    let anchored_top_item_index = transcript_item_index_for_message(projection.items(), top_message);
+    let anchored_top_item_index =
+        transcript_item_index_for_message(projection.items(), top_message);
     let top_item_index = if state.scroll.follow_tail {
         transcript_window_start_index_for_tail(
             &state.messages,
@@ -1617,12 +1618,7 @@ fn transcript_window_start_index_for_tail(
             .items()
             .iter()
             .map(|item| {
-                estimate_transcript_projection_item_height(
-                    messages,
-                    item,
-                    content_width,
-                    verbose,
-                )
+                estimate_transcript_projection_item_height(messages, item, content_width, verbose)
             })
             .collect::<Vec<_>>();
         estimated_heights.as_slice()

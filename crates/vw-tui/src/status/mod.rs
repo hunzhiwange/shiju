@@ -1,4 +1,7 @@
 //! Read-only VibeWindow session data rendered by copied status layouts.
+//! 由复用状态布局渲染的 VibeWindow 只读会话数据。
+//!
+//! 状态层只消费 CLI 桥接快照，不发起网关请求，也不修改会话。
 
 use std::path::PathBuf;
 
@@ -8,6 +11,7 @@ mod format;
 pub use card::StatusHistoryCell;
 
 /// Token counters already observed by the Gateway runtime.
+/// 网关运行时已经观测并汇总的令牌计数。
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct V3TokenUsage {
     pub input: u64,
@@ -24,6 +28,7 @@ impl V3TokenUsage {
 }
 
 /// Display-only session snapshot supplied by the CLI bridge.
+/// CLI 桥接层提供的纯展示会话快照。
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct V3SessionDisplayData {
     pub version: String,

@@ -1,4 +1,5 @@
 //! Update visible terminal-history tails without discarding terminal scrollback.
+//! 在不丢弃终端回滚缓冲的前提下替换当前可见历史尾部。
 
 use super::Tui;
 use crate::custom_terminal::Terminal as CustomTerminal;
@@ -21,6 +22,7 @@ impl Tui {
             .collect()
     }
 
+    /// 先提交待写历史，再尝试原地替换可见尾部；成功时安排一帧重绘。
     pub(crate) fn replace_visible_history_tail(
         &mut self,
         previous_lines: &[HyperlinkLine],
@@ -49,6 +51,7 @@ impl Tui {
     }
 }
 
+/// 仅当旧尾部完整位于当前 viewport 上方时回退并替换，无法安全定位则返回 `false`。
 fn replace_visible_terminal_history_tail<B>(
     terminal: &mut CustomTerminal<B>,
     previous_lines: &[HyperlinkLine],
@@ -62,6 +65,7 @@ where
     let screen_size = terminal.last_known_screen_size;
     let mut viewport = terminal.viewport_area;
     let wrap_width = usize::from(viewport.width.max(/*other*/ 1));
+    // 按当前终端宽度重新计算旧内容占用行数，避免宽字符或换行策略导致错位。
     let (_, previous_rows) = wrap_history_hyperlink_lines(previous_lines, wrap_width, wrap_policy);
     let Ok(previous_rows) = u16::try_from(previous_rows) else {
         return Ok(false);
@@ -85,5 +89,6 @@ where
 }
 
 #[cfg(test)]
+// 可见尾部边界与回滚保留行为测试独立存放。
 #[path = "history_tail_tests.rs"]
 mod tests;

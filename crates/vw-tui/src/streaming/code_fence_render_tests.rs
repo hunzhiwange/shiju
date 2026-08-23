@@ -1,3 +1,7 @@
+//! 验证开放代码围栏的流式快速路径与规范 Markdown 渲染保持等价。
+//! Unicode、链接、空行、资源上限和重算条件共同覆盖状态复用边界。
+//! 所有检查都在每次追加后比较最终富文本，避免只验证内部状态。
+
 use super::StreamingRender;
 use super::append;
 use super::append_rich_and_assert_matches_full;
@@ -10,6 +14,7 @@ use insta::assert_debug_snapshot;
 use pretty_assertions::assert_eq;
 
 #[test]
+// 围栏逐步增长时应保留语法样式、宽字符、链接注解和有意空行。
 fn growing_code_fences_preserve_styles_unicode_links_and_blank_lines() {
     let (_, render) = assert_rich_stream_matches_full_render(
         &[
@@ -46,6 +51,7 @@ fn growing_code_fences_preserve_styles_unicode_links_and_blank_lines() {
 }
 
 #[test]
+// 超长开放围栏不能反复丢弃已经稳定渲染的前缀。
 fn long_open_fence_retains_its_rendered_prefix() {
     let cwd = test_cwd();
     let mut source = String::new();
@@ -74,6 +80,7 @@ fn long_open_fence_retains_its_rendered_prefix() {
 }
 
 #[test]
+// 含糊闭合符和规范化输入应交回标准解析器，避免快速路径猜测语义。
 fn ambiguous_and_normalized_fences_use_canonical_semantics() {
     let streams: &[&[&str]] = &[
         &["```rust\n", "x\n", "``", "`\n"],
@@ -106,6 +113,7 @@ fn ambiguous_and_normalized_fences_use_canonical_semantics() {
 }
 
 #[test]
+// 越过高亮上限后必须移除早期颜色，使整块代码采用一致降级样式。
 fn crossing_a_highlight_limit_removes_previously_highlighted_colors() {
     let cwd = test_cwd();
     let mut source = String::new();
@@ -121,6 +129,7 @@ fn crossing_a_highlight_limit_removes_previously_highlighted_colors() {
 }
 
 #[test]
+// 终端宽度或渲染模式变化会使围栏状态失效，重算不得沿用旧缓存。
 fn recomputing_after_resize_or_mode_change_drops_fence_state() {
     let (mut source, mut render) =
         assert_rich_stream_matches_full_render(&["```rust\nfn first() {}\n"], Some(80));

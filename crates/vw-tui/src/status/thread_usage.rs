@@ -1,4 +1,7 @@
 //! Live-updating, thread-scoped billing details embedded in `/status` history cards.
+//! 嵌入 `/status` 历史卡片、按任务范围实时更新的计费详情。
+//!
+//! 异步估算只替换共享详情状态，重绘由外层安排；已经提交的卡片主体行保持稳定。
 
 use super::format::FieldFormatter;
 use super::format::push_label;
@@ -33,6 +36,7 @@ const SPEED_LABEL: &str = "  Speed";
 const BILLED_TOKENS_LABEL: &str = "  Billed tokens";
 
 /// Shared state updates a committed `/status` card when its asynchronous estimate arrives.
+/// 异步估算到达时，用共享状态更新已提交的 `/status` 卡片。
 #[derive(Clone, Debug, Default)]
 pub(crate) struct StatusThreadUsage {
     estimate: Arc<RwLock<Option<ThreadUsage>>>,
@@ -40,11 +44,13 @@ pub(crate) struct StatusThreadUsage {
 }
 
 impl StatusThreadUsage {
+    /// 预留“Billed tokens”标签宽度，但在估算到达前不输出空行。
     pub(crate) fn reserve_label_width(&self) {
         self.reserve_label_width
             .store(/*val*/ true, Ordering::Relaxed);
     }
 
+    /// 原子替换最近一次异步估算；读写锁中毒被视为不可恢复的内部错误。
     pub(crate) fn set_estimate(&self, estimate: Option<ThreadUsage>) {
         #[expect(clippy::expect_used)]
         let mut stored_estimate = self
@@ -54,9 +60,11 @@ impl StatusThreadUsage {
         *stored_estimate = estimate;
     }
 
+    /// 把当前估算实际会使用的唯一标签加入卡片对齐集合。
     pub(crate) fn push_labels(&self, labels: &mut Vec<String>, seen: &mut BTreeSet<String>) {
         // Keep existing card rows stable when asynchronous billing details arrive. Reserving a
         // formatter label does not emit a loading placeholder or an empty billing row.
+        // 异步计费详情到达时保留既有卡片行；预留格式化标签不会输出加载占位或空计费行。
         if self.reserve_label_width.load(Ordering::Relaxed) {
             push_label(labels, seen, BILLED_TOKENS_LABEL);
         }
@@ -83,6 +91,7 @@ impl StatusThreadUsage {
         }
     }
 
+    /// 从当前估算生成费用、分组占比和计费令牌行；没有估算时不生成占位内容。
     pub(crate) fn lines(
         &self,
         formatter: &FieldFormatter,
@@ -127,6 +136,7 @@ impl StatusThreadUsage {
             }
         }
 
+        // 只有所有分组都提供对应计数时才汇总，避免把缺失值误当作零。
         let sum_tokens = |count: fn(&ThreadUsageBreakdownGroup) -> Option<i64>| {
             estimate
                 .groups
@@ -159,6 +169,7 @@ impl StatusThreadUsage {
     }
 }
 
+/// 计费分组可以按模型、推理强度或速度三个维度聚合。
 #[derive(Clone, Copy)]
 enum BreakdownDimension {
     Model,
@@ -166,6 +177,7 @@ enum BreakdownDimension {
     Speed,
 }
 
+/// 忽略负费用分组，按维度稳定排序后生成带四舍五入百分比的摘要。
 fn grouped_usage(
     groups: &[ThreadUsageBreakdownGroup],
     dimension: BreakdownDimension,
@@ -216,6 +228,7 @@ fn grouped_usage(
             |total, credits| total.saturating_add(*credits),
         );
     let mut totals = totals.into_iter().collect::<Vec<_>>();
+    // 模型按费用降序；推理强度和速度按产品定义顺序，未知值最后按名称排列。
     totals.sort_by(
         |(left_name, left_credits), (right_name, right_credits)| match dimension {
             BreakdownDimension::Model => right_credits
@@ -262,6 +275,7 @@ fn grouped_usage(
     )
 }
 
+/// 把 GPT 模型内部标识转换为状态界面使用的大小写与分隔形式。
 fn format_model_display_name(model: &str) -> String {
     let Some((prefix, remainder)) = model.split_once('-') else {
         return model.to_string();
@@ -294,6 +308,7 @@ fn format_model_display_name(model: &str) -> String {
     display_name
 }
 
+/// 将百万分之一积分格式化为最多一位小数的紧凑 K/M/B/T 数值。
 pub(crate) fn format_credit_micros(micros: i64) -> String {
     let micros = i128::from(micros.max(/*other*/ 0));
     let (unit_micros, suffix) = [
@@ -315,6 +330,7 @@ pub(crate) fn format_credit_micros(micros: i64) -> String {
     }
 }
 
+/// 将百万分之一美元格式化为近似金额；负值表示不可用并返回空。
 pub(crate) fn format_estimated_usd_micros(micros: i64) -> Option<String> {
     if micros < 0 {
         return None;
@@ -332,5 +348,6 @@ pub(crate) fn format_estimated_usd_micros(micros: i64) -> Option<String> {
 }
 
 #[cfg(test)]
+// 计费格式、聚合顺序与异步卡片稳定性测试独立存放。
 #[path = "thread_usage_tests.rs"]
 mod tests;

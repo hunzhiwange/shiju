@@ -137,6 +137,41 @@ pub struct DesktopServiceCommandResponseDto {
     pub output: String,
 }
 
+/// Gateway 宿主允许执行的封闭 service 生命周期命令。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DesktopServiceCommand {
+    Status,
+    Start,
+    Stop,
+    Restart,
+}
+
+impl DesktopServiceCommand {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Status => "status",
+            Self::Start => "start",
+            Self::Stop => "stop",
+            Self::Restart => "restart",
+        }
+    }
+}
+
+impl TryFrom<&str> for DesktopServiceCommand {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "status" => Ok(Self::Status),
+            "start" => Ok(Self::Start),
+            "stop" => Ok(Self::Stop),
+            "restart" => Ok(Self::Restart),
+            _ => Err(format!("unsupported desktop service command: {value}")),
+        }
+    }
+}
+
 impl GatewayClient {
     /// List statically audited plugin hook declarations in stable order.
     pub async fn hooks_get(&self) -> Result<Vec<HookCatalogEntryDto>, String> {
@@ -194,12 +229,16 @@ impl GatewayClient {
         self.get_json("/v1/skills", &query).await
     }
 
-    /// 兼容旧桌面调用名；实际请求走前端中立的 `/v1/skills`。
+    /// 读取 desktop 专用技能目录。
     pub async fn desktop_skills_get(
         &self,
         project_path: Option<&str>,
     ) -> Result<Vec<DesktopSkillCatalogEntryDto>, String> {
-        self.skills_get(project_path).await
+        let mut query = Vec::new();
+        if let Some(project_path) = project_path.map(str::trim).filter(|value| !value.is_empty()) {
+            query.push(("project_path".to_string(), project_path.to_string()));
+        }
+        self.get_json("/v1/desktop/skills", &query).await
     }
 
     /// 读取指定技能的文档与可执行操作。
@@ -215,13 +254,17 @@ impl GatewayClient {
         self.get_json("/v1/skills/detail", &query).await
     }
 
-    /// 兼容旧桌面调用名；实际请求走前端中立的 `/v1/skills/detail`。
+    /// 读取 desktop 专用技能详情。
     pub async fn desktop_skill_detail_get(
         &self,
         project_path: Option<&str>,
         skill_id: &str,
     ) -> Result<DesktopSkillDetailDto, String> {
-        self.skill_detail_get(project_path, skill_id).await
+        let mut query = vec![("skill_id".to_string(), skill_id.to_string())];
+        if let Some(project_path) = project_path.map(str::trim).filter(|value| !value.is_empty()) {
+            query.push(("project_path".to_string(), project_path.to_string()));
+        }
+        self.get_json("/v1/desktop/skills/detail", &query).await
     }
 
     /// 在当前项目下创建新的技能 scaffold。
@@ -238,9 +281,16 @@ impl GatewayClient {
         Ok(response.path)
     }
 
-    /// 兼容旧桌面调用名；实际请求走前端中立的 `/v1/skills/create`。
+    /// 创建 desktop 专用技能 scaffold。
     pub async fn desktop_skill_create(&self, project_path: &str) -> Result<String, String> {
-        self.skill_create(project_path).await
+        let response: DesktopSkillPathDto = self
+            .post_json(
+                "/v1/desktop/skills/create",
+                &[],
+                &serde_json::json!({"project_path": project_path}),
+            )
+            .await?;
+        Ok(response.path)
     }
 
     /// 将内置技能安装到当前项目 skills 目录。
@@ -262,13 +312,20 @@ impl GatewayClient {
         Ok(response.path)
     }
 
-    /// 兼容旧桌面调用名；实际请求走前端中立的 `/v1/skills/install-built-in`。
+    /// 安装 desktop 专用内置技能。
     pub async fn desktop_skill_install_builtin(
         &self,
         project_path: &str,
         skill_id: &str,
     ) -> Result<String, String> {
-        self.skill_install_builtin(project_path, skill_id).await
+        let response: DesktopSkillPathDto = self
+            .post_json(
+                "/v1/desktop/skills/install-built-in",
+                &[],
+                &serde_json::json!({"project_path": project_path, "skill_id": skill_id}),
+            )
+            .await?;
+        Ok(response.path)
     }
 
     /// 设置本地技能启用状态。
@@ -292,14 +349,21 @@ impl GatewayClient {
         Ok(response.path)
     }
 
-    /// 兼容旧桌面调用名；实际请求走前端中立的 `/v1/skills/set-enabled`。
+    /// 设置 desktop 专用技能启用状态。
     pub async fn desktop_skill_set_enabled(
         &self,
         project_path: Option<&str>,
         skill_id: &str,
         enabled: bool,
     ) -> Result<String, String> {
-        self.skill_set_enabled(project_path, skill_id, enabled).await
+        let response: DesktopSkillPathDto = self
+            .post_json(
+                "/v1/desktop/skills/set-enabled",
+                &[],
+                &serde_json::json!({"project_path": project_path, "skill_id": skill_id, "enabled": enabled}),
+            )
+            .await?;
+        Ok(response.path)
     }
 
     /// 删除本地技能目录。
@@ -321,13 +385,20 @@ impl GatewayClient {
         Ok(response.path)
     }
 
-    /// 兼容旧桌面调用名；实际请求走前端中立的 `/v1/skills/delete`。
+    /// 删除 desktop 专用技能目录。
     pub async fn desktop_skill_delete(
         &self,
         project_path: Option<&str>,
         skill_id: &str,
     ) -> Result<String, String> {
-        self.skill_delete(project_path, skill_id).await
+        let response: DesktopSkillPathDto = self
+            .post_json(
+                "/v1/desktop/skills/delete",
+                &[],
+                &serde_json::json!({"project_path": project_path, "skill_id": skill_id}),
+            )
+            .await?;
+        Ok(response.path)
     }
 
     /// 读取已发现插件目录。
@@ -433,8 +504,16 @@ impl GatewayClient {
         &self,
         command: &str,
     ) -> Result<DesktopServiceCommandResponseDto, String> {
+        self.desktop_service_command_typed(DesktopServiceCommand::try_from(command)?).await
+    }
+
+    /// 执行经过类型约束的 service 生命周期命令。
+    pub async fn desktop_service_command_typed(
+        &self,
+        command: DesktopServiceCommand,
+    ) -> Result<DesktopServiceCommandResponseDto, String> {
         self.post_json(
-            &format!("/v1/desktop/service/{}", command.trim().to_ascii_lowercase()),
+            &format!("/v1/desktop/service/{}", command.as_str()),
             &[],
             &serde_json::json!({}),
         )
@@ -473,6 +552,7 @@ impl GatewayClient {
 
     /// 读取某类桌面工具的持久化内容。
     pub async fn desktop_tool_content_get(&self, tool_type: &str) -> Result<String, String> {
+        let tool_type = desktop_tool_type_path(tool_type)?;
         let value: Value =
             self.get_json(&format!("/v1/desktop/tool-content/{tool_type}"), &[]).await?;
         Ok(value.get("content").and_then(Value::as_str).unwrap_or_default().to_string())
@@ -484,6 +564,7 @@ impl GatewayClient {
         tool_type: &str,
         content: &str,
     ) -> Result<(), String> {
+        let tool_type = desktop_tool_type_path(tool_type)?;
         let _: Value = self
             .put_json(
                 &format!("/v1/desktop/tool-content/{tool_type}"),
@@ -533,6 +614,21 @@ impl GatewayClient {
             .await?;
         Ok(())
     }
+}
+
+fn desktop_tool_type_path(tool_type: &str) -> Result<String, String> {
+    if tool_type.trim().is_empty() {
+        return Err("desktop tool type must not be empty".to_string());
+    }
+    let mut encoded = String::new();
+    for byte in tool_type.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    Ok(encoded)
 }
 
 #[cfg(test)]

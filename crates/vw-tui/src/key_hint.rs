@@ -1,3 +1,7 @@
+//! TUI 的按键绑定原语、输入匹配和快捷键提示渲染。
+//!
+//! `KeyBinding` 处理终端对大写字母和原始 C0 控制字符上报不一致的问题；列表和选择器
+//! 应通过这些辅助函数匹配导航，`is_plain_text_key_event` 则统一区分可搜索文本输入与命令。
 //! Key binding primitives and input matching for the TUI.
 //!
 //! This module provides `KeyBinding`, the runtime representation of a single
@@ -30,6 +34,8 @@ const ALT_PREFIX: &str = "alt + ";
 const CTRL_PREFIX: &str = "ctrl + ";
 const SHIFT_PREFIX: &str = "shift + ";
 
+/// 可触发 TUI 动作的一个具体按键；匹配兼容无 SHIFT 的大写字母和原始 C0 Ctrl 字符，
+/// 但不负责多键和弦或部分匹配，这类状态由调用方持有。
 /// One concrete key event that can trigger a TUI action.
 ///
 /// Matching via `is_press` handles exact equality plus compatibility fallbacks
@@ -45,6 +51,7 @@ pub(crate) struct KeyBinding {
     modifiers: KeyModifiers,
 }
 
+/// 由单键或双键和弦组成的用户可见快捷键。
 /// A user-visible shortcut made from one key or a two-key chord.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ShortcutHint {
@@ -114,6 +121,7 @@ pub(crate) fn normalize_key_parts(
     key: KeyCode,
     mut modifiers: KeyModifiers,
 ) -> (KeyCode, KeyModifiers) {
+    // 统一 C0 控制字符与大写字母表示，使终端差异不影响键位匹配。
     let KeyCode::Char(ch) = key else {
         return (key, modifiers);
     };
@@ -139,12 +147,15 @@ fn c0_control_char_to_ctrl_char(ch: char) -> Option<char> {
     }
 }
 
+/// 单个动作键位集合的匹配辅助；切片元素是等价候选，不按顺序决定分发优先级，
+/// 顺序只供 `primary_binding` 选择界面主提示。
 /// Matching helpers for one action's keybinding set.
 ///
 /// Implementations are expected to treat the slice as alternatives for one
 /// action. They should not interpret order as priority for dispatch; order is
 /// reserved for UI hint selection via `primary_binding`.
 pub(crate) trait KeyBindingListExt {
+    /// 集合中任一绑定匹配 `event` 时为真。
     /// True when any binding in this set matches `event`.
     fn is_pressed(&self, event: KeyEvent) -> bool;
 }
@@ -155,6 +166,8 @@ impl KeyBindingListExt for [KeyBinding] {
     }
 }
 
+/// 判断事件是否应作为字面文本输入；可搜索选择器借此避免把普通 `j`、`k` 抢作导航，
+/// 同时仍允许 `Ctrl+J` 等组合键移动。必须在键位规范化前调用以保留区别。
 /// Returns whether an event should be treated as literal text input.
 ///
 /// Searchable pickers use this to avoid stealing plain printable characters for

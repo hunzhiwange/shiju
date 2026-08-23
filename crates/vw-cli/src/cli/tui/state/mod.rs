@@ -35,9 +35,7 @@ pub(crate) mod reducer;
 mod runtime_pipeline;
 pub(crate) mod selectors;
 
-use self::selectors::{
-    TuiSearchTextCache, TuiTranscriptLayoutCache, TuiTranscriptMeasurements,
-};
+use self::selectors::{TuiSearchTextCache, TuiTranscriptLayoutCache, TuiTranscriptMeasurements};
 use self::selectors::{TuiTranscriptProjectionCache, derive_transcript_projection_cache};
 
 const EXTENDED_MESSAGE_PREFIX: &str = "vibewindow:tui:";
@@ -429,6 +427,7 @@ impl TuiModelCatalogEntry {
 /// 它们仅用于把 transport 层分块文本稳定规整为 `UiMessage`。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct TuiRuntimeState {
+    pub(crate) active_plan_run_request_id: Option<String>,
     pub(crate) active_plan_run_task_id: Option<String>,
     pub(crate) thinking_open: bool,
     pub(crate) thinking_depth: u32,
@@ -458,6 +457,10 @@ pub(crate) struct TuiState {
     pub(crate) message_actions: MessageActionState,
     pub(crate) session_options: super::model::SessionOptions,
     pub(crate) session_capabilities: super::model::SessionCapabilityMatrix,
+    pub(crate) settings_warnings: Vec<String>,
+    pub(crate) integration_catalog: Vec<super::model::integration::IntegrationItem>,
+    pub(crate) integration_warnings: Vec<String>,
+    pub(crate) orchestration: super::runtime::orchestration::OrchestrationSnapshot,
     pub(crate) theme_name: String,
     pub(crate) agent_view: super::model::agent_view::AgentViewState,
     pub(crate) notifications: super::model::notification::NotificationStore,

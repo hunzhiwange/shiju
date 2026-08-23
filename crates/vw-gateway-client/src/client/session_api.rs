@@ -114,7 +114,10 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
 impl GatewayClient {
     /// 按可恢复流请求标识幂等停止聊天运行。
     pub async fn chat_stream_stop(&self, request_id: &str) -> Result<bool, String> {
-        let path = format!("/v1/chat/stream/{request_id}/stop");
+        let path = format!(
+            "/v1/chat/stream/{}/stop",
+            encode_session_path_segment(required_stream_request_id(request_id)?)
+        );
         let response: StreamStopResponse = self.post_json(&path, &[], &serde_json::json!({})).await?;
         Ok(response.cancelled)
     }
@@ -127,7 +130,7 @@ impl GatewayClient {
     ) -> Result<Option<SessionUiLoadResult>, String> {
         let loaded = self
             .get_json_with_404::<ChatSessionWithRaw>(
-                &format!("/v1/session/{session_id}/ui"),
+                &format!("{}/ui", session_path(session_id)?),
                 &directory_query(directory),
             )
             .await?;
@@ -140,10 +143,33 @@ impl GatewayClient {
         session_id: &str,
     ) -> Result<Option<SessionUiLoadResult>, String> {
         let loaded = self
-            .get_json_with_404::<ChatSessionWithRaw>(&format!("/v1/session/{session_id}/any"), &[])
+            .get_json_with_404::<ChatSessionWithRaw>(
+                &format!("{}/any", session_path(session_id)?),
+                &[],
+            )
             .await?;
         Ok(loaded.map(SessionUiLoadResult::from))
     }
+}
+
+fn required_stream_request_id(request_id: &str) -> Result<&str, String> {
+    if request_id.trim().is_empty() {
+        return Err("stream request id must not be empty".to_string());
+    }
+    Ok(request_id)
+}
+
+fn encode_session_path_segment(value: &str) -> String {
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(char::from(byte));
+            }
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
 }
 
 impl GatewayClient {
@@ -157,13 +183,34 @@ impl GatewayClient {
         self.get_json("/v1/session", &directory_query(directory)).await
     }
 
+    /// 读取目录上下文下的会话运行状态表。
+    pub async fn session_status<T: DeserializeOwned>(
+        &self,
+        directory: Option<&str>,
+    ) -> Result<T, String> {
+        self.get_json("/v1/session/status", &directory_query(directory)).await
+    }
+
     /// 读取单个会话详情。
     pub async fn session_get<T: DeserializeOwned>(
         &self,
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<T, String> {
-        self.get_json(&format!("/v1/session/{session_id}"), &directory_query(directory)).await
+        self.get_json(&session_path(session_id)?, &directory_query(directory)).await
+    }
+
+    /// 读取指定会话的直接子会话。
+    pub async fn session_children<T: DeserializeOwned>(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+    ) -> Result<T, String> {
+        self.get_json(
+            &format!("{}/children", session_path(session_id)?),
+            &directory_query(directory),
+        )
+        .await
     }
 
     /// 读取指定会话的消息列表，使用默认分页参数。
@@ -191,8 +238,59 @@ impl GatewayClient {
         query: &GatewaySessionMessageListQuery,
     ) -> Result<T, String> {
         self.get_json(
-            &format!("/v1/session/{session_id}/message"),
+            &format!("{}/message", session_path(session_id)?),
             &session_message_list_query(query),
+        )
+        .await
+    }
+
+    /// 读取单条会话消息及其片段。
+    pub async fn session_message_get<T: DeserializeOwned>(
+        &self,
+        session_id: &str,
+        message_id: &str,
+        directory: Option<&str>,
+    ) -> Result<T, String> {
+        self.get_json(
+            &format!(
+                "{}/message/{}",
+                session_path(session_id)?,
+                required_encoded_id(message_id, "message")?
+            ),
+            &directory_query(directory),
+        )
+        .await
+    }
+
+    /// 更新单个消息片段。
+    pub async fn session_message_part_update<B: serde::Serialize, T: DeserializeOwned>(
+        &self,
+        session_id: &str,
+        message_id: &str,
+        part_id: &str,
+        directory: Option<&str>,
+        body: &B,
+    ) -> Result<T, String> {
+        self.patch_json(
+            &session_part_path(session_id, message_id, part_id)?,
+            &directory_query(directory),
+            body,
+        )
+        .await
+    }
+
+    /// 删除单个消息片段。
+    pub async fn session_message_part_delete(
+        &self,
+        session_id: &str,
+        message_id: &str,
+        part_id: &str,
+        directory: Option<&str>,
+    ) -> Result<bool, String> {
+        self.delete_json(
+            &session_part_path(session_id, message_id, part_id)?,
+            &directory_query(directory),
+            &serde_json::json!({}),
         )
         .await
     }
@@ -215,7 +313,7 @@ impl GatewayClient {
         directory: Option<&str>,
         body: &GatewaySessionPatchBody,
     ) -> Result<T, String> {
-        self.patch_json(&format!("/v1/session/{session_id}"), &directory_query(directory), body)
+        self.patch_json(&session_path(session_id)?, &directory_query(directory), body)
             .await
     }
 
@@ -225,7 +323,7 @@ impl GatewayClient {
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<(), String> {
-        self.delete_empty(&format!("/v1/session/{session_id}"), &directory_query(directory)).await
+        self.delete_empty(&session_path(session_id)?, &directory_query(directory)).await
     }
 
     /// 从现有会话派生一个新会话。
@@ -235,7 +333,11 @@ impl GatewayClient {
         directory: Option<&str>,
         body: &Option<GatewaySessionForkBody>,
     ) -> Result<T, String> {
-        self.post_json(&format!("/v1/session/{session_id}/fork"), &directory_query(directory), body)
+        self.post_json(
+            &format!("{}/fork", session_path(session_id)?),
+            &directory_query(directory),
+            body,
+        )
             .await
     }
 
@@ -247,7 +349,7 @@ impl GatewayClient {
         body: &GatewaySessionResetBody,
     ) -> Result<T, String> {
         self.post_json(
-            &format!("/v1/session/{session_id}/reset"),
+            &format!("{}/reset", session_path(session_id)?),
             &directory_query(directory),
             body,
         )
@@ -262,7 +364,7 @@ impl GatewayClient {
         body: &GatewaySessionSummarizeBody,
     ) -> Result<bool, String> {
         self.post_json(
-            &format!("/v1/session/{session_id}/summarize"),
+            &format!("{}/summarize", session_path(session_id)?),
             &directory_query(directory),
             body,
         )
@@ -276,7 +378,11 @@ impl GatewayClient {
         directory: Option<&str>,
         body: &GatewaySessionTodoPutBody,
     ) -> Result<bool, String> {
-        self.put_json(&format!("/v1/session/{session_id}/todo"), &directory_query(directory), body)
+        self.put_json(
+            &format!("{}/todo", session_path(session_id)?),
+            &directory_query(directory),
+            body,
+        )
             .await
     }
 
@@ -286,7 +392,11 @@ impl GatewayClient {
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<Vec<Todo>, String> {
-        self.get_json(&format!("/v1/session/{session_id}/todo"), &directory_query(directory)).await
+        self.get_json(
+            &format!("{}/todo", session_path(session_id)?),
+            &directory_query(directory),
+        )
+        .await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -311,7 +421,11 @@ impl GatewayClient {
         session_id: &str,
         query: &GatewaySessionDiffQuery,
     ) -> Result<T, String> {
-        self.get_json(&format!("/v1/session/{session_id}/diff"), &session_diff_query(query)).await
+        self.get_json(
+            &format!("{}/diff", session_path(session_id)?),
+            &session_diff_query(query),
+        )
+        .await
     }
 
     /// 读取会话 UI 持久化数据，不存在时返回 None。
@@ -342,7 +456,11 @@ impl GatewayClient {
         directory: Option<&str>,
         session: &ChatSession,
     ) -> Result<bool, String> {
-        self.put_json(&format!("/v1/session/{session_id}/ui"), &directory_query(directory), session)
+        self.put_json(
+            &format!("{}/ui", session_path(session_id)?),
+            &directory_query(directory),
+            session,
+        )
             .await
     }
 
@@ -361,7 +479,7 @@ impl GatewayClient {
         directory: Option<&str>,
     ) -> Result<Option<ChatSessionMeta>, String> {
         self.get_json_with_404(
-            &format!("/v1/session/{session_id}/preview"),
+            &format!("{}/preview", session_path(session_id)?),
             &directory_query(directory),
         )
         .await
@@ -374,7 +492,7 @@ impl GatewayClient {
         directory: Option<&str>,
     ) -> Result<Option<String>, String> {
         self.get_json_with_404(
-            &format!("/v1/session/{session_id}/path"),
+            &format!("{}/path", session_path(session_id)?),
             &directory_query(directory),
         )
         .await
@@ -395,7 +513,11 @@ impl GatewayClient {
             turn_id
         };
         self.get_json_with_404(
-            &format!("/v1/session/{session_id}/turn/{request_turn_id}/step/{step_index}/llm-raw"),
+            &format!(
+                "{}/turn/{}/step/{step_index}/llm-raw",
+                session_path(session_id)?,
+                required_encoded_id(request_turn_id, "turn")?
+            ),
             &directory_query(directory),
         )
         .await
@@ -442,8 +564,31 @@ impl GatewayClient {
         session_id: &str,
         body: &GatewaySessionTitleGenerateBody,
     ) -> Result<GatewaySessionTitleGenerateResponse, String> {
-        self.post_json(&format!("/v1/session/{session_id}/title"), &[], body).await
+        self.post_json(&format!("{}/title", session_path(session_id)?), &[], body).await
     }
+}
+
+fn session_path(session_id: &str) -> Result<String, String> {
+    if session_id.trim().is_empty() {
+        return Err("session id must not be empty".to_string());
+    }
+    Ok(format!("/v1/session/{}", encode_session_path_segment(session_id)))
+}
+
+fn required_encoded_id(value: &str, kind: &str) -> Result<String, String> {
+    if value.trim().is_empty() {
+        return Err(format!("{kind} id must not be empty"));
+    }
+    Ok(encode_session_path_segment(value))
+}
+
+fn session_part_path(session_id: &str, message_id: &str, part_id: &str) -> Result<String, String> {
+    Ok(format!(
+        "{}/message/{}/part/{}",
+        session_path(session_id)?,
+        required_encoded_id(message_id, "message")?,
+        required_encoded_id(part_id, "part")?
+    ))
 }
 
 /// 将消息列表查询结构转换为网关接口使用的查询参数。

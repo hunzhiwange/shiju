@@ -1,3 +1,6 @@
+//! 验证 MCP 历史单元对连接状态和不同内容块的投影规则。
+//! 快照关注面向用户的摘要，结构断言则守住样式、宽度与原始转录契约。
+
 use super::*;
 use base64::Engine;
 use codex_protocol::mcp::CallToolResult;
@@ -8,6 +11,7 @@ use serde_json::json;
 const PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
 
 #[test]
+// 当前协议的全部连接阶段都应映射到稳定文案和对应的视觉语气。
 fn mcp_inventory_connection_states() {
     use McpServerConnectionStatus as Status;
 
@@ -65,6 +69,7 @@ fn mcp_inventory_connection_states() {
 }
 
 #[test]
+// 缺少运行时状态的旧服务端响应应退回认证字段，同时不覆盖明确的禁用状态。
 fn mcp_inventory_older_app_server_authentication() {
     let statuses = serde_json::from_value::<Vec<McpServerStatus>>(json!([
         {
@@ -123,6 +128,7 @@ fn mcp_inventory_older_app_server_authentication() {
 }
 
 fn result(content: Vec<Value>) -> CallToolResult {
+    // 构造只含内容块的最小工具结果，便于各投影场景共享一致外壳。
     CallToolResult {
         content,
         structured_content: None,
@@ -132,6 +138,7 @@ fn result(content: Vec<Value>) -> CallToolResult {
 }
 
 #[test]
+// 文本、媒体、资源及未知块在各种宽度下都应使用各自的稳定降级表示。
 fn projected_content_preserves_width_dependent_rendering() {
     let text = "{\"result\": [1, 2, 3], \"text\": \"long output 🦀\"}";
     let malformed = json!({"type": "image", "data": PNG});
@@ -178,6 +185,7 @@ fn projected_content_preserves_width_dependent_rendering() {
 }
 
 #[test]
+// 展示占位符不代表图片可用；只有完整解码成功的图片才能设置能力标记。
 fn projected_image_marker_still_requires_a_complete_image() {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(PNG)
@@ -195,6 +203,7 @@ fn projected_image_marker_still_requires_a_complete_image() {
 }
 
 #[test]
+// 代码模式需保留非文本块携带的文本字段，展示摘要与原始转录各遵循自身格式。
 fn code_mode_preserves_text_fields_on_nontext_and_unknown_blocks() {
     let mut cell = new_active_mcp_tool_call(
         "call-code-mode".to_string(),

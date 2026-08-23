@@ -13,9 +13,12 @@ use vw_tui::{
 };
 
 use super::app::gateway_stream_request_from_state;
+use super::commands::{route_selection, route_slash_submission};
 use super::controller::{
     TuiController, TuiControllerCommand, TuiControllerEvent, TuiOverlayCommand,
+    build_attachment_submission,
 };
+use super::model::attachment::prepare_prompt_attachments;
 use super::model::permission::PermissionDecision;
 use super::model::{PermissionMode, UiMessage, UiOverlay};
 use super::runtime::gateway::GatewayUiRuntime;
@@ -80,6 +83,24 @@ impl GatewayV3Bridge {
             _ => None,
         };
         let runtime_event = adapt_gateway_stream_event(event);
+        self.adapt_runtime_event_inner(state, runtime_event, tool_event)
+    }
+
+    /// 将已标准化的 plan-run 事件送入同一 reducer 与活动 transcript 生命周期。
+    pub(crate) fn adapt_runtime_event(
+        &mut self,
+        state: &mut TuiState,
+        event: UiRuntimeEvent,
+    ) -> Vec<V3Event> {
+        self.adapt_runtime_event_inner(state, event, None)
+    }
+
+    fn adapt_runtime_event_inner(
+        &mut self,
+        state: &mut TuiState,
+        runtime_event: UiRuntimeEvent,
+        tool_event: Option<GatewayChatToolEvent>,
+    ) -> Vec<V3Event> {
         let terminal = match &runtime_event {
             UiRuntimeEvent::Terminal(terminal) => Some(terminal.clone()),
             _ => None,
@@ -126,41 +147,41 @@ impl GatewayV3Bridge {
     ) -> Result<TuiControllerCommand, String> {
         match action {
             V3Action::None
-            | V3Action::Select { .. }
             | V3Action::Attach(_)
             | V3Action::RemoveAttachment { .. }
             | V3Action::ToggleShortcuts => Ok(TuiControllerCommand::Continue),
+            V3Action::Select { surface, item_id } => {
+                route_selection(surface.as_str(), item_id.as_str())
+                    .map(TuiControllerCommand::Command)
+            }
             V3Action::Submit { text, attachments } => {
-                if !attachments.is_empty() {
-                    return Err(
-                        "TUI attachments cannot be submitted until the request path supports them"
-                            .to_string(),
-                    );
+                if attachments.is_empty()
+                    && let Some(route) = route_slash_submission(text.as_str())?
+                {
+                    return Ok(TuiControllerCommand::Command(route));
                 }
+                if text.trim().is_empty() && attachments.is_empty() {
+                    return Ok(TuiControllerCommand::Continue);
+                }
+                let prepared = prepare_prompt_attachments(
+                    state.project.workspace_root.as_deref(),
+                    &attachments,
+                )?;
                 reduce_tui_state(state, TuiAction::PromptValueSet(text));
-                let command = controller.handle_event(
+                let submission = build_attachment_submission(state, state.prompt.value.as_str())
+                    .with_attachments(prepared);
+                reduce_tui_state(
                     state,
-                    TuiControllerEvent::Terminal(CrosstermEvent::Key(KeyEvent::new(
-                        KeyCode::Enter,
-                        KeyModifiers::NONE,
-                    ))),
+                    TuiAction::PromptSubmissionStarted(submission.clone()),
                 );
-                if let TuiControllerCommand::SubmitPrompt(submission) = &command {
-                    reduce_tui_state(
-                        state,
-                        TuiAction::PromptSubmissionStarted(submission.clone()),
-                    );
-                }
-                Ok(command)
+                Ok(TuiControllerCommand::SubmitPrompt(submission))
             }
             V3Action::Queue { text, attachments } => {
-                if !attachments.is_empty() {
-                    return Err(
-                        "TUI attachments cannot be queued until the request path supports them"
-                            .to_string(),
-                    );
-                }
-                Ok(TuiControllerCommand::QueuePrompt(text))
+                prepare_prompt_attachments(
+                    state.project.workspace_root.as_deref(),
+                    &attachments,
+                )?;
+                Ok(TuiControllerCommand::QueuePrompt { text, attachments })
             }
             V3Action::Interrupt | V3Action::Cancel => {
                 Ok(TuiControllerCommand::CancelActiveSubmission)
@@ -177,7 +198,11 @@ impl GatewayV3Bridge {
             V3Action::ShowTranscript => Ok(TuiControllerCommand::OpenTranscript),
             V3Action::OpenExternalEditor => Ok(TuiControllerCommand::OpenExternalEditor),
             V3Action::ResolveApproval { request_id, decision } => {
-                permission_command(state, request_id.as_str(), decision)
+                if matches!(state.overlays.active(), Some(UiOverlay::Confirm(_))) {
+                    confirmation_command(state, request_id.as_str(), decision)
+                } else {
+                    permission_command(state, request_id.as_str(), decision)
+                }
             }
             V3Action::AnswerUserInput { request_id, answers } => {
                 question_command(state, request_id.as_str(), answers)
@@ -275,7 +300,11 @@ impl GatewayV3Bridge {
                     | GatewayChatToolStatus::Other(_) => events.push(V3Event::ToolFailed {
                         turn_id: turn_id.to_string(),
                         call_id,
-                        message: tool_error(&event.payload, output, "tool ended without terminal status"),
+                        message: tool_error(
+                            &event.payload,
+                            output,
+                            "tool ended without terminal status",
+                        ),
                         duration_ms,
                     }),
                 }
@@ -327,11 +356,8 @@ fn permission_display(state: &TuiState) -> String {
         PermissionMode::AcceptEdits => "Accept edits",
         PermissionMode::Bypass => "Bypass",
     };
-    let access = if state.session_options.full_access_enabled() {
-        "full access"
-    } else {
-        "workspace write"
-    };
+    let access =
+        if state.session_options.full_access_enabled() { "full access" } else { "workspace write" };
     format!("{mode} · {access}")
 }
 
@@ -379,6 +405,34 @@ fn permission_command(
     Ok(TuiControllerCommand::Overlay(TuiOverlayCommand::PermissionDecision {
         request_id: request.id.clone(),
         decision,
+    }))
+}
+
+fn confirmation_command(
+    state: &TuiState,
+    request_id: &str,
+    decision: V3ApprovalDecision,
+) -> Result<TuiControllerCommand, String> {
+    let Some(UiOverlay::Confirm(confirmation)) = state.overlays.active() else {
+        return Err("no session confirmation is active".to_string());
+    };
+    if confirmation.request_id != request_id {
+        return Err("confirmation request does not match the active session intent".to_string());
+    }
+    let confirmed = match decision {
+        V3ApprovalDecision::Allow => true,
+        V3ApprovalDecision::Deny | V3ApprovalDecision::Cancel => false,
+        V3ApprovalDecision::AllowForSession => {
+            return Err("session mutations cannot be approved for the whole session".to_string());
+        }
+        V3ApprovalDecision::Custom(_) => {
+            return Err("session mutation confirmation does not accept custom decisions".to_string());
+        }
+    };
+    Ok(TuiControllerCommand::Overlay(TuiOverlayCommand::ConfirmDecision {
+        request_id: confirmation.request_id.clone(),
+        intent: confirmation.intent.clone(),
+        confirmed,
     }))
 }
 

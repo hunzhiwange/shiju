@@ -1,3 +1,7 @@
+//! 覆盖恢复选择器的归档、已归档筛选与恢复请求状态机。
+//! 用例守住当前会话不可归档、失败可重试以及用户自定义快捷键不被覆盖的边界。
+//! 异步场景通过记录请求而非真实服务端，验证一次性分派和完成回调。
+
 use super::super::PickerLoadRequest;
 use super::super::PickerLoader;
 use super::super::PickerState;
@@ -24,6 +28,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 fn archive_picker_state() -> (PickerState, Arc<Mutex<Vec<ThreadId>>>) {
+    // 构造含两个可选会话的状态，并记录发出的归档请求供断言使用。
     let requests = Arc::new(Mutex::new(Vec::new()));
     let request_sink = Arc::clone(&requests);
     let picker_loader: PickerLoader = Arc::new(move |request| {
@@ -48,6 +53,7 @@ fn archive_picker_state() -> (PickerState, Arc<Mutex<Vec<ThreadId>>>) {
 }
 
 fn set_selected_session(state: &mut PickerState, thread_id: ThreadId) {
+    // 通过稳定标识定位选中项，避免用例依赖排序后的固定下标。
     state.all_rows = vec![Row {
         path: None,
         preview: String::from("Selected session"),
@@ -62,6 +68,7 @@ fn set_selected_session(state: &mut PickerState, thread_id: ThreadId) {
 }
 
 #[tokio::test]
+// 归档快捷键应只对当前选中会话发送一次请求，并进入等待完成状态。
 async fn archive_shortcut_archives_selected_session_once() {
     let (mut state, requests) = archive_picker_state();
     let thread_id = ThreadId::new();
@@ -87,6 +94,7 @@ async fn archive_shortcut_archives_selected_session_once() {
 }
 
 #[test]
+// 当前正在运行的会话必须拒绝归档，防止选择器破坏活动线程。
 fn archive_request_rejects_current_session() {
     let (mut state, requests) = archive_picker_state();
     let thread_id = ThreadId::new();
@@ -106,6 +114,7 @@ fn archive_request_rejects_current_session() {
 }
 
 #[test]
+// 服务端归档失败时应保留列表项，并把原始错误反馈给用户。
 fn archive_failure_preserves_session_and_reports_server_error() {
     let (mut state, requests) = archive_picker_state();
     let thread_id = ThreadId::new();
@@ -137,6 +146,7 @@ fn archive_failure_preserves_session_and_reports_server_error() {
 }
 
 #[test]
+// 增加归档动作后，既有列表快捷键绑定仍应按用户配置分派。
 fn archive_shortcut_preserves_configured_list_binding() {
     let (mut state, _requests) = archive_picker_state();
     state.list_keymap.move_up.push(KeyBinding::new(
@@ -148,6 +158,7 @@ fn archive_shortcut_preserves_configured_list_binding() {
 }
 
 #[test]
+// 普通恢复列表页脚应展示归档提示，使新动作可发现。
 fn archive_footer_shows_shortcut_for_resume_sessions() {
     let (mut state, _requests) = archive_picker_state();
     set_selected_session(&mut state, ThreadId::new());
@@ -164,6 +175,7 @@ fn archive_footer_shows_shortcut_for_resume_sessions() {
 }
 
 #[test]
+// 切换到已归档视图时应保留目录过滤条件，并隐藏不适用的归档动作。
 fn archived_status_preserves_directory_filter_and_hides_archive_shortcut() {
     let requested_filters = Arc::new(Mutex::new(Vec::new()));
     let request_sink = Arc::clone(&requested_filters);
@@ -226,6 +238,7 @@ fn archived_status_preserves_directory_filter_and_hides_archive_shortcut() {
 }
 
 #[tokio::test]
+// 已归档会话恢复成功后应继续原有完成流程并打开对应会话。
 async fn archived_session_restore_resumes_after_completion() {
     let (mut state, requests) = archive_picker_state();
     let thread_id = ThreadId::new();
@@ -272,6 +285,7 @@ async fn archived_session_restore_resumes_after_completion() {
 }
 
 #[test]
+// 恢复失败不能移除会话或锁死选择器，同一项随后仍可再次提交。
 fn archived_session_restore_failure_preserves_session_and_allows_retry() {
     let (mut state, requests) = archive_picker_state();
     let thread_id = ThreadId::new();

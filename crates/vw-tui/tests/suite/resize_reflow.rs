@@ -1,3 +1,7 @@
+//! 通过真实 tmux 窗格验证终端调整尺寸后，历史和输入框依据源码重新流式布局。
+//! 手动忽略测试覆盖高度拆分、重复缩放、宽度恢复与已滚动多行草稿四类回归。
+//! fixture 使用本地 SSE 服务和隔离配置，避免依赖真实模型响应。
+
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -15,6 +19,7 @@ use wiremock::MockServer;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "requires tmux and a locally built codex binary; run with --ignored for manual resize smoke"]
+// 新会话被垂直拆分后，输入框行不应向下漂移，关闭拆分时还需回到原锚点。
 async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -> Result<()> {
     if cfg!(windows) {
         return Ok(());
@@ -165,6 +170,7 @@ async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "requires tmux and a locally built codex binary; run with --ignored for manual resize smoke"]
+// 多轮缩小和恢复必须保持输入框及历史哨兵行稳定，防止误差逐次累积。
 async fn tmux_repeated_resizes_do_not_push_composer_down() -> Result<()> {
     if cfg!(windows) {
         return Ok(());
@@ -182,6 +188,7 @@ async fn tmux_repeated_resizes_do_not_push_composer_down() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "requires tmux and a locally built codex binary; run with --ignored for manual resize smoke"]
+// 宽度缩小再恢复时，可见历史与输入框都应回到原来的行锚点。
 async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()> {
     if cfg!(windows) {
         return Ok(());
@@ -313,6 +320,7 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "requires tmux and a locally built codex binary; run with --ignored for manual resize smoke"]
+// 已滚动的多行草稿在窄化和恢复后仍应显示连续完整行，且不得混入陈旧终端字符。
 async fn tmux_scrolled_composer_resize_preserves_visible_draft_text() -> Result<()> {
     if cfg!(windows) {
         return Ok(());
@@ -449,6 +457,7 @@ async fn tmux_scrolled_composer_resize_preserves_visible_draft_text() -> Result<
 }
 
 async fn run_repeated_resize_smoke() -> Result<()> {
+    // 共享长会话 fixture 执行多轮缩放，并在每轮恢复后比较相同行锚点。
     let repo_root = codex_utils_cargo_bin::repo_root()?;
     let codex = codex_binary(&repo_root)?;
     let codex_home = tempdir()?;
@@ -576,6 +585,7 @@ struct TmuxSession {
 }
 
 impl Drop for TmuxSession {
+    // 测试结束时始终回收命名 tmux 会话，失败路径也不会留下后台进程。
     fn drop(&mut self) {
         let _ = Command::new("tmux")
             .arg("kill-session")
@@ -586,6 +596,7 @@ impl Drop for TmuxSession {
 }
 
 fn codex_binary(repo_root: &Path) -> Result<PathBuf> {
+    // 优先使用测试运行文件，缺失时仅接受仓库内明确的调试构建产物。
     if let Ok(path) = codex_utils_cargo_bin::cargo_bin("codex") {
         return Ok(path);
     }
@@ -599,6 +610,7 @@ fn codex_binary(repo_root: &Path) -> Result<PathBuf> {
 }
 
 fn write_config(codex_home: &Path, repo_root: &Path) -> Result<()> {
+    // 写入最小可信项目配置，隔离宿主用户的模型和分析设置。
     let repo_root_display = repo_root.display();
     let config = format!(
         r#"model = "gpt-5.4"
@@ -614,6 +626,7 @@ trust_level = "trusted"
 }
 
 fn write_auth(codex_home: &Path) -> Result<()> {
+    // 伪认证只供本地模拟服务启动客户端，不携带真实凭据。
     std::fs::write(
         codex_home.join("auth.json"),
         r#"{"OPENAI_API_KEY":"dummy","tokens":null,"last_refresh":null}"#,
@@ -622,6 +635,7 @@ fn write_auth(codex_home: &Path) -> Result<()> {
 }
 
 fn resize_reflow_sse() -> String {
+    // 固定长段落确保宽窄窗格都有足够历史行可观察重排。
     let text = "resize reflow sentinel says hi. This paragraph is intentionally long enough to exercise terminal wrapping, scrollback redraw, and pane resize behavior without requiring a live model response. It includes enough ordinary prose to wrap across several rows in a narrow tmux pane, then keep going so repeated split and restore cycles have visible history above the composer. If a resize path accidentally inserts blank rows or anchors the viewport lower on each pass, the composer row will drift after the pane returns to its original height.";
     responses::sse(vec![
         responses::ev_response_created("resp-resize-smoke"),
@@ -631,6 +645,7 @@ fn resize_reflow_sse() -> String {
 }
 
 fn wait_for_capture_contains(pane: &str, needle: &str, timeout: Duration) -> Result<String> {
+    // 有界轮询窗格捕获，超时时保留最后画面用于诊断布局状态。
     let deadline = Instant::now() + timeout;
     let mut last_capture = String::new();
     while Instant::now() < deadline {
@@ -645,6 +660,7 @@ fn wait_for_capture_contains(pane: &str, needle: &str, timeout: Duration) -> Res
 }
 
 fn capture_pane(pane: &str) -> Result<String> {
+    // 读取 tmux 当前可见文本，不解析样式控制序列。
     let output = output(
         Command::new("tmux")
             .arg("capture-pane")
@@ -682,6 +698,7 @@ fn check(command: &mut Command) -> Result<()> {
 }
 
 fn checked_output(command: &mut Command) -> Result<Output> {
+    // 外部命令失败时同时报告状态和双路输出，避免把环境问题误判为布局回归。
     let output = output(command)?;
     anyhow::ensure!(
         output.status.success(),

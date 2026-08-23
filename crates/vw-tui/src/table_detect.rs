@@ -1,3 +1,8 @@
+//! 对原始 Markdown 源码执行规范管道表格结构检测和围栏代码块跟踪。
+//!
+//! 流式控制器与 Markdown 围栏展开器共用本实现。GFM 表格由含非空单元的表头、紧随其后的
+//! 对齐分隔行及正文组成；`FenceTracker` 区分围栏外、Markdown 围栏和其他代码围栏，
+//! 避免把代码中的管道符当作表格。单行函数不保存跨行状态，连续行配对由调用方负责。
 //! Canonical pipe-table structure detection and fenced-code-block tracking for
 //! raw markdown source.
 //!
@@ -26,6 +31,8 @@
 //! state.  Callers (the streaming controller and fence unwrapper) are
 //! responsible for pairing consecutive lines to confirm a table.
 
+/// 将管道分隔行拆成去除首尾空白的片段；空行或无未转义分隔符时返回 `None`。
+/// 这是结构解析器，会保留转义管道，因为调用方只判断是否可参与表格。
 /// Split a pipe-delimited line into trimmed segments.
 ///
 /// Returns `None` if the line is empty or has no unescaped separator marker.
@@ -53,6 +60,7 @@ pub(crate) fn parse_table_segments(line: &str) -> Option<Vec<&str>> {
     (!segments.is_empty()).then_some(segments)
 }
 
+/// 按未转义的 `|` 拆分内容；前有反斜杠的管道是字面文本，反斜杠仍留在片段中。
 /// Split `content` on unescaped `|` characters.
 ///
 /// A pipe preceded by `\` is treated as literal text, not a column separator.
@@ -65,6 +73,7 @@ fn split_unescaped_pipe(content: &str) -> Vec<&str> {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'\\' {
+            // 跳过已转义字符，使其后的管道不被当作分隔符。
             // Skip the escaped character.
             i += 2;
         } else if bytes[i] == b'|' {
@@ -79,9 +88,11 @@ fn split_unescaped_pipe(content: &str) -> Vec<&str> {
     segments
 }
 
+// 小型表格检测函数内联到流式热路径，因为增量保留扫描会对每一源码行调用它们。
 // Small table-detection helpers inlined for the streaming hot path — they are
 // called on every source line during incremental holdback scanning.
 
+/// 判断行是否像表头，即含管道分隔片段且至少一个单元非空。
 /// Whether `line` looks like a table header row (has pipe-separated
 /// segments with at least one non-empty cell).
 #[inline]
@@ -89,6 +100,7 @@ pub(crate) fn is_table_header_line(line: &str) -> bool {
     parse_table_segments(line).is_some_and(|segments| segments.iter().any(|s| !s.is_empty()))
 }
 
+/// 判断单个片段是否匹配 Markdown 分隔行的对齐冒号语法。
 /// Whether a single segment matches the `---`, `:---`, `---:`, or `:---:`
 /// alignment-colon syntax used in markdown table delimiter rows.
 #[inline]
@@ -102,6 +114,7 @@ fn is_table_delimiter_segment(segment: &str) -> bool {
     without_ends.len() >= 3 && without_ends.chars().all(|c| c == '-')
 }
 
+/// 判断整行是否为有效表格分隔行，即每个片段都通过分隔片段校验。
 /// Whether `line` is a valid table delimiter row (every segment passes
 /// [`is_table_delimiter_segment`]).
 #[inline]
@@ -110,10 +123,13 @@ pub(crate) fn is_table_delimiter_line(line: &str) -> bool {
         .is_some_and(|segments| segments.into_iter().all(is_table_delimiter_segment))
 }
 
+// 以下部分负责跟踪围栏代码块。
 // ---------------------------------------------------------------------------
 // Fenced code block tracking
 // ---------------------------------------------------------------------------
 
+/// 源码行相对围栏代码块的位置；表格保留只作用于围栏外或 Markdown 围栏，
+/// 其他代码围栏内的管道符属于代码而非表格语法。
 /// Where a source line sits relative to fenced code blocks.
 ///
 /// Table holdback only applies to lines that are `Outside` or inside a
@@ -122,14 +138,19 @@ pub(crate) fn is_table_delimiter_line(line: &str) -> bool {
 /// table syntax.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FenceKind {
+    /// 不在任何围栏代码块内。
     /// Not inside any fenced code block.
     Outside,
+    /// 位于 `md` 或 `markdown` 围栏内。
     /// Inside a `` ```md `` or `` ```markdown `` fence.
     Markdown,
+    /// 位于信息字符串不是 Markdown 的围栏内。
     /// Inside a fence with a non-markdown info string.
     Other,
 }
 
+/// 围栏代码块开闭转换的增量跟踪器；处理三空格限制、块引用前缀及反引号/波浪线匹配，
+/// `kind` 报告当前行改变状态前适用的上下文。
 /// Incremental tracker for fenced-code-block open/close transitions.
 ///
 /// Feed lines one at a time via [`advance`](Self::advance); query the current
@@ -150,6 +171,7 @@ impl FenceTracker {
         Self { state: None }
     }
 
+    /// 处理一条原始源码行并更新围栏状态；超过三空格缩进的行不是围栏，块引用前缀先移除。
     /// Process one raw source line and update fence state.
     ///
     /// Lines with >3 leading spaces are ignored (indented code blocks, not
@@ -164,6 +186,7 @@ impl FenceTracker {
         let fence_scan_text = strip_blockquote_prefix(trimmed);
         if let Some((marker, len)) = parse_fence_marker(fence_scan_text) {
             if let Some((open_char, open_len, _)) = self.state {
+                // 标记字符及长度匹配时关闭当前围栏。
                 // Close the current fence if the marker matches.
                 if marker == open_char
                     && len >= open_len
@@ -172,6 +195,7 @@ impl FenceTracker {
                     self.state = None;
                 }
             } else {
+                // 打开新围栏并按信息字符串分类。
                 // Opening a new fence.
                 let kind = if is_markdown_fence_info(fence_scan_text, len) {
                     FenceKind::Markdown
@@ -183,6 +207,7 @@ impl FenceTracker {
         }
     }
 
+    /// 最近处理行所适用的当前围栏上下文。
     /// Current fence context for the most-recently-advanced line.
     #[inline]
     pub(crate) fn kind(&self) -> FenceKind {
@@ -190,6 +215,7 @@ impl FenceTracker {
     }
 }
 
+/// 返回潜在围栏行的标记字符和连续长度；只识别至少三个反引号或波浪线。
 /// Return fence marker character and run length for a potential fence line.
 ///
 /// Recognises backtick and tilde fences with a minimum run of 3.
@@ -208,6 +234,7 @@ pub(crate) fn parse_fence_marker(line: &str) -> Option<(char, usize)> {
     Some((first as char, len))
 }
 
+/// 判断围栏标记后的信息字符串是否为大小写不敏感的 `md` 或 `markdown`。
 /// Whether the info string after a fence marker indicates markdown content.
 ///
 /// Matches `md` and `markdown` (case-insensitive).
@@ -217,6 +244,7 @@ pub(crate) fn is_markdown_fence_info(trimmed_line: &str, marker_len: usize) -> b
     info.eq_ignore_ascii_case("md") || info.eq_ignore_ascii_case("markdown")
 }
 
+/// 移除一行所有前导 `>` 块引用标记，使块引用中的表格也能被结构扫描识别。
 /// Peel all leading `>` blockquote markers from a line.
 ///
 /// Tables can appear inside blockquotes (`> | A | B |`), so the holdback
@@ -274,6 +302,7 @@ mod tests {
 
     #[test]
     fn parse_table_segments_escaped_pipe() {
+        // 转义管道不得拆分，必须留在同一片段内。
         // Escaped pipe should NOT split — stays inside the segment.
         assert_eq!(parse_table_segments(r"| A \| B | C |"), Some(vec![r"A \| B", "C"]));
     }
@@ -319,6 +348,7 @@ mod tests {
         assert!(!is_table_header_line("| | |"));
     }
 
+    // 以下测试覆盖 `FenceTracker` 状态转换。
     // -----------------------------------------------------------------------
     // FenceTracker tests
     // -----------------------------------------------------------------------
@@ -376,9 +406,11 @@ mod tests {
         let mut tracker = FenceTracker::new();
         tracker.advance("````sh");
         assert_eq!(tracker.kind(), FenceKind::Other);
+        // 围栏内更短的标记不能关闭围栏。
         // Shorter marker inside should not close.
         tracker.advance("```");
         assert_eq!(tracker.kind(), FenceKind::Other);
+        // 长度匹配的标记应关闭围栏。
         // Matching length closes.
         tracker.advance("````");
         assert_eq!(tracker.kind(), FenceKind::Outside);
@@ -389,6 +421,7 @@ mod tests {
         let mut tracker = FenceTracker::new();
         tracker.advance("```sh");
         assert_eq!(tracker.kind(), FenceKind::Other);
+        // 波浪线标记不能关闭反引号围栏。
         // Tilde marker should not close a backtick fence.
         tracker.advance("~~~");
         assert_eq!(tracker.kind(), FenceKind::Other);
@@ -417,6 +450,7 @@ mod tests {
         let mut tracker = FenceTracker::new();
         tracker.advance("```sh");
         assert_eq!(tracker.kind(), FenceKind::Other);
+        // 关闭标记后的额外内容会阻止关闭。
         // Trailing content prevents closing.
         tracker.advance("``` extra");
         assert_eq!(tracker.kind(), FenceKind::Other);
@@ -424,6 +458,7 @@ mod tests {
         assert_eq!(tracker.kind(), FenceKind::Outside);
     }
 
+    // 以下测试覆盖围栏辅助函数。
     // -----------------------------------------------------------------------
     // Fence helper function tests
     // -----------------------------------------------------------------------

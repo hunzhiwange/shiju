@@ -90,6 +90,33 @@ fn shell_completion_propagates_writer_flush_failure() {
 }
 
 #[test]
+fn api_command_help_and_completions_cover_every_family() {
+    let families = [
+        "apiql", "config", "provider", "control", "operations", "interactive", "project",
+        "realtime", "knowledge", "task-pool", "task-lifecycle", "scheduler", "session",
+        "session-content", "shiju-apps", "skill-market", "extensions", "desktop", "staff",
+        "workflow", "workspace", "system",
+    ];
+    let command = crate::cli::Cli::command();
+    let api = command.find_subcommand("api").expect("api command");
+    let names = api
+        .get_subcommands()
+        .map(clap::Command::get_name)
+        .collect::<std::collections::HashSet<_>>();
+    for family in families {
+        assert!(names.contains(family), "api help omits family {family}");
+    }
+
+    let mut completion = Vec::new();
+    crate::cli::write_shell_completion(crate::cli::CompletionShell::Bash, &mut completion)
+        .expect("Bash completion");
+    let completion = String::from_utf8(completion).expect("UTF-8 completion");
+    for family in families {
+        assert!(completion.contains(family), "completion omits api family {family}");
+    }
+}
+
+#[test]
 fn global_config_dir_parses_before_or_after_subcommand() {
     for arguments in [
         ["vibewindow", "--config-dir", "/tmp/config", "status"],

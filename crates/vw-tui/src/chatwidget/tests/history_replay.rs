@@ -1,3 +1,8 @@
+//! 验证会话恢复与实时事件回放能够重建历史、配置和运行状态。
+//! 场景区分线程快照、历史日志与实时通知，防止回放触发退出或后台刷新。
+//! 用户消息、图片、推理和工具调用必须保留结构，同时避免重复渲染。
+//! 流错误与恢复事件还需还原先前状态标题，而不伪造正在重试的提示。
+
 use super::*;
 use crate::app_event::HistoryLookupResponse;
 use codex_app_server_protocol::NetworkAccess;
@@ -12,6 +17,7 @@ use pretty_assertions::assert_eq;
 
 #[tokio::test]
 async fn resumed_initial_messages_render_history() {
+    // 恢复会话先重建已有历史，再接受实时事件，避免初始消息缺失或乱序。
     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let thread_id = ThreadId::new();
@@ -162,6 +168,7 @@ async fn restored_conversation_ultra_remains_selected_after_switching_to_plan() 
 
 #[tokio::test]
 async fn replayed_user_messages_seed_composer_history() {
+    // 普通用户回放写入编辑器召回历史，审查提示及其嵌套内容则必须排除。
     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.bottom_pane.set_history_metadata(
         ThreadId::new(),
@@ -360,6 +367,7 @@ async fn replayed_nested_review_prompts_do_not_render_or_seed_composer_history()
 
 #[tokio::test]
 async fn replayed_user_message_preserves_text_elements_and_local_images() {
+    // 回放消息分别覆盖结构化文本、本地图片、远程图片和纯附件消息。
     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let placeholder = "[Image #1]";
@@ -507,6 +515,7 @@ async fn replayed_user_message_preserves_remote_image_urls() {
 
 #[tokio::test]
 async fn session_configured_syncs_widget_config_permissions_and_cwd() {
+    // 会话配置同步权限、工作目录和工作区根，同时保留外部沙箱策略。
     let (mut chat, _rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.config
@@ -819,6 +828,7 @@ async fn replayed_user_message_with_only_local_images_renders_history_cell() {
 
 #[tokio::test]
 async fn forked_thread_history_line_includes_name_and_id_snapshot() {
+    // 本地与 app-server 分叉记录在名称缺失时稳定回退到线程标识。
     let (chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let mut chat = chat;
 
@@ -982,6 +992,7 @@ async fn app_server_forked_thread_history_line_without_app_server_name_ignores_l
 
 #[tokio::test]
 async fn thread_snapshot_replay_preserves_agent_message_during_review_mode() {
+    // 审查模式快照仍保留代理消息，但不得将内部审查提示当作普通消息。
     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
 
     replay_entered_review_mode(&mut chat, "current changes");
@@ -1159,6 +1170,7 @@ async fn replayed_reasoning_item_shows_raw_reasoning_when_enabled() {
 
 #[tokio::test]
 async fn replayed_in_progress_mcp_tool_call_stays_active() {
+    // 未完成工具调用保持活动，延迟生命周期事件在流结束后按先进先出处理。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let _ = drain_insert_history(&mut rx);
 
@@ -1249,6 +1261,7 @@ async fn deferred_mcp_lifecycle_events_keep_fifo_after_stream_finishes() {
 
 #[tokio::test]
 async fn live_reasoning_summary_is_not_rendered_twice_when_item_completes() {
+    // 实时推理摘要完成时去重，并丢弃空片段而不损失已有正文。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
 

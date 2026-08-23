@@ -1,3 +1,6 @@
+// 覆盖 Markdown 到终端富文本的结构、换行、链接、代码块与表格渲染契约。
+// 测试按语法族分组，快照守住组合布局，结构断言用于定位具体边界行为。
+
 use pretty_assertions::assert_eq;
 use ratatui::style::Modifier;
 use ratatui::style::Stylize;
@@ -15,6 +18,7 @@ use crate::markdown_render::render_markdown_text_with_width_and_cwd;
 
 // VibeWindow adaptation: keep using the copied Codex snapshot files after the
 // crate rename instead of accepting duplicate `vw_tui__*` snapshots.
+// VibeWindow 适配：crate 改名后继续复用复制来的 Codex 快照，避免接受重复的 `vw_tui__*` 快照。
 macro_rules! assert_upstream_snapshot {
     ($name:literal, $value:expr) => {{
         let mut settings = insta::Settings::clone_current();
@@ -42,10 +46,12 @@ macro_rules! assert_upstream_debug_snapshot {
 }
 
 fn render_markdown_text_for_cwd(input: &str, cwd: &Path) -> Text<'static> {
+    // 用固定宽度与显式工作目录渲染，供本地文件链接场景共享。
     render_markdown_text_with_width_and_cwd(input, /*width*/ None, Some(cwd))
 }
 
 fn plain_lines(text: &Text<'_>) -> Vec<String> {
+    // 去除样式只保留行内容，让结构测试不受主题配色变化影响。
     text.lines
         .iter()
         .map(|line| {
@@ -58,6 +64,7 @@ fn plain_lines(text: &Text<'_>) -> Vec<String> {
 }
 
 #[test]
+// 裸链接、表格链接和合并文本事件共同验证实体解码与波浪号不会截断目标地址。
 fn bare_url_with_tilde_keeps_complete_hyperlink() {
     let destination =
         "https://www.cs.tufts.edu/~nr/cs257/archive/olin-shivers/dissertation.pdf";
@@ -144,6 +151,7 @@ fn merged_text_events_preserve_entity_decoding() {
 }
 
 #[test]
+// 基础块级语法组覆盖空输入、段落软换行、多段落与各级标题的稳定行结构。
 fn empty() {
     assert_eq!(render_markdown_text(""), Text::default());
 }
@@ -193,6 +201,7 @@ fn headings() {
 }
 
 #[test]
+// 引用语法组覆盖懒续行、嵌套、列表组合以及块级子元素的前缀和空行规则。
 fn blockquote_single() {
     let text = render_markdown_text("> Blockquote");
     let expected = Text::from(Line::from_iter(["> ", "Blockquote"]).green());
@@ -202,6 +211,7 @@ fn blockquote_single() {
 #[test]
 fn blockquote_soft_break() {
     // Soft break via lazy continuation should render as a new line in blockquotes.
+    // 懒续行形成的软换行在引用块中应渲染为新行。
     let text = render_markdown_text("> This is a blockquote\nwith a soft break\n");
     let lines: Vec<String> = text
         .lines
@@ -309,6 +319,7 @@ fn list_item_with_inline_blockquote_on_same_line() {
     let mut lines = text.lines.iter();
     let first = lines.next().expect("one line");
     // Expect content to include the ordered marker, a space, "> ", and the text
+    // 内容应包含有序标记、空格、引用前缀以及正文。
     let s: String = first.spans.iter().map(|sp| sp.content.clone()).collect();
     assert_eq!(s, "1. > quoted");
 }
@@ -343,6 +354,7 @@ fn blockquote_surrounded_by_blank_lines() {
 fn blockquote_in_ordered_list_on_next_line() {
     // Blockquote begins on a new line within an ordered list item; it should
     // render inline on the same marker line.
+    // 引用块虽在有序列表项内另起源码行，仍应与列表标记渲染在同一行。
     let md = "1.\n   > quoted\n";
     let text = render_markdown_text(md);
     let lines: Vec<String> = text
@@ -362,6 +374,7 @@ fn blockquote_in_ordered_list_on_next_line() {
 fn blockquote_in_unordered_list_on_next_line() {
     // Blockquote begins on a new line within an unordered list item; it should
     // render inline on the same marker line.
+    // 引用块虽在无序列表项内另起源码行，仍应与列表标记渲染在同一行。
     let md = "-\n  > quoted\n";
     let text = render_markdown_text(md);
     let lines: Vec<String> = text
@@ -380,6 +393,7 @@ fn blockquote_in_unordered_list_on_next_line() {
 #[test]
 fn blockquote_two_paragraphs_inside_ordered_list_has_blank_line() {
     // Two blockquote paragraphs inside a list item should be separated by a blank line.
+    // 列表项中的两段引用内容之间应保留一个空行。
     let md = "1.\n   > para 1\n   >\n   > para 2\n";
     let text = render_markdown_text(md);
     let lines: Vec<String> = text
@@ -476,6 +490,7 @@ fn blockquote_with_heading_and_paragraph() {
     let md = "> # Heading\n> paragraph text\n";
     let text = render_markdown_text(md);
     // Validate on content shape; styling is handled elsewhere
+    // 此处只验证内容形状，样式继承由其他用例负责。
     let lines: Vec<String> = text
         .lines
         .iter()
@@ -592,6 +607,7 @@ fn nested_blockquote_with_inline_and_fenced_code() {
 }
 
 #[test]
+// 列表语法组覆盖有序起始值、松紧列表、混合嵌套与连续段落的缩进和间距。
 fn list_unordered_single() {
     let text = render_markdown_text("- List item 1\n");
     let expected = Text::from_iter([Line::from_iter(["- ", "List item 1"])]);
@@ -739,6 +755,7 @@ fn ordered_item_with_indented_continuation_is_tight() {
 }
 
 #[test]
+// 行内语法组验证代码、强调、删除线与链接组合不会破坏相邻文本。
 fn inline_code() {
     let text = render_markdown_text("Example of `Inline code`");
     let expected = Line::from_iter(["Example of ".into(), "Inline code".cyan()]).into();
@@ -792,6 +809,7 @@ fn link() {
 }
 
 #[test]
+// 本地文件链接组区分标签和目标路径，并覆盖行号、锚点、范围及工作目录相对化。
 fn load_location_suffix_regexes() {
     let _colon = &*COLON_LOCATION_SUFFIX_RE;
     let _hash = &*HASH_LOCATION_SUFFIX_RE;
@@ -908,6 +926,7 @@ fn file_link_appends_hash_range_when_label_lacks_it() {
 }
 
 #[test]
+// 多行标签和连续列表链接用于防止路径片段脱离原行或触发索引越界。
 fn multiline_file_link_label_after_styled_prefix_does_not_panic() {
     let text = render_markdown_text_for_cwd(
         "**bold** plain [foo\nbar](file:///Users/example/code/codex/codex-rs/tui/src/markdown_render.rs#L74C3)",
@@ -1044,6 +1063,7 @@ fn consecutive_unordered_list_local_file_links_do_not_detach_paths() {
 }
 
 #[test]
+// 代码块组覆盖已知与未知语言、围栏嵌套、列表缩进以及语法高亮降级。
 fn code_block_known_lang_has_syntax_colors() {
     let text = render_markdown_text("```rust\nfn main() {}\n```\n");
     let content: Vec<String> = text
@@ -1057,6 +1077,7 @@ fn code_block_known_lang_has_syntax_colors() {
         })
         .collect();
     // Content should be preserved; ignore trailing empty line from highlighting.
+    // 内容必须保留；语法高亮产生的末尾空行不参与此处比较。
     let content: Vec<&str> = content
         .iter()
         .map(std::string::String::as_str)
@@ -1065,6 +1086,7 @@ fn code_block_known_lang_has_syntax_colors() {
     assert_eq!(content, vec!["fn main() {}"]);
 
     // At least one span should have non-default style (syntax highlighting).
+    // 至少一个文本片段应使用非默认样式，以证明高亮确实生效。
     let has_colored_span = text
         .lines
         .iter()
@@ -1094,6 +1116,7 @@ fn code_block_unknown_lang_plain() {
     assert_eq!(content, vec!["hello world"]);
 
     // No syntax coloring for unknown language — all spans have default style.
+    // 未知语言不应着色，所有文本片段都保持默认样式。
     let has_colored_span = text
         .lines
         .iter()
@@ -1188,6 +1211,7 @@ Here is a code block that shows another fenced block:
         .collect();
     // Filter empty trailing lines for stability; the code block may or may
     // not emit a trailing blank depending on the highlighting path.
+    // 为保持断言稳定，过滤末尾空行；不同高亮路径可能选择是否输出该空行。
     let trimmed: Vec<&str> = {
         let mut v: Vec<&str> = lines.iter().map(std::string::String::as_str).collect();
         while v.last() == Some(&"") {
@@ -1210,6 +1234,7 @@ Here is a code block that shows another fenced block:
 }
 
 #[test]
+// 列表中的代码块组守住兄弟项之间的空行，同时避免简单列表被过度拉开。
 fn code_block_inside_unordered_list_item_is_indented() {
     let md = "- Item\n\n  ```\n  code line\n  ```\n";
     let text = render_markdown_text(md);
@@ -1301,6 +1326,7 @@ fn list_item_after_simple_item_stays_compact() {
 }
 
 #[test]
+// 复杂快照组合列表、链接、普通段落与换行，用于捕获跨语法边界的布局回归。
 fn multiline_finding_items_are_separated_snapshot() {
     let md = r#"**Findings**
 
@@ -1405,6 +1431,7 @@ URL with parentheses: [link](https://example.com/path_(with)_parens).
 
     let text = render_markdown_text(md);
     // Convert to plain text lines for snapshot (ignore styles)
+    // 快照转换为纯文本行，只观察布局而忽略样式。
     let rendered = text
         .lines
         .iter()
@@ -1464,6 +1491,7 @@ fn nested_five_levels_mixed_lists() {
 }
 
 #[test]
+// HTML 组要求行内和块级标签按原文展示，并服从所在列表的续行缩进。
 fn html_inline_is_verbatim() {
     let md = "Hello <span>world</span>!";
     let text = render_markdown_text(md);
@@ -1507,6 +1535,7 @@ fn html_continuation_paragraph_in_unordered_item_indented() {
 }
 
 #[test]
+// 延续段落组验证有序、无序和嵌套列表都保持所属层级的缩进。
 fn unordered_item_continuation_paragraph_is_indented() {
     let md = "- Intro\n\n  Continuation paragraph line 1\n  Continuation paragraph line 2\n";
     let text = render_markdown_text(md);
@@ -1561,6 +1590,7 @@ fn nested_item_continuation_paragraph_is_indented() {
 #[test]
 fn code_block_preserves_trailing_blank_lines() {
     // A fenced code block with an intentional trailing blank line must keep it.
+    // 围栏代码中有意保留的末尾空行不能在渲染时丢失。
     let md = "```rust\nfn main() {}\n\n```\n";
     let text = render_markdown_text(md);
     let content: Vec<String> = text
@@ -1575,11 +1605,13 @@ fn code_block_preserves_trailing_blank_lines() {
         .collect();
     // Should have: "fn main() {}" then "" (the blank line).
     // Filter only to content lines (skip leading/trailing empty from rendering).
+    // 内容应先是代码行再是空行；比较时跳过渲染器额外产生的边缘空行。
     assert!(
         content.iter().any(|c| c == "fn main() {}"),
         "expected code line, got {content:?}"
     );
     // The trailing blank line inside the fence should be preserved.
+    // 围栏内部的末尾空行应继续存在。
     let code_start = content.iter().position(|c| c == "fn main() {}").unwrap();
     assert!(
         content.len() > code_start + 1,
@@ -1592,6 +1624,7 @@ fn code_block_preserves_trailing_blank_lines() {
 }
 
 #[test]
+// 表格组覆盖主题表头、对齐、单元格换行和引用块前缀。
 fn table_renders_app_style_rows_with_themed_bold_header() {
     let md = "| A | B |\n|---|---|\n| 1 | 2 |\n";
     let text = render_markdown_text(md);
@@ -1687,6 +1720,7 @@ fn table_separates_logical_rows_after_wrapped_content() {
 }
 
 #[test]
+// 窄宽度表格组验证网格与键值记录之间的自适应回退不会丢失富文本值。
 fn table_wraps_file_paths_before_collapsing_narrative_columns_snapshot() {
     let md = r#"| Unit | Files | Adds | Removes | What It Adds |
 |---|---:|---:|---:|---|

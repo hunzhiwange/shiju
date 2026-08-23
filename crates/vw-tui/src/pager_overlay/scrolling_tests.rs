@@ -1,3 +1,7 @@
+//! 验证分页浮层在部分可见历史单元上的滚动裁剪与完整高度回退等价。
+//! fixture 同时覆盖富文本链接、定制 Renderable 与实时尾部，防止不同渲染路径产生偏移。
+//! 极端偏移使用饱和算术，确保接近终端尺寸上限时仍不会溢出。
+
 use super::super::CachedRenderable;
 use super::super::TranscriptOverlay;
 use super::CellRenderable;
@@ -24,6 +28,7 @@ use ratatui::widgets::Wrap;
 use std::sync::Arc;
 
 #[derive(Debug)]
+// 固定行单元为滚动测试提供可预测的显示、转录和原始行集合。
 struct HyperlinkTestCell {
     lines: Vec<HyperlinkLine>,
 }
@@ -47,6 +52,7 @@ impl HistoryCell for HyperlinkTestCell {
 }
 
 /// Forces the unchanged full-height fallback while preserving the wrapped renderable's output.
+/// 强制使用未优化的完整高度回退，同时保留被包装渲染对象的输出。
 struct LegacyOnlyRenderable {
     inner: Box<dyn Renderable>,
 }
@@ -62,6 +68,7 @@ impl Renderable for LegacyOnlyRenderable {
 }
 
 fn scrolled_hyperlink_lines() -> Vec<HyperlinkLine> {
+    // 组合宽字符、链接和空行，覆盖按物理终端行裁剪时的代表性内容。
     let mut linked = HyperlinkLine::new(Line::from(vec![
         "prefix ".green(),
         "漢字 ".bold(),
@@ -85,6 +92,7 @@ fn scrolled_hyperlink_lines() -> Vec<HyperlinkLine> {
 }
 
 fn scrolled_test_renderables(lines: &[HyperlinkLine]) -> Vec<(&'static str, Box<dyn Renderable>)> {
+    // 为同一内容构造多种渲染对象，逐一比较优化路径与基准路径。
     let cell: Arc<dyn HistoryCell> = Arc::new(HyperlinkTestCell {
         lines: lines.to_vec(),
     });
@@ -150,6 +158,7 @@ fn scrolled_test_renderables(lines: &[HyperlinkLine]) -> Vec<(&'static str, Box<
 }
 
 #[test]
+// 各类可滚动渲染对象在相同视口下必须与完整高度渲染后裁剪的结果一致。
 fn scrolled_transcript_renderables_match_full_height_fallback() {
     let lines = scrolled_hyperlink_lines();
 
@@ -199,6 +208,7 @@ fn scrolled_transcript_renderables_match_full_height_fallback() {
 }
 
 #[test]
+// 历史单元与实时尾部拼接时，滚动窗口的内容和光标位置都应保持等价。
 fn transcript_overlay_scrolled_cells_and_live_tail_match_full_height_fallback() {
     let lines = scrolled_hyperlink_lines();
     let cell: Arc<dyn HistoryCell> = Arc::new(HyperlinkTestCell {
@@ -258,6 +268,7 @@ fn transcript_overlay_scrolled_cells_and_live_tail_match_full_height_fallback() 
 }
 
 #[test]
+// 偏移接近 u16 上限时仍应安全得到有限区域，而不是算术回绕或越界绘制。
 fn fallback_handles_offsets_near_maximum_height() {
     struct MaximumHeightRenderable;
 

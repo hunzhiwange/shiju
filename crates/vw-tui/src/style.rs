@@ -1,3 +1,6 @@
+//! TUI 各展示面共享的语义颜色与控件样式。
+//! 颜色选择尊重终端背景与既有调色板，避免硬编码造成浅色主题不可读。
+
 use crate::color::blend;
 use crate::color::is_light;
 use crate::terminal_palette::StdoutColorLevel;
@@ -20,6 +23,7 @@ pub(crate) enum StatusTone {
 }
 
 /// Semantic status colors that preserve the terminal's configured palette.
+/// 保留终端配置调色板的语义状态颜色。
 pub(crate) fn status_style(tone: StatusTone) -> Style {
     status_style_for(tone, default_bg(), effective_stdout_color_level())
 }
@@ -35,12 +39,14 @@ fn status_style_for(
         (StatusTone::Success, _) => Color::Green,
         (StatusTone::Failure, _) => Color::Red,
         // Yellow can disappear on light themes; use it only with a known dark background.
+        // 黄色在浅色主题上可能不可见，只在确认暗色背景时使用。
         (StatusTone::Attention, _) if light || terminal_bg.is_none() => Color::Reset,
         (StatusTone::Attention, _) => Color::Yellow,
     };
     Style::default().fg(color).bold()
 }
 // Decorative table rules should remain visible without competing with cell content.
+// 表格装饰线应可见但不能抢过单元格内容的视觉层级。
 const TABLE_SEPARATOR_FG_ALPHA: f32 = 0.20;
 
 pub fn user_message_style() -> Style {
@@ -52,16 +58,19 @@ pub fn proposed_plan_style() -> Style {
 }
 
 /// Returns a low-contrast rule style for separators within markdown tables.
+/// 返回 Markdown 表格分隔线使用的低对比度样式。
 pub(crate) fn table_separator_style() -> Style {
     table_separator_style_for(default_fg(), default_bg(), stdout_color_level())
 }
 
 /// Returns the shared accent style for active or selected TUI controls.
+/// 返回活动或选中控件共享的强调样式。
 pub(crate) fn accent_style() -> Style {
     accent_style_for(default_bg())
 }
 
 /// Returns the style for a user-authored message using the provided terminal background.
+/// 根据给定终端背景返回用户消息样式，确保文本对比度。
 pub fn user_message_style_for(terminal_bg: Option<(u8, u8, u8)>) -> Style {
     match terminal_bg {
         Some(bg) => Style::default().bg(user_message_bg(bg)),
@@ -77,6 +86,8 @@ pub fn proposed_plan_style_for(terminal_bg: Option<(u8, u8, u8)>) -> Style {
 }
 
 /// Returns the shared accent style for the provided terminal background.
+/// 根据给定终端背景返回共享强调色样式。
+// 其余轻量辅助函数统一复用这些语义入口，避免各组件自行选择不一致颜色。
 pub(crate) fn accent_style_for(terminal_bg: Option<(u8, u8, u8)>) -> Style {
     if terminal_bg.is_some_and(is_light) {
         Style::default().fg(best_color(LIGHT_BG_ACCENT_RGB)).bold()
@@ -124,6 +135,7 @@ mod tests {
     use ratatui::style::Modifier;
 
     #[test]
+    // 验证浅色终端背景上的状态色仍有足够对比度。
     fn status_colors_preserve_light_terminal_themes() {
         for level in [StdoutColorLevel::TrueColor, StdoutColorLevel::Ansi256] {
             for bg in [(255, 255, 255), (130, 130, 130), (220, 210, 180)] {
@@ -152,6 +164,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 ANSI16 与无颜色能力回退不依赖真彩色。
     fn status_colors_preserve_ansi16_and_no_color_fallbacks() {
         for (tone, light, dark) in [
             (StatusTone::Success, Color::Green, Color::Green),
@@ -172,6 +185,7 @@ mod tests {
     }
 
     #[test]
+    // 验证浅色背景使用较深青色作为强调色。
     fn accent_style_uses_darker_cyan_on_light_backgrounds() {
         let style = accent_style_for(Some((255, 255, 255)));
 
@@ -180,6 +194,7 @@ mod tests {
     }
 
     #[test]
+    // 验证暗色或未知背景沿用标准青色强调。
     fn accent_style_uses_cyan_on_dark_or_unknown_backgrounds() {
         let expected = Style::default().fg(Color::Cyan).bold();
 
@@ -188,6 +203,7 @@ mod tests {
     }
 
     #[test]
+    // 验证表格分隔色朝暗色背景混合而不过分抢眼。
     fn table_separator_blends_toward_dark_background() {
         let style = table_separator_style_for(
             Some((255, 255, 255)),
@@ -199,6 +215,7 @@ mod tests {
     }
 
     #[test]
+    // 验证表格分隔色在浅色背景上仍可见。
     fn table_separator_blends_toward_light_background() {
         let style = table_separator_style_for(
             Some((0, 0, 0)),
@@ -210,6 +227,7 @@ mod tests {
     }
 
     #[test]
+    // 验证无法感知调色板时以 dim 属性安全回退。
     fn table_separator_dims_when_palette_aware_color_is_unavailable() {
         let expected = Style::default().dim();
 

@@ -1,3 +1,8 @@
+//! 为 TUI 状态行项目获取分支和拉取请求元数据。
+//!
+//! 本模块通过 `WorkspaceCommandExecutor` 探测 Git/GitHub，使嵌入式和远程应用服务器
+//! 共用同一逻辑。所有查询均为尽力而为：命令失败、工具缺失、未认证或仓库状态含糊时，
+//! 只省略相应可选元数据，不阻塞界面或向用户报后台错误。
 //! Branch and pull-request metadata for TUI status-line items.
 //!
 //! This module owns the git and GitHub probes behind the TUI `git-branch`, `pull-request-number`,
@@ -22,27 +27,36 @@ use crate::workspace_command::WorkspaceCommandError;
 use crate::workspace_command::WorkspaceCommandExecutor;
 use crate::workspace_command::WorkspaceCommandOutput;
 
+/// `HEAD` 与分支比较基准之间的新增和删除行数。
 /// Additions and deletions between `HEAD` and a branch comparison base.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct GitBranchDiffStats {
+    /// 当前分支已提交变更的新增总行数。
     /// Total added lines in committed changes on the current branch.
     pub(crate) additions: u64,
+    /// 当前分支已提交变更的删除总行数。
     /// Total deleted lines in committed changes on the current branch.
     pub(crate) deletions: u64,
 }
 
+/// 状态行为一个工作目录缓存的组合 Git 元数据；任一探测失败时仍可只包含另一个字段，
+/// 渲染器应将缺失字段视为可选界面省略，而不是硬失败。
 /// Combined git metadata cached by the status line for one working directory.
 ///
 /// A summary may contain only one of the fields when the other probe fails. Renderers should treat
 /// missing fields as omitted optional UI rather than as a hard lookup failure.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct StatusLineGitSummary {
+    /// 与当前分支或 `HEAD` 提交关联的开放拉取请求。
     /// Open pull request associated with the current branch or HEAD commit.
     pub(crate) pull_request: Option<StatusLinePullRequest>,
+    /// `HEAD` 与仓库默认分支合并基准之间的新增和删除行数。
     /// Additions and deletions between `HEAD` and the repository default branch merge base.
     pub(crate) branch_change_stats: Option<GitBranchDiffStats>,
 }
 
+/// `pull-request-number` 状态行项目展示的开放 GitHub 拉取请求；URL 与编号共同保存，
+/// 以便可点击渲染器打开同一个 PR，关闭或已合并 PR 会在本模块过滤。
 /// Open GitHub pull request shown by the `pull-request-number` status-line item.
 ///
 /// The URL is kept with the number so clickable renderers can open the same PR represented by the
@@ -50,14 +64,17 @@ pub(crate) struct StatusLineGitSummary {
 /// out by this module.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct StatusLinePullRequest {
+    /// GitHub 拉取请求编号。
     /// GitHub pull request number.
     pub(crate) number: u64,
+    /// 拉取请求的浏览器 URL。
     /// Browser URL for the pull request.
     pub(crate) url: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DefaultBranch {
+    /// 用于合并基准比较的 Git 引用；可为远程跟踪引用，以避开过期或缺失的本地默认分支。
     /// Git ref used for merge-base comparison.
     ///
     /// This may be a remote-tracking ref such as `refs/remotes/origin/main`, which avoids
@@ -93,6 +110,7 @@ struct GhRepoParent {
     name_with_owner: String,
 }
 
+/// 返回状态行工作目录中检出的分支名；分离 HEAD、非 Git 目录和命令失败均返回 `None`。
 /// Returns the checked-out branch name for one status-line working directory.
 ///
 /// Detached HEADs, non-git directories, and command failures return `None` so the renderer can
@@ -111,6 +129,8 @@ pub(crate) async fn current_branch_name(
     Some(output.stdout.trim().to_string()).filter(|name| !name.is_empty())
 }
 
+/// 解析一个状态行工作目录的 PR 和分支变更元数据；两项独立可选探测并发执行，
+/// 调用方应在异步完成前 cwd 已变化时丢弃结果。
 /// Resolves PR and branch-change metadata for one status-line working directory.
 ///
 /// The PR and diff-stat probes run concurrently because each is independent and both are optional.
@@ -130,6 +150,7 @@ pub(crate) async fn status_line_git_summary(
     }
 }
 
+/// 统计 `HEAD` 与仓库默认分支合并基准之间的已提交行变更，明确忽略未提交工作树编辑。
 /// Counts committed line changes between `HEAD` and the repository default branch.
 ///
 /// The comparison base is the merge base with a verified default-branch ref. Uncommitted working
@@ -190,6 +211,7 @@ async fn branch_diff_stats_to_default_branch(
     })
 }
 
+/// 按默认分支发现顺序返回 Git 远端；优先常见的 `origin`，同时尝试其他远端以支持 fork 和企业布局。
 /// Returns git remotes in the order used for default-branch discovery.
 ///
 /// `origin` is prioritized because most repositories use it as the canonical upstream. Other
@@ -209,6 +231,7 @@ async fn get_git_remotes(runner: &dyn WorkspaceCommandExecutor, cwd: &Path) -> O
     Some(remotes)
 }
 
+/// 解析分支变更比较使用的默认分支引用；优先远程跟踪引用，最后才回退到本地 `main` 或 `master`。
 /// Resolves the default branch ref that should be used for branch-change comparisons.
 ///
 /// The lookup prefers remote-tracking refs over local branches so feature-only clones and stale
@@ -235,6 +258,7 @@ async fn get_default_branch(
     get_default_branch_local(runner, cwd).await
 }
 
+/// 将远端符号 HEAD 解析为已验证存在的具体远程跟踪引用，避免过期符号引用导致后续合并基准失败。
 /// Resolves a remote's symbolic HEAD into a concrete remote-tracking ref.
 ///
 /// The returned ref is verified before use. Without that check, a symbolic `origin/HEAD` left over
@@ -265,6 +289,7 @@ async fn get_remote_default_branch_from_symbolic_ref(
     })
 }
 
+/// 解析 `git remote show` 输出发现远端默认分支，并只接受本地已存在的具体远程跟踪引用。
 /// Parses `git remote show` output to discover a remote's default branch ref.
 ///
 /// This is a fallback for repositories where `refs/remotes/<remote>/HEAD` is not configured but
@@ -299,6 +324,7 @@ async fn get_remote_default_branch_from_remote_show(
     None
 }
 
+/// 找不到远端默认分支时回退到本地 `main` 或 `master`。
 /// Falls back to local `main` or `master` when no remote default branch can be found.
 async fn get_default_branch_local(
     runner: &dyn WorkspaceCommandExecutor,
@@ -316,6 +342,7 @@ async fn get_default_branch_local(
     None
 }
 
+/// 检查状态行工作目录中是否存在给定 Git 引用。
 /// Checks whether a git ref exists in the status-line working directory.
 async fn git_ref_exists(
     runner: &dyn WorkspaceCommandExecutor,
@@ -331,6 +358,7 @@ async fn git_ref_exists(
     .is_ok_and(|output| output.success())
 }
 
+/// 解析当前检出关联的开放 PR；先尝试廉价的分支查询，再按提交查询以支持 fork 上游 PR。
 /// Resolves the open PR associated with the current checkout.
 ///
 /// Branch-based lookup is attempted first because it is cheap and mirrors `gh pr view`. Commit-based
@@ -347,6 +375,7 @@ async fn open_pull_request(
     open_pull_request_for_head_commit(runner, cwd).await
 }
 
+/// 使用 GitHub CLI 的当前分支 PR 查询。
 /// Uses GitHub CLI's current-branch PR lookup.
 async fn open_pull_request_for_current_branch(
     runner: &dyn WorkspaceCommandExecutor,
@@ -361,6 +390,7 @@ async fn open_pull_request_for_current_branch(
     pull_request_from_view_output(&output.stdout)
 }
 
+/// 按上游/派生仓库搜索顺序查询与 `HEAD` 关联的开放 PR。
 /// Looks up open PRs for `HEAD` across the upstream/fork repository search order.
 async fn open_pull_request_for_head_commit(
     runner: &dyn WorkspaceCommandExecutor,
@@ -391,6 +421,7 @@ async fn open_pull_request_for_head_commit(
     None
 }
 
+/// 返回当前 `HEAD` SHA，供按提交查询 PR。
 /// Returns the current `HEAD` SHA for commit-based PR lookup.
 async fn current_head_sha(runner: &dyn WorkspaceCommandExecutor, cwd: &Path) -> Option<String> {
     let output = run_git_command(runner, cwd, &["rev-parse", "HEAD"])
@@ -403,6 +434,7 @@ async fn current_head_sha(runner: &dyn WorkspaceCommandExecutor, cwd: &Path) -> 
     Some(output.stdout.trim().to_string()).filter(|sha| !sha.is_empty())
 }
 
+/// 返回按提交查询 PR 的仓库顺序，父仓库优先于 fork。
 /// Returns repositories to query for commit-associated PRs, with parent before fork.
 async fn gh_repo_search_order(
     runner: &dyn WorkspaceCommandExecutor,
@@ -422,6 +454,7 @@ async fn gh_repo_search_order(
     repo_search_order_from_output(&output.stdout)
 }
 
+/// 解析 `gh pr view --json number,url,state` 输出中的开放 PR。
 /// Parses `gh pr view --json number,url,state` output for an open PR.
 fn pull_request_from_view_output(stdout: &str) -> Option<StatusLinePullRequest> {
     let pull_request = serde_json::from_str::<GhPullRequestView>(stdout).ok()?;
@@ -434,6 +467,7 @@ fn pull_request_from_view_output(stdout: &str) -> Option<StatusLinePullRequest> 
         })
 }
 
+/// 解析 GitHub REST 提交到 PR 响应并返回首个开放 PR。
 /// Parses the GitHub REST commit-to-PR response and returns the first open PR.
 fn pull_request_from_api_output(stdout: &str) -> Option<StatusLinePullRequest> {
     serde_json::from_str::<Vec<GhPullRequestApiItem>>(stdout)
@@ -446,6 +480,7 @@ fn pull_request_from_api_output(stdout: &str) -> Option<StatusLinePullRequest> {
         })
 }
 
+/// 将 `gh repo view` 输出解析为回退 PR 查询顺序；父仓库优先匹配常见上游工作流。
 /// Parses `gh repo view` output into the repository search order for fallback PR lookup.
 ///
 /// Parent-first ordering matches upstream PR workflows: a branch may be checked out from a fork
@@ -468,6 +503,7 @@ fn repo_search_order_from_output(stdout: &str) -> Option<Vec<String>> {
     Some(repos)
 }
 
+/// 通过工作区命令抽象运行 Git 命令。
 /// Runs a git command through the workspace-command abstraction.
 async fn run_git_command(
     runner: &dyn WorkspaceCommandExecutor,
@@ -488,6 +524,7 @@ async fn run_git_command(
         .await
 }
 
+/// 通过工作区命令抽象运行 GitHub CLI；状态行探测禁用交互提示，需要认证或输入时直接失败并隐藏可选项。
 /// Runs a GitHub CLI command through the workspace-command abstraction.
 ///
 /// Prompting is disabled because status-line probes are background UI work. A command that needs

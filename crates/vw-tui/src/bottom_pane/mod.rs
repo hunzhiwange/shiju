@@ -15,10 +15,11 @@
 //! request object.
 
 use crate::render::renderable::Renderable;
-use crate::vibe::action::{V3Action, V3FooterData};
-use crossterm::event::KeyEvent;
+use crate::vibe::action::{V3Action, V3FooterData, V3SelectionItem};
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::widgets::WidgetRef;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct MentionBinding {
@@ -78,6 +79,8 @@ pub(crate) struct BottomPaneParams {
 pub(crate) struct BottomPane {
     composer: ChatComposer,
     pending_input_preview: PendingInputPreview,
+    command_items: Vec<V3SelectionItem>,
+    command_popup: Option<command_popup::CommandPopup>,
 }
 
 impl BottomPane {
@@ -85,6 +88,8 @@ impl BottomPane {
         Self {
             composer: ChatComposer::with_data(params.placeholder, params.footer_data),
             pending_input_preview: PendingInputPreview::new(),
+            command_items: Vec::new(),
+            command_popup: None,
         }
     }
 
@@ -97,11 +102,36 @@ impl BottomPane {
     }
 
     pub(crate) fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
-        self.composer.handle_key_event(event)
+        if let Some(popup) = self.command_popup.as_mut() {
+            match event.code {
+                KeyCode::Esc => {
+                    self.command_popup = None;
+                    return V3Action::None;
+                }
+                KeyCode::Up | KeyCode::Down | KeyCode::PageUp | KeyCode::PageDown => {
+                    return popup.handle_key_event(event);
+                }
+                KeyCode::Enter if popup.selected_item().is_some() => {
+                    let action = popup.handle_key_event(event);
+                    if matches!(action, V3Action::Select { .. }) {
+                        self.composer.clear();
+                        self.command_popup = None;
+                    }
+                    return action;
+                }
+                _ => {}
+            }
+        }
+
+        let action = self.composer.handle_key_event(event);
+        self.sync_command_popup();
+        action
     }
 
     pub(crate) fn handle_paste(&mut self, text: String) -> V3Action {
-        self.composer.handle_paste(text)
+        let action = self.composer.handle_paste(text);
+        self.sync_command_popup();
+        action
     }
 
     pub(crate) fn draft(&self) -> &str {
@@ -110,6 +140,24 @@ impl BottomPane {
 
     pub(crate) fn replace_draft(&mut self, text: &str) {
         self.composer.replace_text(text);
+        self.sync_command_popup();
+    }
+
+    pub(crate) fn restore_submission(
+        &mut self,
+        text: &str,
+        attachments: Vec<crate::V3Attachment>,
+    ) {
+        self.composer.restore_submission(text, attachments);
+        self.sync_command_popup();
+    }
+
+    pub(crate) fn add_attachment(&mut self, attachment: crate::V3Attachment) -> V3Action {
+        self.composer.add_attachment(attachment)
+    }
+
+    pub(crate) fn attachments(&self) -> &[crate::V3Attachment] {
+        self.composer.attachments()
     }
 
     pub(crate) fn push_queued_input(&mut self, text: String) {
@@ -123,33 +171,80 @@ impl BottomPane {
         }
         self.composer.set_queued_count(self.pending_input_preview.queued_messages.len());
     }
+
+    pub(crate) fn set_command_palette_items(&mut self, items: Vec<V3SelectionItem>) {
+        self.command_items = items;
+        self.sync_command_popup();
+    }
+
+    pub(crate) fn command_palette_visible(&self) -> bool {
+        self.command_popup.is_some()
+    }
+
+    fn sync_command_popup(&mut self) {
+        let text = self.composer.text();
+        let first_line = text.lines().next().unwrap_or_default();
+        let editing_command = first_line.starts_with('/')
+            && !first_line
+                .strip_prefix('/')
+                .unwrap_or_default()
+                .chars()
+                .any(char::is_whitespace);
+        if !editing_command || self.command_items.is_empty() {
+            self.command_popup = None;
+            return;
+        }
+
+        let mut popup = command_popup::CommandPopup::new(self.command_items.clone());
+        popup.on_composer_text_change(first_line.to_string());
+        self.command_popup = Some(popup);
+    }
+
+    fn layout_areas(&self, area: Rect) -> [Rect; 3] {
+        let preview_height = self.pending_input_preview.desired_height(area.width);
+        let popup_height = self
+            .command_popup
+            .as_ref()
+            .map(|popup| popup.calculate_required_height(area.width))
+            .unwrap_or_default();
+        let areas = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(preview_height),
+                Constraint::Length(popup_height),
+                Constraint::Min(1),
+            ])
+            .split(area);
+        [areas[0], areas[1], areas[2]]
+    }
 }
 
 impl Renderable for BottomPane {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        let preview_height = self.pending_input_preview.desired_height(area.width);
-        let areas = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(preview_height), Constraint::Min(1)])
-            .split(area);
-        if preview_height > 0 {
-            self.pending_input_preview.render(areas[0], buf);
+        let [preview_area, popup_area, composer_area] = self.layout_areas(area);
+        if preview_area.height > 0 {
+            self.pending_input_preview.render(preview_area, buf);
         }
-        self.composer.render(areas[1], buf);
+        if let Some(popup) = self.command_popup.as_ref()
+            && popup_area.height > 0
+        {
+            WidgetRef::render_ref(&popup, popup_area, buf);
+        }
+        self.composer.render(composer_area, buf);
     }
 
     fn desired_height(&self, width: u16) -> u16 {
-        self.pending_input_preview.desired_height(width) + self.composer.desired_height(width)
+        self.pending_input_preview.desired_height(width)
+            + self
+                .command_popup
+                .as_ref()
+                .map(|popup| popup.calculate_required_height(width))
+                .unwrap_or_default()
+            + self.composer.desired_height(width)
     }
 
     fn cursor_pos(&self, area: Rect) -> Option<(u16, u16)> {
-        let preview_height = self.pending_input_preview.desired_height(area.width);
-        let composer_area = Rect::new(
-            area.x,
-            area.y + preview_height,
-            area.width,
-            area.height.saturating_sub(preview_height),
-        );
+        let [_preview_area, _popup_area, composer_area] = self.layout_areas(area);
         self.composer.cursor_pos(composer_area)
     }
 }

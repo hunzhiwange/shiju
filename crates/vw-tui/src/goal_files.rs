@@ -1,3 +1,4 @@
+//! 将超长 TUI 目标、粘贴文本和图片物化为应用服务器托管文件。
 //! Materializes oversized TUI goal objectives, pastes, and images as app-server-host files.
 
 use std::fs;
@@ -21,6 +22,7 @@ const GOAL_FILE_NAME: &str = "goal-objective.md";
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct GoalDraft {
+    /// 保留目标正文及其中尚待替换的文本、图片引用。
     pub(crate) objective: String,
     pub(crate) text_elements: Vec<TextElement>,
     pub(crate) pending_pastes: Vec<(String, String)>,
@@ -35,6 +37,7 @@ pub(crate) async fn materialize_goal_draft(
     codex_home: Option<&GoalFilePath>,
     draft: GoalDraft,
 ) -> Result<(String, Option<GoalFilePath>)> {
+    // 空目标在写入任何附件前拒绝，避免创建无法关联的孤立目录。
     let mut objective = draft.objective;
     if objective.trim().is_empty() {
         bail!("Goal objective must not be empty.");
@@ -51,6 +54,7 @@ pub(crate) async fn materialize_goal_draft(
         }
     }
 
+    // 只物化仍在正文中激活的占位符，忽略已经被用户删除的附件。
     let mut active_placeholders = text_elements
         .iter()
         .filter_map(|element| element.placeholder(&objective))
@@ -66,6 +70,7 @@ pub(crate) async fn materialize_goal_draft(
             continue;
         };
         active_placeholders.swap_remove(active_idx);
+        // 附件目录按需创建，粘贴文本使用稳定的一基序号文件名。
         let path = ensure_goal_output_dir(app_server, codex_home, &mut output_dir)
             .await?
             .join(format!("pasted-text-{}.txt", replacements.len() + 1));
@@ -95,6 +100,7 @@ pub(crate) async fn materialize_goal_draft(
         let bytes = fs::read(&image.path)
             .with_context(|| format!("Could not read goal image {}", image.path.display()))?;
         write_goal_file(app_server, path.clone(), bytes).await?;
+        // 无占位符图片追加到引用章节，有占位符图片则就地替换。
         if image.placeholder.is_empty() {
             image_lines.push(format!("- [Image #{}]: {path}", idx + 1));
         } else {
@@ -118,6 +124,7 @@ pub(crate) async fn materialize_goal_draft(
             .collect(),
     );
 
+    // 超出协议字符上限时保存完整目标，只把受控文件引用交给线程目标接口。
     if objective.chars().count() > MAX_THREAD_GOAL_OBJECTIVE_CHARS {
         let path = ensure_goal_output_dir(app_server, codex_home, &mut output_dir)
             .await?
@@ -125,6 +132,7 @@ pub(crate) async fn materialize_goal_draft(
         let reference = match objective_file_reference(&path) {
             Ok(reference) => reference,
             Err(err) => {
+                // 无法构造合法引用时尽力清理本次创建的附件目录。
                 if let Some(output_dir) = output_dir.as_ref() {
                     let _ = app_server.fs_remove_path(output_dir).await;
                 }
@@ -142,6 +150,7 @@ pub(crate) async fn objective_text_for_edit(
     codex_home: Option<&GoalFilePath>,
     objective: &str,
 ) -> Result<String> {
+    // 只有严格匹配本模块生成格式的目标才从服务器读取；普通文本原样返回。
     let Some(path) = objective_file_path(objective, codex_home) else {
         return Ok(objective.to_string());
     };
@@ -158,6 +167,7 @@ pub(crate) fn objective_file_path(
     objective: &str,
     codex_home: Option<&GoalFilePath>,
 ) -> Option<GoalFilePath> {
+    // 同时校验固定前后缀、绝对路径、附件 UUID 和预期 Codex 主目录层级。
     let path = objective
         .strip_prefix(GOAL_FILE_PREFIX)
         .and_then(|path| path.strip_suffix(GOAL_FILE_SUFFIX))?;
@@ -172,6 +182,7 @@ pub(crate) fn objective_file_path(
 }
 
 pub(crate) fn objective_file_reference(path: &GoalFilePath) -> Result<String> {
+    // 文件引用本身也必须满足目标字符上限，否则明确拒绝伪支持。
     let reference = format!("{GOAL_FILE_PREFIX}{path}{GOAL_FILE_SUFFIX}");
     let actual_chars = reference.chars().count();
     if actual_chars > MAX_THREAD_GOAL_OBJECTIVE_CHARS {
@@ -187,6 +198,7 @@ async fn ensure_goal_output_dir(
     codex_home: Option<&GoalFilePath>,
     output_dir: &mut Option<GoalFilePath>,
 ) -> Result<GoalFilePath> {
+    // 同一份草稿的所有附件复用一个 UUID 目录，并仅在首次需要时创建。
     if let Some(output_dir) = output_dir {
         return Ok(output_dir.clone());
     }
@@ -216,6 +228,7 @@ async fn write_goal_file(
         .with_context(|| format!("Could not write goal file {path}"))
 }
 fn append_section(objective: &mut String, heading: &str, lines: Vec<String>) {
+    // 仅在存在引用行时追加章节，并用空行与原目标分隔。
     if lines.is_empty() {
         return;
     }

@@ -1,8 +1,16 @@
+//! 拟议计划与计划更新历史单元。
+//!
+//! 流式尾部是仅用于预览的已渲染片段，完成后必须合并为持有原始 Markdown 的单元。
+//! 最终单元同时保存会话工作目录，使终端缩放后仍能稳定重排本地文件链接。
 //! Proposed-plan and plan-update history cells.
 
 use super::markdown_render_cache::MarkdownRenderCache;
 use super::*;
 
+/// 拟议计划流可变尾部的短暂活动单元表示。
+///
+/// 控制器准备完整带样式计划行，使尾部与已提交单元共享标题、内边距和背景，
+/// 同时在流式期间保持仅预览性质。
 /// Transient active-cell representation of the mutable tail of a proposed-plan stream.
 ///
 /// The controller prepares the full styled plan lines because plan tails need the same header,
@@ -44,12 +52,17 @@ impl HistoryCell for StreamingPlanTailCell {
         self.is_stream_continuation
     }
 }
+/// 把计划更新渲染为用户友好的复选框待办列表。
 /// Render a user‑friendly plan update styled like a checkbox todo list.
 pub(crate) fn new_plan_update(update: UpdatePlanArgs) -> PlanUpdateCell {
     let UpdatePlanArgs { explanation, plan } = update;
     PlanUpdateCell { explanation, plan }
 }
 
+/// 创建拟议计划单元，并快照会话工作目录供后续 Markdown 渲染使用。
+///
+/// 计划正文保存为原始 Markdown，终端缩放时可按当前宽度重新排版。
+/// 流式构造器只用于短暂实时单元，计划完成后应合并为该源码驱动单元。
 /// Create a proposed-plan cell that snapshots the session cwd for later markdown rendering.
 ///
 /// The plan body is stored as raw markdown so terminal resize reflow can render it again at the
@@ -63,6 +76,10 @@ pub(crate) fn new_proposed_plan(plan_markdown: String, cwd: &Path) -> ProposedPl
     }
 }
 
+/// 根据已渲染行创建短暂的拟议计划流单元。
+///
+/// 流单元是展示片段而非源码历史；定稿前必须替换为 `ProposedPlanCell`，
+/// 后者才能在终端缩放时重新排版。
 /// Create a transient proposed-plan stream cell from already rendered lines.
 ///
 /// Stream cells are display fragments, not source-backed history. They should be replaced by
@@ -77,6 +94,9 @@ pub(crate) fn new_proposed_plan_stream(
     }
 }
 
+/// 可针对新宽度重新渲染的已定稿拟议计划历史。
+///
+/// 它是流式单元的源码驱动对应物，拥有原始 Markdown 和稳定本地链接所需的会话目录。
 /// Finalized proposed-plan history that can render itself again for a new width.
 ///
 /// This is the source-backed counterpart to `ProposedPlanStreamCell`. It owns raw markdown and the
@@ -84,11 +104,16 @@ pub(crate) fn new_proposed_plan_stream(
 #[derive(Debug)]
 pub(crate) struct ProposedPlanCell {
     plan_markdown: String,
+    /// 用于让本地文件链接展示与实时流式计划渲染保持一致的会话目录。
     /// Session cwd used to keep local file-link display aligned with live streamed plan rendering.
     cwd: PathBuf,
     rendered_lines: MarkdownRenderCache,
 }
 
+/// 计划仍在流式传输时发出的短暂拟议计划历史。
+///
+/// 这些行已按当前流宽度渲染；定稿转录不应在合并后继续保留它们，
+/// 因为它们无法在后续终端缩放时从源码重新渲染。
 /// Transient proposed-plan history emitted while a plan is still streaming.
 ///
 /// The lines are already rendered for the stream's current width. A finalized transcript should not

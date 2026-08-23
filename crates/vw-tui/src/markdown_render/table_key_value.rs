@@ -1,3 +1,11 @@
+//! 将不再适合网格阅读的 Markdown 表格改为纵向键值渲染。
+//!
+//! 该回退保留表头作为字段名，并逐记录呈现非空值。
+//! 只有多数记录无法形成有用网格块或宽内容坍缩为高窄条时才切换模式。
+//! 宽度仍由调用者提供，正文折行继续保留原有富文本样式。
+//! 无正文记录的表格不会臆造键值项，而由上层选择原始管道格式回退。
+//! 空值字段可被省略以减少噪声，但记录之间仍保留稳定的弱化分隔线。
+//! 模式选择只基于已测量布局，不改写任何表头、正文或链接注解。
 //! Vertical key/value rendering for markdown tables that no longer scan well as grids.
 
 use super::TABLE_BODY_SEPARATOR_CHAR;
@@ -26,6 +34,7 @@ const CRAMPED_EXPANSIVE_CELL_LINES: usize = 4;
 const CATASTROPHIC_NARRATIVE_CELL_LINES: usize = 7;
 const STACKED_VALUE_INDENT: usize = 2;
 
+/// 当足够多记录包含网格无法有效分块的值，或宽内容坍缩为高窄条时切换模式。
 /// Switch modes after enough records contain values the grid can no longer
 /// present in useful chunks or expansive content collapses into tall strips.
 pub(super) fn should_render_records(

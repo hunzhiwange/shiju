@@ -292,6 +292,90 @@ async fn session_list_surfaces_non_success_status() {
     server.join();
 }
 
+#[tokio::test]
+async fn session_client_uses_core_lifecycle_routes() {
+    let server = test_support::server(vec![
+        (200, json!({"s/one":{"type":"idle"}})),
+        (200, json!([{"id":"child"}])),
+    ]);
+
+    let status: serde_json::Value =
+        server.client().session_status(Some("/repo path")).await.expect("status");
+    let children: serde_json::Value = server
+        .client()
+        .session_children("s/one", Some("/repo path"))
+        .await
+        .expect("children");
+
+    assert!(status.get("s/one").is_some());
+    assert_eq!(children[0]["id"], "child");
+    assert_eq!(
+        server.take_request().path,
+        "/v1/session/status?directory=%2Frepo+path"
+    );
+    assert_eq!(
+        server.take_request().path,
+        "/v1/session/s%2Fone/children?directory=%2Frepo+path"
+    );
+    assert!(server.client().session_get::<serde_json::Value>(" ", None).await.is_err());
+    server.join();
+}
+
+#[tokio::test]
+async fn session_client_uses_content_and_ui_routes() {
+    let server = test_support::server(vec![
+        (200, json!([{"id":"m/one"}])),
+        (200, json!({"id":"m/one","parts":[]})),
+        (200, json!({"type":"text","id":"p/one"})),
+        (200, json!(true)),
+    ]);
+
+    let _: serde_json::Value = server
+        .client()
+        .session_messages_query(
+            "s/one",
+            &GatewaySessionMessageListQuery {
+                directory: Some("/repo path".to_string()),
+                limit: Some(7),
+            },
+        )
+        .await
+        .expect("messages");
+    let _: serde_json::Value = server
+        .client()
+        .session_message_get("s/one", "m/one", Some("/repo path"))
+        .await
+        .expect("message");
+    let _: serde_json::Value = server
+        .client()
+        .session_message_part_update(
+            "s/one",
+            "m/one",
+            "p/one",
+            Some("/repo path"),
+            &json!({"type":"text","id":"p/one"}),
+        )
+        .await
+        .expect("part update");
+    assert!(
+        server
+            .client()
+            .session_message_part_delete("s/one", "m/one", "p/one", Some("/repo path"))
+            .await
+            .expect("part delete")
+    );
+
+    assert_eq!(server.take_request().path, "/v1/session/s%2Fone/message?directory=%2Frepo+path&limit=7");
+    assert_eq!(server.take_request().path, "/v1/session/s%2Fone/message/m%2Fone?directory=%2Frepo+path");
+    let update = server.take_request();
+    assert_eq!(update.method, "PATCH");
+    assert_eq!(update.path, "/v1/session/s%2Fone/message/m%2Fone/part/p%2Fone?directory=%2Frepo+path");
+    let delete = server.take_request();
+    assert_eq!(delete.method, "DELETE");
+    assert_eq!(delete.path, "/v1/session/s%2Fone/message/m%2Fone/part/p%2Fone?directory=%2Frepo+path");
+    server.join();
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn session_todo_get_blocking_surfaces_non_success_status() {

@@ -1,14 +1,19 @@
 //! Onboarding screen orchestration and top-level keyboard routing.
+//! 负责引导界面的编排与顶层键盘路由。
 //!
 //! The onboarding flow is a small state machine over visible steps
 //! (welcome/auth/trust). This module decides which step receives key/paste
 //! events and enforces flow-level safety rules that cut across individual step
 //! widgets.
+//! 引导流程是由欢迎、认证和信任等可见步骤组成的小型状态机；本模块决定按键与粘贴事件
+//! 交给哪个步骤，并执行跨越单个步骤控件的流程级安全规则。
 //!
 //! In particular, onboarding quit handling has a text-entry guard for API-key
 //! input: the printable `q` quit key is treated as text input while the user is
 //! editing a non-empty API-key field, while control/alt chords remain available
 //! as explicit exit shortcuts.
+//! 尤其是退出处理会保护 API 密钥输入：非空字段编辑期间，可打印的 `q` 被视为文本，
+//! 而 Ctrl/Alt 组合键仍作为明确退出快捷键可用。
 
 use codex_app_server_client::AppServerEvent;
 use codex_app_server_client::AppServerRequestHandle;
@@ -59,18 +64,21 @@ use uuid::Uuid;
 
 #[allow(clippy::large_enum_variant)]
 enum Step {
+    // 变体按展示顺序存入列表，状态决定哪些已完成步骤和首个未完成步骤当前可见。
     Welcome(WelcomeWidget),
     Auth(AuthModeWidget),
     TrustDirectory(TrustDirectoryWidget),
 }
 
 pub(crate) trait KeyboardHandler {
+    // 步骤统一接收键盘与粘贴，默认忽略不支持粘贴的展示型步骤。
     fn handle_key_event(&mut self, key_event: KeyEvent);
     fn handle_paste(&mut self, _pasted: String) {}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum StepState {
+    // Hidden 不占布局，Complete 保留已完成内容，InProgress 截断后续步骤的事件与渲染。
     Hidden,
     InProgress,
     Complete,
@@ -81,6 +89,7 @@ pub(crate) trait StepStateProvider {
 }
 
 pub(crate) struct OnboardingScreen {
+    // is_done 表示流程终止，should_exit 进一步区分是否应退出整个应用。
     request_frame: FrameRequester,
     steps: Vec<Step>,
     remote_trust_key: Option<String>,
@@ -98,6 +107,7 @@ pub(crate) struct OnboardingScreenArgs {
 }
 
 pub(crate) struct OnboardingResult {
+    // 结果分别报告信任是否真正持久化，以及调用方是否需要终止启动流程。
     pub directory_trust_persisted: bool,
     pub should_exit: bool,
 }
@@ -105,13 +115,16 @@ pub(crate) struct OnboardingResult {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 struct ApiKeyEntryContext {
     /// True when onboarding is currently rendering the API-key entry state.
+    /// 引导界面当前是否正在展示 API 密钥输入状态。
     active: bool,
     /// True when the API-key input field currently contains user text.
+    /// API 密钥输入框当前是否含有用户文本。
     has_text: bool,
 }
 
 impl OnboardingScreen {
     pub(crate) async fn new(tui: &mut Tui, args: OnboardingScreenArgs) -> Self {
+        // 仅按启动参数组装真实需要的步骤；缺少 app-server 句柄时明确跳过认证步骤。
         let OnboardingScreenArgs {
             show_trust_screen,
             remote_project_trust,
@@ -192,6 +205,7 @@ impl OnboardingScreen {
     }
 
     fn current_steps_mut(&mut self) -> Vec<&mut Step> {
+        // 返回所有已完成可见步骤及首个进行中步骤，后续步骤尚不可交互。
         let mut out: Vec<&mut Step> = Vec::new();
         for step in self.steps.iter_mut() {
             match step.get_step_state() {
@@ -224,6 +238,7 @@ impl OnboardingScreen {
     fn should_suppress_animations(&self) -> bool {
         // Freeze the whole onboarding screen when auth is showing copyable login
         // material so terminal selection is not interrupted by redraws.
+        // 认证步骤展示可复制登录材料时冻结整个引导界面，避免重绘打断终端文本选择。
         self.current_steps().into_iter().any(|step| match step {
             Step::Auth(widget) => widget.should_suppress_animations(),
             Step::Welcome(_) | Step::TrustDirectory(_) => false,
@@ -249,6 +264,7 @@ impl OnboardingScreen {
     }
 
     /// Check whether the first unfinished onboarding step can grant directory trust.
+    /// 检查首个未完成的引导步骤当前是否可授予目录信任。
     fn is_trust_step_active(&self) -> bool {
         self.steps
             .iter()
@@ -306,12 +322,15 @@ impl OnboardingScreen {
 
 impl KeyboardHandler for OnboardingScreen {
     /// Route key events to onboarding steps while preserving text-entry safety.
+    /// 在保护文本输入安全的同时，将按键事件路由到引导步骤。
     ///
     /// In API-key entry mode, printable quit bindings are suppressed only after
     /// the user has started typing in the API-key field. This keeps the
     /// printable `q` quit key usable on an empty field while protecting in-progress
     /// text entry from accidental exits. Control/alt quit chords still work as
     /// emergency exits.
+    /// API 密钥输入模式下，只有用户已输入内容后才抑制可打印退出键；空字段仍允许用 `q`
+    /// 退出，同时避免正在编辑的文本触发意外退出。Ctrl/Alt 退出组合键仍可用于紧急退出。
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         if !matches!(key_event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
             return;
@@ -325,6 +344,7 @@ impl KeyboardHandler for OnboardingScreen {
                 self.cancel_auth_if_active();
                 // If the user cancels the auth menu, exit the app rather than
                 // leave the user at a prompt in an unauthed state.
+                // 用户取消认证菜单时直接退出应用，不能让未认证用户落入普通提示界面。
                 self.should_exit = true;
             } else if self.is_trust_step_active() {
                 self.should_exit = true;
@@ -368,11 +388,14 @@ impl KeyboardHandler for OnboardingScreen {
 }
 
 /// Returns `true` when a quit shortcut should be ignored as text input.
+/// 当退出快捷键应被视为普通文本输入并忽略时返回 `true`。
 ///
 /// This only applies while API-key entry is active and the key is a printable
 /// character without control/alt modifiers and there is already text in the
 /// input field. Empty input intentionally does not trigger suppression so
 /// the printable `q` quit key can still exit onboarding.
+/// 该规则仅在 API 密钥输入活动、字段已有文本且按键为不含 Ctrl/Alt 的可打印字符时生效；
+/// 空输入刻意不抑制，使可打印的 `q` 仍能退出引导。
 fn suppress_quit_while_typing_api_key(
     key_event: KeyEvent,
     api_key_entry_context: ApiKeyEntryContext,
@@ -398,11 +421,13 @@ impl WidgetRef for &OnboardingScreen {
 
         Clear.render(area, buf);
         // Render steps top-to-bottom, measuring each step's height dynamically.
+        // 从上到下渲染步骤，并根据每一步的实际内容动态测量高度。
         let mut y = area.y;
         let bottom = area.y.saturating_add(area.height);
         let width = area.width;
 
         // Helper to scan a temporary buffer and return number of used rows.
+        // 通过扫描临时缓冲区计算真实使用行数，避免为短步骤预留整块剩余区域。
         fn used_rows(tmp: &Buffer, width: u16, height: u16) -> u16 {
             if width == 0 || height == 0 {
                 return 0;
@@ -509,12 +534,14 @@ pub(crate) async fn run_onboarding_app(
     mut app_server: Option<&mut AppServerSession>,
     tui: &mut Tui,
 ) -> Result<OnboardingResult> {
+    // 主循环同时消费终端与 app-server 事件，并在步骤转换后刷新、清理陈旧输入。
     use tokio_stream::StreamExt;
 
     let app_server_request_handle = args.app_server_request_handle.clone();
     let mut onboarding_screen = OnboardingScreen::new(tui, args).await;
     let mut directory_trust_persisted = false;
     // One-time guard to fully clear the screen after ChatGPT login success message is shown
+    // ChatGPT 登录成功消息出现后只完整清屏一次，避免遗留样式又不造成持续闪烁。
     let mut did_full_clear_after_success = false;
 
     tui.draw(u16::MAX, |frame| {
@@ -558,6 +585,7 @@ pub(crate) async fn run_onboarding_app(
                                 })
                             {
                                 // Reset any lingering SGR (underline/color) before clearing
+                                // 清屏前重置残留的 SGR 下划线与颜色，避免样式污染后续界面。
                                 let _ = ratatui::crossterm::execute!(
                                     std::io::stdout(),
                                     ratatui::crossterm::style::SetAttribute(
@@ -623,8 +651,10 @@ pub(crate) async fn run_onboarding_app(
 }
 
 /// Render a newly activated trust step before discarding keys from the preceding screen.
+/// 新激活信任步骤后先渲染，再丢弃前一屏残留的按键。
 ///
 /// Once the step is active, preserve fresh navigation and confirmation input.
+/// 步骤激活后保留新的导航与确认输入。
 fn discard_pending_input_on_trust_step_transition(
     onboarding_screen: &OnboardingScreen,
     trust_step_was_active: &mut bool,
@@ -642,6 +672,7 @@ async fn persist_selected_trust(
     onboarding_screen: &mut OnboardingScreen,
     request_handle: Option<AppServerRequestHandle>,
 ) -> bool {
+    // 远程项目按稳定键写配置；本地项目写解析后的信任根，失败则恢复步骤为可重试状态。
     let Some((trust_step_index, trust_target)) = onboarding_screen
         .steps
         .iter()
@@ -712,6 +743,7 @@ async fn persist_selected_trust(
 
 #[cfg(test)]
 mod tests {
+    // 测试覆盖退出键文本保护、步骤切换输入隔离，以及信任持久化失败后的恢复能力。
     use super::ApiKeyEntryContext;
     use super::OnboardingScreen;
     use super::Step;
@@ -730,6 +762,7 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
+    // 非空 API 密钥字段中的可打印 q 必须交给文本输入而不是退出流程。
     fn suppresses_printable_quit_key_during_api_key_entry() {
         let suppressed = suppress_quit_while_typing_api_key(
             KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE),
@@ -742,6 +775,7 @@ mod tests {
     }
 
     #[test]
+    // API 密钥字段为空时允许 q 继续作为快速退出键。
     fn does_not_suppress_printable_quit_key_when_api_key_input_is_empty() {
         let suppressed = suppress_quit_while_typing_api_key(
             KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE),
@@ -754,6 +788,7 @@ mod tests {
     }
 
     #[test]
+    // 控制键组合始终保留显式退出能力，不受文本输入保护影响。
     fn does_not_suppress_control_quit_key_during_api_key_entry() {
         let suppressed = suppress_quit_while_typing_api_key(
             KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL),
@@ -766,6 +801,7 @@ mod tests {
     }
 
     #[test]
+    // 不在 API 密钥输入状态时不应启用退出键抑制。
     fn does_not_suppress_when_not_in_api_key_entry() {
         let suppressed = suppress_quit_while_typing_api_key(
             KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
@@ -778,6 +814,7 @@ mod tests {
     }
 
     #[test]
+    // 信任步骤刚激活时丢弃上一屏缓冲的 Enter，之后的新导航键必须正常生效。
     fn buffered_enter_is_discarded_when_trust_step_becomes_active() {
         let mut onboarding_screen = OnboardingScreen {
             request_frame: FrameRequester::test_dummy(),
@@ -841,6 +878,7 @@ mod tests {
     }
 
     #[tokio::test]
+    // 缺少请求句柄导致持久化失败时，清除已选状态并显示错误以允许重试。
     async fn trust_persistence_failure_keeps_trust_step_in_progress() {
         let mut onboarding_screen = OnboardingScreen {
             request_frame: FrameRequester::test_dummy(),
@@ -858,6 +896,7 @@ mod tests {
             should_exit: false,
         };
 
+        // 此处请求句柄为空，用于模拟 app server 不可用。
         let persisted =
             persist_selected_trust(&mut onboarding_screen, /*request_handle*/ None).await;
 

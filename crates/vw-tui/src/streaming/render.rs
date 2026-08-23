@@ -1,3 +1,7 @@
+//! 进行中转录流的增量 Markdown 渲染。
+//!
+//! 已完成顶层块会被保留，只有最后一块保持可变，从而避免增量到达时重复渲染稳定前缀。
+//! 引用定义和内联可视化可能影响全局，因此遇到它们时安全回退到完整渲染。
 //! Incremental markdown rendering for in-flight transcript streams.
 //!
 //! Completed top-level blocks are retained while the final block stays mutable, avoiding repeated
@@ -18,20 +22,28 @@ fn contains_inline_visualization(markdown: &str) -> bool {
     markdown.contains("::codex-inline-vis{") || markdown.contains('\u{e200}')
 }
 
+/// 在源码边界与渲染行边界处分割的增量渲染状态。
+///
+/// 两个边界之前的前缀不可变，只有最后一个顶层 Markdown 块随已提交源码重新渲染。
 /// Incremental render state split at source and rendered-line boundaries.
 ///
 /// The prefix before both boundaries is immutable; only the final top-level Markdown block is
 /// re-rendered as committed source arrives.
 pub(super) struct StreamingRender {
     pub(super) lines: Vec<HyperlinkLine>,
+    /// 仅包含已完成顶层 Markdown 块的源码前缀。
     /// Source prefix containing only completed top-level markdown blocks.
     stable_source_len: usize,
+    /// 与 `stable_source_len` 对应的渲染行边界。
     /// Rendered-line boundary corresponding to `stable_source_len`.
     stable_rendered_len: usize,
+    /// 引用式链接定义可能影响任意更早或更晚的 Markdown 块。
     /// Reference-style link definitions can affect any earlier or later markdown block.
     has_reference_link_definition: bool,
+    /// 内联可视化指令一旦提交就要求重写完整源码。
     /// Inline visualization directives require source-wide rewriting once one is committed.
     has_inline_visualization_directive: bool,
+    /// 可直接追加的开放顶层代码围栏解析状态。
     /// Parser state for a directly appendable, open top-level code fence.
     open_code_fence: Option<OpenCodeFence>,
 }
@@ -57,6 +69,9 @@ impl StreamingRender {
         self.open_code_fence = None;
     }
 
+    /// 重新渲染完整源码，并重置两个稳定前缀边界。
+    ///
+    /// 宽度或渲染模式变化，以及全局渲染状态使前缀复用不安全时使用。
     /// Re-render the full source and reset both stable-prefix boundaries.
     ///
     /// This is used when width or render mode changes, and whenever source-wide rendering state
@@ -86,6 +101,10 @@ impl StreamingRender {
         self.stable_rendered_len = 0;
     }
 
+    /// 追加新提交源码，同时只让最终 Markdown 块保持可变。
+    ///
+    /// 最终块可能因后续行改变含义；更早顶层块只渲染一次并保留。
+    /// 引用定义与内联可视化会影响全局，因此回退到完整渲染。
     /// Append newly committed source while retaining only the final markdown block as mutable.
     ///
     /// The final top-level block can still change meaning when another line arrives (for example,

@@ -1,3 +1,7 @@
+//! 验证实时命令输出在分块输入、截断和逐行保留时的有界存储契约。
+//! 这些场景同时覆盖终端控制序列与 UTF-8 边界，确保展示截断不会损坏原始转录。
+//! 测试只观察公开的行视图与计数，不依赖内部缓冲区的具体布局。
+
 use super::LIVE_COMMAND_OUTPUT_LINE_HEAD_BYTES;
 use super::LIVE_COMMAND_OUTPUT_LINE_TAIL_BYTES;
 use super::LIVE_COMMAND_OUTPUT_MAX_BYTES;
@@ -6,6 +10,7 @@ use codex_ansi_escape::ansi_escape_line;
 use pretty_assertions::assert_eq;
 
 #[test]
+// 预算内的短行应完整保留，任意输入分块也必须拼出相同的逻辑行。
 fn keeps_all_short_lines_and_chunk_boundaries_within_the_live_byte_budget() {
     let mut output = LiveCommandOutput::default();
     for line in 1..=500 {
@@ -29,6 +34,7 @@ fn keeps_all_short_lines_and_chunk_boundaries_within_the_live_byte_budget() {
 }
 
 #[test]
+// 首次越过预算后应切换为有界表示，并把跨分块的 CRLF 仍视为一个换行符。
 fn switches_to_bounded_storage_after_the_byte_budget_and_preserves_split_crlf() {
     let mut output = LiveCommandOutput::default();
     let line = "x".repeat(LIVE_COMMAND_OUTPUT_MAX_BYTES);
@@ -67,6 +73,7 @@ fn switches_to_bounded_storage_after_the_byte_budget_and_preserves_split_crlf() 
 }
 
 #[test]
+// 截断点落在 ANSI 序列中时，清理控制码后仍须显示被保留的可见尾部。
 fn truncated_ansi_sequence_does_not_hide_the_retained_tail() {
     let mut output = LiveCommandOutput::default();
     let prefix = "x".repeat(LIVE_COMMAND_OUTPUT_LINE_HEAD_BYTES - 2);
@@ -89,6 +96,7 @@ fn truncated_ansi_sequence_does_not_hide_the_retained_tail() {
 }
 
 #[test]
+// 无换行的超长多字节文本只能在字符边界裁剪，并同时保留首尾上下文。
 fn bounds_long_no_newline_output_and_preserves_utf8_head_and_tail() {
     let mut output = LiveCommandOutput::default();
     let chunk = "🦀".repeat(1024);
@@ -113,6 +121,7 @@ fn bounds_long_no_newline_output_and_preserves_utf8_head_and_tail() {
 }
 
 #[test]
+// 多行与末尾半行混合累积时，总保留量必须受全局字节预算约束。
 fn retained_output_stays_within_the_live_byte_budget() {
     let mut output = LiveCommandOutput::default();
     let body = "output ".repeat(4_000);

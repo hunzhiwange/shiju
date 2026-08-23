@@ -43,6 +43,8 @@ impl AcpBackendOption {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct SessionExecutionSnapshot {
+    pub(crate) effort: ReasoningEffort,
+    pub(crate) permission_mode: PermissionMode,
     pub(crate) delegate_agent: Option<String>,
     pub(crate) acp_backend: Option<String>,
     pub(crate) acp_force_new_session: bool,
@@ -61,8 +63,8 @@ pub(crate) enum AcpSessionMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) enum AccessMode {
-    Standard,
     #[default]
+    Standard,
     Full,
 }
 
@@ -102,7 +104,7 @@ impl Default for SessionCapabilityMatrix {
     fn default() -> Self {
         Self {
             models: Vec::new(),
-            efforts: vec![ReasoningEffort::Medium],
+            efforts: Vec::new(),
             supports_thinking: false,
             supports_fast: false,
             permission_modes: vec![PermissionMode::Default],
@@ -145,10 +147,13 @@ impl SessionOptions {
 
     pub(crate) fn execution_snapshot(&self) -> SessionExecutionSnapshot {
         SessionExecutionSnapshot {
+            effort: self.effort,
+            permission_mode: self.permission_mode,
             delegate_agent: self.delegate_agent.clone(),
             acp_backend: self.acp_backend.clone(),
             acp_force_new_session: self.acp_session_mode == AcpSessionMode::ForceNew,
-            full_access_enabled: self.access_mode == AccessMode::Full,
+            full_access_enabled: self.access_mode == AccessMode::Full
+                || (self.permission_mode == PermissionMode::Bypass && self.bypass_confirmed),
             subagent_mode_enabled: self.subagent_mode == SubagentMode::Enabled,
             workflow_mode: self.workflow_mode,
             goal_mode: self.goal_mode,
@@ -181,6 +186,16 @@ impl SessionOptions {
 
     pub(crate) fn full_access_enabled(&self) -> bool {
         self.access_mode == AccessMode::Full
+            || (self.permission_mode == PermissionMode::Bypass && self.bypass_confirmed)
+    }
+
+    pub(crate) fn explicit_full_access_enabled(&self) -> bool {
+        self.access_mode == AccessMode::Full
+    }
+
+    pub(crate) fn set_permission_mode(&mut self, mode: PermissionMode, dangerous_confirmed: bool) {
+        self.permission_mode = mode;
+        self.bypass_confirmed = mode == PermissionMode::Bypass && dangerous_confirmed;
     }
 
     pub(crate) fn set_full_access(&mut self, enabled: bool) {

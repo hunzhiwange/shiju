@@ -1,3 +1,8 @@
+//! `/keymap` 的引导式键位重映射界面。
+//!
+//! 本模块从已解析的 `RuntimeKeymap` 开始交互编辑，并产生新的根级 `TuiKeymap` 覆盖。
+//! 流程分为选择动作、选择替换/添加/移除、捕获单键或有界双键和弦三步；捕获后复用
+//! `keymap.rs` 的运行时解析做冲突校验。模块不直接持久化配置，只向应用层发送编辑事件。
 //! Guided keymap remapping UI for `/keymap`.
 //!
 //! This module owns the interactive editing flow that starts from a resolved
@@ -70,12 +75,14 @@ const KEYMAP_ACTION_MENU_MIN_DESCRIPTION_WIDTH: u16 = 24;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum KeymapEditOutcome {
+    /// 编辑产生了新配置快照和面向用户的状态消息。
     /// The edit produced a new config snapshot and user-facing status message.
     Updated {
         keymap_config: Box<TuiKeymap>,
         bindings: Vec<String>,
         message: String,
     },
+    /// 请求的编辑解析后与原有效绑定集合相同。
     /// The requested edit resolved to the same effective binding set.
     Unchanged { message: String },
 }
@@ -134,6 +141,8 @@ fn action_menu_item(
     }
 }
 
+/// 用户选择快捷键行后构建动作菜单；有效绑定决定替换/添加是否可用，根配置决定移除自定义绑定
+/// 是否能恢复回退。过期上下文或动作只返回通用菜单而不 panic。
 /// Build the action-specific menu after a user chooses a shortcut row.
 ///
 /// The menu is based on both active runtime bindings and root config state: the
@@ -420,6 +429,8 @@ pub(crate) fn build_keymap_conflict_params(
     }
 }
 
+/// 为选定键位编辑构建临时捕获视图；使用最新运行时映射展示当前摘要，未知动作显示未绑定，
+/// 让后续编辑路径报告精确的过期选择错误。
 /// Build the transient capture view for the selected keymap edit.
 ///
 /// The view displays the current binding summary from the latest runtime map
@@ -457,6 +468,8 @@ fn keymap_with_replacement(
     keymap_with_bindings(keymap, context, action, &[key.to_string()])
 }
 
+/// 把捕获按键应用到一个动作并返回编辑后的根配置；添加默认动作的候选键前会先物化默认值，
+/// 替换单键则要求旧键仍活动，以防过期菜单覆盖已变化的绑定。
 /// Apply a captured key to one action and return the edited root config.
 ///
 /// The current effective bindings come from `runtime_keymap`, so adding an
@@ -553,6 +566,8 @@ fn keymap_with_bindings(
     Ok(keymap)
 }
 
+/// 返回运行时动作的活动配置键位字符串，供展示及需保留旧绑定的编辑操作使用；
+/// 有效菜单指向未知动作时应视为过期界面状态。
 /// Return the active config key specs for one runtime action.
 ///
 /// This converts resolved [`crate::key_hint::KeyBinding`] values back into
@@ -588,6 +603,7 @@ fn dedup_bindings(bindings: Vec<String>) -> Vec<String> {
     })
 }
 
+/// 移除动作的根级自定义绑定；设置为 `None` 会恢复默认/全局回退，空列表则显式解绑。
 /// Remove the root-level custom binding for one action.
 ///
 /// Clearing the slot with `None` is different from setting an empty binding

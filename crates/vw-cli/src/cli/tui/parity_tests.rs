@@ -7,11 +7,12 @@ use ratatui::layout::Rect;
 use serde_json::json;
 use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};
 use vw_tui::{
-    ChatWidget, ChatWidgetConfig, TranscriptPager, V3Action, V3ApprovalChoice,
-    V3ApprovalDecision, V3ApprovalKind, V3ApprovalRequest, V3ChatStatus, V3DisplayEvent, V3Event,
-    V3FooterData, V3UserInputAnswer, V3UserInputOption, V3UserInputQuestion, V3UserInputRequest,
+    ChatWidget, ChatWidgetConfig, TranscriptPager, V3Action, V3ApprovalChoice, V3ApprovalDecision,
+    V3ApprovalKind, V3ApprovalRequest, V3ChatStatus, V3DisplayEvent, V3Event, V3FooterData,
+    V3UserInputAnswer, V3UserInputOption, V3UserInputQuestion, V3UserInputRequest,
 };
 
+use super::app::V3GatewayApp;
 use super::controller::{TuiControllerCommand, TuiOverlayCommand};
 use super::model::permission::{
     PermissionDecision, PermissionPreviewKind, PermissionQueue, PermissionRequest,
@@ -22,7 +23,6 @@ use super::model::{
 };
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::state::TuiState;
-use super::app::V3GatewayApp;
 
 const SIZES: [(u16, u16); 3] = [(40, 18), (80, 24), (120, 40)];
 const SCENARIOS: [&str; 10] = [
@@ -49,8 +49,9 @@ fn tui_uses_ported_codex_components_across_visual_matrix() {
     for scenario in SCENARIOS {
         let actual = fixture_bundle(scenario);
         let fixture = fixture_path(scenario);
-        let expected = fs::read_to_string(&fixture)
-            .unwrap_or_else(|error| panic!("missing visual fixture {}: {error}", fixture.display()));
+        let expected = fs::read_to_string(&fixture).unwrap_or_else(|error| {
+            panic!("missing visual fixture {}: {error}", fixture.display())
+        });
         assert_eq!(
             actual.trim_end_matches('\n'),
             expected.trim_end_matches('\n'),
@@ -82,7 +83,10 @@ fn tui_real_gateway_pipeline_preserves_v2_semantics() {
     assert_eq!(request.acp_agent.as_deref(), Some("codex"));
     assert_eq!(request.allowed_tools, Some(vec!["AgentTool".to_string(), "todowrite".to_string()]));
     assert_eq!(request.acp_allowed_tools, request.allowed_tools);
-    assert_eq!(request.messages.last().and_then(|message| message["content"].as_str()), Some("bridge prompt"));
+    assert_eq!(
+        request.messages.last().and_then(|message| message["content"].as_str()),
+        Some("bridge prompt")
+    );
     assert_eq!(request.system.as_ref().map(Vec::len), Some(1));
     let options = request.options.as_ref().expect("Gateway options must be preserved");
     assert_eq!(options["cwd"], "/workspace");
@@ -161,9 +165,11 @@ fn tui_real_gateway_pipeline_preserves_v2_semantics() {
 
     let mut error_app = gateway_app();
     error_app.accept_gateway_event(GatewayChatStreamEvent::Delta("partial".to_string()));
-    let error = error_app
-        .accept_gateway_event(GatewayChatStreamEvent::Error("gateway failed".to_string()));
-    assert!(matches!(error.as_slice(), [V3Event::TurnFailed { message, .. }] if message == "gateway failed"));
+    let error =
+        error_app.accept_gateway_event(GatewayChatStreamEvent::Error("gateway failed".to_string()));
+    assert!(
+        matches!(error.as_slice(), [V3Event::TurnFailed { message, .. }] if message == "gateway failed")
+    );
     assert_eq!(
         error_app.state().status.turn_terminal,
         UiTurnTerminal::Error { message: "gateway failed".to_string() }
@@ -174,20 +180,15 @@ fn tui_real_gateway_pipeline_preserves_v2_semantics() {
 fn tui_forwards_the_initial_display_model_to_gateway_requests() {
     let endpoint = GatewayEndpoint::new("127.0.0.1", 9);
     let client = GatewayClient::new(endpoint).expect("test Gateway client");
-    let runtime = GatewayUiRuntime::new(
-        client,
-        GatewaySessionSeed::new(PathBuf::from("/workspace")),
-    );
+    let runtime =
+        GatewayUiRuntime::new(client, GatewaySessionSeed::new(PathBuf::from("/workspace")));
     let mut state = TuiState::default();
     state.session_options.model = Some("token-plan/qwen3.7-plus".to_string());
     assert!(state.status.model_name.is_none());
 
     let mut app = V3GatewayApp::new(runtime, state);
     let submit = app
-        .handle_action(V3Action::Submit {
-            text: "who are u".to_string(),
-            attachments: Vec::new(),
-        })
+        .handle_action(V3Action::Submit { text: "who are u".to_string(), attachments: Vec::new() })
         .expect("TUI submit must route through the controller");
     let request = app
         .request_for_command(&submit)
@@ -410,9 +411,8 @@ fn visual_widget(scenario: &str) -> ChatWidget {
                 turn_id: "turn-completed".to_string(),
                 delta: "Gateway regression completed successfully.".to_string(),
             });
-            widget.handle_v3_event(V3Event::TurnCompleted {
-                turn_id: "turn-completed".to_string(),
-            });
+            widget
+                .handle_v3_event(V3Event::TurnCompleted { turn_id: "turn-completed".to_string() });
         }
         "error" => {
             widget.handle_v3_event(V3Event::TurnStarted { turn_id: "turn-error".to_string() });

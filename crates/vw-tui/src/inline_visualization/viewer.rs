@@ -1,3 +1,10 @@
+//! 将受限可视化片段物化为带沙箱与 CSP 的本地查看器文档。
+//!
+//! 仅接受预算内的普通文件，并把生成文档限制在无符号链接的查看器目录。
+//! 内容经临时文件原子持久化；相同文档会命中内存缓存，避免重复写入。
+//! 内层框架与外壳使用分层 CSP，且框架不授予同源权限。
+//! 标题和 `srcdoc` 内容都会转义，防止片段突破 HTML 边界。
+
 use super::MAX_FRAGMENT_BYTES;
 use std::collections::HashMap;
 use std::fs;
@@ -9,6 +16,7 @@ use std::sync::Mutex;
 const FRAGMENT_PLACEHOLDER: &str = "<!--__INLINE_VISUALIZATION_FRAGMENT__-->";
 const VIEWER_DIRECTORY_NAME: &str = ".codex-viewers";
 
+// 这些资源必须与内置 visualize 技能的浏览器渲染器保持同步。
 // Keep these assets in sync with the bundled visualize skill's browser renderer.
 const VIEWER_STYLESHEET: &str = include_str!("assets/visualize.css");
 const VIEWER_RUNTIME: &str = include_str!("assets/visualize.html");
@@ -68,6 +76,8 @@ fn render_fragment(fragment: &str, title: &str) -> String {
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"referrer\" content=\"no-referrer\"><meta http-equiv=\"Content-Security-Policy\" content=\"{FRAME_CSP}\"><title>{escaped_title}</title><style>{VIEWER_STYLESHEET}\nhtml>body{{padding:0}}</style></head><body>{runtime}</body></html>"
     );
 
+    // srcdoc 框架继承父级 CSP，因此外壳必须允许更严格框架可能使用的全部资源类型。
+    // 框架本身仍保持沙箱隔离，且不启用 allow-same-origin。
     // A srcdoc frame inherits its parent's CSP, so the shell must grant every
     // resource type that the stricter frame CSP may use. The frame itself stays
     // sandboxed without allow-same-origin.

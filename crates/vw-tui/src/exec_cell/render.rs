@@ -1,3 +1,4 @@
+//! 复制而来的命令单元 Ratatui 布局。
 //! Ratatui layout for the copied command cell.
 
 use std::time::Duration;
@@ -14,10 +15,13 @@ pub const TOOL_CALL_MAX_LINES: usize = 20;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OutputLinesParams {
+    /// 单次工具输出最多展示的源行数。
     pub max_lines: usize,
+    /// 每个源行折行时可用的终端宽度。
     pub width: usize,
 }
 
+/// 截取并折行命令输出，统一使用弱化样式以区别于命令本身。
 pub fn output_lines(output: &str, params: OutputLinesParams) -> Vec<Line<'static>> {
     output
         .lines()
@@ -34,6 +38,7 @@ pub fn output_lines(output: &str, params: OutputLinesParams) -> Vec<Line<'static
 }
 
 impl ExecCell {
+    /// 按调用顺序构造命令、活动指示、输出和结束状态行。
     pub fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
         let width = usize::from(width).max(1);
         let mut lines = Vec::new();
@@ -91,6 +96,7 @@ impl ExecCell {
 }
 
 fn format_duration(duration: Duration) -> String {
+    // 秒级耗时避免显示多余小数，短任务则保留毫秒粒度。
     if duration.as_secs() > 0 {
         format!("{}s", duration.as_secs())
     } else {
@@ -103,6 +109,7 @@ pub fn new_active_exec_command(call_id: String, tool: String, command: String) -
 }
 
 pub fn rendered_width(lines: &[Line<'_>]) -> usize {
+    // 使用终端显示宽度而非字节长度，兼容宽字符内容。
     lines.iter().map(|line| display_width(&line.to_string())).max().unwrap_or(0)
 }
 
@@ -112,6 +119,7 @@ mod tests {
     use crate::exec_cell::CommandOutput;
 
     #[test]
+    // 验证已完成单元同时保留命令、输出和成功状态，不只覆盖布局构造。
     fn completed_exec_cell_keeps_command_output_and_status() {
         let cell = ExecCell::completed(
             "call-1".into(),

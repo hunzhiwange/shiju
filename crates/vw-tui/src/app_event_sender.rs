@@ -1,3 +1,7 @@
+//! 应用事件及常用 TUI 出站命令的便捷发送器。
+//!
+//! 本模块封装原始通道，使调用方无需重复构造事件或处理会话日志，
+//! 即可提交带类型的 `AppCommand`。
 //! Convenience sender for app events and common outbound TUI commands.
 //!
 //! This wraps the raw channel so call sites can submit typed `AppCommand`s
@@ -20,6 +24,7 @@ use crate::app_event::AppEvent;
 use crate::session_log;
 
 #[derive(Clone, Debug)]
+/// 持有应用事件通道，并统一提供命令到事件的转换入口。
 pub(crate) struct AppEventSender {
     pub app_event_tx: UnboundedSender<AppEvent>,
 }
@@ -29,9 +34,11 @@ impl AppEventSender {
         Self { app_event_tx }
     }
 
+    /// 向应用事件通道发送事件；发送失败时只记录错误，不向调用方传播。
     /// Send an event to the app event channel. If it fails, we swallow the
     /// error and log it.
     pub(crate) fn send(&self, event: AppEvent) {
+        // 为高保真会话回放记录入站事件；提交点已记录的操作不能重复写入日志。
         // Record inbound events for high-fidelity session replay.
         // Avoid double-logging Ops; those are logged at the point of submission.
         if !matches!(event, AppEvent::CodexOp(_)) {
@@ -77,6 +84,7 @@ impl AppEventSender {
         id: String,
         decision: CommandExecutionApprovalDecision,
     ) {
+        // 审批必须携带目标线程，避免被当前界面焦点错误路由。
         self.send(AppEvent::SubmitThreadOp {
             thread_id,
             op: AppCommand::exec_approval(id, /*turn_id*/ None, decision),
@@ -116,6 +124,7 @@ impl AppEventSender {
         content: Option<serde_json::Value>,
         meta: Option<serde_json::Value>,
     ) {
+        // 保留服务器名、请求 ID 和可选元数据，供应用服务器精确关联原请求。
         self.send(AppEvent::SubmitThreadOp {
             thread_id,
             op: AppCommand::resolve_elicitation(server_name, request_id, decision, content, meta),

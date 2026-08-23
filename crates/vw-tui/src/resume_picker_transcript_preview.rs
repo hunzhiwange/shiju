@@ -29,6 +29,7 @@ const MAX_TRANSCRIPT_PREVIEW_LINES: usize = 6;
 const TRANSCRIPT_PREVIEW_ITEMS_PAGE_SIZE: u32 = 6;
 const MAX_LEGACY_TRANSCRIPT_PREVIEW_SCAN_BYTES: usize = 1024 * 1024;
 
+/// 从有界分页项或本地旧版 rollout 尾部加载最新记录行。
 /// Loads the newest transcript lines from bounded paginated items or a local legacy rollout tail.
 pub(crate) async fn load_transcript_preview(
     app_server: &mut AppServerSession,
@@ -47,6 +48,7 @@ pub(crate) async fn load_transcript_preview(
     let mut lines = Vec::with_capacity(MAX_TRANSCRIPT_PREVIEW_LINES);
     match thread.history_mode {
         ThreadHistoryMode::Legacy => {
+            // 嵌入模式优先在阻塞线程反向扫描本地 JSONL；无法证明完整时回退到服务器水合。
             if matches!(app_server.thread_params_mode(), ThreadParamsMode::Embedded)
                 && let Some(path) = thread.path.as_ref()
                 && path
@@ -93,6 +95,7 @@ pub(crate) async fn load_transcript_preview(
             );
         }
         ThreadHistoryMode::Paginated => {
+            // 分页模式同时限制预览行、扫描项和重复游标，避免无界请求。
             let cwd = thread.cwd.as_path();
             let mut cursor = None;
             let mut seen_cursors = HashSet::new();
@@ -138,10 +141,12 @@ pub(crate) async fn load_transcript_preview(
         }
     }
 
+    // 收集过程按从新到旧进行，返回前恢复为自然阅读顺序。
     lines.reverse();
     Ok(lines)
 }
 
+/// 扫描有界的旧版 rollout 尾部；无法证明历史完整时返回回退信号。
 /// Scans a bounded legacy rollout tail, falling back when its history cannot be proven complete.
 fn scan_legacy_transcript_preview(
     path: &Path,
@@ -164,6 +169,7 @@ fn scan_legacy_transcript_preview(
         let outcome = match scanner.scan_next::<RolloutLine>() {
             Ok(Some(outcome)) => outcome,
             Ok(None) => break,
+            // 越过扫描预算意味着尾部不足以安全判断，交给完整水合路径处理。
             Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(None),
             Err(error) => return Err(error),
         };
@@ -171,6 +177,7 @@ fn scan_legacy_transcript_preview(
             continue;
         };
         match line.item {
+            // 回滚会改变可见历史，局部反扫无法重建，必须放弃快速路径。
             RolloutItem::EventMsg(EventMsg::ThreadRolledBack(_)) => return Ok(None),
             RolloutItem::EventMsg(EventMsg::UserMessage(message)) => {
                 append_transcript_preview_text(
@@ -200,6 +207,7 @@ fn scan_legacy_transcript_preview(
     Ok(Some(lines))
 }
 
+/// 阻止反向扫描越过 rollout 的有界后缀。
 /// Prevents reverse scans from reading past the bounded suffix of a rollout.
 struct BoundedRolloutTailReader {
     file: File,
@@ -225,6 +233,7 @@ impl Seek for BoundedRolloutTailReader {
     }
 }
 
+/// 从已按新到旧排列的条目追加最新预览行。
 /// Appends the newest preview lines from items already ordered newest-first.
 fn append_transcript_preview_lines<'a>(
     lines: &mut Vec<TranscriptPreviewLine>,
@@ -270,6 +279,7 @@ fn append_transcript_preview_lines<'a>(
     }
 }
 
+/// 追加消息中最新的非空行，并保留助手文本的展示改写。
 /// Appends a message's newest nonblank lines while preserving assistant display rewrites.
 fn append_transcript_preview_text(
     lines: &mut Vec<TranscriptPreviewLine>,
@@ -282,6 +292,7 @@ fn append_transcript_preview_text(
     let text = match speaker {
         TranscriptPreviewSpeaker::User => Cow::Borrowed(text),
         TranscriptPreviewSpeaker::Assistant => {
+            // 助手文本先移除 Git 指令，再把受信可视化占位链接恢复为实际文件 URL。
             visible_markdown = parse_assistant_markdown(text, cwd).visible_markdown;
             let rewritten = crate::inline_visualization::rewrite_inline_visualizations(
                 &visible_markdown,
@@ -318,3 +329,4 @@ fn append_transcript_preview_text(
 #[cfg(test)]
 #[path = "resume_picker_transcript_preview_tests.rs"]
 mod tests;
+//! 从分页线程项或旧版 rollout 尾部加载有界的会话记录预览。

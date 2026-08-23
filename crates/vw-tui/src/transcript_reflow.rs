@@ -1,3 +1,8 @@
+//! 跟踪终端缩放后何时必须修复 VibeWindow 拥有的记录回滚区。
+//!
+//! 回滚区不是保留式组件树：宽度变化时以内存记录单元为事实来源，清除并按当前宽度重发；
+//! 仅高度增长也需重建新暴露行。本模块只保存调度和流式修复状态，实际渲染/清理由
+//! `app::resize_reflow` 完成；流式或合并前请求必须在来源单元最终化后再执行一次修复。
 //! Tracks when VibeWindow-owned transcript scrollback must be repaired after terminal resize.
 //!
 //! Terminal scrollback is not a retained widget tree: once VibeWindow writes wrapped lines into the
@@ -17,6 +22,8 @@ use std::time::Instant;
 
 pub(crate) const TRANSCRIPT_REFLOW_DEBOUNCE: Duration = Duration::from_millis(75);
 
+/// 跟踪缩放后的待处理回滚区修复；分别保存已观察宽度和实际重建宽度，
+/// 使终端拖动经过中间尺寸后仍能在最终尺寸再重建一次。
 /// Tracks pending terminal-scrollback repair after a terminal resize.
 ///
 /// The state intentionally separates observed terminal width from rebuilt terminal width. Terminal
@@ -35,6 +42,7 @@ pub struct TranscriptReflowState {
 }
 
 impl TranscriptReflowState {
+    /// 重置宽度、待处理截止时间和流修复状态；丢弃记录事实来源时调用，避免旧截止时间重建无关单元。
     /// Reset all width, pending deadline, and stream repair state.
     ///
     /// Call this when the app discards the transcript state that pending reflow work would have
@@ -44,16 +52,19 @@ impl TranscriptReflowState {
         *self = Self::default();
     }
 
+    /// 缓存当前终端尺寸下输入框上方保留的历史行数。
     /// Cache the history rows left above the composer for the current terminal size.
     pub(crate) fn set_visible_history_rows(&mut self, rows: u16) {
         self.visible_history_rows = Some(rows.max(/*other*/ 1));
     }
 
+    /// 返回最近视口预算，避免单元重放期间查询终端。
     /// Return the last viewport budget without querying the terminal during cell replay.
     pub(crate) fn visible_history_rows(&self) -> Option<u16> {
         self.visible_history_rows
     }
 
+    /// 记录绘制时观察到的宽度并报告初始化或变化；首次宽度不安排重建，因为尚无旧宽历史。
     /// Record the width observed during a draw and report whether it is new or changed.
     ///
     /// The first observed width initializes the state without scheduling a rebuild because no
@@ -70,6 +81,7 @@ impl TranscriptReflowState {
         }
     }
 
+    /// 判断回滚区是否仍需在给定宽度重建；比较实际重建宽度而非仅最近观察值。
     /// Return whether scrollback still needs to be rebuilt at `width`.
     ///
     /// This compares against the width that actually rebuilt scrollback, not just the most recently
@@ -80,6 +92,8 @@ impl TranscriptReflowState {
         self.last_reflow_width != Some(width) && self.pending_reflow_width != Some(width)
     }
 
+    /// 安排尾随防抖重排并返回是否应立即执行；重复缩放推迟截止时间，
+    /// 高度变化目标不应压制同一绘制周期稍后的宽度修复。
     /// Schedule a trailing-debounced reflow and return whether it should run immediately.
     ///
     /// Repeated resize events push the deadline out so dragging a terminal edge rebuilds scrollback
@@ -95,6 +109,7 @@ impl TranscriptReflowState {
         false
     }
 
+    /// 为下一次绘制机会安排立即重排，用于流合并后消除已最终化记录中的临时终端换行。
     /// Schedule an immediate reflow for the next draw opportunity.
     ///
     /// This is used after stream consolidation when waiting for the debounce interval would leave
@@ -126,6 +141,7 @@ impl TranscriptReflowState {
         self.pending_reflow_width = None;
     }
 
+    /// 记录实际重建记录回滚区的终端宽度，区分“绘制时见过”与“已在该宽度修复”。
     /// Remember the terminal width that actually rebuilt transcript scrollback.
     ///
     /// Resize scheduling is driven by observed widths, but debounced redraws may run before a
@@ -135,6 +151,7 @@ impl TranscriptReflowState {
         self.last_reflow_width.replace(width) != Some(width)
     }
 
+    /// 记录流合并完成前确实执行过历史重建；合并处理器之后必须基于最终来源单元再次重建。
     /// Remember that a reflow actually rebuilt history before stream consolidation completed.
     ///
     /// A mid-stream rebuild can only render the transient stream cells that exist at that moment.
@@ -144,6 +161,7 @@ impl TranscriptReflowState {
         self.ran_during_stream = true;
     }
 
+    /// 记录流式或合并前单元存在时终端宽度变化，即使防抖未及时触发，也保证合并后修复。
     /// Remember that the terminal width changed while streaming or pre-consolidation cells existed.
     ///
     /// This captures the case where the debounce did not fire before the stream finished. Without
@@ -154,6 +172,7 @@ impl TranscriptReflowState {
         self.resize_requested_during_stream = true;
     }
 
+    /// 取出并清除流最终化所需的来源重排请求；每次流中缩放最多触发一次合并后修复。
     /// Return whether stream finalization needs a source-backed reflow and clear the request.
     ///
     /// This is a draining read because each resize-during-stream episode should force at most one
@@ -166,6 +185,7 @@ impl TranscriptReflowState {
         needed
     }
 
+    /// 只清除流修复标志，保留宽度和待处理截止时间；最终流重排完成后使用。
     /// Clear only the stream repair flags while preserving width and pending-deadline state.
     ///
     /// Use this after a required final stream reflow has completed. Calling `clear()` here would
@@ -176,6 +196,7 @@ impl TranscriptReflowState {
     }
 }
 
+/// 描述最新绘制宽度与先前观察宽度的关系：`initialized` 表示首次观察，`changed` 表示已有值且不同。
 /// Describes how the latest draw width relates to the previous observed draw width.
 ///
 /// `initialized` means this was the first width observed by the state machine. `changed` means a

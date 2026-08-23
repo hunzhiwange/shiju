@@ -1,3 +1,8 @@
+//! 验证令牌活动数据聚合、柱形填充和日周累计图表的文本布局。
+//! 相同日期会合并，负值钳制为零，避免生成反向或溢出的柱形。
+//! 快照区分空白与活动单元格，并固定宽窄终端中的左对齐和标题换行。
+//! 视图别名解析保证命令入口与实际日、周、累计图表模式一致。
+
 use super::*;
 use codex_app_server_protocol::AccountTokenUsageDailyBucket;
 use codex_app_server_protocol::AccountTokenUsageSummary;
@@ -6,6 +11,7 @@ use pretty_assertions::assert_eq;
 
 #[test]
 fn duplicate_dates_sum_and_negative_values_clamp() {
+    // 聚合阶段合并重复日期并钳制负数，为后续图形提供单调非负输入。
     let today =
         NaiveDate::from_ymd_opt(/*year*/ 2026, /*month*/ 5, /*day*/ 29).expect("valid date");
     let buckets = vec![
@@ -30,6 +36,7 @@ fn duplicate_dates_sum_and_negative_values_clamp() {
 
 #[test]
 fn bar_levels_fill_from_bottom() {
+    // 柱形层级始终自底向上填充，空白部分保持可与背景区分。
     let levels = bar_levels(&[0, 10]);
 
     assert_eq!(&levels[..DAY_COUNT], &[0; DAY_COUNT]);
@@ -56,6 +63,7 @@ fn token_activity_view_aliases_parse() {
 
 #[test]
 fn daily_graph_snapshot_uses_distinct_empty_and_active_cells() {
+    // 日图快照区分空格与活动单元，并在宽视口中保持左对齐。
     let today =
         NaiveDate::from_ymd_opt(/*year*/ 2026, /*month*/ 5, /*day*/ 29).expect("valid date");
     let buckets = vec![
@@ -113,6 +121,7 @@ fn daily_graph_snapshot_stays_left_aligned_in_wide_terminal() {
 
 #[test]
 fn weekly_graph_snapshot_renders_bar_chart_and_caption() {
+    // 周视图、累计视图和摘要共同固定柱形、标题及窄宽布局换行。
     let today =
         NaiveDate::from_ymd_opt(/*year*/ 2026, /*month*/ 5, /*day*/ 29).expect("valid date");
     let buckets = vec![

@@ -5,6 +5,9 @@
 //!
 //! The key contract is that time-sensitive values are interpreted relative to a caller-provided
 //! capture timestamp so stale detection and reset labels remain coherent for a given draw cycle.
+//!
+//! 本模块把协议层 `RateLimitSnapshot` 整理为 `/status` 与状态行共享的展示行，避免重复格式化。
+//! 所有时效判断都相对于调用方提供的同一采集时间，以保证一次绘制中的过期状态和重置文案一致。
 use crate::chatwidget::fallback_limit_label;
 use crate::chatwidget::limit_label_for_window;
 use crate::text_formatting::capitalize_first;
@@ -27,51 +30,69 @@ const STATUS_LIMIT_BAR_EMPTY: &str = "░";
 #[derive(Debug, Clone)]
 pub(crate) struct StatusRateLimitRow {
     /// Human-readable row label, such as `"5h limit"`, `"Monthly limit"`, or `"Credits"`.
+    /// 面向用户的行标签，例如“5h limit”“Monthly limit”或“Credits”。
     pub label: String,
     /// Value payload for the row.
+    /// 该行的展示值载荷。
     pub value: StatusRateLimitValue,
 }
 
 /// Display value variants for a single rate-limit row.
+/// 单条限额行可使用的展示值类型。
 #[derive(Debug, Clone)]
 pub(crate) enum StatusRateLimitValue {
     /// Percent-based usage window with optional reset timestamp text.
+    /// 百分比用量窗口，可附带重置时间与详情。
     Window {
         /// Percent of the window that has been consumed.
+        /// 当前窗口已经消耗的百分比。
         percent_used: f64,
         /// Localized reset string, or `None` when unknown.
+        /// 本地化重置时间，未知时为空。
         resets_at: Option<String>,
         /// Optional detail line rendered beneath the progress bar.
+        /// 可选的进度条下方详情行。
         details: Option<String>,
     },
     /// Plain text value used for non-window rows.
+    /// 非窗口行使用的纯文本值。
     Text(String),
 }
 
 /// Availability state for rate-limit data shown in status output.
+/// 状态输出中限额数据的可用性分类。
 #[derive(Debug, Clone)]
 pub(crate) enum StatusRateLimitData {
     /// Snapshot data is recent enough for normal rendering.
+    /// 快照足够新，可正常渲染。
     Available(Vec<StatusRateLimitRow>),
     /// Snapshot data exists but is older than the staleness threshold.
+    /// 快照存在，但已超过陈旧阈值。
     Stale(Vec<StatusRateLimitRow>),
     /// The refresh completed, but the response did not include displayable usage data.
+    /// 刷新已完成，但响应没有可展示用量。
     Unavailable,
     /// No snapshot data is currently available.
+    /// 当前没有任何快照数据。
     Missing,
 }
 
 /// Maximum age before a snapshot is considered stale in status output.
+/// 状态输出把快照视为陈旧前允许的最大年龄。
 pub(crate) const RATE_LIMIT_STALE_THRESHOLD_MINUTES: i64 = 15;
 
 /// Display-friendly representation of one usage window from a snapshot.
+/// 单个用量窗口的展示友好形式。
 #[derive(Debug, Clone)]
 pub(crate) struct RateLimitWindowDisplay {
     /// Percent used for the window.
+    /// 当前窗口的已用百分比。
     pub used_percent: f64,
     /// Human-readable local reset time.
+    /// 面向用户的本地重置时间。
     pub resets_at: Option<String>,
     /// Window length in minutes when provided by the server.
+    /// 服务端提供时记录的窗口分钟数。
     pub window_minutes: Option<i64>,
 }
 
@@ -94,34 +115,46 @@ impl RateLimitWindowDisplay {
 #[derive(Debug, Clone)]
 pub(crate) struct RateLimitSnapshotDisplay {
     /// Canonical limit identifier (for example: `codex` or `codex_other`).
+    /// 规范限额标识，例如 `codex` 或 `codex_other`。
     pub limit_name: String,
     /// Local timestamp representing when this display snapshot was captured.
+    /// 这份展示快照的本地采集时间。
     pub captured_at: DateTime<Local>,
     /// Primary usage window.
+    /// 主用量窗口。
     pub primary: Option<RateLimitWindowDisplay>,
     /// Secondary usage window.
+    /// 次用量窗口。
     pub secondary: Option<RateLimitWindowDisplay>,
     /// Optional credits metadata when available.
+    /// 可用时附带的积分元数据。
     pub credits: Option<CreditsSnapshotDisplay>,
     /// Optional effective monthly credit limit from workspace spend controls.
+    /// 工作区消费控制给出的可选月度有效积分上限。
     pub individual_limit: Option<SpendControlLimitSnapshotDisplay>,
 }
 
 /// Display-ready credits state extracted from protocol snapshots.
+/// 从协议快照提取的可直接展示积分状态。
 #[derive(Debug, Clone)]
 pub(crate) struct CreditsSnapshotDisplay {
     /// Whether credits tracking is enabled for the account.
+    /// 账户是否启用积分跟踪。
     pub has_credits: bool,
     /// Whether the account has unlimited credits.
+    /// 账户积分是否无限。
     pub unlimited: bool,
     /// Raw balance text as provided by the backend.
+    /// 后端提供的原始余额文本，后续格式化会严格解析。
     pub balance: Option<String>,
 }
 
 /// Display-ready effective monthly limit extracted from spend controls.
+/// 从消费控制提取的可展示月度有效上限。
 #[derive(Debug, Clone)]
 pub(crate) struct SpendControlLimitSnapshotDisplay {
     /// Local timestamp representing when this monthly usage value was captured.
+    /// 月度用量值的本地采集时间。
     pub captured_at: DateTime<Local>,
     pub percent_remaining: f64,
     pub used: String,
@@ -133,6 +166,7 @@ pub(crate) struct SpendControlLimitSnapshotDisplay {
 ///
 /// Pass the timestamp from the same observation point as `snapshot`; supplying a significantly
 /// older or newer `captured_at` can produce misleading reset labels and stale classification.
+/// 把协议快照转换为 UI 展示数据；`captured_at` 必须与快照来自同一观测点，时间偏差会误导重置文案和陈旧分类。
 #[cfg(test)]
 pub(crate) fn rate_limit_snapshot_display(
     snapshot: &RateLimitSnapshot,
@@ -195,6 +229,7 @@ impl SpendControlLimitSnapshotDisplay {
 ///
 /// Callers should pass `Local::now()` for `now` at render time; using a cached timestamp can make
 /// fresh data appear stale or prevent stale warnings from appearing.
+/// 从一个或多个快照生成展示行并按采集年龄标记陈旧；渲染时应传入当前本地时间，缓存时间会造成错误分类。
 pub(crate) fn compose_rate_limit_data(
     snapshot: Option<&RateLimitSnapshotDisplay>,
     now: DateTime<Local>,
@@ -340,6 +375,7 @@ pub(crate) fn compose_rate_limit_data_many(
 ///
 /// This function expects a remaining value in the `0..=100` range and clamps out-of-range input.
 /// Passing a used percentage by mistake will invert the bar and mislead users.
+/// 从剩余百分比生成固定宽度进度条，并钳制越界输入；误传已用百分比会反转含义并误导用户。
 pub(crate) fn render_status_limit_progress_bar(percent_remaining: f64) -> String {
     let ratio = (percent_remaining / 100.0).clamp(0.0, 1.0);
     let filled = (ratio * STATUS_LIMIT_BAR_SEGMENTS as f64).round() as usize;
@@ -353,6 +389,7 @@ pub(crate) fn render_status_limit_progress_bar(percent_remaining: f64) -> String
 }
 
 /// Formats a compact textual summary from remaining percentage.
+/// 从剩余百分比生成紧凑文本摘要。
 pub(crate) fn format_status_limit_summary(percent_remaining: f64) -> String {
     format!("{percent_remaining:.0}% left")
 }
@@ -360,6 +397,7 @@ pub(crate) fn format_status_limit_summary(percent_remaining: f64) -> String {
 /// Builds a single `StatusRateLimitRow` when workspace credits are available.
 /// Unlimited credits are shown explicitly; finite credits show their rounded
 /// balance or `Available` when the balance is hidden.
+/// 在工作区积分可用时生成一行状态；无限积分明确显示，有限积分显示四舍五入余额或隐藏余额时的可用状态。
 fn credit_status_row(credits: &CreditsSnapshotDisplay) -> Option<StatusRateLimitRow> {
     if credits.unlimited {
         return Some(StatusRateLimitRow {
@@ -434,6 +472,7 @@ mod tests {
     }
 
     #[test]
+    // 验证单个非 Codex 限额合并为紧凑行，并保留积分信息。
     fn non_codex_single_limit_renders_combined_row() {
         let now = Local::now();
         let codex = RateLimitSnapshotDisplay {
@@ -480,6 +519,7 @@ mod tests {
     }
 
     #[test]
+    // 验证多个非 Codex 限额仍保留分组行，避免语义混合。
     fn non_codex_multi_limit_keeps_group_row() {
         let now = Local::now();
         let other = RateLimitSnapshotDisplay {

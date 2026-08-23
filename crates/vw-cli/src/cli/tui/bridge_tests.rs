@@ -13,6 +13,8 @@ use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
 use vw_tui::{V3Action, V3ApprovalDecision, V3Event, V3UserInputAnswer};
 
+use super::app::{V3GatewayApp, restore_or_create_session_state};
+use super::bridge::GatewayV3Bridge;
 use super::controller::{TuiControllerCommand, TuiOverlayCommand};
 use super::model::permission::{
     PermissionDecision, PermissionPreviewKind, PermissionQueue, PermissionRequest,
@@ -23,8 +25,6 @@ use super::model::{
 };
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::state::TuiState;
-use super::app::{V3GatewayApp, restore_or_create_session_state};
-use super::bridge::GatewayV3Bridge;
 
 #[test]
 fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
@@ -186,10 +186,7 @@ fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
     assert_eq!(assistant.usage.cached_tokens, 3);
     assert_eq!(assistant.usage.reasoning_tokens, 2);
     assert_eq!(assistant.base.id.as_str(), "gateway:assistant-13");
-    assert_eq!(
-        assistant.base.parent_id.as_ref().map(|id| id.as_str()),
-        Some("gateway:user-13")
-    );
+    assert_eq!(assistant.base.parent_id.as_ref().map(|id| id.as_str()), Some("gateway:user-13"));
     let snapshot = app.state().to_chat_session();
     assert_eq!(snapshot.message_ids.last().and_then(Clone::clone).as_deref(), Some("assistant-13"));
 
@@ -212,10 +209,8 @@ fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
 fn tui_projects_typed_tools_and_hides_known_gateway_lifecycle_events() {
     let endpoint = GatewayEndpoint::new("127.0.0.1", 9);
     let client = GatewayClient::new(endpoint).expect("test gateway client");
-    let runtime = GatewayUiRuntime::new(
-        client,
-        GatewaySessionSeed::new(PathBuf::from("/workspace")),
-    );
+    let runtime =
+        GatewayUiRuntime::new(client, GatewaySessionSeed::new(PathBuf::from("/workspace")));
     let mut app = V3GatewayApp::new(runtime, TuiState::default());
 
     let step = app.accept_gateway_event(GatewayChatStreamEvent::Other(json!({
@@ -339,10 +334,8 @@ fn tui_restores_gateway_session_title_history_and_identity() {
         json!(true),
     ]);
     let client = GatewayClient::new(endpoint).expect("test gateway client");
-    let mut runtime = GatewayUiRuntime::new(
-        client,
-        GatewaySessionSeed::new(PathBuf::from("/workspace")),
-    );
+    let mut runtime =
+        GatewayUiRuntime::new(client, GatewaySessionSeed::new(PathBuf::from("/workspace")));
 
     let state = restore_or_create_session_state(&mut runtime).expect("restore latest session");
     assert_eq!(state.session.session_id.as_deref(), Some("session-restored"));
@@ -368,10 +361,16 @@ fn tui_restores_gateway_session_title_history_and_identity() {
     assert_eq!(request.session_id.as_ref().map(AsRef::as_ref), Some("session-restored"));
     app.persist_session_snapshot().expect("persist restored session");
 
-    assert_eq!(requests.recv().expect("preview request"), "/v1/session/ui-previews?directory=%2Fworkspace");
+    assert_eq!(
+        requests.recv().expect("preview request"),
+        "/v1/session/ui-previews?directory=%2Fworkspace"
+    );
     assert_eq!(requests.recv().expect("scope request"), "/v1/session/scope");
     assert_eq!(requests.recv().expect("snapshot request"), "/v1/session/session-restored/any");
-    assert_eq!(requests.recv().expect("save request"), "/v1/session/session-restored/ui?directory=%2Fworkspace");
+    assert_eq!(
+        requests.recv().expect("save request"),
+        "/v1/session/session-restored/ui?directory=%2Fworkspace"
+    );
     server.join().expect("gateway fixture");
 }
 

@@ -1,4 +1,5 @@
 //! Private transport for fetching IDE context for TUI `/ide` support.
+//! 为 TUI 的 `/ide` 支持提供获取 IDE 上下文的私有传输层。
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -16,6 +17,8 @@ use super::IdeContext;
 // The desktop IPC client gives requests 5 seconds to complete. Match that prompt-time budget here:
 // fetching IDE context includes router discovery and extension event-loop work, so a shorter TUI
 // deadline can incorrectly skip context even though the IDE answers normally.
+// 桌面端 IPC 客户端允许请求在 5 秒内完成，此处沿用相同预算；获取上下文还包含路由发现
+// 和扩展事件循环，若 TUI 使用更短期限，会把 IDE 的正常延迟误判为无上下文。
 const IDE_CONTEXT_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 #[cfg(any(unix, windows))]
 const MAX_IPC_FRAME_BYTES: usize = 256 * 1024 * 1024;
@@ -30,6 +33,7 @@ const IDE_DID_NOT_PROVIDE_CONTEXT_HINT: &str = "The IDE extension did not provid
 const KEEP_TRYING_HINT: &str = "Codex will keep trying on future messages.";
 
 #[derive(Debug, Error)]
+/// 细分连接、传输、协议与平台错误，以便调用层给出对应的安全提示。
 pub(crate) enum IdeContextError {
     #[cfg(any(unix, windows))]
     #[error("failed to connect to IDE context provider: {0}")]
@@ -139,6 +143,7 @@ type IdeContextStream = UnixDeadlineStream;
 type IdeContextStream = super::windows_pipe::WindowsPipeStream;
 
 #[cfg(unix)]
+/// Unix 入口按主路径、旧路径的顺序发现套接字，并让所有尝试共享一个截止时间。
 pub(crate) fn fetch_ide_context(
     workspace_root: &Path,
     codex_home: &Path,
@@ -156,6 +161,7 @@ pub(crate) fn fetch_ide_context(
 }
 
 #[cfg(windows)]
+/// Windows 入口通过受所有者校验的命名管道，在统一超时预算内请求上下文。
 pub(crate) fn fetch_ide_context(
     workspace_root: &Path,
     _codex_home: &Path,
@@ -246,6 +252,7 @@ fn fetch_ide_context_from_unix_socket_paths(
 }
 
 #[cfg(unix)]
+/// 为非阻塞 Unix 套接字封装请求级截止时间，避免单次读写无限等待。
 struct UnixDeadlineStream {
     stream: std::os::unix::net::UnixStream,
     deadline: Instant,
@@ -458,6 +465,7 @@ fn wait_for_fd_ready(
     loop {
         // Keep deadline handling in user space. Some macOS Unix socket environments reject
         // SO_RCVTIMEO/SO_SNDTIMEO, but poll works consistently for our request-scoped timeout.
+        // 在用户态维护截止时间：部分 macOS Unix 套接字环境拒绝超时选项，而 poll 能稳定执行请求级超时。
         let mut poll_fd = libc::pollfd {
             fd,
             events,
@@ -528,6 +536,7 @@ impl std::io::Write for UnixDeadlineStream {
 }
 
 #[cfg(unix)]
+// 连接前先约束套接字路径及父目录权限，避免跟随不可信位置中的 IPC 端点。
 fn validate_unix_socket_path(socket_path: &Path) -> std::io::Result<()> {
     use std::os::unix::fs::FileTypeExt;
     use std::os::unix::fs::MetadataExt;
@@ -563,6 +572,7 @@ fn validate_unix_socket_path(socket_path: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
+// IPC 只信任与当前进程同一用户的对端，防止其他本地用户注入 IDE 上下文。
 fn validate_unix_peer_owner(stream: &std::os::unix::net::UnixStream) -> std::io::Result<()> {
     use std::os::fd::AsRawFd;
 
@@ -715,6 +725,7 @@ fn write_frame<T: std::io::Write + ?Sized>(stream: &mut T, message: &Value) -> s
 }
 
 #[cfg(any(unix, windows))]
+// 帧协议使用长度前缀并设置硬上限，先拒绝异常长度再分配载荷缓冲区。
 fn read_frame<T: std::io::Read + ?Sized>(
     stream: &mut T,
     deadline: Instant,
@@ -740,6 +751,7 @@ fn read_exact_before_deadline<T: std::io::Read + ?Sized>(
 ) -> Result<(), IdeContextError> {
     // std::io::Read::read_exact has no way to observe our request deadline between partial reads.
     // Keep the frame header and payload under the same budget as the surrounding response wait.
+    // `read_exact` 无法在分段读取之间检查请求期限，因此帧头和载荷都复用外层响应预算。
     let mut read_so_far = 0;
     while read_so_far < buf.len() {
         ensure_deadline_not_expired(deadline)?;
@@ -871,6 +883,7 @@ fn ensure_success_response(response: &Value) -> Result<(), IdeContextError> {
 
 #[cfg(all(test, unix))]
 mod tests {
+    // 这些测试用本地套接字模拟 IDE 提供方，覆盖路径迁移、期限传播和协议路由边界。
     use super::*;
     #[cfg(unix)]
     use pretty_assertions::assert_eq;
@@ -959,6 +972,7 @@ mod tests {
     }
 
     #[test]
+    // 主 IPC 路径必须位于配置目录下，避免不同配置根之间互相串线。
     fn primary_ipc_socket_path_uses_codex_home() {
         let codex_home = Path::new("/home/test/.codex");
 
@@ -969,6 +983,7 @@ mod tests {
     }
 
     #[test]
+    // 主套接字可用时应优先使用，且不得触碰同时存在的旧套接字。
     fn fetch_ide_context_prefers_primary_socket() {
         use std::os::unix::net::UnixListener;
 
@@ -994,6 +1009,7 @@ mod tests {
     }
 
     #[test]
+    // 主路径不可用时兼容旧版按用户编号命名的套接字。
     fn fetch_ide_context_falls_back_to_legacy_socket() {
         use std::os::unix::net::UnixListener;
 
@@ -1017,11 +1033,13 @@ mod tests {
     }
 
     #[test]
+    // root 用户迁移期间仍可读取旧版显式 UID 0 套接字。
     fn fetch_ide_context_falls_back_to_uid_zero_legacy_socket() {
         use std::os::unix::net::UnixListener;
 
         let tempdir = tempfile::tempdir().expect("tempdir");
         let primary_socket_path = tempdir.path().join("missing-primary.sock");
+        // uid 参数取 0，用于模拟 root 用户的旧路径解析。
         let legacy_socket_path = legacy_ipc_socket_paths(tempdir.path(), /*uid*/ 0)
             .into_iter()
             .next()
@@ -1045,11 +1063,13 @@ mod tests {
     }
 
     #[test]
+    // root 用户还需兼容迁移前不带 UID 的旧套接字名称。
     fn fetch_ide_context_falls_back_to_pre_migration_uid_zero_legacy_socket() {
         use std::os::unix::net::UnixListener;
 
         let tempdir = tempfile::tempdir().expect("tempdir");
         let primary_socket_path = tempdir.path().join("missing-primary.sock");
+        // uid 参数取 0，用于模拟 root 用户迁移前后的候选路径。
         let legacy_socket_paths = legacy_ipc_socket_paths(tempdir.path(), /*uid*/ 0);
         let pre_migration_socket_path = legacy_socket_paths
             .last()
@@ -1079,6 +1099,7 @@ mod tests {
     }
 
     #[test]
+    // 主端点已连接但超时时不能转向旧端点，以免一次请求跨到不同提供方。
     fn fetch_ide_context_does_not_fall_back_after_primary_timeout() {
         use std::os::unix::net::UnixListener;
 
@@ -1103,6 +1124,7 @@ mod tests {
     }
 
     #[test]
+    // 主端点返回协议错误后直接上报，不把服务端错误伪装成路径发现失败。
     fn fetch_ide_context_does_not_fall_back_after_primary_protocol_error() {
         use std::os::unix::net::UnixListener;
         use std::thread;
@@ -1129,6 +1151,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    // 分段读取必须消耗同一剩余期限，而不是为每次 read 重新计时。
     fn unix_deadline_stream_uses_remaining_deadline_for_blocking_reads() {
         use std::os::unix::net::UnixStream;
 
@@ -1147,6 +1170,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    // 位于其他用户可写父目录中的套接字必须在连接前被拒绝。
     fn validate_unix_socket_path_rejects_unsafe_parent_directory() {
         use std::os::unix::fs::PermissionsExt;
         use std::os::unix::net::UnixListener;
@@ -1165,6 +1189,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    // 请求采用未注册路由时，客户端应按协议答复不支持而不是挂起。
     fn fetch_ide_context_uses_unregistered_request_route() {
         use std::os::unix::net::UnixListener;
         use std::thread;

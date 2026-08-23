@@ -44,7 +44,7 @@ mod webhook;
 mod webhook_ingress;
 pub mod ws;
 
-pub use bootstrap::run_gateway;
+pub use bootstrap::{GatewayRouteEntry, documented_gateway_routes, run_gateway};
 pub use error::ApiError;
 pub use handlers::{WatiVerifyQuery, WhatsAppVerifyQuery, verify_whatsapp_signature};
 pub use limits::{

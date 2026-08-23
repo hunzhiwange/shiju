@@ -1,3 +1,8 @@
+//! 解析 TUI 运行时键位映射。
+//!
+//! 本模块把反序列化的 `TuiKeymap` 转成输入处理器使用的 `RuntimeKeymap`，按“上下文、
+//! 全局回退、默认值”确定优先级，严格解析键位规范、校验同一输入路径的唯一性，并返回
+//! 带配置路径和修复建议的错误。它不决定界面动作，也不持久化配置。
 //! Runtime keymap resolution for the TUI.
 //!
 //! This module converts deserialized config (`TuiKeymap`) into a concrete
@@ -45,6 +50,8 @@ pub(crate) use chords::KeyChordMatcher;
 pub(crate) use chords::KeymapContextSet;
 pub(crate) use chords::RuntimeChordKeymap;
 
+/// TUI 输入处理器使用的完整运行时键位快照；解析、显式解绑、回退和冲突检查均已完成。
+/// 优先级为上下文绑定、允许时的全局绑定、最后内置默认值。
 /// Runtime keymap used by TUI input handlers.
 ///
 /// Resolution precedence is:
@@ -75,26 +82,37 @@ pub(crate) struct RuntimeKeymap {
 
 #[derive(Clone, Debug)]
 pub(crate) struct AppKeymap {
+    /// 打开守护进程范围的代理会话总览。
     /// Open the daemon-wide agent-session overview.
     pub(crate) open_agents: Vec<KeyBinding>,
+    /// 打开记录覆盖层。
     /// Open transcript overlay.
     pub(crate) open_transcript: Vec<KeyBinding>,
+    /// 为当前草稿打开外部编辑器。
     /// Open external editor for the current draft.
     pub(crate) open_external_editor: Vec<KeyBinding>,
+    /// 把最近一次代理响应复制到剪贴板。
     /// Copy the last agent response to the clipboard.
     pub(crate) copy: Vec<KeyBinding>,
+    /// 清除终端界面。
     /// Clear the terminal UI.
     pub(crate) clear_terminal: Vec<KeyBinding>,
+    /// 切换输入框的 Vim 模式。
     /// Toggle Vim mode for the composer input.
     pub(crate) toggle_vim_mode: Vec<KeyBinding>,
+    /// 切换 Fast 模式。
     /// Toggle Fast mode.
     pub(crate) toggle_fast_mode: Vec<KeyBinding>,
+    /// 切换便于复制记录选择的原始回滚模式。
     /// Toggle raw scrollback mode for copy-friendly transcript selection.
     pub(crate) toggle_raw_output: Vec<KeyBinding>,
+    /// 在侧会话与父会话之间切换，但不关闭任一方。
     /// Switch between a side conversation and its parent without closing either.
     pub(crate) toggle_side_conversation: Vec<KeyBinding>,
 }
 
+/// 在应用事件层求值的聊天级键位；它们与 `AppKeymap` 一同先于输入框处理，
+/// 因此参与第一轮应用范围冲突校验，具体门控仍由处理器负责。
 /// Chat-level keybindings evaluated at the app event layer.
 ///
 /// These participate in the first app-scope conflict validation pass alongside
@@ -103,20 +121,28 @@ pub(crate) struct AppKeymap {
 /// handler code, not here.
 #[derive(Clone, Debug)]
 pub(crate) struct ChatKeymap {
+    /// 中断活动轮次。
     /// Interrupt the active turn.
     pub(crate) interrupt_turn: Vec<KeyBinding>,
+    /// 降低活动推理强度。
     /// Decrease the active reasoning effort.
     pub(crate) decrease_reasoning_effort: Vec<KeyBinding>,
+    /// 提高活动推理强度。
     /// Increase the active reasoning effort.
     pub(crate) increase_reasoning_effort: Vec<KeyBinding>,
+    /// 切换到上一个可用权限模式。
     /// Switch to the previous available permission mode.
     pub(crate) previous_permission_mode: Vec<KeyBinding>,
+    /// 切换到下一个可用权限模式。
     /// Switch to the next available permission mode.
     pub(crate) next_permission_mode: Vec<KeyBinding>,
+    /// 编辑最近排队的消息。
     /// Edit the most recently queued message.
     pub(crate) edit_queued_message: Vec<KeyBinding>,
 }
 
+/// 在第二轮应用范围冲突检查中校验的输入框级键位；应用处理器先于输入框执行，
+/// 因此校验会阻止应用绑定静默截获这些按键。
 /// Composer-level keybindings validated in the second app-scope conflict pass.
 ///
 /// App-level handlers execute before the composer receives input, so any key
@@ -124,18 +150,24 @@ pub(crate) struct ChatKeymap {
 /// The conflict validator prevents this by checking app + composer uniqueness.
 #[derive(Clone, Debug)]
 pub(crate) struct ComposerKeymap {
+    /// 提交当前草稿。
     /// Submit current draft.
     pub(crate) submit: Vec<KeyBinding>,
+    /// 任务运行时将当前草稿加入队列。
     /// Queue current draft while a task is running.
     pub(crate) queue: Vec<KeyBinding>,
+    /// 切换输入框快捷键覆盖层。
     /// Toggle composer shortcut overlay.
     pub(crate) toggle_shortcuts: Vec<KeyBinding>,
+    /// 打开反向历史搜索或移动到上一个匹配。
     /// Open reverse history search or move to the previous match.
     pub(crate) history_search_previous: Vec<KeyBinding>,
+    /// 移动到反向历史搜索的下一个匹配。
     /// Move to the next match in reverse history search.
     pub(crate) history_search_next: Vec<KeyBinding>,
 }
 
+/// 输入框文本区使用的编辑器专用键位，不参与全局或聊天回退解析。
 /// Editor-specific keybindings used by the composer textarea.
 ///
 /// These bindings are interpreted only by text-editing widgets and do not
@@ -161,6 +193,8 @@ pub(crate) struct EditorKeymap {
     pub(crate) yank: Vec<KeyBinding>,
 }
 
+/// 输入框模态编辑的 Vim 普通模式键位；移动、编辑、操作符等待和插入模式切换都从此发起。
+/// 大写命令同时包含 SHIFT 与纯大写变体，以兼容终端上报差异。
 /// Vim normal-mode keybindings for modal editing in the composer textarea.
 ///
 /// Normal mode is the resting state when Vim is enabled. Pressing a movement
@@ -199,6 +233,8 @@ pub(crate) struct VimNormalKeymap {
     pub(crate) cancel_operator: Vec<KeyBinding>,
 }
 
+/// 普通模式按下 `d`、`y` 或 `c` 后启用的 Vim 操作符等待键位；下一键决定范围，
+/// 重复操作符作用于整行，Esc 取消并返回普通模式。
 /// Vim operator-pending keybindings active after `d`, `y`, or `c` in normal mode.
 ///
 /// When a delete, yank, or change operator is
@@ -223,6 +259,7 @@ pub(crate) struct VimOperatorKeymap {
     pub(crate) cancel: Vec<KeyBinding>,
 }
 
+/// 操作符加 inner/around 前缀后启用的 Vim 文本对象键位。
 /// Vim text-object keybindings active after an operator plus inner/around prefix.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct VimTextObjectKeymap {
@@ -237,6 +274,7 @@ pub(crate) struct VimTextObjectKeymap {
     pub(crate) cancel: Vec<KeyBinding>,
 }
 
+/// 记录和静态帮助视图使用的分页器/覆盖层键位。
 /// Pager/overlay keybindings for transcript and static help views.
 #[derive(Clone, Debug)]
 pub(crate) struct PagerKeymap {
@@ -264,6 +302,7 @@ impl PagerKeymap {
     }
 }
 
+/// 列表型视图共享的语义导航和确认动作。
 /// Semantic navigation and confirmation actions shared by list-like views.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ListAction {
@@ -296,6 +335,8 @@ impl ListAction {
     }
 }
 
+/// 弹窗列表视图共享的通用选择器键位；动作表达列表意图而非布局。
+/// 可搜索视图必须先判断普通文本输入，避免配置的 `j/k/h/l` 抢走查询字符。
 /// Generic list picker keybindings shared across popup list views.
 ///
 /// These actions describe list intent rather than a specific widget layout.
@@ -360,6 +401,7 @@ impl ListKeymap {
     }
 }
 
+/// 共享代理仪表盘专用的任务管理快捷键。
 /// Task-management shortcuts specific to the shared agents dashboard.
 #[derive(Clone, Debug)]
 pub(crate) struct AgentsKeymap {
@@ -382,6 +424,7 @@ impl AgentsKeymap {
     }
 }
 
+/// 审批模态框键位，覆盖选择动作及打开全屏详情的逃生路径。
 /// Approval modal keybindings.
 ///
 /// This covers both selection actions and the "open details fullscreen" escape
@@ -430,6 +473,7 @@ impl ApprovalKeymap {
     }
 }
 
+/// 返回第一个绑定作为动作的主界面提示，同时实际输入匹配仍保留全部绑定。
 /// Returns the first binding, used as the primary UI hint for an action.
 ///
 /// Rendering code should prefer this for concise hints while preserving all
@@ -438,6 +482,7 @@ pub(crate) fn primary_binding(bindings: &[KeyBinding]) -> Option<KeyBinding> {
     user_bindings(bindings).first().copied()
 }
 
+/// 存在时移除尾部内部调度令牌，仅返回用户绑定。
 /// Remove the trailing internal dispatch token, when present.
 pub(crate) fn user_bindings(bindings: &[KeyBinding]) -> &[KeyBinding] {
     if bindings
@@ -450,6 +495,7 @@ pub(crate) fn user_bindings(bindings: &[KeyBinding]) -> &[KeyBinding] {
     }
 }
 
+/// 从配置解析一个上下文本地动作绑定，统一生成配置来源、默认回退和稳定错误路径。
 /// Resolve one context-local action binding from config.
 ///
 /// Expands to `resolve_bindings(...)` with:
@@ -474,6 +520,8 @@ macro_rules! resolve_local {
     };
 }
 
+/// 按上下文、全局、内置默认值解析支持全局复用的动作；上下文空列表仍是显式解绑，
+/// 不会继续回退到全局。
 /// Resolve one action binding with global fallback.
 ///
 /// Expands to `resolve_bindings_with_global_fallback(...)` with precedence:
@@ -500,6 +548,7 @@ macro_rules! resolve_with_global {
     };
 }
 
+/// 将默认表中的声明项展开为 `KeyBinding`，支持 plain、ctrl、alt、shift 和 raw 形式。
 /// Expand one default-table binding entry into a [`KeyBinding`].
 ///
 /// This is a small declarative layer over `key_hint::{plain, ctrl, alt, shift}`
@@ -530,6 +579,7 @@ macro_rules! default_binding {
     };
 }
 
+/// 为内置默认值构建 `Vec<KeyBinding>`；运行时用户配置仍须经过带路径错误的严格解析。
 /// Build a `Vec<KeyBinding>` for built-in defaults.
 ///
 /// This macro is intentionally scoped to built-in keymaps. Runtime
@@ -542,6 +592,8 @@ macro_rules! default_bindings {
 }
 
 impl RuntimeKeymap {
+    /// 返回内置默认值，供测试和配置加载前引导使用；不能在解析配置后作为回退，
+    /// 否则会忽略显式解绑和冲突诊断。
     /// Return built-in defaults.
     ///
     /// This is a convenience for tests and bootstrapping UI state before user
@@ -552,6 +604,8 @@ impl RuntimeKeymap {
         Self::built_in_defaults()
     }
 
+    /// 按优先级和校验从配置解析运行时键位；解析失败或同一上下文绑定含糊时返回
+    /// 带配置路径和具体修复建议的错误。
     /// Resolve a runtime keymap from config, applying precedence and validation.
     ///
     /// Returns an error when:
@@ -976,6 +1030,8 @@ impl RuntimeKeymap {
             cancel: resolve_local!(keymap, defaults, vim_text_object, cancel),
         };
 
+        // 推理方向键别名只作回退默认值：同一路径上的显式绑定保留按键，
+        // 显式推理绑定仍具权威性。
         // Reasoning arrow aliases are fallback defaults: existing explicit
         // bindings on the same input path keep the keys, while explicit
         // reasoning bindings remain authoritative.
@@ -1182,6 +1238,7 @@ impl RuntimeKeymap {
         Ok(resolved)
     }
 
+    /// 按配置声明顺序解析可见的主快捷键提示。
     /// Resolve the visible primary shortcut from configured declaration order.
     pub(crate) fn primary_hint(
         &self,
@@ -1193,6 +1250,7 @@ impl RuntimeKeymap {
         self.chords.primary_hint(action_id, bindings)
     }
 
+    /// 内置键位默认值；部分动作刻意包含兼容变体，因为终端对 SHIFT 的保留方式不一致。
     /// Built-in keymap defaults.
     ///
     /// Some actions intentionally include compatibility variants (for example
@@ -1461,6 +1519,8 @@ impl RuntimeKeymap {
         }
     }
 
+    /// 拒绝会在同一输入路径一起求值的含糊绑定；分多轮校验是因为应用动作可先于输入框，
+    /// 而带硬编码序列行为的上下文刻意不进入可配置键位。
     /// Reject ambiguous bindings in scopes that are evaluated together.
     ///
     /// We validate in multiple passes because runtime handling has mixed
@@ -1680,6 +1740,7 @@ impl RuntimeKeymap {
             )],
         )?;
 
+        // 用户输入请求覆盖层会先消费轮次中断，之后才轮到可配置的问题导航列表。
         // The request-user-input overlay consumes turn interruption before
         // configurable question navigation reaches its list handler.
         validate_no_shadow_with_allowed_overlaps(
@@ -1692,6 +1753,7 @@ impl RuntimeKeymap {
             [],
         )?;
 
+        // 输入框聚焦时，这些主界面处理器总会先于文本编辑器消费匹配按键。
         // While the composer is focused, these main-surface handlers always
         // consume matching keys before the event reaches the textarea editor.
         validate_no_shadow_with_allowed_overlaps(
@@ -2082,6 +2144,7 @@ impl RuntimeKeymap {
             for binding in bindings {
                 let key = binding.parts();
                 if let Some(previous) = seen.insert(key, action) {
+                    // 审批覆盖层刻意保留 Esc 作为稳定取消路径，即使安全上下文中的拒绝选项也显示该键。
                     // Approval overlays intentionally reserve Esc as a stable
                     // cancellation path even though decline options may also
                     // display it in contexts where that is safe.
@@ -2104,6 +2167,7 @@ See the Codex keymap documentation for supported actions and examples."
     }
 }
 
+/// 拒绝同一有效上下文映射内的重复按键；不同上下文可复用，因为处理器一次只求值一个上下文。
 /// Reject duplicate keys inside one effective context map.
 ///
 /// This intentionally allows the same key across different contexts; handlers
@@ -2240,6 +2304,8 @@ const TRANSCRIPT_BACKTRACK_RESERVED_BINDINGS: &[(&str, KeyBinding)] = &[
     ),
 ];
 
+/// 按上下文、全局、默认值解析动作；配置空列表具有权威性，不继续回退，从而支持显式解绑。
+/// `path` 必须指向上下文配置，确保解析错误定位用户实际覆盖项。
 /// Resolve one action with context -> global -> default precedence.
 ///
 /// `path` should be the context-specific config path so parser errors point
@@ -2263,6 +2329,7 @@ fn resolve_bindings_with_global_fallback(
     Ok(fallback.to_vec())
 }
 
+/// 在不使用全局回退的上下文中解析动作；缺失值继承内置默认，配置值（含空列表）替换默认。
 /// Resolve one action binding in a context without global fallback.
 ///
 /// Missing values inherit from the built-in fallback; configured values, including
@@ -2307,6 +2374,7 @@ fn configured_main_surface_alias_is_used(keymap: &TuiKeymap, alias: &str) -> boo
         global.toggle_shortcuts = None;
     }
 
+    // 推理快捷键先于输入框/编辑器处理，因此回退别名必须让位于同一主界面输入路径的显式绑定。
     // Reasoning shortcuts run before composer/editor key handling, so fallback
     // aliases must yield to any explicit binding on the same main-surface input
     // path.
@@ -2357,6 +2425,7 @@ fn resolve_new_default_bindings(
     parse_bindings(spec, path)
 }
 
+/// 将一个字符串或字符串列表键位值解析为具体绑定；去重时保留首次顺序，确保首键仍是主提示。
 /// Parse one keybinding value (`string` or `list[string]`) into concrete bindings.
 ///
 /// Duplicate entries are de-duplicated while preserving first-seen order so the
@@ -2382,6 +2451,7 @@ See the Codex keymap documentation for supported actions and examples.",
     Ok(parsed)
 }
 
+/// 严格解析 `ctrl-a`、`shift-enter` 等规范化键位字符串，以保持运行时错误精确。
 /// Parse one normalized keybinding spec such as `ctrl-a` or `shift-enter`.
 ///
 /// Specs are expected to be normalized by config deserialization, but this

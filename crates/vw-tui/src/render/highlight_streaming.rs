@@ -1,4 +1,8 @@
 //! Append-only syntax highlighting for complete lines in an open code fence.
+//! 对尚未闭合代码围栏中的完整行执行仅追加语法高亮。
+//!
+//! 状态只保存 syntect 解析进度与主题修订号；语言未知、输入超限或重放失败时，
+//! 调用方必须放弃增量状态并用规范渲染器重绘整个围栏。
 
 use super::MAX_HIGHLIGHT_LINE_BYTES;
 use super::exceeds_highlight_limits;
@@ -17,6 +21,7 @@ use syntect::util::LinesWithEndings;
 ///
 /// An absent state means the whole fence already uses the permanent plain-text fallback because
 /// its language is unknown or a size limit was exceeded. The caller owns the rendered prefix.
+/// 只保留 syntect 解析状态并遵守普通高亮护栏；状态缺失表示围栏已永久退回纯文本，已渲染前缀由调用方持有。
 pub(crate) struct StreamingCodeHighlighter {
     state: Option<HighlightedCode>,
 }
@@ -33,6 +38,7 @@ impl StreamingCodeHighlighter {
     ///
     /// Unknown languages and oversized input retain a permanent plain-text fallback. A changed
     /// theme or failed replay returns `None`, requiring the caller to render the whole fence again.
+    /// 根据规范渲染器已经输出的代码重建解析状态；主题变化、未知语言、超限或重放失败均返回 `None`。
     pub(crate) fn new(code: &str, lang: &str, theme_revision: u64) -> Option<Self> {
         let theme = match theme_lock().read() {
             Ok(theme) => theme,
@@ -68,6 +74,8 @@ impl StreamingCodeHighlighter {
     /// Every appended line must be newline-terminated to preserve Syntect's parser state.
     /// Returning `None` discards the state: the caller must render the whole fence again, which
     /// also removes old colors when the aggregate input crosses a highlighting limit.
+    /// 消费旧状态并只高亮新提交的完整行；追加行必须以换行结尾才能维持解析状态。
+    /// 返回 `None` 时调用方重绘整个围栏，也会在总输入越界时清除旧颜色。
     pub(crate) fn append(mut self, appended: &str) -> Option<(Self, Vec<Line<'static>>)> {
         if !appended.ends_with('\n') {
             return None;

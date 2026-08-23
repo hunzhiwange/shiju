@@ -1,3 +1,6 @@
+//! `/status` 展示所需的模型、账户、路径、套餐与时间格式化辅助函数。
+//! 这些函数只整理已提供的数据，不读取认证信息或主动查询运行时。
+
 use crate::exec_command::relativize_to_home;
 use crate::legacy_core::config::Config;
 use crate::status::StatusAccountDisplay;
@@ -14,6 +17,7 @@ fn normalize_agents_display_path(path: &Path) -> String {
     dunce::simplified(path).display().to_string()
 }
 
+/// 组合模型名称与推理强度、摘要设置等紧凑详情。
 pub(crate) fn compose_model_display(
     model_name: &str,
     entries: &[(&str, String)],
@@ -34,12 +38,15 @@ pub(crate) fn compose_model_display(
     (model_name.to_string(), details)
 }
 
+/// 把指令来源整理为相对当前目录或保留外来路径约定的摘要。
 pub(crate) fn compose_agents_summary(config: &Config, paths: &[PathUri]) -> String {
     let mut rels: Vec<String> = Vec::new();
 
     for path in paths {
         // TODO(anp): Rationalize instruction-source summaries with the TUI's broader foreign-path
         // display strategy once other status surfaces can retain environment-native paths.
+        // TODO(anp)：待其他状态界面能保留环境原生路径后，再统一指令来源摘要与外来路径展示策略。
+        // 原生路径尽量相对工作目录展示；无法安全转换的外来路径保留其推断约定。
         if path.infer_path_convention() != Some(PathConvention::native()) {
             rels.push(path.inferred_native_path_string());
             continue;
@@ -90,12 +97,14 @@ pub(crate) fn compose_agents_summary(config: &Config, paths: &[PathUri]) -> Stri
     }
 }
 
+/// 克隆已经脱敏的账户展示值，不解析账户或凭据。
 pub(crate) fn compose_account_display(
     account_display: Option<&StatusAccountDisplay>,
 ) -> Option<StatusAccountDisplay> {
     account_display.cloned()
 }
 
+/// 把协议套餐枚举映射为产品界面使用的名称。
 pub(crate) fn plan_type_display_name(plan_type: PlanType) -> String {
     if plan_type == PlanType::EnterpriseCbpAutomation {
         "Enterprise (Automation)".to_string()
@@ -114,6 +123,7 @@ pub(crate) fn plan_type_display_name(plan_type: PlanType) -> String {
     }
 }
 
+/// 以最多两位小数把非负令牌数压缩为 K、M、B 或 T 单位。
 pub(crate) fn format_tokens_compact(value: i64) -> String {
     let value = value.max(0);
     if value == 0 {
@@ -155,6 +165,7 @@ pub(crate) fn format_tokens_compact(value: i64) -> String {
     format!("{formatted}{suffix}")
 }
 
+/// 优先相对主目录展示路径，并按可选终端宽度从中间安全截断。
 pub(crate) fn format_directory_display(directory: &Path, max_width: Option<usize>) -> String {
     let formatted = if let Some(rel) = relativize_to_home(directory) {
         if rel.as_os_str().is_empty() {
@@ -178,6 +189,7 @@ pub(crate) fn format_directory_display(directory: &Path, max_width: Option<usize
     formatted
 }
 
+/// 同日只显示本地时间，跨日时附加日与月份。
 pub(crate) fn format_reset_timestamp(dt: DateTime<Local>, captured_at: DateTime<Local>) -> String {
     let time = dt.format("%H:%M").to_string();
     if dt.date_naive() == captured_at.date_naive() {
@@ -216,6 +228,7 @@ mod tests {
             .expect("load config")
     }
 
+    // 生成覆盖特殊套餐重命名和普通标题化回退的表驱动用例。
     #[test]
     fn plan_type_display_name_remaps_display_labels() {
         let cases = [
@@ -247,6 +260,7 @@ mod tests {
     }
 
     #[test]
+    // 验证路径截断不会拆散半角字符与其浊音组合。
     fn format_directory_display_truncates_halfwidth_sound_marks() {
         let directory = Path::new("workspace").join("ｶﾞ").join("project");
         let max_width = display_width(directory.to_string_lossy().as_ref()) - 1;
@@ -256,6 +270,7 @@ mod tests {
     }
 
     #[tokio::test]
+    // 验证全局指令文件在工作目录外仍可读地展示。
     async fn compose_agents_summary_includes_global_agents_path() {
         let codex_home = TempDir::new().expect("temp codex home");
         let cwd = TempDir::new().expect("temp cwd");
@@ -272,6 +287,7 @@ mod tests {
     }
 
     #[tokio::test]
+    // 验证全局指令覆盖文件沿用同一安全路径格式。
     async fn compose_agents_summary_names_global_agents_override() {
         let codex_home = TempDir::new().expect("temp codex home");
         let cwd = TempDir::new().expect("temp cwd");
@@ -285,6 +301,7 @@ mod tests {
     }
 
     #[tokio::test]
+    // 验证原生来源相对显示，而外来路径保留其平台约定。
     async fn compose_agents_summary_shows_relative_native_and_full_foreign_paths() {
         let codex_home = TempDir::new().expect("temp codex home");
         let cwd = TempDir::new().expect("temp cwd");
@@ -307,6 +324,7 @@ mod tests {
     }
 
     #[tokio::test]
+    // 验证摘要保持调用方提供的全局到项目顺序。
     async fn compose_agents_summary_orders_global_before_project_agents() {
         let codex_home = TempDir::new().expect("temp codex home");
         let cwd = TempDir::new().expect("temp cwd");

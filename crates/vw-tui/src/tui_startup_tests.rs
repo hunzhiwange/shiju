@@ -1,3 +1,8 @@
+//! 通过真实 PTY 覆盖 Unix TUI 启动阶段的终端探测、原始模式切换与预输入保留。
+//! 父测试驱动子进程并检查首次绘制前后的字节流，避免模拟层掩盖终端时序问题。
+//! 安全注释说明每个裸文件描述符的唯一所有权与调用有效期。
+//! 所有等待均有明确期限，失败时保留子进程输出供定位启动边界。
+
 use std::fs::File;
 use std::io::Read as _;
 use std::io::Write as _;
@@ -15,6 +20,7 @@ use crossterm::event::KeyCode;
 const STARTUP_INPUT_CHILD_TEST: &str = "tui::startup_tests::startup_typeahead_pty_child";
 
 #[test]
+// 首次绘制前输入的文本应保留，而紧随其后的动作键必须隔离到受保护边界之外。
 fn startup_preserves_typeahead_and_discards_buffered_action_key_after_first_draw() {
     let mut master = -1;
     let mut slave = -1;
@@ -25,6 +31,7 @@ fn startup_preserves_typeahead_and_discards_buffered_action_key_after_first_draw
         ws_ypixel: 0,
     };
     // Safety: `openpty` initializes the two file descriptors and reads the supplied size.
+    // 安全性：`openpty` 会初始化两个文件描述符，并只读取调用方提供的尺寸。
     assert_eq!(
         unsafe {
             libc::openpty(
@@ -40,12 +47,15 @@ fn startup_preserves_typeahead_and_discards_buffered_action_key_after_first_draw
         std::io::Error::last_os_error()
     );
     // Safety: `openpty` returned owned descriptors on success.
+    // 安全性：`openpty` 成功后返回由当前作用域唯一拥有的描述符。
     let mut master = unsafe { File::from_raw_fd(master) };
     // Safety: `openpty` returned owned descriptors on success.
+    // 安全性：从属端描述符同样在成功后转移唯一所有权。
     let slave = unsafe { File::from_raw_fd(slave) };
 
     // Queue canonical-mode typeahead before raw mode. Reinserting the old startup `tcflush`
     // drops this input before the bounded probe can preserve it.
+    // 在进入原始模式前排入规范模式预输入；恢复旧的 `tcflush` 会让有界探测来不及保存它。
     master
         .write_all(b"helo\x7Flo\x04")
         .expect("queue typeahead");
@@ -195,6 +205,7 @@ fn startup_preserves_typeahead_and_discards_buffered_action_key_after_first_draw
 
 #[tokio::test(flavor = "current_thread")]
 #[ignore]
+// 子进程在真实从属 PTY 中启动 TUI，并用文件信号向父测试报告关键边界。
 async fn startup_typeahead_pty_child() {
     let Some(signals) = std::env::var_os("CODEX_TUI_STARTUP_INPUT_PTY_DIR") else {
         return;
@@ -230,6 +241,7 @@ async fn startup_typeahead_pty_child() {
     );
     if crossterm::event::poll(Duration::ZERO).expect("poll the canonical-mode EOF") {
         // Canonical EOF does not have the same decoded representation on every Unix platform.
+        // 不同 Unix 平台对规范模式 EOF 的解码表示并不完全相同。
         crossterm::event::read().expect("read the canonical-mode EOF");
     }
     crossterm::event::buffer_input(b"\x1b").expect("buffer an incomplete escape sequence");
@@ -383,6 +395,7 @@ async fn startup_typeahead_pty_child() {
 }
 
 fn wait_for_file(path: &Path) -> Result<(), String> {
+    // 有界轮询同步父子进程，超时错误会携带缺失信号文件路径。
     let started_at = Instant::now();
     while !path.exists() {
         if started_at.elapsed() >= Duration::from_secs(/*secs*/ 5) {

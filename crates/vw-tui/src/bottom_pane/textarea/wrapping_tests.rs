@@ -1,3 +1,6 @@
+//! 验证文本域换行结果与光标、滚动、编辑和预览布局使用同一显示宽度模型。
+//! 覆盖 Unicode 强制断行、悬挂空白、终端缩放及最大长度输入的安全边界。
+
 use super::super::TextArea;
 use super::super::TextAreaState;
 use super::visible_prefix;
@@ -14,11 +17,13 @@ use ratatui::text::Line;
 use ratatui::widgets::StatefulWidgetRef;
 use ratatui::widgets::WidgetRef;
 
+// 将内部含哨兵终点的字节范围转换为便于断言的源文本行切片。
 fn wrapped_rows(text: &str, width: u16) -> Vec<&str> {
     wrapped_lines(text, width).into_iter().map(|range| &text[range.start..range.end - 1]).collect()
 }
 
 #[test]
+// 垂直移动保存的是渲染列，目标行含 Tab 时仍落在相同显示列。
 fn vertical_navigation_preserves_destination_tab_columns() {
     let mut t = TextArea::new();
     t.insert_str("a\tb\nxyz");
@@ -32,6 +37,7 @@ fn vertical_navigation_preserves_destination_tab_columns() {
 }
 
 #[test]
+// 每类 Unicode 强制断行符都保留独立光标位置，并支持左右移动往返。
 fn mandatory_breaks_keep_distinct_cursor_positions() {
     let area = Rect::new(0, 0, /*width*/ 4, /*height*/ 3);
     for separator in ["\u{b}", "\u{c}", "\u{85}", "\u{2028}", "\u{2029}", "\r"] {
@@ -67,6 +73,7 @@ fn mandatory_breaks_keep_distinct_cursor_positions() {
 }
 
 #[test]
+// 超长悬挂空白只计算可见前缀，且组合字素与源文本均保持完整。
 fn visible_prefix_bounds_long_hanging_runs_without_splitting_graphemes() {
     let width = 80;
     let count = MAX_USER_INPUT_TEXT_CHARS - 2;
@@ -87,6 +94,7 @@ fn visible_prefix_bounds_long_hanging_runs_without_splitting_graphemes() {
 }
 
 #[test]
+// 连字符、斜杠、破折号和不换行空格继续遵循 textwrap 的既有分词边界。
 fn preserves_textwrap_word_boundaries() {
     for (text, width, expected_rows) in [
         ("a foo-barbaz", 10, ["a foo-", "barbaz"]),
@@ -109,6 +117,7 @@ fn preserves_textwrap_word_boundaries() {
 }
 
 #[test]
+// 可断 Unicode 空格悬挂在上一视觉行，后续单词再按宽度折行。
 fn breakable_unicode_spaces_hang_before_following_words() {
     for (text, expected_rows) in [
         ("abad abcde", ["abad ", "abcd", "e"]),
@@ -122,6 +131,7 @@ fn breakable_unicode_spaces_hang_before_following_words() {
 }
 
 #[test]
+// 行尾悬挂空格不改源文本，且光标导航与退格编辑保持一致映射。
 fn hanging_spaces_preserve_source_editing_and_visual_navigation() {
     let text = "abad  next";
     let area = Rect::new(0, 0, /*width*/ 4, /*height*/ 3);
@@ -149,6 +159,7 @@ fn hanging_spaces_preserve_source_editing_and_visual_navigation() {
 }
 
 #[test]
+// 悬挂 Tab 的光标、单行滚动和上下移动必须共享同一行列计算。
 fn hanging_tabs_keep_cursor_scrolling_and_navigation_aligned() {
     let text = "abc\t a";
     let area = Rect::new(0, 0, /*width*/ 4, /*height*/ 2);
@@ -189,6 +200,7 @@ fn hanging_tabs_keep_cursor_scrolling_and_navigation_aligned() {
 }
 
 #[test]
+// 终端变窄时保存列会按新布局收敛，恢复宽度后仍能回到原目标列。
 fn vertical_navigation_clamps_saved_column_after_resize() {
     let text = "abcdefghij\nabcd  xyz";
     let mut t = TextArea::new();
@@ -234,6 +246,7 @@ fn vertical_navigation_clamps_saved_column_after_resize() {
 }
 
 #[test]
+// 满行后追加空格先悬挂，继续键入或删除单词时只重排显示而不篡改正文。
 fn typing_after_eol_spaces_reflows_without_changing_text() {
     let area = Rect::new(0, 0, /*width*/ 4, /*height*/ 2);
     let mut t = TextArea::new();
@@ -267,6 +280,7 @@ fn typing_after_eol_spaces_reflows_without_changing_text() {
 }
 
 #[test]
+// 显式换行后的缩进和输入末尾空格各自占行，不适用词间悬挂规则。
 fn explicit_indentation_and_trailing_spaces_do_not_hang() {
     for (text, expected_rows) in [
         ("abad\n a", vec!["abad", "", " a"]),
@@ -281,6 +295,7 @@ fn explicit_indentation_and_trailing_spaces_do_not_hang() {
 }
 
 #[test]
+// 不换行空格必须跟随相邻文本折行，不能作为可悬挂分隔符。
 fn nonbreaking_spaces_never_hang() {
     for space in ['\u{a0}', '\u{2007}', '\u{202f}'] {
         let text = format!("abcd{space} x");
@@ -290,6 +305,7 @@ fn nonbreaking_spaces_never_hang() {
 }
 
 #[test]
+// 普通文本的编辑器视觉行应与排队输入预览采用相同换行结果。
 fn prose_wraps_like_the_queued_input_preview() {
     for text in ["new access tokens", "aaaa   next", "a foo-barbaz", "some ordinary prose"] {
         for width in 3..=16 {
@@ -309,6 +325,7 @@ fn prose_wraps_like_the_queued_input_preview() {
 }
 
 #[test]
+// 达到输入上限的无断点单词按宽度一次性分段，首尾范围完整覆盖正文。
 fn wraps_maximum_length_unbroken_word_in_one_pass() {
     let text = "x".repeat(MAX_USER_INPUT_TEXT_CHARS);
     let width = 80;
@@ -320,6 +337,7 @@ fn wraps_maximum_length_unbroken_word_in_one_pass() {
 }
 
 #[test]
+// 穷举短 ASCII 输入，证明每行宽度有效、范围连续且光标位置单调前进。
 fn ascii_wrapped_rows_fit_and_preserve_cursor_positions() {
     for len in 0_u32..=7 {
         for mut encoded in 0..4_usize.pow(len) {

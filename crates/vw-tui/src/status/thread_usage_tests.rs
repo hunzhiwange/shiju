@@ -1,3 +1,6 @@
+//! 验证任务用量明细的分组聚合、积分格式化和模型展示名称。
+//! 这些断言保证状态卡与桌面端采用一致的用户可见口径。
+
 use super::BreakdownDimension;
 use super::format_credit_micros;
 use super::format_model_display_name;
@@ -6,6 +9,7 @@ use codex_app_server_protocol::ThreadUsageBreakdownGroup;
 use pretty_assertions::assert_eq;
 
 #[test]
+// 按模型聚合时应合并同模型不同推理档位，并以总积分计算百分比。
 fn thread_usage_breakdown_groups_aggregate_model_credit_percentages() {
     let group = ThreadUsageBreakdownGroup {
         model: Some("gpt-5.4".to_string()),
@@ -50,6 +54,7 @@ fn thread_usage_breakdown_groups_aggregate_model_credit_percentages() {
 }
 
 #[test]
+// 微积分单位应稳定四舍五入到一位小数，避免长小数扰乱状态布局。
 fn thread_usage_credit_formatting_rounds_to_one_decimal_place() {
     assert_eq!(format_credit_micros(/*micros*/ 0), "0");
     assert_eq!(format_credit_micros(/*micros*/ 400_000), "0.4");
@@ -62,6 +67,7 @@ fn thread_usage_credit_formatting_rounds_to_one_decimal_place() {
 }
 
 #[test]
+// 协议模型标识需映射为与桌面端相同的产品名称，未知值保持可识别降级。
 fn thread_usage_model_names_match_desktop_display_names() {
     assert_eq!(format_model_display_name("gpt-5.4"), "GPT-5.4");
     assert_eq!(format_model_display_name("gpt-5-mini"), "GPT-5 Mini");

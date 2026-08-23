@@ -20,6 +20,21 @@ impl GatewayClient {
         self.patch_json("/v1/config", &directory_query(directory), patch).await
     }
 
+    /// 读取指定目录可用的 provider 配置目录。
+    pub async fn config_providers(&self, directory: Option<&str>) -> Result<Value, String> {
+        self.get_json("/v1/config/providers", &directory_query(directory)).await
+    }
+
+    /// 读取 dashboard 使用的完整配置视图。
+    pub async fn dashboard_config_get(&self) -> Result<Value, String> {
+        self.get_json("/v1/dashboard/config", &[]).await
+    }
+
+    /// 替换 dashboard 使用的完整配置。
+    pub async fn dashboard_config_put(&self, config: &Value) -> Result<Value, String> {
+        self.put_json("/v1/dashboard/config", &[], config).await
+    }
+
     /// 读取全局配置。
     pub async fn global_config_get(&self) -> Result<Value, String> {
         self.get_json("/v1/global/config", &[]).await

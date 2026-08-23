@@ -1,8 +1,11 @@
+//! 验证补全目标解析在换行、分隔符和原子文本元素附近只选中可编辑令牌。
+
 use super::*;
 use crate::bottom_pane::textarea::TextArea;
 use pretty_assertions::assert_eq;
 
 #[test]
+// 光标停在换行附近时，左右行的 `@` 或 `$` 令牌都不能获得补全亲和性。
 fn current_prefixed_token_affinity_does_not_cross_line_break() {
     for (text, prefix, allow_empty) in [
         ("@file\n  continue", '@', false),
@@ -22,6 +25,7 @@ fn current_prefixed_token_affinity_does_not_cross_line_break() {
 }
 
 #[test]
+// 分隔符右侧是普通文本时，不应回退选择左侧旧的前缀令牌。
 fn current_prefixed_token_affinity_does_not_cross_separator_before_plain_text() {
     for (text, prefix, allow_empty) in [("@old  word", '@', false), ("$old  word", '$', true)] {
         let mut textarea = TextArea::new();
@@ -36,6 +40,7 @@ fn current_prefixed_token_affinity_does_not_cross_separator_before_plain_text() 
 }
 
 #[test]
+// 左侧相邻令牌已绑定为原子元素时，应越过它选择分隔符右侧的新令牌。
 fn current_prefixed_token_prefers_right_after_adjacent_target() {
     let bound = "@bound";
     let left = "@bound@old";
@@ -53,6 +58,7 @@ fn current_prefixed_token_prefers_right_after_adjacent_target() {
 }
 
 #[test]
+// 光标正位于新令牌起点时，补全目标应采用右侧令牌而非左侧旧令牌。
 fn current_prefixed_token_prefers_right_at_token_start() {
     let text = "$old $new";
     let right_start = "$old ".len();
@@ -67,6 +73,7 @@ fn current_prefixed_token_prefers_right_at_token_start() {
 }
 
 #[test]
+// 右侧候选是已绑定的 `@` 元素时，应回退到左侧仍可编辑的提及。
 fn current_prefixed_token_falls_back_from_bound_at_token_on_right() {
     let text = "@left  @bound";
     let bound_start = text.find("@bound").expect("bound mention");
@@ -82,6 +89,7 @@ fn current_prefixed_token_falls_back_from_bound_at_token_on_right() {
 }
 
 #[test]
+// 已绑定技能后的路径或配置后缀不能抢占左侧可编辑的 `$` 候选。
 fn current_prefixed_token_falls_back_from_bound_dollar_suffix_on_right() {
     for suffix in ["/path", ".config"] {
         let text = format!("$left  $bound{suffix}");
@@ -100,6 +108,7 @@ fn current_prefixed_token_falls_back_from_bound_dollar_suffix_on_right() {
 }
 
 #[test]
+// 多个相邻原子元素之间，只应返回光标所在的后段纯文本令牌。
 fn current_prefixed_token_targets_later_segment_between_bound_elements() {
     let text = "$bound1$one$bound2$two$bound3";
     let bound2_start = text.find("$bound2").expect("second bound mention");
@@ -119,6 +128,7 @@ fn current_prefixed_token_targets_later_segment_between_bound_elements() {
 }
 
 #[test]
+// 右侧候选的范围必须在下一个已绑定元素之前截断。
 fn current_prefixed_token_bounds_right_candidate_before_bound_element() {
     let text = "continue @other@bound";
     let other_start = text.find("@other").expect("editable mention");
@@ -135,6 +145,7 @@ fn current_prefixed_token_bounds_right_candidate_before_bound_element() {
 }
 
 #[test]
+// 候选后紧邻粘贴占位元素时，范围不得覆盖该原子元素。
 fn current_prefixed_token_stops_before_overlapping_element() {
     let editable = "$other";
     let placeholder = "[Pasted Content 1001 chars]";
@@ -151,6 +162,7 @@ fn current_prefixed_token_stops_before_overlapping_element() {
 }
 
 #[test]
+// 令牌后的行尾空格不应让补全解析跨到下一行。
 fn current_prefixed_token_stops_at_trailing_space_before_line_break() {
     let text = "$figma \nnext";
     let mut textarea = TextArea::new();
@@ -164,6 +176,7 @@ fn current_prefixed_token_stops_at_trailing_space_before_line_break() {
 }
 
 #[test]
+// 同一 shell 风格令牌内嵌套的 `$` 保持为查询正文的一部分。
 fn current_prefixed_token_keeps_nested_dollar_prefix_in_same_token() {
     let text = "$HOME/$USER";
     let mut textarea = TextArea::new();
@@ -177,7 +190,10 @@ fn current_prefixed_token_keeps_nested_dollar_prefix_in_same_token() {
 }
 
 #[test]
+// 已绑定的普通技能提及追加限定后缀后，仍保持不可编辑身份。
 fn typed_qualified_suffix_preserves_bound_plain_mention() {
+    // 限定技能绑定与历史持久化有意延后；在已绑定普通提及后输入后缀时，
+    // 不得把它重新解释为可编辑的限定提及。
     // Qualified skill bindings and history persistence are intentionally deferred. Typing a
     // suffix after a bound plain mention must not reinterpret it as an editable qualified one.
     let bound = "$google-calendar";
@@ -196,6 +212,7 @@ fn typed_qualified_suffix_preserves_bound_plain_mention() {
 }
 
 #[test]
+// `$` 查询分类必须区分技能语法、环境变量和含位置参数的 shell 语法。
 fn dollar_query_classifies_shell_and_skill_syntax() {
     assert!(!dollar_query_is_completable("{CODEX_HOME}/config.toml"));
     assert!(!dollar_query_is_completable("(pwd)"));

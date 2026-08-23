@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+// 在编译期嵌入每个动画变体的全部帧。
 // Embed animation frames for each variant at compile time.
 macro_rules! frames_for {
     ($dir:literal) => {
@@ -56,6 +57,7 @@ pub(crate) const FRAMES_SHAPES: [&str; 36] = frames_for!("shapes");
 pub(crate) const FRAMES_SLUG: [&str; 36] = frames_for!("slug");
 
 pub(crate) const ALL_VARIANTS: &[&[&str]] = &[
+    // 列表顺序同时决定默认变体和随机选择的候选集合。
     &FRAMES_DEFAULT,
     &FRAMES_CODEX,
     &FRAMES_OPENAI,
@@ -68,4 +70,6 @@ pub(crate) const ALL_VARIANTS: &[&[&str]] = &[
     &FRAMES_SLUG,
 ];
 
+/// 默认帧间隔在所有使用这些静态帧的动画组件间保持一致。
 pub(crate) const FRAME_TICK_DEFAULT: Duration = Duration::from_millis(80);
+//! 在编译期嵌入各套 ASCII 动画帧，并集中定义播放顺序与默认节拍。

@@ -1,3 +1,9 @@
+//! Markdown 到 Ratatui 的渲染入口。
+//!
+//! `append_markdown` 服务于已预处理的计划与历史内容；`append_markdown_agent` 则先解包特定表格围栏。
+//! 代理常把表格包进 `md` 或 `markdown` 代码围栏，若不解包就会被误渲染为等宽代码。
+//! 解包器会缓存完整围栏正文，只在语言匹配且存在表头/分隔行对时处理，未闭合围栏安全退化为代码。
+//! 本模块还负责把规范化后的增量块偏移映射回原始源码，无法安全映射时保持该块可变。
 //! Markdown-to-ratatui rendering entry points.
 //!
 //! This module provides the public API surface that the rest of the TUI uses
@@ -32,6 +38,9 @@ use std::sync::Arc;
 use crate::table_detect;
 use crate::terminal_hyperlinks::HyperlinkLine;
 
+/// 把 Markdown 源码渲染为带样式 Ratatui 行并追加到 `lines`。
+///
+/// 已知会话工作目录的调用者应传入它，使流式与非流式渲染在进程目录不同的情况下仍展示相同相对路径。
 /// Render markdown source to styled ratatui lines and append them to `lines`.
 ///
 /// Callers that already know the session working directory should pass it here so streamed and
@@ -50,6 +59,10 @@ pub(crate) fn append_markdown(
     crate::render::line_utils::push_owned_lines(&rendered.lines, lines);
 }
 
+/// 把助手消息渲染为带样式 Ratatui 行。
+///
+/// 渲染前先调用 `unwrap_markdown_fences`，让 `md` 围栏中的表格按原生表格而非代码块呈现。
+/// Rust、shell 等非 Markdown 围栏保持原样。
 /// Render an agent message to styled ratatui lines.
 ///
 /// Before rendering, the source is passed through [`unwrap_markdown_fences`] so that tables
@@ -81,6 +94,7 @@ pub(crate) fn render_markdown_agent_with_links_and_cwd(
     crate::markdown_render::render_markdown_lines_with_width_and_cwd(&normalized, width, cwd)
 }
 
+/// 保留复制版渲染器的无上下文行为，不激活后续批次的协议驱动可视化物化器。
 /// Preserve the copied renderer's no-context behavior without activating the
 /// protocol-backed visualization materializer from batch 6.
 fn rewrite_inline_visualizations_without_context(markdown: &str) -> Cow<'_, str> {
@@ -135,6 +149,10 @@ fn rewrite_inline_visualizations_without_context(markdown: &str) -> Cow<'_, str>
     Cow::Owned(rewritten)
 }
 
+/// 渲染助手消息，并收集增量渲染所需的块元数据。
+///
+/// Markdown 表格围栏解包后，块偏移会映射回原始源码；若规范化边界无法表示为原始源码后缀，
+/// 则丢弃该边界，使转换后的块继续保持可变。
 /// Render an agent message and collect the block metadata needed for incremental rendering.
 ///
 /// Block offsets are mapped back to `markdown_source` after Markdown table fences are unwrapped.
@@ -152,6 +170,8 @@ pub(crate) fn render_streaming_markdown_agent_with_links_and_cwd(
         cwd,
     );
     if normalized != markdown_source {
+        // 围栏解包会移除起止行；仍是原始源码后缀的规范化尾部必然从这些移除行之后开始，
+        // 因而可以安全映射回原始偏移，否则继续保持转换块可变。
         // Fence unwrapping removes opening/closing lines. A normalized tail that is still a raw
         // suffix necessarily begins after those removed lines, so its boundary can safely be
         // mapped back to the raw source; otherwise leave the transformed block mutable.
@@ -244,6 +264,10 @@ pub(crate) fn extract_copy_targets(markdown_source: &str) -> Vec<CopyTarget> {
     targets
 }
 
+/// 去除包含表格的 `md` 或 `markdown` 围栏，并把正文作为裸 Markdown 发出供原生表格解析。
+///
+/// 其他语言围栏保持不变；没有表头与分隔行对的 Markdown 围栏也继续按代码块渲染。
+/// 解包有意保持保守：先缓存完整正文再决定，输入结束时未闭合的围栏会连同起始行重新发出。
 /// Strip `` ```md ``/`` ```markdown `` fences that contain tables, emitting their content as bare
 /// markdown so `pulldown-cmark` parses the tables natively.
 ///
@@ -256,6 +280,7 @@ pub(crate) fn extract_copy_targets(markdown_source: &str) -> Vec<CopyTarget> {
 /// deciding, and an unclosed fence at end-of-input is re-emitted with its opening line so partial
 /// streams degrade to code display.
 fn unwrap_markdown_fences<'a>(markdown_source: &'a str) -> Cow<'a, str> {
+    // 零复制快速路径：绝大多数消息根本不包含围栏。
     // Zero-copy fast path: most messages contain no fences at all.
     if !markdown_source.contains("```") && !markdown_source.contains("~~~") {
         return Cow::Borrowed(markdown_source);
@@ -268,6 +293,7 @@ fn unwrap_markdown_fences<'a>(markdown_source: &'a str) -> Cow<'a, str> {
         is_blockquoted: bool,
     }
 
+    // 去掉尾随换行及最多三个前导空格；四个及以上前导空格按 CommonMark 属于缩进代码行。
     // Strip a trailing newline and up to 3 leading spaces, returning the
     // trimmed slice.  Returns `None` when the line has 4+ leading spaces
     // (which makes it an indented code line per CommonMark).
@@ -294,6 +320,7 @@ fn unwrap_markdown_fences<'a>(markdown_source: &'a str) -> Cow<'a, str> {
         Some(&without_newline[byte_idx..])
     }
 
+    // 解析起始围栏行，返回围栏元数据以及信息串是否表示 Markdown 正文。
     // Parse an opening fence line, returning the fence metadata and whether
     // the fence info string indicates markdown content.
     fn parse_open_fence(line: &str) -> Option<(Fence, bool)> {
@@ -368,6 +395,7 @@ fn unwrap_markdown_fences<'a>(markdown_source: &'a str) -> Cow<'a, str> {
         content_ranges: Vec<Range<usize>>,
     }
 
+    // 装箱大型变体，使 `ActiveFence` 保持接近指针大小。
     // Box the large variant to keep ActiveFence small (~pointer-sized).
     enum ActiveFence {
         Passthrough(Fence),
@@ -462,6 +490,7 @@ mod tests {
     use ratatui::text::Line;
 
     #[test]
+    // 复制目标应保留围栏语言及代码正文的精确字节内容。
     fn copy_targets_preserve_fenced_code_language_and_exact_content() {
         let markdown =
             "```python title=example\nprint('hi')\n```\n\n    ignored()\n\n~~~\nplain()\n~~~";
@@ -485,6 +514,7 @@ mod tests {
     }
 
     #[test]
+    // 嵌套引用内的 Markdown 复制目标应维持源码顺序。
     fn copy_targets_preserve_nested_quote_markdown_and_source_order() {
         let markdown = "> outer **bold**\n> > inner *quote*\n> ```sh\n> nested()\n> ```\n";
         assert_eq!(
@@ -502,6 +532,7 @@ mod tests {
     }
 
     #[test]
+    // 只有引用标记而无正文的块不应生成复制目标。
     fn copy_targets_exclude_blockquotes_without_prose() {
         let markdown = concat!(
             "> > ::git-stage{cwd=\"/repo\"}\n\n",
@@ -528,6 +559,7 @@ mod tests {
     }
 
     #[test]
+    // 引用标记在当前无上下文入口中按普通文本展示。
     fn citations_render_as_plain_text() {
         let src = "Before 【F:/x.rs†L1】\nAfter 【F:/x.rs†L3】\n";
         let mut out = Vec::new();
@@ -540,7 +572,9 @@ mod tests {
     }
 
     #[test]
+    // 缩进代码块必须保留前导空白，避免复制时改变代码含义。
     fn indented_code_blocks_preserve_leading_whitespace() {
+        // 基础校验：被空行包围的缩进代码应产生带原缩进的行。
         // Basic sanity: indented code with surrounding blank lines should produce the indented line.
         let src = "Before\n\n    code 1\n\nAfter\n";
         let mut out = Vec::new();
@@ -550,6 +584,7 @@ mod tests {
     }
 
     #[test]
+    // 通用追加入口不得丢失单行正文中的任意文本片段。
     fn append_markdown_preserves_full_text_line() {
         let src = "Hi! How can I help with codex-rs today? Want me to explore the repo, run tests, or work on a specific change?\n";
         let mut out = Vec::new();
@@ -568,6 +603,7 @@ mod tests {
     }
 
     #[test]
+    // 有序列表项的包装入口应与底层 TUI Markdown 渲染一致。
     fn append_markdown_matches_tui_markdown_for_ordered_item() {
         let mut out = Vec::new();
         append_markdown("1. Tight item\n", /*width*/ None, /*cwd*/ None, &mut out);
@@ -576,6 +612,7 @@ mod tests {
     }
 
     #[test]
+    // 上下文中的有序列表标记和正文必须保持在同一展示行。
     fn append_markdown_keeps_ordered_list_line_unsplit_in_context() {
         let src = "Loose vs. tight list items:\n1. Tight item\n";
         let mut out = Vec::new();
@@ -583,6 +620,7 @@ mod tests {
 
         let lines = lines_to_strings(&out);
 
+        // 预期有序列表标记与文本渲染为单行，而非标记单独占行。
         // Expect to find the ordered list line rendered as a single line,
         // not split into a marker-only line followed by the text.
         assert!(
@@ -596,6 +634,7 @@ mod tests {
     }
 
     #[test]
+    // 助手入口应解包 Markdown 围栏，使标准管道表格按表格渲染。
     fn append_markdown_agent_unwraps_markdown_fences_for_table_rendering() {
         let src = "```markdown\n| A | B |\n|---|---|\n| 1 | 2 |\n```\n";
         let mut out = Vec::new();
@@ -606,6 +645,7 @@ mod tests {
     }
 
     #[test]
+    // 无外侧管道的表格在 Markdown 围栏中也应被识别并解包。
     fn append_markdown_agent_unwraps_markdown_fences_for_no_outer_table_rendering() {
         let src = "```md\nCol A | Col B | Col C\n--- | --- | ---\nx | y | z\n10 | 20 | 30\n```\n";
         let mut out = Vec::new();
@@ -617,6 +657,7 @@ mod tests {
     }
 
     #[test]
+    // 两列无外侧管道表格应走与标准表格相同的原生渲染路径。
     fn append_markdown_agent_unwraps_markdown_fences_for_two_column_no_outer_table() {
         let src = "```md\nA | B\n--- | ---\nleft | right\n```\n";
         let mut out = Vec::new();
@@ -628,6 +669,7 @@ mod tests {
     }
 
     #[test]
+    // 单列表格具备表头与分隔行时仍应解包。
     fn append_markdown_agent_unwraps_markdown_fences_for_single_column_table() {
         let src = "```md\n| Only |\n|---|\n| value |\n```\n";
         let mut out = Vec::new();
@@ -638,6 +680,7 @@ mod tests {
     }
 
     #[test]
+    // 非 Markdown 语言围栏必须保持代码块语义。
     fn append_markdown_agent_keeps_non_markdown_fences_as_code() {
         let src = "```rust\n| A | B |\n|---|---|\n| 1 | 2 |\n```\n";
         let mut out = Vec::new();
@@ -650,6 +693,7 @@ mod tests {
     }
 
     #[test]
+    // 块引用中的 Markdown 表格围栏应在保留引用结构的同时解包。
     fn append_markdown_agent_unwraps_blockquoted_markdown_fence_table() {
         let src = "> ```markdown\n> | A | B |\n> |---|---|\n> | 1 | 2 |\n> ```\n";
         let rendered = unwrap_markdown_fences(src);
@@ -660,6 +704,7 @@ mod tests {
     }
 
     #[test]
+    // 普通围栏内仅出现块引用表格示例时，不应误判并解包外围围栏。
     fn append_markdown_agent_keeps_non_blockquoted_markdown_fence_with_blockquote_table_example() {
         let src = "```markdown\n> | A | B |\n> |---|---|\n> | 1 | 2 |\n```\n";
         let normalized = unwrap_markdown_fences(src);
@@ -667,6 +712,7 @@ mod tests {
     }
 
     #[test]
+    // Markdown 围栏正文不是表格时继续渲染为代码块。
     fn append_markdown_agent_keeps_markdown_fence_when_content_is_not_table() {
         let src = "```markdown\n**bold**\n```\n";
         let mut out = Vec::new();
@@ -676,6 +722,7 @@ mod tests {
     }
 
     #[test]
+    // 缺少相邻表头与分隔行对的复现场景必须保留围栏。
     fn unwrap_markdown_fences_repro_keeps_fence_without_header_delimiter_pair() {
         let src = "```markdown\n| A | B |\nnot a delimiter row\n| --- | --- |\n# Heading\n```\n";
         let normalized = unwrap_markdown_fences(src);
@@ -683,6 +730,7 @@ mod tests {
     }
 
     #[test]
+    // 表头与分隔行之间出现空行时不构成可解包表格。
     fn append_markdown_agent_keeps_markdown_fence_with_blank_line_between_header_and_delimiter() {
         let src = "```markdown\n| A | B |\n\n|---|---|\n| 1 | 2 |\n```\n";
         let rendered = unwrap_markdown_fences(src);

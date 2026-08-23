@@ -7,7 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
 
-use super::model::{PermissionDecision, PromptSubmission, UiQuestionOverlay};
+use super::commands::CommandRoute;
+use super::model::{PermissionDecision, PromptSubmission, UiConfirmIntent, UiQuestionOverlay};
 use super::state::{TuiAction, TuiState, reduce_tui_state};
 
 /// 控制器可接收的时钟或终端事件。
@@ -20,10 +21,12 @@ pub(crate) enum TuiControllerEvent {
 /// 需要由宿主提交给对应运行时的对话框结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum TuiOverlayCommand {
-    PermissionDecision {
+    ConfirmDecision {
         request_id: String,
-        decision: PermissionDecision,
+        intent: UiConfirmIntent,
+        confirmed: bool,
     },
+    PermissionDecision { request_id: String, decision: PermissionDecision },
     QuestionSubmitted(UiQuestionOverlay),
     QuestionRejected(UiQuestionOverlay),
 }
@@ -34,9 +37,10 @@ pub(crate) enum TuiControllerCommand {
     Continue,
     Quit,
     CancelActiveSubmission,
-    QueuePrompt(String),
+    QueuePrompt { text: String, attachments: Vec<vw_tui::V3Attachment> },
     OpenTranscript,
     OpenExternalEditor,
+    Command(CommandRoute),
     Overlay(TuiOverlayCommand),
     SubmitPrompt(PromptSubmission),
 }
@@ -62,18 +66,13 @@ impl TuiController {
         }
     }
 
-    fn handle_key_event(
-        &mut self,
-        state: &mut TuiState,
-        key: KeyEvent,
-    ) -> TuiControllerCommand {
+    fn handle_key_event(&mut self, state: &mut TuiState, key: KeyEvent) -> TuiControllerCommand {
         match (key.modifiers, key.code) {
-            (KeyModifiers::NONE, KeyCode::Enter) => build_prompt_submission(
-                state,
-                state.prompt.value.as_str(),
-            )
-            .map(TuiControllerCommand::SubmitPrompt)
-            .unwrap_or(TuiControllerCommand::Continue),
+            (KeyModifiers::NONE, KeyCode::Enter) => {
+                build_prompt_submission(state, state.prompt.value.as_str())
+                    .map(TuiControllerCommand::SubmitPrompt)
+                    .unwrap_or(TuiControllerCommand::Continue)
+            }
             (KeyModifiers::NONE, KeyCode::Up) => {
                 reduce_tui_state(state, TuiAction::PromptHistoryPrevious);
                 TuiControllerCommand::Continue
@@ -88,10 +87,7 @@ impl TuiController {
 }
 
 /// 从当前会话状态捕获不可变的提交快照；空白文本不产生提交。
-pub(crate) fn build_prompt_submission(
-    state: &TuiState,
-    text: &str,
-) -> Option<PromptSubmission> {
+pub(crate) fn build_prompt_submission(state: &TuiState, text: &str) -> Option<PromptSubmission> {
     let text = text.trim().to_string();
     if text.is_empty() {
         return None;
@@ -112,6 +108,28 @@ pub(crate) fn build_prompt_submission(
         submission = submission.with_model(model.clone());
     }
     Some(submission)
+}
+
+/// 允许纯附件输入的提交快照构造器。
+pub(crate) fn build_attachment_submission(
+    state: &TuiState,
+    text: &str,
+) -> PromptSubmission {
+    let mut submission = PromptSubmission::new(text.trim())
+        .with_stream_id(now_ms())
+        .with_history_len(state.prompt.history.entries.len());
+    submission.execution = Box::new(state.session_options.execution_snapshot());
+
+    if let Some(session_id) = state.session.session_id.as_ref() {
+        submission = submission.with_session_id(session_id.clone());
+    }
+    if let Some(root) = state.project.workspace_root.as_ref() {
+        submission = submission.with_root(root.display().to_string());
+    }
+    if let Some(model) = state.status.model_name.as_ref() {
+        submission = submission.with_model(model.clone());
+    }
+    submission
 }
 
 fn now_ms() -> u64 {

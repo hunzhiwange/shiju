@@ -1,3 +1,6 @@
+//! 在 Windows 上验证 IDE 上下文命名管道只授予客户端“标识”级模拟能力。
+//! 该边界防止管道服务端借连接客户端取得更高权限的访问令牌。
+
 use super::*;
 use pretty_assertions::assert_eq;
 use std::time::Duration;
@@ -16,6 +19,7 @@ use windows_sys::Win32::System::Threading::GetCurrentThread;
 use windows_sys::Win32::System::Threading::OpenThreadToken;
 
 #[test]
+// 使用真实命名管道握手，确认服务端模拟后的线程令牌被限制为标识级别。
 fn pipe_server_cannot_impersonate_client() {
     let pipe_path = PathBuf::from(format!(
         r"\\.\pipe\codex-ide-context-{}",
@@ -42,6 +46,7 @@ fn pipe_server_cannot_impersonate_client() {
     let pipe = OwnedHandle(pipe);
 
     let server = std::thread::spawn(move || {
+        // 服务端读取一个字节后尝试模拟客户端，以检验连接选项形成的安全边界。
         if unsafe { ConnectNamedPipe(pipe.raw(), ptr::null_mut()) } == FALSE {
             assert_eq!(
                 io::Error::last_os_error().raw_os_error(),

@@ -1,3 +1,8 @@
+//! TUI 的终端标题输出和写入前清理辅助。
+//!
+//! 调用方决定标题何时变化及空标题策略，本模块只负责底层 OSC 写入和清理，不尝试读取或恢复
+//! 不可移植的旧标题。标题可能来自模型、线程名、路径或配置，必须移除控制字符、双向/不可见
+//! 格式字符和冗余空白，防止终止转义序列或制造视觉误导。
 //! Terminal-title output helpers for the TUI.
 //!
 //! This module owns the low-level OSC title write path and the sanitization
@@ -23,6 +28,7 @@ use std::io::stdout;
 use crossterm::Command;
 use ratatui::crossterm::execute;
 
+/// 以 Rust `char` 计的实用标题长度上限；240 为 OSC 框架留出余量并保持标签栏可读。
 /// Practical upper bound on title length, measured in Rust `char`s.
 ///
 /// Most terminals silently truncate titles beyond a few hundred characters.
@@ -30,11 +36,14 @@ use ratatui::crossterm::execute;
 /// readable in tab bars and window managers.
 const MAX_TERMINAL_TITLE_CHARS: usize = 240;
 
+/// `set_terminal_title` 调用结果。
 /// Outcome of a [`set_terminal_title`] call.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum SetTerminalTitleResult {
+    /// 已写入清理后的标题，或 stdout 非终端而无需写入。
     /// A sanitized title was written, or stdout is not a terminal so no write was needed.
     Applied,
+    /// 清理移除了全部可见字符，因此未发送标题；这不同于清除标题，具体策略由上层决定。
     /// Sanitization removed every visible character, so no title was emitted.
     ///
     /// This is distinct from clearing the title. Callers decide whether an
@@ -43,6 +52,8 @@ pub(crate) enum SetTerminalTitleResult {
     NoVisibleContent,
 }
 
+/// 把清理后的 OSC 窗口标题序列写入 stdout；不可信输入会去除控制/不可见字符、折叠空白并限长。
+/// 清理后无可见内容时返回 `NoVisibleContent`，不擅自清除标题。
 /// Writes a sanitized OSC window-title sequence to stdout.
 ///
 /// The input is treated as untrusted display text: control characters,
@@ -67,6 +78,7 @@ pub(crate) fn set_terminal_title(title: &str) -> io::Result<SetTerminalTitleResu
     Ok(SetTerminalTitleResult::Applied)
 }
 
+/// 写入空 OSC 标题载荷以清除当前可见标题，但不恢复 Codex 启动前的 shell 或程序标题。
 /// Clears the current terminal title by writing an empty OSC title payload.
 ///
 /// This clears the visible title; it does not restore whatever title the shell
@@ -84,6 +96,8 @@ struct SetWindowTitle(String);
 
 impl Command for SetWindowTitle {
     fn write_ansi(&self, f: &mut impl fmt::Write) -> fmt::Result {
+        // 匹配 Crossterm 的 `SetTitle`，用 BEL 结束 OSC 0；部分集成虽接受 ST，
+        // 却会把 ST 暴露在进程装饰中。
         // Match crossterm's SetTitle command and terminate OSC 0 with BEL.
         // Some terminal title integrations expose the ST terminator in process
         // decorations even though they otherwise accept the title update.
@@ -103,6 +117,7 @@ impl Command for SetWindowTitle {
     }
 }
 
+/// 将不可信标题规范化为有界单行：去除控制及双向格式字符、折叠空白并按字符数截断。
 /// Normalizes untrusted title text into a single bounded display line.
 ///
 /// This removes terminal control characters, strips invisible/bidi formatting
@@ -115,6 +130,7 @@ fn sanitize_terminal_title(title: &str) -> String {
 
     for ch in title.chars() {
         if ch.is_whitespace() {
+            // 只有已写入内容时才标记待补空格，从而无需额外 trim 即可去除前导空白。
             // Only set pending if we've already written content; this
             // strips leading whitespace without an extra trim pass.
             pending_space = !sanitized.is_empty();
@@ -145,6 +161,7 @@ fn sanitize_terminal_title(title: &str) -> String {
     sanitized
 }
 
+/// 判断字符是否应从终端标题丢弃，包括普通控制字符和可能重排/隐藏文字的精选不可见格式字符。
 /// Returns whether `ch` should be dropped from terminal-title output.
 ///
 /// This includes both plain control characters and a curated set of invisible
@@ -156,6 +173,7 @@ fn is_disallowed_terminal_title_char(ch: char) -> bool {
         return true;
     }
 
+    // 移除 Trojan Source 相关双向控制及常见非渲染格式字符，防止夹带终端控制语义或视觉误导。
     // Strip Trojan-Source-related bidi controls plus common non-rendering
     // formatting characters so title text cannot smuggle terminal control
     // semantics or visually misleading content.

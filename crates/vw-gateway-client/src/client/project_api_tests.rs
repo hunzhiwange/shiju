@@ -304,3 +304,104 @@ async fn project_api_rejects_scope_that_conflicts_with_gateway_endpoint() {
     assert!(error.contains("does not match gateway endpoint tenant scope"));
     server.join();
 }
+
+#[tokio::test]
+async fn project_api_uses_project_worktree_routes() {
+    let server = test_support::server(vec![
+        (200, json!({"items":[]})),
+        (200, json!({"project":project_json()})),
+        (200, json!({"project":project_json()})),
+        (200, json!({"project":project_json()})),
+        (200, json!({"items":[]})),
+        (200, json!({"items":[]})),
+        (201, json!({"worktree":worktree_json()})),
+        (200, json!({"worktree":worktree_json()})),
+        (200, json!({"ok":true})),
+        (200, json!({"ok":true})),
+    ]);
+    let scope = project_scope("project /one");
+    server
+        .client()
+        .project_list(&tenant_scope(), &ListProjectsRequest::default())
+        .await
+        .expect("list");
+    server
+        .client()
+        .project_resolve(
+            &tenant_scope(),
+            &ResolveProjectRequest {
+                directory: "/work/demo".to_string(),
+                create_if_missing: false,
+            },
+        )
+        .await
+        .expect("resolve");
+    server.client().project_get(&scope).await.expect("detail");
+    server
+        .client()
+        .project_update(
+            &scope,
+            &UpdateProjectRequest {
+                name: Some("renamed".to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("update");
+    server
+        .client()
+        .project_change_records(&scope, "/work/demo")
+        .await
+        .expect("records");
+    server.client().project_worktrees(&scope).await.expect("worktrees");
+    server
+        .client()
+        .project_worktree_create(
+            &scope,
+            &CreateWorktreeRequest {
+                name: "feature".to_string(),
+                branch: "feature".to_string(),
+                from_ref: None,
+                checkout: false,
+            },
+        )
+        .await
+        .expect("create worktree");
+    server.client().worktree_get(&scope, "worktree /one").await.expect("worktree detail");
+    server
+        .client()
+        .worktree_delete(&scope, "worktree /one", &DeleteWorktreeRequest { force: true })
+        .await
+        .expect("delete worktree");
+    server
+        .client()
+        .worktree_reset(
+            &scope,
+            "worktree /one",
+            &ResetWorktreeRequest { mode: ResetMode::Hard, target_ref: None },
+        )
+        .await
+        .expect("reset worktree");
+
+    let paths = (0..10).map(|_| server.take_request().path).collect::<Vec<_>>();
+    assert_eq!(paths[0], "/v1/projects");
+    assert_eq!(paths[1], "/v1/projects/resolve");
+    assert_eq!(paths[2], "/v1/projects/project%20%2Fone");
+    assert_eq!(paths[3], "/v1/projects/project%20%2Fone");
+    assert_eq!(paths[4], "/v1/projects/project%20%2Fone/change-records?directory=%2Fwork%2Fdemo");
+    assert_eq!(paths[5], "/v1/projects/project%20%2Fone/worktrees");
+    assert_eq!(paths[6], "/v1/projects/project%20%2Fone/worktrees");
+    assert_eq!(paths[7], "/v1/projects/project%20%2Fone/worktrees/worktree%20%2Fone");
+    assert_eq!(paths[8], "/v1/projects/project%20%2Fone/worktrees/worktree%20%2Fone");
+    assert_eq!(
+        paths[9],
+        "/v1/projects/project%20%2Fone/worktrees/worktree%20%2Fone/reset"
+    );
+    let error = server
+        .client()
+        .worktree_get(&scope, "   ")
+        .await
+        .expect_err("blank worktree id must fail before a request");
+    assert!(error.contains("must not be empty"));
+    server.join();
+}

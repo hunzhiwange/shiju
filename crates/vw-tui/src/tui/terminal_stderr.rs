@@ -4,6 +4,9 @@
 //! descriptor 2. While the inline TUI is active, those writes paint into the
 //! same terminal region as the composer without going through the renderer.
 //! Keep them off the terminal until the TUI releases terminal ownership.
+//!
+//! macOS 框架和运行时诊断可能直接写文件描述符 2，绕过渲染器污染内联输入区。
+//! 本模块在 TUI 持有终端期间把这些写入隔离，临时释放或最终退出时再恢复。
 
 use std::io;
 
@@ -37,6 +40,7 @@ struct StderrState {
 }
 
 /// Keeps unmanaged stderr output away from the terminal while the TUI owns it.
+/// 在 TUI 持有终端时阻止未受管理的 stderr 输出写入终端。
 pub(crate) struct TerminalStderrGuard {
     active: bool,
 }
@@ -54,6 +58,7 @@ impl TerminalStderrGuard {
     }
 
     /// Reclaim stderr after a caught panic temporarily restored terminal ownership.
+    /// 捕获 panic 并重新取得终端所有权后，再次接管 stderr。
     pub(super) fn recover_after_caught_panic(&mut self) -> io::Result<()> {
         if !self.active {
             return Ok(());
@@ -96,6 +101,7 @@ impl Drop for TerminalStderrGuard {
 }
 
 /// Restores stderr while terminal ownership is temporarily released.
+/// 终端所有权临时释放期间恢复 stderr 的 RAII 守卫。
 pub(super) fn pause() -> io::Result<()> {
     #[cfg(target_os = "macos")]
     {
@@ -109,6 +115,7 @@ pub(super) fn pause() -> io::Result<()> {
 }
 
 /// Suppresses stderr again when terminal ownership returns to the TUI.
+/// 终端所有权回到 TUI 时再次抑制 stderr。
 pub(super) fn resume() -> io::Result<()> {
     #[cfg(target_os = "macos")]
     {
@@ -122,6 +129,7 @@ pub(super) fn resume() -> io::Result<()> {
 }
 
 /// Restores stderr permanently when the TUI session ends.
+/// TUI 会话结束时永久恢复 stderr。
 pub(super) fn finish() -> io::Result<()> {
     #[cfg(target_os = "macos")]
     {
@@ -151,6 +159,7 @@ fn stderr_targets_stdout_terminal() -> bool {
     let mut stdout_stat = MaybeUninit::<libc::stat>::uninit();
     let mut stderr_stat = MaybeUninit::<libc::stat>::uninit();
     // SAFETY: both output pointers reference valid storage for libc to initialize.
+    // 安全性：两个输出指针都指向可由 libc 初始化的有效存储。
     if unsafe {
         libc::fstat(libc::STDOUT_FILENO, stdout_stat.as_mut_ptr()) != 0
             || libc::fstat(libc::STDERR_FILENO, stderr_stat.as_mut_ptr()) != 0
@@ -158,6 +167,7 @@ fn stderr_targets_stdout_terminal() -> bool {
         return false;
     }
     // SAFETY: both fstat calls above returned successfully.
+    // 安全性：上方两次 fstat 均已成功，读取出的设备与 inode 字段有效。
     let (stdout_stat, stderr_stat) =
         unsafe { (stdout_stat.assume_init(), stderr_stat.assume_init()) };
     stdout_stat.st_dev == stderr_stat.st_dev && stdout_stat.st_ino == stderr_stat.st_ino
@@ -170,14 +180,17 @@ fn suppress_locked(state: &mut StderrState) -> io::Result<()> {
     }
 
     // SAFETY: dup returns a newly owned file descriptor on success.
+    // 安全性：dup 成功时返回一个由当前守卫新拥有的文件描述符。
     let saved_stderr = unsafe { libc::dup(libc::STDERR_FILENO) };
     if saved_stderr == -1 {
         return Err(io::Error::last_os_error());
     }
     // SAFETY: saved_stderr is a fresh descriptor returned by dup above.
+    // 安全性：`saved_stderr` 是上方 dup 返回的新描述符。
     let saved_stderr = unsafe { OwnedFd::from_raw_fd(saved_stderr) };
     let devnull = OpenOptions::new().write(true).open("/dev/null")?;
     // SAFETY: both descriptors are valid for the duration of this call.
+    // 安全性：两个描述符在本次系统调用期间均保持有效。
     if unsafe { libc::dup2(devnull.as_raw_fd(), libc::STDERR_FILENO) } == -1 {
         return Err(io::Error::last_os_error());
     }
@@ -192,6 +205,7 @@ fn restore_locked(state: &mut StderrState) -> io::Result<()> {
     };
 
     // SAFETY: saved_stderr was duplicated from stderr and remains owned here.
+    // 安全性：`saved_stderr` 由 stderr 复制而来，且所有权仍由此处持有。
     if unsafe { libc::dup2(saved_stderr.as_raw_fd(), libc::STDERR_FILENO) } == -1 {
         return Err(io::Error::last_os_error());
     }
@@ -224,13 +238,16 @@ mod tests {
     impl CapturedStderr {
         fn start(file: &File) -> std::io::Result<Self> {
             // SAFETY: dup returns a newly owned file descriptor on success.
+            // 安全性：dup 成功时返回新拥有的描述符。
             let saved_stderr = unsafe { libc::dup(libc::STDERR_FILENO) };
             if saved_stderr == -1 {
                 return Err(std::io::Error::last_os_error());
             }
             // SAFETY: saved_stderr is a fresh descriptor returned by dup above.
+            // 安全性：`saved_stderr` 是刚由 dup 返回的有效描述符。
             let saved_stderr = unsafe { OwnedFd::from_raw_fd(saved_stderr) };
             // SAFETY: both descriptors are valid for the duration of this call.
+            // 安全性：两个描述符在本次调用期间均有效。
             if unsafe { libc::dup2(file.as_raw_fd(), libc::STDERR_FILENO) } == -1 {
                 return Err(std::io::Error::last_os_error());
             }
@@ -241,6 +258,7 @@ mod tests {
     impl Drop for CapturedStderr {
         fn drop(&mut self) {
             // SAFETY: saved_stderr remains owned for the duration of this call.
+            // 安全性：本次调用期间仍持有 `saved_stderr` 的所有权。
             let _ = unsafe { libc::dup2(self.saved_stderr.as_raw_fd(), libc::STDERR_FILENO) };
         }
     }

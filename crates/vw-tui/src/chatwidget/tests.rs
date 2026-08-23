@@ -1,8 +1,14 @@
+//! 验证 `ChatWidget` 的事件处理与渲染不变量。
 //! Exercises `ChatWidget` event handling and rendering invariants.
 //!
+//! 测试同时覆盖 app-server 原生输入和聚焦的组件辅助路径。大量断言使用快照，
+//! 使布局、状态栏与标题变化以稳定且便于审阅的差异呈现。
 //! These tests cover both app-server-native inputs and focused widget helpers. Many assertions are
 //! snapshot-based so that layout regressions and status/header changes show up as stable,
 //! reviewable diffs.
+//!
+//! 子模块按提交、审批、回放、模式、弹窗、命令和用量等行为域拆分。
+//! 本模块只负责共享导入、快照目录和跨测试的轻量解析夹具。
 
 pub(super) use super::*;
 pub(super) use crate::app_command::AppCommand as Op;
@@ -182,6 +188,8 @@ pub(super) use tokio::sync::mpsc::unbounded_channel;
 pub(super) use toml::Value as TomlValue;
 
 pub(super) fn chatwidget_snapshot_dir() -> PathBuf {
+    // 快照目录固定到 chatwidget 专属位置，避免子模块生成分散基线。
+    // 调用方共享该路径，使平台变体仍与同一行为域基线相邻存放。
     let snapshot_file = codex_utils_cargo_bin::find_resource!(
         "src/chatwidget/snapshots/codex_tui__chatwidget__tests__chatwidget_tall.snap"
     )
@@ -215,6 +223,7 @@ macro_rules! assert_chatwidget_snapshot {
     }};
 }
 
+// 目标草稿提取器过滤无关应用事件，只返回当前测试所需的编辑载荷。
 fn next_goal_draft(
     rx: &mut tokio::sync::mpsc::UnboundedReceiver<AppEvent>,
     expected_thread_id: ThreadId,

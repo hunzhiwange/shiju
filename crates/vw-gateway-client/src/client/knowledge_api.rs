@@ -27,7 +27,7 @@ impl GatewayClient {
         &self,
         dataset_id: &str,
     ) -> Result<KnowledgeDatasetDto, String> {
-        self.get_json(&format!("/v1/knowledge/datasets/{dataset_id}"), &[]).await
+        self.get_json(&dataset_path(dataset_id)?, &[]).await
     }
 
     pub async fn knowledge_dataset_create(
@@ -42,7 +42,7 @@ impl GatewayClient {
         dataset_id: &str,
     ) -> Result<KnowledgeDatasetDto, String> {
         self.delete_json(
-            &format!("/v1/knowledge/datasets/{dataset_id}"),
+            &dataset_path(dataset_id)?,
             &[],
             &serde_json::json!({}),
         )
@@ -62,7 +62,7 @@ impl GatewayClient {
         query: &KnowledgeDocumentListQuery,
     ) -> Result<Vec<KnowledgeDocumentDto>, String> {
         self.get_json(
-            &format!("/v1/knowledge/datasets/{dataset_id}/documents"),
+            &format!("{}/documents", dataset_path(dataset_id)?),
             &knowledge_document_list_query(query),
         )
         .await
@@ -73,7 +73,7 @@ impl GatewayClient {
         dataset_id: &str,
         body: &KnowledgeDocumentCreateRequest,
     ) -> Result<KnowledgeDocumentDto, String> {
-        self.post_json(&format!("/v1/knowledge/datasets/{dataset_id}/documents"), &[], body).await
+        self.post_json(&format!("{}/documents", dataset_path(dataset_id)?), &[], body).await
     }
 
     pub async fn knowledge_document_import(
@@ -81,7 +81,7 @@ impl GatewayClient {
         dataset_id: &str,
         body: &KnowledgeDocumentImportRequest,
     ) -> Result<KnowledgeDocumentImportResponse, String> {
-        self.post_json(&format!("/v1/knowledge/datasets/{dataset_id}/documents/import"), &[], body)
+        self.post_json(&format!("{}/documents/import", dataset_path(dataset_id)?), &[], body)
             .await
     }
 
@@ -91,7 +91,7 @@ impl GatewayClient {
         body: &KnowledgeDocumentImportRequest,
     ) -> Result<KnowledgeDocumentImportQueuedResponse, String> {
         self.post_json(
-            &format!("/v1/knowledge/datasets/{dataset_id}/documents/import-async"),
+            &format!("{}/documents/import-async", dataset_path(dataset_id)?),
             &[],
             body,
         )
@@ -102,7 +102,7 @@ impl GatewayClient {
         &self,
         job_id: &str,
     ) -> Result<KnowledgeIndexJobDto, String> {
-        self.get_json(&format!("/v1/knowledge/index-jobs/{job_id}"), &[]).await
+        self.get_json(&format!("/v1/knowledge/index-jobs/{}", resource_id(job_id, "job")?), &[]).await
     }
 
     pub async fn knowledge_document_delete(
@@ -110,7 +110,7 @@ impl GatewayClient {
         document_id: &str,
     ) -> Result<KnowledgeDocumentDto, String> {
         self.delete_json(
-            &format!("/v1/knowledge/documents/{document_id}"),
+            &document_path(document_id)?,
             &[],
             &serde_json::json!({}),
         )
@@ -122,7 +122,7 @@ impl GatewayClient {
         document_id: &str,
         body: &KnowledgeDocumentPatchRequest,
     ) -> Result<KnowledgeDocumentDto, String> {
-        self.patch_json(&format!("/v1/knowledge/documents/{document_id}"), &[], body).await
+        self.patch_json(&document_path(document_id)?, &[], body).await
     }
 
     pub async fn knowledge_documents_batch_action(
@@ -136,7 +136,7 @@ impl GatewayClient {
         &self,
         document_id: &str,
     ) -> Result<Vec<KnowledgeChunkDto>, String> {
-        self.get_json(&format!("/v1/knowledge/documents/{document_id}/chunks"), &[]).await
+        self.get_json(&format!("{}/chunks", document_path(document_id)?), &[]).await
     }
 
     pub async fn knowledge_document_reindex(
@@ -144,7 +144,7 @@ impl GatewayClient {
         document_id: &str,
         body: &KnowledgeDocumentReindexRequest,
     ) -> Result<KnowledgeDocumentDto, String> {
-        self.post_json(&format!("/v1/knowledge/documents/{document_id}/reindex"), &[], body).await
+        self.post_json(&format!("{}/reindex", document_path(document_id)?), &[], body).await
     }
 
     pub async fn knowledge_retrieve(
@@ -152,6 +152,13 @@ impl GatewayClient {
         body: &KnowledgeRetrieveRequest,
     ) -> Result<KnowledgeRetrieveResponse, String> {
         self.post_json("/v1/knowledge/retrieve", &[], body).await
+    }
+
+    pub async fn knowledge_retrieval_test(
+        &self,
+        body: &KnowledgeRetrieveRequest,
+    ) -> Result<KnowledgeRetrieveResponse, String> {
+        self.post_json("/v1/knowledge/retrieval-test", &[], body).await
     }
 
     pub async fn knowledge_embedding_status(&self) -> Result<KnowledgeEmbeddingStatusDto, String> {
@@ -170,6 +177,33 @@ impl GatewayClient {
     ) -> Result<KnowledgeEmbeddingTestResponse, String> {
         self.post_json("/v1/knowledge/embedding/test", &[], body).await
     }
+}
+
+fn dataset_path(dataset_id: &str) -> Result<String, String> {
+    Ok(format!("/v1/knowledge/datasets/{}", resource_id(dataset_id, "dataset")?))
+}
+
+fn document_path(document_id: &str) -> Result<String, String> {
+    Ok(format!("/v1/knowledge/documents/{}", resource_id(document_id, "document")?))
+}
+
+fn resource_id(value: &str, kind: &str) -> Result<String, String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(format!("knowledge {kind} id must not be empty"));
+    }
+    Ok(encode_path_segment(value))
+}
+
+fn encode_path_segment(value: &str) -> String {
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => encoded.push(char::from(byte)),
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
 }
 
 fn knowledge_document_list_query(query: &KnowledgeDocumentListQuery) -> Vec<(String, String)> {

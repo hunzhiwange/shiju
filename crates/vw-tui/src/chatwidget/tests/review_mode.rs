@@ -1,3 +1,8 @@
+//! 验证审查模式中的提示、后续指令排队、中断恢复和弹窗导航。
+//! 场景覆盖实时与回放消息，确保审查提示不会进入普通历史或输入召回。
+//! 带图片和提及的待处理输入在合并、恢复和重新提交时必须保持结构顺序。
+//! 自定义审查、提交选择和中断诊断通过事件及快照共同固定用户可见契约。
+
 use super::*;
 use pretty_assertions::assert_eq;
 use std::collections::VecDeque;
@@ -61,6 +66,7 @@ async fn interrupted_turn_restores_queued_messages_with_images_and_elements() {
     chat.bottom_pane
         .set_composer_text(existing_text, existing_elements, existing_images.clone());
 
+    // 中断后，排队消息会合并回编辑器；图片占位符必须按合并后的本地图片列表重新编号。
     // When interrupted, queued messages are merged into the composer; image placeholders
     // must be renumbered to match the combined local image list.
     handle_turn_interrupted(&mut chat, "turn-1");
@@ -99,6 +105,7 @@ async fn interrupted_turn_restores_queued_messages_with_images_and_elements() {
     );
 }
 
+/// 进入审查模式时使用审查请求提供的提示文本。
 /// Entering review mode uses the hint provided by the review request.
 #[tokio::test]
 async fn entered_review_mode_uses_request_hint() {
@@ -112,6 +119,7 @@ async fn entered_review_mode_uses_request_hint() {
     assert!(chat.review.is_review_mode);
 }
 
+/// 请求当前变更审查时，进入审查模式会显示对应横幅。
 /// Entering review mode renders the current changes banner when requested.
 #[tokio::test]
 async fn entered_review_mode_defaults_to_current_changes_banner() {
@@ -327,6 +335,7 @@ async fn live_agent_message_renders_during_review_mode() {
     assert!(lines_to_single_string(&inserted[0]).contains("Review progress update"));
 }
 
+/// 退出审查后恢复进入审查前的上下文窗口指示器。
 /// Exiting review restores the pre-review context window indicator.
 #[tokio::test]
 async fn review_restores_context_window_indicator() {
@@ -483,6 +492,7 @@ async fn steer_enter_uses_pending_steers_while_final_answer_stream_is_active() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     chat.on_task_started();
+    // 保持助手流处于开启状态且不提交或结束，以复现最终回答仍流式输出时按回车的窗口。
     // Keep the assistant stream open (no commit tick/finalize) to model the repro window:
     // user presses Enter while the final answer is still streaming.
     chat.on_agent_message_delta("Final answer line\n".to_string());
@@ -671,6 +681,7 @@ async fn steer_enter_during_final_stream_preserves_follow_up_prompts_in_order() 
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     chat.on_task_started();
+    // 在最终回答流保持活动时连续提交后续提示，以模拟“卡死模式”的复现时序。
     // Simulate "dead mode" repro timing by keeping a final-answer stream active while the
     // user submits multiple follow-up prompts.
     chat.on_agent_message_delta("Final answer line\n".to_string());
@@ -1042,22 +1053,27 @@ async fn ctrl_c_cleared_prompt_is_recoverable_via_history() {
     assert_eq!(vec![PathBuf::from("/tmp/preview.png")], images);
 }
 
+/// 从审查弹窗选择自定义提示后，会向应用事件通道发送 `OpenReviewCustomPrompt`。
 /// Selecting the custom prompt option from the review popup sends
 /// OpenReviewCustomPrompt to the app event channel.
 #[tokio::test]
 async fn review_popup_custom_prompt_action_sends_event() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
+    // 打开审查预设选择弹窗。
     // Open the preset selection popup
     chat.open_review_popup();
 
+    // 将选择下移到第四项“Custom review instructions”。
     // Move selection down to the fourth item: "Custom review instructions"
     chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
     chat.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    // 激活当前选项。
     // Activate
     chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
+    // 排空事件并确认收到 `OpenReviewCustomPrompt` 请求。
     // Drain events and ensure we saw the OpenReviewCustomPrompt request
     let mut found = false;
     while let Ok(ev) = rx.try_recv() {
@@ -1069,14 +1085,17 @@ async fn review_popup_custom_prompt_action_sends_event() {
     assert!(found, "expected OpenReviewCustomPrompt event to be sent");
 }
 
+/// 提交选择器只显示提交主题，不显示时间戳。
 /// The commit picker shows only commit subjects (no timestamps).
 #[tokio::test]
 async fn review_commit_picker_shows_subjects_without_timestamps() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
+    // 打开审查预设父弹窗。
     // Open the Review presets parent popup.
     chat.open_review_popup();
 
+    // 使用合成条目显示提交选择器。
     // Show commit picker with synthetic entries.
     let entries = vec![
         CommitLogEntry {
@@ -1092,6 +1111,7 @@ async fn review_commit_picker_shows_subjects_without_timestamps() {
     ];
     super::show_review_commit_picker_with_entries(&mut chat, entries);
 
+    // 渲染底部面板，检查主题存在且不含时间措辞。
     // Render the bottom pane and inspect the lines for subjects and absence of time words.
     let width = 72;
     let height = chat.desired_height(width);
@@ -1118,6 +1138,7 @@ async fn review_commit_picker_shows_subjects_without_timestamps() {
     );
     assert!(blob.contains("Fix bug Y"), "expected subject in output");
 
+    // 确认未出现相对时间措辞。
     // Ensure no relative-time phrasing is present.
     let lowered = blob.to_lowercase();
     assert!(
@@ -1130,6 +1151,7 @@ async fn review_commit_picker_shows_subjects_without_timestamps() {
     );
 }
 
+/// 提交自定义提示视图会发送携带输入文本的 `Op::Review`，并将同一文本用于用户提示。
 /// Submitting the custom prompt view sends Op::Review with the typed prompt
 /// and uses the same text for the user-facing hint.
 #[tokio::test]
@@ -1137,10 +1159,12 @@ async fn custom_prompt_submit_sends_review_op() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.show_review_custom_prompt();
+    // 通过 `ChatWidget` 处理器粘贴提示文本，然后提交。
     // Paste prompt text via ChatWidget handler, then submit
     chat.handle_paste("  please audit dependencies  ".to_string());
     chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
+    // 预期收到包含去除首尾空白提示的 `AppEvent::CodexOp(Op::Review { .. })`。
     // Expect AppEvent::CodexOp(Op::Review { .. }) with trimmed prompt
     let evt = rx.try_recv().expect("expected one app event");
     match evt {
@@ -1156,28 +1180,34 @@ async fn custom_prompt_submit_sends_review_op() {
     }
 }
 
+/// 在空白自定义提示视图中按回车不会提交。
 /// Hitting Enter on an empty custom prompt view does not submit.
 #[tokio::test]
 async fn custom_prompt_enter_empty_does_not_send() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.show_review_custom_prompt();
+    // 未输入任何文本时按回车。
     // Enter without any text
     chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
+    // 不应发送任何 `AppEvent::CodexOp`。
     // No AppEvent::CodexOp should be sent
     assert!(rx.try_recv().is_err(), "no app event should be sent");
 }
 
+// 快照验证：中断运行中的执行会以红色叉号结束活动单元格，替换旋转标记并写入历史。
 // Snapshot test: interrupting a running exec finalizes the active cell with a red ✗
 // marker (replacing the spinner) and flushes it into history.
 #[tokio::test]
 async fn interrupt_exec_marks_failed_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
+    // 启动长时间运行的命令，以产生带旋转标记的活动执行单元格。
     // Begin a long-running command so we have an active exec cell with a spinner.
     begin_exec(&mut chat, "call-int", "sleep 1");
 
+    // 模拟按 Esc 中止任务；活动执行单元格应以失败状态结束并写入历史。
     // Simulate the task being aborted (as if ESC was pressed), which should
     // cause the active exec cell to be finalized as failed and flushed.
     handle_turn_interrupted(&mut chat, "turn-1");
@@ -1188,20 +1218,24 @@ async fn interrupt_exec_marks_failed_snapshot() {
         "expected finalized exec cell to be inserted into history"
     );
 
+    // 第一个插入单元格应为已结束的执行记录，并对其文本做快照。
     // The first inserted cell should be the finalized exec; snapshot its text.
     let exec_blob = lines_to_single_string(&cells[0]);
     assert_chatwidget_snapshot!("interrupt_exec_marks_failed", exec_blob);
 }
 
+// 快照验证：轮次中断后插入温和错误提示，引导用户调整指令并使用 `/feedback`。
 // Snapshot test: after an interrupted turn, a gentle error message is inserted
 // suggesting the user to tell the model what to do differently and to use /feedback.
 #[tokio::test]
 async fn interrupted_turn_error_message_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
+    // 模拟进行中的任务，使组件处于运行状态。
     // Simulate an in-progress task so the widget is in a running state.
     handle_turn_started(&mut chat, "turn-1");
 
+    // 像按 Esc 一样中止轮次，并排空插入的历史记录。
     // Abort the turn (like pressing Esc) and drain inserted history.
     handle_turn_interrupted(&mut chat, "turn-1");
 
@@ -1311,6 +1345,7 @@ async fn budget_limited_turn_restores_queued_input_without_submitting() {
     assert_no_submit_op(&mut op_rx);
 }
 
+// 快照验证：为提交待处理引导而中断时显示信息横幅，而不是通用中断错误提示。
 // Snapshot test: interrupting specifically to submit pending steers shows an
 // informational banner instead of the generic "tell the model what to do
 // differently" error prompt.
@@ -1336,18 +1371,22 @@ async fn interrupted_turn_pending_steers_message_snapshot() {
     assert_chatwidget_snapshot!("interrupted_turn_pending_steers_message", info);
 }
 
+/// 从审查弹窗打开自定义提示后，第一次按 Esc 返回父弹窗，第二次关闭全部面板。
 /// Opening custom prompt from the review popup, pressing Esc returns to the
 /// parent popup, pressing Esc again dismisses all panels (back to normal mode).
 #[tokio::test]
 async fn review_custom_prompt_escape_navigates_back_then_dismisses() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
+    // 打开审查预设父弹窗。
     // Open the Review presets parent popup.
     chat.open_review_popup();
 
+    // 直接打开自定义提示子视图。
     // Open the custom prompt submenu (child view) directly.
     chat.show_review_custom_prompt();
 
+    // 验证子视图位于最上层。
     // Verify child view is on top.
     let header = render_bottom_first_row(&chat, /*width*/ 60);
     assert!(
@@ -1355,6 +1394,7 @@ async fn review_custom_prompt_escape_navigates_back_then_dismisses() {
         "expected custom prompt view header: {header:?}"
     );
 
+    // 第一次按 Esc：关闭子视图，保留审查预设父弹窗。
     // Esc once: child view closes, parent (review presets) remains.
     chat.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     let header = render_bottom_first_row(&chat, /*width*/ 60);
@@ -1363,6 +1403,7 @@ async fn review_custom_prompt_escape_navigates_back_then_dismisses() {
         "expected to return to parent review popup: {header:?}"
     );
 
+    // 再按一次 Esc：关闭父弹窗，返回普通编辑器状态。
     // Esc again: parent closes; back to normal composer state.
     chat.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     assert!(
@@ -1371,19 +1412,23 @@ async fn review_custom_prompt_escape_navigates_back_then_dismisses() {
     );
 }
 
+/// 从审查弹窗打开基准分支选择器后，第一次按 Esc 返回父弹窗，第二次关闭全部面板。
 /// Opening base-branch picker from the review popup, pressing Esc returns to the
 /// parent popup, pressing Esc again dismisses all panels (back to normal mode).
 #[tokio::test]
 async fn review_branch_picker_escape_navigates_back_then_dismisses() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
+    // 打开审查预设父弹窗。
     // Open the Review presets parent popup.
     chat.open_review_popup();
 
+    // 打开分支选择子视图；这里允许使用不含 Git 仓库的临时工作目录。
     // Open the branch picker submenu (child view). Using a temp cwd with no git repo is fine.
     let cwd = std::env::temp_dir();
     chat.show_review_branch_picker(&cwd).await;
 
+    // 验证子视图标题。
     // Verify child view header.
     let header = render_bottom_first_row(&chat, /*width*/ 60);
     assert!(
@@ -1391,6 +1436,7 @@ async fn review_branch_picker_escape_navigates_back_then_dismisses() {
         "expected branch picker header: {header:?}"
     );
 
+    // 第一次按 Esc：关闭子视图，保留父弹窗。
     // Esc once: child view closes, parent remains.
     chat.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     let header = render_bottom_first_row(&chat, /*width*/ 60);
@@ -1399,6 +1445,7 @@ async fn review_branch_picker_escape_navigates_back_then_dismisses() {
         "expected to return to parent review popup: {header:?}"
     );
 
+    // 再按一次 Esc：关闭父弹窗，返回普通编辑器状态。
     // Esc again: parent closes; back to normal composer state.
     chat.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     assert!(

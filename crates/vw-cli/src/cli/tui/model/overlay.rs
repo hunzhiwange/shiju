@@ -151,18 +151,12 @@ impl UiPermissionOverlay {
             | PermissionPreviewKind::Skill
             | PermissionPreviewKind::Fallback => V3ApprovalKind::Permissions,
         };
-        let mut detail = request
-            .explanation
-            .clone()
-            .unwrap_or_else(|| request.patterns.join("\n"));
+        let mut detail = request.explanation.clone().unwrap_or_else(|| request.patterns.join("\n"));
         if detail.trim().is_empty() {
             detail = request.permission.clone();
         }
-        let mut choices = vec![V3ApprovalChoice::new(
-            "allow-once",
-            "Allow once",
-            V3ApprovalDecision::Allow,
-        )];
+        let mut choices =
+            vec![V3ApprovalChoice::new("allow-once", "Allow once", V3ApprovalDecision::Allow)];
         if request.always_available() {
             choices.push(V3ApprovalChoice::new(
                 "allow-session",
@@ -197,14 +191,23 @@ pub(crate) enum UiConfirmIntent {
     CompactSession {
         message_id: String,
     },
+    ArchiveSession,
     IntegrationDelete {
         kind: IntegrationKind,
+        id: String,
+    },
+    IntegrationToggle {
+        kind: IntegrationKind,
+        id: String,
+        enabled: bool,
+    },
+    TaskCancel {
         id: String,
     },
     ScheduleDelete {
         id: String,
     },
-    EnableFullAccess {
+    ApplySessionSettings {
         values: Box<SettingsValues>,
     },
 }
@@ -212,12 +215,37 @@ pub(crate) enum UiConfirmIntent {
 /// 确认对话框。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct UiConfirmOverlay {
+    pub(crate) request_id: String,
     pub(crate) title: String,
     pub(crate) body: String,
     pub(crate) confirm_label: String,
     pub(crate) cancel_label: String,
     pub(crate) destructive: bool,
     pub(crate) intent: UiConfirmIntent,
+}
+
+impl UiConfirmOverlay {
+    /// 将内部类型化确认投影为 V3 的只读审批面；渲染层不能执行 intent。
+    pub(crate) fn to_v3_request(&self) -> V3ApprovalRequest {
+        V3ApprovalRequest::new(
+            self.request_id.clone(),
+            V3ApprovalKind::Permissions,
+            self.title.clone(),
+            self.body.clone(),
+            vec![
+                V3ApprovalChoice::new(
+                    "confirm",
+                    self.confirm_label.clone(),
+                    V3ApprovalDecision::Allow,
+                ),
+                V3ApprovalChoice::new(
+                    "cancel",
+                    self.cancel_label.clone(),
+                    V3ApprovalDecision::Cancel,
+                ),
+            ],
+        )
+    }
 }
 
 /// 搜索命中的一条结果。
@@ -333,10 +361,7 @@ impl UiQuestionOverlay {
                         .options
                         .iter()
                         .map(|option| {
-                            V3UserInputOption::new(
-                                option.label.clone(),
-                                option.description.clone(),
-                            )
+                            V3UserInputOption::new(option.label.clone(), option.description.clone())
                         })
                         .collect(),
                 );

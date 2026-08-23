@@ -17,6 +17,7 @@ use tokio::process::Command;
 
 #[derive(Debug, Error)]
 pub(crate) enum EditorError {
+    /// 环境变量、命令解析和空命令分别保留可操作的失败原因。
     #[error("neither VISUAL nor EDITOR is set")]
     MissingEditor,
     #[cfg(not(windows))]
@@ -26,15 +27,20 @@ pub(crate) enum EditorError {
     EmptyCommand,
 }
 
+/// 按 `PATH` 和 `PATHEXT` 尝试解析 Windows 程序的完整路径。
+/// 解析失败时回退到原始程序名。
 /// Tries to resolve the full path to a Windows program, respecting PATH + PATHEXT.
 /// Falls back to the original program name if resolution fails.
 #[cfg(windows)]
 fn resolve_windows_program(program: &str) -> std::path::PathBuf {
+    // Windows 上 `Command::new("code")` 不会解析 PATH 中的 `code.cmd` 包装脚本，
+    // 因此通过 `which` 同时遵守 PATH 与 PATHEXT。
     // On Windows, `Command::new("code")` will not resolve `code.cmd` shims on PATH.
     // Use `which` so we respect PATH + PATHEXT (e.g., `code` -> `code.cmd`).
     which::which(program).unwrap_or_else(|_| std::path::PathBuf::from(program))
 }
 
+/// 从环境变量解析编辑器命令，并优先使用 `VISUAL` 而非 `EDITOR`。
 /// Resolve the editor command from environment variables.
 /// Prefers `VISUAL` over `EDITOR`.
 pub(crate) fn resolve_editor_command() -> std::result::Result<Vec<String>, EditorError> {
@@ -62,6 +68,7 @@ pub(super) fn editor_directory(
     file_system_policy: &FileSystemSandboxPolicy,
     cwd: &Path,
 ) -> Result<PathBuf> {
+    // 编辑器临时目录必须位于沙箱不可写的受信父目录，防止代理篡改待执行内容。
     let writable_roots = file_system_policy.get_writable_roots_with_cwd(cwd);
     #[cfg(windows)]
     let windows_temporary_roots = if !file_system_policy.has_full_disk_write_access()
@@ -119,6 +126,7 @@ pub(super) fn editor_directory(
         let editor_directory = canonical_home.join("editor");
         let logical_editor_directory = candidate_home.join("editor");
 
+        // 同时检查逻辑路径和规范路径，避免符号链接或父子根关系绕过写权限判断。
         if !file_system_policy.has_full_disk_write_access()
             && [&logical_editor_directory, &editor_directory]
                 .into_iter()
@@ -169,6 +177,7 @@ pub(super) fn editor_directory(
     }
 }
 
+/// 把 `seed` 写入临时文件，启动编辑器命令，并返回编辑后的内容。
 /// Write `seed` to a temp file, launch the editor command, and return the updated content.
 pub(crate) async fn run_editor(
     seed: &str,
@@ -191,6 +200,7 @@ pub(crate) async fn run_editor(
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     candidate_homes.push(&project_codex_home);
     let editor_directory = editor_directory(&candidate_homes, file_system_policy, cwd)?;
+    // 立即转换为 `TempPath`，避免 Windows 上仍有文件句柄占用。
     // Convert to TempPath immediately so no file handle stays open on Windows.
     let temp_path = Builder::new()
         .suffix(".md")
@@ -201,6 +211,7 @@ pub(crate) async fn run_editor(
     let mut cmd = {
         #[cfg(windows)]
         {
+            // 兼容 `.cmd` 和 `.bat` 包装脚本。
             // handles .cmd/.bat shims
             Command::new(resolve_windows_program(&editor_cmd[0]))
         }
@@ -237,6 +248,7 @@ mod tests {
     use tempfile::tempdir;
 
     struct EnvGuard {
+        // 串行测试结束时恢复进程级编辑器环境变量，避免污染其他测试。
         visual: Option<String>,
         editor: Option<String>,
     }
@@ -266,6 +278,7 @@ mod tests {
 
     #[test]
     #[serial]
+    // 同时设置两个变量时必须优先解析 `VISUAL`。
     fn resolve_editor_prefers_visual() {
         let _guard = EnvGuard::new();
         unsafe {
@@ -278,6 +291,7 @@ mod tests {
 
     #[test]
     #[serial]
+    // 两个环境变量都缺失时应返回明确的缺少编辑器错误。
     fn resolve_editor_errors_when_unset() {
         let _guard = EnvGuard::new();
         unsafe {
@@ -292,6 +306,7 @@ mod tests {
 
     #[tokio::test]
     #[cfg(unix)]
+    // 用临时脚本模拟编辑器，验证子进程写回内容会被完整读取。
     async fn run_editor_returns_updated_content() {
         use std::os::unix::fs::PermissionsExt;
 
@@ -314,3 +329,4 @@ mod tests {
 #[cfg(test)]
 #[path = "external_editor_tests.rs"]
 mod buffer_tests;
+//! 在文件系统沙箱边界内选择外部编辑器、安全创建临时文件并读取编辑结果。

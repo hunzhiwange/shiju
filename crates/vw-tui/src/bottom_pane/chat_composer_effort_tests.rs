@@ -1,9 +1,12 @@
+//! 验证输入编辑器提升推理档位时的点火动画、状态栏过渡与页脚优先级。
+
 use super::tests::new_test_composer;
 use super::tests::snapshot_composer_state_with_width;
 use super::*;
 use pretty_assertions::assert_eq;
 
 #[test]
+// 首次建基线、重复档位和降档都不重播动画，只有后续升档触发过渡。
 fn effort_composer_baseline_repeat_and_lowering_do_not_replay() {
     let (mut composer, _rx) = new_test_composer();
     composer.set_status_line_enabled(/*enabled*/ true);
@@ -40,6 +43,7 @@ fn effort_composer_baseline_repeat_and_lowering_do_not_replay() {
 }
 
 #[test]
+// 任务运行且草稿排队时没有可见旧状态行，因此升档只点火而不排队页脚过渡。
 fn effort_transition_does_not_queue_a_missing_outgoing_status_line() {
     let (mut composer, _rx) = new_test_composer();
     composer.set_status_line_enabled(/*enabled*/ true);
@@ -60,6 +64,7 @@ fn effort_transition_does_not_queue_a_missing_outgoing_status_line() {
 }
 
 #[test]
+// 计划模式提示占用页脚时，升档不能缓存一条实际不可见的旧状态行。
 fn effort_transition_does_not_queue_while_plan_mode_nudge_is_visible() {
     let (mut composer, _rx) = new_test_composer();
     composer.set_status_line_enabled(/*enabled*/ true);
@@ -79,6 +84,7 @@ fn effort_transition_does_not_queue_while_plan_mode_nudge_is_visible() {
 }
 
 #[test]
+// 恢复基线和关闭动画均不得启动过渡，随后启用动画的真实升档仍可触发。
 fn effort_composer_restored_baseline_and_reduced_motion_do_not_start() {
     let (mut composer, _rx) = new_test_composer();
     composer.set_status_line_enabled(/*enabled*/ true);
@@ -115,6 +121,7 @@ fn effort_composer_restored_baseline_and_reduced_motion_do_not_start() {
 }
 
 #[test]
+// 临时反馈消息的显示优先级高于推理档位状态栏过渡。
 fn effort_transition_never_replaces_a_footer_flash() {
     let (mut composer, _rx) = new_test_composer();
     composer.set_status_line_enabled(/*enabled*/ true);
@@ -146,6 +153,7 @@ fn effort_transition_never_replaces_a_footer_flash() {
 }
 
 #[test]
+// 过渡首帧保留完整旧状态行，并遵循窄页脚下隐藏模式提示的既有布局。
 fn effort_transition_keeps_the_full_footer_row() {
     let (mut composer, _rx) = new_test_composer();
     composer.set_status_line_enabled(/*enabled*/ true);
@@ -176,6 +184,7 @@ fn effort_transition_keeps_the_full_footer_row() {
 }
 
 #[test]
+// Ultra 档位除颜色强调外，还会把输入提示符升级为双箭头字形。
 fn ultra_accent_upgrades_prompt_glyph() {
     snapshot_composer_state_with_width(
         "ultra_accent_upgrades_prompt_glyph",

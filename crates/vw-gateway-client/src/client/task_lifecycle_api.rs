@@ -19,7 +19,7 @@ impl GatewayClient {
         &self,
         id: &str,
     ) -> Result<TaskLifecycleWorkflowDto, String> {
-        self.get_json(&task_lifecycle_workflow_path(id), &[]).await
+        self.get_json(&task_lifecycle_workflow_path(id)?, &[]).await
     }
 
     /// 新增任务生命周期 workflow。
@@ -36,7 +36,7 @@ impl GatewayClient {
         id: &str,
         body: &TaskLifecycleWorkflowUpsertBody,
     ) -> Result<TaskLifecycleWorkflowDto, String> {
-        self.put_json(&task_lifecycle_workflow_path(id), &[], body).await
+        self.put_json(&task_lifecycle_workflow_path(id)?, &[], body).await
     }
 
     /// 删除任务生命周期 workflow。
@@ -44,7 +44,7 @@ impl GatewayClient {
         &self,
         id: &str,
     ) -> Result<TaskLifecycleWorkflowDeleteResponse, String> {
-        self.delete_json(&task_lifecycle_workflow_path(id), &[], &serde_json::json!({})).await
+        self.delete_json(&task_lifecycle_workflow_path(id)?, &[], &serde_json::json!({})).await
     }
 
     /// 重置内置任务生命周期 workflow 为默认值。
@@ -52,16 +52,30 @@ impl GatewayClient {
         &self,
         id: &str,
     ) -> Result<TaskLifecycleWorkflowDto, String> {
-        self.post_json(&task_lifecycle_workflow_reset_path(id), &[], &serde_json::json!({})).await
+        self.post_json(&task_lifecycle_workflow_reset_path(id)?, &[], &serde_json::json!({})).await
     }
 }
 
-fn task_lifecycle_workflow_path(id: &str) -> String {
-    format!("{TASK_LIFECYCLE_WORKFLOWS_PATH}/{id}")
+fn task_lifecycle_workflow_path(id: &str) -> Result<String, String> {
+    if id.trim().is_empty() {
+        return Err("task lifecycle workflow id must not be empty".to_string());
+    }
+    Ok(format!("{TASK_LIFECYCLE_WORKFLOWS_PATH}/{}", encode_path_segment(id)))
 }
 
-fn task_lifecycle_workflow_reset_path(id: &str) -> String {
-    format!("{}/reset", task_lifecycle_workflow_path(id))
+fn task_lifecycle_workflow_reset_path(id: &str) -> Result<String, String> {
+    Ok(format!("{}/reset", task_lifecycle_workflow_path(id)?))
+}
+
+fn encode_path_segment(value: &str) -> String {
+    value.bytes().fold(String::new(), |mut encoded, byte| {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push_str(&format!("%{byte:02X}"));
+        }
+        encoded
+    })
 }
 
 #[cfg(test)]

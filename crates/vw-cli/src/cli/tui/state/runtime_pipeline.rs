@@ -112,6 +112,7 @@ pub(crate) fn apply_runtime_event_at(
                 state.runtime.thinking_redacted = false;
             }
             apply_runtime_terminal(state, terminal);
+            state.runtime.active_plan_run_request_id = None;
             state.runtime.active_plan_run_task_id = None;
         }
         UiRuntimeEvent::PostToolRound
@@ -215,9 +216,11 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
                 reduce_tui_state(state, TuiAction::ThinkingDeltaReceived(prefix.to_string()));
             }
             if is_open {
-                state.runtime.thinking_depth = state.runtime.thinking_depth.max(1).saturating_add(1);
+                state.runtime.thinking_depth =
+                    state.runtime.thinking_depth.max(1).saturating_add(1);
             } else {
-                state.runtime.thinking_depth = state.runtime.thinking_depth.max(1).saturating_sub(1);
+                state.runtime.thinking_depth =
+                    state.runtime.thinking_depth.max(1).saturating_sub(1);
                 if state.runtime.thinking_depth == 0 {
                     reduce_tui_state(state, TuiAction::ThinkingClosed);
                     state.runtime.thinking_open = false;

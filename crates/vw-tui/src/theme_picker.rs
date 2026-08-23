@@ -1,3 +1,5 @@
+//! VibeWindow 主题选择器，数据来自桥接层提供的主题行。
+//! 主题应用与持久化留在本 crate 之外，确认操作只产生 `V3Action`。
 //! VibeWindow theme picker over bridge-provided theme rows.
 //! Theme application and persistence stay outside this crate; confirmation is a V3Action.
 use crate::bottom_pane::list_selection_view::{
@@ -11,6 +13,7 @@ use ratatui::layout::Rect;
 use ratatui::text::Line;
 use ratatui::widgets::Widget;
 struct ThemePreview;
+/// 预览区域只声明由 VibeWindow 提供实际预览，不在复制壳内应用主题。
 impl Renderable for ThemePreview {
     fn render(&self, area: Rect, buf: &mut Buffer) {
         Line::from("Preview is supplied by VibeWindow").render(area, buf);
@@ -20,6 +23,7 @@ impl Renderable for ThemePreview {
     }
 }
 pub(crate) struct ThemePicker {
+    /// 通用列表持有候选项及侧栏占位预览。
     view: ListSelectionView,
 }
 impl ThemePicker {
@@ -52,6 +56,7 @@ mod tests {
     use super::*;
     use crossterm::event::KeyCode;
     #[test]
+    // Enter 只返回稳定主题 ID，不在选择器内部写入配置。
     fn theme_picker_confirms_without_persisting_configuration() {
         let mut picker = ThemePicker::new(vec![V3SelectionItem::new("dark", "Dark")]);
         assert_eq!(

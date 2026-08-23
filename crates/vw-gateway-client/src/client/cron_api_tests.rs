@@ -279,3 +279,34 @@ async fn cron_api_preserves_non_legacy_errors() {
     assert_eq!(server.take_request().method, "PUT");
     server.join();
 }
+
+#[tokio::test]
+async fn cron_api_encodes_job_ids_and_starts_updates_with_canonical_patch() {
+    let server = test_support::server(vec![
+        (200, json!({"runs": []})),
+        (200, json!({"status": "ok", "job": null})),
+        (204, json!(null)),
+    ]);
+
+    server.client().cron_job_runs_get("job /一").await.expect("runs");
+    server
+        .client()
+        .cron_job_update(
+            "job /一",
+            &CronUpdateRequest { enabled: Some(false), ..Default::default() },
+        )
+        .await
+        .expect("update");
+    server.client().cron_job_delete("job /一").await.expect("delete");
+
+    let runs = server.take_request();
+    assert_eq!(runs.method, "GET");
+    assert_eq!(runs.path, "/v1/cron/job%20%2F%E4%B8%80/runs");
+    let update = server.take_request();
+    assert_eq!(update.method, "PATCH");
+    assert_eq!(update.path, "/v1/cron/job%20%2F%E4%B8%80");
+    let delete = server.take_request();
+    assert_eq!(delete.method, "DELETE");
+    assert_eq!(delete.path, "/v1/cron/job%20%2F%E4%B8%80");
+    server.join();
+}

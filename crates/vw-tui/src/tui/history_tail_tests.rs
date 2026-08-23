@@ -1,3 +1,9 @@
+//! 覆盖内联终端中替换可见历史尾部而不破坏既有回滚缓冲的算法。
+//! 测试后端保留真实物理行与软换行语义，用于区分逻辑行和终端行。
+//! 无法访问旧尾部时采取非破坏策略，宁可追加也不清除未知历史。
+//! fixture 先写入视口外哨兵，再观察替换动作是否误清空上方内容。
+//! 窄视口还会强制逻辑行换行，以覆盖物理终端行计数路径。
+
 use super::replace_visible_terminal_history_tail;
 use crate::custom_terminal::Terminal;
 use crate::insert_history::HistoryLineWrapPolicy;
@@ -11,6 +17,7 @@ use ratatui::text::Line;
 use std::io::Write;
 
 #[test]
+// 替换当前可见尾部时，上方已有终端回滚内容必须完整保留。
 fn replacing_visible_history_tail_preserves_existing_terminal_scrollback() {
     let width = 52;
     let height = 8;
@@ -76,6 +83,7 @@ fn replacing_visible_history_tail_preserves_existing_terminal_scrollback() {
 }
 
 #[test]
+// 旧尾部超出可读区域时只能追加新内容，不能冒险删除不可见历史。
 fn inaccessible_history_tail_is_preserved_for_non_destructive_append() {
     let width = 36;
     let height = 6;
@@ -106,6 +114,7 @@ fn inaccessible_history_tail_is_preserved_for_non_destructive_append() {
 }
 
 #[test]
+// 被终端软换行的逻辑行应按实际占用物理行数替换，避免留下残片。
 fn replacing_soft_wrapped_history_counts_physical_terminal_rows() {
     let width = 12;
     let height = 8;

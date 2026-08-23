@@ -6,6 +6,7 @@ use codex_utils_plugins::mention_syntax::TOOL_MENTION_SIGIL;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct LinkedMention {
+    /// 保留符号、可见名称及其绑定路径，支持同名提及按出现顺序匹配。
     pub(crate) sigil: char,
     pub(crate) mention: String,
     pub(crate) path: String,
@@ -19,6 +20,7 @@ pub(crate) struct DecodedHistoryText {
 
 #[allow(dead_code)]
 pub(crate) fn encode_history_mentions(text: &str, mentions: &[LinkedMention]) -> String {
+    // 按“符号 + 名称”为每个绑定维护队列，重复提及依次消费对应路径。
     if mentions.is_empty() || text.is_empty() {
         return text.to_string();
     }
@@ -97,6 +99,7 @@ pub(crate) fn decode_history_mentions_with_at_mentions(
     let mut mentions = Vec::new();
     let mut index = 0usize;
 
+    // 只有完整且受支持的链接提及会被还原，普通 Markdown 链接保持原文。
     while index < bytes.len() {
         if bytes[index] == b'['
             && let Some((sigil, name, path, end_index)) =
@@ -132,6 +135,7 @@ fn parse_history_linked_mention<'a>(
     start: usize,
     at_mentions_enabled: bool,
 ) -> Option<(char, &'a str, &'a str, usize)> {
+    // TUI 历史上写入 `$name`，但启用统一提及时，任何规范工具路径都应在历史往返中保留 `@`。
     // TUI historically wrote `$name`, but selected unified `@` mentions should preserve `@` on
     // history round-trip for any canonical tool path.
     if let Some((name, path, end_index)) =
@@ -167,6 +171,7 @@ fn parse_linked_tool_mention<'a>(
     start: usize,
     sigil: char,
 ) -> Option<(&'a str, &'a str, usize)> {
+    // 解析器只接受受限 ASCII 名称和非空右括号路径，避免吞掉任意 Markdown。
     let sigil_index = start + 1;
     if text_bytes.get(sigil_index) != Some(&(sigil as u8)) {
         return None;
@@ -233,6 +238,7 @@ fn starts_plaintext_mention(text: &str, index: usize) -> bool {
 }
 
 fn ends_plaintext_mention(text_bytes: &[u8], index: usize) -> bool {
+    // 路径样后缀继续属于普通文本；句末标点和空白则允许结束提及。
     text_bytes.get(index).is_none_or(|byte| {
         byte.is_ascii_whitespace()
             || *byte == b'.'
@@ -286,6 +292,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    // 支持的 app、plugin 和技能路径应恢复可见 `$` 提及并保留绑定。
     fn decode_history_mentions_restores_visible_tokens() {
         let decoded = decode_history_mentions_with_at_mentions(
             "Use [$figma](app://figma-1), [$sample](plugin://sample@test), and [$figma](/tmp/figma/SKILL.md).",
@@ -315,6 +322,7 @@ mod tests {
     }
 
     #[test]
+    // 启用统一提及时，插件链接的 `@` 符号必须原样恢复。
     fn decode_history_mentions_restores_plugin_links_with_at_sigil() {
         let decoded = decode_history_mentions_with_at_mentions(
             "Use [@sample](plugin://sample@test) and [$figma](app://figma-1).",
@@ -339,6 +347,7 @@ mod tests {
     }
 
     #[test]
+    // 关闭统一提及时，旧插件链接回退成 `$`，保持旧输入模型可用。
     fn decode_history_mentions_without_at_mentions_uses_legacy_plugin_fallback() {
         let decoded = decode_history_mentions_with_at_mentions(
             "Use [@sample](plugin://sample@test) and [$figma](app://figma-1).",
@@ -363,6 +372,7 @@ mod tests {
     }
 
     #[test]
+    // 关闭统一提及时，非插件 `@` 链接不能被误识别为旧工具提及。
     fn decode_history_mentions_without_at_mentions_ignores_at_non_plugin_paths() {
         let decoded = decode_history_mentions_with_at_mentions(
             "Use [@figma](app://figma-1).",
@@ -374,6 +384,7 @@ mod tests {
     }
 
     #[test]
+    // 启用统一提及时，规范工具路径也应恢复为 `@` 符号。
     fn decode_history_mentions_restores_at_sigil_for_tool_paths() {
         let decoded = decode_history_mentions_with_at_mentions(
             "Use [@figma](app://figma-1).",
@@ -392,6 +403,7 @@ mod tests {
     }
 
     #[test]
+    // 同名绑定按输入顺序消费，未绑定的后续提及保持纯文本。
     fn encode_history_mentions_links_bound_mentions_in_order() {
         let text = "$figma then $sample then $figma then $other";
         let encoded = encode_history_mentions(
@@ -421,6 +433,7 @@ mod tests {
     }
 
     #[test]
+    // 标点边界后的 `$` 提及仍应转换为链接。
     fn encode_history_mentions_links_dollar_mentions_after_punctuation() {
         let encoded = encode_history_mentions(
             "($figma)",
@@ -434,6 +447,7 @@ mod tests {
     }
 
     #[test]
+    // 路径样后缀属于链接后的正文，不能阻止已绑定 `$` 提及编码。
     fn encode_history_mentions_links_dollar_mentions_with_path_like_suffixes() {
         let mention = LinkedMention {
             sigil: '$',
@@ -456,6 +470,7 @@ mod tests {
     }
 
     #[test]
+    // 编码统一提及时必须保留原有 `@`，不能改写成旧 `$`。
     fn encode_history_mentions_preserves_at_sigils() {
         let text = "@figma then @sample then $other";
         let encoded = encode_history_mentions(
@@ -480,6 +495,7 @@ mod tests {
     }
 
     #[test]
+    // 同一名称可分别绑定 `@` 与 `$`，两类队列不能互相消费。
     fn encode_history_mentions_links_both_sigils_for_same_name() {
         let text = "@figma then $figma";
         let encoded = encode_history_mentions(
@@ -504,6 +520,7 @@ mod tests {
     }
 
     #[test]
+    // 未绑定的 `@` 不能抢占稍后同名 `$` 工具提及的路径。
     fn encode_history_mentions_does_not_let_at_token_steal_later_tool_binding() {
         let text = "@figma then $figma";
         let encoded = encode_history_mentions(
@@ -518,7 +535,9 @@ mod tests {
     }
 
     #[test]
+    // 全角空格仍是 `@` 链接可接受的纯文本边界。
     fn encode_history_mentions_links_at_mentions_after_unicode_whitespace() {
+        // 修复覆盖：全角空格应继续作为 `@` 链接的有效纯文本边界。
         // Fix coverage: full-width space should remain a valid plaintext boundary for `@` links.
         let text = "foo　@sample";
         let encoded = encode_history_mentions(
@@ -533,6 +552,7 @@ mod tests {
     }
 
     #[test]
+    // 句末句点应保留在链接之外。
     fn encode_history_mentions_links_sentence_ending_at_mentions() {
         let text = "Please ask @figma.";
         let encoded = encode_history_mentions(
@@ -547,6 +567,7 @@ mod tests {
     }
 
     #[test]
+    // 括号中的提及只替换内部标记，外围括号保持不变。
     fn encode_history_mentions_links_parenthesized_at_mentions() {
         let text = "Please ask (@figma)";
         let encoded = encode_history_mentions(
@@ -561,6 +582,7 @@ mod tests {
     }
 
     #[test]
+    // 邮箱和包路径中的嵌入式 `@` 不应被编码，独立提及仍应命中。
     fn encode_history_mentions_skips_embedded_at_substrings() {
         let text = "foo@sample.com npx @sample/pkg then @sample";
         let encoded = encode_history_mentions(
@@ -577,3 +599,4 @@ mod tests {
         );
     }
 }
+//! 在历史存储用 Markdown 链接与输入框可见的工具/插件提及之间双向转换。

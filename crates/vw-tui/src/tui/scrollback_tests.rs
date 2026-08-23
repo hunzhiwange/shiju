@@ -1,3 +1,8 @@
+//! 覆盖不同终端与复用器组合下的历史插入和视口扩展策略。
+//! Windows Terminal 与 Zellij 的差异必须显式分流，不能依赖通用 DEC 行为猜测。
+//! VT100 后端验证策略执行后真实屏幕和回滚缓冲均保持预期内容。
+//! 底部两行作为活动视口，模拟输入区增长触发的向上滚动。
+
 use super::ScrollbackStrategy;
 use crate::custom_terminal::Terminal;
 use crate::insert_history::HistoryLineWrapPolicy;
@@ -16,6 +21,7 @@ use ratatui::layout::Size;
 use ratatui::text::Line;
 
 #[test]
+// Windows Terminal 默认使用全屏插入，但 Zellij 接管时应采用复用器安全路径。
 fn windows_terminal_uses_full_screen_unless_zellij_is_active() {
     let mut terminal = TerminalInfo {
         name: TerminalName::WindowsTerminal,
@@ -40,6 +46,7 @@ fn windows_terminal_uses_full_screen_unless_zellij_is_active() {
 }
 
 #[test]
+// Zellij 仅在历史已由终端换行时需要全屏插入，应用换行不应重复处理。
 fn zellij_only_uses_full_screen_insertion_for_terminal_wrapped_history() {
     assert_eq!(
         [
@@ -51,6 +58,7 @@ fn zellij_only_uses_full_screen_insertion_for_terminal_wrapped_history() {
 }
 
 #[test]
+// 全屏插入历史后，既有视口上方内容仍应留在终端回滚缓冲中。
 fn full_screen_history_insertion_preserves_terminal_scrollback() {
     let width = 24;
     let height = 6;
@@ -111,6 +119,7 @@ fn full_screen_history_insertion_preserves_terminal_scrollback() {
 }
 
 #[test]
+// 视口增高并滚动内容时，旧历史与当前输入区的相对位置都不能丢失。
 fn full_screen_viewport_growth_preserves_terminal_scrollback() {
     let width = 24;
     let height = 6;

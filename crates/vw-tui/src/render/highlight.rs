@@ -22,6 +22,11 @@
 //! individual line longer than 4 KiB, are rejected early (returns `None`) to
 //! prevent pathological CPU/memory usage.  Callers must fall back to plain
 //! unstyled text.
+//!
+//! 本模块以 `syntect` 与 `two_face` 提供语法高亮，并集中持有语法集、可热切换主题、
+//! 主题修订号、持久化覆盖项及自定义主题根目录五个进程级单例。启动时应在配置最终确定后
+//! 调用 `set_theme_override`；运行中主题切换会递增修订号以使渲染缓存失效。超过大小、
+//! 行数或单行长度护栏的输入会返回 `None`，调用方必须退回无样式文本。
 
 use ratatui::style::Color as RtColor;
 use ratatui::style::Modifier;
@@ -53,6 +58,7 @@ mod streaming;
 pub(crate) use streaming::StreamingCodeHighlighter;
 
 // -- Global singletons -------------------------------------------------------
+// -- 进程级全局单例 ---------------------------------------------------------
 
 static SYNTAX_SET: OnceLock<SyntaxSet> = OnceLock::new();
 static THEME: OnceLock<RwLock<Theme>> = OnceLock::new();
@@ -62,6 +68,7 @@ static CODEX_HOME: OnceLock<Option<PathBuf>> = OnceLock::new();
 
 // Syntect/bat encode ANSI palette semantics in alpha:
 // `a=0` => indexed ANSI palette via RGB payload, `a=1` => terminal default.
+// Syntect/bat 借用 alpha 通道编码 ANSI 调色板语义：0 表示 RGB 载荷中的索引，1 表示终端默认色。
 const ANSI_ALPHA_INDEX: u8 = 0x00;
 const ANSI_ALPHA_DEFAULT: u8 = 0x01;
 const OPAQUE_ALPHA: u8 = 0xFF;
@@ -76,6 +83,7 @@ fn syntax_set() -> &'static SyntaxSet {
 // `ansi_themes_use_only_ansi_palette_colors` test will catch it at build
 // time — long before it reaches users.  A runtime warning would be
 // unactionable noise since users can't fix upstream themes.
+// 这里刻意不产生运行时诊断；上游主题格式变化由测试在构建期捕获，运行时警告对用户不可操作。
 
 /// Set the user-configured syntax theme override and codex home path.
 ///
@@ -88,6 +96,8 @@ fn syntax_set() -> &'static SyntaxSet {
 ///
 /// Returns user-facing warnings for actionable configuration issues, such as
 /// unknown/invalid theme names or duplicate override persistence.
+/// 设置用户配置的主题覆盖与 CODEX_HOME；首次调用固定持久化来源，后续调用仍可更新实时预览主题。
+/// 返回未知、无效主题或重复持久化等用户可处理的警告。
 pub(crate) fn set_theme_override(
     name: Option<String>,
     codex_home: Option<PathBuf>,
@@ -102,6 +112,7 @@ pub(crate) fn set_theme_override(
         // This should never happen in practice — set_theme_override is only
         // called once at startup.  Keep as a debug breadcrumb in case a second
         // call site is added in the future.
+        // 正常启动只会调用一次；保留调试痕迹以发现未来误加的第二个调用点。
         tracing::debug!("set_theme_override called more than once; OnceLock values unchanged");
     }
     warning
@@ -109,17 +120,20 @@ pub(crate) fn set_theme_override(
 
 /// Check whether a theme name resolves to a bundled theme or a custom
 /// `.tmTheme` file.  Returns a user-facing warning when it does not.
+/// 检查主题名能否解析为内置主题或自定义 `.tmTheme`，失败时生成面向用户的警告。
 pub(crate) fn validate_theme_name(name: Option<&str>, codex_home: Option<&Path>) -> Option<String> {
     let name = name?;
     let custom_theme_path_display = codex_home
         .map(|home| custom_theme_path(name, home).display().to_string())
         .unwrap_or_else(|| format!("$CODEX_HOME/themes/{name}.tmTheme"));
     // Bundled themes always resolve.
+    // 内置主题始终可解析，无需访问磁盘。
     if parse_theme_name(name).is_some() {
         return None;
     }
     // Custom themes must parse successfully; an unreadable/invalid file should
     // still surface a startup warning so users can diagnose configuration issues.
+    // 自定义主题必须可成功解析；文件不可读或格式无效时仍应在启动阶段明确告警。
     if let Some(home) = codex_home {
         let custom_path = custom_theme_path(name, home);
         if custom_path.is_file() {
@@ -140,6 +154,7 @@ pub(crate) fn validate_theme_name(name: Option<&str>, codex_home: Option<&Path>)
 }
 
 /// Map a kebab-case theme name to the corresponding `EmbeddedThemeName`.
+/// 将 kebab-case 主题名映射到对应的内置主题枚举。
 fn parse_theme_name(name: &str) -> Option<EmbeddedThemeName> {
     match name {
         "ansi" => Some(EmbeddedThemeName::Ansi),
@@ -179,11 +194,13 @@ fn parse_theme_name(name: &str) -> Option<EmbeddedThemeName> {
 }
 
 /// Build the expected path for a custom theme file.
+/// 生成自定义主题文件约定的磁盘路径。
 fn custom_theme_path(name: &str, codex_home: &Path) -> PathBuf {
     codex_home.join("themes").join(format!("{name}.tmTheme"))
 }
 
 /// Try to load a custom `.tmTheme` file from `{codex_home}/themes/{name}.tmTheme`.
+/// 尝试从 `{codex_home}/themes/{name}.tmTheme` 加载自定义主题。
 fn load_custom_theme(name: &str, codex_home: &Path) -> Option<Theme> {
     ThemeSet::get_theme(custom_theme_path(name, codex_home)).ok()
 }
@@ -203,22 +220,27 @@ fn adaptive_default_embedded_theme_name() -> EmbeddedThemeName {
 
 /// Return the kebab-case name of the adaptive default syntax theme selected
 /// from terminal background lightness.
+/// 根据终端背景明暗返回自适应默认主题的 kebab-case 名称。
 pub(crate) fn adaptive_default_theme_name() -> &'static str {
     adaptive_default_theme_selection().1
 }
 
 /// Build the theme from current override/default-theme settings.
 /// Extracted from the old `theme()` init closure so it can be reused.
+/// 根据当前覆盖项或默认策略构造主题；从原初始化闭包提取以供复用。
 fn resolve_theme_with_override(name: Option<&str>, codex_home: Option<&Path>) -> Theme {
     let ts = two_face::theme::extra();
 
     // Honor user-configured theme if valid.
+    // 有效的用户主题覆盖优先于自适应默认值。
     if let Some(name) = name {
         // 1. Try bundled theme by kebab-case name.
+        // 第一步按 kebab-case 名称解析内置主题。
         if let Some(theme_name) = parse_theme_name(name) {
             return ts.get(theme_name).clone();
         }
         // 2. Try loading {CODEX_HOME}/themes/{name}.tmTheme from disk.
+        // 第二步从 CODEX_HOME 的 themes 目录尝试加载自定义主题。
         if let Some(home) = codex_home
             && let Some(theme) = load_custom_theme(name, home)
         {
@@ -232,6 +254,7 @@ fn resolve_theme_with_override(name: Option<&str>, codex_home: Option<&Path>) ->
 
 /// Build the theme from current override/default-theme settings.
 /// Extracted from the old `theme()` init closure so it can be reused.
+/// 按当前配置创建主题，并复用旧初始化闭包的同一解析路径。
 fn build_default_theme() -> Theme {
     let name = THEME_OVERRIDE.get().and_then(|name| name.as_deref());
     let codex_home = CODEX_HOME.get().and_then(|codex_home| codex_home.as_deref());
@@ -243,6 +266,7 @@ fn theme_lock() -> &'static RwLock<Theme> {
 }
 
 /// Swap the active syntax theme at runtime and invalidate rendered-content caches.
+/// 在运行时替换活动语法主题，并使依赖主题的渲染缓存失效。
 pub(crate) fn set_syntax_theme(theme: Theme) {
     let mut guard = match theme_lock().write() {
         Ok(guard) => guard,
@@ -253,11 +277,13 @@ pub(crate) fn set_syntax_theme(theme: Theme) {
 }
 
 /// Return the revision of the active syntax theme for rendered-content caches.
+/// 返回活动主题修订号，供渲染内容缓存校验新鲜度。
 pub(crate) fn syntax_theme_revision() -> u64 {
     THEME_REVISION.load(Ordering::Acquire)
 }
 
 /// Clone the current syntax theme (e.g. to save for cancel-restore).
+/// 克隆当前主题，例如在预览取消时恢复原主题。
 pub(crate) fn current_syntax_theme() -> Theme {
     match theme_lock().read() {
         Ok(theme) => theme.clone(),
@@ -275,6 +301,8 @@ pub(crate) fn current_syntax_theme() -> Theme {
 /// Both fields are `None` when the active theme defines no relevant scope
 /// backgrounds, in which case the diff renderer falls back to its hardcoded
 /// palette.
+/// 保存主题为 diff/markup 作用域提供的原始 RGB 背景色；尚未按终端色深转换。
+/// 两个字段均为空时，差异渲染器使用内建回退调色板。
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct DiffScopeBackgroundRgbs {
     pub inserted: Option<(u8, u8, u8)>,
@@ -286,6 +314,7 @@ pub(crate) struct DiffScopeBackgroundRgbs {
 /// Prefers `markup.inserted` / `markup.deleted` (the TextMate convention used
 /// by most VS Code themes) and falls back to `diff.inserted` / `diff.deleted`
 /// (used by some older `.tmTheme` files).
+/// 查询活动主题的差异背景色，优先采用通行的 `markup.*` 作用域，再兼容旧式 `diff.*`。
 pub(crate) fn diff_scope_background_rgbs() -> DiffScopeBackgroundRgbs {
     let theme = current_syntax_theme();
     diff_scope_background_rgbs_for_theme(&theme)
@@ -293,6 +322,7 @@ pub(crate) fn diff_scope_background_rgbs() -> DiffScopeBackgroundRgbs {
 
 /// Pure extraction helper, separated from the global theme singleton so tests
 /// can pass arbitrary themes.
+/// 纯提取辅助函数与全局单例分离，使测试可传入任意主题。
 fn diff_scope_background_rgbs_for_theme(theme: &Theme) -> DiffScopeBackgroundRgbs {
     let highlighter = Highlighter::new(theme);
     let inserted = scope_background_rgb(&highlighter, "markup.inserted")
@@ -303,6 +333,7 @@ fn diff_scope_background_rgbs_for_theme(theme: &Theme) -> DiffScopeBackgroundRgb
 }
 
 /// Extract the background color for a single TextMate scope, if defined.
+/// 提取单个 TextMate 作用域定义的背景色。
 fn scope_background_rgb(highlighter: &Highlighter<'_>, scope_name: &str) -> Option<(u8, u8, u8)> {
     let scope = Scope::new(scope_name).ok()?;
     let bg = highlighter.style_mod_for_stack(&[scope]).background?;
@@ -311,6 +342,7 @@ fn scope_background_rgb(highlighter: &Highlighter<'_>, scope_name: &str) -> Opti
 
 /// Query the active syntax theme for the first foreground style provided by the
 /// supplied TextMate scopes.
+/// 按给定 TextMate 作用域顺序返回首个前景样式。
 pub(crate) fn foreground_style_for_scopes(scope_names: &[&str]) -> Option<Style> {
     let theme = current_syntax_theme();
     foreground_style_for_scopes_with_theme(&theme, scope_names)
@@ -330,8 +362,10 @@ fn foreground_style_for_scopes_with_theme(theme: &Theme, scope_names: &[&str]) -
 ///
 /// This intentionally reflects persisted configuration/default selection, not
 /// transient runtime swaps applied via `set_syntax_theme`.
+/// 返回可解析的持久化主题名，否则返回自适应默认名；刻意不反映实时预览造成的临时切换。
 pub(crate) fn configured_theme_name() -> String {
     // Explicit user override?
+    // 先检查显式用户覆盖是否仍可解析。
     if let Some(Some(name)) = THEME_OVERRIDE.get() {
         if parse_theme_name(name).is_some() {
             return name.clone();
@@ -347,13 +381,16 @@ pub(crate) fn configured_theme_name() -> String {
 
 /// Resolve a theme name to a `Theme` (bundled or custom). Returns `None`
 /// when the name is unknown and no matching `.tmTheme` file exists.
+/// 将名称解析为内置或自定义主题；两者均不存在时返回 `None`。
 pub(crate) fn resolve_theme_by_name(name: &str, codex_home: Option<&Path>) -> Option<Theme> {
     let ts = two_face::theme::extra();
     // Bundled theme?
+    // 优先匹配内置主题。
     if let Some(embedded) = parse_theme_name(name) {
         return Some(ts.get(embedded).clone());
     }
     // Custom .tmTheme file?
+    // 未命中时再尝试自定义 `.tmTheme` 文件。
     if let Some(home) = codex_home
         && let Some(theme) = load_custom_theme(name, home)
     {
@@ -364,16 +401,20 @@ pub(crate) fn resolve_theme_by_name(name: &str, codex_home: Option<&Path>) -> Op
 
 /// A theme available in the picker, either bundled or loaded from a custom
 /// `.tmTheme` file under `{CODEX_HOME}/themes/`.
+/// 主题选择器中的可用条目，可来自内置包或 CODEX_HOME 下的自定义文件。
 pub(crate) struct ThemeEntry {
     /// Kebab-case identifier used for config persistence and theme resolution.
+    /// 用于配置持久化及解析的 kebab-case 标识符。
     pub name: String,
     /// `true` when this entry was discovered from a `.tmTheme` file on disk
     /// rather than the embedded two-face bundle.
+    /// 为真表示条目来自磁盘自定义主题，而非内嵌 two-face 主题包。
     pub is_custom: bool,
 }
 
 /// List all available theme names: bundled themes + custom `.tmTheme` files
 /// found in `{codex_home}/themes/`.
+/// 列出全部内置主题及 `{codex_home}/themes/` 中发现的自定义主题。
 pub(crate) fn list_available_themes(codex_home: Option<&Path>) -> Vec<ThemeEntry> {
     let mut entries: Vec<ThemeEntry> = BUILTIN_THEME_NAMES
         .iter()
@@ -381,6 +422,7 @@ pub(crate) fn list_available_themes(codex_home: Option<&Path>) -> Vec<ThemeEntry
         .collect();
 
     // Discover custom themes on disk, deduplicating against builtins.
+    // 扫描磁盘自定义主题，并与内置名称去重。
     if let Some(home) = codex_home {
         let themes_dir = home.join("themes");
         if let Ok(read_dir) = std::fs::read_dir(&themes_dir) {
@@ -401,12 +443,14 @@ pub(crate) fn list_available_themes(codex_home: Option<&Path>) -> Vec<ThemeEntry
 
     // Keep picker ordering stable across platforms/filesystems while sorting
     // custom and bundled themes together, case-insensitively.
+    // 自定义与内置主题统一按不区分大小写的名称排序，确保跨平台顺序稳定。
     entries.sort_by_cached_key(|entry| (entry.name.to_ascii_lowercase(), entry.name.clone()));
 
     entries
 }
 
 /// All 32 bundled theme names in kebab-case, ordered alphabetically.
+/// 以字母顺序返回 32 个内置主题的 kebab-case 名称。
 const BUILTIN_THEME_NAMES: &[&str] = &[
     "1337",
     "ansi",
@@ -443,6 +487,7 @@ const BUILTIN_THEME_NAMES: &[&str] = &[
 ];
 
 // -- Style conversion (syntect -> ratatui) ------------------------------------
+// -- 样式转换（syntect -> ratatui）------------------------------------------
 
 /// Map a low ANSI palette index (0–7) to ratatui's named color variants,
 /// falling back to `Indexed(n)` for indices 8–255.
@@ -453,6 +498,8 @@ const BUILTIN_THEME_NAMES: &[&str] = &[
 ///
 /// `clippy::disallowed_methods` is explicitly allowed here because this helper
 /// intentionally constructs `ratatui::style::Color::Indexed`.
+/// 将低位 ANSI 索引映射为 ratatui 命名色，其余索引保留为 `Indexed`；命名色能维持终端的加粗/亮色习惯。
+/// 此处显式允许受限构造方法，因为创建索引色正是函数职责。
 #[allow(clippy::disallowed_methods)]
 fn ansi_palette_color(index: u8) -> RtColor {
     match index {
@@ -464,6 +511,7 @@ fn ansi_palette_color(index: u8) -> RtColor {
         0x05 => RtColor::Magenta,
         0x06 => RtColor::Cyan,
         // ANSI code 37 is "white", represented as `Gray` in ratatui.
+        // ANSI 37 的“白色”在 ratatui 中对应 `Gray`。
         0x07 => RtColor::Gray,
         n => RtColor::Indexed(n),
     }
@@ -482,16 +530,21 @@ fn ansi_palette_color(index: u8) -> RtColor {
 ///
 /// `clippy::disallowed_methods` is explicitly allowed here because this helper
 /// intentionally constructs `ratatui::style::Color::Rgb`.
+/// 按 bat 的 alpha 标记解码 syntect 前景色：可返回 ANSI 索引、终端默认色或普通 RGB。
+/// 返回 `None` 表示调用方应省略前景属性；显式构造 RGB 是该转换函数的必要行为。
 #[allow(clippy::disallowed_methods)]
 fn convert_syntect_color(color: SyntectColor) -> Option<RtColor> {
     match color.a {
         // Bat-compatible encoding used by `ansi`, `base16`, and `base16-256`:
         // alpha 0x00 means `r` stores an ANSI palette index, not RGB red.
+        // bat 兼容编码中 alpha 为 0 时，`r` 存放 ANSI 调色板索引而非红色分量。
         ANSI_ALPHA_INDEX => Some(ansi_palette_color(color.r)),
         // alpha 0x01 means "use terminal default foreground/background".
+        // alpha 为 1 表示使用终端默认前景色或背景色。
         ANSI_ALPHA_DEFAULT => None,
         OPAQUE_ALPHA => Some(RtColor::Rgb(color.r, color.g, color.b)),
         // Non-ANSI alpha values appear in some bundled themes; treat as plain RGB.
+        // 某些内置主题含其他 alpha 值，按普通 RGB 处理以保持兼容。
         _ => Some(RtColor::Rgb(color.r, color.g, color.b)),
     }
 }
@@ -500,6 +553,7 @@ fn convert_syntect_color(color: SyntectColor) -> Option<RtColor> {
 ///
 /// Most themes produce RGB colors. The built-in `ansi`/`base16`/`base16-256`
 /// themes encode ANSI palette semantics in the alpha channel, matching bat.
+/// 将 syntect 样式转换为 ratatui 样式；ANSI 系列主题沿用 bat 的 alpha 通道编码约定。
 fn convert_style(syn_style: SyntectStyle) -> Style {
     let mut rt_style = Style::default();
 
@@ -509,6 +563,7 @@ fn convert_style(syn_style: SyntectStyle) -> Style {
     // Intentionally skip background to avoid overwriting terminal bg.
     // If background support is added later, decode with `convert_syntect_color`
     // to reuse the same alpha-marker semantics as foreground.
+    // 刻意跳过背景色以保留终端背景；若以后支持，应复用与前景色相同的 alpha 标记解码。
 
     if syn_style.font_style.contains(FontStyle::BOLD) {
         rt_style.add_modifier |= Modifier::BOLD;
@@ -517,24 +572,29 @@ fn convert_style(syn_style: SyntectStyle) -> Style {
     // Intentionally skip underline — themes like Dracula use underline on type
     // scopes (entity.name.type, support.class) which produces distracting
     // underlines on type/module names in terminal output.
+    // 斜体在许多终端表现不佳，类型作用域的下划线也会造成干扰，因此两者均刻意抑制。
 
     rt_style
 }
 
 // -- Syntax lookup ------------------------------------------------------------
+// -- 语法查找 ----------------------------------------------------------------
 
 /// Try to find a syntect `SyntaxReference` for the given language identifier.
 ///
 /// two-face's extended syntax set (~250 languages) resolves most names and
 /// extensions directly.  We only patch the few aliases it cannot handle.
+/// 查找语言标识对应的 syntect 语法；two-face 已覆盖大多数名称和扩展名，这里只修补少数别名。
 fn find_syntax(lang: &str) -> Option<&'static SyntaxReference> {
     let ss = syntax_set();
 
     // Aliases that two-face does not resolve on its own.
+    // 仅列出 two-face 自身无法识别的别名。
     let normalized = lang.to_ascii_lowercase();
     let patched = match normalized.as_str() {
         "csharp" | "c-sharp" => "c#",
         // CUDA source (.cu) and header (.cuh) files use C++ highlighting as a fallback.
+        // CUDA 源文件与头文件回退到 C++ 高亮。
         "cu" | "cuh" => "cpp",
         "cppm" | "cxxm" | "ixx" => "cpp",
         "golang" => "go",
@@ -544,19 +604,23 @@ fn find_syntax(lang: &str) -> Option<&'static SyntaxReference> {
     };
 
     // Try by token (matches file_extensions case-insensitively).
+    // 先按 token 匹配，文件扩展名比较不区分大小写。
     if let Some(s) = ss.find_syntax_by_token(patched) {
         return Some(s);
     }
     // Try by exact syntax name (e.g. "Rust", "Python").
+    // 再按完整语法名称精确匹配。
     if let Some(s) = ss.find_syntax_by_name(patched) {
         return Some(s);
     }
     // Try case-insensitive name match (e.g. "rust" -> "Rust").
+    // 然后尝试不区分大小写的语法名称匹配。
     let lower = patched.to_ascii_lowercase();
     if let Some(s) = ss.syntaxes().iter().find(|s| s.name.to_ascii_lowercase() == lower) {
         return Some(s);
     }
     // Try raw input as file extension.
+    // 最后把原始输入当作文件扩展名尝试。
     if let Some(s) = ss.find_syntax_by_extension(lang) {
         return Some(s);
     }
@@ -564,15 +628,19 @@ fn find_syntax(lang: &str) -> Option<&'static SyntaxReference> {
 }
 
 // -- Guardrail constants ------------------------------------------------------
+// -- 资源护栏常量 ------------------------------------------------------------
 
 /// Skip highlighting for inputs larger than 512 KB to avoid excessive memory
 /// and CPU usage.  Callers fall back to plain unstyled text.
+/// 输入超过 512 KiB 时跳过高亮以限制内存和 CPU，调用方回退到纯文本。
 const MAX_HIGHLIGHT_BYTES: usize = 512 * 1024;
 
 /// Skip highlighting for inputs with more than 10,000 lines.
+/// 输入超过一万行时跳过高亮。
 const MAX_HIGHLIGHT_LINES: usize = 10_000;
 
 /// Skip highlighting when an individual line is longer than 4 KiB.
+/// 任一单行超过 4 KiB 时跳过高亮。
 pub(crate) const MAX_HIGHLIGHT_LINE_BYTES: usize = 4 * 1024;
 
 /// Check whether an input exceeds the safe highlighting limits.
@@ -580,17 +648,20 @@ pub(crate) const MAX_HIGHLIGHT_LINE_BYTES: usize = 4 * 1024;
 /// Callers that highlight content in a loop (e.g. per diff-line) should
 /// pre-check the aggregate size with this function and skip highlighting
 /// entirely when it returns `true`.
+/// 判断输入是否突破安全高亮限制；循环高亮的调用方应先对整体输入执行此检查。
 pub(crate) fn exceeds_highlight_limits(total_bytes: usize, total_lines: usize) -> bool {
     total_bytes > MAX_HIGHLIGHT_BYTES || total_lines > MAX_HIGHLIGHT_LINES
 }
 
 // -- Core highlighting --------------------------------------------------------
+// -- 核心高亮 ----------------------------------------------------------------
 
 /// Core highlighter that accepts an explicit theme reference.
 ///
 /// This keeps production behavior and test behavior on the same code path:
 /// production callers pass the global theme lock, while tests can pass a
 /// concrete theme without mutating process-global state.
+/// 使用显式主题的核心高亮器，让生产代码和测试共用同一路径且测试无需修改全局状态。
 fn highlight_to_line_spans_with_theme(
     code: &str,
     lang: &str,
@@ -598,6 +669,7 @@ fn highlight_to_line_spans_with_theme(
 ) -> Option<Vec<Vec<Span<'static>>>> {
     // Empty input has nothing to highlight; fall back to the plain text path
     // which correctly produces a single empty Line.
+    // 空输入没有可高亮内容，交给纯文本路径生成规范的单个空行。
     if code.is_empty() {
         return None;
     }
@@ -605,6 +677,7 @@ fn highlight_to_line_spans_with_theme(
     // Bail out early for oversized inputs to avoid excessive resource usage.
     // Count actual lines (not newline bytes) to avoid an off-by-one when
     // the input does not end with a newline.
+    // 超限时尽早退出；按真实行数而非换行字节计数，避免无尾换行输入的差一错误。
     if code.len() > MAX_HIGHLIGHT_BYTES
         || code.lines().count() > MAX_HIGHLIGHT_LINES
         || code.lines().any(|line| line.len() > MAX_HIGHLIGHT_LINE_BYTES)
@@ -627,10 +700,12 @@ fn highlight_to_line_spans_with_theme(
 /// Convert one highlighted line into the spans shared by full and streaming renders.
 ///
 /// Source line endings are omitted, while empty lines retain their canonical empty span.
+/// 将一条高亮源行转换为完整渲染与流式渲染共享的 spans；去除行尾但保留规范空 span。
 fn highlighted_line_spans(ranges: Vec<(SyntectStyle, &str)>) -> Vec<Span<'static>> {
     let mut spans = Vec::new();
     for (style, text) in ranges {
         // Line breaks are represented by the surrounding Line, not its spans.
+        // 换行由外层 `Line` 表示，不应留在 span 文本中。
         let text = text.trim_end_matches(['\n', '\r']);
         if !text.is_empty() {
             spans.push(Span::styled(text.to_string(), convert_style(style)));
@@ -645,6 +720,7 @@ fn highlighted_line_spans(ranges: Vec<(SyntectStyle, &str)>) -> Vec<Span<'static
 /// Parse `code` using syntect for `lang` and return per-line styled spans.
 /// Each inner Vec represents one source line.  Returns None when the language
 /// is not recognized or the input exceeds safety limits.
+/// 用 syntect 解析代码并返回逐行 spans；语言未知或超过护栏时返回 `None`。
 fn highlight_to_line_spans(code: &str, lang: &str) -> Option<Vec<Vec<Span<'static>>>> {
     let theme_guard = match theme_lock().read() {
         Ok(theme_guard) => theme_guard,
@@ -654,6 +730,7 @@ fn highlight_to_line_spans(code: &str, lang: &str) -> Option<Vec<Vec<Span<'stati
 }
 
 // -- Public API ---------------------------------------------------------------
+// -- 公开 API ----------------------------------------------------------------
 
 /// Highlight code in any supported language, returning styled ratatui `Line`s.
 ///
@@ -663,6 +740,8 @@ fn highlight_to_line_spans(code: &str, lang: &str) -> Option<Vec<Vec<Span<'stati
 ///
 /// Used by `markdown_render` for fenced code blocks and by `exec_cell` for bash
 /// command highlighting.
+/// 高亮任意支持的语言；未知语言或超限时返回等价的逐行无样式文本，可直接渲染。
+/// 围栏代码块与命令执行单元共用此入口。
 pub(crate) fn highlight_code_to_lines(code: &str, lang: &str) -> Vec<Line<'static>> {
     if let Some(line_spans) = highlight_to_line_spans(code, lang) {
         line_spans.into_iter().map(Line::from).collect()
@@ -670,6 +749,7 @@ pub(crate) fn highlight_code_to_lines(code: &str, lang: &str) -> Vec<Line<'stati
         // Fallback: plain text, one Line per source line.
         // Use `lines()` instead of `split('\n')` to avoid a phantom trailing
         // empty element when the input ends with '\n' (as pulldown-cmark emits).
+        // 回退路径用 `lines()` 避免 pulldown-cmark 尾换行产生幽灵空行。
         let mut result: Vec<Line<'static>> =
             code.lines().map(|l| Line::from(l.to_string())).collect();
         if result.is_empty() {
@@ -680,6 +760,7 @@ pub(crate) fn highlight_code_to_lines(code: &str, lang: &str) -> Vec<Line<'stati
 }
 
 /// Backward-compatible wrapper for bash highlighting used by exec cells.
+/// 为执行单元保留的 Bash 高亮兼容包装器。
 pub(crate) fn highlight_bash_to_lines(script: &str) -> Vec<Line<'static>> {
     highlight_code_to_lines(script, "bash")
 }
@@ -693,6 +774,8 @@ pub(crate) fn highlight_bash_to_lines(script: &str) -> Vec<Line<'static>> {
 /// Each inner `Vec<Span>` corresponds to one source line.  Styles are derived
 /// from the active theme but backgrounds are intentionally omitted so the
 /// terminal's own background shows through.
+/// 为差异渲染返回逐行 spans；未知语言或超限时由调用方退回纯 diff 着色。
+/// 样式刻意省略背景色，以保留终端自身背景。
 pub(crate) fn highlight_code_to_styled_spans(
     code: &str,
     lang: &str,
@@ -714,6 +797,7 @@ mod tests {
 
     fn write_minimal_tmtheme(path: &Path) {
         // Minimal valid .tmTheme plist (enough for syntect to parse).
+        // 构造足以让 syntect 解析的最小有效 `.tmTheme` plist。
         std::fs::write(
             path,
             r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -768,6 +852,7 @@ mod tests {
     }
 
     /// Reconstruct plain text from highlighted Lines.
+    /// 从高亮行重新拼接纯文本，便于验证内容未改变。
     fn reconstructed(lines: &[Line<'static>]) -> String {
         lines
             .iter()
@@ -834,6 +919,7 @@ mod tests {
         assert_eq!(reconstructed(&lines), code);
 
         // The `fn` keyword should have a non-default style (some color).
+        // `fn` 关键字应获得非默认颜色，证明 Rust 语法被识别。
         let fn_span = lines[0].spans.iter().find(|sp| sp.content.as_ref() == "fn");
         assert!(fn_span.is_some(), "expected a span containing 'fn'");
         let style = fn_span.map(|s| s.style).unwrap_or_default();
@@ -849,6 +935,7 @@ mod tests {
         let lines = highlight_code_to_lines(code, "xyzlang");
         assert_eq!(reconstructed(&lines), code);
         // Should be plain text with no styling.
+        // 未知语言应保持无样式纯文本。
         for line in &lines {
             for span in &line.spans {
                 assert_eq!(
@@ -865,6 +952,7 @@ mod tests {
         // pulldown-cmark sends code block text ending with '\n'.
         // The fallback path (unknown language) must not produce a phantom
         // empty trailing line from that newline.
+        // pulldown-cmark 会在代码块末尾附加换行；回退路径不得因此生成多余空行。
         let code = "hello world\n";
         let lines = highlight_code_to_lines(code, "xyzlang");
         assert_eq!(
@@ -893,6 +981,7 @@ mod tests {
     fn highlight_crlf_strips_carriage_return() {
         // Windows-style \r\n line endings must not leave a trailing \r in
         // span text — that would propagate into rendered code blocks.
+        // Windows 的 CRLF 不得把尾随 `\r` 留在 span 中，否则会污染渲染文本。
         let code = "fn main() {\r\n    println!(\"hi\");\r\n}\r\n";
         let lines = highlight_code_to_lines(code, "rust");
         for (i, line) in lines.iter().enumerate() {
@@ -917,9 +1006,11 @@ mod tests {
         let rt = convert_style(syn);
         assert_eq!(rt.fg, Some(RtColor::Rgb(255, 128, 0)));
         // Background is intentionally skipped.
+        // 背景色按设计不写入终端样式。
         assert_eq!(rt.bg, None);
         assert!(rt.add_modifier.contains(Modifier::BOLD));
         // Italic is intentionally suppressed.
+        // 斜体按设计被抑制。
         assert!(!rt.add_modifier.contains(Modifier::ITALIC));
         assert!(!rt.add_modifier.contains(Modifier::UNDERLINED));
     }
@@ -929,6 +1020,7 @@ mod tests {
         // Dracula (and other themes) set FontStyle::UNDERLINE on type scopes,
         // producing distracting underlines on type names in terminal output.
         // convert_style must suppress underline, just like it suppresses italic.
+        // Dracula 等主题会给类型作用域加下划线；转换器应像斜体一样将其抑制。
         let syn = SyntectStyle {
             foreground: syntect::highlighting::Color { r: 100, g: 200, b: 150, a: 255 },
             background: syntect::highlighting::Color { r: 0, g: 0, b: 0, a: 0xFF },
@@ -1026,6 +1118,7 @@ mod tests {
     fn ansi_family_foreground_palette_snapshot() {
         // VibeWindow adaptation: keep exercising the copied Codex snapshot
         // after the library crate was renamed for the v3 package.
+        // VibeWindow 适配：库 crate 为 v3 包改名后仍运行复制而来的 Codex 快照用例。
         let mut settings = insta::Settings::clone_current();
         settings.set_prepend_module_to_snapshot(false);
         let mut out = String::new();
@@ -1077,6 +1170,7 @@ mod tests {
     fn highlight_large_input_falls_back() {
         // Input exceeding MAX_HIGHLIGHT_BYTES should return None (plain text
         // fallback) rather than attempting to parse.
+        // 超过字节上限的输入应返回 `None` 触发纯文本回退，不再尝试解析。
         let big = "x".repeat(MAX_HIGHLIGHT_BYTES + 1);
         let result = highlight_code_to_styled_spans(&big, "rust");
         assert!(result.is_none(), "oversized input should fall back to None");
@@ -1094,6 +1188,7 @@ mod tests {
     #[test]
     fn highlight_many_lines_falls_back() {
         // Input exceeding MAX_HIGHLIGHT_LINES should return None.
+        // 超过行数上限的输入应返回 `None`。
         let many_lines = "let x = 1;\n".repeat(MAX_HIGHLIGHT_LINES + 1);
         let result = highlight_code_to_styled_spans(&many_lines, "rust");
         assert!(result.is_none(), "too many lines should fall back to None");
@@ -1104,6 +1199,7 @@ mod tests {
         // A snippet with exactly MAX_HIGHLIGHT_LINES+1 lines but no trailing
         // newline has only MAX_HIGHLIGHT_LINES newline bytes.  The guard must
         // count actual lines, not newline bytes, to catch this.
+        // 无尾换行的上限加一输入只有上限个换行字节，因此护栏必须计算实际行数。
         let mut code = "let x = 1;\n".repeat(MAX_HIGHLIGHT_LINES);
         code.push_str("let x = 1;"); // line MAX_HIGHLIGHT_LINES+1, no trailing \n
         assert_eq!(code.lines().count(), MAX_HIGHLIGHT_LINES + 1);
@@ -1117,6 +1213,7 @@ mod tests {
     #[test]
     fn find_syntax_resolves_languages_and_aliases() {
         // Languages resolved directly by two-face's extended syntax set.
+        // 验证 two-face 扩展语法集可直接解析的语言名称。
         let languages = [
             "javascript",
             "typescript",
@@ -1155,6 +1252,7 @@ mod tests {
             assert!(find_syntax(lang).is_some(), "find_syntax({lang:?}) returned None");
         }
         // Common file extensions.
+        // 验证常用文件扩展名的解析。
         let extensions = [
             "rs", "py", "js", "ts", "rb", "go", "sh", "md", "yml", "kt", "ex", "hs", "pl", "php",
             "css", "html", "cs",
@@ -1163,6 +1261,7 @@ mod tests {
             assert!(find_syntax(ext).is_some(), "find_syntax({ext:?}) returned None");
         }
         // Patched aliases that two-face cannot resolve on its own.
+        // 验证本模块为 two-face 缺失项补充的别名。
         for alias in [
             "csharp", "c-sharp", "cu", "cuh", "cppm", "CPPM", "cxxm", "CxXm", "ixx", "IXX",
             "golang", "python3", "shell",
@@ -1333,6 +1432,7 @@ mod tests {
     #[test]
     fn validate_theme_name_none_for_bundled() {
         // Bundled themes should never produce a warning.
+        // 任何内置主题都不应产生配置警告。
         assert!(validate_theme_name(Some("dracula"), /*codex_home*/ None).is_none());
         assert!(validate_theme_name(Some("nord"), Some(Path::new("/nonexistent"))).is_none());
     }
@@ -1424,9 +1524,11 @@ mod tests {
         use two_face::theme::EmbeddedLazyThemeSet;
 
         // Every variant in the embedded set must be reachable via parse_theme_name.
+        // 内置主题集中的每个枚举值都必须能由名称解析函数抵达。
         let all_variants = EmbeddedLazyThemeSet::theme_names();
 
         // Guard: if two-face adds themes, this test forces us to update the mapping.
+        // 若 two-face 新增主题，此护栏会要求同步更新映射表。
         assert_eq!(
             all_variants.len(),
             32,
@@ -1434,6 +1536,7 @@ mod tests {
         );
 
         // Build the set of variants reachable through our kebab-case mapping.
+        // 构造通过本地 kebab-case 映射可以到达的主题枚举集合。
         let kebab_names = [
             "ansi",
             "base16",
@@ -1474,6 +1577,7 @@ mod tests {
             .collect();
 
         // Every variant from two-face must appear in our mapped set.
+        // two-face 提供的每个主题枚举都必须出现在映射集合中。
         for variant in all_variants {
             assert!(
                 mapped.contains(variant),

@@ -1,3 +1,5 @@
+//! 实时检查终端实际送达的按键，并解释其配置写法与动作匹配结果。
+
 use codex_config::types::TuiKeymap;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -26,6 +28,7 @@ const SHORT_MISSING_KEY_HINT: &str = "Tip: Codex can only inspect keys your term
 const DELAYED_MISSING_KEY_HINT: &str = "Still waiting? If nothing changes when you press a key, your terminal is not sending that key to Codex. Only received keys can be assigned as shortcuts.";
 
 struct KeymapDebugReport {
+    // 同时保留规范化按键、原始事件和命中来源，帮助区分终端问题与配置问题。
     detected: KeyBinding,
     config_key: Result<String, String>,
     raw_event: String,
@@ -33,6 +36,7 @@ struct KeymapDebugReport {
 }
 
 /// Bottom-pane view for inspecting how terminal key events map to keymap actions.
+/// 用于检查终端按键事件如何映射到快捷键动作的底部面板视图。
 pub(crate) struct KeymapDebugView {
     runtime_keymap: RuntimeKeymap,
     keymap_config: TuiKeymap,
@@ -45,6 +49,7 @@ pub(crate) fn build_keymap_debug_view(
     runtime_keymap: &RuntimeKeymap,
     keymap_config: &TuiKeymap,
 ) -> KeymapDebugView {
+    // 打开时冻结运行时键位表和配置快照，使一次检查中的来源标签保持一致。
     KeymapDebugView {
         runtime_keymap: runtime_keymap.clone(),
         keymap_config: keymap_config.clone(),
@@ -60,6 +65,7 @@ impl KeymapDebugView {
     }
 
     fn lines_at(&self, width: u16, now: Instant) -> Vec<Line<'static>> {
+        // 尚未收到事件时延迟显示更具体的终端提示，避免立即把正常操作误判为缺键。
         let wrap_width = usize::from(width.max(1));
         let mut lines = vec![
             Line::from("Keypress Inspector".bold()),
@@ -151,6 +157,7 @@ impl Renderable for KeymapDebugView {
 
 impl BottomPaneView for KeymapDebugView {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
+        // Release 不代表新的用户输入；Esc 也应被检查，只有 Ctrl+C 负责关闭面板。
         if key_event.kind == KeyEventKind::Release {
             return;
         }
@@ -199,6 +206,7 @@ fn push_wrapped_dim(
     initial_indent: &'static str,
     subsequent_indent: &'static str,
 ) {
+    // 首行与续行使用独立缩进，保持窄终端中的字段和值对齐。
     let options = textwrap::Options::new(wrap_width)
         .initial_indent(initial_indent)
         .subsequent_indent(subsequent_indent);
@@ -210,6 +218,7 @@ fn push_wrapped_dim(
 }
 
 fn key_event_debug_summary(key_event: KeyEvent) -> String {
+    // 原始摘要保留 code、modifiers 与 kind，便于识别终端编码差异。
     format!(
         "code={:?}, modifiers={}, kind={:?}",
         key_event.code,

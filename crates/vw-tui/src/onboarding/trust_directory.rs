@@ -1,3 +1,5 @@
+//! 展示目录信任安全提示，并将明确的继续或退出选择交给引导状态机。
+
 use std::path::PathBuf;
 
 use crossterm::event::KeyEvent;
@@ -22,6 +24,7 @@ use crate::selection_list::selection_option_row;
 
 use super::onboarding_screen::StepState;
 pub(crate) struct TrustDirectoryWidget {
+    // cwd 用于说明当前位置，trust_target 才是最终写入信任配置的安全边界。
     pub cwd: PathBuf,
     pub trust_target: PathBuf,
     pub show_windows_create_sandbox_hint: bool,
@@ -33,6 +36,7 @@ pub(crate) struct TrustDirectoryWidget {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TrustDirectorySelection {
+    // 选择值仅表达用户意图，持久化成功与否由上层异步流程决定。
     Trust,
     Quit,
 }
@@ -49,6 +53,7 @@ impl WidgetRef for &TrustDirectoryWidget {
         column.push("");
 
         if self.cwd != self.trust_target {
+            // Insets 的位置参数依次表示上、左、下、右，此处仅保留两列左缩进。
             #[allow(clippy::disallowed_methods)]
             let git_root_warning = Paragraph::new(format!(
                 "Note: You’re in a subdirectory of a Git project. Trusting will apply to the repository root: {}",
@@ -58,6 +63,7 @@ impl WidgetRef for &TrustDirectoryWidget {
             column.push(
                 git_root_warning
                     .wrap(Wrap { trim: true })
+                    // 位置参数依次为上、左、下、右。
                     .inset(Insets::tlbr(
                         /*top*/ 0, /*left*/ 2, /*bottom*/ 0, /*right*/ 0,
                     )),
@@ -66,6 +72,7 @@ impl WidgetRef for &TrustDirectoryWidget {
         }
 
         column.push(
+            // 安全说明与选项对齐：位置参数依次为上、左、下、右。
             Paragraph::new(
                 "Do you trust the contents of this directory? Working with untrusted \
                  contents comes with higher risk of prompt injection. Trusting the \
@@ -73,6 +80,7 @@ impl WidgetRef for &TrustDirectoryWidget {
                     .to_string(),
             )
             .wrap(Wrap { trim: true })
+            // 位置参数依次为上、左、下、右。
             .inset(Insets::tlbr(
                 /*top*/ 0, /*left*/ 2, /*bottom*/ 0, /*right*/ 0,
             )),
@@ -95,10 +103,12 @@ impl WidgetRef for &TrustDirectoryWidget {
         column.push("");
 
         if let Some(error) = &self.error {
+            // 错误文本沿用同一左缩进；位置参数顺序为上、左、下、右。
             column.push(
                 Paragraph::new(error.to_string())
                     .red()
                     .wrap(Wrap { trim: true })
+                    // 位置参数依次为上、左、下、右。
                     .inset(Insets::tlbr(
                         /*top*/ 0, /*left*/ 2, /*bottom*/ 0, /*right*/ 0,
                     )),
@@ -107,6 +117,7 @@ impl WidgetRef for &TrustDirectoryWidget {
         }
 
         column.push(
+            // 页脚同样只设置左缩进；位置参数顺序为上、左、下、右。
             Line::from(vec![
                 "Press ".dim(),
                 keys::CONFIRM[0].into(),
@@ -116,6 +127,7 @@ impl WidgetRef for &TrustDirectoryWidget {
                     " to continue".dim()
                 },
             ])
+            // 位置参数依次为上、左、下、右。
             .inset(Insets::tlbr(
                 /*top*/ 0, /*left*/ 2, /*bottom*/ 0, /*right*/ 0,
             )),
@@ -127,6 +139,7 @@ impl WidgetRef for &TrustDirectoryWidget {
 
 impl KeyboardHandler for TrustDirectoryWidget {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
+        // 只接受 Press，避免按住确认键产生的 Repeat 越过一次明确授权。
         if key_event.kind != KeyEventKind::Press {
             return;
         }
@@ -153,6 +166,7 @@ impl KeyboardHandler for TrustDirectoryWidget {
 
 impl StepStateProvider for TrustDirectoryWidget {
     fn get_step_state(&self) -> StepState {
+        // 用户作出选择或请求退出即结束本步骤；写入失败时上层会清除 selection 以便重试。
         if self.selection.is_some() || self.should_quit {
             StepState::Complete
         } else {
@@ -180,6 +194,7 @@ impl TrustDirectoryWidget {
 
 #[cfg(test)]
 mod tests {
+    // 输入测试固定一次确认语义，快照测试覆盖仓库根提示、远程子目录和持久化错误布局。
     use crate::test_backend::VT100Backend;
 
     use super::*;
@@ -204,6 +219,7 @@ mod tests {
     }
 
     #[test]
+    // Release 和 Repeat 不得改变授权选择，只有新的 Press 可以确认高亮项。
     fn release_event_does_not_change_selection() {
         let mut widget = TrustDirectoryWidget {
             cwd: PathBuf::from("."),
@@ -233,9 +249,12 @@ mod tests {
     }
 
     #[test]
+    // 无错误 fixture 与终端尺寸参数分别表示错误为空、宽 70 高 14。
     fn renders_snapshot_for_git_repo() {
+        // error 参数为空，构造无错误状态。
         let widget = widget(/*error*/ None);
 
+        // 终端位置参数依次为宽度和高度。
         let mut terminal =
             Terminal::new(VT100Backend::new(/*width*/ 70, /*height*/ 14)).expect("terminal");
         terminal
@@ -246,13 +265,16 @@ mod tests {
     }
 
     #[test]
+    // 远程子目录场景应提示实际信任仓库根；fixture 无错误，终端宽 70 高 18。
     fn renders_snapshot_for_remote_git_subdirectory() {
         let widget = TrustDirectoryWidget {
             cwd: PathBuf::from("/srv/remote/project/nested"),
             trust_target: PathBuf::from("/srv/remote/project"),
+            // error 参数为空，构造无错误状态。
             ..widget(/*error*/ None)
         };
 
+        // 终端位置参数依次为宽度和高度。
         let mut terminal =
             Terminal::new(VT100Backend::new(/*width*/ 70, /*height*/ 18)).expect("terminal");
         terminal
@@ -271,12 +293,14 @@ mod tests {
     }
 
     #[test]
+    // 持久化失败时错误内容必须在宽 70、高 18 的面板内换行展示。
     fn renders_snapshot_for_trust_error() {
         let widget = widget(Some(
             "Failed to set trust for /workspace/project: config/batchWrite failed in TUI: Invalid configuration: features.fast_mode=true is not supported; allowed set [fast_mode=false]"
                 .to_string(),
         ));
 
+        // 终端位置参数依次为宽度和高度。
         let mut terminal =
             Terminal::new(VT100Backend::new(/*width*/ 70, /*height*/ 18)).expect("terminal");
         terminal

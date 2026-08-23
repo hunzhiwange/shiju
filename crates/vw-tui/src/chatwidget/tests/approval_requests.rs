@@ -1,13 +1,18 @@
+//! 聚焦验证执行、网络与文件系统审批请求的展示和决策事件。
+//! 这些测试从主 chatwidget 测试文件拆出，以满足源文件体积策略限制。
 //! Approval-request focused tests extracted from the main chatwidget test file
 //! to keep the primary module under blob-size policy limits.
+//! 测试同时核对命令规范化、权限上下文保留和历史摘要截断边界。
 
 use super::*;
 use pretty_assertions::assert_eq;
 
 #[tokio::test]
 async fn exec_approval_emits_proposed_command_and_decision_history() {
+    // 执行审批必须同时保留提议命令和最终决策，形成可审计历史。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
+    // 以简短单行命令触发执行审批请求。
     // Trigger an exec approval request with a short, single-line command.
     let ev = ExecApprovalRequestEvent {
         call_id: "call-short".into(),
@@ -50,6 +55,7 @@ async fn exec_approval_emits_proposed_command_and_decision_history() {
 
 #[test]
 fn app_server_exec_approval_request_splits_shell_wrapped_command() {
+    // app-server 的 shell 包装命令拆分后仍应呈现真实命令边界。
     let script = r#"python3 -c 'print("Hello, world!")'"#;
     let request = exec_approval_request_from_params(
         AppServerCommandExecutionRequestApprovalParams {
@@ -87,6 +93,7 @@ fn app_server_exec_approval_request_splits_shell_wrapped_command() {
 
 #[test]
 fn app_server_exec_approval_request_preserves_permissions_context() {
+    // 审批请求携带的权限上下文必须原样进入弹窗和后续决策路径。
     let read_path = AbsolutePathBuf::try_from(PathBuf::from(test_path_display("/tmp/read-only")))
         .expect("absolute read path");
     let write_path = AbsolutePathBuf::try_from(PathBuf::from(test_path_display("/tmp/write")))
@@ -152,6 +159,7 @@ fn app_server_exec_approval_request_preserves_permissions_context() {
 
 #[tokio::test]
 async fn network_exec_approval_history_describes_session_host_allowance() {
+    // 会话级主机放行在历史中明确标记其持续范围。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let request = exec_approval_request_from_params(
         AppServerCommandExecutionRequestApprovalParams {
@@ -194,6 +202,7 @@ async fn network_exec_approval_history_describes_session_host_allowance() {
 
 #[tokio::test]
 async fn network_exec_approval_history_describes_one_time_host_allowance() {
+    // 单次主机放行与会话级放行使用不同摘要，避免误解授权期限。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let request = exec_approval_request_from_params(
         AppServerCommandExecutionRequestApprovalParams {
@@ -236,6 +245,7 @@ async fn network_exec_approval_history_describes_one_time_host_allowance() {
 
 #[tokio::test]
 async fn network_exec_approval_history_describes_canceled_host_request() {
+    // 取消的网络授权仍留下结果记录，但不得表现为已经放行。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let request = exec_approval_request_from_params(
         AppServerCommandExecutionRequestApprovalParams {
@@ -278,6 +288,7 @@ async fn network_exec_approval_history_describes_canceled_host_request() {
 
 #[test]
 fn app_server_request_permissions_preserves_file_system_permissions() {
+    // 文件系统权限请求保留读写根和受限路径，防止扩大实际能力。
     let read_path = AbsolutePathBuf::try_from(PathBuf::from(test_path_display("/tmp/read-only")))
         .expect("absolute read path");
     let write_path = AbsolutePathBuf::try_from(PathBuf::from(test_path_display("/tmp/write")))
@@ -373,6 +384,7 @@ async fn exec_approval_uses_approval_id_when_present() {
 
 #[tokio::test]
 async fn exec_approval_decision_truncates_multiline_and_long_commands() {
+    // 超长或多行命令只截断历史摘要，不改变发送给审批逻辑的原始命令。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let ev_multi = ExecApprovalRequestEvent {

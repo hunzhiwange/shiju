@@ -1,9 +1,13 @@
+//! 验证宠物资源加载与预览选择的异步状态衔接。
+//! 覆盖无运行时加载、内置资源缓存复用，以及过期完成事件不得覆盖当前选择。
+
 use super::*;
 use codex_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 
 #[test]
 fn pet_load_without_runtime_sends_completion_event() {
+    // 无异步运行时也必须通过完成事件报告加载结果，不能静默丢失请求。
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let app_event_tx = AppEventSender::new(tx);
 
@@ -55,6 +59,7 @@ async fn shared_pet_load_uses_cached_builtin_assets() {
 
 #[tokio::test]
 async fn stale_pet_preview_completion_keeps_current_preview() {
+    // 较早预览的迟到结果不得覆盖用户随后选中的当前预览。
     let (mut chat, _tx, _rx, _op_rx) =
         crate::chatwidget::tests::make_chatwidget_manual_with_sender().await;
     chat.pet_picker_preview_request_id = 2;

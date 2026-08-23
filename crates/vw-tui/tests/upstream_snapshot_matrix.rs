@@ -1,3 +1,6 @@
+//! 审计复制的上游快照、v3 新快照与允许差异文档是否保持完整矩阵。
+//! 若本地上游源码可用，还会逐文件比较内容；缺失时仍执行仓库内自洽检查。
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,6 +11,7 @@ const RELOCATED_UPSTREAM_SNAPSHOT_COUNT: usize = 20;
 const V3_SNAPSHOT_COUNT: usize = 50;
 
 #[test]
+// 数量、命名、残留 `.new` 文件和白名单分类共同防止快照静默漂移。
 fn upstream_snapshot_matrix() {
     let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let snapshots = snapshot_files(&crate_root);
@@ -50,6 +54,7 @@ fn upstream_snapshot_matrix() {
 }
 
 fn named_snapshots(paths: &[PathBuf], prefix: &str) -> BTreeMap<String, PathBuf> {
+    // 按文件名前缀建立有序映射，便于比较上游与复制目录的同名集合。
     paths
         .iter()
         .filter_map(|path| {
@@ -64,6 +69,7 @@ fn snapshot_files(root: &Path) -> Vec<PathBuf> {
 }
 
 fn snapshot_files_with_extension(root: &Path, extension: &str) -> Vec<PathBuf> {
+    // 递归收集后排序，消除目录遍历顺序对断言的影响。
     let mut files = Vec::new();
     collect_files(root, extension, &mut files);
     files.sort();
@@ -71,6 +77,7 @@ fn snapshot_files_with_extension(root: &Path, extension: &str) -> Vec<PathBuf> {
 }
 
 fn collect_files(root: &Path, extension: &str, files: &mut Vec<PathBuf>) {
+    // 不可读目录按空集合处理，使可选上游检出路径保持非阻塞。
     let Ok(entries) = fs::read_dir(root) else {
         return;
     };

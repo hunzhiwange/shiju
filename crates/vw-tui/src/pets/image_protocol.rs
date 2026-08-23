@@ -1,3 +1,8 @@
+//! 宠物图片协议的能力探测、Kitty 控制串生成与 Sixel 帧缓存。
+//!
+//! 自动探测以安全为先：tmux 与 Zellij 中图片无法可靠限制在 pane 内，因此默认拒绝；
+//! 支持的终端才选择 Kitty、iTerm2 本地文件扩展或 Sixel。显式协议选择仍由调用方负责。
+
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -23,6 +28,7 @@ const KITTY_CHUNK_SIZE: usize = 4096;
 const SIXEL_CACHE_VERSION: &str = "v2";
 const ITERM2_KITTY_MIN_VERSION: (u64, u64, u64) = (3, 6, 0);
 
+/// 实际用于终端输出的图片协议变体。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageProtocol {
     Kitty,
@@ -30,6 +36,7 @@ pub enum ImageProtocol {
     Sixel,
 }
 
+/// 自动探测结果，失败时保留可展示的具体原因。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PetImageSupport {
     Supported(ImageProtocol),
@@ -52,6 +59,7 @@ impl PetImageSupport {
     }
 }
 
+/// 自动协议不可用的安全或兼容原因。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PetImageUnsupportedReason {
     Tmux,
@@ -79,6 +87,7 @@ impl PetImageUnsupportedReason {
     }
 }
 
+/// 用户可配置的协议选择；`Auto` 才执行终端能力探测。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProtocolSelection {
     Auto,
@@ -87,6 +96,7 @@ pub enum ProtocolSelection {
 }
 
 impl ProtocolSelection {
+    /// 将选择解析为具体支持状态；显式选择不会被自动探测覆盖。
     pub(crate) fn resolve(self) -> PetImageSupport {
         match self {
             Self::Kitty => PetImageSupport::Supported(ImageProtocol::Kitty),
@@ -109,6 +119,7 @@ impl FromStr for ProtocolSelection {
     }
 }
 
+/// 按环境变量与终端识别结果探测宠物图片支持，复用器风险优先于协议能力。
 pub(crate) fn detect_pet_image_support() -> PetImageSupport {
     if env::var_os("TMUX").is_some() || env::var_os("TMUX_PANE").is_some() {
         return PetImageSupport::Unsupported(PetImageUnsupportedReason::Tmux);
@@ -132,6 +143,7 @@ pub(crate) fn detect_pet_image_support() -> PetImageSupport {
     pet_image_support_for_terminal(&terminal_info())
 }
 
+/// 根据结构化终端信息选择最安全且功能完整的协议。
 fn pet_image_support_for_terminal(info: &TerminalInfo) -> PetImageSupport {
     match info.multiplexer {
         Some(Multiplexer::Tmux { .. }) => {
@@ -162,6 +174,7 @@ fn pet_image_support_for_terminal(info: &TerminalInfo) -> PetImageSupport {
     PetImageSupport::Unsupported(PetImageUnsupportedReason::Terminal)
 }
 
+/// iTerm2 仅从 3.6 起支持这里使用的 Kitty 本地文件图形能力。
 fn supports_iterm2_kitty_graphics(info: &TerminalInfo) -> bool {
     is_iterm2_terminal(info)
         && version_is_at_least(
@@ -170,11 +183,13 @@ fn supports_iterm2_kitty_graphics(info: &TerminalInfo) -> bool {
         )
 }
 
+/// 识别原生名称或 TERM_PROGRAM 中报告的 iTerm2。
 fn is_iterm2_terminal(info: &TerminalInfo) -> bool {
     matches!(info.name, TerminalName::Iterm2)
         || terminal_field_contains(info.term_program.as_deref(), "iterm")
 }
 
+/// 识别已知 Kitty 图形终端及其常见环境字段。
 fn supports_kitty_graphics(info: &TerminalInfo) -> bool {
     matches!(
         info.name,
@@ -187,6 +202,7 @@ fn supports_kitty_graphics(info: &TerminalInfo) -> bool {
         || terminal_field_contains(info.term_program.as_deref(), "wezterm")
 }
 
+/// 识别 Windows Terminal 及声明 Sixel、mlterm 或 foot 的终端。
 fn supports_sixel(info: &TerminalInfo) -> bool {
     matches!(info.name, TerminalName::WindowsTerminal)
         || terminal_field_contains(info.term.as_deref(), "sixel")
@@ -202,6 +218,7 @@ fn version_is_at_least(version: Option<&str>, minimum: (u64, u64, u64)) -> bool 
     parse_dotted_version(version).is_some_and(|version| version >= minimum)
 }
 
+/// 解析最多三个纯数字点分版本分量，缺失的次版本或补丁按零处理。
 fn parse_dotted_version(version: Option<&str>) -> Option<(u64, u64, u64)> {
     let version = version?;
     let mut parts = version.split('.');
@@ -216,10 +233,12 @@ fn parse_dotted_version(version: Option<&str>) -> Option<(u64, u64, u64)> {
     Some((major, minor, patch))
 }
 
+/// 生成按图片 ID 删除 Kitty 图片的控制序列。
 pub fn kitty_delete_image(image_id: u32) -> String {
     wrap_for_tmux_if_needed(&format!("{ESC}_Ga=d,d=I,i={image_id},q=2;{ST}"))
 }
 
+/// 读取 PNG、Base64 编码并按 Kitty 上限分块生成内联传输控制串。
 pub fn kitty_transmit_png_with_id(
     path: &Path,
     columns: u16,
@@ -233,6 +252,7 @@ pub fn kitty_transmit_png_with_id(
         .chunks(KITTY_CHUNK_SIZE)
         .collect::<Vec<_>>();
 
+    // 首块携带格式、尺寸与可选图片 ID；后续块只携带继续标记和数据。
     let mut command = String::new();
     for (index, chunk) in chunks.iter().enumerate() {
         let chunk = std::str::from_utf8(chunk).context("base64 payload is not valid UTF-8")?;
@@ -251,6 +271,7 @@ pub fn kitty_transmit_png_with_id(
     Ok(wrap_for_tmux_if_needed(&command))
 }
 
+/// 生成引用规范化本地 PNG 路径的 Kitty 文件传输控制串。
 pub fn kitty_transmit_png_file_with_id(
     path: &Path,
     columns: u16,
@@ -273,6 +294,7 @@ fn kitty_image_id_arg(image_id: Option<u32>) -> String {
         .unwrap_or_default()
 }
 
+/// 在 tmux 内按其透传规范包装并双写 ESC；自动模式本身仍会拒绝 tmux。
 fn wrap_for_tmux_if_needed(command: &str) -> String {
     if env::var_os("TMUX").is_none() {
         return command.to_string();
@@ -282,6 +304,7 @@ fn wrap_for_tmux_if_needed(command: &str) -> String {
     format!("{ESC}Ptmux;{escaped}{ST}")
 }
 
+/// 按目标像素高度缩放 PNG 并缓存确定性的 Sixel 编码文件。
 pub fn sixel_frame(frame_path: &Path, cache_dir: &Path, height_px: u16) -> Result<PathBuf> {
     fs::create_dir_all(cache_dir).with_context(|| format!("create {}", cache_dir.display()))?;
 
@@ -289,6 +312,7 @@ pub fn sixel_frame(frame_path: &Path, cache_dir: &Path, height_px: u16) -> Resul
         .file_stem()
         .and_then(|stem| stem.to_str())
         .context("frame path has no valid file stem")?;
+    // 缓存名同时包含高度和编码版本，算法或尺寸变化不会复用旧载荷。
     let path = cache_dir.join(format!("{stem}_h{height_px}_{SIXEL_CACHE_VERSION}.six"));
     if path.exists() {
         return Ok(path);
@@ -315,6 +339,7 @@ mod tests {
 
     use super::*;
 
+    /// 串行测试使用的环境变量守卫，离开作用域时精确恢复原值。
     struct EnvVarGuard {
         name: &'static str,
         previous: Option<std::ffi::OsString>,
@@ -342,6 +367,7 @@ mod tests {
 
     #[test]
     #[serial]
+    // 验证 Kitty 内联传输会编码 PNG 数据并携带尺寸参数。
     fn kitty_png_transmission_encodes_inline_data() {
         let _guard = EnvVarGuard::new("TMUX", /*value*/ None);
         let dir = tempfile::tempdir().unwrap();
@@ -360,6 +386,7 @@ mod tests {
 
     #[test]
     #[serial]
+    // 验证 tmux 透传包装及 ESC 转义格式。
     fn tmux_passthrough_wraps_and_escapes_control_sequence() {
         let _guard = EnvVarGuard::new("TMUX", Some("session"));
         assert_eq!(
@@ -369,6 +396,7 @@ mod tests {
     }
 
     #[test]
+    // 验证配置只接受 auto、kitty 与 sixel 三个稳定值。
     fn parses_protocol_selection() {
         assert_eq!(
             "auto".parse::<ProtocolSelection>().unwrap(),
@@ -386,6 +414,7 @@ mod tests {
 
     #[test]
     #[serial]
+    // 验证自动模式在 tmux 中安全禁用图片协议。
     fn auto_protocol_is_disabled_inside_tmux() {
         let _guard = EnvVarGuard::new("TMUX", Some("session"));
 
@@ -397,6 +426,7 @@ mod tests {
 
     #[test]
     #[serial]
+    // 验证用户显式选择协议时仍可在 tmux 中解析，责任由调用方承担。
     fn explicit_protocol_still_resolves_inside_tmux() {
         let _guard = EnvVarGuard::new("TMUX", Some("session"));
 
@@ -411,6 +441,7 @@ mod tests {
     }
 
     #[test]
+    // 验证结构化复用器信息优先触发安全拒绝。
     fn pet_image_support_prefers_multiplexer_safety() {
         assert_eq!(
             pet_image_support_for_terminal(&terminal_info_for_test(
@@ -433,6 +464,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 iTerm2 3.6 及以上选择本地文件 Kitty 图形协议。
     fn pet_image_support_detects_iterm2_kitty_file_graphics() {
         for info in [
             terminal_info_with_version_for_test(
@@ -458,6 +490,7 @@ mod tests {
     }
 
     #[test]
+    // 验证过旧或版本不完整的 iTerm2 不启用图片协议。
     fn pet_image_support_rejects_old_iterm2_versions() {
         for info in [
             terminal_info_with_version_for_test(
@@ -490,6 +523,7 @@ mod tests {
     }
 
     #[test]
+    // 验证旧 iTerm2 的用户提示包含明确升级要求。
     fn pet_image_support_old_iterm2_message_mentions_upgrade() {
         let message = PetImageSupport::Unsupported(PetImageUnsupportedReason::Iterm2TooOld)
             .unsupported_message();
@@ -501,6 +535,7 @@ mod tests {
     }
 
     #[test]
+    // 验证已知终端名称及环境字段均可识别 Kitty 图形支持。
     fn pet_image_support_detects_kitty_graphics_terminals() {
         for info in [
             terminal_info_for_test(
@@ -548,6 +583,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 Windows Terminal 与常见标识可识别 Sixel 支持。
     fn pet_image_support_detects_sixel_terminals() {
         for info in [
             terminal_info_for_test(
@@ -584,6 +620,7 @@ mod tests {
 
     #[test]
     #[serial]
+    // 验证 WezTerm 环境变量足以让环境宠物选择 Kitty 图形协议。
     fn wezterm_env_uses_kitty_graphics_for_ambient_pets() {
         let _tmux = EnvVarGuard::new("TMUX", /*value*/ None);
         let _tmux_pane = EnvVarGuard::new("TMUX_PANE", /*value*/ None);
@@ -601,6 +638,7 @@ mod tests {
     }
 
     #[test]
+    // 验证未知且无能力标识的终端被明确拒绝。
     fn pet_image_support_rejects_unknown_terminals() {
         assert_eq!(
             pet_image_support_for_terminal(&terminal_info_for_test(
@@ -645,6 +683,7 @@ mod tests {
     }
 
     #[test]
+    // 验证点分版本拒绝额外分量和非数字内容。
     fn parse_dotted_version_requires_simple_numeric_components() {
         assert_eq!(parse_dotted_version(Some("3.6.10")), Some((3, 6, 10)));
         assert_eq!(parse_dotted_version(Some("3.6")), Some((3, 6, 0)));
@@ -655,6 +694,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 Sixel 缓存由内部编码器生成，无需外部命令。
     fn sixel_frame_encodes_without_external_crate() {
         let dir = tempfile::tempdir().unwrap();
         let frame_path = dir.path().join("frame.png");
@@ -673,6 +713,7 @@ mod tests {
 
     #[test]
     #[serial]
+    // 验证 Kitty 本地文件传输编码规范化路径而非文件内容。
     fn kitty_file_png_transmission_encodes_local_file_reference() {
         let _guard = EnvVarGuard::new("TMUX", /*value*/ None);
         let dir = tempfile::tempdir().unwrap();

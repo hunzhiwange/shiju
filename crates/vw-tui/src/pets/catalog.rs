@@ -1,4 +1,7 @@
 //! Built-in pet catalog ported from the Codex App avatar catalog.
+//! 从 Codex App 头像目录移植而来的内置宠物目录。
+//!
+//! 目录只保存稳定元数据与标准精灵表几何；下载、校验和选择逻辑由其他模块负责。
 
 #[cfg(test)]
 use std::fs;
@@ -7,6 +10,7 @@ use std::io::Cursor;
 #[cfg(test)]
 use std::sync::LazyLock;
 
+/// Codex App 精灵表中每一帧及网格的标准尺寸。
 pub(super) const DEFAULT_FRAME_WIDTH: u32 = 192;
 pub(super) const DEFAULT_FRAME_HEIGHT: u32 = 208;
 pub(super) const DEFAULT_FRAME_COLUMNS: u32 = 8;
@@ -14,6 +18,7 @@ pub(super) const DEFAULT_FRAME_ROWS: u32 = 9;
 pub(super) const SPRITESHEET_WIDTH: u32 = DEFAULT_FRAME_WIDTH * DEFAULT_FRAME_COLUMNS;
 pub(super) const SPRITESHEET_HEIGHT: u32 = DEFAULT_FRAME_HEIGHT * DEFAULT_FRAME_ROWS;
 
+/// 一个内置宠物的稳定标识、展示文案与版本化资源文件名。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct BuiltinPet {
     pub(super) id: &'static str,
@@ -73,11 +78,13 @@ pub(super) const BUILTIN_PETS: &[BuiltinPet] = &[
     },
 ];
 
+/// 按稳定 ID 查找内置宠物，不接受别名或模糊匹配。
 pub(super) fn builtin_pet(id: &str) -> Option<BuiltinPet> {
     BUILTIN_PETS.iter().copied().find(|pet| pet.id == id)
 }
 
 #[cfg(test)]
+/// 写入具有标准几何的空白 WebP 精灵表，供资源与模型测试复用。
 pub(super) fn write_test_spritesheet(path: &std::path::Path) {
     static TEST_SPRITESHEET: LazyLock<Vec<u8>> = LazyLock::new(|| {
         let image = image::RgbaImage::new(SPRITESHEET_WIDTH, SPRITESHEET_HEIGHT);

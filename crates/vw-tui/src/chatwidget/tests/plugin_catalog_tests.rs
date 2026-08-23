@@ -1,8 +1,14 @@
+//! 验证插件目录把远程、个人和工作区市场映射为稳定的产品标签与导航状态。
+//! 场景覆盖刷新、详情往返、跨来源去重和安装能力判断。
+//! 已安装远程插件在映射共享目录后仍应成为去重结果，避免展示重复条目。
+//! 不可安装插件的详情页必须禁用安装动作，并保持只读来源说明。
+
 use super::*;
 use pretty_assertions::assert_eq;
 
 #[tokio::test]
 async fn plugins_popup_uses_product_labels_for_remote_and_personal_tabs() {
+    // 不同市场来源使用面向用户的稳定标签，而不是内部路径或协议名称。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -115,6 +121,7 @@ async fn plugins_popup_uses_product_labels_for_remote_and_personal_tabs() {
 
 #[tokio::test]
 async fn plugins_popup_preserves_workspace_tab_across_load_and_detail_navigation() {
+    // 异步加载及详情往返均保留当前工作区标签，避免导航跳回默认页。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -174,6 +181,7 @@ async fn plugins_popup_preserves_workspace_tab_across_load_and_detail_navigation
 
 #[tokio::test]
 async fn plugins_popup_remote_local_dedupe_prefers_installed_remote_after_mapped_shares() {
+    // 远程与本地映射重复时优先保留已安装实体，并维持正确来源说明。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -242,6 +250,7 @@ async fn plugins_popup_remote_local_dedupe_prefers_installed_remote_after_mapped
 
 #[tokio::test]
 async fn plugin_detail_not_installable_plugin_disables_install_action() {
+    // 后端标记不可安装时，详情仍可查看但安装动作必须不可触发。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 

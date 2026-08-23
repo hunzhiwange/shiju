@@ -14,6 +14,49 @@ struct AcpConfig {
 }
 
 #[tokio::test]
+async fn config_api_uses_config_scope_routes() {
+    let server = test_support::server(vec![
+        (200, json!({"dashboard": true})),
+        (200, json!({"status": "ok"})),
+        (200, json!({"providers": [], "default": {}})),
+    ]);
+
+    assert!(
+        server.client().dashboard_config_get().await.expect("dashboard get")["dashboard"]
+            .as_bool()
+            .expect("dashboard flag")
+    );
+    assert_eq!(
+        server
+            .client()
+            .dashboard_config_put(&json!({"default_model": "o3"}))
+            .await
+            .expect("dashboard put")["status"],
+        "ok"
+    );
+    assert!(
+        server
+            .client()
+            .config_providers(Some("/tmp/project"))
+            .await
+            .expect("provider catalog")["providers"]
+            .is_array()
+    );
+
+    let request = server.take_request();
+    assert_eq!(request.method, "GET");
+    assert_eq!(request.path, "/v1/dashboard/config");
+    let request = server.take_request();
+    assert_eq!(request.method, "PUT");
+    assert_eq!(request.path, "/v1/dashboard/config");
+    assert_eq!(request.body, json!({"default_model": "o3"}));
+    let request = server.take_request();
+    assert_eq!(request.method, "GET");
+    assert_eq!(request.path, "/v1/config/providers?directory=%2Ftmp%2Fproject");
+    server.join();
+}
+
+#[tokio::test]
 async fn tenant_global_config_api_uses_endpoint_scope_headers_without_tenant_path() {
     let tenant = TenantScope::new("platform / east", "company#one").expect("tenant");
     let server = test_support::server_with_tenant_scope(

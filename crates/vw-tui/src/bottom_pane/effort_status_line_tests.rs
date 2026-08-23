@@ -1,9 +1,12 @@
+//! 验证推理档位状态栏过渡的启动时机、裁剪、配色保留与文字汇聚动画。
+
 use super::*;
 
 use crate::terminal_palette::indexed_color;
 use pretty_assertions::assert_eq;
 use ratatui::style::Stylize;
 
+// 将带样式的状态行还原为纯文本，便于聚焦检查布局与动画内容。
 fn text(line: &Line<'static>) -> String {
     line.spans
         .iter()
@@ -12,6 +15,7 @@ fn text(line: &Line<'static>) -> String {
 }
 
 #[test]
+// 过渡时钟直到首个可见状态行成功渲染才启动。
 fn clock_waits_for_the_first_visible_frame() {
     let transition =
         EffortStatusLineTransition::new(EffortTier::Ultra, Line::from("gpt-5.4 high · main"));
@@ -27,6 +31,7 @@ fn clock_waits_for_the_first_visible_frame() {
 }
 
 #[test]
+// 旧状态行随时间右移，并始终裁剪在给定页脚宽度内。
 fn outgoing_status_line_moves_right_and_clips_at_the_edge() {
     let previous = Line::from("gpt-5.4 high · main");
     let current = Line::from("gpt-5.4 ultra · main");
@@ -60,6 +65,7 @@ fn outgoing_status_line_moves_right_and_clips_at_the_edge() {
 }
 
 #[test]
+// 旧行退出后先展示档位标签，再恢复包含新档位的完整状态行。
 fn label_and_refreshed_line_appear_in_order() {
     let previous = Line::from("gpt-5.4 high · main");
     let current = Line::from("gpt-5.4 max · main");
@@ -86,6 +92,7 @@ fn label_and_refreshed_line_appear_in_order() {
 }
 
 #[test]
+// 中文、emoji 和多样式 span 在极窄宽度下都按显示宽度安全裁剪。
 fn unicode_and_span_boundaries_are_safe_on_narrow_rows() {
     let previous = Line::from(vec!["模型 ".cyan(), "👩‍💻 main".underlined()]);
     let current = Line::from(vec!["模型 ".cyan(), "ultra · main".underlined()]);
@@ -112,6 +119,7 @@ fn unicode_and_span_boundaries_are_safe_on_narrow_rows() {
 }
 
 #[test]
+// 淡出只增加明暗修饰，不应替换状态行已有的调色板前景色。
 fn palette_status_line_colors_survive_the_fade() {
     for color in [
         Color::Cyan,
@@ -132,6 +140,7 @@ fn palette_status_line_colors_survive_the_fade() {
 }
 
 #[test]
+// Ultra 字母从两侧疏散位置向中心汇聚，最终形成固定间隔标签。
 fn ultra_letters_start_wide_at_the_edges_and_converge_to_the_center() {
     let scattered = tier_label_line(
         EffortTier::Ultra,
@@ -161,6 +170,7 @@ fn ultra_letters_start_wide_at_the_edges_and_converge_to_the_center() {
 }
 
 #[test]
+// 关键时间点快照同时覆盖 Max 和 Ultra 的完整状态行过渡序列。
 fn transition_frames_snapshot() {
     let previous = Line::from(vec!["gpt-5.4 high".cyan(), " · main".dim()]);
     let max = Line::from(vec!["gpt-5.4 max".cyan(), " · main".dim()]);

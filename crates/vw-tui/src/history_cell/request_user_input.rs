@@ -1,7 +1,13 @@
+//! 已完成请求用户输入交互的转录渲染。
+//!
+//! 问题、编号选项与答案按协议顺序保存，历史回放不会重新发起询问。
+//! 中断的交互也会保留已有上下文，并明确呈现缺失答案的状态。
+//! 自由文本备注与选项标签分开解析，避免把备注误当作预定义选择。
 //! Completed request-user-input transcript rendering.
 
 use super::*;
 
+/// 在历史中渲染已完成或被中断的 request_user_input 交互。
 /// Renders a completed (or interrupted) request_user_input exchange in history.
 #[derive(Debug)]
 pub(crate) struct RequestUserInputResultCell {
@@ -151,6 +157,7 @@ impl HistoryCell for RequestUserInputResultCell {
     }
 }
 
+/// 使用 textwrap 折行纯文本，为每行添加前缀并为正文应用样式。
 /// Wrap a plain string with textwrap and prefix each line, while applying a style to the content.
 fn wrap_with_prefix(
     text: &str,
@@ -169,6 +176,8 @@ fn wrap_with_prefix(
     out
 }
 
+/// 将 request_user_input 答案拆成选项标签及可选的自由文本备注。
+/// 备注在答案列表中编码为 `user_note: <text>` 条目。
 /// Split a request_user_input answer into option labels and an optional freeform note.
 /// Notes are encoded as "user_note: <text>" entries in the answers list.
 fn split_request_user_input_answer(

@@ -1,4 +1,5 @@
 //! Transient single-key and chord capture for the `/keymap` shortcut editor.
+//! 为 `/keymap` 快捷键编辑器临时捕获单键或组合键。
 
 use super::key_event_to_config_key_spec;
 use crate::app_event::AppEvent;
@@ -19,11 +20,14 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::Widget;
 
 /// Bottom-pane view that captures one key or a two-stroke `/keymap` chord.
+/// 在底部面板捕获一个按键或一个双键 `/keymap` 组合。
 ///
 /// The view is deliberately transient: it renders instructions, captures the
 /// requested number of strokes, and emits their canonical config representation
 /// to the app layer. It does not mutate config itself, because mutation needs
 /// the latest runtime keymap to detect conflicts and stale selections.
+/// 该视图刻意保持短生命周期：只渲染说明、收集所需击键并向应用层发送规范配置表示。
+/// 它不直接修改配置，因为写入前需要最新运行时键位表检测冲突与过期选择。
 pub(crate) struct KeymapCaptureView {
     context: String,
     action: String,
@@ -62,6 +66,7 @@ impl KeymapCaptureView {
     }
 
     fn lines(&self, width: u16) -> Vec<Line<'static>> {
+        // 提示与错误都按可用宽度换行，使瞬态面板高度由真实内容决定。
         let wrap_width = usize::from(width.max(1));
         let mut lines = vec![
             Line::from("Remap Shortcut".bold()),
@@ -117,6 +122,7 @@ impl Renderable for KeymapCaptureView {
 
 impl BottomPaneView for KeymapCaptureView {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
+        // 组合键仅接收 Press，避免 Repeat/Release 被误当作第二击；Esc 始终在本视图内取消。
         if key_event.kind == KeyEventKind::Release
             || (self.capture_mode == KeymapCaptureMode::Chord
                 && key_event.kind != KeyEventKind::Press)
@@ -133,6 +139,7 @@ impl BottomPaneView for KeymapCaptureView {
             Ok(key) => {
                 self.error_message = None;
                 let key = if self.capture_mode == KeymapCaptureMode::Chord {
+                    // 第一击只保存在本地，第二击到达后才向应用层发送完整规范字符串。
                     let Some(first_stroke) = self.first_stroke.take() else {
                         self.first_stroke = Some(key);
                         return;
@@ -150,6 +157,7 @@ impl BottomPaneView for KeymapCaptureView {
                 self.complete = true;
             }
             Err(error) => {
+                // 不支持的终端事件只更新错误提示，保持捕获界面活动以允许用户重试。
                 self.error_message = Some(error);
             }
         }

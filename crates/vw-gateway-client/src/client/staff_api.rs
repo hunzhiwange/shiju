@@ -76,7 +76,7 @@ impl GatewayClient {
         workflow_id: &str,
     ) -> Result<StaffProjectCapabilityCatalogResponse, String> {
         self.ensure_staff_tenant_scope(scope)?;
-        let path = staff_workflow_capabilities_path(scope, workflow_id);
+        let path = staff_workflow_capabilities_path(scope, workflow_id)?;
         self.get_json(&path, &[]).await
     }
 
@@ -87,7 +87,7 @@ impl GatewayClient {
         workflow_id: &str,
     ) -> Result<StaffWorkflowOrchestrationResponse, String> {
         self.ensure_staff_tenant_scope(scope)?;
-        let path = staff_workflow_orchestration_path(scope, workflow_id);
+        let path = staff_workflow_orchestration_path(scope, workflow_id)?;
         self.get_json(&path, &[]).await
     }
 
@@ -99,7 +99,7 @@ impl GatewayClient {
         request: &StaffWorkflowOrchestrationRequest,
     ) -> Result<StaffWorkflowOrchestrationResponse, String> {
         self.ensure_staff_tenant_scope(scope)?;
-        let path = staff_workflow_orchestration_path(scope, workflow_id);
+        let path = staff_workflow_orchestration_path(scope, workflow_id)?;
         self.put_json(&path, &[], request).await
     }
 
@@ -111,7 +111,7 @@ impl GatewayClient {
         request: &StaffProjectCapabilityCatalogRequest,
     ) -> Result<StaffProjectCapabilityCatalogResponse, String> {
         self.ensure_staff_tenant_scope(scope)?;
-        let path = staff_workflow_capabilities_path(scope, workflow_id);
+        let path = staff_workflow_capabilities_path(scope, workflow_id)?;
         self.put_json(&path, &[], request).await
     }
 
@@ -164,16 +164,32 @@ fn staff_project_orchestration_path(scope: &AgentSchedulerScopeDto) -> String {
     format!("{}/orchestration", staff_project_path(scope))
 }
 
-fn staff_workflow_path(scope: &AgentSchedulerScopeDto, workflow_id: &str) -> String {
-    format!("{}/workflows/{}", staff_project_path(scope), encode_path_segment(workflow_id))
+fn staff_workflow_path(
+    scope: &AgentSchedulerScopeDto,
+    workflow_id: &str,
+) -> Result<String, String> {
+    if workflow_id.trim().is_empty() {
+        return Err("staff workflow id must not be empty".to_string());
+    }
+    Ok(format!(
+        "{}/workflows/{}",
+        staff_project_path(scope),
+        encode_path_segment(workflow_id)
+    ))
 }
 
-fn staff_workflow_capabilities_path(scope: &AgentSchedulerScopeDto, workflow_id: &str) -> String {
-    format!("{}/capabilities", staff_workflow_path(scope, workflow_id))
+fn staff_workflow_capabilities_path(
+    scope: &AgentSchedulerScopeDto,
+    workflow_id: &str,
+) -> Result<String, String> {
+    Ok(format!("{}/capabilities", staff_workflow_path(scope, workflow_id)?))
 }
 
-fn staff_workflow_orchestration_path(scope: &AgentSchedulerScopeDto, workflow_id: &str) -> String {
-    format!("{}/orchestration", staff_workflow_path(scope, workflow_id))
+fn staff_workflow_orchestration_path(
+    scope: &AgentSchedulerScopeDto,
+    workflow_id: &str,
+) -> Result<String, String> {
+    Ok(format!("{}/orchestration", staff_workflow_path(scope, workflow_id)?))
 }
 
 fn staff_command_path(scope: &AgentSchedulerScopeDto) -> String {

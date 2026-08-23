@@ -221,10 +221,71 @@ pub struct GatewayStreamResume {
 }
 
 /// 带服务端单调 SSE 序号的业务事件。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GatewayStreamEvent<T> {
     pub id: u64,
     pub event: T,
+}
+
+/// 通用 Gateway SSE 帧，保留可选 id、event 名和 JSON data。
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct GatewayJsonSseEvent {
+    pub id: Option<u64>,
+    pub event: Option<String>,
+    pub data: serde_json::Value,
+}
+
+/// 订阅固定 Gateway JSON SSE 路径，按 wire 顺序回调事件。
+pub(crate) async fn stream_json_sse(
+    endpoint: &GatewayEndpoint,
+    path: &str,
+    query: &[(String, String)],
+    mut on_event: impl FnMut(GatewayJsonSseEvent) -> bool,
+) -> Result<GatewayStreamAttemptResult, String> {
+    use futures_util::StreamExt;
+
+    use crate::http::{apply_request_context, log_request, response_error, transport_error};
+
+    log_request::<serde_json::Value>("GET", endpoint, path, query, None);
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(STREAM_CONNECT_TIMEOUT_SECS))
+        .timeout(std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS))
+        .build()
+        .map_err(|error| transport_error("GET", endpoint, path, error))?;
+    let request = apply_request_context(
+        client.get(format!("{}{}", endpoint.base_url(), path)).query(query),
+        endpoint,
+    );
+    let response = request
+        .send()
+        .await
+        .map_err(|error| transport_error("GET", endpoint, path, error))?;
+    if !response.status().is_success() {
+        return Err(response_error("GET", endpoint, path, response).await);
+    }
+
+    let mut bytes_stream = response.bytes_stream();
+    let mut buffer = String::new();
+    while let Some(chunk) = bytes_stream.next().await {
+        let chunk = chunk.map_err(|error| error.to_string())?;
+        buffer.push_str(&String::from_utf8_lossy(&chunk));
+        while let Some(raw_frame) = take_next_sse_event(&mut buffer) {
+            let Some(frame) = parse_sse_frame(&raw_frame)? else {
+                continue;
+            };
+            let event_name = raw_frame
+                .lines()
+                .filter_map(|line| line.trim_end_matches('\r').strip_prefix("event:"))
+                .map(str::trim)
+                .find(|value| !value.is_empty())
+                .map(ToOwned::to_owned);
+            let data = serde_json::from_str(&frame.data).map_err(|error| error.to_string())?;
+            if !on_event(GatewayJsonSseEvent { id: frame.id, event: event_name, data }) {
+                return Ok(GatewayStreamAttemptResult::CallerStopped);
+            }
+        }
+    }
+    Ok(GatewayStreamAttemptResult::Incomplete)
 }
 
 /// 一次可恢复流订阅尝试的结束原因。

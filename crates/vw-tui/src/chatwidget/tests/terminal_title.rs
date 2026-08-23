@@ -1,10 +1,15 @@
+//! 聚焦验证实时聊天状态映射到终端标题时的行为。
 //! Terminal-title focused tests for live chatwidget status-surface behavior.
+//! 待审批执行必须显示需要操作，并遵守旋转指示器配置。
+//! 启用动画时标题可闪烁提示，禁用动画时所有活动标记保持稳定。
+//! 测试通过可控时钟和渲染入口观察标题，不依赖真实终端更新。
 
 use super::*;
 use pretty_assertions::assert_eq;
 
 #[tokio::test]
 async fn terminal_title_shows_action_required_while_exec_approval_is_pending() {
+    // 待执行审批优先显示需要用户操作，而不是普通运行中活动标题。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.bottom_pane.set_task_running(/*running*/ true);
     chat.refresh_terminal_title();
@@ -47,6 +52,7 @@ async fn terminal_title_shows_action_required_while_exec_approval_is_pending() {
 
 #[tokio::test]
 async fn terminal_title_action_required_respects_spinner_setting() {
+    // 旋转指示器开关只影响装饰，不得隐藏需要操作的核心状态。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.config.tui_terminal_title = Some(vec!["project".to_string()]);
     chat.bottom_pane.set_task_running(/*running*/ true);
@@ -76,6 +82,7 @@ async fn terminal_title_action_required_respects_spinner_setting() {
 
 #[tokio::test]
 async fn terminal_title_action_required_blinks_when_animations_are_enabled() {
+    // 动画开启时使用可控时钟验证闪烁相位，避免测试依赖真实时间。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.bottom_pane.set_task_running(/*running*/ true);
     chat.terminal_title_animation_origin = Instant::now() - std::time::Duration::from_millis(1500);
@@ -108,6 +115,7 @@ async fn terminal_title_action_required_blinks_when_animations_are_enabled() {
 
 #[tokio::test]
 async fn terminal_title_activity_indicators_do_not_animate_when_animations_are_disabled() {
+    // 动画关闭后所有活动指示保持稳定，防止终端标题持续抖动。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.config.animations = false;
     chat.bottom_pane.set_task_running(/*running*/ true);

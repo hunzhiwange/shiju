@@ -1,3 +1,8 @@
+//! 验证斜杠命令从解析、排队到事件分发和用户反馈的完整界面契约。
+//! 夹具统一编辑器提交、目标大粘贴、用量刷新、复制来源与宠物终端能力。
+//! 测试覆盖会话、目标、用量、复制、键位、插件、宠物、路径和服务层级命令。
+//! 运行中排队与取消路径必须保持输入顺序，并在边界完成后仅排空一次。
+
 use super::*;
 use crate::bottom_pane::slash_commands::ServiceTierCommand;
 use pretty_assertions::assert_eq;
@@ -151,6 +156,7 @@ async fn service_tier_commands_lowercase_catalog_names() {
 
 #[tokio::test]
 async fn slash_compact_eagerly_queues_follow_up_before_turn_start() {
+    // 压缩、审查、shell 与菜单命令在运行中排队，并只在各自完成边界后继续排空。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.dispatch_command(SlashCommand::Compact);
@@ -396,6 +402,7 @@ async fn assert_cancelled_queued_menu_drains_next_input(
 
 #[tokio::test]
 async fn queued_slash_menu_cancel_drains_next_input() {
+    // 排队菜单取消后继续下一输入，设置选择则先应用配置再排空。
     assert_cancelled_queued_menu_drains_next_input(
         "/model",
         "Select Model",
@@ -630,6 +637,7 @@ async fn queued_unknown_slash_reports_error_when_dequeued() {
 
 #[tokio::test]
 async fn ctrl_d_quits_without_prompt() {
+    // Ctrl+D 仅在无弹窗且空输入时退出，活动视图优先消费按键。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_key_event(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL));
@@ -662,6 +670,7 @@ async fn slash_init_does_not_depend_on_loaded_instruction_sources() {
 
 #[tokio::test]
 async fn bare_slash_command_is_available_from_local_recall_after_dispatch() {
+    // 已分发的合法命令进入本地召回，未知命令和空操作桩遵循各自策略。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     submit_composer_text(&mut chat, "/diff");
@@ -684,6 +693,7 @@ async fn inline_slash_command_is_available_from_local_recall_after_dispatch() {
 
 #[tokio::test]
 async fn goal_slash_command_with_extra_os_emits_set_goal_event() {
+    // 目标命令保留正文、提及、图片和大粘贴，并分离目标控制类事件。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     let thread_id = ThreadId::new();
@@ -894,6 +904,7 @@ async fn queued_goal_slash_command_emits_set_goal_event_after_thread_starts() {
 
 #[tokio::test]
 async fn queued_goal_slash_command_preserves_large_paste() {
+    // 排队目标的大粘贴可恢复编辑，并通过大小相同的载荷标识消除歧义。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     let thread_id = ThreadId::new();
@@ -1252,6 +1263,7 @@ async fn usage_error_slash_command_is_available_from_local_recall() {
 
 #[tokio::test]
 async fn signed_out_usage_command_reports_chatgpt_login_requirement() {
+    // 用量命令按认证状态决定提示或刷新，并丢弃账户变化后的迟到结果。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     submit_composer_text(&mut chat, "/usage");
@@ -1439,6 +1451,7 @@ async fn completed_token_activity_refresh_returns_one_history_cell() {
 
 #[tokio::test]
 async fn completed_token_activity_refresh_waits_for_active_stream() {
+    // 用量活动卡片等待流、活动单元格、钩子和计划项安全结束后再插入。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
 
@@ -1716,6 +1729,7 @@ async fn slash_logout_requests_app_server_logout() {
 
 #[tokio::test]
 async fn slash_copy_state_tracks_turn_complete_final_reply() {
+    // 复制来源跟踪最终回答或计划完成项，选择器保留 Markdown 结构与原始空白。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     complete_turn_with_message(&mut chat, "turn-1", Some("Final reply **markdown**"));
@@ -1971,6 +1985,7 @@ async fn slash_copy_picker_waits_for_submission_after_paste() {
 
 #[tokio::test]
 async fn slash_copy_picker_numeric_shortcuts_copy_whole_response_and_exact_code() {
+    // 复制选择器数字键、箭头、滚动和 Esc 路径分别覆盖精确选择与取消。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let markdown = "Intro\n\n```rust\nfn main() {\n    run();\n}\n```";
     chat.transcript.last_agent_markdown = Some(markdown.to_string());
@@ -2181,6 +2196,7 @@ async fn keymap_capture_can_capture_current_copy_shortcut() {
 
 #[tokio::test]
 async fn slash_keymap_capture_can_capture_app_shortcuts() {
+    // 键位捕获、调试和重映射覆盖应用快捷键，同时避免当前复制键自吞事件。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let runtime_keymap = crate::keymap::RuntimeKeymap::defaults();
 
@@ -2478,6 +2494,7 @@ async fn slash_exit_requests_exit() {
 
 #[tokio::test]
 async fn slash_stop_submits_background_terminal_cleanup() {
+    // `/stop` 只请求后台终端清理，不把控制命令作为普通提示提交。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.dispatch_command(SlashCommand::Stop);
@@ -2494,6 +2511,7 @@ async fn slash_stop_submits_background_terminal_cleanup() {
 
 #[tokio::test]
 async fn slash_clear_requests_ui_clear_when_idle() {
+    // 会话清理、新建、归档和删除严格遵守空闲状态与确认流程。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.dispatch_command(SlashCommand::Clear);
@@ -2628,6 +2646,7 @@ async fn slash_memory_drop_reports_stubbed_feature() {
 
 #[tokio::test]
 async fn slash_mcp_requests_inventory_via_app_server() {
+    // MCP 清单命令通过 app-server 请求普通或详细视图，无效参数返回用法。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
@@ -2796,6 +2815,7 @@ async fn slash_resume_with_arg_requests_named_session_while_mcp_startup_is_runni
 #[tokio::test]
 #[serial]
 async fn slash_pets_opens_picker() {
+    // 宠物命令区分选择、禁用和终端能力不足，并提供对应警告或升级提示。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     force_pet_image_support(&mut chat);
 
@@ -2963,6 +2983,7 @@ async fn slash_fork_with_name_requests_named_fork() {
 
 #[tokio::test]
 async fn slash_app_requests_desktop_handoff() {
+    // 桌面交接要求现有线程标识，启动尚未完成时显示明确错误。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
@@ -3014,6 +3035,7 @@ async fn slash_pwd_and_cwd_alias_display_current_working_directory_from_composer
 
 #[tokio::test]
 async fn slash_cd_changes_current_session_after_replay_and_defaults_to_home() {
+    // 目录命令在回放后更新当前会话，拒绝不支持的所有权或待输入状态。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
@@ -3132,6 +3154,7 @@ async fn slash_rollout_handles_missing_path() {
 
 #[tokio::test]
 async fn fast_slash_command_updates_and_persists_local_service_tier() {
+    // Fast 与 raw 开关通过命令和快捷键共享事件语义，并进入后续用户轮次。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
     set_fast_mode_test_catalog(&mut chat);
     chat.set_feature_enabled(Feature::FastMode, /*enabled*/ true);
@@ -3239,6 +3262,7 @@ async fn user_turn_carries_service_tier_after_fast_toggle() {
 
 #[tokio::test]
 async fn model_switch_recomputes_catalog_default_service_tier() {
+    // 切换模型重新计算目录默认服务层级，显式 Fast 关闭则发送标准覆盖。
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.2")).await;
     chat.thread_id = Some(ThreadId::new());
     set_chatgpt_auth(&mut chat);
@@ -3368,6 +3392,7 @@ async fn user_turn_sends_standard_override_after_fast_is_turned_off() {
 
 #[tokio::test]
 async fn raw_slash_command_toggles_and_accepts_on_off_args() {
+    // Raw 命令支持切换及显式开关，无效参数只报告用法而不改变状态。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.dispatch_command(SlashCommand::Raw);

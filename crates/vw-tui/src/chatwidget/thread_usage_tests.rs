@@ -1,3 +1,8 @@
+//! 验证线程用量与成本结算在状态卡片、状态行和标题间的一致更新。
+//! 夹具通过请求编号关联异步响应，防止旧结算覆盖新轮次数据。
+//! 重试次数有界，回放事件不启动实时计费刷新，短暂零值也不应清除新鲜估算。
+//! 轮询仅在存在计费展示面时运行，取消展示后保留缓存并停止后台刷新。
+
 use super::THREAD_USAGE_RETRY_DELAYS;
 use super::THREAD_USAGE_SETTLEMENT_DELAYS;
 use super::ThreadUsageOutcome;
@@ -44,6 +49,7 @@ fn thread_usage(
 
 #[test]
 fn estimated_cost_formats_dollars_and_sub_cent_values() {
+    // 成本格式同时覆盖常规美元和不足一美分的可读显示。
     assert_eq!(
         format_estimated_usd_micros(/*micros*/ 0),
         Some("~$0.00".to_string())
@@ -69,6 +75,7 @@ fn estimated_cost_formats_dollars_and_sub_cent_values() {
 
 #[tokio::test]
 async fn temporary_thread_usage_failures_have_bounded_retries() {
+    // 临时失败按固定上限重试，耗尽后仍保留已显示的状态历史。
     let (mut chat, _sender, mut rx, _op_rx) = make_chatwidget_manual_with_sender().await;
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
@@ -235,6 +242,7 @@ async fn status_history_updates_again_after_billing_settles() {
 
 #[tokio::test]
 async fn replayed_turn_completions_do_not_start_live_billing_refreshes() {
+    // 回放完成与回放错误不启动实时计费请求，避免恢复会话产生副作用。
     for replay_kind in [
         ReplayKind::ResumeInitialMessages,
         ReplayKind::ThreadSnapshot,
@@ -350,6 +358,7 @@ async fn replayed_errors_do_not_start_live_billing_refreshes() {
 
 #[tokio::test]
 async fn transient_zero_cost_preserves_fresh_credits_and_breakdowns() {
+    // 短暂零成本或零额度不覆盖更新鲜的非零估算和明细。
     let (mut chat, _sender, mut rx, _op_rx) = make_chatwidget_manual_with_sender().await;
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
@@ -469,6 +478,7 @@ async fn transient_zero_credits_preserves_credits_only_estimates() {
 
 #[tokio::test]
 async fn cost_settlement_waits_for_new_or_missing_usd_estimates() {
+    // 结算等待成本与额度达到同一新鲜度，允许后端明确省略美元估算。
     for (previous_usd_micros, stale_usd_micros) in [
         (Some(1_820_000), Some(1_820_000)),
         (None, None),
@@ -628,6 +638,7 @@ async fn combined_billing_surfaces_wait_for_credits_and_cost() {
 
 #[tokio::test]
 async fn billing_surfaces_render_for_every_supported_enterprise_plan() {
+    // 所有支持的企业计划都启用一致的计费展示与结算逻辑。
     for plan_type in [
         PlanType::Business,
         PlanType::EnterpriseCbpUsageBased,
@@ -707,6 +718,7 @@ async fn early_draw_rearms_thread_usage_retry_after_immediate_redraw() {
 
 #[tokio::test]
 async fn unchanged_thread_usage_has_bounded_settlement_refreshes() {
+    // 用量不变时结算轮询仍有界，提前重绘会重新安排而非并发重复请求。
     let (mut chat, _sender, mut rx, _op_rx) = make_chatwidget_manual_with_sender().await;
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
@@ -917,6 +929,7 @@ async fn thread_usage_settlement_requires_request_started_after_turn_completion(
 
 #[tokio::test]
 async fn deselecting_billing_surfaces_cancels_polling_and_preserves_status_cache() {
+    // 取消所有计费展示面后停止轮询，同时保留状态卡片可复用缓存。
     let (mut chat, _sender, mut rx, _op_rx) = make_chatwidget_manual_with_sender().await;
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);

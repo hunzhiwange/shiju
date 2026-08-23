@@ -1,3 +1,4 @@
+//! 为助手生成的内联可视化指令提供终端回退展示。
 //! Terminal fallback for assistant-authored inline visualization directives.
 
 mod viewer;
@@ -33,6 +34,7 @@ const MAX_FRAGMENT_BYTES: u64 = 2 * 1024 * 1024;
 
 #[derive(Clone, Debug)]
 pub(crate) struct InlineVisualizationContext {
+    /// 可视化根、线程目录和只读查看器缓存共同限定可访问的工件范围。
     visualizations_dir: PathBuf,
     thread_dir: PathBuf,
     viewer_dir: PathBuf,
@@ -49,6 +51,7 @@ impl InlineVisualizationContext {
         config: &crate::legacy_core::config::Config,
         thread_id: ThreadId,
     ) -> Option<Self> {
+        // 全盘可写时无法建立代理不可篡改的查看器边界，因此禁用内联可视化。
         let file_system_policy = config.permissions.file_system_sandbox_policy();
         if file_system_policy.has_full_disk_write_access() {
             return None;
@@ -90,6 +93,7 @@ impl InlineVisualizationContext {
         let (seconds, nanos) = timestamp.to_unix();
         let created_at = DateTime::from_timestamp(i64::try_from(seconds).ok()?, nanos)?;
         let visualizations_dir = codex_home.join("visualizations");
+        // 仅在恰有一个授权目录符合日期/线程层级时采用它，否则从线程 UUID 时间戳派生目录。
         let granted_thread_dirs = writable_roots
             .into_iter()
             .filter(|root| is_visualization_thread_dir(&visualizations_dir, root))
@@ -113,6 +117,7 @@ impl InlineVisualizationContext {
     }
 
     fn link_for(&self, file: &str) -> Option<Url> {
+        // 仅允许线程目录中的单层 HTML 文件，拒绝其他扩展名和父目录跳转。
         let path = Path::new(file);
         let relative = if path.is_absolute() {
             path.strip_prefix(&self.thread_dir).ok()?
@@ -131,6 +136,7 @@ impl InlineVisualizationContext {
             return None;
         }
 
+        // 规范化后再次验证根目录关系，阻止符号链接逃逸。
         let visualizations_dir = fs::canonicalize(&self.visualizations_dir).ok()?;
         let thread_dir = fs::canonicalize(&self.thread_dir).ok()?;
         if !thread_dir.starts_with(&visualizations_dir) {
@@ -165,6 +171,8 @@ fn is_visualization_thread_dir(visualizations_dir: &Path, path: &Path) -> bool {
 
 pub(crate) struct InlineVisualizationRewrite<'a> {
     pub(crate) markdown: Cow<'a, str>,
+    // Markdown 渲染器只识别 Web 链接；随机占位符先让其正常建立链接范围，
+    // 再由调用方只重定向确实来自指令的链接。
     // Markdown rendering only recognizes web links. Random placeholders let the renderer build the
     // link ranges normally, then allow the caller to retarget only links created from directives.
     pub(crate) trusted_file_links: HashMap<String, TrustedFileLink>,
@@ -185,6 +193,7 @@ pub(crate) fn rewrite_inline_visualizations<'a>(
     markdown: &'a str,
     context: Option<&InlineVisualizationContext>,
 ) -> InlineVisualizationRewrite<'a> {
+    // 未包含指令时借用原字符串，避免无谓解析和分配。
     if !contains_inline_visualization(markdown) {
         return InlineVisualizationRewrite {
             markdown: Cow::Borrowed(markdown),
@@ -192,6 +201,7 @@ pub(crate) fn rewrite_inline_visualizations<'a>(
         };
     }
 
+    // 先定位代码块范围，确保示例中的指令文本不会被执行或隐藏。
     let mut code_block_ranges = Vec::<Range<usize>>::new();
     let mut code_block_start = None;
     for (event, range) in Parser::new_ext(markdown, Options::empty()).into_offset_iter() {
@@ -228,6 +238,7 @@ pub(crate) fn rewrite_inline_visualizations<'a>(
         {
             rewritten.push_str(line);
         } else if let Some(file) = parse_directive_file(trimmed) {
+            // 只有上下文验证并物化成功后才生成受信链接，否则显示明确不可用回退。
             if let Some(destination) = context.and_then(|context| context.link_for(&file)) {
                 let placeholder = link_placeholder();
                 let (markdown_label, display_label) = visualization_link_labels(&file);
@@ -250,6 +261,7 @@ pub(crate) fn rewrite_inline_visualizations<'a>(
         } else if trimmed.ends_with(CONTENT_REFERENCE_SUFFIX)
             || (trimmed.starts_with(DIRECTIVE_PREFIX) && trimmed.ends_with('}'))
         {
+            // 完整但畸形的指令不能泄露原始载荷，也不能悄然形成普通链接。
             rewritten.push_str("_Visualization unavailable on this device._");
         }
         rewritten.push_str(newline);
@@ -285,6 +297,7 @@ fn escape_markdown_label(label: &str) -> String {
 }
 
 fn link_placeholder() -> String {
+    // 使用不可解析域名与随机令牌，避免占位链接意外指向真实网络资源。
     let mut bytes = [0_u8; 24];
     rand::rng().fill_bytes(&mut bytes);
     let token = URL_SAFE_NO_PAD.encode(bytes);
@@ -292,6 +305,7 @@ fn link_placeholder() -> String {
 }
 
 fn parse_directive_file(directive: &str) -> Option<Cow<'_, str>> {
+    // 旧指令接受非空引号属性；内容引用只接受 JSON 中的绝对路径。
     if let Some(attributes) = directive.strip_prefix(DIRECTIVE_PREFIX) {
         let attributes = attributes.strip_suffix('}')?.trim();
         let value = attributes.strip_prefix("file=\"")?.strip_suffix('"')?;

@@ -1,3 +1,8 @@
+//! 验证 `/status` 卡片的即时渲染、异步刷新和缓存更新语义。
+//! 场景覆盖认证差异、模型默认推理、指令来源、速率限制与线程用量。
+//! 重叠请求只能更新各自卡片，账户或线程切换后的旧结果必须失效。
+//! 额度、成本或细分数据缺失时应保留仍有效的信息，不展示过期估算。
+
 use super::*;
 use crate::chatwidget::ThreadUsageOutcome;
 use assert_matches::assert_matches;
@@ -7,6 +12,7 @@ use codex_utils_path_uri::PathUri;
 
 #[tokio::test]
 async fn status_command_renders_immediately_and_refreshes_rate_limits_for_chatgpt_auth() {
+    // ChatGPT 认证先立即显示缓存卡片，再异步刷新速率限制。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
 
@@ -67,6 +73,7 @@ async fn status_command_refresh_updates_cached_limits_for_future_status_outputs(
 
 #[tokio::test]
 async fn status_command_renders_immediately_without_rate_limit_refresh() {
+    // 不具备刷新资格时仍立即渲染状态，不发送无效后台请求。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.dispatch_command(SlashCommand::Status);
@@ -81,6 +88,7 @@ async fn status_command_renders_immediately_without_rate_limit_refresh() {
 
 #[tokio::test]
 async fn status_command_uses_catalog_default_reasoning_when_config_empty() {
+    // 配置缺少推理值时从模型目录取默认值，并列出实际指令来源。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
     chat.config.model_reasoning_effort = None;
 
@@ -137,6 +145,7 @@ async fn status_command_renders_native_and_foreign_instruction_sources() {
 
 #[tokio::test]
 async fn status_command_overlapping_refreshes_update_matching_cells_only() {
+    // 重叠刷新按请求关联目标卡片，旧账户结果不得串写到新卡片。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
 
@@ -203,6 +212,7 @@ async fn account_update_rejects_stale_status_rate_limit_snapshots() {
 
 #[tokio::test]
 async fn status_command_renders_immediately_and_updates_first_card_without_status_line() {
+    // 无状态行时首张卡片仍接受线程用量更新，不依赖其他展示面。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
     let thread_id =
@@ -381,6 +391,7 @@ async fn status_command_stays_visible_and_updates_after_thread_usage_retry() {
 
 #[tokio::test]
 async fn status_command_renders_credits_and_breakdowns_without_usd_estimate() {
+    // 缺少美元估算时保留额度与明细，并清除先前已过期的成本值。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
     let thread_id = ThreadId::new();
@@ -512,6 +523,7 @@ async fn status_command_drops_stale_usd_when_updated_usage_has_only_credits() {
 
 #[tokio::test]
 async fn status_command_requests_thread_usage_for_remote_connection_metadata() {
+    // 远程连接或仅后端认证同样可请求线程用量，不要求本地 ChatGPT 标志。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     chat.update_account_state(
@@ -551,6 +563,7 @@ async fn status_command_requests_thread_usage_with_backend_only_authentication()
 
 #[tokio::test]
 async fn status_command_remains_visible_when_account_changes_during_usage_refresh() {
+    // 刷新期间账户或线程变化只使响应失效，不关闭用户已打开的状态卡片。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
     let thread_id = ThreadId::new();

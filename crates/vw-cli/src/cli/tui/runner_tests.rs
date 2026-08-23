@@ -62,14 +62,10 @@ fn interrupt_stops_the_matching_resumable_stream() {
         V3Action::Submit { text: "long running".to_string(), attachments: Vec::new() },
     );
     drain_until(&mut runner, &mut app, |_, app| {
-        app.transcript_lines(80, true)
-            .iter()
-            .any(|line| line.to_string().contains("working"))
+        app.transcript_lines(80, true).iter().any(|line| line.to_string().contains("working"))
     });
-    let request_id = runner
-        .active_request_id()
-        .expect("active stream has a stable request id")
-        .to_string();
+    let request_id =
+        runner.active_request_id().expect("active stream has a stable request id").to_string();
     runner.execute_action(&mut app, V3Action::Interrupt);
 
     drain_until(&mut runner, &mut app, |runner, _| !runner.has_active_stream());
@@ -105,8 +101,7 @@ fn drain_until(
     }
 }
 
-fn two_turn_gateway_fixture(
-) -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+fn two_turn_gateway_fixture() -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind two-turn gateway fixture");
     let port = listener.local_addr().expect("gateway fixture address").port();
     let (sender, receiver) = mpsc::channel();
@@ -140,8 +135,8 @@ struct InterruptRequests {
     stop_path: String,
 }
 
-fn interrupt_gateway_fixture(
-) -> (GatewayEndpoint, mpsc::Receiver<InterruptRequests>, thread::JoinHandle<()>) {
+fn interrupt_gateway_fixture()
+-> (GatewayEndpoint, mpsc::Receiver<InterruptRequests>, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind interrupt gateway fixture");
     let port = listener.local_addr().expect("gateway fixture address").port();
     let (sender, receiver) = mpsc::channel();

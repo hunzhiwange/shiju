@@ -1,3 +1,8 @@
+//! 验证聊天组件中的插件、应用、实验功能、模型和反馈弹窗。
+//! 测试以确定性目录响应和键盘事件驱动加载、搜索、详情与设置持久化。
+//! 刷新和账户切换场景重点防止过期结果覆盖完整快照或当前选择。
+//! 管理策略、安装状态和高级推理能力必须在可用动作与提示文本中准确体现。
+
 use super::*;
 use crate::app_event::ConnectorsSnapshot;
 use crate::chatwidget::connectors::ConnectorsCacheState;
@@ -63,6 +68,7 @@ async fn experimental_mode_plan_is_ignored_on_startup() {
 
 #[tokio::test]
 async fn plugins_popup_loading_state_snapshot() {
+    // 插件目录加载、升级失败和诊断信息以独立弹窗状态呈现。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -157,6 +163,7 @@ async fn hooks_popup_shows_list_diagnostics() {
 
 #[tokio::test]
 async fn plugins_popup_snapshot_shows_all_marketplaces_and_sorts_installed_then_name() {
+    // 市场列表完整展示来源，并按已安装优先、名称稳定排序。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -287,6 +294,7 @@ async fn plugins_popup_truncates_long_descriptions_in_list_rows() {
 
 #[tokio::test]
 async fn plugins_popup_add_marketplace_tab_opens_prompt_and_submits_source() {
+    // 添加市场通过专用提示收集来源，成功后刷新并选中新市场标签。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -506,6 +514,7 @@ async fn marketplace_add_success_refreshes_to_new_marketplace_tab() {
 
 #[tokio::test]
 async fn plugins_popup_removes_user_configured_marketplace_flow() {
+    // 仅用户配置市场允许移除，确认完成后目录和选中标签同步更新。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
     let cwd = chat.config.cwd.to_path_buf();
@@ -617,6 +626,7 @@ async fn plugins_popup_removes_user_configured_marketplace_flow() {
 
 #[tokio::test]
 async fn plugin_detail_popup_snapshot_labels_personal_marketplace_as_local() {
+    // 插件详情区分个人、本地共享、npm、远程和管理员控制的来源语义。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -918,6 +928,7 @@ async fn plugin_detail_unmaterialized_default_uses_remote_install_path() {
 
 #[tokio::test]
 async fn plugin_detail_remote_uninstall_uses_remote_plugin_id() {
+    // 远程卸载使用后端插件标识；缺少标识时动作保持禁用。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -1638,6 +1649,7 @@ async fn plugins_popup_refreshes_installed_counts_after_install() {
 
 #[tokio::test]
 async fn plugins_popup_space_toggles_installed_plugin_from_list() {
+    // 空格只在无搜索输入且条目已安装时切换启用状态。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -1780,6 +1792,7 @@ async fn plugins_popup_space_with_active_search_does_not_toggle_installed_plugin
 
 #[tokio::test]
 async fn plugins_popup_search_filters_visible_rows_snapshot() {
+    // 搜索、标签切换和刷新保持结果过滤与选中位置一致。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -1960,6 +1973,7 @@ async fn plugins_popup_openai_curated_tab_omits_marketplace_in_rows() {
 
 #[tokio::test]
 async fn plugins_popup_refresh_preserves_duplicate_marketplace_tab_by_path() {
+    // 同名市场刷新时按路径恢复标签，避免选中错误来源。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -2087,6 +2101,7 @@ async fn plugins_popup_search_no_matches_and_backspace_restores_results() {
 
 #[tokio::test]
 async fn apps_popup_stays_loading_until_final_snapshot_updates() {
+    // 应用目录只在最终快照后结束加载，局部或失败刷新保留最后完整数据。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     set_chatgpt_auth(&mut chat);
@@ -2319,6 +2334,7 @@ async fn apps_notification_update_excludes_inaccessible_apps_from_mentions() {
 
 #[tokio::test]
 async fn apps_installed_mentions_revoke_access_and_reject_stale_account_results() {
+    // 应用访问撤销立即移除提及能力，旧账户的查询结果不得重新授予访问。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     set_chatgpt_auth(&mut chat);
@@ -2480,6 +2496,7 @@ async fn apps_refresh_failure_keeps_existing_full_snapshot() {
 
 #[tokio::test]
 async fn apps_popup_preserves_selected_app_across_refresh() {
+    // 应用刷新按稳定标识恢复选择，并保留本地切换后的启用状态。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
     chat.config
@@ -2994,6 +3011,7 @@ async fn apps_popup_for_not_installed_app_uses_install_only_selected_description
 
 #[tokio::test]
 async fn experimental_features_popup_snapshot() {
+    // 实验功能、记忆和多代理开关通过确认流程更新配置并控制提示消息。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let features = vec![
@@ -3191,6 +3209,7 @@ async fn memories_reset_confirmation_snapshot() {
 
 #[tokio::test]
 async fn memories_settings_toggle_saves_on_enter() {
+    // 记忆设置只在确认键保存，重置操作通过独立确认事件发送。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::MemoryTool, /*enabled*/ true);
     chat.config.memories.use_memories = true;
@@ -3228,6 +3247,7 @@ async fn memories_reset_confirmation_sends_event_on_confirm() {
 
 #[tokio::test]
 async fn model_selection_popup_snapshot() {
+    // 模型与推理选择遵守目录可见性、高级档位和并发风险警告。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.2")).await;
     chat.thread_id = Some(ThreadId::new());
     chat.open_model_popup();
@@ -3416,6 +3436,7 @@ async fn model_reasoning_selection_popup_applies_custom_effort() {
 }
 
 async fn select_ultra_with_multi_agent_thread_limit(max_threads: usize) -> (bool, Vec<String>) {
+    // Ultra 推理只在多代理并发达到风险阈值时要求额外确认。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
     chat.config
         .multi_agent_v2
@@ -3614,6 +3635,7 @@ async fn reasoning_shortcut_clears_armed_quit_shortcut() {
 
 #[tokio::test]
 async fn reasoning_shortcut_is_ignored_with_model_popup_open() {
+    // 模型弹窗打开时忽略全局推理快捷键，避免同时修改两层选择状态。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
     chat.thread_id = Some(ThreadId::new());
     chat.set_reasoning_effort(Some(ReasoningEffortConfig::Medium));
@@ -3851,8 +3873,10 @@ async fn auto_model_advertising_advanced_effort_opens_reasoning_picker() {
 
 #[tokio::test]
 async fn feedback_selection_popup_snapshot() {
+    // 反馈流程依次固定类别、上传同意和诊断文件说明。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
+    // 通过斜杠命令打开反馈类别选择弹窗。
     // Open the feedback category selection popup via slash command.
     chat.dispatch_command(SlashCommand::Feedback);
 
@@ -3904,6 +3928,7 @@ async fn feedback_good_result_consent_popup_includes_connectivity_diagnostics_fi
 
 #[tokio::test]
 async fn reasoning_popup_escape_returns_to_model_popup() {
+    // 从推理子弹窗按 Esc 返回模型父弹窗，账户变化则关闭旧应用目录视图。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
     chat.thread_id = Some(ThreadId::new());
     chat.open_model_popup();

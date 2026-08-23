@@ -1,3 +1,9 @@
+//! MCP 工具调用、清单与输出历史单元。
+//!
+//! 普通对话使用紧凑摘要，完整转录保留调用、认证、资源和结果详情。
+//! 服务端状态是远程 MCP 状态的唯一来源，不用客户端本地配置补全或覆盖。
+//! 工具与连接按稳定名称排序，敏感配置值在进入展示行前保持遮蔽。
+//! 活动清单请求使用短暂旋转单元，完成后不会在持久转录中留下加载项。
 //! MCP tool-call, inventory, and output history cells.
 
 use super::*;
@@ -56,8 +62,10 @@ pub(crate) struct McpInvocation {
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum McpToolCallRenderMode {
+    /// 普通对话历史使用的紧凑表示。
     /// Compact presentation used in normal conversation history.
     Display,
+    /// Ctrl+T 转录使用的完整调用与结果。
     /// Complete invocation and result used by the Ctrl+T transcript.
     Transcript,
 }
@@ -185,6 +193,7 @@ impl McpToolCallCell {
         }
 
         let mut detail_lines: Vec<Line<'static>> = Vec::new();
+        // 为树形前缀（"  └ "/"    "）预留四列，并确保折行器至少还有一列可用。
         // Reserve four columns for the tree prefix ("  └ "/"    ") and ensure the wrapper still has at least one cell to work with.
         let detail_wrap_width = (width as usize).saturating_sub(4).max(1);
 
@@ -321,6 +330,7 @@ pub(crate) fn new_active_mcp_tool_call(
 ) -> McpToolCallCell {
     McpToolCallCell::new(call_id, invocation, animations_enabled)
 }
+/// 根据当前 `Config` 渲染已配置 MCP 服务器摘要。
 /// Render a summary of configured MCP servers from the current `Config`.
 pub(crate) fn empty_mcp_output() -> WebHyperlinkHistoryCell {
     let mut docs_line = HyperlinkLine::new(Line::from("    See the "));
@@ -343,6 +353,7 @@ pub(crate) fn empty_mcp_output() -> WebHyperlinkHistoryCell {
 }
 
 #[cfg(test)]
+/// 使用完全限定工具名，按连接分组渲染 MCP 工具。
 /// Render MCP tools grouped by connection using the fully-qualified tool names.
 pub(crate) fn new_mcp_tools_output(
     config: &Config,
@@ -516,6 +527,11 @@ pub(crate) fn new_mcp_tools_output(
     PlainHistoryCell { lines }
 }
 
+/// 根据应用服务器的 `McpServerStatus` 响应构建 `/mcp` 历史单元。
+///
+/// 服务器列表直接来自应用服务器状态并按字母排序；远程 MCP 状态由应用服务器负责，
+/// 因此 TUI 有意不从客户端本地配置补全这些行。
+/// 普通输出为紧凑连接摘要，完整详情保留工具、认证、资源和资源模板清单。
 /// Build the `/mcp` history cell from app-server `McpServerStatus` responses.
 ///
 /// The server list comes directly from the app-server status response, sorted
@@ -662,6 +678,10 @@ pub(crate) fn new_mcp_tools_output_from_statuses(
 
     PlainHistoryCell { lines }
 }
+/// MCP 清单 RPC 进行期间显示动画指示器的短暂历史单元。
+///
+/// 它由 `ChatWidget::add_mcp_output()` 放入 `active_cell`，请求完成后移除。
+/// 应用会从转录历史清除已提交副本，而 `clear_mcp_inventory_loading()` 只清理当前活动项。
 /// A transient history cell that shows an animated spinner while the MCP
 /// inventory RPC is in flight.
 ///
@@ -714,6 +734,7 @@ impl HistoryCell for McpInventoryLoadingCell {
     }
 }
 
+/// [`McpInventoryLoadingCell`] 的便捷构造器。
 /// Convenience constructor for [`McpInventoryLoadingCell`].
 pub(crate) fn new_mcp_inventory_loading(animations_enabled: bool) -> McpInventoryLoadingCell {
     McpInventoryLoadingCell::new(animations_enabled)
@@ -723,6 +744,7 @@ fn format_mcp_invocation(invocation: &McpInvocation) -> Line<'_> {
         .arguments
         .as_ref()
         .map(|v: &serde_json::Value| {
+            // 使用紧凑格式，在保持可读性的同时控制行长。
             // Use compact form to keep things short but readable.
             serde_json::to_string(v).unwrap_or_else(|_| v.to_string())
         })

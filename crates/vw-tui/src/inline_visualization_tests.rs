@@ -1,3 +1,6 @@
+//! 覆盖内联可视化指令从 Markdown 识别、路径校验到沙箱文档物化的完整展示链路。
+//! 测试特别区分流式未完成输入、最终历史回放与用户原文，避免指令被过早执行。
+
 use super::*;
 use crate::history_cell::AgentMarkdownCell;
 use crate::history_cell::HistoryCell;
@@ -13,6 +16,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 fn context_with_fragment(fragment: &str) -> (TempDir, InlineVisualizationContext) {
+    // 在授权根中写入最小 HTML 工件，为路径与内容检查提供隔离 fixture。
     let codex_home = tempfile::tempdir().expect("temp codex home");
     let thread_id = ThreadId::new();
     let context = InlineVisualizationContext::new(codex_home.path(), thread_id)
@@ -23,6 +27,7 @@ fn context_with_fragment(fragment: &str) -> (TempDir, InlineVisualizationContext
 }
 
 #[test]
+// 显式授权的可视化根必须优先于线程标识推导路径，避免访问错误会话目录。
 fn granted_visualization_root_overrides_thread_id_derived_root() {
     let codex_home = tempfile::tempdir().expect("temp codex home");
     let granted_context = InlineVisualizationContext::new(codex_home.path(), ThreadId::new())
@@ -45,6 +50,7 @@ fn granted_visualization_root_overrides_thread_id_derived_root() {
 }
 
 fn line_text(line: &ratatui::text::Line<'_>) -> String {
+    // 将富文本行折叠成可比较文本，使断言聚焦指令是否可见而非具体样式。
     line.spans
         .iter()
         .map(|span| span.content.as_ref())
@@ -74,6 +80,7 @@ fn buffer_to_text(buffer: &Buffer, width: u16) -> String {
 }
 
 #[test]
+// 完整且可信的静态文件指令应替换为可打开的占位链接，而不是泄露协议字面量。
 fn rewrites_complete_directive_to_trusted_static_file_placeholder() {
     let (_codex_home, context) = context_with_fragment("<div>chart</div>");
 
@@ -113,6 +120,7 @@ fn rewrites_complete_directive_to_trusted_static_file_placeholder() {
 }
 
 #[test]
+// 流式阶段缺少闭合边界的指令必须整体隐藏，不能闪现半条内部协议。
 fn hides_incomplete_streaming_directive() {
     let rewritten = rewrite_inline_visualizations(
         "Before\n::codex-inline-vis{file=\"chart",
@@ -124,6 +132,7 @@ fn hides_incomplete_streaming_directive() {
 }
 
 #[test]
+// 尚未收齐的内容引用与普通指令遵循相同的隐藏规则。
 fn hides_incomplete_streaming_content_reference() {
     for reference in [
         "Before\n\u{e200}visualize\u{e202}{\"path\":\"/tmp/chart",
@@ -137,6 +146,7 @@ fn hides_incomplete_streaming_content_reference() {
 }
 
 #[test]
+// 内容引用缺失或格式无效时应显示明确降级信息，避免静默丢失助手输出。
 fn unavailable_or_invalid_content_reference_has_explicit_fallback() {
     let (_codex_home, context) = context_with_fragment("<div>chart</div>");
     let outside = tempfile::tempdir().expect("outside visualization directory");
@@ -159,6 +169,7 @@ fn unavailable_or_invalid_content_reference_has_explicit_fallback() {
 }
 
 #[test]
+// 合法指令指向不存在的工件时也应给出可理解的不可用提示。
 fn unavailable_artifact_has_explicit_fallback() {
     let codex_home = tempfile::tempdir().expect("temp codex home");
     let context = InlineVisualizationContext::new(codex_home.path(), ThreadId::new())
@@ -172,6 +183,7 @@ fn unavailable_artifact_has_explicit_fallback() {
 }
 
 #[test]
+// 父目录穿越和非 HTML 后缀都不得进入查看器物化流程。
 fn rejects_parent_path_and_non_html_file() {
     let (_codex_home, context) = context_with_fragment("<div>chart</div>");
 
@@ -188,6 +200,7 @@ fn rejects_parent_path_and_non_html_file() {
 }
 
 #[test]
+// 超过读取上限的工件应安全拒绝，避免展示路径造成无界内存消耗。
 fn rejects_oversized_fragment() {
     let (_codex_home, context) = context_with_fragment("<div>chart</div>");
     let fragment = fs::OpenOptions::new()
@@ -206,6 +219,7 @@ fn rejects_oversized_fragment() {
 }
 
 #[test]
+// 查看器应把授权片段封装成隔离静态文档，并只暴露生成后的受控路径。
 fn viewer_materializes_sandboxed_static_document() {
     let (_codex_home, context) = context_with_fragment(
         "<div id=\"widget\"><div class=\"viz-controls\">controls</div><canvas id=\"chart\"></canvas></div><script>globalThis.chartRendered = true;</script>",
@@ -240,6 +254,7 @@ fn viewer_materializes_sandboxed_static_document() {
 }
 
 #[test]
+// 同一工件更新时复用查看路径但刷新内容，既保持链接稳定又避免陈旧页面。
 fn viewer_reuses_path_and_refreshes_static_document() {
     let (_codex_home, context) = context_with_fragment("<div>first</div>");
     let first_url = context.link_for("chart.html").expect("first viewer link");
@@ -285,6 +300,7 @@ fn viewer_reuses_path_and_refreshes_static_document() {
 }
 
 #[test]
+// 已完成的助手历史单元在重放时应重新生成可视化链接。
 fn finalized_agent_cell_replays_visualization_link() {
     let (_codex_home, context) = context_with_fragment("<div>chart</div>");
     let fragment_path = context.thread_dir.join("chart.html");
@@ -341,6 +357,7 @@ fn finalized_agent_cell_replays_visualization_link() {
 }
 
 #[test]
+// 工件从缺失变为可用后，转录浮层必须重新测量以容纳新的链接布局。
 fn transcript_overlay_remeasures_visualization_when_artifact_becomes_available() {
     let codex_home = tempfile::tempdir().expect("temp codex home");
     let context = InlineVisualizationContext::new(codex_home.path(), ThreadId::new())
@@ -395,6 +412,7 @@ fn transcript_overlay_remeasures_visualization_when_artifact_becomes_available()
 }
 
 #[test]
+// 代码围栏中的相似文本是示例源码，不能被当作活动可视化指令。
 fn agent_code_blocks_preserve_visualization_directive_literals() {
     let (_codex_home, context) = context_with_fragment("<div>chart</div>");
     let cell = AgentMarkdownCell::new_with_inline_visualizations(
@@ -415,6 +433,7 @@ fn agent_code_blocks_preserve_visualization_directive_literals() {
 }
 
 #[test]
+// 流式渲染应隐藏半条指令，并在闭合后原位显示最终链接。
 fn streaming_hides_partial_directive_and_renders_completed_link() {
     let (_codex_home, context) = context_with_fragment("<div>chart</div>");
     let mut controller = StreamController::new_with_inline_visualizations(
@@ -448,6 +467,7 @@ fn streaming_hides_partial_directive_and_renders_completed_link() {
 }
 
 #[test]
+// 链接标签应采用工件声明名称，帮助用户识别多个可视化输出。
 fn visualization_link_uses_the_artifact_name() {
     let (_codex_home, context) = context_with_fragment("<div>chart</div>");
     fs::rename(
@@ -478,6 +498,7 @@ fn visualization_link_uses_the_artifact_name() {
 }
 
 #[test]
+// 用户消息始终按普通 Markdown 展示，不能触发仅供助手使用的指令协议。
 fn user_markdown_keeps_directive_literal() {
     let rendered =
         crate::markdown_render::render_markdown_text("::codex-inline-vis{file=\"chart.html\"}");

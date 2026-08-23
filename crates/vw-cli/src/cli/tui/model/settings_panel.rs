@@ -29,7 +29,7 @@ pub(crate) enum SettingKey {
 pub(crate) struct SettingRow {
     pub(crate) key: SettingKey,
     pub(crate) label: &'static str,
-    pub(crate) unavailable_reason: Option<&'static str>,
+    pub(crate) unavailable_reason: Option<String>,
 }
 
 /// 一份可编辑的会话设置快照。
@@ -144,12 +144,12 @@ impl SettingsPanel {
                 SettingRow {
                     key: SettingKey::OutputStyle,
                     label: "输出样式",
-                    unavailable_reason: Some("当前 Gateway 未提供输出样式持久化能力"),
+                    unavailable_reason: Some("当前 Gateway 未提供输出样式持久化能力".to_string()),
                 },
                 SettingRow {
                     key: SettingKey::Permissions,
                     label: "权限模式",
-                    unavailable_reason: Some("危险权限模式必须通过专用确认流程"),
+                    unavailable_reason: None,
                 },
                 SettingRow { key: SettingKey::Vim, label: "Vim 模式", unavailable_reason: None },
             ],
@@ -177,19 +177,31 @@ impl SettingsPanel {
         panel.acp_backend_options.clone_from(&capabilities.acp_backends);
         for row in &mut panel.rows {
             row.unavailable_reason = match row.key {
-                SettingKey::Model if capabilities.models.is_empty() => Some("当前没有发现可选模型"),
+                SettingKey::Model if capabilities.models.is_empty() => {
+                    Some("当前没有发现可选模型".to_string())
+                }
+                SettingKey::DelegateAgent if capabilities.delegate_agents.len() <= 1 => {
+                    Some("当前配置未声明可委托 Agent".to_string())
+                }
                 SettingKey::AcpBackend if capabilities.acp_backends.len() <= 1 => {
-                    Some("当前没有发现已启用 ACP 后端")
+                    Some("当前没有发现已启用 ACP 后端".to_string())
+                }
+                SettingKey::FullAccess
+                    if !capabilities.permission_modes.contains(&PermissionMode::Bypass) =>
+                {
+                    Some("Gateway 安全配置未声明完整访问能力".to_string())
                 }
                 SettingKey::Effort if capabilities.efforts.is_empty() => {
-                    Some("当前 provider 未声明推理强度能力")
+                    Some("当前 provider 未声明推理强度能力".to_string())
                 }
                 SettingKey::Fast if !capabilities.supports_fast => {
-                    Some("当前 Gateway stream 契约未提供快速模式")
+                    Some("当前 Gateway stream 契约未提供快速模式".to_string())
                 }
-                SettingKey::OutputStyle => Some("当前 Gateway 未提供输出样式持久化能力"),
-                SettingKey::Permissions => {
-                    Some("这里只切换会话模式；待审批请求请使用 /permissions")
+                SettingKey::OutputStyle => {
+                    Some("当前 Gateway 未提供输出样式持久化能力".to_string())
+                }
+                SettingKey::Permissions if capabilities.permission_modes.is_empty() => {
+                    Some("当前 Gateway 未声明可用权限模式".to_string())
                 }
                 _ => None,
             };

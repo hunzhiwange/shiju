@@ -514,3 +514,32 @@ async fn knowledge_api_document_update_and_batch_routes() {
     );
     server.join();
 }
+
+#[tokio::test]
+async fn knowledge_api_uses_all_knowledge_routes() {
+    let server = test_support::server(vec![(200, json!({"chunks": []}))]);
+    let response = server
+        .client()
+        .knowledge_retrieval_test(&KnowledgeRetrieveRequest {
+            query: "hello".to_string(),
+            dataset_ids: vec!["dataset /one".to_string()],
+            top_k: 5,
+            score_threshold: None,
+            metadata_filter: None,
+            include_context: true,
+        })
+        .await
+        .expect("retrieval test");
+    assert!(response.chunks.is_empty());
+    let request = take_scoped_request(&server);
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/knowledge/retrieval-test");
+    assert_eq!(request.body["dataset_ids"], json!(["dataset /one"]));
+    let error = server
+        .client()
+        .knowledge_dataset_get("   ")
+        .await
+        .expect_err("blank resource id must fail before requesting");
+    assert!(error.contains("must not be empty"));
+    server.join();
+}

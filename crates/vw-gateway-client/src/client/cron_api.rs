@@ -5,7 +5,7 @@
 use crate::client::GatewayClient;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CronJobDto {
     pub id: String,
     pub name: Option<String>,
@@ -58,7 +58,7 @@ pub struct CronJobsResponse {
     pub jobs: Vec<CronJobDto>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CronRunDto {
     pub id: i64,
     pub job_id: String,
@@ -75,7 +75,7 @@ pub struct CronRunsResponse {
     pub runs: Vec<CronRunDto>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CronAddRequest {
     pub name: Option<String>,
     pub job_type: String,
@@ -119,7 +119,7 @@ pub struct CronAddRequest {
     pub delete_after_run: Option<bool>,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CronUpdateRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -169,7 +169,7 @@ pub struct CronUpdateRequest {
     pub enabled: Option<bool>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CronJobMutationResponse {
     pub status: String,
     pub job: Option<CronJobDto>,
@@ -198,6 +198,8 @@ impl GatewayClient {
     }
 
     pub async fn cron_job_runs_get(&self, job_id: &str) -> Result<Vec<CronRunDto>, String> {
+        let job_id = required_job_id(job_id)?;
+        let job_id = encode_path_segment(job_id);
         let primary_path = format!("/v1/cron/{job_id}/runs");
         let response = match self.get_json::<CronRunsResponse>(&primary_path, &[]).await {
             Ok(response) => response,
@@ -242,6 +244,8 @@ impl GatewayClient {
         job_id: &str,
         request: &CronUpdateRequest,
     ) -> Result<CronJobMutationResponse, String> {
+        let job_id = required_job_id(job_id)?;
+        let job_id = encode_path_segment(job_id);
         let path = format!("/v1/cron/{job_id}");
         match self.patch_json(&path, &[], request).await {
             Ok(response) => Ok(response),
@@ -262,8 +266,30 @@ impl GatewayClient {
     }
 
     pub async fn cron_job_delete(&self, job_id: &str) -> Result<(), String> {
-        self.delete_empty(&format!("/v1/cron/{job_id}"), &[]).await
+        let job_id = required_job_id(job_id)?;
+        self.delete_empty(&format!("/v1/cron/{}", encode_path_segment(job_id)), &[]).await
     }
+}
+
+fn required_job_id(job_id: &str) -> Result<&str, String> {
+    let job_id = job_id.trim();
+    if job_id.is_empty() {
+        return Err("cron job id must not be empty".to_string());
+    }
+    Ok(job_id)
+}
+
+fn encode_path_segment(value: &str) -> String {
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(char::from(byte));
+            }
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
 }
 
 #[cfg(test)]

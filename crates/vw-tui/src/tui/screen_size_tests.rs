@@ -1,11 +1,15 @@
 use std::time::Duration;
 
+//! 验证终端尺寸缓存只在恢复、调整大小或切换屏幕模式时刷新。
+//! 普通绘制复用稳定几何，避免每帧查询后端造成抖动或系统调用开销。
+
 use pretty_assertions::assert_eq;
 use ratatui::layout::Size;
 
 use crate::tui::TuiEvent;
 
 #[tokio::test]
+// 暂停前的绘制沿用缓存，恢复信号到达后才重新读取真实尺寸。
 async fn draw_size_policy_refreshes_only_after_resume() {
     let mut tui = crate::tui::test_support::make_test_tui().expect("test tui");
     let cached = Size::new(/*width*/ 120, /*height*/ 40);
@@ -30,6 +34,7 @@ async fn draw_size_policy_refreshes_only_after_resume() {
 }
 
 #[tokio::test]
+// 独立界面收到 resize 后应等待尺寸稳定，并且只执行一次延迟复查。
 async fn standalone_resize_draw_rechecks_settled_screen_size_once() {
     let mut tui = crate::tui::test_support::make_test_tui().expect("test tui");
     let resize_size = Size::new(/*width*/ 120, /*height*/ 40);
@@ -53,6 +58,7 @@ async fn standalone_resize_draw_rechecks_settled_screen_size_once() {
 }
 
 #[tokio::test]
+// 进入替代屏幕会改变可用几何，缓存必须立即与后端同步。
 async fn entering_alternate_screen_updates_cached_screen_size() {
     let mut tui = crate::tui::test_support::make_test_tui().expect("test tui");
     let screen_size = tui.terminal.size().expect("terminal size");

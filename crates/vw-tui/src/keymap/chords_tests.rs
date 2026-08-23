@@ -1,3 +1,6 @@
+//! 覆盖组合键配置的静态冲突检查、终端别名归一化与运行时匹配状态机。
+//! 用例按上下文重叠关系验证允许与拒绝边界，并守住保留键的安全语义。
+
 use super::KEY_CHORD_TIMEOUT;
 use super::KeyChordMatch;
 use super::KeyChordMatcher;
@@ -20,10 +23,12 @@ use std::collections::HashSet;
 use tokio::time::Instant;
 
 fn binding(spec: &str) -> KeybindingsSpec {
+    // 为单个规范构造最小配置，减少拒绝场景中的无关绑定噪声。
     KeybindingsSpec::One(KeybindingSpec(spec.to_string()))
 }
 
 fn bindings(specs: &[&str]) -> KeybindingsSpec {
+    // 多绑定 fixture 用于表达共享前缀、重复项和上下文交集。
     KeybindingsSpec::Many(
         specs
             .iter()
@@ -33,6 +38,7 @@ fn bindings(specs: &[&str]) -> KeybindingsSpec {
 }
 
 #[test]
+// 列表组合键不得占用恢复选择器的固定导航键，否则运行时行为会产生歧义。
 fn rejects_fixed_resume_picker_keys_inside_list_chords() {
     for (chord, reserved_action) in [
         ("ctrl-c home", "cancel"),
@@ -51,6 +57,7 @@ fn rejects_fixed_resume_picker_keys_inside_list_chords() {
 }
 
 #[test]
+// 审批上下文中的 Ctrl-C 必须保留取消语义，不能成为组合键的一部分。
 fn rejects_ctrl_c_inside_approval_chords() {
     let mut config = TuiKeymap::default();
     config.approval.approve = Some(binding("ctrl-x ctrl-c"));
@@ -62,6 +69,7 @@ fn rejects_ctrl_c_inside_approval_chords() {
 }
 
 #[test]
+// 相同按键序列应依据当前上下文解析为各自动作，并保持上下文隔离。
 fn resolves_chords_for_actions_in_different_contexts() {
     let mut config = TuiKeymap::default();
     config.global.open_transcript = Some(bindings(&["ctrl-t", "ctrl-x ctrl-t"]));
@@ -92,6 +100,7 @@ fn resolves_chords_for_actions_in_different_contexts() {
 }
 
 #[test]
+// 编辑器未命中局部组合键时，应继续尝试全局前缀而不是立即取消。
 fn composer_chord_inherits_global_fallback() {
     let mut config = TuiKeymap::default();
     config.global.submit = Some(binding("ctrl-x enter"));
@@ -106,6 +115,7 @@ fn composer_chord_inherits_global_fallback() {
 }
 
 #[test]
+// 共享前缀只要最终按键不同，就应形成两条可达的组合键路径。
 fn allows_shared_prefixes_with_distinct_completions() {
     let mut config = TuiKeymap::default();
     config.global.open_transcript = Some(binding("ctrl-x ctrl-t"));
@@ -115,6 +125,7 @@ fn allows_shared_prefixes_with_distinct_completions() {
 }
 
 #[test]
+// Vim 模式允许可打印前缀，重复按键也应在所有上下文中稳定解析。
 fn allows_plain_prefixes_in_vim_and_repeated_chords_in_all_contexts() {
     let mut config = TuiKeymap::default();
     config.vim_normal.move_line_start = Some(binding("g g"));
@@ -126,6 +137,7 @@ fn allows_plain_prefixes_in_vim_and_repeated_chords_in_all_contexts() {
 }
 
 #[test]
+// 非 Vim 输入会把普通字符交给编辑器，因此不能截获它们作为组合键前缀。
 fn rejects_plain_printable_prefixes_outside_vim() {
     let mut config = TuiKeymap::default();
     config.composer.submit = Some(binding("x enter"));
@@ -137,6 +149,7 @@ fn rejects_plain_printable_prefixes_outside_vim() {
 }
 
 #[test]
+// 组合键前缀若覆盖同一上下文中的单键动作，会让单键无法及时分派，必须拒绝。
 fn rejects_prefixes_that_shadow_overlapping_single_bindings() {
     let mut config = TuiKeymap::default();
     config.global.open_transcript = Some(binding("ctrl-k ctrl-t"));
@@ -148,6 +161,7 @@ fn rejects_prefixes_that_shadow_overlapping_single_bindings() {
 }
 
 #[test]
+// 互不同时激活的上下文可以复用同一组合键，不应产生伪冲突。
 fn permits_the_same_chord_in_non_overlapping_contexts() {
     let mut config = TuiKeymap::default();
     config.editor.move_line_start = Some(binding("ctrl-x home"));
@@ -158,6 +172,7 @@ fn permits_the_same_chord_in_non_overlapping_contexts() {
 }
 
 #[test]
+// 上下文存在交集时的重复组合键无法唯一分派，配置校验必须报错。
 fn rejects_duplicate_chords_in_overlapping_contexts() {
     let mut config = TuiKeymap::default();
     config.global.open_transcript = Some(binding("ctrl-x ctrl-t"));
@@ -171,6 +186,7 @@ fn rejects_duplicate_chords_in_overlapping_contexts() {
 }
 
 #[test]
+// 请求用户输入会同时使用聊天与列表上下文，因此跨两者的重复项也会冲突。
 fn rejects_duplicate_chat_and_list_chords_used_by_request_user_input() {
     let mut config = TuiKeymap::default();
     config.chat.interrupt_turn = Some(binding("ctrl-x home"));
@@ -184,6 +200,7 @@ fn rejects_duplicate_chat_and_list_chords_used_by_request_user_input() {
 }
 
 #[test]
+// 终端对 Ctrl-/ 的等价编码应先归一化，再参与冲突和匹配判断。
 fn normalizes_ctrl_slash_terminal_aliases() {
     let mut config = TuiKeymap::default();
     config.global.open_transcript = Some(binding("ctrl-7 ctrl-t"));
@@ -195,6 +212,7 @@ fn normalizes_ctrl_slash_terminal_aliases() {
 }
 
 #[test]
+// 归一化后相同的别名不能绕过重复组合键检查。
 fn rejects_alias_equivalent_duplicate_chords() {
     let mut config = TuiKeymap::default();
     config.global.open_transcript = Some(binding("ctrl-x ctrl-/"));
@@ -208,6 +226,7 @@ fn rejects_alias_equivalent_duplicate_chords() {
 }
 
 #[test]
+// 裸 Escape 负责取消待定状态，不能同时充当普通组合键按键。
 fn rejects_plain_escape_inside_a_chord() {
     let mut config = TuiKeymap::default();
     config.list.cancel = Some(binding("ctrl-x esc"));
@@ -218,6 +237,7 @@ fn rejects_plain_escape_inside_a_chord() {
 }
 
 #[test]
+// 主界面的中断保留键必须保持立即生效，禁止被组合键延迟消费。
 fn rejects_reserved_interrupt_keys_inside_a_main_chord() {
     let mut config = TuiKeymap::default();
     config.global.open_transcript = Some(binding("ctrl-x ctrl-c"));
@@ -229,6 +249,7 @@ fn rejects_reserved_interrupt_keys_inside_a_main_chord() {
 
 #[cfg(unix)]
 #[test]
+// Unix 挂起键在任意按键位置都应保留作业控制语义。
 fn rejects_unix_suspend_key_in_any_chord_stroke() {
     for chord in ["ctrl-z ctrl-t", "ctrl-x ctrl-z"] {
         let mut config = TuiKeymap::default();
@@ -243,6 +264,7 @@ fn rejects_unix_suspend_key_in_any_chord_stroke() {
 
 #[cfg(windows)]
 #[test]
+// Windows 的 AltGr 前缀可能代表字符输入，除 Vim 外不能作为组合键起点。
 fn rejects_windows_altgr_prefixes_outside_vim() {
     let mut config = TuiKeymap::default();
     config.composer.submit = Some(binding("ctrl-alt-x enter"));
@@ -254,6 +276,7 @@ fn rejects_windows_altgr_prefixes_outside_vim() {
 }
 
 #[test]
+// 动作清单必须拥有唯一分派令牌，确保运行时不靠上下文猜测目标动作。
 fn dispatch_tokens_are_unique_and_cover_the_action_inventory() {
     let mut tokens = HashSet::new();
     let actions = keymap_action_ids().collect::<Vec<_>>();
@@ -270,6 +293,7 @@ fn dispatch_tokens_are_unique_and_cover_the_action_inventory() {
 }
 
 #[test]
+// 只用于物理键分派的令牌不应误清除正在等待后续按键的状态。
 fn physical_dispatch_tokens_do_not_clear_pending_chords() {
     let mut config = TuiKeymap::default();
     config.global.open_transcript = Some(binding("ctrl-x ctrl-t"));
@@ -307,6 +331,7 @@ fn physical_dispatch_tokens_do_not_clear_pending_chords() {
 }
 
 #[test]
+// 匹配器应积累完整序列并仅分派当前激活上下文对应的动作。
 fn matching_chords_dispatches_the_active_context_action() {
     let mut config = TuiKeymap::default();
     config.global.open_transcript = Some(binding("ctrl-t ctrl-t"));
@@ -357,6 +382,7 @@ fn matching_chords_dispatches_the_active_context_action() {
 }
 
 #[test]
+// Escape、上下文切换和超时都必须可靠撤销待定组合键，避免迟到动作泄漏。
 fn matcher_cancels_on_escape_context_change_and_timeout() {
     let mut config = TuiKeymap::default();
     config.list.jump_top = Some(binding("ctrl-x ctrl-t"));
@@ -395,6 +421,7 @@ fn matcher_cancels_on_escape_context_change_and_timeout() {
 }
 
 fn key_event(binding: crate::key_hint::KeyBinding) -> KeyEvent {
+    // 将配置层按键转换为运行时事件，统一匹配器用例的事件属性。
     let (code, modifiers) = binding.parts();
     KeyEvent::new(code, modifiers)
 }

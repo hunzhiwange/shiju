@@ -1,3 +1,4 @@
+//! 合并 Markdown 文本事件，同时保留解析器解码内容与源码偏移。
 //! Markdown text-event merging that preserves parser-decoded contents and source offsets.
 
 use std::iter::Peekable;
@@ -5,6 +6,10 @@ use std::ops::Range;
 
 use pulldown_cmark::Event;
 
+/// 合并相邻的已解析文本事件，而不从 Markdown 源码重新构造内容。
+///
+/// 扩展语法可能在分隔符附近拆分视觉上连续的文本；合并解码后的事件内容，
+/// 可让下游识别跨解析边界的标记，同时继续保留覆盖全部事件的源码范围。
 /// Merges adjacent parsed text events without reconstructing them from the Markdown source.
 ///
 /// Markdown extensions can split visually contiguous text around delimiter characters. Keeping the

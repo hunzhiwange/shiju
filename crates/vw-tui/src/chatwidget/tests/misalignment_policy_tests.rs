@@ -1,10 +1,18 @@
+//! 验证模型对齐策略违规会停止当前线程并生成唯一、清晰的诊断界面。
+//! 测试同时驱动流错误和轮次终止，确保两条事件路径不会重复插入警告。
+//! 宽窄视口快照固定提示的换行与强调样式。
+//! 远程线程场景保留同一安全语义，不因运行位置而降低严重级别。
+
 use super::*;
 use pretty_assertions::assert_eq;
 
 const ERROR_MESSAGE: &str = "Responses API returned misalignment_policy_violation";
 
+// 违规诊断同时覆盖本地与远程线程，但始终采用拒绝继续输入的安全默认值。
+
 #[tokio::test]
 async fn misalignment_policy_failure_stops_the_thread_and_renders_once() {
+    // 先注入策略违规流错误，再完成同一轮次以验证诊断只出现一次。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
@@ -42,6 +50,7 @@ async fn misalignment_policy_failure_stops_the_thread_and_renders_once() {
     assert_chatwidget_snapshot!("misalignment_policy_violation", popup);
     assert_chatwidget_snapshot!(
         "misalignment_policy_violation_narrow",
+        // 窄视口只改变换行，不改变警告内容与严重性。
         render_bottom_popup(&chat, /*width*/ 38)
     );
 
@@ -106,6 +115,7 @@ async fn misalignment_policy_failure_stops_the_thread_and_renders_once() {
     assert!(chat.bottom_pane.has_active_view());
 
     chat.remote_connection = Some(crate::status::remote_connection::RemoteConnectionStatus {
+        // 远程连接只改变恢复入口，不降低策略违规的阻断范围。
         address: "wss://remote.example.com".to_string(),
         version: "v1.0.0".to_string(),
     });

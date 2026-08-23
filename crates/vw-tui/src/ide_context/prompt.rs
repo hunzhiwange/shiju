@@ -1,4 +1,5 @@
 //! Prompt rendering for IDE context injected into TUI user turns.
+//! 将 IDE 上下文渲染并注入 TUI 用户轮次的提示词。
 
 use codex_app_server_protocol::ByteRange;
 use codex_app_server_protocol::TextElement;
@@ -13,8 +14,11 @@ const MAX_OPEN_TABS_CHARS: usize = 20_000;
 // raw prompt before this marker, then transcript rendering strips back to the request after the last
 // marker. Keeping the same marker and stripping semantics lets threads created with IDE context in
 // one surface replay cleanly in the others.
+// 必须与桌面应用和 IDE 扩展使用完全相同的分隔符：上下文写在原始提示词的标记之前，
+// 转录渲染则从最后一个标记之后还原用户请求，从而保证不同界面创建的线程可一致回放。
 const PROMPT_REQUEST_BEGIN: &str = "## My request for Codex:";
 
+/// 将可用 IDE 上下文前置到首个文本输入，并同步平移其中的文本元素字节范围。
 pub(crate) fn apply_ide_context_to_user_input(
     context: &IdeContext,
     items: &mut Vec<UserInput>,
@@ -30,6 +34,7 @@ pub(crate) fn apply_ide_context_to_user_input(
     {
         // Prefix the existing text item in place so image and text items keep
         // the same relative order they had in the user's original submission.
+        // 原地给已有文本项添加前缀，使图片与文本仍保持用户提交时的相对顺序。
         let item = std::mem::replace(
             &mut items[text_index],
             UserInput::Text {
@@ -62,6 +67,7 @@ pub(crate) fn has_prompt_context(context: &IdeContext) -> bool {
     render_prompt_context(context).is_some()
 }
 
+/// 返回转录中最后一个请求分隔符后的正文及其原始字节偏移。
 pub(crate) fn extract_prompt_request_with_offset(message: &str) -> (&str, usize) {
     let Some((before_request, request)) = message.rsplit_once(PROMPT_REQUEST_BEGIN) else {
         return (message, 0);
@@ -94,6 +100,7 @@ fn prefixed_text_input(prefix: String, text: String, text_elements: Vec<TextElem
 }
 
 fn render_prompt_context(context: &IdeContext) -> Option<String> {
+    // 对选择内容、标签数量和总字符数分别设限，防止 IDE 状态无界放大提示词。
     let mut ide_context_section = String::new();
 
     if let Some(active_file) = &context.active_file {
@@ -123,6 +130,7 @@ fn render_prompt_context(context: &IdeContext) -> Option<String> {
             }
             for range in selected_ranges {
                 // Render ranges as 1-based positions for the prompt.
+                // 提示词中的行列位置按用户习惯转换为从 1 开始计数。
                 let start_line = range.start.line + 1;
                 let start_column = range.start.character + 1;
                 let end_line = range.end.line + 1;
@@ -186,6 +194,7 @@ fn render_prompt_context(context: &IdeContext) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    // 本组测试固定跨界面提示词格式，并覆盖空上下文、范围偏移与容量上限。
     use super::super::ActiveFile;
     use super::super::FileDescriptor;
     use super::super::IdeContext;
@@ -203,6 +212,7 @@ mod tests {
     }
 
     #[test]
+    // 完整上下文应按桌面端约定的标题、选择内容和标签顺序渲染。
     fn render_prompt_context_matches_app_format() {
         let context = IdeContext {
             active_file: Some(ActiveFile {
@@ -236,6 +246,7 @@ mod tests {
     }
 
     #[test]
+    // 没有活动文件和标签时不应生成空的上下文前缀。
     fn render_prompt_context_omits_empty_context() {
         let context = IdeContext {
             active_file: None,
@@ -246,6 +257,7 @@ mod tests {
     }
 
     #[test]
+    // 注入上下文时保留图片顺序，并按新增前缀长度移动文本元素范围。
     fn apply_ide_context_uses_desktop_prompt_request_delimiter() {
         let context = IdeContext {
             active_file: Some(ActiveFile {
@@ -306,6 +318,7 @@ mod tests {
     }
 
     #[test]
+    // 多个分隔符存在时只提取最后一段用户请求及其准确字节位置。
     fn extract_prompt_request_returns_text_after_last_delimiter() {
         let message =
             "# Context\n## My request for Codex:\nFirst\n## My request for Codex:\n  Second\n";
@@ -317,6 +330,7 @@ mod tests {
     }
 
     #[test]
+    // 选择内容为空时仍应输出多选范围，并把位置转换为一基坐标。
     fn render_prompt_context_includes_selection_ranges_without_content() {
         let first_range = Range {
             start: Position {
@@ -358,6 +372,7 @@ mod tests {
     }
 
     #[test]
+    // 超长选择只保留上限内字符并明确标注截断，尾部内容不得泄入提示词。
     fn render_prompt_context_truncates_large_selection() {
         let context = IdeContext {
             active_file: Some(ActiveFile {
@@ -386,6 +401,7 @@ mod tests {
     }
 
     #[test]
+    // 打开标签超过数量上限时仅列出允许部分，并报告被省略数量。
     fn render_prompt_context_omits_excess_open_tabs() {
         let open_tabs = (0..MAX_OPEN_TABS + 2)
             .map(|index| descriptor(&format!("file-{index}.rs"), &format!("src/file-{index}.rs")))

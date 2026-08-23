@@ -1,8 +1,17 @@
+//! 转录历史中的轮次分隔符与运行指标标签。
+//!
+//! 分隔符只标记完成了实际工作的轮次，纯对话不会出现空边界。
+//! 可用时展示协议记录的轮次耗时，并按终端宽度裁切标签。
+//! 横线长度依据显示宽度计算，兼容宽字符和极窄终端。
 //! Turn separators and runtime-metrics labels for transcript history.
 
 use super::*;
 
 #[derive(Debug)]
+/// 轮次之间的视觉分隔符，可选展示助手“工作了多久”。
+///
+/// 只有执行命令、应用补丁或调用 MCP 工具等实际工作过的轮次才会生成该分隔符，
+/// 纯对话轮次不会出现空分隔线。
 /// A visual divider between turns, optionally showing how long the assistant "worked for".
 ///
 /// This separator is only emitted for turns that performed concrete work (e.g., running commands,
@@ -13,6 +22,7 @@ pub struct FinalMessageSeparator {
     runtime_metrics: Option<RuntimeMetricsSummary>,
 }
 impl FinalMessageSeparator {
+    /// 创建分隔符；已完成轮次在可用时应传入协议记录的轮次耗时。
     /// Creates a separator; completed turns should pass protocol turn duration when available.
     pub(crate) fn new(
         elapsed_seconds: Option<u64>,

@@ -10,6 +10,10 @@
 //! pet state, and translating that frame into a precise on-screen image request
 //! that does not overlap reserved bottom-pane space. It does not persist pet
 //! selection or decide when modal/popover UI should suppress the sprite.
+//!
+//! 环境宠物复用全屏查看器切出的图片帧，但所有权分离：ratatui 管理记录与输入区布局，
+//! 精灵则在帧绘制完成后通过终端图片协议发送。本模块一方面按语义状态选择动画帧，
+//! 另一方面把该帧转换为不覆盖底部保留区的精确绘制请求；它不持久化选择，也不决定弹窗遮蔽策略。
 
 #[cfg(test)]
 use std::collections::HashMap;
@@ -43,6 +47,7 @@ const FAILED_LIFETIME: Duration = Duration::from_secs(60 * 60);
 const WAITING_LIFETIME: Duration = Duration::from_secs(24 * 60 * 60);
 const REVIEW_LIFETIME: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
+/// 宠物通知的语义状态，同时决定动画、文案与可见期限。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PetNotificationKind {
     Running,
@@ -89,6 +94,7 @@ impl PetNotificationKind {
     }
 }
 
+/// 一条带更新时间的可过期宠物通知。
 #[derive(Debug, Clone)]
 struct PetNotification {
     kind: PetNotificationKind,
@@ -110,6 +116,7 @@ impl PetNotification {
     }
 }
 
+/// 帧绘制结束后交给终端图片协议执行的完整定位请求。
 #[derive(Debug, Clone)]
 pub(crate) struct AmbientPetDraw {
     pub(crate) frame: PathBuf,
@@ -123,6 +130,7 @@ pub(crate) struct AmbientPetDraw {
     pub(crate) sixel_dir: PathBuf,
 }
 
+/// 持有宠物模型、帧缓存与连续动画时钟的环境渲染状态。
 #[derive(Debug)]
 pub(crate) struct AmbientPet {
     pet: Pet,
@@ -143,6 +151,8 @@ impl AmbientPet {
     /// for later draw requests. A caller that repeatedly recreates `AmbientPet`
     /// instead of mutating one instance would lose animation timing continuity
     /// and pay the frame-cache preparation cost more often than necessary.
+    /// 加载当前宠物并准备帧缓存：解析选择、把 PNG 帧写入 CODEX_HOME 缓存并记录协议支持快照。
+    /// 应复用并更新同一实例，否则会丢失动画计时连续性并重复承担缓存准备成本。
     pub(crate) fn load(
         selected_pet: Option<&str>,
         codex_home: &std::path::Path,
@@ -175,6 +185,7 @@ impl AmbientPet {
         })
     }
 
+    /// 替换当前通知并从第一帧重新开始对应动画。
     pub(crate) fn set_notification(&mut self, kind: PetNotificationKind, body: Option<String>) {
         self.notification = Some(PetNotification::new(kind, body));
         self.animation_started_at = Instant::now();
@@ -193,6 +204,7 @@ impl AmbientPet {
         self.support = support;
     }
 
+    /// 若动画仍需推进，则向共享帧调度器提交下一次绘制期限。
     pub(crate) fn schedule_next_frame(&self) {
         if let Some(delay) = self.next_frame_delay() {
             self.frame_requester.schedule_frame_in(delay);
@@ -218,6 +230,8 @@ impl AmbientPet {
     /// fit the image without overlapping reserved UI. Callers should not try to
     /// partially clip the image themselves; that would desynchronize the image
     /// protocol output from the TUI's notion of cleared rows.
+    /// 构造锚定在输入区上方的环境宠物绘制请求。协议不可用或空间不足时返回 `None`；
+    /// 调用方不得自行裁剪，否则图片协议输出会与 TUI 记录的清除行失去同步。
     pub(crate) fn draw_request(
         &self,
         area: Rect,
@@ -253,6 +267,7 @@ impl AmbientPet {
     /// The picker preview intentionally uses the first idle frame rather than
     /// the live animation state so selection browsing stays stable and does not
     /// require the full ambient animation lifecycle.
+    /// 为 `/pets` 侧栏构造居中的预览请求。预览固定使用 idle 首帧，避免浏览选择时引入实时动画生命周期。
     pub(crate) fn preview_draw_request(&self, area: Rect) -> Option<AmbientPetDraw> {
         let protocol = self.support.protocol()?;
         let size = self.image_size();
@@ -280,6 +295,7 @@ impl AmbientPet {
             .filter(|notification| !notification.is_expired(now))
     }
 
+    // 一次性动画结束后切换到声明的回退轨道；循环动画则继续使用自身。
     fn current_animation(&self) -> Option<&Animation> {
         let animation_name = self
             .visible_notification(Instant::now())
@@ -300,6 +316,7 @@ impl AmbientPet {
         Some(animation)
     }
 
+    // 禁用动画时稳定返回当前轨道第一帧，以满足减少动态效果设置。
     fn current_frame_path(&self) -> Option<PathBuf> {
         let sprite_index = self
             .current_animation()
@@ -373,6 +390,7 @@ struct AnimationFrameTick {
     delay: Option<Duration>,
 }
 
+/// 计算当前动画帧与下一次需要重绘的剩余时间，循环段会对经过时间取模。
 fn current_animation_frame(animation: &Animation, elapsed: Duration) -> Option<AnimationFrameTick> {
     if animation.frames.len() <= 1 {
         return Some(AnimationFrameTick {
@@ -411,6 +429,7 @@ fn current_animation_frame(animation: &Animation, elapsed: Duration) -> Option<A
     }
 }
 
+/// 在线性帧序列中定位给定经过时间，并返回本帧剩余时长。
 fn frame_at_elapsed(animation: &Animation, elapsed_nanos: u128) -> Option<AnimationFrameTick> {
     let mut remaining_elapsed = elapsed_nanos;
     for frame in &animation.frames {
@@ -495,6 +514,7 @@ mod tests {
     use super::*;
 
     #[test]
+    // 验证通知标签与 Codex App 使用的产品词汇一致。
     fn notification_labels_match_codex_app_vocabulary() {
         assert_eq!(PetNotificationKind::Running.label(), "Running");
         assert_eq!(PetNotificationKind::Waiting.label(), "Needs input");
@@ -503,6 +523,7 @@ mod tests {
     }
 
     #[test]
+    // 验证调度延迟取自当前帧自身的持续时间，而非固定帧率。
     fn animation_frame_uses_per_frame_duration() {
         let animation = test_animation();
 
@@ -516,6 +537,7 @@ mod tests {
     }
 
     #[test]
+    // 验证减少动态效果时固定首帧且不再安排后续重绘。
     fn reduced_motion_uses_stable_first_frame_and_schedules_no_follow_up() {
         let pet = test_ambient_pet(
             FrameRequester::test_dummy(),

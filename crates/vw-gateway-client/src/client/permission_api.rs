@@ -65,8 +65,9 @@ impl GatewayClient {
         directory: Option<&str>,
         message: Option<String>,
     ) -> Result<bool, String> {
+        let request_id = required_request_id(request_id)?;
         self.post_json(
-            &format!("/v1/permission/{request_id}/reply"),
+            &format!("/v1/permission/{}/reply", encode_path_segment(request_id)),
             &directory_query(directory),
             &serde_json::json!({
                 "reply": reply,
@@ -75,6 +76,27 @@ impl GatewayClient {
         )
         .await
     }
+}
+
+fn required_request_id(request_id: &str) -> Result<&str, String> {
+    let request_id = request_id.trim();
+    if request_id.is_empty() {
+        return Err("permission request id must not be empty".to_string());
+    }
+    Ok(request_id)
+}
+
+fn encode_path_segment(value: &str) -> String {
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(char::from(byte));
+            }
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
 }
 
 #[cfg(test)]

@@ -1,3 +1,5 @@
+//! 根据终端色彩能力生成时间同步的文字闪烁样式。
+
 use std::sync::OnceLock;
 use std::time::Duration;
 use std::time::Instant;
@@ -19,10 +21,12 @@ fn elapsed_since_start() -> Duration {
 }
 
 pub(super) fn shimmer_spans(text: &str) -> Vec<Span<'static>> {
+    // 以字符而非字节分割，确保多字节文本不会在 UTF-8 中间断开。
     let chars: Vec<char> = text.chars().collect();
     if chars.is_empty() {
         return Vec::new();
     }
+    // 使用相对进程启动时间同步的扫光位置，使不同调用方动画保持一致。
     // Use time-based sweep synchronized to process start.
     let padding = 10usize;
     let period = chars.len() + padding * 2;
@@ -52,6 +56,7 @@ pub(super) fn shimmer_spans(text: &str) -> Vec<Span<'static>> {
         let style = if has_true_color {
             let highlight = t.clamp(0.0, 1.0);
             let (r, g, b) = blend(highlight_color, base_color, highlight * 0.9);
+            // 此处允许自定义 RGB，因为实现只是在默认前景色基础上细调亮度。
             // Allow custom RGB colors, as the implementation is thoughtfully
             // adjusting the level of the default foreground color.
             #[allow(clippy::disallowed_methods)]
@@ -67,6 +72,7 @@ pub(super) fn shimmer_spans(text: &str) -> Vec<Span<'static>> {
 }
 
 fn color_for_level(intensity: f32) -> Style {
+    // 调整回退样式，使不支持 RGB 的终端仍能辨认扫光带。
     // Tune fallback styling so the shimmer band reads even without RGB support.
     if intensity < 0.2 {
         Style::default().add_modifier(Modifier::DIM)

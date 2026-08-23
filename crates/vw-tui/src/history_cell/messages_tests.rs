@@ -1,9 +1,13 @@
+//! 覆盖消息清理与已完成 Markdown 历史单元的渲染缓存行为。
+//! 用例区分借用/拥有缓冲区，并验证缓存仅在所有渲染上下文一致时复用。
+
 use super::*;
 use crate::history_cell::markdown_render_cache::MarkdownRenderCacheKey;
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 
 #[test]
+// 借用输入在无需修改时保持零拷贝，控制序列和孤立控制字符则必须被移除。
 fn sanitizer_borrows_clean_text_and_removes_control_sequences() {
     for (text, expected) in [
         ("clean\ttext\n", "clean\ttext\n"),
@@ -29,6 +33,7 @@ fn sanitizer_borrows_clean_text_and_removes_control_sequences() {
 }
 
 #[test]
+// 已拥有的输入应原地清理，避免仅因裁剪边缘控制码而重新分配缓冲区。
 fn sanitizer_preserves_owned_buffer_for_clean_and_edge_trimmed_text() {
     for (text, expected) in [
         ("clean\ttext\n", "clean\ttext\n"),
@@ -52,6 +57,7 @@ fn sanitizer_preserves_owned_buffer_for_clean_and_edge_trimmed_text() {
 }
 
 #[test]
+// 多段清理结果应预留足够容量，防止拼接可见片段时反复扩容。
 fn sanitizer_preallocates_owned_multi_fragment_text() {
     let text = "before\x1b[31mafter\x07".to_string();
     let original_length = text.len();
@@ -66,6 +72,7 @@ fn replace_cached_lines(
     cell: &AgentMarkdownCell,
     update_key: impl FnOnce(&mut MarkdownRenderCacheKey),
 ) {
+    // 用哨兵行替换缓存，并允许用例定向破坏缓存键的某个维度。
     let rendered_lines = cell
         .rendered_lines
         .as_ref()
@@ -79,6 +86,7 @@ fn replace_cached_lines(
 }
 
 #[test]
+// 高度测量预热的缓存应被随后的转录渲染直接复用。
 fn finalized_markdown_reuses_lines_primed_by_transcript_height() {
     let cell = AgentMarkdownCell::new("finalized **markdown**".to_string(), Path::new("/tmp"));
     let width = 48;
@@ -93,6 +101,7 @@ fn finalized_markdown_reuses_lines_primed_by_transcript_height() {
 }
 
 #[test]
+// 宽度、主题修订或终端前景色任一变化都应使富文本缓存失效。
 fn finalized_markdown_cache_misses_when_width_or_render_style_changes() {
     let cell = AgentMarkdownCell::new("finalized **markdown**".to_string(), Path::new("/tmp"));
     let width = 48;
@@ -115,6 +124,7 @@ fn finalized_markdown_cache_misses_when_width_or_render_style_changes() {
 }
 
 #[test]
+// 原始模式必须绕过富文本缓存，返回未解释的 Markdown 源文。
 fn raw_markdown_bypasses_the_rich_render_cache() {
     let source = "finalized **markdown**";
     let cell = AgentMarkdownCell::new(source.to_string(), Path::new("/tmp"));
@@ -130,6 +140,7 @@ fn raw_markdown_bypasses_the_rich_render_cache() {
 }
 
 #[test]
+// 可视化指令依赖外部文件状态，不能被普通 Markdown 行缓存固化。
 fn visualization_directives_are_not_cached() {
     for markdown in [
         "::codex-inline-vis{file=\"chart.html\"}",

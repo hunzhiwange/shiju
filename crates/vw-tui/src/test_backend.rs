@@ -1,3 +1,5 @@
+//! 用 Crossterm 写入接口和 vt100 解析器模拟不会触碰真实终端的测试后端。
+
 use std::fmt::{self};
 use std::io::Write;
 use std::io::{self};
@@ -12,8 +14,11 @@ use ratatui::layout::Position;
 use ratatui::layout::Size;
 
 /// This wraps a CrosstermBackend and a vt100::Parser to mock
+/// 包装 `CrosstermBackend` 与 `vt100::Parser` 以模拟真实终端。
 /// a "real" terminal.
 ///
+/// 关键点是避免调用任何无视目标 writer、仍会写入标准输出的 crossterm 方法，
+/// 包括读取终端尺寸和光标位置。
 /// Importantly, this wrapper avoids calling any crossterm methods
 /// which write to stdout regardless of the writer. This includes:
 /// - getting the terminal size
@@ -23,12 +28,14 @@ pub struct VT100Backend {
 }
 
 impl VT100Backend {
+    /// 以指定宽高创建不带回滚区的测试后端。
     /// Creates a new `TestBackend` with the specified width and height.
     pub fn new(width: u16, height: u16) -> Self {
         Self::with_scrollback(width, height, /*scrollback_len*/ 0)
     }
 
     pub fn with_scrollback(width: u16, height: u16, scrollback_len: usize) -> Self {
+        // 强制颜色输出，使样式测试不受运行测试的终端能力影响。
         crossterm::style::force_color_output(true);
         Self {
             crossterm_backend: CrosstermBackend::new(vt100::Parser::new(
@@ -82,6 +89,7 @@ impl Backend for VT100Backend {
     }
 
     fn get_cursor_position(&mut self) -> io::Result<Position> {
+        // 直接读取 vt100 屏幕模型，避免查询宿主终端。
         Ok(self.vt100().screen().cursor_position().into())
     }
 
@@ -109,6 +117,7 @@ impl Backend for VT100Backend {
     fn window_size(&mut self) -> io::Result<WindowSize> {
         Ok(WindowSize {
             columns_rows: self.vt100().screen().size().into(),
+            // 像素尺寸为任意占位值，测试只依赖字符行列。
             // Arbitrary size, we don't rely on this in testing.
             pixels: Size {
                 width: 640,

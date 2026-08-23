@@ -1,3 +1,5 @@
+//! 验证自定义提示输入框的粘贴突发判定、提交时机、Vim 模式和底部提示渲染。
+
 use super::*;
 use crate::key_hint;
 use crate::keymap::KeymapContext;
@@ -6,6 +8,7 @@ use pretty_assertions::assert_eq;
 use std::sync::mpsc::Receiver;
 
 #[test]
+// 快速输入的短首行后紧跟 Enter 应作为粘贴换行，延迟后的 Enter 才提交完整文本。
 fn paste_burst_newline_does_not_submit_short_first_line() {
     let now = Instant::now();
 
@@ -38,6 +41,7 @@ fn paste_burst_newline_does_not_submit_short_first_line() {
 }
 
 #[test]
+// 粘贴突发中 Tab 后的快速 Enter 仍插入换行，不能提前确认提示。
 fn paste_burst_newline_after_tab_does_not_submit() {
     let (mut view, submitted_rx) = custom_prompt_view();
     let now = Instant::now();
@@ -64,6 +68,7 @@ fn paste_burst_newline_after_tab_does_not_submit() {
 }
 
 #[test]
+// 普通键入结束后超过突发窗口的 Enter 应立即提交而非换行。
 fn delayed_enter_after_typing_submits() {
     let (mut view, submitted_rx) = custom_prompt_view();
     let now = Instant::now();
@@ -78,6 +83,7 @@ fn delayed_enter_after_typing_submits() {
 }
 
 #[test]
+// Vim 插入模式的 Esc 先结束突发并进入普通模式，使随后的 Enter 可确认输入。
 fn vim_insert_escape_clears_paste_burst_before_enter() {
     let (mut view, submitted_rx) = custom_prompt_view();
     let now = Instant::now();
@@ -94,6 +100,7 @@ fn vim_insert_escape_clears_paste_burst_before_enter() {
 }
 
 #[test]
+// 页脚提示随 Vim 插入/普通模式、终端宽度和模式配色同步变化。
 fn vim_prompt_hint_tracks_escape_behavior() {
     let (mut view, _submitted_rx) = custom_prompt_view();
     let rendered_hint = |view: &CustomPromptView, width: u16| {
@@ -126,6 +133,7 @@ fn vim_prompt_hint_tracks_escape_behavior() {
 }
 
 #[test]
+// 光标形态、按键上下文和可重绑定命令必须随 Vim 子状态完整切换。
 fn vim_insert_cursor_tracks_mode_and_normal_mode_commands() {
     let (mut view, _submitted_rx) = custom_prompt_view();
     let area = Rect::new(0, 0, 80, 10);
@@ -201,6 +209,7 @@ fn vim_insert_cursor_tracks_mode_and_normal_mode_commands() {
 }
 
 #[test]
+// 未启用 Vim 时，Esc 保持自定义提示的直接取消语义。
 fn escape_without_vim_cancels_prompt() {
     let (mut view, _submitted_rx) = custom_prompt_view();
 
@@ -210,6 +219,7 @@ fn escape_without_vim_cancels_prompt() {
     assert_eq!(view.completion(), Some(ViewCompletion::Cancelled));
 }
 
+// 为每个场景提供独立提交通道，以同时验证完成状态和实际提交正文。
 fn custom_prompt_view() -> (CustomPromptView, Receiver<String>) {
     let (submitted, submitted_rx) = std::sync::mpsc::channel();
     let view = CustomPromptView::new(
@@ -224,6 +234,7 @@ fn custom_prompt_view() -> (CustomPromptView, Receiver<String>) {
     (view, submitted_rx)
 }
 
+// 将毫秒时间线转换为事件时间差，精确控制粘贴突发边界。
 fn elapsed(ms: usize) -> std::time::Duration {
     std::time::Duration::from_millis(ms as u64)
 }

@@ -1,3 +1,8 @@
+//! 验证 `/goal` 目标文本在长度边界、换行和大段粘贴下的提交语义。
+//! 夹具负责完成轮次、提交编辑器内容以及提取发往核心的目标对象。
+//! 直接提交与排队提交应保留同一目标内容，并在消费后正确停止排队。
+//! 带结构化粘贴元素的目标只发送实际插入范围，避免泄漏相邻草稿文本。
+
 use super::*;
 use codex_protocol::protocol::MAX_THREAD_GOAL_OBJECTIVE_CHARS;
 use pretty_assertions::assert_eq;
@@ -50,6 +55,7 @@ fn next_goal_objective(
 
 #[tokio::test]
 async fn goal_slash_command_accepts_objective_at_limit() {
+    // 恰好达到长度上限的目标仍可提交，避免边界判断少接收一个字符。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     let thread_id = ThreadId::new();
@@ -75,6 +81,7 @@ async fn goal_slash_command_accepts_objective_at_limit() {
 
 #[tokio::test]
 async fn goal_slash_command_accepts_multiline_objective_after_blank_first_line() {
+    // 首行空白的多行目标按有效正文解析，而不是误判为空命令。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     let thread_id = ThreadId::new();
@@ -113,6 +120,7 @@ async fn goal_slash_command_emits_oversized_objective() {
 
 #[tokio::test]
 async fn goal_slash_command_preserves_large_pasted_objective() {
+    // 大段粘贴经过编辑器占位机制后仍恢复完整目标文本。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     let thread_id = ThreadId::new();
@@ -135,6 +143,7 @@ async fn goal_slash_command_preserves_large_pasted_objective() {
 
 #[tokio::test]
 async fn queued_goal_slash_command_emits_oversized_objective_and_stops_queue() {
+    // 排队目标保留超长载荷，并在目标事件发出后停止继续排空普通输入。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     let thread_id = ThreadId::new();

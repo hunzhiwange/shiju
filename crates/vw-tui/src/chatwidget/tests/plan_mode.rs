@@ -1,3 +1,8 @@
+//! 验证计划模式的切换、推理覆盖、计划实施提示和输入提交语义。
+//! 夹具固定线程会话与隐藏 shell 粘贴，隔离模式逻辑和文本恢复边界。
+//! 测试区分全局默认、计划专用覆盖与运行中有效配置，避免静默改写其他模式。
+//! 回放、排队、流式计划和模型不可用场景必须保持提示与提交状态一致。
+
 use super::*;
 use pretty_assertions::assert_eq;
 
@@ -80,6 +85,7 @@ fn plan_mode_nudge_matches_only_standalone_plain_text_keyword() {
 
 #[tokio::test]
 async fn plan_mode_nudge_shows_only_for_eligible_default_mode_drafts() {
+    // 计划提示只匹配默认模式中的独立纯文本关键词，并受任务与弹窗状态抑制。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5")).await;
     set_composer_text(&mut chat, "make a plan");
     chat.pre_draw_tick();
@@ -128,6 +134,7 @@ async fn plan_mode_nudge_hides_while_task_or_modal_is_active() {
 
 #[tokio::test]
 async fn plan_mode_nudge_dismissal_is_scoped_to_current_thread() {
+    // 计划提示的关闭状态按线程隔离，切换线程后仍可对新草稿提示。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5")).await;
     let first_thread = ThreadId::new();
     let second_thread = ThreadId::new();
@@ -192,6 +199,7 @@ async fn plan_mode_nudge_narrow_snapshot() {
 
 #[tokio::test]
 async fn plan_implementation_popup_snapshot() {
+    // 实施提示覆盖上下文用量、有无选中项以及清空上下文的事件分支。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5")).await;
     chat.on_plan_item_completed("- Step 1\n- Step 2\n".to_string());
     chat.open_plan_implementation_prompt();
@@ -226,6 +234,7 @@ async fn plan_implementation_popup_no_selected_snapshot() {
 
 #[tokio::test]
 async fn plan_implementation_popup_yes_emits_submit_message_event() {
+    // 实施选择分别映射为保留上下文提交和清空上下文后提交。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5")).await;
     chat.open_plan_implementation_prompt();
 
@@ -332,6 +341,7 @@ async fn plan_implementation_clear_context_requires_default_mode_and_plan() {
 
 #[tokio::test]
 async fn submit_user_message_with_mode_sets_coding_collaboration_mode() {
+    // 显式模式提交携带当前协作设置，运行中切换模式则返回清晰错误。
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5")).await;
     chat.thread_id = Some(ThreadId::new());
     chat.set_feature_enabled(Feature::CollaborationModes, /*enabled*/ true);
@@ -358,6 +368,7 @@ async fn submit_user_message_with_mode_sets_coding_collaboration_mode() {
 
 #[tokio::test]
 async fn reasoning_selection_in_plan_mode_opens_scope_prompt_event() {
+    // 计划模式调整推理时先询问作用域，避免意外改写全部模式。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
     chat.thread_id = Some(ThreadId::new());
     chat.set_feature_enabled(Feature::CollaborationModes, /*enabled*/ true);
@@ -428,6 +439,8 @@ async fn reasoning_selection_in_plan_mode_matching_plan_effort_but_different_glo
     let _ = drain_insert_history(&mut rx);
     set_chatgpt_auth(&mut chat);
 
+    // 复现场景：计划模式有效推理仍为预设值 medium，而全局默认值为 high；
+    // 在当前计划选项上按回车应打开作用域提示，不得静默改写全局默认值。
     // Reproduce: Plan effective reasoning remains the preset (medium), but the
     // global default differs (high). Pressing Enter on the current Plan choice
     // should open the scope prompt rather than silently rewriting the global default.
@@ -596,6 +609,7 @@ async fn reasoning_selection_in_plan_mode_model_switch_does_not_open_scope_promp
 
 #[tokio::test]
 async fn plan_reasoning_scope_popup_all_modes_persists_global_and_plan_override() {
+    // 作用域选择决定仅更新计划覆盖，还是同时持久化全局推理值。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
     chat.open_plan_reasoning_scope_prompt("gpt-5.4".to_string(), Some(ReasoningEffortConfig::High));
 
@@ -690,6 +704,7 @@ async fn agent_turn_complete_does_not_override_pending_plan_mode_prompt_notifica
 
 #[tokio::test]
 async fn request_user_input_notification_overrides_pending_agent_turn_complete_notification() {
+    // 阻塞式用户输入请求优先于普通轮次完成通知，防止重要提示被遮盖。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
 
     chat.notify(Notification::AgentTurnComplete {
@@ -833,6 +848,7 @@ async fn submit_user_message_with_mode_errors_when_mode_changes_during_running_t
 
 #[tokio::test]
 async fn submit_user_message_blocks_when_thread_model_is_unavailable() {
+    // 当前线程模型不可用时阻止提交，但同模式运行中引导仍可安全排队。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     chat.set_model("");
@@ -915,6 +931,7 @@ async fn submit_user_message_with_mode_submits_when_plan_stream_is_not_active() 
 
 #[tokio::test]
 async fn plan_implementation_popup_skips_replayed_turn_complete() {
+    // 回放完成、排队消息或缺少计划正文时不应弹出实施提示。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5")).await;
     chat.set_feature_enabled(Feature::CollaborationModes, /*enabled*/ true);
     let plan_mask = collaboration_modes::mask_for_kind(chat.model_catalog.as_ref(), ModeKind::Plan)
@@ -1072,6 +1089,7 @@ async fn plan_implementation_popup_skips_without_proposed_plan() {
 
 #[tokio::test]
 async fn plan_implementation_popup_shows_after_proposed_plan_output() {
+    // 只有最新有效计划输出且之后没有引导或限流提示时才展示实施弹窗。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5")).await;
     chat.set_feature_enabled(Feature::CollaborationModes, /*enabled*/ true);
     let plan_mask = collaboration_modes::mask_for_kind(chat.model_catalog.as_ref(), ModeKind::Plan)
@@ -1217,6 +1235,7 @@ async fn plan_implementation_popup_skips_when_rate_limit_prompt_pending() {
 
 #[tokio::test]
 async fn plan_completion_restores_status_indicator_after_streaming_plan_output() {
+    // 计划流结束恢复状态指示，未终止增量不得重复重绘相同尾部。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::CollaborationModes, /*enabled*/ true);
     let plan_mask = collaboration_modes::mask_for_kind(chat.model_catalog.as_ref(), ModeKind::Plan)
@@ -1342,6 +1361,7 @@ async fn submit_user_message_queues_while_compaction_turn_is_running() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn submit_user_message_emits_structured_plugin_mentions_from_bindings() {
+    // 计划提交把插件提及绑定转换为结构化输入，保持正文与绑定对应。
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let thread_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
@@ -1455,6 +1475,7 @@ async fn collab_mode_shift_tab_cycles_only_when_idle() {
 
 #[tokio::test]
 async fn mode_switch_surfaces_model_change_notification_when_effective_model_changes() {
+    // 模式切换只在有效模型或推理实际变化时显示对应通知。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5")).await;
     chat.set_feature_enabled(Feature::CollaborationModes, /*enabled*/ true);
     let default_model = chat.current_model().to_string();
@@ -1515,6 +1536,7 @@ async fn mode_switch_surfaces_reasoning_change_notification_when_model_stays_sam
 
 #[tokio::test]
 async fn plan_slash_command_switches_to_plan_mode() {
+    // `/plan` 无参数切换模式，带参数则以计划模式提交并保留隐藏粘贴文本。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::CollaborationModes, /*enabled*/ true);
     let initial = chat.current_collaboration_mode().clone();
@@ -1646,6 +1668,7 @@ async fn plan_slash_command_with_hidden_shell_paste_queued_before_session_submit
 
 #[tokio::test]
 async fn rejected_initial_image_does_not_submit_later_queued_prompt() {
+    // 初始图片被拒后不得误提交随后排队的提示，输入恢复仍保持原顺序。
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let current_model = chat.current_model().to_string();
     let mut models = chat.model_catalog.try_list_models().expect("model catalog");
@@ -1676,6 +1699,7 @@ async fn rejected_initial_image_does_not_submit_later_queued_prompt() {
 
 #[tokio::test]
 async fn collaboration_modes_defaults_to_code_on_startup() {
+    // 启动默认值、Vim 模式和命令行覆盖共同决定初始协作与输入状态。
     let chat = make_startup_chat_with_cli_overrides(vec![(
         "features.collaboration_modes".to_string(),
         TomlValue::Boolean(true),
@@ -1822,6 +1846,7 @@ async fn collab_mode_is_sent_after_enabling() {
 
 #[tokio::test]
 async fn collab_mode_applies_default_preset() {
+    // 启用协作模式应用默认预设，并把模式、推理和个性写入后续用户轮次。
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.5")).await;
     chat.thread_id = Some(ThreadId::new());
 

@@ -1,3 +1,8 @@
+//! 补丁摘要与图像工具转录辅助逻辑。
+//!
+//! 补丁历史只展示协议提供的文件级摘要，不在这里解析或应用补丁。
+//! 成功与失败使用不同标题和颜色，但始终保留调用结果的真实状态。
+//! 图像工具路径按普通展示文本处理，不触发文件读取或外部访问。
 //! Patch summaries and image-tool transcript helpers.
 
 use super::*;
@@ -22,6 +27,8 @@ impl HistoryCell for PatchHistoryCell {
         ))
     }
 }
+/// 创建列出文件级拟议变更摘要的 `PendingPatch` 单元。
+/// 摘要行应已完成格式化，例如 `A path/to/file.rs`。
 /// Create a new `PendingPatch` cell that lists the file‑level summary of
 /// a proposed patch. The summary lines should already be formatted (e.g.
 /// "A path/to/file.rs").
@@ -38,6 +45,7 @@ pub(crate) fn new_patch_event(
 pub(crate) fn new_patch_apply_failure(stderr: String) -> PlainHistoryCell {
     let mut lines: Vec<Line<'static>> = Vec::new();
 
+    // 失败标题。
     // Failure title
     lines.push(Line::from("✘ Failed to apply patch".magenta().bold()));
 

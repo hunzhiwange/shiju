@@ -1,3 +1,5 @@
+//! 验证高推理档位点火效果的能力门控、颜色降级、动画时序和绘制安全边界。
+
 use super::styles::envelope;
 use super::styles::paint_style;
 use super::styles::spark_frame;
@@ -10,6 +12,7 @@ const WIDTH: u16 = 44;
 const HEIGHT: u16 = 3;
 const DRAFT: &str = "  > keep my draft exactly as typed";
 
+// 构造带受保护草稿行的缓冲区，用于检查动画不会覆盖用户输入。
 fn test_buffer(area: Rect) -> Buffer {
     let mut buf = Buffer::empty(area);
     if area.height > 1 {
@@ -20,6 +23,7 @@ fn test_buffer(area: Rect) -> Buffer {
     buf
 }
 
+// 同时提取字形与背景着色掩码，让快照可观察动画内容和覆盖范围。
 fn frame(area: Rect, buf: &Buffer) -> Vec<String> {
     let symbols = (area.y..area.bottom()).map(|row| {
         (area.x..area.right())
@@ -40,6 +44,7 @@ fn frame(area: Rect, buf: &Buffer) -> Vec<String> {
     symbols.chain(tint).collect()
 }
 
+// 为动画画廊提供稳定名称，避免快照依赖调试格式。
 fn style_name(style: IgnitionStyle) -> &'static str {
     match style {
         IgnitionStyle::Wave => "wave",
@@ -48,6 +53,7 @@ fn style_name(style: IgnitionStyle) -> &'static str {
     }
 }
 
+// 按真实终端背景和受保护行配置画布，复用生产绘制入口。
 fn paint(tier: EffortTier, style: IgnitionStyle, elapsed: Duration, area: Rect, buf: &mut Buffer) {
     let term_bg = (18, 22, 28);
     let mut canvas = Canvas {
@@ -72,6 +78,7 @@ fn paint(tier: EffortTier, style: IgnitionStyle, elapsed: Duration, area: Rect, 
 }
 
 #[test]
+// 只有 Max 与 Ultra 映射为可点火档位，其余推理强度不启用该视觉层级。
 fn effort_tier_maps_only_max_and_ultra() {
     assert_eq!(
         [
@@ -86,6 +93,7 @@ fn effort_tier_maps_only_max_and_ultra() {
 }
 
 #[test]
+// 动画同时要求用户允许动态效果，且终端至少具备可靠的 256 色能力。
 fn effort_animation_requires_motion_and_a_reliable_palette() {
     for (color_level, supported) in [
         (StdoutColorLevel::TrueColor, true),
@@ -105,6 +113,7 @@ fn effort_animation_requires_motion_and_a_reliable_palette() {
 }
 
 #[test]
+// 真彩强调色应结合前景和背景，在明暗终端上都保持可辨识对比度。
 fn prompt_accent_blends_with_the_terminal_foreground() {
     for (tier, fg, bg, expected) in [
         (
@@ -128,6 +137,7 @@ fn prompt_accent_blends_with_the_terminal_foreground() {
 }
 
 #[test]
+// 颜色能力下降时依次回退到索引色、基础色，未知能力则拒绝提供强调色。
 fn prompt_accent_degrades_with_terminal_color_support() {
     let fg = (224, 220, 214);
     let bg = (18, 22, 28);
@@ -162,6 +172,7 @@ fn prompt_accent_degrades_with_terminal_color_support() {
 }
 
 #[test]
+// Max 与 Ultra 提示符分别使用对应字形、颜色和粗体强调。
 fn max_and_ultra_prompts_render_their_accent_and_glyph() {
     let area = Rect::new(
         /*x*/ 0, /*y*/ 0, /*width*/ 1, /*height*/ 1,
@@ -186,6 +197,7 @@ fn max_and_ultra_prompts_render_their_accent_and_glyph() {
 }
 
 #[test]
+// 空绘制区域不启动时钟，防止动画在首个可见帧之前悄然耗尽。
 fn effort_ignition_clock_waits_for_its_first_visible_frame() {
     let ignition = EffortIgnition::new(EffortTier::Ultra, IgnitionStyle::Wave);
     let area = Rect::default();
@@ -199,6 +211,7 @@ fn effort_ignition_clock_waits_for_its_first_visible_frame() {
 
 #[cfg(unix)]
 #[test]
+// Unix 终端无法读取调色板时应直接结束，避免等待一个永远无法绘制的动画。
 fn effort_ignition_finishes_when_palette_is_unavailable() {
     let ignition = EffortIgnition::new(EffortTier::Ultra, IgnitionStyle::Wave);
     let area = Rect {
@@ -214,6 +227,7 @@ fn effort_ignition_finishes_when_palette_is_unavailable() {
 }
 
 #[test]
+// 随机选择必须排除上一种样式，避免连续升档呈现相同效果。
 fn effort_ignition_random_styles_do_not_repeat_immediately() {
     let mut previous = None;
     for _ in 0..100 {
@@ -224,6 +238,7 @@ fn effort_ignition_random_styles_do_not_repeat_immediately() {
 }
 
 #[test]
+// 包络函数在时间窗外为零，并在淡入淡出之间保持满强度。
 fn envelope_is_zero_outside_and_full_in_the_middle() {
     assert_eq!(
         [0.0, 1.0, 0.5].map(|elapsed| {
@@ -236,6 +251,7 @@ fn envelope_is_zero_outside_and_full_in_the_middle() {
 }
 
 #[test]
+// 波浪只在扫过编辑器的有效时间段着色，开始前和结束后保持空白。
 fn wave_only_paints_while_a_sweep_is_crossing_the_composer() {
     let area = Rect::new(/*x*/ 0, /*y*/ 0, WIDTH, HEIGHT);
     for (millis, expected) in [(0, false), (475, true), (3000, false)] {
@@ -255,6 +271,7 @@ fn wave_only_paints_while_a_sweep_is_crossing_the_composer() {
 }
 
 #[test]
+// 火花帧从落点后开始，按亮起、峰值、衰减顺序结束。
 fn spark_only_fires_after_landing() {
     let start = Duration::from_millis(900);
     assert_eq!(
@@ -265,6 +282,7 @@ fn spark_only_fires_after_landing() {
 }
 
 #[test]
+// 每种样式都必须产生可见内容，同时完整保留受保护的草稿行。
 fn effort_ignition_styles_preserve_draft_and_paint_expected_content() {
     let area = Rect::new(/*x*/ 0, /*y*/ 0, WIDTH, HEIGHT);
     for style in IgnitionStyle::ALL {
@@ -296,6 +314,7 @@ fn effort_ignition_styles_preserve_draft_and_paint_expected_content() {
 }
 
 #[test]
+// 所有样式在零尺寸、极窄尺寸和带偏移区域中都不得越界绘制。
 fn effort_ignition_styles_are_safe_on_tiny_and_offset_areas() {
     for style in IgnitionStyle::ALL {
         for width in 0..=8 {
@@ -322,6 +341,7 @@ fn effort_ignition_styles_are_safe_on_tiny_and_offset_areas() {
 }
 
 #[test]
+// 画廊快照固定两档、三种样式和关键时间点的完整动画序列。
 fn effort_ignition_animation_gallery_snapshot() {
     let area = Rect::new(/*x*/ 0, /*y*/ 0, WIDTH, HEIGHT);
     let mut frames = Vec::new();

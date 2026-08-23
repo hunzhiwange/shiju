@@ -1,3 +1,10 @@
+//! TUI 转录的底层 Markdown 事件渲染器。
+//!
+//! 本模块消费 pulldown-cmark 事件并生成带样式 Ratatui 行，负责折行、表格布局和本地文件链接展示。
+//! 本地链接显示真实目标而非任意标签，可规范化位置后缀，并在已知工作目录下缩短绝对路径。
+//! 表格先过滤宽松解析产生的溢出行，再统一列数、分配宽度并选择网格或纵向键值表示。
+//! 列按叙述文本、长令牌和紧凑值分类；长路径优先让出宽度，紧凑值最后缩减。
+//! 当最小列宽仍无法容纳或正文坍缩为高窄条时，带正文表格回退为键值记录。
 //! Low-level markdown event renderer for the TUI transcript.
 //!
 //! This module consumes `pulldown-cmark` events and emits styled `ratatui`
@@ -137,6 +144,10 @@ impl IndentContext {
     }
 }
 
+/// 正在解析表格中的单个单元格带样式内容。
+///
+/// 单元格可含硬换行和粗体、代码、链接等富文本 span；纯文本投影用于宽度测量，
+/// 带样式行用于最终渲染。
 /// Styled content of a single cell in the table being parsed.
 ///
 /// A cell can contain multiple lines (hard breaks inside the cell) and rich inline spans (bold,
@@ -147,6 +158,7 @@ struct TableCell {
     lines: Vec<HyperlinkLine>,
 }
 
+// `TableCell` 修改器内联，因为表格事件解析期间每个 span 都会调用。
 // TableCell mutators inlined — called per-span during table event parsing.
 impl TableCell {
     #[inline]
@@ -196,6 +208,10 @@ impl TableCell {
     }
 }
 
+/// 把 pulldown-cmark 表格事件累积为结构化表示。
+///
+/// `Tag::Table` 创建状态，`TagEnd::Table` 消费状态；期间正文写入当前单元格，
+/// 单元格结束时进入当前行，表头或行结束时再进入表头或正文记录。
 /// Accumulates pulldown-cmark table events into a structured representation.
 ///
 /// `TableState` is created on `Tag::Table` and consumed on `TagEnd::Table`. Between those events,
@@ -233,6 +249,10 @@ impl TableState {
     }
 }
 
+/// 按折行行为拆分的表格渲染输出。
+///
+/// `table_lines` 是预折行的对齐网格或键值记录；无正文表格可保留管道回退行。
+/// `spillover_lines` 是从解析伪影中提取、应走普通折行的段落文本。
 /// Rendered table output split by wrapping behavior.
 ///
 /// `table_lines` are prewrapped aligned rows or key/value records, except
@@ -245,36 +265,53 @@ struct RenderedTableLines {
     spillover_lines: Vec<HyperlinkLine>,
 }
 
+/// 用于宽度分配优先级的表格列分类。
+///
+/// 路径、URL 等长令牌列先于叙述正文折行；计数、状态词等紧凑列尽量保持可扫描。
 /// Classification of a table column for width-allocation priority.
 ///
 /// Token-heavy columns such as paths and URLs are allowed to wrap before prose becomes unreadable.
 /// Compact columns such as counts or status words resist wrapping so their values stay scannable.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TableColumnKind {
+    /// 长篇叙述内容：平均每单元格至少四词或平均字符宽度至少 28。
     /// Long-form prose content (>= 4 avg words/cell or >= 28 avg char width).
     Narrative,
+    /// 由路径、URL、哈希等长令牌主导的内容。
     /// Content dominated by long tokens, such as paths, URLs, and hashes.
     TokenHeavy,
+    /// 计数、状态标签等应尽量避免折行的短值。
     /// Short values, such as counts and status labels, that should resist wrapping.
     Compact,
 }
 
+/// 驱动宽度分配算法的逐列统计。
+///
+/// 在做出任何缩减决定前，通过一次表头与正文遍历收集。
 /// Per-column statistics used to drive the width-allocation algorithm.
 ///
 /// Collected in a single pass over the header and body rows before any
 /// shrinking decisions are made.
 #[derive(Clone, Debug)]
 struct TableColumnMetrics {
+    /// 表头及所有正文行中最宽单元格的显示宽度。
     /// Widest cell content (display width) across header and all body rows.
     max_width: usize,
+    /// 表头中最长空白分隔令牌的显示宽度。
     /// Display width of the longest whitespace-delimited token in the header.
     header_token_width: usize,
+    /// 正文行中最长空白分隔令牌的显示宽度。
     /// Display width of the longest whitespace-delimited token across body rows.
     body_token_width: usize,
+    /// 根据正文令牌密度与单元格平均内容推导的分类。
     /// Classification derived from body token density and average cell content.
     kind: TableColumnKind,
 }
 
+/// 使用默认折行行为渲染 Markdown。
+///
+/// 适用于调用者尚无具体宽度或有意延迟折行的场景；已知视口宽度时应使用带宽度入口，
+/// 使表格回退与行折行决定匹配可见终端。
 /// Render markdown with default wrapping behavior.
 ///
 /// Use this when the caller does not have a concrete render width yet (for
@@ -285,6 +322,10 @@ pub fn render_markdown_text(input: &str) -> Text<'static> {
     render_markdown_text_with_width(input, /*width*/ None)
 }
 
+/// 在已知终端宽度约束下渲染 Markdown。
+///
+/// 值仍可扫描时保持列式表格，正文行无法可读容纳时回退为键值记录。
+/// 传入空宽度保留固有行宽并禁用写入器折行；本地链接相对进程工作目录展示。
 /// Render markdown constrained to a known terminal width.
 ///
 /// The renderer preserves columnar table structure while values remain
@@ -297,6 +338,9 @@ pub(crate) fn render_markdown_text_with_width(input: &str, width: Option<usize>)
     render_markdown_text_with_width_and_cwd(input, width, cwd.as_deref())
 }
 
+/// 使用显式工作目录渲染 Markdown 中的本地文件链接。
+///
+/// `cwd` 控制绝对本地目标如何缩短；传入会话目录可让完整渲染、历史单元和流式增量保持一致。
 /// Render markdown with an explicit working directory for local file links.
 ///
 /// The `cwd` parameter controls how absolute local targets are shortened before display. Passing
@@ -347,6 +391,9 @@ struct LinkState {
     destination: String,
     show_destination: bool,
     style_label: bool,
+    /// 本地文件链接预先渲染的展示文本。
+    ///
+    /// 存在时有意抑制 Markdown 标签，确保转录始终反映真实目标路径。
     /// Pre-rendered display text for local file links.
     ///
     /// When this is present, the markdown label is intentionally suppressed so the rendered
@@ -364,6 +411,7 @@ static COLON_LOCATION_SUFFIX_RE: LazyLock<Regex> =
         Err(error) => panic!("invalid location suffix regex: {error}"),
     });
 
+// 由 `load_location_suffix_regexes` 覆盖。
 // Covered by load_location_suffix_regexes.
 static HASH_LOCATION_SUFFIX_RE: LazyLock<Regex> =
     LazyLock::new(|| match Regex::new(r"^L\d+(?:C\d+)?(?:-L\d+(?:C\d+)?)?$") {
@@ -371,6 +419,10 @@ static HASH_LOCATION_SUFFIX_RE: LazyLock<Regex> =
         Err(error) => panic!("invalid hash location regex: {error}"),
     });
 
+/// 构建带样式 Ratatui 输出的有状态 pulldown-cmark 事件消费者。
+///
+/// 它跟踪内联样式嵌套、缩进与块引用上下文、列表编号，以及累积表格事件的可选状态。
+/// `wrap_width` 启用按宽度折行与列分配；为空时保留固有宽度。
 /// Stateful pulldown-cmark event consumer that builds styled `ratatui` output.
 ///
 /// Tracks inline style nesting, indent/blockquote context, list numbering,
@@ -488,6 +540,8 @@ where
             return;
         }
 
+        // 本地文件链接在 `TagEnd::Link` 时从目标渲染，因此描述性 `: ...` 前的软换行应保持行内，
+        // 避免把同一列表项拆成两行。
         // Local file links render from the destination at `TagEnd::Link`, so a Markdown soft break
         // immediately before a descriptive `: ...` should stay inline instead of splitting the
         // list item across two lines.
@@ -653,6 +707,8 @@ where
         }
         self.pending_marker_line = false;
 
+        // 已知语言的围栏代码块会先缓存正文，再在结束时批量高亮。
+        // pulldown-cmark 文本事件已含原始换行，必须逐字追加，额外分隔符会造成双换行。
         // When inside a fenced code block with a known language, accumulate
         // text into the buffer for batch highlighting in end_codeblock().
         // Append verbatim — pulldown-cmark text events already contain the
@@ -828,6 +884,7 @@ where
         }
         self.in_code_block = true;
 
+        // 从信息串提取首个语言令牌；逗号、空格等后续元数据不应妨碍语法查找。
         // Extract the language token from the info string.  CommonMark info
         // strings can contain metadata after the language, separated by commas,
         // spaces, or other delimiters (e.g. "rust,no_run", "rust title=demo").
@@ -849,6 +906,7 @@ where
     }
 
     fn end_codeblock(&mut self) {
+        // 已缓存且语言已知的代码在此统一执行语法高亮。
         // If we buffered code for a known language, syntax-highlight it now.
         if let Some(lang) = self.code_block_lang.take() {
             let code = std::mem::take(&mut self.code_block_buffer);
@@ -1030,6 +1088,10 @@ where
         }
     }
 
+    /// 把已完成 `TableState` 转换为带样式表格行。
+    ///
+    /// 流程依次过滤溢出行、统一列数、计算列宽，再选择对齐网格或键值记录。
+    /// 正文无法适配时回退为键值；无正文表格没有可转置记录，因此保留原始管道格式。
     /// Convert a completed `TableState` into styled table `Line`s.
     ///
     /// Pipeline: filter spillover rows -> normalize column counts -> compute
@@ -1055,6 +1117,8 @@ where
         let mut rows: Vec<Vec<TableCell>> = Vec::with_capacity(table_state.rows.len());
         for (row_idx, row) in table_state.rows.iter().enumerate() {
             let next_row = table_state.rows.get(row_idx + 1);
+            // pulldown-cmark 接受无管道正文行，可能把后续段落吞成多列表格的单单元格行；
+            // 此类行作为溢出文本放到表格之后渲染。
             // pulldown-cmark accepts body rows without pipes, which can turn a following paragraph
             // into a one-cell table row. For multi-column tables, treat those as spillover text
             // rendered after the table.
@@ -1161,6 +1225,7 @@ where
         row.resize(column_count, TableCell::default());
     }
 
+    /// 从内容预算中扣除水平边沟与逐单元格内边距。
     /// Subtract horizontal gutters and per-cell padding from the content budget.
     fn available_table_width(&self, column_count: usize) -> Option<usize> {
         self.wrap_width.map(|wrap_width| {
@@ -1173,6 +1238,7 @@ where
         })
     }
 
+    /// 返回键值记录回退渲染可用的完整内容预算。
     /// Return the full content budget for record fallback rendering.
     fn available_record_width(&self) -> Option<usize> {
         self.wrap_width.map(|wrap_width| {
@@ -1182,6 +1248,10 @@ where
         })
     }
 
+    /// 为对齐且带行分隔的表格渲染分配列宽。
+    ///
+    /// 每列从自然宽度开始，按长令牌、叙述文本、紧凑值顺序缩减，直到适配预算。
+    /// 即使每列最小三字符仍放不下时返回空，交由键值或管道回退。
     /// Allocate column widths for aligned, row-separated table rendering.
     ///
     /// Each column starts at its natural (max cell content) width, then columns
@@ -1293,6 +1363,10 @@ where
         metrics
     }
 
+    /// 在缩减循环进一步压缩前计算列的首选最小宽度。
+    ///
+    /// 叙述与长令牌列保留 16 单元软下限；紧凑列取表头和正文令牌宽度较大者，
+    /// 正文上限为 16，最终结果夹取到允许范围。
     /// Compute the preferred minimum width for a column before the shrink loop
     /// starts reducing it further.
     ///
@@ -1309,6 +1383,10 @@ where
         token_target.max(min_column_width).min(metrics.max_width)
     }
 
+    /// 按优先级缩减列，并在同一优先级内平衡余量。
+    ///
+    /// 长令牌先于叙述文本，紧凑列最后；同类中余量最大的列先缩减，保持形状相近的列平衡，
+    /// 同时避免每减一个显示单元都重新扫描长令牌。
     /// Shrink columns in priority order, balancing slack within each priority.
     ///
     /// Priority: TokenHeavy columns are shrunk before Narrative, then Compact.
@@ -1477,6 +1555,9 @@ where
         out
     }
 
+    /// 把仅有表头的表格渲染为原始管道分隔行（`| A | B |`）。
+    ///
+    /// 当列宽无法计算且没有正文可转置时使用；单元格内管道会转义为 `\|`，保持下游边界。
     /// Render a header-only table as raw pipe-delimited lines (`| A | B |`).
     ///
     /// Used when `compute_column_widths` returns `None` and there are no body
@@ -1556,6 +1637,9 @@ where
         out
     }
 
+    /// 把单个表格单元格内容折行到指定宽度，并跨折行保留粗体、代码、链接等富文本样式。
+    ///
+    /// 硬换行分隔的逻辑行独立折行；空单元格产生一条空行以维持行网格对齐。
     /// Wrap a single table cell's content to `width`, preserving rich inline
     /// styling (bold, code, links) across wrapped lines.
     ///
@@ -1585,6 +1669,10 @@ where
         wrapped
     }
 
+    /// 检测 pulldown-cmark 宽松表格解析产生的伪影行。
+    ///
+    /// 无前导管道的正文行可能把尾随段落吸收为多列表格的单单元格行，此类溢出行会提取为普通文本。
+    /// 启发式要求仅首单元格非空，并结合缺失管道、HTML 形状或 HTML 引导标签判断。
     /// Detect rows that are artifacts of pulldown-cmark's lenient table parsing.
     ///
     /// pulldown-cmark accepts body rows without leading pipes, which can absorb a
@@ -1609,6 +1697,7 @@ where
             return true;
         }
 
+        // 保持常见引导标签与 HTML 块溢出相邻，例如 `HTML block:` 后接 `<div ...>`。
         // Keep common intro + html-block spillover together:
         // "HTML block:" followed by "<div ...>".
         if first_text.trim_end().ends_with(':') {
@@ -1619,6 +1708,8 @@ where
                 return true;
             }
 
+            // pulldown 可能在对应 HTML 块行之前结束表格；此时尾随 HTML 引导标签应视为溢出，
+            // 但真实表格中的显式稀疏标签仍保留。
             // pulldown can end the table before the corresponding HTML block line.
             // In that case, treat trailing HTML-intro labels (e.g., "HTML block:")
             // as spillover while keeping explicit sparse labels in real tables.
@@ -1669,6 +1760,7 @@ where
         prefix.split_whitespace().any(|word| word.eq_ignore_ascii_case("html"))
     }
 
+    // 宽度测量辅助函数内联，因为每次重渲染计算列宽时都会逐单元格调用。
     // Width-measurement helpers inlined — called per-cell during table column
     // width computation, which runs on every re-render.
 
@@ -1726,6 +1818,8 @@ where
                 self.pop_inline_style();
             }
             if link.show_destination {
+                // 链接目标渲染为 ` (url)` 后缀；解析表格单元格时应追加到活动单元格缓冲区，
+                // 而不是外层段落行，以免 URL 与单元格内容分离。
                 // Link destinations are rendered as " (url)" suffixes. When parsing table cells,
                 // append the suffix into the active cell buffer rather than the outer paragraph
                 // line to avoid detached url lines.
@@ -1753,6 +1847,8 @@ where
                     self.push_span(")".into());
                 }
             } else if let Some(local_target_display) = link.local_target_display {
+                // 本地文件链接按类似代码的路径文本渲染，使转录展示解析后的真实目标，
+                // 而非调用者任意提供的标签。
                 // Local file links are rendered as code-like path text so the transcript shows the
                 // resolved target instead of arbitrary caller-provided label text.
                 let style =
@@ -1778,6 +1874,7 @@ where
     fn flush_current_line(&mut self) {
         if let Some(mut line) = self.current_line_content.take() {
             let style = self.current_line_style;
+            // 代码块内容有意不折行，以便复制粘贴时保留空白。
             // NB we don't wrap code in code blocks, in order to preserve whitespace for copy/paste.
             if !self.current_line_in_code_block
                 && let Some(width) = self.wrap_width
@@ -1810,6 +1907,10 @@ where
         }
     }
 
+    /// 推入已经按正确宽度布局的行，跳过自动换词折行。
+    ///
+    /// 表格行已带精确列宽和分隔符，再经普通折行会在任意位置破坏布局；
+    /// 此方法只补缩进或块引用前缀，然后直接写入输出。
     /// Push a line that has already been laid out at the correct width, skipping
     /// word wrapping.
     ///
@@ -1963,6 +2064,9 @@ fn is_local_path_like_link(dest_url: &str) -> bool {
         )
 }
 
+/// 把本地链接目标解析为规范化路径文本及可选位置后缀。
+///
+/// 接受 `file://` URL、绝对与相对路径、`~/...`、Windows 路径以及行列位置后缀。
 /// Parse a local link target into normalized path text plus an optional location suffix.
 ///
 /// This accepts the path shapes Codex emits today: `file://` URLs, absolute and relative paths,
@@ -1976,6 +2080,10 @@ fn render_local_link_target(dest_url: &str, cwd: Option<&Path>) -> Option<String
     Some(rendered)
 }
 
+/// 把本地链接目标拆成规范化路径文本与位置后缀。
+///
+/// 返回路径不含尾随位置，路径分隔符统一为稳定正斜杠；后缀单独以规范 Markdown 形式返回。
+/// 只有形似 `file://` 却无法解析成本地路径时返回空，普通路径形输入始终返回结果。
 /// Split a local-link destination into `(normalized_path_text, location_suffix)`.
 ///
 /// The returned path text never includes a trailing `#L..` or `:line[:col]` suffix. Path
@@ -1994,6 +2102,7 @@ fn parse_local_link_target(dest_url: &str) -> Option<(String, Option<String>)> {
 
     let mut path_text = dest_url;
     let mut location_suffix = None;
+    // 两种形式同时存在时优先 `#L..` 片段，避免把 `path#L10` 误判为以 `:10` 结尾的普通路径。
     // Prefer `#L..` style fragments when both forms are present so URLs like `path#L10` do not
     // get misparsed as a plain path ending in `:10`.
     if let Some((candidate_path, fragment)) = dest_url.rsplit_once('#')
@@ -2015,6 +2124,9 @@ fn parse_local_link_target(dest_url: &str) -> Option<(String, Option<String>)> {
     Some((expand_local_link_path(&decoded_path_text), location_suffix))
 }
 
+/// 把 `L12`、`L12C3-L14C9` 等哈希片段规范化为展示位置后缀。
+///
+/// 非位置片段返回空，使其他 `#...` 哈希继续作为路径文本的一部分。
 /// Normalize a hash fragment like `L12` or `L12C3-L14C9` into the display suffix we render.
 ///
 /// Returns `None` for fragments that are not location references. This deliberately ignores other
@@ -2026,6 +2138,7 @@ fn normalize_hash_location_suffix_fragment(fragment: &str) -> Option<String> {
         .and_then(|suffix| normalize_markdown_hash_location_suffix(&suffix))
 }
 
+// VibeWindow 适配：为这一解析器保持复制版渲染器自包含，不引入 Codex 通用字符串工具 crate。
 // VibeWindow adaptation: keep the copied renderer self-contained instead of
 // importing Codex's general-purpose string utility crate for this one parser.
 fn normalize_markdown_hash_location_suffix(suffix: &str) -> Option<String> {
@@ -2058,6 +2171,9 @@ fn normalize_markdown_hash_location_suffix(suffix: &str) -> Option<String> {
     Some(normalized)
 }
 
+/// 从普通路径形字符串提取尾随的行、行列或范围后缀。
+///
+/// 后缀必须位于输入末尾，路径中其他冒号保持不变，从而不会把 `C:/...` 等 Windows 盘符误判为位置。
 /// Extract a trailing `:line`, `:line:col`, or range suffix from a plain path-like string.
 ///
 /// The suffix must occur at the end of the input; embedded colons elsewhere in the path are left
@@ -2069,11 +2185,15 @@ fn extract_colon_location_suffix(path_text: &str) -> Option<String> {
         .map(|matched| matched.as_str().to_string())
 }
 
+/// 展开家目录相对路径，并规范化展示分隔符。
+///
+/// 家目录不可用时仍对原文本执行分隔符规范化，其余内容原样返回。
 /// Expand home-relative paths and normalize separators for display.
 ///
 /// If `~/...` cannot be expanded because the home directory is unavailable, the original text still
 /// goes through separator normalization and is returned as-is otherwise.
 fn expand_local_link_path(path_text: &str) -> String {
+    // 尽早展开 `~/...`，使家目录相对链接与绝对链接共用规范化和工作目录缩短路径。
     // Expand `~/...` eagerly so home-relative links can participate in the same normalization and
     // cwd-relative shortening path as absolute links.
     if let Some(rest) = path_text.strip_prefix("~/")
@@ -2085,6 +2205,10 @@ fn expand_local_link_path(path_text: &str) -> String {
     normalize_local_link_path_text(path_text)
 }
 
+/// 把 `file://` URL 转换为转录渲染使用的规范化本地路径文本。
+///
+/// 标准 URL 优先使用 `to_file_path()`；若 Windows 编码被拒绝，则从主机和路径重建展示文本，
+/// 使 UNC 与盘符 URL 仍可合理显示。
 /// Convert a `file://` URL into the normalized local-path text used for transcript rendering.
 ///
 /// This prefers `Url::to_file_path()` for standard file URLs. When that rejects Windows-oriented
@@ -2095,6 +2219,7 @@ fn file_url_to_local_path_text(url: &Url) -> Option<String> {
         return Some(normalize_local_link_path_text(&path.to_string_lossy()));
     }
 
+    // `to_file_path()` 拒绝时回退到字符串重建，重点覆盖 UNC 主机与 URL 形式的 Windows 盘符路径。
     // Fall back to string reconstruction for cases `to_file_path()` rejects, especially UNC-style
     // hosts and Windows drive paths encoded in URL form.
     let mut path_text = url.path().to_string();
@@ -2113,6 +2238,10 @@ fn file_url_to_local_path_text(url: &Url) -> Option<String> {
     Some(normalize_local_link_path_text(&path_text))
 }
 
+/// 把本地路径文本规范化为转录展示形式。
+///
+/// 该规范化纯词法处理：不访问文件系统、不解析符号链接，也不折叠 `.` 或 `..`。
+/// 它只统一正斜杠，并把 UNC 路径改写为稳定形式供后续前缀判断。
 /// Normalize local-path text into the transcript display form.
 ///
 /// Display normalization is intentionally lexical: it does not touch the filesystem, resolve
@@ -2120,6 +2249,7 @@ fn file_url_to_local_path_text(url: &Url) -> Option<String> {
 /// UNC-style `\\\\server\\share` inputs into `//server/share` so later prefix checks operate on a
 /// stable representation.
 fn normalize_local_link_path_text(path_text: &str) -> String {
+    // 所有本地链接统一用正斜杠展示，使混合 Windows/Unix 输入下的展示和前缀剥离稳定。
     // Render all local link paths with forward slashes so display and prefix stripping are stable
     // across mixed Windows and Unix-style inputs.
     if let Some(rest) = path_text.strip_prefix("\\\\") {
@@ -2138,6 +2268,9 @@ fn is_absolute_local_link_path(path_text: &str) -> bool {
         )
 }
 
+/// 移除本地路径尾随分隔符，同时保留根路径语义。
+///
+/// `/`、`//`、`C:/` 等根保持不变，使调用者仍能区分根本身与根下路径。
 /// Remove trailing separators from a local path without destroying root semantics.
 ///
 /// Roots like `/`, `//`, and `C:/` stay intact so callers can still distinguish "the root itself"
@@ -2152,6 +2285,9 @@ fn trim_trailing_local_path_separator(path_text: &str) -> &str {
     path_text.trim_end_matches('/')
 }
 
+/// 当 `path_text` 严格位于 `cwd_text` 之下时剥离工作目录前缀。
+///
+/// 返回不带前导斜杠的相对余量；路径恰等于工作目录时返回空，避免把它折叠为空字符串。
 /// Strip `cwd_text` from the start of `path_text` when `path_text` is strictly underneath it.
 ///
 /// Returns the relative remainder without a leading slash. If the path equals the cwd exactly, this
@@ -2164,6 +2300,7 @@ fn strip_local_path_prefix<'a>(path_text: &'a str, cwd_text: &str) -> Option<&'a
         return None;
     }
 
+    // 文件系统根单独处理，使 `/` 下的 `/tmp/x` 能缩短为 `tmp/x`，而非被通用分支遗漏。
     // Treat filesystem roots specially so `/tmp/x` under `/` becomes `tmp/x` instead of being
     // left unchanged by the generic prefix-stripping branch.
     if cwd_text == "/" || cwd_text == "//" {
@@ -2173,6 +2310,10 @@ fn strip_local_path_prefix<'a>(path_text: &'a str, cwd_text: &str) -> Option<&'a
     path_text.strip_prefix(cwd_text).and_then(|rest| rest.strip_prefix('/'))
 }
 
+/// 在规范化后选择本地链接的可见路径文本。
+///
+/// 相对路径保持相对；绝对路径仅在词法上位于 `cwd` 下时缩短，否则保留完整目标。
+/// 这只是展示逻辑，不执行文件系统规范化。
 /// Choose the visible path text for a local link after normalization.
 ///
 /// Relative paths stay relative. Absolute paths are shortened against `cwd` only when they are
@@ -2185,6 +2326,7 @@ fn display_local_link_path(path_text: &str, cwd: Option<&Path>) -> String {
     }
 
     if let Some(cwd) = cwd {
+        // 只缩短位于会话工作目录下的绝对路径，否则保留原始绝对目标以明确指向。
         // Only shorten absolute paths that are under the provided session cwd; otherwise preserve
         // the original absolute target for clarity.
         let cwd_text = normalize_local_link_path_text(&cwd.to_string_lossy());
@@ -2215,6 +2357,7 @@ mod tests {
     }
 
     #[test]
+    // 提供宽度时普通正文应按显示宽度折行。
     fn wraps_plain_text_when_width_provided() {
         let markdown = "This is a simple sentence that should wrap.";
         let rendered = render_markdown_text_with_width(markdown, Some(16));
@@ -2230,6 +2373,7 @@ mod tests {
     }
 
     #[test]
+    // 列表项折行后续行应保留列表正文缩进。
     fn wraps_list_items_preserving_indent() {
         let markdown = "- first second third fourth";
         let rendered = render_markdown_text_with_width(markdown, Some(14));
@@ -2238,6 +2382,7 @@ mod tests {
     }
 
     #[test]
+    // 嵌套列表折行不能丢失各层前缀与对齐关系。
     fn wraps_nested_lists() {
         let markdown =
             "- outer item with several words to wrap\n  - inner item that also needs wrapping";
@@ -2257,6 +2402,7 @@ mod tests {
     }
 
     #[test]
+    // 有序列表折行时编号和正文缩进应保持稳定。
     fn wraps_ordered_lists() {
         let markdown = "1. ordered item contains many words for wrapping";
         let rendered = render_markdown_text_with_width(markdown, Some(18));
@@ -2273,6 +2419,7 @@ mod tests {
     }
 
     #[test]
+    // 块引用折行后每条续行都应保留引用前缀。
     fn wraps_blockquotes() {
         let markdown = "> block quote with content that should wrap nicely";
         let rendered = render_markdown_text_with_width(markdown, Some(22));
@@ -2288,6 +2435,7 @@ mod tests {
     }
 
     #[test]
+    // 列表内块引用折行应同时保留列表和引用两层上下文。
     fn wraps_blockquotes_inside_lists() {
         let markdown = "- list item\n  > block quote inside list that wraps";
         let rendered = render_markdown_text_with_width(markdown, Some(24));
@@ -2303,6 +2451,7 @@ mod tests {
     }
 
     #[test]
+    // 包含块引用的列表项在折行时不得拆散层级标记。
     fn wraps_list_items_containing_blockquotes() {
         let markdown = "1. item with quote\n   > quoted text that should wrap";
         let rendered = render_markdown_text_with_width(markdown, Some(24));
@@ -2318,6 +2467,7 @@ mod tests {
     }
 
     #[test]
+    // 代码块不折行，以保持复制粘贴所需的原始空白。
     fn does_not_wrap_code_blocks() {
         let markdown = "````\nfn main() { println!(\"hi from a long line\"); }\n````";
         let rendered = render_markdown_text_with_width(markdown, Some(10));
@@ -2326,6 +2476,7 @@ mod tests {
     }
 
     #[test]
+    // 无协议长 URL 形令牌不应被强制拆断。
     fn does_not_split_long_url_like_token_without_scheme() {
         let url_like =
             "example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890";
@@ -2340,7 +2491,9 @@ mod tests {
     }
 
     #[test]
+    // 围栏信息串带元数据时仍能提取语言并执行高亮。
     fn fenced_code_info_string_with_metadata_highlights() {
+        // CommonMark 信息串可能在语言令牌后带元数据；必须提取首词或逗号前令牌才能正确高亮。
         // CommonMark info strings like "rust,no_run" or "rust title=demo"
         // contain metadata after the language token.  The language must be
         // extracted (first word / comma-separated token) so highlighting works.
@@ -2357,12 +2510,15 @@ mod tests {
     }
 
     #[test]
+    // CRLF 代码事件分裂后不能在真实代码行之间插入额外空行。
     fn crlf_code_block_no_extra_blank_lines() {
+        // pulldown-cmark 可能把 CRLF 代码块拆成多个 Text 事件；缓冲区必须逐字拼接，不插入分隔符。
         // pulldown-cmark can split CRLF code blocks into multiple Text events.
         // The buffer must concatenate them verbatim — no inserted separators.
         let markdown = "```rust\r\nfn main() {}\r\n    line2\r\n```\r\n";
         let rendered = render_markdown_text(markdown);
         let lines = lines_to_strings(&rendered);
+        // 结果应精确包含两条代码行，中间不能出现伪空行。
         // Should be exactly two code lines; no spurious blank line between them.
         assert_eq!(
             lines,
@@ -2372,6 +2528,7 @@ mod tests {
     }
 
     #[test]
+    // 表格单元格的硬换行在宽度折行后仍保持独立逻辑行。
     fn wrap_cell_preserves_hard_break_lines() {
         let mut cell = TableCell::default();
         cell.push_span("first line".into());
@@ -2394,11 +2551,13 @@ mod tests {
         assert_eq!(rendered, vec!["first line".to_string(), "second line".to_string()]);
     }
 
+    // 以下类型别名用于调用 `Writer` 的私有关联函数。
     // ---------------------------------------------------------------
     // Type alias for calling private associated functions on Writer.
     // ---------------------------------------------------------------
     type W<'a> = Writer<'a, 'a, std::iter::Empty<(Event<'a>, Range<usize>)>>;
 
+    /// 根据纯文本构建单行 `TableCell`。
     /// Build a single-line `TableCell` from plain text.
     fn make_cell(text: &str) -> TableCell {
         let mut cell = TableCell::default();
@@ -2410,10 +2569,13 @@ mod tests {
         TableBodyRow { cells, has_table_pipe_syntax }
     }
 
+    // 以下单元测试覆盖列分类、首选下限和优先级缩减。
     // ===== Column-metrics unit tests =====
 
     #[test]
+    // 平均词数达到阈值的列应分类为叙述正文。
     fn column_classification_narrative_by_word_count() {
+        // 第 0 列为短令牌，应分类为紧凑；第 1 列为多词正文，应分类为叙述。
         // Col 0: short tokens (1-2 words each) -> Compact
         // Col 1: prose (≥4 words per cell) → Narrative
         let header = vec![make_cell("ID"), make_cell("Description")];
@@ -2427,6 +2589,7 @@ mod tests {
     }
 
     #[test]
+    // URL 形长令牌主导的列应分类为长令牌列。
     fn column_classification_token_heavy_by_url_like_tokens() {
         let header = vec![make_cell("URL")];
         let rows = vec![
@@ -2438,6 +2601,7 @@ mod tests {
     }
 
     #[test]
+    // 本地路径列表同样应触发长令牌列分类。
     fn column_classification_token_heavy_for_local_path_lists() {
         let header = vec![make_cell("Files")];
         let rows = vec![
@@ -2453,7 +2617,9 @@ mod tests {
     }
 
     #[test]
+    // 全部短值的列应保持紧凑分类。
     fn column_classification_compact_all_short() {
+        // 两列都是短令牌，因此都应分类为紧凑。
         // Both columns short tokens -> both Compact
         let header = vec![make_cell("Status"), make_cell("Count")];
         let rows =
@@ -2464,6 +2630,7 @@ mod tests {
     }
 
     #[test]
+    // 叙述列的首选下限应保留可读正文宽度。
     fn preferred_floor_narrative_retains_readable_width() {
         let m = TableColumnMetrics {
             max_width: 40,
@@ -2483,6 +2650,7 @@ mod tests {
     }
 
     #[test]
+    // 长令牌列在进一步缩减前也保留可读软下限。
     fn preferred_floor_token_heavy_retains_readable_width() {
         let m = TableColumnMetrics {
             max_width: 80,
@@ -2494,7 +2662,9 @@ mod tests {
     }
 
     #[test]
+    // 紧凑列下限应考虑正文最长令牌且遵守封顶值。
     fn preferred_floor_compact_uses_body_token() {
+        // 紧凑列下限取表头令牌宽度与正文令牌宽度上限 16 的较大者。
         // Compact: max(header_token_width, body_token_width.min(16))
         let m = TableColumnMetrics {
             max_width: 30,
@@ -2502,9 +2672,11 @@ mod tests {
             body_token_width: 12,
             kind: TableColumnKind::Compact,
         };
+        // 此例结果为 12：max(5, min(12, 16)) = max(5, 12) = 12。
         // max(5, min(12, 16)) = max(5, 12) = 12
         assert_eq!(W::preferred_column_floor(&m, /*min_column_width*/ 3), 12);
 
+        // 正文令牌超过 16 时先封顶，再与表头宽度取较大者。
         // Body token exceeds 16 cap → capped at 16, then max with header
         let m2 = TableColumnMetrics {
             max_width: 30,
@@ -2512,11 +2684,13 @@ mod tests {
             body_token_width: 20,
             kind: TableColumnKind::Compact,
         };
+        // 此例正文先封顶为 16，最终结果为 16。
         // max(5, min(20, 16)) = max(5, 16) = 16
         assert_eq!(W::preferred_column_floor(&m2, /*min_column_width*/ 3), 16);
     }
 
     #[test]
+    // 批量缩减应与逐显示单元缩减产生相同宽度分配。
     fn bulk_column_shrink_matches_one_cell_at_a_time() {
         fn priority(kind: TableColumnKind) -> usize {
             match kind {
@@ -2587,6 +2761,7 @@ mod tests {
     }
 
     #[test]
+    // 超大长令牌列应先被批量压缩，且总宽度满足预算。
     fn column_widths_bulk_shrink_large_token_heavy_column() {
         let metrics = [
             TableColumnMetrics {
@@ -2609,9 +2784,11 @@ mod tests {
         );
     }
 
+    // 以下单元测试覆盖表格溢出行检测的正反例。
     // ===== Spillover-detection unit tests =====
 
     #[test]
+    // 无管道语法的单单元格正文行应识别为溢出段落。
     fn spillover_detects_single_cell_row() {
         let row = make_body_row(
             vec![make_cell("some trailing text")],
@@ -2621,6 +2798,7 @@ mod tests {
     }
 
     #[test]
+    // 显式使用表格管道语法的单单元格行应留在表格中。
     fn spillover_keeps_single_cell_row_with_table_pipe_syntax() {
         let row = make_body_row(
             vec![make_cell("some sparse value")],
@@ -2630,7 +2808,9 @@ mod tests {
     }
 
     #[test]
+    // 只有首格含 HTML 的稀疏行应识别为溢出。
     fn spillover_detects_html_content() {
+        // 三单元格行中只有首格含 HTML，应识别为溢出。
         // 3-cell row where only cell 0 has HTML content
         let row = make_body_row(
             vec![make_cell("<div>content</div>"), make_cell(""), make_cell("")],
@@ -2640,7 +2820,9 @@ mod tests {
     }
 
     #[test]
+    // HTML 引导标签后接 HTML 行时两者应作为段落溢出。
     fn spillover_detects_label_followed_by_html() {
+        // 首格为 HTML 引导标签、下一行首格为 HTML 块时，两者应一起溢出。
         // cell 0 = "HTML block:" and next_row cell 0 = "<div>x</div>"
         let row = make_body_row(
             vec![make_cell("HTML block:"), make_cell(""), make_cell("")],
@@ -2654,7 +2836,9 @@ mod tests {
     }
 
     #[test]
+    // 表格末尾孤立的 HTML 引导标签仍应识别为溢出。
     fn spillover_detects_trailing_html_label() {
+        // 没有下一行的尾随 HTML 引导标签也视为溢出。
         // "HTML block:" with no next_row → trailing HTML label spillover
         let row = make_body_row(
             vec![make_cell("HTML block:"), make_cell(""), make_cell("")],
@@ -2664,7 +2848,9 @@ mod tests {
     }
 
     #[test]
+    // 多个非空单元格构成的正常行不得被误判为溢出。
     fn spillover_keeps_normal_multi_cell_row() {
+        // 三个单元格均非空时是正常表格行，不应溢出。
         // 3 cells all non-empty → not spillover
         let row = make_body_row(
             vec![make_cell("one"), make_cell("two"), make_cell("three")],
@@ -2674,7 +2860,9 @@ mod tests {
     }
 
     #[test]
+    // 后续内容不是 HTML 时，普通标签行继续作为真实表格内容。
     fn spillover_keeps_label_when_next_is_not_html() {
+        // 普通 `Status:` 标签后接 `ok` 不像 HTML，不应判为溢出。
         // cell 0 = "Status:" and next_row cell 0 = "ok" → not spillover (not HTML)
         let row = make_body_row(
             vec![make_cell("Status:"), make_cell(""), make_cell("")],
@@ -2688,6 +2876,7 @@ mod tests {
     }
 
     #[test]
+    // 显式 Web 链接标签和可见目标都应附带正确注解。
     fn annotates_explicit_web_link_label_and_visible_destination() {
         let lines = render_markdown_lines_with_width_and_cwd(
             "See [docs](https://example.com/reference).",
@@ -2701,6 +2890,7 @@ mod tests {
     }
 
     #[test]
+    // 表格 URL 折行后仍应在注解中保留完整目的地及语义片段。
     fn wrapped_table_url_fragments_keep_complete_web_destination() {
         let destination = "https://example.com/a/very/long/path/to/a/table/artifact";
         let markdown = format!("| Item | URL |\n| --- | --- |\n| report | {destination} |\n");
@@ -2721,6 +2911,7 @@ mod tests {
     }
 
     #[test]
+    // 表格列宽测量应按半角浊音符的实际显示宽度计算。
     fn table_widths_count_halfwidth_sound_marks() {
         let cell = make_cell("ｶﾞﾊﾟ");
         assert_eq!(W::cell_display_width(&cell), 4);
@@ -2728,6 +2919,7 @@ mod tests {
     }
 
     #[test]
+    // 键值表格回退应继续保留 Web 链接注解。
     fn key_value_table_keeps_web_annotations() {
         let destination = "https://example.com/a/very/long/path";
         let markdown = format!(
@@ -2748,6 +2940,7 @@ mod tests {
     }
 
     #[test]
+    // 代码内容和非 Web Markdown 链接不应获得 Web 注解。
     fn does_not_annotate_code_or_non_web_markdown_links() {
         let markdown = "`https://example.com/inline`\n\n```text\nhttps://example.com/block\n```\n\n[mail](mailto:test@example.com)\n\n[https://example.com/label](mailto:test@example.com)\n\n| Target |\n| --- |\n| [https://example.com/table-label](mailto:test@example.com) |";
         let lines = render_markdown_lines_with_width_and_cwd(
@@ -2760,6 +2953,7 @@ mod tests {
     }
 
     #[test]
+    // 管道表格回退路径也必须保留 Web 目的地注解。
     fn pipe_table_fallback_keeps_web_annotations() {
         let destination = "https://example.com/a/long/path";
         let target = "https://target.example/path";

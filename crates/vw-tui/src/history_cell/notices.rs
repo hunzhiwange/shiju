@@ -1,3 +1,10 @@
+//! 信息、警告、更新与策略提示历史单元。
+//!
+//! 不同通知类型使用稳定的符号和颜色，正文保持协议或调用者提供的原意。
+//! 更新提示、配额提醒和策略拒绝会作为持久历史保留，便于稍后回看。
+//! 极窄终端仍保证至少一列折行空间，不让装饰前缀破坏正文布局。
+//! 已知错误可生成更易读的摘要，但不会吞掉未知错误或扩大能力声明。
+//! 样式仅用于视觉分级，不参与安全策略或重试决策。
 //! Informational, warning, update, and policy notice history cells.
 
 use super::*;
@@ -211,6 +218,8 @@ pub(crate) fn new_info_event(message: String, hint: Option<String>) -> PlainHist
 }
 
 pub(crate) fn new_error_event(message: String) -> PlainHistoryCell {
+    // 使用细空格（U+200A）形成轻微且近乎不可见的间隔。
+    // 有意省略 VS16，使 Ghostty 等终端中的间距更紧凑。
     // Use a hair space (U+200A) to create a subtle, near-invisible separation
     // before the text. VS16 is intentionally omitted to keep spacing tighter
     // in terminals like Ghostty.

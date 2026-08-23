@@ -1,3 +1,9 @@
+//! 为 TUI 的 `/copy` 命令和 `Ctrl+O` 快捷键选择剪贴板复制后端。
+//!
+//! SSH 会话优先使用 tmux 或 OSC 52，把内容送到本地终端剪贴板；本地会话先尝试原生
+//! `arboard`，WSL 下失败后回退到 PowerShell，最后使用终端介导复制。Linux/X11 和部分
+//! Wayland 需要保活剪贴板句柄，因此以 `ClipboardLease` 将所有权延长到 TUI 生命周期。
+//! 本模块只处理文本复制和面向用户的错误；图片粘贴由 `clipboard_paste` 负责。
 //! Clipboard copy backend for the TUI's `/copy` command and `Ctrl+O` hotkey.
 //!
 //! This module decides *how* to get text onto the user's clipboard based on the
@@ -21,6 +27,7 @@
 use base64::Engine;
 use std::io::Write;
 
+/// OSC 52 序列允许进行 Base64 编码的最大原始字节数；编码前拒绝大载荷以免压垮终端。
 /// Maximum raw bytes we will base64-encode into an OSC 52 sequence.
 /// Large payloads are rejected before encoding to avoid overwhelming the terminal.
 const OSC52_MAX_RAW_BYTES: usize = 100_000;
@@ -28,6 +35,8 @@ const OSC52_MAX_RAW_BYTES: usize = 100_000;
 static STDERR_SUPPRESSION_MUTEX: std::sync::OnceLock<std::sync::Mutex<()>> =
     std::sync::OnceLock::new();
 
+/// 将文本复制到系统剪贴板；SSH 下使用终端介导路径，本地优先原生剪贴板，
+/// 再依次回退到 WSL PowerShell 和 OSC 52。OSC 52 可被 kitty、WezTerm、iTerm2、Ghostty 等支持。
 /// Copy text to the system clipboard.
 ///
 /// Over SSH, uses terminal-mediated copy so the text reaches the *local*
@@ -52,6 +61,8 @@ pub(crate) fn copy_to_clipboard(text: &str) -> Result<Option<ClipboardLease>, St
     )
 }
 
+/// 在后端要求时保活平台剪贴板所有者；Linux/X11 和部分 Wayland 由写入进程提供内容，
+/// 过早丢弃句柄会使内容消失，其他原生平台及 OSC 52 不需要租约。
 /// Keeps a platform clipboard owner alive when the backend requires one.
 ///
 /// On Linux/X11 and some Wayland compositors, clipboard contents are served by the
@@ -82,6 +93,7 @@ impl ClipboardLease {
     }
 }
 
+/// 注入后端的核心复制逻辑，使单元测试无需触碰真实剪贴板或终端 I/O。
 /// Core copy logic with injected backends, enabling deterministic unit tests
 /// without touching real clipboards or terminal I/O.
 #[derive(Clone, Copy)]
@@ -100,6 +112,7 @@ fn copy_to_clipboard_with(
     wsl_copy_fn: impl Fn(&str) -> Result<(), String>,
 ) -> Result<Option<ClipboardLease>, String> {
     if environment.ssh_session {
+        // SSH 下原生剪贴板写入远端机器，终端介导复制才能到达本地终端模拟器。
         // Over SSH the native clipboard writes to the remote machine which is
         // useless. Terminal-mediated copy reaches the local terminal emulator.
         return terminal_clipboard_copy_with(
@@ -174,6 +187,7 @@ fn copy_to_clipboard_with(
     }
 }
 
+/// 通过活动终端复制，并优先采用 tmux 原生剪贴板路径。
 /// Copy through the active terminal, preferring tmux's native clipboard path.
 fn terminal_clipboard_copy_with(
     text: &str,
@@ -196,11 +210,13 @@ fn terminal_clipboard_copy_with(
     osc52_copy_fn(text)
 }
 
+/// 检测当前进程是否运行在 SSH 会话中。
 /// Detect whether the current process is running inside an SSH session.
 fn is_ssh_session() -> bool {
     std::env::var_os("SSH_TTY").is_some() || std::env::var_os("SSH_CONNECTION").is_some()
 }
 
+/// 检测当前进程是否运行在 tmux 中。
 /// Detect whether the current process is running inside tmux.
 fn is_tmux_session() -> bool {
     std::env::var_os("TMUX").is_some() || std::env::var_os("TMUX_PANE").is_some()
@@ -216,6 +232,8 @@ fn is_wsl_session() -> bool {
     false
 }
 
+/// 在屏蔽标准错误时运行 arboard；macOS 初始化 `NSPasteboard` 可能向 stderr 输出日志，
+/// 而 TUI 拥有终端，因此临时把 fd 2 重定向到 `/dev/null` 以免破坏画面。
 /// Run arboard with stderr suppressed.
 ///
 /// On macOS, `arboard::Clipboard::new()` initializes `NSPasteboard` which
@@ -238,6 +256,8 @@ fn arboard_copy(text: &str) -> Result<Option<ClipboardLease>, String> {
     Ok(None)
 }
 
+/// 在屏蔽标准错误时运行 arboard；Linux/X11 和部分 Wayland 由最后写入进程提供剪贴板，
+/// 因此保留 `Clipboard` 句柄直到 TUI 结束。
 /// Run arboard with stderr suppressed.
 ///
 /// On Linux/X11 and some Wayland setups, clipboard contents are served by the
@@ -259,6 +279,7 @@ fn arboard_copy(_text: &str) -> Result<Option<ClipboardLease>, String> {
     Err("native clipboard unavailable on Android".to_string())
 }
 
+/// 从 WSL 进程把文本复制到 Windows 剪贴板。
 /// Copy text into the Windows clipboard from a WSL process.
 #[cfg(target_os = "linux")]
 fn wsl_clipboard_copy(text: &str) -> Result<(), String> {
@@ -310,6 +331,8 @@ fn wsl_clipboard_copy(_text: &str) -> Result<(), String> {
     Err("WSL clipboard fallback unavailable on this platform".to_string())
 }
 
+/// 通过 tmux 原生剪贴板集成复制；`load-buffer -w -` 从标准输入读取、保留 tmux 缓冲，
+/// 并尽可能转发到外层终端，无需依赖 DCS 透传。
 /// Copy text through tmux's native clipboard integration.
 ///
 /// `load-buffer -w -` lets tmux read the text from stdin, keep a matching tmux
@@ -360,6 +383,7 @@ fn tmux_clipboard_copy(text: &str) -> Result<(), String> {
     }
 }
 
+/// 验证 tmux 已配置为把剪贴板写入转发到外层终端。
 /// Verify that tmux is configured to forward clipboard writes to the outer terminal.
 fn tmux_clipboard_copy_ready(
     set_clipboard_fn: impl FnOnce() -> Result<String, String>,
@@ -397,6 +421,7 @@ fn tmux_command_output<const N: usize>(args: [&str; N]) -> Result<String, String
     }
 }
 
+/// RAII 守卫：创建时把 stderr（fd 2）重定向到 `/dev/null`，析构时恢复原 fd。
 /// RAII guard that redirects stderr (fd 2) to `/dev/null` on creation and
 /// restores the original fd on drop.
 #[cfg(target_os = "macos")]
@@ -408,11 +433,13 @@ struct SuppressStderr {
 impl SuppressStderr {
     fn new() -> Self {
         unsafe {
+            // 保存当前 stderr 文件描述符。
             // Save the current stderr fd.
             let saved = libc::dup(2);
             if saved < 0 {
                 return Self { saved_fd: None };
             }
+            // 打开 `/dev/null` 并让 fd 2 指向它。
             // Open /dev/null and point fd 2 at it.
             let devnull = libc::open(c"/dev/null".as_ptr(), libc::O_WRONLY);
             if devnull < 0 {
@@ -454,6 +481,7 @@ impl SuppressStderr {
     }
 }
 
+/// 通过 OSC 52 终端转义序列把文本写入剪贴板。
 /// Write text to the clipboard via the OSC 52 terminal escape sequence.
 fn osc52_copy(text: &str) -> Result<(), String> {
     let sequence = osc52_sequence(text, std::env::var_os("TMUX").is_some())?;

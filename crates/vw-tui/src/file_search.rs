@@ -1,5 +1,9 @@
 //! Session-based orchestration for `@` file searches.
+//! 基于会话编排 `@` 文件搜索。
 //!
+//! `ChatComposer` 会把 `@token` 的每次变化发布为 `AppEvent::StartFileSearch(query)`。
+//! 本管理器为当前搜索根目录持有唯一的 `codex-file-search` 会话，逐键更新查询，
+//! 并在查询变空时丢弃会话。
 //! `ChatComposer` publishes every change of the `@token` as
 //! `AppEvent::StartFileSearch(query)`. This manager owns a single
 //! `codex-file-search` session for the current search root, updates the query
@@ -14,6 +18,7 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 
 pub(crate) struct FileSearchManager {
+    /// 锁内状态可被搜索回调共享，目录和应用发送器由管理器本身持有。
     state: Arc<Mutex<SearchState>>,
     search_dir: PathBuf,
     app_tx: AppEventSender,
@@ -38,6 +43,8 @@ impl FileSearchManager {
         }
     }
 
+    /// 更新文件搜索使用的目录；恢复会话导致 cwd 变化时应调用。
+    /// 当前搜索会话会被丢弃，使下一次查询在新目录中重新创建。
     /// Updates the directory used for file searches.
     /// This should be called when the session's CWD changes on resume.
     /// Drops the current session so it will be recreated with the new directory on next query.
@@ -49,6 +56,7 @@ impl FileSearchManager {
         st.latest_query.clear();
     }
 
+    /// 每当用户编辑 `@` 标记时调用；重复查询不会重启搜索。
     /// Call whenever the user edits the `@` token.
     pub fn on_user_query(&self, query: String) {
         #[expect(clippy::unwrap_used)]
@@ -73,6 +81,7 @@ impl FileSearchManager {
     }
 
     fn start_session_locked(&self, st: &mut SearchState) {
+        // 令牌随新会话递增，使旧会话迟到的快照无法覆盖当前查询结果。
         st.session_token = st.session_token.wrapping_add(1);
         let session_token = st.session_token;
         let reporter = Arc::new(TuiSessionReporter {
@@ -109,6 +118,7 @@ impl TuiSessionReporter {
     fn send_snapshot(&self, snapshot: &file_search::FileSearchSnapshot) {
         #[expect(clippy::unwrap_used)]
         let st = self.state.lock().unwrap();
+        // 只发布属于当前非空查询的快照，并在发送事件前释放互斥锁。
         if st.session_token != self.session_token
             || st.latest_query.is_empty()
             || snapshot.query.is_empty()

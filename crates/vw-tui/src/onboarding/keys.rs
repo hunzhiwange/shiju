@@ -1,4 +1,7 @@
 //! Fixed shortcuts used before users have had a chance to configure Codex.
+//! 用户尚未有机会配置快捷键时，引导流程使用的固定按键。
+
+// 引导阶段不能依赖运行时键位表；导航同时提供方向键和熟悉的字符键作为保底。
 
 use crossterm::event::KeyCode;
 use crossterm::event::KeyModifiers;
@@ -26,11 +29,13 @@ pub(crate) const SELECT_THIRD: [KeyBinding; 1] = [key_hint::plain(KeyCode::Char(
 pub(crate) const CONFIRM: [KeyBinding; 1] = [key_hint::plain(KeyCode::Enter)];
 pub(crate) const CANCEL: [KeyBinding; 1] = [key_hint::plain(KeyCode::Esc)];
 pub(crate) const QUIT: [KeyBinding; 3] = [
+    // 可打印 q 与控制键退出会在 API 密钥输入状态由上层做不同的安全处理。
     key_hint::plain(KeyCode::Char('q')),
     key_hint::ctrl(KeyCode::Char('c')),
     key_hint::ctrl(KeyCode::Char('d')),
 ];
 pub(crate) const TOGGLE_ANIMATION: [KeyBinding; 2] = [
+    // 同时接受 Ctrl+. 的普通与带 Shift 编码，兼容不同终端上报方式。
     key_hint::ctrl(KeyCode::Char('.')),
     KeyBinding::new(
         KeyCode::Char('.'),

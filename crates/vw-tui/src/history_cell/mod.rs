@@ -1,3 +1,8 @@
+//! 从 Codex 复制并适配 VibeWindow 展示数据的历史单元。
+//!
+//! 该入口将协议展示事件显式分派到消息、执行、会话、工具或通知单元。
+//! 每个单元按终端宽度生成 Ratatui 行，并可选择提供更完整的转录表示。
+//! 分派保持穷举，新增事件不会被静默伪装成普通文本。
 //! History cells copied from Codex and adapted to VibeWindow display data.
 
 use ratatui::prelude::*;
@@ -14,6 +19,7 @@ pub use exec::ExecHistoryCell;
 pub use messages::{AgentMessageCell, PlainHistoryCell, UserHistoryCell};
 pub use session::SessionHistoryCell;
 
+/// 复制版 Codex 转录中的单个展示单元。
 /// A single display unit in the copied Codex transcript.
 pub trait HistoryCell: std::fmt::Debug + Send + Sync + std::any::Any {
     fn display_lines(&self, width: u16) -> Vec<Line<'static>>;
@@ -37,6 +43,7 @@ impl dyn HistoryCell {
     }
 }
 
+/// 将每个 VibeWindow 展示事件映射到对应的复制版历史或执行单元。
 /// Maps every VibeWindow display event to one of the copied history/exec cells.
 pub fn history_cell_for(event: &V3DisplayEvent) -> Box<dyn HistoryCell> {
     match event {
@@ -72,6 +79,7 @@ pub fn history_cell_for(event: &V3DisplayEvent) -> Box<dyn HistoryCell> {
     }
 }
 
+/// 使用转录所采用的同一历史单元边界渲染单个事件。
 /// Renders one event using the same copied history-cell boundary used by the transcript.
 pub fn render_display_event(event: &V3DisplayEvent, width: u16) -> Vec<Line<'static>> {
     history_cell_for(event).display_lines(width)

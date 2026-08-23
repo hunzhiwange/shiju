@@ -1,3 +1,8 @@
+//! 验证令牌图表调色板在真彩色、ANSI 颜色和缺失终端颜色下的回退。
+//! 主题强调色应按背景明暗混合，不能退化为固定绿色。
+//! 非 RGB 强调色保持为有效回退，确保不同终端能力下仍可辨识活动单元格。
+//! 测试只比较解析后的颜色层级，不依赖实际终端绘制。
+
 use super::*;
 use crate::terminal_palette::rgb_color;
 use pretty_assertions::assert_eq;

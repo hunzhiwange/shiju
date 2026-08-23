@@ -1,7 +1,13 @@
+//! 验证目标菜单在活跃、暂停、阻塞和额度限制状态下的展示与操作。
+//! 固定目标夹具统一状态、令牌预算和摘要，便于比较状态差异。
+//! 编辑流程检查可恢复状态保持不变，终态则重置为可继续的活跃状态。
+//! 恢复提示还覆盖确认继续与保持暂停两条用户选择路径。
+
 use super::*;
 
 #[tokio::test]
 async fn goal_menu_active_snapshot() {
+    // 五种目标状态快照共同固定菜单摘要、预算和可用动作的差异。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let thread_id = ThreadId::new();
 
@@ -108,6 +114,7 @@ async fn goal_edit_prompt_snapshot() {
 
 #[tokio::test]
 async fn goal_edit_prompt_submits_preserved_status_and_budget() {
+    // 编辑可恢复目标时保留原状态和预算，只更新用户确认的目标内容。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let thread_id = ThreadId::new();
 
@@ -183,6 +190,7 @@ async fn goal_edit_prompt_preserves_resumable_stopped_statuses() {
 
 #[tokio::test]
 async fn goal_edit_prompt_resets_terminal_status_to_active() {
+    // 已结束目标重新编辑后必须回到活跃状态，才能继续执行。
     let cases = [
         AppThreadGoalStatus::BudgetLimited,
         AppThreadGoalStatus::Complete,
@@ -221,6 +229,7 @@ async fn goal_edit_prompt_resets_terminal_status_to_active() {
 
 #[tokio::test]
 async fn resume_paused_goal_prompt_default_resumes_goal() {
+    // 暂停目标提示覆盖默认恢复和显式保持暂停两条选择路径。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let thread_id = ThreadId::new();
 

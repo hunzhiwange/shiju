@@ -48,6 +48,7 @@ fn experimental_tooltips() -> Vec<&'static str> {
         .collect()
 }
 
+/// 选择 Codex 启动时向用户展示的一条随机提示。
 /// Pick a random tooltip to show to the user when starting Codex.
 pub(crate) fn get_tooltip(plan: Option<PlanType>, fast_mode_enabled: bool) -> Option<String> {
     let mut rng = rand::rng();
@@ -56,6 +57,7 @@ pub(crate) fn get_tooltip(plan: Option<PlanType>, fast_mode_enabled: bool) -> Op
         return Some(announcement);
     }
 
+    // 为通用随机提示保留小概率展示机会。
     // Leave small chance for a random tooltip to be shown.
     if rng.random_ratio(8, 10) {
         match plan {
@@ -125,6 +127,8 @@ fn paid_app_tooltip() -> Option<&'static str> {
     }
 }
 
+/// 付费用户的大多数启动会话使用专门推广槽，而非通用随机提示池。
+/// 当前该槽在桌面应用和 Fast 模式之间分配；已启用 Fast 时不再推广 Fast。
 /// Paid users spend most startup sessions in a dedicated promo slot rather than the
 /// generic random tip pool. Keep this business logic explicit: we currently split
 /// that slot between the app promo and Fast mode, but suppress the Fast promo once
@@ -167,6 +171,7 @@ pub(crate) mod announcement {
     static ANNOUNCEMENT_TIP: OnceLock<Option<String>> = OnceLock::new();
     const CURRENT_OS: TargetOs = TargetOs::current();
 
+    /// 预热公告提示缓存；已有结果时不重复发起请求。
     /// Prewarm the cache of the announcement tip.
     pub(crate) fn prewarm(http_client_factory: HttpClientFactory) {
         if ANNOUNCEMENT_TIP.get().is_some() {
@@ -178,6 +183,7 @@ pub(crate) mod announcement {
         });
     }
 
+    /// 获取公告提示；预热尚未完成时返回 `None`。
     /// Fetch the announcement tip, return None if the prewarm is not done yet.
     pub(crate) fn fetch_announcement_tip(plan: Option<PlanType>) -> Option<String> {
         ANNOUNCEMENT_TIP
@@ -231,6 +237,7 @@ pub(crate) mod announcement {
             } else if cfg!(target_os = "windows") {
                 Self::Windows
             } else {
+                // Codex 当前只发布 macOS、Windows 和 Linux CLI 构建，其他目标按 Linux 处理。
                 // Codex currently publishes CLI builds for macOS, Windows, and Linux.
                 Self::Linux
             }
@@ -257,6 +264,7 @@ pub(crate) mod announcement {
             .or_else(|_| toml::from_str::<Vec<AnnouncementTipRaw>>(text))
             .ok()?;
 
+        // 按文档顺序覆盖匹配结果，因此最后一条满足全部条件的公告获选。
         let mut latest_match = None;
         let today = Utc::now().date_naive();
         for raw in announcements {
@@ -285,6 +293,7 @@ pub(crate) mod announcement {
 
     impl AnnouncementTip {
         fn from_raw(raw: AnnouncementTipRaw) -> Option<Self> {
+            // 空内容、非法日期/正则及未知计划或系统值都会使单条公告失效。
             let content = raw.content.trim();
             if content.is_empty() {
                 return None;
@@ -335,6 +344,7 @@ pub(crate) mod announcement {
         }
 
         fn date_matches(&self, today: NaiveDate) -> bool {
+            // 起始日期包含当天，结束日期不包含当天。
             if let Some(from) = self.from_date
                 && today < from
             {
@@ -359,12 +369,14 @@ mod tests {
     use rand::rngs::StdRng;
 
     #[test]
+    // 非空提示池应能返回候选项。
     fn random_tooltip_returns_some_tip_when_available() {
         let mut rng = StdRng::seed_from_u64(42);
         assert!(pick_tooltip(&mut rng).is_some());
     }
 
     #[test]
+    // 固定随机种子必须产生可复现选择。
     fn random_tooltip_is_reproducible_with_seed() {
         let expected = {
             let mut rng = StdRng::seed_from_u64(7);
@@ -376,6 +388,7 @@ mod tests {
     }
 
     #[test]
+    // 桌面应用推广应使用当前平台实际支持的启动方式。
     fn desktop_app_tooltip_uses_supported_platform_launcher() {
         let tooltip = TOOLTIPS
             .iter()
@@ -399,6 +412,7 @@ mod tests {
     }
 
     #[test]
+    // Linux 仅在原生图形会话中推广桌面应用，纯终端和 WSL 均跳过。
     fn linux_desktop_app_tooltip_requires_graphical_native_session() {
         let tooltip = linux_app_tooltip(LinuxDesktopSession {
             has_display: true,
@@ -424,6 +438,7 @@ mod tests {
     }
 
     #[test]
+    // 未启用 Fast 时，付费推广槽应在桌面应用与 Fast 提示间轮换。
     fn paid_tooltip_pool_rotates_between_promos() {
         let mut seen = std::collections::BTreeSet::new();
         for seed in 0..32 {
@@ -438,6 +453,7 @@ mod tests {
     }
 
     #[test]
+    // 已启用 Fast 时，付费推广池不得再次展示 Fast 提示。
     fn paid_tooltip_pool_skips_fast_when_fast_mode_is_enabled() {
         let mut seen = std::collections::BTreeSet::new();
         for seed in 0..8 {
@@ -451,6 +467,7 @@ mod tests {
     }
 
     #[test]
+    // 多条匹配公告按顺序选择最后一条。
     fn announcement_tip_toml_picks_last_matching() {
         let toml = r#"
 [[announcements]]
@@ -494,6 +511,7 @@ to_date = "2000-01-01"
     }
 
     #[test]
+    // 日期、版本或目标应用不匹配时不返回公告。
     fn announcement_tip_toml_picks_no_match() {
         let toml = r#"
 [[announcements]]
@@ -514,6 +532,7 @@ target_app = "vsce"
     }
 
     #[test]
+    // 字段类型错误的 TOML 文档应安全失败。
     fn announcement_tip_toml_bad_deserialization() {
         let toml = r#"
 [[announcements]]
@@ -525,6 +544,7 @@ from_date = "2000-01-01"
     }
 
     #[test]
+    // TOML 注释及全部可选筛选字段不应妨碍解析后续有效公告。
     fn announcement_tip_toml_parse_comments() {
         let toml = r#"
 # Example announcement tips for Codex TUI.
@@ -553,6 +573,7 @@ content = "This is a test announcement"
     }
 
     #[test]
+    // 计划筛选命中专属公告，否则回退到无计划限制的公告。
     fn announcement_tip_toml_matches_target_plan_type() {
         let toml = r#"
 [[announcements]]
@@ -586,6 +607,7 @@ target_plan_types = ["free"]
     }
 
     #[test]
+    // 未知计划类型使该条公告无效，不影响先前通用公告。
     fn announcement_tip_toml_rejects_unknown_target_plan_type() {
         let toml = r#"
 [[announcements]]
@@ -603,6 +625,7 @@ target_plan_types = ["prp"]
     }
 
     #[test]
+    // 系统筛选应选择当前编译目标对应的公告。
     fn announcement_tip_toml_matches_target_os() {
         let toml = r#"
 [[announcements]]
@@ -632,6 +655,7 @@ target_oses = ["windows"]
     }
 
     #[test]
+    // 未知系统值使该条公告无效，并回退到通用公告。
     fn announcement_tip_toml_rejects_unknown_target_os() {
         let toml = r#"
 [[announcements]]
@@ -648,3 +672,4 @@ target_oses = ["amiga"]
         );
     }
 }
+//! 选择启动提示，并按计划、平台、功能和远端公告条件进行过滤。

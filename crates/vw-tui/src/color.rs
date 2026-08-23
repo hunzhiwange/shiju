@@ -1,3 +1,5 @@
+//! 提供终端主题判断、颜色混合和感知色差计算等纯函数。
+
 pub(crate) fn is_light(bg: (u8, u8, u8)) -> bool {
     let (r, g, b) = bg;
     let y = 0.299 * r as f32 + 0.587 * g as f32 + 0.114 * b as f32;
@@ -11,15 +13,19 @@ pub(crate) fn blend(fg: (u8, u8, u8), bg: (u8, u8, u8), alpha: f32) -> (u8, u8, 
     (r, g, b)
 }
 
+/// 返回两个 RGB 颜色之间的感知色差。
+/// 使用 CIE76 公式，即在近似 Lab 空间中计算欧氏距离。
 /// Returns the perceptual color distance between two RGB colors.
 /// Uses the CIE76 formula (Euclidean distance in Lab space approximation).
 pub(crate) fn perceptual_distance(a: (u8, u8, u8), b: (u8, u8, u8)) -> f32 {
+    // 先把 sRGB 分量转换到线性 RGB 空间。
     // Convert sRGB to linear RGB
     fn srgb_to_linear(c: u8) -> f32 {
         let c = c as f32 / 255.0;
         if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
     }
 
+    // 再把线性 RGB 转换到 XYZ 色彩空间。
     // Convert RGB to XYZ
     fn rgb_to_xyz(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
         let r = srgb_to_linear(r);
@@ -32,8 +38,10 @@ pub(crate) fn perceptual_distance(a: (u8, u8, u8), b: (u8, u8, u8)) -> f32 {
         (x, y, z)
     }
 
+    // 最后以 D65 参考白点把 XYZ 转换为 Lab。
     // Convert XYZ to Lab
     fn xyz_to_lab(x: f32, y: f32, z: f32) -> (f32, f32, f32) {
+        // D65 参考白点。
         // D65 reference white
         let xr = x / 0.95047;
         let yr = y / 1.00000;

@@ -1,3 +1,7 @@
+//! 将最终历史行插入终端回滚区。
+//!
+//! VibeWindow v3 直接使用终端回滚区保存最终聊天历史，因此插入历史单元是转义序列操作，
+//! 而不是普通 Ratatui 渲染。
 //! Inserts finalized history rows into terminal scrollback.
 //!
 //! VibeWindow v3 uses terminal scrollback itself for finalized chat history, so inserting a history
@@ -45,6 +49,8 @@ pub enum HistoryLineWrapPolicy {
     Terminal,
 }
 
+/// 选择在视口上方写入历史时使用的终端转义策略；全屏插入可在局部滚动区域不可靠时
+/// 保留终端原生回滚区，并为 Zellij 保持终端管理的软换行。
 /// Selects the terminal escape strategy used when writing history above the viewport.
 ///
 /// Full-screen insertion preserves terminal-native scrollback when partial scroll regions are
@@ -55,6 +61,7 @@ pub(crate) enum InsertHistoryMode {
     FullScreen,
 }
 
+/// 使用终端后端 writer 在视口上方插入 `lines`，避免直接引用 stdout。
 /// Insert `lines` above the viewport using the terminal's backend writer
 /// (avoids direct stdout references).
 pub fn insert_history_lines<B>(
@@ -116,6 +123,8 @@ where
     let mut should_update_area = false;
     let last_cursor_pos = terminal.last_known_cursor_pos;
 
+    // 为终端回滚区预换行：近似纯 URL 行保持完整以便终端识别可点击链接；
+    // URL 与正文混合行自适应换行且不拆 URL；普通行也走同一路径并退化为标准换行。
     // Pre-wrap lines for terminal scrollback. Three paths:
     //
     // - URL-only-ish lines are kept intact (no hard newlines inserted) so that
@@ -132,6 +141,7 @@ where
     let wrapped_lines = wrapped_rows as u16;
     match mode {
         InsertHistoryMode::FullScreen => {
+            // 当前视口会在同一绘制帧立即替换；先清除，避免终端滚动把输入框内容卷入历史。
             // The existing viewport is immediately replaced in the same draw pass. Clear it
             // before terminal scrolling can move composer contents into scrollback.
             terminal.clear_after_position(area.as_position())?;
@@ -144,6 +154,8 @@ where
                 write_history_line(writer, line, wrap_width)?;
             }
 
+            // 直接写原始文本可保留终端软换行元数据；即使重放批次高于可见历史区，
+            // 也通过空视口行推进，使历史紧邻输入框上方结束。
             // Writing raw source text through the terminal preserves its soft-wrap metadata.
             // Advance through empty rows for the viewport so history ends immediately above the
             // composer even when a replay batch is taller than the visible history region.
@@ -164,6 +176,7 @@ where
         InsertHistoryMode::Standard => {
             let writer = terminal.backend_mut();
             let cursor_top = if area.bottom() < screen_size.height {
+                // 视口不在屏幕底部时向下滚动腾出空间，但不得越过屏幕底部。
                 // If the viewport is not at the bottom of the screen, scroll it down to make room.
                 // Don't scroll it past the bottom of the screen.
                 let scroll_amount = wrapped_lines.min(screen_size.height - area.bottom());
@@ -184,6 +197,8 @@ where
                 area.top().saturating_sub(1)
             };
 
+            // 将滚动区域限制在屏幕顶部到视口顶部，光标置于区域末端后插入行，
+            // 从而只滚动历史区域而保持视口内容不动。
             // Limit the scroll region to the lines from the top of the screen to the
             // top of the viewport. With this in place, when we add lines inside this
             // area, only the lines in this area will be scrolled. We place the cursor
@@ -201,6 +216,8 @@ where
             // └──────────────────────────────┘
             queue!(writer, SetScrollRegion(1..area.top()))?;
 
+            // 此处用 `MoveTo` 而非 `set_cursor_position`，避免修改终端缓存的最近光标位置；
+            // 获取并恢复光标后，历史插入应保持光标位置中性。
             // NB: we are using MoveTo instead of set_cursor_position here to avoid messing with the
             // terminal's last_known_cursor_position, which hopefully will still be accurate after we
             // fetch/restore the cursor position. insert_history_lines should be cursor-position-neutral :)
@@ -286,6 +303,8 @@ pub(crate) fn leading_whitespace_prefix(line: &Line<'_>) -> Line<'static> {
     Line::from(spans).style(line.style)
 }
 
+/// 渲染单条已换行历史：为宽行清除续行、设置前景/背景并写入带样式 span；
+/// 调用方负责光标定位和前导 `\r\n`。
 /// Render a single wrapped history line: clear continuation rows for wide lines,
 /// set foreground/background colors, and write styled spans. Caller is responsible
 /// for cursor positioning and any leading `\r\n`.
@@ -319,6 +338,7 @@ fn write_history_line<W: Write>(
         ))
     )?;
     queue!(writer, Clear(ClearType::UntilNewLine))?;
+    // 将行级样式合并到每个 span，使 ANSI 颜色反映块引用等行样式。
     // Merge line-level style into each span so that ANSI colors reflect
     // line styles (e.g., blockquotes with green fg).
     let merged_spans: Vec<Span> = line
@@ -353,6 +373,7 @@ impl Command for SetScrollRegion {
 
     #[cfg(windows)]
     fn is_ansi_code_supported(&self) -> bool {
+        // TODO(nornagon)：确认 Windows 是否支持此路径。
         // TODO(nornagon): is this supported on Windows?
         true
     }
@@ -373,6 +394,7 @@ impl Command for ResetScrollRegion {
 
     #[cfg(windows)]
     fn is_ansi_code_supported(&self) -> bool {
+        // TODO(nornagon)：确认 Windows 是否支持此路径。
         // TODO(nornagon): is this supported on Windows?
         true
     }
@@ -540,15 +562,18 @@ mod tests {
 
     #[test]
     fn vt100_blockquote_line_emits_green_fg() {
+        // 设置小型离屏终端。
         // Set up a small off-screen terminal
         let width: u16 = 40;
         let height: u16 = 10;
         let backend = VT100Backend::new(width, height);
         let mut term = crate::custom_terminal::Terminal::with_options(backend).expect("terminal");
+        // 将视口放到最后一行，使历史插入向上滚动。
         // Place viewport on the last line so history inserts scroll upward
         let viewport = Rect::new(0, height - 1, width, 1);
         term.set_viewport_area(viewport);
 
+        // 构造块引用样行：应用行级绿色和 `> ` 前缀。
         // Build a blockquote-like line: apply line-level green style and prefix "> "
         let mut line: Line<'static> = Line::from(vec!["> ".into(), "Hello world".into()]);
         line = line.style(Color::Green);
@@ -575,15 +600,18 @@ mod tests {
 
     #[test]
     fn vt100_blockquote_wrap_preserves_color_on_all_wrapped_lines() {
+        // 使用窄视口和长块引用强制换行。
         // Force wrapping by using a narrow viewport width and a long blockquote line.
         let width: u16 = 20;
         let height: u16 = 8;
         let backend = VT100Backend::new(width, height);
         let mut term = crate::custom_terminal::Terminal::with_options(backend).expect("terminal");
+        // 视口位于最后一行，使历史直接出现在其上方。
         // Viewport is the last line so history goes directly above it.
         let viewport = Rect::new(0, height - 1, width, 1);
         term.set_viewport_area(viewport);
 
+        // 创建带明显前缀且足以换行的长块引用。
         // Create a long blockquote with a distinct prefix and enough text to wrap.
         let mut line: Line<'static> = Line::from(vec![
             "> ".into(),
@@ -594,9 +622,11 @@ mod tests {
         insert_history_lines(&mut term, vec![line])
             .expect("Failed to insert history lines in test");
 
+        // 解析并检查最终屏幕缓冲区。
         // Parse and inspect the final screen buffer.
         let screen = term.backend().vt100().screen();
 
+        // 收集非空行，它们应对应生成的换行结果。
         // Collect rows that are non-empty; these should correspond to our wrapped lines.
         let mut non_empty_rows: Vec<u16> = Vec::new();
         for row in 0..height {
@@ -616,12 +646,14 @@ mod tests {
             }
         }
 
+        // 换行后应至少产生两行。
         // Expect at least two rows due to wrapping.
         assert!(
             non_empty_rows.len() >= 2,
             "expected wrapped output to span >=2 rows, got {non_empty_rows:?}",
         );
 
+        // 每个非空行的所有非空格单元都应使用非默认前景色。
         // For each non-empty row, ensure all non-space cells are using a non-default fg color.
         for row in non_empty_rows {
             for col in 0..width {
@@ -648,6 +680,7 @@ mod tests {
         let viewport = Rect::new(0, height - 1, width, 1);
         term.set_viewport_area(viewport);
 
+        // 首个 span 着色，其余保持普通样式。
         // First span colored, rest plain.
         let line: Line<'static> = Line::from(vec![
             Span::styled("1. ", ratatui::style::Style::default().fg(Color::LightBlue)),
@@ -659,6 +692,7 @@ mod tests {
 
         let screen = term.backend().vt100().screen();
 
+        // 找到首个非空行，验证前三个单元着色，后续单元恢复默认。
         // Find the first non-empty row; verify first three cells are colored, following cells default.
         'rows: for row in 0..height {
             let mut has_text = false;
@@ -675,6 +709,7 @@ mod tests {
                 continue;
             }
 
+            // 期望 `1. Hello world` 从第零列开始。
             // Expect "1. Hello world" starting at col 0.
             for col in 0..3 {
                 let cell = screen.cell(row, col).unwrap();
@@ -699,6 +734,7 @@ mod tests {
 
     #[test]
     fn vt100_deep_nested_mixed_list_third_level_marker_is_colored() {
+        // 构造五层 Markdown：有序、无序、有序、无序、无序。
         // Markdown with five levels (ordered → unordered → ordered → unordered → unordered).
         let md = "1. First\n   - Second level\n     1. Third level (ordered)\n        - Fourth level (bullet)\n          - Fifth level to test indent consistency\n";
         let text = render_markdown_text(md);
@@ -715,6 +751,7 @@ mod tests {
 
         let screen = term.backend().vt100().screen();
 
+        // 将屏幕行重建为字符串以定位第三级内容。
         // Reconstruct screen rows as strings to locate the 3rd level line.
         let rows: Vec<String> = screen.rows(0, width).collect();
 
@@ -727,6 +764,7 @@ mod tests {
             });
         let col_start = rows[row_idx].find(needle).unwrap() as u16; // column where '1' starts
 
+        // 验证第三级数字标记 `1.` 着色，而其后空格之后的正文恢复默认色。
         // Verify that the numeric marker ("1.") at the third level is colored
         // (non-default fg) and the content after the following space resets to default.
         for c in [col_start, col_start + 1] {

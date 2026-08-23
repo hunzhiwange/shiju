@@ -1,3 +1,6 @@
+//! 覆盖外部编辑器临时缓冲区的选址与启动安全边界。
+//! 核心不变量是缓冲区不能落入沙箱内可写路径，符号链接别名也不能绕过该判断。
+
 use super::editor_directory;
 #[cfg(unix)]
 use super::run_editor;
@@ -18,6 +21,7 @@ struct EditorPaths {
 }
 
 impl EditorPaths {
+    // 为每个用例创建彼此隔离的主目录和工作区，避免真实用户目录参与权限判断。
     fn new() -> Self {
         let root = tempfile::tempdir().expect("create editor test root");
         let canonical_root =
@@ -36,6 +40,7 @@ impl EditorPaths {
 }
 
 fn workspace_write_policy(writable_roots: &[&Path]) -> FileSystemSandboxPolicy {
+    // 统一构造不含默认临时目录授权的策略，突出各用例显式提供的可写根。
     let writable_roots = writable_roots
         .iter()
         .map(|root| AbsolutePathBuf::from_absolute_path(root).expect("absolute writable root"))
@@ -49,6 +54,7 @@ fn workspace_write_policy(writable_roots: &[&Path]) -> FileSystemSandboxPolicy {
 }
 
 #[test]
+// 只读的隔离主目录应优先承载编辑缓冲区，并按约定创建固定子目录。
 fn editor_directory_is_inside_isolated_codex_home() {
     let paths = EditorPaths::new();
     let policy = workspace_write_policy(&[]);
@@ -61,6 +67,7 @@ fn editor_directory_is_inside_isolated_codex_home() {
 }
 
 #[test]
+// 主目录、编辑目录或其父级可写都会暴露缓冲区，因此三种覆盖关系都必须拒绝。
 fn editor_directory_rejects_writable_home_editor_and_parent() {
     let paths = EditorPaths::new();
     let editor = paths.codex_home.join("editor");
@@ -79,6 +86,7 @@ fn editor_directory_rejects_writable_home_editor_and_parent() {
 }
 
 #[test]
+// 即使只有编辑目录的后代可写，也不能把秘密缓冲区放在该目录树中。
 fn editor_directory_rejects_writable_descendant() {
     let paths = EditorPaths::new();
     let writable_descendant = paths.codex_home.join("editor").join("nested");
@@ -89,6 +97,7 @@ fn editor_directory_rejects_writable_descendant() {
 }
 
 #[test]
+// 可写父目录中的只读例外仍可被替换，不能被误判为受保护位置。
 fn editor_directory_rejects_read_only_carveout_with_writable_parent() {
     let paths = EditorPaths::new();
     let editor = paths.codex_home.join("editor");
@@ -113,6 +122,7 @@ fn editor_directory_rejects_read_only_carveout_with_writable_parent() {
 
 #[test]
 #[cfg(unix)]
+// 预先放置的目录符号链接可能把写入重定向到工作区，选择器必须拒绝。
 fn editor_directory_rejects_preexisting_symlink() {
     use std::os::unix::fs::symlink;
 
@@ -127,6 +137,7 @@ fn editor_directory_rejects_preexisting_symlink() {
 
 #[test]
 #[cfg(unix)]
+// 指向受保护主目录的可写别名不能借路径字符串差异通过安全检查。
 fn editor_directory_rejects_writable_codex_home_alias() {
     use std::os::unix::fs::symlink;
 
@@ -142,6 +153,7 @@ fn editor_directory_rejects_writable_codex_home_alias() {
 
 #[test]
 #[cfg(unix)]
+// 别名自身只读但规范化目标可写时，也必须依据真实目标拒绝候选目录。
 fn editor_directory_rejects_writable_codex_home_alias_target() {
     use std::os::unix::fs::symlink;
 
@@ -163,6 +175,7 @@ fn editor_directory_rejects_writable_codex_home_alias_target() {
 
 #[test]
 #[cfg(unix)]
+// 默认临时目录授权暴露主目录时，应回退到工作区内受保护的元数据目录。
 fn editor_directory_uses_protected_workspace_fallback_with_default_temporary_grants() {
     let root = tempfile::tempdir().expect("create editor test root");
     let codex_home = root.path().join("codex-home");
@@ -195,6 +208,7 @@ fn editor_directory_uses_protected_workspace_fallback_with_default_temporary_gra
 
 #[test]
 #[cfg(unix)]
+// 工作区元数据目录一旦被策略显式授予写权限，就不再是安全回退位置。
 fn editor_directory_rejects_explicitly_writable_workspace_fallback() {
     let root = tempfile::tempdir().expect("create editor test root");
     let codex_home = root.path().join("codex-home");
@@ -221,6 +235,7 @@ fn editor_directory_rejects_explicitly_writable_workspace_fallback() {
 
 #[test]
 #[cfg(unix)]
+// 工作区回退路径若链接到可写目标，规范化检查应阻止跨路径逃逸。
 fn editor_directory_rejects_workspace_fallback_symlink_to_writable_target() {
     use std::os::unix::fs::symlink;
 
@@ -242,6 +257,7 @@ fn editor_directory_rejects_workspace_fallback_symlink_to_writable_target() {
 }
 
 #[test]
+// 某个受保护候选创建失败时，应继续尝试后续候选而非整体放弃编辑能力。
 fn editor_directory_uses_next_protected_candidate_after_creation_error() {
     let paths = EditorPaths::new();
     let unavailable_home = paths
@@ -260,6 +276,7 @@ fn editor_directory_uses_next_protected_candidate_after_creation_error() {
 
 #[test]
 #[cfg(windows)]
+// Windows 的有效临时目录不在策略认可根内时，不能用于存放编辑器缓冲区。
 fn editor_directory_rejects_windows_temporary_directory_outside_tmpdir_policy_root() {
     let paths = EditorPaths::new();
     let policy = FileSystemSandboxPolicy::workspace_write(
@@ -276,6 +293,7 @@ fn editor_directory_rejects_windows_temporary_directory_outside_tmpdir_policy_ro
 }
 
 #[test]
+// 已由外部机制提供全盘写保护时，无需再因路径可写而禁用外部编辑器。
 fn editor_directory_allows_full_disk_write_policies() {
     let paths = EditorPaths::new();
 
@@ -292,6 +310,7 @@ fn editor_directory_allows_full_disk_write_policies() {
 
 #[tokio::test]
 #[cfg(unix)]
+// 真实子进程应只收到隔离目录中的缓冲文件，并能把编辑结果传回调用方。
 async fn editor_process_receives_buffer_in_isolated_codex_home() {
     let paths = EditorPaths::new();
     let policy = workspace_write_policy(&[]);
@@ -319,6 +338,7 @@ async fn editor_process_receives_buffer_in_isolated_codex_home() {
 
 #[tokio::test]
 #[cfg(any(target_os = "macos", target_os = "linux"))]
+// 默认主目录均可写时，真实编辑流程仍应使用受保护的工作区回退目录。
 async fn editor_process_uses_protected_workspace_fallback_with_default_temporary_grants() {
     let root = tempfile::tempdir().expect("create editor test root");
     let codex_home = root.path().join("codex-home");

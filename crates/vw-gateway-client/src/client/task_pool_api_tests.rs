@@ -434,7 +434,7 @@ async fn task_pool_matrix_events_omits_cursor_when_not_provided() {
 }
 
 #[tokio::test]
-async fn task_pool_worktree_client_posts_expected_paths() {
+async fn task_pool_api_uses_documented_pool_routes() {
     let server = test_support::server(vec![
         (
             200,

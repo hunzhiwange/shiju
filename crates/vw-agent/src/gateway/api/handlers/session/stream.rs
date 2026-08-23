@@ -497,6 +497,7 @@ fn normalize_tool_ids(tools: Vec<String>) -> Option<Vec<String>> {
 fn prepare_stream_history(
     history_messages: Vec<Value>,
     resume_history_only: bool,
+    preserve_structured_prompt: bool,
 ) -> PreparedStreamHistory {
     let total_messages = history_messages.len();
     let mut history = Vec::new();
@@ -504,8 +505,10 @@ fn prepare_stream_history(
 
     for (idx, message) in history_messages.into_iter().enumerate() {
         let role = message.get("role").and_then(Value::as_str).unwrap_or("user");
-        let content =
-            message.get("content").and_then(Value::as_str).unwrap_or_default().to_string();
+        let content = gateway_content_to_prompt_text(
+            message.get("content").unwrap_or(&Value::Null),
+            preserve_structured_prompt,
+        );
 
         let normalized_content =
             if role == "tool" { tool_content_to_session_text(&content) } else { content };
@@ -540,6 +543,46 @@ fn prepare_stream_history(
     }
 
     PreparedStreamHistory { history, query }
+}
+
+fn gateway_content_to_prompt_text(content: &Value, preserve_structured: bool) -> String {
+    if let Some(text) = content.as_str() {
+        return text.to_string();
+    }
+    let Some(blocks) = content.as_array() else {
+        return String::new();
+    };
+    if preserve_structured {
+        return serde_json::to_string(blocks).unwrap_or_default();
+    }
+
+    blocks
+        .iter()
+        .filter_map(|block| match block.get("type").and_then(Value::as_str) {
+            Some("text") => block.get("text").and_then(Value::as_str).map(ToOwned::to_owned),
+            Some("image") => {
+                let mime_type = block.get("mimeType").and_then(Value::as_str)?;
+                let data = block.get("data").and_then(Value::as_str)?;
+                Some(format!("[IMAGE:data:{mime_type};base64,{data}]"))
+            }
+            Some("resource_link") => block
+                .get("uri")
+                .and_then(Value::as_str)
+                .map(|uri| format!("[Resource: {uri}]")),
+            Some("resource") => {
+                let resource = block.get("resource")?;
+                let uri = resource.get("uri").and_then(Value::as_str).unwrap_or_default();
+                let text = resource.get("text").and_then(Value::as_str).unwrap_or_default();
+                Some(if text.is_empty() {
+                    format!("[Resource: {uri}]")
+                } else {
+                    format!("[Resource: {uri}]\n{text}")
+                })
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
 }
 
 fn stream_payload_for_non_done_event(
@@ -838,6 +881,7 @@ async fn start_gateway_chat_producer(
     };
     let model = delegate_overrides.model.clone();
     let message_agent = delegate_overrides.agent.clone().unwrap_or_else(|| "gateway".to_string());
+    let preserve_structured_prompt = acp_agent.is_some();
     let options = merge_gateway_request_options(
         options,
         delegate_overrides.agent,
@@ -901,8 +945,11 @@ async fn start_gateway_chat_producer(
             let processing_started_ms = agent_session::session::now_ms();
             let mut processing_timer = vw_shared::time::ActiveTimer::default();
             processing_timer.start_at(web_time::Instant::now());
-            let PreparedStreamHistory { history, query } =
-                prepare_stream_history(history_messages, resume_history_only);
+            let PreparedStreamHistory { history, query } = prepare_stream_history(
+                history_messages,
+                resume_history_only,
+                preserve_structured_prompt,
+            );
             let mut assistant_text = String::new();
             let mut assistant_finish_reason: Option<String> = None;
             let mut assistant_model = model.clone();

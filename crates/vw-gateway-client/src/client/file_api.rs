@@ -40,7 +40,7 @@ struct DirectoryFileReadRequest {
 /// 目录内文件读取接口的响应体。
 ///
 /// 对应旧版 `/v1/file/read` 接口，适用于需要目录上下文与可选 agent 标识的调用场景。
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DirectoryFileReadResponse {
     /// 实际解析后的根目录。
     pub root_directory: String,
@@ -64,7 +64,7 @@ struct DirectoryFileWriteRequest {
 /// 目录内文件写入接口的响应体。
 ///
 /// 对应旧版 `/v1/file/write` 接口。
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DirectoryFileWriteResponse {
     /// 是否写入成功。
     pub ok: bool,
@@ -77,6 +77,70 @@ pub struct DirectoryFileWriteResponse {
 }
 
 impl GatewayClient {
+    /// 在目录上下文中按文本模式搜索文件内容。
+    pub async fn file_find_text_in_directory(
+        &self,
+        directory: Option<&str>,
+        pattern: &str,
+    ) -> Result<serde_json::Value, String> {
+        let mut query = optional_directory_query(directory);
+        query.push(("pattern".to_string(), pattern.to_string()));
+        self.get_json("/v1/find", &query).await
+    }
+
+    /// 在目录上下文中按名称搜索文件或目录。
+    pub async fn file_find_in_directory(
+        &self,
+        directory: Option<&str>,
+        query_text: &str,
+        include_directories: Option<bool>,
+        entry_type: Option<&str>,
+        limit: Option<usize>,
+    ) -> Result<serde_json::Value, String> {
+        let mut query = optional_directory_query(directory);
+        query.push(("query".to_string(), query_text.to_string()));
+        if let Some(include_directories) = include_directories {
+            query.push(("dirs".to_string(), include_directories.to_string()));
+        }
+        if let Some(entry_type) = entry_type {
+            query.push(("type".to_string(), entry_type.to_string()));
+        }
+        if let Some(limit) = limit {
+            query.push(("limit".to_string(), limit.to_string()));
+        }
+        self.get_json("/v1/find/file", &query).await
+    }
+
+    /// 列出目录上下文中的单层文件节点。
+    pub async fn directory_file_list(
+        &self,
+        directory: Option<&str>,
+        path: &str,
+    ) -> Result<serde_json::Value, String> {
+        let mut query = optional_directory_query(directory);
+        query.push(("path".to_string(), path.to_string()));
+        self.get_json("/v1/file", &query).await
+    }
+
+    /// 读取目录上下文中的完整文件内容。
+    pub async fn file_content_in_directory(
+        &self,
+        directory: Option<&str>,
+        path: &str,
+    ) -> Result<serde_json::Value, String> {
+        let mut query = optional_directory_query(directory);
+        query.push(("path".to_string(), path.to_string()));
+        self.get_json("/v1/file/content", &query).await
+    }
+
+    /// 查询目录上下文中的 Git 文件状态。
+    pub async fn file_status_in_directory(
+        &self,
+        directory: Option<&str>,
+    ) -> Result<serde_json::Value, String> {
+        self.get_json("/v1/file/status", &optional_directory_query(directory)).await
+    }
+
     /// 列出项目或 worktree 下的文件树。
     ///
     /// 该方法会先解析出真实目录，再递归拼装文件树。返回结果统一为 `ListFilesResponse`，便于前端直接消费。
@@ -174,6 +238,12 @@ impl GatewayClient {
         )
         .await
     }
+}
+
+fn optional_directory_query(directory: Option<&str>) -> Vec<(String, String)> {
+    directory
+        .map(|directory| vec![("directory".to_string(), directory.to_string())])
+        .unwrap_or_default()
 }
 
 impl GatewayClient {

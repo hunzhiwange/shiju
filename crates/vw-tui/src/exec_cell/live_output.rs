@@ -1,3 +1,5 @@
+//! 管理命令流式输出的有界预览，并在超限后保留首尾上下文。
+
 use itertools::Either;
 use std::borrow::Cow;
 use std::collections::VecDeque;
@@ -10,6 +12,10 @@ const LIVE_COMMAND_OUTPUT_LINE_HEAD_BYTES: usize = LIVE_COMMAND_OUTPUT_MAX_LINE_
 const LIVE_COMMAND_OUTPUT_LINE_TAIL_BYTES: usize =
     LIVE_COMMAND_OUTPUT_MAX_LINE_BYTES - LIVE_COMMAND_OUTPUT_LINE_HEAD_BYTES;
 
+/// 命令流式输出的有界增量预览。
+///
+/// 在字节预算内保留全部输出；超限后仅保留前后各 50 个完整行和当前未完成行。
+/// 每行也独立保留前后片段，避免无换行命令让活动单元无限增长。
 /// A bounded, incremental preview of streamed command output.
 ///
 /// All output is retained until the byte budget is exceeded. Once truncated, the first and last
@@ -28,6 +34,7 @@ pub(super) struct LiveCommandOutput {
 }
 
 impl LiveCommandOutput {
+    /// 追加增量，并在任意分块边界之间保持 `str::lines` 的语义。
     /// Appends a delta, preserving `str::lines` semantics across arbitrary chunk boundaries.
     pub(super) fn push_str(&mut self, chunk: &str) {
         if !self.truncated {
@@ -52,6 +59,7 @@ impl LiveCommandOutput {
         self.push_truncated_str(chunk);
     }
 
+    /// 追加受限输出：跨分块的 CRLF 视为一个终止符，孤立 CR 则原样保留。
     /// Appends bounded output while treating a split CRLF as one terminator and retaining lone CRs.
     fn push_truncated_str(&mut self, chunk: &str) {
         for part in chunk.split_inclusive('\n') {
@@ -97,11 +105,13 @@ impl LiveCommandOutput {
     }
 
     pub(super) fn total_lines(&self) -> usize {
+        // 未完成的尾行也占一个可见行，但不会计入已完成行数。
         self.completed_lines
             .saturating_add(usize::from(self.has_partial_line))
     }
 
     pub(super) fn retained_lines(&self) -> usize {
+        // 截断模式按首部、尾部和当前行计算实际仍可呈现的行数。
         if self.truncated {
             self.head
                 .len()
@@ -112,6 +122,7 @@ impl LiveCommandOutput {
         }
     }
 
+    /// 返回可双向迭代的预览行；即使总量未超预算，单个长行也会缩略。
     /// Returns reverse-capable preview lines, abbreviating long lines even below the byte budget.
     pub(super) fn lines(&self) -> impl DoubleEndedIterator<Item = Cow<'_, str>> {
         if self.truncated {
@@ -138,6 +149,7 @@ impl LiveCommandOutput {
         }
     }
 
+    /// 未截断时返回无损转录行；截断后在首尾之间插入省略行标记。
     /// Returns lossless transcript lines until truncated, then inserts the omitted-line marker.
     pub(super) fn transcript_lines(&self) -> impl Iterator<Item = Cow<'_, str>> {
         let omitted = self.total_lines().saturating_sub(self.retained_lines());
@@ -169,6 +181,7 @@ impl LiveCommandOutput {
 
 #[derive(Debug, Default)]
 struct LiveCommandOutputLine {
+    // 单行只保存字节级首尾窗口，并累计中间被省略的字节数。
     head: String,
     tail: String,
     omitted_bytes: usize,
@@ -219,6 +232,7 @@ impl LiveCommandOutputLine {
         }
     }
 
+    /// 渲染保留片段，并在省略标记前闭合被截断的 ANSI 序列。
     /// Renders the retained line, closing truncated ANSI sequences before the omission marker.
     fn render(&self) -> String {
         let omission_marker = (self.omitted_bytes > 0)

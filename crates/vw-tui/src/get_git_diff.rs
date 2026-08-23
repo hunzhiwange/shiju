@@ -1,3 +1,7 @@
+//! 计算当前工作目录的 Git 差异。
+//!
+//! 行为与 `codex-cli` TypeScript 版本一致：同时返回已跟踪变更和未跟踪文件；
+//! 当前目录不在 Git 仓库中时返回 `Ok((false, String::new()))`。
 //! Utility to compute the current Git diff for the working directory.
 //!
 //! The implementation mirrors the behaviour of the TypeScript version in
@@ -23,6 +27,8 @@ const DISABLE_HOOKS_CONFIG: &str = if cfg!(windows) {
 };
 const EXECUTABLE_FILTER_CONFIG_PATTERN: &str = r"^filter\..*\.(clean|process)$";
 
+// `/diff` 可能通过远程工作区执行 Git，因此探测策略由 git-utils 持有，
+// 本适配层只在 TUI 层执行命令；每次调用有界，但 `/diff` 没有聚合命令截止时间。
 // `/diff` may execute Git through a remote workspace, so git-utils owns the
 // probe policy while this adapter keeps command execution in the TUI layer.
 // WorkspaceCommand bounds each call; `/diff` has no aggregate command deadline.
@@ -44,6 +50,7 @@ impl FsmonitorProbeRunner for WorkspaceFsmonitorProbeRunner<'_> {
     }
 }
 
+/// `get_git_diff` 的返回值：布尔值表示 cwd 是否位于 Git 仓库，字符串为可能为空的拼接差异。
 /// Return value of [`get_git_diff`].
 ///
 /// * `bool` – Whether the current working directory is inside a Git repo.
@@ -52,15 +59,18 @@ pub(crate) async fn get_git_diff(
     runner: &dyn WorkspaceCommandExecutor,
     cwd: &Path,
 ) -> Result<(bool, String), String> {
+    // 首先确认当前目录位于 Git 仓库中。
     // First check if we are inside a Git repository.
     if !inside_git_repo(runner, cwd).await? {
         return Ok((false, String::new()));
     }
 
+    // 每次 `/diff` 只探测一次，并为后续全部 Git 命令复用结果。
     // Probe once per `/diff` and reuse the result for all subsequent Git commands.
     let mut probe_runner = WorkspaceFsmonitorProbeRunner { runner, cwd };
     let fsmonitor = detect_fsmonitor_override(&mut probe_runner).await;
 
+    // `/diff` 保持纯信息用途：仓库配置不得选择可执行的差异辅助程序。
     // Keep `/diff` informational: repository configuration must not select executable diff helpers.
     let diff_config_overrides = diff_filter_config_overrides(runner, cwd, fsmonitor).await?;
     let (tracked_diff_res, untracked_output_res) = tokio::join!(
@@ -121,6 +131,7 @@ pub(crate) async fn get_git_diff(
     Ok((true, format!("{tracked_diff}{untracked_diff}")))
 }
 
+/// 使用给定参数执行 Git 并以 UTF-8 返回 stdout；任何非零退出状态均视为错误。
 /// Helper that executes `git` with the given `args` and returns `stdout` as a
 /// UTF-8 string. Any non-zero exit status is considered an *error*.
 async fn run_git_capture_stdout(
@@ -140,6 +151,7 @@ async fn run_git_capture_stdout(
     }
 }
 
+/// 类似 `run_git_capture_stdout`，但将退出状态 1 视为成功，因为 Git 在存在差异时返回 1。
 /// Like [`run_git_capture_stdout`] but treats exit status 1 as success and
 /// returns stdout. Git returns 1 for diffs when differences are present.
 async fn run_git_capture_diff(
@@ -160,6 +172,7 @@ async fn run_git_capture_diff(
     }
 }
 
+/// 返回用于阻止已配置过滤驱动在生成差异时执行的 Git 配置覆盖。
 /// Return Git configuration overrides that prevent configured filter drivers
 /// from executing while generating diffs.
 async fn diff_filter_config_overrides(
@@ -206,11 +219,13 @@ async fn diff_filter_config_overrides(
         .collect())
 }
 
+/// 判断当前目录是否位于 Git 仓库中。
 /// Determine if the current directory is inside a Git repository.
 async fn inside_git_repo(
     runner: &dyn WorkspaceCommandExecutor,
     cwd: &Path,
 ) -> Result<bool, String> {
+    // `rev-parse` 不检查工作树；若先探测，还会在仓库外额外运行 Git 命令。
     // `rev-parse` does not inspect the worktree, and probing before this check
     // would also run extra Git commands outside repositories.
     let output = run_git_command(

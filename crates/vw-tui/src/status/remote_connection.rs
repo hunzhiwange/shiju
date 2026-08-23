@@ -1,13 +1,18 @@
+//! 将远程应用服务器目标整理为安全的状态栏展示值。
+//! WebSocket 地址会移除用户名、密码、查询参数与片段，防止凭据泄漏。
+
 use crate::AppServerTarget;
 use crate::RemoteAppServerEndpoint;
 use url::Url;
 
+/// 已脱敏的远程连接地址及服务器版本。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct RemoteConnectionStatus {
     pub(crate) address: String,
     pub(crate) version: String,
 }
 
+/// 只为守护进程或远程目标生成连接状态；嵌入式目标无需显示。
 pub(crate) fn remote_connection_status_value(
     app_server_target: &AppServerTarget,
     server_version: Option<&str>,
@@ -33,6 +38,7 @@ pub(crate) fn remote_connection_status_value(
     Some(RemoteConnectionStatus { address, version })
 }
 
+/// 解析 URL 后清除可能包含认证信息的所有展示无关部分。
 fn sanitized_websocket_display_address(raw: &str) -> Option<String> {
     let mut url = Url::parse(raw).ok()?;
     let _ = url.set_username("");
@@ -48,6 +54,7 @@ mod tests {
     use codex_utils_absolute_path::AbsolutePathBuf;
 
     #[test]
+    // 同时验证嵌入式省略、WebSocket 脱敏及 Unix 套接字格式。
     fn remote_connection_status_value_formats_display_value() -> color_eyre::Result<()> {
         assert_eq!(
             remote_connection_status_value(&AppServerTarget::Embedded, Some("1.2.3")),

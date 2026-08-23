@@ -1,3 +1,11 @@
+//! 会话头部与紧凑转录标记。
+//!
+//! 会话卡片使用产品中立展示数据，不在渲染层读取运行时配置。
+//! 标签先对齐再整体截断，使宽字符目录与边框宽度保持一致。
+//! 四列空间保留给左右边框及内边距，过窄时直接不绘制残缺卡片。
+//! 历史压缩边界使用紧凑单行标记，并按当前宽度安全裁切。
+//! 会话标题为空时依次回退到会话标识和新会话占位文本。
+//! 卡片只展示传入的模型、目录、网关与权限摘要，不查询外部状态。
 //! Session headers and compact transcript markers.
 
 use ratatui::prelude::*;
@@ -48,6 +56,7 @@ enum SessionHistoryKind {
     Header(V3SessionDisplayData),
 }
 
+/// 使用产品中立展示数据填充的复制版会话历史界面。
 /// Copied session history surface populated by product-neutral display data.
 #[derive(Debug)]
 pub struct SessionHistoryCell {

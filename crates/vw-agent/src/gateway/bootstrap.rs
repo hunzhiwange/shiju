@@ -370,11 +370,11 @@ pub(super) fn gateway_route_summary(options: GatewayRouteSummaryOptions) -> Vec<
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct GatewayRouteEntry {
-    pub(super) method: &'static str,
-    pub(super) path: &'static str,
-    pub(super) description: &'static str,
-    pub(super) requires_tenant: bool,
+pub struct GatewayRouteEntry {
+    pub method: &'static str,
+    pub path: &'static str,
+    pub description: &'static str,
+    pub requires_tenant: bool,
 }
 
 impl GatewayRouteEntry {
@@ -412,6 +412,18 @@ pub(super) fn gateway_route_entries(options: GatewayRouteSummaryOptions) -> Vec<
         routes.push(client_route("POST", "/v1/node-control", "node-control RPC"));
     }
     routes
+}
+
+/// 返回启动摘要使用的完整文档化路由清单，供跨 crate 覆盖审计复用。
+pub fn documented_gateway_routes() -> Vec<GatewayRouteEntry> {
+    gateway_route_entries(GatewayRouteSummaryOptions {
+        whatsapp_enabled: false,
+        linq_enabled: false,
+        wati_enabled: false,
+        nextcloud_talk_enabled: false,
+        qq_webhook_enabled: false,
+        node_control_enabled: false,
+    })
 }
 
 const fn public_route(

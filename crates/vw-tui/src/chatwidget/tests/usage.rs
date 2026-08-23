@@ -1,3 +1,8 @@
+//! 验证用量菜单与速率限制重置额度的加载、确认、兑换和失效流程。
+//! 夹具构造额度、到期时间与覆盖层，避免依赖后端时钟和真实账户。
+//! 状态机必须阻止重复确认、复用幂等键，并在账户变化时丢弃旧请求。
+//! 覆盖层下方的异步结果仍需更新目标弹窗，但不得绕过进行中的兑换保护。
+
 use super::super::reset_credits::ResetCreditOption;
 use super::super::reset_credits::reset_credit_options;
 use super::*;
@@ -104,6 +109,7 @@ fn reset_credit_options_use_generic_copy_when_backend_copy_is_missing() {
 
 #[tokio::test]
 async fn usage_command_opens_menu_when_reset_is_available_snapshot() {
+    // 用量菜单按缓存额度决定重置入口是否可用，并允许刷新后改变状态。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
     let request_id = chat.start_rate_limit_reset_startup_check();
@@ -212,6 +218,7 @@ async fn usage_menu_refresh_failure_preserves_disabled_known_zero() {
 
 #[tokio::test]
 async fn account_update_invalidates_usage_menu_refresh_when_visible_state_is_unchanged() {
+    // 即使可见账户文本未变，账户更新也会使进行中的菜单刷新失效。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
     let startup_request_id = chat.start_rate_limit_reset_startup_check();
@@ -293,6 +300,7 @@ async fn usage_menu_rate_limit_reset_entry_opens_reset_flow() {
 
 #[tokio::test]
 async fn rate_limit_reset_popup_states_snapshot() {
+    // 重置流程快照覆盖加载、选择、确认、兑换和结果等状态。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
     let mut states = Vec::new();
@@ -547,6 +555,7 @@ async fn reset_picker_allows_only_one_pending_confirmation() {
 
 #[tokio::test]
 async fn rate_limit_reset_picker_starts_with_soonest_expiries_and_keeps_all_rows_reachable() {
+    // 额度按最近到期优先排序，同时保证所有行可通过导航到达。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let request_id = chat.show_rate_limit_reset_loading_popup();
     let first_expiry = expiry_timestamp(/*day*/ 18, /*hour*/ 9, /*minute*/ 39);
@@ -645,6 +654,7 @@ async fn rate_limit_reset_confirmation_can_use_reset() {
 
 #[tokio::test]
 async fn rate_limit_reset_retry_reuses_idempotency_key() {
+    // 兑换重试复用同一幂等键，重复完成结果按成功结算。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let request_id = chat.show_rate_limit_reset_consuming_popup();
     assert!(!chat.finish_rate_limit_reset_consume(
@@ -816,6 +826,7 @@ async fn failed_post_consume_refresh_does_not_keep_stale_reset_count() {
 
 #[tokio::test]
 async fn account_change_invalidates_pending_reset_requests() {
+    // 账户变化撤销旧加载与兑换响应，防止跨账户消费额度。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
     let request_id = chat.show_rate_limit_reset_loading_popup();
@@ -858,6 +869,7 @@ async fn clearing_pending_reset_hint_preserves_in_flight_redemption() {
 
 #[tokio::test]
 async fn rate_limit_reset_load_result_updates_popup_beneath_overlay() {
+    // 覆盖层存在时异步结果更新下层重置弹窗，但不抢占当前视图。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let request_id = chat.show_rate_limit_reset_loading_popup();
     show_usage_test_overlay(&mut chat);
@@ -961,6 +973,7 @@ async fn account_change_dismisses_reset_popup_beneath_overlay() {
 
 #[tokio::test]
 async fn startup_check_shows_available_reset_hint_snapshot() {
+    // 启动提示等待活动输出结束，并在用户主动进入重置流程后失效。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     set_chatgpt_auth(&mut chat);
     let hint_request_id = chat.start_rate_limit_reset_startup_check();

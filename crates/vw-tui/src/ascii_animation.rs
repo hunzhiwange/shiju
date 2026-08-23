@@ -8,6 +8,7 @@ use crate::frames::ALL_VARIANTS;
 use crate::frames::FRAME_TICK_DEFAULT;
 use crate::tui::FrameRequester;
 
+/// 驱动弹窗和引导组件共享的 ASCII 艺术动画。
 /// Drives ASCII art animations shared across popups and onboarding widgets.
 pub(crate) struct AsciiAnimation {
     request_frame: FrameRequester,
@@ -42,6 +43,7 @@ impl AsciiAnimation {
     }
 
     pub(crate) fn schedule_next_frame(&self) {
+        // 对齐到下一个固定节拍，避免重复渲染使动画逐渐漂移。
         let tick_ms = self.frame_tick.as_millis();
         if tick_ms == 0 {
             self.request_frame.schedule_frame();
@@ -77,6 +79,7 @@ impl AsciiAnimation {
     }
 
     pub(crate) fn pick_random_variant(&mut self) -> bool {
+        // 随机切换时排除当前变体，成功返回即保证画面发生变化。
         if self.variants.len() <= 1 {
             return false;
         }
@@ -100,7 +103,9 @@ mod tests {
     use super::*;
 
     #[test]
+    // 默认节拍必须可推进，否则调度会退化为持续立即重绘。
     fn frame_tick_must_be_nonzero() {
         assert!(FRAME_TICK_DEFAULT.as_millis() > 0);
     }
 }
+//! 为弹窗和引导界面驱动按时间推进的 ASCII 动画帧。

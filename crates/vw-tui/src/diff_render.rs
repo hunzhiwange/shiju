@@ -1,3 +1,4 @@
+//! 从复制的 Codex 差异界面保留下来的差异展示辅助函数。
 //! Diff presentation helpers retained from the copied Codex diff surface.
 
 use std::collections::BTreeMap;
@@ -11,6 +12,7 @@ use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+/// 单个文件的显示路径及增删行计数。
 pub struct DiffSummary {
     pub path: PathBuf,
     pub added: usize,
@@ -26,6 +28,7 @@ pub fn create_diff_summary(
     cwd: &Path,
     wrap_cols: usize,
 ) -> Vec<Line<'static>> {
+    // 文件之间插入空行，并将路径摘要放在对应差异正文之前。
     let mut lines = Vec::new();
     for (index, (path, change)) in changes.iter().enumerate() {
         if index > 0 {
@@ -42,6 +45,7 @@ pub fn create_diff_summary(
 }
 
 pub fn render_change(change: &FileChange, width: usize) -> Vec<Line<'static>> {
+    // 新增、删除和更新使用不同语义色；宽度至少为一列以保证包装器有效。
     let (text, style) = match change {
         FileChange::Add { content } => (content.as_str(), Color::Green),
         FileChange::Delete { content } => (content.as_str(), Color::Red),

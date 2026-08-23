@@ -1,4 +1,5 @@
 //! Shortcut picker construction for `/keymap`.
+//! 构建 `/keymap` 使用的快捷键选择器。
 
 use codex_config::types::TuiKeymap;
 use ratatui::style::Styled;
@@ -35,6 +36,7 @@ const KEYMAP_ROW_PREFIX_WIDTH: usize = KEYMAP_CONTEXT_LABEL_WIDTH + 3;
 
 #[derive(Clone, Debug)]
 struct KeymapActionRow {
+    // 行模型合并稳定动作元数据、运行时摘要和是否被根配置覆盖三类信息。
     context: &'static str,
     context_label: &'static str,
     action: &'static str,
@@ -51,6 +53,7 @@ impl KeymapActionRow {
 }
 
 struct KeymapContextTab {
+    // 上下文标签页只声明分组，具体行始终从统一动作目录过滤得到。
     id: &'static str,
     label: &'static str,
     description: &'static str,
@@ -143,6 +146,7 @@ pub(crate) fn build_keymap_picker_params_with_filter(
     keymap_config: &TuiKeymap,
     action_filter: KeymapActionFilter,
 ) -> SelectionViewParams {
+    // 常规入口不指定动作，因此保持默认选择位置。
     build_keymap_picker_params_for_action(
         runtime_keymap,
         keymap_config,
@@ -188,11 +192,13 @@ fn build_keymap_picker_params_for_action(
     action_filter: KeymapActionFilter,
     selected_action: Option<(&str, &str)>,
 ) -> SelectionViewParams {
+    // 所有标签页共享同一行快照，确保统计、搜索结果与初始选择彼此一致。
     let rows = build_keymap_rows(runtime_keymap, keymap_config, action_filter);
     let total = rows.len();
     let custom_count = rows.iter().filter(|row| row.custom_binding).count();
     let unbound_count = rows.iter().filter(|row| row.is_unbound()).count();
     let initial_selected_idx = selected_action.and_then(|(context, action)| {
+        // 重新打开动作菜单后按稳定二元组恢复选择；目标不可见时安全回退为默认选择。
         rows.iter()
             .position(|row| row.context == context && row.action == action)
     });
@@ -305,6 +311,7 @@ fn build_keymap_picker_params_for_action(
 }
 
 fn keymap_debug_tab() -> SelectionTab {
+    // 调试标签不是可配置动作，只提供进入实时按键检查器的单一入口。
     SelectionTab {
         id: KEYMAP_DEBUG_TAB_ID.to_string(),
         label: "Debug".to_string(),
@@ -336,6 +343,7 @@ fn build_keymap_rows(
     keymap_config: &TuiKeymap,
     action_filter: KeymapActionFilter,
 ) -> Vec<KeymapActionRow> {
+    // 无法读取自定义状态时按默认绑定处理，避免把配置访问错误显示成已定制。
     KEYMAP_ACTIONS
         .iter()
         .copied()
@@ -362,6 +370,7 @@ fn build_keymap_rows(
 }
 
 fn keymap_common_rows(rows: &[KeymapActionRow]) -> Vec<&KeymapActionRow> {
+    // 按手工维护的常用顺序查找，过滤掉当前功能集不可见的动作。
     KEYMAP_COMMON_ACTIONS
         .iter()
         .filter_map(|(context, action)| {
@@ -376,6 +385,7 @@ fn keymap_selection_items<'a>(
     empty_name: &str,
     empty_description: &str,
 ) -> Vec<SelectionItem> {
+    // 空分组返回禁用占位行，让通用选择器仍可安全渲染和切换标签。
     let items = rows
         .into_iter()
         .map(keymap_selection_item)
@@ -393,6 +403,7 @@ fn keymap_selection_items<'a>(
 }
 
 fn keymap_selection_item(row: &KeymapActionRow) -> SelectionItem {
+    // 闭包只携带稳定上下文与动作名，具体编辑状态由打开菜单时重新解析。
     let context = row.context.to_string();
     let action = row.action.to_string();
     let source = if row.custom_binding {
@@ -421,6 +432,7 @@ fn keymap_selection_item(row: &KeymapActionRow) -> SelectionItem {
 }
 
 fn keymap_row_prefix(row: &KeymapActionRow) -> Vec<Span<'static>> {
+    // 固定宽度上下文列配合单字符状态标记，使不同标签页的动作名称纵向对齐。
     let indicator = if row.custom_binding {
         "*".set_style(accent_style())
     } else if row.is_unbound() {

@@ -1,9 +1,12 @@
+//! 验证文本域 Vim 普通模式命令、待定操作符状态、按键重绑与字素边界。
+
 use super::super::TextArea;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
 use pretty_assertions::assert_eq;
 
+// 构造指定光标位置的 Vim 普通模式文本域，供命令测试复用。
 fn vim_textarea(text: &str, cursor: usize) -> TextArea {
     let mut textarea = TextArea::new();
     textarea.insert_str(text);
@@ -12,6 +15,7 @@ fn vim_textarea(text: &str, cursor: usize) -> TextArea {
     textarea
 }
 
+// 将紧凑命令字符串逐键送入文本域，其中换行字符模拟 Enter。
 fn keys(textarea: &mut TextArea, keys: &str) {
     for key in keys.chars() {
         let code = if key == '\n' { KeyCode::Enter } else { KeyCode::Char(key) };
@@ -19,11 +23,13 @@ fn keys(textarea: &mut TextArea, keys: &str) {
     }
 }
 
+// 发送 Esc 以取消待定命令或从插入模式返回普通模式。
 fn escape(textarea: &mut TextArea) {
     textarea.input(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
 }
 
 #[test]
+// `r` 替换完整字素并留在普通模式，也支持换行及取消未完成替换。
 fn replace_character_preserves_normal_mode_and_grapheme_boundaries() {
     let mut textarea = vim_textarea("a👩‍💻c", /*cursor*/ 1);
     keys(&mut textarea, "rZ");
@@ -50,6 +56,7 @@ fn replace_character_preserves_normal_mode_and_grapheme_boundaries() {
 }
 
 #[test]
+// 替换字符命令服从运行时重绑，清空绑定后原按键不再触发替换。
 fn replace_character_uses_configured_binding_and_supports_unbinding() {
     let mut textarea = vim_textarea("abc", /*cursor*/ 0);
     let mut keymap = crate::keymap::RuntimeKeymap::defaults();
@@ -66,6 +73,7 @@ fn replace_character_uses_configured_binding_and_supports_unbinding() {
 }
 
 #[test]
+// `c` 覆盖单词、行尾、整行和上下行移动，并在有效修改后进入插入模式。
 fn change_accepts_word_line_and_repeated_operator_motions() {
     let mut textarea = vim_textarea("hello world\nnext", /*cursor*/ 0);
     keys(&mut textarea, "cw");
@@ -113,6 +121,7 @@ fn change_accepts_word_line_and_repeated_operator_motions() {
 }
 
 #[test]
+// 待输入替换字符时 Esc 由文本域消费并取消命令，不能上浮为会话中断。
 fn pending_replacement_owns_escape_before_turn_interruption() {
     let mut textarea = vim_textarea("alpha", /*cursor*/ 0);
     let escape = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
@@ -126,6 +135,7 @@ fn pending_replacement_owns_escape_before_turn_interruption() {
 }
 
 #[test]
+// 快照记录连续替换与修改命令后的正文和光标位置，提供可读回归基线。
 fn editor_commands_have_visual_snapshot_coverage() {
     let mut textarea = vim_textarea("alpha beta\ngamma delta", /*cursor*/ 0);
     let mut states = Vec::new();

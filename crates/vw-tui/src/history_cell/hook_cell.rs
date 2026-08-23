@@ -1,3 +1,8 @@
+//! Hook 执行的历史单元。
+//!
+//! Hook 有意比普通工具调用更安静：无输出的快速成功不留下转录痕迹，也不闪烁。
+//! 每次运行通过隐藏、可见运行、短暂驻留和持久完成四类状态控制展示生命周期。
+//! 相邻运行只在生成展示行时合并，底层协议标识和完成转换始终保持独立。
 //! History cell for hook execution.
 //!
 //! Hooks are intentionally quieter than normal tool calls. A hook that starts and finishes
@@ -36,17 +41,25 @@ use std::time::Instant;
 
 #[derive(Debug)]
 pub(crate) struct HookCell {
+    /// 当前活动、短暂驻留或带持久输出的 Hook 运行。
     /// Hook runs that are active, lingering, or have persistent output to render.
     runs: Vec<HookRunCell>,
+    /// 镜像全局动画设置，确保转录与主视口的渲染一致。
     /// Mirrors the global animation setting so transcript rendering and viewport rendering agree.
     animations_enabled: bool,
 }
 
+/// Hook 获准绘制前必须持续的最短运行时间。
+///
+/// 该延迟避免几乎瞬时完成的工作闪出一行文本。
 /// Minimum runtime before a hook is allowed to draw.
 ///
 /// Helps avoids a flash of text forwork that was effectively instant.
 const HOOK_RUN_REVEAL_DELAY: Duration = Duration::from_millis(300);
 
+/// 安静成功在变为可见后保留在屏幕上的最短时间。
+///
+/// 它与揭示延迟配合：用户一旦看到 Hook 行，就应有足够时间阅读，而非成功事件到达即消失。
 /// Minimum time a quiet success remains on screen after becoming visible.
 ///
 /// This pairs with `HOOK_RUN_REVEAL_DELAY`: once the user has seen a hook row, keep it stable long
@@ -59,43 +72,59 @@ const HOOK_CONTEXT_MAX_DISPLAY_ROWS: usize = 3;
 
 #[derive(Debug)]
 struct HookRunCell {
+    /// 用于匹配同一 Hook 调用开始与结束更新的稳定协议标识。
     /// Stable protocol id used to match begin/end updates for the same hook invocation.
     id: String,
+    /// Hook 事件类型；独立于 `state`，以便开始更新能原地刷新元数据。
     /// Hook event kind, kept outside `state` so a begin update can refresh metadata in place.
     event_name: HookEventName,
+    /// Hook 提供的可选详情，显示在运行标题旁。
     /// Optional hook-supplied detail shown next to the running header.
     status_message: Option<String>,
+    /// 本次运行的渲染生命周期。
     /// Rendering lifecycle for this run.
     state: HookRunState,
 }
 
 #[derive(Debug)]
 enum HookRunState {
+    /// 刚开始且仍活动，但在 `reveal_deadline` 前有意隐藏的运行。
     /// A newly-started run that is active but deliberately hidden until `reveal_deadline`.
     PendingReveal {
+        /// 原始开始时间，在揭示后用于旋转指示相位与分组。
         /// The original start time, used for spinner phase and grouping once revealed.
         start_time: Instant,
+        /// 运行最早可见的时刻。
         /// First instant at which the run may become visible.
         reveal_deadline: Instant,
     },
+    /// 已超过揭示延迟、当前显示为运行中的任务。
     /// A run that survived the reveal delay and is currently shown as running.
     VisibleRunning {
+        /// 原始开始时间，用于在状态转换间保持动画计时稳定。
         /// The original start time, used to keep animation timing stable across transitions.
         start_time: Instant,
+        /// 首次实际绘制的时刻，供安静成功的驻留逻辑使用。
         /// First instant the run was actually rendered, used by quiet-success linger.
         visible_since: Instant,
     },
+    /// 已可见且无输出成功完成，但仍在短暂驻留的运行。
     /// A visible run that completed successfully without output but is still lingering briefly.
     QuietLinger {
+        /// 保留原始开始时间，防止驻留帧中的指示器相位跳变。
         /// The original start time, retained so the spinner does not jump during the linger frame.
         start_time: Instant,
+        /// 安静成功可被彻底移除的时刻。
         /// Instant after which the quiet success can be removed entirely.
         removal_deadline: Instant,
     },
+    /// 带输出或值得保留状态的已完成运行。
     /// A completed run with output or a status worth preserving in history.
     Completed {
+        /// Hook 调用的最终协议状态。
         /// Final protocol status for the hook invocation.
         status: HookRunStatus,
+        /// 在完成标题下方渲染的 Hook 输出条目。
         /// Hook output entries rendered below the completed header.
         entries: Vec<HookOutputEntry>,
     },
@@ -107,20 +136,27 @@ struct RunningHookGroupKey {
     status_message: Option<String>,
 }
 
+/// 可共享一条状态行的相邻运行中 Hook 的累加器。
+///
+/// 分组仅在构建展示行时发生；底层运行保持分离，其协议标识和完成转换互不影响。
 /// Accumulator for adjacent running hooks that can share one status line.
 ///
 /// Grouping happens only while building display lines, the underlying runs stay separate so their
 /// protocol ids and completion transitions remain independent.
 struct RunningHookGroup {
+    /// 展示组中所有运行共享的事件与状态对。
     /// Shared event/status pair for every run in this display group.
     key: RunningHookGroupKey,
+    /// 组内最早开始时间，使合并指示器反映最早启动的工作。
     /// Earliest start time in the group, so the combined spinner reflects the oldest work.
     start_time: Option<Instant>,
+    /// 该分组行代表的相邻运行数量。
     /// Number of adjacent runs represented by the group line.
     count: usize,
 }
 
 impl HookCell {
+    /// 为刚开始的 Hook 创建活动单元。
     /// Creates a cell around a hook that has just started.
     fn new_active(run: HookRunSummary, animations_enabled: bool) -> Self {
         let mut cell = Self {
@@ -131,6 +167,7 @@ impl HookCell {
         cell
     }
 
+    /// 根据转录或历史数据为已完成 Hook 创建单元。
     /// Creates a cell around an already-completed hook from transcript/history data.
     fn new_completed(run: HookRunSummary, animations_enabled: bool) -> Self {
         let mut cell = Self {
@@ -145,21 +182,27 @@ impl HookCell {
         self.runs.is_empty()
     }
 
+    /// 任一运行仍可能因结束事件或计时器改变时返回真。
     /// Returns true while any run can still change due to an end event or timer.
     pub(crate) fn is_active(&self) -> bool {
         self.runs.iter().any(|run| run.state.is_active())
     }
 
+    /// 已完成 Hook 不再有计时器后会从活动槽刷新出去。
     /// Completed hook cells are flushed out of the active slot once no timers remain.
     pub(crate) fn should_flush(&self) -> bool {
         !self.is_active() && !self.is_empty()
     }
 
+    /// 返回该单元当前是否至少有一行值得绘制。
     /// Returns whether this cell has at least one line worth drawing right now.
     pub(crate) fn should_render(&self) -> bool {
         self.runs.iter().any(|run| run.state.should_render())
     }
 
+    /// 将持久的已完成运行与短暂的活动单元记账状态分离。
+    ///
+    /// 安静成功留在活动侧以便消失；失败、阻塞、停止或带输出的 Hook 转为持久历史。
     /// Splits durable completed runs from ephemeral active-cell bookkeeping.
     ///
     /// Quiet successes are left behind so they can disappear from the active cell, while failures,
@@ -181,11 +224,13 @@ impl HookCell {
         })
     }
 
+    /// 供调用者判断活动单元当前是否占据主视口空间。
     /// Used by callers that need to know whether the active cell currently occupies viewport space.
     pub(crate) fn has_visible_running_run(&self) -> bool {
         self.runs.iter().any(|run| run.state.is_running_visible())
     }
 
+    /// 推进揭示与移除计时器，并报告是否需要刷新渲染。
     /// Advances reveal/removal timers and reports whether rendering should be refreshed.
     pub(crate) fn advance_time(&mut self, now: Instant) -> bool {
         let old_len = self.runs.len();
@@ -197,6 +242,9 @@ impl HookCell {
         changed || self.runs.len() != old_len
     }
 
+    /// 插入或刷新一个已开始的 Hook 运行。
+    ///
+    /// 重复开始事件会重置揭示计时器而非新增一行；按标识匹配是维持开始/结束配对的不变量。
     /// Inserts or refreshes a started hook run.
     ///
     /// A duplicate begin event resets the reveal timer rather than adding a second row, because
@@ -217,6 +265,9 @@ impl HookCell {
         });
     }
 
+    /// 完成一次运行，并返回它此前是否已存在于本单元。
+    ///
+    /// 安静成功不产生持久输出：从未可见则立即消失，已经绘制则进入 `QuietLinger`。
     /// Completes a run and returns whether the run was already present in this cell.
     ///
     /// Quiet successes intentionally avoid persistent output. If they were never visible, they
@@ -248,6 +299,9 @@ impl HookCell {
         true
     }
 
+    /// 添加未经过当前实时单元的已完成 Hook。
+    ///
+    /// 用于回放或恢复路径，此时最终运行摘要已经完整可用。
     /// Adds a completed hook that did not pass through this live cell.
     ///
     /// This is used for replay/restoration paths where the final run summary is already known.
@@ -301,6 +355,7 @@ impl HookCell {
         }
     }
 
+    /// 为受限主视口或完整转录浮层构建 Hook 行。
     /// Builds hook lines for either the bounded main viewport or the full transcript overlay.
     fn output_lines(&self, width: u16, render_full_context: bool) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
@@ -311,6 +366,7 @@ impl HookCell {
             }
 
             let Some(key) = run.running_group_key() else {
+                // 已完成运行保留自己的输出行，因此绘制它之前必须先发出待处理的运行组。
                 // Completed runs keep their own output lines, so any pending running group must be
                 // emitted before drawing the completed run.
                 if let Some(group) = running_group.take() {
@@ -330,6 +386,7 @@ impl HookCell {
                 && group.key == key
             {
                 group.count += 1;
+                // 保留最早开始时间，避免较晚 Hook 并入同组时重置合并指示器。
                 // Preserve the earliest start time so grouped spinners do not reset when a later
                 // adjacent hook is folded into the same line.
                 group.start_time = earliest_instant(group.start_time, run.state.start_time());
@@ -350,11 +407,13 @@ impl HookCell {
 }
 
 impl HistoryCell for HookCell {
+    /// 构建主视口行，并合并相邻且可见的运行中 Hook。
     /// Builds viewport lines while coalescing adjacent visible-running hooks.
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
         self.output_lines(width, /*render_full_context*/ false)
     }
 
+    /// 转录浮层保留主视口预览隐藏的完整 Hook 上下文。
     /// The transcript overlay preserves complete hook context hidden by the viewport preview.
     fn transcript_lines(&self, width: u16) -> Vec<Line<'static>> {
         self.output_lines(width, /*render_full_context*/ true)
@@ -364,6 +423,7 @@ impl HistoryCell for HookCell {
         plain_lines(self.output_lines(u16::MAX, /*render_full_context*/ true))
     }
 
+    /// Hook 动画活动期间，为转录浮层生成粗粒度缓存键。
     /// Produces a coarse cache key for transcript overlays while hook animations are active.
     fn transcript_animation_tick(&self) -> Option<u64> {
         if !self.animations_enabled {
@@ -425,6 +485,7 @@ impl HookRunCell {
         }
     }
 
+    /// 仅对渲染为运行中的状态返回分组键。
     /// Returns the grouping key only for states that render as running.
     fn running_group_key(&self) -> Option<RunningHookGroupKey> {
         self.state
@@ -435,6 +496,7 @@ impl HookRunCell {
             })
     }
 
+    /// 追加单个未分组 Hook 运行的展示行。
     /// Appends the lines for a single, ungrouped hook run.
     fn push_display_lines(
         &self,
@@ -577,6 +639,7 @@ fn push_wrapped_hook_context_line(
 }
 
 impl HookRunState {
+    /// 为实时 Hook 运行创建隐藏的初始状态。
     /// Creates the hidden initial state for a live hook run.
     fn pending(start_time: Instant) -> Self {
         Self::PendingReveal {
@@ -585,11 +648,13 @@ impl HookRunState {
         }
     }
 
+    /// 为带可见输出或显著状态的 Hook 创建持久最终状态。
     /// Creates the persistent final state for a hook with visible output or a notable status.
     fn completed(status: HookRunStatus, entries: Vec<HookOutputEntry>) -> Self {
         Self::Completed { status, entries }
     }
 
+    /// 运行仍等待完成事件或计时器清理时返回真。
     /// Returns true while the run is still waiting for a completion event or timer cleanup.
     fn is_active(&self) -> bool {
         match self {
@@ -600,6 +665,7 @@ impl HookRunState {
         }
     }
 
+    /// 本次运行至少为当前渲染贡献一行时返回真。
     /// Returns true when this run contributes at least one line to the current render.
     fn should_render(&self) -> bool {
         match self {
@@ -610,6 +676,7 @@ impl HookRunState {
         }
     }
 
+    /// 对应在活动单元之外继续保留的已完成运行返回真。
     /// Returns true for completed runs that should survive outside the active cell.
     fn has_persistent_output(&self) -> bool {
         match self {
@@ -622,6 +689,9 @@ impl HookRunState {
         }
     }
 
+    /// 返回活动状态的原始开始时间。
+    ///
+    /// 已完成运行不再动画，因此有意不再保存开始时间。
     /// Returns the original start time for active states.
     ///
     /// Completed runs no longer animate, so they intentionally have no start time.
@@ -634,6 +704,7 @@ impl HookRunState {
         }
     }
 
+    /// 运行应按进行中行处理时返回真。
     /// Returns true when the run should be treated as an in-progress row.
     fn is_running_visible(&self) -> bool {
         matches!(
@@ -642,6 +713,9 @@ impl HookRunState {
         )
     }
 
+    /// 待处理运行超过截止时间后将其揭示。
+    ///
+    /// 仅在状态实际改变时返回真，使计时回调避免不必要的重绘。
     /// Reveals a pending run once its deadline has passed.
     ///
     /// Returns true only when this call changes the state, allowing timer callbacks to avoid
@@ -664,6 +738,7 @@ impl HookRunState {
         true
     }
 
+    /// 返回本次运行状态机拥有的下一个截止时间。
     /// Returns the next state-machine deadline owned by this run.
     fn next_timer_deadline(&self) -> Option<Instant> {
         match self {
@@ -677,6 +752,7 @@ impl HookRunState {
         }
     }
 
+    /// 安静成功已经驻留足够长时间后返回真。
     /// Returns true once a quiet success has lingered for long enough.
     fn quiet_linger_expired(&self, now: Instant) -> bool {
         match self {
@@ -689,6 +765,9 @@ impl HookRunState {
         }
     }
 
+    /// 把可见的安静成功转换为临时驻留状态。
+    ///
+    /// 从未可见或已经满足最短可见时间时无需驻留，并返回假以便立即移除。
     /// Converts a visible quiet success into a temporary linger state.
     ///
     /// Returns false when the success should be removed immediately: either it was never visible or
@@ -725,6 +804,7 @@ impl RunningHookGroup {
     }
 }
 
+/// 发出一条分组的运行中 Hook 状态行。
 /// Emits one grouped running-hook status row.
 fn push_running_hook_group(
     lines: &mut Vec<Line<'static>>,
@@ -747,6 +827,7 @@ fn push_running_hook_group(
     );
 }
 
+/// 发出所有运行中 Hook 行共用的动画或静态标题。
 /// Emits the animated or static header used by all running hook rows.
 fn push_running_hook_header(
     lines: &mut Vec<Line<'static>>,
@@ -776,6 +857,7 @@ fn push_running_hook_header(
     lines.push(header.into());
 }
 
+/// 在 Hook 块之间添加空白分隔，但不留下开头空行。
 /// Adds a blank separator between hook blocks without leaving a leading blank line.
 fn push_hook_line_separator(lines: &mut Vec<Line<'static>>) {
     if !lines.is_empty() {
@@ -783,6 +865,7 @@ fn push_hook_line_separator(lines: &mut Vec<Line<'static>>) {
     }
 }
 
+/// 合并可选时刻，并保留已知的最早开始时间。
 /// Combines optional instants while preserving the earliest known start time.
 fn earliest_instant(left: Option<Instant>, right: Option<Instant>) -> Option<Instant> {
     match (left, right) {
@@ -801,6 +884,7 @@ pub(crate) fn new_completed_hook_cell(run: HookRunSummary, animations_enabled: b
     HookCell::new_completed(run, animations_enabled)
 }
 
+/// 对应不应出现在历史中的 Hook 完成结果返回真。
 /// Returns true for hook completions that should be invisible in history.
 fn hook_run_is_quiet_success(run: &HookRunSummary) -> bool {
     run.status == HookRunStatus::Completed && run.entries.is_empty()
@@ -858,6 +942,7 @@ mod tests {
     use ratatui::style::Modifier;
 
     #[test]
+    // 警告完成项应使用默认粗体项目符号，而不是成功或失败的专用颜色。
     fn completed_hook_with_warning_uses_default_bold_bullet() {
         let entries = vec![HookOutputEntry {
             kind: HookOutputEntryKind::Warning,
@@ -872,6 +957,7 @@ mod tests {
     }
 
     #[test]
+    // 短多行上下文在视口、转录和原始文本路径中都应完整保留。
     fn completed_hook_short_multiline_context_preserves_display_transcript_and_raw_lines() {
         let cell = completed_hook_cell(
             HookEventName::SessionStart,
@@ -894,6 +980,7 @@ mod tests {
     }
 
     #[test]
+    // 长单行上下文只在受限视口缩略，完整转录仍保留原文。
     fn completed_hook_long_single_line_context_is_truncated_only_in_display() {
         let full_context = format!(
             "{}tail-marker",
@@ -937,6 +1024,7 @@ mod tests {
     }
 
     #[test]
+    // 非上下文输出不应用上下文预览的截断策略。
     fn completed_hook_non_context_entries_are_not_truncated() {
         for kind in [
             HookOutputEntryKind::Warning,
@@ -968,6 +1056,7 @@ mod tests {
     }
 
     #[test]
+    // 停止 Hook 的多行系统消息只给首行添加语义前缀。
     fn completed_stop_hook_multiline_system_message_prefixes_first_line_only() {
         let cell = completed_hook_cell(
             HookEventName::Stop,
@@ -988,6 +1077,7 @@ mod tests {
     }
 
     #[test]
+    // 尚未揭示的 Hook 在转录路径中保持静态，避免隐藏状态产生动画噪声。
     fn pending_hook_does_not_animate_transcript() {
         let cell =
             HookCell::new_active(hook_run_summary("hook-1"), /*animations_enabled*/ true);
@@ -996,6 +1086,7 @@ mod tests {
     }
 
     #[test]
+    // 已揭示 Hook 在启用动画时应随时间更新转录指示器。
     fn visible_hook_animates_transcript_when_animations_enabled() {
         let mut cell =
             HookCell::new_active(hook_run_summary("hook-1"), /*animations_enabled*/ true);
@@ -1006,6 +1097,7 @@ mod tests {
     }
 
     #[test]
+    // 关闭动画后，同一可见 Hook 的转录输出必须稳定。
     fn visible_hook_does_not_animate_transcript_when_animations_disabled() {
         let mut cell = HookCell::new_active(
             hook_run_summary("hook-1"),
@@ -1018,6 +1110,7 @@ mod tests {
     }
 
     #[test]
+    // 禁用动画的可见 Hook 不应残留旋转指示器字符。
     fn visible_hook_without_animations_omits_spinner() {
         let mut cell = HookCell::new_active(
             hook_run_summary("hook-1"),

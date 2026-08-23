@@ -489,10 +489,8 @@ impl GatewayUiRuntime {
     ) -> Result<GatewayStreamAttemptResult, String> {
         let directory = self.directory_value();
         let body = self.prepare_stream_request(body);
-        let resume = GatewayStreamResume {
-            request_id: request_id.to_string(),
-            last_event_id: None,
-        };
+        let resume =
+            GatewayStreamResume { request_id: request_id.to_string(), last_event_id: None };
         block_on_gateway(GatewayClient::stream_chat_resumable(
             self.endpoint(),
             directory.as_deref(),

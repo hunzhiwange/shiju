@@ -1,3 +1,8 @@
+//! 验证 MCP 服务器启动状态与聊天标题、历史警告和输入排队的协调。
+//! 通知夹具显式指定线程和服务器，便于覆盖跨线程、重复与迟到事件。
+//! 测试区分启动轮次、滞后结算和下一轮重启，防止旧终态污染新轮次。
+//! 启动进度不得错误阻塞可安全执行的后续输入，也不得越过审查或前台任务边界。
+
 use super::*;
 use pretty_assertions::assert_eq;
 
@@ -29,6 +34,7 @@ fn notify_mcp_status_error(chat: &mut ChatWidget, name: &str, error: &str) {
 
 #[tokio::test]
 async fn mcp_startup_ignores_status_for_other_thread() {
+    // 其他线程的启动状态不得改变当前聊天标题或完成条件。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
     chat.set_mcp_startup_expected_servers(["sentry".to_string()]);
@@ -71,6 +77,7 @@ async fn mcp_startup_ignores_status_for_other_thread() {
 
 #[tokio::test]
 async fn mcp_apps_readiness_retries_an_in_flight_installed_mention_lookup() {
+    // 应用就绪后重试进行中的已安装提及查询，避免沿用启动前的不完整目录。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     set_chatgpt_auth(&mut chat);
@@ -93,6 +100,7 @@ async fn mcp_apps_readiness_retries_an_in_flight_installed_mention_lookup() {
 
 #[tokio::test]
 async fn mcp_startup_dedupes_same_round_duplicate_failure_warning() {
+    // 同一启动轮次的重复失败只产生一条警告，下一轮则重新允许报告。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
     chat.set_mcp_startup_expected_servers(["alpha".to_string(), "beta".to_string()]);
@@ -166,6 +174,7 @@ async fn mcp_startup_complete_does_not_clear_running_task() {
 
 #[tokio::test]
 async fn pending_mcp_startup_does_not_block_queued_follow_up() {
+    // MCP 启动中允许安全的后续输入和命令继续，但不越过审查或前台任务。
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_mcp_startup_expected_servers(["slow".to_string()]);
     notify_mcp_status(&mut chat, "slow", McpServerStartupState::Starting);
@@ -320,6 +329,7 @@ async fn pending_mcp_startup_does_not_unblock_foreground_compaction() {
 
 #[tokio::test]
 async fn turn_start_preserves_active_mcp_startup_header() {
+    // 新轮次开始保留仍活跃的 MCP 标题，已完成的空闲标题则可被任务状态替换。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_mcp_startup_expected_servers(["schaltwerk".to_string()]);
 
@@ -359,6 +369,7 @@ async fn turn_start_replaces_idle_completed_mcp_startup_header() {
 
 #[tokio::test]
 async fn app_server_mcp_startup_failure_renders_warning_history() {
+    // 明确失败进入历史并在报告后恢复此前运行或审查状态。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
     chat.set_mcp_startup_expected_servers(["alpha".to_string(), "beta".to_string()]);
@@ -508,6 +519,7 @@ async fn mcp_startup_complete_preserves_review_status() {
 
 #[tokio::test]
 async fn app_server_mcp_startup_lag_settles_startup_and_ignores_late_updates() {
+    // 滞后结算后忽略迟到更新，只把明确取消或失败作为终态诊断。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
     chat.set_mcp_startup_expected_servers([
@@ -700,6 +712,7 @@ async fn app_server_mcp_startup_after_lag_preserves_partial_terminal_only_round(
 
 #[tokio::test]
 async fn app_server_mcp_startup_next_round_discards_stale_terminal_updates() {
+    // 下一轮启动丢弃旧轮次终态，并按新的预期服务器集合重新聚合。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
     chat.set_mcp_startup_expected_servers(["alpha".to_string(), "beta".to_string()]);

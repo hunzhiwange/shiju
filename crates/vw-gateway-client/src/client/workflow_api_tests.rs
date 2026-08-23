@@ -4,11 +4,11 @@
 
 use serde_json::json;
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
-use vw_api_types::workflow::WorkflowRecordUpsertBody;
+use vw_api_types::workflow::{WorkflowRecordUpsertBody, WorkflowResumeRequest};
 
 use super::{
-    GatewayWorkflowResponseMode, GatewayWorkflowStreamError, GatewayWorkflowStreamEvent,
-    GatewayWorkflowStreamRequest,
+    GatewayWorkflowDefaultStreamRequest, GatewayWorkflowResponseMode, GatewayWorkflowStreamError,
+    GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
 };
 use crate::client::test_support;
 
@@ -28,6 +28,89 @@ fn workflow_record() -> serde_json::Value {
         "created_at_ms": 1,
         "updated_at_ms": 2
     })
+}
+
+#[tokio::test]
+async fn workflow_client_uses_application_and_stream_routes() {
+    let stream = sse(json!({
+        "event":"workflow_finished", "task_id":"run-1", "workflow_run_id":"run-1",
+        "data":{"status":"succeeded"}
+    }));
+    let server = test_support::server_raw(vec![
+        (200, json!([{"uuid":"wf/one","name":"Deploy","description":"Ship workflow","created_at_ms":1,"updated_at_ms":2}]).to_string()),
+        (200, workflow_record().to_string()),
+        (200, workflow_record().to_string()),
+        (200, workflow_record().to_string()),
+        (200, json!({"uuid":"wf/one","deleted":true}).to_string()),
+        (200, json!({"run_id":"run-1","status":"succeeded"}).to_string()),
+        (200, stream.clone()),
+        (200, stream),
+    ]);
+    let upsert = WorkflowRecordUpsertBody {
+        uuid: Some("wf/one".to_string()),
+        name: "Deploy".to_string(),
+        description: "Ship workflow".to_string(),
+        workflow_yaml: "steps: []".to_string(),
+    };
+    let stream_request = workflow_stream_request("run saved");
+    let default_request = GatewayWorkflowDefaultStreamRequest {
+        query: "run inline".to_string(),
+        application_uuid: None,
+        application_workflow: Some("steps: []".to_string()),
+        inputs: Default::default(),
+        response_mode: GatewayWorkflowResponseMode::Streaming,
+        user: "user-1".to_string(),
+        conversation_id: None,
+    };
+
+    server.client().workflow_applications_list().await.expect("list");
+    server.client().workflow_application_get("wf/one").await.expect("get");
+    server.client().workflow_application_create(&upsert).await.expect("create");
+    server.client().workflow_application_update("wf/one", &upsert).await.expect("update");
+    server.client().workflow_application_delete("wf/one").await.expect("delete");
+    server
+        .client()
+        .workflow_resume(&WorkflowResumeRequest {
+            run_id: "run-1".to_string(),
+            form_token: "token-1".to_string(),
+            form_values: Default::default(),
+            action: None,
+        })
+        .await
+        .expect("resume");
+    let mut default_events = Vec::new();
+    server
+        .client()
+        .stream_default_workflow_application(&default_request, |event| {
+            default_events.push(event);
+            true
+        })
+        .await
+        .expect("default stream");
+    let mut saved_events = Vec::new();
+    server
+        .client()
+        .stream_workflow_application("wf/one", &stream_request, |event| {
+            saved_events.push(event);
+            true
+        })
+        .await
+        .expect("saved stream");
+    assert_eq!(default_events.len(), 1);
+    assert_eq!(saved_events.len(), 1);
+
+    let paths = (0..8).map(|_| take_scoped_request(&server)).collect::<Vec<_>>();
+    assert_eq!(paths[0].path, "/v1/workflow/applications");
+    assert_eq!(paths[1].path, "/v1/workflow/applications/wf%2Fone");
+    assert_eq!(paths[2].method, "POST");
+    assert_eq!(paths[3].path, "/v1/workflow/applications/wf%2Fone");
+    assert_eq!(paths[4].method, "DELETE");
+    assert_eq!(paths[5].path, "/v1/workflow/resume");
+    assert_eq!(paths[6].path, "/v1/workflow/applications/chat-messages");
+    assert_eq!(paths[6].body["application_workflow"], "steps: []");
+    assert_eq!(paths[7].path, "/v1/workflow/applications/wf%2Fone/chat-messages");
+    assert!(paths[7].body.get("application_uuid").is_none());
+    server.join();
 }
 
 #[test]

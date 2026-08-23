@@ -2,6 +2,9 @@
 //!
 //! The rendering backend remains in `custom_terminal`; this module owns only the
 //! process terminal modes that must always be restored, including error and panic paths.
+//!
+//! v3 终端生命周期建立在复制的 Codex TUI 边界之上；绘制后端仍属于 `custom_terminal`，
+//! 本模块只负责原始模式、光标、括号粘贴、鼠标和屏幕缓冲区的成对启停，错误与 panic 路径也必须恢复。
 
 use std::io;
 use std::io::Stdout;
@@ -17,6 +20,7 @@ use crossterm::terminal::{
 };
 
 /// Selects whether v3 uses terminal-native scrollback or an alternate screen.
+/// 选择 v3 使用保留原生回滚的内联模式，还是隔离内容的替代屏幕模式。
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum TerminalMode {
     #[default]
@@ -24,6 +28,7 @@ pub enum TerminalMode {
     Alternate,
 }
 
+/// 抽象终端模式控制，生产调用 Crossterm，测试记录严格的启停顺序。
 trait TerminalControl {
     fn enable_raw_mode(&mut self) -> io::Result<()>;
     fn disable_raw_mode(&mut self) -> io::Result<()>;
@@ -37,6 +42,7 @@ trait TerminalControl {
     fn show_cursor(&mut self) -> io::Result<()>;
 }
 
+/// 对给定 writer 执行 Crossterm 终端控制命令。
 struct CrosstermControl<W> {
     writer: W,
 }
@@ -90,6 +96,7 @@ impl<W: Write> TerminalControl for CrosstermControl<W> {
 }
 
 /// RAII session that tracks exactly which terminal modes were enabled.
+/// 精确记录已成功启用模式的 RAII 会话，只恢复真正取得的资源。
 struct TerminalSession<C: TerminalControl> {
     control: C,
     raw_mode: bool,
@@ -101,6 +108,7 @@ struct TerminalSession<C: TerminalControl> {
 }
 
 impl<C: TerminalControl> TerminalSession<C> {
+    /// 按固定顺序取得终端所有权，任一步失败都会恢复此前已启用的模式。
     fn enter(control: C, mode: TerminalMode) -> io::Result<Self> {
         let mut session = Self {
             control,
@@ -126,6 +134,7 @@ impl<C: TerminalControl> TerminalSession<C> {
         Ok(session)
     }
 
+    /// 逆序恢复全部已启用模式，并保留遇到的首个错误继续完成其余清理。
     fn restore(&mut self) -> io::Result<()> {
         if self.restored {
             return Ok(());
@@ -157,11 +166,13 @@ impl<C: TerminalControl> TerminalSession<C> {
 }
 
 impl<C: TerminalControl> Drop for TerminalSession<C> {
+    // Drop 是 panic 与提前返回的最后防线；显式恢复后再次调用保持幂等。
     fn drop(&mut self) {
         let _ = self.restore();
     }
 }
 
+/// 记录首个恢复错误，同时允许后续恢复步骤继续执行。
 fn record_restore_result(slot: &mut Option<io::Error>, result: io::Result<()>) {
     if let Err(error) = result
         && slot.is_none()
@@ -170,6 +181,7 @@ fn record_restore_result(slot: &mut Option<io::Error>, result: io::Result<()>) {
     }
 }
 
+/// 在 RAII 终端会话中执行操作，并合并操作错误与恢复错误的优先级。
 fn run_with_control<C, T>(
     control: C,
     mode: TerminalMode,
@@ -188,11 +200,13 @@ where
 }
 
 /// Runs a v3 terminal operation and restores raw mode, cursor, paste and screen state.
+/// 执行一次 v3 终端操作，并恢复原始模式、光标、粘贴及屏幕状态。
 pub fn run_terminal<T>(mode: TerminalMode, operation: impl FnOnce() -> io::Result<T>) -> io::Result<T> {
     run_with_control(CrosstermControl::new(std::io::stdout()), mode, operation)
 }
 
 /// Concrete custom terminal used by the CLI host once v3 becomes the default entry.
+/// v3 成为默认入口后由 CLI 宿主使用的具体自定义终端类型。
 pub type Terminal = crate::custom_terminal::Terminal<ratatui::backend::CrosstermBackend<Stdout>>;
 
 #[cfg(test)]
@@ -268,6 +282,7 @@ mod tests {
     }
 
     #[test]
+    // 验证操作成功和失败两条路径都按逆序完整恢复终端状态。
     fn v3_terminal_restores_state_on_success_and_error() {
         for mode in [TerminalMode::Inline, TerminalMode::Alternate] {
             for should_fail in [false, true] {
@@ -294,6 +309,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 panic 展开触发 Drop 时仍恢复已取得的终端模式。
     fn terminal_drop_restores_state_during_panic() {
         let control = FakeControl::default();
         let observed = control.0.clone();

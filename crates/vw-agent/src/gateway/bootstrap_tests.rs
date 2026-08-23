@@ -162,6 +162,19 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
     }
 }
 
+#[test]
+fn gateway_route_summary_lists_all_documented_routes() {
+    let routes = documented_gateway_routes();
+    assert_eq!(routes.len(), 260);
+    let unique = routes
+        .iter()
+        .map(|route| (route.method, route.path))
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(unique.len(), routes.len(), "documented routes must be unique");
+    assert!(routes.iter().any(|route| route.path == "/v1/desktop/project-preferences"));
+    assert!(routes.iter().any(|route| route.path == "/v1/session/{session_id}/title"));
+}
+
 #[tokio::test]
 async fn stateful_handler_router_registers_shiju_gateway_routes() {
     let app = Router::new().nest("/v1", stateful_handler_router()).with_state(state());

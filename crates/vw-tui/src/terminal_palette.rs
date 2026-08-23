@@ -1,6 +1,9 @@
+//! 按终端颜色能力选择近似色，并缓存默认前景色和背景色探测结果。
+
 use crate::color::perceptual_distance;
 use ratatui::style::Color;
 
+// VibeWindow 适配：保留上游调色板规则，但不把 Codex 更广泛的终端识别 crate 引入纯 UI crate。
 // VibeWindow adaptation: retain the upstream palette rules without importing
 // Codex's broader terminal-identification crate into this UI-only crate.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -46,17 +49,20 @@ pub fn indexed_color(index: u8) -> Color {
     Color::Indexed(index)
 }
 
+/// 返回终端能够显示的、最接近目标值的颜色。
 /// Returns the closest color to the target color that the terminal can display.
 pub fn best_color(target: (u8, u8, u8)) -> Color {
     best_color_for_color_level(target, effective_stdout_color_level())
 }
 
+/// 对已知终端颜色级别返回最接近目标值的颜色。
 /// Returns the closest color to the target color for a known terminal color level.
 pub fn best_color_for_level(target: (u8, u8, u8), color_level: StdoutColorLevel) -> Color {
     best_color_for_color_level(target, color_level)
 }
 
 pub(crate) fn effective_stdout_color_level() -> StdoutColorLevel {
+    // 环境探测结果需结合终端身份与显式覆盖变量后才能用于调色。
     stdout_color_level_for_terminal(
         stdout_color_level(),
         terminal_name(),
@@ -100,6 +106,7 @@ fn best_color_for_color_level(target: (u8, u8, u8), color_level: StdoutColorLeve
 }
 
 #[derive(Clone, Copy)]
+// 默认色以 RGB 保存，供主题在终端原生前景与背景上做对比度计算。
 pub struct DefaultColors {
     fg: (u8, u8, u8),
     bg: (u8, u8, u8),
@@ -171,6 +178,8 @@ mod imp {
         }
     }
 
+    /// 通过有界启动探测查询终端默认颜色；缓存把 `None` 视为已尝试但不可用，
+    /// 因此 I/O 错误和缺少响应都合并到不支持 OSC 10/11 的同一回退路径。
     /// Queries terminal default colors through the bounded startup probe path.
     ///
     /// The palette cache treats `None` as an attempted-but-unavailable result, so this function
@@ -254,13 +263,16 @@ mod imp {
     }
 }
 
+/// 通常在不同终端间保持一致的 Xterm 颜色子集。
 /// The subset of Xterm colors that are usually consistent across terminals.
 fn xterm_fixed_colors() -> impl Iterator<Item = (usize, (u8, u8, u8))> {
     XTERM_COLORS.into_iter().enumerate().skip(16)
 }
 
+// Xterm 颜色表，来源见下方链接。
 // Xterm colors; derived from https://ss64.com/bash/syntax-colors.html
 pub const XTERM_COLORS: [(u8, u8, u8); 256] = [
+    // 前 16 色随终端主题变化，因此索引显示的实际颜色可能不同。
     // The first 16 colors vary based on terminal theme, so these are likely not the actual colors
     // that are displayed when using these indices.
     (0, 0, 0),       //   0 Black (SYSTEM)
@@ -279,6 +291,7 @@ pub const XTERM_COLORS: [(u8, u8, u8); 256] = [
     (255, 0, 255),   //  13 Fuchsia (SYSTEM)
     (0, 255, 255),   //  14 Aqua (SYSTEM)
     (255, 255, 255), //  15 White (SYSTEM)
+    // 其余颜色在多数终端中保持一致。
     // The rest of the colors are consistent in most terminals.
     (0, 0, 0),       //  16 Grey0
     (0, 0, 95),      //  17 NavyBlue

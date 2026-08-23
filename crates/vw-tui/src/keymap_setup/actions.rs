@@ -1,13 +1,18 @@
 //! Catalog and accessors for keymap actions shown by `/keymap`.
+//! 定义 `/keymap` 展示的快捷键动作目录及其访问器。
 //!
 //! The descriptor table is the single UI-facing inventory of configurable
 //! actions. Each descriptor ties together the config path segment, user-facing
 //! context label, stable action name, and short description used by the picker
 //! and action menu.
+//! 描述符表是面向 UI 的唯一可配置动作清单；每项关联配置路径片段、用户可见上下文标签、
+//! 稳定动作名，以及选择器和动作菜单使用的简短说明。
 //!
 //! Root-config accessors mirror the descriptor table, while runtime lookups
 //! reuse the inventory owned by [`crate::keymap`]. A catalog action must remain
 //! both writable in `TuiKeymap` and readable from the shared runtime inventory.
+//! 根配置访问器与描述符表一一对应，运行时查询则复用 [`crate::keymap`] 的清单；目录中的动作
+//! 必须既能写入 `TuiKeymap`，也能从共享运行时清单读取。
 
 use std::collections::BTreeSet;
 
@@ -21,14 +26,19 @@ use crate::keymap::bindings_for_action;
 #[derive(Clone, Copy, Debug)]
 pub(super) struct KeymapActionDescriptor {
     /// Config context segment, such as `composer` in `tui.keymap.composer.submit`.
+    /// 配置上下文片段，例如 `tui.keymap.composer.submit` 中的 `composer`。
     pub(super) context: &'static str,
     /// Human-readable group label shown in the picker.
+    /// 选择器中展示的可读分组标签。
     pub(super) context_label: &'static str,
     /// Config action segment, such as `submit` in `tui.keymap.composer.submit`.
+    /// 配置动作片段，例如 `tui.keymap.composer.submit` 中的 `submit`。
     pub(super) action: &'static str,
     /// Short user-facing explanation of what the action does.
+    /// 面向用户的动作功能简述。
     pub(super) description: &'static str,
     /// Feature required before the action appears in `/keymap`.
+    /// 动作出现在 `/keymap` 前必须启用的功能。
     required_feature: Option<KeymapActionFeature>,
 }
 
@@ -84,6 +94,7 @@ impl KeymapActionDescriptor {
 
 #[rustfmt::skip]
 pub(super) const KEYMAP_ACTIONS: &[KeymapActionDescriptor] = &[
+    // 稳定动作名与配置结构保持显式对应，UI 标签不得反向参与配置解析。
     action("global", "Global", "open_agents", "Open the shared agent-session overview."),
     action("global", "Global", "open_transcript", "Open the transcript overlay."),
     action("global", "Global", "open_external_editor", "Open the current draft in an external editor."),
@@ -210,6 +221,9 @@ pub(super) const KEYMAP_ACTIONS: &[KeymapActionDescriptor] = &[
 /// This is intentionally presentation-only: the returned string must never be
 /// parsed back into an action name, because underscores and casing are part of
 /// the stable config contract.
+/// 将稳定动作标识转换为显示标签。
+///
+/// 此转换仅供展示，返回值绝不能反向解析为动作名，因为下划线和大小写属于稳定配置契约。
 pub(super) fn action_label(action: &str) -> String {
     action
         .split('_')
@@ -231,6 +245,10 @@ pub(super) fn action_label(action: &str) -> String {
 /// editor must preserve: absent means use fallback/default resolution, `Some`
 /// with one or more keys is a custom binding, and `Some(Many([]))` is an
 /// explicit unbind.
+/// 返回目录动作在根配置中的可变绑定槽位。
+///
+/// 返回的 `Option<KeybindingsSpec>` 保留三态：缺省表示走回退或默认解析，含按键的 `Some`
+/// 表示自定义绑定，而 `Some(Many([]))` 表示显式解除绑定。
 pub(super) fn binding_slot<'a>(
     keymap: &'a mut TuiKeymap,
     context: &str,
@@ -364,6 +382,9 @@ pub(super) fn binding_slot<'a>(
 ///
 /// Duplicate runtime variants that normalize to the same config spec are shown
 /// once so compatibility defaults do not appear as separate user choices.
+/// 按配置顺序格式化动作当前生效的单键与组合键候选。
+///
+/// 规范化后相同的运行时变体只展示一次，避免兼容性默认值被误认为多个用户选项。
 pub(super) fn format_action_binding_summary(
     runtime_keymap: &RuntimeKeymap,
     context: &str,
@@ -419,6 +440,7 @@ pub(super) fn matching_actions_for_key_event(
     keymap_config: &TuiKeymap,
     event: KeyEvent,
 ) -> Vec<KeymapDebugActionMatch> {
+    // 调试视图只报告实际运行时可触发的动作，并标记绑定来自局部、全局回退还是默认值。
     KEYMAP_ACTIONS
         .iter()
         .filter_map(|descriptor| {

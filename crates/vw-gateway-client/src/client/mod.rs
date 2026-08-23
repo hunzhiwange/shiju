@@ -13,17 +13,28 @@
 //! - 复用的 `reqwest::Client`
 
 mod agent_scheduler_api;
+mod apiql_api;
 #[cfg(test)]
 #[path = "agent_scheduler_api_tests.rs"]
 mod agent_scheduler_api_tests;
 mod config_api;
+mod control_api;
+#[cfg(test)]
+#[path = "control_api_tests.rs"]
+mod control_api_tests;
 mod cron_api;
 pub mod desktop_settings_api;
 mod file_api;
 mod git_api;
 mod knowledge_api;
+mod inference_api;
 mod mcp_api;
+mod operations_api;
+#[cfg(test)]
+#[path = "operations_api_tests.rs"]
+mod operations_api_tests;
 mod permission_api;
+mod pty_api;
 mod project_api;
 mod provider_api;
 mod question_api;
@@ -55,15 +66,26 @@ mod tools_api;
 mod workflow_api;
 
 pub use self::cron_api::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
+pub use self::apiql_api::ApiQlQuery;
 pub use self::desktop_settings_api::{
     DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
     DesktopPluginPathDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto,
-    ExternalAppsStateDto, HookAuditEntryDto, HookCatalogEntryDto, HookMutationRequestDto,
+    DesktopServiceCommand, ExternalAppsStateDto, HookAuditEntryDto, HookCatalogEntryDto, HookMutationRequestDto,
     HookMutationResponseDto,
 };
 pub use self::permission_api::{
     PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto,
 };
+pub use self::inference_api::{
+    GatewayAgentRequest, GatewayAgentResponse, GatewayChatWebSocketEvent,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::inference_api::GatewayChatWebSocket;
+pub use self::pty_api::{
+    PtyCreateRequest, PtyInfoDto, PtySizeDto, PtyStatusDto, PtyUpdateRequest,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::pty_api::{PtyConnection, PtyWebSocketEvent};
 pub use self::session_api::SessionUiLoadResult;
 pub use self::shiju_account_api::{
     SHIJU_CREDENTIAL_HEADER, ShijuAccountDepartmentDto, ShijuAccountMeDto,
@@ -93,13 +115,16 @@ pub use self::skill_market_api::{
     SkillMarketSkillSetPageDto, SkillMarketSort, SkillMarketSourceDto,
 };
 pub use self::workflow_api::{
-    GatewayWorkflowResponseMode, GatewayWorkflowRunOutcome, GatewayWorkflowStreamError,
-    GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
+    GatewayWorkflowDefaultStreamRequest, GatewayWorkflowResponseMode, GatewayWorkflowRunOutcome,
+    GatewayWorkflowStreamError, GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
 };
 use crate::endpoint::GatewayEndpoint;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::http::REQUEST_TIMEOUT_SECS;
-pub use provider_api::ProviderListResponse;
+pub use provider_api::{
+    ProviderAuthMethodDto, ProviderAuthMethodsResponse, ProviderListResponse,
+    ProviderOAuthAuthorizationDto,
+};
 
 /// 网关客户端，封装统一的 reqwest 实例与端点配置。
 ///

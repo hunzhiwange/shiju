@@ -1,3 +1,7 @@
+//! TUI 中多代理状态的渲染与导航辅助函数。
+//!
+//! 本模块定义多代理历史行、`/subagents` 选择项和快速切换快捷键的共享展示契约；
+//! 哪个线程激活、何时关闭等上层协调仍由 `crate::app::App` 负责。
 //! Helpers for rendering and navigating multi-agent state in the TUI.
 //!
 //! This module owns the shared presentation contracts for multi-agent history rows, `/subagents`
@@ -32,14 +36,19 @@ const COLLAB_AGENT_RESPONSE_PREVIEW_GRAPHEMES: usize = 240;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct AgentPickerThreadEntry {
+    /// 选择器行和页脚标签中展示的易读昵称。
     /// Human-friendly nickname shown in picker rows and footer labels.
     pub(crate) agent_nickname: Option<String>,
+    /// 存在时以括号展示的代理类型，例如 `worker`。
     /// Agent type shown in brackets when present, for example `worker`.
     pub(crate) agent_role: Option<String>,
+    /// 通过 v2 活动观察到线程时记录的规范 v2 代理路径。
     /// Canonical v2 agent path, when the thread was observed through v2 activity.
     pub(crate) agent_path: Option<String>,
+    /// 最近一次存活刷新是否表明代理线程正在工作。
     /// Whether the latest liveness refresh says the agent thread is actively working.
     pub(crate) is_running: bool,
+    /// 线程是否已发出关闭事件并应弱化渲染。
     /// Whether the thread has emitted a close event and should render dimmed.
     pub(crate) is_closed: bool,
 }
@@ -53,8 +62,10 @@ pub(crate) struct SubAgentActivityDisplay {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct AgentMetadata {
+    /// 工具调用渲染行中展示的易读昵称。
     /// Human-friendly nickname shown in rendered tool-call rows.
     pub(crate) agent_nickname: Option<String>,
+    /// 存在时以括号展示的代理类型，例如 `worker`。
     /// Agent type shown in brackets when present, for example `worker`.
     pub(crate) agent_role: Option<String>,
 }
@@ -110,6 +121,7 @@ pub(crate) fn next_agent_shortcut() -> crate::key_hint::KeyBinding {
     crate::key_hint::alt(KeyCode::Right)
 }
 
+/// 匹配规范“上一个代理”绑定及平台回退，使增强按键上报不可用时仍能导航。
 /// Matches the canonical "previous agent" binding plus platform-specific fallbacks that keep agent
 /// navigation working when enhanced key reporting is unavailable.
 pub(crate) fn previous_agent_shortcut_matches(
@@ -120,6 +132,7 @@ pub(crate) fn previous_agent_shortcut_matches(
         || previous_agent_word_motion_fallback(key_event, allow_word_motion_fallback)
 }
 
+/// 匹配规范“下一个代理”绑定及平台回退，使增强按键上报不可用时仍能导航。
 /// Matches the canonical "next agent" binding plus platform-specific fallbacks that keep agent
 /// navigation working when enhanced key reporting is unavailable.
 pub(crate) fn next_agent_shortcut_matches(
@@ -135,6 +148,8 @@ fn previous_agent_word_motion_fallback(
     key_event: KeyEvent,
     allow_word_motion_fallback: bool,
 ) -> bool {
+    // 部分终端（尤其 macOS）会把 Option+b/f 上报为词移动而非 Option+方向键；
+    // 仅在输入框为空时允许此回退，以保留草稿编辑的逐词移动。
     // Some terminals, especially on macOS, send Option+b/f as word-motion keys instead of
     // Option+arrow events unless enhanced keyboard reporting is enabled. Callers should only
     // enable this fallback when the composer is empty so draft editing retains the expected
@@ -161,6 +176,8 @@ fn previous_agent_word_motion_fallback(
 
 #[cfg(target_os = "macos")]
 fn next_agent_word_motion_fallback(key_event: KeyEvent, allow_word_motion_fallback: bool) -> bool {
+    // 部分终端（尤其 macOS）会把 Option+b/f 上报为词移动而非 Option+方向键；
+    // 仅在输入框为空时允许此回退，以保留草稿编辑的逐词移动。
     // Some terminals, especially on macOS, send Option+b/f as word-motion keys instead of
     // Option+arrow events unless enhanced keyboard reporting is enabled. Callers should only
     // enable this fallback when the composer is empty so draft editing retains the expected
@@ -627,6 +644,7 @@ fn status_summary_spans(status: &CollabAgentState) -> Vec<Span<'static>> {
     match status.status {
         CollabAgentStatus::PendingInit => vec![Span::from("Pending init").cyan()],
         CollabAgentStatus::Running => vec![Span::from("Running").cyan().bold()],
+        // 此处允许使用 `.yellow()` 表达等待状态的语义色。
         // Allow `.yellow()`
         #[allow(clippy::disallowed_methods)]
         CollabAgentStatus::Interrupted => vec![Span::from("Interrupted").yellow()],

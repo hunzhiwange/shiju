@@ -5,8 +5,8 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use serde_json::json;
 use crossterm::event::{KeyCode, KeyEvent};
+use serde_json::json;
 use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};
 use vw_tui::{V3Action, V3ApprovalDecision, V3UserInputAnswer};
 
@@ -49,9 +49,7 @@ fn task_state_change_refreshes_current_interactions() {
     assert!(recorded.iter().any(|request| request.path.starts_with("/v1/permission")));
     assert!(recorded.iter().any(|request| request.path == "/v1/question"));
     assert!(
-        recorded
-            .iter()
-            .any(|request| request.path.starts_with("/v1/session/runner-session/todo"))
+        recorded.iter().any(|request| request.path.starts_with("/v1/session/runner-session/todo"))
     );
     server.join().expect("interaction snapshot fixture");
 }
@@ -111,11 +109,7 @@ fn permission_and_question_replies_survive_gateway_failure() {
         .find(|request| request.path == "/v1/question/question-1/reply")
         .expect("question reply request");
     assert!(question_reply.body.contains("\"answers\":[[\"Safe\"]]"));
-    assert!(
-        recorded
-            .iter()
-            .any(|request| request.path == "/v1/question/question-1/reject")
-    );
+    assert!(recorded.iter().any(|request| request.path == "/v1/question/question-1/reject"));
     server.join().expect("failed replies fixture");
 }
 
@@ -159,13 +153,13 @@ fn drain_until(
     }
 }
 
-fn interaction_snapshot_fixture(
-) -> (GatewayEndpoint, mpsc::Receiver<RecordedRequest>, thread::JoinHandle<()>) {
+fn interaction_snapshot_fixture()
+-> (GatewayEndpoint, mpsc::Receiver<RecordedRequest>, thread::JoinHandle<()>) {
     scripted_gateway(3, false)
 }
 
-fn failed_replies_fixture(
-) -> (GatewayEndpoint, mpsc::Receiver<RecordedRequest>, thread::JoinHandle<()>) {
+fn failed_replies_fixture()
+-> (GatewayEndpoint, mpsc::Receiver<RecordedRequest>, thread::JoinHandle<()>) {
     scripted_gateway(6, true)
 }
 
@@ -245,7 +239,8 @@ fn read_request(stream: &mut TcpStream) -> RecordedRequest {
         assert!(read > 0, "gateway request closed before body");
         bytes.extend_from_slice(&buffer[..read]);
     }
-    let body = String::from_utf8_lossy(&bytes[body_start..body_start + content_length]).into_owned();
+    let body =
+        String::from_utf8_lossy(&bytes[body_start..body_start + content_length]).into_owned();
     RecordedRequest { path, body }
 }
 

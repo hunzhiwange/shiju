@@ -1,3 +1,10 @@
+//! 助手消息与拟议计划使用的双区域流式控制器。
+//!
+//! 每个流把渲染结果拆成已进入动画队列的稳定区，以及由活动单元展示的可变尾区。
+//! `StreamCore` 统一负责源码累积、增量重渲染、队列记账和终端缩放；两类外层控制器只加样式。
+//! 表格新增行可能重塑全部列，因此从候选表头起暂留为尾部；非 Markdown 围栏内不扫描表格。
+//! 缩放时按新宽度重建尚未发出的稳定区，定稿时再由源码驱动单元生成规范转录。
+//! 核心不变量是已发出长度不超过已入队长度，且尾部精确从已入队边界开始。
 //! Two-region streaming controllers for agent messages and proposed plans.
 //!
 //! Each stream partitions rendered markdown into a *stable region* (committed
@@ -56,10 +63,15 @@ use super::table_holdback::TableHoldbackState;
 #[cfg(test)]
 use super::table_holdback::table_holdback_state;
 
+// 以下为两类流式控制器共用的 `StreamCore` 记账逻辑。
 // ---------------------------------------------------------------------------
 // StreamCore — shared bookkeeping for both stream controllers
 // ---------------------------------------------------------------------------
 
+/// 双区域流式模型共用的状态与逻辑。
+///
+/// 助手消息和拟议计划控制器都委托这里完成源码累积、重渲染、稳定/尾部分区、
+/// 提交动画队列管理与终端缩放；外层只提供各自样式和定稿返回类型。
 /// Shared state and logic for the two-region streaming model.
 ///
 /// Both [`StreamController`] (agent messages) and [`PlanStreamController`]
@@ -71,28 +83,40 @@ use super::table_holdback::table_holdback_state;
 /// finalize return types.
 struct StreamCore {
     state: StreamState,
+    /// 当前渲染宽度，即 Markdown 正文可用列数。
     /// Current rendering width (columns available for markdown content).
     width: Option<usize>,
+    /// 已提交源码在当前宽度下的增量渲染。
     /// Incremental render of committed source at `width`.
     render: StreamingRender,
+    /// 已进入提交动画队列的行数。
     /// Lines enqueued into the commit-animation queue.
     enqueued_stable_len: usize,
+    /// 已实际发出到回滚历史的行数。
     /// Lines actually emitted to scrollback.
     emitted_stable_len: usize,
+    /// 流重渲染期间用于稳定本地文件链接展示的会话目录。
     /// Session cwd used to keep local file-link display stable during stream re-renders.
     cwd: PathBuf,
     render_mode: StreamRenderMode,
+    /// 按源码起点与宽度缓存的表格前缀渲染行数。
     /// Cached rendered line count for prefix-before-table keyed by source start and width.
     stable_prefix_len_cache: Option<StablePrefixLenCache>,
+    /// 只追加源码更新使用的增量暂留扫描器状态。
     /// Incremental holdback scanner state for append-only source updates.
     holdback_scanner: TableHoldbackScanner,
 }
 
 struct StablePrefixLenCache {
+    /// 已提交源码中候选表格或表头起点的字节偏移。
     /// Byte offset of the candidate table/header start in committed source.
     source_start: usize,
+    /// 生成 `stable_prefix_len` 时使用的宽度。
     /// Width that produced `stable_prefix_len`.
     width: Option<usize>,
+    /// 指定宽度下 `source_start` 之前已提交前缀的渲染行数。
+    ///
+    /// 实时表格尾部持续变化时复用该值，避免每条提交行都重渲染同一稳定前缀。
     /// Rendered line count for the committed prefix before `source_start` at `width`.
     ///
     /// The streaming controller uses this to avoid repeatedly re-rendering the
@@ -115,6 +139,10 @@ impl StreamCore {
         }
     }
 
+    /// 推入流式增量，并把新近稳定的渲染行加入队列。
+    ///
+    /// 只有换行终止的源码才会提交。未终止的局部表格行必须留在收集器中，
+    /// 否则用户可能短暂看到下一增量到达即消失的畸形列。
     /// Push a streaming delta and enqueue any newly-stable rendered lines.
     ///
     /// Only newline-terminated source is committed for rendering. This is
@@ -147,6 +175,10 @@ impl StreamCore {
         enqueued
     }
 
+    /// 排空收集器，渲染最终源码快照，并返回尚未发出的行。
+    ///
+    /// 这里从完整原始源码重新渲染，而不拼接队列和尾部；最终结果是合并使用的规范转录。
+    /// 调用者若跳过 `reset()`，可能把已完成流重放到下一条回答中。
     /// Drain the collector, render the final source snapshot, and return lines not yet emitted.
     ///
     /// This intentionally re-renders from the full raw source instead of
@@ -161,6 +193,7 @@ impl StreamCore {
         (remaining, source)
     }
 
+    /// 推进一步动画：出队一行并更新已发出计数。
     /// Step animation: dequeue one line, update the emitted count.
     fn tick(&mut self) -> Vec<HyperlinkLine> {
         let step = self.state.step();
@@ -168,6 +201,7 @@ impl StreamCore {
         step
     }
 
+    /// 批量排空：最多出队 `max_lines` 行并更新已发出计数。
     /// Batch drain: dequeue up to `max_lines`, update the emitted count.
     fn tick_batch(&mut self, max_lines: usize) -> Vec<HyperlinkLine> {
         if max_lines == 0 {
@@ -181,6 +215,7 @@ impl StreamCore {
         step
     }
 
+    // 简单 `StreamCore` 访问器内联，因为活动流的每个动画节拍和渲染帧都会调用。
     // Trivial StreamCore accessors inlined — called on every animation tick
     // and render frame during active streaming.
 
@@ -199,6 +234,10 @@ impl StreamCore {
         self.state.oldest_queued_age(now)
     }
 
+    /// 属于可变尾部、尚未排队稳定提交的行。
+    ///
+    /// 尾部从 `enqueued_stable_len` 开始；若错误地从已发出长度推导，
+    /// 已入队但未发出的行会在活动单元中重现，造成屏幕重复。
     /// Lines that belong to the mutable tail, not yet queued for stable commit.
     ///
     /// The tail starts at `enqueued_stable_len`, so this returns the portion
@@ -217,6 +256,11 @@ impl StreamCore {
         self.enqueued_stable_len < self.render.lines.len()
     }
 
+    /// 更新渲染宽度，并为新布局重建已排队稳定行。
+    ///
+    /// 新宽度只重渲染一次，然后从当前已发出行数重建队列。
+    /// 缩放时既要保持已发出正文的回滚顺序，也允许实时表格尾部重新塑形，
+    /// 此处维持该分界而不尝试逐字节映射行。
     /// Update rendering width and rebuild queued stable lines for the new layout.
     ///
     /// Re-renders once at the new width and rebuilds queue state from the
@@ -245,6 +289,7 @@ impl StreamCore {
             && self.emitted_stable_len == self.render.lines.len()
             && self.emitted_stable_len > 0
         {
+            // 若折行余量在新宽度下压缩为更少行，至少保留一行未发出，避免永久跳过待处理内容。
             // If wrapped remainder compresses into fewer lines at the new width,
             // keep at least one line un-emitted so pre-resize pending content is
             // not skipped permanently.
@@ -252,6 +297,7 @@ impl StreamCore {
         }
         self.state.clear_queue();
         if self.emitted_stable_len > 0 && !had_pending_queue && !had_live_tail {
+            // 没有待排队稳定行和可变尾部时，避免缩放后重放已发出内容。
             // Avoid replaying already-emitted content after resize when no
             // stable lines were waiting in the queue and there was no mutable
             // tail to preserve.
@@ -261,6 +307,7 @@ impl StreamCore {
         self.rebuild_stable_queue_from_render();
     }
 
+    /// 清除当前流的全部累积状态。
     /// Clear all accumulated state for current stream.
     fn reset(&mut self) {
         self.state.clear();
@@ -300,17 +347,20 @@ impl StreamCore {
         self.rebuild_stable_queue_from_render();
     }
 
+    /// 计算应进入稳定区的渲染行数。
     /// Compute how many rendered lines should be in the stable region.
     fn compute_target_stable_len(&mut self) -> usize {
         let tail_budget = self.active_tail_budget_lines();
         self.render.lines.len().saturating_sub(tail_budget).max(self.emitted_stable_len)
     }
 
+    /// 向目标稳定边界推进 `enqueued_stable_len`，并把新稳定行入队；有新增时返回真。
     /// Advance `enqueued_stable_len` toward the target stable boundary and enqueue any
     /// newly-stable lines. Returns `true` if new lines were enqueued.
     fn sync_stable_queue(&mut self) -> bool {
         let target_stable_len = self.compute_target_stable_len();
 
+        // 结构重写把稳定边界移回已入队但未发出的区域，需要从最新快照重建队列。
         // A structural rewrite moved the stable boundary backward into enqueue-but-unemitted
         // lines. Rebuild queue from the latest snapshot.
         if target_stable_len < self.enqueued_stable_len {
@@ -333,6 +383,9 @@ impl StreamCore {
         true
     }
 
+    /// 根据当前渲染快照重建稳定队列。
+    ///
+    /// `set_width()` 后旧宽度生成的排队行不再可靠，因此使用该路径重新对齐当前渲染。
     /// Rebuild the stable queue from the current render snapshot.
     ///
     /// This is used after `set_width()`, where any queued lines were computed
@@ -348,6 +401,10 @@ impl StreamCore {
         self.enqueued_stable_len = target_stable_len;
     }
 
+    /// 应暂留为可变尾部的渲染行数。
+    ///
+    /// 确认表格或待定表头时，从表头起全部暂留，因为新增行可能改变列宽。
+    /// 没有表格时全部内容进入稳定区；这是暂留机制的核心决定点。
     /// How many rendered lines to withhold as mutable tail.
     ///
     /// When a table is detected (`Confirmed` or `PendingHeader`), the entire
@@ -378,6 +435,9 @@ impl StreamCore {
         tail_budget
     }
 
+    /// 把原始源码边界转换为渲染尾部行数。
+    ///
+    /// 暂留扫描器使用字节偏移，队列使用渲染行；该辅助函数是两种坐标系的唯一桥梁。
     /// Convert a raw-source boundary into the number of rendered tail lines.
     ///
     /// The important contract here is that the holdback scanner reasons in
@@ -392,6 +452,9 @@ impl StreamCore {
         self.render.lines.len().saturating_sub(stable_prefix_len)
     }
 
+    /// 渲染 `source_start` 之前的稳定前缀并返回行数。
+    ///
+    /// 密集表格流会在每条行增量到达时调用此路径，因此按起点和宽度缓存结果。
     /// Render the stable prefix before `source_start` and return its line count.
     ///
     /// This value is cached because dense table streams can call into this path
@@ -432,6 +495,9 @@ impl StreamCore {
     }
 }
 
+/// 支持表格暂留的助手消息流式控制器。
+///
+/// 它封装 `StreamCore`，并添加 `AgentMessageCell` 的发出样式。
 /// Controller for streaming agent message content with table-aware holdback.
 ///
 /// Wraps [`StreamCore`] and adds `AgentMessageCell` emission styling.
@@ -441,6 +507,9 @@ pub(crate) struct StreamController {
 }
 
 impl StreamController {
+    /// 创建控制器，使 Markdown 渲染器相对 `cwd` 缩短本地文件链接。
+    ///
+    /// `width` 是 Markdown 正文宽度，不一定等于完整终端宽度；缩放后传入陈旧宽度会让实时输出继续按旧视口折行。
     /// Create a controller whose markdown renderer shortens local file links relative to `cwd`.
     ///
     /// `width` is the content width available to markdown rendering, not necessarily the full
@@ -454,6 +523,7 @@ impl StreamController {
         self.core.push_delta(delta)
     }
 
+    /// 定稿活动流，返回包含剩余行的最终单元（若有）以及供合并使用的原始 Markdown 源码。
     /// Finalize the active stream. Returns the final cell (if any remaining lines) and the raw
     /// markdown source for consolidation.
     pub(crate) fn finalize(&mut self) -> (Option<StreamingCell>, Option<String>) {
@@ -481,6 +551,7 @@ impl StreamController {
         (self.emit(step), self.core.is_idle())
     }
 
+    // 轻量 `StreamController` 访问器内联，因为每个渲染帧和动画节拍都会调用这些单行委托。
     // Thin StreamController accessors inlined — one-liner delegates called
     // on every render frame and animation tick.
 
@@ -532,10 +603,14 @@ impl StreamController {
         }))
     }
 }
+// 以下为拟议计划专用的流式控制器外层。
 // ---------------------------------------------------------------------------
 // PlanStreamController — proposed plan streams
 // ---------------------------------------------------------------------------
 
+/// 把拟议计划 Markdown 流式写入带样式计划块的控制器。
+///
+/// 它封装 `StreamCore`，并添加计划专用标题、缩进和背景样式。
 /// Controller that streams proposed plan markdown into a styled plan block.
 ///
 /// Wraps [`StreamCore`] and adds plan-specific header, indentation, and
@@ -547,6 +622,9 @@ pub(crate) struct PlanStreamController {
 }
 
 impl PlanStreamController {
+    /// 创建计划流控制器，使 Markdown 渲染器相对 `cwd` 缩短本地文件链接。
+    ///
+    /// 宽度含义与助手消息控制器相同，调用者必须在终端宽度改变时更新它。
     /// Create a plan-stream controller whose markdown renderer shortens local file links relative
     /// to `cwd`.
     ///
@@ -564,6 +642,7 @@ impl PlanStreamController {
         self.core.push_delta(delta)
     }
 
+    /// 定稿活动计划流，返回包含剩余行的最终单元（若有）及供合并使用的原始 Markdown 源码。
     /// Finalize the active stream. Returns the final cell (if any remaining
     /// lines) plus raw markdown source for consolidation.
     pub(crate) fn finalize(&mut self) -> (Option<StreamingCell>, Option<String>) {
@@ -690,6 +769,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn test_cwd() -> PathBuf {
+        // 这些测试只需要稳定绝对目录；使用临时目录避免固化 Unix 或 Windows 根路径语义。
         // These tests only need a stable absolute cwd; using temp_dir() avoids baking Unix- or
         // Windows-specific root semantics into the fixtures.
         std::env::temp_dir()
@@ -736,6 +816,7 @@ mod tests {
     }
 
     #[test]
+    // 增量追加标题后，已排队标题只能发出一次。
     fn queued_heading_is_emitted_once_after_incremental_append() {
         let mut ctrl = stream_controller(Some(80));
         assert!(ctrl.push("Paragraph.\n\n# Heading\n\n"));
@@ -774,6 +855,7 @@ mod tests {
     }
 
     #[test]
+    // 改变宽度会按新布局重建尚未发出的队列行。
     fn controller_set_width_rebuilds_queued_lines() {
         let mut ctrl = stream_controller(Some(120));
         let delta = "This is a long line that should wrap into multiple rows when resized.\n";
@@ -794,6 +876,7 @@ mod tests {
     }
 
     #[test]
+    // 已发出的内容在缩放重排后不得再次进入队列。
     fn controller_set_width_no_duplicate_after_emit() {
         let mut ctrl = stream_controller(Some(120));
         let line =
@@ -813,6 +896,7 @@ mod tests {
     }
 
     #[test]
+    // 批量排空上限为零时不改变队列或发出计数。
     fn controller_tick_batch_zero_is_noop() {
         let mut ctrl = stream_controller(Some(80));
         assert!(ctrl.push("line one\n"));
@@ -825,6 +909,7 @@ mod tests {
     }
 
     #[test]
+    // 助手流的实时尾部标志应精确反映尾区是否存在。
     fn controller_has_live_tail_reflects_tail_presence() {
         let mut ctrl = stream_controller(Some(80));
         assert!(!ctrl.has_live_tail());
@@ -838,6 +923,7 @@ mod tests {
     }
 
     #[test]
+    // 计划流同样应准确报告实时尾部存在性。
     fn plan_controller_has_live_tail_reflects_tail_presence() {
         let mut ctrl = plan_stream_controller(Some(80));
         assert!(!ctrl.has_live_tail());
@@ -851,6 +937,7 @@ mod tests {
     }
 
     #[test]
+    // 未换行提交的表格单元格必须继续受换行门控。
     fn controller_live_tail_keeps_uncommitted_table_cell_newline_gated() {
         let mut ctrl = stream_controller(Some(80));
         ctrl.push("| A | B |\n");
@@ -862,6 +949,7 @@ mod tests {
     }
 
     #[test]
+    // 普通非表格内容不会仅因仍在流式传输就形成实时尾部。
     fn controller_live_tail_requires_table_holdback_state() {
         let mut ctrl = stream_controller(Some(80));
         ctrl.push("plain text without newline");
@@ -874,6 +962,7 @@ mod tests {
     }
 
     #[test]
+    // 缩放时实时表格尾部应按新宽度重新渲染。
     fn controller_live_tail_rerenders_table_tail_after_resize() {
         let mut ctrl = stream_controller(Some(96));
         ctrl.push("| # | Feature | Details | Link |\n");
@@ -902,6 +991,7 @@ mod tests {
     }
 
     #[test]
+    // 部分排空后缩放不能丢失尚未发出的稳定内容。
     fn controller_set_width_partial_drain_no_lost_lines() {
         let mut ctrl = stream_controller(Some(40));
         ctrl.push("AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH IIII JJJJ\n");
@@ -927,6 +1017,7 @@ mod tests {
     }
 
     #[test]
+    // 部分排空后的缩放应保留仍待提交的队列。
     fn controller_set_width_partial_drain_keeps_pending_queue() {
         let mut ctrl = stream_controller(Some(40));
         ctrl.push("AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH IIII JJJJ\n");
@@ -959,6 +1050,7 @@ mod tests {
     }
 
     #[test]
+    // 助手流缩放时必须保留正在变化的尾部内容。
     fn controller_set_width_preserves_in_flight_tail() {
         let mut ctrl = stream_controller(Some(80));
         ctrl.push("tail without newline");
@@ -973,6 +1065,7 @@ mod tests {
     }
 
     #[test]
+    // 即使稳定队列为空，缩放也不得丢失已确认表格尾部。
     fn controller_set_width_preserves_table_tail_when_queue_is_empty() {
         let mut ctrl = stream_controller(Some(80));
         ctrl.push("intro line\n");
@@ -1001,6 +1094,7 @@ mod tests {
     }
 
     #[test]
+    // 计划流缩放时同样保留进行中的可变尾部。
     fn plan_controller_set_width_preserves_in_flight_tail() {
         let mut ctrl = plan_stream_controller(Some(80));
         ctrl.push("1. Item without newline");
@@ -1017,6 +1111,7 @@ mod tests {
     }
 
     #[test]
+    // 计划流发现候选表头后应把它暂留在实时尾部。
     fn plan_controller_holds_table_header_as_live_tail() {
         let mut ctrl = plan_stream_controller(Some(80));
         assert!(ctrl.push("Intro\n"));
@@ -1028,6 +1123,7 @@ mod tests {
     }
 
     #[test]
+    // 松散与紧凑列表经提交节拍流式渲染后应与完整渲染一致。
     fn controller_loose_vs_tight_with_commit_ticks_matches_full() {
         let mut ctrl = stream_controller(/*width*/ None);
         let mut lines = Vec::new();
@@ -1144,6 +1240,7 @@ mod tests {
     }
 
     #[test]
+    // 多种终端宽度下，流式表格定稿结果应匹配完整渲染。
     fn controller_streamed_table_matches_full_render_widths() {
         let deltas = vec![
             "| Key | Description |\n",
@@ -1163,6 +1260,7 @@ mod tests {
     }
 
     #[test]
+    // 块引用中的表格在结构稳定前应整体留在尾部。
     fn controller_holds_blockquoted_table_tail_until_stable() {
         let deltas = vec!["> | A | B |\n", "> | --- | --- |\n", "> | longvalue | ok |\n", "\n"];
 
@@ -1177,6 +1275,7 @@ mod tests {
     }
 
     #[test]
+    // 表格确认后，其前面的普通行仍可继续留在稳定队列。
     fn controller_keeps_pre_table_lines_queued_when_table_is_confirmed() {
         let mut ctrl = stream_controller(Some(80));
 
@@ -1203,6 +1302,7 @@ mod tests {
     }
 
     #[test]
+    // 已确认表格流中途缩放后，最终输出仍需匹配规范渲染。
     fn controller_set_width_during_confirmed_table_stream_matches_finalize_render() {
         let mut ctrl = stream_controller(Some(120));
         let deltas = [
@@ -1233,6 +1333,7 @@ mod tests {
     }
 
     #[test]
+    // 只有管道字符而无分隔行的普通段落不应触发表格暂留。
     fn controller_does_not_hold_back_pipe_prose_without_table_delimiter() {
         let mut ctrl = stream_controller(Some(80));
 
@@ -1249,6 +1350,7 @@ mod tests {
     }
 
     #[test]
+    // 连续含管道的普通段落不得让稳定队列停滞。
     fn controller_does_not_stall_repeated_pipe_prose_paragraphs() {
         let mut ctrl = stream_controller(Some(80));
 
@@ -1269,6 +1371,7 @@ mod tests {
     }
 
     #[test]
+    // 紧跟标题的表格仍能正确建立稳定区与尾区边界。
     fn controller_handles_table_immediately_after_heading() {
         let deltas = vec![
             "### 1) Basic table\n",
@@ -1290,6 +1393,7 @@ mod tests {
     }
 
     #[test]
+    // 多表格响应中的分隔线必须在流式与定稿布局中保持一致。
     fn controller_renders_separators_for_multi_table_response_shape() {
         let source = "Absolutely. Here are several different Markdown table patterns you can use for rendering tests.\n\n| Name  | Role      |
   Location |\n|-------|-----------|----------|\n| Ava   | Engineer  | NYC      |\n| Malik | Designer  | Berlin   |\n| Priya | PM        | Remote
@@ -1309,6 +1413,7 @@ mod tests {
     }
 
     #[test]
+    // 无外侧管道表格也应保留正确的分隔行渲染。
     fn controller_renders_separators_for_no_outer_pipes_table_shape() {
         let source = "### 1) Basic\n\n| Name | Role | Active |\n|---|---|---|\n| Alice | Engineer | Yes |\n| Bob | Designer | No |\n\n### 2) No outer
   pipes\n\nCol A | Col B | Col C\n--- | --- | ---\nx | y | z\n10 | 20 | 30\n\n### 3) Another table\n\n| Key | Value |\n|---|---|\n| a | b |\n";
@@ -1335,6 +1440,7 @@ mod tests {
     }
 
     #[test]
+    // 响应中的首个无外侧管道表格应在确认后稳定提交。
     fn controller_stabilizes_first_no_outer_pipes_table_in_response() {
         let deltas = vec![
             "### No outer pipes first\n\n",
@@ -1364,6 +1470,7 @@ mod tests {
     }
 
     #[test]
+    // 两列无外侧管道表格应形成稳定且完整的最终布局。
     fn controller_stabilizes_two_column_no_outer_table_in_response() {
         let deltas =
             vec!["A | B\n", "--- | ---\n", "left | right\n", "\n", "After table paragraph.\n"];
@@ -1386,6 +1493,7 @@ mod tests {
     }
 
     #[test]
+    // 位于预先盒装区段之间的无外侧管道表格应正确转换。
     fn controller_converts_no_outer_table_between_preboxed_sections() {
         let source = "  ┌───────┬──────────┬────────┐\n  │ Name  │ Role     │ Active │\n  ├───────┼──────────┼────────┤\n  │ Alice │ Engineer │ Yes    │\n  │ Bob   │ Designer │ No     │\n  │ Cara  │ PM       │ Yes    │\n  └───────┴──────────┴────────┘\n\n  ### 3) No outer pipes\n\n  Col A | Col B | Col C\n  --- | --- | ---\n  x | y | z\n  10 | 20 | 30\n\n  ┌─────────────────┬────────┬────────────────────────┐\n  │ Example         │ Output │ Notes                  │\n  ├─────────────────┼────────┼────────────────────────┤\n  │ a | b           │ `a     │ b`                     │\n  │ npm run test    │ ok     │ Inline code formatting │\n  │ SELECT * FROM t │ 3 rows │ SQL snippet            │\n  └─────────────────┴────────┴────────────────────────┘\n";
 
@@ -1408,6 +1516,7 @@ mod tests {
     }
 
     #[test]
+    // Markdown 围栏中的表格在定稿前保持可变，以支持整体重排。
     fn controller_keeps_markdown_fenced_tables_mutable_until_finalize() {
         let source = "```md\n| A | B |\n|---|---|\n| 1 | 2 |\n```\n";
         let deltas = vec!["```md\n", "| A | B |\n", "|---|---|\n", "| 1 | 2 |\n", "```\n"];
@@ -1429,6 +1538,7 @@ mod tests {
     }
 
     #[test]
+    // Markdown 围栏中的无外侧管道表格同样应暂留至定稿。
     fn controller_keeps_markdown_fenced_no_outer_tables_mutable_until_finalize() {
         let source =
             "```md\nCol A | Col B | Col C\n--- | --- | ---\nx | y | z\n10 | 20 | 30\n```\n";
@@ -1458,6 +1568,7 @@ mod tests {
     }
 
     #[test]
+    // 表格行交错到达时，实时视图每一步都应匹配当前完整渲染。
     fn controller_live_view_matches_render_during_interleaved_table_streaming() {
         let source = "Project updates are easier to scan when narrative and structured data alternate.\n\n| Focus Area | Owner | Priority | Status |\n|---|---|---|---|\n| Authentication cleanup | Maya | High | 80% |\n| CLI error messages | Jordan | Medium | 55% |\n| Docs refresh | Lee | Low | 30% |\n\nThe first checkpoint shows progress, but we still have open risks.\n\n| Task | Command / Artifact | Due | State |\n|---|---|---|---|\n| Run unit tests | `cargo test -p codex-core` | Today | ✅ |\n| Snapshot review | `cargo insta pending-snapshots -p codex-tui` | Today | ⏳ |\n| Changelog draft | Release template (https://replacechangelog.com/) | Tomorrow | 📝 |\n\nFinal sign-off criteria are summarized below.\n";
         let width = Some(72usize);
@@ -1501,6 +1612,7 @@ mod tests {
     }
 
     #[test]
+    // 定稿表格必须保留 URL 中具有语义的片段标识。
     fn finalized_stream_table_preserves_semantic_url_fragments() {
         let destination = "https://example.com/a/very/long/path/to/a/table/artifact";
         let source = format!("| Item | URL |\n| --- | --- |\n| report | {destination} |\n");
@@ -1522,6 +1634,7 @@ mod tests {
     }
 
     #[test]
+    // 非 Markdown 围栏内的表格形文本应保持代码，不参与表格暂留。
     fn controller_keeps_non_markdown_fenced_tables_as_code() {
         let source = "```sh\n| A | B |\n|---|---|\n| 1 | 2 |\n```\n";
         let deltas = vec!["```sh\n", "| A | B |\n", "|---|---|\n", "| 1 | 2 |\n", "```\n"];
@@ -1543,6 +1656,7 @@ mod tests {
     }
 
     #[test]
+    // 计划流表格的最终结果应与一次性渲染完全一致。
     fn plan_controller_streamed_table_matches_final_render() {
         let deltas = vec![
             "## Build plan\n\n",
@@ -1569,6 +1683,7 @@ mod tests {
     }
 
     #[test]
+    // 定稿计划流也必须保留 URL 语义片段。
     fn finalized_plan_stream_preserves_semantic_url_fragments() {
         let destination = "https://example.com/a/very/long/path/to/a/table/artifact";
         let source = format!("| Step | URL |\n| --- | --- |\n| Verify | {destination} |\n");
@@ -1591,6 +1706,7 @@ mod tests {
     }
 
     #[test]
+    // Markdown 围栏表格在计划流中的流式与最终布局应一致。
     fn plan_controller_streamed_markdown_fenced_table_matches_final_render() {
         let deltas = vec![
             "## Build plan\n\n",
@@ -1619,18 +1735,21 @@ mod tests {
     }
 
     #[test]
+    // 表头紧邻分隔行时，暂留扫描应确认表格。
     fn table_holdback_state_detects_header_plus_delimiter() {
         let source = "| Key | Description |\n| --- | --- |\n";
         assert!(matches!(table_holdback_state(source), TableHoldbackState::Confirmed { .. }));
     }
 
     #[test]
+    // 单列表头与分隔行同样构成可确认表格。
     fn table_holdback_state_detects_single_column_header_plus_delimiter() {
         let source = "| Only |\n| --- |\n";
         assert!(matches!(table_holdback_state(source), TableHoldbackState::Confirmed { .. }));
     }
 
     #[test]
+    // 未闭合长围栏中的表格形文本必须被扫描器忽略。
     fn table_holdback_state_ignores_table_like_lines_inside_unclosed_long_fence() {
         let source = "````sh\n```cmd\n| Key | Description |\n| --- | --- |\n````\n";
         assert!(
@@ -1640,6 +1759,7 @@ mod tests {
     }
 
     #[test]
+    // 缩进围栏文本按普通内容处理，不应误套围栏跳过规则。
     fn table_holdback_state_treats_indented_fence_text_as_plain_content() {
         let source = "    ```sh\n| Key | Description |\n| --- | --- |\n";
         assert!(
@@ -1649,6 +1769,7 @@ mod tests {
     }
 
     #[test]
+    // 块引用中的非 Markdown 围栏应屏蔽内部表格形文本。
     fn table_holdback_state_ignores_table_like_lines_inside_blockquoted_other_fence() {
         let source = "> ```sh\n> | Key | Value |\n> | --- | --- |\n> ```\n";
         assert!(
@@ -1658,6 +1779,7 @@ mod tests {
     }
 
     #[test]
+    // 每个分块后的增量扫描结果应与无状态全量扫描一致。
     fn incremental_holdback_matches_stateless_scan_per_chunk() {
         let chunks = [
             "status | owner\n",
@@ -1684,6 +1806,7 @@ mod tests {
     }
 
     #[test]
+    // 表头与分隔行跨分块到达时仍应正确确认表格。
     fn incremental_holdback_detects_header_delimiter_across_chunk_boundary() {
         let mut scanner = TableHoldbackScanner::new();
         scanner.push_source_chunk("| A | B |\n");
@@ -1693,6 +1816,7 @@ mod tests {
     }
 
     #[test]
+    // 首行发出后缩放不得把该行重新放回队列。
     fn controller_set_width_after_first_line_emit_does_not_requeue_first_line() {
         let mut ctrl = stream_controller(Some(120));
         ctrl.push(
@@ -1723,6 +1847,7 @@ mod tests {
     }
 
     #[test]
+    // 已部分发出的折行内容在缩放后必须保留所有剩余正文。
     fn controller_set_width_partial_wrapped_emit_preserves_remaining_content() {
         let mut ctrl = stream_controller(Some(20));
         ctrl.push("The quick brown fox jumps over the lazy dog near the riverbank.\n");
@@ -1749,6 +1874,7 @@ mod tests {
     }
 
     #[test]
+    // 折行余量在宽度变化后仍应保持为待发内容而非被跳过。
     fn controller_set_width_partial_wrapped_emit_keeps_wrapped_remainder() {
         let mut ctrl = stream_controller(Some(18));
         ctrl.push("alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu\n");

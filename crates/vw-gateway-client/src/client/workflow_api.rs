@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use vw_api_types::workflow::{
     WorkflowRecord, WorkflowRecordDeleteResponse, WorkflowRecordSummary, WorkflowRecordUpsertBody,
+    WorkflowResumeRequest, WorkflowRunResponse,
 };
 
 use crate::http::{
@@ -16,6 +17,7 @@ use crate::http::{
 use super::GatewayClient;
 
 const WORKFLOW_APPLICATION_STREAM_PATH_SUFFIX: &str = "/chat-messages";
+const WORKFLOW_DEFAULT_STREAM_PATH: &str = "/v1/workflow/applications/chat-messages";
 
 /// Workflow streaming 响应模式。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -28,6 +30,22 @@ pub enum GatewayWorkflowResponseMode {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GatewayWorkflowStreamRequest {
     pub query: String,
+    #[serde(default)]
+    pub inputs: BTreeMap<String, Value>,
+    pub response_mode: GatewayWorkflowResponseMode,
+    pub user: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conversation_id: Option<String>,
+}
+
+/// Workflow 默认入口的 streaming 请求体，可指定保存应用或内联 YAML。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GatewayWorkflowDefaultStreamRequest {
+    pub query: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub application_uuid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub application_workflow: Option<String>,
     #[serde(default)]
     pub inputs: BTreeMap<String, Value>,
     pub response_mode: GatewayWorkflowResponseMode,
@@ -105,6 +123,14 @@ pub enum GatewayWorkflowStreamEvent {
 }
 
 impl GatewayClient {
+    /// 恢复暂停的 Workflow 运行。
+    pub async fn workflow_resume(
+        &self,
+        body: &WorkflowResumeRequest,
+    ) -> Result<WorkflowRunResponse, String> {
+        self.post_json("/v1/workflow/resume", &[], body).await
+    }
+
     /// 列出本地保存的 Dify Workflow。
     pub async fn workflow_applications_list(&self) -> Result<Vec<WorkflowRecordSummary>, String> {
         self.get_json("/v1/workflow/applications", &[]).await
@@ -112,7 +138,7 @@ impl GatewayClient {
 
     /// 读取本地保存的 Dify Workflow。
     pub async fn workflow_application_get(&self, uuid: &str) -> Result<WorkflowRecord, String> {
-        self.get_json(&format!("/v1/workflow/applications/{uuid}"), &[]).await
+        self.get_json(&workflow_application_path(uuid)?, &[]).await
     }
 
     /// 新增本地 Dify Workflow。
@@ -129,7 +155,7 @@ impl GatewayClient {
         uuid: &str,
         body: &WorkflowRecordUpsertBody,
     ) -> Result<WorkflowRecord, String> {
-        self.put_json(&format!("/v1/workflow/applications/{uuid}"), &[], body).await
+        self.put_json(&workflow_application_path(uuid)?, &[], body).await
     }
 
     /// 删除本地 Dify Workflow。
@@ -137,8 +163,30 @@ impl GatewayClient {
         &self,
         uuid: &str,
     ) -> Result<WorkflowRecordDeleteResponse, String> {
-        self.delete_json(&format!("/v1/workflow/applications/{uuid}"), &[], &serde_json::json!({}))
+        self.delete_json(&workflow_application_path(uuid)?, &[], &serde_json::json!({}))
             .await
+    }
+
+    /// 运行默认 Workflow 入口并按 SSE 顺序回调事件。
+    pub async fn stream_default_workflow_application(
+        &self,
+        body: &GatewayWorkflowDefaultStreamRequest,
+        on_event: impl FnMut(GatewayWorkflowStreamEvent) -> bool,
+    ) -> Result<(), String> {
+        let has_uuid = body
+            .application_uuid
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|value| !value.is_empty());
+        let has_workflow = body
+            .application_workflow
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|value| !value.is_empty());
+        if !has_uuid && !has_workflow {
+            return Err("application_uuid or application_workflow is required".to_string());
+        }
+        self.stream_workflow_request(WORKFLOW_DEFAULT_STREAM_PATH, body, on_event).await
     }
 
     /// 运行本地 Workflow 应用并按 SSE 顺序回调事件。
@@ -146,20 +194,29 @@ impl GatewayClient {
         &self,
         uuid: &str,
         body: &GatewayWorkflowStreamRequest,
+        on_event: impl FnMut(GatewayWorkflowStreamEvent) -> bool,
+    ) -> Result<(), String> {
+        let path = workflow_application_stream_path(uuid)?;
+        self.stream_workflow_request(&path, body, on_event).await
+    }
+
+    async fn stream_workflow_request<T: Serialize>(
+        &self,
+        path: &str,
+        body: &T,
         mut on_event: impl FnMut(GatewayWorkflowStreamEvent) -> bool,
     ) -> Result<(), String> {
-        let path = workflow_application_stream_path(uuid);
-        log_request("POST", &self.endpoint, &path, &[], Some(body));
+        log_request("POST", &self.endpoint, path, &[], Some(body));
         let request = self.client.post(format!("{}{}", self.endpoint.base_url(), path)).json(body);
         let response = apply_request_context(request, &self.endpoint)
             .send()
             .await
-            .map_err(|err| transport_error("POST", &self.endpoint, &path, err))?;
+            .map_err(|err| transport_error("POST", &self.endpoint, path, err))?;
         if !response.status().is_success() {
-            return Err(response_error("POST", &self.endpoint, &path, response).await);
+            return Err(response_error("POST", &self.endpoint, path, response).await);
         }
 
-        log_request_succeeded("POST", &self.endpoint, &path);
+        log_request_succeeded("POST", &self.endpoint, path);
         let mut bytes_stream = response.bytes_stream();
         let mut sse_buffer = String::new();
         while let Some(chunk) = bytes_stream.next().await {
@@ -278,8 +335,31 @@ impl GatewayClient {
     }
 }
 
-fn workflow_application_stream_path(uuid: &str) -> String {
-    format!("/v1/workflow/applications/{uuid}{WORKFLOW_APPLICATION_STREAM_PATH_SUFFIX}")
+fn workflow_application_path(uuid: &str) -> Result<String, String> {
+    if uuid.trim().is_empty() {
+        return Err("workflow application uuid must not be empty".to_string());
+    }
+    Ok(format!("/v1/workflow/applications/{}", encode_path_segment(uuid)))
+}
+
+fn workflow_application_stream_path(uuid: &str) -> Result<String, String> {
+    Ok(format!(
+        "{}{WORKFLOW_APPLICATION_STREAM_PATH_SUFFIX}",
+        workflow_application_path(uuid)?
+    ))
+}
+
+fn encode_path_segment(value: &str) -> String {
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(char::from(byte));
+            }
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
 }
 
 fn parse_workflow_stream_event(payload: Value) -> GatewayWorkflowStreamEvent {

@@ -1,3 +1,6 @@
+//! 将已验证的宠物精灵表切分为终端图片协议可直接使用的 PNG 帧缓存。
+//! 缓存不完整时会清除旧帧并重新生成整套文件，避免混用不同版本。
+
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -8,6 +11,7 @@ use image::GenericImageView;
 
 use super::model::Pet;
 
+/// 确保目标目录包含宠物网格中的全部 PNG 帧，并按稳定索引顺序返回路径。
 pub(super) fn prepare_png_frames(pet: &Pet, frame_dir: &Path) -> Result<Vec<PathBuf>> {
     fs::create_dir_all(frame_dir).with_context(|| format!("create {}", frame_dir.display()))?;
 
@@ -17,10 +21,12 @@ pub(super) fn prepare_png_frames(pet: &Pet, frame_dir: &Path) -> Result<Vec<Path
 
     let complete = expected.iter().all(|path| path.exists());
     if !complete {
+        // 只清除本模块命名的旧帧文件，不触碰缓存目录中的其他内容。
         for stale in glob_frame_files(frame_dir)? {
             let _ = fs::remove_file(stale);
         }
 
+        // 使用受检乘加计算网格索引和像素偏移，损坏的清单不能造成整数溢出。
         let spritesheet = image::open(&pet.spritesheet_path)
             .with_context(|| format!("read {}", pet.spritesheet_path.display()))?;
         for row in 0..pet.rows {
@@ -48,9 +54,11 @@ pub(super) fn prepare_png_frames(pet: &Pet, frame_dir: &Path) -> Result<Vec<Path
         }
     }
 
+    // 返回完整期望路径集合，即使命中已有缓存也维持稳定顺序。
     Ok(expected)
 }
 
+/// 收集约定命名的帧缓存文件；目录不存在等价于空缓存。
 fn glob_frame_files(frame_dir: &Path) -> Result<Vec<PathBuf>> {
     if !frame_dir.exists() {
         return Ok(Vec::new());
@@ -80,6 +88,7 @@ mod tests {
     use super::*;
 
     #[test]
+    // 验证纯 Rust 图像路径能正确切分像素，无需调用外部命令。
     fn prepare_png_frames_slices_spritesheet_without_external_command() {
         let dir = tempfile::tempdir().unwrap();
         let spritesheet_path = dir.path().join("spritesheet.png");

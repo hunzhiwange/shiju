@@ -1,9 +1,13 @@
+//! 覆盖开放代码围栏快速检测器的保守启用与失效条件。
+//! 只有能逐字保留源码的单一顶层围栏才可绕过规范解析器。
+
 use super::OpenCodeFence;
 use super::has_possible_closing_line;
 use crate::render::highlight::MAX_HIGHLIGHT_LINE_BYTES;
 use crate::render::highlight::syntax_theme_revision;
 
 #[test]
+// 缩进、规范化或复杂结构会改变源码时，检测器应拒绝建立快速状态。
 fn detects_only_source_preserving_open_fences() {
     for source in [
         "```rust,no_run\nfn main() {}\n",
@@ -34,6 +38,7 @@ fn detects_only_source_preserving_open_fences() {
 }
 
 #[test]
+// 任一种可能闭合围栏的后续行都必须返回规范解析器确认最终结构。
 fn every_possible_closer_returns_to_the_canonical_parser() {
     let opening = "~~~~rust\n";
     assert!(!has_possible_closing_line("~~~\n```\n", /*marker*/ b'~', /*marker_len*/ 4));
@@ -52,6 +57,7 @@ fn every_possible_closer_returns_to_the_canonical_parser() {
 }
 
 #[test]
+// 延迟初始化前若主题已变化，旧高亮上下文不能被接受。
 fn lazy_initialization_rejects_a_changed_theme() {
     let source = "```rust\nfn first() {}\n";
     let mut fence = OpenCodeFence::detect(source, source.len(), syntax_theme_revision()).unwrap();

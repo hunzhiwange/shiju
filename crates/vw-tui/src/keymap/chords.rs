@@ -1,8 +1,11 @@
 //! Bounded, context-aware two-stroke shortcuts for TUI actions.
+//! 为 TUI 动作实现有期限且感知上下文的双键组合快捷键。
 //!
 //! Single-event bindings remain in the ordinary runtime keymaps. A completed
 //! chord becomes an internal function-key token appended to the target action,
 //! so existing handlers remain the only action dispatch table.
+//! 单事件绑定仍保留在普通运行时键位表中；完成的组合键会转换为追加到目标动作的内部
+//! 功能键令牌，使现有处理器继续作为唯一动作派发表。
 
 use super::MAIN_RESERVED_BINDINGS;
 use super::RuntimeKeymap;
@@ -35,9 +38,12 @@ const LIST_RESERVED_BINDINGS: &[(&str, KeyBinding)] = &[
 ];
 
 /// Time allowed between the first and second strokes of a key chord.
+/// 组合键第一击与第二击之间允许的最长时间。
+// `secs` 位置参数以秒为单位，此处固定为一秒。
 pub(crate) const KEY_CHORD_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 1);
 
 /// Compact set of keymap contexts that share one active input path.
+/// 共享一条活动输入路径的紧凑快捷键上下文集合。
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct KeymapContextSet(u16);
 
@@ -73,6 +79,7 @@ const fn context_bit(context: KeymapContext) -> u16 {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct KeyChord {
+    // 两个按键均保存规范化绑定，以便终端等价键参与一致匹配。
     pub(crate) prefix: KeyBinding,
     pub(crate) completion: KeyBinding,
 }
@@ -85,6 +92,7 @@ pub(crate) struct RuntimeChordBinding {
 }
 
 /// Chord bindings plus configured alternatives in declaration order.
+/// 组合键绑定，以及按配置声明顺序保留的全部候选写法。
 #[derive(Clone, Debug, Default)]
 pub(crate) struct RuntimeChordKeymap {
     pub(crate) bindings: Vec<RuntimeChordBinding>,
@@ -93,6 +101,7 @@ pub(crate) struct RuntimeChordKeymap {
 
 impl RuntimeChordKeymap {
     pub(super) fn from_config(keymap: &TuiKeymap) -> Result<Self, String> {
+        // 重复配置只保留一次展示记录，真正的双键规格才进入状态机绑定集合。
         let mut keymap_chords = Self::default();
         for action in keymap_action_ids() {
             let Some(configured) = effective_configured_binding(keymap, action) else {
@@ -143,6 +152,7 @@ or a two-stroke chord such as `ctrl-x ctrl-t`.",
     }
 
     /// Return the user's first configured shortcut without exposing dispatch tokens.
+    /// 返回用户配置的第一个快捷键提示，不暴露内部派发令牌。
     pub(crate) fn primary_hint(
         &self,
         action: KeymapActionId,
@@ -167,6 +177,7 @@ or a two-stroke chord such as `ctrl-x ctrl-t`.",
 }
 
 /// Outcome of routing one physical key through the chord state machine.
+/// 一个物理按键经过组合键状态机后的路由结果。
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum KeyChordMatch {
     PassThrough,
@@ -184,6 +195,7 @@ struct PendingChord {
 }
 
 /// Tracks one pending two-stroke chord without buffering ordinary input.
+/// 跟踪一个待完成的双键组合，但不缓冲普通输入。
 #[derive(Debug, Default)]
 pub(crate) struct KeyChordMatcher {
     pending: Option<PendingChord>,
@@ -216,6 +228,7 @@ impl KeyChordMatcher {
         contexts: KeymapContextSet,
         now: Instant,
     ) -> KeyChordMatch {
+        // 上下文变化或超时会先清除旧前缀；未匹配的按键直接交回普通输入路径。
         if is_dispatch_token_event(key_event) {
             return KeyChordMatch::Ignored;
         }
@@ -267,6 +280,7 @@ impl KeyChordMatcher {
 }
 
 pub(super) fn install_dispatch_bindings(keymap: &mut RuntimeKeymap) -> Result<(), String> {
+    // 每个动作映射到保留功能键区的唯一令牌，避免新增第二套动作分派逻辑。
     let actions = keymap
         .chords
         .bindings
@@ -350,6 +364,7 @@ fn effective_configured_binding(
 }
 
 pub(crate) fn normalize_chord_binding(binding: KeyBinding) -> KeyBinding {
+    // 某些终端把 Ctrl+/ 编码为 Ctrl+7，统一后才能可靠检测重复和冲突。
     if binding.parts() == crate::key_hint::ctrl(KeyCode::Char('7')).parts() {
         crate::key_hint::ctrl(KeyCode::Char('/'))
     } else {
@@ -358,6 +373,7 @@ pub(crate) fn normalize_chord_binding(binding: KeyBinding) -> KeyBinding {
 }
 
 /// Reject chords that would shadow an active single binding or fixed shortcut.
+/// 拒绝会遮蔽活动单键绑定或固定快捷键的组合键。
 pub(super) fn validate_chord_conflicts(keymap: &RuntimeKeymap) -> Result<(), String> {
     for (index, binding) in keymap.chords.bindings.iter().enumerate() {
         validate_binding_shape(binding)?;
@@ -400,6 +416,7 @@ Choose a unique chord and retry.",
 }
 
 fn validate_binding_shape(binding: &RuntimeChordBinding) -> Result<(), String> {
+    // 非 Vim 文本路径要求安全前缀，避免普通字符或 AltGr 输入被组合键吞掉。
     let path = binding.action.config_path();
     let (prefix_key, prefix_modifiers) = binding.chord.prefix.parts();
 
@@ -429,6 +446,7 @@ alt, or a non-character key so ordinary text input is not intercepted.",
 }
 
 fn validate_reserved_strokes(binding: &RuntimeChordBinding) -> Result<(), String> {
+    // Esc、作业控制键及各界面固定键承担不可替代的退出或导航语义，不允许被组合键占用。
     let path = binding.action.config_path();
     let strokes = [
         binding.chord.prefix.parts(),

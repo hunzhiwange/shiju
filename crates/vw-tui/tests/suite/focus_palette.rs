@@ -1,3 +1,6 @@
+//! 通过真实 PTY 验证终端重新获得焦点时，调色板查询不会阻塞或吞掉即时输入。
+//! fixture 缓存启动阶段的终端应答，再分别覆盖同批和延迟到达的焦点输入。
+
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
@@ -17,11 +20,13 @@ use anyhow::ensure;
 use tempfile::TempDir;
 
 // Full startup continues after the composer first appears and can be slower under Rosetta in CI.
+// 完整启动会在输入框首次出现后继续执行，在 CI 的 Rosetta 环境中可能更慢。
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 30);
 const FOCUS_INPUT_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 5);
 const FOCUS_PROBE_INPUT: &str = "focus-palette-24527";
 
 #[test]
+// 已有未回答调色板查询时，焦点事件后的即时和稍后输入都必须进入编辑器。
 fn focus_gained_with_unanswered_palette_queries_preserves_immediate_input() -> Result<()> {
     let repo_root = codex_utils_cargo_bin::repo_root()?;
     let codex_home = tempfile::tempdir()?;
@@ -46,6 +51,7 @@ fn focus_gained_with_unanswered_palette_queries_preserves_immediate_input() -> R
 }
 
 struct PtyCodex {
+    // 真实子进程、主 PTY 与 vt100 解析器共同保留字节级和屏幕级观察面。
     master: File,
     child: Child,
     parser: vt100::Parser,
@@ -58,6 +64,7 @@ struct PtyCodex {
 
 impl PtyCodex {
     fn start(repo_root: &Path, codex_home: TempDir) -> Result<Self> {
+        // 创建隔离 PTY 和配置目录，启动禁用替代屏幕的真实 TUI 子进程。
         let mut master_fd = -1;
         let mut slave_fd = -1;
         let mut window_size = libc::winsize {
@@ -69,6 +76,7 @@ impl PtyCodex {
 
         // SAFETY: `openpty` initializes both file descriptors on success, and the supplied window
         // size remains valid for the duration of the call.
+        // 安全性：成功时会初始化两个描述符，窗口尺寸在调用期间保持有效。
         let result = unsafe {
             libc::openpty(
                 &mut master_fd,
@@ -83,8 +91,10 @@ impl PtyCodex {
         }
 
         // SAFETY: a successful `openpty` transfers ownership of both unique file descriptors.
+        // 安全性：成功调用会转移两个互不重复描述符的所有权。
         let master = File::from(unsafe { OwnedFd::from_raw_fd(master_fd) });
         // SAFETY: `slave_fd` is the second unique descriptor initialized by `openpty`.
+        // 安全性：`slave_fd` 是 `openpty` 初始化的第二个唯一描述符。
         let slave = File::from(unsafe { OwnedFd::from_raw_fd(slave_fd) });
         let stdin = slave.try_clone().context("clone pseudo-terminal stdin")?;
         let stdout = slave.try_clone().context("clone pseudo-terminal stdout")?;
@@ -121,6 +131,7 @@ impl PtyCodex {
     }
 
     fn wait_for_startup(&mut self) -> Result<()> {
+        // 回答启动查询直到输入框可见，并对提前退出或超时给出屏幕诊断。
         let deadline = Instant::now() + STARTUP_TIMEOUT;
         while Instant::now() < deadline {
             self.read_output(Duration::from_millis(/*millis*/ 50))?;
@@ -151,6 +162,7 @@ impl PtyCodex {
         focus_started: Instant,
         startup_output_len: usize,
     ) -> Result<()> {
+        // 等待目标文本出现，同时禁止焦点恢复后重新发起已缓存的颜色查询。
         while focus_started.elapsed() < FOCUS_INPUT_TIMEOUT {
             self.read_output(Duration::from_millis(/*millis*/ 20))?;
             let focus_output = &self.output[startup_output_len..];
@@ -173,6 +185,7 @@ impl PtyCodex {
     }
 
     fn answer_startup_queries(&mut self) -> Result<()> {
+        // 对光标、键盘模式和前后景色查询各应答一次，模拟可预测终端。
         if !self.cursor_answered && contains_bytes(&self.output, b"\x1b[6n") {
             self.write_input(b"\x1b[1;1R")?;
             self.cursor_answered = true;
@@ -203,6 +216,7 @@ impl PtyCodex {
         };
 
         // SAFETY: `descriptor` points to one initialized poll descriptor.
+        // 安全性：`descriptor` 指向一个已初始化的 poll 描述符。
         let ready = unsafe {
             libc::poll(&mut descriptor, /*nfds*/ 1, timeout_ms)
         };
@@ -240,6 +254,7 @@ impl PtyCodex {
 }
 
 impl Drop for PtyCodex {
+    // 无论断言如何结束都回收子进程，避免集成测试留下后台 TUI。
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
@@ -251,6 +266,7 @@ fn contains_bytes(buffer: &[u8], needle: &[u8]) -> bool {
 }
 
 fn write_test_config(codex_home: &Path, repo_root: &Path) -> Result<()> {
+    // 写入最小可信项目配置和伪认证，确保测试不读取宿主用户状态。
     let repo_root = repo_root.display();
     let config = format!(
         "model = \"gpt-5.6-terra\"\nmodel_provider = \"openai\"\n\

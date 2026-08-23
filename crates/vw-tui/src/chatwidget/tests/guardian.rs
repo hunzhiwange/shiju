@@ -1,3 +1,8 @@
+//! 验证 Guardian 自动审查从评估事件到审批状态、历史记录和弹窗的映射。
+//! 夹具构造拒绝与命令评估，避免依赖真实审查服务。
+//! 场景覆盖批准、拒绝、超时、并行审查以及陈旧评估清理。
+//! 安全边界要求批准项不泄漏为警告，拒绝和超时则必须留下明确记录。
+
 use super::*;
 use pretty_assertions::assert_eq;
 
@@ -53,6 +58,7 @@ fn guardian_command_event(
 
 #[tokio::test]
 async fn auto_review_denials_popup_lists_stored_auto_review_denials() {
+    // 自动拒绝列表展示已存评估，并允许用户从最近记录发起一次复核。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     chat.on_guardian_assessment(auto_review_denial_event());
@@ -66,6 +72,7 @@ async fn auto_review_denials_popup_lists_stored_auto_review_denials() {
 
 #[tokio::test]
 async fn approving_recent_denial_emits_structured_core_op_once() {
+    // 批准最近拒绝只发送一次结构化操作，避免重复执行受保护命令。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
@@ -92,6 +99,7 @@ async fn approving_recent_denial_emits_structured_core_op_once() {
 
 #[tokio::test]
 async fn guardian_denied_exec_renders_warning_and_denied_request() {
+    // 拒绝必须同时显示安全警告和被拒请求，批准则不得留下同类噪声。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
     let action = GuardianAssessmentAction::Command {
@@ -214,6 +222,7 @@ async fn guardian_approved_exec_is_hidden_from_history() {
 
 #[tokio::test]
 async fn guardian_approved_request_permissions_clears_status_without_history() {
+    // 权限复核获批后清除等待状态，但不把内部审查过程写入普通历史。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
     let action = GuardianAssessmentAction::RequestPermissions {
@@ -296,6 +305,7 @@ async fn guardian_approved_request_permissions_clears_status_without_history() {
 
 #[tokio::test]
 async fn guardian_timed_out_exec_renders_warning_and_timed_out_request() {
+    // 超时按未获批准处理，并以区别于明确拒绝的文案保留记录。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
     let action = GuardianAssessmentAction::Command {
@@ -366,6 +376,7 @@ async fn guardian_timed_out_exec_renders_warning_and_timed_out_request() {
 
 #[tokio::test]
 async fn app_server_guardian_review_started_sets_review_status() {
+    // app-server 审查开始通知建立可见状态，终态通知随后负责结算该状态。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let action = AppServerGuardianApprovalReviewAction::Command {
         source: AppServerGuardianCommandSource::Shell,
@@ -566,6 +577,7 @@ async fn app_server_guardian_review_timed_out_renders_timed_out_request_snapshot
 
 #[tokio::test]
 async fn guardian_parallel_reviews_render_aggregate_status_snapshot() {
+    // 并行审查聚合为单一状态摘要，单项结束后仍显示剩余审查。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.on_task_started();
 
@@ -624,6 +636,7 @@ async fn guardian_parallel_reviews_keep_remaining_review_visible_after_denial() 
 
 #[tokio::test]
 async fn guardian_cleanup_drops_stale_reviews_and_restores_mcp_status() {
+    // 新目标延续时清除陈旧审查，并恢复被审查状态暂时遮盖的 MCP 标题。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.set_mcp_startup_expected_servers(["alpha".to_string()]);

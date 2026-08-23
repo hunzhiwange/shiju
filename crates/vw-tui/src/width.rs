@@ -1,3 +1,8 @@
+//! 终端显示宽度辅助函数及固定前缀列防护。
+//!
+//! 多条渲染路径会为项目符号、沟槽或标签预留列；窄终端可能耗尽内容宽度。本模块按
+//! Ratatui 单元格语义保留 `usize` 精度，并让减法返回严格正宽度或 `None`，调用方据此
+//! 渲染仅前缀回退，避免在零宽度下产生空或不稳定输出。
 //! Terminal display-width helpers and guards for fixed prefix columns.
 //!
 //! Several rendering paths reserve a fixed number of columns for bullets,
@@ -15,17 +20,20 @@
 use unicode_width::UnicodeWidthChar;
 use unicode_width::UnicodeWidthStr;
 
+/// 返回 Ratatui 终端文本使用的显示宽度，但不受 `u16` 上限限制。
 /// Returns the display width Ratatui uses for terminal text without its `u16` limit.
 pub(crate) fn display_width(text: &str) -> usize {
     UnicodeWidthStr::width(text)
         + text.chars().filter(|ch| matches!(ch, '\u{FF9E}' | '\u{FF9F}')).count()
 }
 
+/// 返回标量的终端宽度，并把半角声调标记视为可见单元格。
 /// Returns a scalar's terminal width, treating halfwidth sound marks as visible cells.
 pub(crate) fn char_width(ch: char) -> usize {
     if matches!(ch, '\u{FF9E}' | '\u{FF9F}') { 1 } else { UnicodeWidthChar::width(ch).unwrap_or(0) }
 }
 
+/// 预留固定列后返回严格为正的可用内容宽度；耗尽时返回 `None`，调用方应渲染仅前缀回退。
 /// Returns usable content width after reserving fixed columns.
 ///
 /// Guarantees a strict positive width (`Some(n)` where `n > 0`) or `None` when
@@ -38,6 +46,7 @@ pub(crate) fn usable_content_width(total_width: usize, reserved_cols: usize) -> 
     total_width.checked_sub(reserved_cols).filter(|remaining| *remaining > 0)
 }
 
+/// `usable_content_width` 的 `u16` 便捷包装，保持耗尽宽度时返回 `None` 的契约。
 /// `u16` convenience wrapper around [`usable_content_width`].
 ///
 /// This keeps width math at callsites that receive terminal dimensions as

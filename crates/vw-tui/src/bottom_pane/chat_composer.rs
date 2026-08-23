@@ -89,6 +89,15 @@ impl ChatComposer {
         };
     }
 
+    pub(crate) fn restore_submission(
+        &mut self,
+        text: &str,
+        attachments: Vec<V3Attachment>,
+    ) {
+        self.replace_text(text);
+        self.attachments = attachments;
+    }
+
     pub(crate) fn is_empty(&self) -> bool {
         self.textarea.is_empty()
     }

@@ -39,10 +39,8 @@ impl GatewayUiRuntime {
             .into_iter()
             .filter(|request| request.session_id == session_id)
             .collect();
-        let todos = self
-            .client()
-            .session_todo_get(session_id.as_str(), directory.as_deref())
-            .await?;
+        let todos =
+            self.client().session_todo_get(session_id.as_str(), directory.as_deref()).await?;
         Ok(InteractionSnapshot { session_id, permissions, questions, todos })
     }
 
@@ -62,11 +60,7 @@ impl GatewayUiRuntime {
         message: Option<String>,
     ) -> Result<(), String> {
         let directory = self.directory_value();
-        if self
-            .client()
-            .permission_reply(request_id, reply, directory.as_deref(), message)
-            .await?
-        {
+        if self.client().permission_reply(request_id, reply, directory.as_deref(), message).await? {
             Ok(())
         } else {
             Err(format!("gateway did not resolve permission request {request_id}"))

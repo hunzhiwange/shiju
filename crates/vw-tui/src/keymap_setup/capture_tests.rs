@@ -1,3 +1,6 @@
+//! 验证按键设置界面的组合键采集、提示布局与既有绑定替换规则。
+//! 采集器需要区分真实重复按键和终端自动重复，同时保留未被替换的候选绑定。
+
 use super::super::KeymapEditOutcome;
 use super::super::build_keymap_replace_binding_menu_params;
 use super::super::keymap_with_bindings;
@@ -20,6 +23,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::mpsc::unbounded_channel;
 
 fn capture_view() -> (KeymapCaptureView, UnboundedReceiver<AppEvent>) {
+    // 返回视图及事件接收端，便于同时观察本地状态与提交给应用的配置变更。
     let (tx, rx) = unbounded_channel();
     let view = KeymapCaptureView::new(
         "list".to_string(),
@@ -34,10 +38,12 @@ fn capture_view() -> (KeymapCaptureView, UnboundedReceiver<AppEvent>) {
 }
 
 fn ctrl_key(code: KeyCode) -> KeyEvent {
+    // 构造无自动重复标记的控制键事件，作为多步采集的稳定输入。
     KeyEvent::new(code, KeyModifiers::CONTROL)
 }
 
 fn capture_lines_at_width(view: &KeymapCaptureView, width: u16) -> String {
+    // 在指定宽度渲染成纯文本，以检查窄面板换行而不耦合颜色样式。
     view.lines(width)
         .into_iter()
         .map(|line| {
@@ -51,6 +57,7 @@ fn capture_lines_at_width(view: &KeymapCaptureView, width: u16) -> String {
 }
 
 #[test]
+// 空闲、已采集首键和完成态的提示快照应清晰表达下一步操作。
 fn chord_capture_instruction_snapshots() {
     let (mut view, _rx) = capture_view();
 
@@ -72,6 +79,7 @@ fn chord_capture_instruction_snapshots() {
 }
 
 #[test]
+// 面板变窄时说明文字应自然换行，不能挤占或截断已采集按键。
 fn chord_capture_instructions_wrap_to_narrow_panes() {
     let (mut view, _rx) = capture_view();
 
@@ -102,6 +110,7 @@ fn chord_capture_instructions_wrap_to_narrow_panes() {
 }
 
 #[test]
+// 用户主动再次按下相同键应被记录，而系统自动重复事件应忽略。
 fn captures_repeated_strokes_but_ignores_auto_repeat() {
     let (mut view, mut rx) = capture_view();
 
@@ -137,6 +146,7 @@ fn captures_repeated_strokes_but_ignores_auto_repeat() {
 }
 
 #[test]
+// 带修饰符的 Escape 是可绑定按键，不应触发裸 Escape 的取消路径。
 fn modified_escape_is_captured_as_a_chord_stroke() {
     let (mut canceled_view, mut canceled_events) = capture_view();
     canceled_view.handle_key_event(ctrl_key(KeyCode::Char('x')));
@@ -175,6 +185,7 @@ fn modified_escape_is_captured_as_a_chord_stroke() {
 }
 
 #[test]
+// 替换列表动作中的一个候选键时，其余备选方案必须保持不变。
 fn replacing_one_list_binding_with_chord_preserves_other_alternatives() {
     let config = keymap_with_bindings(
         &TuiKeymap::default(),

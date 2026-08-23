@@ -1,3 +1,4 @@
+//! 解析嵌入助手 Markdown 的 Codex App 指令，同时保留可见正文。
 //! Codex App directives embedded in assistant markdown.
 
 use std::collections::HashMap;
@@ -6,6 +7,7 @@ use std::path::Path;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum GitActionDirective {
+    /// 指令只携带界面执行动作所需的工作目录、分支和 PR 元数据。
     Stage { cwd: String },
     Commit { cwd: String },
     CreateBranch { cwd: String, branch: String },
@@ -24,6 +26,7 @@ impl GitActionDirective {
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ParsedAssistantMarkdown {
+    /// 去除有效 Git 指令后的正文，以及按出现顺序去重的动作列表。
     pub(crate) visible_markdown: String,
     pub(crate) git_actions: Vec<GitActionDirective>,
 }
@@ -35,6 +38,7 @@ impl ParsedAssistantMarkdown {
 }
 
 pub(crate) fn parse_assistant_markdown(markdown: &str, cwd: &Path) -> ParsedAssistantMarkdown {
+    // 按行改写代码评论并提取 Git 指令，避免隐藏标记生成空白展示行。
     let mut git_actions = Vec::new();
     let mut seen = HashSet::new();
     let mut visible_lines = Vec::new();
@@ -46,6 +50,7 @@ pub(crate) fn parse_assistant_markdown(markdown: &str, cwd: &Path) -> ParsedAssi
         }
         let (visible_line, line_actions) = strip_line_directives(line);
         for action in line_actions {
+            // 相同动作只物化一次，同时保留不同动作第一次出现的顺序。
             if seen.insert(action.clone()) {
                 git_actions.push(action);
             }
@@ -61,6 +66,7 @@ pub(crate) fn parse_assistant_markdown(markdown: &str, cwd: &Path) -> ParsedAssi
 }
 
 fn rewrite_code_comment_line(line: &str, cwd: &Path) -> Option<String> {
+    // 仅接受一到三个前导冒号及完整必填属性，格式异常时让原文继续可见。
     let content = line.trim_start_matches([' ', '\t']);
     let indent = &line[..line.len() - content.len()];
     let marker_length = content.bytes().take_while(|byte| *byte == b':').count();
@@ -88,6 +94,7 @@ fn rewrite_code_comment_line(line: &str, cwd: &Path) -> Option<String> {
     } else {
         title.to_string()
     };
+    // 仓库内路径尽量转成相对 cwd 的统一正斜杠形式，外部路径保持原样。
     let file_path = Path::new(file);
     let file =
         file_path.strip_prefix(cwd).unwrap_or(file_path).to_string_lossy().replace('\\', "/");
@@ -98,6 +105,7 @@ fn rewrite_code_comment_line(line: &str, cwd: &Path) -> Option<String> {
 }
 
 pub(crate) fn strip_line_directives(line: &str) -> (String, Vec<GitActionDirective>) {
+    // 已识别前缀但结构不完整时保留剩余文本；结构完整但动作无效时隐藏指令。
     let mut visible = String::new();
     let mut actions = Vec::new();
     let mut remaining = line;
@@ -204,6 +212,7 @@ fn parse_attributes(input: &str) -> Option<std::collections::HashMap<String, Str
 }
 
 fn parse_quoted_value(input: &str) -> Option<(String, &str)> {
+    // 只对转义双引号做解码，其他反斜杠按路径内容原样保留。
     let mut value = String::new();
     let mut characters = input.char_indices().peekable();
 
@@ -229,6 +238,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    // 验证一行内多个动作的提取、重复去除及 Windows 路径保留。
     fn strips_and_parses_git_action_directives() {
         let parsed = parse_assistant_markdown(
             "Done\n\n::git-stage{cwd=\"/repo\"} ::git-push{cwd=\"/repo\" branch=\"feat/x\"} ::git-stage{cwd=\"C:\\repo\\\"}",
@@ -247,6 +257,7 @@ mod tests {
     }
 
     #[test]
+    // 缺少必填分支的完整指令形状应被隐藏，但不得生成动作行。
     fn hides_malformed_directives_without_materializing_rows() {
         let parsed = parse_assistant_markdown("Done ::git-push{cwd=\"/repo\"}", Path::new("/repo"));
 
@@ -255,6 +266,7 @@ mod tests {
     }
 
     #[test]
+    // 代码评论指令应转换为普通 Markdown，并保留正文中的类指令文本。
     fn renders_code_comment_directives_as_markdown() {
         let parsed = parse_assistant_markdown(
             concat!(
@@ -266,6 +278,7 @@ mod tests {
             Path::new("/repo"),
         );
 
+        // VibeWindow 适配：v3 crate 改名后仍沿用复制来源的 Codex 快照名。
         // VibeWindow adaptation: retain the copied Codex snapshot name after
         // the v3 crate rename.
         let mut settings = insta::Settings::clone_current();
@@ -280,6 +293,7 @@ mod tests {
     }
 
     #[test]
+    // 行内示例和缺少必填属性的代码评论必须原样展示。
     fn preserves_non_directive_and_malformed_code_comment_text() {
         let markdown = "Mention `::code-comment{title=\"Example\"}` inline.\n::code-comment{title=\"Missing body\" file=\"/repo/src/app.ts\"}";
         let parsed = parse_assistant_markdown(markdown, Path::new("/repo"));
@@ -288,6 +302,7 @@ mod tests {
     }
 
     #[test]
+    // 多次创建分支时，工作目录查询应返回最后一个匹配指令。
     fn last_created_branch_cwd_uses_the_last_matching_directive() {
         let parsed = parse_assistant_markdown(
             "::git-create-branch{cwd=\"/first\" branch=\"first\"}\n::git-push{cwd=\"/repo\" branch=\"first\"}\n::git-create-branch{cwd=\"/second\" branch=\"second\"}",

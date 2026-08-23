@@ -12,6 +12,10 @@
 //! It prepares built-in assets before loading pets, but does not own config
 //! persistence or popup orchestration; callers must persist the final selection
 //! only after the load succeeds.
+//!
+//! `/pets` 配置的环境宠物在此形成 TUI 边界：内置宠物按版本按需缓存，自定义宠物保持为
+//! CODEX_HOME 下完全由用户拥有的数据。本模块负责选择解析、帧准备与图片输出，但不负责
+//! 配置写入或弹窗编排；调用方只能在加载成功后持久化最终选择。
 
 use std::io::Write;
 
@@ -60,6 +64,8 @@ pub(crate) const DISABLED_PET_ID: &str = "disabled";
 /// already local. Preparing this before loading keeps first-use preview and
 /// persistence failures at the asset-fetch boundary rather than surfacing as
 /// deeper image-loading errors.
+/// 确保所选内置宠物已有本地精灵表；自定义宠物以本地文件为事实来源，因此刻意直接返回。
+/// 把准备动作放在加载前，可让首次预览与持久化失败停留在清晰的资源获取边界。
 async fn ensure_builtin_pack_for_pet(
     pet_id: &str,
     codex_home: &std::path::Path,
@@ -72,6 +78,7 @@ async fn ensure_builtin_pack_for_pet(
 }
 
 /// Prepare a pet's built-in assets and load its synchronous state off the runtime.
+/// 在异步阶段准备内置资源，再把同步模型加载工作移出运行时线程。
 pub(crate) async fn load_pet_with_assets(
     pet_id: String,
     codex_home: AbsolutePathBuf,
@@ -92,6 +99,7 @@ pub(crate) async fn load_pet_with_assets(
     .context("join pet load task")?
 }
 
+/// 区分资源读取/编码错误与终端写入错误，便于调用方选择不同回退策略。
 #[derive(Debug)]
 pub(crate) enum PetImageRenderError {
     Terminal(std::io::Error),
@@ -122,6 +130,7 @@ impl From<std::io::Error> for PetImageRenderError {
     }
 }
 
+/// 使用环境宠物专用图片 ID 绘制或清除主界面精灵。
 pub(crate) fn render_ambient_pet_image(
     writer: &mut impl Write,
     state: &mut PetImageRenderState,
@@ -130,6 +139,7 @@ pub(crate) fn render_ambient_pet_image(
     render_pet_image(writer, state, /*image_id*/ 0xC0DE, request)
 }
 
+/// 使用独立图片 ID 绘制或清除选择器预览，避免覆盖环境宠物。
 pub(crate) fn render_pet_picker_preview_image(
     writer: &mut impl Write,
     state: &mut PetImageRenderState,
@@ -138,12 +148,14 @@ pub(crate) fn render_pet_picker_preview_image(
     render_pet_image(writer, state, /*image_id*/ 0xC0DF, request)
 }
 
+/// 记录上次协议及 Sixel 区域，以便协议切换或隐藏时清理残留图像。
 #[derive(Debug, Default)]
 pub(crate) struct PetImageRenderState {
     last_sixel_clear_area: Option<SixelClearArea>,
     last_protocol: Option<image_protocol::ImageProtocol>,
 }
 
+/// 按图片协议生成载荷、清理旧区域、定位绘制并恢复原光标。
 fn render_pet_image(
     writer: &mut impl Write,
     state: &mut PetImageRenderState,
@@ -157,6 +169,7 @@ fn render_pet_image(
     use image_protocol::ImageProtocol;
 
     let Some(request) = request else {
+        // 当前帧无请求时必须显式删除旧 Kitty 图片并擦除旧 Sixel 区域。
         if state.last_protocol.take().is_some_and(is_kitty_protocol) {
             write!(writer, "{}", image_protocol::kitty_delete_image(image_id))?;
         }
@@ -169,6 +182,7 @@ fn render_pet_image(
         return Ok(());
     };
 
+    // 协议切换前删除可能存在的 Kitty 图片，随后记录本次实际协议。
     if state.last_protocol.take().is_some_and(is_kitty_protocol)
         || is_kitty_protocol(request.protocol)
     {
@@ -212,6 +226,7 @@ fn render_pet_image(
     } else {
         None
     };
+    // Sixel 没有按 ID 删除能力；区域变化时先擦除旧区域，再清理本次区域中的残影。
     if let Some(previous_area) = state.last_sixel_clear_area.take()
         && Some(previous_area) != current_sixel_clear_area
     {
@@ -231,6 +246,7 @@ fn render_pet_image(
     Ok(())
 }
 
+/// 终端协议可能生成 UTF-8 控制串，也可能生成原始 Sixel 字节。
 enum AmbientPetPayload {
     Text(String),
     Bytes(Vec<u8>),
@@ -243,6 +259,7 @@ fn is_kitty_protocol(protocol: image_protocol::ImageProtocol) -> bool {
     )
 }
 
+/// Sixel 最近占用的单元格范围，清理上界覆盖精灵上方通知区域。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct SixelClearArea {
     x: u16,
@@ -262,6 +279,7 @@ impl From<&AmbientPetDraw> for SixelClearArea {
     }
 }
 
+/// 以空格逐行擦除 Sixel 占用区域；光标保存与恢复由调用方负责。
 fn clear_sixel_area(writer: &mut impl Write, area: SixelClearArea) -> std::io::Result<()> {
     use crossterm::cursor::MoveTo;
     use crossterm::queue;
@@ -284,6 +302,7 @@ mod tests {
     use super::*;
 
     #[test]
+    // 验证图片绘制完成后光标回到原位置。
     fn ambient_pet_image_restores_cursor_after_drawing() {
         let dir = tempfile::tempdir().unwrap();
         let frame = dir.path().join("frame.png");
@@ -315,6 +334,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 Kitty 清除只发送按 ID 删除命令，不移动光标。
     fn kitty_pet_image_clear_deletes_without_moving_cursor() {
         let dir = tempfile::tempdir().unwrap();
         let frame = dir.path().join("frame.png");
@@ -345,6 +365,7 @@ mod tests {
     }
 
     #[test]
+    // 验证本地文件协议发送路径引用而不是内联图片载荷。
     fn kitty_local_file_pet_image_uses_file_reference_without_inline_payload() {
         let dir = tempfile::tempdir().unwrap();
         let frame = dir.path().join("frame.png");
@@ -374,6 +395,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 Sixel 重绘前擦除占用单元格，防止透明区域残影。
     fn sixel_pet_image_clears_cell_area_before_redrawing() {
         let dir = tempfile::tempdir().unwrap();
         let frame = dir.path().join("frame.png");
@@ -405,6 +427,7 @@ mod tests {
     }
 
     #[test]
+    // 验证清除 Sixel 会完整擦除最近绘制区域。
     fn sixel_pet_image_clear_erases_last_drawn_area() {
         let dir = tempfile::tempdir().unwrap();
         let frame = dir.path().join("frame.png");
@@ -440,6 +463,7 @@ mod tests {
     }
 
     #[test]
+    // 验证帧文件缺失被归类为资源错误。
     fn missing_frame_is_an_asset_error() {
         let dir = tempfile::tempdir().unwrap();
         let request = AmbientPetDraw {
@@ -463,6 +487,7 @@ mod tests {
     }
 
     #[test]
+    // 验证写入失败被归类为终端错误并保留底层来源。
     fn writer_failure_is_a_terminal_error() {
         struct FailingWriter;
 

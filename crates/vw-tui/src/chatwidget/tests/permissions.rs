@@ -1,3 +1,8 @@
+//! 验证权限预设、命名配置和审批审查者在弹窗、事件与历史中的一致性。
+//! 夹具显式构造工作区写入权限及 Windows 沙箱要求，覆盖平台安全边界。
+//! 禁用项不得通过导航、数字快捷键或启动回退被意外选中。
+//! 完全访问必须经过确认，历史记录也只能在确认完成后出现。
+
 use super::*;
 use crate::legacy_core::config::PermissionProfileCatalogEntry;
 use codex_protocol::models::ActivePermissionProfile;
@@ -82,6 +87,7 @@ pub(super) fn requirements_stack(
 
 #[tokio::test]
 async fn approvals_selection_popup_snapshot() {
+    // 基础与命名权限弹窗快照固定当前项、禁用项及自动审查的可见层级。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.set_feature_enabled(Feature::GuardianApproval, /*enabled*/ false);
@@ -170,6 +176,7 @@ async fn profile_permissions_selection_popup_with_custom_profiles_snapshot() {
 
 #[tokio::test]
 async fn profile_permissions_selection_emits_named_profile_event_only() {
+    // 命名配置只发送对应配置事件，不额外改写内置审批策略。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     #[cfg(target_os = "windows")]
     {
@@ -268,6 +275,7 @@ async fn profile_permissions_selection_emits_auto_review_mode_event() {
 
 #[tokio::test]
 async fn profile_permissions_full_access_always_opens_confirmation() {
+    // 无论当前状态如何，完全访问都必须经过显式确认弹窗。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.config.explicit_permission_profile_mode = true;
     chat.set_feature_enabled(Feature::GuardianApproval, /*enabled*/ false);
@@ -324,6 +332,7 @@ async fn approvals_selection_popup_snapshot_windows_degraded_sandbox() {
 
 #[tokio::test]
 async fn preset_matching_accepts_workspace_write_with_extra_roots() {
+    // 预设匹配允许额外写入根，但非当前目录可写不能被误判为只读。
     let preset = builtin_approval_presets()
         .into_iter()
         .find(|p| p.id == "auto")
@@ -433,6 +442,7 @@ async fn windows_auto_mode_prompt_requests_enabling_sandbox_feature() {
 #[cfg(target_os = "windows")]
 #[tokio::test]
 async fn startup_prompts_for_windows_sandbox_when_agent_requested() {
+    // Windows 沙箱要求在启动时阻止不允许的降级，并延迟初始提示。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.set_feature_enabled(Feature::WindowsSandbox, /*enabled*/ false);
@@ -618,6 +628,7 @@ async fn startup_does_not_prompt_for_windows_sandbox_when_not_requested() {
 
 #[tokio::test]
 async fn approvals_popup_shows_disabled_presets() {
+    // 禁用预设保持可见以解释策略，但导航和隐藏快捷键均不能选中。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.config.permissions.approval_policy = Constrained::new(
@@ -705,10 +716,12 @@ async fn approvals_popup_navigation_skips_disabled() {
         );
     }
 
+    // 按下禁用行的隐藏数字快捷键；这不应关闭弹窗或接受该预设。
     // Press the hidden numeric shortcut for a disabled row; it should not close
     // the popup or accept the preset.
     chat.handle_key_event(KeyEvent::from(KeyCode::Char(disabled_shortcut)));
 
+    // 确认弹窗仍然打开，且未发送任何选择动作。
     // Ensure the popup remains open and no selection actions were sent.
     let screen = render_bottom_popup(&chat, /*width*/ 80);
     assert!(
@@ -721,6 +734,7 @@ async fn approvals_popup_navigation_skips_disabled() {
     );
     assert!(rx.try_recv().is_err(), "no history should be emitted");
 
+    // 按回车后，选择应落在启用的预设上并分发更新。
     // Press Enter; selection should land on an enabled preset and dispatch updates.
     chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
     let mut app_events = Vec::new();
@@ -753,6 +767,7 @@ async fn approvals_popup_navigation_skips_disabled() {
 
 #[tokio::test]
 async fn permissions_selection_emits_history_cell_when_selection_changes() {
+    // 权限变化或重选当前项都形成明确历史，便于审计用户选择。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     #[cfg(target_os = "windows")]
     {
@@ -896,6 +911,7 @@ async fn permissions_selection_emits_history_cell_when_current_is_selected() {
 
 #[tokio::test]
 async fn permissions_selection_hides_auto_review_when_feature_disabled() {
+    // 功能关闭时隐藏自动审查，即使旧会话仍带有该活动状态。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     #[cfg(target_os = "windows")]
     {

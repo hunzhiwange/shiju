@@ -1,3 +1,8 @@
+//! 验证权限快捷键在内置模式之间按稳定顺序循环。
+//! 测试从聊天组件公开的按键入口驱动，而不是直接修改权限状态。
+//! 受管模式要求会限制可选项，快捷键不得绕过管理员策略。
+//! 事件断言同时确认界面选择和发送给上层的权限更新保持一致。
+
 use super::permissions::requirements_stack;
 use super::*;
 use ApprovalsReviewer::AutoReview;
@@ -6,6 +11,7 @@ use pretty_assertions::assert_eq;
 
 #[tokio::test]
 async fn permission_shortcuts_cycle_builtin_modes() {
+    // 内置模式循环同时检查正向和反向快捷键的稳定顺序。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
@@ -18,6 +24,7 @@ async fn permission_shortcuts_cycle_builtin_modes() {
         chat.set_windows_sandbox_mode(Some(WindowsSandboxModeToml::Unelevated));
     }
     for (current, reviewer, key, expected, next_reviewer) in [
+        // 每组同时约束权限配置与审查者，避免只切换其中一半状态。
         (":workspace", User, KeyCode::F(8), ":workspace", AutoReview),
         (":workspace", AutoReview, KeyCode::F(8), ":read-only", User),
         (":read-only", User, KeyCode::F(8), ":workspace", User),
@@ -92,6 +99,7 @@ async fn permission_shortcuts_cycle_builtin_modes() {
 
 #[tokio::test]
 async fn permission_shortcuts_respect_managed_mode_requirements() {
+    // 管理要求禁用的模式从循环候选中移除，不能通过重复按键抵达。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     chat.set_feature_enabled(Feature::GuardianApproval, /*enabled*/ true);
@@ -106,6 +114,7 @@ async fn permission_shortcuts_respect_managed_mode_requirements() {
         .expect("set active profile");
 
     for requirements in [
+        // 分别覆盖显式审查者白名单和按模型强制自动审查两类策略来源。
         codex_config::ConfigRequirementsToml {
             allowed_approvals_reviewers: Some(vec![AutoReview]),
             ..Default::default()

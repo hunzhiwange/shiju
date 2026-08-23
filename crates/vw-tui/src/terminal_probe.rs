@@ -1,3 +1,8 @@
+//! 为 TUI 启动和恢复执行短时、尽力而为的终端响应探测。
+//!
+//! Crossterm 公共辅助会等待两秒，本模块改用调用方截止时间；优先复制 stdio，必要时回退
+//! 到控制终端，缺少响应返回 `None`。探测只在事件流未启动或暂停时运行，并通过 Crossterm
+//! 解析器重放已消费字节，保留交错的用户输入。
 //! Short, best-effort terminal response probes for TUI startup and resume.
 //!
 //! Crossterm's public helpers wait up to two seconds for terminal responses. That is too long for
@@ -16,14 +21,18 @@ use std::time::Duration;
 #[cfg(unix)]
 mod startup_replay;
 
+/// 每组启动探测的默认墙钟时间预算。
 /// Default wall-clock budget for each startup probe group.
 pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
 
+/// OSC 10 和 OSC 11 报告的终端默认前景色和背景色。
 /// Default terminal foreground and background colors reported by OSC 10 and OSC 11.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) struct DefaultColors {
+    /// 以 8 位 RGB 元组表示的默认前景色。
     /// Default foreground color as an 8-bit RGB tuple.
     pub(crate) fg: (u8, u8, u8),
+    /// 以 8 位 RGB 元组表示的默认背景色。
     /// Default background color as an 8-bit RGB tuple.
     pub(crate) bg: (u8, u8, u8),
 }
@@ -46,11 +55,13 @@ mod imp {
     use crossterm::event::KeyboardEnhancementFlags;
     use ratatui::layout::Position;
 
+    /// 超过此大小的粘贴留在终端队列中，由正常事件读取器处理。
     /// Leave larger pastes in the terminal queue for the normal event reader.
     const MAX_TERMINAL_PROBE_BYTES: usize = 1024;
     const MAX_STARTUP_PROBE_BYTES: usize = 64 * 1024;
     const MAX_TERMINAL_CSI_BYTES: usize = 64;
 
+    /// TUI 一次性启动终端探测的结果。
     /// Results from the TUI's one-shot startup terminal probe.
     #[derive(Debug, Clone, Copy, Eq, PartialEq)]
     pub(crate) struct StartupProbe {
@@ -59,6 +70,7 @@ mod imp {
         pub(crate) keyboard_enhancement_supported: Option<bool>,
     }
 
+    /// 启动探测是否应查询增强键盘支持。
     /// Whether the startup probe should query keyboard enhancement support.
     #[derive(Clone, Copy, Eq, PartialEq)]
     pub(crate) enum StartupKeyboardEnhancementProbe {
@@ -66,6 +78,8 @@ mod imp {
         Skip,
     }
 
+    /// 探测独占终端输入时使用的临时句柄；优先复制 stdin/stdout，重定向环境中回退 `/dev/tty`。
+    /// 只有 reader 切换为非阻塞，析构时恢复原文件状态标志。
     /// Temporary terminal handle used while a probe owns terminal input.
     ///
     /// The preferred path is duplicated stdin/stdout, because terminal replies are delivered to the
@@ -80,6 +94,8 @@ mod imp {
     }
 
     impl Tty {
+        /// 为终端探测打开相互独立的 reader 和 writer，避免 reader 非阻塞使写入也产生 `WouldBlock`；
+        /// stdio 不可用但仍有控制终端时回退 `/dev/tty`。
         /// Opens an isolated reader and writer for terminal probes.
         ///
         /// The reader and writer must be separate file descriptions so switching the reader into
@@ -216,6 +232,7 @@ mod imp {
         }
     }
 
+    /// 复制进程 stdio 描述符，使探测清理只拥有副本。
     /// Duplicates a process stdio descriptor so probe cleanup owns only the duplicate.
     fn dup_file(fd: libc::c_int) -> io::Result<File> {
         let duplicated = unsafe { libc::dup(fd) };
@@ -225,6 +242,8 @@ mod imp {
         Ok(unsafe { File::from_raw_fd(duplicated) })
     }
 
+    /// 在共享截止时间内查询 OSC 10/11 默认色；前景和背景必须成对可用，缺任一则返回 `Ok(None)`。
+    /// 两条查询先发送再读取，使支持终端拥有完整窗口，不支持终端也只等待一次。
     /// Queries OSC 10 and OSC 11 default colors under one shared deadline.
     ///
     /// Foreground and background are only useful as a pair for palette calculations, so a missing
@@ -240,6 +259,8 @@ mod imp {
         Ok(Some(colors))
     }
 
+    /// 正常输入轮询暂停时查询光标位置；复用启动解析器以吸收恢复前的焦点报告，
+    /// 避免焦点或光标响应泄漏到输入框。
     /// Queries the terminal cursor position while normal input polling is paused.
     ///
     /// Resume can emit a focus report immediately before the cursor-position response. Reusing
@@ -251,6 +272,7 @@ mod imp {
         read_until(&mut tty, timeout, parse_cursor_position)
     }
 
+    /// 在共享截止时间内执行 TUI 启动所需的可选终端查询，并重放期间读取的按键、括号粘贴及半截序列。
     /// Runs the optional terminal queries needed during TUI startup under one shared deadline.
     ///
     /// Bytes read while waiting for terminal responses are replayed through crossterm's event
@@ -275,6 +297,8 @@ mod imp {
         result
     }
 
+    /// 读取可用终端字节，直到解析器识别探测响应或超时；缓冲可能包含无关输入且本函数不重放，
+    /// 因此只能在正常轮询前或暂停期间的短暂独占窗口调用。
     /// Reads available terminal bytes until `parse` recognizes a probe response or time expires.
     ///
     /// The accumulated buffer may include unrelated terminal input. This helper intentionally does
@@ -412,6 +436,8 @@ mod imp {
         None
     }
 
+    /// 增强键盘探测的解析状态；无键盘标志的主设备属性响应立即记为不支持，
+    /// 收到支持标志后仍应在截止时间内排空可能到达的 PDA 回退，避免泄漏到事件流。
     /// Parser state for the keyboard enhancement probe.
     ///
     /// `UnsupportedFallback` records that a primary-device-attributes response arrived without
@@ -675,6 +701,8 @@ mod imp {
     use windows_sys::Win32::System::Console::GetStdHandle;
     use windows_sys::Win32::System::Console::STD_OUTPUT_HANDLE;
 
+    /// 从控制台屏幕缓冲读取默认色而不消费输入；Windows OSC 响应与按键共用输入队列，
+    /// 启动时直接读取会丢失预输入，因此使用不读队列的控制台颜色回退。
     /// Reads default colors from the console screen buffer without consuming terminal input.
     ///
     /// OSC replies share the console input queue with user keystrokes on Windows. Reading them
@@ -699,6 +727,8 @@ mod imp {
     fn decode_console_default_colors(attributes: u16, color_table: &[u32; 16]) -> DefaultColors {
         let fg_index = (attributes & 0x0f) as usize;
         let bg_index = ((attributes >> 4) & 0x0f) as usize;
+        // `COMMON_LVB_REVERSE_VIDEO` 只改变单元渲染；此探测寻找用于调色板混合的配置默认色，
+        // 因而保持属性中的前景/背景索引不变。
         // COMMON_LVB_REVERSE_VIDEO changes how cells render, but this probe is discovering the
         // configured default colors for palette blending. Keep the attribute fg/bg indices as-is.
         DefaultColors {

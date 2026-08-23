@@ -1,3 +1,8 @@
+//! 验证命令与工具生命周期异常时，状态区和历史布局仍提供可诊断结果。
+//! 缺失开始、重复终止和缺失工具边界不得被静默当作成功完成。
+//! 工具错误、取消和轮次中断都应保留相应终态单元格。
+//! 固定终端渲染用于检查诊断文本与终止标记的相对布局。
+
 use super::*;
 use crate::vibe::event::V3Event;
 use ratatui::buffer::Buffer;
@@ -23,6 +28,7 @@ fn rendered(chat: &ChatWidget) -> String {
 
 #[test]
 fn status_and_layout_missing_begin_and_duplicate_terminal_are_diagnostic() {
+    // 缺失开始与重复终止都产生诊断，而不是合并成看似成功的单元格。
     let mut chat = ChatWidget::new(ChatWidgetConfig::default());
 
     chat.handle_v3_event(V3Event::TextDelta {
@@ -48,6 +54,7 @@ fn status_and_layout_missing_begin_and_duplicate_terminal_are_diagnostic() {
 
 #[test]
 fn status_and_layout_tool_error_and_cancel_keep_terminal_cells() {
+    // 工具错误和取消保留各自终态，方便用户区分失败原因。
     let mut chat = ChatWidget::new(ChatWidgetConfig::default());
     for event in [
         V3Event::TurnStarted { turn_id: "turn-tools".into() },
@@ -95,6 +102,7 @@ fn status_and_layout_tool_error_and_cancel_keep_terminal_cells() {
 
 #[test]
 fn status_and_layout_cancelled_turn_records_interrupt_terminal() {
+    // 轮次取消会记录中断终态，并清理仍在运行的状态指示。
     let mut chat = ChatWidget::new(ChatWidgetConfig::default());
     chat.handle_v3_event(V3Event::TurnStarted { turn_id: "turn-cancel".into() });
     chat.handle_v3_event(V3Event::ThinkingDelta {
@@ -114,6 +122,7 @@ fn status_and_layout_cancelled_turn_records_interrupt_terminal() {
 
 #[test]
 fn status_and_layout_missing_tool_boundaries_are_not_silently_completed() {
+    // 缺少工具边界时保持显式不完整诊断，防止隐藏协议顺序问题。
     let mut chat = ChatWidget::new(ChatWidgetConfig::default());
     chat.handle_v3_event(V3Event::ToolOutputDelta {
         turn_id: "turn-tool-gap".into(),

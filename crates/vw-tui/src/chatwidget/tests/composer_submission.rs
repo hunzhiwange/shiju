@@ -1,3 +1,8 @@
+//! 验证编辑器输入从草稿、粘贴和附件转换为用户轮次或排队消息的契约。
+//! 场景覆盖隐藏 shell 载荷、父线程所有权、图片占位符、启动草稿与中断恢复。
+//! 还检查终端相关快捷键、历史召回、提及绑定和显示输入的稳定性。
+//! 测试只观察事件、队列与可见状态，不依赖真实后端执行。
+
 use super::*;
 use crate::app_event::ConnectorsSnapshot;
 use codex_protocol::models::ManagedFileSystemPermissions;
@@ -34,6 +39,7 @@ fn assert_hidden_shell_payload_is_literal(op: Result<Op, TryRecvError>, payload:
 
 #[tokio::test]
 async fn hidden_shell_paste_submits_literal_prompt() {
+    // 隐藏 shell 粘贴在直接、历史召回、排队和恢复路径中都按字面提示提交。
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     let payload = paste_hidden_shell_payload(&mut chat);
@@ -182,6 +188,7 @@ async fn hidden_shell_paste_queued_before_session_submits_literal_prompt() {
 
 #[tokio::test]
 async fn parent_owned_thread_blocks_all_direct_input_entry_points() {
+    // 父级持有的线程拒绝所有直接输入及设置快捷键，同时保留待交接草稿。
     let (mut chat, mut rx, mut op_rx) =
         make_chatwidget_manual(/*model_override*/ Some("gpt-5")).await;
     chat.thread_id = Some(ThreadId::new());
@@ -345,6 +352,7 @@ async fn parent_owned_thread_preserves_queued_input_before_draining() {
 
 #[tokio::test]
 async fn submission_preserves_text_elements_and_local_images() {
+    // 提交载荷保留结构化文本、本地与远程图片，并携带当前权限配置。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let thread_id = ThreadId::new();
@@ -845,6 +853,7 @@ async fn enter_with_only_remote_images_does_not_submit_when_input_disabled() {
 
 #[tokio::test]
 async fn submission_prefers_selected_duplicate_skill_path() {
+    // 重名技能按用户实际选中的绑定路径提交，不回退到第一个候选。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let thread_id = ThreadId::new();
@@ -1026,6 +1035,7 @@ async fn blocked_image_restore_with_remote_images_keeps_local_placeholder_mappin
 
 #[tokio::test]
 async fn startup_draft_handoff_preserves_cursor_and_large_paste() {
+    // 启动草稿交接保留光标、附件和大粘贴，并处理已有草稿中的占位符冲突。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let paste = "x".repeat(/*n*/ 1_001);
     chat.bottom_pane.handle_paste(paste);
@@ -1287,6 +1297,7 @@ async fn startup_draft_file_search_waits_for_protected_view_and_enabled_input() 
 
 #[tokio::test]
 async fn queued_restore_with_remote_images_keeps_local_placeholder_mapping() {
+    // 排队或中断恢复合并现有草稿时，重新映射本地占位符且保留远程图片顺序。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let first_placeholder = "[Image #2]";
@@ -1425,6 +1436,7 @@ async fn interrupted_turn_restore_keeps_active_mode_for_resubmission() {
 
 #[tokio::test]
 async fn remap_placeholders_uses_attachment_labels() {
+    // 占位符重映射优先使用附件标签，缺失时才依据已记录的字节范围定位。
     let placeholder_one = "[Image #1]";
     let placeholder_two = "[Image #2]";
     let text = format!("{placeholder_two} before {placeholder_one}");
@@ -1558,12 +1570,15 @@ async fn remap_placeholders_uses_byte_ranges_when_placeholder_missing() {
 async fn empty_enter_during_task_does_not_queue() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
+    // 模拟运行中的任务，使后续提交通常进入队列。
     // Simulate running task so submissions would normally be queued.
     chat.bottom_pane.set_task_running(/*running*/ true);
 
+    // 在编辑器为空时按回车。
     // Press Enter with an empty composer.
     chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
+    // 确认没有产生排队消息。
     // Ensure nothing was queued.
     assert!(chat.input_queue.queued_user_messages.is_empty());
 }
@@ -1593,6 +1608,7 @@ fn interrupted_history(
 
 #[tokio::test]
 async fn output_free_esc_interrupt_keeps_prompt_and_opens_blank_composer() {
+    // 尚无输出的中断保留原提示到历史，同时打开可继续输入的空编辑器。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let prompt = "revise this prompt";
     chat.thread_id = Some(ThreadId::new());
@@ -1710,6 +1726,7 @@ async fn pending_steer_interrupt_uses_remapped_binding() {
 
 #[tokio::test]
 async fn restore_thread_input_state_applies_running_state_policy() {
+    // 线程输入状态恢复按运行态策略区分普通队列、待引导和活动模式。
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     chat.set_feature_enabled(Feature::PreventIdleSleep, /*enabled*/ true);
@@ -1819,9 +1836,11 @@ async fn alt_up_edits_most_recent_queued_message() {
     chat.bottom_pane
         .set_queued_message_edit_binding(chat.queued_message_edit_hint_binding);
 
+    // 模拟运行中的任务，使消息通常进入队列。
     // Simulate a running task so messages would normally be queued.
     chat.bottom_pane.set_task_running(/*running*/ true);
 
+    // 预置两条排队消息。
     // Seed two queued messages.
     chat.input_queue
         .queued_user_messages
@@ -1831,14 +1850,17 @@ async fn alt_up_edits_most_recent_queued_message() {
         .push_back(UserMessage::from("second queued".to_string()).into());
     chat.refresh_pending_input_preview();
 
+    // 按 Alt+Up 编辑最近一条排队消息。
     // Press Alt+Up to edit the most recent (last) queued message.
     chat.handle_key_event(KeyEvent::new(KeyCode::Up, KeyModifiers::ALT));
 
+    // 此时编辑器应包含最后一条排队消息。
     // Composer should now contain the last queued message.
     assert_eq!(
         chat.bottom_pane.composer_text(),
         "second queued".to_string()
     );
+    // 队列中则只保留较早的那条消息。
     // And the queue should now contain only the remaining (older) item.
     assert_eq!(chat.input_queue.queued_user_messages.len(), 1);
     assert_eq!(
@@ -1849,6 +1871,7 @@ async fn alt_up_edits_most_recent_queued_message() {
 
 #[tokio::test]
 async fn unbound_queued_message_edit_does_not_fall_back_to_alt_up() {
+    // 未绑定队列编辑键时不得偷偷启用 Alt+Up；特殊终端映射由独立夹具覆盖。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.chat_keymap.edit_queued_message = Vec::new();
     chat.queued_message_edit_hint_binding = None;
@@ -2004,6 +2027,7 @@ fn queued_message_edit_binding_mapping_covers_special_terminals_and_tmux() {
     );
 }
 
+/// 按向上键召回最近历史后立即排队，即使重复操作也应始终排入相同文本。
 /// Pressing Up to recall the most recent history entry and immediately queuing
 /// it while a task is running should always enqueue the same text, even when it
 /// is queued repeatedly.
@@ -2012,19 +2036,23 @@ async fn enqueueing_history_prompt_multiple_times_is_stable() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
 
+    // 提交初始提示以写入历史。
     // Submit an initial prompt to seed history.
     chat.bottom_pane
         .set_composer_text("repeat me".to_string(), Vec::new(), Vec::new());
     chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
+    // 模拟活跃任务，使后续提交进入队列。
     // Simulate an active task so further submissions are queued.
     chat.bottom_pane.set_task_running(/*running*/ true);
 
     for _ in 0..3 {
+        // 从历史召回提示，并确认内容符合预期。
         // Recall the prompt from history and ensure it is what we expect.
         chat.handle_key_event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
         assert_eq!(chat.bottom_pane.composer_text(), "repeat me");
 
+        // 在任务运行期间将提示加入队列。
         // Queue the prompt while the task is running.
         chat.handle_key_event(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
     }
@@ -2037,6 +2065,7 @@ async fn enqueueing_history_prompt_multiple_times_is_stable() {
 
 #[tokio::test]
 async fn submit_user_message_ignores_inaccessible_app_mentions_from_bindings() {
+    // 提交过滤不可访问的应用提及，但显示层仍保持用户消息的扁平结构。
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
     set_chatgpt_auth(&mut chat);
@@ -2204,9 +2233,11 @@ async fn committed_user_message_with_hidden_prompt_context_renders_local_images(
 async fn interrupt_restores_queued_messages_into_composer() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
+    // 模拟运行中的任务，以启用用户输入排队。
     // Simulate a running task to enable queuing of user inputs.
     chat.bottom_pane.set_task_running(/*running*/ true);
 
+    // 在任务运行期间排入两条用户消息。
     // Queue two user messages while the task is running.
     chat.input_queue
         .queued_user_messages
@@ -2216,15 +2247,18 @@ async fn interrupt_restores_queued_messages_into_composer() {
         .push_back(UserMessage::from("second queued".to_string()).into());
     chat.refresh_pending_input_preview();
 
+    // 发送轮次中断通知，模拟用户按下 Esc。
     // Deliver an interrupted turn notification as if Esc was pressed.
     handle_turn_interrupted(&mut chat, "turn-1");
 
+    // 编辑器应按顺序包含以换行连接的排队消息。
     // Composer should now contain the queued messages joined by newlines, in order.
     assert_eq!(
         chat.bottom_pane.composer_text(),
         "first queued\nsecond queued"
     );
 
+    // 队列应已清空，且不应自动提交新的用户输入。
     // Queue should be cleared and no new user input should have been auto-submitted.
     assert!(chat.input_queue.queued_user_messages.is_empty());
     assert!(
@@ -2232,12 +2266,14 @@ async fn interrupt_restores_queued_messages_into_composer() {
         "unexpected outbound op after interrupt"
     );
 
+    // 排空接收通道以避免未使用警告。
     // Drain rx to avoid unused warnings.
     let _ = drain_insert_history(&mut rx);
 }
 
 #[tokio::test]
 async fn interrupt_prepends_queued_messages_before_existing_composer_text() {
+    // 中断恢复把排队消息置于已有草稿之前，维持用户输入的时间顺序。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.bottom_pane.set_task_running(/*running*/ true);

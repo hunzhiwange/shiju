@@ -37,7 +37,10 @@ struct StreamStopResponse {
 impl GatewayClient {
     /// 按可恢复流请求标识幂等停止 plan-run 运行。
     pub async fn task_plan_run_stream_stop(&self, request_id: &str) -> Result<bool, String> {
-        let path = format!("{TASK_PLAN_RUN_STREAM_PATH}/{request_id}/stop");
+        let path = format!(
+            "{TASK_PLAN_RUN_STREAM_PATH}/{}/stop",
+            encode_task_pool_path_segment(required_stream_request_id(request_id)?)
+        );
         let response: StreamStopResponse = self.post_json(&path, &[], &serde_json::json!({})).await?;
         Ok(response.cancelled)
     }
@@ -51,6 +54,15 @@ impl GatewayClient {
         Self::stream_task_plan_run_attempt(endpoint, body, None, |event| on_event(event.event))
             .await
             .map(|_| ())
+    }
+
+    /// 执行一次新 plan-run 流并返回明确终止原因。
+    pub async fn stream_task_plan_run_with_result(
+        endpoint: &crate::endpoint::GatewayEndpoint,
+        body: &TaskPlanRunRequest,
+        on_event: impl FnMut(crate::stream::GatewayStreamEvent<TaskPlanRunStreamEventDto>) -> bool,
+    ) -> Result<crate::stream::GatewayStreamAttemptResult, String> {
+        Self::stream_task_plan_run_attempt(endpoint, body, None, on_event).await
     }
 
     /// 执行一次支持请求复用与游标恢复的计划运行流订阅。
@@ -253,6 +265,26 @@ impl GatewayClient {
     ) -> Result<TaskPoolWorktreeMergeUnlockResponse, String> {
         self.post_json(TASK_POOL_WORKTREE_MERGE_UNLOCK_PATH, &[], request).await
     }
+}
+
+fn required_stream_request_id(request_id: &str) -> Result<&str, String> {
+    if request_id.trim().is_empty() {
+        return Err("stream request id must not be empty".to_string());
+    }
+    Ok(request_id)
+}
+
+fn encode_task_pool_path_segment(value: &str) -> String {
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(char::from(byte));
+            }
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
 }
 
 #[cfg(test)]

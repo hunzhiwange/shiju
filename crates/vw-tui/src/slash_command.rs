@@ -4,12 +4,14 @@ use strum_macros::EnumIter;
 use strum_macros::EnumString;
 use strum_macros::IntoStaticStr;
 
+/// 以斜杠开头的消息可调用的内置命令集合。
 /// Commands that can be invoked by starting a message with a leading slash.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString, EnumIter, AsRefStr, IntoStaticStr,
 )]
 #[strum(serialize_all = "kebab-case")]
 pub enum SlashCommand {
+    // 禁止按字母排序：枚举顺序就是弹窗展示顺序，高频命令应排在前面。
     // DO NOT ALPHA-SORT! Enum order is presentation order in the popup, so
     // more frequently used commands should be listed first.
     Model,
@@ -75,6 +77,7 @@ pub enum SlashCommand {
     TestApproval,
     #[strum(serialize = "subagents")]
     MultiAgents,
+    // 调试命令不应作为普通用户工作流展示。
     // Debugging commands.
     #[strum(serialize = "debug-m-drop")]
     MemoryDrop,
@@ -83,6 +86,7 @@ pub enum SlashCommand {
 }
 
 impl SlashCommand {
+    /// 弹窗中展示给用户的命令说明。
     /// User-visible description shown in the popup.
     pub fn description(self) -> &'static str {
         match self {
@@ -151,12 +155,14 @@ impl SlashCommand {
         }
     }
 
+    /// 返回不含前导 `/` 的命令字符串；保留 `command()` 名称以兼容既有调用方。
     /// Command string without the leading '/'. Provided for compatibility with
     /// existing code that expects a method named `command()`.
     pub fn command(self) -> &'static str {
         self.into()
     }
 
+    /// 指示命令是否支持行内参数，例如 `/review ...`。
     /// Whether this command supports inline args (for example `/review ...`).
     pub fn supports_inline_args(self) -> bool {
         matches!(
@@ -184,6 +190,7 @@ impl SlashCommand {
         )
     }
 
+    /// 指示命令在活动侧会话中是否仍可使用。
     /// Whether this command remains available inside an active side conversation.
     pub fn available_in_side_conversation(self) -> bool {
         matches!(
@@ -201,6 +208,7 @@ impl SlashCommand {
         )
     }
 
+    /// 指示命令在任务执行期间是否可运行。
     /// Whether this command can be run while a task is in progress.
     pub fn available_during_task(self) -> bool {
         match self {
@@ -264,6 +272,7 @@ impl SlashCommand {
     }
 
     fn is_visible(self) -> bool {
+        // 平台专用和调试命令在构建期条件不满足时从候选列表中隐藏。
         match self {
             SlashCommand::SandboxReadRoot => cfg!(target_os = "windows"),
             SlashCommand::Copy => !cfg!(target_os = "android"),
@@ -274,6 +283,7 @@ impl SlashCommand {
     }
 }
 
+/// 返回所有可见内置命令及其命令字符串的配对列表。
 /// Return all built-in commands in a Vec paired with their command string.
 pub fn built_in_slash_commands() -> Vec<(&'static str, SlashCommand)> {
     SlashCommand::iter()
@@ -290,22 +300,26 @@ mod tests {
     use super::SlashCommand;
 
     #[test]
+    // `/stop` 是对外规范名称。
     fn stop_command_is_canonical_name() {
         assert_eq!(SlashCommand::Stop.command(), "stop");
     }
 
     #[test]
+    // 旧 `/clean` 名称仅作为解析别名映射到 `/stop`。
     fn clean_alias_parses_to_stop_command() {
         assert_eq!(SlashCommand::from_str("clean"), Ok(SlashCommand::Stop));
     }
 
     #[test]
+    // `/pets` 保持规范复数名，同时接受旧单数别名。
     fn pet_alias_parses_to_pets_command() {
         assert_eq!(SlashCommand::Pets.command(), "pets");
         assert_eq!(SlashCommand::from_str("pet"), Ok(SlashCommand::Pets));
     }
 
     #[test]
+    // 任务进行中允许的命令还应保持各自的侧会话和参数能力声明。
     fn certain_commands_are_available_during_task() {
         assert!(SlashCommand::Goal.available_during_task());
         assert!(SlashCommand::Ide.available_during_task());
@@ -318,6 +332,7 @@ mod tests {
     }
 
     #[test]
+    // 自动审查重试对外使用 `/approve` 名称并可由该名称解析。
     fn auto_review_command_is_approve() {
         assert_eq!(SlashCommand::AutoReview.command(), "approve");
         assert_eq!(
@@ -326,3 +341,4 @@ mod tests {
         );
     }
 }
+//! 定义斜杠命令的展示顺序、名称别名、可见性与运行时可用条件。

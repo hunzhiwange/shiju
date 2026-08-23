@@ -1,8 +1,12 @@
+//! 验证启动终端探测后重放输入时过滤颜色响应而保留真实用户数据。
+//! OSC 大小限制和括号粘贴边界共同防止控制载荷泄露或误删输入。
+
 use super::MAX_REPLAYED_OSC_BYTES;
 use super::startup_replay_input;
 use pretty_assertions::assert_eq;
 
 #[test]
+// 超大未终止 OSC 应受预算约束，其私有载荷不能重新进入事件流。
 fn startup_replay_bounds_oversized_osc_without_exposing_its_payload() {
     let mut input = b"typed\x1b]10;".to_vec();
     input.extend(std::iter::repeat_n(b'x', MAX_REPLAYED_OSC_BYTES));
@@ -17,6 +21,7 @@ fn startup_replay_bounds_oversized_osc_without_exposing_its_payload() {
 }
 
 #[test]
+// 括号粘贴内形似 OSC 的字节是用户内容，必须逐字重放。
 fn startup_replay_preserves_osc_looking_bracketed_paste() {
     let mut input = b"prefix\x1b[200~\x1b]10;".to_vec();
     input.extend(std::iter::repeat_n(b'x', 2_048));
@@ -26,6 +31,7 @@ fn startup_replay_preserves_osc_looking_bracketed_paste() {
 }
 
 #[test]
+// 粘贴前后穿插的完整颜色查询回复应被删除，同时拼回连续粘贴文本。
 fn startup_replay_omits_terminal_color_replies_interleaved_with_bracketed_paste() {
     let input = b"prefix\x1b[200~hello\x1b]10;rgb:eeee/eeee/eeee\x07 \
         \x1b]11;rgb:1111/1111/1111\x1b\\world\x1b[201~suffix";

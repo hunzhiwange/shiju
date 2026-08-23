@@ -1,3 +1,6 @@
+//! 覆盖流式 Markdown 增量渲染与一次性完整渲染之间的等价关系。
+//! 稳定前缀可以复用，最后一个块保持可变；跨块定义与可视化则触发保守重算。
+
 use super::StreamingRender;
 use super::render_source;
 use crate::markdown::render_streaming_markdown_agent_with_links_and_cwd;
@@ -13,6 +16,7 @@ use std::path::PathBuf;
 mod code_fence_tests;
 
 fn test_cwd() -> PathBuf {
+    // 使用固定绝对工作目录，避免文件链接解释受运行测试的位置影响。
     std::env::temp_dir()
 }
 
@@ -35,6 +39,7 @@ fn append_rich_and_assert_matches_full(
     width: Option<usize>,
     cwd: &Path,
 ) {
+    // 每次追加后立即与完整渲染比较，定位首次发生语义偏差的分块。
     append(render, source, chunk, width, cwd, StreamRenderMode::Rich);
     assert_eq!(
         render.lines,
@@ -66,6 +71,7 @@ fn assert_rich_stream_matches_full_render(
 }
 
 #[test]
+// 段落尾块在继续增长时应保持可变，最终结果始终匹配完整渲染。
 fn incremental_render_keeps_final_block_mutable_and_matches_full_render() {
     let chunks = [
         "# Heading\n",
@@ -97,6 +103,7 @@ fn incremental_render_keeps_final_block_mutable_and_matches_full_render() {
 }
 
 #[test]
+// 任意 v3 流式分块方式都应收敛到单次 Codex 渲染结果。
 fn v3_stream_chunks_match_single_pass_codex_render() {
     let chunks = [
         "# 中",
@@ -127,6 +134,7 @@ fn v3_stream_chunks_match_single_pass_codex_render() {
 }
 
 #[test]
+// 单个顶层块持续增长时只扫描新增部分，并保留已稳定的源位置。
 fn growing_single_top_level_blocks_render_and_scan_in_one_pass() {
     let streams: &[&[&str]] = &[
         &[
@@ -157,6 +165,7 @@ fn growing_single_top_level_blocks_render_and_scan_in_one_pass() {
 }
 
 #[test]
+// 原始模式必须逐字保留连续空行，不能套用富文本段落折叠规则。
 fn incremental_raw_render_preserves_blank_lines() {
     let cwd = test_cwd();
     let width = Some(80);
@@ -171,6 +180,7 @@ fn incremental_raw_render_preserves_blank_lines() {
 }
 
 #[test]
+// 缺少可视化上下文或遇到内容引用时应走规范完整渲染，不能产生半活动链接。
 fn inline_visualizations_without_context_use_canonical_full_render() {
     let (_, render) = assert_rich_stream_matches_full_render(
         &["Before.\n\n", "::codex-inline-vis{file=\"missing.html\"}\n"],
@@ -201,6 +211,7 @@ fn inline_visualization_content_references_use_canonical_full_render() {
 }
 
 #[test]
+// 在原始和富文本模式之间切换时，可视化协议字面量必须完整保留。
 fn inline_visualization_directive_survives_raw_to_rich_render_mode_switch() {
     let cwd = test_cwd();
     let width = Some(80);
@@ -227,6 +238,7 @@ fn inline_visualization_directive_survives_raw_to_rich_render_mode_switch() {
 }
 
 #[test]
+// 后置引用定义会影响前文和后文链接，增量缓存必须重算相关块。
 fn reference_link_definition_recomputes_earlier_and_later_blocks() {
     let streams: &[&[&str]] = &[
         &[
@@ -255,6 +267,7 @@ fn reference_link_definition_recomputes_earlier_and_later_blocks() {
 }
 
 #[test]
+// 原始模式看见引用定义后再切回富文本，也应恢复正确链接解析。
 fn reference_link_definition_survives_raw_to_rich_render_mode_switch() {
     let cwd = test_cwd();
     let width = Some(80);
@@ -278,6 +291,7 @@ fn reference_link_definition_survives_raw_to_rich_render_mode_switch() {
 }
 
 #[test]
+// HTML 块边界不能凭增量拼接额外插入空行，并应保持规范化接缝。
 fn incremental_render_does_not_add_blank_line_before_html_block() {
     let streams: &[&[&str]] = &[
         &["Paragraph.\n\n", "<div>x</div>\n\n", "Following paragraph.\n"],
@@ -314,6 +328,7 @@ fn incremental_render_preserves_heading_and_normalized_html_seams() {
 }
 
 #[test]
+// 表格围栏结束后的段落应推进稳定源游标，后续追加不再重复扫描表格。
 fn paragraphs_after_unwrapped_table_fence_advance_stable_source() {
     let cwd = test_cwd();
     let width = Some(80);

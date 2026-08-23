@@ -1,3 +1,4 @@
+//! 供复制来的差异及历史单元消费的纯文件变更数据。
 //! Pure file-change data consumed by the copied diff/history cells.
 
 use std::path::PathBuf;
@@ -10,6 +11,7 @@ pub enum FileChange {
 }
 
 impl FileChange {
+    /// 统计用于摘要展示的新增行数和删除行数，并忽略统一差异的文件头。
     pub fn line_counts(&self) -> (usize, usize) {
         match self {
             Self::Add { content } => (content.lines().count(), 0),

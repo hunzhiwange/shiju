@@ -1,3 +1,15 @@
+//! 审批、拒绝与审查状态的转录历史单元。
+//!
+//! 命令与网络访问使用不同的审批主体，避免展示层混淆权限语义。
+//! 审批决定只依据协议事件生成不可变记录，不在这里重新推断授权范围。
+//! 长命令摘要仅保留首行并限制字形数，避免审批记录挤占历史视口。
+//! 单次、会话级、策略修订和拒绝结果分别保留其真实有效范围。
+//! 渲染器只改变符号、颜色与摘要布局，不修改决定内容或用户可见目标。
+//! 执行策略修订只显示协议给出的命令前缀，不扩展为额外匹配规则。
+//! 网络策略修订明确展示目标与动作，和单次网络批准保持区分。
+//! 超时与中止结果作为未批准路径呈现，不会误用成功标记。
+//! 操作者标签来自已解析的决定事件，展示层不自行代入用户身份。
+//! 所有路径最终生成静态历史行，避免后续状态变化改写既有审批记录。
 //! Approval, denial, and review-status transcript cells.
 
 use super::*;
@@ -342,6 +354,7 @@ pub fn new_guardian_timed_out_action_request(summary: String) -> Box<dyn History
     Box::new(PrefixedWrappedHistoryCell::new(line, "✗ ".red(), "  "))
 }
 
+/// 以青色历史行展示当前审查状态。
 /// Cyan history cell line showing the current review status.
 pub(crate) fn new_review_status_line(message: String) -> PlainHistoryCell {
     PlainHistoryCell {

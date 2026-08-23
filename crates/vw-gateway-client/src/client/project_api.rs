@@ -156,12 +156,21 @@ impl GatewayClient {
     }
 
     fn worktree_path(&self, scope: &ProjectScopeDto, worktree_id: &str) -> Result<String, String> {
+        let worktree_id = required_worktree_id(worktree_id)?;
         Ok(format!(
             "{}/worktrees/{}",
             self.project_scope_path(scope)?,
             encode_path_segment(worktree_id)
         ))
     }
+}
+
+fn required_worktree_id(worktree_id: &str) -> Result<&str, String> {
+    let worktree_id = worktree_id.trim();
+    if worktree_id.is_empty() {
+        return Err("worktree id must not be empty".to_string());
+    }
+    Ok(worktree_id)
 }
 
 fn encode_path_segment(value: &str) -> String {

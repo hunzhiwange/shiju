@@ -1,4 +1,5 @@
 //! Windows named-pipe transport for the IDE context IPC client.
+//! 为 IDE 上下文 IPC 客户端提供 Windows 命名管道传输。
 
 use std::io;
 use std::io::Read;
@@ -49,6 +50,7 @@ const TRUE: BOOL = 1;
 const FALSE: BOOL = 0;
 const NULL_HANDLE: HANDLE = 0;
 
+/// 持有经所有者验证的管道句柄，并把读写限制在同一请求截止时间内。
 pub(super) struct WindowsPipeStream {
     handle: OwnedHandle,
     deadline: Instant,
@@ -56,6 +58,7 @@ pub(super) struct WindowsPipeStream {
 
 impl WindowsPipeStream {
     pub(super) fn connect(pipe_path: PathBuf, deadline: Instant) -> io::Result<Self> {
+        // 打开管道后立即验证服务端进程所有者，校验失败时由 OwnedHandle 自动关闭句柄。
         let wide_path = pipe_path
             .as_os_str()
             .encode_wide()
@@ -139,6 +142,7 @@ impl Write for WindowsPipeStream {
     }
 }
 
+// 每次读写使用独立的 OVERLAPPED 与事件句柄，确保超时后能安全取消内核操作。
 struct OverlappedOperation {
     event: OwnedHandle,
     overlapped: OVERLAPPED,
@@ -169,6 +173,7 @@ impl OverlappedOperation {
         initial_result: BOOL,
         deadline: Instant,
     ) -> io::Result<usize> {
+        // 同步完成直接取结果，异步完成则只等待剩余期限并在超时时先取消再返回。
         if initial_result == 0 {
             let error = io::Error::last_os_error();
             if error.raw_os_error() != Some(ERROR_IO_PENDING as i32) {
@@ -177,6 +182,7 @@ impl OverlappedOperation {
 
             // Use a zero wait after the deadline so pending overlapped I/O still flows through
             // cancel_and_timeout instead of returning while the OS operation owns this OVERLAPPED.
+            // 截止时间过后仍执行一次零等待，使未决 I/O 进入取消路径，避免 OS 仍持有该 OVERLAPPED 时返回。
             match unsafe { WaitForSingleObject(self.event.raw(), remaining_timeout_ms(deadline)) } {
                 WAIT_OBJECT_0 => {}
                 WAIT_TIMEOUT => return Err(self.cancel_and_timeout(handle)),
@@ -210,6 +216,7 @@ impl OverlappedOperation {
 
             // ERROR_NOT_FOUND means the operation completed before cancellation was issued. Drain
             // it without waiting so the timeout path cannot block past the caller's deadline.
+            // ERROR_NOT_FOUND 表示操作抢在取消前完成；用非阻塞方式收尾，保证超时路径不越过调用方期限。
             let mut bytes_transferred = 0;
             unsafe {
                 GetOverlappedResult(handle, self.as_mut_ptr(), &mut bytes_transferred, FALSE)
@@ -225,6 +232,7 @@ impl OverlappedOperation {
     }
 }
 
+// 用 RAII 统一关闭管道、事件、进程和令牌句柄，错误分支也不会泄漏资源。
 struct OwnedHandle(HANDLE);
 
 impl OwnedHandle {
@@ -259,12 +267,15 @@ impl TokenUserBuffer {
         // GetTokenInformation writes TOKEN_USER into a byte buffer. Vec<u8> has
         // no TOKEN_USER alignment guarantee, so copy the fixed header out with
         // an unaligned read before using its SID pointer.
+        // GetTokenInformation 把 TOKEN_USER 写入字节缓冲区，而 Vec<u8> 不保证其对齐；
+        // 因此先用非对齐读取复制固定头，再访问其中的 SID 指针。
         let token_user =
             unsafe { std::ptr::read_unaligned(self.buffer.as_ptr() as *const TOKEN_USER) };
         Ok(token_user.User.Sid)
     }
 }
 
+// 只接受与当前进程用户 SID 相同的管道服务端，阻止其他本地账户伪造上下文。
 fn validate_pipe_server_owner(pipe_handle: HANDLE) -> io::Result<()> {
     let mut server_process_id = 0;
     let result = unsafe { GetNamedPipeServerProcessId(pipe_handle, &mut server_process_id) };
@@ -329,6 +340,7 @@ fn token_user(token: HANDLE) -> io::Result<TokenUserBuffer> {
     Ok(TokenUserBuffer { buffer })
 }
 
+// Windows 等待 API 使用毫秒整数；已过期返回零，其余向上保证至少等待一毫秒。
 fn remaining_timeout_ms(deadline: Instant) -> u32 {
     let now = Instant::now();
     if now >= deadline {

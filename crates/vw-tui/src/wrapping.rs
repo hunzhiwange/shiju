@@ -1,3 +1,9 @@
+//! 采用 URL 感知启发式规则进行单词换行。
+//!
+//! 标准路径按调用方选项使用 textwrap；自适应路径检测 URL 样标记并保持其完整，使终端仍可
+//! 点击链接，同时普通正文按词换行，只有超宽的非 URL 标记才拆分。可能包含 URL 的内容应
+//! 使用 `adaptive_*`，明确不含 URL 的代码块或纯数字内容可使用标准路径。检测刻意保守，
+//! 文件路径不会误判；误报只会抑制断词，漏报则可能拆开链接。
 //! Word-wrapping with URL-aware heuristics.
 //!
 //! The TUI renders text that frequently contains URLs — command output,
@@ -39,6 +45,7 @@ use crate::line_truncation::line_width;
 use crate::render::line_utils::push_owned_lines;
 use crate::width::display_width;
 
+/// 投影文本把源偏移查询与合法字素拆分点分开保存。
 /// Projected text keeps source-offset lookup separate from legal grapheme split points.
 struct ProjectedText {
     text: String,
@@ -46,6 +53,8 @@ struct ProjectedText {
     grapheme_boundaries: Vec<usize>,
 }
 
+/// 将半角声调标记字素替换为等宽且对 textwrap 安全的占位符；源边界恢复原字节偏移，
+/// 字素边界保证占位符不可拆并保留前导空白换行机会。
 /// Replaces halfwidth sound-mark graphemes with equally wide, textwrap-safe placeholders.
 ///
 /// Source boundaries recover original byte offsets, while grapheme boundaries keep placeholders
@@ -98,6 +107,7 @@ fn project_halfwidth_sound_marks(text: &str) -> Option<ProjectedText> {
     Some(ProjectedText { text: projected, source_boundaries, grapheme_boundaries })
 }
 
+/// 将投影字节偏移映射回对应的原文本边界。
 /// Maps a projected byte offset back to the corresponding original-text boundary.
 fn source_offset(boundaries: &[(usize, usize)], projected_offset: usize) -> usize {
     boundaries
@@ -106,6 +116,7 @@ fn source_offset(boundaries: &[(usize, usize)], projected_offset: usize) -> usiz
         .unwrap_or(projected_offset)
 }
 
+/// 拆分超宽投影单词，但不分离代表同一源字素的占位符。
 /// Splits oversized projected words without separating placeholders for one source grapheme.
 fn break_projected_words<'a>(
     words: impl Iterator<Item = Word<'a>>,
@@ -153,6 +164,7 @@ fn break_projected_words<'a>(
     pieces
 }
 
+/// 对投影文本换行，并把结果范围转换回源字节偏移。
 /// Wraps projected text and translates the resulting ranges back to source byte offsets.
 fn wrap_projected_ranges(
     projected: &ProjectedText,
@@ -207,6 +219,7 @@ fn wrap_projected_ranges(
     ranges
 }
 
+/// 返回每条换行在 `text` 中的字节范围，包含尾随空白和一个额外哨兵字节，供文本区光标定位。
 /// Returns byte-ranges into `text` for each wrapped line, including
 /// trailing whitespace and a +1 sentinel byte. Used by the textarea
 /// cursor-position logic.
@@ -247,6 +260,7 @@ where
     lines
 }
 
+/// 类似 `wrap_ranges`，但范围不含尾随空白和额外哨兵字节，适合不保留尾空格的一般换行。
 /// Like `wrap_ranges` but returns ranges without trailing whitespace and
 /// without the sentinel extra byte. Suitable for general wrapping where
 /// trailing spaces should not be preserved.
@@ -296,6 +310,8 @@ fn borrowed_slice_range(text: &str, slice: &str) -> Option<Range<usize>> {
     Some((slice_start - text_start)..(slice_end - text_start))
 }
 
+/// 将拥有所有权的物化换行映射回 `text` 的字节范围；textwrap 可能插入源中不存在的断词罚字符，
+/// 本函数从游标起逐字符匹配并跳过尾部罚字符。
 /// Maps an owned (materialized) wrapped line back to a byte range in `text`.
 ///
 /// `textwrap` returns `Cow::Owned` when it inserts a hyphenation penalty
@@ -341,6 +357,7 @@ fn map_owned_wrapped_line_to_range(
             }
         }
 
+        // textwrap 插入罚字符时会物化拥有行；默认尾部 `-` 不对应源字节，因此映射时跳过。
         // textwrap can materialize owned lines when penalties are inserted.
         // The default penalty is a trailing '-'; it does not correspond to
         // source bytes, so we skip it while keeping byte ranges in source text.
@@ -348,6 +365,8 @@ fn map_owned_wrapped_line_to_range(
             continue;
         }
 
+        // textwrap 也可能在拥有输出中合成非源字符（如非空格缩进前缀）；
+        // 映射应继续收集能够可靠匹配的源字节，而不是让应用崩溃。
         // Non-source chars can be synthesized by textwrap in owned output
         // (e.g. non-space indent prefixes). Keep going and map the source bytes
         // we can confidently match instead of crashing the app.
@@ -367,6 +386,7 @@ fn map_owned_wrapped_line_to_range(
     start..end
 }
 
+/// 若行中任一空白分隔标记像 URL 则返回真；先拼接全部 span，再委托文本检测。
 /// Returns `true` if any whitespace-delimited token in `line` looks like a URL.
 ///
 /// Concatenates all span contents and delegates to [`text_contains_url_like`].
@@ -375,6 +395,7 @@ pub(crate) fn line_contains_url_like(line: &Line<'_>) -> bool {
     text_contains_url_like(&text)
 }
 
+/// 若行同时包含 URL 样标记和至少一个实质非 URL 标记则返回真；列表前缀等装饰标记不计入后者。
 /// Returns `true` if `line` contains both a URL-like token and at least one
 /// substantive non-URL token.
 ///
@@ -385,6 +406,8 @@ pub(crate) fn line_has_mixed_url_and_non_url_tokens(line: &Line<'_>) -> bool {
     text_has_mixed_url_and_non_url_tokens(&text)
 }
 
+/// 若文本中任一空白分隔标记像 URL 则返回真；支持带方案 URL、裸域名、localhost 和 IPv4 路径，
+/// 检测前去除外围标点，刻意拒绝普通文件路径。
 /// Returns `true` if any whitespace-delimited token in `text` looks like a URL.
 ///
 /// Recognized patterns:
@@ -400,6 +423,7 @@ pub(crate) fn text_contains_url_like(text: &str) -> bool {
     text.split_ascii_whitespace().any(is_url_like_token)
 }
 
+/// 文本同时包含至少一个 URL 样标记和一个实质非 URL 标记时返回真。
 /// Returns `true` if `text` contains at least one URL-like token and at least
 /// one substantive non-URL token.
 fn text_has_mixed_url_and_non_url_tokens(text: &str) -> bool {
@@ -421,6 +445,7 @@ fn text_has_mixed_url_and_non_url_tokens(text: &str) -> bool {
     false
 }
 
+/// 判断单个空白分隔标记是否像 URL；去除外围标点后检查绝对 URL 或带路径/查询/片段的裸域名。
 /// Decides whether a single whitespace-delimited token is URL-like.
 ///
 /// Strips surrounding punctuation, then checks for an absolute URL
@@ -488,6 +513,7 @@ fn trim_url_token(token: &str) -> &str {
     })
 }
 
+/// 检查 `scheme://host`；已知方案使用 `url::Url::parse`，被该 crate 拒绝的自定义方案回退到前缀校验。
 /// Checks for `scheme://host` patterns. Uses `url::Url::parse` for
 /// well-known schemes; falls back to `has_valid_scheme_prefix` for
 /// custom schemes that the `url` crate rejects.
@@ -523,6 +549,8 @@ fn has_valid_scheme_prefix(token: &str) -> bool {
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
 }
 
+/// 检查无方案裸域名 URL；主机必须是 localhost、IPv4 或有效域名，纯主机仅在 `www.` 开头时接受，
+/// 第一版刻意不处理方括号 IPv6。
 /// Checks for bare-domain URLs without a scheme: `host[:port]/path`,
 /// `host[:port]?query`, or `host[:port]#fragment`.
 ///
@@ -537,6 +565,7 @@ fn is_bare_url_like(token: &str) -> bool {
         return false;
     }
 
+    // 裸主机必须带 URL 样后缀，除非标记以 `www.` 开头。
     // Require URL-ish trailer for bare hosts unless token starts with www.
     if !has_trailer && !host_port.to_ascii_lowercase().starts_with("www.") {
         return false;
@@ -560,6 +589,7 @@ fn split_host_port_and_trailer(token: &str) -> (&str, bool) {
 }
 
 fn split_host_and_port(host_port: &str) -> (&str, Option<&str>) {
+    // 第一版刻意不把方括号 IPv6 视为 URL。
     // We intentionally do not treat bracketed IPv6 as URL-like in this first pass.
     if host_port.starts_with('[') {
         return (host_port, None);
@@ -632,6 +662,8 @@ fn is_domain_label(label: &str) -> bool {
         && label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
 
+/// 重配换行选项以确保 URL 标记不拆分：按 ASCII 空格分词、禁用长词拆分和逐词断词；
+/// URL/正文混合行另用专门包装器保持正文自然换行。
 /// Reconfigures wrapping options so that URL-like tokens are never split.
 ///
 /// Sets `AsciiSpace` word separation (so `/` and `-` inside URLs are
@@ -644,6 +676,8 @@ pub(crate) fn url_preserving_wrap_options<'a>(opts: RtOptions<'a>) -> RtOptions<
         .break_words(/*break_words*/ false)
 }
 
+/// 包装单条 Ratatui 行；无 URL 时等同标准路径，纯 URL 使用保留选项，混合行按标记处理，
+/// 普通正文仍整词移动，真正超宽的非 URL 标记才拆分。
 /// Wraps a single ratatui `Line`, automatically switching to
 /// URL-preserving options when the line contains a URL-like token.
 ///
@@ -679,6 +713,8 @@ pub(crate) fn adaptive_wrap_line<'a>(line: &'a Line<'a>, base: RtOptions<'a>) ->
     }
 }
 
+/// 使用 URL 感知规则包装多行输入；首行使用初始缩进，其余使用后续缩进，每条输入行独立检测 URL。
+/// 这是 `adaptive_wrap_line` 的多行版本，也是多数历史单元的主入口。
 /// Wraps multiple input lines with URL-aware heuristics, applying
 /// `initial_indent` to the first line and `subsequent_indent` to the
 /// rest. Each line is independently checked for URLs; URL detection on
@@ -715,26 +751,34 @@ where
 
 #[derive(Debug, Clone)]
 pub struct RtOptions<'a> {
+    /// 文本换行所用的列宽。
     /// The width in columns at which the text will be wrapped.
     pub width: usize,
+    /// 拆行时使用的行结束符。
     /// Line ending used for breaking lines.
     pub line_ending: textwrap::LineEnding,
+    /// 输出首行使用的缩进。
     /// Indentation used for the first line of output. See the
     /// [`Options::initial_indent`] method.
     pub initial_indent: Line<'a>,
+    /// 输出后续行使用的缩进。
     /// Indentation used for subsequent lines of output. See the
     /// [`Options::subsequent_indent`] method.
     pub subsequent_indent: Line<'a>,
+    /// 是否允许拆分一行放不下的长词；为假时某些行可能超过 `width`。
     /// Allow long words to be broken if they cannot fit on a line.
     /// When set to `false`, some lines may be longer than
     /// `self.width`. See the [`Options::break_words`] method.
     pub break_words: bool,
+    /// 使用的换行算法。
     /// Wrapping algorithm to use, see the implementations of the
     /// [`WrapAlgorithm`] trait for details.
     pub wrap_algorithm: textwrap::WrapAlgorithm,
+    /// 使用的分词换行算法。
     /// The line breaking algorithm to use, see the [`WordSeparator`]
     /// trait for an overview and possible implementations.
     pub word_separator: textwrap::WordSeparator,
+    /// 拆分单词的方法，可禁止连字符断词或实现语言感知的机器断词。
     /// The method for splitting words. This can be used to prohibit
     /// splitting words on hyphens, or it can be used to implement
     /// language-aware machine hyphenation.
@@ -809,6 +853,7 @@ fn word_wrap_flattened_line<'a>(
 
     let mut out: Vec<Line<'a>> = Vec::new();
 
+    // 初始缩进会减少可用宽度，先据此计算首行范围。
     // Compute first line range with reduced width due to initial indent.
     let initial_width_available =
         opts.width.saturating_sub(line_width(&rt_opts.initial_indent)).max(1);
@@ -817,6 +862,7 @@ fn word_wrap_flattened_line<'a>(
         return vec![rt_opts.initial_indent.clone()];
     };
 
+    // 使用初始缩进构建第一条换行。
     // Build first wrapped line with initial indent.
     let mut first_line = rt_opts.initial_indent.clone().style(line.style);
     {
@@ -827,6 +873,7 @@ fn word_wrap_flattened_line<'a>(
         out.push(first_line);
     }
 
+    // 使用后续缩进宽度包装剩余文本，并映射回原索引。
     // Wrap the remainder using subsequent indent width and map back to original indices.
     let base = first_line_range.end;
     let skip_leading_spaces = flat[base..].chars().take_while(|c| *c == ' ').count();
@@ -1021,6 +1068,7 @@ fn flatten_line(line: &Line<'_>) -> (String, Vec<(Range<usize>, ratatui::style::
     (flat, span_bounds)
 }
 
+/// 允许包装借用行或拥有行的辅助类型。
 /// Utilities to allow wrapping either borrowed or owned lines.
 #[derive(Debug)]
 enum LineInput<'a> {
@@ -1037,6 +1085,7 @@ impl<'a> LineInput<'a> {
     }
 }
 
+/// 统一 `word_wrap_lines` 所需的不同输入行所有权形式。
 /// This trait makes it easier to pass whatever we need into word_wrap_lines.
 trait IntoLineInput<'a> {
     fn into_line_input(self) -> LineInput<'a>;
@@ -1090,6 +1139,7 @@ impl<'a> IntoLineInput<'a> for Vec<Span<'a>> {
     }
 }
 
+/// 包装行序列，只在第一条输出行应用初始缩进，之后全部包装片段使用后续缩进。
 /// Wrap a sequence of lines, applying the initial indent only to the very first
 /// output line, and using the subsequent indent for all later wrapped pieces.
 #[allow(private_bounds)] // IntoLineInput isn't public, but it doesn't really need to be.
@@ -1187,10 +1237,12 @@ mod tests {
         let line = Line::from(vec!["hello ".red(), "world".into()]);
         let out = word_wrap_line(&line, /*width_or_options*/ 6);
         assert_eq!(out.len(), 2);
+        // 第一行应保留红色样式。
         // First line should carry the red style
         assert_eq!(concat_line(&out[0]), "hello");
         assert_eq!(out[0].spans.len(), 1);
         assert_eq!(out[0].spans[0].style.fg, Some(Color::Red));
+        // 第二行不带样式。
         // Second line is unstyled
         assert_eq!(concat_line(&out[1]), "world");
         assert_eq!(out[1].spans.len(), 1);
@@ -1204,10 +1256,12 @@ mod tests {
             .subsequent_indent(Line::from("  "));
         let line = Line::from("hello world foo");
         let out = word_wrap_line(&line, opts);
+        // 期望三行均带正确前缀。
         // Expect three lines with proper prefixes
         assert!(concat_line(&out[0]).starts_with("- "));
         assert!(concat_line(&out[1]).starts_with("  "));
         assert!(concat_line(&out[2]).starts_with("  "));
+        // 同时正文应按预期大致分段。
         // And content roughly segmented
         assert_eq!(concat_line(&out[0]), "- hello");
         assert_eq!(concat_line(&out[1]), "  world");
@@ -1315,6 +1369,7 @@ mod tests {
         let lines = vec![Line::from("hello world"), Line::from("foo bar baz")];
         let out = word_wrap_lines(lines, opts);
 
+        // 首行前缀为 `- `，后续包装片段为两个空格；第二条输入行的首片段不得再使用 `- `。
         // Expect: first line prefixed with "- ", subsequent wrapped pieces with "  "
         // and for the second input line, there should be no "- " prefix on its first piece
         let rendered: Vec<String> = out.iter().map(concat_line).collect();
@@ -1361,6 +1416,7 @@ mod tests {
         let sample = "Years passed, and Willowmere thrived in peace and friendship. Mira’s herb garden flourished with both ordinary and enchanted plants, and travelers spoke of the kindness of the woman who tended them.";
         let line = Line::from(sample);
         let lines = [line];
+        // 使用小宽度强制覆盖空格处换行。
         // Force small width to exercise wrapping at spaces.
         let wrapped = word_wrap_lines(&lines, /*width_or_options*/ 40);
         let joined: String = wrapped.iter().map(ToString::to_string).join("\n");
@@ -1581,6 +1637,7 @@ them."#
 
     #[test]
     fn map_owned_wrapped_line_to_range_recovers_on_non_prefix_mismatch() {
+        // 先匹配源字符，再引入非罚字符不匹配；函数应恢复并返回已映射前缀范围。
         // Match source chars first, then introduce a non-penalty mismatch.
         // The function should recover and return the mapped prefix range.
         let range = map_owned_wrapped_line_to_range("hello world", /*cursor*/ 0, "helloX", "");
@@ -1600,6 +1657,8 @@ them."#
 
     #[test]
     fn map_owned_wrapped_line_to_range_indent_coincides_with_source() {
+        // 合成缩进前缀与源文本以同一字符开头时，映射器不得把缩进字符误当源匹配；
+        // 否则会过早设置匹配状态并返回过短范围。
         // When the synthetic indent prefix starts with a character that also
         // appears at the current source position, the mapper must not confuse
         // the indent char for a source match.  Here the indent is "- " and the
@@ -1608,9 +1667,11 @@ them."#
         // early, then break on the space — returning 0..1 instead of the full
         // first word.
         let text = "- item one and some more words";
+        // 模拟 `subsequent_indent = "- "` 时 textwrap 为第一条续行产生的输出。
         // Simulate what textwrap would produce for the first continuation line
         // when subsequent_indent = "- ": it prepends "- " to the source slice.
         let range = map_owned_wrapped_line_to_range(text, /*cursor*/ 0, "- - item one", "- ");
+        // 映射器应跳过合成的 `- ` 前缀，把 `- item one` 映射回源字节 `0..10`。
         // The mapper should skip the synthetic "- " prefix and map "- item one"
         // back to source bytes 0..10.
         assert_eq!(range, 0..10);
@@ -1618,6 +1679,7 @@ them."#
 
     #[test]
     fn wrap_ranges_indent_prefix_coincides_with_source_char() {
+        // 端到端验证：源文本与缩进前缀以同一字符开头时，`wrap_ranges` 仍可重建完整源文本。
         // End-to-end: source text starts with the same character as the indent
         // prefix.  wrap_ranges must still reconstruct the full source.
         let text = "- first item is long enough to wrap around";
@@ -1748,6 +1810,7 @@ them."#
         );
         assert!(!ranges.is_empty());
 
+        // `wrap_ranges` 返回面向光标、可能重叠一字节的范围；按游标推进重建以验证完整源覆盖。
         // wrap_ranges returns cursor-oriented ranges that may overlap by one byte;
         // rebuild with cursor progression to validate full source coverage.
         let mut rebuilt = String::new();

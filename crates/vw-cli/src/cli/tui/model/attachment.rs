@@ -1,6 +1,166 @@
 //! 消息附件视图模型。
 
+use std::path::{Path, PathBuf};
+
+use vw_tui::{V3Attachment, V3AttachmentKind};
+
+use crate::cli::tui::paste::{PromptAttachment, PromptAttachmentKind};
+
 use super::UiMessageBase;
+
+const MAX_ATTACHMENT_BYTES: u64 = 5 * 1024 * 1024;
+
+/// 在请求边界内解析并读取附件；返回值不保留未校验路径。
+pub(crate) fn prepare_prompt_attachments(
+    workspace_root: Option<&Path>,
+    attachments: &[V3Attachment],
+) -> Result<Vec<PromptAttachment>, String> {
+    attachments
+        .iter()
+        .enumerate()
+        .map(|(id, attachment)| prepare_prompt_attachment(workspace_root, id, attachment))
+        .collect()
+}
+
+fn prepare_prompt_attachment(
+    workspace_root: Option<&Path>,
+    id: usize,
+    attachment: &V3Attachment,
+) -> Result<PromptAttachment, String> {
+    let label = attachment.label.trim();
+    if label.is_empty() {
+        return Err("attachment label must not be empty".to_string());
+    }
+
+    if attachment.kind == V3AttachmentKind::PastedText {
+        let text = attachment.text.as_deref().unwrap_or_default();
+        if text.is_empty() {
+            return Err(format!("pasted text attachment '{label}' is empty"));
+        }
+        reject_oversize(label, text.len() as u64)?;
+        return Ok(PromptAttachment {
+            id,
+            kind: PromptAttachmentKind::PastedText,
+            label: label.to_string(),
+            media_type: Some("text/plain".to_string()),
+            uri: None,
+            text: Some(text.to_string()),
+            bytes: Vec::new(),
+        });
+    }
+
+    let root = workspace_root
+        .ok_or_else(|| "workspace root is required for local attachments".to_string())?
+        .canonicalize()
+        .map_err(|error| format!("workspace root is unavailable: {error}"))?;
+    let raw_path = attachment
+        .path
+        .as_deref()
+        .filter(|path| !path.trim().is_empty())
+        .ok_or_else(|| format!("attachment '{label}' has no path"))?;
+    let candidate = PathBuf::from(raw_path);
+    let candidate = if candidate.is_absolute() { candidate } else { root.join(candidate) };
+    let path = candidate
+        .canonicalize()
+        .map_err(|_| format!("attachment path does not exist: {raw_path}"))?;
+    if !path.starts_with(&root) {
+        return Err(format!("attachment path escapes workspace: {raw_path}"));
+    }
+    let metadata = path
+        .metadata()
+        .map_err(|_| format!("attachment path is unreadable: {raw_path}"))?;
+    if !metadata.is_file() {
+        return Err(format!("attachment path is not a file: {raw_path}"));
+    }
+    reject_oversize(label, metadata.len())?;
+
+    let media_type = attachment
+        .media_type
+        .clone()
+        .unwrap_or_else(|| media_type_for_path(&path).to_string());
+    let uri = Some(file_uri(&path));
+    match attachment.kind {
+        V3AttachmentKind::Image => {
+            if !matches!(media_type.as_str(), "image/png" | "image/jpeg" | "image/webp" | "image/gif" | "image/bmp") {
+                return Err(format!("unsupported image attachment type: {media_type}"));
+            }
+            let bytes = std::fs::read(&path)
+                .map_err(|_| format!("attachment path is unreadable: {raw_path}"))?;
+            Ok(PromptAttachment {
+                id,
+                kind: PromptAttachmentKind::Image,
+                label: label.to_string(),
+                media_type: Some(media_type),
+                uri,
+                text: None,
+                bytes,
+            })
+        }
+        V3AttachmentKind::File | V3AttachmentKind::Resource => {
+            if !media_type.starts_with("text/") && media_type != "application/json" {
+                return Err(format!("unsupported text attachment type: {media_type}"));
+            }
+            let text = std::fs::read_to_string(&path)
+                .map_err(|_| format!("attachment is not valid UTF-8 text: {raw_path}"))?;
+            Ok(PromptAttachment {
+                id,
+                kind: if attachment.kind == V3AttachmentKind::Resource {
+                    PromptAttachmentKind::Resource
+                } else {
+                    PromptAttachmentKind::File
+                },
+                label: label.to_string(),
+                media_type: Some(media_type),
+                uri,
+                text: Some(text),
+                bytes: Vec::new(),
+            })
+        }
+        V3AttachmentKind::PastedText => unreachable!("pasted text returned above"),
+    }
+}
+
+fn reject_oversize(label: &str, size: u64) -> Result<(), String> {
+    if size > MAX_ATTACHMENT_BYTES {
+        Err(format!(
+            "attachment '{label}' exceeds the 5 MiB Gateway input limit"
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn media_type_for_path(path: &Path) -> &'static str {
+    match path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase().as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "bmp" => "image/bmp",
+        "md" | "markdown" => "text/markdown",
+        "json" => "application/json",
+        "csv" => "text/csv",
+        "html" | "htm" => "text/html",
+        "css" => "text/css",
+        "xml" => "text/xml",
+        "txt" | "rs" | "toml" | "yaml" | "yml" | "js" | "ts" | "tsx" | "jsx" | "py" | "sh" | "sql" => "text/plain",
+        _ => "application/octet-stream",
+    }
+}
+
+fn file_uri(path: &Path) -> String {
+    let normalized = path.to_string_lossy().replace('\\', "/");
+    let mut encoded = String::with_capacity(normalized.len());
+    for byte in normalized.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'-' | b'_' | b'.' | b'~' | b':') {
+            encoded.push(char::from(byte));
+        } else {
+            use std::fmt::Write as _;
+            let _ = write!(encoded, "%{byte:02X}");
+        }
+    }
+    format!("file://{encoded}")
+}
 
 /// 终端中可见的附件类别。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

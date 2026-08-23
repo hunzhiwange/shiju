@@ -3,6 +3,9 @@
 //! The TUI uses crossterm's keyboard enhancement stack while it owns the terminal, but
 //! process exit gets a stronger reset so the parent shell does not inherit enhanced key
 //! reporting if a terminal misses the normal stack pop.
+//!
+//! TUI 持有终端时使用 Crossterm 键盘增强栈；进程退出还会发送更强复位，
+//! 防止终端漏处理普通 pop 时把增强按键报告遗留给父 shell。
 
 use std::fmt;
 use std::io::stdout;
@@ -17,6 +20,7 @@ use ratatui::crossterm::execute;
 
 const DISABLE_KEYBOARD_ENHANCEMENT_ENV_VAR: &str = "CODEX_TUI_DISABLE_KEYBOARD_ENHANCEMENT";
 
+/// 综合显式环境配置与 WSL+VS Code 兼容性判断是否禁用增强键盘。
 pub(super) fn keyboard_enhancement_disabled() -> bool {
     let disable_env = std::env::var(DISABLE_KEYBOARD_ENHANCEMENT_ENV_VAR).ok();
     let is_wsl = running_in_wsl();
@@ -36,9 +40,11 @@ fn keyboard_enhancement_disabled_for(
     // VS Code running a WSL shell can hide TERM_PROGRAM from the Linux process
     // environment, so `running_in_vscode_terminal` also probes the Windows-side
     // environment through WSL interop.
+    // WSL 内的 VS Code 可能不向 Linux 进程暴露 TERM_PROGRAM，因此还会通过 WSL 互操作探测 Windows 环境。
     is_wsl && is_vscode_terminal
 }
 
+/// 只接受常见真/假拼写，未知值不覆盖自动兼容策略。
 fn parse_bool_env(value: Option<&str>) -> Option<bool> {
     match value.map(str::trim) {
         Some("1") => Some(true),
@@ -63,6 +69,7 @@ fn running_in_wsl() -> bool {
     }
 }
 
+/// 同时检查 Linux 与 Windows 侧 TERM_PROGRAM，以识别 WSL 中的 VS Code 终端。
 pub(super) fn running_in_vscode_terminal() -> bool {
     vscode_terminal_detected(
         std::env::var("TERM_PROGRAM").ok().as_deref(),
@@ -120,6 +127,7 @@ fn read_windows_term_program() -> Option<String> {
         .filter(|value| !value.trim().is_empty())
 }
 
+/// 启用终端支持的增强按键标志，并按 tmux csi-u 能力选择 modifyOtherKeys。
 pub(super) fn enable_keyboard_enhancement() {
     if keyboard_enhancement_disabled() {
         return;
@@ -159,6 +167,7 @@ fn keyboard_enhancement_flags(
     // iTerm and Ghostty can leak shortcut release events that the terminal consumes.
     // tmux's xterm key format also loses Shift-Enter when event types are
     // reported. Preserve repeat classification on transports that support it.
+    // iTerm 与 Ghostty 可能泄漏快捷键释放事件；tmux 的 xterm 格式也会丢失 Shift-Enter，故这些传输不请求事件类型。
     if matches!(terminal_name, TerminalName::Ghostty | TerminalName::Iterm2)
         || matches!(tmux_extended_keys_format, Some("xterm"))
     {
@@ -186,9 +195,11 @@ fn tmux_should_enable_modify_other_keys_for(
     // Only request mode 2 when tmux confirms csi-u formatting. Older tmux
     // versions do not expose this option and may emit xterm-style sequences,
     // which crossterm does not parse consistently for modified keys.
+    // 仅在 tmux 明确报告 csi-u 时请求 mode 2；旧版本可能输出 Crossterm 无法稳定解析的 xterm 序列。
     running_in_tmux_session && matches!(extended_keys_format, Some("csi-u"))
 }
 
+/// 优先使用新式 tmux 查询，失败后回退到全局选项读取扩展键格式。
 fn read_tmux_extended_keys_format() -> Option<String> {
     for args in [
         ["display-message", "-p", "#{extended-keys-format}"],
@@ -217,6 +228,7 @@ fn read_tmux_extended_keys_format() -> Option<String> {
     None
 }
 
+/// 暂时释放终端时弹出一层增强标志并关闭 modifyOtherKeys。
 pub(super) fn restore_keyboard_enhancement_stack() {
     let _ = execute!(
         stdout(),
@@ -225,6 +237,7 @@ pub(super) fn restore_keyboard_enhancement_stack() {
     );
 }
 
+/// 进程退出时同时 pop、强制复位增强报告并关闭 modifyOtherKeys。
 pub(super) fn reset_keyboard_reporting_after_exit() {
     let _ = execute!(
         stdout(),
@@ -234,6 +247,7 @@ pub(super) fn reset_keyboard_reporting_after_exit() {
     );
 }
 
+/// 生成 Kitty 键盘协议“重置全部标志”控制序列。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ResetKeyboardEnhancementFlags;
 
@@ -256,6 +270,7 @@ impl Command for ResetKeyboardEnhancementFlags {
     }
 }
 
+/// 生成 xterm modifyOtherKeys mode 2 启用序列。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct EnableModifyOtherKeys;
 
@@ -278,6 +293,7 @@ impl Command for EnableModifyOtherKeys {
     }
 }
 
+/// 生成关闭 modifyOtherKeys 的复位序列。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct DisableModifyOtherKeys;
 
@@ -323,6 +339,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 iTerm 不请求可能泄漏的按键释放事件。
     fn keyboard_enhancement_suppresses_release_reporting_for_iterm() {
         assert_eq!(
             ansi_for(PushKeyboardEnhancementFlags(keyboard_enhancement_flags(
@@ -334,6 +351,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 Ghostty 采用与 iTerm 相同的释放事件保护。
     fn keyboard_enhancement_suppresses_release_reporting_for_ghostty() {
         assert_eq!(
             ansi_for(PushKeyboardEnhancementFlags(keyboard_enhancement_flags(
@@ -345,6 +363,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 Kitty 仍保留重复事件分类。
     fn keyboard_enhancement_preserves_repeat_reporting_for_kitty() {
         assert_eq!(
             ansi_for(PushKeyboardEnhancementFlags(keyboard_enhancement_flags(
@@ -356,6 +375,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 tmux csi-u 格式保留重复事件报告。
     fn keyboard_enhancement_preserves_repeat_reporting_for_csi_u_tmux() {
         assert_eq!(
             ansi_for(PushKeyboardEnhancementFlags(keyboard_enhancement_flags(
@@ -367,6 +387,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 tmux xterm 格式不因事件类型报告丢失 Shift-Enter。
     fn keyboard_enhancement_preserves_shift_enter_for_xterm_tmux() {
         assert_eq!(
             ansi_for(PushKeyboardEnhancementFlags(keyboard_enhancement_flags(
@@ -378,6 +399,7 @@ mod tests {
     }
 
     #[test]
+    // 验证未知终端采用支持重复事件的默认增强集合。
     fn keyboard_enhancement_preserves_repeat_reporting_for_unknown_terminals() {
         assert_eq!(
             ansi_for(PushKeyboardEnhancementFlags(keyboard_enhancement_flags(
@@ -389,6 +411,7 @@ mod tests {
     }
 
     #[test]
+    // 验证环境开关接受常见布尔拼写并拒绝未知值。
     fn keyboard_enhancement_env_flag_parses_common_values() {
         assert_eq!(parse_bool_env(Some("1")), Some(true));
         assert_eq!(parse_bool_env(Some("true")), Some(true));
@@ -401,6 +424,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 WSL 中的 VS Code 终端会自动禁用增强键盘。
     fn keyboard_enhancement_auto_disables_for_vscode_in_wsl() {
         assert!(keyboard_enhancement_disabled_for(
             /*disable_env*/ None, /*is_wsl*/ true, /*is_vscode_terminal*/ true
@@ -408,6 +432,7 @@ mod tests {
     }
 
     #[test]
+    // 验证自动禁用必须同时满足 WSL 与 VS Code 两个条件。
     fn keyboard_enhancement_auto_disable_requires_wsl_and_vscode() {
         assert!(!keyboard_enhancement_disabled_for(
             /*disable_env*/ None, /*is_wsl*/ true, /*is_vscode_terminal*/ false
@@ -418,6 +443,7 @@ mod tests {
     }
 
     #[test]
+    // 验证显式环境配置优先于自动探测。
     fn keyboard_enhancement_env_flag_overrides_auto_detection() {
         assert!(!keyboard_enhancement_disabled_for(
             Some("0"),
@@ -432,6 +458,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 VS Code 识别同时接受 Linux 与 Windows 侧 TERM_PROGRAM。
     fn vscode_terminal_detection_uses_linux_and_windows_term_program() {
         assert!(vscode_terminal_detected(
             Some("vscode"),
@@ -451,6 +478,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 TMUX 或 TMUX_PANE 任一存在即可识别会话。
     fn tmux_session_detection_accepts_tmux_or_tmux_pane() {
         assert!(tmux_session_detected(
             Some("/tmp/tmux-501/default,1,0"),
@@ -463,6 +491,7 @@ mod tests {
     }
 
     #[test]
+    // 验证只有明确 csi-u 格式才启用 modifyOtherKeys。
     fn tmux_modify_other_keys_only_requests_confirmed_csi_u_format() {
         assert!(tmux_should_enable_modify_other_keys_for(
             /*running_in_tmux_session*/ true,
@@ -486,16 +515,19 @@ mod tests {
     }
 
     #[test]
+    // 验证强复位命令清除所有已压入的增强层级。
     fn reset_keyboard_enhancement_flags_clears_all_pushed_levels() {
         assert_eq!(ansi_for(ResetKeyboardEnhancementFlags), "\x1b[<u");
     }
 
     #[test]
+    // 验证启用命令写出 xterm mode 2 控制序列。
     fn enable_modify_other_keys_requests_xterm_keyboard_reporting() {
         assert_eq!(ansi_for(EnableModifyOtherKeys), "\x1b[>4;2m");
     }
 
     #[test]
+    // 验证禁用命令写出 xterm 报告复位序列。
     fn disable_modify_other_keys_resets_xterm_keyboard_reporting() {
         assert_eq!(ansi_for(DisableModifyOtherKeys), "\x1b[>4;0m");
     }

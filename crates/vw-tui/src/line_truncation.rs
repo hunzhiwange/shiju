@@ -1,3 +1,5 @@
+//! 按终端显示宽度截断带样式文本，并保持字素和样式边界完整。
+
 use ratatui::text::Line;
 use ratatui::text::Span;
 use unicode_segmentation::UnicodeSegmentation;
@@ -9,6 +11,7 @@ pub(crate) fn line_width(line: &Line<'_>) -> usize {
 }
 
 pub(crate) fn truncate_line_to_width(line: Line<'static>, max_width: usize) -> Line<'static> {
+    // 逐个 span 累计显示列；遇到溢出 span 时只在扩展字素边界切分。
     if max_width == 0 {
         return Line::from(Vec::<Span<'static>>::new());
     }
@@ -58,7 +61,11 @@ pub(crate) fn truncate_line_to_width(line: Line<'static>, max_width: usize) -> L
 }
 
 /// Truncate a styled line to `max_width` and append an ellipsis on overflow.
+/// 将带样式的行截断到 `max_width`，发生溢出时追加省略号。
 ///
+/// 该函数面向短 UI 行：先预扫描宽度并在未溢出时原样返回，
+/// 只有溢出路径才调用 `truncate_line_to_width`。
+/// 若未来在循环或大段内容中使用，应重新评估这一路径的性能。
 /// Intended for short UI rows. This preserves a fast no-overflow path (width
 /// pre-scan + return original line unchanged) and uses `truncate_line_to_width`
 /// for the overflow case.
@@ -75,6 +82,7 @@ pub(crate) fn truncate_line_with_ellipsis_if_overflow(
         return line;
     }
 
+    // 为省略号预留一列，并沿用最后一个保留 span 的样式。
     let truncated = truncate_line_to_width(line, max_width.saturating_sub(1));
     let Line { style, alignment, mut spans } = truncated;
     let ellipsis_style = spans.last().map(|span| span.style).unwrap_or_default();

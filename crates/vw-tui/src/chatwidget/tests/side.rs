@@ -1,3 +1,8 @@
+//! 验证侧对话线程的命令限制、分叉请求和上下文标签渲染。
+//! 侧线程不得执行重命名、再次分叉或需要主线程所有权的命令。
+//! `/side` 与 `/btw` 在主任务运行时创建隔离问题，并保留父线程状态线索。
+//! 普通文本提交必须保持为用户轮次，不能被误解释为 shell 命令。
+
 use super::*;
 use pretty_assertions::assert_eq;
 use ratatui::Terminal;
@@ -5,6 +10,7 @@ use ratatui::backend::TestBackend;
 
 #[tokio::test]
 async fn forked_thread_history_line_without_name_shows_id_once_snapshot() {
+    // 无名称分叉只显示一次标识，避免侧线程来源在历史中重复。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let forked_from_id =
@@ -71,6 +77,7 @@ fn assert_side_rename_rejected(
 
 #[tokio::test]
 async fn slash_rename_is_rejected_for_side_threads() {
+    // 侧线程拒绝重命名及其他需要主线程所有权的斜杠命令。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_thread_rename_block_message(
         "Side conversations are ephemeral and cannot be renamed.".to_string(),
@@ -119,6 +126,7 @@ async fn slash_commands_without_side_flag_are_rejected_for_side_threads() {
 
 #[tokio::test]
 async fn slash_side_is_rejected_for_side_threads() {
+    // 已处于侧线程时禁止再次创建侧对话，防止形成不受支持的嵌套。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_side_conversation_active(/*active*/ true);
 
@@ -148,6 +156,7 @@ async fn slash_side_is_rejected_for_side_threads() {
 
 #[tokio::test]
 async fn slash_side_is_rejected_during_review_mode() {
+    // 审查模式拒绝 `/side` 和 `/btw`，避免切断当前审查上下文。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.review.is_review_mode = true;
 
@@ -228,6 +237,7 @@ async fn slash_btw_is_rejected_before_the_session_starts() {
 
 #[tokio::test]
 async fn submit_user_message_as_plain_user_turn_does_not_run_shell_commands() {
+    // 侧对话正文始终作为普通用户轮次提交，即使内容看起来像命令。
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
 
@@ -249,6 +259,7 @@ async fn submit_user_message_as_plain_user_turn_does_not_run_shell_commands() {
 
 #[tokio::test]
 async fn slash_side_without_args_starts_empty_side_conversation() {
+    // 无参数命令创建空侧对话，由用户在新上下文继续输入问题。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let parent_thread_id = ThreadId::new();
     chat.thread_id = Some(parent_thread_id);
@@ -299,6 +310,7 @@ async fn slash_btw_without_args_starts_empty_side_conversation() {
 
 #[tokio::test]
 async fn slash_side_requests_forked_side_question_while_task_running() {
+    // 主任务运行中带参数命令发送隔离分叉请求，并保留问题文本。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let parent_thread_id = ThreadId::new();
     chat.thread_id = Some(parent_thread_id);
@@ -383,6 +395,7 @@ async fn slash_btw_requests_forked_side_question_while_task_running() {
 
 #[tokio::test]
 async fn side_context_label_preserves_status_line_snapshot() {
+    // 上下文标签覆盖可见、隐藏及父线程状态，同时不挤掉现有状态行。
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
     chat.config.tui_status_line = Some(vec!["model-name".to_string()]);

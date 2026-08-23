@@ -1,3 +1,8 @@
+//! 验证 app-server 通知到聊天界面状态、历史记录与退出请求的映射。
+//! 夹具固定线程设置和安全缓冲状态，避免测试依赖外部会话。
+//! 场景覆盖安全缓冲、线程设置、消息流、协作工具、错误恢复及线程元数据。
+//! 重点保证重复、过期或回放事件不会污染当前可见状态。
+
 use super::*;
 use pretty_assertions::assert_eq;
 
@@ -112,6 +117,7 @@ fn safety_buffering_notification(
 
 #[tokio::test]
 async fn safety_buffering_offers_one_retry_with_app_wording() {
+    // 安全缓冲通知去重后只提供一次重试，并使用应用侧约定文案。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let (thread_id, turn_id, _) = start_safety_buffering_test_turn(&mut chat, &mut op_rx);
 
@@ -341,6 +347,7 @@ async fn invalid_url_elicitation_is_declined() {
 
 #[tokio::test]
 async fn thread_settings_updated_updates_visible_state_without_transcript() {
+    // 线程设置更新同步可见配置，但不得伪造一条会话历史消息。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.2")).await;
     set_chatgpt_auth(&mut chat);
     set_fast_mode_test_catalog(&mut chat);
@@ -515,6 +522,7 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
 
 #[tokio::test]
 async fn live_app_server_user_message_item_completed_does_not_duplicate_rendered_prompt() {
+    // 用户消息完成事件不得重复渲染已经提交并显示的提示。
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
 
@@ -704,6 +712,7 @@ async fn live_app_server_turn_started_sets_feedback_turn_id() {
 
 #[tokio::test]
 async fn live_app_server_warning_notification_renders_message() {
+    // 普通、Guardian 与严格审查警告分别映射为明确且可追踪的历史提示。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
@@ -840,6 +849,7 @@ async fn live_app_server_file_change_item_started_preserves_changes() {
 
 #[tokio::test]
 async fn live_app_server_command_execution_strips_shell_wrapper() {
+    // 命令事件移除仅供 shell 调用的包装层，保留用户可理解的实际命令。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let script = r#"python3 -c 'print("Hello, world!")'"#;
     let command =
@@ -960,6 +970,7 @@ async fn live_app_server_command_output_delta_transcript_snapshot() {
 
 #[tokio::test]
 async fn live_app_server_sub_agent_activity_renders_once() {
+    // 子代理活动及协作等待项在开始和完成通知之间只能形成一份历史记录。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let activity = AppServerThreadItem::SubAgentActivity {
         id: "activity-1".to_string(),
@@ -1149,6 +1160,7 @@ async fn live_app_server_collab_spawn_completed_renders_requested_model_and_effo
 
 #[tokio::test]
 async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
+    // 失败轮次整合流式输出和错误，避免终止通知再次插入相同诊断。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
@@ -1305,6 +1317,7 @@ async fn live_app_server_turn_completion_repairs_dropped_message_deltas() {
 
 #[tokio::test]
 async fn live_app_server_stream_recovery_restores_previous_status_header() {
+    // 流恢复完成后还原先前标题，后续专用错误仍按各自安全语义展示。
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(

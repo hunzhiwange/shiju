@@ -7,6 +7,7 @@ use vw_tui::V3Surface;
 
 pub(crate) mod app;
 pub(crate) mod bridge;
+pub(crate) mod commands;
 pub(crate) mod controller;
 pub(crate) mod editor;
 pub(crate) mod model;
@@ -33,6 +34,38 @@ mod runner_tests;
 #[cfg(test)]
 #[path = "interaction_tests.rs"]
 mod interaction_tests;
+
+#[cfg(test)]
+#[path = "command_tests.rs"]
+mod command_tests;
+
+#[cfg(test)]
+#[path = "session_restore_tests.rs"]
+mod session_restore_tests;
+
+#[cfg(test)]
+#[path = "session_command_tests.rs"]
+mod session_command_tests;
+
+#[cfg(test)]
+#[path = "settings_tests.rs"]
+mod settings_tests;
+
+#[cfg(test)]
+#[path = "attachment_tests.rs"]
+mod attachment_tests;
+
+#[cfg(test)]
+#[path = "integration_tests.rs"]
+mod integration_tests;
+
+#[cfg(test)]
+#[path = "orchestration_tests.rs"]
+mod orchestration_tests;
+
+#[cfg(test)]
+#[path = "plan_goal_tests.rs"]
+mod plan_goal_tests;
 
 /// 构造独立界面对象，但不将其注册或切换为默认 TUI。
 pub(crate) fn build_surface() -> V3Surface {

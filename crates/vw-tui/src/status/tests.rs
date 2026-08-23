@@ -1,3 +1,7 @@
+//! 覆盖 `/status` 卡片对账户、模型、权限、额度、用量和终端宽度的只读展示。
+//! 快照使用确定性配置与时间基准，分别验证信息可用、刷新中、过期和不可用状态。
+//! 权限相关用例只检查准确标签，不能把受限配置描述成更宽松的能力。
+
 use super::new_status_output;
 use super::new_status_output_with_rate_limits;
 use super::new_status_output_with_rate_limits_handle;
@@ -60,6 +64,7 @@ use tempfile::TempDir;
 use unicode_width::UnicodeWidthStr;
 
 #[test]
+// 新鲜滚动窗口与过期月度窗口并存时，组合快照仍应标记整体陈旧。
 fn stale_monthly_limit_marks_fresh_rolling_snapshot_stale() {
     let now = Local::now();
     let snapshot = RateLimitSnapshotDisplay {
@@ -88,6 +93,7 @@ fn stale_monthly_limit_marks_fresh_rolling_snapshot_stale() {
 }
 
 fn app_server_workspace_write_profile(network_enabled: bool) -> PermissionProfile {
+    // 构造服务端管理的工作区写权限，用于区分网络开关和本地命名配置。
     PermissionProfile::Managed {
         network: if network_enabled {
             NetworkSandboxPolicy::Enabled
@@ -131,6 +137,7 @@ fn app_server_workspace_write_profile(network_enabled: bool) -> PermissionProfil
 }
 
 async fn test_config(temp_home: &TempDir) -> Config {
+    // 创建隔离配置根，避免状态快照读取真实账户或工作区设置。
     let mut config = ConfigBuilder::default()
         .codex_home(temp_home.path().to_path_buf())
         .loader_overrides(LoaderOverrides::without_managed_config_for_tests())
@@ -171,6 +178,7 @@ fn token_info_for(model_slug: &str, config: &Config, usage: &TokenUsage) -> Toke
 }
 
 fn render_lines(lines: &[Line<'static>]) -> Vec<String> {
+    // 将富文本状态行规范化为纯文本，便于快照聚焦内容与布局。
     lines
         .iter()
         .map(|line| {
@@ -183,6 +191,7 @@ fn render_lines(lines: &[Line<'static>]) -> Vec<String> {
 }
 
 fn sanitize_directory(lines: Vec<String>) -> Vec<String> {
+    // 替换平台相关临时目录，使跨平台快照保持稳定。
     let frame_width = lines
         .iter()
         .find(|line| line.starts_with('╭'))
@@ -278,6 +287,7 @@ fn permissions_text_for(config: &Config) -> Option<String> {
 }
 
 #[tokio::test]
+// 基础状态快照应同时呈现模型推理配置、账户与会话上下文。
 async fn status_snapshot_includes_reasoning_details() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -354,6 +364,7 @@ async fn status_snapshot_includes_reasoning_details() {
 }
 
 #[tokio::test]
+// 订阅计划可在没有邮箱时独立展示，不应要求额外身份字段。
 async fn status_snapshot_shows_chatgpt_plan_without_email() {
     let temp_home = TempDir::new().expect("temp home");
     write_models_cache(temp_home.path()).expect("write models cache");
@@ -415,6 +426,7 @@ async fn status_snapshot_shows_chatgpt_plan_without_email() {
 }
 
 #[tokio::test]
+// 权限标签组覆盖内置、命名和附加可写根，确保实际能力与文案严格对应。
 async fn status_permissions_non_default_workspace_write_uses_workspace_label() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -730,6 +742,7 @@ async fn status_snapshot_shows_active_user_defined_profile() {
 }
 
 #[tokio::test]
+// 运行时提供方地址应优先用于 Bedrock 标识，并按能力门控用量链接。
 async fn status_model_provider_uses_bedrock_runtime_base_url_and_gates_usage_link() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -838,6 +851,7 @@ async fn status_model_provider_uses_bedrock_runtime_base_url_and_gates_usage_lin
 }
 
 #[tokio::test]
+// 自动审查与全盘写入组合必须显示审查者，同时区分内部和外部沙箱。
 async fn status_snapshot_shows_auto_review_permissions() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -932,6 +946,7 @@ async fn status_permissions_full_disk_managed_without_network_is_external_sandbo
 }
 
 #[tokio::test]
+// 分叉会话应明确显示来源任务，帮助用户辨认当前上下文。
 async fn status_snapshot_includes_forked_from() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -986,6 +1001,7 @@ async fn status_snapshot_includes_forked_from() {
 }
 
 #[tokio::test]
+// 限额窗口组覆盖月度、企业积分和未知窗口，未知类型使用通用标签降级。
 async fn status_snapshot_includes_monthly_limit() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -1197,6 +1213,7 @@ async fn status_snapshot_uses_generic_limit_labels_for_unsupported_windows() {
 }
 
 #[tokio::test]
+// 积分组区分无限、正余额、仅可用标记和缺少显示余额的协议组合。
 async fn status_snapshot_shows_unlimited_credits() {
     let temp_home = TempDir::new().expect("temp home");
     let config = test_config(&temp_home).await;
@@ -1413,6 +1430,7 @@ async fn status_snapshot_respects_unlimited_without_has_credits_flag() {
 }
 
 #[tokio::test]
+// 令牌用量应排除缓存输入，并在窄终端按字素安全截断长字段。
 async fn status_card_token_usage_excludes_cached_tokens() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -1563,6 +1581,7 @@ async fn status_snapshot_truncates_halfwidth_kana_in_narrow_terminal() {
 }
 
 #[tokio::test]
+// 限额缺失和默认推理配置都应给出明确、可解释的回退信息。
 async fn status_snapshot_shows_missing_limits_message() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -1667,6 +1686,7 @@ async fn status_snapshot_uses_default_reasoning_when_config_empty() {
 }
 
 #[tokio::test]
+// 刷新中的限额既要显示进度提示，也要允许完成后重新测量历史浮层高度。
 async fn status_snapshot_shows_refreshing_limits_notice() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -1817,6 +1837,7 @@ async fn transcript_overlay_remeasures_status_after_rate_limit_refresh() {
 }
 
 #[tokio::test]
+// 完整限额与积分组合快照用于守住分组顺序和相邻标签。
 async fn status_snapshot_includes_credits_and_limits() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -1889,6 +1910,7 @@ async fn status_snapshot_includes_credits_and_limits() {
 }
 
 #[tokio::test]
+// 不可用、刷新中空结果与陈旧缓存必须使用不同提示，不能伪装成零用量。
 async fn status_snapshot_shows_unavailable_limits_message() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -2078,6 +2100,7 @@ async fn status_snapshot_shows_stale_limits_message() {
 }
 
 #[tokio::test]
+// 缓存限额缺少积分能力标记时应隐藏余额，避免展示无授权或陈旧数据。
 async fn status_snapshot_cached_limits_hide_credits_without_flag() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
@@ -2151,6 +2174,7 @@ async fn status_snapshot_cached_limits_hide_credits_without_flag() {
 }
 
 #[tokio::test]
+// 上下文窗口比例必须取最近一次用量样本，而不是错误累计整段会话。
 async fn status_context_window_uses_last_usage() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;

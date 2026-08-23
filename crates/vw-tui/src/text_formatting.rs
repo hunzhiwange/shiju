@@ -1,3 +1,5 @@
+//! 提供面向终端展示的文本、JSON、路径和英文列表格式化辅助函数。
+
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::width::display_width;
@@ -14,6 +16,8 @@ pub(crate) fn capitalize_first(input: &str) -> String {
     }
 }
 
+/// 将工具结果截断到给定高宽；若文本是有效 JSON，则先紧凑格式化再截断。
+/// 这是尽力而为的近似：一个字素可能占用多个终端单元格。
 /// Truncate a tool result to fit within the given height and width. If the text is valid JSON, we format it in a compact way before truncating.
 /// This is a best-effort approach that may not work perfectly for text where 1 grapheme is rendered as multiple terminal cells.
 pub(crate) fn format_and_truncate_tool_result(
@@ -21,6 +25,8 @@ pub(crate) fn format_and_truncate_tool_result(
     max_lines: usize,
     line_width: usize,
 ) -> String {
+    // 估算结果最多可展示的字素数；字素与终端单元格不保证一一对应，
+    // 因此每行减一作为余量。该近似也不会随未来终端缩放重算。
     // Work out the maximum number of graphemes we can display for a result.
     // It's not guaranteed that 1 grapheme = 1 cell, so we subtract 1 per line as a fudge factor.
     // It also won't handle future terminal resizes properly, but it's an OK approximation for now.
@@ -34,7 +40,11 @@ pub(crate) fn format_and_truncate_tool_result(
 }
 
 /// Formats JSON on one line with spaces after separators for readability and natural wrap points.
+/// 将 JSON 格式化为单行，并在分隔符后保留空格以便阅读和自然换行。
 ///
+/// 极致紧凑的 JSON 难以浏览，而美化 JSON 会占用过多终端行。
+/// 有效输入返回格式化字符串，无效输入返回 `None`。
+/// 示例：`{"a":"b","c":["d","e"]}` 变为 `{"a": "b", "c": ["d", "e"]}`。
 /// Compact JSON is hard to scan, while pretty-printed JSON consumes unnecessary terminal rows.
 /// Returns the formatted JSON string for valid input, or `None` otherwise.
 ///
@@ -43,12 +53,14 @@ pub(crate) fn format_json_compact(text: &str) -> Option<String> {
     let json = serde_json::from_str::<serde_json::Value>(text).ok()?;
     let json_pretty = serde_json::to_string_pretty(&json).unwrap_or_else(|_| json.to_string());
 
+    // 删除换行和多余空白，把多行美化 JSON 转为可读的紧凑单行。
     // Convert multi-line pretty JSON to compact single-line format by removing newlines and excess whitespace
     let mut result = String::new();
     let mut chars = json_pretty.chars().peekable();
     let mut in_string = false;
     let mut escape_next = false;
 
+    // 逐字符遍历 JSON，只在字符串之外为冒号和逗号补一个空格。
     // Iterate over the characters in the JSON string, adding spaces after : and , but only when not in a string
     while let Some(ch) = chars.next() {
         match ch {
@@ -61,9 +73,11 @@ pub(crate) fn format_json_compact(text: &str) -> Option<String> {
                 result.push(ch);
             }
             '\n' | '\r' if !in_string => {
+                // 跳过字符串之外的换行。
                 // Skip newlines when not in a string
             }
             ' ' | '\t' if !in_string => {
+                // 仅在字符串之外、且后面不是闭合括号时补空格。
                 // Add a space after : and , but only when not in a string
                 if let Some(&next_ch) = chars.peek()
                     && let Some(last_ch) = result.chars().last()
@@ -85,14 +99,18 @@ pub(crate) fn format_json_compact(text: &str) -> Option<String> {
     Some(result)
 }
 
+/// 将 `text` 截断到 `max_graphemes` 个字素，避免切开由多个码点组成的字符。
 /// Truncate `text` to `max_graphemes` graphemes. Using graphemes to avoid accidentally truncating in the middle of a multi-codepoint character.
 pub(crate) fn truncate_text(text: &str, max_graphemes: usize) -> String {
     let mut graphemes = text.grapheme_indices(true);
 
+    // 若 `max_graphemes` 位置仍有字素，说明原文确实溢出。
     // Check if there's a grapheme at position max_graphemes (meaning there are more than max_graphemes total)
     if let Some((byte_index, _)) = graphemes.nth(max_graphemes) {
+        // 超出限制时才进入截断路径。
         // There are more than max_graphemes, so we need to truncate
         if max_graphemes >= 3 {
+            // 预留三个位置追加 `...`，使总字素数仍不超过限制。
             // Truncate to max_graphemes - 3 and add "..." to stay within limit
             let mut truncate_graphemes = text.grapheme_indices(true);
             if let Some((truncate_byte_index, _)) = truncate_graphemes.nth(max_graphemes - 3) {
@@ -102,16 +120,20 @@ pub(crate) fn truncate_text(text: &str, max_graphemes: usize) -> String {
                 text.to_string()
             }
         } else {
+            // 限制少于三时无法容纳省略号，直接返回前若干字素。
             // max_graphemes < 3, so just return first max_graphemes without "..."
             let truncated = &text[..byte_index];
             truncated.to_string()
         }
     } else {
+        // 未溢出时原样返回，避免无谓分配和展示变化。
         // There are max_graphemes or fewer graphemes, return original text
         text.to_string()
     }
 }
 
+/// 将路径样字符串截断到指定显示宽度，尽量保留首尾片段并在中间插入一个 Unicode 省略号。
+/// 单个片段仍无法容纳时，从前方截断并添加省略号。
 /// Truncate a path-like string to the given display width, keeping leading and trailing segments
 /// where possible and inserting a single Unicode ellipsis between them. If an individual segment
 /// cannot fit, it is front-truncated with an ellipsis.
@@ -180,6 +202,7 @@ pub(crate) fn center_truncate_path(path: &str, max_width: usize) -> String {
         }
 
         let mut kept = Vec::new();
+        // 先为前导省略号预留一列，再从片段末尾按字素收集。
         let mut used_width = 1; // reserve space for leading ellipsis
         for grapheme in original.graphemes(/*is_extended*/ true).rev() {
             let grapheme_width = display_width(grapheme);
@@ -319,6 +342,8 @@ pub(crate) fn center_truncate_path(path: &str, max_width: usize) -> String {
     front_truncate(path, max_width)
 }
 
+/// 使用恰当的英文标点连接字符串列表。
+/// 示例分别覆盖空、单项、双项以及三项列表。
 /// Join a list of strings with proper English punctuation.
 /// Examples:
 /// - [] -> ""
@@ -352,6 +377,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    // 常规截断应为省略号预留三个字素位置。
     fn test_truncate_text() {
         let text = "Hello, world!";
         let truncated = truncate_text(text, /*max_graphemes*/ 8);
@@ -359,6 +385,7 @@ mod tests {
     }
 
     #[test]
+    // 空字符串在任意正限制下保持为空。
     fn test_truncate_empty_string() {
         let text = "";
         let truncated = truncate_text(text, /*max_graphemes*/ 5);
@@ -366,6 +393,7 @@ mod tests {
     }
 
     #[test]
+    // 零限制不能返回任何字素或省略号。
     fn test_truncate_max_graphemes_zero() {
         let text = "Hello";
         let truncated = truncate_text(text, /*max_graphemes*/ 0);
@@ -373,6 +401,7 @@ mod tests {
     }
 
     #[test]
+    // 一字素限制直接返回首字素。
     fn test_truncate_max_graphemes_one() {
         let text = "Hello";
         let truncated = truncate_text(text, /*max_graphemes*/ 1);
@@ -380,6 +409,7 @@ mod tests {
     }
 
     #[test]
+    // 两字素限制直接返回前两个字素。
     fn test_truncate_max_graphemes_two() {
         let text = "Hello";
         let truncated = truncate_text(text, /*max_graphemes*/ 2);
@@ -387,6 +417,7 @@ mod tests {
     }
 
     #[test]
+    // 三字素边界恰好只能容纳省略号。
     fn test_truncate_max_graphemes_three_boundary() {
         let text = "Hello";
         let truncated = truncate_text(text, /*max_graphemes*/ 3);
@@ -394,6 +425,7 @@ mod tests {
     }
 
     #[test]
+    // 短于限制的文本不得发生变化。
     fn test_truncate_text_shorter_than_limit() {
         let text = "Hi";
         let truncated = truncate_text(text, /*max_graphemes*/ 10);
@@ -401,6 +433,7 @@ mod tests {
     }
 
     #[test]
+    // 恰好等于限制的文本不得误判为溢出。
     fn test_truncate_text_exact_length() {
         let text = "Hello";
         let truncated = truncate_text(text, /*max_graphemes*/ 5);
@@ -408,6 +441,7 @@ mod tests {
     }
 
     #[test]
+    // 表情按字素而非 UTF-8 字节截断。
     fn test_truncate_emoji() {
         let text = "👋🌍🚀✨💫";
         let truncated = truncate_text(text, /*max_graphemes*/ 3);
@@ -418,21 +452,26 @@ mod tests {
     }
 
     #[test]
+    // 带组合标记的字符应作为完整字素保留。
     fn test_truncate_unicode_combining_characters() {
+        // 下方示例字符各自包含组合标记。
         let text = "é́ñ̃"; // Characters with combining marks
         let truncated = truncate_text(text, /*max_graphemes*/ 2);
         assert_eq!(truncated, "é́ñ̃");
     }
 
     #[test]
+    // 超长 ASCII 文本应满足精确输出长度并带省略号。
     fn test_truncate_very_long_text() {
         let text = "a".repeat(1000);
         let truncated = truncate_text(&text, /*max_graphemes*/ 10);
         assert_eq!(truncated, "aaaaaaa...");
+        // 下方长度由七个 `a` 加三个点组成。
         assert_eq!(truncated.len(), 10); // 7 'a's + 3 dots
     }
 
     #[test]
+    // 简单对象压成单行，并保留分隔符后的可读空格。
     fn test_format_json_compact_simple_object() {
         let json = r#"{ "name": "John", "age": 30 }"#;
         let result = format_json_compact(json).unwrap();
@@ -440,6 +479,7 @@ mod tests {
     }
 
     #[test]
+    // 嵌套对象同样保持层级括号和单行空格规则。
     fn test_format_json_compact_nested_object() {
         let json = r#"{ "user": { "name": "John", "details": { "age": 30, "city": "NYC" } } }"#;
         let result = format_json_compact(json).unwrap();
@@ -447,6 +487,7 @@ mod tests {
     }
 
     #[test]
+    // 未超宽路径原样返回。
     fn test_center_truncate_doesnt_truncate_short_path() {
         let sep = std::path::MAIN_SEPARATOR;
         let path = format!("{sep}Users{sep}codex{sep}Public");
@@ -456,6 +497,7 @@ mod tests {
     }
 
     #[test]
+    // 长路径优先保留多个首尾片段，在中部放置省略号。
     fn test_center_truncate_truncates_long_path() {
         let sep = std::path::MAIN_SEPARATOR;
         let path = format!("~{sep}hello{sep}the{sep}fox{sep}is{sep}very{sep}fast");
@@ -465,6 +507,7 @@ mod tests {
     }
 
     #[test]
+    // Windows 盘符形式也遵守同一首尾片段策略。
     fn test_center_truncate_truncates_long_windows_path() {
         let sep = std::path::MAIN_SEPARATOR;
         let path = format!(
@@ -478,6 +521,7 @@ mod tests {
     }
 
     #[test]
+    // 单个过长片段从前方截断，以保留更具辨识度的尾部。
     fn test_center_truncate_handles_long_segment() {
         let sep = std::path::MAIN_SEPARATOR;
         let path = format!("~{sep}supercalifragilisticexpialidocious");
@@ -487,6 +531,7 @@ mod tests {
     }
 
     #[test]
+    // 数组及其中对象按同一紧凑空格规则格式化。
     fn test_format_json_compact_array() {
         let json = r#"[ 1, 2, { "key": "value" }, "string" ]"#;
         let result = format_json_compact(json).unwrap();
@@ -494,6 +539,7 @@ mod tests {
     }
 
     #[test]
+    // 已紧凑 JSON 也会补充分隔符后的可读空格。
     fn test_format_json_compact_already_compact() {
         let json = r#"{"compact":true}"#;
         let result = format_json_compact(json).unwrap();
@@ -501,6 +547,7 @@ mod tests {
     }
 
     #[test]
+    // 多行和缩进空白应折叠为单行。
     fn test_format_json_compact_with_whitespace() {
         let json = r#"
         {
@@ -516,6 +563,7 @@ mod tests {
     }
 
     #[test]
+    // 无效 JSON 明确返回 `None`。
     fn test_format_json_compact_invalid_json() {
         let invalid_json = r#"{"invalid": json syntax}"#;
         let result = format_json_compact(invalid_json);
@@ -523,6 +571,7 @@ mod tests {
     }
 
     #[test]
+    // 空对象不引入多余空格。
     fn test_format_json_compact_empty_object() {
         let json = r#"{}"#;
         let result = format_json_compact(json).unwrap();
@@ -530,6 +579,7 @@ mod tests {
     }
 
     #[test]
+    // 空数组不引入多余空格。
     fn test_format_json_compact_empty_array() {
         let json = r#"[]"#;
         let result = format_json_compact(json).unwrap();
@@ -537,6 +587,7 @@ mod tests {
     }
 
     #[test]
+    // JSON 原始值无需结构重排，保持规范字面量。
     fn test_format_json_compact_primitive_values() {
         assert_eq!(format_json_compact("42").unwrap(), "42");
         assert_eq!(format_json_compact("true").unwrap(), "true");
@@ -546,6 +597,7 @@ mod tests {
     }
 
     #[test]
+    // 英文列表连接覆盖零到多项的标点与 `and` 位置。
     fn test_proper_join() {
         let empty: Vec<String> = vec![];
         assert_eq!(proper_join(&empty), "");

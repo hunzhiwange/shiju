@@ -4,6 +4,9 @@
 //! are already small RGBA images by the time they reach this module, so the
 //! encoder uses deterministic RGB332 color reduction and transparent pixels are
 //! simply omitted from the emitted color planes.
+//!
+//! 这是面向宠物帧的最小 Sixel 编码器，并非通用实现。输入已是小型 RGBA 图像，
+//! 因而采用确定性的 RGB332 降色，透明像素不写入任何颜色平面。
 
 use anyhow::Context;
 use anyhow::Result;
@@ -15,6 +18,7 @@ const PALETTE_COLOR_COUNT: usize = 256;
 const TRANSPARENT_ALPHA_THRESHOLD: u8 = 128;
 const TRANSPARENT_BACKGROUND_DCS: &[u8] = b"\x1bP9;1;0q";
 
+/// 校验 RGBA 缓冲区后编码完整 Sixel 控制序列。
 pub(crate) fn encode_rgba(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>> {
     if width == 0 || height == 0 {
         bail!("sixel image dimensions must be non-zero");
@@ -40,6 +44,7 @@ pub(crate) fn encode_rgba(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8
     Ok(output)
 }
 
+/// 按六像素高的 band 和活动颜色平面写入像素数据。
 fn write_pixels(
     output: &mut Vec<u8>,
     rgba: &[u8],
@@ -77,6 +82,7 @@ fn write_pixels(
     Ok(())
 }
 
+/// 返回当前 band 实际出现的非透明调色板索引，避免输出无用颜色平面。
 fn active_colors_for_band(
     rgba: &[u8],
     width: u32,
@@ -99,6 +105,7 @@ fn active_colors_for_band(
         .collect())
 }
 
+/// 把一列六个像素压成 Sixel 字符所需的六位掩码。
 fn sixel_data_for_column(
     rgba: &[u8],
     width: u32,
@@ -122,6 +129,7 @@ fn sixel_data_for_column(
     Ok(b'?' + mask)
 }
 
+/// 读取单个像素的 RGB332 索引；低于透明阈值时返回空。
 fn color_index_at(rgba: &[u8], width: u32, x: u32, y: u32) -> Result<Option<u8>> {
     let pixel_index = pixel_offset(width, x, y)?;
     let alpha = rgba[pixel_index + 3];
@@ -136,6 +144,7 @@ fn color_index_at(rgba: &[u8], width: u32, x: u32, y: u32) -> Result<Option<u8>>
     )))
 }
 
+/// 合并连续相同 Sixel 字符，延迟到 run 结束时输出。
 fn push_run(run_char: &mut Option<u8>, run_len: &mut usize, output: &mut Vec<u8>, byte: u8) {
     match *run_char {
         Some(current) if current == byte => {
@@ -149,6 +158,7 @@ fn push_run(run_char: &mut Option<u8>, run_len: &mut usize, output: &mut Vec<u8>
     }
 }
 
+/// 长 run 使用 Sixel 重复语法，短 run 直接写字节以减少开销。
 fn flush_run(run_char: &mut Option<u8>, run_len: &mut usize, output: &mut Vec<u8>) {
     let Some(byte) = run_char.take() else {
         return;
@@ -163,6 +173,7 @@ fn flush_run(run_char: &mut Option<u8>, run_len: &mut usize, output: &mut Vec<u8
     *run_len = 0;
 }
 
+/// 以受检算术把像素坐标转换为 RGBA 字节偏移。
 fn pixel_offset(width: u32, x: u32, y: u32) -> Result<usize> {
     let pixel_index = u64::from(y)
         .checked_mul(u64::from(width))
@@ -174,6 +185,7 @@ fn pixel_offset(width: u32, x: u32, y: u32) -> Result<usize> {
     usize::try_from(byte_index).context("sixel byte index does not fit usize")
 }
 
+/// 以受检算术计算像素总数并转换为平台 usize。
 fn pixel_count(width: u32, height: u32) -> Result<usize> {
     let count = u64::from(width)
         .checked_mul(u64::from(height))
@@ -181,6 +193,7 @@ fn pixel_count(width: u32, height: u32) -> Result<usize> {
     usize::try_from(count).context("sixel pixel count does not fit usize")
 }
 
+/// 将 8 位 RGB 分量压缩为 3-3-2 位调色板索引。
 fn rgb332_index(red: u8, green: u8, blue: u8) -> u8 {
     let red = red >> 5;
     let green = green >> 5;
@@ -188,6 +201,7 @@ fn rgb332_index(red: u8, green: u8, blue: u8) -> u8 {
     (red << 5) | (green << 2) | blue
 }
 
+/// 把 RGB332 索引还原为可写入调色板定义的近似 RGB。
 fn rgb332_color(index: u8) -> (u8, u8, u8) {
     let red = index >> 5;
     let green = (index >> 2) & 0b111;
@@ -209,6 +223,7 @@ fn byte_to_sixel_percent(value: u8) -> u8 {
     u8::try_from(value).unwrap_or(100)
 }
 
+/// 记录输入中实际用到的调色板索引。
 struct Palette {
     used: [bool; PALETTE_COLOR_COUNT],
 }
@@ -254,6 +269,7 @@ mod tests {
     const EXPECTED_TRANSPARENT_BACKGROUND_DCS: &str = "\x1bP9;1;0q";
 
     #[test]
+    // 验证单个红色像素同时产生调色板定义和像素数据。
     fn encodes_red_pixel_with_palette_and_pixel_data() {
         let sixel = encode_rgba(&[255, 0, 0, 255], /*width*/ 1, /*height*/ 1).unwrap();
         let sixel = String::from_utf8(sixel).unwrap();
@@ -265,6 +281,7 @@ mod tests {
     }
 
     #[test]
+    // 验证全透明像素不产生调色板或颜色平面数据。
     fn transparent_pixels_do_not_emit_palette_or_pixel_data() {
         let sixel = encode_rgba(&[255, 0, 0, 0], /*width*/ 1, /*height*/ 1).unwrap();
         let sixel = String::from_utf8(sixel).unwrap();
@@ -276,6 +293,7 @@ mod tests {
     }
 
     #[test]
+    // 验证超过六像素高度时正确推进到下一 band。
     fn multi_band_images_advance_to_next_sixel_band() {
         let mut rgba = Vec::new();
         for _ in 0..7 {
@@ -294,6 +312,7 @@ mod tests {
     }
 
     #[test]
+    // 验证重复单元使用 Sixel 行程长度编码。
     fn repeated_cells_use_sixel_run_length_encoding() {
         let mut rgba = Vec::new();
         for _ in 0..4 {
@@ -307,6 +326,7 @@ mod tests {
     }
 
     #[test]
+    // 验证 RGBA 缓冲区长度与几何不匹配时明确拒绝。
     fn rejects_mismatched_rgba_buffer_length() {
         let err = encode_rgba(&[255, 0, 0], /*width*/ 1, /*height*/ 1).unwrap_err();
 

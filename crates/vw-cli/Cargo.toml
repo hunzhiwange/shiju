@@ -29,7 +29,7 @@ base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
-crossterm = "0.29"
+crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
 dialoguer = "0.11"
 libc = "0.2"
 pulldown-cmark = "0.9"
@@ -48,6 +48,7 @@ vw-acp = { path = "../vw-acp", version = "0.4.0" }
 vw-config-types = { path = "../vw-config-types", version = "0.4.0" }
 vw-gateway-client = { path = "../vw-gateway-client", version = "0.4.0" }
 vw-shared = { path = "../vw-shared", version = "0.4.0" }
+vw-tui-v3 = { path = "../vw-tui-v3", version = "0.4.0" }
 
 [dev-dependencies]
 async-trait = "0.1.89"

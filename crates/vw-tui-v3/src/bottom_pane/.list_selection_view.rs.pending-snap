@@ -1,0 +1,7 @@
+{"run_id":"1787449788-898995000","line":338,"new":{"module_name":"vw_tui_v3__bottom_pane__list_selection_view__tests","snapshot_name":"v3_selection_surfaces_reuse_copied_codex_list_view","metadata":{"source":"crates/vw-tui-v3/src/bottom_pane/list_selection_view.rs","assertion_line":338,"expression":"render(&view, 48)"},"snapshot":"\nPermissions\n  1. Read only (current)     Inspect files\n› 2. Full access             Modify files\n     Unavailable (disabled)  disabled: not\n     configured"},"old":{"module_name":"vw_tui_v3__bottom_pane__list_selection_view__tests","metadata":{},"snapshot":"Permissions\n› 1. Read only       Inspect files\n  2. Full access     Modify files\n     Unavailable     not configured (disabled: not configured)"}}
+{"run_id":"1787449847-305335000","line":338,"new":null,"old":null}
+{"run_id":"1787449925-414633000","line":338,"new":null,"old":null}
+{"run_id":"1787449980-156963000","line":338,"new":null,"old":null}
+{"run_id":"1787450071-973591000","line":338,"new":null,"old":null}
+{"run_id":"1787468991-415008000","line":591,"new":null,"old":null}
+{"run_id":"1787469121-461274000","line":591,"new":null,"old":null}

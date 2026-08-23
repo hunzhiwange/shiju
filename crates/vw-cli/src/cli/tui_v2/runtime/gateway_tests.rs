@@ -438,7 +438,10 @@ fn gateway_runtime_for_workspace_uses_current_directory_seed() {
     fs::remove_dir(config_dir).expect("remove workspace config dir");
 
     assert_eq!(runtime.directory(), current_dir.as_path());
-    assert_eq!(runtime.endpoint().describe(), "127.0.0.1:42617");
+    assert_eq!(
+        runtime.endpoint().describe(),
+        format!("127.0.0.1:{}", vw_config_types::gateway::DEFAULT_GATEWAY_PORT)
+    );
 }
 
 #[test]

@@ -2896,7 +2896,7 @@ cell x=92 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=93 y=28 symbol=" " style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
 cell x=94 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=95 y=28 symbol=" " style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
-cell x=96 y=28 symbol="目" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
+cell x=96 y=28 symbol="终" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
 cell x=97 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=98 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=99 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE

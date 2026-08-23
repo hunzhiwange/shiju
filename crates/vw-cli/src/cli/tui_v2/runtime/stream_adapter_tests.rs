@@ -166,6 +166,27 @@ fn delta_event_maps_directly_to_runtime_delta() {
 }
 
 #[test]
+fn typed_tool_event_reuses_the_existing_tool_delta_pipeline() {
+    let event = adapt_gateway_stream_event(GatewayChatStreamEvent::Other(json!({
+        "type": "chat.tool",
+        "step_index": 2,
+        "call_id": "call-2",
+        "name": "shell",
+        "kind": "complete",
+        "status": "completed",
+        "occurred_ms": 123,
+        "payload": {"status": "completed", "output": "done"}
+    })));
+
+    assert_eq!(
+        event,
+        UiRuntimeEvent::Delta(
+            "tool shell\n{\"status\":\"completed\",\"output\":\"done\"}\n".to_string()
+        )
+    );
+}
+
+#[test]
 fn error_event_maps_to_terminal_error_via_classifier() {
     // Error with blank text gets the fallback message
     let blank = adapt_gateway_stream_event(GatewayChatStreamEvent::Error("  ".to_string()));

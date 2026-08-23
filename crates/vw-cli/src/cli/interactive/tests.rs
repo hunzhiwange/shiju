@@ -6,8 +6,6 @@ use crate::app::agent::providers::Provider;
 use std::sync::Arc;
 
 use super::super::setup::CliSetup;
-use super::super::tui_v2::TuiRunMode;
-
 const FAILING_PROVIDER_NAME: &str = "interactive-test-failure";
 
 struct StaticProvider;
@@ -40,32 +38,26 @@ fn setup(provider_name: &str) -> CliSetup {
     }
 }
 
-pub(super) fn run_tui_v2(
-    config: &Config,
-    setup: &CliSetup,
-    mode: TuiRunMode,
-) -> anyhow::Result<()> {
-    match mode {
-        TuiRunMode::Standard => {}
-    }
-
+pub(super) fn run_tui_v3(config: &Config, setup: &CliSetup) -> anyhow::Result<()> {
     if setup.provider_name == FAILING_PROVIDER_NAME {
         let model = config.default_model.as_deref().unwrap_or("<none>");
-        anyhow::bail!("test TUI rejected model {model}");
+        anyhow::bail!("test TUI v3 rejected model {model}");
     }
 
     Ok(())
 }
 
 #[tokio::test]
-async fn run_interactive_delegates_to_standard_tui_without_changing_final_output() {
-    let config = Config::default();
-    let setup = setup("test-provider");
+async fn run_interactive_delegates_to_copied_and_ported_tui_v3() {
+    let config = Config { default_model: Some("rejected-model".to_string()), ..Config::default() };
+    let setup = setup(FAILING_PROVIDER_NAME);
     let mut final_output = "existing output".to_string();
 
-    let result = run_interactive(&config, &setup, &mut final_output).await;
+    let error = run_interactive(&config, &setup, &mut final_output)
+        .await
+        .expect_err("the v3 substitute runner should receive the interactive call");
 
-    assert!(result.is_ok());
+    assert_eq!(error.to_string(), "test TUI v3 rejected model rejected-model");
     assert_eq!(final_output, "existing output");
 }
 
@@ -79,6 +71,6 @@ async fn run_interactive_propagates_tui_error_without_changing_final_output() {
         .await
         .expect_err("the test TUI should reject the configured model");
 
-    assert_eq!(error.to_string(), "test TUI rejected model rejected-model");
+    assert_eq!(error.to_string(), "test TUI v3 rejected model rejected-model");
     assert_eq!(final_output, "existing output");
 }

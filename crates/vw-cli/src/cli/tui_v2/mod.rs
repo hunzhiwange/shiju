@@ -74,10 +74,6 @@ mod vim;
 #[path = "vim_tests.rs"]
 mod vim_tests;
 
-pub(crate) use app::TuiRunMode;
-#[cfg(not(test))]
-pub(crate) use app::run_tui_v2;
-
 #[cfg(test)]
 #[path = "input_tests.rs"]
 mod input_tests;

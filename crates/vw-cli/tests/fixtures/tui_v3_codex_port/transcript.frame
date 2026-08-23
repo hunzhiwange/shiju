@@ -1,0 +1,85 @@
+=== 40x18 ===
+┌ Full transcript ─────────────────────┐
+│▌ Prompt 00: verify copied terminal  ┃│
+│  layout                             ┃│
+│• Response 00: upstream component    ┃│
+│path                                 ││
+│  retained.                          ││
+│▌ Prompt 01: verify copied terminal  ││
+│  layout                             ││
+│• Response 01: upstream component    ││
+│path                                 ││
+│  retained.                          ││
+│▌ Prompt 02: verify copied terminal  ││
+│  layout                             ││
+│• Response 02: upstream component    ││
+│path                                 ││
+│  retained.                          ││
+│ top ↑/↓ scroll  PgUp/PgDn page  Home/│
+└──────────────────────────────────────┘
+=== 80x24 ===
+┌ Full transcript ─────────────────────────────────────────────────────────────┐
+│▌ Prompt 00: verify copied terminal layout                                   ┃│
+│• Response 00: upstream component path retained.                             ┃│
+│▌ Prompt 01: verify copied terminal layout                                   ┃│
+│• Response 01: upstream component path retained.                             ┃│
+│▌ Prompt 02: verify copied terminal layout                                   ┃│
+│• Response 02: upstream component path retained.                             ┃│
+│▌ Prompt 03: verify copied terminal layout                                   ┃│
+│• Response 03: upstream component path retained.                             ┃│
+│▌ Prompt 04: verify copied terminal layout                                   ┃│
+│• Response 04: upstream component path retained.                             ┃│
+│▌ Prompt 05: verify copied terminal layout                                   ┃│
+│• Response 05: upstream component path retained.                             ┃│
+│▌ Prompt 06: verify copied terminal layout                                   ┃│
+│• Response 06: upstream component path retained.                             ││
+│▌ Prompt 07: verify copied terminal layout                                   ││
+│• Response 07: upstream component path retained.                             ││
+│▌ Prompt 08: verify copied terminal layout                                   ││
+│• Response 08: upstream component path retained.                             ││
+│▌ Prompt 09: verify copied terminal layout                                   ││
+│• Response 09: upstream component path retained.                             ││
+│▌ Prompt 10: verify copied terminal layout                                   ││
+│ top ↑/↓ scroll  PgUp/PgDn page  Home/End jump  Esc close                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+=== 120x40 ===
+┌ Full transcript ─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│▌ Prompt 00: verify copied terminal layout                                                                            │
+│• Response 00: upstream component path retained.                                                                      │
+│▌ Prompt 01: verify copied terminal layout                                                                            │
+│• Response 01: upstream component path retained.                                                                      │
+│▌ Prompt 02: verify copied terminal layout                                                                            │
+│• Response 02: upstream component path retained.                                                                      │
+│▌ Prompt 03: verify copied terminal layout                                                                            │
+│• Response 03: upstream component path retained.                                                                      │
+│▌ Prompt 04: verify copied terminal layout                                                                            │
+│• Response 04: upstream component path retained.                                                                      │
+│▌ Prompt 05: verify copied terminal layout                                                                            │
+│• Response 05: upstream component path retained.                                                                      │
+│▌ Prompt 06: verify copied terminal layout                                                                            │
+│• Response 06: upstream component path retained.                                                                      │
+│▌ Prompt 07: verify copied terminal layout                                                                            │
+│• Response 07: upstream component path retained.                                                                      │
+│▌ Prompt 08: verify copied terminal layout                                                                            │
+│• Response 08: upstream component path retained.                                                                      │
+│▌ Prompt 09: verify copied terminal layout                                                                            │
+│• Response 09: upstream component path retained.                                                                      │
+│▌ Prompt 10: verify copied terminal layout                                                                            │
+│• Response 10: upstream component path retained.                                                                      │
+│▌ Prompt 11: verify copied terminal layout                                                                            │
+│• Response 11: upstream component path retained.                                                                      │
+│▌ Prompt 12: verify copied terminal layout                                                                            │
+│• Response 12: upstream component path retained.                                                                      │
+│▌ Prompt 13: verify copied terminal layout                                                                            │
+│• Response 13: upstream component path retained.                                                                      │
+│▌ Prompt 14: verify copied terminal layout                                                                            │
+│• Response 14: upstream component path retained.                                                                      │
+│▌ Prompt 15: verify copied terminal layout                                                                            │
+│• Response 15: upstream component path retained.                                                                      │
+│▌ Prompt 16: verify copied terminal layout                                                                            │
+│• Response 16: upstream component path retained.                                                                      │
+│▌ Prompt 17: verify copied terminal layout                                                                            │
+│• Response 17: upstream component path retained.                                                                      │
+│                                                                                                                      │
+│ top ↑/↓ scroll  PgUp/PgDn page  Home/End jump  Esc close                                                             │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

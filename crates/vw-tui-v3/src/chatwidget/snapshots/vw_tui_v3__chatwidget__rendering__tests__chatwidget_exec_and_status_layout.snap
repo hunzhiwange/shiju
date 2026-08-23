@@ -1,0 +1,14 @@
+---
+source: crates/vw-tui-v3/src/chatwidget/rendering_tests.rs
+assertion_line: 105
+expression: "render_frame(&widget, 72, 17)"
+---
+› cargo test -p vw-tui-v3 chatwidget::rendering --lib
+  •
+
+exec: running focused snapshots
+• Running command (0s • esc to interrupt)
+  └ cargo test
+
+› Ask VibeWindow
+  esc interrupt  vibewindow · default · /workspace

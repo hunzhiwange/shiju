@@ -139,14 +139,14 @@ fn fullscreen_layout_slots_stay_inside_standard_and_narrow_areas() {
 fn fullscreen_layout_prefers_taller_prompt_host_on_compact_terminals() {
     let compact = compute_fullscreen_layout(Rect::new(0, 0, 80, 24), true, false, 0);
     assert_eq!(compact.header.height, 0);
-    assert_eq!(compact.bottom.height, 4);
+    assert_eq!(compact.bottom.height, 8);
     assert!(compact.bottom_float.is_none());
-    assert_eq!(compact.scrollable.height, 20);
+    assert_eq!(compact.scrollable.height, 16);
 
     let roomy = compute_fullscreen_layout(Rect::new(0, 0, 80, 40), true, false, 0);
     assert_eq!(roomy.header.height, 0);
-    assert_eq!(roomy.bottom.height, 4);
-    assert_eq!(roomy.scrollable.height, 36);
+    assert_eq!(roomy.bottom.height, 8);
+    assert_eq!(roomy.scrollable.height, 32);
     assert!(roomy.bottom_float.is_none());
 }
 
@@ -164,8 +164,8 @@ fn fullscreen_layout_hides_sidebars_when_height_is_too_short() {
 #[test]
 fn fullscreen_layout_expands_prompt_host_for_visible_suggestion_panel() {
     let layout = compute_fullscreen_layout(Rect::new(0, 0, 80, 24), true, false, 2);
-    assert_eq!(layout.bottom.height, 6);
-    assert_eq!(layout.scrollable.height, 18);
+    assert_eq!(layout.bottom.height, 10);
+    assert_eq!(layout.scrollable.height, 14);
 }
 
 #[test]
@@ -933,12 +933,12 @@ fn controller_sync_layout_records_viewport_height_and_sticky_anchor() {
     let feedback = super::render::TuiRenderFeedback { layout, cursor: None, ..Default::default() };
     controller.sync_layout(&mut state, &feedback);
 
-    assert_eq!(state.scroll.viewport_height, feedback.layout.scrollable.height.saturating_sub(2));
+    assert_eq!(state.scroll.viewport_height, feedback.layout.scrollable_body.height);
     assert_eq!(
         state.scroll.viewport_messages,
-        feedback.layout.scrollable.height.saturating_sub(2) as usize
+        feedback.layout.scrollable_body.height as usize
     );
-    assert_eq!(state.scroll.viewport_width, feedback.layout.scrollable.width.saturating_sub(2));
+    assert_eq!(state.scroll.viewport_width, feedback.layout.scrollable_body.width);
     assert_eq!(state.scroll.sticky_message, Some(1));
 }
 
@@ -1048,12 +1048,8 @@ fn renderer_primitives_expose_status_prompt_and_modal_hosts() {
     assert_eq!(header.scope, "workspace");
     assert_eq!(header.cwd, "/tmp/tui-v2-worktree");
     assert!(footer.pills.iter().any(|pill| pill.label == "终端 待命"));
-    assert!(
-        footer
-            .detail
-            .as_deref()
-            .is_some_and(|detail| detail.contains("Enter 发送") && detail.contains("Shift+Enter"))
-    );
+    assert!(prompt.helper_text.contains("Enter 发送"));
+    assert!(prompt.helper_text.contains("Shift+Enter"));
     assert_eq!(prompt.queued_commands.len(), 2);
     assert!(prompt.queued_commands.iter().any(|pill| pill.label.starts_with("命令")));
     assert!(prompt.queued_commands.iter().any(|pill| pill.label.starts_with("发送")));

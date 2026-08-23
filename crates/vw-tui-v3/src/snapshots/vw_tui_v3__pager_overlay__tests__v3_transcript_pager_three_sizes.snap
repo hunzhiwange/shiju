@@ -1,0 +1,36 @@
+---
+source: crates/vw-tui-v3/src/pager_overlay.rs
+expression: output
+---
+--- narrow ---
+┌ Full transcript ─────────┐
+│transcript line 03       ││
+│transcript line 04       ┃│
+│transcript line 05       ││
+│transcript line 06       ││
+│ middle ↑/↓ scroll  PgUp/P│
+└──────────────────────────┘
+--- standard ---
+┌ Full transcript ─────────────────────┐
+│transcript line 03                   ││
+│transcript line 04                   ┃│
+│transcript line 05                   ┃│
+│transcript line 06                   ││
+│transcript line 07                   ││
+│transcript line 08                   ││
+│transcript line 09                   ││
+│ middle ↑/↓ scroll  PgUp/PgDn page  Ho│
+└──────────────────────────────────────┘
+--- wide ---
+┌ Full transcript ─────────────────────────────────────────┐
+│transcript line 03                                       ││
+│transcript line 04                                       ┃│
+│transcript line 05                                       ┃│
+│transcript line 06                                       ┃│
+│transcript line 07                                       ┃│
+│transcript line 08                                       ││
+│transcript line 09                                       ││
+│transcript line 10                                       ││
+│transcript line 11                                       ││
+│ middle ↑/↓ scroll  PgUp/PgDn page  Home/End jump  Esc clo│
+└──────────────────────────────────────────────────────────┘

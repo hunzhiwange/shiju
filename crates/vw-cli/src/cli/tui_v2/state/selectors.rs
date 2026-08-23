@@ -826,7 +826,19 @@ pub(crate) fn select_visible_grouped_transcript_window(
 
     let total_items = projection.len();
     let top_message = state.scroll.top_message.min(state.messages.len().saturating_sub(1));
-    let top_item_index = transcript_item_index_for_message(projection.items(), top_message);
+    let anchored_top_item_index = transcript_item_index_for_message(projection.items(), top_message);
+    let top_item_index = if state.scroll.follow_tail {
+        transcript_window_start_index_for_tail(
+            &state.messages,
+            projection,
+            &state.transcript_layout,
+            state.scroll.viewport_width,
+            state.scroll.viewport_height as usize,
+            state.status.verbose,
+        )
+    } else {
+        anchored_top_item_index
+    };
     let sticky_prompt = derive_sticky_prompt_summary(&state.messages, projection, top_item_index);
 
     if state.scroll.viewport_height == 0 || state.scroll.viewport_width == 0 {
@@ -1584,6 +1596,46 @@ fn transcript_window_end_index_by_rows(
     }
 
     end_index
+}
+
+fn transcript_window_start_index_for_tail(
+    messages: &[UiMessage],
+    projection: &TuiTranscriptProjectionCache,
+    layout_cache: &TuiTranscriptLayoutCache,
+    content_width: u16,
+    viewport_rows: usize,
+    verbose: bool,
+) -> usize {
+    let estimated_heights;
+    let item_heights = if let Some(bucket) = layout_cache
+        .bucket(content_width, verbose)
+        .filter(|bucket| bucket.item_heights().len() == projection.len())
+    {
+        bucket.item_heights()
+    } else {
+        estimated_heights = projection
+            .items()
+            .iter()
+            .map(|item| {
+                estimate_transcript_projection_item_height(
+                    messages,
+                    item,
+                    content_width,
+                    verbose,
+                )
+            })
+            .collect::<Vec<_>>();
+        estimated_heights.as_slice()
+    };
+
+    let target_rows = viewport_rows.max(1);
+    let mut covered_rows = 0usize;
+    let mut start_index = item_heights.len();
+    while start_index > 0 && covered_rows < target_rows {
+        start_index = start_index.saturating_sub(1);
+        covered_rows = covered_rows.saturating_add(item_heights[start_index].max(1));
+    }
+    start_index
 }
 
 fn transcript_window_end_index_for_viewport(

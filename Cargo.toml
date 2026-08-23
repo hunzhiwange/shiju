@@ -8,6 +8,7 @@ members = [
   "crates/vw-shared",
   "crates/vw-agent",
   "crates/vw-cli",
+  "crates/vw-tui-v3",
   "crates/vw-desktop",
   "crates/vw-webview",
   "crates/vw-provider-resolver",

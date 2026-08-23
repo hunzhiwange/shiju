@@ -3450,26 +3450,26 @@ cell x=86 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=87 y=28 symbol=" " style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
 cell x=88 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=89 y=28 symbol=" " style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
-cell x=90 y=28 symbol="目" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
+cell x=90 y=28 symbol="终" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
 cell x=91 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
-cell x=92 y=28 symbol="标" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
+cell x=92 y=28 symbol="端" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
 cell x=93 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=94 y=28 symbol=" " style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
-cell x=95 y=28 symbol="关" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
+cell x=95 y=28 symbol="待" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
 cell x=96 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
-cell x=97 y=28 symbol=" " style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
+cell x=97 y=28 symbol="命" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
 cell x=98 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=99 y=28 symbol=" " style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
-cell x=100 y=28 symbol="终" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
+cell x=100 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=101 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
-cell x=102 y=28 symbol="端" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
+cell x=102 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=103 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
-cell x=104 y=28 symbol=" " style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
-cell x=105 y=28 symbol="待" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
+cell x=104 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
+cell x=105 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=106 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
-cell x=107 y=28 symbol="命" style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
+cell x=107 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=108 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
-cell x=109 y=28 symbol=" " style fg=Rgb(136, 136, 136) bg=Reset underline=Reset modifiers=BOLD
+cell x=109 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=110 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=111 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE
 cell x=112 y=28 symbol=" " style fg=Reset bg=Reset underline=Reset modifiers=NONE

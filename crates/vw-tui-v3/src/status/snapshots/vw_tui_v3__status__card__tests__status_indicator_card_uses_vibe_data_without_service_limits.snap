@@ -1,0 +1,16 @@
+---
+source: crates/vw-tui-v3/src/status/card.rs
+expression: rendered
+---
+╭──────────────────────────────────────────────────────────────────────────────╮
+│  >_ VibeWindow (v0.4.0)                                                      │
+│                                                                              │
+│  Model:         openai/gpt-5.6                                               │
+│  Directory:     /workspace/vibe-window                                       │
+│  Gateway:       127.0.0.1:34112                                              │
+│  Permissions:   Plan · workspace write                                       │
+│  Session:       Port welcome surfaces                                        │
+│                                                                              │
+│  Token usage:   1.5K total  (1K input + 512 output)                          │
+│                 128 cached + 64 reasoning                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯

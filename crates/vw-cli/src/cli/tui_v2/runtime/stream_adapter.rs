@@ -8,7 +8,7 @@ use serde_json::Value;
 use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
 use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatUsage, GatewayTypedChatStreamEvent,
-    normalize_chat_stream_event,
+    normalize_chat_stream_event, normalize_chat_tool_event,
 };
 
 use crate::cli::tui_v2::model::{
@@ -308,6 +308,11 @@ pub(crate) fn adapt_gateway_stream_event(event: GatewayChatStreamEvent) -> UiRun
         && value.get("type").and_then(Value::as_str) == Some("chat.content")
     {
         return adapt_gateway_content_event(value);
+    }
+    if let GatewayChatStreamEvent::Other(value) = &event
+        && let Some(tool_event) = normalize_chat_tool_event(value)
+    {
+        return UiRuntimeEvent::Delta(tool_event.legacy_delta());
     }
 
     match normalize_chat_stream_event(event) {

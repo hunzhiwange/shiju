@@ -1370,7 +1370,7 @@ fn at_file_picker_is_compact_scrollable_and_keyboard_selectable() {
         .expect("selected file remains visible");
     assert_eq!(selected.label, "src/Z8.rs");
     assert_eq!(selected.detail, None);
-    assert_ne!(rendered_symbol_background(&state, "Z"), rendered_symbol_background(&state, "Q"));
+    assert_ne!(rendered_symbol_foreground(&state, "Z"), rendered_symbol_foreground(&state, "Q"));
 
     key(&mut controller, &mut state, KeyCode::Down);
     key(&mut controller, &mut state, KeyCode::Down);
@@ -1697,7 +1697,7 @@ fn settings_acp_picker_switches_backend_and_forces_first_session() {
     assert_eq!(first_options["acp_test"], true);
     assert_eq!(first_options["acp_agent"], "codex");
     assert_eq!(first_options["acp_force_new_session"], true);
-    assert_eq!(first_options["acp_permission_mode"], "approve-reads");
+    assert_eq!(first_options["acp_permission_mode"], "approve-all");
     assert!(first_options.get("cwd").is_some());
 
     state.session_options.finish_acp_session_start(&first.execution, true);
@@ -1740,7 +1740,7 @@ fn settings_acp_picker_switches_backend_and_forces_first_session() {
         build_prompt_submission(&state, "default backend").expect("default submission");
     let default_request = gateway_stream_request_from_state(&state, &default_submission);
     assert_eq!(default_request.acp_agent, None);
-    assert_eq!(default_request.options, None);
+    assert_eq!(default_request.options, Some(serde_json::json!({ "full_access": true })));
 }
 
 #[test]
@@ -1864,6 +1864,28 @@ fn rendered_symbol_background(state: &TuiState, symbol: &str) -> String {
             let cell = buffer.cell((x, y)).expect("cell inside buffer");
             if cell.symbol() == symbol {
                 return format!("{:?}", cell.bg);
+            }
+        }
+    }
+    panic!("rendered symbol {symbol:?} not found");
+}
+
+fn rendered_symbol_foreground(state: &TuiState, symbol: &str) -> String {
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).expect("test terminal");
+    let renderer = TuiRenderer::for_capabilities(TerminalCapabilities::default(), false);
+    terminal
+        .draw(|frame| {
+            renderer.render_frame(frame, state, "VW", "local", 0);
+        })
+        .expect("render prompt selection");
+    let buffer = terminal.backend().buffer();
+    let area = buffer.area;
+    for y in area.top()..area.bottom() {
+        for x in area.left()..area.right() {
+            let cell = buffer.cell((x, y)).expect("cell inside buffer");
+            if cell.symbol() == symbol {
+                return format!("{:?}", cell.fg);
             }
         }
     }

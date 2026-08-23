@@ -104,8 +104,8 @@ fn session_preview_conversions_and_refresh_cover_empty_session_id() {
 }
 
 #[test]
-fn tui_state_defaults_to_visible_execution_details() {
-    assert!(TuiState::default().status.verbose);
+fn tui_state_defaults_to_compact_execution_details() {
+    assert!(!TuiState::default().status.verbose);
 }
 
 #[test]

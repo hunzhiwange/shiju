@@ -1,0 +1,51 @@
+---
+source: crates/vw-tui-v3/src/onboarding/welcome.rs
+expression: rendered
+---
+Buffer {
+    area: Rect { x: 0, y: 0, width: 60, height: 37 },
+    content: [
+        "                                                            ",
+        "             _._:=++==+,_                                   ",
+        "         _=,/*\+/+\=||=_ _"+_                               ",
+        "       ,|*|+**"^`   `"*`"~=~||+                             ",
+        "      ;*_\*',,_            /*|;|,                           ",
+        "     \^;/'^|\`\\            ".|\\,                          ",
+        "    ~* +`  |*/;||,           '.\||,                         ",
+        "   +^"-*    '\|*/"|_          ! |/|                         ",
+        "   ||_|`     ,//|;|*            "`|                         ",
+        "   |=~'`    ;||^\|".~++++++_+, =" |                         ",
+        "    _~;*  _;+` /* |"|___.:,,,|/,/,|                         ",
+        "    \^_"^ ^\,./`   `^*''* ^*"/,;_/                          ",
+        "     *^, ", `              ,'/*_|                           ",
+        "       ^\,`\+_          _=_+|_+"                            ",
+        "         ^*,\_!*+:;=;;.=*+_,|*                              ",
+        "           `*"*|~~___,_;+*"                                 ",
+        "                                                            ",
+        "                                                            ",
+        "  Welcome to VibeWindow, your autonomous agent runtime      ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+    ],
+    styles: [
+        x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 13, y: 18, fg: Reset, bg: Reset, underline: Reset, modifier: BOLD,
+        x: 23, y: 18, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+    ]
+}

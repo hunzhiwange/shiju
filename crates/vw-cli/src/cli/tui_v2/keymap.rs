@@ -76,6 +76,9 @@ fn try_accept_prompt_suggestion(state: &mut TuiState) -> bool {
     let Some(replacement) = apply_selected_suggestion(state) else {
         return false;
     };
+    if replacement.trim_end() == state.prompt.value.trim_end() {
+        return false;
+    }
     reduce_tui_state(state, TuiAction::PromptValueSet(replacement));
     true
 }

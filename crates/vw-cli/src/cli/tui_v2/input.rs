@@ -215,13 +215,21 @@ pub(crate) fn slash_prompt_suggestions(state: &TuiState) -> Vec<TuiPromptSuggest
         .command_registry
         .matching_commands(partial.as_str())
         .into_iter()
-        .map(|spec| TuiPromptSuggestion {
-            replacement: format!("/{}{}", spec.name, if spec.takes_argument { " " } else { "" }),
-            label: format!("/{}", spec.name),
-            detail: Some(command_detail(spec)),
-            kind: CompletionKind::SlashCommand,
-            score: command_score(spec),
-            continue_completion: spec.takes_argument,
+        .map(|spec| {
+            let completes_argument = spec.takes_argument
+                || matches!(spec.action, CommandAction::Builtin(TuiSlashCommandKind::Model));
+            TuiPromptSuggestion {
+                replacement: format!(
+                    "/{}{}",
+                    spec.name,
+                    if completes_argument { " " } else { "" }
+                ),
+                label: format!("/{}", spec.name),
+                detail: Some(command_detail(spec)),
+                kind: CompletionKind::SlashCommand,
+                score: command_score(spec),
+                continue_completion: completes_argument,
+            }
         })
         .collect::<Vec<_>>();
     if let Some(start) = embedded_start {
@@ -605,6 +613,31 @@ fn argument_suggestions(
             .collect(),
         CommandAction::Builtin(TuiSlashCommandKind::Cd) => {
             directory_command_suggestions(state, current_argument)
+        }
+        CommandAction::Builtin(TuiSlashCommandKind::Model) => {
+            let needle = current_argument.to_ascii_lowercase();
+            state
+                .model_catalog
+                .iter()
+                .filter_map(|model| {
+                    let qualified = format!("{}/{}", model.provider_id, model.model_id);
+                    let searchable = format!(
+                        "{} {} {} {}",
+                        model.provider_id, model.provider_name, model.model_id, model.model_name
+                    )
+                    .to_ascii_lowercase();
+                    (needle.is_empty() || searchable.contains(&needle)).then(|| {
+                        TuiPromptSuggestion {
+                            replacement: format!("/model {qualified}"),
+                            label: qualified,
+                            detail: Some(format!("{} · {}", model.provider_name, model.model_name)),
+                            kind: CompletionKind::SlashCommand,
+                            score: 100,
+                            continue_completion: false,
+                        }
+                    })
+                })
+                .collect()
         }
         _ => Vec::new(),
     }

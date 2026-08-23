@@ -1,0 +1,217 @@
+//! Product-neutral agent-turn lifecycle state for `ChatWidget`.
+
+use std::collections::HashSet;
+
+use super::*;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum TurnStartOutcome {
+    Started,
+    Duplicate,
+    ActiveConflict,
+    AlreadyTerminal,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum TurnEventOutcome {
+    Ready,
+    MissingBegin,
+    ActiveConflict,
+    AlreadyTerminal,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum TurnFinishOutcome {
+    Finished,
+    MissingBegin,
+    ActiveConflict,
+    DuplicateTerminal,
+}
+
+#[derive(Debug, Default)]
+pub(super) struct TurnLifecycleState {
+    active_turn_id: Option<String>,
+    terminal_turn_ids: HashSet<String>,
+}
+
+impl TurnLifecycleState {
+    pub(super) fn start(&mut self, turn_id: &str) -> TurnStartOutcome {
+        if self.terminal_turn_ids.contains(turn_id) {
+            return TurnStartOutcome::AlreadyTerminal;
+        }
+        match self.active_turn_id.as_deref() {
+            Some(active) if active == turn_id => TurnStartOutcome::Duplicate,
+            Some(_) => TurnStartOutcome::ActiveConflict,
+            None => {
+                self.active_turn_id = Some(turn_id.to_string());
+                TurnStartOutcome::Started
+            }
+        }
+    }
+
+    pub(super) fn accept_event(&mut self, turn_id: &str) -> TurnEventOutcome {
+        if self.terminal_turn_ids.contains(turn_id) {
+            return TurnEventOutcome::AlreadyTerminal;
+        }
+        match self.active_turn_id.as_deref() {
+            Some(active) if active == turn_id => TurnEventOutcome::Ready,
+            Some(_) => TurnEventOutcome::ActiveConflict,
+            None => {
+                self.active_turn_id = Some(turn_id.to_string());
+                TurnEventOutcome::MissingBegin
+            }
+        }
+    }
+
+    pub(super) fn finish(&mut self, turn_id: &str) -> TurnFinishOutcome {
+        if self.terminal_turn_ids.contains(turn_id) {
+            return TurnFinishOutcome::DuplicateTerminal;
+        }
+        match self.active_turn_id.as_deref() {
+            Some(active) if active == turn_id => {
+                self.active_turn_id = None;
+                self.terminal_turn_ids.insert(turn_id.to_string());
+                TurnFinishOutcome::Finished
+            }
+            Some(_) => TurnFinishOutcome::ActiveConflict,
+            None => {
+                self.terminal_turn_ids.insert(turn_id.to_string());
+                TurnFinishOutcome::MissingBegin
+            }
+        }
+    }
+
+}
+
+impl ChatWidget {
+    pub(super) fn on_turn_started(&mut self, turn_id: String) {
+        match self.turn_lifecycle.start(&turn_id) {
+            TurnStartOutcome::Started => {
+                self.set_status(V3ChatStatus::running("Working", None));
+            }
+            TurnStartOutcome::Duplicate => {
+                self.push_diagnostic("duplicate turn start", format!("turn_id={turn_id}"));
+            }
+            TurnStartOutcome::ActiveConflict => self.push_diagnostic(
+                "turn start while another turn is active",
+                format!("turn_id={turn_id}"),
+            ),
+            TurnStartOutcome::AlreadyTerminal => self.push_diagnostic(
+                "turn start after terminal",
+                format!("turn_id={turn_id}"),
+            ),
+        }
+    }
+
+    pub(super) fn accept_turn_event(&mut self, turn_id: &str, event_name: &str) -> bool {
+        match self.turn_lifecycle.accept_event(turn_id) {
+            TurnEventOutcome::Ready => true,
+            TurnEventOutcome::MissingBegin => {
+                self.push_diagnostic(
+                    "missing turn start",
+                    format!("event={event_name}; turn_id={turn_id}"),
+                );
+                self.set_status(V3ChatStatus::running("Working", None));
+                true
+            }
+            TurnEventOutcome::ActiveConflict => {
+                self.push_diagnostic(
+                    "event for non-active turn",
+                    format!("event={event_name}; turn_id={turn_id}"),
+                );
+                false
+            }
+            TurnEventOutcome::AlreadyTerminal => {
+                self.push_diagnostic(
+                    "event after turn terminal",
+                    format!("event={event_name}; turn_id={turn_id}"),
+                );
+                false
+            }
+        }
+    }
+
+    pub(super) fn begin_terminal(&mut self, turn_id: &str, event_name: &str) -> bool {
+        match self.turn_lifecycle.finish(turn_id) {
+            TurnFinishOutcome::Finished => true,
+            TurnFinishOutcome::MissingBegin => {
+                self.push_diagnostic(
+                    "turn terminal without start",
+                    format!("event={event_name}; turn_id={turn_id}"),
+                );
+                true
+            }
+            TurnFinishOutcome::ActiveConflict => {
+                self.push_diagnostic(
+                    "terminal for non-active turn",
+                    format!("event={event_name}; turn_id={turn_id}"),
+                );
+                false
+            }
+            TurnFinishOutcome::DuplicateTerminal => {
+                self.push_diagnostic(
+                    "duplicate turn terminal",
+                    format!("event={event_name}; turn_id={turn_id}"),
+                );
+                false
+            }
+        }
+    }
+
+    pub(super) fn on_turn_completed(&mut self, turn_id: String) {
+        if !self.begin_terminal(&turn_id, "turn completed") {
+            return;
+        }
+        self.commit_stream_segment();
+        if self.exec_state.has_running_calls() {
+            let call_ids = self.exec_state.finish_running(
+                130,
+                "tool did not emit a terminal event before turn completion",
+            );
+            self.sync_exec_group();
+            self.commit_exec_group();
+            self.push_diagnostic(
+                "turn completed with running tools",
+                format!("call_ids={}", call_ids.join(",")),
+            );
+        } else {
+            self.commit_exec_group();
+        }
+        self.set_status(V3ChatStatus::idle());
+    }
+
+    pub(super) fn on_turn_failed(&mut self, turn_id: String, message: String) {
+        if !self.begin_terminal(&turn_id, "turn failed") {
+            return;
+        }
+        self.commit_stream_segment();
+        self.exec_state.finish_running(1, &message);
+        self.commit_exec_group();
+        self.transcript.push_history(V3DisplayEvent::Error { message });
+        self.set_status(V3ChatStatus::idle());
+    }
+
+    pub(super) fn push_diagnostic(
+        &mut self,
+        type_name: impl Into<String>,
+        detail: impl Into<String>,
+    ) {
+        self.transcript.push_history(V3DisplayEvent::Unknown {
+            type_name: type_name.into(),
+            detail: detail.into(),
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn duplicate_terminal_is_explicit() {
+        let mut state = TurnLifecycleState::default();
+        assert_eq!(state.start("turn-1"), TurnStartOutcome::Started);
+        assert_eq!(state.finish("turn-1"), TurnFinishOutcome::Finished);
+        assert_eq!(state.finish("turn-1"), TurnFinishOutcome::DuplicateTerminal);
+    }
+}

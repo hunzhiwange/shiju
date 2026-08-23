@@ -18,6 +18,7 @@
 //! - `stdio` - 标准输入输出处理
 //! - `transcript` - 对话记录，保存和加载会话历史
 //! - `tui_v2` - gateway-first 终端用户界面（Terminal User Interface）
+//! - `tui_v3` - 默认交互入口使用的下一代 TUI 与 Gateway 适配边界
 //! - `tui_utils` - TUI 工具函数和辅助方法
 //!
 //! # 导出项
@@ -74,6 +75,7 @@ pub(crate) mod tui_utils;
 #[path = "tui_utils_tests.rs"]
 mod tui_utils_tests;
 pub(crate) mod tui_v2;
+pub(crate) mod tui_v3;
 
 /// 导出主运行入口函数
 ///

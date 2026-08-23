@@ -42,12 +42,10 @@ use crate::app::agent::config::Config;
 use anyhow::Result;
 
 use super::setup::CliSetup;
-use super::tui_v2::TuiRunMode;
-
 #[cfg(test)]
-use self::tests::run_tui_v2;
+use self::tests::run_tui_v3;
 #[cfg(not(test))]
-use super::tui_v2::run_tui_v2;
+use super::tui_v3::run_tui_v3;
 
 /// 启动交互式命令行会话
 ///
@@ -101,7 +99,7 @@ pub(crate) async fn run_interactive(
     setup: &CliSetup,
     _final_output: &mut String,
 ) -> Result<()> {
-    run_tui_v2(config, setup, TuiRunMode::Standard)
+    run_tui_v3(config, setup)
 }
 
 #[cfg(test)]

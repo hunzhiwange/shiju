@@ -1,0 +1,14 @@
+---
+source: crates/vw-tui-v3/src/chatwidget/rendering_tests.rs
+expression: "render_frame(&widget, 72, 20)"
+---
+• The next action requires an explicit decision.
+
+
+
+    Command
+    $ cargo clippy --all-targets --all-features -- -D warnings
+    Run command?
+    › 1. Allow
+      2. Deny
+      3. Cancel

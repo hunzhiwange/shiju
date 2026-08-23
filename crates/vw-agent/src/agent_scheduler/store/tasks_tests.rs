@@ -1,3 +1,5 @@
+//! 测试任务存储的状态转换、周期字段、筛选和任务板投影。
+
 use std::path::Path;
 
 use anyhow::Result;

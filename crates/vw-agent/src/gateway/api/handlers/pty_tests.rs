@@ -1,3 +1,5 @@
+// 覆盖伪终端会话的创建、输入、调整尺寸与清理接口。
+
 use super::*;
 use axum::extract::{Path, Query};
 use axum::http::HeaderMap;

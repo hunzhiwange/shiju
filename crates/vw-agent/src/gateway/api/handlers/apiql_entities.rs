@@ -1,3 +1,5 @@
+//! ApiQL 业务实体行为注册表，解析实体专属的虚拟字段规则。
+//!
 //! ApiQL business entity behavior registry.
 
 use serde_json::{Map, Value};

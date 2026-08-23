@@ -1,3 +1,5 @@
+//! 验证 WebDriver 端点探测、选择器转义及按键名称映射。
+
 use super::*;
 use fantoccini::key::Key as WebDriverKey;
 use std::time::Duration;

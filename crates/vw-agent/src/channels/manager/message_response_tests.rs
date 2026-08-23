@@ -760,3 +760,4 @@ async fn timeout_finalizes_existing_draft() {
         ]
     );
 }
+// 本文件验证消息响应的草稿、反应、钩子与渠道发送协作。

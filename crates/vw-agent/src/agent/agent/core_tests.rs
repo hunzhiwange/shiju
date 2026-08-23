@@ -1,3 +1,5 @@
+//! 测试代理核心的历史管理、模型选择与工具注册行为。
+
 use super::core::Agent;
 use crate::app::agent::config::{ClassificationRule, ModelRouteConfig, QueryClassificationConfig};
 use crate::app::agent::memory::NoneMemory;

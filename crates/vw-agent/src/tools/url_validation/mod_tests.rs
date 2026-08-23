@@ -1,3 +1,5 @@
+//! 验证网址规范化、主机提取、私网识别及域名策略边界。
+
 use super::*;
 
 fn policy<'a>(allowed: &'a [String], blocked: &'a [String]) -> DomainPolicy<'a> {

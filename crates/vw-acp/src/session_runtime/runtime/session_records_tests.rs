@@ -1,3 +1,5 @@
+//! 验证运行时创建与确保会话记录时的边界检查、归一化和持久化。
+
 use super::*;
 use std::collections::HashMap;
 use std::fs;

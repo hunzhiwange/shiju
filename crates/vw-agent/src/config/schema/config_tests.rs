@@ -1,3 +1,5 @@
+// 覆盖配置扩展接口、模型提供商配置及工作区覆盖规则。
+
 use super::config::{apply_named_model_provider_profile, apply_workspace_override};
 use super::{Config, ConfigExt, ModelProviderConfig};
 use std::ffi::{OsStr, OsString};

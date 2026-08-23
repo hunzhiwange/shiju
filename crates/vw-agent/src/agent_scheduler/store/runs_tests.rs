@@ -1,3 +1,5 @@
+//! 测试运行存储在多后端下的原子领取、租约与终止状态。
+
 use std::sync::{Arc, Barrier};
 
 use anyhow::Result;

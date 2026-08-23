@@ -1,3 +1,5 @@
+//! 外部消息通道的 Webhook 处理器，统一校验、对话执行与回复投递。
+
 use super::chat::{log_channel_message, run_gateway_chat_with_tools, sanitize_gateway_response};
 use super::state::AppState;
 use super::util::{

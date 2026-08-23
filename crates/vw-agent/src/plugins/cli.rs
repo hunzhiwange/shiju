@@ -1,4 +1,4 @@
-//! Command line handlers for plugin package management.
+//! 插件包管理的命令行处理入口。
 
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};

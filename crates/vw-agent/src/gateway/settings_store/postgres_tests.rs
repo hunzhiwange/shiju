@@ -1,3 +1,4 @@
+// 验证 PostgreSQL 设置存储按租户、命名空间与键隔离增删改查。
 use super::*;
 
 use crate::global_database::test_support::PostgresTestDatabase;

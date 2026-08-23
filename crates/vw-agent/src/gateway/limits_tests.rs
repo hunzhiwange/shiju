@@ -1,3 +1,4 @@
+// 验证滑动窗口限流器的边界容量、过期清理与键隔离。
 use super::*;
 use std::time::Duration;
 

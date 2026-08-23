@@ -195,3 +195,4 @@ fn create_chat_db() -> (tempfile::TempDir, std::path::PathBuf) {
     .expect("create messages schema");
     (dir, db_path)
 }
+// 本文件验证 iMessage 脚本转义、数据库轮询与平台健康检查。

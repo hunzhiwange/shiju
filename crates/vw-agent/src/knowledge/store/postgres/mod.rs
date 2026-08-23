@@ -1,3 +1,5 @@
+//! PostgreSQL 知识库后端的模块装配与模式初始化入口。
+
 mod cache;
 mod chunks;
 mod datasets;

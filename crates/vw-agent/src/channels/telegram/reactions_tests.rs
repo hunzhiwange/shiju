@@ -130,3 +130,4 @@ async fn try_add_ack_reaction_nonblocking_ignores_network_failures() {
 
     tokio::time::sleep(Duration::from_millis(100)).await;
 }
+// 本文件验证 Telegram 确认反应的请求形状、非阻塞发送与失败容忍。

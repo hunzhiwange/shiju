@@ -1,3 +1,5 @@
+//! 验证代理会话标识的规范化、字段优先级与无效元数据处理。
+
 use serde_json::json;
 
 use super::*;

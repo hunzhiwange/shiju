@@ -1,3 +1,5 @@
+//! 定义调度资源的申请与租约契约，具体资源类型通过 `ResourceProvider` 接入。
+
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;

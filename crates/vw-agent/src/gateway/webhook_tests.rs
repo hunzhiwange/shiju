@@ -1,3 +1,4 @@
+// 验证 Webhook 请求的认证、去重、渠道分派与响应契约。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore, hash_webhook_secret};

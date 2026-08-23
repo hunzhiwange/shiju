@@ -1,3 +1,5 @@
+//! 协调任务就绪检查、工作节点选择、运行租约与本地或 Matrix 派发的原子流程。
+
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 use vw_api_types::agent_scheduler::AgentSchedulerMatrixDispatchEventDto;

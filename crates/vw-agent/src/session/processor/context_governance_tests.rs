@@ -1,3 +1,5 @@
+//! 验证上下文预算、历史裁剪、摘要请求与技能上下文恢复。
+
 use super::*;
 use crate::app::agent::provider::provider::{ModelLimit, resolve_model_limit};
 use crate::app::agent::tools::ToolSpec;

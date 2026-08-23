@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 调度存储的连接、事务和作用域初始化。
+
 use anyhow::Result;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};

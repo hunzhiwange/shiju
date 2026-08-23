@@ -1,3 +1,5 @@
+//! 验证始居应用列表、安装状态和请求响应转换行为。
+
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;

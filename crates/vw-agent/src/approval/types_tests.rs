@@ -1,3 +1,5 @@
+//! 测试审批领域类型对决议、摘要和请求身份字段的保留。
+
 use super::{
     ApprovalLogEntry, ApprovalResponse, PendingApprovalError, PendingNonCliApprovalRequest,
 };

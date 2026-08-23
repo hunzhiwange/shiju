@@ -93,3 +93,4 @@ async fn handle_unauthorized_message_is_non_failing() {
     let channel = TelegramChannel::new("token".to_string(), vec![], false);
     channel.handle_unauthorized_message(&serde_json::json!({"message": {"text": "nope"}})).await;
 }
+// 本文件验证 Telegram API 地址、许可判断、客户端构建与错误脱敏。

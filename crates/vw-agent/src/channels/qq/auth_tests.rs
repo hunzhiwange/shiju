@@ -306,3 +306,4 @@ async fn get_gateway_url_requires_url_field() {
     assert_eq!(server.next_request().await.lines().next().unwrap(), "GET /gateway HTTP/1.1");
     assert!(err.contains("Missing gateway URL in QQ response"));
 }
+// 本文件验证 QQ 鉴权端点约束、凭据请求与令牌过期时间调整。

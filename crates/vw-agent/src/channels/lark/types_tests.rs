@@ -95,3 +95,4 @@ fn ws_client_config_defaults_to_no_ping_interval() {
 
     assert_eq!(config.ping_interval, None);
 }
+// 本文件验证 Lark WebSocket 协议帧、响应载荷与客户端默认配置。

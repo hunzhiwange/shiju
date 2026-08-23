@@ -1,3 +1,4 @@
+// 覆盖 PostgreSQL 记忆读写语句、分类序列化与输入保留。
 use super::*;
 use crate::memory::traits::MemoryCategory;
 

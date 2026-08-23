@@ -1,3 +1,5 @@
+//! 验证 heredoc 校验器对可展开边界与安全形式的判定。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

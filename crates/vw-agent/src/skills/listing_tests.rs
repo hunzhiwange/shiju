@@ -1,3 +1,5 @@
+//! 验证技能列表的筛选、排序和展示信息构造行为。
+
 use super::{Skill, SkillListingSessionState};
 
 fn skill(name: &str, description: &str) -> Skill {

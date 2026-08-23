@@ -1,3 +1,5 @@
+//! 验证旧版技能安装的来源校验、复制与冲突处理行为。
+
 use super::*;
 use std::ffi::OsString;
 

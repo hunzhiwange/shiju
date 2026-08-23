@@ -1,3 +1,5 @@
+//! 测试记忆加载器的召回筛选、格式化与失败降级。
+
 use super::*;
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
 use async_trait::async_trait;

@@ -1,3 +1,5 @@
+// 覆盖工作区配置来源解析、路径选择及项目覆盖发现。
+
 use super::workspace::{
     ConfigResolutionSource, clear_active_workspace_marker, default_config_and_workspace_dirs,
     default_config_dir, is_temp_directory, persist_active_workspace_config_dir_with_default,

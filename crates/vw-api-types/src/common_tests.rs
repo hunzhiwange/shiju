@@ -1,3 +1,5 @@
+//! 验证通用 DTO 的序列化形状及可选字段省略规则。
+
 use super::common::{
     JsonMap, OperationAck, PaginatedResponse, PaginationRequest, StringMap, TimestampMs,
 };

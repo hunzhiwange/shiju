@@ -1,3 +1,5 @@
+//! 验证原生浏览器后端的导航、元素操作、截图与安全边界。
+
 use super::*;
 use axum::body::to_bytes;
 use axum::extract::{Request, State};

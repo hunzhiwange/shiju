@@ -1,3 +1,5 @@
+//! 验证工具注册表的启用条件、稳定顺序及不同输出视图的契约。
+
 use super::{
     list_tool_specs_response, openai_tools_json, should_enable_question_tool, should_enable_search,
     should_use_apply_patch, spec_dtos, specs, specs_json,

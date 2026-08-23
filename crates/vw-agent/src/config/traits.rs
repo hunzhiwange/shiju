@@ -1,3 +1,5 @@
+//! 通道配置及通用配置项的名称与描述契约。
+
 /// The trait for describing a channel
 pub trait ChannelConfig {
     /// human-readable name

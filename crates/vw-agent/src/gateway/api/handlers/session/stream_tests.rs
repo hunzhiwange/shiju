@@ -1,3 +1,5 @@
+// 覆盖会话流事件转换、历史整理及代理选项合并。
+
 use super::*;
 use crate::config::DelegateAgentConfig;
 use axum::http::header;

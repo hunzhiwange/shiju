@@ -1,3 +1,5 @@
+//! 验证 Actor 运行时的复用条件、重启原因、关闭与失败清理。
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

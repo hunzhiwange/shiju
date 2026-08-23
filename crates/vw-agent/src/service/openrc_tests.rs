@@ -1,3 +1,5 @@
+//! 验证 OpenRC 脚本、账户约束、状态迁移与探测命令构造。
+
 use super::openrc::generate_openrc_script;
 use super::openrc::test_support::{
     binary_path_appears_in_home, copy_dir_recursive, migrate_openrc_runtime_state_with,

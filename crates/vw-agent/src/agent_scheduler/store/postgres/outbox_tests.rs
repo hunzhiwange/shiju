@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 发件箱的并发领取、租约与重试状态。
+
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::common::TimestampMs;

@@ -1,3 +1,5 @@
+//! 验证提示拼装的角色顺序、字节预算与 UTF-8 截断边界。
+
 use crate::app::agent::session::session::{Role, Session};
 
 #[test]

@@ -1,5 +1,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 
+//! 验证 worktree 创建、列举、重置和删除操作及缺失项目上下文的失败边界。
+
 use super::{CreateInput, Error, RemoveInput, ResetInput, create, list_directories, remove, reset};
 use crate::app::agent::project::{self, instance};
 use std::path::{Path, PathBuf};

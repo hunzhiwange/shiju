@@ -1,3 +1,5 @@
+//! 验证令牌估算按每四字节向上取整。
+
 use super::token::estimate;
 
 #[test]

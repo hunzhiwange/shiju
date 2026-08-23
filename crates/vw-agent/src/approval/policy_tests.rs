@@ -1,3 +1,5 @@
+//! 测试审批策略的自治级别、白名单、审计和非命令行授权。
+
 use std::collections::HashMap;
 
 use crate::app::agent::config::{AutonomyConfig, NonCliNaturalLanguageApprovalMode};

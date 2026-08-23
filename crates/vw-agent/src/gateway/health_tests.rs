@@ -1,3 +1,4 @@
+// 验证健康检查与指标端点的访问限制、内容类型和运行时快照。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

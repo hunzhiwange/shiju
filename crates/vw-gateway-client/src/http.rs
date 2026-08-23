@@ -10,10 +10,15 @@
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde_json::Value;
 use tracing::{debug, error, warn};
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
 
 use crate::endpoint::GatewayEndpoint;
+
+const SANITIZED_PAYLOAD_MAX_CHARS: usize = 512;
+const SANITIZED_FIELD_MAX_CHARS: usize = 128;
+const REDACTED_VALUE: &str = "[REDACTED]";
 
 /// 为异步请求构造器附加网关认证与租户上下文头。
 ///
@@ -121,25 +126,26 @@ pub async fn response_error(
 ) -> String {
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
+    let sanitized_body = sanitize_payload(&body);
     warn!(
         target: "vw_gateway_client",
         method = method,
         endpoint = %endpoint.describe(),
         path = path,
         status = %status,
-        response_body = %body.trim(),
+        response_body = %sanitized_body,
         "gateway request returned non-success status"
     );
-    if body.trim().is_empty() {
+    if sanitized_body.is_empty() {
         format!("gateway request failed: {status}")
     } else {
-        format!("gateway request failed: {status} {}", body.trim())
+        format!("gateway request failed: {status} {sanitized_body}")
     }
 }
 
 /// 记录请求基础信息，便于排查网关交互问题。
 ///
-/// 当前日志内容包含方法、端点、路径、查询参数与请求体 JSON 文本。
+/// 日志只包含方法、端点、路径及查询/请求体是否存在，不序列化业务载荷。
 pub fn log_request<B: Serialize>(
     method: &str,
     endpoint: &GatewayEndpoint,
@@ -147,14 +153,13 @@ pub fn log_request<B: Serialize>(
     query: &[(String, String)],
     body: Option<&B>,
 ) {
-    let body_json = body.and_then(|value| serde_json::to_string(value).ok()).unwrap_or_default();
     debug!(
         target: "vw_gateway_client",
         method = method,
         endpoint = %endpoint.describe(),
         path = path,
-        query = %format_query(query),
-        body = %body_json,
+        query_parameter_count = query.len(),
+        body_present = body.is_some(),
         "sending gateway request"
     );
 }
@@ -169,19 +174,20 @@ pub fn response_error_blocking(
 ) -> String {
     let status = response.status();
     let body = response.text().unwrap_or_default();
+    let sanitized_body = sanitize_payload(&body);
     warn!(
         target: "vw_gateway_client",
         method = method,
         endpoint = %endpoint.describe(),
         path = path,
         status = %status,
-        response_body = %body.trim(),
+        response_body = %sanitized_body,
         "gateway request returned non-success status"
     );
-    if body.trim().is_empty() {
+    if sanitized_body.is_empty() {
         format!("gateway request failed: {status}")
     } else {
-        format!("gateway request failed: {status} {}", body.trim())
+        format!("gateway request failed: {status} {sanitized_body}")
     }
 }
 
@@ -262,12 +268,99 @@ pub(crate) fn is_retryable_gateway_error(message: &str) -> bool {
     is_gateway_unavailable_error(message)
 }
 
-fn format_query(query: &[(String, String)]) -> String {
-    if query.is_empty() {
-        String::new()
-    } else {
-        query.iter().map(|(key, value)| format!("{key}={value}")).collect::<Vec<_>>().join("&")
+fn sanitize_payload(payload: &str) -> String {
+    let payload = payload.trim();
+    if payload.is_empty() {
+        return String::new();
     }
+
+    let sanitized = match serde_json::from_str::<Value>(payload) {
+        Ok(mut value) => {
+            sanitize_json_value(&mut value);
+            value.to_string()
+        }
+        Err(_) if contains_sensitive_marker(payload) => REDACTED_VALUE.to_string(),
+        Err(_) => payload.to_string(),
+    };
+    truncate_payload(sanitized)
+}
+
+fn sanitize_json_value(value: &mut Value) {
+    match value {
+        Value::Object(fields) => {
+            for (key, value) in fields {
+                if is_sensitive_key(key) {
+                    *value = Value::String(REDACTED_VALUE.to_string());
+                } else {
+                    sanitize_json_value(value);
+                }
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                sanitize_json_value(value);
+            }
+        }
+        Value::String(text) => {
+            *text = if contains_sensitive_marker(text) {
+                REDACTED_VALUE.to_string()
+            } else {
+                truncate_text(text, SANITIZED_FIELD_MAX_CHARS)
+            };
+        }
+        _ => {}
+    }
+}
+
+fn is_sensitive_key(key: &str) -> bool {
+    let normalized = key
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect::<String>();
+    [
+        "skey",
+        "token",
+        "password",
+        "credential",
+        "apikey",
+        "secret",
+        "authorization",
+    ]
+    .iter()
+    .any(|sensitive| normalized.contains(sensitive))
+}
+
+fn contains_sensitive_marker(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    [
+        "skey",
+        "token",
+        "password",
+        "credential",
+        "api_key",
+        "api-key",
+        "apikey",
+        "secret",
+        "authorization",
+        "bearer ",
+        "sk-",
+        "ghp_",
+        "xoxb-",
+    ]
+    .iter()
+    .any(|sensitive| lower.contains(sensitive))
+}
+
+fn truncate_payload(payload: String) -> String {
+    truncate_text(&payload, SANITIZED_PAYLOAD_MAX_CHARS)
+}
+
+fn truncate_text(text: &str, max_chars: usize) -> String {
+    let Some((end, _)) = text.char_indices().nth(max_chars) else {
+        return text.to_string();
+    };
+    format!("{}…", &text[..end])
 }
 
 #[cfg(test)]

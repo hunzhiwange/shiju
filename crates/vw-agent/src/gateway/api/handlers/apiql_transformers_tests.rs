@@ -1,3 +1,5 @@
+// 覆盖 ApiQL 关联转换器的解析、子查询构建与结果合并。
+
 use super::*;
 use serde_json::json;
 use std::collections::BTreeMap;

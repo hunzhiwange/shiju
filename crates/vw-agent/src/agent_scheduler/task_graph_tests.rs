@@ -1,3 +1,5 @@
+//! 测试任务图的拓扑校验和基于运行状态的就绪推导。
+
 use super::domain::TaskId;
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::task_graph::{

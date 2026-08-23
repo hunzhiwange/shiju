@@ -1,3 +1,5 @@
+//! 测试工具循环进度和最终响应的分块、清理、取消及通道关闭行为。
+
 use super::*;
 
 fn drain_available(rx: &mut tokio::sync::mpsc::Receiver<String>) -> Vec<String> {

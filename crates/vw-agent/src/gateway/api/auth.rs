@@ -1,3 +1,5 @@
+//! 网关 REST 处理器的 skey 提取与认证边界。
+//!
 //! Gateway skey authentication for REST API handlers.
 
 use super::super::AppState;

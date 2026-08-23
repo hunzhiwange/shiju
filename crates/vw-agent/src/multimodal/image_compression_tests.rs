@@ -1,3 +1,4 @@
+// 验证图像压缩的尺寸与总量预算，并避免静默破坏动画格式。
 use super::image_compression::{
     MAX_OUTPUT_DIMENSION, TOTAL_NORMALIZED_IMAGE_BYTES, compress_image_bytes,
     per_image_output_budget,

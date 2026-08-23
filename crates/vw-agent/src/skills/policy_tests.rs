@@ -1,3 +1,5 @@
+//! 验证新版技能策略的来源信任、能力限制与拒绝规则。
+
 use super::*;
 use crate::app::agent::skills::types::SkillDownloadPolicy;
 

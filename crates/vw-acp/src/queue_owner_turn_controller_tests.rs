@@ -1,3 +1,5 @@
+//! 验证队列所有者轮次控制器的生命周期、取消和关闭状态转换。
+
 use super::*;
 use std::sync::{Arc, Mutex, MutexGuard};
 

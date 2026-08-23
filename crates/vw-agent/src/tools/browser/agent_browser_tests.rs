@@ -1,3 +1,5 @@
+//! 验证 agent-browser 命令响应、启动参数和安全拒绝边界。
+
 use super::*;
 use crate::app::agent::security::SecurityPolicy;
 use std::sync::Arc;

@@ -1,4 +1,4 @@
-//! Trust records for reviewed plugin hook declarations.
+//! 已审核插件钩子声明的信任记录。
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

@@ -1,3 +1,5 @@
+//! 验证插件清单必填字段、组件路径、钩子顺序与解析错误上下文。
+
 use super::load_plugin_manifest;
 use serde_json::json;
 use std::fs;

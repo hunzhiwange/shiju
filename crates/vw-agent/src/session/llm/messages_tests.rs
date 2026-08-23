@@ -1,3 +1,5 @@
+//! 验证系统消息构造、工具结果补全与供应商消息规范化。
+
 use super::super::types::{AgentInfo, StreamInput};
 use super::*;
 

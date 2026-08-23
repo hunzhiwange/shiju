@@ -1,3 +1,5 @@
+//! 验证会话模型、标题分叉、事件类型及项目上下文边界。
+
 use super::{
     CreateInput, Error, Role, Session, children, create_default_title, create_next, event, extra,
     fork, forked_title, get, instance_directory_opt, list, project_id, remove, touch, update,

@@ -1,3 +1,4 @@
+// 验证目标引擎的状态推进、预算约束与终止条件。
 use super::*;
 
 use tempfile::TempDir;

@@ -252,3 +252,4 @@ fn load_from_path_without_env_blocking_rejects_path_without_parent() {
         matches!(error, Error::Invalid(message) if message == "config path must have a parent directory")
     );
 }
+// 本文件验证插件配置去重、JSON 合并及网关密钥的提取与回填。

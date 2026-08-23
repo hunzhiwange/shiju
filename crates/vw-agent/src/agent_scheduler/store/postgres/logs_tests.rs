@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 日志存储的写入、过滤与分页契约。
+
 use anyhow::Result;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_types::common::TimestampMs;

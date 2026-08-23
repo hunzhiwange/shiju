@@ -1,3 +1,4 @@
+// 覆盖网关配对流程在未配对、已配对和无效令牌下的访问结果。
 use super::*;
 use crate::app::agent::config::schema::ConfigExt;
 use crate::app::agent::gateway::pairing::{handle_pair, handle_pair_code, persist_pairing_tokens};

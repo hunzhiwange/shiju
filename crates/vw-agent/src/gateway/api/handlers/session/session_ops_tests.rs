@@ -1,3 +1,5 @@
+// 覆盖会话创建、筛选、状态、待办及实例作用域操作。
+
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

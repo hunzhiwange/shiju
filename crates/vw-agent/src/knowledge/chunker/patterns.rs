@@ -1,3 +1,5 @@
+//! Markdown 标题与围栏标记的轻量识别规则，供分块器复用。
+
 use once_cell::sync::Lazy;
 use regex::Regex;
 

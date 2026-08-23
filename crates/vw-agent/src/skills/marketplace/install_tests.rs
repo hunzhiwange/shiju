@@ -1,3 +1,5 @@
+//! 验证市场技能安装的缓存、版本选择与路径安全边界。
+
 use std::fs;
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};

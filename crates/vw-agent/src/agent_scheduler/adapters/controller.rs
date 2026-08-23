@@ -1,3 +1,5 @@
+//! 定义调度器与工作节点控制器之间的生命周期请求、状态快照及适配器契约。
+
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 

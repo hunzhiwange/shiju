@@ -557,3 +557,4 @@ async fn protocol_writes_return_database_errors_when_tables_are_missing() {
     assert!(ProtocolStore::delete_tc_token(&store, "jid").await.is_err());
     assert!(ProtocolStore::delete_expired_tc_tokens(&store, 1).await.is_err());
 }
+// 本文件验证 WhatsApp 协议存储中的收件人、映射、密钥及令牌生命周期。

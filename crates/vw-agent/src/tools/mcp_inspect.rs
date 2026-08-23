@@ -1,4 +1,6 @@
-//! MCP server inspection helpers shared by gateway and tools.
+//! 网关与工具共用的 MCP 服务器检查逻辑。
+//!
+//! 各类能力独立探测并分别记录错误，避免单项失败遮蔽其余可用信息。
 
 use super::mcp_common::{
     management_for_server, management_timeout, mcp_tool_allowed, server_name, server_transport,

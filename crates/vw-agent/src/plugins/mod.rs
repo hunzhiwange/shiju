@@ -1,4 +1,4 @@
-//! Plugin package support.
+//! 插件包的发现、校验、安装与运行时集成入口。
 
 mod audit;
 mod cli;

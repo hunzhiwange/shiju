@@ -53,3 +53,4 @@ fn uniform_index_for_single_element_is_always_zero() {
         assert_eq!(pick_uniform_index(1), 0);
     }
 }
+// 本文件验证 Discord 表情编码、反应端点生成与确认表情选择。

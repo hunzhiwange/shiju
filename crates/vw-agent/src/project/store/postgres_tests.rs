@@ -1,3 +1,5 @@
+//! 验证 PostgreSQL 项目存储对可选 JSON 数据的解析边界。
+
 use super::parse_optional_json;
 
 #[test]

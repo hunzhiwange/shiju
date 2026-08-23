@@ -1,3 +1,5 @@
+//! 验证委派执行的提供方创建、超时、错误及安全检查边界。
+
 use super::*;
 use crate::app::agent::config::DelegateAgentConfig;
 use crate::app::agent::providers::{ChatRequest, ChatResponse, Provider, ProviderRuntimeOptions};

@@ -1,3 +1,5 @@
+//! 验证工具执行事件、批处理并发、结果记录与子代理生命周期。
+
 use crate::app::agent::session::processor::{StreamEvent, ToolCallStatus, ToolEventKind};
 use crate::app::agent::session::session::{Role, Session};
 use crate::app::agent::tools::{ToolCallError, ToolRuntimeContext, ToolUseContext, todo};

@@ -1,3 +1,5 @@
+// 覆盖 ApiQL 实体配置、字段映射与注册表解析。
+
 use serde_json::{Map, Value, json};
 use vw_api_types::apiql::{ApiQlEntityConfig, ApiQlFieldConfig};
 

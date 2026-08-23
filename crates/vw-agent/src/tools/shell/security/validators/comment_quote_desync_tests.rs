@@ -1,3 +1,5 @@
+//! 验证注释与引号失同步校验器的风险识别边界。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

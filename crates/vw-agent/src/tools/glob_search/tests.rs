@@ -1,3 +1,5 @@
+//! 验证文件通配搜索的匹配结果、排序、路径边界与调用频率限制。
+
 use super::super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use serde_json::json;

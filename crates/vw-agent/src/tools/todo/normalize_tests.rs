@@ -1,3 +1,5 @@
+//! 验证待办项归一化会清理字段、去重并稳定分配有效标识。
+
 use super::*;
 
 fn todo(id: &str, content: &str, status: &str, priority: &str) -> Todo {

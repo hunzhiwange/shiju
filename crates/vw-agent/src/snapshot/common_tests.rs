@@ -1,3 +1,5 @@
+//! 验证跨平台快照模型的差异统计、序列化与路径处理。
+
 use super::*;
 #[cfg(not(target_arch = "wasm32"))]
 use serde_json::Value;

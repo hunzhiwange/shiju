@@ -1,3 +1,5 @@
+//! 验证会话处理主流程的模型解析、协议注入、重试与分支终止。
+
 #[test]
 fn runner_tests_module_is_wired() {
     let marker = String::from("runner_tests");

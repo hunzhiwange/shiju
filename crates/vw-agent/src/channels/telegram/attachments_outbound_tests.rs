@@ -225,3 +225,4 @@ async fn resolve_photo_data_uri_errors_when_download_is_not_an_image() {
         vec!["/bot123:ABC/getFile?file_id=photo-id", "/file/bot123:ABC/photos/not-image.bin"]
     );
 }
+// 本文件验证 Telegram 出站图片的数据地址解析、下载与尺寸约束。

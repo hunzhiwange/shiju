@@ -1,3 +1,5 @@
+//! 验证 AI SDK 错误链到结构化助手错误的分类与脱敏。
+
 use aisdk::Error as AiError;
 use reqwest::StatusCode;
 use serde_json::Value;

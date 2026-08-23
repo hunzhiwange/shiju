@@ -1,3 +1,5 @@
+//! ApiQL 只读数据库执行器，负责查询参数绑定、分页与后端结果归一化。
+//!
 //! Read-only database executor used by ApiQL.
 
 use std::collections::BTreeMap;

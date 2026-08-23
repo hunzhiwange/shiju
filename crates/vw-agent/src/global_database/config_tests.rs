@@ -1,3 +1,4 @@
+// 验证全局数据库配置的默认值、连接参数与提供方解析。
 use std::collections::HashMap;
 
 use anyhow::Result;

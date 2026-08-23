@@ -1,3 +1,5 @@
+//! 验证 AI SDK 流事件、用量、结束原因与错误传播。
+
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};

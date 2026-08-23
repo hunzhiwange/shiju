@@ -1,3 +1,5 @@
+//! 验证超时包装器区分及时完成与超过期限的异步任务。
+
 use super::timeout::with_timeout;
 use std::time::Duration;
 

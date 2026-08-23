@@ -1,3 +1,5 @@
+//! 记忆查询、写入与删除的网关处理器，并统一认证和错误映射。
+//!
 //! Memory API handlers.
 
 use super::super::types::{MemoryQuery, MemoryStoreBody};

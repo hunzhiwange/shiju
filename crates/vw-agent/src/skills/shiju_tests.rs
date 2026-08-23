@@ -1,3 +1,5 @@
+//! 验证始居技能来源的查询、安装与错误映射行为。
+
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;

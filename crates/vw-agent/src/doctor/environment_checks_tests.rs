@@ -1,3 +1,5 @@
+// 覆盖命令可用性与关键环境变量的诊断结果。
+
 use std::sync::{Mutex, MutexGuard};
 
 use super::environment_checks::{check_command_available, check_environment};

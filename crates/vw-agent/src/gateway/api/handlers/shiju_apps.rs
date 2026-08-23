@@ -1,3 +1,5 @@
+//! SHIJU 应用网关接口，代理目录、安装项、密钥绑定与启动准备请求。
+//!
 //! SHIJU application gateway API.
 
 use std::sync::Arc;

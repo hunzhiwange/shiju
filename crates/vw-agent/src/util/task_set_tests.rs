@@ -1,3 +1,5 @@
+//! 验证任务集合能够等待已生成任务并正确报告空队列。
+
 use super::task_set::TaskSet;
 
 #[tokio::test]

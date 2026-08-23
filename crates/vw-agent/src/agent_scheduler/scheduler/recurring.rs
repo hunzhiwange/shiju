@@ -1,3 +1,5 @@
+//! 解析周期任务时间并判断执行、等待或跳过，同时维护最近和下次执行时间。
+
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};

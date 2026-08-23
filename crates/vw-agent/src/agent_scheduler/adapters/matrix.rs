@@ -1,3 +1,5 @@
+//! 提供 Matrix 消息派发契约，并在未配置或缺少对应功能时明确拒绝发送。
+
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;

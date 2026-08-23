@@ -1,3 +1,5 @@
+//! 验证运行时队列所有者控制桥接、超时错误和不支持操作反馈。
+
 use super::*;
 use std::sync::{Mutex, MutexGuard};
 

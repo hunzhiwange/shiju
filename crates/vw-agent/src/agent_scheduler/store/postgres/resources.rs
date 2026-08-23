@@ -1,3 +1,5 @@
+//! 实现 PostgreSQL 资源租约的互斥获取、续期、释放、过期与污染状态管理。
+
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

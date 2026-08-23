@@ -1,3 +1,5 @@
+//! 测试资源租约状态解析和底层过期更新辅助逻辑。
+
 use anyhow::Result;
 use rusqlite::{Connection, params};
 use vw_api_types::common::TimestampMs;

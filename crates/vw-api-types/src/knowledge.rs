@@ -2,6 +2,8 @@
 //!
 //! This module only defines data crossing the gateway boundary. Storage,
 //! indexing and retrieval behavior live in `vw-agent`.
+//!
+//! 本模块只描述跨越网关边界的知识库数据契约，不负责存储、索引或检索行为。
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

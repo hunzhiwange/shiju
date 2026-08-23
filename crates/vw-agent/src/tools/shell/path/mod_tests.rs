@@ -1,3 +1,5 @@
+//! 验证 shell 参数与重定向路径的提取、归一化及工作区访问边界。
+
 use std::path::{Path, PathBuf};
 
 use crate::tools::shell::ast::ParsedCommand;

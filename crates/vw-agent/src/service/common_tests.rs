@@ -1,3 +1,5 @@
+//! 验证服务环境渲染、XML 转义与外部命令输出错误处理。
+
 use super::common::{
     build_launchd_env_vars, build_systemd_env_vars, run_capture, run_checked, xml_escape,
 };

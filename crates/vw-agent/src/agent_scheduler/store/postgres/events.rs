@@ -1,3 +1,5 @@
+//! 实现 PostgreSQL 调度事件追加与查询，并完成数据库行到领域事件的校验映射。
+
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

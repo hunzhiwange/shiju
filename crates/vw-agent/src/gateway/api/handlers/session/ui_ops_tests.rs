@@ -1,3 +1,5 @@
+// 覆盖 UI 会话快照、原始模型步骤及归档作用域持久化。
+
 use super::*;
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::session::ui_store;

@@ -1,3 +1,5 @@
+//! 验证单条及复合命令的风险分级与高风险模式识别。
+
 use super::super::CommandRiskLevel;
 use super::*;
 

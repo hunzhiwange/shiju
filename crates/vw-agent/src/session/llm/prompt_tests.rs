@@ -1,3 +1,5 @@
+//! 验证模型解析、ACP 路由和提示入口的前置错误处理。
+
 use super::super::Error;
 use super::super::types::{PromptStreamEvent, StreamEvent};
 use super::*;

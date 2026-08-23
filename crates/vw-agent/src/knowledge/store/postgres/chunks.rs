@@ -1,3 +1,5 @@
+//! PostgreSQL 知识分块的查询、替换与行映射逻辑。
+
 use anyhow::{Context, Result, bail};
 use postgres::{GenericClient, Row};
 use serde_json::Value;

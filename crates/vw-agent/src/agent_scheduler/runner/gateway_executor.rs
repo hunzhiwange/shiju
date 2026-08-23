@@ -1,3 +1,5 @@
+//! 通过网关聊天流执行本地代理任务，并桥接工作树池、流式事件与执行结果。
+
 use std::future::Future;
 use std::path::Path;
 use std::pin::Pin;

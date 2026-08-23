@@ -1,3 +1,5 @@
+//! 统一技能市场网关，聚合多来源查询并校验安装目标与制品坐标。
+//!
 //! Unified read-only skill-market gateway API.
 
 use std::collections::BTreeSet;

@@ -1,3 +1,5 @@
+//! Lark WebSocket 测试使用的 HTTP、套接字服务与协议帧夹具。
+
 use super::super::*;
 use prost::Message;
 use serde_json::json;

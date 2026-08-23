@@ -179,3 +179,4 @@ async fn listen_propagates_invalid_room_reference_error() {
 
     assert!(err.to_string().contains("must start with '!' (room ID) or '#' (room alias)"));
 }
+// 本文件验证 Matrix 渠道接口的收发、健康检查与一次性密钥冲突保护。

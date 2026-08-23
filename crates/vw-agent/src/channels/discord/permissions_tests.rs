@@ -25,3 +25,4 @@ fn group_sender_trigger_requires_exact_trimmed_match_or_wildcard() {
     assert!(is_group_sender_trigger_enabled(&["sender-2".to_string()], "\tsender-2\n"));
     assert!(!is_group_sender_trigger_enabled(&["sender-2".to_string()], "sender-3"));
 }
+// 本文件验证 Discord 用户许可与群聊发送者触发规则。

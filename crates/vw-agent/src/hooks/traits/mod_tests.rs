@@ -1,3 +1,4 @@
+// 验证钩子事件与结果类型的默认行为和对象安全调用。
 use super::*;
 
 struct DefaultHook;

@@ -1,3 +1,4 @@
+// 验证身份输入的空白处理、字段规范化与长度边界。
 use super::*;
 use serde_json::json;
 

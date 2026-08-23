@@ -1,3 +1,5 @@
+//! 验证脚本运行结果解析、错误脱敏及 JavaScript 与 Python 执行契约。
+
 use super::{
     javascript_script, parse_last_json_line, python_script, run_code_node, run_script,
     sanitize_error_text, value_to_output_map,

@@ -623,3 +623,4 @@ async fn listen_exits_on_gateway_control_opcodes() {
     listen_with_gateway_events(vec![json!({"op":7,"s":1})]).await;
     listen_with_gateway_events(vec![json!({"op":9,"s":1})]).await;
 }
+// 本文件覆盖 Discord 渠道的收发主流程、网关交互与错误路径。

@@ -1,3 +1,5 @@
+//! 验证浏览器动作解析、参数校验与稳定名称映射。
+
 use super::*;
 use serde_json::json;
 

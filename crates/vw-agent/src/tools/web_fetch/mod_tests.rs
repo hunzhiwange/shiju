@@ -1,3 +1,5 @@
+//! 验证网页抓取工具的配置、内容转换及发起网络请求前的输入拒绝。
+
 use super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use crate::app::agent::tools::traits::Tool;

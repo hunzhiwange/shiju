@@ -1,3 +1,5 @@
+//! 验证 ACP 请求选项、模型和消息载荷的构造规则。
+
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 

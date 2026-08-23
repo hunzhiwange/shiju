@@ -1,3 +1,5 @@
+//! 实现 PostgreSQL 任务产物存取，并在事务内验证运行与任务的归属关系。
+
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

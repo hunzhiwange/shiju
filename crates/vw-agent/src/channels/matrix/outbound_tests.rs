@@ -353,3 +353,4 @@ fn status_label_covers_all_variants() {
         assert_eq!(task_pool_status_label(status), expected);
     }
 }
+// 本文件验证 Matrix Markdown、调度事件与原始事件的出站发送。

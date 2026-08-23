@@ -1,3 +1,5 @@
+//! 测试发件箱存储的领取租约、重试状态与并发幂等性。
+
 use std::path::Path;
 use std::sync::{Arc, Barrier};
 

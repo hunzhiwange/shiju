@@ -1,3 +1,5 @@
+//! 验证 ACP v1 标准输入输出流程、历史回放和能力拒绝契约。
+
 use std::path::PathBuf;
 use std::sync::Arc;
 

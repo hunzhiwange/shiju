@@ -1,3 +1,5 @@
+//! 验证网关密钥的租户隔离、原子替换、哈希与展示掩码。
+
 use super::*;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;

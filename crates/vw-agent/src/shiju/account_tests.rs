@@ -1,3 +1,5 @@
+//! 验证始居账号状态的序列化、缓存与错误映射契约。
+
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;

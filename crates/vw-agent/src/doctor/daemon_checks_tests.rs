@@ -1,3 +1,5 @@
+// 覆盖守护进程心跳、组件健康状态及兼容告警判断。
+
 use super::Severity;
 use super::daemon_checks::check_daemon_state;
 use crate::app::agent::config::Config;

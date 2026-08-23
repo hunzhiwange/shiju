@@ -1,3 +1,5 @@
+//! 验证休眠时长解析的优先级、范围限制及工具规格。
+
 use super::{Args, MAX_SLEEP_MS, SleepTool};
 use crate::app::agent::tools::Tool;
 use serde_json::json;

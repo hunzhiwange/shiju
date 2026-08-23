@@ -1,3 +1,5 @@
+//! 验证技能工具的显式引用识别、可见性过滤、路径定位与提示序列化。
+
 use super::{
     Args, SkillTool, available_skill_names, base_dir_url, block_on,
     explicitly_referenced_skill_names, file_url, filter_delegate_skills, skill_file_id,

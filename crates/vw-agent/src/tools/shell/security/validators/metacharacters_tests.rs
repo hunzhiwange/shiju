@@ -1,3 +1,5 @@
+//! 验证 shell 元字符校验器阻断命令链与动态执行入口。
+
 use super::metacharacters::MetacharactersValidator;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityCategory, SecurityValidator, Severity};

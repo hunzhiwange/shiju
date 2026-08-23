@@ -1,3 +1,5 @@
+//! 验证工具调用前后钩子的透传、取消映射与权限决策兼容行为。
+
 use super::*;
 use crate::app::agent::hooks::HookHandler;
 use async_trait::async_trait;

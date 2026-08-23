@@ -661,3 +661,4 @@ async fn list_approvals_reports_config_read_error() {
     assert!(response.contains("Failed to read approval state"));
     assert!(response.contains("Failed to read"));
 }
+// 本文件验证审批运行时命令的查询、增删、持久化与回复内容。

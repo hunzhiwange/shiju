@@ -1,3 +1,5 @@
+// 覆盖识炬应用目录、启动和绑定接口的转发与脱敏。
+
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;

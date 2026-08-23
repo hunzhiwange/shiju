@@ -1,3 +1,5 @@
+// 覆盖 ApiQL HTTP 处理器的请求校验、租户作用域与响应映射。
+
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use rusqlite::Connection;

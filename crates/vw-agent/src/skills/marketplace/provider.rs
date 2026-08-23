@@ -1,4 +1,4 @@
-//! Skill marketplace provider boundary and registry.
+//! 技能市场提供方的抽象边界与注册表。
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

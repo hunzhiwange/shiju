@@ -1,3 +1,5 @@
+//! 验证 shell 权限结果构造器与权限上下文的安全默认值。
+
 use std::path::PathBuf;
 
 use crate::security::AutonomyLevel;

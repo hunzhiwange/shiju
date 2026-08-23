@@ -1,3 +1,5 @@
+//! 已配置通道的健康检查、超时分类与汇总输出。
+
 use super::*;
 
 pub(crate) fn classify_health_result(

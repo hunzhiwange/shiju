@@ -1,3 +1,5 @@
+//! 实现 SQLite 资源租约的获取、查询、续期和释放，并维护互斥与过期语义。
+
 use anyhow::{Context, Result, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};

@@ -1,3 +1,4 @@
+// 验证记忆清理策略的候选筛选、保留规则与执行结果。
 mod additional_hygiene_tests {
     use super::super::*;
     use crate::app::agent::config::MemoryConfig;

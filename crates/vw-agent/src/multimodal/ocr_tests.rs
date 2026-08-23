@@ -1,3 +1,4 @@
+// 验证 OCR 预处理的模型选择、不可信文本边界与失败回退。
 use super::ocr::{
     ImageTextExtractor, OCR_ATTACHMENT_END, OCR_ATTACHMENT_START, OCR_TEXT_MAX_CHARS,
     prepare_messages_with_ocr,

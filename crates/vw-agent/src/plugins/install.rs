@@ -1,4 +1,4 @@
-//! Local plugin installation and lifecycle file operations.
+//! 本地插件安装及启用、停用、移除等生命周期文件操作。
 
 use anyhow::{Context, Result, bail};
 #[cfg(test)]

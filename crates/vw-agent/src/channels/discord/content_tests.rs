@@ -49,3 +49,4 @@ fn normalize_incoming_content_keeps_words_separated_after_removing_mentions() {
         Some("run status and report".to_string())
     );
 }
+// 本文件验证 Discord 群聊内容的提及移除、发送者规则与空消息过滤。

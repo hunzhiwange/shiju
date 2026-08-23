@@ -1,3 +1,5 @@
+//! 验证待办存储的替换、合并、锁恢复及异常参数处理。
+
 use super::store::{read_for_tool, read_for_ui, recover_lock, write_todos};
 use serde_json::{Value, json};
 use std::sync::Arc;

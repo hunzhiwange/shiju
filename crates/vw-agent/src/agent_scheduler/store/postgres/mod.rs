@@ -1,3 +1,5 @@
+//! 组装 PostgreSQL 调度存储实现，并在初始化时校验父级项目和数据库结构。
+
 use anyhow::{Context, Result, bail};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
 

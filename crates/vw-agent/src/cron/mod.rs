@@ -1,3 +1,5 @@
+//! 定时任务领域入口，汇集计划表达、持久化、调度器与命令行操作。
+
 use crate::app::agent::config::Config;
 use crate::app::agent::security::SecurityPolicy;
 use anyhow::{Result, bail};

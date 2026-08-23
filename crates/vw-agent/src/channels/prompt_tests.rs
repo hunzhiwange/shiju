@@ -577,3 +577,4 @@ fn system_prompt_with_compact_skill_mode_excludes_static_skill_content() {
     assert!(!prompt.contains("do-task-plans"));
     assert!(!prompt.contains("skills/do-task-plans/SKILL.md"));
 }
+// 本文件验证渠道提示词组装时的工具说明与记忆能力上下文。

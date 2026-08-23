@@ -1,3 +1,5 @@
+//! 实现 SQLite 调度事件的追加和查询，保持事件顺序及领域字段的强类型映射。
+
 use anyhow::{Context, Result};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};

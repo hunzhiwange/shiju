@@ -1,3 +1,5 @@
+//! 验证空沙箱实现的稳定元数据与无损命令包装。
+
 use super::{NoopSandbox, Sandbox};
 use std::process::Command;
 

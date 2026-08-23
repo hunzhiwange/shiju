@@ -1,3 +1,5 @@
+//! 验证插件 MCP 配置的解析、合并顺序、去重与错误归属。
+
 use super::PluginDiscoveryOptions;
 use super::mcp::{
     load_plugin_mcp_servers_from_path, merge_enabled_plugin_mcp_servers,

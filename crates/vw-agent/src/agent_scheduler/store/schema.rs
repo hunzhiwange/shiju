@@ -1,3 +1,5 @@
+//! 定义 SQLite 调度存储结构和索引，并拒绝可能混淆作用域的旧版无前缀表。
+
 use anyhow::{Result, bail};
 use rusqlite::Connection;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

@@ -1,3 +1,5 @@
+//! 测试 ACP 后端的会话复用、历史持久化、事件映射与取消传播。
+
 use std::time::Duration;
 
 use serde_json::json;

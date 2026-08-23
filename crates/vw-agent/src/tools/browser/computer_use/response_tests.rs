@@ -1,3 +1,5 @@
+//! 验证计算机操作响应的可选字段与结构化数据保留。
+
 use super::*;
 use serde_json::json;
 

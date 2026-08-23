@@ -1,3 +1,5 @@
+//! PostgreSQL 知识检索的作用域解析、候选召回与结果合并。
+
 use anyhow::Context;
 use postgres::{GenericClient, Row};
 use serde_json::Value;

@@ -1,3 +1,5 @@
+//! 验证队列 IPC 服务端的请求收发、所有者代次和连接关闭行为。
+
 use super::*;
 use crate::errors::AcpxErrorOptions;
 use crate::queue_messages::{QueueOwnerMessage, QueueRequest};

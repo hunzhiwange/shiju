@@ -1,3 +1,5 @@
+//! 工作流记录存储门面，按租户路由 SQLite 或 PostgreSQL 持久化操作。
+
 use rusqlite::{Connection, OptionalExtension, params};
 use uuid::Uuid;
 use vw_api_types::TenantScope;

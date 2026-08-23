@@ -1,3 +1,5 @@
+//! 测试调度产物存储的写入、列表、去重与完整作用域隔离。
+
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

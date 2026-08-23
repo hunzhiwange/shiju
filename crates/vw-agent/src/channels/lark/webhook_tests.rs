@@ -163,3 +163,4 @@ async fn handle_event_ignores_non_message_event_without_dispatch() {
     assert_eq!(response.status(), StatusCode::OK);
     assert!(rx.try_recv().is_err());
 }
+// 本文件验证 Lark Webhook 监听、挑战校验与消息事件分发。

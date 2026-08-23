@@ -1,3 +1,4 @@
+// 验证配置中的敏感字段能够完整遮蔽，并仅从既有配置安全恢复。
 use super::*;
 
 use crate::app::agent::channels::email_channel::EmailConfig;

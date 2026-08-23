@@ -1,3 +1,5 @@
+//! 测试代理模块门面对核心类型和兼容入口的导出契约。
+
 use super::*;
 use crate::app::agent::permission::next::Action;
 use serde_json::{Value, json};

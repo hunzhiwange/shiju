@@ -1,3 +1,5 @@
+// 覆盖全局配置、健康状态、事件流及租户隔离接口。
+
 use super::*;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;

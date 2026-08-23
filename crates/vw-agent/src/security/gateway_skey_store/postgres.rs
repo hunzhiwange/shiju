@@ -1,3 +1,7 @@
+//! 网关密钥元数据的 PostgreSQL 后端。
+//!
+//! 表结构与查询均强制携带平台和公司作用域，且仅保存密钥摘要。
+
 use anyhow::{Context, Result, bail};
 use vw_api_types::id::TenantScope;
 use vw_config_types::gateway::GatewaySkey;

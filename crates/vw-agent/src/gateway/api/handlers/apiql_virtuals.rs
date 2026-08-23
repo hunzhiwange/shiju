@@ -1,3 +1,5 @@
+//! ApiQL 虚拟字段解析层，执行内置逻辑或实体限定的 Rhai 规则。
+//!
 //! ApiQL virtual field resolver execution.
 
 use std::path::{Path, PathBuf};

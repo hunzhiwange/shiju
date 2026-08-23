@@ -1,3 +1,5 @@
+//! 验证输出器选择、协议内容提取、截断与文本渲染行为。
+
 use super::*;
 use crate::types::{
     AcpJsonRpcMessage, OutputErrorCode, OutputErrorParams, OutputFormat, OutputFormatter,

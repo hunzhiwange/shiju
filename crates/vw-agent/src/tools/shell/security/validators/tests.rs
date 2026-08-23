@@ -1,3 +1,5 @@
+//! 验证校验器构建顺序、配置开关及 shell 边界辅助函数的保守判定。
+
 use super::*;
 use crate::tools::shell::ast::ParsedCommand;
 use regex::Regex;

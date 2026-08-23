@@ -1,3 +1,5 @@
+//! 验证 systemd 参数引用、配置目录和服务文件定位。
+
 use super::InitSystem;
 use super::linux::{
     install_linux, linux_service_file, restart_linux, start_linux, status_linux, stop_linux,

@@ -1,3 +1,5 @@
+// 覆盖原始模型产物提交成功确认与失败保留语义。
+
 use super::*;
 
 fn artifact(turn_id: &str, step_index: u32) -> LlmRawArtifact {

@@ -1,3 +1,4 @@
+// 验证设置存储的后端装配、作用域检查与更新语义。
 use anyhow::Result;
 use vw_api_types::id::TenantScope;
 

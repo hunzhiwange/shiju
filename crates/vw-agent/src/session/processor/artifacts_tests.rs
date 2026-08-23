@@ -1,3 +1,5 @@
+//! 验证处理器消息与原始 AI 调用工件的构造和持久化守卫。
+
 use crate::project;
 use crate::session::llm::ToolCall;
 use crate::session::processor::Request;

@@ -1,5 +1,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 
+//! 验证原生 worktree 的仓库发现、候选命名、基准分支解析与启动脚本顺序。
+
 use super::native::{
     CmdResult, candidate, canonical, find_entry, parse_worktree_list, path_exists,
     resolve_reset_target, run_git, run_start_scripts, worktree_root,

@@ -1,3 +1,5 @@
+// 覆盖定时任务 API 的调度解析、认证及任务生命周期操作。
+
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::cron::{CronJob, CronRun, DeliveryConfig, JobType, Schedule, SessionTarget};

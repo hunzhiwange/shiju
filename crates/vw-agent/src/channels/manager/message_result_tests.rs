@@ -25,3 +25,4 @@ async fn reaction_done_emoji_marks_timeout_as_warning() {
         "\u{26A0}\u{FE0F}"
     );
 }
+// 本文件验证消息执行结果到完成反应表情的映射。

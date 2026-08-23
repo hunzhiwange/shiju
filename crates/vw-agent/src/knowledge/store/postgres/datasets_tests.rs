@@ -1,3 +1,4 @@
+// 验证 PostgreSQL 数据集的生命周期、作用域与唯一性约束。
 use anyhow::Result;
 use vw_api_types::TenantScope;
 use vw_api_types::knowledge::{

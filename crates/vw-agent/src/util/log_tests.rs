@@ -1,3 +1,5 @@
+//! 验证日志级别、文件轮换、结构化字段、缓存记录器与计时器行为。
+
 use super::{
     DEFAULT, InitOptions, LAST_MS, LEVEL, LOG_PATH, Level, Timer, WRITER, Writer, cleanup, create,
     file, init_in_dir, is_timestamp_log_name, iso_file_stamp_utc, iso_seconds_utc, map_from_pairs,

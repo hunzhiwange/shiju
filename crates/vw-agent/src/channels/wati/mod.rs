@@ -1,3 +1,5 @@
+//! WATI Webhook 通道，负责号码准入校验和 WhatsApp Business 消息发送。
+
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use uuid::Uuid;

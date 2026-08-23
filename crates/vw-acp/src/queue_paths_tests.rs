@@ -1,3 +1,5 @@
+//! 验证队列键散列、主目录作用域和跨平台套接字路径规则。
+
 use super::*;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};

@@ -1,3 +1,5 @@
+// 覆盖 Git 工作区状态及文本行增删统计。
+
 use super::{Status, status_git};
 use git2::Repository;
 use std::path::Path;

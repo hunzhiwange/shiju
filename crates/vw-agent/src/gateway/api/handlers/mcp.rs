@@ -1,3 +1,5 @@
+//! MCP 检查接口，认证后枚举工作区服务器及其公开工具。
+//!
 //! MCP inspection API handlers.
 
 use crate::app::agent::gateway::AppState;

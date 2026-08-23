@@ -1,4 +1,6 @@
-//! Knowledge storage and retrieval backed by the selected global database.
+//! 基于全局数据库配置的知识存储与检索实现。
+//!
+//! 该模块承载 SQLite 主实现，并把 PostgreSQL 路径委托给对应后端模块。
 
 use super::chunker::{chunk_text, chunk_text_with_limits};
 use super::fusion::{

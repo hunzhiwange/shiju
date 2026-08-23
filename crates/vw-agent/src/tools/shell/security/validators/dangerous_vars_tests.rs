@@ -1,3 +1,5 @@
+//! 验证危险环境变量与指纹变量分别产生阻断或警告发现项。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityCategory, SecurityValidator, Severity};

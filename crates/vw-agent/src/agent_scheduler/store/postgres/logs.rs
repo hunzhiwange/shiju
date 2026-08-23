@@ -1,3 +1,5 @@
+//! 实现 PostgreSQL 任务日志及运行工作区上下文的持久化与关联校验。
+
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

@@ -1,3 +1,5 @@
+//! 测试代理构建器的必需依赖校验、默认配置与工具规格收集。
+
 use super::builder::AgentBuilder;
 use crate::app::agent::agent::memory_loader::MemoryLoader;
 use crate::app::agent::agent::prompt::SystemPromptBuilder;

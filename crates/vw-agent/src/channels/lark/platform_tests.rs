@@ -25,3 +25,4 @@ fn lark_platform_supports_expected_value_traits() {
     assert_eq!(format!("{lark:?}"), "Lark");
     assert_eq!(format!("{feishu:?}"), "Feishu");
 }
+// 本文件验证 Lark 平台枚举的端点、标签与值语义映射。

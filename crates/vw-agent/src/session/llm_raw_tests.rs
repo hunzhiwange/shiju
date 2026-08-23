@@ -1,3 +1,5 @@
+//! 验证原始 LLM 轮次按步骤重建及压缩前缀差量处理。
+
 use serde_json::{Value, json};
 
 use super::llm_raw::LlmRawArtifact;

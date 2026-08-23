@@ -1,3 +1,5 @@
+//! 验证任务计划运行模型的默认值、序列化与进度契约。
+
 use super::parse_tasks_json;
 
 #[test]

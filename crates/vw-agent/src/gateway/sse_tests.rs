@@ -1,3 +1,4 @@
+// 验证服务端事件流的鉴权、广播转发与观测事件序列化。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

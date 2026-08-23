@@ -1,3 +1,5 @@
+// 覆盖公开环境标志辅助函数、动态默认值与静态标志读取。
+
 use super::{env_string, number, truthy, vibewindow_client, vibewindow_config_dir};
 use std::sync::Mutex;
 

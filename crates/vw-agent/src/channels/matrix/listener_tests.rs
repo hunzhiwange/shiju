@@ -491,3 +491,4 @@ fn mark_otk_conflict_sets_flag_and_is_idempotent() {
     MatrixChannel::mark_otk_conflict(&flag);
     assert!(flag.load(Ordering::SeqCst));
 }
+// 本文件验证 Matrix 监听事件过滤、回复缓存与调度载荷分发。

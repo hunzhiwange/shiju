@@ -1,3 +1,5 @@
+// 覆盖 ApiQL 对 PHP 风格输入和输出的兼容转换。
+
 use std::collections::BTreeMap;
 use std::path::Path;
 

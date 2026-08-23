@@ -1,3 +1,5 @@
+//! 验证提示词内容块解析、资源载荷和图像数据的输入校验。
+
 use super::*;
 use agent_client_protocol::{
     BlobResourceContents, EmbeddedResource, EmbeddedResourceResource, ResourceLink,

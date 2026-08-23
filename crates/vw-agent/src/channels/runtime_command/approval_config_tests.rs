@@ -524,3 +524,4 @@ async fn describe_approvals_filters_pending_requests_to_current_scope() {
     assert!(!response.contains("tool=shell"));
     assert!(!response.contains("tool=browser"));
 }
+// 本文件验证审批配置的持久化、互斥列表调整与 JSON 兼容处理。

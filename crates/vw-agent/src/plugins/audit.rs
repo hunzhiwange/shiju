@@ -1,4 +1,6 @@
-//! Static path audit helpers for local plugin manifests.
+//! 本地插件清单的静态路径审计辅助逻辑。
+//!
+//! 解析前拒绝符号链接和越界路径，确保插件声明只访问其规范化根目录。
 
 use anyhow::{Context, Result, bail};
 use std::fs;

@@ -1,3 +1,5 @@
+//! 验证会话处理请求类型的默认状态、引用保留与可靠性快照契约。
+
 #[test]
 fn types_tests_module_is_wired() {
     let marker = String::from("types_tests");

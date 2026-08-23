@@ -1,3 +1,5 @@
+//! 验证员工模式命令、能力目录及工作流编排 DTO 的稳定协议形状。
+
 use crate::staff::{
     StaffCapabilityIoSummaryDto, StaffCapabilityKindDto, StaffCommandActionDto, StaffCommandDto,
     StaffCommandRequest, StaffProjectCapabilityCatalogRequest,

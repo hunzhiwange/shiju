@@ -1,3 +1,5 @@
+//! 验证聊天 DTO 的协议名称、默认值和推理强度兼容性。
+
 use super::chat::{
     ChatContextDto, ChatOptionsDto, ChatRole, GatewayChatStreamEvent, GatewayChatStreamRequest,
     MessagePartDto, MessageStatus, ReasoningEffortDto,

@@ -1,3 +1,5 @@
+//! 定义不同任务种类允许的状态转换，并对非法转换返回明确错误。
+
 use anyhow::{Result, bail};
 
 pub use super::domain::AgentTaskKind;

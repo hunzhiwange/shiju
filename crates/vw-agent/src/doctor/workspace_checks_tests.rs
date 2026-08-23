@@ -1,3 +1,5 @@
+// 覆盖工作区可写性、磁盘空间及必需文件检查。
+
 use super::workspace_checks::{
     append_disk_space_check, check_file_exists, check_workspace_with_disk_probe,
     parse_df_available_mb, workspace_probe_path,

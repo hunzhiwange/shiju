@@ -1,3 +1,5 @@
+//! WhatsApp 设备存储，负责设备身份材料、注册状态与数据库快照。
+//!
 //! DeviceStoreTrait implementation for WhatsApp storage
 //!
 //! Implements device persistence operations including:

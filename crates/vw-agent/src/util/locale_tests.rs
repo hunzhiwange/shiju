@@ -1,3 +1,5 @@
+//! 验证时间格式化输出及 IANA 时区配置的应用。
+
 use super::locale::{
     configured_datetime_at, datetime, parse_timezone, time_short, today_time_or_datetime,
 };

@@ -1,3 +1,7 @@
+//! 文档分块前的结构特征统计。
+//!
+//! 负责识别 Markdown 标题与代码围栏，为后续分块策略提供稳定的文档画像。
+
 use super::patterns::{is_fence_marker, parse_markdown_heading};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

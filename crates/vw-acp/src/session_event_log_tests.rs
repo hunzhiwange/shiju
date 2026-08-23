@@ -1,3 +1,5 @@
+//! 验证会话事件日志的安全文件名、轮转默认值与主目录路径。
+
 use super::*;
 use crate::queue_paths::{TEST_HOME_ENV_LOCK, default_home_dir};
 use std::ffi::OsString;

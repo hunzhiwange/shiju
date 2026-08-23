@@ -1,3 +1,5 @@
+//! 验证旧版技能审计入口的风险识别与报告契约。
+
 use super::*;
 use vw_config_types::skills::SkillSecurityConfig;
 

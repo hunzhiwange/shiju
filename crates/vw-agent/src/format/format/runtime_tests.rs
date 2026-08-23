@@ -1,3 +1,5 @@
+// 覆盖格式化运行时缓存、命令执行及失败容错。
+
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn format_runtime_is_singleton() {

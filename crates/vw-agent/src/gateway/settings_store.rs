@@ -1,3 +1,5 @@
+//! 租户网关设置存储门面，按命名空间管理 SQLite 或 PostgreSQL 数据。
+
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};

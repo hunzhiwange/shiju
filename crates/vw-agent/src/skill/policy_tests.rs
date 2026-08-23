@@ -1,3 +1,5 @@
+//! 验证旧版技能策略的允许、拒绝及默认能力边界。
+
 use super::*;
 use crate::app::agent::skill::constants::SKILL_DOWNLOAD_POLICY_FILE;
 use std::path::Path;

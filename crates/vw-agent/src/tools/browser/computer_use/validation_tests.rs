@@ -1,3 +1,5 @@
+//! 验证计算机操作端点、网址、坐标及输出路径的安全校验。
+
 use super::*;
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::browser::computer_use::ComputerUseConfig;

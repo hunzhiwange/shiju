@@ -1,3 +1,5 @@
+//! 验证任务生命周期存储的状态往返、并发与租户隔离。
+
 use super::*;
 
 use rusqlite::{Connection, params};

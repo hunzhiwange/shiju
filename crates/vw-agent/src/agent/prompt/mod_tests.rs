@@ -1,3 +1,5 @@
+//! 测试系统提示的工作区注入、分段顺序与可选内容处理。
+
 use super::*;
 use crate::app::agent::tools::{Tool, ToolResult};
 use async_trait::async_trait;

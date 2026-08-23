@@ -1,3 +1,5 @@
+//! 验证 IFS 注入校验器阻断分词语义篡改并放行普通输入。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

@@ -1,3 +1,5 @@
+//! 验证插件命令行的安装、审计、启停、列举与删除流程。
+
 use super::{PluginCommands, PluginDiscoveryOptions, discover_plugins, handle_command};
 use crate::config::Config;
 use serde_json::json;

@@ -1,3 +1,5 @@
+//! 测试工作树资源的创建、租用、路径约束与清理。
+
 #![cfg(not(target_arch = "wasm32"))]
 
 use std::path::{Path, PathBuf};

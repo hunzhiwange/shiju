@@ -261,3 +261,4 @@ fn write_skill(root: &std::path::Path, name: &str, description: &str, content: &
     )
     .expect("skill file");
 }
+// 本文件验证命令模板提示、来源序列化、执行事件字段与状态索引。

@@ -1,3 +1,5 @@
+//! 测试调度事件的构造、序列化与领域字段保留。
+
 use super::AgentEventKind;
 
 #[test]

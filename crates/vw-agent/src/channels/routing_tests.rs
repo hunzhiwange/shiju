@@ -268,3 +268,4 @@ fn build_providers_help_response_lists_current_route_and_commands() {
         assert!(response.contains(&format!("- {provider_id}")));
     }
 }
+// 本文件验证消息提供者路由、模型分类、覆盖缓存与回退选择。

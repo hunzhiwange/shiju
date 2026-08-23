@@ -1,3 +1,5 @@
+//! 实现 PostgreSQL 事务发件箱的幂等入队、并发认领及投递状态更新。
+
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

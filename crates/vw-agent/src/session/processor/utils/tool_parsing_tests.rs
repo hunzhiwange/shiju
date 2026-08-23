@@ -1,3 +1,5 @@
+//! 验证工具名称及内联、多行和文件引用形式的调用解析边界。
+
 use super::{is_valid_tool_name, parse_tool_at, query_has_any_tool_calls_with_allowed};
 use std::collections::HashSet;
 

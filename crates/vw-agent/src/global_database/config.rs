@@ -1,3 +1,5 @@
+//! 全局数据库后端配置，解析本地配置并校验 PostgreSQL 连接与模式名。
+
 use std::fmt;
 use std::io;
 use std::path::Path;

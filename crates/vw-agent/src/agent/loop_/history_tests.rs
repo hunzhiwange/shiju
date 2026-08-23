@@ -1,3 +1,5 @@
+//! 测试会话历史的裁剪、规范化与系统消息保留规则。
+
 use super::*;
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicUsize, Ordering};

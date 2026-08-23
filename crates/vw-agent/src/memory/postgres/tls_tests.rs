@@ -1,3 +1,4 @@
+// 验证 PostgreSQL 可选 TLS 校验器的证书与签名处理边界。
 use super::*;
 use rustls::client::danger::ServerCertVerifier;
 use rustls::internal::msgs::codec::{Codec, Reader};

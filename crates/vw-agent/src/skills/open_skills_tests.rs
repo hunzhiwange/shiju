@@ -1,3 +1,5 @@
+//! 验证新版 OpenSkills 发现、来源映射与兼容转换行为。
+
 use super::*;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;

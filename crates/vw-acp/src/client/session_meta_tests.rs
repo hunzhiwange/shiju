@@ -1,3 +1,5 @@
+//! 验证会话选项元数据对空值的过滤及有效值的规范化。
+
 use crate::types::AcpSessionOptions;
 
 use super::session_meta::build_session_options_meta;

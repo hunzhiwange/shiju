@@ -259,3 +259,4 @@ fn approval_callback_query_rejects_missing_required_fields() {
         assert!(channel.try_parse_approval_callback_query(&update).is_none());
     }
 }
+// 本文件验证 Telegram 审批回调解析、请求载荷与异步清理调度。

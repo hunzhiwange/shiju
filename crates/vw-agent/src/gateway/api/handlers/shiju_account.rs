@@ -1,3 +1,5 @@
+//! SHIJU 账户网关接口，代理登录、资料读取与账户安全更新。
+//!
 //! SHIJU account gateway API.
 
 use std::sync::Arc;

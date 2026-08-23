@@ -1,3 +1,4 @@
+// 验证集成配置的别名匹配、修订计算、凭据更新与面板载荷生成。
 use super::*;
 use crate::app::agent::integrations::IntegrationStatus;
 use std::collections::BTreeMap;

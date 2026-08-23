@@ -1,3 +1,5 @@
+//! 测试命令行审批的序列化、输入解析和安全拒绝默认值。
+
 use super::{ApprovalRequest, ApprovalResponse};
 use std::io::{self, BufRead, Read};
 

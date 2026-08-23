@@ -1,3 +1,5 @@
+//! 测试查询引擎的意图路由、上下文构建与执行结果整合。
+
 use super::*;
 
 use crate::app::agent::config::Config;

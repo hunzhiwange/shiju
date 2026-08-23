@@ -1,3 +1,5 @@
+//! 验证旧项目注册表迁移的冲突保护、备份和失败原子性。
+
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};

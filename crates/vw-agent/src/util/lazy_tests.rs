@@ -1,3 +1,5 @@
+//! 验证惰性值在重置前复用缓存且仅执行一次初始化逻辑。
+
 use super::lazy::Lazy;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};

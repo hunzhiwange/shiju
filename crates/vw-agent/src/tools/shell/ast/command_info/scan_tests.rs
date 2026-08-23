@@ -1,3 +1,5 @@
+//! 验证命令文本扫描器对管道、引号、展开、重定向与嵌套边界的解析。
+
 use super::*;
 
 fn token(text: &str) -> Token {

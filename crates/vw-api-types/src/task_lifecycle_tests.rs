@@ -1,3 +1,5 @@
+//! 验证任务生命周期工作流的序列化契约及状态转换约束。
+
 use crate::task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
     TaskLifecycleWorkflowDeleteResponse, TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody,

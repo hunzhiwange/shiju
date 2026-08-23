@@ -1,3 +1,5 @@
+//! 验证任务生命周期注册表的注册、查询和重复处理。
+
 use crate::task_lifecycle::TaskLifecycleRegistry;
 use vw_api_types::task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,

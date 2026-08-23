@@ -141,3 +141,4 @@ async fn run_message_execution_wraps_timeout_as_completed_result() {
     assert!(matches!(result, LlmExecutionResult::Completed(Err(_))));
     cleanup_sender_session(&ctx, &msg).await;
 }
+// 本文件验证渠道消息执行的会话权限、可靠性快照、取消与超时结果。

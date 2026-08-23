@@ -1,3 +1,5 @@
+//! 验证会话忙闲状态存储、序列化及作用域事件发布行为。
+
 use super::*;
 use crate::app::agent::{bus, project::instance};
 use std::sync::{Arc, Mutex};

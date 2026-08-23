@@ -1,3 +1,5 @@
+//! 验证已调用技能集合的记录、去重与会话隔离行为。
+
 use super::{InvokedSkillRecord, SkillListingSessionState};
 
 fn write_skill(path: &std::path::Path, body: &str, allowed_tools: &str, model: &str, effort: &str) {

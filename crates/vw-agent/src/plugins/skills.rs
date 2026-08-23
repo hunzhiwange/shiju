@@ -1,4 +1,4 @@
-//! Runtime loading for skills packaged in enabled plugins.
+//! 从已启用插件中发现并加载技能目录。
 
 use crate::app::agent::config::Config;
 use crate::app::agent::skills::{Skill, SkillLoadMode, load_skills_from_directory};

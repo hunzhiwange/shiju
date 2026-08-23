@@ -1,3 +1,5 @@
+//! 定义调度审计事件的封闭目录，以及持久化字符串与强类型事件之间的转换。
+
 use anyhow::{Result, bail};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

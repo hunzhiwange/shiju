@@ -1,3 +1,5 @@
+//! 验证子进程退出摘要、进程组目标发现与终止信号清理。
+
 use std::process::Command;
 
 use super::{

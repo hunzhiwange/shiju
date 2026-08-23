@@ -1,3 +1,5 @@
+//! 验证标识符和租户、项目作用域的序列化及非空约束。
+
 use crate::id::{
     COMPANY_ID_HEADER, CompanyId, DEFAULT_COMPANY_ID, DEFAULT_PLATFORM_ID, PLATFORM_ID_HEADER,
     PlatformId, ProjectId, ProjectScope, SessionId, TenantScope,

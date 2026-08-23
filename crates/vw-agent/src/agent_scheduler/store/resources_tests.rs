@@ -1,3 +1,5 @@
+//! 测试资源存储在多后端下的租约排他性、过期与作用域隔离。
+
 use std::sync::{Arc, Barrier};
 
 use anyhow::Result;

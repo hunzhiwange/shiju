@@ -128,3 +128,4 @@ async fn lark_channel_send_returns_error_when_proxy_is_unreachable() {
 
     assert!(matches!(result, Ok(Err(_))));
 }
+// 本文件验证 Lark 渠道构造、旧版飞书配置兼容与基础收发状态。

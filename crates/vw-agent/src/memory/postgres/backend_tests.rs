@@ -1,3 +1,4 @@
+// 验证 PostgreSQL 记忆后端的标识符安全、连接超时与建表语句。
 use super::super::{quote_identifier, validate_identifier};
 use super::*;
 

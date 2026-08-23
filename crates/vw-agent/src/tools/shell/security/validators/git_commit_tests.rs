@@ -1,3 +1,5 @@
+//! 验证 Git 提交校验器对高风险提交形式与普通操作的区分。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

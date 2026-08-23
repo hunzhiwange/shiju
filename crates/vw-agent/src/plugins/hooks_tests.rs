@@ -1,3 +1,5 @@
+//! 验证插件钩子清单的事件、模式、工作目录与路径安全约束。
+
 use super::hooks::{PluginHookEvent, PluginHookMode, load_plugin_hooks_manifest};
 use serde_json::json;
 use std::fs;

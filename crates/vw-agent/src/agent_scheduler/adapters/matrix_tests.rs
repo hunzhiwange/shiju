@@ -1,3 +1,5 @@
+//! 测试 Matrix 调度适配器的消息映射、身份校验与失败处理。
+
 use anyhow::Result;
 use serde_json::{Value, json};
 #[cfg(feature = "channel-matrix")]

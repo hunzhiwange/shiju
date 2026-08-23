@@ -444,3 +444,4 @@ async fn send_failure_still_consumes_runtime_command() {
 
     assert!(dispatch(&ctx, &channel_dyn, "/approvals").await);
 }
+// 本文件覆盖运行时命令处理器的命令分派、工具调用与渠道回复。

@@ -1,3 +1,5 @@
+//! 验证任务计划运行的控制指令、终止条件与状态变更。
+
 use super::PlanRunControlRegistry;
 use crate::session::child_agent::coordinator::ChildAgentCoordinator;
 use vw_api_types::id::TenantScope;

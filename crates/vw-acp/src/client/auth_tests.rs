@@ -1,3 +1,5 @@
+//! 验证认证策略、凭据来源优先级及代理认证错误映射。
+
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
 

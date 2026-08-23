@@ -1,3 +1,5 @@
+//! 验证会话创建和加载时的目录规范化与租户范围隔离。
+
 use std::path::Path;
 
 use tempfile::TempDir;

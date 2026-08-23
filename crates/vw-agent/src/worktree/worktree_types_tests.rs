@@ -1,3 +1,5 @@
+//! 验证 worktree 公共类型的默认值、序列化字段与错误转换契约。
+
 use super::{CreateInput, Error, Info, RemoveInput, ResetInput};
 
 #[test]

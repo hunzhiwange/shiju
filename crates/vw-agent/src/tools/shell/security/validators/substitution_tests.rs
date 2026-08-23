@@ -1,3 +1,5 @@
+//! 验证命令替换校验器在严格与宽松模式下的阻断和告警差异。
+
 use super::substitution::SubstitutionValidator;
 use crate::tools::shell::ast::{ParsedCommand, parse_command};
 use crate::tools::shell::security::{SecurityValidator, Severity};

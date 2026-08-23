@@ -1,3 +1,5 @@
+//! 测试审批参数摘要的格式化、截断与非对象载荷处理。
+
 use super::summary::summarize_args;
 
 #[test]

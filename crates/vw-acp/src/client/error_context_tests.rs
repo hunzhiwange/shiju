@@ -1,3 +1,5 @@
+//! 验证子进程上下文对协议错误的补充、截断与兼容分类。
+
 use crate::AcpError;
 
 use super::helpers::*;

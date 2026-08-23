@@ -1,3 +1,5 @@
+//! 验证项目存储的租户隔离、事务回滚、约束和后端一致性。
+
 use anyhow::Result;
 use rusqlite::Connection;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

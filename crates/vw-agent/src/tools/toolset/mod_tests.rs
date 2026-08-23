@@ -1,3 +1,5 @@
+//! 验证工具集按运行时能力、配置、安全上下文及动态 MCP 服务完成注册与执行。
+
 use super::*;
 use crate::app::agent::config::{
     BrowserConfig, Config, DelegateAgentConfig, HttpRequestConfig, MemoryConfig, WebFetchConfig,

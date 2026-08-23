@@ -1,3 +1,5 @@
+//! 测试调度器跨存储、策略与运行器组件的集成流程。
+
 use std::fs;
 use std::path::Path;
 

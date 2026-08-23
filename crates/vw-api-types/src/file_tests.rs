@@ -1,3 +1,5 @@
+//! 验证文件 API DTO 的默认值与节点类型线协议。
+
 use crate::file::{FileNodeDto, FileNodeKind, ListFilesRequest, WriteFileRequest};
 use crate::id::ProjectId;
 use serde_json::json;

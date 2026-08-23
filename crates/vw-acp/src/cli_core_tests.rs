@@ -1,3 +1,5 @@
+//! 验证 CLI 启动计划、参数边界、标准输入读取与安全默认值。
+
 use std::collections::HashMap;
 use std::io::Error;
 use std::io::Read;

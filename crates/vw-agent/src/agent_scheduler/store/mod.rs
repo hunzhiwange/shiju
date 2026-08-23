@@ -1,3 +1,5 @@
+//! 提供调度存储统一入口，按配置选择 SQLite 或 PostgreSQL，并以项目作用域隔离数据。
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 

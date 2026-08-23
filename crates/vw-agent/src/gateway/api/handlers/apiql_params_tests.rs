@@ -1,3 +1,5 @@
+// 覆盖 ApiQL 查询参数的别名、默认值与非法形状处理。
+
 use serde_json::json;
 use vw_api_types::apiql::ApiQlListMode;
 

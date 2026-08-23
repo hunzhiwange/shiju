@@ -1,3 +1,5 @@
+//! 验证技能市场提供方的配置、请求转换和错误处理。
+
 use std::sync::Arc;
 
 use async_trait::async_trait;

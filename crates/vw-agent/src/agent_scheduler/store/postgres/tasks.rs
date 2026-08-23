@@ -1,3 +1,5 @@
+//! 实现 PostgreSQL 任务与看板状态的创建、筛选和并发安全更新。
+
 use ::postgres::types::ToSql;
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};

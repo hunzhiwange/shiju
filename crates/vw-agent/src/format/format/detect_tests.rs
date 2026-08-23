@@ -1,3 +1,5 @@
+// 覆盖格式化器对可执行文件、项目依赖与配置文件的探测。
+
 use super::detect::{
     biome_enabled, clang_format_enabled, has_dep, is_enabled, ocamlformat_enabled, oxfmt_enabled,
     pint_enabled, prettier_enabled, rlang_air_enabled, ruff_enabled, uvformat_enabled, which,

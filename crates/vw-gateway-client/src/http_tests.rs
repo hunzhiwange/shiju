@@ -1,26 +1,87 @@
 use std::net::TcpListener;
+use std::sync::{Arc, Mutex};
 
 use serde_json::{Value, json};
+use tracing::field::{Field, Visit};
+use tracing::span::{Attributes, Id, Record};
+use tracing::subscriber::{Interest, Subscriber};
+use tracing::{Event, Metadata};
 
 use crate::client::test_support;
 use crate::endpoint::{GatewayAuth, GatewayEndpoint};
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
 
+#[derive(Clone, Default)]
+struct CapturedEvents(Arc<Mutex<Vec<String>>>);
+
+impl CapturedEvents {
+    fn joined(&self) -> String {
+        self.0.lock().expect("captured events").join("\n")
+    }
+}
+
+impl Subscriber for CapturedEvents {
+    fn enabled(&self, metadata: &Metadata<'_>) -> bool {
+        metadata.target() == "vw_gateway_client"
+    }
+
+    fn new_span(&self, _span: &Attributes<'_>) -> Id {
+        Id::from_u64(1)
+    }
+
+    fn record(&self, _span: &Id, _values: &Record<'_>) {}
+
+    fn record_follows_from(&self, _span: &Id, _follows: &Id) {}
+
+    fn event(&self, event: &Event<'_>) {
+        let mut visitor = EventVisitor::default();
+        event.record(&mut visitor);
+        self.0.lock().expect("captured events").push(visitor.fields.join(" "));
+    }
+
+    fn enter(&self, _span: &Id) {}
+
+    fn exit(&self, _span: &Id) {}
+
+    fn register_callsite(&self, metadata: &'static Metadata<'static>) -> Interest {
+        if metadata.target() == "vw_gateway_client" {
+            Interest::always()
+        } else {
+            Interest::never()
+        }
+    }
+
+    fn clone_span(&self, id: &Id) -> Id {
+        id.clone()
+    }
+
+    fn try_close(&self, _id: Id) -> bool {
+        true
+    }
+
+    fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
+        Some(tracing::metadata::LevelFilter::TRACE)
+    }
+}
+
+#[derive(Default)]
+struct EventVisitor {
+    fields: Vec<String>,
+}
+
+impl Visit for EventVisitor {
+    fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
+        self.fields.push(format!("{}={value:?}", field.name()));
+    }
+}
+
 #[test]
-fn directory_query_and_format_query_skip_blank_values() {
+fn directory_query_skips_blank_values() {
     assert!(super::directory_query(None).is_empty());
     assert!(super::directory_query(Some("   ")).is_empty());
     assert_eq!(
         super::directory_query(Some("/tmp/project")),
         vec![("directory".to_string(), "/tmp/project".to_string())]
-    );
-    assert_eq!(super::format_query(&[]), "");
-    assert_eq!(
-        super::format_query(&[
-            ("a".to_string(), "1".to_string()),
-            ("b".to_string(), "two".to_string())
-        ]),
-        "a=1&b=two"
     );
 }
 
@@ -151,6 +212,65 @@ async fn response_error_includes_status_and_body_when_present() {
 
     assert!(error.contains("500 Internal Server Error"));
     assert!(error.contains("\"bad\""));
+    assert_eq!(server.take_request().path, "/failure");
+    server.join();
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn gateway_http_logs_and_errors_redact_sensitive_payloads() {
+    const REQUEST_TOKEN: &str = "request-token-sentinel-9fb3";
+    const REQUEST_SKEY: &str = "request-skey-sentinel-c381";
+    const REQUEST_PASSWORD: &str = "request-password-sentinel-819a";
+    const RESPONSE_CREDENTIAL: &str = "response-credential-sentinel-a491";
+    const RESPONSE_API_KEY: &str = "response-api-key-sentinel-d212";
+
+    let captured = CapturedEvents::default();
+    let _guard = tracing::subscriber::set_default(captured.clone());
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 0);
+    super::log_request(
+        "POST",
+        &endpoint,
+        "/v1/sensitive",
+        &[("token".to_string(), REQUEST_TOKEN.to_string())],
+        Some(&json!({
+            "skey": REQUEST_SKEY,
+            "nested": {"password": REQUEST_PASSWORD},
+            "payload": "x".repeat(4_096),
+        })),
+    );
+
+    let server = test_support::server(vec![(
+        400,
+        json!({
+            "error": "invalid gateway input",
+            "credential": RESPONSE_CREDENTIAL,
+            "api_key": RESPONSE_API_KEY,
+            "details": "y".repeat(4_096),
+        }),
+    )]);
+    let response = reqwest::Client::new()
+        .get(format!("{}/failure", server.base_url()))
+        .send()
+        .await
+        .expect("response");
+    let error = super::response_error("POST", &endpoint, "/v1/sensitive", response).await;
+    let logs = captured.joined();
+
+    for secret in [
+        REQUEST_TOKEN,
+        REQUEST_SKEY,
+        REQUEST_PASSWORD,
+        RESPONSE_CREDENTIAL,
+        RESPONSE_API_KEY,
+    ] {
+        assert!(!logs.contains(secret), "secret leaked into logs: {secret}");
+        assert!(!error.contains(secret), "secret leaked into error: {secret}");
+    }
+    assert!(error.contains("400 Bad Request"));
+    assert!(error.contains("invalid gateway input"));
+    assert!(logs.len() < 2_048, "logs should contain only bounded summaries");
+    assert!(error.len() < 1_024, "returned errors should be bounded");
+
     assert_eq!(server.take_request().path, "/failure");
     server.join();
 }

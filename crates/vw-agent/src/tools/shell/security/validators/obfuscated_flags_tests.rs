@@ -1,3 +1,5 @@
+//! 验证混淆选项校验器阻断隐藏拼写并允许字面量选项。
+
 use super::obfuscated_flags::ObfuscatedFlagsValidator;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityCategory, SecurityValidator};

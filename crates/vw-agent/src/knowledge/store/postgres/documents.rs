@@ -1,3 +1,5 @@
+//! PostgreSQL 知识文档的持久化、筛选与状态映射。
+
 use anyhow::{Context, Result, bail};
 use postgres::{GenericClient, Row};
 use serde_json::Value;

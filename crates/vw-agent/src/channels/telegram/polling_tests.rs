@@ -675,3 +675,4 @@ async fn health_check_impl_returns_false_on_timeout() {
 
     server.abort();
 }
+// 本文件覆盖 Telegram 长轮询、机器人身份获取、确认动作与停止条件。

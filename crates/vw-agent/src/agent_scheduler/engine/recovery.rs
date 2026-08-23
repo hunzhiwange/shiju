@@ -1,3 +1,5 @@
+//! 回收过期运行与资源租约，并按策略暂停或失败任务、休眠长期空闲的工作节点。
+
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
 use std::collections::HashSet;

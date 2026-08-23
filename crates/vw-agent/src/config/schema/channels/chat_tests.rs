@@ -183,3 +183,4 @@ fn blank_feishu_is_not_reported_as_enabled() {
             .all(|(handle, enabled)| !matches!(handle.name(), "Lark" | "Feishu") || !*enabled)
     );
 }
+// 本文件验证聊天渠道列表顺序、启用判定与旧版飞书配置兼容。

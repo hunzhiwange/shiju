@@ -1,3 +1,5 @@
+//! 在内存中校验有限任务依赖图，并根据前驱完成情况计算任务就绪状态。
+
 use anyhow::{Result, bail};
 use std::collections::{BTreeMap, BTreeSet};
 

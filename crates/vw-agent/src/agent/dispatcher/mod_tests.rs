@@ -1,3 +1,5 @@
+//! 测试原生与 XML 工具分派器的响应解析、历史转换及结果格式化。
+
 use super::*;
 use crate::app::agent::providers::ToolCall;
 use crate::app::agent::tools::ToolResult;

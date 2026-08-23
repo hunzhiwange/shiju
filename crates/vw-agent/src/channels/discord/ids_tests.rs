@@ -33,3 +33,4 @@ fn bot_user_id_from_token_uses_first_segment_only() {
     assert_eq!(bot_user_id_from_token("TWE=.ignored.ignored"), Some("Ma".to_string()));
     assert_eq!(bot_user_id_from_token("bad!.ignored"), None);
 }
+// 本文件验证 Discord 令牌前缀解码及机器人用户标识提取边界。

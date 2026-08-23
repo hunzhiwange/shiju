@@ -177,3 +177,4 @@ async fn mutation_mac_operations_return_database_errors() {
     assert!(AppSyncStore::get_mutation_mac(&store, "regular_low", &[1]).await.is_err());
     assert!(AppSyncStore::delete_mutation_macs(&store, "regular_low", &[vec![1]]).await.is_err());
 }
+// 本文件验证 WhatsApp 应用同步密钥、版本状态与变更校验码的存储语义。

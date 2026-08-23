@@ -1,3 +1,5 @@
+//! 验证 sed 安全子集的解析、允许范围及危险脚本和原地写入拒绝规则。
+
 use super::validation;
 use super::*;
 use crate::tools::shell::ast::{ParsedCommand, parse_command};

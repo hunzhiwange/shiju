@@ -1,3 +1,5 @@
+//! 验证计算机操作请求执行、策略元数据、响应和截图落盘。
+
 use super::*;
 use crate::app::agent::security::SecurityPolicy;
 use std::sync::Arc;

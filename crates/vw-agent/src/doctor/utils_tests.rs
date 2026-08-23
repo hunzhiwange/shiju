@@ -1,3 +1,5 @@
+// 覆盖诊断文本截断的 Unicode 边界与时间戳解析。
+
 use super::utils::{parse_rfc3339, truncate_for_display};
 
 #[test]

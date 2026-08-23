@@ -1,3 +1,5 @@
+//! 测试工具规格和工具调用写入供应商历史时的规范化行为。
+
 use super::*;
 use crate::app::agent::tools::{ToolResult, ToolSpec};
 use async_trait::async_trait;

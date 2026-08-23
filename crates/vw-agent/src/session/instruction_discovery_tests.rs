@@ -1,3 +1,5 @@
+//! 验证项目指令文件的逐级发现、优先级与目录边界。
+
 use std::path::{Path, PathBuf};
 
 use super::*;

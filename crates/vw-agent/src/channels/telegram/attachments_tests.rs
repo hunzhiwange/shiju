@@ -294,3 +294,4 @@ async fn resolve_workspace_attachment_output_path_rejects_symlink_target() {
 fn telegram_download_limit_is_twenty_mebibytes() {
     assert_eq!(TELEGRAM_MAX_FILE_DOWNLOAD_BYTES, 20 * 1024 * 1024);
 }
+// 本文件验证 Telegram 附件标记、类型推断、文件名清理与目标判定。

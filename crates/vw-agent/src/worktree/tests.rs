@@ -1,3 +1,5 @@
+//! 验证 worktree 顶层模块稳定地重导出公共类型。
+
 #[test]
 fn top_level_reexports_worktree_types() {
     let info = super::Info {

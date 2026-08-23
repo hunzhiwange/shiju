@@ -1,3 +1,5 @@
+//! 验证 MCP 状态工具的规格、连接诊断、筛选与敏感字段脱敏。
+
 use super::*;
 use crate::app::agent::tools::{Tool, ToolRuntimeContext, tool_specs_for_context};
 use serde_json::{Value, json};

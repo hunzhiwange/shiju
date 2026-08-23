@@ -1,3 +1,5 @@
+//! 验证用户与助手消息摄取时的去重、工具解析和事件生成行为。
+
 use crate::app::agent::session::processor::StreamEvent;
 use crate::app::agent::session::session::{Role, Session};
 use crate::app::agent::tools::ToolRuntimeContext;

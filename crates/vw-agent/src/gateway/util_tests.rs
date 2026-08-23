@@ -1,3 +1,4 @@
+// 验证网关辅助函数对地址、请求数据与边界输入的规范化。
 use super::*;
 use axum::http::{HeaderMap, HeaderValue};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};

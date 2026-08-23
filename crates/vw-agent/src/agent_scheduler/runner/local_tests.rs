@@ -1,3 +1,5 @@
+//! 测试本地运行器的命令执行、超时、取消与结果映射。
+
 use anyhow::Result;
 use serde_json::json;
 use std::path::Path;

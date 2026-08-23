@@ -1,3 +1,5 @@
+//! 验证 ACP JSON-RPC 消息形状、通知识别与停止原因解析契约。
+
 use serde_json::json;
 
 use super::*;

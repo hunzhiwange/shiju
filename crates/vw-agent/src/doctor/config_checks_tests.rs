@@ -1,3 +1,5 @@
+// 覆盖配置诊断对提供商、渠道及语义错误的报告。
+
 use super::Severity;
 use super::config_checks::{
     check_config_semantics, embedding_provider_validation_error, provider_validation_error,

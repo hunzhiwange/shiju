@@ -1,3 +1,5 @@
+//! 管理 Matrix 工作节点运行时，将房间事件与调度运行状态、心跳及回执相互同步。
+
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 #[cfg(feature = "channel-matrix")]

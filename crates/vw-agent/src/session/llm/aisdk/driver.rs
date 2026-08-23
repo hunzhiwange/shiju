@@ -1,3 +1,7 @@
+//! AI SDK 模型解析与流式请求驱动。
+//!
+//! 非 WASM 平台在此把统一会话请求转换为供应商模型调用，并归一化错误与输出。
+
 #[cfg(not(target_arch = "wasm32"))]
 use aisdk::core::DynamicModel;
 #[cfg(not(target_arch = "wasm32"))]

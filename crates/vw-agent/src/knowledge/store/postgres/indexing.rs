@@ -1,3 +1,5 @@
+//! PostgreSQL 文档导入与索引任务的入队、租约和完成流程。
+
 use anyhow::{Context, Result, anyhow, bail};
 use postgres::{GenericClient, Row};
 use uuid::Uuid;

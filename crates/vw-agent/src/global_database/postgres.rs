@@ -1,3 +1,5 @@
+//! PostgreSQL 连接池与模式初始化实现，封装 TLS 和连接生命周期边界。
+
 use std::collections::HashMap;
 use std::fmt;
 use std::ops::{Deref, DerefMut};

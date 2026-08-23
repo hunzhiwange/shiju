@@ -1,3 +1,5 @@
+//! 验证会话仓库路径规范化、索引加载及记录文件读写行为。
+
 use super::*;
 
 use crate::queue_paths::TEST_HOME_ENV_LOCK;

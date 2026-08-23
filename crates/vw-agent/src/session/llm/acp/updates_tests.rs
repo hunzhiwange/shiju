@@ -1,3 +1,5 @@
+//! 验证 ACP 更新事件到文本、工具调用和元数据的转换。
+
 use serde_json::{Map, Value, json};
 use vw_acp::AcpJsonRpcMessage;
 use vw_api_types::tools::{StructuredPatchHunkDto, ToolResultContentDto, ToolResultDto};

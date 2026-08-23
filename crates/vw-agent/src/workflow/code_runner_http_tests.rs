@@ -1,3 +1,5 @@
+//! 验证代码运行器 HTTP 桥接的鉴权、代理参数、错误结构与敏感信息脱敏。
+
 use serde_json::json;
 use std::collections::BTreeMap;
 

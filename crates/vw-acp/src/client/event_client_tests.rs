@@ -1,3 +1,5 @@
+//! 验证协议事件转发、会话变更、权限请求与回调触发行为。
+
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;

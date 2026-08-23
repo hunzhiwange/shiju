@@ -1,3 +1,5 @@
+//! 验证严格 JSON 输出策略对错误和结果载荷的发射条件。
+
 use serde::Serialize;
 use serde_json::Value;
 

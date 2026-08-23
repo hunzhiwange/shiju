@@ -1,3 +1,5 @@
+//! 验证只读判定对回退解析、未知选项、变量展开与原地编辑的处理。
+
 use crate::tools::shell::ast::{BashAst, CommandInfo, ParsedCommand, parse_command};
 use crate::tools::shell::readonly::{ReadonlyCheckResult, check_readonly_constraints};
 

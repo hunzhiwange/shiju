@@ -1,3 +1,5 @@
+// 覆盖桌面技能目录解析、详情读取、脚手架创建与安装。
+
 #[test]
 fn desktop_skills_test_module_is_loaded() {
     assert!(true);

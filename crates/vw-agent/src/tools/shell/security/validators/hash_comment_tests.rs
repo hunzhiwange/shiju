@@ -1,3 +1,5 @@
+//! 验证井号注释校验器识别可能隐藏后续命令语义的输入。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

@@ -1,3 +1,5 @@
+//! 测试调度引擎对过期租约和中断运行的恢复策略。
+
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::common::TimestampMs;

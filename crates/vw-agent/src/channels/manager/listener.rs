@@ -1,3 +1,5 @@
+//! 通道监听任务的监督循环，负责健康心跳与失败后的退避重启。
+
 use super::*;
 
 pub(crate) fn spawn_supervised_listener(

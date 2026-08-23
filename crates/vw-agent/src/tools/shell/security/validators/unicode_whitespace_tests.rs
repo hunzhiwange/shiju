@@ -1,3 +1,5 @@
+//! 验证 Unicode 空白校验器阻断非 ASCII 分隔符并允许普通空格。
+
 use super::unicode_whitespace::UnicodeWhitespaceValidator;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityCategory, SecurityValidator};

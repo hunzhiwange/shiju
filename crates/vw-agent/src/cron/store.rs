@@ -1,3 +1,5 @@
+//! 定时任务与运行记录的持久化操作，并统一调度校验和输出截断边界。
+
 use super::{
     CronJob, CronJobPatch, CronRun, DeliveryConfig, JobType, Schedule, SessionTarget,
     next_run_for_schedule, normalize_fallbacks, schedule_cron_expression, validate_schedule,

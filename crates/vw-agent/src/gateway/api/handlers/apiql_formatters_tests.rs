@@ -1,3 +1,5 @@
+// 覆盖 ApiQL 字段格式化器的解析、执行与错误处理。
+
 use serde_json::{Value, json};
 use vw_api_types::apiql::{ApiQlEntityConfig, ApiQlFieldConfig};
 

@@ -1,3 +1,5 @@
+//! PostgreSQL 网关设置存储，按租户、命名空间与配置键隔离记录。
+
 use anyhow::{Context, Result, bail};
 use vw_api_types::id::TenantScope;
 

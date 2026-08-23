@@ -1,3 +1,5 @@
+//! 可热替换的钩子运行时，保证候选构建完成后再原子发布。
+
 use std::sync::{Arc, RwLock};
 
 use anyhow::{Context, Result};

@@ -1,3 +1,5 @@
+// 覆盖文件遍历、目录树与文本搜索的过滤和限制规则。
+
 use super::{FilesInput, SearchInput, files, is_hidden_path, match_globs, search, tree};
 use glob::Pattern;
 use std::fs;

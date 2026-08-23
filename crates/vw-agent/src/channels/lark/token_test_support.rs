@@ -1,3 +1,5 @@
+//! Lark 令牌相关测试的本地 HTTP 服务、请求捕获与通道夹具。
+
 use super::super::super::LarkChannel;
 use super::super::CachedTenantToken;
 use std::time::{Duration, Instant};

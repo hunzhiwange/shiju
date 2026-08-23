@@ -1,3 +1,5 @@
+// 覆盖配置存储后端选择、租户读写及兼容行为。
+
 use anyhow::Result;
 use vw_api_types::id::TenantScope;
 

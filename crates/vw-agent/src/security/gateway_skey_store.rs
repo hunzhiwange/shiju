@@ -1,4 +1,6 @@
-//! Tenant-scoped gateway skey metadata in the shared database.
+//! 共享数据库中按租户隔离的网关密钥元数据存储。
+//!
+//! SQLite 只持久化规范化密钥的摘要，不保存原始明文。
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

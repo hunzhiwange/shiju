@@ -1,3 +1,5 @@
+//! 验证原生浏览器元素动作、重试恢复与错误上下文。
+
 use std::collections::VecDeque;
 use std::sync::Arc;
 

@@ -1,3 +1,4 @@
+// 验证全局 PostgreSQL 数据库的连接、迁移与查询执行边界。
 use anyhow::Result;
 use std::time::Duration;
 

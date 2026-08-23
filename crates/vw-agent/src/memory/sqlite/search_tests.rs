@@ -1,3 +1,4 @@
+// 覆盖 SQLite 全文与向量检索的过滤、评分和降级路径。
 use super::*;
 use crate::memory::embeddings::EmbeddingProvider;
 use async_trait::async_trait;

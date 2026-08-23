@@ -1,3 +1,4 @@
+// 覆盖 Markdown 记忆的文件布局、读写、检索与内容保留。
 use super::*;
 use tempfile::TempDir;
 

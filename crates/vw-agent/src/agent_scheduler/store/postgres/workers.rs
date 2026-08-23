@@ -1,3 +1,5 @@
+//! 实现 PostgreSQL 工作节点快照、筛选与生命周期更新，并序列化节点能力集合。
+
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

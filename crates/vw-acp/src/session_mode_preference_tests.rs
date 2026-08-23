@@ -1,3 +1,5 @@
+//! 验证会话模式和模型偏好的规范化、解析优先级与状态同步。
+
 use super::*;
 use crate::{SESSION_RECORD_SCHEMA, SessionEventLog, SessionTokenUsage};
 use agent_client_protocol::{

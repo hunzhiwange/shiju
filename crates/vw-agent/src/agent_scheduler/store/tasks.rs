@@ -1,3 +1,5 @@
+//! 实现 SQLite 任务与看板数据的创建、读取、筛选和受状态机约束的更新。
+
 use anyhow::{Context, Result, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params, params_from_iter};

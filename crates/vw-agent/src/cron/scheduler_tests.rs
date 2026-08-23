@@ -1,3 +1,5 @@
+// 覆盖定时调度器的到期计算、执行选择与错误隔离。
+
 use super::execute_job_now;
 use crate::app::agent::config::Config;
 use crate::app::agent::cron::{CronJob, DeliveryConfig, JobType, Schedule, SessionTarget};

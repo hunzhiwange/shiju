@@ -1,3 +1,5 @@
+//! 实验性节点控制协议端点，执行认证、节点准入和能力调用限制。
+
 use super::state::AppState;
 use crate::app::agent::security::pairing::constant_time_eq;
 use axum::{

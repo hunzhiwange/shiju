@@ -1,3 +1,5 @@
+//! 测试 Matrix 运行器的任务投递、响应关联与错误映射。
+
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};

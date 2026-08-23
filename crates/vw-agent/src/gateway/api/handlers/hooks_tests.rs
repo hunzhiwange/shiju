@@ -1,3 +1,5 @@
+// 覆盖钩子信任变更、运行时重载及审计数据脱敏。
+
 use super::*;
 use crate::app::agent::gateway::{AppState, GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::hooks::build_hook_runtime;

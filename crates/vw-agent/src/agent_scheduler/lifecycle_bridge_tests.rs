@@ -1,3 +1,5 @@
+//! 测试代理生命周期事件到调度状态和日志记录的桥接。
+
 use serde_json::json;
 use vw_api_types::task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,

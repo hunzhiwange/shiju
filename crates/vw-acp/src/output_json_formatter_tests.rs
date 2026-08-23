@@ -1,3 +1,5 @@
+//! 验证 JSON 输出器跟踪读工具调用并按策略脱敏其响应内容。
+
 use super::*;
 use crate::read_output_suppression::SUPPRESSED_READ_OUTPUT;
 use crate::types::{

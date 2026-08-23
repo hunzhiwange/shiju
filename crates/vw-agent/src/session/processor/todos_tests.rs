@@ -1,3 +1,5 @@
+//! 验证待办读取、未完成判定和状态补丁生成。
+
 use crate::app::agent::session::session::{Role, Session};
 use crate::app::agent::tools::{ToolRuntimeContext, todo};
 use std::sync::atomic::{AtomicU64, Ordering};

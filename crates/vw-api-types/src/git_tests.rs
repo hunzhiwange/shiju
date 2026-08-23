@@ -1,3 +1,5 @@
+//! 验证 Git DTO 的稳定字段名称、集合默认值及提交结果兼容性。
+
 use crate::git::{GitCommitResponse, GitDiffRequest, GitDiffScope, GitFileStatus, GitStatusDto};
 use serde_json::json;
 

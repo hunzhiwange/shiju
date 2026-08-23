@@ -1,3 +1,5 @@
+//! 验证自动模型选择的规则优先级、能力过滤与稳定排序。
+
 use super::{
     AutoModelSelectionRequest, ModelCandidate, ModelReference, ModelSelectionError,
     ModelSelectionSource, ModelTaskProfile, select_auto_model,

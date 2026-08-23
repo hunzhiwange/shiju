@@ -1,3 +1,5 @@
+// 覆盖网关 Bearer 令牌提取与配对认证规则。
+
 use super::{extract_bearer_token, require_auth};
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{AppState, GatewayRateLimiter, IdempotencyStore};

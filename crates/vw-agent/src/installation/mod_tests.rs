@@ -1,3 +1,4 @@
+// 覆盖安装来源检测、版本查询、包管理器升级与 HTTP 响应处理。
 use super::*;
 use serde::Deserialize;
 use serde_json::json;

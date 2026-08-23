@@ -1,3 +1,5 @@
+//! PostgreSQL 知识向量缓存的读写与淘汰操作。
+
 use anyhow::{Context, Result};
 use vw_api_types::TenantScope;
 

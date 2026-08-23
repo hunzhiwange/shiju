@@ -1,3 +1,5 @@
+//! 测试代理上下文对记忆相关度、作用域和召回失败的处理。
+
 use super::*;
 use crate::app::agent::memory::{MemoryCategory, MemoryEntry};
 use std::sync::Mutex;

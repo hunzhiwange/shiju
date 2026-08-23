@@ -1,3 +1,4 @@
+// 覆盖网关 WebSocket 的握手鉴权、消息处理与连接清理。
 use super::*;
 
 use crate::app::agent::config::Config;

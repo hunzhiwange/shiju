@@ -1,3 +1,5 @@
+//! 验证性能指标捕获配置、快照载荷、检查点写入与状态重置。
+
 use super::*;
 use std::collections::HashMap;
 use std::fs;

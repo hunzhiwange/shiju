@@ -1,3 +1,5 @@
+//! 验证创建、加载、恢复和配置会话时的状态同步与回退路径。
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 任务存储的状态转换、筛选与元数据更新。
+
 use ::postgres::types::ToSql;
 
 use super::{ensure_single_update, push_filter};

@@ -1,3 +1,5 @@
+//! 定义调度领域的强类型标识、状态和值对象，并在构造边界校验外部输入。
+
 use anyhow::{Result, bail};
 use serde_json::Value;
 use std::path::{Path, PathBuf};

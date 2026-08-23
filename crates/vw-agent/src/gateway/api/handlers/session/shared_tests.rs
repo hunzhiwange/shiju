@@ -1,3 +1,5 @@
+// 覆盖会话 API 公共错误映射、目录解析与租户实例上下文。
+
 use super::*;
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::app::agent::project;

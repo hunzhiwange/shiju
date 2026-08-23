@@ -297,3 +297,4 @@ async fn typing_indicator_starts_and_stops_background_task() {
     channel.stop_typing("chat-1").await.expect("stop typing");
     assert!(channel.typing_handle.lock().is_none());
 }
+// 本文件验证 Telegram 渠道接口的发送、草稿支持与降级路径。

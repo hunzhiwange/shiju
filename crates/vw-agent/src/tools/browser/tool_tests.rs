@@ -1,3 +1,5 @@
+//! 验证浏览器工具的后端选择、执行结果和安全策略衔接。
+
 use super::*;
 use crate::app::agent::security::AutonomyLevel;
 use std::path::PathBuf;

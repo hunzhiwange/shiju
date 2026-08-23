@@ -1,3 +1,5 @@
+// 覆盖内置格式化器目录、扩展名及命令配置。
+
 use super::builtins::builtin_formatters;
 use super::state::EnabledCheck;
 

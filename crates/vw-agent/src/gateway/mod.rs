@@ -1,3 +1,5 @@
+//! 基于 Axum 的 HTTP 网关，统一路由、认证、限流、请求上限与超时边界。
+//!
 //! Axum-based HTTP gateway with proper HTTP/1.1 compliance, body limits, and timeouts.
 //!
 //! This module replaces the raw TCP implementation with axum for:

@@ -1,3 +1,4 @@
+// 验证钩子运行时的加载顺序、事件分发与失败隔离。
 use super::{HookResult, build_hook_runtime};
 use crate::app::agent::config::Config;
 use crate::plugins::{

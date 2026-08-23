@@ -1,3 +1,5 @@
+//! 验证操作错误的默认元数据、错误源和输出参数契约。
+
 use std::error::Error as StdError;
 use std::fmt::Display;
 use std::io;

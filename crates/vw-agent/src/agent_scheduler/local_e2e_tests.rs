@@ -1,3 +1,5 @@
+//! 测试本地调度从任务入队到运行完成的端到端流程。
+
 use anyhow::Result;
 use serde_json::json;
 use std::path::Path;

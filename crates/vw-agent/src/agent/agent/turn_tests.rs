@@ -1,3 +1,5 @@
+//! 测试单轮代理执行中的模型调用、记忆读写、工具处理与失败路径。
+
 use super::core::Agent;
 use crate::app::agent::agent::memory_loader::MemoryLoader;
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry, NoneMemory};

@@ -1,3 +1,5 @@
+//! 验证 AI SDK 请求体的消息、工具、选项和供应商元数据。
+
 use std::collections::HashMap;
 
 use serde_json::{Value, json};

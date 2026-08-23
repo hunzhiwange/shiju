@@ -1,3 +1,5 @@
+//! 验证客户端辅助逻辑对会话选项、认证、错误和进程上下文的处理。
+
 use std::collections::HashMap;
 use std::error::Error as StdError;
 use std::ffi::OsString;

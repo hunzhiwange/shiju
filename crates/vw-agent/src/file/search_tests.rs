@@ -1,3 +1,5 @@
+// 覆盖模糊文件搜索的评分、隐藏路径与结果限制。
+
 use super::SearchInput;
 use super::search::{fuzzy_score, is_hidden, search};
 use std::fs;

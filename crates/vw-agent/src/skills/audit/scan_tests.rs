@@ -1,3 +1,5 @@
+//! 验证技能目录扫描的忽略规则、文件边界与问题收集。
+
 use super::*;
 use vw_config_types::skills::SkillSecurityConfig;
 

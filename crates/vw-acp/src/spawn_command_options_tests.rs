@@ -1,3 +1,5 @@
+//! 验证启动命令构造会将显式环境覆盖传递给子进程。
+
 use super::*;
 use std::collections::HashMap;
 

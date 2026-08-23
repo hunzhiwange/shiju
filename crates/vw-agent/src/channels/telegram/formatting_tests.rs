@@ -116,3 +116,4 @@ fn markdown_to_telegram_html_preserves_closed_empty_code_block() {
 fn markdown_to_telegram_html_treats_unclosed_italic_marker_as_plain_text() {
     assert_eq!(TelegramChannel::markdown_to_telegram_html("**x** *open"), "<b>x</b> *open");
 }
+// 本文件验证 Markdown 到 Telegram HTML 的转义、格式化与异常输入保留。

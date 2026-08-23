@@ -1,3 +1,5 @@
+//! 验证只读命令长短选项的精确匹配与聚合形式判定。
+
 use super::*;
 use crate::tools::shell::readonly::CommandAllowlistEntry;
 

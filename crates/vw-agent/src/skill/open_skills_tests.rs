@@ -1,3 +1,5 @@
+//! 验证旧版 OpenSkills 发现与技能元数据转换行为。
+
 use super::*;
 
 #[test]

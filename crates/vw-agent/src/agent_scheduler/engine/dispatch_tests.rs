@@ -1,3 +1,5 @@
+//! 测试调度引擎分派就绪任务时的选员、租约与失败回滚。
+
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::ReasoningEffortDto;

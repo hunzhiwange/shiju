@@ -1,3 +1,5 @@
+//! 全局数据库门面，管理后端复用、SQLite 文件安全与旧库迁移。
+
 #[cfg(test)]
 use std::cell::RefCell;
 use std::collections::HashMap;

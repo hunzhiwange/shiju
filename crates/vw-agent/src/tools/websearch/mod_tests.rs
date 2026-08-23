@@ -1,3 +1,5 @@
+//! 验证兼容网页搜索工具的端点、参数解析及无网络前置拒绝路径。
+
 use super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use crate::app::agent::tools::traits::Tool;

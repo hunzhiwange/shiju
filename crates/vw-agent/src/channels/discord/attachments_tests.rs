@@ -77,3 +77,4 @@ async fn process_attachments_skips_failed_text_fetches_and_audio() {
 
     assert!(process_attachments(&attachments, &reqwest::Client::new()).await.is_empty());
 }
+// 本文件验证 Discord 入站附件的媒体识别、下载与内容内联行为。

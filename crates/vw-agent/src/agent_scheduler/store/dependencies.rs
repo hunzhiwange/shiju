@@ -1,3 +1,5 @@
+//! 持久化 SQLite 任务依赖、构建就绪图，并阻止修改已有执行约束的后继关系。
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Context, Result, bail};

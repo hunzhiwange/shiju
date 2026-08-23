@@ -1,3 +1,5 @@
+//! 验证知识库 DTO 的默认值、旧载荷兼容性、导入契约及敏感字段脱敏。
+
 use super::knowledge::{
     KnowledgeCapabilitiesDto, KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode,
     KnowledgeDatasetCreateRequest, KnowledgeDatasetDto, KnowledgeDocumentCreateRequest,

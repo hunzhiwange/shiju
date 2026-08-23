@@ -1,3 +1,7 @@
+//! 会话、消息、步骤与模型原始记录的 PostgreSQL 持久化实现。
+//!
+//! 查询参数始终携带完整项目作用域，防止跨租户或跨项目读取会话数据。
+
 use std::collections::HashSet;
 
 use ::postgres::{GenericClient, Row};

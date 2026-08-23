@@ -172,3 +172,4 @@ async fn download_file_reports_status_without_leaking_url() {
     assert!(error.contains("404 Not Found"));
     assert!(!error.contains("123:ABC"));
 }
+// 本文件验证 Telegram 文件路径查询、下载响应与错误信息边界。

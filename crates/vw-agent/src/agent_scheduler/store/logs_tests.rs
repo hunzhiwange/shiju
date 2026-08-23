@@ -1,3 +1,5 @@
+//! 测试调度日志存储的级别筛选、分页与作用域隔离。
+
 use anyhow::Result;
 use rusqlite::Connection;
 use serde_json::json;

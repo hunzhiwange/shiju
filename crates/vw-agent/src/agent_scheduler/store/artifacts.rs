@@ -1,3 +1,5 @@
+//! 实现 SQLite 任务产物的记录与查询，并校验产物关联的运行确属目标任务。
+
 use anyhow::{Context, Result, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};

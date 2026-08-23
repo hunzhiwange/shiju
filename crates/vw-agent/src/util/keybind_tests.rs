@@ -1,3 +1,5 @@
+//! 验证按键绑定的解析、别名归一化、格式化与匹配规则。
+
 use super::keybind::{Info, matches, parse, to_string};
 
 #[test]

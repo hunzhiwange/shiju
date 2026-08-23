@@ -1,3 +1,5 @@
+// 覆盖核心渠道配置元数据及群组回复模式的稳定契约。
+
 use super::types::{
     DiscordConfig, GroupReplyMode, IMessageConfig, MattermostConfig, SlackConfig, TelegramConfig,
     WebhookConfig,

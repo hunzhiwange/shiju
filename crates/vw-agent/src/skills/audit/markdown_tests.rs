@@ -1,3 +1,5 @@
+//! 验证技能 Markdown 审计对前言、链接和危险内容的识别。
+
 use super::*;
 use crate::app::agent::skills::audit::report::SkillAuditReport;
 use vw_config_types::skills::SkillSecurityConfig;

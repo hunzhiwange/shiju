@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 调度表结构、约束和迁移幂等性。
+
 use anyhow::Result;
 
 use super::{initialize_schema, reject_unsupported_schema};

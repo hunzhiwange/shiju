@@ -1,3 +1,5 @@
+//! 执行任务看板的自动推进、失败重试与超时收敛策略，并返回可审计的处理结果。
+
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
 use vw_api_types::common::TimestampMs;

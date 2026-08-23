@@ -1,3 +1,5 @@
+//! 验证系统提示组装、运行时上下文和异步执行辅助行为。
+
 #[test]
 fn max_steps_text_matches_trimmed_embedded_constraint() {
     let text = super::max_steps_text();

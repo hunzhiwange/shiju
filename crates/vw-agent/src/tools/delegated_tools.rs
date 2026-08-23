@@ -1,3 +1,7 @@
+//! 为委派代理构建受限工具集合。
+//!
+//! 工具权限由代理配置与受信任技能能力共同收窄，并显式排除再次委派的入口。
+
 use super::traits::{Tool, ToolResult};
 use crate::app::agent::config::DelegateAgentConfig;
 use crate::session::capability_policy::resolve_skill_capabilities;

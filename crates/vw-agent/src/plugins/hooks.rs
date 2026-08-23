@@ -1,4 +1,4 @@
-//! Static parser for plugin hook manifests.
+//! 插件钩子清单的静态解析与路径校验。
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;

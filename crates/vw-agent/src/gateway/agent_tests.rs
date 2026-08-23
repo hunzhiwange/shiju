@@ -1,3 +1,5 @@
+// 覆盖代理网关的认证、限流、错误脱敏及成功生命周期。
+
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

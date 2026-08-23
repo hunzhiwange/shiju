@@ -1,3 +1,5 @@
+//! 验证提问请求的发布、答复、拒绝及待处理状态生命周期。
+
 use super::*;
 use serde_json::json;
 use std::sync::{Arc, Mutex};

@@ -1,3 +1,5 @@
+//! 验证原生浏览器会话创建、复用、关闭及启动参数。
+
 use super::*;
 use axum::{
     Json, Router,

@@ -1,3 +1,5 @@
+//! 验证设置补丁的稀疏序列化与安全策略协议名称。
+
 use crate::settings::{
     AutonomyLevelDto, NetworkAccessDto, ProxySettingsDto, RuntimeSettingsPatchDto,
     SandboxBackendDto, SecuritySettingsPatchDto,

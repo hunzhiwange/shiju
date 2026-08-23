@@ -297,3 +297,4 @@ async fn handle_task_mode_clears_session_history_and_enables_task_mode() {
     assert!(!ctx.conversation_histories.lock().unwrap().contains_key(&sender_key));
     assert!(get_route_selection(&ctx, &sender_key).task_mode_enabled);
 }
+// 本文件验证会话提供者和模型的展示、切换、持久化与历史清理。

@@ -219,3 +219,4 @@ fn approval_management_command_classifier_covers_all_sensitive_commands() {
     assert!(!is_approval_management_command(&ChannelRuntimeCommand::ShowModel));
     assert!(!is_approval_management_command(&ChannelRuntimeCommand::SetModel("gpt-5".to_string())));
 }
+// 本文件验证运行时命令解析、渠道能力约束与自然语言审批意图识别。

@@ -1,3 +1,5 @@
+// 覆盖定时任务存储的增删改查、运行记录与持久化边界。
+
 use super::store::{
     add_agent_job, add_job, get_job, list_jobs, remove_job, update_job, with_connection,
 };

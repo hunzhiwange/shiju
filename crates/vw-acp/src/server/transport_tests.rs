@@ -1,3 +1,5 @@
+//! 验证标准输入输出传输层只写出合法 JSON-RPC 帧。
+
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use super::agent_tests::FakeBackend;

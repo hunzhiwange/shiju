@@ -1,3 +1,5 @@
+//! 验证会话指令装配、来源去重及代理与技能引用。
+
 use std::collections::HashSet;
 use std::ffi::OsString;
 use std::io::{Read, Write};

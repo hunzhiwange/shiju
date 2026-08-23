@@ -1,3 +1,5 @@
+// 覆盖模型探测目标解析及错误类别的诊断映射。
+
 use super::model_probe::{
     ModelProbeOutcome, classify_model_probe_error, doctor_model_targets,
     report_model_probe_targets, resolve_model_probe_targets, run_models,

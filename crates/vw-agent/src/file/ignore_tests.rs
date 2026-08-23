@@ -1,3 +1,5 @@
+// 覆盖默认忽略模式、白名单及跨平台路径匹配。
+
 use super::{PATTERNS, matches, split_path};
 use glob::Pattern;
 

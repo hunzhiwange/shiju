@@ -266,3 +266,4 @@ async fn try_add_ack_reaction_keeps_failure_paths_best_effort() {
     cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
     ch.try_add_ack_reaction("om_1", "OK").await;
 }
+// 本文件验证 Lark 令牌 HTTP 流程、媒体获取、富文本发送与反应重试。

@@ -1,3 +1,5 @@
+//! 实现 PostgreSQL 团队快照的写入与读取，并校验成员和计数字段的领域类型。
+
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

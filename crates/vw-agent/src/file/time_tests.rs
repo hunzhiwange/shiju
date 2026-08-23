@@ -1,3 +1,5 @@
+// 覆盖文件时间戳校验及同步、异步锁的并发语义。
+
 use super::{
     Error, LOCKS, LOCKS_SYNC, READ, assert as assert_async, assert_sync, get, normalize, read,
     with_lock, with_lock_sync,

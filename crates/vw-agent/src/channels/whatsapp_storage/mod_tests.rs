@@ -118,3 +118,4 @@ fn rusqlite_store_preserves_existing_schema_object_named_device() {
 
     assert_eq!(object_type, "view");
 }
+// 本文件验证 WhatsApp SQLite 存储初始化、路径错误与既有结构兼容。

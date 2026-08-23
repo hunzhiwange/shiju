@@ -1,3 +1,5 @@
+//! 实现 PostgreSQL 运行记录的原子认领、心跳与收尾，并检查任务依赖和活动租约。
+
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result};
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

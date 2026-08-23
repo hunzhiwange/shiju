@@ -290,3 +290,4 @@ async fn snapshot_db_returns_error_when_source_database_is_missing() {
     };
     assert!(err.to_string().contains("No such file") || err.to_string().contains("os error 2"));
 }
+// 本文件验证 WhatsApp 设备记录的隔离、替换、反序列化与数据库快照。

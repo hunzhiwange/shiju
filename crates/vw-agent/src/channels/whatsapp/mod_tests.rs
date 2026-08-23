@@ -1223,3 +1223,4 @@ mod tests {
         assert!(err.to_string().contains("WhatsApp API error:"));
     }
 }
+// 本文件验证 WhatsApp Graph 渠道的地址约束、号码许可、收发与健康状态。

@@ -1,3 +1,5 @@
+//! 验证文件链接块的解析、压缩、路径解析与元数据构造行为。
+
 use crate::app::agent::tools::ToolRuntimeContext;
 
 fn ctx_for(path: &std::path::Path) -> ToolRuntimeContext {

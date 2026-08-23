@@ -1,4 +1,6 @@
-//! Runtime bridge from trusted plugin hook declarations to HookRunner handlers.
+//! 将受信任插件钩子声明接入 `HookRunner` 的运行时桥接层。
+//!
+//! 仅为通过信任校验的声明创建进程处理器，并约束执行超时和输入输出边界。
 
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;

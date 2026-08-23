@@ -1,3 +1,5 @@
+//! 验证重定向校验器警告覆盖写入、阻断敏感路径并允许空设备输出。
+
 use super::redirection::RedirectionValidator;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityCategory, SecurityValidator, Severity};

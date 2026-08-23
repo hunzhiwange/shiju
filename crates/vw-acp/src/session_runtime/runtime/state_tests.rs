@@ -1,3 +1,5 @@
+//! 验证运行时状态、队列输出适配、协议消息复制与记录更新。
+
 use super::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

@@ -1,3 +1,5 @@
+//! 验证代理环境变量存在时代理状态探测结果保持为真。
+
 use super::proxied::proxied;
 
 #[test]

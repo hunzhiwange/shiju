@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 依赖存储的拓扑约束与级联行为。
+
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

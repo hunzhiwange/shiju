@@ -1,3 +1,5 @@
+// 覆盖配置加载入口、默认路径与跨来源解析行为。
+
 #[cfg(not(target_arch = "wasm32"))]
 use super::load_from_path_without_env;
 use super::{

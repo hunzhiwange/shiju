@@ -1,3 +1,5 @@
+// 覆盖 MCP 检查接口的认证、配置加载与错误映射。
+
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

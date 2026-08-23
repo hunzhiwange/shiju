@@ -1,3 +1,5 @@
+//! 全局数据库测试夹具，隔离 PostgreSQL 测试模式并保留 SQLite 哨兵证据。
+
 use std::time::Duration;
 
 use anyhow::{Context, Result};

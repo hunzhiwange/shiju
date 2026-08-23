@@ -1,3 +1,5 @@
+//! 验证作用域指令规则的匹配、合并与排除行为。
+
 use super::instruction_rules;
 
 #[test]

@@ -1,3 +1,5 @@
+//! 测试调度事件存储的追加顺序、过滤与作用域隔离。
+
 use anyhow::Result;
 use rusqlite::params;
 use serde_json::json;

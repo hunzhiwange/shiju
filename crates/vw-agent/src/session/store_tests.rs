@@ -1,3 +1,5 @@
+//! 验证会话存储迁移、事务一致性、作用域隔离与往返持久化。
+
 use anyhow::Result;
 use rusqlite::{Connection, params};
 use serde_json::json;

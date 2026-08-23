@@ -192,3 +192,4 @@ fn system_config_migration_accepts_legacy_toml_source() -> Result<()> {
     assert!(backup_path(temp_home.path()).is_file());
     Ok(())
 }
+// 本文件验证系统配置迁移的备份、校验、冲突保护与幂等性。

@@ -1,3 +1,5 @@
+//! 验证公开数据类型的稳定字面量、字段形状、默认值与往返序列化。
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 

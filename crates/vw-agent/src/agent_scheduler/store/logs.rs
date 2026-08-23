@@ -1,3 +1,5 @@
+//! 实现 SQLite 任务日志和运行工作区上下文的追加、读取与关联一致性检查。
+
 use anyhow::{Context, Result, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};

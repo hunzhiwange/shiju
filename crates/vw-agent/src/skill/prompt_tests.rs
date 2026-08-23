@@ -1,3 +1,5 @@
+//! 验证旧版技能提示文本的选择、排序与内容拼装行为。
+
 use super::*;
 use crate::app::agent::skill::types::{Skill, SkillTool, SkillsPromptInjectionMode};
 use std::collections::HashMap;

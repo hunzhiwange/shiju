@@ -1,3 +1,5 @@
+// 覆盖 ApiQL 内置函数的参数校验与转换结果。
+
 use vw_api_types::apiql::ApiQlListMode;
 use vw_api_types::id::TenantScope;
 

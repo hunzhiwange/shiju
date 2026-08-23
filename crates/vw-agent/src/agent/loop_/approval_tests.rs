@@ -1,3 +1,5 @@
+//! 测试非命令行审批上下文的决议等待、取消、超时与清理行为。
+
 use super::*;
 use crate::app::agent::config::AutonomyConfig;
 use tokio_util::sync::CancellationToken;

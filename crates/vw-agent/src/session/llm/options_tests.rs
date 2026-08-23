@@ -1,3 +1,5 @@
+//! 验证嵌套 LLM 选项的递归合并与值替换规则。
+
 use super::*;
 
 use serde_json::json;

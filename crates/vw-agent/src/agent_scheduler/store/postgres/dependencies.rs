@@ -1,3 +1,5 @@
+//! 实现 PostgreSQL 任务依赖的锁定、替换与图构建，保证并发修改时约束一致。
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use ::postgres::GenericClient;

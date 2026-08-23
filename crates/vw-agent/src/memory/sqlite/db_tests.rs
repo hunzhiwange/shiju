@@ -1,3 +1,4 @@
+// 验证 SQLite 连接超时、模式初始化及旧表迁移行为。
 use super::*;
 use rusqlite::Connection;
 use tempfile::TempDir;

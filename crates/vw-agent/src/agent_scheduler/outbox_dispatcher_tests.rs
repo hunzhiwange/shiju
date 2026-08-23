@@ -1,3 +1,5 @@
+//! 测试发件箱分派器的领取、投递、重试与幂等处理。
+
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::common::TimestampMs;

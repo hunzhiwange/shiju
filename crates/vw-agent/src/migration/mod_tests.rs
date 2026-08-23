@@ -1,3 +1,4 @@
+// 验证旧记忆数据迁移的读取、去重、路径判断与备份。
 use super::*;
 use rusqlite::params;
 

@@ -1,3 +1,5 @@
+//! 验证会话索引条目解析、排序读写以及从记录文件重建索引。
+
 use super::*;
 use crate::{SESSION_RECORD_SCHEMA, SessionEventLog, SessionTokenUsage};
 

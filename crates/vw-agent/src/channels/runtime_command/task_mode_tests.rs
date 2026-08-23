@@ -285,3 +285,4 @@ async fn task_mode_still_consumes_message_when_reply_send_fails() {
     assert!(handled);
     assert!(channel.sent.lock().await.is_empty());
 }
+// 本文件验证发送者级任务模式切换及消息消费条件。

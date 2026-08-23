@@ -1,3 +1,5 @@
+// 覆盖 ApiQL 数据库执行、值转换及计数策略。
+
 use std::collections::BTreeMap;
 
 use super::connections::{ApiQlConnection, ApiQlConnectionKind};

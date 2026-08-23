@@ -1,3 +1,5 @@
+//! 验证 WebAssembly 快照后端明确返回不支持的契约。
+
 use super::*;
 
 #[test]

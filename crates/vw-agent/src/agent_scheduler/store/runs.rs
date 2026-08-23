@@ -1,3 +1,5 @@
+//! 实现 SQLite 运行记录的认领、心跳和完成流程，确保任务状态与依赖均允许执行。
+
 use anyhow::{Context, Result, anyhow, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};

@@ -1,3 +1,5 @@
+//! 验证新版技能安装的来源解析、安全校验和落盘行为。
+
 use super::*;
 use std::ffi::OsString;
 

@@ -1,3 +1,5 @@
+//! 验证环境、超时、优先级及 shell 包装层的安全剥离规则。
+
 use super::*;
 use crate::tools::shell::ast::CommandInfo;
 

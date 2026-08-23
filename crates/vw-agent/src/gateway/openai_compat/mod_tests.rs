@@ -1,3 +1,4 @@
+// 覆盖 OpenAI 兼容接口的请求转换、鉴权与流式响应协议。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

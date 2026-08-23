@@ -1,3 +1,5 @@
+// 测试调度策略不再读取旧版审核开关，并保持显式策略行为。
+
 #[test]
 fn agent_scheduler_policy_no_longer_reads_legacy_review_switch() -> anyhow::Result<()> {
     use crate::agent_scheduler::domain::TaskId;

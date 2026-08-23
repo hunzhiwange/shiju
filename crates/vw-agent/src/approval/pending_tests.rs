@@ -1,3 +1,5 @@
+//! 测试待审批请求的去重、身份匹配、过期、清理与缓存上限。
+
 use chrono::{Duration, Utc};
 use std::collections::HashMap;
 

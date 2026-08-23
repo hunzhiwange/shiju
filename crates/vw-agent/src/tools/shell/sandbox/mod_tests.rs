@@ -1,3 +1,5 @@
+//! 验证沙箱执行前对受支持命令包装器及其选项的剥离。
+
 use super::strip_wrapper_tokens;
 
 fn tokens(values: &[&str]) -> Vec<String> {

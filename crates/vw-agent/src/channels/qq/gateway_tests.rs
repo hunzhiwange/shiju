@@ -431,3 +431,4 @@ async fn run_gateway_session_sends_timer_heartbeat_with_unknown_sequence() {
     assert_eq!(error.to_string(), "QQ WebSocket connection closed");
     handle.await.expect("server task finished");
 }
+// 本文件验证 QQ Gateway 发现、WebSocket 握手、心跳与事件读取。

@@ -1,3 +1,5 @@
+//! 验证动态 MCP 工具的标识、规格映射、服务发现及调用结果转换。
+
 use super::mcp_common::with_server_peer;
 use super::mcp_tool::{McpTool, discover_mcp_tool_specs, mcp_tool_id, mcp_tools_to_specs};
 use super::{Tool, ToolSpec};

@@ -1,3 +1,5 @@
+//! 验证 LLM 请求日志的开关、脱敏、截断与写入错误处理。
+
 use super::*;
 
 use std::thread;

@@ -1,3 +1,5 @@
+//! WhatsApp Signal 协议存储，管理身份密钥、会话、预密钥与发送者密钥。
+//!
 //! SignalStore trait implementation for WhatsApp storage
 //!
 //! Implements Signal protocol cryptographic operations including:

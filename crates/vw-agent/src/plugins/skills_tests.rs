@@ -1,3 +1,5 @@
+//! 验证插件技能加载、安全策略、覆盖优先级与禁用行为。
+
 use crate::app::agent::config::{Config, SkillsPromptInjectionMode};
 use crate::app::agent::skills::{
     SkillLoadMode, load_skills_full_with_config, load_skills_with_config,

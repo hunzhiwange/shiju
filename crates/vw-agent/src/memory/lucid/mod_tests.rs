@@ -1,3 +1,4 @@
+// 验证 Lucid 记忆后端的环境配置、结果解析、冷却与本地回退。
 use super::*;
 use std::env;
 use std::ffi::{OsStr, OsString};

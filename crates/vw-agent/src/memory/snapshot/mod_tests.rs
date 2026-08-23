@@ -1,3 +1,4 @@
+// 验证记忆快照的解析、恢复、去重与局部失败容忍。
 use super::*;
 use rusqlite::Connection;
 use tempfile::TempDir;

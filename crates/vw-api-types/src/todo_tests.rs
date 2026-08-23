@@ -1,3 +1,5 @@
+//! 验证待办事项更新的稀疏字段与稳定状态名称。
+
 use crate::todo::{TodoPriority, TodoStatus, UpdateTodoRequest};
 use serde_json::json;
 

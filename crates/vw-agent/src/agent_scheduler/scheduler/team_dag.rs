@@ -1,3 +1,5 @@
+//! 校验团队任务有向无环图，并根据各节点状态筛选当前可运行节点。
+
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use anyhow::{Result, bail};

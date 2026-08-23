@@ -1,3 +1,5 @@
+//! 验证 jq 校验器对危险过滤器用法与常规查询的分类。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

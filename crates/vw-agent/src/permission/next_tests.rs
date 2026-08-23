@@ -1,3 +1,4 @@
+// 覆盖权限规则的通配匹配、路径展开、配置解析与默认询问策略。
 use super::*;
 use serde_json::json;
 use std::sync::{LazyLock, Mutex};

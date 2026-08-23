@@ -1,3 +1,5 @@
+//! 验证 ACP 错误展示文本保留各错误变体所需的上下文前缀。
+
 use super::error::AcpError;
 
 #[test]

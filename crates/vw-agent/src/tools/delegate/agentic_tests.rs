@@ -1,3 +1,5 @@
+//! 验证代理式委派在空响应及工具执行场景下的行为。
+
 use super::*;
 use crate::app::agent::config::DelegateAgentConfig;
 use crate::app::agent::providers::{ChatRequest, ChatResponse};

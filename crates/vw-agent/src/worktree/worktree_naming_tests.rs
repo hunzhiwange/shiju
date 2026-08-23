@@ -1,3 +1,5 @@
+//! 验证 worktree 名称的 slug 归一化与随机名称格式。
+
 use super::naming::{random_name, slug};
 
 #[test]

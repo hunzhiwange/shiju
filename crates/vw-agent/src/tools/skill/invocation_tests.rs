@@ -1,3 +1,5 @@
+//! 验证技能调用结果携带完整提示内容并拒绝不可由模型调用的技能。
+
 use super::invocation::build_invocation_result;
 use crate::app::agent::skills::Skill;
 use serde_json::json;

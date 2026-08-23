@@ -1,3 +1,5 @@
+//! 代理循环的核心阈值与重试提示集中定义于此，避免各执行路径采用不一致的限制。
+//!
 //! Agent Loop Core Constants
 //!
 //! This module defines the core constants used throughout the agent execution loop.

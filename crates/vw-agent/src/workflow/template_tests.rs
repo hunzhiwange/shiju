@@ -1,3 +1,5 @@
+//! 验证工作流模板的选择器替换、Jinja 值渲染与缺失值回退。
+
 use super::{render_jinja_value_template, render_template, value_to_text};
 use crate::workflow::variables::VariablePool;
 use serde_json::{Value, json};

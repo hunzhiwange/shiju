@@ -1,3 +1,5 @@
+//! 验证 LLM 请求、流事件、用量和错误类型的克隆与显示契约。
+
 use crate::app::agent::provider::provider;
 use crate::app::agent::session::message;
 use crate::app::agent::tools::ToolSpec;

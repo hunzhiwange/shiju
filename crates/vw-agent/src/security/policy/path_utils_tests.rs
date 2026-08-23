@@ -1,3 +1,5 @@
+//! 验证路径形态识别与用户主目录展开的环境边界。
+
 use super::*;
 use std::ffi::OsString;
 use std::sync::{Mutex, OnceLock};

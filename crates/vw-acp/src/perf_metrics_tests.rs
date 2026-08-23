@@ -1,3 +1,5 @@
+//! 验证性能计数器和计时器的累计、舍入、复位与锁恢复。
+
 use super::*;
 
 use std::sync::MutexGuard;

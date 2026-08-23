@@ -461,3 +461,4 @@ async fn try_parse_attachment_message_requires_workspace_dir() {
 
     assert!(channel.try_parse_attachment_message(&update).await.is_none());
 }
+// 本文件验证 Telegram 入站附件元数据选择、下载与消息内容拼装。

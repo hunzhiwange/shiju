@@ -1,3 +1,5 @@
+//! 测试团队任务有向无环图的依赖展开与就绪顺序。
+
 use anyhow::Result;
 
 use super::team_dag::{TeamDagNode, TeamDagProjectStatus, TeamDagStatus, ready_nodes};

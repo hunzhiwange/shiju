@@ -1,3 +1,5 @@
+//! 测试周期任务的到期判断、下一次执行时间与重复调度。
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde_json::json;

@@ -1,3 +1,5 @@
+//! 将员工与工作流配置编译为调度读模型，并驱动阶段分派和自动调度决策。
+
 use std::collections::{HashMap, HashSet};
 
 use serde_json::{Value, json};

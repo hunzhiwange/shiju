@@ -1,3 +1,5 @@
+//! 验证会话命令与提示词请求通过 Actor 通道转发和返回结果。
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 

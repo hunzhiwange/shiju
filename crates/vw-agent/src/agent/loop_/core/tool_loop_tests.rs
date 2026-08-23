@@ -1,3 +1,5 @@
+//! 测试工具调用循环的终止、重试、迭代耗尽与工具过滤策略。
+
 use super::*;
 use crate::providers::traits::ProviderCapabilities;
 use async_trait::async_trait;

@@ -1,3 +1,4 @@
+// 验证路由层对认证、租户上下文及各类端点的装配。
 use super::*;
 
 use axum::body::Body;

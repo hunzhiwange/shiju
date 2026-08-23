@@ -1,3 +1,5 @@
+//! 验证会话记录落盘时的蛇形字段和可选字段省略契约。
+
 use super::*;
 use crate::{
     SESSION_RECORD_SCHEMA, SessionAcpxState, SessionEventLog, SessionRecord, SessionStateOptions,

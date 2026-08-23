@@ -1,3 +1,5 @@
+//! 测试任务板元数据、状态移动、归档恢复与旧任务导入。
+
 use anyhow::Result;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;

@@ -1,3 +1,5 @@
+//! SHIJU 私有技能网关接口，处理检索、详情、版本与安装操作。
+//!
 //! SHIJU private-skill gateway API.
 
 use std::sync::Arc;

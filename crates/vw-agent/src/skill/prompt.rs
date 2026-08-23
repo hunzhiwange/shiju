@@ -1,3 +1,7 @@
+//! 技能清单的提示词渲染与安全转义。
+//!
+//! 根据注入模式输出结构化技能元数据，并对 XML 文本和本地路径进行规范化。
+
 use crate::app::agent::skill::types::{Skill, SkillsPromptInjectionMode};
 use std::path::{Path, PathBuf};
 

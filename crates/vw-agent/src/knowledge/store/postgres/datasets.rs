@@ -1,3 +1,5 @@
+//! PostgreSQL 知识数据集的增删改查与字段转换。
+
 use anyhow::{Context, Result, bail};
 use postgres::{GenericClient, Row};
 use uuid::Uuid;

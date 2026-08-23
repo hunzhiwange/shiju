@@ -1,3 +1,5 @@
+//! 验证项目图标发现的格式编码、候选优先级与文件系统边界。
+
 use super::*;
 use crate::app::agent::project::{Icon, TimeInfo};
 use base64::Engine as _;

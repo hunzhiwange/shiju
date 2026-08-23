@@ -1,3 +1,5 @@
+//! 目标引擎，维护持久化目标、步骤状态、重试计数与提示上下文。
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fmt::Write as _;

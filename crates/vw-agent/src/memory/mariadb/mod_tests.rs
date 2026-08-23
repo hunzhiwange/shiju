@@ -1,3 +1,4 @@
+// 验证 MariaDB 记忆后端的标识符校验、模式与连接参数。
 use super::*;
 
 #[test]

@@ -1,3 +1,5 @@
+//! 测试循环运行器的启动参数、完成结果与错误传播。
+
 use crate::app::agent::config::Config;
 
 use super::process_message;

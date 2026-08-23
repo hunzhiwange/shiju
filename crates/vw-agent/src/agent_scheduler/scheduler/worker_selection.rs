@@ -1,3 +1,5 @@
+//! 按可用性、团队、技能和首选运行时为候选工作节点评分并确定稳定顺序。
+
 use std::collections::HashMap;
 
 use crate::agent_scheduler::domain::{AgentCapabilityKind, AgentWorkerStatus, TeamId, WorkerName};

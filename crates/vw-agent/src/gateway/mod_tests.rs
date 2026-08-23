@@ -1,3 +1,4 @@
+// 验证网关顶层鉴权、超时选择与受保护路由的组合行为。
 use super::*;
 
 use crate::app::agent::config::Config;

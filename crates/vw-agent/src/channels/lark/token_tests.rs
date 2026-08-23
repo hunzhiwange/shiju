@@ -148,3 +148,4 @@ mod token_bot_tests;
 mod token_http_tests;
 #[path = "token_test_support.rs"]
 mod token_test_support;
+// 本文件验证 Lark 令牌缓存、过期计算、响应判定与日志脱敏。

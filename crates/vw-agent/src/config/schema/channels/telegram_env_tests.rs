@@ -1,3 +1,5 @@
+// 覆盖 Telegram 用户列表中的环境变量引用解析与非法输入边界。
+
 use super::{ChannelsConfig, TelegramConfig, resolve_telegram_allowed_users_env_refs};
 use std::ffi::{OsStr, OsString};
 use std::sync::{Mutex, MutexGuard};

@@ -1,3 +1,5 @@
+//! 验证公开 CLI 对代理令牌、全局选项和动态代理命令的解析规则。
+
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 

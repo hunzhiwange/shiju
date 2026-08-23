@@ -1,3 +1,5 @@
+//! 验证子代理请求、技能策略、持久化执行与交接结果。
+
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};

@@ -1,3 +1,5 @@
+//! 租户系统配置存储门面，在 SQLite 与 PostgreSQL 后端间保持统一契约。
+
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};

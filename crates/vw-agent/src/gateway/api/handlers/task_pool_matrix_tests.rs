@@ -1,3 +1,5 @@
+// 覆盖 Matrix 任务池事件队列、游标与发布配置校验。
+
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

@@ -1,4 +1,4 @@
-//! Docker sandbox (container isolation)
+//! 基于 Docker 容器隔离的沙箱后端。
 
 use super::traits::Sandbox;
 use std::process::Command;

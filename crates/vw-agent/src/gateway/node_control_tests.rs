@@ -1,3 +1,4 @@
+// 验证节点控制请求的校验、调度及错误映射边界。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

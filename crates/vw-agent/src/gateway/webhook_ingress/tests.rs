@@ -1,3 +1,4 @@
+// 覆盖 Webhook 入口的鉴权、限流、去重、载荷解析与错误脱敏。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

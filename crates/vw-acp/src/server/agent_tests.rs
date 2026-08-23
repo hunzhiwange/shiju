@@ -1,3 +1,5 @@
+//! 验证服务端代理能力声明、后端会话绑定与历史所有权边界。
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;

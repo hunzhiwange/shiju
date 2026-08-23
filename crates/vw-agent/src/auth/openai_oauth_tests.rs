@@ -1,3 +1,5 @@
+//! 测试 OpenAI OAuth 占位实现显式失败及响应模型序列化。
+
 use super::openai_oauth::{
     DeviceCodeResponse, OAuthTokens, PkceState, build_authorize_url, exchange_code_for_tokens,
     extract_account_id_from_jwt, generate_pkce_state, parse_code_from_redirect,

@@ -1,3 +1,5 @@
+//! 验证界面会话存储的消息、步骤、原始数据与统计聚合行为。
+
 use std::fs;
 
 use anyhow::Result;

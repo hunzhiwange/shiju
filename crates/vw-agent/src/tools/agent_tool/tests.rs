@@ -1,3 +1,5 @@
+//! 验证代理工具的参数契约、委派执行与结果格式化行为。
+
 use super::*;
 use crate::app::agent::config::DelegateAgentConfig;
 use crate::app::agent::tools::context::{ToolUseContext, scope_tool_use_context};

@@ -1,3 +1,4 @@
+// 验证心跳引擎的调度、状态更新与停止流程。
 use super::*;
 use crate::app::agent::observability::traits::ObserverMetric;
 use std::sync::Once;

@@ -1,3 +1,5 @@
+//! 验证代理注册表合并、命令解析以及跨平台可执行文件发现规则。
+
 use std::{
     collections::HashMap,
     ffi::{OsStr, OsString},

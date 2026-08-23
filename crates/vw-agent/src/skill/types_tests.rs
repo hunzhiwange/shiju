@@ -1,3 +1,5 @@
+//! 验证旧版技能类型的默认值、反序列化与兼容契约。
+
 use super::*;
 
 #[derive(Debug, clap::Parser)]

@@ -1,3 +1,5 @@
+//! 验证同键异步读写锁的互斥等待与守卫释放唤醒语义。
+
 use super::lock::{read, write};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};

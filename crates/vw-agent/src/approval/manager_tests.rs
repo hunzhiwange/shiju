@@ -1,3 +1,5 @@
+//! 测试审批管理器从配置创建时的空运行态。
+
 use crate::app::agent::config::AutonomyConfig;
 
 use super::ApprovalManager;

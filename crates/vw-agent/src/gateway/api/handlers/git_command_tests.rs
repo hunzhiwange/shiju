@@ -1,3 +1,5 @@
+// 覆盖受限 Git 命令的请求校验、执行及输出规范化。
+
 use super::*;
 use vw_api_types::git::GitCommandRequest;
 

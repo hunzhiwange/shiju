@@ -451,3 +451,4 @@ async fn log_e2ee_diagnostics_handles_restored_and_logged_out_clients() {
     assert!(restored.user_id().is_some());
     assert!(logged_out.user_id().is_none());
 }
+// 本文件验证 Matrix 房间引用解析、别名查询缓存与错误脱敏。

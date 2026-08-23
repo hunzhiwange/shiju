@@ -1,3 +1,5 @@
+//! 验证认证环境变量别名、凭据优先级以及令牌名称规范化。
+
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::sync::{LazyLock, Mutex, MutexGuard};

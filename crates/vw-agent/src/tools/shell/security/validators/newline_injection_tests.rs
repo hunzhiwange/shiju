@@ -1,3 +1,5 @@
+//! 验证换行注入校验器区分命令分隔换行与引号内文本。
+
 use super::newline_injection::NewlineInjectionValidator;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityCategory, SecurityValidator};

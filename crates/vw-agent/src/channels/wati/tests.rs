@@ -666,3 +666,4 @@ mod tests {
         assert!(result.is_err());
     }
 }
+// 本文件验证 WATI 渠道配置、号码许可、Webhook 解析与 HTTP 收发。

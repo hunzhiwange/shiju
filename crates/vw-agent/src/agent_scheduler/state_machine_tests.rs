@@ -1,3 +1,5 @@
+//! 测试任务状态机允许的转换、终态保护与任务类型约束。
+
 use std::collections::HashSet;
 
 use super::events::AgentEventKind;

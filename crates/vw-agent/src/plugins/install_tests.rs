@@ -1,3 +1,5 @@
+//! 验证插件安装和生命周期操作的文件系统安全性及失败清理。
+
 use super::install::{
     copy_dir_recursive_secure_for_test, disabled_marker_path, install_dir_from_config,
     install_plugin_from_source, remove_installed_plugin, set_next_post_copy_audit_result_for_test,

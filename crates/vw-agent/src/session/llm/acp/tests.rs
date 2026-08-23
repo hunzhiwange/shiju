@@ -1,3 +1,5 @@
+//! 验证 ACP LLM 适配器的路由、能力和公共调用契约。
+
 use std::sync::Arc;
 
 use super::*;

@@ -1,3 +1,5 @@
+//! 夜间记忆归并任务的固定提示、默认计划与安装入口。
+
 use super::{CronJob, Schedule, SessionTarget, add_agent_job};
 use crate::app::agent::config::Config;
 use anyhow::Result;

@@ -1,3 +1,5 @@
+//! 测试工具执行的审批、安全上下文、并发约束与 MCP 路由。
+
 use super::*;
 use crate::app::agent::observability::NoopObserver;
 use crate::app::agent::tools::{self as agent_tools, ToolResult};

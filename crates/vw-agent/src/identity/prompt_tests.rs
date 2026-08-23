@@ -1,3 +1,4 @@
+// 验证身份信息到系统提示词的稳定渲染与可选字段处理。
 use super::*;
 use crate::identity::model::{
     AieosIdentity, CapabilitiesSection, HistorySection, IdentitySection, InterestsSection,

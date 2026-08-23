@@ -1,3 +1,5 @@
+//! 验证运行时提示词请求构造、代理配置解析与可重试错误判定。
+
 use super::*;
 use crate::queue_owner_turn_controller::QueueOwnerActiveSessionController;
 use crate::types::{

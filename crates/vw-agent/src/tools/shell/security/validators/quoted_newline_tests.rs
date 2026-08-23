@@ -1,3 +1,5 @@
+//! 验证引号内换行校验器阻断跨行载荷并允许普通引号文本。
+
 use super::quoted_newline::QuotedNewlineValidator;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityCategory, SecurityValidator};

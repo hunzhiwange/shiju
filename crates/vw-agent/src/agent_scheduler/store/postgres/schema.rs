@@ -1,3 +1,5 @@
+//! 定义并初始化 PostgreSQL 调度表结构，同时拒绝不受支持的旧版或越界结构。
+
 use anyhow::{Context, Result, bail};
 
 use super::super::schema::{LEGACY_SCHEDULER_TABLES, SCHEDULER_TABLES};

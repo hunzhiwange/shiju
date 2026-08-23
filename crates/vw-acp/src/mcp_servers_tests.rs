@@ -1,3 +1,5 @@
+//! 验证 MCP 服务配置的类型解析、安全默认值与精确字段错误。
+
 use super::*;
 use agent_client_protocol::McpServer;
 use serde_json::{Value, json};

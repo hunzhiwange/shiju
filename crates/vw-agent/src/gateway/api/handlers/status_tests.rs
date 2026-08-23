@@ -1,3 +1,5 @@
+// 覆盖状态与健康接口的认证及运行时快照响应。
+
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::config::schema::WebhookConfig;

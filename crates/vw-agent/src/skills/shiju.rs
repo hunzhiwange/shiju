@@ -1,4 +1,4 @@
-//! SHIJU private-skill upstream client.
+//! SHIJU 私有技能服务的上游客户端。
 
 use std::fmt;
 use std::time::Duration;

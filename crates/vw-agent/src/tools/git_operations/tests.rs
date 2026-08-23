@@ -1,3 +1,5 @@
+//! 验证 Git 工具基于仓库状态执行读写操作、返回结构化结果并遵守安全约束。
+
 use super::super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use git2::{Repository, Signature};

@@ -1,3 +1,5 @@
+//! ApiQL 字段格式化器执行层，支持内置名称和受限的 Rhai 自定义规则。
+//!
 //! ApiQL field formatter execution.
 //!
 //! Formatters are intentionally small and explicit. Legacy string names keep

@@ -275,3 +275,4 @@ async fn listen_remains_pending_in_webhook_mode() {
 
     assert!(result.is_err());
 }
+// 本文件验证 Nextcloud Talk Webhook 解析、签名校验、收发与健康检查。

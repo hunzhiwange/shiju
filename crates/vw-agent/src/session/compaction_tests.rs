@@ -1,3 +1,5 @@
+//! 验证会话压缩阈值、消息保留、工具配对与持久化边界。
+
 use super::*;
 use crate::app::agent::provider::provider;
 use crate::app::agent::session::message;

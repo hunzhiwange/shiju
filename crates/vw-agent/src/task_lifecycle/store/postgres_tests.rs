@@ -1,3 +1,5 @@
+//! 验证 PostgreSQL 生命周期存储对后端类型与作用域的约束。
+
 use super::*;
 use crate::global_database::test_support::PostgresTestDatabase;
 use crate::task_lifecycle::{DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID, built_in_workflow_by_id};

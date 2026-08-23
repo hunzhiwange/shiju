@@ -76,3 +76,4 @@ fn schema_declares_device_scoped_primary_keys() {
         ]
     );
 }
+// 本文件验证 WhatsApp 存储结构的建表幂等性与设备级主键约束。

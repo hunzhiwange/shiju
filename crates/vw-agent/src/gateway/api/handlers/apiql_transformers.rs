@@ -1,3 +1,5 @@
+//! ApiQL 兼容转换器，批量查询关联实体并把结果合并回源行。
+//!
 //! ApiQL PHP-compatible transformers.
 //!
 //! The first supported transformer is `type = "api"`. It batches source IDs

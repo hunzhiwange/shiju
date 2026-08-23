@@ -1,7 +1,6 @@
-//! Deterministic Auto model selection over already active provider models.
+//! 在已启用供应商模型中执行确定性的自动模型选择。
 //!
-//! This module deliberately has no provider-directory loading or network calls.
-//! Callers load active models, then pass them to [`select_auto_model`].
+//! 本模块不加载供应商目录也不发起网络请求；调用方须先提供当前可用模型。
 
 use crate::app::agent::agent::classifier;
 use crate::app::agent::config::schema::{ModelRouteConfig, QueryClassificationConfig};

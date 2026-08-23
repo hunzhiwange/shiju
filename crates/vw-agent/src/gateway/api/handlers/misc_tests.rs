@@ -1,3 +1,5 @@
+// 覆盖命令、代理和技能列表等只读辅助路由。
+
 use super::*;
 use axum::body::Body;
 use axum::extract::Query;

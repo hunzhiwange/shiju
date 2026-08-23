@@ -1,3 +1,5 @@
+//! 验证重试退避、响应头解析与可重试错误分类规则。
+
 use super::{
     RETRY_INITIAL_DELAY, RETRY_MAX_DELAY_NO_HEADERS, delay, header_value_case_insensitive,
     parse_json_message, pow_u64, retryable,

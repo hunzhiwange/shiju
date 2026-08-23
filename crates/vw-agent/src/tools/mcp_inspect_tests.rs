@@ -1,3 +1,5 @@
+//! 验证 MCP 配置检查对传输元数据、禁用服务及配置错误的呈现。
+
 use super::*;
 use agent_client_protocol::{McpServer, McpServerHttp, McpServerSse, McpServerStdio};
 use serde_json::json;

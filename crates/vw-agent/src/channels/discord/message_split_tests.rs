@@ -54,3 +54,4 @@ fn split_message_for_discord_hard_splits_when_early_newline_has_no_space_fallbac
     assert_eq!(chunks[1].chars().count(), 201);
     assert_eq!(chunks.concat(), message);
 }
+// 本文件验证 Discord 消息按字符上限和自然分隔符安全拆分。

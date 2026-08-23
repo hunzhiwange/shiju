@@ -1,4 +1,6 @@
 //! MCP gateway inspection DTOs.
+//!
+//! 定义网关检查 MCP 服务连接状态、能力清单及分项错误时使用的数据契约。
 
 use crate::tools::ToolSpecDto;
 use serde::{Deserialize, Serialize};

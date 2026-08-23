@@ -1,3 +1,5 @@
+//! 验证计划文本提取待办及显式、隐式待办写入规则。
+
 #[test]
 fn planning_tests_module_is_wired() {
     let marker = String::from("planning_tests");

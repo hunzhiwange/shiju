@@ -1,3 +1,5 @@
+//! 验证持久化键名策略、嵌套路径检查与工具结果豁免边界。
+
 use super::*;
 use serde_json::json;
 

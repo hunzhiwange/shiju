@@ -1,3 +1,5 @@
+// 覆盖 ApiQL 模式注册、租户持久化与配置校验。
+
 use vw_api_types::apiql::{ApiQlEntityConfig, ApiQlFieldConfig};
 use vw_api_types::id::TenantScope;
 

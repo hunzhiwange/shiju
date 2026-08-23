@@ -1,3 +1,5 @@
+//! 验证 AI SDK 驱动的模型选择、请求执行与流式事件处理。
+
 use std::collections::HashMap;
 
 use aisdk::Error as AiError;

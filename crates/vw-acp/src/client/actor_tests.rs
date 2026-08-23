@@ -1,3 +1,5 @@
+//! 验证客户端 Actor 循环的命令分派、运行时清理与生命周期记录。
+
 use std::collections::HashMap;
 #[cfg(unix)]
 use std::fs;

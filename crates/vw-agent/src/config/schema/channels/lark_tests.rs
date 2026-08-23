@@ -28,3 +28,4 @@ fn lark_defaults_and_group_reply_helpers_are_available() {
     assert_eq!(format!("{:?}", lark.effective_group_reply_mode()), "AllMessages");
     assert_eq!(lark.group_reply_allowed_sender_ids(), vec!["u1".to_string(), "u2".to_string()]);
 }
+// 本文件验证 Lark 与飞书配置元数据、默认值及群聊回复辅助规则。

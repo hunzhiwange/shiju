@@ -1,3 +1,5 @@
+//! 基于 rusqlite 的 wa-rs 存储后端，统一实现 WhatsApp Web 所需存储接口。
+//!
 //! Custom wa-rs storage backend using VibeWindow's rusqlite
 //!
 //! This module implements all 4 wa-rs storage traits using rusqlite directly,

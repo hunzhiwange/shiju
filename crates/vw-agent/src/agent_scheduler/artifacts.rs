@@ -1,3 +1,5 @@
+//! 负责有限任务产物的落盘与旧格式导入，并约束产物路径不得逃逸指定根目录。
+
 use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result, bail};

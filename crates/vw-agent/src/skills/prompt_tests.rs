@@ -1,3 +1,5 @@
+//! 验证新版技能提示的筛选、排序和上下文拼装行为。
+
 use super::*;
 use crate::app::agent::config::SkillsPromptInjectionMode;
 use crate::app::agent::skills::types::{Skill, SkillTool};

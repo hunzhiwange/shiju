@@ -1,3 +1,4 @@
+// 验证 PostgreSQL 知识分块的写入、查询与级联清理。
 use anyhow::Result;
 use serde_json::{Value, json};
 use vw_api_types::TenantScope;

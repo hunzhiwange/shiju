@@ -1,3 +1,5 @@
+//! 验证文件上下文预取的权限、类型、去重与数量限制。
+
 use crate::app::agent::session::session::{Role, Session};
 use crate::app::agent::tools::ToolRuntimeContext;
 use std::collections::HashSet;

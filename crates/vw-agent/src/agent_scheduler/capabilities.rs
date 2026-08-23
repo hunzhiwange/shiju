@@ -1,3 +1,5 @@
+//! 将内建阶段能力及其支持的工作流状态映射为员工配置可消费的能力描述。
+
 use std::collections::HashSet;
 
 use vw_api_types::staff::{

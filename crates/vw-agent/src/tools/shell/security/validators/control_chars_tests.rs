@@ -1,3 +1,5 @@
+//! 验证控制字符校验器会阻断异常字符并允许普通命令。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

@@ -314,3 +314,4 @@ fn channels_by_name_keep_last_channel_for_duplicate_name() {
     assert_eq!(by_name.len(), 1);
     assert!(Arc::ptr_eq(by_name.get("duplicate").expect("duplicate channel"), &second));
 }
+// 本文件验证渠道启动前的提供者初始化、工具装配与公开入口连线。

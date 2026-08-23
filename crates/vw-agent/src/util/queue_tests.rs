@@ -1,3 +1,5 @@
+//! 验证异步队列保持先进先出顺序并完整处理工作项。
+
 use super::queue::{AsyncQueue, work};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};

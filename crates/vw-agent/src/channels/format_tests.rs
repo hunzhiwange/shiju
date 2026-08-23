@@ -479,3 +479,4 @@ fn sanitize_channel_response_matches_tool_names_case_insensitively() {
 
     assert_eq!(sanitize_channel_response(response, &tools), "hello\n\ndone");
 }
+// 本文件验证渠道输出清理、内部进度识别与投递提示生成。

@@ -1,3 +1,5 @@
+//! 验证语义防护配置、向量检索、语料解析更新与失活原因。
+
 use super::*;
 use anyhow::Result;
 use async_trait::async_trait;

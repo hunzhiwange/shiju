@@ -1,3 +1,5 @@
+//! 验证项目请求默认值、Git 状态载荷及租户作用域约束。
+
 use crate::id::ProjectId;
 use crate::project::{
     ListProjectsRequest, ProjectGitStateDto, ProjectScopeDto, ProjectStatus, TenantScopeDto,

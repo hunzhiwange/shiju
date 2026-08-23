@@ -1,3 +1,5 @@
+//! 知识库网关路由，处理数据集、文档、索引、嵌入与检索请求。
+//!
 //! Knowledge base gateway routes.
 
 use axum::{

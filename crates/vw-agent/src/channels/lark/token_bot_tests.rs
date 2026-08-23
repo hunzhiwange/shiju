@@ -148,3 +148,4 @@ async fn send_text_once_posts_json_and_wraps_raw_response() {
     assert_eq!(parsed, serde_json::json!({"raw":"raw-ok"}));
     assert_eq!(request_path(&server.next_request().await), "/send-raw");
 }
+// 本文件验证 Lark 机器人标识刷新、令牌重试与文本发送封装。

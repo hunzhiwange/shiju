@@ -1,3 +1,5 @@
+//! 测试 XML 辅助解析对标签、转义文本与不完整输入的处理。
+
 use serde_json::json;
 
 use super::xml_helpers::{

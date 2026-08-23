@@ -1,3 +1,5 @@
+//! 验证 Actor 生命周期快照、可复用会话识别与失效清理。
+
 use std::collections::HashMap;
 use std::thread;
 

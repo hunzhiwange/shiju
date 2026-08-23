@@ -1,3 +1,5 @@
+// 覆盖技能市场提供商路由、查询校验及安装目标解析。
+
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;

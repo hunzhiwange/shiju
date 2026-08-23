@@ -1,3 +1,5 @@
+//! 验证会话创建默认值及网关字段重命名契约。
+
 use crate::session::{
     CreateSessionRequest, GatewaySessionCreateBody, SessionMetadataDto, SessionStatus,
 };

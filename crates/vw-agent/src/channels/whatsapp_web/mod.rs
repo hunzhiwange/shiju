@@ -1,3 +1,5 @@
+//! 基于 wa-rs 的原生 WhatsApp Web 通道，负责配对、加密会话与消息收发。
+//!
 //! WhatsApp Web channel using wa-rs (native Rust implementation)
 //!
 //! This channel provides direct WhatsApp Web integration with:

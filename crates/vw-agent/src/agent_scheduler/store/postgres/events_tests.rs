@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 事件存储的追加、筛选与分页行为。
+
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::common::TimestampMs;

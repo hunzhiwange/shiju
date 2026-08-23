@@ -1,3 +1,5 @@
+//! 验证 Windows 计划任务包装脚本及服务命令的失败恢复。
+
 use super::windows::{
     install_windows, install_windows_with_schtasks, restart_windows, restart_windows_with_schtasks,
     start_windows, start_windows_with_schtasks, status_windows, status_windows_with_schtasks,

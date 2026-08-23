@@ -1,3 +1,5 @@
+//! 在可配置工作流状态与调度器运行时状态之间投影生命周期和派发资格。
+
 use std::collections::HashSet;
 
 use anyhow::{Result, bail};

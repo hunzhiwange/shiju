@@ -1,3 +1,5 @@
+// 覆盖工具目录和诊断接口的认证、排序与响应摘要。
+
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

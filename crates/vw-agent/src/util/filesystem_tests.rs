@@ -1,3 +1,5 @@
+//! 验证文件系统路径边界、规范化及向上查找辅助函数。
+
 use super::filesystem::{contains, exists, find_up, glob_up, is_dir, normalize_path, overlaps, up};
 
 #[tokio::test]

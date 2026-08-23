@@ -1,3 +1,5 @@
+//! 验证客户端错误到权限结果的映射以及统计计数更新。
+
 use std::error::Error as StdError;
 
 use agent_client_protocol as acp;

@@ -185,3 +185,4 @@ async fn signal_writes_return_database_errors_when_tables_are_missing() {
     assert!(SignalStore::put_sender_key(&store, "group::sender", &[9, 8]).await.is_err());
     assert!(SignalStore::delete_sender_key(&store, "group::sender").await.is_err());
 }
+// 本文件验证 WhatsApp Signal 身份、会话及各类密钥记录的设备隔离和错误传播。

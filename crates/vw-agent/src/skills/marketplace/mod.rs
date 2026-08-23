@@ -1,4 +1,4 @@
-//! Source-independent skill marketplace providers.
+//! 与来源无关的技能市场提供方及安装能力入口。
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod install;

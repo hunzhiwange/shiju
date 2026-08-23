@@ -1,3 +1,5 @@
+//! 验证权限选项选择、非交互策略和工具调用授权结果。
+
 use super::*;
 use agent_client_protocol::{
     PermissionOption, PermissionOptionKind, RequestPermissionOutcome, RequestPermissionRequest,

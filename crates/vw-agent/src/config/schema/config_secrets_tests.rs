@@ -1,3 +1,5 @@
+// 覆盖配置集合与嵌套字段的密钥加解密及定位错误。
+
 use super::config_secrets::{
     decrypt_config_secrets, decrypt_map_secrets, decrypt_vec_secrets, encrypt_config_secrets,
     encrypt_map_secrets, encrypt_vec_secrets,

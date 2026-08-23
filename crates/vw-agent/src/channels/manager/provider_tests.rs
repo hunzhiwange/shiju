@@ -254,3 +254,4 @@ async fn create_routed_provider_nonblocking_returns_error_for_unknown_provider()
 
     assert!(!err.to_string().is_empty());
 }
+// 本文件验证渠道运行时工具过滤与语言模型提供者缓存选择。

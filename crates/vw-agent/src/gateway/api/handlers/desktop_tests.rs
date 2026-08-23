@@ -1,3 +1,5 @@
+// 覆盖桌面偏好、项目设置、外部应用及服务命令接口。
+
 use axum::Json;
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;

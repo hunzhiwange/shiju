@@ -1,3 +1,5 @@
+// 覆盖诊断流程的检查顺序、结构化结果与命令返回语义。
+
 use super::{Severity, diagnose, run};
 use crate::app::agent::config::{Config, TelegramConfig};
 use chrono::Utc;

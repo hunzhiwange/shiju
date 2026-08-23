@@ -1,3 +1,7 @@
+//! 浏览器工具的规格定义、动作分派与后端回退策略。
+//!
+//! 所有导航目标先经过安全策略和域名约束，再交给可用的浏览器后端执行。
+
 use super::BrowserTool;
 use super::actions::{
     BrowserAction, is_computer_use_only_action, is_supported_browser_action, parse_browser_action,

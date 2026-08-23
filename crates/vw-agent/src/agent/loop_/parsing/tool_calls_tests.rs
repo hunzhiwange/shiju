@@ -1,3 +1,5 @@
+//! 测试工具调用解析聚合器对原生、JSON 和 XML 载荷的统一结果。
+
 use serde_json::json;
 
 use crate::app::agent::providers::ToolCall;

@@ -1,3 +1,5 @@
+//! 验证会话事件分段、锁新鲜度、统计与陈旧锁恢复行为。
+
 use super::*;
 use crate::session_event_log::{
     session_event_active_path, session_event_lock_path, session_event_log,

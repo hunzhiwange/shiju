@@ -1,3 +1,5 @@
+// 覆盖文件编辑事件名称的稳定公共契约。
+
 use super::EDITED;
 
 #[test]

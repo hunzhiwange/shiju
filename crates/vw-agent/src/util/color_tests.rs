@@ -1,3 +1,5 @@
+//! 验证十六进制颜色的格式检查、RGB 转换与终端样式生成。
+
 use super::color::{hex_to_ansi_bold, hex_to_rgb, is_valid_hex};
 
 #[test]

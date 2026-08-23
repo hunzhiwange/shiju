@@ -1,3 +1,4 @@
+// 验证知识导入入队前的校验及待处理文档与队列任务持久化。
 use super::*;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;

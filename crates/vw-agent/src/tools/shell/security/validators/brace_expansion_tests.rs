@@ -1,3 +1,5 @@
+//! 验证花括号展开校验器对危险与普通输入的分类。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

@@ -1,3 +1,5 @@
+//! 在原生任务模型与调度存储之间建立看板读写桥梁，并执行用户命令与状态投影。
+
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
 use vw_api_types::ReasoningEffortDto;

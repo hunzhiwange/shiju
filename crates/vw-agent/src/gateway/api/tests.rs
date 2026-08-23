@@ -1,3 +1,4 @@
+// 覆盖网关 API 配置脱敏与集成设置组合后的序列化行为。
 use super::*;
 
 #[allow(dead_code)]

@@ -1,4 +1,4 @@
-//! Adapter for the public SkillHub catalog.
+//! 公共 SkillHub 目录的技能市场适配器。
 
 use std::collections::BTreeMap;
 use std::time::Duration;

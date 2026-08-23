@@ -295,3 +295,4 @@ async fn parse_webhook_payload_returns_empty_for_unknown_dispatch_event() {
 
     assert!(messages.is_empty());
 }
+// 本文件验证 QQ Webhook 签名响应、事件解析与消息去重。

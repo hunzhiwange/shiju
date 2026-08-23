@@ -1,3 +1,5 @@
+//! 验证 ACP 初始化、新建会话、超时包装与协议错误映射。
+
 use std::collections::{HashMap, VecDeque};
 use std::path::Path;
 use std::sync::{Arc, LazyLock, Mutex as StdMutex, MutexGuard};

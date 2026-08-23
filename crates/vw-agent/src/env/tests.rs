@@ -1,3 +1,5 @@
+// 覆盖进程环境快照的隔离、嵌套恢复与锁中毒回退。
+
 use super::{all, get, provide, provide_with, remove, set};
 use std::collections::HashMap;
 

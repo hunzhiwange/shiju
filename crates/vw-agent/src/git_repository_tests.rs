@@ -1,3 +1,4 @@
+// 验证 Git 仓库发现、工作树状态与仓库操作的边界行为。
 use super::*;
 use git2::Repository;
 use tempfile::TempDir;

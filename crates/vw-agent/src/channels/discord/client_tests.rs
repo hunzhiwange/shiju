@@ -243,3 +243,4 @@ async fn send_message_with_files_reports_missing_local_file_before_network() {
 
     assert!(error.contains("Discord attachment read failed"));
 }
+// 本文件验证 Discord 消息客户端的端点拼接、鉴权请求及错误脱敏。

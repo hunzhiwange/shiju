@@ -1,3 +1,5 @@
+// 覆盖文件 API 数据类型的序列化、反序列化与错误契约。
+
 use super::types::{Content, ContentType, Error, Info, Node, NodeType, SearchInput, Status};
 
 #[test]

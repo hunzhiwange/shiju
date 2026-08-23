@@ -1,3 +1,4 @@
+// 覆盖渠道 Webhook 处理器的鉴权、签名校验、代理与错误响应边界。
 use super::*;
 use crate::app::agent::channels::traits::{ChannelMessage, SendMessage};
 use crate::app::agent::channels::{

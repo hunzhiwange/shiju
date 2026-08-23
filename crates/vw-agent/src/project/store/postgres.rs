@@ -1,3 +1,5 @@
+//! 项目元数据的 PostgreSQL 持久化与行映射实现。
+
 use std::convert::TryFrom;
 
 use anyhow::{Context, Result, bail};

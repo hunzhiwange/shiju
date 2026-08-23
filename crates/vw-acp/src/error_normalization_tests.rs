@@ -1,3 +1,5 @@
+//! 验证错误元数据、协议载荷和文本线索到统一输出错误的归一化。
+
 use serde_json::json;
 
 use super::error_normalization::*;

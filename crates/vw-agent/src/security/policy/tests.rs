@@ -1,3 +1,5 @@
+//! 验证安全策略的命令、路径、权限、速率和配置优先级。
+
 use super::*;
 use crate::tools::shell::permissions::{Permission, PermissionContext, PermissionMode};
 use std::path::{Path, PathBuf};

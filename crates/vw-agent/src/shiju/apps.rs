@@ -1,4 +1,4 @@
-//! SHIJU application-platform upstream client.
+//! SHIJU 应用平台与 IAM 接口的上游客户端。
 
 use std::fmt;
 use std::time::Duration;

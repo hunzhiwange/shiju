@@ -1,3 +1,5 @@
+//! 验证供应商选项重映射、消息规范化与输出令牌上限。
+
 use super::*;
 use serde_json::json;
 

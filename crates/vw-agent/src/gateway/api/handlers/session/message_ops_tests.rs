@@ -1,3 +1,5 @@
+// 覆盖会话消息及内容片段的查询、更新和删除边界。
+
 use super::*;
 use crate::app::agent::gateway::instance::InstanceQuery;
 use crate::app::agent::project;

@@ -1,3 +1,5 @@
+//! 验证压缩包提取对不存在输入返回明确错误。
+
 use super::archive::extract_zip;
 
 #[test]

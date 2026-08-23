@@ -1,3 +1,7 @@
+//! 项目元数据的 SQLite 持久化实现与数据库无关入口。
+//!
+//! 所有读写均以租户和项目作用域为边界，PostgreSQL 操作委托给子模块。
+
 use std::collections::HashSet;
 use std::convert::TryFrom;
 

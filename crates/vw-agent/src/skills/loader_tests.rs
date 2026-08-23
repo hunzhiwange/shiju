@@ -1,3 +1,5 @@
+//! 验证新版技能加载的清单解析、文件读取与错误边界。
+
 use super::*;
 use crate::app::agent::skills::types::SkillLoadMode;
 

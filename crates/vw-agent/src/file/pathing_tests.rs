@@ -1,3 +1,5 @@
+// 覆盖路径包含关系与图像、二进制扩展名识别。
+
 use super::pathing::{
     contains_path, image_mime_type, is_binary_by_extension, is_image_by_extension,
 };

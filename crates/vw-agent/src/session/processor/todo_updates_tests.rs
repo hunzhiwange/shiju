@@ -1,3 +1,5 @@
+//! 验证模型步骤驱动的待办更新、用量累计与工具调用过滤。
+
 use crate::app::agent::session::llm;
 use crate::app::agent::session::session::Session;
 use crate::app::agent::tools::{

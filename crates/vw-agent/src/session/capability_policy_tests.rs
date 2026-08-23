@@ -1,3 +1,5 @@
+//! 验证技能能力策略只解析配置模式，不允许模型自行扩权。
+
 use super::capability_policy::{CapabilityPolicyResolution, resolve_skill_capabilities};
 use vw_config_types::agent::DelegateCapabilityPolicy;
 

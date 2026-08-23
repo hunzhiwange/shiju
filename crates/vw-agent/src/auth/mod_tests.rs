@@ -1,3 +1,5 @@
+//! 测试认证服务的配置初始化、令牌空态与凭据存储门面。
+
 use super::{ApiInfo, AuthService, Info};
 
 #[test]

@@ -1,3 +1,5 @@
+//! 验证计算机操作客户端构造和克隆时的安全配置保留。
+
 use super::*;
 use crate::app::agent::security::SecurityPolicy;
 use std::sync::Arc;

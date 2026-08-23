@@ -1,3 +1,5 @@
+//! 实现 SQLite 事务发件箱的入队、认领、投递结果更新与幂等查询。
+
 use anyhow::{Context, Result, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};

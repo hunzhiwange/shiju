@@ -1,3 +1,5 @@
+//! 验证取消控制器、组合信号与定时取消句柄的生命周期语义。
+
 use super::abort::{AbortController, AbortSignal, abort_after, abort_after_any};
 use std::time::Duration;
 

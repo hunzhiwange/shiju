@@ -364,3 +364,4 @@ mod tests {
         assert!(micros.chars().all(|c| c.is_ascii_digit()));
     }
 }
+// 本文件验证 Slack 渠道配置、群聊回复策略与频道列表筛选。

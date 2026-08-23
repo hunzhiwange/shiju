@@ -1,3 +1,5 @@
+//! 验证提供商请求对凭据和默认连接选项的显式处理。
+
 use crate::provider::{AuthKind, ConnectProviderRequest, ListProvidersRequest, ProviderStatus};
 use serde_json::json;
 

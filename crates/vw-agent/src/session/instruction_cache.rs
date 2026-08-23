@@ -1,4 +1,6 @@
-//! Per-workspace instruction resolution cache.
+//! 按工作区隔离的指令解析缓存。
+//!
+//! 通过来源文件元数据判断缓存是否失效，避免复用已变化的指令集合。
 
 use std::collections::{HashMap, HashSet};
 use std::fs;

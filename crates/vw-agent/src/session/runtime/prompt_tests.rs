@@ -1,3 +1,5 @@
+//! 验证提示运行时的工具生命周期事件与幂等取消行为。
+
 use std::time::Duration;
 
 use serde_json::json;

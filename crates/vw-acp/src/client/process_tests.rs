@@ -1,3 +1,5 @@
+//! 验证代理子进程启动、环境合并、错误包装与退出信息收集。
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 #[cfg(unix)]

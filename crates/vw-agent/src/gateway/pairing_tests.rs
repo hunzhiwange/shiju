@@ -1,3 +1,4 @@
+// 验证配对端点的来源限制、令牌生命周期与错误响应。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::config::SystemConfigStore;

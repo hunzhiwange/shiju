@@ -87,3 +87,4 @@ fn random_from_pool_returns_item_from_supplied_pool() {
 
     assert!(POOL.contains(&random_from_pool(POOL)));
 }
+// 本文件验证 Lark 确认消息的语言检测、区域映射与随机选择。

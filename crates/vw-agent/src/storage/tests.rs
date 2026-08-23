@@ -1,3 +1,5 @@
+//! 验证通用存储键值操作、路径隔离与持久化行为。
+
 use super::*;
 use serde_json::json;
 use tempfile::TempDir;

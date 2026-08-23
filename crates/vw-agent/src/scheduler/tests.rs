@@ -1,3 +1,5 @@
+//! 验证调度器在全局与项目作用域中的注册、查询、停止和重置。
+
 use super::*;
 use serde_json::json;
 use std::sync::Arc;

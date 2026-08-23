@@ -1,3 +1,5 @@
+//! 验证 Actor 提示词循环的事件收集、取消竞争与错误收尾。
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;

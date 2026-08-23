@@ -1,3 +1,4 @@
+// 验证记忆数据目录在普通仓库、工作树与回退场景下的作用域。
 use super::*;
 use git2::Repository;
 use std::path::Path;

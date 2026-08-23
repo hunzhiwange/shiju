@@ -1,3 +1,5 @@
+//! 集成目录模型，描述可用状态、分类及配置驱动的激活结果。
+
 pub mod registry;
 
 use crate::app::agent::config::Config;

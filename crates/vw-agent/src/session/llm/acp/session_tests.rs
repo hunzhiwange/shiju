@@ -1,3 +1,5 @@
+//! 验证 ACP 会话创建、复用、配置更新与错误恢复。
+
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;

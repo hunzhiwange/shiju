@@ -1,3 +1,5 @@
+//! 验证 PostgreSQL 会话存储拒绝 SQLite 后端的边界。
+
 use super::*;
 
 fn sqlite_database() -> (tempfile::TempDir, GlobalDatabase) {

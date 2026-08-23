@@ -431,3 +431,4 @@ async fn parse_event_payload_async_handles_image_missing_key_and_group_filter() 
     assert_eq!(image_messages[0].content, LARK_IMAGE_DOWNLOAD_FALLBACK_TEXT);
     assert!(channel.parse_event_payload_async(&group_payload).await.is_empty());
 }
+// 本文件验证 Lark 富文本、提及、群聊策略与事件载荷解析。

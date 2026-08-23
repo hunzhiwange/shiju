@@ -1,3 +1,4 @@
+// 验证应用状态满足跨异步任务共享所需的 Send 与 Sync 约束。
 use super::*;
 
 #[test]

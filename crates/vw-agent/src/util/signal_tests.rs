@@ -1,3 +1,5 @@
+//! 验证信号在触发前后均可可靠唤醒等待方。
+
 use super::signal::Signal;
 use std::future::Future;
 use std::task::{Context, Poll, Waker};

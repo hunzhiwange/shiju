@@ -1,3 +1,5 @@
+//! 本地知识导入的文本分块器，保留标题上下文、来源偏移与重叠窗口。
+//!
 //! Text chunking for local knowledge ingestion.
 
 mod patterns;

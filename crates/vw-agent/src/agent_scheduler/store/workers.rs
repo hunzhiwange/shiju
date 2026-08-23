@@ -1,3 +1,5 @@
+//! 实现 SQLite 工作节点快照、能力筛选与生命周期字段更新。
+
 use anyhow::{Context, Result, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params, params_from_iter};

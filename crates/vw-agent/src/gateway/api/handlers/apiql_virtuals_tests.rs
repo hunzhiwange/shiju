@@ -1,3 +1,5 @@
+// 覆盖 ApiQL 虚拟字段解析器、脚本执行与错误边界。
+
 use serde_json::{Map, Value, json};
 use vw_api_types::apiql::{ApiQlEntityConfig, ApiQlFieldConfig};
 

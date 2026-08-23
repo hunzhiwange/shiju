@@ -1,3 +1,5 @@
+//! 验证网关密钥 PostgreSQL 存储拒绝错误数据库后端。
+
 use super::*;
 
 fn sqlite_database() -> (tempfile::TempDir, GlobalDatabase) {

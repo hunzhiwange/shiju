@@ -1,3 +1,7 @@
+//! 任务生命周期工作流注册表及自定义工作流校验。
+//!
+//! 内置工作流始终保留，调用方只能注册标识、状态和转换关系合法的自定义定义。
+
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{Result, bail};

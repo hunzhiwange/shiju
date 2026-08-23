@@ -1,3 +1,4 @@
+// 验证 SQLite 嵌入缓存的复用、失效与提供方失败处理。
 use super::*;
 use crate::app::agent::memory::embeddings::EmbeddingProvider;
 use crate::memory::vector;

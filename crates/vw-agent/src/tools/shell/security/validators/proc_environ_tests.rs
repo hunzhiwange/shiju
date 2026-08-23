@@ -1,3 +1,5 @@
+//! 验证进程环境文件访问会被阻断且错误信息不会泄露敏感载荷。
+
 use super::proc_environ::ProcEnvironValidator;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityCategory, SecurityValidator};

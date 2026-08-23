@@ -1,3 +1,5 @@
+//! 验证初始化系统与服务命令的解析、序列化和延迟配置。
+
 use super::{InitSystem, ServiceCommands, internal_command_delay};
 use std::time::Duration;
 

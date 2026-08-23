@@ -1,3 +1,4 @@
+// 验证切块配置档的默认值、覆盖规则与参数约束。
 use super::DocProfile;
 
 #[test]

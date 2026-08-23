@@ -1,3 +1,7 @@
+//! 知识文档导入请求的解析与内容提取。
+//!
+//! 在进入存储层前校验文件名、类型和大小，并将支持的来源转换为文本载荷。
+
 use crate::app::agent::gateway::ApiError;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;

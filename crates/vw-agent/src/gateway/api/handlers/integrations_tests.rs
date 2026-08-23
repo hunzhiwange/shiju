@@ -1,3 +1,5 @@
+// 覆盖集成目录、凭据更新、认证及修订冲突处理。
+
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

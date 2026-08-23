@@ -1,3 +1,5 @@
+//! 验证队列租约记录解析、心跳新鲜度、目录和套接字清理。
+
 use super::*;
 
 use std::ffi::OsString;

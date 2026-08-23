@@ -1,3 +1,5 @@
+//! 验证客户端 Actor 句柄的复用、失效、关闭和请求响应通道行为。
+
 use std::collections::HashMap;
 
 use tokio::sync::{mpsc, oneshot};

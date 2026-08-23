@@ -1,3 +1,5 @@
+//! 验证队列 IPC 客户端的请求标识、所有者通信与错误响应处理。
+
 use super::*;
 
 use std::collections::HashMap;

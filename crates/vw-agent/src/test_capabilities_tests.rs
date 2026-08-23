@@ -1,3 +1,5 @@
+//! 验证测试能力探测结果与编译特性保持一致。
+
 use super::{check_loopback_bind, check_writable_dir, home_dir_from_env};
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};

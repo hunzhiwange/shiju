@@ -1,3 +1,5 @@
+//! 验证输出错误到 JSON-RPC 错误码、载荷优先级和序列化形状的映射。
+
 use serde_json::{Value, json};
 
 use super::jsonrpc_error::*;

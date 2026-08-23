@@ -1,3 +1,5 @@
+//! 自主代理调度子系统，统一组织领域模型、存储、派发、运行、恢复与策略执行。
+//!
 //! Agent Scheduler internal scheduling model.
 //!
 //! This module is the source of truth for Agent Teams style scheduling facts:

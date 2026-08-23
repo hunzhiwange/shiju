@@ -1,8 +1,6 @@
-//! Canary-token guard for context exfiltration detection.
+//! 用于检测上下文外泄的金丝雀标记防护。
 //!
-//! This module injects a per-turn marker into the system prompt and detects if
-//! that marker appears in model output. A match indicates likely system-context
-//! leakage.
+//! 每轮向系统提示注入唯一标记；若模型输出包含该标记，则视为可能泄露系统上下文。
 
 use uuid::Uuid;
 

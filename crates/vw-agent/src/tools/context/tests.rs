@@ -1,3 +1,5 @@
+//! 验证工具运行上下文、工作流状态和任务局部作用域。
+
 use super::*;
 use crate::app::agent::config::AutonomyConfig;
 use crate::app::agent::observability::NoopObserver;

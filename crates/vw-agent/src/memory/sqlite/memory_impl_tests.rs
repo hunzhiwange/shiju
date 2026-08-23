@@ -1,3 +1,4 @@
+// 验证 SQLite 记忆实现对损坏行和缺失模式的错误边界。
 use super::*;
 use rusqlite::params;
 

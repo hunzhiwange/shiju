@@ -1,3 +1,5 @@
+//! IRC 通道实现，负责 TLS 连接、消息收发、用户准入与断线检测。
+
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use std::sync::Arc;

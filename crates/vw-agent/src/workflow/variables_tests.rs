@@ -1,3 +1,5 @@
+//! 验证工作流变量池对嵌套对象、数组路径与选择器格式的读写。
+
 use super::{VariablePool, selector_from_value, selector_key};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;

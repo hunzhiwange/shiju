@@ -1,3 +1,5 @@
+// 覆盖提供商目录、认证方式与 OAuth 路由契约。
+
 use super::*;
 use axum::body::{Body, to_bytes};
 use axum::extract::{Path, Query};

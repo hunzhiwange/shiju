@@ -1,3 +1,5 @@
+// 覆盖 ApiQL 运行时查询、分页、转换器及虚拟字段集成。
+
 use std::collections::BTreeMap;
 
 use rusqlite::params;

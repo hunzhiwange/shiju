@@ -1,3 +1,5 @@
+//! 测试代理进度事件的阶段转换、节流与最终状态。
+
 use serde_json::json;
 
 use super::*;

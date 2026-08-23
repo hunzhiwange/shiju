@@ -1,3 +1,5 @@
+//! 验证 AI SDK 响应内容和用量字段的辅助转换边界。
+
 use aisdk::core::language_model::{LanguageModelResponseContentType, Usage};
 use aisdk::core::{Message, UserContentPart};
 use serde_json::{Value, json};

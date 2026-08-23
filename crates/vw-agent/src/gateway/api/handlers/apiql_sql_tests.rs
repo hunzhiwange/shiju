@@ -1,3 +1,5 @@
+// 覆盖 ApiQL SQL 构建的筛选、排序、分页与注入防护。
+
 use serde_json::json;
 use vw_api_types::apiql::{
     ApiQlEntityConfig, ApiQlFieldConfig, ApiQlListMode, ApiQlRelationConfig,

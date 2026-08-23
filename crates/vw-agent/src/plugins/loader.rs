@@ -1,4 +1,4 @@
-//! Local plugin package discovery.
+//! 本地插件包发现与去重。
 
 use anyhow::{Context, Result, bail};
 use std::collections::HashSet;

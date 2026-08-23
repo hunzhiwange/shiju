@@ -113,3 +113,4 @@ fn encrypt_secret_errors_include_field_name() {
     assert!(required_err.contains("Failed to encrypt required"));
     assert!(optional_err.contains("Failed to encrypt optional"));
 }
+// 本文件验证渠道密钥字段的环境变量命名、加解密与错误上下文。

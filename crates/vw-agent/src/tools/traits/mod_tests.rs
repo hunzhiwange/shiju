@@ -1,3 +1,5 @@
+//! 验证工具 trait 的默认调用桥接、结果辅助方法与安全渲染回退。
+
 use super::*;
 use async_trait::async_trait;
 use serde_json::{Value, json};

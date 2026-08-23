@@ -1,3 +1,5 @@
+//! 验证工作树请求的可选控制默认值及协议枚举名称。
+
 use crate::worktree::{CreateWorktreeRequest, DeleteWorktreeRequest, ResetMode, WorktreeStatus};
 use serde_json::json;
 

@@ -1,3 +1,5 @@
+//! 验证子代理协调器的递归等待、取消、归属隔离与容量边界。
+
 use super::coordinator::{ChildAgentCoordinator, ChildAgentTaskState, WaitCondition};
 use std::time::Duration;
 

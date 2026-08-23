@@ -1,3 +1,5 @@
+//! 测试调度产物服务的登记、查询、校验与任务归属。
+
 use std::fs;
 use std::path::Path;
 

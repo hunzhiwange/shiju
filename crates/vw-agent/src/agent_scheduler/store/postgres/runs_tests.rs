@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 运行记录的原子领取、完成与过期查询。
+
 use anyhow::Result;
 use vw_api_types::common::TimestampMs;
 

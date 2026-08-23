@@ -1,3 +1,4 @@
+// 覆盖网关中间件的跨域、基础认证与租户请求头校验。
 use super::*;
 
 use axum::Extension;

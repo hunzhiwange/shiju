@@ -134,3 +134,4 @@ async fn bind_telegram_identity_keeps_wildcard_and_persists_new_identity() {
 
     assert_eq!(persisted_allowed_users(tmp.path()), vec!["*", "@alice", "carol"]);
 }
+// 本文件验证 Telegram 身份规范化、绑定持久化与托管服务重启结果。

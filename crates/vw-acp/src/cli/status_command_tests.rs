@@ -1,3 +1,5 @@
+//! 验证会话状态快照、存活信息和不同格式的状态输出。
+
 use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};

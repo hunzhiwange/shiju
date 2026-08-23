@@ -1,3 +1,5 @@
+//! 与 PHP ApiQL 辅助函数兼容的 Rust 内部调用入口。
+//!
 //! ApiQL PHP helper compatible internal functions.
 //!
 //! These helpers mirror PHP `api_ql*` functions but execute directly in Rust:

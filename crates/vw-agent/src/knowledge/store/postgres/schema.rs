@@ -1,3 +1,5 @@
+//! PostgreSQL 知识库表结构初始化与旧模式安全检查。
+
 use anyhow::{Context, Result, bail};
 
 use crate::global_database::GlobalDatabase;

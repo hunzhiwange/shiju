@@ -389,3 +389,4 @@ async fn send_outbound_handles_path_only_attachments_and_plain_text() {
     assert_eq!(text_body["text"], "plain text");
     assert!(text_body.get("message_thread_id").is_none());
 }
+// 本文件验证 Telegram 各类附件的远程发送、本地路径约束与文本降级。

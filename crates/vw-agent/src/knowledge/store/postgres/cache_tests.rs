@@ -1,3 +1,4 @@
+// 验证 PostgreSQL 知识缓存的命中、失效与租户隔离。
 use anyhow::Result;
 use vw_api_types::TenantScope;
 

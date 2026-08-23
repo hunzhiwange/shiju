@@ -1,3 +1,5 @@
+//! 测试代理运行入口的消息编排、错误传播与可观测事件记录。
+
 use super::core::Agent;
 use super::run::{run, run_with_agent_factory};
 use crate::app::agent::config::Config;

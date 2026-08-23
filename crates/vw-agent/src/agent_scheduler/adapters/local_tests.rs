@@ -1,3 +1,5 @@
+//! 测试本地调度适配器的任务提交、查询、取消与作用域隔离。
+
 use crate::agent_scheduler::adapters::local::LocalDispatchRequest;
 use crate::agent_scheduler::domain::{RunId, TaskId, WorkerName};
 use vw_api_types::common::TimestampMs;

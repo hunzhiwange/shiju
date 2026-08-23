@@ -1,3 +1,5 @@
+//! 测试网关执行器的请求转换、流事件处理、取消与结果归档。
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 

@@ -1,3 +1,5 @@
+//! 验证新版技能发现的来源优先级、去重和目录过滤规则。
+
 use super::*;
 use crate::app::agent::skills::tests::helpers::{EnvVarGuard, open_skills_env_lock};
 use std::fs;

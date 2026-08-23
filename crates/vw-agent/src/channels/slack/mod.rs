@@ -1,3 +1,5 @@
+//! Slack Web API 轮询通道，负责准入过滤、群聊触发策略与消息收发。
+
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use std::collections::HashMap;

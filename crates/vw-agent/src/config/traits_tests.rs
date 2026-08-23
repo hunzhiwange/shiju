@@ -1,3 +1,5 @@
+// 覆盖配置 trait 的默认实现、异步契约与存储委托。
+
 use super::traits::{ChannelConfig, ConfigHandle};
 
 struct DummyChannel;

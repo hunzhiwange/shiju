@@ -562,3 +562,4 @@ async fn maybe_apply_runtime_config_update_does_not_mutate_state_when_provider_c
     assert_eq!(cache.len(), 1);
     assert!(cache.contains_key("old-provider"));
 }
+// 本文件验证渠道运行时配置的默认值、超时预算与自主策略保留行为。

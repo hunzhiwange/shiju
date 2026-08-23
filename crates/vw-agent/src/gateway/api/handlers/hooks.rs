@@ -1,3 +1,5 @@
+//! 网关插件钩子的发现、信任变更与命令审计接口。
+//!
 //! Gateway plugin hook management and command audit handlers.
 
 use anyhow::{Context, Result, bail};

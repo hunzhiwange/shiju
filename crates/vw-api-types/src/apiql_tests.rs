@@ -1,3 +1,5 @@
+//! 验证 ApiQL 响应格式及实体元数据与既有 PHP 契约保持一致。
+
 use super::apiql::{ApiQlEntityConfig, ApiQlListMode, ApiQlPageDto, ApiQlResponse};
 use serde_json::{Value, json};
 

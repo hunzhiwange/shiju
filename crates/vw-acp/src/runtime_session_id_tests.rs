@@ -1,3 +1,5 @@
+//! 验证运行时会话标识的规范化以及候选元数据键优先级。
+
 use super::*;
 use serde_json::json;
 

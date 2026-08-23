@@ -1,3 +1,5 @@
+//! 验证技能清单审计的字段校验、权限声明与诊断输出。
+
 use super::*;
 use crate::app::agent::skills::audit::report::SkillAuditReport;
 use vw_config_types::skills::SkillSecurityConfig;

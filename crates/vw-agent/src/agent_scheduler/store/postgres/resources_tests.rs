@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 资源租约的排他获取、续租与过期。
+
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::common::TimestampMs;

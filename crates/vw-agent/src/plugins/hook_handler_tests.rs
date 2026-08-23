@@ -1,3 +1,5 @@
+//! 验证受信插件钩子的注册、执行、超时与诊断脱敏边界。
+
 use super::{
     PluginDiscoveryOptions, PluginHookTrustStore, discover_plugins, load_plugin_hooks_manifest,
     plugin_hook_trust_file, trusted_plugin_hook_handlers,

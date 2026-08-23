@@ -1,3 +1,5 @@
+//! 测试代理执行入口对查询、历史、进度与错误结果的编排。
+
 use super::*;
 use crate::app::agent::observability::NoopObserver;
 use crate::app::agent::observability::traits::ObserverMetric;

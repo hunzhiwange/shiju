@@ -1,3 +1,4 @@
+// 验证集成注册表的查找、别名与配置状态汇总。
 use super::*;
 use serde_json::json;
 

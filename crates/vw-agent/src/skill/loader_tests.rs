@@ -1,3 +1,5 @@
+//! 验证旧版技能加载时的元数据解析、约束与错误边界。
+
 use super::*;
 use crate::app::agent::skill::types::{
     SkillLoadMode, SkillRuntimeConfig, SkillsConfig, SkillsPromptInjectionMode,

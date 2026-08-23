@@ -1,3 +1,5 @@
+//! 验证持久化会话记录各层字段的解析、默认值与拒绝条件。
+
 use super::*;
 use crate::SESSION_RECORD_SCHEMA;
 

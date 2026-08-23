@@ -1,3 +1,4 @@
+// 验证 PostgreSQL 知识库模式的建表顺序、索引与幂等性。
 use super::*;
 use crate::global_database::test_support::PostgresTestDatabase;
 

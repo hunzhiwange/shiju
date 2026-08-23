@@ -1,3 +1,5 @@
+//! 验证畸形 shell 输入校验器的稳定名称与拒绝边界。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

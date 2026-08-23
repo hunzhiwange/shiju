@@ -1,3 +1,5 @@
+//! 租户配置保存流程，负责校验、密钥加密及全局与项目覆盖的持久化。
+
 use anyhow::{Context, Result, bail};
 #[cfg(not(target_arch = "wasm32"))]
 use directories::UserDirs;

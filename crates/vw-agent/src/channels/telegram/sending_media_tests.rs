@@ -1129,3 +1129,4 @@ async fn multipart_file_methods_return_io_errors_for_missing_files() {
         );
     }
 }
+// 本文件验证 Telegram 媒体发送的 JSON 与上传请求、可选字段及错误回退。

@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 团队快照的写入、加载与成员约束。
+
 use anyhow::Result;
 use vw_api_types::common::TimestampMs;
 

@@ -1,3 +1,5 @@
+//! 验证旧版技能发现过程的目录优先级、过滤与去重行为。
+
 use super::*;
 
 #[cfg(not(target_arch = "wasm32"))]

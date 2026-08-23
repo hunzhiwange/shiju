@@ -1,3 +1,5 @@
+// 覆盖其它渠道配置的展示元数据及 WhatsApp 后端判定规则。
+
 use super::other::{
     DingTalkConfig, IrcConfig, LinqConfig, MatrixConfig, NextcloudTalkConfig, NostrConfig,
     QQConfig, SignalConfig, WatiConfig, WhatsAppConfig,

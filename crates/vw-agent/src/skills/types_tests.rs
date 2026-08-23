@@ -1,3 +1,5 @@
+//! 验证新版技能公共类型的默认值、序列化与能力字段。
+
 use super::*;
 use crate::app::agent::config::SkillsPromptInjectionMode;
 

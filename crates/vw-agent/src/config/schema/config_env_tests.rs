@@ -1,3 +1,5 @@
+// 覆盖环境变量覆盖配置时的优先级、规范化及无效值处理。
+
 use super::{
     Config,
     config_env::apply_env_overrides,

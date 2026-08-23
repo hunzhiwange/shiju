@@ -1,3 +1,5 @@
+//! 验证 ACP 会话更新重放为内部消息时的顺序与内容映射。
+
 use serde_json::{Value, json};
 
 use super::*;

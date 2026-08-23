@@ -234,3 +234,4 @@ async fn connect_with_certificate_verification_rejects_plain_server() {
 
     assert!(channel.connect().await.is_err());
 }
+// 本文件验证 IRC 消息解析、SASL 编码、字节拆分与连接状态错误。

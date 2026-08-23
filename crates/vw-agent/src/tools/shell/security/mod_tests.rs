@@ -1,3 +1,5 @@
+//! 验证 shell 安全报告、自治级别策略与可配置校验器组合的行为。
+
 use crate::security::AutonomyLevel;
 use crate::tools::shell::security::{
     SecurityCategory, SecurityFinding, SecurityPipeline, SecurityReport, Severity,

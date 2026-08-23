@@ -1,3 +1,4 @@
+// 验证 PostgreSQL 工作流存储的租户隔离、创建时间与增删改查契约。
 use super::*;
 
 use crate::global_database::test_support::PostgresTestDatabase;

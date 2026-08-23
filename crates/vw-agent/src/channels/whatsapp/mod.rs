@@ -1,3 +1,5 @@
+//! WhatsApp Business Cloud API 通道及其 Webhook 接入边界。
+
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use uuid::Uuid;

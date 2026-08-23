@@ -1,3 +1,5 @@
+//! 验证配置命令的载荷构造、各输出格式以及写入错误传播。
+
 use std::collections::HashMap;
 use std::fs;
 use std::future::Future;

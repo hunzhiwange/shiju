@@ -1,3 +1,5 @@
+//! 验证插件钩子信任摘要的变更、撤销、持久化与错误处理。
+
 use super::hook_trust::{
     PluginHookTrustStatus, PluginHookTrustStore, plugin_hook_trust_file, plugin_hook_trust_hash,
 };

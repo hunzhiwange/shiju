@@ -1,3 +1,5 @@
+//! 验证会话界面配置的默认值、序列化与兼容字段行为。
+
 use super::*;
 use crate::gateway::settings_store::GatewaySettingsStore;
 use crate::global_database::GlobalDatabase;

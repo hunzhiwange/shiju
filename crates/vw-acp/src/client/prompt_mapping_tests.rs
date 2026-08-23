@@ -1,3 +1,5 @@
+//! 验证协议停止原因与用量统计到运行时类型的稳定映射。
+
 use agent_client_protocol as acp;
 
 use crate::types::PromptUsage;

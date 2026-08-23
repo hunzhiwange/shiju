@@ -1,3 +1,5 @@
+//! 验证任务计划调度的依赖判断、就绪选择与顺序稳定性。
+
 use super::{PlanTaskEntry, build_batch_stages, parse_tasks_json};
 
 fn entry(

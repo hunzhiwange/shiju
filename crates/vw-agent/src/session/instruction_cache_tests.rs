@@ -1,3 +1,5 @@
+//! 验证指令缓存的命中、失效、并发访问与文件变化处理。
+
 use std::sync::Mutex;
 
 use super::instruction_cache::{

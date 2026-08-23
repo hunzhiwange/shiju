@@ -1,3 +1,4 @@
+// 覆盖 PostgreSQL 知识存储的构造、事务边界与后端装配。
 use super::*;
 use crate::global_database::config::DatabaseProvider;
 use crate::global_database::test_support::PostgresTestDatabase;

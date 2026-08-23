@@ -1,3 +1,5 @@
+// 覆盖记忆列表、检索、写入和删除接口的认证与错误映射。
+
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

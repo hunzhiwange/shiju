@@ -1,3 +1,5 @@
+// 覆盖全局与项目配置持久化、差异补丁及密钥过滤。
+
 use serde_json::Value;
 use tempfile::TempDir;
 use vw_api_types::id::TenantScope;

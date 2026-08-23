@@ -1,3 +1,4 @@
+// 覆盖工作流 API 的路由、请求转换、运行时调用与流式响应边界。
 use super::{
     GatewayWorkflowToolProvider, VibeWindowChatRequest, VibeWindowResponseMode, VibeWindowSseEvent,
     WORKFLOW_INPUT_FULL_ACCESS, WORKFLOW_INPUT_ROOT, WorkflowSseContext,

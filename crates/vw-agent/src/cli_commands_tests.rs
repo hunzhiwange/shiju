@@ -38,3 +38,4 @@ fn command_enums_are_cloneable_and_comparable() {
         IntegrationCommands::List { category: None, status: None }
     );
 }
+// 本文件验证命令行服务与渠道命令的稳定序列化及值语义。

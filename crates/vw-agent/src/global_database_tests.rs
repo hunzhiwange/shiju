@@ -1,3 +1,4 @@
+// 覆盖全局数据库后端选择、初始化和不支持路径的明确失败。
 use std::fs;
 #[cfg(unix)]
 use std::fs::OpenOptions;

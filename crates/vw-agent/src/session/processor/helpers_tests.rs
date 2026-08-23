@@ -1,3 +1,5 @@
+//! 验证工具筛选、ACP 判定以及敏感预览的清理与截断。
+
 use super::*;
 use serde_json::json;
 use std::collections::HashSet;

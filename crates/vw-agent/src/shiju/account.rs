@@ -1,4 +1,4 @@
-//! SHIJU account upstream client.
+//! SHIJU 账户与身份服务的上游客户端。
 
 use std::fmt;
 use std::time::Duration;

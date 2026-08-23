@@ -1,3 +1,5 @@
+// 覆盖运行轨迹的列表、筛选、详情查询与读取错误。
+
 use super::traces::run_traces;
 use crate::app::agent::config::Config;
 use serde_json::json;

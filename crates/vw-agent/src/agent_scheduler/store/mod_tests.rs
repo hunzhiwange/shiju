@@ -1,3 +1,5 @@
+//! 测试调度存储门面的初始化、后端选择与事务边界。
+
 use std::path::PathBuf;
 
 use anyhow::Result;

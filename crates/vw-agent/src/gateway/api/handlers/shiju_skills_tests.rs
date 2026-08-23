@@ -1,3 +1,5 @@
+// 覆盖识炬技能查询、详情与安装请求的参数转发。
+
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;

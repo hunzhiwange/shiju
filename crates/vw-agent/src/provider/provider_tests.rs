@@ -1,3 +1,5 @@
+//! 验证供应商配置指纹、候选建议和模型解析的跨层契约。
+
 use super::*;
 use std::ffi::{OsStr, OsString};
 use std::io::{Read, Write};

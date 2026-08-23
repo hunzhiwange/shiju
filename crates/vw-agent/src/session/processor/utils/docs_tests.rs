@@ -1,3 +1,5 @@
+//! 验证文档列表请求识别、目录遍历边界与稳定排序行为。
+
 #[test]
 fn is_docs_request_requires_docs_list_and_read_intent() {
     assert!(super::is_docs_request("请读取 docs 文件列表"));

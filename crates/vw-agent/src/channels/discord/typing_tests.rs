@@ -172,3 +172,4 @@ async fn start_typing_keeps_handle_after_http_error_response() {
     server.await.expect("typing test server should finish");
     stop_typing(&handles, "channel-1").await.expect("typing task should stop");
 }
+// 本文件验证 Discord 输入状态任务的启停、替换与请求发送行为。

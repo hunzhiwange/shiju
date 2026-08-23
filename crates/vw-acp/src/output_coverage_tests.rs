@@ -1,3 +1,5 @@
+//! 补充验证文本和静默输出器的缓冲、委派及边界分支。
+
 use super::*;
 use crate::types::{
     AcpJsonRpcMessage, OutputErrorCode, OutputErrorParams, OutputFormat, OutputFormatter,

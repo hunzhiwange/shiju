@@ -1,3 +1,5 @@
+// 覆盖定时任务类型、调度表达式及运行结果的公共契约。
+
 use super::*;
 use crate::app::agent::config::Config;
 use tempfile::TempDir;

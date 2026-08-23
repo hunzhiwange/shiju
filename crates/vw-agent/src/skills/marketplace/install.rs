@@ -1,4 +1,6 @@
-//! Shared verification and atomic installation for market artifacts.
+//! 市场制品的统一校验与原子安装流程。
+//!
+//! 在落盘前验证签名、摘要、压缩包边界和技能清单，并以替换目录方式提交安装。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, OpenOptions};

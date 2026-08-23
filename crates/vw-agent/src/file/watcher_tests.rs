@@ -1,3 +1,5 @@
+// 覆盖文件快照差异、监听任务生命周期及事件发布。
+
 use super::event::UPDATED;
 use super::{UpdatedProperties, publish_updated};
 use crate::app::agent::bus;

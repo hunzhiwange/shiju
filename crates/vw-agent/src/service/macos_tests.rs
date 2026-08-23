@@ -1,3 +1,5 @@
+//! 验证 launchd 标识、目标解析及 plist 参数和环境渲染。
+
 use super::macos::{
     SERVICE_LABEL, build_launchd_plist, config_dir_arg, launchd_gui_service_target_for_uid,
     macos_service_file,

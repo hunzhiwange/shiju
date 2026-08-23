@@ -1,3 +1,5 @@
+//! 验证会话技能状态的启用、调用记录与持久化转换。
+
 use super::{Skill, SkillListingSessionState};
 
 fn skill(name: &str) -> Skill {

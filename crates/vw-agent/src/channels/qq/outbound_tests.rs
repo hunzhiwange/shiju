@@ -547,3 +547,4 @@ async fn send_message_with_client_omits_passive_fields_without_thread_id() {
     assert!(media_body.get("msg_id").is_none());
     assert!(media_body.get("msg_seq").is_none());
 }
+// 本文件验证 QQ 出站消息请求、附件发送、鉴权重试与错误脱敏。

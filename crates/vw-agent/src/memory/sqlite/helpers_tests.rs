@@ -1,3 +1,4 @@
+// 验证 SQLite 记忆辅助函数的分类转换与内容哈希稳定性。
 use super::*;
 use crate::memory::traits::MemoryCategory;
 

@@ -1,3 +1,5 @@
+//! 验证运行时错误的中断识别、输出归一化和回退元数据应用。
+
 use super::*;
 use crate::OutputErrorCode;
 use crate::errors::{AcpxErrorOptions, AcpxOperationalError};

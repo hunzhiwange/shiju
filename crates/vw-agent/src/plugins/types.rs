@@ -1,4 +1,4 @@
-//! Plugin manifest data types.
+//! 插件清单与已审计路径的数据类型。
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

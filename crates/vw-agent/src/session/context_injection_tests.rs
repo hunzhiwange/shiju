@@ -1,3 +1,5 @@
+//! 验证会话上下文来源的注入顺序、去重与可见性边界。
+
 use serde_json::json;
 
 use super::{ContextRole, assemble_agents_context};

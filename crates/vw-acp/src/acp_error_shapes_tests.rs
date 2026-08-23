@@ -1,3 +1,5 @@
+//! 验证 ACP 错误载荷提取、深度限制与资源不存在判定的兼容边界。
+
 use serde_json::json;
 
 use super::*;

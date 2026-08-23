@@ -1,3 +1,5 @@
+//! 验证多提供方网页搜索的结果解析、规格生成及请求前参数校验。
+
 use super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use crate::app::agent::tools::traits::Tool;

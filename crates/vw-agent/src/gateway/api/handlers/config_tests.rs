@@ -1,3 +1,5 @@
+// 覆盖配置 API 的认证、租户隔离、项目覆盖与运行时更新。
+
 use super::*;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
 use crate::app::agent::memory::NoneMemory;

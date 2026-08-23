@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 产物存储的约束、查询与作用域隔离。
+
 use anyhow::Result;
 use serde_json::json;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

@@ -1,3 +1,5 @@
+//! 验证会话消息与工具调用结果的格式转换及内容保留契约。
+
 use crate::app::agent::session::llm;
 
 #[test]

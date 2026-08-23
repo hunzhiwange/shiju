@@ -1,3 +1,5 @@
+//! 测试代理循环通用辅助函数的输入规范化与边界行为。
+
 use super::utils::{SENSITIVE_KEY_PATTERNS, TOOL_FILE_PATH_REGEX, scrub_credentials};
 
 #[test]

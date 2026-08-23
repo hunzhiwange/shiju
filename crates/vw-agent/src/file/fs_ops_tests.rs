@@ -1,3 +1,5 @@
+// 覆盖受限根目录内的文件读取、枚举及编辑事件发布。
+
 use super::fs_ops::{init_preload, list, publish_edited, read};
 use super::{ContentType, Error, NodeType};
 use std::fs;

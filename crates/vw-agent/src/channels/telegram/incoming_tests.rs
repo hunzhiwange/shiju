@@ -317,3 +317,4 @@ fn parse_update_message_drops_group_mention_that_normalizes_to_empty() {
 
     assert!(ch.parse_update_message(&update).is_none());
 }
+// 本文件验证 Telegram 入站消息目标、发送者、回复上下文与权限过滤。

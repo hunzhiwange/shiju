@@ -1,3 +1,5 @@
+//! 验证安全审计事件构造、JSONL 写入、轮转与文件错误传播。
+
 use super::*;
 use crate::app::agent::config::AuditConfig;
 

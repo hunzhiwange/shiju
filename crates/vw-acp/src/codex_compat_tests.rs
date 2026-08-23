@@ -1,3 +1,5 @@
+//! 验证 Codex ACP 命令兼容识别的文件名、参数和令牌边界。
+
 use super::codex_compat::*;
 
 #[test]

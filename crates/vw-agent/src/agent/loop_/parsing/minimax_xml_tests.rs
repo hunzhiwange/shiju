@@ -1,3 +1,5 @@
+//! 测试 MiniMax XML 工具调用格式的提取、转义与错误容忍。
+
 use super::*;
 
 #[test]

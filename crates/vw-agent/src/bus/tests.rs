@@ -1,3 +1,5 @@
+//! 测试进程内事件总线的类型订阅、通配订阅、单次订阅与取消。
+
 use std::sync::{Arc, Mutex};
 
 use serde_json::json;

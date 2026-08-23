@@ -1,3 +1,5 @@
+//! 验证队列所有者租约与套接字探测组合出的健康状态。
+
 use super::*;
 
 use std::path::{Path, PathBuf};

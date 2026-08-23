@@ -1,3 +1,5 @@
+//! 测试 ACP 会话中 MCP 服务的作用域、传输转换与原子失败边界。
+
 use agent_client_protocol::{EnvVariable, McpServer, McpServerStdio};
 use tempfile::TempDir;
 use vw_acp::server::SessionBackend;

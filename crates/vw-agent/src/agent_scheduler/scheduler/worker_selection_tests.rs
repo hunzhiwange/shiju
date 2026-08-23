@@ -1,3 +1,5 @@
+//! 测试调度器按能力、状态和负载选择工作代理的规则。
+
 use anyhow::Result;
 use serde_json::Value;
 use vw_api_types::common::TimestampMs;

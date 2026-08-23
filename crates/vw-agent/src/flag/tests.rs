@@ -1,3 +1,5 @@
+// 覆盖底层环境标志解析的空值、边界值与非 UTF-8 输入。
+
 use super::{env_string, number, truthy};
 use std::sync::{Mutex, MutexGuard};
 

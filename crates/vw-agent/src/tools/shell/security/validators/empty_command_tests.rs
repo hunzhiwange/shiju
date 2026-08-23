@@ -1,3 +1,5 @@
+//! 验证空命令校验器的稳定名称与空白输入判定。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

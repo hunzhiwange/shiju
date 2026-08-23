@@ -1,3 +1,5 @@
+//! 验证 ACP 客户端构建器的默认状态、可选配置与回调存储。
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

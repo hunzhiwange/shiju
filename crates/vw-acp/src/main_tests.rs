@@ -1,3 +1,5 @@
+//! 验证主程序全局参数提取及各层命令到公开 CLI 计划的分派。
+
 use clap::{Arg, ArgAction, Command};
 use vw_acp::PublicCliPlan;
 use vw_acp::cli::flags::GlobalFlagOptions;

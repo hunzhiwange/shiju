@@ -1,3 +1,5 @@
+//! 测试调度控制器适配器的请求转换、状态映射与错误边界。
+
 use anyhow::Result;
 
 use super::controller::{

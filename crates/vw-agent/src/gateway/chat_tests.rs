@@ -1,3 +1,4 @@
+// 覆盖聊天处理链中的工具调用、多模态预处理、超时与响应生成。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

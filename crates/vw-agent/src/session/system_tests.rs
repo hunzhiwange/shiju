@@ -1,3 +1,5 @@
+//! 验证系统提示环境、模型适配与指令拼装的稳定契约。
+
 use super::*;
 use serde_json::json;
 

@@ -72,3 +72,4 @@ async fn qq_channel_trait_health_check_returns_false_when_auth_request_fails() {
 
     assert!(!as_trait.health_check().await);
 }
+// 本文件验证 QQ 渠道接口的令牌复用、监听错误与健康检查。

@@ -1,3 +1,5 @@
+// 覆盖格式化器状态序列化、启用缓存与项目实例复用。
+
 use super::state::{EnabledCheck, FormatterInfo, FormatterStatus, LOGGER, State};
 use std::collections::HashMap;
 use std::sync::Mutex;

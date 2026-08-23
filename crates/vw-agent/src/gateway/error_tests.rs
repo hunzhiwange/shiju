@@ -1,3 +1,4 @@
+// 验证 API 错误构造器、状态码映射与响应正文契约。
 use super::*;
 use axum::body::to_bytes;
 use axum::response::IntoResponse;

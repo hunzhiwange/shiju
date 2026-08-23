@@ -1,3 +1,5 @@
+//! PostgreSQL 系统配置存储，按租户隔离全局配置与项目覆盖。
+
 use anyhow::{Context, Result, bail};
 use vw_api_types::id::TenantScope;
 

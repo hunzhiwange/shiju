@@ -2,7 +2,19 @@
 
 批次：【批次 1】 无
 
-状态：未开始
+状态：已阻塞
+
+阻塞原因（2026-08-23）：固化清单中的 42 个 `crates/vw-cli/src/cli/tui_v2/` 路径在当前工作树中全部不存在；当前相关实现位于 `crates/vw-cli/src/cli/tui/`，且模块清单已变更。最近相关提交为 `0b075ae36`（`tui 清理`）。任务要求只处理固化清单，不能擅自将范围迁移到新目录，因此无法开始注释修改或运行基于这些路径的覆盖与差异验证。
+
+已运行检查：
+
+- `rustcodegraph status`：索引可用，共 4185 个文件。
+- `git status --short`：确认工作树存在其他任务的既有改动，未触碰。
+- 按本任务文件提取 42 个修改路径并逐个执行 `test -f`：`present=0 missing=42`。
+- `rg --files crates` 与 `git ls-files 'crates/vw-cli/**'`：确认当前目录为 `crates/vw-cli/src/cli/tui/`，不存在 `tui_v2/`。
+- `git log -1 -- crates/vw-cli/src/cli/tui_v2 crates/vw-cli/src/cli/tui`：最近相关提交为 `0b075ae36 2026-08-23 tui 清理`。
+
+未运行检查：中文注释覆盖检查和目标差异 `git diff --check`；两者均依赖存在的固化目标文件。
 
 目的：为清单中的 42 个 Rust 文件补充真实中文注释，不改变代码行为。
 
@@ -101,4 +113,3 @@
 ## 完成
 
 仅当清单中的 42 个文件全部获得与实际语义一致的中文注释、聚焦验证通过且差异仅含注释及必要空行时，才可标记为 `已完成`。
-

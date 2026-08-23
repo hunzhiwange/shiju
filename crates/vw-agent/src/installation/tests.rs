@@ -1,3 +1,4 @@
+// 验证安装类型、升级错误及命令输出附加字段的稳定契约。
 use super::*;
 #[cfg(unix)]
 use std::os::unix::process::ExitStatusExt;

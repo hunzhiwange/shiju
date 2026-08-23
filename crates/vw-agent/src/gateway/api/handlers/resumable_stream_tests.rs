@@ -1,3 +1,5 @@
+// 覆盖可恢复事件流的游标、重放、心跳及断开语义。
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;

@@ -1,3 +1,5 @@
+//! 验证会话摘要输入、文件差异聚合与压缩提示生成行为。
+
 use super::*;
 use crate::session::message;
 

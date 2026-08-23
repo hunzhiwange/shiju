@@ -1,3 +1,5 @@
+//! 验证项目状态缓存键、并发初始化、类型冲突与释放流程。
+
 use super::*;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};

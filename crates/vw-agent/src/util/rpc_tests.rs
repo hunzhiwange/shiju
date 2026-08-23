@@ -1,3 +1,5 @@
+//! 验证 RPC 请求、结果与事件在线路格式中的编码解码契约。
+
 use super::rpc::{Wire, decode, encode, event, request, result};
 use serde_json::json;
 

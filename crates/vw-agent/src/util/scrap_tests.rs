@@ -1,3 +1,5 @@
+//! 验证占位导出项保持可调用且常量值稳定。
+
 use super::scrap::{BAR, FOO, dummy_function, random_helper};
 
 #[test]

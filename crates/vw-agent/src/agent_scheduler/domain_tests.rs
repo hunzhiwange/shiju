@@ -1,3 +1,5 @@
+//! 测试调度领域标识、状态值和记录类型的校验与序列化契约。
+
 use serde_json::json;
 use vw_api_types::agent_scheduler::{
     AgentCapabilityDto, AgentCapabilityKindDto, AgentResourceLeaseDto, AgentResourceLeaseStatusDto,

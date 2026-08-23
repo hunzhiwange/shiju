@@ -198,3 +198,4 @@ fn resolve_local_attachment_path_reports_missing_target_for_stale_workspace() {
 
     assert!(error.contains("attachment path not found: missing.txt"));
 }
+// 本文件验证 Discord 出站附件标记解析、类型判定与本地路径安全边界。

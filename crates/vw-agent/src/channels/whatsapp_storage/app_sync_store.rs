@@ -1,3 +1,5 @@
+//! WhatsApp 应用状态同步存储，持久化同步密钥、版本和变更校验码。
+//!
 //! AppSyncStore trait implementation for WhatsApp storage
 //!
 //! Implements WhatsApp app state synchronization operations including:

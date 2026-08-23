@@ -1,3 +1,5 @@
+//! 验证配对码、令牌哈希、失败锁定与网关密钥认证。
+
 use super::*;
 use vw_config_types::gateway::GatewaySkey;
 

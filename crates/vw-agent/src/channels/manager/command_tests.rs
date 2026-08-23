@@ -125,3 +125,4 @@ async fn handle_command_bind_telegram_persists_new_identity() {
         vec!["@alice", "bob"]
     );
 }
+// 本文件验证渠道管理命令分派、配置展示与 Telegram 身份绑定。

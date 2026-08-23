@@ -1,3 +1,5 @@
+//! 验证 ACP 配置选项、环境变量与服务器定义的转换。
+
 use std::collections::HashMap;
 
 use serde_json::{Value, json};

@@ -1,3 +1,5 @@
+//! 验证队列请求与所有者消息的完整解析、默认值及错误载荷。
+
 use super::*;
 use std::collections::HashMap;
 

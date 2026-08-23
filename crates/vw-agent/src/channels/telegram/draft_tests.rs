@@ -382,3 +382,4 @@ async fn cancel_draft_removes_state_and_deletes_valid_message() {
     assert_eq!(requests[0].path, "/bot123:SECRET/deleteMessage");
     assert_eq!(requests[0].body["message_id"], 44);
 }
+// 本文件验证 Telegram 流式草稿的创建、更新节流与文本回退。

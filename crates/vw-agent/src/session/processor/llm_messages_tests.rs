@@ -1,3 +1,5 @@
+//! 验证会话消息到 LLM 消息的映射及协议上下文插入顺序。
+
 use super::*;
 use crate::session::session::{Message, Role, Session};
 use serde_json::json;

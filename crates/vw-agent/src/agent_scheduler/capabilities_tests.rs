@@ -1,3 +1,5 @@
+//! 测试代理能力集合的规范化、匹配与缺失能力诊断。
+
 use vw_api_types::staff::StaffCapabilityKindDto;
 use vw_config_types::staff::{
     StaffCapabilityConfig, StaffCapabilityIoSummaryConfig, StaffCapabilityKindConfig, StaffConfig,

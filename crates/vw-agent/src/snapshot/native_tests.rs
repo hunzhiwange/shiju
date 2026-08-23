@@ -1,3 +1,5 @@
+//! 验证原生文件快照的创建、差异计算和恢复边界。
+
 use super::*;
 use std::ffi::OsString;
 use std::fs;

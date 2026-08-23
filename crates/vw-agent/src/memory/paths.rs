@@ -1,3 +1,7 @@
+//! 记忆运行时数据目录的派生与隔离规则。
+//!
+//! 工作区路径只作为稳定身份来源，运行数据始终写入用户级目录或临时回退目录。
+
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};

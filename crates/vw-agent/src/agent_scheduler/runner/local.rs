@@ -1,3 +1,5 @@
+//! 编排本地代理运行的工作区租用、心跳、结果提交、日志记录与资源清理。
+
 use std::path::{Path, PathBuf};
 use std::process::Output;
 

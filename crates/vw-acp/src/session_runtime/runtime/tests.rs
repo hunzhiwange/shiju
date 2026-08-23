@@ -1,3 +1,5 @@
+//! 验证运行时公共结果与选项结构保留取消、身份和控制字段。
+
 use super::*;
 use crate::prompt_content::text_prompt;
 use crate::types::{

@@ -245,3 +245,4 @@ fn rollback_orphan_user_turn_removes_empty_history_entry() {
     assert!(rollback_orphan_user_turn(&ctx, "sender", "only"));
     assert!(!ctx.conversation_histories.lock().unwrap().contains_key("sender"));
 }
+// 本文件验证按会话键维护、压缩、清理渠道对话历史的边界行为。

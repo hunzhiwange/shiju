@@ -1,3 +1,5 @@
+//! 验证项目实例上下文的访问、状态复用与分代释放。
+
 use super::*;
 use crate::app::agent::project::{Info, TimeInfo};
 use std::sync::Arc;

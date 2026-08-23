@@ -1,4 +1,6 @@
-//! Runtime loading for MCP servers packaged in enabled plugins.
+//! 从已启用插件中加载 MCP 服务器配置。
+//!
+//! 加载结果需经过清单路径审计，并与用户配置按稳定优先级合并。
 
 use crate::app::agent::config::Config;
 use agent_client_protocol::McpServer;

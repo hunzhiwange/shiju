@@ -1,3 +1,5 @@
+//! 验证 AI SDK 消息、工具和响应内容之间的双向转换。
+
 use serde_json::json;
 
 use crate::app::agent::provider::provider;

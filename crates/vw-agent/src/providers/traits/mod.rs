@@ -1,3 +1,7 @@
+//! 模型提供方的通用对话类型、流式事件与调用契约。
+//!
+//! 上层会话通过这些类型屏蔽具体供应商协议差异。
+
 use crate::app::agent::tools::ToolSpec;
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream};

@@ -1,3 +1,5 @@
+//! 验证委派工具筛选、技能能力约束与调用转发行为。
+
 use super::*;
 use crate::app::agent::config::{DelegateAgentConfig, DelegateCapabilityPolicy};
 

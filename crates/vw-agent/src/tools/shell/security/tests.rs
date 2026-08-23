@@ -1,3 +1,5 @@
+//! 验证安全流水线聚合发现项、计算阻断状态并处理 heredoc 例外的契约。
+
 use super::{
     SecurityCategory, SecurityFinding, SecurityPipeline, SecurityReport, SecurityValidator,
     Severity,

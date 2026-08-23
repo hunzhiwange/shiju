@@ -1,3 +1,4 @@
+// 验证 PostgreSQL 记忆辅助函数的分类转换与标识符防注入约束。
 use super::*;
 use crate::memory::traits::MemoryCategory;
 use anyhow::Result;

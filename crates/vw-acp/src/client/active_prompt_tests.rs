@@ -1,3 +1,5 @@
+//! 验证活动提示词的取消请求、会话匹配、完成等待与超时处理。
+
 use std::collections::HashMap;
 
 use tokio::sync::watch;

@@ -1,3 +1,5 @@
+//! 验证会话仓库的路径编码、词法边界与仓库根目录发现边界。
+
 use super::*;
 
 use std::collections::HashMap;

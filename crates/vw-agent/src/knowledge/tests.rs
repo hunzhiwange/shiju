@@ -1,3 +1,4 @@
+// 覆盖知识子系统的数据类型、配置与端到端组合行为。
 use super::SqliteKnowledgeStore;
 use super::chunker::chunk_text_with_limits;
 use crate::global_database::GlobalDatabase;

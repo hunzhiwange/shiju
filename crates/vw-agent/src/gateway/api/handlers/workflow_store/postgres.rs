@@ -1,3 +1,5 @@
+//! PostgreSQL 工作流记录存储，强制租户作用域并维护时间戳。
+
 use anyhow::{Context, Result, bail};
 use vw_api_types::TenantScope;
 use vw_api_types::workflow::{WorkflowRecord, WorkflowRecordSummary, WorkflowRecordUpsertBody};

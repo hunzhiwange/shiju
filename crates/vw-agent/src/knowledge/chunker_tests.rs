@@ -1,3 +1,4 @@
+// 覆盖知识文本切块的大小限制、重叠与元数据保留。
 use super::*;
 
 fn source_slice(text: &str, start: usize, end: usize) -> String {

@@ -1,3 +1,5 @@
+//! 按租户隔离的 ApiQL 数据库连接配置与密钥持久化。
+//!
 //! Tenant-scoped ApiQL connection persistence.
 
 use anyhow::{Context, Result as AnyhowResult, bail};

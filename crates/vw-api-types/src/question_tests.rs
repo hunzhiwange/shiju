@@ -1,3 +1,5 @@
+//! 验证问题查询与回复 DTO 的空筛选默认值和协议枚举名称。
+
 use crate::question::{ListQuestionsRequest, QuestionKind, QuestionStatus, ReplyQuestionRequest};
 use serde_json::json;
 

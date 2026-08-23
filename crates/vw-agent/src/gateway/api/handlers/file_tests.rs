@@ -1,3 +1,5 @@
+// 覆盖文件 API 的路径约束、读写查找及移动复制删除。
+
 use super::*;
 use crate::app::agent::project;
 

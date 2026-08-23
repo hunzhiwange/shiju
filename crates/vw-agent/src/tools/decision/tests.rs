@@ -1,3 +1,5 @@
+//! 验证工具决策合并、权限检查和拒绝输入快照行为。
+
 use super::*;
 use crate::agent::loop_::approval::NonCliApprovalContext;
 use crate::app::agent::approval::{ApprovalManager, ApprovalResponse};

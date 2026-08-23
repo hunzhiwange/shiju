@@ -1,3 +1,5 @@
+//! 验证系统调用异常解析、告警去重限流与审计日志写入。
+
 use super::*;
 use crate::app::agent::config::{AuditConfig, SyscallAnomalyConfig};
 use std::collections::VecDeque;

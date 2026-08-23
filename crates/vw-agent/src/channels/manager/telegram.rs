@@ -1,3 +1,5 @@
+//! Telegram 身份规范化、白名单绑定及托管服务重载提示。
+
 use super::*;
 
 pub(crate) fn normalize_telegram_identity(value: &str) -> String {

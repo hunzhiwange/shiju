@@ -1,3 +1,5 @@
+//! 验证流式请求中止、重试判定、ACP 路由和供应商解析。
+
 use super::super::types::{AgentInfo, Error, StreamInput};
 use super::*;
 

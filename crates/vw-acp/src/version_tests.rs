@@ -1,3 +1,5 @@
+//! 验证版本解析、环境变量匹配与向上查找软件包版本的规则。
+
 use super::*;
 use std::collections::HashMap;
 use std::fs;

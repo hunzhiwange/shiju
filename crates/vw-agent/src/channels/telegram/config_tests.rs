@@ -394,3 +394,4 @@ async fn get_bot_username_returns_none_when_fetch_fails() {
     assert_eq!(server.request_count().await, 1);
     assert!(channel.bot_username.lock().is_none());
 }
+// 本文件验证 Telegram 配置规范化、身份绑定与系统配置持久化。

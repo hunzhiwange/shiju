@@ -1,3 +1,5 @@
+//! 验证代理启动和建会话超时配置的回退规则与诊断提示。
+
 use std::ffi::OsString;
 use std::sync::{LazyLock, Mutex, MutexGuard};
 

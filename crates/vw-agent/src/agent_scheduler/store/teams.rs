@@ -1,3 +1,5 @@
+//! 实现 SQLite 团队快照存取，并负责成员列表的序列化与领域类型校验。
+
 use anyhow::{Context, Result, bail};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};

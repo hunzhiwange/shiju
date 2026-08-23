@@ -1,3 +1,5 @@
+//! 验证项目基础类型、默认作用域、错误转换与实例引导行为。
+
 use super::*;
 use serde_json::json;
 

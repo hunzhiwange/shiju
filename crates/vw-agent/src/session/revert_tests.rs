@@ -1,3 +1,5 @@
+//! 验证会话回退输入、错误转换、消息裁剪与快照恢复行为。
+
 use super::super::{message, session as session_api};
 use crate::app::agent::snapshot;
 use serde_json::{Value, json};

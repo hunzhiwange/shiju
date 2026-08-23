@@ -1,3 +1,5 @@
+//! 测试团队存储在多后端下的快照校验、加载与列表行为。
+
 use anyhow::Result;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_types::common::TimestampMs;

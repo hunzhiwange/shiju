@@ -1,3 +1,5 @@
+//! 验证 ACP 文件系统处理器的根目录边界、授权策略与分段读取。
+
 use std::path::PathBuf;
 use std::sync::Arc;
 

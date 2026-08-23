@@ -1,3 +1,5 @@
+//! 验证 SkillHub 市场接口的响应解析、版本与下载契约。
+
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;

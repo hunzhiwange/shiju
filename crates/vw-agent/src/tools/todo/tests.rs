@@ -1,3 +1,5 @@
+//! 验证待办读写工具的规格、持久化往返、结构化结果与限流错误。
+
 use super::*;
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::traits::Tool;

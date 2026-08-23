@@ -1,3 +1,4 @@
+// 验证网关启动时的路由注册、可选能力开关与路由摘要。
 use super::*;
 
 use crate::app::agent::memory::NoneMemory;

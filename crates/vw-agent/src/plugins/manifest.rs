@@ -1,4 +1,4 @@
-//! Parser for `.vibewindow-plugin/plugin.json`.
+//! `.vibewindow-plugin/plugin.json` 的解析与字段校验。
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;

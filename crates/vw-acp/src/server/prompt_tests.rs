@@ -1,3 +1,5 @@
+//! 验证服务端提示词映射、内容能力限制、并发保护与定向取消。
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};

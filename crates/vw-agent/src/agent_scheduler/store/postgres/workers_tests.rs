@@ -1,3 +1,5 @@
+//! 测试 PostgreSQL 工作代理快照、能力和生命周期状态。
+
 use super::WORKER_COLUMNS;
 
 #[test]

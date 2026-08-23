@@ -1,3 +1,4 @@
+// 验证阿里云嵌入提供方的请求构造、响应解析与错误处理。
 use super::*;
 
 #[cfg(not(target_arch = "wasm32"))]

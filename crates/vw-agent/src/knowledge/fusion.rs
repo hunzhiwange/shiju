@@ -1,4 +1,6 @@
-//! Knowledge retrieval rank fusion helpers.
+//! 知识检索结果的排序融合辅助逻辑。
+//!
+//! 将全文与向量检索候选按来源去重，并用确定性的分数规则合并排序。
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;

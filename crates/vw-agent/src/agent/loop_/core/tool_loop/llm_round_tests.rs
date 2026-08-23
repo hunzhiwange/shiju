@@ -1,3 +1,5 @@
+//! 测试单轮模型调用的工具解析、多模态降级、钩子、用量与取消处理。
+
 use super::*;
 use crate::hooks::{HookHandler, HookRunner};
 use crate::multimodal::ocr::ImageTextExtractor;

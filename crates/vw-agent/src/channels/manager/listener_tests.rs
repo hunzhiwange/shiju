@@ -236,3 +236,4 @@ async fn supervised_listener_marks_health_while_listening() {
     handle.await.expect("listener task should finish");
     assert_eq!(channel.listens.load(Ordering::SeqCst), 1);
 }
+// 本文件验证渠道监听器监督、重启退避与健康状态记录。

@@ -1,3 +1,5 @@
+//! 验证技能命令行参数解析、输出格式与错误返回契约。
+
 use super::*;
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -1,3 +1,4 @@
+// 验证身份文件加载、缺省回退与无效内容的错误报告。
 use super::*;
 use crate::app::agent::config::IdentityConfig;
 

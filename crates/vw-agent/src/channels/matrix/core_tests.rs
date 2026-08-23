@@ -428,3 +428,4 @@ fn sync_filter_for_room_clamps_timeline_limit_to_at_least_one() {
     assert_eq!(parsed["room"]["rooms"][0], "!room:matrix.example");
     assert_eq!(parsed["room"]["timeline"]["limit"], 1);
 }
+// 本文件验证 Matrix 核心字段规范化、存储目录隔离与冲突诊断。

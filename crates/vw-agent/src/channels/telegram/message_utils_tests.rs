@@ -98,3 +98,4 @@ fn ack_reaction_request_preserves_fields() {
     assert_eq!(request["reaction"][0]["type"], "emoji");
     assert_eq!(request["reaction"][0]["emoji"], "👍");
 }
+// 本文件验证 Telegram 消息拆分、确认表情选择与请求字段保留。

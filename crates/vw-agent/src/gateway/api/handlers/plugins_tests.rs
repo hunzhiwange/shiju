@@ -1,3 +1,5 @@
+// 覆盖插件列表、详情校验及变更请求的输入边界。
+
 use std::fs;
 use std::path::Path;
 

@@ -1,3 +1,5 @@
+//! 验证立即执行辅助函数原样返回闭包结果。
+
 use super::iife::iife;
 
 #[test]

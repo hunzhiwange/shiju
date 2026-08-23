@@ -1,3 +1,5 @@
+// 覆盖渠道密钥的加解密往返、可选字段与错误上下文。
+
 use super::{ChannelsConfig, decrypt_channel_secrets, encrypt_channel_secrets};
 use crate::app::agent::security::SecretStore;
 

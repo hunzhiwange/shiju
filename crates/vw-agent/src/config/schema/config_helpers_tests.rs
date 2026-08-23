@@ -1,3 +1,5 @@
+// 覆盖配置目录错误提示及 Codex 凭据文件的安全读取。
+
 use super::config_helpers::config_dir_creation_error;
 use super::config_helpers::read_codex_openai_api_key;
 use std::fs;

@@ -1,3 +1,5 @@
+//! OpenAI 兼容的模型列表与聊天补全端点，负责请求映射和流式响应。
+//!
 //! OpenAI-compatible `/v1/chat/completions` and `/v1/models` endpoints.
 //!
 //! These endpoints allow VibeWindow to act as a drop-in replacement for the

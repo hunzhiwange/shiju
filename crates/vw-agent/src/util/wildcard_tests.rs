@@ -1,3 +1,5 @@
+//! 验证字符串与结构化输入的通配匹配及最佳规则选择。
+
 use super::wildcard::{StructuredInput, all, all_structured, matches};
 
 #[test]

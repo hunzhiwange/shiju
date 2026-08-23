@@ -1,3 +1,5 @@
+//! 通过工作树池申请、校验和释放任务工作区，并将池槽位映射为调度资源租约。
+
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use serde_json::json;

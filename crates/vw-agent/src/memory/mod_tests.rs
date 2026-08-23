@@ -1,3 +1,4 @@
+// 验证记忆后端工厂、配置选择与统一接口行为。
 use super::*;
 use crate::app::agent::config::{EmbeddingRouteConfig, MemoryConfig, StorageProviderConfig};
 use std::sync::{Mutex, MutexGuard};

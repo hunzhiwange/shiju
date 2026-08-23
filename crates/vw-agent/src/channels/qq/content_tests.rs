@@ -156,3 +156,4 @@ fn build_channel_message_sets_reply_metadata_and_thread_conditionally() {
         build_channel_message("sender-2", "group:g".to_string(), "hi".to_string(), "");
     assert_eq!(without_thread.thread_ts, None);
 }
+// 本文件验证 QQ 消息内容、提及与附件信息的规范化处理。

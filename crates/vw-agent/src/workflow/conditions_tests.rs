@@ -1,3 +1,5 @@
+//! 验证工作流条件分支对字符串、集合、空值及数值运算符的求值。
+
 use super::{conditions_match, select_case_handle};
 use crate::workflow::variables::VariablePool;
 use serde_json::{Value, json};

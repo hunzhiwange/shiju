@@ -526,3 +526,4 @@ async fn load_prior_turns_queries_memory_but_keeps_missing_history_empty() {
     assert_eq!(memory.recall_queries(), vec!["new question".to_string()]);
     assert!(turns.is_empty());
 }
+// 本文件验证消息处理辅助流程中的记忆召回、工具存储与发送记录。

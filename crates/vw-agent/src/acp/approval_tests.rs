@@ -1,3 +1,5 @@
+//! 测试 ACP 审批桥接的请求映射、决议传播与敏感参数清理。
+
 use std::sync::Arc;
 use std::time::Duration;
 

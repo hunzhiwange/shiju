@@ -1,3 +1,5 @@
+//! 提供审批测试专用状态操作，使非命令行待处理请求可确定性地进入过期分支。
+
 use super::ApprovalManager;
 
 pub(crate) fn expire_non_cli_pending_request_for_tests(

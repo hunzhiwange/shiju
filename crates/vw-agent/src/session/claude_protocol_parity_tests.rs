@@ -1,3 +1,5 @@
+//! 验证 Claude 协议入口在代理、技能、压缩与委派策略上的一致性。
+
 use crate::app::agent::config::{DelegateAgentConfig, DelegateCapabilityPolicy};
 use crate::app::agent::skills::{InvokedSkillRecord, Skill, SkillListingSessionState};
 use crate::app::agent::tools::{Tool, ToolResult};

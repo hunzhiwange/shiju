@@ -1,3 +1,5 @@
+// 覆盖待审批请求映射、回复处理及非 CLI 授权持久化。
+
 use super::*;
 use crate::app::agent::config::AutonomyConfig;
 use axum::body::{Body, to_bytes};

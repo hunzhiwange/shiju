@@ -1,3 +1,5 @@
+//! 验证委派工具的空观察器事件与指标接口契约。
+
 use super::*;
 use std::time::Duration;
 

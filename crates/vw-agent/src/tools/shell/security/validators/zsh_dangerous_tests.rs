@@ -1,3 +1,5 @@
+//! 验证 zsh 专属危险展开会被阻断而可移植命令保持允许。
+
 use super::zsh_dangerous::ZshDangerousValidator;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityCategory, SecurityValidator};

@@ -1,3 +1,5 @@
+//! 验证插件来源发现、禁用过滤、去重优先级与无效目录处理。
+
 use super::{DiscoveredPlugin, PluginDiscoveryOptions, discover_plugins};
 use serde_json::json;
 use std::collections::HashSet;

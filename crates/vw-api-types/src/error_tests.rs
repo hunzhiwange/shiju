@@ -1,3 +1,5 @@
+//! 验证 API 错误载荷能够保留或省略可选详情。
+
 use crate::error::{ApiErrorBody, ApiErrorDetail};
 use serde_json::json;
 

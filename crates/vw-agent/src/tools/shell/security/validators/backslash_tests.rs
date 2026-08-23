@@ -1,3 +1,5 @@
+//! 验证反斜杠校验器的稳定名称及风险输入识别边界。
+
 use super::*;
 use crate::tools::shell::ast::parse_command;
 use crate::tools::shell::security::{SecurityValidator, Severity};

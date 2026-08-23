@@ -1,3 +1,4 @@
+// 验证 MCP 配置解析、服务器装配与工具发现边界。
 use super::*;
 use crate::tools::{self, ToolRuntimeContext};
 use rmcp::handler::server::ServerHandler;

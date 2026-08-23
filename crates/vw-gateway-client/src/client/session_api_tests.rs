@@ -1,3 +1,7 @@
+//! 验证会话生命周期、消息、UI 状态、待办与标题接口的客户端契约。
+//!
+//! 用例特别区分缺失资源与服务端错误，并锁定旧版轮次标识的兼容规整行为。
+
 use serde_json::json;
 use vw_api_types::session::{
     GatewaySessionCreateBody, GatewaySessionDiffQuery, GatewaySessionForkBody,

@@ -5,11 +5,15 @@
 
 use vw_shared::question;
 use vw_shared::todo::Todo;
+use vw_tui::{
+    V3ApprovalChoice, V3ApprovalDecision, V3ApprovalKind, V3ApprovalRequest, V3UserInputOption,
+    V3UserInputQuestion, V3UserInputRequest,
+};
 
 use super::agent_view::AgentViewState;
 use super::background_task::BackgroundTaskPanel;
 use super::integration::{IntegrationKind, IntegrationPanel};
-use super::permission::PermissionQueue;
+use super::permission::{PermissionPreviewKind, PermissionQueue};
 use super::schedule_panel::SchedulePanel;
 use super::settings_panel::{SettingsPanel, SettingsValues};
 use super::ui_message::{UiMessageId, UiStepState, UiTokenUsage, UiTurnTerminal};
@@ -133,6 +137,51 @@ impl UiOverlay {
 pub(crate) struct UiPermissionOverlay {
     pub(crate) queue: PermissionQueue,
     pub(crate) notice: Option<String>,
+}
+
+impl UiPermissionOverlay {
+    /// 将当前队首权限转换为只读安全弹层；不会在渲染层制造授权结果。
+    pub(crate) fn current_request(&self) -> Option<V3ApprovalRequest> {
+        let request = self.queue.current()?;
+        let kind = match request.preview {
+            PermissionPreviewKind::Shell => V3ApprovalKind::Command,
+            PermissionPreviewKind::File => V3ApprovalKind::FileChange,
+            PermissionPreviewKind::Network => V3ApprovalKind::Network,
+            PermissionPreviewKind::Plan
+            | PermissionPreviewKind::Skill
+            | PermissionPreviewKind::Fallback => V3ApprovalKind::Permissions,
+        };
+        let mut detail = request
+            .explanation
+            .clone()
+            .unwrap_or_else(|| request.patterns.join("\n"));
+        if detail.trim().is_empty() {
+            detail = request.permission.clone();
+        }
+        let mut choices = vec![V3ApprovalChoice::new(
+            "allow-once",
+            "Allow once",
+            V3ApprovalDecision::Allow,
+        )];
+        if request.always_available() {
+            choices.push(V3ApprovalChoice::new(
+                "allow-session",
+                "Allow for session",
+                V3ApprovalDecision::AllowForSession,
+            ));
+        }
+        choices.extend([
+            V3ApprovalChoice::new("deny", "Deny", V3ApprovalDecision::Deny),
+            V3ApprovalChoice::new("cancel", "Cancel", V3ApprovalDecision::Cancel),
+        ]);
+        Some(V3ApprovalRequest::new(
+            request.id.clone(),
+            kind,
+            format!("Permission: {}", request.permission),
+            detail,
+            choices,
+        ))
+    }
 }
 
 /// 确认框携带的类型化意图。
@@ -267,6 +316,35 @@ impl UiQuestionOverlay {
             }),
             selected_index: 0,
         }
+    }
+
+    /// 转为渲染 crate 的只读提问结构，使用稳定索引保持回答顺序。
+    pub(crate) fn to_v3_request(&self) -> V3UserInputRequest {
+        let questions = self
+            .prompts
+            .iter()
+            .enumerate()
+            .map(|(index, prompt)| {
+                let mut question = V3UserInputQuestion::new(
+                    index.to_string(),
+                    prompt.header.clone(),
+                    prompt.question.clone(),
+                    prompt
+                        .options
+                        .iter()
+                        .map(|option| {
+                            V3UserInputOption::new(
+                                option.label.clone(),
+                                option.description.clone(),
+                            )
+                        })
+                        .collect(),
+                );
+                question.allow_other = prompt.allow_custom_input;
+                question
+            })
+            .collect();
+        V3UserInputRequest::new(self.request_id.clone(), questions)
     }
 
     /// 当前 question 是否来自工具侧的通用退化问题面。

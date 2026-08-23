@@ -1,3 +1,5 @@
+//! 工作流模型注册表的测试，覆盖节点类型查找、别名和展示元数据。
+//! 用例确保未知类型明确回退，内置注册顺序与能力集合保持稳定。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

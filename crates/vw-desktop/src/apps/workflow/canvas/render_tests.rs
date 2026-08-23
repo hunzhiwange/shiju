@@ -1,3 +1,5 @@
+//! 工作流画布渲染的测试，覆盖节点、连线、选中态和临时连接。
+//! 记录型绘制检查用于核对层级顺序、裁剪及主题颜色。
 use super::*;
 use serde_yaml::Value;
 use std::collections::{HashMap, HashSet};

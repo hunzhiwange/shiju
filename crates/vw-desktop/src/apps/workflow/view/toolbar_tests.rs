@@ -1,3 +1,5 @@
+//! 工作流工具栏的测试，覆盖图标按钮、缩放菜单、历史和应用入口。
+//! 颜色插值与状态组合断言确保禁用、激活、悬停和按下反馈一致。
 use super::*;
 use iced::{
     Background, Color, Point, Theme, Vector,

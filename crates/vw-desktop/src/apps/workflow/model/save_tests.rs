@@ -1,3 +1,5 @@
+//! 工作流模型保存的测试，覆盖 YAML 输出、路径选择和脏状态清理。
+//! 往返 fixture 验证保存内容可重新加载，并保留节点与连线语义。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

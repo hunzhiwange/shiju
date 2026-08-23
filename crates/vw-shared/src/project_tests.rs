@@ -1,3 +1,7 @@
+//! 项目信息模型的完整 JSON 往返测试。
+//!
+//! 夹具覆盖版本控制、图标、启动命令、时间信息与沙箱路径等可选结构。
+
 use super::{Commands, Icon, Info, TimeInfo, Vcs};
 
 #[test]

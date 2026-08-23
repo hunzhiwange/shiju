@@ -1,3 +1,5 @@
+//! 工作流画布状态操作的测试，覆盖节点拖拽、连接和交互取消。
+//! 快照复用与层级断言确保连续指针事件只产生一次语义修改。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

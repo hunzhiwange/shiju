@@ -30,6 +30,10 @@ mod parity_tests;
 #[path = "runner_tests.rs"]
 mod runner_tests;
 
+#[cfg(test)]
+#[path = "interaction_tests.rs"]
+mod interaction_tests;
+
 /// 构造独立界面对象，但不将其注册或切换为默认 TUI。
 pub(crate) fn build_surface() -> V3Surface {
     V3Surface::new()

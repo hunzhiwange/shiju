@@ -1,3 +1,7 @@
+//! 网关客户端测试使用的最小 HTTP 固件。
+//!
+//! 本模块在本地监听一次性请求，记录方法、路径、请求头和 JSON 正文，以便测试线协议而不依赖外部服务。
+
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};

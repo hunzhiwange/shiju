@@ -2,6 +2,9 @@
 //!
 //! This module owns task start/completion state, runtime metrics, plan updates,
 //! and final-message separator handling.
+//! 本模块负责代理轮次状态、指标、计划与结束分隔。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 底部面板的“任务运行中”标志由代理轮次、审查模式和 MCP 启动状态共同派生。
 
 use super::*;
 
@@ -30,6 +33,7 @@ impl ChatWidget {
     ///
     /// The bottom pane only has one running flag, but this module treats it as a derived state of
     /// both the agent turn lifecycle and MCP startup lifecycle.
+    /// 将底部面板"任务运行"指标与当前生命周期同步. 底部面板只有一个运行的标志，但这个模块将它作为代理轮次生命周期和MCP启动生命周期的衍生状态.
     pub(super) fn update_task_running_state(&mut self) {
         self.bottom_pane.set_task_running(
             self.turn_lifecycle.agent_turn_running
@@ -67,6 +71,7 @@ impl ChatWidget {
     }
 
     // Raw reasoning uses the same flow as summarized reasoning
+    // 原始推理使用与摘要推理相同的流程
 
     pub(super) fn on_task_started(&mut self) {
         self.input_queue.user_turn_pending_start = false;
@@ -114,6 +119,7 @@ impl ChatWidget {
         });
         // For desktop notifications: prefer the notification payload, fall back to
         // the item-level copy source if present, otherwise send an empty string.
+        // 对于桌面通知: 偏爱通知有效载荷， 如果存在则返回到项目级副本源， 否则发送空字符串。
         let notification_response = sanitized_last_agent_message
             .as_ref()
             .filter(|message| !message.is_empty())
@@ -128,6 +134,7 @@ impl ChatWidget {
             .unwrap_or_default();
         self.transcript.saw_copy_source_this_turn = false;
         // If a stream is currently active, finalize it.
+        // 若仍有活动流式单元，先将其完整结束。
         self.flush_answer_stream_with_separator();
         if let Some(mut controller) = self.plan_stream_controller.take() {
             let had_live_tail = controller.has_live_tail();
@@ -177,6 +184,7 @@ impl ChatWidget {
             self.refresh_thread_usage_after_turn();
         }
         // Mark task stopped and request redraw now that all content is in history.
+        // 标记任务已停止， 现在所有内容都已载入历史。
         self.status_state.pending_status_indicator_restore = false;
         self.input_queue.user_turn_pending_start = false;
         self.clear_active_hook_cell();
@@ -202,10 +210,12 @@ impl ChatWidget {
         }
         // Keep this flag for replayed completion events so a subsequent live TurnComplete can
         // still show the prompt once after thread switch replay.
+        // 回放完成事件时保留此标志，使任务切换回放后的实时 `TurnComplete` 仍能且仅能显示一次提示。
         if !from_replay {
             self.transcript.saw_plan_item_this_turn = false;
         }
         // If there is a queued user message, send exactly one now to begin the next turn.
+        // 若有排队的用户消息，只发送一条来启动下一轮次。
         let follow_up_started = self.maybe_send_next_queued_input();
         let active_goal_continuing = self
             .current_goal_status
@@ -215,6 +225,7 @@ impl ChatWidget {
         // Queued follow-up input and active goal continuation both start the
         // next turn immediately, so notifying at that boundary would feel like
         // a false "needs attention".
+        // 代理在真正等待用户时发送通知. 排队后续输入和积极目标续作都立即开始下一个轮次，因此在那个边界通知会感觉像一个虚假的"需要注意".
         if !follow_up_started && !active_goal_continuing {
             self.notify(Notification::AgentTurnComplete {
                 response: notification_response,
@@ -273,6 +284,7 @@ impl ChatWidget {
     /// implementing a plan. Reporting used context makes the cleanup tradeoff
     /// explicit. A fully fresh or unknown context window returns no label so
     /// the clear-context option does not imply urgency without evidence.
+    /// 返回计划实施提示所用的“已使用上下文”标签。页脚展示剩余上下文作为环境状态，而此提示在询问实施计划前是否丢弃先前对话，因此展示已用量能明确清理取舍。全新或未知的上下文窗口不返回标签，避免在没有依据时暗示清理紧迫性。
     pub(super) fn plan_implementation_context_usage_label(&self) -> Option<String> {
         let info = self.token_info.as_ref()?;
         let percent = self.context_remaining_percent(info);
@@ -313,18 +325,23 @@ impl ChatWidget {
     ///
     /// This does not clear MCP startup tracking, because MCP startup can overlap with turn cleanup
     /// and should continue to drive the bottom-pane running indicator while it is in progress.
+    /// 将所有活动执行单元结束为失败，并停止、清理代理轮次界面状态。这里不清除 MCP 启动跟踪，因为 MCP 启动可能与轮次清理重叠，进行中仍须驱动底部面板的运行指示器。
     pub(super) fn finalize_turn(&mut self) {
         self.clear_safety_buffering();
         // Drop preview-only stream tail content on any termination path before
         // failed-cell finalization, so transient tail cells are never persisted.
+        // 任一终止路径都先丢弃仅供预览的流式尾部，再完成失败单元，避免把临时尾部单元写入历史。
         self.clear_active_stream_tail();
         // Ensure any spinner is replaced by a red ✗ and flushed into history.
+        // 确保任何旋转器被红色的QQ所取代，并冲入历史.
         self.finalize_active_cell_as_failed();
         // Turn-scoped hook rows are transient live state; once the turn is over,
         // do not leave an orphaned running row behind if no matching completion
         // event arrived before cancellation.
+        // 转镜钩行是短暂的活状态;一旦轮次结束，如果取消前没有到达匹配的完成事件，则不要留下一个孤行运行.
         self.clear_active_hook_cell();
         // Reset running state and clear streaming buffers.
+        // 重置运行状态和清流缓冲.
         self.input_queue.user_turn_pending_start = false;
         self.clear_guardian_review_status();
         self.turn_lifecycle.finish();
@@ -372,6 +389,7 @@ impl ChatWidget {
         self.request_redraw();
 
         // After an error ends the turn, try sending the next queued input.
+        // 错误结束轮次后， 请尝试发送下一个队列输入。
         self.maybe_send_next_queued_input();
     }
 
@@ -390,6 +408,7 @@ impl ChatWidget {
         self.request_redraw();
 
         // After an error ends the turn, try sending the next queued input.
+        // 错误结束轮次后， 请尝试发送下一个队列输入。
         self.maybe_send_next_queued_input();
     }
 

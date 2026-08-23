@@ -1,12 +1,17 @@
+//! 本模块负责协议事件到 ChatWidget 状态的分派。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 回放与实时事件共用分派入口，但通过来源标记抑制只应实时触发的副作用。
 use super::*;
 
 impl ChatWidget {
+    // 按通知类型分派 app-server 事件，不在展示层执行通知所代表的业务操作。
     pub(crate) fn handle_server_notification(
         &mut self,
         notification: ServerNotification,
         replay_kind: Option<ReplayKind>,
     ) {
         // Reject misrouted child updates before shared notification handling mutates parent state.
+        // 在共享通知处理改变父状态之前，拒绝错误路由的子更新。
         if let ServerNotification::McpServerStatusUpdated(notification) = &notification
             && let (Some(notification_thread_id), Some(thread_id)) =
                 (notification.thread_id.as_deref(), self.thread_id())
@@ -254,6 +259,8 @@ impl ChatWidget {
         self.thread_usage.replaying_turn_completion = was_replaying_turn_completion;
     }
 
+    // 处理 `handle_turn_completed_notification` 对应的界面事件并同步相关状态。
+    // 完成通知先校验轮次，再提交剩余展示内容并收束本地生命周期。
     pub(super) fn handle_turn_completed_notification(
         &mut self,
         notification: TurnCompletedNotification,
@@ -262,6 +269,7 @@ impl ChatWidget {
         // User-message dedupe only suppresses the app-server echo of a prompt
         // this TUI already rendered locally. Once that turn ends, another
         // client can submit the same text and it still needs its own user cell.
+        // 用户消息去重只抑制 app-server 对本 TUI 已本地展示提示的回显。轮次结束后，其他客户端提交相同文本时仍应生成自己的用户消息单元。
         self.last_rendered_user_message_display = None;
         let was_replaying_turn_completion = self.thread_usage.replaying_turn_completion;
         self.thread_usage.replaying_turn_completion = replay_kind.is_some();
@@ -338,6 +346,8 @@ impl ChatWidget {
         self.thread_usage.replaying_turn_completion = was_replaying_turn_completion;
     }
 
+    // 处理 `handle_item_started_notification` 对应的界面事件并同步相关状态。
+    // 将项目开始事件映射到对应的活动展示单元。
     fn handle_item_started_notification(
         &mut self,
         notification: ItemStartedNotification,
@@ -383,6 +393,8 @@ impl ChatWidget {
         }
     }
 
+    // 处理 `handle_item_completed_notification` 对应的界面事件并同步相关状态。
+    // 将项目完成事件写入历史或结束其活动展示状态。
     fn handle_item_completed_notification(
         &mut self,
         notification: ItemCompletedNotification,

@@ -1,5 +1,9 @@
 #![cfg(not(target_arch = "wasm32"))]
 
+//! 原生会话 UI 快照与原始模型响应持久化测试。
+//!
+//! 验证作用域路径、可读 JSON 输出，以及损坏或非 UTF-8 文件的错误传播。
+
 use std::fs;
 
 use serde_json::json;

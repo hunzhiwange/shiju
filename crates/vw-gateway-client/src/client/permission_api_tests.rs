@@ -1,3 +1,7 @@
+//! 验证待处理权限请求的传输类型、列表查询与回复接口。
+//!
+//! 测试覆盖缺省集合、可选工具信息、线协议枚举值以及网关错误传播。
+
 use serde_json::json;
 
 use super::{PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto};

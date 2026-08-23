@@ -1,3 +1,5 @@
+//! 工作流画布核心行为的测试，覆盖视口变换、节点命中和交互路由。
+//! 用例验证空文档及不同缩放偏移下的坐标转换保持一致。
 use iced::advanced::renderer::Headless;
 use iced::widget::canvas::{Event, Program};
 use iced::{Font, Pixels};

@@ -1,3 +1,7 @@
+//! 本模块集中实现 `popup_consts` 在底部面板中的职责。
+
+
+//! 底部面板控件相关的共享常量
 //! Shared popup-related constants for bottom pane widgets.
 
 use ratatui::text::Line;
@@ -8,10 +12,12 @@ use crate::keymap::ListAction;
 use crate::keymap::ListKeymap;
 use crossterm::event::KeyCode;
 
+/// 弹出窗口最多尝试显示的行数。
 /// Maximum number of rows any popup should attempt to display.
 /// Keep this consistent across all popups for a uniform feel.
 pub(crate) const MAX_POPUP_ROWS: usize = 8;
 
+/// 弹出窗口中使用的标准底部提示文本
 /// Standard footer hint text used by popups.
 pub(crate) fn standard_popup_hint_line() -> Line<'static> {
     Line::from(vec![

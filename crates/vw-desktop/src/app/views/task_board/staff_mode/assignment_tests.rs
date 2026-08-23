@@ -1,3 +1,5 @@
+//! 员工模式任务分配区的测试，覆盖成员候选、能力匹配和已分配状态。
+//! 用例验证缺失成员或能力时的禁用与回退展示，不改变任务数据。
 use crate::app::state::TaskBoardViewMode;
 use crate::app::state::{TaskBoardStaffAssignmentTab, TaskBoardStaffOrchestrationTab};
 use crate::app::task::staff::models::{

@@ -1,3 +1,5 @@
+//! 开始节点编辑器状态的测试，覆盖输入变量创建、编辑、删除和提交。
+//! 用例验证校验时机、焦点移动及缺失编辑器时的安全空操作。
 use super::*;
 use iced::widget::text_editor::{Action, Edit};
 

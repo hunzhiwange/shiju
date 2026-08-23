@@ -1,3 +1,8 @@
+//! 全局路径测试固定应用目录与缓存版本契约，并验证路径集合在进程内只初始化一次。
+//!
+//! 本地平台用例还覆盖缓存版本匹配时保留内容、版本过期时清理旧结构，以及异常路径下
+//! 的容错行为；临时目录 fixture 将可能破坏数据的清理限制在测试专用路径内。
+
 #[test]
 fn constants_match_application_cache_contract() {
     assert_eq!(super::APP, vw_config_types::paths::APP_DIR_NAME);

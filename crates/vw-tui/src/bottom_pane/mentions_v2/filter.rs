@@ -1,3 +1,9 @@
+//! 本模块集中实现 `filter` 在底部面板中的职责。
+//! 关键声明 `filtered_candidates`、`best_tool_match`、`sort_rows`、`compare_within_rank` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+
+
 use codex_file_search::FileMatch;
 use codex_file_search::MatchType;
 use codex_utils_fuzzy_match::fuzzy_match;

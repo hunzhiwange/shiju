@@ -1,3 +1,7 @@
+//! 带类型前缀 ID 的生成、解析与错误边界测试。
+//!
+//! 共享状态相关用例会串行执行，并覆盖同毫秒计数、降序编码和随机源失败。
+
 use super::{
     Error, FORCE_RANDOM_ERROR, Prefix, STATE, ascending, create, descending, random_base62, schema,
     timestamp,

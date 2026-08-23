@@ -1,3 +1,4 @@
+//! Composer 端 Ctrl+R 反向历史搜索状态与渲染辅助功能。
 //! Composer-side Ctrl+R reverse history search state and rendering helpers.
 //!
 //! The persistent and local history stores live in `chat_composer_history`, but the composer owns
@@ -46,6 +47,7 @@ use crate::key_hint::KeyBindingListExt;
 use crate::key_hint::has_ctrl_or_alt;
 use crate::ui_consts::FOOTER_INDENT_COLS;
 
+/// 用于单次 Ctrl+R 搜索交互的活跃输入编辑器所有权状态。
 /// Active composer-owned state for one Ctrl+R search interaction.
 ///
 /// The session is created only by [`ChatComposer::begin_history_search`] and is cleared only by
@@ -53,14 +55,18 @@ use crate::ui_consts::FOOTER_INDENT_COLS;
 /// the footer query so transient previews never destroy the user's in-progress composer content.
 #[derive(Clone, Debug)]
 pub(super) struct HistorySearchSession {
+    /// 当搜索被取消或查询无匹配时，用于恢复的草稿
     /// Draft to restore when search is canceled or a query has no match.
     original_draft: ComposerDraft,
+    /// 在 Ctrl+R 搜索处于激活状态时，已输入的脚注查询文本。
     /// Footer-owned query text typed while Ctrl+R search is active.
     query: String,
+    /// 用户可见的搜索状态，用于决定底部提示和 Composer 预览行为。
     /// User-visible search status used to choose footer hints and composer preview behavior.
     status: HistorySearchStatus,
 }
 
+/// 活跃 Ctrl+R 搜索会话的用户可见阶段
 /// User-visible phase of the active Ctrl+R search session.
 ///
 /// Search keeps the footer query and the composer preview separate: `Idle` leaves the original
@@ -80,6 +86,7 @@ impl ChatComposer {
         self.history_search.is_some()
     }
 
+    /// 返回是否应开启反向历史搜索或跳转至更早的匹配项。
     /// Returns whether a key event should open reverse history search or step to an older match.
     ///
     /// The check accepts both normal Ctrl+R reports and the raw control character variant that
@@ -94,6 +101,7 @@ impl ChatComposer {
         bindings.is_pressed(*key_event)
     }
 
+    /// 未预览历史搜索，仅打开脚本报录的逆向历史记录。
     /// Opens footer-owned reverse history search without previewing history yet.
     ///
     /// Entering search mode first flushes pending paste-burst text, then snapshots the full
@@ -123,6 +131,7 @@ impl ChatComposer {
         (InputResult::None, true)
     }
 
+    /// 当脚本报入时，该键始终被处理。
     /// Handles every key while the footer is acting as the history search input.
     ///
     /// The method consumes search-mode keys before normal composer editing sees them. It guarantees
@@ -285,6 +294,7 @@ impl ChatComposer {
         self.apply_history_search_result(result);
     }
 
+    /// 取消当前历史记录搜索，并恢复在打开搜索模式之前创建的草稿。
     /// Cancels active history search and restores the draft from before search mode opened.
     ///
     /// This clears normal history navigation as well as search traversal because previewing a match
@@ -301,6 +311,7 @@ impl ChatComposer {
         true
     }
 
+    /// 将遍历结果应用于 Composer 预览和搜索状态。
     /// Applies a traversal result to the composer preview and search status.
     ///
     /// `Found` previews the matching entry, `Pending` keeps the footer in a waiting state while an
@@ -346,6 +357,7 @@ impl ChatComposer {
         }
     }
 
+    /// 在反向历史搜索期间显示底部行。
     /// Builds the footer line shown while reverse history search is active.
     ///
     /// The footer displays the query as the editable field and uses the status to decide whether
@@ -378,6 +390,7 @@ impl ChatComposer {
         Span::from(key_hint::plain(key)).cyan().bold().not_dim()
     }
 
+    /// 返回当前输入编辑器预览中应高亮显示的字节范围。
     /// Returns byte ranges that should be highlighted in the current composer preview.
     ///
     /// Highlights are only exposed while a matched history entry is being previewed. Once the user
@@ -442,6 +455,7 @@ impl ChatComposer {
         ranges
     }
 
+    /// 当搜索模式开启时，返回脚注查询的屏幕光标位置。
     /// Returns the screen cursor position for the footer query when search mode is active.
     ///
     /// The cursor tracks the end of the footer query rather than the textarea preview. If the
@@ -507,6 +521,7 @@ mod tests {
     use crate::app_event_sender::AppEventSender;
     use crate::render::renderable::Renderable;
 
+    // 验证 `history_search_opens_without_previewing_latest_entry` 场景的触发条件与预期结果。
     #[test]
     fn history_search_opens_without_previewing_latest_entry() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
@@ -530,6 +545,7 @@ mod tests {
         assert_eq!(composer.footer_mode(), FooterMode::HistorySearch);
     }
 
+    // 验证 `unavailable_history_search_restores_idle_draft` 场景的触发条件与预期结果。
     #[test]
     fn unavailable_history_search_restores_idle_draft() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
@@ -556,6 +572,7 @@ mod tests {
         );
     }
 
+    // 验证 `history_search_match_ranges_are_case_insensitive` 场景的触发条件与预期结果。
     #[test]
     fn history_search_match_ranges_are_case_insensitive() {
         assert_eq!(
@@ -569,6 +586,7 @@ mod tests {
         assert!(ChatComposer::case_insensitive_match_ranges("git", "").is_empty());
     }
 
+    // 验证 `history_search_accepts_matching_entry` 场景的触发条件与预期结果。
     #[test]
     fn history_search_accepts_matching_entry() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
@@ -607,6 +625,7 @@ mod tests {
         );
     }
 
+    // 验证 `vim_normal_history_search_preview_places_cursor_on_last_char` 场景的触发条件与预期结果。
     #[test]
     fn vim_normal_history_search_preview_places_cursor_on_last_char() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
@@ -633,6 +652,7 @@ mod tests {
         assert_eq!(composer.footer_mode(), FooterMode::HistorySearch);
     }
 
+    // 验证 `history_search_stays_on_single_match_at_boundaries` 场景的触发条件与预期结果。
     #[test]
     fn history_search_stays_on_single_match_at_boundaries() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
@@ -688,6 +708,7 @@ mod tests {
         );
     }
 
+    // 验证 `history_search_footer_action_hints_are_emphasized` 场景的触发条件与预期结果。
     #[test]
     fn history_search_footer_action_hints_are_emphasized() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
@@ -749,6 +770,7 @@ mod tests {
         assert!(cancel_style.add_modifier.contains(Modifier::DIM));
     }
 
+    // 验证 `history_search_highlights_matches_until_accepted` 场景的触发条件与预期结果。
     #[test]
     fn history_search_highlights_matches_until_accepted() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
@@ -805,6 +827,7 @@ mod tests {
         }
     }
 
+    // 验证 `history_search_esc_restores_original_draft` 场景的触发条件与预期结果。
     #[test]
     fn history_search_esc_restores_original_draft() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
@@ -833,6 +856,7 @@ mod tests {
         assert_eq!(composer.draft.textarea.cursor(), 2);
     }
 
+    // 验证 `history_search_ctrl_c_restores_original_draft` 场景的触发条件与预期结果。
     #[test]
     fn history_search_ctrl_c_restores_original_draft() {
         fn composer_with_search_preview() -> ChatComposer {
@@ -873,6 +897,7 @@ mod tests {
         }
     }
 
+    // 验证 `history_search_flushes_pending_first_char_before_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn history_search_flushes_pending_first_char_before_snapshot() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
@@ -901,6 +926,7 @@ mod tests {
         assert_eq!(composer.draft.textarea.text(), "h");
     }
 
+    // 验证 `history_search_flushes_buffered_paste_before_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn history_search_flushes_buffered_paste_before_snapshot() {
         use std::time::Duration;
@@ -939,6 +965,7 @@ mod tests {
         assert_eq!(composer.draft.textarea.text(), "paste");
     }
 
+    // 验证 `history_search_esc_resets_normal_history_navigation` 场景的触发条件与预期结果。
     #[test]
     fn history_search_esc_resets_normal_history_navigation() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
@@ -972,6 +999,7 @@ mod tests {
         assert_eq!(composer.draft.textarea.text(), "newest entry");
     }
 
+    // 验证 `history_search_no_match_restores_preview_but_keeps_search_open` 场景的触发条件与预期结果。
     #[test]
     fn history_search_no_match_restores_preview_but_keeps_search_open() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();

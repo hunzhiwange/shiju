@@ -1,3 +1,5 @@
+//! 任务看板主体的测试，覆盖列生成、卡片排序、状态标签与拖拽绘制。
+//! fixture 包含自定义工作流和归档任务，用于验证筛选及未知配置回退。
 use crate::app::task::{
     OwnedStatusDefinition, OwnedTaskWorkflow, StatusRole, SubTask, Task, TaskStatus,
     register_runtime_task_workflow,

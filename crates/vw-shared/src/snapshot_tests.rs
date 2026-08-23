@@ -1,3 +1,7 @@
+//! 文件快照差异类型的线格式测试。
+//!
+//! 验证状态使用小写标签，并保留可选差异状态的 JSON 往返语义。
+
 #[test]
 fn diff_status_uses_lowercase_wire_values() {
     let serialized = serde_json::to_string(&super::DiffStatus::Modified).unwrap();

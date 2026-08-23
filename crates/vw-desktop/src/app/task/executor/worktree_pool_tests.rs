@@ -1,3 +1,6 @@
+//! 工作树池测试，覆盖 Git 列表解析、分支令牌净化和受管路径判定。
+//! 空记录、游离头及旧版目录均有明确兼容边界，非槽位路径必须拒绝。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

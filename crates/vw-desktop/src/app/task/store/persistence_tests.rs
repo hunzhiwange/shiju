@@ -1,5 +1,8 @@
 #![cfg(not(target_arch = "wasm32"))]
 
+//! 原生任务持久化切换测试，确认旧索引与任务文件不再被读取或改写。
+//! 所有遗留写操作都应失败关闭，并完整保留磁盘上的既有文件。
+
 use super::*;
 
 fn legacy_task_dir(project: &std::path::Path) -> std::path::PathBuf {

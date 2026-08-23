@@ -1,4 +1,6 @@
 //! Service-tier selection and model-catalog helpers for `ChatWidget`.
+//! 本模块负责服务层级选择与模型目录辅助逻辑。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::ChatWidget;
 use crate::app_command::AppCommand;
@@ -11,12 +13,14 @@ use codex_protocol::config_types::ServiceTier;
 use codex_protocol::openai_models::SPEED_TIER_FAST;
 
 impl ChatWidget {
+    // 更新 `set_service_tier` 对应的本地展示状态。
     pub(crate) fn set_service_tier(&mut self, service_tier: Option<String>) {
         self.config.service_tier = service_tier;
         self.refresh_effective_service_tier();
         self.refresh_model_dependent_surfaces();
     }
 
+    // 计算 `current_service_tier` 在当前界面流程中需要的局部结果。
     pub(crate) fn current_service_tier(&self) -> Option<&str> {
         self.effective_service_tier.as_deref()
     }
@@ -25,6 +29,7 @@ impl ChatWidget {
         self.config.service_tier.clone()
     }
 
+    // 计算 `service_tier_update_for_core` 所需的界面结果。
     pub(crate) fn service_tier_update_for_core(&self) -> Option<Option<String>> {
         service_tier_resolution::service_tier_update_for_core(
             &self.config,
@@ -44,6 +49,7 @@ impl ChatWidget {
         self.config.features.enabled(Feature::FastMode)
     }
 
+    // 判断 `can_toggle_fast_mode_from_keybinding` 对应的界面条件是否成立。
     pub(crate) fn can_toggle_fast_mode_from_keybinding(&self) -> bool {
         self.fast_mode_enabled()
             && self.current_model_fast_service_tier().is_some()
@@ -72,6 +78,7 @@ impl ChatWidget {
         self.set_service_tier_selection(next_tier);
     }
 
+    // 更新 `sync_service_tier_commands` 对应的本地展示状态。
     pub(super) fn sync_service_tier_commands(&mut self) {
         self.bottom_pane
             .set_service_tier_commands_enabled(self.fast_mode_enabled());
@@ -124,6 +131,7 @@ impl ChatWidget {
             .send(AppEvent::PersistServiceTierSelection { service_tier });
     }
 
+    // 计算 `model_supports_service_tier` 所需的界面结果。
     fn model_supports_service_tier(&self, model: &str, service_tier: &str) -> bool {
         self.model_catalog
             .try_list_models()

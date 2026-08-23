@@ -1,3 +1,5 @@
+//! 原始用量数据弹窗的测试，覆盖关闭时不渲染和打开时构建内容。
+//! 该组固定弹窗显隐契约，详细载荷状态由步骤面板测试覆盖。
 use crate::app::App;
 use crate::app::state::UsageStepRawModal;
 

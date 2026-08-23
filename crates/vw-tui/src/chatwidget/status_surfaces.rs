@@ -1,4 +1,6 @@
 //! Chat-surface adapter for the copied working indicator.
+//! 本模块负责工作状态到聊天界面的展示适配。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use crate::render::renderable::Renderable;
 use crate::status_indicator_widget::StatusIndicatorWidget;

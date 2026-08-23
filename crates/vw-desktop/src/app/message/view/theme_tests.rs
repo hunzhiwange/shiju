@@ -1,3 +1,6 @@
+//! 主题消息测试，验证应用主题、编辑器跟随策略与自定义主题持久化。
+//! 切换视觉主题时，已打开编辑器的内容和标签状态必须完整保留。
+
 use super::{ViewMessage, take_last_persisted_app_theme, update};
 use crate::app::components::editor::Editor;
 use crate::app::theme_catalog::{

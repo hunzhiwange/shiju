@@ -1,3 +1,11 @@
+//! 本模块集中实现 `command_popup` 在底部面板中的职责。
+//! 关键声明 `MAX_POPUP_ROWS`、`COMMAND_COLUMN_WIDTH`、`CommandItem`、`CommandPopup` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+
+
+//! 命令完成表面。VibeWindow 提供命令行；此模块仅过滤并渲染。
 //! Command completion surface. VibeWindow supplies command rows; this module only filters and renders.
 use crate::bottom_pane::list_selection_view::SelectionItem;
 use crate::bottom_pane::scroll_state::ScrollState;
@@ -146,6 +154,7 @@ impl WidgetRef for &CommandPopup {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // 验证 `command_popup_filters_vibe_window_rows` 场景的触发条件与预期结果。
     #[test]
     fn command_popup_filters_vibe_window_rows() {
         let mut popup = CommandPopup::new(vec![
@@ -164,6 +173,7 @@ mod tests {
         popup.on_composer_text_change("/sea".into());
         assert_eq!(popup.selected_item().map(|item| item.id.as_str()), Some("search"));
     }
+    // 验证 `command_popup_emits_selection_action_without_dispatching` 场景的触发条件与预期结果。
     #[test]
     fn command_popup_emits_selection_action_without_dispatching() {
         let mut popup = CommandPopup::new(vec![V3SelectionItem::new("todo", "Todo")]);

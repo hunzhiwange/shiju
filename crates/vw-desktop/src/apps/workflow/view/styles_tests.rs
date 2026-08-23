@@ -1,3 +1,5 @@
+//! 工作流视图样式的测试，覆盖根背景、画布、检查器、弹窗与校验摘要。
+//! 断言分别核对明暗主题的背景、边框、阴影和危险语义色。
 use super::*;
 use crate::app::components::system_settings_common::{
     settings_modal_backdrop_style, settings_modal_card_style, settings_panel_style,

@@ -1,3 +1,7 @@
+//! 可执行文件构建身份的确定性测试。
+//!
+//! 使用固定字节夹具核对摘要格式与 SHA-256 标准结果。
+
 use super::build_identity::executable_build_id;
 
 #[test]

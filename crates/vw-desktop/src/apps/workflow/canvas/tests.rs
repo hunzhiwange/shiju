@@ -1,3 +1,5 @@
+//! 工作流画布测试模块的入口检查，确保拆分用例持续接入父模块。
+//! 该锚点只验证模块连线，不承担具体渲染或交互断言。
 use iced::widget::canvas::{Event, Program};
 use serde_yaml::Value;
 

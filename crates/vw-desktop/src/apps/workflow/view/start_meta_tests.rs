@@ -1,3 +1,5 @@
+//! 开始节点元数据辅助视图的测试，覆盖内置变量、类型标签和错误摘要。
+//! 活动模式与校验 fixture 用于固定聊天兼容规则及错误排序。
 use super::*;
 use crate::apps::workflow::model::{WorkflowAppMeta, WorkflowDocument};
 use crate::apps::workflow::state::{

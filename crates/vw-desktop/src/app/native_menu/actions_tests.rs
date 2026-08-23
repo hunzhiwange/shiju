@@ -1,3 +1,6 @@
+//! 原生菜单动作测试，覆盖稳定动作标识、菜单快照和窗口标签路由。
+//! 重点确认项目与非项目屏幕只暴露合法动作，动态标签标识可以无损往返。
+
 use super::actions::{
     NativeMenuSnapshot, WindowTabEntry, help_section, menu_sections, parse_window_tab_menu_id,
     project_display_label_for_test, resolve_native_menu_action, window_tab_menu_id,

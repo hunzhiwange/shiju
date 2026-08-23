@@ -1,3 +1,7 @@
+//! 安装信息测试验证 User-Agent 对发布通道、版本与客户端标识的组合规则。
+//!
+//! 用例同时固定本地开发环境的 `local`/`cli` 回退，并通过可恢复的环境守卫隔离显式值。
+
 use std::env;
 use std::ffi::OsString;
 use std::sync::{Mutex, MutexGuard};

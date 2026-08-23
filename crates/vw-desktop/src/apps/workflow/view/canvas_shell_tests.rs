@@ -1,3 +1,5 @@
+//! 工作流画布外壳视图的测试，覆盖基础画布及各类浮动层组合。
+//! fixture 逐一打开快捷插入、状态、菜单和应用控制，核对根节点结构。
 use super::*;
 use crate::apps::workflow::model::{WorkflowAppMeta, WorkflowDocument};
 use crate::apps::workflow::state::{

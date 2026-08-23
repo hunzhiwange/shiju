@@ -1,3 +1,7 @@
+//! 验证 Git 提交、命令和合并接口的请求字段与响应解码。
+//!
+//! 用例保留“未创建提交”“已合并”等成功结果，并确保状态与解码错误不会被吞掉。
+
 use serde_json::json;
 use vw_api_types::git::{
     GitCommandRequest, GitCommitRequest, GitHunkSelectionDto, GitLineSelectionDto, GitMergeRequest,

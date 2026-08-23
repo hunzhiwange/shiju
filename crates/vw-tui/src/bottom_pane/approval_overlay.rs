@@ -1,3 +1,11 @@
+//! 本模块集中实现 `approval_overlay` 在底部面板中的职责。
+//! 关键声明 `ApprovalOverlay`、`new`、`build_list`、`decision_for` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+
+
+//! 通过 VibeWindow 拥有的行为边界复制了审批表面。
 //! Copied approval surface with a VibeWindow-owned action boundary.
 //!
 //! The overlay owns presentation and focus only.  It receives read-only security data and emits
@@ -168,6 +176,7 @@ mod tests {
         )
     }
 
+    // 验证 `v3_approval_actions_preserve_reject_and_custom_paths` 场景的触发条件与预期结果。
     #[test]
     fn v3_approval_actions_preserve_reject_and_custom_paths() {
         let mut overlay = ApprovalOverlay::new(request());
@@ -190,6 +199,7 @@ mod tests {
         );
     }
 
+    // 验证 `approval_choices_keep_explicit_deny_and_session_options` 场景的触发条件与预期结果。
     #[test]
     fn approval_choices_keep_explicit_deny_and_session_options() {
         let request = V3ApprovalRequest::new(

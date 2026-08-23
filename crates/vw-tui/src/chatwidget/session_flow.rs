@@ -1,8 +1,11 @@
 //! Session configuration and thread-header orchestration for `ChatWidget`.
+//! 本模块负责会话配置与任务切换编排。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 
 impl ChatWidget {
+    // 处理 `on_session_configured_with_display_and_fork_parent_title` 对应的界面事件并同步相关状态。
     fn on_session_configured_with_display_and_fork_parent_title(
         &mut self,
         session: ThreadSessionState,
@@ -166,6 +169,7 @@ impl ChatWidget {
         }
     }
 
+    // 处理 `handle_thread_session` 对应的界面事件并同步相关状态。
     pub(crate) fn handle_thread_session(&mut self, session: ThreadSessionState) {
         self.instruction_source_paths = session.instruction_source_paths.clone();
         let fork_parent_title = session.fork_parent_title.clone();
@@ -176,6 +180,7 @@ impl ChatWidget {
         );
     }
 
+    // 接收 `handle_thread_session_quiet` 对应事件，并只更新本地展示状态。
     pub(crate) fn handle_thread_session_quiet(&mut self, session: ThreadSessionState) {
         self.instruction_source_paths = session.instruction_source_paths.clone();
         self.on_session_configured_with_display_and_fork_parent_title(
@@ -185,6 +190,7 @@ impl ChatWidget {
         );
     }
 
+    // 处理 `handle_prompt_edit_thread_session` 对应的界面事件并同步相关状态。
     pub(crate) fn handle_prompt_edit_thread_session(&mut self, session: ThreadSessionState) {
         self.instruction_source_paths = session.instruction_source_paths.clone();
         let fork_parent_title = session.fork_parent_title.clone();
@@ -205,6 +211,7 @@ impl ChatWidget {
         );
     }
 
+    // 计算 `emit_forked_thread_event` 所需的界面结果。
     pub(super) fn emit_forked_thread_event(
         &mut self,
         forked_from_id: ThreadId,
@@ -247,6 +254,7 @@ impl ChatWidget {
         )));
     }
 
+    // 处理 `on_thread_name_updated` 对应的界面事件并同步相关状态。
     pub(super) fn on_thread_name_updated(
         &mut self,
         thread_id: ThreadId,

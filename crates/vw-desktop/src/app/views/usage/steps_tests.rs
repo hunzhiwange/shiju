@@ -1,3 +1,5 @@
+//! 用量步骤明细的测试，覆盖堆叠占比、展开状态和原始载荷摘要。
+//! 边界数据验证空步骤、零权重及载荷缺失、加载或失败时的回退。
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};

@@ -1,3 +1,8 @@
+//! 本模块集中实现 `slash_commands` 在底部面板中的职责。
+//! 关键声明 `ServiceTierCommand`、`SlashCommandItem`、`id`、`command` 共同界定本文件的对外交互面。
+
+
+//! 无 Codex 命令注册表或调用的 Slash-命令过滤辅助工具
 //! Slash-command filtering helpers with no Codex command registry or dispatch.
 use crate::vibe::action::V3SelectionItem;
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -57,6 +62,7 @@ pub(crate) fn commands_from_vibe_data(items: Vec<V3SelectionItem>) -> Vec<SlashC
 #[cfg(test)]
 mod tests {
     use super::*;
+    // 验证 `slash_filter_uses_supplied_vibe_window_data` 场景的触发条件与预期结果。
     #[test]
     fn slash_filter_uses_supplied_vibe_window_data() {
         let items = vec![

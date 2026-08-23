@@ -1,3 +1,4 @@
+//! 自定义终端窗口/标签标题的配置视图
 //! Terminal title configuration view for customizing the terminal window/tab title.
 //!
 //! This module provides an interactive picker for selecting which items appear
@@ -29,6 +30,7 @@ use crate::bottom_pane::status_surface_preview::StatusSurfacePreviewItem;
 use crate::keymap::ListKeymap;
 use crate::render::renderable::Renderable;
 
+/// 通过strum将变体序列化并持久化到用户配置文件，因此更改或移除变体会导致配置变更。
 /// Available items that can be displayed in the terminal title.
 ///
 /// Variants serialize to kebab-case identifiers (e.g. `AppName` -> `"app-name"`)
@@ -37,57 +39,80 @@ use crate::render::renderable::Renderable;
 #[derive(EnumIter, EnumString, Display, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[strum(serialize_all = "kebab-case")]
 pub(crate) enum TerminalTitleItem {
+    /// Codex 应用程序名称
     /// Codex app name.
     AppName,
+    /// 项目根目录名称，或作为短路径的 cwd 降级。
     /// Project root name, or a compact cwd fallback.
     #[strum(to_string = "project-name", serialize = "project")]
     Project,
+    /// 当前工作目录路径
     /// Current working directory path.
     CurrentDir,
+    /// 活动指示器，用于显示终端标题状态
     /// Terminal-title activity indicator while active.
     #[strum(to_string = "activity", serialize = "spinner")]
     Spinner,
+    /// 紧凑运行时状态文本
     /// Compact runtime run-state text.
     #[strum(to_string = "run-state", serialize = "status")]
     Status,
+    /// 当前线程标题（如有）
     /// Current thread title (if available).
     #[strum(to_string = "thread-title", serialize = "thread")]
     Thread,
+    /// 当前 Git 分支（如有）
     /// Current git branch (if available).
     GitBranch,
+    /// 剩余上下文窗口百分比
     /// Percentage of context window remaining.
     ContextRemaining,
+    /// 上下文窗口使用的百分比
     /// Percentage of context window used.
     #[strum(to_string = "context-used", serialize = "context-usage")]
     ContextUsed,
+    /// 剩余的主速率限制使用量。
     /// Remaining usage on the primary rate limit.
     FiveHourLimit,
+    /// 剩余次级速率限制的使用量。
     /// Remaining usage on the secondary rate limit.
     WeeklyLimit,
+    /// Codex 应用程序版本
     /// Codex application version.
     CodexVersion,
+    /// 当前会话中使用的总令牌数
     /// Total tokens used in the current session.
     UsedTokens,
+    /// 总消耗输入令牌数
     /// Total input tokens consumed.
     TotalInputTokens,
+    /// 生成的总输出令牌数
     /// Total output tokens generated.
     TotalOutputTokens,
+    /// 当前企业线程直接分配的估算信用额
     /// Estimated credits attributed directly to the current enterprise thread.
     ThreadCredits,
+    /// 当前企业线程直接产生的估算美元成本
     /// Estimated dollar cost attributed directly to the current enterprise thread.
     EstimatedThreadCost,
+    /// 全线程 UUID
     /// Full thread UUID.
     #[strum(to_string = "thread-id", serialize = "session-id")]
     SessionId,
+    /// 当前是否处于快速模式
     /// Whether Fast mode is currently active.
     FastMode,
+    /// 当前模型名称
     /// Current model name.
     #[strum(to_string = "model", serialize = "model-name")]
     Model,
+    /// 当前模型名称及其推理级别
     /// Current model name with reasoning level.
     ModelWithReasoning,
+    /// 当前推理级别
     /// Current reasoning level.
     Reasoning,
+    /// 从 `update_plan` 获取的最新检查任务进度
     /// Latest checklist task progress from `update_plan` (if available).
     TaskProgress,
 }
@@ -175,6 +200,7 @@ impl TerminalTitleItem {
         }
     }
 
+    /// 返回渲染标题前放置分隔符的分割值。
     /// Returns the separator to place before this item in a rendered title.
     ///
     /// The activity indicator gets a plain space on either side so it reads as
@@ -238,6 +264,7 @@ fn parse_terminal_title_items<T>(ids: impl Iterator<Item = T>) -> Option<Vec<Ter
 where
     T: AsRef<str>,
 {
+    // 将解析视为全或全无，因此预览/确认回调不会发出部分解释的排序。在构建选择器时，无效 ID 会被忽略；但在用户与选择器交互时，我们只希望持久化或预览一个完全有效的选择。
     // Treat parsing as all-or-nothing so preview/confirm callbacks never emit
     // a partially interpreted ordering. Invalid ids are ignored when building
     // the picker, but once the user is interacting with the picker we only want
@@ -247,12 +274,14 @@ where
         .ok()
 }
 
+/// 交互式终端标题项配置视图
 /// Interactive view for configuring terminal-title items.
 pub(crate) struct TerminalTitleSetupView {
     picker: MultiSelectPicker,
 }
 
 impl TerminalTitleSetupView {
+    /// 创建终端标题选择器，并保留配置项的原始顺序。
     /// Creates the terminal-title picker, preserving the configured item order first.
     ///
     /// Unknown configured ids are skipped here instead of surfaced inline. The
@@ -417,6 +446,7 @@ mod tests {
         lines.join("\n")
     }
 
+    // 验证 `renders_title_setup_popup` 场景的触发条件与预期结果。
     #[test]
     fn renders_title_setup_popup() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -439,6 +469,7 @@ mod tests {
         );
     }
 
+    // 验证 `parse_terminal_title_items_preserves_order` 场景的触发条件与预期结果。
     #[test]
     fn parse_terminal_title_items_preserves_order() {
         let items = parse_terminal_title_items(
@@ -455,12 +486,14 @@ mod tests {
         );
     }
 
+    // 验证 `parse_terminal_title_items_rejects_invalid_ids` 场景的触发条件与预期结果。
     #[test]
     fn parse_terminal_title_items_rejects_invalid_ids() {
         let items = parse_terminal_title_items(["project", "not-a-title-item"].into_iter());
         assert_eq!(items, None);
     }
 
+    // 验证 `activity_is_canonical_and_accepts_spinner_legacy_id` 场景的触发条件与预期结果。
     #[test]
     fn activity_is_canonical_and_accepts_spinner_legacy_id() {
         assert_eq!(TerminalTitleItem::Spinner.to_string(), "activity");
@@ -474,6 +507,7 @@ mod tests {
         );
     }
 
+    // 验证 `project_name_is_canonical_and_accepts_project_legacy_id` 场景的触发条件与预期结果。
     #[test]
     fn project_name_is_canonical_and_accepts_project_legacy_id() {
         assert_eq!(TerminalTitleItem::Project.to_string(), "project-name");
@@ -487,6 +521,7 @@ mod tests {
         );
     }
 
+    // 验证 `thread_title_is_canonical_and_accepts_thread_legacy_id` 场景的触发条件与预期结果。
     #[test]
     fn thread_title_is_canonical_and_accepts_thread_legacy_id() {
         assert_eq!(TerminalTitleItem::Thread.to_string(), "thread-title");
@@ -500,6 +535,7 @@ mod tests {
         );
     }
 
+    // 验证 `model_is_canonical_and_accepts_model_name_legacy_id` 场景的触发条件与预期结果。
     #[test]
     fn model_is_canonical_and_accepts_model_name_legacy_id() {
         assert_eq!(TerminalTitleItem::Model.to_string(), "model");
@@ -513,6 +549,7 @@ mod tests {
         );
     }
 
+    // 验证 `run_state_is_canonical_and_accepts_status_legacy_id` 场景的触发条件与预期结果。
     #[test]
     fn run_state_is_canonical_and_accepts_status_legacy_id() {
         assert_eq!(TerminalTitleItem::Status.to_string(), "run-state");
@@ -526,6 +563,7 @@ mod tests {
         );
     }
 
+    // 验证 `model_with_reasoning_has_distinct_id` 场景的触发条件与预期结果。
     #[test]
     fn model_with_reasoning_has_distinct_id() {
         assert_eq!(
@@ -538,6 +576,7 @@ mod tests {
         );
     }
 
+    // 验证 `reasoning_is_selectable_id` 场景的触发条件与预期结果。
     #[test]
     fn reasoning_is_selectable_id() {
         assert_eq!(TerminalTitleItem::Reasoning.to_string(), "reasoning");
@@ -547,6 +586,7 @@ mod tests {
         );
     }
 
+    // 验证 `thread_usage_items_are_independently_selectable` 场景的触发条件与预期结果。
     #[test]
     fn thread_usage_items_are_independently_selectable() {
         assert_eq!(
@@ -558,6 +598,7 @@ mod tests {
         );
     }
 
+    // 验证 `parse_terminal_title_items_accepts_kebab_case_variants` 场景的触发条件与预期结果。
     #[test]
     fn parse_terminal_title_items_accepts_kebab_case_variants() {
         let items = parse_terminal_title_items(

@@ -1,3 +1,5 @@
+//! 任务看板共享控件的测试，覆盖图标、按钮状态和主题视觉参数。
+//! 渲染与颜色近似检查确保已知及未知提供商都能得到稳定展示。
 use iced::widget::{button, svg};
 use iced::{Background, Color, Element, Length, Theme};
 

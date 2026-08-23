@@ -1,3 +1,12 @@
+//! 本模块集中实现 `chat_composer` 在底部面板中的职责。
+//! 关键声明 `PROMPT_PREFIX`、`ChatComposer`、`new`、`with_data` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+
+
+//! VibeWindow 输入编辑器：通过显式行为边界复制了文本域的行为。编辑、Unicode 换行、Vim 模式、粘贴突发和本地草稿历史均保留在 UI 中。Enter、Tab、Esc、中断、历史记录和附件操作返回外部桥接的 [`V3Action`]；该模块从未发送应用事件或查找运行时状态。
 //! The VibeWindow composer: copied textarea behavior with an explicit action boundary.
 //!
 //! Text editing, Unicode wrapping, Vim mode, paste bursts, and local draft history remain local
@@ -23,6 +32,7 @@ use ratatui::widgets::{Paragraph, StatefulWidgetRef, Widget};
 
 const PROMPT_PREFIX: &str = "› ";
 
+/// 一个没有请求发送器或运行时依赖的本地输入编辑器。
 /// A local composer with no request sender or runtime dependency.
 pub(crate) struct ChatComposer {
     textarea: TextArea,
@@ -116,6 +126,7 @@ impl ChatComposer {
         self.footer.shortcuts_visible = false;
     }
 
+    /// 本地处理粘贴。粘贴的内容没有业务影响。
     /// Handle a paste locally.  Pasted text does not have a business side effect.
     pub(crate) fn handle_paste(&mut self, pasted: String) -> V3Action {
         if !pasted.is_empty() {
@@ -162,6 +173,7 @@ impl ChatComposer {
         true
     }
 
+    /// 将终端的一个键转换为本地编辑或显式的 V3 操作。
     /// Turn one terminal key into a local edit or an explicit V3 action.
     pub(crate) fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
         if !matches!(event.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
@@ -332,6 +344,7 @@ mod tests {
         format!("{buf:?}")
     }
 
+    // 验证 `v3_composer_emits_actions_without_owning_runtime` 场景的触发条件与预期结果。
     #[test]
     fn v3_composer_emits_actions_without_owning_runtime() {
         let mut composer = ChatComposer::new();
@@ -350,6 +363,7 @@ mod tests {
         );
     }
 
+    // 验证 `composer_footer_snapshots` 场景的触发条件与预期结果。
     #[test]
     fn composer_footer_snapshots() {
         let empty = ChatComposer::new();

@@ -1,3 +1,9 @@
+//! 本模块集中实现 `search_batch` 在底部面板中的职责。
+//! 关键声明 `on_batch_response`、`on_batch_error`、`pending_batch`、`advance_older_search_after_entry_miss` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+
+
 use super::ChatComposerHistory;
 use super::HistoryEntry;
 use super::HistorySearchDirection;
@@ -10,6 +16,7 @@ use crate::app_event_sender::AppEventSender;
 use codex_message_history::HistoryBatchCursor;
 
 impl ChatComposerHistory {
+    /// 应用查询独立批量到持久缓存，且仍适用时恢复活跃反向搜索。
     /// Applies a query-independent batch to the persistent cache and, when still applicable,
     /// resumes the active reverse search.
     pub(crate) fn on_batch_response(
@@ -65,6 +72,7 @@ impl ChatComposerHistory {
         Some(result)
     }
 
+    /// 在固定限制内重试未成功的批量查找，不将其视为历史记录。
     /// Retries a failed batch lookup up to a fixed limit without treating the failure as history
     /// exhaustion.
     pub(crate) fn on_batch_error(
@@ -120,6 +128,7 @@ impl ChatComposerHistory {
         (awaited_cursor == cursor).then_some((boundary_if_exhausted, read_failures))
     }
 
+    /// 将旧搜索从单条最新条目探针切换为有限批量查询。
     /// Switches an older search from the single newest-entry probe to bounded batch lookups.
     ///
     /// Keeping the first probe on the single-entry path avoids fetching a batch when the newest
@@ -141,6 +150,7 @@ impl ChatComposerHistory {
         )
     }
 
+    /// 从批处理游标缓存的偏移量中扫描，并请求第一个未缓存的旧范围。
     /// Scans cached offsets from a batch cursor and requests the first uncached older range.
     ///
     /// The byte anchor remains usable only while scanning begins at its exact `end_offset`; moving

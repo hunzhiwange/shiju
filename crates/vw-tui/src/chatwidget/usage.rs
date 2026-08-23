@@ -1,3 +1,5 @@
+//! 本模块负责用量与重置额度菜单。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditOutcome;
 use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
 use codex_app_server_protocol::RateLimitResetCreditsSummary;
@@ -14,6 +16,7 @@ const RATE_LIMIT_RESET_VIEW_ID: &str = "rate-limit-reset";
 const RATE_LIMIT_RESET_CONFIRMATION_VIEW_ID: &str = "rate-limit-reset-confirmation";
 
 impl ChatWidget {
+    // 构造并展示 `open_usage_menu` 对应的界面内容。
     pub(super) fn open_usage_menu(&mut self) {
         self.clear_pending_rate_limit_reset_hint();
         let should_refresh_reset_availability = self.available_rate_limit_reset_credits == Some(0);
@@ -75,6 +78,7 @@ impl ChatWidget {
         }
     }
 
+    // 处理 `finish_usage_menu_rate_limit_refresh` 对应的界面事件并同步相关状态。
     pub(crate) fn finish_usage_menu_rate_limit_refresh(
         &mut self,
         request_id: u64,
@@ -121,6 +125,7 @@ impl ChatWidget {
         request_id
     }
 
+    // 处理 `finish_rate_limit_reset_credits_refresh` 对应的界面事件并同步相关状态。
     pub(crate) fn finish_rate_limit_reset_credits_refresh(
         &mut self,
         request_id: u64,
@@ -282,6 +287,7 @@ impl ChatWidget {
         true
     }
 
+    // 处理 `start_rate_limit_reset_consumption` 对应的界面事件并同步相关状态。
     pub(crate) fn start_rate_limit_reset_consumption(
         &mut self,
         idempotency_key: &str,
@@ -306,6 +312,7 @@ impl ChatWidget {
         }
     }
 
+    // 更新 `reset_refresh_params` 对应的本地展示状态。
     fn reset_refresh_params(message: &str) -> SelectionViewParams {
         SelectionViewParams {
             view_id: Some(RATE_LIMIT_RESET_VIEW_ID),
@@ -434,6 +441,7 @@ impl ChatWidget {
         }
     }
 
+    // 处理 `finish_post_consume_reset_credits_refresh` 对应的界面事件并同步相关状态。
     pub(crate) fn finish_post_consume_reset_credits_refresh(
         &mut self,
         request_id: u64,
@@ -478,6 +486,7 @@ impl ChatWidget {
         }
     }
 
+    // 更新 `replace_rate_limit_reset_popup` 对应的本地展示状态。
     fn replace_rate_limit_reset_popup(&mut self, params: SelectionViewParams) {
         if self
             .bottom_pane
@@ -494,6 +503,7 @@ impl ChatWidget {
         request_id
     }
 
+    // 处理 `finish_rate_limit_reset_hint_refresh` 对应的界面事件并同步相关状态。
     pub(crate) fn finish_rate_limit_reset_hint_refresh(
         &mut self,
         request_id: u64,
@@ -542,6 +552,7 @@ impl ChatWidget {
         }
     }
 
+    // 计算 `pending_rate_limit_reset_hint` 所需的界面结果。
     pub(super) fn pending_rate_limit_reset_hint(&self) -> Option<&PlainHistoryCell> {
         self.pending_rate_limit_reset_hint.as_ref()
     }
@@ -552,6 +563,7 @@ impl ChatWidget {
         Some(hint)
     }
 
+    // 更新 `set_rate_limit_reset_available_hint` 对应的本地展示状态。
     fn set_rate_limit_reset_available_hint(&mut self, available_count: i64) {
         if available_count <= 0 {
             return;

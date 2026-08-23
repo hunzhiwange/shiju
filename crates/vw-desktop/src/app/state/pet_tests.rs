@@ -1,3 +1,6 @@
+//! 任务宠物派生状态测试，覆盖标题摘要、Unicode 截断和思考标签识别。
+//! 文本压缩必须保持字符边界，并避免把行内伪标签误判为工具或思考块。
+
 use super::{
     TaskPetAvatarKind, TaskPetItem, TaskPetStatus, current_open_think_body, find_tool_start,
     newest_open_thinking_text, task_pet_compact_detail, task_pet_detail, task_pet_project_label,

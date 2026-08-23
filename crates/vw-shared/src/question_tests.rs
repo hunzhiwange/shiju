@@ -1,3 +1,7 @@
+//! 交互问题请求的前端线协议与拒绝错误测试。
+//!
+//! 验证驼峰字段名、空选项省略和稳定的用户取消提示。
+
 #[test]
 fn request_serialization_uses_frontend_field_names() {
     let request = super::Request {

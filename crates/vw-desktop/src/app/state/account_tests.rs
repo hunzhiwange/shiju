@@ -1,3 +1,6 @@
+//! 账户状态机测试，覆盖启动恢复、操作代次、取消和资料编辑流程。
+//! 迟到的异步结果不得覆盖新操作，调试输出也必须始终隐藏密码等敏感输入。
+
 use super::*;
 use crate::app::account::{
     AccountIdentity, AccountOrigin, AccountPasswordDraft, AccountProfileDraft, SecretSkey,

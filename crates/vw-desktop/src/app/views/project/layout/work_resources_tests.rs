@@ -1,3 +1,5 @@
+//! 工作资源面板的测试，覆盖概览、文件、工作区与浏览器路由。
+//! 快照和绘制用例同时核对全屏控制、方向图标及主题表面。
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};

@@ -1,9 +1,12 @@
 //! Working-directory slash commands for the current local session.
+//! 本模块负责当前本地会话的工作目录命令。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use crate::history_cell::McpInventoryLoadingCell;
 
 impl ChatWidget {
+    // 判断 `can_change_working_directory` 对应的界面条件是否成立。
     pub(crate) fn can_change_working_directory(&self, thread_id: ThreadId) -> bool {
         let active = &self.transcript.active_cell;
         self.thread_id == Some(thread_id)
@@ -19,6 +22,7 @@ impl ChatWidget {
                 .is_none_or(|cell| !cell.as_any().is::<McpInventoryLoadingCell>())
     }
 
+    // 计算 `request_working_directory_change` 在当前界面流程中需要的局部结果。
     pub(super) fn request_working_directory_change(&mut self, path: &str) {
         if !self.is_session_configured() {
             self.add_error_message(

@@ -1,3 +1,5 @@
+//! 本模块负责技能列表与选择界面。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -20,6 +22,7 @@ use codex_utils_absolute_path::AbsolutePathBuf;
 use codex_utils_plugins::mention_syntax::TOOL_MENTION_SIGIL;
 
 impl ChatWidget {
+    // 构造并展示 `open_skills_list` 对应的界面内容。
     pub(crate) fn open_skills_list(&mut self) {
         if self.config.features.enabled(Feature::MentionsV2) {
             self.insert_str("@");
@@ -66,6 +69,7 @@ impl ChatWidget {
         });
     }
 
+    // 构造并展示 `open_manage_skills_popup` 对应的界面内容。
     pub(crate) fn open_manage_skills_popup(&mut self) {
         if self.skills_all.is_empty() {
             self.add_info_message("No skills available.".to_string(), /*hint*/ None);
@@ -144,6 +148,7 @@ impl ChatWidget {
         );
     }
 
+    // 更新 `set_skills_from_response` 对应的本地展示状态。
     pub(crate) fn set_skills_from_response(&mut self, response: &SkillsListResponse) {
         let skills = skills_for_cwd(&self.config.cwd, &response.data);
         self.skills_all = skills;
@@ -167,6 +172,7 @@ impl ChatWidget {
             }
 
             // Best effort only: annotate exact SKILL.md path matches from the loaded skills list.
+            // 最佳努力:从加载技能列表中注释精确的SKILL.md路径匹配.
             if let Some(skill) = self
                 .skills_all
                 .iter()
@@ -188,6 +194,7 @@ fn skills_for_cwd(cwd: &AbsolutePathBuf, skills_entries: &[SkillsListEntry]) -> 
         .unwrap_or_default()
 }
 
+// 计算 `enabled_skills_for_mentions` 所需的界面结果。
 fn enabled_skills_for_mentions(skills: &[SkillMetadata]) -> Vec<SkillMetadata> {
     skills
         .iter()
@@ -249,6 +256,7 @@ pub(crate) fn find_skill_mentions_with_tool_mentions(
     matches
 }
 
+// 计算 `find_app_mentions` 所需的界面结果。
 pub(crate) fn find_app_mentions(
     mentions: &ToolMentions,
     apps: &[AppInfo],
@@ -291,6 +299,7 @@ pub(crate) fn is_app_mentionable(app: &AppInfo) -> bool {
     app.is_accessible && app.is_enabled
 }
 
+/// 描述 `ToolMentions` 在当前界面流程中传递的数据。
 pub(crate) struct ToolMentions {
     names: HashSet<String>,
     linked_paths: HashMap<String, String>,
@@ -359,6 +368,7 @@ fn extract_tool_mentions_from_text_with_sigil(text: &str, sigil: char) -> ToolMe
     }
 }
 
+// 计算 `parse_linked_tool_mention` 所需的界面结果。
 fn parse_linked_tool_mention<'a>(
     text: &'a str,
     text_bytes: &[u8],
@@ -438,6 +448,7 @@ fn is_mention_name_char(byte: u8) -> bool {
     matches!(byte, b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'-')
 }
 
+// 判断 `is_skill_path` 对应的界面条件是否成立。
 fn is_skill_path(path: &str) -> bool {
     !path.starts_with("app://") && !path.starts_with("mcp://") && !path.starts_with("plugin://")
 }
@@ -456,6 +467,7 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
+    // 计算 `app` 所需的界面结果。
     fn app(id: &str, name: &str) -> AppInfo {
         AppInfo {
             id: id.to_string(),

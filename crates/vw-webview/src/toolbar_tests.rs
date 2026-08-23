@@ -1,3 +1,8 @@
+//! 独立窗口导航工具栏的契约测试。
+//!
+//! 验证生成的控件与图标保持稳定、安全 URL 才能进入工具栏 IPC，
+//! 并检查工具栏和内容视图在不同窗口模式下的区域划分与坐标转换。
+
 use super::toolbar::{
     TOOLBAR_REGION_HEIGHT, ToolbarAction, ViewRegion, parse_toolbar_ipc_message,
     toolbar_address_script, toolbar_html, window_regions,

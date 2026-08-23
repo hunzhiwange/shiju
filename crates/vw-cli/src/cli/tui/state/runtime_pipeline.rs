@@ -45,9 +45,9 @@ fn find_earliest_tag(haystack: &str, tags: &[&str]) -> Option<(usize, usize)> {
     best
 }
 
-/// 将单个 runtime 事件应用到状态层。
-pub(crate) fn apply_runtime_event(state: &mut TuiState, event: UiRuntimeEvent) {
-    apply_runtime_event_at(state, event, wall_clock_ms());
+/// 将单个 runtime 事件应用到状态层，并返回是否需要由宿主异步刷新交互请求。
+pub(crate) fn apply_runtime_event(state: &mut TuiState, event: UiRuntimeEvent) -> bool {
+    apply_runtime_event_at(state, event, wall_clock_ms())
 }
 
 /// 使用调用方提供的确定时间应用 runtime 事件。
@@ -55,9 +55,15 @@ pub(crate) fn apply_runtime_event_at(
     state: &mut TuiState,
     event: UiRuntimeEvent,
     event_time_ms: u64,
-) {
+) -> bool {
     state.runtime.event_time_ms = Some(event_time_ms);
     state.runtime.last_event_time_ms = Some(event_time_ms);
+    let refresh_interactions = match &event {
+        UiRuntimeEvent::TaskStateChanged { session_id } => {
+            runtime_event_targets_current_session(state, session_id.as_deref())
+        }
+        _ => false,
+    };
     match event {
         UiRuntimeEvent::PlanRunTaskStarted { task_id } => {
             state.runtime.active_plan_run_task_id = Some(task_id);
@@ -131,6 +137,7 @@ pub(crate) fn apply_runtime_event_at(
         }
     }
     state.runtime.event_time_ms = None;
+    refresh_interactions
 }
 
 fn apply_runtime_delta(state: &mut TuiState, delta: String) {

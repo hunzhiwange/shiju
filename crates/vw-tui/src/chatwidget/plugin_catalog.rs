@@ -1,3 +1,5 @@
+//! 本模块负责插件目录、分页与详情展示。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
@@ -77,6 +79,7 @@ const LOCAL_MARKETPLACE_TAB_ORDER: u8 = 3;
 const OTHER_MARKETPLACE_TAB_ORDER: u8 = 4;
 
 #[derive(Debug, Clone)]
+/// 描述 `PreferredLocalPluginSource` 在当前界面流程中传递的数据。
 struct PreferredLocalPluginSource {
     marketplace_path: AbsolutePathBuf,
     plugin_name: String,
@@ -195,6 +198,7 @@ const REMOTE_MARKETPLACE_SECTIONS: [RemoteMarketplaceSection; 2] = [
 ];
 
 impl RemoteMarketplaceSection {
+    // 计算 `fallback_tab` 所需的界面结果。
     fn fallback_tab(
         self,
         marketplaces: &[PluginMarketplaceEntry],
@@ -328,6 +332,7 @@ impl Renderable for PluginDisclosureLine {
         mark_url_hyperlink(buf, area, APPS_HELP_ARTICLE_URL);
     }
 
+    // 计算 `desired_height` 所需的界面结果。
     fn desired_height(&self, width: u16) -> u16 {
         Paragraph::new(self.line.clone())
             .wrap(Wrap { trim: false })
@@ -568,6 +573,7 @@ impl ChatWidget {
         }
     }
 
+    // 计算 `plugins_error_popup_params` 所需的界面结果。
     pub(super) fn plugins_error_popup_params(&self, err: &str) -> SelectionViewParams {
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Plugins".bold()));
@@ -1319,6 +1325,7 @@ pub(super) fn plugin_detail_hint_line() -> Line<'static> {
     Line::from("Press esc to close.")
 }
 
+// 计算 `plugins_header` 所需的界面结果。
 pub(super) fn plugins_header(subtitle: String, count_line: String) -> Box<dyn Renderable> {
     let mut header = ColumnRenderable::new();
     header.push(Line::from("Plugins".bold()));
@@ -1332,6 +1339,7 @@ fn dedupe_plugin_entries<'a>(
 ) -> Vec<(&'a PluginMarketplaceEntry, &'a PluginSummary, String)> {
     // App-server should eventually normalize local/remote duplicates. Keep this
     // display-only pass narrow so shared plugins do not appear twice meanwhile.
+    // App-server应最终使本地/远程复制品正常化. 保留此仅显示的 pass 窄度， 因此共享插件不会同时出现两次。
     let mut deduped: Vec<(&PluginMarketplaceEntry, &PluginSummary, String)> = Vec::new();
     let mut remote_entry_indexes = HashMap::new();
     for entry in entries {
@@ -1511,6 +1519,7 @@ fn plugin_version_summary(plugin: &PluginSummary) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
+// 计算 `plugin_share_context_summary` 所需的界面结果。
 fn plugin_share_context_summary(context: &PluginShareContext) -> String {
     let mut parts = Vec::new();
     if let Some(discoverability) = context.discoverability {
@@ -1655,6 +1664,7 @@ fn remote_section_marketplace_tab_id(
         })
 }
 
+// 计算 `plugin_tab_id_matching_saved_id` 所需的界面结果。
 fn plugin_tab_id_matching_saved_id(saved_tab_id: &str, tabs: &[SelectionTab]) -> Option<String> {
     if let Some(tab_id) = tabs
         .iter()
@@ -1783,6 +1793,7 @@ fn remote_section_error_tab(section_error: &PluginRemoteSectionError) -> Selecti
     }
 }
 
+// 计算 `disambiguate_duplicate_tab_labels` 所需的界面结果。
 fn disambiguate_duplicate_tab_labels(labels: Vec<String>) -> Vec<String> {
     let mut counts = HashMap::new();
     for label in &labels {
@@ -1921,6 +1932,7 @@ fn plugin_detail_location(plugin: &PluginDetail) -> Option<PluginLocation> {
     })
 }
 
+// 计算 `plugin_detail_request_for_entry` 所需的界面结果。
 fn plugin_detail_request_for_entry(
     marketplace: &PluginMarketplaceEntry,
     plugin: &PluginSummary,

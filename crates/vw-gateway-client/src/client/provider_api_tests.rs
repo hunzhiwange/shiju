@@ -1,3 +1,7 @@
+//! 验证 Provider 状态列表的项目目录作用域和错误处理。
+//!
+//! 目录缺失时不得生成空查询参数，以维持无作用域请求的稳定路径。
+
 use serde_json::json;
 
 use crate::client::test_support;

@@ -1,3 +1,5 @@
+//! 任务详情执行器选择器的测试，覆盖候选项、当前选择与不可用状态。
+//! 用例验证提供商图标和交互消息在空目录或混合配置下仍保持一致。
 use iced::widget::button;
 use iced::{Background, Color, Element, Theme};
 

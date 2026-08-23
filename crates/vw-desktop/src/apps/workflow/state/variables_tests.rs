@@ -1,3 +1,5 @@
+//! 工作流环境变量与会话变量状态的测试，覆盖面板和编辑器完整生命周期。
+//! 用例验证缺失目标、名称生成、秘密值及不同变量类型的提交行为。
 use super::*;
 use iced::{Point, widget::text_editor};
 use serde_yaml::Value;

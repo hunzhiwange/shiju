@@ -1,3 +1,4 @@
+//! 多选择选件控件，用于从列表中多选多个项。
 //! Multi-select picker widget for selecting multiple items from a list.
 //!
 //! This module provides a fuzzy-searchable, scrollable picker that allows users
@@ -74,58 +75,73 @@ use crate::render::renderable::Renderable;
 use crate::style::user_message_style;
 use crate::text_formatting::truncate_text;
 
+/// 最大显示长度，用于在截断前保留项目名称。
 /// Maximum display length for item names before truncation.
 const ITEM_NAME_TRUNCATE_LEN: usize = 21;
 
+/// 当搜索框为空时显示的占位文本
 /// Placeholder text shown in the search input when empty.
 const SEARCH_PLACEHOLDER: &str = "Type to search";
 
+/// 搜索前显示的预缀文本（模拟命令行界面）
 /// Prefix displayed before the search query (mimics a command prompt).
 const SEARCH_PROMPT_PREFIX: &str = "> ";
 
 const SECTION_BREAK_ROW: &str = "  ───────────────────────";
 
+/// 列表项重排的方向
 /// Direction for reordering items in the list.
 enum Direction {
     Up,
     Down,
 }
 
+/// 回调函数：当任何项的状态发生变动（切换或重排）时触发。
 /// Callback invoked when any item's state changes (toggled or reordered).
 /// Receives the full list of items and the event sender.
 pub type ChangeCallBack = Box<dyn Fn(&[MultiSelectItem], &AppEventSender) + Send + Sync>;
 
+/// 用户确认其选择时触发回调（按回车键）。 接收所有启用项的 ID 列表。
 /// Callback invoked when the user confirms their selection (presses Enter).
 /// Receives a list of IDs for all enabled items.
 pub type ConfirmCallback = Box<dyn Fn(&[String], &AppEventSender) + Send + Sync>;
 
+/// 用户取消选择器时触发回调（按 Esc 键）
 /// Callback invoked when the user cancels the picker (presses Escape).
 pub type CancelCallback = Box<dyn Fn(&AppEventSender) + Send + Sync>;
 
+/// 生成当前项目状态的可选预览行的回调函数。
 /// Callback to generate an optional preview line based on current item states.
 /// Returns `None` to hide the preview area.
 pub type PreviewCallback = Box<dyn Fn(&[MultiSelectItem]) -> Option<Line<'static>> + Send + Sync>;
 
+/// 多选择器中的单个可选项
 /// A single selectable item in the multi-select picker.
 ///
 /// Each item has a unique identifier, display name, optional description,
 /// and an enabled/disabled state that can be toggled by the user.
 pub(crate) struct MultiSelectItem {
+    /// 启用此项时返回的唯一标识符
     /// Unique identifier returned in the confirm callback when this item is enabled.
     pub id: String,
 
+    /// 显示名称在选择器列表中的内容。如果过长则会被截断。
     /// Display name shown in the picker list. Will be truncated if too long.
     pub name: String,
 
+    /// 名称旁显示的可选描述（暗色）。
     /// Optional description shown alongside the name (dimmed).
     pub description: Option<String>,
 
+    /// 是否当前选中或启用此项。
     /// Whether this item is currently selected/enabled.
     pub enabled: bool,
 
+    /// 当启用订单时，该物品是否可以被移动。
     /// Whether this item can be moved when ordering is enabled.
     pub orderable: bool,
 
+    /// 当可见的另一个项目紧随此项时，是否绘制分隔线。
     /// Whether to draw a divider after this item when another visible item follows.
     pub section_break_after: bool,
 }
@@ -148,6 +164,7 @@ struct BuiltRows {
     state: ScrollState,
 }
 
+/// 带有模糊搜索和可选重排的多选择选框控件。
 /// A multi-select picker widget with fuzzy search and optional reordering.
 ///
 /// The picker displays a scrollable list of items with checkboxes. Users can:
@@ -160,53 +177,69 @@ struct BuiltRows {
 ///
 /// Create instances using the builder pattern via [`MultiSelectPicker::new`].
 pub(crate) struct MultiSelectPicker {
+    /// 所有选中的项目（未过滤）。
     /// All items in the picker (unfiltered).
     items: Vec<MultiSelectItem>,
 
+    /// 可见列表的滚动与选择状态
     /// Scroll and selection state for the visible list.
     state: ScrollState,
 
+    /// 已关闭的选区（确认或取消）
     /// Whether the picker has been closed (confirmed or cancelled).
     pub(crate) complete: bool,
 
+    /// 应用事件发送通道
     /// Channel for sending application events.
     app_event_tx: AppEventSender,
 
+    /// 标题和副标题的头部控件
     /// Header widget displaying title and subtitle.
     header: Box<dyn Renderable>,
 
+    /// 显示键盘提示的脚本报表行
     /// Footer line showing keyboard hints.
     footer_hint: Line<'static>,
 
+    /// 用户当前搜索或过滤查询
     /// Current search/filter query entered by the user.
     search_query: String,
 
+    /// 当前过滤条件匹配到的 `items` 的索引，按显示顺序排列。
     /// Indices into `items` that match the current filter, in display order.
     filtered_indices: Vec<usize>,
 
+    /// 是否启用左右箭头重排功能。
     /// Whether left/right arrow reordering is enabled.
     ordering_enabled: bool,
 
+    /// 导航与完成功能共享的键绑定列表
     /// Shared list keybindings for navigation and completion.
     keymap: ListKeymap,
 
+    /// 生成当前项目状态预览行的可选回调函数
     /// Optional callback to generate a preview line from current item states.
     preview_builder: Option<PreviewCallback>,
 
+    /// 缓存预览行（随项变更而更新）
     /// Cached preview line (updated on item changes).
     preview_line: Option<Line<'static>>,
 
+    /// 回调函数，用于处理物品变更（切换或重排）
     /// Callback invoked when items change (toggle or reorder).
     on_change: Option<ChangeCallBack>,
 
+    /// 用户确认其选择时回调被调用
     /// Callback invoked when the user confirms their selection.
     on_confirm: Option<ConfirmCallback>,
 
+    /// 用户取消选择器时调用的回调函数
     /// Callback invoked when the user cancels the picker.
     on_cancel: Option<CancelCallback>,
 }
 
 impl MultiSelectPicker {
+    /// 创建一个新的构建器，用于构建 `MultiSelectPicker`。
     /// Creates a new builder for constructing a `MultiSelectPicker`.
     ///
     /// # Arguments
@@ -222,12 +255,14 @@ impl MultiSelectPicker {
         MultiSelectPickerBuilder::new(title, subtitle, app_event_tx)
     }
 
+    /// 应用当前搜索查询以过滤和排序项目。 更新 `filtered_indices` 字段，仅包含匹配项，并按模糊匹配分数排序。尝试在仍匹配过滤条件时保留当前选择。
     /// Applies the current search query to filter and sort items.
     ///
     /// Updates `filtered_indices` to contain only matching items, sorted by
     /// fuzzy match score. Attempts to preserve the current selection if it
     /// still matches the filter.
     fn apply_filter(&mut self) {
+        // 在可能时保留当前选择，过滤并排序。
         // Filter + sort while preserving the current selection when possible.
         let previously_selected = self
             .state
@@ -271,21 +306,25 @@ impl MultiSelectPicker {
         self.state.ensure_visible(len, visible);
     }
 
+    /// 返回过滤后可见项的数量
     /// Returns the number of items visible after filtering.
     fn visible_len(&self) -> usize {
         self.filtered_indices.len()
     }
 
+    /// 一次最多显示多少行数据
     /// Returns the maximum number of rows that can be displayed at once.
     fn max_visible_rows(len: usize) -> usize {
         MAX_POPUP_ROWS.min(len.max(1))
     }
 
+    /// 计算行内容可用宽度（包含边框）。
     /// Calculates the width available for row content (accounts for borders).
     fn rows_width(total_width: u16) -> u16 {
         total_width.saturating_sub(2)
     }
 
+    /// 计算行列表区域所需的总高度
     /// Calculates the height needed for the row list area.
     fn rows_height(&self, rows: &BuiltRows) -> u16 {
         rows.rows
@@ -295,6 +334,7 @@ impl MultiSelectPicker {
             .unwrap_or(1)
     }
 
+    /// 构建所有当前可见（过滤后）的显示行。 每条行显示：› [x] 项目名称，其中 › 表示光标位置。 [x] 或 [ ] 表示启用/禁用状态。
     /// Builds the display rows for all currently visible (filtered) items.
     ///
     /// Each row shows: `› [x] Item Name` where `›` indicates cursor position
@@ -344,6 +384,7 @@ impl MultiSelectPicker {
         }
     }
 
+    /// 向上移动选择光标，若位于顶部则自动回滚至底部。
     /// Moves the selection cursor up, wrapping to the bottom if at the top.
     fn move_up(&mut self) {
         let len = self.visible_len();
@@ -352,6 +393,7 @@ impl MultiSelectPicker {
         self.state.ensure_visible(len, visible);
     }
 
+    /// 向下移动选择光标，若已位于底部则向上循环。
     /// Moves the selection cursor down, wrapping to the top if at the bottom.
     fn move_down(&mut self) {
         let len = self.visible_len();
@@ -384,6 +426,7 @@ impl MultiSelectPicker {
         self.state.jump_bottom(len, visible);
     }
 
+    /// 切换当前选中的项目状态。
     /// Toggles the enabled state of the currently selected item.
     ///
     /// Updates the preview line and invokes the `on_change` callback if set.
@@ -405,6 +448,7 @@ impl MultiSelectPicker {
         }
     }
 
+    /// 确认当前选择并关闭选择器。
     /// Confirms the current selection and closes the picker.
     ///
     /// Collects the IDs of all enabled items and passes them to the
@@ -426,6 +470,7 @@ impl MultiSelectPicker {
         }
     }
 
+    /// 在列表中向上或向下移动当前选中的项目。
     /// Moves the currently selected item up or down in the list.
     ///
     /// Only works when:
@@ -468,6 +513,7 @@ impl MultiSelectPicker {
             return;
         }
 
+        // 将底层列表中的物品移动
         // move item in underlying list
         self.items.swap(actual_idx, new_idx);
 
@@ -476,9 +522,11 @@ impl MultiSelectPicker {
             on_change(&self.items, &self.app_event_tx);
         }
 
+        // 重建过滤索引，以保持搜索与过滤的一致性
         // rebuild filtered indices to keep search/filter consistent
         self.apply_filter();
 
+        // 将选区恢复到已移动的对象
         // restore selection to moved item
         let moved_idx = new_idx;
         if let Some(new_visible_idx) = self
@@ -490,6 +538,7 @@ impl MultiSelectPicker {
         }
     }
 
+    /// 使用预览回调重新生成预览行。
     /// Regenerates the preview line using the preview callback.
     ///
     /// Called after any item state change (toggle or reorder).
@@ -500,6 +549,7 @@ impl MultiSelectPicker {
             .and_then(|builder| builder(&self.items));
     }
 
+    /// 关闭选择器而不确认，并调用 `on_cancel` 回调。
     /// Closes the picker without confirming, invoking the `on_cancel` callback.
     ///
     /// Does nothing if already complete.
@@ -529,6 +579,7 @@ impl BottomPaneView for MultiSelectPicker {
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
+        // 可打印字符总是用于搜索。移动别名仅通过非文本事件或修改后的绑定生效。
         // Printable characters always feed search. Movement aliases such as
         // plain j/k only apply through non-text events or modified bindings.
         let allow_plain_char_navigation = !is_plain_text_key_event(key_event);
@@ -610,6 +661,7 @@ impl Renderable for MultiSelectPicker {
             return;
         }
 
+        // 为键提示行预留底部一行。
         // Reserve the footer line for the key-hint row.
         let preview_height = if self.preview_line.is_some() { 1 } else { 0 };
         let footer_height = 1 + preview_height;
@@ -636,6 +688,7 @@ impl Renderable for MultiSelectPicker {
 
         self.header.render(header_area, buf);
 
+        // 将搜索提示词渲染为两行，以模拟输入编辑器的风格。
         // Render the search prompt as two lines to mimic the composer.
         if search_area.height >= 2 {
             let [placeholder_area, input_area] =
@@ -703,6 +756,7 @@ impl Renderable for MultiSelectPicker {
     }
 }
 
+/// 构建一个具有流畅 API 的 [`MultiSelectPicker`] 构建器。
 /// Builder for constructing a [`MultiSelectPicker`] with a fluent API.
 ///
 /// # Example
@@ -731,6 +785,7 @@ pub(crate) struct MultiSelectPickerBuilder {
 }
 
 impl MultiSelectPickerBuilder {
+    /// 创建一个新的构建器，使用指定的标题、可选副标题和事件发送者。
     /// Creates a new builder with the given title, optional subtitle, and event sender.
     pub fn new(title: String, subtitle: Option<String>, app_event_tx: AppEventSender) -> Self {
         Self {
@@ -748,12 +803,14 @@ impl MultiSelectPickerBuilder {
         }
     }
 
+    /// 设置可选择的列表项
     /// Sets the list of selectable items.
     pub fn items(mut self, items: Vec<MultiSelectItem>) -> Self {
         self.items = items;
         self
     }
 
+    /// 支持按左右方向键重排项目。
     /// Enables left/right arrow keys for reordering items.
     ///
     /// Reordering is only active when the search query is empty.
@@ -762,12 +819,14 @@ impl MultiSelectPickerBuilder {
         self
     }
 
+    /// 设置用于导航和补全的共享列表键映射
     /// Sets the shared list keymap used for navigation and completion.
     pub fn list_keymap(mut self, keymap: ListKeymap) -> Self {
         self.keymap = keymap;
         self
     }
 
+    /// 设置回调，用于从当前项目状态生成预览行。
     /// Sets a callback to generate a preview line from the current item states.
     ///
     /// The callback receives all items and should return a [`Line`] to display,
@@ -780,6 +839,7 @@ impl MultiSelectPickerBuilder {
         self
     }
 
+    /// 当项的状态发生变化时，设置回调。
     /// Sets a callback invoked whenever an item's state changes.
     ///
     /// This includes both toggles and reordering operations.
@@ -792,6 +852,7 @@ impl MultiSelectPickerBuilder {
         self
     }
 
+    /// 当用户确认选择时触发回调（按 Enter 键）
     /// Sets a callback invoked when the user confirms their selection (Enter).
     ///
     /// The callback receives a list of IDs for all enabled items.
@@ -803,6 +864,7 @@ impl MultiSelectPickerBuilder {
         self
     }
 
+    /// 当用户取消选择器时（按 ESC 键）触发回调。
     /// Sets a callback invoked when the user cancels the picker (Escape).
     pub fn on_cancel<F>(mut self, callback: F) -> Self
     where
@@ -812,6 +874,7 @@ impl MultiSelectPickerBuilder {
         self
     }
 
+    /// 构建所有配置选项的 [`MultiSelectPicker`]。
     /// Builds the [`MultiSelectPicker`] with all configured options.
     ///
     /// Initializes the filter to show all items and generates the initial
@@ -880,6 +943,7 @@ impl MultiSelectPickerBuilder {
     }
 }
 
+/// 根据过滤字符串对物品进行模糊匹配。
 /// Performs fuzzy matching on an item against a filter string.
 ///
 /// Tries to match against the display name first, then falls back to name if different. Returns
@@ -941,6 +1005,7 @@ mod tests {
         }
     }
 
+    // 验证 `non_orderable_items_cannot_move_or_be_crossed` 场景的触发条件与预期结果。
     #[test]
     fn non_orderable_items_cannot_move_or_be_crossed() {
         let mut picker = test_picker(vec![
@@ -979,6 +1044,7 @@ mod tests {
         );
     }
 
+    // 验证 `horizontal_list_keys_reorder_orderable_items` 场景的触发条件与预期结果。
     #[test]
     fn horizontal_list_keys_reorder_orderable_items() {
         let mut picker = test_picker(vec![
@@ -1011,6 +1077,7 @@ mod tests {
         );
     }
 
+    // 验证 `section_break_after_item_renders_separator_row` 场景的触发条件与预期结果。
     #[test]
     fn section_break_after_item_renders_separator_row() {
         let picker = test_picker(vec![
@@ -1036,6 +1103,7 @@ mod tests {
         assert_eq!(rows.state.selected_idx, Some(0));
     }
 
+    // 验证 `searchable_plain_j_updates_query_instead_of_navigating` 场景的触发条件与预期结果。
     #[test]
     fn searchable_plain_j_updates_query_instead_of_navigating() {
         let mut picker = test_picker(vec![
@@ -1054,6 +1122,7 @@ mod tests {
         assert_eq!(picker.state.selected_idx, Some(0));
     }
 
+    // 验证 `page_and_jump_navigation_use_list_keymap` 场景的触发条件与预期结果。
     #[test]
     fn page_and_jump_navigation_use_list_keymap() {
         let (tx, _rx) = unbounded_channel::<AppEvent>();

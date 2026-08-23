@@ -1,3 +1,12 @@
+//! 本模块集中实现 `popup` 在底部面板中的职责。
+//! 关键声明 `Popup`、`new`、`set_candidates`、`set_query` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+//! 键盘输入只在当前界面状态内解释，未匹配输入继续遵循上层约定。
+
+
 use codex_file_search::FileMatch;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -88,6 +97,7 @@ impl Popup {
         (visible as u16).saturating_add(2)
     }
 
+    /// 在搜索输入改变后保持选择有效，并重新缓存行数据。
     /// Rebuilds cached rows and keeps selection valid after search inputs change.
     fn refresh_rows(&mut self) {
         self.rows = filtered_candidates(

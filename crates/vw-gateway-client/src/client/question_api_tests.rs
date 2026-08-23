@@ -1,3 +1,7 @@
+//! 验证交互问题的待答列表、回复与拒绝接口。
+//!
+//! 除成功路径外，各操作均单独约束非成功响应必须返回调用方。
+
 use serde_json::json;
 
 use crate::client::test_support;

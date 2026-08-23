@@ -27,3 +27,9 @@ pub(super) fn write_jsonl_item(writer: &mut impl Write, value: &impl Serialize) 
     writer.write_all(b"\n")?;
     Ok(())
 }
+
+/// 原样写出文本响应，不附加或移除换行。
+pub(super) fn write_text(writer: &mut impl Write, value: &str) -> Result<()> {
+    writer.write_all(value.as_bytes())?;
+    Ok(())
+}

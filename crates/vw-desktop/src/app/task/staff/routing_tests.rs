@@ -1,3 +1,6 @@
+//! 员工任务路由测试，验证阶段角色、成员容量、备选顺序和阻塞原因。
+//! 路由优先保留合法原分配；无可用成员时只标记阻塞，不得改写只读展示任务。
+
 use crate::app::task::{Task, TaskBoardStaffCommand, TaskBoardStaffCommandAction, TaskStatus};
 
 fn staff_task(id: &str, status: TaskStatus, priority: u32, order: u32) -> Task {

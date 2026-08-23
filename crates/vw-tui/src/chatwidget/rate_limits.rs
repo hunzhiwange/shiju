@@ -1,4 +1,6 @@
 //! Rate-limit warning, prompt, and notice surfaces for `ChatWidget`.
+//! 本模块负责速率限制警告与通知界面。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use codex_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
@@ -12,12 +14,14 @@ const PRIMARY_LIMIT_FALLBACK_LABEL: &str = "usage";
 const SECONDARY_LIMIT_FALLBACK_LABEL: &str = "secondary usage";
 
 #[derive(Default)]
+/// 保存 `RateLimitWarningState` 在当前流程中的展示状态。
 pub(super) struct RateLimitWarningState {
     pub(super) secondary_index: usize,
     pub(super) primary_index: usize,
 }
 
 impl RateLimitWarningState {
+    // 计算 `take_warnings` 在当前界面流程中需要的局部结果。
     pub(super) fn take_warnings(
         &mut self,
         secondary_used_percent: Option<f64>,
@@ -80,6 +84,7 @@ pub(crate) fn limit_label_for_window(window_minutes: Option<i64>, is_secondary: 
         .unwrap_or_else(|| fallback_limit_label(is_secondary).to_string())
 }
 
+// 计算 `get_limits_duration` 所需的界面结果。
 pub(crate) fn get_limits_duration(windows_minutes: i64) -> Option<String> {
     const MINUTES_PER_HOUR: i64 = 60;
     const MINUTES_PER_5_HOURS: i64 = 5 * MINUTES_PER_HOUR;
@@ -120,6 +125,7 @@ fn is_approximate_window(minutes: i64, expected_minutes: i64) -> bool {
 }
 
 #[derive(Default)]
+/// 保存 `RateLimitSwitchPromptState` 在当前流程中的展示状态。
 pub(super) enum RateLimitSwitchPromptState {
     #[default]
     Idle,
@@ -147,6 +153,7 @@ pub(super) fn app_server_rate_limit_error_kind(
     }
 }
 
+// 判断 `is_app_server_cyber_policy_error` 对应的界面条件是否成立。
 pub(super) fn is_app_server_cyber_policy_error(info: &AppServerCodexErrorInfo) -> bool {
     matches!(info, AppServerCodexErrorInfo::CyberPolicy)
 }
@@ -166,8 +173,10 @@ impl ChatWidget {
         self.on_rate_limit_snapshot_from(snapshot, RateLimitSnapshotSource::AccountUsage);
     }
 
+    // 处理 `on_rolling_rate_limit_snapshot` 对应的界面事件并同步相关状态。
     pub(crate) fn on_rolling_rate_limit_snapshot(&mut self, snapshot: RateLimitSnapshot) {
         // Rolling app-server notifications are sparse. Preserve metadata learned from the full read.
+        // 回放的 app-server 通知可能缺少元数据；此时保留从完整消息中解析出的结果。
         self.on_rate_limit_snapshot_from(Some(snapshot), RateLimitSnapshotSource::RollingUpdate);
     }
 
@@ -322,6 +331,7 @@ impl ChatWidget {
     pub(super) fn stop_rate_limit_poller(&mut self) {}
 
     #[cfg_attr(not(test), allow(dead_code))]
+    // 计算 `prefetch_rate_limits` 所需的界面结果。
     pub(super) fn prefetch_rate_limits(&mut self) {
         self.stop_rate_limit_poller();
     }
@@ -339,6 +349,7 @@ impl ChatWidget {
             .cloned()
     }
 
+    // 计算 `rate_limit_switch_prompt_hidden` 所需的界面结果。
     fn rate_limit_switch_prompt_hidden(&self) -> bool {
         self.config
             .notices
@@ -444,6 +455,7 @@ impl ChatWidget {
         });
     }
 
+    // 构造并展示 `open_workspace_owner_nudge_prompt` 对应的界面内容。
     pub(super) fn open_workspace_owner_nudge_prompt(
         &mut self,
         credit_type: AddCreditsNudgeCreditType,

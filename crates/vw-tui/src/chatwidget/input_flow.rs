@@ -3,10 +3,14 @@
 //! The queue data itself lives in `input_queue`; this module owns the app-level
 //! effects around taking composer input, submitting user turns, draining queued
 //! follow-ups, and restoring draft state across interrupts or thread switches.
+//! 本模块负责用户输入提交、队列排空与草稿恢复流程。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 队列数据由 `input_queue` 保存；本模块只负责取出输入、提交轮次、发送后续消息及跨中断恢复草稿。
 
 use super::*;
 
 impl ChatWidget {
+    // 更新 `set_parent_owned_thread` 对应的本地展示状态。
     pub(crate) fn set_parent_owned_thread(&mut self) {
         self.blocks_direct_input = true;
         self.bottom_pane.set_parent_owned_thread();
@@ -43,6 +47,7 @@ impl ChatWidget {
                     }
                     // Submitted is emitted when user submits.
                     // Reset any reasoning header only when we are actually submitting a turn.
+                    // 已提交在用户提交时发出。仅在我们实际提交轮次时重置任何推理标头。
                     self.reasoning_buffer.clear();
                     self.reasoning_header = None;
                     self.reasoning_summary_parts.clear();
@@ -81,6 +86,7 @@ impl ChatWidget {
         self.refresh_plan_mode_nudge();
     }
 
+    // 处理 `defer_input_until_settings_applied` 对应的界面事件并同步相关状态。
     pub(super) fn defer_input_until_settings_applied(&mut self) {
         if !self.bottom_pane.no_modal_or_popup_active() {
             self.input_queue.suppress_queue_autosend = true;
@@ -99,6 +105,7 @@ impl ChatWidget {
         self.queue_user_message_with_options(user_message, QueuedInputAction::Plain, Vec::new());
     }
 
+    // 更新 `set_queue_submissions_until_session_configured` 对应的本地展示状态。
     pub(crate) fn set_queue_submissions_until_session_configured(&mut self, queue: bool) {
         self.bottom_pane
             .set_queue_submissions(queue && !self.is_session_configured());
@@ -137,6 +144,8 @@ impl ChatWidget {
     }
 
     /// If idle and there are queued inputs, submit exactly one to start the next turn.
+    /// 空闲且队列非空时只提交一条输入，用它启动下一轮次。
+    // 计算 `maybe_send_next_queued_input` 所需的界面结果。
     pub(crate) fn maybe_send_next_queued_input(&mut self) -> bool {
         if !self.is_session_configured()
             || self.misalignment_policy_violation
@@ -222,6 +231,7 @@ impl ChatWidget {
             }
         }
         // Update the list to reflect the remaining queued messages (if any).
+        // 更新列表以反映剩余的排队消息（如果有）。
         self.refresh_pending_input_preview();
         submitted_follow_up
     }
@@ -243,6 +253,8 @@ impl ChatWidget {
     }
 
     /// Rebuild and update the bottom-pane pending-input preview.
+    /// 重建并更新底部窗格待定输入预览。
+    // 更新 `refresh_pending_input_preview` 对应的本地展示状态。
     pub(super) fn refresh_pending_input_preview(&mut self) {
         let preview = self.input_queue.preview();
         self.bottom_pane.set_pending_input_preview(

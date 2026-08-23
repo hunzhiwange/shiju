@@ -1,8 +1,13 @@
 //! Session-scoped shortcuts for the ordinary built-in permission modes.
+//! 本模块负责内置权限模式的会话级快捷入口。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 快捷键只发起受约束的配置请求；实际权限变更须等待外层确认结果。
+//! 前向与反向切换沿用同一模式序列，避免快捷键与权限菜单的顺序不一致。
 
 use super::*;
 
 impl ChatWidget {
+    // 仅在当前会话允许且没有冲突界面时识别权限快捷键。
     pub(super) fn handle_permission_shortcut(&mut self, key_event: KeyEvent) -> bool {
         let forward = if self.chat_keymap.next_permission_mode.is_pressed(key_event) {
             true
@@ -56,6 +61,7 @@ impl ChatWidget {
                     continue;
                 }
                 // These modes still need the explicit Windows setup/warning flow.
+                // 这些模式仍然需要明确的Windows设置/警告流程。
                 #[cfg(target_os = "windows")]
                 if preset.id == "auto"
                     && reviewer == ApprovalsReviewer::User
@@ -122,6 +128,8 @@ impl ChatWidget {
         true
     }
 
+    // 计算 `complete_permission_shortcut` 所需的界面结果。
+    // 收到完成事件后校验任务标识，再同步快捷键对应的展示状态。
     pub(crate) fn complete_permission_shortcut(&mut self, thread_id: ThreadId) {
         if self.thread_id == Some(thread_id) {
             self.permission_shortcut_pending = false;

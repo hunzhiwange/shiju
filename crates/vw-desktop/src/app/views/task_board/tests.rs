@@ -1,3 +1,5 @@
+//! 任务看板视图入口的测试，覆盖普通看板、控制区与员工模式路由。
+//! 用例验证加载、空项目和配置切换时仍生成一致的顶层布局。
 use crate::app::App;
 use crate::app::state::TaskBoardViewMode;
 use crate::app::task::Task;

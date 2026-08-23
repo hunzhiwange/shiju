@@ -1,4 +1,7 @@
 //! Input queue restore and thread-input snapshot behavior for `ChatWidget`.
+//! 本模块负责输入队列恢复与任务输入快照。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 合并多条待恢复消息时会重新编号附件占位符，并同步调整文本元素的字节范围。
 
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -10,6 +13,8 @@ use super::*;
 
 impl ChatWidget {
     /// Restore the exact draft entered before the fully initialized composer became available.
+    /// 恢复完整输入框初始化完成前录入的原始草稿。
+    // 处理 `restore_startup_draft` 对应的界面事件并同步相关状态。
     pub(crate) fn restore_startup_draft(&mut self, draft: ComposerDraftSnapshot) {
         let existing_draft = self.bottom_pane.composer_draft_snapshot();
         let existing_cursor = existing_draft.cursor;
@@ -89,11 +94,13 @@ impl ChatWidget {
     }
 
     /// Includes protected prompts deferred by streaming or the approval idle timer.
+    /// 包括由流式传输或审批空闲计时器延迟的受保护提示。
     pub(crate) fn has_pending_protected_request(&self) -> bool {
         self.bottom_pane.has_pending_approval() || self.interrupts.has_pending_prompt()
     }
 
     /// Transfer startup input only after protected views and required sandbox setup finish.
+    /// 仅在受保护的视图和所需的沙盒设置完成后传输启动输入。
     pub(crate) fn restore_startup_draft_when_ready(
         &mut self,
         pending_draft: &mut Option<ComposerDraftSnapshot>,
@@ -227,8 +234,11 @@ impl ChatWidget {
     /// or review completion.
     /// When there are queued user messages, restore them into the composer
     /// separated by newlines rather than auto-submitting the next one.
+    /// 处理因用户中断（Esc）、预算耗尽或审查完成而中止的轮次。存在排队用户消息时，将它们以换行分隔恢复到输入框，而不是自动提交下一条。
+    // 处理 `on_interrupted_turn` 对应的界面事件并同步相关状态。
     pub(super) fn on_interrupted_turn(&mut self, reason: TurnAbortReason) {
         // Finalize, log a gentle prompt, and clear running state.
+        // 结束当前轮次，记录温和提示，并清理运行状态。
         self.finalize_turn();
         let send_pending_steers_immediately =
             self.input_queue.submit_pending_steers_after_interrupt;
@@ -249,6 +259,7 @@ impl ChatWidget {
         // The server has already discarded pending input by the time the
         // interrupted turn reaches the UI, so any unacknowledged steers still
         // tracked here must be restored locally instead of waiting for a later commit.
+        // 当中断的轮次到达UI时，服务器已经丢弃了挂起的输入，因此仍在此处跟踪的任何未确认的追加输入必须在本地还原，而不是等待以后的提交。
         if send_pending_steers_immediately {
             let pending_steers = self
                 .input_queue
@@ -277,6 +288,9 @@ impl ChatWidget {
     /// placeholders in a stable order and rebase text element byte ranges so the restored composer
     /// state stays aligned with the merged attachment list. Returns `None` when there is nothing to
     /// restore.
+    /// 将待确认追加输入、排队草稿和当前输入框状态合并成一条消息。每条消息都从 `[Image #1]` 起独立编号远程附件；中断后拼接消息时，必须按稳定顺序重编号本地图像占位符，
+    /// 并重新设置文本元素的字节范围，以便还原的输入框状态与合并的附件列表保持一致。返回“无”
+    /// 当没有待恢复内容的时候。
     fn drain_pending_messages_for_restore(&mut self) -> Option<ThreadComposerState> {
         if self.input_queue.pending_steers.is_empty() && !self.has_queued_follow_up_messages() {
             return None;

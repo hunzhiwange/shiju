@@ -1,3 +1,5 @@
+//! 任务详情面板组合测试，覆盖选中任务、空状态和各折叠区块。
+//! fixture 串联执行器、模型、日志与子任务控件，验证消息路由和布局。
 use super::*;
 use crate::app::state::DelegateAgentSettingsEntry;
 use crate::app::task::{TaskStatus, WorktreePoolSnapshot};

@@ -1,5 +1,6 @@
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+// 注意：基于表格的布局此前使用过约束；下方的手动渲染器不再需要它。
 // Note: Table-based layout previously used Constraint; the manual renderer
 // below no longer requires it.
 use ratatui::style::Stylize;
@@ -23,6 +24,7 @@ use super::selection_row_layout::build_full_line;
 use super::selection_row_layout::line_to_owned;
 use super::selection_row_layout::wrap_stacked_row;
 
+/// 选择弹出窗口中一行渲染的表示。
 /// Render-ready representation of one row in a selection popup.
 ///
 /// This type contains presentation-focused fields that are intentionally more
@@ -41,6 +43,7 @@ pub(crate) struct GenericDisplayRow {
     pub wrap_indent: Option<usize>, // optional indent for wrapped lines
 }
 
+/// 控制选择行在左侧/右侧名称/描述列中分配的比例。 调用者应使用相同的模式，以便测量和渲染结果一致；否则弹出窗口可能错误地预留行数并截断内容。
 /// Controls how selection rows choose the split between left/right name/description columns.
 ///
 /// Callers should use the same mode for both measurement and rendering, or the
@@ -48,15 +51,19 @@ pub(crate) struct GenericDisplayRow {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) enum ColumnWidthMode {
+    /// 从可见视口行中推导列位置
     /// Derive column placement from only the visible viewport rows.
     #[default]
     AutoVisible,
+    /// 确保列位置由所有行推导得出，滚动时不会导致列偏移
     /// Derive column placement from all rows so scrolling does not shift columns.
     AutoAllRows,
+    /// 使用固定两列分割：左侧占 30%，右侧占 70%
     /// Use a fixed two-column split: 30% left (name), 70% right (description).
     Fixed,
 }
 
+/// 列宽行为加上可选的共享左侧列宽度覆盖
 /// Column-width behavior plus an optional shared left-column width override.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ColumnWidthConfig {
@@ -79,6 +86,7 @@ impl ColumnWidthConfig {
     }
 }
 
+// 固定列模式中明确使用的分割：标签占 30%，其余占 70%
 // Fixed split used by explicitly fixed column mode: 30% label, 70%
 // description.
 const FIXED_LEFT_COLUMN_NUMERATOR: usize = 3;
@@ -87,6 +95,7 @@ const FIXED_LEFT_COLUMN_DENOMINATOR: usize = 10;
 const MENU_SURFACE_INSET_V: u16 = 1;
 const MENU_SURFACE_INSET_H: u16 = 2;
 
+/// 应用底部面板覆盖层使用的共享“菜单表面”的边距。渲染代码通常应调用 [render_menu_surface]，然后在其返回的内边距内布局内容。
 /// Apply the shared "menu surface" padding used by bottom-pane overlays.
 ///
 /// Rendering code should generally call [`render_menu_surface`] and then lay
@@ -95,11 +104,13 @@ pub(crate) fn menu_surface_inset(area: Rect) -> Rect {
     area.inset(Insets::vh(MENU_SURFACE_INSET_V, MENU_SURFACE_INSET_H))
 }
 
+/// 菜单表面处理引入的垂直间隙
 /// Total vertical padding introduced by the menu surface treatment.
 pub(crate) const fn menu_surface_padding_height() -> u16 {
     MENU_SURFACE_INSET_V * 2
 }
 
+/// 绘制共享菜单背景并返回内边距内容。 此保持 VibeWindow 选择式覆盖层表面处理的一致性。 调用者应渲染返回矩形中的所有内边距内容，而非原始区域。
 /// Paint the shared menu background and return the inset content area.
 ///
 /// This keeps the surface treatment consistent across VibeWindow selection-style overlays.
@@ -113,6 +124,7 @@ pub(crate) fn render_menu_surface(area: Rect, buf: &mut Buffer) -> Rect {
     menu_surface_inset(area)
 }
 
+/// 在保持行样式时包裹一行文本。
 /// Wrap a styled line while preserving span styles.
 ///
 /// The function clamps `width` to at least one terminal cell so callers can use
@@ -139,6 +151,7 @@ fn compute_desc_col(
     }
 
     let max_desc_col = content_width.saturating_sub(1) as usize;
+    // 复用现有的固定拆分常量以推导自动上限：当固定模式为 30/70（标签/描述）时，自动模式将标签宽度限制在 70%，以确保至少保留 30% 用于描述。
     // Reuse the existing fixed split constants to derive the auto cap:
     // if fixed mode is 30/70 (label/description), auto mode caps label width
     // at 70% to keep at least 30% available for descriptions.
@@ -193,6 +206,7 @@ fn compute_desc_col(
     }
 }
 
+/// 确定一行中每个单词前是否需要缩进。
 /// Determine how many spaces to indent wrapped lines for a row.
 fn wrap_indent(row: &GenericDisplayRow, desc_col: usize, max_width: u16) -> usize {
     let max_indent = max_width.saturating_sub(1) as usize;
@@ -203,6 +217,7 @@ fn wrap_indent(row: &GenericDisplayRow, desc_col: usize, max_width: u16) -> usiz
 }
 
 fn should_wrap_name_in_column(row: &GenericDisplayRow) -> bool {
+    // 该路径故意针对普通选项行，使其能够选择包裹标签。样式模糊匹配的行保留了原始合并行的路径。
     // This path intentionally targets plain option rows that opt into wrapped
     // labels. Styled/fuzzy-matched rows keep the legacy combined-line path.
     row.wrap_indent.is_some()
@@ -225,6 +240,7 @@ fn wrap_two_column_row(row: &GenericDisplayRow, desc_col: usize, width: u16) -> 
     let width = width.max(1);
     let max_desc_col = width.saturating_sub(1) as usize;
     if max_desc_col == 0 {
+        // 该宽度下不存在有效的描述列；调用方将回退到单行包裹路径。
         // No valid description column exists at this width; let callers fall
         // back to single-line wrapping path.
         return Vec::new();
@@ -368,6 +384,7 @@ fn is_selected_visible_in_wrapped_viewport(
     for (idx, row) in rows_all.iter().enumerate().skip(start_idx).take(max_items) {
         let row_lines =
             wrap_row_lines(row, desc_col, viewport.width, viewport.description_layout).len().max(1);
+        // 保持渲染语义同步：即使超出视口，也始终显示第一行。
         // Keep rendering semantics in sync: always show the first row, even if
         // it overflows the viewport.
         if used_lines > 0 && used_lines.saturating_add(row_lines) > viewport_height {
@@ -401,6 +418,7 @@ fn adjust_start_for_wrapped_selection_visibility(
         return start_idx;
     }
 
+    // 当选中行高度被包裹时，将选中的项目移出视口范围，使项目窗口向可见的行推进。
     // If wrapped row heights push the selected item out of view, advance the
     // item window until the selected row is visible.
     while start_idx < sel {
@@ -425,6 +443,7 @@ fn adjust_start_for_wrapped_selection_visibility(
     start_idx
 }
 
+/// 使用提供的 ScrollState 渲染一行列表，并共享选择弹出窗口样式与行为。返回实际渲染的终端行数（包括单行空占位符）。
 /// Render a list of rows using the provided ScrollState, with shared styling
 /// and behavior for selection popups.
 /// Returns the number of terminal lines actually rendered (including the
@@ -442,6 +461,7 @@ fn render_rows_inner(
         if area.height > 0 {
             Line::from(empty_message.dim().italic()).render(area, buf);
         }
+        // 仅在存在垂直空间时计数占位符行
         // Count the placeholder line only when there is vertical space to draw it.
         return u16::from(area.height > 0);
     }
@@ -452,6 +472,7 @@ fn render_rows_inner(
     }
     let desc_measure_items = max_items.min(area.height.max(1) as usize);
 
+    // 保持行窗口语义，然后修正包裹行的高度，确保选中的行在列式视图中可见。
     // Keep item-window semantics, then correct for wrapped row heights so the
     // selected row remains visible in a line-based viewport.
     let start_idx = adjust_start_for_wrapped_selection_visibility(
@@ -467,6 +488,7 @@ fn render_rows_inner(
     let desc_col =
         compute_desc_col(rows_all, start_idx, desc_measure_items, area.width, column_width);
 
+    // 在共享描述列中渲染项目，并对齐包裹的行。当垂直空间耗尽时停止。
     // Render items, wrapping descriptions and aligning wrapped lines under the
     // shared description column. Stop when we run out of vertical space.
     let mut cur_y = area.y;
@@ -484,6 +506,7 @@ fn render_rows_inner(
             row.is_disabled,
         );
 
+        // 渲染包裹的行
         // Render the wrapped lines.
         for line in wrapped {
             if cur_y >= area.y + area.height {
@@ -498,6 +521,7 @@ fn render_rows_inner(
     rendered_lines
 }
 
+/// 使用提供的 ScrollState 渲染一行列表，并共享选择弹出窗口样式与行为。 描述对齐仅基于可见行数计算，使布局紧密适应当前视口。 此函数应与 [`measure_rows_height`] 配对以预留空间；搭配不同的测量模式可能导致裁剪。 返回实际渲染的终端行数。
 /// Render a list of rows using the provided ScrollState, with shared styling
 /// and behavior for selection popups.
 /// Description alignment is computed from visible rows only, which allows the
@@ -525,6 +549,7 @@ pub(crate) fn render_rows(
     )
 }
 
+/// 使用提供的 ScrollState 和显式的 ColumnWidthMode 行为渲染一行列表。
 /// Render a list of rows using the provided ScrollState and explicit
 /// [`ColumnWidthMode`] behavior.
 ///
@@ -543,6 +568,7 @@ pub(crate) fn render_rows_with_col_width_mode(
     render_rows_inner(area, buf, rows_all, state, max_results, empty_message, column_width)
 }
 
+/// 每行渲染一行内容，避免换行符；溢出时省略号截断。
 /// Render rows as a single line each (no wrapping), truncating overflow with an ellipsis.
 ///
 /// This path always uses viewport-local width alignment and is best for dense
@@ -567,6 +593,7 @@ pub(crate) fn render_rows_single_line(
     )
 }
 
+/// 将每一行渲染为单行，并截断溢出以保留配置的列宽行为。
 /// Render a list of rows as a single line each (no wrapping), truncating overflow with an
 /// ellipsis while honoring the configured column width behavior.
 pub(crate) fn render_rows_single_line_with_col_width_mode(
@@ -582,6 +609,7 @@ pub(crate) fn render_rows_single_line_with_col_width_mode(
         if area.height > 0 {
             Line::from(empty_message.dim().italic()).render(area, buf);
         }
+        // 仅在存在垂直空间时计数占位符行
         // Count the placeholder line only when there is vertical space to draw it.
         return u16::from(area.height > 0);
     }
@@ -630,6 +658,7 @@ pub(crate) fn render_rows_single_line_with_col_width_mode(
     rendered_lines
 }
 
+/// 计算渲染最多 `max_results` 项所需的终端行数，基于当前滚动/选区状态及可用宽度。此功能考虑描述换行与对齐，确保调用方有足够的垂直空间分配。
 /// Compute the number of terminal rows required to render up to `max_results`
 /// items from `rows_all` given the current scroll/selection state and the
 /// available `width`. Accounts for description wrapping and alignment so the
@@ -647,6 +676,7 @@ pub(crate) fn measure_rows_height(
     measure_rows_height_inner(rows_all, state, max_results, width, ColumnWidthConfig::default())
 }
 
+/// 使用显式的列宽模式行为测量行高度。
 /// Measure selection-row height using explicit [`ColumnWidthMode`] behavior.
 ///
 /// This is the low-level companion to [`render_rows_with_col_width_mode`].
@@ -706,6 +736,7 @@ mod tests {
     use ratatui::layout::Rect;
     use ratatui::style::Modifier;
 
+    // 验证 `one_cell_width_falls_back_without_panic_for_wrapped_two_column_rows` 场景的触发条件与预期结果。
     #[test]
     fn one_cell_width_falls_back_without_panic_for_wrapped_two_column_rows() {
         let row = GenericDisplayRow {
@@ -719,6 +750,7 @@ mod tests {
         assert_eq!(two_col.len(), 0);
     }
 
+    // 验证 `popup_name_truncation_counts_halfwidth_sound_marks` 场景的触发条件与预期结果。
     #[test]
     fn popup_name_truncation_counts_halfwidth_sound_marks() {
         for (name, desc_col, match_index, expected) in
@@ -737,6 +769,7 @@ mod tests {
         }
     }
 
+    // 验证 `fuzzy_matched_emoji_graphemes_keep_description_alignment` 场景的触发条件与预期结果。
     #[test]
     fn fuzzy_matched_emoji_graphemes_keep_description_alignment() {
         let rows = [
@@ -775,6 +808,7 @@ mod tests {
         insta::assert_snapshot!("popup_fuzzy_matched_emoji_graphemes", format!("{buf:?}"));
     }
 
+    // 验证 `wrapped_two_column_rows_count_halfwidth_sound_marks` 场景的触发条件与预期结果。
     #[test]
     fn wrapped_two_column_rows_count_halfwidth_sound_marks() {
         let rows = vec![GenericDisplayRow {
@@ -812,6 +846,7 @@ mod tests {
         ");
     }
 
+    // 验证 `wrapped_two_column_rows_preserve_hard_line_breaks` 场景的触发条件与预期结果。
     #[test]
     fn wrapped_two_column_rows_preserve_hard_line_breaks() {
         let row = GenericDisplayRow {
@@ -833,6 +868,7 @@ mod tests {
         ");
     }
 
+    // 验证 `selected_rows_use_the_shared_accent_style` 场景的触发条件与预期结果。
     #[test]
     fn selected_rows_use_the_shared_accent_style() {
         let rows = vec![GenericDisplayRow { name: "selected".to_string(), ..Default::default() }];

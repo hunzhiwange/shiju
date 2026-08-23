@@ -1,3 +1,6 @@
+//! 阶段能力注册表测试，验证内置能力清单及其允许的员工角色。
+//! 注册表是工作流配置的校验边界，不支持的角色组合必须明确报错。
+
 use crate::app::task::workflow::StatusRole;
 
 use super::{StageCapabilityId, stage_capability_registry};

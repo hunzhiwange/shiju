@@ -1,3 +1,5 @@
+//! 工作树办公室摘要条的测试，覆盖工位与任务状态的两行统计块。
+//! 绘制和颜色断言共同验证不同主题下的状态配色契约。
 use iced::advanced::renderer::Headless;
 use iced::{Background, Color, Length, Theme};
 

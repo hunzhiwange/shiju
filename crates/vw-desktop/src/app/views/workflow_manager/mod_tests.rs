@@ -1,3 +1,5 @@
+//! 工作流管理器入口的测试，覆盖标签切换、空状态和面板组合。
+//! 用例检查工作流列表与能力管理之间的更新和视图路由契约。
 use crate::app::Message;
 use crate::app::message::TaskBoardMessage;
 use crate::app::task::staff::models::TaskBoardStageAction;

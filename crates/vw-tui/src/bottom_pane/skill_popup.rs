@@ -1,3 +1,11 @@
+//! 本模块集中实现 `skill_popup` 在底部面板中的职责。
+//! 关键声明 `MentionItem`、`MentionMatch`、`fuzzy_match_query`、`MENTION_NAME_TRUNCATE_LEN` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+
+
 use crossterm::event::KeyCode;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint;
@@ -28,6 +36,7 @@ pub(crate) struct MentionItem {
     pub(crate) sort_rank: u8,
 }
 
+/// 最佳模糊匹配项及其可高亮显示名称的位置
 /// The best fuzzy match for a mention and the display-name positions that can be highlighted.
 ///
 /// `display_name_indices` is absent when only an alternate search term matched.
@@ -37,6 +46,7 @@ pub(crate) struct MentionMatch {
 }
 
 impl MentionItem {
+    /// 优先匹配显示名称，随后使用最佳区分搜索词。
     /// Matches the display name first, then falls back to the best distinct search term.
     pub(crate) fn fuzzy_match_query(&self, query: &str) -> Option<MentionMatch> {
         if let Some((indices, score)) = fuzzy_match(&self.display_name, query) {
@@ -291,6 +301,7 @@ mod tests {
         ranked_mention_item(display_name, search_terms, "[Plugin]", /*sort_rank*/ 0)
     }
 
+    // 验证 `filtered_mentions_preserve_results_beyond_popup_height` 场景的触发条件与预期结果。
     #[test]
     fn filtered_mentions_preserve_results_beyond_popup_height() {
         let popup = SkillPopup::new((0..(MAX_POPUP_ROWS + 2)).map(mention_item).collect());
@@ -320,6 +331,7 @@ mod tests {
         format!("{buf:?}")
     }
 
+    // 验证 `scrolling_mentions_shifts_rendered_window_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn scrolling_mentions_shifts_rendered_window_snapshot() {
         let mut popup = SkillPopup::new((0..(MAX_POPUP_ROWS + 2)).map(mention_item).collect());
@@ -331,6 +343,7 @@ mod tests {
         insta::assert_snapshot!("skill_popup_scrolled", render_popup(&popup, /*width*/ 72));
     }
 
+    // 验证 `display_name_match_sorting_beats_worse_secondary_search_term_matches` 场景的触发条件与预期结果。
     #[test]
     fn display_name_match_sorting_beats_worse_secondary_search_term_matches() {
         let mut popup = SkillPopup::new(vec![
@@ -363,6 +376,7 @@ mod tests {
         );
     }
 
+    // 验证 `query_match_score_sorts_before_plugin_rank_bias` 场景的触发条件与预期结果。
     #[test]
     fn query_match_score_sorts_before_plugin_rank_bias() {
         let mut popup = SkillPopup::new(vec![

@@ -1,3 +1,5 @@
+//! 工作流模型默认值的测试，覆盖节点尺寸、视口和编辑器初始状态。
+//! 断言固定当前兼容契约，防止序列化缺省值与界面预期漂移。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

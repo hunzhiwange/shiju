@@ -1,3 +1,5 @@
+// 工作流能力面板的精确集成测试，覆盖内置与自定义能力的真实渲染入口。
+// 本文件由 crate 根通过 include! 拼接，普通注释可避免非法内部文档属性。
 use crate::app::task::TaskBoardStaffCapability;
 use crate::app::views::workflow_manager::{WorkflowManagerMessage, WorkflowManagerTab};
 

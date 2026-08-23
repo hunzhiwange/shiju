@@ -1,3 +1,6 @@
+//! 会话视图缓存测试，覆盖快照移动、容量上限、最近最少使用淘汰和打开路径追踪。
+//! 诊断事件只记录路径类别与原因，不得携带聊天正文等会话内容。
+
 use super::view_cache::{
     SessionOpenUiCommit, SessionViewCache, SessionViewCacheEvictionReason,
     SessionViewCacheInsertResult, SessionViewSnapshot,

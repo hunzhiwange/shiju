@@ -1,3 +1,6 @@
+//! 主题转换测试，验证目录主题的十六进制调色板准确映射到 Iced 主题。
+//! 该边界保证自定义色值进入渲染层时不被内置主题默认色覆盖。
+
 use iced::theme::Palette;
 use iced::{Color, Theme};
 

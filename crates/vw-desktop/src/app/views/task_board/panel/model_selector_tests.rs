@@ -1,3 +1,5 @@
+//! 任务详情模型选择器的测试，覆盖自动模型、分组候选和选中状态。
+//! fixture 验证缺失或自定义模型配置时仍能构建明确的回退选项。
 use super::{
     TaskBoardModelSelectorKind, build_bulk_model_selector, build_model_icon, build_model_popover,
     build_model_selector, build_toggle_label,

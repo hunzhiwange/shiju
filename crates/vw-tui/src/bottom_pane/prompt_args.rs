@@ -1,3 +1,7 @@
+//! 本模块集中实现 `prompt_args` 在底部面板中的职责。
+
+
+/// /name <rest> 解析第一行斜杠命令，若以 `/` 开头且包含非空名称则返回 `(name, rest_after_name, rest_offset)`；否则返回 `None`。
 /// Parse a first-line slash command of the form `/name <rest>`.
 /// Returns `(name, rest_after_name, rest_offset)` if the line begins with `/`
 /// and contains a non-empty name; otherwise returns `None`.

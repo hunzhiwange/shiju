@@ -1,3 +1,6 @@
+//! 时聚应用视图测试，覆盖商店、已安装列表、详情及 API 密钥绑定覆盖层。
+//! 加载、空、错误和未登录状态均需可渲染，运行就绪与密钥选择决定动作可用性。
+
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};

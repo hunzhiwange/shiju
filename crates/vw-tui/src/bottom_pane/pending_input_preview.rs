@@ -10,6 +10,7 @@ use crate::render::renderable::Renderable;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_lines;
 
+/// 显示待提交工具及在操作期间正在等待的后续输入项的 Widget。
 /// Widget that displays pending steers plus follow-up inputs held while a turn is in progress.
 ///
 /// The widget renders pending steers first, then rejected steers that will be
@@ -24,9 +25,11 @@ pub(crate) struct PendingInputPreview {
     pub pending_steers: Vec<String>,
     pub rejected_steers: Vec<String>,
     pub queued_messages: Vec<String>,
+    /// 键组合在提示行中显示。默认使用 Alt+Up，但在终端中可能无法实现该组合。
     /// Key combination rendered in the hint line.  Defaults to Alt+Up but may
     /// be overridden for terminals where that chord is unavailable.
     edit_binding: Option<key_hint::ShortcutHint>,
+    /// 用于立即中断并发送航向的键组合
     /// Key combination rendered for immediately interrupting and sending steers.
     interrupt_binding: Option<key_hint::ShortcutHint>,
 }
@@ -44,6 +47,7 @@ impl PendingInputPreview {
         }
     }
 
+    /// 将提示行底部的 queued-messages 列表中的键绑定替换。调用者还需负责关联相应的按键事件处理器。
     /// Replace the keybinding shown in the hint line at the bottom of the
     /// queued-messages list.  The caller is responsible for also wiring the
     /// corresponding key event handler.
@@ -55,6 +59,7 @@ impl PendingInputPreview {
         self.interrupt_binding = binding;
     }
 
+    /// 从读写的 v3 快照表面中替换队列后的跟进文本。
     /// Replace queued follow-up text from the read-only v3 surface snapshot.
     pub(crate) fn set_queued_messages(&mut self, messages: Vec<String>) {
         self.queued_messages = messages;
@@ -202,12 +207,14 @@ mod tests {
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
 
+    // 验证 `desired_height_empty` 场景的触发条件与预期结果。
     #[test]
     fn desired_height_empty() {
         let queue = PendingInputPreview::new();
         assert_eq!(queue.desired_height(/*width*/ 40), 0);
     }
 
+    // 验证 `desired_height_one_message` 场景的触发条件与预期结果。
     #[test]
     fn desired_height_one_message() {
         let mut queue = PendingInputPreview::new();
@@ -215,6 +222,7 @@ mod tests {
         assert_eq!(queue.desired_height(/*width*/ 40), 3);
     }
 
+    // 验证 `render_one_message` 场景的触发条件与预期结果。
     #[test]
     fn render_one_message() {
         let mut queue = PendingInputPreview::new();
@@ -226,6 +234,7 @@ mod tests {
         assert_snapshot!("render_one_message", format!("{buf:?}"));
     }
 
+    // 验证 `render_one_message_with_shift_left_binding` 场景的触发条件与预期结果。
     #[test]
     fn render_one_message_with_shift_left_binding() {
         let mut queue = PendingInputPreview::new();
@@ -238,6 +247,7 @@ mod tests {
         assert_snapshot!("render_one_message_with_shift_left_binding", format!("{buf:?}"));
     }
 
+    // 验证 `render_two_messages` 场景的触发条件与预期结果。
     #[test]
     fn render_two_messages() {
         let mut queue = PendingInputPreview::new();
@@ -250,6 +260,7 @@ mod tests {
         assert_snapshot!("render_two_messages", format!("{buf:?}"));
     }
 
+    // 验证 `render_more_than_three_messages` 场景的触发条件与预期结果。
     #[test]
     fn render_more_than_three_messages() {
         let mut queue = PendingInputPreview::new();
@@ -264,6 +275,7 @@ mod tests {
         assert_snapshot!("render_more_than_three_messages", format!("{buf:?}"));
     }
 
+    // 验证 `render_wrapped_message` 场景的触发条件与预期结果。
     #[test]
     fn render_wrapped_message() {
         let mut queue = PendingInputPreview::new();
@@ -276,6 +288,7 @@ mod tests {
         assert_snapshot!("render_wrapped_message", format!("{buf:?}"));
     }
 
+    // 验证 `render_many_line_message` 场景的触发条件与预期结果。
     #[test]
     fn render_many_line_message() {
         let mut queue = PendingInputPreview::new();
@@ -287,6 +300,7 @@ mod tests {
         assert_snapshot!("render_many_line_message", format!("{buf:?}"));
     }
 
+    // 验证 `long_url_like_message_does_not_expand_into_wrapped_ellipsis_rows` 场景的触发条件与预期结果。
     #[test]
     fn long_url_like_message_does_not_expand_into_wrapped_ellipsis_rows() {
         let mut queue = PendingInputPreview::new();
@@ -316,6 +330,7 @@ mod tests {
         );
     }
 
+    // 验证 `render_one_pending_steer` 场景的触发条件与预期结果。
     #[test]
     fn render_one_pending_steer() {
         let mut queue = PendingInputPreview::new();
@@ -327,6 +342,7 @@ mod tests {
         assert_snapshot!("render_one_pending_steer", format!("{buf:?}"));
     }
 
+    // 验证 `render_one_pending_steer_with_remapped_interrupt_binding` 场景的触发条件与预期结果。
     #[test]
     fn render_one_pending_steer_with_remapped_interrupt_binding() {
         let mut queue = PendingInputPreview::new();
@@ -342,6 +358,7 @@ mod tests {
         );
     }
 
+    // 验证 `render_pending_steers_above_queued_messages` 场景的触发条件与预期结果。
     #[test]
     fn render_pending_steers_above_queued_messages() {
         let mut queue = PendingInputPreview::new();
@@ -356,6 +373,7 @@ mod tests {
         assert_snapshot!("render_pending_steers_above_queued_messages", format!("{buf:?}"));
     }
 
+    // 验证 `render_multiline_pending_steer_uses_single_prefix_and_truncates` 场景的触发条件与预期结果。
     #[test]
     fn render_multiline_pending_steer_uses_single_prefix_and_truncates() {
         let mut queue = PendingInputPreview::new();

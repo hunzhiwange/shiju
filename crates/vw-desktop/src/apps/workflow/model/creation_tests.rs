@@ -1,3 +1,5 @@
+//! 工作流模型创建的测试，覆盖空白文档、默认节点和初始元数据。
+//! 生成结果会核对标识、坐标及必要字段，避免创建不可编辑的草稿。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

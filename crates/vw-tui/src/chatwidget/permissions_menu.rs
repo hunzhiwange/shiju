@@ -1,10 +1,14 @@
+//! 本模块负责权限菜单与可用能力展示。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 use super::*;
 use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
 
+// 计算 `auto_review_available` 所需的界面结果。
 pub(crate) fn auto_review_available(config: &Config) -> bool {
     cyber_model_approval_reviewer(config) == Some(ApprovalsReviewer::AutoReview)
 }
 
+// 计算 `cyber_model_approval_reviewer` 所需的界面结果。
 pub(crate) fn cyber_model_approval_reviewer(config: &Config) -> Option<ApprovalsReviewer> {
     let requirements = config.config_layer_stack.requirements();
     if requirements
@@ -33,6 +37,7 @@ pub(crate) fn cyber_model_approval_reviewer(config: &Config) -> Option<Approvals
 }
 
 impl ChatWidget {
+    // 计算 `permission_mode_disabled_reason` 所需的界面结果。
     pub(super) fn permission_mode_disabled_reason(
         &self,
         preset: &ApprovalPreset,
@@ -58,6 +63,7 @@ impl ChatWidget {
             })
     }
 
+    // 构造并展示 `open_permission_profiles_popup` 对应的界面内容。
     pub(super) fn open_permission_profiles_popup(&mut self) {
         let active_profile_id = self
             .config
@@ -144,6 +150,7 @@ impl ChatWidget {
         });
     }
 
+    // 计算 `builtin_permission_mode_selection_item` 所需的界面结果。
     fn builtin_permission_mode_selection_item(
         &self,
         preset: &ApprovalPreset,
@@ -191,6 +198,7 @@ impl ChatWidget {
         }
     }
 
+    // 计算 `permission_profile_selection_item` 所需的界面结果。
     fn permission_profile_selection_item(
         label: &str,
         id: &str,

@@ -1,3 +1,15 @@
+//! 本模块集中实现 `vim` 在底部面板中的职责。
+//! 关键声明 `VimMode`、`VimOperator`、`VimPending`、`VimMotion` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+//! 键盘输入只在当前界面状态内解释，未匹配输入继续遵循上层约定。
+//! 取消与关闭路径保持已有返回语义，不暗中确认待处理操作。
+//! 选择、滚动与焦点值在使用前由原有逻辑约束到有效范围。
+//! 格式化和样式函数只组装展示数据，不改写输入模型。
+
+
 use super::TextArea;
 use super::split_word_pieces;
 use crate::key_hint::KeyBindingListExt;
@@ -6,8 +18,10 @@ use std::ops::Range;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum VimMode {
+    /// 正常模式将可打印的键、操作符和模式切换传递给移动、运算符和模式转换。
     /// Normal mode routes printable keys to movement, operators, and mode transitions.
     Normal,
+    /// 在编辑模式下，通过常规编辑器键盘映射将输入路由至编辑器，直到按下 Esc 键。
     /// Insert mode routes input through the regular editor keymap until Escape is pressed.
     Insert,
 }

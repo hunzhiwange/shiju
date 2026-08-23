@@ -1,4 +1,6 @@
 //! Committed, active, and live-tail cells owned by `ChatWidget`.
+//! 本模块负责已提交、活动与实时尾部对话单元。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use std::cell::Cell;
 
@@ -7,6 +9,7 @@ use crate::vibe::event::V3DisplayEvent;
 use ratatui::text::Line;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// 描述 `ActiveCellLayoutCacheKey` 在当前界面流程中传递的数据。
 pub(super) struct ActiveCellLayoutCacheKey {
     pub(super) cell_identity: usize,
     pub(super) revision: u64,
@@ -15,6 +18,7 @@ pub(super) struct ActiveCellLayoutCacheKey {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// 描述 `ActiveCellLayoutCache` 在本模块状态转换中传递的数据。
 pub(super) struct ActiveCellLayoutCache {
     pub(super) key: ActiveCellLayoutCacheKey,
     pub(super) desired_height: u16,
@@ -49,6 +53,7 @@ impl Default for TranscriptState {
 }
 
 impl TranscriptState {
+    // 构造并展示 `push_cell` 对应的界面内容。
     pub(super) fn push_cell(&mut self, cell: Box<dyn HistoryCell>) {
         self.committed_history.push(cell);
     }
@@ -77,6 +82,7 @@ impl TranscriptState {
         self.bump_active_cell_revision();
     }
 
+    // 更新 `set_live_tail_event` 对应的本地展示状态。
     pub(super) fn set_live_tail_event(&mut self, event: Option<V3DisplayEvent>) {
         self.live_tail = event.as_ref().map(history_cell_for);
     }
@@ -97,6 +103,7 @@ impl TranscriptState {
         self.committed_history.len()
     }
 
+    // 计算 `scroll_lines` 所需的界面结果。
     pub(super) fn scroll_lines(&self, delta: isize) {
         let max_top = self
             .last_content_height
@@ -122,6 +129,7 @@ impl TranscriptState {
         self.follow_bottom.set(true);
     }
 
+    // 计算 `viewport_scroll_top` 所需的界面结果。
     pub(super) fn viewport_scroll_top(
         &self,
         content_height: usize,

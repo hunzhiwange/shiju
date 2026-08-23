@@ -1,4 +1,6 @@
-//! Unified skill-market transport contract.
+//! 统一技能市场传输契约。
+//!
+//! 通过来源感知的定位符聚合多个市场，并显式描述目录查询、详情、文件、技能集和安装目标。
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};

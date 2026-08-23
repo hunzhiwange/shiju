@@ -1,3 +1,5 @@
+//! 子任务区域的测试，覆盖编辑态与草稿态列表、动作按钮和日志面板。
+//! fixture 包含空列表、混合状态及无效时间戳，验证展示回退与禁用分支。
 use crate::app::task::{SubTask, Task};
 use crate::app::{App, Message};
 use iced::advanced::widget::Tree;

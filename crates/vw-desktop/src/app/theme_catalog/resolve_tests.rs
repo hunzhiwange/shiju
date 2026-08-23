@@ -1,3 +1,6 @@
+//! 主题解析测试，验证自定义主题标识从存储加载并在启动阶段生效。
+//! 解析结果需保留目录调色板，确保配置值与最终 Iced 主题一致。
+
 use iced::theme::Palette;
 use iced::{Color, Theme};
 

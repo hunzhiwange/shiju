@@ -1,4 +1,6 @@
 //! Render composition for the copied main chat surface.
+//! 本模块负责主聊天界面的渲染组合。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::status_surfaces::StatusSurface;
 use super::transcript::{ActiveCellLayoutCache, ActiveCellLayoutCacheKey};
@@ -11,6 +13,7 @@ use ratatui::widgets::{
 };
 
 impl ChatWidget {
+    // 计算 `as_renderable` 所需的界面结果。
     pub(crate) fn as_renderable(&self) -> RenderableItem<'_> {
         let mut flex = FlexRenderable::new();
         flex.push(
@@ -38,11 +41,13 @@ impl ChatWidget {
         RenderableItem::Owned(Box::new(flex))
     }
 
+    // 计算 `note_rendered_width` 在当前界面流程中需要的局部结果。
     fn note_rendered_width(&self, width: u16) {
         self.last_rendered_width.set(Some(width));
     }
 }
 
+/// 描述 `TranscriptAreaRenderable` 在当前界面流程中传递的数据。
 struct TranscriptAreaRenderable<'a> {
     transcript: &'a TranscriptState,
 }
@@ -92,6 +97,7 @@ impl TranscriptAreaRenderable<'_> {
 }
 
 impl Renderable for TranscriptAreaRenderable<'_> {
+    // 计算 `render` 所需的界面结果。
     fn render(&self, area: Rect, buf: &mut Buffer) {
         if area.is_empty() {
             return;
@@ -123,6 +129,7 @@ impl Renderable for TranscriptAreaRenderable<'_> {
     fn desired_height(&self, width: u16) -> u16 {
         // Keep the copied active-cell height cache hot while measuring the full
         // static transcript; committed and live cells remain immutable inputs.
+        // 测量完整静态对话记录时保持活动单元高度缓存可用；已提交单元与活动单元仍作为不可变输入。
         let _ = self.active_desired_height(width);
         Paragraph::new(Text::from(self.lines(width)))
             .wrap(Wrap { trim: false })
@@ -138,6 +145,7 @@ impl Renderable for ChatWidget {
         self.note_rendered_width(area.width);
     }
 
+    // 计算 `desired_height` 所需的界面结果。
     fn desired_height(&self, width: u16) -> u16 {
         self.as_renderable().desired_height(width)
     }

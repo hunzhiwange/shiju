@@ -1,3 +1,13 @@
+//! 本模块集中实现 `effort_ignition` 在底部面板中的职责。
+//! 关键声明 `PROMPT_ACCENT_ALPHA`、`CHARGE`、`IGNITION_FRAME_TICK`、`effort_animation_enabled` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+//! 键盘输入只在当前界面状态内解释，未匹配输入继续遵循上层约定。
+
+
+//! 当活动推理努力从 Max 或 Ultra 切换时，会在输入编辑器乐队内显示一次性庆祝动画；同时保留该等级激活期间持续存在的持久提示词风格。
 //! One-shot celebration animations shown inside the composer band when the
 //! active reasoning effort changes to Max or Ultra, plus the persistent
 //! prompt accent that remains while one of those tiers is active.

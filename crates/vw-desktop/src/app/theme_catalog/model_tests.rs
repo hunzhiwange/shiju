@@ -1,3 +1,6 @@
+//! 主题目录模型测试，覆盖标识、文案长度、资产名称和区域图像适配校验。
+//! 反序列化兼容缺失可选区段及旧版面板适配值，但拒绝不安全资源路径。
+
 use super::{ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex};
 
 fn valid_palette() -> ThemePaletteHex {

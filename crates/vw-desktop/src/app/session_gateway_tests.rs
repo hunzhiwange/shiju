@@ -1,3 +1,6 @@
+//! 桌面端网关适配测试，验证租户项目作用域、异步桥接和错误原样传播。
+//! 测试使用无网络客户端边界，确保无效项目标识在发出请求前被拒绝。
+
 #[cfg(not(target_arch = "wasm32"))]
 async fn stop_stub(
     status: &'static str,

@@ -1,3 +1,10 @@
+//! 本模块集中实现 `chat_composer_history` 在底部面板中的职责。
+//! 关键声明 `HistoryEntry`、`new`、`with_draft_state`、`HistorySearchDirection` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+
+
+//! v3 输入核心本地历史模块
 //! Local composer history for the v3 input core.
 //!
 //! History recall is deliberately local in this batch. Persistent session lookup belongs to the
@@ -59,6 +66,7 @@ pub(crate) enum HistorySearchResult {
     NotFound,
 }
 
+/// 编辑器在会话桥接前使用的内存式历史
 /// In-memory shell-style history used by the editor before a session bridge is attached.
 #[derive(Debug, Default)]
 pub(crate) struct ChatComposerHistory {
@@ -180,6 +188,7 @@ impl ChatComposerHistory {
 mod tests {
     use super::*;
 
+    // 验证 `local_history_recalls_unicode_drafts_without_duplicate_submissions` 场景的触发条件与预期结果。
     #[test]
     fn local_history_recalls_unicode_drafts_without_duplicate_submissions() {
         let mut history = ChatComposerHistory::new();
@@ -192,6 +201,7 @@ mod tests {
         assert_eq!(history.navigate_down(), Some(HistoryEntry::new("当前草稿")));
     }
 
+    // 验证 `reverse_search_walks_local_history_and_reports_boundaries` 场景的触发条件与预期结果。
     #[test]
     fn reverse_search_walks_local_history_and_reports_boundaries() {
         let mut history = ChatComposerHistory::new();

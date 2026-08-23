@@ -43,6 +43,10 @@ mod shiju_skill_api;
 mod shiju_skill_api_tests;
 mod skill_market_api;
 mod staff_api;
+mod system_api;
+#[cfg(test)]
+#[path = "system_api_tests.rs"]
+mod system_api_tests;
 mod task_lifecycle_api;
 mod task_pool_api;
 #[cfg(test)]

@@ -1,3 +1,9 @@
+//! 本模块集中实现 `layout` 在底部面板中的职责。
+//! 关键声明 `LayoutSections`、`desired_height`、`layout_sections` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+
+
 use ratatui::layout::Rect;
 
 use super::RequestUserInputOverlay;

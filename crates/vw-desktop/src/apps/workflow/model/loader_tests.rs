@@ -1,3 +1,5 @@
+//! 工作流模型加载的测试，覆盖 YAML 解析、格式识别和错误报告。
+//! 临界输入验证空文档、非法结构及缺失字段会得到明确而安全的结果。
 use super::*;
 use iced::{Point, Size};
 use serde_yaml::Value;

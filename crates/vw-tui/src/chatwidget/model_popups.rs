@@ -2,6 +2,9 @@
 //!
 //! These surfaces are tightly related because changing one often redirects
 //! into another, especially while Plan mode is active.
+//! 本模块负责模型、协作模式与推理强度弹窗。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 模型、协作模式和推理强度相互约束，尤其在计划模式下可能需要从一个弹窗跳转到另一个。
 
 use super::*;
 
@@ -10,6 +13,8 @@ const ULTRA_REASONING_CONCURRENCY_WARNING_THRESHOLD: usize = 8;
 impl ChatWidget {
     /// Open a popup to choose a quick auto model. Selecting "All models"
     /// opens the full picker with every available preset.
+    /// 打开弹出窗口以选择快速自动型号。选择“所有型号”将打开包含所有可用预设的完整选择器。
+    // 构造并展示 `open_model_popup` 对应的界面内容。
     pub(crate) fn open_model_popup(&mut self) {
         if !self.is_session_configured() {
             self.add_info_message(
@@ -52,6 +57,7 @@ impl ChatWidget {
         Some(Line::from(warning.red()))
     }
 
+    // 计算 `custom_openai_base_url` 所需的界面结果。
     fn custom_openai_base_url(&self) -> Option<String> {
         if !self.config.model_provider.is_openai() {
             return None;
@@ -186,6 +192,7 @@ impl ChatWidget {
         }
     }
 
+    // 构造并展示 `open_all_models_popup` 对应的界面内容。
     pub(crate) fn open_all_models_popup(&mut self, presets: Vec<ModelPreset>) {
         if presets.is_empty() {
             self.add_info_message(
@@ -283,6 +290,7 @@ impl ChatWidget {
         // Prompt whenever the selection is not a true no-op for both:
         // 1) the active Plan-mode effective reasoning, and
         // 2) the stored global defaults that would be updated by the fallback path.
+        // 每当选择不是真正的无操作时，都会提示： 1 ）活动的计划模式有效推理，以及2 ）将由后备路径更新的存储的全局默认值。
         selected_effort != self.effective_reasoning_effort()
             || selected_model != self.current_collaboration_mode.model()
             || selected_effort != self.current_collaboration_mode.reasoning_effort()
@@ -397,6 +405,8 @@ impl ChatWidget {
     ///
     /// Max and Ultra require an explicit second step so expensive efforts cannot
     /// be selected accidentally while moving through the normal effort scale.
+    /// 打开弹出窗口，为给定模型选择标准推理工作。Max和Ultra需要明确的第二步，因此在通过正常工作量量表时，不会意外地选择昂贵的工作量。
+    // 构造并展示 `open_reasoning_popup` 对应的界面内容。
     pub(crate) fn open_reasoning_popup(&mut self, preset: ModelPreset) {
         let default_effort = preset.default_reasoning_effort.clone();
         let supported = &preset.supported_reasoning_efforts;
@@ -567,6 +577,7 @@ impl ChatWidget {
     }
 
     /// Open the explicit Max/Ultra effort picker for the given model.
+    /// 打开给定模型的显式Max/Ultra投入量选择器。
     pub(crate) fn open_advanced_reasoning_popup(&mut self, preset: ModelPreset) {
         let mut choices = preset
             .supported_reasoning_efforts
@@ -650,6 +661,7 @@ impl ChatWidget {
         }
     }
 
+    // 计算 `reasoning_effort_sentence_label` 所需的界面结果。
     pub(super) fn reasoning_effort_sentence_label(effort: &ReasoningEffortConfig) -> String {
         match effort {
             ReasoningEffortConfig::Custom(value) => value.clone(),

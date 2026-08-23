@@ -1,3 +1,5 @@
+//! 工作模式整体布局的绘制测试，覆盖侧栏、聊天与资源面板的组合状态。
+//! 布局签名用于确认全屏、半屏和拖拽分割不会重复或遗漏表面。
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, Shell, clipboard, layout, mouse, renderer, widget::Tree};
 use iced::{Event, Font, Pixels, Point, Rectangle, Size, Theme};

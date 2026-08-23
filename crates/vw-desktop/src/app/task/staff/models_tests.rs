@@ -1,3 +1,6 @@
+//! 员工模型测试，覆盖默认角色工作流、配置归一化和渠道绑定投影。
+//! 自定义阶段能力必须完整且角色合法，持久化的旧生命周期映射不得污染当前模型。
+
 #[test]
 fn default_staff_config_contains_required_roles() {
     let config = super::TaskBoardStaffConfig::default();

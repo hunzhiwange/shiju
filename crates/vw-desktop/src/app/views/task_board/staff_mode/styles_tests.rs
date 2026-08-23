@@ -1,3 +1,5 @@
+//! 员工模式样式的测试，覆盖泳道、成员卡、状态点和强调色。
+//! 明暗主题断言确保背景、边框与文字保持足够的视觉区分。
 use iced::widget::{button, container};
 use iced::{Background, Color, Element, Theme};
 

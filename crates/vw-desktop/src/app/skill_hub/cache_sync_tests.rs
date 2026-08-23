@@ -1,3 +1,6 @@
+//! 技能缓存同步测试，覆盖命令参数引用、CLI 定位和缓存刷新流程。
+//! 临时夹具用于验证包含特殊字符的路径不会改变外部命令的参数边界。
+
 use super::cache_sync::{build_cache_sync_command, resolve_shiju_cli, sync_business_skill_cache};
 use std::fs;
 use std::path::Path;

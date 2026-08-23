@@ -1,3 +1,7 @@
+//! 验证桌面设置、技能、插件、钩子及外部应用接口的传输契约。
+//!
+//! 覆盖租户请求头、项目路径规整、兼容包装器，以及无效或缺失字段的容错边界。
+
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::json;
 

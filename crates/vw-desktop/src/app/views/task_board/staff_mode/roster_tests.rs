@@ -1,3 +1,5 @@
+//! 员工模式成员名册的测试，覆盖空分组、负载警告和成员筛选消息。
+//! fixture 固定成员负载与状态数据，验证筛选目标携带稳定命令标识。
 use iced::Length;
 
 use crate::app::Message;

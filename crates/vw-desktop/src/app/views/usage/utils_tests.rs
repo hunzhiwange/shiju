@@ -1,3 +1,5 @@
+//! 用量页共享工具的测试，覆盖主题样式、控件结构和时间金额格式化。
+//! 用例包含溢出时间戳、负金额与不同交互状态，固定展示边界。
 use crate::app::Message;
 use crate::app::assets::Icon;
 use iced::widget::button;

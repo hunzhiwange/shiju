@@ -1,3 +1,6 @@
+//! 聊天界面派生状态测试，覆盖虚拟列表分块、可见窗口和消息工件解析。
+//! 索引换算与缓存重建必须在空记录、局部分块及过期准备结果下保持一致。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

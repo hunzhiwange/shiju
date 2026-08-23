@@ -1,3 +1,9 @@
+//! 本模块集中实现 `apply_patch_header` 在底部面板中的职责。
+//! 关键声明 `build_header` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+
+
+//! 渲染跨平台目标与文件变更审批描述
 //! Render file-change approval descriptions and cross-platform destinations.
 
 use super::approval_overlay::ApplyPatchApprovalRequest;

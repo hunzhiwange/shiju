@@ -1,8 +1,11 @@
 //! Desktop notification coalescing for `ChatWidget`.
+//! 本模块负责桌面通知的合并与去重。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 
 impl ChatWidget {
+    // 计算 `notify` 所需的界面结果。
     pub(super) fn notify(&mut self, notification: Notification) {
         if !notification.allowed_for(&self.config.tui_notifications.notifications) {
             return;
@@ -16,6 +19,7 @@ impl ChatWidget {
         self.request_redraw();
     }
 
+    // 计算 `maybe_post_pending_notification` 所需的界面结果。
     pub(crate) fn maybe_post_pending_notification(&mut self, tui: &mut crate::tui::Tui) {
         if let Some(notif) = self.pending_notification.take() {
             tui.notify(notif.display());
@@ -24,6 +28,7 @@ impl ChatWidget {
 }
 
 #[derive(Debug)]
+/// 描述 `Notification` 在本模块状态转换中传递的数据。
 pub(super) enum Notification {
     AgentTurnComplete { response: String },
     ExecApprovalRequested { command: String },
@@ -33,6 +38,7 @@ pub(super) enum Notification {
 }
 
 impl Notification {
+    // 计算 `display` 所需的界面结果。
     pub(super) fn display(&self) -> String {
         match self {
             Notification::AgentTurnComplete { response } => {
@@ -75,6 +81,7 @@ impl Notification {
         }
     }
 
+    // 计算 `priority` 所需的界面结果。
     fn priority(&self) -> u8 {
         match self {
             Notification::AgentTurnComplete { .. } => 0,
@@ -92,6 +99,7 @@ impl Notification {
         }
     }
 
+    // 计算 `agent_turn_preview` 所需的界面结果。
     pub(super) fn agent_turn_preview(response: &str) -> Option<String> {
         let mut normalized = String::new();
         for part in response.split_whitespace() {

@@ -32,9 +32,11 @@ use super::textarea::TextAreaState;
 
 const BASE_CLI_BUG_ISSUE_URL: &str =
     "https://github.com/openai/codex/issues/new?template=3-cli.yml";
+/// 员工反馈跟进链接。此链接不得对外展示。
 /// Internal routing link for employee feedback follow-ups. This must not be shown to external users.
 const CODEX_FEEDBACK_INTERNAL_URL: &str = "http://go/codex-feedback-internal";
 
+/// 反馈跟进指令的目标受众。此功能仅用于在反馈上传完成后发送消息或链接，不得改变反馈上传行为本身。
 /// The target audience for feedback follow-up instructions.
 ///
 /// This is used strictly for messaging/links after feedback upload completes. It
@@ -45,6 +47,7 @@ pub(crate) enum FeedbackAudience {
     External,
 }
 
+/// 最小化输入层，用于收集可选反馈笔记，然后通过应用服务器管理的反馈流程提交。
 /// Minimal input overlay to collect an optional feedback note, then submit it
 /// through the app-server-managed feedback flow.
 pub(crate) struct FeedbackNoteView {
@@ -53,6 +56,7 @@ pub(crate) struct FeedbackNoteView {
     app_event_tx: AppEventSender,
     include_logs: bool,
 
+    // 界面状态
     // UI state
     textarea: TextArea,
     textarea_state: RefCell<TextAreaState>,
@@ -180,6 +184,7 @@ impl Renderable for FeedbackNoteView {
             );
         }
 
+        // 输入行
         // Input line
         let input_area = Rect {
             x: area.x,
@@ -369,6 +374,7 @@ fn issue_url_for_category(
     thread_id: &str,
     feedback_audience: FeedbackAudience,
 ) -> Option<String> {
+    // 仅部分类别提供后续链接。我们有意保持外部 GitHub 行为一致，将内部用户引导至内部 Go 链接。
     // Only certain categories provide a follow-up link. We intentionally keep
     // the external GitHub behavior identical while routing internal users to
     // the internal go link.
@@ -386,6 +392,7 @@ fn issue_url_for_category(
     }
 }
 
+/// 构建内部跟进链接。
 /// Build the internal follow-up URL.
 ///
 /// We accept a `thread_id` so the call site stays symmetric with the external
@@ -394,6 +401,7 @@ fn slack_feedback_url(_thread_id: &str) -> String {
     CODEX_FEEDBACK_INTERNAL_URL.to_string()
 }
 
+// 为反馈类别构建选择弹窗参数
 // Build the selection popup params for feedback categories.
 pub(crate) fn feedback_selection_params(
     app_event_tx: AppEventSender,
@@ -436,6 +444,7 @@ pub(crate) fn feedback_selection_params(
     }
 }
 
+/// 当反馈被禁用时，构建选中的弹出参数
 /// Build the selection popup params shown when feedback is disabled.
 pub(crate) fn feedback_disabled_params() -> super::SelectionViewParams {
     super::SelectionViewParams {
@@ -469,6 +478,7 @@ fn make_feedback_item(
     }
 }
 
+/// 为给定的反馈类别构建上传同意弹窗参数
 /// Build the upload consent popup params for a given feedback category.
 pub(crate) fn feedback_upload_consent_params(
     app_event_tx: AppEventSender,
@@ -501,6 +511,7 @@ pub(crate) fn feedback_upload_consent_params(
         }
     });
 
+    // 构建用户同意时发送的文件列表
     // Build header listing files that would be sent if user consents.
     let mut header_lines: Vec<Box<dyn crate::render::renderable::Renderable>> = vec![
         Line::from("Upload logs?".bold()).into(),
@@ -660,6 +671,7 @@ mod tests {
         )
     }
 
+    // 验证 `feedback_view_bad_result` 场景的触发条件与预期结果。
     #[test]
     fn feedback_view_bad_result() {
         let view = make_view(FeedbackCategory::BadResult);
@@ -667,6 +679,7 @@ mod tests {
         insta::assert_snapshot!("feedback_view_bad_result", rendered);
     }
 
+    // 验证 `feedback_view_good_result` 场景的触发条件与预期结果。
     #[test]
     fn feedback_view_good_result() {
         let view = make_view(FeedbackCategory::GoodResult);
@@ -674,6 +687,7 @@ mod tests {
         insta::assert_snapshot!("feedback_view_good_result", rendered);
     }
 
+    // 验证 `feedback_view_bug` 场景的触发条件与预期结果。
     #[test]
     fn feedback_view_bug() {
         let view = make_view(FeedbackCategory::Bug);
@@ -681,6 +695,7 @@ mod tests {
         insta::assert_snapshot!("feedback_view_bug", rendered);
     }
 
+    // 验证 `feedback_view_other` 场景的触发条件与预期结果。
     #[test]
     fn feedback_view_other() {
         let view = make_view(FeedbackCategory::Other);
@@ -688,6 +703,7 @@ mod tests {
         insta::assert_snapshot!("feedback_view_other", rendered);
     }
 
+    // 验证 `feedback_view_safety_check` 场景的触发条件与预期结果。
     #[test]
     fn feedback_view_safety_check() {
         let view = make_view(FeedbackCategory::SafetyCheck);
@@ -695,6 +711,7 @@ mod tests {
         insta::assert_snapshot!("feedback_view_safety_check", rendered);
     }
 
+    // 验证 `feedback_view_with_connectivity_diagnostics` 场景的触发条件与预期结果。
     #[test]
     fn feedback_view_with_connectivity_diagnostics() {
         let (tx_raw, _rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
@@ -710,6 +727,7 @@ mod tests {
         insta::assert_snapshot!("feedback_view_with_connectivity_diagnostics", rendered);
     }
 
+    // 验证 `feedback_upload_consent_lists_doctor_report` 场景的触发条件与预期结果。
     #[test]
     fn feedback_upload_consent_lists_doctor_report() {
         let (tx_raw, _rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
@@ -728,6 +746,7 @@ mod tests {
         insta::assert_snapshot!("feedback_upload_consent_lists_doctor_report", rendered);
     }
 
+    // 验证 `feedback_upload_consent_lists_windows_sandbox_log_when_included` 场景的触发条件与预期结果。
     #[test]
     fn feedback_upload_consent_lists_windows_sandbox_log_when_included() {
         let (tx_raw, _rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
@@ -749,6 +768,7 @@ mod tests {
         );
     }
 
+    // 验证 `submit_feedback_emits_submit_event_with_trimmed_note` 场景的触发条件与预期结果。
     #[test]
     fn submit_feedback_emits_submit_event_with_trimmed_note() {
         let (tx_raw, mut rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
@@ -776,6 +796,7 @@ mod tests {
         assert_eq!(view.is_complete(), true);
     }
 
+    // 验证 `submit_feedback_omits_empty_note` 场景的触发条件与预期结果。
     #[test]
     fn submit_feedback_omits_empty_note() {
         let (tx_raw, mut rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
@@ -801,6 +822,7 @@ mod tests {
         ));
     }
 
+    // 验证 `should_show_feedback_connectivity_details_only_for_non_good_result_with_diagnostics` 场景的触发条件与预期结果。
     #[test]
     fn should_show_feedback_connectivity_details_only_for_non_good_result_with_diagnostics() {
         let diagnostics = FeedbackDiagnostics::new(vec![FeedbackDiagnostic {
@@ -826,6 +848,7 @@ mod tests {
         );
     }
 
+    // 验证 `issue_url_available_for_bug_bad_result_safety_check_and_other` 场景的触发条件与预期结果。
     #[test]
     fn issue_url_available_for_bug_bad_result_safety_check_and_other() {
         let bug_url = issue_url_for_category(
@@ -871,6 +894,7 @@ mod tests {
         assert_eq!(bug_url_non_employee.as_deref(), Some(expected_external_url));
     }
 
+    // 验证 `feedback_success_cell_matches_external_bug_copy` 场景的触发条件与预期结果。
     #[test]
     fn feedback_success_cell_matches_external_bug_copy() {
         let rendered = render_cell(
@@ -888,6 +912,7 @@ mod tests {
         );
     }
 
+    // 验证 `feedback_success_cell_matches_employee_bug_copy` 场景的触发条件与预期结果。
     #[test]
     fn feedback_success_cell_matches_employee_bug_copy() {
         let rendered = render_cell(
@@ -905,6 +930,7 @@ mod tests {
         );
     }
 
+    // 验证 `feedback_success_cell_matches_good_result_copy` 场景的触发条件与预期结果。
     #[test]
     fn feedback_success_cell_matches_good_result_copy() {
         let rendered = render_cell(
@@ -922,6 +948,7 @@ mod tests {
         );
     }
 
+    // 验证 `feedback_success_cell_uses_issue_links_for_remaining_categories` 场景的触发条件与预期结果。
     #[test]
     fn feedback_success_cell_uses_issue_links_for_remaining_categories() {
         for category in [

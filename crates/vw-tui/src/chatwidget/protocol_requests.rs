@@ -2,10 +2,13 @@
 //!
 //! This module translates protocol requests into the focused chat-widget flows
 //! that render approvals, permissions, tool input, and guardian reviews.
+//! 本模块负责应用服务器请求与通知的发送适配。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 
 impl ChatWidget {
+    // 处理 `handle_server_request` 对应的界面事件并同步相关状态。
     pub(crate) fn handle_server_request(
         &mut self,
         request: ServerRequest,
@@ -36,6 +39,7 @@ impl ChatWidget {
             ServerRequest::PermissionsRequestApproval { params, .. } => {
                 // TODO(anp): Remove this native-path localization error path once core permission
                 // paths remain PathUri after crossing the app-server boundary.
+                // TODO(anp)：核心权限路径跨越 app-server 边界后仍能保持 `PathUri` 时，删除这条本地路径转换错误分支。
                 match request_permissions_from_params(params) {
                     Ok(event) => self.on_request_permissions(event),
                     Err(err) => {
@@ -61,10 +65,12 @@ impl ChatWidget {
         }
     }
 
+    // 接收 `handle_skills_list_response` 对应事件，并只更新本地展示状态。
     pub(crate) fn handle_skills_list_response(&mut self, response: SkillsListResponse) {
         self.on_list_skills(response);
     }
 
+    // 处理 `on_patch_apply_output_delta` 对应的界面事件并同步相关状态。
     pub(super) fn on_patch_apply_output_delta(&mut self, _item_id: String, _delta: String) {}
 
     pub(super) fn on_guardian_review_notification(
@@ -78,6 +84,7 @@ impl ChatWidget {
     ) {
         // TODO(anp): Remove this native-path localization error path once core permission paths
         // remain PathUri after crossing the app-server boundary.
+        // TODO(anp)：核心权限路径跨越 app-server 边界后仍能保持 `PathUri` 时，删除这条本地路径转换错误分支。
         let action = match action.try_into() {
             Ok(action) => action,
             Err(err) => {
@@ -159,6 +166,7 @@ impl ChatWidget {
         });
     }
 
+    // 处理 `on_shutdown_complete` 对应的界面事件并同步相关状态。
     pub(super) fn on_shutdown_complete(&mut self) {
         self.request_immediate_exit();
     }

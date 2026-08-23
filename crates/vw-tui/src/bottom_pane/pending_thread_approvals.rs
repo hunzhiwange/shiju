@@ -1,3 +1,9 @@
+//! 本模块集中实现 `pending_thread_approvals` 在底部面板中的职责。
+//! 关键声明 `PendingThreadApprovals`、`new`、`set_threads`、`is_empty` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+
+
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Stylize;
@@ -8,6 +14,7 @@ use crate::render::renderable::Renderable;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_lines;
 
+/// 列出未激活线程的待审批请求列表
 /// Widget that lists inactive threads with outstanding approval requests.
 pub(crate) struct PendingThreadApprovals {
     threads: Vec<String>,
@@ -105,12 +112,14 @@ mod tests {
             .join("\n")
     }
 
+    // 验证 `desired_height_empty` 场景的触发条件与预期结果。
     #[test]
     fn desired_height_empty() {
         let widget = PendingThreadApprovals::new();
         assert_eq!(widget.desired_height(/*width*/ 40), 0);
     }
 
+    // 验证 `render_single_thread_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn render_single_thread_snapshot() {
         let mut widget = PendingThreadApprovals::new();
@@ -125,6 +134,7 @@ mod tests {
         );
     }
 
+    // 验证 `render_multiple_threads_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn render_multiple_threads_snapshot() {
         let mut widget = PendingThreadApprovals::new();

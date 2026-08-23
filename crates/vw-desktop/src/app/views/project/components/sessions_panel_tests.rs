@@ -1,3 +1,5 @@
+//! 项目会话面板的测试，覆盖会话树、队列项、菜单按钮及主题样式。
+//! 测试数据刻意包含父子会话和归档状态，用于验证筛选与交互边界。
 use super::*;
 use crate::app::state::{
     AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QueueItem, SessionRuntimeState,

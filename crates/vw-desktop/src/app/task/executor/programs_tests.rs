@@ -1,3 +1,6 @@
+//! 执行程序解析测试，覆盖平台二进制名、候选优先级和命令参数构造。
+//! 显式路径仅在指向真实文件时生效，目录及相似名称不得被误认成可执行程序。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

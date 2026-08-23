@@ -1,4 +1,6 @@
 //! Helpers for mapping thread-goal state into the compact status-line indicator.
+//! 本模块负责任务目标到紧凑状态指示器的映射。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use codex_app_server_protocol::ThreadGoal as AppThreadGoal;
 use codex_app_server_protocol::ThreadGoalStatus as AppThreadGoalStatus;
@@ -9,12 +11,14 @@ use crate::goal_display::format_goal_elapsed_seconds;
 use crate::status::format_tokens_compact;
 
 #[derive(Clone, Debug, PartialEq)]
+/// 保存 `GoalStatusState` 在当前流程中的展示状态。
 pub(super) struct GoalStatusState {
     goal: AppThreadGoal,
     observed_at: Instant,
 }
 
 impl GoalStatusState {
+    // 计算 `new` 在当前界面流程中需要的局部结果。
     pub(super) fn new(goal: AppThreadGoal, observed_at: Instant) -> Self {
         Self { goal, observed_at }
     }
@@ -23,6 +27,7 @@ impl GoalStatusState {
         self.goal.status == AppThreadGoalStatus::Active
     }
 
+    // 计算 `indicator` 所需的界面结果。
     pub(super) fn indicator(
         &self,
         now: Instant,
@@ -81,6 +86,7 @@ fn active_goal_usage(
     Some(format_goal_elapsed_seconds(time_used_seconds))
 }
 
+// 计算 `stopped_goal_budget_usage` 所需的界面结果。
 fn stopped_goal_budget_usage(token_budget: Option<i64>, tokens_used: i64) -> Option<String> {
     token_budget.map(|token_budget| {
         format!(
@@ -139,6 +145,7 @@ mod tests {
     }
 
     #[test]
+    // 计算 `stopped_goal_budget_usage_reports_budgeted_tokens` 所需的界面结果。
     fn stopped_goal_budget_usage_reports_budgeted_tokens() {
         assert_eq!(
             stopped_goal_budget_usage(Some(50_000), /*tokens_used*/ 63_876),
@@ -167,6 +174,7 @@ mod tests {
     }
 
     #[test]
+    // 计算 `completed_goal_usage_reports_time_without_token_budget` 所需的界面结果。
     fn completed_goal_usage_reports_time_without_token_budget() {
         assert_eq!(
             completed_goal_usage(

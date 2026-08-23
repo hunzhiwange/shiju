@@ -1,3 +1,7 @@
+//! 混合文本中 JSON 值提取器的测试。
+//!
+//! 覆盖完整值、嵌入顺序、无效起始符以及不含结构化数据的输入。
+
 use serde_json::json;
 
 use super::extract_json_values;

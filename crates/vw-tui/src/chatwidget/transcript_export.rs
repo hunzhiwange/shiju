@@ -1,9 +1,12 @@
 //! Destination and filename prompts for on-demand transcript exports.
+//! 本模块负责对话记录导出的目标与文件名提示。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use crate::app_event::TranscriptExportDestination;
 
 impl ChatWidget {
+    // 处理 `copy_transcript_to_clipboard` 对应的界面事件并同步相关状态。
     pub(crate) fn copy_transcript_to_clipboard(&mut self, markdown: &str) {
         match crate::clipboard_copy::copy_to_clipboard(markdown) {
             Ok(lease) => {
@@ -17,6 +20,7 @@ impl ChatWidget {
         }
     }
 
+    // 构造 `show_transcript_export_popup` 对应的展示内容并交给现有界面层。
     pub(super) fn show_transcript_export_popup(&mut self) {
         self.show_selection_view(SelectionViewParams {
             title: Some("Export conversation".to_string()),

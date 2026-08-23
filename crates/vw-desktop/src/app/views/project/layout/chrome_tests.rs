@@ -1,3 +1,5 @@
+//! 右侧工作区外框的测试，覆盖圆角、内外层样式与底边遮盖。
+//! 用例也验证分隔手柄在紧凑间距和空内容下仍可稳定布局。
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};

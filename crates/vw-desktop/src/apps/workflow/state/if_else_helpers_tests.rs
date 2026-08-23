@@ -1,3 +1,5 @@
+//! 条件分支编辑辅助逻辑的测试，覆盖默认条件、YAML 合并和焦点修正。
+//! 用例验证重复键覆盖与校验刷新不会遗留过期的字段错误。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

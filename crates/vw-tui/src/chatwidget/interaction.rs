@@ -1,4 +1,6 @@
 //! Key routing and composer-adjacent UI interaction for `ChatWidget`.
+//! 本模块负责按键路由与输入框周边交互。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use crate::bottom_pane::BottomPaneView;
@@ -201,6 +203,7 @@ impl ChatWidget {
     ///
     /// When the model does not advertise image support, we keep the draft unchanged and surface a
     /// warning event so users can switch models or remove attachments.
+    /// 当活动模型支持图像输入时，将本地图像附加到合成器。当模型未公布图像支持时，我们将保持草稿不变，并显示警告事件，以便用户可以切换模型或删除附件。
     pub(crate) fn attach_image(&mut self, path: PathBuf) {
         if !self.current_model_supports_images() {
             self.add_to_history(history_cell::new_warning_event(
@@ -286,6 +289,7 @@ impl ChatWidget {
     pub(crate) fn can_run_ctrl_l_clear_now(&mut self) -> bool {
         // Ctrl+L is not a slash command, but it follows /clear's current rule:
         // block while a task is running.
+        // Ctrl + L不是斜杠命令，但它遵循/clear的当前规则：在任务运行时阻止。
         if !self.bottom_pane.is_task_running() {
             return true;
         }
@@ -297,11 +301,13 @@ impl ChatWidget {
     }
 
     /// Copy the last agent response (raw markdown) to the system clipboard.
+    /// 将上次客服代表回复（原始扣分）复制到系统剪贴板。
     pub(crate) fn copy_last_agent_markdown(&mut self) {
         self.copy_last_agent_markdown_with(crate::clipboard_copy::copy_to_clipboard);
     }
 
     /// Inner implementation with an injectable clipboard backend for testing.
+    /// 具有用于测试的可注入剪贴板后端的内部实现。
     pub(super) fn copy_last_agent_markdown_with(
         &mut self,
         copy_fn: impl FnOnce(&str) -> Result<Option<crate::clipboard_copy::ClipboardLease>, String>,
@@ -469,15 +475,18 @@ impl ChatWidget {
     }
 
     // Returns true if caller should skip rendering this frame (a future frame is scheduled).
+    // 如果调用方应跳过渲染此帧（计划未来帧），则返回true。
     pub(crate) fn handle_paste_burst_tick(&mut self, frame_requester: FrameRequester) -> bool {
         if self.bottom_pane.flush_paste_burst_if_due() {
             self.refresh_plan_mode_nudge();
             // A paste just flushed; request an immediate redraw and skip this frame.
+            // 刚刚刷新了粘贴；请求立即重绘并跳过此帧。
             self.request_redraw();
             true
         } else if self.bottom_pane.is_in_paste_burst() {
             // While capturing a burst, schedule a follow-up tick and skip this frame
             // to avoid redundant renders between ticks.
+            // 在捕获突发时，安排后续刻度并跳过此帧，以避免刻度之间的重复渲染。
             frame_requester.schedule_frame_in(
                 crate::bottom_pane::ChatComposer::recommended_paste_flush_delay(),
             );
@@ -495,6 +504,8 @@ impl ChatWidget {
     ///
     /// When the double-press quit shortcut is enabled, pressing the same shortcut again before
     /// expiry requests a shutdown-first quit.
+    /// 在聊天窗口组件图层上按Ctrl + C。第一次按下时限退出快捷方式，并通过底部窗格显示页脚提示。如果可取消的工作处于活动状态， Ctrl + C还会在快捷方式准备就绪后提交“Op:: Interrupt”。
+    /// 启用双击退出快捷方式后，在到期前再次按下相同的快捷方式，请求关闭-首先退出。
     fn on_ctrl_c(&mut self) {
         let key = key_hint::ctrl(KeyCode::Char('c'));
         let modal_or_popup_active = !self.bottom_pane.no_modal_or_popup_active();
@@ -555,6 +566,7 @@ impl ChatWidget {
     ///
     /// Ctrl-D only participates in quit when the composer is empty and no modal/popup is active.
     /// Otherwise it should be routed to the active view and not attempt to quit.
+    /// 在聊天组件层处理 Ctrl+D。只有输入框为空且没有模态视图或弹窗时，Ctrl+D 才参与退出；否则按键应交给活动视图，不尝试退出。
     fn on_ctrl_d(&mut self) -> bool {
         let key = key_hint::ctrl(KeyCode::Char('d'));
         if !DOUBLE_PRESS_QUIT_SHORTCUT_ENABLED {
@@ -583,6 +595,7 @@ impl ChatWidget {
     }
 
     /// True if `key` matches the armed quit shortcut and the window has not expired.
+    /// 如果“key”匹配武装退出快捷方式且窗口未过期，则为True。
     fn quit_shortcut_active_for(&self, key: KeyBinding) -> bool {
         self.quit_shortcut_key == Some(key)
             && self
@@ -595,6 +608,8 @@ impl ChatWidget {
     /// This keeps the state machine (`quit_shortcut_*`) in `ChatWidget`, since
     /// it is the component that interprets Ctrl+C vs Ctrl+D and decides whether
     /// quitting is currently allowed, while delegating rendering to `BottomPane`.
+    /// 备妥双击退出快捷方式并显示页脚提示。这将状态机(`quit_shortcut_*`)保留在`ChatWidget`中，因为它是解释Ctrl + C与Ctrl + D的组件，并决定当前是否允许退出，
+    /// 同时将渲染委托给`BottomPane`。
     pub(super) fn arm_quit_shortcut(&mut self, key: KeyBinding) {
         self.quit_shortcut_expires_at = Instant::now()
             .checked_add(QUIT_SHORTCUT_TIMEOUT)
@@ -604,6 +619,7 @@ impl ChatWidget {
     }
 
     // Review mode counts as cancellable work so Ctrl+C interrupts instead of quitting.
+    // 检查模式计为可取消的工作，因此Ctrl + C会中断而不是退出。
     fn is_cancellable_work_active(&self) -> bool {
         self.bottom_pane.is_task_running() || self.review.is_review_mode
     }

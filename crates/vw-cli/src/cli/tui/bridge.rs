@@ -32,6 +32,7 @@ pub(crate) struct GatewayV3Bridge {
     active_turn_id: Option<String>,
     tool_started_ms: std::collections::HashMap<String, u64>,
     tool_output: std::collections::HashMap<String, String>,
+    interaction_refresh_requested: bool,
 }
 
 impl GatewayV3Bridge {
@@ -86,7 +87,9 @@ impl GatewayV3Bridge {
         let before = state.messages.clone();
         let starts_turn = self.active_turn_id.is_none();
         let turn_id = self.active_turn_id();
-        apply_runtime_event(state, runtime_event.clone());
+        if apply_runtime_event(state, runtime_event.clone()) {
+            self.interaction_refresh_requested = true;
+        }
 
         let mut events = Vec::new();
         if starts_turn {
@@ -107,6 +110,11 @@ impl GatewayV3Bridge {
             self.tool_output.clear();
         }
         events
+    }
+
+    /// 取出一次由当前会话 task 事件触发的交互刷新请求。
+    pub(crate) fn take_interaction_refresh_requested(&mut self) -> bool {
+        std::mem::take(&mut self.interaction_refresh_requested)
     }
 
     /// 将 UI 操作路由为控制器命令、对话框结果或提交快照。
@@ -349,6 +357,9 @@ fn permission_command(
     };
     let request =
         overlay.queue.current().ok_or_else(|| "no pending permission request".to_string())?;
+    if state.session.session_id.as_deref() != Some(request.session_id.as_str()) {
+        return Err("approval request does not belong to the current session".to_string());
+    }
     if request.id != request_id {
         return Err("approval request does not match the active permission".to_string());
     }
@@ -362,7 +373,13 @@ fn permission_command(
         }
         V3ApprovalDecision::Custom(reason) => PermissionDecision::Reject { reason: Some(reason) },
     };
-    Ok(TuiControllerCommand::Overlay(TuiOverlayCommand::PermissionDecision(decision)))
+    if matches!(decision, PermissionDecision::Always) && !request.always_available() {
+        return Err("the active permission does not allow a session-wide grant".to_string());
+    }
+    Ok(TuiControllerCommand::Overlay(TuiOverlayCommand::PermissionDecision {
+        request_id: request.id.clone(),
+        decision,
+    }))
 }
 
 fn question_command(
@@ -377,6 +394,12 @@ fn question_command(
         .find(|overlay| overlay.request_id == request_id)
         .cloned()
         .ok_or_else(|| "user-input request is not pending".to_string())?;
+    if state.session.session_id.as_deref() != Some(overlay.session_id.as_str()) {
+        return Err("user-input request does not belong to the current session".to_string());
+    }
+    if answers.is_empty() {
+        return Ok(TuiControllerCommand::Overlay(TuiOverlayCommand::QuestionRejected(overlay)));
+    }
     if answers.len() != overlay.prompts.len() {
         return Err("user-input answer shape does not match the pending request".to_string());
     }

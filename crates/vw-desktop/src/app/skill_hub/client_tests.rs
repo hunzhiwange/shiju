@@ -1,3 +1,6 @@
+//! 技能中心客户端测试，验证生产网关路径前缀及响应夹具的协议映射。
+//! 客户端构造保持在测试端点内，避免测试依赖真实服务或账户环境。
+
 use super::*;
 use crate::app::account::SecretSkey;
 use crate::app::skill_hub::client::SKILL_HUB_BASE_URL;

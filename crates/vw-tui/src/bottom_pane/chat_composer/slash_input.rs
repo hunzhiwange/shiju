@@ -1,3 +1,4 @@
+//! 分词命令解析、光标检测及辅助完成功能
 //! Slash-command input parsing, cursor detection, and completion helpers.
 
 use std::ops::Range;
@@ -139,6 +140,7 @@ impl<'a> SlashInput<'a> {
             return None;
         }
         let element_end = 1 + name.len();
+        // 草稿尾端可让正在进行的前缀看起来完整（"/re" + "view"）。
         // A draft tail can make an in-progress prefix look complete ("/re" + "view").
         // Keep it editable until the cursor leaves the command name.
         if cursor <= first_line.len() && (1..element_end).contains(&cursor) {
@@ -206,6 +208,7 @@ pub(super) fn queued_input_action(
 }
 
 impl ChatComposer {
+    /// 当可见的 Slash 命令弹出窗口时处理键事件。
     /// Handle key event when the slash-command popup is visible.
     pub(super) fn handle_key_event_with_slash_popup(
         &mut self,
@@ -215,6 +218,7 @@ impl ChatComposer {
             return (InputResult::None, true);
         }
         if key_event.code == KeyCode::Esc {
+            // 始终不修改草稿，仅弹出提示框。
             // Always dismiss the popup without changing the draft.
             let first_line = self.draft.textarea.text().lines().next().unwrap_or("");
             self.popups.dismissed_command_token =
@@ -254,6 +258,7 @@ impl ChatComposer {
             KeyEvent {
                 code: KeyCode::Tab, ..
             } => {
+                // 确保弹出过滤与选择反映最新 Composer 文本，在应用完成时生效。
                 // Ensure popup filtering/selection reflects the latest composer text
                 // before applying completion.
                 let text = self.draft.textarea.text();
@@ -304,6 +309,7 @@ impl ChatComposer {
                 modifiers: KeyModifiers::NONE,
                 ..
             } => {
+                // 将"/"视为接受高亮命令作为文本补全，当冒号命令弹出窗口时。
                 // Treat "/" as accepting the highlighted command as text completion
                 // while the slash-command popup is active.
                 let text = self.draft.textarea.text();
@@ -378,6 +384,7 @@ impl ChatComposer {
                         true,
                     );
                 }
+                // 如果未选择命令，则使用默认换行处理。
                 // Fallback to default newline handling if no command selected.
                 self.handle_key_event_without_popup(key_event)
             }
@@ -450,6 +457,7 @@ impl ChatComposer {
         true
     }
 
+    /// 保持斜杠命令元素与当前第一行对齐
     /// Keep slash command elements aligned with the current first line.
     pub(super) fn sync_slash_command_elements(&mut self) {
         if !self.slash_commands_enabled() {
@@ -460,6 +468,7 @@ impl ChatComposer {
         let first_line = &text[..first_line_end];
         let cursor = self.draft.textarea.cursor();
         let desired_range = self.slash_input().command_element_range(first_line, cursor);
+        // 第一条行的第一个字节必须包含斜杠。
         // Slash commands are only valid at byte 0 of the first line.
         // Any slash-shaped element not matching the current desired prefix is stale.
         let mut has_desired = false;
@@ -509,6 +518,7 @@ pub(super) fn prepared_args(prepared_text: &str) -> Option<(&str, usize)> {
     Some((prepared_rest, prepared_rest_offset))
 }
 
+/// 将全文元素范围转换为命令参数范围。
 /// Translate full-text element ranges into command-argument ranges.
 ///
 /// `rest_offset` is the byte offset where `rest` begins in the full text.
@@ -542,6 +552,7 @@ pub(super) fn command_popup_filter_text(first_line: &str, cursor: usize) -> Opti
     Some(format!("/{name}"))
 }
 
+/// 如果光标位于第一行中的斜杠命令上，则提取该命令片段及其后剩余的行内容。
 /// If the cursor is currently within a slash command on the first line,
 /// extract the command fragment before the cursor and the rest of the line after it.
 fn command_under_cursor(first_line: &str, cursor: usize) -> Option<(&str, &str)> {
@@ -610,6 +621,7 @@ mod tests {
         composer_with_text_at_cursor(&format!("{prefix}{draft}"), prefix.len())
     }
 
+    // 验证 `esc_dismisses_slash_popup_while_idle` 场景的触发条件与预期结果。
     #[test]
     fn esc_dismisses_slash_popup_while_idle() {
         let mut composer = composer_with_text_at_cursor("/rev", "/rev".len());
@@ -621,6 +633,7 @@ mod tests {
         assert_eq!(composer.draft.textarea.text(), "/rev");
     }
 
+    // 验证 `slash_completion_preserves_existing_draft_tail_for_inline_arg_commands` 场景的触发条件与预期结果。
     #[test]
     fn slash_completion_preserves_existing_draft_tail_for_inline_arg_commands() {
         let draft = "view the diff";
@@ -639,6 +652,7 @@ mod tests {
         assert_eq!(composer.draft.textarea.text(), expected_text);
     }
 
+    // 验证 `slash_completion_does_not_preserve_existing_draft_tail_for_other_commands` 场景的触发条件与预期结果。
     #[test]
     fn slash_completion_does_not_preserve_existing_draft_tail_for_other_commands() {
         let mut composer = composer_with_draft_tail(
@@ -651,6 +665,7 @@ mod tests {
         assert_eq!(composer.draft.textarea.cursor(), "/model ".len());
     }
 
+    // 验证 `slash_completion_does_not_turn_command_suffix_into_args` 场景的触发条件与预期结果。
     #[test]
     fn slash_completion_does_not_turn_command_suffix_into_args() {
         let mut composer = composer_with_text_at_cursor("/review", "/re".len());

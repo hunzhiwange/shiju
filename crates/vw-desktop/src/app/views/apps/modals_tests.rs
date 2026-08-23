@@ -1,3 +1,6 @@
+//! 应用中心弹窗测试，覆盖书签新增编辑、激活优先级和提交条件。
+//! 选择索引失效时仍需安全构建界面，且 Cookie 示例必须展示必要字段契约。
+
 use crate::app::message::ViewMessage;
 use crate::app::{App, Message};
 

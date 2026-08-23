@@ -1,3 +1,5 @@
+//! 工作流消息分派的测试，覆盖顶层消息到各状态处理器的路由。
+//! 用例确保无活动应用或编辑器时的操作保持安全空操作。
 #![allow(unused_must_use)]
 use super::*;
 use crate::apps::workflow::model::create_node_from_type;

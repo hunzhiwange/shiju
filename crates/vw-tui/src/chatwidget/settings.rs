@@ -1,4 +1,6 @@
 //! Runtime settings state and model/collaboration coordination for `ChatWidget`.
+//! 本模块负责运行时设置及模型、协作模式协调。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use crate::app_event::AppEvent;
@@ -6,6 +8,7 @@ use crate::chatwidget::rate_limits::RATE_LIMIT_SWITCH_PROMPT_VIEW_ID;
 
 impl ChatWidget {
     /// Set the approval policy in the widget's config copy.
+    /// 在组件的配置副本中设置审批策略。
     pub(crate) fn set_approval_policy(&mut self, policy: AskForApproval) {
         if let Err(err) = self
             .config
@@ -139,6 +142,7 @@ impl ChatWidget {
     /// When the active mask is already Plan, the override is applied immediately
     /// so the footer reflects it without waiting for the next mode switch.
     /// Passing `None` resets to the Plan-mode preset default.
+    /// 覆盖Plan模式活动时使用的推理努力. 当活动掩码已经是计划时，即刻应用超载，这样脚步就可以反射它而不等待下一个模式开关. 将 `None` 重置为 Plan- mode 预设默认值。
     pub(crate) fn set_plan_mode_reasoning_effort(&mut self, effort: Option<ReasoningEffortConfig>) {
         self.config.plan_mode_reasoning_effort = effort.clone();
         if self.collaboration_modes_enabled()
@@ -160,6 +164,7 @@ impl ChatWidget {
     ///
     /// Does not touch the active Plan mask — Plan reasoning is controlled
     /// exclusively by the Plan preset and `set_plan_mode_reasoning_effort`.
+    /// 设定非Plan协作模式的推理努力. 不触摸活动计划面具——计划推理完全由计划预设和`set_plan_mode_reasoning_effort`控制.
     pub(crate) fn set_reasoning_effort(&mut self, effort: Option<ReasoningEffortConfig>) {
         self.current_collaboration_mode = self.current_collaboration_mode.with_updates(
             /*model*/ None,
@@ -172,12 +177,14 @@ impl ChatWidget {
         {
             // Generic "global default" updates should not mutate the active Plan mask.
             // Plan reasoning is controlled by the Plan preset and Plan-only override updates.
+            // 通用的“ 全球默认” 更新不应改变活动计划掩码。 计划推理由计划预设和仅计划覆盖更新控制.
             mask.reasoning_effort = Some(effort);
         }
         self.refresh_model_dependent_surfaces();
     }
 
     /// Set the personality in the widget's config copy.
+    /// 在组件的配置副本中设置个性。
     pub(crate) fn set_personality(&mut self, personality: Personality) {
         self.config.personality = Some(personality);
     }
@@ -216,6 +223,7 @@ impl ChatWidget {
     ) {
         // Account-update notifications are the identity boundary. The visible account fields can
         // be identical across two accounts, so always invalidate account-scoped requests and data.
+        // 账户更新通知构成身份边界。不同账户的可见字段可能完全相同，因此仍须无条件作废账户范围内的请求与数据。
         self.invalidate_connector_scope();
         self.clear_pending_token_activity_refreshes();
         self.clear_pending_rate_limit_reset_requests();
@@ -251,11 +259,13 @@ impl ChatWidget {
     }
 
     /// Set the syntax theme override in the widget's config copy.
+    /// 在组件的配置副本中设置语法主题覆盖。
     pub(crate) fn set_tui_theme(&mut self, theme: Option<String>) {
         self.config.tui_theme = theme;
     }
 
     /// Set the model in the widget's config copy and stored collaboration mode.
+    /// 在组件的配置副本中设置模型并存储协作模式。
     pub(crate) fn set_model(&mut self, model: &str) {
         self.current_collaboration_mode = self.current_collaboration_mode.with_updates(
             Some(model.to_string()),
@@ -319,6 +329,7 @@ impl ChatWidget {
     ///
     /// We intentionally default to `true` when model metadata cannot be read so transient catalog
     /// failures do not hard-block user input in the UI.
+    /// 返回当前有效模型是否声明支持图像输入。模型元数据不可读取时刻意默认返回 `true`，避免临时目录故障直接阻断用户输入界面。
     pub(super) fn current_model_supports_images(&self) -> bool {
         let model = self.current_model();
         self.model_catalog
@@ -385,6 +396,7 @@ impl ChatWidget {
     }
 
     /// Returns the dismissal scope that applies to the currently visible draft.
+    /// 返回适用于目前可见的草案的解职范围。
     fn plan_mode_nudge_scope(&self) -> PlanModeNudgeScope {
         self.thread_id
             .map_or(PlanModeNudgeScope::NewThread, PlanModeNudgeScope::Thread)
@@ -396,6 +408,8 @@ impl ChatWidget {
     /// availability, interaction state, and thread-scoped dismissal. `ChatComposer` only renders
     /// the resulting visibility bit. Keeping slash and shell drafts out here avoids advertising a
     /// mode switch while the user is intentionally composing another local command.
+    /// 判断当前草稿是否应以计划模式提示替换普通页脚。`ChatWidget` 负责组合草稿文本匹配、模式可用性、交互状态和任务级忽略状态；`ChatComposer` 只渲染最终可见性标志。
+    /// 斜杠命令和 shell 草稿不触发该提示，避免用户有意编写本地命令时仍建议切换模式。
     pub(super) fn should_show_plan_mode_nudge(&self) -> bool {
         let text = self.bottom_pane.composer_text();
         let trimmed = text.trim_start();
@@ -414,12 +428,14 @@ impl ChatWidget {
     }
 
     /// Synchronizes the footer presentation with the current Plan-mode nudge policy.
+    /// 按当前计划模式提示策略同步页脚可见状态。
     pub(super) fn refresh_plan_mode_nudge(&mut self) {
         self.bottom_pane
             .set_plan_mode_nudge_visible(self.should_show_plan_mode_nudge());
     }
 
     /// Hides the nudge for the current thread scope until the user changes conversation context.
+    /// 在当前任务范围内隐藏计划模式提示，直到用户切换对话上下文。
     pub(super) fn dismiss_plan_mode_nudge(&mut self) {
         self.dismissed_plan_mode_nudge_scopes
             .insert(self.plan_mode_nudge_scope());
@@ -470,6 +486,7 @@ impl ChatWidget {
         let effective = self.effective_collaboration_mode();
         self.session_header.set_model(effective.model());
         // Keep composer paste affordances aligned with the currently effective model.
+        // 保持输入框的粘贴价格与当前有效模式保持一致.
         self.sync_image_paste_enabled();
         self.sync_service_tier_commands();
         self.refresh_terminal_title();
@@ -486,6 +503,8 @@ impl ChatWidget {
     /// Consolidating both refreshes here prevents the bug where callers update the
     /// header/title (`refresh_model_display`) but forget the footer status line
     /// (`refresh_status_line`).
+    /// 刷新每个依赖于有效模型，推理努力或协作模式的UI表面. 在任何变异 `current_collaboration_mode`， `active_collaboration_mask`， 或者每个模式的推理 - 努力
+    /// 覆盖的设置的末尾调用此。 在此合并两个刷新可以防止调用者更新标题/标题(`refresh_model_display`)但忘记页脚状态行(`refresh_status_line`)的错误.
     pub(super) fn refresh_model_dependent_surfaces(&mut self) {
         self.refresh_model_display();
         self.refresh_status_line();
@@ -594,6 +613,7 @@ impl ChatWidget {
     }
 
     /// Get the label for the current collaboration mode.
+    /// 获取当前协作模式的标签。
     pub(super) fn collaboration_mode_label(&self) -> Option<&'static str> {
         if !self.collaboration_modes_enabled() {
             return None;
@@ -668,6 +688,7 @@ impl ChatWidget {
     }
 
     /// Cycle to the next collaboration mode variant (Plan -> Default -> Plan).
+    /// 循环到下一个协作模式变体(Plan - > 默认 - > Plan).
     pub(super) fn cycle_collaboration_mode(&mut self) {
         if !self.collaboration_modes_enabled() {
             return;
@@ -690,6 +711,7 @@ impl ChatWidget {
     ///
     /// When collaboration modes are enabled and a preset is selected,
     /// the current mode is attached to submissions as `Op::UserTurn { collaboration_mode: Some(...) }`.
+    /// 更新当前协作模式。启用协作模式并选定预设后，提交用户轮次时会通过 `Op::UserTurn { collaboration_mode: Some(...) }` 携带该模式。
     pub(crate) fn set_collaboration_mask(&mut self, mut mask: CollaborationModeMask) {
         if !self.collaboration_modes_enabled() {
             return;

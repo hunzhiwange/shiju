@@ -3,6 +3,9 @@
 //! This module owns the chart data bucketing and ratatui line construction. The
 //! async card lifecycle stays in the parent `tokens` module so chart rendering
 //! remains a pure transformation from a loaded usage response.
+//! 本模块负责`/usage` 令牌摘要与活动图表。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 本模块只负责日期分桶和 ratatui 行构造；异步请求与卡片生命周期由父级 `tokens` 模块管理。
 
 mod palette;
 
@@ -29,6 +32,7 @@ const SUMMARY_INDENT: &str = " ";
 const SUMMARY_INDENT_WIDTH: u16 = 1;
 
 /// Selects the aggregation represented by the token activity chart.
+/// 选择以令牌活动图表为代表的集合。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum TokenActivityView {
     Daily,
@@ -42,6 +46,7 @@ impl TokenActivityView {
     /// An empty argument selects the daily view so `/usage` and `/usage daily`
     /// behave identically. Returning `None` lets the slash-command dispatcher
     /// report unsupported arguments instead of silently choosing a view.
+    /// 将可选 `/usage` 参数解析为受支持的图表视图。空参数选择每日视图，因此 `/usage` 与 `/usage daily` 行为一致；返回 `None` 让斜杠命令分派器报告不支持的参数，而不是静默选择视图。
     pub(in crate::chatwidget) fn parse(value: &str) -> Option<Self> {
         match value.trim().to_ascii_lowercase().as_str() {
             "" | "day" | "daily" => Some(Self::Daily),
@@ -75,6 +80,7 @@ pub(super) fn loaded_lines(
     ];
     lines.extend(summary_lines(response, graph_width(width)));
     // Separate the headline numbers from the calendar below.
+    // 将标题编号与下面的日历分开。
     lines.push(Line::default());
     let Some(buckets) = response.daily_usage_buckets.as_ref() else {
         lines.push("   Token activity history unavailable".dim().into());
@@ -126,6 +132,7 @@ fn chart_lines(
         lines.push(spans.into());
     }
     // Separate the calendar from the legend/footer below.
+    // 把日历和下面的传说/脚分开.
     lines.push(Line::default());
     match view {
         TokenActivityView::Daily => lines.push(legend_line(&palette)),
@@ -174,6 +181,7 @@ fn summary_lines(response: &GetAccountTokenUsageResponse, width: u16) -> Vec<Lin
 
 /// Greedily pack summary fields into as few lines as fit `width`,
 /// keeping field order. `u16::MAX` (raw/copy mode) always yields one line.
+/// 按原有顺序贪心地把摘要字段装入尽可能少且不超过 `width` 的行；`u16::MAX`（原始/复制模式）始终输出一行。
 fn pack_fields(fields: &[(&str, String)], width: u16) -> Vec<Vec<usize>> {
     if width == u16::MAX {
         return vec![(0..fields.len()).collect()];
@@ -226,6 +234,7 @@ fn format_optional_tokens(value: Option<i64>) -> String {
 
 /// Combine the current and longest streak into one field: a bare `54d` when
 /// they match, otherwise `12d (best 54d)`.
+/// 把当前连续时长与最长纪录合并为一个字段：两者相同则显示 `54d`，否则显示 `12d (best 54d)`。
 fn format_streak(current: Option<i64>, longest: Option<i64>) -> String {
     match (current, longest) {
         (Some(current), Some(longest)) if current == longest => format!("{current}d"),
@@ -266,6 +275,7 @@ fn weekday_label(view: TokenActivityView, row: usize) -> Span<'static> {
     if view != TokenActivityView::Daily {
         // Bar views fill from the bottom (row 6) upward, so the gutter doubles
         // as a coarse Y-axis: peak at the top, baseline at the bottom.
+        // 条形视图从底部(第6卷)向上填充，因此沟槽作为粗Y轴翻倍:顶端峰，底部基线.
         return Span::styled(
             match row {
                 0 => "max ",
@@ -307,6 +317,7 @@ fn legend_line(palette: &TokenActivityPalette) -> Line<'static> {
 
 /// Caption for the bar-chart views, where the 5-step daily legend would be
 /// misleading. States what each bar represents and the peak it is scaled to.
+/// 条形图视图的注释，其中5步日报传奇会误导. 说明每个酒吧代表的是什么，以及达到的高峰。
 fn bar_caption(view: TokenActivityView, values: &[i64]) -> Line<'static> {
     let weeks = weekly_totals(values);
     let (lead, peak) = match view {
@@ -329,6 +340,7 @@ fn bar_caption(view: TokenActivityView, values: &[i64]) -> Line<'static> {
 
 /// Dim footer that surfaces the other `/usage` views and emphasizes the
 /// active one, so the weekly/cumulative modes are discoverable from the card.
+/// 显示其他 `/usage` 视图和强调活动模式的缩写脚印，所以周/累计模式可以从卡中发现.
 fn view_footer(active: TokenActivityView) -> Line<'static> {
     let mut spans = vec![Span::styled("   ", label_style())];
     let views = [
@@ -381,6 +393,7 @@ fn month_labels(today: NaiveDate, first_column: usize, shown_columns: usize) -> 
 /// The returned vector is ordered by chart cell, starting with the oldest Sunday.
 /// Invalid, out-of-window, and future dates are ignored. Duplicate dates are
 /// accumulated and negative token values do not reduce activity.
+/// 将后端的每日桶规范化，进入固定的52周显示窗口. 返回的矢量按图表单元排列，从最古老的星期日开始。 无效的，窗外的，以及未来的日期被忽略. 复制日期是累积的，负符号值不会减少活动.
 fn daily_values(
     buckets: &[codex_app_server_protocol::AccountTokenUsageDailyBucket],
     today: NaiveDate,

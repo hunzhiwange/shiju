@@ -1,3 +1,5 @@
+//! 员工模式动态流的测试，覆盖事件排序、摘要格式和空状态。
+//! fixture 包含不同事件类型与时间边界，验证过滤及主题化卡片构建。
 use super::*;
 use crate::app::task::TaskExecutorBackend;
 use crate::app::task::staff::{

@@ -1,3 +1,5 @@
+//! 项目基础布局的测试，覆盖设置侧栏、底部终端和各种覆盖层。
+//! 绘制检查确认终端横跨底边，并验证聊天或差异全屏时的组合结构。
 use crate::app::App;
 use crate::app::state::ToolDetailDialog;
 use iced::advanced::renderer::Headless;

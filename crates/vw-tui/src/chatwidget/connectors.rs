@@ -1,13 +1,18 @@
 //! Connector cache, popup, and refresh handling for `ChatWidget`.
+//! 本模块负责连接器目录缓存、授权状态与刷新弹窗。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 发现目录与输入提及授权彼此独立；过期响应不得为当前任务扩大应用权限。
 
 use super::*;
 use crate::app_event::ConnectorsSnapshot;
 use std::sync::atomic::AtomicU64;
 
 /// Prevents stale requests from matching a replacement widget for the same thread.
+/// 防止过时的请求匹配同一线程的替换组件。
 static NEXT_CONNECTOR_SCOPE_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 /// Identifies one account-, workspace-, and thread-scoped connector state.
+/// 标识一个帐户、工作区和线程范围的连接器状态。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct ConnectorScopeGeneration(u64);
 
@@ -23,37 +28,48 @@ pub(super) enum ConnectorsCacheState {
 #[derive(Debug, Default)]
 pub(super) struct ConnectorsState {
     /// Discovery-only catalog; its entries are not authorized composer mentions.
+    /// 仅限发现的目录；其条目不是授权的输入框提到的。
     pub(super) cache: ConnectorsCacheState,
     pub(super) partial_snapshot: Option<ConnectorsSnapshot>,
     pub(super) prefetch_in_flight: bool,
     pub(super) force_refetch_pending: bool,
     /// Unowned notification retained only to decide whether an owned response needs revalidation.
+    /// 保留未拥有的通知仅用于决定拥有的响应是否需要重新验证。
     pub(super) pending_notification: Option<Vec<AppInfo>>,
     /// Prevents a recovery request from scheduling another retry if it also fails.
+    /// 如果恢复请求也失败，则阻止其安排另一次重试。
     pub(super) notification_error_retry_in_flight: bool,
     /// Installed apps that are callable in the current thread and account.
+    /// 在当前线程和帐户中可调用的已安装应用。
     pub(super) mention_snapshot: Option<ConnectorsSnapshot>,
     /// Installed identities include disabled apps omitted from composer mentions.
+    /// 已安装的身份包括输入框提及中省略的禁用应用。
     pub(super) installed_app_ids: HashSet<String>,
     /// Suppress repeated notifications while their installed-app refresh is in flight.
+    /// 在安装的应用程序刷新运行期间，禁止重复通知。
     pub(super) notified_installed_app_ids: Option<HashSet<String>>,
     pub(super) mention_refresh_in_flight: bool,
     /// `Some(false)` retains a cache-only retry when MCP readiness races another lookup.
+    /// 当MCP就绪竞赛另一次查找时， “Some (false)”保留仅缓存重试。
     pub(super) mention_refresh_pending: Option<bool>,
     /// Revocations override only installed-app requests that were already in flight.
+    /// 撤销仅覆盖已在运行的已安装应用请求。
     pub(super) locally_disabled: HashSet<String>,
     /// Process-unique identity for this widget's account, workspace, and thread.
+    /// 此组件的帐户、工作区和线程的流程唯一标识。
     pub(super) generation: ConnectorScopeGeneration,
 }
 
 impl ChatWidget {
     /// Refresh both discovery data and the independently authorized mention catalog.
+    /// 刷新发现数据和独立授权的提及目录。
     pub(crate) fn refresh_connectors(&mut self, force_refetch: bool) {
         self.queue_connectors_refresh(force_refetch);
         self.refresh_connector_mentions(force_refetch);
     }
 
     /// Revalidate app notifications without granting their unscoped contents to this thread.
+    /// 在不向此线程授予其未限定范围的内容的情况下重新验证应用通知。
     pub(crate) fn refresh_connector_directory_after_notification(
         &mut self,
         connectors: Vec<AppInfo>,
@@ -96,11 +112,13 @@ impl ChatWidget {
     }
 
     /// Identifies the active account, workspace, and thread across widget replacements.
+    /// 标识组件替换中的活动帐户、工作区和线程。
     pub(crate) fn connector_scope_generation(&self) -> ConnectorScopeGeneration {
         self.connectors.generation
     }
 
     /// Revoke cached app data and pending work before its account or thread changes.
+    /// 在其帐户或线程更改之前撤销缓存的应用数据和挂起的工作。
     pub(crate) fn invalidate_connector_scope(&mut self) {
         let generation = ConnectorScopeGeneration(
             NEXT_CONNECTOR_SCOPE_GENERATION.fetch_add(1, Ordering::Relaxed),
@@ -146,6 +164,7 @@ impl ChatWidget {
     }
 
     /// Return only authorized installed apps, never entries from the discovery directory.
+    /// 仅返回已安装的授权应用，从不返回Discovery目录中的条目。
     pub(super) fn connectors_for_mentions(&self) -> Option<&[AppInfo]> {
         if !self.connectors_enabled() {
             return None;
@@ -373,6 +392,7 @@ impl ChatWidget {
     }
 
     /// Update the `/apps` discovery catalog without changing composer authorization.
+    /// 更新 `/apps` 发现目录，但不改变输入框中的应用授权范围。
     pub(crate) fn on_connectors_loaded(
         &mut self,
         result: Result<ConnectorsSnapshot, String>,
@@ -446,6 +466,7 @@ impl ChatWidget {
     }
 
     /// Revoke disabled apps immediately and revalidate permissions before enabling them.
+    /// 立即吊销已禁用的应用，并在启用它们之前重新验证权限。
     pub(crate) fn update_connector_enabled(&mut self, connector_id: &str, enabled: bool) {
         if let ConnectorsCacheState::Ready(mut snapshot) = self.connectors.cache.clone()
             && let Some(connector) = snapshot

@@ -1,3 +1,5 @@
+//! 工作树办公室地面与装饰的测试，覆盖响应式尺寸和明暗主题样式。
+//! 元素会进入实际绘制路径，以检查边框、背景及文字透明度。
 use iced::advanced::renderer::Headless;
 use iced::{Background, Color, Element, Length, Theme};
 

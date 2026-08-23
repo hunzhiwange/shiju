@@ -1,3 +1,5 @@
+//! 会话侧栏容器的测试，验证可用宽度缩放、负值钳制与圆角样式。
+//! 绘制用例检查捕获样式，避免仅凭元素构建遗漏主题渲染问题。
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Length, Pixels, Rectangle, Size, Theme};

@@ -1,3 +1,7 @@
+//! 验证定时任务的查询、运行记录、探测和变更请求。
+//!
+//! 用例明确区分可触发旧路由回退的兼容错误与必须原样上抛的其他网关错误。
+
 use serde_json::json;
 
 use crate::client::test_support;

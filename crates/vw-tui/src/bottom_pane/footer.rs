@@ -1,3 +1,12 @@
+//! 本模块集中实现 `footer` 在底部面板中的职责。
+//! 关键声明 `INDENT`、`FooterMode`、`FooterProps`、`compact_tokens` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+
+
+//! VibeWindow 输入编辑器中的纯底部渲染。
 //! Pure footer rendering for the VibeWindow composer.
 //!
 //! The footer receives a read-only [`V3FooterData`] snapshot.  It does not query a model,
@@ -181,6 +190,7 @@ impl Renderable for FooterProps {
 mod tests {
     use super::*;
 
+    // 验证 `footer_collapses_for_narrow_widths` 场景的触发条件与预期结果。
     #[test]
     fn footer_collapses_for_narrow_widths() {
         let props = FooterProps {

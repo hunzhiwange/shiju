@@ -1,7 +1,6 @@
-//! Runtime log file writer helpers.
+//! 运行时日志文件写入工具。
 //!
-//! Native entrypoints use this module to mirror tracing events into local files,
-//! split by level and hourly archive directory.
+//! 原生入口通过本模块把追踪事件镜像到本地文件，并按级别与小时目录分流。
 
 use std::env;
 use std::fs::{self, File, OpenOptions};
@@ -16,11 +15,13 @@ use tracing_subscriber::fmt::MakeWriter;
 const RUNTIME_LOG_DIR_NAME: &str = "runtime_log";
 
 #[derive(Clone, Debug)]
+/// 为 `tracing` 按事件级别创建延迟打开的文件写入器。
 pub struct RuntimeLogMakeWriter {
     root: Arc<PathBuf>,
 }
 
 impl RuntimeLogMakeWriter {
+    /// 使用给定根目录创建写入器工厂；实际日志文件会在首次写入时打开。
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: Arc::new(root.into()) }
     }
@@ -43,6 +44,7 @@ impl<'a> MakeWriter<'a> for RuntimeLogMakeWriter {
 }
 
 #[derive(Debug)]
+/// 指向单个级别日志文件的延迟写入器。
 pub struct RuntimeLogWriter {
     path: PathBuf,
     file: Option<File>,
@@ -75,6 +77,7 @@ impl Write for RuntimeLogWriter {
     }
 }
 
+/// 按配置目录、用户主目录和产品默认目录的优先级解析运行时日志根目录。
 pub fn default_runtime_log_dir() -> PathBuf {
     env_path("VIBEWINDOW_CONFIG_DIR")
         .map(|path| path.join(RUNTIME_LOG_DIR_NAME))
@@ -85,6 +88,7 @@ pub fn default_runtime_log_dir() -> PathBuf {
         })
 }
 
+/// 创建运行时日志目录及缺失的父目录。
 pub fn ensure_runtime_log_dir(path: &Path) -> io::Result<()> {
     fs::create_dir_all(path)
 }

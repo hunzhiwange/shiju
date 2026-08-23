@@ -1,3 +1,6 @@
+//! 应用中心基础控件测试，覆盖图标映射、明暗主题样式和组件树结构。
+//! 交互状态需保持可读表面与一致圆角，未知动作标签使用稳定图标回退。
+
 use iced::widget::{button, text_editor, text_input};
 use iced::{Background, Color, Element, Length, Theme};
 

@@ -1,4 +1,7 @@
 //! Deterministic `V3Event` reduction into copied ChatWidget presentation state.
+//! 本模块负责`V3Event` 到展示状态的确定性归约。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 归约过程不执行 I/O，也不拥有 Gateway、会话、审批或命令执行权限。
 
 use super::*;
 use crate::vibe::event::V3Event;
@@ -8,6 +11,7 @@ impl ChatWidget {
     ///
     /// The reducer performs no I/O and has no Gateway, session, approval, or
     /// command-execution authority.
+    /// 应用一个产品无关的 UI 生命周期事件。归约器不执行 I/O，也不拥有 Gateway、会话、审批或命令执行权限。
     pub fn handle_v3_event(&mut self, event: V3Event) {
         match event {
             V3Event::TurnStarted { turn_id } => self.on_turn_started(turn_id),

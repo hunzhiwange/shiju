@@ -1,3 +1,6 @@
+//! 工作流注册表测试，覆盖自定义定义校验、状态结果路由和运行时缓存替换。
+//! 禁用状态需跳过，循环、缺失角色及非法定义则必须在注册时拒绝。
+
 use super::{
     DEFAULT_TASK_WORKFLOW_ID, OwnedStatusDefinition, OwnedStatusTransition, OwnedTaskWorkflow,
     StatusOutcome, StatusRole, TaskWorkflowRegistry, all_task_workflows,

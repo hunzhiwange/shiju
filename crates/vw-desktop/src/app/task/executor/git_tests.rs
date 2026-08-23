@@ -1,3 +1,6 @@
+//! 任务执行器 Git 适配测试，覆盖网关结果转换、可忽略中止错误和仓库操作。
+//! 命令状态与输出必须保留原始语义，只有明确列出的清理失败可以降级处理。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

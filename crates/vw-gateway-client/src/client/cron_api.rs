@@ -1,3 +1,7 @@
+//! 定时任务网关接口及其传输对象。
+//!
+//! 除当前增删改查路由外，本模块还保留旧网关变更接口的有限回退，以兼容版本滚动升级。
+
 use crate::client::GatewayClient;
 use serde::{Deserialize, Serialize};
 

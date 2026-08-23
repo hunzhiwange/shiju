@@ -1,3 +1,4 @@
+//! 自定义终端状态栏的 TUI 状态线配置视图
 //! Status line configuration view for customizing the TUI status bar.
 //!
 //! This module provides an interactive picker for selecting which items appear
@@ -41,6 +42,7 @@ use crate::render::renderable::Renderable;
 
 const STATUS_LINE_USE_THEME_COLORS_ITEM_ID: &str = "status-line-use-theme-colors";
 
+/// 可用于显示状态行的可用物品。
 /// Available items that can be displayed in the status line.
 ///
 /// Each variant represents a piece of information that can be shown at the
@@ -54,19 +56,24 @@ const STATUS_LINE_USE_THEME_COLORS_ITEM_ID: &str = "status-line-use-theme-colors
 #[derive(EnumIter, EnumString, Display, Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[strum(serialize_all = "kebab_case")]
 pub(crate) enum StatusLineItem {
+    /// 当前模型名称
     /// The current model name.
     #[strum(to_string = "model", serialize = "model-name")]
     ModelName,
 
+    /// 带有推理后缀的名称模型。
     /// Model name with reasoning level suffix.
     ModelWithReasoning,
 
+    /// 当前推理级别
     /// Current reasoning level.
     Reasoning,
 
+    /// 当前工作目录路径
     /// Current working directory path.
     CurrentDir,
 
+    /// 项目根目录（检测到时）
     /// Project root directory (if detected).
     #[strum(
         to_string = "project-name",
@@ -75,86 +82,111 @@ pub(crate) enum StatusLineItem {
     )]
     ProjectRoot,
 
+    /// 运行 Codex 的机器上的主机名
     /// Hostname of the machine running Codex.
     Hostname,
 
+    /// 当前 Git 分支名称（如存在于仓库中）
     /// Current git branch name (if in a repository).
     GitBranch,
 
+    /// 获取当前分支的 PR 编号
     /// Open pull request number for the current branch.
     PullRequestNumber,
 
+    /// 相对于默认分支的提交分支统计信息
     /// Committed branch diff stats relative to the default branch.
     BranchChanges,
 
+    /// 紧凑运行时状态文本
     /// Compact runtime run-state text.
     #[strum(to_string = "run-state", serialize = "status")]
     Status,
 
+    /// 活跃权限配置文件或沙箱摘要
     /// Active permission profile or sandbox summary.
     Permissions,
 
+    /// 启用命令批准模式
     /// Active command approval mode.
     #[strum(to_string = "approval-mode", serialize = "approval")]
     ApprovalMode,
 
+    /// 剩余上下文窗口百分比
     /// Percentage of context window remaining.
     ContextRemaining,
 
+    /// 上下文窗口使用的百分比
     /// Percentage of context window used.
     ///
     /// Also accepts the legacy `context-usage` config value.
     #[strum(to_string = "context-used", serialize = "context-usage")]
     ContextUsed,
 
+    /// 剩余的主速率限制使用量。
     /// Remaining usage on the primary rate limit.
     FiveHourLimit,
 
+    /// 剩余次级速率限制的使用量。
     /// Remaining usage on the secondary rate limit.
     WeeklyLimit,
 
+    /// Codex 应用程序版本
     /// Codex application version.
     CodexVersion,
 
+    /// 令牌总数
     /// Total context window size in tokens.
     ContextWindowSize,
 
+    /// 当前会话中使用的总令牌数
     /// Total tokens used in the current session.
     UsedTokens,
 
+    /// 总消耗输入令牌数
     /// Total input tokens consumed.
     TotalInputTokens,
 
+    /// 生成的总输出令牌数
     /// Total output tokens generated.
     TotalOutputTokens,
 
+    /// 当前企业线程直接分配的估算信用额
     /// Estimated credits attributed directly to the current enterprise thread.
     ThreadCredits,
 
+    /// 当前企业线程直接产生的估算美元成本
     /// Estimated dollar cost attributed directly to the current enterprise thread.
     EstimatedThreadCost,
 
+    /// 全线程 UUID
     /// Full thread UUID.
     #[strum(to_string = "thread-id", serialize = "session-id")]
     SessionId,
 
+    /// 当前是否处于快速模式
     /// Whether Fast mode is currently active.
     FastMode,
 
+    /// 当前是否启用原始滚动模式。
     /// Whether raw scrollback mode is currently active.
     RawOutput,
 
+    /// 当前线程标题（由用户设置）
     /// Current thread title (if set by user).
     ThreadTitle,
 
+    /// 当前工作区通知标题
     /// Current workspace notification headline.
     WorkspaceHeadline,
 
+    /// 从 `update_plan` 获取的最新检查任务进度
     /// Latest checklist task progress from `update_plan` (if available).
     TaskProgress,
 }
 
 impl StatusLineItem {
+    /// 用户可见的弹窗描述文本
     /// User-visible description shown in the popup.
     pub(crate) fn description(self) -> &'static str {
         match self {
@@ -249,6 +281,7 @@ impl StatusLineItem {
     }
 }
 
+/// 用于在状态栏中显示哪些项目的交互式视图。 该视图封装了 [`MultiSelectPicker`] 组件，以状态栏特定行为进行包装： - 从当前配置预填充项目 - 显示配置的实时状态栏预览 - 确认时发射 [`AppEvent::StatusLineSetup`] 事件 - 取消时发射 [`AppEvent::StatusLineSetupCancelled`] 事件
 /// Interactive view for configuring which items appear in the status line.
 ///
 /// Wraps a [`MultiSelectPicker`] with status-line-specific behavior:
@@ -257,11 +290,13 @@ impl StatusLineItem {
 /// - Emits [`AppEvent::StatusLineSetup`] on confirmation
 /// - Emits [`AppEvent::StatusLineSetupCancelled`] on cancellation
 pub(crate) struct StatusLineSetupView {
+    /// 底层多选择控件组件
     /// The underlying multi-select picker widget.
     picker: MultiSelectPicker,
 }
 
 impl StatusLineSetupView {
+    /// 创建新的状态线设置视图。
     /// Creates a new status line setup view.
     ///
     /// # Arguments
@@ -363,6 +398,7 @@ impl StatusLineSetupView {
         }
     }
 
+    /// 将状态线项转换为多选项，供选择器使用。
     /// Converts a [`StatusLineItem`] into a [`MultiSelectItem`] for the picker.
     fn status_line_select_item(
         item: StatusLineItem,
@@ -432,6 +468,7 @@ mod tests {
 
     use crate::app_event::AppEvent;
 
+    // 验证 `context_used_accepts_context_usage_legacy_id` 场景的触发条件与预期结果。
     #[test]
     fn context_used_accepts_context_usage_legacy_id() {
         assert_eq!(StatusLineItem::ContextUsed.to_string(), "context-used");
@@ -445,6 +482,7 @@ mod tests {
         );
     }
 
+    // 验证 `context_remaining_is_selectable_id` 场景的触发条件与预期结果。
     #[test]
     fn context_remaining_is_selectable_id() {
         assert_eq!(
@@ -457,6 +495,7 @@ mod tests {
         );
     }
 
+    // 验证 `thread_usage_items_are_independently_selectable` 场景的触发条件与预期结果。
     #[test]
     fn thread_usage_items_are_independently_selectable() {
         assert_eq!(
@@ -469,6 +508,7 @@ mod tests {
         );
     }
 
+    // 验证 `project_name_is_canonical_and_accepts_legacy_ids` 场景的触发条件与预期结果。
     #[test]
     fn project_name_is_canonical_and_accepts_legacy_ids() {
         assert_eq!(StatusLineItem::ProjectRoot.to_string(), "project-name");
@@ -486,6 +526,7 @@ mod tests {
         );
     }
 
+    // 验证 `model_is_canonical_and_accepts_model_name_legacy_id` 场景的触发条件与预期结果。
     #[test]
     fn model_is_canonical_and_accepts_model_name_legacy_id() {
         assert_eq!(StatusLineItem::ModelName.to_string(), "model");
@@ -499,6 +540,7 @@ mod tests {
         );
     }
 
+    // 验证 `reasoning_is_selectable_id` 场景的触发条件与预期结果。
     #[test]
     fn reasoning_is_selectable_id() {
         assert_eq!(StatusLineItem::Reasoning.to_string(), "reasoning");
@@ -508,6 +550,7 @@ mod tests {
         );
     }
 
+    // 验证 `run_state_is_canonical_and_accepts_status_legacy_id` 场景的触发条件与预期结果。
     #[test]
     fn run_state_is_canonical_and_accepts_status_legacy_id() {
         assert_eq!(StatusLineItem::Status.to_string(), "run-state");
@@ -521,6 +564,7 @@ mod tests {
         );
     }
 
+    // 验证 `git_summary_items_are_selectable_ids` 场景的触发条件与预期结果。
     #[test]
     fn git_summary_items_are_selectable_ids() {
         assert_eq!(
@@ -533,6 +577,7 @@ mod tests {
         );
     }
 
+    // 验证 `parse_status_line_items_accepts_title_only_variants` 场景的触发条件与预期结果。
     #[test]
     fn parse_status_line_items_accepts_title_only_variants() {
         let items = ["run-state", "task-progress"]
@@ -545,6 +590,7 @@ mod tests {
         );
     }
 
+    // 验证 `preview_uses_runtime_values` 场景的触发条件与预期结果。
     #[test]
     fn preview_uses_runtime_values() {
         let preview_data = StatusSurfacePreviewData::from_iter([
@@ -589,6 +635,7 @@ mod tests {
         );
     }
 
+    // 验证 `preview_uses_placeholders_when_runtime_values_are_missing` 场景的触发条件与预期结果。
     #[test]
     fn preview_uses_placeholders_when_runtime_values_are_missing() {
         let preview_data = StatusSurfacePreviewData::from_iter([(
@@ -627,6 +674,7 @@ mod tests {
         );
     }
 
+    // 验证 `preview_includes_thread_title` 场景的触发条件与预期结果。
     #[test]
     fn preview_includes_thread_title() {
         let preview_data = StatusSurfacePreviewData::from_iter([
@@ -671,6 +719,7 @@ mod tests {
         );
     }
 
+    // 验证 `setup_view_snapshot_uses_runtime_preview_values` 场景的触发条件与预期结果。
     #[test]
     fn setup_view_snapshot_uses_runtime_preview_values() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -706,6 +755,7 @@ mod tests {
         assert_snapshot!(render_lines(&view, /*width*/ 72));
     }
 
+    // 验证 `setup_view_snapshot_includes_thread_usage_items` 场景的触发条件与预期结果。
     #[test]
     fn setup_view_snapshot_includes_thread_usage_items() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -732,6 +782,7 @@ mod tests {
         assert_snapshot!(render_lines(&view, /*width*/ 100));
     }
 
+    // 验证 `setup_view_snapshot_includes_hostname` 场景的触发条件与预期结果。
     #[test]
     fn setup_view_snapshot_includes_hostname() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();

@@ -1,3 +1,9 @@
+//! 本模块集中实现 `draft_state` 在底部面板中的职责。
+//! 关键声明 `DraftState`、`new`、`ComposerMentionBinding` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+
+
+//! 编辑的输入编辑器草稿状态与作曲控制流保持分离。
 //! Editable composer draft state kept separate from composer control flow.
 
 use std::cell::RefCell;

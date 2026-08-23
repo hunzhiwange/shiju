@@ -1,3 +1,11 @@
+//! 本模块集中实现 `file_search_popup` 在底部面板中的职责。
+//! 关键声明 `MAX_POPUP_ROWS`、`FileSearchPopup`、`new`、`set_query` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+
+
+//! 确定性的 VibeWindow 提供的匹配项搜索弹窗
 //! File-search popup over deterministic VibeWindow-provided matches.
 use crate::bottom_pane::scroll_state::ScrollState;
 use crate::bottom_pane::selection_popup_common::{GenericDisplayRow, render_rows};
@@ -102,6 +110,7 @@ impl WidgetRef for &FileSearchPopup {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // 验证 `stale_file_search_results_are_ignored` 场景的触发条件与预期结果。
     #[test]
     fn stale_file_search_results_are_ignored() {
         let mut popup = FileSearchPopup::new();
@@ -116,6 +125,7 @@ mod tests {
         );
         assert!(popup.selected_match().is_none());
     }
+    // 验证 `file_search_selection_emits_only_an_action` 场景的触发条件与预期结果。
     #[test]
     fn file_search_selection_emits_only_an_action() {
         let mut popup = FileSearchPopup::new();

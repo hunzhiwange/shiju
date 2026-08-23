@@ -1,3 +1,7 @@
+//! 会话信息的前端字段契约与计划运行标记测试。
+//!
+//! 覆盖可选字段省略、嵌套回退信息以及 slug 标记的幂等往返。
+
 #[test]
 fn info_serialization_uses_frontend_field_names_and_skips_empty_options() {
     let info = super::Info {

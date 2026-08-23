@@ -1,3 +1,5 @@
+//! 分支类节点编辑器状态的测试，覆盖条件分支与知识检索字段更新。
+//! 非匹配草稿用例确保专用 setter 不会误改其他节点类型。
 use super::*;
 
 fn open_editor(state: &mut WorkflowState, block_type: &str) {

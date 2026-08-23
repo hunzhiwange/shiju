@@ -1,3 +1,4 @@
+//! 临时启动 Composer 的底部适配器及其保护的手续。
 //! Bottom-pane adapters for the provisional startup composer and its protected handoff.
 //!
 //! Startup accepts safe editor input while keeping submission, search, and other actions
@@ -14,6 +15,7 @@ use super::HistoryEntry;
 use crate::key_hint::KeyBindingListExt;
 
 impl BottomPane {
+    /// 返回是否会在启动草稿中提交、排队或搜索某个键。
     /// Return whether a key would submit, queue, or search outside the startup draft.
     pub(crate) fn is_startup_composer_action(&self, key_event: KeyEvent) -> bool {
         let composer = &self.keymap.composer;
@@ -28,6 +30,7 @@ impl BottomPane {
             || self.composer_is_empty() && composer.toggle_shortcuts.is_pressed(key_event)
     }
 
+    /// 返回仅绑定于本地启动安全文本编辑的键是否被绑定
     /// Return whether a key is bound only to local startup-safe text editing.
     pub(crate) fn is_safe_startup_editor_key(&self, key_event: KeyEvent) -> bool {
         let editor = &self.keymap.editor;
@@ -54,18 +57,21 @@ impl BottomPane {
         .any(|bindings| bindings.is_pressed(key_event))
     }
 
+    /// 启用未中断正在进行的启动草稿。
     /// Enable Vim without interrupting an in-progress startup draft.
     pub(crate) fn enable_vim_in_insert_mode(&mut self) {
         self.composer.enable_vim_in_insert_mode();
         self.request_redraw();
     }
 
+    /// 在配置加载前不丢弃输入缓冲，以应用粘贴溢出偏好。
     /// Apply paste-burst preferences without dropping input buffered before config loading.
     pub(crate) fn set_disable_paste_burst(&mut self, disabled: bool) {
         self.disable_paste_burst = disabled;
         self.composer.set_disable_paste_burst(disabled);
     }
 
+    /// 捕获延迟审批所依赖的草稿内容及其活动时间戳
     /// Capture draft content together with the activity timestamp used by delayed approvals.
     pub(crate) fn composer_draft_snapshot(&self) -> ComposerDraftSnapshot {
         let mut draft = self.composer.draft_snapshot();
@@ -73,12 +79,14 @@ impl BottomPane {
         draft
     }
 
+    /// 在同步前恢复可见光标
     /// Restore the visible cursor before synchronizing composer-owned popups.
     pub(crate) fn set_composer_cursor(&mut self, cursor: usize) {
         self.composer.set_current_cursor(cursor);
         self.composer.sync_popups();
     }
 
+    /// 保留启动本地历史及最新受保护提示活动的时间戳。
     /// Preserve startup-local history and the newest protected-prompt activity timestamp.
     pub(crate) fn restore_startup_composer_state(
         &mut self,
@@ -97,11 +105,13 @@ impl BottomPane {
         }
     }
 
+    /// 返回在打字停止后是否等待审批可见。
     /// Return whether an approval is waiting to become visible after typing stops.
     pub(crate) fn has_pending_approval(&self) -> bool {
         !self.delayed_approval_requests.is_empty()
     }
 
+    /// 在所有者或输入模式变更前保留缓冲的 Composer 输入。
     /// Preserve buffered composer input before its owner or input mode changes.
     pub(crate) fn flush_composer_paste_burst(&mut self) {
         if self.composer.is_in_paste_burst() {

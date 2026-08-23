@@ -1,3 +1,11 @@
+//! 本模块集中实现 `search_catalog` 在底部面板中的职责。
+//! 关键声明 `build_search_catalog`、`skill_candidate`、`plugin_candidate`、`plugin_mention_name` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+
+
 use codex_app_server_protocol::SkillMetadata;
 use codex_plugin::PluginCapabilitySummary;
 
@@ -192,6 +200,7 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
+    // 验证 `plugin_mention_name_uses_display_segments_when_they_match_plugin_name` 场景的触发条件与预期结果。
     #[test]
     fn plugin_mention_name_uses_display_segments_when_they_match_plugin_name() {
         assert_eq!(
@@ -204,6 +213,7 @@ mod tests {
         );
     }
 
+    // 验证 `plugin_mention_name_falls_back_to_title_cased_plugin_name` 场景的触发条件与预期结果。
     #[test]
     fn plugin_mention_name_falls_back_to_title_cased_plugin_name() {
         assert_eq!(plugin_mention_name("sample", "Sample Plugin"), "Sample");

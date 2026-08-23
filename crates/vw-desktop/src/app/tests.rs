@@ -1,3 +1,6 @@
+//! 桌面应用顶层测试，验证测试模块接线与项目配置目录命名空间。
+//! 配置路径必须指向当前应用范围，避免与历史或其他产品目录混用。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

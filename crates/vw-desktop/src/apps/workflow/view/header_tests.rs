@@ -1,3 +1,5 @@
+//! 工作流页头视图的测试，覆盖来源、脏状态、历史和选择操作。
+//! 优先级用例验证连接取消、节点删除与边删除只展示当前可用动作。
 use super::*;
 use iced::widget::button;
 use iced::{Point, Vector};

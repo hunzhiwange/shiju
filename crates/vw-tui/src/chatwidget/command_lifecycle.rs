@@ -1,9 +1,12 @@
 //! Command grouping and copied exec-cell lifecycle integration.
+//! 本模块负责命令分组与执行单元生命周期。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use crate::chatwidget::exec_state::CallMutation;
 
 impl ChatWidget {
+    // 处理 `on_command_started` 对应的界面事件并同步相关状态。
     pub(super) fn on_command_started(
         &mut self,
         turn_id: &str,
@@ -27,6 +30,7 @@ impl ChatWidget {
         }
     }
 
+    // 接收 `on_command_output_delta` 对应事件，并只更新本地展示状态。
     pub(super) fn on_command_output_delta(
         &mut self,
         turn_id: &str,

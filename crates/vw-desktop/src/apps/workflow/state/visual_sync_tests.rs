@@ -1,3 +1,5 @@
+//! 工作流可视化草稿同步到原始 YAML 的测试，覆盖各节点专用字段。
+//! 非法根结构和类型不匹配必须明确失败或保持原文，避免静默改写。
 use super::*;
 
 fn editor(text: &str) -> text_editor::Content {

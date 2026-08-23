@@ -1,3 +1,6 @@
+//! 专家中心详情页测试，覆盖关闭、下载、版本操作与工作助手视觉契约。
+//! 已安装、可升级、可回滚及未知版本都应映射到明确且有限的界面动作。
+
 use super::detail::{VersionRowAction, close_message, download_message, version_action_spec};
 use crate::app::message::SkillHubMessage;
 use crate::app::skill_hub::{

@@ -1,3 +1,7 @@
+//! 通用展示格式化工具的边界测试。
+//!
+//! 覆盖时长、数量、复数模板及 Unicode 字符边界安全的首尾截断。
+
 #[test]
 fn format_duration_covers_boundaries() {
     assert_eq!(super::format_duration(-1), "");

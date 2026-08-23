@@ -1,3 +1,6 @@
+//! 时聚应用启动器安全测试，覆盖可信运行地址、辅助进程失败和密钥传递。
+//! 会话凭据只能经标准输入交给子进程，任何错误信息都不得回显原始秘密。
+
 use std::path::{Path, PathBuf};
 
 use super::launcher::{LaunchProcess, launch_with};

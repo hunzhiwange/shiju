@@ -1,4 +1,6 @@
-//! SHIJU private-skill gateway transport contract.
+//! 识矩私有技能网关传输契约。
+//!
+//! 统一描述市场、系统、企业和维护中技能，并兼容历史 README 及可空集合的响应形状。
 
 use serde::{Deserialize, Deserializer, Serialize};
 

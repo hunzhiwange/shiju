@@ -1,3 +1,5 @@
+//! 工作流文档消息的测试，覆盖加载、导入、保存和历史快照。
+//! fixture 验证错误路径不会污染当前文档，并保持脏状态语义准确。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

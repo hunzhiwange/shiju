@@ -1,8 +1,12 @@
 //! Review preset selection and custom review prompt surfaces.
+//! 本模块负责审查预设与自定义审查提示。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 分支、提交与自定义提示分别构造选择界面，最终审查请求仍交由外层运行时执行。
 
 use super::*;
 
 impl ChatWidget {
+    // 打开审查入口菜单，并将后续选择继续路由到具体范围选择器。
     pub(crate) fn open_review_popup(&mut self) {
         let mut items: Vec<SelectionItem> = Vec::new();
 
@@ -60,6 +64,7 @@ impl ChatWidget {
         });
     }
 
+    // 构造并展示 `show_review_branch_picker` 对应的界面内容。
     pub(crate) async fn show_review_branch_picker(&mut self, cwd: &Path) {
         let branches = local_git_branches(cwd).await;
         let current_branch = current_branch_name(cwd)
@@ -92,6 +97,7 @@ impl ChatWidget {
         });
     }
 
+    // 构造并展示 `show_review_commit_picker` 对应的界面内容。
     pub(crate) async fn show_review_commit_picker(&mut self, cwd: &Path) {
         let commits = recent_commits(cwd, /*limit*/ 100).await;
 
@@ -125,6 +131,7 @@ impl ChatWidget {
         });
     }
 
+    // 构造并展示 `show_review_custom_prompt` 对应的界面内容。
     pub(crate) fn show_review_custom_prompt(&mut self) {
         let tx = self.app_event_tx.clone();
         let view = CustomPromptView::new(
@@ -147,6 +154,7 @@ impl ChatWidget {
 }
 
 #[cfg(test)]
+// 构造并展示 `show_review_commit_picker_with_entries` 对应的界面内容。
 pub(crate) fn show_review_commit_picker_with_entries(
     chat: &mut ChatWidget,
     entries: Vec<CommitLogEntry>,

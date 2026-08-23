@@ -1,3 +1,5 @@
+//! 本模块负责计划实施前的确认提示。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 use codex_protocol::config_types::CollaborationModeMask;
 
 use crate::app_event::AppEvent;
@@ -25,6 +27,8 @@ pub(super) const PLAN_IMPLEMENTATION_NO_APPROVED_PLAN: &str = "No approved plan 
 /// The optional usage label is already phrased for display, such as `89% used`
 /// or `123K used`. This module only decides where that label belongs in the
 /// decision copy so action wiring stays separate from token accounting.
+/// 在计划模式下批准计划后生成显示的确认提示。可选用法标签已用于显示，例如“89 ％已使用”或“123K已使用”。此模块仅决定该标签在决策副本中的位置，因此操作布线与令牌会计保持分离。
+// 计算 `selection_view_params` 所需的界面结果。
 pub(super) fn selection_view_params(
     default_mask: Option<CollaborationModeMask>,
     plan_markdown: Option<&str>,

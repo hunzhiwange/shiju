@@ -64,12 +64,6 @@ impl ChatOverlay {
         }
     }
 
-    fn is_complete(&self) -> bool {
-        match self {
-            Self::Approval(overlay) => overlay.is_complete(),
-            Self::UserInput(overlay) => overlay.is_complete(),
-        }
-    }
 }
 
 impl Renderable for ChatOverlay {
@@ -177,12 +171,24 @@ impl ChatWidget {
         self.overlay = None;
     }
 
+    /// Returns whether an approval or user-input overlay is currently retained.
+    #[must_use]
+    pub fn has_overlay(&self) -> bool {
+        self.overlay.is_some()
+    }
+
     /// Routes one key through the visible overlay or copied composer.
     pub fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
         if let Some(overlay) = self.overlay.as_mut() {
+            let rejected_question_id = match overlay {
+                ChatOverlay::UserInput(overlay) => Some(overlay.request().id.clone()),
+                ChatOverlay::Approval(_) => None,
+            };
             let action = overlay.handle_key_event(event);
-            if overlay.is_complete() {
-                self.overlay = None;
+            if matches!(action, V3Action::Cancel)
+                && let Some(request_id) = rejected_question_id
+            {
+                return V3Action::AnswerUserInput { request_id, answers: Vec::new() };
             }
             return action;
         }

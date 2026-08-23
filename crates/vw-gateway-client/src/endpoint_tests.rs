@@ -1,3 +1,7 @@
+//! 验证网关端点的默认租户与链式租户替换行为。
+//!
+//! 这些测试锁定客户端构造阶段的作用域来源，不涉及实际网络连接。
+
 use vw_api_types::id::{DEFAULT_COMPANY_ID, DEFAULT_PLATFORM_ID, TenantScope};
 
 #[test]

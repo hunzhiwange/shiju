@@ -1,3 +1,6 @@
+//! 工作树管理测试，覆盖分支名校验、合并目标选择和受管目录清理候选。
+//! 本地目录缺失时仍需尊重网关记录，且只允许处理已验证的受管槽位路径。
+
 fn legacy_worktree_path(repo_root: &str, leaf: &str) -> String {
     format!(
         "{repo_root}/{}/{}/{leaf}",

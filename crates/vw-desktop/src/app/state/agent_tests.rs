@@ -1,3 +1,6 @@
+//! 代理会话状态测试，覆盖运行权限默认值、交接消费和聊天发送策略解析。
+//! 同时验证步骤时间元数据及历史回放模式具有稳定键值和兼容别名。
+
 use super::{
     AcpHistoryReplayMode, ChatSendBehavior, SessionRuntimeState, StepUiMeta,
     clear_pending_guide_handoff, mark_pending_guide_handoff, take_pending_guide_handoff,

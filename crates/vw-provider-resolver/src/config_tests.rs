@@ -1,3 +1,8 @@
+//! 配置读取测试覆盖项目覆盖路径、缺失或损坏文件的默认回退，以及同步读取入口。
+//!
+//! 用例通过临时工作区构造真实 `.vibewindow.json`，并验证 provider 覆盖项只接收对象值；
+//! 所有环境变量修改均串行执行且在守卫析构时恢复，避免污染同进程中的其他测试。
+
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, OnceLock};

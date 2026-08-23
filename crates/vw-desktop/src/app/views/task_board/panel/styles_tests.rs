@@ -1,3 +1,5 @@
+//! 任务详情面板样式的测试，覆盖容器、输入框、标签和按钮状态。
+//! 颜色断言分别验证明暗主题以及危险、成功等语义色分支。
 use iced::widget::{button, text_editor, text_input};
 use iced::{Background, Color, Theme};
 

@@ -20,8 +20,12 @@ pub(crate) enum TuiControllerEvent {
 /// 需要由宿主提交给对应运行时的对话框结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum TuiOverlayCommand {
-    PermissionDecision(PermissionDecision),
+    PermissionDecision {
+        request_id: String,
+        decision: PermissionDecision,
+    },
     QuestionSubmitted(UiQuestionOverlay),
+    QuestionRejected(UiQuestionOverlay),
 }
 
 /// 输入路由后产生的显式宿主命令。

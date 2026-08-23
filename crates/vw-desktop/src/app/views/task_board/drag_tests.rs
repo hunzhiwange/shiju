@@ -1,3 +1,5 @@
+//! 任务卡拖拽预览的测试，覆盖优先级徽标、文本回退和窗口边界钳制。
+//! 绘制用例核对主题表面与拖拽强调色，不只验证元素可以构建。
 use iced::advanced::renderer::Headless;
 use iced::{Background, Color, Point, Theme};
 

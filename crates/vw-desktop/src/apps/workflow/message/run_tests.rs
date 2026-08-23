@@ -1,3 +1,5 @@
+//! 工作流运行消息的测试，覆盖输入草稿、启动、进度和结果回收。
+//! fixture 验证缺失活动应用与失败响应时运行状态能正确复位。
 use super::*;
 use crate::apps::workflow::message::WorkflowMessage;
 use crate::apps::workflow::state::{WorkflowRunInputDraft, WorkflowRunPromptDraft};

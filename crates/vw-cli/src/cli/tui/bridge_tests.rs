@@ -103,9 +103,10 @@ fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
         .expect("approval routes to the permission command");
     assert_eq!(
         permission,
-        TuiControllerCommand::Overlay(TuiOverlayCommand::PermissionDecision(
-            PermissionDecision::Always
-        ))
+        TuiControllerCommand::Overlay(TuiOverlayCommand::PermissionDecision {
+            request_id: "permission-13".to_string(),
+            decision: PermissionDecision::Always,
+        })
     );
 
     app.state_mut().tasks.pending_questions.push(UiQuestionOverlay {

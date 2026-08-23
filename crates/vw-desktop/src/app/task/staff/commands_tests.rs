@@ -1,3 +1,6 @@
+//! 员工命令策略测试，验证角色权限、任务状态转换和阶段能力路由。
+//! 不匹配、禁用或满载成员应返回明确原因，不能绕过工作流约束执行任务。
+
 use crate::app::task::{Task, TaskStatus};
 
 use super::models::TaskBoardStageAction;

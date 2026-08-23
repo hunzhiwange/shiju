@@ -1,3 +1,5 @@
+//! 本模块负责插件列表请求与本地展示状态。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 use std::path::PathBuf;
 
 use super::ChatWidget;
@@ -39,6 +41,7 @@ pub(super) const ALL_PLUGINS_TAB_ID: &str = "all-plugins";
 pub(super) const ADD_MARKETPLACE_TAB_ID: &str = "add-marketplace";
 
 #[derive(Debug, Clone, Default)]
+/// 保存 `PluginListFetchState` 在当前流程中的展示状态。
 pub(super) struct PluginListFetchState {
     pub(super) cache_cwd: Option<PathBuf>,
     pub(super) in_flight_cwd: Option<PathBuf>,
@@ -61,6 +64,7 @@ pub(super) enum PluginsCacheState {
 }
 
 impl ChatWidget {
+    // 构造并展示 `add_plugins_output` 对应的界面内容。
     pub(crate) fn add_plugins_output(&mut self) {
         if !self.config.features.enabled(Feature::Plugins) {
             self.add_info_message(
@@ -209,6 +213,7 @@ impl ChatWidget {
         self.app_event_tx.send(AppEvent::FetchPluginsList { cwd });
     }
 
+    // 处理 `on_plugins_list_fetch_started` 对应的界面事件并同步相关状态。
     pub(crate) fn on_plugins_list_fetch_started(&mut self, cwd: PathBuf) {
         if self.config.cwd.as_path() != cwd.as_path() {
             return;
@@ -240,6 +245,7 @@ impl ChatWidget {
         }
     }
 
+    // 构造并展示 `open_plugins_popup` 对应的界面内容。
     fn open_plugins_popup(&mut self, response: &PluginListResponse) {
         self.plugins_active_tab_id = Some(ALL_PLUGINS_TAB_ID.to_string());
         self.bottom_pane
@@ -318,6 +324,7 @@ impl ChatWidget {
         }
     }
 
+    // 构造并展示 `open_marketplace_upgrade_loading_popup` 对应的界面内容。
     pub(crate) fn open_marketplace_upgrade_loading_popup(
         &mut self,
         marketplace_name: Option<&str>,
@@ -385,6 +392,7 @@ impl ChatWidget {
         }
     }
 
+    // 构造并展示 `open_plugin_detail_loading_popup` 对应的界面内容。
     pub(crate) fn open_plugin_detail_loading_popup(&mut self, plugin_display_name: &str) {
         self.plugins_active_tab_id = self
             .bottom_pane
@@ -443,6 +451,7 @@ impl ChatWidget {
         }
     }
 
+    // 处理 `on_plugin_install_loaded` 对应的界面事件并同步相关状态。
     pub(crate) fn on_plugin_install_loaded(
         &mut self,
         cwd: PathBuf,
@@ -596,6 +605,7 @@ impl ChatWidget {
         }
     }
 
+    // 处理 `on_marketplace_upgrade_loaded` 对应的界面事件并同步相关状态。
     pub(crate) fn on_marketplace_upgrade_loaded(
         &mut self,
         cwd: PathBuf,
@@ -816,6 +826,7 @@ impl ChatWidget {
         }
     }
 
+    // 计算 `advance_plugin_install_auth_flow` 所需的界面结果。
     pub(crate) fn advance_plugin_install_auth_flow(&mut self) {
         let should_finish = {
             let Some(flow) = self.plugin_install_auth_flow.as_mut() else {
@@ -851,6 +862,7 @@ impl ChatWidget {
         }
     }
 
+    // 计算 `plugin_install_auth_popup_params` 所需的界面结果。
     fn plugin_install_auth_popup_params(&self) -> Option<SelectionViewParams> {
         let flow = self.plugin_install_auth_flow.as_ref()?;
         let app = self

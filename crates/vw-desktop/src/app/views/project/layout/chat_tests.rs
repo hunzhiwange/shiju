@@ -1,3 +1,5 @@
+//! 项目聊天区域的测试，覆盖容器几何、主题表面和壁纸透明度。
+//! 除构建检查外还走真实绘制路径，核对捕获到的样式与圆角。
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Background, Color, Font, Pixels, Rectangle, Size, Theme};

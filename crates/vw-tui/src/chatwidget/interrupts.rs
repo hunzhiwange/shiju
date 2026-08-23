@@ -1,4 +1,6 @@
 //! Interrupt bookkeeping at the product-neutral v3 event boundary.
+//! 本模块负责v3 事件边界上的中断记录。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use std::collections::HashSet;
 

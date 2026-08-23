@@ -1,3 +1,6 @@
+//! 活跃会话状态测试，覆盖步骤索引、消息元数据和问题索引的增量维护。
+//! 会话清理与步骤替换必须同步释放原始载荷，避免派生缓存与主状态失配。
+
 use super::*;
 use crate::app::models::TokenUsage;
 use std::sync::Arc;

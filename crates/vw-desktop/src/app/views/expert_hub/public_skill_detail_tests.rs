@@ -1,3 +1,6 @@
+//! 公共技能详情测试，覆盖 Markdown 内容及按安装范围生成的平台动作。
+//! 项目上下文缺失或安装正忙时，操作可用性必须收敛到安全状态。
+
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};

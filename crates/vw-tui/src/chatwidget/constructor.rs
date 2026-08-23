@@ -1,9 +1,12 @@
 //! Construction and initial wiring for the pure rendering shell.
+//! 本模块负责纯渲染外壳的构造与初始连线。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use crate::bottom_pane::BottomPaneParams;
 
 /// Read-only display configuration for a `ChatWidget`.
+/// “ChatWidget”的只读显示配置。
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ChatWidgetConfig {
     pub footer_data: V3FooterData,
@@ -21,6 +24,7 @@ impl Default for ChatWidgetConfig {
 
 impl ChatWidget {
     /// Constructs the copied chat layout without a client, sender, or runtime handle.
+    /// 构建没有客户端、发件人或运行时句柄的复制聊天布局。
     #[must_use]
     pub fn new(config: ChatWidgetConfig) -> Self {
         let status_state = StatusState::from_task_running(config.footer_data.is_task_running);

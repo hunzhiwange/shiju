@@ -1,3 +1,5 @@
+//! 项目区域缩放手柄的测试，覆盖命中范围、布局、鼠标反馈与绘制行为。
+//! 记录型渲染器用于核对明暗主题下分隔线的实际填充参数。
 use super::{
     HResizeHandle, SessionPanelLeftBorder, SessionPanelRightBorder, TopBorderCover, VResizeHandle,
     divider_line_color, is_dark_theme,

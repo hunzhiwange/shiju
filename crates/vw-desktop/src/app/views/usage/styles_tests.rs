@@ -1,3 +1,5 @@
+//! 用量页样式的测试，覆盖卡片、表格、图例和交互状态。
+//! 颜色与边框断言分别检查明暗主题的层级和语义强调。
 use iced::{Background, Color, Theme, Vector};
 
 fn background_color(background: Option<Background>) -> Color {

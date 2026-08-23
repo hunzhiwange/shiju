@@ -1,3 +1,6 @@
+//! 技能包版本缓存测试，覆盖安全载荷校验与版本信息持久化往返。
+//! 缓存拒绝敏感字段和结构异常数据，避免把凭据写入本地版本索引。
+
 use super::{PackageVersionCacheEntry, load_package_version_cache, write_package_version_cache};
 use std::fs;
 

@@ -1,3 +1,4 @@
+//! 使用语义断点保持文本的 Grapheme-safe Composer 包装器。
 //! Grapheme-safe composer wrapping that preserves textwrap's semantic breakpoints.
 //!
 //! Source ranges include a sentinel byte for cursor placement. Separators at soft breaks hang off
@@ -9,23 +10,27 @@ use std::ops::Range;
 use textwrap::Options;
 use unicode_segmentation::UnicodeSegmentation;
 
+/// 文本转义函数 `textwrap` 缓存的源行宽度和显示宽度
 /// Cached source span and display width for a word identified by `textwrap`.
 struct WrappedWord {
     range: Range<usize>,
     width: usize,
 }
 
+/// 将可破坏的空白字符分类；三个非断行空格保持其单词。
 /// Classifies breakable whitespace; the three Unicode nonbreaking spaces stay in their word.
 fn is_breakable_space(ch: char) -> bool {
     ch.is_whitespace() && !matches!(ch, '\u{a0}' | '\u{2007}' | '\u{202f}')
 }
 
+/// 强制的 Unicode 断行保持其可编辑插入位置，而非悬停。
 /// Mandatory Unicode breaks retain their editable insertion positions instead of hanging.
 fn is_hangable_space(ch: char) -> bool {
     is_breakable_space(ch)
         && !matches!(ch, '\n' | '\r' | '\u{b}' | '\u{c}' | '\u{85}' | '\u{2028}' | '\u{2029}')
 }
 
+/// 软空白填充视口时，仅一次移除行隐藏后缀。
 /// Drops a row's hidden suffix once soft whitespace alone fills the viewport.
 ///
 /// Each hangable separator occupies at least one rendered cell. Keeping the complete grapheme
@@ -43,6 +48,7 @@ pub(super) fn visible_prefix(text: &str, width: u16) -> &str {
         .map_or(text, |(start, grapheme)| &text[..start + grapheme.len()])
 }
 
+/// 返回包含光标位置 sentinel 字节（sentinel byte）的图元安全视觉范围。
 /// Returns grapheme-safe visual ranges, each including its cursor-position sentinel byte.
 ///
 /// Interior breakable whitespace can extend past the row width, but indentation and trailing
@@ -88,6 +94,7 @@ pub(super) fn wrapped_lines(text: &str, width: u16) -> Vec<Range<usize>> {
 
     for wrapped_line in wrapped_lines {
         let line_end = wrapped_line.end.saturating_sub(1);
+        // 文本包可以重复标点符号周围的空白字符。
         // textwrap can repeat leading whitespace around punctuation boundaries.
         let fragment_start = wrapped_line.start.max(processed_end);
         if fragment_start > line_end {
@@ -110,6 +117,7 @@ pub(super) fn wrapped_lines(text: &str, width: u16) -> Vec<Range<usize>> {
                 .get(word_index)
                 .filter(|word| word.range.contains(&fragment_start))
                 .map_or(0, |word| word.width.saturating_sub(consumed_word_width));
+            // 如果跨越该断点会导致下一个单词被分割，则保持文本的换行符。
             // Keep textwrap's break if crossing it would split the next word.
             if line_width + remaining_word_width > width {
                 lines.push(line_start..fragment_start + 1);
@@ -130,6 +138,7 @@ pub(super) fn wrapped_lines(text: &str, width: u16) -> Vec<Range<usize>> {
 
             let grapheme_end = grapheme_start + grapheme.len();
             let is_whitespace = grapheme.chars().all(is_breakable_space);
+            // 空白行吸收下一个单词；文本行保持其完整性。
             // Partial whitespace rows absorb the next word; text rows keep it intact.
             if !is_whitespace && line_has_text && previous_was_whitespace {
                 let word_end = words
@@ -179,6 +188,7 @@ pub(super) fn wrapped_lines(text: &str, width: u16) -> Vec<Range<usize>> {
     lines
 }
 
+/// 将源插入点映射到可视行的零索引。
 /// Maps a source insertion point to a zero-based visual row and column.
 ///
 /// `lines` must come from [`wrapped_lines`] for the display-normalized text and the same width,

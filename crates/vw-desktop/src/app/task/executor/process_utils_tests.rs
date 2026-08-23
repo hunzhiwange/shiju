@@ -1,3 +1,6 @@
+//! 子进程工具测试，覆盖进程终止、输出截断及平台相关的进程树处理边界。
+//! 清理逻辑应容忍目标已经退出，但不能掩盖仍需上报的真实执行错误。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

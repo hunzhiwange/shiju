@@ -1,3 +1,7 @@
+//! 会话 UI 数据类型的兼容反序列化与往返测试。
+//!
+//! 覆盖旧数据默认值、空集合省略、模型字段及处理和工具调用耗时信息。
+
 #[test]
 fn token_usage_defaults_reasoning_tokens() {
     let usage: super::TokenUsage =

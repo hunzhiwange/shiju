@@ -2,6 +2,9 @@
 //!
 //! The palette adapts theme colors to the active terminal color level while
 //! keeping chart-specific glyph policy local to the token activity renderer.
+//! 本模块负责令牌活动图的终端配色与字形策略。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 真彩色终端用颜色表达强度；低色彩终端改用实心与空心字形，确保活动仍可区分。
 
 use ratatui::style::Color;
 use ratatui::style::Style;
@@ -20,11 +23,14 @@ use crate::terminal_palette::stdout_color_level;
 // width-matched filled/hollow pair). In truecolor terminals the grid uses a
 // single glyph and lets color carry the intensity (GitHub-style), which keeps
 // the grid perfectly aligned and free of texture noise.
+// 低色彩终端使用等宽的实心/空心字形区分活动单元与空单元；真彩色终端统一使用一种字形，以颜色承载强度，从而保持网格对齐且不引入纹理噪声。
 const EMPTY_CELL_GLYPH: &str = "□";
 const ACTIVE_CELL_GLYPH: &str = "■";
 const BAR_CELL_GLYPH: &str = "█";
 
 /// Stores the terminal-specific styles and glyph strategy for token activity cells.
+/// 为令牌活动单元存储终端特定样式和glyph策略。
+/// 描述 `TokenActivityPalette` 在当前界面流程中传递的数据。
 pub(super) struct TokenActivityPalette {
     styles: [Style; 5],
     bar_style: Style,
@@ -32,6 +38,7 @@ pub(super) struct TokenActivityPalette {
     /// encode intensity purely by color and render every cell with a single
     /// glyph. False on low-color terminals, where we fall back to a
     /// filled/hollow glyph pair so empty and active cells stay distinguishable.
+    /// 终端支持真彩色渐变时为真，此时网格只用颜色编码强度，并以同一方块字形渲染所有单元；低色彩终端则回退到实心/空心字形对，确保空单元与活动单元仍可区分。
     uses_color: bool,
 }
 
@@ -121,6 +128,8 @@ impl TokenActivityPalette {
     /// low-color we use the hollow glyph for empty cells so they remain visible
     /// without a color gradient. Bar views use full blocks for filled height and
     /// spaces for empty height so the silhouette reads as a column chart.
+    /// 返回指定 `level` 单元的字形。每日真彩色视图为所有可见单元使用同一方块，以颜色表达强度；低色彩视图用空心方块表示空单元。柱状视图用完整块表示已填充高度，
+    /// 空空的高度则使用空格来表示，所以斜体读作列图.
     pub(super) fn glyph(&self, view: TokenActivityView, level: usize) -> &'static str {
         if view != TokenActivityView::Daily {
             return if level == 0 { " " } else { BAR_CELL_GLYPH };

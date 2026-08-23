@@ -1,3 +1,8 @@
+//! Provider 聚合测试覆盖内置模型、用户配置、环境认证与远端发现合并后的最终查询视图。
+//!
+//! 用例分别检查设置态与运行态过滤、默认值和能力继承、别名建议、配置指纹失效及小模型选择；
+//! 临时配置目录和环境守卫将进程缓存、凭据变量与文件变更隔离在单个串行测试场景中。
+
 use std::ffi::OsString;
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -13,6 +18,7 @@ use super::*;
 static TEST_LOCK: Mutex<()> = Mutex::const_new(());
 static TEST_ROOT: OnceLock<PathBuf> = OnceLock::new();
 
+// 聚合查询依赖进程环境和两层缓存，fixture 持锁期间统一建立并在退出时恢复测试边界。
 struct ProviderTestEnv {
     _lock: MutexGuard<'static, ()>,
     config_dir: PathBuf,

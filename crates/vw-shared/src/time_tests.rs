@@ -1,3 +1,7 @@
+//! 跨平台时间读取与活动计时器状态转换测试。
+//!
+//! 活动计时仅累计已启动区间，暂停空档和重置后的时间不计入结果。
+
 #[test]
 fn now_ms_is_close_to_system_time() {
     let before =

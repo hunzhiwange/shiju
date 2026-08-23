@@ -1,3 +1,6 @@
+//! 技能安装器测试，覆盖归档校验、目标目录解析、版本检测和卸载边界。
+//! 路径穿越、符号链接及无效清单必须在替换现有安装前失败，确保操作可控。
+
 use super::installer::{
     ShijuKeySyncOutcome, SkillInstallScope, SkillInstallSelection, SkillInstallTarget,
     install_shiju_archive_at_home, install_shiju_archive_for_targets, resolve_skill_destinations,

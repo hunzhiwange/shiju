@@ -1,3 +1,6 @@
+//! 员工自动调度测试，覆盖自主阶段、重新分配、备选成员和跳过原因。
+//! 调度器仅为可执行且容量允许的任务发出唯一命令，配置错误需先于调度失败。
+
 use std::collections::HashSet;
 
 use crate::app::task::{Task, TaskBoardStaffCommand, TaskStatus};

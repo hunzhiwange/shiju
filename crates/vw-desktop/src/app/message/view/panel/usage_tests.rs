@@ -1,3 +1,6 @@
+//! 用量面板消息处理测试，覆盖模型限额信息和步骤原始用量的加载状态。
+//! 重点验证展开、缓存与会话切换不会触发重复请求或遗留旧弹窗。
+
 use crate::app::models::{ChatSessionStep, TokenUsage};
 use crate::app::{App, message::ViewMessage, state::UsageModelInfo};
 

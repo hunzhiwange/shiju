@@ -1,3 +1,5 @@
+// 旧任务看板开关兼容性的精确测试，确认能力切换后旧字段会被忽略。
+// 本文件由 crate 根通过 include! 拼接，因此使用普通注释而非内部文档注释。
 #[test]
 fn legacy_task_board_switches_are_ignored_after_capability_cutover() {
     let legacy: crate::app::task::TaskBoardSettings = serde_json::from_value(serde_json::json!({

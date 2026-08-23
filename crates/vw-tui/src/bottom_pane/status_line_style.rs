@@ -1,3 +1,10 @@
+//! 本模块集中实现 `status_line_style` 在底部面板中的职责。
+//! 关键声明 `STATUS_LINE_SEPARATOR`、`STATUS_LINE_COLOR_SATURATION_PERCENT`、`STATUS_LINE_COLOR_BRIGHTNESS_PERCENT`、`StatusLineAccent` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+
+
+//! 用于配置状态栏的样式主题
 //! Theme-derived styling for the configurable footer statusline.
 
 use ratatui::prelude::Stylize;
@@ -193,6 +200,7 @@ mod tests {
             .collect::<String>()
     }
 
+    // 验证 `status_line_segments_preserve_order_and_plain_text` 场景的触发条件与预期结果。
     #[test]
     fn status_line_segments_preserve_order_and_plain_text() {
         let line = status_line_from_segments_with_resolver(
@@ -215,6 +223,7 @@ mod tests {
         assert!(!line.spans[4].style.add_modifier.contains(Modifier::DIM));
     }
 
+    // 验证 `status_line_segments_dim_separators_and_use_theme_styles_first` 场景的触发条件与预期结果。
     #[test]
     fn status_line_segments_dim_separators_and_use_theme_styles_first() {
         let line = status_line_from_segments_with_resolver(
@@ -237,6 +246,7 @@ mod tests {
         assert!(!line.spans[2].style.add_modifier.contains(Modifier::DIM));
     }
 
+    // 验证 `thread_usage_items_share_an_accent_and_dim_separator` 场景的触发条件与预期结果。
     #[test]
     fn thread_usage_items_share_an_accent_and_dim_separator() {
         let line = status_line_from_segments_with_resolver(
@@ -254,6 +264,7 @@ mod tests {
         assert!(line.spans[1].style.add_modifier.contains(Modifier::DIM));
     }
 
+    // 验证 `status_line_segments_soften_rgb_theme_styles_without_dimming_text` 场景的触发条件与预期结果。
     #[test]
     #[allow(clippy::disallowed_methods)]
     fn status_line_segments_soften_rgb_theme_styles_without_dimming_text() {
@@ -268,6 +279,7 @@ mod tests {
         assert!(!line.spans[0].style.add_modifier.contains(Modifier::DIM));
     }
 
+    // 验证 `status_line_segments_can_disable_theme_colors` 场景的触发条件与预期结果。
     #[test]
     fn status_line_segments_can_disable_theme_colors() {
         let line = status_line_from_segments_with_resolver(
@@ -288,6 +300,7 @@ mod tests {
         assert!(line.spans[2].style.add_modifier.contains(Modifier::DIM));
     }
 
+    // 验证 `pull_request_number_uses_link_style` 场景的触发条件与预期结果。
     #[test]
     fn pull_request_number_uses_link_style() {
         let line = status_line_from_segments_with_resolver(
@@ -307,6 +320,7 @@ mod tests {
         );
     }
 
+    // 验证 `status_line_segments_return_none_when_empty` 场景的触发条件与预期结果。
     #[test]
     fn status_line_segments_return_none_when_empty() {
         assert_eq!(

@@ -1,3 +1,6 @@
+//! 首页组合视图测试，验证空项目与最近项目状态均可构建，并覆盖明暗背景。
+//! 容器背景来自当前主题调色板，避免暗色模式出现低对比度面板。
+
 use crate::app::App;
 use iced::{Background, Color, Element, Theme};
 

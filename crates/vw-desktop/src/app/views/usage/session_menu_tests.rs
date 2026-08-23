@@ -1,3 +1,5 @@
+//! 用量页会话上下文菜单的测试，覆盖样式、锚点和右键坐标消息。
+//! 用例验证缺失会话标识或菜单位置时使用安全的占位与原点回退。
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::widget::button;

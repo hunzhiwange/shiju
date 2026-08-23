@@ -1,3 +1,6 @@
+//! 员工事件与命令队列测试，覆盖按成员串行、重复抑制和上下文传播。
+//! 全局命令保持确定顺序，未知或已终结命令不得改变在途任务状态。
+
 use super::{
     TaskBoardStaffCommand, TaskBoardStaffCommandGroup, TaskBoardStaffCommandQueue,
     TaskBoardStaffCommandStatus, TaskBoardStaffEvent, TaskBoardStaffEventKind, TaskBoardStaffLevel,

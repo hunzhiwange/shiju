@@ -1,3 +1,7 @@
+//! 验证任务计划运行控制、可恢复事件流、矩阵事件与工作树接口。
+//!
+//! 测试区分终止事件、连接提前结束和调用方主动停止，并检查所选租户作用域随请求发送。
+
 use serde_json::json;
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
 use vw_api_types::task::{

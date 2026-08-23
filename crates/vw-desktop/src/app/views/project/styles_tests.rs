@@ -1,3 +1,5 @@
+//! 项目视图样式的测试，覆盖颜色混合、阴影、面板及按钮状态。
+//! 数值近似断言用于稳定核对明暗主题和自定义调色板的结果。
 use iced::widget::button;
 use iced::{Background, Color, Theme};
 

@@ -1,4 +1,6 @@
 //! Terminal precaution UI for misalignment policy violations.
+//! 本模块负责会话错位策略违规的阻断界面。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 
@@ -6,10 +8,12 @@ const MISALIGNMENT_POLICY_TITLE: &str = "Chat stopped as a precaution";
 const MISALIGNMENT_POLICY_DESCRIPTION: &str = "We couldn’t confirm the agent was acting safely and following your instructions. To continue working, start or resume another chat.";
 
 impl ChatWidget {
+    // 判断 `has_misalignment_policy_violation` 对应的界面条件是否成立。
     pub(crate) fn has_misalignment_policy_violation(&self) -> bool {
         self.misalignment_policy_violation
     }
 
+    // 计算 `rejects_misalignment_policy_op` 在当前界面流程中需要的局部结果。
     pub(crate) fn rejects_misalignment_policy_op(&self, op: &AppCommand) -> bool {
         self.misalignment_policy_violation
             && !matches!(

@@ -1,3 +1,5 @@
+//! 工作流应用界面状态的测试，覆盖面板开关、菜单互斥和编辑器焦点。
+//! 用例验证界面瞬时状态切换不会意外标记文档为已修改。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

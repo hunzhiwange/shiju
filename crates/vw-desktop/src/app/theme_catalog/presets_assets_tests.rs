@@ -1,3 +1,6 @@
+//! 随附主题预设资产测试，验证每个包定义合法且引用文件真实存在。
+//! 该检查守护发布资源的完整性，避免运行时只能加载到缺图的预设。
+
 use super::ThemeDefinition;
 use std::collections::BTreeSet;
 use std::fs;

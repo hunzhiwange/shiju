@@ -26,16 +26,22 @@ use vw_tui::{
 };
 use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayStreamAttemptResult,
+    PendingPermissionReplyDto,
 };
 use serde_json::json;
 use vw_gateway_client::vw_api_types::id::SessionId;
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession, ChatSessionMeta};
 
 use super::bridge::GatewayV3Bridge;
-use super::controller::{TuiController, TuiControllerCommand};
-use super::model::{PermissionMode, PromptSubmission, ReasoningEffort, UiMessage, UiStepState};
+use super::controller::{TuiController, TuiControllerCommand, TuiOverlayCommand};
+use super::model::{
+    PermissionMode, PromptSubmission, ReasoningEffort, UiMessage, UiOverlay, UiPermissionOverlay,
+    UiStepState, UiTodoOverlay,
+};
+use super::model::permission::{PermissionDecision, PermissionQueue, PermissionRequest};
 use super::runtime::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
-use super::state::TuiState;
+use super::runtime::interaction::InteractionSnapshot;
+use super::state::{TuiAction, TuiState, reduce_tui_state};
 
 type V3Terminal = CustomTerminal<CrosstermBackend<io::Stdout>>;
 
@@ -56,6 +62,9 @@ pub(crate) type EditorAction = dyn Fn(&str) -> Result<Option<String>, String> + 
 enum HostMessage {
     EditorFinished(Result<Option<String>, String>),
     StopFinished { request_id: String, result: Result<bool, String> },
+    InteractionsRefreshed(Result<InteractionSnapshot, String>),
+    PermissionReplyFinished { request_id: String, result: Result<(), String> },
+    QuestionReplyFinished { request_id: String, result: Result<(), String> },
 }
 
 /// 事件循环执行一次操作后的继续或退出指示。
@@ -70,6 +79,7 @@ pub(crate) struct ActiveRunner {
     active_stream: Option<ActiveStream>,
     transcript_pager: Option<TranscriptPager>,
     editor_in_flight: bool,
+    interaction_in_flight: bool,
     editor: Arc<EditorAction>,
     host_sender: mpsc::Sender<HostMessage>,
     host_receiver: Receiver<HostMessage>,
@@ -89,6 +99,7 @@ impl ActiveRunner {
             active_stream: None,
             transcript_pager: None,
             editor_in_flight: false,
+            interaction_in_flight: false,
             editor,
             host_sender,
             host_receiver,
@@ -105,6 +116,7 @@ impl ActiveRunner {
             Ok(command) => command,
             Err(error) => {
                 push_runner_error(app, error);
+                app.show_next_interaction();
                 return RunnerControl::Continue;
             }
         };
@@ -149,6 +161,10 @@ impl ActiveRunner {
                 self.launch_editor(app.widget().draft().to_string());
                 RunnerControl::Continue
             }
+            TuiControllerCommand::Overlay(command) => {
+                self.execute_overlay_command(app, command);
+                RunnerControl::Continue
+            }
             command @ TuiControllerCommand::SubmitPrompt(_) => {
                 if self.active_stream.is_some() {
                     push_runner_error(
@@ -169,12 +185,48 @@ impl ActiveRunner {
                 ));
                 RunnerControl::Continue
             }
-            unsupported => {
-                push_runner_error(
-                    app,
-                    format!("TUI runner does not support controller command {unsupported:?}"),
+        }
+    }
+
+    fn execute_overlay_command(&mut self, app: &mut V3GatewayApp, command: TuiOverlayCommand) {
+        if self.interaction_in_flight {
+            app.record_interaction_error("an interaction request is already in flight");
+            app.show_next_interaction();
+            return;
+        }
+        self.interaction_in_flight = true;
+        match command {
+            TuiOverlayCommand::PermissionDecision { request_id, decision } => {
+                let (reply, message) = match decision {
+                    PermissionDecision::Once => (PendingPermissionReplyDto::Once, None),
+                    PermissionDecision::Always => (PendingPermissionReplyDto::Always, None),
+                    PermissionDecision::Reject { reason } => {
+                        (PendingPermissionReplyDto::Reject, reason)
+                    }
+                };
+                spawn_permission_reply(
+                    app.runtime().clone(),
+                    request_id,
+                    reply,
+                    message,
+                    self.host_sender.clone(),
                 );
-                RunnerControl::Continue
+            }
+            TuiOverlayCommand::QuestionSubmitted(question) => {
+                spawn_question_reply(
+                    app.runtime().clone(),
+                    question.request_id,
+                    Some(question.answers),
+                    self.host_sender.clone(),
+                );
+            }
+            TuiOverlayCommand::QuestionRejected(question) => {
+                spawn_question_reply(
+                    app.runtime().clone(),
+                    question.request_id,
+                    None,
+                    self.host_sender.clone(),
+                );
             }
         }
     }
@@ -194,8 +246,32 @@ impl ActiveRunner {
 
     /// 非阻塞汇集本地副作与 Gateway 流消息，并在流结束后尝试启动排队输入。
     pub(crate) fn drain(&mut self, app: &mut V3GatewayApp) {
+        if app.take_interaction_refresh_requested() {
+            self.request_interaction_refresh(app);
+        }
         self.drain_host_messages(app);
         self.drain_active_stream(app);
+        if app.take_interaction_refresh_requested() {
+            self.request_interaction_refresh(app);
+        }
+    }
+
+    /// 在后台加载当前会话交互；并发事件会保留刷新标记供本轮结束后重试。
+    pub(crate) fn request_interaction_refresh(&mut self, app: &mut V3GatewayApp) {
+        if self.interaction_in_flight {
+            app.request_interaction_refresh();
+            return;
+        }
+        let Some(session_id) = app.state().session.session_id.clone() else {
+            app.record_interaction_error("cannot refresh interactions without a session id");
+            return;
+        };
+        self.interaction_in_flight = true;
+        spawn_interaction_refresh(
+            app.runtime().clone(),
+            session_id,
+            self.host_sender.clone(),
+        );
     }
 
     fn drain_host_messages(&mut self, app: &mut V3GatewayApp) {
@@ -222,6 +298,39 @@ impl ActiveRunner {
                         format!("failed to stop active stream {request_id}: {error}"),
                     ),
                 },
+                Ok(HostMessage::InteractionsRefreshed(result)) => {
+                    self.interaction_in_flight = false;
+                    match result {
+                        Ok(snapshot) => app.apply_interaction_snapshot(snapshot),
+                        Err(error) => app.record_interaction_error(format!(
+                            "failed to refresh pending interactions: {error}"
+                        )),
+                    }
+                }
+                Ok(HostMessage::PermissionReplyFinished { request_id, result }) => {
+                    self.interaction_in_flight = false;
+                    match result {
+                        Ok(()) => app.complete_permission(request_id.as_str()),
+                        Err(error) => {
+                            app.record_interaction_error(format!(
+                                "failed to reply to permission {request_id}: {error}"
+                            ));
+                            app.show_next_interaction();
+                        }
+                    }
+                }
+                Ok(HostMessage::QuestionReplyFinished { request_id, result }) => {
+                    self.interaction_in_flight = false;
+                    match result {
+                        Ok(()) => app.complete_question(request_id.as_str()),
+                        Err(error) => {
+                            app.record_interaction_error(format!(
+                                "failed to reply to question {request_id}: {error}"
+                            ));
+                            app.show_next_interaction();
+                        }
+                    }
+                }
                 Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
             }
         }
@@ -315,6 +424,11 @@ impl ActiveRunner {
     pub(crate) fn editor_in_flight(&self) -> bool {
         self.editor_in_flight
     }
+
+    /// 返回交互刷新或回复工作线程是否尚未结束。
+    pub(crate) fn interaction_in_flight(&self) -> bool {
+        self.interaction_in_flight
+    }
 }
 
 fn push_runner_error(app: &mut V3GatewayApp, message: impl Into<String>) {
@@ -330,6 +444,7 @@ pub(crate) struct V3GatewayApp {
     bridge: GatewayV3Bridge,
     terminal_mode: TerminalMode,
     transcript_reflow: TranscriptReflowState,
+    interaction_refresh_requested: bool,
 }
 
 impl V3GatewayApp {
@@ -359,6 +474,7 @@ impl V3GatewayApp {
             bridge: GatewayV3Bridge::default(),
             terminal_mode,
             transcript_reflow: TranscriptReflowState::default(),
+            interaction_refresh_requested: false,
         }
     }
 
@@ -366,6 +482,9 @@ impl V3GatewayApp {
     pub(crate) fn accept_gateway_event(&mut self, event: GatewayChatStreamEvent) -> Vec<V3Event> {
         let previous_display = GatewayV3Bridge::session_display_data(&self.runtime, &self.state);
         let events = self.bridge.adapt_gateway_event(&mut self.state, event);
+        if self.bridge.take_interaction_refresh_requested() {
+            self.interaction_refresh_requested = true;
+        }
         for event in events.iter().cloned() {
             self.widget.handle_v3_event(event);
         }
@@ -375,6 +494,102 @@ impl V3GatewayApp {
             self.widget.set_session_header(display);
         }
         events
+    }
+
+    fn request_interaction_refresh(&mut self) {
+        self.interaction_refresh_requested = true;
+    }
+
+    fn take_interaction_refresh_requested(&mut self) -> bool {
+        std::mem::take(&mut self.interaction_refresh_requested)
+    }
+
+    fn apply_interaction_snapshot(&mut self, snapshot: InteractionSnapshot) {
+        if self.state.session.session_id.as_deref() != Some(snapshot.session_id.as_str()) {
+            return;
+        }
+        let mut queue = PermissionQueue::default();
+        queue.replace(snapshot.permissions.into_iter().map(PermissionRequest::from_dto).collect());
+        self.state
+            .overlays
+            .stack
+            .retain(|overlay| !matches!(overlay, UiOverlay::Permissions(_)));
+        if queue.len() > 0 {
+            self.state.overlays.push(UiOverlay::Permissions(UiPermissionOverlay {
+                queue,
+                notice: None,
+            }));
+        }
+        reduce_tui_state(
+            &mut self.state,
+            TuiAction::QuestionsReplaced(
+                snapshot
+                    .questions
+                    .iter()
+                    .map(super::model::UiQuestionOverlay::from_request)
+                    .collect(),
+            ),
+        );
+        reduce_tui_state(
+            &mut self.state,
+            TuiAction::TodoOverlayReplaced(Some(UiTodoOverlay::from_todos(
+                Some(snapshot.session_id.as_str()),
+                snapshot.todos.as_slice(),
+            ))),
+        );
+        reduce_tui_state(&mut self.state, TuiAction::TaskSyncErrorSet(None));
+        self.show_next_interaction();
+    }
+
+    fn complete_permission(&mut self, request_id: &str) {
+        for overlay in &mut self.state.overlays.stack {
+            let UiOverlay::Permissions(permission) = overlay else {
+                continue;
+            };
+            if permission.queue.current().is_some_and(|request| request.id == request_id) {
+                permission.queue.pop_current();
+            }
+        }
+        self.state.overlays.stack.retain(|overlay| {
+            !matches!(overlay, UiOverlay::Permissions(permission) if permission.queue.len() == 0)
+        });
+        reduce_tui_state(&mut self.state, TuiAction::TaskSyncErrorSet(None));
+        self.show_next_interaction();
+    }
+
+    fn complete_question(&mut self, request_id: &str) {
+        self.state
+            .tasks
+            .pending_questions
+            .retain(|question| question.request_id != request_id);
+        reduce_tui_state(&mut self.state, TuiAction::TaskSyncErrorSet(None));
+        self.show_next_interaction();
+    }
+
+    fn record_interaction_error(&mut self, message: impl Into<String>) {
+        let message = message.into();
+        reduce_tui_state(
+            &mut self.state,
+            TuiAction::TaskSyncErrorSet(Some(message.clone())),
+        );
+        push_runner_error(self, message);
+    }
+
+    /// 以权限优先、提问次之的顺序重建安全 overlay；没有请求时才清除。
+    pub(crate) fn show_next_interaction(&mut self) {
+        let permission = self.state.overlays.stack.iter().rev().find_map(|overlay| {
+            let UiOverlay::Permissions(permission) = overlay else {
+                return None;
+            };
+            permission.current_request()
+        });
+        if let Some(permission) = permission {
+            self.widget.show_approval(permission);
+        } else if let Some(question) = self.state.tasks.pending_questions.first() {
+            self.widget.show_user_input(question.to_v3_request());
+        } else {
+            self.widget.clear_overlay();
+        }
     }
 
     /// 将当前视图状态转换为会话快照并同步保存。
@@ -755,6 +970,7 @@ fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = V3Terminal::with_options(backend)?;
     let mut runner = ActiveRunner::new();
+    runner.request_interaction_refresh(&mut app);
     let mut editor_terminal_suspended = false;
 
     loop {
@@ -856,6 +1072,45 @@ fn spawn_stop(runtime: GatewayUiRuntime, request_id: String, sender: mpsc::Sende
     });
 }
 
+fn spawn_interaction_refresh(
+    runtime: GatewayUiRuntime,
+    session_id: String,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let result = runtime.interaction_snapshot_blocking(Some(session_id.as_str()));
+        let _ = sender.send(HostMessage::InteractionsRefreshed(result));
+    });
+}
+
+fn spawn_permission_reply(
+    runtime: GatewayUiRuntime,
+    request_id: String,
+    reply: PendingPermissionReplyDto,
+    message: Option<String>,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let result = runtime.permission_reply_blocking(request_id.as_str(), reply, message);
+        let _ = sender.send(HostMessage::PermissionReplyFinished { request_id, result });
+    });
+}
+
+fn spawn_question_reply(
+    runtime: GatewayUiRuntime,
+    request_id: String,
+    answers: Option<Vec<Vec<String>>>,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let result = match answers {
+            Some(answers) => runtime.question_reply_blocking(request_id.as_str(), answers),
+            None => runtime.question_reject_blocking(request_id.as_str()),
+        };
+        let _ = sender.send(HostMessage::QuestionReplyFinished { request_id, result });
+    });
+}
+
 fn next_stream_request_id() -> String {
     static NEXT_SEQUENCE: AtomicU64 = AtomicU64::new(1);
     let now_ms = SystemTime::now()
@@ -868,7 +1123,7 @@ fn next_stream_request_id() -> String {
 
 fn draw(
     app: &V3GatewayApp,
-    mut pager: Option<&mut TranscriptPager>,
+    pager: Option<&mut TranscriptPager>,
     terminal: &mut V3Terminal,
 ) -> io::Result<()> {
     let (width, height) = crossterm::terminal::size()?;
@@ -879,7 +1134,7 @@ fn draw(
     terminal.set_viewport_area(Rect::new(0, y, width, height.saturating_sub(y)));
     terminal.draw(|frame| {
         let area = frame.area();
-        if let Some(pager) = pager.as_deref_mut() {
+        if let Some(pager) = pager {
             pager.render(area, frame.buffer_mut());
         } else {
             app.widget().render(area, frame.buffer_mut());

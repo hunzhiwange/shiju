@@ -1,3 +1,5 @@
+//! 桌面程序入口配置的测试，覆盖窗口默认值、平台差异和日志过滤。
+//! 环境变量守卫确保 RUST_LOG 用例互不污染，并在离开作用域后恢复现场。
 #[cfg(not(target_arch = "wasm32"))]
 use std::ffi::OsString;
 #[cfg(not(target_arch = "wasm32"))]

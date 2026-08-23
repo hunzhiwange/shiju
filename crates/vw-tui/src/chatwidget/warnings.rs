@@ -1,3 +1,5 @@
+//! 本模块负责重复警告的展示抑制。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 use std::collections::HashSet;
 
 const FALLBACK_MODEL_METADATA_WARNING_PREFIX: &str = "Model metadata for `";

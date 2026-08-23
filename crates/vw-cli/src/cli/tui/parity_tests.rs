@@ -238,9 +238,10 @@ fn assert_permission_and_question_commands(app: &mut V3GatewayApp) {
             decision: V3ApprovalDecision::AllowForSession,
         })
         .expect("approval must route to the existing permission command"),
-        TuiControllerCommand::Overlay(TuiOverlayCommand::PermissionDecision(
-            PermissionDecision::Always
-        ))
+        TuiControllerCommand::Overlay(TuiOverlayCommand::PermissionDecision {
+            request_id: "permission-17".to_string(),
+            decision: PermissionDecision::Always,
+        })
     );
 
     app.state_mut().tasks.pending_questions.push(UiQuestionOverlay {

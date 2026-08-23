@@ -1,3 +1,5 @@
+//! 工作流应用级消息的测试，覆盖新建、打开、关闭和编辑器状态转换。
+//! 历史与脏状态 fixture 用于验证切换应用时的保存提示和选择保持。
 use super::*;
 use crate::apps::workflow::model::{
     WorkflowDocument, WorkflowEdge, WorkflowHandleSide, WorkflowNode, WorkflowViewport,

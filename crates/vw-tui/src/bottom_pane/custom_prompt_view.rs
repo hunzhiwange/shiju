@@ -1,3 +1,9 @@
+//! 本模块集中实现 `custom_prompt_view` 在底部面板中的职责。
+//! 关键声明 `PromptSubmitted`、`CustomPromptView`、`new`、`set_keymap_bindings` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+
+
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
@@ -32,9 +38,11 @@ use super::paste_burst::PasteBurst;
 use super::textarea::TextArea;
 use super::textarea::TextAreaState;
 
+/// 用户提交自定义提示时回调触发
 /// Callback invoked when the user submits a custom prompt.
 pub(crate) type PromptSubmitted = Box<dyn Fn(String) + Send + Sync>;
 
+/// 最小化多行文本输入视图，用于收集自定义审查指令。
 /// Minimal multi-line text input view to collect custom review instructions.
 pub(crate) struct CustomPromptView {
     title: String,
@@ -42,6 +50,7 @@ pub(crate) struct CustomPromptView {
     context_label: Option<String>,
     on_submit: PromptSubmitted,
 
+    // 界面状态
     // UI state
     textarea: TextArea,
     textarea_state: RefCell<TextAreaState>,
@@ -75,11 +84,13 @@ impl CustomPromptView {
         }
     }
 
+    /// 使用主输入编辑器所使用的相同编辑器与 Vim 绑定方式。
     /// Apply the same editor and Vim bindings used by the main composer.
     pub(crate) fn set_keymap_bindings(&mut self, keymap: &RuntimeKeymap) {
         self.textarea.set_keymap_bindings(keymap);
     }
 
+    /// 保持提示处于就绪状态，允许即时输入。
     /// Enable Vim editing while keeping the prompt ready for immediate input.
     pub(crate) fn enable_vim_in_insert_mode(&mut self) {
         self.textarea.set_vim_enabled(/*enabled*/ true);
@@ -208,6 +219,7 @@ impl Renderable for CustomPromptView {
 
         let input_height = self.input_height(area.width);
 
+        // 标题行
         // Title line
         let title_area = Rect {
             x: area.x,
@@ -218,6 +230,7 @@ impl Renderable for CustomPromptView {
         let title_spans: Vec<Span<'static>> = vec![gutter(), self.title.clone().bold()];
         Paragraph::new(Line::from(title_spans)).render(title_area, buf);
 
+        // 可选上下文行
         // Optional context line
         let mut input_y = area.y.saturating_add(1);
         if let Some(context_label) = &self.context_label {
@@ -232,6 +245,7 @@ impl Renderable for CustomPromptView {
             input_y = input_y.saturating_add(1);
         }
 
+        // 输入行
         // Input line
         let input_area = Rect {
             x: area.x,

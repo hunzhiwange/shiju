@@ -1,9 +1,12 @@
 //! Windows sandbox prompts and warning surfaces for `ChatWidget`.
+//! 本模块负责Windows 沙盒确认与警告界面。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 
 impl ChatWidget {
     #[cfg(any(target_os = "windows", test))]
+    // 计算 `windows_sandbox_mode_allowed` 所需的界面结果。
     pub(crate) fn windows_sandbox_mode_allowed(&self, mode: WindowsSandboxModeToml) -> bool {
         self.config
             .config_layer_stack
@@ -14,6 +17,7 @@ impl ChatWidget {
     }
 
     #[cfg(any(target_os = "windows", test))]
+    // 计算 `elevated_windows_sandbox_setup_required` 在当前界面流程中需要的局部结果。
     pub(super) fn elevated_windows_sandbox_setup_required(&self) -> bool {
         crate::windows_sandbox::level_from_config(&self.config) == WindowsSandboxLevel::Elevated
             && self
@@ -62,6 +66,7 @@ impl ChatWidget {
 
     #[cfg(not(target_os = "windows"))]
     #[allow(dead_code)]
+    // 计算 `world_writable_warning_details` 所需的界面结果。
     pub(crate) fn world_writable_warning_details(&self) -> Option<(Vec<String>, usize, bool)> {
         None
     }
@@ -120,6 +125,7 @@ impl ChatWidget {
 
         if !sample_paths.is_empty() {
             // Show up to three examples and optionally an "and X more" line.
+            // 出现最多三个例子，可选用"和X更多"一行.
             let mut lines: Vec<Line> = Vec::new();
             lines.push(Line::from(""));
             for p in &sample_paths {
@@ -135,9 +141,11 @@ impl ChatWidget {
         // Build actions ensuring acknowledgement happens before applying the
         // new permission profile, so downstream policy-change hooks don't
         // re-trigger the warning.
+        // 构造操作时确保先记录确认再应用新权限配置，避免下游策略变更钩子再次触发警告。
         let mut accept_actions: Vec<SelectionAction> = Vec::new();
         // Suppress the immediate re-scan only when a preset will be applied via
         // /permissions, to avoid duplicate warnings from the ensuing policy change.
+        // 只有在通过/允许使用预设时才可立即重新扫描，以避免随后的政策变化产生重复警告。
         if preset.is_some() {
             accept_actions.push(Box::new(|tx| {
                 tx.send(AppEvent::SkipNextWorldWritableScan);
@@ -216,6 +224,7 @@ impl ChatWidget {
     }
 
     #[cfg(any(target_os = "windows", test))]
+    // 构造并展示 `open_windows_sandbox_enable_prompt` 对应的界面内容。
     pub(crate) fn open_windows_sandbox_enable_prompt(
         &mut self,
         preset: ApprovalPreset,
@@ -448,6 +457,7 @@ impl ChatWidget {
     }
 
     #[cfg(all(not(target_os = "windows"), not(test)))]
+    // 构造并展示 `open_windows_sandbox_fallback_prompt` 对应的界面内容。
     pub(crate) fn open_windows_sandbox_fallback_prompt(
         &mut self,
         _preset: ApprovalPreset,
@@ -474,9 +484,11 @@ impl ChatWidget {
     pub(crate) fn maybe_prompt_windows_sandbox_enable(&mut self, _show_now: bool) {}
 
     #[cfg(target_os = "windows")]
+    // 构造并展示 `show_windows_sandbox_setup_status` 对应的界面内容。
     pub(crate) fn show_windows_sandbox_setup_status(&mut self) {
         // While elevated sandbox setup runs, prevent typing so the user doesn't
         // accidentally queue messages that will run under an unexpected mode.
+        // 在提升的沙盒设置运行时，防止打字，这样用户就不会意外地排队会以意外模式运行的消息.
         self.bottom_pane.set_composer_input_enabled(
             /*enabled*/ false,
             Some("Input disabled until setup completes.".to_string()),

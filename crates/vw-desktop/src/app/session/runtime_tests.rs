@@ -1,3 +1,6 @@
+//! 会话运行时测试，覆盖工具清单归一化、代理限制交集和请求能力选择。
+//! 空限制、静态回退与内置工具锁定均应维持默认拒绝的安全边界。
+
 use super::*;
 use crate::app::state::{
     AcpHistoryReplayMode, AgentRequest, ExploreSummaryAnimationState, SessionRuntimeState,

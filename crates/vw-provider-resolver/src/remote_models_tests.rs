@@ -1,3 +1,8 @@
+//! 远端模型发现测试覆盖 OpenAI 兼容 `/models` 请求、响应解析与静态目录合并规则。
+//!
+//! 回环服务器 fixture 用于验证 Bearer 请求，同时固定禁止重定向、响应大小上限、超时及
+//! 失败不覆盖既有模型等安全边界，不会把测试凭据发送到外部服务。
+
 use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -16,6 +21,7 @@ use crate::remote_models::{
     discover_openai_compatible_models_with_limits, merge_remote_models,
 };
 
+// 单次请求服务器既返回受控响应，也把原始请求交给测试线程核对认证头和路径。
 struct TestServer {
     api_base: String,
     request: Receiver<String>,

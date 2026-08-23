@@ -1,3 +1,7 @@
+//! 验证全局配置客户端的读取、局部更新与嵌套路径映射。
+//!
+//! 重点约束租户信息只通过请求头传递，并覆盖缺失值、编解码失败和网关错误。
+
 use serde::Deserialize;
 use serde_json::json;
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};

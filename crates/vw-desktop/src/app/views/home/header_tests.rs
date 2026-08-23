@@ -1,3 +1,6 @@
+//! 首页头部测试，验证三段布局、应用入口、滚动消息及明暗主题交互样式。
+//! 滚动偏移按消息原值转发，限制策略由消费方负责，避免此处隐藏修正输入。
+
 use iced::widget::button;
 use iced::{Background, Color, Element, Theme, Vector};
 

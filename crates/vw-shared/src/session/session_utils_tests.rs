@@ -1,3 +1,7 @@
+//! 会话短标识生成与默认标题识别测试。
+//!
+//! 覆盖 Base62 映射、随机源失败时的时间戳回退和标题格式边界。
+
 #[test]
 fn generated_slug_has_expected_shape() {
     let slug = super::create_slug();

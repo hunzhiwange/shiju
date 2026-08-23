@@ -1,3 +1,5 @@
+//! 开始节点面板的测试，覆盖变量列表、编辑弹窗、摘要与内置输入。
+//! 空白字段和多种模式 fixture 验证创建、编辑及隐藏状态的布局。
 use super::*;
 use crate::apps::workflow::model::{WorkflowAppMeta, WorkflowDocument};
 use crate::apps::workflow::state::{

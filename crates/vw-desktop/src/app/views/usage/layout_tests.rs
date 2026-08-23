@@ -1,3 +1,5 @@
+//! 用量页布局的测试，覆盖摘要、图表、明细和响应式组合。
+//! 用例验证空数据与窄窗口下仍能构建可滚动的完整页面。
 use crate::app::App;
 use crate::app::models::ChatSession;
 use crate::app::state::UsageModelInfo;

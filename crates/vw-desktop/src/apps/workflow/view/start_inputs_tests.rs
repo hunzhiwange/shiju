@@ -1,3 +1,5 @@
+//! 开始节点输入控件的测试，覆盖选择项、文件设置和默认值编辑层。
+//! 用例遍历单文件、文件列表及上传方式边界，确认控件组合稳定。
 use iced::widget::text_editor;
 use serde_yaml::Value;
 

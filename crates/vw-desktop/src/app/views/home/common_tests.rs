@@ -1,3 +1,6 @@
+//! 首页公共工具测试，覆盖颜色解析、图标路径、徽标字符和稳定哈希。
+//! 文件 URI 与 Unicode 名称均按显示边界处理，缺失资源只返回空值而不崩溃。
+
 use std::fs;
 
 use iced::{Color, Element, Theme};

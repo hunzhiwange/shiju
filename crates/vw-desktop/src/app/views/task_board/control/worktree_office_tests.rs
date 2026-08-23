@@ -1,3 +1,5 @@
+//! 工作树办公室面板的集成测试，覆盖空快照及全部工位状态分组。
+//! 真实绘制用于确认整组房间在明暗主题下均保持有效布局。
 use iced::advanced::renderer::Headless;
 use iced::{Background, Color, Length, Theme};
 

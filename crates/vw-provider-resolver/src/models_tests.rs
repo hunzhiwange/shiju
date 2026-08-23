@@ -1,3 +1,8 @@
+//! 模型基线测试覆盖多种 JSON 包装结构、内置资源完整性、磁盘与进程缓存优先级及远端刷新。
+//!
+//! 内置目录审计关注模型限制与模态是否可用；本地 HTTP fixture 只监听回环地址，用于验证
+//! 成功写入和各类失败回退，不依赖外部网络服务。
+
 use super::*;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -10,6 +15,7 @@ use std::thread;
 use vw_shared::provider::state::from_models_dev_model;
 
 #[cfg(not(target_arch = "wasm32"))]
+// 进程缓存和活动缓存文件是共享状态，相关异步用例必须串行修改并负责恢复。
 static MODELS_STATE_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn provider_json(id: &str) -> String {

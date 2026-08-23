@@ -1,3 +1,7 @@
+//! 补丁预览与文件系统应用流程的端到端单元测试。
+//!
+//! 覆盖增删改、移动、绝对与相对路径，以及解析、计算和 I/O 失败边界。
+
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;

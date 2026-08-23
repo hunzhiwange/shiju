@@ -1,3 +1,7 @@
+//! 验证员工运行时、能力目录及项目和工作流编排接口。
+//!
+//! 项目作用域必须与端点租户一致，冲突请求应在发送前被客户端拒绝。
+
 use serde_json::json;
 use vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_types::id::{

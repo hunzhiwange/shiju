@@ -1,3 +1,6 @@
+//! 会话加载测试，验证共享消息转换、冷加载分块和历史预览生成。
+//! 预览文本需处理空白、换行、长度边界与重复会话标识，同时保持原消息顺序。
+
 use crate::app::models::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, TokenUsage,
 };

@@ -1,10 +1,13 @@
 //! Thread-authorized installed-app mentions, independent from the discovery directory.
+//! 本模块负责当前任务已授权应用的输入提及。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use crate::app_event::ConnectorsSnapshot;
 
 impl ChatWidget {
     /// Refresh thread-authorized installed apps, coalescing pending readiness retries.
+    /// 刷换行符程授权安装的应用程序，合并挂起的就绪重试。
     pub(crate) fn refresh_connector_mentions(&mut self, force_refresh: bool) {
         if !self.connectors_enabled() || self.thread_id.is_none() {
             return;
@@ -25,6 +28,7 @@ impl ChatWidget {
     }
 
     /// Apply authorized installed apps while preserving only newer local revocations.
+    /// 应用已安装的授权应用，同时仅保留较新的本地撤销。
     pub(crate) fn on_connector_mentions_loaded(
         &mut self,
         generation: ConnectorScopeGeneration,

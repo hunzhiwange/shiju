@@ -1,3 +1,5 @@
+//! 开始变量字段归一化与校验的测试，覆盖数值、文件和隐藏输入。
+//! 边界断言验证文件列表去重、数量限制及切换类型时的字段清理。
 use super::*;
 
 fn draft(input_type: &str) -> WorkflowStartVariableDraft {

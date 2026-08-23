@@ -1,3 +1,5 @@
+//! 工作流节点消息的测试，覆盖创建、选择、编辑、删除和连线更新。
+//! 边界用例验证非法端点、重复连接及交互取消不会破坏文档。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

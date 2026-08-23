@@ -1,3 +1,13 @@
+//! 本模块集中实现 `mod` 在底部面板中的职责。
+//! 关键声明 `MentionBinding`、`BottomPaneParams`、`BottomPane`、`new` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+//! 键盘输入只在当前界面状态内解释，未匹配输入继续遵循上层约定。
+
+
+//! 本地输入编辑器与底部边界。复制的 Codex 渲染核心位于该边界之下，而所有业务结果均保留在此模块中，[`V3Action`] 作为所有者。此模块不拥有发送者、客户端、运行时或请求对象。
 //! VibeWindow's local composer and footer boundary.
 //!
 //! The copied Codex rendering core is kept below the boundary, while all business outcomes leave

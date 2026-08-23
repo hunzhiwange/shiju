@@ -1,3 +1,6 @@
+//! 应用中心磁贴测试，验证响应式列数、筛选匹配和内置操作布局。
+//! 极窄或退化尺寸至少保留一列，完整行与尾行都不得丢失书签磁贴。
+
 use crate::app::App;
 use crate::app::state::WebBookmark;
 

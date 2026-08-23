@@ -1,4 +1,6 @@
 //! Demand-driven estimated-cost state for the currently visible enterprise thread.
+//! 本模块负责当前任务的按需用量估算。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::AppEvent;
 use super::ChatWidget;
@@ -12,6 +14,7 @@ use crate::status::StatusHistoryHandle;
 use codex_app_server_protocol::ThreadUsage;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+/// 表示 `ThreadUsageOutcome` 对应状态转换的处理结果。
 pub(crate) enum ThreadUsageOutcome {
     Available(ThreadUsage),
     Disabled,
@@ -29,12 +32,14 @@ const THREAD_USAGE_RETRY_DELAYS: [Duration; 3] = [
 ];
 
 #[derive(Debug, Default)]
+/// 描述 `SelectedThreadUsage` 在当前界面流程中传递的数据。
 struct SelectedThreadUsage {
     credits: bool,
     estimated_cost: bool,
 }
 
 #[derive(Debug, Default)]
+/// 描述 `ThreadUsageState` 在本模块状态转换中传递的数据。
 pub(super) struct ThreadUsageState {
     thread_id: Option<ThreadId>,
     estimate: Option<ThreadUsage>,
@@ -55,6 +60,7 @@ pub(super) struct ThreadUsageState {
 }
 
 impl ChatWidget {
+    // 更新 `clear_thread_usage_state` 对应的本地展示状态。
     pub(super) fn clear_thread_usage_state(&mut self) {
         let next_request_id = self.thread_usage.next_request_id;
         self.thread_usage = ThreadUsageState {
@@ -77,6 +83,7 @@ impl ChatWidget {
         self.request_thread_usage();
     }
 
+    // 更新 `refresh_thread_usage_after_turn` 对应的本地展示状态。
     pub(super) fn refresh_thread_usage_after_turn(&mut self) {
         if self.thread_usage.replaying_turn_completion
             || !self.thread_usage_is_selected()
@@ -142,6 +149,7 @@ impl ChatWidget {
         self.request_thread_usage();
     }
 
+    // 处理 `request_thread_usage_for_status` 对应的界面事件并同步相关状态。
     pub(super) fn request_thread_usage_for_status(&mut self, handle: StatusHistoryHandle) {
         if !self.thread_usage_is_available() {
             return;
@@ -177,6 +185,7 @@ impl ChatWidget {
         self.thread_usage.settlement_refresh_due_at = None;
     }
 
+    // 处理 `finish_thread_usage_refresh` 对应的界面事件并同步相关状态。
     pub(crate) fn finish_thread_usage_refresh(
         &mut self,
         thread_id: ThreadId,
@@ -327,6 +336,7 @@ impl ChatWidget {
         self.thread_usage.estimate.as_ref()
     }
 
+    // 处理 `request_thread_usage` 对应的界面事件并同步相关状态。
     fn request_thread_usage(&mut self) {
         let Some(thread_id) = self.thread_id else {
             return;
@@ -368,6 +378,7 @@ impl ChatWidget {
             )
     }
 
+    // 计算 `thread_usage_is_selected` 所需的界面结果。
     fn thread_usage_is_selected(&self) -> bool {
         let selected = self.selected_thread_usage();
         selected.credits || selected.estimated_cost
@@ -392,6 +403,7 @@ impl ChatWidget {
         selected
     }
 
+    // 计算 `schedule_next_thread_usage_settlement` 所需的界面结果。
     fn schedule_next_thread_usage_settlement(&mut self) {
         let Some(delay) = THREAD_USAGE_SETTLEMENT_DELAYS
             .get(self.thread_usage.settlement_attempts)

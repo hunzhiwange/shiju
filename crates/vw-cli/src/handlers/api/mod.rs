@@ -11,6 +11,9 @@ use self::context::ApiContext;
 mod context;
 mod input;
 mod output;
+mod system;
+
+use self::system::SystemCommands;
 
 /// `shiju api` 的连接、认证、输出和命令参数。
 #[derive(Args, Debug)]
@@ -79,12 +82,18 @@ enum ApiCommands {
         #[command(subcommand)]
         command: ProviderCommands,
     },
+    /// 查询 Gateway 系统状态与发现信息。
+    System {
+        /// 系统状态与发现操作。
+        #[command(subcommand)]
+        command: SystemCommands,
+    },
 }
 
 impl ApiCommands {
     fn dangerous_operation(&self) -> Option<&'static str> {
         match self {
-            Self::Provider { command: ProviderCommands::List } => None,
+            Self::Provider { command: ProviderCommands::List } | Self::System { .. } => None,
         }
     }
 }
@@ -126,6 +135,7 @@ async fn run_with_writer<W: Write>(args: ApiArgs, writer: &mut W) -> Result<()> 
                 .map_err(anyhow::Error::msg)?;
             output::write_json(writer, &response, context.output_format())
         }
+        ApiCommands::System { command } => system::run(command, &context, writer).await,
     }
 }
 
@@ -143,5 +153,7 @@ fn ensure_confirmed(yes: bool, operation: &str) -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod system_tests;
 #[cfg(test)]
 mod tests;

@@ -1,3 +1,4 @@
+//! 聊天 Composer 的弹出生命周期状态
 //! Popup lifecycle state for the chat composer.
 //! Tracks the single active popup plus dismissal/query state used to synchronize it.
 
@@ -8,17 +9,22 @@ use crate::bottom_pane::skill_popup::SkillPopup;
 use crate::bottom_pane::textarea::TextArea;
 use std::ops::Range;
 
+/// 隐藏一次自动补全提示的单个令牌
 /// One token occurrence whose autocomplete popup should remain hidden.
 pub(super) struct DismissedToken {
+    /// 令牌前缀的弹出查询文本
     /// Popup query text for the token, excluding its leading sigil.
     query: String,
+    /// 被关闭弹窗时捕获的精确令牌文本及其符号
     /// Exact token text, including its sigil, captured when the popup was dismissed.
     token: String,
+    /// 在裁撤时草案中相同字符串零索引的ordinal
     /// Zero-based ordinal among identical token strings in the draft at dismissal time.
     occurrence: usize,
 }
 
 impl DismissedToken {
+    /// 捕获令牌在 `range` 处的稳定身份
     /// Captures the stable identity of the token at `range`.
     pub(super) fn new(textarea: &TextArea, range: Range<usize>, query: String) -> Self {
         let text = textarea.text();
@@ -31,6 +37,7 @@ impl DismissedToken {
         }
     }
 
+    /// 返回 `range` 是否识别当前草稿中的同一令牌出现。
     /// Returns whether `range` identifies the same token occurrence in the current draft.
     ///
     /// Byte offsets may shift under offset-only edits, while the token text and its ordinal keep
@@ -44,6 +51,7 @@ impl DismissedToken {
     }
 }
 
+/// 在单次有序遍历中，统计 `before` 之前完成的可编辑令牌数量。
 /// Counts complete editable-token occurrences before `before` in a single ordered pass.
 ///
 /// Whitespace and atomic element edges delimit occurrences; bare nested sigils do not. This keeps
@@ -101,6 +109,7 @@ impl PopupState {
     }
 }
 
+/// 最多只能有一个可见的弹窗状态
 /// Popup state - at most one can be visible at any time.
 #[derive(Default)]
 pub(super) enum ActivePopup {

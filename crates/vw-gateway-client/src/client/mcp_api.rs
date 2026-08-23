@@ -1,3 +1,7 @@
+//! MCP 网关检查接口。
+//!
+//! 该接口按可选项目目录查询网关当前解析出的 MCP 服务状态与配置视图。
+
 use super::GatewayClient;
 use vw_api_types::mcp::McpInspectResponse;
 

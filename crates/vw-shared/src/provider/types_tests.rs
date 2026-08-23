@@ -1,3 +1,7 @@
+//! 提供商与模型公共类型的解析、排序及线格式测试。
+//!
+//! 覆盖默认适配器、模型标识拆分、缺省字段兼容和能力配置反序列化。
+
 #[test]
 fn default_adapter_matches_openai_compatible_wire_value() {
     assert_eq!(super::default_adapter(), "openai-compatible");

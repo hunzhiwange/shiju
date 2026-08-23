@@ -1,4 +1,6 @@
-//! Knowledge base gateway client.
+//! 知识库网关客户端。
+//!
+//! 提供数据集、文档、导入任务、嵌入配置与检索接口，并保持查询参数与共享 API 类型一致。
 
 use vw_api_types::knowledge::{
     KnowledgeChunkDto, KnowledgeDatasetCreateRequest, KnowledgeDatasetDto,

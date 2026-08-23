@@ -3,6 +3,9 @@
 //! Rendering details live in `status_surfaces`; this module owns the mutable
 //! widget entrypoints that apply status state, open setup views, and update the
 //! history-facing `/status` surface.
+//! 本模块负责状态输出、设置入口与 `/status` 历史单元。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 具体渲染位于 `status_surfaces`；本模块维护状态入口、设置视图和 `/status` 历史内容。
 
 use super::*;
 
@@ -11,6 +14,7 @@ impl ChatWidget {
     ///
     /// Passing `None` clears any existing details. Returns whether the visible status indicator
     /// requested a redraw.
+    /// 更新状态指标标题和细节。 通过`None`清除任何现有细节. 返回可见状态指示符是否要求重划。
     pub(super) fn set_status(
         &mut self,
         header: String,
@@ -58,6 +62,7 @@ impl ChatWidget {
     /// Convenience wrapper around [`Self::set_status`];
     /// updates the status indicator header and clears any existing details, returning whether the
     /// visible status indicator requested a redraw.
+    /// 环绕 [`Self::set_status`]; 更新状态指示符头并清除任何现有细节， 返回可见状态指示符是否要求重绘。
     pub(super) fn set_status_header(&mut self, header: String) -> bool {
         self.set_status(
             header,
@@ -68,11 +73,13 @@ impl ChatWidget {
     }
 
     /// Sets the currently rendered footer status-line value.
+    /// 设置当前渲染的页脚状态线值。
     pub(crate) fn set_status_line(&mut self, status_line: Option<Line<'static>>) {
         self.bottom_pane.set_status_line(status_line);
     }
 
     /// Sets the terminal hyperlink target for the currently rendered footer status line.
+    /// 设置当前渲染的页脚状态线的终端超链接目标。
     pub(crate) fn set_status_line_hyperlink(&mut self, url: Option<String>) {
         self.bottom_pane.set_status_line_hyperlink(url);
     }
@@ -81,6 +88,7 @@ impl ChatWidget {
     ///
     /// `ChatWidget` stays a pass-through here so `App` remains the owner of "which thread is the
     /// user actually looking at?" and the footer stack remains a pure renderer of that decision.
+    /// 将上下文的主动代理标签转发到底部面板页脚管道。 `ChatWidget`在这里保持通过状态，所以`App`仍然是"哪个线程是用户实际看到的"的拥有者，而页脚堆仍然是那个决定的纯渲染器.
     pub(crate) fn set_active_agent_label(&mut self, active_agent_label: Option<String>) {
         self.bottom_pane.set_active_agent_label(active_agent_label);
     }
@@ -95,6 +103,8 @@ impl ChatWidget {
     /// The omission behavior is intentional. If selected items are unavailable (for example before
     /// a session id exists or before branch lookup completes), those items are skipped without
     /// placeholders so the line remains compact and stable.
+    /// 根据配置与当前运行时状态重算页脚状态行。该入口负责解析配置项标识符、每个会话只警告一次无效项、同步启用状态、按需调度异步 Git 分支查询，并只渲染当前可用的值。
+    /// 不行为是故意的。 如果选中的项目不可用( 例如在会话 ID 存在之前或在分支搜索完成之前)， 这些项目在没有占位符的情况下被跳过， 因此行保持紧凑和稳定。
     pub(crate) fn refresh_status_line(&mut self) {
         self.refresh_status_surfaces();
     }
@@ -103,6 +113,7 @@ impl ChatWidget {
     ///
     /// Cancellation is intentionally side-effect free for config state; the existing configuration
     /// remains active and no persistence is attempted.
+    /// 记录状态行设置被取消。取消不会修改配置：现有配置继续生效，也不会尝试持久化。
     pub(crate) fn cancel_status_line_setup(&self) {
         tracing::info!("Status line setup canceled by user");
     }
@@ -110,6 +121,7 @@ impl ChatWidget {
     /// Applies status-line item selection from the setup view to in-memory config.
     ///
     /// An empty selection persists as an explicit empty list.
+    /// 从设置视图将状态线项选择应用到内置配置。 空选择作为明确的空列表持续存在。
     pub(crate) fn setup_status_line(&mut self, items: Vec<StatusLineItem>, use_theme_colors: bool) {
         tracing::info!(
             "status line setup confirmed with items: {items:#?}, use_theme_colors: {use_theme_colors}"
@@ -121,6 +133,7 @@ impl ChatWidget {
     }
 
     /// Applies a temporary terminal-title selection while the setup UI is open.
+    /// 在设置 UI 打开时应用临时终端标题选择。
     pub(crate) fn preview_terminal_title(&mut self, items: Vec<TerminalTitleItem>) {
         if self.terminal_title_setup_original_items.is_none() {
             self.terminal_title_setup_original_items = Some(self.config.tui_terminal_title.clone());
@@ -133,6 +146,7 @@ impl ChatWidget {
 
     /// Restores the terminal-title config that was active before the setup UI
     /// opened, undoing any preview changes. No-op if no setup session is active.
+    /// 恢复设置 UI 打开前活跃的终端标题配置，撤消任何预览更改。 如果没有设置会话则不启用。
     pub(crate) fn revert_terminal_title_setup_preview(&mut self) {
         let Some(original_items) = self.terminal_title_setup_original_items.take() else {
             return;
@@ -143,6 +157,7 @@ impl ChatWidget {
     }
 
     /// Dismisses the terminal-title setup UI and reverts to the pre-setup config.
+    /// 解除终端标题设置UI，恢复到预设配置.
     pub(crate) fn cancel_terminal_title_setup(&mut self) {
         tracing::info!("Terminal title setup canceled by user");
         self.revert_terminal_title_setup_preview();
@@ -152,6 +167,7 @@ impl ChatWidget {
     ///
     /// After this call, `revert_terminal_title_setup_preview` becomes a no-op
     /// because the original config snapshot is discarded.
+    /// 提交确认的终端标题选择，结束设置会话。 此调用后， `revert_terminal_title_setup_preview` 成为无操作，因为原配置快照被丢弃.
     pub(crate) fn setup_terminal_title(&mut self, items: Vec<TerminalTitleItem>) {
         tracing::info!("terminal title setup confirmed with items: {items:#?}");
         let ids = items.iter().map(ToString::to_string).collect::<Vec<_>>();
@@ -164,6 +180,7 @@ impl ChatWidget {
     ///
     /// Results are dropped when they target an out-of-date cwd to avoid rendering stale branch
     /// names after directory changes.
+    /// 保存当前状态行工作目录的异步 Git 分支查询结果。若结果对应过期目录则丢弃，避免目录切换后展示陈旧分支名。
     pub(crate) fn set_status_line_branch(&mut self, cwd: PathBuf, branch: Option<String>) {
         if self.status_line_branch_cwd.as_ref() != Some(&cwd) {
             self.status_line_branch_pending = false;
@@ -176,6 +193,7 @@ impl ChatWidget {
     }
 
     /// Stores async Git summary lookup results for the current status-line cwd.
+    /// 存储同步 当前状态线 cwd 的 Git 摘要搜索结果。
     pub(crate) fn set_status_line_git_summary(
         &mut self,
         cwd: PathBuf,

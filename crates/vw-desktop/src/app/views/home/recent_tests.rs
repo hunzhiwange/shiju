@@ -1,3 +1,6 @@
+//! 最近项目视图测试，覆盖跨平台路径名称、编辑名称优先级和元数据回退。
+//! 根路径、空白及尾部分隔符不得导致空标题或索引越界。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

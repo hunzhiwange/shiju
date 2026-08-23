@@ -1,7 +1,7 @@
-//! Task-pool compatibility storage.
+//! 任务池兼容存储层。
 //!
-//! Native callers use the global Agent Scheduler store. Only the WASM JSON
-//! compatibility path remains here; native mutation entry points fail closed.
+//! 原生调用方已迁移到全局 Agent Scheduler 存储；这里只保留 WASM JSON 兼容路径，
+//! 原生变更入口默认拒绝，避免继续写入旧存储。
 
 use std::collections::HashMap;
 use std::io;
@@ -83,7 +83,7 @@ fn max_sequence_for_date(index: &TaskIndex, date: &str) -> u32 {
         .unwrap_or(0)
 }
 
-/// Rebuilds the WASM JSON index. Native callers must use Agent Scheduler.
+/// 从 WASM 任务 JSON 文件重建索引；原生调用方必须改用 Agent Scheduler。
 pub fn rebuild_index_from_task_files(project_path: &str) -> io::Result<TaskIndex> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -134,7 +134,7 @@ pub fn rebuild_index_from_task_files(project_path: &str) -> io::Result<TaskIndex
     }
 }
 
-/// Loads the WASM JSON index. Native callers receive an empty compatibility view.
+/// 加载 WASM JSON 索引；原生调用方仅获得空的兼容视图。
 pub fn load_index(project_path: &str) -> TaskIndex {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -147,7 +147,7 @@ pub fn load_index(project_path: &str) -> TaskIndex {
     }
 }
 
-/// Saves the WASM JSON index. Native callers fail closed.
+/// 保存 WASM JSON 索引；原生调用会以“不支持”错误拒绝。
 pub fn save_index(project_path: &str, index: &TaskIndex) -> io::Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -160,7 +160,7 @@ pub fn save_index(project_path: &str, index: &TaskIndex) -> io::Result<()> {
     }
 }
 
-/// Loads a WASM JSON task. Native callers must use Agent Scheduler.
+/// 加载单个 WASM JSON 任务；原生调用方仅获得不存在结果。
 pub fn load_task(project_path: &str, task_id: &str) -> Option<Task> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -175,7 +175,7 @@ pub fn load_task(project_path: &str, task_id: &str) -> Option<Task> {
     }
 }
 
-/// Saves a WASM JSON task. Native callers fail closed.
+/// 保存单个 WASM JSON 任务；原生调用会以“不支持”错误拒绝。
 pub fn save_task(project_path: &str, task: &Task) -> io::Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -189,7 +189,7 @@ pub fn save_task(project_path: &str, task: &Task) -> io::Result<()> {
     }
 }
 
-/// Deletes a WASM JSON task. Native callers fail closed.
+/// 删除单个 WASM JSON 任务；目标不存在时视为成功，原生调用则默认拒绝。
 pub fn delete_task_file(project_path: &str, task_id: &str) -> io::Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -206,7 +206,7 @@ pub fn delete_task_file(project_path: &str, task_id: &str) -> io::Result<()> {
     }
 }
 
-/// Loads all WASM JSON tasks. Native callers must use Agent Scheduler.
+/// 加载所有未删除的 WASM JSON 任务；原生调用方获得空集合。
 pub fn load_all_tasks(project_path: &str) -> Vec<Task> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -225,7 +225,7 @@ pub fn load_all_tasks(project_path: &str) -> Vec<Task> {
     }
 }
 
-/// Groups WASM JSON tasks by status. Native callers receive an empty view.
+/// 按状态分组并排序 WASM JSON 任务；原生调用方获得各状态均为空的视图。
 pub fn load_tasks_by_status(project_path: &str) -> HashMap<TaskStatus, Vec<Task>> {
     let mut grouped =
         TaskStatus::all().into_iter().map(|status| (status, Vec::new())).collect::<HashMap<_, _>>();
@@ -243,7 +243,7 @@ pub fn load_tasks_by_status(project_path: &str) -> HashMap<TaskStatus, Vec<Task>
     grouped
 }
 
-/// Creates a WASM JSON task. Native callers fail closed.
+/// 创建 WASM JSON 任务并分配当日递增编号；原生调用默认拒绝。
 pub fn create_task(project_path: &str, task: Task) -> io::Result<Task> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -283,7 +283,7 @@ pub fn create_task(project_path: &str, task: Task) -> io::Result<Task> {
     }
 }
 
-/// Updates a WASM JSON task status. Native callers fail closed.
+/// 更新 WASM JSON 任务状态及索引顺序；任务不存在时返回 `Ok(None)`，原生调用默认拒绝。
 pub fn update_task_status(
     project_path: &str,
     task_id: &str,
@@ -318,7 +318,7 @@ pub fn update_task_status(
     }
 }
 
-/// Saves task-board presentation settings, which are not scheduler facts.
+/// 保存任务看板展示设置；这些设置不属于调度器事实数据。
 pub fn save_task_board_settings(
     project_path: &str,
     settings: &super::models::TaskBoardSettings,
@@ -330,7 +330,7 @@ pub fn save_task_board_settings(
     )
 }
 
-/// Loads task-board presentation settings.
+/// 加载任务看板展示设置；文件缺失或损坏时返回默认值。
 pub fn load_task_board_settings(project_path: &str) -> super::models::TaskBoardSettings {
     std::fs::read_to_string(get_task_dir(project_path).join("board_settings.json"))
         .ok()
@@ -338,7 +338,7 @@ pub fn load_task_board_settings(project_path: &str) -> super::models::TaskBoardS
         .unwrap_or_default()
 }
 
-/// Native raw task artifacts moved to Agent Scheduler.
+/// 原生任务执行结果已迁移到 Agent Scheduler，本兼容入口始终拒绝写入。
 #[cfg(not(target_arch = "wasm32"))]
 pub fn save_task_execution_result(
     project_path: &str,
@@ -349,7 +349,7 @@ pub fn save_task_execution_result(
     Err(native_cutover_error())
 }
 
-/// Native raw task artifacts moved to Agent Scheduler.
+/// 原生任务执行结果已迁移到 Agent Scheduler，本兼容入口始终拒绝读取。
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_task_execution_result(
     project_path: &str,
@@ -359,7 +359,7 @@ pub fn load_task_execution_result(
     Err(native_cutover_error())
 }
 
-/// Native raw task artifacts moved to Agent Scheduler.
+/// 原生代码审查结果已迁移到 Agent Scheduler，本兼容入口始终拒绝写入。
 #[cfg(not(target_arch = "wasm32"))]
 pub fn save_task_code_review_result(
     project_path: &str,
@@ -370,7 +370,7 @@ pub fn save_task_code_review_result(
     Err(native_cutover_error())
 }
 
-/// Native raw task artifacts moved to Agent Scheduler.
+/// 原生代码审查结果已迁移到 Agent Scheduler，本兼容入口始终拒绝读取。
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_task_code_review_result(
     project_path: &str,
@@ -380,14 +380,17 @@ pub fn load_task_code_review_result(
     Err(native_cutover_error())
 }
 
+/// 返回旧任务池的日志目录，仅用于兼容路径定位。
 pub fn get_task_logs_dir(project_path: &str) -> PathBuf {
     get_task_log_dir(project_path)
 }
 
+/// 返回旧任务池的根目录，仅用于兼容路径定位。
 pub fn get_task_root_dir(project_path: &str) -> PathBuf {
     get_task_dir(project_path)
 }
 
+/// 检查 WASM JSON 任务文件是否存在；原生平台固定返回 `false`。
 pub fn task_file_exists(project_path: &str, task_id: &str) -> bool {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -400,6 +403,7 @@ pub fn task_file_exists(project_path: &str, task_id: &str) -> bool {
     }
 }
 
+/// 将项目路径借用为 [`Path`]，不执行清理、规范化或权限放宽。
 pub fn sanitize_project_path(project_path: &str) -> &Path {
     Path::new(project_path)
 }

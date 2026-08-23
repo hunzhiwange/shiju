@@ -1,3 +1,11 @@
+//! 本模块集中实现 `effort_ignition_styles` 在底部面板中的职责。
+//! 关键声明 `WAVE_HALF_WIDTH`、`PULSE_HALF_WIDTH`、`SPARK_START`、`SPARK_FRAME` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+
+
 use std::time::Duration;
 
 use ratatui::buffer::Buffer;
@@ -19,6 +27,7 @@ const SPARK_START: Duration = Duration::from_millis(900);
 const SPARK_FRAME: Duration = Duration::from_millis(100);
 const SPARK_GLYPHS: &[&str] = &["·", "✦", "✧"];
 
+/// 条目包含以下参数：`launch_or_speed`, `travel_or_phase`, `strength_or_hue`
 /// Band entries are `(launch_or_speed, travel_or_phase, strength_or_hue)`.
 type Band = (f32, f32, f32);
 
@@ -35,6 +44,7 @@ fn bands(style: IgnitionStyle, tier: EffortTier) -> &'static [Band] {
     }
 }
 
+/// 输入编辑器乐队被裁剪的绘画目标。背景从乐队绘制中混合；仅Glyphs在受保护的草稿和附件行之外落笔。
 /// Paint target clipped to the composer band. Backgrounds blend from the band
 /// tint; glyphs only land outside the protected draft and attachment rows.
 pub(super) struct Canvas<'a> {

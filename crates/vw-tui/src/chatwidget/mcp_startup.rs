@@ -3,6 +3,9 @@
 //! The app server reports MCP server startup as per-server status updates. This
 //! module keeps the TUI's buffered startup round state coherent and translates
 //! those updates into status headers, warnings, and queued-input release points.
+//! 本模块负责MCP 启动进度与状态展示。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 应用服务器按 MCP 服务发送启动更新；本模块把更新转换成状态标题、警告和待提交输入的释放时机。
 
 use std::collections::BTreeSet;
 
@@ -32,6 +35,8 @@ impl ChatWidget {
     /// reopen startup. While that guard is active we buffer updates for a possible
     /// next round, and only reactivate once the buffered set is coherent enough to
     /// treat as a fresh startup round.
+    /// 记录一个MCP启动更新，将其提升到活动启动轮或缓冲的“下一轮”。此路径必须处理有损的应用-服务器交付。在`finish_mcp_startup ()`或`finish_mcp_startup_after_lag ()`之后，我们会短暂忽略传入的更新，因此刚刚完成的一轮过时事件不会重新打开启动。当该守卫处于活动状态时，我们会为下一轮可能的更新进行缓冲，并且仅重新激活一次
+    /// 缓冲组足够连贯，可以作为新一轮启动。
     fn update_mcp_startup_status(
         &mut self,
         server: String,
@@ -45,6 +50,8 @@ impl ChatWidget {
             // update resets the buffer only if we have not already seen a
             // pending-round `Starting`; this preserves valid interleavings like
             // `alpha: Starting -> alpha: Ready -> beta: Starting`.
+            // Ignore-mode缓冲下一轮合理的轮次，因此过时的完成后更新无法立即重新打开启动。只有在我们还没有看到待定轮次的“Starting”时，新的“Starting”更新才会重置缓冲区；这保留了有效的交错，
+            // 例如“alpha: Starting - > alpha: Ready - > beta: Starting”。
             if matches!(status, McpStartupStatus::Starting)
                 && !self.mcp_startup_pending_next_round_saw_starting
             {
@@ -73,6 +80,7 @@ impl ChatWidget {
 
             // The buffered map now looks like a complete next round, so promote it
             // to the active round and resume normal completion tracking.
+            // 缓冲映射已构成完整的下一轮启动状态，将其提升为活动轮并恢复正常完成跟踪。
             self.mcp_startup_ignore_updates_until_next_start = false;
             self.mcp_startup_allow_terminal_only_next_round = false;
             self.mcp_startup_pending_next_round_saw_starting = false;
@@ -81,6 +89,7 @@ impl ChatWidget {
         } else {
             // Normal path: fold the update into the active round and surface
             // per-server failures immediately.
+            // 正常路径：把更新并入活动轮次，并立即展示各服务器故障。
             let mut startup_status = self.mcp_startup_status.take().unwrap_or_default();
             if let McpStartupStatus::Failed { error } = &status {
                 let already_reported = matches!(
@@ -96,6 +105,7 @@ impl ChatWidget {
         };
         if activated_pending_round {
             // A promoted buffered round may already contain terminal failures.
+            // 刚提升的缓冲轮次可能已经包含结束故障，需要立即展示。
             for state in startup_status.values() {
                 if let McpStartupStatus::Failed { error } = state {
                     self.on_warning(error);
@@ -108,6 +118,7 @@ impl ChatWidget {
         // App-server-backed startup completes when every expected server has
         // reported a non-Starting status. Lag handling can force an earlier
         // settle via `finish_mcp_startup_after_lag()`.
+        // 当每个预期的服务器都报告了非启动状态时，应用服务器支持的启动将完成。滞后处理可以通过“finish_mcp_startup_after_lag ()”强制提前结算。
         if complete_when_settled
             && let Some(current) = &self.mcp_startup_status
             && let Some(expected_servers) = &self.mcp_startup_expected_servers
@@ -263,6 +274,7 @@ impl ChatWidget {
     }
 
     /// Update startup state and retry installed-app discovery when its MCP server becomes ready.
+    /// 更新启动状态，并在其MCP服务器就绪时重试安装应用程序发现。
     pub(super) fn on_mcp_server_status_updated(
         &mut self,
         notification: McpServerStatusUpdatedNotification,

@@ -1,3 +1,10 @@
+//! 本模块集中实现 `selection_row_layout` 在底部面板中的职责。
+//! 关键声明 `SelectionDescriptionLayout`、`should_stack`、`line_to_owned`、`combined_description` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+
+
 use std::borrow::Cow;
 
 use ratatui::style::Stylize;
@@ -11,6 +18,7 @@ use crate::width::display_width;
 use crate::wrapping::RtOptions;
 use crate::wrapping::word_wrap_line;
 
+/// 当描述列变窄无法阅读时，控制选择行描述是否保持在列中或移至标签下方。
 /// Controls whether selection-row descriptions stay in a column or move below
 /// their labels when the description column becomes too narrow to read.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -122,6 +130,7 @@ fn append_category_tag(row: &GenericDisplayRow, spans: &mut Vec<Span<'static>>) 
     }
 }
 
+/// 在描述行中，将描述部分填充至起始位置于列 `desc_col`。
 /// Build the full display line for a row with the description padded to start
 /// at `desc_col`.
 pub(super) fn build_full_line(
@@ -152,6 +161,7 @@ pub(super) fn build_full_line(
     Line::from(spans)
 }
 
+/// 以完整宽度的标签形式渲染一行，并在其下方添加缩进描述。
 /// Render a row as a full-width label followed by an indented description.
 pub(super) fn wrap_stacked_row(row: &GenericDisplayRow, width: u16) -> Vec<Line<'static>> {
     let width = width.max(1);

@@ -1,3 +1,6 @@
+//! 知识库视图测试，覆盖数据集、文档、分块、检索配置和各类弹窗组件。
+//! 标签格式、分页边界与明暗主题状态需同时反映网关能力和当前编辑草稿。
+
 use crate::app::state::KnowledgeFileImportDraft;
 use crate::app::{App, Message};
 use iced::widget::button;

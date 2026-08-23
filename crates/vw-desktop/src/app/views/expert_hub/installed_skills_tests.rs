@@ -1,3 +1,6 @@
+//! 已安装技能列表渲染测试，验证真实条目数据可构建对应卡片组件。
+//! 夹具覆盖安装来源与版本信息，守护列表到详情入口的基本展示契约。
+
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};

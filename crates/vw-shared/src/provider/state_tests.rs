@@ -1,3 +1,7 @@
+//! 外部模型目录转换为运行时提供商状态的测试。
+//!
+//! 覆盖适配器兼容别名、上下文窗口继承、可选元数据默认值与映射过滤。
+
 use super::*;
 use serde_json::json;
 use std::collections::HashMap;

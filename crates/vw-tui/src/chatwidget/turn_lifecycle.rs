@@ -1,10 +1,13 @@
 //! Product-neutral agent-turn lifecycle state for `ChatWidget`.
+//! 本模块负责产品无关的代理轮次状态机。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use std::collections::HashSet;
 
 use super::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// 表示 `TurnStartOutcome` 对应状态转换的处理结果。
 pub(super) enum TurnStartOutcome {
     Started,
     Duplicate,
@@ -13,6 +16,7 @@ pub(super) enum TurnStartOutcome {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// 描述 `TurnEventOutcome` 在本模块状态转换中传递的数据。
 pub(super) enum TurnEventOutcome {
     Ready,
     MissingBegin,
@@ -21,6 +25,7 @@ pub(super) enum TurnEventOutcome {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// 表示 `TurnFinishOutcome` 对应状态转换的处理结果。
 pub(super) enum TurnFinishOutcome {
     Finished,
     MissingBegin,
@@ -49,6 +54,7 @@ impl TurnLifecycleState {
         }
     }
 
+    // 计算 `accept_event` 所需的界面结果。
     pub(super) fn accept_event(&mut self, turn_id: &str) -> TurnEventOutcome {
         if self.terminal_turn_ids.contains(turn_id) {
             return TurnEventOutcome::AlreadyTerminal;
@@ -103,6 +109,7 @@ impl ChatWidget {
         }
     }
 
+    // 计算 `accept_turn_event` 所需的界面结果。
     pub(super) fn accept_turn_event(&mut self, turn_id: &str, event_name: &str) -> bool {
         match self.turn_lifecycle.accept_event(turn_id) {
             TurnEventOutcome::Ready => true,
@@ -180,6 +187,7 @@ impl ChatWidget {
         self.set_status(V3ChatStatus::idle());
     }
 
+    // 处理 `on_turn_failed` 对应的界面事件并同步相关状态。
     pub(super) fn on_turn_failed(&mut self, turn_id: String, message: String) {
         if !self.begin_terminal(&turn_id, "turn failed") {
             return;

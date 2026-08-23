@@ -1,3 +1,5 @@
+//! 项目视图入口的测试，验证设置面板宽度归一化和工作区模式路由。
+//! 用例只构建视图，重点保证异常及非有限宽度不会破坏元素树。
 use crate::app::App;
 use crate::app::state::WorkspaceMode;
 

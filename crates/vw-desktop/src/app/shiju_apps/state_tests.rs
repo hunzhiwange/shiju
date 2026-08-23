@@ -1,3 +1,6 @@
+//! 时聚应用状态测试，验证账户切换清理、默认标签和异步启动响应防陈旧机制。
+//! 启动结果仅在代次、账户及安装标识全部匹配时才能写回当前状态。
+
 use super::*;
 use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppListDto};
 

@@ -1,4 +1,6 @@
-//! SHIJU application gateway transport contract.
+//! 识矩应用网关传输契约。
+//!
+//! 汇总应用目录、已安装应用、API 密钥绑定和启动信息，同时对敏感字段使用脱敏调试表示。
 
 use std::fmt;
 

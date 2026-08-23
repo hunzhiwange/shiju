@@ -1,4 +1,6 @@
-//! SHIJU account gateway transport contract.
+//! 识矩账户网关传输契约。
+//!
+//! 凭据只通过敏感请求头发送；相关类型的调试输出必须脱敏，禁止泄露登录或密码载荷。
 
 use std::fmt;
 

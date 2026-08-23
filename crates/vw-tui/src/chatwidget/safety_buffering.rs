@@ -1,4 +1,6 @@
 //! Safety-buffering status and retry UI for active turns.
+//! 本模块负责当前轮次的安全缓冲与重试界面。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use codex_app_server_protocol::ModelSafetyBufferingUpdatedNotification;
@@ -12,6 +14,7 @@ const SAFETY_BUFFERING_MESSAGE_WITH_RETRY: &str = "Hang tight or retry with a fa
 const SAFETY_BUFFERING_FOOTER: &str = "No action is required. Codex will keep waiting, and this menu will close when the response is ready.";
 
 #[derive(Debug)]
+/// 描述 `ActiveSafetyBuffering` 在当前界面流程中传递的数据。
 struct ActiveSafetyBuffering {
     turn_id: String,
     last_prompt_had_retry: bool,
@@ -19,12 +22,14 @@ struct ActiveSafetyBuffering {
 }
 
 #[derive(Debug, Default)]
+/// 描述 `SafetyBufferingState` 在本模块状态转换中传递的数据。
 pub(super) struct SafetyBufferingState {
     submitted_turn: Option<(String, AppCommand)>,
     active: Option<ActiveSafetyBuffering>,
 }
 
 impl ChatWidget {
+    // 计算 `record_safety_buffering_turn` 所需的界面结果。
     pub(crate) fn record_safety_buffering_turn(&mut self, turn_id: String, turn: &AppCommand) {
         self.safety_buffering.submitted_turn = Some((turn_id, turn.clone()));
     }
@@ -35,6 +40,7 @@ impl ChatWidget {
         self.safety_buffering.active = None;
     }
 
+    // 更新 `clear_safety_buffering` 对应的本地展示状态。
     pub(crate) fn clear_safety_buffering(&mut self) {
         self.bottom_pane
             .dismiss_view_by_id(SAFETY_BUFFERING_PROMPT_VIEW_ID);
@@ -54,6 +60,7 @@ impl ChatWidget {
             .is_some_and(|active| !active.agent_message_started)
     }
 
+    // 判断 `can_retry_safety_buffered_turn` 对应的界面条件是否成立。
     pub(crate) fn can_retry_safety_buffered_turn(&self, turn_id: &str) -> bool {
         self.turn_lifecycle.agent_turn_running
             && self
@@ -70,6 +77,7 @@ impl ChatWidget {
         self.input_queue.user_turn_pending_start = true;
     }
 
+    // 处理 `commit_safety_buffered_retry_submission` 对应的界面事件并同步相关状态。
     pub(crate) fn commit_safety_buffered_retry_submission(&mut self, display: UserMessageDisplay) {
         self.on_user_message_display(display);
     }

@@ -1,3 +1,15 @@
+//! 本模块集中实现 `list_selection_view` 在底部面板中的职责。
+//! 关键声明 `MAX_POPUP_ROWS`、`MENU_HORIZONTAL_INSET`、`SideContentWidth`、`SelectionRowDisplay` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+//! 键盘输入只在当前界面状态内解释，未匹配输入继续遵循上层约定。
+//! 取消与关闭路径保持已有返回语义，不暗中确认待处理操作。
+//! 选择、滚动与焦点值在使用前由原有逻辑约束到有效范围。
+
+
+//! 从 Codex 复制的通用选择表面，由 VibeWindow 拥有。
 //! Generic selection surface copied from Codex and owned by VibeWindow.
 //!
 //! This module contains no command lookup, session I/O, file search, theme persistence, or
@@ -580,6 +592,7 @@ mod tests {
             },
         ]
     }
+    // 验证 `v3_selection_surfaces_reuse_copied_codex_list_view` 场景的触发条件与预期结果。
     #[test]
     fn v3_selection_surfaces_reuse_copied_codex_list_view() {
         let mut view = ListSelectionView::from_v3("permissions", "Permissions", items());
@@ -596,6 +609,7 @@ Permissions
      configured
 "###);
     }
+    // 验证 `filtering_skips_disabled_rows_and_empty_state_is_rendered` 场景的触发条件与预期结果。
     #[test]
     fn filtering_skips_disabled_rows_and_empty_state_is_rendered() {
         let mut view = ListSelectionView::new(SelectionViewParams {

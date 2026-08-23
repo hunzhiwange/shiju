@@ -1,3 +1,6 @@
+//! 专家中心外壳测试，验证所有一级分区与技能标签都能由默认状态构建。
+//! 该测试守护模块聚合层，避免新增分区后导航入口与内容区域脱节。
+
 use crate::app::skill_hub::{ExpertHubSection, SkillTab};
 use crate::app::{App, Message};
 

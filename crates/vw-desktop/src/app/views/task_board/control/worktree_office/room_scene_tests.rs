@@ -1,3 +1,5 @@
+//! 工作树房间场景的测试，覆盖工位状态到区域和像素卡片的映射。
+//! fixture 包含缺失任务、失败原因与 Unicode 标识，验证紧凑和宽屏构建。
 use iced::{Element, Length};
 
 use crate::app::task::{Task, TaskLogEntry, TaskStatus, WorktreeSlotSnapshot, WorktreeState};

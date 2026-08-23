@@ -1,3 +1,6 @@
+//! 工作区侧栏消息测试，验证折叠宽度、筛选器、分页与空间任务状态。
+//! 各标签和弹出层应保持独立，切换视图时不得串用可见数量或悬停状态。
+
 use super::super::{ViewMessage, update as update_panel};
 use super::WORK_SIDEBAR_COLLAPSED_WIDTH;
 use crate::app::App;

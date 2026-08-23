@@ -1,3 +1,6 @@
+//! 任务执行器状态测试，验证并发容量、运行任务集合和日志通道生命周期。
+//! 启动与结束操作需保持幂等，轮询只能消费对应任务的已注册日志。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

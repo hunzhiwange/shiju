@@ -2,6 +2,10 @@
 //!
 //! This module rehydrates turns and items into transcript state while avoiding
 //! live-only side effects.
+//! 本模块负责任务回放事件到对话记录状态的还原。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 回放只恢复对话记录展示状态，不触发仅适用于实时会话的副作用。
+//! 单项回放会显式携带 `Replay` 来源，使共享项目处理逻辑能够区分实时事件。
 
 use super::*;
 
@@ -11,6 +15,8 @@ impl ChatWidget {
     /// is intentionally conservative: only safe-to-replay items are rendered to
     /// avoid triggering side effects. Event ids are passed as `None` to
     /// distinguish replayed events from live ones.
+    /// 将初始事件的安全子集回放到 UI，以便恢复已有会话的对话记录。该路径近似实时事件流但刻意保持保守，只回放不会触发副作用的项目；事件 ID 传入 `None`，用于区分回放与实时事件。
+    // 计算 `replay_thread_turns` 所需的界面结果。
     pub(crate) fn replay_thread_turns(&mut self, turns: Vec<Turn>, replay_kind: ReplayKind) {
         let hidden_nested_review_turns = std::iter::once(/*value*/ false)
             .chain(turns.windows(/*size*/ 2).map(|turns| {
@@ -68,6 +74,7 @@ impl ChatWidget {
         }
     }
 
+    // 计算 `replay_thread_item` 所需的界面结果。
     pub(crate) fn replay_thread_item(
         &mut self,
         item: ThreadItem,
@@ -77,6 +84,7 @@ impl ChatWidget {
         self.handle_thread_item(item, turn_id, ThreadItemRenderSource::Replay(replay_kind));
     }
 
+    // 根据项目类型选择安全的回放处理入口，并明确区分回放与实时事件。
     pub(super) fn handle_thread_item(
         &mut self,
         item: ThreadItem,

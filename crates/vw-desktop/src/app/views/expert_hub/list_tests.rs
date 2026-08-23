@@ -1,3 +1,6 @@
+//! 专家中心列表测试，覆盖技能标签、访问状态、搜索分页和响应式卡片布局。
+//! 多选筛选与商业技能操作必须依赖服务器安装状态，并在两种主题下保持可读。
+
 use super::list::{
     SCROLLBAR_GUTTER, SCROLLBAR_WIDTH, access_action_message, description_preview,
     description_tooltip, detail_action_message, grid_column_count, install_action_message,

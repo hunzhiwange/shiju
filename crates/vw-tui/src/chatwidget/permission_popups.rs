@@ -3,17 +3,23 @@
 //! This module owns the generic permission pickers and confirmation surfaces;
 //! Windows-specific sandbox prompting lives beside it in
 //! `windows_sandbox_prompts`.
+//! 本模块负责权限选择与确认弹窗。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use codex_protocol::openai_models::MODEL_SPECIALTY_CYBER;
 
 impl ChatWidget {
     /// Open the permissions popup.
+    /// 打开权限弹出窗口。
+    // 构造并展示 `open_approvals_popup` 对应的界面内容。
     pub(crate) fn open_approvals_popup(&mut self) {
         self.open_permissions_popup();
     }
 
     /// Open a popup to choose the permissions mode.
+    /// 打开弹出窗口以选择权限模式。
+    // 构造并展示 `open_permissions_popup` 对应的界面内容。
     pub(crate) fn open_permissions_popup(&mut self) {
         if self.config.explicit_permission_profile_mode {
             self.open_permission_profiles_popup();
@@ -165,6 +171,7 @@ impl ChatWidget {
         });
     }
 
+    // 构造并展示 `open_auto_review_denials_popup` 对应的界面内容。
     pub(crate) fn open_auto_review_denials_popup(&mut self) {
         if self.review.recent_auto_review_denials.is_empty() {
             self.add_info_message(
@@ -225,6 +232,7 @@ impl ChatWidget {
         self.request_redraw();
     }
 
+    // 计算 `approve_recent_auto_review_denial` 所需的界面结果。
     pub(crate) fn approve_recent_auto_review_denial(&mut self, thread_id: ThreadId, id: String) {
         let Some(event) = self.review.recent_auto_review_denials.take(&id) else {
             self.add_error_message("That auto-review denial is no longer available.".to_string());
@@ -244,6 +252,7 @@ impl ChatWidget {
         );
     }
 
+    // 计算 `approval_preset_actions` 在当前界面流程中需要的局部结果。
     pub(super) fn approval_preset_actions(
         approval: AskForApproval,
         permission_profile: PermissionProfile,
@@ -280,6 +289,7 @@ impl ChatWidget {
         })]
     }
 
+    // 计算 `permission_profile_selection_actions` 所需的界面结果。
     pub(super) fn permission_profile_selection_actions(
         selection: PermissionProfileSelection,
     ) -> Vec<SelectionAction> {
@@ -288,6 +298,7 @@ impl ChatWidget {
         })]
     }
 
+    // 计算 `permission_mode_actions` 所需的界面结果。
     pub(super) fn permission_mode_actions(
         &self,
         preset: &ApprovalPreset,
@@ -366,6 +377,7 @@ impl ChatWidget {
         apply_actions()
     }
 
+    // 计算 `preset_matches_current` 所需的界面结果。
     pub(super) fn preset_matches_current(
         current_approval: AskForApproval,
         current_permission_profile: &PermissionProfile,

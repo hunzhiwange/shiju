@@ -1,3 +1,8 @@
+//! 提供 hooks 列表与详情两级浏览界面，集中展示事件、来源、信任状态和待审查数量。
+//! `HooksBrowserView` 只维护页内选择、滚动与焦点，实际 hook 配置由传入元数据决定。
+//! 列表到详情的切换保留当前选择；返回键先退出详情，再按底部面板约定关闭视图。
+//! 渲染辅助函数统一生成来源与事件标签，避免不同页面对同一状态给出矛盾描述。
+
 use codex_app_server_protocol::HookEventName;
 use codex_app_server_protocol::HookHandlerMetadata;
 use codex_app_server_protocol::HookMetadata;
@@ -1038,6 +1043,7 @@ mod tests {
         )
     }
 
+    // 验证 `renders_event_browser` 场景的触发条件与预期结果。
     #[test]
     fn renders_event_browser() {
         let mut view = view();
@@ -1046,6 +1052,7 @@ mod tests {
         assert!(!render_lines(&view, /*width*/ 112).contains("enter to view hooks"));
     }
 
+    // 验证 `selected_event_rows_use_the_shared_accent_style` 场景的触发条件与预期结果。
     #[test]
     fn selected_event_rows_use_the_shared_accent_style() {
         let view = view();
@@ -1066,6 +1073,7 @@ mod tests {
         assert_eq!(selected_cell.style().fg, expected.fg);
     }
 
+    // 验证 `renders_event_browser_with_review_column_when_needed` 场景的触发条件与预期结果。
     #[test]
     fn renders_event_browser_with_review_column_when_needed() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1103,6 +1111,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_event_browser_with_issues` 场景的触发条件与预期结果。
     #[test]
     fn renders_event_browser_with_issues() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1122,6 +1131,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_handler_browser_with_details` 场景的触发条件与预期结果。
     #[test]
     fn renders_handler_browser_with_details() {
         let mut view = view();
@@ -1129,6 +1139,7 @@ mod tests {
         assert_snapshot!("hooks_browser_handlers", render_lines(&view, /*width*/ 112));
     }
 
+    // 验证 `renders_mcp_tool_handler_with_server_and_tool_details` 场景的触发条件与预期结果。
     #[test]
     fn renders_mcp_tool_handler_with_server_and_tool_details() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1161,6 +1172,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_handler_additional_context_limit` 场景的触发条件与预期结果。
     #[test]
     fn renders_handler_additional_context_limit() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1190,6 +1202,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_untrusted_enabled_handler_as_inactive` 场景的触发条件与预期结果。
     #[test]
     fn renders_untrusted_enabled_handler_as_inactive() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1222,6 +1235,7 @@ mod tests {
         );
     }
 
+    // 验证 `review_needed_handler_rows_use_warning_color` 场景的触发条件与预期结果。
     #[test]
     fn review_needed_handler_rows_use_warning_color() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1264,6 +1278,7 @@ mod tests {
         );
     }
 
+    // 验证 `review_needed_handler_header_uses_warning_color` 场景的触发条件与预期结果。
     #[test]
     fn review_needed_handler_header_uses_warning_color() {
         assert_eq!(
@@ -1278,6 +1293,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_managed_handler_without_toggle_hint` 场景的触发条件与预期结果。
     #[test]
     fn renders_managed_handler_without_toggle_hint() {
         let mut view = view();
@@ -1289,6 +1305,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_selected_managed_handler` 场景的触发条件与预期结果。
     #[test]
     fn renders_selected_managed_handler() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1327,6 +1344,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_scrolled_handler_window` 场景的触发条件与预期结果。
     #[test]
     fn renders_scrolled_handler_window() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1356,6 +1374,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_command_details_with_three_line_cap` 场景的触发条件与预期结果。
     #[test]
     fn renders_command_details_with_three_line_cap() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1383,6 +1402,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_empty_handler_browser_message` 场景的触发条件与预期结果。
     #[test]
     fn renders_empty_handler_browser_message() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1400,6 +1420,7 @@ mod tests {
         );
     }
 
+    // 验证 `managed_hooks_count_as_active` 场景的触发条件与预期结果。
     #[test]
     fn managed_hooks_count_as_active() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1429,6 +1450,7 @@ mod tests {
         assert_eq!(pre_tool_use.active, 1);
     }
 
+    // 验证 `review_needed_hooks_are_not_active` 场景的触发条件与预期结果。
     #[test]
     fn review_needed_hooks_are_not_active() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1461,6 +1483,7 @@ mod tests {
         assert_eq!(pre_tool_use.needs_review, 1);
     }
 
+    // 验证 `review_needed_event_is_selected_by_default` 场景的触发条件与预期结果。
     #[test]
     fn review_needed_event_is_selected_by_default() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1488,6 +1511,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_review_needed_handler` 场景的触发条件与预期结果。
     #[test]
     fn renders_review_needed_handler() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1545,6 +1569,7 @@ mod tests {
         }
     }
 
+    // 验证 `toggle_keys_toggle_unmanaged_handler` 场景的触发条件与预期结果。
     #[test]
     fn toggle_keys_toggle_unmanaged_handler() {
         for key_code in [KeyCode::Char(' '), KeyCode::Enter] {
@@ -1552,6 +1577,7 @@ mod tests {
         }
     }
 
+    // 验证 `space_does_not_toggle_managed_handler` 场景的触发条件与预期结果。
     #[test]
     fn space_does_not_toggle_managed_handler() {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
@@ -1576,6 +1602,7 @@ mod tests {
         assert!(rx.try_recv().is_err());
     }
 
+    // 验证 `trust_key_trusts_review_needed_handler_without_changing_enablement` 场景的触发条件与预期结果。
     #[test]
     fn trust_key_trusts_review_needed_handler_without_changing_enablement() {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
@@ -1612,6 +1639,7 @@ mod tests {
         }
     }
 
+    // 验证 `trust_key_preserves_disabled_modified_handler` 场景的触发条件与预期结果。
     #[test]
     fn trust_key_preserves_disabled_modified_handler() {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
@@ -1651,6 +1679,7 @@ mod tests {
         }
     }
 
+    // 验证 `trust_key_on_event_page_trusts_all_review_needed_hooks` 场景的触发条件与预期结果。
     #[test]
     fn trust_key_on_event_page_trusts_all_review_needed_hooks() {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
@@ -1729,6 +1758,7 @@ mod tests {
         assert!(rx.try_recv().is_err());
     }
 
+    // 验证 `escape_returns_to_the_selected_event` 场景的触发条件与预期结果。
     #[test]
     fn escape_returns_to_the_selected_event() {
         let mut view = view();
@@ -1743,6 +1773,7 @@ mod tests {
         );
     }
 
+    // 验证 `esc_routes_through_the_view` 场景的触发条件与预期结果。
     #[test]
     fn esc_routes_through_the_view() {
         assert!(view().prefer_esc_to_handle_key_event());

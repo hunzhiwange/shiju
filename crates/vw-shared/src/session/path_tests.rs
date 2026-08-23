@@ -1,3 +1,7 @@
+//! 会话产物路径的作用域隔离与安全片段测试。
+//!
+//! 不安全或空作用域必须稳定哈希，快照与原始响应则保持在对应作用域目录内。
+
 #[test]
 fn safe_scope_is_used_as_path_segment() {
     assert_eq!(super::session_scope_key("project_1.alpha"), "project_1.alpha");

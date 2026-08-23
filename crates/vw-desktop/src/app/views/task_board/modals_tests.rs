@@ -1,3 +1,5 @@
+//! 任务看板弹窗的测试，覆盖创建、导入、设置及各类确认流程。
+//! 草稿与边界值 fixture 用于验证标签区分、分页和弹出层组合状态。
 use crate::app::state::TaskBoardSettingsModalTab;
 use crate::app::task::{Task, TaskStatus};
 use crate::app::{App, Message};

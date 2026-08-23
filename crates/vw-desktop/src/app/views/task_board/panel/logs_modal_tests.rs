@@ -1,3 +1,5 @@
+//! 任务日志弹窗的测试，覆盖空日志、过滤结果、自动滚动与关闭交互。
+//! 长行和不同日志级别用于验证预览截断及主题样式的绘制边界。
 use iced::widget::button;
 use iced::{Background, Color, Element, Length, Theme};
 

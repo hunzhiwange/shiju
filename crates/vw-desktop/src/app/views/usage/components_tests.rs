@@ -1,3 +1,5 @@
+//! 用量页右键区域组件的测试，覆盖子元素委托和本地坐标消息。
+//! 记录型渲染器用于验证布局、绘制及非右键事件仍交由内容处理。
 use super::RightClickArea;
 use iced::advanced::{Clipboard, Layout, Renderer, Shell, Widget, layout, mouse, renderer, widget};
 use iced::{Background, Element, Event, Length, Point, Rectangle, Size, Theme, Transformation};

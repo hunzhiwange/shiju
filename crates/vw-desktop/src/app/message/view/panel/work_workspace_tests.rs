@@ -1,3 +1,6 @@
+//! 工作模式资源面板测试，覆盖资源类型、分栏比例和按路径保存的空间状态。
+//! 这些消息只应修改工作模式布局，不得污染代码模式下已有的面板偏好。
+
 use super::super::{ViewMessage, update as update_panel};
 use crate::app::{App, state::WorkResourceMode};
 

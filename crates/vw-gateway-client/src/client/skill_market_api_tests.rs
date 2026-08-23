@@ -1,3 +1,7 @@
+//! 验证统一技能市场的响应包络、查询编码和安装目标。
+//!
+//! 测试以 SkillHub 形状固件锁定兼容性，并要求业务状态码非零时返回错误。
+
 use super::{
     SkillMarketCoordinateDto, SkillMarketEnvelope, SkillMarketInstallScopeDto,
     SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillLocatorDto,

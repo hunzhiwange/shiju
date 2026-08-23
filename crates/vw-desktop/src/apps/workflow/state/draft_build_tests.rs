@@ -1,3 +1,5 @@
+//! 工作流节点可视化草稿构建的测试，覆盖各节点类型与 YAML 字段映射。
+//! fixture 同时验证默认值、非法结构和编辑后回写，防止丢失受支持字段。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

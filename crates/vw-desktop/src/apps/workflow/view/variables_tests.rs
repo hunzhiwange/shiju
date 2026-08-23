@@ -1,3 +1,5 @@
+//! 工作流变量视图的测试，覆盖列表、编辑弹窗、值预览和校验摘要。
+//! fixture 验证秘密遮罩、长值截断及环境与会话变量的结构差异。
 use super::*;
 use crate::apps::workflow::model::{
     WorkflowAppMeta, WorkflowConversationVariable, WorkflowDocument, WorkflowEnvironmentVariable,

@@ -1,3 +1,8 @@
+//! 展示应用安装、启用、授权或外部操作建议，并将用户决定解析回对应的 MCP 请求。
+//! `AppLinkViewParams` 负责从服务端请求提取受信任的展示参数，非法或不受信任 URL 会被拒绝。
+//! `AppLinkView` 在链接页与安装确认页之间维护本地选择状态，取消路径不会伪造成功响应。
+//! 视图只发送既有 `AppEvent` 动作；连接器刷新与请求生命周期仍由外层应用负责。
+
 #[cfg(test)]
 use crate::app_command::AppCommand as Op;
 use codex_app_server_protocol::McpServerElicitationAction;
@@ -916,6 +921,7 @@ mod tests {
         }
     }
 
+    // 验证 `codex_apps_auth_url_elicitation_builds_auth_app_link_params` 场景的触发条件与预期结果。
     #[test]
     fn codex_apps_auth_url_elicitation_builds_auth_app_link_params() {
         let target = suggestion_target();
@@ -940,6 +946,7 @@ mod tests {
         assert_eq!(params.elicitation_target, Some(target));
     }
 
+    // 验证 `non_codex_apps_url_elicitation_builds_generic_app_link_params` 场景的触发条件与预期结果。
     #[test]
     fn non_codex_apps_url_elicitation_builds_generic_app_link_params() {
         let target = generic_url_target();
@@ -976,6 +983,7 @@ mod tests {
         );
     }
 
+    // 验证 `codex_apps_auth_url_elicitation_rejects_untrusted_urls` 场景的触发条件与预期结果。
     #[test]
     fn codex_apps_auth_url_elicitation_rejects_untrusted_urls() {
         let target = suggestion_target();
@@ -996,6 +1004,7 @@ mod tests {
         }
     }
 
+    // 验证 `generic_url_elicitation_rejects_untrusted_urls` 场景的触发条件与预期结果。
     #[test]
     fn generic_url_elicitation_rejects_untrusted_urls() {
         let target = generic_url_target();
@@ -1044,6 +1053,7 @@ mod tests {
             .join("\n")
     }
 
+    // 验证 `installed_app_has_toggle_action` 场景的触发条件与预期结果。
     #[test]
     fn installed_app_has_toggle_action() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1070,6 +1080,7 @@ mod tests {
         );
     }
 
+    // 验证 `regular_app_link_does_not_require_terminal_title_action` 场景的触发条件与预期结果。
     #[test]
     fn regular_app_link_does_not_require_terminal_title_action() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1093,6 +1104,7 @@ mod tests {
         assert!(!view.terminal_title_requires_action());
     }
 
+    // 验证 `tool_suggestion_requires_terminal_title_action` 场景的触发条件与预期结果。
     #[test]
     fn tool_suggestion_requires_terminal_title_action() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1116,6 +1128,7 @@ mod tests {
         assert!(view.terminal_title_requires_action());
     }
 
+    // 验证 `horizontal_list_keys_move_action_selection` 场景的触发条件与预期结果。
     #[test]
     fn horizontal_list_keys_move_action_selection() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1143,6 +1156,7 @@ mod tests {
         assert_eq!(view.selected_action, 0);
     }
 
+    // 验证 `remapped_horizontal_list_keys_control_action_selection` 场景的触发条件与预期结果。
     #[test]
     fn remapped_horizontal_list_keys_control_action_selection() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1184,6 +1198,7 @@ mod tests {
         assert_eq!(view.selected_action, 0);
     }
 
+    // 验证 `toggle_action_sends_set_app_enabled_and_updates_label` 场景的触发条件与预期结果。
     #[test]
     fn toggle_action_sends_set_app_enabled_and_updates_label() {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
@@ -1221,6 +1236,7 @@ mod tests {
         );
     }
 
+    // 验证 `generic_url_elicitation_resolves_without_connector_refresh` 场景的触发条件与预期结果。
     #[test]
     fn generic_url_elicitation_resolves_without_connector_refresh() {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
@@ -1273,6 +1289,7 @@ mod tests {
         assert!(view.is_complete());
     }
 
+    // 验证 `install_confirmation_does_not_split_long_url_like_token_without_scheme` 场景的触发条件与预期结果。
     #[test]
     fn install_confirmation_does_not_split_long_url_like_token_without_scheme() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1317,6 +1334,7 @@ mod tests {
         );
     }
 
+    // 验证 `install_confirmation_render_keeps_url_tail_visible_when_narrow` 场景的触发条件与预期结果。
     #[test]
     fn install_confirmation_render_keeps_url_tail_visible_when_narrow() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1370,6 +1388,7 @@ mod tests {
         );
     }
 
+    // 验证 `install_tool_suggestion_resolves_elicitation_after_confirmation` 场景的触发条件与预期结果。
     #[test]
     fn install_tool_suggestion_resolves_elicitation_after_confirmation() {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
@@ -1428,6 +1447,7 @@ mod tests {
         assert!(view.is_complete());
     }
 
+    // 验证 `declined_tool_suggestion_resolves_elicitation_decline` 场景的触发条件与预期结果。
     #[test]
     fn declined_tool_suggestion_resolves_elicitation_decline() {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
@@ -1470,6 +1490,7 @@ mod tests {
         assert!(view.is_complete());
     }
 
+    // 验证 `enable_tool_suggestion_resolves_elicitation_after_enable` 场景的触发条件与预期结果。
     #[test]
     fn enable_tool_suggestion_resolves_elicitation_after_enable() {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
@@ -1520,6 +1541,7 @@ mod tests {
         assert!(view.is_complete());
     }
 
+    // 验证 `resolved_tool_suggestion_dismisses_matching_view` 场景的触发条件与预期结果。
     #[test]
     fn resolved_tool_suggestion_dismisses_matching_view() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1549,6 +1571,7 @@ mod tests {
         assert!(view.is_complete());
     }
 
+    // 验证 `resolved_tool_suggestion_ignores_non_matching_request` 场景的触发条件与预期结果。
     #[test]
     fn resolved_tool_suggestion_ignores_non_matching_request() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1578,6 +1601,7 @@ mod tests {
         assert!(!view.is_complete());
     }
 
+    // 验证 `install_suggestion_with_reason_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn install_suggestion_with_reason_snapshot() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1607,6 +1631,7 @@ mod tests {
         );
     }
 
+    // 验证 `enable_suggestion_with_reason_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn enable_suggestion_with_reason_snapshot() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1636,6 +1661,7 @@ mod tests {
         );
     }
 
+    // 验证 `auth_suggestion_with_reason_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn auth_suggestion_with_reason_snapshot() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1666,6 +1692,7 @@ mod tests {
         );
     }
 
+    // 验证 `generic_url_elicitation_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn generic_url_elicitation_snapshot() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -1695,6 +1722,7 @@ mod tests {
         );
     }
 
+    // 验证 `generic_url_elicitation_confirmation_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn generic_url_elicitation_confirmation_snapshot() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();

@@ -1,3 +1,5 @@
+//! 任务详情推理强度选择器的测试，覆盖默认值和各档位交互。
+//! 用例核对禁用及选中样式，并保证消息携带预期的强度值。
 use super::*;
 use crate::app::App;
 use crate::app::message::{self, ChatMessage, TaskBoardMessage};

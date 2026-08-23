@@ -4,6 +4,9 @@
 //! Up-arrow recall before returning an input result. This module owns the app-level
 //! dispatch step and records the staged entry once the command has been handled, so
 //! slash-command recall follows the same submitted-input rule as ordinary text.
+//! 本模块负责斜杠命令分派与本地输入历史。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 输入框先解析本地历史导航并识别命令；命令处理完成后再写入历史，保持与普通文本相同的提交规则。
 
 use super::*;
 use crate::app_event::ThreadGoalSetMode;
@@ -16,6 +19,7 @@ use crate::goal_display::GOAL_USAGE;
 use crate::goal_files::GoalDraft;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// 描述 `SlashCommandDispatchSource` 在当前界面流程中传递的数据。
 enum SlashCommandDispatchSource {
     Live,
     Queued,
@@ -44,6 +48,7 @@ impl ChatWidget {
     /// The composer stages history before returning `InputResult::Command`; this wrapper commits
     /// that staged entry after dispatch so slash-command recall follows the same "submitted input"
     /// rule as normal text.
+    /// 分派无参数斜杠命令，并记录预暂存的本地历史条目。输入框在返回 `InputResult::Command` 前暂存历史；此包装器在分派完成后提交该条目，使斜杠命令回溯遵循与普通文本相同的“已提交输入”规则。
     pub(super) fn handle_slash_command_dispatch(&mut self, cmd: SlashCommand) {
         self.dispatch_command(cmd);
         if cmd == SlashCommand::Goal {
@@ -71,6 +76,7 @@ impl ChatWidget {
     /// Inline command arguments may later be prepared through the normal submission pipeline, but
     /// local command recall still tracks the original command invocation. Treating this wrapper as
     /// the only input-result entry point avoids double-recording commands with inline args.
+    /// 发出内线斜线指令 并记录它在当地的历史记录 内置命令参数可能后来通过正常的提交管道准备，但本地命令召回仍然跟踪原始命令引用. 将这个包装器作为唯一的输入结果切入点来对待，可以避免使用内置参数的双记录命令.
     pub(super) fn handle_slash_command_with_args_dispatch(
         &mut self,
         cmd: SlashCommand,
@@ -172,6 +178,7 @@ impl ChatWidget {
                     return;
                 }
                 // Step 1: pick a category (UI built in feedback_view)
+                // 步骤1: 选择一个类别( UI 建于反馈  视图)
                 let params =
                     crate::bottom_pane::feedback_selection_params(self.app_event_tx.clone());
                 self.bottom_pane.show_selection_view(params);
@@ -339,6 +346,7 @@ impl ChatWidget {
                     if !windows_degraded_sandbox_enabled {
                         // This command should not be visible/recognized outside degraded mode,
                         // but guard anyway in case something dispatches it directly.
+                        // 此命令不应在退化模式外可见/ 识别， 但无论如何， 以防有东西直接发送它。
                         return;
                     }
 
@@ -348,6 +356,7 @@ impl ChatWidget {
                     else {
                         // Avoid panicking in interactive UI; treat this as a recoverable
                         // internal error.
+                        // 避免在交互式 UI 中惊慌失措; 将此视为可恢复的内部错误。
                         self.add_error_message(
                             "Internal error: missing the 'auto' approval preset.".to_string(),
                         );
@@ -379,6 +388,7 @@ impl ChatWidget {
                 {
                     let _ = &self.session_telemetry;
                     // Not supported; on non-Windows this command should never be reachable.
+                    // 不支持; 在非窗口上， 此命令永远不能实现。
                 }
             }
             SlashCommand::SandboxReadRoot => {
@@ -570,6 +580,7 @@ impl ChatWidget {
     /// Branches that prepare arguments should pass `record_history: false` to the composer because
     /// the staged slash-command entry is the recall record; using the normal submission-history
     /// path as well would make a single command appear twice during Up-arrow navigation.
+    /// 运行带参数的斜杠命令。准备参数的分支应向输入框传入 `record_history: false`，因为暂存的斜杠命令条目才是回溯记录；若同时走普通提交历史路径，单条命令会在上箭头导航中出现两次。
     pub(super) fn dispatch_command_with_args(
         &mut self,
         cmd: SlashCommand,
@@ -637,6 +648,7 @@ impl ChatWidget {
         );
     }
 
+    // 计算 `prepare_live_inline_args` 所需的界面结果。
     fn prepare_live_inline_args(
         &mut self,
         args: String,

@@ -2,10 +2,14 @@
 //!
 //! This module owns approval, permission, elicitation, and user-input prompts
 //! that block on user decisions.
+//! 本模块负责审批、权限、征询与用户输入提示。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 这些界面会等待用户决定，但实际工具执行与权限实施仍由运行时负责。
 
 use super::*;
 
 impl ChatWidget {
+    // 处理 `on_exec_approval_request` 对应的界面事件并同步相关状态。
     pub(super) fn on_exec_approval_request(&mut self, _id: String, ev: ExecApprovalRequestEvent) {
         self.defer_or_handle(
             ev,
@@ -33,6 +37,8 @@ impl ChatWidget {
     /// aggregation. Terminal assessments clear or update that footer state and
     /// render denied or timed-out decisions in history. Approved assessments
     /// silently complete after updating the footer.
+    /// 处理当前任务的守护审查生命周期。进行中的评估暂时占用实时状态页脚，并汇总并行审查；结束评估会清理或更新页脚，把拒绝或超时结果写入历史。批准结果更新页脚后静默完成。
+    // 处理 `on_guardian_assessment` 对应的界面事件并同步相关状态。
     pub(super) fn on_guardian_assessment(&mut self, ev: GuardianAssessmentEvent) {
         let permission_request_summary = |subject: &str, reason: &Option<String>| {
             reason
@@ -97,6 +103,7 @@ impl ChatWidget {
             // In-progress assessments own the live footer state while the
             // review is pending. Parallel reviews are aggregated into one
             // footer summary by `PendingGuardianReviewStatus`.
+            // 进行中的评估拥有现场脚步状态，而审查尚未完成。 平行审评由`PendingGuardianReviewStatus`汇总为一页脚摘要.
             self.bottom_pane.ensure_status_indicator();
             self.bottom_pane
                 .set_interrupt_hint_visible(/*visible*/ true);
@@ -121,6 +128,7 @@ impl ChatWidget {
 
         // Terminal assessments remove the matching pending footer entry before
         // any decision-specific history handling.
+        // 结束评估先移除对应的待处理页脚项，再执行决定类型对应的历史处理。
         if self
             .status_state
             .pending_guardian_review_status
@@ -248,6 +256,7 @@ impl ChatWidget {
         );
     }
 
+    // 处理 `on_request_user_input` 对应的界面事件并同步相关状态。
     pub(super) fn on_request_user_input(&mut self, ev: ToolRequestUserInputParams) {
         self.defer_or_handle(
             ev,
@@ -264,6 +273,7 @@ impl ChatWidget {
         );
     }
 
+    // 处理 `handle_exec_approval_now` 对应的界面事件并同步相关状态。
     pub(crate) fn handle_exec_approval_now(&mut self, ev: ExecApprovalRequestEvent) {
         self.flush_answer_stream_with_separator();
         self.flush_completed_command_activity();
@@ -318,6 +328,7 @@ impl ChatWidget {
         });
     }
 
+    // 处理 `handle_elicitation_request_now` 对应的界面事件并同步相关状态。
     pub(crate) fn handle_elicitation_request_now(
         &mut self,
         request_id: AppServerRequestId,
@@ -390,6 +401,7 @@ impl ChatWidget {
         self.request_redraw();
     }
 
+    // 构造并展示 `push_mcp_server_elicitation_request` 对应的界面内容。
     pub(crate) fn push_mcp_server_elicitation_request(
         &mut self,
         request: McpServerElicitationFormRequest,

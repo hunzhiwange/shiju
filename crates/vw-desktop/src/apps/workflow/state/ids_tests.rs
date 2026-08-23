@@ -1,3 +1,5 @@
+//! 工作流标识与视口辅助逻辑的测试，覆盖 ID 清洗、端点归一化和自适应缩放。
+//! 输入包含 Unicode、空文档及极端画布尺寸，用于验证稳定边界。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

@@ -12,6 +12,10 @@
 //! advertised effort when the default is absent, before stepping through the
 //! advertised order. Raising never silently crosses into Max or Ultra; those
 //! efforts require the explicit advanced-reasoning picker.
+//! 本模块负责当前模型推理强度的键盘快捷调节。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 快捷键只在没有模态界面占用输入时生效，并且只遍历当前模式和模型公布的推理强度。
+//! 未设置强度时先采用当前模式默认值；`Max` 与 `Ultra` 始终要求显式选择。
 
 use codex_protocol::config_types::ModeKind;
 use codex_protocol::openai_models::ModelPreset;
@@ -24,13 +28,16 @@ use crate::app_event::AppEvent;
 use crate::key_hint::KeyBindingListExt;
 
 /// Direction requested by a reasoning-level shortcut.
+/// 由推理级快捷键请求的方向。
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// 描述 `ReasoningShortcutDirection` 在当前界面流程中传递的数据。
 pub(super) enum ReasoningShortcutDirection {
     Lower,
     Raise,
 }
 
 impl ReasoningShortcutDirection {
+    // 计算 `bound_message` 所需的界面结果。
     fn bound_message(self, effort: &ReasoningEffortConfig) -> String {
         let label = ChatWidget::reasoning_effort_sentence_label(effort);
         match self {
@@ -52,6 +59,8 @@ impl ChatWidget {
     /// directly mutating reasoning state. It applies normal-mode changes without
     /// persisting them. In Plan mode, shortcuts apply only to the active
     /// Plan-mode override and skip the global-vs-Plan scope prompt.
+    /// 在普通按键分派前处理主界面的推理快捷键。返回 `true` 表示该按键已被识别并完整处理，即使到达边界时只显示提示；返回 `false` 则把按键留给普通聊天输入流，尤其适用于弹窗或模态视图持有焦点时。
+    /// 调用方应通过本方法路由已识别的快捷键，而不是直接修改推理状态。普通模式下只应用变更而不持久化；计划模式下只修改当前计划模式覆盖值，并跳过全局与计划范围选择提示。
     pub(super) fn handle_reasoning_shortcut(&mut self, key_event: KeyEvent) -> bool {
         let direction = if self
             .chat_keymap
@@ -161,6 +170,7 @@ impl ChatWidget {
         true
     }
 
+    // 计算 `current_model_preset` 所需的界面结果。
     fn current_model_preset(&self) -> Option<ModelPreset> {
         let current_model = self.current_model();
         self.model_catalog
@@ -185,6 +195,7 @@ fn reasoning_choices(preset: &ModelPreset) -> Vec<ReasoningEffortConfig> {
     choices
 }
 
+// 计算 `next_reasoning_effort` 所需的界面结果。
 fn next_reasoning_effort(
     choices: &[ReasoningEffortConfig],
     current_effort: Option<ReasoningEffortConfig>,
@@ -210,6 +221,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    // 计算 `next_reasoning_effort_raises_from_default_anchor` 所需的界面结果。
     fn next_reasoning_effort_raises_from_default_anchor() {
         let choices = vec![
             ReasoningEffortConfig::Low,
@@ -247,6 +259,7 @@ mod tests {
     }
 
     #[test]
+    // 计算 `next_reasoning_effort_does_not_infer_position_for_unsupported_current` 所需的界面结果。
     fn next_reasoning_effort_does_not_infer_position_for_unsupported_current() {
         let choices = vec![ReasoningEffortConfig::Low, ReasoningEffortConfig::High];
 
@@ -297,6 +310,7 @@ mod tests {
     }
 
     #[test]
+    // 计算 `next_reasoning_effort_clamps_at_bounds` 所需的界面结果。
     fn next_reasoning_effort_clamps_at_bounds() {
         let choices = vec![
             ReasoningEffortConfig::Low,

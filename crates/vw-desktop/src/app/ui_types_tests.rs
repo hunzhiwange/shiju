@@ -1,3 +1,6 @@
+//! 公共界面类型测试，验证设置标签、屏幕枚举及稳定展示文案。
+//! 枚举全集只包含当前支持入口，已移除页面不得通过旧变体重新暴露。
+
 #[test]
 fn settings_tab_display_labels_are_stable() {
     assert_eq!(super::SettingsTab::Settings.to_string(), "设置");

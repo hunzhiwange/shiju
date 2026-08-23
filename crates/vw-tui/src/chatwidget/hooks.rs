@@ -1,3 +1,5 @@
+//! 本模块负责钩子列表与浏览入口。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 use std::path::PathBuf;
 
 use super::ChatWidget;
@@ -8,12 +10,14 @@ use codex_app_server_protocol::HooksListEntry;
 use codex_app_server_protocol::HooksListResponse;
 
 impl ChatWidget {
+    // 构造并展示 `add_hooks_output` 对应的界面内容。
     pub(crate) fn add_hooks_output(&mut self) {
         self.app_event_tx.send(AppEvent::FetchHooksList {
             cwd: self.config.cwd.to_path_buf(),
         });
     }
 
+    // 处理 `on_hooks_loaded` 对应的界面事件并同步相关状态。
     pub(crate) fn on_hooks_loaded(
         &mut self,
         cwd: PathBuf,

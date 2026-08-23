@@ -1,3 +1,6 @@
+//! 新会话组件测试，覆盖工作树操作按钮、列表项和明暗主题危险状态样式。
+//! 颜色断言允许微小浮点误差，同时确保文字对比、圆角及禁用反馈保持一致。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

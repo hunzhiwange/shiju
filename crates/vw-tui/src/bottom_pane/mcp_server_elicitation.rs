@@ -1,3 +1,8 @@
+//! 将 MCP 服务端 elicitation 请求呈现为审批、布尔选择、单选或文本表单覆盖层。
+//! 解析阶段只接受当前明确支持的 JSON Schema 形状；不支持的字段会走既有回退而非伪装成可编辑项。
+//! `McpServerElicitationOverlay` 按 FIFO 保存请求，并将接受、拒绝或取消结果关联回原请求标识。
+//! 工具建议与持久授权元数据经过显式解析，未知模式不会静默扩大批准范围。
+
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -1870,6 +1875,7 @@ mod tests {
         snapshot_buffer(&buf)
     }
 
+    // 验证 `parses_boolean_form_request` 场景的触发条件与预期结果。
     #[test]
     fn parses_boolean_form_request() {
         let thread_id = ThreadId::default();
@@ -1928,6 +1934,7 @@ mod tests {
         );
     }
 
+    // 验证 `unsupported_numeric_form_falls_back` 场景的触发条件与预期结果。
     #[test]
     fn unsupported_numeric_form_falls_back() {
         let request = from_form_request(
@@ -1950,6 +1957,7 @@ mod tests {
         assert_eq!(request, None);
     }
 
+    // 验证 `empty_object_schema_uses_approval_actions` 场景的触发条件与预期结果。
     #[test]
     fn empty_object_schema_uses_approval_actions() {
         let thread_id = ThreadId::default();
@@ -2003,6 +2011,7 @@ mod tests {
         );
     }
 
+    // 验证 `empty_tool_approval_schema_uses_approval_actions` 场景的触发条件与预期结果。
     #[test]
     fn empty_tool_approval_schema_uses_approval_actions() {
         let thread_id = ThreadId::default();
@@ -2055,6 +2064,7 @@ mod tests {
         );
     }
 
+    // 验证 `tool_suggestion_meta_is_parsed_into_request_payload` 场景的触发条件与预期结果。
     #[test]
     fn tool_suggestion_meta_is_parsed_into_request_payload() {
         let request = from_form_request(
@@ -2088,6 +2098,7 @@ mod tests {
         );
     }
 
+    // 验证 `plugin_tool_suggestion_meta_without_install_url_is_parsed_into_request_payload` 场景的触发条件与预期结果。
     #[test]
     fn plugin_tool_suggestion_meta_without_install_url_is_parsed_into_request_payload() {
         let request = from_form_request(
@@ -2120,6 +2131,7 @@ mod tests {
         );
     }
 
+    // 验证 `tool_approval_display_params_prefer_explicit_display_order` 场景的触发条件与预期结果。
     #[test]
     fn tool_approval_display_params_prefer_explicit_display_order() {
         let request = from_form_request(
@@ -2167,6 +2179,7 @@ mod tests {
         );
     }
 
+    // 验证 `submit_sends_accept_with_typed_content` 场景的触发条件与预期结果。
     #[test]
     fn submit_sends_accept_with_typed_content() {
         let (tx, mut rx) = test_sender();
@@ -2221,6 +2234,7 @@ mod tests {
         );
     }
 
+    // 验证 `horizontal_list_keys_move_between_select_fields` 场景的触发条件与预期结果。
     #[test]
     fn horizontal_list_keys_move_between_select_fields() {
         let (tx, _rx) = test_sender();
@@ -2265,6 +2279,7 @@ mod tests {
         );
     }
 
+    // 验证 `text_fields_inherit_composer_chord_context_and_submit_binding` 场景的触发条件与预期结果。
     #[test]
     fn text_fields_inherit_composer_chord_context_and_submit_binding() {
         let (tx, _rx) = test_sender();
@@ -2325,6 +2340,7 @@ mod tests {
         );
     }
 
+    // 验证 `empty_tool_approval_schema_session_choice_sets_persist_meta` 场景的触发条件与预期结果。
     #[test]
     fn empty_tool_approval_schema_session_choice_sets_persist_meta() {
         let (tx, mut rx) = test_sender();
@@ -2379,6 +2395,7 @@ mod tests {
         );
     }
 
+    // 验证 `empty_tool_approval_schema_always_allow_sets_persist_meta` 场景的触发条件与预期结果。
     #[test]
     fn empty_tool_approval_schema_always_allow_sets_persist_meta() {
         let (tx, mut rx) = test_sender();
@@ -2433,6 +2450,7 @@ mod tests {
         );
     }
 
+    // 验证 `ctrl_c_cancels_elicitation` 场景的触发条件与预期结果。
     #[test]
     fn ctrl_c_cancels_elicitation() {
         let (tx, mut rx) = test_sender();
@@ -2484,6 +2502,7 @@ mod tests {
         );
     }
 
+    // 验证 `queues_requests_fifo` 场景的触发条件与预期结果。
     #[test]
     fn queues_requests_fifo() {
         let (tx, _rx) = test_sender();
@@ -2556,6 +2575,7 @@ mod tests {
         assert_eq!(overlay.request.message, "Third");
     }
 
+    // 验证 `resolved_request_dismisses_overlay_without_emitting_events` 场景的触发条件与预期结果。
     #[test]
     fn resolved_request_dismisses_overlay_without_emitting_events() {
         let (tx, mut rx) = test_sender();
@@ -2624,6 +2644,7 @@ mod tests {
         ));
     }
 
+    // 验证 `boolean_form_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn boolean_form_snapshot() {
         let (tx, _rx) = test_sender();
@@ -2657,6 +2678,7 @@ mod tests {
         );
     }
 
+    // 验证 `approval_form_tool_approval_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn approval_form_tool_approval_snapshot() {
         let (tx, _rx) = test_sender();
@@ -2684,6 +2706,7 @@ mod tests {
         );
     }
 
+    // 验证 `message_only_form_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn message_only_form_snapshot() {
         let (tx, _rx) = test_sender();
@@ -2707,6 +2730,7 @@ mod tests {
         );
     }
 
+    // 验证 `message_only_form_with_persist_options_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn message_only_form_with_persist_options_snapshot() {
         let (tx, _rx) = test_sender();
@@ -2735,6 +2759,7 @@ mod tests {
         );
     }
 
+    // 验证 `approval_form_tool_approval_with_persist_options_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn approval_form_tool_approval_with_persist_options_snapshot() {
         let (tx, _rx) = test_sender();
@@ -2765,6 +2790,7 @@ mod tests {
         );
     }
 
+    // 验证 `approval_form_tool_approval_with_param_summary_snapshot` 场景的触发条件与预期结果。
     #[test]
     fn approval_form_tool_approval_with_param_summary_snapshot() {
         let (tx, _rx) = test_sender();

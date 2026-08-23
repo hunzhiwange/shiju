@@ -1,3 +1,6 @@
+//! 公共技能市场测试，覆盖来源选择、推荐卡片和三类工作助手标签。
+//! 来源选择器仅在确有多个来源时出现，窄布局仍需保持卡片背景与中文文本可读。
+
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Element, Font, Pixels, Rectangle, Size, Theme};

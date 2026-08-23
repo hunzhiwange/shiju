@@ -1,3 +1,5 @@
+//! 用量数据快照的测试，覆盖活动会话元数据、令牌合计和消息角色计数。
+//! fixture 验证最新步骤优先，并在会话或元数据缺失时采用明确回退。
 use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole, ChatSessionStep, TokenUsage};
 use serde_json::json;

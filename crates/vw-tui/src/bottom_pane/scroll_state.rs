@@ -1,3 +1,4 @@
+/// 垂直列表菜单的通用滚动/选择状态
 /// Generic scroll/selection state for a vertical list menu.
 ///
 /// Encapsulates the common behavior of a selectable list that supports:
@@ -22,12 +23,14 @@ impl ScrollState {
         Self { selected_idx: None, scroll_top: 0 }
     }
 
+    /// 重置选择并滚动
     /// Reset selection and scroll.
     pub fn reset(&mut self) {
         self.selected_idx = None;
         self.scroll_top = 0;
     }
 
+    /// 当列表为空时，选择范围限制在 [0, len - 1] 范围内；否则允许超出此范围的值。
     /// Clamp selection to be within the [0, len-1] range, or None when empty.
     pub fn clamp_selection(&mut self, len: usize) {
         if self.clear_if_empty(len) {
@@ -36,6 +39,7 @@ impl ScrollState {
         self.selected_idx = Some(self.selected_idx.unwrap_or(0).min(len - 1));
     }
 
+    /// 向上移动选区，必要时向下滚动。
     /// Move selection up by one, wrapping to the bottom when necessary.
     pub fn move_up_wrap(&mut self, len: usize) {
         if self.clear_if_empty(len) {
@@ -48,6 +52,7 @@ impl ScrollState {
         });
     }
 
+    /// 向下移动选区，必要时向上回绕。
     /// Move selection down by one, wrapping to the top when necessary.
     pub fn move_down_wrap(&mut self, len: usize) {
         if self.clear_if_empty(len) {
@@ -59,6 +64,7 @@ impl ScrollState {
         });
     }
 
+    /// 向上移动选区至可见页面一行，并限制在第一条行。
     /// Move selection up by one visible page, clamping at the first row.
     ///
     /// Page movement intentionally does not wrap. It mirrors terminal list
@@ -74,6 +80,7 @@ impl ScrollState {
         self.ensure_visible(len, visible_rows);
     }
 
+    /// 向下移动选区一行可见页面，并在最后一行处限制。
     /// Move selection down by one visible page, clamping at the last row.
     ///
     /// Page movement intentionally does not wrap. It mirrors terminal list
@@ -89,6 +96,7 @@ impl ScrollState {
         self.ensure_visible(len, visible_rows);
     }
 
+    /// 跳转到第一行
     /// Jump selection to the first row.
     pub fn jump_top(&mut self, len: usize, visible_rows: usize) {
         if self.clear_if_empty(len) {
@@ -98,6 +106,7 @@ impl ScrollState {
         self.ensure_visible(len, visible_rows);
     }
 
+    /// 跳转到最后一行
     /// Jump selection to the last row.
     pub fn jump_bottom(&mut self, len: usize, visible_rows: usize) {
         if self.clear_if_empty(len) {
@@ -116,6 +125,7 @@ impl ScrollState {
         true
     }
 
+    /// 将 scroll_top 调整，使当前 selected_idx 在 visible_rows 窗口内可见
     /// Adjust `scroll_top` so that the current `selected_idx` is visible within
     /// the window of `visible_rows`.
     pub fn ensure_visible(&mut self, len: usize, visible_rows: usize) {
@@ -142,6 +152,7 @@ impl ScrollState {
 mod tests {
     use super::ScrollState;
 
+    // 验证 `wrap_navigation_and_visibility` 场景的触发条件与预期结果。
     #[test]
     fn wrap_navigation_and_visibility() {
         let mut s = ScrollState::new();
@@ -167,6 +178,7 @@ mod tests {
         assert_eq!(s.scroll_top, 0);
     }
 
+    // 验证 `page_and_jump_navigation_clamps` 场景的触发条件与预期结果。
     #[test]
     fn page_and_jump_navigation_clamps() {
         let mut s = ScrollState::new();

@@ -1,4 +1,6 @@
 //! Goal summary for the bare `/goal` command.
+//! 本模块负责`/goal` 的目标摘要与编辑菜单。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use crate::goal_display::format_goal_elapsed_seconds;
@@ -6,10 +8,12 @@ use crate::goal_files;
 use crate::status::format_tokens_compact;
 
 impl ChatWidget {
+    // 构造并展示 `show_goal_summary` 对应的界面内容。
     pub(crate) fn show_goal_summary(&mut self, goal: AppThreadGoal) {
         self.add_plain_history_lines(goal_summary_lines(&goal));
     }
 
+    // 构造并展示 `show_goal_edit_prompt` 对应的界面内容。
     pub(crate) fn show_goal_edit_prompt(&mut self, thread_id: ThreadId, goal: AppThreadGoal) {
         let tx = self.app_event_tx.clone();
         let status = edited_goal_status(goal.status);
@@ -36,6 +40,7 @@ impl ChatWidget {
         self.bottom_pane.show_text_prompt(view);
     }
 
+    // 构造并展示 `show_resume_paused_goal_prompt` 对应的界面内容。
     pub(crate) fn show_resume_paused_goal_prompt(
         &mut self,
         thread_id: ThreadId,
@@ -71,6 +76,7 @@ impl ChatWidget {
         });
     }
 
+    // 接收 `on_thread_goal_cleared` 对应事件，并只更新本地展示状态。
     pub(crate) fn on_thread_goal_cleared(&mut self, thread_id: &str) {
         if self
             .thread_id
@@ -82,6 +88,7 @@ impl ChatWidget {
     }
 }
 
+// 计算 `goal_summary_lines` 所需的界面结果。
 fn goal_summary_lines(goal: &AppThreadGoal) -> Vec<Line<'static>> {
     let mut lines = vec![
         Line::from("Goal".bold()),
@@ -119,6 +126,7 @@ fn goal_summary_lines(goal: &AppThreadGoal) -> Vec<Line<'static>> {
     lines
 }
 
+// 计算 `goal_status_label` 所需的界面结果。
 fn goal_status_label(status: AppThreadGoalStatus) -> &'static str {
     match status {
         AppThreadGoalStatus::Active => "active",

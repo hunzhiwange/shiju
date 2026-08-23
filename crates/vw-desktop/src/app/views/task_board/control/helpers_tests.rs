@@ -1,3 +1,5 @@
+//! 任务看板控制区辅助函数的测试，覆盖工位状态、时长和日志摘要。
+//! 边界数据验证状态配色、任务租约匹配以及空日志的回退文案。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

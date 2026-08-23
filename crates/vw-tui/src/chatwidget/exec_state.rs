@@ -1,4 +1,6 @@
 //! Grouped command/tool bookkeeping retained by the copied exec-cell renderer.
+//! 本模块负责分组命令和工具调用的执行单元展示状态。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
@@ -11,6 +13,7 @@ use crate::exec_cell::{
 use crate::history_cell::HistoryCell;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// 描述 `CallMutation` 在当前界面流程中传递的数据。
 pub(super) enum CallMutation {
     Applied,
     MissingStart,
@@ -19,12 +22,14 @@ pub(super) enum CallMutation {
 }
 
 #[derive(Clone, Debug)]
+/// 描述 `LifecycleExecCell` 在本模块状态转换中传递的数据。
 pub(super) struct LifecycleExecCell {
     cell: ExecCell,
     live_output: HashMap<String, String>,
 }
 
 impl HistoryCell for LifecycleExecCell {
+    // 计算 `display_lines` 所需的界面结果。
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
         for call in &self.cell.calls {
@@ -61,6 +66,7 @@ pub(super) struct ExecState {
 }
 
 impl ExecState {
+    // 判断 `is_active` 对应的界面条件是否成立。
     pub(super) fn is_active(&self) -> bool {
         self.cell.is_some()
     }
@@ -101,6 +107,7 @@ impl ExecState {
         CallMutation::Applied
     }
 
+    // 计算 `append_output` 所需的界面结果。
     pub(super) fn append_output(&mut self, call_id: &str, delta: &str) -> CallMutation {
         if self.terminal_call_ids.contains(call_id) {
             return CallMutation::AlreadyTerminal;
@@ -139,6 +146,7 @@ impl ExecState {
         CallMutation::Applied
     }
 
+    // 处理 `finish_running` 对应的界面事件并同步相关状态。
     pub(super) fn finish_running(&mut self, exit_code: i32, message: &str) -> Vec<String> {
         let Some(cell) = self.cell.as_mut() else {
             return Vec::new();

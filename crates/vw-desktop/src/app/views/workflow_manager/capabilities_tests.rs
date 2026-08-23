@@ -1,3 +1,5 @@
+//! 工作流管理器能力面板的测试，覆盖内置与自定义能力的展示和编辑。
+//! fixture 验证目录错误、选择状态及保存动作能够映射到正确消息。
 use super::*;
 
 fn keep(element: Element<'_, Message>) {

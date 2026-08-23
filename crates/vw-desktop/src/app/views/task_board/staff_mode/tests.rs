@@ -1,3 +1,5 @@
+//! 员工模式视图的组合测试，覆盖名册、泳道、动态流和分配面板。
+//! 不同运行状态的 fixture 用于验证整体分栏及可选覆盖层构建。
 use crate::app::state::{
     TaskBoardStaffAssignmentTab, TaskBoardStaffOrchestrationTab, TaskBoardViewMode,
 };

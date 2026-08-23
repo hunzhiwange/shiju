@@ -1,3 +1,5 @@
+//! 本模块负责速率限制重置额度选项。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 use chrono::DateTime;
 use chrono::Local;
 use chrono::Utc;
@@ -5,6 +7,7 @@ use codex_app_server_protocol::RateLimitResetCreditStatus;
 use codex_app_server_protocol::RateLimitResetCreditsSummary;
 
 #[derive(Debug, Eq, PartialEq)]
+/// 描述 `ResetCreditOption` 在当前界面流程中传递的数据。
 pub(super) struct ResetCreditOption {
     pub(super) credit_id: Option<String>,
     pub(super) name: String,
@@ -12,6 +15,7 @@ pub(super) struct ResetCreditOption {
     pub(super) description: String,
 }
 
+// 更新 `reset_credit_options` 对应的本地展示状态。
 pub(super) fn reset_credit_options(
     summary: &RateLimitResetCreditsSummary,
 ) -> Vec<ResetCreditOption> {

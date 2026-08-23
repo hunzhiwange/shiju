@@ -1,3 +1,7 @@
+//! 验证 MCP 检查请求的目录查询参数与 JSON 响应透传。
+//!
+//! 固件用于锁定客户端调用的网关路径，不模拟 MCP 服务自身的运行行为。
+
 use serde_json::json;
 
 use crate::client::test_support;

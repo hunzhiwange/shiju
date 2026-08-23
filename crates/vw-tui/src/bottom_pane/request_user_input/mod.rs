@@ -1,3 +1,15 @@
+//! 本模块集中实现 `mod` 在底部面板中的职责。
+//! 关键声明 `TIP_SEPARATOR`、`DESIRED_SPACERS_BETWEEN_SECTIONS`、`OTHER_OPTION_LABEL`、`OTHER_OPTION_DESCRIPTION` 共同界定本文件的对外交互面。
+//! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
+//! 交互分支通过明确枚举或返回值向上层传递选择结果。
+//! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
+//! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
+//! 键盘输入只在当前界面状态内解释，未匹配输入继续遵循上层约定。
+//! 取消与关闭路径保持已有返回语义，不暗中确认待处理操作。
+//! 选择、滚动与焦点值在使用前由原有逻辑约束到有效范围。
+
+
+//! 将请求 - 用户输入表面与 VibeWindow 拥有的答案动作复制。 问题、选项标签和当前焦点属于呈现状态。提交事件不构造应用服务器响应，也不创建任何 AppServer 响应。空提交、未回答的问题以及 `Esc` 保持显式路径，以便桥接应用可以应用其自身策略。
 //! Copied request-user-input surface with VibeWindow-owned answer actions.
 //!
 //! Questions, option labels, and the current focus are presentation state.  Submission emits
@@ -497,6 +509,7 @@ mod tests {
         )
     }
 
+    // 验证 `request_user_input_emits_data_without_reply_side_effect` 场景的触发条件与预期结果。
     #[test]
     fn request_user_input_emits_data_without_reply_side_effect() {
         let mut overlay = RequestUserInputOverlay::new(request());
@@ -512,6 +525,7 @@ mod tests {
         );
     }
 
+    // 验证 `unanswered_confirmation_keeps_go_back_path` 场景的触发条件与预期结果。
     #[test]
     fn unanswered_confirmation_keeps_go_back_path() {
         let mut question = request();

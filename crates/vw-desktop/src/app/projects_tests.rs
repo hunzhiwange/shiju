@@ -1,3 +1,6 @@
+//! 项目状态测试，覆盖最近项目兼容解析、可见性过滤和项目作用域切换。
+//! 路径边界同时兼顾 Unix 与 Windows 分隔符，隐藏目录和空名称需安全拒绝。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

@@ -1,3 +1,8 @@
+//! WebView 启动入口及本地协议的行为测试。
+//!
+//! 覆盖 URL 与路径处理、进程间控制消息、受信任 Cookie 输入，以及临时文件和数据目录边界；
+//! 文件系统用例通过独立临时目录隔离，避免依赖用户的真实 WebView 数据。
+
 use super::*;
 use std::fs;
 use std::path::{Path, PathBuf};

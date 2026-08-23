@@ -1,3 +1,8 @@
+//! 本模块集中实现 `completion_target` 在底部面板中的职责。
+//! 关键声明 `prefixed_candidate_range`、`current_prefixed_token_range`、`current_prefixed_token_range_with_dollar_predicate`、`prefixed_token_range_is_editable` 共同界定本文件的对外交互面。
+
+
+//! Sigil 前缀的输入编辑器完成选项的邻域分辨率
 //! Cursor-neighborhood resolution for sigil-prefixed composer completions.
 
 use super::ends_plaintext_at_dollar_mention;
@@ -7,6 +12,7 @@ use crate::bottom_pane::textarea::TextArea;
 use crate::mention_codec::is_common_env_var;
 use std::ops::Range;
 
+/// 将窄于编辑段内锚点附近的单个空格 delimited 候选项保留。
 /// Narrows one whitespace-delimited candidate to the editable segment around `anchor`.
 ///
 /// Atomic elements form hard boundaries. If the anchor is inside an element, the raw candidate is
@@ -64,6 +70,7 @@ fn prefixed_candidate_range(
     }
 }
 
+/// 提取光标前以 `prefix` 开头的任何令牌。返回的字符串不包含该 prefix。跨符号断点仲裁时，考虑同一行分隔符两侧的所有令牌，并保留其范围。它停止在原子文本元素上编辑候选者，且换行永远不会提供亲和性。
 /// Extracts a token prefixed with `prefix` under the cursor, if any.
 ///
 /// The returned string does not include the prefix. Resolution considers the tokens on both sides
@@ -82,6 +89,7 @@ pub(super) fn current_prefixed_token_range(
     )
 }
 
+/// 使用提供的美元查询谓词作为分隔符提取前缀令牌
 /// Extracts a prefixed token while using the provided dollar-query predicate for separator
 /// arbitration.
 pub(super) fn current_prefixed_token_range_with_dollar_predicate(
@@ -93,6 +101,7 @@ pub(super) fn current_prefixed_token_range_with_dollar_predicate(
     let cursor_offset = textarea.cursor();
     let text = textarea.text();
 
+    // 将提供的字节偏移量调整至其有效字符边界或之前。
     // Adjust the provided byte offset to the nearest valid char boundary at or before it.
     let mut safe_cursor = cursor_offset.min(text.len());
     if safe_cursor < text.len() && !text.is_char_boundary(safe_cursor) {
@@ -266,6 +275,7 @@ pub(super) fn current_prefixed_token_range_with_dollar_predicate(
     left_prefixed.or(right_prefixed)
 }
 
+/// 是否允许将令牌候选的符号和提及名称作为可编辑文本修改。
 /// Returns whether a token candidate's sigil and mention name are editable plaintext.
 ///
 /// A candidate is bound when either its entire range is atomic or its mention-name prefix is
@@ -299,6 +309,7 @@ pub(super) fn prefixed_token_range_is_editable(
             .is_some())
 }
 
+/// 拒绝使用类似 shell 的美元符号语法，同时保留小写和插件化技能查询。
 /// Rejects shell-like dollar syntax while preserving lowercase and plugin-qualified skill queries.
 ///
 /// Uppercase common environment-variable spellings and tokens beginning with a positional or
@@ -308,17 +319,20 @@ pub(super) fn dollar_query_is_completable(query: &str) -> bool {
     matches!(dollar_query_kind(query), DollarQueryKind::Completable)
 }
 
+/// 对 `$` 后文本进行分类，以在 Shell 语法和提及完成之间进行仲裁。
 /// Classifies text after `$` for arbitration between shell syntax and mention completion.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum DollarQueryKind {
     Completable,
     ShellVariable,
     DefiniteShellParameter,
+    /// 包含非数字字符或以 `-` 结尾的查询
     /// A digit-leading query containing a non-digit, or a `-` query with a suffix.
     AmbiguousShellParameter,
     Invalid,
 }
 
+/// 在查阅目录之前，谨慎地将美元查询分类。
 /// Conservatively classifies a dollar query before the mention catalog is consulted.
 ///
 /// Numeric-only and exact special-parameter forms remain definite shell syntax. A digit-leading

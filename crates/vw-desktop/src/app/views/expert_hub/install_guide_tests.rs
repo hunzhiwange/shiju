@@ -1,3 +1,6 @@
+//! 技能安装指南测试，覆盖平台目标、安装范围、进度阶段和卸载确认层。
+//! 明暗主题需满足可读对比度，忙碌状态和重复操作必须正确禁用。
+
 use super::install_guide::{
     SCROLLBAR_WIDTH, agent_install_preview, copy_action_message, direct_install_action_message,
     direct_install_button_label, direct_install_progress, install_project_options,

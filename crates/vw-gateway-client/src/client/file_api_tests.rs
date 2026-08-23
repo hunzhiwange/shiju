@@ -1,3 +1,7 @@
+//! 验证结构化文件接口与旧版目录接口的路径和载荷契约。
+//!
+//! 测试覆盖跨平台分隔符规整、根目录编码、可选工作树上下文及错误传播。
+
 use serde_json::json;
 use vw_api_types::file::{
     CopyFileRequest, DeleteFileRequest, FileNodeKind, ListFilesRequest, MoveFileRequest,

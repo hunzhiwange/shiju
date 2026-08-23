@@ -1,3 +1,6 @@
+//! 员工编排设置测试，验证网关配置投影、未保存变更检测和能力绑定往返。
+//! 转换时仅修剪可选文本并报告非法数值，不应静默接受不完整成员配置。
+
 use super::StaffSettingsState;
 use crate::app::App;
 use vw_config_types::staff::{

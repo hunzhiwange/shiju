@@ -1,8 +1,11 @@
 //! Product-neutral tool event adapters for the copied command lifecycle.
+//! 本模块负责工具事件到命令生命周期的适配。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 
 impl ChatWidget {
+    // 处理 `on_tool_started` 对应的界面事件并同步相关状态。
     pub(super) fn on_tool_started(
         &mut self,
         turn_id: String,
@@ -13,6 +16,7 @@ impl ChatWidget {
         self.on_command_started(&turn_id, call_id, tool, command);
     }
 
+    // 接收 `on_tool_output_delta` 对应事件，并只更新本地展示状态。
     pub(super) fn on_tool_output_delta(
         &mut self,
         turn_id: String,

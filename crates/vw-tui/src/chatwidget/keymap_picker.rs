@@ -10,6 +10,10 @@
 //! the stored `Config.tui_keymap`, the cached copy-response binding used by app-level shortcuts,
 //! and the bottom pane's runtime keymap bindings. Updating only one of those would make the UI
 //! appear to accept a remap while some handlers still respond to the old keys.
+//! 本模块负责`/keymap` 选择器与实时键位配置同步。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 接受编辑后必须同时更新持久化配置、应用级复制快捷键缓存和底部面板运行时绑定。
+//! 返回选择器时优先替换旧子菜单；视图栈已变化时重新打开选择器，避免落到陈旧界面。
 
 use codex_config::types::TuiKeymap;
 use codex_terminal_detection::terminal_info;
@@ -28,6 +32,8 @@ impl ChatWidget {
     /// picker screen needs the effective runtime bindings, including preset defaults and user
     /// overrides. If the config is invalid, the user sees the parse error instead of a partial
     /// picker that could commit edits against stale runtime state.
+    /// 使用当前的“tui.keymap”配置打开根“/keymap”选择器。这会在生成选择器行之前验证保留的键映射，因为每个后续选择器屏幕都需要有效的运行时绑定，包括预设默认值和用户覆盖。如果配置无效，用户将看到解析错误，
+    /// 而不是可以根据过时的运行时状态提交编辑的部分选择器。
     pub(crate) fn open_keymap_picker(&mut self) {
         match RuntimeKeymap::from_config(&self.config.tui_keymap) {
             Ok(runtime_keymap) => {
@@ -49,6 +55,7 @@ impl ChatWidget {
     /// Callers pass the already-resolved runtime keymap from the app event that selected the
     /// action. Recomputing it here would risk showing a menu for a different config if another
     /// keymap edit was applied between the picker event and this handler.
+    /// 打开某个键位操作的编辑菜单。调用方传入选择该操作时已解析的运行时键位映射；若在选择事件与此处理器之间又发生编辑，此处重新计算可能会错误展示另一份配置。
     pub(crate) fn open_keymap_action_menu(
         &mut self,
         context: String,
@@ -69,6 +76,8 @@ impl ChatWidget {
     /// The capture view owns raw key interpretation, but `ChatWidget` supplies the event sender so
     /// the captured key can come back through the same app-event path as menu selections. Bypassing
     /// that path would skip config persistence and leave the runtime keymap cache unchanged.
+    /// 打开新增、替换或备用绑定编辑所需的按键捕获视图。捕获视图负责解释原始按键，`ChatWidget` 提供事件发送方，使捕获结果沿菜单选择所用的同一应用事件路径返回；绕过该路径会跳过配置持久化，
+    /// 并保持运行时键盘映射缓存不变。
     pub(crate) fn open_keymap_capture(
         &mut self,
         context: String,
@@ -90,6 +99,7 @@ impl ChatWidget {
     }
 
     /// Opens the keypress inspector with the current runtime bindings.
+    /// 使用当前运行时绑定打开按键检查器。
     pub(crate) fn open_keymap_debug(&mut self, runtime_keymap: &RuntimeKeymap) {
         let view = keymap_setup::build_keymap_debug_view(runtime_keymap, &self.config.tui_keymap);
         self.bottom_pane.show_view(Box::new(view));
@@ -101,6 +111,7 @@ impl ChatWidget {
     /// This is only used for actions with multiple effective bindings. The chosen binding is
     /// carried through the subsequent capture intent so replacement edits do not accidentally
     /// collapse alternate bindings that should remain available.
+    /// 打开允许用户选择要替换的现有绑定的菜单。这仅用于具有多个有效绑定的操作。所选绑定通过后续捕获意图进行，因此替换编辑不会意外折叠应保持可用的替代绑定。
     pub(crate) fn open_keymap_replace_binding_menu(
         &mut self,
         context: String,
@@ -118,6 +129,7 @@ impl ChatWidget {
     /// back stack does not accumulate obsolete menus after each edit. If the expected view stack is
     /// no longer active, this falls back to showing a fresh picker rather than dropping the user on
     /// a stale screen.
+    /// 返回根选择器并选中刚编辑的操作。优先替换当前键位映射子菜单，避免底部面板返回栈累积过期菜单；若预期视图栈已失效，则重新打开选择器，避免停留在陈旧界面。
     pub(crate) fn return_to_keymap_picker(
         &mut self,
         context: &str,
@@ -164,6 +176,8 @@ impl ChatWidget {
     /// method updates the in-memory config, app-level copy binding cache, and bottom-pane keymap
     /// bindings as one unit; callers that update only `self.config.tui_keymap` would leave visible
     /// picker state and active key handlers disagreeing until the next restart.
+    /// 将已提交的键位编辑应用到当前聊天组件。调用方须先持久化配置文件；本方法会一并更新内存配置、应用级复制快捷键缓存和底部面板运行时绑定。
+    /// 若只更新 `self.config.tui_keymap`，可见选择器状态与实际按键处理器会一直不一致，直至下次启动。
     pub(crate) fn apply_keymap_update(
         &mut self,
         keymap_config: TuiKeymap,

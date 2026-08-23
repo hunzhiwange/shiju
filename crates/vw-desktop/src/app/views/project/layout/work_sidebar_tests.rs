@@ -1,3 +1,5 @@
+//! 工作模式侧栏的测试，覆盖空间分组、任务状态、分页和上下文菜单。
+//! fixture 使用真实项目与父子会话，验证长标题和运行态投影等边界。
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, Shell, clipboard, layout, mouse, renderer, widget::Tree};
 use iced::{Event, Font, Pixels, Point, Rectangle, Size, Theme};

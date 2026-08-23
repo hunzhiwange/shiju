@@ -1,3 +1,5 @@
+//! 任务看板控制区的测试，覆盖调度器按钮、工作树面板和项目能力门控。
+//! 快照 fixture 同时包含锁定与无锁工位，验证加载及完成态分支。
 use iced::advanced::renderer::Headless;
 
 #[test]

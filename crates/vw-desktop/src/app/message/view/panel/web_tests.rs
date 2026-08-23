@@ -1,3 +1,6 @@
+//! Web 书签面板交互测试，覆盖新增、编辑、取消和输入解析流程。
+//! 同时验证无效索引及缺失可选字段不会破坏用户尚未提交的草稿。
+
 use crate::app::{App, CookieConfig, WebBookmark};
 use iced::widget::text_editor;
 

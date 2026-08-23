@@ -2,10 +2,13 @@
 //!
 //! This keeps theme, personality, and experimental-feature UI out of the main
 //! orchestration module without changing their event wiring.
+//! 本模块负责主题、个性与实验功能设置弹窗。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 
 impl ChatWidget {
+    // 构造并展示 `open_theme_picker` 对应的界面内容。
     pub(super) fn open_theme_picker(&mut self) {
         let codex_home = codex_utils_home_dir::find_codex_home().ok();
         let params = crate::theme_picker::build_theme_picker_params(
@@ -16,6 +19,7 @@ impl ChatWidget {
         self.bottom_pane.show_selection_view(params);
     }
 
+    // 构造并展示 `open_personality_popup` 对应的界面内容。
     pub(crate) fn open_personality_popup(&mut self) {
         if !self.is_session_configured() {
             self.add_info_message(
@@ -34,6 +38,7 @@ impl ChatWidget {
         self.open_personality_popup_for_current_model();
     }
 
+    // 构造并展示 `open_personality_popup_for_current_model` 对应的界面内容。
     fn open_personality_popup_for_current_model(&mut self) {
         let current_personality = self.config.personality.unwrap_or(Personality::Friendly);
         let personalities = [Personality::Friendly, Personality::Pragmatic];
@@ -86,6 +91,7 @@ impl ChatWidget {
         });
     }
 
+    // 构造并展示 `open_experimental_popup` 对应的界面内容。
     pub(crate) fn open_experimental_popup(&mut self) {
         let features: Vec<ExperimentalFeatureItem> = FEATURES
             .iter()
@@ -109,6 +115,7 @@ impl ChatWidget {
         self.bottom_pane.show_view(Box::new(view));
     }
 
+    // 计算 `personality_label` 所需的界面结果。
     fn personality_label(personality: Personality) -> &'static str {
         match personality {
             Personality::None => "None",
@@ -117,6 +124,7 @@ impl ChatWidget {
         }
     }
 
+    // 计算 `personality_description` 在当前界面流程中需要的局部结果。
     fn personality_description(personality: Personality) -> &'static str {
         match personality {
             Personality::None => "No personality instructions.",

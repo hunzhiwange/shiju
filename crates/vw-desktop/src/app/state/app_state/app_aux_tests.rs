@@ -1,3 +1,6 @@
+//! 应用辅助状态测试，验证最近项目、Web 书签、通知与提示消息的数据契约。
+//! 克隆和序列化往返应完整保留标识、可选字段及嵌套 Cookie 配置。
+
 use super::{
     CookieConfig, Notification, RecentProjectMeta, Toast, ToastKind, WebBookmark,
     default_recent_project_session_auto_refresh,

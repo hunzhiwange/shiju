@@ -1,3 +1,6 @@
+//! 员工资源编辑状态测试，覆盖成员与团队草稿的选择、替换和请求构建。
+//! 必填项错误按字段返回，切换资源时不得让未保存草稿跨成员相互污染。
+
 use super::{
     StaffTeamMemberDraft, StaffTeamResourcesState, StaffWorkerResourcesState, next_resource_id,
     optional_trimmed, required_trimmed, resource_project_path,

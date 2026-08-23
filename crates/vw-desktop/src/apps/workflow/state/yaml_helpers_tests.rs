@@ -1,3 +1,5 @@
+//! 工作流 YAML 辅助函数的测试，覆盖映射解析、字符串列表和变量序列化。
+//! fixture 包含非字符串项、重复分隔输入及缺失字段，验证容错边界。
 use super::*;
 
 fn mapping_value_str<'a>(value: &'a Value, key: &str) -> Option<&'a str> {

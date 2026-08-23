@@ -1,3 +1,6 @@
+//! 聊天文本工具测试，覆盖光标插入、位置格式和思考及工具块剥离。
+//! 所有截取与拼接都必须保持 Unicode 边界，伪标签和未闭合标签按明确规则处理。
+
 #[test]
 fn format_position_keeps_file_line_and_column() {
     assert_eq!(super::format_position("src/main.rs", 7, 3), "文件:src/main.rs 行:7 列:3");

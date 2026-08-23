@@ -1,3 +1,6 @@
+//! 视图消息总路由测试，覆盖全局快捷键、工作流按键和任务宠物窗口交互。
+//! 测试确保不同屏幕的消息只进入对应分支，并保持窗口配置与输入状态契约。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

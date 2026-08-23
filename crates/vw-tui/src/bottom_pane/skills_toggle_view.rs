@@ -1,3 +1,7 @@
+//! 本模块集中实现 `skills_toggle_view` 在底部面板中的职责。
+//! 关键声明 `SEARCH_PLACEHOLDER`、`SEARCH_PROMPT_PREFIX`、`SkillsToggleItem`、`SkillsToggleView` 共同界定本文件的对外交互面。
+
+
 use codex_utils_absolute_path::AbsolutePathBuf;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
@@ -92,6 +96,7 @@ impl SkillsToggleView {
     }
 
     fn apply_filter(&mut self) {
+        // 在可能时保留当前选择，过滤并排序。
         // Filter + sort while preserving the current selection when possible.
         let previously_selected = self
             .state
@@ -238,6 +243,7 @@ impl BottomPaneView for SkillsToggleView {
     }
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
+        // 可打印字符总是用于搜索。移动别名仅通过非文本事件或修改后的绑定生效。
         // Printable characters always feed search. Movement aliases such as
         // plain j/k only apply through non-text events or modified bindings.
         let allow_plain_char_navigation = !is_plain_text_key_event(key_event);
@@ -317,6 +323,7 @@ impl Renderable for SkillsToggleView {
             return;
         }
 
+        // 为键提示行预留底部一行。
         // Reserve the footer line for the key-hint row.
         let [content_area, footer_area] =
             Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(area);
@@ -341,6 +348,7 @@ impl Renderable for SkillsToggleView {
 
         self.header.render(header_area, buf);
 
+        // 将搜索提示词渲染为两行，以模拟输入编辑器的风格。
         // Render the search prompt as two lines to mimic the composer.
         if search_area.height >= 2 {
             let [placeholder_area, input_area] =
@@ -479,6 +487,7 @@ mod tests {
         ]
     }
 
+    // 验证 `renders_basic_popup` 场景的触发条件与预期结果。
     #[test]
     fn renders_basic_popup() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -503,6 +512,7 @@ mod tests {
         assert_snapshot!("skills_toggle_basic", render_lines(&view, /*width*/ 72));
     }
 
+    // 验证 `build_rows_preserves_full_skill_display_names` 场景的触发条件与预期结果。
     #[test]
     fn build_rows_preserves_full_skill_display_names() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -528,6 +538,7 @@ mod tests {
         );
     }
 
+    // 验证 `filtering_long_skill_names_preserves_the_matching_row` 场景的触发条件与预期结果。
     #[test]
     fn filtering_long_skill_names_preserves_the_matching_row() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -552,6 +563,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_long_names_using_available_width` 场景的触发条件与预期结果。
     #[test]
     fn renders_long_names_using_available_width() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -568,6 +580,7 @@ mod tests {
         );
     }
 
+    // 验证 `renders_long_names_at_narrow_width` 场景的触发条件与预期结果。
     #[test]
     fn renders_long_names_at_narrow_width() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
@@ -584,6 +597,7 @@ mod tests {
         );
     }
 
+    // 验证 `footer_hint_uses_list_keymap_accept_and_cancel` 场景的触发条件与预期结果。
     #[test]
     fn footer_hint_uses_list_keymap_accept_and_cancel() {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();

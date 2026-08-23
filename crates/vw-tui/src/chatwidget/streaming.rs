@@ -1,14 +1,18 @@
 //! Incremental thinking and answer cells for the copied `ChatWidget` surface.
+//! 本模块负责增量推理与回答单元。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// 描述 `StreamKind` 在当前界面流程中传递的数据。
 enum StreamKind {
     Thinking,
     Answer,
 }
 
 #[derive(Debug, Default)]
+/// 描述 `StreamingState` 在本模块状态转换中传递的数据。
 pub(super) struct StreamingState {
     kind: Option<StreamKind>,
     text: String,

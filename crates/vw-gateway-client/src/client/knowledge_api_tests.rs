@@ -1,3 +1,7 @@
+//! 验证知识库数据集、文档、导入任务及检索接口的完整路由契约。
+//!
+//! 所有请求均检查默认租户作用域，并覆盖同步导入、异步作业、批量操作和嵌入测试。
+
 use serde_json::json;
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
 use vw_api_types::knowledge::{

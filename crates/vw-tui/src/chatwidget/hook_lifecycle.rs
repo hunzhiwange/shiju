@@ -2,11 +2,16 @@
 //!
 //! This module keeps active hook cells, hook timers, and hook completion output
 //! together.
+//! 本模块负责钩子运行的活动单元、计时器与完成输出。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
+//! 活动钩子单元、可见性计时器和完成输出在此保持一致，避免历史中残留运行状态。
 
 use super::*;
 
 impl ChatWidget {
     /// Drop transient live hook status without flushing it into history.
+    /// 丢弃瞬态实时挂钩状态，而不将其刷新到历史记录中。
+    // 更新 `clear_active_hook_cell` 对应的本地展示状态。
     pub(super) fn clear_active_hook_cell(&mut self) {
         if self.active_hook_cell.take().is_some() {
             self.bump_active_cell_revision();
@@ -14,6 +19,7 @@ impl ChatWidget {
         }
     }
 
+    // 处理 `on_hook_started` 对应的界面事件并同步相关状态。
     pub(super) fn on_hook_started(&mut self, run: codex_app_server_protocol::HookRunSummary) {
         self.flush_answer_stream_with_separator();
         self.flush_completed_hook_output();
@@ -65,6 +71,7 @@ impl ChatWidget {
         self.request_redraw();
     }
 
+    // 计算 `flush_completed_hook_output` 所需的界面结果。
     pub(super) fn flush_completed_hook_output(&mut self) {
         let Some(completed_cell) = self
             .active_hook_cell
@@ -109,6 +116,7 @@ impl ChatWidget {
         }
     }
 
+    // 更新 `update_due_hook_visibility` 对应的本地展示状态。
     pub(super) fn update_due_hook_visibility(&mut self) {
         let Some(cell) = self.active_hook_cell.as_mut() else {
             return;

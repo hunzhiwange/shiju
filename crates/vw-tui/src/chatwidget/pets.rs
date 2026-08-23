@@ -1,8 +1,11 @@
 //! Chat widget helpers for ambient terminal pets and the pets picker.
+//! 本模块负责终端宠物状态与选择器。
+//! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use super::*;
 use codex_config::types::TuiPetAnchor;
 
+// 计算 `load_ambient_pet` 所需的界面结果。
 pub(super) fn load_ambient_pet(
     config: &Config,
     frame_requester: FrameRequester,
@@ -21,6 +24,7 @@ pub(super) fn load_ambient_pet(
     .ok()
 }
 
+// 计算 `start_configured_pet_load_if_needed` 在当前界面流程中需要的局部结果。
 pub(super) fn start_configured_pet_load_if_needed(
     config: &Config,
     ambient_pet_missing: bool,
@@ -70,6 +74,7 @@ impl ChatWidget {
         }
     }
 
+    // 计算 `ambient_pet_image_enabled` 所需的界面结果。
     pub(crate) fn ambient_pet_image_enabled(&self) -> bool {
         self.ambient_pet
             .as_ref()
@@ -99,6 +104,7 @@ impl ChatWidget {
             .draw_request(area, anchor_bottom_y)
     }
 
+    // 计算 `ambient_pet_wrap_reserved_cols` 所需的界面结果。
     pub(super) fn ambient_pet_wrap_reserved_cols(&self) -> u16 {
         self.ambient_pet
             .as_ref()
@@ -128,6 +134,7 @@ impl ChatWidget {
         Some(request)
     }
 
+    // 判断 `should_clear_pet_picker_preview_image` 对应的界面条件是否成立。
     pub(crate) fn should_clear_pet_picker_preview_image(&self) -> bool {
         self.pet_picker_preview_image_visible.replace(false)
     }
@@ -168,6 +175,7 @@ impl ChatWidget {
         self.app_event_tx.send(AppEvent::PetSelected { pet_id });
     }
 
+    // 计算 `warn_if_pets_unsupported` 所需的界面结果。
     fn warn_if_pets_unsupported(&mut self) -> bool {
         let support = self.pet_image_support();
         let Some(message) = support.unsupported_message() else {
@@ -194,6 +202,7 @@ impl ChatWidget {
     }
 
     /// Set the pet preselected by the TUI picker in the widget's config copy.
+    /// 设置 TUI 选择器预选的宠物，并同步组件配置副本与环境宠物展示。
     pub(crate) fn set_tui_pet(&mut self, pet: Option<String>) {
         self.config.tui_pet = pet;
         self.ambient_pet = load_ambient_pet(&self.config, self.frame_requester.clone());
@@ -201,6 +210,7 @@ impl ChatWidget {
         self.request_redraw();
     }
 
+    // 更新 `set_tui_pet_loaded` 对应的本地展示状态。
     pub(crate) fn set_tui_pet_loaded(
         &mut self,
         pet: Option<String>,
@@ -224,6 +234,7 @@ impl ChatWidget {
     #[cfg(not(test))]
     fn apply_ambient_pet_image_support_override_for_tests(&mut self) {}
 
+    // 处理 `start_pet_picker_preview` 对应的界面事件并同步相关状态。
     pub(crate) fn start_pet_picker_preview(&mut self, pet_id: String) {
         self.pet_picker_preview_request_id =
             self.pet_picker_preview_request_id.wrapping_add(/*rhs*/ 1);
@@ -306,6 +317,7 @@ impl ChatWidget {
         self.pet_selection_load_request_id
     }
 
+    // 处理 `finish_pet_selection_loading_popup` 对应的界面事件并同步相关状态。
     pub(crate) fn finish_pet_selection_loading_popup(&mut self, request_id: u64) -> bool {
         if request_id != self.pet_selection_load_request_id {
             return false;

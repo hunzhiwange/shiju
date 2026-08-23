@@ -1,3 +1,6 @@
+//! 代理设置测试，验证内置与自定义代理草稿、排序及数值边界归一化。
+//! 委派代理需继承允许的配置，同时对空标签、退休代理和下限值采用稳定回退。
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

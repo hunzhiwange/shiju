@@ -1,11 +1,11 @@
-//! Executable build identity helpers shared by runtime and desktop bootstrap.
+//! 运行时与桌面启动流程共享的可执行文件构建身份工具。
 
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
 
-/// Returns the SHA-256 digest of an executable file.
+/// 流式读取指定可执行文件，并返回其小写十六进制 SHA-256 摘要。
 pub fn executable_build_id(path: impl AsRef<Path>) -> io::Result<String> {
     let mut file = File::open(path)?;
     let mut hasher = Sha256::new();
@@ -22,7 +22,7 @@ pub fn executable_build_id(path: impl AsRef<Path>) -> io::Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-/// Returns the SHA-256 digest of the current process executable.
+/// 定位当前进程的可执行文件，并返回与 [`executable_build_id`] 相同格式的摘要。
 pub fn current_executable_build_id() -> io::Result<String> {
     executable_build_id(std::env::current_exe()?)
 }

@@ -1,4 +1,5 @@
 //! 验证花括号展开校验器对危险与普通输入的分类。
+//! 用例同时固定校验器名称和阻断严重级别，供配置与报告层稳定引用。
 
 use super::*;
 use crate::tools::shell::ast::parse_command;

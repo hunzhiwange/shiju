@@ -268,6 +268,7 @@ fn apply_todo_update_step_preserves_empty_todowrite_result() {
 }
 
 #[test]
+// 同一步多个待办写入按模型给出的顺序执行并记录结果。
 fn apply_todo_update_step_executes_multiple_todowrites_in_order() {
     let mut usage = models::TokenUsage::default();
     let mut llm_messages = Vec::new();

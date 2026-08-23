@@ -1,3 +1,6 @@
+// 验证技能目录映射、安装命令及项目选择刷新流程。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::message::settings::AgentsMessage;
@@ -73,6 +76,8 @@ async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
     Vec::new()
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn catalog_mappers_preserve_dto_fields_and_default_unknown_skill_kind() {
     let skill = map_catalog_items(vec![catalog_item("skill-a", "unknown")]).remove(0);
@@ -199,6 +204,8 @@ fn skills_loaded_error_clears_catalog_and_records_contextual_error() {
     assert!(app.skills_settings.status_is_error);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn plugins_loaded_maps_catalog_manages_selection_and_scopes_error_cleanup() {
     let mut app = app();
@@ -360,6 +367,8 @@ fn plugin_delete_completion_clears_only_matching_selection_and_reports_failure()
     assert!(app.skills_settings.plugin_status_is_error);
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn skill_requested_operations_set_loading_for_catalog_and_selected_detail() {
     let mut app = app();
@@ -641,6 +650,8 @@ fn skill_mapping_loading_detail_and_config_paths() {
     assert!(!app.skills_settings.show_help_modal);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn skills_tab_change_clears_skill_detail() {
     let mut app = app();

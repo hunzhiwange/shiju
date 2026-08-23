@@ -1,3 +1,8 @@
+// 验证窗口关闭请求、关停幂等性与设置标签刷新。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -198,6 +203,8 @@ fn opening_model_detail_selects_models_and_closes_transient_popovers() {
     assert!(!app.show_usage_popover);
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn project_file_settings_actions_toggle_panels_tabs_and_loading_state() {
     use crate::app::SettingsTab;
@@ -486,6 +493,8 @@ fn app_update_finish_clears_receiver_and_sets_success_or_failure_state() {
     assert_eq!(app.cli_install_modal_message, "replace failed");
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn install_result_resets_update_state_and_sets_outcome_copy() {
     use crate::app::message::view::ViewMessage;
@@ -661,6 +670,8 @@ fn existing_profile_without_trailing_newline_gets_a_separate_path_line() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn path_profiles_are_created_only_inside_supplied_home() {
     let home = tempfile::tempdir().expect("temporary home should be created");

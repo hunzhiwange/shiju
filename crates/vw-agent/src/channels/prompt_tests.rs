@@ -1,3 +1,5 @@
+// 本文件验证渠道提示词组装时的工具说明与记忆能力上下文。
+
 use super::*;
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
 use crate::app::agent::tools::{Tool, ToolResult};
@@ -320,6 +322,7 @@ async fn memory_context_limits_included_entries_to_maximum() {
 }
 
 #[tokio::test]
+// 记忆注入受总字符预算约束，单条可用内容也不能突破整体上限。
 async fn memory_context_stops_when_total_character_budget_would_be_exceeded() {
     let long_key = "k".repeat(1_980);
     let mem = FakeMemory {
@@ -577,4 +580,3 @@ fn system_prompt_with_compact_skill_mode_excludes_static_skill_content() {
     assert!(!prompt.contains("do-task-plans"));
     assert!(!prompt.contains("skills/do-task-plans/SKILL.md"));
 }
-// 本文件验证渠道提示词组装时的工具说明与记忆能力上下文。

@@ -1,4 +1,7 @@
-//! Explicit adapter between the Gateway pipeline and the active UI contract.
+//! Gateway 事件管线与活动 UI 契约之间的显式适配器。
+//!
+//! 本模块是两套事件语汇的唯一转换边界：先用 Gateway 事件更新 `TuiState`，
+//! 再投影为产品中立的 `V3Event`。未支持的附件或失配审批会显式失败。
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
 use vw_gateway_client::{
@@ -22,7 +25,7 @@ use super::runtime::stream_adapter::{
 use super::state::selectors::select_status_summary;
 use super::state::{TuiAction, TuiState, apply_runtime_event, reduce_tui_state};
 
-/// Stateful turn-id allocator for the product-neutral event vocabulary.
+/// 为产品中立事件语汇分配 turn ID，并跟踪工具输出增量的有状态适配器。
 #[derive(Debug, Default)]
 pub(crate) struct GatewayV3Bridge {
     next_turn: u64,
@@ -32,7 +35,7 @@ pub(crate) struct GatewayV3Bridge {
 }
 
 impl GatewayV3Bridge {
-    /// Projects local runtime state into the read-only welcome/session/status contract.
+    /// 将本地运行时状态投影为只读的欢迎页、会话与状态契约。
     pub(crate) fn session_display_data(
         runtime: &GatewayUiRuntime,
         state: &TuiState,
@@ -65,7 +68,7 @@ impl GatewayV3Bridge {
         }
     }
 
-    /// Runs the Gateway adapter and runtime pipeline, then projects the resulting UI delta.
+    /// 运行 Gateway 适配与状态管线，再仅投影本次产生的 UI 增量。
     pub(crate) fn adapt_gateway_event(
         &mut self,
         state: &mut TuiState,
@@ -98,6 +101,7 @@ impl GatewayV3Bridge {
 
         if let Some(terminal) = terminal {
             events.push(v3_terminal_event(turn_id, terminal));
+            // turn 终态后必须清空工具跟踪，避免下一 turn 复用 call ID 时混入旧输出。
             self.active_turn_id = None;
             self.tool_started_ms.clear();
             self.tool_output.clear();
@@ -105,7 +109,7 @@ impl GatewayV3Bridge {
         events
     }
 
-    /// Routes a UI action through controller commands and submission construction.
+    /// 将 UI 操作路由为控制器命令、对话框结果或提交快照。
     pub(crate) fn controller_command(
         &mut self,
         state: &mut TuiState,
@@ -118,7 +122,7 @@ impl GatewayV3Bridge {
             | V3Action::Attach(_)
             | V3Action::RemoveAttachment { .. }
             | V3Action::ToggleShortcuts => Ok(TuiControllerCommand::Continue),
-            V3Action::Submit { text, attachments } | V3Action::Queue { text, attachments } => {
+            V3Action::Submit { text, attachments } => {
                 if !attachments.is_empty() {
                     return Err(
                         "TUI attachments cannot be submitted until the request path supports them"
@@ -141,6 +145,15 @@ impl GatewayV3Bridge {
                 }
                 Ok(command)
             }
+            V3Action::Queue { text, attachments } => {
+                if !attachments.is_empty() {
+                    return Err(
+                        "TUI attachments cannot be queued until the request path supports them"
+                            .to_string(),
+                    );
+                }
+                Ok(TuiControllerCommand::QueuePrompt(text))
+            }
             V3Action::Interrupt | V3Action::Cancel => {
                 Ok(TuiControllerCommand::CancelActiveSubmission)
             }
@@ -153,13 +166,8 @@ impl GatewayV3Bridge {
             V3Action::InsertNewline => {
                 Ok(controller_key(controller, state, KeyCode::Enter, KeyModifiers::SHIFT))
             }
-            V3Action::ShowTranscript => {
-                Ok(controller_key(controller, state, KeyCode::Char('o'), KeyModifiers::CONTROL))
-            }
-            V3Action::OpenExternalEditor => {
-                Err("TUI external-editor dispatch is not wired to the controller"
-                    .to_string())
-            }
+            V3Action::ShowTranscript => Ok(TuiControllerCommand::OpenTranscript),
+            V3Action::OpenExternalEditor => Ok(TuiControllerCommand::OpenExternalEditor),
             V3Action::ResolveApproval { request_id, decision } => {
                 permission_command(state, request_id.as_str(), decision)
             }
@@ -169,7 +177,7 @@ impl GatewayV3Bridge {
         }
     }
 
-    /// Delegates request construction to the shared request builder.
+    /// 仅对提交命令委托共享构造器生成 Gateway 请求。
     pub(crate) fn request_for_command(
         state: &TuiState,
         command: &TuiControllerCommand,

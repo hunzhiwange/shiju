@@ -1,4 +1,5 @@
 //! 验证工作流变量池对嵌套对象、数组路径与选择器格式的读写。
+//! 非法下标、空选择器和非字符串路径片段不得产生部分匹配或幽灵变量。
 
 use super::{VariablePool, selector_from_value, selector_key};
 use serde_json::{Value, json};

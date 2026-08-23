@@ -18,6 +18,7 @@ fn resolved(path: &std::path::Path, content: &str) -> Resolved {
 }
 
 #[test]
+// 文件变化和会话压缩都会使旧缓存失效，下一次读取必须重新解析来源。
 fn instructions_loaded_cache_reloads_after_change_and_compaction() {
     let directory = tempfile::tempdir().expect("temporary workspace");
     let agents = directory.path().join("AGENTS.md");
@@ -86,6 +87,7 @@ impl InstructionsLoadedHook for RecordingHook {
 }
 
 #[test]
+// 钩子看到的是完成优先级解析后的来源集合，而不是原始候选列表。
 fn instructions_loaded_hook_receives_resolved_sources() {
     let directory = tempfile::tempdir().expect("temporary workspace");
     let agents = directory.path().join("AGENTS.md");

@@ -1,3 +1,6 @@
+//! 验证工具名称别名归一化、已知工具识别与紧凑调用轨迹约束。
+//! 未知名称仅做首尾清理，大小写错误和缺少前缀的轨迹必须保持拒绝。
+
 use super::tool_names::{canonical_tool_name, is_compact_tool_call_trace, is_known_tool_name};
 
 #[test]

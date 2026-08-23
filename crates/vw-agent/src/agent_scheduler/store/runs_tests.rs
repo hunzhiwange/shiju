@@ -1,4 +1,5 @@
 //! 测试运行存储在多后端下的原子领取、租约与终止状态。
+//! 公共断言覆盖竞争领取、依赖阻塞、陈旧租约和各类终止结果。
 
 use std::sync::{Arc, Barrier};
 
@@ -562,6 +563,7 @@ fn ready_claim_request(
     }
 }
 
+// 公共运行记录断言在各后端复用，原子竞争场景保持后端专用实现。
 fn for_each_run_store_provider(
     mut check: impl FnMut(&AgentSchedulerStore, &AgentSchedulerContext) -> Result<()>,
 ) -> Result<()> {

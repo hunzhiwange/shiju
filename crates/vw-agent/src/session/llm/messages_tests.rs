@@ -169,6 +169,7 @@ fn build_system_messages_keeps_pre_rendered_runtime_prompt_once() {
 }
 
 #[test]
+// 空的可选上下文不生成占位消息，供应商系统提示仍保持原顺序。
 fn build_system_messages_filters_blank_optional_sources_and_keeps_provider_prompt() {
     let model = test_model("test-provider", "custom-model", "openai-compatible");
     let provider_prompt = crate::app::agent::session::system::provider(&model).join("\n");
@@ -195,6 +196,7 @@ fn build_chat_messages_prepends_system_messages_and_preserves_user_messages() {
 }
 
 #[test]
+// 缺失工具结果会破坏 OpenAI 调用序列，因此发送前补齐占位结果。
 fn build_chat_messages_fills_missing_openai_tool_results() {
     let model = test_model("test-provider", "custom-model", "openai-compatible");
     let messages = vec![
@@ -281,6 +283,7 @@ fn build_chat_messages_preserves_non_object_messages_while_filtering_reasoning()
 }
 
 #[test]
+// 仅 DeepSeek 推理模型保留 reasoning_content，其他模型发送前移除。
 fn build_chat_messages_keeps_reasoning_content_for_deepseek_reasoner_model_id() {
     let model = test_model("test-provider", "deepseek-reasoner-v3", "openai-compatible");
     let messages = vec![json!({

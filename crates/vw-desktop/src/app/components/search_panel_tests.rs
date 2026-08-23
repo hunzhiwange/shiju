@@ -1,3 +1,6 @@
+//! 验证搜索面板的查询结果、导航消息、空态与主题样式。
+//! 无匹配、选中索引和长结果列表用于覆盖滚动与焦点反馈。
+
 use super::search_panel::{
     matching_sessions, overlay, result_button_style, search_input_style, view,
 };

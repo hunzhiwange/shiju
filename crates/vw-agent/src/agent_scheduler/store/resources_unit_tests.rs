@@ -1,4 +1,5 @@
 //! 测试资源租约状态解析和底层过期更新辅助逻辑。
+//! 内存数据库直接制造状态与 SQL 错误，区分领域判断和底层失败传播。
 
 use anyhow::Result;
 use rusqlite::{Connection, params};

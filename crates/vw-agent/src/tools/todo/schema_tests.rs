@@ -1,4 +1,5 @@
 //! 验证待办写入与局部更新参数的反序列化默认值。
+//! 缺省状态、优先级和合并标志属于对工具调用方稳定开放的输入契约。
 
 use super::schema::{TodoInput, TodoPatch, WriteArgs};
 use serde_json::json;

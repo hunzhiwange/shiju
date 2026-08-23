@@ -1,4 +1,6 @@
 // 验证 SQLite 记忆辅助函数的分类转换与内容哈希稳定性。
+
+// 内容哈希既要确定且紧凑，也必须对不同内容产生不同结果。
 use super::*;
 use crate::memory::traits::MemoryCategory;
 

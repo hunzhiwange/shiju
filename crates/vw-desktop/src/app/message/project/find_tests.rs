@@ -1,3 +1,8 @@
+// 验证项目内查找替换标签的输入同步与选项更新。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -310,6 +315,8 @@ fn refresh_active_with_empty_query_sets_error() {
     assert_eq!(app.find_results_tabs[0].error.as_deref(), Some("请输入查找关键字"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn refresh_without_active_tab_is_a_noop() {
     let mut app = app();
@@ -625,6 +632,8 @@ fn match_selected_clamps_invalid_one_based_position_to_editor_origin() {
     assert_eq!(app.pending_preview_goto, Some(("/tmp/project/src/main.rs".to_string(), 0, 0)));
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn tab_selected_existing_open_tab_keeps_the_active_workspace() {
     let mut app = app();
@@ -923,6 +932,8 @@ fn find_tab_menu_close_all_clears_all_find_state_and_top_level_tabs() {
     assert!(app.find_results_tab_menu_pos.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_project_message_is_not_handled() {
     let mut app = app();

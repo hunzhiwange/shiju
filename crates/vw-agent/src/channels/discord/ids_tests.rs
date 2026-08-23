@@ -1,3 +1,5 @@
+// 本文件验证 Discord 令牌前缀解码及机器人用户标识提取边界。
+
 use super::*;
 
 #[test]
@@ -29,8 +31,8 @@ fn base64_decode_handles_binary_byte_boundaries() {
 }
 
 #[test]
+// 用户标识只来自令牌首段，签名材料不得参与解码。
 fn bot_user_id_from_token_uses_first_segment_only() {
     assert_eq!(bot_user_id_from_token("TWE=.ignored.ignored"), Some("Ma".to_string()));
     assert_eq!(bot_user_id_from_token("bad!.ignored"), None);
 }
-// 本文件验证 Discord 令牌前缀解码及机器人用户标识提取边界。

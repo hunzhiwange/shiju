@@ -1,9 +1,13 @@
+//! 验证对话流开关消息、字段布局及保存结果横幅的判定。
+//! 保存成功只接受约定前缀，避免普通提示被误判为成功状态。
+
 use super::*;
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 use iced::{Background, Length, Theme};
 
+// 每个开关组合都基于同一默认应用，避免其他设置影响字段树数量。
 fn test_app() -> App {
     App::new().0
 }

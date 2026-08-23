@@ -14,6 +14,7 @@ fn env_lock() -> &'static Mutex<()> {
     ENV_LOCK.get_or_init(|| Mutex::new(()))
 }
 
+// 环境变量测试串行化，防止并发用例互相污染技能安全策略。
 fn lock_env() -> MutexGuard<'static, ()> {
     env_lock().lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
@@ -136,6 +137,7 @@ fn plugin_skills_follow_configured_security_policy() {
 }
 
 #[test]
+// 工作区技能代表项目显式选择，因此同名时覆盖插件提供的版本。
 fn plugin_skills_workspace_skill_overrides_plugin_skill() {
     let _lock = lock_env();
     let dir = tempfile::tempdir().expect("temp dir");

@@ -1,4 +1,5 @@
-//! 测试 PostgreSQL 资源租约的排他获取、续租与过期。
+//! 测试 PostgreSQL 资源租约行映射保留生命周期、污染状态和元数据。
+//! 未知种类、状态、非法标识与畸形元数据必须显式拒绝。
 
 use anyhow::Result;
 use serde_json::json;

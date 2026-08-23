@@ -1,4 +1,6 @@
 //! 验证服务端提示词映射、内容能力限制、并发保护与定向取消。
+//!
+//! 内存传输和伪后端 fixture 用于从协议边界观察服务端行为。
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -131,6 +133,7 @@ async fn prepared_agent(
     agent
 }
 
+// 下列行为用例覆盖能力声明、会话隔离、并发拒绝和传输输出。
 #[tokio::test]
 async fn prompt_maps_text_resource_links_and_backend_events() {
     let root = tempfile::tempdir().expect("temporary cwd");

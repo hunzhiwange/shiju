@@ -1,4 +1,5 @@
 //! 验证工具调用前后钩子的透传、取消映射与权限决策兼容行为。
+//! fixture 刻意返回取消结果，用于确认钩子拒绝不会被当作普通执行错误。
 
 use super::*;
 use crate::app::agent::hooks::HookHandler;

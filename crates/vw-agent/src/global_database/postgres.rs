@@ -1,4 +1,6 @@
 //! PostgreSQL 连接池与模式初始化实现，封装 TLS 和连接生命周期边界。
+//!
+//! 连接按 URL 与模式复用；模式创建和迁移持有事务级 advisory lock，避免并发初始化竞态。
 
 use std::collections::HashMap;
 use std::fmt;
@@ -41,15 +43,20 @@ static PROVIDERS_BY_CONFIG_PATH: LazyLock<Mutex<HashMap<PathBuf, Weak<PostgresPr
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// PostgreSQL 传输加密模式。
 pub(super) enum PostgresTlsMode {
     Disable,
     Require,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// PostgreSQL 连接池的有效运行参数。
 pub(super) struct PostgresPoolSettings {
+    /// 池允许的最大连接数。
     pub(super) max_size: u32,
+    /// 单个连接的可选最长存活时间。
     pub(super) max_lifetime: Option<Duration>,
+    /// 是否记录 SQL 调试信息。
     pub(super) debug_logging: bool,
 }
 
@@ -68,6 +75,7 @@ enum PostgresPool {
     Rustls(Pool<RustlsManager>),
 }
 
+/// 可透明解引用为 PostgreSQL 客户端的池化连接。
 pub(crate) enum PostgresConnection {
     Plain(Option<PooledConnection<PlainManager>>),
     Rustls(Option<PooledConnection<RustlsManager>>),
@@ -122,6 +130,7 @@ impl Drop for PostgresConnection {
     }
 }
 
+/// 绑定连接地址、租户模式和共享连接池的 PostgreSQL 提供者。
 pub(super) struct PostgresProvider {
     schema: String,
     pool: PostgresPool,
@@ -141,6 +150,7 @@ impl fmt::Debug for PostgresProvider {
 }
 
 impl PostgresProvider {
+    /// 取得或创建匹配连接地址与模式的共享提供者。
     pub(super) fn shared(
         config_path: &Path,
         database_url: &str,
@@ -251,6 +261,7 @@ impl PostgresProvider {
         Ok(())
     }
 
+    /// 从连接池获取客户端并设置目标模式搜索路径。
     pub(super) fn connect(&self) -> Result<PostgresConnection> {
         let mut connection = match &self.pool {
             PostgresPool::Plain(pool) => {
@@ -275,10 +286,12 @@ impl PostgresProvider {
     }
 
     #[cfg(test)]
+    /// 返回连接池的有效参数快照。
     pub(super) fn settings(&self) -> PostgresPoolSettings {
         self.settings
     }
 
+    /// 在持有模式级事务锁时运行表结构初始化。
     pub(super) fn initialize_schema(
         &self,
         initialize: impl FnOnce(&mut postgres::Transaction<'_>) -> Result<()>,
@@ -307,6 +320,7 @@ impl PostgresProvider {
     }
 }
 
+/// 解析连接地址并选择明文或 TLS 连接模式。
 pub(super) fn parse_connection_config(database_url: &str) -> Result<(Config, PostgresTlsMode)> {
     let parsed_url = url::Url::parse(database_url).map_err(|_| {
         anyhow::anyhow!("PostgreSQL global database URL must be a valid URL with explicit sslmode")
@@ -340,6 +354,7 @@ pub(super) fn parse_connection_config(database_url: &str) -> Result<(Config, Pos
 }
 
 #[cfg(test)]
+/// 建立不设置租户模式的独立连接，仅供模式管理使用。
 pub(super) fn connect_unscoped(database_url: &str) -> Result<Client> {
     let (config, tls_mode) = parse_connection_config(database_url)?;
     match tls_mode {
@@ -352,12 +367,14 @@ pub(super) fn connect_unscoped(database_url: &str) -> Result<Client> {
     }
 }
 
+/// 校验并引用 PostgreSQL 标识符，防止模式名进入 SQL 注入路径。
 pub(super) fn quoted_identifier(identifier: &str) -> Result<String> {
     validate_identifier(identifier)?;
     Ok(format!("\"{identifier}\""))
 }
 
 #[cfg(test)]
+/// 限制测试模式必须带专用前缀，避免清理生产模式。
 pub(super) fn validate_test_schema(schema: &str) -> Result<()> {
     let suffix = schema.strip_prefix("vw_test_").unwrap_or_default();
     if suffix.len() != 32

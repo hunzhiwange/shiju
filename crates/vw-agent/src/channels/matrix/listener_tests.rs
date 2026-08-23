@@ -1,3 +1,5 @@
+// 本文件验证 Matrix 监听事件过滤、回复缓存与调度载荷分发。
+
 use super::*;
 use matrix_sdk::ruma::events::room::message::OriginalSyncRoomMessageEvent;
 use vw_api_types::agent_scheduler::{
@@ -171,6 +173,7 @@ fn matrix_dispatch_listener_accepts_allowed_valid_event() {
 }
 
 #[test]
+// 调度事件同时校验房间、类型、发送者和标识，任一不匹配即拒绝。
 fn matrix_dispatch_listener_rejects_room_type_sender_and_event_id_mismatches() {
     let allowed = ["@alice:matrix.example.com".to_string()];
     let content = serde_json::to_value(matrix_dispatch_event()).unwrap();
@@ -491,4 +494,3 @@ fn mark_otk_conflict_sets_flag_and_is_idempotent() {
     MatrixChannel::mark_otk_conflict(&flag);
     assert!(flag.load(Ordering::SeqCst));
 }
-// 本文件验证 Matrix 监听事件过滤、回复缓存与调度载荷分发。

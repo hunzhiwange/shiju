@@ -47,6 +47,7 @@ fn has_incomplete_todos_false_for_empty_or_all_completed_and_true_for_pending() 
 }
 
 #[test]
+// 取消状态不等于完成，仍应阻止会话错误宣告全部完成。
 fn has_incomplete_todos_treats_cancelled_as_incomplete() {
     let session = unique_session("todos-cancelled");
     let ctx = ctx(&session);
@@ -127,6 +128,7 @@ fn build_todo_status_patches_only_updates_first_eligible_item() {
 }
 
 #[test]
+// 只自动推进首个待处理项且不产生多余用户事件。
 fn maybe_mark_todo_in_progress_updates_first_pending_item_silently() {
     let session_id = unique_session("todos-progress");
     let ctx = ctx(&session_id);

@@ -1,3 +1,6 @@
+// 验证查询分类规则的规范化、校验与本地编辑状态。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::QueryClassificationRuleInput;
@@ -6,6 +9,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn rules_for_config_filters_blank_rows_and_normalizes_values() {
     let mut app = app();
@@ -101,6 +106,8 @@ fn rule_input_from_config_prefers_keywords_then_patterns() {
     assert_eq!(empty_input.priority_input, "0");
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn validate_accepts_empty_rows_and_trimmed_complete_rules() {
     let mut app = app();
@@ -192,6 +199,8 @@ fn invalid_edits_update_the_field_and_expose_validation_error() {
     );
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn add_remove_and_toggle_messages_update_local_state_before_sync_result() {
     let mut app = app();
@@ -274,6 +283,8 @@ fn refresh_reloads_default_config_and_clears_error_when_gateway_is_unavailable()
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_ignores_messages_for_other_settings_sections() {
     let mut app = app();

@@ -1,4 +1,6 @@
 //! 验证性能计数器和计时器的累计、舍入、复位与锁恢复。
+//!
+//! 串行锁隔离全局计数器状态，并显式验证锁中毒后的恢复路径。
 
 use super::*;
 
@@ -8,6 +10,7 @@ fn lock_test_metrics() -> MutexGuard<'static, ()> {
     TEST_PERF_METRICS_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+// 下列行为用例覆盖累计、舍入、负增量、复位和计时器单次记录。
 #[test]
 fn perf_metrics_snapshot_rounds_values_and_accumulates() {
     let _guard = lock_test_metrics();

@@ -1,4 +1,6 @@
 //! 验证性能指标捕获配置、快照载荷、检查点写入与状态重置。
+//!
+//! 串行锁与临时捕获文件隔离全局指标状态，避免用例间相互污染。
 
 use super::*;
 use std::collections::HashMap;
@@ -96,6 +98,7 @@ fn read_capture_lines(file_path: &Path) -> Vec<Value> {
         .collect()
 }
 
+// 下列行为用例覆盖累计、舍入、检查点写入和失败后的复位。
 #[test]
 fn perf_metrics_capture_file_from_env_trims_and_rejects_empty_values() {
     let mut env = HashMap::new();

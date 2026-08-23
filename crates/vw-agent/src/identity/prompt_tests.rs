@@ -1,4 +1,6 @@
 // 验证身份信息到系统提示词的稳定渲染与可选字段处理。
+
+// 提示词测试固定键排序，确保相同身份数据在多次运行中生成稳定文本。
 use super::*;
 use crate::identity::model::{
     AieosIdentity, CapabilitiesSection, HistorySection, IdentitySection, InterestsSection,

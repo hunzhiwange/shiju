@@ -1,4 +1,6 @@
 // 验证钩子运行时的加载顺序、事件分发与失败隔离。
+
+// 临时脚本模拟处理器输出，只有完整候选配置才能替换当前钩子集合。
 use super::{HookResult, build_hook_runtime};
 use crate::app::agent::config::Config;
 use crate::plugins::{

@@ -1,3 +1,5 @@
+// 本文件验证 IRC 消息解析、SASL 编码、字节拆分与连接状态错误。
+
 use super::*;
 use crate::app::agent::channels::traits::{Channel, SendMessage};
 
@@ -76,6 +78,7 @@ fn split_zero_max_bytes_preserves_empty_result_for_blank_input() {
 }
 
 #[test]
+// 字节上限落在多字节字符内部时必须调整到合法边界。
 fn split_advances_to_next_utf8_boundary_when_limit_is_inside_first_char() {
     let chunks = split_message("€a", 1);
 
@@ -234,4 +237,3 @@ async fn connect_with_certificate_verification_rejects_plain_server() {
 
     assert!(channel.connect().await.is_err());
 }
-// 本文件验证 IRC 消息解析、SASL 编码、字节拆分与连接状态错误。

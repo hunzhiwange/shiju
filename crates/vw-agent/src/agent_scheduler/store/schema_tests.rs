@@ -1,4 +1,5 @@
 //! 测试调度模式在 SQLite 与 PostgreSQL 上的命名、约束和幂等初始化。
+//! 同时检查正向对象和禁止的旧表名，防止调度表逃逸统一前缀与项目外键。
 
 use anyhow::Result;
 use rusqlite::{Connection, params};

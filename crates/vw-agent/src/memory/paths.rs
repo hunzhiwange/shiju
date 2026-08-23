@@ -6,15 +6,14 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
-/// Return the user-scoped data root for project-level memory.
+/// 返回项目级记忆数据的用户作用域目录。
 ///
-/// Runtime memory data must never be written into project repositories. The
-/// workspace path is only used as a stable identity source for the project
-/// directory under the active home config directory's `worktree/projects`.
+/// 运行时记忆不得写入项目仓库；工作区路径仅用于派生稳定项目标识。
 pub(crate) fn project_data_dir(workspace_dir: &Path) -> Result<PathBuf> {
     Ok(user_worktree_root()?.join("projects").join(project_state_id(workspace_dir)))
 }
 
+/// 返回项目数据目录；用户目录不可用时退回系统临时目录。
 pub(crate) fn project_data_dir_best_effort(workspace_dir: &Path) -> PathBuf {
     project_data_dir(workspace_dir).unwrap_or_else(|_| fallback_project_data_dir(workspace_dir))
 }
@@ -27,7 +26,7 @@ fn fallback_project_data_dir(workspace_dir: &Path) -> PathBuf {
         .join(project_state_id(workspace_dir))
 }
 
-/// Return the user-scoped data root for workspace-level runtime state.
+/// 返回工作区级运行状态的用户作用域目录。
 pub(crate) fn workspace_data_dir(workspace_dir: &Path) -> Result<PathBuf> {
     Ok(user_worktree_root()?.join("workspaces").join(workspace_state_id(workspace_dir)))
 }

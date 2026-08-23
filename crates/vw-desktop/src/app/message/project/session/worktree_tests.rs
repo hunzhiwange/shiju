@@ -1,3 +1,8 @@
+// 验证会话工作树选择、创建去重与过期结果处理。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -142,6 +147,8 @@ fn picking_existing_workspace_remembers_directory_and_resets_picker_state() {
     assert!(app.new_session_creating);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn picking_existing_workspace_ignores_duplicate_while_creation_is_running() {
     let mut app = app();
@@ -349,6 +356,8 @@ fn delete_worktree_confirmed_blocks_primary_and_result_handles_success_error_and
     assert!(app.new_session_last_directory.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn delete_worktree_success_preserves_a_different_last_directory() {
     let mut app = app();
@@ -512,6 +521,8 @@ fn reset_worktree_confirmed_for_secondary_clears_prompt_before_async_task() {
     assert!(app.new_session_reset_error.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_project_message_is_not_handled() {
     let mut app = app();

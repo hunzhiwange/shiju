@@ -1,4 +1,5 @@
-//! 测试 PostgreSQL 产物存储的约束、查询与作用域隔离。
+//! 测试 PostgreSQL 产物行映射及运行记录与任务归属校验。
+//! 空可选字段、非法标识和畸形载荷分别覆盖宽松读取与拒绝边界。
 
 use anyhow::Result;
 use serde_json::json;

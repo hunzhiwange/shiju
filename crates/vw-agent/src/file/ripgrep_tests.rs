@@ -7,6 +7,7 @@ use std::fs;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 
+// 临时目录夹具同时覆盖正常路径和逃逸路径，确保安全判断不依赖当前工作区。
 #[test]
 fn files_respects_hidden_flag_and_globs() {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -62,6 +63,7 @@ fn files_defaults_include_hidden_and_skip_ignored_paths() {
     assert_eq!(result, vec![".hidden.txt".to_string(), "visible.txt".to_string()]);
 }
 
+// 缺失资源与越界资源的语义不同：前者可安全回退时仍不得放宽后者的拒绝策略。
 #[test]
 fn files_ignores_invalid_globs_and_honors_max_depth() {
     let temp = tempfile::tempdir().expect("tempdir");

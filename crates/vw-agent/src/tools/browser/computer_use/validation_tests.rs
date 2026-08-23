@@ -1,4 +1,5 @@
 //! 验证计算机操作端点、网址、坐标及输出路径的安全校验。
+//! 端点、目标网址与输出路径分别校验；网络探测和建目录只能发生在静态验证之后。
 
 use super::*;
 use crate::app::agent::security::SecurityPolicy;
@@ -10,6 +11,7 @@ fn client(config: ComputerUseConfig, allowed_domains: Vec<String>) -> ComputerUs
     ComputerUseClient::new(Arc::new(SecurityPolicy::default()), allowed_domains, None, config)
 }
 
+// 策略夹具允许分别控制网络白名单与文件路径规则，避免把两类拒绝混为一谈。
 fn client_with_policy(
     security: SecurityPolicy,
     config: ComputerUseConfig,
@@ -204,6 +206,7 @@ fn validate_output_path_applies_security_policy() {
 }
 
 #[tokio::test]
+// 路径先做词法与安全策略校验，再异步创建父目录并拒绝链接或非普通文件。
 async fn resolve_output_path_creates_parent_and_rejects_non_files() {
     let tmp = TempDir::new().expect("tempdir should create");
     let mut security = SecurityPolicy::default();

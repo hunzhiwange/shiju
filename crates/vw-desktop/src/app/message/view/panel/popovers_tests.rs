@@ -1,3 +1,6 @@
+// 验证面板弹出层的互斥规则、切换及前置加载。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::state::ModelPopoverHover;
 
@@ -55,6 +58,8 @@ fn set_target_visibility(app: &mut App, message: &ViewMessage, visible: bool) {
     }
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn opening_each_popover_applies_its_existing_exclusivity_rules() {
     let cases = [
@@ -154,6 +159,8 @@ fn send_mode_popover_stays_closed_when_session_is_not_requesting() {
     assert!(app.show_model_popover);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn opening_acp_popover_with_empty_inventory_requests_bootstrap_and_closes_peers() {
     let mut app = test_app();
@@ -208,6 +215,8 @@ fn individual_close_messages_only_close_their_target() {
     }
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn closing_model_popover_also_clears_hover_details() {
     let mut app = test_app();
@@ -246,6 +255,8 @@ fn model_hover_changed_replaces_and_clears_hover_state() {
     assert!(app.model_popover_hover.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_view_message_leaves_popover_state_unchanged() {
     let mut app = test_app();

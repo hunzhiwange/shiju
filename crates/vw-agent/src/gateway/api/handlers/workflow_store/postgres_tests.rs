@@ -1,4 +1,6 @@
 // 验证 PostgreSQL 工作流存储的租户隔离、创建时间与增删改查契约。
+
+// 数据库 fixture 为每次测试创建独立模式，重点确认相同记录不会跨租户可见。
 use super::*;
 
 use crate::global_database::test_support::PostgresTestDatabase;

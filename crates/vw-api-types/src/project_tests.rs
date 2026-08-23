@@ -7,6 +7,7 @@ use crate::project::{
 };
 use serde_json::json;
 
+// 列表和更新请求保持稀疏，项目状态及 Git 统计使用稳定线协议。
 #[test]
 fn project_requests_default_optional_fields() {
     let list: ListProjectsRequest = serde_json::from_value(json!({})).expect("valid list");
@@ -31,6 +32,7 @@ fn project_requests_default_optional_fields() {
     assert_eq!(serde_json::to_value(git).expect("serialize")["behind"], json!(1));
 }
 
+// DTO 构造器只拒绝空作用域标识，不对有效标识施加额外字符限制。
 #[test]
 fn project_scope_dtos_reject_empty_tenant_ids() {
     assert!(TenantScopeDto::new("", "company-a").is_err());

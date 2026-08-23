@@ -1,5 +1,7 @@
 //! ApiQL 兼容转换器，批量查询关联实体并把结果合并回源行。
 //!
+//! 关联标识先去重再批量查询，避免逐行请求；转换失败会保留明确的 ApiQL 错误边界。
+//!
 //! ApiQL PHP-compatible transformers.
 //!
 //! The first supported transformer is `type = "api"`. It batches source IDs
@@ -43,6 +45,7 @@ struct TransformerApiTarget<'a> {
     mode: ApiQlListMode,
 }
 
+/// 收集转换器读取的源字段，供 SQL 投影阶段预先保留。
 pub(crate) fn transformer_source_fields(
     entity: ApiQlResolvedEntity<'_>,
     transformer: &Value,
@@ -73,6 +76,7 @@ pub(crate) fn transformer_source_fields(
     Ok(fields)
 }
 
+/// 依次执行实体字段声明的转换器并原地更新结果行。
 pub(crate) async fn apply_apiql_transformers(
     tenant: TenantScope,
     connection: ApiQlConnection,

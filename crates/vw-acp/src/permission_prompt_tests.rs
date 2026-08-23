@@ -1,10 +1,13 @@
 //! 验证终端权限询问的输入判定、提示布局与读写失败处理。
+//!
+//! 内存读写器精确模拟终端交互，并验证终端不可用时默认拒绝。
 
 use super::*;
 
 #[cfg(unix)]
 use std::os::fd::{FromRawFd, RawFd};
 
+// 下列行为用例覆盖肯定与拒绝输入、提示布局和各写入失败点。
 #[test]
 fn prompt_for_permission_with_io_accepts_yes_and_writes_prompt_parts() {
     let mut reader = std::io::Cursor::new(b"  YeS  \n".to_vec());

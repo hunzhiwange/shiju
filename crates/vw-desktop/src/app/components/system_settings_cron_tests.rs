@@ -1,13 +1,18 @@
+//! 验证定时任务设置的表单、调度预览、运行记录与模态层状态。
+//! 作业 fixture 组合代理与命令类型、无效日期和缺失输出以覆盖显示回退。
+
 use super::*;
 use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
 use crate::app::{App, Message};
 use iced::Element;
 use iced::widget::text;
 
+// 设置页 fixture 从统一默认应用出发，各用例只覆写当前页面关心的字段。
 fn test_app() -> App {
     App::new().0
 }
 
+// 保留元素即可完成无窗口构建检查，避免把布局细节误当成业务契约。
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
 }

@@ -113,10 +113,12 @@ struct BuiltInStageCapability {
     permission_hint: &'static str,
 }
 
+/// 返回不依赖项目配置的内建阶段能力目录。
 pub fn builtin_stage_capabilities() -> Vec<StaffStageCapabilityDto> {
     BUILT_IN_CAPABILITIES.iter().map(builtin_stage_capability_to_dto).collect()
 }
 
+/// 合并内建能力与配置能力，并按能力标识去重。
 pub fn stage_capabilities_for_config(config: &StaffConfig) -> Vec<StaffStageCapabilityDto> {
     let mut catalog = builtin_stage_capabilities();
     let built_in_ids =
@@ -132,6 +134,7 @@ pub fn stage_capabilities_for_config(config: &StaffConfig) -> Vec<StaffStageCapa
     catalog
 }
 
+/// 按稳定标识查找能力；不存在时返回 `None`。
 pub fn capability_by_id<'a>(
     catalog: &'a [StaffStageCapabilityDto],
     capability_id: &str,

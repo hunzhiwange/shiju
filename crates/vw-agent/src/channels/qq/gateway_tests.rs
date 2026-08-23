@@ -1,3 +1,5 @@
+// 本文件验证 QQ Gateway 发现、WebSocket 握手、心跳与事件读取。
+
 use std::future::Future;
 use std::time::Duration;
 
@@ -53,6 +55,7 @@ fn heartbeat_payload_preserves_zero_sequence() {
 }
 
 #[test]
+// Hello 帧决定心跳调度，缺失时使用协议默认值，非法载荷则明确失败。
 fn heartbeat_interval_from_hello_reads_configured_value() {
     let interval = heartbeat_interval_from_hello(&Message::Text(
         r#"{"d":{"heartbeat_interval":1234}}"#.into(),
@@ -431,4 +434,3 @@ async fn run_gateway_session_sends_timer_heartbeat_with_unknown_sequence() {
     assert_eq!(error.to_string(), "QQ WebSocket connection closed");
     handle.await.expect("server task finished");
 }
-// 本文件验证 QQ Gateway 发现、WebSocket 握手、心跳与事件读取。

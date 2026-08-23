@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 各类附件的远程发送、本地路径约束与文本降级。
+
 use super::TelegramChannel;
 use super::attachments::{TelegramAttachment, TelegramAttachmentKind};
 use crate::channels::traits::SendMessage;
@@ -234,6 +236,7 @@ async fn send_attachment_rejects_local_files_without_workspace_dir() {
 }
 
 #[tokio::test]
+// 本地上传路径必须留在工作区内，路径穿越不能降级绕过。
 async fn send_attachment_rejects_local_files_that_escape_workspace() {
     let workspace = tempfile::tempdir().expect("workspace tempdir");
     let outside = tempfile::tempdir().expect("outside tempdir");
@@ -389,4 +392,3 @@ async fn send_outbound_handles_path_only_attachments_and_plain_text() {
     assert_eq!(text_body["text"], "plain text");
     assert!(text_body.get("message_thread_id").is_none());
 }
-// 本文件验证 Telegram 各类附件的远程发送、本地路径约束与文本降级。

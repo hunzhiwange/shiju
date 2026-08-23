@@ -1,4 +1,5 @@
 //! 验证代理工具的参数契约、委派执行与结果格式化行为。
+//! 持久子会话夹具覆盖并发额度、深度限制、祖先去重和父模型继承，后台取消必须释放许可。
 
 use super::*;
 use crate::app::agent::config::DelegateAgentConfig;
@@ -18,6 +19,7 @@ impl Drop for DropSignal {
     }
 }
 
+// 父会话和子会话使用持久化存储夹具，便于验证后台任务在工具返回后仍可查询。
 async fn create_parent(directory: String) -> crate::session::session::Info {
     crate::app::agent::project::instance::provide(directory.clone(), None, move || {
         Box::pin(async move {
@@ -646,6 +648,7 @@ async fn status_wait_timeout_and_stop_are_scoped_to_the_parent_session() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+// 并发许可必须覆盖前台与后台子代理；取消后台任务后许可应立即归还。
 async fn concurrent_runs_respect_configured_limit() {
     let workspace = tempfile::tempdir().expect("temporary workspace");
     let directory = workspace.path().to_string_lossy().to_string();

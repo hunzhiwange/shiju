@@ -1,3 +1,5 @@
+// 本文件验证 QQ Webhook 签名响应、事件解析与消息去重。
+
 use super::*;
 
 #[test]
@@ -110,6 +112,7 @@ async fn parse_webhook_payload_ignores_non_dispatch_payloads() {
 }
 
 #[tokio::test]
+// 私聊事件进入运行时前清理标识与正文，保持去重键稳定。
 async fn parse_webhook_payload_dispatches_trimmed_c2c_event() {
     let channel =
         QQChannel::new("app".to_string(), "secret".to_string(), vec!["user-1".to_string()]);
@@ -295,4 +298,3 @@ async fn parse_webhook_payload_returns_empty_for_unknown_dispatch_event() {
 
     assert!(messages.is_empty());
 }
-// 本文件验证 QQ Webhook 签名响应、事件解析与消息去重。

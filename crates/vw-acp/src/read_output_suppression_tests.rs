@@ -1,7 +1,10 @@
 //! 验证读类工具识别仅依据明确类型或标题首词，避免误抑制输出。
+//!
+//! 最小工具描述符用于隔离类型与标题启发式，不涉及实际输出写入。
 
 use super::*;
 
+// 下列行为用例覆盖显式类型、标题首词、空标题和反例优先级。
 #[test]
 fn read_like_tool_detects_explicit_kind_case_insensitively() {
     assert!(is_read_like_tool(&ReadLikeToolDescriptor {

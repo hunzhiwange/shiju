@@ -1,3 +1,7 @@
+//! 验证顶部栏网关状态展示、连接操作和异常状态反馈。
+//!
+//! 网关夹具覆盖连接中、已连接、断开和错误状态，并检查对应操作是否可用。
+
 use super::{
     active_gateway_healthy, compact_gateway_label, gateway_menu_container,
     gateway_menu_item_btn_keep_open, gateway_press_message, gateway_row, gateway_row_keep_open,

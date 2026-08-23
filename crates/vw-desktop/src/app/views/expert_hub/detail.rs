@@ -1,3 +1,5 @@
+//! 构建识矩技能详情、版本选择与安装操作界面。
+
 use super::list::SCROLLBAR_WIDTH;
 use super::styles;
 use crate::app::assets::{self, Icon};
@@ -13,6 +15,7 @@ use iced::widget::{Space, button, column, container, markdown, row, scrollable, 
 use iced::{Alignment, Element, Font, Length, Theme};
 use std::cmp::Ordering;
 
+/// 构造关闭技能详情并返回列表的消息。
 pub(super) fn close_message() -> Message {
     Message::SkillHub(SkillHubMessage::CloseSkillDetail)
 }
@@ -74,6 +77,7 @@ fn field(label: &'static str, value: String) -> Element<'static, Message> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 版本行可执行的升级、回滚或切换动作。
 pub(super) enum VersionRowAction {
     Current,
     Change { label: &'static str, action: SkillVersionAction },
@@ -113,6 +117,7 @@ fn compare_numeric_versions(left: &str, right: &str) -> Option<Ordering> {
     )
 }
 
+/// 根据当前版本、目标版本与服务端状态决定版本行动作。
 pub(super) fn version_action_spec(
     installed_version: &str,
     version: &SkillVersion,
@@ -488,6 +493,7 @@ fn status_view(title: &'static str, detail: String) -> Element<'static, Message>
     .into()
 }
 
+/// 按详情加载状态构建技能详情、错误或登录提示界面。
 pub(super) fn view(app: &App) -> Element<'_, Message> {
     let Some(state) = &app.expert_hub.detail else {
         return status_view("未选择技能", "请返回技能列表选择一个技能".to_string());

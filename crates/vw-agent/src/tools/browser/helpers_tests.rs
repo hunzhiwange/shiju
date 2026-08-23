@@ -1,4 +1,5 @@
 //! 验证浏览器域名归一化、私网识别和可恢复错误判断。
+//! 域名匹配只接受精确主机或真实子域，私网判断对特殊 IPv4/IPv6 地址采取保守策略。
 
 use super::*;
 
@@ -74,6 +75,7 @@ fn endpoint_reachable_handles_missing_ports_and_unreachable_hosts() {
 }
 
 #[test]
+// 特殊地址段采用保守拒绝，同时用公开地址边界防止规则扩大到所有 IP。
 fn private_host_detection_covers_special_and_public_address_boundaries() {
     for host in [
         "0.0.0.0",

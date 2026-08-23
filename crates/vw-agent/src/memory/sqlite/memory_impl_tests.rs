@@ -1,4 +1,6 @@
 // 验证 SQLite 记忆实现对损坏行和缺失模式的错误边界。
+
+// 单条损坏记录在 get 中隐藏，但批量 list 和缺失表操作返回明确错误。
 use super::*;
 use rusqlite::params;
 

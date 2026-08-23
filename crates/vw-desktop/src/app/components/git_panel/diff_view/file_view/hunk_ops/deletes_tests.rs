@@ -1,3 +1,6 @@
+//! 验证删除操作在合并和分栏视图中的行数、选择、悬停及缺失源行处理。
+//! 偏移超过源文本尾部时仍按差异操作请求生成占位行，保持布局与补丁行数一致。
+
 use iced::Color;
 
 use crate::app::components::git_panel::diff_view::DiffRenderCtx;

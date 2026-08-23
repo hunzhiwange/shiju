@@ -1,4 +1,5 @@
 //! 验证内置任务生命周期定义及状态转换契约。
+//! 目录固定内置工作流及其终止、重试和角色形状，防止配置兼容性漂移。
 
 use super::*;
 
@@ -34,6 +35,7 @@ fn built_in_workflow_lookup_matches_catalog_and_rejects_unknown_id() {
 }
 
 #[test]
+// 状态标志、终态性质和下一跳共同构成内置工作流契约，三者必须相互一致。
 fn built_in_statuses_preserve_spec_flags_and_next_targets() {
     for workflow in built_in_workflows() {
         for status in &workflow.statuses {

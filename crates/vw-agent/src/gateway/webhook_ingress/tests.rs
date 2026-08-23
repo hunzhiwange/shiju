@@ -1,4 +1,6 @@
 // 覆盖 Webhook 入口的鉴权、限流、去重、载荷解析与错误脱敏。
+
+// 认证、限流和幂等检查必须先于 provider 调用，失败时也不得泄漏内部详情。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
@@ -18,6 +20,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 #[derive(Default)]
+// provider 桩记录调用次数，用于证明认证或限流失败确实在模型调用前短路。
 struct StaticProvider {
     calls: AtomicUsize,
 }
@@ -191,6 +194,7 @@ impl Memory for TrackingMemory {
     }
 }
 
+// 客户端地址显式构造，便于验证限流键和回环授权不会混用来源。
 fn peer(ip: &str) -> SocketAddr {
     format!("{ip}:30300").parse().expect("test socket address should parse")
 }

@@ -182,7 +182,9 @@ const KNOWLEDGE_EMBEDDING_REQUEST_INTERVAL: Duration = Duration::from_millis(1_2
 const INDEX_JOB_MAX_ATTEMPTS: i64 = 3;
 const INDEX_JOB_LEASE_TIMEOUT_MS: u64 = 15 * 60 * 1_000;
 
-/// Knowledge store backed by the process-wide global database provider.
+/// 绑定全局数据库提供方与租户作用域的知识库服务。
+///
+/// 类型名为兼容既有调用者而保留；实际会依据全局配置分派到 SQLite 或 PostgreSQL。
 #[derive(Clone)]
 pub struct SqliteKnowledgeStore {
     database: GlobalDatabase,
@@ -249,10 +251,12 @@ struct RetrievalScope {
 }
 
 impl SqliteKnowledgeStore {
+    /// 使用无向量能力的默认嵌入器创建租户知识库。
     pub fn new(database: GlobalDatabase, tenant: TenantScope) -> Result<Self, ApiError> {
         Self::with_embedder(database, tenant, Arc::new(NoopEmbedding), None, 0.7, 0.3, 10_000)
     }
 
+    /// 使用显式嵌入器、模型与融合权重创建知识库，并初始化所选数据库模式。
     pub fn with_embedder(
         database: GlobalDatabase,
         tenant: TenantScope,
@@ -290,6 +294,7 @@ impl SqliteKnowledgeStore {
         })
     }
 
+    /// 返回当前全文、向量、混合检索与重排能力快照。
     pub fn status(&self) -> KnowledgeRuntimeStatus {
         let mut notes = BTreeMap::new();
         if self.embedder.dimensions() == 0 {
@@ -315,11 +320,13 @@ impl SqliteKnowledgeStore {
         }
     }
 
+    /// 列出当前租户可见的全部知识数据集。
     pub async fn list_datasets(&self) -> Result<Vec<KnowledgeDatasetDto>, ApiError> {
         let database = self.database.clone();
         spawn_store_task(database, self.tenant.clone(), list_datasets_blocking).await
     }
 
+    /// 按标识读取当前租户中的数据集，不存在时返回领域错误。
     pub async fn get_dataset(&self, dataset_id: String) -> Result<KnowledgeDatasetDto, ApiError> {
         let database = self.database.clone();
         spawn_store_task(database, self.tenant.clone(), move |path, tenant| {
@@ -328,6 +335,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 校验检索与嵌入配置后创建数据集。
     pub async fn create_dataset(
         &self,
         body: KnowledgeDatasetCreateRequest,
@@ -344,6 +352,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 删除数据集及其受租户作用域约束的关联内容。
     pub async fn delete_dataset(
         &self,
         dataset_id: String,
@@ -355,6 +364,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 按数据集列出全部文档。
     pub async fn list_documents(
         &self,
         dataset_id: String,
@@ -366,6 +376,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 按状态、搜索词和分页条件列出数据集文档。
     pub async fn list_documents_with_query(
         &self,
         dataset_id: String,
@@ -378,6 +389,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 列出文档的持久化分块；文档不存在时返回领域错误。
     pub async fn list_chunks(
         &self,
         document_id: String,
@@ -389,6 +401,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 校验文档、生成索引分块并以一次存储操作创建文档。
     pub async fn create_document(
         &self,
         dataset_id: String,
@@ -405,6 +418,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 将编码后的文档导入请求写入异步索引队列。
     pub async fn enqueue_import(
         &self,
         dataset_id: String,
@@ -418,6 +432,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 读取当前租户作用域内的索引任务状态。
     pub async fn get_index_job(&self, job_id: String) -> Result<KnowledgeIndexJobDto, ApiError> {
         let database = self.database.clone();
         spawn_store_task(database, self.tenant.clone(), move |path, tenant| {
@@ -426,6 +441,9 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 领取并处理一个待执行索引任务；队列为空时返回 `None`。
+    ///
+    /// 处理或提交失败会进入有上限的重试流程，避免任务永久停留在运行态。
     pub async fn process_next_index_job(&self) -> Result<Option<KnowledgeIndexJobDto>, ApiError> {
         let database = self.database.clone();
         let tenant = self.tenant.clone();
@@ -483,6 +501,7 @@ impl SqliteKnowledgeStore {
         }
     }
 
+    /// 重新生成文档分块；准备失败时同步把文档标记为失败。
     pub async fn reindex_document(
         &self,
         document_id: String,
@@ -516,6 +535,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 删除单个文档及其分块和索引记录。
     pub async fn delete_document(
         &self,
         document_id: String,
@@ -527,6 +547,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 在状态机约束内更新文档元数据、启用状态或归档状态。
     pub async fn update_document(
         &self,
         document_id: String,
@@ -539,6 +560,7 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 以同一批处理动作更新多个文档，并保持事务原子性。
     pub async fn batch_update_documents(
         &self,
         body: KnowledgeDocumentsBatchActionRequest,
@@ -550,6 +572,9 @@ impl SqliteKnowledgeStore {
         .await
     }
 
+    /// 在请求指定的数据集作用域内执行全文、向量或混合检索。
+    ///
+    /// 向量或混合数据集没有可用嵌入器时明确拒绝，不静默降级为全文检索。
     pub async fn retrieve(
         &self,
         request: KnowledgeRetrieveRequest,

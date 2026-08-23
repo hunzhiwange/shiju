@@ -1,3 +1,7 @@
+//! 验证轨迹缓存键、原始步骤刷新、模式切换和用量详情状态。
+//!
+//! 轨迹夹具以会话、轮次和步骤组成缓存键，空轮次规范化不得串用其他步骤数据。
+
 use crate::app::App;
 use crate::app::components::chat_panel::trajectory::TrajectoryDetailsTab;
 use crate::app::models::{ChatSessionStep, TokenUsage};
@@ -24,6 +28,7 @@ fn completed_step_for_turn(index: u32, turn_id: &str) -> ChatSessionStep {
 }
 
 #[test]
+// 缓存键包含轮次标识，防止同一会话内复用步骤序号时串读旧轨迹。
 fn trajectory_raw_cache_keys_include_turn_id() {
     let (mut app, _) = App::new();
     app.active_session_id = Some("shared-session".to_string());
@@ -149,6 +154,7 @@ fn trajectory_mode_toggle_defaults_to_conversation() {
 }
 
 #[test]
+// 切换到原始轨迹模式时只刷新已完成且尚未缓存的步骤。
 fn trajectory_mode_toggle_refreshes_missing_completed_raw() {
     let (mut app, _) = App::new();
     app.active_session_id = Some("active-session".to_string());
@@ -266,6 +272,7 @@ fn trajectory_snapshot_refresh_ignores_inactive_session() {
 }
 
 #[test]
+// 交互测试集中验证选择、折叠、详情标签和复制动作只修改各自状态。
 fn trajectory_interactions_update_state() {
     let (mut app, _) = App::new();
 
@@ -394,6 +401,7 @@ mod trajectory_controls {
 }
 
 #[test]
+// 异步结果返回时重新核对活动会话，过期响应不得污染当前轨迹缓存。
 fn trajectory_raw_refresh_ignores_stale_session() {
     let (mut app, _) = App::new();
     app.active_session_id = Some("active-session".to_string());
@@ -509,6 +517,7 @@ fn trajectory_raw_refresh_error_is_recoverable() {
 }
 
 #[test]
+// 空结果采用有上限的重试；成功立即停止，耗尽后转为可见错误。
 fn trajectory_raw_none_schedules_bounded_retry() {
     let (mut app, _) = App::new();
     let key = raw_key("active-session", 7);

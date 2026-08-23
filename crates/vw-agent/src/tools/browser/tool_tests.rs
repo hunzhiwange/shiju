@@ -1,4 +1,5 @@
 //! 验证浏览器工具的后端选择、执行结果和安全策略衔接。
+//! 后端解析与安全策略先于执行；结构化失败不得误转为成功输出，截图路径先本地校验。
 
 use super::*;
 use crate::app::agent::security::AutonomyLevel;
@@ -52,6 +53,7 @@ async fn read_http_request(stream: &mut tokio::net::TcpStream) -> String {
     String::from_utf8_lossy(&buffer).into_owned()
 }
 
+// sidecar 夹具只实现本测试需要的 HTTP 边界，用于观察后端选择后的真实请求。
 async fn computer_use_tool_server(
     status: u16,
     body: &'static str,
@@ -425,6 +427,7 @@ fn tool_contract_exposes_browser_schema_and_safety_flags() {
 }
 
 #[tokio::test]
+// 安全策略和动作预算都要在后端探测前拒绝，避免拒绝请求仍触发网络连接。
 async fn execute_rejects_read_only_policy_before_backend_resolution() {
     let mut security = SecurityPolicy::default();
     security.autonomy = AutonomyLevel::ReadOnly;

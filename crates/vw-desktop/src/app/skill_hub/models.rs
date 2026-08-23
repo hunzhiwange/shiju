@@ -1,7 +1,10 @@
+//! 定义技能市场、安装记录、版本详情与下载地址等传输模型。
+
 use serde::Deserialize;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 技能列表用于筛选和展示的标签。
 pub(crate) struct SkillTag {
     pub(crate) id: u64,
     pub(crate) name: String,
@@ -9,6 +12,7 @@ pub(crate) struct SkillTag {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 技能市场列表中的可安装技能摘要。
 pub(crate) struct MarketplaceSkill {
     pub(crate) id: u64,
     pub(crate) slug: String,
@@ -31,6 +35,7 @@ pub(crate) struct MarketplaceSkill {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 当前账号已安装技能的版本摘要。
 pub(crate) struct InstalledSkill {
     pub(crate) skill_id: u64,
     pub(crate) slug: String,
@@ -43,6 +48,7 @@ pub(crate) struct InstalledSkill {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 系统提供的技能摘要。
 pub(crate) struct SystemSkill {
     pub(crate) id: u64,
     pub(crate) slug: String,
@@ -53,6 +59,7 @@ pub(crate) struct SystemSkill {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 公司或当前用户维护的技能摘要及审核状态。
 pub(crate) struct TenantSkill {
     pub(crate) id: u64,
     pub(crate) slug: String,
@@ -66,6 +73,7 @@ pub(crate) struct TenantSkill {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 使用页码和总数表示的技能列表页。
 pub(crate) struct Page<T> {
     pub(crate) items: Vec<T>,
     pub(crate) page: u32,
@@ -74,6 +82,7 @@ pub(crate) struct Page<T> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 使用不透明游标继续加载的技能列表页。
 pub(crate) struct CursorPage<T> {
     pub(crate) items: Vec<T>,
     pub(crate) next_cursor: Option<String>,
@@ -196,6 +205,7 @@ impl From<vw_gateway_client::ShijuSkillPageDto<vw_gateway_client::ShijuTenantSki
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 技能详情及当前版本内容。
 pub(crate) struct SkillDetail {
     pub(crate) id: u64,
     pub(crate) slug: String,
@@ -217,6 +227,7 @@ pub(crate) struct SkillDetail {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 已校验下载地址的技能版本内容。
 pub(crate) struct SkillVersionContent {
     pub(crate) checksum: String,
     pub(crate) content_type: String,
@@ -226,6 +237,7 @@ pub(crate) struct SkillVersionContent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 可供升级、回滚或下载的技能版本记录。
 pub(crate) struct SkillVersion {
     pub(crate) id: u64,
     pub(crate) skill_id: u64,
@@ -324,6 +336,7 @@ where
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 识矩安装包支持的操作系统与处理器组合。
 pub(crate) enum ShijuPackageId {
     DarwinAmd64,
     DarwinArm64,
@@ -362,6 +375,7 @@ impl ShijuPackageId {
         }
     }
 
+    /// 返回当前编译目标对应的安装包，不受支持的平台返回 `None`。
     pub(crate) fn current() -> Option<Self> {
         match (std::env::consts::OS, std::env::consts::ARCH) {
             ("macos", "x86_64") => Some(Self::DarwinAmd64),
@@ -374,11 +388,13 @@ impl ShijuPackageId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// 技能中心返回的识矩包发布信息。
 pub(crate) struct ShijuPackageRelease {
     pub(crate) download_url: SkillDownloadUrl,
 }
 
 impl ShijuPackageRelease {
+    /// 从受信任下载路径的 `releases/{version}` 段提取纯数字版本。
     pub(crate) fn version(&self) -> Option<&str> {
         let segments = self.download_url.0.path_segments()?.collect::<Vec<_>>();
         let version =
@@ -395,9 +411,11 @@ fn is_numeric_version(version: &str) -> bool {
 }
 
 #[derive(Clone, PartialEq, Eq)]
+/// 仅允许识矩技能下载主机的 HTTPS 地址；调试输出会脱敏。
 pub(crate) struct SkillDownloadUrl(reqwest::Url);
 
 impl SkillDownloadUrl {
+    /// 校验协议、主机、端口和用户信息后构造下载地址。
     pub(crate) fn parse(value: &str) -> Result<Self, String> {
         let url = reqwest::Url::parse(value).map_err(|_| "技能下载地址格式无效".to_string())?;
         if url.scheme() != "https"

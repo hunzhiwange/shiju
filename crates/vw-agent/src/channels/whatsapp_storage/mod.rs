@@ -1,5 +1,7 @@
 //! 基于 rusqlite 的 wa-rs 存储后端，统一实现 WhatsApp Web 所需存储接口。
 //!
+//! 后端直接复用项目的 rusqlite 版本，避免引入 wa-rs 默认存储的 SQLite 依赖冲突。
+//!
 //! Custom wa-rs storage backend using VibeWindow's rusqlite
 //!
 //! This module implements all 4 wa-rs storage traits using rusqlite directly,
@@ -61,7 +63,7 @@ use std::path::Path;
 #[cfg(feature = "whatsapp-web")]
 use std::sync::Arc;
 
-/// Custom wa-rs storage backend using rusqlite
+/// 使用 rusqlite 实现 wa-rs 四类存储 trait 的共享后端。
 ///
 /// This implements all 4 storage traits required by wa-rs.
 /// The backend uses VibeWindow's existing rusqlite setup, avoiding the
@@ -79,7 +81,7 @@ pub struct RusqliteStore {
 
 #[cfg(feature = "whatsapp-web")]
 impl RusqliteStore {
-    /// Create a new rusqlite-based storage backend
+    /// 打开或创建会话数据库，初始化 WAL 参数和协议表结构。
     ///
     /// # Arguments
     ///

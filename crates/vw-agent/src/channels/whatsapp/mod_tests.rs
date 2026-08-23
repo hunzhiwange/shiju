@@ -1,3 +1,5 @@
+// 本文件验证 WhatsApp Graph 渠道的地址约束、号码许可、收发与健康状态。
+
 use super::*;
 
 mod tests {
@@ -53,6 +55,7 @@ mod tests {
     }
 
     #[test]
+// Graph 请求携带凭据，非 HTTPS 地址必须在发送前拒绝。
     fn whatsapp_ensure_https_rejects_non_https_urls() {
         let err = ensure_https("http://graph.facebook.com/v18.0/123/messages").unwrap_err();
         assert!(err.to_string().contains("URL scheme must be https"));
@@ -1223,4 +1226,3 @@ mod tests {
         assert!(err.to_string().contains("WhatsApp API error:"));
     }
 }
-// 本文件验证 WhatsApp Graph 渠道的地址约束、号码许可、收发与健康状态。

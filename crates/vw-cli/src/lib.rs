@@ -386,6 +386,9 @@ pub async fn run() -> Result<()> {
         /* Commands::Onboard { .. } | */ Commands::Completions { .. } => unreachable!(),
         Commands::Acp => unreachable!("ACP mode is routed before interactive initialization"),
 
+        // 处理远程 Gateway API 命令。
+        Commands::Api { api_args } => handlers::api::run(api_args).await,
+
         // 处理 Agent 命令：启动 AI 代理
         Commands::Agent {
             message,

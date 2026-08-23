@@ -4,6 +4,7 @@ use super::*;
 use vw_config_types::gateway::GatewaySkey;
 
 #[test]
+// 认证比较使用恒定时间路径，避免由提前返回泄露匹配前缀。
 fn constant_time_eq_matches_equal_strings_only() {
     assert!(constant_time_eq("same", "same"));
     assert!(!constant_time_eq("same", "diff"));
@@ -51,6 +52,7 @@ async fn successful_pairing_consumes_code_and_stores_token_hash() {
 }
 
 #[tokio::test]
+// 失败计数按客户端隔离，攻击者不能借一个来源锁死其他客户端。
 async fn failed_attempts_lock_out_client_but_not_other_clients() {
     let guard = PairingGuard::new(true, &[]);
     let code = guard.pairing_code().expect("pairing code");
@@ -80,6 +82,7 @@ fn existing_plain_tokens_are_hashed_and_existing_hashes_are_preserved() {
 }
 
 #[test]
+// 配置密钥同时受启用状态和过期时间约束。
 fn configured_skeys_respect_enabled_flag_and_expiration() {
     let enabled = GatewaySkey {
         enabled: true,

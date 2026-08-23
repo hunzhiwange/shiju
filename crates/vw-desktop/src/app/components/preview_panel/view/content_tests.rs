@@ -1,3 +1,6 @@
+//! 验证预览内容视图测试模块的装配入口。
+//! 内容类型的具体渲染分支由同目录视图测试承担，此处只守住模块接线。
+
 #[test]
 fn content_tests_are_wired() {
     assert!(module_path!().contains("content_tests"));

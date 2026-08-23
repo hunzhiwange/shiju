@@ -1,4 +1,6 @@
 // 验证旧记忆数据迁移的读取、去重、路径判断与备份。
+
+// 合并 SQLite 与 Markdown 来源时按内容去重，备份仅复制约定的记忆文件。
 use super::*;
 use rusqlite::params;
 

@@ -1,4 +1,5 @@
 //! 验证 Git 提交校验器对高风险提交形式与普通操作的区分。
+//! 规则只针对可能触发提交的危险形态，不能阻断安全的 Git 读取操作。
 
 use super::*;
 use crate::tools::shell::ast::parse_command;

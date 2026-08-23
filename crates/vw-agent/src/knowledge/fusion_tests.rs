@@ -1,4 +1,6 @@
 // 验证多路检索结果的归一化、去重与排序融合。
+
+// 融合排序使用稳定默认参数，单一检索源则退回按分数去重。
 use super::{RetrievalSource, RetrievedCandidate, deduplicate_by_score, fuse_with_rrf};
 use vw_api_types::knowledge::KnowledgeMatchType;
 

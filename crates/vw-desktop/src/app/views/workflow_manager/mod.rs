@@ -1,3 +1,5 @@
+//! 管理任务生命周期工作流的列表、编辑、校验与保存界面。
+
 mod capabilities;
 
 use std::collections::HashSet;
@@ -42,9 +44,11 @@ use vw_gateway_client::vw_api_types::task_lifecycle::{
 const WORKFLOW_SCROLL_RIGHT_GUTTER: f32 = 12.0;
 const WORKFLOW_STATUS_INDEX_WIDTH: f32 = 20.0;
 
+/// 网关生命周期列表请求的统一结果类型。
 pub type LifecycleWorkflowListResult = std::result::Result<Vec<TaskLifecycleWorkflowDto>, String>;
 
 #[derive(Debug, Clone)]
+/// 工作流管理器的加载、选择、编辑和确认消息。
 pub enum WorkflowManagerMessage {
     RefreshLifecycles,
     LifecycleWorkflowsLoaded { result: LifecycleWorkflowListResult, notify_error: bool },
@@ -84,6 +88,7 @@ pub enum WorkflowManagerMessage {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// 工作流管理器的生命周期、阶段动作与能力页签。
 pub enum WorkflowManagerTab {
     #[default]
     LifecycleDefinition,
@@ -99,6 +104,7 @@ struct WorkflowListItem {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 工作流列表、编辑草稿、反馈与待执行副作用的聚合状态。
 pub struct WorkflowManagerState {
     workflows: Vec<WorkflowListItem>,
     selected_workflow_id: Option<String>,
@@ -122,6 +128,7 @@ impl Default for WorkflowManagerState {
 
 impl WorkflowManagerState {
     #[cfg(test)]
+    /// 从当前注册表快照构建管理状态。
     pub(crate) fn from_registry(registry: &TaskWorkflowRegistry) -> Self {
         Self::from_workflows(registry.all_workflows(), true)
     }
@@ -254,6 +261,7 @@ impl WorkflowDraft {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 编辑器中的状态定义及其结果路由草稿。
 pub struct WorkflowDraftStatus {
     key: String,
     label: String,
@@ -286,6 +294,7 @@ impl WorkflowDraftRoute {
 }
 
 impl WorkflowDraftStatus {
+    /// 创建启用的状态草稿，并填入该角色的默认结果路由。
     pub fn new(key: &str, label: &str, role: StatusRole) -> Self {
         Self {
             key: key.to_string(),
@@ -414,6 +423,7 @@ impl WorkflowDraftStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 工作流保存、删除或重置后的用户反馈。
 pub struct WorkflowManagerFeedback {
     kind: WorkflowManagerFeedbackKind,
     message: String,
@@ -465,6 +475,7 @@ enum WorkflowManagerEffect {
     },
 }
 
+/// 创建从网关刷新生命周期列表的异步任务。
 pub(crate) fn load_lifecycle_workflows_task(notify_error: bool) -> Task<Message> {
     Task::perform(load_lifecycle_workflows_via_gateway(), move |result| {
         Message::WorkflowManager(WorkflowManagerMessage::LifecycleWorkflowsLoaded {
@@ -528,6 +539,7 @@ async fn save_lifecycle_workflow_with_client(
     original_id: Option<&str>,
     body: &TaskLifecycleWorkflowUpsertBody,
 ) -> std::result::Result<(), String> {
+    // 网关不支持直接重命名：先创建新 ID，成功后再删除旧记录，避免先删造成丢失。
     let workflow_id = body.workflow.id.as_str();
     match original_id.map(str::trim).filter(|id| !id.is_empty()) {
         Some(original_id) if original_id == workflow_id => {
@@ -562,6 +574,7 @@ async fn reset_lifecycle_workflow_via_gateway(workflow_id: String) -> LifecycleW
     client.task_lifecycle_workflows_list().await
 }
 
+/// 纯化更新管理器状态并记录待执行副作用；返回值表示注册表是否改变。
 pub(crate) fn update(
     state: &mut WorkflowManagerState,
     registry: &mut TaskWorkflowRegistry,
@@ -783,6 +796,7 @@ pub(crate) fn update(
     }
 }
 
+/// 更新应用中的工作流状态、刷新运行时缓存并派发网关副作用。
 pub fn update_app(app: &mut App, message: WorkflowManagerMessage) -> Task<Message> {
     let selected_workflow_changed = matches!(message, WorkflowManagerMessage::SelectWorkflow(_));
     let load_stage_workflow_options =
@@ -1086,6 +1100,7 @@ fn lifecycle_save_command_from_draft(
 }
 
 fn owned_workflow_from_draft(draft: &WorkflowDraft) -> Result<OwnedTaskWorkflow> {
+    // 草稿在进入运行时前集中验证标识唯一性、角色约束和路由目标完整性。
     let id = draft.id.trim();
     if id.is_empty() {
         bail!("自定义工作流 id 不能为空");
@@ -1364,6 +1379,7 @@ fn apply_lifecycle_workflow_cache(
     Ok(())
 }
 
+/// 构建工作流列表、编辑器、阶段动作页面及确认对话框。
 pub fn view(app: &App) -> Element<'_, Message> {
     let state = &app.workflow_manager;
     let body = match state.active_tab {

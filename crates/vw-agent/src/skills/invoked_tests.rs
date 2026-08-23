@@ -1,4 +1,5 @@
 //! 验证已调用技能集合的记录、去重与会话隔离行为。
+//! 压缩恢复与会话分叉共享调用记录，但重新加载必须读取当前磁盘内容。
 
 use super::{InvokedSkillRecord, SkillListingSessionState};
 

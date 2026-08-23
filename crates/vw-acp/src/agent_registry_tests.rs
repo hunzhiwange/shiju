@@ -1,4 +1,6 @@
 //! 验证代理注册表合并、命令解析以及跨平台可执行文件发现规则。
+//!
+//! 隔离的命令、环境和临时路径 fixture 用于验证跨平台解析规则。
 
 use std::{
     collections::HashMap,
@@ -97,6 +99,7 @@ fn test_spec(command: &str, args: &[&str]) -> AgentCommandSpec {
     }
 }
 
+// 下列行为用例覆盖规范化、发现优先级、兼容输入和缺失值回退。
 #[test]
 fn command_line_joins_command_and_args_without_mutating_env() {
     let mut env = HashMap::new();

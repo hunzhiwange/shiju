@@ -1,4 +1,5 @@
 //! 验证多提供方网页搜索的结果解析、规格生成及请求前参数校验。
+//! Serper、Claude 兼容字段和用户代理错误均在网络分派之前完成断言。
 
 use super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};

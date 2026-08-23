@@ -1,4 +1,5 @@
 //! 测试调度产物存储的写入、列表、去重与完整作用域隔离。
+//! 同一契约在可用存储后端上复用，确认唯一性和作用域规则不随实现变化。
 
 use anyhow::Result;
 use serde_json::json;
@@ -231,6 +232,7 @@ fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
     })
 }
 
+// 同一断言在各可用后端执行，后端不可用时仅跳过对应外部夹具。
 fn for_each_artifact_store_provider(
     mut check: impl FnMut(
         &AgentSchedulerStore,

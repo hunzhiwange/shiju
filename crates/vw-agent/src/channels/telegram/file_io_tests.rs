@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 文件路径查询、下载响应与错误信息边界。
+
 use super::TelegramChannel;
 use axum::{
     Router,
@@ -157,6 +159,7 @@ async fn download_file_reads_bytes_from_file_endpoint() {
 }
 
 #[tokio::test]
+// 下载失败可暴露状态码，但不能泄露含令牌的完整地址。
 async fn download_file_reports_status_without_leaking_url() {
     let server = TestServer::spawn(vec![ResponseSpec {
         status: StatusCode::NOT_FOUND,
@@ -172,4 +175,3 @@ async fn download_file_reports_status_without_leaking_url() {
     assert!(error.contains("404 Not Found"));
     assert!(!error.contains("123:ABC"));
 }
-// 本文件验证 Telegram 文件路径查询、下载响应与错误信息边界。

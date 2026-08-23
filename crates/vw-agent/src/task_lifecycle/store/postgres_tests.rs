@@ -1,4 +1,5 @@
 //! 验证 PostgreSQL 生命周期存储对后端类型与作用域的约束。
+//! PostgreSQL 夹具固定租户作用域，并验证时间戳转换采用饱和策略。
 
 use super::*;
 use crate::global_database::test_support::PostgresTestDatabase;

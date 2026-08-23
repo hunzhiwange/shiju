@@ -1,22 +1,24 @@
 //! 集成目录模型，描述可用状态、分类及配置驱动的激活结果。
+//!
+//! 目录条目是静态元数据，运行状态通过只读函数从当前配置计算，不在此模块建立外部连接。
 
 pub mod registry;
 
 use crate::app::agent::config::Config;
 use anyhow::Result;
 
-/// Integration status
+/// 集成在当前配置下的可用状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum IntegrationStatus {
-    /// Fully implemented and ready to use
+    /// 已实现但尚未激活。
     Available,
-    /// Configured and active
+    /// 已配置并处于活动状态。
     Active,
-    /// Planned but not yet implemented
+    /// 已规划但尚未实现。
     ComingSoon,
 }
 
-/// Integration category
+/// 集成在目录界面中的分类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum IntegrationCategory {
     Chat,
@@ -31,6 +33,7 @@ pub enum IntegrationCategory {
 }
 
 impl IntegrationCategory {
+    /// 返回分类的稳定英文展示标签。
     pub fn label(self) -> &'static str {
         match self {
             Self::Chat => "Chat Providers",
@@ -45,6 +48,7 @@ impl IntegrationCategory {
         }
     }
 
+    /// 返回目录支持的全部分类，顺序用于稳定展示。
     pub fn all() -> &'static [Self] {
         &[
             Self::Chat,
@@ -61,14 +65,20 @@ impl IntegrationCategory {
 }
 
 /// A registered integration
+/// 集成目录中的静态条目。
 pub struct IntegrationEntry {
+    /// 集成名称。
     pub name: &'static str,
+    /// 集成简短说明。
     pub description: &'static str,
+    /// 所属分类。
     pub category: IntegrationCategory,
+    /// 根据当前配置计算状态的函数。
     pub status_fn: fn(&Config) -> IntegrationStatus,
 }
 
 /// Handle the `integrations` CLI command
+/// 执行集成目录命令。
 pub fn handle_command(command: IntegrationCommands, config: &Config) -> Result<()> {
     match command {
         IntegrationCommands::List { category, status } => {
@@ -337,6 +347,7 @@ use clap::Subcommand;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Subcommand)]
+/// 集成目录支持的命令行操作。
 pub enum IntegrationCommands {
     List {
         #[arg(long)]

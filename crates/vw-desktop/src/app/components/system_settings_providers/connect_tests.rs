@@ -1,3 +1,7 @@
+//! 验证提供商连接弹窗在关闭、错误和多种输入状态下的布局。
+//!
+//! 连接夹具覆盖空值、Unicode 与错误文本，树节点数量用于确认浮层层级不漂移。
+
 use crate::app::state::ProviderConnectState;
 use crate::app::{App, Message};
 use iced::advanced::widget::Tree;

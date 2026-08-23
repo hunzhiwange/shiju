@@ -12,6 +12,7 @@ use vw_gateway_client::{
     SkillMarketSkillSetPageDto, SkillMarketSourceDto,
 };
 
+/// 屏蔽原生与 WASM 平台线程安全差异的市场提供方边界。
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) trait SkillMarketProviderBounds: Send + Sync {}
 
@@ -24,7 +25,7 @@ pub(crate) trait SkillMarketProviderBounds {}
 #[cfg(target_arch = "wasm32")]
 impl<T> SkillMarketProviderBounds for T {}
 
-/// Failures returned by a concrete source adapter.
+/// 具体市场来源适配器返回的稳定错误分类。
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub(crate) enum SkillMarketProviderError {
     #[error("skill market provider timed out")]
@@ -37,6 +38,7 @@ pub(crate) enum SkillMarketProviderError {
 
 /// Immutable archive bytes and the source proof required by the shared installer.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 单个技能的归档内容与坐标信息。
 pub(crate) struct SkillMarketArtifact {
     pub(crate) archive: Vec<u8>,
     pub(crate) proof: SkillMarketArtifactProof,
@@ -44,6 +46,7 @@ pub(crate) struct SkillMarketArtifact {
 
 /// Raw proof fields verified by the shared installer.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 用于验证市场制品来源与完整性的证明。
 pub(crate) struct SkillMarketArtifactProof {
     pub(crate) signed: bool,
     pub(crate) payload: String,
@@ -55,6 +58,7 @@ pub(crate) struct SkillMarketArtifactProof {
 
 /// Verification policy explicitly selected for an unsigned skill-set transport.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 技能集成员制品采用的验证策略。
 pub(crate) enum SkillMarketSkillSetVerificationPolicy {
     TransportAndAudit,
     Unsupported(String),
@@ -62,6 +66,7 @@ pub(crate) enum SkillMarketSkillSetVerificationPolicy {
 
 /// One canonical member and its independently verified artifact.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 技能集中的一个具名成员制品。
 pub(crate) struct SkillMarketSkillSetMemberArtifact {
     pub(crate) coordinate: SkillMarketCoordinateDto,
     pub(crate) artifact: SkillMarketArtifact,
@@ -69,6 +74,7 @@ pub(crate) struct SkillMarketSkillSetMemberArtifact {
 
 /// Canonical skill-set archive plus the members declared by its detail endpoint.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 包含清单、证明与全部成员归档的技能集制品。
 pub(crate) struct SkillMarketSkillSetArtifact {
     pub(crate) source: String,
     pub(crate) slug: String,
@@ -78,6 +84,7 @@ pub(crate) struct SkillMarketSkillSetArtifact {
 }
 
 /// Capabilities required by the current skill-market pages and single-skill install flow.
+/// 技能市场来源必须实现的查询、详情与制品下载契约。
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub(crate) trait SkillMarketProvider: SkillMarketProviderBounds {
@@ -132,6 +139,7 @@ pub(crate) trait SkillMarketProvider: SkillMarketProviderBounds {
 
 /// Registration and lookup failures for source keys.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
+/// 市场注册表解析来源时返回的错误。
 pub(crate) enum SkillMarketRegistryError {
     #[error("invalid skill market source key: {0}")]
     InvalidSourceKey(String),
@@ -143,15 +151,18 @@ pub(crate) enum SkillMarketRegistryError {
 
 /// Explicit registry of the concrete skill-market sources enabled by the gateway.
 #[derive(Default)]
+/// 按稳定来源键注册和解析市场提供方的注册表。
 pub(crate) struct SkillMarketProviderRegistry {
     providers: BTreeMap<String, Arc<dyn SkillMarketProvider>>,
 }
 
 impl SkillMarketProviderRegistry {
+    /// 创建空注册表。
     pub(crate) fn new() -> Self {
         Self::default()
     }
 
+    /// 创建包含内置公共来源的注册表。
     pub(crate) fn with_default_sources() -> Result<Self, SkillMarketProviderError> {
         let mut registry = Self::new();
         let provider = Arc::new(super::skillhub::SkillHubProvider::new()?);
@@ -163,6 +174,7 @@ impl SkillMarketProviderRegistry {
         Ok(registry)
     }
 
+    /// 注册来源；来源键必须稳定且不得重复。
     pub(crate) fn register(
         &mut self,
         provider: Arc<dyn SkillMarketProvider>,
@@ -178,6 +190,7 @@ impl SkillMarketProviderRegistry {
         Ok(())
     }
 
+    /// 按来源键解析提供方。
     pub(crate) fn resolve(
         &self,
         source: &str,
@@ -188,6 +201,7 @@ impl SkillMarketProviderRegistry {
             .ok_or_else(|| SkillMarketRegistryError::UnknownSource(source.to_string()))
     }
 
+    /// 按键排序返回全部已注册来源元数据。
     pub(crate) fn sources(&self) -> Vec<SkillMarketSourceDto> {
         self.providers.values().map(|provider| provider.source().clone()).collect()
     }

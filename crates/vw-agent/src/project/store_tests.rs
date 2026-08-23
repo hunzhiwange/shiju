@@ -73,6 +73,7 @@ fn project_store_initializes_default_platform_and_company() -> Result<()> {
 }
 
 #[test]
+// 相同项目标识可存在于不同租户，所有读写都必须带完整租户作用域。
 fn project_store_round_trips_info_with_full_tenant_isolation() -> Result<()> {
     for_each_project_store_provider(project_store_round_trip)?;
     Ok(())
@@ -186,6 +187,7 @@ fn project_store_rejects_blank_scope_and_preserves_same_id_across_tenants() -> R
 }
 
 #[test]
+// 调度记录仍引用项目时拒绝删除，用来锁定数据库外键边界。
 fn project_store_restricts_delete_while_scheduler_rows_exist() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let database_path = temp_dir.path().join("global").join("_index.sqlite3");
@@ -422,6 +424,7 @@ fn assert_default_seed_names_are_preserved(database: &GlobalDatabase) -> Result<
     Ok(())
 }
 
+// 同一行为集复用于 SQLite 与 PostgreSQL，确保后端契约一致。
 fn for_each_project_store_provider(
     mut check: impl FnMut(&ProjectStore) -> Result<()>,
 ) -> Result<()> {

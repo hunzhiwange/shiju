@@ -1,4 +1,5 @@
 //! 验证会话存储迁移、事务一致性、作用域隔离与往返持久化。
+//! 数据库夹具覆盖迁移、回滚、级联删除和多租户同名数据，验证事务失败不破坏旧值。
 
 use anyhow::Result;
 use rusqlite::{Connection, params};
@@ -38,6 +39,7 @@ const SESSION_TABLES: [&str; 9] = [
     "session_todos",
 ];
 
+// 先锁定表结构与作用域外键，再复用同一夹具验证各存储提供方的行为契约。
 #[test]
 fn session_store_schema_uses_project_scoped_session_tables() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
@@ -339,6 +341,7 @@ fn session_ui_commit_distinguishes_reused_step_indices_by_turn() -> Result<()> {
     Ok(())
 }
 
+// 故意制造原始调用插入失败，确认快照写入与原始数据写入属于同一事务。
 #[test]
 fn session_ui_commit_rolls_back_snapshot_when_raw_insert_fails() -> Result<()> {
     let sqlite_home = tempfile::tempdir()?;
@@ -663,6 +666,7 @@ fn session_store_replacements_roll_back(fixture: &StoreFixture) -> Result<()> {
     Ok(())
 }
 
+// 夹具把提供方差异封装在统一接口后，避免 SQLite 与 PostgreSQL 的断言分叉。
 struct StoreFixture {
     database: GlobalDatabase,
     project_store: ProjectStore,

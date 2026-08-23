@@ -1,3 +1,5 @@
+//! 处理预览标签、编辑位置历史与工作区切换相关消息。
+
 use super::PreviewMessage;
 use crate::app::message::ViewMessage;
 use crate::app::{
@@ -152,6 +154,7 @@ fn navigate_trace_forward(app: &mut App) -> Task<Message> {
     Task::none()
 }
 
+/// 处理预览页签消息，并在文件读写或光标跳转需要时返回任务。
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     fn goto_with_retry(line: usize, col: usize) -> Task<Message> {
         let goto_msg = Message::Preview(PreviewMessage::EditorEvent(

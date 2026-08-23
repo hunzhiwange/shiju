@@ -1,4 +1,5 @@
 //! 验证工具运行上下文、工作流状态和任务局部作用域。
+//! 任务局部上下文只在作用域 future 内可见，克隆必须共享读状态与工作流句柄。
 
 use super::*;
 use crate::app::agent::config::AutonomyConfig;
@@ -35,6 +36,7 @@ fn workflow_transitions_reset_worktree() {
 }
 
 #[tokio::test]
+// 任务局部值不能泄漏到作用域外或兄弟任务，嵌套 future 结束后应恢复先前上下文。
 async fn task_local_context_is_visible_only_inside_scope() {
     assert!(current_tool_use_context().is_none());
     let context = std::sync::Arc::new(

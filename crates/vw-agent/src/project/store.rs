@@ -87,6 +87,7 @@ COMMIT;
 "#;
 
 #[derive(Debug, Clone)]
+/// 按数据库提供方分派、按完整项目作用域隔离的项目注册表。
 pub struct ProjectStore {
     provider: ProjectStoreProvider,
 }
@@ -98,6 +99,7 @@ enum ProjectStoreProvider {
 }
 
 impl ProjectStore {
+    /// 初始化项目表结构并创建存储实例。
     pub fn new(database: GlobalDatabase) -> Result<Self> {
         let provider = match database.provider() {
             DatabaseProvider::Sqlite => {
@@ -116,6 +118,7 @@ impl ProjectStore {
         Ok(Self { provider })
     }
 
+    /// 在指定租户下创建项目；重复作用域返回数据库约束错误。
     pub fn create(&self, tenant: &TenantScope, info: &Info) -> Result<()> {
         validate_info(info)?;
         match &self.provider {
@@ -128,6 +131,7 @@ impl ProjectStore {
         }
     }
 
+    /// 用精确注册表快照替换租户项目，并校验当前应保留的项目集合。
     pub(crate) fn import_exact_registry(
         &self,
         tenant: &TenantScope,
@@ -149,6 +153,7 @@ impl ProjectStore {
         }
     }
 
+    /// 按完整作用域读取单个项目。
     pub fn get(&self, scope: &ProjectScope) -> Result<Option<Info>> {
         match &self.provider {
             ProjectStoreProvider::Sqlite(database) => {
@@ -169,6 +174,7 @@ impl ProjectStore {
         }
     }
 
+    /// 按稳定更新时间顺序列出租户项目。
     pub fn list(&self, tenant: &TenantScope) -> Result<Vec<Info>> {
         match &self.provider {
             ProjectStoreProvider::Sqlite(database) => {
@@ -192,6 +198,7 @@ impl ProjectStore {
         }
     }
 
+    /// 更新项目元数据；作用域与载荷标识不一致时拒绝写入。
     pub fn update(&self, scope: &ProjectScope, info: &Info) -> Result<bool> {
         validate_matching_info(scope, info)?;
         match &self.provider {
@@ -224,6 +231,7 @@ impl ProjectStore {
         }
     }
 
+    /// 删除单个作用域项目，并报告是否实际删除。
     pub fn delete(&self, scope: &ProjectScope) -> Result<bool> {
         match &self.provider {
             ProjectStoreProvider::Sqlite(database) => {
@@ -239,6 +247,7 @@ impl ProjectStore {
         }
     }
 
+    /// 向项目沙箱集合添加一个去重后的名称。
     pub fn add_sandbox(&self, scope: &ProjectScope, sandbox: &str) -> Result<bool> {
         Ok(self
             .mutate(scope, |project| {
@@ -249,6 +258,7 @@ impl ProjectStore {
             .is_some())
     }
 
+    /// 从项目沙箱集合移除指定名称。
     pub fn remove_sandbox(&self, scope: &ProjectScope, sandbox: &str) -> Result<bool> {
         Ok(self
             .mutate(scope, |project| {
@@ -257,6 +267,7 @@ impl ProjectStore {
             .is_some())
     }
 
+    /// 在事务内加载、修改并写回项目，项目不存在时返回 `false`。
     pub(crate) fn mutate(
         &self,
         scope: &ProjectScope,

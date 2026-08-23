@@ -1,3 +1,6 @@
+//! 验证文件管理面板在项目加载、变更列表和搜索模式间的视图切换。
+//! 搜索结果优先级、刷新禁用态和空项目路径用于锁定多状态竞争时的选路规则。
+
 use super::{
     FILE_MANAGER_MODE_BAR_HEIGHT, FILE_MANAGER_SEARCH_ICON_SIZE, FILE_MANAGER_SEARCH_TAB_WIDTH,
     file_manager_search_message, view, view_file_manager,

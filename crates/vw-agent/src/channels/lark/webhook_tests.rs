@@ -1,3 +1,5 @@
+// 本文件验证 Lark Webhook 监听、挑战校验与消息事件分发。
+
 use super::*;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
@@ -81,6 +83,7 @@ async fn listen_http_binds_configured_port_until_cancelled() {
 }
 
 #[tokio::test]
+// 挑战响应仅在令牌匹配时回显，防止错误端点被确认。
 async fn handle_event_accepts_matching_challenge_token() {
     let channel = make_channel(Some(0), vec!["*".to_string()]);
     let (tx, _rx) = tokio::sync::mpsc::channel(1);
@@ -163,4 +166,3 @@ async fn handle_event_ignores_non_message_event_without_dispatch() {
     assert_eq!(response.status(), StatusCode::OK);
     assert!(rx.try_recv().is_err());
 }
-// 本文件验证 Lark Webhook 监听、挑战校验与消息事件分发。

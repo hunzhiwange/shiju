@@ -1,4 +1,5 @@
 //! 验证技能市场提供方的配置、请求转换和错误处理。
+//! 注册表只接受稳定来源键，模拟提供方覆盖当前全部只读市场能力。
 
 use std::sync::Arc;
 
@@ -159,6 +160,7 @@ fn provider_registry_registers_skillhub_as_default_source() {
 }
 
 #[tokio::test]
+// 模拟提供方覆盖完整只读能力面，新增 trait 方法时该用例会迫使测试夹具同步更新。
 async fn mock_provider_covers_all_current_read_capabilities() {
     let provider = MockProvider::new("skillhub");
     let locator = locator("skillhub");

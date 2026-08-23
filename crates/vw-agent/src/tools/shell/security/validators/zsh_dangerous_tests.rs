@@ -1,4 +1,5 @@
 //! 验证 zsh 专属危险展开会被阻断而可移植命令保持允许。
+//! 规则覆盖隐式路径、历史替换等 zsh 语义，避免跨 shell 解析差异绕过。
 
 use super::zsh_dangerous::ZshDangerousValidator;
 use crate::tools::shell::ast::parse_command;

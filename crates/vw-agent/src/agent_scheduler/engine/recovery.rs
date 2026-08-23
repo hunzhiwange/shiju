@@ -25,12 +25,14 @@ pub const DEFAULT_RECOVERY_GRACE_MS: i64 = 5 * 60 * 1_000;
 pub const DEFAULT_IDLE_WORKER_SLEEP_AFTER_MS: i64 = 12 * 60 * 60 * 1_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 过期运行对应任务的收敛方式。
 pub enum StaleRunResolution {
     FailTask,
     PauseTask,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 恢复宽限期、资源污染和空闲节点休眠策略。
 pub struct RecoveryPolicy {
     pub stale_run_grace_ms: i64,
     pub stale_run_resolution: StaleRunResolution,
@@ -54,6 +56,7 @@ impl Default for RecoveryPolicy {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// 单轮恢复处理的运行、资源、节点和通知统计。
 pub struct RecoveryOutcome {
     pub graced_run_ids: Vec<RunId>,
     pub recovered_run_ids: Vec<RunId>,
@@ -64,6 +67,7 @@ pub struct RecoveryOutcome {
     pub outbox_message_ids: Vec<String>,
 }
 
+/// 对过期运行、遗留租约和空闲节点执行补偿动作的恢复引擎。
 pub struct RecoveryEngine<'a, C>
 where
     C: ControllerAdapter + ?Sized,
@@ -89,6 +93,7 @@ where
         Self { store, controller, policy }
     }
 
+    /// 以给定时间为一致快照执行一轮恢复，并返回所有补偿计数。
     pub async fn reconcile_once(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),

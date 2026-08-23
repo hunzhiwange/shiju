@@ -410,6 +410,7 @@ fn empty_compiled_query() -> ApiQlSqlQuery {
     }
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[test]
 fn apiql_runtime_adapt_item_preserves_scalars_and_reports_unknown_virtual_field() {
     let registry = ApiQlEntityRegistry::from_configs(vec![virtual_product_config()])
@@ -977,6 +978,7 @@ async fn apiql_runtime_resolves_virtual_fields_with_rhai_fallback() {
     );
 }
 
+// 非法字段、运算符和解析器配置必须在生成查询或执行脚本前被拒绝。
 #[tokio::test]
 async fn apiql_runtime_rejects_mismatched_connection_before_query_execution() {
     let registry = ApiQlEntityRegistry::from_configs(vec![product_config()])

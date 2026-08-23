@@ -1,4 +1,6 @@
 // 验证身份文件加载、缺省回退与无效内容的错误报告。
+
+// 相对路径以工作区为基准，绝对路径优先于内联来源，读取错误保留路径上下文。
 use super::*;
 use crate::app::agent::config::IdentityConfig;
 

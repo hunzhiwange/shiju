@@ -1,4 +1,5 @@
 //! 验证测试能力探测结果与编译特性保持一致。
+//! 环境变量读取由全局锁隔离，写权限探测必须清理探针且保留目录原有内容。
 
 use super::{check_loopback_bind, check_writable_dir, home_dir_from_env};
 use std::ffi::{OsStr, OsString};
@@ -101,6 +102,7 @@ fn writable_dir_probe_creates_nested_directory_and_cleans_probe() {
 }
 
 #[test]
+// 写权限探测只能创建并删除自身探针，目录中的用户文件必须原样保留。
 fn writable_dir_probe_preserves_existing_entries_and_cleans_probe() {
     let temp = TempDir::new().expect("tempdir should create");
     let sentinel = temp.path().join("sentinel.txt");

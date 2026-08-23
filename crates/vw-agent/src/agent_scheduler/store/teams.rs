@@ -17,6 +17,7 @@ const TEAM_COLUMNS: &str = "id, name, status, leader_id, team_room_id, leader_dm
 leader_ready, ready_workers, total_workers, members_json, updated_at_ms";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 写入团队领导者、成员、通信房间和就绪计数的快照。
 pub struct NewAgentTeamSnapshot {
     pub id: TeamId,
     pub name: String,
@@ -32,6 +33,7 @@ pub struct NewAgentTeamSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 从存储读取的团队完整快照。
 pub struct StoredAgentTeam {
     pub id: TeamId,
     pub name: String,
@@ -47,6 +49,7 @@ pub struct StoredAgentTeam {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 团队成员在存储层的角色、运行时身份和就绪状态。
 pub struct AgentTeamMemberRecord {
     pub worker_id: WorkerName,
     pub runtime_name: Option<WorkerName>,
@@ -57,6 +60,7 @@ pub struct AgentTeamMemberRecord {
 }
 
 impl AgentSchedulerStore {
+    /// 校验领导者和计数后按团队标识插入或覆盖快照。
     pub fn upsert_team_snapshot(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),

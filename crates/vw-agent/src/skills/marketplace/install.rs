@@ -31,7 +31,7 @@ const MAX_RELATIVE_PATH_BYTES: usize = 240;
 const SKILL_MANIFEST: &str = "SKILL.md";
 const META_FILE: &str = "_meta.json";
 
-/// Verifies, audits, and atomically installs one immutable market artifact.
+/// 验证、审计并原子安装一个不可变市场制品。
 pub(crate) fn install_verified_market_artifact(
     skills_root: &Path,
     coordinate: &SkillMarketCoordinateDto,
@@ -41,8 +41,7 @@ pub(crate) fn install_verified_market_artifact(
     install_verified_market_artifact_ref(skills_root, coordinate, &artifact, security)
 }
 
-/// Installs one verified artifact into every distinct root and rolls back this
-/// transaction's completed targets when a later target fails.
+/// 将已验证制品安装到每个不同根目录；后续目标失败时回滚本次已完成目标。
 pub(crate) fn install_verified_market_artifact_for_roots(
     skills_roots: &[PathBuf],
     coordinate: &SkillMarketCoordinateDto,
@@ -120,7 +119,7 @@ fn install_verified_market_artifact_ref(
     Ok(target)
 }
 
-/// Verifies and stages a complete skill set before committing any package.
+/// 验证并暂存完整技能集，所有成员通过后才一次性提交。
 pub(crate) fn install_verified_market_skill_set(
     skills_root: &Path,
     artifact: SkillMarketSkillSetArtifact,
@@ -234,6 +233,7 @@ pub(crate) fn install_verified_market_skill_set(
     Ok(targets)
 }
 
+/// 校验市场坐标的来源、标识、版本与内容摘要格式。
 pub(crate) fn validate_market_coordinate(coordinate: &SkillMarketCoordinateDto) -> Result<()> {
     target_directory_name(coordinate).map(|_| ())
 }

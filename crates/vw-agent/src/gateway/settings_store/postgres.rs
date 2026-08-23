@@ -1,4 +1,6 @@
 //! PostgreSQL 网关设置存储，按租户、命名空间与配置键隔离记录。
+//!
+//! SQL 主键与 SQLite 后端一致，所有操作显式包含平台和公司作用域。
 
 use anyhow::{Context, Result, bail};
 use vw_api_types::id::TenantScope;
@@ -19,11 +21,13 @@ CREATE TABLE IF NOT EXISTS gateway_settings (
 "#;
 
 #[derive(Debug, Clone)]
+/// 网关设置仓库的 PostgreSQL 后端。
 pub(super) struct PostgresGatewaySettingsStore {
     database: GlobalDatabase,
 }
 
 impl PostgresGatewaySettingsStore {
+    /// 初始化租户网关设置表。
     pub(super) fn new(database: GlobalDatabase) -> Result<Self> {
         database.initialize_postgres_schema(|transaction| {
             transaction
@@ -34,6 +38,7 @@ impl PostgresGatewaySettingsStore {
         Ok(Self { database })
     }
 
+    /// 读取租户命名空间中的单条设置。
     pub(super) fn get(
         &self,
         tenant: &TenantScope,
@@ -60,6 +65,7 @@ impl PostgresGatewaySettingsStore {
             .context("decode tenant PostgreSQL gateway setting")
     }
 
+    /// 按完整作用域主键新增或覆盖设置。
     pub(super) fn upsert(
         &self,
         tenant: &TenantScope,
@@ -93,6 +99,7 @@ impl PostgresGatewaySettingsStore {
         Ok(())
     }
 
+    /// 删除完整作用域主键对应的设置。
     pub(super) fn delete(
         &self,
         tenant: &TenantScope,
@@ -116,6 +123,7 @@ impl PostgresGatewaySettingsStore {
         Ok(changed == 1)
     }
 
+    /// 按配置键排序列出命名空间内容。
     pub(super) fn list(
         &self,
         tenant: &TenantScope,

@@ -1,4 +1,5 @@
 //! 验证注释与引号失同步校验器的风险识别边界。
+//! 普通带引号参数应继续放行，防止为阻断解析歧义而扩大误报面。
 
 use super::*;
 use crate::tools::shell::ast::parse_command;

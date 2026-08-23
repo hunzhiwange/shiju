@@ -1,4 +1,5 @@
 //! 验证反斜杠校验器的稳定名称及风险输入识别边界。
+//! 代表性危险与普通命令共同约束规则，避免校验器退化为全量拒绝。
 
 use super::*;
 use crate::tools::shell::ast::parse_command;

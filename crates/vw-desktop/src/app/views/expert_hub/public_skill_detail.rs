@@ -1,3 +1,5 @@
+//! 展示公共技能或套件详情，并收集安装范围与目标选择。
+
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, column, container, markdown, pick_list, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
@@ -68,6 +70,7 @@ fn selected_catalog_install(detail: &PublicDetailState) -> bool {
         && detail.selected_install_targets.as_slice() == [SkillInstallTarget::VibeWindow]
 }
 
+/// 仅在详情允许切换时生成全局或项目安装范围消息。
 pub(super) fn detail_scope_action_message(
     detail: &PublicDetailState,
     scope: SkillInstallScope,
@@ -79,6 +82,7 @@ pub(super) fn detail_scope_action_message(
         .then_some(public_message(PublicSkillMessage::SelectDetailInstallScope(scope)))
 }
 
+/// 仅在详情允许切换时生成安装目标选择消息。
 pub(super) fn detail_target_action_message(
     detail: &PublicDetailState,
     target: SkillInstallTarget,
@@ -89,6 +93,7 @@ pub(super) fn detail_target_action_message(
         .then_some(public_message(PublicSkillMessage::ToggleDetailInstallTarget(target)))
 }
 
+/// 仅在项目路径确有变化时生成项目选择消息。
 pub(super) fn detail_project_action_message(
     selected_project_path: Option<&str>,
     install_busy: bool,
@@ -473,6 +478,7 @@ fn loaded_header(app: &App, detail: &PublicDetailState) -> Option<Element<'stati
     Some(header.into())
 }
 
+/// 按目标类型和加载状态展示公共技能或套件详情。
 pub(super) fn view(app: &App) -> Element<'_, Message> {
     let Some(detail) = &app.expert_hub.public_market.detail else {
         return status_panel("请从公开技能列表选择技能或套件");

@@ -20,6 +20,7 @@ async fn response_json(response: axum::response::Response) -> serde_json::Value 
     serde_json::from_slice(&body).expect("response should be json")
 }
 
+// OAuth 请求形状与路由委托分开验证，避免协议校验被后端未实现状态掩盖。
 #[test]
 fn router_builds_with_unit_state() {
     let _ = router::<()>();
@@ -39,6 +40,7 @@ fn oauth_request_bodies_deserialize() {
     assert_eq!(callback.code.as_deref(), Some("abc"));
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[test]
 fn oauth_callback_request_allows_missing_or_null_code() {
     let missing: OAuthCallbackRequest =

@@ -1,3 +1,6 @@
+//! 验证企业消息渠道的配置面板、实例标题与可选凭据路径。
+//! 飞书和钉钉的仅实例配置用于确认名称回退且不臆造缺失凭据。
+
 use crate::app::{App, Message};
 use vw_config_types::channels::{
     ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
@@ -5,6 +8,7 @@ use vw_config_types::channels::{
     QQReceiveMode,
 };
 
+// 企业渠道实例由用例显式注入，避免其他渠道配置污染标题回退。
 fn test_app() -> App {
     App::new().0
 }

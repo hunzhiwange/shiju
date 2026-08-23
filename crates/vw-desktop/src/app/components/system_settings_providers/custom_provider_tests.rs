@@ -1,3 +1,7 @@
+//! 验证自定义提供商弹窗的创建、编辑、请求头和模型列表状态。
+//!
+//! 请求头和模型集合包含空集与多项数据，用于确认动态编辑行按配置数量生成。
+
 use crate::app::state::{CustomProviderModelDraft, ProviderHeaderDraft};
 use crate::app::{App, Message, message};
 use iced::advanced::widget::Tree;

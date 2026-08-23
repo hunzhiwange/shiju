@@ -32,6 +32,7 @@ async fn route_status(method: Method, uri: &str) -> StatusCode {
         .status()
 }
 
+// 这些只读目录接口固定公开字段，且不依赖遗留项目文件是否可解析。
 #[test]
 fn router_builds_with_unit_state() {
     let _ = router::<()>();

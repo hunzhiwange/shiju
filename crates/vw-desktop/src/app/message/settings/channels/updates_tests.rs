@@ -1,3 +1,6 @@
+// 验证频道设置消息的状态同步、数值钳制与派生输入刷新。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use std::sync::Arc;
@@ -9,6 +12,8 @@ fn app() -> App {
     app
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn channel_update_ignores_non_channel_messages() {
     let mut app = app();
@@ -55,6 +60,8 @@ fn channel_scalar_updates_store_values_and_clamp_timeout() {
     assert!(app.channels_settings.save_error.is_none());
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn channel_enabled_and_instance_updates_refresh_derived_inputs() {
     let mut app = app();
@@ -142,6 +149,8 @@ fn channel_text_editor_edit_updates_editor_mirror_and_channel_field() {
     assert!(app.channels_settings.save_error.is_none());
 }
 
+// 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
+// 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
 #[test]
 fn channel_text_editor_non_edit_does_not_persist_or_change_text() {
     let mut app = app();
@@ -225,6 +234,8 @@ fn channel_typed_updates_apply_bool_number_and_receive_mode_normalization() {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn channel_cli_toggle_rejects_disabling_the_last_entry() {
     let mut app = app();

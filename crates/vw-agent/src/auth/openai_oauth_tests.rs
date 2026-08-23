@@ -1,4 +1,5 @@
 //! 测试 OpenAI OAuth 占位实现显式失败及响应模型序列化。
+//! 网络入口当前必须返回明确未实现错误，防止占位数据被误当作有效认证。
 
 use super::openai_oauth::{
     DeviceCodeResponse, OAuthTokens, PkceState, build_authorize_url, exchange_code_for_tokens,

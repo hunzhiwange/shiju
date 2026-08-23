@@ -32,6 +32,7 @@ fn strip_redirects_handles_dev_null_forms_and_boundaries() {
 }
 
 #[test]
+// 只移除已明确支持的重定向，未知或转义语法原样交给后续策略。
 fn strip_redirects_preserves_unsupported_or_escaped_syntax() {
     assert_eq!(strip_supported_redirects("cmd |& grep x"), "cmd | grep x");
     assert_eq!(strip_supported_redirects(r#"cmd \>/dev/null"#), r#"cmd \>/dev/null"#);
@@ -48,6 +49,7 @@ fn attached_short_option_value_rejects_long_or_empty_options() {
 }
 
 #[test]
+// 文件描述符合并不是文件路径，不能误触路径白名单检查。
 fn redirection_target_extracts_paths_and_ignores_fd_only_redirects() {
     assert_eq!(redirection_target("2>out.log"), Some("out.log"));
     assert_eq!(redirection_target(">> out.log"), Some("out.log"));

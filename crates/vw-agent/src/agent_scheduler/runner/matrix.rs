@@ -49,6 +49,7 @@ const MATRIX_WORKER_CONTAINER_STOPPED: &str = "stopped";
 const MATRIX_WORKER_HEARTBEAT_SECONDS: u64 = 30;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Matrix 工作节点运行时的节点身份、轮询和心跳配置。
 pub struct MatrixAgentWorkerRuntimeConfig {
     pub platform_id: String,
     pub company_id: String,
@@ -60,6 +61,7 @@ pub struct MatrixAgentWorkerRuntimeConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 从存储快照解析出的可运行 Matrix 组件。
 pub struct ConfiguredMatrixWorkerComponent {
     pub project_path: PathBuf,
     pub worker_id: WorkerName,
@@ -68,6 +70,7 @@ pub struct ConfiguredMatrixWorkerComponent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 从 Matrix 房间收到并解析后的任务派发事件。
 pub struct MatrixAgentDispatchEvent {
     pub matrix_event_id: String,
     pub room_id: String,
@@ -75,6 +78,7 @@ pub struct MatrixAgentDispatchEvent {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// 一轮 Matrix 工作节点运行时处理的事件与状态统计。
 pub struct MatrixAgentWorkerRuntimeSummary {
     pub started: usize,
     pub ignored: usize,
@@ -92,11 +96,13 @@ pub struct MatrixWorkerRunEventApiRequest {
 }
 
 #[async_trait]
+/// Matrix 运行时获取下一条派发事件的异步来源。
 pub trait MatrixAgentDispatchEventSource {
     async fn next_dispatch_event(&mut self) -> Result<Option<MatrixAgentDispatchEvent>>;
 }
 
 #[async_trait]
+/// Matrix 工作节点向调度 API 回报运行事件的边界。
 pub trait MatrixWorkerRunEventApi: Send + Sync {
     async fn send_worker_run_event(&self, request: MatrixWorkerRunEventApiRequest) -> Result<()>;
 }
@@ -115,6 +121,7 @@ pub fn matrix_worker_runtime_is_matrix(worker: &StoredAgentWorker) -> bool {
         .is_some_and(|value| value.trim().eq_ignore_ascii_case(MATRIX_WORKER_RUNTIME))
 }
 
+/// 校验存储快照的运行时和路由字段，并构造 Matrix 组件配置。
 pub fn configured_matrix_worker_from_stored(
     project_path: &Path,
     worker: StoredAgentWorker,
@@ -209,6 +216,7 @@ impl LocalAgentExecutor for StartedOnlyMatrixAgentExecutor {
     }
 }
 
+/// 消费 Matrix 派发事件并驱动本地执行器与 API 回报的工作节点循环。
 pub struct MatrixAgentWorkerRuntime<'a, A, E = StartedOnlyMatrixAgentExecutor>
 where
     A: MatrixWorkerRunEventApi + ?Sized,
@@ -262,6 +270,7 @@ where
         Ok(summary)
     }
 
+    /// 幂等处理一条派发事件，并将启动、完成或失败结果回报调度 API。
     pub async fn handle_dispatch_event(
         &mut self,
         event: MatrixAgentDispatchEvent,
@@ -637,6 +646,7 @@ enum MatrixWorkspaceExecutionOutcome {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 单条 Matrix 派发事件的可观察处理结果。
 pub enum MatrixAgentDispatchEventOutcome {
     Started,
     Ignored,
@@ -664,6 +674,7 @@ impl MatrixWorkerRunEventApi for vw_gateway_client::GatewayClient {
 }
 
 #[cfg(feature = "channel-matrix")]
+/// 构造 Matrix 通道客户端所需的连接和身份配置。
 pub struct MatrixAgentWorkerChannelConfig {
     pub homeserver: String,
     pub access_token: String,

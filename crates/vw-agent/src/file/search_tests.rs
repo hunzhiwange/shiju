@@ -4,6 +4,7 @@ use super::SearchInput;
 use super::search::{fuzzy_score, is_hidden, search};
 use std::fs;
 
+// 临时目录夹具同时覆盖正常路径和逃逸路径，确保安全判断不依赖当前工作区。
 #[test]
 fn fuzzy_score_prefers_substring_matches_and_filters_hidden_when_query_is_hidden() {
     assert_eq!(fuzzy_score("lib", "src/lib.rs"), 6);
@@ -235,6 +236,7 @@ fn search_file_root_returns_only_the_empty_relative_file_entry() {
     assert!(dirs.is_empty());
 }
 
+// 缺失资源与越界资源的语义不同：前者可安全回退时仍不得放宽后者的拒绝策略。
 #[test]
 fn search_missing_root_returns_empty_results() {
     let temp = tempfile::tempdir().expect("tempdir");

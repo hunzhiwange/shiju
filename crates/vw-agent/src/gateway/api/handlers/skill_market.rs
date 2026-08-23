@@ -1,5 +1,7 @@
 //! 统一技能市场网关，聚合多来源查询并校验安装目标与制品坐标。
 //!
+//! 查询接口保持只读；安装入口只接受提供者验证过的坐标，并限制写入选定技能根目录。
+//!
 //! Unified read-only skill-market gateway API.
 
 use std::collections::BTreeSet;
@@ -34,7 +36,7 @@ use crate::app::agent::skills::workspace_skills_dir;
 const DEFAULT_PAGE: u32 = 1;
 const DEFAULT_PAGE_SIZE: u32 = 24;
 
-/// Builds the production skill-market routes with all enabled sources.
+/// 使用全部已启用来源构建生产技能市场路由。
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -44,7 +46,7 @@ where
     router_with_registry(Arc::new(registry))
 }
 
-/// Builds skill-market routes with an explicit registry for deterministic tests.
+/// 使用显式提供者注册表构建路由，供确定性测试和受控来源复用。
 pub(crate) fn router_with_registry<S>(registry: Arc<SkillMarketProviderRegistry>) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,

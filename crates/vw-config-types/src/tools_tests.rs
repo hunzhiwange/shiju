@@ -1,9 +1,14 @@
+//! 验证内置工具目录及多模态、浏览器、HTTP 与搜索工具的配置契约。
+//! 目录稳定性、动态工具识别和各工具默认安全限制分别形成独立边界。
+
+// 此哨兵保护拆分后的工具配置测试文件仍由父模块编译。
 #[test]
 fn task_632_test_module_is_wired() {
     let path = std::path::Path::new(file!());
     assert!(path.ends_with("tools_tests.rs"));
 }
 
+// 内置必需工具及别名是代理能力协商契约，顺序和集合都不能静默变化。
 #[test]
 fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
     let expected_primary = [
@@ -67,6 +72,7 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
     assert!(!super::is_builtin_required_tool_id(""));
 }
 
+// MCP 动态工具只按受控前缀识别，普通工具名不能被误归类。
 #[test]
 fn is_mcp_dynamic_tool_id_detects_prefix() {
     assert!(super::is_mcp_dynamic_tool_id("mcp__rustcodegraph__search"));
@@ -79,6 +85,7 @@ fn is_mcp_dynamic_tool_id_detects_prefix() {
     assert!(!super::is_builtin_required_tool_id("mcp__rustcodegraph__search"));
 }
 
+// 多模态处理设置资源上限，并在未配置 OCR 时优先复用模型视觉能力。
 #[test]
 fn multimodal_config_defaults_and_effective_limits_are_safe() {
     let config = super::MultimodalConfig::default();
@@ -140,6 +147,7 @@ fn multimodal_ocr_config_defaults_to_model_vision_and_round_trips_model_selectio
     assert_eq!(round_tripped.ocr.model.as_deref(), Some("openai/gpt-4.1-mini"));
 }
 
+// 浏览器与计算机使用的嵌套配置需同时保护禁用默认和显式覆盖。
 #[test]
 fn browser_computer_use_config_defaults_and_overrides_deserialize() {
     let config = super::BrowserComputerUseConfig::default();
@@ -222,6 +230,7 @@ fn browser_config_defaults_and_nested_computer_use_deserialize() {
     assert_eq!(custom.computer_use.endpoint, "http://127.0.0.1:8787/v1/actions");
 }
 
+// HTTP 请求默认限制网络能力，用户代理和超时等覆盖项必须独立生效。
 #[test]
 fn http_request_config_defaults_and_overrides_deserialize() {
     let config = super::HttpRequestConfig::default();
@@ -253,6 +262,7 @@ fn http_request_config_defaults_and_overrides_deserialize() {
     assert_eq!(custom.user_agent, "TestAgent/2.0");
 }
 
+// 历史默认用户代理可升级到当前值，用户自定义字符串则必须保留。
 #[test]
 fn user_agent_resolution_upgrades_legacy_default_and_preserves_override() {
     assert_eq!(super::resolve_user_agent(""), super::DEFAULT_USER_AGENT);
@@ -260,6 +270,7 @@ fn user_agent_resolution_upgrades_legacy_default_and_preserves_override() {
     assert_eq!(super::resolve_user_agent(" CustomAgent/2.0 "), "CustomAgent/2.0");
 }
 
+// `Default` 与字段级反序列化默认刻意不同，此用例防止二者被误合并。
 #[test]
 fn web_fetch_config_default_impl_differs_from_field_level_deserialize_defaults() {
     let config = super::WebFetchConfig::default();
@@ -305,6 +316,7 @@ fn web_fetch_config_default_impl_differs_from_field_level_deserialize_defaults()
     assert_eq!(custom.user_agent, "Crawler/9.9");
 }
 
+// 搜索配置锁定提供方、结果上限与网络参数的缺省和覆盖行为。
 #[test]
 fn web_search_config_defaults_and_overrides_deserialize() {
     let config = super::WebSearchConfig::default();

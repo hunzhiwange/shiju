@@ -1,3 +1,7 @@
+//! 验证流式问题请求的排序、默认答案、状态重置和提交流程。
+//!
+//! 同一请求更新与新请求替换分别测试，答案数组必须随题目数量安全扩缩。
+
 #![allow(unused_must_use)]
 #[test]
 fn questions_tests_module_is_wired() {
@@ -44,6 +48,7 @@ fn request(id: &str, questions: Vec<vw_shared::question::Info>) -> vw_shared::qu
 }
 
 #[test]
+// 首次加载按请求标识排序，并且只为明确的单选题写入默认答案。
 fn list_loaded_selects_sorted_first_request_and_defaults_once_for_single_choice() {
     let (mut app, _task) = crate::app::App::new();
     let later = request("b", vec![question("multi", vec!["x"], Some(true), None)]);
@@ -57,6 +62,7 @@ fn list_loaded_selects_sorted_first_request_and_defaults_once_for_single_choice(
 }
 
 #[test]
+// 同一请求更新时答案数组随题目数量调整，但仍保留索引有效的已有选择。
 fn list_loaded_resizes_existing_answers_for_same_request() {
     let (mut app, _task) = crate::app::App::new();
     let initial = request("a", vec![question("first", vec!["one"], Some(true), None)]);
@@ -144,6 +150,7 @@ fn list_loaded_empty_or_error_clears_modal_state() {
 }
 
 #[test]
+// 单选替换与多选切换共用入口，题型决定是否保留先前选项。
 fn option_toggled_replaces_single_choice_and_toggles_multi_choice() {
     let (mut app, _task) = crate::app::App::new();
     super::handle_question_list_loaded(
@@ -216,6 +223,7 @@ fn submit_with_request_id_but_missing_request_preserves_pending_id() {
 }
 
 #[test]
+// 提交时仅合并允许自定义答案的题目，随后一次性清理弹窗状态。
 fn submit_clears_modal_and_combines_allowed_custom_answers() {
     let (mut app, _task) = crate::app::App::new();
     super::handle_question_list_loaded(

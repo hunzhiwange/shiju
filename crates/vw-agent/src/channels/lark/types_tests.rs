@@ -1,3 +1,5 @@
+// 本文件验证 Lark WebSocket 协议帧、响应载荷与客户端默认配置。
+
 use super::*;
 use prost::Message as _;
 
@@ -17,6 +19,7 @@ fn pb_frame_header_value_returns_match_or_empty_string() {
 }
 
 #[test]
+// 协议帧须经过真实 Protobuf 编解码往返，不能只比较内存字段。
 fn pb_frame_round_trips_through_protobuf_encoding() {
     let frame = PbFrame {
         seq_id: 7,
@@ -95,4 +98,3 @@ fn ws_client_config_defaults_to_no_ping_interval() {
 
     assert_eq!(config.ping_interval, None);
 }
-// 本文件验证 Lark WebSocket 协议帧、响应载荷与客户端默认配置。

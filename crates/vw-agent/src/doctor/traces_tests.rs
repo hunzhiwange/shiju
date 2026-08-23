@@ -41,6 +41,7 @@ fn write_trace_events(path: &std::path::Path) {
     fs::write(path, format!("{old}\nnot-json\n{pending}\n{newest}\n")).expect("write trace jsonl");
 }
 
+// 诊断断言同时检查严重级别与可操作提示，避免只有返回值正确而用户指引失真。
 #[test]
 fn run_traces_returns_ok_when_trace_file_is_missing() {
     let temp = tempfile::tempdir().expect("tempdir");

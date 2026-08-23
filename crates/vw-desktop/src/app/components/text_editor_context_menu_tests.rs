@@ -1,3 +1,7 @@
+//! 验证文本编辑器上下文菜单的定位、选择操作和消息生成。
+//!
+//! 菜单夹具保留真实选择范围和屏幕位置，覆盖复制、剪切、粘贴与搜索分支。
+
 use super::text_editor_context_menu::{
     SelectionActionOutcome, TextEditorContextMenuMessages, TextEditorContextMenuState, close_menu,
     context_menu, focus_editor_task, is_dark_theme, menu_button_style, open_menu, paste_action,

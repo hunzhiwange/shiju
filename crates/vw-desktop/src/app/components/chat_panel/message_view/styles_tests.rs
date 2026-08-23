@@ -1,3 +1,6 @@
+//! 验证消息视图在明暗主题下的颜色、阴影、排版与交互样式契约。
+//! 颜色断言覆盖透明度和亮度阈值，确保弱化状态仍保持可读而非仅能成功构建。
+
 use super::styles::{
     ASSISTANT_BLOCK_SPACING, ASSISTANT_HEADER_BODY_SPACING, COMPACT_ACTION_BUTTON_RADIUS,
     MARKDOWN_BLOCK_SPACING, MESSAGE_META_TEXT_SIZE, MESSAGE_TEXT_SIZE,

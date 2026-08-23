@@ -1,3 +1,5 @@
+// 本文件验证审批配置的持久化、互斥列表调整与 JSON 兼容处理。
+
 use super::*;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::{AutonomyConfig, ReliabilityConfig};
@@ -138,6 +140,7 @@ async fn persist_and_remove_return_none_without_runtime_config_path() {
 }
 
 #[tokio::test]
+// 同一工具不能既自动批准又总是询问，持久化时维护互斥关系。
 async fn persist_adds_auto_approve_and_removes_always_ask_entries() {
     let tmp = tempfile::tempdir().unwrap();
     let config_path = runtime_config_file(tmp.path());
@@ -524,4 +527,3 @@ async fn describe_approvals_filters_pending_requests_to_current_scope() {
     assert!(!response.contains("tool=shell"));
     assert!(!response.contains("tool=browser"));
 }
-// 本文件验证审批配置的持久化、互斥列表调整与 JSON 兼容处理。

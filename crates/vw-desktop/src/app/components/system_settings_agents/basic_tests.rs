@@ -1,3 +1,6 @@
+//! 验证代理基础设置的注册、委派控件可见性与视图状态。
+//! 不同代理来源和能力组合用于确认仅在支持时暴露相应控制项。
+
 use super::basic::{shows_delegation_controls, shows_registration_controls, view};
 use crate::app::state::DelegateAgentSettingsEntry;
 use iced::advanced::widget::Tree;

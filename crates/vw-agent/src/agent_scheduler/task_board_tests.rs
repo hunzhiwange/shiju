@@ -1,4 +1,5 @@
 //! 测试任务板元数据、状态移动、归档恢复与旧任务导入。
+//! 元数据补丁与旧格式导入同时覆盖，非法输入不得部分移动或覆盖任务。
 
 use anyhow::Result;
 use serde_json::{Value, json};
@@ -25,6 +26,7 @@ use super::task_board::{
     reasoning_effort_from_metadata, task_board_status_key,
 };
 
+// 旧任务夹具固定非关注字段，让导入测试专注元数据兼容与状态推导。
 fn legacy_import(metadata: Value) -> AgentSchedulerLegacyTaskImportDto {
     AgentSchedulerLegacyTaskImportDto {
         task_id: "task-import".into(),

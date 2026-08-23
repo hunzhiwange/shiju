@@ -3,6 +3,7 @@
 use crate::provider::{AuthKind, ConnectProviderRequest, ListProvidersRequest, ProviderStatus};
 use serde_json::json;
 
+// 连接请求不隐式提供凭据或设为默认，同时固定认证和连接状态名称。
 #[test]
 fn provider_requests_keep_credentials_explicit_and_default_empty() {
     let list: ListProvidersRequest = serde_json::from_value(json!({})).expect("valid list");

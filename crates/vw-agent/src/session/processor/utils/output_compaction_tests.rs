@@ -1,4 +1,5 @@
 //! 验证工具输入脱敏、输出压缩、预算裁剪与界面摘要规则。
+//! 脱敏与裁剪用 UTF-8、敏感字段和长输出夹具共同约束，防止日志泄密或截断乱码。
 
 use serde_json::json;
 
@@ -21,6 +22,7 @@ fn streaming_tool_detection_matches_known_streaming_tools() {
     assert!(!super::is_streaming_tool("batch"));
 }
 
+// 输入脱敏组同时约束日志视图和界面视图，二者允许保留的字段集合不同。
 #[test]
 fn sanitize_tool_input_handles_empty_raw_invalid_and_truncated_inputs() {
     assert_eq!(super::sanitize_tool_input("bash", "   "), "");
@@ -130,6 +132,7 @@ fn compact_tool_output_keeps_short_bash_output_unchanged() {
     assert_eq!(super::compact_tool_output("bash", output), output);
 }
 
+// 代理工具结果采用独立预算策略，研究报告与多任务摘要都要保留可识别的首尾结构。
 #[test]
 fn agent_tool_result_budget_preserves_single_research_report_head_and_tail() {
     let report = format!(

@@ -1,3 +1,7 @@
+//! 验证工作者表单、能力列表、生命周期快照和资源消息封装。
+//!
+//! 工作者夹具组合能力与生命周期可选字段，覆盖空值、禁用控件和选中详情。
+
 use super::*;
 use serde_json::Value;
 use vw_gateway_client::vw_api_types::agent_scheduler::{AgentWorkerDto, AgentWorkerStatusDto};

@@ -1,3 +1,6 @@
+// 验证模型路由行的规范化、必填校验与错误定位。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::ModelRoute;
@@ -15,6 +18,8 @@ fn route(pattern: &str, provider: &str, model: &str, priority: &str) -> ModelRou
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn validate_routes_skips_blank_rows_and_trims_complete_routes() {
     let mut app = app();
@@ -45,6 +50,8 @@ fn validate_routes_accepts_complete_route_without_priority() {
     assert_eq!(routes[0].model, "claude-sonnet");
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn validate_routes_reports_provider_model_and_priority_errors_with_row_number() {
     let mut app = app();
@@ -112,6 +119,8 @@ fn model_routes_update_syncs_query_classification_state() {
     assert!(app.model_routes_settings.save_error.as_deref().unwrap_or("").contains("priority"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn invalid_route_edits_update_fields_and_expose_validation_errors() {
     let mut app = app();
@@ -179,6 +188,8 @@ fn remove_route_updates_existing_rows_and_ignores_out_of_range_indexes() {
     assert!(app.query_classification_settings.rules.is_empty());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_ignores_messages_for_other_settings_sections() {
     let mut app = app();

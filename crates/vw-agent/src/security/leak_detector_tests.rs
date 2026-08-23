@@ -46,6 +46,7 @@ fn aws_credentials_are_redacted() {
 }
 
 #[test]
+// 通用模式的误报风险更高，因此是否命中受灵敏度阈值控制。
 fn generic_secret_patterns_obey_sensitivity_threshold() {
     let content = "password=supersecret token=abcdefghijklmnopqrstuv secret=abcdefghijklmnop";
 
@@ -64,6 +65,7 @@ fn generic_secret_patterns_obey_sensitivity_threshold() {
 }
 
 #[test]
+// 多行私钥、JWT 和连接串分别覆盖结构化与内嵌秘密。
 fn private_key_jwt_and_database_urls_are_redacted() {
     let content = "\
 -----BEGIN OPENSSH PRIVATE KEY-----

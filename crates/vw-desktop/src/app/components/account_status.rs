@@ -1,3 +1,5 @@
+//! 构建账号状态入口、账号切换菜单及相关主题样式。
+
 use crate::app::components::overlays::AboveOverlay;
 use crate::app::message::{AccountMessage, SkillHubMessage};
 use crate::app::{App, Message};
@@ -5,6 +7,7 @@ use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Background, Border, Color, Element, Length, Shadow, Theme};
 
+/// 账号菜单统一使用的滚动条宽度。
 pub(crate) const ACCOUNT_SCROLLBAR_WIDTH: u32 = 4;
 
 fn account_message(message: AccountMessage) -> Message {
@@ -15,6 +18,7 @@ fn install_guide_message() -> Message {
     Message::SkillHub(SkillHubMessage::OpenInstallGuide)
 }
 
+/// 返回账号入口当前应展示的操作状态或活动公司名称。
 pub(crate) fn trigger_label(app: &App) -> String {
     if let Some(label) = app.account.operation.label() {
         return label.to_string();
@@ -309,6 +313,7 @@ fn menu(app: &App) -> Element<'_, Message> {
     container(content).width(Length::Fixed(320.0)).padding(12).style(menu_style).into()
 }
 
+/// 构建账号入口；菜单关闭时只返回触发按钮，打开时附加上层弹窗。
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let trigger = button(
         row![text("◉").size(12), text(trigger_label(app)).size(12), text("⌃").size(10),]

@@ -1,4 +1,5 @@
 //! 实现 PostgreSQL 团队快照的写入与读取，并校验成员和计数字段的领域类型。
+//! 快照覆盖在单事务内完成，成员 JSON 与就绪计数不会以不同版本暴露。
 
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result};

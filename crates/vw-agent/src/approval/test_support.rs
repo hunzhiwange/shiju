@@ -2,6 +2,7 @@
 
 use super::ApprovalManager;
 
+/// 将指定待处理请求的过期时间移到过去；请求不存在时测试应立即失败。
 pub(crate) fn expire_non_cli_pending_request_for_tests(
     manager: &ApprovalManager,
     request_id: &str,

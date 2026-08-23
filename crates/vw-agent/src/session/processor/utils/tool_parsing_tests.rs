@@ -1,4 +1,5 @@
 //! 验证工具名称及内联、多行和文件引用形式的调用解析边界。
+//! 允许列表是解析边界的一部分；未知工具、坏起点和未闭合载荷必须保留为普通文本。
 
 use super::{is_valid_tool_name, parse_tool_at, query_has_any_tool_calls_with_allowed};
 use std::collections::HashSet;
@@ -60,6 +61,7 @@ fn parses_read_style_at_file_reference_within_scan_window() {
 }
 
 #[test]
+// 文件引用扫描在下一工具标记处停止，避免把后续调用的路径误归给前一调用。
 fn read_style_scan_stops_at_next_tool_call() {
     let tools = allowed(&["read", "write"]);
     let lines = ["/read", "/write {}", "@ must-not-be-consumed.txt"];

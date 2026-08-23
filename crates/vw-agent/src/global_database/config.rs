@@ -1,4 +1,6 @@
 //! 全局数据库后端配置，解析本地配置并校验 PostgreSQL 连接与模式名。
+//!
+//! 未找到配置文件时安全回退 SQLite；选择 PostgreSQL 时必须同时获得非空连接地址。
 
 use std::fmt;
 use std::io;
@@ -12,12 +14,14 @@ const DEFAULT_POSTGRES_SCHEMA: &str = "vibewindow";
 const MAX_POSTGRES_IDENTIFIER_BYTES: usize = 63;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 全局数据库支持的后端类型。
 pub enum DatabaseProvider {
     Sqlite,
     Postgres,
 }
 
 #[derive(Clone)]
+/// 已校验的全局数据库连接配置。
 pub struct DatabaseConfig {
     provider: DatabaseProvider,
     postgres_schema: Option<String>,
@@ -25,6 +29,7 @@ pub struct DatabaseConfig {
 }
 
 impl DatabaseConfig {
+    /// 从用户主目录加载配置，并通过回调读取连接地址环境变量。
     pub fn load_for_home(
         home: impl AsRef<Path>,
         read_environment: impl FnOnce(&str) -> Option<String>,
@@ -72,14 +77,17 @@ impl DatabaseConfig {
         }
     }
 
+    /// 返回选定数据库提供者。
     pub fn provider(&self) -> DatabaseProvider {
         self.provider
     }
 
+    /// 返回 PostgreSQL 模式名；SQLite 配置返回 `None`。
     pub fn postgres_schema(&self) -> Option<&str> {
         self.postgres_schema.as_deref()
     }
 
+    /// 返回 PostgreSQL 连接地址；只在 crate 内暴露以避免意外记录敏感值。
     pub(crate) fn postgres_url(&self) -> Option<&str> {
         self.postgres_url.as_deref()
     }

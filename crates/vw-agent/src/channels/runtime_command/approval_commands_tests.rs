@@ -1,3 +1,5 @@
+// 本文件验证审批运行时命令的查询、增删、持久化与回复内容。
+
 use super::*;
 use crate::app::agent::approval::{ApprovalManager, ApprovalResponse};
 use crate::app::agent::config::{AutonomyConfig, ReliabilityConfig};
@@ -70,6 +72,7 @@ fn context(
     context_with_runtime_config(workspace_dir, None, tool_names, auto_approve, excluded_tools)
 }
 
+// 夹具同时提供内存态与配置路径，验证审批修改确实落盘。
 fn context_with_runtime_config(
     workspace_dir: &Path,
     vibewindow_dir: Option<PathBuf>,
@@ -661,4 +664,3 @@ async fn list_approvals_reports_config_read_error() {
     assert!(response.contains("Failed to read approval state"));
     assert!(response.contains("Failed to read"));
 }
-// 本文件验证审批运行时命令的查询、增删、持久化与回复内容。

@@ -1,3 +1,5 @@
+// 本文件覆盖 Discord 渠道的收发主流程、网关交互与错误路径。
+
 use super::*;
 use crate::app::agent::channels::traits::Channel;
 use crate::app::agent::channels::traits::SendMessage;
@@ -126,6 +128,7 @@ fn request_json_body(request: &str) -> serde_json::Value {
     serde_json::from_str(request_body(request)).unwrap()
 }
 
+// 渠道夹具注入本地 API 与网关地址，使完整收发流程离线可控。
 fn test_channel(base_url: &str) -> DiscordChannel {
     DiscordChannel::new("token".to_string(), None, vec!["*".to_string()], false, false)
         .with_api_base(base_url.to_string())
@@ -623,4 +626,3 @@ async fn listen_exits_on_gateway_control_opcodes() {
     listen_with_gateway_events(vec![json!({"op":7,"s":1})]).await;
     listen_with_gateway_events(vec![json!({"op":9,"s":1})]).await;
 }
-// 本文件覆盖 Discord 渠道的收发主流程、网关交互与错误路径。

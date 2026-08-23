@@ -1,3 +1,7 @@
+//! 验证标签栏筛选、关闭交互、标题截断和主题样式边界。
+//!
+//! 标签夹具覆盖内部页过滤、悬停关闭层与 Unicode 截断，避免索引和显示错位。
+
 use super::*;
 use crate::app::message::ViewMessage;
 use crate::app::state::AppTab;

@@ -1,3 +1,5 @@
+// 本文件验证渠道运行时工具过滤与语言模型提供者缓存选择。
+
 use super::*;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::AutonomyConfig;
@@ -142,6 +144,7 @@ async fn get_or_create_provider_returns_default_provider_without_caching_it() {
 }
 
 #[tokio::test]
+// 提供者缓存锁中毒不应让后续渠道请求永久失败。
 async fn get_or_create_provider_recovers_from_poisoned_cache_for_default_provider() {
     let ctx = context("openai");
     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -254,4 +257,3 @@ async fn create_routed_provider_nonblocking_returns_error_for_unknown_provider()
 
     assert!(!err.to_string().is_empty());
 }
-// 本文件验证渠道运行时工具过滤与语言模型提供者缓存选择。

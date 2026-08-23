@@ -1,3 +1,7 @@
+//! Todo 工具卡片的数据解析与标识映射测试。
+//! 校验工具族别名、任务状态符号、字段默认值与原始顺序。
+//! 输入同时覆盖直接 JSON、JSON 字符串和类型不匹配的降级结果。
+
 use super::super::theme::{ACCENT_CYAN, SUCCESS, TEXT_SUBTLE, WARNING};
 use super::todocards::{
     parse_json_from_value_or_json_string, parse_todoread_card_data, parse_todos_from_array,

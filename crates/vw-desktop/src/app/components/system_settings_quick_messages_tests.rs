@@ -1,3 +1,7 @@
+//! 验证快捷消息条目的类型、索引消息、空列表和主题样式。
+//!
+//! 条目夹具交叉组合消息、建会话等类型，确保索引和枚举变体原样进入消息。
+
 use super::*;
 use iced::Theme;
 use iced::advanced::widget::Tree;

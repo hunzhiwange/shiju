@@ -182,6 +182,8 @@ async fn shiju_skill_routes_forward_empty_and_version_install_bodies() {
     assert!(requests[1].ends_with(r#"{"version_id":88}"#));
 }
 
+// 本地上游夹具记录实际请求并返回预设响应，既验证转发参数也避免依赖外部服务。
+// 上游错误需保留可操作状态，同时裁剪凭据、响应正文等敏感细节。
 #[tokio::test]
 async fn shiju_skill_routes_reject_missing_credential_and_invalid_filters() {
     let (status, body) = response(

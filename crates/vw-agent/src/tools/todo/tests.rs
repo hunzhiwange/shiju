@@ -1,4 +1,5 @@
 //! 验证待办读写工具的规格、持久化往返、结构化结果与限流错误。
+//! 旧式 execute 与新版 call 两条入口必须共享相同的数据和错误语义。
 
 use super::*;
 use crate::app::agent::security::SecurityPolicy;

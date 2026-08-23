@@ -1,4 +1,6 @@
 // 验证 PostgreSQL 记忆辅助函数的分类转换与标识符防注入约束。
+
+// 内建分类名严格区分大小写，未知值按自定义分类无损往返。
 use super::*;
 use crate::memory::traits::MemoryCategory;
 use anyhow::Result;

@@ -1,4 +1,6 @@
 //! 验证会话状态快照、存活信息和不同格式的状态输出。
+//!
+//! 命令解析、内存输出与失败 fixture 共同固定公开 CLI 的可观察契约。
 
 use std::collections::HashMap;
 use std::fs;
@@ -207,6 +209,7 @@ impl Write for FailingWriter {
     }
 }
 
+// 下列行为用例同时检查格式分支、参数边界和错误传播。
 #[test]
 fn format_uptime_handles_missing_invalid_and_future_timestamps() {
     assert!(format_uptime(None).is_none());

@@ -1,4 +1,5 @@
 //! 测试工具规格和工具调用写入供应商历史时的规范化行为。
+//! 固定工具规格与调用编号用于验证空内容、空调用和缺失编号的序列化边界。
 
 use super::*;
 use crate::app::agent::tools::{ToolResult, ToolSpec};

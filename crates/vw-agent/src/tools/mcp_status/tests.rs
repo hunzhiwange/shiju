@@ -1,4 +1,5 @@
 //! 验证 MCP 状态工具的规格、连接诊断、筛选与敏感字段脱敏。
+//! 仅连接本地 fixture 服务，以验证必需服务失败、能力缺失和超时的结构化结果。
 
 use super::*;
 use crate::app::agent::tools::{Tool, ToolRuntimeContext, tool_specs_for_context};
@@ -16,6 +17,7 @@ fn write_json(path: &Path, value: Value) {
     fs::write(path, serde_json::to_vec_pretty(&value).expect("json bytes")).expect("write json");
 }
 
+// 生成最小 MCP 标准输入输出服务，使连接计数测试不依赖用户环境。
 fn write_fixture_server(tmp: &TempDir) -> PathBuf {
     let script = tmp.path().join("mcp_status_fixture.py");
     fs::write(

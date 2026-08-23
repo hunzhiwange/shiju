@@ -1,4 +1,6 @@
 //! 全局数据库门面，管理后端复用、SQLite 文件安全与旧库迁移。
+//!
+//! 同一配置路径复用后端实例；SQLite 创建时收紧文件权限，PostgreSQL 操作保持显式提供者边界。
 
 #[cfg(test)]
 use std::cell::RefCell;
@@ -29,6 +31,7 @@ const PREVIOUS_DATABASE_FILE: &str = "_index.sqlite3";
 static BACKENDS_BY_CONFIG_PATH: LazyLock<Mutex<HashMap<PathBuf, Arc<GlobalDatabaseBackend>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// 在线程隔离环境执行同步操作，并将任务崩溃转换为错误。
 pub(crate) async fn run_isolated<T>(operation: impl FnOnce() -> T + Send + 'static) -> Result<T>
 where
     T: Send + 'static,
@@ -49,6 +52,7 @@ where
     receiver.await.context("isolated global database thread terminated before returning")
 }
 
+/// 在当前线程或临时工作线程执行同步数据库操作，避免阻塞异步运行时工作线程。
 pub(crate) fn run_sync_database<T>(operation: impl FnOnce() -> Result<T> + Send) -> Result<T>
 where
     T: Send,
@@ -67,6 +71,7 @@ where
 }
 
 #[derive(Debug, Clone)]
+/// 全局 SQLite 或 PostgreSQL 数据库的共享访问门面。
 pub struct GlobalDatabase {
     backend: Arc<GlobalDatabaseBackend>,
 }
@@ -97,6 +102,7 @@ fn current_test_global_database_home() -> PathBuf {
 }
 
 impl GlobalDatabase {
+    /// 从用户主目录加载后端配置并取得可复用数据库实例。
     pub fn for_home(home: impl AsRef<Path>) -> Result<Self> {
         let home = home.as_ref();
         #[cfg(test)]
@@ -109,6 +115,7 @@ impl GlobalDatabase {
         run_sync_database(|| Self::for_home_with_environment(home, |key| std::env::var(key).ok()))
     }
 
+    /// 使用显式环境读取器加载数据库，供测试隔离环境变量。
     pub(crate) fn for_home_with_environment(
         home: impl AsRef<Path>,
         read_environment: impl FnOnce(&str) -> Option<String>,
@@ -188,6 +195,7 @@ impl GlobalDatabase {
         Ok(database)
     }
 
+    /// 打开显式 SQLite 路径并执行旧库迁移与权限检查。
     pub fn new(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
         if path.as_os_str().is_empty() || path.file_name().is_none() {
@@ -205,6 +213,7 @@ impl GlobalDatabase {
         Ok(Self { backend: Arc::new(GlobalDatabaseBackend::Sqlite { path }) })
     }
 
+    /// 返回当前数据库提供者。
     pub fn provider(&self) -> DatabaseProvider {
         match self.backend.as_ref() {
             GlobalDatabaseBackend::Sqlite { .. } => DatabaseProvider::Sqlite,
@@ -212,6 +221,7 @@ impl GlobalDatabase {
         }
     }
 
+    /// 返回 SQLite 文件路径；PostgreSQL 后端调用会失败。
     pub fn sqlite_path(&self) -> Result<&Path> {
         match self.backend.as_ref() {
             GlobalDatabaseBackend::Sqlite { path } => Ok(path),
@@ -221,11 +231,13 @@ impl GlobalDatabase {
         }
     }
 
+    /// 返回兼容旧调用者的数据库路径；PostgreSQL 后端得到配置路径。
     pub fn path(&self) -> &Path {
         self.sqlite_path()
             .expect("path() is SQLite-only; select sqlite_path() when the provider is known")
     }
 
+    /// 创建初始化过的 SQLite 连接；非 SQLite 后端会失败。
     pub fn connect_sqlite(&self) -> Result<Connection> {
         let path = self.sqlite_path()?;
         let connection = Connection::open(path)
@@ -239,10 +251,12 @@ impl GlobalDatabase {
         Ok(connection)
     }
 
+    /// `connect_sqlite` 的兼容别名。
     pub fn connect(&self) -> Result<Connection> {
         self.connect_sqlite()
     }
 
+    /// 从共享池取得 PostgreSQL 连接；非 PostgreSQL 后端会失败。
     pub(crate) fn connect_postgres(&self) -> Result<PostgresConnection> {
         crate::global_database::run_sync_database(|| match self.backend.as_ref() {
             GlobalDatabaseBackend::Sqlite { .. } => {
@@ -252,6 +266,7 @@ impl GlobalDatabase {
         })
     }
 
+    /// 在 SQLite 连接上串行执行一次表结构初始化。
     pub(crate) fn initialize_sqlite_schema(
         &self,
         initialize: impl FnOnce(&Connection) -> Result<()>,
@@ -265,6 +280,7 @@ impl GlobalDatabase {
         initialize(&connection)
     }
 
+    /// 按当前提供者执行表结构初始化闭包。
     pub(crate) fn initialize_schema(
         &self,
         initialize: impl FnOnce(&Connection) -> Result<()>,
@@ -272,6 +288,7 @@ impl GlobalDatabase {
         self.initialize_sqlite_schema(initialize)
     }
 
+    /// 在带模式锁的 PostgreSQL 事务中初始化表结构。
     pub(crate) fn initialize_postgres_schema(
         &self,
         initialize: impl FnOnce(&mut ::postgres::Transaction<'_>) -> Result<()> + Send,
@@ -284,6 +301,7 @@ impl GlobalDatabase {
         })
     }
 
+    /// 在立即事务中执行 SQLite 写操作并提交。
     pub(crate) fn with_sqlite_transaction<T>(
         &self,
         behavior: TransactionBehavior,
@@ -296,6 +314,7 @@ impl GlobalDatabase {
         Ok(result)
     }
 
+    /// 按当前提供者执行事务闭包。
     pub(crate) fn with_transaction<T>(
         &self,
         behavior: TransactionBehavior,

@@ -4,6 +4,7 @@ use super::*;
 use crate::config::DelegateAgentConfig;
 use axum::http::header;
 
+// 流式事件先转换为稳定会话片段，再验证模型和工具选项不会泄漏到不兼容后端。
 #[test]
 fn tool_content_to_session_text_wraps_plain_output() {
     let text = tool_content_to_session_text("done");
@@ -111,6 +112,7 @@ fn child_soft_preference_does_not_bypass_profile_fit() {
     assert_eq!(delegated_model_override(&agent, None), None);
 }
 
+// 历史整理保留角色与工具结果，只把最后一个用户输入提升为本轮查询。
 #[test]
 fn prepare_stream_history_maps_roles_tool_results_and_last_user_query() {
     let prepared = prepare_stream_history(
@@ -156,6 +158,8 @@ fn prepare_stream_history_promotes_last_prior_user_unless_resume_history_only() 
     assert!(matches!(resume_only.history[0].role, ui_models::ChatRole::User));
 }
 
+// 不同流事件映射到稳定载荷字段，结束与错误状态不得伪装成普通文本增量。
+// 错误用例固定失败发生在持久化之前，避免跨会话或跨作用域修改已有数据。
 #[test]
 fn stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state() {
     let mut assistant_text = String::new();
@@ -427,6 +431,7 @@ fn stream_payload_for_non_done_event_handles_step_start_post_tool_round_and_done
     assert!(done.is_none());
 }
 
+// 请求选项按显式参数、代理默认值和后端能力合并，显式选择始终拥有最高优先级。
 #[test]
 fn merge_gateway_request_options_forwards_allowed_tools_to_acp() {
     let options = merge_gateway_request_options(
@@ -774,6 +779,7 @@ fn token_info_from_usage_maps_gateway_fields() {
     assert_eq!(tokens.cache.write, 0);
 }
 
+// 流收集器只有观察到完成事件才返回聚合输出，连接提前关闭必须视为不完整响应。
 #[tokio::test]
 async fn collect_gateway_chat_stream_payloads_returns_output_on_done() {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
@@ -994,6 +1000,7 @@ fn stream_patch_recorder_no_active_step_is_a_noop() {
     assert!(recorder.take_parts().is_empty());
 }
 
+// 步骤记录器只提交当前活跃步骤，错配事件会丢弃暂存状态而不写入快照。
 #[test]
 fn stream_patch_recorder_begin_step_records_start_and_active_step() {
     let root = tempfile::tempdir().expect("temporary root");
@@ -1167,6 +1174,7 @@ async fn collect_gateway_chat_stream_runs_docs_request_and_persists_done_message
     assert_eq!(stored.len(), 2);
 }
 
+// 轨迹提交一次性持久化步骤、工具和原始产物，不依赖后续 UI 快照保存。
 #[test]
 fn stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save() {
     let project = tempfile::tempdir().expect("project directory");
@@ -1308,6 +1316,7 @@ async fn stream_processing_elapsed_persists_and_reloads_explicit_request_bounds(
     assert_eq!(info.time.llm_elapsed_ms, Some(125));
 }
 
+// 用户消息时间取请求开始时刻，避免长时间生成导致会话排序被响应完成时间扭曲。
 #[tokio::test]
 async fn persist_stream_turn_uses_request_start_for_user_timestamp() {
     let temp = tempfile::tempdir().expect("temporary workspace");

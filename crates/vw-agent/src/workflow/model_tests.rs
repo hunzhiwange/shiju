@@ -1,4 +1,5 @@
 //! 验证工作流 YAML 模型的兼容解析、错误报告与字段默认值。
+//! 根图与节点类型回退只接受已有兼容形态，缺失必填结构仍需明确失败。
 
 use super::{array_field, edge_handle_field, parse_workflow_yaml, string_field};
 use serde_json::json;

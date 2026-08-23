@@ -1,3 +1,6 @@
+//! 验证模型选择弹窗的分组、搜索、能力标识与选择消息。
+//! 同时约束限定模型名、裸模型名、Unicode 截断及刷新时保留旧目录的回退。
+
 use super::model_popover::{
     model_is_selected, model_matches_query, model_popover_content, model_provider_icon_id,
     model_toggle_button, model_toggle_label, normalize_model_input, truncated_model_name,
@@ -5,6 +8,7 @@ use super::model_popover::{
 use crate::app::state::{ModelSummary, ProviderModelsSummary};
 use iced::Length;
 
+// 模型 fixture 默认开启工具能力；需要验证能力徽标时再显式覆盖各能力位。
 fn model(id: &str, name: &str, enabled: bool) -> ModelSummary {
     ModelSummary {
         id: id.to_string(),

@@ -1,3 +1,6 @@
+// 验证运行时选项、推理级别与数值列表字段解析。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -15,6 +18,8 @@ fn assert_persist_error(configure: impl FnOnce(&mut App), expected: &str) {
     assert_eq!(persist_runtime_settings(&mut app).err().as_deref(), Some(expected));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn runtime_choice_normalizers_accept_supported_values_and_reject_unknown_values() {
     assert_eq!(normalize_runtime_kind(" NATIVE "), "native");
@@ -52,6 +57,8 @@ fn numeric_parsers_handle_empty_bounds_and_invalid_values() {
     assert_eq!(parse_optional_f64("many", "field").unwrap_err(), "field 必须是数字");
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn list_parser_trims_entries() {
     assert_eq!(parse_csv_lines(" /a, , /b\n/a\n  "), vec!["/a", "/b", "/a"]);
@@ -96,6 +103,8 @@ fn runtime_update_applies_docker_fields_and_normalizes_kind() {
     assert!(app.runtime_settings.save_error.is_none());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn runtime_update_normalizes_reasoning_fields_and_surfaces_validation_errors() {
     let mut app = app();
@@ -125,6 +134,8 @@ fn runtime_persistence_validation_rejects_each_invalid_docker_input() {
     );
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn valid_runtime_settings_schedule_persistence_task() {
     let mut app = app();

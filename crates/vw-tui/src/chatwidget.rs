@@ -209,11 +209,7 @@ impl ChatWidget {
             }
         }
 
-        let action = self.bottom_pane.handle_key_event(event);
-        if let V3Action::Queue { text, attachments } = &action {
-            self.input_queue.push(UserMessage::new(text.clone(), attachments.clone()));
-        }
-        action
+        self.bottom_pane.handle_key_event(event)
     }
 
     /// Scrolls the copied transcript with the terminal mouse wheel.
@@ -237,9 +233,28 @@ impl ChatWidget {
         self.input_queue.len()
     }
 
+    /// Adds one follow-up to the host-owned FIFO and its visible preview.
+    pub fn queue_input(&mut self, text: String, attachments: Vec<crate::V3Attachment>) {
+        self.bottom_pane.push_queued_input(text.clone());
+        self.input_queue.push(UserMessage::new(text, attachments));
+    }
+
     /// Removes the oldest locally queued follow-up for the outer bridge.
     pub fn pop_queued_input(&mut self) -> Option<(String, Vec<crate::V3Attachment>)> {
-        self.input_queue.pop().map(|message| (message.text, message.attachments))
+        let message = self.input_queue.pop()?;
+        self.bottom_pane.pop_queued_input();
+        Some((message.text, message.attachments))
+    }
+
+    /// Returns the current composer draft for host-owned editor integration.
+    #[must_use]
+    pub fn draft(&self) -> &str {
+        self.bottom_pane.draft()
+    }
+
+    /// Replaces the composer draft with text returned by an external editor.
+    pub fn replace_draft(&mut self, text: &str) {
+        self.bottom_pane.replace_draft(text);
     }
 
     /// Number of committed history cells currently owned by the shell.

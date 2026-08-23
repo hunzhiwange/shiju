@@ -1,3 +1,6 @@
+//! 验证代理设置共享控件、标签与状态样式的构建契约。
+//! 帮助文本、禁用状态和明暗主题用例共同约束共享组件的一致性。
+
 use super::shared::{
     agent_sidebar_button_style, detail_tab_button, editor_style, entry_kind_label, is_dark_theme,
     label_col, models_for_provider, section_card, selected_entry, with_selected_option,

@@ -1,3 +1,7 @@
+//! 验证会话步骤和工具生命周期事件的幂等合并与用量更新。
+//!
+//! 步骤夹具注入乱序、重复和缺字段事件，现有可选值不能被后到的空值覆盖。
+
 use crate::app::models::{ChatMessage, ChatRole, ChatSession, ChatSessionStep, TokenUsage};
 use crate::app::state::{AcpHistoryReplayMode, AgentRequest};
 use vw_gateway_client::{GatewayChatToolEvent, GatewayChatToolEventKind, GatewayChatToolStatus};
@@ -103,7 +107,7 @@ fn tool_timing_lifecycle_handler_updates_active_step() {
     assert_eq!(timing.started_ms, Some(100));
 }
 
-// ============ upsert_step_start ============
+// 步骤开始：插入、排序并保留后续事件未提供的既有可选字段。
 
 #[test]
 fn upsert_step_start_inserts_steps_sorted_and_updates_session_time() {
@@ -210,7 +214,7 @@ fn upsert_step_start_replaces_model_only_keeps_snapshot_path() {
         Some("original".to_string()),
         Some("snap".to_string()),
     );
-    // Update only model, keep snapshot path unchanged
+    // 后续事件只更新模型时，不应清除先前记录的快照路径。
     super::upsert_step_start(&mut session, 1, 20, Some("updated".to_string()), None);
 
     assert_eq!(session.steps[0].model.as_deref(), Some("updated"));
@@ -218,7 +222,7 @@ fn upsert_step_start_replaces_model_only_keeps_snapshot_path() {
     assert_eq!(session.steps[0].started_ms, 20);
 }
 
-// ============ upsert_step_finish ============
+// 步骤结束：合并用量、结束原因与快照，并处理缺失的开始事件。
 
 #[test]
 fn upsert_step_finish_updates_existing_step_with_usage_and_reason() {
@@ -322,7 +326,7 @@ fn upsert_step_finish_maintains_sort_order_across_multiple_steps() {
     assert_eq!(session.steps[2].finished_ms, Some(300));
 }
 
-// ============ handle_agent_step_start ============
+// 开始事件处理：校验请求归属后再同步活动视图和缓存会话。
 
 #[test]
 fn processing_timer_includes_gap_while_llm_timer_pauses_between_steps() {
@@ -359,7 +363,7 @@ fn processing_timer_includes_gap_while_llm_timer_pauses_between_steps() {
 fn handle_agent_step_start_returns_none_for_unknown_request_id() {
     let (mut app, _) = crate::app::App::new();
     let _task = super::handle_agent_step_start(&mut app, 999, "s1".to_string(), 1, 100, None);
-    // Early return: no panic, no side effects on app
+    // 请求不存在时应直接返回，不能产生 panic 或修改应用状态。
     assert!(app.active_session_view_state.steps.is_empty());
 }
 
@@ -368,7 +372,7 @@ fn handle_agent_step_start_returns_none_for_empty_session_id() {
     let (mut app, _) = crate::app::App::new();
     app.get_session_runtime_mut("s1").active_agent_request = Some(agent_request(42, "s1"));
     let _task = super::handle_agent_step_start(&mut app, 42, "".to_string(), 1, 100, None);
-    // Early return after request found but session_id empty
+    // 即使找到请求，空会话标识仍必须在写入任何状态前被拒绝。
     assert!(app.active_session_view_state.steps.is_empty());
 }
 
@@ -414,7 +418,7 @@ fn handle_agent_step_start_keeps_inactive_session_out_of_active_view() {
     assert!(app.active_session_view_state.steps.is_empty());
 }
 
-// ============ handle_agent_step_finish ============
+// 结束事件处理：只更新匹配请求，并安排后续成本加载。
 
 #[test]
 fn handle_agent_step_finish_returns_none_for_unknown_request_id() {
@@ -501,7 +505,7 @@ fn handle_agent_step_finish_does_not_charge_active_usage_for_inactive_session() 
     assert!(app.active_session_view_state.steps.is_empty());
 }
 
-// ============ handle_agent_step_cost_loaded ============
+// 成本回填：结果只能写入原请求对应的步骤，过期结果应被忽略。
 
 #[test]
 fn handle_agent_step_cost_loaded_returns_none_for_empty_session_id() {
@@ -515,7 +519,7 @@ fn handle_agent_step_cost_loaded_noop_when_step_missing_and_both_fields_none() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();
     let _task = super::handle_agent_step_cost_loaded(&mut app, session_id, 1, None, None);
-    // No step to update, both fields None — nothing changes
+    // 没有目标步骤且没有新字段时，不应凭空创建记录。
     assert!(app.active_session_view_state.steps.is_empty());
 }
 
@@ -559,7 +563,7 @@ fn handle_agent_step_cost_loaded_updates_existing_step_model_and_cost() {
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
 
-    // First call creates the step
+    // 首次回填在步骤缺失时创建最小记录。
     let _task1 = super::handle_agent_step_cost_loaded(
         &mut app,
         session_id.clone(),
@@ -568,7 +572,7 @@ fn handle_agent_step_cost_loaded_updates_existing_step_model_and_cost() {
         Some(0.03),
     );
 
-    // Second call updates model and cost
+    // 后续回填只更新模型和成本，不复制步骤。
     let _task2 = super::handle_agent_step_cost_loaded(
         &mut app,
         session_id,
@@ -589,7 +593,7 @@ fn handle_agent_step_cost_loaded_does_not_overwrite_with_none_on_existing_step()
     let session_id = "session-1".to_string();
     app.active_session_id = Some(session_id.clone());
 
-    // Create step with model and cost
+    // 先建立同时含模型与成本的步骤，作为保留字段的基线。
     let _task1 = super::handle_agent_step_cost_loaded(
         &mut app,
         session_id.clone(),
@@ -598,7 +602,7 @@ fn handle_agent_step_cost_loaded_does_not_overwrite_with_none_on_existing_step()
         Some(0.03),
     );
 
-    // Call with both None — existing values should be preserved
+    // 空回填不得覆盖已经记录的模型与成本。
     let _task2 = super::handle_agent_step_cost_loaded(&mut app, session_id, 1, None, None);
 
     assert_eq!(app.active_session_view_state.steps.len(), 1);

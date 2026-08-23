@@ -1,4 +1,6 @@
 //! 验证 ACP 初始化、新建会话、超时包装与协议错误映射。
+//!
+//! 协议连接、回调和通道 fixture 用于隔离验证客户端边界，不替代生产实现。
 
 use std::collections::{HashMap, VecDeque};
 use std::path::Path;
@@ -287,6 +289,7 @@ async fn with_connection<R>(
         .await
 }
 
+// 下列行为用例覆盖有效响应、无效状态以及协议或通道失败路径。
 #[tokio::test]
 async fn initialize_connection_sends_client_capabilities_and_info() {
     with_connection(TestAgent::new(), async |conn, agent| {

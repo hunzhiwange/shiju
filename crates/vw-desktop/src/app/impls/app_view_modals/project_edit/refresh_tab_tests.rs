@@ -1,3 +1,7 @@
+//! 验证项目刷新间隔的归一化、步进消息和控件边界。
+//!
+//! 间隔输入覆盖空白、非法、上下界和步进操作，确保控件值与保存值一致。
+
 use super::*;
 use crate::app::message::project::ProjectMessage;
 

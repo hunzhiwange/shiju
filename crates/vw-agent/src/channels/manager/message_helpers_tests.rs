@@ -1,3 +1,5 @@
+// 本文件验证消息处理辅助流程中的记忆召回、工具存储与发送记录。
+
 use super::*;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::AutonomyConfig;
@@ -24,6 +26,7 @@ struct RecordingMemory {
 }
 
 impl RecordingMemory {
+// 召回夹具显式注入排序结果，隔离验证提示上下文拼装。
     fn with_recall_entries(recall_entries: Vec<MemoryEntry>) -> Self {
         Self { recall_entries, ..Self::default() }
     }
@@ -526,4 +529,3 @@ async fn load_prior_turns_queries_memory_but_keeps_missing_history_empty() {
     assert_eq!(memory.recall_queries(), vec!["new question".to_string()]);
     assert!(turns.is_empty());
 }
-// 本文件验证消息处理辅助流程中的记忆召回、工具存储与发送记录。

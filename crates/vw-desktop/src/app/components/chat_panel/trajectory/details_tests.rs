@@ -1,3 +1,6 @@
+//! 验证轨迹详情的指标摘要、原始载荷、标签页交互与字体安全约束。
+//! 缺失指标显式显示未知值；非 ASCII 载荷走可选择、可复制的实际视图构造路径。
+
 use iced::Font;
 use iced::advanced::widget::Tree;
 use iced::widget::scrollable::{Direction, Scrollbar};

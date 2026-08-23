@@ -1,3 +1,5 @@
+// 本文件验证渠道运行时配置的默认值、超时预算与自主策略保留行为。
+
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::{AutonomyConfig, Config, NonCliNaturalLanguageApprovalMode};
 use crate::app::agent::memory::NoneMemory;
@@ -139,6 +141,7 @@ fn defaults(provider: &str, model: &str) -> ChannelRuntimeDefaults {
 }
 
 #[test]
+// 超时预算覆盖下限、倍率与饱和运算，防止极端配置发生整数回绕。
 fn timeout_helpers_apply_floor_scale_and_saturating_math() {
     assert_eq!(effective_channel_message_timeout_secs(1), 30);
     assert_eq!(effective_channel_message_timeout_secs(45), 45);
@@ -562,4 +565,3 @@ async fn maybe_apply_runtime_config_update_does_not_mutate_state_when_provider_c
     assert_eq!(cache.len(), 1);
     assert!(cache.contains_key("old-provider"));
 }
-// 本文件验证渠道运行时配置的默认值、超时预算与自主策略保留行为。

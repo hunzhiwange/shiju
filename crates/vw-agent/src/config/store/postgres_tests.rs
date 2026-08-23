@@ -6,6 +6,7 @@ use vw_api_types::id::TenantScope;
 use super::PostgresSystemConfigStore;
 use crate::global_database::test_support::PostgresTestDatabase;
 
+// 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn postgres_system_config_store_upserts_and_isolates_tenants() -> Result<()> {
     let fixture = crate::global_database::test_support::postgres_test_database!();

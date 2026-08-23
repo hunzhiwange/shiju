@@ -5,6 +5,7 @@ use vw_api_types::task_lifecycle::{
     TaskLifecycleWorkflowDto,
 };
 
+/// 默认开发任务生命周期工作流的稳定标识。
 pub const DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID: &str = "dev_lifecycle";
 
 #[derive(Debug, Clone, Copy)]
@@ -630,14 +631,17 @@ const BUILT_IN_WORKFLOW_SPECS: &[WorkflowSpec] = &[
     },
 ];
 
+/// 返回全部内置工作流的独立 DTO 集合。
 pub fn built_in_workflows() -> Vec<TaskLifecycleWorkflowDto> {
     BUILT_IN_WORKFLOW_SPECS.iter().map(workflow_from_spec).collect()
 }
 
+/// 按标识构建单个内置工作流。
 pub fn built_in_workflow_by_id(id: &str) -> Option<TaskLifecycleWorkflowDto> {
     BUILT_IN_WORKFLOW_SPECS.iter().find(|workflow| workflow.id == id).map(workflow_from_spec)
 }
 
+/// 判断标识是否保留给内置工作流。
 pub fn is_built_in_workflow_id(id: &str) -> bool {
     BUILT_IN_WORKFLOW_SPECS.iter().any(|workflow| workflow.id == id)
 }

@@ -1,3 +1,6 @@
+//! 验证轨迹账本的轮次分组、筛选、折叠控制与多语言渲染。
+//! 搜索可临时揭示折叠组内命中记录，关闭搜索后仍由原折叠状态控制可见性。
+
 use iced::advanced::widget::Tree;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, container};
@@ -49,6 +52,7 @@ fn projection(records: Vec<TrajectoryRecord>) -> TrajectoryProjection {
     TrajectoryProjection { records, ..TrajectoryProjection::default() }
 }
 
+// 账本 fixture 同时包含用户、助手、推理和工具记录，以验证轮次内的稳定分组顺序。
 #[test]
 fn trajectory_ledger_groups_turns_and_steps() {
     let projection = projection(vec![

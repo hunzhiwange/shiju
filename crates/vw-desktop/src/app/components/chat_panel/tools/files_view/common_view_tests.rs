@@ -1,3 +1,6 @@
+//! 验证文件工具通用视图的标题优先级、元信息、回退文本与滚动限制。
+//! 运行、权限、错误和成功状态按明确优先级组合，空列表也必须保留必要反馈。
+
 use super::super::ToolPermissionState;
 use super::common_view::{
     build_common_tool_view, common_tool_context_menu_message, common_tool_fallback_text,

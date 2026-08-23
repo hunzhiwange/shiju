@@ -1,4 +1,6 @@
 // 覆盖聊天处理链中的工具调用、多模态预处理、超时与响应生成。
+
+// provider、OCR 与工具均由桩实现注入，以隔离网络并观察会话缓存行为。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
@@ -13,6 +15,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 
+// 静态 provider 返回可预测文本，队列 provider 则驱动多轮工具调用场景。
 struct StaticProvider;
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
@@ -75,6 +78,7 @@ impl Provider for ToolCallingProvider {
     }
 }
 
+// 工具调用响应与普通文本响应分开构造，便于精确控制模型轮次。
 fn tool_call_response(id: &str) -> ChatResponse {
     ChatResponse {
         text: None,

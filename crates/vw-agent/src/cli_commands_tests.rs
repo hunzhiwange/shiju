@@ -1,9 +1,12 @@
+// 本文件验证命令行服务与渠道命令的稳定序列化及值语义。
+
 use super::cli_commands::{
     ChannelCommands, CronCommands, IntegrationCommands, MemoryCommands, MigrateCommands,
     ServiceCommands, SkillCommands,
 };
 
 #[test]
+// 命令变体名称属于 CLI 契约，序列化结果必须稳定。
 fn service_commands_serialize_to_stable_variant_names() {
     assert_eq!(serde_json::to_value(ServiceCommands::Status).unwrap(), "Status");
 }
@@ -38,4 +41,3 @@ fn command_enums_are_cloneable_and_comparable() {
         IntegrationCommands::List { category: None, status: None }
     );
 }
-// 本文件验证命令行服务与渠道命令的稳定序列化及值语义。

@@ -1,3 +1,7 @@
+//! 交互输入缓冲区的编辑语义测试。
+//! 重点覆盖 Unicode 字符索引下的插入、删除、光标移动与换行归一化。
+//! 边界按键不得越界或意外改写原有输入。
+
 use super::interactive_input::{InputEditResult, apply_key_to_input, insert_newline};
 use crossterm::event::KeyCode;
 

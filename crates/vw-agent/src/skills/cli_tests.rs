@@ -1,4 +1,5 @@
 //! 验证技能命令行参数解析、输出格式与错误返回契约。
+//! 命令夹具隔离配置目录，覆盖空列表、审计发现、删除校验和安装失败输出。
 
 use super::*;
 
@@ -218,6 +219,7 @@ fn handle_audit_reports_error_for_existing_file_source() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+// 删除命令对名称做独立安全校验，路径分隔符和上级跳转不能到达文件系统操作。
 fn handle_remove_rejects_each_unsafe_name_form() {
     let workspace = tempfile::tempdir().unwrap();
     let config = isolated_config(workspace.path());

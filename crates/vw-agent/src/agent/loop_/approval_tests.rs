@@ -1,4 +1,5 @@
 //! 测试非命令行审批上下文的决议等待、取消、超时与清理行为。
+//! 轮询夹具刻意覆盖决议晚到以及请求消失，确认清理动作不会遗留待处理状态。
 
 use super::*;
 use crate::app::agent::config::AutonomyConfig;
@@ -35,6 +36,7 @@ fn non_cli_approval_context_keeps_sender_and_reply_target() {
     assert_eq!(prompt.call_id.as_deref(), Some("call-1"));
 }
 
+// 返回请求编号而不暴露内部待处理表，测试始终通过公开决议入口驱动状态。
 fn approval_manager_with_request() -> (ApprovalManager, String) {
     let manager = ApprovalManager::from_config(&AutonomyConfig::default());
     let request = manager.create_non_cli_pending_request(

@@ -1,4 +1,6 @@
 //! 验证队列所有者轮次控制器的生命周期、取消和关闭状态转换。
+//!
+//! 可观察控制器记录委派调用，用于精确断言轮次状态和取消时序。
 
 use super::*;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -156,6 +158,7 @@ fn options_with_state(state: Arc<Mutex<OptionsState>>) -> QueueOwnerTurnControll
     }
 }
 
+// 下列行为用例覆盖空闲、运行、提示活动、取消待定和关闭状态。
 #[test]
 fn turn_controller_tracks_lifecycle_state() {
     let mut controller = QueueOwnerTurnController::new(options());

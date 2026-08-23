@@ -1,4 +1,5 @@
 //! 验证日志级别、文件轮换、结构化字段、缓存记录器与计时器行为。
+//! 全局日志状态在相关用例前重置，临时目录隔离文件副作用和轮换顺序。
 
 use super::{
     DEFAULT, InitOptions, LAST_MS, LEVEL, LOG_PATH, Level, Timer, WRITER, Writer, cleanup, create,
@@ -53,6 +54,7 @@ fn create_timestamp_logs(dir: &Path, count: usize) -> Vec<PathBuf> {
         .collect()
 }
 
+// 日志实现含进程级静态状态，测试必须恢复默认值才能保持可重复执行。
 fn reset_log_state() {
     LEVEL.store(Level::Info.priority(), Ordering::Relaxed);
     LAST_MS.store(0, Ordering::Relaxed);

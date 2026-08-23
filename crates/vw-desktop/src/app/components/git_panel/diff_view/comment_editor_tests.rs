@@ -1,3 +1,6 @@
+//! 验证差异评论编辑器的文件与行范围标签、动作消息和主题样式。
+//! 文件名按 Unicode 字符截断，零基行范围转为用户可见编号时需保持新旧侧信息。
+
 use super::comment_editor::{
     diff_comment_cancel_button_style, diff_comment_editor, diff_comment_editor_action,
     diff_comment_editor_card_style, diff_comment_file_label, diff_comment_range_label,

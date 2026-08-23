@@ -1,4 +1,5 @@
 //! 验证工作流条件分支对字符串、集合、空值及数值运算符的求值。
+//! 同时覆盖 Dify 兼容字段、旧式标识和无匹配默认值，确保迁移输入稳定运行。
 
 use super::{conditions_match, select_case_handle};
 use crate::workflow::variables::VariablePool;

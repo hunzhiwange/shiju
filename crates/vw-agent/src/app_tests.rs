@@ -1,4 +1,5 @@
 //! 测试应用任务门面的默认值、持久化和网关执行状态流转。
+//! 临时数据库覆盖规范化、序号分配和失败完成，缺失存储时保持可恢复结果。
 
 use super::task::{
     Task, claim_pending_gateway_execution_task, create_task, finish_gateway_execution_task,

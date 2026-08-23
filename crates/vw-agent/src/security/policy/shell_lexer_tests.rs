@@ -32,6 +32,7 @@ fn env_assignment_skipping_handles_empty_input_and_empty_values() {
 }
 
 #[test]
+// 分段器只把未引用控制符当边界，字符串内容不能被误拆成新命令。
 fn split_segments_respects_quotes_escapes_and_control_operators() {
     assert_eq!(
         split_unquoted_segments(r#"echo "a;b" && printf 'x|y' || pwd; whoami"#),
@@ -92,6 +93,7 @@ fn unquoted_char_detection_resumes_after_quoted_regions() {
 }
 
 #[test]
+// 单引号抑制变量展开，双引号和未引用区域仍需检测。
 fn variable_expansion_detection_respects_quote_rules() {
     assert!(contains_unquoted_shell_variable_expansion("echo $HOME"));
     assert!(contains_unquoted_shell_variable_expansion(r#"echo "$HOME""#));

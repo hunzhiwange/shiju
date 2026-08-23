@@ -1,10 +1,12 @@
 //! 验证旧版技能策略的允许、拒绝及默认能力边界。
+//! 来源信任先应用阻止列表，再处理可信域和非交互拒绝，避免宽松别名绕过策略。
 
 use super::*;
 use crate::app::agent::skill::constants::SKILL_DOWNLOAD_POLICY_FILE;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
+// 环境变量相关用例共用此锁，隔离并行测试对进程状态的修改。
 fn open_skills_env_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
@@ -254,6 +256,7 @@ fn source_domain_trust_skips_sources_without_checkable_hosts() {
     assert!(!download_policy_path(dir.path()).exists());
 }
 
+// 阻止列表具有最高优先级，即使父域同时位于可信列表也不能放行。
 #[test]
 fn source_domain_trust_gives_blocked_domains_precedence() {
     let dir = tempfile::tempdir().expect("temp dir");

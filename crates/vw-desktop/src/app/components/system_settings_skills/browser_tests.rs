@@ -1,4 +1,8 @@
-// Tests for plan6 task 819.
+//! 验证技能浏览器的目录作用域、路径契约、搜索样式和详情状态。
+//!
+//! 技能来源覆盖全局、项目和多种目录提供商，用于约束作用域判定与路径展示。
+
+// 保留计划任务 819 的既定覆盖面。
 const SOURCE: &str = include_str!("browser.rs");
 
 use super::browser::DetailActionStyle;

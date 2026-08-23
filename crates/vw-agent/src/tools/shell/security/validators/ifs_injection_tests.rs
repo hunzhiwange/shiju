@@ -1,4 +1,5 @@
 //! 验证 IFS 注入校验器阻断分词语义篡改并放行普通输入。
+//! 名称与阻断严重级别保持稳定，便于配置开关和审计输出精确定位。
 
 use super::*;
 use crate::tools::shell::ast::parse_command;

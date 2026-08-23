@@ -45,6 +45,9 @@ struct RrfAccumulator {
     keyword_rank: Option<usize>,
 }
 
+/// 对单一来源的候选按标识去重，保留每个标识的最高有效分数。
+///
+/// 非有限分数会被归零，输出顺序由分数、标识共同确定，避免数据库返回顺序影响结果。
 pub(crate) fn deduplicate_by_score(
     results: &[RetrievedCandidate],
     limit: usize,
@@ -85,6 +88,9 @@ pub(crate) fn deduplicate_by_score(
     fused
 }
 
+/// 使用倒数排名融合全文与向量候选，并标记每个结果实际命中的来源组合。
+///
+/// 权重或 `rrf_k` 非法时使用稳定默认值，保证融合分数始终有限且可排序。
 pub(crate) fn fuse_with_rrf(
     vector: &[RetrievedCandidate],
     keyword: &[RetrievedCandidate],

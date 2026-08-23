@@ -1,4 +1,5 @@
 //! 验证原生浏览器元素动作、重试恢复与错误上下文。
+//! 模拟 WebDriver 按请求队列返回结果，恢复重试只针对可恢复查找失败且保留操作上下文。
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -25,6 +26,7 @@ struct RecordedRequest {
     body: Value,
 }
 
+// 队列式 WebDriver 夹具让每一步查找、清空和输入请求都能按顺序断言。
 #[derive(Debug)]
 struct MockResponse {
     status: StatusCode,
@@ -245,6 +247,7 @@ async fn click_with_recovery_adds_click_context_to_webdriver_error() {
 }
 
 #[tokio::test]
+// fill 与 type 的区别在于前者必须先清空；清空失败时禁止继续发送敏感文本。
 async fn fill_with_recovery_clears_before_sending_unicode_text() {
     let webdriver =
         MockWebDriver::start(vec![element_response(), null_response(), null_response()]).await;

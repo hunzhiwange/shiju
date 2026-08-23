@@ -1,4 +1,5 @@
 //! 验证文档列表请求识别、目录遍历边界与稳定排序行为。
+//! 临时目录场景同时覆盖缺失、空目录、保留名、噪声文件和最大遍历深度。
 
 #[test]
 fn is_docs_request_requires_docs_list_and_read_intent() {
@@ -49,6 +50,7 @@ fn list_docs_returns_empty_when_docs_path_is_a_file() {
 }
 
 #[test]
+// 目录枚举忽略隐藏噪声并稳定排序，使同一文档树在不同文件系统上生成一致结果。
 fn list_docs_walks_visible_files_skips_noise_and_sorts() {
     let workspace = tempfile::tempdir().expect("temp workspace");
     let docs = workspace.path().join("docs");

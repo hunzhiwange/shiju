@@ -101,6 +101,7 @@ fn delta_texts(events: &[StreamEvent]) -> Vec<String> {
 }
 
 #[test]
+// 只有编辑类工具保留完整输出，其他工具使用受控摘要降低泄露和膨胀。
 fn preserve_full_output_only_for_editing_tools() {
     for name in ["apply_patch", "write", "file_write", "file_edit"] {
         assert!(super::preserve_full_output_in_session(name), "{name}");
@@ -340,6 +341,7 @@ fn agent_tool_management_actions_do_not_track_new_background_children() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+// 子代理并发启动，但汇总结果仍按原调用顺序稳定返回。
 fn three_agent_tool_executions_start_in_parallel_and_keep_result_order() {
     let active = Arc::new(AtomicUsize::new(0));
     let max_active = Arc::new(AtomicUsize::new(0));
@@ -1178,6 +1180,7 @@ fn run_batch_tool_and_record_accepts_tool_calls_alias_and_summarizes_mixed_resul
 }
 
 #[test]
+// 批处理中单个子工具被拒绝时保留权限请求上下文，不中断其他结果记录。
 fn run_batch_tool_and_record_records_denied_subtool_with_permission_request() {
     let dir = tempfile::tempdir().expect("temp dir");
     let session_id = unique_session("tools-batch-denied");
@@ -1514,6 +1517,7 @@ fn agent_tool_finalization_emits_terminal_payloads_before_done() {
 }
 
 #[test]
+// 事件接收端关闭不等于取消后台子代理，生命周期由协调器继续管理。
 fn agent_tool_finalization_keeps_background_child_running_when_event_sink_closes() {
     let coordinator = crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
     let cancellation = coordinator

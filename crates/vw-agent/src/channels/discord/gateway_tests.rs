@@ -1,3 +1,5 @@
+// 本文件验证 Discord Gateway 地址发现、连接拆分与握手心跳处理。
+
 use std::future::Future;
 use std::net::TcpListener as StdTcpListener;
 use std::time::Duration;
@@ -13,6 +15,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 use super::*;
 
+// 脚本网关按顺序发送协议帧，稳定复现握手、心跳与关闭时序。
 async fn spawn_gateway_server<F, Fut>(handler: F) -> (String, JoinHandle<()>)
 where
     F: FnOnce(WebSocketStream<tokio::net::TcpStream>) -> Fut + Send + 'static,
@@ -239,4 +242,3 @@ async fn send_identify_writes_discord_identify_payload() {
 fn gateway_connection_type_remains_available_to_gateway_module() {
     assert!(std::mem::size_of::<GatewayConnection>() > 0);
 }
-// 本文件验证 Discord Gateway 地址发现、连接拆分与握手心跳处理。

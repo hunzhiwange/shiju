@@ -1,4 +1,5 @@
 //! 验证安全流水线聚合发现项、计算阻断状态并处理 heredoc 例外的契约。
+//! 静态校验器 fixture 用于隔离严重级别、顺序和自治策略之间的组合语义。
 
 use super::{
     SecurityCategory, SecurityFinding, SecurityPipeline, SecurityReport, SecurityValidator,

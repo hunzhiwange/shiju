@@ -1,3 +1,6 @@
+//! 验证行内右侧覆盖层的位置计算及组件事件委托。
+//! 宽度不足时的位置回退用于保证覆盖内容仍与目标行保持可用关联。
+
 use super::{InlineRightOverlay, InlineRightOverlayElement, compute_inline_right_position};
 use iced::advanced::{
     Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, overlay, renderer, widget,

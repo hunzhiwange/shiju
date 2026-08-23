@@ -1,10 +1,12 @@
 //! WATI Webhook 通道，负责号码准入校验和 WhatsApp Business 消息发送。
+//!
+//! 入站消息由网关推送而非本模块轮询；解析器兼容 WATI 不同版本的字段命名。
 
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use uuid::Uuid;
 
-/// WATI WhatsApp Business API channel.
+/// WATI WhatsApp Business API 通道。
 ///
 /// This channel operates in webhook mode (push-based) rather than polling.
 /// Messages are received via the gateway's `/wati` webhook endpoint.
@@ -19,6 +21,7 @@ pub struct WatiChannel {
 }
 
 impl WatiChannel {
+    /// 创建通道；`tenant_id` 存在时会加入出站目标标识。
     pub fn new(
         api_token: String,
         api_url: String,
@@ -54,7 +57,7 @@ impl WatiChannel {
         }
     }
 
-    /// Parse an incoming webhook payload from WATI and extract messages.
+    /// 从 WATI Webhook 载荷中提取通过号码准入检查的文本消息。
     ///
     /// WATI's webhook payloads have variable field names depending on the API
     /// version and configuration, so we try multiple paths for each field.

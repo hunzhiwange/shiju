@@ -1,3 +1,7 @@
+//! 验证主窗口对页面、辅助窗口及多种浮层状态的视图路由。
+//!
+//! 视图测试遍历主页面、预览工具和多种浮层组合，确保窗口路由始终返回可构建元素。
+
 use super::*;
 use crate::app::state::WorkspaceMode;
 use serde_json::Map;

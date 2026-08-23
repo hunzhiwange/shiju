@@ -196,6 +196,7 @@ fn step_and_final_ai_call_payloads_persist_to_scoped_session() {
 }
 
 #[test]
+// 持久化前压缩重复上下文，降低工件体积但保留调用语义。
 fn ai_call_payloads_compact_repeated_context_before_persisting() {
     let session_id = unique_id("compact-context");
     let scope = unique_id("scope");
@@ -425,6 +426,7 @@ fn raw_payload_builds_request_snapshot_and_tool_catalog() {
 }
 
 #[test]
+// 原始工件只保存允许的选项字段，防止把认证或内部配置写入记录。
 fn raw_payload_options_are_explicitly_allowlisted() {
     let session_id = unique_id("raw-options-allowlist");
     let scope = unique_id("scope");

@@ -33,7 +33,10 @@ use vw_gateway_client::vw_api_types::id::{
     COMPANY_ID_HEADER, PLATFORM_ID_HEADER, SessionId, TenantScope,
 };
 use vw_gateway_client::vw_api_types::project::{ProjectDto, ResolveProjectRequest};
-use vw_gateway_client::{GatewayAuth, GatewayChatStreamRequest, GatewayClient, GatewayEndpoint};
+use vw_gateway_client::{
+    GatewayAuth, GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayClient, GatewayEndpoint,
+    GatewayStreamAttemptResult, GatewayStreamResume,
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 const GATEWAY_HEALTH_PATH: &str = "/v1/health";
@@ -474,6 +477,35 @@ impl GatewayUiRuntime {
         .map_err(|err| annotate_gateway_transport_error(err, self.endpoint()));
 
         finalize_stream_terminal(result, terminal)
+    }
+
+    /// Runs one request-ID-scoped resumable stream attempt for the active TUI host.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn stream_chat_resumable_blocking(
+        &self,
+        body: &GatewayChatStreamRequest,
+        request_id: &str,
+        mut on_event: impl FnMut(GatewayChatStreamEvent) -> bool,
+    ) -> Result<GatewayStreamAttemptResult, String> {
+        let directory = self.directory_value();
+        let body = self.prepare_stream_request(body);
+        let resume = GatewayStreamResume {
+            request_id: request_id.to_string(),
+            last_event_id: None,
+        };
+        block_on_gateway(GatewayClient::stream_chat_resumable(
+            self.endpoint(),
+            directory.as_deref(),
+            &body,
+            &resume,
+            |event| on_event(event.event),
+        ))
+    }
+
+    /// Stops exactly one resumable chat stream by its stable request ID.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn chat_stream_stop_blocking(&self, request_id: &str) -> Result<bool, String> {
+        block_on_gateway(self.client.chat_stream_stop(request_id))
     }
 
     #[cfg(not(target_arch = "wasm32"))]

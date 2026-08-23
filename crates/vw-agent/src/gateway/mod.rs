@@ -1,5 +1,7 @@
 //! 基于 Axum 的 HTTP 网关，统一路由、认证、限流、请求上限与超时边界。
 //!
+//! 模块只导出稳定启动入口、共享状态及必要协议类型，其余路由装配保持在内部模块。
+//!
 //! Axum-based HTTP gateway with proper HTTP/1.1 compliance, body limits, and timeouts.
 //!
 //! This module replaces the raw TCP implementation with axum for:
@@ -72,15 +74,15 @@ use axum::{
 };
 use std::time::Duration;
 
-/// Maximum request body size (32MiB).
+/// 普通网关请求允许的最大正文大小（32 MiB）。
 ///
 /// Sized to fit multimodal / knowledge uploads after base64 expansion:
 /// desktop and knowledge paths allow up to 20MiB raw files (~27MiB base64),
 /// with headroom for JSON wrappers and short chat history.
 pub const MAX_BODY_SIZE: usize = 32 * 1024 * 1024;
-/// Request timeout (30s) — prevents slow-loris attacks
+/// 普通请求的默认超时秒数，用于阻止慢速请求长期占用连接。
 pub const REQUEST_TIMEOUT_SECS: u64 = 30;
-/// Long-running SSE timeout (1h) — chat / workflow / task-plan-run streams.
+/// 聊天、工作流和任务计划 SSE 请求允许的最长执行秒数。
 pub const WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS: u64 = 3_600;
 
 async fn request_timeout_middleware(req: Request<Body>, next: Next) -> Response {

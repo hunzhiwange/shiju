@@ -1,3 +1,6 @@
+//! 验证探索工具摘要的去重、运行态、展开控制与数字动画布局。
+//! 重复键保留最后一项；只有用户显式展开后，运行态内容才进入详情区域。
+
 use super::explore_summary_view::{
     EXPANDED_LIST_TOP_SPACING, SummarySegmentKind, explore_summary_expanded,
     explore_summary_is_running, latest_explore_items, right_aligned_slot_char,

@@ -1,4 +1,5 @@
 //! 测试团队存储在多后端下的快照校验、加载与列表行为。
+//! 同一快照契约在不同后端复用，非法就绪计数必须在写入前后都不可见。
 
 use anyhow::Result;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
@@ -92,6 +93,7 @@ fn assert_team_store_lists_and_loads_team_snapshots(
     Ok(())
 }
 
+// 团队快照契约在所有可用后端执行，确保校验与列表顺序一致。
 fn for_each_team_store_provider(
     mut check: impl FnMut(
         &AgentSchedulerStore,

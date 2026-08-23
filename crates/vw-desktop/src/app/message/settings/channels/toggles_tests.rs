@@ -1,3 +1,6 @@
+// 验证频道启停、动态实例编号分配与默认配置创建。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use vw_config_types::channels::{LarkReceiveMode, QQReceiveMode};
@@ -6,6 +9,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn toggle_enabled_creates_static_channel_defaults() {
     let mut app = app();
@@ -144,6 +149,8 @@ fn toggle_enabled_disables_every_static_channel() {
     assert!(app.channels_settings.clawdtalk.is_none());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn toggle_enabled_preserves_matrix_config_when_switch_is_disabled() {
     let mut app = app();
@@ -207,6 +214,8 @@ fn next_instance_id_returns_first_unused_numeric_id() {
     assert_eq!(next_instance_id(false, ["custom", "1", "2"].into_iter()), "3");
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn add_channel_instance_reuses_gaps() {
     let mut app = app();
@@ -257,6 +266,8 @@ fn add_channel_instance_unknown_channel_does_nothing() {
     assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Global);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn remove_channel_instance_handles_supported_bounds_and_unknown_channel() {
     let mut app = app();

@@ -1,3 +1,6 @@
+//! 验证预览拖拽区域与覆盖宿主的组件生命周期和事件转发。
+//! 组件树差异与鼠标交互测试用于保证包装器不破坏子组件状态。
+
 use super::widgets::{DraggableArea, PreviewOverlayHost};
 use crate::app::Message;
 use iced::advanced::{

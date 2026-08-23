@@ -1,4 +1,5 @@
 //! 验证会话忙闲状态存储、序列化及作用域事件发布行为。
+//! 被污染的互斥锁也要恢复可用状态，未知会话查询不能反向插入默认记录。
 
 use super::*;
 use crate::app::agent::{bus, project::instance};
@@ -46,6 +47,7 @@ fn unknown_session_defaults_to_idle_without_inserting_state() {
 }
 
 #[test]
+// 锁中毒只表示先前持有者异常，状态服务应恢复映射而不是让所有后续会话查询失效。
 fn state_accessors_recover_from_poisoned_state_lock() {
     let poison_result = std::panic::catch_unwind(|| {
         let _guard = STATE.lock().unwrap_or_else(|e| e.into_inner());

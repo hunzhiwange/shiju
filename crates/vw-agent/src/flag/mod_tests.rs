@@ -37,6 +37,7 @@ impl Drop for EnvGuard {
     }
 }
 
+// 这些用例会修改进程级环境变量，因此通过共享锁与守卫避免并发污染并恢复原值。
 #[test]
 fn env_string_reads_present_values_and_missing_as_none() {
     let _lock = env_lock();

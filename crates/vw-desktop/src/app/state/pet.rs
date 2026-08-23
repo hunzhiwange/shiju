@@ -1,3 +1,5 @@
+//! 管理任务宠物窗口的条目、头像、动画与窗口交互状态。
+
 use super::*;
 use crate::app::models::ChatRole;
 use std::cmp::Reverse;
@@ -13,6 +15,7 @@ const PET_EXPAND_ANIMATION_STEP: f32 = 0.24;
 const PET_WALK_ANIMATION_MS: u64 = 360;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 任务宠物可轮换的头像类别。
 pub(crate) enum TaskPetAvatarKind {
     Robot,
     Beauty,
@@ -30,12 +33,14 @@ impl TaskPetAvatarKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 任务宠物条目对应请求的执行状态。
 pub(crate) enum TaskPetStatus {
     Running,
     Completed,
 }
 
 #[derive(Debug, Clone)]
+/// 宠物窗口中单个代理请求的稳定展示快照。
 pub(crate) struct TaskPetItem {
     pub(crate) request_id: u64,
     pub(crate) session_id: String,
@@ -172,6 +177,7 @@ fn smooth_progress(value: f32) -> f32 {
 }
 
 impl App {
+    /// 注册主窗口与宠物窗口标识，并初始化宠物窗口位置。
     pub fn register_window_ids(
         &mut self,
         main_window_id: iced::window::Id,
@@ -189,6 +195,7 @@ impl App {
         self.task_pet_collapsed && self.task_pet_expand_target.is_none()
     }
 
+    /// 从运行时请求重建宠物条目，同时保留仍有效的完成项与交互选择。
     pub(crate) fn sync_task_pet_from_runtime(&mut self) {
         let active = self
             .session_runtime_states
@@ -258,6 +265,7 @@ impl App {
         self.task_pet_expand_target = Some(if self.task_pet_collapsed { 0.0 } else { 1.0 });
     }
 
+    /// 推进折叠动画；尺寸稳定后返回 `None` 以停止继续调度帧。
     pub(crate) fn advance_task_pet_expand_animation(
         &mut self,
     ) -> Option<(iced::Size, iced::Point)> {
@@ -288,6 +296,7 @@ impl App {
         self.task_pet_walk_until_ms = crate::app::time::now_ms() + PET_WALK_ANIMATION_MS;
     }
 
+    /// 根据拖动偏移移动窗口，并将位置限制在当前显示器工作区内。
     pub(crate) fn drag_task_pet_to(&mut self, x: f32, y: f32) {
         if self.task_pet_drag_anchor.is_none() {
             self.task_pet_drag_anchor = Some(iced::Point::new(x, y));
@@ -382,6 +391,7 @@ impl App {
         self.task_pet_reply_input = value;
     }
 
+    /// 取出非空回复及目标会话，并同时关闭回复编辑状态。
     pub(crate) fn take_task_pet_reply(&mut self) -> Option<(String, String)> {
         let request_id = self.task_pet_reply_request_id?;
         let item = self.task_pet_items.iter().find(|item| item.request_id == request_id)?;
@@ -395,6 +405,7 @@ impl App {
         Some((session_id, input))
     }
 
+    /// 将单击解释为选择、双击解释为打开会话，并返回可导航会话标识。
     pub(crate) fn task_pet_item_clicked(&mut self, request_id: u64) -> Option<String> {
         let now = web_time::Instant::now();
         let Some(item) = self.task_pet_items.iter_mut().find(|item| item.request_id == request_id)

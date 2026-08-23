@@ -1,3 +1,6 @@
+//! 验证界面图标的完整注册、既有条目保留与重复注册幂等性。
+//! 固化键清单用于发现 UI 资产已增加但注册表尚未同步的情况。
+
 #[test]
 fn task_639_test_module_is_wired() {
     let path = std::path::Path::new(file!());

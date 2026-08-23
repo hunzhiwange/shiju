@@ -1,4 +1,6 @@
 //! 验证会话模式和模型偏好的规范化、解析优先级与状态同步。
+//!
+//! 最小会话记录与能力选项用于独立观察期望值和当前值的同步。
 
 use super::*;
 use crate::{SESSION_RECORD_SCHEMA, SessionEventLog, SessionTokenUsage};
@@ -49,6 +51,7 @@ fn test_record() -> SessionRecord {
     }
 }
 
+// 下列行为用例覆盖空值清理、选项解析优先级和能力缺失分支。
 #[test]
 fn normalize_mode_id_trims_and_rejects_empty_values() {
     assert_eq!(normalize_mode_id(Some("  default ")).as_deref(), Some("default"));

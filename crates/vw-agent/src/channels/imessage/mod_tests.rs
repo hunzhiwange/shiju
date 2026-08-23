@@ -1,3 +1,5 @@
+// 本文件验证 iMessage 脚本转义、数据库轮询与平台健康检查。
+
 use super::*;
 use crate::app::agent::channels::traits::{Channel, SendMessage};
 use rusqlite::Connection;
@@ -80,6 +82,7 @@ async fn forward_imessage_messages_reports_closed_receiver() {
 }
 
 #[tokio::test]
+// 乱序旧记录不能回退高水位，否则下轮会重复投递消息。
 async fn forward_imessage_messages_preserves_high_water_mark_for_older_row() {
     let channel = IMessageChannel::new(vec!["*".to_string()]);
     let (tx, mut rx) = mpsc::channel(1);
@@ -195,4 +198,3 @@ fn create_chat_db() -> (tempfile::TempDir, std::path::PathBuf) {
     .expect("create messages schema");
     (dir, db_path)
 }
-// 本文件验证 iMessage 脚本转义、数据库轮询与平台健康检查。

@@ -1,8 +1,11 @@
 // 验证集成配置的别名匹配、修订计算、凭据更新与面板载荷生成。
+
+// 凭据只用于判断配置状态，生成面板载荷时不得回传原始密钥。
 use super::*;
 use crate::app::agent::integrations::IntegrationStatus;
 use std::collections::BTreeMap;
 
+// 查找 helper 让载荷断言聚焦字段契约，缺项会立即使测试失败。
 fn field<'a>(entry: &'a IntegrationSettingsEntry, key: &str) -> &'a IntegrationCredentialsField {
     entry.fields.iter().find(|field| field.key == key).unwrap()
 }
@@ -74,6 +77,7 @@ fn config_revision_changes_when_config_changes() {
 }
 
 #[test]
+// 面板载荷只报告是否已配置，不得把实际凭据复制到响应字段。
 fn build_payload_marks_active_keyed_provider_without_exposing_secret() {
     let mut config = Config::default();
     config.default_provider = Some("openai".to_string());

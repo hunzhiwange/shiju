@@ -1,3 +1,7 @@
+//! 验证各扩展聊天通道的默认值、兼容格式、后端选择与必填字段约束。
+//! 覆盖云端/本地后端判定、具名实例扁平化及各协议的序列化兼容面。
+
+// 此哨兵保护拆分后的扩展通道测试文件仍由父模块编译。
 #[test]
 fn task_618_test_module_is_wired() {
     let path = std::path::Path::new(file!());
@@ -10,6 +14,7 @@ use super::{
     WatiConfig, WhatsAppConfig, default_nostr_relays,
 };
 
+// WhatsApp 两种后端依赖互斥凭据组，不完整或同时配置时都不能误判。
 #[test]
 fn whatsapp_backend_helpers_cover_cloud_web_incomplete_and_ambiguous_configs() {
     let empty: WhatsAppConfig = serde_json::from_value(serde_json::json!({})).unwrap();
@@ -53,6 +58,7 @@ fn whatsapp_backend_helpers_cover_cloud_web_incomplete_and_ambiguous_configs() {
     assert!(ambiguous.is_ambiguous_config());
 }
 
+// 可选集合与布尔值缺省时应落到协议安全默认，显式覆盖仍需原样保留。
 #[test]
 fn matrix_and_signal_deserialization_apply_optional_collection_and_boolean_defaults() {
     let matrix: MatrixConfig = serde_json::from_value(serde_json::json!({
@@ -130,6 +136,7 @@ fn wati_and_irc_deserialization_apply_service_defaults_and_preserve_overrides() 
     assert_eq!(overridden_irc.verify_tls, Some(false));
 }
 
+// 简单通道共享空允许列表语义，防止不同配置类型出现不一致缺省行为。
 #[test]
 fn simple_channel_configs_default_optional_and_allowlist_fields() {
     let linq: LinqConfig = serde_json::from_value(serde_json::json!({
@@ -155,6 +162,7 @@ fn simple_channel_configs_default_optional_and_allowlist_fields() {
     assert!(dingtalk.allowed_users.is_empty());
 }
 
+// 具名实例通过扁平字段承载通道配置，反序列化后不得丢失实例身份。
 #[test]
 fn named_instance_configs_deserialize_flattened_channel_fields() {
     let matrix: MatrixInstanceConfig = serde_json::from_value(serde_json::json!({
@@ -180,6 +188,7 @@ fn named_instance_configs_deserialize_flattened_channel_fields() {
     assert!(dingtalk.config.allowed_users.is_empty());
 }
 
+// QQ 模式采用稳定外部名称，未知值必须报错而不是静默回退。
 #[test]
 fn qq_receive_mode_defaults_renames_variants_and_rejects_unknown_values() {
     let default_config: QQConfig = serde_json::from_value(serde_json::json!({
@@ -206,6 +215,7 @@ fn qq_receive_mode_defaults_renames_variants_and_rejects_unknown_values() {
     assert!(invalid.is_err());
 }
 
+// 未提供中继与显式空列表语义不同：前者使用推荐值，后者尊重用户禁用。
 #[test]
 fn nostr_relays_use_documented_defaults_but_preserve_an_explicit_empty_list() {
     let expected = vec![
@@ -230,6 +240,7 @@ fn nostr_relays_use_documented_defaults_but_preserve_an_explicit_empty_list() {
     assert!(explicit_empty.relays.is_empty());
 }
 
+// 缺少协议必填字段应停在反序列化边界，不能构造半有效通道配置。
 #[test]
 fn missing_required_channel_fields_are_rejected() {
     let missing_access_token = serde_json::from_value::<MatrixConfig>(serde_json::json!({

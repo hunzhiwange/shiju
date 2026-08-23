@@ -1,4 +1,6 @@
 //! 验证提示词内容块解析、资源载荷和图像数据的输入校验。
+//!
+//! 最小 JSON 与协议类型 fixture 用于固定线格式和输入校验边界。
 
 use super::*;
 use agent_client_protocol::{
@@ -11,6 +13,7 @@ fn validation_error(value: serde_json::Value) -> String {
     content_block_from_value(&value, 0).expect_err("invalid content block").to_string()
 }
 
+// 下列行为用例覆盖合法往返、字段默认值和无效形状拒绝。
 #[test]
 fn non_empty_string_validation_trims_and_rejects_non_strings() {
     assert!(is_non_empty_string(Some(&json!(" value "))));

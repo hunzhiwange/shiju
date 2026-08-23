@@ -1,4 +1,6 @@
 // 覆盖知识子系统的数据类型、配置与端到端组合行为。
+
+// 假向量存储与嵌入器让切块、索引和查询组合测试保持确定性。
 use super::SqliteKnowledgeStore;
 use super::chunker::chunk_text_with_limits;
 use crate::global_database::GlobalDatabase;
@@ -34,6 +36,7 @@ fn vector_store() -> SqliteKnowledgeStore {
     .expect("knowledge store")
 }
 
+// 数据集 fixture 显式选择检索模式，用同一存储比较父子、问答和向量路径。
 fn dataset_request(
     name: &str,
     indexing_mode: KnowledgeIndexingMode,
@@ -56,6 +59,7 @@ fn dataset_request(
     }
 }
 
+// 假嵌入器生成确定向量，使检索排序不受外部模型版本影响。
 struct FakeEmbedding;
 
 #[async_trait]

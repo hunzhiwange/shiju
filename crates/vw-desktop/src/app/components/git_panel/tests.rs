@@ -1,3 +1,6 @@
+//! 验证 Git 面板公共布局计算、主题选择与可选弹窗的基础行为。
+//! 这些测试从面板入口约束虚拟化边界和缺失项目路径时的安全空结果。
+
 use super::utils::FileStatus;
 
 fn app() -> crate::app::App {

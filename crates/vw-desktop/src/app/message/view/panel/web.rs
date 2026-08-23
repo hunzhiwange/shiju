@@ -1,3 +1,5 @@
+//! 处理网页书签、独立 WebView 启动与书签 Cookie 配置消息。
+
 use super::ViewMessage;
 use crate::app::{App, Message, set_config_field};
 use iced::Task;
@@ -11,6 +13,7 @@ const WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE: &str = r#"[
   }
 ]"#;
 
+/// 处理网页打开与书签 Cookie 配置；独立 WebView 不可用时回退系统浏览器。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
         ViewMessage::OpenWebUrl(_url) => {

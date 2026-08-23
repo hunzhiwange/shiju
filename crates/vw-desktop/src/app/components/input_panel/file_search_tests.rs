@@ -1,3 +1,6 @@
+//! 验证文件搜索路径展示、结果上限、父目录行与选中样式。
+//! 根目录归一化和二十项上限用例锁定展示层的截断策略。
+
 use super::file_search::{
     display_file_search_path, empty_file_search_text_style, file_search_entry_style,
     file_search_icon_style, file_search_overlay, file_search_overlay_style,

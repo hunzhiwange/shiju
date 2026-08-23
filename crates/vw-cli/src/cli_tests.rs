@@ -1,3 +1,7 @@
+//! `clap` CLI 定义的端到端解析测试。
+//! 覆盖全局选项、Agent、Gateway、安全停止、Doctor、Task 与 Matrix 等子命令的默认值和显式参数。
+//! 还验证 shell 补全渲染及写入失败传播，并约束脚本引用当前 Rust worker 入口。
+
 use clap::{CommandFactory, Parser};
 use std::{
     fs,

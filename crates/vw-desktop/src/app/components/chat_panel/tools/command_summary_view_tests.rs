@@ -1,3 +1,6 @@
+//! 验证命令工具分组识别以及折叠和展开摘要的视图结构。
+//! 空分组返回无视图，非空分组则保持原工具索引以支持后续交互定位。
+
 use super::command_summary_view::{
     COMMAND_LIST_TOP_SPACING, is_command_tool, tool_command_summary_view,
 };

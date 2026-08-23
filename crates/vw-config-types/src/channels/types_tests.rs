@@ -1,3 +1,7 @@
+//! 验证通用聊天通道类型的序列化格式及群聊回复配置优先级。
+//! 重点保护新旧群聊字段的覆盖顺序，以及各通道共享的缺省行为。
+
+// 此哨兵保护拆分后的通用类型测试文件仍由父模块编译。
 #[test]
 fn task_619_test_module_is_wired() {
     let path = std::path::Path::new(file!());
@@ -10,6 +14,7 @@ use super::{
     resolve_group_reply_mode,
 };
 
+// 流式模式的外部名称是持久化契约，空配置必须保持关闭以避免意外编辑消息。
 #[test]
 fn stream_mode_uses_lowercase_names_and_defaults_to_off() {
     let config: TelegramConfig = serde_json::from_value(serde_json::json!({
@@ -34,6 +39,7 @@ fn group_reply_mode_serializes_and_reports_mention_requirement() {
     assert_eq!(serde_json::to_value(GroupReplyMode::MentionOnly).unwrap(), "mention_only");
 }
 
+// 统一解析顺序为新群聊配置、旧字段、通道默认值，兼容层不可反向覆盖新值。
 #[test]
 fn resolve_group_reply_mode_prefers_group_config_then_legacy_then_default() {
     let group_reply =
@@ -57,6 +63,7 @@ fn resolve_group_reply_mode_prefers_group_config_then_legacy_then_default() {
     );
 }
 
+// 允许发送者列表应复制为独立所有权；缺省配置统一返回空列表。
 #[test]
 fn clone_group_reply_allowed_sender_ids_clones_or_returns_empty() {
     let group_reply = GroupReplyConfig {
@@ -71,6 +78,7 @@ fn clone_group_reply_allowed_sender_ids_clones_or_returns_empty() {
     assert!(clone_group_reply_allowed_sender_ids(None).is_empty());
 }
 
+// 各通道使用相同优先级规则，但保留自身旧字段和默认回复策略。
 #[test]
 fn telegram_effective_group_reply_uses_group_config_before_legacy() {
     let config: TelegramConfig = serde_json::from_value(serde_json::json!({
@@ -209,6 +217,7 @@ fn mattermost_effective_group_reply_handles_optional_legacy_and_group_config() {
     assert_eq!(group_config.group_reply_allowed_sender_ids(), vec!["sender-a".to_string()]);
 }
 
+// 简单 Webhook 与 iMessage 配置用于确认共享文件中的非群聊类型仍能稳定读取。
 #[test]
 fn webhook_and_imessage_deserialize_simple_fields() {
     let webhook: WebhookConfig = serde_json::from_value(serde_json::json!({

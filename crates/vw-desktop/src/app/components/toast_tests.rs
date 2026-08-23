@@ -1,3 +1,7 @@
+//! 验证提示消息的类型样式、关闭操作和内容布局。
+//!
+//! 提示夹具遍历消息种类与关闭状态，并检查暗色主题下的容器和文本样式。
+
 use super::toast::{
     cache_sync_retry_message, confirm_dialog, icon_svg, is_dark_theme, toast_card_style,
     toast_icon_badge_style, toast_message_text_color, toast_palette, view,

@@ -1,4 +1,5 @@
 //! 验证文件链接块的解析、压缩、路径解析与元数据构造行为。
+//! 测试将展示路径与真实绝对路径分开校验，避免链接压缩掩盖路径逃逸。
 
 use crate::app::agent::tools::ToolRuntimeContext;
 
@@ -207,6 +208,7 @@ fn build_file_link_keeps_absolute_display_path_outside_root() {
 }
 
 #[test]
+// 自动注入仅适用于文件类工具，已有链接时保持原输出以避免重复展示入口。
 fn maybe_inject_file_link_respects_eligibility_and_existing_links() {
     let workspace = tempfile::tempdir().expect("temp workspace");
     std::fs::write(workspace.path().join("a.md"), "hello").expect("doc");

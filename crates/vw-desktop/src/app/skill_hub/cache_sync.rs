@@ -1,3 +1,5 @@
+//! 校验识矩 CLI 安装边界并同步本地业务技能缓存。
+
 use serde_json::Value;
 use std::fmt;
 use std::fs;
@@ -7,12 +9,16 @@ use std::process::{Command, Stdio};
 const SHIJU_CLI_NAME: &str = "shiju";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 技能缓存拉取与重建两个步骤的退出码。
 pub(crate) struct SkillCacheSyncReport {
+    /// 远端索引拉取命令的退出码。
     pub(crate) fetch_exit_code: i32,
+    /// 本地索引重建命令的退出码。
     pub(crate) rebuild_exit_code: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// CLI 解析、执行或结构化输出校验失败。
 pub(crate) struct SkillCacheSyncError {
     message: String,
 }
@@ -31,6 +37,7 @@ impl fmt::Display for SkillCacheSyncError {
 
 impl std::error::Error for SkillCacheSyncError {}
 
+/// 在已验证的安装目录中解析非符号链接识矩 CLI。
 pub(super) fn resolve_shiju_cli(installation_root: &Path) -> Result<PathBuf, SkillCacheSyncError> {
     validate_directory(installation_root, "识矩技能安装目录")?;
     let scripts_dir = installation_root.join("scripts");
@@ -83,6 +90,7 @@ fn validate_directory(path: &Path, label: &str) -> Result<(), SkillCacheSyncErro
     Ok(())
 }
 
+/// 构造关闭交互输入且移除密钥环境变量的缓存同步子进程。
 pub(super) fn build_cache_sync_command(
     executable: &Path,
     installation_root: &Path,
@@ -98,6 +106,7 @@ pub(super) fn build_cache_sync_command(
     command
 }
 
+/// 依次执行索引拉取和缓存重建，并校验每步的 JSON 成功结果。
 pub(crate) async fn sync_business_skill_cache(
     installation_root: &Path,
     skill_id: u64,

@@ -10,6 +10,7 @@ use serde_json::json;
 use std::fs;
 use std::path::Path;
 
+// 最小插件夹具同时提供清单和技能目录，模拟可被安装器接受的真实布局。
 fn write_plugin(plugin_root: &Path, name: &str) {
     fs::create_dir_all(plugin_root.join(".vibewindow-plugin")).expect("manifest dir");
     fs::write(
@@ -100,6 +101,7 @@ fn plugin_install_cleans_destination_when_post_copy_audit_changes_name() {
 }
 
 #[test]
+// 复制后审计失败必须回滚目标目录，不能留下半安装插件。
 fn plugin_install_cleans_destination_when_post_copy_audit_fails() {
     let dir = tempfile::tempdir().expect("temp dir");
     let source = dir.path().join("source");
@@ -384,6 +386,7 @@ fn plugin_install_reports_file_copy_errors_and_cleans_destination() {
 
 #[cfg(unix)]
 #[test]
+// 拒绝源目录内符号链接，避免复制越过已审计的插件树。
 fn plugin_install_rejects_symlink_inside_source_and_cleans_destination() {
     use std::os::unix::fs::symlink;
 

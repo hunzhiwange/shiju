@@ -1,3 +1,6 @@
+//! 验证各 SVG 注册组可被统一查找，并拒绝仅支持 PNG 的图标。
+//! 正反两类 fixture 用于守住矢量与位图查找入口之间的资产类型边界。
+
 #[test]
 fn task_645_test_module_is_wired() {
     let path = std::path::Path::new(file!());

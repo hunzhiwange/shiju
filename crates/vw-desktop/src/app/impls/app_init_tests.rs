@@ -1,3 +1,7 @@
+//! 验证应用初始化入口及各初始化子模块的连线。
+//!
+//! 初始化夹具组合配置、账户、项目和服务状态，检查各子流程汇入同一应用实例。
+
 use super::*;
 use serde_json::json;
 use vw_config_types::config::AcpAgentConfig;

@@ -1,3 +1,7 @@
+//! CLI 单消息执行链路的集成式单元测试。
+//! 可控的 Memory、Provider 和 Observer 替身用于校验记忆召回、上下文拼接与自动保存阈值。
+//! 记忆故障应允许对话继续，而 Provider 故障必须上抛且不记录回合完成。
+
 use super::setup::CliSetup;
 use super::single_message::run_single_message;
 use crate::app::agent::agent::loop_::core::AUTOSAVE_MIN_MESSAGE_CHARS;

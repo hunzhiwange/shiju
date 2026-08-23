@@ -1,3 +1,6 @@
+//! 验证账户状态菜单、触发标签、滚动条及明暗主题对比度契约。
+//! 视图构造覆盖登出、活动和忙碌状态，并显式检查敏感输入采用掩码控件。
+
 use super::*;
 
 fn background_color(style: iced::widget::button::Style) -> Color {

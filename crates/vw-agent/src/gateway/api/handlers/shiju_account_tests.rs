@@ -23,6 +23,7 @@ async fn response(request: Request<Body>) -> (StatusCode, Value) {
     (status, value)
 }
 
+// 敏感字段在访问上游前完成校验，错误响应只保留允许公开的状态和消息。
 #[tokio::test]
 async fn shiju_account_routes_require_valid_sensitive_inputs() {
     let (status, body) = response(

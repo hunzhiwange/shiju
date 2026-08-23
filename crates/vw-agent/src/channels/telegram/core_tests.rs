@@ -1,3 +1,5 @@
+// 本文件验证 Telegram API 地址、许可判断、客户端构建与错误脱敏。
+
 use super::TelegramChannel;
 
 #[test]
@@ -78,6 +80,7 @@ fn is_any_user_allowed_recovers_from_poisoned_lock() {
 }
 
 #[test]
+// 错误中的多种机器人令牌形态都必须在记录前脱敏。
 fn sanitize_telegram_error_redacts_multiple_bot_token_shapes() {
     let sanitized = TelegramChannel::sanitize_telegram_error(
         "bot123:SECRET/sendMessage and botabcDEF/getMe should disappear",
@@ -93,4 +96,3 @@ async fn handle_unauthorized_message_is_non_failing() {
     let channel = TelegramChannel::new("token".to_string(), vec![], false);
     channel.handle_unauthorized_message(&serde_json::json!({"message": {"text": "nope"}})).await;
 }
-// 本文件验证 Telegram API 地址、许可判断、客户端构建与错误脱敏。

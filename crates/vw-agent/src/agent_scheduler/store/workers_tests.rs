@@ -1,4 +1,5 @@
 //! 测试工作代理存储在多后端下的能力、团队归属与生命周期。
+//! 独立成员角色和能力组合覆盖列表顺序、空白校验与缺失记录更新。
 
 use anyhow::Result;
 use serde_json::json;
@@ -142,6 +143,7 @@ fn assert_worker_store_tracks_capabilities_and_lifecycle_state(
     Ok(())
 }
 
+// 工作代理生命周期断言跨后端复用，隔离具体 SQL 表达差异。
 fn for_each_worker_store_provider(
     mut check: impl FnMut(
         &AgentSchedulerStore,

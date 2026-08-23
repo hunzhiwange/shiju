@@ -29,6 +29,7 @@ const FINAL_REPLY_INSTRUCTION: &str =
 const WORKTREE_LOG_PATH_LIMIT: usize = 240;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 启动本地运行所需的任务标识、执行时刻和租约时长。
 pub struct LocalAgentRunnerRequest {
     pub task_id: TaskId,
     pub worker_id: WorkerName,
@@ -36,6 +37,7 @@ pub struct LocalAgentRunnerRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 本地运行启动后返回的运行与工作区信息。
 pub struct LocalAgentRunnerOutcome {
     pub task_id: TaskId,
     pub worker_id: WorkerName,
@@ -43,6 +45,7 @@ pub struct LocalAgentRunnerOutcome {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 执行器申请任务隔离工作区时接收的上下文。
 pub struct LocalAgentWorkspaceRequest {
     pub project_path: PathBuf,
     pub task_id: TaskId,
@@ -51,6 +54,7 @@ pub struct LocalAgentWorkspaceRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 已分配工作区的槽位、路径、分支和基线提交。
 pub struct LocalAgentWorkspace {
     pub slot_id: String,
     pub path: String,
@@ -58,6 +62,7 @@ pub struct LocalAgentWorkspace {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 在已分配工作区内执行代理所需的提示、模型和路由信息。
 pub struct LocalAgentExecutionRequest {
     pub project_path: PathBuf,
     pub task_id: TaskId,
@@ -73,6 +78,7 @@ pub struct LocalAgentExecutionRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 执行器返回的最终文本及可选结构化产物。
 pub struct LocalAgentExecutionOutput {
     pub raw_output: String,
 }
@@ -96,6 +102,7 @@ pub struct LocalAgentWorkspaceReleaseRequest {
     pub workspace: LocalAgentWorkspace,
 }
 
+/// 本地运行器对工作区生命周期和代理执行后端的抽象。
 pub trait LocalAgentExecutor {
     fn lease_workspace(&self, request: LocalAgentWorkspaceRequest) -> Result<LocalAgentWorkspace> {
         bail!(
@@ -115,6 +122,7 @@ pub trait LocalAgentExecutor {
     }
 }
 
+/// 将运行认领、工作区租约、代理执行和持久化收尾串联起来的运行器。
 pub struct LocalAgentRunner<'a, E>
 where
     E: LocalAgentExecutor + ?Sized,
@@ -145,6 +153,7 @@ where
         self.finish_started_run(project_path, &task_id, &run_id, request)
     }
 
+    /// 原子认领任务并准备工作区；任务不可运行时不产生执行副作用。
     pub fn start_once(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -196,6 +205,7 @@ where
         }))
     }
 
+    /// 提交工作区变化、记录产物并完成运行；失败路径仍负责释放资源。
     pub fn finish_started_run(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),

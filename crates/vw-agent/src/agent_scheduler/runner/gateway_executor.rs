@@ -181,6 +181,7 @@ impl GatewayChatStreamClient for RealGatewayChatStreamClient {
 }
 
 #[derive(Debug, Clone)]
+/// 使用网关聊天流和工作树池实现本地执行器契约。
 pub(crate) struct GatewayLocalAgentExecutor {
     store: AgentSchedulerStore,
     chat_stream: Arc<dyn GatewayChatStreamClient>,
@@ -388,6 +389,7 @@ fn collect_gateway_local_agent_output(
     Ok(collected.output)
 }
 
+/// 将网关流式载荷裁剪为安全长度后追加到任务日志。
 pub(crate) fn append_gateway_stream_payload_task_log(
     store: &AgentSchedulerStore,
     project_path: &Path,
@@ -492,6 +494,7 @@ fn truncate_log_text(value: &str, max_chars: usize) -> String {
     truncated
 }
 
+/// 从执行请求构造网关流式聊天请求，并保留模型与代理路由选择。
 pub(crate) fn gateway_local_agent_stream_request(
     request: &LocalAgentExecutionRequest,
 ) -> GatewayChatStreamRequest {

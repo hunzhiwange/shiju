@@ -1,4 +1,6 @@
 // 覆盖网关 WebSocket 的握手鉴权、消息处理与连接清理。
+
+// 私有事件解析对缺失可选字段使用稳定默认值，升级失败则返回明确错误。
 use super::*;
 
 use crate::app::agent::config::Config;
@@ -19,6 +21,7 @@ use vw_api_types::tools::{ToolResultContentDto, ToolResultDto};
 
 struct StaticProvider;
 
+// 队列 provider 驱动一次工具调用再返回文本，验证 WebSocket 复用完整工具循环。
 struct ToolCallingProvider {
     responses: Mutex<VecDeque<ChatResponse>>,
 }
@@ -59,6 +62,7 @@ impl Provider for ToolCallingProvider {
     }
 }
 
+// 探针工具只记录钩子是否到达，不执行真实外部动作。
 struct HookProbeTool;
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]

@@ -71,6 +71,8 @@ fn formatter(name: &str, enabled: EnabledCheck) -> FormatterInfo {
     }
 }
 
+// 临时项目和可执行文件夹具用于验证真实探测顺序、缓存命中与失败回退。
+// 格式化器不可用或执行失败时保留原文件，并继续评估其它匹配项。
 #[test]
 fn which_returns_none_for_missing_program() {
     assert!(which("vibewindow-format-command-that-should-not-exist").is_none());

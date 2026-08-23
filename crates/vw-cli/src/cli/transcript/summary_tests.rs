@@ -1,3 +1,7 @@
+//! 转录摘要到终端行列表的组装测试。
+//! 覆盖空转录默认提示、流式草稿、进度与错误项过滤，以及可见项之间的留白。
+//! 空助手消息必须保留带前缀的占位行，避免对话结构在视图中丢失。
+
 use super::transcript_to_lines;
 use super::{TranscriptEntry, TranscriptRole};
 use std::collections::BTreeSet;

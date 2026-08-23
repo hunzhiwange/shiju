@@ -1,4 +1,5 @@
-//! 测试 PostgreSQL 日志存储的写入、过滤与分页契约。
+//! 测试 PostgreSQL 日志与工作区记录的行映射及运行归属校验。
+//! 空运行标识、未知状态和非法任务或工作区标识均不得进入领域对象。
 
 use anyhow::Result;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

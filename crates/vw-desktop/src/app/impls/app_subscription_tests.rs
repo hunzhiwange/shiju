@@ -1,3 +1,7 @@
+//! 验证应用订阅根据平台、窗口和运行状态正确组合事件源。
+//!
+//! 订阅测试组合窗口、主题、文件监听和后台服务状态，确认只注册当前环境需要的事件源。
+
 use std::{path::PathBuf, sync::Arc};
 
 use iced::keyboard::{self, Modifiers};

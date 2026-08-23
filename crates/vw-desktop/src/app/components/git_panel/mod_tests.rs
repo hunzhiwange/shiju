@@ -1,3 +1,6 @@
+//! 验证 Git 主视图的虚拟窗口、文件卡片估算及弹窗叠加路径。
+//! 空仓库、超出视口和多种选择来源用于约束回退与过滤行为。
+
 use crate::app::components::git_panel::utils::FileStatus;
 use crate::app::state::ChatTextDiff;
 use crate::app::{DiffTheme, Message};

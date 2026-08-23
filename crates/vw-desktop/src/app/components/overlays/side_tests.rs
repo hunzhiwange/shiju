@@ -1,3 +1,6 @@
+//! 验证侧边覆盖层在不同方向和边界下的布局与事件行为。
+//! 左右空间不足与视口裁剪用例用于锁定选边和位置回退策略。
+
 use super::{
     SideOverlay, SideOverlayElement, compute_side_overlay_position, side_overlay_hover_contains,
     side_overlay_max_width,

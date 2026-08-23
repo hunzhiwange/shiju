@@ -1,4 +1,5 @@
 //! 验证换行注入校验器区分命令分隔换行与引号内文本。
+//! LF 与 CR 都属于命令边界风险，但合法引用内容由专门规则处理。
 
 use super::newline_injection::NewlineInjectionValidator;
 use crate::tools::shell::ast::parse_command;

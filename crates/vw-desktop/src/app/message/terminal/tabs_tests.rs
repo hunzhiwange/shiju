@@ -1,3 +1,6 @@
+// 验证终端标签选择、关闭、回收与上下文菜单状态。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::{TerminalMessage, update};
 use crate::app::{App, FocusArea, TerminalState};
 
@@ -7,6 +10,8 @@ fn test_app_with_blank_terminal() -> App {
     app
 }
 
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -31,6 +36,8 @@ fn select_clears_context_menu_and_focuses_visible_terminal() {
     assert_eq!(app.terminal.height, 200.0);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn select_preserves_terminal_height_at_minimum_boundary() {
     let mut app = test_app_with_blank_terminal();
@@ -77,6 +84,8 @@ fn close_with_multiple_tabs_schedules_reap_after_retiring() {
     assert!(!app.terminal.has_retired());
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn tab_context_open_selects_terminal_and_records_anchor() {
     let mut app = test_app_with_blank_terminal();
@@ -104,6 +113,8 @@ fn tab_context_close_clears_id_and_anchor_without_changing_selection() {
     assert_eq!(app.terminal.tab_context_menu_pos, None);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_message_is_ignored_without_mutating_terminal_state() {
     let mut app = test_app_with_blank_terminal();

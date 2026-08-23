@@ -1,3 +1,7 @@
+//! 结构化流式输出识别与转录拼接的测试。
+//! 确认思考或工具标记经过空白归一化后仍能被识别，纯文本草稿则不伪造转录项。
+//! 只有结构化草稿才以助手身份追加，并正确返回剩余草稿状态。
+
 use super::{TranscriptEntry, TranscriptRole};
 use super::{build_streaming_transcript_view, structured_stream::should_render_structured_stream};
 

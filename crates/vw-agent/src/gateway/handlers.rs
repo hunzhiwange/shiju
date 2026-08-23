@@ -1,4 +1,6 @@
 //! 外部消息通道的 Webhook 处理器，统一校验、对话执行与回复投递。
+//!
+//! 各提供者先完成签名或令牌验证，再把消息规范化为通道模型；失败响应不进入代理执行。
 
 use super::chat::{log_channel_message, run_gateway_chat_with_tools, sanitize_gateway_response};
 use super::state::AppState;
@@ -121,18 +123,21 @@ async fn send_successful_channel_reply<C: Channel + ?Sized>(
     }
 }
 
-/// `WhatsApp` verification query params
+/// Meta WhatsApp Webhook 握手查询参数。
 #[derive(serde::Deserialize)]
 pub struct WhatsAppVerifyQuery {
+    /// Meta 请求的订阅模式。
     #[serde(rename = "hub.mode")]
     pub mode: Option<String>,
+    /// Meta 回传的配置校验令牌。
     #[serde(rename = "hub.verify_token")]
     pub verify_token: Option<String>,
+    /// 验证成功时需要原样返回的挑战值。
     #[serde(rename = "hub.challenge")]
     pub challenge: Option<String>,
 }
 
-/// GET /whatsapp — Meta webhook verification
+/// 校验 WhatsApp Webhook 握手参数并返回挑战值。
 pub async fn handle_whatsapp_verify(
     State(state): State<AppState>,
     Query(params): Query<WhatsAppVerifyQuery>,
@@ -156,8 +161,7 @@ pub async fn handle_whatsapp_verify(
     (StatusCode::FORBIDDEN, "Forbidden".to_string()).into_response()
 }
 
-/// Verify `WhatsApp` webhook signature (`X-Hub-Signature-256`).
-/// Returns true if the signature is valid, false otherwise.
+/// 使用应用密钥校验 `X-Hub-Signature-256` HMAC 签名。
 /// See: <https://developers.facebook.com/docs/graph-api/webhooks/getting-started#verification-requests>
 pub fn verify_whatsapp_signature(app_secret: &str, body: &[u8], signature_header: &str) -> bool {
     use hmac::{Hmac, Mac};
@@ -183,7 +187,7 @@ pub fn verify_whatsapp_signature(app_secret: &str, body: &[u8], signature_header
     mac.verify_slice(&expected).is_ok()
 }
 
-/// POST /whatsapp — incoming message webhook
+/// 验证并处理 WhatsApp Cloud API 入站消息。
 pub async fn handle_whatsapp_message(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -247,7 +251,7 @@ pub async fn handle_whatsapp_message(
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 
-/// POST /linq — incoming message webhook (iMessage/RCS/SMS via Linq)
+/// 处理承载 iMessage、RCS 或 SMS 的 Linq Webhook 消息。
 pub async fn handle_linq_webhook(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -327,7 +331,7 @@ pub async fn handle_linq_webhook(
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 
-/// GET /wati — WATI webhook verification (echoes hub.challenge)
+/// 校验 WATI Webhook 握手并返回挑战值。
 pub async fn handle_wati_verify(
     State(state): State<AppState>,
     Query(params): Query<WatiVerifyQuery>,
@@ -346,12 +350,14 @@ pub async fn handle_wati_verify(
 }
 
 #[derive(Debug, serde::Deserialize)]
+/// WATI Webhook 握手查询参数。
 pub struct WatiVerifyQuery {
+    /// 验证成功时返回的挑战值。
     #[serde(rename = "hub.challenge")]
     pub challenge: Option<String>,
 }
 
-/// POST /wati — incoming WATI WhatsApp message webhook
+/// 解析并处理 WATI 入站消息。
 pub async fn handle_wati_webhook(State(state): State<AppState>, body: Bytes) -> Response {
     let Some(ref wati) = state.wati else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "WATI not configured"})))
@@ -389,7 +395,7 @@ pub async fn handle_wati_webhook(State(state): State<AppState>, body: Bytes) -> 
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 
-/// POST /nextcloud-talk — incoming message webhook (Nextcloud Talk bot API)
+/// 处理 Nextcloud Talk 机器人 Webhook 消息。
 pub async fn handle_nextcloud_talk_webhook(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -461,7 +467,7 @@ pub async fn handle_nextcloud_talk_webhook(
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 
-/// POST /qq — incoming QQ Bot webhook (validation + events)
+/// 验证并处理 QQ 机器人 Webhook 消息。
 pub async fn handle_qq_webhook(
     State(state): State<AppState>,
     headers: HeaderMap,

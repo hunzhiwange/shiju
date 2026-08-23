@@ -137,6 +137,7 @@ fn info_with_summary(
     }
 }
 
+// 同名会话在不同目录中创建，验证筛选、修改和删除始终受实例作用域约束。
 #[test]
 fn session_handlers_are_available() {
     let _ = ui_session_list;
@@ -176,6 +177,7 @@ fn task_session_summary_needs_refresh_only_for_empty_task_board_summaries() {
     assert!(!task_session_summary_needs_refresh(&with_deletions));
 }
 
+// 错误用例固定失败发生在持久化之前，避免跨会话或跨作用域修改已有数据。
 #[tokio::test]
 async fn refresh_task_session_summaries_preserves_summary_when_refresh_fails() {
     let _guard = SESSION_OPS_TEST_LOCK.lock().await;

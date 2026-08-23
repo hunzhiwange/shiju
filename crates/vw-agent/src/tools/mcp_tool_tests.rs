@@ -1,4 +1,5 @@
 //! 验证动态 MCP 工具的标识、规格映射、服务发现及调用结果转换。
+//! 同时覆盖文本、结构化及非文本内容，确保服务端失败信息保留调用上下文。
 
 use super::mcp_common::with_server_peer;
 use super::mcp_tool::{McpTool, discover_mcp_tool_specs, mcp_tool_id, mcp_tools_to_specs};
@@ -193,6 +194,7 @@ fn dynamic_spec() -> ToolSpec {
     .with_strict(true)
 }
 
+// fixture 服务用于验证真实 stdio 握手；其它结果转换测试使用内存处理器保持聚焦。
 fn write_mcp_fixture_server(dir: &std::path::Path) -> std::path::PathBuf {
     let script = dir.join("fixture_mcp_server.py");
     std::fs::write(

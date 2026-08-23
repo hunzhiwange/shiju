@@ -1,3 +1,6 @@
+//! 验证代码审查差异行着色、补丁渲染与文件折叠视图的边界状态。
+//! 三重标记不得误判为普通增删行，无项目或不可用记录则安全退化为空集合。
+
 use super::code_review::{
     build_code_review_view_from_diff, git_diff_by_file, render_unified_line,
     render_unified_patch_for_test, unified_style_for_line, view,

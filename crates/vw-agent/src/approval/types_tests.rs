@@ -1,4 +1,5 @@
 //! 测试审批领域类型对决议、摘要和请求身份字段的保留。
+//! 往返序列化锁定审计和待审批记录恢复时所需的全部身份信息。
 
 use super::{
     ApprovalLogEntry, ApprovalResponse, PendingApprovalError, PendingNonCliApprovalRequest,

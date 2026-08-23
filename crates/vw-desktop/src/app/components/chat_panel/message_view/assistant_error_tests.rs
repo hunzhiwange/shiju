@@ -1,3 +1,6 @@
+//! 验证助手错误载荷识别、链接提取以及可重试错误卡片构造。
+//! URL fixture 覆盖引号、括号、空白和消息末尾，避免把相邻标点并入链接。
+
 use super::assistant_error::{assistant_api_error_view, extract_url_from_error_message};
 use crate::app::App;
 

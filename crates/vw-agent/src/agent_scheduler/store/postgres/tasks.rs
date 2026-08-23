@@ -1,4 +1,5 @@
 //! 实现 PostgreSQL 任务与看板状态的创建、筛选和并发安全更新。
+//! 状态和元数据更新锁定目标行，并要求恰好一行受影响以暴露并发删除。
 
 use ::postgres::types::ToSql;
 use ::postgres::{GenericClient, Row};

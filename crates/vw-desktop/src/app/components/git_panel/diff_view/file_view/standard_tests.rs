@@ -1,3 +1,6 @@
+//! 验证未变更差异行的单双侧选择、悬停、菜单与特殊文本边界。
+//! 上下文菜单只响应匹配的新侧行，空文本、Unicode 和大行号不得改变闭合行结构。
+
 use iced::{Color, Length, Size};
 
 use crate::app::components::git_panel::diff_view::DiffRenderCtx;

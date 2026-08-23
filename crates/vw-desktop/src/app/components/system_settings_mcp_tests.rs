@@ -1,3 +1,6 @@
+//! 验证 MCP 服务器配置、运行状态、预览区、标签与删除确认层。
+//! 非法 JSON、缺失检查结果和各连接状态用于约束解析失败与显示回退。
+
 use super::{
     ConfiguredMcpServerRow, McpStatusTone, capability_preview, compact_text,
     configured_mcp_server_rows, configured_server_panel, connection_status_label_and_tone,
@@ -15,6 +18,7 @@ use vw_gateway_client::vw_api_types::mcp::{
 };
 use vw_gateway_client::vw_api_types::tools::ToolSpecDto;
 
+// MCP fixture 只填充展示与状态匹配所需字段，连接行为不在 UI 单测中模拟。
 fn tool_spec(id: &str) -> ToolSpecDto {
     ToolSpecDto {
         id: id.into(),

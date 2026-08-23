@@ -1,3 +1,9 @@
+//! MCP、技能、插件等集成页面的视图模型。
+//!
+//! 本模块统一加载状态、选中项和技能平台选择，但不直接调用安装或启停 API。
+//! 进入渲染的外部错误会经过最小脱敏，避免直接显示常见凭据字段。
+
+/// 集成面板当前展示的资源类别。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum IntegrationKind {
     Mcp,
@@ -8,6 +14,7 @@ pub(crate) enum IntegrationKind {
     Doctor,
 }
 
+/// 集成列表的异步加载结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum IntegrationLoadState {
     Loading,
@@ -16,6 +23,7 @@ pub(crate) enum IntegrationLoadState {
     Error(String),
 }
 
+/// 某条集成可执行的界面操作及其可用性。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct IntegrationAction {
     pub(crate) label: String,
@@ -23,6 +31,7 @@ pub(crate) struct IntegrationAction {
     pub(crate) disabled_reason: Option<String>,
 }
 
+/// 一条集成资源的可显示快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct IntegrationItem {
     pub(crate) id: String,
@@ -32,6 +41,7 @@ pub(crate) struct IntegrationItem {
     pub(crate) actions: Vec<IntegrationAction>,
 }
 
+/// 集成页面的列表、选中位置与技能平台子选择器。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct IntegrationPanel {
     pub(crate) kind: IntegrationKind,
@@ -44,12 +54,14 @@ pub(crate) struct IntegrationPanel {
     pub(crate) skill_provider_picker: Option<SkillProviderPicker>,
 }
 
+/// 技能目录平台选择器的临时状态。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SkillProviderPicker {
     pub(crate) selected: usize,
 }
 
 impl IntegrationPanel {
+    /// 以指定类别创建面板，初始状态为正在加载。
     pub(crate) fn new(kind: IntegrationKind) -> Self {
         Self {
             kind,
@@ -63,10 +75,12 @@ impl IntegrationPanel {
         }
     }
 
+    /// 将已有内容标记为正在刷新，便于界面保留上一次列表。
     pub(crate) fn begin_refresh(&mut self) {
         self.state = IntegrationLoadState::Loading;
     }
 
+    /// 应用刷新结果，成功时按稳定 ID 保留选中项，失败时仅保存脱敏错误。
     pub(crate) fn finish_refresh(&mut self, result: Result<Vec<IntegrationItem>, String>) {
         let selected_id = self.items.get(self.selected).map(|item| item.id.clone());
         match result {
@@ -87,6 +101,7 @@ impl IntegrationPanel {
         }
     }
 
+    /// 生成终端列表文本，所有条目详情在插值前会经过脱敏。
     pub(crate) fn lines(&self) -> Vec<String> {
         let mut lines = vec![format!("{:?} · {:?}", self.kind, self.state)];
         if self.kind == IntegrationKind::Skill {
@@ -115,6 +130,7 @@ impl IntegrationPanel {
         lines
     }
 
+    /// 切换技能目录平台，并重置子选择器和条目选中位置。
     pub(crate) fn set_skill_provider(&mut self, provider: SkillsDirectoryProvider) {
         self.skill_provider = provider;
         self.can_toggle = provider == SkillsDirectoryProvider::Vibewindow;
@@ -123,6 +139,7 @@ impl IntegrationPanel {
         self.selected = 0;
     }
 
+    /// 仅在技能面板中打开平台选择器。
     pub(crate) fn open_skill_provider_picker(&mut self) -> bool {
         if self.kind != IntegrationKind::Skill {
             return false;
@@ -159,6 +176,7 @@ impl IntegrationPanel {
     }
 }
 
+/// 折叠空白并遮蔽常见凭据形式，供集成详情与错误文本入界面前使用。
 pub(crate) fn sanitize_integration_text(text: &str) -> String {
     text.split_whitespace()
         .map(|word| {

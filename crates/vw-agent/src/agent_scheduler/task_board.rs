@@ -23,6 +23,7 @@ use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentScheduler
 
 const DEFAULT_IMPORT_MODEL: &str = "auto";
 
+/// 将原生任务映射为调度任务并持久化，必要时生成不冲突的新标识。
 pub fn create_native_task(
     store: &AgentSchedulerStore,
     context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -87,6 +88,7 @@ pub fn create_native_task(
     load_native_task(store, context, &task_id)?.context("created native task disappeared")
 }
 
+/// 从调度存储恢复原生任务；不存在时返回 `Ok(None)`。
 pub fn load_native_task(
     store: &AgentSchedulerStore,
     context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -98,6 +100,7 @@ pub fn load_native_task(
         .transpose()
 }
 
+/// 列出当前作用域内可投影为原生任务的记录。
 pub fn list_native_tasks(
     store: &AgentSchedulerStore,
     context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -265,15 +268,18 @@ fn metadata_bool(metadata: &Value, key: &str) -> bool {
     metadata.get(key).and_then(Value::as_bool).unwrap_or_default()
 }
 
+/// 执行看板移动、归档、人员分派和阶段动作的应用服务。
 pub struct AgentTaskBoardService<'a> {
     store: &'a AgentSchedulerStore,
 }
 
+/// 看板写入后的任务快照及同步追加的审计事件。
 pub struct AgentTaskBoardWriteOutcome {
     pub task: StoredAgentTask,
     pub event: StoredAgentEvent,
 }
 
+/// 一批旧任务导入后的成功记录与拒绝原因。
 pub struct AgentTaskBoardLegacyImportOutcome {
     pub imported: u32,
     pub skipped: u32,
@@ -286,6 +292,7 @@ impl<'a> AgentTaskBoardService<'a> {
         Self { store }
     }
 
+    /// 按工作流状态键移动任务，并在同一事务语义下记录状态事件。
     pub fn move_task(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -337,6 +344,7 @@ impl<'a> AgentTaskBoardService<'a> {
         )?))
     }
 
+    /// 应用受限元数据补丁，不允许借此绕过专用状态转换入口。
     pub fn update_metadata(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -416,6 +424,7 @@ impl<'a> AgentTaskBoardService<'a> {
         )?))
     }
 
+    /// 将任务移动到归档状态以实现可恢复的软删除。
     pub fn soft_delete_task(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -448,6 +457,7 @@ impl<'a> AgentTaskBoardService<'a> {
         )?))
     }
 
+    /// 将已归档任务恢复到工作流允许的目标状态。
     pub fn restore_task(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -560,6 +570,7 @@ impl<'a> AgentTaskBoardService<'a> {
         Ok(Some(AgentTaskBoardWriteOutcome { task: updated, event }))
     }
 
+    /// 校验并执行阶段能力动作，再按动作结果推进工作流。
     pub fn run_stage_action(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -695,6 +706,7 @@ impl<'a> AgentTaskBoardService<'a> {
         Ok(Some(AgentTaskBoardWriteOutcome { task: updated, event }))
     }
 
+    /// 批量导入旧任务；单项失败会记录原因而不丢弃其它成功项。
     pub fn import_legacy_tasks(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),

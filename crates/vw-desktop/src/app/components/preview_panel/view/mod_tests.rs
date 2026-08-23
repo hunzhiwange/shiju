@@ -1,3 +1,6 @@
+//! 验证预览面板视图的内容选择、菜单状态与覆盖层组合。
+//! 通过空标签、活动文件和多覆盖层状态检查入口的组合优先级。
+
 use super::{
     fullscreen_icon_style, fullscreen_tooltip_style, overlay_icon_button_style,
     preview_breadcrumb_segments, show_fullscreen_controls, view,

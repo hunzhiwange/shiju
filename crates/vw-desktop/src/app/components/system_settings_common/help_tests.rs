@@ -1,3 +1,6 @@
+//! 验证设置帮助与关闭按钮、复制状态及模态层的主题样式。
+//! 复制状态按帮助内容精确匹配，避免无关帮助项错误显示成功反馈。
+
 use crate::app::assets::Icon;
 use crate::app::{App, Message};
 use iced::widget::{button, svg, text};

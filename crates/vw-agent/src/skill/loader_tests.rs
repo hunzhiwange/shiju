@@ -1,10 +1,12 @@
 //! 验证旧版技能加载时的元数据解析、约束与错误边界。
+//! 元数据模式不得加载完整提示正文；首选清单损坏时也不能悄然退回另一格式。
 
 use super::*;
 use crate::app::agent::skill::types::{
     SkillLoadMode, SkillRuntimeConfig, SkillsConfig, SkillsPromptInjectionMode,
 };
 
+// 元数据模式与完整模式共用解析器，但前者不得把提示正文带入发现阶段。
 #[test]
 fn open_skill_markdown_uses_file_stem_and_metadata_defaults() {
     let dir = tempfile::tempdir().expect("temp dir");
@@ -257,6 +259,7 @@ fn directory_loading_applies_explicit_manifest_and_content_policy() {
     assert_eq!(skills[0].name, "safe");
 }
 
+// 首选格式存在但损坏时直接报错，避免回退掩盖维护者提供的坏清单。
 #[test]
 fn directory_loading_does_not_fall_back_when_preferred_toml_cannot_load() {
     let dir = tempfile::tempdir().expect("temp dir");

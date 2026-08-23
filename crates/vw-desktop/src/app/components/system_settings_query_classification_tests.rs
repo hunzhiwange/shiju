@@ -1,3 +1,7 @@
+//! 验证查询分类规则卡片、模型路由选择和编辑消息连线。
+//!
+//! 规则夹具覆盖空列表、单条和模型路由，源码连线检查用于防止编辑消息遗漏。
+
 use super::*;
 use crate::app::state::{ModelRoute, QueryClassificationRuleInput};
 use iced::Element;

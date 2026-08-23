@@ -1,4 +1,5 @@
 //! 验证计算机操作请求执行、策略元数据、响应和截图落盘。
+//! 本地伪 sidecar 记录完整 HTTP 请求，验证认证裁剪、策略元数据、截图路径和断连上下文。
 
 use super::*;
 use crate::app::agent::security::SecurityPolicy;
@@ -7,6 +8,7 @@ use tempfile::TempDir;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
+// 原始 TCP 夹具保留请求字节，避免高级 HTTP 客户端替测试自动修正非法响应。
 async fn read_http_request(stream: &mut tokio::net::TcpStream) -> String {
     let mut buffer = Vec::new();
     let mut chunk = [0_u8; 1024];
@@ -173,6 +175,7 @@ async fn execute_action_posts_policy_metadata_trimmed_auth_and_structured_data()
 }
 
 #[tokio::test]
+// 输出路径解析必须发生在请求 sidecar 之前，确保路径逃逸不会产生网络副作用。
 async fn execute_action_resolves_screen_capture_path_inside_workspace() {
     let workspace = TempDir::new().unwrap();
     let mut security = SecurityPolicy::default();

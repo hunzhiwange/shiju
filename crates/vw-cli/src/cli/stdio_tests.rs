@@ -1,3 +1,7 @@
+//! CLI 标准输入输出重定向守卫的平台边界测试。
+//! Unix 下覆盖非法路径、目录冲突、NUL 字节、父目录创建以及守卫生命期内的追加写入。
+//! 非 Unix 平台则明确约束为无操作，避免测试暗示不存在的重定向能力。
+
 use super::stdio::StdIoRedirectGuard;
 
 #[cfg(unix)]

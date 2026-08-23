@@ -1,3 +1,6 @@
+// 验证快捷消息的有序增删改与保存内容校验。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::state::ToastKind;
 
@@ -13,6 +16,8 @@ fn quick_message(text: &str) -> QuickMessageConfig {
     }
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn quick_message_settings_mutations_are_ordered_and_bounds_safe() {
     let mut app = app();
@@ -71,6 +76,8 @@ fn quick_message_settings_mutations_are_ordered_and_bounds_safe() {
     assert_eq!(app.quick_messages, snapshot);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn quick_message_settings_save_validates_content_and_reports_result() {
     let mut app = app();

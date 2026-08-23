@@ -1,3 +1,6 @@
+//! 验证相对时间按分钟至年份分桶并生成对应本地化标签。
+//! 零值、未来时间和各单位切换点用于锁定边界归属而非只检查区间中值。
+
 use super::time::{
     format_chat_time_label, project_last_modified_ms, relative_modified_label,
     relative_time_bucket, relative_time_label, relative_time_label_for_bucket,

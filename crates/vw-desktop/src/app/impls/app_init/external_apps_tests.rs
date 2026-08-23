@@ -1,3 +1,7 @@
+//! 验证启动阶段外部应用配置的加载与状态初始化。
+//!
+//! 外部应用列表包含有效、缺失与异常配置，用于约束初始化时的过滤和错误反馈。
+
 use super::*;
 use crate::app::state::RuntimePlatform;
 use serde_json::json;

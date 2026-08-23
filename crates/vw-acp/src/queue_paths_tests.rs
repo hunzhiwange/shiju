@@ -1,4 +1,6 @@
 //! 验证队列键散列、主目录作用域和跨平台套接字路径规则。
+//!
+//! 环境变量守卫隔离主目录来源，避免读取或污染真实用户路径。
 
 use super::*;
 use std::ffi::OsString;
@@ -32,6 +34,7 @@ impl Drop for EnvVarGuard {
     }
 }
 
+// 下列行为用例覆盖稳定散列、路径隐藏、平台差异和缺失主目录。
 #[test]
 fn queue_key_for_session_is_stable_short_hash() {
     let key = queue_key_for_session("session-1");

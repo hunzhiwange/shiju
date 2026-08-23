@@ -1,4 +1,5 @@
 //! 验证技能调用结果携带完整提示内容并拒绝不可由模型调用的技能。
+//! 临时技能 fixture 同时提供目录与说明文件，用于约束元消息中的来源信息。
 
 use super::invocation::build_invocation_result;
 use crate::app::agent::skills::Skill;

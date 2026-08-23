@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 入站附件元数据选择、下载与消息内容拼装。
+
 use super::TelegramChannel;
 use super::attachments::{IncomingAttachmentKind, TELEGRAM_MAX_FILE_DOWNLOAD_BYTES};
 use axum::{
@@ -122,6 +124,7 @@ fn test_channel(base_url: &str, workspace: &std::path::Path) -> TelegramChannel 
 }
 
 #[test]
+// 照片存在多个尺寸变体，入站解析选择信息最完整的一项。
 fn parse_attachment_metadata_selects_largest_photo_variant() {
     let message = serde_json::json!({
         "photo": [
@@ -461,4 +464,3 @@ async fn try_parse_attachment_message_requires_workspace_dir() {
 
     assert!(channel.try_parse_attachment_message(&update).await.is_none());
 }
-// 本文件验证 Telegram 入站附件元数据选择、下载与消息内容拼装。

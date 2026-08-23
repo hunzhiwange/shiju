@@ -1,4 +1,6 @@
 //! 租户网关设置存储门面，按命名空间管理 SQLite 或 PostgreSQL 数据。
+//!
+//! 命名空间和配置键在进入 SQL 前拒绝空白值，列表结果按配置键稳定排序。
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -30,12 +32,16 @@ COMMIT;
 "#;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 单条网关设置的键和值。
 pub(crate) struct GatewaySetting {
+    /// 命名空间内的配置键。
     pub(crate) config_key: String,
+    /// 原始 JSON 载荷。
     pub(crate) payload_json: String,
 }
 
 #[derive(Debug, Clone)]
+/// 后端无关的租户网关设置仓库。
 pub(crate) struct GatewaySettingsStore {
     provider: GatewaySettingsStoreProvider,
 }
@@ -47,6 +53,7 @@ enum GatewaySettingsStoreProvider {
 }
 
 impl GatewaySettingsStore {
+    /// 初始化与数据库提供者匹配的表结构。
     pub(crate) fn new(database: GlobalDatabase) -> Result<Self> {
         let provider = match database.provider() {
             DatabaseProvider::Sqlite => {
@@ -65,6 +72,7 @@ impl GatewaySettingsStore {
         Ok(Self { provider })
     }
 
+    /// 读取单条设置；不存在时返回 `None`。
     pub(crate) fn get(
         &self,
         tenant: &TenantScope,
@@ -100,6 +108,7 @@ impl GatewaySettingsStore {
         }
     }
 
+    /// 新增或覆盖一条设置并刷新时间戳。
     pub(crate) fn upsert(
         &self,
         tenant: &TenantScope,
@@ -142,6 +151,7 @@ impl GatewaySettingsStore {
         }
     }
 
+    /// 删除单条设置并返回是否命中记录。
     pub(crate) fn delete(
         &self,
         tenant: &TenantScope,
@@ -175,6 +185,7 @@ impl GatewaySettingsStore {
         }
     }
 
+    /// 按配置键排序列出命名空间内全部设置。
     pub(crate) fn list(
         &self,
         tenant: &TenantScope,

@@ -8,6 +8,7 @@ use super::PostgresKnowledgeStore;
 use super::datasets::i64_from_u64;
 
 impl PostgresKnowledgeStore {
+    /// 读取租户内的向量缓存，并在命中时刷新最近访问时间。
     pub(in crate::knowledge::store) fn read_embedding_cache(
         &self,
         tenant: &TenantScope,
@@ -42,6 +43,7 @@ impl PostgresKnowledgeStore {
         Ok(embedding)
     }
 
+    /// 写入或更新租户向量缓存，并按容量上限淘汰最久未访问记录。
     pub(in crate::knowledge::store) fn write_embedding_cache(
         &self,
         tenant: &TenantScope,

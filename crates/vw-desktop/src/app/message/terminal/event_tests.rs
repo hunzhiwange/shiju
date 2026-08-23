@@ -1,6 +1,11 @@
+// 验证终端拖拽开始事件对光标与高度快照的记录。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::apply_drag_started;
 use crate::app::TerminalState;
 
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -8,6 +13,8 @@ fn test_module_is_wired() {
     assert!(module.ends_with("event_tests"));
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn drag_started_records_cursor_and_current_height() {
     let mut terminal = TerminalState::default();
@@ -35,6 +42,8 @@ fn drag_started_replaces_stale_drag_snapshot_at_boundary_values() {
     assert_eq!(terminal.drag_start_height, 0.0);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn drag_started_update_uses_app_cursor_and_terminal_height() {
     let (mut app, _task) = crate::app::App::new();
@@ -48,6 +57,8 @@ fn drag_started_update_uses_app_cursor_and_terminal_height() {
     assert_eq!(app.terminal.drag_start_height, 288.0);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_event_message_preserves_drag_state() {
     let (mut app, _task) = crate::app::App::new();

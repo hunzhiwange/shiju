@@ -1,4 +1,5 @@
 //! 测试调度领域标识、状态值和记录类型的校验与序列化契约。
+//! 往返序列化覆盖合法值和拒绝路径，防止存储字符串与领域枚举悄然漂移。
 
 use serde_json::json;
 use vw_api_types::agent_scheduler::{

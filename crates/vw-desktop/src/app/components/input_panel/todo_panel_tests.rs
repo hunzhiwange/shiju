@@ -1,3 +1,6 @@
+//! 验证待办面板的数据选择、排序、完成计数与折叠展示边界。
+//! 会话匹配、数字和文本编号混排以及活动请求回退共同约束数据来源优先级。
+
 use super::todo_panel::{
     TodoPanelSurface, compute_todo_data, read_todos_for_panel, todo_id_display, todo_panel,
     todo_status_pill_colors, todo_task_text_color,

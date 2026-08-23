@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 身份规范化、绑定持久化与托管服务重启结果。
+
 use super::*;
 use crate::app::agent::config::SystemConfigStore;
 use crate::global_database::GlobalDatabase;
@@ -103,6 +105,7 @@ async fn bind_telegram_identity_is_noop_when_identity_already_allowed() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+// 绑定写入前统一身份格式，避免持久化等价重复项。
 async fn bind_telegram_identity_persists_normalized_new_identity() {
     let _async_env_guard = crate::test_support::global_async_env_lock().lock().await;
     let _env_guard = env_lock();
@@ -134,4 +137,3 @@ async fn bind_telegram_identity_keeps_wildcard_and_persists_new_identity() {
 
     assert_eq!(persisted_allowed_users(tmp.path()), vec!["*", "@alice", "carol"]);
 }
-// 本文件验证 Telegram 身份规范化、绑定持久化与托管服务重启结果。

@@ -1,3 +1,6 @@
+// 验证公共技能来源切换、精选轮播与安装项目选择。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use vw_gateway_client::{
     DesktopSkillCatalogEntryDto, SkillMarketCoordinateDto, SkillMarketInstallScopeDto,
     SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillDetailDto,
@@ -57,6 +60,8 @@ fn loaded_sources(state: &mut PublicSkillMarketState) {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn public_skill_tabs_ignore_stale_cross_source_results() {
     let mut state = PublicSkillMarketState::default();
@@ -80,6 +85,8 @@ fn public_skill_tabs_ignore_stale_cross_source_results() {
     ));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn public_skill_detail_can_switch_install_project_without_switching_workspace() {
     let (mut app, _) = App::new();
@@ -143,6 +150,8 @@ fn featured_rotation_wraps_without_gateway_reload() {
     assert_eq!(state.featured_offset, 0);
 }
 
+// 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
+// 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
 #[test]
 fn market_detail_installs_skill_or_suite_through_gateway() {
     let mut state = PublicSkillMarketState::default();
@@ -293,6 +302,8 @@ fn installed(id: &str) -> DesktopSkillCatalogEntryDto {
     }
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn batch_delete_requires_confirmation_and_reports_partial_failure() {
     let mut state = PublicSkillMarketState::default();

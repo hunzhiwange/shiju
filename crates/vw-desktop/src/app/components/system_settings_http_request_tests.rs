@@ -1,3 +1,6 @@
+//! 验证 HTTP 请求设置的数值归一化、允许列表与控件布局。
+//! 非整数和越界输入先舍入再限制，域名列表保持一项对应一行。
+
 use super::*;
 use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -5,6 +8,7 @@ use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
+// HTTP 设置用统一空允许列表作为基线，再分别覆盖零值和上界配置。
 fn test_app() -> App {
     App::new().0
 }

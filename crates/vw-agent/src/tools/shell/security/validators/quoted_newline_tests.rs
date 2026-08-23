@@ -1,4 +1,5 @@
 //! 验证引号内换行校验器阻断跨行载荷并允许普通引号文本。
+//! 该规则补足通用换行注入检查对引用区域有意保留的职责边界。
 
 use super::quoted_newline::QuotedNewlineValidator;
 use crate::tools::shell::ast::parse_command;

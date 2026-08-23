@@ -13,6 +13,7 @@ use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::tasks::{NewAgentTask, StoredAgentTask};
 
 #[derive(Debug, Clone, Default)]
+/// 在限定根目录下写出任务元数据、规格和结果模板。
 pub struct TaskArtifactWriter;
 
 impl TaskArtifactWriter {
@@ -20,6 +21,7 @@ impl TaskArtifactWriter {
         Self
     }
 
+    /// 为有限任务写出三类标准产物，并返回规范化路径。
     pub fn write_task_artifacts(
         &self,
         artifact_root: &Path,
@@ -41,6 +43,7 @@ impl TaskArtifactWriter {
         Ok(TaskArtifactPaths { meta_json, spec_md, result_md })
     }
 
+    /// 从旧任务目录读取并校验 `meta.json` 与 `spec.md`。
     pub fn import_legacy_task(&self, task_dir: &Path) -> Result<ImportedLegacyTask> {
         let meta_path = task_dir.join("meta.json");
         let spec_path = task_dir.join("spec.md");
@@ -86,6 +89,7 @@ impl TaskArtifactWriter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 一次产物写入生成的标准文件路径。
 pub struct TaskArtifactPaths {
     pub meta_json: PathBuf,
     pub spec_md: PathBuf,
@@ -93,12 +97,14 @@ pub struct TaskArtifactPaths {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 从旧格式恢复出的新任务输入及原始规格正文。
 pub struct ImportedLegacyTask {
     pub task: NewAgentTask,
     pub spec: TaskArtifactSpec,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 写入 Markdown 产物所需的稳定任务规格字段。
 pub struct TaskArtifactSpec {
     pub requirements: String,
     pub acceptance_criteria: Vec<String>,

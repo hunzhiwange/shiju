@@ -1,4 +1,6 @@
 //! 租户系统配置存储门面，在 SQLite 与 PostgreSQL 后端间保持统一契约。
+//!
+//! 全局配置按租户键隔离，项目覆盖额外以规范化项目路径区分；空路径会被明确拒绝。
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -37,6 +39,7 @@ COMMIT;
 "#;
 
 #[derive(Debug, Clone)]
+/// 系统配置的后端无关存储入口。
 pub struct SystemConfigStore {
     provider: SystemConfigStoreProvider,
 }
@@ -48,6 +51,7 @@ enum SystemConfigStoreProvider {
 }
 
 impl SystemConfigStore {
+    /// 初始化与数据库提供者匹配的表结构和存储实现。
     pub fn new(database: GlobalDatabase) -> Result<Self> {
         let provider = match database.provider() {
             DatabaseProvider::Sqlite => {
@@ -66,6 +70,7 @@ impl SystemConfigStore {
         Ok(Self { provider })
     }
 
+    /// 读取租户全局配置的原始 JSON；记录不存在时返回 `None`。
     pub fn get(&self, tenant: &TenantScope) -> Result<Option<String>> {
         match &self.provider {
             SystemConfigStoreProvider::Sqlite(database) => {
@@ -85,6 +90,7 @@ impl SystemConfigStore {
         }
     }
 
+    /// 新增或覆盖租户全局配置，并刷新更新时间。
     pub fn upsert(&self, tenant: &TenantScope, payload_json: &str) -> Result<()> {
         let updated_at_ms = current_timestamp_ms()?;
         match &self.provider {
@@ -114,6 +120,7 @@ impl SystemConfigStore {
         }
     }
 
+    /// 读取租户在指定项目路径下的覆盖 JSON。
     pub fn get_project(&self, tenant: &TenantScope, project_path: &str) -> Result<Option<String>> {
         validate_project_path(project_path)?;
         match &self.provider {
@@ -138,6 +145,7 @@ impl SystemConfigStore {
         }
     }
 
+    /// 新增或覆盖租户项目配置；空白项目路径会被拒绝。
     pub fn upsert_project(
         &self,
         tenant: &TenantScope,

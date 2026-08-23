@@ -38,6 +38,7 @@ fn remove(id: &str) {
     crate::app::agent::project::remove_local_test_project(id).expect("cleanup should succeed");
 }
 
+// 单图标夹具负责注册项目并回读持久化结果，统一验证完整发现链路。
 async fn discover_single_icon(file_name: &str, bytes: &[u8]) -> String {
     let temp = TempDir::new().expect("tempdir should create");
     std::fs::write(temp.path().join(file_name), bytes).expect("icon should write");
@@ -185,6 +186,7 @@ async fn discover_propagates_favicon_read_permission_error() {
 
 #[cfg(unix)]
 #[tokio::test]
+// 发现过程不跟随目录符号链接，避免扫描逃出项目根目录。
 async fn discover_does_not_follow_symlinked_directories() {
     let root = TempDir::new().expect("root tempdir should create");
     let external = TempDir::new().expect("external tempdir should create");

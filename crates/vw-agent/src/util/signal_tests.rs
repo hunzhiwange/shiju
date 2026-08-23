@@ -1,4 +1,5 @@
 //! 验证信号在触发前后均可可靠唤醒等待方。
+//! 手动轮询路径确保注册唤醒器后再触发时不会丢失通知。
 
 use super::signal::Signal;
 use std::future::Future;

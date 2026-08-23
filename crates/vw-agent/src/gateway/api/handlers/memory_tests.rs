@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 
+// 记录型内存后端同时保存调用参数与结果，用于区分列表、召回和删除分支。
 #[test]
 fn exported_handlers_are_available() {
     let _ = handle_api_memory_list;
@@ -435,6 +436,7 @@ async fn memory_delete_returns_deleted_flag() {
     assert_eq!(mem.forgotten.lock().as_slice(), &["known".to_string()]);
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn memory_delete_preserves_false_for_missing_key() {
     let mem = Arc::new(RecordingMemory::default());

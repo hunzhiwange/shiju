@@ -1,4 +1,5 @@
 //! 验证原生浏览器会话创建、复用、关闭及启动参数。
+//! 握手请求固定无头参数与浏览器二进制；复用会话不得再次握手，关闭失败仍清空本地状态。
 
 use super::*;
 use axum::{
@@ -10,6 +11,7 @@ use axum::{
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 
+// 夹具捕获握手与关闭请求，用于证明会话复用不会重复创建浏览器实例。
 #[derive(Clone, Debug)]
 struct CapturedRequest {
     method: Method,
@@ -235,6 +237,7 @@ async fn reset_session_closes_active_client_and_clears_state() {
 }
 
 #[tokio::test]
+// 远端关闭失败后仍清空本地句柄，避免后续操作复用状态未知的会话。
 async fn reset_session_clears_state_when_webdriver_close_fails() {
     let stub = WebDriverStub::spawn_with_close_status(StatusCode::INTERNAL_SERVER_ERROR).await;
     let mut state = NativeBrowserState::default();

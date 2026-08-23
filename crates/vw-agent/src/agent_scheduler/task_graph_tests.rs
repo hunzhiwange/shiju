@@ -1,4 +1,5 @@
 //! 测试任务图的拓扑校验和基于运行状态的就绪推导。
+//! 自环、环路、缺失节点和运行终态分别验证，防止错误依赖被静默忽略。
 
 use super::domain::TaskId;
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};

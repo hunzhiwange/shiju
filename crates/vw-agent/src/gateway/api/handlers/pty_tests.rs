@@ -8,6 +8,7 @@ fn instance_query(temp: &tempfile::TempDir) -> Query<InstanceQuery> {
     Query(InstanceQuery { directory: Some(temp.path().to_string_lossy().to_string()) })
 }
 
+// 会话标识和进程状态分别构造，确保输入、调整尺寸和清理只作用于目标终端。
 #[test]
 fn router_builds_with_app_state() {
     let _: axum::Router<()> = router();

@@ -1,4 +1,6 @@
 // 验证记忆后端工厂、配置选择与统一接口行为。
+
+// 环境配置中的密钥只通过脱敏调试输出观察，空覆盖不会抹掉有效基础配置。
 use super::*;
 use crate::app::agent::config::{EmbeddingRouteConfig, MemoryConfig, StorageProviderConfig};
 use std::sync::{Mutex, MutexGuard};
@@ -6,6 +8,7 @@ use tempfile::TempDir;
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
+// 环境覆盖守卫在析构时恢复原值，避免嵌入配置测试污染进程状态。
 struct EnvOverride {
     previous: Vec<(&'static str, Option<String>)>,
     _guard: MutexGuard<'static, ()>,
@@ -154,6 +157,7 @@ fn resolve_embedding_config_trims_routes_and_falls_back_to_base_key() {
 }
 
 #[test]
+// 未知路由或无效配置回退到基础嵌入设置，但不会回显 API 密钥。
 fn resolve_embedding_config_uses_fallback_for_unknown_or_invalid_routes() {
     let cfg = MemoryConfig {
         embedding_provider: "openai".to_string(),

@@ -1,5 +1,7 @@
 //! ApiQL 虚拟字段解析层，执行内置逻辑或实体限定的 Rhai 规则。
 //!
+//! 字段查找兼容原名、点号规范化、驼峰与蛇形名称，但脚本路径仍限制在实体目录内。
+//!
 //! ApiQL virtual field resolver execution.
 
 use std::path::{Path, PathBuf};
@@ -15,6 +17,7 @@ use super::schema::ApiQlResolvedEntity;
 
 const VIRTUALS_KEY: &str = "virtuals";
 
+/// 按兼容命名规则查找实体虚拟字段。
 pub(crate) fn virtual_field<'a>(
     entity: ApiQlResolvedEntity<'a>,
     field_name: &str,
@@ -31,6 +34,7 @@ pub(crate) fn virtual_field<'a>(
     })
 }
 
+/// 解析一个虚拟字段值，优先业务实体逻辑，再执行声明式规则。
 pub(crate) fn resolve_virtual_field_value(
     entity: ApiQlResolvedEntity<'_>,
     field: &ApiQlFieldConfig,

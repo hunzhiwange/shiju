@@ -1,3 +1,6 @@
+//! 验证代理身份字段、头像选择与编辑消息的映射。
+//! 空身份、预设头像和自定义值用于约束展示回退及保存负载。
+
 use super::identity::{
     default_workspace_identity_root, format_file_size, identity_file_is_enabled, view,
     workspace_identity_hint, workspace_identity_meta_line,

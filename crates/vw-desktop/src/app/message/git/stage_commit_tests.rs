@@ -1,3 +1,6 @@
+// 验证暂存选择、提交表单及变更行筛选的消息处理。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use crate::app::message::git::GitMessage;
 use crate::app::state::ConventionalCommitType;
 use iced::widget::text_editor;
@@ -22,6 +25,8 @@ fn changed_file_fixture(old_content: &str, new_content: &str) -> tempfile::TempD
     temp
 }
 
+// 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
+// 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
 #[test]
 fn commit_form_messages_update_fields_and_modals() {
     let (mut app, _task) = crate::app::App::new();
@@ -157,6 +162,8 @@ fn clear_all_file_lines_only_removes_matching_file() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn select_all_file_lines_replaces_only_target_with_changed_lines() {
     let temp = changed_file_fixture("keep\nold\nremove\n", "keep\nnew\n");
@@ -259,6 +266,8 @@ fn commit_all_reuses_commit_validation() {
     assert_eq!(app.error_message.as_deref(), Some("提交消息不能为空"));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn stage_all_requires_project_context_and_reports_finished_states() {
     let (mut app, _task) = crate::app::App::new();
@@ -372,6 +381,8 @@ fn commit_selected_finished_success_resets_form_and_reports_success() {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn commit_selected_finished_error_keeps_form_and_reports_error() {
     let (mut app, _task) = crate::app::App::new();

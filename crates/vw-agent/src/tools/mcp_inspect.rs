@@ -23,6 +23,9 @@ struct ServerInspectPayload {
     prompts_error: Option<String>,
 }
 
+/// 检查已解析配置中的全部 MCP 服务器并汇总各能力状态。
+///
+/// 单项探测失败只记录在对应服务器字段中，不中断其他服务器或能力检查。
 pub async fn inspect_mcp_servers(config: &vw_acp::ResolvedAcpxConfig) -> McpInspectResponse {
     let mut servers = Vec::with_capacity(config.mcp_servers.len());
 
@@ -83,6 +86,7 @@ pub async fn inspect_mcp_servers(config: &vw_acp::ResolvedAcpxConfig) -> McpInsp
     McpInspectResponse { servers }
 }
 
+/// 从工作区解析 MCP 配置后执行检查。
 pub async fn inspect_mcp_servers_from_workspace(
     workspace_dir: impl AsRef<std::path::Path>,
 ) -> anyhow::Result<McpInspectResponse> {

@@ -1,7 +1,10 @@
 //! 通道监听任务的监督循环，负责健康心跳与失败后的退避重启。
+//!
+//! 监听返回或失败后不会结束监督任务，而是按上限受控的指数退避重新进入监听。
 
 use super::*;
 
+/// 使用生产健康心跳间隔启动受监督的通道监听任务。
 pub(crate) fn spawn_supervised_listener(
     ch: Arc<dyn Channel>,
     tx: tokio::sync::mpsc::Sender<traits::ChannelMessage>,
@@ -17,6 +20,7 @@ pub(crate) fn spawn_supervised_listener(
     )
 }
 
+/// 使用显式心跳间隔启动监听任务，主要供可控时钟测试复用。
 pub(crate) fn spawn_supervised_listener_with_health_interval(
     ch: Arc<dyn Channel>,
     tx: tokio::sync::mpsc::Sender<traits::ChannelMessage>,

@@ -1,7 +1,11 @@
+//! 验证心跳设置的启停、间隔边界、投递配置与帮助覆盖层。
+//! 空输入和极限间隔用于确认调度配置仍被分组到独立面板。
+
 use super::*;
 use crate::app::App;
 use iced::advanced::widget::Tree;
 
+// 心跳页面基线关闭调度，各用例显式开启所需配置以突出条件分支。
 fn test_app() -> App {
     App::new().0
 }

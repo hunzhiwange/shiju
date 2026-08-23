@@ -1,4 +1,6 @@
 //! 验证代理启动和建会话超时配置的回退规则与诊断提示。
+//!
+//! 串行环境变量锁隔离进程级配置，避免超时用例相互污染。
 
 use std::ffi::OsString;
 use std::sync::{LazyLock, Mutex, MutexGuard};
@@ -44,6 +46,7 @@ impl Drop for EnvGuard {
     }
 }
 
+// 下列行为用例覆盖默认值、合法覆盖、非法回退和认证提示条件。
 #[test]
 fn gemini_startup_timeout_uses_default_when_env_missing() {
     let _lock = timeout_env_test_lock();

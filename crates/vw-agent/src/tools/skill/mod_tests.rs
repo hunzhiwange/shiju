@@ -1,4 +1,5 @@
 //! 验证技能工具的显式引用识别、可见性过滤、路径定位与提示序列化。
+//! 测试区分用户授权、运行时临时选择和代理委派，防止技能能力被静默扩大。
 
 use super::{
     Args, SkillTool, available_skill_names, base_dir_url, block_on,
@@ -27,6 +28,7 @@ fn skill(name: &str, location: Option<PathBuf>, prompts: Vec<&str>) -> Skill {
     }
 }
 
+// 基础 fixture 默认保持可调用，权限差异由各用例显式覆盖。
 #[test]
 fn schema_requires_skill_string() {
     let schema = SkillTool::schema();

@@ -1,3 +1,5 @@
+//! 展示本地已安装技能，并提供启停与卸载操作入口。
+
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, checkbox, column, container, responsive, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
@@ -176,6 +178,7 @@ fn toolbar(app: &App, count: usize) -> Element<'static, Message> {
     .into()
 }
 
+/// 展示本地技能目录，并只允许选择具有可管理来源路径的条目。
 pub(super) fn view(app: &App) -> Element<'_, Message> {
     let state = &app.expert_hub.public_market;
     let installed = match &state.installed {
@@ -247,6 +250,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         .into()
 }
 
+/// 在批量删除请求存在时叠加不可逆操作确认框。
 pub(super) fn with_delete_confirmation<'a>(
     app: &'a App,
     base: Element<'a, Message>,

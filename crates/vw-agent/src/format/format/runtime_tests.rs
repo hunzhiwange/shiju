@@ -1,6 +1,7 @@
 // 覆盖格式化运行时缓存、命令执行及失败容错。
 
 #[cfg(not(target_arch = "wasm32"))]
+// 临时项目和可执行文件夹具用于验证真实探测顺序、缓存命中与失败回退。
 #[test]
 fn format_runtime_is_singleton() {
     let first = super::runtime::format_runtime() as *const _;
@@ -134,6 +135,7 @@ async fn format_file_runs_enabled_formatter_with_replaced_file_argument() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 格式化器不可用或执行失败时保留原文件，并继续评估其它匹配项。
 #[tokio::test]
 async fn format_file_applies_formatter_environment_and_continues_after_failure() {
     let _lock = env_lock();

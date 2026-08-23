@@ -9,6 +9,9 @@ use super::audit::{canonical_plugin_root, plugin_manifest_path, resolve_componen
 use super::types::{PluginAuthor, PluginInterface, PluginManifest, PluginPath};
 
 /// Load and statically audit a local VibeWindow plugin manifest.
+/// 从插件根目录读取、解析并规范化插件清单。
+///
+/// 所有组件路径在返回前均完成静态审计，调用方无需再次解析原始相对路径。
 pub fn load_plugin_manifest(plugin_root: &Path) -> Result<PluginManifest> {
     let canonical_root = canonical_plugin_root(plugin_root)?;
     let manifest_path = plugin_manifest_path(&canonical_root)?;

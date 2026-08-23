@@ -1,3 +1,6 @@
+//! 验证空会话占位内容、工作区标题及明暗主题胶囊样式。
+//! 亮度阈值两侧和恰好位于阈值的主题 fixture 用于锁定严格比较语义。
+
 use super::{
     empty_session_placeholder, empty_session_title, is_dark_theme, placeholder_chip_style,
     session_loading_placeholder,

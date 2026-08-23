@@ -1,4 +1,5 @@
-//! 测试 PostgreSQL 事件存储的追加、筛选与分页行为。
+//! 测试 PostgreSQL 事件行映射保留可选标识、状态键和载荷。
+//! 未知事件类型与畸形 JSON 必须作为存储损坏显式返回。
 
 use anyhow::Result;
 use serde_json::json;

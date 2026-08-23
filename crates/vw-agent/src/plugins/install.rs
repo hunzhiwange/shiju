@@ -18,12 +18,14 @@ thread_local! {
 
 /// Result of a local plugin installation.
 #[derive(Debug, Clone, PartialEq)]
+/// 插件安装成功后返回的规范化清单与最终目录。
 pub struct PluginInstallResult {
     pub installed_dir: PathBuf,
     pub manifest: PluginManifest,
 }
 
 /// Return the plugin installation directory for a loaded runtime config.
+/// 根据配置解析本地插件安装根目录。
 pub(crate) fn install_dir_from_config(config: &crate::config::Config) -> PathBuf {
     config
         .config_path
@@ -34,6 +36,9 @@ pub(crate) fn install_dir_from_config(config: &crate::config::Config) -> PathBuf
 }
 
 /// Install a plugin package from a local directory source.
+/// 从本地目录安全复制并安装插件。
+///
+/// 安装先进入临时目录并再次审计清单，全部通过后才原子移动到最终位置。
 pub fn install_plugin_from_source(source: &str, plugins_dir: &Path) -> Result<PluginInstallResult> {
     let source = source.trim();
     if source.is_empty() {
@@ -99,6 +104,7 @@ pub(super) fn set_next_post_copy_audit_result_for_test(result: Result<PluginMani
 }
 
 /// Enable or disable an installed plugin by toggling its marker file.
+/// 写入或移除禁用标记以切换已安装插件状态。
 pub fn set_plugin_enabled(plugins_dir: &Path, name: &str, enabled: bool) -> Result<()> {
     let plugin_dir = plugin_dir_for_name(plugins_dir, name)?;
     ensure_installed_plugin_dir(&plugin_dir, name)?;
@@ -121,6 +127,7 @@ pub fn set_plugin_enabled(plugins_dir: &Path, name: &str, enabled: bool) -> Resu
 }
 
 /// Remove an installed plugin and its disabled marker.
+/// 删除经过名称与目录归属校验的已安装插件。
 pub fn remove_installed_plugin(plugins_dir: &Path, name: &str) -> Result<()> {
     let plugin_dir = plugin_dir_for_name(plugins_dir, name)?;
     ensure_installed_plugin_dir(&plugin_dir, name)?;
@@ -139,6 +146,7 @@ pub fn remove_installed_plugin(plugins_dir: &Path, name: &str) -> Result<()> {
     Ok(())
 }
 
+/// 返回插件禁用标记的稳定路径。
 pub(crate) fn disabled_marker_path(plugins_dir: &Path, name: &str) -> PathBuf {
     plugins_dir.join(format!("{name}{DISABLED_MARKER_SUFFIX}"))
 }

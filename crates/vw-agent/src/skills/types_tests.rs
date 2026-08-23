@@ -1,4 +1,5 @@
 //! 验证新版技能公共类型的默认值、序列化与能力字段。
+//! 类型夹具固定默认别名、版本回退、工具声明和提示注入模式。
 
 use super::*;
 use crate::app::agent::config::SkillsPromptInjectionMode;

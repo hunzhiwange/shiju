@@ -1,4 +1,6 @@
 // 覆盖 PostgreSQL 记忆读写语句、分类序列化与输入保留。
+
+// SQL 使用绑定参数并保留用户文本，召回前只裁剪查询两端空白。
 use super::*;
 use crate::memory::traits::MemoryCategory;
 

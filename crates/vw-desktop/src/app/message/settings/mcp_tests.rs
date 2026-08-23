@@ -1,3 +1,6 @@
+// 验证 MCP 服务配置、传输字段与覆盖项的精确校验。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::McpSettingsTab;
@@ -7,6 +10,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn validate_mcp_servers_reports_precise_paths_for_invalid_common_fields() {
     let cases = [
@@ -187,6 +192,8 @@ fn set_server_enabled_rejects_missing_index_without_changing_source() {
     assert!(!editor.text().contains("enabled"));
 }
 
+// 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
+// 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
 #[test]
 fn delete_server_removes_selected_server_and_recounts() {
     let editor = text_editor::Content::with_text(
@@ -415,6 +422,8 @@ fn save_and_toggle_messages_set_saving_or_report_validation_errors() {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn add_server_message_persists_valid_form_and_keeps_invalid_form_for_correction() {
     let mut app = app();
@@ -605,6 +614,8 @@ fn delete_request_rejects_invalid_index_and_confirm_without_pending_is_noop() {
     assert!(app.mcp_settings.editor.text().contains("local"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn saved_message_distinguishes_success_refresh_from_failure() {
     let mut app = app();

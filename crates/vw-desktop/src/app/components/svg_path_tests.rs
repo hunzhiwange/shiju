@@ -1,3 +1,6 @@
+//! 验证 SVG 路径解析、边界计算及适配目标尺寸的变换。
+//! 空路径、相对命令和退化边界用于防止缩放时出现非有限坐标。
+
 use super::{SvgPathParser, build_svg_path, build_svg_path_fit, svg_path_bounds};
 use iced::{Point, Size};
 

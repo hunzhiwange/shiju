@@ -47,6 +47,7 @@ fn turn_policy_uses_selected_agent_and_positive_fallbacks() {
 }
 
 #[test]
+// 未知或空代理名回退主代理，避免使用未注册身份执行轮次。
 fn turn_policy_falls_back_to_main_for_unknown_or_blank_agent() {
     let mut config = crate::config::Config::default();
     config.agents.insert(

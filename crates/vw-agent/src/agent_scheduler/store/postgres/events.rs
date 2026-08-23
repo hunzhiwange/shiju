@@ -1,4 +1,5 @@
 //! 实现 PostgreSQL 调度事件追加与查询，并完成数据库行到领域事件的校验映射。
+//! 事件游标由数据库生成，读取始终限定调度作用域并保持游标顺序。
 
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result};

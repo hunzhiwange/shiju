@@ -16,6 +16,7 @@ fn artifact(turn_id: &str, step_index: u32) -> LlmRawArtifact {
     LlmRawArtifact::from_full_raw_rounds(turn_id, &[raw]).expect("valid raw artifact")
 }
 
+// 失败提交保留待处理产物，成功提交只确认已声明版本，避免并发覆盖新数据。
 #[test]
 fn failed_commit_retains_pending_raw() {
     let tenant = TenantScope::default();

@@ -1,3 +1,6 @@
+// 验证 Shiju 应用加载、账号结果过滤与绑定后启动流程。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use crate::app::account::{
     AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount,
 };
@@ -22,6 +25,8 @@ fn repository(secret: &str, company_id: &str) -> AccountRepository {
     repository
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn shiju_apps_open_loads_mine_through_gateway() {
     let _ = crate::app::session_gateway::gateway_shiju_app_catalog_async;
@@ -155,6 +160,8 @@ fn open_shiju_app_checks_binding_before_launch() {
     assert_eq!(app.expert_hub.shiju_apps.generation, generation);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn configured_binding_continues_existing_launch() {
     let mut app = app_ready_for_launch();
@@ -292,6 +299,8 @@ fn unconfigured_binding_rejects_read_only_or_missing_enabled_keys() {
     assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("绑定检查失败")));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn binding_save_rejects_missing_or_disabled_selection() {
     let mut app = app_ready_for_launch();
@@ -435,6 +444,8 @@ fn binding_failures_preserve_selection_and_close_detail_cancels_stale_work() {
     assert!(matches!(app.expert_hub.shiju_apps.launch, ShijuAppLaunchState::Idle));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn stale_or_wrong_account_launch_is_ignored() {
     let mut app = app_ready_for_launch();

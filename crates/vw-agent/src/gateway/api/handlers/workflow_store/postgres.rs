@@ -1,4 +1,6 @@
 //! PostgreSQL 工作流记录存储，强制租户作用域并维护时间戳。
+//!
+//! 初始化时先拒绝缺少租户列的历史表，防止在不安全结构上继续读写或自动覆盖。
 
 use anyhow::{Context, Result, bail};
 use vw_api_types::TenantScope;
@@ -21,11 +23,13 @@ CREATE TABLE IF NOT EXISTS workflow_workflows (
 "#;
 
 #[derive(Debug, Clone)]
+/// 工作流记录门面的 PostgreSQL 后端。
 pub(super) struct PostgresWorkflowStore {
     database: GlobalDatabase,
 }
 
 impl PostgresWorkflowStore {
+    /// 校验现有结构并初始化租户作用域表。
     pub(super) fn new(database: GlobalDatabase) -> Result<Self> {
         database.initialize_postgres_schema(|transaction| {
             reject_unscoped_workflow_schema(transaction)?;
@@ -37,6 +41,7 @@ impl PostgresWorkflowStore {
         Ok(Self { database })
     }
 
+    /// 按更新时间倒序列出租户工作流摘要。
     pub(super) fn list_records(&self, tenant: &TenantScope) -> Result<Vec<WorkflowRecordSummary>> {
         let mut connection = self.database.connect_postgres()?;
         connection
@@ -65,6 +70,7 @@ impl PostgresWorkflowStore {
             .collect()
     }
 
+    /// 查询租户内单条工作流，不存在时返回 `None`。
     pub(super) fn query_record(
         &self,
         tenant: &TenantScope,
@@ -74,6 +80,7 @@ impl PostgresWorkflowStore {
         query_record(&mut *connection, tenant, uuid)
     }
 
+    /// 创建或更新工作流并返回持久化后的记录。
     pub(super) fn upsert_record(
         &self,
         tenant: &TenantScope,
@@ -115,6 +122,7 @@ impl PostgresWorkflowStore {
         query_record(&mut *connection, tenant, uuid)
     }
 
+    /// 删除租户内单条工作流并返回是否删除。
     pub(super) fn delete_record(&self, tenant: &TenantScope, uuid: &str) -> Result<bool> {
         let mut connection = self.database.connect_postgres()?;
         let changed = connection

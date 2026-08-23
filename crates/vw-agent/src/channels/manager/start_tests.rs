@@ -1,3 +1,5 @@
+// 本文件验证渠道启动前的提供者初始化、工具装配与公开入口连线。
+
 use super::*;
 use crate::app::agent::tools::ToolResult;
 use std::path::PathBuf;
@@ -79,6 +81,7 @@ fn tool_names(descriptions: &[(&'static str, &'static str)]) -> Vec<&'static str
 }
 
 #[tokio::test]
+// 提供者初始化失败时不得启动监听器，避免半初始化状态。
 async fn start_channels_returns_provider_initialization_error_before_listener_startup() {
     let mut config = Config::default();
     config.default_provider = Some("__missing_provider_for_start_test__".to_string());
@@ -314,4 +317,3 @@ fn channels_by_name_keep_last_channel_for_duplicate_name() {
     assert_eq!(by_name.len(), 1);
     assert!(Arc::ptr_eq(by_name.get("duplicate").expect("duplicate channel"), &second));
 }
-// 本文件验证渠道启动前的提供者初始化、工具装配与公开入口连线。

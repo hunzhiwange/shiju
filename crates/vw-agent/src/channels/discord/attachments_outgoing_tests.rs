@@ -1,3 +1,5 @@
+// 本文件验证 Discord 出站附件标记解析、类型判定与本地路径安全边界。
+
 use std::fs;
 
 use super::attachments_outgoing::{
@@ -104,6 +106,7 @@ fn outgoing_attachment_classification_handles_empty_input() {
 }
 
 #[test]
+// 本地附件必须位于工作区内，缺少根目录或路径越界时直接拒绝。
 fn resolve_local_attachment_path_rejects_missing_workspace_and_path_escape() {
     assert!(resolve_local_attachment_path(None, "a.txt").is_err());
 
@@ -198,4 +201,3 @@ fn resolve_local_attachment_path_reports_missing_target_for_stale_workspace() {
 
     assert!(error.contains("attachment path not found: missing.txt"));
 }
-// 本文件验证 Discord 出站附件标记解析、类型判定与本地路径安全边界。

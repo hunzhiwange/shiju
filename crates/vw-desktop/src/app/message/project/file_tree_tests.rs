@@ -1,3 +1,8 @@
+// 验证文件树路径识别、名称去重及路径变更传播。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -167,6 +172,8 @@ fn drag_start_and_end_transfer_pending_drop_state() {
     assert_eq!(app.pending_drop_file_position, Some((3, 4)));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn rename_save_rejects_each_invalid_name_shape() {
     for invalid_name in ["", "   ", ".", "..", "a/b", "a\\b"] {
@@ -343,6 +350,8 @@ fn copy_and_cut_actions_update_file_tree_clipboard() {
     assert_eq!(clipboard.src_path, "/tmp/b.txt");
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn find_in_folder_action_creates_active_find_tab_and_open_tab() {
     let mut app = app();
@@ -523,6 +532,8 @@ fn paste_completed_copy_success_preserves_clipboard() {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn paste_and_delete_failures_set_error_message() {
     let mut app = app();

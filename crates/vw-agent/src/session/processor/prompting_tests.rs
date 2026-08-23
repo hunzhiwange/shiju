@@ -63,6 +63,7 @@ fn build_prompt_ignores_blank_extra_assistant_text() {
 }
 
 #[test]
+// 工具输出按字节预算截断时回退到合法字符边界。
 fn build_prompt_truncates_tool_messages_on_utf8_boundary() {
     let repeated = "界".repeat(2_000);
     let session = session_with(&[(Role::Tool, repeated.as_str())]);
@@ -107,6 +108,7 @@ fn build_prompt_stops_before_oversized_older_history() {
 }
 
 #[test]
+// 最新消息自身超限时也不跳过它去拼接更旧历史，保持时间语义。
 fn build_prompt_stops_at_oversized_newest_message() {
     let mut session = Session::new("prompting-tests-newest-budget".to_string());
     session.push(Role::User, "older question".to_string());

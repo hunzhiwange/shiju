@@ -1,3 +1,7 @@
+//! 验证工作区模式选择器的标签、选中状态和切换消息。
+//!
+//! 模式选项逐一渲染并校验选中状态，确保显示标签与内部枚举映射稳定。
+
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};

@@ -1,3 +1,5 @@
+// 本文件验证 Discord 表情编码、反应端点生成与确认表情选择。
+
 use super::*;
 
 #[test]
@@ -8,6 +10,7 @@ fn encode_emoji_percent_encodes_unicode_and_ascii_bytes() {
 }
 
 #[test]
+// 自定义表情含平台协议语法，不能按普通 Unicode 表情再次转义。
 fn encode_emoji_leaves_custom_discord_emoji_unchanged() {
     assert_eq!(encode_emoji_for_discord("party_blob:123456"), "party_blob:123456");
 }
@@ -53,4 +56,3 @@ fn uniform_index_for_single_element_is_always_zero() {
         assert_eq!(pick_uniform_index(1), 0);
     }
 }
-// 本文件验证 Discord 表情编码、反应端点生成与确认表情选择。

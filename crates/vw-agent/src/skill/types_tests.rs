@@ -1,4 +1,5 @@
 //! 验证旧版技能类型的默认值、反序列化与兼容契约。
+//! 缺省下载策略拒绝未授权域名，反序列化缺字段时仍保持保守能力集合。
 
 use super::*;
 
@@ -10,6 +11,7 @@ struct SkillTestCli {
 }
 
 #[test]
+// 缺省下载策略采用拒绝默认值，新增或缺失配置字段都不能隐式扩大联网范围。
 fn default_download_policy_is_deny_by_default_for_domains() {
     let policy = SkillDownloadPolicy::default();
     assert_eq!(policy.version, 1);

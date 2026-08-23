@@ -1,3 +1,6 @@
+//! 验证预览标题标签区域测试模块的装配入口。
+//! 该哨兵确保标题标签实现仍被父视图的测试构建包含。
+
 #[test]
 fn header_tabs_tests_are_wired() {
     assert!(module_path!().contains("header_tabs_tests"));

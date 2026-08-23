@@ -42,6 +42,7 @@ impl Drop for EnvGuard {
     }
 }
 
+// 父会话夹具先持久化根消息，为子会话归属和历史加载提供真实基线。
 async fn create_parent(directory: String) -> session::Info {
     project::instance::provide(directory.clone(), None, move || {
         Box::pin(async move {
@@ -108,6 +109,7 @@ fn child_agent_stream_request_keeps_complete_model_reference() {
 }
 
 #[test]
+// 子代理继承显式工具集合与技能策略，但不获得额外能力。
 fn child_agent_stream_request_registers_configured_tools_and_preserves_skill_policy() {
     let request = super::child_agent::stream_request(
         "child-session",
@@ -375,6 +377,7 @@ fn child_agent_handoff_execution_returns_last_visible_result() {
 }
 
 #[test]
+// 交接结果移除思考别名块，只向父代理暴露可见内容。
 fn child_agent_handoff_strips_thinking_alias_blocks() {
     let output = concat!(
         "<thinking>inspect implementation details</thinking>\n",

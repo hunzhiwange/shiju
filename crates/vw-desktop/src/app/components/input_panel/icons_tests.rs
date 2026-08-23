@@ -1,3 +1,6 @@
+//! 验证输入面板图标、提供商标识与 ACP 代理别名的规范化渲染。
+//! 空白、连写和连字符别名均需落入稳定图标，未知值则走默认资源。
+
 use super::icons::{
     acp_agent_icon, auto_icon, default_acp_icon, icon_svg, image_icon, is_dark_mode, max_icon,
     normalize_acp_agent_icon_name, provider_logo_handle, raw_svg_handle, svg_icon,

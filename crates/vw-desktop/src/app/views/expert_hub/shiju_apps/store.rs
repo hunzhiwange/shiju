@@ -1,3 +1,5 @@
+//! 展示识矩应用目录及应用安装状态。
+
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
@@ -80,6 +82,7 @@ fn feedback(message: String, action: Option<(&'static str, Message)>) -> Element
     container(content).width(Length::Fill).height(Length::Fill).center(Length::Fill).into()
 }
 
+/// 按登录、加载、错误或成功状态展示应用商店。
 pub(super) fn view(state: &ShijuAppsLoadState<ShijuAppCatalogDto>) -> Element<'static, Message> {
     match state {
         ShijuAppsLoadState::Idle => feedback("应用目录尚未加载".to_string(), None),

@@ -1,3 +1,6 @@
+//! 验证补丁预览合并跨平台路径时能够规范化并去除重复变更。
+//! 同一路径同时使用正反斜杠，避免平台表示差异生成重复文件卡片。
+
 use super::{ChangeFile, merge_apply_patch_changes};
 
 #[test]

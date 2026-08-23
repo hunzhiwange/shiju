@@ -1,3 +1,6 @@
+//! 验证设置面板、区块、徽标、横幅与模态层的布局样式。
+//! 空文案和有无基础层的模态框分别约束通用组件的安全构建。
+
 use super::panels::{
     SETTINGS_SECTION_CONTENT_PADDING, settings_content_panel_style, settings_divider_style,
     settings_error_banner_style, settings_section_card_style, settings_section_content_style,
@@ -12,6 +15,7 @@ use crate::app::Message;
 use iced::widget::text;
 use iced::{Background, Element, Length, Padding, Shadow, Theme};
 
+// 公共面板测试只锁定外层尺寸契约，不依赖内部文本的像素测量。
 fn assert_size(element: &Element<'_, Message>, width: Length, height: Length) {
     let size = element.as_widget().size();
 

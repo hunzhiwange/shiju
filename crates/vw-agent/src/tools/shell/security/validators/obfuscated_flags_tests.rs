@@ -1,4 +1,5 @@
 //! 验证混淆选项校验器阻断隐藏拼写并允许字面量选项。
+//! 转义、空引号拼接等形式不得绕过后续只读与权限选项检查。
 
 use super::obfuscated_flags::ObfuscatedFlagsValidator;
 use crate::tools::shell::ast::parse_command;

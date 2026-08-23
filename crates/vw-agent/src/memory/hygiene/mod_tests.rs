@@ -1,4 +1,6 @@
 // 验证记忆清理策略的候选筛选、保留规则与执行结果。
+
+// 文件归档只处理达到期限的候选项，状态写入用于避免过于频繁地重复清理。
 mod additional_hygiene_tests {
     use super::super::*;
     use crate::app::agent::config::MemoryConfig;
@@ -6,6 +8,7 @@ mod additional_hygiene_tests {
     use std::time::{Duration as StdDuration, SystemTime};
     use tempfile::TempDir;
 
+    // 禁用配置用于证明跳过清理时不会创建状态文件或修改任何存储。
     fn cfg_disabled() -> MemoryConfig {
         MemoryConfig { hygiene_enabled: false, ..MemoryConfig::default() }
     }
@@ -91,6 +94,7 @@ mod additional_hygiene_tests {
     }
 
     #[test]
+    // 归档筛选同时约束文件名和时间，陌生文件与新文件必须保留原位。
     fn archive_daily_memory_files_ignores_non_candidates_and_uses_unique_archive_name() {
         let tmp = TempDir::new().unwrap();
         let storage = tmp.path();

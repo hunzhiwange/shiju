@@ -1,3 +1,6 @@
+//! 验证轨迹时间线的泳道分配、指标统计、稳定选择与布局切换。
+//! 无时间指标时退化为等宽布局，工具提示预览按字符截断以兼容多字节文本。
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -41,6 +44,7 @@ fn turn(index: u32) -> TrajectoryTurn {
     TrajectoryTurn { index, user_record_id: None, step_indices: Vec::new(), record_ids: Vec::new() }
 }
 
+// 三类记录刻意具有不同时间跨度，用于观察泳道分配而非仅检查记录数量。
 #[test]
 fn trajectory_timeline_assigns_three_lanes() {
     let projection = TrajectoryProjection {

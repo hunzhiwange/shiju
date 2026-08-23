@@ -1,3 +1,6 @@
+// 验证启用频道汇总、配置构建与持久化前置校验。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::message::settings::channels::toggles;
@@ -10,6 +13,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn enabled_channels_reports_every_human_readable_name_in_display_order() {
     let mut app = app();
@@ -69,6 +74,8 @@ fn enabled_channels_reports_every_human_readable_name_in_display_order() {
     );
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn build_channels_config_copies_enabled_channels_and_normalizes_boundaries() {
     let mut app = app();
@@ -131,6 +138,8 @@ fn build_channels_config_copies_enabled_channels_and_normalizes_boundaries() {
     assert!(saved.clawdtalk.is_some());
 }
 
+// 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
+// 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
 #[test]
 fn persist_channels_requires_at_least_one_enabled_channel() {
     let mut app = app();

@@ -6,6 +6,7 @@ use crate::id::{
 };
 use serde_json::json;
 
+// 字符串新类型在协议边界保持透明，不额外包裹对象层级。
 #[test]
 fn string_ids_convert_and_serialize_as_plain_strings() {
     let project = ProjectId::from("project-1");
@@ -16,6 +17,7 @@ fn string_ids_convert_and_serialize_as_plain_strings() {
     assert_eq!(serde_json::to_string(&project).expect("serialize"), "\"project-1\"");
 }
 
+// 默认租户 fixture 固化种子标识和请求头名称，避免客户端作用域漂移。
 #[test]
 fn tenant_scope_default_uses_seeded_ids() {
     let tenant = TenantScope::default();
@@ -29,6 +31,7 @@ fn tenant_scope_default_uses_seeded_ids() {
     assert_eq!(COMPANY_ID_HEADER, "X-Company-ID");
 }
 
+// 构造器与 JSON 入口必须执行相同的去空白非空校验。
 #[test]
 fn validated_ids_reject_blank_values_from_constructors_and_json() {
     let platform_error = PlatformId::new(" \n ").expect_err("blank platform id should fail");
@@ -42,6 +45,7 @@ fn validated_ids_reject_blank_values_from_constructors_and_json() {
     assert!(deserialize_error.to_string().contains("platform id must not be empty"));
 }
 
+// 项目作用域保留租户层次，并在默认租户快捷构造中继续校验项目标识。
 #[test]
 fn project_scope_validates_project_id_and_round_trips_accessors() {
     let tenant = TenantScope::new("platform-1", "company-1").expect("valid tenant scope");

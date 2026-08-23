@@ -1,4 +1,6 @@
 //! 验证运行时公共结果与选项结构保留取消、身份和控制字段。
+//!
+//! 最小记录与选项 fixture 用于检查结构转换，不启动真实代理或外部进程。
 
 use super::*;
 use crate::prompt_content::text_prompt;
@@ -62,6 +64,7 @@ fn test_record() -> SessionRecord {
     }
 }
 
+// 下列行为用例确认克隆与转换不会丢失调用方后续决策所需的状态。
 #[test]
 fn session_cancel_result_keeps_cancel_status_fields() {
     let result = SessionCancelResult { session_id: "session-1".to_string(), cancelled: true };

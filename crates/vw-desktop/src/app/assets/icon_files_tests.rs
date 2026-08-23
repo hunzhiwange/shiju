@@ -1,3 +1,6 @@
+//! 验证文件类图标注册表完整写入且保留调用方已有条目。
+//! 覆盖清单与哨兵条目共同约束资产完整性和注册函数的修改边界。
+
 #[test]
 fn task_638_test_module_is_wired() {
     let path = std::path::Path::new(file!());

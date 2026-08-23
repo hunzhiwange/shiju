@@ -1,3 +1,8 @@
+// 验证任务看板更新路由、项目匹配与任务创建流程。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -633,6 +638,8 @@ fn execution_tick_defers_pending_selection_to_gateway_schedule() {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn worktree_preallocation_failure_pauses_instead_of_code_complete() {
     use crate::app::task::{Task, TaskStatus};
@@ -1349,6 +1356,8 @@ fn task_code_review_model_response_timeout_pauses_without_waiting_retry() {
     assert!(!task.logs.iter().any(|entry| entry.message.contains("自动重试")));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn task_merge_failure_collects_reason_and_preserves_worktree_context() {
     use crate::app::task::{Task, TaskStatus};
@@ -2659,6 +2668,8 @@ fn staff_stage_action_drafts_round_trip_bindings_and_prune_to_workflow_statuses(
     assert_eq!(assignments[0].status, TaskStatus::CodeReview);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn staff_command_gateway_round_trip_preserves_each_command_variant() {
     use crate::app::task::TaskBoardStaffCommand;

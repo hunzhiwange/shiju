@@ -1,3 +1,7 @@
+//! 验证项目设置及最近项目编辑、删除确认和工作树选项的界面状态。
+//!
+//! 项目夹具主动清空最近记录与编辑状态，用于隔离缺失路径和确认框边界。
+
 use super::*;
 use iced::advanced::widget::Tree;
 use iced::{Length, Size};

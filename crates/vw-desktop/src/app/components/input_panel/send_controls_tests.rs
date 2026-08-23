@@ -1,3 +1,6 @@
+//! 验证发送控件在运行、排队、停止与禁用状态下的消息和布局。
+//! 控件测试分别构造会话运行态和发送策略，确保主操作不会映射到错误消息。
+
 use super::send_controls::{
     bottom_bar, cancel_button, full_access_button, is_dark_theme, permission_access_button_style,
     pool_button, prominent_action_background, prominent_action_foreground, prominent_action_style,

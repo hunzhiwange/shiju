@@ -1,9 +1,13 @@
+//! 验证网关客户端服务器、认证字段、健康状态与删除帮助覆盖层。
+//! 健康状态按服务器键隔离，删除目标缺失时覆盖层需安全退回基础视图。
+
 use super::*;
 use crate::app::App;
 use crate::app::message::gateway_health::server_health_key;
 use crate::app::state::GatewayClientServerDraft;
 use iced::{Element, Length};
 
+// 客户端页面 fixture 保持服务端列表为空，各测试再按目标场景添加草稿。
 fn test_app() -> App {
     App::new().0
 }

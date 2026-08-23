@@ -19,6 +19,7 @@ desired_state, team_id, worker_role, matrix_user_id, room_id, container_state, i
 last_seen_at_ms, last_heartbeat_at, capabilities_json, updated_at_ms";
 
 #[derive(Debug, Clone, PartialEq)]
+/// 写入工作节点最新部署、生命周期、路由和能力的快照。
 pub struct NewAgentWorkerSnapshot {
     pub id: WorkerName,
     pub runtime: Option<String>,
@@ -40,6 +41,7 @@ pub struct NewAgentWorkerSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 从存储读取的工作节点完整快照。
 pub struct StoredAgentWorker {
     pub id: WorkerName,
     pub runtime: Option<String>,
@@ -61,6 +63,7 @@ pub struct StoredAgentWorker {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 可序列化的工作节点能力名称、种类与元数据。
 pub struct AgentCapabilityRecord {
     pub kind: AgentCapabilityKind,
     pub name: String,
@@ -68,12 +71,14 @@ pub struct AgentCapabilityRecord {
 }
 
 impl AgentCapabilityRecord {
+    /// 创建技能类能力记录。
     pub fn skill(name: impl Into<String>) -> Self {
         Self { kind: AgentCapabilityKind::Skill, name: name.into(), metadata: Value::Null }
     }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// 工作节点查询条件；团队、运行时和能力条件按“且”组合。
 pub struct AgentWorkerFilter {
     pub runtime: Option<String>,
     pub required_skills: Vec<String>,
@@ -82,6 +87,7 @@ pub struct AgentWorkerFilter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 控制器同步后允许更新的工作节点生命周期字段。
 pub struct UpdateAgentWorkerLifecycleRequest {
     pub worker_id: WorkerName,
     pub status: AgentWorkerStatus,
@@ -92,6 +98,7 @@ pub struct UpdateAgentWorkerLifecycleRequest {
 }
 
 impl AgentSchedulerStore {
+    /// 按节点标识插入或覆盖快照，并保留作用域隔离。
     pub fn upsert_worker_snapshot(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -214,6 +221,7 @@ impl AgentSchedulerStore {
         load_worker_with_conn(&conn, context, worker_id)
     }
 
+    /// 仅更新生命周期相关字段，不覆盖模型或能力等静态配置。
     pub fn update_worker_lifecycle(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),

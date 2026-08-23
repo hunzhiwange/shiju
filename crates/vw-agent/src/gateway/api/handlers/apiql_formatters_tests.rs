@@ -27,6 +27,7 @@ fn field() -> ApiQlFieldConfig {
     }
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[test]
 fn field_format_prefers_column_struct_then_meta_then_extra() {
     let mut field = field();
@@ -272,6 +273,7 @@ fn formatter_edges_cover_registered_object_lookup_and_empty_image_paths() {
     assert_eq!(no_base_image, json!("plain.jpg"));
 }
 
+// 非法字段、运算符和解析器配置必须在生成查询或执行脚本前被拒绝。
 #[test]
 fn formatter_rejects_invalid_specs_engines_and_unknown_names() {
     let registry = registry(serde_json::Map::new());

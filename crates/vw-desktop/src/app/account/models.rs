@@ -1,3 +1,5 @@
+//! 定义账号凭据、登录挑战与资料编辑所需的领域模型及校验规则。
+
 use reqwest::Url;
 use std::fmt;
 use std::time::Duration;
@@ -9,9 +11,11 @@ use vw_gateway_client::{
 const AUTHORIZATION_HOST: &str = "auth.shiju.cloud";
 
 #[derive(Clone, PartialEq, Eq)]
+/// 已校验的账号密钥；调试输出始终脱敏，只有显式调用才能读取原值。
 pub(crate) struct SecretSkey(String);
 
 impl SecretSkey {
+    /// 去除首尾空白并拒绝空密钥，成功后才建立可信凭据类型。
     pub(crate) fn new(value: impl Into<String>) -> Result<Self, AccountModelError> {
         let value = value.into();
         let trimmed = value.trim();
@@ -21,6 +25,7 @@ impl SecretSkey {
         Ok(Self(trimmed.to_string()))
     }
 
+    /// 显式暴露原始密钥，仅供构造受认证请求或安全持久化使用。
     pub(crate) fn expose(&self) -> &str {
         &self.0
     }
@@ -37,6 +42,7 @@ impl fmt::Debug for SecretSkey {
 }
 
 #[derive(Clone, Default, PartialEq, Eq)]
+/// 登录表单中的未校验密钥输入；与可持久化的 [`SecretSkey`] 分离。
 pub(crate) struct ManualSkeyInput(String);
 
 impl ManualSkeyInput {
@@ -60,6 +66,7 @@ impl fmt::Debug for ManualSkeyInput {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 账号所属公司的稳定身份信息。
 pub(crate) struct AccountIdentity {
     company_id: String,
     company_name: String,
@@ -82,6 +89,7 @@ impl AccountIdentity {
         })
     }
 
+    /// 从网关资料构造身份，并校验界面依赖的必填字段。
     pub(crate) fn from_profile(
         company_name: impl Into<String>,
         status: impl Into<String>,
@@ -112,6 +120,7 @@ impl AccountIdentity {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 当前账号的用户资料及公司状态快照。
 pub(crate) struct AccountProfile {
     company_status: String,
     name: String,
@@ -166,6 +175,7 @@ impl AccountProfile {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// 资料编辑器草稿；生成更新请求时再次执行必填字段校验。
 pub(crate) struct AccountProfileDraft {
     name: String,
     username: String,
@@ -211,6 +221,7 @@ impl AccountProfileDraft {
         self.username = username;
     }
 
+    /// 将草稿转换为网关请求，拒绝空姓名或空账号名。
     pub(crate) fn update_request(&self) -> Result<ShijuAccountUpdateRequest, AccountModelError> {
         let normalized = Self::new(self.name.clone(), self.username.clone())?;
         Ok(ShijuAccountUpdateRequest { name: normalized.name, username: normalized.username })
@@ -218,6 +229,7 @@ impl AccountProfileDraft {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 密码编辑器中可独立更新的输入字段。
 pub(crate) enum AccountPasswordField {
     Current,
     New,
@@ -225,6 +237,7 @@ pub(crate) enum AccountPasswordField {
 }
 
 #[derive(Clone, Default, PartialEq, Eq)]
+/// 密码表单的敏感输入包装；调试输出不会泄露内容。
 pub(crate) struct AccountPasswordInput(String);
 
 impl AccountPasswordInput {
@@ -244,6 +257,7 @@ impl fmt::Debug for AccountPasswordInput {
 }
 
 #[derive(Clone, Default, PartialEq, Eq)]
+/// 修改密码所需的当前密码、新密码和确认值。
 pub(crate) struct AccountPasswordDraft {
     current_password: String,
     new_password: String,
@@ -285,6 +299,7 @@ impl AccountPasswordDraft {
         }
     }
 
+    /// 校验长度、字符组成和确认值后生成修改密码请求。
     pub(crate) fn update_request(
         &self,
     ) -> Result<ShijuAccountPasswordUpdateRequest, AccountModelError> {
@@ -319,6 +334,7 @@ impl fmt::Debug for AccountPasswordDraft {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 已由网关验证、可进入账号仓储的账号聚合。
 pub(crate) struct VerifiedAccount {
     identity: AccountIdentity,
     profile: Option<AccountProfile>,
@@ -372,6 +388,7 @@ impl VerifiedAccount {
 }
 
 #[derive(Clone)]
+/// 浏览器登录挑战；授权地址只接受受信任的 HTTPS 主机。
 pub(crate) struct LoginChallenge {
     state: String,
     authorization_url: Url,
@@ -418,8 +435,11 @@ impl LoginChallenge {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 浏览器授权轮询的领域结果。
 pub(crate) enum LoginPoll {
+    /// 授权尚未完成，调用方应按挑战间隔继续轮询。
     Pending,
+    /// 授权完成并返回可验证的密钥。
     Approved(SecretSkey),
 }
 
@@ -435,6 +455,7 @@ impl From<ShijuLoginPollDto> for LoginPoll {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 账号模型校验失败；消息可直接映射为用户可理解的提示。
 pub(crate) struct AccountModelError {
     message: String,
 }
@@ -473,6 +494,7 @@ fn normalized_values(values: Vec<String>) -> Vec<String> {
 }
 
 fn validate_authorization_url(raw: &str) -> Result<Url, AccountModelError> {
+    // 授权链接来自远端响应，固定协议与主机可避免用户凭据被导向第三方。
     let url = Url::parse(raw).map_err(|_| AccountModelError::new("授权地址无效"))?;
     let trusted = url.scheme() == "https"
         && url.host_str() == Some(AUTHORIZATION_HOST)

@@ -1,4 +1,6 @@
 //! 验证 ACP 客户端构建器的默认状态、可选配置与回调存储。
+//!
+//! 最小配置和回调 fixture 用于检查构建器赋值，不启动代理进程。
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -21,6 +23,7 @@ fn config() -> AcpAgentConfig {
     AcpAgentConfig { command: "agent-bin".to_string(), args: vec!["--acp".to_string()], env }
 }
 
+// 下列行为用例覆盖默认值、替换与清空语义，以及权限统计快照。
 #[test]
 fn new_sets_default_builder_state() {
     let client = AcpClient::new("test-agent", config());

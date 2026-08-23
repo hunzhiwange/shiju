@@ -1,6 +1,9 @@
+// 本文件验证 Lark 平台枚举的端点、标签与值语义映射。
+
 use super::*;
 
 #[test]
+// 平台差异集中映射，防止 Lark 与飞书混用域名或标签。
 fn lark_platform_maps_endpoints_and_labels() {
     assert_eq!(LarkPlatform::Lark.api_base(), LARK_BASE_URL);
     assert_eq!(LarkPlatform::Lark.ws_base(), LARK_WS_BASE_URL);
@@ -25,4 +28,3 @@ fn lark_platform_supports_expected_value_traits() {
     assert_eq!(format!("{lark:?}"), "Lark");
     assert_eq!(format!("{feishu:?}"), "Feishu");
 }
-// 本文件验证 Lark 平台枚举的端点、标签与值语义映射。

@@ -1,3 +1,6 @@
+//! 验证输入面板的模式选择、附件状态、消息构建与整体视图组合。
+//! 入口测试还用无运行时会话和不同视口宽度守住聊天列对齐与安全回退。
+
 use super::{
     acp_history_controls, acp_selector_button, acp_selector_tooltip, bottom_bar_round_toggle,
     dark_tooltip_content, popover_item_style, reasoning_effort_selector, selected_context_card,
@@ -20,6 +23,7 @@ use iced::{Font, Pixels, Size};
 use iced::{Element, Length, Theme};
 use vw_shared::todo::Todo;
 
+// 入口测试使用最小目录项、队列项和待办项组合输入面板的独立区域。
 fn catalog_skill(id: &str, title: &str) -> SkillsCatalogItem {
     SkillsCatalogItem {
         id: id.to_string(),

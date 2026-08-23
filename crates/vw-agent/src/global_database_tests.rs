@@ -1,4 +1,6 @@
 // 覆盖全局数据库后端选择、初始化和不支持路径的明确失败。
+
+// SQLite 迁移、事务和旧路径切换都在临时目录完成，并检查失败时保留源数据。
 use std::fs;
 #[cfg(unix)]
 use std::fs::OpenOptions;
@@ -152,6 +154,7 @@ fn sqlite_schema_initialization_reports_lock_context() -> Result<()> {
 }
 
 #[test]
+// 事务用例同时检查提交与回滚，防止只验证成功写入而漏掉原子性。
 fn sqlite_schema_and_transactions_commit_and_roll_back_expected_changes() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let database = GlobalDatabase::new(temp_dir.path().join("database.sqlite3"))?;
@@ -314,6 +317,7 @@ fn global_database_pins_one_backend_without_cross_backend_access_or_hot_switch()
 }
 
 #[test]
+// 旧库迁移必须一次完成；目标已存在或源仍被写入时宁可拒绝也不覆盖。
 fn global_database_for_home_moves_previous_shared_database_filename_once() -> Result<()> {
     let home = tempfile::tempdir()?;
     let previous_path = previous_shared_database_path(home.path());

@@ -5,6 +5,7 @@ use crate::app::agent::security::SecurityPolicy;
 use std::path::Path;
 
 #[test]
+// 包含内容先于父文件展开，并通过去重阻止递归环。
 fn agents_include_expands_safe_text_before_parent_without_cycles() {
     let workspace = tempfile::tempdir().expect("workspace");
     let agents = workspace.path().join("AGENTS.md");

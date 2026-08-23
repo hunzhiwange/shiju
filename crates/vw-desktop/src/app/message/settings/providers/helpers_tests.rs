@@ -1,3 +1,6 @@
+// 验证提供商摘要的排序、连接判定与展示信息生成。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use std::collections::HashMap;
 use vw_shared::provider::types::{
@@ -101,6 +104,8 @@ fn catalog_values(catalog: &[ModelCatalogEntry]) -> Vec<(&str, &str, &str, &str)
         .collect()
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn provider_id_validation_accepts_supported_characters_and_rejects_invalid_values() {
     for valid in ["a", "provider-2", "my_provider"] {
@@ -151,6 +156,8 @@ fn summarize_providers_maps_every_source_and_sorts_by_name_then_id() {
     );
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn summarize_providers_marks_keyed_custom_provider_as_connected() {
     let mut custom = provider("custom", "Custom", ProviderSource::Custom, Vec::new());
@@ -172,6 +179,8 @@ fn load_popular_providers_from_config_returns_unconfigured_empty_fallback() {
     assert_eq!(load_popular_providers_from_config(&config), (Vec::new(), false));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn provider_info_catalog_filters_blank_ids_and_sorts_all_tie_breakers() {
     let providers = HashMap::from([
@@ -267,6 +276,8 @@ fn source_catalog_filters_blank_ids_and_provider_infos_override_matching_raw_ent
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn empty_provider_sources_produce_an_empty_catalog() {
     assert!(build_catalog_from_provider_infos(&HashMap::new()).is_empty());

@@ -1,3 +1,5 @@
+//! 协调识矩技能列表、详情、安装、版本操作与本地缓存同步消息。
+
 use crate::app::session_gateway::{
     gateway_shiju_company_skills_async, gateway_shiju_maintained_skills_async,
     gateway_shiju_skill_detail_async, gateway_shiju_skill_installed_async,
@@ -36,9 +38,13 @@ mod public;
 mod public_tests;
 pub(crate) use public::PublicSkillMessage;
 
+/// 专家中心在主标签栏中的稳定标识。
 pub(crate) const EXPERT_HUB_TAB_ID: &str = "expert_hub";
+/// 专家中心标签的用户可见标题。
 pub(crate) const EXPERT_HUB_TITLE: &str = "专家·技能·连接器";
+/// 识矩技能兼容入口的稳定标签标识。
 pub(crate) const SHIJU_SKILLS_TAB_ID: &str = "shiju_skills";
+/// 识矩技能兼容入口的用户可见标题。
 pub(crate) const SHIJU_SKILLS_TITLE: &str = "识矩技能";
 const SHIJU_PAGE_SIZE: u32 = 20;
 const MAX_SHIJU_ARCHIVE_BYTES: u64 = 100 * 1024 * 1024;
@@ -57,6 +63,7 @@ const SHIJU_INSTALL_TARGETS: [SkillInstallTarget; 10] = [
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+/// 专家中心技能目录、安装向导、版本操作与公共市场的消息集合。
 pub(crate) enum SkillHubMessage {
     Public(public::PublicSkillMessage),
     Open,
@@ -218,6 +225,7 @@ pub(crate) enum SkillHubMessage {
     },
 }
 
+/// 归约技能中心消息，并用请求代次与账号 ID 屏蔽迟到的异步响应。
 pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
     match message {
         SkillHubMessage::Public(message) => public::update(app, message),
@@ -669,6 +677,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
     }
 }
 
+/// 打开或激活专家中心标签，并保留当前分区选择。
 pub(crate) fn open_expert_hub_tab(app: &mut App) {
     if !app.open_tabs.iter().any(|tab| tab.id == EXPERT_HUB_TAB_ID) {
         app.open_tabs.push(AppTab {
@@ -971,6 +980,7 @@ fn finish_agent_package_load(
     }
 }
 
+/// 返回适合复制给代理的安装命令；尚未加载包信息时返回空文本。
 pub(crate) fn agent_install_text(state: &ShijuInstallGuideState) -> String {
     match &state.agent_package {
         LoadState::Loaded(release) => agent_install_text_for_release(release),
@@ -1038,6 +1048,7 @@ fn finish_manual_download(
     }
 }
 
+/// 将识矩包流式传给受限写盘任务，并限制累计下载大小。
 pub(super) fn dispatch_shiju_download_with(
     release: &ShijuPackageRelease,
     opener: impl FnOnce(&str) -> Result<(), String>,
@@ -1271,12 +1282,14 @@ async fn install_shiju_package_for_targets(
 }
 
 #[derive(Debug)]
+/// 下载响应产生的数据块、完成标记或读取错误。
 pub(super) enum ShijuDownloadChunk {
     Data(Vec<u8>),
     Complete,
     Failed(String),
 }
 
+/// 顺序写入下载数据块；超过上限或读取失败时停止并返回错误。
 pub(super) fn write_shiju_download_chunks(
     mut archive: NamedTempFile,
     mut chunks: tokio::sync::mpsc::Receiver<ShijuDownloadChunk>,
@@ -1932,6 +1945,7 @@ fn refresh_version_action_views(app: &mut App, skill_id: u64) -> Task<Message> {
     Task::batch([load_marketplace_skills(app), load_installed_skills(app, true), detail_task])
 }
 
+/// 下载技能版本到临时文件，并将完成结果映射回技能消息。
 pub(super) fn dispatch_download_with(
     app: &App,
     version_id: u64,
@@ -1951,6 +1965,7 @@ pub(super) fn dispatch_download_with(
     opener(download_url.as_str()).map_err(|_| "无法打开技能下载地址".to_string())
 }
 
+/// 账号切换后清除账号范围内的技能状态，并按当前页面重新加载。
 pub(crate) fn account_changed(app: &mut App) -> Task<Message> {
     let account_id = app.account.active_account().map(|account| account.id().to_string());
     app.expert_hub.clear_for_account(account_id.clone());
@@ -2083,6 +2098,7 @@ fn mine_tag_option_order(app: &App) -> Vec<u64> {
     ids
 }
 
+/// 从已提交的“我的技能”筛选状态构造稳定网关查询。
 pub(super) fn mine_query(app: &App) -> ShijuMaintainedSkillQuery {
     let keyword = app.expert_hub.mine_filter.submitted_keyword.clone();
     ShijuMaintainedSkillQuery {

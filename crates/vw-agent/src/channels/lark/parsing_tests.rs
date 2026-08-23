@@ -1,3 +1,5 @@
+// 本文件验证 Lark 富文本、提及、群聊策略与事件载荷解析。
+
 use super::*;
 
 fn test_channel(mention_only: bool) -> LarkChannel {
@@ -229,6 +231,7 @@ fn parse_event_payload_accepts_post_and_uses_runtime_fallbacks() {
 }
 
 #[test]
+// 无效富文本、未知类型和未触发群聊应跳过，不能制造伪消息。
 fn parse_event_payload_skips_invalid_post_unsupported_type_and_group_without_bot() {
     let channel = test_channel(true);
     let invalid_post = serde_json::json!({
@@ -431,4 +434,3 @@ async fn parse_event_payload_async_handles_image_missing_key_and_group_filter() 
     assert_eq!(image_messages[0].content, LARK_IMAGE_DOWNLOAD_FALLBACK_TEXT);
     assert!(channel.parse_event_payload_async(&group_payload).await.is_empty());
 }
-// 本文件验证 Lark 富文本、提及、群聊策略与事件载荷解析。

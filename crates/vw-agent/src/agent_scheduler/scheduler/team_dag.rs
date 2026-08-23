@@ -5,12 +5,14 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use anyhow::{Result, bail};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 团队项目是否允许继续派发节点。
 pub enum TeamDagProjectStatus {
     Active,
     Paused,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 团队有向无环图节点的调度状态。
 pub enum TeamDagStatus {
     Pending,
     Delegated,
@@ -20,6 +22,7 @@ pub enum TeamDagStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 团队任务节点及其直接前驱标识。
 pub struct TeamDagNode {
     pub id: String,
     pub title: String,
@@ -28,6 +31,7 @@ pub struct TeamDagNode {
     pub status: TeamDagStatus,
 }
 
+/// 返回所有前驱均已完成的待处理节点；项目暂停时返回空集合。
 pub fn ready_nodes(
     nodes: &[TeamDagNode],
     project_status: TeamDagProjectStatus,
@@ -53,6 +57,7 @@ pub fn ready_nodes(
         .collect())
 }
 
+/// 校验节点标识唯一且非空、依赖存在，并通过拓扑遍历拒绝环。
 pub fn validate_dag(nodes: &[TeamDagNode]) -> Result<()> {
     let mut incoming = BTreeMap::new();
     let mut outgoing = BTreeMap::new();

@@ -268,6 +268,7 @@ async fn overflow_treats_negative_counts_as_zero() {
 }
 
 #[tokio::test]
+// 上下文预算先预留模型输出空间，不能把整个窗口都耗在输入上。
 async fn overflow_reserves_model_output_space() {
     let model = model_with_limits(100_000, None, 50_000);
 
@@ -326,6 +327,7 @@ fn extract_recent_text_returns_empty_at_zero_character_limit() {
 }
 
 #[test]
+// 恢复时先加载代理指令再重放当前技能正文，保持原始上下文优先级。
 fn compaction_restore_reloads_agents_before_replaying_current_invoked_skill_body() {
     let temp = tempfile::tempdir().expect("temporary skills root");
     let skill_dir = temp.path().join("skills/compaction-skill");
@@ -441,6 +443,7 @@ async fn internal_compaction_replaces_covered_history_with_a_model_summary() {
 }
 
 #[tokio::test]
+// 摘要失败或为空时保留原历史，避免压缩操作造成不可逆信息丢失。
 async fn internal_compaction_keeps_history_when_summary_is_blank_or_fails() {
     let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
     let session_id = unique_session("internal-compaction-atomic-failure");
@@ -817,6 +820,7 @@ async fn prune_stops_at_previously_compacted_tool() {
 }
 
 #[tokio::test]
+// 未完成工具调用仍参与协议配对，不能作为旧输出提前裁剪。
 async fn prune_skips_unfinished_tool_states() {
     let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
     let session_id = unique_session("compaction-prune-pending");

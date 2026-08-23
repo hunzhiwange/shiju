@@ -1,4 +1,6 @@
 //! 验证队列所有者租约与套接字探测组合出的健康状态。
+//!
+//! 临时租约、套接字和消息 fixture 用于隔离队列所有权与 IPC 边界。
 
 use super::*;
 
@@ -169,6 +171,7 @@ fn assert_empty_health(health: QueueOwnerHealth, session_id: &str) {
     assert_eq!(health.queue_depth, None);
 }
 
+// 下列行为用例覆盖有效交互、陈旧状态、非法消息和关闭清理。
 #[tokio::test]
 async fn probe_queue_owner_health_reports_empty_when_lease_is_missing() {
     let _lock = crate::queue_paths::TEST_HOME_ENV_LOCK.lock().await;

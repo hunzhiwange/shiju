@@ -103,6 +103,7 @@ fn unsafe_shell_patterns_relax_legacy_command_checks() {
 }
 
 #[test]
+// 路径规范化后再检查允许根，阻止通过父目录片段逃逸。
 fn path_checks_reject_escape_and_allow_configured_roots() {
     let workspace = PathBuf::from("/workspace/project");
     let policy = SecurityPolicy {
@@ -221,6 +222,7 @@ fn normalize_path_collapses_dot_and_parent_components() {
 }
 
 #[test]
+// 只读模式同时拒绝显式写命令和可能动态生成写目标的变量展开。
 fn shell_permission_rejects_read_only_writes_and_variable_expansion() {
     let read_only = SecurityPolicy {
         autonomy: AutonomyLevel::ReadOnly,
@@ -253,6 +255,7 @@ fn quoted_shell_newline_blocking_is_configurable() {
 }
 
 #[test]
+// 总开关、策略组和单项开关按层级生效，低层配置不能越过上层禁用。
 fn policy_checks_follow_master_group_and_item_precedence() {
     let mut policy = SecurityPolicy::default();
     assert!(policy.policy_check_enabled(|config| config.read_only));

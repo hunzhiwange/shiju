@@ -1,4 +1,6 @@
 //! 验证代理子进程启动、环境合并、错误包装与退出信息收集。
+//!
+//! 子进程与内存 I/O fixture 只暴露可观察的字节、退出状态和清理结果。
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -40,6 +42,7 @@ fn process_exists(process_id: u32) -> bool {
     !matches!(std::io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH))
 }
 
+// 下列行为用例覆盖成功转发、挂起或失败 I/O 以及进程终止边界。
 #[test]
 fn spawn_child_rejects_empty_command() {
     let client = client_with_config(AcpAgentConfig {

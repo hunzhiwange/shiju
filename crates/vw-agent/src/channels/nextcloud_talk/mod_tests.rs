@@ -1,3 +1,5 @@
+// 本文件验证 Nextcloud Talk Webhook 解析、签名校验、收发与健康检查。
+
 use super::*;
 use crate::app::agent::channels::traits::{Channel, SendMessage};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -216,6 +218,7 @@ fn parse_webhook_payload_falls_back_to_plain_content_generated_id_and_current_ti
 }
 
 #[test]
+// 签名输入缺失或编码非法时默认拒绝，不能退化为弱校验。
 fn signature_verification_rejects_empty_random_and_bad_hex() {
     assert!(!verify_nextcloud_talk_signature("secret", "", "{}", "deadbeef"));
     assert!(!verify_nextcloud_talk_signature("secret", "nonce", "{}", "not-hex"));
@@ -275,4 +278,3 @@ async fn listen_remains_pending_in_webhook_mode() {
 
     assert!(result.is_err());
 }
-// 本文件验证 Nextcloud Talk Webhook 解析、签名校验、收发与健康检查。

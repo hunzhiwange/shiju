@@ -5,6 +5,7 @@ use crate::session::{
 };
 use serde_json::json;
 
+// 会话创建保持空项目和空元数据默认值，同时固化网关使用的驼峰字段名。
 #[test]
 fn session_create_defaults_and_gateway_renames_are_stable() {
     let request: CreateSessionRequest = serde_json::from_value(json!({})).expect("valid create");

@@ -95,6 +95,7 @@ fn normalize_acp_agent_config_leaves_non_legacy_commands_unchanged() {
 }
 
 #[test]
+// 兼容迁移只重写旧命令包名，用户显式环境变量必须原样保留。
 fn normalize_acp_agent_config_rewrites_legacy_claude_package_and_preserves_env() {
     let mut cfg = acp_config("npx", &["@zed-industries/claude-code-acp@latest"]);
     cfg.env.insert("ANTHROPIC_AUTH_TOKEN".to_string(), "token".to_string());
@@ -117,6 +118,7 @@ fn build_acp_command_line_trims_command_and_skips_blank_args() {
 }
 
 #[test]
+// 请求显式指定的代理优先于模型偏好和默认值。
 fn lookup_acp_command_prefers_explicit_agent_override() {
     let mut cfg = custom_cfg_with_acp("custom", "custom-bin", &["serve"]);
     cfg.acp.insert("model-agent".to_string(), acp_config("model-bin", &[]));
@@ -319,6 +321,7 @@ fn parse_acp_options_converts_session_config_scalar_values() {
 }
 
 #[test]
+// 会话配置边界只接受标量，拒绝无法稳定传给 ACP 的嵌套结构。
 fn parse_acp_options_rejects_structured_session_config_values() {
     for (payload, expected) in [
         (json!({ "acp_session_config": [] }), "acp_session_config must be an object"),

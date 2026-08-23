@@ -1,3 +1,6 @@
+//! 验证颜色字符串解析、RGBA 与 HSLA 转换以及百分比格式化边界。
+//! 输入覆盖裁剪空白、通道越界、灰阶和各主色分支，非法格式必须明确拒绝。
+
 use super::*;
 
 fn assert_close(actual: f32, expected: f32) {

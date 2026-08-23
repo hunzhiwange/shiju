@@ -1,3 +1,6 @@
+//! 验证任务模式对子任务、执行器和运行时编辑器的布局回退。
+//! 执行器缺失、编辑器不足和单子任务用例用于约束降级与移动按钮状态。
+
 use super::task_mode::{
     TaskModeReasoningEffortOption, task_mode_form, task_mode_reasoning_effort_options,
 };

@@ -157,6 +157,7 @@ fn assemble_session_protocol_messages_tracks_context_sources() {
 }
 
 #[test]
+// 代理指令紧邻当前用户轮次插入，减少被旧历史稀释的风险。
 fn session_protocol_places_agents_immediately_before_current_user_turn() {
     let instructions = vec![crate::session::instruction::Resolved {
         filepath: "/workspace/AGENTS.md".to_string(),

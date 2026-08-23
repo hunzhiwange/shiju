@@ -1,3 +1,5 @@
+//! 处理设置面板、项目配置与桌面窗口关闭流程的消息。
+
 use super::ViewMessage;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::FocusArea;
@@ -39,11 +41,15 @@ struct ShutdownStreamRequest {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 关闭请求中需要分别处理的主窗口与任务宠物窗口。
 pub(crate) struct CloseRequestedWindows {
+    /// 发起关闭的主窗口；若请求来自宠物窗口则为空。
     pub(crate) main_window_id: Option<iced::window::Id>,
+    /// 发起关闭的任务宠物窗口；关闭它不会退出主应用。
     pub(crate) task_pet_window_id: Option<iced::window::Id>,
 }
 
+/// 将窗口关闭请求分类为退出应用或仅关闭任务宠物。
 pub(crate) fn close_requested_windows(
     main_window_id: Option<iced::window::Id>,
     task_pet_window_id: Option<iced::window::Id>,
@@ -63,6 +69,7 @@ pub(crate) fn close_requested_windows(
     CloseRequestedWindows { main_window_id: None, task_pet_window_id: None }
 }
 
+/// 原子式标记关闭流程；已开始关闭时返回 `false` 防止重复清理。
 pub(crate) fn begin_shutdown(shutdown_requested: &mut bool) -> bool {
     if *shutdown_requested {
         return false;
@@ -71,6 +78,7 @@ pub(crate) fn begin_shutdown(shutdown_requested: &mut bool) -> bool {
     true
 }
 
+/// 处理设置、更新、项目与窗口生命周期相关的面板消息。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
         ViewMessage::ToggleSettingsPanel => {
@@ -464,6 +472,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     }
 }
 
+/// 关闭宠物窗口或启动一次有超时保护的应用退出流程。
 pub fn close_requested(app: &mut App, window_id: iced::window::Id) -> Task<Message> {
     let windows = close_requested_windows(app.main_window_id, app.task_pet_window_id, window_id);
 

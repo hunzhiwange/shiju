@@ -6,6 +6,7 @@ use super::model_probe::{
 };
 use crate::app::agent::config::Config;
 
+// 诊断断言同时检查严重级别与可操作提示，避免只有返回值正确而用户指引失真。
 #[test]
 fn classify_model_probe_error_marks_unsupported_as_skipped() {
     let outcome = classify_model_probe_error("Provider does not support live model discovery yet");

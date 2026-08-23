@@ -1,4 +1,5 @@
 //! 验证始居应用列表、安装状态和请求响应转换行为。
+//! 目录、安装、绑定和凭据流程共用伪网关，重点检查所有权、就绪状态与密钥脱敏。
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -21,6 +22,7 @@ struct FixtureResponse {
     body: String,
 }
 
+// 目录与绑定用例共享固定网关响应，凭据只在断言中检查存在性而不回显原值。
 fn fixture(responses: Vec<FixtureResponse>) -> (String, String, thread::JoinHandle<Vec<String>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind SHIJU apps fixture");
     let address = listener.local_addr().expect("fixture address");
@@ -401,6 +403,7 @@ async fn save_binding_result(
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 启动前重新读取绑定状态，避免使用已撤销、未启用或不属于当前账号的旧密钥。
 async fn shiju_app_binding_save_reloads_and_accepts_only_enabled_owned_key() {
     let (result, requests) = save_binding_result(
         binding(false, true),

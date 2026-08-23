@@ -1,4 +1,5 @@
 //! 验证超时包装器区分及时完成与超过期限的异步任务。
+//! 超时错误必须携带配置时长，便于调用方诊断实际期限。
 
 use super::timeout::with_timeout;
 use std::time::Duration;

@@ -1,4 +1,6 @@
 // 验证 PostgreSQL 知识分块的写入、查询与级联清理。
+
+// 父子与相邻块链接需完整往返，缺失数据集时不得留下部分写入。
 use anyhow::Result;
 use serde_json::{Value, json};
 use vw_api_types::TenantScope;

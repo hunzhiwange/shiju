@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 渠道接口的发送、草稿支持与降级路径。
+
 use super::TelegramChannel;
 use crate::app::agent::channels::traits::{Channel, SendMessage};
 use crate::app::agent::config::StreamMode;
@@ -164,6 +166,7 @@ async fn draft_trait_methods_delegate_to_non_network_impl_paths() {
 }
 
 #[tokio::test]
+// 无效草稿标识不能丢失最终内容，应降级为普通发送。
 async fn finalize_draft_trait_delegates_to_text_fallback_for_invalid_id() {
     let server = TestServer::spawn(StatusCode::OK).await;
     let channel = test_channel(&server.base_url);
@@ -297,4 +300,3 @@ async fn typing_indicator_starts_and_stops_background_task() {
     channel.stop_typing("chat-1").await.expect("stop typing");
     assert!(channel.typing_handle.lock().is_none());
 }
-// 本文件验证 Telegram 渠道接口的发送、草稿支持与降级路径。

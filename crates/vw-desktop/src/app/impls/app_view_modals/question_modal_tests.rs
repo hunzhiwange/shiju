@@ -1,3 +1,7 @@
+//! 验证问题弹窗对选项、预览、自定义输入和主题的处理。
+//!
+//! 问题夹具覆盖无选项、预览、自定义输入和稀疏答案状态，并分别检查明暗主题。
+
 #[test]
 fn question_modal_tests_module_is_wired() {
     assert!(module_path!().ends_with("question_modal_tests"));

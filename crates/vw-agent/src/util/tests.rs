@@ -1,4 +1,5 @@
 //! 验证通用异步生成、UTF-8 安全截断及三态可选值辅助逻辑。
+//! 截断断言按字符而非字节计数，并覆盖边界内外索引和尾部空白处理。
 
 use super::{MaybeSet, floor_utf8_char_boundary, spawn, truncate_with_ellipsis};
 

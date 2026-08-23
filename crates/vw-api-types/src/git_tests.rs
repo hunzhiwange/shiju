@@ -3,6 +3,7 @@
 use crate::git::{GitCommitResponse, GitDiffRequest, GitDiffScope, GitFileStatus, GitStatusDto};
 use serde_json::json;
 
+// 状态和差异请求 fixture 固化 Git 枚举名称，并确保缺失文件集合解码为空列表。
 #[test]
 fn git_dtos_use_stable_wire_names_and_empty_lists() {
     assert_eq!(
@@ -25,6 +26,7 @@ fn git_dtos_use_stable_wire_names_and_empty_lists() {
     assert_eq!(diff.worktree_id, None);
 }
 
+// 旧响应缺少 `created` 时视为已创建，但显式 `false` 不得被默认值覆盖。
 #[test]
 fn git_commit_response_defaults_created_without_overriding_explicit_false() {
     let defaulted: GitCommitResponse = serde_json::from_value(json!({

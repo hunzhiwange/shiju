@@ -1,3 +1,6 @@
+//! CLI 会话统计标题的格式契约测试。
+//! 区分尚无用量时的占位状态与已有输入、输出 token 时的汇总展示，并保留 Provider 和模型标识。
+
 use super::stats::{CliStats, build_session_title};
 
 #[test]

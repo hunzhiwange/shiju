@@ -1,3 +1,6 @@
+//! 验证文件树菜单按查找与剪贴板状态组合条目并适配主题样式。
+//! 复制和剪切共享粘贴入口，但无剪贴板内容时不得出现不可执行菜单项。
+
 use super::menu::{
     build_file_tree_menu, file_tree_menu_button_style, file_tree_menu_container_style,
     file_tree_menu_separator_style,

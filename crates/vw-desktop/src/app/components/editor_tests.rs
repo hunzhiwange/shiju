@@ -1,3 +1,6 @@
+//! 验证编辑器内容状态、搜索任务、预览菜单以及 LSP 客户端委托。
+//! 记录型客户端捕获打开、修改、保存、查询和关闭事件，以验证附加前后的调用边界。
+
 use super::editor::{
     APP_CONTEXT_MENU_INSERT_SELECTION, APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS, Editor,
 };
@@ -98,6 +101,7 @@ mod lsp_tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
+    // 记录事件顺序而不启动语言服务器，用于验证编辑器对 LSP 生命周期的委托。
     #[derive(Default)]
     struct RecordingClient {
         events: Rc<RefCell<Vec<String>>>,

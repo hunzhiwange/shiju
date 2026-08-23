@@ -1,3 +1,6 @@
+//! 验证助手消息渲染缓存的构建、命中、失效与可见文本回退行为。
+//! 内容哈希与推理摘要开关分别作为失效维度，缺失派生字段则强制重算而非误用缓存。
+
 use super::parse::hash_chat_content;
 use super::render_cache::{
     assistant_render_blocks, build_render_cache_entry, effective_assistant_render_cache,

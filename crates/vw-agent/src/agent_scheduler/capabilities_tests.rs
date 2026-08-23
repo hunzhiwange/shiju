@@ -1,4 +1,5 @@
 //! 测试代理能力集合的规范化、匹配与缺失能力诊断。
+//! 重复与空白能力输入用于锁定规范化规则，缺失诊断保持确定顺序。
 
 use vw_api_types::staff::StaffCapabilityKindDto;
 use vw_config_types::staff::{

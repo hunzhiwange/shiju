@@ -7,22 +7,21 @@ use uuid::Uuid;
 const CANARY_START_MARKER: &str = "<!-- ZC_CANARY_START -->";
 const CANARY_END_MARKER: &str = "<!-- ZC_CANARY_END -->";
 
-/// Per-turn canary guard.
+/// 按轮次工作的上下文泄露检测器。
 #[derive(Debug, Clone, Copy)]
 pub struct CanaryGuard {
     enabled: bool,
 }
 
 impl CanaryGuard {
-    /// Build a canary guard with runtime enable/disable control.
+    /// 按运行时开关创建检测器。
     pub fn new(enabled: bool) -> Self {
         Self { enabled }
     }
 
-    /// Inject a fresh per-turn canary token into the system prompt.
+    /// 向系统提示注入新的逐轮金丝雀标记。
     ///
-    /// Returns the updated prompt and the generated token when enabled.
-    /// When disabled, any stale prior canary block is stripped and no token is returned.
+    /// 启用时返回更新后的提示和标记；禁用时移除旧标记块并返回 `None`。
     pub fn inject_turn_token(&self, system_prompt: &str) -> (String, Option<String>) {
         let mut stripped = strip_canary_block(system_prompt);
         if !self.enabled {
@@ -47,7 +46,7 @@ impl CanaryGuard {
         (stripped, Some(token))
     }
 
-    /// True when output appears to leak the per-turn canary token.
+    /// 判断输出是否包含本轮标记，空标记或禁用状态始终返回 `false`。
     pub fn response_contains_canary(&self, response: &str, token: Option<&str>) -> bool {
         if !self.enabled {
             return false;
@@ -58,7 +57,7 @@ impl CanaryGuard {
             .is_some_and(|token| response.contains(token))
     }
 
-    /// Remove token value from any trace/log text.
+    /// 从跟踪或日志文本中替换标记值，避免检测机制自身造成二次泄露。
     pub fn redact_token_from_text(&self, text: &str, token: Option<&str>) -> String {
         if let Some(token) = token.map(str::trim).filter(|token| !token.is_empty()) {
             return text.replace(token, "[REDACTED_CANARY]");

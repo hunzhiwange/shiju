@@ -1,4 +1,5 @@
 //! 验证始居技能来源的查询、安装与错误映射行为。
+//! 模拟始居目录覆盖私有列表、README、远端安装和显式版本，同时防止上游错误泄露凭据。
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -324,6 +325,7 @@ async fn shiju_skill_adapter_forwards_explicit_version_id() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 分页参数先在本地拒绝，上游错误只保留稳定上下文且不得包含凭据。
 async fn shiju_skill_adapter_rejects_invalid_paging_and_upstream_errors_without_secrets() {
     let client = ShijuSkillClient::with_base_url("http://127.0.0.1:9").expect("client");
     let credential = credential();

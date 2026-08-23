@@ -10,6 +10,7 @@ fn sqlite_database() -> (tempfile::TempDir, GlobalDatabase) {
 }
 
 #[test]
+// 后端类型检查必须早于建表，避免在错误数据库上留下部分结构。
 fn new_rejects_sqlite_backend_before_initializing_postgres_schema() {
     let (_home, database) = sqlite_database();
 
@@ -37,6 +38,7 @@ fn load_rejects_sqlite_backend_before_querying_tenant_metadata() {
 }
 
 #[test]
+// 批量替换在后端不匹配时应零写入。
 fn replace_all_rejects_sqlite_backend_without_mutating_it() {
     let (_home, database) = sqlite_database();
     let store = PostgresGatewaySkeyStore { database };

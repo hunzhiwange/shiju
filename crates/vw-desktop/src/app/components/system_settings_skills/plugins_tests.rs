@@ -1,3 +1,7 @@
+//! 验证插件目录的筛选、操作消息、详情面板和各类加载状态。
+//!
+//! 插件夹具组合加载、空、筛选、选中、忙碌和禁用状态，覆盖详情面板回退。
+
 use crate::app::App;
 use crate::app::state::PluginCatalogItem;
 

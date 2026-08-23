@@ -40,6 +40,7 @@ fn clear_cloud_env() -> (MutexGuard<'static, ()>, EnvRestore) {
     (lock, EnvRestore { saved })
 }
 
+// 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 fn assert_invalid(config: Config, expected: &str) {
     assert!(validate_config(&config).unwrap_err().to_string().contains(expected));
 }
@@ -81,6 +82,7 @@ fn embedding_route() -> EmbeddingRouteConfig {
     }
 }
 
+// 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn normalize_wire_api_accepts_common_spellings() {
     assert_eq!(normalize_wire_api("responses"), Some("responses"));

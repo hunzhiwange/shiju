@@ -1,10 +1,13 @@
 //! 验证 MCP 服务配置的类型解析、安全默认值与精确字段错误。
+//!
+//! 最小 JSON 与协议类型 fixture 用于固定线格式和输入校验边界。
 
 use super::*;
 use agent_client_protocol::McpServer;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 
+// 下列行为用例覆盖合法往返、字段默认值和无效形状拒绝。
 #[test]
 fn mcp_server_management_default_for_server_uses_safe_defaults() {
     let management = McpServerManagement::default_for_server(" local ");

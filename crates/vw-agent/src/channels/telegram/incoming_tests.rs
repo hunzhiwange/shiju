@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 入站消息目标、发送者、回复上下文与权限过滤。
+
 use super::TelegramChannel;
 
 #[test]
@@ -166,6 +168,7 @@ fn extract_reply_context_formats_uncached_voice_audio_unknown_and_generic_messag
 }
 
 #[test]
+// 缺失正文或未授权发送者在构造渠道消息前即被过滤。
 fn parse_update_message_filters_missing_text_and_unauthorized_senders() {
     let ch = TelegramChannel::new("token".into(), vec!["alice".into()], false);
 
@@ -317,4 +320,3 @@ fn parse_update_message_drops_group_mention_that_normalizes_to_empty() {
 
     assert!(ch.parse_update_message(&update).is_none());
 }
-// 本文件验证 Telegram 入站消息目标、发送者、回复上下文与权限过滤。

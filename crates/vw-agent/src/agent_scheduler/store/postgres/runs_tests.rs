@@ -1,4 +1,5 @@
-//! 测试 PostgreSQL 运行记录的原子领取、完成与过期查询。
+//! 测试 PostgreSQL 运行记录行映射完整保留租约、结果和错误字段。
+//! 空可选字段合法，但非法标识、状态和尝试次数不得构造领域记录。
 
 use anyhow::Result;
 use vw_api_types::common::TimestampMs;

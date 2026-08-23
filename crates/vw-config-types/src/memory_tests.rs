@@ -1,3 +1,7 @@
+//! 验证记忆存储后端的默认参数、数据库地址别名与自动加载兼容行为。
+//! 数据库地址覆盖多代命名格式，而缓存、保留和快照字段保持统一默认值。
+
+// 驼峰旧字段仍存在于历史配置，必须映射到统一的数据库地址字段。
 #[test]
 fn storage_provider_supports_legacy_db_url_aliases() {
     let parsed: super::StorageProviderConfig = serde_json::from_value(serde_json::json!({
@@ -11,6 +15,7 @@ fn storage_provider_supports_legacy_db_url_aliases() {
     assert_eq!(parsed.table, "memories");
 }
 
+// 后端选择与向量维度是跨组件契约，升级依赖时不能随库默认值变化。
 #[test]
 fn memory_defaults_and_qdrant_defaults_are_stable() {
     let memory = super::MemoryConfig::default();
@@ -25,6 +30,7 @@ fn memory_defaults_and_qdrant_defaults_are_stable() {
     assert_eq!(qdrant.collection, "vibewindow_memories");
 }
 
+// 其余历史别名与主别名共享相同解析路径，并保留显式表结构设置。
 #[test]
 fn storage_provider_supports_remaining_db_url_aliases() {
     for alias in ["database_url", "databaseUrl"] {
@@ -46,6 +52,7 @@ fn storage_provider_supports_remaining_db_url_aliases() {
     }
 }
 
+// 将长期保留、查询缓存和快照设置作为一组锁定，便于发现默认策略漂移。
 #[test]
 fn memory_default_covers_retention_cache_and_snapshot_values() {
     let memory = super::MemoryConfig::default();
@@ -67,6 +74,7 @@ fn memory_default_covers_retention_cache_and_snapshot_values() {
     assert!(memory.sqlite_open_timeout_secs.is_none());
 }
 
+// 旧配置缺少该字段时仍自动恢复记忆，维持升级前的启动行为。
 #[test]
 fn memory_deserialization_defaults_auto_hydrate_to_true() {
     let memory: super::MemoryConfig = serde_json::from_value(serde_json::json!({

@@ -1,3 +1,8 @@
+// 验证预览标签的 LSP 绑定、同步、分离与结果过滤。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -248,6 +253,8 @@ fn clear_lsp_hover_preserves_path_while_completion_is_visible() {
     assert_eq!(app.lsp_overlay_path.as_deref(), Some("/tmp/main.rs"));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn clear_lsp_completion_clears_items_and_preserves_hover_path() {
     let mut app = app();
@@ -457,6 +464,8 @@ fn handle_lsp_hover_from_mouse_ignores_missing_active_preview() {
     assert!(app.lsp_hover_anchor.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn handle_lsp_hover_from_mouse_ignores_context_menu() {
     let mut app = app();
@@ -738,6 +747,8 @@ fn tick_when_enabled_processes_lsp_events() {
     assert_eq!(app.lsp_overlay_path.as_deref(), Some("/tmp/main.rs"));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn focus_and_completion_scroll_tasks_are_constructible() {
     let _focus = super::lsp::focus_hover_overlay();

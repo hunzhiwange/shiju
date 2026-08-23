@@ -1,3 +1,6 @@
+//! 验证 Git 面板共享按钮、图标与提示组件的主题样式映射。
+//! 使用精确调色板值覆盖各交互状态，并锁定明暗主题判定阈值。
+
 use iced::theme::Palette;
 use iced::widget::button;
 use iced::{Background, Color, Theme};

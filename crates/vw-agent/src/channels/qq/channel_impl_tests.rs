@@ -1,3 +1,5 @@
+// 本文件验证 QQ 渠道接口的令牌复用、监听错误与健康检查。
+
 use super::*;
 use crate::app::agent::channels::traits::{Channel, SendMessage};
 use crate::app::agent::config::{
@@ -41,6 +43,7 @@ fn qq_channel_trait_name_is_static() {
 }
 
 #[tokio::test]
+// 空消息路径仍复用缓存令牌，不额外触发鉴权。
 async fn qq_channel_trait_send_reuses_cached_token_for_empty_message() {
     let channel = QQChannel::new("app".to_string(), "secret".to_string(), vec![]);
     *channel.token_cache.write().await = Some(("cached-token".to_string(), u64::MAX));
@@ -72,4 +75,3 @@ async fn qq_channel_trait_health_check_returns_false_when_auth_request_fails() {
 
     assert!(!as_trait.health_check().await);
 }
-// 本文件验证 QQ 渠道接口的令牌复用、监听错误与健康检查。

@@ -1,4 +1,5 @@
 //! 验证工具决策合并、权限检查和拒绝输入快照行为。
+//! 交互批准、非命令行旁路和工具自身权限错误分别归类，只有显式快照的拒绝才暴露更新输入。
 
 use super::*;
 use crate::agent::loop_::approval::NonCliApprovalContext;
@@ -8,6 +9,7 @@ use crate::app::agent::security::AutonomyLevel;
 use serde_json::json;
 use std::sync::Arc;
 
+// 模拟工具把工具自身权限错误与执行错误分开暴露，便于验证决策分类。
 struct MockTool {
     spec: ToolSpec,
     permission_error: Option<&'static str>,
@@ -237,6 +239,7 @@ async fn request_interactive_approval_denies_when_manager_is_missing_or_user_dec
 }
 
 #[tokio::test]
+// 非命令行旁路仍需写入批准记录，不能直接把待确认决策改写为无痕允许。
 async fn non_cli_bypass_records_approval_and_allows_pending_decision() {
     let approval = Arc::new(ApprovalManager::from_config(&AutonomyConfig::default()));
     let context = ToolUseContext::new("s", None)

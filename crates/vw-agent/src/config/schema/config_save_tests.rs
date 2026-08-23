@@ -29,6 +29,7 @@ fn stored_json(store: &SystemConfigStore, tenant: &TenantScope) -> Value {
     serde_json::from_str(&payload).expect("stored json")
 }
 
+// 测试分别读取有效配置与原始补丁，确保保存时不会把继承值误写进项目覆盖。
 #[test]
 fn save_config_to_store_encrypts_secrets_without_writing_user_config_file() {
     let temp = TempDir::new().expect("temp dir");
@@ -105,6 +106,7 @@ fn save_config_to_store_updates_only_target_tenant() {
     assert_eq!(stored_json(&store, &second)["default_provider"], "second-provider");
 }
 
+// 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 #[test]
 fn save_config_to_store_rejects_invalid_config_without_persisting_tenant() {
     let temp = TempDir::new().expect("temp dir");

@@ -24,11 +24,13 @@ CREATE TABLE IF NOT EXISTS gateway_skeys (
 "#;
 
 #[derive(Debug, Clone)]
+/// 网关密钥元数据的 PostgreSQL 存储句柄。
 pub(super) struct PostgresGatewaySkeyStore {
     database: GlobalDatabase,
 }
 
 impl PostgresGatewaySkeyStore {
+    /// 初始化租户化表结构并创建后端。
     pub(super) fn new(database: GlobalDatabase) -> Result<Self> {
         database.initialize_postgres_schema(|transaction| {
             transaction
@@ -39,6 +41,7 @@ impl PostgresGatewaySkeyStore {
         Ok(Self { database })
     }
 
+    /// 加载指定租户的掩码密钥元数据。
     pub(super) fn load(&self, tenant: &TenantScope) -> Result<Vec<GatewaySkey>> {
         let mut connection = self.database.connect_postgres()?;
         connection
@@ -64,6 +67,7 @@ impl PostgresGatewaySkeyStore {
             .collect()
     }
 
+    /// 在单个事务内删除并重建指定租户的密钥元数据。
     pub(super) fn replace_all(
         &self,
         tenant: &TenantScope,

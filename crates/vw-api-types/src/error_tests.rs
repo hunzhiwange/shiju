@@ -3,6 +3,7 @@
 use crate::error::{ApiErrorBody, ApiErrorDetail};
 use serde_json::json;
 
+// 错误详情存在时必须原样保留，缺失时则从响应中省略而非写入空对象。
 #[test]
 fn api_error_body_preserves_optional_details() {
     let body: ApiErrorBody = serde_json::from_value(json!({

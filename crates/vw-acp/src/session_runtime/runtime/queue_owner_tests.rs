@@ -1,4 +1,6 @@
 //! 验证运行时队列所有者控制桥接、超时错误和不支持操作反馈。
+//!
+//! 最小会话记录、控制器和异步通道 fixture 用于驱动运行时状态与竞态分支。
 
 use super::*;
 use std::sync::{Mutex, MutexGuard};
@@ -117,6 +119,7 @@ fn passthrough_turn_controller() -> QueueOwnerTurnController {
     })
 }
 
+// 下列行为用例覆盖正常完成、超时中断、回退重试和资源清理。
 #[test]
 fn normalize_queue_owner_ttl_preserves_zero_and_uses_default() {
     assert_eq!(normalize_queue_owner_ttl_ms(None), DEFAULT_QUEUE_OWNER_TTL_MS);

@@ -1,4 +1,6 @@
 // 覆盖安装来源检测、版本查询、包管理器升级与 HTTP 响应处理。
+
+// 外部命令与 HTTP 服务均由临时可执行文件或本地一次性服务模拟。
 use super::*;
 use serde::Deserialize;
 use serde_json::json;
@@ -31,6 +33,7 @@ fn prepend_path(dir: &Path) -> std::ffi::OsString {
     std::env::join_paths(paths).expect("join PATH")
 }
 
+// 本地一次性服务模拟注册表响应，使版本查询测试不依赖公网状态。
 fn one_shot_json_server(status: &str, body: &'static str) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind local server");
     let addr = listener.local_addr().expect("server addr");
@@ -104,6 +107,7 @@ fn run_cmd_applies_environment_overrides() {
 
 #[cfg(unix)]
 #[test]
+// 包管理器探测使用临时 PATH，全部未命中时保持 Unknown 而不猜测安装来源。
 fn method_detects_package_manager_from_fake_global_list() {
     let _guard = env_lock();
     let old_path = std::env::var_os("PATH");
@@ -393,6 +397,7 @@ esac
 
 #[cfg(unix)]
 #[test]
+// 升级失败保留命令 stderr，供上层展示真实原因但不混入无关输出。
 fn upgrade_runs_package_manager_command_and_records_failure_stderr() {
     let _guard = env_lock();
     let old_path = std::env::var_os("PATH");

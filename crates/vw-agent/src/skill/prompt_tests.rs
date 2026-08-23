@@ -1,4 +1,5 @@
 //! 验证旧版技能提示文本的选择、排序与内容拼装行为。
+//! XML 夹具覆盖全部转义字符，并分别约束紧凑模式与完整模式暴露的内容。
 
 use super::*;
 use crate::app::agent::skill::types::{Skill, SkillTool, SkillsPromptInjectionMode};
@@ -124,6 +125,7 @@ fn compact_prompt_keeps_absolute_location_outside_workspace() {
 }
 
 #[test]
+// 空能力段落直接省略，避免模型把空 XML 容器误判为可用工具或额外指令。
 fn full_prompt_omits_empty_instruction_and_tool_containers() {
     let skill = Skill {
         name: "metadata-only".to_string(),

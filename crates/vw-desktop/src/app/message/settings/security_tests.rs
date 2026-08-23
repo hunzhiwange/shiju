@@ -1,3 +1,6 @@
+// 验证沙箱与一次性密码安全选项的规范化约束。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::{SecurityListKind, SecuritySettingsTab};
@@ -16,6 +19,8 @@ fn add_security_list_value(app: &mut App, kind: SecurityListKind, value: &str) {
     apply(app, SettingsMessage::SecurityListAdd(kind));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn sandbox_enabled_normalization_accepts_known_values_and_defaults_unknown_values() {
     for (input, expected) in [
@@ -114,6 +119,8 @@ fn bash_security_message_updates_disabled_by_default_switch() {
     assert!(app.security_settings.bash.enabled);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn bash_nested_messages_only_update_target_fields_and_persistence_preserves_siblings() {
     use crate::app::message::settings::{BashPolicyCheck, BashValidatorCheck};
@@ -286,6 +293,8 @@ fn syscall_anomaly_messages_update_flags_paths_and_clamp_both_bounds() {
     assert_eq!(app.security_settings.syscall_anomaly_log_path, " syscall.log ");
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn security_guard_messages_update_flags_collection_and_clamp_threshold() {
     let mut app = app();
@@ -457,6 +466,8 @@ fn unrelated_settings_message_leaves_security_state_unchanged() {
     assert_eq!(app.security_settings.save_error.as_deref(), Some("unchanged"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn numeric_security_messages_preserve_values_inside_allowed_ranges() {
     let mut app = app();

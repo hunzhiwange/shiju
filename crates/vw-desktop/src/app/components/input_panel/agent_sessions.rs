@@ -1,3 +1,5 @@
+//! 展示代理子会话与计划运行会话的状态弹层和控制入口。
+
 use std::collections::{HashMap, HashSet};
 
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -45,6 +47,7 @@ fn planning_row_label(title: &str, session_id: &str) -> String {
     format!("规划 · {task_id} · 计划任务")
 }
 
+/// 将子会话状态映射为用户可见标签；计划会话额外区分规划阶段。
 pub(super) fn agent_session_status_label(
     kind: AgentChildSessionKind,
     status: AgentChildSessionStatus,
@@ -188,6 +191,7 @@ fn append_running_descendants(
     }
 }
 
+/// 合并当前会话及其运行中后代，并按层级生成输入面板投影。
 pub(crate) fn running_agent_sessions(app: &App) -> Vec<AgentChildSession> {
     let Some(parent_session_id) =
         app.active_session_id.as_deref().map(str::trim).filter(|id| !id.is_empty())
@@ -317,6 +321,7 @@ pub(super) fn agent_sessions_stop_style(
     }
 }
 
+/// 为可打开的子会话生成导航消息；缺少路径时不提供操作。
 pub(super) fn agent_session_open_message(child: &AgentChildSession) -> Option<Message> {
     let project_path = child.directory.trim();
     let session_id = child.session_id.trim();
@@ -330,6 +335,7 @@ pub(super) fn agent_session_open_message(child: &AgentChildSession) -> Option<Me
     }))
 }
 
+/// 仅为仍在运行的会话生成停止消息。
 pub(super) fn agent_session_stop_message(child: &AgentChildSession) -> Option<Message> {
     if !matches!(
         child.kind,
@@ -341,6 +347,7 @@ pub(super) fn agent_session_stop_message(child: &AgentChildSession) -> Option<Me
     Some(Message::Chat(message::ChatMessage::StopPlanRun(task_id.to_string())))
 }
 
+/// 返回会话可执行操作的辅助说明，无操作时返回 `None`。
 pub(super) fn agent_session_tooltip_text(child: &AgentChildSession) -> Option<&str> {
     child
         .task_path
@@ -436,6 +443,7 @@ fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Me
     }
 }
 
+/// 构建按父子层级排列的运行中代理会话弹层。
 pub(super) fn agent_sessions_popover<'a>(
     app: &App,
     children: &[AgentChildSession],
@@ -477,6 +485,7 @@ pub(super) fn agent_sessions_popover<'a>(
         .into()
 }
 
+/// 构建输入面板的会话计数入口；没有运行会话时不显示。
 pub(super) fn agent_sessions_entry<'a>(
     app: &App,
     children: &[AgentChildSession],

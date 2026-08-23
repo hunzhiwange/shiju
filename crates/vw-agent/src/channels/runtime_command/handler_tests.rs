@@ -1,3 +1,5 @@
+// 本文件覆盖运行时命令处理器的命令分派、工具调用与渠道回复。
+
 use super::super::{Channel, ChannelRuntimeContext, SendMessage, traits};
 use super::command::{ChannelRuntimeCommand, parse_runtime_command};
 use super::handle_runtime_command_if_needed;
@@ -94,6 +96,7 @@ impl Channel for RecordingChannel {
     }
 }
 
+// 工具夹具固定可用集合，验证命令不会越权访问其它工具。
 fn boxed_tools(names: &[&'static str]) -> Arc<Vec<Box<dyn Tool>>> {
     Arc::new(names.iter().map(|name| Box::new(NamedTool(*name)) as Box<dyn Tool>).collect())
 }
@@ -444,4 +447,3 @@ async fn send_failure_still_consumes_runtime_command() {
 
     assert!(dispatch(&ctx, &channel_dyn, "/approvals").await);
 }
-// 本文件覆盖运行时命令处理器的命令分派、工具调用与渠道回复。

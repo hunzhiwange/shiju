@@ -1,4 +1,6 @@
 // 覆盖工作流 API 的路由、请求转换、运行时调用与流式响应边界。
+
+// 测试同时覆盖阻塞与 SSE 两种响应模式，以及缺失输入时的短路失败。
 use super::{
     GatewayWorkflowToolProvider, VibeWindowChatRequest, VibeWindowResponseMode, VibeWindowSseEvent,
     WORKFLOW_INPUT_FULL_ACCESS, WORKFLOW_INPUT_ROOT, WorkflowSseContext,
@@ -49,6 +51,7 @@ use vw_api_types::workflow::{
     WorkflowRunResponse, WorkflowRunStatus,
 };
 
+// 固定 provider 让处理器测试只观察请求编排，不引入真实模型或网络差异。
 struct StaticProvider;
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]

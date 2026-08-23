@@ -1,3 +1,5 @@
+// 本文件验证发送者级任务模式切换及消息消费条件。
+
 use super::super::*;
 use super::task_mode::{handle_task_mode_message_if_needed, set_sender_task_mode};
 use crate::app::agent::approval::ApprovalManager;
@@ -120,6 +122,7 @@ fn message(content: &str) -> traits::ChannelMessage {
 }
 
 #[test]
+// 任务模式是发送者级状态，切换时不改写提供者或模型。
 fn set_sender_task_mode_toggles_only_task_mode_flag() {
     let temp = tempfile::tempdir().expect("temp dir");
     let ctx = context(temp.path());
@@ -285,4 +288,3 @@ async fn task_mode_still_consumes_message_when_reply_send_fails() {
     assert!(handled);
     assert!(channel.sent.lock().await.is_empty());
 }
-// 本文件验证发送者级任务模式切换及消息消费条件。

@@ -1,4 +1,5 @@
 //! 测试单轮模型调用的工具解析、多模态降级、钩子、用量与取消处理。
+//! 脚本化供应商、OCR 与钩子夹具记录实际输入，以验证降级路径而非仅验证返回文本。
 
 use super::*;
 use crate::hooks::{HookHandler, HookRunner};
@@ -375,6 +376,7 @@ async fn run_llm_round_provider_error_records_failed_response() {
 }
 
 #[allow(clippy::too_many_arguments)]
+// 集中装配单轮依赖，个别场景只替换供应商能力、OCR 或取消条件。
 async fn run_test_round(
     provider: &TestProvider,
     observer: &RecordingObserver,

@@ -1,4 +1,6 @@
 // 验证设置存储的后端装配、作用域检查与更新语义。
+
+// 提供方矩阵复用相同断言，确保列举、删除和空值校验在各后端一致。
 use anyhow::Result;
 use vw_api_types::id::TenantScope;
 

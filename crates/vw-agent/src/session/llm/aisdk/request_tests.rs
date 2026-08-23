@@ -175,6 +175,7 @@ fn redact_bearer_handles_empty_short_and_long_values() {
 }
 
 #[test]
+// 令牌预览按字符而非字节截断，避免破坏 UTF-8 边界。
 fn redact_bearer_counts_unicode_characters_without_splitting_them() {
     assert_eq!(redact_bearer_for_log("密钥"), "**");
     assert_eq!(redact_bearer_for_log("甲乙丙丁戊"), "甲乙***丁戊");
@@ -191,6 +192,7 @@ fn bearer_fingerprint_is_defined_for_an_empty_secret() {
 }
 
 #[tokio::test]
+// 自定义请求头在认证和网络分发前拒绝，防止绕过受控头部策略。
 async fn custom_headers_are_rejected_before_auth_or_dispatch() {
     let mut headers = HashMap::new();
     headers.insert("x-extra".to_string(), "1".to_string());
@@ -355,6 +357,7 @@ async fn provider_env_token_is_used_before_auth_info() {
 }
 
 #[tokio::test]
+// 空环境变量不应遮蔽后续有效认证来源。
 async fn provider_env_skips_missing_and_blank_values_before_later_token() {
     let blank_key = "VW_AGENT_AISDK_REQUEST_TEST_BLANK_TOKEN";
     let token_key = "VW_AGENT_AISDK_REQUEST_TEST_LATER_TOKEN";

@@ -1,4 +1,6 @@
 // 验证网关顶层鉴权、超时选择与受保护路由的组合行为。
+
+// 测试将启动期和常规 REST 路径分开，确认二者应用不同的认证例外。
 use super::*;
 
 use crate::app::agent::config::Config;
@@ -35,6 +37,7 @@ impl Provider for StaticProvider {
     }
 }
 
+// 认证状态显式控制配对开关与令牌集合，避免从用户环境读取隐式配置。
 fn auth_state(require_pairing: bool, paired_tokens: &[String]) -> AppState {
     AppState {
         config: Arc::new(Mutex::new(Config::default())),
@@ -79,6 +82,7 @@ fn auth_app(state: AppState) -> Router {
         .layer(from_fn_with_state(state, skey_auth_middleware))
 }
 
+// 启动期应用单独组装，用来证明引导端点的例外不会扩散到常规路由。
 fn bootstrap_rest_app(state: AppState) -> Router {
     Router::<AppState>::new()
         .merge(bootstrap::external_router())

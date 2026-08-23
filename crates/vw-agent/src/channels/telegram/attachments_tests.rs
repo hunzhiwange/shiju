@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 附件标记、类型推断、文件名清理与目标判定。
+
 use super::attachments::{
     IncomingAttachmentKind, TELEGRAM_MAX_FILE_DOWNLOAD_BYTES, TelegramAttachmentKind,
     format_attachment_content, infer_attachment_kind_from_target, is_http_url, is_image_extension,
@@ -60,6 +62,7 @@ fn document_with_image_extension_formats_as_image_marker() {
 }
 
 #[test]
+// 附件名去除目录语义并限制长度，不能影响工作区外路径。
 fn attachment_filename_sanitizer_rejects_directory_markers_and_truncates() {
     assert_eq!(sanitize_attachment_filename("../report.pdf").as_deref(), Some("report.pdf"));
     assert_eq!(sanitize_attachment_filename(r"dir\report.pdf").as_deref(), Some(r"dir_report.pdf"));
@@ -294,4 +297,3 @@ async fn resolve_workspace_attachment_output_path_rejects_symlink_target() {
 fn telegram_download_limit_is_twenty_mebibytes() {
     assert_eq!(TELEGRAM_MAX_FILE_DOWNLOAD_BYTES, 20 * 1024 * 1024);
 }
-// 本文件验证 Telegram 附件标记、类型推断、文件名清理与目标判定。

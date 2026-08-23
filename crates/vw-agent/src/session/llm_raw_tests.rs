@@ -25,6 +25,7 @@ fn raw_round(step_index: u32, messages: Vec<Value>, config: Value, output: Value
 }
 
 #[test]
+// 压缩或重试可能复用步骤编号，轮次键还需区分消息内容。
 fn raw_turn_key_distinguishes_reused_step_indices() {
     let raw = raw_round(
         0,
@@ -99,6 +100,7 @@ fn raw_rounds_reconstruct_final_step_system_and_tool_changes() {
 }
 
 #[test]
+// 历史前缀压缩后只持久化新增差量，不能重复保存剩余消息。
 fn raw_round_delta_handles_compacted_prefix() {
     let before_compaction = raw_round(
         0,

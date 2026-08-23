@@ -1,3 +1,5 @@
+// 本文件验证插件配置去重、JSON 合并及网关密钥的提取与回填。
+
 use super::{
     Error, State, deduplicate_plugins, directories, load_from_path_without_env, merge_json_value,
     plugin_name, remove_global_provider, take_gateway_skeys_from_patch, update, update_global,
@@ -88,6 +90,7 @@ fn take_gateway_skeys_from_patch_returns_none_without_gateway_object() {
 }
 
 #[test]
+// 网关密钥从普通补丁剥离，避免进入非密钥存储路径。
 fn take_gateway_skeys_from_patch_removes_valid_skeys_from_patch() {
     let hash = "a".repeat(64);
     let mut patch = json!({
@@ -252,4 +255,3 @@ fn load_from_path_without_env_blocking_rejects_path_without_parent() {
         matches!(error, Error::Invalid(message) if message == "config path must have a parent directory")
     );
 }
-// 本文件验证插件配置去重、JSON 合并及网关密钥的提取与回填。

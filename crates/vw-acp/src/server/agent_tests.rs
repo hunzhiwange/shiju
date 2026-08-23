@@ -1,4 +1,6 @@
 //! 验证服务端代理能力声明、后端会话绑定与历史所有权边界。
+//!
+//! 内存传输和伪后端 fixture 用于从协议边界观察服务端行为。
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -53,6 +55,7 @@ async fn initialize(agent: &VibeWindowAgent<FakeBackend>) {
         .expect("initialize");
 }
 
+// 下列行为用例覆盖能力声明、会话隔离、并发拒绝和传输输出。
 #[tokio::test]
 async fn initialize_advertises_only_implemented_v1_capabilities() {
     let agent = VibeWindowAgent::new(FakeBackend::default());

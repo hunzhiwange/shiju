@@ -1,5 +1,7 @@
 //! OpenAI 兼容的模型列表与聊天补全端点，负责请求映射和流式响应。
 //!
+//! 请求在进入代理提供者前转换为内部消息类型；响应保持 OpenAI JSON 或 SSE 事件形状。
+//!
 //! OpenAI-compatible `/v1/chat/completions` and `/v1/models` endpoints.
 //!
 //! These endpoints allow VibeWindow to act as a drop-in replacement for the
@@ -20,8 +22,9 @@ use std::net::SocketAddr;
 use std::time::Instant;
 use uuid::Uuid;
 
-/// Maximum body size for chat completions requests (512KB).
-/// Chat histories with many messages can be much larger than the default 64KB gateway limit.
+/// 聊天补全请求的最大正文大小（512 KiB）。
+///
+/// 该独立上限允许较长对话历史，同时避免接受无限制正文。
 pub const CHAT_COMPLETIONS_MAX_BODY_SIZE: usize = 524_288;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -29,53 +32,75 @@ pub const CHAT_COMPLETIONS_MAX_BODY_SIZE: usize = 524_288;
 // ══════════════════════════════════════════════════════════════════════════════
 
 #[derive(Debug, Deserialize)]
+/// OpenAI 兼容的聊天补全请求。
 pub struct ChatCompletionsRequest {
-    /// Model ID (e.g. "anthropic/claude-sonnet-4"). Falls back to gateway default.
+    /// 模型标识；缺省时使用网关默认模型。
     #[serde(default)]
     pub model: Option<String>,
-    /// Conversation messages.
+    /// 按对话顺序排列的消息。
     pub messages: Vec<ChatCompletionsMessage>,
-    /// Sampling temperature. Falls back to gateway default.
+    /// 采样温度；缺省时使用网关默认值。
     #[serde(default)]
     pub temperature: Option<f64>,
-    /// Whether to stream the response as SSE events.
+    /// 是否以 SSE 事件流返回响应。
     #[serde(default)]
     pub stream: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
+/// OpenAI 兼容的单条聊天消息。
 pub struct ChatCompletionsMessage {
+    /// 消息角色。
     pub role: String,
+    /// 纯文本消息内容。
     pub content: String,
 }
 
 #[derive(Debug, Serialize)]
+/// 非流式聊天补全响应。
 pub struct ChatCompletionsResponse {
+    /// 本次补全的唯一标识。
     pub id: String,
+    /// 固定的对象类型。
     pub object: &'static str,
+    /// 创建时间的 Unix 秒数。
     pub created: u64,
+    /// 实际使用的模型标识。
     pub model: String,
+    /// 候选结果列表。
     pub choices: Vec<ChatCompletionsChoice>,
+    /// 估算的令牌用量。
     pub usage: ChatCompletionsUsage,
 }
 
 #[derive(Debug, Serialize)]
+/// 单个聊天补全候选。
 pub struct ChatCompletionsChoice {
+    /// 候选序号。
     pub index: u32,
+    /// 助手响应消息。
     pub message: ChatCompletionsResponseMessage,
+    /// 响应结束原因。
     pub finish_reason: &'static str,
 }
 
 #[derive(Debug, Serialize)]
+/// 聊天补全响应中的助手消息。
 pub struct ChatCompletionsResponseMessage {
+    /// 固定的助手角色。
     pub role: &'static str,
+    /// 模型生成的文本。
     pub content: String,
 }
 
 #[derive(Debug, Serialize)]
+/// 聊天补全的估算令牌统计。
 pub struct ChatCompletionsUsage {
+    /// 输入消息估算令牌数。
     pub prompt_tokens: u32,
+    /// 输出内容估算令牌数。
     pub completion_tokens: u32,
+    /// 输入与输出令牌总数。
     pub total_tokens: u32,
 }
 
@@ -130,16 +155,24 @@ fn chunk_bytes(
 }
 
 #[derive(Debug, Serialize)]
+/// OpenAI 兼容的模型列表响应。
 pub struct ModelsResponse {
+    /// 固定的列表对象类型。
     pub object: &'static str,
+    /// 可用模型条目。
     pub data: Vec<ModelObject>,
 }
 
 #[derive(Debug, Serialize)]
+/// OpenAI 兼容的模型描述。
 pub struct ModelObject {
+    /// 模型标识。
     pub id: String,
+    /// 固定的模型对象类型。
     pub object: &'static str,
+    /// 条目创建时间的 Unix 秒数。
     pub created: u64,
+    /// 模型所属提供者。
     pub owned_by: String,
 }
 
@@ -147,7 +180,7 @@ pub struct ModelObject {
 // HANDLERS
 // ══════════════════════════════════════════════════════════════════════════════
 
-/// POST /v1/chat/completions — OpenAI-compatible chat endpoint.
+/// 处理 `/v1/chat/completions`，根据 `stream` 选择 JSON 或 SSE 响应。
 pub async fn handle_v1_chat_completions(
     State(state): State<AppState>,
     ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
@@ -455,7 +488,7 @@ fn handle_streaming(
         .into_response()
 }
 
-/// GET /v1/models — List available models.
+/// 返回当前网关可解析的 OpenAI 兼容模型列表。
 pub async fn handle_v1_models(
     State(state): State<AppState>,
     headers: HeaderMap,

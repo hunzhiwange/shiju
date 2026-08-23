@@ -58,6 +58,7 @@ fn write_fresh_state(config: &Config) {
     .unwrap();
 }
 
+// 诊断断言同时检查严重级别与可操作提示，避免只有返回值正确而用户指引失真。
 #[test]
 fn diagnose_returns_structured_results_in_check_order() {
     let tmp = TempDir::new().unwrap();

@@ -1,3 +1,6 @@
+//! 验证自主运行设置的权限选项、边界值、帮助层与视图状态。
+//! 默认拒绝、完全访问和数值极限分别覆盖安全级别的显式切换。
+
 use super::*;
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
 use crate::app::{App, Message};
@@ -8,6 +11,7 @@ use vw_config_types::security::{
     AutonomyLevel, NonCliNaturalLanguageApprovalMode, ShellRedirectPolicy,
 };
 
+// 自主运行权限在测试内显式设置，避免继承本地高权限配置。
 fn test_app() -> App {
     App::new().0
 }

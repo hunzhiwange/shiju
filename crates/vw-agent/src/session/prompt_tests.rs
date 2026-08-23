@@ -1,4 +1,5 @@
 //! 验证系统提示组装、运行时上下文和异步执行辅助行为。
+//! 提示夹具分别覆盖无运行时和已有运行时，并检查项目指令与身份白名单互不串扰。
 
 #[test]
 fn max_steps_text_matches_trimmed_embedded_constraint() {
@@ -84,6 +85,7 @@ fn system_prompt_keeps_project_agents_independent_from_empty_identity_whitelist(
 }
 
 #[test]
+// 初始请求读取显式工作区指令族，但不把身份白名单为空误解为禁用项目指令。
 fn system_prompt_initial_request_reads_explicit_workspace_agents_family() {
     let project = tempfile::tempdir().expect("project workspace");
     std::fs::create_dir_all(project.path().join(".vibewindow"))

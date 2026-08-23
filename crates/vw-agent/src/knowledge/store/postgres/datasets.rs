@@ -25,6 +25,7 @@ const DATASET_SELECT: &str =
      FROM knowledge_datasets d";
 
 impl PostgresKnowledgeStore {
+    /// 列出当前租户数据集，并附带文档与分块计数。
     pub(in crate::knowledge::store) fn list_datasets(
         &self,
         tenant: &TenantScope,
@@ -45,6 +46,7 @@ impl PostgresKnowledgeStore {
             .collect()
     }
 
+    /// 按租户和数据集标识读取单个数据集。
     pub(in crate::knowledge::store) fn get_dataset(
         &self,
         tenant: &TenantScope,
@@ -54,6 +56,7 @@ impl PostgresKnowledgeStore {
         query_dataset(&mut *connection, tenant, dataset_id)
     }
 
+    /// 写入已由上层校验的数据集配置。
     pub(in crate::knowledge::store) fn create_dataset(
         &self,
         tenant: &TenantScope,
@@ -99,6 +102,7 @@ impl PostgresKnowledgeStore {
             .context("PostgreSQL knowledge dataset was not saved")
     }
 
+    /// 删除数据集并返回删除前的完整投影。
     pub(in crate::knowledge::store) fn delete_dataset(
         &self,
         tenant: &TenantScope,
@@ -174,10 +178,12 @@ fn dataset_from_row(row: &Row) -> Result<KnowledgeDatasetDto> {
     })
 }
 
+/// 将无符号时间或计数饱和转换为 PostgreSQL `BIGINT`。
 pub(super) fn i64_from_u64(value: u64) -> i64 {
     i64::try_from(value).unwrap_or(i64::MAX)
 }
 
+/// 将数据库中的负数防御性归零后转换为无符号值。
 pub(super) fn u64_from_i64(value: i64) -> u64 {
     u64::try_from(value).unwrap_or_default()
 }

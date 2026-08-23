@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tempfile::TempDir;
 
+// 上下文夹具同时设置项目目录和工作树，用于验证两种路径边界。
 fn test_context(directory: &str, worktree: &str) -> Context {
     Context {
         directory: directory.to_string(),
@@ -64,6 +65,7 @@ async fn context_accessors_and_contains_path_cover_directory_worktree_and_root_b
 }
 
 #[tokio::test]
+// 释放后重新初始化视为新一代状态，每一代的清理器都只能执行一次。
 async fn state_reuses_initialized_value_and_dispose_releases_each_generation() {
     let init_count = Arc::new(AtomicUsize::new(0));
     let dispose_count = Arc::new(AtomicUsize::new(0));

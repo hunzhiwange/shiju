@@ -1,4 +1,6 @@
 //! 验证消息读写旁路在分帧、回调、失败与挂起状态下保持透明转发。
+//!
+//! 子进程与内存 I/O fixture 只暴露可观察的字节、退出状态和清理结果。
 
 use std::sync::Arc;
 use std::{
@@ -112,6 +114,7 @@ fn push_callback(
     })
 }
 
+// 下列行为用例覆盖成功转发、挂起或失败 I/O 以及进程终止边界。
 #[tokio::test]
 async fn tap_buffers_partial_lines_and_ignores_non_jsonrpc_payloads() {
     let seen = Arc::new(Mutex::new(Vec::new()));

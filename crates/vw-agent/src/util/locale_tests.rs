@@ -1,4 +1,5 @@
 //! 验证时间格式化输出及 IANA 时区配置的应用。
+//! 固定时间戳用于避免墙钟波动，断言只约束稳定格式与时区偏移。
 
 use super::locale::{
     configured_datetime_at, datetime, parse_timezone, time_short, today_time_or_datetime,

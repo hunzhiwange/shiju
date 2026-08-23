@@ -42,6 +42,7 @@ use super::task::{
 use serde_json::json;
 use std::collections::BTreeMap;
 
+// 图快照 fixture 同时覆盖依赖边方向、阻塞原因以及任务就绪状态的往返序列化。
 #[test]
 fn agent_scheduler_task_graph_contract_roundtrips_success_dependencies_and_readiness() {
     let edge = AgentSchedulerTaskGraphEdgeDto {
@@ -82,6 +83,7 @@ fn agent_scheduler_task_graph_contract_roundtrips_success_dependencies_and_readi
     );
 }
 
+// 推理强度既要支持当前枚举，也要兼容缺少该字段的旧任务导入载荷。
 #[test]
 fn task_reasoning_effort_dto_roundtrips() {
     for effort in [
@@ -130,6 +132,7 @@ fn task_reasoning_effort_dto_roundtrips() {
     assert!(error.to_string().contains("reasoning_effort"));
 }
 
+// 作用域构造器和反序列化必须拒绝空标识，同时保留默认租户的固定种子值。
 #[test]
 fn tenant_and_project_scopes_require_non_empty_ids() {
     assert!(PlatformId::new(" ").is_err());
@@ -160,6 +163,7 @@ fn tenant_and_project_scopes_require_non_empty_ids() {
     assert_eq!(local.project_scope().company_id().as_ref(), DEFAULT_COMPANY_ID);
 }
 
+// Matrix 调度事件 fixture 覆盖版本、必填项、可选文本和字符数上限四类边界。
 #[test]
 fn matrix_dispatch_event_validation_accepts_valid_content_and_rejects_invalid_text() {
     let valid = AgentSchedulerMatrixDispatchEventDto {
@@ -214,6 +218,7 @@ fn matrix_dispatch_event_validation_accepts_valid_content_and_rejects_invalid_te
     );
 }
 
+// 用有限、周期和团队 DAG 任务 fixture 验证调度领域快照共享同一稳定线协议。
 #[test]
 fn agent_scheduler_dto_round_trips_task_run_worker_team_and_outbox() {
     let finite_task = AgentTaskDto {
@@ -439,6 +444,7 @@ fn agent_scheduler_dto_round_trips_task_run_worker_team_and_outbox() {
     );
 }
 
+// 看板 fixture 覆盖任务、事件、命令、工作流、日志、产物和旧版导入的原生字段名。
 #[test]
 fn agent_scheduler_task_board_contract_uses_native_scheduler_names() {
     let workspace = AgentSchedulerWorkspaceContextDto {
@@ -865,6 +871,7 @@ fn agent_scheduler_task_board_contract_uses_native_scheduler_names() {
     );
 }
 
+// 阶段动作输入允许结构化参数，并继续接受旧载荷中的顶层工作流标识。
 #[test]
 fn staff_stage_action_inputs_and_outcome_roundtrip() {
     let inputs = AgentSchedulerStageActionInputsDto {
@@ -920,6 +927,7 @@ fn staff_stage_action_inputs_and_outcome_roundtrip() {
     assert_eq!(legacy_action.inputs, AgentSchedulerStageActionInputsDto::default());
 }
 
+// 管理接口 fixture 保证完整 worker 与 team 快照在增改查响应间无字段丢失。
 #[test]
 fn agent_scheduler_management_dto_round_trips_complete_worker_and_team_snapshots() {
     let worker = AgentWorkerDto {

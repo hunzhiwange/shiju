@@ -1,3 +1,6 @@
+//! 验证输入面板容器、按钮与弹窗在各主题和交互状态下的样式。
+//! 精确比较背景、边框和透明度，覆盖禁用态复用基础样式的约定。
+
 use super::styles::*;
 use iced::widget::{button, text_editor};
 use iced::{Background, Color, Theme};

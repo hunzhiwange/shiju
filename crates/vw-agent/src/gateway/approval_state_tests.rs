@@ -1,4 +1,6 @@
 // 验证审批管理器缓存的实例隔离、清理幂等性与锁中毒恢复。
+
+// 测试串行持有全局锁，避免进程级审批缓存在用例之间互相污染。
 use super::*;
 use crate::app::agent::project;
 use std::panic;

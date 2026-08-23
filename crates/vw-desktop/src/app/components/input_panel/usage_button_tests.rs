@@ -1,3 +1,6 @@
+//! 验证用量按钮在不同上下文额度、模型信息与会话步骤下的构建。
+//! 零额度、超限比例和大令牌数用于保证触发器与提示层始终可构建。
+
 use super::usage_button::usage_button;
 use crate::app::models::{ChatSessionStep, TokenUsage};
 use crate::app::state::UsageModelInfo;

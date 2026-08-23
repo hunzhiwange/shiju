@@ -1,4 +1,5 @@
-//! 测试 PostgreSQL 发件箱的并发领取、租约与重试状态。
+//! 测试 PostgreSQL 发件箱行映射保留投递、失败、重试状态与载荷。
+//! 负数尝试次数和畸形 JSON 被视为损坏记录，而非自动修正。
 
 use anyhow::Result;
 use serde_json::json;

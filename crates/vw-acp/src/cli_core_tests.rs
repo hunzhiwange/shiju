@@ -1,4 +1,6 @@
 //! 验证 CLI 启动计划、参数边界、标准输入读取与安全默认值。
+//!
+//! 命令解析、内存输出与失败 fixture 共同固定公开 CLI 的可观察契约。
 
 use std::collections::HashMap;
 use std::io::Error;
@@ -79,6 +81,7 @@ impl Read for FailingReader {
     }
 }
 
+// 下列行为用例同时检查格式分支、参数边界和错误传播。
 #[test]
 fn command_argv_skips_binary_and_script_launcher() {
     let status = argv(&["status"]);

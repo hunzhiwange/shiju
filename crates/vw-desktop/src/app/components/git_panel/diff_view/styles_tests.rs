@@ -1,3 +1,6 @@
+//! 验证差异窗格、行号区域与交互状态在明暗主题下的样式契约。
+//! 对精确背景色、边框和混色边界做断言，元素构建仅用于覆盖布局分支。
+
 use iced::widget::{container, text};
 use iced::{Background, Color, Element, Theme};
 

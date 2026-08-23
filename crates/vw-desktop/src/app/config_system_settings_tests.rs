@@ -1,3 +1,7 @@
+//! 验证系统设置配置在应用状态与持久化结构之间的转换。
+//!
+//! 往返夹具比较持久化配置与应用设置状态，确保缺省值和可选字段不漂移。
+
 use std::ffi::OsStr;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{Read, Write};

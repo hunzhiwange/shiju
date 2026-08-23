@@ -1,4 +1,6 @@
 // 验证身份输入的空白处理、字段规范化与长度边界。
+
+// 规范化会裁剪、去重并兼容嵌套生成器形状，但不凭空保留空章节。
 use super::*;
 use serde_json::json;
 
@@ -204,6 +206,7 @@ fn normalize_direct_values_trim_coerce_and_dedupe() {
 }
 
 #[test]
+// 兼容生成器的嵌套形状是输入适配边界，不能影响规范化后的统一模型。
 fn normalize_supports_nested_generator_fallback_shape() {
     let payload = json!({
         "identity": {"names": {"full": "Marta Jankowska"}},
@@ -282,6 +285,7 @@ fn normalize_supports_nested_generator_fallback_shape() {
 }
 
 #[test]
+// 无法识别的复合值保守提取可用字段，标量恐惧项也应正常接收。
 fn normalize_uses_object_fallbacks_for_unrecognized_moral_compass_and_fears() {
     let payload = json!({
         "psychology": {"moral_compass": {"name": "Fallback principle"}},

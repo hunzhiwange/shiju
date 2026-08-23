@@ -3,6 +3,7 @@
 use super::{all, get, provide, provide_with, remove, set};
 use std::collections::HashMap;
 
+// 这些用例会修改进程级环境变量，因此通过共享锁与守卫避免并发污染并恢复原值。
 #[test]
 fn injected_environment_is_isolated_from_default_snapshot() {
     let mut vars = HashMap::new();

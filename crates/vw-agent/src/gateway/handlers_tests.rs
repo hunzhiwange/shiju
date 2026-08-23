@@ -1,4 +1,6 @@
 // 覆盖渠道 Webhook 处理器的鉴权、签名校验、代理与错误响应边界。
+
+// 渠道 fixture 覆盖成功回复与降级回复，并验证外部签名先于载荷处理。
 use super::*;
 use crate::app::agent::channels::traits::{ChannelMessage, SendMessage};
 use crate::app::agent::channels::{
@@ -46,6 +48,7 @@ impl Channel for RecordingChannel {
     }
 }
 
+// 构造统一渠道消息，便于比较成功回复和错误降级是否保留线程上下文。
 fn channel_message() -> ChannelMessage {
     ChannelMessage {
         id: "message-1".to_string(),
@@ -143,6 +146,7 @@ async fn response_json(response: axum::response::Response) -> (StatusCode, serde
     (status, serde_json::from_slice(&body).unwrap())
 }
 
+// 签名由测试正文现算，避免把固定样例误当成对任意载荷都有效。
 fn valid_whatsapp_signature(secret: &str, body: &[u8]) -> String {
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
     mac.update(body);

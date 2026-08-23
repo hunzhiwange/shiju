@@ -1,4 +1,6 @@
 //! 验证配置命令的载荷构造、各输出格式以及写入错误传播。
+//!
+//! 命令解析、内存输出与失败 fixture 共同固定公开 CLI 的可观察契约。
 
 use std::collections::HashMap;
 use std::fs;
@@ -140,6 +142,7 @@ fn flags(format: OutputFormat) -> GlobalFlags {
     }
 }
 
+// 下列行为用例同时检查格式分支、参数边界和错误传播。
 #[test]
 fn config_show_payload_includes_paths_and_loaded_flags() {
     let payload = config_show_payload(&config());

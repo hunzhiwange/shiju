@@ -1,10 +1,14 @@
+//! 提供识矩应用页面在明暗主题下的组件样式。
+
 use iced::widget::{button, container, text};
 use iced::{Background, Border, Color, Shadow, Theme, Vector};
 
 use crate::app::components::system_settings_common::primary_action_btn_style;
 
+/// 识矩应用页面统一使用的滚动条宽度。
 pub(crate) const SCROLLBAR_WIDTH: u32 = 4;
 
+/// 根据选中与悬停状态生成明暗主题均可读的页签样式。
 pub(super) fn tab_style(theme: &Theme, status: button::Status, selected: bool) -> button::Style {
     let palette = theme.extended_palette();
     let active =
@@ -60,6 +64,7 @@ pub(super) fn badge_style(theme: &Theme) -> container::Style {
     }
 }
 
+/// 用成功色或弱化色区分应用是否运行就绪。
 pub(super) fn status_style(theme: &Theme, ready: bool) -> container::Style {
     let palette = theme.extended_palette();
     let pair = if ready { palette.success.weak } else { palette.danger.weak };
@@ -103,6 +108,7 @@ pub(super) fn binding_error_style(theme: &Theme) -> container::Style {
     }
 }
 
+/// 根据密钥绑定状态是否出错选择反馈容器颜色。
 pub(super) fn binding_state_style(theme: &Theme, error: bool) -> container::Style {
     let palette = theme.extended_palette();
     let pair = if error { palette.danger.weak } else { palette.primary.weak };

@@ -1,4 +1,6 @@
 // 验证 PostgreSQL 知识库模式的建表顺序、索引与幂等性。
+
+// 检测到缺少公司作用域的旧表时初始化必须拒绝，且不能半途修改模式。
 use super::*;
 use crate::global_database::test_support::PostgresTestDatabase;
 

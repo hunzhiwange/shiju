@@ -1,3 +1,6 @@
+// 验证任务看板设置持久化、期限计算与边界清理。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 
 fn assert_deadline_in_window(deadline_ms: u64, start_ms: u64, end_ms: u64, interval_secs: u64) {
@@ -7,6 +10,8 @@ fn assert_deadline_in_window(deadline_ms: u64, start_ms: u64, end_ms: u64, inter
     assert!(deadline_ms <= end_ms.saturating_add(interval_ms));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn save_settings_without_project_leaves_recent_projects_unchanged() {
     let (mut app, _task) = crate::app::App::new();
@@ -66,6 +71,8 @@ fn next_deadline_saturates_when_interval_overflows_milliseconds() {
     assert_eq!(next_deadline_ms(u64::MAX), u64::MAX);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn interval_accessors_clamp_lower_middle_and_upper_values() {
     let (mut app, _task) = crate::app::App::new();
@@ -160,6 +167,8 @@ fn scheduler_deadline_is_preserved_while_still_in_the_future() {
     assert_eq!(app.task_board_next_scheduler_tick_at_ms, u64::MAX);
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn scheduler_deadline_is_refreshed_after_expiry() {
     let (mut app, _task) = crate::app::App::new();
@@ -210,6 +219,8 @@ fn auto_promote_scheduler_uses_sanitized_interval_for_deadline() {
     assert_deadline_in_window(app.task_board_next_auto_promote_tick_at_ms, start_ms, end_ms, 1);
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn standalone_schedulers_produce_deferred_actions() {
     let (app, _task) = crate::app::App::new();

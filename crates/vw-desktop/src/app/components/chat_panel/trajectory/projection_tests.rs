@@ -1,3 +1,6 @@
+//! 验证会话步骤投影的消息去重、工具配对、指标缺失与稳定标识。
+//! 累积消息前缀和乱序输入用于保证重载后记录标识稳定且工具结果配对不依赖相邻位置。
+
 use std::collections::HashMap;
 
 use serde_json::{Value, json};
@@ -26,6 +29,7 @@ fn step(index: u32, started_ms: u64, finished_ms: Option<u64>, usage: [i64; 4]) 
     }
 }
 
+// 原始步骤保持网关持久化形状，用于检验投影层而不是先经过领域模型归一化。
 fn raw_step(messages: Vec<Value>, text: &str, reasoning: &str, tool_calls: Vec<Value>) -> Value {
     json!({
         "system": ["You are helpful."],

@@ -211,6 +211,7 @@ fn tool_result_text_helpers_cover_scalars_arrays_objects_and_patches() {
 }
 
 #[test]
+// 工具结果按协议字段优先级取文本，兼容旧别名但不覆盖新字段。
 fn tool_result_dto_text_prefers_content_then_model_result_then_data() {
     let content_result = ToolResultDto {
         tool_use_id: None,
@@ -473,6 +474,7 @@ fn usage_updates_accept_top_level_and_meta_aliases() {
 }
 
 #[test]
+// 单条 ACP 更新可能拆成多类内部事件，转发顺序需保持协议语义。
 fn forward_acp_message_emits_deltas_reasoning_tools_and_usage() {
     let mut latest_usage = ui_types::TokenUsage::default();
     let mut delta_count = 0usize;
@@ -723,6 +725,7 @@ fn forward_acp_message_ignores_unknown_updates_without_mutating_state() {
 }
 
 #[test]
+// 增量计数采用饱和递增，极端长流不能发生整数回绕。
 fn forward_acp_message_saturates_delta_count_at_usize_max() {
     let mut latest_usage = ui_types::TokenUsage::default();
     let mut delta_count = usize::MAX;

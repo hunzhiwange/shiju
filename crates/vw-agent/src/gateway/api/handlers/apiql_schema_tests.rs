@@ -77,6 +77,7 @@ fn temp_store() -> (tempfile::TempDir, GlobalDatabase, ApiQlEntityConfigStore) {
     (dir, database, store)
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[test]
 fn apiql_schema_resolves_registered_entity() {
     let registry = ApiQlEntityRegistry::from_configs(vec![product_config()])
@@ -102,6 +103,7 @@ fn apiql_schema_resolves_registered_entity() {
     assert_eq!(APIQL_ENTITY_SETTINGS_NAMESPACE, "apiql.entities");
 }
 
+// 非法字段、运算符和解析器配置必须在生成查询或执行脚本前被拒绝。
 #[test]
 fn apiql_schema_rejects_unknown_entity() {
     let registry = ApiQlEntityRegistry::from_configs(vec![product_config()])

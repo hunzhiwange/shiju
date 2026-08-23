@@ -1,5 +1,7 @@
 //! ApiQL 只读数据库执行器，负责查询参数绑定、分页与后端结果归一化。
 //!
+//! 执行前拒绝非只读 SQL 形状，并对排序片段和占位符做显式校验，避免将自由文本拼入查询。
+//!
 //! Read-only database executor used by ApiQL.
 
 use std::collections::BTreeMap;
@@ -26,6 +28,7 @@ static MYSQL_POOLS: Lazy<Mutex<HashMap<String, Arc<mysql::Pool>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 查询总数的计算策略。
 pub(crate) enum ApiQlCountMode {
     Disabled,
     Enabled,
@@ -33,30 +36,49 @@ pub(crate) enum ApiQlCountMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// ApiQL 查询的分页元数据。
 pub(crate) struct ApiQlQueryPage {
+    /// 每页记录数。
     pub(crate) per_page: u32,
+    /// 当前页码。
     pub(crate) current_page: u32,
+    /// 总页数。
     pub(crate) total_page: u32,
+    /// 总记录数。
     pub(crate) total_record: u64,
+    /// 当前页首条记录的一基序号。
     pub(crate) from: u64,
+    /// 当前页末条记录的一基序号。
     pub(crate) to: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 统一后的 ApiQL 数据库查询结果。
 pub(crate) struct ApiQlQueryResult {
+    /// 分页信息。
     pub(crate) page: ApiQlQueryPage,
+    /// JSON 对象形式的结果行。
     pub(crate) items: Vec<Value>,
+    /// 是否仍有下一页。
     pub(crate) has_next_page: bool,
 }
 
 #[derive(Debug, Clone)]
+/// 交给数据库后端执行的只读查询规格。
 pub(crate) struct ApiQlDatabaseQuery {
+    /// 主查询 SQL。
     pub(crate) sql: String,
+    /// 可选计数 SQL。
     pub(crate) count_sql: Option<String>,
+    /// 具名参数值。
     pub(crate) params: BTreeMap<String, Value>,
+    /// 请求页码。
     pub(crate) page: u32,
+    /// 每页上限。
     pub(crate) limit: u32,
+    /// 总数计算策略。
     pub(crate) count_mode: ApiQlCountMode,
+    /// 经校验的可选排序片段。
     pub(crate) order_by: Option<String>,
 }
 
@@ -74,6 +96,7 @@ impl Default for ApiQlDatabaseQuery {
     }
 }
 
+/// 在连接指定的后端执行只读查询并返回统一分页结果。
 pub(crate) async fn execute_read_only_query(
     connection: ApiQlConnection,
     query: ApiQlDatabaseQuery,

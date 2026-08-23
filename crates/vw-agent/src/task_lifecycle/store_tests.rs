@@ -1,4 +1,5 @@
 //! 验证任务生命周期存储的状态往返、并发与租户隔离。
+//! SQLite 与 PostgreSQL 共享同一行为断言，旧表和无作用域新表都不得被静默迁入。
 
 use super::*;
 
@@ -80,6 +81,7 @@ async fn workflow_lifecycle_workflows_are_isolated_by_tenant() {
     postgres_fixture.cleanup().expect("clean PostgreSQL test database");
 }
 
+// 同一套断言在两种提供方上运行，重点固定租户隔离与冲突语义而非 SQL 细节。
 async fn assert_workflow_lifecycle_workflows_are_isolated_by_tenant(database: GlobalDatabase) {
     let tenant_a = TenantScope::new("platform-a", "company-a").expect("tenant A");
     let tenant_b = TenantScope::new("platform-a", "company-b").expect("tenant B");
@@ -204,6 +206,7 @@ async fn assert_workflow_lifecycle_workflows_are_isolated_by_tenant(database: Gl
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 旧表被刻意保留但忽略，防止缺少租户列的数据被错误归入默认租户。
 async fn task_lifecycle_store_ignores_legacy_table_and_file_without_mutation() {
     let home = tempfile::tempdir().expect("temp home");
     let database = GlobalDatabase::for_home(home.path()).expect("global database");

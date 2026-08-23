@@ -1,3 +1,6 @@
+// 验证提供商刷新、远端同步阶段与过期结果处理。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::message::settings::types::ProvidersLoaded;
@@ -25,6 +28,8 @@ fn loaded(
     Ok((HashMap::new(), patterns.into_iter().map(str::to_string).collect(), configured, catalog))
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn refresh_starts_loading_and_clears_transient_errors() {
     let mut app = app();
@@ -221,6 +226,8 @@ fn connect_submit_validates_key_and_handles_both_results() {
     assert!(app.provider_settings.connect_modal.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn disconnect_messages_manage_confirmation_and_result_errors() {
     let mut app = app();
@@ -561,6 +568,8 @@ fn custom_model_modal_rejects_duplicate_ids_and_invalid_limit_relationships() {
     assert!(app.provider_settings.custom_model_modal.is_some());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn custom_provider_save_rejects_duplicate_model_ids_before_async_save() {
     let mut app = app();
@@ -781,6 +790,8 @@ fn catalog_and_popular_provider_messages_cover_success_error_and_bounds() {
     assert!(!app.provider_settings.catalog_open);
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn shiju_official_provider_messages_are_idempotent() {
     let mut app = app();

@@ -99,6 +99,7 @@ fn inspect_command_output_emits_unknown_and_denied_alerts_and_writes_jsonl() {
 }
 
 #[test]
+// 同一批输出中的重复信号只生成一次告警，避免噪声放大。
 fn inspect_command_output_deduplicates_identical_alerts_from_same_batch() {
     let (_tmp, detector) = detector_with(SyscallAnomalyConfig {
         strict_mode: true,
@@ -306,6 +307,7 @@ fn parse_syscall_signal_supports_number_keyword_and_system_call_name() {
 }
 
 #[test]
+// 系统调用跟踪通常写入标准错误，解析顺序需优先保留该来源。
 fn extract_signals_reads_stderr_before_stdout() {
     let signals = extract_signals("seccomp denied syscall=openat", "audit: type=1326 syscall=read");
 
@@ -481,6 +483,7 @@ fn event_and_alert_window_helpers_prune_old_entries() {
 }
 
 #[test]
+// 告警预算和冷却窗口共同限流，过期记录随后释放容量。
 fn should_emit_alert_enforces_budget_cooldown_and_expiry() {
     let now = Instant::now();
     let mut state = DetectorState::default();

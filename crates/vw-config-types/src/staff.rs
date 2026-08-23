@@ -1,3 +1,5 @@
+//! 定义员工编排、工作流与项目分配配置，并集中执行归一化和一致性校验。
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -21,25 +23,27 @@ const BUILT_IN_STAGE_CAPABILITY_IDS: &[&str] = &[
     MANUAL_CAPABILITY_ID,
 ];
 
-/// Gateway-backed staff roster, workflow, and project assignment configuration.
+/// 由网关持久化的员工名册、工作流及项目分配配置。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffConfig {
-    /// Staff members available to the task board staff mode.
+    /// 任务看板员工模式可调度的成员。
     #[serde(default = "default_staff_members")]
     pub members: Vec<StaffMemberConfig>,
-    /// Stable string workflow stages used when projecting into desktop task statuses.
+    /// 映射到桌面任务状态时使用的稳定工作流阶段。
     #[serde(default = "default_workflow_stages")]
     pub workflow_stages: Vec<StaffWorkflowStageConfig>,
-    /// System-level workflow orchestration templates keyed by workflow_id.
+    /// 以工作流标识为键的系统级编排模板。
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub workflow_orchestrations: BTreeMap<String, StaffWorkflowOrchestrationConfig>,
-    /// Project-scoped staff state persisted through the gateway config.
+    /// 通过网关配置持久化的项目级员工状态。
     #[serde(default)]
     pub project_state: StaffProjectStateConfig,
 }
 
 impl StaffConfig {
-    /// Returns a normalized copy with defaults filled, whitespace removed, and lists deduplicated.
+    /// 返回归一化后的配置副本，补齐默认项、清理空白并对列表去重。
+    ///
+    /// 归一化同时验证成员、阶段及其交叉引用，失败时返回带字段上下文的错误。
     pub fn normalize(mut self) -> Result<Self, String> {
         if self.members.is_empty() {
             self.members = default_staff_members();
@@ -66,7 +70,7 @@ impl StaffConfig {
         Ok(self)
     }
 
-    /// Validates the config without mutating it.
+    /// 在不修改配置的前提下验证字段约束与所有交叉引用。
     pub fn validate(&self) -> Result<(), String> {
         validate_members(&self.members)?;
         validate_workflow_stages(&self.workflow_stages)?;
@@ -96,44 +100,45 @@ impl Default for StaffConfig {
     }
 }
 
-/// One configured staff member.
+/// 一名可参与员工模式调度的成员。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffMemberConfig {
-    /// Stable staff member id.
+    /// 员工的稳定标识。
     pub id: String,
-    /// Human-readable display name.
+    /// 面向用户的显示名称。
     pub name: String,
-    /// Stable role key such as `orchestrator`, `planner`, or `executor`.
+    /// 稳定角色键，例如 `orchestrator`、`planner` 或 `executor`。
     pub role: String,
-    /// Stable level key such as `principal`, `manager`, `executor`, or `member`.
+    /// 稳定级别键，例如 `principal`、`manager`、`executor` 或 `member`。
     pub level: String,
-    /// Stable status key. Desktop maps this to its local staff status type.
+    /// 稳定状态键；桌面端会将其映射为本地员工状态类型。
     #[serde(default = "default_staff_status")]
     pub status: String,
-    /// Whether this member can receive staff-mode work.
+    /// 此成员是否可以接收员工模式任务。
     #[serde(default = "default_enabled")]
     pub enabled: bool,
-    /// Maximum concurrent task capacity for this member.
+    /// 此成员可同时承担的最大任务数。
     #[serde(default = "default_capacity")]
     pub capacity: u32,
-    /// Bound delegate agent key, usually `main` by default.
+    /// 绑定的委派代理键，通常默认为 `main`。
     #[serde(default)]
     pub delegate_agent: Option<String>,
-    /// Optional bound ACP agent key.
+    /// 可选的已绑定 ACP 代理键。
     #[serde(default)]
     pub acp_agent: Option<String>,
-    /// Optional IPC agent id used as the staff message target.
+    /// 作为员工消息目标的可选 IPC 代理标识。
     #[serde(default)]
     pub ipc_agent_id: Option<String>,
-    /// External channel instance bindings keyed by channel type.
+    /// 按通道类型区分的外部通道实例绑定。
     #[serde(default)]
     pub channel_bindings: Vec<StaffChannelBindingConfig>,
-    /// Staff-owned capability and runtime limits.
+    /// 此成员专属的能力与运行时限制。
     #[serde(default)]
     pub capabilities: StaffCapabilitiesConfig,
 }
 
 impl StaffMemberConfig {
+    /// 使用必需身份字段创建启用的成员，并绑定默认委派代理。
     pub fn new(id: &str, name: &str, role: &str, level: &str) -> Self {
         Self {
             id: id.to_string(),
@@ -152,45 +157,47 @@ impl StaffMemberConfig {
     }
 }
 
-/// Binding from one staff member to one named external channel instance.
+/// 一名员工到一个具名外部通道实例的绑定。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffChannelBindingConfig {
-    /// Supported channel type such as `matrix`, `feishu`, or `dingtalk`.
+    /// 支持的通道类型，例如 `matrix`、`feishu` 或 `dingtalk`。
     pub channel_type: String,
-    /// Stable channel instance id.
+    /// 通道实例的稳定标识。
     pub instance_id: String,
 }
 
-/// Staff-owned tool, skill, and runtime capability configuration.
+/// 员工专属的工具、技能及运行时能力配置。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffCapabilitiesConfig {
-    /// Whether this staff member can run an agentic tool loop.
+    /// 此成员是否可以运行代理式工具循环。
     #[serde(default)]
     pub agentic: bool,
-    /// Staff-specific tool allowlist.
+    /// 此成员专属的工具允许列表。
     #[serde(default)]
     pub allowed_tools: Vec<String>,
-    /// Staff-specific skill allowlist.
+    /// 此成员专属的技能允许列表。
     #[serde(default)]
     pub allowed_skills: Vec<String>,
-    /// Maximum agentic tool iterations for this staff member.
+    /// 此成员运行代理式工具循环的最大迭代次数。
     #[serde(default = "default_max_iterations")]
     pub max_iterations: usize,
-    /// Optional cap for simultaneously active tasks.
+    /// 可选的同时活跃任务数上限。
     #[serde(default)]
     pub max_parallel_tasks: Option<u32>,
-    /// Optional cap for active work duration.
+    /// 可选的活跃工作时长上限，单位为分钟。
     #[serde(default)]
     pub max_active_minutes: Option<u32>,
 }
 
 impl StaffCapabilitiesConfig {
+    /// 清理工具和技能列表后验证运行时限制。
     pub fn normalize(&mut self) -> Result<(), String> {
         normalize_string_list(&mut self.allowed_tools);
         normalize_string_list(&mut self.allowed_skills);
         validate_capabilities(self)
     }
 
+    /// 在不修改配置的前提下验证能力与运行时限制。
     pub fn validate(&self) -> Result<(), String> {
         validate_capabilities(self)
     }
@@ -209,27 +216,28 @@ impl Default for StaffCapabilitiesConfig {
     }
 }
 
-/// Shared workflow stage definition using stable task status strings.
+/// 使用稳定任务状态字符串描述的共享工作流阶段。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffWorkflowStageConfig {
-    /// Stable stage id.
+    /// 阶段的稳定标识。
     pub id: String,
-    /// Human-readable stage name.
+    /// 面向用户的阶段名称。
     pub name: String,
-    /// Stable desktop task status key such as `running` or `code_review`.
+    /// 桌面端稳定任务状态键，例如 `running` 或 `code_review`。
     pub task_status: String,
-    /// Optional staff role key expected to own this stage.
+    /// 预期负责此阶段的可选员工角色键。
     #[serde(default)]
     pub role: Option<String>,
-    /// Whether this lifecycle stage can participate in staff orchestration.
+    /// 此生命周期阶段是否参与员工编排。
     #[serde(default = "default_enabled")]
     pub enabled: bool,
-    /// Display-only stages cannot own work.
+    /// 是否仅用于展示；展示阶段不能持有任务。
     #[serde(default)]
     pub display_only: bool,
 }
 
 impl StaffWorkflowStageConfig {
+    /// 创建可持有任务并绑定角色的工作流阶段。
     pub fn new(id: &str, name: &str, task_status: &str, role: &str) -> Self {
         Self {
             id: id.to_string(),
@@ -241,6 +249,7 @@ impl StaffWorkflowStageConfig {
         }
     }
 
+    /// 创建不绑定角色、不能持有任务的展示阶段。
     pub fn display_only(id: &str, name: &str, task_status: &str) -> Self {
         Self {
             id: id.to_string(),
@@ -253,65 +262,65 @@ impl StaffWorkflowStageConfig {
     }
 }
 
-/// System-level orchestration template for one workflow_id.
+/// 一个工作流标识对应的系统级编排模板。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffWorkflowOrchestrationConfig {
-    /// Workflow-scoped custom capability catalog entries.
+    /// 仅在此工作流内生效的自定义能力目录项。
     #[serde(default)]
     pub capabilities: Vec<StaffCapabilityConfig>,
-    /// Stage ownership assignments for tasks using this workflow.
+    /// 使用此工作流的任务阶段归属关系。
     #[serde(default)]
     pub stage_assignments: Vec<StaffStageAssignmentConfig>,
-    /// Workflow UUID bindings for stages in this workflow.
+    /// 此工作流中各阶段绑定的持久化工作流 UUID。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub stage_workflow_bindings: Vec<StaffStageWorkflowBindingConfig>,
-    /// Stage execution actions for this workflow.
+    /// 此工作流各阶段的执行动作。
     #[serde(default)]
     pub stage_actions: Vec<StaffStageActionConfig>,
 }
 
-/// Project-scoped staff state.
+/// 项目范围内持久化的员工状态。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffProjectStateConfig {
-    /// Project-scoped custom capability catalog entries.
+    /// 项目范围内的自定义能力目录项。
     #[serde(default)]
     pub capabilities: Vec<StaffCapabilityConfig>,
-    /// Stage ownership assignments for the active project.
+    /// 当前项目的阶段归属关系。
     #[serde(default)]
     pub stage_assignments: Vec<StaffStageAssignmentConfig>,
-    /// Workflow UUID bindings for stages in the active project.
+    /// 当前项目各阶段绑定的持久化工作流 UUID。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub stage_workflow_bindings: Vec<StaffStageWorkflowBindingConfig>,
-    /// Stage execution actions for the active project.
+    /// 当前项目各阶段的执行动作。
     #[serde(default)]
     pub stage_actions: Vec<StaffStageActionConfig>,
-    /// Current task ownership assignments for the active project.
+    /// 当前项目内生效的任务归属关系。
     #[serde(default)]
     pub member_task_assignments: Vec<StaffMemberTaskAssignmentConfig>,
 }
 
-/// Project capability catalog entry.
+/// 项目或工作流能力目录中的一项定义。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffCapabilityConfig {
-    /// Stable capability id referenced by stage actions.
+    /// 供阶段动作引用的稳定能力标识。
     pub id: String,
-    /// Human-readable capability label.
+    /// 面向用户的能力标签。
     pub label: String,
-    /// Capability execution family.
+    /// 能力所属的执行类别。
     #[serde(rename = "type")]
     pub capability_type: StaffCapabilityKindConfig,
-    /// Whether this entry describes a built-in capability.
+    /// 此目录项是否描述内置能力。
     #[serde(default)]
     pub built_in: bool,
-    /// Inputs expected by this capability.
+    /// 此能力所需输入的摘要。
     #[serde(default)]
     pub input_summary: StaffCapabilityIoSummaryConfig,
-    /// Results produced by this capability.
+    /// 此能力产出结果的摘要。
     #[serde(default)]
     pub result_summary: StaffCapabilityIoSummaryConfig,
 }
 
-/// Capability execution family.
+/// 能力的执行类别。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StaffCapabilityKindConfig {
@@ -319,83 +328,84 @@ pub enum StaffCapabilityKindConfig {
     SavedWorkflow,
 }
 
-/// Human-readable IO summary for a capability catalog entry.
+/// 能力目录项中面向用户的输入或输出摘要。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffCapabilityIoSummaryConfig {
-    /// Short description of the input or result contract.
+    /// 输入或结果契约的简短描述。
     #[serde(default)]
     pub description: String,
-    /// Named fields or result keys in the contract.
+    /// 契约中约定的字段名或结果键。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fields: Vec<String>,
 }
 
-/// Assignment of a workflow stage to one or more staff members.
+/// 一个工作流阶段到一名或多名员工的归属配置。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffStageAssignmentConfig {
-    /// Workflow stage id.
+    /// 工作流阶段标识。
     pub stage_id: String,
-    /// Primary staff member id.
+    /// 主要负责人标识。
     #[serde(default)]
     pub primary_member_id: Option<String>,
-    /// Backup staff member ids.
+    /// 备用负责人标识列表。
     #[serde(default)]
     pub backup_member_ids: Vec<String>,
-    /// Manager staff member ids.
+    /// 管理者标识列表。
     #[serde(default)]
     pub manager_member_ids: Vec<String>,
-    /// Whether this stage can be scheduled autonomously.
+    /// 此阶段是否可以自主调度。
     #[serde(default)]
     pub autonomous: bool,
 }
 
-/// Binding of a workflow stage to one persisted workflow UUID.
+/// 工作流阶段到一个持久化工作流 UUID 的绑定。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffStageWorkflowBindingConfig {
-    /// Workflow stage id.
+    /// 工作流阶段标识。
     pub stage_id: String,
-    /// Persisted workflow UUID for this stage.
+    /// 此阶段对应的持久化工作流 UUID。
     pub workflow_uuid: String,
 }
 
-/// Configured action for one workflow stage.
+/// 为一个工作流阶段配置的执行动作。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffStageActionConfig {
-    /// Workflow stage id.
+    /// 工作流阶段标识。
     pub stage_id: String,
-    /// Stable stage capability id.
+    /// 阶段所调用的稳定能力标识。
     pub capability_id: String,
-    /// Persisted workflow UUID, required for `saved_workflow`.
+    /// 持久化工作流 UUID；`saved_workflow` 能力必须提供。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow_uuid: Option<String>,
-    /// Structured stage action inputs.
+    /// 阶段动作的结构化输入。
     #[serde(default, skip_serializing_if = "StaffStageActionInputsConfig::is_empty")]
     pub inputs: StaffStageActionInputsConfig,
 }
 
-/// Structured inputs for a stage action binding.
+/// 阶段动作绑定使用的结构化输入。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffStageActionInputsConfig {
-    /// Saved workflow UUID for `saved_workflow` capabilities.
+    /// `saved_workflow` 能力使用的已保存工作流 UUID。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow_uuid: Option<String>,
-    /// Generic capability parameters.
+    /// 传递给能力的通用参数。
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub parameters: BTreeMap<String, Value>,
 }
 
 impl StaffStageActionInputsConfig {
+    /// 判断此输入是否未提供工作流 UUID 和通用参数。
     pub fn is_empty(&self) -> bool {
         self.workflow_uuid.is_none() && self.parameters.is_empty()
     }
 }
 
-/// Assignment of active task ids to a staff member.
+/// 一名员工当前负责的活跃任务标识集合。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StaffMemberTaskAssignmentConfig {
-    /// Staff member id.
+    /// 员工标识。
     pub member_id: String,
-    /// Task ids currently owned by this staff member.
+    /// 此员工当前负责的任务标识列表。
     #[serde(default)]
     pub task_ids: Vec<String>,
 }

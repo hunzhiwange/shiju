@@ -111,6 +111,7 @@ async fn run_fixture_query(
     .expect("ApiQL query should run")
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[tokio::test]
 async fn apiql_compat_matches_php_index_modes_on_fixture_data() {
     let dir = tempfile::tempdir().expect("create temp dir");

@@ -10,21 +10,25 @@ use vw_api_types::task_lifecycle::{TaskLifecycleStatusDto, TaskLifecycleWorkflow
 use super::builtin::{built_in_workflow_by_id, built_in_workflows, is_built_in_workflow_id};
 
 #[derive(Debug, Clone, Default)]
+/// 合并内置与自定义任务生命周期工作流的只读注册表。
 pub struct TaskLifecycleRegistry {
     custom_workflows: Vec<TaskLifecycleWorkflowDto>,
 }
 
 impl TaskLifecycleRegistry {
+    /// 创建不含自定义工作流的注册表。
     pub fn new() -> Self {
         Self { custom_workflows: Vec::new() }
     }
 
+    /// 校验给定自定义工作流集合后创建注册表。
     pub fn from_custom_workflows(workflows: Vec<TaskLifecycleWorkflowDto>) -> Result<Self> {
         let mut registry = Self::new();
         registry.replace_custom_workflows(workflows)?;
         Ok(registry)
     }
 
+    /// 注册单个自定义工作流；重复标识或无效状态图会被拒绝。
     pub fn register(&mut self, mut workflow: TaskLifecycleWorkflowDto) -> Result<()> {
         validate_custom_workflow(&workflow)?;
         if self.custom_workflows.iter().any(|existing| existing.id == workflow.id) {
@@ -35,6 +39,7 @@ impl TaskLifecycleRegistry {
         Ok(())
     }
 
+    /// 原子校验并替换全部自定义工作流。
     pub fn replace_custom_workflows(
         &mut self,
         workflows: Vec<TaskLifecycleWorkflowDto>,
@@ -57,6 +62,7 @@ impl TaskLifecycleRegistry {
         Ok(())
     }
 
+    /// 按标识读取工作流，自定义定义优先于同标识内置投影。
     pub fn workflow_by_id(&self, id: &str) -> Option<TaskLifecycleWorkflowDto> {
         self.custom_workflows
             .iter()
@@ -65,6 +71,7 @@ impl TaskLifecycleRegistry {
             .or_else(|| built_in_workflow_by_id(id))
     }
 
+    /// 返回内置与自定义工作流的稳定合并列表。
     pub fn all_workflows(&self) -> Vec<TaskLifecycleWorkflowDto> {
         let mut workflows = built_in_workflows()
             .into_iter()
@@ -85,6 +92,7 @@ impl TaskLifecycleRegistry {
         workflows
     }
 
+    /// 借用当前已校验的自定义工作流集合。
     pub fn custom_workflows(&self) -> &[TaskLifecycleWorkflowDto] {
         &self.custom_workflows
     }

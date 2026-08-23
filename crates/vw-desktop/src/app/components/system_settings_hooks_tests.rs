@@ -1,9 +1,13 @@
+//! 验证钩子设置的开关消息、信任操作、审计区与视图组合。
+//! 已信任和待审查目录项分开构造，确保危险操作映射到目标钩子。
+
 use super::*;
 use crate::app::App;
 use iced::advanced::widget::Tree;
 
 const SOURCE: &str = include_str!("system_settings_hooks.rs");
 
+// 钩子目录与审计记录由测试逐项注入，默认应用不携带外部插件状态。
 fn test_app() -> App {
     App::new().0
 }

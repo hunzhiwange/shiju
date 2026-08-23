@@ -1,3 +1,6 @@
+//! 验证 MCP 工具识别、服务端摘要、详情格式化与生命周期状态行。
+//! 服务名允许从受支持的嵌套结果读取，但详情只对合法 JSON 做美化输出。
+
 use super::mcp_view::{
     format_mcp_detail_content, is_mcp_tool_name, is_mcp_tool_raw, looks_like_mcp_payload,
     mcp_display_name, mcp_server_name, tool_mcp_view,

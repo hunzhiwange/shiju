@@ -1,5 +1,7 @@
 //! MCP 检查接口，认证后枚举工作区服务器及其公开工具。
 //!
+//! 检查使用运行时工作区配置，连接或协议错误映射为请求错误而不泄露凭据。
+//!
 //! MCP inspection API handlers.
 
 use crate::app::agent::gateway::AppState;
@@ -10,7 +12,7 @@ use axum::{
     response::IntoResponse,
 };
 
-/// Inspect configured MCP servers and list tools exposed by connected servers.
+/// 认证后检查已配置 MCP 服务器并列出连接成功服务器公开的工具。
 pub async fn handle_api_mcp_inspect(
     State(state): State<AppState>,
     headers: HeaderMap,

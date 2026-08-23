@@ -1,3 +1,5 @@
+// 本文件验证 Lark 令牌缓存、过期计算、响应判定与日志脱敏。
+
 use super::*;
 use std::time::{Duration, Instant};
 
@@ -53,6 +55,7 @@ fn extract_lark_token_ttl_seconds_accepts_expire_variants_and_defaults() {
 }
 
 #[test]
+// 刷新时刻预留偏移，并以一秒下限避免忙循环。
 fn next_token_refresh_deadline_uses_skew_or_one_second_floor() {
     let now = Instant::now();
 
@@ -148,4 +151,3 @@ mod token_bot_tests;
 mod token_http_tests;
 #[path = "token_test_support.rs"]
 mod token_test_support;
-// 本文件验证 Lark 令牌缓存、过期计算、响应判定与日志脱敏。

@@ -1,3 +1,5 @@
+//! 安全下载、校验并安装识矩技能包到受支持的目标目录。
+
 use super::SkillDownloadUrl;
 use crate::app::account::SecretSkey;
 use anyhow::{Context, Result, bail};
@@ -22,12 +24,14 @@ const SHIJU_ENV_FILE_NAME: &str = ".env";
 const SHIJU_KEY_PREFIX: &str = "SHIJU_KEY=";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 技能安装相对于用户主目录或当前项目生效的范围。
 pub(crate) enum SkillInstallScope {
     Global,
     Project,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 识矩技能包支持写入的代理工具目录。
 pub(crate) enum SkillInstallTarget {
     VibeWindow,
     AgentSkills,
@@ -42,12 +46,14 @@ pub(crate) enum SkillInstallTarget {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 一个安装目标及其全局或项目范围选择。
 pub(crate) struct SkillInstallSelection {
     pub(crate) target: SkillInstallTarget,
     pub(crate) scope: SkillInstallScope,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 已解析并校验到受支持根目录内的安装目的地。
 pub(crate) struct ResolvedSkillDestination {
     pub(crate) target: SkillInstallTarget,
     pub(crate) scope: SkillInstallScope,
@@ -58,67 +64,79 @@ pub(crate) struct ResolvedSkillDestination {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 单目标安装完成后的路径与版本信息。
 pub(crate) struct ShijuInstallReport {
     pub(crate) installed_dir: PathBuf,
     pub(crate) version: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 多目标安装中单个选择的成功结果。
 pub(crate) struct ShijuInstallItem {
     pub(crate) destination: ResolvedSkillDestination,
     pub(crate) version: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 多目标安装的逐项成功结果。
 pub(crate) struct ShijuMultiInstallReport {
     pub(crate) installs: Vec<ShijuInstallItem>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 已存在识矩安装的根目录与可选版本。
 pub(crate) struct ShijuInstallation {
     pub(crate) installed_dir: PathBuf,
     pub(crate) version: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 指定目标选择对应的已安装状态。
 pub(crate) struct ShijuTargetInstallation {
     pub(crate) destination: ResolvedSkillDestination,
     pub(crate) installation: Option<ShijuInstallation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 所有目标的安装探测结果。
 pub(crate) struct ShijuInstallationsReport {
     pub(crate) targets: Vec<ShijuTargetInstallation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 单个目标卸载的结果。
 pub(crate) struct ShijuTargetUninstall {
     pub(crate) destination: ResolvedSkillDestination,
     pub(crate) removed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 多目标卸载的逐项报告。
 pub(crate) struct ShijuUninstallReport {
     pub(crate) targets: Vec<ShijuTargetUninstall>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 密钥同步是写入新值还是发现技能尚未安装。
 pub(crate) enum ShijuKeySyncOutcome {
     Updated,
     SkillNotInstalled,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 单个安装目标的密钥同步结果。
 pub(crate) struct ShijuTargetKeySync {
     pub(crate) destination: ResolvedSkillDestination,
     pub(crate) outcome: ShijuKeySyncOutcome,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 多目标密钥同步的逐项报告。
 pub(crate) struct ShijuKeySyncReport {
     pub(crate) targets: Vec<ShijuTargetKeySync>,
 }
 
+/// 将目标选择解析到允许的根目录，并拒绝缺少项目路径的项目范围。
 pub(crate) fn resolve_skill_destinations(
     home: &Path,
     project_root: Option<&Path>,
@@ -210,6 +228,7 @@ pub(crate) async fn sync_shiju_key(skey: SecretSkey) -> Result<ShijuKeySyncOutco
         .context("识矩登录信息同步任务异常终止")?
 }
 
+/// 比较纯数字点分版本；格式无效时保守地判定为不可升级。
 pub(crate) fn version_is_newer(current: &str, latest: &str) -> bool {
     let Some(current) = numeric_version(current) else {
         return false;
@@ -311,6 +330,7 @@ pub(super) fn install_shiju_archive_at_home(
     })
 }
 
+/// 预检全部目标后提交安装；提交失败会回滚已替换的目标。
 pub(crate) fn install_shiju_archive_for_targets(
     archive_path: &Path,
     home: &Path,
@@ -372,6 +392,7 @@ pub(super) fn shiju_installation_at_home(home: &Path) -> Result<Option<ShijuInst
     Ok(report.targets.into_iter().next().and_then(|target| target.installation))
 }
 
+/// 探测每个目标的现有安装状态。
 pub(crate) fn shiju_installations_for_targets(
     home: &Path,
     project_root: Option<&Path>,
@@ -424,6 +445,7 @@ pub(super) fn uninstall_shiju_at_home(home: &Path) -> Result<bool> {
     Ok(report.targets.iter().any(|target| target.removed))
 }
 
+/// 将目标移入备份后统一提交卸载，失败时恢复已移动内容。
 pub(crate) fn uninstall_shiju_for_targets(
     home: &Path,
     project_root: Option<&Path>,
@@ -475,6 +497,7 @@ pub(super) fn sync_shiju_key_at_home(
         .map_or(ShijuKeySyncOutcome::SkillNotInstalled, |target| target.outcome))
 }
 
+/// 更新多个目标的 `.env` 密钥；失败时回滚已提交的文件。
 pub(crate) fn sync_shiju_key_for_targets(
     home: &Path,
     project_root: Option<&Path>,
@@ -745,6 +768,7 @@ fn ensure_replaceable_target(target: &Path) -> Result<()> {
 }
 
 fn extract_archive(archive_path: &Path, destination: &Path) -> Result<()> {
+    // 解压同时限制条目数、路径与累计体积，避免路径穿越和压缩炸弹。
     let metadata = fs::metadata(archive_path).context("无法读取识矩技能安装包")?;
     if metadata.len() > MAX_ARCHIVE_BYTES {
         bail!("识矩技能安装包超过 100 MiB 限制");

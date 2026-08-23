@@ -124,6 +124,7 @@ fn make_sqlite_fixture(path: &std::path::Path) {
     .expect("seed sqlite fixture");
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[tokio::test]
 async fn apiql_loads_connections_from_gateway_settings() {
     let home = tempfile::tempdir().expect("temp home");
@@ -297,6 +298,7 @@ async fn apiql_routes_dispatch_four_php_compatible_list_modes() {
     assert_eq!(direct_list_page.response.page.unwrap().total_record, None);
 }
 
+// 非法字段、运算符和解析器配置必须在生成查询或执行脚本前被拒绝。
 #[tokio::test]
 async fn apiql_routes_accept_missing_trailing_slash() {
     let _guard = APIQL_HANDLER_STORAGE_LOCK.lock().await;

@@ -1,3 +1,5 @@
+// 本文件验证 QQ 消息内容、提及与附件信息的规范化处理。
+
 use super::*;
 
 #[test]
@@ -80,6 +82,7 @@ fn compose_message_content_ignores_attachments_without_string_url() {
 }
 
 #[test]
+// 文本与有效附件都为空时不构造伪消息。
 fn compose_message_content_returns_none_for_empty_payload() {
     assert_eq!(compose_message_content(&serde_json::json!({})), None);
     assert_eq!(
@@ -156,4 +159,3 @@ fn build_channel_message_sets_reply_metadata_and_thread_conditionally() {
         build_channel_message("sender-2", "group:g".to_string(), "hi".to_string(), "");
     assert_eq!(without_thread.thread_ts, None);
 }
-// 本文件验证 QQ 消息内容、提及与附件信息的规范化处理。

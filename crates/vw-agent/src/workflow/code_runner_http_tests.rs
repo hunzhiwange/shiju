@@ -1,4 +1,5 @@
 //! 验证代码运行器 HTTP 桥接的鉴权、代理参数、错误结构与敏感信息脱敏。
+//! 所有请求指向临时本地服务，覆盖 JSON、原始正文、方法和查询参数而不访问外网。
 
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -39,6 +40,7 @@ async fn echo_http_bridge_request(
     (StatusCode::CREATED, [("x-response-token", "visible")], AxumJson(request))
 }
 
+// 上游回显服务让测试观察桥接后的真实请求，同时用关闭通道保证任务可回收。
 async fn start_upstream_server() -> Result<(String, oneshot::Sender<()>, JoinHandle<()>)> {
     let app = Router::new().route("/echo", post(echo_http_bridge_request));
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;

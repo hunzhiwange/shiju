@@ -13,12 +13,14 @@ use crate::app::agent::project;
 use crate::task_worktree_pool::TaskWorktreePoolService;
 
 #[derive(Clone)]
+/// 将任务工作树池适配为调度资源提供者。
 pub struct WorktreeResourceProvider {
     pool: TaskWorktreePoolService,
     project: project::Info,
 }
 
 impl WorktreeResourceProvider {
+    /// 绑定工作树池与目标项目；后续租约只能在该项目内创建。
     pub fn new(pool: TaskWorktreePoolService, project: project::Info) -> Self {
         Self { pool, project }
     }
@@ -92,6 +94,7 @@ fn leased_task_id(slot_task_id: Option<TaskId>, request_task_id: &TaskId) -> Res
 }
 
 fn validate_worktree_lease(lease: &ResourceLease) -> Result<()> {
+    // 释放路径只接受工作树租约，防止把其它资源误交给工作树池回收。
     if lease.resource_kind != ResourceKind::Worktree {
         bail!("resource lease is not a worktree lease");
     }

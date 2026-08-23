@@ -1,4 +1,6 @@
 //! 验证运行时创建与确保会话记录时的边界检查、归一化和持久化。
+//!
+//! 最小会话记录、控制器和异步通道 fixture 用于驱动运行时状态与竞态分支。
 
 use super::*;
 use std::collections::HashMap;
@@ -265,6 +267,7 @@ fn stored_record_for_command(
     }
 }
 
+// 下列行为用例覆盖正常完成、超时中断、回退重试和资源清理。
 #[test]
 fn walk_boundary_accepts_descendants_only() {
     let boundary = Path::new("/tmp/project");

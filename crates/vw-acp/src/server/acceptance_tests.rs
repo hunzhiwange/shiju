@@ -1,4 +1,6 @@
 //! 验证 ACP v1 标准输入输出流程、历史回放和能力拒绝契约。
+//!
+//! 内存传输和伪后端 fixture 用于从协议边界观察服务端行为。
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -104,6 +106,7 @@ async fn read_frame(reader: &mut BufReader<&mut tokio::io::DuplexStream>) -> ser
     serde_json::from_str(&line).expect("JSON-RPC frame")
 }
 
+// 下列行为用例覆盖能力声明、会话隔离、并发拒绝和传输输出。
 #[tokio::test(flavor = "current_thread")]
 async fn acp_v1_stdio_acceptance_flow_matches_advertised_capabilities() {
     let root = tempfile::tempdir().expect("temporary cwd");

@@ -15,6 +15,7 @@ fn systemd_quote_arg_leaves_safe_values_unquoted() {
 }
 
 #[test]
+// systemd 参数转义保护空格和特殊字符，同时保持传给进程的原值。
 fn systemd_quote_arg_quotes_spaces_and_escapes_special_characters() {
     assert_eq!(
         systemd_quote_arg("/Users/me/Application Support/VibeWindow"),
@@ -52,6 +53,7 @@ fn systemd_config_dir_args_uses_parent_directory_and_quotes_when_needed() {
 }
 
 #[test]
+// 无法确定配置父目录时省略参数，不构造臆测路径。
 fn systemd_config_dir_args_returns_empty_when_config_path_has_no_parent() {
     let mut config = Config::default();
     config.config_path = "/".into();

@@ -1,3 +1,5 @@
+// 本文件验证 Matrix Markdown、调度事件与原始事件的出站发送。
+
 use super::*;
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex as StdMutex};
@@ -178,6 +180,7 @@ async fn matrix_task_pool_event_with_sender_rejects_invalid_event() {
 }
 
 #[tokio::test]
+// 原始事件和通知失败都须向上传播，不能伪装成已投递。
 async fn matrix_task_pool_sender_propagates_raw_event_and_notice_failures() {
     let event = matrix_task_pool_event();
 
@@ -353,4 +356,3 @@ fn status_label_covers_all_variants() {
         assert_eq!(task_pool_status_label(status), expected);
     }
 }
-// 本文件验证 Matrix Markdown、调度事件与原始事件的出站发送。

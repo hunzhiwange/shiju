@@ -1,3 +1,8 @@
+// 验证任务执行生命周期、日志推进与合并停滞保护。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -305,6 +310,8 @@ fn gateway_idle_timeout_is_treated_as_model_timeout_retry() {
     ));
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn code_review_model_timeout_retry_waits_before_dispatch() {
     let (mut app, _task) = crate::app::App::new();
@@ -600,6 +607,8 @@ fn git_project_still_schedules_worktree_snapshot_refresh() {
     assert!(app.task_board_worktree_snapshot_loading);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn worktree_snapshot_refresh_skips_loading_and_interval_but_force_schedules() {
     let (mut app, _task) = crate::app::App::new();
@@ -893,6 +902,8 @@ fn scheduler_create_request_uses_prompt_title_and_saturates_timestamp() {
     );
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn agent_scheduler_request_uses_lifecycle_cache_metadata() {
     use crate::app::task::{Task, TaskStatus, update_runtime_task_lifecycle_cache};

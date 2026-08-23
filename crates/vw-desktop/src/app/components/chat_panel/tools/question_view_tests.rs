@@ -1,3 +1,6 @@
+//! 验证提问工具的问题与答案解析、兼容载荷及交互状态视图。
+//! 结构化答案优先于旧输出，自定义和空答案组需归一化后再参与展示。
+
 use super::question_view::{
     derived_summary, parse_answers, parse_questions, question_request_targets_message,
     tool_question_view,
@@ -25,6 +28,7 @@ fn question(header: &str, question: &str) -> Info {
     }
 }
 
+// 始终通过真实 JSON 输入构造问题列表，避免测试绕过生产解析入口。
 fn question_input(questions: &[Info]) -> String {
     serde_json::to_string(&json!({ "questions": questions })).expect("question input json")
 }

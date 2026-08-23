@@ -4,6 +4,7 @@ use super::*;
 use serde_json::json;
 
 #[test]
+// 辅助宏应生成拥有所有权的 JSON 映射，调用方无需维持临时值生命周期。
 fn extra_builds_owned_json_map() {
     let map = extra([("name", json!("demo")), ("ok", json!(true))]);
     assert_eq!(map.get("name"), Some(&json!("demo")));
@@ -113,6 +114,7 @@ async fn instance_bootstrap_records_worktree_once() {
 }
 
 #[tokio::test]
+// 全局注册表锁中毒后仍要恢复，避免一次测试或线程崩溃永久阻断项目启动。
 async fn instance_bootstrap_recovers_from_poisoned_worktree_registry() {
     let poisoned = std::panic::catch_unwind(|| {
         let _guard = BOOTSTRAPPED_WORKTREES.lock().unwrap_or_else(|error| error.into_inner());

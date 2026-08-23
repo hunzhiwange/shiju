@@ -1,5 +1,7 @@
 //! 与 PHP ApiQL 辅助函数兼容的 Rust 内部调用入口。
 //!
+//! 这些入口直接复用实体注册表和执行器，不经过 HTTP 回环、签名或路由分发。
+//!
 //! ApiQL PHP helper compatible internal functions.
 //!
 //! These helpers mirror PHP `api_ql*` functions but execute directly in Rust:
@@ -15,6 +17,7 @@ use super::params::{ApiQlReadParams, normalize_apiql_query};
 use super::runtime::{ApiQlRuntimeResponse, run_apiql_query};
 use super::schema::load_entity_registry;
 
+/// 以标准列表模式执行 ApiQL 查询。
 pub(crate) async fn api_ql(
     tenant: TenantScope,
     entity_class: &str,
@@ -23,6 +26,7 @@ pub(crate) async fn api_ql(
     api_ql_with_mode(tenant, entity_class, raw_query, ApiQlListMode::Index).await
 }
 
+/// 执行列表查询并返回计数信息。
 pub(crate) async fn api_ql_list_count(
     tenant: TenantScope,
     entity_class: &str,
@@ -31,6 +35,7 @@ pub(crate) async fn api_ql_list_count(
     api_ql_with_mode(tenant, entity_class, raw_query, ApiQlListMode::IndexCount).await
 }
 
+/// 仅返回列表数据，不附加完整索引包装。
 pub(crate) async fn api_ql_list_only(
     tenant: TenantScope,
     entity_class: &str,
@@ -39,6 +44,7 @@ pub(crate) async fn api_ql_list_only(
     api_ql_with_mode(tenant, entity_class, raw_query, ApiQlListMode::IndexOnly).await
 }
 
+/// 按分页列表模式执行查询。
 pub(crate) async fn api_ql_list_page(
     tenant: TenantScope,
     entity_class: &str,
@@ -47,6 +53,7 @@ pub(crate) async fn api_ql_list_page(
     api_ql_with_mode(tenant, entity_class, raw_query, ApiQlListMode::IndexPage).await
 }
 
+/// 使用显式兼容模式解析原始查询并执行。
 pub(crate) async fn api_ql_with_mode(
     tenant: TenantScope,
     entity_class: &str,
@@ -57,6 +64,7 @@ pub(crate) async fn api_ql_with_mode(
     api_ql_with_params(tenant, entity_class, &params).await
 }
 
+/// 使用已规范化参数执行指定实体查询。
 pub(crate) async fn api_ql_with_params(
     tenant: TenantScope,
     entity_class: &str,

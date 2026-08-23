@@ -1,27 +1,32 @@
-//! Default host that wires the Gateway runtime to the active chat surface.
+//! 将 Gateway 会话运行时、TUI 状态与活动聊天界面连接起来的组装根。
+//!
+//! 本模块负责终端生命周期、会话恢复、流式请求启动和事件循环；
+//! Gateway 事件到界面事件的语义转换留在 `bridge`，不在主循环中重复。
 
 use crate::app::agent::config::Config;
 use crate::cli::setup::CliSetup;
 use anyhow::{Result, anyhow};
 use crossterm::event::{self, Event, KeyEventKind};
+use dialoguer::Editor;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Rect;
-use vw_gateway_client::{GatewayChatStreamEvent, GatewayChatStreamRequest};
 use ratatui::text::Line;
 use ratatui::backend::Backend;
 use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use vw_tui::{
     ChatWidget, ChatWidgetConfig, CustomTerminal, TerminalMode, TranscriptPager,
     TranscriptReflowState, V3Action, V3Attachment, V3DisplayEvent, V3Event, V3StepStatus,
     insert_history_lines, run_terminal,
 };
-use vw_gateway_client::GatewayClient;
+use vw_gateway_client::{
+    GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayStreamAttemptResult,
+};
 use serde_json::json;
 use vw_gateway_client::vw_api_types::id::SessionId;
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession, ChatSessionMeta};
@@ -36,15 +41,287 @@ type V3Terminal = CustomTerminal<CrosstermBackend<io::Stdout>>;
 
 enum StreamMessage {
     Event(GatewayChatStreamEvent),
-    Finished(Result<(), String>),
+    Finished(Result<GatewayStreamAttemptResult, String>),
 }
 
 struct ActiveStream {
+    request_id: String,
     receiver: Receiver<StreamMessage>,
     cancel: Arc<AtomicBool>,
 }
 
-/// Gateway-backed TUI composition root.
+/// 外部编辑器调用边界；输入当前草稿，返回替换文本或用户取消。
+pub(crate) type EditorAction = dyn Fn(&str) -> Result<Option<String>, String> + Send + Sync;
+
+enum HostMessage {
+    EditorFinished(Result<Option<String>, String>),
+    StopFinished { request_id: String, result: Result<bool, String> },
+}
+
+/// 事件循环执行一次操作后的继续或退出指示。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RunnerControl {
+    Continue,
+    Quit,
+}
+
+/// 在渲染 crate 之外统一管理活跃流、transcript 和本地副作生命周期。
+pub(crate) struct ActiveRunner {
+    active_stream: Option<ActiveStream>,
+    transcript_pager: Option<TranscriptPager>,
+    editor_in_flight: bool,
+    editor: Arc<EditorAction>,
+    host_sender: mpsc::Sender<HostMessage>,
+    host_receiver: Receiver<HostMessage>,
+}
+
+impl ActiveRunner {
+    fn new() -> Self {
+        Self::new_with_editor(Arc::new(|draft| {
+            Editor::new().edit(draft).map_err(|error| error.to_string())
+        }))
+    }
+
+    /// 用可注入的编辑器动作创建 runner，便于将外部进程与事件循环解耦。
+    pub(crate) fn new_with_editor(editor: Arc<EditorAction>) -> Self {
+        let (host_sender, host_receiver) = mpsc::channel();
+        Self {
+            active_stream: None,
+            transcript_pager: None,
+            editor_in_flight: false,
+            editor,
+            host_sender,
+            host_receiver,
+        }
+    }
+
+    /// 将界面操作转为宿主命令并执行，错误会投影为界面消息而非中止循环。
+    pub(crate) fn execute_action(
+        &mut self,
+        app: &mut V3GatewayApp,
+        action: V3Action,
+    ) -> RunnerControl {
+        let command = match app.handle_action(action) {
+            Ok(command) => command,
+            Err(error) => {
+                push_runner_error(app, error);
+                return RunnerControl::Continue;
+            }
+        };
+        self.execute_command(app, command)
+    }
+
+    fn execute_command(
+        &mut self,
+        app: &mut V3GatewayApp,
+        command: TuiControllerCommand,
+    ) -> RunnerControl {
+        match command {
+            TuiControllerCommand::Continue => RunnerControl::Continue,
+            TuiControllerCommand::Quit => RunnerControl::Quit,
+            TuiControllerCommand::CancelActiveSubmission => {
+                if let Some(stream) = self.active_stream.as_ref() {
+                    stream.cancel.store(true, Ordering::Release);
+                    app.accept_gateway_event(GatewayChatStreamEvent::Error(
+                        "cancelled by user".to_string(),
+                    ));
+                    spawn_stop(
+                        app.runtime().clone(),
+                        stream.request_id.clone(),
+                        self.host_sender.clone(),
+                    );
+                    RunnerControl::Continue
+                } else {
+                    RunnerControl::Quit
+                }
+            }
+            TuiControllerCommand::QueuePrompt(text) => {
+                app.widget_mut().queue_input(text, Vec::new());
+                self.start_next_queued_prompt(app);
+                RunnerControl::Continue
+            }
+            TuiControllerCommand::OpenTranscript => {
+                let width = crossterm::terminal::size().map(|(width, _)| width).unwrap_or(80);
+                self.transcript_pager = Some(app.transcript_pager(width));
+                RunnerControl::Continue
+            }
+            TuiControllerCommand::OpenExternalEditor => {
+                self.launch_editor(app.widget().draft().to_string());
+                RunnerControl::Continue
+            }
+            command @ TuiControllerCommand::SubmitPrompt(_) => {
+                if self.active_stream.is_some() {
+                    push_runner_error(
+                        app,
+                        "a gateway stream is already active; queue the follow-up instead",
+                    );
+                    return RunnerControl::Continue;
+                }
+                let Some(request) = app.request_for_command(&command) else {
+                    push_runner_error(app, "TUI submission did not produce a request");
+                    return RunnerControl::Continue;
+                };
+                let request_id = next_stream_request_id();
+                self.active_stream = Some(spawn_stream(
+                    app.runtime().clone(),
+                    request,
+                    request_id,
+                ));
+                RunnerControl::Continue
+            }
+            unsupported => {
+                push_runner_error(
+                    app,
+                    format!("TUI runner does not support controller command {unsupported:?}"),
+                );
+                RunnerControl::Continue
+            }
+        }
+    }
+
+    fn launch_editor(&mut self, draft: String) {
+        if self.editor_in_flight {
+            return;
+        }
+        self.editor_in_flight = true;
+        let editor = Arc::clone(&self.editor);
+        let sender = self.host_sender.clone();
+        std::thread::spawn(move || {
+            let result = editor(draft.as_str());
+            let _ = sender.send(HostMessage::EditorFinished(result));
+        });
+    }
+
+    /// 非阻塞汇集本地副作与 Gateway 流消息，并在流结束后尝试启动排队输入。
+    pub(crate) fn drain(&mut self, app: &mut V3GatewayApp) {
+        self.drain_host_messages(app);
+        self.drain_active_stream(app);
+    }
+
+    fn drain_host_messages(&mut self, app: &mut V3GatewayApp) {
+        loop {
+            match self.host_receiver.try_recv() {
+                Ok(HostMessage::EditorFinished(result)) => {
+                    self.editor_in_flight = false;
+                    match result {
+                        Ok(Some(text)) => app.widget_mut().replace_draft(text.as_str()),
+                        Ok(None) => {}
+                        Err(error) => {
+                            push_runner_error(app, format!("external editor failed: {error}"));
+                        }
+                    }
+                }
+                Ok(HostMessage::StopFinished { request_id, result }) => match result {
+                    Ok(true) => {}
+                    Ok(false) => push_runner_error(
+                        app,
+                        format!("gateway did not stop active stream {request_id}"),
+                    ),
+                    Err(error) => push_runner_error(
+                        app,
+                        format!("failed to stop active stream {request_id}: {error}"),
+                    ),
+                },
+                Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
+            }
+        }
+    }
+
+    fn drain_active_stream(&mut self, app: &mut V3GatewayApp) {
+        let Some(stream) = self.active_stream.as_ref() else {
+            self.start_next_queued_prompt(app);
+            return;
+        };
+        let mut terminal = None;
+
+        loop {
+            match stream.receiver.try_recv() {
+                Ok(StreamMessage::Event(event)) => {
+                    app.accept_gateway_event(event);
+                }
+                Ok(StreamMessage::Finished(result)) => {
+                    terminal = Some(result);
+                    break;
+                }
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => {
+                    terminal = Some(Err("gateway stream worker disconnected".to_string()));
+                    break;
+                }
+            }
+        }
+
+        let Some(result) = terminal else {
+            return;
+        };
+        match result {
+            Ok(GatewayStreamAttemptResult::Terminated | GatewayStreamAttemptResult::CallerStopped) => {}
+            Ok(GatewayStreamAttemptResult::Incomplete) => {
+                push_runner_error(app, "gateway stream ended before a terminal event");
+            }
+            Err(error) => push_runner_error(app, format!("gateway stream failed: {error}")),
+        }
+        if let Err(error) = app.persist_session_snapshot() {
+            push_runner_error(app, format!("session save failed: {error}"));
+        }
+        self.active_stream = None;
+        self.start_next_queued_prompt(app);
+    }
+
+    fn start_next_queued_prompt(&mut self, app: &mut V3GatewayApp) {
+        if self.active_stream.is_some() {
+            return;
+        }
+        let Some((text, attachments)) = app.widget_mut().pop_queued_input() else {
+            return;
+        };
+        let _ = self.execute_action(app, V3Action::Submit { text, attachments });
+    }
+
+    fn refresh_pager(&mut self, app: &V3GatewayApp, width: u16) {
+        if let Some(pager) = self.transcript_pager.as_mut() {
+            pager.replace_committed(app.transcript_lines(width, true));
+        }
+    }
+
+    fn handle_pager_key(&mut self, key: crossterm::event::KeyEvent) {
+        let Some(pager) = self.transcript_pager.as_mut() else {
+            return;
+        };
+        pager.handle_key_event(key);
+        if pager.is_done() {
+            self.transcript_pager = None;
+        }
+    }
+
+    #[cfg(test)]
+    /// 返回当前是否有未结束的 Gateway 流。
+    pub(crate) fn has_active_stream(&self) -> bool {
+        self.active_stream.is_some()
+    }
+
+    #[cfg(test)]
+    /// 返回活跃流的请求 ID，供停止与诊断路径关联。
+    pub(crate) fn active_request_id(&self) -> Option<&str> {
+        self.active_stream.as_ref().map(|stream| stream.request_id.as_str())
+    }
+
+    /// 返回完整 transcript 阅读器是否已打开。
+    pub(crate) fn has_transcript_pager(&self) -> bool {
+        self.transcript_pager.is_some()
+    }
+
+    /// 返回外部编辑器动作是否仍在执行。
+    pub(crate) fn editor_in_flight(&self) -> bool {
+        self.editor_in_flight
+    }
+}
+
+fn push_runner_error(app: &mut V3GatewayApp, message: impl Into<String>) {
+    app.widget_mut().push_history(V3DisplayEvent::Error { message: message.into() });
+}
+
+/// Gateway 驱动的 TUI 组装根，持有运行时、状态、控制器与渲染部件。
 pub(crate) struct V3GatewayApp {
     runtime: GatewayUiRuntime,
     state: TuiState,
@@ -56,6 +333,7 @@ pub(crate) struct V3GatewayApp {
 }
 
 impl V3GatewayApp {
+    /// 以内联终端模式创建应用，并用会话配置补齐缺失的模型名。
     pub(crate) fn new(runtime: GatewayUiRuntime, mut state: TuiState) -> Self {
         if state.status.model_name.is_none() {
             state.status.model_name = state.session_options.model.clone();
@@ -63,6 +341,7 @@ impl V3GatewayApp {
         Self::new_with_terminal_mode(runtime, state, TerminalMode::Inline)
     }
 
+    /// 按指定终端模式创建应用，同时回放已恢复的历史消息。
     pub(crate) fn new_with_terminal_mode(
         runtime: GatewayUiRuntime,
         state: TuiState,
@@ -83,6 +362,7 @@ impl V3GatewayApp {
         }
     }
 
+    /// 接收一个 Gateway 流事件，原子地更新状态、聊天部件与会话头。
     pub(crate) fn accept_gateway_event(&mut self, event: GatewayChatStreamEvent) -> Vec<V3Event> {
         let previous_display = GatewayV3Bridge::session_display_data(&self.runtime, &self.state);
         let events = self.bridge.adapt_gateway_event(&mut self.state, event);
@@ -97,11 +377,13 @@ impl V3GatewayApp {
         events
     }
 
+    /// 将当前视图状态转换为会话快照并同步保存。
     pub(crate) fn persist_session_snapshot(&mut self) -> Result<(), String> {
         self.sync_runtime_session_seed();
         self.runtime.session_ui_save_blocking(&self.state.to_chat_session())
     }
 
+    /// 将界面操作路由为控制器命令；提交成功时先追加本地用户历史。
     pub(crate) fn handle_action(
         &mut self,
         action: V3Action,
@@ -116,6 +398,7 @@ impl V3GatewayApp {
         Ok(command)
     }
 
+    /// 仅为提交命令构造 Gateway 流式请求。
     pub(crate) fn request_for_command(
         &self,
         command: &TuiControllerCommand,
@@ -123,41 +406,47 @@ impl V3GatewayApp {
         GatewayV3Bridge::request_for_command(&self.state, command)
     }
 
+    /// 借用 Gateway 运行时，不转移其所有权。
     pub(crate) fn runtime(&self) -> &GatewayUiRuntime {
         &self.runtime
     }
 
+    /// 借用当前 TUI 状态快照。
     pub(crate) fn state(&self) -> &TuiState {
         &self.state
     }
 
+    /// 可变借用 TUI 状态；调用方需继续维护 reducer 不变量。
     pub(crate) fn state_mut(&mut self) -> &mut TuiState {
         &mut self.state
     }
 
+    /// 借用聊天渲染部件。
     pub(crate) fn widget(&self) -> &ChatWidget {
         &self.widget
     }
 
+    /// 可变借用聊天渲染部件，供宿主同步草稿与历史。
     pub(crate) fn widget_mut(&mut self) -> &mut ChatWidget {
         &mut self.widget
     }
 
+    /// 返回创建应用时选定的终端模式。
     pub(crate) fn terminal_mode(&self) -> TerminalMode {
         self.terminal_mode
     }
 
-    /// Builds the full-record pager from the same committed/active cells shown in the chat view.
+    /// 使用聊天视图同一批已提交与活跃单元构造完整 transcript 阅读器。
     pub(crate) fn transcript_pager(&self, width: u16) -> TranscriptPager {
         TranscriptPager::new(self.transcript_lines(width, true))
     }
 
-    /// Supplies width-aware rows for inline history insertion and resize replay.
+    /// 按宽度生成 transcript 行，供内联历史插入和窗口缩放回放共用。
     pub(crate) fn transcript_lines(&self, width: u16, include_active: bool) -> Vec<Line<'static>> {
         self.widget.transcript_lines(width, include_active)
     }
 
-    /// Inserts only committed cells into native terminal scrollback.
+    /// 仅将已提交单元写入终端原生回滚区，不泄漏尚未完成的流式内容。
     pub(crate) fn insert_committed_history<B>(
         &self,
         terminal: &mut CustomTerminal<B>,
@@ -169,7 +458,7 @@ impl V3GatewayApp {
         insert_history_lines(terminal, self.transcript_lines(width, false))
     }
 
-    /// Returns source-backed transcript rows when a width change requires scrollback replay.
+    /// 仅在宽度确实变化时返回可用于回滚重放的源数据行。
     pub(crate) fn resize_reflow_lines(&mut self, width: u16) -> Option<Vec<Line<'static>>> {
         let change = self.transcript_reflow.note_width(width);
         if change.changed {
@@ -191,7 +480,7 @@ impl V3GatewayApp {
     }
 }
 
-/// Runs the active TUI surface as the CLI interactive entry.
+/// 作为 CLI 交互入口启动 Gateway、恢复会话并运行终端循环。
 pub(crate) fn run_tui(config: &Config, setup: &CliSetup) -> Result<()> {
     let mut runtime = GatewayUiRuntime::for_workspace(config).map_err(|error| anyhow!(error))?;
     runtime.ensure_local_gateway_ready_blocking().map_err(|error| anyhow!(error))?;
@@ -205,6 +494,7 @@ pub(crate) fn run_tui(config: &Config, setup: &CliSetup) -> Result<()> {
     run_terminal(terminal_mode, || run_event_loop(app)).map_err(Into::into)
 }
 
+/// 优先恢复显式或最近会话；无可用会话时向 Gateway 创建新会话。
 pub(crate) fn restore_or_create_session_state(
     runtime: &mut GatewayUiRuntime,
 ) -> Result<TuiState, String> {
@@ -294,6 +584,7 @@ fn default_session_title(directory: &Path) -> String {
         .unwrap_or_else(|| "TUI 会话".to_string())
 }
 
+/// 根据当前状态和提交快照构造 Gateway 请求，并在此收紧工具与权限选项。
 pub(crate) fn gateway_stream_request_from_state(
     state: &TuiState,
     submission: &PromptSubmission,
@@ -306,6 +597,7 @@ pub(crate) fn gateway_stream_request_from_state(
         && state.session_options.permission_mode == PermissionMode::Plan)
         .then(|| vec!["todowrite".to_string()]);
     if subagent_mode_enabled {
+        // 子智能体模式只精确追加 AgentTool，不借此解锁其他受限工具。
         let tools = allowed_tools.get_or_insert_with(Vec::new);
         tools.retain(|tool| !tool.eq_ignore_ascii_case("AgentTool"));
         tools.push("AgentTool".to_string());
@@ -462,13 +754,39 @@ fn display_event_from_message(message: &UiMessage) -> V3DisplayEvent {
 fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = V3Terminal::with_options(backend)?;
-    let mut active_stream = None;
+    let mut runner = ActiveRunner::new();
+    let mut editor_terminal_suspended = false;
 
     loop {
-        drain_stream(&mut app, &mut active_stream)?;
-        draw(&app, &mut terminal)?;
+        runner.drain(&mut app);
+        if editor_terminal_suspended && !runner.editor_in_flight() {
+            crossterm::terminal::enable_raw_mode()?;
+            terminal.clear()?;
+            editor_terminal_suspended = false;
+        }
+        if runner.editor_in_flight() {
+            std::thread::sleep(Duration::from_millis(50));
+            continue;
+        }
+
+        let width = crossterm::terminal::size()?.0;
+        runner.refresh_pager(&app, width);
+        draw(&app, runner.transcript_pager.as_mut(), &mut terminal)?;
 
         if !event::poll(Duration::from_millis(50))? {
+            continue;
+        }
+
+        if runner.has_transcript_pager() {
+            match event::read()? {
+                Event::Key(key)
+                    if matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) =>
+                {
+                    runner.handle_pager_key(key);
+                }
+                Event::Resize(width, _) => runner.refresh_pager(&app, width),
+                _ => {}
+            }
             continue;
         }
 
@@ -485,101 +803,74 @@ fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
             _ => continue,
         };
 
-        if matches!(action, V3Action::Cancel) && active_stream.is_none() {
-            return Ok(());
+        let opens_editor = matches!(action, V3Action::OpenExternalEditor);
+        if opens_editor {
+            crossterm::terminal::disable_raw_mode()?;
         }
-
-        let command = app.handle_action(action).map_err(io::Error::other)?;
-        match command {
-            TuiControllerCommand::Continue => {}
-            TuiControllerCommand::Quit => return Ok(()),
-            TuiControllerCommand::CancelActiveSubmission => {
-                if let Some(stream) = &active_stream {
-                    stream.cancel.store(true, Ordering::Release);
-                } else {
-                    return Ok(());
-                }
+        let control = runner.execute_action(&mut app, action);
+        if opens_editor {
+            if runner.editor_in_flight() {
+                editor_terminal_suspended = true;
+            } else {
+                crossterm::terminal::enable_raw_mode()?;
             }
-            TuiControllerCommand::SubmitPrompt(_) if active_stream.is_some() => {
-                return Err(io::Error::other(
-                    "TUI received a second submission while a gateway stream is active",
-                ));
-            }
-            command @ TuiControllerCommand::SubmitPrompt(_) => {
-                let request = app
-                    .request_for_command(&command)
-                    .ok_or_else(|| io::Error::other("TUI submission did not produce a request"))?;
-                active_stream = Some(spawn_stream(app.runtime().clone(), request));
-            }
-            unsupported => {
-                return Err(io::Error::other(format!(
-                    "TUI runner does not support controller command {unsupported:?}"
-                )));
-            }
+        }
+        if control == RunnerControl::Quit {
+            return Ok(());
         }
     }
 }
 
-fn spawn_stream(runtime: GatewayUiRuntime, request: GatewayChatStreamRequest) -> ActiveStream {
+fn spawn_stream(
+    runtime: GatewayUiRuntime,
+    request: GatewayChatStreamRequest,
+    request_id: String,
+) -> ActiveStream {
     let (sender, receiver) = mpsc::channel();
     let cancel = Arc::new(AtomicBool::new(false));
     let stream_cancel = Arc::clone(&cancel);
+    let worker_request_id = request_id.clone();
     std::thread::spawn(move || {
-        let directory = runtime.directory_value();
-        let request = runtime.prepare_stream_request(&request);
-        let result = GatewayClient::stream_chat_blocking(
-            runtime.endpoint(),
-            directory.as_deref(),
+        let result = runtime.stream_chat_resumable_blocking(
             &request,
+            worker_request_id.as_str(),
             |event| {
                 !stream_cancel.load(Ordering::Acquire)
                     && sender.send(StreamMessage::Event(event)).is_ok()
             },
         );
+        let result = if stream_cancel.load(Ordering::Acquire) {
+            Ok(GatewayStreamAttemptResult::CallerStopped)
+        } else {
+            result
+        };
         let _ = sender.send(StreamMessage::Finished(result));
     });
-    ActiveStream { receiver, cancel }
+    ActiveStream { request_id, receiver, cancel }
 }
 
-fn drain_stream(
-    app: &mut V3GatewayApp,
-    active_stream: &mut Option<ActiveStream>,
+fn spawn_stop(runtime: GatewayUiRuntime, request_id: String, sender: mpsc::Sender<HostMessage>) {
+    std::thread::spawn(move || {
+        let result = runtime.chat_stream_stop_blocking(request_id.as_str());
+        let _ = sender.send(HostMessage::StopFinished { request_id, result });
+    });
+}
+
+fn next_stream_request_id() -> String {
+    static NEXT_SEQUENCE: AtomicU64 = AtomicU64::new(1);
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
+        .unwrap_or_default();
+    let sequence = NEXT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    format!("tui-{now_ms}-{sequence}")
+}
+
+fn draw(
+    app: &V3GatewayApp,
+    mut pager: Option<&mut TranscriptPager>,
+    terminal: &mut V3Terminal,
 ) -> io::Result<()> {
-    let Some(stream) = active_stream else {
-        return Ok(());
-    };
-    let mut finished = false;
-
-    loop {
-        match stream.receiver.try_recv() {
-            Ok(StreamMessage::Event(event)) => {
-                app.accept_gateway_event(event);
-            }
-            Ok(StreamMessage::Finished(result)) => {
-                result.map_err(io::Error::other)?;
-                finished = true;
-                break;
-            }
-            Err(TryRecvError::Empty) => break,
-            Err(TryRecvError::Disconnected) => {
-                finished = true;
-                break;
-            }
-        }
-    }
-
-    if finished {
-        if let Err(error) = app.persist_session_snapshot() {
-            app.widget_mut().push_history(V3DisplayEvent::Error {
-                message: format!("session save failed: {error}"),
-            });
-        }
-        *active_stream = None;
-    }
-    Ok(())
-}
-
-fn draw(app: &V3GatewayApp, terminal: &mut V3Terminal) -> io::Result<()> {
     let (width, height) = crossterm::terminal::size()?;
     let y = match app.terminal_mode() {
         TerminalMode::Inline => terminal.viewport_area.y.min(height.saturating_sub(1)),
@@ -588,10 +879,14 @@ fn draw(app: &V3GatewayApp, terminal: &mut V3Terminal) -> io::Result<()> {
     terminal.set_viewport_area(Rect::new(0, y, width, height.saturating_sub(y)));
     terminal.draw(|frame| {
         let area = frame.area();
-        app.widget().render(area, frame.buffer_mut());
-        frame.set_cursor_style(app.widget().cursor_style(area));
-        if let Some(position) = app.widget().cursor_pos(area) {
-            frame.set_cursor_position(position);
+        if let Some(pager) = pager.as_deref_mut() {
+            pager.render(area, frame.buffer_mut());
+        } else {
+            app.widget().render(area, frame.buffer_mut());
+            frame.set_cursor_style(app.widget().cursor_style(area));
+            if let Some(position) = app.widget().cursor_pos(area) {
+                frame.set_cursor_position(position);
+            }
         }
     })
 }

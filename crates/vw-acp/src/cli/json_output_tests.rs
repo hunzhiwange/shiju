@@ -1,4 +1,6 @@
 //! 验证严格 JSON 输出策略对错误和结果载荷的发射条件。
+//!
+//! 命令解析、内存输出与失败 fixture 共同固定公开 CLI 的可观察契约。
 
 use serde::Serialize;
 use serde_json::Value;
@@ -23,6 +25,7 @@ fn policy(json_strict: bool) -> OutputPolicy {
     }
 }
 
+// 下列行为用例同时检查格式分支、参数边界和错误传播。
 #[test]
 fn write_output_error_emits_only_for_json_strict_policy() {
     let error = OutputErrorParams {

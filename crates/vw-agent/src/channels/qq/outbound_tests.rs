@@ -1,3 +1,5 @@
+// 本文件验证 QQ 出站消息请求、附件发送、鉴权重试与错误脱敏。
+
 use super::*;
 
 use crate::app::agent::channels::traits::SendMessage;
@@ -385,6 +387,7 @@ async fn upload_media_file_info_with_client_returns_sanitized_error_on_http_fail
 }
 
 #[tokio::test]
+// 缓存令牌支撑正常发送，空载荷则在网络请求前短路。
 async fn send_message_uses_cached_token_and_skips_empty_payload_without_network() {
     let channel = QQChannel::new("app".into(), "secret".into(), vec![]);
     {
@@ -547,4 +550,3 @@ async fn send_message_with_client_omits_passive_fields_without_thread_id() {
     assert!(media_body.get("msg_id").is_none());
     assert!(media_body.get("msg_seq").is_none());
 }
-// 本文件验证 QQ 出站消息请求、附件发送、鉴权重试与错误脱敏。

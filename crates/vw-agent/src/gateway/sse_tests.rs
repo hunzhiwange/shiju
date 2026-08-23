@@ -1,4 +1,6 @@
 // 验证服务端事件流的鉴权、广播转发与观测事件序列化。
+
+// 广播观察器还要在无接收者或消息滞后时继续转发底层观测事件。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
@@ -14,6 +16,7 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 
 #[derive(Clone, Default)]
+// 观察器保存事件、指标和 flush 次数，验证广播包装不会吞掉底层调用。
 struct TestObserver {
     state: Arc<parking_lot::Mutex<TestObserverState>>,
 }
@@ -63,6 +66,7 @@ impl Provider for StaticProvider {
     }
 }
 
+// 状态 fixture 只切换配对认证，广播通道和 provider 保持确定不变。
 fn state_with_pairing(
     event_tx: broadcast::Sender<serde_json::Value>,
     require_pairing: bool,

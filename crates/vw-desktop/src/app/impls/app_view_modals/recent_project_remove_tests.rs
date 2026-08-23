@@ -1,3 +1,7 @@
+//! 验证最近项目删除确认在有无待处理路径时的浮层行为。
+//!
+//! 测试保留同一根元素，仅切换待删除路径，以隔离确认浮层自身的条件逻辑。
+
 use super::with_recent_project_remove_confirm;
 use crate::app::{App, Message};
 use iced::Element;

@@ -1,3 +1,8 @@
+// 验证主窗口与任务宠物窗口的关闭、移动及退出条件。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -108,6 +113,8 @@ fn task_pet_window_moved_updates_pet_position_without_moving_main_window() {
     assert_eq!(app.window_position, (4.0, 8.0));
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn drag_start_messages_capture_current_dimensions_and_reset_anchors() {
     let mut app = test_app();
@@ -255,6 +262,8 @@ fn task_board_drag_starts_only_after_threshold_is_exceeded() {
     );
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn window_resize_ignores_other_windows_and_clamps_main_dimensions() {
     let mut app = test_app();
@@ -384,6 +393,8 @@ fn global_release_transfers_internal_files_to_hovered_input() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn global_cursor_left_makes_visible_lsp_hover_noninteractive_and_schedules_hide() {
     let mut app = test_app();

@@ -1,3 +1,6 @@
+//! 验证编辑器工具栏在不同页面、保存状态和主题下的按钮结构与样式。
+//! 禁用按钮沿用空闲色，防止仅改变可点击性时引入低对比度或误导性高亮。
+
 use super::editor_toolbar::{icon_button, icon_button_style, icon_svg, tooltip_content_style};
 use crate::app::{App, Message, Screen, assets::Icon};
 use iced::widget::tooltip::Position;

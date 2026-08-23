@@ -1,4 +1,7 @@
+//! 定义专家中心各技能页签、异步请求与安装操作的界面状态。
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// 专家中心的一级内容分区。
 pub(crate) enum ExpertHubSection {
     Experts,
     Connectors,
@@ -7,6 +10,7 @@ pub(crate) enum ExpertHubSection {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// 识矩技能区域的列表页签。
 pub(crate) enum SkillTab {
     #[default]
     Marketplace,
@@ -18,6 +22,7 @@ pub(crate) enum SkillTab {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// 公共技能市场的推荐、单技能与套件页签。
 pub(crate) enum PublicSkillTab {
     #[default]
     Recommended,
@@ -26,12 +31,14 @@ pub(crate) enum PublicSkillTab {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 当前工作区是否满足公共技能安装条件。
 pub(crate) enum PublicInstallAvailability {
     Ready,
     NoProject,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 公共市场详情指向单个技能或技能套件。
 pub(crate) enum PublicDetailTarget {
     Skill(SkillMarketSkillLocatorDto),
     Suite { source: String, slug: String },
@@ -47,6 +54,7 @@ impl PublicDetailTarget {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// 技能说明的可视化或原始 Markdown 展示模式。
 pub(crate) enum PublicDetailMode {
     #[default]
     Visual,
@@ -54,6 +62,7 @@ pub(crate) enum PublicDetailMode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// 公共技能详情中的安装进度与完成路径。
 pub(crate) enum PublicInstallState {
     #[default]
     Idle,
@@ -66,6 +75,7 @@ pub(crate) enum PublicInstallState {
 }
 
 #[derive(Debug, Clone)]
+/// 公共技能或套件详情及其独立安装选择状态。
 pub(crate) struct PublicDetailState {
     pub(crate) target: PublicDetailTarget,
     pub(crate) generation: u64,
@@ -112,6 +122,7 @@ impl PublicDetailState {
         true
     }
 
+    /// 切换安装目标，但始终至少保留一个目标且安装中禁止修改。
     pub(crate) fn toggle_install_target(&mut self, target: super::SkillInstallTarget) -> bool {
         if !matches!(self.target, PublicDetailTarget::Skill(_)) || self.install_is_busy() {
             return false;
@@ -133,11 +144,13 @@ impl PublicDetailState {
     }
 }
 
+/// 关闭代码语法高亮后解析公共内容，避免未知语言导致渲染失败。
 pub(crate) fn parse_public_markdown(content: &str) -> Vec<iced::widget::markdown::Item> {
     let content = markdown_without_code_highlighting(content);
     iced::widget::markdown::parse(&content).collect()
 }
 
+/// 保留围栏代码内容，但移除开头语言标识以禁用语法高亮。
 pub(super) fn markdown_without_code_highlighting(content: &str) -> String {
     let mut normalized = String::with_capacity(content.len());
     let mut open_fence = None;
@@ -193,6 +206,7 @@ fn closing_code_fence(line: &str, marker: char, minimum_length: usize) -> bool {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 已安装公共技能支持的批量操作。
 pub(crate) enum PublicBatchActionKind {
     Enable,
     Disable,
@@ -200,6 +214,7 @@ pub(crate) enum PublicBatchActionKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 批量操作启动时冻结的代次、动作和技能选择。
 pub(crate) struct PublicBatchActionSnapshot {
     pub(crate) generation: u64,
     pub(crate) kind: PublicBatchActionKind,
@@ -207,6 +222,7 @@ pub(crate) struct PublicBatchActionSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 批量操作在途集合及逐项成功、失败统计。
 pub(crate) struct PublicBatchActionState {
     pub(crate) generation: u64,
     pub(crate) kind: PublicBatchActionKind,
@@ -217,12 +233,14 @@ pub(crate) struct PublicBatchActionState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 最近一次批量操作的最终统计。
 pub(crate) struct PublicBatchSummary {
     pub(crate) succeeded: usize,
     pub(crate) failed: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 公共技能市场已提交与编辑中的查询条件。
 pub(crate) struct PublicMarketQuery {
     pub(crate) keyword_draft: String,
     pub(crate) submitted_keyword: String,
@@ -244,6 +262,7 @@ impl Default for PublicMarketQuery {
 }
 
 #[derive(Debug, Clone)]
+/// 公共技能市场各资源的独立加载状态和请求代次。
 pub(crate) struct PublicSkillMarketState {
     pub(crate) tab: PublicSkillTab,
     pub(crate) sources: LoadState<Vec<SkillMarketSourceDto>>,
@@ -291,6 +310,7 @@ impl PublicSkillMarketState {
         ]
     }
 
+    /// 仅接受目录中存在的新来源，并使所有来源相关的在途响应失效。
     pub(crate) fn select_source(&mut self, source: &str) -> bool {
         let source_exists = matches!(
             &self.sources,
@@ -304,6 +324,7 @@ impl PublicSkillMarketState {
         true
     }
 
+    /// 递增各请求代次并清空来源范围内容，防止旧来源响应回填。
     pub(crate) fn invalidate_source_content(&mut self) {
         self.recommended_generation = self.recommended_generation.wrapping_add(1);
         self.categories_generation = self.categories_generation.wrapping_add(1);
@@ -358,6 +379,7 @@ impl PublicSkillMarketState {
         generation
     }
 
+    /// 关闭详情并递增代次，使已发出的详情响应自动过期。
     pub(crate) fn close_detail(&mut self) {
         self.detail_generation = self.detail_generation.wrapping_add(1);
         self.detail = None;
@@ -396,6 +418,7 @@ impl PublicSkillMarketState {
         self.installed_selection.clear();
     }
 
+    /// 冻结当前选择并启动批量操作；已有操作或空选择时拒绝启动。
     pub(crate) fn start_batch_action(
         &mut self,
         kind: PublicBatchActionKind,
@@ -479,6 +502,7 @@ impl Default for PublicSkillMarketState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 技能版本操作相对于当前版本的方向。
 pub(crate) enum SkillVersionDirection {
     Upgrade,
     Rollback,
@@ -486,6 +510,7 @@ pub(crate) enum SkillVersionDirection {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 一次待确认或执行的不可变技能版本操作。
 pub(crate) struct SkillVersionAction {
     pub(crate) skill_id: u64,
     pub(crate) version_id: u64,
@@ -494,6 +519,7 @@ pub(crate) struct SkillVersionAction {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 技能安装、卸载、升级解析或版本切换动作。
 pub(crate) enum SkillActionKind {
     Install,
     Uninstall,
@@ -502,6 +528,7 @@ pub(crate) enum SkillActionKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 当前在途技能动作及用于结果对齐的代次。
 pub(crate) struct SkillActionState {
     pub(crate) skill_id: u64,
     pub(crate) generation: u64,
@@ -509,6 +536,7 @@ pub(crate) struct SkillActionState {
 }
 
 #[derive(Debug, Clone)]
+/// 单个技能详情、说明和版本列表的独立加载状态。
 pub(crate) struct SkillDetailState {
     pub(crate) skill_id: u64,
     pub(crate) generation: u64,
@@ -520,6 +548,7 @@ pub(crate) struct SkillDetailState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// 技能列表编辑中与已提交的关键词、标签筛选条件。
 pub(crate) struct SkillListFilter {
     pub(crate) keyword_draft: String,
     pub(crate) submitted_keyword: String,
@@ -539,6 +568,7 @@ impl SkillListFilter {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// “我的技能”可筛选的发布生命周期状态。
 pub(crate) enum MineSkillStatus {
     Draft,
     PendingReview,
@@ -570,12 +600,14 @@ impl MineSkillStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// “我的技能”当前展开的筛选菜单。
 pub(crate) enum MineFilterMenu {
     Tags,
     Statuses,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// 识矩包直接安装或卸载的阶段状态。
 pub(crate) enum ShijuDirectInstallState {
     #[default]
     Idle,
@@ -594,18 +626,21 @@ pub(crate) enum ShijuDirectInstallState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 一次手动下载使用的代次和目标平台包。
 pub(crate) struct ShijuManualDownloadState {
     pub(crate) generation: u64,
     pub(crate) package_id: super::ShijuPackageId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 在操作开始时冻结的安装目标选择。
 pub(crate) struct ShijuSelectionOperation {
     pub(crate) generation: u64,
     pub(crate) selections: Vec<super::SkillInstallSelection>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 安装向导的目标选择、在途操作与本地安装探测状态。
 pub(crate) struct ShijuInstallGuideState {
     pub(crate) open: bool,
     pub(crate) current_package: Option<super::ShijuPackageId>,
@@ -630,6 +665,7 @@ pub(crate) struct ShijuInstallGuideState {
 }
 
 impl ShijuInstallGuideState {
+    /// 使全部向导请求代次失效，并清除在途操作但保留用户选择。
     pub(crate) fn reset_requests(&mut self) {
         self.agent_generation = self.agent_generation.wrapping_add(1);
         self.manual_generation = self.manual_generation.wrapping_add(1);
@@ -670,6 +706,7 @@ impl ShijuInstallGuideState {
         Some(generation)
     }
 
+    /// 冻结当前非空目标选择并进入包获取阶段；忙碌时拒绝重复启动。
     pub(crate) fn start_direct_install(
         &mut self,
         package_id: super::ShijuPackageId,
@@ -750,6 +787,7 @@ impl ShijuInstallGuideState {
         true
     }
 
+    /// 切换目标但至少保留一个选择，任何安装或同步在途时禁止修改。
     pub(crate) fn toggle_target(&mut self, target: super::SkillInstallTarget) -> bool {
         if self.is_busy() {
             return false;
@@ -897,6 +935,7 @@ impl Default for ShijuInstallGuideState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// 技能服务端操作成功后的本地缓存同步状态。
 pub(crate) enum SkillCacheSyncState {
     #[default]
     Idle,
@@ -951,6 +990,7 @@ impl SkillCacheSyncState {
 }
 
 #[derive(Debug, Clone)]
+/// 专家中心全部页签、筛选器、请求代次与操作状态的聚合。
 pub(crate) struct ExpertHubState {
     pub(crate) section: ExpertHubSection,
     pub(crate) skill_tab: SkillTab,
@@ -1054,6 +1094,7 @@ impl ExpertHubState {
         self.skill_tab = SkillTab::Marketplace;
     }
 
+    /// 账号切换时清除账号范围数据并递增代次，使旧响应全部失效。
     pub(crate) fn clear_for_account(&mut self, account_id: Option<String>) {
         self.search_draft.clear();
         self.submitted_search.clear();
@@ -1100,6 +1141,7 @@ impl ExpertHubState {
         self.detail_generation
     }
 
+    /// 为技能启动互斥动作并返回新代次；已有动作时返回 `None`。
     pub(crate) fn start_action(&mut self, skill_id: u64, kind: SkillActionKind) -> Option<u64> {
         if self.action.is_some()
             || self.version_confirmation.is_some()
@@ -1123,6 +1165,7 @@ impl ExpertHubState {
         Some(generation)
     }
 
+    /// 仅完成与当前代次和技能匹配的缓存同步，迟到结果保持无效。
     pub(crate) fn finish_cache_sync(
         &mut self,
         generation: u64,
@@ -1222,6 +1265,7 @@ impl Default for ExpertHubState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// 识矩包服务端版本刷新状态。
 pub(crate) enum ShijuPackageRefreshState {
     #[default]
     Idle,
@@ -1233,6 +1277,7 @@ pub(crate) enum ShijuPackageRefreshState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// 本地安装版本、服务端版本及刷新进度的组合状态。
 pub(crate) struct ShijuPackageStatus {
     pub(crate) local_version: Option<String>,
     pub(crate) server_version: Option<String>,
@@ -1278,6 +1323,7 @@ impl ShijuPackageStatus {
         )
     }
 
+    /// 仅接受当前刷新代次的结果，并据此更新服务端版本或失败状态。
     pub(crate) fn finish_refresh(
         &mut self,
         generation: u64,
@@ -1306,6 +1352,7 @@ impl ShijuPackageStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// 通用异步资源加载状态，加载分支携带请求代次。
 pub(crate) enum LoadState<T> {
     #[default]
     Idle,

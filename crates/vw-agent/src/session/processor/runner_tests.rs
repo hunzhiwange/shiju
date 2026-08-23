@@ -43,6 +43,7 @@ fn request_model_context_retains_auto_selection_source() {
 }
 
 #[test]
+// 先确定模型再组装工具上下文，使能力筛选依据最终模型。
 fn processor_auto_resolves_model_before_tool_context() {
     let req = request_with_session("auto-before-tools");
 
@@ -771,6 +772,7 @@ fn transient_internal_compaction_replaces_only_covered_history_without_tools() {
 }
 
 #[test]
+// 临时摘要失败时保留原历史，并允许主流程继续处理。
 fn transient_internal_compaction_keeps_history_when_summary_fails() {
     let _guard = super::llm_runner::test_llm_stream_guard();
     super::llm_runner::enqueue_test_llm_stream(vec![
@@ -853,6 +855,7 @@ fn handle_structured_tool_calls_records_denied_result_for_unallowed_tool() {
 }
 
 #[test]
+// 达到最后步骤时即使工具在白名单内也拒绝继续，保证轮次必然收敛。
 fn handle_structured_tool_calls_denies_allowed_tool_on_last_step() {
     let session_id = unique_session_id("structured-last-step-denied");
     let req = request_with_session(&session_id);

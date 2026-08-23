@@ -1,3 +1,7 @@
+//! ACP 子命令的协议边界测试。
+//! 覆盖命令行路由、基于标准输入输出的初始化交互，以及 EOF 触发的取消与退出。
+//! 同时约束诊断信息不得污染 ACP 协议的标准输出通道。
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};

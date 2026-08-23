@@ -1,6 +1,11 @@
+// 验证频道默认配置、接收模式解析与群组回复设置。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use vw_config_types::channels::{GroupReplyConfig, GroupReplyMode, LarkReceiveMode, QQReceiveMode};
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn default_matrix_config_uses_empty_restrictive_values() {
     let matrix = default_matrix_config();
@@ -39,6 +44,8 @@ fn default_dingtalk_config_uses_empty_credentials_and_allowlist() {
     assert!(dingtalk.allowed_users.is_empty());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn trim_to_option_trims_non_empty_values_and_rejects_whitespace() {
     assert_eq!(trim_to_option(" \t user-1 \n"), Some("user-1".to_string()));
@@ -59,6 +66,8 @@ fn parse_qq_receive_mode_accepts_normalized_websocket_and_defaults_to_webhook() 
     assert_eq!(parse_qq_receive_mode("unsupported"), QQReceiveMode::Webhook);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn set_group_reply_mode_inserts_config_and_selects_each_mode() {
     let mut group_reply = None;
@@ -105,6 +114,8 @@ fn set_group_reply_allowed_parses_separators_and_preserves_existing_mode() {
     );
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn set_group_reply_allowed_inserts_config_and_accepts_empty_input() {
     let mut group_reply = None;

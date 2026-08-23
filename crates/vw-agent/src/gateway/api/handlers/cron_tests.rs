@@ -170,6 +170,7 @@ fn job(schedule: Schedule) -> CronJob {
     }
 }
 
+// 先固定调度输入的规范化结果，再验证处理器不会在认证失败时写入任务。
 #[test]
 fn cron_json_serializes_schedule_variants_and_delivery_fields() {
     let at = Utc.with_ymd_and_hms(2026, 1, 2, 3, 4, 5).unwrap();
@@ -269,6 +270,7 @@ fn cron_add_schedule_infers_and_validates_kinds() {
     assert!(cron_add_schedule(&body).unwrap_err().contains("Invalid RFC3339"));
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[test]
 fn cron_add_schedule_reports_missing_values_and_accepts_localized_kinds() {
     let mut body = add_body();

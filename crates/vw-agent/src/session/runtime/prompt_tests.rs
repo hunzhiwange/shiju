@@ -1,4 +1,5 @@
 //! 验证提示运行时的工具生命周期事件与幂等取消行为。
+//! 伪运行器记录类型化工具事件，并用重复取消验证终止句柄的幂等性。
 
 use std::time::Duration;
 
@@ -97,6 +98,7 @@ fn prompt_runtime_emits_typed_tool_lifecycle() {
 }
 
 #[test]
+// 重复取消只改变一次终止状态，不能重复发送完成事件或遗留运行句柄。
 fn prompt_runtime_cancel_is_idempotent() {
     let turn = start_prompt_with_runner(request(), |request, mut emit| {
         let abort = request.abort_token.expect("runtime cancellation token");

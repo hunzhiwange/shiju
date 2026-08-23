@@ -1,4 +1,6 @@
 // 验证配对端点的来源限制、令牌生命周期与错误响应。
+
+// 环境变量与本地配置由锁和清理守卫保护，避免配对令牌泄漏到其它用例。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::config::SystemConfigStore;
@@ -18,6 +20,7 @@ fn env_lock() -> std::sync::MutexGuard<'static, ()> {
     crate::test_support::global_env_lock().lock().unwrap_or_else(|err| err.into_inner())
 }
 
+// 主目录守卫把配置持久化限制在临时目录，并在结束时恢复进程环境。
 struct HomeEnvGuard(Option<std::ffi::OsString>);
 
 impl HomeEnvGuard {
@@ -67,6 +70,7 @@ impl Provider for StaticProvider {
     }
 }
 
+// 状态 fixture 可独立调节配对与限流，便于确认锁定发生在持久化之前。
 fn state_with(pairing: PairingGuard, rate_limit: u32, config: Config) -> AppState {
     AppState {
         config: Arc::new(Mutex::new(config)),

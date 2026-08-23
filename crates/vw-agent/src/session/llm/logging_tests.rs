@@ -13,6 +13,7 @@ fn global_logger_reuses_the_same_instance() {
 }
 
 #[test]
+// 全局日志器跨线程共享同一实例，避免并发请求各自创建写入器。
 fn global_logger_reference_is_shared_across_threads() {
     let expected_address = std::ptr::from_ref(&*LOGGER) as usize;
     let handles =

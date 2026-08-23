@@ -12,14 +12,16 @@ use super::hooks::PluginHook;
 const TRUST_FILE_NAME: &str = "plugin-hook-trust.json";
 const TRUST_VERSION: u32 = 1;
 
-/// Review status for a plugin hook declaration.
+/// 插件钩子声明相对当前信任库的审核状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PluginHookTrustStatus {
     Trusted,
     Pending,
 }
 
-/// Persistent trust store for plugin hook hashes.
+/// 持久化保存已审核钩子摘要的信任库。
+///
+/// 仅保存安全相关声明的摘要，不保存命令输出或运行时载荷。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginHookTrustStore {
     #[serde(default = "default_trust_version")]
@@ -31,6 +33,7 @@ pub struct PluginHookTrustStore {
 }
 
 impl PluginHookTrustStore {
+    /// 从指定路径加载信任库；文件不存在时返回空库。
     pub fn load_or_default(path: &Path) -> Result<Self> {
         if !path.exists() {
             return Ok(Self {
@@ -53,6 +56,7 @@ impl PluginHookTrustStore {
         Ok(store)
     }
 
+    /// 根据插件名和完整钩子身份判断是否仍受信任。
     pub fn review_status(&self, plugin_name: &str, hook: &PluginHook) -> PluginHookTrustStatus {
         let hash = plugin_hook_trust_hash(plugin_name, hook);
         if self.trusted_hashes.contains(&hash) {
@@ -62,12 +66,13 @@ impl PluginHookTrustStore {
         }
     }
 
+    /// 信任当前钩子声明并立即持久化其稳定摘要。
     pub fn trust_hook(&mut self, plugin_name: &str, hook: &PluginHook) -> Result<()> {
         self.trusted_hashes.insert(plugin_hook_trust_hash(plugin_name, hook));
         self.save()
     }
 
-    /// Remove one previously reviewed declaration by its exact stable hash.
+    /// 按精确稳定摘要撤销一个已审核声明。
     pub(crate) fn revoke_hash(&mut self, hook_hash: &str) -> Result<bool> {
         let removed = self.trusted_hashes.remove(hook_hash);
         if removed {
@@ -90,12 +95,12 @@ impl PluginHookTrustStore {
     }
 }
 
-/// Stable trust file location under the agent config directory.
+/// 返回代理配置目录下稳定的钩子信任文件位置。
 pub fn plugin_hook_trust_file(config_dir: &Path) -> PathBuf {
     config_dir.join(TRUST_FILE_NAME)
 }
 
-/// Compute a review hash for the security-relevant hook identity.
+/// 计算覆盖命令、参数、事件、工作目录和清单路径的审核摘要。
 pub fn plugin_hook_trust_hash(plugin_name: &str, hook: &PluginHook) -> String {
     let working_dir = hook.working_dir.to_string_lossy();
     let manifest_path = hook.manifest_path.to_string_lossy();

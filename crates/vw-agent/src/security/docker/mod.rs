@@ -3,7 +3,7 @@
 use super::traits::Sandbox;
 use std::process::Command;
 
-/// Docker sandbox backend
+/// 使用固定镜像包装命令的 Docker 沙箱后端。
 #[derive(Debug, Clone)]
 pub struct DockerSandbox {
     image: String,
@@ -16,6 +16,7 @@ impl Default for DockerSandbox {
 }
 
 impl DockerSandbox {
+    /// 使用默认镜像创建沙箱，并验证 Docker 可执行文件可用。
     pub fn new() -> std::io::Result<Self> {
         if Self::is_installed() {
             Ok(Self::default())
@@ -24,6 +25,7 @@ impl DockerSandbox {
         }
     }
 
+    /// 使用指定镜像创建沙箱，并验证 Docker 可执行文件可用。
     pub fn with_image(image: String) -> std::io::Result<Self> {
         if Self::is_installed() {
             Ok(Self { image })
@@ -32,6 +34,7 @@ impl DockerSandbox {
         }
     }
 
+    /// 探测当前环境是否能够启动 Docker 沙箱。
     pub fn probe() -> std::io::Result<Self> {
         Self::new()
     }

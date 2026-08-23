@@ -1,3 +1,6 @@
+//! 验证消息文本估高、分段、会话控制解析与长内容回退策略。
+//! fixture 包含 UTF-8、中文标点、空段和超限文本，用于锁定字符与字节边界的既有语义。
+
 use super::text::{
     SessionControlSelection, estimate_message_height_rough, estimate_text_height,
     message_editor_body, message_text_body, session_control_selection_card,

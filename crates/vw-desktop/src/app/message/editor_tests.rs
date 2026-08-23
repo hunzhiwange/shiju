@@ -1,3 +1,6 @@
+// 验证编辑器设置、预览状态与输入事件的消息处理行为。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::editor::{EditorMessage, update};
 use crate::app::components::editor::Editor;
 use crate::app::{App, PreviewTab};
@@ -35,6 +38,8 @@ fn app_with_active_preview(content: &str) -> App {
     app
 }
 
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -119,6 +124,8 @@ fn toggle_auto_line_height_recomputes_when_enabled() {
     assert_eq!(app.git_copy_modal_code_editor.line_height(), 21.0);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn toggle_auto_line_height_off_keeps_current_height() {
     let mut app = test_app();
@@ -201,6 +208,8 @@ fn editor_actions_without_active_preview_are_noops() {
     assert_eq!(app.active_preview_path, None);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn editor_actions_with_missing_active_tab_leave_other_tabs_unchanged() {
     let mut app = test_app();
@@ -277,6 +286,8 @@ fn paste_request_and_empty_clipboard_result_preserve_editor_content() {
     assert_eq!(app.preview_tabs[0].editor.content(), "keep");
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn search_dialog_actions_preserve_editor_content() {
     let mut app = app_with_active_preview("find me");

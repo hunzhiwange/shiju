@@ -1,4 +1,6 @@
 //! PostgreSQL 系统配置存储，按租户隔离全局配置与项目覆盖。
+//!
+//! 表结构与 SQLite 门面保持相同主键语义，时间戳由上层统一生成后传入。
 
 use anyhow::{Context, Result, bail};
 use vw_api_types::id::TenantScope;
@@ -25,11 +27,13 @@ CREATE TABLE IF NOT EXISTS project_configs (
 "#;
 
 #[derive(Debug, Clone)]
+/// `SystemConfigStore` 的 PostgreSQL 后端。
 pub(super) struct PostgresSystemConfigStore {
     database: GlobalDatabase,
 }
 
 impl PostgresSystemConfigStore {
+    /// 初始化租户配置表并绑定全局数据库。
     pub(super) fn new(database: GlobalDatabase) -> Result<Self> {
         database.initialize_postgres_schema(|transaction| {
             transaction
@@ -40,6 +44,7 @@ impl PostgresSystemConfigStore {
         Ok(Self { database })
     }
 
+    /// 读取租户全局配置 JSON。
     pub(super) fn get(&self, tenant: &TenantScope) -> Result<Option<String>> {
         let mut connection = self.database.connect_postgres()?;
         connection
@@ -55,6 +60,7 @@ impl PostgresSystemConfigStore {
             .context("decode tenant PostgreSQL system config")
     }
 
+    /// 按租户主键写入全局配置。
     pub(super) fn upsert(
         &self,
         tenant: &TenantScope,
@@ -84,6 +90,7 @@ impl PostgresSystemConfigStore {
         Ok(())
     }
 
+    /// 读取指定租户和项目路径的覆盖 JSON。
     pub(super) fn get_project(
         &self,
         tenant: &TenantScope,
@@ -103,6 +110,7 @@ impl PostgresSystemConfigStore {
             .context("decode tenant PostgreSQL project config")
     }
 
+    /// 按租户和项目路径写入项目覆盖。
     pub(super) fn upsert_project(
         &self,
         tenant: &TenantScope,

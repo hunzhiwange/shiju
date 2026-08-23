@@ -1,4 +1,5 @@
 //! 验证委派执行的提供方创建、超时、错误及安全检查边界。
+//! 模拟提供方分别触发空响应、超时和业务错误，代理工具转发不重复执行同一安全检查。
 
 use super::*;
 use crate::app::agent::config::DelegateAgentConfig;
@@ -127,6 +128,7 @@ impl Provider for ErrorResponseProvider {
 }
 
 #[tokio::test]
+// 代理工具转发沿用上层已完成的安全判定，重复检查会错误消耗额度或再次请求批准。
 async fn execute_skips_duplicate_security_check_for_agent_tool_forwarding() {
     let mut agents = HashMap::new();
     agents.insert("worker".to_string(), invalid_provider_config());

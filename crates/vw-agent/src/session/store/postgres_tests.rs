@@ -1,4 +1,5 @@
 //! 验证 PostgreSQL 会话存储拒绝 SQLite 后端的边界。
+//! 这些用例故意传入 SQLite，证明后端检查发生在建表和数据访问之前。
 
 use super::*;
 
@@ -53,6 +54,7 @@ fn new_rejects_sqlite_backend_before_initializing_postgres_schema() {
 }
 
 #[test]
+// 后端类型错误必须先于任何会话查询返回，避免在不兼容数据库上产生部分副作用。
 fn session_operations_reject_sqlite_backend_before_accessing_session_data() {
     let (_home, database) = sqlite_database();
     let store = PostgresSessionStore { database };

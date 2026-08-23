@@ -3,6 +3,7 @@
 use crate::worktree::{CreateWorktreeRequest, DeleteWorktreeRequest, ResetMode, WorktreeStatus};
 use serde_json::json;
 
+// 创建和删除请求默认不执行检出或强制删除，危险操作必须由调用方显式选择。
 #[test]
 fn worktree_requests_default_optional_controls() {
     let create: CreateWorktreeRequest = serde_json::from_value(json!({

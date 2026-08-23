@@ -1,4 +1,5 @@
 //! 验证跨平台快照模型的差异统计、序列化与路径处理。
+//! 公共模型在原生与 WebAssembly 上保持相同序列化；进程状态额外信息不得丢失失败输出。
 
 use super::*;
 #[cfg(not(target_arch = "wasm32"))]
@@ -133,6 +134,7 @@ fn extra_from_output_records_nonzero_exit_and_streams() {
 
 #[cfg(any(unix, windows))]
 #[test]
+// 进程状态字段具有保留语义，调用方提供的同名扩展值必须被真实退出信息覆盖。
 fn extra_from_output_replaces_reserved_keys_and_decodes_lossily() {
     let output = std::process::Output {
         status: exit_status(0),

@@ -8,6 +8,7 @@ use std::path::{Component, Path, PathBuf};
 
 use super::types::PluginPath;
 
+/// 规范化插件根目录，并拒绝符号链接或非目录入口。
 pub(super) fn canonical_plugin_root(plugin_root: &Path) -> Result<PathBuf> {
     let metadata = fs::symlink_metadata(plugin_root).with_context(|| {
         format!("failed to read plugin root metadata: {}", plugin_root.display())
@@ -24,6 +25,7 @@ pub(super) fn canonical_plugin_root(plugin_root: &Path) -> Result<PathBuf> {
         .with_context(|| format!("failed to canonicalize plugin root: {}", plugin_root.display()))
 }
 
+/// 返回通过逐级符号链接检查的插件清单路径。
 pub(super) fn plugin_manifest_path(canonical_root: &Path) -> Result<PathBuf> {
     let relative = Path::new(".vibewindow-plugin").join("plugin.json");
     ensure_no_symlink_components(canonical_root, &relative, "plugin.json")?;
@@ -40,6 +42,9 @@ pub(super) fn plugin_manifest_path(canonical_root: &Path) -> Result<PathBuf> {
     Ok(canonical_path)
 }
 
+/// 将清单中的相对组件路径解析到插件根目录内。
+///
+/// 绝对路径、父目录跳转、符号链接组件和根目录逃逸都会被明确拒绝。
 pub(super) fn resolve_component_path(
     canonical_root: &Path,
     field: &str,

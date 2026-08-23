@@ -1,3 +1,7 @@
+//! 验证任务宠物的动画帧、窗口展开状态、控件和任务卡片。
+//!
+//! 动画帧与方向按周期边界取样，任务卡片覆盖运行、完成、悬停和回复状态。
+
 use super::*;
 use crate::app::state::{TaskPetAvatarKind, TaskPetItem, TaskPetStatus};
 use crate::app::{App, Message};

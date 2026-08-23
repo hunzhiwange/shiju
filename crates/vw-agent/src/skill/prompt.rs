@@ -49,11 +49,15 @@ fn render_skill_location(skill: &Skill, workspace_dir: &Path, prefer_relative: b
 }
 
 /// Build the "Available Skills" system prompt section with full skill instructions.
+/// 使用默认兼容模式把技能集合渲染为提示词。
 pub fn skills_to_prompt(skills: &[Skill], workspace_dir: &Path) -> String {
     skills_to_prompt_with_mode(skills, workspace_dir, SkillsPromptInjectionMode::Full)
 }
 
 /// Build the "Available Skills" system prompt section with configurable verbosity.
+/// 按指定注入模式渲染技能元数据。
+///
+/// XML 模式会转义所有动态文本；路径仅在确实位于工作区内时渲染为相对形式。
 pub fn skills_to_prompt_with_mode(
     skills: &[Skill],
     workspace_dir: &Path,
@@ -129,6 +133,7 @@ pub fn skills_to_prompt_with_mode(
 }
 
 /// Get the skills directory path
+/// 返回工作区内约定的 `.agents/skills` 技能目录。
 pub fn skills_dir(workspace_dir: &Path) -> PathBuf {
     workspace_dir.join("skills")
 }

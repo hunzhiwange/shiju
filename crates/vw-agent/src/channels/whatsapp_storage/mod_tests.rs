@@ -1,3 +1,5 @@
+// 本文件验证 WhatsApp SQLite 存储初始化、路径错误与既有结构兼容。
+
 #[cfg(feature = "whatsapp-web")]
 use super::RusqliteStore;
 
@@ -103,6 +105,7 @@ fn rusqlite_store_returns_error_when_wal_pragmas_cannot_create_sidecars() {
 
 #[test]
 #[cfg(feature = "whatsapp-web")]
+// 既有同名结构不可被初始化过程静默替换或破坏。
 fn rusqlite_store_preserves_existing_schema_object_named_device() {
     let dir = tempfile::tempdir().unwrap();
     let db_path = dir.path().join("conflicting.db");
@@ -118,4 +121,3 @@ fn rusqlite_store_preserves_existing_schema_object_named_device() {
 
     assert_eq!(object_type, "view");
 }
-// 本文件验证 WhatsApp SQLite 存储初始化、路径错误与既有结构兼容。

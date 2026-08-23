@@ -1,4 +1,6 @@
 // 验证知识存储抽象的后端选择、输入校验与公共契约。
+
+// 公共行为矩阵同时覆盖提供方连线、安全输入及多种检索模式。
 use super::super::fusion::{RetrievalSource, RetrievedCandidate};
 use super::*;
 use crate::global_database::GlobalDatabase;

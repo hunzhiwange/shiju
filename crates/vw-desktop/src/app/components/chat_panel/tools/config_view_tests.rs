@@ -1,3 +1,6 @@
+//! 验证配置工具成功结果在空数据和超长分区下的摘要呈现。
+//! 超长配置仅影响预览截断，不应丢失分区存在性或破坏视图构造。
+
 use super::{parse_config_result_from_output, success_body};
 
 #[test]

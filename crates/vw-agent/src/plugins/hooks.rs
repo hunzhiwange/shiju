@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use super::audit::canonical_plugin_root;
 
-/// Supported plugin hook lifecycle events.
+/// 运行时支持的插件钩子生命周期事件。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PluginHookEvent {
     BeforeToolCall,
@@ -18,6 +18,7 @@ pub enum PluginHookEvent {
 }
 
 impl PluginHookEvent {
+    /// 返回清单与信任摘要使用的稳定事件标识。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::BeforeToolCall => "before_tool_call",
@@ -29,7 +30,7 @@ impl PluginHookEvent {
     }
 }
 
-/// Execution mode for a plugin hook declaration.
+/// 插件钩子声明的执行模式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PluginHookMode {
     Blocking,
@@ -46,6 +47,7 @@ impl PluginHookMode {
         }
     }
 
+    /// 返回清单使用的稳定模式标识。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Blocking => "blocking",
@@ -53,7 +55,7 @@ impl PluginHookMode {
     }
 }
 
-/// A hook declaration after schema parsing and path audit.
+/// 已通过模式解析与静态路径审计的钩子声明。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluginHook {
     pub event: PluginHookEvent,
@@ -65,7 +67,9 @@ pub struct PluginHook {
     pub manifest_path: PathBuf,
 }
 
-/// Read a plugin `hooks/hooks.json` file without executing any hook command.
+/// 读取并审计插件 `hooks/hooks.json`，但绝不执行其中命令。
+///
+/// 工作目录只能是插件根目录或当前工作区内的规范化路径。
 pub fn load_plugin_hooks_manifest(
     hooks_path: &Path,
     plugin_root: &Path,

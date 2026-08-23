@@ -1,10 +1,13 @@
 //! 验证输出错误到 JSON-RPC 错误码、载荷优先级和序列化形状的映射。
+//!
+//! 构造的协议载荷与错误链用于固定归一化优先级和诊断信息边界。
 
 use serde_json::{Value, json};
 
 use super::jsonrpc_error::*;
 use super::types::{OutputErrorAcpPayload, OutputErrorCode, OutputErrorOrigin};
 
+// 下列行为用例覆盖已知错误、缺失字段、嵌套载荷和安全回退。
 #[test]
 fn output_error_codes_map_to_jsonrpc_codes() {
     let cases = [

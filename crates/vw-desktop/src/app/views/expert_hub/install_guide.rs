@@ -1,3 +1,5 @@
+//! 构建识矩技能安装向导及多目标安装路径说明。
+
 use super::styles;
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
@@ -19,9 +21,11 @@ use iced::widget::{
 use iced::{Alignment, Background, Border, Color, Element, Font, Length, Theme};
 use vw_config_types::paths::HOME_CONFIG_DIR_NAME;
 
+/// 安装向导纵向滚动条的固定宽度。
 pub(super) const SCROLLBAR_WIDTH: u32 = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 安装目标在向导中的名称、兼容性和路径说明。
 pub(super) struct InstallTargetPresentation {
     pub(super) target: SkillInstallTarget,
     pub(super) name: &'static str,
@@ -88,6 +92,7 @@ pub(super) fn target_root_label(target: SkillInstallTarget, scope: SkillInstallS
     }
 }
 
+/// 根据当前范围和项目路径生成全部安装目标说明。
 pub(super) fn install_target_presentations(
     scope: SkillInstallScope,
 ) -> Vec<InstallTargetPresentation> {
@@ -188,6 +193,7 @@ pub(super) fn direct_install_button_label(state: &ShijuInstallGuideState) -> Str
     }
 }
 
+/// 仅在向导空闲且存在目标选择时提供直接安装消息。
 pub(super) fn direct_install_action_message(state: &ShijuInstallGuideState) -> Option<Message> {
     (state.current_package.is_some()
         && !state.selected_targets.is_empty()
@@ -209,6 +215,7 @@ pub(super) fn direct_install_progress(state: &ShijuInstallGuideState) -> f32 {
     }
 }
 
+/// 仅在空闲且所选目标中存在安装时提供卸载确认消息。
 pub(super) fn uninstall_action_message(state: &ShijuInstallGuideState) -> Option<Message> {
     (state.is_installed
         && matches!(
@@ -218,6 +225,7 @@ pub(super) fn uninstall_action_message(state: &ShijuInstallGuideState) -> Option
     .then_some(Message::SkillHub(SkillHubMessage::UninstallShiju))
 }
 
+/// 仅在存在已安装目标且没有在途操作时提供密钥同步消息。
 pub(super) fn sync_action_message(state: &ShijuInstallGuideState) -> Option<Message> {
     (state.is_installed
         && !state.login_sync_in_progress
@@ -254,6 +262,7 @@ fn sync_tooltip() -> Element<'static, Message> {
     .into()
 }
 
+/// 当服务端版本为有效且严格更新的数字版本时提示升级。
 pub(super) fn upgrade_available(state: &ShijuInstallGuideState) -> bool {
     let Some(current) = state.installed_version.as_deref() else {
         return false;
@@ -743,6 +752,7 @@ fn manual_install_section(state: &ShijuInstallGuideState) -> Element<'static, Me
     .into()
 }
 
+/// 构建安装范围、目标、直接安装与手动安装的完整向导。
 pub(super) fn view(app: &App) -> Element<'_, Message> {
     let state = &app.expert_hub.install_guide;
     let header = column![
@@ -778,6 +788,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         .into()
 }
 
+/// 在用户请求卸载时为向导叠加确认对话框。
 pub(super) fn with_uninstall_confirmation<'a>(
     app: &'a App,
     base: Element<'a, Message>,

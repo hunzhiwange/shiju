@@ -1,4 +1,5 @@
 //! 测试资源存储在多后端下的租约排他性、过期与作用域隔离。
+//! 公共断言在 SQLite 与可用 PostgreSQL 后端复用，另用并发屏障验证单一持有者。
 
 use std::sync::{Arc, Barrier};
 
@@ -427,6 +428,7 @@ fn concurrent_acquire_request(lease_id: &str, holder_id: &str) -> AcquireResourc
     }
 }
 
+// 跨后端执行租约契约；并发专用场景另行使用独立连接验证。
 fn for_each_resource_store_provider(
     mut check: impl FnMut(
         &AgentSchedulerStore,

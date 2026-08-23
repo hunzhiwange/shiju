@@ -1,9 +1,14 @@
+// 验证存储设置字段更新及超时值的解析边界。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 
 fn app() -> App {
     App::new().0
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn storage_update_applies_each_field_and_clears_save_error() {
     let mut app = app();
@@ -43,6 +48,8 @@ fn storage_update_applies_each_field_and_clears_save_error() {
     assert!(app.storage_settings.save_error.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn storage_save_accepts_blank_and_maximum_timeout() {
     let mut app = app();
@@ -82,6 +89,8 @@ fn storage_update_rejects_invalid_and_overflowing_timeouts() {
     }
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn non_storage_message_leaves_storage_state_unchanged() {
     let mut app = app();
@@ -94,6 +103,8 @@ fn non_storage_message_leaves_storage_state_unchanged() {
     assert_eq!(app.storage_settings.save_error.as_deref(), Some("keep this error"));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn valid_timeout_after_parse_error_clears_save_error() {
     let mut app = app();

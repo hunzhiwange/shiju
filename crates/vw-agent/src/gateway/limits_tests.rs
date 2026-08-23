@@ -1,11 +1,15 @@
 // 验证滑动窗口限流器的边界容量、过期清理与键隔离。
+
+// 人工构造的时间戳覆盖过期边界、零容量及超大窗口的安全退化。
 use super::*;
 use std::time::Duration;
 
+// 相对时间 helper 避免硬编码时钟值，只表达记录距当前时刻的年龄。
 fn instant_before_now(age: Duration) -> std::time::Instant {
     std::time::Instant::now().checked_sub(age).expect("age before now")
 }
 
+// 仅在白盒边界测试中读取单个时间戳，用于证明清理和逐出选择正确记录。
 fn single_timestamp(limiter: &SlidingWindowRateLimiter, key: &str) -> std::time::Instant {
     let guard = limiter.requests.lock();
     guard.0.get(key).and_then(|timestamps| timestamps.first()).copied().expect("timestamp")

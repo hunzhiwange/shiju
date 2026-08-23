@@ -1,3 +1,7 @@
+//! 验证网关配置的地址解析、默认值和环境覆盖规则。
+//!
+//! 地址样例覆盖主机、端口、协议和环境来源，非法输入必须走明确回退。
+
 use super::{
     apply_main_agent_overrides, gateway_blocking_runtime, gateway_client, gateway_client_endpoint,
     load_config_value_at_path, load_tools_list_via_gateway, load_vibewindow_root_json,

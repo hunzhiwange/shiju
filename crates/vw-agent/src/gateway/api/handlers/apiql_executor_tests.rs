@@ -52,6 +52,7 @@ fn make_sqlite_fixture(path: &std::path::Path) {
     .unwrap();
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[tokio::test]
 async fn apiql_executor_executes_read_only_sqlite_query() {
     let dir = tempfile::tempdir().unwrap();

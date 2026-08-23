@@ -1,3 +1,6 @@
+//! 验证聊天通用界面的上下文键、滚动高度、字体和菜单主题样式。
+//! 可选工具索引参与目标键编码，菜单与提示仅在请求时构建以避免空覆盖层。
+
 use super::ui::{
     bold_font, capped_scroll_height, chat_context_menu, chat_context_menu_button_style,
     chat_context_menu_style, chat_context_target_key, copy_tooltip_content, copy_tooltip_style,

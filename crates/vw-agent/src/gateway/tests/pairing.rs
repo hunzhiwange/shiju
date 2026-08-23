@@ -1,4 +1,6 @@
 // 覆盖网关配对流程在未配对、已配对和无效令牌下的访问结果。
+
+// 回环引导码仅服务本机未配对流程，远程地址始终必须被拒绝。
 use super::*;
 use crate::app::agent::config::schema::ConfigExt;
 use crate::app::agent::gateway::pairing::{handle_pair, handle_pair_code, persist_pairing_tokens};
@@ -43,6 +45,7 @@ async fn persist_pairing_tokens_writes_config_tokens() {
 
 /// Build a minimal [`AppState`] suitable for `handle_pair` unit tests.
 /// `rate_limit` is the per-minute pair request limit (0 = unlimited).
+// 每个配对用例创建独立状态，令牌持久化断言不会复用其它测试的缓存。
 fn make_pair_state(pairing: PairingGuard, rate_limit: u32) -> AppState {
     AppState {
         config: Arc::new(Mutex::new(Config::default())),

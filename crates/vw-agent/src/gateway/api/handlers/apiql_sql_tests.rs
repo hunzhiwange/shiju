@@ -98,6 +98,7 @@ fn build_related_product_query(
     build_apiql_sql(&registry, entity, &params).map_err(|error| error.to_string())
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[test]
 fn apiql_sql_accepts_snake_virtual_column_alias() {
     let registry = ApiQlEntityRegistry::from_configs(vec![product_config()])
@@ -334,6 +335,7 @@ fn apiql_sql_parses_array_and_object_order_by() {
     assert_eq!(query.cursor_fields, vec!["name", "id"]);
 }
 
+// 非法字段、运算符和解析器配置必须在生成查询或执行脚本前被拒绝。
 #[test]
 fn apiql_sql_rejects_unsafe_raw_where_expression() {
     let registry = ApiQlEntityRegistry::from_configs(vec![product_config()])

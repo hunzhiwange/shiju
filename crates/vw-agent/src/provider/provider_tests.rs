@@ -56,6 +56,7 @@ fn suggestions_prefer_close_candidates() {
 }
 
 #[test]
+// 指纹只跟踪供应商快照，避免无关配置变化触发实例重建。
 fn config_fingerprint_ignores_unrelated_configuration() {
     let base = config::Config::default();
     let mut changed = base.clone();
@@ -281,6 +282,7 @@ async fn agent_cross_layer_fixture_uses_the_same_default_limit() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 跨层夹具锁定显式模型及元数据最终进入下一次供应商请求。
 async fn agent_cross_layer_explicit_model_reaches_the_next_request_with_metadata() {
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let home = TempDir::new().expect("temp home should be created");

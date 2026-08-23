@@ -1,3 +1,7 @@
+//! 验证调度器开关、并发与任务上限的消息映射及帮助面板。
+//!
+//! 开关和滑块回调独立取样，确保浮点输入按约定转换成设置消息。
+
 use super::*;
 use crate::app::{App, message};
 use iced::Element;

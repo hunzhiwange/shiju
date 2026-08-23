@@ -1,4 +1,5 @@
 //! 实现 PostgreSQL 资源租约的互斥获取、续期、释放、过期与污染状态管理。
+//! 获取前锁定同一资源的租约集合，保证活跃租约唯一性由事务而非进程内状态维护。
 
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};

@@ -1,3 +1,6 @@
+//! 验证上方覆盖组件的树、布局、绘制和事件生命周期。
+//! 测试同时检查基础内容与覆盖内容的事件顺序，防止覆盖层吞掉无关输入。
+
 use super::{AboveOverlay, PointAboveOverlay};
 use iced::advanced::{
     Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, overlay, renderer, widget,

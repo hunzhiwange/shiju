@@ -24,6 +24,8 @@ fn ensure_test_home() {
     });
 }
 
+// 查询参数优先于目录请求头，空值和非 UTF-8 请求头均不能建立隐式作用域。
+// 错误用例固定失败发生在持久化之前，避免跨会话或跨作用域修改已有数据。
 #[test]
 fn session_api_error_maps_storage_not_found_to_not_found() {
     let error = session_api_error(agent_session::session::Error::Storage(

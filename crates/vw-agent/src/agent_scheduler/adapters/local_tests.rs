@@ -1,4 +1,5 @@
-//! 测试本地调度适配器的任务提交、查询、取消与作用域隔离。
+//! 测试本地分派请求完整保留任务、运行、工作代理与作用域字段。
+//! 克隆、相等比较和字段提取共同锁定该纯数据适配层的值语义。
 
 use crate::agent_scheduler::adapters::local::LocalDispatchRequest;
 use crate::agent_scheduler::domain::{RunId, TaskId, WorkerName};

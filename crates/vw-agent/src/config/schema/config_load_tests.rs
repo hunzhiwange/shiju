@@ -10,6 +10,7 @@ use crate::global_database::GlobalDatabase;
 use serde_json::json;
 use vw_api_types::id::TenantScope;
 
+// 缺失、空文件、旧格式和非法载荷必须走不同分支，避免把配置损坏误判为未配置。
 #[test]
 fn config_json_path_appends_stable_filename() {
     assert_eq!(
@@ -18,6 +19,7 @@ fn config_json_path_appends_stable_filename() {
     );
 }
 
+// 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 #[tokio::test]
 async fn load_config_from_json_root_returns_none_for_missing_or_empty_file() {
     let tmp = tempfile::tempdir().unwrap();

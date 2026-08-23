@@ -1,4 +1,6 @@
 // 覆盖网关中间件的跨域、基础认证与租户请求头校验。
+
+// 认证与租户路由使用最小 Axum 应用，确保失败来自中间件而非业务处理器。
 use super::*;
 
 use axum::Extension;
@@ -18,6 +20,7 @@ fn auth_value(username: &str, password: &str) -> String {
     format!("Basic {encoded}")
 }
 
+// 最小认证路由只返回固定结果，使状态码变化能够归因于中间件本身。
 fn auth_test_router(password: Option<&'static str>, username: &'static str) -> Router {
     Router::new()
         .route(
@@ -29,6 +32,7 @@ fn auth_test_router(password: Option<&'static str>, username: &'static str) -> R
         }))
 }
 
+// 租户路由回显扩展中的作用域，用于证明请求头已完成解析和注入。
 fn tenant_test_router() -> Router {
     Router::new()
         .route(

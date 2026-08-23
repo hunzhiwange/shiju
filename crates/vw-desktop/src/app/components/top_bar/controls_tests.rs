@@ -1,3 +1,7 @@
+//! 验证顶部栏窗口控件在不同平台与窗口状态下的行为。
+//!
+//! 平台与窗口状态分开构造，确保最小化、最大化和关闭动作保持稳定映射。
+
 use super::controls;
 use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, Screen};

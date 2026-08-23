@@ -1,3 +1,6 @@
+//! 验证文本差异在合并与分栏模式下的内容、悬停和选择渲染。
+//! 空输入、缺失尾换行和 Unicode 内容用于守住分行与对齐边界。
+
 use iced::Color;
 
 use crate::app::state::{GitDiffLineRange, GitDiffSelectedLine};

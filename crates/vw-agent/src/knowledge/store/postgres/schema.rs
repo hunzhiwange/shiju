@@ -162,6 +162,7 @@ const KNOWLEDGE_TABLES: [&str; 6] = [
     "knowledge_embedding_cache",
 ];
 
+/// 初始化租户化知识表，并拒绝可能导致跨租户读取的旧版无作用域表结构。
 pub(super) fn initialize_schema(database: &GlobalDatabase) -> Result<()> {
     database.initialize_postgres_schema(|transaction| {
         reject_unscoped_schema(transaction)?;
@@ -173,6 +174,7 @@ pub(super) fn initialize_schema(database: &GlobalDatabase) -> Result<()> {
 }
 
 fn reject_unscoped_schema(connection: &mut impl ::postgres::GenericClient) -> Result<()> {
+    // 旧表只要缺少任一租户键就拒绝启动，避免在原表上伪装完成安全迁移。
     for table in KNOWLEDGE_TABLES {
         let exists: bool = connection
             .query_one(

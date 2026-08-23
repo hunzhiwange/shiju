@@ -1,3 +1,6 @@
+//! 验证 Git 面板标题栏的工作树标签、切换消息与视图组合。
+//! 覆盖字符级截断、空分支名和未匹配工作树时的显示回退。
+
 use iced::{Background, Color, Theme};
 
 use crate::app::state::GitWorktreeOption;

@@ -1,4 +1,6 @@
 //! 验证队列租约记录解析、心跳新鲜度、目录和套接字清理。
+//!
+//! 临时租约、套接字和消息 fixture 用于隔离队列所有权与 IPC 边界。
 
 use super::*;
 
@@ -92,6 +94,7 @@ async fn write_owner_record(home_dir: &Path, record: &QueueOwnerRecord) {
     write_path(&queue_lock_file_path(&record.session_id, home_dir), payload).await;
 }
 
+// 下列行为用例覆盖有效交互、陈旧状态、非法消息和关闭清理。
 #[test]
 fn parse_queue_owner_record_accepts_valid_record() {
     let expected =

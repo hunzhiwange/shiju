@@ -1,3 +1,5 @@
+// 本文件验证渠道管理命令分派、配置展示与 Telegram 身份绑定。
+
 use super::*;
 use crate::app::agent::config::SystemConfigStore;
 use crate::global_database::GlobalDatabase;
@@ -21,6 +23,7 @@ fn telegram_config(allowed_users: Vec<String>) -> crate::app::agent::config::Tel
 }
 
 #[tokio::test]
+// 运行时专属命令不能落入静态管理路径，避免两套状态来源。
 async fn handle_command_rejects_runtime_owned_commands() {
     let config = Config::default();
 
@@ -125,4 +128,3 @@ async fn handle_command_bind_telegram_persists_new_identity() {
         vec!["@alice", "bob"]
     );
 }
-// 本文件验证渠道管理命令分派、配置展示与 Telegram 身份绑定。

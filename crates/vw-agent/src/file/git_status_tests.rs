@@ -43,6 +43,7 @@ fn stage_path(repo: &Repository, relative: &str) {
     index.write().expect("index write");
 }
 
+// 临时目录夹具同时覆盖正常路径和逃逸路径，确保安全判断不依赖当前工作区。
 #[test]
 fn status_git_returns_empty_for_non_git_directory() {
     let temp = TempDir::new().expect("temp dir");
@@ -50,6 +51,7 @@ fn status_git_returns_empty_for_non_git_directory() {
     assert!(status_git(temp.path()).is_empty());
 }
 
+// 缺失资源与越界资源的语义不同：前者可安全回退时仍不得放宽后者的拒绝策略。
 #[test]
 fn status_git_returns_empty_for_missing_worktree() {
     let temp = TempDir::new().expect("temp dir");

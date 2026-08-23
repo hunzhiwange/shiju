@@ -1,11 +1,13 @@
 //! Slack Web API 轮询通道，负责准入过滤、群聊触发策略与消息收发。
+//!
+//! 空白名单默认拒绝所有用户；群聊可进一步要求提及机器人或限定触发者。
 
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-/// Slack channel — polls conversations.history via Web API
+/// 通过 `conversations.history` 轮询消息的 Slack 通道。
 pub struct SlackChannel {
     bot_token: String,
     channel_id: Option<String>,
@@ -15,6 +17,7 @@ pub struct SlackChannel {
 }
 
 impl SlackChannel {
+    /// 创建通道；默认不启用群聊提及限制。
     pub fn new(bot_token: String, channel_id: Option<String>, allowed_users: Vec<String>) -> Self {
         Self {
             bot_token,
@@ -25,7 +28,7 @@ impl SlackChannel {
         }
     }
 
-    /// Configure group-chat trigger policy.
+    /// 设置群聊触发策略，并规范化、去重允许主动触发的发送者列表。
     pub fn with_group_reply_policy(
         mut self,
         mention_only: bool,

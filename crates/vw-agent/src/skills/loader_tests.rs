@@ -1,4 +1,5 @@
 //! 验证新版技能加载的清单解析、文件读取与错误边界。
+//! Markdown 前言与正文回退分别验证，元数据模式必须省略大段提示正文。
 
 use super::*;
 use crate::app::agent::skills::types::SkillLoadMode;
@@ -66,6 +67,7 @@ fn open_skill_markdown_full_loads_prompt_body_and_defaults_description() {
 }
 
 #[test]
+// 缺失或禁用目录视为空来源，单个不可用来源不能阻断其它技能目录加载。
 fn load_skills_from_directory_skips_disabled_and_missing_directories() {
     let dir = tempfile::tempdir().expect("temp dir");
     let missing = dir.path().join("missing");

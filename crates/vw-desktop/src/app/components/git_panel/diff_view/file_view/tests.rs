@@ -1,3 +1,6 @@
+//! 验证单文件差异视图的行选择、变更范围合并与折叠渲染边界。
+//! 用缺失内容、纯增删、重叠区间和自动展开预算覆盖文件状态组合。
+
 use std::collections::HashSet;
 
 use iced::Color;
@@ -7,6 +10,7 @@ use super::super::DiffRenderCtx;
 use crate::app::components::git_panel::utils::FileStatus;
 use crate::app::{App, DiffTheme};
 
+// 统一构造渲染上下文，让各用例只突出文件内容和选择状态的差异。
 fn render_file(
     app: &App,
     file: &str,

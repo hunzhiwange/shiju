@@ -1,3 +1,6 @@
+//! 验证代理子会话弹窗的层级展示、生命周期消息与非 ASCII 渲染。
+//! 通过计划子树和实时工具事件覆盖徽标刷新、终止所有者与弹窗关闭流程。
+
 use super::agent_sessions::{
     agent_session_open_message, agent_session_status_label, agent_session_stop_message,
     agent_session_tooltip_text, agent_sessions_badge_label, agent_sessions_badge_style,
@@ -12,6 +15,7 @@ use crate::app::{Message, message};
 use iced::Theme;
 use vw_shared::session::info::{Info, TimeInfo};
 
+// 将异步任务收集为消息序列，便于断言生命周期事件的顺序而非调度时机。
 async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
     use iced_runtime::futures::futures::StreamExt;
 
@@ -26,6 +30,7 @@ async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
     Vec::new()
 }
 
+// 会话与工具事件 fixture 只填充层级展示所需字段，避免无关运行时状态干扰断言。
 fn session(id: &str, parent_id: Option<&str>, title: &str, directory: &str) -> Info {
     Info {
         id: id.to_string(),

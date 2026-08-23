@@ -1,4 +1,5 @@
 //! 测试查询引擎的意图路由、上下文构建与执行结果整合。
+//! 脚本化供应商、可控记忆和记录观察器共同验证失败回滚及用量饱和计算。
 
 use super::*;
 
@@ -256,6 +257,7 @@ fn command_logger_runtime(enabled: bool) -> crate::app::agent::hooks::HookRuntim
     crate::app::agent::hooks::build_hook_runtime(&config).expect("hook runtime")
 }
 
+// 查询引擎夹具关闭无关外部能力，只保留可记录供应商与可控记忆。
 fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngine {
     QueryEngine {
         history: Vec::new(),

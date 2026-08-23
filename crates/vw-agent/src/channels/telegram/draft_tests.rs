@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 流式草稿的创建、更新节流与文本回退。
+
 use super::TelegramChannel;
 use super::message_utils::TELEGRAM_MAX_MESSAGE_LENGTH;
 use crate::app::agent::channels::traits::SendMessage;
@@ -112,6 +114,7 @@ fn streaming_channel(base_url: &str) -> TelegramChannel {
 }
 
 #[tokio::test]
+// 关闭流式模式时不创建远端草稿，调用方转走普通发送。
 async fn send_draft_returns_none_when_streaming_disabled() {
     let channel = TelegramChannel::new("token".to_string(), vec!["tester".to_string()], false);
 
@@ -382,4 +385,3 @@ async fn cancel_draft_removes_state_and_deletes_valid_message() {
     assert_eq!(requests[0].path, "/bot123:SECRET/deleteMessage");
     assert_eq!(requests[0].body["message_id"], 44);
 }
-// 本文件验证 Telegram 流式草稿的创建、更新节流与文本回退。

@@ -1,3 +1,6 @@
+// 验证任务日志格式化、内存保留与缓存合并规则。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use crate::app::task::{Task, TaskLogEntry, TaskStatus};
 use iced::widget::text_editor;
 
@@ -9,6 +12,8 @@ fn task(id: &str, status: TaskStatus, logs: Vec<TaskLogEntry>) -> Task {
     Task { id: id.to_string(), status, logs, ..Task::default() }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn format_task_log_timestamp_truncates_milliseconds_and_wraps_days() {
     assert_eq!(super::format_task_log_timestamp(0), "[00:00:00] ");
@@ -80,6 +85,8 @@ fn merge_task_logs_with_cache_appends_only_tail_after_matching_prefix() {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn merge_task_logs_with_cache_preserves_divergent_and_absent_cache_entries() {
     let current = vec![log(1, "current")];
@@ -165,6 +172,8 @@ fn set_viewing_logs_applies_cache_and_syncs_editor_or_clears_it() {
     assert!(app.task_board_logs_editor.text().is_empty());
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn sync_viewing_logs_updates_viewed_task_and_other_task_cache() {
     let (mut app, _command) = crate::app::App::new();
@@ -244,6 +253,8 @@ fn restore_and_bottom_scroll_round_and_clamp_target_line() {
     assert!(app.task_board_logs_auto_scroll);
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn sync_task_logs_editor_replaces_text_resets_remainder_and_restores_position() {
     let (mut app, _command) = crate::app::App::new();

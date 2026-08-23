@@ -83,6 +83,7 @@ fn reset_instance_ignores_missing_instance() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+// 无 Tokio 上下文时调度器需自建执行环境，保持同步入口可用。
 fn spawn_without_current_runtime_executes_future() {
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
 
@@ -128,6 +129,7 @@ async fn instance_register_runs_task_and_reset_removes_entry() {
 }
 
 #[tokio::test]
+// 同一任务标识重新注册时先替换旧定时器，避免重复执行。
 async fn instance_register_replaces_existing_timer_with_same_id() {
     let id = format!("replace-{}", uuid::Uuid::new_v4());
     let instance = format!("inst-{}", uuid::Uuid::new_v4());
@@ -195,6 +197,7 @@ async fn reset_instance_aborts_future_timer_ticks() {
 }
 
 #[tokio::test]
+// 全局任务按标识幂等注册，防止多次初始化生成重复后台任务。
 async fn global_register_ignores_duplicate_task_id() {
     let id = format!("global-{}", uuid::Uuid::new_v4());
     let first = Arc::new(AtomicUsize::new(0));

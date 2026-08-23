@@ -1,4 +1,6 @@
 //! 验证创建、加载、恢复和配置会话时的状态同步与回退路径。
+//!
+//! 最小客户端、通道和运行时 fixture 用于显式驱动异步状态转换与资源收尾。
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -245,6 +247,7 @@ fn expected_session_id(runtime: &Option<ActorRuntime>) -> Option<String> {
     runtime.as_ref().and_then(|runtime| runtime.expected_session_id.lock().clone())
 }
 
+// 下列行为用例重点检查复用、取消、通道关闭和失败后的状态一致性。
 #[tokio::test]
 async fn actor_create_session_stores_created_session_for_reuse() {
     let agent = TestAgent::default();

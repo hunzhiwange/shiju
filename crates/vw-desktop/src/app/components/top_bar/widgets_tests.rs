@@ -1,3 +1,7 @@
+//! 验证顶部栏通用部件的布局、样式和交互状态。
+//!
+//! 通用部件通过无头渲染与样式取样覆盖可用、悬停和禁用状态。
+
 use iced::widget::tooltip::Position as TooltipPosition;
 use iced::widget::{button, text};
 use iced::{Background, Color, Element, Length, Theme};

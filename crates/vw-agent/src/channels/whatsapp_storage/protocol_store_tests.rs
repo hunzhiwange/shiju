@@ -1,3 +1,5 @@
+// 本文件验证 WhatsApp 协议存储中的收件人、映射、密钥及令牌生命周期。
+
 #[cfg(feature = "whatsapp-web")]
 use super::RusqliteStore;
 
@@ -144,6 +146,7 @@ async fn lid_mapping_replaces_existing_lid() {
 
 #[tokio::test]
 #[cfg(feature = "whatsapp-web")]
+// 基础密钥冲突后清除旧记录，避免继续使用不可信会话。
 async fn base_key_collision_detection_compares_saved_key_and_deletes() {
     use wa_rs_core::store::traits::ProtocolStore;
 
@@ -557,4 +560,3 @@ async fn protocol_writes_return_database_errors_when_tables_are_missing() {
     assert!(ProtocolStore::delete_tc_token(&store, "jid").await.is_err());
     assert!(ProtocolStore::delete_expired_tc_tokens(&store, 1).await.is_err());
 }
-// 本文件验证 WhatsApp 协议存储中的收件人、映射、密钥及令牌生命周期。

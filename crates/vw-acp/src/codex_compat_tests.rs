@@ -1,7 +1,10 @@
 //! 验证 Codex ACP 命令兼容识别的文件名、参数和令牌边界。
+//!
+//! 隔离的命令、环境和临时路径 fixture 用于验证跨平台解析规则。
 
 use super::codex_compat::*;
 
+// 下列行为用例覆盖规范化、发现优先级、兼容输入和缺失值回退。
 #[test]
 fn command_detection_accepts_codex_acp_basename_with_platform_suffixes() {
     assert!(is_codex_acp_command("/usr/local/bin/codex-acp", &[]));

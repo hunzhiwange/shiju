@@ -1,5 +1,7 @@
 //! 知识库网关路由，处理数据集、文档、索引、嵌入与检索请求。
 //!
+//! 所有持久化操作从请求扩展取得租户作用域；本地数据库工作移到隔离执行线程。
+//!
 //! Knowledge base gateway routes.
 
 use axum::{
@@ -28,6 +30,7 @@ use crate::global_database::GlobalDatabase;
 use crate::knowledge::SqliteKnowledgeStore;
 use crate::knowledge::import::parse_document_import;
 
+/// 构建知识库状态、数据集、文档、索引和检索路由。
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -407,6 +410,7 @@ async fn knowledge_retrieve(
     Ok(Json(knowledge_store_from_global_config(tenant).await?.retrieve(body).await?))
 }
 
+/// 为当前全局数据库创建租户知识存储。
 pub(super) fn knowledge_store(
     state: &AppState,
     tenant: TenantScope,
@@ -537,6 +541,7 @@ fn sanitize_embedding_error(error: &str, secrets: &[Option<&str>]) -> String {
     sanitized.chars().take(600).collect()
 }
 
+/// 返回默认租户知识库使用的 SQLite 路径。
 pub(super) fn knowledge_db_path() -> PathBuf {
     GlobalDatabase::for_home(&crate::global::paths().home)
         .map(|database| database.path().to_path_buf())

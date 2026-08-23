@@ -65,6 +65,9 @@ fn log_build_failed(
     Error::Api(assistant_error)
 }
 
+/// 解析提供方模型并分派 AI SDK 流式请求。
+///
+/// 模型构建和流处理错误会转换为统一助手错误，同时避免在日志中输出认证令牌。
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn dispatch_stream_request(
     provider_id: &str,

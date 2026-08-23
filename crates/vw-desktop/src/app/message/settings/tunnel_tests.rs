@@ -1,3 +1,6 @@
+// 验证隧道提供商规范化与可选配置区段构建。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::state::TunnelSettingsState;
 
@@ -5,6 +8,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn normalize_provider_trims_case_and_rejects_unknown_values() {
     for provider in ["cloudflare", "tailscale", "ngrok", "custom"] {
@@ -22,6 +27,8 @@ fn trim_to_option_discards_blank_values_and_trims_present_values() {
     assert_eq!(trim_to_option("  node.example.com  "), Some("node.example.com".to_string()));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn build_tunnel_config_keeps_default_provider_sections_absent() {
     let config = build_tunnel_config(&TunnelSettingsState::default());
@@ -82,6 +89,8 @@ fn build_tunnel_config_includes_selected_empty_provider_sections() {
     assert!(custom.url_pattern.is_none());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn build_tunnel_config_trims_populated_sections_even_when_provider_is_none() {
     let settings = TunnelSettingsState {
@@ -127,6 +136,8 @@ fn update_rejects_non_tunnel_messages_without_changing_state() {
     assert_eq!(app.tunnel_settings.save_error.as_deref(), Some("keep me"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_applies_every_tunnel_field_and_clears_save_error() {
     let mut app = app();

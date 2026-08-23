@@ -1,4 +1,6 @@
 // 验证 SQLite 嵌入缓存的复用、失效与提供方失败处理。
+
+// 零维嵌入器绕过计算；命中缓存时刷新访问时间，容量满时淘汰旧项。
 use super::*;
 use crate::app::agent::memory::embeddings::EmbeddingProvider;
 use crate::memory::vector;
@@ -11,6 +13,7 @@ fn embedding_cache_module_is_linked() {
     assert!(std::any::type_name::<SqliteMemory>().contains("SqliteMemory"));
 }
 
+// 计数嵌入器让测试区分缓存命中与重新计算，而不比较实现内部状态。
 struct CountingEmbedding {
     calls: AtomicUsize,
 }
@@ -31,6 +34,7 @@ impl EmbeddingProvider for CountingEmbedding {
     }
 }
 
+// 失败嵌入器用于确认 provider 错误不会留下看似有效的缓存条目。
 struct FailingEmbedding {
     calls: AtomicUsize,
 }

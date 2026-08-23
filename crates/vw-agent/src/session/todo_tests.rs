@@ -1,4 +1,5 @@
 //! 验证待办项解析、状态归一化与会话待办更新行为。
+//! 网关字段名与存储字段分开验证，未知状态和优先级采用安全默认值。
 
 use super::*;
 
@@ -87,6 +88,7 @@ fn instance_directory_is_absent_outside_project_context() {
 }
 
 #[tokio::test]
+// 写入与读取跨越工具形状和界面存储形状，往返后仍需保持网关字段契约。
 async fn update_persists_ui_todos_and_get_round_trips_gateway_shape() {
     let project = tempfile::tempdir().expect("project dir");
     let session_id = format!("todo-roundtrip-{}", std::process::id());

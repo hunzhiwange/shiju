@@ -1,15 +1,19 @@
 // 覆盖 SQLite 全文与向量检索的过滤、评分和降级路径。
+
+// 全文与向量检索分别覆盖过滤、正分排序、坏列类型及重新索引失败。
 use super::*;
 use crate::memory::embeddings::EmbeddingProvider;
 use async_trait::async_trait;
 use std::sync::Arc;
 
+// 每个用例使用内存数据库和真实模式，避免搜索断言依赖共享磁盘状态。
 fn memory_connection() -> Connection {
     let conn = Connection::open_in_memory().unwrap();
     SqliteMemory::init_schema(&conn).unwrap();
     conn
 }
 
+// 插入 helper 允许构造坏类型与缺失嵌入，覆盖查询层的防御性解析。
 fn insert_memory(
     conn: &Connection,
     id: &str,

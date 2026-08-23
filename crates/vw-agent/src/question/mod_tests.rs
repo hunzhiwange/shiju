@@ -29,6 +29,7 @@ fn question(label: &str) -> Info {
     }
 }
 
+// 待处理请求夹具先启动异步提问，再等待其进入全局列表以消除竞态。
 async fn pending_request(session_id: &str) -> Request {
     loop {
         if let Some(req) = list().into_iter().find(|r| r.session_id == session_id) {
@@ -87,6 +88,7 @@ async fn ask_accepts_empty_questions_and_empty_answers() {
 }
 
 #[tokio::test]
+// 事件载荷同时携带会话和请求标识，确保多会话答复不会串线。
 async fn ask_and_reply_publish_request_and_answer_payloads() {
     let asked_events = Arc::new(Mutex::new(Vec::new()));
     let asked_slot = Arc::clone(&asked_events);
@@ -286,6 +288,7 @@ async fn reject_resolves_ask_with_rejected_error_and_unknowns_are_ignored() {
 }
 
 #[tokio::test]
+// 等待端消失视为明确拒绝，不能让调用方永久悬挂。
 async fn ask_returns_rejected_when_pending_sender_is_dropped() {
     let session_id = format!("session-{}", uuid::Uuid::new_v4());
     let handle = tokio::spawn({

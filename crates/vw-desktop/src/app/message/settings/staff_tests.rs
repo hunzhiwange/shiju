@@ -1,3 +1,6 @@
+// 验证员工配置加载、成员编号与列表字段规范化。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use vw_config_types::staff::{StaffCapabilitiesConfig, StaffConfig, StaffMemberConfig};
 
@@ -36,6 +39,8 @@ fn staff_config_with_member(id: &str) -> StaffConfig {
     StaffConfig { members: vec![member_config(id)], ..StaffConfig::default() }
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn next_member_id_uses_base_then_first_available_suffix() {
     let mut app = app();
@@ -130,6 +135,8 @@ fn tab_and_member_selection_ignore_unknown_targets_but_clear_feedback() {
     assert!(!app.staff_settings.save_success);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn reset_draft_restores_config_and_keeps_selection_only_when_member_survives() {
     let mut app = app();
@@ -238,6 +245,8 @@ fn save_requested_records_validation_error_without_pending_config() {
     assert!(!app.staff_settings.save_success);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn saved_result_applies_pending_config_or_reports_error() {
     let mut app = app();
@@ -351,6 +360,8 @@ fn channel_binding_messages_add_edit_remove_and_ignore_invalid_index() {
     assert!(app.staff_settings.member_drafts[0].channel_bindings.is_empty());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn capability_messages_create_missing_draft_and_update_limits_and_allowlists() {
     let mut app = app();

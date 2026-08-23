@@ -1,4 +1,5 @@
 //! 测试 ACP 审批桥接的请求映射、决议传播与敏感参数清理。
+//! 通过真实异步通道覆盖未知选项、断连、取消和超时一律拒绝的安全默认值。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -11,6 +12,7 @@ use crate::agent::loop_::approval::NonCliApprovalPrompt;
 use crate::app::agent::approval::{ApprovalManager, ApprovalResponse};
 use crate::app::agent::config::AutonomyConfig;
 
+// 构造仍处于等待态的原生请求，使各测试只改变外部决议或终止条件。
 fn pending_prompt(manager: &ApprovalManager, arguments: serde_json::Value) -> NonCliApprovalPrompt {
     let request = manager.create_non_cli_pending_request(
         "shell",

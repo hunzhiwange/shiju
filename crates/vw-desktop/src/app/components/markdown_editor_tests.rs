@@ -1,7 +1,11 @@
+//! 验证 Markdown 编辑器的内容、选择、高亮与视图状态同步。
+//! 编辑、预览和分栏模式在明暗主题及空文档下都必须能无窗口构建。
+
 use super::*;
 use iced::theme::Palette;
 use iced::widget::{button, markdown, text_editor};
 
+// 测试查看器刻意忽略链接点击，只验证 Markdown 内容能够进入布局路径。
 struct TestViewer;
 
 impl<'a> markdown::Viewer<'a, ()> for TestViewer {

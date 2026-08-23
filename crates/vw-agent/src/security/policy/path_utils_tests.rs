@@ -52,6 +52,7 @@ fn home_dir_and_expand_user_path_follow_home_environment() {
 }
 
 #[test]
+// HOME 缺失时保留原字符串，避免把路径错误展开到未知目录。
 fn home_paths_remain_literal_when_home_is_unset() {
     let _lock = env_lock();
     let _home = HomeEnvGuard::unset();

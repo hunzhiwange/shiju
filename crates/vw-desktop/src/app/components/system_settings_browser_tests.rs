@@ -1,3 +1,6 @@
+//! 验证浏览器后端选择及原生、计算机使用配置区的条件展示。
+//! 未知后端走稳定回退，原生专属设置不得出现在其他后端页面。
+
 use super::*;
 use crate::app::message::settings::{BrowserMessage, SettingsMessage};
 use crate::app::{App, Message};
@@ -5,6 +8,7 @@ use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
+// 浏览器后端由用例逐项选择，默认应用仅提供完整视图上下文。
 fn test_app() -> App {
     App::new().0
 }

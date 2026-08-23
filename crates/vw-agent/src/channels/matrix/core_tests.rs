@@ -1,3 +1,5 @@
+// 本文件验证 Matrix 核心字段规范化、存储目录隔离与冲突诊断。
+
 use super::*;
 use matrix_sdk::ruma::events::room::message::OriginalSyncRoomMessageEvent;
 use std::collections::{HashSet, VecDeque};
@@ -51,6 +53,7 @@ fn normalize_room_reference_handles_alias_permalinks_and_invalid_escapes() {
 }
 
 #[test]
+// 存储目录按实例与用户隔离，避免多个身份共享加密状态。
 fn channel_instance_matrix_store_dir_is_scoped_by_instance_id_and_user() {
     let ch = MatrixChannel::new_with_session_hint_instance_id_and_vibewindow_dir(
         "https://matrix.example".to_string(),
@@ -428,4 +431,3 @@ fn sync_filter_for_room_clamps_timeline_limit_to_at_least_one() {
     assert_eq!(parsed["room"]["rooms"][0], "!room:matrix.example");
     assert_eq!(parsed["room"]["timeline"]["limit"], 1);
 }
-// 本文件验证 Matrix 核心字段规范化、存储目录隔离与冲突诊断。

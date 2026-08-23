@@ -1,4 +1,6 @@
 // 验证 Webhook 与代理请求体能够反序列化消息字段。
+
+// fixture 同时提供 Webhook 与代理消息，确保两类正文保持相同消息形状。
 use super::*;
 
 #[test]

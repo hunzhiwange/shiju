@@ -1,3 +1,6 @@
+// 验证 Git 上下文路径解析、瞬态界面清理与差异加载任务。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use crate::app::state::{
     ConventionalCommitType, GitDiffContextMenuState, GitDiffLineRange, GitDiffSelectedLine,
 };
@@ -20,6 +23,8 @@ async fn collect_task_messages(task: iced::Task<crate::app::Message>) -> Vec<cra
     Vec::new()
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn git_context_path_prefers_trimmed_worktree_and_falls_back_to_project() {
     let (mut app, _task) = crate::app::App::new();
@@ -159,6 +164,8 @@ fn refresh_after_repo_mutation_clears_stale_loading_guards() {
     assert!(app.git_diff_contents_loading.is_empty());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn build_selected_commit_request_formats_conventional_subject_and_body() {
     let (mut app, _task) = crate::app::App::new();
@@ -312,6 +319,8 @@ fn selected_lines_from_range_returns_empty_without_diff_content() {
     assert!(super::shared::selected_lines_from_range(&app, &range).is_empty());
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn diff_context_target_range_prefers_menu_inside_selected_range() {
     let (mut app, _task) = crate::app::App::new();
@@ -550,6 +559,8 @@ fn replace_stage_selection_for_file_lines_replaces_only_target_file() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn invert_stage_selection_for_file_lines_toggles_changed_lines_only() {
     let (mut app, _task) = crate::app::App::new();

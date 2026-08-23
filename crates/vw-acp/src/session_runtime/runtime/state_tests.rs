@@ -1,4 +1,6 @@
 //! 验证运行时状态、队列输出适配、协议消息复制与记录更新。
+//!
+//! 最小会话记录、控制器和异步通道 fixture 用于驱动运行时状态与竞态分支。
 
 use super::*;
 use std::collections::HashMap;
@@ -246,6 +248,7 @@ impl OutputFormatter for CapturingFormatter {
     }
 }
 
+// 下列行为用例覆盖正常完成、超时中断、回退重试和资源清理。
 #[test]
 fn discard_output_formatter_accepts_empty_lifecycle() {
     let mut formatter = DiscardOutputFormatter;

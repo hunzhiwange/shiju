@@ -1,3 +1,7 @@
+//! 交互模式入口与 TUI 实现之间的适配测试。
+//! 使用可控 Provider 验证请求会委托给当前 TUI，并保留其最终输出。
+//! 失败场景则约束错误按原语义向上传播，不被交互层吞掉。
+
 use super::run_interactive;
 use crate::app::agent::config::Config;
 use crate::app::agent::memory::NoneMemory;

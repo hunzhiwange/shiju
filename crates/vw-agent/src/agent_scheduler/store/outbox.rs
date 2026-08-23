@@ -16,6 +16,7 @@ idempotency_key, attempts, next_attempt_at_ms, delivered_at_ms, last_error, payl
 created_at_ms, updated_at_ms";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 发件箱消息从待处理到已投递的持久化状态。
 pub enum OutboxMessageStatus {
     Pending,
     Claimed,
@@ -24,6 +25,7 @@ pub enum OutboxMessageStatus {
 }
 
 impl OutboxMessageStatus {
+    /// 返回数据库使用的稳定状态键。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Pending => "pending",
@@ -45,6 +47,7 @@ impl OutboxMessageStatus {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 幂等入队一条通道消息所需的完整请求。
 pub struct EnqueueOutboxMessageRequest {
     pub message_id: String,
     pub channel: String,
@@ -58,6 +61,7 @@ pub struct EnqueueOutboxMessageRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 带尝试次数、重试时间和投递结果的发件箱记录。
 pub struct StoredOutboxMessage {
     pub id: String,
     pub channel: String,
@@ -76,6 +80,7 @@ pub struct StoredOutboxMessage {
 }
 
 impl AgentSchedulerStore {
+    /// 按幂等键入队消息；重复请求返回原记录而不重复发送。
     pub fn enqueue_outbox_message(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),

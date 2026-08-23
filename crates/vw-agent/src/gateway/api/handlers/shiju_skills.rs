@@ -1,5 +1,7 @@
 //! SHIJU 私有技能网关接口，处理检索、详情、版本与安装操作。
 //!
+//! 安装与卸载由技能客户端执行，本层只解析分页、凭据和路由参数并映射错误。
+//!
 //! SHIJU private-skill gateway API.
 
 use std::sync::Arc;
@@ -19,6 +21,7 @@ use vw_gateway_client::{
 use crate::gateway::ApiError;
 use crate::skills::shiju::{ShijuSkillClient, ShijuSkillError, ShijuSkillInstallRequest};
 
+/// 使用生产 SHIJU 技能客户端构建路由。
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -28,6 +31,7 @@ where
     router_with_client(client)
 }
 
+/// 使用显式技能客户端构建路由。
 pub(crate) fn router_with_client<S>(client: ShijuSkillClient) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,

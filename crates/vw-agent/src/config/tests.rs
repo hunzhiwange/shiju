@@ -11,6 +11,7 @@ use serde_json::json;
 use std::path::{Path, PathBuf};
 use vw_api_types::id::TenantScope;
 
+// 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn plugin_name_strips_trailing_empty_version() {
     assert_eq!(plugin_name("registry@"), "registry");

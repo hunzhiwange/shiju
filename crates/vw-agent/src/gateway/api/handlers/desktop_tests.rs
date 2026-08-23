@@ -49,6 +49,7 @@ async fn clear_desktop_storage() {
     storage::remove(&["desktop", "tool_content", "html"]).await.expect("clear html content");
 }
 
+// 偏好数据按租户和项目分别构造，确保相同键名不会跨作用域覆盖。
 #[test]
 fn merge_preferences_patch_initializes_empty_preferences() {
     let mut current = Value::Null;
@@ -142,6 +143,7 @@ fn service_command_normalization_allows_only_lifecycle_commands() {
     assert_eq!(normalize_service_command("../status"), None);
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn service_command_handler_rejects_unknown_command_before_loading_config() {
     let err = service_command_post(Path(ServiceCommandPath { command: "../../shell".to_string() }))

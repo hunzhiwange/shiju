@@ -1,3 +1,6 @@
+//! 验证文件变更载荷解析时对可选字段、无效条目和缺失路径的处理。
+//! 解析器应跳过无法定位文件的记录，同时为合法记录补齐可选统计字段。
+
 use super::{parse_changes_file_summaries, parse_changes_files};
 
 #[test]

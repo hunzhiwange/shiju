@@ -1,4 +1,5 @@
 //! 验证委派工具筛选、技能能力约束与调用转发行为。
+//! 递归批处理始终禁用；技能工具按已解析能力裁剪并保持稳定名称、参数与执行转发。
 
 use super::*;
 use crate::app::agent::config::{DelegateAgentConfig, DelegateCapabilityPolicy};
@@ -46,6 +47,7 @@ impl Tool for NamedTool {
 }
 
 #[test]
+// 批处理工具即使被显式选择也保持禁用，防止委派代理递归扩散任务。
 fn build_agentic_tools_blocks_batch_even_when_selected() {
     let parent_tools: Vec<Arc<dyn Tool>> = vec![Arc::new(NamedTool { name: "batch" })];
     let config = delegated_config(

@@ -1,3 +1,7 @@
+//! 验证项目常规编辑页的图标颜色、预览标签和交互状态。
+//!
+//! 预览夹具按图标、名称和颜色优先级构造，非法颜色必须使用主题回退。
+
 use super::*;
 use crate::app::message::project::ProjectMessage;
 use iced::Color;

@@ -1,10 +1,12 @@
 //! 验证技能清单审计的字段校验、权限声明与诊断输出。
+//! 清单缺失、命令为空和危险提示分别形成独立诊断，便于定位具体契约破坏。
 
 use super::*;
 use crate::app::agent::skills::audit::report::SkillAuditReport;
 use vw_config_types::skills::SkillSecurityConfig;
 
 #[test]
+// 危险命令串联与缺失命令分别报告，避免一个诊断掩盖另一处清单问题。
 fn manifest_audit_flags_shell_chaining_and_missing_commands() {
     let dir = tempfile::tempdir().expect("temp dir");
     let manifest = dir.path().join("SKILL.toml");

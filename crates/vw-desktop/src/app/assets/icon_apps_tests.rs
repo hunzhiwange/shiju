@@ -1,3 +1,6 @@
+//! 验证应用类图标的完整注册、既有条目保留与重复注册幂等性。
+//! 固化的图标清单同时约束生成注册表的键集合，避免新增资产遗漏接线。
+
 use super::{Icon, register_icons};
 use iced::widget::svg;
 use std::collections::HashMap;

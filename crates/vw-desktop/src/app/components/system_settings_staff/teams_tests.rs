@@ -1,3 +1,7 @@
+//! 验证团队状态、成员与可用工作者列表以及资源消息封装。
+//!
+//! 团队夹具包含成员、候选工作者和能力信息，用于覆盖新建与已选团队视图。
+
 use super::*;
 use serde_json::Value;
 use vw_gateway_client::vw_api_types::agent_scheduler::{

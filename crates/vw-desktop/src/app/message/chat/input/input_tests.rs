@@ -1,3 +1,7 @@
+//! 验证聊天输入滚动事件会安排可见消息测量。
+//!
+//! 滚动夹具创建足量虚拟消息，确认一次滚动只安排可见范围测量而不直接改写内容。
+
 use crate::app::components::chat_panel::virtualizer::ChatVirtualizer;
 use crate::app::models::{ChatMessage as ChatEntry, ChatRole};
 

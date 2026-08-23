@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use super::{PluginDiscoveryOptions, discover_plugins};
 
 /// Build plugin discovery inputs from the loaded agent runtime config.
+/// 根据代理配置构建插件 MCP 发现范围。
 pub(crate) fn plugin_mcp_discovery_options(config: &Config) -> PluginDiscoveryOptions {
     PluginDiscoveryOptions::new(
         config.workspace_dir.clone(),
@@ -22,6 +23,7 @@ pub(crate) fn plugin_mcp_discovery_options(config: &Config) -> PluginDiscoveryOp
 }
 
 /// Read a plugin `.mcp.json` file and parse its MCP server declarations.
+/// 读取并严格解析单个插件声明的 MCP 服务器列表。
 pub(crate) fn load_plugin_mcp_servers_from_path(path: &Path) -> Result<Vec<McpServer>> {
     let bytes = fs::read(path)
         .with_context(|| format!("failed to read plugin MCP config: {}", path.display()))?;
@@ -40,6 +42,9 @@ pub(crate) fn load_plugin_mcp_servers_from_path(path: &Path) -> Result<Vec<McpSe
 }
 
 /// Append MCP servers from enabled plugins after the user's ACP servers.
+/// 将已启用插件的 MCP 服务器追加到用户配置。
+///
+/// 用户已声明的同名服务器保持优先，插件之间的重名项按发现顺序只接受一次。
 pub(crate) fn merge_enabled_plugin_mcp_servers(
     servers: &mut Vec<McpServer>,
     options: &PluginDiscoveryOptions,

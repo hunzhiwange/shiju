@@ -1,4 +1,6 @@
 //! 验证 JSON 输出器跟踪读工具调用并按策略脱敏其响应内容。
+//!
+//! 内存写入器和协议消息 fixture 用于只观察格式化结果及缓冲状态。
 
 use super::*;
 use crate::read_output_suppression::SUPPRESSED_READ_OUTPUT;
@@ -7,6 +9,7 @@ use crate::types::{
 };
 use serde_json::{Value, json};
 
+// 下列行为用例覆盖格式选择、内容抑制、截断和错误输出分支。
 #[test]
 fn json_rpc_id_key_keeps_number_and_string_namespaces_distinct() {
     assert_eq!(json_rpc_id_key(&json!("7")).as_deref(), Some("s:7"));

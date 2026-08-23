@@ -1,3 +1,7 @@
+//! 验证应用通用组件的构造、主题样式和边界输入。
+//!
+//! 组件夹具关注点击、右键、工具提示和主题样式，覆盖空内容与禁用边界。
+
 use crate::app::components::widgets::RightClickArea;
 use iced::advanced::{Clipboard, Layout, Renderer, Shell, Widget, layout, mouse, renderer, widget};
 use iced::{Background, Element, Event, Length, Point, Rectangle, Size, Theme, Transformation};

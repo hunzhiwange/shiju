@@ -1,3 +1,5 @@
+// 本文件验证 WhatsApp 设备记录的隔离、替换、反序列化与数据库快照。
+
 #[cfg(feature = "whatsapp-web")]
 use super::RusqliteStore;
 
@@ -73,6 +75,7 @@ async fn save_replaces_existing_device_row() {
 
 #[tokio::test]
 #[cfg(feature = "whatsapp-web")]
+// 设备数据按标识隔离，防止多个客户端互相覆盖密钥。
 async fn device_records_are_scoped_by_device_id() {
     use wa_rs_core::store::Device as CoreDevice;
     use wa_rs_core::store::traits::DeviceStore as DeviceStoreTrait;
@@ -290,4 +293,3 @@ async fn snapshot_db_returns_error_when_source_database_is_missing() {
     };
     assert!(err.to_string().contains("No such file") || err.to_string().contains("os error 2"));
 }
-// 本文件验证 WhatsApp 设备记录的隔离、替换、反序列化与数据库快照。

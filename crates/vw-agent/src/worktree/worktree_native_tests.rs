@@ -1,6 +1,7 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 //! 验证原生 worktree 的仓库发现、候选命名、基准分支解析与启动脚本顺序。
+//! 临时 Git 仓库覆盖多远端和缺失默认分支，所有外部命令限定在 fixture 目录。
 
 use super::native::{
     CmdResult, candidate, canonical, find_entry, parse_worktree_list, path_exists,
@@ -428,6 +429,7 @@ fn worktree_root_rejects_blank_project_worktree() {
     );
 }
 
+// 以下仓库构造器只建立当前分支解析场景需要的最小引用图。
 fn init_repo(path: &Path) {
     init_repo_with_branch(path, "main");
 }

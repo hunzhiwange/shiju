@@ -1,4 +1,5 @@
 //! 验证浏览器动作解析、参数校验与稳定名称映射。
+//! 序列化与解析覆盖全部动作变体，必填字段类型错误必须在后端执行前返回。
 
 use super::*;
 use serde_json::json;
@@ -165,6 +166,7 @@ fn parse_browser_action_applies_optional_defaults_and_ignores_wrong_types() {
 }
 
 #[test]
+// 动作在反序列化后仍验证必填字段类型，错误输入不能推迟到后端才失败。
 fn parse_browser_action_rejects_non_string_required_fields() {
     for (action, args, expected) in [
         ("open", json!({"url": 1}), "Missing 'url' for open action"),

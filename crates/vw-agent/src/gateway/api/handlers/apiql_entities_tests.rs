@@ -20,6 +20,7 @@ fn virtual_field(name: &str) -> ApiQlFieldConfig {
     ApiQlFieldConfig { name: name.to_string(), virtual_field: true, ..Default::default() }
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[test]
 fn prepare_sku_title_handles_empty_invalid_and_non_collection_inputs() {
     assert_eq!(prepare_sku_title("  "), Some(String::new()));

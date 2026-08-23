@@ -1,4 +1,8 @@
-// Tests for plan6 task 840.
+//! 验证智能体配置的读取、默认值、兼容字段和持久化转换。
+//!
+//! 配置样例包含默认、显式和旧版字段，确认反序列化后得到同一运行时语义。
+
+// 保留计划任务 840 的既定覆盖面。
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 

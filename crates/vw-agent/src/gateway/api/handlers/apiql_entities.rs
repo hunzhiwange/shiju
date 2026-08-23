@@ -1,5 +1,7 @@
 //! ApiQL 业务实体行为注册表，解析实体专属的虚拟字段规则。
 //!
+//! 未注册实体不会伪造结果，而是返回 `None` 让通用虚拟字段流程继续处理。
+//!
 //! ApiQL business entity behavior registry.
 
 use serde_json::{Map, Value};
@@ -9,9 +11,12 @@ use crate::app::agent::gateway::ApiError;
 
 use super::schema::ApiQlResolvedEntity;
 
+/// 业务实体为特定实体键提供额外虚拟字段解析能力。
 pub(crate) trait ApiQlBusinessEntity: Sync {
+    /// 返回注册表使用的稳定实体键。
     fn entity_key(&self) -> &'static str;
 
+    /// 尝试解析字段；不适用时返回 `Ok(None)`。
     fn resolve_virtual_field(
         &self,
         field: &ApiQlFieldConfig,
@@ -19,6 +24,7 @@ pub(crate) trait ApiQlBusinessEntity: Sync {
     ) -> Result<Option<Value>, ApiError>;
 }
 
+/// 将虚拟字段解析委派给当前实体对应的业务实现。
 pub(crate) fn resolve_business_virtual_field(
     entity: ApiQlResolvedEntity<'_>,
     field: &ApiQlFieldConfig,
@@ -30,6 +36,7 @@ pub(crate) fn resolve_business_virtual_field(
     business_entity.resolve_virtual_field(field, row)
 }
 
+/// 规范化 SKU 标题中的规格分隔形式；空白标题保留为空字符串。
 pub(crate) fn prepare_sku_title(spec_title: &str) -> Option<String> {
     let trimmed = spec_title.trim();
     if trimmed.is_empty() {

@@ -1,3 +1,5 @@
+//! 在桌面配置层规范化定时任务调度参数并调用网关接口。
+
 use super::gateway::gateway_client;
 use vw_gateway_client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 
@@ -97,11 +99,13 @@ async fn ensure_extended_cron_api_if_needed(
     }
 }
 
+/// 通过当前网关加载全部定时任务。
 pub async fn load_cron_jobs_async() -> Result<Vec<CronJobDto>, String> {
     let client = gateway_client()?;
     client.cron_jobs_get().await
 }
 
+/// 加载指定定时任务的历史运行记录。
 pub async fn load_cron_job_runs_async(job_id: String) -> Result<Vec<CronRunDto>, String> {
     let client = gateway_client()?;
     match client.cron_job_runs_get(&job_id).await {
@@ -128,6 +132,7 @@ pub async fn load_cron_job_runs_async(job_id: String) -> Result<Vec<CronRunDto>,
     }
 }
 
+/// 规范化旧版与扩展调度字段后创建定时任务。
 pub async fn add_cron_job_async(
     name: String,
     job_type: String,
@@ -268,6 +273,7 @@ pub async fn add_cron_job_async(
     client.cron_job_add(&request).await.map(|_| ())
 }
 
+/// 规范化调度字段后更新指定定时任务。
 pub async fn update_cron_job_async(
     job_id: String,
     name: String,
@@ -401,6 +407,7 @@ pub async fn set_cron_job_enabled_async(job_id: String, enabled: bool) -> Result
     client.cron_job_update(&job_id, &request).await.map(|_| ())
 }
 
+/// 批量更新启用状态；任一请求失败时返回对应错误。
 pub async fn set_cron_jobs_enabled_async(
     job_ids: Vec<String>,
     enabled: bool,
@@ -418,6 +425,7 @@ pub async fn delete_cron_job_async(job_id: String) -> Result<(), String> {
     client.cron_job_delete(&job_id).await
 }
 
+/// 逐个删除所给任务，保留网关返回的首个失败原因。
 pub async fn delete_cron_jobs_async(job_ids: Vec<String>) -> Result<(), String> {
     let client = gateway_client()?;
     for job_id in job_ids {

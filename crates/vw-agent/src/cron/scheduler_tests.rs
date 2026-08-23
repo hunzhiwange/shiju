@@ -34,6 +34,7 @@ fn shell_job(command: &str) -> CronJob {
     }
 }
 
+// 固定时间与临时存储夹具用于隔离真实时钟和持久化状态，保证调度断言可重复。
 #[tokio::test]
 async fn execute_job_now_preserves_security_rejection() {
     let temp = tempfile::tempdir().expect("tempdir");

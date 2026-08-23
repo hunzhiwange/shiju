@@ -1,3 +1,6 @@
+// 验证 ACP 代理排序、配置刷新与命令复制反馈状态。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::{new_agent_request, sort_acp_agent_names, update};
 use crate::app::config::AcpSettingsSnapshot;
 use crate::app::message::settings::{AcpMessage, SettingsMessage};
@@ -23,6 +26,8 @@ fn snapshot(entries: &[(&str, bool)]) -> AcpSettingsSnapshot {
     AcpSettingsSnapshot { catalog, enabled }
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn acp_settings_message_tests_are_wired() {
     assert!(module_path!().contains("acp_tests"));
@@ -82,6 +87,8 @@ fn copied_command_state_only_clears_matching_agent() {
     assert_eq!(app.acp_settings.copied_agent, None);
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn refresh_marks_loading_and_clears_previous_feedback() {
     let (mut app, _) = crate::app::App::new();
@@ -201,6 +208,8 @@ fn set_enabled_completed_success_applies_snapshot_and_reports_requested_action()
     }
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn set_enabled_completed_error_clears_saving_and_preserves_existing_state() {
     let (mut app, _) = crate::app::App::new();
@@ -308,6 +317,8 @@ fn add_agent_validation_error_keeps_form_editable() {
     assert!(app.acp_settings.new_agent_expanded);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_ignores_non_acp_settings_messages() {
     let (mut app, _) = crate::app::App::new();

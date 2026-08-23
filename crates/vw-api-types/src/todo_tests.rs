@@ -3,6 +3,7 @@
 use crate::todo::{TodoPriority, TodoStatus, UpdateTodoRequest};
 use serde_json::json;
 
+// 空更新不会清除已有待办字段，状态与优先级保持稳定 snake_case 名称。
 #[test]
 fn todo_update_is_sparse_and_status_names_are_stable() {
     let update: UpdateTodoRequest = serde_json::from_value(json!({})).expect("valid update");

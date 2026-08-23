@@ -1,3 +1,6 @@
+//! 验证上方覆盖元素的布局委托、事件传递与命中测试。
+//! 点定位与锚点定位两种包装器共享子树，但保持各自的覆盖位置语义。
+
 use super::overlay_element::{AboveOverlayElement, PointAboveOverlayElement};
 use super::overlay_element::{compute_above_position, compute_point_above_position};
 use iced::advanced::{

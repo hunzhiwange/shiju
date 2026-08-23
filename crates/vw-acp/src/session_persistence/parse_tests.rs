@@ -1,4 +1,6 @@
 //! 验证持久化会话记录各层字段的解析、默认值与拒绝条件。
+//!
+//! 临时目录和最小记录 fixture 用于验证磁盘格式，不共享真实用户会话数据。
 
 use super::*;
 use crate::SESSION_RECORD_SCHEMA;
@@ -48,6 +50,7 @@ fn valid_record() -> Value {
     })
 }
 
+// 下列行为用例覆盖合法往返、损坏输入、路径边界和索引恢复。
 #[test]
 fn parse_non_negative_number_rejects_negative_and_non_numeric_values() {
     let record = serde_json::json!({"ok": 0, "bad": -1, "text": "1"});

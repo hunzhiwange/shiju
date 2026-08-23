@@ -1,5 +1,7 @@
 //! WhatsApp Signal 协议存储，管理身份密钥、会话、预密钥与发送者密钥。
 //!
+//! 存取操作均绑定当前设备，缺失记录返回 `None`，数据库故障转换为 wa-rs 存储错误。
+//!
 //! SignalStore trait implementation for WhatsApp storage
 //!
 //! Implements Signal protocol cryptographic operations including:

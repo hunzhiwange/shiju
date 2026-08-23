@@ -1,4 +1,6 @@
 // 覆盖多模态图像标记解析、下载限制与消息转换行为。
+
+// 本地图片服务覆盖 MIME、长度和下载限制，只有用户消息中的有效标记计数。
 use super::*;
 
 #[allow(dead_code)]
@@ -8,6 +10,7 @@ mod tests {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 
+    // 一次性本地服务精确控制响应头和正文，隔离远程下载失败条件。
     async fn one_shot_image_server(
         status_line: &'static str,
         content_type: Option<&'static str>,
@@ -41,6 +44,7 @@ mod tests {
     }
 
     #[test]
+    // 无效或未闭合标记保留为文本，预处理不能静默吞掉用户内容。
     fn parse_image_markers_extracts_multiple_markers() {
         let input = "Check this [IMAGE:/tmp/a.png] and this [IMAGE:https://example.com/b.jpg]";
         let (cleaned, refs) = parse_image_markers(input);

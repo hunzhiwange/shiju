@@ -1,4 +1,6 @@
 // 验证 SQLite 连接超时、模式初始化及旧表迁移行为。
+
+// 旧表迁移需补齐会话列、索引和触发器，并允许已迁移模式再次初始化。
 use super::*;
 use rusqlite::Connection;
 use tempfile::TempDir;

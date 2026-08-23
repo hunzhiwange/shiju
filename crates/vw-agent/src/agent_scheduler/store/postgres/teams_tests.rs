@@ -1,4 +1,5 @@
-//! 测试 PostgreSQL 团队快照的写入、加载与成员约束。
+//! 测试 PostgreSQL 团队行映射保留房间、就绪计数、成员与时间戳。
+//! 空可选房间合法，非法标识、状态、计数和成员数据必须拒绝。
 
 use anyhow::Result;
 use vw_api_types::common::TimestampMs;

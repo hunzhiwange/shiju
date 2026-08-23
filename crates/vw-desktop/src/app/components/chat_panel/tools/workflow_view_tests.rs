@@ -1,3 +1,6 @@
+//! 验证工作流节点状态、预览载荷、耗时用量和结果摘要的呈现规则。
+//! 不同数值类型和字段别名按文档优先级读取，缺失总量可由分项计算但非法值不伪造。
+
 use super::{
     PLAN_RUN_CARD_MAX_WIDTH, WorkflowNodeState, chat_summary_text, elapsed_label, metadata_string,
     metadata_value, node_meta_label, output_preview_text, output_value, plan_run_card_display,

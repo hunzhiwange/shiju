@@ -4,6 +4,7 @@ use super::state::{EnabledCheck, FormatterInfo, FormatterStatus, LOGGER, State};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+// 临时项目和可执行文件夹具用于验证真实探测顺序、缓存命中与失败回退。
 #[test]
 fn formatter_status_serializes_all_fields() {
     let status = FormatterStatus {

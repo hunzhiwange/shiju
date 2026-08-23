@@ -221,6 +221,7 @@ async fn resolve_model_for_options_treats_blank_model_as_absent_for_acp_test() {
 }
 
 #[tokio::test]
+// ACP 路由是协议边界，启用时优先于普通显式模型选择。
 async fn resolve_model_for_options_prioritizes_acp_over_explicit_model() {
     let model = resolve_model_for_options(
         Some("__missing_provider_for_acp__/missing-model".to_string()),
@@ -261,6 +262,7 @@ fn block_on_runs_futures_without_an_existing_runtime() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 同步入口在已有运行时内使用兼容路径，避免嵌套启动 Tokio。
 async fn block_on_runs_futures_inside_a_multi_thread_runtime() {
     let value = block_on(async { "inside runtime".to_string() });
 

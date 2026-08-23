@@ -182,6 +182,8 @@ async fn response_json(response: Response) -> serde_json::Value {
     serde_json::from_slice(&body).expect("response should be json")
 }
 
+// 认证和限流在请求体处理之前断言，确保拒绝请求不会触发代理或持久化副作用。
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn handle_agent_rejects_unauthorized_requests_before_body_validation() {
     let token = "paired-token".to_string();

@@ -1,5 +1,8 @@
+// 本文件验证邮件发送者、正文、附件与时间戳的解析回退规则。
+
 use super::*;
 
+// 解析用例通过真实 MIME 解析器构造消息，避免绕过协议细节。
 fn parsed_message(raw: &[u8]) -> mail_parser::Message<'_> {
     MessageParser::default().parse(raw).unwrap()
 }
@@ -314,4 +317,3 @@ fn outgoing_subject_and_body_preserves_empty_explicit_subject() {
 
     assert_eq!(EmailChannel::outgoing_subject_and_body(&message), ("", "body"));
 }
-// 本文件验证邮件发送者、正文、附件与时间戳的解析回退规则。

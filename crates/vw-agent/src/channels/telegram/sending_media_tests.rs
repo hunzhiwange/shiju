@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 媒体发送的 JSON 与上传请求、可选字段及错误回退。
+
 use super::TelegramChannel;
 use axum::{
     Router,
@@ -157,6 +159,7 @@ fn assert_json_request(
     assert_eq!(body["caption"], caption);
 }
 
+// 断言区分缺省字段与空值，防止发送无意义参数。
 fn assert_json_request_without_optional_fields(
     request: &RecordedRequest,
     method: &str,
@@ -1129,4 +1132,3 @@ async fn multipart_file_methods_return_io_errors_for_missing_files() {
         );
     }
 }
-// 本文件验证 Telegram 媒体发送的 JSON 与上传请求、可选字段及错误回退。

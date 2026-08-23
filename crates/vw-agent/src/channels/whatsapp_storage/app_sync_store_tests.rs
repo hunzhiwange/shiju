@@ -1,3 +1,5 @@
+// 本文件验证 WhatsApp 应用同步密钥、版本状态与变更校验码的存储语义。
+
 #[cfg(feature = "whatsapp-web")]
 use super::RusqliteStore;
 
@@ -136,6 +138,7 @@ async fn mutation_macs_can_be_inserted_loaded_and_deleted() {
 
 #[tokio::test]
 #[cfg(feature = "whatsapp-web")]
+// 空变更集合和版本饱和不能产生回绕版本。
 async fn mutation_macs_handle_empty_inputs_and_saturating_version() {
     use rusqlite::params;
     use wa_rs_core::appstate::processor::AppStateMutationMAC;
@@ -177,4 +180,3 @@ async fn mutation_mac_operations_return_database_errors() {
     assert!(AppSyncStore::get_mutation_mac(&store, "regular_low", &[1]).await.is_err());
     assert!(AppSyncStore::delete_mutation_macs(&store, "regular_low", &[vec![1]]).await.is_err());
 }
-// 本文件验证 WhatsApp 应用同步密钥、版本状态与变更校验码的存储语义。

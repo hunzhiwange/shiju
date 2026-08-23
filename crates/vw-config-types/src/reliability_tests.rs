@@ -1,3 +1,7 @@
+//! 验证可靠性配置的重试与退避默认值及其稳定序列化字段集合。
+//! 这些值直接影响故障恢复节奏，新增内部字段不得意外进入持久化格式。
+
+// 锁定提供方、通道与调度器三类恢复策略的默认预算。
 #[test]
 fn reliability_defaults_match_documented_values() {
     let config = super::ReliabilityConfig::default();
@@ -9,6 +13,7 @@ fn reliability_defaults_match_documented_values() {
     assert_eq!(config.scheduler_retries, 3);
 }
 
+// 序列化键集合是外部配置契约，只允许输出当前生效的公开字段。
 #[test]
 fn reliability_serializes_only_effective_fields() {
     let serialized = serde_json::to_value(super::ReliabilityConfig::default()).unwrap();

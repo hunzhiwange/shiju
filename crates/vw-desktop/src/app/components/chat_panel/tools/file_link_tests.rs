@@ -1,3 +1,6 @@
+//! 验证文件链接从完整路径提取名称并兼容非 ASCII 文件名。
+//! 路径分隔符只影响展示标签，点击目标仍需保留完整原始路径。
+
 use super::file_link::{file_name_link, file_name_only, file_path_tooltip};
 
 #[test]

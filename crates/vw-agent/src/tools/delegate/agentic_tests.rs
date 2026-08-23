@@ -1,4 +1,5 @@
 //! 验证代理式委派在空响应及工具执行场景下的行为。
+//! 空白提供方响应规范为空结果，代理式路径仍通过真实工具 trait 验证。
 
 use super::*;
 use crate::app::agent::config::DelegateAgentConfig;
@@ -96,6 +97,7 @@ fn agentic_config() -> DelegateAgentConfig {
 }
 
 #[tokio::test]
+// 全空白响应规范为空结果，避免把不可见字符当作有效委派报告。
 async fn execute_agentic_renders_whitespace_only_response_as_empty() {
     let tool =
         DelegateTool::new(HashMap::new(), None, std::sync::Arc::new(SecurityPolicy::default()))

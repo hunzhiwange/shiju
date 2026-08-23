@@ -12,6 +12,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use vw_config_types::plugins::PluginsConfig;
 
+// MCP 路径由插件清单间接引用，夹具刻意分开写入两类文件。
 fn write_plugin_manifest(plugin_root: &Path, name: &str, mcp_path: &str) {
     let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
@@ -190,6 +191,7 @@ fn disabled_plugin_mcp_servers_are_skipped() {
 }
 
 #[test]
+// 用户配置先于插件配置，确保显式设置在名称冲突时保持优先。
 fn plugin_mcp_servers_merge_after_user_config() {
     let dir = tempfile::tempdir().expect("temp dir");
     let workspace_dir = dir.path().join("workspace");
@@ -221,6 +223,7 @@ fn plugin_mcp_servers_merge_after_user_config() {
 }
 
 #[test]
+// 多个插件声明同名服务时保留首个定义，避免发现顺序被后写覆盖。
 fn duplicate_plugin_mcp_server_keeps_first_declaration() {
     let dir = tempfile::tempdir().expect("temp dir");
     let workspace_dir = dir.path().join("workspace");

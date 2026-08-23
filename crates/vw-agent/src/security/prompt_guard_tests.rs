@@ -69,6 +69,7 @@ fn command_injection_whitelist_allows_common_short_forms() {
 }
 
 #[test]
+// 白名单只放行常见只读管道形态，降低词法检测的误报。
 fn command_injection_whitelist_allows_tail_and_grep_pipelines() {
     let guard = PromptGuard::default();
 
@@ -115,6 +116,7 @@ fn semantic_signal_is_normalized_into_suspicious_or_blocked_result() {
 }
 
 #[test]
+// 当前清理动作只告警不改写输入，防止安全层悄然改变用户语义。
 fn sanitize_action_warns_without_mutating_content() {
     let guard = PromptGuard::with_config(GuardAction::Sanitize, 0.1);
     assert!(matches!(

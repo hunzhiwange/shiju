@@ -3,14 +3,14 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-/// A manifest path after static path auditing.
+/// 经过静态审计后的清单路径，同时保留原始声明供展示。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PluginPath {
     pub raw: String,
     pub canonical_path: PathBuf,
 }
 
-/// A parsed plugin manifest.
+/// 已解析并完成组件路径审计的插件清单。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PluginManifest {
     pub root: PathBuf,
@@ -29,7 +29,7 @@ pub struct PluginManifest {
     pub interface: Option<PluginInterface>,
 }
 
-/// Plugin author metadata.
+/// 兼容简写名称与结构化形式的插件作者信息。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PluginAuthor {
@@ -37,7 +37,7 @@ pub enum PluginAuthor {
     Details(PluginAuthorDetails),
 }
 
-/// Structured plugin author metadata.
+/// 结构化插件作者元数据。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PluginAuthorDetails {
     pub name: String,
@@ -47,7 +47,7 @@ pub struct PluginAuthorDetails {
     pub url: Option<String>,
 }
 
-/// Install-surface metadata from the plugin manifest.
+/// 插件清单中面向安装与展示界面的元数据。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PluginInterface {
     pub display_name: Option<String>,

@@ -44,6 +44,7 @@ fn write_codex_auth(home: &Path, content: &str) {
     fs::write(codex_dir.join("auth.json"), content).unwrap();
 }
 
+// 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn config_dir_creation_error_mentions_path_and_openrc_hint() {
     let message = config_dir_creation_error(std::path::Path::new("/restricted/vw"));

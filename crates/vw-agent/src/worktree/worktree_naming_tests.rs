@@ -1,4 +1,5 @@
 //! 验证 worktree 名称的 slug 归一化与随机名称格式。
+//! 用户可见输入中的路径符号、标点和重复分隔符必须得到安全稳定的目录名。
 
 use super::naming::{random_name, slug};
 

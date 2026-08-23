@@ -1,4 +1,5 @@
 //! 验证 agent-browser 命令响应、启动参数和安全拒绝边界。
+//! 失败退出仍优先解析结构化响应；文件网址和未授权域名必须在启动命令前拒绝。
 
 use super::*;
 use crate::app::agent::security::SecurityPolicy;
@@ -172,6 +173,7 @@ async fn execute_agent_browser_action_rejects_file_url_before_command_execution(
 }
 
 #[tokio::test]
+// 网址授权在命令启动前完成，拒绝请求不得产生子进程或向外部浏览器发送参数。
 async fn execute_agent_browser_action_rejects_unapproved_urls_before_command_execution() {
     let tool = BrowserTool::new(
         Arc::new(SecurityPolicy::default()),

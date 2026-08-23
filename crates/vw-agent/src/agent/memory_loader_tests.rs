@@ -1,4 +1,5 @@
 //! 测试记忆加载器的召回筛选、格式化与失败降级。
+//! 可控召回结果用于区分过滤为空与后端失败，后者必须继续向调用者报错。
 
 use super::*;
 use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};

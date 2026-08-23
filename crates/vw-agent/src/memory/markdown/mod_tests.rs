@@ -1,4 +1,6 @@
 // 覆盖 Markdown 记忆的文件布局、读写、检索与内容保留。
+
+// Markdown fixture 检查标题只写一次，并让召回评分、限制和过滤保持可重复。
 use super::*;
 use tempfile::TempDir;
 

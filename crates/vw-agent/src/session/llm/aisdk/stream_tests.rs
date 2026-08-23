@@ -436,6 +436,7 @@ async fn stop_sequences_field_prevents_fallback_to_stop_when_empty() {
 }
 
 #[tokio::test]
+// 工具定义按键稳定排序，保证请求快照和测试结果可复现。
 async fn tool_definitions_are_added_in_sorted_key_order() {
     let (model, captured) = FakeModel::with_items(vec![]);
     let tools = HashMap::from([
@@ -514,6 +515,7 @@ async fn dashscope_reasoning_option_is_sent_in_extra_body() {
 }
 
 #[tokio::test]
+// 结束帧仅补发此前未流出的内容，避免正文或推理重复。
 async fn done_content_emits_when_no_prior_delta_and_ignores_other_done_content() {
     let (model, _) = FakeModel::with_items(vec![Ok(vec![
         done(AiContent::Text("final text".to_string()), None),
@@ -881,6 +883,7 @@ async fn stream_returns_aborted_when_abort_flag_is_already_set() {
 }
 
 #[tokio::test]
+// 中止监听必须能打断尚无数据的挂起流，而非等待下一块数据。
 async fn abort_change_interrupts_a_pending_stream() {
     let model = FakeModel::with_pending_stream();
     let (tx, rx) = tokio::sync::watch::channel(false);

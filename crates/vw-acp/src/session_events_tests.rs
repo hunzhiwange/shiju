@@ -1,4 +1,6 @@
 //! 验证会话事件分段、锁新鲜度、统计与陈旧锁恢复行为。
+//!
+//! 临时主目录和最小会话记录 fixture 用于隔离事件与偏好状态。
 
 use super::*;
 use crate::session_event_log::{
@@ -117,6 +119,7 @@ fn test_record(session_id: &str, home: &Path) -> SessionRecord {
     }
 }
 
+// 下列行为用例覆盖规范化、状态同步、路径安全和陈旧数据恢复。
 #[test]
 fn parse_event_lock_payload_accepts_valid_payload_and_defaults_invalid() {
     let parsed = parse_event_lock_payload(r#"{"pid":42,"created_at":"2026-01-01T00:00:00Z"}"#);

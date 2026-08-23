@@ -1,9 +1,12 @@
 //! 验证 ACP JSON-RPC 消息形状、通知识别与停止原因解析契约。
+//!
+//! 最小 JSON 与协议类型 fixture 用于固定线格式和输入校验边界。
 
 use serde_json::json;
 
 use super::*;
 
+// 下列行为用例覆盖合法往返、字段默认值和无效形状拒绝。
 #[test]
 fn json_rpc_message_accepts_requests_notifications_and_responses() {
     assert!(is_acp_json_rpc_message(&json!({

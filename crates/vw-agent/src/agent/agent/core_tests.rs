@@ -1,4 +1,5 @@
 //! 测试代理核心的历史管理、模型选择与工具注册行为。
+//! 同时覆盖提示引导型与原生工具型供应商，确认历史裁剪和显式模型优先级。
 
 use super::core::Agent;
 use crate::app::agent::config::{ClassificationRule, ModelRouteConfig, QueryClassificationConfig};
@@ -75,6 +76,7 @@ impl Tool for CoreTestTool {
     }
 }
 
+// 默认夹具使用无副作用依赖，历史与配置测试无需启动真实供应商。
 fn build_agent() -> Agent {
     build_agent_with_provider_and_tools(Box::new(CoreTestProvider), Vec::new())
 }

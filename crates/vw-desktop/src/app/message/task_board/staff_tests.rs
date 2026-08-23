@@ -1,3 +1,6 @@
+// 验证员工模式工作流投影、配置重载与错误拒绝。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use crate::app::Message;
 use crate::app::components::system_settings::SystemTab;
 use crate::app::state::{
@@ -48,6 +51,8 @@ fn ensure_task_board_project_path(app: &mut crate::app::App) -> String {
     project_path
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn toggle_staff_mode_preserves_default_kanban() {
     let project = tempfile::TempDir::new().expect("temp project");
@@ -1177,6 +1182,8 @@ fn stage_action_start_dev_merge_runs_git_merge() {
     );
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn stage_action_start_recruiting_offer_default_advances_status() {
     let (mut app, _task) = crate::app::App::new();
@@ -2034,6 +2041,8 @@ fn staff_command_input_enqueues_assign_then_start_for_mentioned_member() {
     assert!(app.task_board_staff_events[1].command_id.contains("start"));
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn staff_command_manual_submit_shows_enqueue_toast() {
     let (mut app, _task) = crate::app::App::new();
@@ -2534,6 +2543,8 @@ async fn staff_handoff_with_ipc_target_schedules_gateway_delivery() {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[tokio::test(flavor = "multi_thread")]
 async fn staff_handoff_ipc_failure_keeps_task_status() {
     let _guard = super::TEST_GATEWAY_ENV_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());

@@ -1,4 +1,5 @@
 //! 测试工具调用循环的终止、重试、迭代耗尽与工具过滤策略。
+//! 队列式供应商精确控制每轮响应，验证重试次数和迭代耗尽的停止位置。
 
 use super::*;
 use crate::providers::traits::ProviderCapabilities;

@@ -1,3 +1,7 @@
+//! 验证 Git 状态解析、差异处理和仓库操作的消息结果。
+//!
+//! 原生平台夹具围绕仓库状态、差异和命令结果构造，跨平台分支保持显式隔离。
+
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
     use super::super::*;

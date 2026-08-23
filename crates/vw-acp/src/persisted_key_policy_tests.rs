@@ -1,8 +1,11 @@
 //! 验证持久化键名策略、嵌套路径检查与工具结果豁免边界。
+//!
+//! 受控输入、临时路径和策略 fixture 用于验证默认拒绝的安全边界。
 
 use super::*;
 use serde_json::json;
 
+// 下列行为用例覆盖允许路径、拒绝路径以及错误输入的安全处理。
 #[test]
 fn persisted_key_policy_allows_snake_case_and_zed_tags() {
     let value = json!({

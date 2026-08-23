@@ -4,6 +4,7 @@ use super::capability_policy::{CapabilityPolicyResolution, resolve_skill_capabil
 use vw_config_types::agent::DelegateCapabilityPolicy;
 
 #[test]
+// 模型只能在预先配置的能力范围内选择，不能借输出内容自行扩大权限。
 fn skill_capability_policy_resolves_both_modes_without_model_self_authorization() {
     let skills = ["review", "rustcodegraph", "disabled"];
     let strict_skills = resolve_skill_capabilities(

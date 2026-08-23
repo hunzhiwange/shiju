@@ -279,12 +279,14 @@ CREATE INDEX IF NOT EXISTS idx_session_agent_sessions_parent
 ON session_agent_sessions(platform_id, company_id, project_id, parent_id, session_id);
 "#;
 
+/// PostgreSQL 会话存储句柄，所有方法都要求显式租户或项目作用域。
 #[derive(Debug, Clone)]
 pub(super) struct PostgresSessionStore {
     database: GlobalDatabase,
 }
 
 impl PostgresSessionStore {
+    /// 初始化会话、消息、步骤、待办和代理会话表。
     pub(super) fn new(database: GlobalDatabase) -> Result<Self> {
         database.initialize_postgres_schema(|transaction| {
             transaction
@@ -295,6 +297,7 @@ impl PostgresSessionStore {
         Ok(Self { database })
     }
 
+    /// 在单个事务内保存完整会话头、消息、调用和步骤快照。
     pub(super) fn save_session(&self, scope: &ProjectScope, session: &ChatSession) -> Result<()> {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction = connection.transaction().context("begin PostgreSQL session save")?;
@@ -306,6 +309,7 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    /// 保存 UI 所需的会话头、消息和步骤，保留已有调用计数。
     pub(super) fn save_session_ui_snapshot(
         &self,
         scope: &ProjectScope,
@@ -330,6 +334,7 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    /// 仅保存 UI 会话头与消息内容，不替换步骤或调用记录。
     pub(super) fn save_session_ui_content(
         &self,
         scope: &ProjectScope,
@@ -353,6 +358,7 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    /// 原子提交 UI 快照及对应模型原始制品。
     pub(super) fn commit_session_ui_snapshot(
         &self,
         scope: &ProjectScope,
@@ -382,6 +388,7 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    /// 按完整项目作用域读取会话。
     pub(super) fn load_session(
         &self,
         scope: &ProjectScope,
@@ -391,6 +398,7 @@ impl PostgresSessionStore {
         load_session(&mut *connection, scope, session_id)
     }
 
+    /// 在租户内查找最近更新的同标识会话，再以其项目作用域加载。
     pub(super) fn load_session_any(
         &self,
         tenant: &TenantScope,
@@ -414,6 +422,7 @@ impl PostgresSessionStore {
         load_session(&mut *connection, &scope, session_id)
     }
 
+    /// 列出项目最近更新的会话摘要，最多返回固定上限。
     pub(super) fn list_sessions(&self, scope: &ProjectScope) -> Result<Vec<ChatSessionMeta>> {
         let mut connection = self.database.connect_postgres()?;
         connection
@@ -431,6 +440,7 @@ impl PostgresSessionStore {
             .collect()
     }
 
+    /// 读取单个项目会话的索引摘要。
     pub(super) fn load_session_meta(
         &self,
         scope: &ProjectScope,
@@ -451,6 +461,7 @@ impl PostgresSessionStore {
             .transpose()
     }
 
+    /// 在事务内用给定快照完整替换项目会话索引。
     pub(super) fn replace_session_index(
         &self,
         scope: &ProjectScope,
@@ -495,6 +506,7 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    /// 删除项目作用域内的会话及级联子记录。
     pub(super) fn delete_session(&self, scope: &ProjectScope, session_id: &str) -> Result<bool> {
         let changed = self
             .database
@@ -514,6 +526,7 @@ impl PostgresSessionStore {
         Ok(changed == 1)
     }
 
+    /// 按输入顺序原子替换会话待办列表。
     pub(super) fn save_session_todos(
         &self,
         scope: &ProjectScope,
@@ -557,6 +570,7 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    /// 保存兼容旧格式的单步骤模型原始 JSON。
     pub(super) fn save_session_step_llm_raw(
         &self,
         scope: &ProjectScope,
@@ -588,6 +602,7 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    /// 重放指定轮次到目标步骤并重建模型原始请求与输出。
     pub(super) fn load_session_turn_step_llm_raw(
         &self,
         scope: &ProjectScope,
@@ -663,6 +678,7 @@ impl PostgresSessionStore {
         Ok(Some(LlmRawArtifact { context, rounds }.reconstruct_round(step_index)?))
     }
 
+    /// 优先从轮次制品重建步骤，缺失轮次关联时回退读取旧格式记录。
     pub(super) fn load_session_step_llm_raw(
         &self,
         scope: &ProjectScope,
@@ -712,6 +728,7 @@ impl PostgresSessionStore {
         .transpose()
     }
 
+    /// 合并新旧存储格式中存在原始制品的步骤索引。
     pub(super) fn load_session_llm_raw_step_indices(
         &self,
         scope: &ProjectScope,
@@ -744,6 +761,7 @@ impl PostgresSessionStore {
             .collect()
     }
 
+    /// 按持久化顺序读取会话待办。
     pub(super) fn load_session_todos(
         &self,
         scope: &ProjectScope,
@@ -772,6 +790,7 @@ impl PostgresSessionStore {
             .collect()
     }
 
+    /// 按项目作用域插入或更新代理会话信息。
     pub(super) fn save_agent_session(
         &self,
         scope: &ProjectScope,
@@ -804,6 +823,7 @@ impl PostgresSessionStore {
         Ok(())
     }
 
+    /// 按完整项目作用域读取代理会话。
     pub(super) fn load_agent_session(
         &self,
         scope: &ProjectScope,
@@ -826,6 +846,7 @@ impl PostgresSessionStore {
         .transpose()
     }
 
+    /// 列出项目中的全部代理会话。
     pub(super) fn load_agent_sessions(
         &self,
         scope: &ProjectScope,
@@ -844,6 +865,7 @@ impl PostgresSessionStore {
             .collect()
     }
 
+    /// 列出租户代理会话，并按会话标识保留最近更新记录。
     pub(super) fn load_agent_sessions_all(
         &self,
         tenant: &TenantScope,
@@ -870,6 +892,7 @@ impl PostgresSessionStore {
         Ok(sessions)
     }
 
+    /// 在租户内读取最近更新的同标识代理会话。
     pub(super) fn load_agent_session_any(
         &self,
         tenant: &TenantScope,
@@ -894,6 +917,7 @@ impl PostgresSessionStore {
         .transpose()
     }
 
+    /// 删除项目作用域内的代理会话。
     pub(super) fn delete_agent_session(
         &self,
         scope: &ProjectScope,

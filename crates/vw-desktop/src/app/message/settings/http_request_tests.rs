@@ -1,3 +1,6 @@
+// 验证 HTTP 请求域名白名单、用户代理与重复项处理。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use vw_config_types::tools::HttpRequestConfig;
@@ -10,6 +13,8 @@ fn has_scheduled_action(task: Task<Message>) -> bool {
     task.units() > 0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn http_request_normalizes_domains_and_handles_duplicates() {
     assert_eq!(normalize_domain(" Example.COM "), "example.com");
@@ -70,6 +75,8 @@ fn update_ignores_unrelated_messages_without_changing_http_request_state() {
     assert_eq!(app.http_request_settings.save_error.as_deref(), Some("old error"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn refresh_only_clears_the_save_error() {
     let mut app = app();
@@ -115,6 +122,8 @@ fn add_allowed_domain_keeps_existing_entries_and_inserts_only_new_candidates() {
     assert!(app.http_request_settings.save_error.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn remove_allowed_domain_ignores_an_out_of_bounds_index() {
     let mut app = app();
@@ -158,6 +167,8 @@ fn update_applies_enabled_numeric_and_non_blank_user_agent_edits() {
     assert!(app.http_request_settings.save_error.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn domain_validation_rejections_skip_persistence_but_new_domain_schedules_it() {
     let mut app = app();

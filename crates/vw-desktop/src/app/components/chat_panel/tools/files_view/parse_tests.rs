@@ -1,3 +1,6 @@
+//! 验证文件工具分类及路径列表从结构化、文本和输入载荷中的解析规则。
+//! 搜索列表从尾部截断，普通列表从中部截断，以分别保留最相关结果和首尾上下文。
+
 use super::parse::{
     build_file_list_state, is_edit_like_tool, is_git_diff_tool, is_search_tool, parse_output_files,
     parse_read_range, should_skip_files_view,

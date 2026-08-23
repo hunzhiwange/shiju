@@ -1,3 +1,6 @@
+// 验证项目顶层更新函数向各领域处理器正确分派消息。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::{ProjectMessage, update};
 use crate::app::{App, state::FindInFolderTab};
 
@@ -23,6 +26,8 @@ fn find_tab(id: &str) -> FindInFolderTab {
     }
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn update_dispatches_basic_message() {
     let (mut app, _task) = App::new();
@@ -32,6 +37,8 @@ fn update_dispatches_basic_message() {
     assert_eq!(app.project_path_input, "/tmp/project");
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn update_dispatches_find_message() {
     let (mut app, _task) = App::new();
@@ -45,6 +52,8 @@ fn update_dispatches_find_message() {
     assert!(app.find_results_tabs[0].case_sensitive);
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn update_dispatches_file_tree_message() {
     let (mut app, _task) = App::new();
@@ -64,6 +73,8 @@ fn update_dispatches_file_tree_message() {
     assert_eq!(app.file_tree_menu_anchor, Some(iced::Point::new(12.0, 24.0)));
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn update_dispatches_session_message() {
     let (mut app, _task) = App::new();

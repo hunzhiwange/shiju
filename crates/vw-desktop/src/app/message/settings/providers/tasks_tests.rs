@@ -1,6 +1,11 @@
+// 验证提供商异步任务构建及结果消息载荷保持。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use serde_json::json;
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn task_builders_schedule_runtime_work() {
     let tasks = [
@@ -39,6 +44,8 @@ fn providers_refreshed_message_preserves_success_payload() {
     assert!(catalog.is_empty());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn provider_result_messages_preserve_errors() {
     let refreshed = providers_refreshed_message(Err("refresh failed".to_string()));
@@ -96,6 +103,8 @@ fn provider_catalog_loaded_message_preserves_success_and_error() {
     ));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn popular_providers_saved_message_preserves_success_and_error() {
     let saved = popular_providers_saved_message(Ok(()));
@@ -120,6 +129,8 @@ fn popular_providers_patch_preserves_order_duplicates_and_characters() {
     assert_eq!(patch, json!({"popular_providers": ["openai", "供应商 \"A\"", "openai"]}));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn popular_providers_patch_represents_empty_selection_as_array() {
     assert_eq!(popular_providers_patch(Vec::new()), json!({"popular_providers": []}));

@@ -77,6 +77,7 @@ fn audit_event_types_serialize_to_stable_snake_case_values() {
 }
 
 #[test]
+// 关闭审计时连日志文件都不创建，确保禁用配置没有隐式文件副作用。
 fn disabled_logger_does_not_create_or_write_log_file() {
     let dir = tempfile::tempdir().unwrap();
     let config = AuditConfig { enabled: false, ..AuditConfig::default() };
@@ -192,6 +193,7 @@ fn logger_propagates_write_error_when_log_path_becomes_directory() {
 }
 
 #[test]
+// 命令审计保留安全决策上下文，但测试不写入真实敏感载荷。
 fn log_command_event_writes_complete_command_context() {
     let dir = tempfile::tempdir().unwrap();
     let config = AuditConfig { enabled: true, max_size_mb: 10, ..AuditConfig::default() };
@@ -263,6 +265,7 @@ fn logger_rotates_when_existing_file_reaches_limit() {
 }
 
 #[test]
+// 轮转从旧编号向后搬移，避免覆盖仍在保留窗口内的历史日志。
 fn logger_rotation_shifts_existing_numbered_history() {
     let dir = tempfile::tempdir().unwrap();
     let config = AuditConfig { enabled: true, max_size_mb: 0, ..AuditConfig::default() };

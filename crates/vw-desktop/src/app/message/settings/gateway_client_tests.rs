@@ -1,3 +1,6 @@
+// 验证网关客户端服务器与租户配置的增删选改行为。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -7,6 +10,8 @@ fn app() -> App {
     app
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn gateway_client_helpers_normalize_and_select() {
     let mut app = app();
@@ -69,6 +74,8 @@ fn gateway_client_helpers_clamp_loaded_port_and_choose_next_available_id() {
     assert_eq!(next_server_id(&config), "gateway-3");
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn next_server_id_uses_fallback_after_all_numbered_ids_are_taken() {
     let mut config = GatewayClientSystemSettingsConfig::default();
@@ -181,6 +188,8 @@ fn gateway_client_update_ignores_other_settings_messages_and_unknown_server() {
     assert_eq!(app.gateway_client_settings.selected_server_id, selected);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn gateway_client_update_normalizes_and_persists_editable_fields() {
     let mut app = app();
@@ -271,6 +280,8 @@ fn gateway_client_update_requires_valid_remove_request_and_confirmation() {
     assert!(app.gateway_client_settings.pending_remove_server_id.is_none());
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn gateway_client_update_removes_selected_server_health_and_selects_first() {
     let mut app = app();

@@ -1,3 +1,6 @@
+// 验证外部打开目标的可用性约束、偏好与任务调度。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use crate::app::message::view::MenuType;
 use crate::app::state::ExternalOpenApp;
 
@@ -9,6 +12,8 @@ fn has_scheduled_action(task: iced::Task<crate::app::Message>) -> bool {
     task.units() > 0
 }
 
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -56,6 +61,8 @@ fn preferred_open_rejects_unavailable_target() {
     assert!(!has_scheduled_action(task));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn preferred_open_schedules_available_target_without_polling_gateway() {
     let mut app = new_app();
@@ -133,6 +140,8 @@ fn finder_open_schedules_reveal_without_polling_gateway() {
     assert!(has_scheduled_action(task));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn finder_open_preserves_current_menu_while_scheduling_reveal() {
     let mut app = new_app();
@@ -184,6 +193,8 @@ fn copy_missing_project_path_falls_back_and_schedules_clipboard_action() {
     assert!(has_scheduled_action(task));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_message_is_rejected_without_mutating_menu() {
     let mut app = new_app();

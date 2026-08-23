@@ -1,3 +1,8 @@
+// 验证项目路径输入、最近项目加载与基础打开流程。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -193,6 +198,8 @@ fn remove_attached_file_removes_every_duplicate_and_preserves_other_paths() {
     assert_eq!(app.files, ["b.txt"]);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn file_index_loaded_without_project_does_not_expose_cached_files() {
     let mut app = app();
@@ -420,6 +427,8 @@ fn file_manager_refresh_changes_marks_refreshing_when_idle() {
     assert!(app.file_manager_changes_refreshing);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn file_manager_refresh_file_tree_ignores_duplicate_refresh() {
     let mut app = app();
@@ -656,6 +665,8 @@ fn start_deferred_tasks_rejects_stale_project_path() {
     assert_eq!(app.project_path.as_deref(), Some("/workspace/current"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_project_message_is_not_claimed_by_basic_handler() {
     let mut app = app();

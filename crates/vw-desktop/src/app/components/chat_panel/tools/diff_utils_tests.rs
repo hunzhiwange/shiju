@@ -1,3 +1,6 @@
+//! 验证统一差异、补丁摘要、代码块和文件预览的解析边界。
+//! 文件头不计入增删统计，省略占位仅在精确匹配时被过滤以免吞掉真实内容。
+
 use super::diff_utils::{
     count_apply_patch_format_changes, count_unified_diff_changes, extract_diff_block, file_preview,
     is_likely_file_path, looks_like_unified_diff, parse_apply_patch_line_changes,

@@ -67,6 +67,7 @@ fn build_request_prompt_preserves_protocol_context_without_forced_replay() {
 }
 
 #[test]
+// 非强制重放仍需去重协议提醒，避免上下文随轮次重复膨胀。
 fn build_request_prompt_deduplicates_protocol_context_without_forced_replay() {
     let protocol = "<system-reminder>AGENTS current contents</system-reminder>";
     let prompt = build_request_prompt(
@@ -305,6 +306,7 @@ fn full_replay_prompt_with_only_current_request_omits_optional_sections() {
 }
 
 #[test]
+// 丢弃策略保留系统约束与当前请求，历史内容不得意外回流。
 fn discard_replay_prompt_keeps_only_system_and_current_request() {
     let prompt = build_replay_prompt(
         &json!([
@@ -438,6 +440,7 @@ fn summary_replay_prompt_omits_role_specific_sections_for_tool_only_history() {
 }
 
 #[test]
+// 摘要快照对列表和摘要长度设上限，保证重放提示大小可控。
 fn summary_replay_prompt_caps_snapshot_lists_and_digest() {
     let mut messages = (1..=5)
         .map(|index| json!({ "role": "system", "content": format!("constraint {index}") }))

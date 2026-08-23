@@ -6,6 +6,7 @@ use super::chat::{
 };
 use serde_json::json;
 
+// 聊天角色、消息状态和带标签消息片段必须使用网关约定的 snake_case 名称。
 #[test]
 fn chat_enums_use_snake_case_protocol_names() {
     assert_eq!(serde_json::to_value(ChatRole::Assistant).expect("role"), json!("assistant"));
@@ -16,6 +17,7 @@ fn chat_enums_use_snake_case_protocol_names() {
     );
 }
 
+// 默认请求不应凭空选择模型、文件或消息内容。
 #[test]
 fn chat_defaults_keep_optional_fields_empty() {
     let request = GatewayChatStreamRequest::default();
@@ -28,6 +30,7 @@ fn chat_defaults_keep_optional_fields_empty() {
     );
 }
 
+// 推理强度在聊天选项和流请求中共享同一枚举，并拒绝未知协议值。
 #[test]
 fn reasoning_effort_dto_roundtrips_known_values_and_default() {
     let cases = [

@@ -1,3 +1,6 @@
+//! 验证新增与删除文件行在合并、分栏、暂存和上下文菜单状态下的渲染。
+//! 空行、Unicode 行和文件级暂存 fixture 用于确认行数与菜单节点不依赖文本宽度。
+
 use super::super::DiffRenderCtx;
 use super::added_deleted::{render_added_lines, render_deleted_lines};
 use crate::app::components::git_panel::utils::Lang;
@@ -14,6 +17,7 @@ fn tree_node_count(tree: &Tree) -> usize {
     1 + tree.children.iter().map(tree_node_count).sum::<usize>()
 }
 
+// 返回顶层与首个分组的节点数，用于区分合并视图和分栏视图的结构契约。
 fn widget_shape(column: iced::widget::Column<'static, Message>) -> (usize, usize) {
     let element: Element<'static, Message> = column.into();
     let rows = element.as_widget().children();

@@ -1,3 +1,6 @@
+//! 验证消息组件测量、绘制裁剪与高度缓存更新的边界行为。
+//! 自定义渲染器只记录布局副作用，用于隔离验证无效视口和未变化高度的短路路径。
+
 use super::message_measure::{
     ChatMessageMeasurement, MeasuredChatMessage, collect_visible_chat_message_measurements,
 };
@@ -14,6 +17,7 @@ use iced::{
 #[derive(Debug, Clone, PartialEq)]
 enum TestMessage {}
 
+// 固定尺寸内容将布局输入与真实消息排版解耦，使测试只观察测量协议。
 #[derive(Debug, Clone, Copy)]
 struct TestContent {
     width: f32,
@@ -70,6 +74,7 @@ impl<'a> From<TestContent> for Element<'a, TestMessage, Theme, RecordingRenderer
     }
 }
 
+// 仅记录填充区域和重置边界；其它渲染能力故意保持最小实现。
 #[derive(Debug, Default)]
 struct RecordingRenderer {
     fills: Vec<Rectangle>,

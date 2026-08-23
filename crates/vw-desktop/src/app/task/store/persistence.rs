@@ -1,3 +1,5 @@
+//! 负责旧版任务索引与任务文件的序列化、加载和原子写入。
+
 use std::io;
 
 use crate::app::task::models::{Task, TaskIndex};
@@ -47,6 +49,7 @@ pub(super) fn save_index_unlocked(project_path: &str, index: &TaskIndex) -> io::
     std::fs::rename(temporary, path)
 }
 
+/// 扫描有效任务文件重建索引，忽略无法解析的非任务文件。
 pub fn rebuild_index_from_task_files(project_path: &str) -> io::Result<TaskIndex> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -96,6 +99,7 @@ pub fn rebuild_index_from_task_files(project_path: &str) -> io::Result<TaskIndex
     }
 }
 
+/// 加载旧版索引；缺失或损坏时按平台策略回退为空索引。
 pub fn load_index(project_path: &str) -> TaskIndex {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -108,6 +112,7 @@ pub fn load_index(project_path: &str) -> TaskIndex {
     }
 }
 
+/// 保存旧版任务索引；原生端返回迁移后的不支持错误。
 pub fn save_index(project_path: &str, index: &TaskIndex) -> io::Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -120,6 +125,7 @@ pub fn save_index(project_path: &str, index: &TaskIndex) -> io::Result<()> {
     }
 }
 
+/// 加载指定任务，文件不存在或内容无效时返回 `None`。
 pub fn load_task(project_path: &str, task_id: &str) -> Option<Task> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -134,6 +140,7 @@ pub fn load_task(project_path: &str, task_id: &str) -> Option<Task> {
     }
 }
 
+/// 保存单个旧版任务；原生端拒绝写入项目内存储。
 pub fn save_task(project_path: &str, task: &Task) -> io::Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -163,6 +170,7 @@ pub fn delete_task_file(project_path: &str, task_id: &str) -> io::Result<()> {
     }
 }
 
+/// 加载索引引用的全部有效任务，并跳过已丢失或损坏的记录。
 pub fn load_all_tasks(project_path: &str) -> Vec<Task> {
     #[cfg(not(target_arch = "wasm32"))]
     {

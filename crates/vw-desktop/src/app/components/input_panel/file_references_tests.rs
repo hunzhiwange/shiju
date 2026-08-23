@@ -1,3 +1,6 @@
+//! 验证文件引用的解析、提取、位置格式化与卡片样式边界。
+//! 精确范围、溢出数字、重复提及和非法后缀用于约束降级为普通路径的规则。
+
 use super::file_references::{
     FileReferenceLocation, extract_file_mentions, file_reference_card, file_reference_style,
     format_reference_location, format_reference_location_compact, parse_file_reference,

@@ -1,6 +1,10 @@
+//! 验证多账户仓储的持久化、激活切换、兼容读取与敏感信息保护行为。
+//! 临时目录中的真实文件还用于检查旧格式迁移、无效活动记录和 Unix 权限约束。
+
 use super::*;
 use std::fs;
 
+// 两组构造器分别表示旧版最小账户与带完整资料的新格式账户，供迁移测试复用。
 fn verified(skey: &str, company_id: &str, company_name: &str) -> VerifiedAccount {
     VerifiedAccount::from_parts(
         AccountIdentity::new(company_id, company_name, "founder", "active").unwrap(),

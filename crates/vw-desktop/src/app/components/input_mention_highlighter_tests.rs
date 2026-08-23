@@ -1,3 +1,6 @@
+//! 验证输入提及高亮器的字符边界、行跟踪与颜色格式选择。
+//! 相邻提及、裸 `@` 和非 ASCII 分隔符用于约束扫描器的停止位置。
+
 use iced::advanced::text::highlighter::Highlighter;
 
 use super::input_mention_highlighter::{

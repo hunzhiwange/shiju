@@ -1,3 +1,6 @@
+// 验证记忆后端、保留策略与嵌入参数的规范化和钳制。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::MemorySettingsTab;
@@ -14,6 +17,8 @@ fn apply(app: &mut App, message: MemoryMessage) {
     let _ = update(app, SettingsMessage::Memory(message));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn normalize_backend_accepts_supported_values_and_normalizes_aliases() {
     for backend in ["sqlite", "postgres", "qdrant", "chroma", "markdown", "none"] {
@@ -73,6 +78,8 @@ fn tab_selection_updates_only_visible_memory_section() {
     assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::General);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn update_applies_backend_retention_and_embedding_text_fields() {
     let mut app = app();
@@ -144,6 +151,8 @@ fn update_applies_cache_snapshot_and_hydration_fields() {
     assert!(!app.memory_settings.auto_hydrate);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn update_applies_memory_lifecycle_toggles() {
     let mut app = app();
@@ -170,6 +179,8 @@ fn update_applies_sqlite_and_qdrant_fields_without_trimming_user_input() {
     assert_eq!(app.memory_settings.qdrant_api_key_input, "  secret-placeholder  ");
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn memory_edits_schedule_persistence_while_refresh_and_unrelated_messages_do_not() {
     let mut app = app();

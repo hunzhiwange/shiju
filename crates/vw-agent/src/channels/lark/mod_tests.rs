@@ -1,3 +1,5 @@
+// 本文件验证 Lark 渠道构造、旧版飞书配置兼容与基础收发状态。
+
 use super::*;
 use crate::app::agent::config::{
     GroupReplyConfig, GroupReplyMode, LarkConfig, LarkReceiveMode, ProxyConfig, ProxyScope,
@@ -86,6 +88,7 @@ fn lark_channel_from_config_legacy_feishu_preserves_fields_and_group_reply() {
 }
 
 #[tokio::test]
+// 健康检查优先复用有效缓存，避免探活触发外部鉴权。
 async fn lark_channel_health_check_uses_cached_valid_token() {
     let ch = make_mod_channel();
     cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
@@ -128,4 +131,3 @@ async fn lark_channel_send_returns_error_when_proxy_is_unreachable() {
 
     assert!(matches!(result, Ok(Err(_))));
 }
-// 本文件验证 Lark 渠道构造、旧版飞书配置兼容与基础收发状态。

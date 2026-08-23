@@ -1,4 +1,5 @@
 //! 测试待审批请求的去重、身份匹配、过期、清理与缓存上限。
+//! 固定请求者上下文和过期时间用于验证决议不能被其他渠道或回复目标冒领。
 
 use chrono::{Duration, Utc};
 use std::collections::HashMap;

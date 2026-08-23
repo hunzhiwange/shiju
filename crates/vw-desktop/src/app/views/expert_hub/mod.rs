@@ -1,3 +1,5 @@
+//! 组合专家、连接器与技能三个专家中心分区的桌面视图。
+
 use crate::app::message::SkillHubMessage;
 use crate::app::skill_hub::ExpertHubSection;
 use crate::app::{App, Message};
@@ -25,6 +27,7 @@ fn section_button(
         .into()
 }
 
+/// 构建专家中心一级分区，并为技能分区选择公共或识矩子页面。
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let section_tabs = row![
         section_button(
@@ -72,6 +75,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     installed_skills::with_delete_confirmation(app, base)
 }
 
+/// 构建兼容的识矩技能入口，复用专家中心技能列表与详情。
 pub(crate) fn shiju_skills_view(app: &App) -> Element<'_, Message> {
     let body = if app.expert_hub.detail.is_some() { detail::view(app) } else { list::view(app) };
     let base = container(body).width(Length::Fill).height(Length::Fill).padding([24, 28]).into();

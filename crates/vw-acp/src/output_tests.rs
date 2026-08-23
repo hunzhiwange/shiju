@@ -1,4 +1,6 @@
 //! 验证输出器选择、协议内容提取、截断与文本渲染行为。
+//!
+//! 内存写入器和协议消息 fixture 用于只观察格式化结果及缓冲状态。
 
 use super::*;
 use crate::types::{
@@ -31,6 +33,7 @@ fn output_error(message: &str, detail_code: Option<&str>) -> OutputErrorParams {
     }
 }
 
+// 下列行为用例覆盖格式选择、内容抑制、截断和错误输出分支。
 #[test]
 fn create_output_formatter_selects_requested_format() {
     assert!(matches!(

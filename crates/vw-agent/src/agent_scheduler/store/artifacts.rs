@@ -16,6 +16,7 @@ use super::{
 const ARTIFACT_COLUMNS: &str = "id, task_id, run_id, kind, name, path, payload_json, created_at_ms";
 
 #[derive(Debug, Clone, PartialEq)]
+/// 记录任务产物所需的任务归属、可选运行归属及载荷。
 pub struct RecordTaskArtifactRequest {
     pub task_id: TaskId,
     pub run_id: Option<RunId>,
@@ -27,6 +28,7 @@ pub struct RecordTaskArtifactRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 已持久化并分配数据库序号的任务产物。
 pub struct StoredTaskArtifact {
     pub id: i64,
     pub task_id: TaskId,
@@ -39,6 +41,7 @@ pub struct StoredTaskArtifact {
 }
 
 impl AgentSchedulerStore {
+    /// 校验请求和运行归属后记录产物，返回完整持久化记录。
     pub fn record_task_artifact(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),

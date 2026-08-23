@@ -1,4 +1,5 @@
 // 测试调度策略不再读取旧版审核开关，并保持显式策略行为。
+// 源文本检查与行为断言配对，避免删除旧字段后又通过另一条分支恢复隐式兼容。
 
 #[test]
 fn agent_scheduler_policy_no_longer_reads_legacy_review_switch() -> anyhow::Result<()> {

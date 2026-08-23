@@ -3,11 +3,13 @@
 use super::*;
 use crate::app::agent::project;
 
+// 真实文件与符号链接夹具用于验证尚未创建的路径也不能绕过工作区边界。
 #[test]
 fn router_builds_with_unit_state() {
     let _ = router::<()>();
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[test]
 fn file_write_body_defaults_create_if_missing_to_false() {
     let body: FileWriteBody = serde_json::from_value(serde_json::json!({

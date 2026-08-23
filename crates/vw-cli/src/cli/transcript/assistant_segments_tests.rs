@@ -1,3 +1,7 @@
+//! 助手输出分段解析与行渲染的测试。
+//! 覆盖普通文本、完整或未闭合思考块、工具 JSON 标记以及 Todo 卡片的分流规则。
+//! 渲染时还校验展开状态、预览内容与逐行元数据始终对齐。
+
 use super::assistant_segments::{
     AssistantSegment, assistant_segments_to_lines, assistant_segments_to_lines_with_meta,
     parse_assistant_segments,

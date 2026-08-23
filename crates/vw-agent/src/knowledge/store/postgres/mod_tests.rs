@@ -1,4 +1,6 @@
 // 覆盖 PostgreSQL 知识存储的构造、事务边界与后端装配。
+
+// 构造器只接受 PostgreSQL 全局数据库，SQLite 后端必须在事务前失败。
 use super::*;
 use crate::global_database::config::DatabaseProvider;
 use crate::global_database::test_support::PostgresTestDatabase;

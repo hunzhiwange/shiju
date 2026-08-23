@@ -1,3 +1,6 @@
+//! 验证画布类图标注册表的覆盖范围与非破坏性写入行为。
+//! 哨兵键保留断言用于防止注册函数意外清空调用方维护的条目。
+
 #[test]
 fn task_637_test_module_is_wired() {
     let path = std::path::Path::new(file!());

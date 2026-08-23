@@ -1,3 +1,5 @@
+// 本文件验证系统配置迁移的备份、校验、冲突保护与幂等性。
+
 use anyhow::Result;
 use vw_api_types::id::TenantScope;
 use vw_config_types::config::Config;
@@ -125,6 +127,7 @@ fn system_config_migration_already_imported(
 }
 
 #[test]
+// 目标冲突时保留源配置，迁移不得覆盖造成数据丢失。
 fn system_config_migration_preserves_conflicting_source() -> Result<()> {
     for_each_migration_provider(system_config_migration_conflict)?;
     Ok(())
@@ -192,4 +195,3 @@ fn system_config_migration_accepts_legacy_toml_source() -> Result<()> {
     assert!(backup_path(temp_home.path()).is_file());
     Ok(())
 }
-// 本文件验证系统配置迁移的备份、校验、冲突保护与幂等性。

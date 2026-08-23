@@ -73,6 +73,7 @@ async fn create_uses_name_to_separate_states_within_same_root() {
 }
 
 #[tokio::test]
+// 并发获取同一键只能运行一次初始化器，防止产生相互覆盖的状态实例。
 async fn create_initializes_once_when_called_concurrently() {
     let root = format!("concurrent-root-{}", Uuid::new_v4());
     let initialized = Arc::new(AtomicUsize::new(0));
@@ -227,6 +228,7 @@ async fn create_rejects_type_conflict_for_existing_root_and_name() {
 }
 
 #[tokio::test]
+// 释放操作应幂等，重复调用不能再次触发外部资源清理。
 async fn dispose_calls_initialized_state_disposers_only_once() {
     let root = format!("dispose-root-{}", Uuid::new_v4());
     let disposed = Arc::new(AtomicUsize::new(0));

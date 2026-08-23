@@ -1,3 +1,6 @@
+//! 验证聊天面板的阅读列布局、消息虚拟化与典型视觉场景构造。
+//! 多视口宽度和多主题场景用于守住共享阅读宽度、渲染窗口及单一状态所有权。
+
 use super::{
     active_user_question_idx, chat_message_column, chat_panel_context_menu_overlay,
     chat_panel_virtual_window, chat_render_window, chat_todo_overlay,
@@ -91,6 +94,7 @@ async fn conversation_shell_uses_shared_reading_column_width() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread")]
 async fn conversation_shell_renders_visual_regression_scenarios_without_panic() {
+    // 场景覆盖内容规模、运行状态和权限失败；主题与皮肤在外层形成组合矩阵。
     #[derive(Clone, Copy)]
     enum Scenario {
         Empty,

@@ -1,3 +1,6 @@
+//! 验证写文件工具的摘要、标题状态、详情回退和折叠视图契约。
+//! 空白文件名、根路径和空列表用于约束计数回退，不把不可展示名称当作有效摘要。
+
 use iced::{Length, Point, Theme};
 
 use super::super::ToolPermissionState;

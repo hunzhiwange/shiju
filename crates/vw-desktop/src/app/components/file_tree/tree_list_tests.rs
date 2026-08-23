@@ -1,3 +1,6 @@
+//! 验证文件树路径建模、展开键、选择优先级与变更列表视图。
+//! 重复分隔符、根文件、嵌套目录和不同菜单来源用于约束树模型的规范化与隔离。
+
 use super::tree_list::{
     DirNode, build_changes_list, build_file_tree_list, change_list_expand_keys,
     changes_directory_button_style, changes_file_button_style, insert_path,

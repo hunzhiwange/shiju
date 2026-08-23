@@ -1,3 +1,6 @@
+//! 验证设置页 URL 编码、布尔能力标签与上下文额度格式化。
+//! 空格编码和整千缩写用例用于锁定面向用户的紧凑表示规则。
+
 use super::utils::{bool_support_label, format_context_limit, url_encode};
 
 #[test]

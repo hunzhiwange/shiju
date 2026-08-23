@@ -1,3 +1,6 @@
+//! 验证颜色选择器对指针边界、拖动生命周期和数值映射的处理。
+//! 按下必须发生在边界内才启动拖动，释放时发布当前值并复位内部状态。
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -12,6 +15,7 @@ use super::{
 use crate::app::Message;
 use crate::app::components::color_picker::Hsv;
 
+// 非零原点可同时发现坐标未平移和边界宽高映射错误。
 fn bounds() -> Rectangle {
     Rectangle::new(Point::new(10.0, 20.0), iced::Size::new(200.0, 100.0))
 }

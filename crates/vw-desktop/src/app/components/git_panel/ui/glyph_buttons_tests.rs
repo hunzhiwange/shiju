@@ -1,3 +1,6 @@
+//! 验证字符按钮的提示包装、尺寸反馈与主题状态样式。
+//! 分别检查纯字符和带提示变体，确保禁用态仍保持透明表面。
+
 use iced::widget::button;
 use iced::{Background, Color, Element, Length, Size, Theme};
 

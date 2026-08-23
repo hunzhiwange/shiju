@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 确认反应的请求形状、非阻塞发送与失败容忍。
+
 use super::TelegramChannel;
 use super::message_utils::{TELEGRAM_ACK_REACTIONS, build_telegram_ack_reaction_request};
 use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::post};
@@ -122,6 +124,7 @@ async fn try_add_ack_reaction_nonblocking_still_posts_when_api_returns_error() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+// 确认反应是尽力反馈，网络失败不能阻塞消息处理。
 async fn try_add_ack_reaction_nonblocking_ignores_network_failures() {
     let channel = TelegramChannel::new("123:SECRET".to_string(), vec!["alice".to_string()], false)
         .with_api_base(unused_local_base_url());
@@ -130,4 +133,3 @@ async fn try_add_ack_reaction_nonblocking_ignores_network_failures() {
 
     tokio::time::sleep(Duration::from_millis(100)).await;
 }
-// 本文件验证 Telegram 确认反应的请求形状、非阻塞发送与失败容忍。

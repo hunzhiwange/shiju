@@ -1,10 +1,14 @@
 // 覆盖知识文本切块的大小限制、重叠与元数据保留。
+
+// 每个块都核对原文偏移，裁剪外部空白不能破坏回溯到源文本的位置。
 use super::*;
 
+// 通过字节偏移回切原文，直接证明块元数据仍指向正确的 Unicode 源片段。
 fn source_slice(text: &str, start: usize, end: usize) -> String {
     text.chars().skip(start).take(end - start).collect()
 }
 
+// 所有块统一检查偏移边界，避免只验证文本而漏掉不可回溯的元数据。
 fn assert_source_offsets(text: &str, chunk: &TextChunk) {
     assert_eq!(source_slice(text, chunk.start_at, chunk.end_at), chunk.content);
     assert_eq!(chunk.end_at - chunk.start_at, chunk.content.chars().count());

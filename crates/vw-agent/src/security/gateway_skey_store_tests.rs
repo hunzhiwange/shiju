@@ -17,6 +17,7 @@ fn skey(name: &str, hash: &str) -> GatewaySkey {
 }
 
 #[test]
+// 替换操作限定在目标租户，其他租户的同名密钥保持不变。
 fn gateway_skey_store_isolates_tenants_and_replaces_only_target_scope() -> Result<()> {
     for_each_gateway_skey_store_provider(gateway_skey_store_isolation)
 }
@@ -44,6 +45,7 @@ fn gateway_skey_store_isolation(store: &GatewaySkeyStore) -> Result<()> {
 }
 
 #[test]
+// 批量插入任一项失败时回滚整个目标作用域，避免密钥集合残缺。
 fn gateway_skey_store_replace_all_rolls_back_target_on_insert_failure() -> Result<()> {
     for_each_gateway_skey_store_provider(gateway_skey_store_replace_all_rollback)
 }
@@ -67,6 +69,7 @@ fn gateway_skey_store_replace_all_rollback(store: &GatewaySkeyStore) -> Result<(
 }
 
 #[test]
+// 原始密钥只用于生成哈希和掩码，读接口不得返回明文。
 fn gateway_skey_store_hashes_and_masks_raw_skeys_without_returning_plaintext() -> Result<()> {
     for_each_gateway_skey_store_provider(gateway_skey_store_normalizes_raw_skey)
 }

@@ -1,4 +1,5 @@
 //! 验证待办存储的替换、合并、锁恢复及异常参数处理。
+//! 每个用例使用唯一会话键隔离全局存储，避免并行测试互相污染。
 
 use super::store::{read_for_tool, read_for_ui, recover_lock, write_todos};
 use serde_json::{Value, json};
@@ -11,6 +12,7 @@ fn session(name: &str) -> String {
     format!("store-test-{name}-{}", NEXT.fetch_add(1, Ordering::Relaxed))
 }
 
+// 工具输出保持 JSON 文本，因此统一解析后再比较字段语义而非格式细节。
 fn parse(output: &str) -> Vec<Value> {
     serde_json::from_str(output).unwrap()
 }

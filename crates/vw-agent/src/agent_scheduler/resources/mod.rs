@@ -11,12 +11,14 @@ use crate::agent_scheduler::store::resources::ResourceKind;
 pub mod worktree;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 资源提供者接收的任务、资源种类与租期请求。
 pub struct AcquireResourceRequest {
     pub holder_id: HolderId,
     pub task_id: TaskId,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 提供者返回的资源租约和实现专属元数据。
 pub struct ResourceLease {
     pub resource_kind: ResourceKind,
     pub resource_id: ResourceId,
@@ -26,6 +28,7 @@ pub struct ResourceLease {
 }
 
 #[async_trait]
+/// 调度器申请和释放外部资源的同步抽象。
 pub trait ResourceProvider {
     async fn acquire(&self, request: AcquireResourceRequest) -> Result<Option<ResourceLease>>;
 

@@ -1,4 +1,6 @@
 //! 验证会话索引条目解析、排序读写以及从记录文件重建索引。
+//!
+//! 临时目录和最小记录 fixture 用于验证磁盘格式，不共享真实用户会话数据。
 
 use super::*;
 use crate::{SESSION_RECORD_SCHEMA, SessionEventLog, SessionTokenUsage};
@@ -67,6 +69,7 @@ async fn write_record_file(dir: &Path, file_name: &str, record: &SessionRecord) 
         .expect("write record");
 }
 
+// 下列行为用例覆盖合法往返、损坏输入、路径边界和索引恢复。
 #[test]
 fn parse_index_entry_requires_typed_required_fields_and_allows_missing_name() {
     let entry = parse_index_entry(&serde_json::json!({

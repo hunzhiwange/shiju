@@ -1,4 +1,5 @@
 //! 验证技能目录扫描的忽略规则、文件边界与问题收集。
+//! 扫描按确定性深度优先顺序收集，符号链接和超大文件在读取正文前即被拒绝。
 
 use super::*;
 use vw_config_types::skills::SkillSecurityConfig;
@@ -22,6 +23,7 @@ fn depth_first_collection_is_deterministic() {
 }
 
 #[test]
+// 脚本、链接和超大文件依赖元数据即可判定，拒绝路径不读取潜在危险正文。
 fn audit_path_flags_script_symlink_and_oversized_text_without_reading() {
     let dir = tempfile::tempdir().expect("temp dir");
     let script = dir.path().join("run.sh");

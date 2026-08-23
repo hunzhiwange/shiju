@@ -31,6 +31,7 @@ impl Drop for PathGuard {
     }
 }
 
+// 仓库夹具创建真实提交，确保分支解析覆盖 Git 实际引用结构。
 fn repo_with_initial_commit() -> (TempDir, Repository) {
     let temp = TempDir::new().expect("tempdir should create");
     let repo = Repository::init(temp.path()).expect("repo should init");
@@ -196,6 +197,7 @@ async fn init_updates_info_and_publishes_when_head_changes() {
 }
 
 #[tokio::test]
+// HEAD 文件事件不等于分支变化，值未变时不得产生重复通知。
 async fn init_does_not_publish_when_head_event_keeps_same_branch() {
     let (temp, repo) = repo_with_initial_commit();
     let commit = repo.head().expect("head should exist").peel_to_commit().expect("head commit");

@@ -1,4 +1,6 @@
 //! 验证客户端辅助逻辑对会话选项、认证、错误和进程上下文的处理。
+//!
+//! 协议连接、回调和通道 fixture 用于隔离验证客户端边界，不替代生产实现。
 
 use std::collections::HashMap;
 use std::error::Error as StdError;
@@ -61,6 +63,7 @@ fn map_error(
     map_client_error(Box::new(err), permission_stats)
 }
 
+// 下列行为用例覆盖有效响应、无效状态以及协议或通道失败路径。
 #[test]
 fn session_options_meta_filters_empty_values() {
     let meta = build_session_options_meta(Some(&AcpSessionOptions {

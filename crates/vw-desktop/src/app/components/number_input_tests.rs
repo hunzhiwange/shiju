@@ -1,3 +1,6 @@
+//! 验证数值输入的解析、范围约束、步进消息与显示格式。
+//! 非法文本、上下界和带后缀显示用于区分编辑值与提交值。
+
 use super::{
     NumberInput, NumberInputStyleVariant, State, clamp, fmt_value, prop_text_input_style,
     round_precision, settings_text_input_style,

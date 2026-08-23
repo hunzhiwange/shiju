@@ -3,6 +3,7 @@
 use crate::question::{ListQuestionsRequest, QuestionKind, QuestionStatus, ReplyQuestionRequest};
 use serde_json::json;
 
+// 空问题请求表示不筛选、不作答，类型和状态仍使用稳定协议值。
 #[test]
 fn question_requests_default_to_no_filter_or_answer() {
     let list: ListQuestionsRequest = serde_json::from_value(json!({})).expect("valid list");

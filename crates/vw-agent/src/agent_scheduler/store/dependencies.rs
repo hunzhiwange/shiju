@@ -1,4 +1,5 @@
 //! 持久化 SQLite 任务依赖、构建就绪图，并阻止修改已有执行约束的后继关系。
+//! 依赖替换与相关任务读取在即时事务中完成，避免并发派发观察到半更新图。
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -82,6 +83,7 @@ impl AgentSchedulerStore {
     }
 }
 
+/// 从任务快照与依赖边构建已验证图，所有结构错误原样返回调用者。
 pub(crate) fn build_task_graph(
     dependencies: Vec<AgentTaskDependency>,
     tasks: BTreeMap<String, TaskGraphTaskSnapshot>,
@@ -184,6 +186,7 @@ fn parse_task_kind(value: &str) -> Result<AgentTaskKind> {
     }
 }
 
+/// 拒绝修改已进入执行阶段任务的后继边，保护既有调度因果关系。
 pub(crate) fn ensure_mutable_successors(
     existing_dependencies: &[AgentTaskDependency],
     dependencies: &[AgentTaskDependency],

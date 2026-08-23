@@ -1,3 +1,6 @@
+//! 验证模型设置的提供商筛选、批量操作、状态视图与详情覆盖层。
+//! 搜索分别匹配提供商、模型编号和名称，禁用模型不得意外消失于详情流程。
+
 use super::*;
 use crate::app::state::{
     ModelConfigTab, ModelDetailModalState, ModelDetailRow, ModelSummary, ProviderModelsSummary,
@@ -7,6 +10,7 @@ use iced::advanced::widget::Tree;
 use iced::widget::text;
 use serde_json::json;
 
+// 提供商目录完全由 fixture 提供，避免网络刷新状态进入筛选和批量操作测试。
 fn test_app() -> App {
     App::new().0
 }

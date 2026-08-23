@@ -1,4 +1,5 @@
 //! 验证技能列表的筛选、排序和展示信息构造行为。
+//! 增量列表受预算约束并保持确定排序，尚未发送的技能留待后续轮次。
 
 use super::{Skill, SkillListingSessionState};
 

@@ -1,3 +1,6 @@
+// 验证设置标签切换、帮助面板与嵌套搜索目标导航。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::{
     SettingsTab,
@@ -27,6 +30,8 @@ async fn collect_task_messages(task: Task<Message>) -> Vec<Message> {
     Vec::new()
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn top_level_tab_selection_updates_tab_and_closes_help() {
     let mut app = app();
@@ -127,6 +132,8 @@ fn legacy_themes_tab_selection_opens_general_themes_tab_and_refreshes() {
     assert!(has_scheduled_action(task));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn providers_and_models_selection_prepare_loading_before_refresh() {
     let mut app = app();
@@ -402,6 +409,8 @@ async fn legacy_channels_system_tab_redirects_to_agent_channels_tab() {
     ));
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[tokio::test(flavor = "multi_thread")]
 async fn legacy_runtime_system_tab_redirects_to_agent_runtime_tab() {
     let mut app = app();
@@ -532,6 +541,8 @@ async fn staff_selection_resets_feedback_and_requests_all_dependencies() {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unhandled_settings_message_is_rejected_without_state_change_or_task() {
     let mut app = app();

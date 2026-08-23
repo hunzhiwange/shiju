@@ -1,3 +1,7 @@
+//! 验证应用消息分派及关键更新分支的状态转换。
+//!
+//! 消息样例覆盖同步状态变更与异步任务输出，重点保护分派顺序和无关字段不变。
+
 use super::*;
 use crate::app::state::{ExternalOpenApp, RuntimePlatform};
 use serde_json::json;

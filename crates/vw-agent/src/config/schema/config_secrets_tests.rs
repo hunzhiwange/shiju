@@ -9,6 +9,7 @@ use crate::app::agent::security::SecretStore;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+// 集合元素的位置会进入错误上下文，便于定位具体失败字段而不暴露密钥内容。
 #[test]
 fn vec_and_map_secrets_noop_when_encryption_disabled() {
     let tmp = tempfile::tempdir().unwrap();
@@ -57,6 +58,7 @@ fn vec_and_map_secrets_encrypt_once_and_round_trip() {
     assert_eq!(map_values.get("two").map(String::as_str), Some("delta"));
 }
 
+// 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 #[test]
 fn vec_and_map_decrypt_errors_include_position() {
     let tmp = tempfile::tempdir().unwrap();

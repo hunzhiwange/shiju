@@ -1,3 +1,6 @@
+//! 验证补丁工具视图的差异识别、状态呈现、路径摘要与交互样式。
+//! 畸形信封、错误工具名和空结果均应保守拒绝，生命周期状态则仍能生成可诊断视图。
+
 use super::apply_patch_view::{
     apply_patch_change_totals, apply_patch_file_button_style, apply_patch_file_expand_key,
     apply_patch_header_file_icon, apply_patch_header_summary, apply_patch_inner_card_style,

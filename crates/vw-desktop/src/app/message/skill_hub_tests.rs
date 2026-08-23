@@ -1,3 +1,6 @@
+// 验证私有技能仓库、版本操作与异步结果时序保护。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::SkillHubMessage;
 use super::skill_hub::{
     ShijuDownloadChunk, agent_install_text, dispatch_download_with, dispatch_shiju_download_with,
@@ -36,6 +39,8 @@ fn repository_with_account(secret: &str, company_id: &str) -> AccountRepository 
     repository
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn shiju_package_refresh_message_ignores_late_result_and_preserves_cache_on_failure() {
     let cached =
@@ -461,6 +466,8 @@ fn skill_hub_message_routes_tabs_search_pages_and_account_changes() {
     assert_skill_hub_routes_tabs_search_pages_and_account_changes();
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn skill_hub_list_filters_submit_reset_and_restart_pagination() {
     let (mut app, _) = App::new();
@@ -959,6 +966,8 @@ fn skill_detail_readme_ignores_stale_results_and_preserves_detail() {
     assert!(matches!(detail.detail, LoadState::Loaded(_)));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn install_guide_routes_current_package_copy_download_and_direct_install() {
     let (mut app, _) = App::new();
@@ -1407,6 +1416,8 @@ fn install_guide_uninstall_completion_updates_local_status_and_ignores_stale_res
     assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Success));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn shiju_download_writer_preserves_chunk_order_and_propagates_errors() {
     let archive = NamedTempFile::new().expect("archive fixture");

@@ -1,7 +1,12 @@
+// 验证项目会话消息向打开、编辑和工作树模块分派。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::handle;
 use crate::app::App;
 use crate::app::message::project::ProjectMessage;
 
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -18,6 +23,8 @@ fn handle_returns_none_for_non_session_message() {
     assert!(task.is_none());
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn handle_dispatches_recent_overlay_close_to_open_module() {
     let (mut app, _task) = App::new();
@@ -44,6 +51,8 @@ fn handle_dispatches_project_tools_toggle_to_edit_module() {
     assert_eq!(app.project_tools_menu_path, Some(path));
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn handle_dispatches_project_create_session_picker_close_to_worktree_module() {
     let (mut app, _task) = App::new();
@@ -55,6 +64,8 @@ fn handle_dispatches_project_create_session_picker_close_to_worktree_module() {
     assert!(app.new_session_picker_project.is_none());
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn handle_dispatches_session_right_click_to_lifecycle_module() {
     let (mut app, _task) = App::new();

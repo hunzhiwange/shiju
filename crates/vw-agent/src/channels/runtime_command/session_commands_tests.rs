@@ -1,3 +1,5 @@
+// 本文件验证会话提供者和模型的展示、切换、持久化与历史清理。
+
 use super::super::*;
 use super::session_commands::{
     handle_new_session, handle_set_model, handle_set_provider, handle_show_model,
@@ -119,6 +121,7 @@ fn handle_set_model_rejects_blank_model_without_mutating_route() {
 }
 
 #[test]
+// 模型切换同步持久化路由并清空旧历史，避免上下文串用。
 fn handle_set_model_trims_backticks_persists_route_and_clears_history() {
     let temp = tempfile::tempdir().expect("temp dir");
     let ctx = context(temp.path(), "default-provider", "default-model");
@@ -297,4 +300,3 @@ async fn handle_task_mode_clears_session_history_and_enables_task_mode() {
     assert!(!ctx.conversation_histories.lock().unwrap().contains_key(&sender_key));
     assert!(get_route_selection(&ctx, &sender_key).task_mode_enabled);
 }
-// 本文件验证会话提供者和模型的展示、切换、持久化与历史清理。

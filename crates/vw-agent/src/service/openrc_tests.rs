@@ -176,6 +176,7 @@ fn copy_dir_recursive_reports_target_creation_context() {
 
 #[cfg(unix)]
 #[test]
+// 状态迁移不跟随符号链接，防止复制范围逃出旧状态目录。
 fn copy_dir_recursive_does_not_follow_symbolic_links() {
     use std::os::unix::fs::symlink;
 
@@ -236,6 +237,7 @@ fn runtime_state_migration_skips_source_without_config_file() {
 }
 
 #[test]
+// 迁移只补缺失文件，目标已有配置代表用户选择，不能被覆盖。
 fn runtime_state_migration_copies_state_and_preserves_existing_target_files() {
     let temp = tempfile::tempdir().expect("temporary directory");
     let source = temp.path().join("source");
@@ -332,6 +334,7 @@ fn root_detection_matches_current_uid() {
 
 #[cfg(unix)]
 #[test]
+// 权限检查先于任何系统路径写入，失败时保持主机不变。
 fn openrc_install_requires_root_before_touching_system_paths() {
     if is_root() {
         return;

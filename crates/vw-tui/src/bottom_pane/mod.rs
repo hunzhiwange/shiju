@@ -87,16 +87,31 @@ impl BottomPane {
     }
 
     pub(crate) fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
-        let action = self.composer.handle_key_event(event);
-        if let V3Action::Queue { text, .. } = &action {
-            self.pending_input_preview.queued_messages.push(text.clone());
-            self.composer.set_queued_count(self.pending_input_preview.queued_messages.len());
-        }
-        action
+        self.composer.handle_key_event(event)
     }
 
     pub(crate) fn handle_paste(&mut self, text: String) -> V3Action {
         self.composer.handle_paste(text)
+    }
+
+    pub(crate) fn draft(&self) -> &str {
+        self.composer.text()
+    }
+
+    pub(crate) fn replace_draft(&mut self, text: &str) {
+        self.composer.replace_text(text);
+    }
+
+    pub(crate) fn push_queued_input(&mut self, text: String) {
+        self.pending_input_preview.queued_messages.push(text);
+        self.composer.set_queued_count(self.pending_input_preview.queued_messages.len());
+    }
+
+    pub(crate) fn pop_queued_input(&mut self) {
+        if !self.pending_input_preview.queued_messages.is_empty() {
+            self.pending_input_preview.queued_messages.remove(0);
+        }
+        self.composer.set_queued_count(self.pending_input_preview.queued_messages.len());
     }
 }
 

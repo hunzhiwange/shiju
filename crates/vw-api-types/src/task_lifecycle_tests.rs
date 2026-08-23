@@ -6,6 +6,7 @@ use crate::task_lifecycle::{
 };
 use serde_json::json;
 
+// 完整工作流 fixture 覆盖角色标志、后继状态、结果转换及增删接口形状。
 #[test]
 fn task_lifecycle_workflow_dto_round_trips_and_validates() {
     let workflow = TaskLifecycleWorkflowDto {
@@ -138,6 +139,7 @@ fn task_lifecycle_workflow_dto_round_trips_and_validates() {
     assert_eq!(invalid.validate(), Err("unknown workflow transition target: missing".to_string()));
 }
 
+// 校验器必须在查找引用目标前拒绝空状态键、后继状态和转换目标。
 #[test]
 fn task_lifecycle_workflow_rejects_blank_status_keys_and_targets() {
     let status = TaskLifecycleStatusDto {

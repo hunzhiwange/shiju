@@ -1,6 +1,11 @@
+// 验证工作树选项刷新、过期结果过滤及默认选项回退。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use crate::app::message::git::GitMessage;
 use crate::app::state::GitWorktreeOption;
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn refresh_worktree_options_without_project_clears_state() {
     let (mut app, _task) = crate::app::App::new();
@@ -200,6 +205,8 @@ fn worktree_options_ready_with_empty_result_clears_selected_directory() {
     assert_eq!(app.selected_git_worktree_directory, None);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn worktree_options_ready_error_resets_options_and_reports_error() {
     let (mut app, _task) = crate::app::App::new();
@@ -381,6 +388,8 @@ fn refresh_diff_file_metas_with_project_marks_request_loading() {
     assert_eq!(app.git_diff_file_metas_repo_path.as_deref(), Some("/repo"));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn changed_files_ready_ignores_stale_repo_path() {
     let (mut app, _task) = crate::app::App::new();
@@ -553,6 +562,8 @@ fn load_diff_content_without_repository_does_not_mark_file_loading() {
     assert!(!app.git_diff_contents.contains_key("src/lib.rs"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn diff_content_ready_ignores_unknown_file_but_clears_loading() {
     let (mut app, _task) = crate::app::App::new();

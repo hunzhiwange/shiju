@@ -1,3 +1,6 @@
+//! 验证 LSP 工具的操作标题、计数摘要、元信息与各类结果视图。
+//! 结构化计数优先，缺失时依次回退查询和路径；完全无信息则保持空摘要。
+
 use super::lsp_view::{LspToolData, action_title, meta_text, summary_from_data, tool_lsp_view};
 use crate::app::{App, Message};
 use serde_json::{Value, json};

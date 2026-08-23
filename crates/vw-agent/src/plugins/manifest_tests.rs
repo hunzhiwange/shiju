@@ -5,6 +5,7 @@ use serde_json::json;
 use std::fs;
 use std::path::Path;
 
+// 清单写入夹具保留原始 JSON 形态，用于覆盖缺字段和非法路径。
 fn write_plugin_manifest(plugin_root: &Path, manifest: serde_json::Value) {
     let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
@@ -105,6 +106,7 @@ fn plugin_manifest_accepts_vibewindow_plugin_json() {
 }
 
 #[test]
+// 组件路径只能位于插件根目录内，防止清单借相对路径扩大访问范围。
 fn plugin_manifest_rejects_path_escape() {
     let dir = tempfile::tempdir().expect("temp dir");
     let plugin_root = dir.path().join("escape-plugin");

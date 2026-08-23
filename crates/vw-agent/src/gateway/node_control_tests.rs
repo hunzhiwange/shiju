@@ -1,4 +1,6 @@
 // 验证节点控制请求的校验、调度及错误映射边界。
+
+// 节点 allowlist 只接受完整节点名或全量通配符，不能把部分通配当作授权。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
@@ -13,6 +15,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 
+// 节点控制不需要真实聊天能力，最小 provider 仅用于组装完整应用状态。
 struct StaticProvider;
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]

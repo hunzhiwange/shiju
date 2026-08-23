@@ -1,4 +1,6 @@
 //! 验证队列请求与所有者消息的完整解析、默认值及错误载荷。
+//!
+//! 临时租约、套接字和消息 fixture 用于隔离队列所有权与 IPC 边界。
 
 use super::*;
 use std::collections::HashMap;
@@ -64,6 +66,7 @@ fn test_session_send_result() -> SessionSendResult {
     }
 }
 
+// 下列行为用例覆盖有效交互、陈旧状态、非法消息和关闭清理。
 #[test]
 fn parse_queue_request_defaults_prompt_from_message() {
     let request = parse_queue_request(&json!({

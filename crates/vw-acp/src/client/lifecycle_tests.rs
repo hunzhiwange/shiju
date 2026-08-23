@@ -1,4 +1,6 @@
 //! 验证 Actor 生命周期快照、可复用会话识别与失效清理。
+//!
+//! 最小客户端、通道和运行时 fixture 用于显式驱动异步状态转换与资源收尾。
 
 use std::collections::HashMap;
 use std::thread;
@@ -17,6 +19,7 @@ fn client() -> AcpClient {
     )
 }
 
+// 下列行为用例重点检查复用、取消、通道关闭和失败后的状态一致性。
 #[test]
 fn has_reusable_session_matches_only_current_session() {
     let client = client();

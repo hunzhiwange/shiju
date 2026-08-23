@@ -1,4 +1,5 @@
 //! 确认新版技能模块的公开装配与兼容入口保持稳定。
+//! 模块级测试覆盖旧目录兼容与后台同步去重，避免请求线程直接运行版本控制命令。
 
 use super::*;
 
@@ -66,6 +67,7 @@ fn discover_default_sources_includes_legacy_workspace_directory() {
 
 #[cfg(unix)]
 #[test]
+// 请求线程只读取当前可用技能，仓库同步必须调度到后台以避免阻塞会话。
 fn skill_loading_never_runs_open_skills_vcs_on_request_thread() {
     let _env_lock =
         crate::test_support::global_env_lock().lock().unwrap_or_else(|error| error.into_inner());

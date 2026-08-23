@@ -1,4 +1,5 @@
 //! 验证旧版技能安装的来源校验、复制与冲突处理行为。
+//! 安装夹具覆盖本地目录、Git 仓库、符号链接和失败清理，目标冲突时不允许半安装。
 
 use super::*;
 use std::ffi::OsString;
@@ -41,6 +42,7 @@ fn default_security() -> SkillSecurityConfig {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 本地 Git 仓库只作为安装来源夹具，安装完成后目标中不得残留版本控制元数据。
 fn run_git(repo: &Path, args: &[&str]) {
     let output = git_std_command().args(args).current_dir(repo).output().expect("run git");
     assert!(
@@ -344,6 +346,7 @@ fn secure_copy_rejects_symlinked_skill_source_root() {
 
 #[cfg(all(not(target_arch = "wasm32"), unix))]
 #[test]
+// 安全复制在遍历前拒绝链接，防止复制阶段越出经过审计的源目录。
 fn secure_copy_rejects_symlinks_inside_skill_source() {
     let dir = tempfile::tempdir().expect("temp dir");
     let source = dir.path().join("source");

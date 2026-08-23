@@ -1,4 +1,6 @@
 // 验证阿里云嵌入提供方的请求构造、响应解析与错误处理。
+
+// 本地 HTTP fixture 检查请求路径和载荷，并覆盖缺失数组及非成功响应。
 use super::*;
 
 #[cfg(not(target_arch = "wasm32"))]

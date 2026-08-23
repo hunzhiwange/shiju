@@ -1,4 +1,6 @@
 //! 验证客户端错误到权限结果的映射以及统计计数更新。
+//!
+//! 构造的权限错误和统计容器用于观察映射结果，不依赖协议连接。
 
 use std::error::Error as StdError;
 
@@ -22,6 +24,7 @@ fn map_error(
     map_client_error(Box::new(err), permission_stats)
 }
 
+// 下列行为用例分别固定拒绝、取消和无关错误对统计值的影响。
 #[test]
 fn permission_denied_error_increments_denied_and_preserves_message() {
     let permission_stats = stats();

@@ -1,4 +1,5 @@
 //! 测试循环运行器的启动参数、完成结果与错误传播。
+//! 环境变量串行锁与一次性网关夹具隔离全局状态，避免测试互相污染。
 
 use crate::app::agent::config::Config;
 
@@ -11,6 +12,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
+// 环境变量属于进程全局状态，所有修改必须持有同一把串行锁。
 fn env_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))

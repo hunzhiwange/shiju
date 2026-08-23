@@ -12,6 +12,7 @@ fn marker_path(root: &Path) -> PathBuf {
     root.join("active_workspace.toml")
 }
 
+// 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn workspace_config_resolution_returns_config_and_workspace_dirs() {
     let workspace = std::path::Path::new("/tmp/vw-workspace");
@@ -103,6 +104,7 @@ fn config_resolution_source_strings_are_stable() {
     assert_eq!(ConfigResolutionSource::DefaultConfigDir.as_str(), "default");
 }
 
+// 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 #[test]
 fn temp_directory_detection_handles_existing_and_missing_paths() {
     let tmp = tempfile::tempdir().unwrap();

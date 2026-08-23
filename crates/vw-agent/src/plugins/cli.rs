@@ -9,7 +9,9 @@ use super::install::{
 };
 use super::{PluginCommands, PluginDiscoveryOptions, PluginManifest, discover_plugins};
 
-/// Handle plugin management commands.
+/// 执行插件列表、审计、安装、启停和移除命令。
+///
+/// 各分支只输出完成后的结果；路径与清单错误原样向调用方传播。
 pub fn handle_command(command: PluginCommands, config: &crate::config::Config) -> Result<()> {
     let plugins_dir = install_dir_from_config(config);
 

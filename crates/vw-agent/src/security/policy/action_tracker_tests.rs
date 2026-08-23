@@ -22,6 +22,7 @@ fn default_and_clone_have_independent_action_lists() {
 }
 
 #[test]
+// 计数和新增动作都会清理过期记录，避免限流窗口永久累积。
 fn expired_actions_are_pruned_from_count_and_record() {
     let tracker = ActionTracker::new();
     {

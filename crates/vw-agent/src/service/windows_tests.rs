@@ -33,6 +33,7 @@ fn windows_task_name_is_stable() {
 
 #[cfg(not(target_os = "windows"))]
 #[test]
+// 即使计划任务注册失败，测试也确认包装脚本生成顺序和错误传播。
 fn install_windows_writes_wrapper_before_schtasks_failure() {
     let (_dir, config) = temp_config();
     let result = install_windows(&config);
@@ -126,6 +127,7 @@ fn start_windows_reports_spawn_failure_when_schtasks_is_missing() {
 
 #[cfg(not(target_os = "windows"))]
 #[test]
+// 停止和查询在任务不存在时保持幂等，便于安全重复清理。
 fn stop_and_status_windows_are_idempotent_when_schtasks_is_missing() {
     stop_windows().expect("stop ignores command failure");
     status_windows().expect("status maps command failure to not installed output");

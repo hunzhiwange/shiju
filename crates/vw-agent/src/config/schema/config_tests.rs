@@ -38,6 +38,7 @@ impl Drop for EnvVarGuard {
     }
 }
 
+// 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn config_ext_validate_accepts_default_config() {
     Config::default().validate().unwrap();
@@ -60,6 +61,7 @@ fn config_ext_apply_env_overrides_is_callable() {
     config.apply_env_overrides();
 }
 
+// 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 #[test]
 fn named_model_provider_profile_returns_when_provider_is_missing_or_unknown() {
     let mut missing = Config::default();

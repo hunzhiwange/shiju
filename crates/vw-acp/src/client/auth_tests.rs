@@ -1,4 +1,6 @@
 //! 验证认证策略、凭据来源优先级及代理认证错误映射。
+//!
+//! 隔离的环境变量与协议连接 fixture 用于固定凭据来源及认证策略边界。
 
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
@@ -165,6 +167,7 @@ async fn with_connection<R>(
         .await
 }
 
+// 下列行为用例覆盖凭据优先级、空值过滤和认证失败映射。
 #[tokio::test]
 async fn authenticate_if_required_ignores_empty_method_list() {
     with_connection(TestAgent::new(), async |conn, agent| {

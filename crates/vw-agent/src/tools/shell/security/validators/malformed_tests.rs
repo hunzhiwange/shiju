@@ -1,4 +1,5 @@
 //! 验证畸形 shell 输入校验器的稳定名称与拒绝边界。
+//! 完整普通命令不得被标记，确保解析失败和合法输入之间界线明确。
 
 use super::*;
 use crate::tools::shell::ast::parse_command;

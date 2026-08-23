@@ -1,3 +1,6 @@
+//! 验证工具视图领域类型完整保留调用方显式提供的字段。
+//! 该构造测试防止后续默认值或字段重排悄然覆盖上游解析结果。
+
 use super::types::{
     ChangeFile, ChangeFileSummary, CommandItem, EXPLORE_GROUP_TOOL_IDX, ExploreItem,
 };

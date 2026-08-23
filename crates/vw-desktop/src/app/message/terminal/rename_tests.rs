@@ -1,3 +1,6 @@
+// 验证终端标签重命名草稿、缺失标签与菜单清理行为。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use crate::app::terminal::TerminalState;
 
 fn terminal_with_context_menu() -> TerminalState {
@@ -7,6 +10,8 @@ fn terminal_with_context_menu() -> TerminalState {
     terminal
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn rename_start_closes_context_menu_and_selects_missing_tab() {
     let mut terminal = terminal_with_context_menu();
@@ -49,6 +54,8 @@ fn rename_save_for_missing_tab_still_closes_context_menu() {
     assert!(terminal.tabs.is_empty());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn rename_cancel_for_missing_tab_still_closes_context_menu() {
     let mut terminal = terminal_with_context_menu();
@@ -93,6 +100,8 @@ fn save_edit_trims_nonempty_title_and_consumes_draft() {
     assert_eq!(edit_title, None);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn save_edit_rejects_blank_title_and_consumes_draft() {
     let mut title = "Original".to_string();
@@ -124,6 +133,8 @@ fn cancel_edit_discards_draft() {
     assert_eq!(edit_title, None);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn public_update_for_missing_tab_still_applies_cancel_cleanup() {
     let (mut app, _task) = crate::app::App::new();

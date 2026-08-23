@@ -1,4 +1,5 @@
 //! 验证 Git 工具基于仓库状态执行读写操作、返回结构化结果并遵守安全约束。
+//! 测试使用临时真实仓库覆盖发现、状态、提交、分支、暂存及只读拒绝路径。
 
 use super::super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
@@ -15,6 +16,7 @@ fn test_tool(dir: &Path) -> GitOperationsTool {
     GitOperationsTool::new(security, dir.to_path_buf())
 }
 
+// 每个用例获得独立仓库，避免分支、索引或工作树状态在测试之间泄漏。
 fn repository() -> TempDir {
     let tmp = TempDir::new().unwrap();
     let repo = Repository::init(tmp.path()).unwrap();

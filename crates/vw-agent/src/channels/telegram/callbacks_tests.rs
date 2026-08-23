@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 审批回调解析、请求载荷与异步清理调度。
+
 use super::TelegramChannel;
 use axum::{
     Router,
@@ -154,6 +156,7 @@ async fn nonblocking_callback_helpers_post_expected_bodies() {
 }
 
 #[tokio::test]
+// 审批回调既生成渠道消息，也安排按钮清理以免重复操作。
 async fn approval_callback_query_builds_channel_message_and_schedules_cleanup() {
     let server = TestServer::spawn().await;
     let channel = TelegramChannel::new("123:ABC".to_string(), vec!["tester".to_string()], false)
@@ -259,4 +262,3 @@ fn approval_callback_query_rejects_missing_required_fields() {
         assert!(channel.try_parse_approval_callback_query(&update).is_none());
     }
 }
-// 本文件验证 Telegram 审批回调解析、请求载荷与异步清理调度。

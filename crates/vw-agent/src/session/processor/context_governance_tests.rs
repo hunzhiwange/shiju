@@ -15,6 +15,7 @@ fn message(role: Role, content: &str) -> Message {
 }
 
 #[test]
+// 代理协议提醒属于不可裁剪系统约束，即使上下文超限也要保留。
 fn context_compaction_never_removes_agents_protocol_reminder() {
     let reminder = json!({
         "role": "user",
@@ -99,6 +100,7 @@ fn history_trim_handles_zero_budget_and_in_range_history() {
 }
 
 #[test]
+// 旧工具结果可清空大正文，但调用标识和角色字段必须保留以维持配对。
 fn stale_tool_results_clear_content_but_keep_protocol_fields() {
     let mut messages = vec![
         json!({
@@ -205,6 +207,7 @@ fn context_usage_prefers_positive_real_input_usage_and_estimates_missing_usage()
 }
 
 #[test]
+// 图片 Base64 体积不能按文本字符估算，否则会严重高估上下文用量。
 fn context_usage_does_not_count_base64_image_body_as_text_tokens() {
     let image_payload = "a".repeat(4 * 1024 * 1024);
     let mut messages = vec![json!({

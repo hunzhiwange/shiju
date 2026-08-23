@@ -1,4 +1,6 @@
 // 验证全局 PostgreSQL 数据库的连接、迁移与查询执行边界。
+
+// 测试连接配置刻意包含危险 URL 与模式名，错误信息不得回显连接密钥。
 use anyhow::Result;
 use std::time::Duration;
 

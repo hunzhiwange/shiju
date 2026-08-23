@@ -1,4 +1,6 @@
 //! 验证会话仓库路径规范化、索引加载及记录文件读写行为。
+//!
+//! 临时目录和最小记录 fixture 用于验证磁盘格式，不共享真实用户会话数据。
 
 use super::*;
 
@@ -121,6 +123,7 @@ async fn persist_index(session_dir: &Path, sessions: &[crate::SessionRecord]) {
         .expect("write index");
 }
 
+// 下列行为用例覆盖合法往返、损坏输入、路径边界和索引恢复。
 #[test]
 fn percent_encode_component_keeps_safe_bytes_and_encodes_path_separators() {
     assert_eq!(percent_encode_component("abc-_.!~*'()"), "abc-_.!~*'()");

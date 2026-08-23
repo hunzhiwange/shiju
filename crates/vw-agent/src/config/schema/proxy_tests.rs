@@ -71,6 +71,7 @@ fn enabled_proxy(url: &str) -> ProxyConfig {
     ProxyConfig { enabled: true, http_proxy: Some(url.to_string()), ..Default::default() }
 }
 
+// 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn proxy_parsers_accept_all_aliases_case_and_whitespace() {
     for raw in ["1", "true", "yes", "on", " TRUE ", "On"] {
@@ -138,6 +139,7 @@ fn proxy_validation_allows_disabled_empty_and_non_service_scopes() {
     assert!(validate_proxy_config(&environment).is_ok());
 }
 
+// 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 #[test]
 fn proxy_validation_rejects_enabled_config_without_nonblank_url() {
     let missing_url = ProxyConfig { enabled: true, ..Default::default() };

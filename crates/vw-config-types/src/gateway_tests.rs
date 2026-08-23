@@ -1,3 +1,7 @@
+//! 验证网关认证、限流、隧道与节点控制配置的默认及兼容行为。
+//! 默认值测试关注安全关闭状态，兼容测试保护旧版密钥配置的启用语义。
+
+// 默认监听本机且关闭可选控制面，避免空配置扩大网络或节点权限。
 #[test]
 fn gateway_defaults_cover_auth_and_rate_limits() {
     let config = super::GatewayConfig::default();
@@ -10,6 +14,7 @@ fn gateway_defaults_cover_auth_and_rate_limits() {
     assert!(!config.node_control.enabled);
 }
 
+// 节点控制字段必须完整保留显式配置，同时隧道仍以禁用提供方为默认。
 #[test]
 fn tunnel_defaults_and_node_control_deserialize() {
     let tunnel = super::TunnelConfig::default();
@@ -29,6 +34,7 @@ fn tunnel_defaults_and_node_control_deserialize() {
     assert_eq!(parsed.node_control.allowed_node_ids, vec!["node-1"]);
 }
 
+// 旧配置没有 `enabled` 字段，读取时仍应保留既有密钥的可用状态。
 #[test]
 fn gateway_skey_defaults_to_enabled_for_legacy_configs() {
     let skey: super::GatewaySkey = serde_json::from_value(serde_json::json!({

@@ -100,6 +100,7 @@ fn user_image_urls(message: &Message) -> Vec<String> {
 }
 
 #[test]
+// 严格模式递归补齐嵌套对象必填字段，同时保留非对象模式。
 fn normalize_strict_object_required_recurses_through_schema_shapes() {
     let mut schema = json!({
         "type": "object",
@@ -329,6 +330,7 @@ fn openai_messages_to_aisdk_messages_converts_roles_and_tool_chain() {
 }
 
 #[test]
+// 严格供应商要求工具结果紧随对应调用，转换时需重排而不丢失输出。
 fn openai_messages_to_aisdk_messages_interleaves_tool_results_for_strict_providers() {
     let model = test_model("moonshotai-cn", "kimi-k3", "Kimi K3");
     let messages = json!([
@@ -687,6 +689,7 @@ fn openai_messages_to_aisdk_messages_detects_deepseek_provider_case_insensitivel
 }
 
 #[test]
+// 流式工具增量可能缺字段，合并时忽略空更新并保持已生成标识稳定。
 fn merge_tool_call_delta_ignores_blank_updates_and_keeps_fallback_id_stable() {
     let mut states = Vec::<StreamingToolCallState>::new();
     merge_tool_call_delta(

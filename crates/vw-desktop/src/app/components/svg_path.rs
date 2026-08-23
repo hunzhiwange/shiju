@@ -1,3 +1,5 @@
+//! 解析 SVG 路径数据，并构造可缩放或适配边界的 Iced 画布路径。
+
 use iced::{
     Point, Radians, Size,
     widget::canvas::{
@@ -7,6 +9,7 @@ use iced::{
 };
 use std::f32::consts::PI;
 
+/// 按给定原点和缩放构造路径；空几何数据返回 `None`。
 pub fn build_svg_path(geometry: &str, origin: Point, scale: f32) -> Option<Path> {
     if geometry.trim().is_empty() {
         return None;
@@ -18,6 +21,7 @@ pub fn build_svg_path(geometry: &str, origin: Point, scale: f32) -> Option<Path>
     }))
 }
 
+/// 等比缩放路径并居中放入目标矩形；无有效边界时返回 `None`。
 pub fn build_svg_path_fit(geometry: &str, box_origin: Point, box_size: Size) -> Option<Path> {
     let (min_x, min_y, max_x, max_y) = svg_path_bounds(geometry)?;
     let geom_w = (max_x - min_x).max(0.0);

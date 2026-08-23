@@ -1,3 +1,5 @@
+// 本文件验证 Matrix 房间引用解析、别名查询缓存与错误脱敏。
+
 use super::*;
 use std::collections::VecDeque;
 use std::fs;
@@ -109,6 +111,7 @@ async fn resolve_room_id_accepts_direct_room_ids() {
 }
 
 #[tokio::test]
+// 别名首次查询目录，后续命中缓存以减少网络请求。
 async fn resolve_room_alias_fetches_directory_endpoint_and_caches_target_room() {
     let (homeserver, handle) = mock_server(vec![(
         "/_matrix/client/v3/directory/room/%23alias%3Aserver",
@@ -451,4 +454,3 @@ async fn log_e2ee_diagnostics_handles_restored_and_logged_out_clients() {
     assert!(restored.user_id().is_some());
     assert!(logged_out.user_id().is_none());
 }
-// 本文件验证 Matrix 房间引用解析、别名查询缓存与错误脱敏。

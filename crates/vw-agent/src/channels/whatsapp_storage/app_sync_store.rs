@@ -1,5 +1,7 @@
 //! WhatsApp 应用状态同步存储，持久化同步密钥、版本和变更校验码。
 //!
+//! 所有记录均按当前 `device_id` 隔离，查询不到记录时按 trait 契约返回空值而非错误。
+//!
 //! AppSyncStore trait implementation for WhatsApp storage
 //!
 //! Implements WhatsApp app state synchronization operations including:

@@ -1,3 +1,5 @@
+//! 处理公共技能市场的检索、详情、安装与批量操作消息。
+
 use iced::Task;
 use vw_gateway_client::{
     DesktopSkillCatalogEntryDto, SkillMarketCategoryDto, SkillMarketCoordinateDto,
@@ -29,6 +31,7 @@ const MARKET_PAGE_SIZE: u32 = 24;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
+/// 公共技能市场的用户输入、加载结果与安装操作消息。
 pub(crate) enum PublicSkillMessage {
     LoadSources,
     SourcesLoaded {
@@ -127,6 +130,7 @@ pub(crate) enum PublicSkillMessage {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 归约器产生的网关请求描述；实际异步执行与状态变更保持分离。
 pub(crate) enum PublicRequest {
     Sources {
         generation: u64,
@@ -193,6 +197,7 @@ pub(crate) enum PublicRequest {
     },
 }
 
+/// 归约公共市场消息，并批量派发其产生的网关请求。
 pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message> {
     if let PublicSkillMessage::SelectDetailInstallProject(project_path) = &message {
         let project_path = project_path.trim();
@@ -355,6 +360,7 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
     Task::batch(tasks)
 }
 
+/// 在公共市场尚未初始化时加载来源与当前页，已加载时保持状态不变。
 pub(crate) fn ensure_loaded(app: &mut App) -> Task<Message> {
     if matches!(app.expert_hub.public_market.sources, LoadState::Idle | LoadState::Error(_)) {
         update(app, PublicSkillMessage::LoadSources)
@@ -363,6 +369,7 @@ pub(crate) fn ensure_loaded(app: &mut App) -> Task<Message> {
     }
 }
 
+/// 纯化处理公共市场状态转换，并返回后续请求而不直接执行网络操作。
 pub(crate) fn reduce(
     state: &mut PublicSkillMarketState,
     message: PublicSkillMessage,
@@ -799,6 +806,7 @@ fn known_install_project(app: &App, project_path: &str) -> bool {
         .any(|known| known.trim() == project_path)
 }
 
+/// 校验详情目标、项目范围和安装目标后开始一次安装请求。
 pub(crate) fn begin_install(
     state: &mut PublicSkillMarketState,
     project_path: Option<&str>,
@@ -897,6 +905,7 @@ fn install_selection(
     SkillMarketInstallSelectionDto { target, scope }
 }
 
+/// 为当前选中的已安装技能启动批量启停或删除操作。
 pub(crate) fn begin_batch_action(
     state: &mut PublicSkillMarketState,
     project_path: Option<&str>,

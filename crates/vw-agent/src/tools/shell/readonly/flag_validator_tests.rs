@@ -1,4 +1,5 @@
 //! 验证只读命令长短选项的精确匹配与聚合形式判定。
+//! 带值长选项可继承安全性，短选项组合则不得绕过显式不安全标志。
 
 use super::*;
 use crate::tools::shell::readonly::CommandAllowlistEntry;

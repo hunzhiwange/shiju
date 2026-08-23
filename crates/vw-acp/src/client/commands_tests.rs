@@ -1,4 +1,6 @@
 //! 验证会话命令与提示词请求通过 Actor 通道转发和返回结果。
+//!
+//! 协议连接、回调和通道 fixture 用于隔离验证客户端边界，不替代生产实现。
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -22,6 +24,7 @@ fn assert_cwd(actual: &Path, expected: &Path) {
     assert_eq!(actual, expected);
 }
 
+// 下列行为用例覆盖有效响应、无效状态以及协议或通道失败路径。
 #[tokio::test]
 async fn session_commands_forward_payloads_and_return_actor_responses() {
     let (client, mut command_rx) = client_with_actor();

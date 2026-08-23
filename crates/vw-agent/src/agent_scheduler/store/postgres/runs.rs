@@ -1,4 +1,5 @@
 //! 实现 PostgreSQL 运行记录的原子认领、心跳与收尾，并检查任务依赖和活动租约。
+//! 就绪认领会锁定任务及前驱快照，避免检查通过后被另一事务改写依赖状态。
 
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result};

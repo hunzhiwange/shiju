@@ -17,6 +17,7 @@ const RESOURCE_LEASE_COLUMNS: &str = "id, resource_kind, resource_id, holder_id,
 acquired_at_ms, expires_at_ms, released_at_ms, taint_reason, metadata_json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 调度器内建的资源互斥维度。
 pub enum ResourceKind {
     WorkerSlot,
     Worktree,
@@ -26,6 +27,7 @@ pub enum ResourceKind {
 }
 
 impl ResourceKind {
+    /// 返回资源表和事件载荷使用的稳定种类键。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::WorkerSlot => "worker_slot",
@@ -49,6 +51,7 @@ impl ResourceKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 资源租约的持有、释放、过期或撤销状态。
 pub enum ResourceLeaseStatus {
     Active,
     Released,
@@ -78,6 +81,7 @@ impl ResourceLeaseStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 获取资源租约所需的资源、持有者和期限。
 pub struct AcquireResourceLeaseRequest {
     pub lease_id: ResourceLeaseId,
     pub resource_kind: ResourceKind,
@@ -88,6 +92,7 @@ pub struct AcquireResourceLeaseRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 已持久化的资源租约及其释放或污染信息。
 pub struct StoredResourceLease {
     pub id: ResourceLeaseId,
     pub resource_kind: ResourceKind,
@@ -102,6 +107,7 @@ pub struct StoredResourceLease {
 }
 
 impl AgentSchedulerStore {
+    /// 过期旧租约后原子获取资源；活跃冲突会返回明确错误。
     pub fn acquire_resource_lease(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -164,6 +170,7 @@ impl AgentSchedulerStore {
         Ok(Some(stored))
     }
 
+    /// 释放活跃租约；可选污染原因会阻止资源被静默复用。
     pub fn release_resource_lease(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -206,6 +213,7 @@ impl AgentSchedulerStore {
         Ok(Some(stored))
     }
 
+    /// 延长活跃租约期限，非活跃租约不能续期。
     pub fn renew_resource_lease(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -258,6 +266,7 @@ impl AgentSchedulerStore {
         Ok(Some(stored))
     }
 
+    /// 将资源标记为污染并记录原因，供后续人工或恢复流程处理。
     pub fn mark_resource_tainted(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),

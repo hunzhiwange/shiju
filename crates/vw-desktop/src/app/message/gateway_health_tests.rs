@@ -1,3 +1,6 @@
+// 验证网关健康检查地址规范化及不可达服务的状态更新。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::gateway_health::{check_servers, server_health_key};
 use crate::app::state::GatewayClientServerDraft;
 use std::io::{Read, Write};
@@ -15,6 +18,8 @@ fn server(host: &str, port: u16) -> GatewayClientServerDraft {
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn server_health_key_defaults_blank_host_to_loopback() {
     let key = server_health_key(&server("  ", 42617));
@@ -29,6 +34,8 @@ fn server_health_key_adds_scheme_port_and_health_path() {
     assert_eq!(key.as_deref(), Some("http://gateway.local:8080/v1/health"));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn server_health_key_preserves_explicit_scheme_and_replaces_path_query() {
     let key = server_health_key(&server("https://gateway.example.test/base?debug=true", 443));
@@ -50,6 +57,8 @@ fn server_health_key_returns_none_for_unparseable_host() {
     assert_eq!(key, None);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[tokio::test(flavor = "multi_thread")]
 async fn check_servers_skips_unparseable_hosts_without_network_access() {
     let results = check_servers(vec![server("http://[", 8080)]).await;
@@ -64,6 +73,8 @@ async fn check_servers_marks_unreachable_loopback_server_unhealthy() {
     assert_eq!(results, vec![("http://127.0.0.1:1/v1/health".to_string(), false)]);
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[tokio::test(flavor = "multi_thread")]
 async fn check_servers_omits_tenant_headers() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind health fixture");

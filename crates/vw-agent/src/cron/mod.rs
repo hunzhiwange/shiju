@@ -1,4 +1,6 @@
 //! 定时任务领域入口，汇集计划表达、持久化、调度器与命令行操作。
+//!
+//! 命令层只编排领域操作；计划校验、下次运行时间与数据库更新由下层模块负责。
 
 use crate::app::agent::config::Config;
 use crate::app::agent::security::SecurityPolicy;
@@ -33,6 +35,7 @@ pub use types::{CronJob, CronJobPatch, CronRun, DeliveryConfig, JobType, Schedul
 use clap::Subcommand;
 
 #[derive(Debug, Clone, Subcommand)]
+/// 定时任务命令行支持的操作。
 pub enum CronCommands {
     /// List all scheduled jobs
     List,
@@ -88,6 +91,7 @@ pub enum CronCommands {
 }
 
 #[allow(clippy::needless_pass_by_value)]
+/// 执行一个定时任务命令并输出结果。
 pub fn handle_command(command: CronCommands, config: &Config) -> Result<()> {
     match command {
         CronCommands::List => {
@@ -212,12 +216,14 @@ pub fn handle_command(command: CronCommands, config: &Config) -> Result<()> {
     }
 }
 
+/// 创建相对当前时间延迟执行的一次性 shell 任务。
 pub fn add_once(config: &Config, delay: &str, command: &str) -> Result<CronJob> {
     let duration = parse_delay(delay)?;
     let at = chrono::Utc::now() + duration;
     add_once_at(config, at, command)
 }
 
+/// 创建在指定绝对时间执行的一次性 shell 任务。
 pub fn add_once_at(
     config: &Config,
     at: chrono::DateTime<chrono::Utc>,
@@ -227,10 +233,12 @@ pub fn add_once_at(
     add_shell_job(config, None, schedule, command)
 }
 
+/// 暂停任务但保留其配置和历史记录。
 pub fn pause_job(config: &Config, id: &str) -> Result<CronJob> {
     update_job(config, id, CronJobPatch { enabled: Some(false), ..CronJobPatch::default() })
 }
 
+/// 恢复任务并按当前时间重新计算下次运行时间。
 pub fn resume_job(config: &Config, id: &str) -> Result<CronJob> {
     update_job(config, id, CronJobPatch { enabled: Some(true), ..CronJobPatch::default() })
 }

@@ -1,3 +1,7 @@
+//! 验证 Git 差异评论与丢弃确认浮层的独立和叠加状态。
+//!
+//! 评论与丢弃草稿独立开关，验证双浮层同时存在时的包裹顺序。
+
 use super::*;
 use crate::app::state::{GitDiffCommentDraft, GitDiffLineRange};
 use iced::widget::text_editor;

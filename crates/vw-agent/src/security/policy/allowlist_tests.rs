@@ -27,6 +27,7 @@ fn allowlist_trims_whitespace_and_wrapping_quotes_before_matching() {
 }
 
 #[test]
+// 可执行文件路径按精确值匹配，不能只凭同名文件获得授权。
 fn allowlist_path_entries_require_the_exact_executable_path() {
     assert!(is_allowlist_entry_match("/opt/tools/git", "/opt/tools/git", "git"));
     assert!(!is_allowlist_entry_match("/opt/tools/git", "/usr/bin/git", "git"));
@@ -84,6 +85,7 @@ fn forbidden_path_arguments_check_redirect_in_executable_position() {
 }
 
 #[test]
+// 命令前的环境赋值不应遮蔽后续可执行文件和路径参数。
 fn forbidden_path_arguments_scan_environment_prefixed_command_segments() {
     let command = "MODE=safe cat ./allowed.txt && cp ../blocked ./later";
 

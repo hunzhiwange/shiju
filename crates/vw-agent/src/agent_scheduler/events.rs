@@ -3,6 +3,7 @@
 use anyhow::{Result, bail};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 可持久化的调度审计事件种类。
 pub enum AgentEventKind {
     TaskCreated,
     ImportedLegacyTask,
@@ -34,6 +35,7 @@ pub enum AgentEventKind {
 }
 
 impl AgentEventKind {
+    /// 返回事件存储和 API 载荷使用的稳定键。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::TaskCreated => "task_created",
@@ -66,6 +68,7 @@ impl AgentEventKind {
         }
     }
 
+    /// 解析稳定事件键；未知事件不会被静默接纳。
     pub fn parse(value: &str) -> Result<Self> {
         match value {
             "task_created" => Ok(Self::TaskCreated),
@@ -99,6 +102,7 @@ impl AgentEventKind {
         }
     }
 
+    /// 返回包含全部受支持事件种类的静态目录。
     pub fn catalog() -> &'static [Self] {
         &AGENT_EVENT_KIND_CATALOG
     }

@@ -268,6 +268,7 @@ async fn post_response(
     (status, body)
 }
 
+// 记录型提供商只接受规范坐标，确保下载地址和未知来源不能绕过市场选择。
 #[tokio::test]
 async fn skill_market_routes_delegate_to_selected_provider() {
     let calls = Arc::new(Mutex::new(Vec::new()));
@@ -305,6 +306,7 @@ async fn skill_market_routes_delegate_to_selected_provider() {
     );
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn skill_market_routes_reject_unknown_source() {
     let registry = Arc::new(SkillMarketProviderRegistry::new());

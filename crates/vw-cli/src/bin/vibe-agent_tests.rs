@@ -1,3 +1,7 @@
+//! `vibe-agent` 二进制入口的委托契约测试。
+//! 确认入口由 Tokio 驱动，且仅调用一次传入的异步执行函数。
+//! 成功、普通错误与具体错误类型都应原样穿过这一薄封装。
+
 #[test]
 fn binary_main_is_tokio_entry_source() {
     let source = include_str!("vibe-agent.rs");

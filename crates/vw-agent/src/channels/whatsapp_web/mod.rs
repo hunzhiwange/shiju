@@ -1,5 +1,7 @@
 //! 基于 wa-rs 的原生 WhatsApp Web 通道，负责配对、加密会话与消息收发。
 //!
+//! 完整实现仅在 `whatsapp-web` 特性启用时编译；禁用时保留同名类型并明确拒绝运行。
+//!
 //! WhatsApp Web channel using wa-rs (native Rust implementation)
 //!
 //! This channel provides direct WhatsApp Web integration with:
@@ -148,7 +150,7 @@ fn mime_from_path(path: &std::path::Path) -> &'static str {
     }
 }
 
-/// WhatsApp Web channel using wa-rs with custom rusqlite storage
+/// 使用 wa-rs 与自定义 rusqlite 后端的 WhatsApp Web 通道。
 ///
 /// # Status: Functional Implementation
 ///
@@ -181,7 +183,7 @@ pub struct WhatsAppWebChannel {
 }
 
 impl WhatsAppWebChannel {
-    /// Create a new WhatsApp Web channel
+    /// 创建通道并保存配对参数；实际客户端在监听阶段启动。
     ///
     /// # Arguments
     ///
@@ -691,14 +693,16 @@ impl Channel for WhatsAppWebChannel {
     }
 }
 
-// Stub implementation when feature is not enabled
+// 未启用特性时仍保留构造接口，让配置装配可以编译，但所有运行操作明确失败。
 #[cfg(not(feature = "whatsapp-web"))]
+/// 未启用 `whatsapp-web` 特性时的占位通道。
 pub struct WhatsAppWebChannel {
     _private: (),
 }
 
 #[cfg(not(feature = "whatsapp-web"))]
 impl WhatsAppWebChannel {
+    /// 构造占位通道；参数不会被使用。
     pub fn new(
         _session_path: String,
         _pair_phone: Option<String>,

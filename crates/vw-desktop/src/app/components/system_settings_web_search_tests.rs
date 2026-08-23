@@ -1,3 +1,7 @@
+//! 验证网页搜索提供商的条件字段、回退布局和辅助行控件。
+//!
+//! 各提供商夹具只启用自身条件字段，未知提供商则保留通用接口配置入口。
+
 use super::*;
 use crate::app::message::settings::{SettingsMessage, WebSearchMessage};
 use crate::app::{App, Message};

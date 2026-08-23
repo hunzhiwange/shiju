@@ -1,3 +1,5 @@
+// 本文件验证 Matrix 渠道接口的收发、健康检查与一次性密钥冲突保护。
+
 use super::*;
 use crate::app::agent::channels::traits::{Channel, SendMessage};
 use std::collections::VecDeque;
@@ -93,6 +95,7 @@ async fn send_propagates_matrix_client_initialization_error() {
 }
 
 #[tokio::test]
+// 一次性密钥冲突表示加密状态不可信，健康检查必须失败。
 async fn health_check_fails_when_otk_conflict_was_detected() {
     let ch = channel("!room:server");
     ch.otk_conflict_detected.store(true, Ordering::Relaxed);
@@ -179,4 +182,3 @@ async fn listen_propagates_invalid_room_reference_error() {
 
     assert!(err.to_string().contains("must start with '!' (room ID) or '#' (room alias)"));
 }
-// 本文件验证 Matrix 渠道接口的收发、健康检查与一次性密钥冲突保护。

@@ -23,6 +23,7 @@ fn hook(command: &str) -> PluginHook {
 }
 
 #[test]
+// 信任绑定到命令摘要，命令变化后必须重新审查而不能沿用旧授权。
 fn plugin_hook_trust_hash_changes_when_command_changes() {
     let first = plugin_hook_trust_hash("demo-plugin", &hook("first-command"));
     let second = plugin_hook_trust_hash("demo-plugin", &hook("second-command"));
@@ -73,6 +74,7 @@ fn plugin_hook_trust_revokes_only_the_exact_hash() {
 }
 
 #[test]
+// 损坏的信任存储应明确失败，不能按已信任或空存储静默放行。
 fn plugin_hook_trust_rejects_malformed_store() {
     let dir = tempfile::tempdir().expect("temp dir");
     let trust_path = dir.path().join("plugin-hook-trust.json");

@@ -1,4 +1,6 @@
 //! 验证运行时错误的中断识别、输出归一化和回退元数据应用。
+//!
+//! 最小会话记录、控制器和异步通道 fixture 用于驱动运行时状态与竞态分支。
 
 use super::*;
 use crate::OutputErrorCode;
@@ -34,6 +36,7 @@ impl std::fmt::Display for TestOperationalError {
     }
 }
 
+// 下列行为用例覆盖正常完成、超时中断、回退重试和资源清理。
 #[test]
 fn from_source_marks_interrupted_errors_in_source_chain() {
     let error = SessionRuntimeError::from_source(OuterError(InterruptedError));

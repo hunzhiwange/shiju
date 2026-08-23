@@ -1,3 +1,6 @@
+//! 验证禁用按钮及其提示层保持约定的紧凑尺寸。
+//! 借用标签与极小尺寸用例用于确认构建器不额外扩大几何范围。
+
 use iced::widget::text;
 use iced::{Element, Length};
 

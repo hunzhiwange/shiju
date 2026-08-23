@@ -3,6 +3,7 @@
 use super::{ChannelsConfig, decrypt_channel_secrets, encrypt_channel_secrets};
 use crate::app::agent::security::SecretStore;
 
+// 启用与禁用加密的夹具并列存在，用于确认明文模式不会被意外改写。
 #[test]
 fn channel_secret_round_trip_is_noop_when_encryption_disabled() {
     let tmp = tempfile::tempdir().unwrap();
@@ -231,6 +232,7 @@ fn channel_secret_round_trip_preserves_absent_optional_fields() {
     assert_eq!(channels.clawdtalk.unwrap().webhook_secret, None);
 }
 
+// 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 #[test]
 fn channel_secret_decrypt_error_identifies_named_instance_field() {
     let tmp = tempfile::tempdir().unwrap();

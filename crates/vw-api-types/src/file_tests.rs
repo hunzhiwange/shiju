@@ -4,6 +4,7 @@ use crate::file::{FileNodeDto, FileNodeKind, ListFilesRequest, WriteFileRequest}
 use crate::id::ProjectId;
 use serde_json::json;
 
+// 文件节点和请求 fixture 验证类型名称、递归子节点及写入策略的兼容默认值。
 #[test]
 fn file_dtos_apply_defaults_and_snake_case_kinds() {
     let node: FileNodeDto = serde_json::from_value(json!({

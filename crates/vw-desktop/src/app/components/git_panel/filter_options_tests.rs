@@ -1,3 +1,6 @@
+//! 验证 Git 过滤控件的帮助文案、消息映射、计数与主题样式。
+//! 空查询、大计数和所有开关组合用于确认输入值被原样传递。
+
 use crate::app::{Message, message};
 use iced::widget::{button, svg};
 use iced::{Background, Theme};

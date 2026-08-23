@@ -24,6 +24,7 @@ fn add_cron_job(config: &Config) -> CronJob {
     .unwrap()
 }
 
+// 固定时间与临时存储夹具用于隔离真实时钟和持久化状态，保证调度断言可重复。
 #[test]
 fn list_prints_agent_prompt_and_recorded_status() {
     let tmp = TempDir::new().unwrap();

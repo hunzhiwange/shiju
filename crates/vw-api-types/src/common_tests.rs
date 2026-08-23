@@ -5,6 +5,7 @@ use super::common::{
 };
 use serde_json::json;
 
+// 共享类型 fixture 覆盖时间戳透明编码、可选字段省略及空映射默认值。
 #[test]
 fn common_types_serialize_with_expected_optional_fields() {
     assert_eq!(serde_json::to_value(TimestampMs(5)).expect("timestamp"), json!(5));

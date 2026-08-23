@@ -1,4 +1,6 @@
 // 验证 PostgreSQL 知识检索的过滤、排序与结果数量边界。
+
+// 检索模式与数据集作用域先解析，非法 ID 不应触发任何数据库访问。
 use super::*;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;

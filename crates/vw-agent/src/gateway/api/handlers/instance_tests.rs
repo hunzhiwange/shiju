@@ -8,6 +8,7 @@ use axum::response::IntoResponse;
 use tokio_stream::StreamExt;
 use tower::ServiceExt;
 
+// 事件流用目录作用域筛选消息，避免一个实例观察到其它工作区的生命周期事件。
 #[test]
 fn router_builds_with_app_state() {
     let _: axum::Router<()> = router();
@@ -114,6 +115,7 @@ async fn router_path_get_prefers_query_directory_over_header() {
     assert_eq!(body["directory"], query_dir.path().to_string_lossy().as_ref());
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn router_vcs_get_uses_directory_header_when_query_missing() {
     let temp = tempfile::tempdir().expect("tempdir");

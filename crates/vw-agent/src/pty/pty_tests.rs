@@ -165,6 +165,7 @@ fn buffer_state_keeps_exact_limit_without_advancing_start() {
 }
 
 #[test]
+// 缓冲区截断保留最新字节，游标继续使用绝对位置以支持增量读取。
 fn buffer_state_trimming_keeps_newest_bytes_and_absolute_cursors() {
     let mut buffer = BufferState::new();
     let chunk = vec![b'a'; BUFFER_LIMIT];
@@ -219,6 +220,7 @@ fn buffer_state_cursor_saturates_instead_of_wrapping() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
+// 未知会话的查询和清理返回安全默认值，不应触发外部进程操作。
 async fn missing_session_operations_return_safe_defaults_without_external_effects() {
     let missing_id = "pty_static_test_missing_session";
 

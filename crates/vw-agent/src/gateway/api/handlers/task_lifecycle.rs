@@ -1,4 +1,6 @@
 //! 任务生命周期工作流的租户级增删改查与重置路由。
+//!
+//! 工作流数据绑定请求租户和全局数据库，重置只恢复存储层定义的初始生命周期状态。
 
 use std::path::{Path as FilePath, PathBuf};
 use std::sync::Arc;
@@ -17,6 +19,7 @@ use crate::app::agent::gateway::ApiError;
 use crate::global_database::GlobalDatabase;
 use crate::task_lifecycle::store;
 
+/// 构建任务生命周期工作流管理路由。
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,

@@ -1,5 +1,9 @@
+//! 验证自治级别、安全开关、命令检查及兼容默认值的配置边界。
+//! 既锁定当前宽松默认，也确认用户显式收紧的限制不会被归一化覆盖。
+
 use std::str::FromStr;
 
+// 自治级别接受历史拼写，但未知值必须显式失败；身份格式保持兼容默认。
 #[test]
 fn parses_autonomy_levels_and_identity_defaults() {
     assert_eq!(super::AutonomyLevel::from_str("readonly").unwrap(), super::AutonomyLevel::ReadOnly);
@@ -18,6 +22,7 @@ fn parses_autonomy_levels_and_identity_defaults() {
     assert!(identity.aieos_path.is_none());
 }
 
+// 默认预算与自动批准列表属于运行策略契约，反序列化空对象应与 Default 一致。
 #[test]
 fn autonomy_defaults_allow_full_access_with_expanded_budgets() {
     let defaulted = super::AutonomyConfig::default();
@@ -41,6 +46,7 @@ fn autonomy_defaults_allow_full_access_with_expanded_budgets() {
     assert_eq!(round_tripped.shell_redirect_policy, super::ShellRedirectPolicy::Allow);
 }
 
+// 所有限制项均允许用户独立收紧，不能因其它字段缺省而恢复宽松值。
 #[test]
 fn autonomy_explicit_restrictive_values_remain_supported() {
     let autonomy: super::AutonomyConfig = serde_json::from_str(
@@ -65,6 +71,7 @@ fn autonomy_explicit_restrictive_values_remain_supported() {
     assert_eq!(autonomy.max_cost_per_day_cents, 500);
 }
 
+// 引号内换行的阻断是选择启用的兼容策略，避免旧配置升级后突然拒绝命令。
 #[test]
 fn quoted_shell_newline_blocking_is_opt_in_when_deserializing() {
     let defaulted: super::BashSecurityConfig = serde_json::from_str("{}").unwrap();
@@ -75,6 +82,7 @@ fn quoted_shell_newline_blocking_is_opt_in_when_deserializing() {
     assert!(enabled.validators.quoted_newline);
 }
 
+// 沙箱和系统调用告警默认关闭；显式开启 Bash 安全后各子检查仍可单独控制。
 #[test]
 fn security_defaults_disable_sandbox_and_syscall_alerting() {
     let security = super::SecurityConfig::default();

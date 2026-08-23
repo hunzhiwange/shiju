@@ -42,6 +42,7 @@ impl Drop for HomeEnvGuard {
     }
 }
 
+// 修订号在凭据写入前校验，防止并发设置请求覆盖较新的集成配置。
 #[test]
 fn exported_handlers_are_available() {
     let _ = handle_api_integrations;
@@ -222,6 +223,7 @@ async fn integration_credentials_put_requires_auth_before_processing_body() {
     assert!(value.get("revision").is_none());
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn integration_credentials_put_rejects_stale_revision() {
     let temp = tempfile::tempdir().expect("tempdir");

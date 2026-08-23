@@ -1,4 +1,5 @@
 //! 验证市场技能安装的缓存、版本选择与路径安全边界。
+//! 签名、内容哈希与解包路径共同构成安装边界；多目标失败时整体回滚且无暂存残留。
 
 use std::fs;
 use std::io::{Cursor, Write};
@@ -92,6 +93,7 @@ fn ignored_hash_path(path: &str) -> bool {
     })
 }
 
+// 制品夹具同时携带签名、内容哈希和成员清单，任何一层不一致都应在落盘前失败。
 fn signed_artifact_for(
     coordinate: &SkillMarketCoordinateDto,
     entries: &[FixtureEntry],
@@ -342,6 +344,7 @@ fn market_skill_install_rejects_download_limit_device_entry_and_target_conflict(
 }
 
 #[test]
+// 多目标安装是单个事务语义，后续目标失败时必须撤销先前已完成的目录。
 fn market_skill_multi_target_install_rolls_back_completed_targets() {
     let temp = tempfile::tempdir().expect("fixture roots");
     let first_root = temp.path().join("first/skills");

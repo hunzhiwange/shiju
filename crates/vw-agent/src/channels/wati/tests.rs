@@ -1,3 +1,5 @@
+// 本文件验证 WATI 渠道配置、号码许可、Webhook 解析与 HTTP 收发。
+
 use super::*;
 
 #[allow(dead_code)]
@@ -176,6 +178,7 @@ mod tests {
     }
 
     #[test]
+// 号码许可采用精确匹配，防止相似号码意外获得权限。
     fn wati_number_allowed_exact() {
         let ch = make_channel();
         assert!(ch.is_number_allowed("+1234567890"));
@@ -666,4 +669,3 @@ mod tests {
         assert!(result.is_err());
     }
 }
-// 本文件验证 WATI 渠道配置、号码许可、Webhook 解析与 HTTP 收发。

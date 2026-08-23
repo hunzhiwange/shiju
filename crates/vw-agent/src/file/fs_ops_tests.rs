@@ -4,6 +4,7 @@ use super::fs_ops::{init_preload, list, publish_edited, read};
 use super::{ContentType, Error, NodeType};
 use std::fs;
 
+// 临时目录夹具同时覆盖正常路径和逃逸路径，确保安全判断不依赖当前工作区。
 #[test]
 fn read_text_file_trims_content() {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -28,6 +29,7 @@ fn read_accepts_owned_root_path() {
     assert_eq!(content.content, "owned");
 }
 
+// 缺失资源与越界资源的语义不同：前者可安全回退时仍不得放宽后者的拒绝策略。
 #[test]
 fn read_missing_text_file_returns_empty_text() {
     let temp = tempfile::tempdir().expect("tempdir");

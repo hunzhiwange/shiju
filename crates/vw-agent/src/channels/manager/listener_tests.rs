@@ -1,3 +1,5 @@
+// 本文件验证渠道监听器监督、重启退避与健康状态记录。
+
 use super::*;
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -135,6 +137,7 @@ async fn supervised_listener_default_entry_exits_when_receiver_is_closed() {
 }
 
 #[tokio::test(start_paused = true)]
+// 监听器意外正常退出也需重启，并清除上一轮错误状态。
 async fn supervised_listener_restarts_after_clean_exit_and_resets_error_on_next_loop() {
     let (channel, mut started_rx) = ScriptedChannel::new(
         "listener-clean-restart",
@@ -236,4 +239,3 @@ async fn supervised_listener_marks_health_while_listening() {
     handle.await.expect("listener task should finish");
     assert_eq!(channel.listens.load(Ordering::SeqCst), 1);
 }
-// 本文件验证渠道监听器监督、重启退避与健康状态记录。

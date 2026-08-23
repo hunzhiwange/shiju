@@ -1,3 +1,7 @@
+//! 验证会话重置弹窗的选项状态、确认消息和关闭路径。
+//!
+//! 重置选项分别控制历史与代码回退，确保取消或缺少目标时根视图保持不变。
+
 use super::*;
 use crate::app::models::{ChatMessage, ChatRole};
 

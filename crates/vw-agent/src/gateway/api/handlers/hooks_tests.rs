@@ -142,6 +142,8 @@ async fn mutate(app: &axum::Router, path: &str, plugin_id: &str, hook_hash: &str
         .status()
 }
 
+// 审计响应只检查必要元数据，明确禁止把钩子参数或敏感载荷回传给客户端。
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn hook_trust_rejects_stale_or_unknown_hash() {
     let root = tempfile::tempdir().expect("temp dir");

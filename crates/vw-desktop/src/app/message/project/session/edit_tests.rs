@@ -1,3 +1,8 @@
+// 验证会话编辑面板、工具菜单与工作流草稿状态。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -359,6 +364,8 @@ fn edit_simple_field_messages_update_state() {
     assert!(!app.project_edit_icon_color_picker_open);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn edit_color_format_preset_editor_action_and_recycle_toggle_update_state() {
     let mut app = app();
@@ -588,6 +595,8 @@ fn edit_save_without_path_is_noop_and_runtime_error_sets_error_message() {
     assert_eq!(app.error_message.as_deref(), Some("保存项目扩展配置失败: gateway"));
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn edit_runtime_success_is_silent_and_unhandled_message_is_delegated() {
     let mut app = app();
@@ -783,6 +792,8 @@ fn recent_remove_confirmed_current_project_selects_first_remaining_project() {
     assert!(app.active_toast.is_none());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn recent_remove_rebuilds_edit_names_from_file_names_when_meta_is_missing() {
     let mut app = app();

@@ -1,7 +1,10 @@
+// 本文件验证 Matrix 渠道调试输出脱敏及克隆实例的共享状态。
+
 use super::*;
 use std::{path::PathBuf, sync::Arc};
 
 #[test]
+// 调试输出可能进入日志，令牌和会话提示不能随结构体展开。
 fn debug_output_redacts_access_token_and_session_hints() {
     let channel = MatrixChannel::new_with_session_hint_and_vibewindow_dir(
         "https://matrix.example.com/".to_string(),
@@ -39,4 +42,3 @@ fn clone_shares_runtime_caches_and_conflict_state() {
     assert!(Arc::ptr_eq(&channel.resolved_room_id_cache, &cloned.resolved_room_id_cache));
     assert!(Arc::ptr_eq(&channel.sdk_client, &cloned.sdk_client));
 }
-// 本文件验证 Matrix 渠道调试输出脱敏及克隆实例的共享状态。

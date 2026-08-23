@@ -1,4 +1,6 @@
 //! 验证活动提示词的取消请求、会话匹配、完成等待与超时处理。
+//!
+//! 最小客户端、通道和运行时 fixture 用于显式驱动异步状态转换与资源收尾。
 
 use std::collections::HashMap;
 
@@ -28,6 +30,7 @@ fn register_prompt(
     (cancel_rx, completed_tx)
 }
 
+// 下列行为用例重点检查复用、取消、通道关闭和失败后的状态一致性。
 #[tokio::test]
 async fn cancel_returns_false_without_active_prompt() {
     let client = client();

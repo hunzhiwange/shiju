@@ -1,3 +1,5 @@
+// 本文件覆盖 Telegram 长轮询、机器人身份获取、确认动作与停止条件。
+
 use super::TelegramChannel;
 use axum::{
     Json, Router,
@@ -155,6 +157,7 @@ async fn handle_mock_request(
     }
 }
 
+// 脚本服务器记录轮询与确认请求，复现更新偏移和停止时序。
 async fn spawn_mock_server(state: MockTelegramState) -> (String, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("mock listener should bind");
     let address = listener.local_addr().expect("listener should have local addr");
@@ -675,4 +678,3 @@ async fn health_check_impl_returns_false_on_timeout() {
 
     server.abort();
 }
-// 本文件覆盖 Telegram 长轮询、机器人身份获取、确认动作与停止条件。

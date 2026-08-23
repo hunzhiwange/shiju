@@ -1,3 +1,6 @@
+//! 验证读取工具的路径和行范围解析、别名兼容与紧凑详情视图。
+//! 引号、行锚点、非法 JSON 和非字符串路径用于守住输入规范化与拒绝边界。
+
 use super::read_view::{parse_read_input, read_range_text};
 use super::{tool_read_compact_view, tool_read_view, tool_text_key};
 use crate::app::App;
@@ -7,6 +10,7 @@ fn app() -> App {
     App::new().0
 }
 
+// 可见文本由真实视图树提取，既验证解析结果也验证最终展示选择。
 fn visible(tool_name: &str, input: &str) -> String {
     format!("tool {tool_name}\n{}", serde_json::json!({ "input": input }))
 }

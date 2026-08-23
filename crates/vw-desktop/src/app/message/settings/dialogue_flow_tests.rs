@@ -1,3 +1,6 @@
+// 验证对话流程权限配置的读取、重置与错误边界。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -34,6 +37,8 @@ fn permission_result(messages: Vec<Message>) -> Result<String, String> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[tokio::test(flavor = "multi_thread")]
 async fn permission_load_without_project_or_config_returns_empty_object() {
     let without_project =
@@ -122,6 +127,8 @@ async fn permission_reset_removes_permission_and_preserves_other_fields() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[tokio::test(flavor = "multi_thread")]
 async fn permission_reset_replaces_non_object_root_with_empty_object() {
     let project = tempfile::tempdir().expect("temporary project should be created");
@@ -206,6 +213,8 @@ async fn permission_reset_rejects_invalid_json_without_overwriting_it() {
     );
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn dialogue_flow_loaded_messages_update_ui_state() {
     let mut app = app();
@@ -304,6 +313,8 @@ fn loaded_success_preserves_existing_feedback_and_loaded_error_preserves_toggles
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_message_leaves_dialogue_flow_state_unchanged_and_stays_idle() {
     let mut app = app();

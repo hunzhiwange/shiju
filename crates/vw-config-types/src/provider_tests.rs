@@ -1,3 +1,7 @@
+//! 验证模型提供方 API 模式、兼容映射、默认字段与推理级别配置。
+//! 外部 serde 名称与内部兼容枚举分开测试，避免两层表示被混用。
+
+// 提供方 API 模式使用短横线外部名称，与 Rust 变体命名保持解耦。
 #[test]
 fn provider_api_mode_serializes_as_kebab_case() {
     let serialized = serde_json::to_string(&super::ProviderApiMode::OpenAiResponses).unwrap();
@@ -12,6 +16,7 @@ fn provider_api_mode_deserializes_from_kebab_case() {
     assert_eq!(parsed, super::ProviderApiMode::OpenAiChatCompletions);
 }
 
+// 兼容模式映射只表达协议能力，不改变原始提供方模式的序列化值。
 #[test]
 fn provider_api_mode_maps_to_compatible_mode() {
     assert_eq!(
@@ -33,6 +38,7 @@ fn compatible_api_mode_round_trips_with_internal_variant_names() {
     assert_eq!(parsed, super::CompatibleApiMode::OpenAiResponses);
 }
 
+// 缺省字段必须产生可比较的稳定配置，显式字段则需完整往返。
 #[test]
 fn model_provider_config_defaults_missing_fields() {
     let config: super::ModelProviderConfig = serde_json::from_value(serde_json::json!({})).unwrap();
@@ -59,6 +65,7 @@ fn model_provider_config_deserializes_explicit_fields() {
     assert!(config.requires_openai_auth);
 }
 
+// 推理级别属于提供方覆盖项，省略与显式设置需保持不同语义。
 #[test]
 fn provider_config_defaults_and_deserializes_reasoning_level() {
     let default_config: super::ProviderConfig =

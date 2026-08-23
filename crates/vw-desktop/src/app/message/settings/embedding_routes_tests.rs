@@ -1,3 +1,6 @@
+// 验证嵌入路由模板、字段编辑及越界操作的安全处理。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::EmbeddingRouteDraft;
@@ -16,6 +19,8 @@ fn route(pattern: &str, provider: &str, model: &str, dimensions: &str) -> Embedd
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn trim_to_option_trims_present_values_and_rejects_blank_values() {
     assert_eq!(trim_to_option("  test-api-key\n"), Some("test-api-key".to_string()));
@@ -93,6 +98,8 @@ fn add_and_template_messages_append_routes_and_clear_save_status() {
     assert!(!app.embedding_routes_settings.save_success);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn field_change_messages_update_every_editable_value() {
     let mut app = app();
@@ -201,6 +208,8 @@ fn persist_reports_each_required_field_with_its_one_based_row_number() {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn persist_rejects_zero_nonnumeric_and_overflowing_dimensions() {
     let mut app = app();
@@ -259,6 +268,8 @@ fn save_message_exposes_validation_result_in_settings_state() {
     assert!(app.embedding_routes_settings.save_success);
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn non_embedding_message_leaves_embedding_routes_state_unchanged() {
     let mut app = app();

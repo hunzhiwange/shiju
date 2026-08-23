@@ -1,3 +1,6 @@
+//! 验证思考块的运行态判断、展开决策、正文回退与多语言渲染安全性。
+//! 手动展开状态优先于默认策略；含中文的动态标题还会走真实构建路径检查字体选择。
+
 use super::think_block::{
     should_render_think_block, think_block_default_expanded, think_block_is_running,
     think_block_resolved_expanded, think_block_view,

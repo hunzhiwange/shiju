@@ -1,4 +1,6 @@
 // 覆盖权限规则的通配匹配、路径展开、配置解析与默认询问策略。
+
+// 后出现的匹配规则拥有更高优先级，无匹配或未知动作统一回到 Ask。
 use super::*;
 use serde_json::json;
 use std::sync::{LazyLock, Mutex};
@@ -72,6 +74,7 @@ fn from_config_parses_simple_and_pattern_rules() {
 }
 
 #[test]
+// 解析只接受对象规则，未知动作按 Ask 收敛，避免配置错误变成静默允许。
 fn from_config_rejects_non_objects_and_defaults_unknown_actions_to_ask() {
     assert!(from_config(&json!(null)).is_empty());
     assert!(from_config(&json!(["allow"])).is_empty());
@@ -189,6 +192,7 @@ fn disabled_uses_the_last_permission_rule() {
     assert!(!disabled.contains("unknown"));
 }
 
+// 请求 helper 集中构造一次性与永久授权候选，便于覆盖回复状态机。
 fn request(patterns: Vec<&str>, always: Vec<&str>) -> Request {
     Request {
         id: String::new(),

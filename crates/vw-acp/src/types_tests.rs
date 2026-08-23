@@ -1,4 +1,6 @@
 //! 验证公开数据类型的稳定字面量、字段形状、默认值与往返序列化。
+//!
+//! 最小 JSON 与协议类型 fixture 用于固定线格式和输入校验边界。
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -50,6 +52,7 @@ fn test_record() -> SessionRecord {
     }
 }
 
+// 下列行为用例覆盖合法往返、字段默认值和无效形状拒绝。
 #[test]
 fn exit_code_constants_match_public_contract() {
     assert_eq!(EXIT_CODE_SUCCESS, 0);

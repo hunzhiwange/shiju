@@ -1,10 +1,12 @@
 //! 验证新版 OpenSkills 发现、来源映射与兼容转换行为。
+//! 环境变量只有在值合法时覆盖配置；后台同步失败不能让已有技能仓库失效。
 
 use super::*;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::sync::MutexGuard;
 
+// 进程环境和 PATH 由全局锁保护，伪 Git 仅记录调用而不访问真实远端。
 fn env_lock() -> MutexGuard<'static, ()> {
     crate::test_support::global_env_lock().lock().unwrap_or_else(|error| error.into_inner())
 }
@@ -333,6 +335,7 @@ esac
 
 #[cfg(unix)]
 #[test]
+// 已有仓库优先保持可用，后台刷新失败只影响新鲜度而不撤销当前技能。
 fn failed_background_sync_keeps_existing_repo_available() {
     let _lock = env_lock();
     let dir = tempfile::tempdir().unwrap();

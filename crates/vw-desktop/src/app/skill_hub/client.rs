@@ -1,3 +1,5 @@
+//! 封装带账号凭据的技能中心 HTTP 请求与响应错误。
+
 use super::models::{ShijuPackageId, ShijuPackageRelease};
 use crate::app::account::SecretSkey;
 use reqwest::{StatusCode, Url};
@@ -7,9 +9,11 @@ use std::error::Error;
 use std::fmt;
 use std::time::Duration;
 
+/// 生产技能中心 API 的固定 HTTPS 根地址。
 pub(super) const SKILL_HUB_BASE_URL: &str = "https://gateway.shiju.cloud/sj/skill-hub/api/v1/";
 
 #[derive(Clone)]
+/// 使用账号密钥访问技能中心的最小 HTTP 客户端。
 pub(crate) struct SkillHubClient {
     http: reqwest::Client,
     base_url: Url,
@@ -17,6 +21,7 @@ pub(crate) struct SkillHubClient {
 }
 
 impl SkillHubClient {
+    /// 使用生产根地址和固定请求超时创建客户端。
     pub(crate) fn new(credential: SecretSkey) -> Result<Self, SkillHubError> {
         Self::build(credential, SKILL_HUB_BASE_URL)
     }
@@ -39,6 +44,7 @@ impl SkillHubClient {
         Ok(Self { http, base_url, credential })
     }
 
+    /// 获取指定识矩包的最新发布信息。
     pub(crate) async fn latest_shiju_package(
         &self,
         package_id: ShijuPackageId,
@@ -84,6 +90,7 @@ struct ApiEnvelope<T> {
 }
 
 #[derive(Clone, PartialEq, Eq)]
+/// 技能中心地址、HTTP 状态、业务码或响应解码错误。
 pub(crate) struct SkillHubError {
     message: String,
 }

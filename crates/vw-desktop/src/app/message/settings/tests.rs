@@ -1,3 +1,6 @@
+// 验证设置保存结果路由及员工配置草稿同步。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::StaffSettingsState;
@@ -7,6 +10,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn settings_apply_agent_config_saved_routes_errors() {
     let mut app = app();
@@ -113,6 +118,8 @@ fn staff_config_saved_refreshes_task_board_staff_projection() {
     assert_eq!(load.delegate_agent.as_deref(), Some("coder"));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn staff_reset_draft_restores_saved_config() {
     let mut app = app();
@@ -252,6 +259,8 @@ fn settings_update_dispatches_to_child_modules() {
     assert!(app.hooks_settings.save_error.is_some());
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn settings_update_routes_nested_messages_to_their_owned_state() {
     let mut app = app();
@@ -348,6 +357,8 @@ fn settings_update_routes_additional_feature_groups() {
     assert!(app.skills_settings.show_help_modal);
 }
 
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn settings_update_routes_tabs_projects_sessions_and_dialogue_flow_groups() {
     let mut app = app();

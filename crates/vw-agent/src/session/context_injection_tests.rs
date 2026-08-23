@@ -19,6 +19,7 @@ fn resolved(filepath: &str, content: &str) -> Resolved {
 }
 
 #[test]
+// 代理指令以系统提醒前置，确保不会被当作普通用户内容。
 fn agents_context_injection_prepends_system_reminder() {
     let history = vec![
         json!({ "role": "user", "content": "original user bytes" }),

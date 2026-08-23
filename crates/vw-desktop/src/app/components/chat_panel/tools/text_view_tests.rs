@@ -1,3 +1,6 @@
+//! 验证通用文本工具卡片的过滤、工作流预览、状态呈现与摘要回退。
+//! 特殊工具成功时交给专用视图，失败时仍由通用卡片保留错误诊断信息。
+
 use super::text_view::{
     tool_text_detail_message, tool_text_failure_title, tool_text_header_label, tool_text_view,
     workflow_preview_message,

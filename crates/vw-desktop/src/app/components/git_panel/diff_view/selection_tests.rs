@@ -1,3 +1,6 @@
+//! 验证差异行选择、拖拽范围、悬停状态及其匹配优先级。
+//! 用文件名、差异侧、反向区间和注释草稿组合约束选择判定。
+
 use iced::Color;
 
 use crate::app::state::{GitDiffCommentDraft, GitDiffLineRange, GitDiffSelectedLine};

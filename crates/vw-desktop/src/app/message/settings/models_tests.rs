@@ -1,3 +1,6 @@
+// 验证模型摘要对提供商连接状态、能力与排序的映射。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::{ModelSummary, ProviderModelsSummary};
@@ -119,6 +122,8 @@ fn row_value<'a>(rows: &'a [ModelDetailRow], label: &str) -> &'a str {
         .as_str()
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn summarize_models_filters_disconnected_providers_and_sorts_providers_and_models() {
     let providers = HashMap::from([
@@ -273,6 +278,8 @@ fn disabling_selected_model_switches_back_to_auto_model() {
     assert!(app.auto_model);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn enabling_model_updates_locally_and_schedules_save_without_forcing_auto_model() {
     let mut app = app();
@@ -448,6 +455,8 @@ fn models_set_all_updates_every_connected_model_with_one_save() {
     assert!(iced_runtime::task::into_stream(task.collect()).is_some());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn model_status_save_error_rolls_back_local_changes() {
     let mut app = app();
@@ -607,6 +616,8 @@ fn model_detail_open_renders_boolean_interleaved_capability() {
     assert_eq!(row_value(rows, "混合输入 (capabilities.interleaved)"), "false");
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn model_detail_toggle_is_safe_without_modal_and_reversible_with_modal() {
     let mut app = app();

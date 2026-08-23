@@ -216,6 +216,7 @@ fn copilot_auth_token_uses_provider_env_before_auth_fallback() {
 }
 
 #[test]
+// 认证来源按供应商密钥、环境变量、认证存储排序，显式配置优先。
 fn copilot_auth_token_prefers_provider_key_over_env_and_auth() {
     let _guard = EnvGuard::set("VW_AGENT_COPILOT_PROVIDER_KEY_TEST_TOKEN", "env-token");
     let mut provider = test_provider(Some(" provider-token "));
@@ -230,6 +231,7 @@ fn copilot_auth_token_prefers_provider_key_over_env_and_auth() {
 }
 
 #[test]
+// OAuth 占位密钥不具备实际认证能力，应继续寻找可用令牌。
 fn copilot_auth_token_falls_back_from_dummy_provider_key_to_env() {
     let _guard = EnvGuard::set("VW_AGENT_COPILOT_DUMMY_KEY_TEST_TOKEN", " env-token ");
     let mut provider = test_provider(Some(auth::OAUTH_DUMMY_KEY));
@@ -416,6 +418,7 @@ fn close_client_after_request_option_rejects_explicit_null() {
 }
 
 #[tokio::test]
+// 中止信号在配置和认证前检查，取消请求不应产生额外读取。
 async fn stream_request_reports_abort_before_config_lookup() {
     let (_tx, rx) = watch::channel(true);
     let mut events = Vec::new();

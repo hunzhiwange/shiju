@@ -1,4 +1,5 @@
 //! 验证 MCP 配置检查对传输元数据、禁用服务及配置错误的呈现。
+//! 配置 fixture 覆盖 stdio、HTTP 与 SSE，且不启动真实外部服务。
 
 use super::*;
 use agent_client_protocol::{McpServer, McpServerHttp, McpServerSse, McpServerStdio};

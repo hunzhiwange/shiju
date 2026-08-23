@@ -38,6 +38,7 @@ COMMIT;
 "#;
 
 #[derive(Debug, Clone)]
+/// 按数据库提供方分派的租户网关密钥元数据存储。
 pub(crate) struct GatewaySkeyStore {
     provider: GatewaySkeyStoreProvider,
 }
@@ -49,6 +50,7 @@ enum GatewaySkeyStoreProvider {
 }
 
 impl GatewaySkeyStore {
+    /// 初始化所选数据库后端及其租户化模式。
     pub(crate) fn new(database: GlobalDatabase) -> Result<Self> {
         let provider = match database.provider() {
             DatabaseProvider::Sqlite => {
@@ -67,6 +69,7 @@ impl GatewaySkeyStore {
         Ok(Self { provider })
     }
 
+    /// 加载租户密钥的掩码展示值与元数据，不返回原始密钥。
     pub(crate) fn load(&self, tenant: &TenantScope) -> Result<Vec<GatewaySkey>> {
         match &self.provider {
             GatewaySkeyStoreProvider::Sqlite(database) => {
@@ -98,6 +101,9 @@ impl GatewaySkeyStore {
         }
     }
 
+    /// 规范化输入并在事务内替换租户全部密钥元数据。
+    ///
+    /// 重复摘要会去重，任何一条无效都会使整批写入失败。
     pub(crate) fn replace_all(&self, tenant: &TenantScope, skeys: &[GatewaySkey]) -> Result<()> {
         let normalized = skeys
             .iter()

@@ -6,6 +6,9 @@ use std::path::{Path, PathBuf};
 
 use super::{PluginDiscoveryOptions, discover_plugins};
 
+/// 从已启用插件的已审计技能目录加载技能。
+///
+/// 插件技能沿用统一加载器的模式与作用域规则，发现诊断不会被静默丢弃。
 pub(crate) fn load_plugin_skills(
     workspace_dir: &Path,
     config: &Config,

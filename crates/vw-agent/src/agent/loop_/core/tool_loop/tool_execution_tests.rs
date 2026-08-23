@@ -1,4 +1,5 @@
 //! 测试工具执行的审批、安全上下文、并发约束与 MCP 路由。
+//! 计数工具和临时 MCP 服务用于区分去重、策略阻断、执行失败与成功历史。
 
 use super::*;
 use crate::app::agent::observability::NoopObserver;
@@ -81,6 +82,7 @@ impl Tool for Testcov0090CronTool {
     }
 }
 
+// 固定解析后调用的最小字段，避免执行测试重复依赖文本解析器。
 fn parsed_call(
     name: &str,
     arguments: serde_json::Value,

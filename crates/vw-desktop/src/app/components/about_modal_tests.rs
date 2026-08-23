@@ -1,3 +1,6 @@
+//! 验证关于弹窗的信息复制内容、哈希判定与复制状态视图构造。
+//! 已复制状态以内容哈希而非布尔值判定，fixture 因此同时覆盖内容变化后的失效路径。
+
 use super::*;
 
 fn keep_element(element: Element<'_, Message>) {

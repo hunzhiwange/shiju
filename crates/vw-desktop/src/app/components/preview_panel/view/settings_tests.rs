@@ -1,3 +1,6 @@
+//! 验证预览设置视图测试模块的装配入口。
+//! 设置控件的行为由父模块测试覆盖，此处保留独立模块的编译哨兵。
+
 #[test]
 fn settings_tests_are_wired() {
     assert!(module_path!().contains("settings_tests"));

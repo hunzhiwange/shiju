@@ -1,4 +1,6 @@
 // 验证 PostgreSQL 知识缓存的命中、失效与租户隔离。
+
+// 容量为零时只清理当前租户缓存，不能误删其它租户的嵌入结果。
 use anyhow::Result;
 use vw_api_types::TenantScope;
 

@@ -1,4 +1,6 @@
 //! 验证协议停止原因与用量统计到运行时类型的稳定映射。
+//!
+//! 用例直接比较协议枚举和计数结构，避免把连接行为混入映射契约。
 
 use agent_client_protocol as acp;
 
@@ -6,6 +8,7 @@ use crate::types::PromptUsage;
 
 use super::prompt_mapping::{acp_finish_reason, map_usage};
 
+// 下列行为用例覆盖所有已知停止原因和缺失可选用量字段的默认值。
 #[test]
 fn acp_finish_reason_maps_protocol_reasons() {
     assert_eq!(acp_finish_reason(acp::StopReason::MaxTokens), "length");

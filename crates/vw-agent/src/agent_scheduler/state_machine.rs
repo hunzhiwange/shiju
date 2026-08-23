@@ -5,6 +5,7 @@ use anyhow::{Result, bail};
 pub use super::domain::AgentTaskKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// 调度器内部统一使用的任务生命周期状态。
 pub enum AgentTaskStatus {
     Draft,
     Queued,
@@ -24,6 +25,7 @@ pub enum AgentTaskStatus {
 }
 
 impl AgentTaskStatus {
+    /// 返回用于数据库和事件载荷的稳定小写键。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Draft => "draft",
@@ -44,6 +46,7 @@ impl AgentTaskStatus {
         }
     }
 
+    /// 解析稳定状态键；未知值会被明确拒绝而非降级映射。
     pub fn parse(value: &str) -> Result<Self> {
         match value {
             "draft" => Ok(Self::Draft),
@@ -66,11 +69,13 @@ impl AgentTaskStatus {
     }
 }
 
+/// 判断指定任务种类是否允许状态转换；同状态写入按幂等操作处理。
 pub fn agent_task_can_transition(
     kind: AgentTaskKind,
     from: AgentTaskStatus,
     to: AgentTaskStatus,
 ) -> bool {
+    // 存储更新可能重放相同目标状态，将其视为幂等成功可避免伪造非法转换错误。
     if from == to {
         return true;
     }
@@ -82,6 +87,7 @@ pub fn agent_task_can_transition(
     }
 }
 
+/// 校验强类型状态转换，并在非法时返回包含任务种类和两端状态的错误。
 pub fn ensure_transition(
     kind: AgentTaskKind,
     from: AgentTaskStatus,
@@ -99,6 +105,7 @@ pub fn ensure_transition(
     )
 }
 
+/// 解析字符串状态键后执行与 [`ensure_transition`] 相同的校验。
 pub fn ensure_transition_key(kind: AgentTaskKind, from: &str, to: &str) -> Result<()> {
     ensure_transition(kind, AgentTaskStatus::parse(from)?, AgentTaskStatus::parse(to)?)
 }

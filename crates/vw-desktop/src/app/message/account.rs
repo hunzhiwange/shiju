@@ -1,3 +1,5 @@
+//! 处理账号登录、切换、资料更新及凭据同步的消息状态转换。
+
 use crate::app::account::{
     AccountOrigin, AccountPasswordDraft, AccountPasswordField, AccountPasswordInput,
     AccountProfileDraft, AccountRepository, LoginChallenge, LoginPoll, ManualSkeyInput, SecretSkey,
@@ -18,6 +20,7 @@ use vw_gateway_client::{ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest};
 const LOGIN_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 #[derive(Debug, Clone, Copy)]
+/// 账号操作成功后用于生成反馈文案的动作类别。
 pub(crate) enum AccountNotice {
     ManualLogin,
     BrowserLogin,
@@ -27,6 +30,7 @@ pub(crate) enum AccountNotice {
 }
 
 #[derive(Debug, Clone)]
+/// 账号登录、资料编辑和密码修改流程中的输入及异步结果消息。
 pub(crate) enum AccountMessage {
     RepositoryLoaded(Result<AccountRepository, String>),
     ToggleMenu,
@@ -96,6 +100,7 @@ pub(crate) enum AccountMessage {
     ShijuKeySyncFinished(Result<ShijuKeySyncOutcome, String>),
 }
 
+/// 在后台加载账号仓储，并将结果送回账号消息循环。
 pub(crate) fn load_repository() -> Task<Message> {
     Task::perform(
         async { AccountRepository::load().map_err(|error| error.to_string()) },
@@ -217,6 +222,7 @@ fn shiju_key_sync_task(app: &App, notice: AccountNotice) -> Task<Message> {
     )
 }
 
+/// 应用账号状态转换，并为需要的网关或持久化工作返回异步任务。
 pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
     match message {
         AccountMessage::RepositoryLoaded(result) => {

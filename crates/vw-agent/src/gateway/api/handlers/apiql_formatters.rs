@@ -1,5 +1,7 @@
 //! ApiQL 字段格式化器执行层，支持内置名称和受限的 Rhai 自定义规则。
 //!
+//! 自定义脚本只从当前实体目录加载，并在受限引擎中接收 JSON 到 Rhai 的显式值映射。
+//!
 //! ApiQL field formatter execution.
 //!
 //! Formatters are intentionally small and explicit. Legacy string names keep
@@ -18,6 +20,7 @@ use super::schema::ApiQlResolvedEntity;
 
 const FORMATTERS_KEY: &str = "formatters";
 
+/// 从字段配置的兼容位置读取格式化规格。
 pub(crate) fn field_format(field: &ApiQlFieldConfig) -> Option<&Value> {
     field
         .column_struct
@@ -26,6 +29,7 @@ pub(crate) fn field_format(field: &ApiQlFieldConfig) -> Option<&Value> {
         .or_else(|| field.extra.get("format"))
 }
 
+/// 执行字段格式化规格并返回 JSON 值；未知规格返回请求错误。
 pub(crate) fn format_field_value(
     entity: ApiQlResolvedEntity<'_>,
     field: &ApiQlFieldConfig,

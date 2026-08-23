@@ -1,3 +1,7 @@
+//! 验证账户登录、资料与密码编辑消息的校验、脱敏和竞态处理。
+//!
+//! 账户仓库夹具使用专用秘密类型，调试输出与失败通知必须保持脱敏。
+
 use super::*;
 use crate::app::account::{AccountIdentity, AccountProfile};
 use crate::app::state::ToastKind;

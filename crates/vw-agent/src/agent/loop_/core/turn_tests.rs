@@ -1,4 +1,5 @@
 //! 测试代理轮次对审批上下文、回复目标和工具循环参数的传递。
+//! 任务局部变量在有无回复目标和审批上下文时分别验证，防止跨轮泄漏。
 
 use super::*;
 use crate::providers::traits::ProviderCapabilities;

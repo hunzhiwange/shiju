@@ -11,6 +11,7 @@ use vw_api_types::task::{
 use crate::agent_scheduler::state_machine::AgentTaskStatus;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 工作流状态投影到运行时状态后的结果。
 pub struct LifecycleStatusProjection {
     pub status_key: String,
     pub status_role: TaskPoolWorkflowStatusRoleDto,
@@ -18,11 +19,13 @@ pub struct LifecycleStatusProjection {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 状态是否允许派发及其规范化投影。
 pub struct LifecycleDispatchEligibility {
     pub status: LifecycleStatusProjection,
     pub eligible: bool,
 }
 
+/// 针对一份不可变工作流快照解析状态和结果转换。
 pub struct LifecycleBridge<'a> {
     workflow: &'a TaskPoolWorkflowSnapshotDto,
 }
@@ -32,6 +35,7 @@ impl<'a> LifecycleBridge<'a> {
         Self { workflow }
     }
 
+    /// 按键获取工作流状态；空键或未知键返回错误。
     pub fn status(&self, status_key: &str) -> Result<&'a TaskPoolWorkflowStatusDto> {
         let status_key = required_text(status_key, "workflow status key")?;
         match self.find_status(status_key) {
@@ -61,6 +65,7 @@ impl<'a> LifecycleBridge<'a> {
         self.resolve_status(&target_status_key)
     }
 
+    /// 根据当前状态和动作结果解析唯一目标状态键。
     pub fn resolve_outcome_target_status_key(
         &self,
         from_status_key: &str,
@@ -81,6 +86,7 @@ impl<'a> LifecycleBridge<'a> {
         self.next_enabled_status(target)
     }
 
+    /// 判断状态角色是否属于可派发阶段，并保留投影供审计。
     pub fn dispatch_eligibility(&self, status_key: &str) -> Result<LifecycleDispatchEligibility> {
         let status = self.resolve_status(status_key)?;
         let eligible = matches!(

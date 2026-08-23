@@ -1,8 +1,13 @@
+// 验证提供商模型发现去重与自定义草稿配置恢复。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::state::{CustomProviderDraft, CustomProviderModelDraft, ProviderHeaderDraft};
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn discovered_models_replace_blank_placeholder_and_preserve_existing_names() {
     let mut existing = vec![
@@ -168,6 +173,8 @@ fn custom_provider_draft_uses_placeholder_for_empty_models_map() {
     assert!(draft.models[0].display_name.is_empty());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn extract_shared_headers_defaults_without_models_map() {
     for raw in [json!({}), json!({"models": null}), json!({"models": []})] {
@@ -373,6 +380,8 @@ fn custom_provider_patch_nulls_removed_and_renamed_models_for_deep_merge() {
     );
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn custom_provider_patch_skips_untouched_disabled_catalog_models() {
     let draft = CustomProviderDraft {
@@ -764,6 +773,8 @@ fn custom_provider_patch_rejects_invalid_numbers_and_relationships() {
     );
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn custom_provider_patch_removes_empty_overrides_so_resolver_can_use_defaults() {
     let draft = CustomProviderDraft {

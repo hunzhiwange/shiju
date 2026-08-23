@@ -1,3 +1,7 @@
+//! 验证模型目录弹窗的筛选、分组、排序以及加载和空状态。
+//!
+//! 目录条目与提供商夹具刻意包含重复标识和不同连接状态，以锁定筛选分组规则。
+
 use crate::app::state::{ModelCatalogEntry, ProviderSummary};
 use crate::app::{App, Message};
 use iced::widget::text;

@@ -1,4 +1,5 @@
 //! 测试代理运行入口的消息编排、错误传播与可观测事件记录。
+//! 脚本化供应商与记录观察器用于区分启动失败、调用失败和正常结束事件。
 
 use super::core::Agent;
 use super::run::{run, run_with_agent_factory};
@@ -110,6 +111,7 @@ impl Provider for MessageRecordingProvider {
     }
 }
 
+// 观察器保存事件快照，用于区分失败发生在启动前、调用中还是正常结束后。
 struct RecordingObserver {
     events: Mutex<Vec<ObserverEvent>>,
 }

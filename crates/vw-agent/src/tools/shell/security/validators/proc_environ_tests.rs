@@ -1,4 +1,5 @@
 //! 验证进程环境文件访问会被阻断且错误信息不会泄露敏感载荷。
+//! 其它 proc 路径不由本校验器泛化拒绝，以维持规则的单一职责。
 
 use super::proc_environ::ProcEnvironValidator;
 use crate::tools::shell::ast::parse_command;

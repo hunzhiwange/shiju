@@ -1,4 +1,5 @@
 //! 验证旧版技能来源解析、规范化与显示行为。
+//! 远端主机提取与 skills.sh 路径解析共同拒绝遍历、伪域名和不完整来源。
 
 use super::*;
 
@@ -24,6 +25,7 @@ fn skills_sh_source_rejects_traversal() {
 }
 
 #[test]
+// skills.sh 来源会展开为 GitHub 信任目标，并与直接来源去重后再执行域名策略。
 fn trust_check_urls_include_direct_and_skills_sh_github_repo_once() {
     assert_eq!(
         source_urls_for_trust_check("https://github.com/acme/skill.git"),

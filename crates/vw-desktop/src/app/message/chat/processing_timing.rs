@@ -1,6 +1,9 @@
+//! 维护尾部助手消息的处理耗时与模型调用耗时记录。
+
 use crate::app::models::{ChatMessage, ChatRole};
 use vw_shared::session::ui_types::ProcessingTiming;
 
+/// 仅为尚未计时的尾部助手消息启动处理计时。
 pub(super) fn start_tail_assistant_processing(
     messages: &mut [ChatMessage],
     started_ms: u64,
@@ -21,6 +24,7 @@ pub(super) fn start_tail_assistant_processing(
     true
 }
 
+/// 完成尾部助手消息计时；重复完成或消息不匹配时不修改状态。
 pub(super) fn complete_tail_assistant_processing(
     messages: &mut [ChatMessage],
     completed_ms: u64,
@@ -46,11 +50,15 @@ pub(super) fn complete_tail_assistant_processing(
     true
 }
 
+/// 暂停运行时计时器时截取的累计耗时。
 pub(super) struct ProcessingElapsed {
+    /// 整体处理阶段累计毫秒数。
     pub(super) processing_ms: u64,
+    /// 模型调用阶段累计毫秒数。
     pub(super) llm_ms: u64,
 }
 
+/// 使用同一时间点暂停两个计时器，避免分别采样造成耗时偏差。
 pub(super) fn pause_runtime_processing_timers(
     runtime: &mut crate::app::state::SessionRuntimeState,
 ) -> ProcessingElapsed {

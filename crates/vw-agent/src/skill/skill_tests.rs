@@ -1,4 +1,5 @@
 //! 验证旧版技能模型的名称校验、能力声明与序列化契约。
+//! 前言解析保留正文空白并拒绝坏边界；路径展开和文件扫描不得把无效技能载入状态。
 
 use super::*;
 
@@ -114,6 +115,7 @@ async fn public_skill_queries_load_state_and_return_missing_skill_as_none() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
+// 状态加载只接纳有效技能，并显式记录重名来源而不是依赖目录枚举顺序覆盖。
 async fn load_state_scans_workspace_skills_skips_invalid_files_and_tracks_duplicate_names() {
     let workspace = tempfile::tempdir().expect("workspace dir");
     let unique_suffix = std::time::SystemTime::now()

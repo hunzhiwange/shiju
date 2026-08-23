@@ -1,6 +1,9 @@
+// 本文件验证 Telegram 用户名提及边界、大小写匹配与内容规范化。
+
 use super::TelegramChannel;
 
 #[test]
+// 用户名匹配要求完整边界，避免把更长用户名的子串当提及。
 fn mention_spans_require_username_boundaries() {
     let spans = TelegramChannel::find_bot_mention_spans("hi @VibeBot and no@vibebot", "vibebot");
 
@@ -76,4 +79,3 @@ fn normalize_incoming_content_removes_multiple_mentions_and_returns_none_for_bla
     );
     assert_eq!(TelegramChannel::normalize_incoming_content(" \n\t ", "bot"), None);
 }
-// 本文件验证 Telegram 用户名提及边界、大小写匹配与内容规范化。

@@ -1,3 +1,6 @@
+// 验证调度器开关、任务上限与并发数的边界处理。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -5,6 +8,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn scheduler_enabled_toggle_updates_value_and_clears_save_error() {
     let mut app = app();
@@ -38,6 +43,8 @@ fn scheduler_max_tasks_changed_clamps_bounds_and_preserves_in_range_value() {
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn scheduler_max_concurrent_changed_clamps_bounds_and_preserves_in_range_value() {
     let mut app = app();
@@ -70,6 +77,8 @@ fn scheduler_save_clears_error_without_changing_current_state() {
     assert!(app.scheduler_settings.save_error.is_none());
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn scheduler_help_messages_only_toggle_modal_visibility() {
     let mut app = app();
@@ -113,6 +122,8 @@ fn scheduler_update_ignores_unrelated_settings_message() {
     assert_eq!(app.scheduler_settings.save_error.as_deref(), Some("unchanged"));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn scheduler_max_tasks_change_leaves_other_scheduler_fields_unchanged() {
     let mut app = app();

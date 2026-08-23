@@ -1,4 +1,6 @@
 //! 租户配置保存流程，负责校验、密钥加密及全局与项目覆盖的持久化。
+//!
+//! 持久化前会移除运行期 skey；项目配置只保存相对基础配置的覆盖形状，避免复制全局值。
 
 use anyhow::{Context, Result, bail};
 #[cfg(not(target_arch = "wasm32"))]
@@ -25,6 +27,7 @@ use crate::app::agent::config::schema::config_validate::validate_config;
 use crate::global_database::GlobalDatabase;
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 校验并加密配置后写入指定租户；运行期 skey 永不落库。
 pub(super) fn save_config_to_store(
     config: &Config,
     tenant: &TenantScope,
@@ -39,6 +42,7 @@ pub(super) fn save_config_to_store(
     store.upsert(tenant, &payload)
 }
 
+/// 将配置保存到指定租户；原生平台把阻塞式数据库操作移出异步执行器。
 pub async fn save_config_for_tenant(config: &Config, tenant: &TenantScope) -> Result<()> {
     #[cfg(target_arch = "wasm32")]
     {
@@ -71,11 +75,13 @@ pub async fn save_config_for_tenant(config: &Config, tenant: &TenantScope) -> Re
     }
 }
 
+/// 将配置保存到默认租户。
 pub async fn save_config(config: &Config) -> Result<()> {
     save_config_for_tenant(config, &TenantScope::default()).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 校验项目根目录和 JSON 对象形状后保存租户项目覆盖。
 pub(super) fn save_project_config_to_store(
     store: &SystemConfigStore,
     tenant: &TenantScope,
@@ -105,6 +111,7 @@ async fn open_system_config_store() -> Result<SystemConfigStore> {
         .context("join system config store initialization task")?
 }
 
+/// 递归合并原始项目补丁；对象递归合并，其他值整体替换。
 pub(super) fn merge_raw_project_patch(target: &mut Value, patch: Value) {
     match (target, patch) {
         (Value::Object(target_object), Value::Object(patch_object)) => {
@@ -123,6 +130,7 @@ pub(super) fn merge_raw_project_patch(target: &mut Value, patch: Value) {
     }
 }
 
+/// 按覆盖模板选择加密后的有效值，避免把未覆盖字段写入项目配置。
 pub(super) fn select_override_shape(shape: &Value, encrypted_effective: Option<&Value>) -> Value {
     match shape {
         Value::Object(shape_object) => {
@@ -142,6 +150,7 @@ pub(super) fn select_override_shape(shape: &Value, encrypted_effective: Option<&
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 合并并验证项目覆盖，同时剔除禁止由项目层持久化的代理和 skey 字段。
 pub(super) fn prepare_project_override(
     base: &Config,
     raw_override: Value,
@@ -176,6 +185,7 @@ pub(super) fn prepare_project_override(
     Ok(select_override_shape(&next_override, Some(&encrypted_effective)))
 }
 
+/// 计算从 `before` 变为 `after` 的递归合并补丁；无变化时返回 `None`。
 pub(super) fn merge_patch_between(before: &Value, after: &Value) -> Option<Value> {
     if before == after {
         return None;
@@ -207,6 +217,7 @@ pub(super) fn merge_patch_between(before: &Value, after: &Value) -> Option<Value
     }
 }
 
+/// 更新指定租户的项目覆盖，并返回重新加载后的有效配置。
 pub(crate) async fn update_project_config_for_tenant(
     tenant: &TenantScope,
     project_root: &Path,
@@ -263,10 +274,12 @@ pub(crate) async fn update_project_config_for_tenant(
     }
 }
 
+/// 更新默认租户的项目覆盖。
 pub(crate) async fn update_project_config(project_root: &Path, patch: Value) -> Result<Config> {
     update_project_config_for_tenant(&TenantScope::default(), project_root, patch).await
 }
 
+/// 根据更新前后的完整配置计算最小项目补丁并持久化。
 pub(crate) async fn update_project_config_from_configs(
     project_root: &Path,
     before: &Config,

@@ -1,4 +1,5 @@
 //! 实现 PostgreSQL 事务发件箱的幂等入队、并发认领及投递状态更新。
+//! 认领使用行锁跳过其它消费者占用的消息，使多个派发器可安全并行排空。
 
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};

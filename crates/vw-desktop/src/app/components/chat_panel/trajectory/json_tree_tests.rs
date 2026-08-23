@@ -1,3 +1,6 @@
+//! 验证 JSON 树的稳定路径、折叠范围、复制操作与非 ASCII 字体安全。
+//! 折叠只隐藏目标子树，悬停复制按钮不得改变相邻节点的投影和标识。
+
 use std::collections::HashSet;
 
 use iced::advanced::widget::Tree;

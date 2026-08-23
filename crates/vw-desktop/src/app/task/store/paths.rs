@@ -1,13 +1,17 @@
+//! 解析旧版任务存储路径，并为原生端迁移后的禁用路径返回明确错误。
+
 use std::io;
 #[cfg(any(target_arch = "wasm32", test))]
 use std::path::PathBuf;
 
 #[cfg(any(target_arch = "wasm32", test))]
+/// 返回旧版项目内任务目录。
 pub(super) fn get_task_dir(project_path: &str) -> PathBuf {
     PathBuf::from(project_path).join(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("tasks")
 }
 
 #[cfg(any(target_arch = "wasm32", test))]
+/// 返回指定旧版任务的 JSON 文件路径。
 pub(super) fn get_task_file_path(project_path: &str, task_id: &str) -> PathBuf {
     get_task_dir(project_path).join(format!("{task_id}.json"))
 }
@@ -28,6 +32,7 @@ pub(super) fn ensure_task_dir(project_path: &str) -> io::Result<()> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 说明原生桌面任务持久化已迁移到全局代理调度器。
 pub(super) fn native_cutover_error() -> io::Error {
     io::Error::new(
         io::ErrorKind::Unsupported,

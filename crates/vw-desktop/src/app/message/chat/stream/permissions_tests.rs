@@ -1,3 +1,7 @@
+//! 验证流式权限请求的目录选择、自动批准分组和选中状态同步。
+//!
+//! 权限夹具交叉组合活动会话、目录和全访问状态，避免请求被错误自动批准到其他会话。
+
 #![allow(unused_must_use)]
 #[test]
 fn permissions_tests_module_is_wired() {
@@ -90,6 +94,7 @@ fn split_auto_approved_permission_requests_without_session_keeps_all() {
 }
 
 #[test]
+// 列表同步先稳定排序，再尽可能保留当前选择；失效选择才回退到首项。
 fn sync_permission_requests_sorts_and_preserves_existing_selection() {
     let (requests, selected) = super::sync_permission_requests(
         Some("b"),
@@ -188,6 +193,7 @@ fn handle_permission_list_loaded_clears_stale_modal_for_empty_success() {
 }
 
 #[test]
+// 全访问自动批准严格限制在活动且已启用的会话，其他会话请求必须继续排队。
 fn handle_permission_list_loaded_auto_approves_only_active_full_access_session() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("active".to_string());
@@ -254,6 +260,7 @@ fn handle_toggle_full_access_permission_enables_and_removes_active_session_reque
 }
 
 #[test]
+// 切换全访问除了更新界面状态，还需标记 ACP 运行时重建以应用新的权限边界。
 fn handle_toggle_full_access_permission_marks_acp_runtime_for_rebuild() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("active".to_string());
@@ -291,6 +298,7 @@ fn disabling_full_access_without_acp_preserves_pending_modal() {
 }
 
 #[test]
+// 回复后选择相邻请求而不是清空整个队列，保证连续授权流程不会跳项。
 fn handle_permission_approve_once_advances_modal_to_next_request() {
     let (mut app, _task) = crate::app::App::new();
     app.permission_modal_request_id = Some("b".to_string());

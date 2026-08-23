@@ -1,4 +1,5 @@
 //! 实现 PostgreSQL 任务依赖的锁定、替换与图构建，保证并发修改时约束一致。
+//! 替换前锁定全部相关任务，并复用内存图校验拒绝悬空边和循环依赖。
 
 use std::collections::{BTreeMap, BTreeSet};
 

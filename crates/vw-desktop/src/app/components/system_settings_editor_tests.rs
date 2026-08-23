@@ -1,13 +1,18 @@
+//! 验证编辑器设置的主题来源、数值边界与字段行布局。
+//! 跟随系统与独立主题两条路径均覆盖最小、最大配置值。
+
 use super::*;
 use crate::app::{App, Message};
 use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
+// 默认应用提供完整主题上下文，用例仅改写编辑器设置的目标字段。
 fn test_app() -> App {
     App::new().0
 }
 
+// 这些用例验证所有状态均可构建，不依赖窗口渲染后的像素结果。
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
 }

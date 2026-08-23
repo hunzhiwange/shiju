@@ -1,3 +1,6 @@
+//! TUI 通用坐标与动画辅助函数的测试。
+//! 光标位置必须同时考虑换行和宽字符的显示列宽，呼吸颜色则应在固定周期后重复。
+
 use super::tui_utils::{cursor_position, neon_breath_color};
 
 #[test]

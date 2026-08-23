@@ -1,4 +1,5 @@
 //! 验证会话界面配置的默认值、序列化与兼容字段行为。
+//! 更新单个配置字段必须保留同级键；畸形旧配置不得被新写入静默覆盖。
 
 use super::*;
 use crate::gateway::settings_store::GatewaySettingsStore;
@@ -132,6 +133,7 @@ fn set_config_field_preserves_siblings_and_replaces_existing_field() {
 }
 
 #[test]
+// 畸形旧值必须保留供诊断，局部更新不能借机把整个配置静默重置为空对象。
 fn set_config_field_rejects_malformed_existing_payload_without_overwriting_it() {
     let home = tempfile::tempdir().expect("temporary home");
     let database = GlobalDatabase::for_home(home.path()).expect("global database");

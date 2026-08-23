@@ -1,3 +1,7 @@
+//! 验证聊天流终止、会话目录解析、缓存恢复和计划运行生命周期。
+//!
+//! 缓存会话与网关历史故意制造标识不一致，加载逻辑必须选择一致来源并立即刷新终止增量。
+
 use crate::app::models::{ChatMessage as ModelChatMessage, ChatRole};
 
 fn chat_message(role: ChatRole, content: &str) -> ModelChatMessage {
@@ -171,6 +175,7 @@ fn stream_terminal_flushes_pending_active_delta_immediately() {
 }
 
 #[test]
+// 保存目录优先采用会话元数据，空白路径不能覆盖有效回退目录。
 fn session_directory_for_save_skips_blank_session_directory() {
     let (mut app, _task) = crate::app::App::new();
     app.sessions = vec![session_info("session-1", "Title", "  \n")];
@@ -201,6 +206,7 @@ fn session_directory_for_save_rejects_blank_fallbacks() {
 }
 
 #[test]
+// 缓存消息标识与消息数量不一致时必须重建，避免后续流事件关联到错误消息。
 fn load_session_or_default_replaces_mismatched_cached_message_ids() {
     let (mut app, _task) = crate::app::App::new();
     app.sessions = vec![session_info("session-1", "Title", "/project")];
@@ -358,6 +364,7 @@ fn update_unhandled_message_leaves_chat_state_unchanged() {
 }
 
 #[test]
+// 自动标题只针对默认标题且存在首条用户输入的活动会话安排生成任务。
 fn maybe_generate_session_title_returns_none_without_active_default_session() {
     let (mut app, _task) = crate::app::App::new();
 
@@ -395,6 +402,7 @@ fn maybe_generate_session_title_schedules_task_for_single_user_default_title() {
 
 #[test]
 #[cfg(not(target_arch = "wasm32"))]
+// 同一会话保存进行中时只保留最新快照，防止旧写入在完成后覆盖新状态。
 fn stream_session_saves_coalesce_to_latest_snapshot_while_in_flight() {
     use std::sync::{Arc, Mutex, mpsc};
     use std::time::Duration;

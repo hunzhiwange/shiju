@@ -1,4 +1,7 @@
 //! IRC 通道实现，负责 TLS 连接、消息收发、用户准入与断线检测。
+//!
+//! 入站仅接收 `PRIVMSG`，出站会按 IRC 字节上限切分；连接写端由互斥锁共享，
+//! 健康检查和发送路径因此观察同一连接状态。
 
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
@@ -17,7 +20,7 @@ const READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 /// Monotonic counter to ensure unique message IDs under burst traffic.
 static MSG_SEQ: AtomicU64 = AtomicU64::new(0);
 
-/// IRC over TLS channel.
+/// 通过 TLS 接入 IRC 的消息通道。
 ///
 /// Connects to an IRC server using TLS, joins configured channels,
 /// and forwards PRIVMSG messages to the `VibeWindow` message bus.
@@ -215,21 +218,32 @@ fn split_message(message: &str, max_bytes: usize) -> Vec<String> {
     chunks
 }
 
-/// Configuration for constructing an `IrcChannel`.
+/// 构造 [`IrcChannel`] 所需的连接、身份和准入配置。
 pub struct IrcChannelConfig {
+    /// IRC 服务器主机名。
     pub server: String,
+    /// IRC 服务器端口。
     pub port: u16,
+    /// 登录及消息发送使用的昵称。
     pub nickname: String,
+    /// 可选登录用户名；为空时回退到昵称。
     pub username: Option<String>,
+    /// 建立连接后需要加入的频道列表。
     pub channels: Vec<String>,
+    /// 允许发送消息的昵称；`*` 表示允许所有用户。
     pub allowed_users: Vec<String>,
+    /// 可选服务器连接密码。
     pub server_password: Option<String>,
+    /// 可选 NickServ 认证密码。
     pub nickserv_password: Option<String>,
+    /// 可选 SASL PLAIN 密码。
     pub sasl_password: Option<String>,
+    /// 是否校验服务器 TLS 证书。
     pub verify_tls: bool,
 }
 
 impl IrcChannel {
+    /// 根据配置创建尚未连接的 IRC 通道。
     pub fn new(cfg: IrcChannelConfig) -> Self {
         let username = cfg.username.unwrap_or_else(|| cfg.nickname.clone());
         Self {

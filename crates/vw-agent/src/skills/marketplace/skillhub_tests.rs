@@ -1,4 +1,5 @@
 //! 验证 SkillHub 市场接口的响应解析、版本与下载契约。
+//! 伪服务按请求序列返回目录、详情、技能集和制品，重定向仅信任固定 HTTPS 对象路径。
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -12,6 +13,7 @@ use vw_gateway_client::{
 use super::provider::{SkillMarketProvider, SkillMarketProviderError};
 use super::skillhub::{SkillHubProvider, skill_artifact_redirect_url, skill_file_redirect_url};
 
+// 响应序列夹具保留收到的请求，既验证 DTO 映射也验证查询参数编码。
 struct FixtureResponse {
     status: &'static str,
     content_type: &'static str,
@@ -452,6 +454,7 @@ async fn skillhub_provider_resolves_skillset_and_member_artifacts() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 错误正文可能含上游内部信息，对外错误只保留状态与稳定上下文。
 async fn skillhub_provider_rejects_upstream_errors_without_payload_leak() {
     let (base_url, requests) = fixture_sequence(vec![
         FixtureResponse::raw(

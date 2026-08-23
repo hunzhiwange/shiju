@@ -1,4 +1,6 @@
 // 验证 API 错误构造器、状态码映射与响应正文契约。
+
+// 响应检查同时约束 HTTP 状态和 JSON 错误正文，避免只修正其中一层。
 use super::*;
 use axum::body::to_bytes;
 use axum::response::IntoResponse;

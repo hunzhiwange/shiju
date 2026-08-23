@@ -1,3 +1,6 @@
+//! 验证共享工具渲染器对各工具类型、别名和生命周期状态的分派。
+//! 通用 MCP 载荷和渲染提示可修正路由，但无法解析的工具块必须返回无视图。
+
 use super::tool_renderer::{
     SharedToolRenderKind, render_shared_tool_view, shared_tool_render_kind,
 };

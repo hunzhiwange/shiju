@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 出站图片的数据地址解析、下载与尺寸约束。
+
 use super::TelegramChannel;
 use super::attachments::TelegramAttachment;
 use axum::{
@@ -169,6 +171,7 @@ async fn resolve_photo_data_uri_errors_when_file_path_missing() {
 }
 
 #[tokio::test]
+// 过大图片编码前限制尺寸，避免超过平台上传约束。
 async fn resolve_photo_data_uri_resizes_large_images_to_max_dimension() {
     let image = png_bytes(1024, 256);
     let server = TestServer::spawn(vec![
@@ -225,4 +228,3 @@ async fn resolve_photo_data_uri_errors_when_download_is_not_an_image() {
         vec!["/bot123:ABC/getFile?file_id=photo-id", "/file/bot123:ABC/photos/not-image.bin"]
     );
 }
-// 本文件验证 Telegram 出站图片的数据地址解析、下载与尺寸约束。

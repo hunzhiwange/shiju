@@ -1,3 +1,6 @@
+// 验证主面板标签选择、滚动偏移与项目预览恢复。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::update;
 use crate::app::message::ViewMessage;
 use crate::app::state::AppTab;
@@ -20,6 +23,8 @@ fn assert_scroll_offset(actual: f32, expected: f32) {
     assert!((actual - expected).abs() < f32::EPSILON);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn home_apps_bar_scroll_messages_update_and_clamp_offsets() {
     let mut app = test_app();
@@ -100,6 +105,8 @@ fn tab_selected_home_archives_previous_project_preview() {
     assert_eq!(app.preview_tab_menu_path, None);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn tab_selected_project_restores_cached_preview_state() {
     let mut app = test_app();
@@ -179,6 +186,8 @@ fn tab_closed_inactive_removes_only_requested_tab() {
     assert_eq!(app.screen, Screen::Home);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn tab_closed_missing_id_preserves_tab_selection() {
     let mut app = test_app();
@@ -265,6 +274,8 @@ fn tab_closed_active_project_switches_to_last_project_and_restores_preview() {
     );
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn tab_closed_last_tab_falls_back_to_unselected_home_screen() {
     let mut app = test_app();

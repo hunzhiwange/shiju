@@ -1,4 +1,5 @@
 //! 验证兼容网页搜索工具的端点、参数解析及无网络前置拒绝路径。
+//! 最大结果数与超时配置经过边界化，非法调用不得到达提供方客户端。
 
 use super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};

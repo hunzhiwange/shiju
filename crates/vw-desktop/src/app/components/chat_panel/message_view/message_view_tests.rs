@@ -1,3 +1,6 @@
+//! 验证不同消息角色、附件与处理时长在消息视图中的呈现契约。
+//! 时间 fixture 区分进行中、已完成和暂停区间，防止历史耗时遗漏非模型活动。
+
 use super::{message_footer_padding, message_view, processing_duration_label};
 use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ChatRole};
 use iced::Padding;

@@ -193,6 +193,7 @@ fn auto_selector_selects_long_context_model_and_filters_short_context_candidates
 }
 
 #[test]
+// 未知成本按中性值评分，不能因缺数据被误判为免费模型。
 fn auto_selector_treats_unknown_cost_as_neutral_not_free() {
     let models = vec![
         model("provider", "known-cheap", false, false, false, 32_000, 0.2, "2025-01-01"),
@@ -250,6 +251,7 @@ fn auto_selector_returns_configuration_error_for_missing_rule_target() {
 }
 
 #[test]
+// 无兼容候选时返回缺失能力摘要，帮助调用方修正配置。
 fn auto_selector_returns_requirement_summary_when_no_candidate_is_compatible() {
     let models = vec![model("provider", "chat", false, false, false, 16_000, 0.2, "2025-01-01")];
     let mut selection_request = request("Use tools to implement this.");

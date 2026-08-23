@@ -8,6 +8,7 @@ use crate::agent_scheduler::store::tasks::StoredAgentTask;
 use crate::agent_scheduler::store::workers::StoredAgentWorker;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// 工作节点筛选条件；空技能列表和空团队表示不施加对应约束。
 pub struct WorkerSelectionRequest {
     pub required_skills: Vec<String>,
     pub team_id: Option<TeamId>,
@@ -15,6 +16,7 @@ pub struct WorkerSelectionRequest {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 调度视角下的工作节点可用性，而非控制器原始状态。
 pub enum WorkerAvailability {
     Idle,
     Busy,
@@ -23,6 +25,7 @@ pub enum WorkerAvailability {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 候选节点的负载与派发能力评分结果。
 pub struct WorkerCandidateScore {
     pub worker_id: WorkerName,
     pub availability: WorkerAvailability,
@@ -34,6 +37,7 @@ pub struct WorkerCandidateScore {
     pub requires_wakeup: bool,
 }
 
+/// 筛掉不匹配节点，并按可用性、负载、运行时匹配和节点标识稳定排序。
 pub fn select_worker_candidates(
     request: &WorkerSelectionRequest,
     workers: &[StoredAgentWorker],
@@ -48,6 +52,7 @@ pub fn select_worker_candidates(
         .filter_map(|worker| score_worker(request, worker, loads.get(worker.id.as_str()).copied()))
         .collect::<Vec<_>>();
 
+    // 固定以节点标识兜底排序，确保相同输入不会因容器迭代顺序产生不同派发结果。
     candidates.sort_by(|left, right| {
         left.availability
             .sort_rank()

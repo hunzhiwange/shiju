@@ -1,4 +1,6 @@
 //! 验证运行时提示词请求构造、代理配置解析与可重试错误判定。
+//!
+//! 最小会话记录、控制器和异步通道 fixture 用于驱动运行时状态与竞态分支。
 
 use super::*;
 use crate::queue_owner_turn_controller::QueueOwnerActiveSessionController;
@@ -310,6 +312,7 @@ for raw_line in sys.stdin:
 "#
 }
 
+// 下列行为用例覆盖正常完成、超时中断、回退重试和资源清理。
 #[test]
 fn map_finish_reason_maps_known_values_and_defaults() {
     assert_eq!(map_finish_reason(Some("length")), StopReason::MaxTokens);

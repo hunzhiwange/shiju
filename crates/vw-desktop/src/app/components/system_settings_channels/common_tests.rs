@@ -1,3 +1,6 @@
+//! 验证渠道设置共享字段、开关、实例列表与样式组件。
+//! fixture 以空值和多实例组合检查共享控件的布局及消息归属。
+
 use super::common::{
     GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, add_instance_row,
     bool_row, bool_row_with_key, enabled_channels, group_reply_mode_value, hint_row,

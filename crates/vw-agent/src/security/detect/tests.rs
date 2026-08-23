@@ -30,6 +30,7 @@ mod tests {
     }
 
     #[test]
+    // 总开关优先于具体后端选择，关闭后必须统一退回空沙箱。
     fn disabled_flag_overrides_every_selectable_backend() {
         for backend in [
             SandboxBackend::Auto,
@@ -128,6 +129,7 @@ mod tests {
     }
 
     #[test]
+    // 显式后端不可用时只允许明确回退或提示可用项，不能伪装为已启用。
     fn unavailable_explicit_backends_fall_back_to_noop_or_report_available_backend() {
         for backend in [
             SandboxBackend::Landlock,

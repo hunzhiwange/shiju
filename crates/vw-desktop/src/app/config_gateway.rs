@@ -1,3 +1,5 @@
+//! 组装桌面端网关配置、主代理覆盖项与客户端连接任务。
+
 use crate::app::{Message, message::SettingsMessage};
 use iced::Task;
 #[cfg(not(target_arch = "wasm32"))]
@@ -25,6 +27,7 @@ fn should_attempt_tools_list_request(_endpoint: &GatewayEndpoint) -> bool {
     true
 }
 
+/// 将 `main` 代理的显式配置覆盖到桌面端默认模型与工具选择。
 pub(super) fn apply_main_agent_overrides(config: &mut Config) {
     let Some(main) = config.agents.get("main") else {
         return;
@@ -70,6 +73,7 @@ fn load_vibewindow_root_json() -> serde_json::Value {
         .unwrap_or_else(|| serde_json::json!({}))
 }
 
+/// 在桌面配置 JSON 中创建缺失的对象层级并写入叶节点。
 pub(super) fn set_config_value_at_path(
     root: &mut serde_json::Value,
     path: &[&str],
@@ -101,6 +105,7 @@ pub(super) fn set_config_value_at_path(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 从桌面根配置按路径读取并反序列化值；缺失或类型错误均返回 `None`。
 pub(super) fn load_config_value_at_path<T: DeserializeOwned>(path: &[&str]) -> Option<T> {
     let root = load_vibewindow_root_json();
     let mut current = &root;
@@ -139,6 +144,7 @@ pub fn spawn_gateway_task(
     })
 }
 
+/// 从当前活动服务配置构造带认证与租户范围的网关端点。
 pub fn gateway_client_endpoint() -> GatewayEndpoint {
     #[cfg(not(target_arch = "wasm32"))]
     let cfg = load_gateway_client_bootstrap_config();
@@ -162,6 +168,7 @@ pub fn gateway_client_endpoint() -> GatewayEndpoint {
         .with_tenant_scope(tenant_scope)
 }
 
+/// 创建当前桌面配置对应的网关客户端。
 pub fn gateway_client() -> Result<GatewayClient, String> {
     GatewayClient::new(gateway_client_endpoint())
 }
@@ -175,6 +182,7 @@ fn normalize_tool_ids(mut tools: Vec<String>) -> Vec<String> {
     tools
 }
 
+/// 同步加载静态工具标识；连接失败时返回空列表并过滤动态 MCP 工具。
 pub fn load_tools_list_via_gateway() -> Vec<String> {
     let endpoint = gateway_client_endpoint();
 

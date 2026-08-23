@@ -1,3 +1,6 @@
+//! 验证明暗主题检测、颜色混合、四像素滚动条与图标按钮样式。
+//! 阈值精确值按亮色处理，颜色插值比例会钳制，确保极端输入仍落在有效通道范围。
+
 use super::theme::{
     additions_pill, change_pills, chat_scroll_direction, chat_secondary_muted_text_color,
     chat_secondary_subtle_text_color, chat_secondary_text_color, deletions_pill,

@@ -1,3 +1,5 @@
+// 本文件验证聊天渠道列表顺序、启用判定与旧版飞书配置兼容。
+
 use super::chat::ChannelsConfigExt;
 use super::other::{QQConfig, QQReceiveMode};
 use super::{
@@ -49,6 +51,7 @@ fn channels_list_adds_webhook_after_regular_channels() {
 }
 
 #[test]
+// 展示顺序是稳定契约，Webhook 则由独立入口管理。
 fn channels_except_webhook_reports_regular_channels_in_display_order() {
     let config = ChannelsConfig::default();
     let channels = config.channels_except_webhook();
@@ -183,4 +186,3 @@ fn blank_feishu_is_not_reported_as_enabled() {
             .all(|(handle, enabled)| !matches!(handle.name(), "Lark" | "Feishu") || !*enabled)
     );
 }
-// 本文件验证聊天渠道列表顺序、启用判定与旧版飞书配置兼容。

@@ -76,6 +76,7 @@ async fn response_json(response: axum::response::Response) -> serde_json::Value 
     serde_json::from_slice(&bytes).expect("body should be json")
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 async fn assert_unauthorized(response: axum::response::Response) {
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(
@@ -86,6 +87,7 @@ async fn assert_unauthorized(response: axum::response::Response) {
     );
 }
 
+// 认证失败和空注册表均单独验证，避免工具元数据在未授权响应中泄露。
 #[test]
 fn tool_handlers_are_available() {
     let _ = handle_api_tools;

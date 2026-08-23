@@ -1,5 +1,6 @@
 // 覆盖桌面技能目录解析、详情读取、脚手架创建与安装。
 
+// 临时技能目录同时构造 TOML、Markdown 和缺失资源，验证元数据优先级与回退。
 #[test]
 fn desktop_skills_test_module_is_loaded() {
     assert!(true);
@@ -53,6 +54,7 @@ description: Helps with demos.
     assert_eq!(parsed.description.as_deref(), Some("Helps with demos."));
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[test]
 fn parse_skill_frontmatter_rejects_missing_or_unclosed_blocks() {
     assert!(super::parse_skill_frontmatter("# Demo").is_none());

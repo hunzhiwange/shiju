@@ -1,3 +1,6 @@
+//! 验证技能工具名称从输入、输出和错误载荷中提取并正确构造视图。
+//! 缺失、空白和未闭合字段必须拒绝，避免展示看似有效但不可执行的技能名。
+
 use super::skill_view::{
     quoted_attr_value, skill_display_name, skill_name_from_input, skill_name_from_json_value,
     skill_name_from_output, tool_skill_view, yaml_name_value,

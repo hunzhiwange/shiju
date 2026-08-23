@@ -1,3 +1,6 @@
+//! 验证工具权限请求匹配、审批状态、拒绝详情与徽标聚合逻辑。
+//! 匹配优先使用调用标识，再回退消息标识，以避免同一消息内多工具请求串位。
+
 use super::tool_permission::{
     ToolPermissionState, pending_permission_badge_label, pending_permission_request_badge_label,
     pending_permission_request_for_message, pending_permission_request_for_tool_call,
@@ -8,6 +11,7 @@ use super::tool_permission::{
 use serde_json::Map;
 use serde_json::json;
 
+// 权限 fixture 默认绑定消息与工具调用；无工具版本用于验证消息级兼容请求。
 fn request(
     id: &str,
     message_id: &str,

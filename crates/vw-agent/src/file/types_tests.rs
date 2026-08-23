@@ -2,6 +2,7 @@
 
 use super::types::{Content, ContentType, Error, Info, Node, NodeType, SearchInput, Status};
 
+// 临时目录夹具同时覆盖正常路径和逃逸路径，确保安全判断不依赖当前工作区。
 #[test]
 fn file_types_serialize_with_expected_names() {
     let info = Info { path: "a.txt".to_string(), added: 1, removed: 0, status: Status::Added };
@@ -128,6 +129,7 @@ fn structs_deserialize_and_clone_without_losing_fields() {
     assert!(cloned.ignored);
 }
 
+// 缺失资源与越界资源的语义不同：前者可安全回退时仍不得放宽后者的拒绝策略。
 #[test]
 fn error_display_and_source_match_variants() {
     let access = Error::AccessDenied("../secret".to_string());

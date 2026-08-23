@@ -1,3 +1,6 @@
+//! 验证 Git 差异工具对结构化输出、补丁分组、统计和异常载荷的解析。
+//! 直接数据优先于内容块，元数据行和畸形分块不得被误计为文件变更。
+
 use super::git_diff_view::{
     GitDiffPreview, append_preview_gap, append_preview_line, git_diff_body, git_diff_title,
     is_git_diff_tool, parse_git_diff_previews, secondary_text, structured_git_diff_output,
@@ -26,6 +29,7 @@ fn preview(path: &str, additions: usize, deletions: usize, cached: bool) -> GitD
     }
 }
 
+// 分段追加必须保留原有换行，否则后续统一差异解析会把相邻标记粘连。
 #[test]
 fn append_preview_helpers_preserve_line_boundaries() {
     let mut buf = String::new();

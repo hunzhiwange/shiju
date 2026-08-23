@@ -1,3 +1,7 @@
+//! 验证项目编辑弹窗各标签页及颜色选择浮层的组合顺序。
+//!
+//! 基础弹窗与颜色选择器分层构造，确认缺少编辑路径时不会残留孤立浮层。
+
 use super::*;
 use crate::app::components::color_picker::ColorFormat;
 use crate::app::state::ProjectEditTab;

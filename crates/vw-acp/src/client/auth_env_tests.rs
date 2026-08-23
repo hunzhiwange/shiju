@@ -1,4 +1,6 @@
 //! 验证认证环境变量别名、凭据优先级以及令牌名称规范化。
+//!
+//! 隔离的环境变量与协议连接 fixture 用于固定凭据来源及认证策略边界。
 
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -40,6 +42,7 @@ impl Drop for EnvGuard {
     }
 }
 
+// 下列行为用例覆盖凭据优先级、空值过滤和认证失败映射。
 #[test]
 fn build_agent_environment_injects_valid_aliases_and_filters_empty_credentials() {
     let mut credentials = HashMap::new();

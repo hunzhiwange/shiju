@@ -1,3 +1,6 @@
+//! 验证工具卡片摘要的提取、归一化、去重以及内部轨迹过滤规则。
+//! 畸形原始块、隐藏跟踪文本和尾随探索工具用于验证摘要不会泄漏内部执行细节。
+
 use super::tool_summaries::{
     collect_tool_card_texts, count_code_blocks, explore_summary_text_blocks,
     normalized_visible_text, should_hide_explore_link_box, should_hide_post_explore_tool_block,
@@ -10,6 +13,7 @@ fn tool_card(tool_name: &str, value: serde_json::Value) -> Vec<String> {
     collect_tool_card_texts(&format!("tool {tool_name}\n{value}")).expect("tool card text")
 }
 
+// 围栏按成对标记计数，未闭合代码块不应被误判为完整预览。
 #[test]
 fn count_code_blocks_counts_fenced_pairs() {
     assert_eq!(count_code_blocks("```rust\nfn main() {}\n```\n```text\nx\n```"), 2);

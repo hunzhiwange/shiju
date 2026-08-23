@@ -1,9 +1,13 @@
+//! 验证应用基础操作的状态变更和任务消息生成。
+//!
+//! 基础操作通过最小应用状态触发消息，确认导航、输入和文件搜索等状态互不污染。
+
 use crate::app::message::chat::input::FileSearchResult;
 use crate::app::state::{ExternalOpenApp, ToastKind};
 use crate::app::{App, Screen};
 use iced::Theme;
 
-// Tests for plan6 task 847.
+// 保留计划任务 847 的既定覆盖面。
 const SOURCE: &str = include_str!("app_basic.rs");
 
 fn source_declares_symbol(name: &str) -> bool {

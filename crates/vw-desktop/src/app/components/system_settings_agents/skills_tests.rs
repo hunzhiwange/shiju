@@ -1,3 +1,6 @@
+//! 验证代理技能列表、筛选、启停状态与操作消息。
+//! 未安装、禁用和搜索无结果状态用于确认操作按钮不会越权出现。
+
 use super::skills::{
     capability_policy_label, capability_policy_tooltip, discovery_order_text, enabled_skill_ids,
     scope_description, scope_source_matches, skill_card_button_style, skill_policy_message,

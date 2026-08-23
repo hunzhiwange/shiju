@@ -1,3 +1,6 @@
+//! 验证聊天工具模块按约定重新导出文本辅助函数。
+//! 通过公共入口调用可防止实现仍存在但模块门面遗漏接线。
+
 use super::{truncate_chars, truncate_lines_middle};
 
 #[test]

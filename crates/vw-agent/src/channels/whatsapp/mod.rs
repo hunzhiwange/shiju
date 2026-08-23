@@ -1,10 +1,13 @@
 //! WhatsApp Business Cloud API 通道及其 Webhook 接入边界。
+//!
+//! 生产出站地址必须使用 HTTPS；入站解析仅接受准入号码发送的文本消息。
 
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use uuid::Uuid;
 
 /// `WhatsApp` channel — uses `WhatsApp` Business Cloud API
+/// 使用 Meta Cloud API 的 WhatsApp 通道。
 ///
 /// This channel operates in webhook mode (push-based) rather than polling.
 /// Messages are received via the gateway's `/whatsapp` webhook endpoint.
@@ -24,6 +27,7 @@ fn ensure_https(url: &str) -> anyhow::Result<()> {
 ///
 /// This Cloud API channel is automatically selected when `phone_number_id` is set in the config.
 /// Use `WhatsAppWebChannel` (with `session_path`) for native Web mode.
+/// 配置 `phone_number_id` 时由通道工厂选择本实现；Web 会话配置则选择原生 Web 通道。
 pub struct WhatsAppChannel {
     access_token: String,
     endpoint_id: String,
@@ -34,6 +38,7 @@ pub struct WhatsAppChannel {
 }
 
 impl WhatsAppChannel {
+    /// 创建尚未启动监听的 Cloud API 通道。
     pub fn new(
         access_token: String,
         endpoint_id: String,
@@ -55,6 +60,7 @@ impl WhatsAppChannel {
     }
 
     #[cfg(test)]
+    /// 创建允许本地 HTTP 根地址的测试通道；该绕过不进入生产构建。
     pub(crate) fn new_with_api_base_url(
         access_token: String,
         endpoint_id: String,
@@ -90,12 +96,12 @@ impl WhatsAppChannel {
         self.allowed_numbers.iter().any(|n| n == "*" || n == phone)
     }
 
-    /// Get the verify token for webhook verification
+    /// 返回 Webhook 握手校验令牌。
     pub fn verify_token(&self) -> &str {
         &self.verify_token
     }
 
-    /// Parse an incoming webhook payload from Meta and extract messages
+    /// 从 Meta Webhook 载荷提取通过号码准入检查的文本消息。
     pub fn parse_webhook_payload(&self, payload: &serde_json::Value) -> Vec<ChannelMessage> {
         let mut messages = Vec::new();
 

@@ -1,3 +1,5 @@
+//! 组合识矩应用商店、我的应用、详情与密钥绑定视图。
+
 use iced::widget::{button, column, container, row, text};
 use iced::{Element, Length};
 
@@ -14,6 +16,7 @@ pub(super) mod styles;
 const CARDS_PER_ROW: usize = 4;
 const APP_TITLE_MAX_WIDTH: usize = 22;
 
+/// 按中英文显示宽度截断应用标题，超限时追加省略号。
 pub(super) fn app_title(name: &str) -> String {
     let width = |character: char| usize::from(!character.is_ascii()) + 1;
     if name.chars().map(width).sum::<usize>() <= APP_TITLE_MAX_WIDTH {
@@ -35,6 +38,7 @@ pub(super) fn app_title(name: &str) -> String {
     title
 }
 
+/// 将卡片稳定地按每行固定上限分组并允许窄窗口换行。
 pub(super) fn card_grid(cards: Vec<Element<'static, Message>>) -> Element<'static, Message> {
     let mut grid = column![].spacing(12);
     let mut cards = cards.into_iter();
@@ -62,6 +66,7 @@ fn tab_button(label: &'static str, tab: ShijuAppsTab, selected: bool) -> Element
         .into()
 }
 
+/// 组合应用页签、详情与密钥绑定覆盖层。
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let content = if let Some(target) = app.expert_hub.shiju_apps.detail {
         detail::view(app, target)

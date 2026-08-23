@@ -1,3 +1,6 @@
+// 验证员工资源草稿、加载反馈与成员索引边界。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use crate::app::message::settings::{
     StaffResourceMessage, StaffTeamDraftField, StaffTeamMemberDraftField, StaffWorkerDraftField,
 };
@@ -55,6 +58,8 @@ fn team(id: &str) -> AgentTeamDto {
     }
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn refresh_without_project_sets_both_resource_errors_and_stops_loading() {
     let mut app = app();
@@ -119,6 +124,8 @@ fn worker_draft_messages_update_all_fields_and_clear_feedback() {
     assert_eq!(app.staff_settings.workers.success, None);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn team_draft_messages_update_members_and_ignore_out_of_bounds_indices() {
     let mut app = app();
@@ -221,6 +228,8 @@ fn resource_loaded_success_replaces_workers_and_teams() {
     assert_eq!(app.staff_settings.teams.teams[0].id, "platform");
 }
 
+// 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
+// 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
 #[test]
 fn resource_saved_success_clears_saving_and_applies_saved_items() {
     let mut app = app();
@@ -253,6 +262,8 @@ fn save_requests_short_circuit_while_already_saving() {
     assert!(app.staff_settings.teams.error.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn save_requests_without_project_fail_before_gateway_work() {
     let mut app = app();

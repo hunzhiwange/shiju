@@ -1,4 +1,6 @@
 // 验证 OCR 预处理的模型选择、不可信文本边界与失败回退。
+
+// OCR 输出作为不可信附件包裹并截断，模型缺失或提取失败走显式回退。
 use super::ocr::{
     ImageTextExtractor, OCR_ATTACHMENT_END, OCR_ATTACHMENT_START, OCR_TEXT_MAX_CHARS,
     prepare_messages_with_ocr,
@@ -11,6 +13,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use std::sync::Mutex;
 
 #[derive(Clone)]
+// 桩结果区分正常文本与提取错误，调用参数由桩记录供边界断言使用。
 enum StubOutcome {
     Text(String),
     Error(&'static str),
@@ -68,6 +71,7 @@ fn png_data_uri() -> String {
     format!("data:image/png;base64,{}", STANDARD.encode(bytes))
 }
 
+// 附件 helper 把信任边界标记与可见 OCR 文本分别取出检查。
 fn attachment_text(content: &str) -> &str {
     content
         .split_once(OCR_ATTACHMENT_START)

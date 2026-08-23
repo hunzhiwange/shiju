@@ -1,4 +1,4 @@
-//! Secure process boundary for SHIJU application WebViews.
+//! 在受限进程边界内校验并启动识矩应用 WebView。
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -9,6 +9,7 @@ use vw_gateway_client::ShijuAppLaunchDto;
 
 const RUNTIME_HOST: &str = "app.shiju.cloud";
 
+/// 抽象受测的进程创建、标准输入写入与失败清理边界。
 pub(super) trait LaunchProcess {
     type Child;
 
@@ -71,6 +72,7 @@ fn validate_target(
     Ok(())
 }
 
+/// 校验运行地址与 WebView 程序后启动进程，并通过标准输入传递启动载荷。
 pub(super) fn launch_with<P: LaunchProcess>(
     process: &mut P,
     candidates: &[PathBuf],
@@ -116,6 +118,7 @@ pub(super) fn launch_with<P: LaunchProcess>(
     ))
 }
 
+/// 使用系统进程实现启动识矩应用 WebView。
 pub(crate) fn launch_shiju_app(
     target: &ShijuAppLaunchDto,
     expected_installation_id: &str,

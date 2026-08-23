@@ -1,3 +1,6 @@
+//! 验证助手消息中正文、思考块与工具块的分组、去重和渲染顺序。
+//! 块序列 fixture 专门覆盖隐藏推理、尾随探索工具和可见边界触发的分组刷新。
+
 use super::assistant_body::{
     count_visible_non_explore_tool_cards, deduped_tool_last_indices, render_assistant_body,
     should_highlight_pending_permission_tool,
@@ -18,6 +21,7 @@ fn command_block(name: &str, call_id: &str, command: &str) -> ParsedChatBlock {
     }
 }
 
+// 顶层节点数用于验证分组边界，不绑定各卡片内部容易变化的控件结构。
 fn rendered_top_level_count(
     app: &App,
     blocks: Vec<ParsedChatBlock>,

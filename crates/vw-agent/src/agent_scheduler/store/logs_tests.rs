@@ -1,4 +1,5 @@
 //! 测试调度日志存储的级别筛选、分页与作用域隔离。
+//! 不同级别和时间戳组合覆盖过滤及分页边界，结果顺序保持确定。
 
 use anyhow::Result;
 use rusqlite::Connection;
@@ -317,6 +318,7 @@ fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
     })
 }
 
+// 公共断言同时覆盖内存数据库与可用 PostgreSQL，保持日志契约一致。
 fn for_each_log_store_provider(
     mut check: impl FnMut(
         &AgentSchedulerStore,

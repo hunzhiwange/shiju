@@ -68,6 +68,7 @@ fn provider_options_maps_all_supported_adapter_keys() {
 }
 
 #[test]
+// Anthropic 拒绝空内容块，发送前必须过滤而不影响其他供应商。
 fn normalize_messages_filters_anthropic_empty_content_parts() {
     let messages = vec![
         json!({"role": "user", "content": ""}),
@@ -127,6 +128,7 @@ fn normalize_messages_leaves_non_anthropic_non_claude_messages_unchanged() {
 }
 
 #[test]
+// Claude 工具调用标识需规范化，保证后续工具结果能够正确配对。
 fn normalize_messages_sanitizes_claude_tool_call_ids() {
     let messages = vec![
         json!({"role": "assistant", "content": [
@@ -234,6 +236,7 @@ fn provider_option_remap_skips_unknown_same_and_azure_adapters() {
 }
 
 #[test]
+// 模型未声明限制时仍受全局上限约束，不能把零误解为禁止输出。
 fn max_output_tokens_respects_global_cap_and_zero_model_limit() {
     let global_max = output_token_max();
 

@@ -3,6 +3,7 @@
 use super::*;
 
 #[test]
+// 错误文本进入用户界面前必须同时清理常见令牌头和键值凭据。
 fn secret_scrubber_redacts_bearer_and_api_key_values() {
     let input = "Authorization: Bearer sk-secret-value api_key=abcd1234";
     let scrubbed = scrub_secret_patterns(input);
@@ -32,6 +33,7 @@ fn runtime_options_default_is_secure_and_unset() {
 }
 
 #[test]
+// 自定义供应商仅接受合法 URL，别名则走受控的内置名称集合。
 fn provider_name_validation_accepts_supported_aliases_and_custom_urls() {
     assert!(create_provider(" openai ", None).is_ok());
     assert!(create_provider("KIMI-K2", None).is_ok());
@@ -92,6 +94,7 @@ fn provider_name_validation_rejects_unknown_or_bad_custom_urls() {
 }
 
 #[tokio::test]
+// 保留 HTTP 状态便于诊断，但响应正文中的秘密不能泄露。
 async fn api_error_includes_status_and_redacts_response_body_secrets() {
     let response = axum::http::Response::builder()
         .status(axum::http::StatusCode::UNAUTHORIZED)

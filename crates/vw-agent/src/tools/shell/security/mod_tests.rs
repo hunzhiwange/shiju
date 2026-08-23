@@ -1,4 +1,5 @@
 //! 验证 shell 安全报告、自治级别策略与可配置校验器组合的行为。
+//! 特别约束 heredoc 例外只移除对应发现项，不能意外放宽其它阻断规则。
 
 use crate::security::AutonomyLevel;
 use crate::tools::shell::security::{

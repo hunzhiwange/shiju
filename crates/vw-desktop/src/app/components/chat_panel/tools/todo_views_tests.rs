@@ -1,3 +1,6 @@
+//! 验证待办工具的解析排序、展开状态、生命周期标签与卡片布局。
+//! 未知状态使用默认标签，拒绝和错误状态也必须产生可见反馈而非静默消失。
+
 use super::todo_views::{
     todo_tool_card_padding, todo_tool_expanded, tool_expanded, tool_todos_view,
     tool_todowrite_compact_view,

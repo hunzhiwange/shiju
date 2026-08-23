@@ -1,4 +1,5 @@
 //! 验证会话标题生成、截断、清理与模型结果回退规则。
+//! 长度限制按字符而非字节执行，空白模型输出和截断后空内容必须明确拒绝。
 
 use super::*;
 
@@ -143,6 +144,7 @@ async fn whitespace_after_truncation_is_rejected_before_agent_lookup() {
 }
 
 #[tokio::test]
+// 有效性判断基于实际发送给模型的截断前缀，后段非空内容不能挽救空白前缀。
 async fn content_beyond_truncation_limit_cannot_make_blank_prefix_valid() {
     let err = generate_from_content(
         "session-title-hidden-suffix-test".to_string(),

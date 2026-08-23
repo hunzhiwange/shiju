@@ -1,8 +1,11 @@
 // 验证实例目录解析、项目切换回调与本地项目状态清理。
+
+// 清理守卫负责移除测试项目，避免实例切换测试残留进程级本地状态。
 use super::*;
 use axum::http::{HeaderMap, HeaderValue};
 use uuid::Uuid;
 
+// 清理守卫即使断言 panic 也会移除测试项目，避免污染后续实例解析。
 struct StoredProjectCleanup(String);
 
 impl Drop for StoredProjectCleanup {
@@ -19,6 +22,7 @@ fn callback_error() -> project::BoxFuture<Result<(), ApiError>> {
     Box::pin(async move { Err(ApiError::bad_request("callback failed")) })
 }
 
+// 非法项目文件用于确认解析失败保留上下文，而不是静默退回其它实例。
 fn write_invalid_project_json(temp: &tempfile::TempDir, suffix: &str) -> std::path::PathBuf {
     let git_dir = temp.path().join(".git");
     std::fs::create_dir(&git_dir).expect("git dir");

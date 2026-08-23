@@ -18,6 +18,7 @@ fn discovered_paths(roots: DiscoveryRoots) -> Vec<PathBuf> {
 }
 
 #[test]
+// 发现顺序从托管与用户级逐步收窄到当前目录，后层可表达更具体约束。
 fn agents_discovery_orders_managed_user_project_and_local_root_to_cwd() {
     let fixture = tempfile::tempdir().expect("fixture directory");
     let managed = fixture.path().join("managed");
@@ -51,6 +52,7 @@ fn agents_discovery_orders_managed_user_project_and_local_root_to_cwd() {
 }
 
 #[test]
+// 旧文件名不再隐式生效，避免用户误以为已废弃配置仍被加载。
 fn agents_discovery_ignores_legacy_instruction_names() {
     let fixture = tempfile::tempdir().expect("fixture directory");
     let managed = fixture.path().join("managed");

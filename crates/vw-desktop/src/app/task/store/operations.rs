@@ -1,3 +1,5 @@
+//! 提供任务的查询、创建、更新与删除操作，并隔离平台持久化差异。
+
 use std::collections::HashMap;
 use std::io;
 
@@ -18,6 +20,7 @@ use super::persistence::{
 };
 use super::persistence::{load_all_tasks, save_task};
 
+/// 按状态分组任务，并以创建时间、优先级、顺序和 ID 稳定排序。
 pub fn load_tasks_by_status(project_path: &str) -> HashMap<TaskStatus, Vec<Task>> {
     let mut result =
         TaskStatus::all().into_iter().map(|status| (status, Vec::new())).collect::<HashMap<_, _>>();
@@ -37,6 +40,7 @@ pub fn load_tasks_by_status(project_path: &str) -> HashMap<TaskStatus, Vec<Task>
     result
 }
 
+/// 创建任务；原生桌面已迁移到全局调度器，因此仅旧版平台路径可写。
 pub fn create_task(project_path: &str, task: Task) -> io::Result<Task> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -82,6 +86,7 @@ fn reset_subtask_for_rebuild(mut subtask: SubTask) -> SubTask {
     subtask
 }
 
+/// 从当前分支重建失败任务，并重置子任务运行状态与结果。
 pub fn rebuild_failed_task_from_current_branch(
     project_path: &str,
     old_task: Task,
@@ -119,10 +124,12 @@ pub fn rebuild_failed_task_from_current_branch(
     }
 }
 
+/// 持久化现有任务的最新状态。
 pub fn update_task(project_path: &str, task: &Task) -> io::Result<()> {
     save_task(project_path, task)
 }
 
+/// 在同一状态内重排任务，并保存连续的顺序值。
 pub fn reorder_tasks_in_status(
     project_path: &str,
     status: TaskStatus,

@@ -1,3 +1,6 @@
+//! 验证上方覆盖层的位置计算、边界修正与组件构建。
+//! 视口边缘和空间不足场景用于确认覆盖内容不会被放到可见区域之外。
+
 use super::{AboveOverlay, PointAboveOverlay};
 use iced::widget::text;
 use iced::{Element, Point, Theme};

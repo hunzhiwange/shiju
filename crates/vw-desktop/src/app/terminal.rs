@@ -1,4 +1,7 @@
+//! 定义桌面终端标签、Shell 选项及原生终端实例的生命周期。
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 桌面终端支持启动的交互式 Shell。
 pub enum Shell {
     Bash,
     Zsh,
@@ -20,6 +23,7 @@ impl std::fmt::Display for Shell {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 终端配色策略；当前仅跟随应用主题。
 pub enum TerminalTheme {
     System,
 }
@@ -32,6 +36,7 @@ impl std::fmt::Display for TerminalTheme {
     }
 }
 
+/// 单个终端标签及其原生终端实例和重命名草稿。
 pub struct TerminalTab {
     pub id: u64,
     pub title: String,
@@ -58,6 +63,7 @@ fn to_hex(color: iced::Color) -> String {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 从应用主题生成保证前景、背景和 ANSI 色可读的终端调色板。
 pub fn build_palette(theme: &iced::Theme) -> iced_term::ColorPalette {
     let mut p = iced_term::ColorPalette::default();
     let palette = theme.extended_palette();
@@ -94,6 +100,7 @@ pub fn build_palette(_theme: &iced::Theme) -> () {
     ()
 }
 
+/// 限制 Web 端文本终端内容长度，保留最新尾部并避免无限增长。
 pub fn truncate_terminal_content(c: &mut iced::widget::text_editor::Content) {
     const LIMIT: usize = 4_000;
     let s = c.text();
@@ -108,6 +115,7 @@ pub fn truncate_terminal_content(c: &mut iced::widget::text_editor::Content) {
     *c = iced::widget::text_editor::Content::with_text(&new);
 }
 
+/// 按 UTF-8 字符边界保留字符串尾部，使结果字节数不超过上限。
 pub fn truncate_string_to_limit(s: &str, limit: usize) -> String {
     if s.len() <= limit {
         return s.to_string();
@@ -209,6 +217,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 新启动 PTY 的终端实例及后台读写任务。
 pub struct TerminalRuntime {
     pub writer: Arc<Mutex<Box<dyn std::io::Write + Send>>>,
     pub output: Arc<Mutex<VecDeque<u8>>>,
@@ -216,6 +225,7 @@ pub struct TerminalRuntime {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 创建 PTY、启动 Shell 并返回终端实例与后台任务。
 pub fn spawn_pty_terminal(
     cwd: Option<&str>,
     #[cfg_attr(windows, allow(unused_variables))] shell_choice: Shell,
@@ -273,6 +283,7 @@ pub fn spawn_pty_terminal(
     })
 }
 
+/// 多标签终端的活动项、字体、主题与待回收后台任务。
 pub struct TerminalState {
     pub is_visible: bool,
     pub tabs: Vec<TerminalTab>,
@@ -358,6 +369,7 @@ impl TerminalState {
     ///
     /// Returns `true` when a new PTY tab was created.
     #[cfg(not(target_arch = "wasm32"))]
+    /// 在没有标签时创建默认终端；已存在标签时不重复创建。
     pub fn ensure_default_terminal(&mut self, cwd: Option<std::path::PathBuf>) -> bool {
         if !self.tabs.is_empty() {
             return false;
@@ -609,6 +621,7 @@ fi
         }
     }
 
+    /// 关闭指定标签并选择相邻标签；找不到 ID 时返回 `false`。
     pub fn close_terminal(&mut self, id: u64) -> bool {
         if let Some(pos) = self.tabs.iter().position(|t| t.id == id) {
             let tab = self.tabs.remove(pos);
@@ -627,6 +640,7 @@ fi
 
     /// Absorb terminals from a replaced [`TerminalState`] so they are not dropped
     /// while iced may still be running their subscriptions.
+    /// 接管被替换状态的后台任务，延后到安全时机统一回收。
     pub fn absorb_replaced(&mut self, old: Self) {
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -650,6 +664,7 @@ fi
         }
     }
 
+    /// 中止并清空所有已退役终端的后台任务。
     pub fn reap_retired(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         self.retiring.clear();

@@ -122,6 +122,7 @@ fn should_abort_reads_the_latest_watch_value() {
 }
 
 #[test]
+// 重试只接受供应商显式可重试错误或 ACP 会话变化信号。
 fn is_retryable_assistant_error_uses_api_retry_flag_and_acp_session_change() {
     assert!(is_retryable_assistant_error(&message::AssistantError::APIError {
         message: "temporary".to_string(),
@@ -250,6 +251,7 @@ fn resolve_stream_provider_info_preserves_an_existing_provider() {
 }
 
 #[test]
+// 缺供应商时只有显式 ACP 请求可使用虚拟路由，普通请求必须报错。
 fn resolve_stream_provider_info_requires_an_explicit_acp_request_for_fallback() {
     let error = resolve_stream_provider_info("acp", None, false)
         .expect_err("the ACP fallback should not be enabled implicitly");

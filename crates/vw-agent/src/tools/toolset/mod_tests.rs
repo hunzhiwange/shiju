@@ -1,4 +1,5 @@
 //! 验证工具集按运行时能力、配置、安全上下文及动态 MCP 服务完成注册与执行。
+//! 覆盖默认、全量与执行环境构造路径，确保能力缺失时不会注册伪可用工具。
 
 use super::*;
 use crate::app::agent::config::{
@@ -90,6 +91,7 @@ fn test_memory(workspace: &Path) -> Arc<dyn Memory> {
     Arc::from(memory::create_memory(&mem_cfg, workspace, None).unwrap())
 }
 
+// 所有工具集用例从同一最小配置出发，只显式开启当前场景所需能力。
 fn test_config(workspace: &Path) -> Config {
     Config {
         workspace_dir: workspace.to_path_buf(),
@@ -99,6 +101,7 @@ fn test_config(workspace: &Path) -> Config {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// RustCodeGraph 工具只应出现在真实有效的本地索引工作区中。
 fn indexed_workspace() -> tempfile::TempDir {
     let workspace = tempfile::tempdir().unwrap();
     let source_dir = workspace.path().join("src");
@@ -238,6 +241,7 @@ fn tool_names(tools: &[Box<dyn Tool>]) -> Vec<&str> {
     tools.iter().map(|tool| tool.name()).collect()
 }
 
+// 本地 stdio 服务用于检查动态工具注册和执行，不依赖用户的 MCP 配置。
 fn write_mcp_fixture_server(dir: &Path) -> PathBuf {
     let script = dir.join("fixture_mcp_server.py");
     std::fs::write(
@@ -352,6 +356,7 @@ fn build_all_tools(
     )
 }
 
+// 先固定纯辅助逻辑，再由后续用例组合运行时、MCP 与递归代理上下文。
 #[test]
 fn runtime_context_and_scalar_parsing_cover_core_branches() {
     let ctx = ToolRuntimeContext::new("s", Some("/tmp/root".to_string()))

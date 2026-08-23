@@ -1,4 +1,5 @@
 //! 验证命令文本扫描器对管道、引号、展开、重定向与嵌套边界的解析。
+//! 畸形输入和递归深度限制必须保守失败，避免产生可被安全层误信的部分结果。
 
 use super::*;
 
@@ -6,6 +7,7 @@ fn token(text: &str) -> Token {
     Token { text: text.to_string(), ..Token::default() }
 }
 
+// 以下入口用例先固定顶层命令结构，再分别深入引号、展开和重定向边界。
 #[test]
 fn parse_command_info_handles_pipeline_and_redirect() {
     let info = parse_command_info("cat file.txt | grep needle > out.txt", 0).unwrap();

@@ -1,5 +1,7 @@
 //! 网关插件钩子的发现、信任变更与命令审计接口。
 //!
+//! 信任变更依据当前清单哈希，避免在插件内容变化后沿用旧授权。
+//!
 //! Gateway plugin hook management and command audit handlers.
 
 use anyhow::{Context, Result, bail};
@@ -18,7 +20,7 @@ use crate::plugins::{
     plugin_hook_trust_hash,
 };
 
-/// Build authenticated hook management routes under the gateway `/v1` router.
+/// 构建挂载在网关 `/v1` 下的钩子目录、信任和审计路由。
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/hooks", get(catalog_get))

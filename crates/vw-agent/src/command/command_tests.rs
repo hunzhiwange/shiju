@@ -1,3 +1,5 @@
+// 本文件验证命令模板提示、来源序列化、执行事件字段与状态索引。
+
 use super::command::{
     ExecutedEvent, Info, Source, State, r#default, event, get, hints, list, publish_executed,
 };
@@ -5,6 +7,7 @@ use crate::app::agent::{bus, project::instance};
 use std::sync::{Arc, Mutex};
 
 #[test]
+// 占位符提示去重但保留首次顺序，使补全结果可预测。
 fn hints_extracts_unique_template_placeholders_in_order() {
     assert_eq!(hints("run $1 then $2 then $1"), vec!["$1".to_string(), "$2".to_string()]);
 }
@@ -261,4 +264,3 @@ fn write_skill(root: &std::path::Path, name: &str, description: &str, content: &
     )
     .expect("skill file");
 }
-// 本文件验证命令模板提示、来源序列化、执行事件字段与状态索引。

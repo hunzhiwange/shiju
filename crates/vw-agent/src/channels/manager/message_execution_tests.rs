@@ -1,3 +1,5 @@
+// 本文件验证渠道消息执行的会话权限、可靠性快照、取消与超时结果。
+
 use super::*;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::AutonomyConfig;
@@ -108,6 +110,7 @@ async fn cleanup_sender_session(ctx: &ChannelRuntimeContext, msg: &traits::Chann
 }
 
 #[tokio::test]
+// 预先取消必须在启动提供者前短路，避免产生副作用。
 async fn run_message_execution_returns_cancelled_when_token_is_already_cancelled() {
     let (_workspace, ctx, msg) = setup();
     let route = ChannelRouteSelection {
@@ -141,4 +144,3 @@ async fn run_message_execution_wraps_timeout_as_completed_result() {
     assert!(matches!(result, LlmExecutionResult::Completed(Err(_))));
     cleanup_sender_session(&ctx, &msg).await;
 }
-// 本文件验证渠道消息执行的会话权限、可靠性快照、取消与超时结果。

@@ -5,6 +5,7 @@ use super::*;
 use serde_json::json;
 
 #[test]
+// 对象逐层合并以保留未覆盖键，标量和数组则整体替换。
 fn merge_deep_value_recursively_merges_objects() {
     let mut target = json!({
         "temperature": 0.2,

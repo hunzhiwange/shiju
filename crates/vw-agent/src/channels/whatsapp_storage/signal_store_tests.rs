@@ -1,3 +1,5 @@
+// 本文件验证 WhatsApp Signal 身份、会话及各类密钥记录的设备隔离和错误传播。
+
 #[cfg(feature = "whatsapp-web")]
 use super::RusqliteStore;
 
@@ -101,6 +103,7 @@ async fn signal_records_are_replaced_and_accept_empty_values() {
 
 #[tokio::test]
 #[cfg(feature = "whatsapp-web")]
+// Signal 身份、会话和密钥记录都维持设备级隔离。
 async fn signal_records_are_scoped_by_device_id() {
     use wa_rs_core::store::traits::SignalStore;
 
@@ -185,4 +188,3 @@ async fn signal_writes_return_database_errors_when_tables_are_missing() {
     assert!(SignalStore::put_sender_key(&store, "group::sender", &[9, 8]).await.is_err());
     assert!(SignalStore::delete_sender_key(&store, "group::sender").await.is_err());
 }
-// 本文件验证 WhatsApp Signal 身份、会话及各类密钥记录的设备隔离和错误传播。

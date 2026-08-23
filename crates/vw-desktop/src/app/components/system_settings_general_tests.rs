@@ -1,3 +1,6 @@
+//! 验证通用设置的主题、终端、字体、自动保存与时区选项。
+//! 选择 helper 必须原样保留当前配置，自定义主题目录则补入可选项。
+
 use super::*;
 use crate::app::theme_catalog::{
     ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore, set_test_themes_root,
@@ -6,10 +9,12 @@ use crate::app::state::GeneralSettingsTab;
 use crate::app::{App, PreviewAutoSaveMode, Shell, TerminalTheme, message};
 use iced::widget::text;
 
+// 通用设置测试从相同默认配置派生，避免平台默认值造成分支差异。
 fn test_app() -> App {
     App::new().0
 }
 
+// 构建后立即消费元素，用于证明选项组合满足 Iced 的生命周期约束。
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
 }

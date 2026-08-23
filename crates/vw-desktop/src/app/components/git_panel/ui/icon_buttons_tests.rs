@@ -1,3 +1,6 @@
+//! 验证图标按钮构建器在各尺寸及缺失图标时的几何约束。
+//! 占位图标用例用于锁定无资源时仍需保留的按钮宽度。
+
 use iced::{Element, Length, Size};
 
 use crate::app::Message;

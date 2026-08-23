@@ -1,4 +1,6 @@
 //! 验证子进程退出摘要、进程组目标发现与终止信号清理。
+//!
+//! 子进程与内存 I/O fixture 只暴露可观察的字节、退出状态和清理结果。
 
 use std::process::Command;
 
@@ -7,6 +9,7 @@ use super::{
     send_kill_signal_to_process_group, send_terminate_signal_to_process_group,
 };
 
+// 下列行为用例覆盖成功转发、挂起或失败 I/O 以及进程终止边界。
 #[test]
 fn child_exit_summary_reports_exit_code_without_signal() {
     let status =

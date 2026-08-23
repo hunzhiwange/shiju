@@ -1,4 +1,5 @@
 //! 实现 PostgreSQL 任务产物存取，并在事务内验证运行与任务的归属关系。
+//! 写入先锁定关联运行，防止并发收尾期间把产物挂到错误任务。
 
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};

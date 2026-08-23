@@ -1,4 +1,4 @@
-//! Plugin management page for the agent settings surface.
+//! 构建代理设置中的插件检索、详情与管理页面。
 
 use super::browser::{
     DetailActionStyle, catalog_panel_style, detail_action_button, empty_state, header_panel_style,
@@ -16,6 +16,7 @@ use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
 use iced::{Alignment, Background, Border, Element, Length};
 
+/// 在插件标识、名称、版本、说明和来源路径中执行不区分大小写的匹配。
 pub(super) fn plugin_matches_query(plugin: &PluginCatalogItem, query: &str) -> bool {
     let query = query.trim();
     if query.is_empty() {
@@ -33,6 +34,7 @@ pub(super) fn plugin_matches_query(plugin: &PluginCatalogItem, query: &str) -> b
             .is_some_and(|path| path.to_ascii_lowercase().contains(&query))
 }
 
+/// 构造插件启停请求消息，不直接修改目录状态。
 pub(super) fn plugin_set_enabled_message(plugin_id: &str, enabled: bool) -> Message {
     Message::Settings(message::SettingsMessage::PluginsSetEnabledRequested {
         plugin_id: plugin_id.to_string(),
@@ -40,6 +42,7 @@ pub(super) fn plugin_set_enabled_message(plugin_id: &str, enabled: bool) -> Mess
     })
 }
 
+/// 构造插件删除请求消息，由设置更新层执行确认与持久化。
 pub(super) fn plugin_delete_message(plugin_id: &str) -> Message {
     Message::Settings(message::SettingsMessage::PluginsDeleteRequested(plugin_id.to_string()))
 }
@@ -59,6 +62,7 @@ fn plugin_initials(plugin: &PluginCatalogItem) -> String {
     }
 }
 
+/// 构建插件目录卡片，并突出当前选中项和启用状态。
 pub(super) fn plugin_catalog_item(
     plugin: PluginCatalogItem,
     is_selected: bool,
@@ -172,6 +176,7 @@ fn plugin_path_note(path: Option<&str>) -> Element<'static, Message> {
     .into()
 }
 
+/// 构建所选插件的详情及启停、删除操作区域。
 pub(super) fn plugin_detail_panel(
     selected: Option<&PluginCatalogItem>,
     busy: bool,
@@ -242,6 +247,7 @@ pub(super) fn plugin_detail_panel(
     .into()
 }
 
+/// 组合插件搜索、目录与详情面板的完整设置页面。
 pub(in crate::app::components) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let s = &app.skills_settings;
     let plugins = s

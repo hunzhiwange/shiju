@@ -1,4 +1,6 @@
 // 验证钩子事件与结果类型的默认行为和对象安全调用。
+
+// before 钩子的 Continue 与 Cancel 分支分别校验，默认优先级保持可预测。
 use super::*;
 
 struct DefaultHook;

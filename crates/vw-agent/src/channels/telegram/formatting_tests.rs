@@ -1,3 +1,5 @@
+// 本文件验证 Markdown 到 Telegram HTML 的转义、格式化与异常输入保留。
+
 use super::TelegramChannel;
 
 #[test]
@@ -49,6 +51,7 @@ fn markdown_to_telegram_html_formats_unicode_inline_segments() {
 }
 
 #[test]
+// 只为 HTTP(S) 生成链接，拒绝把其它协议变成可点击内容。
 fn markdown_to_telegram_html_only_links_http_schemes() {
     let html = TelegramChannel::markdown_to_telegram_html(
         "[safe](http://example.test) [also](https://example.test) [raw](mailto:x@y.test)",
@@ -116,4 +119,3 @@ fn markdown_to_telegram_html_preserves_closed_empty_code_block() {
 fn markdown_to_telegram_html_treats_unclosed_italic_marker_as_plain_text() {
     assert_eq!(TelegramChannel::markdown_to_telegram_html("**x** *open"), "<b>x</b> *open");
 }
-// 本文件验证 Markdown 到 Telegram HTML 的转义、格式化与异常输入保留。

@@ -1,4 +1,5 @@
 //! 验证按键绑定的解析、别名归一化、格式化与匹配规则。
+//! 覆盖 leader、组合修饰键、多组输入和空值，确保显示与匹配使用同一模型。
 
 use super::keybind::{Info, matches, parse, to_string};
 

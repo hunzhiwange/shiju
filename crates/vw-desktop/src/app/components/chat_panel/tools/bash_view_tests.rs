@@ -1,3 +1,6 @@
+//! 验证命令工具视图的载荷解析、别名支持、单行预览与异常回退。
+//! JSON、纯文本、空输入及缺失命令字段共同约束标题降级与截断行为。
+
 use super::bash_view::{bash_command_preview, bash_view_padding, tool_bash_view};
 use super::tool_meta::{tool_header_title, tool_status_badge, tool_visual_state};
 use crate::app::{App, Message};

@@ -1,4 +1,6 @@
 // 验证网关启动时的路由注册、可选能力开关与路由摘要。
+
+// 路由摘要既要反映已启用能力，也不能暴露被配置关闭的可选入口。
 use super::*;
 
 use crate::app::agent::memory::NoneMemory;
@@ -9,6 +11,7 @@ use axum::http::{Request, StatusCode};
 use std::sync::Arc;
 use tower::util::ServiceExt;
 
+// 启动路由测试只需可构造的 provider，所有响应均在进入模型前完成。
 struct StaticProvider;
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
@@ -25,6 +28,7 @@ impl Provider for StaticProvider {
     }
 }
 
+// 状态 fixture 关闭外部依赖，只保留路由装配所需的最小共享组件。
 fn state() -> AppState {
     AppState {
         config: Arc::new(Mutex::new(Config::default())),

@@ -1,4 +1,5 @@
 //! 测试调度事件存储的追加顺序、过滤与作用域隔离。
+//! 固定时间与序号夹具验证追加顺序和游标边界，跨项目事件不可混入。
 
 use anyhow::Result;
 use rusqlite::params;
@@ -318,6 +319,7 @@ fn agent_event_outbox_store_orders_events_and_deduplicates_messages() -> Result<
     Ok(())
 }
 
+// 跨后端复用顺序和作用域断言，防止实现间出现可见性差异。
 fn for_each_event_store_provider(
     mut check: impl FnMut(
         &AgentSchedulerStore,

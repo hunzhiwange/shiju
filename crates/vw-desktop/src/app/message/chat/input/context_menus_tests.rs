@@ -1,3 +1,7 @@
+//! 验证输入框和消息上下文菜单的选择、剪贴板与搜索操作。
+//!
+//! 编辑器夹具先建立真实选择区间，再验证复制、剪切、粘贴和关闭菜单的状态同步。
+
 #![allow(unused_must_use)]
 use super::super::ClipboardPastePayload;
 use super::{

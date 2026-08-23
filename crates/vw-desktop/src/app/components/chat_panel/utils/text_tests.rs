@@ -1,3 +1,6 @@
+//! 验证文本截断、空白归一化、代码围栏保留与内部工具轨迹清理。
+//! Unicode 字符、连续空行和不闭合跟踪片段用于约束处理过程不破坏用户可见正文。
+
 use super::text::{
     normalize_display_text, single_line_preview, strip_internal_tool_trace, truncate_chars,
     truncate_lines_middle,

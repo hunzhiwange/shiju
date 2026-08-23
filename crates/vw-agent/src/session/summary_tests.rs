@@ -1,8 +1,10 @@
 //! 验证会话摘要输入、文件差异聚合与压缩提示生成行为。
+//! 摘要既可来自消息内差异，也可来自持久化补丁统计；不完整快照必须回退而非虚构数据。
 
 use super::*;
 use crate::session::message;
 
+// 消息夹具显式携带摘要与补丁部件，用于区分两条差异聚合来源。
 fn user_message_with_summary(
     id: &str,
     diffs: Vec<snapshot::FileDiff>,
@@ -397,6 +399,7 @@ fn merge_file_diff_preserves_existing_fields_and_appends_new_files() {
     assert_eq!(diffs[1].file, "src/lib.rs");
 }
 
+// Git 的带引号路径可能含八进制转义；异常字节应保留可诊断文本而不是导致摘要失败。
 #[test]
 fn unquote_git_path_decodes_octal_common_escapes_and_leaves_plain_text() {
     assert_eq!(unquote_git_path(r#""caf\303\251.txt""#), "café.txt");
@@ -445,6 +448,7 @@ fn extra_handles_empty_input_and_last_duplicate_value_wins() {
     assert_eq!(duplicate.get("key").and_then(Value::as_i64), Some(2));
 }
 
+// 无完整快照对时回退到消息摘要，避免把缺失基线误解释为零差异。
 #[test]
 fn compute_diff_uses_message_summary_and_patch_fallback_without_snapshots() {
     let messages = vec![user_message_with_summary(

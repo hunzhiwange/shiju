@@ -1,4 +1,5 @@
 //! 验证工具注册表的启用条件、稳定顺序及不同输出视图的契约。
+//! 重点约束客户端名称、模型标识和功能标志如何影响最终工具集合。
 
 use super::{
     list_tool_specs_response, openai_tools_json, should_enable_question_tool, should_enable_search,

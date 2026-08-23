@@ -1,4 +1,6 @@
 // 验证 Git 仓库发现、工作树状态与仓库操作的边界行为。
+
+// 临时仓库覆盖空仓库、游离 HEAD 与 linked worktree，避免依赖开发者仓库状态。
 use super::*;
 use git2::Repository;
 use tempfile::TempDir;

@@ -1,3 +1,6 @@
+//! 验证各设置标签的帮助内容、支持范围与模态层开启条件。
+//! 不支持帮助的标签必须返回无内容，且不能复用其他标签的打开状态。
+
 use super::*;
 use crate::app::App;
 use crate::app::components::system_settings::SystemTab;
@@ -30,6 +33,7 @@ const UNSUPPORTED_TABS: &[SystemTab] = &[
     SystemTab::Proxy,
 ];
 
+// 帮助测试只需要稳定的设置标签状态，不装载任何外部配置数据。
 fn test_app() -> App {
     App::new().0
 }

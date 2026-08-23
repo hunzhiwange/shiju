@@ -1,3 +1,5 @@
+//! 处理通用设置页签切换与时区持久化消息。
+
 use crate::app::{App, Message};
 use iced::Task;
 
@@ -18,6 +20,7 @@ fn persist_timezone(timezone: String) {
     });
 }
 
+/// 仅消费通用设置消息；其它设置分支保持不变并返回空任务。
 pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     let SettingsMessage::General(message) = message else {
         return Task::none();

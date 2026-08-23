@@ -1,3 +1,5 @@
+//! 持久化并校验识矩技能包的服务端版本缓存。
+
 use anyhow::{Context, Result, bail};
 use directories::BaseDirs;
 use serde::{Deserialize, Serialize};
@@ -13,8 +15,11 @@ const MAX_VERSION_BYTES: usize = 64;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+/// 最近一次确认的服务端版本及检测时间。
 pub(crate) struct PackageVersionCacheEntry {
+    /// 经过格式校验的服务端版本。
     pub(crate) server_version: String,
+    /// 非零 Unix 秒级检测时间。
     pub(crate) checked_at_unix: u64,
 }
 
@@ -40,6 +45,7 @@ pub(crate) fn package_version_cache_path() -> Result<PathBuf> {
     Ok(home_config_dir(home).join(CACHE_FILE_NAME))
 }
 
+/// 读取有大小上限的缓存；文件不存在时返回 `None`，格式异常则报错。
 pub(crate) fn load_package_version_cache(path: &Path) -> Result<Option<PackageVersionCacheEntry>> {
     let metadata = match fs::metadata(path) {
         Ok(metadata) => metadata,
@@ -56,6 +62,7 @@ pub(crate) fn load_package_version_cache(path: &Path) -> Result<Option<PackageVe
     Ok(Some(entry))
 }
 
+/// 校验条目后通过同目录临时文件原子替换缓存。
 pub(crate) fn write_package_version_cache(
     path: &Path,
     entry: &PackageVersionCacheEntry,

@@ -1,4 +1,6 @@
 //! 验证 ACP 文件系统处理器的根目录边界、授权策略与分段读取。
+//!
+//! 受控输入、临时路径和策略 fixture 用于验证默认拒绝的安全边界。
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -21,6 +23,7 @@ fn temp_root(name: &str) -> PathBuf {
     root
 }
 
+// 下列行为用例覆盖允许路径、拒绝路径以及错误输入的安全处理。
 #[test]
 fn new_accepts_current_directory_cwd() {
     let _handlers = FileSystemHandlers::new(FileSystemHandlersOptions {

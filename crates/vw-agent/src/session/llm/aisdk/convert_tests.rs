@@ -95,6 +95,7 @@ fn openai_gpt_url_gets_v1_chat_completions_and_strict_tools() {
 }
 
 #[test]
+// 端点规范化只修改路径，查询参数和片段不能参与基础地址拼接。
 fn compatible_endpoint_urls_are_split_before_query_and_fragment() {
     let model = test_model(
         "openai",
@@ -319,6 +320,7 @@ fn adapter_whitespace_is_trimmed_before_compatibility_detection() {
 }
 
 #[test]
+// 仅兼容端点上的 GPT 模型启用严格工具模式，名称相似不足以跨供应商套用。
 fn gpt_in_model_id_only_enables_strict_schema_and_default_override() {
     let model = test_model(
         "custom",

@@ -9,6 +9,8 @@ use crate::app::agent::config::{
 };
 use std::path::PathBuf;
 
+// 诊断断言同时检查严重级别与可操作提示，避免只有返回值正确而用户指引失真。
+// 损坏或缺失的外部状态应转换成诊断项，而不是中断后续检查。
 #[test]
 fn provider_validation_errors_include_provider_name() {
     let err = provider_validation_error("vibewindow-provider-that-should-not-exist")

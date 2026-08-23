@@ -80,6 +80,7 @@ fn pending_raw_artifact_with_output(
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 原始模型产物由轮次和步骤共同标识，单独使用步骤序号会覆盖不同轮次的数据。
 async fn llm_raw_endpoint_distinguishes_turns_with_same_step_index() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
@@ -236,6 +237,7 @@ fn old_project_database_path(scope: &str) -> std::path::PathBuf {
         .join("index.sqlite3")
 }
 
+// 运行时存储与 UI 快照使用独立夹具，避免保存界面状态时重复提交原始模型产物。
 #[test]
 fn ui_handlers_are_available() {
     let _ = session_ui_get;
@@ -252,6 +254,7 @@ fn ui_handlers_are_available() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 错误用例固定失败发生在持久化之前，避免跨会话或跨作用域修改已有数据。
 async fn session_step_llm_raw_get_returns_requested_step_and_null_for_missing() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
@@ -326,6 +329,7 @@ async fn session_step_llm_raw_get_returns_requested_step_and_null_for_missing() 
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 原始产物查询同时受项目和租户约束，已知标识也不能绕过作用域检查。
 async fn session_step_llm_raw_get_isolates_project_scope() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
@@ -567,6 +571,7 @@ async fn session_ui_save_propagates_session_store_failure() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// UI 保存不确认运行时暂存的原始产物，避免界面快照抢先消费提交责任。
 async fn session_ui_save_leaves_pending_raw_for_runtime_commit() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
@@ -615,6 +620,7 @@ async fn session_ui_save_leaves_pending_raw_for_runtime_commit() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 纯文本轮次和工具轮次走相同提交路径，并保证原始产物不会重复写入。
 async fn simple_answer_and_tool_rounds_commit_without_raw_duplication() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
@@ -784,6 +790,7 @@ async fn simple_answer_and_tool_rounds_commit_without_raw_duplication() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 快照往返同时固定消息、步骤和元数据，确保部分更新不会丢失运行时字段。
 async fn ui_snapshot_handlers_round_trip_scoped_sessions_and_metadata() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
@@ -1014,6 +1021,7 @@ async fn ui_content_save_preserves_runtime_calls_and_steps() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 归档是作用域内状态而非删除操作，归档列表与活动列表必须保持互斥。
 async fn ui_snapshot_handlers_cover_archived_scope_and_errors() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
@@ -1198,6 +1206,7 @@ async fn session_ui_get_maps_invalid_json_llm_raw_to_internal_error() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 相同会话标识可存在于不同租户，所有快照端点都必须使用复合作用域查找。
 async fn ui_snapshot_handlers_isolate_same_session_id_across_tenants() {
     let _guard = UI_OPS_TEST_LOCK.lock().await;
     ensure_test_home();

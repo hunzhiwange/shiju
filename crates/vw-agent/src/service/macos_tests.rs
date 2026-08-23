@@ -39,6 +39,7 @@ fn macos_service_file_uses_launch_agents_label() {
 }
 
 #[test]
+// plist 同时验证 XML 转义、日志路径和环境变量，防止生成不可加载配置。
 fn launchd_plist_includes_escaped_arguments_log_paths_and_environment() {
     let env_block = "\n  <key>EnvironmentVariables</key>\n  <dict>\n    <key>OPENAI_API_KEY</key>\n    <string>test-value</string>\n  </dict>";
 
@@ -119,6 +120,7 @@ fn launchd_gui_service_target_trims_uid_and_preserves_ascii_digits() {
 }
 
 #[test]
+// launchd 目标只接受纯 ASCII 数字 UID，拒绝可能改变命令语义的形式。
 fn launchd_gui_service_target_rejects_empty_signed_mixed_and_non_ascii_uids() {
     for uid in ["", "  ", "abc", "50a", "-1", "+501", "501 2", "５０１"] {
         assert_eq!(launchd_gui_service_target_for_uid(uid), None, "uid: {uid}");

@@ -1,3 +1,6 @@
+//! 验证差异渲染上下文对文件与行选择状态的归一化和去重。
+//! 同时固定布局常量，并确认新旧两侧行号不会被混为同一选择。
+
 use std::collections::HashSet;
 
 use crate::app::App;

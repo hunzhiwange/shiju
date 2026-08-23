@@ -51,6 +51,7 @@ const BUILTIN_WORKFLOW_IDS: &[&str] = &[
 ];
 
 #[derive(Debug, Clone)]
+/// 自动调度所需的任务状态、阶段角色、归属和能力读模型。
 pub struct StaffTaskReadModel {
     pub task_id: String,
     pub title: String,
@@ -178,6 +179,7 @@ pub fn stage_capabilities_for_config(config: &StaffConfig) -> Vec<StaffStageCapa
     merged_stage_capabilities_for_config(config)
 }
 
+/// 从员工配置生成调度器可解析的工作流快照。
 pub fn workflow_snapshot_from_staff_config(config: &StaffConfig) -> TaskPoolWorkflowSnapshotDto {
     let stages = config
         .workflow_stages
@@ -205,6 +207,7 @@ pub fn workflow_snapshot_from_staff_config(config: &StaffConfig) -> TaskPoolWork
     }
 }
 
+/// 将配置成员与存储快照合成为面向 API 的员工投影。
 pub fn build_staff_projection(
     tasks: &[StaffTaskReadModel],
     config: &StaffConfig,
@@ -279,6 +282,7 @@ pub fn running_staff_task_ids(tasks: &[StaffTaskReadModel]) -> Vec<String> {
         .collect()
 }
 
+/// 校验员工命令与当前工作流、阶段和成员能力是否匹配。
 pub fn validate_staff_command(
     command: &StaffCommandDto,
     tasks: &[StaffTaskReadModel],
@@ -329,6 +333,7 @@ pub fn validate_staff_command(
     }
 }
 
+/// 根据任务阶段、成员负载和路由规则构建确定性的自动调度计划。
 pub fn build_staff_auto_schedule_plan(
     tasks: &[StaffTaskReadModel],
     config: &StaffConfig,
@@ -447,6 +452,7 @@ pub fn staff_auto_schedule_command_is_continuation(command: &StaffCommandDto) ->
     matches!(command, StaffCommandDto::StartTask { .. } | StaffCommandDto::ResumeTask { .. })
 }
 
+/// 将阶段动作转换为调度命令；不支持的动作会返回明确错误。
 pub fn scheduler_command_for_action(
     action: &StaffCommandActionDto,
     source_command: &StaffCommandDto,
@@ -533,6 +539,7 @@ pub fn scheduler_command_for_action(
     }
 }
 
+/// 校验阶段动作输入是否满足能力声明的字段契约。
 pub fn validate_stage_action_payload(
     stage_id: &str,
     capability_id: &str,
@@ -551,6 +558,7 @@ pub fn validate_stage_action_payload(
     Ok(())
 }
 
+/// 根据动作结果解析工作流目标状态键。
 pub fn resolve_stage_action_outcome_target_status_key(
     workflow: &TaskPoolWorkflowSnapshotDto,
     from_status_key: &str,

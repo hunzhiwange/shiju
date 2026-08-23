@@ -1,4 +1,5 @@
 //! 验证系统提示环境、模型适配与指令拼装的稳定契约。
+//! 环境探测覆盖非 Git 目录、上级仓库和模型查找失败，保证提示结构仍稳定。
 
 use super::*;
 use serde_json::json;
@@ -311,6 +312,7 @@ fn resolve_is_git_falls_back_to_directory_detection_without_project_context() {
 }
 
 #[tokio::test]
+// 模型引用缺失或畸形时仍生成基础环境，不能让提示构建因可选模型信息整体失败。
 async fn environment_from_ref_handles_missing_and_malformed_model_refs() {
     let root = "/tmp/vw-agent-env-test";
 

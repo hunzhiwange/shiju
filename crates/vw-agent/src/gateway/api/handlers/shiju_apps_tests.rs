@@ -127,6 +127,7 @@ fn request_with_body(
     builder.header("content-type", "application/json").body(body).expect("request")
 }
 
+// 本地上游夹具记录实际请求并返回预设响应，既验证转发参数也避免依赖外部服务。
 #[tokio::test]
 async fn shiju_app_routes_require_credentials_and_valid_installation_ids() {
     let client = crate::shiju::apps::ShijuAppClient::with_base_urls(
@@ -292,6 +293,7 @@ async fn shiju_app_routes_map_catalog_apps_and_launch() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 上游错误需保留可操作状态，同时裁剪凭据、响应正文等敏感细节。
 async fn shiju_app_route_redacts_upstream_errors() {
     let sensitive = format!(
         r#"{{"credential":"{CREDENTIAL}","runtimeUrl":"https://app.shiju.cloud/app/{INSTALLATION_ID}/?private=1","message":"upstream-body-secret"}}"#

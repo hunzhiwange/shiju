@@ -2,6 +2,7 @@
 
 use super::utils::{parse_rfc3339, truncate_for_display};
 
+// 诊断断言同时检查严重级别与可操作提示，避免只有返回值正确而用户指引失真。
 #[test]
 fn truncate_for_display_handles_unicode_boundaries() {
     assert_eq!(truncate_for_display("abcdef", 6), "abcdef");

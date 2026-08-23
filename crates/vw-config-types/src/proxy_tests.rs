@@ -1,3 +1,7 @@
+//! 验证代理配置的默认值、作用域匹配、地址归一化与选择器辅助逻辑。
+//! 测试将启用判定、服务选择和字符串清理拆开，明确每层配置责任。
+
+// 空配置不代理任何流量，但公开的支持范围常量必须保持稳定。
 #[test]
 fn proxy_config_default_values() {
     let config = super::ProxyConfig::default();
@@ -19,6 +23,7 @@ fn proxy_config_supported_helpers_return_constants() {
     );
 }
 
+// 归一化负责消除大小写和空白差异，作用域匹配只消费规范化结果。
 #[test]
 fn proxy_normalization_and_scope_matching_work() {
     let config = super::ProxyConfig {
@@ -38,6 +43,7 @@ fn proxy_normalization_and_scope_matching_work() {
     assert!(!config.should_apply_to_service("channel.slack"));
 }
 
+// 是否存在代理地址与是否启用代理是两个独立判断，避免半配置被误用。
 #[test]
 fn proxy_has_any_proxy_url_variants() {
     let none_set = super::ProxyConfig::default();
@@ -52,6 +58,7 @@ fn proxy_has_any_proxy_url_variants() {
     assert!(all_only.has_any_proxy_url());
 }
 
+// 应用范围覆盖禁用、环境变量及 VibeWindow 自有请求三条互斥路径。
 #[test]
 fn proxy_should_apply_disabled() {
     let config = super::ProxyConfig {
@@ -82,6 +89,7 @@ fn proxy_should_apply_vibewindow_scope() {
     assert!(config.should_apply_to_service("provider.openai"));
 }
 
+// 服务选择器支持显式键和通配符，空键集合保持不匹配语义。
 #[test]
 fn proxy_should_apply_services_empty_key() {
     let config = super::ProxyConfig {
@@ -116,6 +124,7 @@ fn proxy_normalize_proxy_url_option_none() {
     );
 }
 
+// 逗号分隔字段需统一去空白、去空项和去重，供服务及 no_proxy 共用。
 #[test]
 fn proxy_normalize_comma_values_edge_cases() {
     assert!(super::normalize_comma_values(vec![] as Vec<String>).is_empty());

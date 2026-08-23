@@ -20,6 +20,7 @@ const MAINTAINED_SKILL_STATUSES: [&str; 4] =
     ["draft", "pending_review", "published", "unpublished"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+/// 远程安装指定技能版本的请求体。
 pub(crate) struct ShijuSkillInstallRequest {
     pub(crate) version_id: u64,
 }
@@ -31,6 +32,7 @@ enum ShijuSkillErrorKind {
 }
 
 #[derive(Clone, PartialEq, Eq)]
+/// SHIJU 技能接口的输入校验或上游错误。
 pub(crate) struct ShijuSkillError {
     kind: ShijuSkillErrorKind,
     message: String,
@@ -45,6 +47,7 @@ impl ShijuSkillError {
         Self { kind: ShijuSkillErrorKind::Upstream, message: message.into() }
     }
 
+    /// 判断错误是否来自本地输入校验。
     pub(crate) fn is_invalid_input(&self) -> bool {
         self.kind == ShijuSkillErrorKind::InvalidInput
     }
@@ -65,17 +68,20 @@ impl fmt::Display for ShijuSkillError {
 impl std::error::Error for ShijuSkillError {}
 
 #[derive(Clone)]
+/// SHIJU 私有技能服务客户端。
 pub(crate) struct ShijuSkillClient {
     http: reqwest::Client,
     base_url: Url,
 }
 
 impl ShijuSkillClient {
+    /// 使用固定生产端点创建客户端。
     pub(crate) fn production() -> Result<Self, ShijuSkillError> {
         Self::new(SHIJU_SKILL_BASE_URL)
     }
 
     #[cfg(test)]
+    /// 使用显式基础地址创建客户端。
     pub(crate) fn with_base_url(base_url: &str) -> Result<Self, ShijuSkillError> {
         Self::new(base_url)
     }
@@ -93,6 +99,7 @@ impl ShijuSkillClient {
         Ok(Self { http, base_url })
     }
 
+    /// 按关键词、标签和分页条件搜索可见技能。
     pub(crate) async fn search(
         &self,
         credential: &ShijuCredential,
@@ -107,6 +114,7 @@ impl ShijuSkillClient {
         self.get("marketplace/skills", &parameters, credential).await
     }
 
+    /// 列出当前租户已安装技能。
     pub(crate) async fn installed(
         &self,
         credential: &ShijuCredential,
@@ -114,6 +122,7 @@ impl ShijuSkillClient {
         self.get("me/skills", &[], credential).await
     }
 
+    /// 列出可见的系统技能。
     pub(crate) async fn system(
         &self,
         credential: &ShijuCredential,
@@ -128,6 +137,7 @@ impl ShijuSkillClient {
         self.get("tenant/system-skills", &parameters, credential).await
     }
 
+    /// 列出当前公司技能。
     pub(crate) async fn company(
         &self,
         credential: &ShijuCredential,
@@ -147,6 +157,7 @@ impl ShijuSkillClient {
         self.get("tenant/skills", &parameters, credential).await
     }
 
+    /// 列出当前用户维护的技能及指定状态集合。
     pub(crate) async fn maintained(
         &self,
         credential: &ShijuCredential,
@@ -163,6 +174,7 @@ impl ShijuSkillClient {
         self.get("me/maintained-skills", &parameters, credential).await
     }
 
+    /// 读取单个技能详情。
     pub(crate) async fn detail(
         &self,
         credential: &ShijuCredential,
@@ -172,6 +184,7 @@ impl ShijuSkillClient {
         self.get(&format!("skills/{skill_id}"), &[], credential).await
     }
 
+    /// 读取单个技能说明文档。
     pub(crate) async fn readme(
         &self,
         credential: &ShijuCredential,
@@ -181,6 +194,7 @@ impl ShijuSkillClient {
         self.get(&format!("skills/{skill_id}/readme"), &[], credential).await
     }
 
+    /// 列出技能的可安装版本。
     pub(crate) async fn versions(
         &self,
         credential: &ShijuCredential,
@@ -190,6 +204,7 @@ impl ShijuSkillClient {
         self.get(&format!("skills/{skill_id}/versions"), &[], credential).await
     }
 
+    /// 安装服务端选择的默认技能版本。
     pub(crate) async fn remote_install(
         &self,
         credential: &ShijuCredential,
@@ -205,6 +220,7 @@ impl ShijuSkillClient {
         .await
     }
 
+    /// 安装调用方指定的技能版本。
     pub(crate) async fn remote_install_version(
         &self,
         credential: &ShijuCredential,
@@ -222,6 +238,7 @@ impl ShijuSkillClient {
         .await
     }
 
+    /// 卸载当前租户中的指定技能。
     pub(crate) async fn remote_uninstall(
         &self,
         credential: &ShijuCredential,

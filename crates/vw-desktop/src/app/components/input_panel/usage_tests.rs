@@ -1,3 +1,6 @@
+//! 验证令牌用量、上下文占比与模型计价明细的计算边界。
+//! 计算以最后一步输入窗口为准，并显式覆盖缺失价格和零上下文额度。
+
 use super::usage::{UsageRing, get_usage_details, get_usage_rate_percent};
 use crate::app::App;
 use crate::app::models::{ChatSessionStep, TokenUsage};

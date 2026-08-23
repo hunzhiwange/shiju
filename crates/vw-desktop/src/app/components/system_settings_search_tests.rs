@@ -1,3 +1,7 @@
+//! 验证系统设置搜索对中文、拼音、首字母和子标签目录的匹配。
+//!
+//! 搜索样例同时包含中文、全拼、分词拼音、首字母和大小写 ASCII 查询。
+
 use super::system_settings::SystemTab;
 use super::system_settings_search::{
     SystemSettingsSearchEntry, SystemSettingsSearchTarget, catalog,

@@ -1,4 +1,6 @@
 // 验证全局数据库配置的默认值、连接参数与提供方解析。
+
+// 配置解析不得隐式读取环境变量，PostgreSQL 模式名还受字节长度和字符集约束。
 use std::collections::HashMap;
 
 use anyhow::Result;

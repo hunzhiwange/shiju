@@ -1,4 +1,6 @@
 // 验证 Lucid 记忆后端的环境配置、结果解析、冷却与本地回退。
+
+// 外部命令失败会进入冷却，本地 SQLite 仍承担 trait 方法的可靠存储路径。
 use super::*;
 use std::env;
 use std::ffi::{OsStr, OsString};
@@ -70,6 +72,7 @@ fn memory_with_threshold(workspace: &std::path::Path, threshold: usize) -> Lucid
 }
 
 #[cfg(unix)]
+// 临时脚本模拟 Lucid CLI 的成功、噪声输出和失败，不要求安装外部程序。
 fn write_lucid_script(dir: &std::path::Path, name: &str, script: &str) -> String {
     let script_path = dir.join(name);
     fs::write(&script_path, script).unwrap();

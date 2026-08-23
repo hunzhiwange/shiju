@@ -28,6 +28,7 @@ const OUTCOME_RETRY: &str = "retry";
 const OUTCOME_BLOCKED: &str = "blocked";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 自动推进、失败重试和各阶段超时阈值。
 pub struct AgentSchedulerPolicyConfig {
     pub auto_promote_pool_tasks: bool,
     pub auto_promote_delay_ms: i64,
@@ -64,6 +65,7 @@ impl AgentSchedulerPolicyConfig {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// 单轮策略执行的扫描、转换、重试和告警统计。
 pub struct AgentSchedulerPolicyOutcome {
     pub promoted_task_ids: Vec<TaskId>,
     pub retry_task_ids: Vec<TaskId>,
@@ -75,6 +77,7 @@ pub struct AgentSchedulerPolicyOutcome {
     pub blocked_task_ids: Vec<TaskId>,
 }
 
+/// 对项目任务快照执行确定性自动化策略的服务。
 pub struct AgentSchedulerPolicyService<'a> {
     store: &'a AgentSchedulerStore,
 }
@@ -84,6 +87,7 @@ impl<'a> AgentSchedulerPolicyService<'a> {
         Self { store }
     }
 
+    /// 应用一次项目策略；每项状态变化仍通过存储层状态机校验。
     pub fn apply_project_policy(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),

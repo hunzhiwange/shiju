@@ -1,3 +1,5 @@
+//! 从聊天工具载荷投影代理子会话及计划运行控制状态。
+
 use std::collections::HashMap;
 
 use vw_shared::session::info::Info;
@@ -10,6 +12,7 @@ use crate::app::components::chat_panel::tools::{
 const FALLBACK_TASK_MAX_CHARS: usize = 41;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+/// 子会话代表的代理工作类别。
 pub enum AgentChildSessionKind {
     #[default]
     Agent,
@@ -18,6 +21,7 @@ pub enum AgentChildSessionKind {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+/// 子会话对桌面端可见的运行状态。
 pub enum AgentChildSessionStatus {
     #[default]
     Running,
@@ -25,20 +29,32 @@ pub enum AgentChildSessionStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+/// 从会话信息和工具载荷合并得到的子会话投影。
 pub struct AgentChildSession {
+    /// 网关会话标识。
     pub session_id: String,
+    /// 执行子任务的代理名称。
     pub agent: String,
+    /// 紧凑化后的任务描述。
     pub task: String,
+    /// 优先使用会话元数据解析出的展示标题。
     pub title: String,
+    /// 子会话工作目录。
     pub directory: String,
+    /// 子会话的工作类别。
     pub kind: AgentChildSessionKind,
+    /// 当前运行或等待状态。
     pub status: AgentChildSessionStatus,
+    /// 相对当前会话的嵌套层级。
     pub depth: usize,
+    /// 计划运行任务标识，仅计划类会话存在。
     pub plan_run_task_id: Option<String>,
+    /// 可用于导航的代理任务路径。
     pub task_path: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+/// 从会话控制标记解析出的计划运行控制信息。
 pub(crate) struct PlanRunSessionControl {
     pub(crate) session_id: String,
     pub(crate) task_id: String,
@@ -101,6 +117,7 @@ fn is_tool_block_boundary(content: &str, start: usize) -> bool {
     start == 0 || content[..start].ends_with('\n')
 }
 
+/// 从聊天内容的完整工具块中解析计划运行控制，忽略截断或嵌套片段。
 pub(crate) fn plan_run_session_controls_from_content(content: &str) -> Vec<PlanRunSessionControl> {
     let mut controls = Vec::<PlanRunSessionControl>::new();
     let mut positions = HashMap::<String, usize>::new();
@@ -165,6 +182,7 @@ fn payload_targets_parent(
         .is_some_and(|parent| !parent.trim().is_empty() && parent.trim() != parent_session_id)
 }
 
+/// 投影当前父会话的直接子会话，并用工具载荷补足任务和计划状态。
 pub fn agent_child_session_projection<'a>(
     active_parent_session_id: Option<&str>,
     chat: &[ChatMessage],

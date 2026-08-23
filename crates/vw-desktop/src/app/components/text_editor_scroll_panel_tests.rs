@@ -1,3 +1,7 @@
+//! 验证文本编辑滚动面板的可视区域、滚动同步和布局边界。
+//!
+//! 滚动夹具组合内容高度、视口与偏移量，重点保护同步和边界钳制行为。
+
 use super::*;
 use iced::advanced::{Clipboard, Layout, Renderer, Shell, Widget, layout, renderer, widget};
 use iced::{Background, Length, Point, Transformation};

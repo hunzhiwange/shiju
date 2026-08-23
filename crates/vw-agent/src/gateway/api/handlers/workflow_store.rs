@@ -1,4 +1,6 @@
 //! 工作流记录存储门面，按租户路由 SQLite 或 PostgreSQL 持久化操作。
+//!
+//! 异步入口把阻塞式数据库工作移入隔离线程，并在写入前拒绝未带租户列的旧表结构。
 
 use rusqlite::{Connection, OptionalExtension, params};
 use uuid::Uuid;
@@ -29,6 +31,7 @@ CREATE TABLE IF NOT EXISTS workflow_workflows (
 );
 "#;
 
+/// 按更新时间倒序列出租户工作流摘要。
 pub(super) async fn list_records(
     database: GlobalDatabase,
     tenant: TenantScope,
@@ -36,6 +39,7 @@ pub(super) async fn list_records(
     spawn_store_task(database, move |database| list_records_blocking(database, &tenant)).await
 }
 
+/// 读取租户内指定 UUID 的完整工作流。
 pub(super) async fn get_record(
     database: GlobalDatabase,
     tenant: TenantScope,
@@ -44,6 +48,7 @@ pub(super) async fn get_record(
     spawn_store_task(database, move |database| get_record_blocking(database, &tenant, &uuid)).await
 }
 
+/// 创建工作流；请求未提供 UUID 时生成新标识。
 pub(super) async fn create_record(
     database: GlobalDatabase,
     tenant: TenantScope,
@@ -56,6 +61,7 @@ pub(super) async fn create_record(
     .await
 }
 
+/// 更新租户内指定 UUID 的工作流。
 pub(super) async fn update_record(
     database: GlobalDatabase,
     tenant: TenantScope,
@@ -68,6 +74,7 @@ pub(super) async fn update_record(
     .await
 }
 
+/// 删除租户内指定 UUID 的工作流并报告是否命中记录。
 pub(super) async fn delete_record(
     database: GlobalDatabase,
     tenant: TenantScope,

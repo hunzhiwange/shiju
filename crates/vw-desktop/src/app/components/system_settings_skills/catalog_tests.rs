@@ -1,4 +1,8 @@
-// Tests for plan6 task 820.
+//! 验证技能目录的字段检索、来源分组、缩写生成和组件样式。
+//!
+//! 目录夹具拆分标题、描述、来源和路径字段，确保每个可见字段都能独立命中。
+
+// 保留计划任务 820 的既定覆盖面。
 const SOURCE: &str = include_str!("catalog.rs");
 
 use super::catalog::{

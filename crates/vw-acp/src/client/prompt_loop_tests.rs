@@ -1,4 +1,6 @@
 //! 验证 Actor 提示词循环的事件收集、取消竞争与错误收尾。
+//!
+//! 最小客户端、通道和运行时 fixture 用于显式驱动异步状态转换与资源收尾。
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -196,6 +198,7 @@ async fn with_runtime<R>(
         .await
 }
 
+// 下列行为用例重点检查复用、取消、通道关闭和失败后的状态一致性。
 #[tokio::test]
 async fn run_actor_prompt_collects_events_and_updates_session_state() {
     let (agent, prompt_response_tx) = TestAgent::new("session-1", false);

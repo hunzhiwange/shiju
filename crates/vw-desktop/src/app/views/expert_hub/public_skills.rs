@@ -1,3 +1,5 @@
+//! 构建公共技能市场的推荐、检索、来源筛选与套件列表。
+
 use std::fmt;
 
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -20,6 +22,7 @@ use crate::app::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
 use crate::app::skill_hub::{LoadState, PublicSkillMarketState, PublicSkillTab};
 use crate::app::{App, Message};
 
+/// 公共技能页面统一使用的滚动条宽度。
 pub(super) const SCROLLBAR_WIDTH: u32 = 4;
 const SCROLLBAR_GUTTER: u32 = 12;
 const CARD_GAP: f32 = 16.0;
@@ -66,10 +69,12 @@ pub(super) fn public_tab_specs() -> &'static [(&'static str, PublicSkillTab)] {
     ]
 }
 
+/// 根据可用宽度计算响应式卡片列数，并保证至少一列。
 pub(super) fn grid_column_count(width: f32) -> usize {
     (((width + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP)).floor() as usize).max(1)
 }
 
+/// 仅在成功加载多个来源时显示来源选择器。
 pub(super) fn source_selector_visible(sources: &LoadState<Vec<SkillMarketSourceDto>>) -> bool {
     matches!(sources, LoadState::Loaded(items) if items.len() > 1)
 }
@@ -523,6 +528,7 @@ fn suites_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
     }
 }
 
+/// 构建公共市场页签、来源、搜索、列表与分页界面。
 pub(super) fn view(app: &App) -> Element<'_, Message> {
     let state = &app.expert_hub.public_market;
     let content = match &state.sources {
@@ -548,6 +554,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         .into()
 }
 
+/// 使用完整来源坐标构造打开技能详情的消息。
 pub(super) fn skill_detail_message(locator: SkillMarketSkillLocatorDto) -> Message {
     public_message(PublicSkillMessage::OpenSkillDetail(locator))
 }

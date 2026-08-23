@@ -1,3 +1,5 @@
+// 本文件验证运行时命令解析、渠道能力约束与自然语言审批意图识别。
+
 use super::*;
 
 #[test]
@@ -88,6 +90,7 @@ fn parse_runtime_command_handles_all_approval_slash_commands() {
 }
 
 #[test]
+// 运行时参数只接受受限令牌，危险字符不能进入配置操作。
 fn runtime_token_parser_rejects_free_text_and_unsafe_chars() {
     assert!(is_runtime_token("tool:name-1"));
     assert!(is_runtime_token(" tool_name.2 "));
@@ -219,4 +222,3 @@ fn approval_management_command_classifier_covers_all_sensitive_commands() {
     assert!(!is_approval_management_command(&ChannelRuntimeCommand::ShowModel));
     assert!(!is_approval_management_command(&ChannelRuntimeCommand::SetModel("gpt-5".to_string())));
 }
-// 本文件验证运行时命令解析、渠道能力约束与自然语言审批意图识别。

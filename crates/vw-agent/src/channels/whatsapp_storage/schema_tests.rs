@@ -1,3 +1,5 @@
+// 本文件验证 WhatsApp 存储结构的建表幂等性与设备级主键约束。
+
 #[cfg(feature = "whatsapp-web")]
 use super::RusqliteStore;
 
@@ -53,6 +55,7 @@ fn init_schema_creates_expected_tables_and_is_idempotent() {
 
 #[test]
 #[cfg(feature = "whatsapp-web")]
+// 主键包含设备维度，在数据库层保证跨设备记录不冲突。
 fn schema_declares_device_scoped_primary_keys() {
     let tmp = tempfile::NamedTempFile::new().unwrap();
     let store = RusqliteStore::new(tmp.path()).unwrap();
@@ -76,4 +79,3 @@ fn schema_declares_device_scoped_primary_keys() {
         ]
     );
 }
-// 本文件验证 WhatsApp 存储结构的建表幂等性与设备级主键约束。

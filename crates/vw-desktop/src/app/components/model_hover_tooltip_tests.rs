@@ -1,3 +1,6 @@
+//! 验证文本与模型悬停提示的目标解析、能力展示和覆盖层回退。
+//! 缺失模型、未知目标和指针位置未就绪时应保留原内容而不是生成伪提示。
+
 use super::model_hover_tooltip::{
     HoverAnchor, build_hover_tip, hover_anchor, hover_model_trigger, hover_text_trigger,
     hover_tooltip_overlay,

@@ -22,6 +22,7 @@ use crate::knowledge::fusion::{RetrievalSource, RetrievedCandidate};
 use crate::memory::vector;
 
 impl PostgresKnowledgeStore {
+    /// 校验请求数据集并按各自检索模式构建全文、向量与重排作用域。
     pub(in crate::knowledge::store) fn resolve_retrieval_scope(
         &self,
         tenant: &TenantScope,
@@ -99,6 +100,7 @@ impl PostgresKnowledgeStore {
         Ok(RetrievalScope { keyword_datasets, vector_dataset_ids, rerank_dataset_ids })
     }
 
+    /// 执行 PostgreSQL 候选召回、分数融合、上下文扩展和召回计数更新。
     pub(in crate::knowledge::store) fn retrieve(
         &self,
         tenant: &TenantScope,

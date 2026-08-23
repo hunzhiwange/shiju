@@ -1,3 +1,7 @@
+//! 主二进制入口的结构与委托测试。
+//! 确认测试模块连线、Tokio 入口和 `run_cli` 对异步代理的单次调用。
+//! 委托的成功或失败结果应直接传递，入口层不改写业务语义。
+
 #[test]
 fn task_611_test_module_is_wired() {
     let path = std::path::Path::new(file!());

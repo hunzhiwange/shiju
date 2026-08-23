@@ -1,4 +1,5 @@
 //! 定义 SQLite 调度存储结构和索引，并拒绝可能混淆作用域的旧版无前缀表。
+//! 初始化只创建当前受支持结构，不尝试猜测或迁移来源不明的旧表。
 
 use anyhow::{Result, bail};
 use rusqlite::Connection;

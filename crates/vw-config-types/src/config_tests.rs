@@ -1,3 +1,7 @@
+//! 验证顶层配置的默认值、兼容字段、模型查找及敏感信息脱敏契约。
+//! 用例区分持久化兼容、运行时解析优先级和调试输出三类外部接口。
+
+// 空配置必须形成可启动的最小提供方集合，并将所有可选子系统保持为空。
 #[test]
 fn config_defaults_promote_shiju_as_primary_provider() {
     let config = super::Config::default();
@@ -41,6 +45,7 @@ fn config_defaults_promote_shiju_as_primary_provider() {
     assert!(config.model_support_vision.is_none());
 }
 
+// 已移除的代理段既不能重新序列化，也不能在读取旧文件时绕回当前模型。
 #[test]
 fn config_serialization_omits_removed_agent_section() {
     let serialized = serde_json::to_value(super::Config::default()).expect("serialize config");
@@ -85,6 +90,7 @@ fn global_database_path_uses_shared_database_directory() {
     );
 }
 
+// 推理级别接受受控别名，提供方专属设置始终优先于运行时兼容字段。
 #[test]
 fn reasoning_level_normalization_accepts_known_values() {
     // All valid values
@@ -172,6 +178,7 @@ fn provider_reasoning_level_takes_precedence_over_runtime_alias() {
     assert_eq!(config.effective_provider_reasoning_level(), Some("low".to_string()));
 }
 
+// 模型提供方名称按不区分大小写查找，但返回的仍是原始配置条目。
 #[test]
 fn lookup_model_provider_profile_finds_by_case_insensitive_name() {
     let mut config = super::Config::default();
@@ -220,6 +227,7 @@ fn acp_agent_config_default_is_empty() {
     assert!(cfg.env.is_empty());
 }
 
+// 调试输出只展示结构与标识，密钥、令牌及提供方原始载荷不得泄漏。
 #[test]
 fn config_debug_impl_redacts_sensitive_sections() {
     let config = super::Config::default();
@@ -305,6 +313,7 @@ fn config_debug_impl_shows_acp_count() {
     assert!(debug_str.contains("acp_count: 1"));
 }
 
+// MCP 的历史外部字段名继续保留，以兼容现有网关与配置文件。
 #[test]
 fn config_serializes_mcp_servers_as_acp_field_name() {
     let config = super::Config {

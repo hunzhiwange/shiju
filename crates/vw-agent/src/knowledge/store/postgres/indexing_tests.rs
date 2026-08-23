@@ -1,4 +1,6 @@
 // 验证知识导入入队前的校验及待处理文档与队列任务持久化。
+
+// 文件名和 Base64 在访问数据库前校验，失败不能产生待处理文档。
 use super::*;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;

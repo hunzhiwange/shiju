@@ -1,3 +1,6 @@
+// 验证心跳开关、间隔钳制及持久化任务调度。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -9,6 +12,8 @@ fn has_scheduled_action(task: Task<Message>) -> bool {
     task.units() > 0
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn enabled_toggle_updates_state_and_schedules_persistence() {
     let mut app = app();
@@ -36,6 +41,8 @@ fn interval_change_clamps_bounds_and_preserves_in_range_values() {
     }
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn text_changes_preserve_exact_input_and_schedule_persistence() {
     let mut app = app();
@@ -76,6 +83,8 @@ fn save_schedules_persistence_without_changing_ui_state() {
     assert!(has_scheduled_action(task));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn help_messages_only_toggle_modal_and_do_not_schedule_persistence() {
     let mut app = app();
@@ -123,6 +132,8 @@ fn unrelated_settings_message_is_ignored_without_scheduling_work() {
     assert!(!has_scheduled_action(task));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn persistence_updates_leave_existing_save_error_unchanged() {
     let mut app = app();

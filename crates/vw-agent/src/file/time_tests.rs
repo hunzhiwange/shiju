@@ -15,6 +15,7 @@ fn filetime_check_disabled() -> bool {
     *crate::app::agent::flag::VIBEWINDOW_DISABLE_FILETIME_CHECK
 }
 
+// 临时目录夹具同时覆盖正常路径和逃逸路径，确保安全判断不依赖当前工作区。
 #[test]
 fn read_records_file_time_by_session() {
     read("session-a", "/tmp/example.txt");
@@ -35,6 +36,7 @@ fn read_updates_existing_file_time_record() {
     assert!(second >= first);
 }
 
+// 缺失资源与越界资源的语义不同：前者可安全回退时仍不得放宽后者的拒绝策略。
 #[test]
 fn display_errors_include_target_path() {
     let err = Error::MustReadFirst { filepath: "/tmp/example.txt".to_string() };

@@ -148,6 +148,7 @@ fn allowed_tool_ids_from_specs_collects_ids_aliases_and_deduplicates_collisions(
 }
 
 #[test]
+// 缺少工具列表表示沿用默认集合，显式空列表表示禁用全部工具。
 fn request_filter_distinguishes_missing_list_from_explicit_empty_list() {
     let specs = vec![
         crate::app::agent::tools::ToolSpec::new(
@@ -260,6 +261,7 @@ fn request_tool_list_keeps_registered_builtins_without_expanding_custom_tools() 
 }
 
 #[test]
+// 预览先清理凭据再截断，避免秘密在截断边界附近残留。
 fn response_preview_trims_scrubs_credentials_and_truncates() {
     let secret = "abcdefghijklmnopqrstuvwxyz";
     let preview = response_preview(&format!("  token={secret}  "));

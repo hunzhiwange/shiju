@@ -21,6 +21,8 @@ fn write_state(config: &Config, value: serde_json::Value) {
     std::fs::write(path, serde_json::to_vec(&value).unwrap()).unwrap();
 }
 
+// 诊断断言同时检查严重级别与可操作提示，避免只有返回值正确而用户指引失真。
+// 损坏或缺失的外部状态应转换成诊断项，而不是中断后续检查。
 #[test]
 fn missing_state_file_reports_daemon_error() {
     let tmp = TempDir::new().unwrap();

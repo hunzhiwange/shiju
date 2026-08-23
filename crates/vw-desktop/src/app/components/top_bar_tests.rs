@@ -1,3 +1,7 @@
+//! 验证顶部栏各分区组合、页面状态和窗口级交互。
+//!
+//! 组合测试在不同页面和窗口状态下构造顶部栏，确认各分区按条件出现。
+
 use crate::app::App;
 use crate::app::Screen;
 use crate::app::state::WorkspaceMode;

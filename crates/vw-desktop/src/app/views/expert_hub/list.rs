@@ -1,3 +1,5 @@
+//! 构建识矩技能市场、已安装、系统、公司与我的技能列表。
+
 use super::styles;
 use crate::app::assets::Icon;
 use crate::app::components::overlays::PointBelowOverlay;
@@ -22,6 +24,7 @@ use iced::{
 use std::collections::BTreeMap;
 use std::fmt;
 
+/// 技能列表统一使用的滚动条宽度。
 pub(super) const SCROLLBAR_WIDTH: u32 = 4;
 pub(super) const SCROLLBAR_GUTTER: u32 = 12;
 const DESCRIPTION_PREVIEW_CHARS: usize = 72;
@@ -35,6 +38,7 @@ struct TagFilterOption {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// “我的技能”标签筛选菜单中的稳定选项。
 pub(super) struct MineTagFilterOption {
     pub(super) id: u64,
     pub(super) label: String,
@@ -73,6 +77,7 @@ pub(super) fn market_search_messages(value: String) -> (Message, Message) {
     )
 }
 
+/// 根据页码和总数生成可用的上一页、下一页消息。
 pub(super) fn pagination_messages<T>(page: &Page<T>) -> (Option<Message>, Option<Message>) {
     let previous = (page.page > 1).then_some(Message::SkillHub(SkillHubMessage::PreviousPage));
     let next = (u64::from(page.page).saturating_mul(u64::from(page.page_size)) < page.total)
@@ -96,6 +101,7 @@ pub(super) fn install_action_message(skill_id: u64, installed: bool) -> Message 
     })
 }
 
+/// 仅为已安装且服务端标记可升级的市场技能生成快捷升级操作。
 pub(super) fn marketplace_quick_upgrade_action(
     skill: &MarketplaceSkill,
     installed: &[InstalledSkill],
@@ -119,6 +125,7 @@ pub(super) fn installed_quick_upgrade_message(skill: &InstalledSkill) -> Option<
         .then_some(Message::SkillHub(SkillHubMessage::UpgradeSkill(skill.skill_id)))
 }
 
+/// 按字符数截断说明，避免切断多字节文本。
 pub(super) fn description_preview(description: &str) -> String {
     let mut chars = description.chars();
     let preview = chars.by_ref().take(DESCRIPTION_PREVIEW_CHARS).collect::<String>();
@@ -393,6 +400,7 @@ fn scrolling(content: Element<'static, Message>) -> Element<'static, Message> {
         .into()
 }
 
+/// 根据可用宽度计算响应式卡片列数，并保证至少一列。
 pub(super) fn grid_column_count(width: f32) -> usize {
     (((width + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP)).floor() as usize).max(1)
 }
@@ -530,6 +538,7 @@ fn current_tag_options(app: &App, selected_id: Option<u64>) -> Vec<TagFilterOpti
     }
 }
 
+/// 按服务端标签顺序合并多个列表中的可筛选标签。
 pub(super) fn mine_tag_filter_options<'a>(
     tags: impl Iterator<Item = &'a crate::app::skill_hub::SkillTag>,
     selected_ids: &[u64],
@@ -836,6 +845,7 @@ fn search_controls(app: &App) -> Element<'_, Message> {
     }
 }
 
+/// 按当前技能页签展示列表、筛选器和分页控件。
 pub(super) fn view(app: &App) -> Element<'_, Message> {
     let tabs = row(skill_tab_specs()
         .iter()

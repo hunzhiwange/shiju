@@ -1,4 +1,5 @@
 //! 验证重试退避、响应头解析与可重试错误分类规则。
+//! 服务端重试头优先于本地退避；无响应头时才应用指数退避与上限。
 
 use super::{
     RETRY_INITIAL_DELAY, RETRY_MAX_DELAY_NO_HEADERS, delay, header_value_case_insensitive,
@@ -100,6 +101,7 @@ fn delay_falls_back_from_invalid_milliseconds_to_trimmed_seconds() {
 }
 
 #[test]
+// 服务端明确给出的等待时间不套用本地上限，只有本地退避需要限制最大延迟。
 fn delay_only_caps_backoff_when_response_headers_are_absent() {
     let with_empty_headers = AssistantError::APIError {
         message: "temporary".to_string(),

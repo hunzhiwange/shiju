@@ -1,3 +1,5 @@
+// 本文件验证 Lark 确认消息的语言检测、区域映射与随机选择。
+
 use super::*;
 
 #[test]
@@ -60,6 +62,7 @@ fn script_helpers_classify_kana_han_and_locale_specific_characters() {
 }
 
 #[test]
+// 脚本特征按区分度排序，避免日文汉字被误判为中文。
 fn detect_locale_from_text_prefers_kana_then_traditional_then_simplified() {
     assert_eq!(detect_locale_from_text("こんにちは"), Some(LarkAckLocale::Ja));
     assert_eq!(detect_locale_from_text("繁體中文很強"), Some(LarkAckLocale::ZhTw));
@@ -87,4 +90,3 @@ fn random_from_pool_returns_item_from_supplied_pool() {
 
     assert!(POOL.contains(&random_from_pool(POOL)));
 }
-// 本文件验证 Lark 确认消息的语言检测、区域映射与随机选择。

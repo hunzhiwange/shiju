@@ -1,3 +1,5 @@
+//! 展示已安装识矩应用的运行就绪状态与启动入口。
+
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Font, Length};
@@ -8,6 +10,7 @@ use crate::app::Message;
 use crate::app::message::{AccountMessage, ShijuAppsMessage};
 use crate::app::shiju_apps::{ShijuAppDetailTarget, ShijuAppsLoadState};
 
+/// 只有协调状态与运行时状态都为 `ready` 时判定应用可启动。
 pub(crate) fn runtime_readiness(app: &ShijuInstalledAppDto) -> Result<&'static str, String> {
     if app.reconcile_status == "ready" && app.runtime_status == "ready" {
         Ok("运行就绪")
@@ -16,6 +19,7 @@ pub(crate) fn runtime_readiness(app: &ShijuInstalledAppDto) -> Result<&'static s
     }
 }
 
+/// 为已就绪应用生成启动消息，未就绪时不暴露启动操作。
 pub(crate) fn open_action_message(app: &ShijuInstalledAppDto) -> Option<Message> {
     runtime_readiness(app)
         .is_ok()
@@ -98,6 +102,7 @@ fn feedback(message: String, action: Option<(&'static str, Message)>) -> Element
     container(content).width(Length::Fill).height(Length::Fill).center(Length::Fill).into()
 }
 
+/// 按登录、加载、错误或成功状态展示“我的应用”。
 pub(super) fn view(state: &ShijuAppsLoadState<ShijuAppListDto>) -> Element<'static, Message> {
     match state {
         ShijuAppsLoadState::Idle => feedback("我的应用尚未加载".to_string(), None),

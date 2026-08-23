@@ -1,3 +1,5 @@
+// 本文件验证渠道密钥字段的环境变量命名、加解密与错误上下文。
+
 use super::helpers::{
     decrypt_optional_secret, decrypt_secret, encrypt_optional_secret, encrypt_secret,
     is_valid_env_var_name,
@@ -33,6 +35,7 @@ fn disabled_secret_store_leaves_values_plaintext() {
 }
 
 #[test]
+// 已加密值不能重复加密，明文则须经密钥存储后可逆恢复。
 fn enabled_secret_store_encrypts_only_plain_values_and_round_trips() {
     let tmp = tempfile::tempdir().unwrap();
     let store = SecretStore::new(tmp.path(), true);
@@ -113,4 +116,3 @@ fn encrypt_secret_errors_include_field_name() {
     assert!(required_err.contains("Failed to encrypt required"));
     assert!(optional_err.contains("Failed to encrypt optional"));
 }
-// 本文件验证渠道密钥字段的环境变量命名、加解密与错误上下文。

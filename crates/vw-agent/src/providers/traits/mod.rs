@@ -8,7 +8,7 @@ use futures_util::{StreamExt, stream};
 use serde::{Deserialize, Serialize};
 use std::fmt::Write;
 
-/// A single message in a conversation.
+/// 对话中的单条角色消息。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub role: String,
@@ -16,24 +16,28 @@ pub struct ChatMessage {
 }
 
 impl ChatMessage {
+    /// 构造系统角色消息。
     pub fn system(content: impl Into<String>) -> Self {
         Self { role: "system".into(), content: content.into() }
     }
 
+    /// 构造用户角色消息。
     pub fn user(content: impl Into<String>) -> Self {
         Self { role: "user".into(), content: content.into() }
     }
 
+    /// 构造助手角色消息。
     pub fn assistant(content: impl Into<String>) -> Self {
         Self { role: "assistant".into(), content: content.into() }
     }
 
+    /// 构造工具角色消息。
     pub fn tool(content: impl Into<String>) -> Self {
         Self { role: "tool".into(), content: content.into() }
     }
 }
 
-/// A tool call requested by the LLM.
+/// 模型请求执行的结构化工具调用。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
     pub id: String,
@@ -41,7 +45,7 @@ pub struct ToolCall {
     pub arguments: String,
 }
 
-/// Raw token counts from a single LLM API response.
+/// 单次模型 API 响应报告的原始令牌计数。
 #[derive(Debug, Clone, Default)]
 pub struct TokenUsage {
     pub input_tokens: Option<u64>,
@@ -50,49 +54,48 @@ pub struct TokenUsage {
     pub reasoning_tokens: Option<u64>,
 }
 
-/// An LLM response that may contain text, tool calls, or both.
+/// 可同时包含文本、工具调用和推理透传内容的模型响应。
 #[derive(Debug, Clone)]
 pub struct ChatResponse {
-    /// Text content of the response (may be empty if only tool calls).
+    /// 响应文本；仅含工具调用时可以为空。
     pub text: Option<String>,
-    /// Tool calls requested by the LLM.
+    /// 模型请求的工具调用。
     pub tool_calls: Vec<ToolCall>,
-    /// Token usage reported by the provider, if available.
+    /// 提供方可用时返回的令牌用量。
     pub usage: Option<TokenUsage>,
-    /// Raw reasoning/thinking content from thinking models (e.g. DeepSeek-R1,
-    /// Kimi K2.5, GLM-4.7). Preserved as an opaque pass-through so it can be
-    /// sent back in subsequent API requests — some providers reject tool-call
-    /// history that omits this field.
+    /// 推理模型返回的原始思考内容。
+    ///
+    /// 该字段保持不透明透传，以满足要求在后续工具调用历史中回传推理内容的提供方。
     pub reasoning_content: Option<String>,
 }
 
 impl ChatResponse {
-    /// True when the LLM wants to invoke at least one tool.
+    /// 判断模型是否请求了至少一个工具调用。
     pub fn has_tool_calls(&self) -> bool {
         !self.tool_calls.is_empty()
     }
 
-    /// Convenience: return text content or empty string.
+    /// 返回文本内容；缺失时返回空字符串切片。
     pub fn text_or_empty(&self) -> &str {
         self.text.as_deref().unwrap_or("")
     }
 }
 
-/// Request payload for provider chat calls.
+/// 提供方对话调用的借用式请求载荷。
 #[derive(Debug, Clone, Copy)]
 pub struct ChatRequest<'a> {
     pub messages: &'a [ChatMessage],
     pub tools: Option<&'a [ToolSpec]>,
 }
 
-/// A tool result to feed back to the LLM.
+/// 回传给模型的单个工具执行结果。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolResultMessage {
     pub tool_call_id: String,
     pub content: String,
 }
 
-/// A message in a multi-turn conversation, including tool interactions.
+/// 包含普通消息和工具交互的多轮对话记录。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum ConversationMessage {
@@ -110,7 +113,7 @@ pub enum ConversationMessage {
     ToolResults(Vec<ToolResultMessage>),
 }
 
-/// A chunk of content from a streaming response.
+/// 流式响应中的一个内容分块。
 #[derive(Debug, Clone)]
 pub struct StreamChunk {
     /// Text delta for this chunk.
@@ -122,29 +125,29 @@ pub struct StreamChunk {
 }
 
 impl StreamChunk {
-    /// Create a new non-final chunk.
+    /// 创建非终止文本增量。
     pub fn delta(text: impl Into<String>) -> Self {
         Self { delta: text.into(), is_final: false, token_count: 0 }
     }
 
-    /// Create a final chunk.
+    /// 创建不携带文本的终止分块。
     pub fn final_chunk() -> Self {
         Self { delta: String::new(), is_final: true, token_count: 0 }
     }
 
-    /// Create an error chunk.
+    /// 创建以错误消息为内容的终止分块。
     pub fn error(message: impl Into<String>) -> Self {
         Self { delta: message.into(), is_final: true, token_count: 0 }
     }
 
-    /// Estimate tokens (rough approximation: ~4 chars per token).
+    /// 按约每四字节一个令牌粗略估算当前分块用量。
     pub fn with_token_estimate(mut self) -> Self {
         self.token_count = self.delta.len().div_ceil(4);
         self
     }
 }
 
-/// Options for streaming chat requests.
+/// 流式对话请求选项。
 #[derive(Debug, Clone, Copy, Default)]
 pub struct StreamOptions {
     /// Whether to enable streaming (default: true).
@@ -154,22 +157,22 @@ pub struct StreamOptions {
 }
 
 impl StreamOptions {
-    /// Create new streaming options with enabled flag.
+    /// 以显式流式开关创建选项。
     pub fn new(enabled: bool) -> Self {
         Self { enabled, count_tokens: false }
     }
 
-    /// Enable token counting.
+    /// 启用分块令牌估算。
     pub fn with_token_count(mut self) -> Self {
         self.count_tokens = true;
         self
     }
 }
 
-/// Result type for streaming operations.
+/// 流式操作的统一结果类型。
 pub type StreamResult<T> = std::result::Result<T, StreamError>;
 
-/// Errors that can occur during streaming.
+/// 流式传输、解析或提供方执行阶段的错误。
 #[derive(Debug, thiserror::Error)]
 pub enum StreamError {
     #[error("HTTP error: {0}")]
@@ -188,7 +191,7 @@ pub enum StreamError {
     Io(#[from] std::io::Error),
 }
 
-/// Structured error returned when a requested capability is not supported.
+/// 请求能力不受支持时返回的结构化错误。
 #[derive(Debug, Clone, thiserror::Error)]
 #[error("provider_capability_error provider={provider} capability={capability} message={message}")]
 pub struct ProviderCapabilityError {
@@ -197,10 +200,7 @@ pub struct ProviderCapabilityError {
     pub message: String,
 }
 
-/// Provider capabilities declaration.
-///
-/// Describes what features a provider supports, enabling intelligent
-/// adaptation of tool calling modes and request formatting.
+/// 提供方能力声明，用于选择工具调用模式和请求格式。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ProviderCapabilities {
     /// Whether the provider supports native tool calling via API primitives.
@@ -214,11 +214,9 @@ pub struct ProviderCapabilities {
     pub vision: bool,
 }
 
-/// Provider-specific tool payload formats.
+/// 各模型提供方原生工具定义的载荷格式。
 ///
-/// Different LLM providers require different formats for tool definitions.
-/// This enum encapsulates those variations, enabling providers to convert
-/// from the unified `ToolSpec` format to their native API requirements.
+/// 统一 `ToolSpec` 由具体提供方转换为这些格式；不支持原生工具时使用提示词回退。
 #[derive(Debug, Clone)]
 pub enum ToolsPayload {
     /// Gemini API format (functionDeclarations).
@@ -231,6 +229,7 @@ pub enum ToolsPayload {
     PromptGuided { instructions: String },
 }
 
+/// 屏蔽原生与 WASM 平台线程安全约束差异的提供方边界。
 #[cfg(not(target_arch = "wasm32"))]
 pub trait ProviderBounds: Send + Sync {}
 #[cfg(not(target_arch = "wasm32"))]
@@ -241,30 +240,21 @@ pub trait ProviderBounds {}
 #[cfg(target_arch = "wasm32")]
 impl<T> ProviderBounds for T {}
 
+/// 模型提供方的统一同步、流式与工具调用契约。
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait Provider: ProviderBounds {
-    /// Query provider capabilities.
-    ///
-    /// Default implementation returns minimal capabilities (no native tool calling).
-    /// Providers should override this to declare their actual capabilities.
+    /// 查询提供方能力；默认不声明任何可选能力。
     fn capabilities(&self) -> ProviderCapabilities {
         ProviderCapabilities::default()
     }
 
-    /// Convert tool specifications to provider-native format.
-    ///
-    /// Default implementation returns `PromptGuided` payload, which injects
-    /// tool documentation into the system prompt as text. Providers with
-    /// native tool calling support should override this to return their
-    /// specific format (Gemini, Anthropic, OpenAI).
+    /// 将统一工具规格转换为提供方载荷；默认生成提示词引导格式。
     fn convert_tools(&self, tools: &[ToolSpec]) -> ToolsPayload {
         ToolsPayload::PromptGuided { instructions: build_tool_instructions_text(tools) }
     }
 
-    /// Simple one-shot chat (single user message, no explicit system prompt).
-    ///
-    /// This is the preferred API for non-agentic direct interactions.
+    /// 执行不含显式系统提示的单轮对话。
     async fn simple_chat(
         &self,
         message: &str,
@@ -274,9 +264,7 @@ pub trait Provider: ProviderBounds {
         self.chat_with_system(None, message, model, temperature).await
     }
 
-    /// One-shot chat with optional system prompt.
-    ///
-    /// Kept for compatibility and advanced one-shot prompting.
+    /// 执行可带系统提示的单轮对话。
     async fn chat_with_system(
         &self,
         system_prompt: Option<&str>,
@@ -285,8 +273,7 @@ pub trait Provider: ProviderBounds {
         temperature: f64,
     ) -> anyhow::Result<String>;
 
-    /// Multi-turn conversation. Default implementation extracts the last user
-    /// message and delegates to `chat_with_system`.
+    /// 执行多轮对话；默认提取系统消息和最后一条用户消息转交单轮接口。
     async fn chat_with_history(
         &self,
         messages: &[ChatMessage],
@@ -299,7 +286,9 @@ pub trait Provider: ProviderBounds {
         self.chat_with_system(system, last_user, model, temperature).await
     }
 
-    /// Structured chat API for agent loop callers.
+    /// 供代理循环调用的结构化对话接口。
+    ///
+    /// 提供方不支持原生工具时，默认把工具说明注入系统提示且拒绝不一致的原生载荷。
     async fn chat(
         &self,
         request: ChatRequest<'_>,
@@ -352,25 +341,22 @@ pub trait Provider: ProviderBounds {
         })
     }
 
-    /// Whether provider supports native tool calls over API.
+    /// 判断提供方是否支持 API 原生工具调用。
     fn supports_native_tools(&self) -> bool {
         self.capabilities().native_tool_calling
     }
 
-    /// Whether provider supports multimodal vision input.
+    /// 判断提供方是否支持多模态图像输入。
     fn supports_vision(&self) -> bool {
         self.capabilities().vision
     }
 
-    /// Warm up the HTTP connection pool (TLS handshake, DNS, HTTP/2 setup).
-    /// Default implementation is a no-op; providers with HTTP clients should override.
+    /// 预热连接池；默认无操作，持有 HTTP 客户端的提供方可覆盖。
     async fn warmup(&self) -> anyhow::Result<()> {
         Ok(())
     }
 
-    /// Chat with tool definitions for native function calling support.
-    /// The default implementation falls back to chat_with_history and returns
-    /// an empty tool_calls vector (prompt-based tool use only).
+    /// 携带原生工具定义执行对话；默认回退到历史对话且不生成工具调用。
     async fn chat_with_tools(
         &self,
         messages: &[ChatMessage],
@@ -387,15 +373,12 @@ pub trait Provider: ProviderBounds {
         })
     }
 
-    /// Whether provider supports streaming responses.
-    /// Default implementation returns false.
+    /// 判断提供方是否支持流式响应；默认返回 `false`。
     fn supports_streaming(&self) -> bool {
         false
     }
 
-    /// Streaming chat with optional system prompt.
-    /// Returns an async stream of text chunks.
-    /// Default implementation falls back to non-streaming chat.
+    /// 发起可带系统提示的流式对话；默认返回空流表示不支持。
     fn stream_chat_with_system(
         &self,
         _system_prompt: Option<&str>,
@@ -408,9 +391,7 @@ pub trait Provider: ProviderBounds {
         stream::empty().boxed()
     }
 
-    /// Streaming chat with history.
-    /// Default implementation extracts the last user message and delegates to
-    /// `stream_chat_with_system`, mirroring the non-streaming `chat_with_history`.
+    /// 发起带历史的流式对话；默认提取系统消息和最后一条用户消息转交基础流接口。
     fn stream_chat_with_history(
         &self,
         messages: &[ChatMessage],
@@ -425,11 +406,9 @@ pub trait Provider: ProviderBounds {
     }
 }
 
-/// Build tool instructions text for prompt-guided tool calling.
+/// 构建提示词引导式工具调用说明。
 ///
-/// Generates a formatted text block describing available tools and how to
-/// invoke them using XML-style tags. This is used as a fallback when the
-/// provider doesn't support native tool calling.
+/// 当提供方不支持原生工具调用时，用 XML 风格标签描述可用工具及调用协议。
 pub fn build_tool_instructions_text(tools: &[ToolSpec]) -> String {
     let mut instructions = String::new();
 

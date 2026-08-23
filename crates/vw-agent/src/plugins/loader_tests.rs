@@ -7,6 +7,7 @@ use std::fs;
 use std::path::Path;
 use vw_config_types::plugins::PluginsConfig;
 
+// 每个来源使用独立清单夹具，以便验证来源排序和名称冲突。
 fn write_plugin_manifest(plugin_root: &Path, name: &str) {
     let manifest_dir = plugin_root.join(".vibewindow-plugin");
     fs::create_dir_all(&manifest_dir).expect("manifest dir");
@@ -107,6 +108,7 @@ fn plugin_loader_accepts_absolute_configured_source_and_deduplicates_canonical_s
 }
 
 #[test]
+// 同名插件遵循来源顺序覆盖，测试锁定最终被选择的根目录。
 fn plugin_loader_prefers_later_source_for_duplicate_name() {
     let dir = tempfile::tempdir().expect("temp dir");
     let workspace_dir = dir.path().join("workspace");

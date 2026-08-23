@@ -1,3 +1,6 @@
+//! 验证设置图标、提供商标识与提示按钮的尺寸和主题着色。
+//! 未知提供商和零尺寸输入用于确认资源回退不会触发布局异常。
+
 use super::{icon_btn, icon_svg, provider_logo_svg};
 use crate::app::Message;
 use crate::app::assets::Icon;

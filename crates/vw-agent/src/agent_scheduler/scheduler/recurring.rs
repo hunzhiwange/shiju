@@ -13,9 +13,11 @@ use super::super::state_machine::AgentTaskKind;
 use super::super::store::AgentSchedulerStore;
 use super::super::store::tasks::StoredAgentTask;
 
+/// 周期任务超过计划时间后仍继续等待的宽限分钟数。
 pub const RECURRING_OVERDUE_GRACE_MINUTES: i64 = 30;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 从无限任务字段解析出的有效周期计划。
 pub struct RecurringSchedule {
     pub expression: String,
     pub timezone: Option<String>,
@@ -24,18 +26,21 @@ pub struct RecurringSchedule {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 在给定时刻对周期任务作出的触发或等待决定。
 pub enum RecurringDecision {
     Trigger { scheduled_at: DateTime<Utc>, overdue_at: DateTime<Utc> },
     Wait { reason: RecurringWaitReason },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 周期任务暂不触发的可区分原因。
 pub enum RecurringWaitReason {
     AlreadyExecuted,
     NotPastGrace { overdue_at: DateTime<Utc> },
 }
 
 impl RecurringSchedule {
+    /// 从无限任务构建计划；任务种类、表达式或时间字段无效时返回错误。
     pub fn from_task(task: &StoredAgentTask) -> Result<Self> {
         if task.kind != AgentTaskKind::Infinite {
             bail!("recurring schedule requires infinite task: {}", task.id.as_str());
@@ -65,6 +70,7 @@ impl RecurringSchedule {
         })
     }
 
+    /// 基于当前时间判断是否已越过宽限期，且避免同一计划时刻重复执行。
     pub fn decision(&self, now: DateTime<Utc>) -> RecurringDecision {
         if self.last_executed_at.as_ref().is_some_and(|last| last >= &self.next_scheduled_at) {
             return RecurringDecision::Wait { reason: RecurringWaitReason::AlreadyExecuted };
@@ -79,6 +85,7 @@ impl RecurringSchedule {
         RecurringDecision::Wait { reason: RecurringWaitReason::NotPastGrace { overdue_at } }
     }
 
+    /// 记录本次执行时间，并从实际执行时刻计算下一次计划时间。
     pub fn record_executed(&self, executed_at: DateTime<Utc>) -> Result<Self> {
         let next_scheduled_at = next_run_for_schedule(
             &Schedule::Cron { expr: self.expression.clone(), tz: self.timezone.clone() },
@@ -96,11 +103,13 @@ impl RecurringSchedule {
 }
 
 impl RecurringDecision {
+    /// 仅当决定为触发时返回 `true`。
     pub fn should_trigger(&self) -> bool {
         matches!(self, Self::Trigger { .. })
     }
 }
 
+/// 原子更新任务的最近执行时间和下一计划时间；任务不存在时返回 `Ok(None)`。
 pub fn record_executed(
     store: &AgentSchedulerStore,
     project_path: &Path,

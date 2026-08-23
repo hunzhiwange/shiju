@@ -1,4 +1,5 @@
 //! 测试 PostgreSQL 调度存储的连接、事务和作用域初始化。
+//! 连接失败和事务回滚路径显式覆盖，初始化不得留下部分写入。
 
 use anyhow::Result;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;

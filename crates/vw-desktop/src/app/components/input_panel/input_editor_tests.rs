@@ -1,3 +1,6 @@
+//! 验证输入编辑器的内容同步、附件提及、键盘事件与焦点状态。
+//! 键盘 fixture 区分文件搜索接管与编辑器默认行为，并覆盖原生平台快捷键。
+
 use super::input_editor::{
     INPUT_LINE_HEIGHT, INPUT_MAX_LINES, INPUT_MIN_LINES, INPUT_VERTICAL_PADDING,
     binding_from_key_press, build_input_editor, input_context_menu,
@@ -9,6 +12,7 @@ use iced::widget::button;
 use iced::widget::text_editor::{Binding, Content, KeyPress, Status};
 use iced::{Background, Color, Length, Theme};
 
+// 固定物理按键和焦点状态，使快捷键测试只比较逻辑键、修饰键与文本载荷。
 fn key_press(key: keyboard::Key, modifiers: keyboard::Modifiers) -> KeyPress {
     KeyPress {
         key: key.clone(),

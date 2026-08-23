@@ -1,4 +1,5 @@
 //! 测试 Matrix 运行器的任务投递、响应关联与错误映射。
+//! 关联标识和超时夹具确保只接受当前任务回复，并将远端失败保留为明确结果。
 
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};

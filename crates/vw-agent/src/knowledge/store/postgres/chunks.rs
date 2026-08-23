@@ -19,6 +19,7 @@ use super::PostgresKnowledgeStore;
 use super::datasets::i64_from_u64;
 
 impl PostgresKnowledgeStore {
+    /// 列出指定文档的有序分块；文档不存在时返回 `None`。
     pub(in crate::knowledge::store) fn list_chunks(
         &self,
         tenant: &TenantScope,
@@ -42,6 +43,7 @@ impl PostgresKnowledgeStore {
         rows.iter().map(chunk_from_row).collect::<Result<Vec<_>>>().map(Some)
     }
 
+    /// 在同一事务内创建文档并写入预先生成的全部分块。
     pub(in crate::knowledge::store) fn create_document_with_chunks(
         &self,
         tenant: &TenantScope,
@@ -113,6 +115,7 @@ impl PostgresKnowledgeStore {
             .context("PostgreSQL knowledge document was not saved")
     }
 
+    /// 加载重新索引所需的文档正文与数据集配置。
     pub(in crate::knowledge::store) fn load_document_for_reindex(
         &self,
         tenant: &TenantScope,
@@ -145,6 +148,7 @@ impl PostgresKnowledgeStore {
         Ok(Some(ReindexKnowledgeDocument { document, dataset }))
     }
 
+    /// 原子替换文档分块，并将文档切换到最终可用状态。
     pub(in crate::knowledge::store) fn reindex_document(
         &self,
         tenant: &TenantScope,
@@ -190,6 +194,7 @@ impl PostgresKnowledgeStore {
         self.get_document(tenant, document_id)
     }
 
+    /// 记录文档索引失败原因，供状态查询与后续重试展示。
     pub(in crate::knowledge::store) fn mark_document_failed(
         &self,
         tenant: &TenantScope,
@@ -218,6 +223,7 @@ impl PostgresKnowledgeStore {
     }
 }
 
+/// 删除旧分块并写入新分块，同时重建父子和前后链接。
 pub(super) fn replace_document_chunks(
     connection: &mut impl GenericClient,
     tenant: &TenantScope,

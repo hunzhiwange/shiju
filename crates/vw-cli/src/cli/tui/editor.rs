@@ -1,8 +1,14 @@
+//! TUI 提示输入框的 Unicode 编辑、选区、撤销栈与视口计算。
+//!
+//! 光标和选区统一使用字素索引，只在修改 `String` 时转换为字节边界，
+//! 避免将组合字符或宽字符拆开。模块仅修改 `PromptState`，不直接处理终端事件。
+
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 use super::model::{PromptMotion, PromptState};
 
+/// 用字素索引表示的选区，`anchor` 在扩展选择时保持不变。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct EditorSelection {
     pub(crate) anchor: usize,
@@ -10,11 +16,13 @@ pub(crate) struct EditorSelection {
 }
 
 impl EditorSelection {
+    /// 按文本顺序返回选区的起止字素索引。
     pub(crate) fn ordered(self) -> (usize, usize) {
         (self.anchor.min(self.active), self.anchor.max(self.active))
     }
 }
 
+/// 撤销或重做所需的最小编辑器快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditorSnapshot {
     value: String,
@@ -22,12 +30,14 @@ pub(crate) struct EditorSnapshot {
     selection: Option<EditorSelection>,
 }
 
+/// 用于判断连续插入是否可合并为一次撤销的编辑类别。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum EditorEditKind {
     Insert,
     Other,
 }
 
+/// 附着在 prompt 上的选区、撤销/重做、剪切缓冲和视口状态。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditorState {
     pub(crate) selection: Option<EditorSelection>,
@@ -56,15 +66,18 @@ impl Default for EditorState {
 }
 
 impl EditorState {
+    /// 返回当前可撤销的快照数。
     pub(crate) fn undo_depth(&self) -> usize {
         self.undo.len()
     }
 
+    /// 返回当前可重做的快照数。
     pub(crate) fn redo_depth(&self) -> usize {
         self.redo.len()
     }
 }
 
+/// 编辑器接受的语义命令，与具体终端按键解耦。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum EditorCommand {
     Insert(String),
@@ -84,6 +97,7 @@ pub(crate) enum EditorCommand {
     PasteEnd,
 }
 
+/// 按当前视口高度裁剪后的可见行与光标显示位置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EditorViewport {
     pub(crate) top_line: usize,
@@ -92,6 +106,7 @@ pub(crate) struct EditorViewport {
     pub(crate) visible_lines: Vec<String>,
 }
 
+/// 将一条语义命令应用到 prompt；返回值表示可见编辑状态是否发生变化。
 pub(crate) fn apply_editor_command(prompt: &mut PromptState, command: EditorCommand) -> bool {
     match command {
         EditorCommand::Insert(text) => insert(prompt, normalize_newlines(text.as_str())),
@@ -133,6 +148,7 @@ pub(crate) fn apply_editor_command(prompt: &mut PromptState, command: EditorComm
     }
 }
 
+/// 根据光标与视口状态返回当前可见的文本行。
 pub(crate) fn editor_viewport(prompt: &PromptState) -> EditorViewport {
     let (line, column) = cursor_display_position(prompt.value.as_str(), prompt.cursor.char_index);
     let lines = prompt.value.split('\n').map(ToOwned::to_owned).collect::<Vec<_>>();
@@ -146,10 +162,12 @@ pub(crate) fn editor_viewport(prompt: &PromptState) -> EditorViewport {
     }
 }
 
+/// 计算 Unicode 字素数，用于与 prompt 光标索引保持同一坐标系。
 pub(crate) fn grapheme_count(value: &str) -> usize {
     UnicodeSegmentation::graphemes(value, true).count()
 }
 
+/// 将字素索引转换为合法 UTF-8 字节边界；末尾索引映射到字符串长度。
 pub(crate) fn byte_index_for_grapheme(value: &str, grapheme_index: usize) -> Option<usize> {
     if grapheme_index == grapheme_count(value) {
         return Some(value.len());
@@ -157,6 +175,7 @@ pub(crate) fn byte_index_for_grapheme(value: &str, grapheme_index: usize) -> Opt
     UnicodeSegmentation::grapheme_indices(value, true).nth(grapheme_index).map(|(index, _)| index)
 }
 
+/// 返回当前选区的完整 UTF-8 文本；空选区或非法边界返回空。
 pub(crate) fn selected_text(prompt: &PromptState) -> Option<String> {
     let selection = prompt.editor.selection?;
     let (start, end) = selection.ordered();
@@ -175,6 +194,7 @@ fn insert(prompt: &mut PromptState, text: String) -> bool {
     let merge = prompt.editor.last_edit == Some(EditorEditKind::Insert)
         && prompt.editor.selection.is_none()
         && !prompt.editor.bracketed_paste;
+    // 连续普通输入合并为一次撤销；粘贴和替换选区必须形成独立边界。
     begin_edit(prompt, EditorEditKind::Insert, merge);
     delete_selection_without_snapshot(prompt);
     let Some(byte_index) = byte_index_for_grapheme(&prompt.value, prompt.cursor.char_index) else {

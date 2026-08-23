@@ -1,4 +1,6 @@
 //! 验证协议事件转发、会话变更、权限请求与回调触发行为。
+//!
+//! 协议连接、回调和通道 fixture 用于隔离验证客户端边界，不替代生产实现。
 
 use std::collections::HashSet;
 use std::fs;
@@ -93,6 +95,7 @@ fn unique_temp_dir(name: &str) -> PathBuf {
     path
 }
 
+// 下列行为用例覆盖有效响应、无效状态以及协议或通道失败路径。
 #[tokio::test]
 async fn session_notification_forwards_text_delta() {
     let (event_tx, mut event_rx) = mpsc::unbounded_channel();

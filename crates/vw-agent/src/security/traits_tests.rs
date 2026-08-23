@@ -4,6 +4,7 @@ use super::{NoopSandbox, Sandbox};
 use std::process::Command;
 
 #[test]
+// 空沙箱只表达未隔离状态，不得改写将要执行的命令。
 fn noop_sandbox_reports_stable_metadata_and_wraps_without_mutation() {
     let sandbox = NoopSandbox;
     let mut command = Command::new("echo");

@@ -1,3 +1,6 @@
+//! 验证文件列表行标签、悬停键、编辑差异回退与列表交互结构。
+//! 无文件名路径与不匹配编辑预览用于确认回退不会伪造差异内容。
+
 use super::super::types::ChangeFile;
 use super::list_ui::{
     build_file_list_column, edit_change_counts, edit_file_change_block,

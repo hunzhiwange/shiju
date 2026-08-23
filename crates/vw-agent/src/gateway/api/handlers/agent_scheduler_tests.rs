@@ -34,6 +34,7 @@ use vw_config_types::staff::{
     StaffStageAssignmentConfig, StaffWorkflowOrchestrationConfig,
 };
 
+// 测试使用独立租户、项目和执行器夹具，防止调度状态在作用域之间串扰。
 #[tokio::test]
 async fn agent_scheduler_routes_require_header_tenant_scope() {
     let app = router::<()>()
@@ -67,6 +68,7 @@ async fn agent_scheduler_routes_require_header_tenant_scope() {
     assert_eq!(missing_tenant.status(), StatusCode::BAD_REQUEST);
 }
 
+// 失败转换同时检查任务、运行和事件投影，避免只更新其中一个状态视图。
 #[tokio::test]
 async fn agent_scheduler_sse_uses_extension_tenant_scope_and_isolates_projects() {
     let project_id = format!("scheduler-sse-scope-{}", Uuid::new_v4());
@@ -202,6 +204,7 @@ async fn agent_scheduler_api_creates_task_and_wakes_dispatch_engine() {
     assert_eq!(outbox.messages[0].id, "outbox-task-api-1");
 }
 
+// 网关命令测试通过真实存储观察排队与执行结果，避免只验证路由已注册。
 #[tokio::test]
 async fn agent_scheduler_gateway_command_runs_task() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -483,6 +486,7 @@ async fn agent_scheduler_gateway_matrix_command_respects_max_concurrent() {
     assert_eq!(task.status, AgentTaskStatus::Queued);
 }
 
+// 项目唤醒只应选择图依赖已就绪且生命周期允许的任务。
 #[tokio::test]
 async fn agent_scheduler_project_wake_runs_registered_queued_task() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -1104,6 +1108,7 @@ async fn agent_scheduler_worker_run_event_completes_matrix_task() {
     assert!(logs.iter().any(|log| log.to_status == Some(AgentTaskStatus::Completed)));
 }
 
+// 工作器事件必须经生命周期转换推进任务，不能直接覆盖目标状态。
 #[tokio::test]
 async fn worker_submitted_advances_by_lifecycle_success_transition() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -1344,6 +1349,7 @@ async fn worker_failed_advances_by_lifecycle_failure_transition() {
     assert_eq!(task.metadata["task_board.status_role"], "failed");
 }
 
+// 任务板是事件投影而非独立真相源，此处固定首次唤醒后的投影同步。
 #[tokio::test]
 async fn agent_scheduler_project_wake_updates_task_board_projection_from_initial_pending_map() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -1983,6 +1989,7 @@ async fn agent_scheduler_task_board_uses_task_board_status_key_metadata() {
     assert_eq!(status_key("task-campaign-review"), "campaign_queued");
 }
 
+// 任务图替换按项目作用域执行，并要求非法图整体拒绝而不是部分落库。
 #[tokio::test]
 async fn agent_scheduler_gateway_replaces_and_reads_scoped_task_graph() {
     let _ = agent_scheduler_project_task_graph;
@@ -2247,6 +2254,7 @@ async fn agent_scheduler_run_stage_action_applies_success_outcome_binding() {
     assert!(!task.metadata.to_string().contains("secret-token"));
 }
 
+// 阶段动作通过角色映射选择运行时能力，确保工作流定义不依赖具体执行器名称。
 #[tokio::test]
 async fn agent_scheduler_run_stage_action_uses_lifecycle_role_runtime_mapping() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -2683,6 +2691,7 @@ async fn agent_scheduler_run_stage_action_rejects_missing_outcome_transition() {
     assert!(task.metadata.get("task_board.stage_action.outcome").is_none());
 }
 
+// 任务板命令分别覆盖内容更新、状态迁移和软删除，固定各操作产生的事件类型。
 #[tokio::test]
 async fn agent_scheduler_gateway_task_board_updates_moves_and_soft_deletes_task() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -3004,6 +3013,7 @@ async fn agent_scheduler_gateway_legacy_import_is_idempotent_and_persists_workfl
     assert_eq!(events["events"].as_array().expect("events").len(), 1);
 }
 
+// 本地启动命令只确认调度已接受，不等待长任务结束，防止网关请求被执行时长阻塞。
 #[tokio::test]
 async fn agent_scheduler_gateway_local_command_returns_before_execution_finishes() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -3323,6 +3333,7 @@ async fn agent_scheduler_merge_command_merges_submitted_task_to_completed() {
     cleanup_merge_test_project(&project_id).await;
 }
 
+// 合并测试使用真实 Git 分支和锁，验证默认目标、锁释放及失败诊断形成完整事务边界。
 #[tokio::test]
 async fn agent_scheduler_merge_command_defaults_target_to_project_current_branch() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -3696,6 +3707,7 @@ async fn agent_scheduler_gateway_upserts_project_worker_matrix_address() {
     assert_eq!(list["workers"][0]["capabilities"][0]["name"], "matrix-dispatch");
 }
 
+// 工作器与团队共享项目但拥有独立生命周期，删除一类资源不得误删另一类。
 #[tokio::test]
 async fn agent_scheduler_gateway_manages_workers_and_teams_independently() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -4381,6 +4393,7 @@ fn scheduler_request_builders_validate_and_trim_inputs() {
     );
 }
 
+// DTO 辅助测试固定元数据、工作区和错误字段，防止内部重构改变网关序列化契约。
 #[test]
 fn scheduler_dto_helpers_preserve_metadata_workspace_and_errors() {
     let task_id = TaskId::new("task-dto").expect("task id");
@@ -6264,6 +6277,7 @@ async fn scheduler_default_gateway_methods_report_unconfigured_project_routes() 
     }
 }
 
+// 无作用域路由必须先解析租户和项目上下文，再允许调用任何调度存储方法。
 #[tokio::test]
 async fn scheduler_unscoped_handlers_reject_invalid_or_missing_context() {
     assert_eq!(

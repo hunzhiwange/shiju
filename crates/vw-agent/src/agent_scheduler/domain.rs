@@ -12,12 +12,14 @@ use vw_api_types::agent_scheduler::{
 use vw_api_types::common::TimestampMs;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 将 API 作用域与本地项目路径绑定的调度上下文。
 pub struct AgentSchedulerContext {
     scope: AgentSchedulerScope,
     project_path: PathBuf,
 }
 
 impl AgentSchedulerContext {
+    /// 创建上下文；空项目路径会被拒绝，避免存储退化到未限定位置。
     pub fn new(scope: AgentSchedulerScope, project_path: impl Into<PathBuf>) -> Result<Self> {
         let project_path = project_path.into();
         if project_path.as_os_str().is_empty() {
@@ -26,10 +28,12 @@ impl AgentSchedulerContext {
         Ok(Self { scope, project_path })
     }
 
+    /// 返回用于数据库隔离的平台、公司和项目作用域。
     pub fn scope(&self) -> &AgentSchedulerScope {
         &self.scope
     }
 
+    /// 返回该上下文对应的本地项目路径。
     pub fn project_path(&self) -> &Path {
         &self.project_path
     }
@@ -44,9 +48,11 @@ impl std::ops::Deref for AgentSchedulerContext {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 已校验非空的任务标识。
 pub struct TaskId(String);
 
 impl TaskId {
+    /// 校验并封装任务标识。
     pub fn new(value: impl Into<String>) -> Result<Self> {
         Ok(Self(non_empty(value.into(), "task id")?))
     }
@@ -57,9 +63,11 @@ impl TaskId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 已校验非空的单次运行标识。
 pub struct RunId(String);
 
 impl RunId {
+    /// 校验并封装运行标识。
     pub fn new(value: impl Into<String>) -> Result<Self> {
         Ok(Self(non_empty(value.into(), "run id")?))
     }
@@ -70,9 +78,11 @@ impl RunId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 已校验非空的工作节点名称。
 pub struct WorkerName(String);
 
 impl WorkerName {
+    /// 校验并封装工作节点名称。
     pub fn new(value: impl Into<String>) -> Result<Self> {
         Ok(Self(non_empty(value.into(), "worker name")?))
     }
@@ -83,9 +93,11 @@ impl WorkerName {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 已校验非空的团队标识。
 pub struct TeamId(String);
 
 impl TeamId {
+    /// 校验并封装团队标识。
     pub fn new(value: impl Into<String>) -> Result<Self> {
         Ok(Self(non_empty(value.into(), "team id")?))
     }
@@ -96,9 +108,11 @@ impl TeamId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 已校验非空的资源租约标识。
 pub struct ResourceLeaseId(String);
 
 impl ResourceLeaseId {
+    /// 校验并封装资源租约标识。
     pub fn new(value: impl Into<String>) -> Result<Self> {
         Ok(Self(non_empty(value.into(), "resource lease id")?))
     }
@@ -109,9 +123,11 @@ impl ResourceLeaseId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 由资源提供者定义的非空资源种类键。
 pub struct ResourceKind(String);
 
 impl ResourceKind {
+    /// 校验并封装资源种类键。
     pub fn new(value: impl Into<String>) -> Result<Self> {
         Ok(Self(non_empty(value.into(), "resource kind")?))
     }
@@ -122,9 +138,11 @@ impl ResourceKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 已校验非空的资源实例标识。
 pub struct ResourceId(String);
 
 impl ResourceId {
+    /// 校验并封装资源实例标识。
     pub fn new(value: impl Into<String>) -> Result<Self> {
         Ok(Self(non_empty(value.into(), "resource id")?))
     }
@@ -135,9 +153,11 @@ impl ResourceId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// 已校验非空的资源持有者标识。
 pub struct HolderId(String);
 
 impl HolderId {
+    /// 校验并封装资源持有者标识。
     pub fn new(value: impl Into<String>) -> Result<Self> {
         Ok(Self(non_empty(value.into(), "holder id")?))
     }
@@ -148,6 +168,7 @@ impl HolderId {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 决定任务状态机和调度方式的任务种类。
 pub enum AgentTaskKind {
     Finite,
     Infinite,
@@ -155,6 +176,7 @@ pub enum AgentTaskKind {
 }
 
 impl AgentTaskKind {
+    /// 解析持久化任务种类键；未知值返回错误。
     pub fn parse(value: &str) -> Result<Self> {
         match value {
             "finite" => Ok(Self::Finite),
@@ -176,6 +198,7 @@ impl From<AgentTaskKindDto> for AgentTaskKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// API 任务状态在调度领域中的强类型表示。
 pub enum AgentTaskStatus {
     Draft,
     Queued,
@@ -217,6 +240,7 @@ impl From<AgentTaskStatusDto> for AgentTaskStatus {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 经标识校验后可供调度核心使用的任务实体。
 pub struct AgentTask {
     pub id: TaskId,
     pub title: String,
@@ -284,6 +308,7 @@ impl TryFrom<AgentTaskDto> for AgentTask {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 团队任务实体内的单个依赖图节点。
 pub struct TeamTaskDagNode {
     pub task_id: TaskId,
     pub title: String,
@@ -309,6 +334,7 @@ impl TryFrom<TeamTaskDagNodeDto> for TeamTaskDagNode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 单次代理运行从等待到终止的生命周期状态。
 pub enum AgentRunStatus {
     Pending,
     Leased,
@@ -336,6 +362,7 @@ impl From<AgentRunStatusDto> for AgentRunStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 经标识和运行者约束校验后的代理运行实体。
 pub struct AgentRun {
     pub id: RunId,
     pub task_id: TaskId,
@@ -368,6 +395,7 @@ impl TryFrom<AgentRunDto> for AgentRun {
         let status = AgentRunStatus::from(status);
         let worker = optional_worker_name(worker_id)?;
 
+        // 已租用或运行中的记录必须能定位工作节点，否则无法续租、回收或归责。
         match status {
             AgentRunStatus::Leased if worker.is_none() => {
                 bail!("leased run requires worker name")
@@ -394,6 +422,7 @@ impl TryFrom<AgentRunDto> for AgentRun {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 工作节点能力的分类，用于区分技能、模型、运行时和工具等命名空间。
 pub enum AgentCapabilityKind {
     Skill,
     RemoteSkill,
@@ -404,6 +433,7 @@ pub enum AgentCapabilityKind {
 }
 
 impl AgentCapabilityKind {
+    /// 返回持久化和筛选使用的稳定能力种类键。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Skill => "skill",
@@ -415,6 +445,7 @@ impl AgentCapabilityKind {
         }
     }
 
+    /// 解析能力种类键；未知种类会被明确拒绝。
     pub fn parse(value: &str) -> Result<Self> {
         match value {
             "skill" => Ok(Self::Skill),
@@ -442,6 +473,7 @@ impl From<AgentCapabilityKindDto> for AgentCapabilityKind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 工作节点声明的一项能力及其可扩展元数据。
 pub struct AgentCapability {
     pub kind: AgentCapabilityKind,
     pub name: String,
@@ -455,6 +487,7 @@ impl From<AgentCapabilityDto> for AgentCapability {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 工作节点在调度领域中的可观察状态。
 pub enum AgentWorkerStatus {
     Pending,
     Idle,
@@ -467,6 +500,7 @@ pub enum AgentWorkerStatus {
 }
 
 impl AgentWorkerStatus {
+    /// 返回数据库和 API 映射使用的稳定状态键。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Pending => "pending",
@@ -480,6 +514,7 @@ impl AgentWorkerStatus {
         }
     }
 
+    /// 解析工作节点状态键；未知值返回错误。
     pub fn parse(value: &str) -> Result<Self> {
         match value {
             "pending" => Ok(Self::Pending),
@@ -511,6 +546,7 @@ impl From<AgentWorkerStatusDto> for AgentWorkerStatus {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 经标识校验后的工作节点、路由信息和能力快照。
 pub struct AgentWorker {
     pub id: WorkerName,
     pub runtime: Option<String>,
@@ -572,6 +608,7 @@ impl TryFrom<AgentWorkerDto> for AgentWorker {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 团队整体的就绪或故障状态。
 pub enum AgentTeamStatus {
     Pending,
     Active,
@@ -580,6 +617,7 @@ pub enum AgentTeamStatus {
 }
 
 impl AgentTeamStatus {
+    /// 返回数据库和 API 映射使用的稳定状态键。
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Pending => "pending",
@@ -589,6 +627,7 @@ impl AgentTeamStatus {
         }
     }
 
+    /// 解析团队状态键；未知值返回错误。
     pub fn parse(value: &str) -> Result<Self> {
         match value {
             "pending" => Ok(Self::Pending),
@@ -612,6 +651,7 @@ impl From<AgentTeamStatusDto> for AgentTeamStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 团队成员的角色、运行时身份和通信路由。
 pub struct AgentTeamMember {
     pub worker_id: WorkerName,
     pub runtime_name: Option<WorkerName>,
@@ -640,6 +680,7 @@ impl TryFrom<AgentTeamMemberDto> for AgentTeamMember {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 经标识校验后的团队领导者、成员与就绪计数快照。
 pub struct AgentTeam {
     pub id: TeamId,
     pub name: String,
@@ -690,6 +731,7 @@ impl TryFrom<AgentTeamDto> for AgentTeam {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 资源租约从持有到释放、过期或撤销的状态。
 pub enum AgentResourceLeaseStatus {
     Active,
     Released,
@@ -709,6 +751,7 @@ impl From<AgentResourceLeaseStatusDto> for AgentResourceLeaseStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 经标识校验后的资源租约实体及其时间边界。
 pub struct AgentResourceLease {
     pub id: ResourceLeaseId,
     pub resource_kind: ResourceKind,

@@ -109,6 +109,7 @@ fn set_document_status_for_test(document_id: &str, status: &str) {
     .expect("update document status");
 }
 
+// 数据集和文档使用相同标识的多租户夹具，验证导入与检索均不会跨租户。
 #[test]
 fn router_builds_with_app_state() {
     let _: axum::Router<()> = router();
@@ -126,6 +127,7 @@ fn knowledge_db_path_uses_global_database_path() {
     assert_eq!(knowledge_db_path(), expected);
 }
 
+// 知识库迁移后的权威存储是共享数据库，测试明确禁止重新写入遗留文件。
 #[tokio::test]
 async fn knowledge_gateway_writes_shared_database_without_touching_legacy_file() {
     let _guard = KNOWLEDGE_TEST_LOCK.lock().await;
@@ -195,6 +197,7 @@ async fn knowledge_status_reports_local_capabilities() {
     assert!(status.notes.contains_key("rerank"));
 }
 
+// 嵌入状态展示解析后的有效路由，同时避免在响应中泄露提供商凭据。
 #[tokio::test]
 async fn knowledge_embedding_status_reports_resolved_config() {
     let config = embedding_config("http://127.0.0.1:9999", Some("configured-key"));
@@ -280,6 +283,7 @@ async fn knowledge_embedding_test_uses_gateway_provider() {
     assert!(request.contains(r#""input":["gateway probe"]"#));
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn knowledge_embedding_test_missing_api_key_returns_clear_failure() {
     let config = embedding_config("http://127.0.0.1:9999", None);
@@ -425,6 +429,7 @@ fn embedding_helpers_normalize_routes_and_bound_sanitized_errors() {
     assert_eq!(sanitized.chars().count(), 600);
 }
 
+// 生命周期用例串联数据集、文档、索引和检索，验证各阶段读取同一份状态。
 #[tokio::test]
 async fn knowledge_dataset_document_and_retrieve_lifecycle() {
     let _guard = KNOWLEDGE_TEST_LOCK.lock().await;
@@ -518,6 +523,7 @@ async fn knowledge_dataset_document_and_retrieve_lifecycle() {
     assert_eq!(deleted_dataset.id, dataset.id);
 }
 
+// 租户隔离同时作用于 CRUD 与检索结果，不能只在写入端附加租户条件。
 #[tokio::test]
 async fn knowledge_handlers_keep_crud_and_retrieval_isolated_by_request_tenant() {
     let _guard = KNOWLEDGE_TEST_LOCK.lock().await;
@@ -633,6 +639,7 @@ async fn knowledge_document_import_route_creates_document() {
     assert!(chunks.iter().any(|chunk| chunk.content.contains("Gateway imports")));
 }
 
+// 异步导入先返回排队状态，再由工作器完成内容写入和索引状态转换。
 #[tokio::test]
 async fn knowledge_document_import_async_enqueues_and_worker_completes() {
     let _guard = KNOWLEDGE_TEST_LOCK.lock().await;
@@ -816,6 +823,7 @@ async fn knowledge_documents_list_filters_by_status() {
     assert_eq!(documents, filtered);
 }
 
+// 批量操作逐项返回结果，并确保删除或重建索引与文档状态同步。
 #[tokio::test]
 async fn knowledge_document_update_and_batch_routes_apply_store_changes() {
     let _guard = KNOWLEDGE_TEST_LOCK.lock().await;

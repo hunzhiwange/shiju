@@ -1,4 +1,5 @@
 //! 验证 WebDriver 端点探测、选择器转义及按键名称映射。
+//! 选择器转义覆盖引号、反斜杠和换行，XPath 混合引号必须构造安全字面量。
 
 use super::*;
 use fantoccini::key::Key as WebDriverKey;
@@ -108,6 +109,7 @@ fn xpath_contains_text_uses_a_safe_literal_for_mixed_quotes() {
 }
 
 #[test]
+// XPath 字面量覆盖单双引号混用，避免文本选择器通过拼接改变表达式结构。
 fn xpath_literal_handles_empty_single_quote_double_quote_and_mixed_inputs() {
     assert_eq!(xpath_literal(""), r#""""#);
     assert_eq!(xpath_literal("it's ready"), r#""it's ready""#);

@@ -1,8 +1,12 @@
+//! 验证渠道设置总览、分类标签、启用摘要与错误横幅。
+//! 单渠道、多渠道和空摘要用例用于约束全局面板的计数与文案来源。
+
 use super::*;
 use crate::app::{App, Message};
 use iced::advanced::widget::Tree;
 use vw_config_types::channels::{TelegramConfig, WebhookConfig};
 
+// 总览 fixture 不预启用任何渠道，便于精确验证摘要从配置推导。
 fn test_app() -> App {
     App::new().0
 }

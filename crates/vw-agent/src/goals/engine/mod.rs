@@ -1,4 +1,6 @@
 //! 目标引擎，维护持久化目标、步骤状态、重试计数与提示上下文。
+//!
+//! 状态保存在工作区 `state/goals.json`；选择逻辑只推进可执行步骤，达到重试上限后标记阻塞。
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -10,38 +12,48 @@ const MAX_STEP_ATTEMPTS: u32 = 3;
 
 // ── Data Structures ─────────────────────────────────────────────
 
-/// Root state persisted to `{workspace}/state/goals.json`.
-/// Format matches the `goal-tracker` skill's file layout.
+/// 持久化到工作区 `state/goals.json` 的根状态。
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GoalState {
     #[serde(default)]
+    /// 当前保存的全部目标。
     pub goals: Vec<Goal>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// 一个目标及其有序步骤、累计上下文和最近错误。
 pub struct Goal {
+    /// 目标稳定标识。
     pub id: String,
+    /// 目标描述。
     pub description: String,
     #[serde(default)]
+    /// 当前生命周期状态。
     pub status: GoalStatus,
     #[serde(default)]
+    /// 调度优先级。
     pub priority: GoalPriority,
     #[serde(default)]
+    /// 创建时间文本。
     pub created_at: String,
     #[serde(default)]
+    /// 最后更新时间文本。
     pub updated_at: String,
     #[serde(default)]
+    /// 按执行顺序排列的步骤。
     pub steps: Vec<Step>,
-    /// Accumulated context from previous step results.
+    /// 由既往步骤结果累计出的后续执行上下文。
     #[serde(default)]
     pub context: String,
     /// Last error encountered during step execution.
     #[serde(default)]
+    /// 最近一次失败信息。
     pub last_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
+/// 目标生命周期状态。
 pub enum GoalStatus {
     #[default]
     Pending,
@@ -66,6 +78,7 @@ impl<'de> Deserialize<'de> for GoalStatus {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
+/// 目标调度优先级。
 pub enum GoalPriority {
     Low = 0,
     #[default]
@@ -87,19 +100,26 @@ impl Ord for GoalPriority {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// 目标中的单个可执行步骤。
 pub struct Step {
+    /// 步骤稳定标识。
     pub id: String,
+    /// 步骤描述。
     pub description: String,
     #[serde(default)]
+    /// 当前执行状态。
     pub status: StepStatus,
     #[serde(default)]
+    /// 成功或失败后的可选结果文本。
     pub result: Option<String>,
     #[serde(default)]
+    /// 已尝试执行次数。
     pub attempts: u32,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
+/// 步骤执行状态。
 pub enum StepStatus {
     #[default]
     Pending,
@@ -124,22 +144,26 @@ impl<'de> Deserialize<'de> for StepStatus {
 
 // ── GoalEngine ──────────────────────────────────────────────────
 
+/// 绑定单个工作区状态文件的目标引擎。
 pub struct GoalEngine {
     state_path: PathBuf,
 }
 
 impl GoalEngine {
+    /// 为工作区创建目标引擎，不立即读取或创建状态文件。
     pub fn new(workspace_dir: &Path) -> Self {
         Self { state_path: workspace_dir.join("state").join("goals.json") }
     }
 
     #[cfg(target_arch = "wasm32")]
+    /// WASM 平台返回空状态，因为不支持本地状态文件。
     pub async fn load_state(&self) -> Result<GoalState> {
         Ok(GoalState::default())
     }
 
     /// Load goal state from disk. Returns empty state if file doesn't exist.
     #[cfg(not(target_arch = "wasm32"))]
+    /// 读取状态文件；文件不存在时返回默认空状态。
     pub async fn load_state(&self) -> Result<GoalState> {
         if !self.state_path.exists() {
             return Ok(GoalState::default());
@@ -153,12 +177,14 @@ impl GoalEngine {
     }
 
     #[cfg(target_arch = "wasm32")]
+    /// WASM 平台接受保存调用但不执行文件写入。
     pub async fn save_state(&self, _state: &GoalState) -> Result<()> {
         Ok(())
     }
 
     /// Atomic save: write to .tmp then rename.
     #[cfg(not(target_arch = "wasm32"))]
+    /// 原子保存完整目标状态，并在需要时创建父目录。
     pub async fn save_state(&self, state: &GoalState) -> Result<()> {
         if let Some(parent) = self.state_path.parent() {
             tokio::fs::create_dir_all(parent).await?;
@@ -174,6 +200,7 @@ impl GoalEngine {
     ///
     /// Strategy: highest-priority in-progress goal, first pending step
     /// that hasn't exceeded `MAX_STEP_ATTEMPTS`.
+    /// 选择下一个可执行目标和步骤索引，不返回已阻塞或已完成项。
     pub fn select_next_actionable(state: &GoalState) -> Option<(usize, usize)> {
         let mut best: Option<(usize, usize, GoalPriority)> = None;
 
@@ -197,6 +224,7 @@ impl GoalEngine {
     }
 
     /// Build a focused prompt for the agent to execute one step.
+    /// 构造包含目标上下文、当前步骤和剩余重试预算的执行提示。
     pub fn build_step_prompt(goal: &Goal, step: &Step) -> String {
         let mut prompt = String::new();
 
@@ -247,6 +275,7 @@ impl GoalEngine {
     }
 
     /// Simple heuristic: output containing error indicators → failure.
+    /// 输出含常见错误标志时判为失败，否则判为成功。
     pub fn interpret_result(output: &str) -> bool {
         let lower = output.to_ascii_lowercase();
         let failure_indicators =
@@ -254,6 +283,7 @@ impl GoalEngine {
         !failure_indicators.iter().any(|ind| lower.contains(ind))
     }
 
+    /// 返回单步骤允许的最大尝试次数。
     pub fn max_step_attempts() -> u32 {
         MAX_STEP_ATTEMPTS
     }
@@ -264,6 +294,7 @@ impl GoalEngine {
     /// completed, blocked, or has exhausted its retry attempts. These goals
     /// need a reflection session to decide: add new steps, mark completed,
     /// mark blocked, or escalate to the user.
+    /// 返回已无可执行步骤但尚未正确收敛的目标索引。
     pub fn find_stalled_goals(state: &GoalState) -> Vec<usize> {
         state
             .goals
@@ -285,6 +316,7 @@ impl GoalEngine {
     ///
     /// The agent is asked to review the goal's overall progress and decide
     /// what to do next: add new steps, mark the goal completed, or escalate.
+    /// 为停滞目标构造反思提示，帮助诊断阻塞原因。
     pub fn build_reflection_prompt(goal: &Goal) -> String {
         let mut prompt = String::new();
 

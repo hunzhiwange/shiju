@@ -1,4 +1,5 @@
 //! 验证 WebAssembly 快照后端明确返回不支持的契约。
+//! WebAssembly 不伪造文件快照能力，所有占位入口都返回文档化的空结果。
 
 use super::*;
 

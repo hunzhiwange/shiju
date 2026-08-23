@@ -1,3 +1,6 @@
+// 验证附件路径约束、图像快照及文件名清理辅助逻辑。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::{
     append_local_attachments, attachment_name, build_image_attachment_snapshot_path,
     collect_gateway_file_paths, collect_local_attachments, copy_recursively,
@@ -31,6 +34,8 @@ async fn collect_task_messages(task: iced::Task<crate::app::Message>) -> Vec<cra
     Vec::new()
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn supported_image_attachment_detection_is_case_insensitive() {
     for path in ["a.png", "b.JPG", "c.jpeg", "d.WEBP", "e.gif", "f.BmP"] {
@@ -245,6 +250,8 @@ fn collect_local_attachments_reports_image_limit_before_copying() {
     assert!(errors[0].contains("已达图片上限"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn collect_local_attachments_rejects_oversized_images() {
     let (mut app, _task) = App::new();
@@ -432,6 +439,8 @@ fn normalize_path_rewrites_separators_and_trims_trailing_slashes() {
     assert_eq!(normalize_path("/tmp/project///"), "/tmp/project");
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn normalize_path_handles_empty_and_root_only_inputs() {
     assert_eq!(normalize_path(""), "");
@@ -716,6 +725,8 @@ async fn prepare_session_ui_tasks_return_none_for_empty_work_units() {
     assert!(empty_batch_messages.is_empty());
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[tokio::test]
 async fn prepare_stream_message_ui_task_prepares_only_target() {
     let message = crate::app::models::ChatMessage {

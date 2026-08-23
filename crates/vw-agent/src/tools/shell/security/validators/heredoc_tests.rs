@@ -1,4 +1,5 @@
 //! 验证 heredoc 校验器对可展开边界与安全形式的判定。
+//! 引用分隔符的安全形式必须与未引用、可变量展开的正文明确区分。
 
 use super::*;
 use crate::tools::shell::ast::parse_command;

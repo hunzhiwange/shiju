@@ -1,3 +1,5 @@
+// 本文件验证 Discord 用户许可与群聊发送者触发规则。
+
 use super::*;
 
 #[test]
@@ -14,6 +16,7 @@ fn is_group_sender_trigger_enabled_rejects_blank_sender() {
 }
 
 #[test]
+// 空许可表默认拒绝，候选标识也不隐式规范化，以免扩大授权。
 fn is_user_allowed_empty_list_denies_and_does_not_trim_user_ids() {
     assert!(!is_user_allowed(&[], "alice"));
     assert!(!is_user_allowed(&["alice".to_string()], " alice "));
@@ -25,4 +28,3 @@ fn group_sender_trigger_requires_exact_trimmed_match_or_wildcard() {
     assert!(is_group_sender_trigger_enabled(&["sender-2".to_string()], "\tsender-2\n"));
     assert!(!is_group_sender_trigger_enabled(&["sender-2".to_string()], "sender-3"));
 }
-// 本文件验证 Discord 用户许可与群聊发送者触发规则。

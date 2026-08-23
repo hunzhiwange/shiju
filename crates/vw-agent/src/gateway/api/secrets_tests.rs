@@ -1,4 +1,6 @@
 // 验证配置中的敏感字段能够完整遮蔽，并仅从既有配置安全恢复。
+
+// fixture 刻意填满各渠道密钥字段，用于防止新增配置项漏出脱敏清单。
 use super::*;
 
 use crate::app::agent::channels::email_channel::EmailConfig;
@@ -16,6 +18,7 @@ fn secret(value: &str) -> Option<String> {
     Some(value.to_string())
 }
 
+// 完整配置故意覆盖所有已知密钥位置，新增敏感字段时应同步扩展此 fixture。
 fn full_config() -> Config {
     let mut config = Config::default();
     config.config_path = "/tmp/current/vibewindow.json".into();
@@ -207,6 +210,7 @@ fn full_config() -> Config {
     config
 }
 
+// 集中断言避免某个渠道只在恢复测试中出现，却漏掉对外返回时的遮蔽。
 fn assert_all_config_secrets_masked(config: &Config) {
     assert_eq!(config.api_key.as_deref(), Some(MASKED_SECRET));
     assert_eq!(

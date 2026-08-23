@@ -1,4 +1,5 @@
 //! 测试代理模块门面对核心类型和兼容入口的导出契约。
+//! 配置夹具覆盖内置代理合并、默认选择、权限叠加和全局技能拒绝优先级。
 
 use super::*;
 use crate::app::agent::permission::next::Action;

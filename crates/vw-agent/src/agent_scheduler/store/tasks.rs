@@ -31,6 +31,7 @@ struct TaskBoardStaffRuntimeState<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 创建任务所需的完整领域字段；写入前会校验种类与调度字段的一致性。
 pub struct NewAgentTask {
     pub id: TaskId,
     pub title: String,
@@ -53,6 +54,7 @@ pub struct NewAgentTask {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 从存储读取的任务快照，包括持久化时间和看板元数据。
 pub struct StoredAgentTask {
     pub id: TaskId,
     pub title: String,
@@ -76,6 +78,7 @@ pub struct StoredAgentTask {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 存储层使用的团队任务依赖图节点。
 pub struct AgentTaskDagNode {
     pub task_id: TaskId,
     pub title: String,
@@ -85,6 +88,7 @@ pub struct AgentTaskDagNode {
 }
 
 #[derive(Debug, Clone, Default)]
+/// 任务列表查询条件；所有已设置条件按“且”组合。
 pub struct AgentTaskFilter {
     pub task_id: Option<TaskId>,
     pub status: Option<AgentTaskStatus>,
@@ -92,6 +96,7 @@ pub struct AgentTaskFilter {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 看板任务一次更新中允许变更的状态、标题和元数据。
 pub struct AgentTaskBoardUpdate {
     pub title: Option<String>,
     pub status: Option<AgentTaskStatus>,
@@ -100,20 +105,24 @@ pub struct AgentTaskBoardUpdate {
 }
 
 impl AgentTaskFilter {
+    /// 创建仅匹配指定任务的筛选器。
     pub fn for_task(task_id: TaskId) -> Self {
         Self { task_id: Some(task_id), ..Self::default() }
     }
 
+    /// 创建仅匹配指定状态的筛选器。
     pub fn for_status(status: AgentTaskStatus) -> Self {
         Self { status: Some(status), ..Self::default() }
     }
 
+    /// 创建仅匹配指定工作节点归属的筛选器。
     pub fn for_worker(assigned_to: WorkerName) -> Self {
         Self { assigned_to: Some(assigned_to), ..Self::default() }
     }
 }
 
 impl AgentSchedulerStore {
+    /// 在作用域内创建唯一任务，并返回规范化后的持久化快照。
     pub fn create_task(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -355,6 +364,7 @@ impl AgentSchedulerStore {
         Ok(Some(updated))
     }
 
+    /// 按状态机约束转换任务状态；非法边不会写入数据库。
     pub fn transition_task_status(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -395,6 +405,7 @@ impl AgentSchedulerStore {
         Ok(Some(updated))
     }
 
+    /// 在同一事务中转换状态并替换元数据，避免看板投影与状态分离。
     pub fn transition_task_status_with_metadata(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -441,6 +452,7 @@ impl AgentSchedulerStore {
         Ok(Some(updated))
     }
 
+    /// 同时更新周期任务最近执行时间和下一计划时间。
     pub fn update_recurring_task_execution(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),

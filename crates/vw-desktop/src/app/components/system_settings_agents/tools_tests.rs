@@ -1,3 +1,6 @@
+//! 验证代理工具权限、分组展示与选择消息的边界。
+//! 未知工具、继承权限和显式覆盖用于约束权限展示的优先级。
+
 use super::tools::{
     ToolGroup, preset_tool_count, tool_card_button_style, tool_english_name, tool_group_meta,
     tool_group_order, tool_in_preset, tool_matches_any, tool_meta, tool_preset_meta,

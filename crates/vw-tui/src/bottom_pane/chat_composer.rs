@@ -69,6 +69,16 @@ impl ChatComposer {
         self.textarea.text()
     }
 
+    pub(crate) fn replace_text(&mut self, text: &str) {
+        self.textarea.set_text_clearing_elements(text);
+        self.textarea.set_cursor(text.len());
+        self.footer.mode = if text.is_empty() {
+            FooterMode::ComposerEmpty
+        } else {
+            FooterMode::ComposerHasDraft
+        };
+    }
+
     pub(crate) fn is_empty(&self) -> bool {
         self.textarea.is_empty()
     }

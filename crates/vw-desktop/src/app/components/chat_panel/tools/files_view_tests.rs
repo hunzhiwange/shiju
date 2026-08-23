@@ -1,3 +1,6 @@
+//! 验证文件工具总路由对读取、搜索、编辑和写入状态的视图分派。
+//! 非文件工具和无路径普通调用应返回无视图，错误与运行态编辑仍需保留卡片。
+
 use super::files_view::tool_files_view;
 use crate::app::{App, Message};
 

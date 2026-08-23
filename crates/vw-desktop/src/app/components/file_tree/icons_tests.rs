@@ -1,8 +1,12 @@
+//! 验证文件扩展名图标映射、固定尺寸及主题色绘制契约。
+//! 记录型渲染器捕获 SVG 绘制颜色，避免只验证控件构造而遗漏实际主题着色路径。
+
 use super::icons::{file_icon_for, static_icon_svg, themed_icon_svg};
 use crate::app::assets::Icon;
 use iced::advanced::{Layout, Widget, layout, mouse, renderer, svg, widget::Tree};
 use iced::{Background, Color, Element, Length, Rectangle, Size, Theme, Transformation};
 
+// 真实 SVG 绘制调用会把最终主题色记录下来，空实现的方法不属于本测试观察面。
 #[derive(Debug, Default)]
 struct RecordingRenderer {
     svg_colors: Vec<Option<Color>>,

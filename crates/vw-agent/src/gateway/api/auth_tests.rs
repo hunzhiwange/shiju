@@ -67,6 +67,7 @@ fn bearer_headers(token: &str) -> HeaderMap {
     headers
 }
 
+// 认证关闭与开启两种状态并列验证，固定缺省开放和配对令牌校验边界。
 #[test]
 fn extract_bearer_token_requires_bearer_prefix() {
     let mut headers = HeaderMap::new();

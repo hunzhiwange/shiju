@@ -5,6 +5,7 @@ use serde_json::json;
 use std::fs;
 use std::path::Path;
 
+// 清单夹具统一经 JSON 写入，便于聚焦路径和模式校验而非序列化细节。
 fn write_json(path: &Path, value: serde_json::Value) {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("json parent");
@@ -230,6 +231,7 @@ fn plugin_hooks_reject_unknown_event() {
 }
 
 #[test]
+// 插件声明的工作目录不得逃出插件根目录。
 fn plugin_hooks_reject_path_escape() {
     let dir = tempfile::tempdir().expect("temp dir");
     let workspace_dir = dir.path().join("workspace");

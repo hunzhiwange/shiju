@@ -151,12 +151,14 @@ fn default_tenant_scope() -> axum::extract::Extension<TenantScope> {
     axum::extract::Extension(TenantScope::default())
 }
 
+// 同名配置在不同租户下分别读写，用于确认共享数据库仍保持请求作用域隔离。
 #[test]
 fn router_builds_with_app_state() {
     let _: axum::Router<()> = router();
     let _ = stateful_router();
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn global_config_routes_isolate_platform_and_company_updates() {
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;

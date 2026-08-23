@@ -1,4 +1,6 @@
 // 验证 PostgreSQL 设置存储按租户、命名空间与键隔离增删改查。
+
+// CRUD 在同一数据库 fixture 中切换多个作用域，直接观察键空间是否串用。
 use super::*;
 
 use crate::global_database::test_support::PostgresTestDatabase;

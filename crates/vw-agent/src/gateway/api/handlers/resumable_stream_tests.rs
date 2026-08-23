@@ -13,6 +13,7 @@ fn tenant(company_id: &str) -> TenantScope {
     TenantScope::new("platform-test", company_id).expect("valid tenant")
 }
 
+// 事件序号和缓冲区容量显式固定，用于验证断线重连时的重放边界。
 #[tokio::test]
 async fn reconnect_replays_after_cursor_without_restarting_producer() {
     let store = ResumableStreamStore::new(8, Duration::from_secs(60));

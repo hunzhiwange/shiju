@@ -81,11 +81,13 @@ const PROJECT_COLUMNS: &str = "project_id, worktree, vcs, name, icon_json, comma
      created_at_ms, updated_at_ms, initialized_at_ms, sandboxes_json";
 
 #[derive(Debug, Clone)]
+/// 项目注册表的 PostgreSQL 后端。
 pub(super) struct PostgresProjectStore {
     database: GlobalDatabase,
 }
 
 impl PostgresProjectStore {
+    /// 初始化租户化项目表后创建后端。
     pub(super) fn new(database: GlobalDatabase) -> Result<Self> {
         database.initialize_postgres_schema(|transaction| {
             transaction
@@ -96,6 +98,7 @@ impl PostgresProjectStore {
         Ok(Self { database })
     }
 
+    /// 在租户作用域内创建项目。
     pub(super) fn create(&self, tenant: &TenantScope, info: &Info) -> Result<()> {
         let mut connection = self.database.connect_postgres()?;
         insert_project(&mut *connection, tenant, info)
@@ -103,6 +106,7 @@ impl PostgresProjectStore {
         Ok(())
     }
 
+    /// 在事务中导入精确项目快照并删除不再存在的记录。
     pub(super) fn import_exact_registry(
         &self,
         tenant: &TenantScope,
@@ -166,6 +170,7 @@ impl PostgresProjectStore {
         Ok(imported)
     }
 
+    /// 按完整项目作用域读取项目。
     pub(super) fn get(&self, scope: &ProjectScope) -> Result<Option<Info>> {
         let mut connection = self.database.connect_postgres()?;
         query_project(
@@ -178,6 +183,7 @@ impl PostgresProjectStore {
         .context("read scoped PostgreSQL project")
     }
 
+    /// 列出指定租户的项目。
     pub(super) fn list(&self, tenant: &TenantScope) -> Result<Vec<Info>> {
         let mut connection = self.database.connect_postgres()?;
         let sql = format!(
@@ -194,11 +200,13 @@ impl PostgresProjectStore {
             .collect()
     }
 
+    /// 更新完整项目记录并报告是否命中。
     pub(super) fn update(&self, scope: &ProjectScope, info: &Info) -> Result<bool> {
         let mut connection = self.database.connect_postgres()?;
         update_project(&mut *connection, scope, info).context("update scoped PostgreSQL project")
     }
 
+    /// 删除指定作用域项目。
     pub(super) fn delete(&self, scope: &ProjectScope) -> Result<bool> {
         let mut connection = self.database.connect_postgres()?;
         let changed = connection
@@ -215,6 +223,7 @@ impl PostgresProjectStore {
         Ok(changed == 1)
     }
 
+    /// 对单个项目执行事务化读改写。
     pub(super) fn mutate(
         &self,
         scope: &ProjectScope,

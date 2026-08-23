@@ -1,3 +1,6 @@
+//! 验证插入操作在各视图中的行数、暂存选择、悬停和 Unicode 内容处理。
+//! 零长度操作不产生行，范围选择和文件级暂存则分别控制行级交互状态。
+
 use iced::Color;
 
 use crate::app::components::git_panel::diff_view::DiffRenderCtx;

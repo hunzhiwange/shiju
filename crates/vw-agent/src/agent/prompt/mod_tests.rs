@@ -1,4 +1,5 @@
 //! 测试系统提示的工作区注入、分段顺序与可选内容处理。
+//! 临时工作区和伪提示段用于验证缺失文件、超长内容、Git 状态与段落失败。
 
 use super::*;
 use crate::app::agent::tools::{Tool, ToolResult};

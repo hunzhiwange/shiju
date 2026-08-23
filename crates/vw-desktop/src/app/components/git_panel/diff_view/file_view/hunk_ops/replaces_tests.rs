@@ -1,3 +1,6 @@
+//! 验证替换操作的词级差异门槛、单双栏布局及零长度两侧边界。
+//! 仅等长、已变更且短行启用词级高亮，避免长行和不对称替换产生昂贵或错位计算。
+
 use iced::Color;
 
 use crate::app::components::git_panel::diff_view::DiffRenderCtx;
@@ -15,6 +18,7 @@ fn palette() -> (Color, Color, Color, Color, Color) {
     )
 }
 
+// 只比较生成行数，以隔离替换分派规则与具体行控件的内部布局。
 fn render_count(
     app: &App,
     old_index: usize,

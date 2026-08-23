@@ -1,4 +1,5 @@
 //! 实现 PostgreSQL 工作节点快照、筛选与生命周期更新，并序列化节点能力集合。
+//! 生命周期局部更新不覆盖模型与能力字段，避免控制器心跳抹除静态配置。
 
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};

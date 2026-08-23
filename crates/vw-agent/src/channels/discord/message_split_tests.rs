@@ -1,3 +1,5 @@
+// 本文件验证 Discord 消息按字符上限和自然分隔符安全拆分。
+
 use super::*;
 
 #[test]
@@ -6,6 +8,7 @@ fn split_message_for_discord_keeps_short_messages_intact() {
 }
 
 #[test]
+// 平台上限按字符而非 UTF-8 字节计算，多字节文本不能被拆坏。
 fn split_message_for_discord_respects_unicode_character_limit() {
     let message = "界".repeat(DISCORD_MAX_MESSAGE_LENGTH + 1);
     let chunks = split_message_for_discord(&message);
@@ -54,4 +57,3 @@ fn split_message_for_discord_hard_splits_when_early_newline_has_no_space_fallbac
     assert_eq!(chunks[1].chars().count(), 201);
     assert_eq!(chunks.concat(), message);
 }
-// 本文件验证 Discord 消息按字符上限和自然分隔符安全拆分。

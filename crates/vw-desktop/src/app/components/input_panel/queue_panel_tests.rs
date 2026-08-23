@@ -1,3 +1,6 @@
+//! 验证队列面板的任务分组、状态展示、操作消息与空态渲染。
+//! 队列 fixture 固定发送行为和历史策略，便于单独验证顺序与移动可用性。
+
 use super::queue_panel::{
     is_dark_theme, queue_item_label, queue_item_style, queue_move_availability, queue_panel,
     queue_panel_style,
@@ -13,6 +16,7 @@ fn background_color(background: Option<Background>) -> Color {
     }
 }
 
+// 固定历史回放与发送策略，使排序和移动测试只受查询及创建时间影响。
 fn queue_item(query: &str, created_ms: u64) -> QueueItem {
     QueueItem {
         created_ms,

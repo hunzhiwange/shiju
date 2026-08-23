@@ -1,4 +1,6 @@
 // 覆盖 OpenAI 兼容接口的请求转换、鉴权与流式响应协议。
+
+// provider 桩分别模拟普通、流式与失败响应，以约束兼容层的协议映射。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
@@ -32,6 +34,7 @@ enum StreamItem {
     Error(&'static str),
 }
 
+// 可编程 provider 分别产生普通、流式和失败结果，并记录兼容层传入的请求。
 struct TestProvider {
     chat_result: Result<String, String>,
     supports_streaming: bool,
@@ -174,6 +177,7 @@ fn peer_addr() -> SocketAddr {
     SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 42_000)
 }
 
+// 统一调用 helper 保持认证头和原始 JSON 正文可独立变化。
 async fn chat_response(state: AppState, headers: HeaderMap, body: impl Into<Bytes>) -> Response {
     handle_v1_chat_completions(State(state), ConnectInfo(peer_addr()), headers, body.into())
         .await

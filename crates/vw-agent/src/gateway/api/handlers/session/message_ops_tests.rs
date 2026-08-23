@@ -124,6 +124,7 @@ fn text_content(part: &agent_session::message::Part) -> &str {
     }
 }
 
+// 消息、片段和会话标识交叉组合，确保路径参数不一致时在访问存储前失败。
 #[test]
 fn message_handlers_are_available() {
     let _ = session_message_list;
@@ -132,6 +133,7 @@ fn message_handlers_are_available() {
     let _ = session_message_part_patch;
 }
 
+// 错误用例固定失败发生在持久化之前，避免跨会话或跨作用域修改已有数据。
 #[tokio::test]
 async fn session_message_part_patch_rejects_body_path_mismatch_before_storage_access() {
     let part = agent_session::message::Part::Text(agent_session::message::TextPart {

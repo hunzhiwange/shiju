@@ -1,3 +1,7 @@
+//! CLI 顶层运行路由的行为测试。
+//! 验证有消息与无消息时分别进入单轮和交互模式，并记录正确的可观测完成事件。
+//! 初始化、Provider 或交互层失败时必须立即返回错误，不能伪造成功事件。
+
 use super::run::run;
 use super::setup::CliSetup;
 use crate::app::agent::config::Config;

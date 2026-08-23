@@ -1,4 +1,6 @@
 //! 验证 Actor 运行时的复用条件、重启原因、关闭与失败清理。
+//!
+//! 最小客户端、通道和运行时 fixture 用于显式驱动异步状态转换与资源收尾。
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -91,6 +93,7 @@ fn running_runtime(
 }
 
 #[cfg(unix)]
+// 下列行为用例重点检查复用、取消、通道关闭和失败后的状态一致性。
 #[tokio::test]
 async fn actor_runtime_restart_reason_reuses_running_runtime_for_same_cwd() {
     let local = tokio::task::LocalSet::new();

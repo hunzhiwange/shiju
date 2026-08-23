@@ -1,3 +1,6 @@
+//! 验证网页工具的状态标题、元数据优先级与空值回退行为。
+//! 权限状态优先于错误，驼峰渲染提示优先于蛇形提示和普通数据字段。
+
 use super::ToolPermissionState;
 use super::tool_text_key;
 use super::web_view::{

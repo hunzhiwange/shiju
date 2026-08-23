@@ -1,3 +1,5 @@
+// 本文件验证 Discord 入站附件的媒体识别、下载与内容内联行为。
+
 use super::attachments::{
     extension_from_media_path, is_image_attachment, normalize_content_type, process_attachments,
 };
@@ -19,6 +21,7 @@ fn image_detection_trusts_explicit_content_type_before_extension() {
     assert!(is_image_attachment("application/octet-stream", "file.bin", "https://cdn.test/a.svg"));
 }
 
+// 单次本地服务精确控制附件响应，避免测试依赖外部网络。
 async fn serve_once(status: &str, body: &str) -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
@@ -77,4 +80,3 @@ async fn process_attachments_skips_failed_text_fetches_and_audio() {
 
     assert!(process_attachments(&attachments, &reqwest::Client::new()).await.is_empty());
 }
-// 本文件验证 Discord 入站附件的媒体识别、下载与内容内联行为。

@@ -1,4 +1,5 @@
 //! 验证原生文件快照的创建、差异计算和恢复边界。
+//! 临时 Git 仓库覆盖无提交、二进制、删除和重复文件恢复，非法哈希应安全返回空结果。
 
 use super::*;
 use std::ffi::OsString;
@@ -144,6 +145,7 @@ fn snapshot_operations_return_empty_outside_git_repo() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+// 往返夹具串联跟踪、差异、恢复和回退，验证补丁哈希可作为同一工作树基线。
 fn track_diff_patch_restore_and_revert_roundtrip() {
     let _git_guard = git_test_guard();
     let dir = temp_git_worktree();

@@ -1,3 +1,6 @@
+//! 验证原始消息拆分为文本、思考和工具块时的标签及容错边界。
+//! 不闭合标签、名称前缀碰撞、多行 JSON 和行数上限用于约束解析器的保守回退。
+
 use super::parse::{RenderBlock, borrowed_blocks, hash_chat_content, owned_blocks_from_raw};
 use crate::app::models::ParsedChatBlock;
 

@@ -1,3 +1,5 @@
+// 本文件验证 Lark 机器人标识刷新、令牌重试与文本发送封装。
+
 use super::super::*;
 use super::token_test_support::*;
 
@@ -88,6 +90,7 @@ async fn fetch_bot_open_id_with_token_defaults_invalid_json_to_empty_object() {
 }
 
 #[tokio::test]
+// 机器人标识预热是辅助能力，失败不应阻断渠道主流程。
 async fn ensure_bot_open_id_is_best_effort() {
     test_channel("http://127.0.0.1:1").ensure_bot_open_id().await;
 
@@ -148,4 +151,3 @@ async fn send_text_once_posts_json_and_wraps_raw_response() {
     assert_eq!(parsed, serde_json::json!({"raw":"raw-ok"}));
     assert_eq!(request_path(&server.next_request().await), "/send-raw");
 }
-// 本文件验证 Lark 机器人标识刷新、令牌重试与文本发送封装。

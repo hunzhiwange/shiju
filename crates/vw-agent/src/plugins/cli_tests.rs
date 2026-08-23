@@ -7,6 +7,7 @@ use std::fs;
 use std::path::Path;
 use vw_config_types::plugins::PluginsConfig;
 
+// 临时工作区与配置目录必须分离，避免命令测试读写真实用户配置。
 fn config_for(dir: &tempfile::TempDir) -> Config {
     let workspace_dir = dir.path().join("workspace");
     let config_dir = dir.path().join("config");
@@ -47,6 +48,7 @@ fn config_plugin_dir(config: &Config) -> std::path::PathBuf {
 }
 
 #[test]
+// 安装成功用重新发现结果收口，确保复制结果也能被运行时加载。
 fn plugin_cli_install_copies_local_plugin_after_audit() {
     let dir = tempfile::tempdir().expect("temp dir");
     let config = config_for(&dir);

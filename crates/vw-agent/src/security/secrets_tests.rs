@@ -52,6 +52,7 @@ fn chacha20_encryption_roundtrips_and_rejects_tampering() {
 }
 
 #[test]
+// 旧 XOR 密文首次读取后迁移到带认证的新格式，兼顾兼容性与安全升级。
 fn legacy_xor_secret_decrypts_and_migrates_to_enc2() {
     let dir = tempfile::tempdir().unwrap();
     let store = SecretStore::new(dir.path(), true);
@@ -138,6 +139,7 @@ fn prefix_recognizers_cover_all_supported_formats() {
 }
 
 #[test]
+// 相同明文每次产生不同密文，证明随机 nonce 未被复用。
 fn encrypting_same_plaintext_uses_fresh_nonce() {
     let dir = tempfile::tempdir().unwrap();
     let store = store_with_fixture_key(dir.path(), 0x11);
@@ -177,6 +179,7 @@ fn ciphertext_from_different_key_is_rejected() {
 
 #[cfg(unix)]
 #[test]
+// 新密钥文件既要可回读，也必须使用限制性权限。
 fn key_creation_writes_decodable_key_with_restricted_permissions() {
     let dir = tempfile::tempdir().unwrap();
     let store = SecretStore::new(dir.path(), true);

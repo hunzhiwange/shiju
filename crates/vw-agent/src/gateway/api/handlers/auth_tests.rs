@@ -91,6 +91,7 @@ fn restore_auth_file_from_directory() {
     reset_auth_store();
 }
 
+// 临时凭据目录覆盖写入、覆盖和删除路径，确保错误不会留下部分更新。
 #[tokio::test]
 async fn auth_set_persists_credentials_and_returns_true() {
     let _guard = env_lock().await;
@@ -147,6 +148,7 @@ async fn auth_remove_deletes_existing_provider_and_returns_true() {
     assert!(auth::get("provider.github").is_some());
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn auth_remove_missing_provider_keeps_existing_credentials() {
     let _guard = env_lock().await;

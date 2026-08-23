@@ -1,3 +1,6 @@
+// 验证浏览器设置的列表解析、后端规范化与超时边界。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -5,6 +8,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn parse_csv_lines_trims_mixed_separators_and_discards_empty_values() {
     assert_eq!(
@@ -59,6 +64,8 @@ fn parse_timeout_ms_rejects_zero_non_numbers_and_overflow() {
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn parse_optional_i64_handles_blank_signed_boundaries_and_field_errors() {
     assert_eq!(parse_optional_i64("  ", "coordinate").unwrap(), None);
@@ -143,6 +150,8 @@ fn allowed_domains_editor_persists_edits_but_not_selection_actions() {
     assert!(app.browser_settings.save_error.is_none());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn update_normalizes_browser_open_and_backend_values() {
     let mut app = app();
@@ -271,6 +280,8 @@ fn persist_browser_settings_accepts_blank_defaultable_and_optional_fields() {
     assert!(persist_browser_settings(&mut app).is_ok());
 }
 
+// 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
+// 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
 #[test]
 fn persist_browser_settings_accepts_explicit_optional_fields() {
     let mut app = app();

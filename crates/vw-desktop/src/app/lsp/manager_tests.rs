@@ -1,3 +1,7 @@
+//! 验证语言服务器文本模型、协议解析、请求跟踪和文档变更。
+//!
+//! 协议夹具使用真实 UTF-16 位置与 JSON-RPC 载荷，覆盖多字节文本和越界编辑。
+
 #[test]
 fn manager_tests_module_is_wired() {
     assert!(module_path!().ends_with("manager_tests"));

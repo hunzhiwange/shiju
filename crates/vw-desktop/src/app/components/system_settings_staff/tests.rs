@@ -1,3 +1,7 @@
+//! 验证员工设置的标签切换、通道绑定、选择归一化和错误提示。
+//!
+//! 输入标识会先去空、去重并过滤不可用项，相关断言保护保存前的规范化契约。
+
 use crate::app::App;
 use crate::app::state::{
     SkillsCatalogItem, SkillsCatalogKind, StaffSettingsCapabilitiesDraft,

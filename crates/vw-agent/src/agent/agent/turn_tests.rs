@@ -1,4 +1,5 @@
 //! 测试单轮代理执行中的模型调用、记忆读写、工具处理与失败路径。
+//! 可记录供应商和内存夹具用于确认每轮临时上下文不会污染持久历史。
 
 use super::core::Agent;
 use crate::app::agent::agent::memory_loader::MemoryLoader;

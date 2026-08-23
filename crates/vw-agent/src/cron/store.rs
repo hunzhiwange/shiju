@@ -1,4 +1,6 @@
 //! 定时任务与运行记录的持久化操作，并统一调度校验和输出截断边界。
+//!
+//! 原生平台使用 SQLite；WASM 保留可编译接口但明确返回空集合或不支持错误。
 
 use super::{
     CronJob, CronJobPatch, CronRun, DeliveryConfig, JobType, Schedule, SessionTarget,
@@ -13,7 +15,9 @@ use rusqlite::types::{FromSqlResult, ValueRef};
 use rusqlite::{Connection, params};
 use uuid::Uuid;
 
+/// 单条运行输出允许持久化的最大 UTF-8 字节数。
 pub(crate) const MAX_CRON_OUTPUT_BYTES: usize = 16 * 1024;
+/// 输出被截断时附加的稳定标记。
 pub(crate) const TRUNCATED_OUTPUT_MARKER: &str = "\n...[truncated]";
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -24,12 +28,14 @@ impl rusqlite::types::FromSql for JobType {
     }
 }
 
+/// 使用 cron 表达式创建默认设置的 shell 任务。
 pub fn add_job(config: &Config, expression: &str, command: &str) -> Result<CronJob> {
     let schedule = Schedule::Cron { expr: expression.to_string(), tz: None };
     add_shell_job(config, None, schedule, command)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 校验计划并持久化一个 shell 任务。
 pub fn add_shell_job(
     config: &Config,
     name: Option<String>,
@@ -75,6 +81,7 @@ pub fn add_shell_job(
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 平台不支持持久化 shell 定时任务。
 pub fn add_shell_job(
     _config: &Config,
     _name: Option<String>,
@@ -86,6 +93,7 @@ pub fn add_shell_job(
 
 #[allow(clippy::too_many_arguments)]
 #[cfg(not(target_arch = "wasm32"))]
+/// 校验计划并持久化一个代理任务及其会话、模型和投递策略。
 pub fn add_agent_job(
     config: &Config,
     name: Option<String>,
@@ -136,6 +144,7 @@ pub fn add_agent_job(
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 平台不支持持久化代理定时任务。
 pub fn add_agent_job(
     _config: &Config,
     _name: Option<String>,
@@ -150,6 +159,7 @@ pub fn add_agent_job(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 按下次运行时间升序列出全部任务。
 pub fn list_jobs(config: &Config) -> Result<Vec<CronJob>> {
     with_connection(config, |conn| {
         let mut stmt = conn.prepare(
@@ -170,11 +180,13 @@ pub fn list_jobs(config: &Config) -> Result<Vec<CronJob>> {
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 平台返回空任务列表。
 pub fn list_jobs(_config: &Config) -> Result<Vec<CronJob>> {
     Ok(Vec::new())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 按标识读取任务；不存在时返回明确错误。
 pub fn get_job(config: &Config, job_id: &str) -> Result<CronJob> {
     with_connection(config, |conn| {
         let mut stmt = conn.prepare(
@@ -194,11 +206,13 @@ pub fn get_job(config: &Config, job_id: &str) -> Result<CronJob> {
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 平台始终报告任务不存在。
 pub fn get_job(_config: &Config, job_id: &str) -> Result<CronJob> {
     anyhow::bail!("Cron job '{job_id}' not found (WASM)")
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 删除任务并通知调度器刷新；标识不存在时失败。
 pub fn remove_job(config: &Config, id: &str) -> Result<()> {
     let changed = with_connection(config, |conn| {
         conn.execute("DELETE FROM cron_jobs WHERE id = ?1", params![id])
@@ -215,11 +229,13 @@ pub fn remove_job(config: &Config, id: &str) -> Result<()> {
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 平台不支持删除定时任务。
 pub fn remove_job(_config: &Config, _id: &str) -> Result<()> {
     anyhow::bail!("Cron jobs are not supported on WASM")
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 返回已启用且到期的任务，数量受调度器并发上限约束。
 pub fn due_jobs(config: &Config, now: DateTime<Utc>) -> Result<Vec<CronJob>> {
     let lim = i64::try_from(config.scheduler.max_tasks.max(1))
         .context("Scheduler max_tasks overflows i64")?;
@@ -245,11 +261,13 @@ pub fn due_jobs(config: &Config, now: DateTime<Utc>) -> Result<Vec<CronJob>> {
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 平台没有可调度任务。
 pub fn due_jobs(_config: &Config, _now: DateTime<Utc>) -> Result<Vec<CronJob>> {
     Ok(Vec::new())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 应用任务补丁；计划变化时重新计算下次运行时间并通知调度器。
 pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<CronJob> {
     let mut job = get_job(config, job_id)?;
     let mut schedule_changed = false;
@@ -354,11 +372,13 @@ pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 平台不支持更新定时任务。
 pub fn update_job(_config: &Config, _job_id: &str, _patch: CronJobPatch) -> Result<CronJob> {
     anyhow::bail!("Cron jobs are not supported on WASM")
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 更新任务最近一次执行摘要，输出会按 UTF-8 边界截断。
 pub fn record_last_run(
     config: &Config,
     job_id: &str,
@@ -381,6 +401,7 @@ pub fn record_last_run(
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 兼容实现不持久化最近运行摘要。
 pub fn record_last_run(
     _config: &Config,
     _job_id: &str,
@@ -392,6 +413,7 @@ pub fn record_last_run(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 记录本次结果并按计划推进任务的下次运行时间。
 pub fn reschedule_after_run(
     config: &Config,
     job: &CronJob,
@@ -416,6 +438,7 @@ pub fn reschedule_after_run(
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 兼容实现不持久化重新调度结果。
 pub fn reschedule_after_run(
     _config: &Config,
     _job: &CronJob,
@@ -426,6 +449,7 @@ pub fn reschedule_after_run(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 原子写入运行记录并按配置裁剪该任务的旧历史。
 pub fn record_run(
     config: &Config,
     job_id: &str,
@@ -437,9 +461,7 @@ pub fn record_run(
 ) -> Result<()> {
     let bounded_output = output.map(truncate_cron_output);
     with_connection(config, |conn| {
-        // Wrap INSERT + pruning DELETE in an explicit transaction so that
-        // if the DELETE fails, the INSERT is rolled back and the run table
-        // cannot grow unboundedly.
+        // 插入与裁剪必须处于同一事务；裁剪失败时回滚插入，避免历史表无界增长。
         let tx = conn.unchecked_transaction()?;
 
         tx.execute(
@@ -476,6 +498,7 @@ pub fn record_run(
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 兼容实现不持久化运行历史。
 pub fn record_run(
     _config: &Config,
     _job_id: &str,
@@ -508,6 +531,7 @@ fn truncate_cron_output(output: &str) -> String {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 按开始时间倒序列出指定任务的运行历史，最少查询一条。
 pub fn list_runs(config: &Config, job_id: &str, limit: usize) -> Result<Vec<CronRun>> {
     with_connection(config, |conn| {
         let lim = i64::try_from(limit.max(1)).context("Run history limit overflow")?;
@@ -542,6 +566,7 @@ pub fn list_runs(config: &Config, job_id: &str, limit: usize) -> Result<Vec<Cron
 }
 
 #[cfg(target_arch = "wasm32")]
+/// WASM 平台返回空运行历史。
 pub fn list_runs(_config: &Config, _job_id: &str, _limit: usize) -> Result<Vec<CronRun>> {
     Ok(Vec::new())
 }
@@ -678,6 +703,7 @@ fn add_column_if_missing(conn: &Connection, name: &str, sql_type: &str) -> Resul
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+/// 打开定时任务数据库、确保表结构存在，并把连接交给闭包。
 pub(crate) fn with_connection<T>(
     config: &Config,
     f: impl FnOnce(&Connection) -> Result<T>,

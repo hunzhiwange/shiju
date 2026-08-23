@@ -1,3 +1,5 @@
+// 本文件覆盖渠道管理器处理消息时的钩子、草稿、反应与输入状态。
+
 use super::*;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::AutonomyConfig;
@@ -66,6 +68,7 @@ impl RecordingChannel {
         }
     }
 
+// 记录型渠道保留发送顺序，用于核对草稿、回复和反应协作。
     async fn sent_contents(&self) -> Vec<String> {
         self.sent.lock().await.clone()
     }
@@ -340,4 +343,3 @@ async fn finish_feedback_tasks_cancels_typing_task() {
 
     assert_eq!(channel.typing_stopped(), 1);
 }
-// 本文件覆盖渠道管理器处理消息时的钩子、草稿、反应与输入状态。

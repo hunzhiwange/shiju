@@ -1,4 +1,5 @@
 //! 测试代理循环通用辅助函数的输入规范化与边界行为。
+//! 敏感键变体与路径属性同时覆盖，确保脱敏不误改普通文本。
 
 use super::utils::{SENSITIVE_KEY_PATTERNS, TOOL_FILE_PATH_REGEX, scrub_credentials};
 

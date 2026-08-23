@@ -15,6 +15,7 @@ use std::time::Duration;
 use tracing::subscriber::Interest;
 use vw_config_types::plugins::PluginsConfig;
 
+// 夹具先写入精确钩子摘要再注册，用来区分受信执行与未审查跳过。
 fn register_trusted_plugin_hooks(runner: &mut HookRunner, config: &Config) -> anyhow::Result<usize> {
     let handlers = trusted_plugin_hook_handlers(config)?;
     let registered = handlers.len();
@@ -303,6 +304,7 @@ async fn trusted_plugin_before_tool_call_reports_timeout() {
 
 #[cfg(unix)]
 #[tokio::test]
+// 诊断输出同时覆盖脱敏和截断，防止钩子把秘密或超大载荷写入日志。
 async fn trusted_plugin_before_tool_call_redacts_and_truncates_stdout_diagnostic() {
     let dir = tempfile::tempdir().expect("temp dir");
     let workspace_dir = dir.path().join("workspace");

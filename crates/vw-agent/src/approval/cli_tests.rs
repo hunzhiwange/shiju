@@ -1,4 +1,5 @@
 //! 测试命令行审批的序列化、输入解析和安全拒绝默认值。
+//! 故障读取器专门确认交互输入异常时默认拒绝，不因输入错误扩大授权。
 
 use super::{ApprovalRequest, ApprovalResponse};
 use std::io::{self, BufRead, Read};

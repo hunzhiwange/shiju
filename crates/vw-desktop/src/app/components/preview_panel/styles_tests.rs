@@ -1,3 +1,6 @@
+//! 验证预览视口、标签宽度与滚动条显示的布局计算边界。
+//! 文件管理器占宽、差异分栏比例和严格溢出阈值分别参与可用宽度计算。
+
 use super::styles::{
     estimate_preview_tabs_viewport_width, estimate_tab_title_width_px, estimate_tab_width_px,
     file_icon_for, menu_button_style, should_show_preview_tabs_scrollbar, truncate_title,

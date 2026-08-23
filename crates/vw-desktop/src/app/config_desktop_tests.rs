@@ -1,3 +1,7 @@
+//! 验证桌面配置的默认值、文件转换和兼容性处理。
+//!
+//! 临时目录中的桌面配置覆盖缺失、旧版与完整文件，确认默认合并不丢字段。
+
 use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};

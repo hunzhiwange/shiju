@@ -1,4 +1,5 @@
 //! 验证危险环境变量与指纹变量分别产生阻断或警告发现项。
+//! 两类变量同时出现时必须分别报告，不能因较高严重级别吞掉审计线索。
 
 use super::*;
 use crate::tools::shell::ast::parse_command;

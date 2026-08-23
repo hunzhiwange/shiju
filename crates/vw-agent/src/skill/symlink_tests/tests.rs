@@ -1,4 +1,5 @@
 //! 验证技能符号链接的跨平台创建、失效目标、路径计算与外部目录读取行为。
+//! 平台分支允许 Unix 外部目录链接；Windows 无权限时只要求失败后不留下伪目录。
 
 use super::*;
 
@@ -11,6 +12,7 @@ mod tests {
     use tempfile::TempDir;
 
     #[tokio::test]
+    // 跨平台分支只断言各平台可保证的行为，不把 Windows 权限差异误判为实现错误。
     async fn test_skills_symlink_unix_edge_cases() {
         let tmp = TempDir::new().unwrap();
         let workspace_dir = tmp.path().join("workspace");

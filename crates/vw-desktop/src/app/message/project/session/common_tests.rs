@@ -1,3 +1,8 @@
+// 验证会话配置数值钳制与可选文本规范化辅助函数。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -18,6 +23,8 @@ fn parse_clamped_u32_clamps_fallback_for_invalid_input() {
     assert_eq!(super::parse_clamped_u32("", 99, 3, 9), 9);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn parse_clamped_u32_handles_type_extremes_and_overflow() {
     assert_eq!(super::parse_clamped_u32("4294967295", 7, 0, u32::MAX), u32::MAX);
@@ -43,6 +50,8 @@ fn parse_clamped_u64_handles_type_extremes_and_overflow() {
     assert_eq!(super::parse_clamped_u64("18446744073709551616", 7, 0, 10), 7);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn trim_to_option_discards_surrounding_whitespace_and_empty_values() {
     assert_eq!(super::trim_to_option("  value  ".to_string()), Some("value".to_string()));
@@ -83,6 +92,8 @@ fn clear_new_session_picker_messages_preserves_picker_selection() {
     assert!(app.new_session_reset_error.is_none());
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn reset_new_session_picker_state_clears_selection_options_and_messages() {
     let (mut app, _task) = crate::app::App::new();

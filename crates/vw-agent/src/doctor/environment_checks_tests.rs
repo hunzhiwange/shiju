@@ -39,6 +39,7 @@ fn lock_env() -> MutexGuard<'static, ()> {
     ENV_LOCK.lock().expect("environment lock should be available")
 }
 
+// 诊断断言同时检查严重级别与可操作提示，避免只有返回值正确而用户指引失真。
 #[test]
 fn missing_command_is_reported_as_unavailable() {
     let command = "vibewindow-command-that-should-not-exist";

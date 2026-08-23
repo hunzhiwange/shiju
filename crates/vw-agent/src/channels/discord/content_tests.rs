@@ -1,3 +1,5 @@
+// 本文件验证 Discord 群聊内容的提及移除、发送者规则与空消息过滤。
+
 use super::*;
 
 #[test]
@@ -43,10 +45,10 @@ fn normalize_incoming_content_rejects_empty_or_mention_only_messages() {
 }
 
 #[test]
+// 删除单词间的提及时保留分隔，避免拼接出不同语义的新词。
 fn normalize_incoming_content_keeps_words_separated_after_removing_mentions() {
     assert_eq!(
         normalize_incoming_content("run<@42>status and<@!42>report", true, "42"),
         Some("run status and report".to_string())
     );
 }
-// 本文件验证 Discord 群聊内容的提及移除、发送者规则与空消息过滤。

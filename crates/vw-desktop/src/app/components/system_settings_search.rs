@@ -1,3 +1,5 @@
+//! 为系统设置建立稳定的搜索条目、拼音匹配与页面跳转目标。
+
 use pinyin::ToPinyin;
 
 use crate::app::App;
@@ -8,7 +10,7 @@ use crate::app::state::{
     SkillsSettingsTab,
 };
 
-/// Stable search identities for staff tabs whose UI state remains crate-private.
+/// 人员设置页签的稳定搜索身份，避免搜索层依赖其私有界面状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StaffSettingsSearchTab {
     Roster,
@@ -17,7 +19,7 @@ pub enum StaffSettingsSearchTab {
     Workers,
 }
 
-/// A stable, typed destination represented by a system settings search result.
+/// 系统设置搜索结果对应的稳定强类型跳转目标。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemSettingsSearchTarget {
     TopLevel(SystemTab),
@@ -36,11 +38,14 @@ pub enum SystemSettingsSearchTarget {
     AgentSkills(SkillsSettingsTab),
 }
 
-/// Shared UI/search metadata for one settings tab.
+/// 单个设置页签共享的界面标签与搜索关键词。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SettingsTabDescriptor<T> {
+    /// 跳转时选中的强类型页签。
     pub tab: T,
+    /// 在搜索结果中展示的页签名称。
     pub label: &'static str,
+    /// 不直接展示、仅用于召回的同义关键词。
     pub keywords: &'static [&'static str],
 }
 
@@ -50,12 +55,16 @@ impl<T> SettingsTabDescriptor<T> {
     }
 }
 
-/// Search metadata for one navigable system settings destination.
+/// 一个可导航系统设置目标的搜索元数据。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SystemSettingsSearchEntry {
+    /// 搜索结果的主标签。
     pub label: &'static str,
+    /// 可选的上级设置分区标签。
     pub parent_label: Option<&'static str>,
+    /// 补充检索词，不参与界面展示。
     pub keywords: &'static [&'static str],
+    /// 命中后使用的强类型导航目标。
     pub target: SystemSettingsSearchTarget,
 }
 
@@ -69,6 +78,7 @@ impl SystemSettingsSearchEntry {
         Self { label, parent_label, keywords, target }
     }
 
+    /// 使用文字、拼音全拼和首字母形式匹配查询；空查询匹配全部条目。
     pub fn matches(&self, query: &str) -> bool {
         let query_forms = literal_search_forms(query);
         if query_forms.is_empty() {
@@ -88,7 +98,7 @@ impl SystemSettingsSearchEntry {
     }
 }
 
-/// Builds the searchable settings catalog for the current reachable UI state.
+/// 根据当前应用可到达的设置页面构建搜索目录。
 pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     use crate::app::components::{
         system_settings_agents, system_settings_autonomy, system_settings_channels,

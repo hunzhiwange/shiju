@@ -1,3 +1,7 @@
+//! 验证状态栏主题识别、预览上下文和语言服务器进度状态。
+//!
+//! 预览标签与服务器进度映射分别构造，缺失路径或服务键时必须显示安全默认状态。
+
 #[test]
 fn app_view_status_tests_module_is_wired() {
     assert!(module_path!().ends_with("app_view_status_tests"));
@@ -44,7 +48,7 @@ fn status_bar_builds_ready_when_no_preview_tab_is_active() {
     let (mut app, _) = crate::app::App::new();
     std::hint::black_box(super::status_bar(&app));
 
-    // A global status is intentionally ignored until a preview tab is active.
+    // 尚未激活预览标签时故意忽略全局状态，避免显示与当前页面无关的进度。
     app.lsp_status = Some("LSP: starting".to_string());
     std::hint::black_box(super::status_bar(&app));
 }

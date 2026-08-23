@@ -1,4 +1,6 @@
 //! 验证版本解析、环境变量匹配与向上查找软件包版本的规则。
+//!
+//! 隔离的命令、环境和临时路径 fixture 用于验证跨平台解析规则。
 
 use super::*;
 use std::collections::HashMap;
@@ -51,6 +53,7 @@ fn env_with(package_name: &str, version: &str) -> HashMap<String, String> {
     env
 }
 
+// 下列行为用例覆盖规范化、发现优先级、兼容输入和缺失值回退。
 #[test]
 fn parse_version_trims_non_empty_values() {
     assert_eq!(parse_version(Some("  1.2.3  ")), Some("1.2.3".to_string()));

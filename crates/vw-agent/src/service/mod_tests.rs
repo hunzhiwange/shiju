@@ -14,6 +14,7 @@ fn init_system_from_str_accepts_supported_values_case_insensitively() {
 }
 
 #[test]
+// 未知初始化系统返回可操作提示，而不是静默落到平台默认值。
 fn init_system_from_str_rejects_unknown_values_with_supported_hint() {
     let err = "launchd".parse::<InitSystem>().expect_err("unknown init system should fail");
     let text = err.to_string();
@@ -75,6 +76,7 @@ fn internal_command_delay_accepts_trimmed_values_within_safe_range() {
 }
 
 #[test]
+// 内部延迟限制在安全正数范围，避免零间隔忙循环或异常长等待。
 fn internal_command_delay_rejects_missing_invalid_zero_and_excessive_values() {
     for raw in [None, Some(""), Some("abc"), Some("-1"), Some("0"), Some("10001")] {
         assert_eq!(internal_command_delay(raw), None, "raw delay: {raw:?}");

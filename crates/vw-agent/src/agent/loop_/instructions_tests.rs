@@ -1,4 +1,5 @@
 //! 测试运行指令的合并顺序、空值处理与边界标记。
+//! 工具协议和 Shell 策略分别覆盖排序、去重、截断与只读模式提示。
 
 use super::*;
 use crate::app::agent::tools::ToolSpec;

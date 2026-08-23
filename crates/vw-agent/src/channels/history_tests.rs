@@ -1,3 +1,5 @@
+// 本文件验证按会话键维护、压缩、清理渠道对话历史的边界行为。
+
 use super::*;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::AutonomyConfig;
@@ -153,6 +155,7 @@ fn clear_sender_history_removes_existing_key_and_ignores_missing_key() {
 }
 
 #[test]
+// 共享历史锁中毒时仍需降级恢复，不能让渠道永久停服。
 fn history_operations_recover_from_poisoned_history_lock() {
     let ctx = test_context();
     let histories = Arc::clone(&ctx.conversation_histories);
@@ -245,4 +248,3 @@ fn rollback_orphan_user_turn_removes_empty_history_entry() {
     assert!(rollback_orphan_user_turn(&ctx, "sender", "only"));
     assert!(!ctx.conversation_histories.lock().unwrap().contains_key("sender"));
 }
-// 本文件验证按会话键维护、压缩、清理渠道对话历史的边界行为。

@@ -139,6 +139,7 @@ async fn manager_for_directory(
     .expect("approval manager should load")
 }
 
+// 待审批项只有在回复成功后移除；持久化失败不能改变本次明确授权结果。
 #[test]
 fn router_builds_with_app_state() {
     let _: axum::Router<()> = router();
@@ -169,6 +170,7 @@ fn permission_reply_request_deserializes_all_reply_variants_and_message() {
     assert!(reject.message.is_none());
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[test]
 fn permission_reply_request_rejects_missing_or_unknown_reply() {
     assert!(serde_json::from_value::<PermissionReplyRequest>(serde_json::json!({})).is_err());

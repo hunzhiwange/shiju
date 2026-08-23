@@ -1,4 +1,5 @@
 //! 测试 ACP 会话中 MCP 服务的作用域、传输转换与原子失败边界。
+//! 临时 MCP 进程用于确认环境变量不泄漏，且部分准备失败不会留下半初始化工具。
 
 use agent_client_protocol::{EnvVariable, McpServer, McpServerStdio};
 use tempfile::TempDir;
@@ -9,6 +10,7 @@ use super::backend::VibeWindowBackend;
 use super::mcp::prepare_session_tools;
 use crate::app::agent::tools::{ToolRuntimeContext, tool_specs_for_context};
 
+// 临时脚本只回显协议消息，不读取测试传入的敏感环境变量。
 fn fixture_server(root: &std::path::Path, env: Vec<EnvVariable>) -> McpServer {
     let script = root.join("fixture_mcp.py");
     std::fs::write(

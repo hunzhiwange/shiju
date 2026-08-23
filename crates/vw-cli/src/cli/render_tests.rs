@@ -1,3 +1,7 @@
+//! CLI 基础绘制原语的缓冲区测试。
+//! 通过 `TestBackend` 校验扫描线背景和执行指示器的字符、颜色、修饰与居中位置。
+//! 还覆盖空区域、单单元格和动画偏移重合等极端布局。
+
 use super::render::{render_execution_indicator, render_scanline_background};
 use super::theme::{ACCENT_CYAN, EXECUTION_DOT, SCANLINE_DARK, SCANLINE_LIGHT, SURFACE_BASE};
 use ratatui::Terminal;

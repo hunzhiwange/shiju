@@ -1,3 +1,7 @@
+//! 验证项目编辑共用颜色解析、格式化和样式辅助函数。
+//!
+//! 颜色样例覆盖空白、重复井号、越界值和非数值，明确解析与格式化的容错边界。
+
 use super::*;
 use crate::app::state::ProjectEditTab;
 use iced::Color;

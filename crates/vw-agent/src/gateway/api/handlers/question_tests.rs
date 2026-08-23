@@ -7,6 +7,7 @@ use axum::http::{Method, Request, StatusCode};
 use tokio::time::{Duration, sleep};
 use tower::ServiceExt;
 
+// 回答与拒绝均使用待处理问题夹具，确保一次性消费语义和缺失项结果稳定。
 #[test]
 fn router_builds_with_app_state() {
     let _: axum::Router<()> = router();
@@ -37,6 +38,7 @@ fn question_reply_request_preserves_grouped_and_empty_answers() {
     );
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[test]
 fn question_reply_request_rejects_missing_or_flat_answers() {
     assert!(serde_json::from_value::<QuestionReplyRequest>(serde_json::json!({})).is_err());

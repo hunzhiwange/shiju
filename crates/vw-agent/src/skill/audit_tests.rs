@@ -1,8 +1,10 @@
 //! 验证旧版技能审计入口的风险识别与报告契约。
+//! 审计规则默认关闭并可独立启用，路径、链接、脚本和超大文本都使用真实临时文件验证。
 
 use super::*;
 use vw_config_types::skills::SkillSecurityConfig;
 
+// 审计夹具按规则开关构造策略，使每条发现都能证明由对应规则独立触发。
 fn write_audit_policy_fixture(skill_dir: &std::path::Path) {
     std::fs::create_dir_all(skill_dir).unwrap();
     std::fs::write(
@@ -368,6 +370,7 @@ fn audit_directory_reports_oversized_markdown_without_scanning_content() {
 
 #[cfg(unix)]
 #[test]
+// 符号链接在读取内容前拒绝，避免审计范围被链接目标静默扩大。
 fn audit_directory_rejects_symlink_files() {
     use std::os::unix::fs::symlink;
 

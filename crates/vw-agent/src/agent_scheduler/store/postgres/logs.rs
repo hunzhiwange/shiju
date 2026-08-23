@@ -1,4 +1,5 @@
 //! 实现 PostgreSQL 任务日志及运行工作区上下文的持久化与关联校验。
+//! 日志序号在锁定任务日志集合后分配，确保并发追加仍保持单调且无重复。
 
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};

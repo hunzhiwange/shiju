@@ -1,5 +1,7 @@
 //! SHIJU 账户网关接口，代理登录、资料读取与账户安全更新。
 //!
+//! 凭据只从专用请求头解析并交给上游客户端，错误统一映射为网关状态码。
+//!
 //! SHIJU account gateway API.
 
 use std::sync::Arc;
@@ -20,6 +22,7 @@ use crate::shiju::account::{
     ShijuAccountClient, ShijuAccountError, ShijuAccountPoll, validate_password_update_request,
 };
 
+/// 使用生产 SHIJU 客户端构建账户路由。
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -29,6 +32,7 @@ where
     router_with_client(client)
 }
 
+/// 使用显式客户端构建账户路由，供确定性测试和替代上游复用。
 pub(crate) fn router_with_client<S>(client: ShijuAccountClient) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,

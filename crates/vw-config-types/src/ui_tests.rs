@@ -1,3 +1,6 @@
+//! 验证桌面界面设置、快捷消息升级、时区及网关连接配置的兼容行为。
+//! 测试按显示枚举、系统设置、快捷消息迁移和多服务器选择四类契约组织。
+
 use super::{
     AppSystemSettingsConfig, AppUiConfig, DEFAULT_TIMEZONE, GatewayClientServerConfig,
     GatewayClientSystemSettingsConfig, ModelRoute, PreviewAutoSaveMode, QuickMessageConfig,
@@ -7,6 +10,7 @@ use super::{
 };
 use std::collections::HashSet;
 
+// 显示标签属于用户界面文案契约，默认模式需避免未预期的频繁保存。
 #[test]
 fn preview_auto_save_modes_have_stable_labels_and_display_text() {
     let labels = PreviewAutoSaveMode::ALL.map(PreviewAutoSaveMode::label);
@@ -16,6 +20,7 @@ fn preview_auto_save_modes_have_stable_labels_and_display_text() {
     assert_eq!(PreviewAutoSaveMode::AfterDelay.to_string(), "延迟保存");
 }
 
+// 系统设置默认值必须与桌面端实际启动配置一致，而非依赖组件库默认。
 #[test]
 fn app_system_settings_default_matches_desktop_contract() {
     let settings = AppSystemSettingsConfig::default();
@@ -40,6 +45,7 @@ fn app_system_settings_default_matches_desktop_contract() {
     assert_eq!(settings.preview_auto_save, PreviewAutoSaveMode::OnFocusChange);
 }
 
+// 时区既要提供稳定默认，也只接受有效 IANA 标识，选项列表不得重复。
 #[test]
 fn app_system_settings_timezone_defaults_to_shanghai() {
     let defaults = AppSystemSettingsConfig::default();
@@ -79,6 +85,7 @@ fn timezone_options_are_unique_and_include_default() {
     assert_eq!(unique.len(), options.len());
 }
 
+// 缺失快捷消息触发内置默认，显式空列表则表示用户主动清空，两者不可合并。
 #[test]
 fn quick_messages_default_missing_and_empty_values_have_distinct_semantics() {
     let expected_texts = [
@@ -186,6 +193,7 @@ fn quick_messages_default_missing_and_empty_values_have_distinct_semantics() {
     );
 }
 
+// 迁移只补缺失的内置动作并升级旧类型，绝不能覆盖或复制自定义项。
 #[test]
 fn nonempty_legacy_quick_messages_gain_missing_builtin_git_actions() {
     let defaults = AppSystemSettingsConfig::default();
@@ -277,6 +285,7 @@ fn legacy_builtin_kinds_are_upgraded_without_changing_custom_items() {
     assert_eq!(messages[3].kind, QuickMessageKind::Message);
 }
 
+// 嵌套 UI 配置从空对象读取时，应与各子配置的 serde 默认保持一致。
 #[test]
 fn serde_defaults_fill_nested_ui_config() {
     let config: AppUiConfig = serde_json::from_value(serde_json::json!({})).unwrap();
@@ -316,6 +325,7 @@ fn serde_defaults_fill_nested_ui_config() {
     );
 }
 
+// 服务器归一化负责修复空字段和无效活动项，选择逻辑始终产生可用回退。
 #[test]
 fn normalized_servers_falls_back_repairs_blanks_and_selects_active() {
     let gateway = GatewayClientSystemSettingsConfig {
@@ -362,6 +372,7 @@ fn normalized_servers_falls_back_repairs_blanks_and_selects_active() {
     assert_eq!(gateway.active_server().id, "remote");
 }
 
+// 设置服务器列表时同步旧版单连接字段，保持新旧消费者读取一致。
 #[test]
 fn set_servers_syncs_active_connection_fields_and_falls_back() {
     let mut gateway = GatewayClientSystemSettingsConfig::default();
@@ -402,6 +413,7 @@ fn set_servers_syncs_active_connection_fields_and_falls_back() {
     assert_eq!(gateway.servers, vec![GatewayClientServerConfig::default()]);
 }
 
+// 以下细粒度用例锁定公开枚举、默认实现和 serde 名称，便于定位兼容回归。
 #[test]
 fn preview_auto_save_mode_descriptions() {
     assert_eq!(PreviewAutoSaveMode::Off.description(), "不自动保存，需手动保存当前文件。");
@@ -502,6 +514,7 @@ fn gateway_client_system_settings_config_default() {
     assert_eq!(settings.servers, vec![GatewayClientServerConfig::default()]);
 }
 
+// 租户字段空白会破坏网关路由，因此反序列化边界直接拒绝。
 #[test]
 fn gateway_client_tenant_fields_default_serialize_and_reject_blanks() {
     let server: GatewayClientServerConfig = serde_json::from_value(serde_json::json!({
@@ -570,6 +583,7 @@ fn model_route_default_fields() {
     assert_eq!(route.priority, 0);
 }
 
+// 活动服务器查找优先显式标识，失配时回退首项且不制造虚假连接。
 #[test]
 fn active_server_finds_by_id() {
     let gateway = GatewayClientSystemSettingsConfig {

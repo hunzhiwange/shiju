@@ -57,6 +57,7 @@ impl Drop for EnvGuard {
     }
 }
 
+// 服务环境测试先清空并在结束后恢复变量，避免污染调用进程。
 fn with_clean_service_env<T>(f: impl FnOnce() -> T) -> T {
     let _lock = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     let _guard = EnvGuard::clear();
@@ -172,6 +173,7 @@ fn run_capture_reports_spawn_failures() {
 
 #[cfg(not(target_os = "windows"))]
 #[test]
+// 探测命令优先采用标准输出，空输出时才用标准错误补充诊断。
 fn run_capture_prefers_stdout_and_falls_back_to_stderr() {
     let stdout = run_capture(Command::new("sh").args(["-lc", "echo out; echo err >&2"]))
         .expect("stdout capture should succeed");

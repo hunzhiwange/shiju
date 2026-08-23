@@ -1,3 +1,8 @@
+// 验证终端外观配置更新及稳定持久化键选择。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -30,6 +35,8 @@ fn shell_selection_updates_state_and_returns_stable_config_key() {
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn system_theme_selection_updates_state_and_returns_config_key() {
     let mut terminal = terminal();
@@ -61,6 +68,8 @@ fn font_selection_preserves_exact_family_for_state_and_persistence() {
     ));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn font_size_selection_preserves_boundary_values() {
     for size in [0.0, 18.5, f32::INFINITY] {
@@ -98,6 +107,8 @@ fn unrelated_message_leaves_terminal_unchanged_and_skips_persistence() {
     assert_eq!(terminal.font_size, original_size);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_with_unrelated_message_leaves_app_terminal_unchanged() {
     let (mut app, _task) = crate::app::App::new();

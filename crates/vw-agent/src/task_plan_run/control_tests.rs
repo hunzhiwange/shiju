@@ -1,4 +1,5 @@
 //! 验证任务计划运行的控制指令、终止条件与状态变更。
+//! 停止操作按租户隔离并递归取消后代；终态快照有界且不可被后续停止覆盖。
 
 use super::PlanRunControlRegistry;
 use crate::session::child_agent::coordinator::ChildAgentCoordinator;
@@ -94,6 +95,7 @@ fn task_plan_run_stop_is_tenant_scoped_and_cancels_descendants() {
 }
 
 #[test]
+// 终态历史有界保存，已经停止的运行不能被较晚控制消息改回非终态。
 fn task_plan_run_control_bounds_terminal_snapshots_and_preserves_terminal_stop() {
     let registry = PlanRunControlRegistry::new(1);
     let tenant = TenantScope::new("platform-bounded", "company-bounded").expect("tenant");

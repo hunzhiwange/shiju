@@ -1,4 +1,6 @@
 //! 验证主程序全局参数提取及各层命令到公开 CLI 计划的分派。
+//!
+//! 命令解析、内存输出与失败 fixture 共同固定公开 CLI 的可观察契约。
 
 use clap::{Arg, ArgAction, Command};
 use vw_acp::PublicCliPlan;
@@ -101,6 +103,7 @@ fn public_cli_plan() -> PublicCliPlan {
     }
 }
 
+// 下列行为用例同时检查格式分支、参数边界和错误传播。
 #[test]
 fn extract_global_flags_parses_supported_values() {
     let matches = command().get_matches_from([

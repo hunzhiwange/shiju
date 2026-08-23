@@ -1,3 +1,6 @@
+// 验证网关服务命令、密钥字段与日历辅助逻辑的边界。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -5,6 +8,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn gateway_helpers_normalize_and_clamp() {
     assert_eq!(normalize_host(""), "127.0.0.1");
@@ -160,6 +165,8 @@ fn gateway_service_command_copy_state_clears_after_matching_command() {
     assert!(app.gateway_settings.copied_service_command.is_none());
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn gateway_danger_service_commands_require_confirmation() {
     let mut app = app();
@@ -242,6 +249,8 @@ fn current_calendar_month_falls_back_to_expiration_before_today() {
     assert_eq!(current_calendar_month(&app), NaiveDate::from_ymd_opt(2031, 7, 1).unwrap());
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn gateway_expiration_messages_keep_calendar_and_input_consistent() {
     let mut app = app();
@@ -441,6 +450,8 @@ fn gateway_service_messages_normalize_commands_and_report_recovery_results() {
     );
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn gateway_update_ignores_non_gateway_messages_and_copy_without_a_skey() {
     let mut app = app();

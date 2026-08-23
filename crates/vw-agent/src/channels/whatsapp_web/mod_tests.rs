@@ -1,3 +1,5 @@
+// 本文件验证 WhatsApp Web 特性门控、附件标记、收件人转换与连接要求。
+
 use super::*;
 use crate::app::agent::channels::traits::{Channel, SendMessage};
 
@@ -16,6 +18,7 @@ fn whatsapp_web_channel_is_disabled_without_feature() {
 
 #[tokio::test]
 #[cfg(not(feature = "whatsapp-web"))]
+// 特性关闭时明确报错，不能伪装成可用渠道。
 async fn whatsapp_web_stub_methods_report_feature_requirement() {
     let channel = WhatsAppWebChannel::new("session.db".to_string(), None, None, vec![]);
     let (tx, _rx) = tokio::sync::mpsc::channel(1);
@@ -214,4 +217,3 @@ async fn health_check_tracks_whether_bot_handle_is_present() {
         handle.abort();
     }
 }
-// 本文件验证 WhatsApp Web 特性门控、附件标记、收件人转换与连接要求。

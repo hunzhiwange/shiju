@@ -1,3 +1,5 @@
+// 本文件验证 Slack 渠道配置、群聊回复策略与频道列表筛选。
+
 use super::*;
 
 #[allow(dead_code)]
@@ -101,6 +103,7 @@ mod tests {
     }
 
     #[test]
+// 自动选择频道时排除已归档和未加入项，避免投递到无效目标。
     fn extract_channel_ids_filters_archived_and_non_member_entries() {
         let payload = serde_json::json!({
             "channels": [
@@ -364,4 +367,3 @@ mod tests {
         assert!(micros.chars().all(|c| c.is_ascii_digit()));
     }
 }
-// 本文件验证 Slack 渠道配置、群聊回复策略与频道列表筛选。

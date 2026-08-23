@@ -1,4 +1,5 @@
 //! 验证用户与助手消息摄取时的去重、工具解析和事件生成行为。
+//! 会话夹具区分消息前后位置，确保去重不会跨角色或工具事件误删内容。
 
 use crate::app::agent::session::processor::StreamEvent;
 use crate::app::agent::session::session::{Role, Session};
@@ -8,6 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_SESSION: AtomicU64 = AtomicU64::new(0);
 
+// 每个用例使用独立会话键，避免全局会话状态让去重断言相互污染。
 fn unique_session(prefix: &str) -> String {
     format!("{prefix}-{}-{}", std::process::id(), NEXT_SESSION.fetch_add(1, Ordering::Relaxed))
 }
@@ -252,6 +254,7 @@ fn ingest_user_query_deduplicates_text_before_tool_but_keeps_same_text_after_too
     assert_eq!(tool_state.non_todo_tool_runs, 1);
 }
 
+// 助手摄取与用户摄取的文本保留规则不同，因此单独验证工具前后文本和拒绝分支。
 #[test]
 fn ingest_assistant_answer_returns_trimmed_text_when_no_tool_is_present() {
     let session_id = unique_session("ingest-assistant-text");

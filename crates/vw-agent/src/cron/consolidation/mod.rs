@@ -1,4 +1,6 @@
 //! 夜间记忆归并任务的固定提示、默认计划与安装入口。
+//!
+//! 归并任务始终使用隔离会话，不投递到主会话，也不默认指定模型或外部投递目标。
 
 use super::{CronJob, Schedule, SessionTarget, add_agent_job};
 use crate::app::agent::config::Config;
@@ -7,7 +9,7 @@ use anyhow::Result;
 /// Default cron expression: 3:00 AM daily.
 const DEFAULT_SCHEDULE_EXPR: &str = "0 3 * * *";
 
-/// Job name marker used to identify consolidation jobs.
+/// 标识内置夜间归并任务的稳定名称。
 pub const CONSOLIDATION_JOB_NAME: &str = "__consolidate_nightly";
 
 /// The prompt instructs the agent to perform memory consolidation using
@@ -50,7 +52,7 @@ Follow these steps exactly:
 If there is no meaningful activity to consolidate (no runs, no daily memories), \
 store a brief note confirming the check was performed and skip the MEMORY.md update.";
 
-/// Create a nightly memory consolidation cron agent job.
+/// 按本地时间每天 03:00 创建夜间记忆归并代理任务。
 ///
 /// Schedule: 3:00 AM daily (local time), configurable via `schedule_expr`.
 /// Job type: agent with `__consolidate` marker in the name.
@@ -59,7 +61,7 @@ pub fn create_consolidation_job(config: &Config) -> Result<CronJob> {
     create_consolidation_job_with_schedule(config, DEFAULT_SCHEDULE_EXPR, None)
 }
 
-/// Create a consolidation job with a custom cron expression and optional timezone.
+/// 使用自定义 cron 表达式和可选时区创建隔离的归并任务。
 pub fn create_consolidation_job_with_schedule(
     config: &Config,
     cron_expr: &str,

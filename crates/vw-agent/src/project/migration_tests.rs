@@ -62,6 +62,7 @@ fn project_registry_migration_preserves_sources_on_conflict() -> Result<()> {
 }
 
 #[test]
+// 任一旧记录无效时保持全部源文件不动，避免部分迁移造成数据分裂。
 fn project_registry_migration_preserves_all_sources_on_invalid_input() -> Result<()> {
     let home = tempfile::tempdir()?;
     let source_dir = source_project_dir(home.path());
@@ -247,6 +248,7 @@ fn source_project_dir(home: &Path) -> PathBuf {
     home_config_dir(home).join("storage").join("project")
 }
 
+// 备份目录与源目录分开构造，用来验证重命名失败时的原子性。
 fn backup_project_dir(home: &Path) -> PathBuf {
     home_config_dir(home).join("database").join("migration-backups").join("projects")
 }

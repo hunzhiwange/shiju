@@ -1,4 +1,6 @@
 //! 验证会话事件日志的安全文件名、轮转默认值与主目录路径。
+//!
+//! 临时主目录和最小会话记录 fixture 用于隔离事件与偏好状态。
 
 use super::*;
 use crate::queue_paths::{TEST_HOME_ENV_LOCK, default_home_dir};
@@ -33,6 +35,7 @@ impl Drop for EnvVarGuard {
     }
 }
 
+// 下列行为用例覆盖规范化、状态同步、路径安全和陈旧数据恢复。
 #[test]
 fn safe_session_id_percent_encodes_path_separators_and_spaces() {
     assert_eq!(safe_session_id("abc-_.!~*'()"), "abc-_.!~*'()");

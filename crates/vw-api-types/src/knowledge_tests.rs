@@ -13,6 +13,7 @@ use super::knowledge::{
 };
 use serde_json::json;
 
+// 最小创建载荷应选择本地可用的全文检索、通用切分和保守阈值默认值。
 #[test]
 fn knowledge_dataset_create_defaults_to_local_full_text() {
     let request: KnowledgeDatasetCreateRequest =
@@ -29,6 +30,7 @@ fn knowledge_dataset_create_defaults_to_local_full_text() {
     assert_eq!(request.description, "");
 }
 
+// 检索请求缺省限制结果数量且不附带上下文，显式选择仍可覆盖默认行为。
 #[test]
 fn knowledge_retrieve_defaults_top_k() {
     let request: KnowledgeRetrieveRequest =
@@ -47,6 +49,7 @@ fn knowledge_retrieve_defaults_top_k() {
     assert!(with_context.include_context);
 }
 
+// 重建索引默认不强制执行，避免无变化文档产生重复工作。
 #[test]
 fn knowledge_document_reindex_defaults_force_to_false() {
     let request: KnowledgeDocumentReindexRequest =
@@ -59,6 +62,7 @@ fn knowledge_document_reindex_defaults_force_to_false() {
     assert!(forced.force);
 }
 
+// 旧版文档创建载荷未携带开关时仍默认启用文档。
 #[test]
 fn knowledge_document_create_defaults_enabled_for_legacy_payloads() {
     let request: KnowledgeDocumentCreateRequest = serde_json::from_value(json!({
@@ -71,6 +75,7 @@ fn knowledge_document_create_defaults_enabled_for_legacy_payloads() {
     assert_eq!(request.metadata, json!(null));
 }
 
+// 旧版数据集、文档和知识块 fixture 验证新增字段都有可解释的兼容默认值。
 #[test]
 fn knowledge_dto_defaults_keep_legacy_payloads_compatible() {
     let dataset: KnowledgeDatasetDto = serde_json::from_value(json!({
@@ -123,6 +128,7 @@ fn knowledge_dto_defaults_keep_legacy_payloads_compatible() {
     assert!(chunk.context.is_none());
 }
 
+// 完整 fixture 验证显式能力、生命周期和块邻接信息不会被默认值覆盖。
 #[test]
 fn knowledge_dto_accepts_explicit_capability_status_and_chunk_fields() {
     let dataset: KnowledgeDatasetDto = serde_json::from_value(json!({
@@ -194,6 +200,7 @@ fn knowledge_dto_accepts_explicit_capability_status_and_chunk_fields() {
     assert_eq!(chunk.context.as_deref(), Some("section"));
 }
 
+// 文档统计、归档状态、稀疏补丁和批量动作共享同一生命周期协议。
 #[test]
 fn knowledge_document_contract_accepts_stats_archive_and_patch_requests() {
     let document: KnowledgeDocumentDto = serde_json::from_value(json!({
@@ -261,6 +268,7 @@ fn knowledge_document_contract_accepts_stats_archive_and_patch_requests() {
     );
 }
 
+// 导入 fixture 同时覆盖 Base64 文件载荷、格式能力、嵌入预设和密钥脱敏。
 #[test]
 fn knowledge_import_contract_serializes_file_preset_status_and_redacts_key() {
     let request = KnowledgeDocumentImportRequest {
@@ -382,6 +390,7 @@ fn knowledge_import_contract_serializes_file_preset_status_and_redacts_key() {
     assert!(!debug.contains("dashscope-secret"));
 }
 
+// 异步导入响应必须公开可轮询任务状态，并省略尚未产生的时间和错误字段。
 #[test]
 fn knowledge_async_import_contract_serializes_job_statuses() {
     let statuses = [

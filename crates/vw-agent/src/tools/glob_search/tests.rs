@@ -1,4 +1,5 @@
 //! 验证文件通配搜索的匹配结果、排序、路径边界与调用频率限制。
+//! 临时目录场景同时覆盖符号链接逃逸和非法搜索根目录等安全失败分支。
 
 use super::super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
@@ -14,6 +15,7 @@ fn test_security(workspace: PathBuf) -> Arc<SecurityPolicy> {
     })
 }
 
+// 允许用例单独控制自治级别和速率上限，而不放宽其它默认安全策略。
 fn test_security_with(
     workspace: PathBuf,
     autonomy: AutonomyLevel,

@@ -1,4 +1,5 @@
 //! 验证命令替换校验器在严格与宽松模式下的阻断和告警差异。
+//! 回退解析仍需识别命令替换和输出进程替换，不能因缺少 AST 而放行。
 
 use super::substitution::SubstitutionValidator;
 use crate::tools::shell::ast::{ParsedCommand, parse_command};

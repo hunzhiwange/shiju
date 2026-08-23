@@ -1,4 +1,6 @@
 //! 验证错误元数据、协议载荷和文本线索到统一输出错误的归一化。
+//!
+//! 构造的协议载荷与错误链用于固定归一化优先级和诊断信息边界。
 
 use serde_json::json;
 
@@ -8,6 +10,7 @@ use super::types::{
     EXIT_CODE_USAGE, OutputErrorAcpPayload, OutputErrorCode, OutputErrorOrigin,
 };
 
+// 下列行为用例覆盖已知错误、缺失字段、嵌套载荷和安全回退。
 #[test]
 fn metadata_overrides_default_code_and_origin() {
     let error = json!({

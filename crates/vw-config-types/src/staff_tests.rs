@@ -1,3 +1,6 @@
+//! 验证员工、工作流、能力目录与任务分配配置的归一化和校验边界。
+//! 用例覆盖默认编排、序列化往返、交叉引用清理以及只读校验错误族。
+
 use crate::config::Config;
 use crate::staff::{
     StaffCapabilitiesConfig, StaffCapabilityConfig, StaffCapabilityIoSummaryConfig,
@@ -9,6 +12,7 @@ use crate::staff::{
 use serde_json::json;
 use std::collections::BTreeMap;
 
+// 默认名册必须全部可委派给主代理，避免初次启动出现不可调度成员。
 #[test]
 fn default_staff_config_binds_default_members_to_main_agent() {
     let config = Config::default();
@@ -21,6 +25,7 @@ fn default_staff_config_binds_default_members_to_main_agent() {
     }));
 }
 
+// 完整往返 fixture 同时保护成员能力、通道绑定和运行限制的持久化结构。
 #[test]
 fn staff_config_roundtrips_member_capabilities() {
     let config = Config {
@@ -91,6 +96,7 @@ fn staff_config_roundtrips_member_capabilities() {
     assert!(roundtripped.agents.is_empty());
 }
 
+// 归一化迁移旧阶段绑定，并清理消息目标，确保只保留当前数据模型。
 #[test]
 fn staff_config_normalizes_message_targets_and_discards_legacy_stage_bindings() {
     let mut config = StaffConfig::default();
@@ -136,6 +142,7 @@ fn staff_config_normalizes_message_targets_and_discards_legacy_stage_bindings() 
     assert_eq!(empty_ipc_agent_id.members[1].ipc_agent_id, None);
 }
 
+// 阶段动作以能力目录为边界，保存工作流动作还必须携带可用 UUID。
 #[test]
 fn staff_stage_actions_normalize_and_validate() {
     let mut config = StaffConfig::default();
@@ -237,6 +244,7 @@ fn staff_stage_actions_normalize_and_validate() {
     );
 }
 
+// 外部通道绑定要求受支持的类型、有效实例标识及成员内唯一性。
 #[test]
 fn staff_channel_binding_staff_member_channel_bindings_normalize_and_validate() {
     let mut config = StaffConfig::default();
@@ -333,6 +341,7 @@ fn staff_config_normalize_deduplicates_capabilities_and_requires_enabled_binding
     assert!(err.contains("must bind a delegate_agent or acp_agent"));
 }
 
+// 能力目录和项目状态执行序列化往返，确保网关持久化不丢结构化输入输出。
 #[test]
 fn staff_capability_catalog_roundtrips_and_validates() {
     let mut config = StaffConfig::default();
@@ -562,6 +571,7 @@ fn staff_stage_action_inputs_and_outcomes_roundtrip() {
     assert_eq!(pr_submitted.workflow_uuid.as_deref(), Some("workflow-from-action"));
 }
 
+// 成员任务归属允许清理空项，但同一任务不能同时归属于多个成员。
 #[test]
 fn member_task_assignments_normalize_empty_entries_and_reject_cross_member_duplicates() {
     let mut config = StaffConfig::default();
@@ -604,6 +614,7 @@ fn member_task_assignments_normalize_empty_entries_and_reject_cross_member_dupli
     );
 }
 
+// 后续错误族用例分别锁定成员、阶段、编排、能力和任务引用的诊断文本。
 #[test]
 fn staff_members_normalize_defaults_and_report_readonly_identity_errors() {
     let mut config = StaffConfig::default();
@@ -1060,6 +1071,7 @@ fn staff_member_task_assignments_report_member_and_readonly_task_errors() {
     assert_validate_error(&empty_task, "staff member task assignment task id cannot be empty");
 }
 
+// fixture 构造器集中填充能力结构，使错误用例只突出正在验证的字段。
 fn capability(id: &str, label: &str, built_in: bool) -> StaffCapabilityConfig {
     StaffCapabilityConfig {
         id: id.to_string(),
@@ -1075,6 +1087,7 @@ fn capability(id: &str, label: &str, built_in: bool) -> StaffCapabilityConfig {
     }
 }
 
+// 同一非法配置必须在可变归一化与只读校验入口返回一致错误。
 fn assert_normalize_error(config: StaffConfig, expected: &str) {
     let error = config.normalize().expect_err("config should fail normalize");
     assert!(error.contains(expected), "expected {expected:?}, got {error:?}");

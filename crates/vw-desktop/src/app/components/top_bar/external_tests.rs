@@ -1,3 +1,7 @@
+//! 验证顶部栏外部应用入口的可见性、标签和启动消息。
+//!
+//! 外部应用夹具覆盖可用、缺失和启动失败状态，确认入口与反馈同步变化。
+
 use super::external::{
     ExternalAppLogo, OPEN_EXTERNAL_TARGETS, external_app_label, external_app_logo,
     file_manager_label, open_external_module, supported_external_apps,

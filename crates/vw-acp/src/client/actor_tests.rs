@@ -1,4 +1,6 @@
 //! 验证客户端 Actor 循环的命令分派、运行时清理与生命周期记录。
+//!
+//! 最小客户端、通道和运行时 fixture 用于显式驱动异步状态转换与资源收尾。
 
 use std::collections::HashMap;
 #[cfg(unix)]
@@ -34,6 +36,7 @@ fn client(command: &str, args: &[&str]) -> AcpClient {
 #[cfg(unix)]
 static UNIQUE_TEST_ID: AtomicU64 = AtomicU64::new(1);
 
+// 下列行为用例重点检查复用、取消、通道关闭和失败后的状态一致性。
 #[test]
 fn command_family_detection_uses_basename_and_arguments() {
     assert!(client("/usr/local/bin/gemini", &["--experimental-acp"]).is_gemini_acp_command());

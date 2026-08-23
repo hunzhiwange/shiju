@@ -5,6 +5,7 @@ use vw_api_types::apiql::ApiQlListMode;
 
 use super::params::{ApiQlFieldNameCase, normalize_apiql_query};
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[test]
 fn apiql_params_merges_free_query_into_where() {
     let params = normalize_apiql_query(
@@ -118,6 +119,7 @@ fn apiql_params_ignores_php_signature_metadata() {
     assert_eq!(params.where_, json!({ "name": "apple" }));
 }
 
+// 非法字段、运算符和解析器配置必须在生成查询或执行脚本前被拒绝。
 #[test]
 fn apiql_params_rejects_invalid_encoding_and_bracket_shapes() {
     let encoding = normalize_apiql_query("name=%E0%A4%A", ApiQlListMode::Index)

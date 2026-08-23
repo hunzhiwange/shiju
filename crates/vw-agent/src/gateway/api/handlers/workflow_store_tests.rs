@@ -1,4 +1,6 @@
 // 验证工作流存储的后端装配、作用域约束与数据规范化行为。
+
+// 同一套行为会在 SQLite 与 PostgreSQL 提供方上执行，避免后端语义漂移。
 use super::*;
 use axum::http::StatusCode;
 use tempfile::TempDir;
@@ -20,6 +22,7 @@ fn body(name: &str, workflow_yaml: &str) -> WorkflowRecordUpsertBody {
     }
 }
 
+// 临时 SQLite 数据库用于快速契约测试，目录守卫负责维持文件生命周期。
 fn database() -> (TempDir, GlobalDatabase) {
     let home = tempfile::tempdir().expect("temp home");
     let expected_path = vw_config_types::paths::global_database_path(home.path());

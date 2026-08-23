@@ -1,4 +1,6 @@
 // 验证 Webhook 请求的认证、去重、渠道分派与响应契约。
+
+// 回环免认证仅适用于未配置额外凭据的场景，显式密钥仍须严格匹配。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore, hash_webhook_secret};
@@ -103,6 +105,7 @@ fn test_state(calls: Arc<AtomicUsize>, webhook_secret_hash: Option<Arc<str>>) ->
     test_state_with_provider(Arc::new(CountingProvider { calls }), webhook_secret_hash)
 }
 
+// 客户端地址由用例显式构造，用于区分回环免认证和公网拒绝路径。
 fn peer(ip: IpAddr) -> ConnectInfo<SocketAddr> {
     ConnectInfo(SocketAddr::new(ip, 8080))
 }

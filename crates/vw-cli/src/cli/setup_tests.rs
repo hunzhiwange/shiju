@@ -1,3 +1,7 @@
+//! CLI 启动配置解析与工具清单组装的测试。
+//! 确认显式覆盖、已配置值和后备值的优先级，包括显式空字符串的语义。
+//! 同时校验核心工具恒存、可选工具独立开关、上下文限制和通道命名。
+
 use super::setup::{
     build_tool_descriptions, compact_context_max_chars, resolve_setup_name, setup_channel_name,
 };

@@ -1,4 +1,6 @@
 // 验证 MCP 配置解析、服务器装配与工具发现边界。
+
+// 工具参数缺失时序列化为空对象，注册表中的身份、描述和对象模式必须保留。
 use super::*;
 use crate::tools::{self, ToolRuntimeContext};
 use rmcp::handler::server::ServerHandler;

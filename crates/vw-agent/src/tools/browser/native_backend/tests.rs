@@ -1,4 +1,5 @@
 //! 验证原生浏览器后端的导航、元素操作、截图与安全边界。
+//! 伪 WebDriver 记录导航与元素请求，敏感输入只报告 UTF-8 字节数，截图落盘校验精确字节。
 
 use super::*;
 use axum::body::to_bytes;
@@ -8,6 +9,7 @@ use serde_json::Value;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
+// 伪 WebDriver 统一记录请求并返回确定响应，端到端断言关注后端映射而非浏览器实现。
 const MOCK_SESSION_ID: &str = "mock-session";
 const MOCK_ELEMENT_ID: &str = "mock-element";
 const SCREENSHOT_BYTES: &[u8] = &[0, 1, 2, 3];
@@ -311,6 +313,7 @@ async fn element_actions_return_behavior_focused_payloads() {
 }
 
 #[tokio::test]
+// 输入动作只返回字节计数，测试明确禁止把用户键入内容复制到工具结果。
 async fn type_action_reports_utf8_byte_count_without_echoing_text() {
     let server = MockWebDriver::start().await;
     let mut state = opened_state(&server).await;

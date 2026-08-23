@@ -1,3 +1,5 @@
+//! 生成任务执行与审查产物，并按平台边界写入日志目录。
+
 #[cfg(any(target_arch = "wasm32", test))]
 use std::fmt::Write as _;
 use std::io;
@@ -57,6 +59,7 @@ fn review_result_content(
     content
 }
 
+/// 将任务执行结果写入日志；原生端迁移后返回明确的不支持错误。
 pub fn write_task_execution_result_log(
     project_path: &str,
     task: &Task,
@@ -77,6 +80,7 @@ pub fn write_task_execution_result_log(
     }
 }
 
+/// 将代码审查结果和可选系统提示写入任务日志。
 pub fn write_task_code_review_result_log(
     project_path: &str,
     task: &Task,
@@ -98,6 +102,7 @@ pub fn write_task_code_review_result_log(
     }
 }
 
+/// 将执行结果保存为调用方指定的产物文件。
 pub fn save_task_execution_result_artifact(
     project_path: &str,
     task: &Task,
@@ -111,6 +116,7 @@ pub fn save_task_execution_result_artifact(
     Ok(())
 }
 
+/// 将代码审查结果保存为调用方指定的产物文件。
 pub fn save_task_code_review_result_artifact(
     project_path: &str,
     task: &Task,

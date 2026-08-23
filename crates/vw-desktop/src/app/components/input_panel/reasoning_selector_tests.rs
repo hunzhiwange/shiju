@@ -1,3 +1,6 @@
+//! 验证推理等级选择器的选项映射、当前值与弹窗交互。
+//! 未指定等级和不支持推理的模型用于确认选择器的隐藏与回退规则。
+
 use super::reasoning_selector::{
     reasoning_effort_items, reasoning_effort_label, reasoning_effort_message,
     reasoning_effort_options, reasoning_effort_selector,

@@ -24,6 +24,7 @@ use std::sync::Arc;
 use vw_api_types::tools::ToolResultContentDto;
 
 impl BrowserTool {
+    /// 使用默认代理浏览器后端创建受安全策略约束的工具。
     pub fn new(
         security: Arc<SecurityPolicy>,
         allowed_domains: Vec<String>,
@@ -42,6 +43,7 @@ impl BrowserTool {
     }
 
     #[allow(clippy::too_many_arguments)]
+    /// 使用显式后端配置创建浏览器工具。
     pub fn new_with_backend(
         security: Arc<SecurityPolicy>,
         allowed_domains: Vec<String>,
@@ -69,10 +71,12 @@ impl BrowserTool {
     }
 
     /// Backward-compatible alias.
+    /// 探测默认浏览器后端是否可用。
     pub async fn is_available() -> bool {
         Self::is_agent_browser_available().await
     }
 
+    /// 解析配置的浏览器后端标识。
     pub(crate) fn configured_backend(&self) -> anyhow::Result<BrowserBackendKind> {
         BrowserBackendKind::parse(&self.backend)
     }
@@ -105,6 +109,7 @@ impl BrowserTool {
         )
     }
 
+    /// 返回经过解析与协议校验的 Computer Use 服务地址。
     pub(crate) fn computer_use_endpoint_url(&self) -> anyhow::Result<reqwest::Url> {
         self.computer_use_client().endpoint_url()
     }
@@ -187,6 +192,7 @@ impl BrowserTool {
     }
 
     /// Validate URL against allowlist
+    /// 依据安全策略校验浏览器目标 URL 与允许域名。
     pub(crate) fn validate_url(&self, url: &str) -> anyhow::Result<()> {
         self.computer_use_client().validate_url(url)
     }
@@ -268,6 +274,7 @@ impl BrowserTool {
     }
 
     #[allow(clippy::unnecessary_wraps, clippy::unused_self)]
+    /// 把浏览器后端响应转换为统一工具结果并清理敏感载荷。
     pub(crate) fn to_result(&self, resp: AgentBrowserResponse) -> anyhow::Result<ToolResult> {
         if resp.success {
             let output = resp

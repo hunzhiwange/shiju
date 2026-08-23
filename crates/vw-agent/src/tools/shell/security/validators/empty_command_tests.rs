@@ -1,4 +1,5 @@
 //! 验证空命令校验器的稳定名称与空白输入判定。
+//! 非空普通命令必须不产生发现项，避免入口校验与后续规则职责重叠。
 
 use super::*;
 use crate::tools::shell::ast::parse_command;

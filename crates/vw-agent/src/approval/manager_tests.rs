@@ -1,4 +1,5 @@
 //! 测试审批管理器从配置创建时的空运行态。
+//! 该最小夹具锁定配置构造不会携带上一次会话的授权或待处理请求。
 
 use crate::app::agent::config::AutonomyConfig;
 

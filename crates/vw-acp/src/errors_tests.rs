@@ -1,4 +1,6 @@
 //! 验证操作错误的默认元数据、错误源和输出参数契约。
+//!
+//! 构造的协议载荷与错误链用于固定归一化优先级和诊断信息边界。
 
 use std::error::Error as StdError;
 use std::fmt::Display;
@@ -51,6 +53,7 @@ where
     assert!(error.to_output_error_params().is_none());
 }
 
+// 下列行为用例覆盖已知错误、缺失字段、嵌套载荷和安全回退。
 #[test]
 fn options_with_defaults_preserves_explicit_values() {
     let options = AcpxErrorOptions {

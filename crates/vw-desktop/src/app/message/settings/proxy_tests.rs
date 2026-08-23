@@ -1,3 +1,6 @@
+// 验证代理开关、作用域别名及地址列表字段更新。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use vw_config_types::proxy::ProxyScope;
@@ -6,6 +9,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_ignores_unrelated_messages() {
     let mut app = app();
@@ -50,6 +55,8 @@ fn scope_change_accepts_environment_aliases_case_and_whitespace() {
     }
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn scope_change_accepts_services_aliases_case_and_whitespace() {
     let mut app = app();
@@ -97,6 +104,8 @@ fn proxy_address_changes_preserve_input_and_clear_stale_error() {
     assert!(app.proxy_settings.save_error.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn proxy_list_changes_preserve_mixed_separators_and_clear_stale_error() {
     let mut app = app();
@@ -128,6 +137,8 @@ fn help_messages_toggle_modal_without_clearing_save_error() {
     assert_eq!(app.proxy_settings.save_error.as_deref(), Some("old error"));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn proxy_changes_schedule_persistence_tasks() {
     let mut app = app();

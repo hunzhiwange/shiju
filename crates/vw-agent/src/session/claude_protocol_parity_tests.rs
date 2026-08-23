@@ -34,6 +34,7 @@ fn resolved(path: &Path, content: String, conditions: Vec<String>) -> Resolved {
 }
 
 #[test]
+// 同一协议夹具跨入口比较，避免桌面、网关与适配器产生语义漂移。
 fn claude_protocol_parity_covers_agents_skills_compaction_and_entrypoints() {
     let fixture = tempfile::tempdir().expect("temporary project");
     let managed = fixture.path().join("managed");
@@ -246,6 +247,7 @@ impl Tool for DelegateParityTool {
 }
 
 #[test]
+// 委派策略在新旧入口保持一致，兼容层不能绕过能力限制。
 fn delegate_capability_policy_is_consistent_across_agenttool_gateway_and_legacy_adapter() {
     let parent_tools: Vec<Arc<dyn Tool>> = vec![
         Arc::new(DelegateParityTool { name: "file_read" }),

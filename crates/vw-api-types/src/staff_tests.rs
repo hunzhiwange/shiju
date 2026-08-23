@@ -11,6 +11,7 @@ use crate::staff::{
 use crate::task::TaskPoolWorkflowStatusRoleDto;
 use serde_json::json;
 
+// 带标签命令 fixture 固化命令类型、阶段动作和能力摘要的 JSON 形状。
 #[test]
 fn staff_command_contract_uses_stable_tagged_shapes() {
     let request = StaffCommandRequest {
@@ -69,6 +70,7 @@ fn staff_command_contract_uses_stable_tagged_shapes() {
     );
 }
 
+// 项目自定义能力保留调用方文本，响应则完整往返已解析的能力契约。
 #[test]
 fn staff_project_capability_catalog_contract_round_trips_custom_entries() {
     let request = StaffProjectCapabilityCatalogRequest {
@@ -128,6 +130,7 @@ fn staff_project_capability_catalog_contract_round_trips_custom_entries() {
     );
 }
 
+// 工作流编排只携带能力、阶段人员和动作绑定，不重新引入旧项目任务分配字段。
 #[test]
 fn staff_workflow_orchestration_dto_roundtrips_without_project_assignments() {
     let orchestration = StaffWorkflowOrchestrationDto {

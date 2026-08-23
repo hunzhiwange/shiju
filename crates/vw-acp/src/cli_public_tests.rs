@@ -1,4 +1,6 @@
 //! 验证公开 CLI 对代理令牌、全局选项和动态代理命令的解析规则。
+//!
+//! 命令解析、内存输出与失败 fixture 共同固定公开 CLI 的可观察契约。
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -35,6 +37,7 @@ fn config() -> ResolvedAcpxConfig {
     }
 }
 
+// 下列行为用例同时检查格式分支、参数边界和错误传播。
 #[test]
 fn detect_agent_token_skips_global_options() {
     let scan = detect_agent_token(&argv(&[

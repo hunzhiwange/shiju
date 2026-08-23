@@ -1,8 +1,11 @@
 // 验证目标引擎的状态推进、预算约束与终止条件。
+
+// 选择下一步骤时同时考虑优先级、状态与重试上限，持久化使用临时文件替换。
 use super::*;
 
 use tempfile::TempDir;
 
+// 小型构造器只填充决策所需字段，让状态与重试断言保持可读。
 fn step(id: &str, status: StepStatus, attempts: u32) -> Step {
     Step { id: id.to_string(), description: format!("Step {id}"), status, result: None, attempts }
 }

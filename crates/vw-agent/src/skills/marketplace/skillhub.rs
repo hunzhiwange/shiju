@@ -34,6 +34,7 @@ const SKILL_FILE_PATH: &str = "SKILL.md";
 const SKILL_FILE_REDIRECT_HOST: &str = "skillhub-1388575217.cos.accelerate.myqcloud.com";
 const MAX_ARTIFACT_BYTES: usize = 32 * 1024 * 1024;
 
+/// 公共 SkillHub HTTP API 的市场提供方实现。
 pub(crate) struct SkillHubProvider {
     source: SkillMarketSourceDto,
     client: Client,
@@ -41,11 +42,13 @@ pub(crate) struct SkillHubProvider {
 }
 
 impl SkillHubProvider {
+    /// 使用固定生产端点创建提供方。
     pub(crate) fn new() -> Result<Self, SkillMarketProviderError> {
         Self::build(PRODUCTION_BASE_URL)
     }
 
     #[cfg(test)]
+    /// 使用显式基础地址创建提供方，供受控环境与测试使用。
     pub(crate) fn with_base_url(base_url: &str) -> Result<Self, SkillMarketProviderError> {
         Self::build(base_url)
     }
@@ -430,6 +433,7 @@ impl SkillMarketProvider for SkillHubProvider {
     }
 }
 
+/// 校验技能文件重定向地址，仅接受允许主机上的 HTTPS 下载路径。
 pub(super) fn skill_file_redirect_url(location: &str) -> Result<Url, SkillMarketProviderError> {
     let url = Url::parse(location).map_err(|_| {
         SkillMarketProviderError::InvalidResponse(
@@ -464,6 +468,7 @@ pub(super) fn skill_file_redirect_url(location: &str) -> Result<Url, SkillMarket
     Ok(url)
 }
 
+/// 校验技能制品重定向地址及 ZIP 归档路径。
 pub(super) fn skill_artifact_redirect_url(location: &str) -> Result<Url, SkillMarketProviderError> {
     let url = Url::parse(location).map_err(|_| {
         SkillMarketProviderError::InvalidResponse(

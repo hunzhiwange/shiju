@@ -1,9 +1,13 @@
+//! 验证嵌入路由设置的空态、路由卡片、字段结构与保存反馈。
+//! 多路由状态要求每个配置独立保留完整字段，成功横幅不得掩盖错误。
+
 use super::*;
 use crate::app::state::EmbeddingRouteDraft;
 use crate::app::{App, Message};
 use iced::Element;
 use iced::advanced::widget::Tree;
 
+// 路由用例共享最小应用状态，以便精确比较空态与路由卡片元素树。
 fn test_app() -> App {
     let mut app = App::new().0;
     app.embedding_routes_settings.routes.clear();

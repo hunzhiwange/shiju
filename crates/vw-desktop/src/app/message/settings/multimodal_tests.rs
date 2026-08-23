@@ -1,3 +1,6 @@
+// 验证多模态模型选择、OCR 前置条件与图像限制边界。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -5,6 +8,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn ocr_settings_require_valid_model_before_enable_and_map_to_config() {
     let mut app = app();
@@ -94,6 +99,8 @@ fn model_supports_images_defaults_on_and_allows_ocr_without_fallback_model() {
     );
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn selecting_empty_image_model_clears_the_configured_model() {
     let mut app = app();
@@ -147,6 +154,8 @@ fn max_image_size_changed_clamps_out_of_range_and_preserves_in_range_values() {
     assert_eq!(app.multimodal_settings.max_image_size_mb, 20);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn allow_remote_fetch_toggled_sets_both_boolean_values_and_clears_save_error() {
     let mut app = app();
@@ -183,6 +192,8 @@ fn update_ignores_messages_for_other_settings_sections() {
     assert_eq!(app.multimodal_settings.save_error.as_deref(), Some("keep"));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn multimodal_changes_schedule_persistence_tasks() {
     let mut app = app();

@@ -1,3 +1,7 @@
+//! 验证隧道提供商稳定值、条件控件、消息映射和视图结构。
+//!
+//! 提供商值按精确稳定键匹配，未知或近似输入必须回退到未选择状态。
+
 use super::*;
 use crate::app::message::settings::{SettingsMessage, TunnelMessage};
 use crate::app::{App, Message};

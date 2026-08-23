@@ -28,6 +28,8 @@ use vw_agent::security;
 use vw_agent::service::ServiceCommands;
 use vw_agent::skill::SkillCommands;
 
+use crate::handlers::api::ApiArgs;
+
 #[path = "cli/mod.rs"]
 mod runtime;
 
@@ -120,6 +122,13 @@ pub(crate) struct Cli {
 pub(crate) enum Commands {
     /// 通过 stdin/stdout 运行本地 ACP Agent。
     Acp,
+
+    /// 调用远程 Gateway API。
+    Api {
+        /// Gateway 连接、认证、输出与子命令参数。
+        #[command(flatten)]
+        api_args: ApiArgs,
+    },
 
     /// 启动 AI 代理循环
     ///

@@ -22,6 +22,7 @@ fn test_config(tmp: &TempDir) -> Config {
     config
 }
 
+// 固定时间与临时存储夹具用于隔离真实时钟和持久化状态，保证调度断言可重复。
 #[test]
 fn add_agent_job_persists_metadata_and_defaults() {
     let tmp = TempDir::new().unwrap();
@@ -138,6 +139,7 @@ fn list_jobs_orders_by_next_run() {
     assert_eq!(jobs[1].id, later_job.id);
 }
 
+// 不存在的任务与存储错误必须显式返回，不能被调度器当成一次成功的空操作。
 #[test]
 fn get_and_remove_missing_jobs_report_not_found() {
     let tmp = TempDir::new().unwrap();

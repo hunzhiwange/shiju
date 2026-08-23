@@ -1,4 +1,6 @@
 // 验证安装类型、升级错误及命令输出附加字段的稳定契约。
+
+// 错误展示只暴露约定信息，命令输出中的保留键由最终结果统一覆盖。
 use super::*;
 #[cfg(unix)]
 use std::os::unix::process::ExitStatusExt;

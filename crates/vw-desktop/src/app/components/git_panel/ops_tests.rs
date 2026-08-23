@@ -1,3 +1,6 @@
+//! 验证仓库操作对分支、工作树、差异内容和变更文件的处理边界。
+//! 临时仓库 fixture 组合 HEAD、索引与工作区状态，避免依赖用户仓库。
+
 #[cfg(not(target_arch = "wasm32"))]
 use super::ops::{
     DiffFileMeta, checkout_branch, current_branch, get_changed_file_paths, get_diff_file_metas,
@@ -321,6 +324,7 @@ fn diff_content_refuses_absent_or_deleted_worktree_content() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 以下辅助函数只操作临时仓库，用最少提交步骤制造索引和工作区差异。
 fn commit_file(repo: &git2::Repository, path: &str, message: &str) {
     stage_path(repo, path);
     let tree_oid = repo.index().expect("index").write_tree().expect("write tree");

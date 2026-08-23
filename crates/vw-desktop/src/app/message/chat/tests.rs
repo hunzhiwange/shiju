@@ -1,3 +1,7 @@
+//! 验证聊天模块键值编码、会话操作类型和自动滚动节流行为。
+//!
+//! 自动滚动测试使用明确时钟窗口，确保跟随模式、节流期限和兼容字段同步更新。
+
 #[test]
 fn tests_module_is_wired() {
     assert!(module_path!().ends_with("tests"));

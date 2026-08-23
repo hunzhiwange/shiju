@@ -1,4 +1,5 @@
 //! 验证会话回退输入、错误转换、消息裁剪与快照恢复行为。
+//! 回退计划按目标消息或部件切分，缺失目标和无有效前文时必须安全地不执行恢复。
 
 use super::super::{message, session as session_api};
 use crate::app::agent::snapshot;
@@ -109,6 +110,7 @@ fn message_ids(messages: &[message::WithParts]) -> Vec<&str> {
     messages.iter().map(|message| message.info.id()).collect()
 }
 
+// 线协议只接受 camelCase；拒绝内部字段名可防止持久化模型意外泄漏到网关契约。
 #[test]
 fn revert_input_serializes_with_expected_camel_case_keys() {
     let input = super::RevertInput {
@@ -184,6 +186,7 @@ fn helpers_use_unscoped_defaults_outside_project_context() {
     assert_eq!(super::worktree_path(), PathBuf::from("."));
 }
 
+// 回退计划的核心边界是目标之前是否存在有效内容，而不是目标部件是否存在。
 #[test]
 fn collect_revert_plan_uses_last_user_for_message_target_and_collects_later_patches() {
     let messages = vec![

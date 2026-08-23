@@ -4,6 +4,7 @@ use crate::id::ToolId;
 use crate::tools::{ToolResultContentDto, ToolSpecDto, ToolUseDto};
 use serde_json::json;
 
+// 工具规格默认严格校验，空别名和空参数在跨网关传输时应被省略。
 #[test]
 fn tool_specs_default_to_strict_and_skip_empty_fields() {
     let spec: ToolSpecDto = serde_json::from_value(json!({

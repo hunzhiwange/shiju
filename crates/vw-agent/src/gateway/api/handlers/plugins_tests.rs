@@ -32,6 +32,7 @@ fn write_plugin(plugin_root: &Path, name: &str) {
     .expect("manifest");
 }
 
+// 变更处理器先拒绝空标识，确保非法请求不会触发插件扫描或配置加载。
 #[test]
 fn plugins_handler_lists_installed_plugins() {
     let temp = tempfile::tempdir().expect("temp dir");

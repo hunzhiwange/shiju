@@ -17,6 +17,7 @@ const RUN_COLUMNS: &str = "id, task_id, worker_id, status, attempt, lease_acquir
 lease_expires_at_ms, started_at_ms, finished_at_ms, last_heartbeat_at_ms, error_message";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 直接认领指定任务运行的请求；调用者负责提供租约边界。
 pub struct ClaimTaskRunRequest {
     pub run_id: RunId,
     pub task_id: TaskId,
@@ -26,6 +27,7 @@ pub struct ClaimTaskRunRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 仅在任务仍就绪且依赖满足时认领运行的请求。
 pub struct ClaimReadyTaskRunRequest {
     pub run_id: RunId,
     pub task_id: TaskId,
@@ -35,6 +37,7 @@ pub struct ClaimReadyTaskRunRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 已持久化的运行、租约、心跳和终止结果快照。
 pub struct StoredAgentRun {
     pub id: RunId,
     pub task_id: TaskId,
@@ -50,6 +53,7 @@ pub struct StoredAgentRun {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 运行收尾时允许写入的终止状态。
 pub enum AgentRunFinishStatus {
     Succeeded,
     Failed,
@@ -95,6 +99,7 @@ impl AgentSchedulerStore {
             .with_context(|| format!("load latest run for task: {}", task_id.as_str()))
     }
 
+    /// 原子创建或认领运行；已有活动运行时拒绝重复认领。
     pub fn claim_task_run(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -145,6 +150,7 @@ impl AgentSchedulerStore {
         Ok(Some(stored))
     }
 
+    /// 在同一事务内复核任务状态、依赖和活动运行后完成认领。
     pub fn claim_ready_task_run(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -217,6 +223,7 @@ impl AgentSchedulerStore {
         Ok(Some(stored))
     }
 
+    /// 续写运行心跳并按需延长租约；终止运行不能再续租。
     pub fn heartbeat_run(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -263,6 +270,7 @@ impl AgentSchedulerStore {
         Ok(Some(stored))
     }
 
+    /// 将活动运行收敛为终止状态，并记录完成时间或错误信息。
     pub fn finish_run(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -306,6 +314,7 @@ impl AgentSchedulerStore {
         Ok(Some(stored))
     }
 
+    /// 列出租约或心跳早于截止时间的未终止运行，供恢复引擎处理。
     pub fn list_stale_runs(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),

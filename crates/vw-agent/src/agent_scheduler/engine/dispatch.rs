@@ -29,6 +29,7 @@ use crate::agent_scheduler::task_graph::{TaskGraph, TaskGraphReadiness};
 pub const DEFAULT_RUN_LEASE_DURATION_MS: i64 = 30 * 60 * 1_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 成功派发后确定的任务、运行、节点、目标和可选发件箱消息。
 pub struct DispatchOutcome {
     pub task_id: TaskId,
     pub run_id: RunId,
@@ -38,6 +39,7 @@ pub struct DispatchOutcome {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 本地直连或 Matrix 异步消息两类派发目标。
 pub enum DispatchTarget {
     Local(LocalDispatchRequest),
     Matrix(MatrixDispatchTarget),
@@ -53,6 +55,7 @@ impl DispatchTarget {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// 对派发目标的自动选择或强制覆盖策略。
 pub enum DispatchMode {
     #[default]
     Auto,
@@ -60,6 +63,7 @@ pub enum DispatchMode {
     Matrix,
 }
 
+/// 协调存储、控制器和工作节点选择的单轮派发引擎。
 pub struct DispatchEngine<'a, C>
 where
     C: ControllerAdapter + ?Sized,
@@ -88,6 +92,7 @@ where
         self
     }
 
+    /// 查找首个就绪任务并尝试派发；没有可派发任务时返回 `Ok(None)`。
     pub async fn dispatch_once(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -101,6 +106,7 @@ where
         self.dispatch_task(project_path, task, now_ms).await
     }
 
+    /// 仅尝试指定任务，任务不存在或尚未就绪时返回 `Ok(None)`。
     pub async fn dispatch_task_once(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),

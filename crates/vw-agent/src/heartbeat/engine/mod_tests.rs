@@ -1,4 +1,6 @@
 // 验证心跳引擎的调度、状态更新与停止流程。
+
+// 临时心跳文件与暂停时间共同验证循环可停止，单次错误不会终止后续周期。
 use super::*;
 use crate::app::agent::observability::traits::ObserverMetric;
 use std::sync::Once;
@@ -59,6 +61,7 @@ fn enable_info_tracing() {
 }
 
 #[derive(Default)]
+// 记录观察器收集循环事件与错误，不把测试绑定到具体日志后端。
 struct RecordingObserver {
     ticks: AtomicUsize,
     errors: AtomicUsize,

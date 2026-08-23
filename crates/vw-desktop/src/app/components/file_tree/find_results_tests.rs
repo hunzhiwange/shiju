@@ -1,3 +1,6 @@
+//! 验证文件搜索标签、结果分页、路径预览、快捷键和窄面板布局。
+//! fixture 包含零长度、越界和 Unicode 命中，确保高亮失败时仍能构造稳定预览卡片。
+
 use super::find_results::{
     FIND_CASE_SHORTCUT, FIND_REGEX_SHORTCUT, FIND_RESULT_ITEM_ICON_SIZE,
     FIND_RESULTS_SCROLLBAR_GUTTER, FIND_RESULTS_TAB_HEIGHT, FIND_WHOLE_WORD_SHORTCUT,
@@ -55,6 +58,7 @@ fn find_match(
     }
 }
 
+// 只读取控件树直接子节点，测试关注页面骨架而不绑定子控件内部实现。
 fn child_count(element: Element<'_, Message>) -> usize {
     Tree::new(element.as_widget()).children.len()
 }

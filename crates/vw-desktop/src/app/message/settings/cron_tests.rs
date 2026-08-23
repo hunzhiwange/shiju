@@ -1,3 +1,6 @@
+// 验证定时任务加载、选择、历史格式化与兼容字段推断。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
@@ -52,6 +55,8 @@ fn run(id: i64, output: Option<&str>, duration_ms: Option<i64>) -> CronRunDto {
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn format_run_history_text_formats_multiple_runs_and_missing_values() {
     let runs = vec![run(1, Some("hello"), Some(12)), run(2, None, None)];
@@ -200,6 +205,8 @@ fn run_history_ignores_stale_results_and_handles_error_and_close() {
     assert_eq!(app.cron_settings.runs_modal_error, None);
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn run_history_success_populates_read_only_text_state() {
     let mut app = app();
@@ -433,6 +440,8 @@ fn config_messages_apply_values_and_clamp_history_bounds() {
     assert_eq!(app.cron_settings.max_run_history, 10_000);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn run_history_open_resets_previous_modal_state() {
     let mut app = app();
@@ -627,6 +636,8 @@ fn jobs_tab_selection_starts_loading_and_clears_transient_messages() {
     assert_eq!(app.cron_settings.action_status, None);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn mutation_actions_clear_errors_when_they_can_start() {
     let mut app = app();

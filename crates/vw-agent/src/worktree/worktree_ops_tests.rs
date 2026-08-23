@@ -1,12 +1,14 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 //! 验证 worktree 创建、列举、重置和删除操作及缺失项目上下文的失败边界。
+//! 破坏性场景仅作用于临时仓库，并显式确认主工作区不会被重置或删除。
 
 use super::{CreateInput, Error, RemoveInput, ResetInput, create, list_directories, remove, reset};
 use crate::app::agent::project::{self, instance};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+// 统一匹配错误变体，避免只比较字符串而漏掉错误分类回归。
 fn assert_missing_project_context(error: Error) {
     match error {
         Error::MissingProject(message) => assert_eq!(message, "missing project context"),

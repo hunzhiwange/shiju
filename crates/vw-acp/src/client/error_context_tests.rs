@@ -1,4 +1,6 @@
 //! 验证子进程上下文对协议错误的补充、截断与兼容分类。
+//!
+//! 人工构造的退出摘要用于精确控制退出码、信号和标准错误片段。
 
 use crate::AcpError;
 
@@ -25,6 +27,7 @@ fn wrap_set_model(raw: &str, context: Option<&str>) -> AcpError {
     )
 }
 
+// 下列行为用例覆盖上下文补充、预览截断和不支持方法的兼容识别。
 #[test]
 fn enrich_initialize_error_includes_exit_code_signal_and_trimmed_stderr() {
     let err = AcpError::Initialize("handshake failed".to_string());

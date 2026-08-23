@@ -1,4 +1,5 @@
 //! 验证井号注释校验器识别可能隐藏后续命令语义的输入。
+//! 合法字面量场景保持允许，以约束注释边界检测不产生宽泛误报。
 
 use super::*;
 use crate::tools::shell::ast::parse_command;

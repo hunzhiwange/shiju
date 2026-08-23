@@ -1,3 +1,6 @@
+//! 验证模型路由设置的空态、路由卡片、字段结构与编辑消息连线。
+//! 空字段仍需保留全部编辑器，源码连线断言守住每个字段的消息目标。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::ModelRoute;
@@ -5,6 +8,7 @@ use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
+// 模型路由从空目录开始构造，使空态和卡片数量断言彼此独立。
 fn test_app() -> App {
     App::new().0
 }

@@ -1,3 +1,6 @@
+//! 验证工具选择器的查询匹配、作用域标签、尺寸限制与主题对比度。
+//! 搜索 fixture 混合空白、大小写和多个字段，确保命中规则宽松但预览尺寸受控。
+
 use super::tool_selector::{
     SESSION_SELECTOR_LIST_MAX_HEIGHT, SESSION_SELECTOR_SCROLLBAR_WIDTH,
     SESSION_SELECTOR_SKILL_DESCRIPTION_CHARS, context_list_button_style, context_row_text_color,

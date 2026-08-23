@@ -10,6 +10,7 @@ fn display_formats_command_risk_levels() {
 }
 
 #[test]
+// 这些枚举会频繁参与策略分支，复制和比较契约避免不必要所有权转移。
 fn lightweight_policy_enums_are_copy_and_comparable() {
     let read = ToolOperation::Read;
     let act = ToolOperation::Act;

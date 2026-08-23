@@ -1,9 +1,14 @@
+//! 验证技能目录来源、提示注入模式与安全策略的默认值和解析规则。
+//! 外部名称、显示标签和安全子开关分别锁定，避免配置迁移时相互耦合。
+
+// 此哨兵保护拆分后的技能配置测试文件仍由父模块编译。
 #[test]
 fn task_631_test_module_is_wired() {
     let path = std::path::Path::new(file!());
     assert!(path.ends_with("skills_tests.rs"));
 }
 
+// 默认只读取 VibeWindow 技能目录，开放技能和额外注入能力均需显式开启。
 #[test]
 fn skills_config_defaults_to_vibewindow_directory_provider() {
     let config = super::SkillsConfig::default();
@@ -21,6 +26,7 @@ fn skills_config_defaults_to_vibewindow_directory_provider() {
     assert_eq!(parsed.prompt_injection_mode, super::SkillsPromptInjectionMode::Compact);
 }
 
+// 每项安全检查都可独立配置；空对象必须保持全部关闭的兼容行为。
 #[test]
 fn skill_security_defaults_off_and_round_trips_independently() {
     fn assert_all_disabled(security: &super::SkillSecurityConfig) {
@@ -73,6 +79,7 @@ fn skill_security_defaults_off_and_round_trips_independently() {
     assert_eq!(round_tripped.security, configured.security);
 }
 
+// 目录来源的 serde 名称、用户标签和枚举顺序共同构成设置界面契约。
 #[test]
 fn skills_directory_provider_round_trips_as_snake_case() {
     let config = super::SkillsConfig {
@@ -116,6 +123,7 @@ fn skills_directory_provider_labels_match_display_and_all_order() {
     );
 }
 
+// 解析器接受已公布别名和大小写差异，但未知来源不能静默回退。
 #[test]
 fn parse_skills_directory_provider_accepts_supported_aliases() {
     let cases = [
@@ -141,6 +149,7 @@ fn parse_skills_directory_provider_rejects_unknown_values() {
     }
 }
 
+// 提示注入模式同样先清理输入再匹配，错误值需向调用方返回明确失败。
 #[test]
 fn parse_skills_prompt_injection_mode_accepts_trimmed_case_insensitive_values() {
     assert_eq!(
@@ -169,6 +178,7 @@ fn skills_prompt_injection_mode_round_trips_as_snake_case() {
     assert_eq!(parsed, super::SkillsPromptInjectionMode::Compact);
 }
 
+// 完整配置读取确认开放技能目录与注入模式覆盖项不会被默认值吞掉。
 #[test]
 fn skills_config_deserializes_open_skills_and_prompt_mode_overrides() {
     let parsed: super::SkillsConfig = serde_json::from_value(serde_json::json!({

@@ -1,3 +1,6 @@
+//! 验证操作类图标注册表完整写入且不会清除既有条目。
+//! 预置哨兵条目用于区分“追加注册”与错误的整表替换。
+
 #[test]
 fn task_635_test_module_is_wired() {
     let path = std::path::Path::new(file!());

@@ -1,9 +1,11 @@
 //! 验证新版技能安装的来源解析、安全校验和落盘行为。
+//! 失败路径必须清理临时目录和 Git 元数据，静态审计不通过时不得污染安装目标。
 
 use super::*;
 use std::ffi::OsString;
 
 #[cfg(not(target_arch = "wasm32"))]
+// 环境守卫在离开作用域时恢复原值，防止 Git 夹具污染后续技能测试。
 struct EnvGuard {
     key: &'static str,
     previous: Option<OsString>,
@@ -373,6 +375,7 @@ fn secure_copy_rejects_symlink_sources_and_entries() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+// 安装失败组同时检查错误和目录残留，确保审计失败不会留下可被发现的半成品。
 fn local_install_success_and_failure_paths_are_audited_and_cleaned() {
     let dir = tempfile::tempdir().expect("temp dir");
     let skills_path = dir.path().join("skills");

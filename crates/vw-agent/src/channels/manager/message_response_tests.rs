@@ -1,3 +1,5 @@
+// 本文件验证消息响应的草稿、反应、钩子与渠道发送协作。
+
 use super::*;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::AutonomyConfig;
@@ -35,6 +37,7 @@ impl Channel for RecordingChannel {
         Ok(())
     }
 
+// 假渠道分别记录草稿完成与取消，使响应状态转换可独立断言。
     async fn finalize_draft(
         &self,
         _recipient: &str,
@@ -760,4 +763,3 @@ async fn timeout_finalizes_existing_draft() {
         ]
     );
 }
-// 本文件验证消息响应的草稿、反应、钩子与渠道发送协作。

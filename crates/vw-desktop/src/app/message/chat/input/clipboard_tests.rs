@@ -1,3 +1,7 @@
+//! 验证剪贴板文本与图片载荷的分类、缓存和尺寸边界。
+//!
+//! 大文本按阈值转为附件，图片尺寸则显式检查零值和超出无符号整数范围。
+
 use super::{
     clipboard_attachment_payload, clipboard_image_dimensions, clipboard_text_payload,
     resolved_clipboard_message,

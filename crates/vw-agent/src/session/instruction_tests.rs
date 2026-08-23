@@ -166,6 +166,7 @@ async fn resolve_relative_warns_to_empty_when_project_config_is_disabled_without
 }
 
 #[tokio::test]
+// 项目配置关闭时，相对路径仍被约束在配置目录内。
 async fn resolve_relative_when_project_config_is_disabled_stays_inside_config_dir() {
     let _guard = ENV_LOCK.lock().await;
     let config_dir = tempfile::tempdir().expect("config dir");
@@ -199,6 +200,7 @@ async fn resolve_relative_uses_project_instance_when_project_config_is_enabled()
 }
 
 #[tokio::test]
+// 指令认领按消息隔离，清理一个消息不能影响其他轮次。
 async fn claim_is_scoped_by_message_id_and_clear_removes_claims() {
     let message_id = unique_id("claim");
     let other_message_id = format!("{message_id}-other");
@@ -347,6 +349,7 @@ async fn project_agents_keeps_skill_paths_as_plain_agents_content() {
 }
 
 #[tokio::test]
+// 项目指令中的技能引用只保留文本语义，不在此阶段隐式加载技能正文。
 async fn project_agents_does_not_preload_referenced_skill_instructions() {
     let _guard = ENV_LOCK.lock().await;
     let selected = tempfile::tempdir().expect("selected project");
@@ -521,6 +524,7 @@ async fn fetch_url_returns_empty_for_invalid_url() {
 }
 
 #[test]
+// 仅未被压缩的读取元数据参与去重，压缩后的路径允许重新注入。
 fn loaded_collects_uncompacted_read_and_file_read_metadata() {
     let messages = vec![with_parts(vec![
         completed_tool_part("read-1", "read", Some(json!(["/a", "/b", 7])), None),
@@ -577,6 +581,7 @@ async fn find_ignores_context_when_it_is_the_only_candidate() {
 }
 
 #[tokio::test]
+// 目标路径先做项目根边界检查，拒绝从外部目录加载指令。
 async fn resolve_rejects_target_outside_project_root() {
     let _guard = ENV_LOCK.lock().await;
     let project = tempfile::tempdir().expect("project dir");

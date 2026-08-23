@@ -130,6 +130,7 @@ async fn parts_use_current_layout_sort_by_part_id_and_skip_bad_records() {
 }
 
 #[tokio::test]
+// 新布局缺失时读取旧目录，保证升级后的既有会话仍可恢复。
 async fn parts_fall_back_to_legacy_session_message_layout() {
     let session_id = unique_session_id("parts-legacy");
     let message_id = format!("{session_id}-message-legacy");
@@ -147,6 +148,7 @@ async fn parts_fall_back_to_legacy_session_message_layout() {
 }
 
 #[tokio::test]
+// 新旧布局同时存在时以当前布局为准，避免合并出重复部件。
 async fn parts_prefer_current_layout_when_legacy_parts_also_exist() {
     let session_id = unique_session_id("parts-current-preferred");
     let message_id = format!("{session_id}-message");
@@ -215,6 +217,7 @@ async fn get_combines_message_info_with_sorted_parts() {
 }
 
 #[tokio::test]
+// 列表先按时间倒序限量，并跳过损坏记录而不阻断其余会话。
 async fn messages_are_newest_first_limited_and_skip_unreadable_entries() {
     let session_id = unique_session_id("messages");
     let older = user_info(&session_id, "001");

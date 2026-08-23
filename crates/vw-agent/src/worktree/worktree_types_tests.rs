@@ -1,4 +1,5 @@
 //! 验证 worktree 公共类型的默认值、序列化字段与错误转换契约。
+//! JSON 线名、必填字段及底层错误信息均属于调用方可观察的稳定接口。
 
 use super::{CreateInput, Error, Info, RemoveInput, ResetInput};
 

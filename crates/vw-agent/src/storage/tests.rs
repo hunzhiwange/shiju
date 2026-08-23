@@ -1,4 +1,5 @@
 //! 验证通用存储键值操作、路径隔离与持久化行为。
+//! 文件系统夹具覆盖序列化失败、原子更新和非法目标类型，错误时原 JSON 必须保持不变。
 
 use super::*;
 use serde_json::json;
@@ -245,6 +246,7 @@ async fn write_reports_parent_path_file_as_io_error() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
+// 更新失败后重新读取原值，证明序列化发生在替换文件之前。
 async fn update_serialization_error_leaves_original_json_unchanged() {
     let run_id = Uuid::new_v4().to_string();
     let key = ["test-storage", run_id.as_str(), "update-serialization-failure"];
@@ -325,6 +327,7 @@ async fn read_and_update_report_missing_or_invalid_json() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+// 原生存储迁移只读取有效项目目录；无提交仓库没有可用的根提交标识。
 fn migration_helpers_handle_absent_project_dir_and_root_commit() {
     let temp = TempDir::new().expect("tempdir should create");
     migration_0_blocking(temp.path()).expect("missing legacy project dir should be ignored");

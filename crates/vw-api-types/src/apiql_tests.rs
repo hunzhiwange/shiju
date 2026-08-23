@@ -3,6 +3,7 @@
 use super::apiql::{ApiQlEntityConfig, ApiQlListMode, ApiQlPageDto, ApiQlResponse};
 use serde_json::{Value, json};
 
+// 固化 PHP 商品实体的完整属性顺序，避免迁移时只保留查询字段而丢失元数据。
 const PRODUCT_PROPERTY_NAMES: &[&str] = &[
     "id",
     "platformId",
@@ -117,6 +118,7 @@ const PRODUCT_PROPERTY_NAMES: &[&str] = &[
     "productExtend",
 ];
 
+// 品牌 fixture 使用独立属性清单，确保不同实体不会误共享商品字段。
 const PRODUCT_BRAND_PROPERTY_NAMES: &[&str] = &[
     "id",
     "platformId",
@@ -133,6 +135,7 @@ const PRODUCT_BRAND_PROPERTY_NAMES: &[&str] = &[
     "version",
 ];
 
+// 响应必须沿用 PHP 分页对象的字段名，并且不能回退为通用的 `items` 形状。
 #[test]
 fn apiql_response_serializes_php_page_shape() {
     let response = ApiQlResponse {
@@ -172,6 +175,7 @@ fn apiql_response_serializes_php_page_shape() {
     assert!(value.get("items").is_none());
 }
 
+// 列表模式枚举以 snake_case 作为跨语言协议值。
 #[test]
 fn apiql_list_modes_round_trip_snake_case() {
     let cases = [
@@ -191,6 +195,7 @@ fn apiql_list_modes_round_trip_snake_case() {
     }
 }
 
+// 两份高保真实体 fixture 覆盖属性、索引、关系、作用域和生命周期扩展元数据。
 #[test]
 fn apiql_entity_config_preserves_full_php_entity_metadata() {
     let raw = json!([
@@ -349,6 +354,7 @@ fn apiql_entity_config_preserves_full_php_entity_metadata() {
     assert_eq!(serialized[1]["properties"].as_array().unwrap().len(), 13);
 }
 
+// 构造实体配置中的精简查询字段，避免 fixture 重复掩盖差异。
 fn query_field(name: &str, column: &str, searchable: bool, sortable: bool) -> Value {
     json!({
         "name": name,
@@ -358,14 +364,17 @@ fn query_field(name: &str, column: &str, searchable: bool, sortable: bool) -> Va
     })
 }
 
+// 按固化顺序展开商品属性 fixture。
 fn product_properties() -> Vec<Value> {
     PRODUCT_PROPERTY_NAMES.iter().map(|name| product_property(name)).collect()
 }
 
+// 按固化顺序展开品牌属性 fixture。
 fn product_brand_properties() -> Vec<Value> {
     PRODUCT_BRAND_PROPERTY_NAMES.iter().map(|name| product_brand_property(name)).collect()
 }
 
+// 只为具有特殊契约的商品属性附加类型、校验或关系元数据。
 fn product_property(name: &str) -> Value {
     match name {
         "spuNo" => json!({
@@ -452,6 +461,7 @@ fn product_property(name: &str) -> Value {
     }
 }
 
+// 构造品牌属性的搜索和枚举元数据，其余字段保持最小形状。
 fn product_brand_property(name: &str) -> Value {
     match name {
         "brandNo" | "name" => json!({

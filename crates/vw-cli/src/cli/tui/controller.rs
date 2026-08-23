@@ -1,4 +1,7 @@
-//! Minimal input-to-command boundary used by the active TUI host.
+//! 活动 TUI 宿主使用的输入事件到语义命令的最小边界。
+//!
+//! 控制器只负责键位路由和提交快照构造；状态转换仍通过 reducer 执行，
+//! Gateway 请求和对话框副作则交给宿主与 bridge。
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -7,31 +10,39 @@ use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers}
 use super::model::{PermissionDecision, PromptSubmission, UiQuestionOverlay};
 use super::state::{TuiAction, TuiState, reduce_tui_state};
 
+/// 控制器可接收的时钟或终端事件。
 #[derive(Debug)]
 pub(crate) enum TuiControllerEvent {
     Tick,
     Terminal(CrosstermEvent),
 }
 
+/// 需要由宿主提交给对应运行时的对话框结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum TuiOverlayCommand {
     PermissionDecision(PermissionDecision),
     QuestionSubmitted(UiQuestionOverlay),
 }
 
+/// 输入路由后产生的显式宿主命令。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum TuiControllerCommand {
     Continue,
     Quit,
     CancelActiveSubmission,
+    QueuePrompt(String),
+    OpenTranscript,
+    OpenExternalEditor,
     Overlay(TuiOverlayCommand),
     SubmitPrompt(PromptSubmission),
 }
 
+/// 无持久状态的 TUI 输入控制器。
 #[derive(Debug, Clone, Default)]
 pub(crate) struct TuiController;
 
 impl TuiController {
+    /// 处理一个输入事件；未映射事件显式返回 `Continue`。
     pub(crate) fn handle_event(
         &mut self,
         state: &mut TuiState,
@@ -72,6 +83,7 @@ impl TuiController {
     }
 }
 
+/// 从当前会话状态捕获不可变的提交快照；空白文本不产生提交。
 pub(crate) fn build_prompt_submission(
     state: &TuiState,
     text: &str,

@@ -74,6 +74,7 @@ async fn response_json(response: axum::response::Response) -> serde_json::Value 
     serde_json::from_slice(&bytes).expect("body should be json")
 }
 
+// 状态和健康接口共用认证夹具，但分别断言运行时快照与健康摘要的公开边界。
 #[test]
 fn status_handlers_are_available() {
     let _ = handle_api_status;

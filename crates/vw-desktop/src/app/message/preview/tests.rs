@@ -1,3 +1,8 @@
+// 验证预览顶层消息分派及弹出菜单的统一清理。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -28,6 +33,8 @@ fn dismiss_preview_popup_menus_clears_all_preview_menu_state() {
     assert!(app.preview_tab_menu_pos.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_routes_search_message_without_side_effects() {
     let mut app = crate::app::App::new().0;
@@ -59,6 +66,8 @@ fn update_routes_editor_message_to_editor_handler() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 消息与任务边界：确认输入消息产生预期状态或返回任务。
+// 场景外状态必须保持不变，避免无关消息触发隐藏副作用。
 #[test]
 fn update_routes_editor_mouse_message_to_editor_handler() {
     let mut app = crate::app::App::new().0;
@@ -87,6 +96,8 @@ fn update_routes_lsp_message_to_editor_handler() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn tick_lsp_routes_to_lsp_tick_when_disabled() {
     let mut app = crate::app::App::new().0;

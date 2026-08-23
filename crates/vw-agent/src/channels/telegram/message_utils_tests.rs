@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 消息拆分、确认表情选择与请求字段保留。
+
 use super::message_utils::{
     TELEGRAM_ACK_REACTIONS, TELEGRAM_MAX_MESSAGE_LENGTH, build_telegram_ack_reaction_request,
     random_telegram_ack_reaction, split_message_for_telegram,
@@ -74,6 +76,7 @@ fn split_message_hard_splits_when_early_newline_has_no_later_space() {
 }
 
 #[test]
+// 仅在找不到换行或空格时硬切分，尽量保持自然语义。
 fn split_message_hard_splits_when_no_natural_boundary_exists() {
     let message = "测".repeat(TELEGRAM_MAX_MESSAGE_LENGTH + 10);
 
@@ -98,4 +101,3 @@ fn ack_reaction_request_preserves_fields() {
     assert_eq!(request["reaction"][0]["type"], "emoji");
     assert_eq!(request["reaction"][0]["emoji"], "👍");
 }
-// 本文件验证 Telegram 消息拆分、确认表情选择与请求字段保留。

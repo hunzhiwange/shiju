@@ -1,6 +1,10 @@
+//! 验证代理与工作区配置的默认值、合并规则、兼容序列化及权限边界。
+//! 用例按路径解析、单代理契约、内置目录合并和角色安全限制组织。
+
 use std::path::Path;
 use std::{collections::HashMap, path::PathBuf};
 
+// 工作区根目录允许相对配置，但最终必须稳定地解析到配置目录之下。
 #[test]
 fn workspaces_config_resolves_default_and_relative_roots() {
     let config_dir = Path::new("/tmp/vw");
@@ -13,6 +17,7 @@ fn workspaces_config_resolves_default_and_relative_roots() {
     assert_eq!(relative, config_dir.join("custom"));
 }
 
+// 单代理默认值与序列化往返共同保护运行预算和子代理控制字段。
 #[test]
 fn agent_definition_defaults_and_builtin_specs_are_stable() {
     let definition = super::AgentDefinitionConfig::default();
@@ -309,6 +314,7 @@ fn agent_definition_debug_redacts_api_key_and_includes_runtime_fields() {
     assert!(!debug.contains("sk-secret"));
 }
 
+// 内置目录合并必须维持规范顺序和元数据，同时允许用户自定义条目共存。
 #[test]
 fn builtin_agent_keys_follow_spec_order() {
     let keys = super::builtin_agent_keys();
@@ -369,6 +375,7 @@ fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
     assert!(super::builtin_agent_config("compaction").is_none());
 }
 
+// 已退役角色和配置覆盖都不能重新扩大内置代理的委派及工具权限边界。
 #[test]
 fn retired_builtin_agents_cannot_reenter_effective_catalog() {
     let configured = ["build", "plan", "compaction", "title", "summary"]

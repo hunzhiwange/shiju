@@ -1,8 +1,11 @@
+//! 处理应用面板导航，并为模型用量查询选择匹配的提供商。
+
 use super::ViewMessage;
 use crate::app::views::workflow_manager::{WorkflowManagerMessage, WorkflowManagerTab};
 use crate::app::{App, Message, Screen, state::UsageModelInfo};
 use iced::Task;
 
+/// 依据模型命名约定选择用量提供商，无法精确匹配时稳定回退到首项。
 pub(super) fn pick_usage_provider_id(candidates: &[String], model_id: &str) -> Option<String> {
     if candidates.is_empty() {
         return None;
@@ -43,6 +46,7 @@ pub(super) fn pick_usage_provider_id(candidates: &[String], model_id: &str) -> O
     Some(candidates[0].clone())
 }
 
+/// 处理应用面板导航和模型用量刷新消息。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     let open_workflow_manager_stage_actions =
         matches!(message, ViewMessage::OpenWorkflowManagerStageActions);

@@ -1,4 +1,5 @@
 //! 验证始居账号状态的序列化、缓存与错误映射契约。
+//! HTTP 夹具区分登录、轮询、资料与密码接口，并检查授权地址和错误正文不会越过信任边界。
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -6,6 +7,7 @@ use std::thread;
 
 use super::*;
 
+// 轻量 HTTP 夹具按顺序返回响应并回收请求文本，便于同时断言路由、头部和载荷。
 fn fixture(responses: Vec<String>) -> (String, thread::JoinHandle<Vec<String>>) {
     fixture_with_status(responses.into_iter().map(|body| ("200 OK".to_string(), body)).collect())
 }
@@ -115,6 +117,7 @@ async fn shiju_account_adapter_maps_login_poll_and_profile() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 授权地址在返回给调用者前必须经过信任校验，不能仅依赖上游声明。
 async fn shiju_account_adapter_rejects_untrusted_authorization_url() {
     let state = "fixture-state-secret";
     let credential = "fixture-credential-secret";

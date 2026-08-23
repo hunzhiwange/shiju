@@ -1,4 +1,5 @@
 //! 测试发件箱存储的领取租约、重试状态与并发幂等性。
+//! 并发领取屏障确认同一消息只有一个持有者，过期后才允许重新领取。
 
 use std::path::Path;
 use std::sync::{Arc, Barrier};
@@ -527,6 +528,7 @@ fn assert_failed_message(
     assert_eq!(message.updated_at_ms, failed_at_ms);
 }
 
+// 复用同一领取与重试场景，验证不同后端遵守相同发件箱状态机。
 fn for_each_outbox_store_provider(
     mut check: impl FnMut(
         &AgentSchedulerStore,

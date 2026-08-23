@@ -1,3 +1,7 @@
+//! 通用工具卡片的摘要提取与渲染测试。
+//! 覆盖路径压缩、搜索、Shell、浏览器、补丁和 Todo 等工具的主次详情选择。
+//! 降级逻辑必须能处理稀疏或畸形输入，并忽略敏感或过度冗长的通用字段。
+
 use super::{render_tool_card, tool_summary_cli, toolcards::compact_cli_path};
 use ratatui::text::Line;
 use serde_json::json;

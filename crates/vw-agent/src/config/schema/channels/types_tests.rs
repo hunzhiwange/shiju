@@ -6,6 +6,7 @@ use super::types::{
 };
 use crate::app::agent::config::traits::ChannelConfig;
 
+// 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
 #[test]
 fn core_channel_metadata_is_stable() {
     assert_eq!(TelegramConfig::name(), "Telegram");

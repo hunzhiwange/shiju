@@ -129,6 +129,7 @@ fn stream_input_keeps_all_request_fields() {
 }
 
 #[test]
+// 克隆请求保留显式空选项，并共享可观察的中止接收端状态。
 fn stream_input_clone_preserves_empty_options_and_observes_abort_updates() {
     let (abort_tx, abort_rx) = tokio::sync::watch::channel(false);
     let input = StreamInput {
@@ -261,6 +262,7 @@ fn error_display_formats_provider_abort_and_unknown_variants() {
 }
 
 #[test]
+// 结构化助手错误的显示文本属于跨层诊断契约。
 fn error_display_serializes_each_structured_assistant_error_variant() {
     let cases = [
         (

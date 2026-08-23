@@ -1,4 +1,5 @@
 //! 测试代理构建器的必需依赖校验、默认配置与工具规格收集。
+//! 最小伪实现按依赖装配顺序暴露缺失项，并确认可选配置不会改变默认契约。
 
 use super::builder::AgentBuilder;
 use crate::app::agent::agent::memory_loader::MemoryLoader;
@@ -75,6 +76,7 @@ impl MemoryLoader for TestMemoryLoader {
     }
 }
 
+// 从最小可构建状态出发，缺失依赖测试再按装配顺序逐项移除。
 fn required_builder() -> AgentBuilder {
     AgentBuilder::new()
         .tools(vec![Box::new(TestTool { name: "first_tool" })])

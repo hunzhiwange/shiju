@@ -22,6 +22,7 @@ use super::chunks::replace_document_chunks;
 use super::datasets::{i64_from_u64, u64_from_i64};
 
 impl PostgresKnowledgeStore {
+    /// 校验导入元数据并创建排队中的文档与索引任务。
     pub(in crate::knowledge::store) fn enqueue_import(
         &self,
         tenant: &TenantScope,
@@ -102,6 +103,7 @@ impl PostgresKnowledgeStore {
         })
     }
 
+    /// 按租户读取索引任务。
     pub(in crate::knowledge::store) fn get_index_job(
         &self,
         tenant: &TenantScope,
@@ -111,6 +113,7 @@ impl PostgresKnowledgeStore {
         query_index_job(&mut *connection, tenant, job_id)
     }
 
+    /// 在事务内回收过期租约并领取下一个可执行任务。
     pub(in crate::knowledge::store) fn claim_next_index_job(
         &self,
         tenant: &TenantScope,
@@ -200,6 +203,7 @@ impl PostgresKnowledgeStore {
         Ok(Some(claimed))
     }
 
+    /// 原子提交导入解析结果、文档分块和任务成功状态。
     pub(in crate::knowledge::store) fn complete_index_job(
         &self,
         tenant: &TenantScope,
@@ -272,6 +276,7 @@ impl PostgresKnowledgeStore {
             .context("completed PostgreSQL knowledge index job was not found")
     }
 
+    /// 根据尝试次数安排退避重试，超过上限时把任务和文档标记为失败。
     pub(in crate::knowledge::store) fn retry_or_fail_index_job(
         &self,
         tenant: &TenantScope,

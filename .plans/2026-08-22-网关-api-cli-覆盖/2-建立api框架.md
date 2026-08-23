@@ -2,7 +2,7 @@
 
 批次：【批次 2】 依赖批次 1
 
-状态：未开始
+状态：已完成，待回归
 
 目的：新增统一的远程 Gateway 命名空间、连接上下文、JSON 输入输出和危险操作确认。
 
@@ -55,3 +55,11 @@
 
 `crates/vw-cli/src/handlers/api/` 成为后续接口族唯一共享 CLI 边界，`cli.rs` 与 `lib.rs` 仅做薄注册和分发。
 
+## 回归记录（2026-08-23）
+
+- 已实现 `shiju api provider list` 示例及共享 context/input/output/确认边界。
+- 失败验证已确认缺少 `Commands::Api`、context/input/output 与确认函数。
+- 隔离执行同一目标测试：1 通过、0 失败；真实请求头、输出快照、认证脱敏和拒绝分支均通过。
+- `cargo test -p vw-cli api_cli_context_input_output_and_confirmation_are_stable --lib` 已重试三次，均在编译 `vw-agent` 时被本任务外错误截断；最近一次为 PostgreSQL/存储层 102 个编译错误，未进入 `vw-cli`。
+- `cargo clippy --all-targets --all-features -- -D warnings` 已运行，因 `vw-agent` 的 102 个库错误及 489 个测试目标错误退出 101；首批错误包括多个 PostgreSQL 文件的悬空文档注释、类型推断失败，以及 Lark 测试支持符号缺失。
+- 未修改上述无关文件；待工作区相关并发改动恢复可编译后，重新运行两条规定命令。

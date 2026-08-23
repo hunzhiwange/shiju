@@ -1,4 +1,5 @@
 //! 测试任务存储的状态转换、周期字段、筛选和任务板投影。
+//! 跨后端断言覆盖有限与周期任务，并验证错误更新不会改变原记录。
 
 use std::path::Path;
 
@@ -1094,6 +1095,7 @@ fn state_json_path(project_path: &Path) -> std::path::PathBuf {
     project_path.join("state.json")
 }
 
+// 跨后端复用任务状态与筛选断言，避免只在单一数据库实现上成立。
 fn for_each_task_store_provider(
     mut check: impl FnMut(&AgentSchedulerStore, &AgentSchedulerContext) -> Result<()>,
 ) -> Result<()> {

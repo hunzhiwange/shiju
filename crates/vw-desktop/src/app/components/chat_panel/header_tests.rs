@@ -1,3 +1,6 @@
+//! 验证聊天标题栏的会话状态、工作区标记、返回操作与主题样式。
+//! fixture 组合近期会话、项目缓存和运行态队列，覆盖父会话回退查找与空标识拒绝。
+
 use super::*;
 use crate::app::state::{AcpHistoryReplayMode, ChatSendBehavior, QueueItem, SessionRuntimeState};
 use iced::widget::button;

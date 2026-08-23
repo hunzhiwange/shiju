@@ -13,6 +13,9 @@ use std::sync::Arc;
 const BLOCKED_DELEGATE_TOOL_IDS: [&str; 6] =
     ["AgentTool", "batch", "delegate", "subagent_manage", "subagent_spawn", "agent_tool"];
 
+/// 从父代理工具集中构建委派代理可见的最小权限集合。
+///
+/// 允许列表、技能能力与全局禁用项共同取交集，委派类工具始终排除以阻止递归扩权。
 pub(crate) fn build_agentic_tools(
     parent_tools: &[Arc<dyn Tool>],
     agent_config: &DelegateAgentConfig,

@@ -1,4 +1,6 @@
 // 验证健康检查与指标端点的访问限制、内容类型和运行时快照。
+
+// 公网客户端与回环地址分开构造，用于确认指标端点不会因关闭配对而放宽。
 use super::*;
 use crate::app::agent::config::Config;
 use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};

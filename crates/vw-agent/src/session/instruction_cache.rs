@@ -9,7 +9,7 @@ use std::time::SystemTime;
 
 use super::{InstructionSource, Resolved};
 
-/// Why instructions were resolved instead of served from the cache.
+/// 指令本次被加载或复用的原因。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoadReason {
     Initial,
@@ -19,7 +19,7 @@ pub enum LoadReason {
     Compaction,
 }
 
-/// Read-only details emitted after an instruction reload.
+/// 指令重新加载后发出的只读事件详情。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InstructionsLoaded {
     pub workspace: String,
@@ -29,11 +29,13 @@ pub struct InstructionsLoaded {
     pub files: Vec<String>,
 }
 
-/// Observer for instruction reloads. Failures are informational and cannot alter the result.
+/// 指令加载观察者；回调失败仅记录诊断，不得改变解析结果。
 pub trait InstructionsLoadedHook {
+    /// 接收一次只读加载事件。
     fn instructions_loaded(&self, event: &InstructionsLoaded) -> Result<(), String>;
 }
 
+/// 以工作区、会话和入口文件为联合键的指令缓存。
 #[derive(Debug, Default)]
 pub struct InstructionCache {
     entries: HashMap<CacheKey, CacheEntry>,
@@ -61,7 +63,7 @@ struct FileState {
 }
 
 impl InstructionCache {
-    /// Resolve a file, reusing a still-current entry for the same workspace and session.
+    /// 解析入口文件；同工作区和会话的来源文件均未变化时复用缓存。
     pub fn load(
         &mut self,
         workspace: &Path,
@@ -72,7 +74,9 @@ impl InstructionCache {
         self.load_with_hook(workspace, session, filepath, loader, None)
     }
 
-    /// Resolve a file and emit a best-effort read-only load event when it is reloaded.
+    /// 解析入口文件，并在实际重载后尽力发出只读事件。
+    ///
+    /// 钩子错误只写入告警，绝不使已成功的指令解析失败。
     pub fn load_with_hook(
         &mut self,
         workspace: &Path,
@@ -120,12 +124,12 @@ impl InstructionCache {
         (resolved, reason)
     }
 
-    /// Mark every cached instruction in a workspace/session pair stale after a normal clear.
+    /// 在普通清理后把指定工作区和会话的全部缓存标记为过期。
     pub fn clear_session(&mut self, workspace: &Path, session: &str) {
         self.invalidate_session(workspace, session, LoadReason::Cleared);
     }
 
-    /// Mark every cached instruction in a workspace/session pair stale after compaction.
+    /// 在上下文压缩后把指定工作区和会话的全部缓存标记为过期。
     pub fn invalidate_for_compaction(&mut self, workspace: &Path, session: &str) {
         self.invalidate_session(workspace, session, LoadReason::Compaction);
     }

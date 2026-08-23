@@ -1,3 +1,6 @@
+//! 验证预览菜单测试模块的装配入口。
+//! 菜单状态组合由主视图测试覆盖，此处用于防止条件测试模块被遗漏。
+
 #[test]
 fn menus_tests_are_wired() {
     assert!(module_path!().contains("menus_tests"));

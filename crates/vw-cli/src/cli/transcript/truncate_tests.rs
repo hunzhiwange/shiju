@@ -1,3 +1,6 @@
+//! CLI 文本截断辅助函数的 Unicode 边界测试。
+//! 确认截断按字符而非字节计数，并区分需要省略号、无需截断和零长度输出。
+
 use super::truncate::truncate_chars_cli;
 
 #[test]

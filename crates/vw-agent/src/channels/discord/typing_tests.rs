@@ -1,3 +1,5 @@
+// 本文件验证 Discord 输入状态任务的启停、替换与请求发送行为。
+
 use super::*;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -91,6 +93,7 @@ async fn start_typing_registers_handle_and_stop_removes_it() {
 }
 
 #[tokio::test]
+// 同一收件人的新任务取代旧任务，避免多个保活循环并行发送。
 async fn start_typing_replaces_existing_handle_for_same_recipient() {
     let handles = new_typing_handles();
 
@@ -172,4 +175,3 @@ async fn start_typing_keeps_handle_after_http_error_response() {
     server.await.expect("typing test server should finish");
     stop_typing(&handles, "channel-1").await.expect("typing task should stop");
 }
-// 本文件验证 Discord 输入状态任务的启停、替换与请求发送行为。

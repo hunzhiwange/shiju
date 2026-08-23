@@ -1,3 +1,6 @@
+// 验证网页搜索提供商、结果上限与超时配置校验。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -5,6 +8,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn normalize_provider_accepts_supported_names_and_falls_back() {
     assert_eq!(normalize_provider(" DDG "), "duckduckgo");
@@ -38,6 +43,8 @@ fn parse_max_results_applies_default_bounds_and_errors() {
     assert_eq!(parse_max_results("many").unwrap_err(), "max_results 必须是整数");
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn parse_timeout_secs_applies_default_and_rejects_invalid_values() {
     assert_eq!(parse_timeout_secs("\t").unwrap(), WebSearchConfig::default().timeout_secs);
@@ -81,6 +88,8 @@ fn update_ignores_unrelated_messages_and_handles_refresh_and_help() {
     assert!(app.web_search_settings.save_error.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_applies_each_edit_and_clears_stale_error() {
     let mut app = app();
@@ -152,6 +161,8 @@ fn update_reports_max_results_validation_errors_and_recovers() {
     assert!(app.web_search_settings.save_error.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_reports_timeout_validation_errors_and_recovers() {
     let mut app = app();

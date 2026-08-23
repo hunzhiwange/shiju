@@ -13,6 +13,7 @@ pub(super) struct DocProfile {
 }
 
 impl DocProfile {
+    /// 扫描原文并统计字符数、行数以及围栏外各级 Markdown 标题数量。
     pub(super) fn from_text(text: &str) -> Self {
         let mut profile = Self {
             total_chars: text.chars().count(),
@@ -39,6 +40,7 @@ impl DocProfile {
         profile
     }
 
+    /// 返回出现次数最多的标题层级；并列时优先选择层级更高的标题。
     pub(super) fn dominant_heading_level(&self) -> Option<usize> {
         if self.markdown_heading_total == 0 {
             return None;
@@ -55,6 +57,7 @@ impl DocProfile {
             .find_map(|(index, count)| (*count > 0).then_some(index + 1))
     }
 
+    /// 判断文档规模与标题密度是否足以启用标题感知分块。
     pub(super) fn should_use_heading_split(&self) -> bool {
         if self.total_lines == 0 || self.markdown_heading_total < 3 {
             return false;

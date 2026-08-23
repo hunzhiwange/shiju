@@ -1,3 +1,7 @@
+//! 验证可观测性设置在不同后端、追踪模式和输入边界下的视图结构。
+//!
+//! 夹具组合默认值、极值、空输入与未知值，并同时检查控件结构和回调消息。
+
 use super::*;
 use crate::app::message;
 use crate::app::{App, Message};
@@ -33,9 +37,7 @@ fn source_declares_symbol(name: &str) -> bool {
     needles.iter().any(|needle| SOURCE.contains(needle))
 }
 
-// ---------------------------------------------------------------------------
-// view() — backend & trace mode permutations
-// ---------------------------------------------------------------------------
+// 视图主体：覆盖日志后端与追踪模式的组合。
 
 #[test]
 fn view_builds_backend_trace_and_error_states() {
@@ -135,9 +137,7 @@ fn view_with_save_error() {
     keep_element(view(&app));
 }
 
-// ---------------------------------------------------------------------------
-// view_overlays()
-// ---------------------------------------------------------------------------
+// 浮层：分别验证无弹窗、编辑弹窗和帮助弹窗。
 
 #[test]
 fn overlays_return_base_dialog_or_help_modal() {
@@ -168,9 +168,7 @@ fn overlays_preserve_base_dimensions_when_help_modal_is_closed() {
     assert_eq!(element.as_widget().size().height, Length::Fixed(217.0));
 }
 
-// ---------------------------------------------------------------------------
-// field_row() — private helper directly testable via super::*
-// ---------------------------------------------------------------------------
+// 字段行：通过 `super::*` 直接检查私有布局辅助函数。
 
 #[test]
 fn field_row_builds_label_description_and_control() {
@@ -184,9 +182,7 @@ fn field_row_with_empty_label_and_description() {
     keep_element(el);
 }
 
-// ---------------------------------------------------------------------------
-// text_row() — private helper directly testable via super::*
-// ---------------------------------------------------------------------------
+// 文本行：覆盖空值、普通值与 Unicode 输入的控件结构。
 
 #[test]
 fn text_row_builds_label_placeholder_and_value() {
@@ -208,9 +204,7 @@ fn text_row_with_empty_strings() {
     keep_element(el);
 }
 
-// ---------------------------------------------------------------------------
-// Meta: symbol existence checks
-// ---------------------------------------------------------------------------
+// 元检查：防止计划要求覆盖的私有符号在重构时静默消失。
 
 #[test]
 fn system_settings_observability_tests_keeps_planned_coverage_targets() {

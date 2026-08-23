@@ -1,4 +1,5 @@
 //! 验证旧版 OpenSkills 发现与技能元数据转换行为。
+//! 同步标记同时覆盖过期和时钟倒退，后台拉取失败时已有仓库仍应保持可用。
 
 use super::*;
 
@@ -56,6 +57,7 @@ fn expired_sync_marker_requires_sync() {
 }
 
 #[test]
+// 未来时间戳视为时钟异常而非永久新鲜，防止同步因本机时间回拨长期停滞。
 fn future_sync_marker_requires_sync_for_clock_skew() {
     let dir = tempfile::tempdir().expect("temp dir");
     mark_open_skills_synced(dir.path()).unwrap();

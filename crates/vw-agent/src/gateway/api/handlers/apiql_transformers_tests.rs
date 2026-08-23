@@ -61,6 +61,7 @@ fn connection() -> ApiQlConnection {
     }
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[test]
 fn transformer_source_fields_parse_string_configs_and_deduplicate_aliases() {
     let registry = registry();
@@ -94,6 +95,7 @@ fn transformer_source_fields_parse_string_configs_and_deduplicate_aliases() {
     );
 }
 
+// 非法字段、运算符和解析器配置必须在生成查询或执行脚本前被拒绝。
 #[test]
 fn transformer_parsing_rejects_malformed_and_unsupported_configs() {
     let registry = registry();

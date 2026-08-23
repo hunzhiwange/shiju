@@ -1,4 +1,5 @@
 //! 验证工具 trait 的默认调用桥接、结果辅助方法与安全渲染回退。
+//! 失败 fixture 确认旧式错误会转换为结构化失败，而不会丢失模型可见信息。
 
 use super::*;
 use async_trait::async_trait;

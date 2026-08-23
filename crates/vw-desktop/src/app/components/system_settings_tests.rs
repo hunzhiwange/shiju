@@ -1,4 +1,8 @@
-// Tests for plan6 task 827.
+//! 验证系统设置导航目录、搜索结果、标签顺序和网络分组。
+//!
+//! 导航枚举与搜索目录分别审计顺序、唯一性和父子路径，避免入口可见但不可达。
+
+// 保留计划任务 827 的既定覆盖面。
 const SOURCE: &str = include_str!("system_settings.rs");
 
 use super::system_settings::{

@@ -1,3 +1,7 @@
+//! `vw-cli` 库层输入解析辅助函数的测试。
+//! 覆盖模型温度的有限边界、首个非空行的 Unicode 空白处理，以及项目目录的规范化与类型检查。
+//! 同时确认 ACP 子命令不暴露额外的命令专用参数。
+
 use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
 

@@ -18,6 +18,7 @@ use vw_api_types::task::{
 
 use crate::app::agent::project;
 
+// 临时 Git 仓库用于观察真实工作树状态转换，而不只检查 HTTP 响应形状。
 #[tokio::test]
 async fn task_pool_worktree_snapshot_handler_returns_pool() {
     let fixture = GatewayPoolFixture::new().await;
@@ -237,6 +238,7 @@ async fn task_pool_worktree_merge_unlock_handler_reports_released_for_holder_onl
     fixture.cleanup().await;
 }
 
+// 无效项目或配置应在创建工作树、网络发布等外部副作用之前失败。
 #[tokio::test]
 async fn task_pool_worktree_handlers_reject_missing_project() {
     let response = post_worktree_json(

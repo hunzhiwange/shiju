@@ -1,3 +1,6 @@
+//! 验证预览面板 LSP 覆盖层测试模块的接入与基础构建路径。
+//! 具体诊断和跳转交互由相邻实现测试覆盖，此处防止条件模块失联。
+
 #[test]
 fn lsp_overlay_tests_are_wired() {
     assert!(module_path!().contains("lsp_overlay_tests"));

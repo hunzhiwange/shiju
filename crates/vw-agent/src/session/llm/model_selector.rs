@@ -7,7 +7,7 @@ use crate::app::agent::config::schema::{ModelRouteConfig, QueryClassificationCon
 use crate::app::agent::provider::provider;
 use std::fmt;
 
-/// Complete, unambiguous model reference.
+/// 同时包含提供方与模型标识的无歧义引用。
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ModelReference {
     pub provider: String,
@@ -15,12 +15,13 @@ pub struct ModelReference {
 }
 
 impl ModelReference {
+    /// 构造完整模型引用。
     pub fn new(provider: impl Into<String>, model: impl Into<String>) -> Self {
         Self { provider: provider.into(), model: model.into() }
     }
 }
 
-/// One active model available to the Auto selector.
+/// 自动选择器可使用的单个已启用模型。
 #[derive(Debug, Clone, Copy)]
 pub struct ModelCandidate<'a> {
     pub provider_id: &'a str,
@@ -33,7 +34,7 @@ impl ModelCandidate<'_> {
     }
 }
 
-/// Deterministic request profile inferred without an additional model request.
+/// 无需额外模型调用即可确定性推断的任务画像。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModelTaskProfile {
     Lightweight,
@@ -57,7 +58,7 @@ impl ModelTaskProfile {
     }
 }
 
-/// Input for a single Auto selection attempt.
+/// 单次自动模型选择的输入。
 pub struct AutoModelSelectionRequest<'a> {
     /// Message used only for local classification and profile recognition.
     pub message: &'a str,
@@ -72,24 +73,24 @@ pub struct AutoModelSelectionRequest<'a> {
     pub model_routes: Vec<ModelRouteConfig>,
 }
 
-/// Why a model was selected.
+/// 模型被选中的来源。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModelSelectionSource {
     ConfiguredRule { hint: String },
     Auto,
 }
 
-/// Safe selection details suitable for events and logs.
+/// 可安全写入事件与日志的选择详情。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelSelectionDecision {
     pub model: ModelReference,
     pub source: ModelSelectionSource,
     pub profile: ModelTaskProfile,
-    /// Contains only capability and configuration labels, never the request text.
+    /// 仅包含能力与配置标签，绝不包含请求原文。
     pub reason: String,
 }
 
-/// A selection failure that distinguishes bad configuration from missing capability.
+/// 区分无效路由配置与候选能力不足的选择错误。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModelSelectionError {
     ConfiguredRouteUnavailable { hint: String, provider: String, model: String },
@@ -112,7 +113,9 @@ impl fmt::Display for ModelSelectionError {
 
 impl std::error::Error for ModelSelectionError {}
 
-/// Select one complete provider/model reference from already active candidates.
+/// 从已启用候选中选择一个完整提供方/模型引用。
+///
+/// 显式路由命中但目标不可用时直接报错，不静默改选其他模型；自动排序始终使用稳定决胜条件。
 pub fn select_auto_model(
     request: &AutoModelSelectionRequest<'_>,
     candidates: &[ModelCandidate<'_>],

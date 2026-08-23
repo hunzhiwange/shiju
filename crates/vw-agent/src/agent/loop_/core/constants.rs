@@ -32,6 +32,8 @@
 
 /// Minimum number of characters per chunk when relaying LLM text to a streaming draft.
 ///
+/// 该下限仅控制转发粒度，不截断或改写模型文本。
+///
 /// This constant controls the granularity of text streaming from the LLM to the user
 /// interface. Smaller values provide more responsive streaming but may increase
 /// overhead, while larger values reduce overhead but feel less responsive.
@@ -79,6 +81,8 @@ pub(crate) const STREAM_CHUNK_MIN_CHARS: usize = 5;
 pub(crate) use vw_config_types::agent::DEFAULT_MAX_ITERATIONS;
 
 /// Default maximum number of messages to retain in conversation history.
+///
+/// 超出上限时由调用者裁剪历史，常量本身不改变消息内容。
 ///
 /// This limit prevents unbounded memory growth during long conversations.
 /// Older messages beyond this limit are pruned to maintain context within

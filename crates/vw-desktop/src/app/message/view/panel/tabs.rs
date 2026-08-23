@@ -1,8 +1,11 @@
+//! 处理主界面标签导航、项目切换与首页应用栏滚动消息。
+
 use super::ViewMessage;
 use crate::app::message::ProjectMessage;
 use crate::app::{App, Message, Screen};
 use iced::Task;
 
+/// 处理主标签与项目导航，并在项目切换时保存各自的预览状态。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
         ViewMessage::GoHome => {

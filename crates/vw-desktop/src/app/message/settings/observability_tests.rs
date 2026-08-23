@@ -1,3 +1,6 @@
+// 验证可观测性后端、追踪模式及相关文本字段更新。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -5,6 +8,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn backend_normalizer_accepts_supported_values_and_rejects_unknown_values() {
     for (input, expected) in
@@ -43,6 +48,8 @@ fn update_ignores_unrelated_messages() {
     assert_eq!(app.observability_settings.save_error.as_deref(), Some("old error"));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn backend_change_normalizes_value_and_clears_stale_error() {
     let mut app = app();
@@ -103,6 +110,8 @@ fn runtime_trace_mode_change_normalizes_value_and_clears_stale_error() {
     assert!(app.observability_settings.save_error.is_none());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn runtime_trace_path_change_preserves_input_and_clears_stale_error() {
     let mut app = app();
@@ -147,6 +156,8 @@ fn help_messages_toggle_modal_without_clearing_save_error() {
     assert_eq!(app.observability_settings.save_error.as_deref(), Some("old error"));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn observability_changes_schedule_persistence_tasks() {
     let mut app = app();

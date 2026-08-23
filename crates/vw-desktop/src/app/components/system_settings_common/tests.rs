@@ -1,3 +1,6 @@
+//! 验证系统设置公共格式化工具通过模块入口保持可用。
+//! 该测试守住重导出契约，具体输入边界由 `utils_tests` 覆盖。
+
 use super::{bool_support_label, format_context_limit, url_encode};
 
 #[test]

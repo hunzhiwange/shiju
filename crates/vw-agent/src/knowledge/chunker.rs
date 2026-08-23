@@ -1,5 +1,7 @@
 //! 本地知识导入的文本分块器，保留标题上下文、来源偏移与重叠窗口。
 //!
+//! 分块按字符而非字节计数，不在 Markdown 围栏内部按普通段落切割，并携带最近标题层级。
+//!
 //! Text chunking for local knowledge ingestion.
 
 mod patterns;
@@ -12,15 +14,22 @@ const DEFAULT_CHUNK_CHARS: usize = 700;
 const DEFAULT_OVERLAP_CHARS: usize = 80;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 一段可索引文本及其在原文中的位置和标题上下文。
 pub(crate) struct TextChunk {
+    /// 分块在文档中的零基顺序。
     pub ordinal: usize,
+    /// 原始分块正文。
     pub content: String,
+    /// 在原文中的起始字节偏移。
     pub start_at: usize,
+    /// 在原文中的结束字节偏移。
     pub end_at: usize,
+    /// 供检索理解上下文的 Markdown 标题链。
     pub context_header: String,
 }
 
 impl TextChunk {
+    /// 返回用于生成向量的文本，在正文前拼接非空标题上下文。
     pub(crate) fn embedding_content(&self) -> String {
         let body = self.content.trim();
         if self.context_header.is_empty() {
@@ -79,10 +88,12 @@ impl HeadingHierarchy {
     }
 }
 
+/// 使用默认字符上限和重叠窗口切分文本。
 pub(crate) fn chunk_text(text: &str) -> Vec<TextChunk> {
     chunk_text_with_limits(text, DEFAULT_CHUNK_CHARS, DEFAULT_OVERLAP_CHARS)
 }
 
+/// 使用显式字符上限和重叠大小切分文本。
 pub(crate) fn chunk_text_with_limits(
     text: &str,
     chunk_chars: usize,

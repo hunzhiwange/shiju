@@ -1,3 +1,6 @@
+// 验证评审输出元数据拆分与合并前置条件校验。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use crate::app::task::Task;
 
 fn merge_task(source: Option<&str>, target: Option<&str>, worktree: Option<&str>) -> Task {
@@ -8,6 +11,8 @@ fn merge_task(source: Option<&str>, target: Option<&str>, worktree: Option<&str>
     task
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn split_output_without_metadata_trims_and_preserves_body_lines() {
     let parsed = super::split_output_and_git_metadata("  first line  \nsecond line\n");
@@ -76,6 +81,8 @@ fn validate_ready_for_merge_rejects_missing_blank_and_head_source() {
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn validate_ready_for_merge_rejects_head_target() {
     let task = merge_task(Some("feature/review"), Some(" HEAD "), Some("/tmp/worktree"));
@@ -148,6 +155,8 @@ fn parse_review_decision_returns_trimmed_error_reason_or_default() {
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn parse_review_decision_finds_nested_object_and_json_string() {
     assert_eq!(super::parse_review_decision(r#"{"result":{"payload":{"status":"ok"}}}"#), Ok(()));
@@ -201,6 +210,8 @@ fn parse_review_decision_uses_legacy_error_marker_fallback() {
     );
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn parse_review_decision_rejects_empty_unknown_and_incomplete_outputs() {
     for output in ["", "   \n", r#"{"status":"pending"}"#, "prefix {\"status\":\"ok\""] {

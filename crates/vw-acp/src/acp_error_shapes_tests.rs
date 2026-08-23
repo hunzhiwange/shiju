@@ -1,9 +1,12 @@
 //! 验证 ACP 错误载荷提取、深度限制与资源不存在判定的兼容边界。
+//!
+//! 构造的协议载荷与错误链用于固定归一化优先级和诊断信息边界。
 
 use serde_json::json;
 
 use super::*;
 
+// 下列行为用例覆盖已知错误、缺失字段、嵌套载荷和安全回退。
 #[test]
 fn extract_acp_error_reads_direct_and_nested_payloads() {
     let direct = json!({

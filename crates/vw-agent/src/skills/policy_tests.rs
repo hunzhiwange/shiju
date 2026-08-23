@@ -1,4 +1,5 @@
 //! 验证新版技能策略的来源信任、能力限制与拒绝规则。
+//! 保存策略时只规范化持久化副本，阻止域优先级高于父域信任与来源别名。
 
 use super::*;
 use crate::app::agent::skills::types::SkillDownloadPolicy;
@@ -293,6 +294,7 @@ fn ensure_source_domain_trust_checks_expanded_github_host() {
 }
 
 #[test]
+// 父域阻止规则优先于更具体的可信子域，避免通过域名细化绕过拒绝策略。
 fn ensure_source_domain_trust_prioritizes_blocked_parent_domain() {
     let dir = tempfile::tempdir().unwrap();
     let mut policy = SkillDownloadPolicy::default();

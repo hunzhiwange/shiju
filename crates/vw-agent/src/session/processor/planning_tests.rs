@@ -72,6 +72,7 @@ fn build_todowrite_from_text_extracts_common_list_formats() {
 }
 
 #[test]
+// 从自然语言提取的待办需规范化、去重和限量，避免生成失控任务列表。
 fn build_todowrite_from_text_deduplicates_normalizes_and_limits_items() {
     let mut answer = String::new();
     answer.push_str("- Ship   feature\n");
@@ -243,6 +244,7 @@ fn ingest_planning_answer_autogenerates_todowrite_for_list_text() {
 }
 
 #[test]
+// 显式待办调用优先，不能再根据正文隐式生成第二份列表。
 fn ingest_planning_answer_runs_explicit_todowrite_and_skips_implicit_fallback() {
     let session_id = unique_session_id("explicit");
     let mut session = Session::new(session_id.clone());

@@ -1,3 +1,7 @@
+//! 验证会话分叉弹窗的目标选择、确认状态和浮层布局。
+//!
+//! 分叉目标覆盖本地、工作树和关闭状态，确认确认动作只读取当前弹窗草稿。
+
 use super::*;
 use crate::app::models::{ChatMessage, ChatRole};
 

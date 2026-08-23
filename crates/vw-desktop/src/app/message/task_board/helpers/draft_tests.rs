@@ -1,3 +1,8 @@
+// 验证任务草稿默认值、执行器选择与导入提示生成。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -57,6 +62,8 @@ fn executor_selection_helpers_trim_custom_values_and_clear_default_aliases() {
     assert_eq!(super::normalize_task_acp_agent(None), None);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn task_acp_agent_label_maps_known_unknown_and_default_selections() {
     assert_eq!(super::task_acp_agent_label(Some(" claude ")), "Claude Code");
@@ -109,6 +116,8 @@ fn json_import_prompt_uses_selected_values_and_includes_reasoning_effort() {
     assert!(prompt.contains("reasoning_effort 可留空表示默认"));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn csv_import_prompt_uses_auto_and_default_fallbacks_with_extended_header() {
     let prompt = super::import_prompt_template(
@@ -161,6 +170,8 @@ fn initial_task_status_uses_first_status_for_selected_workflow() {
     );
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn task_lifecycle_cache_updates_status_helpers() {
     use crate::app::task::{TaskStatus, update_runtime_task_lifecycle_cache};

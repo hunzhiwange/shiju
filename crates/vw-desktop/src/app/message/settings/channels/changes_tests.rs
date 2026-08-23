@@ -1,3 +1,6 @@
+// 验证频道及动态实例字段变更对配置状态的映射。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::message::settings::channels::toggles;
@@ -10,6 +13,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn channel_changes_apply_text_bool_number_and_modes() {
     let mut app = app();
@@ -299,6 +304,8 @@ fn channel_text_changes_apply_scalar_optional_and_list_fields() {
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn channel_text_changes_clear_optional_fields_and_ignore_disabled_or_unknown_keys() {
     let mut app = app();
@@ -438,6 +445,8 @@ fn channel_bool_changes_update_every_supported_flag() {
     assert!(!app.channels_settings.email.as_ref().unwrap().smtp_tls);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn channel_number_changes_enforce_lower_and_upper_bounds() {
     let mut app = app();
@@ -578,6 +587,8 @@ fn disabled_channel_changes_are_ignored_and_group_modes_fallback_to_all_messages
     );
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn instance_number_changes_clamp_feishu_port_to_valid_lower_bound() {
     let mut app = app();

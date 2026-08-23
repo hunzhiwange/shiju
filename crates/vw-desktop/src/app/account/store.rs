@@ -1,3 +1,5 @@
+//! 负责多账号记录的安全持久化、激活切换与兼容加载。
+
 use super::{AccountIdentity, AccountProfile, SecretSkey, VerifiedAccount};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -15,12 +17,14 @@ const STORE_FILE_NAME: &str = "shiju-accounts.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// 记录账号凭据进入仓储的登录来源。
 pub(crate) enum AccountOrigin {
     ManualSkey,
     BrowserLogin,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 仓储中的账号记录；密钥保持私有，只通过受控访问器使用。
 pub(crate) struct StoredAccount {
     id: String,
     identity: AccountIdentity,
@@ -53,12 +57,14 @@ impl StoredAccount {
     }
 
     #[allow(dead_code)]
+    /// 为异步技能中心任务复制凭据，避免暴露仓储内部记录。
     pub(crate) fn skill_hub_credential(&self) -> SecretSkey {
         self.skey.clone()
     }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// 多账号仓储，保证账号 ID 唯一且活动账号至多一个。
 pub(crate) struct AccountRepository {
     accounts: Vec<StoredAccount>,
     active_account_id: Option<String>,
@@ -78,6 +84,7 @@ impl AccountRepository {
         self.accounts.iter().find(|account| account.id == active_id)
     }
 
+    /// 按密钥派生的稳定 ID 插入或替换账号，并将其设为活动账号。
     pub(crate) fn upsert_verified(
         &mut self,
         verified: VerifiedAccount,
@@ -95,6 +102,7 @@ impl AccountRepository {
         id
     }
 
+    /// 激活指定账号；不存在的 ID 返回错误且不改变当前选择。
     pub(crate) fn activate(&mut self, id: &str) -> Result<(), AccountStoreError> {
         if !self.accounts.iter().any(|account| account.id == id) {
             return Err(AccountStoreError::new("无法激活不存在的账户"));
@@ -103,10 +111,12 @@ impl AccountRepository {
         Ok(())
     }
 
+    /// 退出当前账号但保留所有已保存记录，便于稍后重新选择。
     pub(crate) fn sign_out(&mut self) {
         self.active_account_id = None;
     }
 
+    /// 删除指定账号；若其为活动账号，同时清除活动选择。
     pub(crate) fn remove(&mut self, id: &str) -> Result<(), AccountStoreError> {
         let Some(index) = self.accounts.iter().position(|account| account.id == id) else {
             return Err(AccountStoreError::new("无法删除不存在的账户"));
@@ -118,6 +128,7 @@ impl AccountRepository {
         Ok(())
     }
 
+    /// 使用网关响应刷新活动账号资料，不改变其身份和凭据。
     pub(crate) fn refresh_active_profile(
         &mut self,
         dto: ShijuAccountMeDto,
@@ -163,6 +174,7 @@ impl AccountRepository {
         self.save_to(&path)
     }
 
+    /// 从指定文件加载并校验仓储，同时兼容缺少资料字段的旧记录。
     pub(crate) fn load_from(path: &Path) -> Result<Self, AccountStoreError> {
         let bytes = match fs::read(path) {
             Ok(bytes) => bytes,
@@ -216,6 +228,7 @@ impl AccountRepository {
         Ok(Self { accounts, active_account_id: file.active_account_id })
     }
 
+    /// 以仅限当前用户的权限写入账号文件，并在写入前验证仓储不变量。
     pub(crate) fn save_to(&self, path: &Path) -> Result<(), AccountStoreError> {
         self.validate().map_err(|error| AccountStoreError::at(path, error.message))?;
         if let Some(parent) = path.parent() {
@@ -327,6 +340,7 @@ impl From<&AccountProfile> for StoreProfile {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 账号仓储加载、校验或写入失败。
 pub(crate) struct AccountStoreError {
     message: String,
 }

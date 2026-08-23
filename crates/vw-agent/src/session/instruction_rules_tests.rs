@@ -3,6 +3,7 @@
 use super::instruction_rules;
 
 #[test]
+// 规则只作用于匹配路径，未命中的文件不能继承无关指令。
 fn agents_rules_activate_only_for_matching_paths() {
     let workspace = tempfile::tempdir().expect("workspace");
     let rule = workspace.path().join(".vibewindow/rules/rust.md");

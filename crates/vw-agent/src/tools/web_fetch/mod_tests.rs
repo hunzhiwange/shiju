@@ -1,4 +1,5 @@
 //! 验证网页抓取工具的配置、内容转换及发起网络请求前的输入拒绝。
+//! 内容格式与密钥轮换使用纯辅助路径验证，测试不依赖外部网络。
 
 use super::*;
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};

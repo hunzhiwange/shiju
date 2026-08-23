@@ -1,3 +1,7 @@
+//! 验证新建应用时各类设置状态的组装和默认值。
+//!
+//! 设置构造同时检查默认配置和显式覆盖，防止新增字段未进入应用初始状态。
+
 #[test]
 fn settings_tests_module_is_wired() {
     assert!(module_path!().ends_with("settings_tests"));

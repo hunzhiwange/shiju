@@ -1,3 +1,6 @@
+//! 验证多模态设置的图像模型筛选、数值边界与非 ASCII 渲染。
+//! 仅启用且声明图像输入能力的模型可选，动态中文模型名还需通过真实绘制路径。
+
 use super::*;
 use crate::app::message::settings::{MultimodalMessage, SettingsMessage};
 use crate::app::state::{ModelSummary, ProviderModelsSummary};
@@ -10,6 +13,7 @@ use iced::widget::text;
 use iced::{Color, Font, Pixels, Theme};
 use serde_json::json;
 
+// 多模态目录在测试内构造，保证图像能力筛选不依赖运行时模型缓存。
 fn test_app() -> App {
     App::new().0
 }

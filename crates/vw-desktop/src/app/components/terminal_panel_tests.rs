@@ -1,3 +1,7 @@
+//! 验证终端面板的标签管理、尺寸计算、显示状态和交互控件。
+//!
+//! 终端夹具构造不同可见性与标签数量，用于校验尺寸、选中项和关闭边界。
+
 use crate::app::terminal::{Shell, TerminalState, TerminalTheme};
 use crate::app::{App, Message};
 use iced::advanced::renderer::Headless;

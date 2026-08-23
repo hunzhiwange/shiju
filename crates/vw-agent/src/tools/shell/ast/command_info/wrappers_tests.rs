@@ -1,4 +1,5 @@
 //! 验证环境、超时、优先级及 shell 包装层的安全剥离规则。
+//! 不完整或不可解析包装器必须保留原命令，供后续安全分类采取保守决策。
 
 use super::*;
 use crate::tools::shell::ast::CommandInfo;

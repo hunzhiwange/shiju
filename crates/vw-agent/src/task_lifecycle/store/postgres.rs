@@ -21,11 +21,13 @@ CREATE TABLE IF NOT EXISTS workflow_lifecycle_workflows (
 "#;
 
 #[derive(Debug, Clone)]
+/// 生命周期工作流的 PostgreSQL 存储句柄。
 pub(super) struct PostgresTaskLifecycleStore {
     database: GlobalDatabase,
 }
 
 impl PostgresTaskLifecycleStore {
+    /// 初始化租户化模式并拒绝旧版无作用域表。
     pub(super) fn new(database: GlobalDatabase) -> Result<Self> {
         database.initialize_postgres_schema(|transaction| {
             reject_unscoped_lifecycle_schema(transaction)?;
@@ -37,6 +39,7 @@ impl PostgresTaskLifecycleStore {
         Ok(Self { database })
     }
 
+    /// 查询租户全部自定义工作流。
     pub(super) fn query_custom_workflows(
         &self,
         tenant: &TenantScope,
@@ -60,6 +63,7 @@ impl PostgresTaskLifecycleStore {
             .collect()
     }
 
+    /// 按租户和标识查询自定义工作流。
     pub(super) fn query_custom_workflow(
         &self,
         tenant: &TenantScope,
@@ -88,6 +92,7 @@ impl PostgresTaskLifecycleStore {
             .transpose()
     }
 
+    /// 插入或更新自定义工作流 JSON 与时间戳。
     pub(super) fn save_custom_workflow(
         &self,
         tenant: &TenantScope,
@@ -126,6 +131,7 @@ impl PostgresTaskLifecycleStore {
         Ok(())
     }
 
+    /// 删除租户自定义工作流并返回影响行数。
     pub(super) fn delete_custom_workflow(&self, tenant: &TenantScope, id: &str) -> Result<usize> {
         let mut connection = self.database.connect_postgres()?;
         let changed = connection

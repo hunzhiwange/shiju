@@ -25,6 +25,7 @@ const DEFAULT_HOOK_TIMEOUT_SECS: u64 = 30;
 const MAX_DIAGNOSTIC_CHARS: usize = 512;
 
 /// HookRunner handler that executes one trusted plugin hook command.
+/// 将单个已信任命令钩子适配为统一钩子处理器。
 pub(crate) struct CommandPluginHookHandler {
     plugin_name: String,
     name: String,
@@ -109,6 +110,9 @@ impl HookHandler for CommandPluginHookHandler {
     }
 }
 
+/// 发现插件钩子，仅为信任摘要仍匹配当前声明的钩子创建处理器。
+///
+/// 清单发生任何安全相关变化都会改变摘要，使钩子重新进入待审核状态。
 pub(crate) fn trusted_plugin_hook_handlers(
     config: &Config,
 ) -> Result<Vec<Box<dyn HookHandler>>> {
@@ -168,6 +172,7 @@ pub(crate) fn trusted_plugin_hook_handlers(
     Ok(handlers)
 }
 
+/// 将当前所有受信任插件钩子注册到运行时。
 pub(crate) fn register_trusted_plugin_hooks(
     runner: &mut HookRunner,
     config: &Config,

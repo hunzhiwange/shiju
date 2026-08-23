@@ -1,4 +1,6 @@
 //! 验证运行时超时和中断包装器的竞态结果、信号处理与错误源。
+//!
+//! 最小会话记录、控制器和异步通道 fixture 用于驱动运行时状态与竞态分支。
 
 use super::*;
 use std::io;
@@ -15,6 +17,7 @@ static SIGNAL_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(
 #[error("inner failed")]
 struct InnerError;
 
+// 下列行为用例覆盖正常完成、超时中断、回退重试和资源清理。
 #[tokio::test]
 async fn with_timeout_returns_value_when_timeout_is_missing_or_zero() {
     assert_eq!(with_timeout(async { 7 }, None).await.unwrap(), 7);

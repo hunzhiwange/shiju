@@ -1,3 +1,6 @@
+//! 验证工具详情弹窗的布局委托、事件处理、滚动与交互边界。
+//! 自定义内容和记录渲染器用于观察事件传播，避免测试依赖真实图形后端。
+
 use super::tool_detail_dialog::{
     ToolDetailScrollState, WheelInterceptor, build_editor_panel, tool_detail_dialog_view,
     tool_detail_panel_style, tool_detail_scroll_state, tool_detail_scrollbar_style,
@@ -18,6 +21,7 @@ enum TestMessage {
     WheelScrolled(mouse::ScrollDelta),
 }
 
+// 测试内容主动发布子消息并暴露鼠标形态，以检查滚轮拦截器是否仍正确委托。
 #[derive(Debug, Clone, Copy)]
 struct TestContent {
     width: f32,
@@ -107,6 +111,7 @@ impl<'a> From<TestContent> for Element<'a, TestMessage, Theme, RecordingRenderer
     }
 }
 
+// 计数层级和变换可发现包装器未成对结束渲染作用域的错误。
 #[derive(Debug, Default)]
 struct RecordingRenderer {
     fills: Vec<Rectangle>,

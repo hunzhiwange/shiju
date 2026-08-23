@@ -1,3 +1,6 @@
+// 验证 Git 差异高亮、行选择与范围选择的状态转换。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::{ExpandDirection, GitMessage, update};
 use crate::app::state::{GitDiffCommentDraft, GitDiffLineRange, GitDiffSelectedLine};
 use crate::app::{App, DiffTheme, Message};
@@ -30,6 +33,8 @@ fn range(file: &str, start: usize, end: usize, is_old: bool) -> GitDiffLineRange
     GitDiffLineRange { file: file.to_string(), start, end, is_old }
 }
 
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -288,6 +293,8 @@ fn close_file_menu_and_confirm_discard_update_only_file_state() {
     assert_eq!(app.file_to_discard.as_deref(), Some("second.rs"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn preview_rejects_unsupported_file_without_external_io() {
     let mut app = test_app();
@@ -531,6 +538,8 @@ async fn insert_selection_comment_groups_files_and_diff_sides() {
     ));
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn hover_exit_only_clears_matching_line() {
     let mut app = test_app();
@@ -746,6 +755,8 @@ fn focus_file_resets_preview_state_and_opens_diff() {
     assert!(app.git_diff_file_menu.is_none());
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn hunk_file_context_scroll_and_theme_state_are_updated() {
     let mut app = test_app();

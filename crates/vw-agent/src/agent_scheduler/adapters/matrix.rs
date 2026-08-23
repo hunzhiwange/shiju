@@ -5,12 +5,14 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 已解析的 Matrix 房间与接收者路由。
 pub struct MatrixDispatchTarget {
     pub room_id: String,
     pub recipient_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// Matrix 适配器投递消息所需的通道、路由、正文和结构化载荷。
 pub struct MatrixDispatchRequest {
     pub channel: String,
     pub target: String,
@@ -20,11 +22,13 @@ pub struct MatrixDispatchRequest {
 }
 
 #[async_trait]
+/// 发件箱面向 Matrix 的异步投递边界。
 pub trait MatrixDispatchAdapter: Send + Sync {
     async fn send_message(&self, request: MatrixDispatchRequest) -> Result<()>;
 }
 
 #[derive(Debug, Clone, Copy, Default)]
+/// 未配置 Matrix 时使用的拒绝型适配器。
 pub struct NoMatrixDispatchAdapter;
 
 #[async_trait]
@@ -37,6 +41,7 @@ impl MatrixDispatchAdapter for NoMatrixDispatchAdapter {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
+/// 将请求转交给当前构建所启用 Matrix 客户端的适配器。
 pub struct ConfiguredMatrixDispatchAdapter;
 
 #[async_trait]

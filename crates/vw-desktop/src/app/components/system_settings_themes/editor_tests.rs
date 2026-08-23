@@ -1,3 +1,7 @@
+//! 验证主题编辑草稿、标识分配、颜色解析和表单校验。
+//!
+//! 草稿在新建和既有主题间切换，颜色输入覆盖合法、非法与冲突标识分配。
+
 use super::{
     allocate_unique_theme_id, draft_from_definition, editor_tab_button, editor_tab_labels,
     new_theme_draft, slugify_theme_id, try_definition_from_draft, view,

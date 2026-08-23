@@ -1,5 +1,7 @@
 //! WhatsApp 设备存储，负责设备身份材料、注册状态与数据库快照。
 //!
+//! 私钥与公钥按协议格式序列化后写入同一设备作用域，恢复时重新构建设备对象。
+//!
 //! DeviceStoreTrait implementation for WhatsApp storage
 //!
 //! Implements device persistence operations including:

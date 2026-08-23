@@ -1,4 +1,6 @@
 //! 验证队列 IPC 服务端的请求收发、所有者代次和连接关闭行为。
+//!
+//! 临时租约、套接字和消息 fixture 用于隔离队列所有权与 IPC 边界。
 
 use super::*;
 use crate::errors::AcpxErrorOptions;
@@ -249,6 +251,7 @@ fn test_session_send_result() -> SessionSendResult {
     }
 }
 
+// 下列行为用例覆盖有效交互、陈旧状态、非法消息和关闭清理。
 #[test]
 fn queue_request_helpers_extract_id_and_generation() {
     let request = QueueRequest::SetMode {

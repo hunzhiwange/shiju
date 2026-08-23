@@ -126,6 +126,7 @@ async fn response_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(&bytes).expect("response should be json")
 }
 
+// 请求同时覆盖全局、租户和显式项目目录，防止配置更新越过作用域边界。
 #[test]
 fn routers_build_for_stateless_and_stateful_config_routes() {
     let _: axum::Router<()> = router();
@@ -161,6 +162,7 @@ fn has_explicit_directory_ignores_non_utf8_header_value() {
     assert!(!has_explicit_directory(&query, &headers));
 }
 
+// 读取接口分别验证无状态和有状态入口，确保二者返回相同的有效配置形状。
 #[tokio::test]
 async fn config_get_returns_serialized_instance_config() {
     let temp = TempDir::new().expect("temp dir");
@@ -227,6 +229,7 @@ async fn config_get_without_directory_restores_the_requested_tenant_after_restar
     );
 }
 
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 #[tokio::test]
 async fn config_patch_rejects_non_object_patch() {
     let temp = TempDir::new().expect("temp dir");
@@ -246,6 +249,7 @@ async fn config_patch_rejects_non_object_patch() {
     assert!(err.message.contains("config patch must be a JSON object"));
 }
 
+// 没有显式目录时补丁属于租户全局配置，不能被当前实例路径隐式改成项目覆盖。
 #[tokio::test]
 async fn config_patch_updates_global_config_without_explicit_directory() {
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
@@ -409,6 +413,7 @@ async fn config_patch_stateful_rejects_invalid_global_patch_without_mutating_run
     assert_eq!(state.config.lock().default_provider, expected_provider);
 }
 
+// 项目补丁只保存相对基础配置的差异，避免复制密钥或未来继承字段。
 #[tokio::test]
 async fn project_config_patch_writes_only_database_override() {
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
@@ -578,6 +583,7 @@ async fn config_providers_returns_defaults_for_available_models() {
     }
 }
 
+// 旧版配置端点继续执行配对认证，并在输出前统一遮蔽密钥。
 #[tokio::test]
 async fn handle_api_config_get_requires_auth_when_pairing_is_enabled() {
     let token = "paired-token".to_string();
@@ -641,6 +647,7 @@ async fn handle_api_config_get_reports_gateway_skey_store_failure() {
     );
 }
 
+// 写入端点的顺序契约是先认证、再解析、再校验、最后持久化和替换运行时状态。
 #[tokio::test]
 async fn handle_api_config_put_rejects_unauthorized_before_parsing_body() {
     let token = "paired-token".to_string();
@@ -816,6 +823,7 @@ async fn handle_api_config_put_reports_config_save_failure_without_mutating_runt
     assert!(Arc::ptr_eq(&cached_engine, &retained_engine));
 }
 
+// 成功更新配置后需同步重载派生运行时；任一步构建失败都必须保持旧状态。
 #[tokio::test]
 async fn config_put_reloads_hooks_and_invalidates_query_engines() {
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
@@ -995,6 +1003,7 @@ async fn handle_api_config_put_hydrates_validates_saves_and_updates_runtime_conf
     assert_eq!(stored.default_provider.as_deref(), Some("openai"));
 }
 
+// 仪表盘密钥通过共享存储持久化，但同一键名仍必须按租户隔离。
 #[tokio::test]
 async fn dashboard_config_skeys_are_isolated_by_tenant_scope() {
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;

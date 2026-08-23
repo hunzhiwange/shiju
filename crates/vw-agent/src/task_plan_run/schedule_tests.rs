@@ -1,4 +1,5 @@
 //! 验证任务计划调度的依赖判断、就绪选择与顺序稳定性。
+//! 批次按升序稳定分组，并在调度前拒绝自依赖、前向依赖和缺失批次。
 
 use super::{PlanTaskEntry, build_batch_stages, parse_tasks_json};
 
@@ -74,6 +75,7 @@ fn build_batch_stages_rejects_self_dependency() {
 }
 
 #[test]
+// 前向依赖在执行前直接拒绝，调度器不会等待一个尚未合法形成的未来批次。
 fn build_batch_stages_rejects_forward_dependency() {
     let tasks = vec![entry("1", "a", "1-a.md", 1, vec![2]), entry("2", "b", "2-b.md", 2, vec![])];
     let err = build_batch_stages(&tasks).expect_err("forward dependency must fail");

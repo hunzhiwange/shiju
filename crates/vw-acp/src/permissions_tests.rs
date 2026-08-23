@@ -1,4 +1,6 @@
 //! 验证权限选项选择、非交互策略和工具调用授权结果。
+//!
+//! 最小工具调用和权限选项 fixture 用于枚举策略决策，不触发真实操作。
 
 use super::*;
 use agent_client_protocol::{
@@ -99,6 +101,7 @@ fn panic_prompt(_: &RequestPermissionRequest) -> bool {
     panic!("prompt callback should not be invoked for this branch")
 }
 
+// 下列行为用例覆盖单次与持久选择、取消结果及非交互策略分支。
 #[test]
 fn permission_mode_satisfies_uses_rank_order() {
     assert!(permission_mode_satisfies(PermissionMode::ApproveAll, PermissionMode::DenyAll));

@@ -1,3 +1,6 @@
+// 验证钩子目录、审计记录、信任结果与插件开关流程。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::components::system_settings::SystemTab;
@@ -47,6 +50,8 @@ fn audit_entry() -> vw_gateway_client::HookAuditEntryDto {
     }
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[tokio::test(flavor = "multi_thread")]
 async fn hooks_tab_loads_catalog_and_audit() {
     let mut app = app();
@@ -112,6 +117,8 @@ fn plugin_hooks_toggle_persists_config() {
     assert!(has_scheduled_action(task));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[tokio::test(flavor = "multi_thread")]
 async fn hook_trust_result_refreshes_and_toasts() {
     let mut app = app();
@@ -221,6 +228,8 @@ fn enabled_toggle_updates_only_enabled_and_clears_save_error() {
     assert!(app.hooks_settings.save_error.is_none());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn command_logger_toggle_updates_only_command_logger_and_clears_save_error() {
     let mut app = app();
@@ -249,6 +258,8 @@ fn unrelated_message_preserves_all_hooks_state() {
     assert_eq!(app.hooks_settings.save_error.as_deref(), Some("old"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn hooks_edits_schedule_persistence_while_unrelated_messages_do_not() {
     let mut app = app();

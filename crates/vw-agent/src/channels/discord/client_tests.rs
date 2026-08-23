@@ -1,3 +1,5 @@
+// 本文件验证 Discord 消息客户端的端点拼接、鉴权请求及错误脱敏。
+
 use std::time::Duration;
 
 use super::client::{
@@ -65,6 +67,7 @@ async fn discord_server(
     discord_raw_server(responses).await
 }
 
+// 原始响应夹具用于制造截断正文等常规模拟难以表达的传输异常。
 async fn discord_raw_server(
     responses: Vec<Vec<u8>>,
 ) -> (String, mpsc::Receiver<String>, tokio::task::JoinHandle<()>) {
@@ -243,4 +246,3 @@ async fn send_message_with_files_reports_missing_local_file_before_network() {
 
     assert!(error.contains("Discord attachment read failed"));
 }
-// 本文件验证 Discord 消息客户端的端点拼接、鉴权请求及错误脱敏。

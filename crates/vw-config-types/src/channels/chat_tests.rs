@@ -1,11 +1,16 @@
+//! 验证聊天通道实例配置的旧格式兼容、命名实例解析与标识安全约束。
+//! fixture 仅提供最小凭据，用于区分配置迁移逻辑与具体通道实现。
+
 use super::ChannelsConfig;
 
+// 此哨兵保护拆分后的聊天通道测试文件仍由父模块编译。
 #[test]
 fn task_614_test_module_is_wired() {
     let path = std::path::Path::new(file!());
     assert!(path.ends_with("chat_tests.rs"));
 }
 
+// 使用独立构造器保持三类通道的最小输入清晰，避免测试数据互相借用字段。
 fn matrix_instance(id: &str) -> serde_json::Value {
     serde_json::json!({
         "id": id,
@@ -79,6 +84,7 @@ fn channel_instance_profiles_resolve_legacy_and_named_instances() {
     );
 }
 
+// 实例标识会进入路由选择，重复值或路径式标识必须在配置边界拒绝。
 #[test]
 fn channel_instance_profiles_reject_duplicate_or_unsafe_ids() {
     let cases = [
@@ -140,6 +146,7 @@ fn channel_instance_profiles_reject_duplicate_or_unsafe_ids() {
     }
 }
 
+// 关闭的配置不能因仍携带有效凭据而被错误加入可用实例列表。
 #[test]
 fn matrix_is_disabled_by_default_and_disabled_profiles_are_ignored() {
     let channels: ChannelsConfig = serde_json::from_value(serde_json::json!({

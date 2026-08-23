@@ -1,4 +1,5 @@
 //! 验证重定向校验器警告覆盖写入、阻断敏感路径并允许空设备输出。
+//! 不同目标的严重级别必须保留差异，供上层策略决定告警或拒绝。
 
 use super::redirection::RedirectionValidator;
 use crate::tools::shell::ast::parse_command;

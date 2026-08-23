@@ -1,4 +1,6 @@
 //! 验证队列 IPC 客户端的请求标识、所有者通信与错误响应处理。
+//!
+//! 临时租约、套接字和消息 fixture 用于隔离队列所有权与 IPC 边界。
 
 use super::*;
 
@@ -315,6 +317,7 @@ fn submit_options<'a>(
     }
 }
 
+// 下列行为用例覆盖有效交互、陈旧状态、非法消息和关闭清理。
 #[test]
 fn next_queue_request_id_returns_unique_queue_prefixed_ids() {
     let first = next_queue_request_id();

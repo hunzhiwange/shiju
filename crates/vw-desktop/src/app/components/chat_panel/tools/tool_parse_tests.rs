@@ -1,3 +1,6 @@
+//! 验证工具块身份、输入输出、代理批次及路径字段的兼容解析规则。
+//! 多种旧字段别名只在明确位置接受，特殊工具隐藏和项目路径拼接保持保守边界。
+
 use super::tool_parse::{
     AgentToolSessionStatus, ExploreToolKind, agent_tool_session_payloads_from_content,
     explore_item_dedupe_key, explore_tool_kind, is_explore_tool, should_hide_tool_block,

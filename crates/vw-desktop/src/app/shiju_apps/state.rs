@@ -1,8 +1,9 @@
-//! State model for the SHIJU application catalog and installed list.
+//! 定义识矩应用目录、已安装列表、密钥绑定与启动过程的状态模型。
 
 use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppListDto, ShijuIamApiKeyDto};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// 识矩应用页面的商店与已安装页签。
 pub(crate) enum ShijuAppsTab {
     Store,
     #[default]
@@ -10,6 +11,7 @@ pub(crate) enum ShijuAppsTab {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// 账号范围列表请求的加载状态；代次用于拒绝迟到响应。
 pub(crate) enum ShijuAppsLoadState<T> {
     #[default]
     Idle,
@@ -22,12 +24,14 @@ pub(crate) enum ShijuAppsLoadState<T> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 应用详情在商店或已安装列表中的稳定索引目标。
 pub(crate) enum ShijuAppDetailTarget {
     Store(usize),
     Mine(usize),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// 从密钥绑定检查到 WebView 启动完成的状态机。
 pub(crate) enum ShijuAppLaunchState {
     #[default]
     Idle,
@@ -83,6 +87,7 @@ impl ShijuAppLaunchState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 识矩应用页面的账号范围状态与独立请求代次。
 pub(crate) struct ShijuAppsState {
     pub(crate) tab: ShijuAppsTab,
     pub(crate) store: ShijuAppsLoadState<ShijuAppCatalogDto>,
@@ -94,6 +99,7 @@ pub(crate) struct ShijuAppsState {
 }
 
 impl ShijuAppsState {
+    /// 切换账号时使全部在途结果失效并清空目录、详情和启动状态。
     pub(crate) fn clear_for_account(&mut self, account_id: Option<String>) {
         self.generation = self.generation.wrapping_add(1);
         self.account_id = account_id;
@@ -108,10 +114,12 @@ impl ShijuAppsState {
         self.generation
     }
 
+    /// 仅当代次与账号同时匹配时接受列表响应。
     pub(crate) fn response_is_current(&self, generation: u64, account_id: &str) -> bool {
         self.generation == generation && self.account_id.as_deref() == Some(account_id)
     }
 
+    /// 仅当代次、账号与安装标识都匹配当前启动流程时接受响应。
     pub(crate) fn launch_response_is_current(
         &self,
         generation: u64,

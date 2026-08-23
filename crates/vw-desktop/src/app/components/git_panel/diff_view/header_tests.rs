@@ -1,3 +1,6 @@
+//! 验证差异标题栏的统计文案、主题配色与控制按钮组合。
+//! 重点锁定标题清洗、颜色混合边界以及关闭和全屏控件的可选分支。
+
 use iced::{Background, Color, Theme};
 
 use crate::app::Message;

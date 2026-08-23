@@ -18,6 +18,7 @@ fn parse_optional_json_deserializes_present_value() {
 }
 
 #[test]
+// SQL NULL 表示字段缺失，而 JSON null 是实际载荷，两者不能合并。
 fn parse_optional_json_keeps_json_null_distinct_from_sql_null() {
     let parsed = parse_optional_json::<serde_json::Value>(Some("null".to_string()))
         .expect("parse JSON null");

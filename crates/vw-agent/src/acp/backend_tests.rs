@@ -1,4 +1,5 @@
 //! 测试 ACP 后端的会话复用、历史持久化、事件映射与取消传播。
+//! 临时会话夹具同时验证持久化次数和运行时取消信号，避免只检查表面返回值。
 
 use std::time::Duration;
 
@@ -15,6 +16,7 @@ use crate::session::processor::{StreamEvent, ToolCallStatus, ToolEvent, ToolEven
 use crate::session::runtime::{PromptEvent, PromptTermination};
 use crate::session::ui_types::TokenUsage;
 
+// 为每个场景生成完整且互不重叠的租户作用域，避免会话记录串扰。
 fn tenant(suffix: &str) -> TenantScope {
     TenantScope::new(format!("acp-platform-{suffix}"), format!("acp-company-{suffix}"))
         .expect("valid tenant")

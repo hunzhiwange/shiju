@@ -3,6 +3,7 @@
 use super::*;
 
 #[test]
+// 即使输入很短，公开脱敏入口也不能回显完整秘密。
 fn redact_never_returns_full_secret() {
     assert_eq!(redact(""), "***");
     assert_eq!(redact("abcd"), "***");

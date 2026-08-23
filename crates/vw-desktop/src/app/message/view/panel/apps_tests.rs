@@ -1,3 +1,8 @@
+// 验证应用与用量标签的创建、复用和固定插入顺序。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -111,6 +116,8 @@ fn usage_provider_picker_returns_none_without_candidates() {
     assert_eq!(super::pick_usage_provider_id(&[], "gpt-5"), None);
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[test]
 fn usage_provider_picker_prefers_exact_model_prefix_before_fuzzy_match() {
     let candidates = ids(&["openrouter", "anthropic", "custom"]);
@@ -214,6 +221,8 @@ fn open_workflow_tool_closes_apps_and_initializes_saved_apps() {
     assert!(app.workflow_state.saved_apps_loading);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn open_workflow_manager_resets_stage_actions_selection() {
     let (mut app, _task) = crate::app::App::new();
@@ -335,6 +344,8 @@ fn desktop_apps_catalog_excludes_migrated_tools() {
     }
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn open_workflow_manager_stage_actions_selects_stage_actions_tab() {
     let (mut app, _task) = crate::app::App::new();

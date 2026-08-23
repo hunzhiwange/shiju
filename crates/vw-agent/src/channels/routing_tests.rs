@@ -1,3 +1,5 @@
+// 本文件验证消息提供者路由、模型分类、覆盖缓存与回退选择。
+
 use super::*;
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::{
@@ -115,6 +117,7 @@ fn route_selection_defaults_to_runtime_defaults_and_removes_default_override() {
 }
 
 #[test]
+// 路由覆盖锁中毒时回退默认选择，不能阻断全部渠道。
 fn route_selection_recovers_from_poisoned_override_lock() {
     let temp = tempfile::tempdir().unwrap();
     let ctx = context(temp.path());
@@ -268,4 +271,3 @@ fn build_providers_help_response_lists_current_route_and_commands() {
         assert!(response.contains(&format!("- {provider_id}")));
     }
 }
-// 本文件验证消息提供者路由、模型分类、覆盖缓存与回退选择。

@@ -1,3 +1,7 @@
+//! 验证文件树与会话重命名弹窗的名称推导和回退规则。
+//!
+//! 文件路径覆盖根目录、无文件名和正常名称，会话标题则覆盖全局与项目级回退。
+
 #[test]
 fn rename_tests_module_is_wired() {
     assert!(module_path!().ends_with("rename_tests"));

@@ -1,3 +1,5 @@
+// 本文件验证 Telegram 配置规范化、身份绑定与系统配置持久化。
+
 use super::TelegramChannel;
 use crate::app::agent::config::{Config, StreamMode, SystemConfigStore, TelegramConfig};
 use crate::global_database::GlobalDatabase;
@@ -147,6 +149,7 @@ fn with_api_base_trims_trailing_slashes() {
 }
 
 #[test]
+// 身份规范化支持用户名与数字标识，但不混淆二者语义。
 fn normalize_identity_accepts_usernames_and_numeric_ids() {
     assert_eq!(TelegramChannel::normalize_identity("@Alice"), "Alice");
     assert_eq!(TelegramChannel::normalize_identity(" 12345 "), "12345");
@@ -394,4 +397,3 @@ async fn get_bot_username_returns_none_when_fetch_fails() {
     assert_eq!(server.request_count().await, 1);
     assert!(channel.bot_username.lock().is_none());
 }
-// 本文件验证 Telegram 配置规范化、身份绑定与系统配置持久化。

@@ -1,3 +1,7 @@
+//! 验证后台与计划运行流事件对会话、队列和 Git 操作的状态更新。
+//!
+//! 事件序列同时覆盖前台与后台子会话，过期工作树或无效生成结果不得触发 Git 动作。
+
 #[test]
 fn stream_events_tests_module_is_wired() {
     assert!(module_path!().ends_with("stream_events_tests"));
@@ -109,6 +113,7 @@ fn background_stream_mutation_invalidates_cached_session_view() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 生成的提交信息只有在请求、会话和工作树仍匹配时才能转成真实 Git 操作。
 async fn generated_git_commit_message_fills_form_then_dispatches_commit_action() {
     let (mut app, _) = crate::app::App::new();
     app.project_path = Some("/workspace/project".to_string());
@@ -227,6 +232,7 @@ fn session_info(
 }
 
 #[test]
+// 计划运行子会话必须后台登记，父会话的活动视图不能被启动事件抢占。
 fn plan_run_session_started_registers_without_leaving_parent() {
     let (mut app, _) = crate::app::App::new();
     let directory = "/workspace/demo";
@@ -365,6 +371,7 @@ fn update_think_timing_ignores_plain_delta_without_think_blocks() {
 }
 
 #[test]
+// 思考标签可能跨多个增量拆分，尾部状态机需要在不重扫完整消息的情况下拼接。
 fn stream_tail_state_handles_split_think_tags_from_deltas() {
     let cases = [
         vec!["plain response"],
@@ -565,6 +572,7 @@ fn active_stream_terminal_flushes_pending_delta() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[cfg(not(target_arch = "wasm32"))]
+// 高频增量只触发防抖保存，终态则必须取消延迟并持久化最新快照。
 async fn stream_deltas_debounce_full_session_save() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "background-session".to_string();
@@ -906,6 +914,7 @@ fn message_ids_tail_preserves_short_and_empty_inputs() {
 }
 
 #[test]
+// 工具块解析要求行边界和完整 JSON，避免普通聊天文本被误识别为工具调用。
 fn parse_tool_block_len_requires_tool_prefix_and_complete_json() {
     let block = "tool shell\n{\"tool_call_id\":\"call-1\",\"status\":\"ok\"}\ntrailing";
 
@@ -1107,6 +1116,7 @@ fn continuation_label_from_history_uses_last_user_message() {
 }
 
 #[test]
+// 未知请求必须在任何聊天、缓存或运行时字段变化之前被拒绝。
 fn stream_handlers_reject_unknown_request_without_mutating_chat() {
     let (mut app, _) = crate::app::App::new();
     app.chat = vec![message(ChatRole::User, "kept")];
@@ -1339,6 +1349,7 @@ fn inactive_stream_done_updates_cached_ids_and_marks_unseen_success() {
 }
 
 #[test]
+// 错误终态既要清理请求与计时，也要把后台会话结果保存到正确缓存。
 fn active_stream_error_appends_system_message_and_clears_request_state() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "session-1".to_string();

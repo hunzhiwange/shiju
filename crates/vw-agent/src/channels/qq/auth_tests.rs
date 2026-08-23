@@ -1,3 +1,5 @@
+// 本文件验证 QQ 鉴权端点约束、凭据请求与令牌过期时间调整。
+
 use super::*;
 use serde_json::json;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -116,6 +118,7 @@ fn unix_now() -> u64 {
 }
 
 #[test]
+// 鉴权地址携带凭据，只允许 HTTPS，不能接受明文传输。
 fn ensure_https_accepts_only_https_urls() {
     assert!(ensure_https("https://api.sgroup.qq.com").is_ok());
     assert!(ensure_https("http://api.sgroup.qq.com").is_err());
@@ -306,4 +309,3 @@ async fn get_gateway_url_requires_url_field() {
     assert_eq!(server.next_request().await.lines().next().unwrap(), "GET /gateway HTTP/1.1");
     assert!(err.contains("Missing gateway URL in QQ response"));
 }
-// 本文件验证 QQ 鉴权端点约束、凭据请求与令牌过期时间调整。

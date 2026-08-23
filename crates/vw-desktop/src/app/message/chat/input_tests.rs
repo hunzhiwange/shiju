@@ -1,3 +1,7 @@
+//! 验证聊天输入、快捷消息、子会话弹窗和待办面板的消息流程。
+//!
+//! 异步任务会收集实际输出消息；子会话、快捷消息和 Git 动作均校验目标会话归属。
+
 use super::ChatMessage;
 use crate::app::TodoPanelPlacement;
 use crate::app::components::chat_panel::message_measure::ChatMessageMeasurement;

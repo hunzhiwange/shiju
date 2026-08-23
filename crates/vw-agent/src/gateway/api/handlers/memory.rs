@@ -1,5 +1,7 @@
 //! 记忆查询、写入与删除的网关处理器，并统一认证和错误映射。
 //!
+//! 列表接口有查询词时走语义召回，否则按可选分类枚举；所有入口先执行网关认证。
+//!
 //! Memory API handlers.
 
 use super::super::types::{MemoryQuery, MemoryStoreBody};
@@ -10,6 +12,7 @@ use axum::{
     response::{IntoResponse, Json as JsonResponse},
 };
 
+/// 查询或按分类列出记忆条目。
 pub async fn handle_api_memory_list(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -47,6 +50,7 @@ pub async fn handle_api_memory_list(
     }
 }
 
+/// 写入一条记忆并返回持久化结果。
 pub async fn handle_api_memory_store(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -77,6 +81,7 @@ pub async fn handle_api_memory_store(
     }
 }
 
+/// 删除指定记忆键。
 pub async fn handle_api_memory_delete(
     State(state): State<AppState>,
     headers: HeaderMap,

@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS workflow_lifecycle_workflows (
 );
 "#;
 
+/// 列出租户可见的内置与自定义生命周期工作流。
 pub(crate) async fn list_workflows(
     database: GlobalDatabase,
     tenant: TenantScope,
@@ -38,6 +39,7 @@ pub(crate) async fn list_workflows(
     spawn_store_task(database, move |database| list_workflows_blocking(database, &tenant)).await
 }
 
+/// 按标识读取租户可见工作流。
 pub(crate) async fn workflow_by_id(
     database: GlobalDatabase,
     tenant: TenantScope,
@@ -47,6 +49,7 @@ pub(crate) async fn workflow_by_id(
         .await
 }
 
+/// 创建新的自定义工作流；内置标识不可写入。
 pub(crate) async fn create_workflow(
     database: GlobalDatabase,
     tenant: TenantScope,
@@ -56,6 +59,7 @@ pub(crate) async fn create_workflow(
         .await
 }
 
+/// 更新已有自定义工作流并保持原始创建时间。
 pub(crate) async fn update_workflow(
     database: GlobalDatabase,
     tenant: TenantScope,
@@ -68,6 +72,7 @@ pub(crate) async fn update_workflow(
     .await
 }
 
+/// 删除自定义工作流；内置工作流始终拒绝删除。
 pub(crate) async fn delete_workflow(
     database: GlobalDatabase,
     tenant: TenantScope,
@@ -77,6 +82,7 @@ pub(crate) async fn delete_workflow(
         .await
 }
 
+/// 删除同标识自定义覆盖并恢复内置工作流投影。
 pub(crate) async fn reset_workflow(
     database: GlobalDatabase,
     tenant: TenantScope,

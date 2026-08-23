@@ -1,3 +1,6 @@
+//! 验证文件树右键区域对布局绘制、子组件事件和拖动生命周期的委托。
+//! 记录型内容与渲染器区分包装器副作用和子组件行为，并覆盖阈值前后的拖动状态。
+
 use super::widgets::RightClickArea;
 use iced::advanced::{Clipboard, Layout, Renderer, Shell, Widget, layout, mouse, renderer, widget};
 use iced::{Background, Element, Event, Length, Point, Rectangle, Size, Theme, Transformation};
@@ -10,6 +13,7 @@ enum TestMessage {
     DragEnded,
 }
 
+// 可观测子组件始终发布更新消息，便于区分包装器消费事件与继续向下传播。
 #[derive(Debug, Clone, Copy)]
 struct TestContent {
     width: f32,
@@ -85,6 +89,7 @@ impl<'a> From<TestContent> for Element<'a, TestMessage, Theme, RecordingRenderer
     }
 }
 
+// 渲染记录只保留包装器测试所需的边界、层和变换信息。
 #[derive(Debug, Default)]
 struct RecordingRenderer {
     fills: Vec<Rectangle>,
@@ -156,6 +161,7 @@ fn layout_for(bounds: Rectangle) -> layout::Node {
     layout::Node::new(bounds.size()).move_to(Point::new(bounds.x, bounds.y))
 }
 
+// 所有指针事件经同一固定布局派发，避免各测试自行组装时产生坐标差异。
 fn update_area(
     area: &mut TestArea<'static>,
     tree: &mut widget::Tree,

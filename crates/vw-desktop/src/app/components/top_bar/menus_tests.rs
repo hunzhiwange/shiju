@@ -1,3 +1,7 @@
+//! 验证顶部栏菜单的开合状态、菜单项和操作消息映射。
+//!
+//! 菜单测试分别打开各弹层并触发条目消息，防止共享状态造成菜单互相串扰。
+
 use super::menus::{
     MenuEntry, edit_menu, edit_menu_entries, file_menu, file_menu_entries, help_menu,
     help_menu_entries, view_menu, view_menu_entries,

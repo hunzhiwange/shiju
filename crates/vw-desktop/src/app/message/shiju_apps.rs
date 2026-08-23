@@ -1,4 +1,4 @@
-//! SHIJU application desktop lifecycle messages.
+//! 驱动识矩应用目录、已安装列表、密钥绑定与启动流程的消息生命周期。
 
 use iced::Task;
 use vw_gateway_client::{
@@ -16,10 +16,13 @@ use crate::app::shiju_apps::{
 };
 use crate::app::{App, AppTab, Message, Screen};
 
+/// 识矩应用在主标签栏中的稳定标识。
 pub(crate) const SHIJU_APPS_TAB_ID: &str = "shiju_apps";
+/// 识矩应用标签的用户可见标题。
 pub(crate) const SHIJU_APPS_TITLE: &str = "识矩应用";
 
 #[derive(Debug, Clone)]
+/// 识矩应用目录、详情、密钥绑定和启动流程的消息集合。
 pub(crate) enum ShijuAppsMessage {
     Open,
     SelectTab(ShijuAppsTab),
@@ -72,6 +75,7 @@ pub(crate) enum ShijuAppsMessage {
     },
 }
 
+/// 应用识矩应用状态转换，并忽略不属于当前请求代次的异步结果。
 pub(crate) fn update(app: &mut App, message: ShijuAppsMessage) -> Task<Message> {
     match message {
         ShijuAppsMessage::Open => {

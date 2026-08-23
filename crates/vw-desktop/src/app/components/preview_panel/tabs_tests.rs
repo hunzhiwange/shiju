@@ -1,3 +1,6 @@
+//! 验证预览标签的标题、状态、关闭操作与拖拽交互。
+//! 长路径、活动标签和未保存状态用于确认标签标识及消息目标保持一致。
+
 use super::tabs::{
     DisplayLanguage, all_languages, build_preview_tab_menu, preview_tab_menu_button_style,
     preview_tab_menu_container_style, preview_tab_menu_is_dark, preview_tab_menu_messages,

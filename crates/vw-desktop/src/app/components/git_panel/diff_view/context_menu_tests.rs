@@ -1,3 +1,6 @@
+//! 验证差异上下文菜单的行侧匹配、指针数据、交互状态与主题样式。
+//! 同一文件同一行仍需区分新旧侧，避免菜单操作落到另一侧的对应行。
+
 use super::context_menu::{
     diff_context_menu_matches, diff_selection_menu, diff_selection_menu_button_style,
     diff_selection_menu_container_style, is_dark_theme, open_diff_context_menu_message,

@@ -1,4 +1,6 @@
 // 验证记忆快照的解析、恢复、去重与局部失败容忍。
+
+// 恢复时跳过既有键和单条坏记录，导出或模式错误则保留明确失败。
 use super::*;
 use rusqlite::Connection;
 use tempfile::TempDir;

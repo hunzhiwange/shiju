@@ -1,4 +1,5 @@
 //! 验证会话创建和加载时的目录规范化与租户范围隔离。
+//! 目录必须是规范化绝对路径，加载时还要同时匹配租户、项目和原生会话身份。
 
 use std::path::Path;
 
@@ -40,6 +41,7 @@ fn create_session_requires_canonical_absolute_directory() {
 }
 
 #[tokio::test]
+// 加载同时校验目录和租户作用域，任一不匹配都不能复用持久化会话。
 async fn load_session_rejects_directory_or_scope_mismatch() {
     let _guard = LIFECYCLE_TEST_LOCK.lock().await;
     crate::project::instance::dispose_all().await;

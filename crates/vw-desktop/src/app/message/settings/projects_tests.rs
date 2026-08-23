@@ -1,3 +1,6 @@
+// 验证最近项目重命名、元数据创建与删除确认状态。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -18,6 +21,8 @@ fn recent_project_meta(path: &str, name: &str) -> RecentProjectMeta {
     }
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn rename_changed_updates_existing_edit_and_rejects_out_of_bounds_index() {
     let mut app = app();
@@ -95,6 +100,8 @@ fn rename_save_rejects_indices_missing_from_either_project_collection() {
     assert!(missing_project.recent_projects_meta.is_empty());
 }
 
+// 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
+// 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
 #[test]
 fn delete_request_and_cancel_only_change_confirmation_state() {
     let mut app = app();
@@ -176,6 +183,8 @@ fn delete_confirmed_removes_associated_state_and_rebuilds_display_names() {
     assert_eq!(app.recent_project_delete_confirm_idx, None);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn delete_confirmed_handles_missing_edit_for_existing_project() {
     let mut app = app();
@@ -226,6 +235,8 @@ fn worktree_toggle_inserts_enabled_entry_and_removes_disabled_entry() {
     assert!(!app.project_worktree_enabled.contains_key(path));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_settings_message_leaves_project_state_unchanged() {
     let mut app = app();

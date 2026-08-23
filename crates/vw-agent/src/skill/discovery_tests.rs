@@ -1,4 +1,5 @@
 //! 验证旧版技能发现过程的目录优先级、过滤与去重行为。
+//! 本地 HTTP 夹具验证索引与下载失败，已有缓存文件不得因远端异常被覆盖。
 
 use super::*;
 
@@ -225,6 +226,7 @@ async fn pull_trims_base_and_file_paths_but_excludes_skill_without_manifest() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
+// 缓存清单一旦存在就不被下载阶段覆盖，避免远端刷新破坏本地可用技能。
 async fn pull_preserves_cached_manifest() {
     let skill_name = format!("cached-skill-{}", std::process::id());
     let skill_root = dir().join(&skill_name);

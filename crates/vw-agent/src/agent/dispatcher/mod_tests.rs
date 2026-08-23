@@ -1,4 +1,5 @@
 //! 测试原生与 XML 工具分派器的响应解析、历史转换及结果格式化。
+//! 同一组响应在两种分派协议下校验畸形参数、缺失调用编号和未闭合标签。
 
 use super::*;
 use crate::app::agent::providers::ToolCall;

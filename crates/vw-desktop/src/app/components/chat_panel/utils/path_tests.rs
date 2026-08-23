@@ -1,3 +1,6 @@
+//! 验证文件引用规范化、行号剥离以及项目根目录内外的路径解析。
+//! 引号、文件 URL、裸行号与 Windows 分隔符用于覆盖展示引用的兼容输入。
+
 use super::path::{
     normalize_file_reference_to_path, normalize_file_url_to_path, relative_to_project_root,
     resolve_path,

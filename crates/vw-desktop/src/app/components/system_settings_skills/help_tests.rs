@@ -1,3 +1,7 @@
+//! 验证技能帮助文案覆盖页面能力、配置默认值和禁用标记。
+//!
+//! 帮助文本按能力、配置和本地禁用标记分组校验，防止说明与页面行为脱节。
+
 use super::help::{help_text, view_overlays};
 use crate::app::{App, Message};
 use iced::Element;

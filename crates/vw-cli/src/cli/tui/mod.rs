@@ -1,4 +1,7 @@
-//! Gateway-backed terminal UI composition and runtime boundary.
+//! Gateway 驱动的终端界面组装与运行时边界。
+//!
+//! `app` 负责宿主生命周期，`bridge` 转换 Gateway 与界面契约，`state`/`model`
+//! 保持可测的纯状态。本模块只导出当前 CLI 入口，不在此处隐式选择其他实现。
 
 use vw_tui::V3Surface;
 
@@ -23,7 +26,11 @@ mod bridge_tests;
 #[path = "parity_tests.rs"]
 mod parity_tests;
 
-/// Constructs the independent surface without selecting it as the default TUI.
+#[cfg(test)]
+#[path = "runner_tests.rs"]
+mod runner_tests;
+
+/// 构造独立界面对象，但不将其注册或切换为默认 TUI。
 pub(crate) fn build_surface() -> V3Surface {
     V3Surface::new()
 }

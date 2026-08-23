@@ -127,6 +127,7 @@ impl Drop for ConfigEnvGuard {
     }
 }
 
+// 这些用例会修改进程级环境变量，因此通过共享锁与守卫避免并发污染并恢复原值。
 #[test]
 fn apply_env_overrides_has_stable_in_place_signature() {
     let apply: fn(&mut Config) = apply_env_overrides;
@@ -299,6 +300,7 @@ fn boolean_overrides_preserve_multi_alias_flags_but_disable_strict_flags() {
     assert!(!config.web_search.enabled);
 }
 
+// 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
 #[test]
 fn blank_and_invalid_values_leave_structured_configuration_unchanged() {
     let env = ConfigEnvGuard::new();

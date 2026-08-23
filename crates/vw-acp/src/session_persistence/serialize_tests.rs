@@ -1,4 +1,6 @@
 //! 验证会话记录落盘时的蛇形字段和可选字段省略契约。
+//!
+//! 临时目录和最小记录 fixture 用于验证磁盘格式，不共享真实用户会话数据。
 
 use super::*;
 use crate::{
@@ -61,6 +63,7 @@ fn test_record() -> SessionRecord {
     }
 }
 
+// 下列行为用例覆盖合法往返、损坏输入、路径边界和索引恢复。
 #[test]
 fn insert_optional_writes_some_values_and_skips_none() {
     let mut record = Map::new();

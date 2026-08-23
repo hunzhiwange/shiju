@@ -87,6 +87,7 @@ async fn response_json(response: axum::response::Response) -> serde_json::Value 
     serde_json::from_slice(&bytes).expect("body should be json")
 }
 
+// 认证和配置解析必须先于服务器检查失败，避免无权限请求探测 MCP 元数据。
 #[tokio::test]
 async fn handle_api_mcp_inspect_returns_disabled_server_metadata() {
     let tmp = TempDir::new().expect("temp dir");

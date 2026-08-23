@@ -19,6 +19,7 @@ const EVENT_COLUMNS: &str = "id, task_id, run_id, worker_id, team_id, kind, from
 to_status, from_status_key, to_status_key, message, payload_json, created_at_ms";
 
 #[derive(Debug, Clone, PartialEq)]
+/// 追加审计事件所需的可选领域关联和状态变化信息。
 pub struct AppendAgentEventRequest {
     pub task_id: Option<TaskId>,
     pub run_id: Option<RunId>,
@@ -35,6 +36,7 @@ pub struct AppendAgentEventRequest {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// 带单调游标的已持久化调度事件。
 pub struct StoredAgentEvent {
     pub cursor: i64,
     pub task_id: Option<TaskId>,
@@ -52,6 +54,7 @@ pub struct StoredAgentEvent {
 }
 
 impl AgentSchedulerStore {
+    /// 在当前作用域追加事件，并用强类型状态补齐缺省状态键。
     pub fn append_event(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),

@@ -1,3 +1,6 @@
+//! 验证预览文件类型、内容回退与主视图布局的基础行为。
+//! 不支持的扩展名和缺失内容必须走明确空态，不能伪装成可渲染预览。
+
 use std::path::Path;
 
 use super::{preview_breadcrumb_segments, project_relative_segments, relative_segments_from_root};

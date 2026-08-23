@@ -1,9 +1,12 @@
 //! 验证标准输入输出传输层只写出合法 JSON-RPC 帧。
+//!
+//! 双向内存流连接服务端与测试客户端，以隔离标准输入输出帧边界。
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use super::agent_tests::FakeBackend;
 
+// 该端到端用例确认诊断文本不会混入 JSON-RPC 输出流。
 #[tokio::test(flavor = "current_thread")]
 async fn stdio_transport_writes_only_jsonrpc_frames() {
     let (mut client, server) = tokio::io::duplex(16 * 1024);

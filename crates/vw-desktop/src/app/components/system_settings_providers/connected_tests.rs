@@ -1,4 +1,8 @@
-// Tests for plan6 task 808 and task 632.
+//! 验证已连接提供商列表、热门提供商匹配及暗色主题渲染。
+//!
+//! 除状态分支外还使用无头渲染器验证暗色主题，防止仅构建控件掩盖绘制问题。
+
+// 保留计划任务 808 与 632 的既定覆盖面。
 const SOURCE: &str = include_str!("connected.rs");
 
 use crate::app::state::{ModelCatalogEntry, ProviderSummary};
@@ -220,14 +224,13 @@ async fn shiju_official_card_draws_in_dark_theme_with_non_ascii_text() {
 #[test]
 fn view_builds_popular_pattern_matching_existing_provider_not_catalog() {
     let mut app = test_app();
-    // providers without matching catalog entries
+    // 没有目录条目时仍应保留已连接提供商。
     app.provider_settings.providers = vec![
         provider("custom-local", "Custom Local", false),
         provider("another-provider", "Another Provider", true),
     ];
     app.provider_settings.catalog_items = vec![];
-    // "custom" matches no catalog but matches "custom-local" by id_lower.contains
-    // "another" matches no catalog but matches "another-provider" (connected)
+    // 查询还会按提供商标识做包含匹配，且不依赖目录中存在对应条目。
     app.provider_settings.popular_patterns = vec!["custom".to_string(), "another".to_string()];
     keep_element(super::connected::view(&app));
 }

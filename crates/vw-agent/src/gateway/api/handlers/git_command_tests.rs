@@ -44,6 +44,7 @@ fn init_repo() -> TestRepo {
     repo
 }
 
+// 命令参数先经白名单校验，随后才在临时仓库执行，避免测试放宽生产安全边界。
 #[test]
 fn router_builds_with_unit_state() {
     let _ = router::<()>();

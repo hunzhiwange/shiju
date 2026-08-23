@@ -1,4 +1,5 @@
 //! 验证技能初始化生成的目录结构、清单内容与冲突处理。
+//! 初始化只能补齐缺失资产；已有 README 必须保留，路径为文件时返回明确错误。
 
 use super::*;
 use std::fs;
@@ -24,6 +25,7 @@ fn init_creates_skills_directory_and_readme() {
 }
 
 #[test]
+// 初始化只补缺失文件，用户维护的 README 内容和权限不应被模板覆盖。
 fn init_preserves_existing_readme() {
     let dir = tempfile::tempdir().expect("temp dir");
     let skills = crate::app::agent::skills::skills_dir(dir.path());

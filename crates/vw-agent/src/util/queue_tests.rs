@@ -1,4 +1,5 @@
 //! 验证异步队列保持先进先出顺序并完整处理工作项。
+//! 单项消费和批量工作循环分别覆盖队列原语与上层处理契约。
 
 use super::queue::{AsyncQueue, work};
 use std::sync::Arc;

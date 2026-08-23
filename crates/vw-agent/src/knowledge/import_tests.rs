@@ -1,7 +1,10 @@
 // 覆盖知识导入的格式识别、文档拆分与错误传播。
+
+// 文件类型同时参考扩展名和声明 MIME，不支持或无法解码的输入必须明确拒绝。
 use super::import::parse_document_import;
 use vw_api_types::knowledge::KnowledgeDocumentImportRequest;
 
+// 导入请求统一采用 Base64 正文，文件名与 MIME 可独立变化以覆盖识别优先级。
 fn import_request(
     filename: &str,
     mime_type: Option<&str>,

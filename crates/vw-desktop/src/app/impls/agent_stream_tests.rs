@@ -1,4 +1,8 @@
-// Tests for plan6 task 846.
+//! 验证智能体流事件处理、会话状态更新和终止路径。
+//!
+//! 事件夹具覆盖增量、工具、权限、错误和终止序列，重点检查乱序与重复事件的幂等性。
+
+// 保留计划任务 846 的既定覆盖面。
 const SOURCE: &str = include_str!("agent_stream.rs");
 
 const _: () = assert!(
@@ -41,6 +45,7 @@ fn agent_stream_tests_keeps_planned_coverage_targets() {
 }
 
 #[test]
+// 增量缓冲必须减少界面分派次数，同时完整保留跨会话文本、游标和事件范围。
 fn plan_run_delta_buffer_coalesces_before_ui_dispatch() {
     use std::time::Duration;
 
@@ -323,6 +328,7 @@ fn chat_tool_event_keeps_legacy_tool_content() {
 }
 
 #[test]
+// 重试夹具使用可控流模拟未完成响应，确保只有终态才能结束网关读取循环。
 fn gateway_stream_retries_incomplete_attempts_until_terminal() {
     use std::collections::VecDeque;
     use std::time::Duration;
@@ -568,6 +574,7 @@ fn subagent_mode_request_gateway_options_sets_requirement_and_preserves_tools() 
 }
 
 #[test]
+// 临时工作流 YAML 的结构断言保护入口、任务节点和最终汇总节点之间的协议契约。
 fn temporary_workflow_yaml_contains_required_chat_nodes() {
     let yaml = super::temporary_workflow_yaml(
         "请帮我实现 chat 面板里的工作流执行进度展示",
@@ -744,6 +751,7 @@ fn temporary_workflow_yaml_sets_dify_node_layout() {
 }
 
 #[test]
+// 解析器测试集中覆盖网关与工作流服务的多种事件外形及缺字段回退。
 fn parse_workflow_chat_messages_event_maps_dify_payloads() {
     let delta = super::parse_workflow_chat_messages_event(serde_json::json!({
         "event": "message",
@@ -1375,6 +1383,7 @@ fn spawn_workflow_stream_response(
 
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread")]
+// 本地服务端记录实际请求，用于同时验证鉴权、查询参数和事件流解码。
 async fn stream_workflow_chat_messages_sends_auth_query_and_parses_events() {
     let stream_body = concat!(
         "data: {\"event\":\"message\",\"answer\":\"hello\"}\n\n",
@@ -1616,6 +1625,7 @@ fn temporary_workflow_fingerprint_ignores_outer_whitespace_only() {
 }
 
 fn plan_run_events() -> Vec<vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto> {
+    // 固定事件序列包含规划、子任务与终态，供多个生命周期测试共享同一基线。
     use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
 
     vec![
@@ -2179,6 +2189,7 @@ fn goal_only_does_not_activate_task_plan_run() {
 }
 
 #[test]
+// 轻量目标模式只依赖结构化评估结果，不能因自然语言内容或语言种类改变门控。
 fn lightweight_goal_gate_is_structural_and_language_agnostic() {
     let mut request = sample_agent_request(false, true, None);
     for query in ["帮我分析一下", "Please take a look", "これを見て", "حلّل هذا"]

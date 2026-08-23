@@ -1,4 +1,5 @@
 //! 验证技能 Markdown 审计对前言、链接和危险内容的识别。
+//! 仅技能入口 Markdown 执行严格链接完整性检查，普通资源仍保留风险内容扫描。
 
 use super::*;
 use crate::app::agent::skills::audit::report::SkillAuditReport;
@@ -68,6 +69,7 @@ fn markdown_audit_covers_link_edge_cases() {
 }
 
 #[test]
+// 普通资源不要求本地链接完整，但危险命令和远端风险仍必须被内容扫描发现。
 fn markdown_resource_skips_link_integrity_checks_but_keeps_risk_detection() {
     let dir = tempfile::tempdir().expect("temp dir");
     let markdown = dir.path().join("notes.md");

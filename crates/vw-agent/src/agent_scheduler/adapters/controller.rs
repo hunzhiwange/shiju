@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use crate::agent_scheduler::domain::{TeamId, WorkerName};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 控制器接受的工作节点目标生命周期状态。
 pub enum WorkerLifecycleState {
     Running,
     Sleeping,
@@ -13,6 +14,7 @@ pub enum WorkerLifecycleState {
 }
 
 impl WorkerLifecycleState {
+    /// 返回控制器协议要求的大小写固定状态字符串。
     pub fn as_hiclaw_spec_state(self) -> &'static str {
         match self {
             Self::Running => "Running",
@@ -23,6 +25,7 @@ impl WorkerLifecycleState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 请求控制器确保指定工作节点已具备接单条件。
 pub struct EnsureWorkerReadyRequest {
     pub worker_name: WorkerName,
     pub runtime: Option<String>,
@@ -43,6 +46,7 @@ impl From<EnsureWorkerReadyRequest> for WorkerLifecycleRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 请求控制器把工作节点推进到明确的目标生命周期状态。
 pub struct WorkerLifecycleRequest {
     pub worker_name: WorkerName,
     pub desired_state: WorkerLifecycleState,
@@ -52,11 +56,13 @@ pub struct WorkerLifecycleRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 查询单个工作节点当前控制器状态的请求。
 pub struct WorkerStatusRequest {
     pub worker_name: WorkerName,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 控制器返回的工作节点部署与生命周期快照。
 pub struct WorkerControllerSnapshot {
     pub worker_name: WorkerName,
     pub desired_state: WorkerLifecycleState,
@@ -68,6 +74,7 @@ pub struct WorkerControllerSnapshot {
 }
 
 #[async_trait]
+/// 调度器使用的工作节点控制面抽象；实现必须返回与请求节点一致的快照。
 pub trait ControllerAdapter: Send + Sync {
     async fn ensure_worker_ready(
         &self,

@@ -1,8 +1,9 @@
-//! Workflow saved app run messages.
+//! 处理已保存工作流应用的参数加载、草稿编辑与运行提交消息。
 
 use super::*;
 use std::collections::BTreeMap;
 
+/// 消费已保存应用运行消息；不属于本模块的消息返回 `None`。
 pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Message>> {
     Some(match message {
         WorkflowMessage::OpenSavedAppRunPrompt(uuid) => {
@@ -162,6 +163,7 @@ fn load_saved_app_run_prompt_task(uuid: String) -> Task<Message> {
 fn build_run_request_inputs(
     prompt: &crate::apps::workflow::state::WorkflowRunPromptDraft,
 ) -> Result<(String, BTreeMap<String, serde_json::Value>), String> {
+    // 提交前统一按输入定义解析和校验，避免把界面草稿字符串直接交给运行时。
     let mut parsed = BTreeMap::new();
     let mut query = prompt.query.trim().to_string();
 

@@ -1,6 +1,10 @@
+//! 验证应用构造流程对状态、配置和启动任务的组合。
+//!
+//! 构造测试对关键状态字段和初始任务分别断言，覆盖原生与条件编译分支。
+
 use super::*;
 
-// Tests for plan6 task 850.
+// 保留计划任务 850 的既定覆盖面。
 const SOURCE: &str = include_str!("new.rs");
 
 fn source_declares_symbol(name: &str) -> bool {

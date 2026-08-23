@@ -1,3 +1,6 @@
+//! 验证高级工具视图对代理、浏览器及集成载荷的摘要和详情回退规则。
+//! 嵌套字段缺失、部分代理结果和多种浏览器响应形状用于验证逐级回退次序。
+
 use super::advanced_view::{
     advanced_base_title, advanced_fallback_body, advanced_metadata_text, advanced_success_body,
     advanced_summary, agent_tool_detail_message, agent_tool_primary_message, agent_tool_session_id,

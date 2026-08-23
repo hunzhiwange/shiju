@@ -1,3 +1,6 @@
+//! 验证扩展消息渠道的启停状态、可选凭据与数值边界。
+//! 邮件渠道额外覆盖 TLS 与端口边界，其他渠道保持各自可选字段。
+
 use crate::app::{App, Message};
 #[cfg(not(target_arch = "wasm32"))]
 use vw_config_types::channels::EmailConfig;
@@ -5,6 +8,7 @@ use vw_config_types::channels::{
     IrcConfig, LinqConfig, NextcloudTalkConfig, WatiConfig, WhatsAppConfig,
 };
 
+// 扩展渠道以空配置为基线，数值和凭据边界均在对应测试中显式设置。
 fn test_app() -> App {
     App::new().0
 }

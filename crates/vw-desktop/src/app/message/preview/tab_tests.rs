@@ -1,3 +1,6 @@
+// 验证预览标签切换、网关目标解析及相关异步任务。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::state::ToastKind;
 
@@ -46,6 +49,8 @@ async fn collect_task_messages(task: Task<Message>) -> Vec<Message> {
     Vec::new()
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn gateway_target_uses_project_relative_path_for_file_inside_project() {
     let project = tempfile::tempdir().expect("temporary project should be created");
@@ -233,6 +238,8 @@ fn open_existing_tab_focuses_preview_and_preserves_single_tab() {
     assert!(!has_scheduled_action(task));
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn open_existing_tab_outside_project_creates_one_selected_top_level_tab() {
     let mut app = app();
@@ -526,6 +533,8 @@ fn save_file_finished_keeps_newer_editor_content_dirty() {
     assert!(app.preview_tabs[0].editor.inner.is_modified());
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn save_file_finished_reports_success_and_failure_toasts() {
     let mut app = app();
@@ -813,6 +822,8 @@ fn tab_menu_close_right_missing_target_only_dismisses_menu() {
     assert!(app.preview_tab_menu_pos.is_none());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn tab_menu_close_all_clears_tabs_active_path_and_menu() {
     let mut app = app();

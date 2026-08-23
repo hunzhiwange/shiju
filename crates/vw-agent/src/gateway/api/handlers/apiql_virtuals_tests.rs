@@ -62,6 +62,7 @@ fn resolve_demo(config: ApiQlEntityConfig) -> ApiQlEntityRegistry {
     ApiQlEntityRegistry::from_configs(vec![config]).expect("valid ApiQL entity config")
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[test]
 fn run_virtual_config_executes_inline_rhai_with_field_context() {
     let field = virtual_field_with_resolver(json!({}));
@@ -214,6 +215,7 @@ fn resolve_virtual_field_value_prefers_business_virtual_field() {
     assert_eq!(value, json!("Red Large"));
 }
 
+// 非法字段、运算符和解析器配置必须在生成查询或执行脚本前被拒绝。
 #[test]
 fn resolve_virtual_field_value_reports_missing_unknown_and_invalid_resolvers() {
     let no_resolver = ApiQlFieldConfig {

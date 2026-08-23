@@ -1,3 +1,6 @@
+//! 验证左侧覆盖层的宽度约束、布局定位与交互传递。
+//! 测试区分固定锚点和指针锚点，并检查越界时的水平修正。
+
 use super::{
     LeftOverlay, LeftOverlayElement, PointLeftOverlay, PointLeftOverlayElement,
     compute_left_position, compute_point_left_position,

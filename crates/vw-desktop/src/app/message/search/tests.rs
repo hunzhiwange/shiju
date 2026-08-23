@@ -1,3 +1,6 @@
+// 验证全局搜索浮层、查询缓存与会话结果导航行为。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 #![allow(unused_must_use)]
 use super::*;
 use crate::app::models::{ChatMessage, ChatRole};
@@ -66,6 +69,8 @@ async fn task_contains_widget_action(task: Task<Message>) -> bool {
     false
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn input_changed_refreshes_cache_without_closing_overlay_for_blank_query() {
     let mut app = app();
@@ -114,6 +119,8 @@ fn toggle_sets_overlay_visibility_directly() {
     assert!(!app.show_search_overlay);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn select_file_sets_file_input_and_hides_overlay() {
     let mut app = app();
@@ -180,6 +187,8 @@ async fn select_session_with_known_directory_routes_to_project_session() {
     ));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn select_session_rejects_blank_known_directory_and_uses_direct_load() {
     let mut app = app();
@@ -206,6 +215,8 @@ fn select_session_without_cached_chat_skips_chunk_prewarm_state() {
     assert!(app.active_session_view_state.pinned_chat_ui_chunk_start.is_none());
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn select_project_hides_overlay_before_returning_open_task() {
     let mut app = app();

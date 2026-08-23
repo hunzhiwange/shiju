@@ -1,4 +1,5 @@
 //! 提供调度存储统一入口，按配置选择 SQLite 或 PostgreSQL，并以项目作用域隔离数据。
+//! 所有子存储都必须先解析作用域，禁止绕过平台、公司与项目三层键直接访问记录。
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};

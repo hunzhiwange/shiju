@@ -11,6 +11,7 @@ fn config_for_workspace(path: std::path::PathBuf) -> Config {
     Config { workspace_dir: path, ..Config::default() }
 }
 
+// 诊断断言同时检查严重级别与可操作提示，避免只有返回值正确而用户指引失真。
 #[test]
 fn parse_df_available_mb_reads_last_data_line() {
     let stdout = "Filesystem 1M-blocks Used Available Use% Mounted on\n/dev/disk 100 20 80 20% /";
@@ -47,6 +48,7 @@ fn workspace_probe_path_stays_inside_workspace() {
     assert!(probe.file_name().unwrap().to_string_lossy().starts_with(".vibewindow_doctor_probe_"));
 }
 
+// 损坏或缺失的外部状态应转换成诊断项，而不是中断后续检查。
 #[test]
 fn check_workspace_reports_missing_directory_and_stops() {
     let temp = tempfile::tempdir().expect("tempdir");

@@ -6,6 +6,7 @@ use crate::settings::{
 };
 use serde_json::json;
 
+// 设置补丁不发送未修改字段，安全和沙箱策略枚举沿用既有协议名称。
 #[test]
 fn settings_patches_omit_unset_fields_and_keep_policy_names() {
     let security: SecuritySettingsPatchDto =

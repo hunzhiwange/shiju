@@ -1,3 +1,7 @@
+//! 验证顶部栏拖动区域的布局和窗口拖动消息连线。
+//!
+//! 拖动测试区分可拖动空白与交互控件区域，避免点击控件时误触窗口移动。
+
 use crate::app::Message;
 use iced::advanced::widget::Tree;
 use iced::widget::{Space, mouse_area};

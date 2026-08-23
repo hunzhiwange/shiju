@@ -1,7 +1,10 @@
 //! 已配置通道的健康检查、超时分类与汇总输出。
+//!
+//! 初始化失败与运行期探测结果会合并统计；任一通道不健康时整体检查返回错误。
 
 use super::*;
 
+/// 将探测结果归一为健康、不健康或超时状态。
 pub(crate) fn classify_health_result(
     result: &std::result::Result<bool, tokio::time::error::Elapsed>,
 ) -> ChannelHealthState {
@@ -12,6 +15,7 @@ pub(crate) fn classify_health_result(
     }
 }
 
+/// 一轮通道检查的分类计数。
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct ChannelDoctorSummary {
     healthy: u32,
@@ -19,7 +23,7 @@ pub(crate) struct ChannelDoctorSummary {
     timeout: u32,
 }
 
-/// Run health checks for configured channels.
+/// 收集当前配置的通道并执行健康检查。
 pub async fn doctor_channels(config: Config) -> Result<()> {
     let mut channels = collect_configured_channels(&config, "health check");
     let mut init_failures = Vec::new();
@@ -40,6 +44,7 @@ pub async fn doctor_channels(config: Config) -> Result<()> {
     Ok(())
 }
 
+/// 并发探测指定通道，在 `health_timeout` 后将未完成项记为超时。
 pub(crate) async fn run_channel_health_checks(
     channels: Vec<ConfiguredChannel>,
     init_failures: Vec<String>,

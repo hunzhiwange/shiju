@@ -1,3 +1,5 @@
+//! 提供专家中心卡片、按钮与输入控件的主题样式。
+
 use iced::widget::{button, container, text_input};
 use iced::{Background, Border, Color, Shadow, Theme, Vector};
 
@@ -6,6 +8,7 @@ fn is_dark(theme: &Theme) -> bool {
     background.r + background.g + background.b < 1.5
 }
 
+/// 生成兼顾明暗主题对比度的专家中心卡片样式。
 pub(super) fn card_style(theme: &Theme) -> container::Style {
     let palette = theme.extended_palette();
     container::Style {
@@ -121,6 +124,7 @@ pub(super) fn divider_style(theme: &Theme) -> container::Style {
     }
 }
 
+/// 根据页签选中和交互状态生成强调色按钮样式。
 pub(super) fn selected_tab_style(
     theme: &Theme,
     status: button::Status,
@@ -155,6 +159,7 @@ pub(super) fn selected_tab_style(
     }
 }
 
+/// 生成主要技能操作按钮样式。
 pub(super) fn action_button_style(theme: &Theme, status: button::Status) -> button::Style {
     let mut style = button::primary(theme, status);
     style.text_color = Color::WHITE;

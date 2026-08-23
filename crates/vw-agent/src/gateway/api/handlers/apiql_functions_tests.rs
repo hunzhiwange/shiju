@@ -12,6 +12,7 @@ fn tenant() -> TenantScope {
         .expect("ApiQL function tenant")
 }
 
+// 字段别名、数据库值与分页参数由同一组夹具固定，以同时约束兼容转换和查询语义。
 #[tokio::test]
 async fn apiql_function_wrappers_reject_invalid_query_keys_before_runtime_lookup() {
     let cases = [

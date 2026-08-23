@@ -1,4 +1,5 @@
 //! 验证会话模型、标题分叉、事件类型及项目上下文边界。
+//! 无项目上下文的操作应在副作用前失败，分叉标题只处理末尾的合法序号。
 
 use super::{
     CreateInput, Error, Role, Session, children, create_default_title, create_next, event, extra,
@@ -146,6 +147,7 @@ fn project_id_reports_missing_context_when_unset() {
 }
 
 #[tokio::test]
+// 上下文绑定接口统一在任何存储或事件副作用前检查项目作用域。
 async fn context_bound_operations_reject_missing_project_before_side_effects() {
     assert_no_project(create_next(CreateInput::default()).await);
     assert_no_project(get("missing-session").await);

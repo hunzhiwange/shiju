@@ -1,3 +1,6 @@
+//! 验证差异间隙的上下文展开、分栏边界、越界容错与主题样式。
+//! 仅匹配文件与间隙标识的展开状态生效，短范围和默认上下文边界不得多出控制行。
+
 use super::super::DiffRenderCtx;
 use super::gaps::{gap_expand_container_style, gap_summary_text_style, render_gap};
 use super::start_end::GapRange;

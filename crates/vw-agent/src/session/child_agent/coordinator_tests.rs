@@ -85,6 +85,7 @@ async fn coordinator_waits_for_recursive_descendant_tree_until_quiescent() {
 }
 
 #[test]
+// 递归取消沿所有权树传播，但绝不能影响其他父任务的子代理。
 fn coordinator_recursively_cancels_owned_descendants_only() {
     let coordinator = ChildAgentCoordinator::new(8);
     let child_cancellation = coordinator
@@ -129,6 +130,7 @@ fn coordinator_recursively_cancels_owned_descendants_only() {
 }
 
 #[test]
+// 拒绝环形父子关系，保证递归等待和取消必然终止。
 fn coordinator_rejects_descendant_cycles() {
     let coordinator = ChildAgentCoordinator::new(8);
     coordinator.register("root", "child", "planner", "coordinate").expect("child should register");
@@ -278,6 +280,7 @@ fn coordinator_rejects_cross_parent_access_and_cancels_with_a_token() {
 }
 
 #[test]
+// 终态记录按父任务限量保留，防止长期会话无限增长。
 fn coordinator_bounds_retained_terminal_tasks_per_parent() {
     let coordinator = ChildAgentCoordinator::new(2);
     for child in ["child-1", "child-2", "child-3"] {

@@ -3,6 +3,7 @@
 use super::builtins::builtin_formatters;
 use super::state::EnabledCheck;
 
+// 临时项目和可执行文件夹具用于验证真实探测顺序、缓存命中与失败回退。
 #[test]
 fn builtin_formatters_include_core_languages() {
     let formatters = builtin_formatters();

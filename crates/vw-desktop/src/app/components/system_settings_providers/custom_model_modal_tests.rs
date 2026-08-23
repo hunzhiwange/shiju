@@ -1,4 +1,8 @@
-// Tests for plan6 task 809.
+//! 验证自定义模型新增与编辑弹窗及其表单辅助控件。
+//!
+//! 测试分别构造新增与编辑草稿，确保同一浮层入口选择正确的模型表单。
+
+// 保留计划任务 809 的既定覆盖面。
 const SOURCE: &str = include_str!("custom_model_modal.rs");
 
 use crate::app::state::CustomProviderModelModalState;

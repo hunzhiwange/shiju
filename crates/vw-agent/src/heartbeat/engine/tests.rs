@@ -1,4 +1,6 @@
 // 覆盖心跳任务文本解析、默认文件创建与禁用运行路径。
+
+// 解析器只接受 Markdown 列表任务，并保留 Unicode 与任务正文中的有效空格。
 use super::*;
 
 #[allow(dead_code)]

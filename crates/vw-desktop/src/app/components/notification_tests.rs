@@ -1,3 +1,6 @@
+//! 验证通知面板的空态、编辑器内容与复制反馈渲染。
+//! 有无详情编辑器分别构造，确保通知条目不会依赖可选正文。
+
 use crate::app::components::notification::{
     accent_badge_style, compact_action_btn_style, copy_action_btn_style, delete_action_btn_style,
     is_dark_theme, item_style, notification_copy_label, notification_text_editor_style,

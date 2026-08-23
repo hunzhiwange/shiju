@@ -76,6 +76,7 @@ fn try_prefetch_read_returns_false_for_missing_paths_and_directories() {
 }
 
 #[test]
+// 预取只有在权限通过且确认为文本时才记录读取工具痕迹。
 fn try_prefetch_read_records_text_file_only_when_permission_allows() {
     let workspace = tempfile::tempdir().expect("temp workspace should be created");
     let file = workspace.path().join("style.css");
@@ -158,6 +159,7 @@ fn prefetch_seed_context_deduplicates_repeated_file_candidates() {
 }
 
 #[test]
+// 候选预取限制为前三项，控制启动延迟和上下文膨胀。
 fn prefetch_seed_context_limits_prefetch_to_first_three_candidates() {
     let workspace = tempfile::tempdir().expect("temp workspace should be created");
     let names = ["one.rs", "two.rs", "three.rs", "four.rs"];

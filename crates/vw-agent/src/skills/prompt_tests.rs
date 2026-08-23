@@ -1,4 +1,5 @@
 //! 验证新版技能提示的筛选、排序和上下文拼装行为。
+//! 紧凑提示只暴露定位信息，完整提示才注入工具、说明和绝对位置。
 
 use super::*;
 use crate::app::agent::config::SkillsPromptInjectionMode;
@@ -37,6 +38,7 @@ fn compact_prompt_escapes_xml_and_omits_full_sections() {
 }
 
 #[test]
+// 完整模式显式暴露工具、说明与绝对位置；紧凑模式则保持最小上下文。
 fn full_prompt_includes_tools_instructions_and_absolute_locations() {
     let workspace = tempfile::tempdir().unwrap();
     let outside = tempfile::tempdir().unwrap();

@@ -1,3 +1,6 @@
+// 验证自定义差异与聊天文本差异弹窗的编辑和显隐状态。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::{GitMessage, update};
 use crate::app::{App, Message};
 use iced::Task;
@@ -21,6 +24,8 @@ async fn collect_task_messages(task: Task<Message>) -> Vec<Message> {
     Vec::new()
 }
 
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -154,6 +159,8 @@ fn copy_modal_with_short_text_initializes_both_editors_in_colored_mode() {
     assert_eq!(app.git_copy_modal_code_editor.content(), "diff --git a/a b/a");
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn copy_modal_with_text_uses_plain_editor_for_large_text() {
     let mut app = test_app();
@@ -240,6 +247,8 @@ fn diff_copy_mode_with_non_repository_project_falls_back_to_empty_patch() {
     assert!(app.git_copy_modal_editor.text().is_empty());
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn copy_modal_from_path_reads_utf8_content() {
     let mut file = tempfile::NamedTempFile::new().expect("temporary file");
@@ -325,6 +334,8 @@ async fn insert_current_emits_colored_editor_content_and_hides_modal() {
     ));
 }
 
+// 行为契约：使用代表性场景固定该分支的可观察结果。
+// 断言聚焦输入、状态与返回任务，不复述内部控制流程。
 #[tokio::test(flavor = "multi_thread")]
 async fn insert_explicit_text_emits_that_text_and_hides_modal() {
     let mut app = test_app();

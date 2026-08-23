@@ -1,5 +1,7 @@
 //! SHIJU 应用网关接口，代理目录、安装项、密钥绑定与启动准备请求。
 //!
+//! 应用操作要求专用凭据头；上游错误类型在此转换为稳定 HTTP 语义。
+//!
 //! SHIJU application gateway API.
 
 use std::sync::Arc;
@@ -17,6 +19,7 @@ use vw_gateway_client::{
 use crate::gateway::ApiError;
 use crate::shiju::apps::{ShijuAppClient, ShijuAppError, ShijuAppErrorKind};
 
+/// 使用生产 SHIJU 客户端构建应用路由。
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -26,6 +29,7 @@ where
     router_with_client(client)
 }
 
+/// 使用显式客户端构建应用路由。
 pub(crate) fn router_with_client<S>(client: ShijuAppClient) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,

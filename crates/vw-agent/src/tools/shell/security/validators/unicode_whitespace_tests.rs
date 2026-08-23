@@ -1,4 +1,5 @@
 //! 验证 Unicode 空白校验器阻断非 ASCII 分隔符并允许普通空格。
+//! 该边界防止视觉相近字符改变分词结果，同时不干扰标准 shell 空白。
 
 use super::unicode_whitespace::UnicodeWhitespaceValidator;
 use crate::tools::shell::ast::parse_command;

@@ -1,4 +1,5 @@
 //! 验证会话消息与工具调用结果的格式转换及内容保留契约。
+//! 参数和结果内容按不透明文本处理，JSON 外形与空字符串都不得被悄然改写。
 
 use crate::app::agent::session::llm;
 
@@ -19,6 +20,7 @@ fn now_ms_is_close_to_system_time() {
 }
 
 #[test]
+// 工具参数保持原始文本而不预解析，确保格式转换不会改变后续执行看到的载荷。
 fn tool_calls_to_assistant_message_preserves_call_shape_and_reasoning() {
     let calls = vec![
         llm::ToolCall {

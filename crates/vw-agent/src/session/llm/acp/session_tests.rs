@@ -106,6 +106,7 @@ fn cache_key_is_stable_and_includes_behavioral_inputs() {
 }
 
 #[test]
+// 环境映射插入顺序不属于会话行为，不能导致缓存键漂移。
 fn cache_key_is_stable_across_environment_insertion_order() {
     let mut first = acp_config("agent");
     first.env.insert("B".to_string(), "2".to_string());
@@ -198,6 +199,7 @@ async fn close_cached_client_removes_matching_unshared_entry() {
 }
 
 #[tokio::test]
+// 共享客户端仍被其他请求持有时不能提前关闭。
 async fn close_cached_client_keeps_entry_while_another_request_shares_it() {
     let _guard = CACHE_LOCK.lock().await;
     ACP_CLIENT_CACHE.lock().clear();
@@ -287,6 +289,7 @@ fn session_state_options_keeps_model_or_turns_without_tools() {
 }
 
 #[test]
+// 显式空工具集与未提供工具状态语义不同，序列化时必须保留。
 fn session_state_options_keeps_explicit_empty_tool_state() {
     let state = session_state_options(Some(&AcpSessionOptions {
         model: None,

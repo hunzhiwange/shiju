@@ -1,4 +1,5 @@
 //! 验证字符串与结构化输入的通配匹配及最佳规则选择。
+//! 空规则、正则元字符字面量和不匹配结构不得产生虚假的候选结果。
 
 use super::wildcard::{StructuredInput, all, all_structured, matches};
 

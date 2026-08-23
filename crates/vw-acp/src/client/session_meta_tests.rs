@@ -1,9 +1,12 @@
 //! 验证会话选项元数据对空值的过滤及有效值的规范化。
+//!
+//! 用例只构造会话选项，明确区分缺失、空白和有效元数据。
 
 use crate::types::AcpSessionOptions;
 
 use super::session_meta::build_session_options_meta;
 
+// 下列行为用例确认空载荷被省略，模型和工具值按契约保留。
 #[test]
 fn session_options_meta_omits_missing_options() {
     assert!(build_session_options_meta(None).is_none());

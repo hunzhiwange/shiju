@@ -1,8 +1,14 @@
+//! Gateway 权限请求的展示分类、审批决定与 FIFO 队列。
+//!
+//! DTO 中的元数据只用于构建预览和调试信息；是否允许“始终允许”必须以服务端
+//! 下发的 `always` 模式为准，不在界面端臆测扩大授权。
+
 use std::collections::VecDeque;
 
 use serde_json::Value;
 use vw_gateway_client::PendingPermissionRequestDto;
 
+/// 根据权限名与元数据选择的预览样式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PermissionPreviewKind {
     Shell,
@@ -13,6 +19,7 @@ pub(crate) enum PermissionPreviewKind {
     Fallback,
 }
 
+/// 一条待审批权限请求的界面快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PermissionRequest {
     pub(crate) id: String,
@@ -26,6 +33,7 @@ pub(crate) struct PermissionRequest {
 }
 
 impl PermissionRequest {
+    /// 将 Gateway DTO 转为视图模型，保留服务端给出的模式边界。
     pub(crate) fn from_dto(dto: PendingPermissionRequestDto) -> Self {
         let preview = preview_kind(&dto.permission, &dto.metadata);
         let explanation =
@@ -43,11 +51,13 @@ impl PermissionRequest {
         }
     }
 
+    /// 返回服务端是否提供可持久授权的模式。
     pub(crate) fn always_available(&self) -> bool {
         !self.always_patterns.is_empty()
     }
 }
 
+/// 用户对当前权限请求的决定。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum PermissionDecision {
     Once,
@@ -55,16 +65,19 @@ pub(crate) enum PermissionDecision {
     Reject { reason: Option<String> },
 }
 
+/// 按 Gateway 下发顺序展示的权限请求队列。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct PermissionQueue {
     requests: VecDeque<PermissionRequest>,
 }
 
 impl PermissionQueue {
+    /// 用最新服务端快照整体替换本地队列。
     pub(crate) fn replace(&mut self, requests: Vec<PermissionRequest>) {
         self.requests = requests.into();
     }
 
+    /// 查看但不移除队首请求。
     pub(crate) fn current(&self) -> Option<&PermissionRequest> {
         self.requests.front()
     }
@@ -73,6 +86,7 @@ impl PermissionQueue {
         self.requests.len()
     }
 
+    /// 移除已处理的队首请求。
     pub(crate) fn pop_current(&mut self) -> Option<PermissionRequest> {
         self.requests.pop_front()
     }

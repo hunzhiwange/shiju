@@ -1,3 +1,5 @@
+// 本文件验证渠道输出清理、内部进度识别与投递提示生成。
+
 use super::*;
 use crate::app::agent::tools::{ToolResult, ToolSpec};
 use std::collections::HashSet;
@@ -45,6 +47,7 @@ fn strip_tool_call_tags_handles_aliases_unclosed_json_and_sentinel() {
 }
 
 #[test]
+// 无法可靠识别的未闭合块宁可保留，避免清理逻辑吞掉正文。
 fn strip_tool_call_tags_preserves_unparseable_unclosed_blocks() {
     let original = "before <tool>not-json";
 
@@ -479,4 +482,3 @@ fn sanitize_channel_response_matches_tool_names_case_insensitively() {
 
     assert_eq!(sanitize_channel_response(response, &tools), "hello\n\ndone");
 }
-// 本文件验证渠道输出清理、内部进度识别与投递提示生成。

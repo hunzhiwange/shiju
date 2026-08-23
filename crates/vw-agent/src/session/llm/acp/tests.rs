@@ -65,6 +65,7 @@ fn acp_option_error_formats_as_api_unknown_error() {
 }
 
 #[test]
+// 仅结构化 API 错误参与会话变化判断，普通显示文本不能触发重建。
 fn is_acp_session_changed_error_checks_only_known_api_error_variants() {
     assert!(is_acp_session_changed_error(&unknown_error("acp session changed: one")));
     assert!(is_acp_session_changed_error(&api_error("acp session changed: two")));

@@ -1,4 +1,6 @@
 // 验证 PostgreSQL 可选 TLS 校验器的证书与签名处理边界。
+
+// 跳过证书校验仅影响服务器证书，畸形 TLS 1.2/1.3 签名输入仍需拒绝。
 use super::*;
 use rustls::client::danger::ServerCertVerifier;
 use rustls::internal::msgs::codec::{Codec, Reader};

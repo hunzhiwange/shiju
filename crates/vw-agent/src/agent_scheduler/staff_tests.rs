@@ -1,4 +1,5 @@
 //! 测试职员配置到团队、阶段和任务分配的调度转换。
+//! 配置夹具覆盖缺省值和非法引用，确保生成的团队计划不包含悬空成员或阶段。
 
 use super::*;
 use crate::agent_scheduler::domain::{AgentTaskKind, TaskId, WorkerName};

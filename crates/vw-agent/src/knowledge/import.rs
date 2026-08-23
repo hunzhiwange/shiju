@@ -9,9 +9,12 @@ use serde_json::{Map, Value, json};
 use std::path::Path;
 use vw_api_types::knowledge::{KnowledgeDocumentCreateRequest, KnowledgeDocumentImportRequest};
 
+/// 单个导入源允许接收的最大编码前文件大小。
 pub(crate) const MAX_IMPORT_FILE_BYTES: usize = 20 * 1024 * 1024;
+/// 从导入源提取出的 UTF-8 文本最大大小。
 pub(crate) const MAX_EXTRACTED_TEXT_BYTES: usize = 5 * 1024 * 1024;
 
+/// 已完成校验与文本提取、可直接交给知识存储层的导入结果。
 #[derive(Debug, Clone)]
 pub(crate) struct ParsedDocumentImport {
     pub(crate) create: KnowledgeDocumentCreateRequest,
@@ -29,6 +32,9 @@ enum ImportKind {
     Pdf,
 }
 
+/// 校验导入请求并提取受支持的文本、Markdown 或 PDF 内容。
+///
+/// 大小检查在 Base64 解码前后分别执行，避免超大载荷造成不必要的内存占用。
 pub(crate) fn parse_document_import(
     body: KnowledgeDocumentImportRequest,
 ) -> Result<ParsedDocumentImport, ApiError> {

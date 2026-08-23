@@ -1,4 +1,5 @@
 //! 测试 PostgreSQL 依赖存储的拓扑约束与级联行为。
+//! 真实外键约束验证悬空和跨作用域关系失败，而不是依赖应用层预检查。
 
 use anyhow::Result;
 use serde_json::json;

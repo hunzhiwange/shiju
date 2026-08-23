@@ -89,6 +89,7 @@ fn assert_invalid_base_url(result: Result<(), Error>) {
 }
 
 #[test]
+// 模型解析同时保留供应商与模型标识，并让请求级覆盖显式生效。
 fn resolve_model_uses_complete_provider_model_reference_and_overrides() {
     let mut model = test_model("alibaba-cn", "openai-compatible");
     model.api.id = "qwen3.7-plus-2026-05-26".to_string();
@@ -144,6 +145,7 @@ fn log_build_failed_preserves_non_authentication_error_details() {
 }
 
 #[test]
+// 构建失败日志保留状态码和重试性，便于上层决定恢复策略。
 fn log_build_failed_preserves_api_status_and_retryability() {
     let model = test_model("openai", "openai-compatible");
 

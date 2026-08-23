@@ -63,6 +63,7 @@ fn api_error_preserves_status_retryability_body_and_metadata() {
 }
 
 #[test]
+// 无显式提示时以 HTTP 类别推断重试性，服务端错误与请求错误分开处理。
 fn api_error_marks_server_errors_retryable_and_client_errors_not_retryable() {
     let server = assistant_error_from_aisdk(
         "openai",
@@ -102,6 +103,7 @@ fn api_error_marks_body_decode_failures_retryable_without_status() {
 }
 
 #[test]
+// 响应体解码失败需沿详细信息和错误源链查找暂时性网络原因。
 fn body_decode_retryability_checks_details_raw_error_and_source_chain() {
     assert!(
         is_retryable_body_decode_error("ERROR DECODING RESPONSE BODY", "request failed", None,)

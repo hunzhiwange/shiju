@@ -1,3 +1,8 @@
+// 验证会话打开、工作区切换及聊天草稿迁移流程。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
+// 编译接线：引用父模块符号，确保测试片段仍由真实模块包含。
+// 该冒烟用例只承担接线职责，具体行为由同领域测试覆盖。
 #[test]
 fn test_module_is_wired() {
     let module = module_path!();
@@ -453,6 +458,8 @@ fn hot_restore_preserves_virtual_window_and_scroll_anchor() {
     assert_eq!(restored_window.render_end_idx, expected_window.render_end_idx);
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn cold_session_open_applies_history_and_base_ui_once() {
     let mut app = app();
@@ -844,6 +851,8 @@ fn project_session_scroll_and_load_more_update_per_project_state() {
     assert_eq!(app.project_session_load_counts.get(&path), Some(&20));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn recent_overlay_closed_preserves_open_picker_but_otherwise_resets_overlay_state() {
     let mut app = app();
@@ -1152,6 +1161,8 @@ fn project_load_sessions_skips_duplicate_loads_and_marks_new_load() {
     assert!(app.project_sessions_loading.contains(&path));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn handle_returns_none_for_message_owned_by_another_project_submodule() {
     let mut app = app();

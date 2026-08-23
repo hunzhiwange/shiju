@@ -1,3 +1,6 @@
+//! 验证聊天应用状态的标签回退、会话标题查找与近期复制判定。
+//! 活动会话可从近期列表或项目缓存解析，复制状态同时要求哈希匹配且时间仍有效。
+
 use super::app_state::{
     current_branch_label, current_project_path_label, get_session_title, is_recent_copy,
 };

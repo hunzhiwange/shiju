@@ -83,6 +83,7 @@ fn matrix_task_pool_event(event_id: &str, task_id: &str) -> TaskPoolMatrixEventD
     }
 }
 
+// 有界事件队列显式覆盖去重与淘汰，确保游标重放不会无限增长。
 #[tokio::test]
 async fn task_pool_matrix_router_and_events_handler_return_queued_events() {
     clear_task_pool_matrix_events_for_tests();
@@ -99,6 +100,7 @@ async fn task_pool_matrix_router_and_events_handler_return_queued_events() {
     assert_eq!(response.events, vec![event]);
 }
 
+// 无效项目或配置应在创建工作树、网络发布等外部副作用之前失败。
 #[tokio::test]
 async fn task_pool_matrix_publish_handler_rejects_before_network_without_matrix_config() {
     let state = app_state(Config::default());

@@ -1,10 +1,12 @@
 //! 测试代理上下文对记忆相关度、作用域和召回失败的处理。
+//! 可控记忆夹具区分低分、无评分、自动保存和召回失败等边界。
 
 use super::*;
 use crate::app::agent::memory::{MemoryCategory, MemoryEntry};
 use std::sync::Mutex;
 
 #[derive(Default)]
+// 召回结果、失败开关和调用记录分离，便于独立验证过滤与后端错误。
 struct FakeMemory {
     entries: Vec<MemoryEntry>,
     fail_recall: bool,

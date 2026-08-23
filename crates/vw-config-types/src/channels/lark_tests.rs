@@ -1,5 +1,9 @@
+//! 验证 Lark 与飞书配置对必需凭据的完整性约束。
+//! 两种配置共享相同的凭据成对规则，fixture 则保留各自独立类型。
+
 use super::{FeishuConfig, LarkConfig, LarkReceiveMode};
 
+// 分别构造最小配置，避免默认值掩盖空白或缺失凭据的校验结果。
 fn lark_config(app_id: &str, app_secret: &str) -> LarkConfig {
     LarkConfig {
         app_id: app_id.to_owned(),
@@ -32,6 +36,7 @@ fn feishu_config(app_id: &str, app_secret: &str) -> FeishuConfig {
     }
 }
 
+// 任一凭据缺失或仅含空白都视为未完整配置，不能进入通道初始化。
 #[test]
 fn lark_and_feishu_required_credentials_reject_blank_or_partial_values() {
     let cases = [

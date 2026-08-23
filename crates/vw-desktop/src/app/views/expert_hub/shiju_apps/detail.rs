@@ -1,3 +1,5 @@
+//! 展示识矩商店应用或已安装应用的详情信息。
+
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Element, Font, Length};
@@ -45,6 +47,7 @@ fn shell(
         .into()
 }
 
+/// 从目标列表索引读取应用；索引失效时展示可返回的错误状态。
 pub(super) fn view(app: &App, target: ShijuAppDetailTarget) -> Element<'static, Message> {
     match target {
         ShijuAppDetailTarget::Store(index) => {

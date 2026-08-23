@@ -12,6 +12,7 @@ use vw_api_types::task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleWorkflowDto,
 };
 
+// 相同工作流标识在不同租户中独立创建，验证增删改查不会跨租户命中。
 #[tokio::test]
 async fn task_lifecycle_default_router_registers_workflow_routes() {
     let response = router::<()>()
@@ -140,6 +141,7 @@ async fn task_lifecycle_routes_crud_custom_workflows() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+// 拒绝路径除状态码外还检查状态保持不变，防止错误响应掩盖已发生的副作用。
 async fn task_lifecycle_routes_keep_shared_id_isolated_by_request_tenant() {
     let home = tempfile::tempdir().expect("temp home");
     let tenant_a = TenantScope::new("platform-lifecycle", "company-a").expect("tenant A");

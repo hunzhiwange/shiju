@@ -1,3 +1,6 @@
+// 验证会话删除后活动上下文、运行时与偏好同步。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::models::{ChatMessage, ChatRole, TokenUsage};
 use vw_shared::session::info::{Info, TimeInfo};
@@ -39,6 +42,8 @@ fn chat_message(content: &str) -> ChatMessage {
     }
 }
 
+// 提交与删除：覆盖保存、安装或移除操作前后的状态衔接。
+// 这里关注校验、任务载荷和结果反馈，不绑定底层实现。
 #[test]
 fn session_delete_active_only_session_clears_conversation_and_usage() {
     let mut app = app();
@@ -88,6 +93,8 @@ fn session_delete_active_session_switches_to_first_remaining_and_syncs_preferenc
     assert_eq!(app.usage.input_tokens, 9);
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn session_delete_inactive_session_preserves_active_context() {
     let mut app = app();
@@ -128,6 +135,8 @@ fn session_delete_missing_session_removes_orphan_runtime_without_changing_contex
     assert_eq!(app.chat[0].content, "keep me");
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn session_delete_missing_active_session_switches_to_first_available_session() {
     let mut app = app();
@@ -169,6 +178,8 @@ fn session_copy_leaves_local_session_state_unchanged_until_task_completes() {
     assert_eq!(app.chat[0].content, "unchanged");
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn unrelated_settings_message_is_ignored() {
     let mut app = app();

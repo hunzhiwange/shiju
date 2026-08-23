@@ -1,3 +1,6 @@
+//! 验证 ACP 设置源码保持所需控件、消息连线与安全字段约束。
+//! 源码级断言用于守住静态配置契约，不替代实际视图的编译与渲染测试。
+
 const SOURCE: &str = include_str!("system_settings_acp.rs");
 
 use super::{acp_description, acp_title, command_line, ordered_agents, setup_hint, view};

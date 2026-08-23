@@ -1,3 +1,6 @@
+//! 验证快捷消息的筛选、选择、编辑状态及其弹窗布局。
+//! 空列表、过滤无结果和当前编辑项用于覆盖列表状态切换。
+
 use super::*;
 use crate::app::skill_hub::{
     InstalledSkill, LoadState, ShijuPackageRefreshState, ShijuPackageStatus,

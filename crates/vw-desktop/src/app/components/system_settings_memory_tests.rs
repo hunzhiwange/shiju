@@ -1,3 +1,6 @@
+//! 验证记忆后端设置的数值边界、动态标签、字段结构与保存错误。
+//! 仅 Qdrant 后端显示专属标签，非有限数值必须限制到合法范围。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::MemorySettingsTab;
@@ -5,6 +8,7 @@ use iced::Element;
 use iced::advanced::widget::Tree;
 use iced::widget::text;
 
+// 记忆后端由用例显式选择，防止本机持久配置影响动态标签断言。
 fn test_app() -> App {
     App::new().0
 }

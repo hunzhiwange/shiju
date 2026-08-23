@@ -1,3 +1,7 @@
+//! 验证安全设置的沙箱策略、后端选项、输入边界和帮助浮层。
+//!
+//! 已知与未知沙箱值均进入夹具，确认未知配置安全回退而非静默放宽策略。
+
 use super::*;
 use crate::app::state::{SecurityListKind, SecuritySettingsTab};
 use crate::app::{App, Message};

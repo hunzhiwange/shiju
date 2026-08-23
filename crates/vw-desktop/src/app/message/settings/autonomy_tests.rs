@@ -1,3 +1,6 @@
+// 验证自主模式配置解析、字段更新与风险选项处理。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
@@ -13,6 +16,8 @@ fn apply(app: &mut App, message: SettingsMessage) {
     drop(update(app, message));
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn parses_non_cli_mode_by_channel_with_aliases() {
     let parsed = parse_non_cli_mode_by_channel(
@@ -42,6 +47,8 @@ fn parses_non_cli_mode_by_channel_returns_empty_for_blank_and_invalid_entries() 
     assert!(parse_non_cli_mode_by_channel("missing-mode, :direct, slack:prompt").is_empty());
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn update_tracks_field_changes_and_help_modal() {
     let mut app = app();
@@ -189,6 +196,8 @@ fn autonomy_list_add_rejects_blank_duplicate_and_invalid_environment_names() {
     }
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn structured_lists_are_cloned_directly_into_persisted_autonomy_config() {
     let mut app = app();
@@ -234,6 +243,8 @@ fn update_switches_tab_without_persisting() {
     assert_eq!(app.autonomy_settings.save_error.as_deref(), Some("keep"));
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn update_ignores_non_autonomy_messages() {
     let mut app = app();

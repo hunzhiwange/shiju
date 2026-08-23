@@ -10,12 +10,14 @@ use super::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 pub const DEFAULT_OUTBOX_RETRY_DELAY_MS: i64 = 60_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 单轮发件箱排空的成功与失败计数。
 pub struct OutboxDrainSummary {
     pub claimed: usize,
     pub delivered: usize,
     pub failed: usize,
 }
 
+/// 负责消息认领、通道投递和重试状态落库的发件箱执行器。
 pub struct OutboxDispatcher<'a, A>
 where
     A: MatrixDispatchAdapter + ?Sized,
@@ -43,6 +45,7 @@ where
             .map(|(summary, _messages)| summary)
     }
 
+    /// 最多处理指定数量的可认领消息；单条失败不会中止本轮其余消息。
     pub async fn drain_messages_once(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),

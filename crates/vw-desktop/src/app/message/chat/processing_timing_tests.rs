@@ -1,3 +1,7 @@
+//! 验证助手消息处理与模型调用计时的启动、完成和拒绝边界。
+//!
+//! 计时夹具只允许尾部助手消息启动周期，重复启动和非助手尾部必须保持既有计时。
+
 use crate::app::models::{ChatMessage, ChatRole};
 
 fn message(role: ChatRole) -> ChatMessage {

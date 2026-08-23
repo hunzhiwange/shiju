@@ -1,3 +1,6 @@
+//! 验证拖放区域向子组件委托布局、绘制、事件与鼠标交互。
+//! 伪渲染器记录绘制四边形，使测试无需真实窗口即可检查覆盖层反馈。
+
 use iced::advanced::{
     Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, renderer, widget,
 };

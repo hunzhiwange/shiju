@@ -1,6 +1,12 @@
+//! TUI 设置面板的已保存值、待提交值与子选择器状态。
+//!
+//! 面板始终分离 `original` 和 `pending`：预览只修改待提交值，取消时可完整回滚。
+//! 能力矩阵负责标记不可用项，界面不伪造 Gateway 尚未提供的持久化能力。
+
 use super::session_mode::{GoalMode, PermissionMode, ReasoningEffort, WorkflowMode};
 use crate::cli::tui::vim::VimMode;
 
+/// 稳定标识一个设置行，用于选择、过滤与值渲染。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SettingKey {
     Model,
@@ -18,6 +24,7 @@ pub(crate) enum SettingKey {
     Vim,
 }
 
+/// 设置行的标签与不可用原因。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SettingRow {
     pub(crate) key: SettingKey,
@@ -25,6 +32,7 @@ pub(crate) struct SettingRow {
     pub(crate) unavailable_reason: Option<&'static str>,
 }
 
+/// 一份可编辑的会话设置快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SettingsValues {
     pub(crate) model: Option<String>,
@@ -60,21 +68,25 @@ impl Default for SettingsValues {
     }
 }
 
+/// 模型选择器的临时选中位置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SettingsModelPicker {
     pub(crate) selected: usize,
 }
 
+/// 委托智能体选择器的临时选中位置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SettingsDelegateAgentPicker {
     pub(crate) selected: usize,
 }
 
+/// ACP 后端选择器的临时选中位置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SettingsAcpBackendPicker {
     pub(crate) selected: usize,
 }
 
+/// 设置面板的行、过滤、原值、待提交值及可选能力。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SettingsPanel {
     pub(crate) rows: Vec<SettingRow>,
@@ -91,6 +103,7 @@ pub(crate) struct SettingsPanel {
 }
 
 impl SettingsPanel {
+    /// 从已保存值创建面板；目标模式固定开启，不向用户提供伪关闭入口。
     pub(crate) fn new(mut values: SettingsValues) -> Self {
         values.goal_mode = GoalMode::Enabled;
         Self {
@@ -153,6 +166,7 @@ impl SettingsPanel {
         }
     }
 
+    /// 结合当前会话能力创建面板，对不支持的行附加明确原因。
     pub(crate) fn for_capabilities(
         values: SettingsValues,
         capabilities: &super::session_mode::SessionCapabilityMatrix,
@@ -183,6 +197,7 @@ impl SettingsPanel {
         panel
     }
 
+    /// 在存在可选模型时打开选择器，并对齐当前待提交值。
     pub(crate) fn open_model_picker(&mut self) -> bool {
         if self.model_options.is_empty() {
             return false;
@@ -209,6 +224,7 @@ impl SettingsPanel {
         }
     }
 
+    /// 确认模型选择；选项已失效时不修改待提交值。
     pub(crate) fn confirm_model_picker(&mut self) -> bool {
         let Some(picker) = self.model_picker.take() else {
             return false;
@@ -224,6 +240,7 @@ impl SettingsPanel {
         self.model_picker.take().is_some()
     }
 
+    /// 在有可用委托智能体时打开对应选择器。
     pub(crate) fn open_delegate_agent_picker(&mut self) -> bool {
         if self.delegate_agent_options.is_empty() {
             return false;
@@ -251,6 +268,7 @@ impl SettingsPanel {
         }
     }
 
+    /// 确认委托智能体选择，仅更新待提交快照。
     pub(crate) fn confirm_delegate_agent_picker(&mut self) -> bool {
         let Some(picker) = self.delegate_agent_picker.take() else {
             return false;
@@ -266,6 +284,7 @@ impl SettingsPanel {
         self.delegate_agent_picker.take().is_some()
     }
 
+    /// 仅在存在多个 ACP 后端时打开选择器。
     pub(crate) fn open_acp_backend_picker(&mut self) -> bool {
         if self.acp_backend_options.len() <= 1 {
             return false;
@@ -293,6 +312,7 @@ impl SettingsPanel {
         }
     }
 
+    /// 确认 ACP 后端选择，不在此处执行会话切换。
     pub(crate) fn confirm_acp_backend_picker(&mut self) -> bool {
         let Some(picker) = self.acp_backend_picker.take() else {
             return false;
@@ -308,10 +328,12 @@ impl SettingsPanel {
         self.acp_backend_picker.take().is_some()
     }
 
+    /// 返回经过查询过滤后的当前选中行。
     pub(crate) fn selected_row(&self) -> Option<&SettingRow> {
         self.visible_rows().get(self.selected).copied()
     }
 
+    /// 在可见行中循环移动选中位置，空列表时回到零。
     pub(crate) fn move_selection(&mut self, delta: isize) {
         let len = self.visible_rows().len();
         if len == 0 {
@@ -323,6 +345,7 @@ impl SettingsPanel {
         }
     }
 
+    /// 将指定待提交值转为面板使用的简短标签。
     pub(crate) fn value_label(&self, key: SettingKey) -> String {
         match key {
             SettingKey::Model => self.pending.model.clone().unwrap_or_else(|| "自动".to_string()),
@@ -366,6 +389,7 @@ impl SettingsPanel {
         }
     }
 
+    /// 按当前查询返回可见行，保留原始稳定顺序。
     pub(crate) fn visible_rows(&self) -> Vec<&SettingRow> {
         let query = self.query.trim().to_lowercase();
         self.rows
@@ -374,6 +398,7 @@ impl SettingsPanel {
             .collect()
     }
 
+    /// 校验主题名后更新预览；不支持的值会显式失败。
     pub(crate) fn preview_theme(&mut self, theme: &str) -> Result<(), String> {
         if !matches!(
             theme,
@@ -385,6 +410,7 @@ impl SettingsPanel {
         Ok(())
     }
 
+    /// 放弃所有未提交编辑，将待提交值恢复为打开面板时的快照。
     pub(crate) fn cancel(&mut self) {
         self.pending = self.original.clone();
     }

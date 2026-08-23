@@ -1,4 +1,5 @@
 //! 验证界面会话存储的消息、步骤、原始数据与统计聚合行为。
+//! 同名项目和会话在租户间必须隔离，缺少作用域时写入接口应拒绝或安全跳过。
 
 use std::fs;
 
@@ -242,6 +243,7 @@ fn backfill_scope_project_metadata_writes_only_valid_project_files() -> Result<(
 }
 
 #[test]
+// 同名标识是刻意构造的冲突夹具，用于证明租户作用域参与所有查询键。
 fn facade_isolates_same_project_and_session_ids_across_tenants() -> Result<()> {
     let fixture = FacadeFixture::new("same-project")?;
     let tenant_a = TenantScope::new("platform-a", "company-a")?;

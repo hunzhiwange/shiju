@@ -1,3 +1,6 @@
+// 验证可靠性重试参数的安全边界与退避不变量。
+// 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
+
 use super::*;
 use crate::app::App;
 
@@ -5,6 +8,8 @@ fn app() -> App {
     App::new().0
 }
 
+// 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
+// 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn reliability_updates_accept_in_range_values_and_clear_stale_errors() {
     let mut app = app();
@@ -55,6 +60,8 @@ fn reliability_updates_clamp_numeric_values_to_safe_bounds() {
     assert_eq!(app.reliability_settings.scheduler_retries, 0);
 }
 
+// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
+// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
 fn channel_initial_backoff_clamps_and_preserves_maximum_invariant() {
     let mut app = app();
@@ -115,6 +122,8 @@ fn reliability_save_clears_error_without_changing_values() {
     assert!(app.reliability_settings.save_error.is_none());
 }
 
+// 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
+// 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
 fn reliability_help_messages_only_toggle_modal() {
     let mut app = app();
@@ -143,6 +152,8 @@ fn reliability_update_ignores_unrelated_message() {
     assert_eq!(app.reliability_settings.save_error.as_deref(), Some("unchanged"));
 }
 
+// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
+// 完成、失败与过期响应均按当前场景的既定契约处理。
 #[test]
 fn reliability_changes_schedule_persistence_tasks() {
     let mut app = app();

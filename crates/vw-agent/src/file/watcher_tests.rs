@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant, SystemTime};
 
+// 临时目录夹具同时覆盖正常路径和逃逸路径，确保安全判断不依赖当前工作区。
 #[test]
 fn watcher_event_contract_is_stable() {
     let props = UpdatedProperties { file: "src/lib.rs".to_string(), event: "change".to_string() };
@@ -119,6 +120,7 @@ fn scan_snapshot_uses_nested_relative_paths_and_excludes_directories() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// 缺失资源与越界资源的语义不同：前者可安全回退时仍不得放宽后者的拒绝策略。
 #[test]
 fn scan_snapshot_returns_empty_for_missing_root() {
     let temp = tempfile::tempdir().expect("tempdir");

@@ -14,6 +14,7 @@ const GLOBAL_PLUGINS: &str = "plugins";
 
 /// Discovery inputs with explicit directory roots for deterministic tests and callers.
 #[derive(Debug, Clone)]
+/// 控制工作区、用户目录及显式来源的插件发现范围。
 pub struct PluginDiscoveryOptions {
     pub workspace_dir: PathBuf,
     pub config_dir: PathBuf,
@@ -21,6 +22,7 @@ pub struct PluginDiscoveryOptions {
 }
 
 impl PluginDiscoveryOptions {
+    /// 创建绑定工作区与配置目录的发现选项。
     pub fn new(
         workspace_dir: impl Into<PathBuf>,
         config_dir: impl Into<PathBuf>,
@@ -32,6 +34,7 @@ impl PluginDiscoveryOptions {
 
 /// A plugin package discovered from an installed source directory.
 #[derive(Debug, Clone, PartialEq)]
+/// 单个已发现插件及其来源和启用状态。
 pub struct DiscoveredPlugin {
     pub source_dir: PathBuf,
     pub manifest: PluginManifest,
@@ -40,12 +43,16 @@ pub struct DiscoveredPlugin {
 
 /// Installed plugins and the subset enabled for runtime use.
 #[derive(Debug, Clone, PartialEq)]
+/// 一次发现过程的插件结果与非致命诊断。
 pub struct PluginDiscovery {
     pub installed: Vec<DiscoveredPlugin>,
     pub enabled: Vec<DiscoveredPlugin>,
 }
 
 /// Discover installed plugin packages and filter enabled plugins.
+/// 按稳定来源优先级发现、审计并去重本地插件。
+///
+/// 单个插件损坏会记录诊断并继续发现，其路径审计不会因此放宽。
 pub fn discover_plugins(options: &PluginDiscoveryOptions) -> Result<PluginDiscovery> {
     let source_dirs = plugin_source_dirs(options)?;
     let mut installed = Vec::new();

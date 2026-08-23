@@ -3,6 +3,7 @@
 use super::*;
 
 #[test]
+// 认证方式标签是持久化协议的一部分，大小写必须保持稳定。
 fn method_variants_serialize_with_lowercase_type_tags() {
     let api = serde_json::to_value(Method::Api { label: "API Key".into() }).unwrap();
     let oauth = serde_json::to_value(Method::Oauth { label: "OAuth Login".into() }).unwrap();
@@ -82,6 +83,7 @@ async fn auth_stubs_return_documented_values() {
 }
 
 #[tokio::test]
+// 空值和未配置输入不得伪造授权结果。
 async fn authorize_returns_none_for_boundary_inputs() {
     assert!(authorize("", 0).await.unwrap().is_none());
     assert!(authorize("provider", usize::MAX).await.unwrap().is_none());
@@ -95,6 +97,7 @@ async fn callback_rejects_missing_blank_and_nonempty_codes() {
 }
 
 #[tokio::test]
+// 重复写入同一供应商时覆盖旧密钥，验证存储只保留当前凭据。
 async fn api_stores_and_replaces_key_in_auth_store() {
     let provider_id = format!("provider-auth-test-{}", uuid::Uuid::new_v4());
     api(&provider_id, "first-placeholder-key").await.expect("api key should store");

@@ -1,4 +1,6 @@
 // 验证插件根目录、清单及组件路径解析能够拒绝越界和符号链接风险。
+
+// 所有组件路径必须以相对前缀声明并留在规范化插件根目录内。
 use super::{canonical_plugin_root, plugin_manifest_path, resolve_component_path};
 use std::fs;
 

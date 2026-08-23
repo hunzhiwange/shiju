@@ -18,6 +18,7 @@ status_from_key, status_to_key, message";
 const WORKSPACE_COLUMNS: &str = "task_id, run_id, slot_id, path, branch, recorded_at_ms";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 追加任务日志所需的运行关联和可选状态变化。
 pub struct AppendAgentTaskLogRequest {
     pub task_id: TaskId,
     pub run_id: Option<RunId>,
@@ -30,6 +31,7 @@ pub struct AppendAgentTaskLogRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 带任务内单调序号的已持久化日志行。
 pub struct StoredAgentTaskLog {
     pub task_id: TaskId,
     pub run_id: Option<RunId>,
@@ -43,6 +45,7 @@ pub struct StoredAgentTaskLog {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 执行器分配给运行的工作树槽位、路径和分支。
 pub struct AgentSchedulerWorkspaceContext {
     pub slot_id: String,
     pub path: String,
@@ -50,6 +53,7 @@ pub struct AgentSchedulerWorkspaceContext {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// 与任务和运行绑定的已持久化工作区上下文。
 pub struct StoredAgentRunWorkspaceContext {
     pub task_id: TaskId,
     pub run_id: RunId,
@@ -58,6 +62,7 @@ pub struct StoredAgentRunWorkspaceContext {
 }
 
 impl AgentSchedulerStore {
+    /// 校验运行归属后追加日志，并分配任务作用域内的下一个序号。
     pub fn append_task_log(
         &self,
         context: &(impl AgentSchedulerStorageContext + ?Sized),

@@ -1,3 +1,7 @@
+//! 验证项目启动设置的脚本编辑、工作树开关和条件布局。
+//!
+//! 工作树开关控制条件区块，编辑器动作则要求无损封装到项目消息。
+
 use super::*;
 use crate::app::message::project::ProjectMessage;
 

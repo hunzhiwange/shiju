@@ -1,3 +1,7 @@
+//! CLI 会话标题与工作区摘要的测试。
+//! 标题场景覆盖空白归一化、Unicode 安全截断与长度临界值。
+//! Git 场景则约束 porcelain 路径解析、重命名目标选择和非仓库目录的降级结果。
+
 use super::session::{
     GitWorkspaceStatus, build_project_info, collect_git_workspace_status, collect_modified_files,
     initial_cli_session_title_for_input, parse_git_status_porcelain_path,

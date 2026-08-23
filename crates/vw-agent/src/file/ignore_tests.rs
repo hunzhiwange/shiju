@@ -3,6 +3,7 @@
 use super::{PATTERNS, matches, split_path};
 use glob::Pattern;
 
+// 临时目录夹具同时覆盖正常路径和逃逸路径，确保安全判断不依赖当前工作区。
 #[test]
 fn split_path_accepts_unix_and_windows_separators() {
     assert_eq!(

@@ -1,3 +1,7 @@
+//! 验证存储提供商选项、连接字段和不同配置状态下的布局。
+//!
+//! 连接字符串包含空值、Unicode 与多行内容，确保输入控件不误改原始配置。
+
 use super::*;
 use crate::app::App;
 use iced::Element;

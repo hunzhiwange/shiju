@@ -8,7 +8,7 @@
 //!
 //! 交互式模式由以下几个核心子模块组成：
 //!
-//! - **`tui_v2`**: gateway-first 终端宿主，处理输入、渲染和运行时事件
+//! - **`tui`**: gateway-first 终端宿主，处理输入、渲染和运行时事件
 //!
 //! ## 主要功能
 //!
@@ -43,9 +43,9 @@ use anyhow::Result;
 
 use super::setup::CliSetup;
 #[cfg(test)]
-use self::tests::run_tui_v3;
+use self::tests::run_tui;
 #[cfg(not(test))]
-use super::tui_v3::run_tui_v3;
+use super::tui::run_tui;
 
 /// 启动交互式命令行会话
 ///
@@ -99,7 +99,7 @@ pub(crate) async fn run_interactive(
     setup: &CliSetup,
     _final_output: &mut String,
 ) -> Result<()> {
-    run_tui_v3(config, setup)
+    run_tui(config, setup)
 }
 
 #[cfg(test)]

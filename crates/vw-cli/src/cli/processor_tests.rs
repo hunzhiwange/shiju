@@ -2,7 +2,7 @@
 //! 测试只使用纯转换、内存 channel 与未发起请求的 runtime。
 
 use crate::app::agent::session::processor as legacy_processor;
-use crate::cli::tui_v2::runtime::gateway::GatewaySessionSeed;
+use crate::cli::tui::runtime::gateway::GatewaySessionSeed;
 use crate::session::ui_types as models;
 use serde_json::json;
 use std::path::PathBuf;

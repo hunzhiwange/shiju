@@ -1,0 +1,13 @@
+---
+source: crates/vw-tui/src/history_cell/session.rs
+expression: wide
+---
+╭──────────────────────────────────────────────────────────╮
+│ >_ VibeWindow (v0.4.0)                                   │
+│                                                          │
+│ model:       openai/gpt-5.6                              │
+│ directory:   /workspace/vibe-window                      │
+│ gateway:     127.0.0.1:34112                             │
+│ permissions: Plan · workspace write                      │
+│ session:     Port welcome surfaces                       │
+╰──────────────────────────────────────────────────────────╯

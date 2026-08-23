@@ -32,7 +32,7 @@ use vw_agent::skill::SkillCommands;
 mod runtime;
 
 pub(crate) use runtime::run;
-pub(crate) use runtime::{processor, session, setup, tui_v2};
+pub(crate) use runtime::{session, setup, tui};
 
 /// Shell 补全脚本支持的 shell 类型枚举
 ///

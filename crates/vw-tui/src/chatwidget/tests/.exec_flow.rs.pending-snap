@@ -1,0 +1,14 @@
+{"run_id":"1787452802-823319000","line":49,"new":{"module_name":"vw_tui__chatwidget__exec_flow","snapshot_name":"v3_event_sequence_preserves_copied_chatwidget_lifecycle","metadata":{"source":"crates/vw-tui/src/chatwidget/tests/exec_flow.rs","assertion_line":49,"expression":"thinking: Inspecting the workspace.\n\n› cargo check -p vw-tui\nChecking vw-tui\n  •\n• Working\n\n› Compose a VibeWindow task\n  esc interrupt\n\n\n\n\n\n\n\n\n"},"snapshot":"v3_lifecycle_intermediate_frame"},"old":{"module_name":"vw_tui__chatwidget__exec_flow","metadata":{},"snapshot":"• thinking Inspecting the workspace.\n\n› cargo check -p vw-tui\n  Checking vw-tui\n  •\n• Working\n\n\n\n\n\n\n\n\n\n\n› Compose a VibeWindow task"}}
+{"run_id":"1787452828-265964000","line":49,"new":null,"old":null}
+{"run_id":"1787452828-265964000","line":88,"new":{"module_name":"vw_tui__chatwidget__exec_flow","snapshot_name":"v3_event_sequence_preserves_copied_chatwidget_lifecycle-2","metadata":{"source":"crates/vw-tui/src/chatwidget/tests/exec_flow.rs","assertion_line":88,"expression":"&rendered(&chat, 72, 18)"},"snapshot":"thinking: Inspecting the workspace.\n\n› cargo check -p vw-tui\nFinished dev profile\n  ✓ 12ms\n\n• The check passed.\n\n› Compose a VibeWindow task\n  ? shortcuts"},"old":{"module_name":"vw_tui__chatwidget__exec_flow","metadata":{},"snapshot":"• thinking Inspecting the workspace.\n\n› cargo check -p vw-tui\nFinished dev profile\n  ✓ 12ms\n\n• The check passed.\n\n\n\n\n\n\n\n\n\n› Compose a VibeWindow task"}}
+{"run_id":"1787452860-800265000","line":49,"new":null,"old":null}
+{"run_id":"1787452860-800265000","line":88,"new":null,"old":null}
+{"run_id":"1787452928-30281000","line":49,"new":null,"old":null}
+{"run_id":"1787452928-30281000","line":88,"new":null,"old":null}
+{"run_id":"1787453001-853830000","line":49,"new":null,"old":null}
+{"run_id":"1787453001-853830000","line":88,"new":null,"old":null}
+{"run_id":"1787453015-55819000","line":49,"new":null,"old":null}
+{"run_id":"1787453015-55819000","line":88,"new":null,"old":null}
+{"run_id":"1787468991-415008000","line":49,"new":{"module_name":"vw_tui__chatwidget__exec_flow","snapshot_name":"v3_event_sequence_preserves_copied_chatwidget_lifecycle","metadata":{"source":"crates/vw-tui/src/chatwidget/tests/exec_flow.rs","assertion_line":49,"expression":"&rendered(&chat, 72, 18)"},"snapshot":"thinking: Inspecting the workspace.\n\n› cargo check -p vw-tui\nChecking vw-tui\n  •\n• Working (0s • esc to interrupt)\n\n› Compose a VibeWindow task\n  esc interrupt"},"old":{"module_name":"vw_tui__chatwidget__exec_flow","metadata":{},"snapshot":"thinking: Inspecting the workspace.\n\n› cargo check -p vw-tui\nChecking vw-tui\n  •\n• Working\n\n› Compose a VibeWindow task\n  esc interrupt"}}
+{"run_id":"1787469121-461274000","line":49,"new":null,"old":null}
+{"run_id":"1787469121-461274000","line":88,"new":null,"old":null}

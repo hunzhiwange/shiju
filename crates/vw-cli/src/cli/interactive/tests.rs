@@ -38,26 +38,26 @@ fn setup(provider_name: &str) -> CliSetup {
     }
 }
 
-pub(super) fn run_tui_v3(config: &Config, setup: &CliSetup) -> anyhow::Result<()> {
+pub(super) fn run_tui(config: &Config, setup: &CliSetup) -> anyhow::Result<()> {
     if setup.provider_name == FAILING_PROVIDER_NAME {
         let model = config.default_model.as_deref().unwrap_or("<none>");
-        anyhow::bail!("test TUI v3 rejected model {model}");
+        anyhow::bail!("test TUI rejected model {model}");
     }
 
     Ok(())
 }
 
 #[tokio::test]
-async fn run_interactive_delegates_to_copied_and_ported_tui_v3() {
+async fn run_interactive_delegates_to_copied_and_ported_tui() {
     let config = Config { default_model: Some("rejected-model".to_string()), ..Config::default() };
     let setup = setup(FAILING_PROVIDER_NAME);
     let mut final_output = "existing output".to_string();
 
     let error = run_interactive(&config, &setup, &mut final_output)
         .await
-        .expect_err("the v3 substitute runner should receive the interactive call");
+        .expect_err("the TUI substitute runner should receive the interactive call");
 
-    assert_eq!(error.to_string(), "test TUI v3 rejected model rejected-model");
+    assert_eq!(error.to_string(), "test TUI rejected model rejected-model");
     assert_eq!(final_output, "existing output");
 }
 
@@ -71,6 +71,6 @@ async fn run_interactive_propagates_tui_error_without_changing_final_output() {
         .await
         .expect_err("the test TUI should reject the configured model");
 
-    assert_eq!(error.to_string(), "test TUI v3 rejected model rejected-model");
+    assert_eq!(error.to_string(), "test TUI rejected model rejected-model");
     assert_eq!(final_output, "existing output");
 }

@@ -13627,7 +13627,7 @@ dependencies = [
  "vw-config-types",
  "vw-gateway-client",
  "vw-shared",
- "vw-tui-v3",
+ "vw-tui",
 ]
 
 [[package]]
@@ -13765,7 +13765,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vw-tui-v3"
+name = "vw-tui"
 version = "0.4.0"
 dependencies = [
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",

@@ -1,0 +1,10 @@
+---
+source: crates/vw-tui/src/history_cell/tests.rs
+expression: rendered
+---
+▌ inspect the change
+• I found a small change.
+› completed command
+ok
+  ✓ 8ms
+step: ● finish the migration

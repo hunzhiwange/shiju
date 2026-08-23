@@ -1,0 +1,57 @@
+=== 40x18 ===
+▌ Show the final copied TUI matrix.
+
+• The Codex-derived ChatWidget is
+  connected to VibeWindow Gateway.
+
+
+
+    Command
+    cargo test -p vw-cli tui
+    --lib
+    Run focused tests?
+    › 1. Allow once
+      2. Allow for session
+
+
+
+
+
+=== 80x24 ===
+▌ Show the final copied TUI matrix.
+
+• The Codex-derived ChatWidget is connected to VibeWindow Gateway.
+
+
+
+    Command
+    cargo test -p vw-cli tui --lib
+    Run focused tests?
+    › 1. Allow once
+      2. Allow for session
+      3. Deny
+
+
+
+
+
+
+
+
+
+
+
+
+=== 120x40 ===
+▌ Show the final copied TUI matrix.
+
+• The Codex-derived ChatWidget is connected to VibeWindow Gateway.
+
+
+
+    Command
+    cargo test -p vw-cli tui --lib
+    Run focused tests?
+    › 1. Allow once
+      2. Allow for session
+      3. Deny

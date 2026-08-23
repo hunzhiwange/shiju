@@ -1,0 +1,16 @@
+---
+source: crates/vw-tui/src/bottom_pane/chat_composer.rs
+expression: "render(&empty, 12)"
+---
+Buffer {
+    area: Rect { x: 0, y: 0, width: 12, height: 2 },
+    content: [
+        "› Compose a ",
+        "  Enter send",
+    ],
+    styles: [
+        x: 0, y: 0, fg: Magenta, bg: Reset, underline: Reset, modifier: NONE,
+        x: 2, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: DIM,
+        x: 0, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+    ]
+}

@@ -102,6 +102,7 @@ pub(crate) fn apply_runtime_event_at(
             if state.runtime.thinking_open {
                 reduce_tui_state(state, TuiAction::ThinkingClosed);
                 state.runtime.thinking_open = false;
+                state.runtime.thinking_depth = 0;
                 state.runtime.thinking_redacted = false;
             }
             apply_runtime_terminal(state, terminal);
@@ -136,6 +137,7 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
     if state.runtime.thinking_redacted {
         if let Some(close_index) = delta.find(REDACTED_THINK_CLOSE_TAG) {
             state.runtime.thinking_open = false;
+            state.runtime.thinking_depth = 0;
             state.runtime.thinking_redacted = false;
             let remaining = delta[close_index + REDACTED_THINK_CLOSE_TAG.len()..]
                 .trim_start_matches(['\r', '\n']);
@@ -162,6 +164,7 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
             }
         } else {
             state.runtime.thinking_open = true;
+            state.runtime.thinking_depth = 1;
             state.runtime.thinking_redacted = true;
         }
         return;
@@ -189,44 +192,61 @@ fn apply_runtime_delta(state: &mut TuiState, delta: String) {
 
     let mut remaining = delta.as_str();
     while !remaining.is_empty() {
-        if state.runtime.thinking_open {
-            if let Some((close_index, close_len)) = find_earliest_tag(remaining, THINK_CLOSE_TAGS) {
-                let thinking_delta = &remaining[..close_index];
-                if !thinking_delta.is_empty() {
-                    reduce_tui_state(
-                        state,
-                        TuiAction::ThinkingDeltaReceived(thinking_delta.to_string()),
-                    );
-                }
-                reduce_tui_state(state, TuiAction::ThinkingClosed);
-                state.runtime.thinking_open = false;
-                remaining = &remaining[close_index + close_len..];
-                remaining = remaining.trim_start_matches(['\r', '\n']);
-                if remaining.is_empty() {
-                    break;
-                }
-                continue;
-            }
-
-            reduce_tui_state(state, TuiAction::ThinkingDeltaReceived(remaining.to_string()));
+        let Some((tag_index, tag_len, is_open)) = find_thinking_boundary(remaining) else {
+            let action = if state.runtime.thinking_open {
+                TuiAction::ThinkingDeltaReceived(remaining.to_string())
+            } else {
+                TuiAction::AssistantDeltaReceived(remaining.to_string())
+            };
+            reduce_tui_state(state, action);
             break;
-        }
+        };
 
-        if let Some((open_index, open_len)) = find_earliest_tag(remaining, THINK_OPEN_TAGS) {
-            let assistant_delta = &remaining[..open_index];
-            if !assistant_delta.trim().is_empty() {
-                reduce_tui_state(
-                    state,
-                    TuiAction::AssistantDeltaReceived(assistant_delta.to_string()),
-                );
+        let prefix = &remaining[..tag_index];
+        if state.runtime.thinking_open {
+            if !prefix.is_empty() {
+                reduce_tui_state(state, TuiAction::ThinkingDeltaReceived(prefix.to_string()));
+            }
+            if is_open {
+                state.runtime.thinking_depth = state.runtime.thinking_depth.max(1).saturating_add(1);
+            } else {
+                state.runtime.thinking_depth = state.runtime.thinking_depth.max(1).saturating_sub(1);
+                if state.runtime.thinking_depth == 0 {
+                    reduce_tui_state(state, TuiAction::ThinkingClosed);
+                    state.runtime.thinking_open = false;
+                }
+            }
+        } else if is_open {
+            if !prefix.trim().is_empty() {
+                reduce_tui_state(state, TuiAction::AssistantDeltaReceived(prefix.to_string()));
             }
             state.runtime.thinking_open = true;
-            remaining = &remaining[open_index + open_len..];
-            continue;
+            state.runtime.thinking_depth = 1;
+        } else if !prefix.trim().is_empty() {
+            reduce_tui_state(state, TuiAction::AssistantDeltaReceived(prefix.to_string()));
         }
 
-        reduce_tui_state(state, TuiAction::AssistantDeltaReceived(remaining.to_string()));
-        break;
+        remaining = &remaining[tag_index + tag_len..];
+        if !state.runtime.thinking_open {
+            remaining = remaining.trim_start_matches(['\r', '\n']);
+        }
+    }
+}
+
+fn find_thinking_boundary(input: &str) -> Option<(usize, usize, bool)> {
+    let open = find_earliest_tag(input, THINK_OPEN_TAGS);
+    let close = find_earliest_tag(input, THINK_CLOSE_TAGS);
+    match (open, close) {
+        (Some((open_index, open_len)), Some((close_index, close_len))) => {
+            if open_index < close_index {
+                Some((open_index, open_len, true))
+            } else {
+                Some((close_index, close_len, false))
+            }
+        }
+        (Some((index, len)), None) => Some((index, len, true)),
+        (None, Some((index, len))) => Some((index, len, false)),
+        (None, None) => None,
     }
 }
 

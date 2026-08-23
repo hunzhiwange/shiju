@@ -448,6 +448,7 @@ impl TuiModelCatalogEntry {
 pub(crate) struct TuiRuntimeState {
     pub(crate) active_plan_run_task_id: Option<String>,
     pub(crate) thinking_open: bool,
+    pub(crate) thinking_depth: u32,
     pub(crate) thinking_redacted: bool,
     pub(crate) event_time_ms: Option<u64>,
     pub(crate) last_event_time_ms: Option<u64>,

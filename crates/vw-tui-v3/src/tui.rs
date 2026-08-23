@@ -8,7 +8,9 @@ use std::io::Stdout;
 use std::io::Write;
 
 use crossterm::cursor::{Hide, Show};
-use crossterm::event::{DisableBracketedPaste, EnableBracketedPaste};
+use crossterm::event::{
+    DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+};
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
@@ -29,6 +31,8 @@ trait TerminalControl {
     fn leave_alternate_screen(&mut self) -> io::Result<()>;
     fn enable_bracketed_paste(&mut self) -> io::Result<()>;
     fn disable_bracketed_paste(&mut self) -> io::Result<()>;
+    fn enable_mouse_capture(&mut self) -> io::Result<()>;
+    fn disable_mouse_capture(&mut self) -> io::Result<()>;
     fn hide_cursor(&mut self) -> io::Result<()>;
     fn show_cursor(&mut self) -> io::Result<()>;
 }
@@ -68,6 +72,14 @@ impl<W: Write> TerminalControl for CrosstermControl<W> {
         execute!(self.writer, DisableBracketedPaste)
     }
 
+    fn enable_mouse_capture(&mut self) -> io::Result<()> {
+        execute!(self.writer, EnableMouseCapture)
+    }
+
+    fn disable_mouse_capture(&mut self) -> io::Result<()> {
+        execute!(self.writer, DisableMouseCapture)
+    }
+
     fn hide_cursor(&mut self) -> io::Result<()> {
         execute!(self.writer, Hide)
     }
@@ -83,6 +95,7 @@ struct TerminalSession<C: TerminalControl> {
     raw_mode: bool,
     alternate_screen: bool,
     bracketed_paste: bool,
+    mouse_capture: bool,
     cursor_hidden: bool,
     restored: bool,
 }
@@ -94,6 +107,7 @@ impl<C: TerminalControl> TerminalSession<C> {
             raw_mode: false,
             alternate_screen: false,
             bracketed_paste: false,
+            mouse_capture: false,
             cursor_hidden: false,
             restored: false,
         };
@@ -105,6 +119,8 @@ impl<C: TerminalControl> TerminalSession<C> {
         }
         session.control.enable_bracketed_paste()?;
         session.bracketed_paste = true;
+        session.control.enable_mouse_capture()?;
+        session.mouse_capture = true;
         session.control.hide_cursor()?;
         session.cursor_hidden = true;
         Ok(session)
@@ -118,6 +134,10 @@ impl<C: TerminalControl> TerminalSession<C> {
         if self.cursor_hidden {
             record_restore_result(&mut first_error, self.control.show_cursor());
             self.cursor_hidden = false;
+        }
+        if self.mouse_capture {
+            record_restore_result(&mut first_error, self.control.disable_mouse_capture());
+            self.mouse_capture = false;
         }
         if self.bracketed_paste {
             record_restore_result(&mut first_error, self.control.disable_bracketed_paste());
@@ -186,6 +206,7 @@ mod tests {
         raw: bool,
         alternate: bool,
         paste: bool,
+        mouse: bool,
         cursor_hidden: bool,
         restores: Vec<&'static str>,
     }
@@ -224,6 +245,16 @@ mod tests {
             state.restores.push("paste");
             Ok(())
         }
+        fn enable_mouse_capture(&mut self) -> io::Result<()> {
+            self.0.borrow_mut().mouse = true;
+            Ok(())
+        }
+        fn disable_mouse_capture(&mut self) -> io::Result<()> {
+            let mut state = self.0.borrow_mut();
+            state.mouse = false;
+            state.restores.push("mouse");
+            Ok(())
+        }
         fn hide_cursor(&mut self) -> io::Result<()> {
             self.0.borrow_mut().cursor_hidden = true;
             Ok(())
@@ -251,8 +282,10 @@ mod tests {
                 });
 
                 let restores = match mode {
-                    TerminalMode::Inline => vec!["cursor", "paste", "raw"],
-                    TerminalMode::Alternate => vec!["cursor", "paste", "screen", "raw"],
+                    TerminalMode::Inline => vec!["cursor", "mouse", "paste", "raw"],
+                    TerminalMode::Alternate => {
+                        vec!["cursor", "mouse", "paste", "screen", "raw"]
+                    }
                 };
                 assert_eq!(result.is_err(), should_fail);
                 assert_eq!(*observed.borrow(), State { restores, ..State::default() });
@@ -269,6 +302,12 @@ mod tests {
             panic!("simulated panic");
         }));
 
-        assert_eq!(*observed.borrow(), State { restores: vec!["cursor", "paste", "screen", "raw"], ..State::default() });
+        assert_eq!(
+            *observed.borrow(),
+            State {
+                restores: vec!["cursor", "mouse", "paste", "screen", "raw"],
+                ..State::default()
+            }
+        );
     }
 }

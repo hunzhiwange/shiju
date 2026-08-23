@@ -38,9 +38,15 @@ impl ExecCell {
         let width = usize::from(width).max(1);
         let mut lines = Vec::new();
         for call in &self.calls {
-            let prefix =
-                if call.source == super::model::ExecCommandSource::User { "$ " } else { "› " };
-            let command = format!("{prefix}{}", call.command);
+            let command = match call.source {
+                super::model::ExecCommandSource::User => format!("$ {}", call.command),
+                super::model::ExecCommandSource::Tool if call.command.trim().is_empty() => {
+                    format!("› {}", call.tool)
+                }
+                super::model::ExecCommandSource::Tool => {
+                    format!("› {} {}", call.tool, call.command)
+                }
+            };
             let source = Line::from(command);
             let mut command_lines = adaptive_wrap_line(
                 &source,
@@ -115,6 +121,7 @@ mod tests {
             Duration::from_millis(8),
         );
         let lines = cell.display_lines(40);
+        assert!(lines.iter().any(|line| line.to_string().contains("shell printf ok")));
         assert!(lines.iter().any(|line| line.to_string().contains("printf ok")));
         assert!(lines.iter().any(|line| line.to_string().contains('✓')));
     }

@@ -1,5 +1,5 @@
 === 40x18 ===
-› cargo test -p vw-cli
+› shell cargo test -p vw-cli
 2 passed; 0 failed
   ✓ 87ms
 • Working (0s • esc to interrupt)
@@ -18,7 +18,7 @@
 
 
 === 80x24 ===
-› cargo test -p vw-cli
+› shell cargo test -p vw-cli
 2 passed; 0 failed
   ✓ 87ms
 • Working (0s • esc to interrupt)
@@ -43,7 +43,7 @@
 
 
 === 120x40 ===
-› cargo test -p vw-cli
+› shell cargo test -p vw-cli
 2 passed; 0 failed
   ✓ 87ms
 • Working (0s • esc to interrupt)

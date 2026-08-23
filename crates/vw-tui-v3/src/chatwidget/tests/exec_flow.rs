@@ -49,7 +49,7 @@ fn v3_event_sequence_preserves_copied_chatwidget_lifecycle() {
     insta::assert_snapshot!(&rendered(&chat, 72, 18), @r###"
 thinking: Inspecting the workspace.
 
-› cargo check -p vw-tui-v3
+› shell cargo check -p vw-tui-v3
 Checking vw-tui-v3
   •
 • Working (0s • esc to interrupt)
@@ -88,7 +88,7 @@ Checking vw-tui-v3
     insta::assert_snapshot!(&rendered(&chat, 72, 18), @r###"
 thinking: Inspecting the workspace.
 
-› cargo check -p vw-tui-v3
+› shell cargo check -p vw-tui-v3
 Finished dev profile
   ✓ 12ms
 

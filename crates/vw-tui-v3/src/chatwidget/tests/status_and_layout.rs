@@ -84,9 +84,9 @@ fn status_and_layout_tool_error_and_cancel_keep_terminal_cells() {
     }
 
     let frame = rendered(&chat);
-    assert!(frame.contains("› false"));
+    assert!(frame.contains("› shell false"));
     assert!(frame.contains("command failed"));
-    assert!(frame.contains("› sleep 30"));
+    assert!(frame.contains("› shell sleep 30"));
     assert!(frame.contains("interrupted"));
     assert_eq!(frame.matches('✗').count(), 2);
     assert!(frame.contains("error: turn failed"));

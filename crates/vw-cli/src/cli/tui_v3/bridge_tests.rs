@@ -259,6 +259,17 @@ fn tui_v3_projects_typed_tools_and_hides_known_gateway_lifecycle_events() {
         [V3Event::ToolCompleted { call_id, output, duration_ms, .. }]
             if call_id == "call-1" && output == "/workspace" && *duration_ms == 10
     ));
+    let rendered = app
+        .transcript_lines(80, true)
+        .into_iter()
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(rendered.contains("shell"));
+    assert!(rendered.contains("pwd"));
+    assert!(rendered.contains("/workspace"));
+    assert!(!rendered.contains("gateway-tool"));
+    assert!(!rendered.contains("duplicate tool"));
 
     for event in [
         GatewayChatStreamEvent::Other(json!({

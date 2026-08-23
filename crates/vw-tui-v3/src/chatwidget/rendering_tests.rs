@@ -106,6 +106,37 @@ fn chatwidget_exec_and_status_layout() {
 }
 
 #[test]
+fn chatwidget_transcript_scrollbar_and_navigation_are_wired() {
+    let mut widget = sample_widget();
+    for index in 0..20 {
+        widget.push_history(V3DisplayEvent::System { text: format!("history row {index:02}") });
+    }
+
+    let tail = render_frame(&widget, 48, 10);
+    assert!(tail.contains("history row 19"));
+    assert!(tail.contains('┃'));
+    assert!(!tail.contains("history row 00"));
+
+    widget.handle_key_event(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::PageUp,
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    let page_up = render_frame(&widget, 48, 10);
+    assert!(page_up.contains('┃'));
+    assert!(page_up.contains("history row 1"));
+    assert!(!page_up.contains("history row 19"));
+
+    widget.handle_mouse_event(crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::ScrollDown,
+        column: 0,
+        row: 0,
+        modifiers: crossterm::event::KeyModifiers::NONE,
+    });
+    let wheel_down = render_frame(&widget, 48, 10);
+    assert_ne!(wheel_down, page_up);
+}
+
+#[test]
 fn chatwidget_approval_overlay_layout() {
     let mut widget = sample_widget();
     widget.push_history(V3DisplayEvent::Assistant {

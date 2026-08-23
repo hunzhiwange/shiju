@@ -121,6 +121,41 @@ fn thinking_alias_tags_split_delta_like_think_tags() {
 }
 
 #[test]
+fn nested_thinking_aliases_do_not_leak_transport_tags() {
+    let mut state = TuiState::default();
+
+    for delta in [
+        "<think>",
+        "<thinking>The file is unchanged.</thinking>Now edit it.</think>",
+        "answer</thinking>",
+    ] {
+        apply_runtime_event(&mut state, UiRuntimeEvent::Delta(delta.to_string()));
+    }
+
+    assert!(!state.runtime.thinking_open);
+    let thinking = state
+        .messages
+        .iter()
+        .filter_map(|message| match message {
+            UiMessage::Thinking(block) => Some(block.content.as_str()),
+            _ => None,
+        })
+        .collect::<String>();
+    let answer = state
+        .messages
+        .iter()
+        .filter_map(|message| match message {
+            UiMessage::Assistant(message) => Some(message.text.as_str()),
+            _ => None,
+        })
+        .collect::<String>();
+    assert_eq!(thinking, "The file is unchanged.Now edit it.");
+    assert_eq!(answer, "answer");
+    assert!(!thinking.contains("<think"));
+    assert!(!answer.contains("</think"));
+}
+
+#[test]
 fn reasoning_marker_creates_closed_thinking_block() {
     let mut state = TuiState::default();
 

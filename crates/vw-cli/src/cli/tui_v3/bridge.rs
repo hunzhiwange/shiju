@@ -99,6 +99,8 @@ impl GatewayV3Bridge {
         if let Some(terminal) = terminal {
             events.push(v3_terminal_event(turn_id, terminal));
             self.active_turn_id = None;
+            self.tool_started_ms.clear();
+            self.tool_output.clear();
         }
         events
     }

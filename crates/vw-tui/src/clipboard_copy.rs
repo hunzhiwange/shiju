@@ -224,7 +224,7 @@ fn is_tmux_session() -> bool {
 
 #[cfg(target_os = "linux")]
 fn is_wsl_session() -> bool {
-    crate::clipboard_paste::is_probably_wsl()
+    std::env::var_os("WSL_INTEROP").is_some() || std::env::var_os("WSL_DISTRO_NAME").is_some()
 }
 
 #[cfg(not(target_os = "linux"))]

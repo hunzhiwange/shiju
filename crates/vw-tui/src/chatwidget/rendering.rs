@@ -116,7 +116,9 @@ impl Renderable for TranscriptAreaRenderable<'_> {
         if rendered_height > viewport_height && area.width > 1 {
             let scrollbar_area = Rect::new(area.right().saturating_sub(1), area.y, 1, area.height);
             let max_top = rendered_height.saturating_sub(viewport_height);
-            let mut state = ScrollbarState::new(max_top).position(scroll_top);
+            let mut state = ScrollbarState::new(max_top)
+                .position(scroll_top)
+                .viewport_content_length(viewport_height);
             Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(None)
                 .end_symbol(None)
@@ -124,6 +126,7 @@ impl Renderable for TranscriptAreaRenderable<'_> {
                 .thumb_symbol("┃")
                 .render(scrollbar_area, buf, &mut state);
         }
+        self.transcript.finish_render(area, content_area, buf);
     }
 
     fn desired_height(&self, width: u16) -> u16 {

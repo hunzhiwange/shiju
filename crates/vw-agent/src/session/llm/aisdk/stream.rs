@@ -109,6 +109,18 @@ fn reasoning_request_config(
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn normalize_tool_call_id(id: &str, request_namespace: &str) -> String {
+    let Some(index) = id.strip_prefix("openai-tool-call-") else {
+        return id.to_string();
+    };
+    if index.is_empty() || !index.bytes().all(|byte| byte.is_ascii_digit()) {
+        return id.to_string();
+    }
+
+    format!("openai-tool-call-{request_namespace}-{index}")
+}
+
 /// 执行带模型的 aisdk 流式请求
 ///
 /// 该函数是 aisdk 流式请求的核心入口点，负责构建请求、发送流式调用、
@@ -345,6 +357,9 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
     // 初始化流处理状态变量
     let mut tool_calls: Vec<ToolCall> = Vec::new(); // 收集工具调用
     let mut tool_call_ids: HashSet<String> = HashSet::new(); // 去重，兼容 Available + Done 双路径
+    // OpenAI 兼容接口在缺失 provider call id 时，AI SDK 只用请求内的工具索引兜底。
+    // 为该兜底 ID 加上请求命名空间，避免多轮请求都生成 `openai-tool-call-0`。
+    let tool_call_request_namespace = uuid::Uuid::new_v4().simple().to_string();
     let mut last_usage: Option<aisdk::core::language_model::Usage> = None; // 最新使用统计
     let mut saw_text = false; // 是否已发送过文本增量
     let mut saw_reasoning = false; // 是否已发送过推理增量
@@ -425,9 +440,13 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
 
                     // 工具调用已完整可用，直接收集
                     LanguageModelStreamChunkType::ToolCallAvailable(info) => {
-                        if tool_call_ids.insert(info.tool.id.clone()) {
+                        let call_id = normalize_tool_call_id(
+                            &info.tool.id,
+                            &tool_call_request_namespace,
+                        );
+                        if tool_call_ids.insert(call_id.clone()) {
                             tool_calls.push(ToolCall {
-                                id: info.tool.id.clone(),
+                                id: call_id,
                                 name: info.tool.name.clone(),
                                 arguments: serde_json::to_string(&info.input)
                                     .unwrap_or_else(|_| "{}".to_string()),
@@ -494,9 +513,13 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
                     match msg.content {
                         // 工具调用：添加到工具调用列表
                         AiContent::ToolCall(info) => {
-                            if tool_call_ids.insert(info.tool.id.clone()) {
+                            let call_id = normalize_tool_call_id(
+                                &info.tool.id,
+                                &tool_call_request_namespace,
+                            );
+                            if tool_call_ids.insert(call_id.clone()) {
                                 tool_calls.push(ToolCall {
-                                    id: info.tool.id.clone(),
+                                    id: call_id,
                                     name: info.tool.name.clone(),
                                     arguments: serde_json::to_string(&info.input)
                                         .unwrap_or_else(|_| "{}".to_string()),

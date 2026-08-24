@@ -2,10 +2,14 @@
 //! 本模块负责已提交、活动与实时尾部对话单元。
 //! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
 use crate::history_cell::{HistoryCell, history_cell_for};
 use crate::vibe::event::V3DisplayEvent;
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -34,6 +38,18 @@ pub(super) struct TranscriptState {
     follow_bottom: Cell<bool>,
     last_content_height: Cell<usize>,
     last_viewport_height: Cell<usize>,
+    last_area: Cell<Rect>,
+    last_content_area: Cell<Rect>,
+    visible_cells: RefCell<Vec<Vec<String>>>,
+    scrollbar_drag_offset: Cell<Option<usize>>,
+    selection_anchor: Cell<Option<(u16, u16)>>,
+    selection_head: Cell<Option<(u16, u16)>>,
+    selecting: Cell<bool>,
+}
+
+pub(super) enum TranscriptMouseAction {
+    None,
+    Copy(String),
 }
 
 impl Default for TranscriptState {
@@ -48,6 +64,13 @@ impl Default for TranscriptState {
             follow_bottom: Cell::new(true),
             last_content_height: Cell::new(0),
             last_viewport_height: Cell::new(1),
+            last_area: Cell::new(Rect::ZERO),
+            last_content_area: Cell::new(Rect::ZERO),
+            visible_cells: RefCell::new(Vec::new()),
+            scrollbar_drag_offset: Cell::new(None),
+            selection_anchor: Cell::new(None),
+            selection_head: Cell::new(None),
+            selecting: Cell::new(false),
         }
     }
 }
@@ -113,6 +136,7 @@ impl TranscriptState {
         let next = current.saturating_add_signed(delta).min(max_top);
         self.scroll_top.set(next);
         self.follow_bottom.set(next == max_top);
+        self.clear_selection();
     }
 
     pub(super) fn scroll_page(&self, pages: isize) {
@@ -164,97 +188,211 @@ impl TranscriptState {
         }
         lines
     }
+
+    pub(super) fn finish_render(&self, area: Rect, content_area: Rect, buf: &mut Buffer) {
+        self.last_area.set(area);
+        self.last_content_area.set(content_area);
+        let visible_cells = content_area
+            .rows()
+            .map(|row| {
+                content_area
+                    .columns()
+                    .map(|column| buf[(column.x, row.y)].symbol().to_string())
+                    .collect()
+            })
+            .collect();
+        *self.visible_cells.borrow_mut() = visible_cells;
+        self.render_selection(content_area, buf);
+    }
+
+    pub(super) fn handle_mouse_event(&self, event: MouseEvent) -> TranscriptMouseAction {
+        match event.kind {
+            MouseEventKind::ScrollUp => {
+                self.scroll_lines(-3);
+                TranscriptMouseAction::None
+            }
+            MouseEventKind::ScrollDown => {
+                self.scroll_lines(3);
+                TranscriptMouseAction::None
+            }
+            MouseEventKind::Down(MouseButton::Left) if self.is_scrollbar_point(event.column, event.row) => {
+                let Some((thumb_start, thumb_length)) = self.scrollbar_thumb() else {
+                    return TranscriptMouseAction::None;
+                };
+                let area = self.last_area.get();
+                let pointer = usize::from(event.row.saturating_sub(area.y));
+                let drag_offset = if pointer >= thumb_start
+                    && pointer < thumb_start.saturating_add(thumb_length)
+                {
+                    pointer.saturating_sub(thumb_start)
+                } else {
+                    thumb_length / 2
+                };
+                self.scrollbar_drag_offset.set(Some(drag_offset));
+                self.scroll_from_pointer(event.row, drag_offset);
+                self.clear_selection();
+                TranscriptMouseAction::None
+            }
+            MouseEventKind::Drag(MouseButton::Left) => {
+                if let Some(drag_offset) = self.scrollbar_drag_offset.get() {
+                    self.scroll_from_pointer(event.row, drag_offset);
+                } else if self.selecting.get() {
+                    self.selection_head.set(self.clamp_selection_point(event.column, event.row));
+                }
+                TranscriptMouseAction::None
+            }
+            MouseEventKind::Up(MouseButton::Left) => {
+                if let Some(drag_offset) = self.scrollbar_drag_offset.take() {
+                    self.scroll_from_pointer(event.row, drag_offset);
+                    return TranscriptMouseAction::None;
+                }
+                if !self.selecting.replace(false) {
+                    return TranscriptMouseAction::None;
+                }
+                self.selection_head.set(self.clamp_selection_point(event.column, event.row));
+                self.selected_text().map_or(TranscriptMouseAction::None, TranscriptMouseAction::Copy)
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                let Some(point) = self.selection_start_point(event.column, event.row) else {
+                    return TranscriptMouseAction::None;
+                };
+                self.selection_anchor.set(Some(point));
+                self.selection_head.set(Some(point));
+                self.selecting.set(true);
+                TranscriptMouseAction::None
+            }
+            _ => TranscriptMouseAction::None,
+        }
+    }
+
+    fn scrollbar_thumb(&self) -> Option<(usize, usize)> {
+        let area = self.last_area.get();
+        let track_length = usize::from(area.height);
+        let content_height = self.last_content_height.get();
+        let viewport_height = self.last_viewport_height.get().max(1);
+        let max_top = content_height.saturating_sub(viewport_height);
+        if track_length == 0 || max_top == 0 {
+            return None;
+        }
+        let thumb_length = viewport_height
+            .saturating_mul(track_length)
+            .div_ceil(content_height)
+            .clamp(1, track_length);
+        let travel = track_length.saturating_sub(thumb_length);
+        let thumb_start = self.scroll_top.get().min(max_top).saturating_mul(travel) / max_top;
+        Some((thumb_start, thumb_length))
+    }
+
+    fn is_scrollbar_point(&self, column: u16, row: u16) -> bool {
+        let area = self.last_area.get();
+        self.scrollbar_thumb().is_some()
+            && area.width > 1
+            && column == area.right().saturating_sub(1)
+            && row >= area.y
+            && row < area.bottom()
+    }
+
+    fn scroll_from_pointer(&self, row: u16, drag_offset: usize) {
+        let Some((_, thumb_length)) = self.scrollbar_thumb() else {
+            return;
+        };
+        let area = self.last_area.get();
+        let track_length = usize::from(area.height);
+        let travel = track_length.saturating_sub(thumb_length);
+        let pointer = usize::from(row.saturating_sub(area.y)).min(track_length.saturating_sub(1));
+        let thumb_start = pointer.saturating_sub(drag_offset).min(travel);
+        let max_top = self
+            .last_content_height
+            .get()
+            .saturating_sub(self.last_viewport_height.get().max(1));
+        let next = if travel == 0 {
+            0
+        } else {
+            thumb_start.saturating_mul(max_top).saturating_add(travel / 2) / travel
+        };
+        self.scroll_top.set(next);
+        self.follow_bottom.set(next == max_top);
+    }
+
+    fn clamp_selection_point(&self, column: u16, row: u16) -> Option<(u16, u16)> {
+        let area = self.last_content_area.get();
+        if area.is_empty() {
+            return None;
+        }
+        Some((
+            column.clamp(area.x, area.right().saturating_sub(1)),
+            row.clamp(area.y, area.bottom().saturating_sub(1)),
+        ))
+    }
+
+    fn selection_start_point(&self, column: u16, row: u16) -> Option<(u16, u16)> {
+        let area = self.last_content_area.get();
+        (column >= area.x
+            && column < area.right()
+            && row >= area.y
+            && row < area.bottom())
+            .then_some((column, row))
+    }
+
+    fn selected_text(&self) -> Option<String> {
+        let anchor = self.selection_anchor.get()?;
+        let head = self.selection_head.get()?;
+        if anchor == head {
+            self.clear_selection();
+            return None;
+        }
+        let (start, end) = ordered_points(anchor, head);
+        let area = self.last_content_area.get();
+        let cells = self.visible_cells.borrow();
+        let mut lines = Vec::new();
+        for row in start.1..=end.1 {
+            let row_index = usize::from(row.saturating_sub(area.y));
+            let row_cells = cells.get(row_index)?;
+            let first_column = if row == start.1 { start.0 } else { area.x };
+            let last_column = if row == end.1 {
+                end.0
+            } else {
+                area.right().saturating_sub(1)
+            };
+            let first = usize::from(first_column.saturating_sub(area.x));
+            let last = usize::from(last_column.saturating_sub(area.x));
+            let line = row_cells
+                .get(first..=last)?
+                .iter()
+                .map(String::as_str)
+                .collect::<String>();
+            lines.push(line.trim_end().to_string());
+        }
+        let text = lines.join("\n");
+        (!text.is_empty()).then_some(text)
+    }
+
+    fn render_selection(&self, area: Rect, buf: &mut Buffer) {
+        let (Some(anchor), Some(head)) = (self.selection_anchor.get(), self.selection_head.get())
+        else {
+            return;
+        };
+        let (start, end) = ordered_points(anchor, head);
+        for row in start.1..=end.1 {
+            let first = if row == start.1 { start.0 } else { area.x };
+            let last = if row == end.1 { end.0 } else { area.right().saturating_sub(1) };
+            for column in first..=last {
+                buf[(column, row)].set_style(Style::default().add_modifier(Modifier::REVERSED));
+            }
+        }
+    }
+
+    fn clear_selection(&self) {
+        self.selection_anchor.set(None);
+        self.selection_head.set(None);
+        self.selecting.set(false);
+    }
+}
+
+fn ordered_points(left: (u16, u16), right: (u16, u16)) -> ((u16, u16), (u16, u16)) {
+    if (left.1, left.0) <= (right.1, right.0) { (left, right) } else { (right, left) }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn active_cell_commits_into_history_and_invalidates_layout() {
-        let mut state = TranscriptState::default();
-        state.set_active_event(Some(V3DisplayEvent::Progress {
-            label: "working".into(),
-            detail: None,
-        }));
-        state.active_cell_layout.set(Some(ActiveCellLayoutCache {
-            key: ActiveCellLayoutCacheKey {
-                cell_identity: 1,
-                revision: state.active_cell_revision,
-                width: 80,
-                syntax_theme_revision: 0,
-            },
-            desired_height: 1,
-        }));
-
-        state.commit_active_cell();
-
-        assert_eq!(state.committed_history.len(), 1);
-        assert!(state.active_cell.is_none());
-        assert_eq!(state.active_cell_layout.get(), None);
-    }
-
-    #[test]
-    fn transcript_lines_join_committed_active_and_live_cells() {
-        let mut state = TranscriptState::default();
-        state.push_history(V3DisplayEvent::System { text: "committed".into() });
-        state.set_active_event(Some(V3DisplayEvent::Progress {
-            label: "active".into(),
-            detail: None,
-        }));
-        state.set_live_tail_event(Some(V3DisplayEvent::Assistant {
-            markdown: "live".into(),
-        }));
-
-        let committed = state
-            .transcript_lines(40, false)
-            .into_iter()
-            .map(|line| line.to_string())
-            .collect::<Vec<_>>()
-            .join("\n");
-        let full = state
-            .transcript_lines(40, true)
-            .into_iter()
-            .map(|line| line.to_string())
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        assert!(committed.contains("committed"));
-        assert!(!committed.contains("active"));
-        assert!(!committed.contains("live"));
-        assert!(full.contains("committed"));
-        assert!(full.contains("active"));
-        assert!(full.contains("live"));
-    }
-
-    #[test]
-    fn session_header_metadata_updates_in_place() {
-        let mut state = TranscriptState::default();
-        let display = |title: &str| crate::V3SessionDisplayData {
-            version: "0.4.0".into(),
-            cwd: "/workspace".into(),
-            gateway_endpoint: "127.0.0.1:42617".into(),
-            model: "token-plan/qwen3.7-plus".into(),
-            permissions: "Default · full access".into(),
-            session_id: Some("session-1".into()),
-            session_title: Some(title.into()),
-            token_usage: crate::V3TokenUsage::default(),
-            resumed: true,
-        };
-        state.push_cell(Box::new(crate::history_cell::SessionHistoryCell::header(display("Old"))));
-        state.push_history(V3DisplayEvent::System { text: "history".into() });
-
-        state.set_session_header(display("Generated title"));
-
-        assert_eq!(state.history_len(), 2);
-        let rendered = state
-            .transcript_lines(80, false)
-            .into_iter()
-            .map(|line| line.to_string())
-            .collect::<Vec<_>>()
-            .join("\n");
-        assert!(rendered.contains("session:     Generated title"));
-        assert!(!rendered.contains("session:     Old"));
-        assert!(rendered.contains("history"));
-    }
-}
+#[path = "transcript_tests.rs"]
+mod tests;

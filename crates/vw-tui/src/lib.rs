@@ -316,6 +316,7 @@ pub mod chatwidget;
 // consumers, so staged dead-code allowances stay scoped to this batch only.
 #[allow(dead_code)]
 mod color;
+mod clipboard_copy;
 #[allow(dead_code)]
 mod custom_terminal;
 #[allow(dead_code)]

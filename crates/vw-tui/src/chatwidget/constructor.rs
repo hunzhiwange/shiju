@@ -41,6 +41,7 @@ impl ChatWidget {
             exec_state: exec_state::ExecState::default(),
             interrupt_state: interrupts::InterruptState::default(),
             overlay: None,
+            clipboard_lease: None,
             last_rendered_width: Cell::new(None),
         }
     }

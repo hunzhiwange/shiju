@@ -13,7 +13,7 @@ use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
 use vw_tui::{V3Action, V3ApprovalDecision, V3Event, V3UserInputAnswer};
 
-use super::app::{V3GatewayApp, restore_or_create_session_state};
+use super::app::V3GatewayApp;
 use super::bridge::GatewayV3Bridge;
 use super::controller::{TuiControllerCommand, TuiOverlayCommand};
 use super::model::permission::{
@@ -294,7 +294,7 @@ fn tui_projects_typed_tools_and_hides_known_gateway_lifecycle_events() {
 }
 
 #[test]
-fn tui_restores_gateway_session_title_history_and_identity() {
+fn tui_explicit_resume_restores_gateway_session_title_history_and_identity() {
     let snapshot = ChatSession {
         id: "session-restored".to_string(),
         title: "Desktop session title".to_string(),
@@ -321,29 +321,28 @@ fn tui_restores_gateway_session_title_history_and_identity() {
         updated_ms: 20,
     };
     let (endpoint, requests, server) = gateway_fixture(vec![
-        json!([{
-            "id": "session-restored",
-            "title": "Desktop session title",
-            "updated_ms": 20,
-            "message_count": 2,
-            "call_count": 0,
-            "last_content": "existing answer"
-        }]),
-        json!("project-scope"),
         serde_json::to_value(&snapshot).expect("snapshot JSON"),
         json!(true),
     ]);
     let client = GatewayClient::new(endpoint).expect("test gateway client");
-    let mut runtime =
-        GatewayUiRuntime::new(client, GatewaySessionSeed::new(PathBuf::from("/workspace")));
-
-    let state = restore_or_create_session_state(&mut runtime).expect("restore latest session");
-    assert_eq!(state.session.session_id.as_deref(), Some("session-restored"));
-    assert_eq!(state.session.title, "Desktop session title");
-    assert_eq!(state.session.scope.as_deref(), Some("project-scope"));
-    assert_eq!(runtime.session_id(), Some("session-restored"));
-
+    let runtime = GatewayUiRuntime::new(
+        client,
+        GatewaySessionSeed::new(PathBuf::from("/workspace"))
+            .with_id(Some("initial".to_string()))
+            .with_scope(Some("project-scope".to_string())),
+    );
+    let mut state = TuiState::default();
+    state.session.session_id = Some("initial".to_string());
+    state.session.scope = Some("project-scope".to_string());
+    state.project.workspace_root = Some(PathBuf::from("/workspace"));
     let mut app = V3GatewayApp::new(runtime, state);
+
+    app.resume_session("session-restored").expect("restore selected session");
+
+    assert_eq!(app.state().session.session_id.as_deref(), Some("session-restored"));
+    assert_eq!(app.state().session.title, "Desktop session title");
+    assert_eq!(app.state().session.scope.as_deref(), Some("project-scope"));
+    assert_eq!(app.runtime().session_id(), Some("session-restored"));
     let rendered = app
         .transcript_lines(80, true)
         .into_iter()
@@ -362,11 +361,9 @@ fn tui_restores_gateway_session_title_history_and_identity() {
     app.persist_session_snapshot().expect("persist restored session");
 
     assert_eq!(
-        requests.recv().expect("preview request"),
-        "/v1/session/ui-previews?directory=%2Fworkspace"
+        requests.recv().expect("snapshot request"),
+        "/v1/session/session-restored/ui?directory=%2Fworkspace"
     );
-    assert_eq!(requests.recv().expect("scope request"), "/v1/session/scope");
-    assert_eq!(requests.recv().expect("snapshot request"), "/v1/session/session-restored/any");
     assert_eq!(
         requests.recv().expect("save request"),
         "/v1/session/session-restored/ui?directory=%2Fworkspace"

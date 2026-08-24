@@ -69,6 +69,7 @@ use super::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use super::state::{TuiAction, TuiState, reduce_tui_state};
 
 type V3Terminal = CustomTerminal<CrosstermBackend<io::Stdout>>;
+const SESSION_HISTORY_DISPLAY_LIMIT: usize = 100;
 
 enum StreamMessage {
     ChatEvent(GatewayChatStreamEvent),
@@ -93,6 +94,7 @@ struct ActiveStream {
 pub(crate) type EditorAction = dyn Fn(&str) -> Result<Option<String>, String> + Send + Sync;
 
 enum HostMessage {
+    SessionBootstrapFinished(Result<Box<TuiState>, String>),
     EditorFinished(Result<Option<String>, String>),
     StopFinished { request_id: String, result: Result<bool, String> },
     PlanRunStopFinished { request_id: String, task_id: String, result: Result<bool, String> },
@@ -112,6 +114,7 @@ pub(crate) enum RunnerControl {
 pub(crate) struct ActiveRunner {
     active_stream: Option<ActiveStream>,
     transcript_pager: Option<TranscriptPager>,
+    session_bootstrap_in_flight: bool,
     editor_in_flight: bool,
     interaction_in_flight: bool,
     editor: Arc<EditorAction>,
@@ -132,6 +135,7 @@ impl ActiveRunner {
         Self {
             active_stream: None,
             transcript_pager: None,
+            session_bootstrap_in_flight: false,
             editor_in_flight: false,
             interaction_in_flight: false,
             editor,
@@ -152,6 +156,15 @@ impl ActiveRunner {
             }
             _ => None,
         };
+        if app.state().session.session_id.is_none()
+            && matches!(action, V3Action::Submit { .. } | V3Action::Queue { .. })
+        {
+            if let Some((text, attachments)) = recovery {
+                app.widget_mut().restore_submission(text.as_str(), attachments);
+            }
+            push_runner_error(app, "session history is still loading; retry in a moment");
+            return RunnerControl::Continue;
+        }
         if self.active_stream.is_some() && matches!(action, V3Action::Submit { .. }) {
             if let Some((text, attachments)) = recovery {
                 app.widget_mut().restore_submission(text.as_str(), attachments);
@@ -603,6 +616,18 @@ impl ActiveRunner {
         }
     }
 
+    /// 在终端首帧可绘制后，后台恢复最近会话并转换完整状态。
+    pub(crate) fn request_session_bootstrap(&mut self, app: &mut V3GatewayApp) {
+        if self.session_bootstrap_in_flight {
+            return;
+        }
+        self.session_bootstrap_in_flight = true;
+        app.widget_mut().push_history(V3DisplayEvent::System {
+            text: "正在加载最近会话…".to_string(),
+        });
+        spawn_session_bootstrap(app.runtime().clone(), self.host_sender.clone());
+    }
+
     /// 在后台加载当前会话交互；并发事件会保留刷新标记供本轮结束后重试。
     pub(crate) fn request_interaction_refresh(&mut self, app: &mut V3GatewayApp) {
         if self.interaction_in_flight {
@@ -620,6 +645,15 @@ impl ActiveRunner {
     fn drain_host_messages(&mut self, app: &mut V3GatewayApp) {
         loop {
             match self.host_receiver.try_recv() {
+                Ok(HostMessage::SessionBootstrapFinished(result)) => {
+                    self.session_bootstrap_in_flight = false;
+                    match result {
+                        Ok(state) => app.commit_initial_session_state(*state),
+                        Err(error) => {
+                            push_runner_error(app, format!("failed to load session history: {error}"));
+                        }
+                    }
+                }
                 Ok(HostMessage::EditorFinished(result)) => {
                     self.editor_in_flight = false;
                     match result {
@@ -2025,6 +2059,36 @@ impl V3GatewayApp {
         self.transcript_reflow = TranscriptReflowState::default();
         self.interaction_refresh_requested = true;
     }
+
+    fn commit_initial_session_state(&mut self, mut next_state: TuiState) {
+        next_state.project = self.state.project.clone();
+        next_state.session_options = self.state.session_options.clone();
+        next_state.session_capabilities = self.state.session_capabilities.clone();
+        next_state.model_catalog = self.state.model_catalog.clone();
+        next_state.settings_warnings = self.state.settings_warnings.clone();
+        next_state.integration_catalog = self.state.integration_catalog.clone();
+        next_state.integration_warnings = self.state.integration_warnings.clone();
+        next_state.orchestration = self.state.orchestration.clone();
+        next_state.theme_name = self.state.theme_name.clone();
+        next_state.status.provider_name = self.state.status.provider_name.clone();
+        if next_state.status.model_name.is_none() {
+            next_state.status.model_name = self.state.status.model_name.clone();
+        }
+
+        let title =
+            (!next_state.session.title.trim().is_empty()).then(|| next_state.session.title.clone());
+        self.runtime.bind_session_seed(
+            next_state.session.session_id.clone(),
+            next_state.session.scope.clone(),
+            title,
+        );
+        let draft = self.widget.draft().to_string();
+        self.widget = build_session_widget(&self.runtime, &next_state, Some(draft.as_str()));
+        self.state = next_state;
+        self.bridge = GatewayV3Bridge::default();
+        self.transcript_reflow = TranscriptReflowState::default();
+        self.interaction_refresh_requested = true;
+    }
 }
 
 fn build_session_widget(
@@ -2088,11 +2152,10 @@ fn permission_mode_id(mode: PermissionMode) -> &'static str {
 
 /// 作为 CLI 交互入口启动 Gateway、恢复会话并运行终端循环。
 pub(crate) fn run_tui(config: &Config, setup: &CliSetup) -> Result<()> {
-    let mut runtime = GatewayUiRuntime::for_workspace(config).map_err(|error| anyhow!(error))?;
+    let runtime = GatewayUiRuntime::for_workspace(config).map_err(|error| anyhow!(error))?;
     runtime.ensure_local_gateway_ready_blocking().map_err(|error| anyhow!(error))?;
 
-    let mut state =
-        restore_or_create_session_state(&mut runtime).map_err(|error| anyhow!(error))?;
+    let mut state = initial_tui_state(&runtime);
     let loaded = load_session_capabilities_blocking(&runtime);
     let selected_model = if loaded.matrix.models.iter().any(|model| model == &setup.model_name) {
         Some(setup.model_name.clone())
@@ -2111,13 +2174,20 @@ pub(crate) fn run_tui(config: &Config, setup: &CliSetup) -> Result<()> {
     state.integration_catalog = integrations.items;
     state.integration_warnings = integrations.warnings;
     state.orchestration = load_orchestration_blocking(&runtime);
-    let app = V3GatewayApp::new(runtime, state);
+    let app = V3GatewayApp::new_with_terminal_mode(runtime, state, TerminalMode::Alternate);
     let terminal_mode = app.terminal_mode();
 
     run_terminal(terminal_mode, || run_event_loop(app)).map_err(Into::into)
 }
 
-/// 优先恢复显式或最近会话；无可用会话时向 Gateway 创建新会话。
+pub(crate) fn initial_tui_state(runtime: &GatewayUiRuntime) -> TuiState {
+    let mut state = TuiState::default();
+    state.session.scope = runtime.scope().map(ToOwned::to_owned);
+    state.project.workspace_root = Some(runtime.directory().to_path_buf());
+    state
+}
+
+/// 恢复显式或最近的非空会话；没有历史时才创建新会话。
 pub(crate) fn restore_or_create_session_state(
     runtime: &mut GatewayUiRuntime,
 ) -> Result<TuiState, String> {
@@ -2148,13 +2218,19 @@ pub(crate) fn restore_or_create_session_state(
 }
 
 fn latest_session_preview(previews: &[ChatSessionMeta]) -> Option<&ChatSessionMeta> {
-    previews.iter().max_by(|left, right| {
-        left.updated_ms
-            .cmp(&right.updated_ms)
-            .then(left.message_count.cmp(&right.message_count))
-            .then(left.call_count.cmp(&right.call_count))
-            .then(left.id.cmp(&right.id))
-    })
+    previews
+        .iter()
+        .filter(|preview| preview.message_count > 0 || preview.call_count > 0)
+        .max_by(|left, right| compare_session_previews(left, right))
+        .or_else(|| previews.iter().max_by(|left, right| compare_session_previews(left, right)))
+}
+
+fn compare_session_previews(left: &ChatSessionMeta, right: &ChatSessionMeta) -> std::cmp::Ordering {
+    left.updated_ms
+        .cmp(&right.updated_ms)
+        .then(left.message_count.cmp(&right.message_count))
+        .then(left.call_count.cmp(&right.call_count))
+        .then(left.id.cmp(&right.id))
 }
 
 fn snapshot_from_preview(preview: &ChatSessionMeta) -> ChatSession {
@@ -2332,7 +2408,18 @@ fn gateway_role(role: ChatRole) -> &'static str {
 }
 
 fn replay_session_history(widget: &mut ChatWidget, state: &TuiState) {
-    for message in &state.messages {
+    let displayable = state
+        .messages
+        .iter()
+        .filter(|message| !matches!(message, UiMessage::Step(_)))
+        .count();
+    let skip = displayable.saturating_sub(SESSION_HISTORY_DISPLAY_LIMIT);
+    for message in state
+        .messages
+        .iter()
+        .filter(|message| !matches!(message, UiMessage::Step(_)))
+        .skip(skip)
+    {
         widget.push_history(display_event_from_message(message));
     }
 }
@@ -2418,7 +2505,7 @@ fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = V3Terminal::with_options(backend)?;
     let mut runner = ActiveRunner::new();
-    runner.request_interaction_refresh(&mut app);
+    runner.request_session_bootstrap(&mut app);
     let mut editor_terminal_suspended = false;
 
     loop {
@@ -2572,6 +2659,16 @@ fn spawn_interaction_refresh(
     std::thread::spawn(move || {
         let result = runtime.interaction_snapshot_blocking(Some(session_id.as_str()));
         let _ = sender.send(HostMessage::InteractionsRefreshed(result));
+    });
+}
+
+fn spawn_session_bootstrap(
+    mut runtime: GatewayUiRuntime,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let result = restore_or_create_session_state(&mut runtime).map(Box::new);
+        let _ = sender.send(HostMessage::SessionBootstrapFinished(result));
     });
 }
 

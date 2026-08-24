@@ -16,6 +16,8 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+arboard = "3.4"
+base64 = "0.22"
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
 dirs = "6"
 libc = "0.2"

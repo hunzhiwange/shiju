@@ -21,7 +21,7 @@ use crate::vibe::action::{
 };
 use crate::vibe::event::V3DisplayEvent;
 use crossterm::cursor::SetCursorStyle;
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::text::Line;
@@ -59,7 +59,7 @@ pub use status_state::V3ChatStatus;
 
 use input_queue::InputQueueState;
 use status_state::StatusState;
-use transcript::TranscriptState;
+use transcript::{TranscriptMouseAction, TranscriptState};
 use user_messages::UserMessage;
 
 enum ChatOverlay {
@@ -125,6 +125,7 @@ pub struct ChatWidget {
     exec_state: exec_state::ExecState,
     interrupt_state: interrupts::InterruptState,
     overlay: Option<ChatOverlay>,
+    clipboard_lease: Option<crate::clipboard_copy::ClipboardLease>,
     last_rendered_width: Cell<Option<u16>>,
 }
 
@@ -283,10 +284,13 @@ impl ChatWidget {
     /// 使用终端鼠标滚轮滚动复制的记录。
     /// Scrolls the copied transcript with the terminal mouse wheel.
     pub fn handle_mouse_event(&mut self, event: MouseEvent) -> V3Action {
-        match event.kind {
-            MouseEventKind::ScrollUp => self.transcript.scroll_lines(-3),
-            MouseEventKind::ScrollDown => self.transcript.scroll_lines(3),
-            _ => {}
+        if let TranscriptMouseAction::Copy(text) = self.transcript.handle_mouse_event(event) {
+            match crate::clipboard_copy::copy_to_clipboard(text.as_str()) {
+                Ok(lease) => self.clipboard_lease = lease,
+                Err(error) => self
+                    .transcript
+                    .push_history(V3DisplayEvent::Error { message: format!("复制失败：{error}") }),
+            }
         }
         V3Action::None
     }

@@ -8,7 +8,7 @@ use serde_json::json;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
 
-use super::app::V3GatewayApp;
+use super::app::{V3GatewayApp, initial_tui_state, restore_or_create_session_state};
 use super::bridge::GatewayV3Bridge;
 use super::commands::{CommandRoute, SESSION_RESUME_SURFACE, route_selection};
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
@@ -60,6 +60,90 @@ fn resume_candidates_exclude_archived_and_sort_latest_first() {
         "/v1/session/archived?directory=%2Fworkspace"
     );
     server.join().expect("resume candidate fixture");
+}
+
+#[test]
+fn startup_state_is_empty_before_background_history_load() {
+    let runtime = test_runtime(GatewayEndpoint::new("127.0.0.1", 9), "previous");
+
+    let state = initial_tui_state(&runtime);
+
+    assert_eq!(state.session.session_id, None);
+    assert!(state.messages.is_empty());
+    assert_eq!(state.session.scope.as_deref(), Some("workspace-write"));
+    assert_eq!(state.project.workspace_root.as_deref(), Some(Path::new("/workspace")));
+}
+
+#[test]
+fn background_restore_prefers_non_empty_session_over_newer_empty_session() {
+    let restored = snapshot("with-messages", "Recovered", "latest answer");
+    let (endpoint, requests, server) = gateway_fixture(vec![
+        GatewayResponse::ok(json!([
+            {
+                "id": "new-empty",
+                "title": "Empty",
+                "updated_ms": 30,
+                "message_count": 0,
+                "call_count": 0
+            },
+            {
+                "id": "with-messages",
+                "title": "Recovered",
+                "updated_ms": 20,
+                "message_count": 1,
+                "call_count": 0
+            }
+        ])),
+        GatewayResponse::ok(serde_json::to_value(restored).expect("snapshot")),
+    ]);
+    let client = GatewayClient::new(endpoint).expect("test gateway client");
+    let mut runtime = GatewayUiRuntime::new(
+        client,
+        GatewaySessionSeed::new(PathBuf::from("/workspace"))
+            .with_scope(Some("workspace-write".to_string())),
+    );
+
+    let state = restore_or_create_session_state(&mut runtime).expect("restore session in worker");
+
+    assert_eq!(state.session.session_id.as_deref(), Some("with-messages"));
+    assert_eq!(
+        state.to_chat_session().messages.last().map(|message| message.content.as_str()),
+        Some("latest answer")
+    );
+    assert_eq!(
+        requests.recv().expect("preview request"),
+        "/v1/session/ui-previews?directory=%2Fworkspace"
+    );
+    assert_eq!(requests.recv().expect("snapshot request"), "/v1/session/with-messages/any");
+    server.join().expect("background restore fixture");
+}
+
+#[test]
+fn restored_widget_replays_the_latest_messages() {
+    let mut restored = snapshot("restored", "Recovered", "newest answer");
+    restored.messages.splice(
+        0..0,
+        (0..101).map(|index| ChatMessage {
+            role: ChatRole::Assistant,
+            content: format!("older answer {index}"),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        }),
+    );
+    restored.message_ids = vec![None; restored.messages.len()];
+    let runtime = test_runtime(GatewayEndpoint::new("127.0.0.1", 9), "restored");
+
+    let app = V3GatewayApp::new(runtime, TuiState::from_chat_session(&restored));
+    let rendered = app
+        .transcript_lines(80, true)
+        .into_iter()
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(rendered.contains("newest answer"));
+    assert!(!rendered.contains("older answer 0"));
 }
 
 #[test]

@@ -13775,6 +13775,7 @@ dependencies = [
  "base64",
  "crossterm 0.29.0 (git+https://github.com/openai-oss-forks/crossterm?rev=45fecb9508105988f42fe6ff0441783ed3717f92)",
  "dirs",
+ "image",
  "insta",
  "itertools 0.14.0",
  "libc",

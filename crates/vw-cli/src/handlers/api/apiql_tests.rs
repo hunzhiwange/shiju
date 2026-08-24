@@ -1,4 +1,4 @@
-//! `api apiql` 四种规范读取路由与查询校验测试。
+//! `apiql` 四种规范读取路由与查询校验测试。
 
 use std::io::{Cursor, Read, Write};
 use std::net::TcpListener;
@@ -8,7 +8,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use super::run_with_io;
-use crate::cli::{Cli, Commands};
+use crate::cli::Cli;
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_apiql_commands_use_canonical_routes_for_all_query_modes() {
@@ -86,15 +86,14 @@ async fn api_apiql_commands_use_canonical_routes_for_all_query_modes() {
 }
 
 async fn run_command<S: AsRef<str>>(common: &[&str], command: &[S]) -> Result<Vec<u8>, String> {
+    let (family, command) = command.split_first().ok_or("API command family is required")?;
     let args = std::iter::once("shiju")
-        .chain(std::iter::once("api"))
+        .chain(std::iter::once(family.as_ref()))
         .chain(common.iter().copied())
         .chain(command.iter().map(AsRef::as_ref))
         .collect::<Vec<_>>();
     let cli = Cli::try_parse_from(args).map_err(|error| error.to_string())?;
-    let Commands::Api { api_args } = cli.command else {
-        return Err("expected api command".into());
-    };
+    let api_args = cli.command.into_api_args().ok_or("expected API command")?;
     let mut output = Vec::new();
     run_with_io(api_args, &mut Cursor::new(Vec::<u8>::new()), &mut output)
         .await

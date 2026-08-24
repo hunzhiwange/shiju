@@ -121,12 +121,13 @@ pub(super) fn message_action_icon_color(
     status: svg::Status,
     highlighted: bool,
     compact_square: bool,
+    is_user: bool,
 ) -> Color {
     if highlighted {
         theme.extended_palette().success.base.color
     } else if compact_square {
         match status {
-            svg::Status::Idle => super::super::utils::chat_secondary_muted_text_color(theme),
+            svg::Status::Idle => message_meta_text_color(theme, is_user),
             svg::Status::Hovered => chat_secondary_text_color(theme),
         }
     } else {

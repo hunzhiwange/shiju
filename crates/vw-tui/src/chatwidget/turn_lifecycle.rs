@@ -3,6 +3,8 @@
 //! ChatWidget 仅维护展示状态、历史、输入队列与覆盖层；运行时业务由外层系统负责。
 
 use std::collections::HashSet;
+use std::time::Duration;
+use std::time::Instant;
 
 use super::*;
 
@@ -36,6 +38,7 @@ pub(super) enum TurnFinishOutcome {
 #[derive(Debug, Default)]
 pub(super) struct TurnLifecycleState {
     active_turn_id: Option<String>,
+    active_started_at: Option<Instant>,
     terminal_turn_ids: HashSet<String>,
 }
 
@@ -49,6 +52,7 @@ impl TurnLifecycleState {
             Some(_) => TurnStartOutcome::ActiveConflict,
             None => {
                 self.active_turn_id = Some(turn_id.to_string());
+                self.active_started_at = Some(Instant::now());
                 TurnStartOutcome::Started
             }
         }
@@ -64,6 +68,7 @@ impl TurnLifecycleState {
             Some(_) => TurnEventOutcome::ActiveConflict,
             None => {
                 self.active_turn_id = Some(turn_id.to_string());
+                self.active_started_at = Some(Instant::now());
                 TurnEventOutcome::MissingBegin
             }
         }
@@ -76,6 +81,7 @@ impl TurnLifecycleState {
         match self.active_turn_id.as_deref() {
             Some(active) if active == turn_id => {
                 self.active_turn_id = None;
+                self.active_started_at = None;
                 self.terminal_turn_ids.insert(turn_id.to_string());
                 TurnFinishOutcome::Finished
             }
@@ -87,6 +93,15 @@ impl TurnLifecycleState {
         }
     }
 
+    pub(super) fn elapsed(&self) -> Duration {
+        self.elapsed_at(Instant::now())
+    }
+
+    fn elapsed_at(&self, now: Instant) -> Duration {
+        self.active_started_at
+            .map(|started_at| now.saturating_duration_since(started_at))
+            .unwrap_or_default()
+    }
 }
 
 impl ChatWidget {
@@ -214,12 +229,25 @@ impl ChatWidget {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn duplicate_terminal_is_explicit() {
         let mut state = TurnLifecycleState::default();
         assert_eq!(state.start("turn-1"), TurnStartOutcome::Started);
         assert_eq!(state.finish("turn-1"), TurnFinishOutcome::Finished);
         assert_eq!(state.finish("turn-1"), TurnFinishOutcome::DuplicateTerminal);
+    }
+
+    #[test]
+    fn elapsed_seconds_tracks_only_the_active_turn() {
+        let now = Instant::now();
+        let mut state = TurnLifecycleState {
+            active_started_at: Some(now - Duration::from_secs(7)),
+            ..TurnLifecycleState::default()
+        };
+
+        assert_eq!(state.elapsed_at(now), Duration::from_secs(7));
+
+        state.active_started_at = None;
+        assert_eq!(state.elapsed_at(now), Duration::ZERO);
     }
 }

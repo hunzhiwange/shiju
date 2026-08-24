@@ -195,6 +195,11 @@ impl BottomPane {
         self.composer.set_queued_count(self.pending_input_preview.queued_messages.len());
     }
 
+    pub(crate) fn pop_last_queued_input(&mut self) {
+        self.pending_input_preview.queued_messages.pop();
+        self.composer.set_queued_count(self.pending_input_preview.queued_messages.len());
+    }
+
     pub(crate) fn set_command_palette_items(&mut self, items: Vec<V3SelectionItem>) {
         self.command_items = items;
         self.sync_popups();

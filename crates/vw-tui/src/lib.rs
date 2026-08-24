@@ -317,6 +317,7 @@ pub mod chatwidget;
 #[allow(dead_code)]
 mod color;
 mod clipboard_copy;
+mod clipboard_image;
 #[allow(dead_code)]
 mod custom_terminal;
 #[allow(dead_code)]

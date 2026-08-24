@@ -1,4 +1,4 @@
-//! `api scheduler` 路由、项目作用域、确认与内部回调排除测试。
+//! `scheduler` 路由、项目作用域、确认与内部回调排除测试。
 
 use std::io::{Cursor, Read, Write};
 use std::net::TcpListener;
@@ -8,7 +8,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use super::run_with_io;
-use crate::cli::{Cli, Commands};
+use crate::cli::Cli;
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_scheduler_commands_cover_project_operations_and_scope_checks() {
@@ -170,15 +170,16 @@ async fn run_command<S: AsRef<str>>(
     command: &[S],
     input: &[u8],
 ) -> Result<Vec<u8>, String> {
+    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") { (Some("--yes"), &command[1..]) } else { (None, command) };
+    let (family, command) = command.split_first().ok_or("API command family is required")?;
     let args = std::iter::once("shiju")
-        .chain(std::iter::once("api"))
+        .chain(std::iter::once(family.as_ref()))
         .chain(common.iter().copied())
+        .chain(yes)
         .chain(command.iter().map(AsRef::as_ref))
         .collect::<Vec<_>>();
     let cli = Cli::try_parse_from(args).map_err(|error| error.to_string())?;
-    let Commands::Api { api_args } = cli.command else {
-        return Err("expected api command".into());
-    };
+    let api_args = cli.command.into_api_args().ok_or("expected API command")?;
     let mut output = Vec::new();
     run_with_io(api_args, &mut Cursor::new(input), &mut output)
         .await

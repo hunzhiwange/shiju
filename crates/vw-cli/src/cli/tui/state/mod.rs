@@ -217,6 +217,8 @@ impl Default for TuiStatusState {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct TuiTaskState {
     pub(crate) pending_questions: Vec<UiQuestionOverlay>,
+    /// 当前 Workflow pause 的本地 typed question ID；不包含恢复 token。
+    pub(crate) workflow_pause_request_id: Option<String>,
     pub(crate) todo_overlay: Option<UiTodoOverlay>,
     pub(crate) sync_error: Option<String>,
 }

@@ -1,12 +1,12 @@
 # Gateway API CLI 覆盖
 
-`shiju api` 是 Gateway 的脚本化管理入口。覆盖门槛直接读取 Gateway 启动摘要使用的静态路由清单；当前基线为 260 条，不维护第二份路由表。测试要求每条路由属于 CLI 命令、协议别名或明确排除之一。
+Gateway API 命令族直接注册在 `shiju` 根级。覆盖门槛直接读取 Gateway 启动摘要使用的静态路由清单；当前基线为 260 条，不维护第二份路由表。测试要求每条路由属于 CLI 命令、协议别名或明确排除之一。
 
 ## 覆盖结果
 
 | 分类 | 数量 | 说明 |
 |---|---:|---|
-| CLI 命令 | 247 | 映射到 22 个 `shiju api` 接口族 |
+| CLI 命令 | 247 | 映射到 22 个根级 `shiju` 接口族 |
 | 协议别名 | 7 | APIQL 尾斜杠 4 条、Cron 更新方法别名 2 条、Cron runs 路径别名 1 条 |
 | 明确排除 | 6 | 第三方 webhook 1 条、501 占位 2 条、内部生产者回调 3 条 |
 | 合计 | 260 | 由 `documented_gateway_routes()` 实时提供 |
@@ -35,12 +35,12 @@
 ## 连接、认证与租户
 
 ```bash
-shiju api \
+shiju system \
   --host 127.0.0.1 --port 9527 \
   --platform local --company local \
   --skey-env VIBEWINDOW_SKEY \
   --directory /absolute/project \
-  system status
+  status
 ```
 
 `--skey-env NAME` 从环境变量读取 skey；`--skey-file PATH` 从文件读取，两者互斥。每个受管请求都携带 `X-Platform-ID` 与 `X-Company-ID`。`--directory` 是项目上下文，不与租户 ID 混用。
@@ -51,10 +51,10 @@ shiju api \
 
 ```bash
 printf '%s' '{"title":"新会话"}' |
-  shiju api --directory /repo --yes session create --input -
+  shiju session --directory /repo --yes create --input -
 
-shiju api --output json system status
-shiju api --output jsonl realtime gateway-events --limit 3
+shiju system --output json status
+shiju realtime --output jsonl gateway-events --limit 3
 ```
 
 普通响应支持 `json` 和 `jsonl`。SSE/实时协议逐事件输出 JSONL，并保留服务端错误或终止状态。Session UI 默认输出不包含只读 raw LLM 载荷；只有 `session-content raw` 会显式读取该数据。
@@ -64,8 +64,8 @@ shiju api --output jsonl realtime gateway-events --limit 3
 写入、删除、安装、推理成本操作及 desktop open/reveal/service 默认拒绝，必须显式添加 `--yes`。拒绝发生在建立业务请求之前。Desktop 确认文本包含远程 Gateway endpoint 和精确目标，避免把远程副作用误认为本机操作。
 
 ```bash
-shiju api --yes --directory /repo extensions skill-enable rust --enabled true
-shiju api --host gateway.example --port 9527 --yes desktop reveal /repo/output.txt
+shiju extensions --yes --directory /repo skill-enable rust --enabled true
+shiju desktop --host gateway.example --port 9527 --yes reveal /repo/output.txt
 ```
 
 ## 别名与排除

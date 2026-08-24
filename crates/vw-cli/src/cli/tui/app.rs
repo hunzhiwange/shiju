@@ -16,18 +16,19 @@ use ratatui::text::Line;
 use serde_json::json;
 use std::io;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use vw_gateway_client::vw_api_types::id::SessionId;
 use vw_gateway_client::vw_api_types::task::TaskPlanRunRequest;
+use vw_gateway_client::vw_api_types::workflow::{WorkflowResumeRequest, WorkflowRunResponse};
 use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayStreamAttemptResult,
-    PendingPermissionReplyDto,
+    GatewayWorkflowStreamEvent, PendingPermissionReplyDto,
 };
-use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession, ChatSessionMeta};
+use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
 use vw_tui::{
     ChatWidget, ChatWidgetConfig, CustomTerminal, TerminalMode, TranscriptPager,
     TranscriptReflowState, V3Action, V3Attachment, V3AttachmentKind, V3DisplayEvent, V3Event,
@@ -36,16 +37,19 @@ use vw_tui::{
 
 use super::bridge::GatewayV3Bridge;
 use super::commands::{
-    CommandRoute, SESSION_COMPACT_SURFACE, SESSION_RESET_SURFACE, SESSION_RESUME_SURFACE,
+    CommandRoute, HOOK_CATALOG_SURFACE, SESSION_COMPACT_SURFACE, SESSION_RESET_SURFACE,
+    SESSION_RESUME_SURFACE,
     SETTINGS_ACCESS_SURFACE, SETTINGS_ACP_SURFACE, SETTINGS_DELEGATE_SURFACE,
     SETTINGS_EFFORT_SURFACE, SETTINGS_MODEL_SURFACE, SETTINGS_PERMISSION_SURFACE,
     OrchestrationPanelKind, SETTINGS_PLAN_SURFACE, SETTINGS_SUBAGENT_SURFACE, SETTINGS_SURFACE,
-    SettingsTarget,
+    SCHEDULE_SELECTION_SURFACE, SettingsTarget, WORKFLOW_SELECTION_SURFACE,
+    TASK_SELECTION_SURFACE, WORKSPACE_FILES_SURFACE,
     command_palette_items_with_integrations, help_text, session_resume_items,
 };
 use super::controller::{TuiController, TuiControllerCommand, TuiOverlayCommand};
 use super::model::permission::{PermissionDecision, PermissionQueue, PermissionRequest};
-use super::model::integration::IntegrationKind;
+use super::model::background_task::{TaskControlAction, TaskDetailView};
+use super::model::integration::{IntegrationItem, IntegrationKind};
 use super::model::{
     PermissionMode, PromptSubmission, ReasoningEffort, UiAttachment, UiAttachmentKind,
     UiConfirmIntent, UiConfirmOverlay, UiMessage, UiMessageBase, UiMessageId, UiMessageOrigin,
@@ -54,13 +58,26 @@ use super::model::{
 use super::paste::{PromptAttachment, PromptAttachmentKind};
 use super::model::settings_panel::{SettingKey, SettingsPanel, SettingsValues};
 use super::runtime::capabilities::load_session_capabilities_blocking;
+use super::runtime::cron::{
+    CronDetailView, CronJobSnapshot, CronMutation, load_owned_cron_detail_blocking,
+    mutate_owned_cron_and_refresh_blocking,
+};
+use super::runtime::diagnostics::{
+    GatewayDiagnosticsReport, load_gateway_diagnostics_blocking,
+};
 use super::runtime::file_search::search_files_blocking;
 use super::runtime::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
+use super::runtime::hooks::{
+    HookAuditView, HookCatalogItem, HookCatalogView, HookMutationRefresh,
+    load_hook_audit_blocking, load_hook_catalog_blocking, mutate_hook_and_refresh_blocking,
+};
 use super::runtime::integrations::{
-    delete_integration_blocking, load_integrations_blocking, set_integration_enabled_blocking,
+    MemoryMutation, delete_integration_blocking, load_integrations_blocking,
+    mutate_memory_and_refresh_blocking, query_memory_blocking, set_integration_enabled_blocking,
 };
 use super::runtime::orchestration::{
-    control_owned_task_blocking, load_orchestration_blocking,
+    OrchestrationSnapshot, control_owned_task_blocking, load_orchestration_blocking,
+    load_owned_task_detail_blocking, load_owned_workflow_detail_blocking,
 };
 use super::runtime::plan_run::{
     plan_run_request, stop_owned_plan_run_blocking, stream_plan_run_resumable_blocking,
@@ -68,6 +85,14 @@ use super::runtime::plan_run::{
 use super::runtime::interaction::InteractionSnapshot;
 use super::runtime::session_diff::load_session_diff_blocking;
 use super::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
+use super::runtime::workspace_files::{
+    WorkspaceFileListing, WorkspaceFileText, load_workspace_files_blocking,
+    read_workspace_file_blocking,
+};
+use super::runtime::workflow_run::{
+    OwnedWorkflowRunRequest, WorkflowRunOwnership, resume_workflow_run_blocking,
+    stream_workflow_run_blocking, workflow_run_request,
+};
 use super::state::{TuiAction, TuiState, reduce_tui_state};
 
 type V3Terminal = CustomTerminal<CrosstermBackend<io::Stdout>>;
@@ -75,6 +100,7 @@ const SESSION_HISTORY_DISPLAY_LIMIT: usize = 100;
 
 enum StreamMessage {
     ChatEvent(GatewayChatStreamEvent),
+    WorkflowEvent(GatewayWorkflowStreamEvent),
     RuntimeEvent(UiRuntimeEvent),
     Finished(Result<GatewayStreamAttemptResult, String>),
 }
@@ -83,6 +109,7 @@ enum StreamMessage {
 enum ActiveStreamKind {
     Chat,
     PlanRun,
+    Workflow,
 }
 
 struct ActiveStream {
@@ -92,17 +119,34 @@ struct ActiveStream {
     cancel: Arc<AtomicBool>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ActiveHookMutation {
+    plugin_id: String,
+    hook_hash: String,
+    trusted: bool,
+}
+
 /// 外部编辑器调用边界；输入当前草稿，返回替换文本或用户取消。
 pub(crate) type EditorAction = dyn Fn(&str) -> Result<Option<String>, String> + Send + Sync;
 
 enum HostMessage {
     SessionBootstrapFinished(Result<Box<TuiState>, String>),
+    DirectorySwitchFinished {
+        generation: u64,
+        source_directory: PathBuf,
+        recovery_draft: String,
+        result: Result<Box<DirectorySwitchBootstrap>, String>,
+    },
     EditorFinished(Result<Option<String>, String>),
     StopFinished { request_id: String, result: Result<bool, String> },
     PlanRunStopFinished { request_id: String, task_id: String, result: Result<bool, String> },
     InteractionsRefreshed(Result<InteractionSnapshot, String>),
     PermissionReplyFinished { request_id: String, result: Result<(), String> },
     QuestionReplyFinished { request_id: String, result: Result<(), String> },
+    WorkflowResumeFinished {
+        pause_request_id: String,
+        result: Result<Box<WorkflowRunResponse>, String>,
+    },
     FileSearchFinished {
         generation: u64,
         query: String,
@@ -112,6 +156,67 @@ enum HostMessage {
         generation: u64,
         session_id: Option<String>,
         result: Result<vw_tui::V3FileDiff, String>,
+    },
+    DoctorFinished {
+        generation: u64,
+        directory: PathBuf,
+        result: Result<GatewayDiagnosticsReport, String>,
+    },
+    CronDetailFinished {
+        generation: u64,
+        directory: PathBuf,
+        job_id: String,
+        result: Result<Box<CronDetailView>, String>,
+    },
+    TaskDetailFinished {
+        generation: u64,
+        directory: PathBuf,
+        task_id: String,
+        result: Result<Box<TaskDetailView>, String>,
+    },
+    WorkspaceFilesFinished {
+        generation: u64,
+        directory: PathBuf,
+        requested_path: String,
+        result: Result<WorkspaceFileListing, String>,
+    },
+    WorkspaceFileReadFinished {
+        generation: u64,
+        directory: PathBuf,
+        requested_path: String,
+        result: Result<WorkspaceFileText, String>,
+    },
+    HookCatalogFinished {
+        generation: u64,
+        directory: PathBuf,
+        result: Result<HookCatalogView, String>,
+    },
+    HookAuditFinished {
+        generation: u64,
+        directory: PathBuf,
+        result: Result<HookAuditView, String>,
+    },
+    HookMutationFinished {
+        generation: u64,
+        directory: PathBuf,
+        plugin_id: String,
+        hook_hash: String,
+        trusted: bool,
+        result: Result<HookMutationRefresh, String>,
+    },
+    MemorySearchFinished {
+        generation: u64,
+        directory: PathBuf,
+        query: Option<String>,
+        result: Result<Vec<IntegrationItem>, String>,
+    },
+    MemoryMutationFinished {
+        generation: u64,
+        directory: PathBuf,
+        query: Option<String>,
+        action: &'static str,
+        key: String,
+        result: Result<Vec<IntegrationItem>, String>,
     },
 }
 
@@ -125,13 +230,28 @@ pub(crate) enum RunnerControl {
 /// 在渲染 crate 之外统一管理活跃流、transcript 和本地副作生命周期。
 pub(crate) struct ActiveRunner {
     active_stream: Option<ActiveStream>,
+    workflow_run: Option<WorkflowRunOwnership>,
     transcript_pager: Option<TranscriptPager>,
     session_bootstrap_in_flight: bool,
+    directory_switch_generation: u64,
+    directory_switch_source: Option<PathBuf>,
     editor_in_flight: bool,
     interaction_in_flight: bool,
     file_search_generation: u64,
     file_search_query: Option<String>,
     session_diff_generation: u64,
+    doctor_generation: u64,
+    cron_generation: u64,
+    task_detail_generation: u64,
+    workspace_files_generation: u64,
+    hooks_generation: u64,
+    memory_generation: u64,
+    memory_mutation_generation: Option<u64>,
+    memory_snapshot_directory: Option<PathBuf>,
+    memory_snapshot_query: Option<String>,
+    hook_catalog_directory: Option<PathBuf>,
+    hook_catalog: Option<HookCatalogView>,
+    hook_mutation: Option<ActiveHookMutation>,
     editor: Arc<EditorAction>,
     host_sender: mpsc::Sender<HostMessage>,
     host_receiver: Receiver<HostMessage>,
@@ -149,13 +269,28 @@ impl ActiveRunner {
         let (host_sender, host_receiver) = mpsc::channel();
         Self {
             active_stream: None,
+            workflow_run: None,
             transcript_pager: None,
             session_bootstrap_in_flight: false,
+            directory_switch_generation: 0,
+            directory_switch_source: None,
             editor_in_flight: false,
             interaction_in_flight: false,
             file_search_generation: 0,
             file_search_query: None,
             session_diff_generation: 0,
+            doctor_generation: 0,
+            cron_generation: 0,
+            task_detail_generation: 0,
+            workspace_files_generation: 0,
+            hooks_generation: 0,
+            memory_generation: 0,
+            memory_mutation_generation: None,
+            memory_snapshot_directory: None,
+            memory_snapshot_query: None,
+            hook_catalog_directory: None,
+            hook_catalog: None,
+            hook_mutation: None,
             editor,
             host_sender,
             host_receiver,
@@ -191,6 +326,15 @@ impl ActiveRunner {
                 app,
                 "a gateway stream is already active; queue the follow-up instead",
             );
+            return RunnerControl::Continue;
+        }
+        if self.directory_switch_source.is_some()
+            && matches!(action, V3Action::Submit { .. } | V3Action::Queue { .. })
+        {
+            if let Some((text, attachments)) = recovery {
+                app.widget_mut().restore_submission(text.as_str(), attachments);
+            }
+            push_runner_error(app, "a directory switch is already in progress");
             return RunnerControl::Continue;
         }
         let command = match app.handle_action(action) {
@@ -272,6 +416,22 @@ impl ActiveRunner {
                                 },
                             ));
                         }
+                        ActiveStreamKind::Workflow => {
+                            stream.cancel.store(true, Ordering::Release);
+                            if let Some(ownership) = self.workflow_run.as_mut()
+                                && ownership.request_id() == stream.request_id
+                                && let Some(terminal) = ownership.project_local_terminal(
+                                    UiRuntimeTerminalEvent::Cancelled {
+                                        reason: Some("Workflow stream 已由用户停止".to_string()),
+                                        usage: None,
+                                        message_id: None,
+                                        parent_message_id: None,
+                                    },
+                                )
+                            {
+                                app.accept_runtime_event(terminal);
+                            }
+                        }
                     }
                     RunnerControl::Continue
                 } else {
@@ -302,9 +462,54 @@ impl ActiveRunner {
                     app.widget_mut().push_history(V3DisplayEvent::System { text });
                     RunnerControl::Continue
                 }
+                CommandRoute::RunDoctor => {
+                    self.start_doctor(app);
+                    RunnerControl::Continue
+                }
                 CommandRoute::ShowDiff => {
                     self.start_session_diff(app);
                     RunnerControl::Continue
+                }
+                CommandRoute::OpenWorkspaceFiles { path } => {
+                    self.start_workspace_files(app, path);
+                    RunnerControl::Continue
+                }
+                CommandRoute::ReadWorkspaceFile { path } => {
+                    self.start_workspace_file_read(app, path);
+                    RunnerControl::Continue
+                }
+                CommandRoute::OpenHookCatalog => {
+                    if self.hook_mutation.is_some() {
+                        push_runner_error(app, "a Hook mutation is already in progress");
+                    } else {
+                        self.start_hook_catalog(app);
+                    }
+                    RunnerControl::Continue
+                }
+                CommandRoute::ShowHookAudit => {
+                    if self.hook_mutation.is_some() {
+                        push_runner_error(app, "a Hook mutation is already in progress");
+                    } else {
+                        self.start_hook_audit(app);
+                    }
+                    RunnerControl::Continue
+                }
+                CommandRoute::ConfirmHookMutation { plugin_id, hook_hash, trusted } => {
+                    self.open_hook_mutation_confirmation(
+                        app,
+                        plugin_id.as_str(),
+                        hook_hash.as_str(),
+                        trusted,
+                    );
+                    RunnerControl::Continue
+                }
+                CommandRoute::ChangeDirectory { path } => {
+                    if self.memory_mutation_generation.is_some() {
+                        push_runner_error(app, "cannot switch directories during a memory mutation");
+                        RunnerControl::Continue
+                    } else {
+                        self.start_directory_switch(app, path)
+                    }
                 }
                 CommandRoute::Exit => RunnerControl::Quit,
                 CommandRoute::OpenSessionPicker => {
@@ -399,6 +604,22 @@ impl ActiveRunner {
                     app.apply_subagent_mode(enabled);
                     RunnerControl::Continue
                 }
+                CommandRoute::QueryMemory { query } => {
+                    if self.memory_mutation_generation.is_some() {
+                        push_runner_error(app, "a memory mutation is already in progress");
+                    } else {
+                        self.start_memory_search(app, query);
+                    }
+                    RunnerControl::Continue
+                }
+                CommandRoute::ConfirmMemoryStore { key, content } => {
+                    self.open_memory_store_confirmation(app, key.as_str(), content);
+                    RunnerControl::Continue
+                }
+                CommandRoute::ConfirmMemoryDelete { key } => {
+                    self.open_memory_delete_confirmation(app, key.as_str());
+                    RunnerControl::Continue
+                }
                 CommandRoute::OpenIntegrations(kind) => {
                     app.open_integrations(kind);
                     RunnerControl::Continue
@@ -427,8 +648,40 @@ impl ActiveRunner {
                     app.open_orchestration(kind);
                     RunnerControl::Continue
                 }
-                CommandRoute::ConfirmTaskCancel { id } => {
-                    app.open_task_cancel_confirmation(id.as_str());
+                CommandRoute::OpenWorkflowDetail { uuid } => {
+                    match load_owned_workflow_detail_blocking(
+                        app.runtime(),
+                        &app.state().orchestration,
+                        uuid.as_str(),
+                    ) {
+                        Ok(detail) => app
+                            .widget_mut()
+                            .push_history(V3DisplayEvent::System { text: detail.render_text() }),
+                        Err(error) => push_runner_error(app, error),
+                    }
+                    RunnerControl::Continue
+                }
+                CommandRoute::OpenCronDetail { job_id } => {
+                    self.start_cron_detail(app, job_id);
+                    RunnerControl::Continue
+                }
+                CommandRoute::OpenTaskDetail { task_id } => {
+                    self.start_task_detail(app, task_id);
+                    RunnerControl::Continue
+                }
+                CommandRoute::ConfirmCronToggle { job_id, enabled } => {
+                    app.open_cron_toggle_confirmation(job_id.as_str(), enabled);
+                    RunnerControl::Continue
+                }
+                CommandRoute::ConfirmCronDelete { job_id } => {
+                    app.open_cron_delete_confirmation(job_id.as_str());
+                    RunnerControl::Continue
+                }
+                CommandRoute::StartWorkflowRun { uuid, query } => {
+                    self.start_workflow_run(app, uuid, query)
+                }
+                CommandRoute::ConfirmTaskControl { id, action } => {
+                    app.open_task_control_confirmation(id.as_str(), action);
                     RunnerControl::Continue
                 }
                 CommandRoute::StartPlanRun { query } => {
@@ -499,21 +752,118 @@ impl ActiveRunner {
         RunnerControl::Continue
     }
 
+    fn start_workflow_run(
+        &mut self,
+        app: &mut V3GatewayApp,
+        uuid: String,
+        query: String,
+    ) -> RunnerControl {
+        if self.active_stream.is_some() {
+            push_runner_error(app, "a gateway stream is already active");
+            return RunnerControl::Continue;
+        }
+        let request = match workflow_run_request(
+            &app.state().orchestration,
+            app.state().session.session_id.as_deref(),
+            uuid.as_str(),
+            query.as_str(),
+        ) {
+            Ok(request) => request,
+            Err(error) => {
+                push_runner_error(app, error);
+                return RunnerControl::Continue;
+            }
+        };
+        let request_id = next_workflow_run_request_id();
+        app.begin_workflow_run(request_id.as_str(), query.as_str());
+        let session_id = app
+            .state()
+            .session
+            .session_id
+            .clone()
+            .expect("workflow request validated a stable session id");
+        self.workflow_run = Some(WorkflowRunOwnership::new_for_session(
+            request_id.clone(),
+            request.uuid.clone(),
+            session_id,
+        ));
+        self.active_stream = Some(spawn_workflow_run(
+            app.runtime().clone(),
+            request,
+            request_id,
+        ));
+        RunnerControl::Continue
+    }
+
     fn execute_session_operation(
         &mut self,
         app: &mut V3GatewayApp,
         operation: impl FnOnce(&mut V3GatewayApp) -> Result<(), String>,
     ) -> RunnerControl {
-        let result = if self.active_stream.is_some() {
+        let previous_session_id = app.state().session.session_id.clone();
+        let had_workflow_question = app.state().tasks.workflow_pause_request_id.is_some();
+        let result = if self.hook_mutation.is_some() {
+            Err("cannot switch directories while a Hook mutation is active".to_string())
+        } else if self.directory_switch_source.is_some() {
+            Err("cannot switch sessions while a directory switch is active".to_string())
+        } else if self.active_stream.is_some() {
             Err("cannot switch sessions while a gateway stream is active".to_string())
         } else if app.widget().queued_input_count() > 0 {
             Err("cannot switch sessions while queued prompts are pending".to_string())
         } else {
             operation(app)
         };
+        match result {
+            Ok(()) => {
+                if previous_session_id != app.state().session.session_id
+                    || (had_workflow_question
+                        && app.state().tasks.workflow_pause_request_id.is_none())
+                {
+                    self.workflow_run = None;
+                }
+            }
+            Err(error) => push_runner_error(app, error),
+        }
+        RunnerControl::Continue
+    }
+
+    fn start_directory_switch(
+        &mut self,
+        app: &mut V3GatewayApp,
+        path: String,
+    ) -> RunnerControl {
+        if path.trim().is_empty() {
+            return app.prime_session_command("/cd ", "请输入 Gateway 已知的工作目录，然后按 Enter。");
+        }
+        let result = if self.directory_switch_source.is_some() {
+            Err("a directory switch is already in progress".to_string())
+        } else if self.active_stream.is_some() {
+            Err("cannot switch directories while a gateway stream is active".to_string())
+        } else if app.widget().queued_input_count() > 0 {
+            Err("cannot switch directories while queued prompts are pending".to_string())
+        } else {
+            Ok(())
+        };
         if let Err(error) = result {
             push_runner_error(app, error);
+            return RunnerControl::Continue;
         }
+
+        self.directory_switch_generation = self.directory_switch_generation.wrapping_add(1);
+        let source_directory = app.runtime().directory().to_path_buf();
+        let recovery_draft = format!("/cd {}", path.trim());
+        self.directory_switch_source = Some(source_directory.clone());
+        app.widget_mut().push_history(V3DisplayEvent::System {
+            text: format!("正在切换工作目录：{}", path.trim()),
+        });
+        spawn_directory_switch(
+            app.runtime().clone(),
+            PathBuf::from(path.trim()),
+            self.directory_switch_generation,
+            source_directory,
+            recovery_draft,
+            self.host_sender.clone(),
+        );
         RunnerControl::Continue
     }
 
@@ -531,6 +881,60 @@ impl ActiveRunner {
             }
             app.show_next_interaction();
             return;
+        }
+        match &command {
+            TuiOverlayCommand::QuestionRejected(question)
+                if app.state().tasks.workflow_pause_request_id.as_deref()
+                    == Some(question.request_id.as_str()) =>
+            {
+                app.replace_workflow_pause_question(None);
+                return;
+            }
+            TuiOverlayCommand::QuestionSubmitted(question)
+                if app.state().tasks.workflow_pause_request_id.as_deref()
+                    == Some(question.request_id.as_str()) =>
+            {
+                if self.interaction_in_flight {
+                    app.record_interaction_error("an interaction request is already in flight");
+                    app.show_next_interaction();
+                    return;
+                }
+                if self.active_stream.is_some() {
+                    app.record_interaction_error(
+                        "cannot resume a Workflow while another gateway stream is active",
+                    );
+                    app.show_next_interaction();
+                    return;
+                }
+                let request = self
+                    .workflow_run
+                    .as_ref()
+                    .ok_or_else(|| "workflow resume has no owned run state".to_string())
+                    .and_then(|ownership| {
+                        ownership.resume_request(
+                            app.state().session.session_id.as_deref(),
+                            question,
+                        )
+                    });
+                let request = match request {
+                    Ok(request) => request,
+                    Err(error) => {
+                        app.record_interaction_error(error);
+                        app.show_next_interaction();
+                        return;
+                    }
+                };
+                self.interaction_in_flight = true;
+                app.begin_workflow_resume();
+                spawn_workflow_resume(
+                    app.runtime().clone(),
+                    question.request_id.clone(),
+                    request,
+                    self.host_sender.clone(),
+                );
+                return;
+            }
+            _ => {}
         }
         if self.interaction_in_flight {
             app.record_interaction_error("an interaction request is already in flight");
@@ -602,12 +1006,39 @@ impl ActiveRunner {
             UiConfirmIntent::IntegrationDelete { kind, id } => {
                 app.mutate_integration(kind, id.as_str(), None)
             }
-            UiConfirmIntent::TaskCancel { id } => app.cancel_owned_task(id.as_str()),
+            UiConfirmIntent::HookMutation { plugin_id, hook_hash, trusted } => {
+                self.start_hook_mutation(
+                    app,
+                    plugin_id.as_str(),
+                    hook_hash.as_str(),
+                    trusted,
+                )
+            }
+            UiConfirmIntent::MemoryStore { key, content } => self.start_memory_mutation(
+                app,
+                MemoryMutation::Store { key, content },
+            ),
+            UiConfirmIntent::MemoryDelete { key } => {
+                self.require_memory_key(app, key.as_str())?;
+                self.start_memory_mutation(app, MemoryMutation::Delete { key })
+            }
+            UiConfirmIntent::TaskControl { id, action } => {
+                app.control_owned_task(id.as_str(), action)
+            }
+            UiConfirmIntent::ScheduleToggle { id, enabled } => {
+                app.mutate_owned_cron(id.as_str(), CronMutation::SetEnabled(enabled))
+            }
+            UiConfirmIntent::ScheduleDelete { id } => {
+                app.mutate_owned_cron(id.as_str(), CronMutation::Delete)
+            }
             _ => Err("active confirmation is not a session mutation intent".to_string()),
         }
     }
 
     fn ensure_session_mutation_idle(&self, app: &V3GatewayApp) -> Result<(), String> {
+        if self.directory_switch_source.is_some() {
+            return Err("cannot mutate a session while a directory switch is active".to_string());
+        }
         if self.active_stream.is_some() {
             return Err("cannot mutate a session while a gateway stream is active".to_string());
         }
@@ -651,6 +1082,264 @@ impl ActiveRunner {
             self.session_diff_generation,
             self.host_sender.clone(),
         );
+    }
+
+    fn start_doctor(&mut self, app: &mut V3GatewayApp) {
+        self.doctor_generation = self.doctor_generation.wrapping_add(1);
+        app.widget_mut().push_history(V3DisplayEvent::System {
+            text: "正在运行 Gateway 诊断…".to_string(),
+        });
+        spawn_doctor(
+            app.runtime().clone(),
+            self.doctor_generation,
+            self.host_sender.clone(),
+        );
+    }
+
+    fn start_cron_detail(&mut self, app: &V3GatewayApp, job_id: String) {
+        self.cron_generation = self.cron_generation.wrapping_add(1);
+        spawn_cron_detail(
+            app.runtime().clone(),
+            app.state().orchestration.cron_jobs.clone(),
+            self.cron_generation,
+            job_id,
+            self.host_sender.clone(),
+        );
+    }
+
+    fn start_task_detail(&mut self, app: &V3GatewayApp, task_id: String) {
+        self.task_detail_generation = self.task_detail_generation.wrapping_add(1);
+        spawn_task_detail(
+            app.runtime().clone(),
+            app.state().orchestration.clone(),
+            self.task_detail_generation,
+            task_id,
+            self.host_sender.clone(),
+        );
+    }
+
+    fn start_workspace_files(&mut self, app: &V3GatewayApp, path: String) {
+        self.workspace_files_generation = self.workspace_files_generation.wrapping_add(1);
+        spawn_workspace_files(
+            app.runtime().clone(),
+            self.workspace_files_generation,
+            path,
+            self.host_sender.clone(),
+        );
+    }
+
+    fn start_workspace_file_read(&mut self, app: &V3GatewayApp, path: String) {
+        self.workspace_files_generation = self.workspace_files_generation.wrapping_add(1);
+        spawn_workspace_file_read(
+            app.runtime().clone(),
+            self.workspace_files_generation,
+            path,
+            self.host_sender.clone(),
+        );
+    }
+
+    fn start_hook_catalog(&mut self, app: &V3GatewayApp) {
+        self.hooks_generation = self.hooks_generation.wrapping_add(1);
+        spawn_hook_catalog(
+            app.runtime().clone(),
+            self.hooks_generation,
+            self.host_sender.clone(),
+        );
+    }
+
+    fn start_hook_audit(&mut self, app: &V3GatewayApp) {
+        self.hooks_generation = self.hooks_generation.wrapping_add(1);
+        spawn_hook_audit(
+            app.runtime().clone(),
+            self.hooks_generation,
+            self.host_sender.clone(),
+        );
+    }
+
+    fn start_memory_search(&mut self, app: &V3GatewayApp, query: Option<String>) {
+        self.memory_generation = self.memory_generation.wrapping_add(1);
+        spawn_memory_search(
+            app.runtime().clone(),
+            self.memory_generation,
+            query,
+            self.host_sender.clone(),
+        );
+    }
+
+    fn open_memory_store_confirmation(
+        &self,
+        app: &mut V3GatewayApp,
+        key: &str,
+        content: String,
+    ) {
+        let key = key.trim();
+        let result = if self.memory_mutation_generation.is_some() {
+            Err("a memory mutation is already in progress".to_string())
+        } else {
+            Ok(UiConfirmOverlay {
+                request_id: format!("memory-store-{key}"),
+                title: "确认写入 core 记忆".to_string(),
+                body: format!("写入 core 记忆 Key: {key}\n服务端同名记忆可能被覆盖。"),
+                confirm_label: "写入".to_string(),
+                cancel_label: "取消".to_string(),
+                destructive: true,
+                intent: UiConfirmIntent::MemoryStore { key: key.to_string(), content },
+            })
+        };
+        app.show_integration_confirmation(result);
+    }
+
+    fn open_memory_delete_confirmation(&self, app: &mut V3GatewayApp, key: &str) {
+        let result = if self.memory_mutation_generation.is_some() {
+            Err("a memory mutation is already in progress".to_string())
+        } else {
+            self.require_memory_key(app, key).map(|()| UiConfirmOverlay {
+                request_id: format!("memory-delete-{}", key.trim()),
+                title: "确认删除记忆".to_string(),
+                body: format!("删除当前目录记忆 Key: {}", key.trim()),
+                confirm_label: "删除".to_string(),
+                cancel_label: "保留记忆".to_string(),
+                destructive: true,
+                intent: UiConfirmIntent::MemoryDelete { key: key.trim().to_string() },
+            })
+        };
+        app.show_integration_confirmation(result);
+    }
+
+    fn require_memory_key(&self, app: &V3GatewayApp, key: &str) -> Result<(), String> {
+        if self.memory_snapshot_directory.as_deref() != Some(app.runtime().directory()) {
+            return Err(
+                "memory deletion requires a query snapshot from the current directory".to_string()
+            );
+        }
+        let key = key.trim();
+        app.state()
+            .integration_catalog
+            .iter()
+            .any(|item| item.kind == IntegrationKind::Memory && item.id == key)
+            .then_some(())
+            .ok_or_else(|| {
+                "memory deletion requires an exact key from the current memory snapshot"
+                    .to_string()
+            })
+    }
+
+    fn start_memory_mutation(
+        &mut self,
+        app: &V3GatewayApp,
+        mutation: MemoryMutation,
+    ) -> Result<(), String> {
+        if self.directory_switch_source.is_some() {
+            return Err("cannot mutate memory while a directory switch is active".to_string());
+        }
+        if self.memory_mutation_generation.is_some() {
+            return Err("a memory mutation is already in progress".to_string());
+        }
+        if matches!(mutation, MemoryMutation::Delete { .. }) {
+            self.require_memory_key(app, mutation.key())?;
+        }
+        let query = (self.memory_snapshot_directory.as_deref()
+            == Some(app.runtime().directory()))
+        .then(|| self.memory_snapshot_query.clone())
+        .flatten();
+        self.memory_generation = self.memory_generation.wrapping_add(1);
+        self.memory_mutation_generation = Some(self.memory_generation);
+        spawn_memory_mutation(
+            app.runtime().clone(),
+            self.memory_generation,
+            mutation,
+            query,
+            self.host_sender.clone(),
+        );
+        Ok(())
+    }
+
+    fn open_hook_mutation_confirmation(
+        &self,
+        app: &mut V3GatewayApp,
+        plugin_id: &str,
+        hook_hash: &str,
+        trusted: bool,
+    ) {
+        let result = self.current_hook(app, plugin_id, hook_hash).and_then(|hook| {
+            if hook.trusted == trusted {
+                return Err(format!(
+                    "Hook {plugin_id} {hook_hash} is already {}",
+                    if trusted { "trusted" } else { "revoked" }
+                ));
+            }
+            let action = if trusted { "信任" } else { "撤销信任" };
+            Ok(UiConfirmOverlay {
+                request_id: format!(
+                    "hook-{}-{plugin_id}-{hook_hash}",
+                    if trusted { "trust" } else { "revoke" }
+                ),
+                title: format!("确认{action} Hook"),
+                body: format!(
+                    "{action}当前目录声明\nPlugin: {}\nEvent: {}\nMode: {}\nHash: {}",
+                    hook.plugin_id, hook.event, hook.mode, hook.hook_hash
+                ),
+                confirm_label: action.to_string(),
+                cancel_label: "取消".to_string(),
+                destructive: true,
+                intent: UiConfirmIntent::HookMutation {
+                    plugin_id: hook.plugin_id.clone(),
+                    hook_hash: hook.hook_hash.clone(),
+                    trusted,
+                },
+            })
+        });
+        app.show_integration_confirmation(result);
+    }
+
+    fn start_hook_mutation(
+        &mut self,
+        app: &V3GatewayApp,
+        plugin_id: &str,
+        hook_hash: &str,
+        trusted: bool,
+    ) -> Result<(), String> {
+        if self.hook_mutation.is_some() {
+            return Err("a Hook mutation is already in progress".to_string());
+        }
+        let hook = self.current_hook(app, plugin_id, hook_hash)?;
+        if hook.trusted == trusted {
+            return Err("Hook catalog changed before confirmation was applied".to_string());
+        }
+        self.hooks_generation = self.hooks_generation.wrapping_add(1);
+        self.hook_mutation = Some(ActiveHookMutation {
+            plugin_id: plugin_id.to_string(),
+            hook_hash: hook_hash.to_string(),
+            trusted,
+        });
+        spawn_hook_mutation(
+            app.runtime().clone(),
+            self.hooks_generation,
+            plugin_id.to_string(),
+            hook_hash.to_string(),
+            trusted,
+            self.host_sender.clone(),
+        );
+        Ok(())
+    }
+
+    fn current_hook(
+        &self,
+        app: &V3GatewayApp,
+        plugin_id: &str,
+        hook_hash: &str,
+    ) -> Result<HookCatalogItem, String> {
+        if self.hook_catalog_directory.as_deref() != Some(app.runtime().directory()) {
+            return Err("Hook mutation requires the current directory catalog snapshot".to_string());
+        }
+        self.hook_catalog
+            .as_ref()
+            .and_then(|catalog| catalog.find(plugin_id, hook_hash))
+            .cloned()
+            .ok_or_else(|| {
+                "Hook mutation requires an exact plugin ID/hash from the current catalog"
+                    .to_string()
+            })
     }
 
     /// 非阻塞汇集本地副作与 Gateway 流消息，并在流结束后尝试启动排队输入。
@@ -700,6 +1389,55 @@ impl ActiveRunner {
                         Ok(state) => app.commit_initial_session_state(*state),
                         Err(error) => {
                             push_runner_error(app, format!("failed to load session history: {error}"));
+                        }
+                    }
+                }
+                Ok(HostMessage::DirectorySwitchFinished {
+                    generation,
+                    source_directory,
+                    recovery_draft,
+                    result,
+                }) => {
+                    if generation != self.directory_switch_generation {
+                        continue;
+                    }
+                    self.directory_switch_source = None;
+                    if app.runtime().directory() != source_directory {
+                        continue;
+                    }
+                    match result {
+                        Ok(bootstrap) => {
+                            self.file_search_generation = self.file_search_generation.wrapping_add(1);
+                            self.file_search_query = None;
+                            self.session_diff_generation = self.session_diff_generation.wrapping_add(1);
+                            self.doctor_generation = self.doctor_generation.wrapping_add(1);
+                            self.cron_generation = self.cron_generation.wrapping_add(1);
+                            self.task_detail_generation =
+                                self.task_detail_generation.wrapping_add(1);
+                            self.workspace_files_generation =
+                                self.workspace_files_generation.wrapping_add(1);
+                            self.hooks_generation = self.hooks_generation.wrapping_add(1);
+                            self.memory_generation = self.memory_generation.wrapping_add(1);
+                            self.memory_mutation_generation = None;
+                            self.memory_snapshot_directory = None;
+                            self.memory_snapshot_query = None;
+                            self.hook_catalog_directory = None;
+                            self.hook_catalog = None;
+                            self.workflow_run = None;
+                            let directory = bootstrap.runtime.directory().display().to_string();
+                            app.commit_directory_switch(*bootstrap);
+                            app.widget_mut().push_history(V3DisplayEvent::System {
+                                text: format!("工作目录已切换到 {directory}"),
+                            });
+                        }
+                        Err(error) => {
+                            if app.widget().draft().is_empty() {
+                                app.widget_mut().replace_draft(recovery_draft.as_str());
+                            }
+                            push_runner_error(
+                                app,
+                                format!("failed to switch working directory: {error}"),
+                            );
                         }
                     }
                 }
@@ -774,6 +1512,49 @@ impl ActiveRunner {
                         }
                     }
                 }
+                Ok(HostMessage::WorkflowResumeFinished { pause_request_id, result }) => {
+                    self.interaction_in_flight = false;
+                    match result {
+                        Ok(response) => {
+                            let projected = self
+                                .workflow_run
+                                .as_mut()
+                                .ok_or_else(|| "workflow resume has no owned run state".to_string())
+                                .and_then(|ownership| {
+                                    if ownership.pause_request_id().as_deref()
+                                        != Some(pause_request_id.as_str())
+                                    {
+                                        return Err(
+                                            "workflow resume result does not match the current pause"
+                                                .to_string(),
+                                        );
+                                    }
+                                    let events = ownership.project_resume_response(*response)?;
+                                    let question = ownership.pause_question()?;
+                                    Ok((events, question))
+                                });
+                            match projected {
+                                Ok((events, question)) => {
+                                    for event in events {
+                                        app.accept_runtime_event(event);
+                                    }
+                                    app.replace_workflow_pause_question(question);
+                                    if let Err(error) = app.persist_session_snapshot() {
+                                        push_runner_error(
+                                            app,
+                                            format!("session save failed: {error}"),
+                                        );
+                                    }
+                                }
+                                Err(error) => app.record_interaction_error(error),
+                            }
+                        }
+                        Err(error) => app.record_interaction_error(format!(
+                            "failed to resume Workflow pause {pause_request_id}: {error}"
+                        )),
+                    }
+                    app.show_next_interaction();
+                }
                 Ok(HostMessage::FileSearchFinished { generation, query, result }) => {
                     if generation != self.file_search_generation
                         || self.file_search_query.as_deref() != Some(query.as_str())
@@ -808,6 +1589,272 @@ impl ActiveRunner {
                         }
                     }
                 }
+                Ok(HostMessage::DoctorFinished { generation, directory, result }) => {
+                    if generation != self.doctor_generation
+                        || directory.as_path() != app.runtime().directory()
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(report) => {
+                            app.widget_mut().push_history(V3DisplayEvent::System {
+                                text: report.render_text(),
+                            });
+                        }
+                        Err(error) => push_runner_error(
+                            app,
+                            format!("failed to load Gateway diagnostics: {error}"),
+                        ),
+                    }
+                }
+                Ok(HostMessage::CronDetailFinished {
+                    generation,
+                    directory,
+                    job_id,
+                    result,
+                }) => {
+                    if generation != self.cron_generation
+                        || directory.as_path() != app.runtime().directory()
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(detail) => app.widget_mut().push_history(V3DisplayEvent::System {
+                            text: detail.render_text(),
+                        }),
+                        Err(error) => push_runner_error(
+                            app,
+                            format!("failed to load Cron detail {job_id}: {error}"),
+                        ),
+                    }
+                }
+                Ok(HostMessage::TaskDetailFinished {
+                    generation,
+                    directory,
+                    task_id,
+                    result,
+                }) => {
+                    if generation != self.task_detail_generation
+                        || directory.as_path() != app.runtime().directory()
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(detail) => app.widget_mut().push_history(V3DisplayEvent::System {
+                            text: detail.render_text(),
+                        }),
+                        Err(error) => push_runner_error(
+                            app,
+                            format!("failed to load Scheduler task detail {task_id}: {error}"),
+                        ),
+                    }
+                }
+                Ok(HostMessage::WorkspaceFilesFinished {
+                    generation,
+                    directory,
+                    requested_path,
+                    result,
+                }) => {
+                    if generation != self.workspace_files_generation
+                        || directory.as_path() != app.runtime().directory()
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(listing) if listing.path() == requested_path => {
+                            app.widget_mut().show_selection_overlay(
+                                WORKSPACE_FILES_SURFACE,
+                                format!("浏览文件：{}", listing.path()),
+                                listing.into_items(),
+                            );
+                        }
+                        Ok(_) => push_runner_error(
+                            app,
+                            "workspace file listing did not match the current request",
+                        ),
+                        Err(error) => push_runner_error(
+                            app,
+                            format!("failed to browse workspace files: {error}"),
+                        ),
+                    }
+                }
+                Ok(HostMessage::WorkspaceFileReadFinished {
+                    generation,
+                    directory,
+                    requested_path,
+                    result,
+                }) => {
+                    if generation != self.workspace_files_generation
+                        || directory.as_path() != app.runtime().directory()
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(text) if text.path() == requested_path => {
+                            app.widget_mut().push_history(V3DisplayEvent::System {
+                                text: text.render_text(),
+                            });
+                        }
+                        Ok(_) => push_runner_error(
+                            app,
+                            "workspace file response did not match the current request",
+                        ),
+                        Err(error) => push_runner_error(
+                            app,
+                            format!("failed to read workspace file: {error}"),
+                        ),
+                    }
+                }
+                Ok(HostMessage::HookCatalogFinished { generation, directory, result }) => {
+                    if generation != self.hooks_generation
+                        || directory.as_path() != app.runtime().directory()
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(catalog) => {
+                            self.hook_catalog_directory = Some(directory);
+                            self.hook_catalog = Some(catalog.clone());
+                            app.widget_mut().show_selection_overlay(
+                                HOOK_CATALOG_SURFACE,
+                                "Hook 目录",
+                                catalog.into_selection_items(),
+                            );
+                        }
+                        Err(error) => push_runner_error(
+                            app,
+                            format!("failed to load Hook catalog: {error}"),
+                        ),
+                    }
+                }
+                Ok(HostMessage::HookAuditFinished { generation, directory, result }) => {
+                    if generation != self.hooks_generation
+                        || directory.as_path() != app.runtime().directory()
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(audit) => app.widget_mut().push_history(V3DisplayEvent::System {
+                            text: audit.render_text(),
+                        }),
+                        Err(error) => push_runner_error(
+                            app,
+                            format!("failed to load Hook audit: {error}"),
+                        ),
+                    }
+                }
+                Ok(HostMessage::HookMutationFinished {
+                    generation,
+                    directory,
+                    plugin_id,
+                    hook_hash,
+                    trusted,
+                    result,
+                }) => {
+                    if generation != self.hooks_generation {
+                        continue;
+                    }
+                    let Some(active) = self.hook_mutation.take() else {
+                        continue;
+                    };
+                    if active.plugin_id != plugin_id
+                        || active.hook_hash != hook_hash
+                        || active.trusted != trusted
+                    {
+                        push_runner_error(app, "Hook mutation response did not match the active request");
+                        continue;
+                    }
+                    if directory.as_path() != app.runtime().directory() {
+                        continue;
+                    }
+                    match result {
+                        Ok(refresh) => {
+                            self.hook_catalog_directory = Some(directory);
+                            self.hook_catalog = Some(refresh.catalog.clone());
+                            app.widget_mut().push_history(V3DisplayEvent::System {
+                                text: format!(
+                                    "Hook {}: {plugin_id} {hook_hash}",
+                                    if trusted { "已信任" } else { "已撤销信任" }
+                                ),
+                            });
+                            app.widget_mut().push_history(V3DisplayEvent::System {
+                                text: refresh.audit.render_text(),
+                            });
+                            app.widget_mut().show_selection_overlay(
+                                HOOK_CATALOG_SURFACE,
+                                "Hook 目录",
+                                refresh.catalog.into_selection_items(),
+                            );
+                        }
+                        Err(error) => push_runner_error(
+                            app,
+                            format!(
+                                "failed to {} Hook {plugin_id} {hook_hash}: {error}",
+                                if trusted { "trust" } else { "revoke" }
+                            ),
+                        ),
+                    }
+                }
+                Ok(HostMessage::MemorySearchFinished {
+                    generation,
+                    directory,
+                    query,
+                    result,
+                }) => {
+                    if generation != self.memory_generation
+                        || directory.as_path() != app.runtime().directory()
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(items) => {
+                            self.memory_snapshot_directory = Some(directory);
+                            self.memory_snapshot_query.clone_from(&query);
+                            app.replace_memory_items(items);
+                            app.open_integrations(IntegrationKind::Memory);
+                        }
+                        Err(error) => push_runner_error(
+                            app,
+                            format!(
+                                "failed to {} memory: {error}",
+                                if query.is_some() { "query" } else { "refresh" }
+                            ),
+                        ),
+                    }
+                }
+                Ok(HostMessage::MemoryMutationFinished {
+                    generation,
+                    directory,
+                    query,
+                    action,
+                    key,
+                    result,
+                }) => {
+                    if generation != self.memory_generation
+                        || directory.as_path() != app.runtime().directory()
+                    {
+                        continue;
+                    }
+                    self.memory_mutation_generation = None;
+                    match result {
+                        Ok(items) => {
+                            self.memory_snapshot_directory = Some(directory);
+                            self.memory_snapshot_query.clone_from(&query);
+                            app.replace_memory_items(items);
+                            app.widget_mut().push_history(V3DisplayEvent::System {
+                                text: format!(
+                                    "记忆已{}: {key}",
+                                    if action == "store" { "写入" } else { "删除" }
+                                ),
+                            });
+                            app.open_integrations(IntegrationKind::Memory);
+                        }
+                        Err(error) => push_runner_error(
+                            app,
+                            format!("failed to {action} memory {key}: {error}"),
+                        ),
+                    }
+                }
                 Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
             }
         }
@@ -824,6 +1871,25 @@ impl ActiveRunner {
             match stream.receiver.try_recv() {
                 Ok(StreamMessage::ChatEvent(event)) => {
                     app.accept_gateway_event(event);
+                }
+                Ok(StreamMessage::WorkflowEvent(event)) => {
+                    let Some(ownership) = self.workflow_run.as_mut() else {
+                        push_runner_error(app, "workflow stream event has no owned run state");
+                        continue;
+                    };
+                    if ownership.request_id() != stream.request_id {
+                        push_runner_error(app, "workflow stream request ownership does not match");
+                        continue;
+                    }
+                    let events = ownership.project_event(event);
+                    let pause_question = ownership.pause_question();
+                    for event in events {
+                        app.accept_runtime_event(event);
+                    }
+                    match pause_question {
+                        Ok(question) => app.replace_workflow_pause_question(question),
+                        Err(error) => push_runner_error(app, error),
+                    }
                 }
                 Ok(StreamMessage::RuntimeEvent(event)) => {
                     app.accept_runtime_event(event);
@@ -847,6 +1913,10 @@ impl ActiveRunner {
         let needs_plan_terminal =
             kind == ActiveStreamKind::PlanRun
                 && app.state().runtime.active_plan_run_request_id.is_some();
+        let needs_workflow_terminal = kind == ActiveStreamKind::Workflow
+            && self.workflow_run.as_ref().is_some_and(|ownership| {
+                ownership.request_id() == stream.request_id && ownership.terminal_events() == 0
+            });
         match result {
             Ok(
                 GatewayStreamAttemptResult::Terminated | GatewayStreamAttemptResult::CallerStopped,
@@ -860,6 +1930,16 @@ impl ActiveRunner {
             app.accept_runtime_event(UiRuntimeEvent::Terminal(UiRuntimeTerminalEvent::Error(
                 "plan-run stream ended before a terminal event".to_string(),
             )));
+        }
+        if needs_workflow_terminal
+            && let Some(ownership) = self.workflow_run.as_mut()
+            && let Some(terminal) = ownership.project_local_terminal(
+                UiRuntimeTerminalEvent::Error(
+                    "workflow stream ended before a terminal event".to_string(),
+                ),
+            )
+        {
+            app.accept_runtime_event(terminal);
         }
         if let Err(error) = app.persist_session_snapshot() {
             push_runner_error(app, format!("session save failed: {error}"));
@@ -906,6 +1986,25 @@ impl ActiveRunner {
         self.active_stream.as_ref().map(|stream| stream.request_id.as_str())
     }
 
+    #[cfg(test)]
+    pub(crate) fn active_stream_kind(&self) -> Option<&'static str> {
+        self.active_stream.as_ref().map(|stream| match stream.kind {
+            ActiveStreamKind::Chat => "chat",
+            ActiveStreamKind::PlanRun => "plan-run",
+            ActiveStreamKind::Workflow => "workflow",
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn last_workflow_run(&self) -> Option<&WorkflowRunOwnership> {
+        self.workflow_run.as_ref()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn last_workflow_request_id(&self) -> Option<&str> {
+        self.workflow_run.as_ref().map(WorkflowRunOwnership::request_id)
+    }
+
     /// 返回完整 transcript 阅读器是否已打开。
     pub(crate) fn has_transcript_pager(&self) -> bool {
         self.transcript_pager.is_some()
@@ -920,6 +2019,34 @@ impl ActiveRunner {
     pub(crate) fn interaction_in_flight(&self) -> bool {
         self.interaction_in_flight
     }
+
+    #[cfg(test)]
+    pub(crate) fn directory_switch_in_flight(&self) -> bool {
+        self.directory_switch_source.is_some()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn hook_catalog_contains(
+        &self,
+        plugin_id: &str,
+        hook_hash: &str,
+        trusted: bool,
+    ) -> bool {
+        self.hook_catalog
+            .as_ref()
+            .and_then(|catalog| catalog.find(plugin_id, hook_hash))
+            .is_some_and(|hook| hook.trusted == trusted)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn hook_mutation_in_flight(&self) -> bool {
+        self.hook_mutation.is_some()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn memory_mutation_in_flight(&self) -> bool {
+        self.memory_mutation_generation.is_some()
+    }
 }
 
 fn push_runner_error(app: &mut V3GatewayApp, message: impl Into<String>) {
@@ -927,6 +2054,18 @@ fn push_runner_error(app: &mut V3GatewayApp, message: impl Into<String>) {
 }
 
 /// Gateway 驱动的 TUI 组装根，持有运行时、状态、控制器与渲染部件。
+#[derive(Debug)]
+pub(crate) struct DirectorySwitchBootstrap {
+    runtime: GatewayUiRuntime,
+    state: TuiState,
+}
+
+impl DirectorySwitchBootstrap {
+    pub(crate) fn new(runtime: GatewayUiRuntime, state: TuiState) -> Self {
+        Self { runtime, state }
+    }
+}
+
 pub(crate) struct V3GatewayApp {
     runtime: GatewayUiRuntime,
     state: TuiState,
@@ -1036,6 +2175,39 @@ impl V3GatewayApp {
             text: query.to_string(),
             attachments: Vec::new(),
         });
+    }
+
+    fn begin_workflow_run(&mut self, request_id: &str, query: &str) {
+        self.state.status.turn_terminal = UiTurnTerminal::Streaming;
+        self.state.status.last_error = None;
+        let base = UiMessageBase::new(UiMessageId::local(format!(
+            "workflow-run-user-{request_id}"
+        )))
+        .with_origin(UiMessageOrigin::Local);
+        self.state.append_message(UiMessage::User(UiUserMessage {
+            base,
+            text: query.to_string(),
+        }));
+        self.widget.push_history(V3DisplayEvent::User {
+            text: query.to_string(),
+            attachments: Vec::new(),
+        });
+    }
+
+    fn begin_workflow_resume(&mut self) {
+        self.state.status.turn_terminal = UiTurnTerminal::Streaming;
+        self.state.status.last_error = None;
+    }
+
+    fn replace_workflow_pause_question(
+        &mut self,
+        question: Option<super::model::UiQuestionOverlay>,
+    ) {
+        reduce_tui_state(
+            &mut self.state,
+            TuiAction::WorkflowPauseQuestionReplaced(question),
+        );
+        self.show_next_interaction();
     }
 
     fn request_interaction_refresh(&mut self) {
@@ -1812,6 +2984,13 @@ impl V3GatewayApp {
         );
     }
 
+    fn replace_memory_items(&mut self, mut items: Vec<IntegrationItem>) {
+        self.state
+            .integration_catalog
+            .retain(|item| item.kind != IntegrationKind::Memory);
+        self.state.integration_catalog.append(&mut items);
+    }
+
     fn expand_integration_prompt(
         &self,
         kind: IntegrationKind,
@@ -1933,19 +3112,22 @@ impl V3GatewayApp {
     }
 
     fn open_orchestration(&mut self, kind: OrchestrationPanelKind) {
-        let (title, mut items, warning): (&str, Vec<V3SelectionItem>, Option<String>) = match kind {
+        let (surface, title, mut items, warning):
+            (&str, &str, Vec<V3SelectionItem>, Option<String>) = match kind {
             OrchestrationPanelKind::Workflows => (
+                WORKFLOW_SELECTION_SURFACE,
                 "工作流",
                 self.state
                     .orchestration
                     .workflows
                     .items
                     .iter()
-                    .map(|item| read_only_item(&item.uuid, &item.name, &item.description))
+                    .map(|item| selectable_item(&item.uuid, &item.name, &item.description))
                     .collect::<Vec<_>>(),
                 self.state.orchestration.workflows.error.clone(),
             ),
             OrchestrationPanelKind::Schedules => (
+                SCHEDULE_SELECTION_SURFACE,
                 "定时任务",
                 self.state
                     .orchestration
@@ -1953,7 +3135,7 @@ impl V3GatewayApp {
                     .items
                     .iter()
                     .map(|item| {
-                        read_only_item(
+                        selectable_item(
                             &item.id,
                             &item.name,
                             &format!(
@@ -1968,6 +3150,7 @@ impl V3GatewayApp {
                 self.state.orchestration.schedules.error.clone(),
             ),
             OrchestrationPanelKind::Agents => (
+                "orchestration",
                 "Agents",
                 self.state
                     .orchestration
@@ -1985,6 +3168,7 @@ impl V3GatewayApp {
                 self.state.orchestration.agents.error.clone(),
             ),
             OrchestrationPanelKind::Tasks => (
+                TASK_SELECTION_SURFACE,
                 "后台任务",
                 self.state
                     .orchestration
@@ -1992,7 +3176,7 @@ impl V3GatewayApp {
                     .tasks
                     .iter()
                     .map(|item| {
-                        read_only_item(
+                        selectable_item(
                             &item.id,
                             &item.title,
                             &format!("{:?} · {}", item.status, item.detail),
@@ -2011,10 +3195,10 @@ impl V3GatewayApp {
                 ..V3SelectionItem::default()
             });
         }
-        self.widget.show_selection_overlay("orchestration", title, items);
+        self.widget.show_selection_overlay(surface, title, items);
     }
 
-    fn open_task_cancel_confirmation(&mut self, id: &str) {
+    fn open_task_control_confirmation(&mut self, id: &str, action: TaskControlAction) {
         let result = self
             .state
             .orchestration
@@ -2026,28 +3210,101 @@ impl V3GatewayApp {
                 "task control requires an ID owned by the current project snapshot".to_string()
             })
             .and_then(|task| {
-                if !task.supports_stop {
-                    return Err("task is not in a cancellable canonical state".to_string());
+                let scope = self
+                    .state
+                    .orchestration
+                    .scope
+                    .as_ref()
+                    .ok_or_else(|| "task control requires a resolved project scope".to_string())?;
+                if task.session_id != scope.project_scope().project_id().as_ref() {
+                    return Err(
+                        "task control snapshot does not match the resolved project scope"
+                            .to_string(),
+                    );
                 }
+                if !task.canonical_status.allows(action) {
+                    return Err(format!(
+                        "task canonical state does not allow {}",
+                        action.command_name()
+                    ));
+                }
+                let label = action.display_label();
                 Ok(UiConfirmOverlay {
-                    request_id: format!("task-cancel-{}", task.id),
-                    title: "确认取消任务".to_string(),
-                    body: format!("取消当前项目任务 {}", task.id),
-                    confirm_label: "取消任务".to_string(),
-                    cancel_label: "保留运行".to_string(),
-                    destructive: true,
-                    intent: UiConfirmIntent::TaskCancel { id: task.id.clone() },
+                    request_id: format!("task-{}-{}", action.command_name(), task.id),
+                    title: format!("确认{label}任务"),
+                    body: format!("{label}当前项目任务 {}", task.id),
+                    confirm_label: format!("{label}任务"),
+                    cancel_label: if action.destructive() {
+                        "保留任务".to_string()
+                    } else {
+                        "取消".to_string()
+                    },
+                    destructive: action.destructive(),
+                    intent: UiConfirmIntent::TaskControl { id: task.id.clone(), action },
                 })
             });
         self.show_integration_confirmation(result);
     }
 
-    fn cancel_owned_task(&mut self, id: &str) -> Result<(), String> {
+    fn open_cron_toggle_confirmation(&mut self, id: &str, enabled: bool) {
+        let result = self.require_cron_job(id).map(|_| UiConfirmOverlay {
+            request_id: format!(
+                "cron-{}-{id}",
+                if enabled { "enable" } else { "disable" }
+            ),
+            title: "确认更改定时任务状态".to_string(),
+            body: format!("{}当前定时任务 {id}", if enabled { "启用" } else { "禁用" }),
+            confirm_label: (if enabled { "启用" } else { "禁用" }).to_string(),
+            cancel_label: "取消".to_string(),
+            destructive: false,
+            intent: UiConfirmIntent::ScheduleToggle { id: id.to_string(), enabled },
+        });
+        self.show_integration_confirmation(result);
+    }
+
+    fn open_cron_delete_confirmation(&mut self, id: &str) {
+        let result = self.require_cron_job(id).map(|_| UiConfirmOverlay {
+            request_id: format!("cron-delete-{id}"),
+            title: "确认删除定时任务".to_string(),
+            body: format!("删除当前定时任务 {id}"),
+            confirm_label: "删除".to_string(),
+            cancel_label: "保留任务".to_string(),
+            destructive: true,
+            intent: UiConfirmIntent::ScheduleDelete { id: id.to_string() },
+        });
+        self.show_integration_confirmation(result);
+    }
+
+    fn require_cron_job(&self, id: &str) -> Result<&CronJobSnapshot, String> {
+        let id = id.trim();
+        self.state
+            .orchestration
+            .cron_jobs
+            .iter()
+            .find(|job| job.owns_id(id))
+            .ok_or_else(|| {
+                "Cron mutation requires an ID from the current Cron snapshot".to_string()
+            })
+    }
+
+    fn mutate_owned_cron(&mut self, id: &str, mutation: CronMutation) -> Result<(), String> {
+        let refreshed = mutate_owned_cron_and_refresh_blocking(
+            &self.runtime,
+            &self.state.orchestration.cron_jobs,
+            id,
+            mutation,
+        )?;
+        self.state.orchestration.schedules = refreshed.schedules;
+        self.state.orchestration.cron_jobs = refreshed.cron_jobs;
+        Ok(())
+    }
+
+    fn control_owned_task(&mut self, id: &str, action: TaskControlAction) -> Result<(), String> {
         control_owned_task_blocking(
             &self.runtime,
             &self.state.orchestration,
             id,
-            vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::Cancel,
+            action,
         )?;
         self.state.orchestration = load_orchestration_blocking(&self.runtime);
         Ok(())
@@ -2172,6 +3429,26 @@ impl V3GatewayApp {
         self.transcript_reflow = TranscriptReflowState::default();
         self.interaction_refresh_requested = true;
     }
+
+    /// 目标目录全部快照准备完成后，一次性替换活动 runtime、状态与界面。
+    pub(crate) fn commit_directory_switch(&mut self, bootstrap: DirectorySwitchBootstrap) {
+        let DirectorySwitchBootstrap { runtime, mut state } = bootstrap;
+        state.session_options = self.state.session_options.clone();
+        state.theme_name = self.state.theme_name.clone();
+        state.status.provider_name = self.state.status.provider_name.clone();
+        if state.status.model_name.is_none() {
+            state.status.model_name = self.state.status.model_name.clone();
+        }
+
+        let draft = self.widget.draft().to_string();
+        let widget = build_session_widget(&runtime, &state, Some(draft.as_str()));
+        self.runtime = runtime;
+        self.state = state;
+        self.widget = widget;
+        self.bridge = GatewayV3Bridge::default();
+        self.transcript_reflow = TranscriptReflowState::default();
+        self.interaction_refresh_requested = true;
+    }
 }
 
 fn build_session_widget(
@@ -2214,6 +3491,16 @@ fn read_only_item(id: &str, label: &str, description: &str) -> V3SelectionItem {
     }
 }
 
+fn selectable_item(id: &str, label: &str, description: &str) -> V3SelectionItem {
+    V3SelectionItem {
+        id: id.to_string(),
+        label: label.to_string(),
+        description: Some(description.to_string()),
+        search_value: Some(format!("{id} {label} {description}")),
+        ..V3SelectionItem::default()
+    }
+}
+
 fn effort_id(effort: ReasoningEffort) -> &'static str {
     match effort {
         ReasoningEffort::Minimal => "minimal",
@@ -2233,7 +3520,7 @@ fn permission_mode_id(mode: PermissionMode) -> &'static str {
     }
 }
 
-/// 作为 CLI 交互入口启动 Gateway、恢复会话并运行终端循环。
+/// 作为 CLI 交互入口启动 Gateway、初始化会话并运行终端循环。
 pub(crate) fn run_tui(config: &Config, setup: &CliSetup) -> Result<()> {
     let runtime = GatewayUiRuntime::for_workspace(config).map_err(|error| anyhow!(error))?;
     runtime.ensure_local_gateway_ready_blocking().map_err(|error| anyhow!(error))?;
@@ -2270,19 +3557,15 @@ pub(crate) fn initial_tui_state(runtime: &GatewayUiRuntime) -> TuiState {
     state
 }
 
-/// 恢复显式或最近的非空会话；没有历史时才创建新会话。
+/// 恢复显式指定的会话；普通启动始终创建新会话。
 pub(crate) fn restore_or_create_session_state(
     runtime: &mut GatewayUiRuntime,
 ) -> Result<TuiState, String> {
-    let previews = runtime.session_ui_previews_blocking()?;
-    let scope = runtime.scope().map(ToOwned::to_owned).or(runtime.session_scope_get_blocking()?);
-    let snapshot = match select_restore_session_id(runtime.session_id(), &previews) {
-        Some(session_id) => runtime
-            .session_ui_load_any_blocking(Some(session_id.as_str()))?
-            .or_else(|| {
-                previews.iter().find(|preview| preview.id == session_id).map(snapshot_from_preview)
-            })
-            .unwrap_or_else(|| empty_session_snapshot(session_id.as_str())),
+    let explicit_session_id =
+        normalize_optional_str_ref(runtime.session_id()).map(ToOwned::to_owned);
+    let scope = runtime.scope().map(ToOwned::to_owned);
+    let snapshot = match explicit_session_id {
+        Some(session_id) => runtime.session_ui_load_blocking(session_id.as_str())?,
         None => {
             let title = default_session_title(runtime.directory());
             let created = runtime.session_create_blocking(Some(title.as_str()))?;
@@ -2300,33 +3583,54 @@ pub(crate) fn restore_or_create_session_state(
     Ok(state)
 }
 
-fn latest_session_preview(previews: &[ChatSessionMeta]) -> Option<&ChatSessionMeta> {
-    previews
-        .iter()
-        .filter(|preview| preview.message_count > 0 || preview.call_count > 0)
-        .max_by(|left, right| compare_session_previews(left, right))
-        .or_else(|| previews.iter().max_by(|left, right| compare_session_previews(left, right)))
-}
+/// 在临时 runtime 上解析并完整启动目标目录；调用方只提交成功结果。
+pub(crate) fn bootstrap_directory_switch(
+    mut runtime: GatewayUiRuntime,
+    requested_path: &Path,
+) -> Result<DirectorySwitchBootstrap, String> {
+    let requested_path = if requested_path.is_absolute() {
+        requested_path.to_path_buf()
+    } else {
+        runtime.directory().join(requested_path)
+    };
+    let project = runtime.resolve_project_directory_blocking(requested_path.as_path(), false)?;
+    runtime.rebind_validated_directory(Path::new(project.directory.as_str()))?;
 
-fn compare_session_previews(left: &ChatSessionMeta, right: &ChatSessionMeta) -> std::cmp::Ordering {
-    left.updated_ms
-        .cmp(&right.updated_ms)
-        .then(left.message_count.cmp(&right.message_count))
-        .then(left.call_count.cmp(&right.call_count))
-        .then(left.id.cmp(&right.id))
-}
-
-fn snapshot_from_preview(preview: &ChatSessionMeta) -> ChatSession {
-    ChatSession {
-        id: preview.id.clone(),
-        title: preview.title.clone(),
-        messages: Vec::new(),
-        message_ids: Vec::new(),
-        calls: Vec::new(),
-        steps: Vec::new(),
-        created_ms: preview.updated_ms,
-        updated_ms: preview.updated_ms,
+    let mut state = restore_or_create_session_state(&mut runtime)?;
+    let capabilities = load_session_capabilities_blocking(&runtime);
+    if !capabilities.warnings.is_empty() {
+        return Err(format!(
+            "target capability bootstrap failed: {}",
+            capabilities.warnings.join("; ")
+        ));
     }
+    state.status.model_name = capabilities
+        .default_model
+        .clone()
+        .or_else(|| capabilities.matrix.models.first().cloned());
+    state.session_options.model.clone_from(&state.status.model_name);
+    state.session_capabilities = capabilities.matrix;
+    state.settings_warnings = capabilities.warnings;
+
+    let integrations = load_integrations_blocking(&runtime);
+    if !integrations.warnings.is_empty() {
+        return Err(format!(
+            "target integration bootstrap failed: {}",
+            integrations.warnings.join("; ")
+        ));
+    }
+    state.integration_catalog = integrations.items;
+    state.integration_warnings = integrations.warnings;
+
+    let orchestration = load_orchestration_blocking(&runtime);
+    if !orchestration.warnings.is_empty() {
+        return Err(format!(
+            "target orchestration bootstrap failed: {}",
+            orchestration.warnings.join("; ")
+        ));
+    }
+    state.orchestration = orchestration;
+    Ok(DirectorySwitchBootstrap::new(runtime, state))
 }
 
 fn empty_session_snapshot(session_id: &str) -> ChatSession {
@@ -2340,15 +3644,6 @@ fn empty_session_snapshot(session_id: &str) -> ChatSession {
         created_ms: 0,
         updated_ms: 0,
     }
-}
-
-fn select_restore_session_id(
-    explicit_session_id: Option<&str>,
-    previews: &[ChatSessionMeta],
-) -> Option<String> {
-    normalize_optional_str_ref(explicit_session_id)
-        .map(ToOwned::to_owned)
-        .or_else(|| latest_session_preview(previews).map(|preview| preview.id.clone()))
 }
 
 fn default_session_title(directory: &Path) -> String {
@@ -2566,6 +3861,7 @@ fn display_event_from_message(message: &UiMessage) -> V3DisplayEvent {
                 path: (!message.uri.trim().is_empty()).then(|| message.uri.clone()),
                 media_type: message.media_type.clone(),
                 text: message.preview.clone().or_else(|| message.alt_text.clone()),
+                bytes: None,
             },
         },
         UiMessage::Progress(message) => V3DisplayEvent::Progress {
@@ -2706,6 +4002,187 @@ fn spawn_session_diff(
     });
 }
 
+fn spawn_doctor(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let result = load_gateway_diagnostics_blocking(&runtime);
+        let _ = sender.send(HostMessage::DoctorFinished { generation, directory, result });
+    });
+}
+
+fn spawn_cron_detail(
+    runtime: GatewayUiRuntime,
+    snapshot: Vec<CronJobSnapshot>,
+    generation: u64,
+    job_id: String,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let result = load_owned_cron_detail_blocking(&runtime, &snapshot, job_id.as_str())
+            .map(Box::new);
+        let _ = sender.send(HostMessage::CronDetailFinished {
+            generation,
+            directory,
+            job_id,
+            result,
+        });
+    });
+}
+
+fn spawn_task_detail(
+    runtime: GatewayUiRuntime,
+    snapshot: OrchestrationSnapshot,
+    generation: u64,
+    task_id: String,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let result = load_owned_task_detail_blocking(&runtime, &snapshot, task_id.as_str())
+            .map(Box::new);
+        let _ = sender.send(HostMessage::TaskDetailFinished {
+            generation,
+            directory,
+            task_id,
+            result,
+        });
+    });
+}
+
+fn spawn_workspace_files(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    requested_path: String,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let result = load_workspace_files_blocking(&runtime, requested_path.as_str());
+        let _ = sender.send(HostMessage::WorkspaceFilesFinished {
+            generation,
+            directory,
+            requested_path,
+            result,
+        });
+    });
+}
+
+fn spawn_workspace_file_read(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    requested_path: String,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let result = read_workspace_file_blocking(&runtime, requested_path.as_str());
+        let _ = sender.send(HostMessage::WorkspaceFileReadFinished {
+            generation,
+            directory,
+            requested_path,
+            result,
+        });
+    });
+}
+
+fn spawn_hook_catalog(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let result = load_hook_catalog_blocking(&runtime);
+        let _ = sender.send(HostMessage::HookCatalogFinished { generation, directory, result });
+    });
+}
+
+fn spawn_hook_audit(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let result = load_hook_audit_blocking(&runtime);
+        let _ = sender.send(HostMessage::HookAuditFinished { generation, directory, result });
+    });
+}
+
+fn spawn_hook_mutation(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    plugin_id: String,
+    hook_hash: String,
+    trusted: bool,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let result = mutate_hook_and_refresh_blocking(
+            &runtime,
+            plugin_id.as_str(),
+            hook_hash.as_str(),
+            trusted,
+        );
+        let _ = sender.send(HostMessage::HookMutationFinished {
+            generation,
+            directory,
+            plugin_id,
+            hook_hash,
+            trusted,
+            result,
+        });
+    });
+}
+
+fn spawn_memory_search(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    query: Option<String>,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let result = query_memory_blocking(&runtime, query.as_deref());
+        let _ = sender.send(HostMessage::MemorySearchFinished {
+            generation,
+            directory,
+            query,
+            result,
+        });
+    });
+}
+
+fn spawn_memory_mutation(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    mutation: MemoryMutation,
+    query: Option<String>,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let directory = runtime.directory().to_path_buf();
+        let action = mutation.action_name();
+        let key = mutation.key().to_string();
+        let result =
+            mutate_memory_and_refresh_blocking(&runtime, &mutation, query.as_deref());
+        let _ = sender.send(HostMessage::MemoryMutationFinished {
+            generation,
+            directory,
+            query,
+            action,
+            key,
+            result,
+        });
+    });
+}
+
 fn spawn_plan_run(
     runtime: GatewayUiRuntime,
     request: TaskPlanRunRequest,
@@ -2733,6 +4210,29 @@ fn spawn_plan_run(
         let _ = sender.send(StreamMessage::Finished(result));
     });
     ActiveStream { kind: ActiveStreamKind::PlanRun, request_id, receiver, cancel }
+}
+
+fn spawn_workflow_run(
+    runtime: GatewayUiRuntime,
+    request: OwnedWorkflowRunRequest,
+    request_id: String,
+) -> ActiveStream {
+    let (sender, receiver) = mpsc::channel();
+    let cancel = Arc::new(AtomicBool::new(false));
+    let stream_cancel = Arc::clone(&cancel);
+    std::thread::spawn(move || {
+        let result = stream_workflow_run_blocking(&runtime, &request, |event| {
+            !stream_cancel.load(Ordering::Acquire)
+                && sender.send(StreamMessage::WorkflowEvent(event)).is_ok()
+        });
+        let result = if stream_cancel.load(Ordering::Acquire) {
+            Ok(GatewayStreamAttemptResult::CallerStopped)
+        } else {
+            result
+        };
+        let _ = sender.send(StreamMessage::Finished(result));
+    });
+    ActiveStream { kind: ActiveStreamKind::Workflow, request_id, receiver, cancel }
 }
 
 fn spawn_stop(runtime: GatewayUiRuntime, request_id: String, sender: mpsc::Sender<HostMessage>) {
@@ -2781,6 +4281,25 @@ fn spawn_session_bootstrap(
     });
 }
 
+fn spawn_directory_switch(
+    runtime: GatewayUiRuntime,
+    requested_path: PathBuf,
+    generation: u64,
+    source_directory: PathBuf,
+    recovery_draft: String,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let result = bootstrap_directory_switch(runtime, requested_path.as_path()).map(Box::new);
+        let _ = sender.send(HostMessage::DirectorySwitchFinished {
+            generation,
+            source_directory,
+            recovery_draft,
+            result,
+        });
+    });
+}
+
 fn spawn_permission_reply(
     runtime: GatewayUiRuntime,
     request_id: String,
@@ -2809,6 +4328,18 @@ fn spawn_question_reply(
     });
 }
 
+fn spawn_workflow_resume(
+    runtime: GatewayUiRuntime,
+    pause_request_id: String,
+    request: WorkflowResumeRequest,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let result = resume_workflow_run_blocking(&runtime, &request).map(Box::new);
+        let _ = sender.send(HostMessage::WorkflowResumeFinished { pause_request_id, result });
+    });
+}
+
 fn next_stream_request_id() -> String {
     static NEXT_SEQUENCE: AtomicU64 = AtomicU64::new(1);
     let now_ms = SystemTime::now()
@@ -2821,6 +4352,10 @@ fn next_stream_request_id() -> String {
 
 fn next_plan_run_request_id() -> String {
     format!("plan-run-{}", next_stream_request_id())
+}
+
+fn next_workflow_run_request_id() -> String {
+    format!("workflow-run-{}", next_stream_request_id())
 }
 
 fn draw(

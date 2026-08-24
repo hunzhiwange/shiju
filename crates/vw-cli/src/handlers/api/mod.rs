@@ -4,7 +4,7 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
-use clap::{Args, Subcommand, ValueEnum};
+use clap::{ArgMatches, Args, Command, Error, FromArgMatches, Subcommand, ValueEnum};
 
 use self::context::ApiContext;
 use self::config::ConfigCommands;
@@ -56,9 +56,9 @@ mod workflow;
 
 use self::system::SystemCommands;
 
-/// `shiju api` 的连接、认证、输出和命令参数。
+// Gateway API 命令共用的连接、认证和输出参数。
 #[derive(Args, Debug)]
-pub(crate) struct ApiArgs {
+pub(crate) struct ApiOptions {
     /// Gateway 主机名或 IP。
     #[arg(long, global = true, default_value = "127.0.0.1")]
     host: String,
@@ -108,10 +108,38 @@ pub(crate) struct ApiArgs {
     /// 确认危险或有宿主副作用的操作。
     #[arg(long, global = true)]
     yes: bool,
+}
 
-    /// API 领域子命令。
-    #[command(subcommand)]
+/// 一次根级 Gateway API 命令调用的完整参数。
+#[derive(Debug)]
+pub(crate) struct ApiArgs {
+    host: String,
+    port: u16,
+    platform: String,
+    company: String,
+    skey_env: Option<String>,
+    skey_file: Option<PathBuf>,
+    directory: Option<String>,
+    output: ApiOutputFormat,
+    yes: bool,
     command: ApiCommands,
+}
+
+impl ApiArgs {
+    fn new(options: ApiOptions, command: ApiCommands) -> Self {
+        Self {
+            host: options.host,
+            port: options.port,
+            platform: options.platform,
+            company: options.company,
+            skey_env: options.skey_env,
+            skey_file: options.skey_file,
+            directory: options.directory,
+            output: options.output,
+            yes: options.yes,
+            command,
+        }
+    }
 }
 
 /// API 领域命令注册表。
@@ -249,6 +277,97 @@ enum ApiCommands {
         #[command(subcommand)]
         command: SystemCommands,
     },
+}
+
+/// 将 API 命令族直接注册到 CLI 根级，同时给每个命令族附加共享参数。
+#[derive(Debug)]
+pub(crate) struct RootApiCommands(ApiArgs);
+
+impl RootApiCommands {
+    pub(crate) fn into_args(self) -> ApiArgs {
+        self.0
+    }
+}
+
+impl FromArgMatches for RootApiCommands {
+    fn from_arg_matches(matches: &ArgMatches) -> Result<Self, Error> {
+        let command = ApiCommands::from_arg_matches(matches)?;
+        let subcommand_matches = matches.subcommand().map_or(matches, |(_, matches)| matches);
+        let options = ApiOptions::from_arg_matches(subcommand_matches)?;
+        Ok(Self(ApiArgs::new(options, command)))
+    }
+
+    fn update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), Error> {
+        *self = Self::from_arg_matches(matches)?;
+        Ok(())
+    }
+}
+
+impl Subcommand for RootApiCommands {
+    fn augment_subcommands(command: Command) -> Command {
+        augment_api_subcommands(command, false)
+    }
+
+    fn augment_subcommands_for_update(command: Command) -> Command {
+        augment_api_subcommands(command, true)
+    }
+
+    fn has_subcommand(name: &str) -> bool {
+        name != "config" && ApiCommands::has_subcommand(name)
+    }
+}
+
+fn augment_api_subcommands(command: Command, for_update: bool) -> Command {
+    let api_root = if for_update {
+        ApiCommands::augment_subcommands_for_update(Command::new("api"))
+    } else {
+        ApiCommands::augment_subcommands(Command::new("api"))
+    };
+    let subcommands = api_root
+        .get_subcommands()
+        .filter(|subcommand| subcommand.get_name() != "config")
+        .cloned()
+        .map(|subcommand| {
+            if for_update {
+                ApiOptions::augment_args_for_update(subcommand)
+            } else {
+                ApiOptions::augment_args(subcommand)
+            }
+        })
+        .collect::<Vec<_>>();
+    command.subcommands(subcommands)
+}
+
+/// 根级 `config` 中的远程 Gateway 配置子命令。
+#[derive(Debug)]
+pub(crate) struct RootConfigCommands(config::ConfigCommands);
+
+impl FromArgMatches for RootConfigCommands {
+    fn from_arg_matches(matches: &ArgMatches) -> Result<Self, Error> {
+        config::ConfigCommands::from_arg_matches(matches).map(Self)
+    }
+
+    fn update_from_arg_matches(&mut self, matches: &ArgMatches) -> Result<(), Error> {
+        self.0.update_from_arg_matches(matches)
+    }
+}
+
+impl Subcommand for RootConfigCommands {
+    fn augment_subcommands(command: Command) -> Command {
+        config::ConfigCommands::augment_subcommands(command)
+    }
+
+    fn augment_subcommands_for_update(command: Command) -> Command {
+        config::ConfigCommands::augment_subcommands_for_update(command)
+    }
+
+    fn has_subcommand(name: &str) -> bool {
+        config::ConfigCommands::has_subcommand(name)
+    }
+}
+
+pub(crate) fn config_args(options: ApiOptions, command: RootConfigCommands) -> ApiArgs {
+    ApiArgs::new(options, ApiCommands::Config { command: command.0 })
 }
 
 impl ApiCommands {

@@ -32,6 +32,35 @@ fn prepare_prompt_attachment(
         return Err("attachment label must not be empty".to_string());
     }
 
+    if let Some(bytes) = attachment.bytes.as_ref() {
+        if attachment.kind != V3AttachmentKind::Image {
+            return Err(format!("attachment '{label}' has unexpected binary content"));
+        }
+        if bytes.is_empty() {
+            return Err(format!("image attachment '{label}' is empty"));
+        }
+        if attachment.path.is_some() {
+            return Err(format!("image attachment '{label}' has both path and binary content"));
+        }
+        reject_oversize(label, bytes.len() as u64)?;
+        let media_type = attachment.media_type.as_deref().unwrap_or("image/png");
+        if !matches!(
+            media_type,
+            "image/png" | "image/jpeg" | "image/webp" | "image/gif" | "image/bmp"
+        ) {
+            return Err(format!("unsupported image attachment type: {media_type}"));
+        }
+        return Ok(PromptAttachment {
+            id,
+            kind: PromptAttachmentKind::Image,
+            label: label.to_string(),
+            media_type: Some(media_type.to_string()),
+            uri: None,
+            text: None,
+            bytes: bytes.clone(),
+        });
+    }
+
     if attachment.kind == V3AttachmentKind::PastedText {
         let text = attachment.text.as_deref().unwrap_or_default();
         if text.is_empty() {

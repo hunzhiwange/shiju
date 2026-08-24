@@ -1,4 +1,4 @@
-//! `api shiju-apps` 账号、应用与敏感输出测试。
+//! `shiju-apps` 账号、应用与敏感输出测试。
 
 use std::sync::mpsc::TryRecvError;
 

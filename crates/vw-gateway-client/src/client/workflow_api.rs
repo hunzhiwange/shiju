@@ -1,13 +1,13 @@
 //! Workflow 网关客户端。
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt};
 
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use vw_api_types::workflow::{
     WorkflowRecord, WorkflowRecordDeleteResponse, WorkflowRecordSummary, WorkflowRecordUpsertBody,
-    WorkflowResumeRequest, WorkflowRunResponse,
+    WorkflowPauseDto, WorkflowResumeRequest, WorkflowRunResponse,
 };
 
 use crate::http::{
@@ -72,7 +72,7 @@ pub struct GatewayWorkflowStreamError {
 }
 
 /// Workflow streaming SSE 事件。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum GatewayWorkflowStreamEvent {
     WorkflowStarted {
         task_id: String,
@@ -107,6 +107,8 @@ pub enum GatewayWorkflowStreamEvent {
         task_id: String,
         workflow_run_id: String,
         data: Value,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pause: Option<WorkflowPauseDto>,
     },
     MessageEnd {
         id: String,
@@ -120,6 +122,93 @@ pub enum GatewayWorkflowStreamEvent {
         event_type: Option<String>,
         payload: Value,
     },
+}
+
+impl fmt::Debug for GatewayWorkflowStreamEvent {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::WorkflowStarted { task_id, workflow_run_id, data } => formatter
+                .debug_struct("WorkflowStarted")
+                .field("task_id", task_id)
+                .field("workflow_run_id", workflow_run_id)
+                .field("data", data)
+                .finish(),
+            Self::NodeStarted { task_id, workflow_run_id, data } => formatter
+                .debug_struct("NodeStarted")
+                .field("task_id", task_id)
+                .field("workflow_run_id", workflow_run_id)
+                .field("data", data)
+                .finish(),
+            Self::NodeFinished { task_id, workflow_run_id, data } => formatter
+                .debug_struct("NodeFinished")
+                .field("task_id", task_id)
+                .field("workflow_run_id", workflow_run_id)
+                .field("data", data)
+                .finish(),
+            Self::TextChunk { task_id, workflow_run_id, text, data } => formatter
+                .debug_struct("TextChunk")
+                .field("task_id", task_id)
+                .field("workflow_run_id", workflow_run_id)
+                .field("text", text)
+                .field("data", data)
+                .finish(),
+            Self::Message {
+                id,
+                task_id,
+                message_id,
+                conversation_id,
+                answer,
+                created_at,
+            } => formatter
+                .debug_struct("Message")
+                .field("id", id)
+                .field("task_id", task_id)
+                .field("message_id", message_id)
+                .field("conversation_id", conversation_id)
+                .field("answer", answer)
+                .field("created_at", created_at)
+                .finish(),
+            Self::WorkflowFinished { task_id, workflow_run_id, data, pause } => {
+                let mut debug = formatter.debug_struct("WorkflowFinished");
+                debug.field("task_id", task_id).field("workflow_run_id", workflow_run_id);
+                if data.get("pause").is_some() {
+                    debug.field("data", &"[REDACTED]");
+                } else {
+                    debug.field("data", data);
+                }
+                debug.field("pause", &pause.as_ref().map(RedactedWorkflowPause)).finish()
+            }
+            Self::MessageEnd { id, task_id, message_id, conversation_id, metadata } => formatter
+                .debug_struct("MessageEnd")
+                .field("id", id)
+                .field("task_id", task_id)
+                .field("message_id", message_id)
+                .field("conversation_id", conversation_id)
+                .field("metadata", metadata)
+                .finish(),
+            Self::Error(error) => formatter.debug_tuple("Error").field(error).finish(),
+            Self::Unknown { event_type, payload } => formatter
+                .debug_struct("Unknown")
+                .field("event_type", event_type)
+                .field("payload", payload)
+                .finish(),
+        }
+    }
+}
+
+struct RedactedWorkflowPause<'a>(&'a WorkflowPauseDto);
+
+impl fmt::Debug for RedactedWorkflowPause<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("WorkflowPauseDto")
+            .field("node_id", &self.0.node_id)
+            .field("title", &self.0.title)
+            .field("form_token", &"[REDACTED]")
+            .field("form", &self.0.form)
+            .field("actions", &self.0.actions)
+            .finish()
+    }
 }
 
 impl GatewayClient {
@@ -396,11 +485,19 @@ fn parse_workflow_stream_event(payload: Value) -> GatewayWorkflowStreamEvent {
             answer: string_field(&payload, "answer"),
             created_at: payload.get("created_at").and_then(Value::as_i64).unwrap_or_default(),
         },
-        Some("workflow_finished") => GatewayWorkflowStreamEvent::WorkflowFinished {
-            task_id: string_field(&payload, "task_id"),
-            workflow_run_id: string_field(&payload, "workflow_run_id"),
-            data: data_field(&payload),
-        },
+        Some("workflow_finished") => {
+            let data = data_field(&payload);
+            let pause = data
+                .get("pause")
+                .cloned()
+                .and_then(|value| serde_json::from_value(value).ok());
+            GatewayWorkflowStreamEvent::WorkflowFinished {
+                task_id: string_field(&payload, "task_id"),
+                workflow_run_id: string_field(&payload, "workflow_run_id"),
+                data,
+                pause,
+            }
+        }
         Some("message_end") => GatewayWorkflowStreamEvent::MessageEnd {
             id: string_field(&payload, "id"),
             task_id: string_field(&payload, "task_id"),

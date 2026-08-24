@@ -2,7 +2,9 @@
 //! 摘要既可来自消息内差异，也可来自持久化补丁统计；不完整快照必须回退而非虚构数据。
 
 use super::*;
+use crate::project::instance;
 use crate::session::message;
+use std::fs;
 
 // 消息夹具显式携带摘要与补丁部件，用于区分两条差异聚合来源。
 fn user_message_with_summary(
@@ -555,4 +557,187 @@ async fn diff_reads_unquotes_and_rewrites_persisted_diff_paths() {
             .await
             .unwrap();
     assert_eq!(rewritten[0].file, "café.txt");
+}
+
+#[tokio::test]
+async fn diff_recomputes_stale_empty_cache_from_session_messages() {
+    let session_id = format!("summary-diff-stale-cache-{}", std::process::id());
+    let message_id = format!("msg-stale-cache-{}", std::process::id());
+    let part_id = format!("prt-stale-cache-{}", std::process::id());
+    let info = message::Info::User(Box::new(message::UserInfo {
+        id: message_id.clone(),
+        session_id: session_id.clone(),
+        time: message::UserTime { created: 1 },
+        summary: None,
+        agent: "gateway".to_string(),
+        model: message::ModelRef { provider_id: String::new(), model_id: String::new() },
+        system: None,
+        tools: None,
+        variant: None,
+    }));
+    let part = message::Part::Patch(message::PatchPart {
+        base: message::PartBase {
+            id: part_id,
+            session_id: session_id.clone(),
+            message_id,
+        },
+        hash: "tree-stale-cache".to_string(),
+        files: vec!["demo/111.md".to_string()],
+        additions: None,
+        deletions: None,
+    });
+
+    message::update_message(&info).await.expect("persist message");
+    message::update_part(&part).await.expect("persist patch part");
+    storage::write(
+        &["session_diff", &session_id],
+        &Vec::<snapshot::FileDiff>::new(),
+    )
+    .await
+    .expect("persist empty diff cache");
+
+    let diffs = recompute_session_diff_for_read(&session_id)
+        .await
+        .expect("recompute persisted messages");
+
+    assert_eq!(diffs.len(), 1);
+    assert_eq!(diffs[0].file, "demo/111.md");
+
+    let read_diffs = diff(DiffInput { session_id, message_id: None }).await;
+    assert_eq!(read_diffs.len(), 1);
+    assert_eq!(read_diffs[0].file, "demo/111.md");
+}
+
+// 端到端验证：工具创建未跟踪文件后，diff() 应回退到实时计算并返回 Added 状态。
+#[tokio::test]
+async fn diff_fallback_includes_untracked_file_as_added() {
+    use crate::snapshot;
+
+    // 临时 git 仓库需要系统 git 可用
+    let _env_guard = {
+        let previous = std::env::var_os("VIBEWINDOW_TEST_PREFER_SYSTEM_GIT");
+        unsafe { std::env::set_var("VIBEWINDOW_TEST_PREFER_SYSTEM_GIT", "1") };
+        struct Guard(Option<std::ffi::OsString>);
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                unsafe {
+                    match &self.0 {
+                        Some(v) => std::env::set_var("VIBEWINDOW_TEST_PREFER_SYSTEM_GIT", v),
+                        None => std::env::remove_var("VIBEWINDOW_TEST_PREFER_SYSTEM_GIT"),
+                    }
+                }
+            }
+        }
+        Guard(previous)
+    };
+
+    let dir = tempfile::tempdir().expect("temp dir");
+    let worktree = dir.path();
+
+    // 初始化临时 git 仓库
+    crate::app::agent::shell::git_std_command()
+        .current_dir(worktree)
+        .args(["init"])
+        .output()
+        .expect("git init");
+    crate::app::agent::shell::git_std_command()
+        .current_dir(worktree)
+        .args(["config", "user.name", "Test"])
+        .output()
+        .expect("git config name");
+    crate::app::agent::shell::git_std_command()
+        .current_dir(worktree)
+        .args(["config", "user.email", "test@example.com"])
+        .output()
+        .expect("git config email");
+    fs::write(worktree.join("initial.txt"), "initial\n").expect("write initial");
+    crate::app::agent::shell::git_std_command()
+        .current_dir(worktree)
+        .args(["add", "."])
+        .output()
+        .expect("git add");
+    crate::app::agent::shell::git_std_command()
+        .current_dir(worktree)
+        .args(["commit", "-m", "init"])
+        .output()
+        .expect("git commit");
+
+    // 创建基线快照
+    let baseline = snapshot::track(worktree).expect("track").expect("baseline hash");
+
+    // 模拟工具创建未跟踪文件
+    fs::write(worktree.join("untracked.txt"), "new content\n").expect("write untracked");
+
+    // 创建结束快照（包含未跟踪文件）
+    let after = snapshot::track(worktree).expect("track").expect("after hash");
+
+    let session_id = format!("diff-fallback-{}", std::process::id());
+
+    // 在 instance 上下文中执行，确保 worktree_path() 返回正确路径
+    instance::provide(worktree, None, move || {
+        Box::pin(async move {
+            // 构造包含快照对的消息
+            let user_msg = message::WithParts {
+                info: message::Info::User(Box::new(message::UserInfo {
+                    id: "msg_1".to_string(),
+                    session_id: session_id.clone(),
+                    time: message::UserTime { created: 1 },
+                    summary: None,
+                    agent: "gateway".to_string(),
+                    model: message::ModelRef { provider_id: String::new(), model_id: String::new() },
+                    system: None,
+                    tools: None,
+                    variant: None,
+                })),
+                parts: vec![
+                    message::Part::StepStart(message::StepStartPart {
+                        base: message::PartBase {
+                            id: "part_start".to_string(),
+                            session_id: session_id.clone(),
+                            message_id: "msg_1".to_string(),
+                        },
+                        snapshot: Some(baseline),
+                    }),
+                    message::Part::StepFinish(message::StepFinishPart {
+                        base: message::PartBase {
+                            id: "part_finish".to_string(),
+                            session_id: session_id.clone(),
+                            message_id: "msg_1".to_string(),
+                        },
+                        reason: "stop".to_string(),
+                        snapshot: Some(after),
+                        cost: 0.0,
+                        tokens: message::TokenInfo {
+                            total: None,
+                            input: 0,
+                            output: 0,
+                            reasoning: 0,
+                            cache: message::TokenCacheInfo { read: 0, write: 0 },
+                        },
+                    }),
+                ],
+            };
+
+            // 持久化消息及部件
+            message::update_message(&user_msg.info).await.expect("persist message");
+            for part in &user_msg.parts {
+                message::update_part(part).await.expect("persist part");
+            }
+
+            // 故意不写入 session_diff 缓存，模拟缓存漏刷场景
+            // 调用 diff() 应回退到 compute_diff_inner 并包含未跟踪文件
+            let diffs = diff(DiffInput { session_id: session_id.clone(), message_id: None }).await;
+
+            // 验证未跟踪文件被识别为 Added
+            let untracked_diff = diffs
+                .iter()
+                .find(|d| d.file == "untracked.txt")
+                .expect("untracked.txt should be in diffs");
+            assert_eq!(untracked_diff.status, Some(snapshot::DiffStatus::Added));
+            assert_eq!(untracked_diff.after, "new content\n");
+            assert!(untracked_diff.additions > 0);
+        })
+    })
+    .await
+    .expect("instance provide");
 }

@@ -23,9 +23,9 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use vw_api_types::TenantScope;
 use vw_api_types::workflow::{
-    WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowRecord, WorkflowRecordDeleteResponse,
-    WorkflowRecordSummary, WorkflowRecordUpsertBody, WorkflowResumeRequest, WorkflowRunRequest,
-    WorkflowRunResponse, WorkflowRunStatus,
+    WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowPauseDto, WorkflowRecord,
+    WorkflowRecordDeleteResponse, WorkflowRecordSummary, WorkflowRecordUpsertBody,
+    WorkflowResumeRequest, WorkflowRunRequest, WorkflowRunResponse, WorkflowRunStatus,
 };
 
 use crate::app::agent::gateway::ApiError;
@@ -189,6 +189,8 @@ struct VibeWindowWorkflowFinishedData {
     total_steps: u32,
     created_at: u64,
     finished_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pause: Option<WorkflowPauseDto>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -998,6 +1000,7 @@ fn workflow_finished_data(
         total_steps: u32::try_from(response.nodes.len()).unwrap_or(u32::MAX),
         created_at,
         finished_at: now_unix_u64(),
+        pause: response.pause.clone(),
     }
 }
 

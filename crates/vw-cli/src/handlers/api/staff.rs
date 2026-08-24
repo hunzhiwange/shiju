@@ -173,7 +173,7 @@ pub(super) async fn run(
             json!(client.staff_auto_schedule_plan(&scope(context, project_id)?, &request).await.map_err(anyhow::Error::msg)?)
         }
         StaffCommands::Ipc => {
-            bail!("staff IPC is an internal staff process protocol and is not supported by shiju api")
+            bail!("staff IPC is an internal staff process protocol and is not supported by shiju")
         }
     };
     output::write_json(writer, &response, context.output_format())

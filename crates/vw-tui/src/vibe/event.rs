@@ -11,13 +11,29 @@ pub enum V3AttachmentKind {
     Resource,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct V3Attachment {
     pub kind: V3AttachmentKind,
     pub label: String,
     pub path: Option<String>,
     pub media_type: Option<String>,
     pub text: Option<String>,
+    /// 由本地输入界面捕获、尚未提交的内存附件内容。
+    pub bytes: Option<Vec<u8>>,
+}
+
+impl std::fmt::Debug for V3Attachment {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("V3Attachment")
+            .field("kind", &self.kind)
+            .field("label", &self.label)
+            .field("path", &self.path)
+            .field("media_type", &self.media_type)
+            .field("text", &self.text)
+            .field("bytes_len", &self.bytes.as_ref().map(Vec::len))
+            .finish()
+    }
 }
 
 /// One product-neutral file change rendered by the TUI.

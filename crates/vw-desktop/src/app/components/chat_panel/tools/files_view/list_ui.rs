@@ -17,6 +17,8 @@ use super::super::git_diff_view::render_git_diff_content;
 use super::super::tool_parse::tool_input_path;
 use super::super::types::ChangeFile;
 
+const EDIT_TOGGLE_SLOT_WIDTH: f32 = 18.0;
+
 pub(crate) fn build_file_list_column<'a>(
     app: &'a App,
     render_state: &super::FileListState,
@@ -193,6 +195,7 @@ pub(super) fn edit_file_change_block<'a>(
     let expand_key = edit_file_expand_key(msg_idx, tool_idx, &file);
     let file_expanded = app.chat_tool_file_expanded.contains(&expand_key);
     let hover_key = tool_file_hover_key(msg_idx, tool_idx, abs);
+    let is_hovered = app.chat_tool_file_hovered.as_deref() == Some(hover_key.as_str());
     let open_diff_message = Message::Git(message::GitMessage::OpenChatTextDiff {
         title: title.clone(),
         file: file.clone(),
@@ -214,7 +217,12 @@ pub(super) fn edit_file_change_block<'a>(
         header = header.push(edit_change_counts(adds, dels));
     }
 
-    header = header.push(view_changes_toggle_button(file_expanded, toggle_message.clone()));
+    let toggle_slot = if is_hovered {
+        view_changes_toggle_button(file_expanded, toggle_message.clone())
+    } else {
+        Space::new().width(Length::Fixed(EDIT_TOGGLE_SLOT_WIDTH)).into()
+    };
+    header = header.push(toggle_slot);
 
     let header = mouse_area(container(header).width(Length::Fill))
         .on_press(toggle_message)

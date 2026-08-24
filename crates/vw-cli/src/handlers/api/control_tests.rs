@@ -1,4 +1,4 @@
-//! `api provider` 与 `api control` 的路由、敏感输入和危险操作测试。
+//! `provider` 与 `control` 的路由、敏感输入和危险操作测试。
 
 use std::io::{Cursor, Read, Write};
 use std::net::TcpListener;
@@ -14,7 +14,7 @@ use tracing::{Event, Metadata};
 
 use super::input::read_json_input_with_env;
 use super::run_with_io;
-use crate::cli::{Cli, Commands};
+use crate::cli::Cli;
 
 const PROVIDER_ID: &str = "openai /合作";
 const ENCODED_PROVIDER_ID: &str = "openai%20%2F%E5%90%88%E4%BD%9C";
@@ -256,15 +256,16 @@ async fn api_control_commands_protect_credentials_and_destructive_actions() {
 }
 
 async fn run_command(common: &[&str], command: &[&str], input: &[u8]) -> Result<Vec<u8>, String> {
+    let (yes, command) = if command.first() == Some(&"--yes") { (Some("--yes"), &command[1..]) } else { (None, command) };
+    let (family, command) = command.split_first().ok_or("API command family is required")?;
     let args = std::iter::once("shiju")
-        .chain(std::iter::once("api"))
+        .chain(std::iter::once(*family))
         .chain(common.iter().copied())
+        .chain(yes)
         .chain(command.iter().copied())
         .collect::<Vec<_>>();
     let cli = Cli::try_parse_from(args).map_err(|error| error.to_string())?;
-    let Commands::Api { api_args } = cli.command else {
-        return Err("expected api command".to_string());
-    };
+    let api_args = cli.command.into_api_args().ok_or("expected API command")?;
     let mut output = Vec::new();
     run_with_io(api_args, &mut Cursor::new(input), &mut output)
         .await

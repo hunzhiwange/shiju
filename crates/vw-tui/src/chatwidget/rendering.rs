@@ -23,7 +23,7 @@ impl ChatWidget {
             })),
         );
 
-        let status = StatusSurface::new(self.status_state.current());
+        let status = StatusSurface::new(self.status_state.current(), self.turn_lifecycle.elapsed());
         if status.is_visible() {
             flex.push(0, RenderableItem::Owned(Box::new(status)));
         }

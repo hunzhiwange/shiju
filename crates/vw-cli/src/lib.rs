@@ -386,8 +386,8 @@ pub async fn run() -> Result<()> {
         /* Commands::Onboard { .. } | */ Commands::Completions { .. } => unreachable!(),
         Commands::Acp => unreachable!("ACP mode is routed before interactive initialization"),
 
-        // 处理远程 Gateway API 命令。
-        Commands::Api { api_args } => handlers::api::run(api_args).await,
+        // 处理根级远程 Gateway API 命令。
+        Commands::Api(api_commands) => handlers::api::run(api_commands.into_args()).await,
 
         // 处理 Agent 命令：启动 AI 代理
         Commands::Agent {
@@ -852,7 +852,7 @@ pub async fn run() -> Result<()> {
         Commands::Auth { auth_command } => handle_auth_command(auth_command, &config).await,
         */
         // 处理 Config 命令：配置管理
-        Commands::Config { config_command } => match config_command {
+        Commands::Config { api_options, config_command } => match config_command {
             // 输出配置的 JSON Schema
             ConfigCommands::Schema => {
                 let schema = schemars::schema_for!(config::Config);
@@ -861,6 +861,9 @@ pub async fn run() -> Result<()> {
                     serde_json::to_string_pretty(&schema).expect("failed to serialize JSON Schema")
                 );
                 Ok(())
+            }
+            ConfigCommands::Gateway(command) => {
+                handlers::api::run(handlers::api::config_args(api_options, command)).await
             }
         },
     }

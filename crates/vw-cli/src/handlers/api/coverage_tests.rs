@@ -23,8 +23,7 @@ fn api_route_coverage_classifies_every_documented_gateway_route() {
         assert!(keys.insert((route.method, route.path)), "duplicate route {} {}", route.method, route.path);
     }
     let command = crate::cli::Cli::command();
-    let api = command.find_subcommand("api").expect("api command");
-    let families = api.get_subcommands().map(clap::Command::get_name).collect::<HashSet<_>>();
+    let families = command.get_subcommands().map(clap::Command::get_name).collect::<HashSet<_>>();
     let mut command_count = 0;
     let mut alias_count = 0;
     let mut excluded_count = 0;

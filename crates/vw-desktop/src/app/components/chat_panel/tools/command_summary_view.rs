@@ -1,6 +1,6 @@
 //! 连续命令的折叠摘要视图。
 
-use iced::widget::{button, column, container};
+use iced::widget::{Space, button, column, container, mouse_area};
 use iced::{Element, Length, Theme};
 
 use crate::app::assets::Icon;
@@ -12,6 +12,7 @@ use super::tool_parse::tool_status;
 use super::{CommandItem, tool_bash_view, tool_name_from_raw};
 
 pub(super) const COMMAND_LIST_TOP_SPACING: f32 = 10.0;
+const COMMAND_TOGGLE_SLOT_WIDTH: f32 = 12.0;
 
 pub(crate) fn is_command_tool(raw: &str) -> bool {
     tool_name_from_raw(raw).as_deref() == Some("bash")
@@ -62,6 +63,7 @@ pub(crate) fn tool_command_summary_view<'a>(
     let first_tool_idx = items.first()?.tool_idx;
     let key = ((msg_idx as u64) << 32) | first_tool_idx as u64;
     let expanded = app.chat_tool_expanded.contains(&key);
+    let is_hovered = app.chat_tool_hovered_idx == Some(key);
 
     let toggle = button(
         icon_svg(if expanded { Icon::ChevronDown } else { Icon::ChevronRight })
@@ -74,15 +76,24 @@ pub(crate) fn tool_command_summary_view<'a>(
     .padding([0, 1])
     .style(command_summary_button_style)
     .on_press(Message::Chat(message::ChatMessage::ToggleTool(msg_idx, first_tool_idx)));
+    let toggle_slot: Element<'a, Message> = if is_hovered {
+        toggle.into()
+    } else {
+        Space::new().width(Length::Fixed(COMMAND_TOGGLE_SLOT_WIDTH)).into()
+    };
 
-    let head = container(tool_activity_header(
-        "bash",
-        "运行了命令",
-        format!("{} 条", items.len()),
-        command_summary_visual(items),
-        toggle.into(),
-    ))
-    .width(Length::Fill);
+    let head = mouse_area(
+        container(tool_activity_header(
+            "bash",
+            "运行了命令",
+            format!("{} 条", items.len()),
+            command_summary_visual(items),
+            toggle_slot,
+        ))
+        .width(Length::Fill),
+    )
+    .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, first_tool_idx)))
+    .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave));
 
     let mut content = column![head].spacing(COMMAND_LIST_TOP_SPACING);
     if expanded {

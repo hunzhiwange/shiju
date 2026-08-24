@@ -351,6 +351,8 @@ async fn summarize_message(
 /// 获取会话的文件变更差异
 ///
 /// 从存储中读取指定会话的文件差异列表，并处理 Git 路径转义。
+/// 持久化消息可重新计算出非空差异时优先返回该结果；重算为空或失败时
+/// 兼容回退已持久化缓存。
 ///
 /// # 参数
 ///
@@ -366,9 +368,24 @@ async fn summarize_message(
 /// 本函数会自动检测并解码这些转义序列，确保返回正确的文件路径。
 pub async fn diff(input: DiffInput) -> Vec<snapshot::FileDiff> {
     // 从存储读取差异数据，失败则返回空列表
-    let diffs = storage::read::<Vec<snapshot::FileDiff>>(&["session_diff", &input.session_id])
+    let cached = storage::read::<Vec<snapshot::FileDiff>>(&["session_diff", &input.session_id])
         .await
         .unwrap_or_default();
+
+    let (diffs, from_cache) = match recompute_session_diff_for_read(&input.session_id).await {
+        Ok(computed) if !computed.is_empty() => (computed, false),
+        Ok(_) => (cached, true),
+        Err(err) => {
+            LOGGER.warn(
+                "session diff read recompute failed",
+                Some(extra([
+                    ("sessionID", Value::String(input.session_id.clone())),
+                    ("error", Value::String(err.to_string())),
+                ])),
+            );
+            (cached, true)
+        }
+    };
 
     // 处理 Git 路径转义
     let next = diffs
@@ -387,10 +404,21 @@ pub async fn diff(input: DiffInput) -> Vec<snapshot::FileDiff> {
 
     // 若有路径变更，更新存储
     let changed = next.iter().zip(diffs.iter()).any(|(a, b)| a.file != b.file);
-    if changed {
+    if from_cache && changed {
         let _ = storage::write(&["session_diff", &input.session_id], &next).await;
     }
     next
+}
+
+/// 基于持久化会话消息重新计算文件差异。
+///
+/// 该读取入口不更新会话摘要、差异缓存或发布事件。
+async fn recompute_session_diff_for_read(
+    session_id: &str,
+) -> Result<Vec<snapshot::FileDiff>, Error> {
+    let mut all = super::message::messages(session_id, None).await?;
+    all.sort_by(|a, b| a.info.id().cmp(b.info.id()));
+    Ok(compute_diff_inner(&all)?)
 }
 
 /// 计算消息列表的文件差异

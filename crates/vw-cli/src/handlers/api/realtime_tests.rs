@@ -1,4 +1,4 @@
-//! `api realtime` 推理、SSE、stop 与 WebSocket 协议测试。
+//! `realtime` 推理、SSE、stop 与 WebSocket 协议测试。
 
 use std::io::{Cursor, Read, Write};
 use std::net::TcpListener;
@@ -10,7 +10,7 @@ use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use tokio_tungstenite::tungstenite::Message;
 
 use super::run_with_io;
-use crate::cli::{Cli, Commands};
+use crate::cli::Cli;
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_realtime_commands_cover_inference_sse_stop_and_websocket_protocols() {
@@ -138,9 +138,11 @@ impl Case {
 }
 
 async fn run_command<S: AsRef<str>>(common: &[&str], command: &[S], input: &[u8]) -> Result<Vec<u8>, String> {
-    let args = std::iter::once("shiju").chain(std::iter::once("api")).chain(common.iter().copied()).chain(command.iter().map(AsRef::as_ref)).collect::<Vec<_>>();
+    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") { (Some("--yes"), &command[1..]) } else { (None, command) };
+    let (family, command) = command.split_first().ok_or("API command family is required")?;
+    let args = std::iter::once("shiju").chain(std::iter::once(family.as_ref())).chain(common.iter().copied()).chain(yes).chain(command.iter().map(AsRef::as_ref)).collect::<Vec<_>>();
     let cli = Cli::try_parse_from(args).map_err(|error| error.to_string())?;
-    let Commands::Api { api_args } = cli.command else { return Err("expected api command".into()) };
+    let api_args = cli.command.into_api_args().ok_or("expected API command")?;
     let mut output = Vec::new();
     run_with_io(api_args, &mut Cursor::new(input), &mut output).await.map_err(|error| error.to_string())?;
     Ok(output)

@@ -311,6 +311,50 @@ fn tui_projects_typed_tools_and_hides_known_gateway_lifecycle_events() {
 }
 
 #[test]
+fn tui_synthesizes_tool_start_for_terminal_only_gateway_event() {
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 9);
+    let client = GatewayClient::new(endpoint).expect("test gateway client");
+    let runtime =
+        GatewayUiRuntime::new(client, GatewaySessionSeed::new(PathBuf::from("/workspace")));
+    let mut app = V3GatewayApp::new(runtime, TuiState::default());
+
+    let events = app.accept_gateway_event(GatewayChatStreamEvent::Other(json!({
+        "type": "chat.tool",
+        "step_index": 1,
+        "call_id": "terminal-only",
+        "name": "terminal",
+        "kind": "complete",
+        "status": "completed",
+        "occurred_ms": 111,
+        "payload": {
+            "status": "completed",
+            "input": {"command": "pwd"},
+            "output": "/workspace",
+            "exit_code": 0
+        }
+    })));
+
+    assert!(matches!(
+        events.as_slice(),
+        [
+            V3Event::TurnStarted { .. },
+            V3Event::ToolStarted { call_id: started_id, tool, .. },
+            V3Event::ToolCompleted { call_id: completed_id, .. }
+        ] if started_id == "terminal-only"
+            && completed_id == "terminal-only"
+            && tool == "terminal"
+    ));
+
+    let rendered = app
+        .transcript_lines(80, true)
+        .into_iter()
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(!rendered.contains("missing tool start"));
+}
+
+#[test]
 fn tui_projects_structured_file_tool_results_as_diff() {
     let result = json!({
         "success": true,
@@ -379,9 +423,10 @@ fn tui_projects_structured_file_tool_results_as_diff() {
             projected.as_slice(),
             [
                 V3Event::TurnStarted { .. },
+                V3Event::ToolStarted { call_id: started_id, .. },
                 V3Event::ToolCompleted { call_id: completed_id, .. },
                 V3Event::FileDiff { diff, .. }
-            ] if completed_id == &call_id && diff == &expected
+            ] if started_id == &call_id && completed_id == &call_id && diff == &expected
         ));
     }
 }
@@ -461,7 +506,11 @@ fn tui_ignores_missing_or_invalid_structured_patch() {
 
         assert!(matches!(
             projected.as_slice(),
-            [V3Event::TurnStarted { .. }, V3Event::ToolCompleted { .. }]
+            [
+                V3Event::TurnStarted { .. },
+                V3Event::ToolStarted { .. },
+                V3Event::ToolCompleted { .. }
+            ]
         ));
     }
 }

@@ -1,6 +1,6 @@
 //! Gateway 集成目录的并发加载与稳定 ID 管理边界。
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use vw_gateway_client::vw_api_types::mcp::McpConnectionStatusDto;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
@@ -12,6 +12,26 @@ use crate::cli::tui::model::integration::{
 pub(crate) struct LoadedIntegrationCatalog {
     pub(crate) items: Vec<IntegrationItem>,
     pub(crate) warnings: Vec<String>,
+}
+
+pub(crate) enum MemoryMutation {
+    Store { key: String, content: String },
+    Delete { key: String },
+}
+
+impl MemoryMutation {
+    pub(crate) fn key(&self) -> &str {
+        match self {
+            Self::Store { key, .. } | Self::Delete { key } => key,
+        }
+    }
+
+    pub(crate) fn action_name(&self) -> &'static str {
+        match self {
+            Self::Store { .. } => "store",
+            Self::Delete { .. } => "delete",
+        }
+    }
 }
 
 pub(crate) async fn load_integrations(runtime: &GatewayUiRuntime) -> LoadedIntegrationCatalog {
@@ -107,6 +127,52 @@ pub(crate) fn load_integrations_blocking(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn query_memory_blocking(
+    runtime: &GatewayUiRuntime,
+    query: Option<&str>,
+) -> Result<Vec<IntegrationItem>, String> {
+    block_on_gateway(async {
+        runtime
+            .client()
+            .memory_query_get(query, None)
+            .await
+            .map(|value| memory_items(&value))
+    })
+    .map_err(|error| sanitized_warning("memory", error))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn mutate_memory_and_refresh_blocking(
+    runtime: &GatewayUiRuntime,
+    mutation: &MemoryMutation,
+    query: Option<&str>,
+) -> Result<Vec<IntegrationItem>, String> {
+    block_on_gateway(async {
+        match mutation {
+            MemoryMutation::Store { key, content } => {
+                runtime
+                    .client()
+                    .memory_store(&json!({
+                        "key": key,
+                        "content": content,
+                        "category": "core",
+                    }))
+                    .await?;
+            }
+            MemoryMutation::Delete { key } => {
+                runtime.client().memory_delete(key).await?;
+            }
+        }
+        runtime
+            .client()
+            .memory_query_get(query, None)
+            .await
+            .map(|value| memory_items(&value))
+    })
+    .map_err(|error| sanitized_warning("memory", error))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn set_integration_enabled_blocking(
     runtime: &GatewayUiRuntime,
     item: &IntegrationItem,
@@ -185,16 +251,17 @@ fn memory_items(value: &Value) -> Vec<IntegrationItem> {
                 .or_else(|| entry.get("preview"))
                 .and_then(Value::as_str)
                 .unwrap_or_default();
+            let title = entry.get("title").and_then(Value::as_str).unwrap_or(id);
+            let source = entry
+                .get("scope")
+                .and_then(Value::as_str)
+                .unwrap_or("gateway:memory");
             Some(IntegrationItem {
                 kind: IntegrationKind::Memory,
                 id: id.to_string(),
-                title: entry.get("title").and_then(Value::as_str).unwrap_or(id).to_string(),
+                title: sanitize_integration_text(title),
                 detail: sanitize_integration_text(detail),
-                source: entry
-                    .get("scope")
-                    .and_then(Value::as_str)
-                    .unwrap_or("gateway:memory")
-                    .to_string(),
+                source: sanitize_integration_text(source),
                 enabled: true,
                 can_toggle: false,
                 can_delete: false,

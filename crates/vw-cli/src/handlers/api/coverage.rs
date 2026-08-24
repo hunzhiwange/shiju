@@ -1,4 +1,4 @@
-//! Gateway 静态路由到 `shiju api` 的覆盖分类。
+//! Gateway 静态路由到根级 `shiju` 命令族的覆盖分类。
 
 use vw_agent::gateway::GatewayRouteEntry;
 
@@ -27,7 +27,7 @@ pub(super) fn classify_route(route: &GatewayRouteEntry) -> Option<RouteCoverage>
         return Some(RouteCoverage::Excluded("authenticated internal producer callback"));
     }
     if path.starts_with("/v1/apiQL/") && path.ends_with('/') {
-        return Some(RouteCoverage::Alias("api apiql canonical route without trailing slash"));
+        return Some(RouteCoverage::Alias("apiql canonical route without trailing slash"));
     }
     if path == "/v1/cron/runs/{id}" {
         return Some(RouteCoverage::Alias("api operations cron runs"));

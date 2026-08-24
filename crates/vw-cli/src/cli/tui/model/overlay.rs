@@ -3,6 +3,8 @@
 //! 这一层只定义 overlay 的内部表示与焦点关系，不直接包含 renderer、快捷键或网络请求。
 //! 当前先覆盖 confirm/search/question/todo/task/palette/error 七类稳定宿主。
 
+use serde_json::Value;
+use vw_gateway_client::vw_api_types::workflow::WorkflowPauseDto;
 use vw_shared::question;
 use vw_shared::todo::Todo;
 use vw_tui::{
@@ -11,7 +13,7 @@ use vw_tui::{
 };
 
 use super::agent_view::AgentViewState;
-use super::background_task::BackgroundTaskPanel;
+use super::background_task::{BackgroundTaskPanel, TaskControlAction};
 use super::integration::{IntegrationKind, IntegrationPanel};
 use super::permission::{PermissionPreviewKind, PermissionQueue};
 use super::schedule_panel::SchedulePanel;
@@ -201,11 +203,28 @@ pub(crate) enum UiConfirmIntent {
         id: String,
         enabled: bool,
     },
-    TaskCancel {
+    HookMutation {
+        plugin_id: String,
+        hook_hash: String,
+        trusted: bool,
+    },
+    MemoryStore {
+        key: String,
+        content: String,
+    },
+    MemoryDelete {
+        key: String,
+    },
+    TaskControl {
         id: String,
+        action: TaskControlAction,
     },
     ScheduleDelete {
         id: String,
+    },
+    ScheduleToggle {
+        id: String,
+        enabled: bool,
     },
     ApplySessionSettings {
         values: Box<SettingsValues>,
@@ -346,6 +365,95 @@ impl UiQuestionOverlay {
         }
     }
 
+    /// 将 Workflow human-input pause 映射为无 token 的 typed question。
+    pub(crate) fn from_workflow_pause(
+        request_id: String,
+        session_id: String,
+        pause: &WorkflowPauseDto,
+    ) -> Self {
+        let mut prompts = pause
+            .form
+            .get("fields")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|field| {
+                let name = workflow_field_string(field, "name")
+                    .or_else(|| workflow_field_string(field, "variable"))?;
+                let label = workflow_field_string(field, "label")
+                    .or_else(|| workflow_field_string(field, "title"))
+                    .unwrap_or(name);
+                let options = field
+                    .get("options")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(workflow_question_option)
+                    .collect::<Vec<_>>();
+                let question = workflow_field_string(field, "description")
+                    .or_else(|| workflow_field_string(field, "question"))
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| {
+                        if options.is_empty() {
+                            format!("请输入 {label}")
+                        } else {
+                            format!("请选择 {label}")
+                        }
+                    });
+                Some(UiQuestionPrompt {
+                    header: label.to_string(),
+                    question,
+                    options,
+                    multiple: field.get("multiple").and_then(Value::as_bool).unwrap_or(false),
+                    allow_custom_input: field
+                        .get("custom")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                        || field.get("options").and_then(Value::as_array).is_none_or(Vec::is_empty),
+                })
+            })
+            .collect::<Vec<_>>();
+
+        if !pause.actions.is_empty() {
+            prompts.push(UiQuestionPrompt {
+                header: pause.title.clone(),
+                question: "请选择继续操作".to_string(),
+                options: pause
+                    .actions
+                    .iter()
+                    .map(|action| UiQuestionOption {
+                        label: workflow_action_label(action.label.as_str(), action.id.as_str()),
+                        description: format!("Workflow action: {}", action.id),
+                        preview: None,
+                    })
+                    .collect(),
+                multiple: false,
+                allow_custom_input: false,
+            });
+        } else if prompts.is_empty() {
+            prompts.push(UiQuestionPrompt {
+                header: pause.title.clone(),
+                question: "继续此 Workflow？".to_string(),
+                options: vec![UiQuestionOption {
+                    label: "继续".to_string(),
+                    description: "恢复当前暂停的 Workflow".to_string(),
+                    preview: None,
+                }],
+                multiple: false,
+                allow_custom_input: false,
+            });
+        }
+
+        Self {
+            request_id,
+            session_id,
+            answers: vec![Vec::new(); prompts.len()],
+            prompts,
+            tool: None,
+            selected_index: 0,
+        }
+    }
+
     /// 转为渲染 crate 的只读提问结构，使用稳定索引保持回答顺序。
     pub(crate) fn to_v3_request(&self) -> V3UserInputRequest {
         let questions = self
@@ -458,6 +566,31 @@ impl UiQuestionOverlay {
             }
         }
     }
+}
+
+fn workflow_question_option(value: &Value) -> Option<UiQuestionOption> {
+    let (label, description) = match value {
+        Value::String(label) => (label.clone(), String::new()),
+        Value::Object(_) => {
+            let label = workflow_field_string(value, "label")
+                .or_else(|| workflow_field_string(value, "name"))
+                .or_else(|| workflow_field_string(value, "value"))?;
+            let description = workflow_field_string(value, "description")
+                .map(ToOwned::to_owned)
+                .unwrap_or_default();
+            (label.to_string(), description)
+        }
+        _ => return None,
+    };
+    Some(UiQuestionOption { label, description, preview: None })
+}
+
+fn workflow_field_string<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
+    value.get(key).and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty())
+}
+
+pub(crate) fn workflow_action_label(label: &str, id: &str) -> String {
+    format!("{} [{}]", label.trim(), id.trim())
 }
 
 fn contains_permission_marker(value: &str) -> bool {

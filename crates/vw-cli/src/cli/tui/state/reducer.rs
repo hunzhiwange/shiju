@@ -87,6 +87,7 @@ pub(crate) enum TuiAction {
     OverlayCleared,
     SearchQuerySet(String),
     QuestionsReplaced(Vec<UiQuestionOverlay>),
+    WorkflowPauseQuestionReplaced(Option<UiQuestionOverlay>),
     TodoOverlayReplaced(Option<UiTodoOverlay>),
     TaskSyncErrorSet(Option<String>),
     MessagePushed(UiMessage),
@@ -244,7 +245,34 @@ pub(crate) fn reduce_tui_state(state: &mut TuiState, action: TuiAction) {
             set_search_query(state, query);
         }
         TuiAction::QuestionsReplaced(questions) => {
+            let workflow_question = state
+                .tasks
+                .workflow_pause_request_id
+                .as_deref()
+                .and_then(|request_id| {
+                    state
+                        .tasks
+                        .pending_questions
+                        .iter()
+                        .find(|question| question.request_id == request_id)
+                        .cloned()
+                });
             state.tasks.pending_questions = questions;
+            if let Some(question) = workflow_question {
+                state.tasks.pending_questions.insert(0, question);
+            }
+        }
+        TuiAction::WorkflowPauseQuestionReplaced(question) => {
+            if let Some(request_id) = state.tasks.workflow_pause_request_id.take() {
+                state
+                    .tasks
+                    .pending_questions
+                    .retain(|current| current.request_id != request_id);
+            }
+            if let Some(question) = question {
+                state.tasks.workflow_pause_request_id = Some(question.request_id.clone());
+                state.tasks.pending_questions.insert(0, question);
+            }
         }
         TuiAction::TodoOverlayReplaced(todo_overlay) => {
             state.tasks.todo_overlay = todo_overlay;

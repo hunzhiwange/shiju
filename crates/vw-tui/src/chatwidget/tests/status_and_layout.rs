@@ -35,7 +35,7 @@ fn status_and_layout_missing_begin_and_duplicate_terminal_are_diagnostic() {
         turn_id: "turn-missing".into(),
         delta: "Recovered output.".into(),
     });
-    assert!(rendered(&chat).contains("• Working"));
+    assert!(rendered(&chat).contains("• ⠋ Working"));
 
     chat.handle_v3_event(V3Event::TurnCompleted { turn_id: "turn-missing".into() });
     chat.handle_v3_event(V3Event::TurnCompleted { turn_id: "turn-missing".into() });
@@ -49,7 +49,7 @@ fn status_and_layout_missing_begin_and_duplicate_terminal_are_diagnostic() {
     assert!(frame.contains("• Recovered output."));
     assert!(frame.contains("duplicate turn terminal: event=turn completed"));
     assert!(frame.contains("future.notification: kept for diagnosis"));
-    assert!(!frame.contains("• Working"));
+    assert!(!frame.contains("Working"));
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn status_and_layout_tool_error_and_cancel_keep_terminal_cells() {
     assert!(frame.contains("interrupted"));
     assert_eq!(frame.matches('✗').count(), 2);
     assert!(frame.contains("error: turn failed"));
-    assert!(!frame.contains("• Working"));
+    assert!(!frame.contains("Working"));
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn status_and_layout_cancelled_turn_records_interrupt_terminal() {
     let frame = rendered(&chat);
     assert!(frame.contains("thinking: Still working"));
     assert!(frame.contains("system: Cancelled: user interrupt"));
-    assert!(!frame.contains("• Working"));
+    assert!(!frame.contains("Working"));
 }
 
 #[test]

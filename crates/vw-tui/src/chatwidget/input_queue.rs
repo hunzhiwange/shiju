@@ -22,6 +22,10 @@ impl InputQueueState {
         self.queued.pop_front()
     }
 
+    pub(super) fn pop_back(&mut self) -> Option<UserMessage> {
+        self.queued.pop_back()
+    }
+
     pub(super) fn len(&self) -> usize {
         self.queued.len()
     }

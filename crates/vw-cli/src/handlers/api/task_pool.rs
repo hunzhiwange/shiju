@@ -90,7 +90,7 @@ pub(super) async fn run(
             json!(client.task_pool_matrix_events(after_cursor).await.map_err(anyhow::Error::msg)?)
         }
         TaskPoolCommands::Publish => {
-            bail!("task-pool Matrix publish is an internal producer callback and is not supported by shiju api")
+            bail!("task-pool Matrix publish is an internal producer callback and is not supported by shiju")
         }
     };
     output::write_json(writer, &response, context.output_format())

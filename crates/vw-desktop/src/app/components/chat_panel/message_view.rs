@@ -238,6 +238,7 @@ pub fn message_view<'a>(
                         status,
                         highlighted,
                         compact_square,
+                        is_user,
                     )),
                 }),
         )

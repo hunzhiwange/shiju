@@ -1,4 +1,4 @@
-//! `api system` 命令的路由、租户头与输出测试。
+//! `system` 命令的路由、租户头与输出测试。
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -7,7 +7,7 @@ use std::sync::mpsc;
 use clap::Parser;
 
 use super::{ApiCommands, run_with_writer};
-use crate::cli::{Cli, Commands};
+use crate::cli::Cli;
 
 #[tokio::test]
 async fn api_system_commands_use_gateway_discovery_routes() {
@@ -32,7 +32,7 @@ async fn api_system_commands_use_gateway_discovery_routes() {
     for (command, expected_path, is_text) in cases {
         let cli = Cli::try_parse_from([
             "shiju",
-            "api",
+            "system",
             "--host",
             "127.0.0.1",
             "--port",
@@ -43,13 +43,10 @@ async fn api_system_commands_use_gateway_discovery_routes() {
             "company-b",
             "--directory",
             "/tmp/workspace",
-            "system",
             command,
         ])
         .unwrap_or_else(|error| panic!("system {command} should parse: {error}"));
-        let Commands::Api { api_args } = cli.command else {
-            panic!("expected api command");
-        };
+        let api_args = cli.command.into_api_args().expect("expected API command");
         assert!(matches!(api_args.command, ApiCommands::System { .. }));
 
         let mut output = Vec::new();

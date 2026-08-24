@@ -31,6 +31,66 @@ fn cli_definition_builds_without_panicking() {
 }
 
 #[test]
+fn startup_help_lists_only_root_commands() {
+    let error = crate::cli::Cli::command()
+        .try_get_matches_from(["shiju"])
+        .expect_err("a top-level command is required");
+    let help = error.to_string();
+
+    assert_eq!(help.matches("Commands:").count(), 1);
+    assert!(help.contains("  apiql "));
+    assert!(help.contains("  server "));
+    assert!(!help.contains("apiql list"));
+    assert!(!help.contains("server install"));
+
+    let error = crate::cli::Cli::command()
+        .try_get_matches_from(["shiju", "apiql"])
+        .expect_err("an APIQL subcommand is required");
+    let apiql_help = error.to_string();
+
+    assert!(apiql_help.contains("list"));
+
+    let error = crate::cli::Cli::command()
+        .try_get_matches_from(["shiju", "apiql", "list", "--help"])
+        .expect_err("leaf help should stop command execution");
+    assert_eq!(error.kind(), clap::error::ErrorKind::DisplayHelp);
+    assert!(error.to_string().contains("Usage: shiju apiql list"));
+}
+
+#[test]
+fn every_visible_nested_command_supports_contextual_help() {
+    fn collect_paths(
+        command: &clap::Command,
+        prefix: &mut Vec<String>,
+        paths: &mut Vec<Vec<String>>,
+    ) {
+        for subcommand in command.get_subcommands().filter(|command| !command.is_hide_set()) {
+            prefix.push(subcommand.get_name().to_string());
+            paths.push(prefix.clone());
+            collect_paths(subcommand, prefix, paths);
+            prefix.pop();
+        }
+    }
+
+    let mut paths = Vec::new();
+    collect_paths(&crate::cli::Cli::command(), &mut Vec::new(), &mut paths);
+    assert!(paths.iter().any(|path| path == &["apiql", "list"]));
+
+    for path in paths {
+        let mut arguments = vec!["shiju".to_string(), "help".to_string()];
+        arguments.extend(path.iter().cloned());
+        let error = crate::cli::Cli::command()
+            .try_get_matches_from(arguments)
+            .expect_err("help should stop command execution");
+        assert_eq!(
+            error.kind(),
+            clap::error::ErrorKind::DisplayHelp,
+            "contextual help failed for command path: {path:?}: {error}"
+        );
+    }
+}
+
+#[test]
 fn completion_shell_names_parse_to_each_supported_variant() {
     use crate::cli::CompletionShell;
 
@@ -98,13 +158,12 @@ fn api_command_help_and_completions_cover_every_family() {
         "workflow", "workspace", "system",
     ];
     let command = crate::cli::Cli::command();
-    let api = command.find_subcommand("api").expect("api command");
-    let names = api
+    let names = command
         .get_subcommands()
         .map(clap::Command::get_name)
         .collect::<std::collections::HashSet<_>>();
     for family in families {
-        assert!(names.contains(family), "api help omits family {family}");
+        assert!(names.contains(family), "root help omits API family {family}");
     }
 
     let mut completion = Vec::new();

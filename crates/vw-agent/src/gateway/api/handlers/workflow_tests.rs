@@ -47,8 +47,8 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 use vw_api_types::TenantScope;
 use vw_api_types::workflow::{
-    WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowRecordUpsertBody, WorkflowRunRequest,
-    WorkflowRunResponse, WorkflowRunStatus,
+    WorkflowHumanActionDto, WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowPauseDto,
+    WorkflowRecordUpsertBody, WorkflowRunRequest, WorkflowRunResponse, WorkflowRunStatus,
 };
 
 // 固定 provider 让处理器测试只观察请求编排，不引入真实模型或网络差异。
@@ -838,6 +838,37 @@ fn workflow_started_and_finished_data_match_protocol_shape() {
     assert_eq!(finished.error.as_deref(), Some("failed"));
     assert_eq!(finished.total_steps, 2);
     assert_eq!(finished.outputs.expect("outputs")["text"], json!("failed output"));
+}
+
+#[test]
+fn workflow_sse_preserves_human_pause() {
+    let pause = WorkflowPauseDto {
+        node_id: "approval".to_string(),
+        title: "Review release".to_string(),
+        form_token: "secret-form-token".to_string(),
+        form: json!({"fields": [{"name": "approved", "type": "boolean"}]}),
+        actions: vec![WorkflowHumanActionDto {
+            id: "approve".to_string(),
+            label: "Approve".to_string(),
+        }],
+    };
+    let paused = WorkflowRunResponse {
+        status: WorkflowRunStatus::Paused,
+        pause: Some(pause.clone()),
+        ..workflow_response("run-paused")
+    };
+
+    let paused_finished = workflow_finished_data(&paused, 10);
+    assert_eq!(paused_finished.pause, Some(pause.clone()));
+    let paused_json = serde_json::to_value(paused_finished).expect("serialize paused workflow");
+    assert_eq!(paused_json["pause"], serde_json::to_value(pause).expect("serialize pause"));
+
+    let completed_json = serde_json::to_value(workflow_finished_data(
+        &workflow_response("run-completed"),
+        10,
+    ))
+    .expect("serialize completed workflow");
+    assert!(completed_json.get("pause").is_none());
 }
 
 #[test]

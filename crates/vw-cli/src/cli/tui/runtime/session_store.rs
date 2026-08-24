@@ -44,14 +44,6 @@ impl GatewayUiRuntime {
             .map_err(|error| annotate_gateway_transport_error(error, self.endpoint()))
     }
 
-    async fn session_ui_load_any(
-        &self,
-        session_id: Option<&str>,
-    ) -> Result<Option<ChatSession>, String> {
-        let session_id = self.resolve_session_id(session_id)?;
-        self.client().session_ui_get_any(session_id).await
-    }
-
     async fn session_ui_load(&self, session_id: &str) -> Result<ChatSession, String> {
         let session_id = normalize_optional_str_ref(Some(session_id))
             .ok_or_else(|| "session restore requires a non-empty session id".to_string())?;
@@ -97,10 +89,6 @@ impl GatewayUiRuntime {
                 .then(left.id.cmp(&right.id))
         });
         Ok(previews)
-    }
-
-    async fn session_scope_get(&self) -> Result<Option<String>, String> {
-        self.client().session_scope_get(None, None).await
     }
 
     async fn session_rename(&self, title: &str) -> Result<(), String> {
@@ -177,14 +165,6 @@ impl GatewayUiRuntime {
         block_on_gateway(self.session_create(title))
     }
 
-    /// 按显式 ID 或运行时绑定 ID 加载任意格式的 UI 会话快照。
-    pub(crate) fn session_ui_load_any_blocking(
-        &self,
-        session_id: Option<&str>,
-    ) -> Result<Option<ChatSession>, String> {
-        block_on_gateway(self.session_ui_load_any(session_id))
-    }
-
     /// 在当前目录约束下加载完整会话快照，并拒绝空 ID、缺失快照或响应 ID 失配。
     pub(crate) fn session_ui_load_blocking(&self, session_id: &str) -> Result<ChatSession, String> {
         block_on_gateway(self.session_ui_load(session_id))
@@ -205,11 +185,6 @@ impl GatewayUiRuntime {
         &self,
     ) -> Result<Vec<ChatSessionMeta>, String> {
         block_on_gateway(self.session_resume_candidates())
-    }
-
-    /// 读取 Gateway 记录的当前会话作用域。
-    pub(crate) fn session_scope_get_blocking(&self) -> Result<Option<String>, String> {
-        block_on_gateway(self.session_scope_get())
     }
 
     /// 重命名当前绑定会话；响应 ID 必须仍指向当前会话。

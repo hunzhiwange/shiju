@@ -1,4 +1,4 @@
-//! `shiju api system` 的只读系统状态与发现命令。
+//! `shiju system` 的只读系统状态与发现命令。
 
 use std::io::Write;
 

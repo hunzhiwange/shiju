@@ -4,7 +4,9 @@
 
 use serde_json::json;
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
-use vw_api_types::workflow::{WorkflowRecordUpsertBody, WorkflowResumeRequest};
+use vw_api_types::workflow::{
+    WorkflowHumanActionDto, WorkflowPauseDto, WorkflowRecordUpsertBody, WorkflowResumeRequest,
+};
 
 use super::{
     GatewayWorkflowDefaultStreamRequest, GatewayWorkflowResponseMode, GatewayWorkflowStreamError,
@@ -142,6 +144,44 @@ fn workflow_stream_parser_preserves_unknown_events_and_defaults_missing_fields()
             message: String::new(),
         })
     );
+}
+
+#[test]
+fn workflow_client_parses_pause_event_without_logging_token() {
+    let pause = WorkflowPauseDto {
+        node_id: "approval".to_string(),
+        title: "Review release".to_string(),
+        form_token: "secret-form-token".to_string(),
+        form: json!({"fields": [{"name": "approved", "type": "boolean"}]}),
+        actions: vec![WorkflowHumanActionDto {
+            id: "approve".to_string(),
+            label: "Approve".to_string(),
+        }],
+    };
+    let event = super::parse_workflow_stream_event(json!({
+        "event": "workflow_finished",
+        "task_id": "run-paused",
+        "workflow_run_id": "run-paused",
+        "data": {
+            "status": "running",
+            "pause": pause,
+        }
+    }));
+
+    assert_eq!(
+        event,
+        GatewayWorkflowStreamEvent::WorkflowFinished {
+            task_id: "run-paused".to_string(),
+            workflow_run_id: "run-paused".to_string(),
+            data: json!({
+                "status": "running",
+                "pause": pause,
+            }),
+            pause: Some(pause),
+        }
+    );
+    let debug = format!("{event:?}");
+    assert!(!debug.contains("secret-form-token"));
 }
 
 #[tokio::test]
@@ -302,6 +342,7 @@ async fn workflow_streaming_api_routes_uuid_chat_messages_and_parses_events() {
                 task_id: "run-1".to_string(),
                 workflow_run_id: "run-1".to_string(),
                 data: json!({"status": "succeeded"}),
+                pause: None,
             },
             GatewayWorkflowStreamEvent::MessageEnd {
                 id: "run-1".to_string(),

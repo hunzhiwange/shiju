@@ -1,4 +1,4 @@
-//! `api skill-market` SHIJU 与统一市场路由测试。
+//! `skill-market` SHIJU 与统一市场路由测试。
 
 use std::sync::mpsc::TryRecvError;
 

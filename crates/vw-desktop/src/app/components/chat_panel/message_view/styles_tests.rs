@@ -78,11 +78,13 @@ fn message_actions_remain_accessible_with_subtle_idle_style() {
         assert_eq!(hovered.border.width, 1.0);
         assert!(pressed.background.is_some());
 
-        let idle_icon = message_action_icon_color(&theme, svg::Status::Idle, false, true);
-        let hovered_icon = message_action_icon_color(&theme, svg::Status::Hovered, false, true);
+        let idle_icon = message_action_icon_color(&theme, svg::Status::Idle, false, true, false);
+        let hovered_icon =
+            message_action_icon_color(&theme, svg::Status::Hovered, false, true, false);
         assert!(idle_icon.a < hovered_icon.a);
+        assert_eq!(idle_icon, message_meta_text_color(&theme, false));
         assert_eq!(
-            message_action_icon_color(&theme, svg::Status::Idle, true, true),
+            message_action_icon_color(&theme, svg::Status::Idle, true, true, false),
             theme.extended_palette().success.base.color
         );
     }

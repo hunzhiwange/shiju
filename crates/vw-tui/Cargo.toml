@@ -20,6 +20,7 @@ arboard = "3.4"
 base64 = "0.22"
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
 dirs = "6"
+image = { version = "0.25.9", default-features = false, features = ["png"] }
 libc = "0.2"
 pulldown-cmark = "0.10.3"
 ratatui = { version = "0.30.2", features = [

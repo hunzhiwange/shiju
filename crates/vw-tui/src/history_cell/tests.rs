@@ -46,6 +46,7 @@ fn v3_display_event_mapping_is_exhaustive() {
                 path: Some("/tmp/file".into()),
                 media_type: None,
                 text: None,
+                bytes: None,
             },
         },
         V3DisplayEvent::Progress { label: "progress".into(), detail: Some("detail".into()) },

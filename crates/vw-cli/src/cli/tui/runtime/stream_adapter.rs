@@ -8,6 +8,7 @@ use serde_json::Value;
 use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
 use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatUsage, GatewayTypedChatStreamEvent,
+    GatewayWorkflowStreamEvent,
     normalize_chat_stream_event, normalize_chat_tool_event,
 };
 
@@ -277,6 +278,161 @@ pub(crate) fn adapt_task_plan_run_event(event: TaskPlanRunStreamEventDto) -> Vec
             })]
         }
     }
+}
+
+/// 将 Workflow typed SSE 事件投影到既有进度、文本和终态管线。
+pub(crate) fn adapt_gateway_workflow_stream_event(
+    event: GatewayWorkflowStreamEvent,
+) -> Vec<UiRuntimeEvent> {
+    match event {
+        GatewayWorkflowStreamEvent::WorkflowStarted { task_id, workflow_run_id, .. } => {
+            vec![workflow_progress(
+                &task_id,
+                &workflow_run_id,
+                "started",
+                "Workflow 已启动".to_string(),
+                false,
+            )]
+        }
+        GatewayWorkflowStreamEvent::NodeStarted { task_id, workflow_run_id, data } => {
+            let label = workflow_node_label(&data);
+            vec![workflow_progress(
+                &task_id,
+                &workflow_run_id,
+                &format!("node-{}-started", workflow_node_key(&data)),
+                format!("节点开始：{label}"),
+                false,
+            )]
+        }
+        GatewayWorkflowStreamEvent::NodeFinished { task_id, workflow_run_id, data } => {
+            let label = workflow_node_label(&data);
+            vec![workflow_progress(
+                &task_id,
+                &workflow_run_id,
+                &format!("node-{}-finished", workflow_node_key(&data)),
+                format!("节点完成：{label}"),
+                true,
+            )]
+        }
+        GatewayWorkflowStreamEvent::TextChunk { text, .. } => {
+            (!text.is_empty()).then(|| UiRuntimeEvent::Delta(text)).into_iter().collect()
+        }
+        GatewayWorkflowStreamEvent::Message { answer, .. } => {
+            (!answer.trim().is_empty())
+                .then(|| UiRuntimeEvent::Delta(answer))
+                .into_iter()
+                .collect()
+        }
+        GatewayWorkflowStreamEvent::WorkflowFinished {
+            task_id,
+            workflow_run_id,
+            data,
+            pause,
+        } => {
+            let status = data
+                .get("status")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|status| !status.is_empty())
+                .unwrap_or("completed");
+            let mut events = vec![workflow_progress(
+                &task_id,
+                &workflow_run_id,
+                "finished",
+                match pause.as_ref() {
+                    Some(pause) => format!("Workflow 已暂停：{}", pause.title),
+                    None => format!("Workflow 已结束：{status}"),
+                },
+                true,
+            )];
+            let terminal = if matches!(status, "failed" | "error") {
+                UiRuntimeTerminalEvent::Error(format!("workflow finished with status {status}"))
+            } else {
+                UiRuntimeTerminalEvent::Done {
+                    finish_reason: Some(if pause.is_some() {
+                        "paused".to_string()
+                    } else {
+                        status.to_string()
+                    }),
+                    usage: None,
+                    message_id: None,
+                    parent_message_id: None,
+                }
+            };
+            events.push(UiRuntimeEvent::Terminal(terminal));
+            events
+        }
+        GatewayWorkflowStreamEvent::MessageEnd { message_id, .. } => {
+            vec![UiRuntimeEvent::Terminal(UiRuntimeTerminalEvent::Done {
+                finish_reason: Some("message_end".to_string()),
+                usage: None,
+                message_id: (!message_id.trim().is_empty()).then_some(message_id),
+                parent_message_id: None,
+            })]
+        }
+        GatewayWorkflowStreamEvent::Error(error) => {
+            let code = error.code.trim();
+            let message = error.message.trim();
+            let visible = match (code.is_empty(), message.is_empty()) {
+                (false, false) => format!("{code}: {message}"),
+                (false, true) => code.to_string(),
+                (true, false) => message.to_string(),
+                (true, true) => "workflow stream failed".to_string(),
+            };
+            vec![UiRuntimeEvent::Terminal(UiRuntimeTerminalEvent::Error(visible))]
+        }
+        GatewayWorkflowStreamEvent::Unknown { event_type, .. } => {
+            vec![UiRuntimeEvent::Unknown {
+                event_type: Some(format!(
+                    "workflow.{}",
+                    event_type.as_deref().unwrap_or("unknown")
+                )),
+            }]
+        }
+    }
+}
+
+fn workflow_progress(
+    task_id: &str,
+    workflow_run_id: &str,
+    phase: &str,
+    label: String,
+    completed: bool,
+) -> UiRuntimeEvent {
+    let stable_id = if workflow_run_id.trim().is_empty() {
+        task_id
+    } else {
+        workflow_run_id
+    };
+    UiRuntimeEvent::Message(UiMessage::Progress(UiProgressMessage {
+        base: UiMessageBase::new(UiMessageId::local(format!(
+            "workflow-run-{stable_id}-{phase}"
+        )))
+        .with_origin(UiMessageOrigin::Gateway {
+            event_type: format!("workflow.{phase}"),
+        }),
+        label,
+        current: None,
+        total: None,
+        completed,
+    }))
+}
+
+fn workflow_node_label(data: &Value) -> String {
+    ["title", "node_name", "name", "node_id", "id"]
+        .into_iter()
+        .find_map(|field| data.get(field).and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("未命名节点")
+        .to_string()
+}
+
+fn workflow_node_key(data: &Value) -> String {
+    workflow_node_label(data)
+        .chars()
+        .map(|character| if character.is_ascii_alphanumeric() { character } else { '-' })
+        .collect()
 }
 
 fn plan_run_progress(

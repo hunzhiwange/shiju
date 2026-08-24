@@ -28,7 +28,7 @@ use vw_agent::security;
 use vw_agent::service::ServiceCommands;
 use vw_agent::skill::SkillCommands;
 
-use crate::handlers::api::ApiArgs;
+use crate::handlers::api::{ApiOptions, RootApiCommands, RootConfigCommands};
 
 #[path = "cli/mod.rs"]
 mod runtime;
@@ -123,12 +123,9 @@ pub(crate) enum Commands {
     /// 通过 stdin/stdout 运行本地 ACP Agent。
     Acp,
 
-    /// 调用远程 Gateway API。
-    Api {
-        /// Gateway 连接、认证、输出与子命令参数。
-        #[command(flatten)]
-        api_args: ApiArgs,
-    },
+    /// 直接调用远程 Gateway API 命令族。
+    #[command(flatten)]
+    Api(RootApiCommands),
 
     /// 启动 AI 代理循环
     ///
@@ -616,6 +613,10 @@ Examples:
   vibewindow config schema              # print JSON Schema to stdout
   vibewindow config schema > schema.json")]
     Config {
+        /// Gateway 连接、认证与输出参数。
+        #[command(flatten)]
+        api_options: ApiOptions,
+
         /// 配置子命令
         #[command(subcommand)]
         config_command: ConfigCommands,
@@ -648,11 +649,29 @@ Examples:
     },
 }
 
+#[cfg(test)]
+impl Commands {
+    pub(crate) fn into_api_args(self) -> Option<crate::handlers::api::ApiArgs> {
+        match self {
+            Self::Api(commands) => Some(commands.into_args()),
+            Self::Config {
+                api_options,
+                config_command: ConfigCommands::Gateway(command),
+            } => Some(crate::handlers::api::config_args(api_options, command)),
+            _ => None,
+        }
+    }
+}
+
 /// 配置管理子命令
 #[derive(Subcommand, Debug)]
 pub(crate) enum ConfigCommands {
     /// 将完整的配置 JSON Schema 转储到标准输出
     Schema,
+
+    /// 远程 Gateway 配置操作。
+    #[command(flatten)]
+    Gateway(RootConfigCommands),
 }
 
 /// 任务管理子命令

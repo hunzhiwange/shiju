@@ -6,6 +6,7 @@ use crate::render::renderable::Renderable;
 use crate::status_indicator_widget::StatusIndicatorWidget;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use std::time::Duration;
 
 use super::V3ChatStatus;
 
@@ -14,8 +15,8 @@ pub(super) struct StatusSurface<'a> {
 }
 
 impl<'a> StatusSurface<'a> {
-    pub(super) fn new(status: &'a V3ChatStatus) -> Self {
-        Self { indicator: StatusIndicatorWidget::new(status) }
+    pub(super) fn new(status: &'a V3ChatStatus, elapsed: Duration) -> Self {
+        Self { indicator: StatusIndicatorWidget::new(status, elapsed) }
     }
 
     pub(super) fn is_visible(&self) -> bool {

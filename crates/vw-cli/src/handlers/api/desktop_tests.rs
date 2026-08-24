@@ -1,4 +1,4 @@
-//! `api desktop` 专用路由与宿主动作保护测试。
+//! `desktop` 专用路由与宿主动作保护测试。
 
 use std::sync::mpsc::TryRecvError;
 
@@ -34,7 +34,7 @@ async fn api_desktop_commands_cover_preferences_skills_and_guarded_host_actions(
         assert!(error.contains(&format!("http://127.0.0.1:{port}")));
         assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
     }
-    assert!(Cli::try_parse_from(["shiju", "api", "desktop", "service", "shell"]).is_err());
+    assert!(Cli::try_parse_from(["shiju", "desktop", "service", "shell"]).is_err());
 
     let reads = [
         (&["desktop", "preferences-get"][..], "/v1/desktop/preferences"),

@@ -1,4 +1,4 @@
-//! `api config` 命令的作用域、输入与确认测试。
+//! `config` 命令的远程作用域、输入与确认测试。
 
 use std::io::{Cursor, Read, Write};
 use std::net::TcpListener;
@@ -8,7 +8,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use super::{ApiCommands, run_with_io};
-use crate::cli::{Cli, Commands};
+use crate::cli::Cli;
 
 #[tokio::test]
 async fn api_config_commands_preserve_scope_input_and_confirmation() {
@@ -175,16 +175,20 @@ async fn run_ok_with_input(common: &[&str], command: &[&str], input: &[u8]) {
 }
 
 fn parse_api(common: &[&str], command: &[&str]) -> super::ApiArgs {
+    let (yes, command) = if command.first() == Some(&"--yes") {
+        (Some("--yes"), &command[1..])
+    } else {
+        (None, command)
+    };
+    let (family, command) = command.split_first().expect("API command family");
     let args = std::iter::once("shiju")
-        .chain(std::iter::once("api"))
+        .chain(std::iter::once(*family))
         .chain(common.iter().copied())
+        .chain(yes)
         .chain(command.iter().copied())
         .collect::<Vec<_>>();
-    let cli = Cli::try_parse_from(args).expect("api config command should parse");
-    let Commands::Api { api_args } = cli.command else {
-        panic!("expected api command");
-    };
-    api_args
+    let cli = Cli::try_parse_from(args).expect("remote config command should parse");
+    cli.command.into_api_args().expect("expected API command")
 }
 
 #[derive(Debug)]

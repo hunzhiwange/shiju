@@ -103,7 +103,9 @@ fn cd_command_rebinds_runtime_only_after_validated_project_resolution() {
 
     let mut runtime = GatewayUiRuntime::new(
         GatewayClient::new(GatewayEndpoint::new("127.0.0.1", 1)).expect("client"),
-        GatewaySessionSeed::new(original.canonicalize().expect("canonical original")),
+        GatewaySessionSeed::new(original.canonicalize().expect("canonical original"))
+            .with_id(Some("old-session".to_string()))
+            .with_scope(Some("old-scope".to_string())),
     );
     assert!(runtime.rebind_validated_directory(&file).is_err());
     assert_eq!(runtime.directory(), original.canonicalize().unwrap());
@@ -113,6 +115,68 @@ fn cd_command_rebinds_runtime_only_after_validated_project_resolution() {
     let canonical = runtime.rebind_validated_directory(&target).expect("valid directory");
     assert_eq!(canonical, target.canonicalize().unwrap());
     assert_eq!(runtime.directory(), canonical);
+    assert_eq!(runtime.session_id(), None, "a target directory must bootstrap its own session");
+    assert_eq!(runtime.scope(), None, "a target directory must reload its own scope");
+}
+
+#[test]
+fn project_resolution_never_creates_or_rebinds_unknown_projects() {
+    let workspace = tempfile::tempdir().expect("workspace");
+    let original = workspace.path().join("original");
+    let target = workspace.path().join("target");
+    fs::create_dir_all(&original).expect("original");
+    fs::create_dir_all(&target).expect("target");
+    let project = serde_json::json!({
+        "project": {
+            "id": "project-target",
+            "name": "target",
+            "directory": target.to_string_lossy(),
+            "display_path": target.to_string_lossy(),
+            "status": "ready",
+            "created_at_ms": 1,
+            "updated_at_ms": 2,
+            "default_branch": null,
+            "current_branch": null,
+            "git": {
+                "is_repo": false,
+                "has_uncommitted_changes": false,
+                "ahead": null,
+                "behind": null
+            },
+            "active_worktree_id": null,
+            "session_count": 0
+        }
+    });
+    let project_body = Box::leak(project.to_string().into_boxed_str());
+    let (port, server) = spawn_json_sequence_server(vec![("200 OK", project_body)]);
+    let mut runtime = GatewayUiRuntime::new(
+        GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).expect("client"),
+        GatewaySessionSeed::new(original.canonicalize().expect("canonical original"))
+            .with_id(Some("old-session".to_string())),
+    );
+
+    let resolved = runtime
+        .resolve_project_directory_blocking(target.as_path(), false)
+        .expect("known project");
+
+    assert_eq!(resolved.directory, target.to_string_lossy());
+    assert_eq!(runtime.directory(), original.canonicalize().unwrap());
+    let request = server.join().expect("project fixture").remove(0);
+    assert!(request.starts_with("POST /v1/projects/resolve "));
+    assert!(request.contains("\"create_if_missing\":false"));
+
+    let (port, server) = spawn_json_sequence_server(vec![(
+        "404 Not Found",
+        r#"{"message":"unknown project"}"#,
+    )]);
+    runtime.client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).expect("client");
+    let before = runtime.session().clone();
+    let error = runtime
+        .resolve_project_directory_blocking(target.as_path(), false)
+        .expect_err("unknown project");
+    assert!(error.contains("404") || error.contains("unknown project"));
+    assert_eq!(runtime.session(), &before);
+    server.join().expect("unknown project fixture");
 }
 
 #[test]

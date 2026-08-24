@@ -47,13 +47,20 @@ fn command_summary_builds_collapsed_and_expanded_rows() {
         let collapsed =
             tool_command_summary_view(&app, 2, &items).expect("collapsed command summary");
         let collapsed_tree = Tree::new(collapsed.as_widget());
-        assert_eq!(collapsed_tree.children[0].children.len(), 1);
+        assert_eq!(collapsed_tree.children.len(), 1);
+    }
+
+    app.chat_tool_hovered_idx = Some((2_u64 << 32) | 3);
+    {
+        let hovered = tool_command_summary_view(&app, 2, &items).expect("hovered command summary");
+        let hovered_tree = Tree::new(hovered.as_widget());
+        assert_eq!(hovered_tree.children.len(), 1);
     }
 
     app.chat_tool_expanded.insert((2_u64 << 32) | 3);
     let expanded = tool_command_summary_view(&app, 2, &items).expect("expanded command summary");
     let expanded_tree = Tree::new(expanded.as_widget());
-    assert_eq!(expanded_tree.children[0].children.len(), 2);
+    assert_eq!(expanded_tree.children.len(), 2);
 
     let element: Element<'_, Message> = expanded;
     std::hint::black_box(element);

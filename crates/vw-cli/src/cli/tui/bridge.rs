@@ -256,6 +256,7 @@ impl GatewayV3Bridge {
                 });
             }
             GatewayChatToolEventKind::Update => {
+                self.ensure_tool_started(&event, turn_id, events);
                 if let Some(output) = tool_payload_text(&event.payload, "output") {
                     let previous = self.tool_output.entry(call_id.clone()).or_default();
                     let delta = output.strip_prefix(previous.as_str()).unwrap_or(output.as_str());
@@ -270,6 +271,7 @@ impl GatewayV3Bridge {
                 }
             }
             GatewayChatToolEventKind::Complete => {
+                self.ensure_tool_started(&event, turn_id, events);
                 let duration_ms = self
                     .tool_started_ms
                     .remove(call_id.as_str())
@@ -320,6 +322,26 @@ impl GatewayV3Bridge {
                 }
             }
         }
+    }
+
+    fn ensure_tool_started(
+        &mut self,
+        event: &GatewayChatToolEvent,
+        turn_id: &str,
+        events: &mut Vec<V3Event>,
+    ) {
+        match self.tool_started_ms.entry(event.call_id.clone()) {
+            std::collections::hash_map::Entry::Occupied(_) => return,
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(event.occurred_ms);
+            }
+        }
+        events.push(V3Event::ToolStarted {
+            turn_id: turn_id.to_string(),
+            call_id: event.call_id.clone(),
+            tool: event.name.clone(),
+            command: tool_command(&event.payload),
+        });
     }
 }
 

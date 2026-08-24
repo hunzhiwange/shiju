@@ -1,4 +1,4 @@
-//! `api session-content` 内容、UI 与状态路由测试。
+//! `session-content` 内容、UI 与状态路由测试。
 
 use std::sync::mpsc::TryRecvError;
 

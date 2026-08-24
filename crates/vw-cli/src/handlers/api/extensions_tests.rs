@@ -1,4 +1,4 @@
-//! `api extensions` skills/plugins 管理路由测试。
+//! `extensions` skills/plugins 管理路由测试。
 
 use std::sync::mpsc::TryRecvError;
 

@@ -1,4 +1,4 @@
-//! `api task-lifecycle` 六个 workflow 路由测试。
+//! `task-lifecycle` 六个 workflow 路由测试。
 
 use std::sync::mpsc::TryRecvError;
 

@@ -2,7 +2,7 @@
 › shell cargo test -p vw-cli
 2 passed; 0 failed
   ✓ 87ms
-• Working (0s • esc to interrupt)
+• ⠋ Working (0s • esc to interrupt)
 
 › Describe the next task
   esc interrupt
@@ -21,7 +21,7 @@
 › shell cargo test -p vw-cli
 2 passed; 0 failed
   ✓ 87ms
-• Working (0s • esc to interrupt)
+• ⠋ Working (0s • esc to interrupt)
 
 › Describe the next task
   esc interrupt
@@ -46,7 +46,7 @@
 › shell cargo test -p vw-cli
 2 passed; 0 failed
   ✓ 87ms
-• Working (0s • esc to interrupt)
+• ⠋ Working (0s • esc to interrupt)
 
 › Describe the next task
   esc interrupt  gpt-5.6 · workspace write · /workspace/vibe-window · 42% ctx/12.3k

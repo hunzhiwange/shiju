@@ -31,6 +31,7 @@ use super::{
 };
 
 pub(super) const EXPANDED_LIST_TOP_SPACING: f32 = 10.0;
+const EXPLORE_TOGGLE_SLOT_WIDTH: f32 = 12.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SummarySegmentKind {
@@ -585,14 +586,21 @@ pub fn tool_explore_summary_view<'a>(
         ..Default::default()
     })
     .on_press(Message::Chat(message::ChatMessage::ToggleExploreSummary(msg_idx, group_tool_idx)));
-    let toggle_slot: Element<'a, Message> = toggle_btn.into();
+    let toggle_slot: Element<'a, Message> =
+        if app.chat_tool_hovered_idx == Some(key) {
+            toggle_btn.into()
+        } else {
+            Space::new().width(Length::Fixed(EXPLORE_TOGGLE_SLOT_WIDTH)).into()
+        };
     let head_row =
         row![title_view, summary_slot, toggle_slot, container(Space::new()).width(Length::Fill)]
             .spacing(7)
             .align_y(Alignment::Center);
 
     // 创建可交互的头部区域
-    let head = container(head_row).width(Length::Fill);
+    let head = mouse_area(container(head_row).width(Length::Fill))
+        .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, group_tool_idx)))
+        .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave));
 
     let mut content = column![head].spacing(EXPANDED_LIST_TOP_SPACING);
     if expanded {

@@ -1,4 +1,4 @@
-//! `api session` 核心生命周期路由与确认测试。
+//! `session` 核心生命周期路由与确认测试。
 
 use std::io::{Cursor, Read, Write};
 use std::net::TcpListener;
@@ -8,7 +8,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use super::run_with_io;
-use crate::cli::{Cli, Commands};
+use crate::cli::Cli;
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_session_commands_cover_core_lifecycle_routes() {
@@ -101,12 +101,13 @@ async fn run_command_with_yes(common: &[&str], command: &[impl AsRef<str>], inpu
     run_args(common, command, input, true).await
 }
 async fn run_args(common: &[&str], command: &[impl AsRef<str>], input: &[u8], yes: bool) -> Result<Vec<u8>, String> {
-    let mut args = vec!["shiju", "api"];
+    let (family, command) = command.split_first().ok_or("API command family is required")?;
+    let mut args = vec!["shiju", family.as_ref()];
     args.extend(common.iter().copied());
     if yes { args.push("--yes"); }
     args.extend(command.iter().map(AsRef::as_ref));
     let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
-    let Commands::Api { api_args } = cli.command else { return Err("expected api".into()) };
+    let api_args = cli.command.into_api_args().ok_or("expected API command")?;
     let mut output = Vec::new();
     run_with_io(api_args, &mut Cursor::new(input), &mut output).await.map_err(|e| e.to_string())?;
     Ok(output)

@@ -156,6 +156,7 @@ fn tool_explore_summary_view_builds_expanded_content_with_top_gap() {
     let group_tool_idx = EXPLORE_GROUP_TOOL_IDX;
     let key = ((1_u64) << 32) | group_tool_idx as u64;
     app.chat_explore_expanded.insert(key);
+    app.chat_tool_hovered_idx = Some(key);
     let expanded =
         tool_explore_summary_view(&app, 1, 0, &items, false, false).expect("expanded summary");
     keep_element(expanded);

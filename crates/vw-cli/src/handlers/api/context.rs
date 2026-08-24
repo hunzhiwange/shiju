@@ -8,7 +8,7 @@ use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};
 
 use super::{ApiArgs, ApiOutputFormat};
 
-/// 一次 `shiju api` 调用复用的 Gateway 上下文。
+/// 一次根级 Gateway API 命令调用复用的上下文。
 #[derive(Debug)]
 pub(super) struct ApiContext {
     client: GatewayClient,

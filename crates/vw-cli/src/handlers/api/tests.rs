@@ -9,15 +9,13 @@ use super::context::ApiContext;
 use super::input::read_json_input;
 use super::output::{write_json, write_jsonl_item};
 use super::{ApiCommands, ApiOutputFormat, ProviderCommands, ensure_confirmed, run_with_writer};
-use crate::cli::{Cli, Commands};
+use crate::cli::Cli;
 
 #[tokio::test]
 async fn api_cli_context_input_output_and_confirmation_are_stable() {
-    let cli = Cli::try_parse_from(["shiju", "api", "provider", "list"])
+    let cli = Cli::try_parse_from(["shiju", "provider", "list"])
         .expect("api provider list should parse");
-    let Commands::Api { api_args } = cli.command else {
-        panic!("expected api command");
-    };
+    let api_args = cli.command.into_api_args().expect("expected API command");
     assert_eq!(api_args.host, "127.0.0.1");
     assert_eq!(api_args.port, 14_682);
     assert_eq!(api_args.platform, "local");
@@ -27,23 +25,20 @@ async fn api_cli_context_input_output_and_confirmation_are_stable() {
     assert!(matches!(api_args.command, ApiCommands::Provider { command: ProviderCommands::List }));
 
     for (flag, value) in [("--platform", " "), ("--company", "\t")] {
-        let error = Cli::try_parse_from(["shiju", "api", flag, value, "provider", "list"])
+        let error = Cli::try_parse_from(["shiju", "provider", flag, value, "list"])
             .expect_err("blank tenant ids must be rejected");
         assert!(error.to_string().contains("must not be empty"));
     }
 
     let env_cli = Cli::try_parse_from([
         "shiju",
-        "api",
+        "provider",
         "--skey-env",
         "TEST_GATEWAY_SKEY",
-        "provider",
         "list",
     ])
     .expect("environment auth source should parse");
-    let Commands::Api { api_args: env_args } = env_cli.command else {
-        panic!("expected api command");
-    };
+    let env_args = env_cli.command.into_api_args().expect("expected API command");
     let env_context = ApiContext::from_args_with_env(&env_args, |name| {
         (name == "TEST_GATEWAY_SKEY").then(|| "env-secret".into())
     })
@@ -56,16 +51,14 @@ async fn api_cli_context_input_output_and_confirmation_are_stable() {
     let empty_skey_file = tempfile::NamedTempFile::new().expect("create empty skey file");
     let empty_skey_cli = Cli::try_parse_from([
         "shiju",
-        "api",
+        "provider",
         "--skey-file",
         empty_skey_file.path().to_str().expect("utf-8 temp path"),
-        "provider",
         "list",
     ])
     .expect("file auth source should parse");
-    let Commands::Api { api_args: empty_skey_args } = empty_skey_cli.command else {
-        panic!("expected api command");
-    };
+    let empty_skey_args =
+        empty_skey_cli.command.into_api_args().expect("expected API command");
     let error = ApiContext::from_args(&empty_skey_args).expect_err("empty skey file must fail");
     assert!(error.to_string().contains("skey file is empty"));
 
@@ -110,7 +103,7 @@ async fn api_cli_context_input_output_and_confirmation_are_stable() {
     let (port, request_rx) = spawn_provider_server();
     let request_cli = Cli::try_parse_from([
         "shiju",
-        "api",
+        "provider",
         "--host",
         "127.0.0.1",
         "--port",
@@ -123,13 +116,10 @@ async fn api_cli_context_input_output_and_confirmation_are_stable() {
         skey_file.path().to_str().expect("utf-8 temp path"),
         "--directory",
         "/tmp/workspace",
-        "provider",
         "list",
     ])
     .expect("fully configured api command should parse");
-    let Commands::Api { api_args: request_args } = request_cli.command else {
-        panic!("expected api command");
-    };
+    let request_args = request_cli.command.into_api_args().expect("expected API command");
     let mut output = Vec::new();
     run_with_writer(request_args, &mut output).await.expect("provider list request should succeed");
 

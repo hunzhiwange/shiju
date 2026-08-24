@@ -1,4 +1,4 @@
-//! `api workflow` CRUD、恢复与 SSE JSONL 输出测试。
+//! `workflow` CRUD、恢复与 SSE JSONL 输出测试。
 
 use std::io::{Cursor, Read, Write};
 use std::net::TcpListener;
@@ -8,7 +8,7 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use super::run_with_io;
-use crate::cli::{Cli, Commands};
+use crate::cli::Cli;
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_workflow_commands_cover_application_crud_resume_and_stream() {
@@ -166,17 +166,24 @@ async fn run_command_with_output<S: AsRef<str>>(
     command: &[S],
     input: &[u8],
 ) -> (Option<String>, Vec<u8>) {
+    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") {
+        (Some("--yes"), &command[1..])
+    } else {
+        (None, command)
+    };
+    let (family, command) = command.split_first().expect("API command family");
     let args = std::iter::once("shiju")
-        .chain(std::iter::once("api"))
+        .chain(std::iter::once(family.as_ref()))
         .chain(common.iter().copied())
+        .chain(yes)
         .chain(command.iter().map(AsRef::as_ref))
         .collect::<Vec<_>>();
     let cli = match Cli::try_parse_from(args) {
         Ok(cli) => cli,
         Err(error) => return (Some(error.to_string()), Vec::new()),
     };
-    let Commands::Api { api_args } = cli.command else {
-        return (Some("expected api command".into()), Vec::new());
+    let Some(api_args) = cli.command.into_api_args() else {
+        return (Some("expected API command".into()), Vec::new());
     };
     let mut output = Vec::new();
     let error = run_with_io(api_args, &mut Cursor::new(input), &mut output)

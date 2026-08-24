@@ -852,6 +852,7 @@ fn stream_message_fallback_and_terminal_events_preserve_meaningful_status() {
         task_id: "task-1".to_string(),
         workflow_run_id: "run-1".to_string(),
         data: json!({"status": "cancelled"}),
+        pause: None,
     });
     let preview = state.saved_app_run_preview.as_ref().unwrap();
     assert_eq!(preview.run_id.as_deref(), Some("run-1"));
@@ -1080,6 +1081,7 @@ fn saved_app_run_retry_finish_fail_cancel_and_events_noop_without_valid_preview(
         task_id: "task-1".to_string(),
         workflow_run_id: "run-2".to_string(),
         data: json!({"status": "failed"}),
+        pause: None,
     });
     let preview = state.saved_app_run_preview.as_ref().unwrap();
     assert_eq!(preview.status, WorkflowRunStatus::Failed);

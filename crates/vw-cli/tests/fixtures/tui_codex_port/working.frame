@@ -8,7 +8,7 @@ thinking: Inspecting the Gateway bridge
   and terminal buffer.
 
 • The matrix is still rendering
-• Working (0s • esc to interrupt)
+• ⠋ Working (0s • esc to interrupt)
 
 › Describe the next task
   esc interrupt
@@ -25,7 +25,7 @@ thinking: Inspecting the Gateway bridge
 thinking: Inspecting the Gateway bridge and terminal buffer.
 
 • The matrix is still rendering
-• Working (0s • esc to interrupt)
+• ⠋ Working (0s • esc to interrupt)
 
 › Describe the next task
   esc interrupt
@@ -50,7 +50,7 @@ thinking: Inspecting the Gateway bridge and terminal buffer.
 thinking: Inspecting the Gateway bridge and terminal buffer.
 
 • The matrix is still rendering
-• Working (0s • esc to interrupt)
+• ⠋ Working (0s • esc to interrupt)
 
 › Describe the next task
   esc interrupt  gpt-5.6 · workspace write · /workspace/vibe-window · 42% ctx/12.3k

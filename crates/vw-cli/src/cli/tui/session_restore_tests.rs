@@ -1,14 +1,19 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use serde_json::json;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
+use vw_tui::V3Action;
 
-use super::app::{V3GatewayApp, initial_tui_state, restore_or_create_session_state};
+use super::app::{
+    ActiveRunner, DirectorySwitchBootstrap, V3GatewayApp, initial_tui_state,
+    restore_or_create_session_state,
+};
 use super::bridge::GatewayV3Bridge;
 use super::commands::{CommandRoute, SESSION_RESUME_SURFACE, route_selection};
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
@@ -63,7 +68,7 @@ fn resume_candidates_exclude_archived_and_sort_latest_first() {
 }
 
 #[test]
-fn startup_state_is_empty_before_background_history_load() {
+fn startup_state_is_empty_before_background_session_create() {
     let runtime = test_runtime(GatewayEndpoint::new("127.0.0.1", 9), "previous");
 
     let state = initial_tui_state(&runtime);
@@ -75,27 +80,11 @@ fn startup_state_is_empty_before_background_history_load() {
 }
 
 #[test]
-fn background_restore_prefers_non_empty_session_over_newer_empty_session() {
-    let restored = snapshot("with-messages", "Recovered", "latest answer");
-    let (endpoint, requests, server) = gateway_fixture(vec![
-        GatewayResponse::ok(json!([
-            {
-                "id": "new-empty",
-                "title": "Empty",
-                "updated_ms": 30,
-                "message_count": 0,
-                "call_count": 0
-            },
-            {
-                "id": "with-messages",
-                "title": "Recovered",
-                "updated_ms": 20,
-                "message_count": 1,
-                "call_count": 0
-            }
-        ])),
-        GatewayResponse::ok(serde_json::to_value(restored).expect("snapshot")),
-    ]);
+fn background_bootstrap_creates_new_session_without_loading_history() {
+    let (endpoint, requests, server) = gateway_fixture(vec![GatewayResponse::ok(json!({
+        "id": "created",
+        "title": "Fresh session"
+    }))]);
     let client = GatewayClient::new(endpoint).expect("test gateway client");
     let mut runtime = GatewayUiRuntime::new(
         client,
@@ -103,19 +92,38 @@ fn background_restore_prefers_non_empty_session_over_newer_empty_session() {
             .with_scope(Some("workspace-write".to_string())),
     );
 
-    let state = restore_or_create_session_state(&mut runtime).expect("restore session in worker");
+    let state = restore_or_create_session_state(&mut runtime).expect("create session in worker");
 
-    assert_eq!(state.session.session_id.as_deref(), Some("with-messages"));
+    assert_eq!(state.session.session_id.as_deref(), Some("created"));
+    assert!(state.messages.is_empty());
+    assert_eq!(
+        requests.recv().expect("create request"),
+        "/v1/session?directory=%2Fworkspace"
+    );
+    server.join().expect("background create fixture");
+    assert!(requests.try_recv().is_err(), "startup must not request session history");
+}
+
+#[test]
+fn background_bootstrap_restores_explicit_session_in_current_workspace() {
+    let restored = snapshot("explicit", "Recovered", "latest answer");
+    let (endpoint, requests, server) = gateway_fixture(vec![GatewayResponse::ok(
+        serde_json::to_value(restored).expect("snapshot"),
+    )]);
+    let mut runtime = test_runtime(endpoint, "explicit");
+
+    let state = restore_or_create_session_state(&mut runtime).expect("restore explicit session");
+
+    assert_eq!(state.session.session_id.as_deref(), Some("explicit"));
     assert_eq!(
         state.to_chat_session().messages.last().map(|message| message.content.as_str()),
         Some("latest answer")
     );
     assert_eq!(
-        requests.recv().expect("preview request"),
-        "/v1/session/ui-previews?directory=%2Fworkspace"
+        requests.recv().expect("scoped snapshot request"),
+        "/v1/session/explicit/ui?directory=%2Fworkspace"
     );
-    assert_eq!(requests.recv().expect("snapshot request"), "/v1/session/with-messages/any");
-    server.join().expect("background restore fixture");
+    server.join().expect("explicit restore fixture");
 }
 
 #[test]
@@ -276,6 +284,184 @@ fn new_session_rebinds_runtime_after_create() {
     assert_eq!(app.state().project.workspace_root.as_deref(), Some(Path::new("/workspace")));
     assert_eq!(requests.recv().expect("create request"), "/v1/session?directory=%2Fworkspace");
     server.join().expect("new session fixture");
+}
+
+#[test]
+fn cd_switch_commits_only_after_target_bootstrap() {
+    let workspace = tempfile::tempdir().expect("workspace");
+    let original = workspace.path().join("original");
+    let target = workspace.path().join("target");
+    std::fs::create_dir_all(&original).expect("original directory");
+    std::fs::create_dir_all(&target).expect("target directory");
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 9);
+    let original_runtime = GatewayUiRuntime::new(
+        GatewayClient::new(endpoint.clone()).expect("original client"),
+        GatewaySessionSeed::new(original.canonicalize().expect("canonical original"))
+            .with_id(Some("original-session".to_string())),
+    );
+    let mut original_state =
+        TuiState::from_chat_session(&snapshot("original-session", "Original", "keep me"));
+    original_state.project.workspace_root = Some(original.canonicalize().unwrap());
+    let mut app = V3GatewayApp::new(original_runtime, original_state);
+    app.widget_mut().replace_draft("unfinished draft");
+
+    let target_runtime = GatewayUiRuntime::new(
+        GatewayClient::new(endpoint).expect("target client"),
+        GatewaySessionSeed::new(target.canonicalize().expect("canonical target"))
+            .with_id(Some("target-session".to_string())),
+    );
+    let mut target_state =
+        TuiState::from_chat_session(&snapshot("target-session", "Target", "new answer"));
+    target_state.project.workspace_root = Some(target.canonicalize().unwrap());
+    let bootstrap = DirectorySwitchBootstrap::new(target_runtime, target_state);
+
+    assert_eq!(app.runtime().session_id(), Some("original-session"));
+    assert_eq!(app.widget().draft(), "unfinished draft");
+
+    app.commit_directory_switch(bootstrap);
+
+    assert_eq!(app.runtime().directory(), target.canonicalize().unwrap());
+    assert_eq!(app.runtime().session_id(), Some("target-session"));
+    assert_eq!(app.state().session.session_id.as_deref(), Some("target-session"));
+    assert_eq!(app.widget().draft(), "unfinished draft");
+    let rendered = app
+        .transcript_lines(80, true)
+        .into_iter()
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(rendered.contains("new answer"));
+    assert!(!rendered.contains("keep me"));
+}
+
+#[test]
+fn cd_switch_rejects_busy_runner_and_pending_queue() {
+    let workspace = tempfile::tempdir().expect("workspace");
+    let target = workspace.path().join("target");
+    std::fs::create_dir_all(&target).expect("target directory");
+    let (endpoint, _requests, server) = gateway_fixture(vec![GatewayResponse {
+        status: "503 Service Unavailable",
+        body: json!({"message": "stream fixture complete"}),
+    }]);
+    let mut app = V3GatewayApp::new(
+        test_runtime(endpoint, "current"),
+        TuiState::from_chat_session(&snapshot("current", "Current", "keep me")),
+    );
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+
+    runner.execute_action(
+        &mut app,
+        V3Action::Submit { text: "keep streaming".to_string(), attachments: Vec::new() },
+    );
+    assert!(runner.has_active_stream());
+    runner.execute_action(
+        &mut app,
+        V3Action::Submit {
+            text: format!("/cd {}", target.display()),
+            attachments: Vec::new(),
+        },
+    );
+    assert_eq!(app.runtime().directory(), Path::new("/workspace"));
+    assert!(!runner.directory_switch_in_flight());
+    server.join().expect("stream rejection fixture");
+
+    let mut app = V3GatewayApp::new(
+        test_runtime(GatewayEndpoint::new("127.0.0.1", 9), "current"),
+        TuiState::from_chat_session(&snapshot("current", "Current", "keep me")),
+    );
+    app.widget_mut().queue_input("later".to_string(), Vec::new());
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+    runner.execute_action(
+        &mut app,
+        V3Action::Submit {
+            text: format!("/cd {}", target.display()),
+            attachments: Vec::new(),
+        },
+    );
+    assert_eq!(app.runtime().directory(), Path::new("/workspace"));
+    assert!(!runner.directory_switch_in_flight());
+    let rendered = app
+        .transcript_lines(80, true)
+        .into_iter()
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(rendered.contains("queued prompts are pending"));
+}
+
+#[test]
+fn cd_bootstrap_failure_keeps_original_runtime_and_draft() {
+    let workspace = tempfile::tempdir().expect("workspace");
+    let original = workspace.path().join("original");
+    let target = workspace.path().join("target");
+    std::fs::create_dir_all(&original).expect("original directory");
+    std::fs::create_dir_all(&target).expect("target directory");
+    let project = json!({
+        "project": {
+            "id": "target-project",
+            "name": "target",
+            "directory": target.to_string_lossy(),
+            "display_path": target.to_string_lossy(),
+            "status": "ready",
+            "created_at_ms": 1,
+            "updated_at_ms": 2,
+            "default_branch": null,
+            "current_branch": null,
+            "git": {
+                "is_repo": false,
+                "has_uncommitted_changes": false,
+                "ahead": null,
+                "behind": null
+            },
+            "active_worktree_id": null,
+            "session_count": 0
+        }
+    });
+    let (endpoint, requests, server) = gateway_fixture(vec![
+        GatewayResponse::ok(project),
+        GatewayResponse {
+            status: "500 Internal Server Error",
+            body: json!({"message": "forced target bootstrap failure"}),
+        },
+    ]);
+    let runtime = GatewayUiRuntime::new(
+        GatewayClient::new(endpoint).expect("client"),
+        GatewaySessionSeed::new(original.canonicalize().expect("canonical original"))
+            .with_id(Some("original-session".to_string())),
+    );
+    let mut state =
+        TuiState::from_chat_session(&snapshot("original-session", "Original", "keep me"));
+    state.project.workspace_root = Some(original.canonicalize().unwrap());
+    let mut app = V3GatewayApp::new(runtime, state);
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+    let command_draft = format!("/cd {}", target.display());
+    runner.execute_action(
+        &mut app,
+        V3Action::Submit { text: command_draft.clone(), attachments: Vec::new() },
+    );
+    assert!(runner.directory_switch_in_flight());
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while runner.directory_switch_in_flight() {
+        runner.drain(&mut app);
+        assert!(Instant::now() < deadline, "directory switch did not settle");
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    assert_eq!(app.runtime().directory(), original.canonicalize().unwrap());
+    assert_eq!(app.runtime().session_id(), Some("original-session"));
+    assert_eq!(app.widget().draft(), command_draft);
+    let rendered = app
+        .transcript_lines(80, true)
+        .into_iter()
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(rendered.contains("failed to switch working directory"));
+    assert_eq!(requests.recv().expect("project resolve"), "/v1/projects/resolve");
+    let create_request = requests.recv().expect("target session create");
+    assert!(create_request.starts_with("/v1/session?directory="));
+    assert!(create_request.contains("target"));
+    server.join().expect("failed target bootstrap fixture");
 }
 
 fn test_runtime(endpoint: GatewayEndpoint, session_id: &str) -> GatewayUiRuntime {

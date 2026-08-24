@@ -6,7 +6,9 @@ use vw_shared::session::ui_types::ChatSessionMeta;
 use vw_tui::V3SelectionItem;
 
 use super::model::integration::{IntegrationItem, IntegrationKind};
+use super::model::background_task::TaskControlAction;
 use super::model::{PermissionMode, ReasoningEffort};
+use super::runtime::workspace_files::normalize_workspace_relative_path;
 
 pub(crate) const COMMAND_PALETTE_SURFACE: &str = "command_palette";
 pub(crate) const SESSION_RESUME_SURFACE: &str = "session_resume";
@@ -21,6 +23,11 @@ pub(crate) const SETTINGS_ACP_SURFACE: &str = "session_settings_acp";
 pub(crate) const SETTINGS_DELEGATE_SURFACE: &str = "session_settings_delegate";
 pub(crate) const SETTINGS_ACCESS_SURFACE: &str = "session_settings_access";
 pub(crate) const SETTINGS_SUBAGENT_SURFACE: &str = "session_settings_subagent";
+pub(crate) const WORKFLOW_SELECTION_SURFACE: &str = "orchestration_workflows";
+pub(crate) const SCHEDULE_SELECTION_SURFACE: &str = "orchestration_schedules";
+pub(crate) const TASK_SELECTION_SURFACE: &str = "orchestration_tasks";
+pub(crate) const WORKSPACE_FILES_SURFACE: &str = "workspace_files";
+pub(crate) const HOOK_CATALOG_SURFACE: &str = "hook_catalog";
 
 const LATER_BATCH_REASON: &str = "该能力将在后续桌面能力对齐批次接通";
 
@@ -28,7 +35,18 @@ const LATER_BATCH_REASON: &str = "该能力将在后续桌面能力对齐批次�
 pub(crate) enum CommandRoute {
     Help,
     Status,
+    RunDoctor,
     ShowDiff,
+    OpenWorkspaceFiles { path: String },
+    ReadWorkspaceFile { path: String },
+    OpenHookCatalog,
+    ShowHookAudit,
+    ConfirmHookMutation {
+        plugin_id: String,
+        hook_hash: String,
+        trusted: bool,
+    },
+    ChangeDirectory { path: String },
     Exit,
     OpenSessionPicker,
     ContinueSession,
@@ -51,12 +69,21 @@ pub(crate) enum CommandRoute {
     ApplyDelegateAgent(Option<String>),
     ApplyFullAccess(bool),
     ApplySubagentMode(bool),
+    QueryMemory { query: Option<String> },
+    ConfirmMemoryStore { key: String, content: String },
+    ConfirmMemoryDelete { key: String },
     OpenIntegrations(IntegrationKind),
     ExpandIntegrationPrompt { kind: IntegrationKind, id: String, arguments: String },
     ConfirmIntegrationToggle { kind: IntegrationKind, id: String, enabled: bool },
     ConfirmIntegrationDelete { kind: IntegrationKind, id: String },
     OpenOrchestration(OrchestrationPanelKind),
-    ConfirmTaskCancel { id: String },
+    OpenWorkflowDetail { uuid: String },
+    OpenCronDetail { job_id: String },
+    OpenTaskDetail { task_id: String },
+    ConfirmCronToggle { job_id: String, enabled: bool },
+    ConfirmCronDelete { job_id: String },
+    StartWorkflowRun { uuid: String, query: String },
+    ConfirmTaskControl { id: String, action: TaskControlAction },
     StartPlanRun { query: String },
     StartGoalRun { query: String },
     Unavailable { command_id: String, reason: String },
@@ -124,8 +151,18 @@ impl CommandSpec {
 const COMMANDS: &[CommandSpec] = &[
     CommandSpec::local("help", "显示当前命令及可用状态", || CommandRoute::Help),
     CommandSpec::local("status", "显示当前会话与 Gateway 状态", || CommandRoute::Status),
+    CommandSpec::local("doctor", "运行 Gateway 诊断", || CommandRoute::RunDoctor),
     CommandSpec::local("exit", "退出 TUI", || CommandRoute::Exit),
     CommandSpec::local("diff", "显示当前会话文件变化", || CommandRoute::ShowDiff),
+    CommandSpec::local("files", "浏览当前 Gateway 目录中的文件", || {
+        CommandRoute::OpenWorkspaceFiles { path: ".".to_string() }
+    }),
+    CommandSpec::local("hooks", "查看 Hook 声明与安全审计", || {
+        CommandRoute::OpenHookCatalog
+    }),
+    CommandSpec::local("cd", "切换 Gateway 工作目录", || CommandRoute::ChangeDirectory {
+        path: String::new(),
+    }),
     CommandSpec::local("resume", "选择并恢复会话", || CommandRoute::OpenSessionPicker),
     CommandSpec::local("continue", "恢复最近的非归档会话", || {
         CommandRoute::ContinueSession
@@ -162,8 +199,8 @@ const COMMANDS: &[CommandSpec] = &[
     CommandSpec::local("mcp", "查看 MCP 服务", || {
         CommandRoute::OpenIntegrations(IntegrationKind::Mcp)
     }),
-    CommandSpec::local("memory", "查看记忆", || {
-        CommandRoute::OpenIntegrations(IntegrationKind::Memory)
+    CommandSpec::local("memory", "查询或刷新记忆", || {
+        CommandRoute::QueryMemory { query: None }
     }),
     CommandSpec::local("workflows", "查看工作流", || {
         CommandRoute::OpenOrchestration(OrchestrationPanelKind::Workflows)
@@ -248,6 +285,31 @@ pub(crate) fn route_selection(surface: &str, item_id: &str) -> Result<CommandRou
             "enabled" => Ok(CommandRoute::ApplySubagentMode(true)),
             _ => Err(format!("unknown subagent setting: {item_id}")),
         },
+        WORKFLOW_SELECTION_SURFACE => {
+            let uuid = item_id.trim();
+            if uuid.is_empty() {
+                Err("workflow selection requires a non-empty stable UUID".to_string())
+            } else {
+                Ok(CommandRoute::OpenWorkflowDetail { uuid: uuid.to_string() })
+            }
+        }
+        SCHEDULE_SELECTION_SURFACE => {
+            let job_id = item_id.trim();
+            if job_id.is_empty() {
+                Err("schedule selection requires a non-empty stable job ID".to_string())
+            } else {
+                Ok(CommandRoute::OpenCronDetail { job_id: job_id.to_string() })
+            }
+        }
+        TASK_SELECTION_SURFACE => {
+            let task_id = item_id.trim();
+            if task_id.is_empty() {
+                Err("task selection requires a non-empty stable task ID".to_string())
+            } else {
+                Ok(CommandRoute::OpenTaskDetail { task_id: task_id.to_string() })
+            }
+        }
+        WORKSPACE_FILES_SURFACE => route_workspace_file_selection(item_id),
         _ => Err(format!("unsupported TUI selection surface: {surface}")),
     }
 }
@@ -331,17 +393,86 @@ fn route_slash_command(command_id: &str, arguments: &str) -> Result<CommandRoute
                 arguments,
             });
     }
+    if let Some(uuid) = command_id.strip_prefix("workflow:") {
+        let uuid = uuid.trim();
+        if uuid.is_empty() {
+            return Err("TUI Workflow command requires a non-empty UUID".to_string());
+        }
+        if arguments.is_empty() {
+            return Err("TUI Workflow command requires a non-empty query".to_string());
+        }
+        return Ok(CommandRoute::StartWorkflowRun {
+            uuid: uuid.to_string(),
+            query: arguments.to_string(),
+        });
+    }
     match command_id {
+        "memory" => route_memory(arguments),
+        "files" => Ok(CommandRoute::OpenWorkspaceFiles {
+            path: normalize_workspace_relative_path(arguments)?,
+        }),
+        "hooks" => match arguments {
+            "" => Ok(CommandRoute::OpenHookCatalog),
+            "audit" => Ok(CommandRoute::ShowHookAudit),
+            _ => {
+                let mut parts = arguments.split_whitespace();
+                let action = parts.next().unwrap_or_default();
+                let plugin_id = parts.next().unwrap_or_default();
+                let hook_hash = parts.next().unwrap_or_default();
+                let trusted = match action {
+                    "trust" => true,
+                    "revoke" => false,
+                    _ => {
+                        return Err(
+                            "/hooks expects trust|revoke <plugin-id> <hook-hash>".to_string()
+                        );
+                    }
+                };
+                if plugin_id.is_empty() || hook_hash.is_empty() || parts.next().is_some() {
+                    return Err(
+                        "/hooks expects trust|revoke <plugin-id> <hook-hash>".to_string()
+                    );
+                }
+                Ok(CommandRoute::ConfirmHookMutation {
+                    plugin_id: plugin_id.to_string(),
+                    hook_hash: hook_hash.to_string(),
+                    trusted,
+                })
+            }
+        },
+        "cd" => {
+            if arguments.is_empty() {
+                return Err("TUI command /cd requires a non-empty path".to_string());
+            }
+            Ok(CommandRoute::ChangeDirectory { path: arguments.to_string() })
+        }
         "tasks" if !arguments.is_empty() => {
             let mut parts = arguments.split_whitespace();
             let action = parts.next().unwrap_or_default();
             let id = parts.next().unwrap_or_default();
-            if action != "cancel" || id.is_empty() || parts.next().is_some() {
-                Err("/tasks expects cancel <owned-task-id>".to_string())
-            } else {
-                Ok(CommandRoute::ConfirmTaskCancel { id: id.to_string() })
+            if id.is_empty() || parts.next().is_some() {
+                return Err(
+                    "/tasks expects <start|retry|pause|resume|cancel|archive> <owned-task-id>"
+                        .to_string(),
+                );
             }
+            let action = match action {
+                "start" => TaskControlAction::Start,
+                "retry" => TaskControlAction::Retry,
+                "pause" => TaskControlAction::Pause,
+                "resume" => TaskControlAction::Resume,
+                "cancel" => TaskControlAction::Cancel,
+                "archive" => TaskControlAction::Archive,
+                _ => {
+                    return Err(
+                        "/tasks expects start, retry, pause, resume, cancel, or archive"
+                            .to_string(),
+                    );
+                }
+            };
+            Ok(CommandRoute::ConfirmTaskControl { id: id.to_string(), action })
         }
+        "schedule" if !arguments.is_empty() => route_schedule_management(arguments),
         "skills" | "plugins" if !arguments.is_empty() => {
             route_integration_management(command_id, arguments)
         }
@@ -385,6 +516,72 @@ fn route_slash_command(command_id: &str, arguments: &str) -> Result<CommandRoute
             reject_arguments(command_id, arguments)?;
             route_command_id(command_id)
         }
+    }
+}
+
+fn route_memory(arguments: &str) -> Result<CommandRoute, String> {
+    if arguments.is_empty() {
+        return Ok(CommandRoute::QueryMemory { query: None });
+    }
+    let action_end = arguments.find(char::is_whitespace).unwrap_or(arguments.len());
+    let action = &arguments[..action_end];
+    let remainder = arguments[action_end..].trim();
+    match action {
+        "remember" => {
+            let key_end = remainder.find(char::is_whitespace).unwrap_or(remainder.len());
+            let key = &remainder[..key_end];
+            let content = remainder[key_end..].trim();
+            if key.is_empty() || content.is_empty() {
+                return Err("/memory remember expects <key> <content>".to_string());
+            }
+            Ok(CommandRoute::ConfirmMemoryStore {
+                key: key.to_string(),
+                content: content.to_string(),
+            })
+        }
+        "forget" => {
+            let mut keys = remainder.split_whitespace();
+            let key = keys.next().unwrap_or_default();
+            if key.is_empty() || keys.next().is_some() {
+                return Err("/memory forget expects <key>".to_string());
+            }
+            Ok(CommandRoute::ConfirmMemoryDelete { key: key.to_string() })
+        }
+        _ => Ok(CommandRoute::QueryMemory { query: Some(arguments.to_string()) }),
+    }
+}
+
+fn route_schedule_management(arguments: &str) -> Result<CommandRoute, String> {
+    let mut parts = arguments.split_whitespace();
+    let action = parts.next().unwrap_or_default();
+    let job_id = parts.next().unwrap_or_default();
+    if job_id.is_empty() || parts.next().is_some() {
+        return Err("/schedule expects <enable|disable|delete> <owned-job-id>".to_string());
+    }
+    match action {
+        "enable" => Ok(CommandRoute::ConfirmCronToggle {
+            job_id: job_id.to_string(),
+            enabled: true,
+        }),
+        "disable" => Ok(CommandRoute::ConfirmCronToggle {
+            job_id: job_id.to_string(),
+            enabled: false,
+        }),
+        "delete" => Ok(CommandRoute::ConfirmCronDelete { job_id: job_id.to_string() }),
+        _ => Err("/schedule expects enable, disable, or delete".to_string()),
+    }
+}
+
+fn route_workspace_file_selection(item_id: &str) -> Result<CommandRoute, String> {
+    let (kind, path) = item_id
+        .split_once(':')
+        .ok_or_else(|| "workspace file selection requires a stable item id".to_string())?;
+    let path = normalize_workspace_relative_path(path)?;
+    match kind {
+        "directory" => Ok(CommandRoute::OpenWorkspaceFiles { path }),
+        "file" if path != "." => Ok(CommandRoute::ReadWorkspaceFile { path }),
+        "file" => Err("workspace file selection requires a file path".to_string()),
+        _ => Err(format!("unknown workspace file selection kind: {kind}")),
     }
 }
 

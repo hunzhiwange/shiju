@@ -28,6 +28,18 @@ fn text_attachment(path: PathBuf) -> V3Attachment {
         path: Some(path.display().to_string()),
         media_type: Some("text/markdown".to_string()),
         text: None,
+        bytes: None,
+    }
+}
+
+fn clipboard_image_attachment(bytes: Vec<u8>) -> V3Attachment {
+    V3Attachment {
+        kind: V3AttachmentKind::Image,
+        label: "clipboard.png".to_string(),
+        path: None,
+        media_type: Some("image/png".to_string()),
+        text: None,
+        bytes: Some(bytes),
     }
 }
 
@@ -79,3 +91,25 @@ fn attachment_failure_restores_the_composer_draft() {
     assert_eq!(app.widget().attachments(), [attachment]);
 }
 
+#[test]
+fn clipboard_image_reaches_gateway_without_a_workspace_file() {
+    let temp = tempfile::tempdir().expect("temp workspace");
+    let mut app = test_app(temp.path().to_path_buf());
+    let image_bytes = b"encoded-png".to_vec();
+
+    let command = app
+        .handle_action(V3Action::Submit {
+            text: String::new(),
+            attachments: vec![clipboard_image_attachment(image_bytes)],
+        })
+        .expect("valid in-memory image submission");
+    let request = app.request_for_command(&command).expect("gateway request");
+    let content = request.messages.last().expect("current user message")["content"]
+        .as_array()
+        .expect("structured content blocks");
+
+    assert_eq!(content.len(), 1);
+    assert_eq!(content[0]["type"], "image");
+    assert_eq!(content[0]["mimeType"], "image/png");
+    assert_eq!(content[0]["data"], "ZW5jb2RlZC1wbmc=");
+}

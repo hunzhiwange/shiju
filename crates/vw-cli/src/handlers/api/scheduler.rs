@@ -235,7 +235,7 @@ pub(super) async fn run(
         }
         SchedulerCommands::WorkerEvents { project_id, task_id, run_id } => {
             let _ = (project_id, task_id, run_id);
-            bail!("scheduler worker-events is an internal worker callback and is not supported by shiju api")
+            bail!("scheduler worker-events is an internal worker callback and is not supported by shiju")
         }
     };
     output::write_json(writer, &response, context.output_format())

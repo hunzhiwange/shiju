@@ -55,6 +55,10 @@ mod status_and_layout;
 #[path = "chatwidget/selection_overlay_tests.rs"]
 mod selection_overlay_tests;
 
+#[cfg(test)]
+#[path = "chatwidget/input_queue_tests.rs"]
+mod input_queue_tests;
+
 pub use constructor::ChatWidgetConfig;
 pub use status_state::V3ChatStatus;
 
@@ -274,6 +278,24 @@ impl ChatWidget {
             return action;
         }
 
+        if crate::clipboard_image::is_image_paste_key(event) {
+            return match crate::clipboard_image::read_clipboard_image_attachment() {
+                Ok(attachment) => self.bottom_pane.add_attachment(attachment),
+                Err(message) => {
+                    self.transcript.push_history(V3DisplayEvent::Error { message });
+                    V3Action::None
+                }
+            };
+        }
+
+        if is_edit_queued_message_key(event) && self.queued_input_count() > 0 {
+            if let Some(message) = self.input_queue.pop_back() {
+                self.bottom_pane.pop_last_queued_input();
+                self.bottom_pane.restore_submission(message.text.as_str(), message.attachments);
+            }
+            return V3Action::None;
+        }
+
         if event.kind == KeyEventKind::Press {
             match (event.code, event.modifiers) {
                 (KeyCode::PageUp, _) => {
@@ -420,4 +442,12 @@ impl ChatWidget {
     pub fn cursor_style(&self, area: Rect) -> SetCursorStyle {
         Renderable::cursor_style(self, area)
     }
+}
+
+fn is_edit_queued_message_key(event: KeyEvent) -> bool {
+    event.kind == KeyEventKind::Press
+        && matches!(
+            (event.code, event.modifiers),
+            (KeyCode::Up, KeyModifiers::ALT) | (KeyCode::Left, KeyModifiers::SHIFT)
+        )
 }

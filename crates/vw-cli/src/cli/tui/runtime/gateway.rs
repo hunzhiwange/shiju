@@ -325,6 +325,7 @@ impl GatewayUiRuntime {
         self.session = self.session.clone().with_id(session_id).with_scope(scope).with_title(title);
     }
 
+    /// 绑定本地可规范化目录，并清空旧目录的会话身份与作用域。
     pub(crate) fn rebind_validated_directory(&mut self, path: &Path) -> Result<PathBuf, String> {
         let canonical = path
             .canonicalize()
@@ -332,7 +333,7 @@ impl GatewayUiRuntime {
         if !canonical.is_dir() {
             return Err(format!("target is not a directory: {}", canonical.display()));
         }
-        self.session.directory = canonical.clone();
+        self.session = GatewaySessionSeed::new(canonical.clone());
         Ok(canonical)
     }
 

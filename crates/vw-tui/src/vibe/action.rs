@@ -218,6 +218,11 @@ pub struct V3FooterData {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum V3Action {
     None,
+    /// The active composer file query changed, or `None` when the popup closed.
+    /// 当前输入框文件查询发生变化；`None` 表示弹窗已关闭。
+    FileSearchQueryChanged {
+        query: Option<String>,
+    },
     Select {
         surface: String,
         item_id: String,

@@ -236,6 +236,7 @@ pub(crate) struct UiToolResult {
     pub(crate) base: UiMessageBase,
     pub(crate) call_id: Option<String>,
     pub(crate) tool_name: String,
+    pub(crate) command: Option<String>,
     pub(crate) content: String,
     pub(crate) is_error: bool,
 }

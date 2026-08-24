@@ -35,6 +35,7 @@ pub(crate) enum TuiOverlayCommand {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum TuiControllerCommand {
     Continue,
+    FileSearchQueryChanged { query: Option<String> },
     Quit,
     CancelActiveSubmission,
     QueuePrompt { text: String, attachments: Vec<vw_tui::V3Attachment> },

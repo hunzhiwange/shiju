@@ -39,6 +39,7 @@ impl ChatWidget {
             streaming: streaming::StreamingState::default(),
             turn_lifecycle: turn_lifecycle::TurnLifecycleState::default(),
             exec_state: exec_state::ExecState::default(),
+            pending_file_diffs: Vec::new(),
             interrupt_state: interrupts::InterruptState::default(),
             overlay: None,
             clipboard_lease: None,

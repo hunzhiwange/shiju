@@ -2,7 +2,9 @@
 //! 类型断言守住复用边界，快照和结构断言覆盖用户可见的层级与状态。
 
 use super::*;
-use crate::vibe::event::{V3Attachment, V3DisplayEvent, V3StepStatus};
+use crate::vibe::event::{
+    V3Attachment, V3DisplayEvent, V3FileChange, V3FileDiff, V3FileDiffEntry, V3StepStatus,
+};
 
 #[test]
 // 每一种事件变体都必须生成非空历史单元，新增变体也应显式纳入清单。
@@ -17,9 +19,21 @@ fn v3_display_event_mapping_is_exhaustive() {
         },
         V3DisplayEvent::ToolResult {
             call_id: "call-1".into(),
+            tool: "shell".into(),
+            command: "printf hi".into(),
             output: "hi".into(),
             exit_code: 0,
             duration_ms: 12,
+        },
+        V3DisplayEvent::FileDiff {
+            diff: V3FileDiff {
+                files: vec![V3FileDiffEntry {
+                    path: "src/lib.rs".into(),
+                    change: V3FileChange::Update {
+                        unified_diff: "@@ -1 +1 @@\n-old\n+new".into(),
+                    },
+                }],
+            },
         },
         V3DisplayEvent::Thinking { text: "thinking".into() },
         V3DisplayEvent::Step { title: "step".into(), status: V3StepStatus::InProgress },
@@ -43,7 +57,36 @@ fn v3_display_event_mapping_is_exhaustive() {
         let cell = history_cell_for(event);
         assert!(!cell.display_lines(80).is_empty(), "event had no cell: {event:?}");
     }
-    assert_eq!(events.len(), 12);
+    assert_eq!(events.len(), 13);
+}
+
+#[test]
+fn v3_file_diff_history_renders_patch() {
+    let lines = render_display_event(
+        &V3DisplayEvent::FileDiff {
+            diff: V3FileDiff {
+                files: vec![V3FileDiffEntry {
+                    path: "src/lib.rs".into(),
+                    change: V3FileChange::Update {
+                        unified_diff: "@@ -1,2 +1,2 @@\n-old value\n+new value\n context".into(),
+                    },
+                }],
+            },
+        },
+        80,
+    );
+    let text = lines.iter().map(Line::to_string).collect::<Vec<_>>().join("\n");
+
+    assert!(text.contains("src/lib.rs"));
+    assert!(text.contains("+1 -1"));
+    assert!(text.contains("@@ -1,2 +1,2 @@"));
+    assert!(text.contains("-old value"));
+    assert!(text.contains("+new value"));
+
+    let removed = lines.iter().find(|line| line.to_string() == "-old value").unwrap();
+    let added = lines.iter().find(|line| line.to_string() == "+new value").unwrap();
+    assert!(removed.spans.iter().any(|span| span.style.fg == Some(Color::Red)));
+    assert!(added.spans.iter().any(|span| span.style.fg == Some(Color::Green)));
 }
 
 #[test]
@@ -71,6 +114,8 @@ fn history_cells_keep_bullets_indentation_and_tool_status() {
     let result = render_display_event(
         &V3DisplayEvent::ToolResult {
             call_id: "call-1".into(),
+            tool: "shell".into(),
+            command: "printf done".into(),
             output: "done".into(),
             exit_code: 0,
             duration_ms: 5,
@@ -88,6 +133,8 @@ fn v3_display_event_history_snapshot() {
         V3DisplayEvent::Assistant { markdown: "I found a **small** change.".into() },
         V3DisplayEvent::ToolResult {
             call_id: "call-1".into(),
+            tool: "shell".into(),
+            command: "printf ok".into(),
             output: "ok".into(),
             exit_code: 0,
             duration_ms: 8,

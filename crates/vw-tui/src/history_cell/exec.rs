@@ -22,12 +22,19 @@ impl ExecHistoryCell {
         Self { cell: ExecCell::pending(call_id, tool, command) }
     }
 
-    pub fn from_result(call_id: String, output: String, exit_code: i32, duration_ms: u64) -> Self {
+    pub fn from_result(
+        call_id: String,
+        tool: String,
+        command: String,
+        output: String,
+        exit_code: i32,
+        duration_ms: u64,
+    ) -> Self {
         Self {
             cell: ExecCell::completed(
                 call_id,
-                "tool".to_string(),
-                "completed command".to_string(),
+                tool,
+                command,
                 CommandOutput::new(exit_code, output),
                 Duration::from_millis(duration_ms),
             ),

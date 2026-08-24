@@ -1,104 +1,25 @@
-//! 补丁摘要与图像工具转录辅助逻辑。
-//!
-//! 补丁历史只展示协议提供的文件级摘要，不在这里解析或应用补丁。
-//! 成功与失败使用不同标题和颜色，但始终保留调用结果的真实状态。
-//! 图像工具路径按普通展示文本处理，不触发文件读取或外部访问。
-//! Patch summaries and image-tool transcript helpers.
+//! 补丁历史只展示外层提供的有序文件差异，不读取或应用文件。
+//! Patch history renders ordered file diffs supplied by the outer layer without file access.
 
-use super::*;
-use codex_utils_path_uri::LegacyAppPathString;
+use ratatui::text::Line;
+
+use super::HistoryCell;
+use crate::diff_render::create_diff_summary;
+use crate::vibe::event::V3FileDiff;
 
 #[derive(Debug)]
 pub(crate) struct PatchHistoryCell {
-    changes: HashMap<PathBuf, FileChange>,
-    cwd: PathBuf,
+    diff: V3FileDiff,
 }
 
 impl HistoryCell for PatchHistoryCell {
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
-        create_diff_summary(&self.changes, &self.cwd, width as usize)
-    }
-
-    fn raw_lines(&self) -> Vec<Line<'static>> {
-        plain_lines(create_diff_summary(
-            &self.changes,
-            &self.cwd,
-            RAW_DIFF_SUMMARY_WIDTH,
-        ))
-    }
-}
-/// 创建列出文件级拟议变更摘要的 `PendingPatch` 单元。
-/// 摘要行应已完成格式化，例如 `A path/to/file.rs`。
-/// Create a new `PendingPatch` cell that lists the file‑level summary of
-/// a proposed patch. The summary lines should already be formatted (e.g.
-/// "A path/to/file.rs").
-pub(crate) fn new_patch_event(
-    changes: HashMap<PathBuf, FileChange>,
-    cwd: &Path,
-) -> PatchHistoryCell {
-    PatchHistoryCell {
-        changes,
-        cwd: cwd.to_path_buf(),
+        create_diff_summary(&self.diff.files, width as usize)
     }
 }
 
-pub(crate) fn new_patch_apply_failure(stderr: String) -> PlainHistoryCell {
-    let mut lines: Vec<Line<'static>> = Vec::new();
-
-    // 失败标题。
-    // Failure title
-    lines.push(Line::from("✘ Failed to apply patch".magenta().bold()));
-
-    if !stderr.trim().is_empty() {
-        let output = output_lines(
-            Some(&CommandOutput::new(/*exit_code*/ 1, stderr)),
-            OutputLinesParams {
-                line_limit: TOOL_CALL_MAX_LINES,
-                only_err: true,
-                include_angle_pipe: true,
-                include_prefix: true,
-            },
-        );
-        lines.extend(output.lines);
+impl PatchHistoryCell {
+    pub(crate) fn new(diff: V3FileDiff) -> Self {
+        Self { diff }
     }
-
-    PlainHistoryCell { lines }
-}
-
-pub(crate) fn new_view_image_tool_call(path: LegacyAppPathString, cwd: &Path) -> PlainHistoryCell {
-    let display_path = path
-        .to_inferred_path_uri()
-        .and_then(|path| path.to_abs_path().ok())
-        .map(|path| display_path_for(path.as_path(), cwd))
-        .unwrap_or_else(|| path.into_string());
-
-    let lines: Vec<Line<'static>> = vec![
-        vec!["• ".dim(), "Viewed Image".bold()].into(),
-        vec!["  └ ".dim(), display_path.dim()].into(),
-    ];
-
-    PlainHistoryCell { lines }
-}
-
-pub(crate) fn new_image_generation_call(
-    call_id: String,
-    status: &str,
-    revised_prompt: Option<String>,
-    saved_path: Option<AbsolutePathBuf>,
-) -> PlainHistoryCell {
-    let detail = revised_prompt.unwrap_or(call_id);
-    let heading = if status == "failed" {
-        vec!["✗ ".red().bold(), "Image generation failed".bold()].into()
-    } else {
-        vec!["• ".dim(), "Generated Image:".bold()].into()
-    };
-    let mut lines: Vec<Line<'static>> = vec![heading, vec!["  └ ".dim(), detail.dim()].into()];
-    if let Some(saved_path) = saved_path {
-        let saved_path = Url::from_file_path(saved_path.as_path())
-            .map(|url| url.to_string())
-            .unwrap_or_else(|_| saved_path.display().to_string());
-        lines.push(vec!["  └ ".dim(), "Saved to: ".dim(), saved_path.into()].into());
-    }
-
-    PlainHistoryCell { lines }
 }

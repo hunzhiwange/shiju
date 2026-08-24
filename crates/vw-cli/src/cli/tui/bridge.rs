@@ -8,8 +8,10 @@ use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayChatToolEvent,
     GatewayChatToolEventKind, GatewayChatToolStatus, normalize_chat_tool_event,
 };
+use vw_gateway_client::vw_api_types::tools::{ToolResultContentDto, ToolResultDto};
 use vw_tui::{
-    V3Action, V3ApprovalDecision, V3Event, V3SessionDisplayData, V3TokenUsage, V3UserInputAnswer,
+    V3Action, V3ApprovalDecision, V3Event, V3FileChange, V3FileDiff, V3FileDiffEntry,
+    V3SessionDisplayData, V3TokenUsage, V3UserInputAnswer,
 };
 
 use super::app::gateway_stream_request_from_state;
@@ -146,10 +148,12 @@ impl GatewayV3Bridge {
         action: V3Action,
     ) -> Result<TuiControllerCommand, String> {
         match action {
-            V3Action::None
-            | V3Action::Attach(_)
+            V3Action::None | V3Action::Attach(_)
             | V3Action::RemoveAttachment { .. }
             | V3Action::ToggleShortcuts => Ok(TuiControllerCommand::Continue),
+            V3Action::FileSearchQueryChanged { query } => {
+                Ok(TuiControllerCommand::FileSearchQueryChanged { query })
+            }
             V3Action::Select { surface, item_id } => {
                 route_selection(surface.as_str(), item_id.as_str())
                     .map(TuiControllerCommand::Command)
@@ -273,6 +277,9 @@ impl GatewayV3Bridge {
                     .unwrap_or_default();
                 self.tool_output.remove(call_id.as_str());
                 let output = tool_payload_text(&event.payload, "output").unwrap_or_default();
+                let file_diff = matches!(event.status, GatewayChatToolStatus::Completed)
+                    .then(|| structured_patch_diff(&event.payload))
+                    .flatten();
                 match event.status {
                     GatewayChatToolStatus::Completed => events.push(V3Event::ToolCompleted {
                         turn_id: turn_id.to_string(),
@@ -308,9 +315,59 @@ impl GatewayV3Bridge {
                         duration_ms,
                     }),
                 }
+                if let Some(diff) = file_diff {
+                    events.push(V3Event::FileDiff { turn_id: turn_id.to_string(), diff });
+                }
             }
         }
     }
+}
+
+pub(super) fn structured_patch_diff(payload: &serde_json::Value) -> Option<V3FileDiff> {
+    let result = payload.get("result")?;
+    let result: ToolResultDto = serde_json::from_value(result.clone()).ok()?;
+    if result.success == Some(false) {
+        return None;
+    }
+
+    let mut files: Vec<V3FileDiffEntry> = Vec::new();
+    for content in result.content {
+        let ToolResultContentDto::StructuredPatch { hunks } = content else {
+            continue;
+        };
+        for hunk in hunks {
+            let Some(path) = hunk.path.as_deref().map(str::trim).filter(|path| !path.is_empty())
+            else {
+                continue;
+            };
+            let mut unified_diff = String::new();
+            if !hunk.header.trim().is_empty() {
+                unified_diff.push_str(&hunk.header);
+                unified_diff.push('\n');
+            }
+            for line in hunk.lines {
+                unified_diff.push_str(&line);
+                unified_diff.push('\n');
+            }
+            if unified_diff.trim().is_empty() {
+                continue;
+            }
+
+            if let Some(file) = files.iter_mut().find(|file| file.path == path) {
+                let V3FileChange::Update { unified_diff: existing } = &mut file.change else {
+                    unreachable!("structured patch entries are always update diffs");
+                };
+                existing.push_str(&unified_diff);
+            } else {
+                files.push(V3FileDiffEntry {
+                    path: path.to_string(),
+                    change: V3FileChange::Update { unified_diff },
+                });
+            }
+        }
+    }
+
+    (!files.is_empty()).then_some(V3FileDiff { files })
 }
 
 fn tool_command(payload: &serde_json::Value) -> String {

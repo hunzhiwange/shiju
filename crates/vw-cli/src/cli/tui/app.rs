@@ -54,6 +54,7 @@ use super::model::{
 use super::paste::{PromptAttachment, PromptAttachmentKind};
 use super::model::settings_panel::{SettingKey, SettingsPanel, SettingsValues};
 use super::runtime::capabilities::load_session_capabilities_blocking;
+use super::runtime::file_search::search_files_blocking;
 use super::runtime::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
 use super::runtime::integrations::{
     delete_integration_blocking, load_integrations_blocking, set_integration_enabled_blocking,
@@ -65,6 +66,7 @@ use super::runtime::plan_run::{
     plan_run_request, stop_owned_plan_run_blocking, stream_plan_run_resumable_blocking,
 };
 use super::runtime::interaction::InteractionSnapshot;
+use super::runtime::session_diff::load_session_diff_blocking;
 use super::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
 use super::state::{TuiAction, TuiState, reduce_tui_state};
 
@@ -101,6 +103,16 @@ enum HostMessage {
     InteractionsRefreshed(Result<InteractionSnapshot, String>),
     PermissionReplyFinished { request_id: String, result: Result<(), String> },
     QuestionReplyFinished { request_id: String, result: Result<(), String> },
+    FileSearchFinished {
+        generation: u64,
+        query: String,
+        result: Result<Vec<vw_tui::V3FileSearchMatch>, String>,
+    },
+    SessionDiffFinished {
+        generation: u64,
+        session_id: Option<String>,
+        result: Result<vw_tui::V3FileDiff, String>,
+    },
 }
 
 /// 事件循环执行一次操作后的继续或退出指示。
@@ -117,6 +129,9 @@ pub(crate) struct ActiveRunner {
     session_bootstrap_in_flight: bool,
     editor_in_flight: bool,
     interaction_in_flight: bool,
+    file_search_generation: u64,
+    file_search_query: Option<String>,
+    session_diff_generation: u64,
     editor: Arc<EditorAction>,
     host_sender: mpsc::Sender<HostMessage>,
     host_receiver: Receiver<HostMessage>,
@@ -138,6 +153,9 @@ impl ActiveRunner {
             session_bootstrap_in_flight: false,
             editor_in_flight: false,
             interaction_in_flight: false,
+            file_search_generation: 0,
+            file_search_query: None,
+            session_diff_generation: 0,
             editor,
             host_sender,
             host_receiver,
@@ -196,6 +214,10 @@ impl ActiveRunner {
     ) -> RunnerControl {
         match command {
             TuiControllerCommand::Continue => RunnerControl::Continue,
+            TuiControllerCommand::FileSearchQueryChanged { query } => {
+                self.start_file_search(app, query);
+                RunnerControl::Continue
+            }
             TuiControllerCommand::Quit => RunnerControl::Quit,
             TuiControllerCommand::CancelActiveSubmission => {
                 if let Some(stream) = self.active_stream.as_ref() {
@@ -278,6 +300,10 @@ impl ActiveRunner {
                 CommandRoute::Status => {
                     let text = app.command_status_text();
                     app.widget_mut().push_history(V3DisplayEvent::System { text });
+                    RunnerControl::Continue
+                }
+                CommandRoute::ShowDiff => {
+                    self.start_session_diff(app);
                     RunnerControl::Continue
                 }
                 CommandRoute::Exit => RunnerControl::Quit,
@@ -604,6 +630,29 @@ impl ActiveRunner {
         });
     }
 
+    fn start_file_search(&mut self, app: &V3GatewayApp, query: Option<String>) {
+        self.file_search_generation = self.file_search_generation.wrapping_add(1);
+        self.file_search_query.clone_from(&query);
+        let Some(query) = query else {
+            return;
+        };
+        spawn_file_search(
+            app.runtime().clone(),
+            self.file_search_generation,
+            query,
+            self.host_sender.clone(),
+        );
+    }
+
+    fn start_session_diff(&mut self, app: &V3GatewayApp) {
+        self.session_diff_generation = self.session_diff_generation.wrapping_add(1);
+        spawn_session_diff(
+            app.runtime().clone(),
+            self.session_diff_generation,
+            self.host_sender.clone(),
+        );
+    }
+
     /// 非阻塞汇集本地副作与 Gateway 流消息，并在流结束后尝试启动排队输入。
     pub(crate) fn drain(&mut self, app: &mut V3GatewayApp) {
         if app.take_interaction_refresh_requested() {
@@ -722,6 +771,40 @@ impl ActiveRunner {
                                 "failed to reply to question {request_id}: {error}"
                             ));
                             app.show_next_interaction();
+                        }
+                    }
+                }
+                Ok(HostMessage::FileSearchFinished { generation, query, result }) => {
+                    if generation != self.file_search_generation
+                        || self.file_search_query.as_deref() != Some(query.as_str())
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(matches) => app.widget_mut().set_file_search_matches(query.as_str(), matches),
+                        Err(error) => app.widget_mut().set_file_search_error(
+                            query.as_str(),
+                            format!("file search unavailable: {error}"),
+                        ),
+                    }
+                }
+                Ok(HostMessage::SessionDiffFinished { generation, session_id, result }) => {
+                    if generation != self.session_diff_generation
+                        || session_id.as_deref() != app.runtime().session_id()
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(diff) if diff.files.is_empty() => {
+                            app.widget_mut().push_history(V3DisplayEvent::System {
+                                text: "当前会话没有文件变化。".to_string(),
+                            });
+                        }
+                        Ok(diff) => {
+                            app.widget_mut().push_history(V3DisplayEvent::FileDiff { diff });
+                        }
+                        Err(error) => {
+                            push_runner_error(app, format!("failed to load session diff: {error}"));
                         }
                     }
                 }
@@ -2449,6 +2532,8 @@ fn display_event_from_message(message: &UiMessage) -> V3DisplayEvent {
                 .call_id
                 .clone()
                 .unwrap_or_else(|| message.base.id.as_str().to_string()),
+            tool: message.tool_name.clone(),
+            command: message.command.clone().unwrap_or_default(),
             output: message.content.clone(),
             exit_code: i32::from(message.is_error),
             duration_ms: 0,
@@ -2595,6 +2680,30 @@ fn spawn_stream(
         let _ = sender.send(StreamMessage::Finished(result));
     });
     ActiveStream { kind: ActiveStreamKind::Chat, request_id, receiver, cancel }
+}
+
+fn spawn_file_search(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    query: String,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let result = search_files_blocking(&runtime, query.as_str());
+        let _ = sender.send(HostMessage::FileSearchFinished { generation, query, result });
+    });
+}
+
+fn spawn_session_diff(
+    runtime: GatewayUiRuntime,
+    generation: u64,
+    sender: mpsc::Sender<HostMessage>,
+) {
+    std::thread::spawn(move || {
+        let session_id = runtime.session_id().map(str::to_string);
+        let result = load_session_diff_blocking(&runtime);
+        let _ = sender.send(HostMessage::SessionDiffFinished { generation, session_id, result });
+    });
 }
 
 fn spawn_plan_run(

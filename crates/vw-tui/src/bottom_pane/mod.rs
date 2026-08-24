@@ -7,7 +7,7 @@
 //! 键盘输入只在当前界面状态内解释，未匹配输入继续遵循上层约定。
 
 
-//! 本地输入编辑器与底部边界。复制的 Codex 渲染核心位于该边界之下，而所有业务结果均保留在此模块中，[`V3Action`] 作为所有者。此模块不拥有发送者、客户端、运行时或请求对象。
+//! 本地输入编辑器与底部边界。`@` 文件面板优先处理 Up/Down、Enter 与 Esc，并与 `/` 命令面板互斥；普通编辑和粘贴继续交给输入框。复制的 Codex 渲染核心位于该边界之下，而所有业务结果均保留在此模块中，[`V3Action`] 作为所有者。此模块不拥有发送者、客户端、运行时或请求对象。
 //! VibeWindow's local composer and footer boundary.
 //!
 //! The copied Codex rendering core is kept below the boundary, while all business outcomes leave
@@ -15,7 +15,7 @@
 //! request object.
 
 use crate::render::renderable::Renderable;
-use crate::vibe::action::{V3Action, V3FooterData, V3SelectionItem};
+use crate::vibe::action::{V3Action, V3FileSearchMatch, V3FooterData, V3SelectionItem};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -49,6 +49,8 @@ mod chat_composer;
 pub(crate) mod command_popup;
 #[path = "file_search_popup.rs"]
 pub(crate) mod file_search_popup;
+#[cfg(test)]
+mod file_search_integration_tests;
 #[path = "footer.rs"]
 mod footer;
 #[path = "chat_composer/footer_state.rs"]
@@ -81,6 +83,8 @@ pub(crate) struct BottomPane {
     pending_input_preview: PendingInputPreview,
     command_items: Vec<V3SelectionItem>,
     command_popup: Option<command_popup::CommandPopup>,
+    file_search_query: Option<String>,
+    file_search_popup: Option<file_search_popup::FileSearchPopup>,
 }
 
 impl BottomPane {
@@ -90,6 +94,8 @@ impl BottomPane {
             pending_input_preview: PendingInputPreview::new(),
             command_items: Vec::new(),
             command_popup: None,
+            file_search_query: None,
+            file_search_popup: None,
         }
     }
 
@@ -102,6 +108,24 @@ impl BottomPane {
     }
 
     pub(crate) fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
+        if let Some(popup) = self.file_search_popup.as_mut() {
+            match event.code {
+                KeyCode::Esc => {
+                    self.close_file_search();
+                    return V3Action::FileSearchQueryChanged { query: None };
+                }
+                KeyCode::Up | KeyCode::Down => return popup.handle_key_event(event),
+                KeyCode::Enter => {
+                    if let Some(path) = popup.selected_match().map(|item| item.path.clone()) {
+                        self.composer.replace_file_search_token(path.as_str());
+                        self.close_file_search();
+                        return V3Action::FileSearchQueryChanged { query: None };
+                    }
+                }
+                _ => {}
+            }
+        }
+
         if let Some(popup) = self.command_popup.as_mut() {
             match event.code {
                 KeyCode::Esc => {
@@ -124,14 +148,13 @@ impl BottomPane {
         }
 
         let action = self.composer.handle_key_event(event);
-        self.sync_command_popup();
-        action
+        let query_action = self.sync_popups();
+        if matches!(action, V3Action::None) { query_action.unwrap_or(action) } else { action }
     }
 
     pub(crate) fn handle_paste(&mut self, text: String) -> V3Action {
         let action = self.composer.handle_paste(text);
-        self.sync_command_popup();
-        action
+        self.sync_popups().unwrap_or(action)
     }
 
     pub(crate) fn draft(&self) -> &str {
@@ -140,7 +163,7 @@ impl BottomPane {
 
     pub(crate) fn replace_draft(&mut self, text: &str) {
         self.composer.replace_text(text);
-        self.sync_command_popup();
+        self.sync_popups();
     }
 
     pub(crate) fn restore_submission(
@@ -149,7 +172,7 @@ impl BottomPane {
         attachments: Vec<crate::V3Attachment>,
     ) {
         self.composer.restore_submission(text, attachments);
-        self.sync_command_popup();
+        self.sync_popups();
     }
 
     pub(crate) fn add_attachment(&mut self, attachment: crate::V3Attachment) -> V3Action {
@@ -174,7 +197,27 @@ impl BottomPane {
 
     pub(crate) fn set_command_palette_items(&mut self, items: Vec<V3SelectionItem>) {
         self.command_items = items;
-        self.sync_command_popup();
+        self.sync_popups();
+    }
+
+    pub(crate) fn set_file_search_matches(
+        &mut self,
+        query: &str,
+        matches: Vec<V3FileSearchMatch>,
+    ) {
+        if let Some(popup) = self.file_search_popup.as_mut() {
+            popup.set_matches(query, matches);
+        }
+    }
+
+    pub(crate) fn set_file_search_error(&mut self, query: &str, message: String) {
+        if let Some(popup) = self.file_search_popup.as_mut() {
+            popup.set_error(query, message);
+        }
+    }
+
+    pub(crate) fn file_search_visible(&self) -> bool {
+        self.file_search_popup.is_some()
     }
 
     pub(crate) fn command_palette_visible(&self) -> bool {
@@ -200,12 +243,50 @@ impl BottomPane {
         self.command_popup = Some(popup);
     }
 
+    fn sync_popups(&mut self) -> Option<V3Action> {
+        let query = self.composer.active_file_search_query().map(str::to_owned);
+        if query == self.file_search_query {
+            if query.is_some() {
+                self.command_popup = None;
+            } else {
+                self.sync_command_popup();
+            }
+            return None;
+        }
+
+        self.file_search_query.clone_from(&query);
+        match query.as_deref() {
+            Some(query) => {
+                self.command_popup = None;
+                let popup = self
+                    .file_search_popup
+                    .get_or_insert_with(file_search_popup::FileSearchPopup::new);
+                popup.set_query(query);
+            }
+            None => {
+                self.file_search_popup = None;
+                self.sync_command_popup();
+            }
+        }
+        Some(V3Action::FileSearchQueryChanged { query })
+    }
+
+    fn close_file_search(&mut self) {
+        self.file_search_query = None;
+        self.file_search_popup = None;
+    }
+
     fn layout_areas(&self, area: Rect) -> [Rect; 3] {
         let preview_height = self.pending_input_preview.desired_height(area.width);
         let popup_height = self
             .command_popup
             .as_ref()
             .map(|popup| popup.calculate_required_height(area.width))
+            .or_else(|| {
+                self.file_search_popup
+                    .as_ref()
+                    .map(file_search_popup::FileSearchPopup::calculate_required_height)
+            })
             .unwrap_or_default();
         let areas = Layout::default()
             .direction(Direction::Vertical)
@@ -229,6 +310,10 @@ impl Renderable for BottomPane {
             && popup_area.height > 0
         {
             WidgetRef::render_ref(&popup, popup_area, buf);
+        } else if let Some(popup) = self.file_search_popup.as_ref()
+            && popup_area.height > 0
+        {
+            WidgetRef::render_ref(&popup, popup_area, buf);
         }
         self.composer.render(composer_area, buf);
     }
@@ -239,6 +324,11 @@ impl Renderable for BottomPane {
                 .command_popup
                 .as_ref()
                 .map(|popup| popup.calculate_required_height(width))
+                .or_else(|| {
+                    self.file_search_popup
+                        .as_ref()
+                        .map(file_search_popup::FileSearchPopup::calculate_required_height)
+                })
                 .unwrap_or_default()
             + self.composer.desired_height(width)
     }

@@ -147,6 +147,39 @@ fn restored_widget_replays_the_latest_messages() {
 }
 
 #[test]
+fn restored_tool_result_keeps_tool_name_and_command() {
+    let mut restored = snapshot("restored-tool", "Recovered", "done");
+    restored.messages.insert(
+        0,
+        ChatMessage {
+            role: ChatRole::Tool,
+            content: concat!(
+                "tool command\n",
+                r#"{"status":"completed","input":"ls -la","output":"file.txt"}"#,
+                "\n"
+            )
+            .to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        },
+    );
+    restored.message_ids.insert(0, Some("tool-message".to_string()));
+    let runtime = test_runtime(GatewayEndpoint::new("127.0.0.1", 9), "restored-tool");
+
+    let app = V3GatewayApp::new(runtime, TuiState::from_chat_session(&restored));
+    let rendered = app
+        .transcript_lines(80, true)
+        .into_iter()
+        .map(|line| line.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(rendered.contains("› command ls -la"));
+    assert!(!rendered.contains("tool completed command"));
+}
+
+#[test]
 fn resume_selection_uses_the_gateway_session_id() {
     assert_eq!(
         route_selection(SESSION_RESUME_SURFACE, "stable-session-id")

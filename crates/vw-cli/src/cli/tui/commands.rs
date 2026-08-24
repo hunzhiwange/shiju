@@ -28,6 +28,7 @@ const LATER_BATCH_REASON: &str = "该能力将在后续桌面能力对齐批次�
 pub(crate) enum CommandRoute {
     Help,
     Status,
+    ShowDiff,
     Exit,
     OpenSessionPicker,
     ContinueSession,
@@ -124,6 +125,7 @@ const COMMANDS: &[CommandSpec] = &[
     CommandSpec::local("help", "显示当前命令及可用状态", || CommandRoute::Help),
     CommandSpec::local("status", "显示当前会话与 Gateway 状态", || CommandRoute::Status),
     CommandSpec::local("exit", "退出 TUI", || CommandRoute::Exit),
+    CommandSpec::local("diff", "显示当前会话文件变化", || CommandRoute::ShowDiff),
     CommandSpec::local("resume", "选择并恢复会话", || CommandRoute::OpenSessionPicker),
     CommandSpec::local("continue", "恢复最近的非归档会话", || {
         CommandRoute::ContinueSession

@@ -54,17 +54,15 @@ struct TranscriptAreaRenderable<'a> {
 
 impl TranscriptAreaRenderable<'_> {
     fn lines(&self, width: u16) -> Vec<Line<'static>> {
-        let mut lines = Vec::new();
+        let width = width.max(1);
+        let mut lines = self.transcript.committed_lines(width, true);
         let mut push_cell = |cell: &dyn HistoryCell| {
             if !lines.is_empty() {
                 lines.push(Line::default());
             }
-            lines.extend(cell.display_lines(width.max(1)));
+            lines.extend(cell.display_lines(width));
         };
 
-        for cell in &self.transcript.committed_history {
-            push_cell(cell.as_ref());
-        }
         if let Some(cell) = self.transcript.active_cell.as_ref() {
             push_cell(cell.as_ref());
         }

@@ -4,7 +4,7 @@
 //! 诊断断言用于暴露遗漏边界或重复终止事件，而非静默修复状态。
 
 use super::*;
-use crate::vibe::event::V3Event;
+use crate::vibe::event::{V3Event, V3FileChange, V3FileDiff, V3FileDiffEntry};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 
@@ -103,4 +103,65 @@ Finished dev profile
   ? shortcuts
 
 "###);
+}
+
+#[test]
+fn v3_file_diff_waits_for_parallel_tool_group() {
+    let mut chat = ChatWidget::new(ChatWidgetConfig::default());
+    for event in [
+        V3Event::TurnStarted { turn_id: "turn-diff".into() },
+        V3Event::ToolStarted {
+            turn_id: "turn-diff".into(),
+            call_id: "call-a".into(),
+            tool: "file_edit".into(),
+            command: "edit src/a.rs".into(),
+        },
+        V3Event::ToolStarted {
+            turn_id: "turn-diff".into(),
+            call_id: "call-b".into(),
+            tool: "shell".into(),
+            command: "cargo check".into(),
+        },
+        V3Event::ToolCompleted {
+            turn_id: "turn-diff".into(),
+            call_id: "call-a".into(),
+            output: "updated".into(),
+            exit_code: 0,
+            duration_ms: 8,
+        },
+        V3Event::FileDiff {
+            turn_id: "turn-diff".into(),
+            diff: V3FileDiff {
+                files: vec![V3FileDiffEntry {
+                    path: "src/a.rs".into(),
+                    change: V3FileChange::Update {
+                        unified_diff: "@@ -1 +1 @@\n-old\n+new".into(),
+                    },
+                }],
+            },
+        },
+    ] {
+        chat.handle_v3_event(event);
+    }
+
+    let while_parallel_tool_runs = rendered(&chat, 72, 24);
+    assert!(while_parallel_tool_runs.contains("edit src/a.rs"));
+    assert!(while_parallel_tool_runs.contains("cargo check"));
+    assert!(!while_parallel_tool_runs.contains("@@ -1 +1 @@"));
+
+    chat.handle_v3_event(V3Event::ToolCompleted {
+        turn_id: "turn-diff".into(),
+        call_id: "call-b".into(),
+        output: "checked".into(),
+        exit_code: 0,
+        duration_ms: 12,
+    });
+
+    let completed = rendered(&chat, 72, 24);
+    let tool_position = completed.find("cargo check").unwrap();
+    let path_position = completed.find("src/a.rs  +1 -1").unwrap();
+    assert!(tool_position < path_position);
+    assert!(completed.contains("@@ -1 +1 @@"));
+    assert!(completed.contains("-old"));
+    assert!(completed.contains("+new"));
 }

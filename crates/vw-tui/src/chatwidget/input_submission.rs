@@ -43,6 +43,7 @@ impl ChatWidget {
                 exit_code,
                 duration_ms,
             ),
+            V3Event::FileDiff { turn_id, diff } => self.on_file_diff(turn_id, diff),
             V3Event::ToolFailed {
                 turn_id,
                 call_id,

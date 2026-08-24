@@ -12,6 +12,8 @@ use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
 
+const COMMITTED_HISTORY_LAYOUT_CACHE_CAPACITY: usize = 4;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// 描述 `ActiveCellLayoutCacheKey` 在当前界面流程中传递的数据。
 pub(super) struct ActiveCellLayoutCacheKey {
@@ -28,12 +30,25 @@ pub(super) struct ActiveCellLayoutCache {
     pub(super) desired_height: u16,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct CommittedHistoryLayoutCacheKey {
+    width: u16,
+    syntax_theme_revision: u64,
+}
+
+#[derive(Debug)]
+struct CommittedHistoryLayoutCache {
+    key: CommittedHistoryLayoutCacheKey,
+    cells: Vec<Vec<Line<'static>>>,
+}
+
 pub(super) struct TranscriptState {
     pub(super) committed_history: Vec<Box<dyn HistoryCell>>,
     pub(super) active_cell: Option<Box<dyn HistoryCell>>,
     pub(super) live_tail: Option<Box<dyn HistoryCell>>,
     pub(super) active_cell_revision: u64,
     pub(super) active_cell_layout: Cell<Option<ActiveCellLayoutCache>>,
+    committed_history_layout: RefCell<Vec<CommittedHistoryLayoutCache>>,
     scroll_top: Cell<usize>,
     follow_bottom: Cell<bool>,
     last_content_height: Cell<usize>,
@@ -60,6 +75,7 @@ impl Default for TranscriptState {
             live_tail: None,
             active_cell_revision: 0,
             active_cell_layout: Cell::new(None),
+            committed_history_layout: RefCell::new(Vec::new()),
             scroll_top: Cell::new(0),
             follow_bottom: Cell::new(true),
             last_content_height: Cell::new(0),
@@ -79,10 +95,12 @@ impl TranscriptState {
     // 构造并展示 `push_cell` 对应的界面内容。
     pub(super) fn push_cell(&mut self, cell: Box<dyn HistoryCell>) {
         self.committed_history.push(cell);
+        self.invalidate_committed_history_layout();
     }
 
     pub(super) fn push_history(&mut self, event: V3DisplayEvent) {
         self.committed_history.push(history_cell_for(&event));
+        self.invalidate_committed_history_layout();
     }
 
     pub(super) fn set_session_header(&mut self, data: crate::V3SessionDisplayData) {
@@ -98,6 +116,7 @@ impl TranscriptState {
                 Box::new(crate::history_cell::SessionHistoryCell::header(data)),
             );
         }
+        self.invalidate_committed_history_layout();
     }
 
     pub(super) fn set_active_event(&mut self, event: Option<V3DisplayEvent>) {
@@ -113,6 +132,7 @@ impl TranscriptState {
     pub(super) fn commit_active_cell(&mut self) {
         if let Some(cell) = self.active_cell.take() {
             self.committed_history.push(cell);
+            self.invalidate_committed_history_layout();
             self.bump_active_cell_revision();
         }
     }
@@ -124,6 +144,51 @@ impl TranscriptState {
 
     pub(super) fn history_len(&self) -> usize {
         self.committed_history.len()
+    }
+
+    fn invalidate_committed_history_layout(&mut self) {
+        self.committed_history_layout.get_mut().clear();
+    }
+
+    pub(super) fn committed_lines(&self, width: u16, separated: bool) -> Vec<Line<'static>> {
+        let key = CommittedHistoryLayoutCacheKey {
+            width,
+            syntax_theme_revision: crate::render::highlight::syntax_theme_revision(),
+        };
+        let needs_refresh = !self
+            .committed_history_layout
+            .borrow()
+            .iter()
+            .any(|cached| cached.key == key);
+        if needs_refresh {
+            let cells =
+                self.committed_history.iter().map(|cell| cell.display_lines(width)).collect();
+            let mut cached_layouts = self.committed_history_layout.borrow_mut();
+            cached_layouts.retain(|cached| {
+                cached.key.syntax_theme_revision == key.syntax_theme_revision
+            });
+            if cached_layouts.len() >= COMMITTED_HISTORY_LAYOUT_CACHE_CAPACITY {
+                cached_layouts.remove(0);
+            }
+            cached_layouts.push(CommittedHistoryLayoutCache { key, cells });
+        }
+
+        let cached = self.committed_history_layout.borrow();
+        let cells = &cached
+            .iter()
+            .find(|cached| cached.key == key)
+            .expect("committed layout cache is initialized")
+            .cells;
+        let separator_count = if separated { cells.len().saturating_sub(1) } else { 0 };
+        let line_count = cells.iter().map(Vec::len).sum::<usize>() + separator_count;
+        let mut lines = Vec::with_capacity(line_count);
+        for (index, cell_lines) in cells.iter().enumerate() {
+            if separated && index > 0 {
+                lines.push(Line::default());
+            }
+            lines.extend(cell_lines.iter().cloned());
+        }
+        lines
     }
 
     // 计算 `scroll_lines` 所需的界面结果。
@@ -173,11 +238,7 @@ impl TranscriptState {
     }
 
     pub(super) fn transcript_lines(&self, width: u16, include_active: bool) -> Vec<Line<'static>> {
-        let mut lines = self
-            .committed_history
-            .iter()
-            .flat_map(|cell| cell.display_lines(width))
-            .collect::<Vec<_>>();
+        let mut lines = self.committed_lines(width, false);
         if include_active {
             if let Some(cell) = self.active_cell.as_ref() {
                 lines.extend(cell.display_lines(width));

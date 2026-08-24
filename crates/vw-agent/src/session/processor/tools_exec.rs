@@ -212,9 +212,10 @@ fn insert_permission_request(
     payload.insert("permission_request".to_string(), value);
 }
 
-fn completed_session_payload(output: &str) -> serde_json::Value {
+fn completed_session_payload(input: &str, output: &str) -> serde_json::Value {
     let mut payload = serde_json::Map::new();
     payload.insert("status".to_string(), string_value("completed"));
+    payload.insert("input".to_string(), string_value(input));
     payload.insert("output".to_string(), string_value(output));
     serde_json::Value::Object(payload)
 }
@@ -375,7 +376,11 @@ fn completed_batch_summary_record(input: &str, output_ui: &str) -> BatchSummaryR
         call_id: fallback_tool_call_id("batch", &input_sanitized),
         input_sanitized,
         ui_payload: completed_batch_payload(&input_ui, output_ui),
-        session_message: format!("tool {}\n{}\n", "batch", completed_session_payload(output_ui)),
+        session_message: format!(
+            "tool {}\n{}\n",
+            "batch",
+            completed_session_payload(&input_ui, output_ui)
+        ),
     }
 }
 
@@ -1151,8 +1156,12 @@ pub(crate) fn run_tool_and_record_with_protocol(
                     (
                         // UI 消息：包含完整信息（输入、标题、元数据和输出）
                         completed_tool_payload_for_ui(name, &input_ui, &v, &output_ui),
-                        // 会话消息：仅包含状态和输出（节省上下文空间）
-                        format!("tool {}\n{}\n", name, completed_session_payload(&output_session)),
+                        // 会话消息保留经过脱敏的输入，供恢复后的 TUI 识别具体调用。
+                        format!(
+                            "tool {}\n{}\n",
+                            name,
+                            completed_session_payload(&input_ui, &output_session)
+                        ),
                         output_for_model,
                         extra_messages,
                         context_updates,
@@ -1340,7 +1349,11 @@ pub(crate) fn run_batch_tool_and_record(
                     };
                     (
                         completed_tool_payload_for_ui(&tool, &input_ui, &v, &output_ui),
-                        format!("tool {}\n{}\n", tool, completed_session_payload(&output_session)),
+                        format!(
+                            "tool {}\n{}\n",
+                            tool,
+                            completed_session_payload(&input_ui, &output_session)
+                        ),
                         true,
                         Some(output_for_model),
                         None,

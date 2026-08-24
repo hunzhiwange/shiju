@@ -237,6 +237,7 @@ pub(crate) struct TuiPersistedMessage {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ParsedToolMessage {
     tool_name: String,
+    command: Option<String>,
     text: String,
     is_error: bool,
 }
@@ -259,6 +260,17 @@ fn parse_tool_message_payload(raw: &str) -> ParsedToolMessage {
     if let Ok(value) = serde_json::from_str::<Value>(&payload_text) {
         let status = value.get("status").and_then(Value::as_str).unwrap_or("completed");
         let is_error = matches!(status, "error" | "denied");
+        let command = value
+            .get("input")
+            .or_else(|| value.get("title"))
+            .and_then(|input| match input {
+                Value::Null => None,
+                Value::String(text) => {
+                    let text = text.trim();
+                    (!text.is_empty()).then(|| text.to_string())
+                }
+                input => Some(input.to_string()),
+            });
         let text = if is_error {
             value
                 .get("error")
@@ -279,14 +291,14 @@ fn parse_tool_message_payload(raw: &str) -> ParsedToolMessage {
                 .unwrap_or(payload_text.as_str())
         };
 
-        return ParsedToolMessage { tool_name, text: text.to_string(), is_error };
+        return ParsedToolMessage { tool_name, command, text: text.to_string(), is_error };
     }
 
-    ParsedToolMessage { tool_name, text: payload_text, is_error: false }
+    ParsedToolMessage { tool_name, command: None, text: payload_text, is_error: false }
 }
 
 fn serialize_tool_result_message(message: &UiToolResult) -> String {
-    let payload = if message.is_error {
+    let mut payload = if message.is_error {
         serde_json::json!({
             "status": "error",
             "error": message.content,
@@ -297,6 +309,12 @@ fn serialize_tool_result_message(message: &UiToolResult) -> String {
             "output": message.content,
         })
     };
+    if let Some(command) = message.command.as_deref().filter(|command| !command.trim().is_empty()) {
+        payload
+            .as_object_mut()
+            .expect("tool result payload is an object")
+            .insert("input".to_string(), Value::String(command.to_string()));
+    }
 
     format!("tool {}\n{}\n", message.tool_name, payload)
 }
@@ -557,6 +575,7 @@ impl TuiState {
                         base,
                         call_id: None,
                         tool_name: parsed.tool_name,
+                        command: parsed.command,
                         content: parsed.text,
                         is_error: parsed.is_error,
                     })

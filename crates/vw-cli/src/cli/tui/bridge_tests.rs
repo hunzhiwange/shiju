@@ -11,10 +11,12 @@ use ratatui::layout::Rect;
 use serde_json::json;
 use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
-use vw_tui::{V3Action, V3ApprovalDecision, V3Event, V3UserInputAnswer};
+use vw_tui::{
+    V3Action, V3ApprovalDecision, V3Event, V3FileChange, V3UserInputAnswer,
+};
 
 use super::app::V3GatewayApp;
-use super::bridge::GatewayV3Bridge;
+use super::bridge::{GatewayV3Bridge, structured_patch_diff};
 use super::controller::{TuiControllerCommand, TuiOverlayCommand};
 use super::model::permission::{
     PermissionDecision, PermissionPreviewKind, PermissionQueue, PermissionRequest,
@@ -79,6 +81,21 @@ fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
 
     let cancel = app.handle_action(V3Action::Cancel).expect("cancel action");
     assert_eq!(cancel, TuiControllerCommand::CancelActiveSubmission);
+
+    let file_search = app
+        .handle_action(V3Action::FileSearchQueryChanged { query: Some("src".to_string()) })
+        .expect("file search action");
+    assert_eq!(
+        file_search,
+        TuiControllerCommand::FileSearchQueryChanged { query: Some("src".to_string()) }
+    );
+    let close_file_search = app
+        .handle_action(V3Action::FileSearchQueryChanged { query: None })
+        .expect("close file search action");
+    assert_eq!(
+        close_file_search,
+        TuiControllerCommand::FileSearchQueryChanged { query: None }
+    );
 
     let mut permission_queue = PermissionQueue::default();
     permission_queue.replace(vec![PermissionRequest {
@@ -291,6 +308,162 @@ fn tui_projects_typed_tools_and_hides_known_gateway_lifecycle_events() {
         [V3Event::Unknown { type_name, detail }]
             if type_name == "unknown_gateway_event" && detail.ends_with("custom.event")
     ));
+}
+
+#[test]
+fn tui_projects_structured_file_tool_results_as_diff() {
+    let result = json!({
+        "success": true,
+        "content": [{
+            "type": "structured_patch",
+            "hunks": [
+                {
+                    "header": "@@ -1 +1 @@",
+                    "path": "src/first.rs",
+                    "lines": ["-old", "+new"]
+                },
+                {
+                    "header": "@@ -3,0 +4 @@",
+                    "path": "src/second.rs",
+                    "lines": ["+second"]
+                },
+                {
+                    "header": "@@ -8 +8 @@",
+                    "path": "src/first.rs",
+                    "lines": ["-before", "+after"]
+                },
+                {
+                    "header": "@@ -1 +1 @@",
+                    "lines": ["-ignored", "+ignored"]
+                }
+            ]
+        }]
+    });
+    let expected = structured_patch_diff(&json!({ "result": result.clone() }))
+        .expect("structured patch projects to a file diff");
+    assert_eq!(expected.files.len(), 2);
+    assert_eq!(expected.files[0].path, "src/first.rs");
+    assert_eq!(expected.files[1].path, "src/second.rs");
+    assert!(matches!(
+        &expected.files[0].change,
+        V3FileChange::Update { unified_diff }
+            if unified_diff
+                == "@@ -1 +1 @@\n-old\n+new\n@@ -8 +8 @@\n-before\n+after\n"
+    ));
+
+    for tool in ["file_write", "file_edit", "apply_patch"] {
+        let endpoint = GatewayEndpoint::new("127.0.0.1", 9);
+        let client = GatewayClient::new(endpoint).expect("test gateway client");
+        let runtime =
+            GatewayUiRuntime::new(client, GatewaySessionSeed::new(PathBuf::from("/workspace")));
+        let mut app = V3GatewayApp::new(runtime, TuiState::default());
+        let call_id = format!("call-{tool}");
+
+        let projected = app.accept_gateway_event(GatewayChatStreamEvent::Other(json!({
+            "type": "chat.tool",
+            "step_index": 1,
+            "call_id": call_id,
+            "name": tool,
+            "kind": "complete",
+            "status": "completed",
+            "occurred_ms": 111,
+            "payload": {
+                "status": "completed",
+                "output": "updated files",
+                "exit_code": 0,
+                "result": result
+            }
+        })));
+
+        assert!(matches!(
+            projected.as_slice(),
+            [
+                V3Event::TurnStarted { .. },
+                V3Event::ToolCompleted { call_id: completed_id, .. },
+                V3Event::FileDiff { diff, .. }
+            ] if completed_id == &call_id && diff == &expected
+        ));
+    }
+}
+
+#[test]
+fn tui_ignores_missing_or_invalid_structured_patch() {
+    let payloads = [
+        json!({"status": "completed", "output": "missing result"}),
+        json!({
+            "status": "completed",
+            "output": "invalid result",
+            "result": {"content": "not an array"}
+        }),
+        json!({
+            "status": "completed",
+            "output": "plain result",
+            "result": {
+                "success": true,
+                "content": [{"type": "text", "text": "plain output"}]
+            }
+        }),
+        json!({
+            "status": "completed",
+            "output": "empty patch",
+            "result": {
+                "success": true,
+                "content": [{"type": "structured_patch", "hunks": []}]
+            }
+        }),
+        json!({
+            "status": "completed",
+            "output": "pathless patch",
+            "result": {
+                "success": true,
+                "content": [{
+                    "type": "structured_patch",
+                    "hunks": [{"header": "@@ -1 +1 @@", "lines": ["-old", "+new"]}]
+                }]
+            }
+        }),
+        json!({
+            "status": "completed",
+            "output": "failed result",
+            "result": {
+                "success": false,
+                "content": [{
+                    "type": "structured_patch",
+                    "hunks": [{
+                        "header": "@@ -1 +1 @@",
+                        "path": "src/ignored.rs",
+                        "lines": ["-old", "+new"]
+                    }]
+                }]
+            }
+        }),
+    ];
+
+    for (index, payload) in payloads.into_iter().enumerate() {
+        assert!(structured_patch_diff(&payload).is_none());
+        let endpoint = GatewayEndpoint::new("127.0.0.1", 9);
+        let client = GatewayClient::new(endpoint).expect("test gateway client");
+        let runtime =
+            GatewayUiRuntime::new(client, GatewaySessionSeed::new(PathBuf::from("/workspace")));
+        let mut app = V3GatewayApp::new(runtime, TuiState::default());
+        let call_id = format!("call-{index}");
+
+        let projected = app.accept_gateway_event(GatewayChatStreamEvent::Other(json!({
+            "type": "chat.tool",
+            "step_index": 1,
+            "call_id": call_id,
+            "name": "file_edit",
+            "kind": "complete",
+            "status": "completed",
+            "occurred_ms": 111,
+            "payload": payload
+        })));
+
+        assert!(matches!(
+            projected.as_slice(),
+            [V3Event::TurnStarted { .. }, V3Event::ToolCompleted { .. }]
+        ));
+    }
 }
 
 #[test]

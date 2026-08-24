@@ -6,7 +6,7 @@
 //! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
 
 
-//! VibeWindow 输入编辑器：通过显式行为边界复制了文本域的行为。编辑、Unicode 换行、Vim 模式、粘贴突发和本地草稿历史均保留在 UI 中。Enter、Tab、Esc、中断、历史记录和附件操作返回外部桥接的 [`V3Action`]；该模块从未发送应用事件或查找运行时状态。
+//! VibeWindow 输入编辑器：通过显式行为边界复制了文本域的行为。编辑、Unicode 换行、Vim 模式、粘贴突发、本地草稿历史及光标处 `@token` 处理均保留在 UI 中。Enter、Tab、Esc、中断、历史记录和附件操作返回外部桥接的 [`V3Action`]；该模块从未发送应用事件或查找运行时状态。
 //! The VibeWindow composer: copied textarea behavior with an explicit action boundary.
 //!
 //! Text editing, Unicode wrapping, Vim mode, paste bursts, and local draft history remain local
@@ -15,6 +15,7 @@
 //! state.
 
 use std::cell::RefCell;
+use std::ops::Range;
 
 use crate::bottom_pane::chat_composer_history::{ChatComposerHistory, HistoryEntry};
 use crate::bottom_pane::footer::{self, FooterMode, FooterProps};
@@ -87,6 +88,39 @@ impl ChatComposer {
         } else {
             FooterMode::ComposerHasDraft
         };
+    }
+
+    /// Returns the editable file-search query immediately before the cursor.
+    pub(crate) fn active_file_search_query(&self) -> Option<&str> {
+        let range = self.file_search_token_range()?;
+        self.textarea.text().get(range.start + '@'.len_utf8()..range.end)
+    }
+
+    /// Replaces the active `@token` without touching text after the cursor.
+    pub(crate) fn replace_file_search_token(&mut self, path: &str) -> bool {
+        let Some(range) = self.file_search_token_range() else {
+            return false;
+        };
+        let normalized_path = path.replace('\\', "/");
+        self.textarea.replace_range(range, &format!("@{normalized_path} "));
+        self.footer.mode = FooterMode::ComposerHasDraft;
+        true
+    }
+
+    fn file_search_token_range(&self) -> Option<Range<usize>> {
+        let cursor = self.textarea.cursor();
+        let before_cursor = self.textarea.text().get(..cursor)?;
+        let token_start = before_cursor
+            .char_indices()
+            .filter_map(|(index, character)| {
+                character.is_whitespace().then_some(index + character.len_utf8())
+            })
+            .next_back()
+            .unwrap_or_default();
+        let token = &before_cursor[token_start..];
+        let at_offset = token.rfind('@')?;
+        let query = &token[at_offset + '@'.len_utf8()..];
+        query.chars().all(is_file_search_char).then_some(token_start + at_offset..cursor)
     }
 
     pub(crate) fn restore_submission(
@@ -286,6 +320,11 @@ impl ChatComposer {
             .split(area);
         (areas[0], areas[1])
     }
+}
+
+fn is_file_search_char(character: char) -> bool {
+    character.is_ascii_alphanumeric()
+        || matches!(character, '/' | '\\' | '.' | '_' | '-' | ':' | '#')
 }
 
 impl Renderable for ChatComposer {

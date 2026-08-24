@@ -20,6 +20,30 @@ pub struct V3Attachment {
     pub text: Option<String>,
 }
 
+/// One product-neutral file change rendered by the TUI.
+/// TUI 展示的单个产品中立文件变更。
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum V3FileChange {
+    Add { content: String },
+    Delete { content: String },
+    Update { unified_diff: String },
+}
+
+/// A file path paired with its display-only change, in source arrival order.
+/// 文件路径及其纯展示变更，顺序与来源事件一致。
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct V3FileDiffEntry {
+    pub path: String,
+    pub change: V3FileChange,
+}
+
+/// Ordered file changes supplied by an outer bridge without filesystem access.
+/// 外层桥接提供的有序文件变更，不授予文件系统访问能力。
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct V3FileDiff {
+    pub files: Vec<V3FileDiffEntry>,
+}
+
 /// The display-only event vocabulary owned by VibeWindow.
 ///
 /// This is deliberately not a wire-protocol enum.  An outer bridge may translate its
@@ -31,7 +55,15 @@ pub enum V3DisplayEvent {
     User { text: String, attachments: Vec<V3Attachment> },
     Assistant { markdown: String },
     ToolCall { call_id: String, tool: String, command: String },
-    ToolResult { call_id: String, output: String, exit_code: i32, duration_ms: u64 },
+    ToolResult {
+        call_id: String,
+        tool: String,
+        command: String,
+        output: String,
+        exit_code: i32,
+        duration_ms: u64,
+    },
+    FileDiff { diff: V3FileDiff },
     Thinking { text: String },
     Step { title: String, status: V3StepStatus },
     System { text: String },
@@ -79,6 +111,10 @@ pub enum V3Event {
         output: String,
         exit_code: i32,
         duration_ms: u64,
+    },
+    FileDiff {
+        turn_id: String,
+        diff: V3FileDiff,
     },
     ToolFailed {
         turn_id: String,

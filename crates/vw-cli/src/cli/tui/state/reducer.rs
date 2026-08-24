@@ -473,6 +473,7 @@ fn apply_tool_call_update(state: &mut TuiState, update: TuiToolCallUpdate) {
             base,
             call_id: None,
             tool_name,
+            command: arguments.or(summary),
             content: result.content,
             is_error: result.is_error,
         }));

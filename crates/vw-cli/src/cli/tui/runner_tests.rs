@@ -5,6 +5,8 @@ use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 use vw_tui::V3Action;
 
@@ -73,6 +75,153 @@ fn interrupt_stops_the_matching_resumable_stream() {
     assert_eq!(recorded.stream_request_id, request_id);
     assert_eq!(recorded.stop_path, format!("/v1/chat/stream/{request_id}/stop"));
     server.join().expect("interrupt gateway fixture");
+}
+
+#[test]
+fn file_search_discards_stale_results_and_applies_latest_query() {
+    let (endpoint, requests, server) = out_of_order_file_search_fixture();
+    let mut app = test_app(endpoint);
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+
+    app.widget_mut().replace_draft("@old");
+    runner.execute_action(
+        &mut app,
+        V3Action::FileSearchQueryChanged { query: Some("old".to_string()) },
+    );
+    app.widget_mut().replace_draft("@new");
+    runner.execute_action(
+        &mut app,
+        V3Action::FileSearchQueryChanged { query: Some("new".to_string()) },
+    );
+
+    let recorded = requests.recv_timeout(Duration::from_secs(3)).expect("record file searches");
+    assert_eq!(recorded.len(), 2);
+    assert!(recorded.iter().any(|path| {
+        path == "/v1/find/file?directory=%2Fworkspace&query=old&dirs=false&type=file&limit=20"
+    }));
+    assert!(recorded.iter().any(|path| {
+        path == "/v1/find/file?directory=%2Fworkspace&query=new&dirs=false&type=file&limit=20"
+    }));
+    server.join().expect("out-of-order file search fixture");
+
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        runner.drain(&mut app);
+        let rendered = render_widget(&app);
+        if rendered.contains("src/new.rs") {
+            thread::sleep(Duration::from_millis(50));
+            runner.drain(&mut app);
+            let settled = render_widget(&app);
+            assert!(settled.contains("src/new.rs"));
+            assert!(!settled.contains("src/old.rs"));
+            break;
+        }
+        assert!(Instant::now() < deadline, "latest file search result was not rendered");
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[test]
+fn file_search_error_ends_loading_without_changing_the_draft() {
+    let (endpoint, request, server) = failing_file_search_fixture();
+    let mut app = test_app(endpoint);
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+
+    app.widget_mut().replace_draft("@broken");
+    runner.execute_action(
+        &mut app,
+        V3Action::FileSearchQueryChanged { query: Some("broken".to_string()) },
+    );
+
+    assert_eq!(
+        request.recv_timeout(Duration::from_secs(3)).expect("record failed file search"),
+        "/v1/find/file?directory=%2Fworkspace&query=broken&dirs=false&type=file&limit=20"
+    );
+    server.join().expect("failing file search fixture");
+    drain_until(&mut runner, &mut app, |_, app| {
+        render_widget(app).contains("file search unavailable")
+    });
+    assert_eq!(app.widget().draft(), "@broken");
+}
+
+#[test]
+fn runner_renders_gateway_session_diff() {
+    let (endpoint, request, server) = session_diff_fixture();
+    let mut app = test_app(endpoint);
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+
+    runner.execute_action(
+        &mut app,
+        V3Action::Submit { text: "/diff".to_string(), attachments: Vec::new() },
+    );
+
+    assert!(!runner.has_active_stream(), "/diff must not start a chat stream");
+    assert_eq!(
+        request.recv_timeout(Duration::from_secs(3)).expect("record session diff request"),
+        "/v1/session/runner-session/diff?directory=%2Fworkspace"
+    );
+    server.join().expect("session diff gateway fixture");
+
+    drain_until(&mut runner, &mut app, |_, app| {
+        let rendered = render_widget(app);
+        rendered.contains("src/lib.rs") && rendered.contains("new value")
+    });
+}
+
+#[test]
+fn runner_reports_empty_and_failed_session_diff() {
+    let (endpoint, request, server) = session_diff_response_fixture("200 OK", "[]", Duration::ZERO);
+    let mut app = test_app(endpoint);
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+    runner.execute_action(
+        &mut app,
+        V3Action::Submit { text: "/diff".to_string(), attachments: Vec::new() },
+    );
+    request.recv_timeout(Duration::from_secs(3)).expect("record empty diff request");
+    server.join().expect("empty diff gateway fixture");
+    drain_until(&mut runner, &mut app, |_, app| {
+        render_widget(app).contains("当前会话没有文件变化")
+    });
+
+    let (endpoint, request, server) = session_diff_response_fixture(
+        "503 Service Unavailable",
+        r#"{"message":"diff unavailable"}"#,
+        Duration::ZERO,
+    );
+    let mut app = test_app(endpoint);
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+    runner.execute_action(
+        &mut app,
+        V3Action::Submit { text: "/diff".to_string(), attachments: Vec::new() },
+    );
+    request.recv_timeout(Duration::from_secs(3)).expect("record failed diff request");
+    server.join().expect("failed diff gateway fixture");
+    drain_until(&mut runner, &mut app, |_, app| {
+        render_widget(app).contains("failed to load session diff")
+    });
+}
+
+#[test]
+fn runner_reports_missing_session_id_for_diff() {
+    let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", 9))
+        .expect("test gateway client");
+    let runtime = GatewayUiRuntime::new(client, GatewaySessionSeed::new(PathBuf::from("/workspace")));
+    let mut state = TuiState::default();
+    state.project.workspace_root = Some(PathBuf::from("/workspace"));
+    let mut app = V3GatewayApp::new(runtime, state);
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+
+    runner.execute_action(
+        &mut app,
+        V3Action::Select {
+            surface: "command_palette".to_string(),
+            item_id: "diff".to_string(),
+        },
+    );
+
+    drain_until(&mut runner, &mut app, |_, app| {
+        render_widget(app).contains("gateway runtime session id is required")
+    });
 }
 
 fn test_app(endpoint: GatewayEndpoint) -> V3GatewayApp {
@@ -171,6 +320,97 @@ fn interrupt_gateway_fixture()
     (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
 }
 
+fn out_of_order_file_search_fixture()
+-> (GatewayEndpoint, mpsc::Receiver<Vec<String>>, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind file search gateway fixture");
+    let port = listener.local_addr().expect("gateway fixture address").port();
+    let (sender, receiver) = mpsc::channel();
+    let handle = thread::spawn(move || {
+        let mut requests = Vec::new();
+        let mut old_stream = None;
+        let mut new_stream = None;
+        for _ in 0..2 {
+            let (mut stream, _) = listener.accept().expect("accept file search request");
+            let request = read_request(&mut stream);
+            if request.path.contains("query=old") {
+                old_stream = Some(stream);
+            } else if request.path.contains("query=new") {
+                new_stream = Some(stream);
+            } else {
+                panic!("unexpected file search request: {}", request.path);
+            }
+            requests.push(request.path);
+        }
+        sender.send(requests).expect("record file search requests");
+
+        write_response(
+            &mut new_stream.expect("new file search request"),
+            "application/json",
+            r#"["src/new.rs"]"#,
+        );
+        thread::sleep(Duration::from_millis(100));
+        write_response(
+            &mut old_stream.expect("old file search request"),
+            "application/json",
+            r#"["src/old.rs"]"#,
+        );
+    });
+    (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
+}
+
+fn failing_file_search_fixture()
+-> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind failing file search fixture");
+    let port = listener.local_addr().expect("gateway fixture address").port();
+    let (sender, receiver) = mpsc::channel();
+    let handle = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept failing file search request");
+        let request = read_request(&mut stream);
+        sender.send(request.path).expect("record failing file search request");
+        write_status_response(
+            &mut stream,
+            "503 Service Unavailable",
+            "application/json",
+            r#"{"message":"index unavailable"}"#,
+        );
+    });
+    (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
+}
+
+fn session_diff_fixture()
+-> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+    session_diff_response_fixture(
+        "200 OK",
+        r#"[{"file":"src/lib.rs","before":"old value\n","after":"new value\n","additions":1,"deletions":1,"status":"modified"}]"#,
+        Duration::from_millis(100),
+    )
+}
+
+fn session_diff_response_fixture(
+    status: &'static str,
+    body: &'static str,
+    delay: Duration,
+) -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind session diff gateway fixture");
+    let port = listener.local_addr().expect("gateway fixture address").port();
+    let (sender, receiver) = mpsc::channel();
+    let handle = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept session diff request");
+        let request = read_request(&mut stream);
+        sender.send(request.path).expect("record session diff request");
+        thread::sleep(delay);
+        write_status_response(&mut stream, status, "application/json", body);
+    });
+    (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
+}
+
+fn render_widget(app: &V3GatewayApp) -> String {
+    let area = Rect::new(0, 0, 80, 18);
+    let mut buffer = Buffer::empty(area);
+    app.widget().render(area, &mut buffer);
+    buffer.content.iter().map(|cell| cell.symbol()).collect()
+}
+
 struct RecordedRequest {
     path: String,
     headers: Vec<(String, String)>,
@@ -222,8 +462,12 @@ fn read_request(stream: &mut TcpStream) -> RecordedRequest {
 }
 
 fn write_response(stream: &mut TcpStream, content_type: &str, body: &str) {
+    write_status_response(stream, "200 OK", content_type, body);
+}
+
+fn write_status_response(stream: &mut TcpStream, status: &str, content_type: &str, body: &str) {
     let response = format!(
-        "HTTP/1.1 200 OK\r\ncontent-type: {content_type}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+        "HTTP/1.1 {status}\r\ncontent-type: {content_type}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
         body.len()
     );
     stream.write_all(response.as_bytes()).expect("write gateway response");

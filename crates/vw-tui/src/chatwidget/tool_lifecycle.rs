@@ -41,6 +41,7 @@ impl ChatWidget {
             exit_code,
             duration_ms,
         );
+        self.flush_file_diffs_if_tool_group_finished();
     }
 
     pub(super) fn on_tool_failed(
@@ -51,6 +52,7 @@ impl ChatWidget {
         duration_ms: u64,
     ) {
         self.on_command_finished(&turn_id, call_id, message, 1, duration_ms);
+        self.flush_file_diffs_if_tool_group_finished();
     }
 
     pub(super) fn on_tool_cancelled(
@@ -61,5 +63,25 @@ impl ChatWidget {
         duration_ms: u64,
     ) {
         self.on_command_finished(&turn_id, call_id, reason, 130, duration_ms);
+        self.flush_file_diffs_if_tool_group_finished();
+    }
+
+    pub(super) fn on_file_diff(&mut self, turn_id: String, diff: V3FileDiff) {
+        if !self.accept_turn_event(&turn_id, "file diff") || diff.files.is_empty() {
+            return;
+        }
+        self.pending_file_diffs.push(diff);
+        self.flush_file_diffs_if_tool_group_finished();
+    }
+
+    fn flush_file_diffs_if_tool_group_finished(&mut self) {
+        if self.pending_file_diffs.is_empty() || self.exec_state.has_running_calls() {
+            return;
+        }
+
+        self.commit_exec_group();
+        for diff in std::mem::take(&mut self.pending_file_diffs) {
+            self.transcript.push_history(V3DisplayEvent::FileDiff { diff });
+        }
     }
 }

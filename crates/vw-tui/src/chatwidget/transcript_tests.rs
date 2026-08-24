@@ -1,4 +1,18 @@
 use super::*;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[derive(Debug)]
+struct CountingHistoryCell {
+    display_count: Arc<AtomicUsize>,
+}
+
+impl HistoryCell for CountingHistoryCell {
+    fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
+        self.display_count.fetch_add(1, Ordering::Relaxed);
+        vec![Line::from(format!("width {width}"))]
+    }
+}
 
 fn mouse(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
     MouseEvent {
@@ -62,6 +76,20 @@ fn transcript_lines_join_committed_active_and_live_cells() {
     assert!(full.contains("committed"));
     assert!(full.contains("active"));
     assert!(full.contains("live"));
+}
+
+#[test]
+fn committed_history_reuses_layout_when_render_width_alternates() {
+    let display_count = Arc::new(AtomicUsize::new(0));
+    let mut state = TranscriptState::default();
+    state.push_cell(Box::new(CountingHistoryCell { display_count: display_count.clone() }));
+
+    let first = state.transcript_lines(80, false);
+    let _alternate_width = state.transcript_lines(79, false);
+    let repeated = state.transcript_lines(80, false);
+
+    assert_eq!(first, repeated);
+    assert_eq!(display_count.load(Ordering::Relaxed), 2);
 }
 
 #[test]

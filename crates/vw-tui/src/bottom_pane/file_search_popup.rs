@@ -19,6 +19,7 @@ pub(crate) struct FileSearchPopup {
     display_query: String,
     pending_query: String,
     waiting: bool,
+    error_message: Option<String>,
     matches: Vec<V3FileSearchMatch>,
     state: ScrollState,
 }
@@ -28,6 +29,7 @@ impl FileSearchPopup {
             display_query: String::new(),
             pending_query: String::new(),
             waiting: true,
+            error_message: None,
             matches: Vec::new(),
             state: ScrollState::new(),
         }
@@ -36,12 +38,14 @@ impl FileSearchPopup {
         if query != self.pending_query {
             self.pending_query = query.to_string();
             self.waiting = true;
+            self.error_message = None;
         }
     }
     pub(crate) fn set_empty_prompt(&mut self) {
         self.display_query.clear();
         self.pending_query.clear();
         self.waiting = false;
+        self.error_message = None;
         self.matches.clear();
         self.state.reset();
     }
@@ -52,8 +56,19 @@ impl FileSearchPopup {
         self.display_query = query.to_string();
         self.matches = matches.into_iter().take(MAX_POPUP_ROWS).collect();
         self.waiting = false;
+        self.error_message = None;
         self.state.clamp_selection(self.matches.len());
         self.state.ensure_visible(self.matches.len(), MAX_POPUP_ROWS);
+    }
+    pub(crate) fn set_error(&mut self, query: &str, message: String) {
+        if query != self.pending_query {
+            return;
+        }
+        self.display_query = query.to_string();
+        self.matches.clear();
+        self.waiting = false;
+        self.error_message = Some(message);
+        self.state.reset();
     }
     pub(crate) fn selected_match(&self) -> Option<&V3FileSearchMatch> {
         self.state.selected_idx.and_then(|idx| self.matches.get(idx))
@@ -103,7 +118,9 @@ impl WidgetRef for &FileSearchPopup {
             &rows,
             &self.state,
             MAX_POPUP_ROWS,
-            if self.waiting { "loading..." } else { "no matches" },
+            self.error_message
+                .as_deref()
+                .unwrap_or(if self.waiting { "loading..." } else { "no matches" }),
         );
     }
 }

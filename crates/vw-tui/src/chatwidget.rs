@@ -17,9 +17,10 @@ use crate::bottom_pane::{BottomPane, BottomPaneView};
 use crate::history_cell::HistoryCell;
 use crate::render::renderable::Renderable;
 use crate::vibe::action::{
-    V3Action, V3ApprovalRequest, V3FooterData, V3SelectionItem, V3UserInputRequest,
+    V3Action, V3ApprovalRequest, V3FileSearchMatch, V3FooterData, V3SelectionItem,
+    V3UserInputRequest,
 };
-use crate::vibe::event::V3DisplayEvent;
+use crate::vibe::event::{V3DisplayEvent, V3FileDiff};
 use crossterm::cursor::SetCursorStyle;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent};
 use ratatui::buffer::Buffer;
@@ -123,6 +124,7 @@ pub struct ChatWidget {
     streaming: streaming::StreamingState,
     turn_lifecycle: turn_lifecycle::TurnLifecycleState,
     exec_state: exec_state::ExecState,
+    pending_file_diffs: Vec<V3FileDiff>,
     interrupt_state: interrupts::InterruptState,
     overlay: Option<ChatOverlay>,
     clipboard_lease: Option<crate::clipboard_copy::ClipboardLease>,
@@ -219,6 +221,22 @@ impl ChatWidget {
     #[must_use]
     pub fn command_palette_visible(&self) -> bool {
         self.bottom_pane.command_palette_visible()
+    }
+
+    /// Supplies successful file matches for the still-active query.
+    /// 为仍处于活动状态的查询注入成功的文件匹配结果。
+    pub fn set_file_search_matches(
+        &mut self,
+        query: &str,
+        matches: Vec<V3FileSearchMatch>,
+    ) {
+        self.bottom_pane.set_file_search_matches(query, matches);
+    }
+
+    /// Supplies an unavailable state for the still-active query.
+    /// 为仍处于活动状态的查询注入明确的不可用状态。
+    pub fn set_file_search_error(&mut self, query: &str, message: impl Into<String>) {
+        self.bottom_pane.set_file_search_error(query, message.into());
     }
 
     /// 关闭当前覆盖层，但不伪造业务决策。

@@ -1,7 +1,7 @@
 use vw_tui::V3Action;
 
 use super::bridge::GatewayV3Bridge;
-use super::commands::{CommandRoute, command_palette_items};
+use super::commands::{CommandRoute, command_palette_items, route_slash_submission};
 use super::controller::{TuiController, TuiControllerCommand};
 use super::state::TuiState;
 
@@ -48,6 +48,32 @@ fn command_catalog_exposes_stable_ids_and_disabled_reasons() {
     assert!(items.iter().any(|item| item.id == "resume" && !item.disabled));
     assert!(items.iter().any(|item| item.id == "continue" && !item.disabled));
     assert!(items.iter().any(|item| item.id == "new" && !item.disabled));
+}
+
+#[test]
+fn diff_command_routes_to_session_diff() {
+    let items = command_palette_items();
+    assert!(items.iter().any(|item| item.id == "diff" && !item.disabled));
+
+    assert_eq!(
+        route_slash_submission("/diff").expect("/diff should route"),
+        Some(CommandRoute::ShowDiff)
+    );
+
+    let mut bridge = GatewayV3Bridge::default();
+    let mut state = TuiState::default();
+    let mut controller = TuiController;
+    let selected = bridge
+        .controller_command(
+            &mut state,
+            &mut controller,
+            V3Action::Select {
+                surface: "command_palette".to_string(),
+                item_id: "diff".to_string(),
+            },
+        )
+        .expect("command palette /diff should route");
+    assert_eq!(selected, TuiControllerCommand::Command(CommandRoute::ShowDiff));
 }
 
 #[test]

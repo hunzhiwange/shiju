@@ -419,6 +419,7 @@ pub use vibe::action::{
     V3UserInputAnswer, V3UserInputOption, V3UserInputQuestion, V3UserInputRequest,
 };
 pub use vibe::event::{
-    V3Attachment, V3AttachmentKind, V3DisplayEvent, V3Event, V3StepStatus,
+    V3Attachment, V3AttachmentKind, V3DisplayEvent, V3Event, V3FileChange, V3FileDiff,
+    V3FileDiffEntry, V3StepStatus,
 };
 pub use vibe::surface::V3Surface;

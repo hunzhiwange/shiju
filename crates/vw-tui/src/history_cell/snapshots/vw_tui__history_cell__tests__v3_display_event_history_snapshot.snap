@@ -4,7 +4,7 @@ expression: rendered
 ---
 ▌ inspect the change
 • I found a small change.
-› completed command
+› shell printf ok
 ok
   ✓ 8ms
 step: ● finish the migration

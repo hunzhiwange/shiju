@@ -2,9 +2,9 @@
 //! 未安装、禁用和搜索无结果状态用于确认操作按钮不会越权出现。
 
 use super::skills::{
-    capability_policy_label, capability_policy_tooltip, discovery_order_text, enabled_skill_ids,
-    scope_description, scope_source_matches, skill_card_button_style, skill_policy_message,
-    skill_source_label, view,
+    agent_skill_matches_scope, agent_skills_scope, capability_policy_label,
+    capability_policy_tooltip, discovery_order_text, enabled_skill_ids, scope_description,
+    scope_source_matches, skill_card_button_style, skill_policy_message, skill_source_label, view,
 };
 use crate::app::Message;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
@@ -19,7 +19,7 @@ fn skill_source_label_maps_known_and_unknown_sources() {
     assert_eq!(skill_source_label("workspace"), "项目");
     assert_eq!(skill_source_label("ancestor"), "父级");
     assert_eq!(skill_source_label("global"), "全局");
-    assert_eq!(skill_source_label("bundled"), "内置");
+    assert_eq!(skill_source_label("bundled"), "待安装");
     assert_eq!(skill_source_label("remote"), "其他");
 }
 
@@ -50,6 +50,17 @@ fn scope_source_matches_each_directory_scope() {
     assert!(scope_source_matches(SkillsDirectoryScope::Global, "global"));
     assert!(scope_source_matches(SkillsDirectoryScope::Bundled, "bundled"));
     assert!(scope_source_matches(SkillsDirectoryScope::All, "anything"));
+}
+
+#[test]
+fn agent_skill_filter_excludes_uninstalled_catalog_candidates() {
+    let installed = skill("installed", true, "global");
+    let mut candidate = skill("candidate", false, "bundled");
+    candidate.installed = false;
+
+    assert!(agent_skill_matches_scope(&installed, SkillsDirectoryScope::All));
+    assert!(!agent_skill_matches_scope(&candidate, SkillsDirectoryScope::All));
+    assert_eq!(agent_skills_scope(SkillsDirectoryScope::Bundled), SkillsDirectoryScope::All);
 }
 
 #[test]
@@ -92,7 +103,7 @@ fn discovery_order_text_distinguishes_open_project_and_global_context() {
     let (mut app, _) = crate::app::App::new();
     let global_order = discovery_order_text(&app);
 
-    assert!(global_order.ends_with(" -> 内置技能"));
+    assert!(!global_order.contains("内置技能"));
     assert!(!global_order.contains("父级 skills、.agents/skills"));
 
     app.project_path = Some("/workspace/demo".to_string());

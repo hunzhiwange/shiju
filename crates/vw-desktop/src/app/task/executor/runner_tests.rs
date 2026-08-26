@@ -940,11 +940,15 @@ fn build_task_split_prompt_uses_create_task_plans_template_batches_and_fixed_out
     let plan_dir = super::task_split_plan_abs_dir(home, &task);
     let prompt = super::build_task_split_prompt(&task, &plan_dir);
 
-    // 内置 runtime create-task-plans 语义，不再依赖根目录 skills。
+    // 框架运行时 create-task-plans 规范，不再依赖根目录 skills。
     assert!(prompt.contains("create-task-plans-runtime"));
     assert!(prompt.contains("do-task-plans-runtime"));
-    assert!(prompt.contains("crates/vw-agent/assets/skills/create-task-plans-runtime/SKILL.md"));
-    assert!(prompt.contains("crates/vw-agent/assets/skills/do-task-plans-runtime/SKILL.md"));
+    assert!(
+        prompt.contains("crates/vw-agent/assets/runtime-skills/create-task-plans-runtime/SKILL.md")
+    );
+    assert!(
+        prompt.contains("crates/vw-agent/assets/runtime-skills/do-task-plans-runtime/SKILL.md")
+    );
     assert!(!prompt.contains("../../../../../../skills/"));
     assert!(!prompt.contains("只输出 JSON"));
     assert!(!prompt.contains("不要把一个任务机械拆成"));
@@ -1067,8 +1071,8 @@ fn task_plan_reads_ignore_legacy_project_cache() {
     std::fs::write(current_dir.join("prompt.md"), "current prompt")
         .expect("current prompt should be written");
 
-    let prompt = super::read_task_plan_prompt_md(home.path(), &task)
-        .expect("current prompt should be read");
+    let prompt =
+        super::read_task_plan_prompt_md(home.path(), &task).expect("current prompt should be read");
     let (plan, subtask_plan) =
         super::read_plan_context(home.path(), &task, &subtask, 0, task.subtasks.len());
 
@@ -1165,10 +1169,10 @@ fn build_subtask_execution_prompt_embeds_do_task_plans_batches_without_install_r
     let prompt =
         super::build_subtask_execution_prompt(&task, &subtask, "plan body", "subtask body");
 
-    // 内置 do-task-plans 流程，不要求用户项目安装技能。
+    // 框架运行时 do-task-plans 流程，不要求用户项目安装技能。
     assert!(prompt.contains("do-task-plans"));
     assert!(prompt.contains("无需安装") || prompt.contains("不依赖") && prompt.contains("安装"));
-    assert!(prompt.contains("内置 do-task-plans"));
+    assert!(prompt.contains("框架运行时 do-task-plans"));
 
     // 批次上下文：当前批次与依赖批次。
     assert!(prompt.contains("当前批次: 2"));
@@ -1363,8 +1367,8 @@ fn execute_task_plan_reports_missing_prompt_md_explicitly() {
     let plan_dir = super::task_split_plan_abs_dir(home.path(), &task);
     std::fs::create_dir_all(&plan_dir).expect("创建计划目录");
 
-    let err = super::read_task_plan_prompt_md(home.path(), &task)
-        .expect_err("缺失 prompt.md 必须报错");
+    let err =
+        super::read_task_plan_prompt_md(home.path(), &task).expect_err("缺失 prompt.md 必须报错");
     assert!(err.contains("prompt.md"), "错误信息应包含 prompt.md: {err}");
     assert!(err.contains(plan_dir.to_string_lossy().as_ref()));
 }

@@ -102,9 +102,23 @@ pub(super) fn skill_source_label(source: &str) -> &'static str {
         "workspace" => "项目",
         "ancestor" => "父级",
         "global" => "全局",
-        "bundled" => "内置",
+        "bundled" => "待安装",
         _ => "其他",
     }
+}
+
+pub(super) fn agent_skills_scope(scope: SkillsDirectoryScope) -> SkillsDirectoryScope {
+    match scope {
+        SkillsDirectoryScope::Bundled => SkillsDirectoryScope::All,
+        scope => scope,
+    }
+}
+
+pub(super) fn agent_skill_matches_scope(
+    skill: &SkillsCatalogItem,
+    scope: SkillsDirectoryScope,
+) -> bool {
+    skill.installed && scope_source_matches(scope, &skill.source)
 }
 
 pub(super) fn scope_source_matches(scope: SkillsDirectoryScope, source: &str) -> bool {
@@ -133,7 +147,7 @@ pub(super) fn scope_description(scope: SkillsDirectoryScope) -> &'static str {
                 "当前用户 ~/.vibewindow/skills。"
             }
         }
-        SkillsDirectoryScope::Bundled => "产品随包提供的内置技能。",
+        SkillsDirectoryScope::Bundled => "当前页面仅显示已安装到技能目录的技能。",
         SkillsDirectoryScope::All => "按加载顺序汇总全部技能来源。",
     }
 }
@@ -141,11 +155,11 @@ pub(super) fn scope_description(scope: SkillsDirectoryScope) -> &'static str {
 pub(super) fn discovery_order_text(app: &App) -> String {
     if let Some(project_path) = &app.project_path {
         format!(
-            "{project_path}/skills -> {project_path}/.agents/skills -> 父级 skills、.agents/skills -> {}/skills -> 内置技能",
+            "{project_path}/skills -> {project_path}/.agents/skills -> 父级 skills、.agents/skills -> {}/skills",
             vw_config_types::paths::tilde_config_path("")
         )
     } else {
-        format!("{} -> 内置技能", vw_config_types::paths::tilde_config_path("skills"))
+        vw_config_types::paths::tilde_config_path("skills")
     }
 }
 
@@ -228,12 +242,12 @@ pub(super) fn view<'a>(
     app: &'a App,
     entry: &'a DelegateAgentSettingsEntry,
 ) -> Element<'a, Message> {
-    let active_scope = app.skills_settings.directory_scope;
+    let active_scope = agent_skills_scope(app.skills_settings.directory_scope);
     let skills = app
         .skills_settings
         .catalog
         .iter()
-        .filter(|skill| scope_source_matches(active_scope, &skill.source))
+        .filter(|skill| agent_skill_matches_scope(skill, active_scope))
         .collect::<Vec<_>>();
     let enabled_skills = enabled_skill_ids(&skills);
     let selected_count = entry
@@ -247,7 +261,6 @@ pub(super) fn view<'a>(
             scope_button("项目目录", SkillsDirectoryScope::Project, active_scope, project_open),
             scope_button("父级目录", SkillsDirectoryScope::Ancestor, active_scope, project_open),
             scope_button("全局目录", SkillsDirectoryScope::Global, active_scope, true),
-            scope_button("内置技能", SkillsDirectoryScope::Bundled, active_scope, true),
             scope_button("全部", SkillsDirectoryScope::All, active_scope, true),
         ]
         .spacing(8)
@@ -310,13 +323,13 @@ pub(super) fn view<'a>(
         skill_policy_button(entry, DelegateCapabilityPolicy::Strict),
         skill_policy_button(entry, DelegateCapabilityPolicy::Unrestricted),
     ]
-        .spacing(8)
-        .wrap();
+    .spacing(8)
+    .wrap();
 
     column![
         section_card(
             "默认技能",
-            "选择会在委托代理首步默认提示的技能；严格限制时它们同时构成技能白名单。",
+            "选择会在委托代理首步默认提示的已安装技能；严格限制时它们同时构成技能白名单。",
         ),
         column![
             text("技能访问策略").size(14),

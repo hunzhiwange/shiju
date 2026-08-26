@@ -198,6 +198,7 @@ pub(crate) fn think_pulse_glyph(frame: usize) -> &'static str {
 const THINK_PULSE_MIN_SIZE: f32 = 14.0;
 const THINK_PULSE_MAX_SIZE: f32 = 44.0;
 const THINK_PULSE_BREATH_PERIOD: usize = THINK_PULSE_FRAMES_PER_GLYPH * 2;
+const THINK_PULSE_VERTICAL_OFFSET: f32 = 3.0;
 
 pub(crate) fn think_pulse_size(frame: usize) -> f32 {
     let phase = (frame % THINK_PULSE_BREATH_PERIOD) as f32 / THINK_PULSE_BREATH_PERIOD as f32
@@ -218,6 +219,13 @@ fn think_pulse_indicator<'a>(frame: usize) -> Element<'a, Message> {
     )
     .width(Length::Fixed(THINK_PULSE_MAX_SIZE))
     .height(Length::Fixed(THINK_PULSE_MAX_SIZE))
+    // 星形字形的视觉中心偏低，增加底部留白将其向上补偿半个留白高度。
+    .padding(iced::Padding {
+        top: 0.0,
+        right: 0.0,
+        bottom: THINK_PULSE_VERTICAL_OFFSET * 2.0,
+        left: 0.0,
+    })
     .align_x(Alignment::Center)
     .align_y(Alignment::Center)
     .into()

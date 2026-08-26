@@ -1,0 +1,52 @@
+- description: selection · callers · 统一提示词渲染调用关系
+  metadata:
+    suite: selection
+    operation: callers
+    difficulty: medium
+  vars:
+    task: >-
+      找出 render_unified_prompt_with_modes 的全部直接调用者。不要修改代码，
+      简要列出调用者名称，并区分业务函数与测试函数。
+    expectedOperations:
+      - callers
+    expectedTerms:
+      - render_unified_prompt
+      - render_unified_prompt_from_ref_with_modes
+      - unified_prompt_injects_only_enabled_runtime_modes
+    maxToolCalls: 6
+
+- description: selection · node · 工具注册保护条件
+  metadata:
+    suite: selection
+    operation: node
+    difficulty: medium
+  vars:
+    task: >-
+      定位 register_rustcodegraph_tool 的实现，说明它在什么条件下跳过注册、
+      如何创建工具，以及创建失败时如何处理。不要修改代码，简要回答并给出文件路径。
+    expectedOperations:
+      - node
+    expectedTerms:
+      - CodeGraph::is_initialized
+      - RustCodeGraphTool::new
+      - tracing::warn
+      - crates/vw-agent/src/tools/toolset/mod.rs
+    maxToolCalls: 6
+
+- description: selection · impact · 运行时能力指令影响范围
+  metadata:
+    suite: selection
+    operation: impact
+    difficulty: hard
+  vars:
+    task: >-
+      评估修改 runtime_capability_instructions 可能影响的代码范围。不要修改代码，
+      列出关键的直接或间接受影响符号，并指出相关测试符号。
+    expectedOperations:
+      - impact
+    expectedTerms:
+      - render_unified_prompt_with_modes
+      - render_unified_prompt
+      - render_unified_prompt_from_ref_with_modes
+      - unified_prompt_injects_only_enabled_runtime_modes
+    maxToolCalls: 6

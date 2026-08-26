@@ -108,6 +108,29 @@ fn rustcodegraph_spec_is_read_only_strict_and_concurrent() {
     assert!(spec.description.contains("call `sync` once"));
 }
 
+#[test]
+fn rustcodegraph_native_contract_description_uses_supported_operations() {
+    let workspace = indexed_workspace();
+    let tool = test_tool(workspace.path());
+    let description = tool.description();
+
+    for example in [
+        r#"{"operation":"explore","query":"..."}"#,
+        r#"{"operation":"node","symbol":"..."}"#,
+        r#"{"operation":"search","query":"..."}"#,
+        r#"{"operation":"callers","symbol":"..."}"#,
+        r#"{"operation":"callees","symbol":"..."}"#,
+        r#"{"operation":"impact","symbol":"..."}"#,
+        r#"{"operation":"files"}"#,
+        r#"{"operation":"status"}"#,
+        r#"{"operation":"sync"}"#,
+    ] {
+        assert!(description.contains(example), "missing native call example: {example}");
+    }
+    assert!(description.contains("CLI `query`") && description.contains("native `search`"));
+    assert!(description.contains("CLI `affected`") && description.contains("no native operation"));
+}
+
 #[tokio::test]
 async fn rustcodegraph_preserves_recoverable_empty_results() {
     let workspace = indexed_workspace();

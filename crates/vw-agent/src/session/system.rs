@@ -123,9 +123,12 @@ fn runtime_capability_instructions(
         );
     }
 
-    if skill_available && rustcodegraph_skill_available {
+    if skill_available
+        && rustcodegraph_skill_available
+        && has_tool(&tool_ids, &["rustcodegraph"])
+    {
         sections.push(
-            "## RustCodeGraph\n- The RustCodeGraph skill is available. For code navigation, first invoke the Skill Tool to load it and check the index as the skill requires.\n- When the index is available, prefer `explore`; use `query` / `node` for precise lookup, `callers` / `callees` / `impact` for call and impact analysis, and `affected` for test selection.\n- After a branch switch or bulk file change, or whenever status/query output reports pending, stale, or degraded index state, invoke the RustCodeGraph `sync` operation once and retry the original query. Normal saved edits are watched automatically, so do not sync before every query.\n- Do not immediately reread source context already obtained from the graph. Fall back to ordinary file search only for unindexed content, a stale index, or documents and configuration not covered by the graph."
+            "## RustCodeGraph\n- The RustCodeGraph skill and native `rustcodegraph` tool are available. For code navigation, first invoke the Skill Tool to load the skill and check the index as it requires.\n- Invoke the native tool with JSON arguments. Start most investigations with `rustcodegraph` and `{\"operation\":\"explore\",\"query\":\"...\"}`; use `search` / `node` for precise lookup and `callers` / `callees` / `impact` for call and impact analysis.\n- After a branch switch or bulk file change, or whenever status or tool output reports pending, stale, or degraded index state, invoke the RustCodeGraph `sync` operation once and retry the original operation. Normal saved edits are watched automatically, so do not sync before every query.\n- Do not immediately reread source context already obtained from the graph. Fall back to ordinary file search only for unindexed content, a stale index, or documents and configuration not covered by the graph."
                 .to_string(),
         );
     }

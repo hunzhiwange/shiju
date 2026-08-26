@@ -131,6 +131,7 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
         "WebSearch",
         "Browser",
         "list_mcp_resources",
+        "rustcodegraph",
     ]
     .into_iter()
     .map(str::to_string)
@@ -160,8 +161,9 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
     assert!(
         prompt.contains("## RustCodeGraph")
             && prompt.contains("explore")
+            && prompt.contains("search")
             && prompt.contains("impact")
-            && prompt.contains("affected")
+            && !prompt.contains("affected")
             && prompt.contains("`sync` operation once")
             && prompt.contains("watched automatically"),
         "unified prompt must preserve the indexed Rust navigation workflow"
@@ -216,6 +218,31 @@ fn unified_prompt_omits_unavailable_capability_instructions() {
     assert!(!prompt.contains("## Subagents"));
     assert!(!prompt.contains("## Background Tasks"));
     assert!(!prompt.contains("## Current Runtime Mode"));
+}
+
+#[test]
+fn rustcodegraph_native_contract_is_advertised_only_when_registered() {
+    let registered = render_unified_prompt(
+        "provider/model",
+        "/workspace",
+        &["skill".into(), "rustcodegraph".into()],
+        true,
+    );
+
+    assert!(registered.contains("## RustCodeGraph"));
+    assert!(registered.contains(r#"{"operation":"explore","query":"..."}"#));
+    assert!(registered.contains("`search`"));
+    assert!(!registered.contains("`query` / `node`"));
+    assert!(!registered.contains("`affected` for test selection"));
+
+    let skill_only =
+        render_unified_prompt("provider/model", "/workspace", &["skill".into()], true);
+    assert!(skill_only.contains("## Skills"));
+    assert!(!skill_only.contains("## RustCodeGraph"));
+
+    let native_without_skill =
+        render_unified_prompt("provider/model", "/workspace", &["rustcodegraph".into()], true);
+    assert!(!native_without_skill.contains("## RustCodeGraph"));
 }
 
 #[test]

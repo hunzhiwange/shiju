@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 function metadata(context) {
   return context?.providerResponse?.metadata ?? context?.metadata ?? {};
 }
@@ -55,7 +57,13 @@ export function successfulRun(output, context) {
 }
 
 export function noFailedTools(_output, context) {
-  const failed = toolCalls(context).filter((tool) => tool.isError);
+  const calls = toolCalls(context);
+  const hasSuccessfulTest = calls.some(
+    (tool) => isTestCommand(commandText(tool)) && isSuccessfulTool(tool),
+  );
+  const failed = calls.filter(
+    (tool) => tool.isError && !(hasSuccessfulTest && isTestCommand(commandText(tool))),
+  );
   return gradingResult(
     failed.length === 0,
     failed.length === 0
@@ -84,6 +92,296 @@ function commandText(tool) {
       .join('\n');
   }
   return '';
+}
+
+const EDITOR_DIRECTORY_PATTERN = /^examples\/(editor\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2})(?:\/|$)/;
+const DIRECT_WRITE_TOOL = /^(?:write|write_file|file_write|edit|edit_file|file_edit|delete_file)$/i;
+const SHELL_TOOL = /^(?:bash|shell|exec|exec_command|terminal|command|run_command)$/i;
+
+function parsedInput(tool) {
+  if (tool?.input && typeof tool.input === 'object') {
+    return tool.input;
+  }
+  if (typeof tool?.input !== 'string') {
+    return undefined;
+  }
+  try {
+    return JSON.parse(tool.input);
+  } catch {
+    return undefined;
+  }
+}
+
+function stripQuotes(value) {
+  const trimmed = String(value ?? '').trim();
+  if (
+    trimmed.length >= 2 &&
+    ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'")))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function normalizeObservedPath(value, context, workingDirectory = '.') {
+  let observed = stripQuotes(value).replaceAll('\\', '/');
+  if (!observed) {
+    return undefined;
+  }
+  if (observed === '/dev/null') {
+    return observed;
+  }
+
+  const repositoryDirectory = metadata(context).directory;
+  if (path.posix.isAbsolute(observed)) {
+    if (typeof repositoryDirectory !== 'string' || !repositoryDirectory.trim()) {
+      return path.posix.normalize(observed);
+    }
+    const relative = path.relative(path.resolve(repositoryDirectory), path.resolve(observed));
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      return path.posix.normalize(observed);
+    }
+    observed = relative.replaceAll('\\', '/');
+  } else if (workingDirectory && workingDirectory !== '.') {
+    observed = path.posix.join(workingDirectory, observed);
+  }
+
+  return path.posix.normalize(observed).replace(/^\.\//, '');
+}
+
+function shellTokens(command) {
+  return (command.match(/"(?:\\.|[^"\\])*"|'[^']*'|[^\s]+/g) ?? []).map((token) =>
+    stripQuotes(token),
+  );
+}
+
+function shellWritePaths(tool, context) {
+  const input = parsedInput(tool);
+  const command = commandText(tool);
+  if (!command) {
+    return { paths: [], unknown: false };
+  }
+
+  let workingDirectory = normalizeObservedPath(input?.cwd ?? input?.workdir ?? '.', context) ?? '.';
+  const writePaths = [];
+  let unknown = false;
+  const resolveWritePath = (value) => {
+    const normalized = normalizeObservedPath(value, context, workingDirectory);
+    if (normalized) {
+      writePaths.push(normalized);
+    } else {
+      unknown = true;
+    }
+  };
+
+  for (const segment of command.split(/\s*(?:&&|\|\||;|\n)\s*/).filter(Boolean)) {
+    const tokens = shellTokens(segment);
+    if (tokens.length === 0) {
+      continue;
+    }
+    if (tokens[0] === 'cd') {
+      const directory = tokens.find((token, index) => index > 0 && !token.startsWith('-'));
+      if (!directory) {
+        unknown = true;
+      } else {
+        workingDirectory = normalizeObservedPath(directory, context, workingDirectory) ?? workingDirectory;
+      }
+      continue;
+    }
+
+    let commandIndex = tokens.findIndex((token) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(token));
+    if (tokens[commandIndex] === 'env') {
+      commandIndex = tokens.findIndex(
+        (token, index) => index > commandIndex && !/^[A-Za-z_][A-Za-z0-9_]*=/.test(token),
+      );
+    }
+    if (commandIndex < 0) {
+      continue;
+    }
+    const executable = path.posix.basename(tokens[commandIndex]);
+    const operands = tokens
+      .slice(commandIndex + 1)
+      .filter((token) => !token.startsWith('-') && !/^\d*(?:>>?|<>)$/.test(token));
+
+    if (/^(?:mkdir|touch|rm|rmdir|truncate|unlink)$/.test(executable)) {
+      if (operands.length === 0) {
+        unknown = true;
+      }
+      operands.forEach(resolveWritePath);
+    } else if (/^(?:cp|install)$/.test(executable)) {
+      if (operands.length < 2) {
+        unknown = true;
+      } else {
+        resolveWritePath(operands.at(-1));
+      }
+    } else if (executable === 'mv') {
+      if (operands.length < 2) {
+        unknown = true;
+      } else {
+        operands.forEach(resolveWritePath);
+      }
+    } else if (executable === 'tee') {
+      if (operands.length === 0) {
+        unknown = true;
+      }
+      operands.forEach(resolveWritePath);
+    } else if (executable === 'sed' && tokens.includes('-i')) {
+      if (operands.length === 0) {
+        unknown = true;
+      } else {
+        resolveWritePath(operands.at(-1));
+      }
+    } else if (
+      (/^(?:npm|pnpm|yarn|bun)$/.test(executable) &&
+        /\b(?:install|add|init|create|ci)\b/.test(segment)) ||
+      (executable === 'git' && /\binit\b/.test(segment))
+    ) {
+      resolveWritePath('.');
+    }
+
+    const redirectPattern = /(?:^|\s)\d*(?:>>?|<>)\s*("(?:\\.|[^"\\])*"|'[^']*'|[^\s;&|]+)/g;
+    for (const match of segment.matchAll(redirectPattern)) {
+      const target = stripQuotes(match[1]);
+      if (!/^&\d+$/.test(target)) {
+        resolveWritePath(target);
+      }
+    }
+  }
+
+  return { paths: writePaths, unknown };
+}
+
+function writeObservation(tool, context) {
+  const name = String(tool?.name ?? '');
+  if (name.toLowerCase() === 'apply_patch') {
+    const input = parsedInput(tool);
+    const patchText =
+      input?.patchText ?? input?.patch ?? (typeof tool?.input === 'string' ? tool.input : '');
+    if (typeof patchText !== 'string') {
+      return { paths: [], unknown: true };
+    }
+    const paths = [...patchText.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm),
+      ...patchText.matchAll(/^\*\*\* Move to: (.+)$/gm)]
+      .map((match) => normalizeObservedPath(match[1], context))
+      .filter(Boolean);
+    return { paths, unknown: paths.length === 0 };
+  }
+  if (DIRECT_WRITE_TOOL.test(name)) {
+    const input = parsedInput(tool);
+    const observed = input?.path ?? input?.filePath ?? input?.file_path ?? input?.file;
+    const normalized = normalizeObservedPath(observed, context);
+    return { paths: normalized ? [normalized] : [], unknown: !normalized };
+  }
+  if (SHELL_TOOL.test(name)) {
+    return shellWritePaths(tool, context);
+  }
+  return { paths: [], unknown: false };
+}
+
+function isTestCommand(command) {
+  return (
+    /(?:^|[;&|]\s*)node\b[^;&|\n]*\s--test(?:\s|$)/i.test(command) ||
+    /(?:^|[;&|]\s*)(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?test(?:\s|$)/i.test(command) ||
+    /(?:^|[;&|]\s*)deno\s+test(?:\s|$)/i.test(command) ||
+    /(?:^|[;&|]\s*)(?:(?:npx|bunx)\s+)?(?:vitest|jest|mocha)(?:\s|$)/i.test(command)
+  );
+}
+
+function testRunsInEditorDirectory(tool, editorRoot, context) {
+  const input = parsedInput(tool);
+  const workingDirectory = normalizeObservedPath(input?.cwd ?? input?.workdir, context);
+  if (workingDirectory === editorRoot || workingDirectory?.startsWith(`${editorRoot}/`)) {
+    return true;
+  }
+  const commandPaths = shellTokens(commandText(tool).replace(/[;&|]/g, ' '))
+    .map((token) => token.replace(/^[^=]+=/, ''))
+    .map((token) => normalizeObservedPath(token, context))
+    .filter(Boolean);
+  return commandPaths.some(
+    (commandPath) =>
+      commandPath === editorRoot || commandPath.startsWith(`${editorRoot}/`),
+  );
+}
+
+export function editorCodingTrajectory(_output, context) {
+  const writes = [];
+  const unknownWriteTools = [];
+  const unsuccessfulWriteTools = [];
+  for (const tool of toolCalls(context)) {
+    const observation = writeObservation(tool, context);
+    writes.push(...observation.paths);
+    if (observation.unknown) {
+      unknownWriteTools.push(tool?.name ?? '未知工具');
+    }
+    if (observation.paths.length > 0 && !isSuccessfulTool(tool)) {
+      unsuccessfulWriteTools.push(tool?.name ?? '未知工具');
+    }
+  }
+
+  if (unknownWriteTools.length > 0) {
+    return gradingResult(false, `无法识别工具写入路径：${unknownWriteTools.join(', ')}`);
+  }
+  if (unsuccessfulWriteTools.length > 0) {
+    return gradingResult(false, `写入工具未成功：${unsuccessfulWriteTools.join(', ')}`);
+  }
+  if (writes.length === 0) {
+    return gradingResult(false, '未检测到编辑器文件写入');
+  }
+
+  const editorRoots = new Set();
+  const outsideWrites = [];
+  for (const writtenPath of writes) {
+    if (writtenPath === '/dev/null') {
+      continue;
+    }
+    const match = writtenPath.match(EDITOR_DIRECTORY_PATTERN);
+    if (!match) {
+      outsideWrites.push(writtenPath);
+    } else {
+      editorRoots.add(`examples/${match[1]}`);
+    }
+  }
+  if (outsideWrites.length > 0) {
+    return gradingResult(false, `检测到编辑器目录外写入：${[...new Set(outsideWrites)].join(', ')}`);
+  }
+  if (editorRoots.size !== 1) {
+    return gradingResult(
+      false,
+      editorRoots.size === 0
+        ? '未创建符合时间戳格式的编辑器目录'
+        : `写入跨越多个编辑器目录：${[...editorRoots].join(', ')}`,
+    );
+  }
+
+  const editorRoot = [...editorRoots][0];
+  const typescriptArtifacts = writes.filter((writtenPath) => {
+    const fileName = path.posix.basename(writtenPath);
+    return (
+      writtenPath.startsWith(`${editorRoot}/`) &&
+      /\.tsx?$/.test(fileName) &&
+      !/\.(?:test|spec)\.tsx?$/.test(fileName) &&
+      !/\.d\.ts$/.test(fileName)
+    );
+  });
+  if (typescriptArtifacts.length === 0) {
+    return gradingResult(false, `未在 ${editorRoot} 创建 TypeScript 编辑器产物`);
+  }
+
+  const testCalls = toolCalls(context).filter(
+    (tool) => SHELL_TOOL.test(tool?.name ?? '') && isTestCommand(commandText(tool)),
+  );
+  const scopedTestCalls = testCalls.filter((tool) =>
+    testRunsInEditorDirectory(tool, editorRoot, context),
+  );
+  if (!scopedTestCalls.some(isSuccessfulTool)) {
+    return gradingResult(false, `未运行 ${editorRoot} 内的测试或缺少成功状态`);
+  }
+
+  return gradingResult(
+    true,
+    `${editorRoot} 写入范围、TypeScript 产物和成功测试命令均通过`,
+  );
 }
 
 export function readOnlyTrajectory(_output, context) {

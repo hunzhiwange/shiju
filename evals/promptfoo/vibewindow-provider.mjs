@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 const DEFAULT_ENDPOINT = 'http://127.0.0.1:42617/v1/chat/stream';
 const DEFAULT_MODEL = 'token-plan/deepseek-v4-flash-0731';
-const DEFAULT_TIMEOUT_MS = 180_000;
+const DEFAULT_TIMEOUT_MS = 900_000;
 const MAX_ERROR_BODY_CHARS = 1_024;
 const REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
@@ -29,6 +29,13 @@ function parseMaybeJson(value) {
   } catch {
     return value;
   }
+}
+
+export function resolveTimeoutMs(config = {}, environment = process.env) {
+  return positiveInteger(
+    environment.VIBEWINDOW_EVAL_TIMEOUT_MS ?? config.timeoutMs,
+    DEFAULT_TIMEOUT_MS,
+  );
 }
 
 function normalizeUsage(usage) {
@@ -258,13 +265,13 @@ export default class VibeWindowProvider {
       { config: 'companyId', environment: 'VIBEWINDOW_COMPANY_ID' },
       '100000000',
     );
-    const timeoutMs = positiveInteger(
-      process.env.VIBEWINDOW_EVAL_TIMEOUT_MS ?? this.config.timeoutMs,
-      DEFAULT_TIMEOUT_MS,
-    );
+    const timeoutMs = resolveTimeoutMs(this.config);
     const request = {
       ...(model ? { model } : {}),
       ...(agent ? { agent } : {}),
+      // DeepSeek V4 Flash 的输出上限高于 gateway 的通用 32000 上限；0 表示不附加
+      // 评测层 max_output_tokens，避免长工具调用轨迹被截断为 max_tokens 错误。
+      options: { max_output_tokens: 0 },
       messages: [{ role: 'user', content: prompt }],
     };
     const startedAt = performance.now();

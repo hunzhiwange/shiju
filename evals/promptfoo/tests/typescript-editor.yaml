@@ -1,0 +1,15 @@
+- description: coding · TypeScript 文本编辑器
+  metadata:
+    suite: coding
+    batch: 1
+    difficulty: medium
+  vars:
+    task: >-
+      在当前仓库中完成一个独立的 TypeScript 文本编辑器示例。先创建唯一的新目录，
+      目录名必须严格匹配 examples/editorYYYY-MM-DD_HH_mm_ss。所有新建、修改、删除和
+      命令产生的文件都必须位于这一个目录内，不要修改目录外任何文件；工具参数和 shell
+      命令中直接写出该仓库相对目录，不要用变量隐藏写入目标。编辑器至少支持读取全文、
+      在指定位置插入文本、删除指定范围、撤销和重做，并为核心插入/删除以及撤销/重做
+      行为编写 TypeScript 自动化测试。实际运行测试并确保成功；使用 node --test、
+      npm/pnpm/yarn/bun test、deno test、vitest、jest 或 mocha 中的一种可识别测试命令。
+      最后只需简要报告创建目录、实现内容和成功的测试命令。

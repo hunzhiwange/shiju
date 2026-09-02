@@ -6,9 +6,18 @@ import { fileURLToPath } from 'node:url';
 import VibeWindowProvider, {
   aggregateEvents,
   parseSseStream,
+  resolveTimeoutMs,
 } from './vibewindow-provider.mjs';
 
 const encoder = new TextEncoder();
+
+test('timeout configuration uses a fifteen minute default and preserves valid overrides', () => {
+    assert.equal(resolveTimeoutMs({}, {}), 900_000);
+  assert.equal(resolveTimeoutMs({ timeoutMs: 240_000 }, {}), 240_000);
+    assert.equal(resolveTimeoutMs({ timeoutMs: 0 }, {}), 900_000);
+  assert.equal(resolveTimeoutMs({}, { VIBEWINDOW_EVAL_TIMEOUT_MS: '300000' }), 300_000);
+    assert.equal(resolveTimeoutMs({}, { VIBEWINDOW_EVAL_TIMEOUT_MS: 'invalid' }), 900_000);
+});
 
 function responseFromChunks(chunks, init = {}) {
   const body = new ReadableStream({
@@ -196,6 +205,7 @@ test('provider sends the configured request and returns Promptfoo metadata', asy
   assert.deepEqual(JSON.parse(captured.options.body), {
     model: 'test/model',
     agent: 'reviewer',
+    options: { max_output_tokens: 0 },
     messages: [{ role: 'user', content: 'find callers' }],
   });
   assert.equal(result.output, 'answer');

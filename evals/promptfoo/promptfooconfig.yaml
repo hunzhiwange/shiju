@@ -11,7 +11,7 @@ providers:
       agent: main
       directory: .
       model: token-plan/deepseek-v4-flash-0731
-      timeoutMs: 180000
+      timeoutMs: 900000
 
 defaultTest:
   threshold: 0.7

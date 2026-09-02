@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: VibeWindow Agent TypeScript 编辑器编码评测
+
+prompts:
+  - '{{task}}'
+
+providers:
+  - id: file://./vibewindow-provider.mjs
+    label: 默认模型基线 · DeepSeek V4 Flash 0731
+    config:
+      agent: main
+      directory: .
+      model: token-plan/deepseek-v4-flash-0731
+      timeoutMs: 900000
+
+defaultTest:
+  threshold: 1
+  options:
+    disableVarExpansion: true
+  assert:
+    - type: javascript
+      value: file://./assertions.mjs:successfulRun
+      metric: successful_run
+      weight: 10
+    - type: javascript
+      value: file://./assertions.mjs:noFailedTools
+      metric: no_failed_tools
+      weight: 20
+    - type: javascript
+      value: file://./assertions.mjs:editorCodingTrajectory
+      metric: editor_coding_trajectory
+      weight: 60
+    - type: javascript
+      value: file://./assertions.mjs:maxToolCalls
+      metric: tool_call_budget
+      weight: 10
+      config:
+        maxToolCalls: 40
+
+tests:
+  - file://./tests/typescript-editor.yaml
+
+commandLineOptions:
+  maxConcurrency: 1
+  repeat: 1
+  cache: false
+
+sharing: false

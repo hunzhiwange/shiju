@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
-description: VibeWindow Agent 只读代码导航回归评测
+description: VibeWindow Agent 评测
 
 prompts:
   - '{{task}}'
@@ -14,53 +14,14 @@ providers:
       timeoutMs: 900000
 
 defaultTest:
-  threshold: 0.7
-  assertScoringFunction: file://./scoring.mjs
   options:
     disableVarExpansion: true
   assert:
     - type: javascript
-      value: file://./assertions.mjs:successfulRun
-      metric: successful_run
-      weight: 10
-    - type: javascript
-      value: file://./assertions.mjs:readOnlyTrajectory
-      metric: read_only
-      weight: 10
-    - type: javascript
-      value: file://./assertions.mjs:noFailedTools
-      metric: no_failed_tools
-      weight: 10
-    - type: javascript
-      value: file://./assertions.mjs:directRustcodegraphCall
-      metric: direct_rustcodegraph_call
-      weight: 20
-    - type: javascript
-      value: file://./assertions.mjs:successfulRustcodegraphCall
-      metric: rustcodegraph_call_success
-      weight: 15
-    - type: javascript
-      value: file://./assertions.mjs:rustcodegraphOperation
-      metric: rustcodegraph_operation
-      weight: 10
-    - type: javascript
-      value: file://./assertions.mjs:noNavigationFallback
-      metric: no_navigation_fallback
-      weight: 10
-    - type: javascript
-      value: file://./assertions.mjs:expectedFactsScore
-      metric: expected_facts
-      weight: 10
-    - type: javascript
-      value: file://./assertions.mjs:maxToolCalls
-      metric: tool_call_budget
-      weight: 5
-      config:
-        maxToolCalls: 6
+      value: file://./assertions.mjs:evaluate
 
 tests:
-  - file://./tests/rustcodegraph-contract.yaml
-  - file://./tests/rustcodegraph-selection.yaml
+  - file://./tests/*.yaml
 
 commandLineOptions:
   maxConcurrency: 1

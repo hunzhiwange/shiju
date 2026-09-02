@@ -12,7 +12,7 @@
 
 ## 运行
 
-统一使用评分脚本。先验证本地适配器、断言和对比逻辑：
+统一使用评分脚本。先检查本地 JavaScript 语法和 Promptfoo 配置：
 
 ```bash
 evals/promptfoo/score.sh test
@@ -24,25 +24,35 @@ evals/promptfoo/score.sh test
 evals/promptfoo/score.sh run
 ```
 
-按已有测试组运行：
+像单元测试一样按测试组运行：
 
 ```bash
-evals/promptfoo/score.sh run --suite selection
+evals/promptfoo/score.sh run --test rustcodegraph-selection1
 ```
 
-默认使用只读代码导航配置。单独运行 TypeScript 编辑器 coding 用例：
+单独运行 TypeScript 编辑器 coding 用例：
 
 ```bash
-evals/promptfoo/score.sh run --config coding --suite coding
+evals/promptfoo/score.sh run --suite typescript-editor1
+```
+
+运行时切换模型，无需修改 YAML：
+
+```bash
+evals/promptfoo/score.sh run --test typescript-editor1 --model provider/model
 ```
 
 脚本固定 Promptfoo 版本、配置、禁用缓存并将并发设为 1，避免各次评分参数漂移。
-`run`、`before` 和 `after` 可用 `--config readonly|coding` 选择配置，省略时保持现有
-`promptfooconfig.yaml` 只读行为；还可用 `--suite`、`--batch`、`--metadata KEY=VALUE`、`--provider`、
-`--pattern` 和 `--failing` 缩小范围；多个 metadata 筛选使用 AND 逻辑。
+`run`、`before` 和 `after` 统一使用 `promptfooconfig.yaml`；可用 `--test`、`--batch`、
+`--metadata KEY=VALUE`、`--provider`、
+`--pattern` 和 `--failing` 缩小范围，用 `--model` 切换模型。`--suite` 作为
+`--test` 的兼容别名；多个 metadata 筛选使用 AND 逻辑。
 
 Provider 会将 `max_output_tokens` 设为 `0`，沿用模型自身上限，避免 DeepSeek V4 Flash 的长工具调用
 轨迹被网关通用 32000 token 限制截断。
+Provider 在收到 step、工具及终态 SSE 事件时向 stderr 输出进度；达到 24 个 Agent 迭代或 32 次
+工具调用后，通过流请求 ID 调用 Gateway stop 接口。可通过 Provider 配置的 `maxIterations`、
+`maxToolCalls` 调整。
 
 评测矩阵从 `promptfooconfig.yaml` 的 `providers` 读取；每个 Provider 对同一组任务运行，
 Provider `label` 是前后结果匹配时的模型键，比较期间不要改名。Agent 工作目录配置为 `.`，
@@ -130,8 +140,10 @@ Provider 被同一个环境变量覆盖。
 
 ## 添加用例
 
-在测试 YAML 中追加任务。为新增用例设置稳定的 `metadata.batch`，即可只执行本批，
-无需消耗 token 重跑旧测试。只读任务应继续使用默认断言，并提供稳定、不会因措辞变化而失效的 `expectedTerms`：
+直接在 `tests/` 下新增 YAML 或追加任务，主配置会通过 `tests/*.yaml`
+自动加载。无需修改 `assertions.mjs` 或新建 Promptfoo config。为新增用例设置
+稳定的 `metadata.batch`，即可只执行本批。RustCodeGraph 任务提供
+`expectedOperations` 和稳定的 `expectedTerms`，评分器会自动选择对应规则：
 
 ```yaml
 - description: 示例
@@ -140,7 +152,10 @@ Provider 被同一个环境变量覆盖。
     batch: 4
   vars:
     task: 读取目标符号并回答，不要修改代码。
+    expectedOperations:
+      - node
     expectedTerms: '["TargetSymbol", "target_file.rs"]'
+    maxToolCalls: 6
 ```
 
 只运行该批新增测试：
@@ -149,18 +164,19 @@ Provider 被同一个环境变量覆盖。
 evals/promptfoo/score.sh run --batch 4
 ```
 
-默认断言检查：
+通用评分入口会根据 `metadata.suite` 和用例变量自动选择评测规则，
+并在 Promptfoo 中保留各项 metric。RustCodeGraph 用例检查：
 
 - 流正常到达 `chat.done` 且回答非空。
 - 没有失败、拒绝或取消的工具调用。
-- 工具调用不超过 12 次。
+- 工具调用不超过用例的 `maxToolCalls`。
 - 只读任务轨迹中没有明显写操作。
 - 回答包含全部 `expectedTerms`。
 
-独立的 `promptfooconfig-coding.yaml` 不继承只读与 RustCodeGraph 门槛。其编辑器用例要求
-全部可观测写入位于同一个 `examples/editorYYYY-MM-DD_HH_mm_ss` 目录，至少创建一个非测试
-TypeScript 产物，并在该目录内成功执行测试命令；未知写入目标、目录外写入、缺少产物、
-或没有成功的作用域内测试都会被确定性拒绝。
+coding 用例通过 `evaluationProfile: coding` 启用通用写入轨迹评分，并在 YAML 中用
+`writeRootPattern`（第一捕获组为写入根目录）、`requiredArtifactPattern`、
+`excludedArtifactPattern` 和 `requireSuccessfulTest` 声明具体约束。未知写入目标、允许目录外写入、
+缺少指定产物或没有成功的作用域内测试都会被确定性拒绝。
 修复过程中失败但随后成功的测试尝试不影响评分；其他失败工具仍会被拒绝。
 
 `metadata` 中保留 context 路径、step、工具调用、usage、模型和 Agent，便于在 Promptfoo viewer 中分析失败原因。

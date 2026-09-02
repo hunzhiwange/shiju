@@ -74,7 +74,7 @@ export function noFailedTools(_output, context) {
 
 export function maxToolCalls(_output, context) {
   const calls = toolCalls(context);
-  const limit = Number(context?.config?.maxToolCalls ?? 12);
+  const limit = Number(context?.vars?.maxToolCalls ?? context?.config?.maxToolCalls ?? 12);
   return gradingResult(
     calls.length <= limit,
     calls.length <= limit ? `工具调用 ${calls.length}/${limit}` : `工具调用过多：${calls.length}/${limit}`,
@@ -94,9 +94,23 @@ function commandText(tool) {
   return '';
 }
 
-const EDITOR_DIRECTORY_PATTERN = /^examples\/(editor\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2})(?:\/|$)/;
 const DIRECT_WRITE_TOOL = /^(?:write|write_file|file_write|edit|edit_file|file_edit|delete_file)$/i;
 const SHELL_TOOL = /^(?:bash|shell|exec|exec_command|terminal|command|run_command)$/i;
+
+function configuredPattern(context, name, required = false) {
+  const raw = context?.vars?.[name] ?? context?.config?.[name];
+  if (raw === undefined || raw === null || raw === '') {
+    return required ? { error: `${name} 必须配置为正则表达式字符串` } : {};
+  }
+  if (typeof raw !== 'string') {
+    return { error: `${name} 必须是正则表达式字符串` };
+  }
+  try {
+    return { pattern: new RegExp(raw) };
+  } catch (error) {
+    return { error: `${name} 不是有效正则表达式：${error.message}` };
+  }
+}
 
 function parsedInput(tool) {
   if (tool?.input && typeof tool.input === 'object') {
@@ -288,10 +302,10 @@ function isTestCommand(command) {
   );
 }
 
-function testRunsInEditorDirectory(tool, editorRoot, context) {
+function testRunsInDirectory(tool, root, context) {
   const input = parsedInput(tool);
   const workingDirectory = normalizeObservedPath(input?.cwd ?? input?.workdir, context);
-  if (workingDirectory === editorRoot || workingDirectory?.startsWith(`${editorRoot}/`)) {
+  if (workingDirectory === root || workingDirectory?.startsWith(`${root}/`)) {
     return true;
   }
   const commandPaths = shellTokens(commandText(tool).replace(/[;&|]/g, ' '))
@@ -300,11 +314,19 @@ function testRunsInEditorDirectory(tool, editorRoot, context) {
     .filter(Boolean);
   return commandPaths.some(
     (commandPath) =>
-      commandPath === editorRoot || commandPath.startsWith(`${editorRoot}/`),
+      commandPath === root || commandPath.startsWith(`${root}/`),
   );
 }
 
-export function editorCodingTrajectory(_output, context) {
+export function codingTrajectory(_output, context) {
+  const writeRoot = configuredPattern(context, 'writeRootPattern', true);
+  const requiredArtifact = configuredPattern(context, 'requiredArtifactPattern');
+  const excludedArtifact = configuredPattern(context, 'excludedArtifactPattern');
+  const configurationError = writeRoot.error ?? requiredArtifact.error ?? excludedArtifact.error;
+  if (configurationError) {
+    return gradingResult(false, configurationError);
+  }
+
   const writes = [];
   const unknownWriteTools = [];
   const unsuccessfulWriteTools = [];
@@ -326,62 +348,58 @@ export function editorCodingTrajectory(_output, context) {
     return gradingResult(false, `写入工具未成功：${unsuccessfulWriteTools.join(', ')}`);
   }
   if (writes.length === 0) {
-    return gradingResult(false, '未检测到编辑器文件写入');
+    return gradingResult(false, '未检测到文件写入');
   }
 
-  const editorRoots = new Set();
+  const writeRoots = new Set();
   const outsideWrites = [];
   for (const writtenPath of writes) {
     if (writtenPath === '/dev/null') {
       continue;
     }
-    const match = writtenPath.match(EDITOR_DIRECTORY_PATTERN);
-    if (!match) {
+    const match = writtenPath.match(writeRoot.pattern);
+    if (!match?.[1]) {
       outsideWrites.push(writtenPath);
     } else {
-      editorRoots.add(`examples/${match[1]}`);
+      writeRoots.add(match[1]);
     }
   }
   if (outsideWrites.length > 0) {
-    return gradingResult(false, `检测到编辑器目录外写入：${[...new Set(outsideWrites)].join(', ')}`);
+    return gradingResult(false, `检测到允许目录外写入：${[...new Set(outsideWrites)].join(', ')}`);
   }
-  if (editorRoots.size !== 1) {
+  if (writeRoots.size !== 1) {
     return gradingResult(
       false,
-      editorRoots.size === 0
-        ? '未创建符合时间戳格式的编辑器目录'
-        : `写入跨越多个编辑器目录：${[...editorRoots].join(', ')}`,
+      writeRoots.size === 0
+        ? '未检测到符合 writeRootPattern 的写入目录'
+        : `写入跨越多个允许目录：${[...writeRoots].join(', ')}`,
     );
   }
 
-  const editorRoot = [...editorRoots][0];
-  const typescriptArtifacts = writes.filter((writtenPath) => {
-    const fileName = path.posix.basename(writtenPath);
-    return (
-      writtenPath.startsWith(`${editorRoot}/`) &&
-      /\.tsx?$/.test(fileName) &&
-      !/\.(?:test|spec)\.tsx?$/.test(fileName) &&
-      !/\.d\.ts$/.test(fileName)
+  const root = [...writeRoots][0];
+  if (requiredArtifact.pattern) {
+    const artifacts = writes.filter(
+      (writtenPath) =>
+        (writtenPath === root || writtenPath.startsWith(`${root}/`)) &&
+        requiredArtifact.pattern.test(writtenPath) &&
+        !excludedArtifact.pattern?.test(writtenPath),
     );
-  });
-  if (typescriptArtifacts.length === 0) {
-    return gradingResult(false, `未在 ${editorRoot} 创建 TypeScript 编辑器产物`);
+    if (artifacts.length === 0) {
+      return gradingResult(false, `未在 ${root} 创建符合 requiredArtifactPattern 的产物`);
+    }
   }
 
-  const testCalls = toolCalls(context).filter(
-    (tool) => SHELL_TOOL.test(tool?.name ?? '') && isTestCommand(commandText(tool)),
-  );
-  const scopedTestCalls = testCalls.filter((tool) =>
-    testRunsInEditorDirectory(tool, editorRoot, context),
-  );
-  if (!scopedTestCalls.some(isSuccessfulTool)) {
-    return gradingResult(false, `未运行 ${editorRoot} 内的测试或缺少成功状态`);
+  if (context?.vars?.requireSuccessfulTest ?? context?.config?.requireSuccessfulTest ?? false) {
+    const testCalls = toolCalls(context).filter(
+      (tool) => SHELL_TOOL.test(tool?.name ?? '') && isTestCommand(commandText(tool)),
+    );
+    const scopedTestCalls = testCalls.filter((tool) => testRunsInDirectory(tool, root, context));
+    if (!scopedTestCalls.some(isSuccessfulTool)) {
+      return gradingResult(false, `未运行 ${root} 内的测试或缺少成功状态`);
+    }
   }
 
-  return gradingResult(
-    true,
-    `${editorRoot} 写入范围、TypeScript 产物和成功测试命令均通过`,
-  );
+  return gradingResult(true, `${root} 的写入范围和配置要求均通过`);
 }
 
 export function readOnlyTrajectory(_output, context) {
@@ -539,4 +557,88 @@ export function expectedFactsScore(output, context) {
       : `事实命中 ${matched}/${expected.length}；缺少：${missing.join(', ')}`,
     score,
   );
+}
+
+const EVALUATION_PROFILES = Object.freeze({
+  rustcodegraph: {
+    threshold: 0.7,
+    checks: [
+      ['successful_run', 10, successfulRun, true],
+      ['read_only', 10, readOnlyTrajectory, true],
+      ['no_failed_tools', 10, noFailedTools, true],
+      ['direct_rustcodegraph_call', 20, directRustcodegraphCall, true],
+      ['rustcodegraph_call_success', 15, successfulRustcodegraphCall, true],
+      ['rustcodegraph_operation', 10, rustcodegraphOperation, false],
+      ['no_navigation_fallback', 10, noNavigationFallback, false],
+      ['expected_facts', 10, expectedFactsScore, false],
+      ['tool_call_budget', 5, maxToolCalls, false],
+    ],
+  },
+  coding: {
+    threshold: 1,
+    checks: [
+      ['successful_run', 10, successfulRun, true],
+      ['no_failed_tools', 20, noFailedTools, true],
+      ['coding_trajectory', 60, codingTrajectory, true],
+      ['tool_call_budget', 10, maxToolCalls, false],
+    ],
+  },
+});
+
+function evaluationProfile(context) {
+  const explicit = context?.vars?.evaluationProfile;
+  if (typeof explicit === 'string' && explicit.trim()) {
+    return explicit.trim();
+  }
+  const suite = String(context?.test?.metadata?.suite ?? context?.vars?.suite ?? '');
+  if (suite.startsWith('rustcodegraph-') || context?.vars?.expectedOperations) {
+    return 'rustcodegraph';
+  }
+  return suite;
+}
+
+export function evaluate(output, context) {
+  const profileName = evaluationProfile(context);
+  const profile = EVALUATION_PROFILES[profileName];
+  if (!profile) {
+    return gradingResult(
+      false,
+      `未知评测类型：${profileName || '未配置'}；请设置 metadata.suite 或 vars.evaluationProfile`,
+    );
+  }
+
+  const componentResults = profile.checks.map(([name, weight, check, hardGate]) => {
+    const result = check(output, context);
+    return {
+      ...result,
+      namedScores: { [name]: result.score },
+      namedScoreWeights: { [name]: weight },
+      metadata: { hardGate },
+    };
+  });
+  const totalWeight = profile.checks.reduce((total, [, weight]) => total + weight, 0);
+  const points = profile.checks.reduce(
+    (total, [, weight], index) => total + componentResults[index].score * weight,
+    0,
+  );
+  const score = points / totalWeight;
+  const failedGates = profile.checks
+    .filter(([, , , hardGate], index) => hardGate && !componentResults[index].pass)
+    .map(([name]) => name);
+  const pass = failedGates.length === 0 && score >= profile.threshold;
+  const reason = failedGates.length > 0
+    ? `总分 ${points}/${totalWeight}；未通过硬门槛：${failedGates.join(', ')}`
+    : `总分 ${points}/${totalWeight}；${pass ? '通过' : `低于阈值 ${profile.threshold}`}`;
+
+  return {
+    pass,
+    score,
+    reason,
+    componentResults,
+    namedScores: Object.assign({}, ...componentResults.map((result) => result.namedScores)),
+    namedScoreWeights: Object.assign(
+      {},
+      ...componentResults.map((result) => result.namedScoreWeights),
+    ),
+  };
 }

@@ -1,9 +1,15 @@
 - description: coding · TypeScript 文本编辑器
   metadata:
-    suite: coding
+    suite: typescript-editor1
     batch: 1
     difficulty: medium
   vars:
+    evaluationProfile: coding
+    writeRootPattern: '^(examples/editor\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2})(?:/|$)'
+    requiredArtifactPattern: '\.tsx?$'
+    excludedArtifactPattern: '\.(?:test|spec)\.tsx?$|\.d\.ts$'
+    requireSuccessfulTest: true
+    maxToolCalls: 40
     task: >-
       在当前仓库中完成一个独立的 TypeScript 文本编辑器示例。先创建唯一的新目录，
       目录名必须严格匹配 examples/editorYYYY-MM-DD_HH_mm_ss。所有新建、修改、删除和

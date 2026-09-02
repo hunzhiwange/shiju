@@ -1,9 +1,12 @@
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const DEFAULT_ENDPOINT = 'http://127.0.0.1:42617/v1/chat/stream';
 const DEFAULT_MODEL = 'token-plan/deepseek-v4-flash-0731';
 const DEFAULT_TIMEOUT_MS = 900_000;
+const DEFAULT_MAX_ITERATIONS = 24;
+const DEFAULT_MAX_TOOL_CALLS = 32;
 const MAX_ERROR_BODY_CHARS = 1_024;
 const REPOSITORY_ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
@@ -45,6 +48,45 @@ function normalizeUsage(usage) {
     cachedTokens: Number(usage?.cached_tokens ?? 0),
     reasoningTokens: Number(usage?.reasoning_tokens ?? 0),
   };
+}
+
+function reportProgress(event) {
+  const type = event?.type;
+  let detail = '';
+  if (type === 'chat.step_start') {
+    detail = `step=${event.step_index}`;
+  } else if (type === 'chat.step_finish') {
+    detail = `step=${event.step_index} reason=${event.finish_reason ?? 'unknown'}`;
+  } else if (type === 'chat.tool') {
+    detail = `${event.kind ?? event.status ?? 'update'} ${event.name ?? 'unknown'}`;
+  } else if (type === 'chat.error') {
+    detail = String(event.error ?? 'unknown error');
+  } else if (type !== 'chat.done') {
+    return;
+  }
+  process.stderr.write(`[vibewindow-eval] ${type}${detail ? ` ${detail}` : ''}\n`);
+}
+
+function stopEndpoint(endpoint, requestId) {
+  const url = new URL(endpoint);
+  url.pathname = `${url.pathname.replace(/\/$/, '')}/${encodeURIComponent(requestId)}/stop`;
+  url.search = '';
+  return url;
+}
+
+async function stopStream(endpoint, requestId, headers) {
+  const response = await fetch(stopEndpoint(endpoint, requestId), {
+    method: 'POST',
+    headers,
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!response.ok) {
+    throw new Error(`VibeWindow stop request returned ${response.status} ${response.statusText}`);
+  }
+  const result = await response.json();
+  if (result.cancelled !== true) {
+    throw new Error('VibeWindow stop request did not find the active stream');
+  }
 }
 
 function parseSseFrame(frame) {
@@ -266,6 +308,13 @@ export default class VibeWindowProvider {
       '100000000',
     );
     const timeoutMs = resolveTimeoutMs(this.config);
+    const maxIterations = positiveInteger(this.config.maxIterations, DEFAULT_MAX_ITERATIONS);
+    const maxToolCalls = positiveInteger(this.config.maxToolCalls, DEFAULT_MAX_TOOL_CALLS);
+    const requestId = randomUUID();
+    const tenantHeaders = {
+      'X-Platform-ID': platformId,
+      'X-Company-ID': companyId,
+    };
     const request = {
       ...(model ? { model } : {}),
       ...(agent ? { agent } : {}),
@@ -284,9 +333,9 @@ export default class VibeWindowProvider {
         headers: {
           Accept: 'text/event-stream',
           'Content-Type': 'application/json',
-          'X-Platform-ID': platformId,
-          'X-Company-ID': companyId,
+          ...tenantHeaders,
           'X-VibeWindow-Directory': directory,
+          'X-VW-Stream-Request-ID': requestId,
         },
         body: JSON.stringify(request),
         signal: controller.signal,
@@ -300,8 +349,29 @@ export default class VibeWindowProvider {
       }
 
       const events = [];
+      const steps = new Set();
+      const completedToolCalls = new Set();
+      let stopRequested = false;
       for await (const event of parseSseStream(response.body)) {
+        reportProgress(event);
         events.push(event);
+        if (event?.type === 'chat.step_start') {
+          steps.add(Number(event.step_index));
+        }
+        if (event?.type === 'chat.tool' && event.kind === 'complete') {
+          completedToolCalls.add(String(event.call_id ?? ''));
+        }
+        const reachedIterationLimit =
+          event?.type === 'chat.step_finish' && steps.size >= maxIterations;
+        const reachedToolCallLimit = completedToolCalls.size >= maxToolCalls;
+        if (!stopRequested && (reachedIterationLimit || reachedToolCallLimit)) {
+          stopRequested = true;
+          const reason = reachedIterationLimit
+            ? `${maxIterations} iterations`
+            : `${maxToolCalls} tool calls`;
+          process.stderr.write(`[vibewindow-eval] stopping stream after ${reason}\n`);
+          await stopStream(endpoint, requestId, tenantHeaders);
+        }
       }
       const result = aggregateEvents(events);
       return {

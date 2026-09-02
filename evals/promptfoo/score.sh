@@ -3,8 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd -- "$SCRIPT_DIR/../.." && pwd)
-READ_ONLY_CONFIG="$SCRIPT_DIR/promptfooconfig.yaml"
-CODING_CONFIG="$SCRIPT_DIR/promptfooconfig-coding.yaml"
+CONFIG="$SCRIPT_DIR/promptfooconfig.yaml"
 RESULTS_DIR="$SCRIPT_DIR/results"
 PROMPTFOO_VERSION=0.122.0
 
@@ -18,7 +17,7 @@ usage() {
   evals/promptfoo/score.sh compare [before.json [after.json [comparison.md]]]
 
 筛选参数：
-  --config NAME         选择 readonly 或 coding；默认 readonly
+  --test NAME           按测试组名运行（metadata.suite）
   --suite NAME          按 metadata.suite 筛选
   --batch NAME          按 metadata.batch 筛选
   --metadata KEY=VALUE  按任意 metadata 筛选，可重复使用
@@ -27,11 +26,13 @@ usage() {
   --failing PATH_OR_ID  只重跑指定结果中的失败项
   --repeat N            覆盖重复次数；run 默认 1，before/after 默认 3
   --output PATH         覆盖 JSON 输出路径
+  --model NAME          覆盖本次评测模型
 
 示例：
   evals/promptfoo/score.sh run --batch 4
-  evals/promptfoo/score.sh run --suite selection --batch 4
-  evals/promptfoo/score.sh run --config coding --suite coding
+  evals/promptfoo/score.sh run --test rustcodegraph-selection --batch 4
+  evals/promptfoo/score.sh run --test coding --model provider/model
+  evals/promptfoo/score.sh run --suite coding
   evals/promptfoo/score.sh before --batch 4
   evals/promptfoo/score.sh after --batch 4
   evals/promptfoo/score.sh compare
@@ -53,7 +54,7 @@ run_eval() {
 
   local repeat=1
   local output=""
-  local config="$READ_ONLY_CONFIG"
+  local model=""
   if [[ "$mode" == "before" || "$mode" == "after" ]]; then
     repeat=3
     output="$RESULTS_DIR/$mode.json"
@@ -62,23 +63,7 @@ run_eval() {
   local -a filters=()
   while (($# > 0)); do
     case "$1" in
-      --config)
-        require_value "$1" "${2:-}"
-        case "$2" in
-          readonly)
-            config="$READ_ONLY_CONFIG"
-            ;;
-          coding)
-            config="$CODING_CONFIG"
-            ;;
-          *)
-            echo "--config 必须是 readonly 或 coding" >&2
-            exit 2
-            ;;
-        esac
-        shift 2
-        ;;
-      --suite)
+      --test|--suite)
         require_value "$1" "${2:-}"
         filters+=(--filter-metadata "suite=$2")
         shift 2
@@ -126,6 +111,11 @@ run_eval() {
         output=$2
         shift 2
         ;;
+      --model)
+        require_value "$1" "${2:-}"
+        model=$2
+        shift 2
+        ;;
       -h|--help)
         usage
         return 0
@@ -141,7 +131,7 @@ run_eval() {
   mkdir -p "$RESULTS_DIR"
   local -a command=(
     npx --yes "promptfoo@$PROMPTFOO_VERSION" eval
-    -c "$config"
+    -c "$CONFIG"
     --repeat "$repeat"
     --no-cache
     -j 1
@@ -152,7 +142,11 @@ run_eval() {
   fi
 
   cd "$REPO_ROOT"
-  "${command[@]}"
+  if [[ -n "$model" ]]; then
+    VIBEWINDOW_EVAL_MODEL="$model" "${command[@]}"
+  else
+    "${command[@]}"
+  fi
 }
 
 compare_results() {
@@ -189,7 +183,10 @@ main() {
         echo "test 不接受额外参数" >&2
         exit 2
       fi
-      node --test "$SCRIPT_DIR"/*.test.mjs
+      node --check "$SCRIPT_DIR/assertions.mjs"
+      node --check "$SCRIPT_DIR/compare-results.mjs"
+      node --check "$SCRIPT_DIR/vibewindow-provider.mjs"
+      npx --yes "promptfoo@$PROMPTFOO_VERSION" validate -c "$CONFIG"
       ;;
     run|before|after)
       run_eval "$command" "$@"

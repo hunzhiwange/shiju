@@ -1,6 +1,6 @@
 - description: selection · callers · 统一提示词渲染调用关系
   metadata:
-    suite: selection
+    suite: rustcodegraph-selection1
     operation: callers
     difficulty: medium
   vars:
@@ -17,7 +17,7 @@
 
 - description: selection · node · 工具注册保护条件
   metadata:
-    suite: selection
+    suite: rustcodegraph-selection
     operation: node
     difficulty: medium
   vars:
@@ -35,7 +35,7 @@
 
 - description: selection · impact · 运行时能力指令影响范围
   metadata:
-    suite: selection
+    suite: rustcodegraph-selection
     operation: impact
     difficulty: hard
   vars:

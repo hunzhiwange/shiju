@@ -1,6 +1,6 @@
 - description: contract · callers · 工具注册函数调用者
   metadata:
-    suite: contract
+    suite: rustcodegraph-contract1
     operation: callers
     difficulty: easy
   vars:
@@ -18,7 +18,7 @@
 
 - description: contract · node · 运行时能力指令源码
   metadata:
-    suite: contract
+    suite: rustcodegraph-contract
     operation: node
     difficulty: easy
   vars:
@@ -36,7 +36,7 @@
 
 - description: contract · files · RustCodeGraph 实现文件
   metadata:
-    suite: contract
+    suite: rustcodegraph-contract
     operation: files
     difficulty: easy
   vars:

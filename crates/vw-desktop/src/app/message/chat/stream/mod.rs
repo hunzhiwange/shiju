@@ -348,7 +348,41 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentToolLifecycle(id, event) => {
             let timing_task = steps::handle_agent_tool_lifecycle(app, id, &event);
             let delta_task = stream_events::queue_agent_stream_delta(app, id, event.legacy_delta());
-            Task::batch([timing_task, delta_task])
+            let refresh_task = session_tool_created_session(&event)
+                .map(|(session_id, directory)| {
+                    Task::perform(
+                        async move {
+                            let client = crate::app::gateway_client()?;
+                            client
+                                .session_get::<vw_shared::session::info::Info>(
+                                    &session_id,
+                                    directory.as_deref(),
+                                )
+                                .await
+                        },
+                        |result| Message::Chat(ChatMessage::VisibleTaskSessionLoaded(result)),
+                    )
+                })
+                .unwrap_or_else(Task::none);
+            Task::batch([timing_task, delta_task, refresh_task])
+        }
+        ChatMessage::VisibleTaskSessionLoaded(result) => {
+            match result {
+                Ok(info) if info.is_visible_task() => {
+                    crate::app::message::project::cache_external_session(app, info);
+                }
+                Ok(info) => tracing::warn!(
+                    target: "vw_desktop",
+                    session_id = %info.id,
+                    "ignored SessionTool refresh for a non-visible session"
+                ),
+                Err(error) => tracing::warn!(
+                    target: "vw_desktop",
+                    error = %error,
+                    "failed to refresh SessionTool-created session"
+                ),
+            }
+            Task::none()
         }
         ChatMessage::AgentStreamDeltaFlush(session_id) => {
             stream_events::flush_agent_stream_delta(app, session_id)
@@ -514,6 +548,39 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         _ => Task::none(),
     }
+}
+
+pub(crate) fn session_tool_created_session(
+    event: &vw_gateway_client::GatewayChatToolEvent,
+) -> Option<(String, Option<String>)> {
+    use vw_gateway_client::{GatewayChatToolEventKind, GatewayChatToolStatus};
+
+    if event.name != "SessionTool"
+        || event.kind != GatewayChatToolEventKind::Complete
+        || event.status != GatewayChatToolStatus::Completed
+    {
+        return None;
+    }
+    let output = event.payload.get("output")?.as_str()?;
+    let output: serde_json::Value = serde_json::from_str(output).ok()?;
+    if output.get("action").and_then(serde_json::Value::as_str) != Some("create") {
+        return None;
+    }
+    let session_id = output
+        .get("session_id")?
+        .as_str()?
+        .trim()
+        .to_string();
+    if session_id.is_empty() {
+        return None;
+    }
+    let directory = output
+        .get("directory")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+    Some((session_id, directory))
 }
 
 fn handle_plan_run_session_waiting(app: &mut App, session_id: String) -> Task<Message> {

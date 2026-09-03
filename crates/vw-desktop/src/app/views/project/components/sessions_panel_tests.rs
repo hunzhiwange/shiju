@@ -59,6 +59,28 @@ fn child_session(id: &str, parent_id: &str, updated: u64) -> Info {
     info
 }
 
+#[test]
+fn session_tree_shows_visible_task_but_hides_internal_children() {
+    let root = session("root", "Root", "/tmp/project", false);
+    let mut visible = child_session("visible", "root", 5);
+    visible.slug = Info::visible_task_slug("visible");
+    let ordinary_child = child_session("ordinary-child", "root", 4);
+    let mut plan_run = child_session("plan-run", "root", 3);
+    plan_run.slug = Info::plan_run_slug("plan-run");
+    let mut archived_visible = visible.clone();
+    archived_visible.id = "archived-visible".to_string();
+    archived_visible.time.archived = Some(6);
+
+    let sessions = [root, visible, ordinary_child, plan_run, archived_visible];
+    let projection = session_tree_projection(&sessions, 10);
+
+    assert_eq!(projection.total_roots, 2);
+    assert_eq!(
+        projection.rows.iter().map(|row| row.session.id.as_str()).collect::<Vec<_>>(),
+        vec!["visible", "root"]
+    );
+}
+
 fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<AgentRequest> {
     std::sync::Arc::new(AgentRequest {
         id,

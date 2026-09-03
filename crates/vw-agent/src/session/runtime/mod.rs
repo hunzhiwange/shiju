@@ -4,7 +4,7 @@ mod lifecycle;
 mod prompt;
 mod types;
 
-pub use lifecycle::{create_session, load_session};
+pub use lifecycle::{create_session, create_visible_task_session, load_session};
 pub use prompt::start_prompt;
 pub(crate) use prompt::start_prompt_with_runner;
 pub use types::{

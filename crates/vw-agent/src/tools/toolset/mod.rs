@@ -800,6 +800,10 @@ pub fn all_tools_with_runtime(
         security.clone(),
     )));
     tool_arcs.push(Arc::new(QuestionTool::new(session_id.to_string())));
+    tool_arcs.push(Arc::new(SessionTool::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )));
 
     let delegate_agents =
         enabled_delegate_agents_with_project_skills(agents, workspace_dir, root_config);

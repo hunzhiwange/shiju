@@ -221,6 +221,23 @@ fn unified_prompt_omits_unavailable_capability_instructions() {
 }
 
 #[test]
+fn system_prompt_distinguishes_visible_tasks_from_subagents() {
+    let prompt = render_unified_prompt(
+        "provider/model",
+        "/workspace",
+        &["SessionTool".into(), "AgentTool".into()],
+        false,
+    );
+
+    assert!(prompt.contains("## Visible Task Sessions"));
+    assert!(prompt.contains("user-visible independent task"));
+    assert!(prompt.contains("hidden subtask"));
+    assert!(prompt.contains("bounded `wait`"));
+    assert!(prompt.contains("Do not take over the target task locally"));
+    assert!(prompt.contains("plan-run"));
+}
+
+#[test]
 fn rustcodegraph_native_contract_is_advertised_only_when_registered() {
     let registered = render_unified_prompt(
         "provider/model",

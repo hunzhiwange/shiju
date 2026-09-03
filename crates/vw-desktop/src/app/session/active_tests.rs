@@ -106,6 +106,23 @@ fn message_meta_labels_omit_missing_models_but_keep_assistant_step_alignment() {
 }
 
 #[test]
+fn task_session_user_message_uses_cross_task_label() {
+    let content = vw_shared::session::session_utils::encode_task_session_source_marker(
+        "source-session",
+        "跨任务问题",
+    )
+    .expect("source marker should encode");
+    let chat = vec![message(ChatRole::User, &content), message(ChatRole::User, "普通问题")];
+
+    let labels = build_message_meta_labels(&chat, &HashMap::new());
+    let markers = build_user_question_markers(&chat);
+
+    assert_eq!(labels, vec![Some("由 ChatGPT 从另一项任务发起".to_string()), None]);
+    assert_eq!(markers[0].preview, "跨任务问题");
+    assert_eq!(markers[1].preview, "普通问题");
+}
+
+#[test]
 fn refresh_tail_message_meta_appends_then_replaces_changed_label() {
     let (mut app, _task) = App::new();
     app.chat = vec![message_with_model(ChatRole::User, "question", "message-model")];

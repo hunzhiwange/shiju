@@ -107,6 +107,18 @@ fn split_session_control_selection_preserves_text_without_marker() {
 }
 
 #[test]
+fn task_session_source_is_hidden_from_display_and_copy_text() {
+    let encoded = vw_shared::session::session_utils::encode_task_session_source_marker(
+        "source-session",
+        "正文保持不变",
+    )
+    .expect("source marker should encode");
+
+    assert_eq!(super::text::task_session_visible_text(&encoded), "正文保持不变");
+    assert_eq!(super::text::task_session_visible_text("普通正文"), "普通正文");
+}
+
+#[test]
 fn split_session_control_selection_filters_empty_items_and_ignores_unknown_lines() {
     let raw = "正文\n<session_control_selection>\n未知：ignored\n工具： read, , write，，\n技能： , testing,，\n</session_control_selection>";
 

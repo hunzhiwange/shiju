@@ -94,6 +94,7 @@ pub mod remote_trigger;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod rustcodegraph;
 pub mod schedule;
+pub mod session_tool;
 mod scheduler;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod screenshot;
@@ -166,6 +167,7 @@ pub use remote_trigger::RemoteTriggerTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use rustcodegraph::RustCodeGraphTool;
 pub use schedule::ScheduleTool;
+pub use session_tool::SessionTool;
 #[allow(unused_imports)]
 #[cfg(not(target_arch = "wasm32"))]
 pub use screenshot::ScreenshotTool;

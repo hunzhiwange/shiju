@@ -47,6 +47,8 @@ pub(crate) use prefetch::app_session_scope_from_root_async;
 pub(crate) use types::ToolSessionState;
 
 pub(crate) use helpers::{allowed_tool_ids, should_execute_structured_tool_calls_locally};
+#[cfg(test)]
+pub(crate) use helpers::allowed_tool_ids_for_request_from_specs;
 pub use runner::run;
 pub use types::{Request, StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
 

@@ -328,6 +328,47 @@ fn chat_tool_event_keeps_legacy_tool_content() {
 }
 
 #[test]
+fn session_tool_create_event_requests_visible_session_refresh() {
+    let payload = serde_json::json!({
+        "type": "chat.tool",
+        "step_index": 4,
+        "call_id": "call-session-create",
+        "name": "SessionTool",
+        "kind": "complete",
+        "status": "completed",
+        "occurred_ms": 100,
+        "payload": {
+            "status": "completed",
+            "output": "{\"action\":\"create\",\"session_id\":\"task-visible-1\",\"directory\":\"/project\"}"
+        }
+    });
+
+    let message = super::chat_tool_message(8, &payload).expect("desktop tool message");
+    let crate::app::Message::Chat(crate::app::message::chat::ChatMessage::AgentToolLifecycle(
+        _, event,
+    )) = message
+    else {
+        panic!("expected dedicated tool lifecycle message");
+    };
+
+    assert_eq!(
+        crate::app::message::chat::stream::session_tool_created_session(&event),
+        Some(("task-visible-1".to_string(), Some("/project".to_string())))
+    );
+
+    let mut failed = event.clone();
+    failed.status = vw_gateway_client::GatewayChatToolStatus::Failed;
+    assert!(crate::app::message::chat::stream::session_tool_created_session(&failed).is_none());
+    let mut other_action = event;
+    other_action.payload["output"] = serde_json::Value::String(
+        "{\"action\":\"send\",\"session_id\":\"task-visible-1\"}".to_string(),
+    );
+    assert!(
+        crate::app::message::chat::stream::session_tool_created_session(&other_action).is_none()
+    );
+}
+
+#[test]
 // 重试夹具使用可控流模拟未完成响应，确保只有终态才能结束网关读取循环。
 fn gateway_stream_retries_incomplete_attempts_until_terminal() {
     use std::collections::VecDeque;

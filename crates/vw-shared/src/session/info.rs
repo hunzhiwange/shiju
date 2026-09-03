@@ -3,6 +3,7 @@ use crate::snapshot::FileDiff;
 use serde::{Deserialize, Serialize};
 
 const PLAN_RUN_SLUG_PREFIX: &str = "plan-run:";
+const VISIBLE_TASK_SLUG_PREFIX: &str = "visible-task:";
 
 /// 会话摘要中的文件与行数统计。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,6 +83,20 @@ impl Info {
     /// 判断当前会话是否由 plan-run 创建。
     pub fn is_plan_run(&self) -> bool {
         self.slug.starts_with(PLAN_RUN_SLUG_PREFIX)
+    }
+
+    /// 将普通 slug 编码为可持久化的可见任务会话标记。
+    pub fn visible_task_slug(slug: &str) -> String {
+        if slug.starts_with(VISIBLE_TASK_SLUG_PREFIX) {
+            slug.to_string()
+        } else {
+            format!("{VISIBLE_TASK_SLUG_PREFIX}{slug}")
+        }
+    }
+
+    /// 判断当前会话是否为可见任务会话。
+    pub fn is_visible_task(&self) -> bool {
+        self.slug.starts_with(VISIBLE_TASK_SLUG_PREFIX)
     }
 }
 

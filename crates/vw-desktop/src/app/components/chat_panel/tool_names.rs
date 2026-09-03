@@ -7,6 +7,7 @@ pub fn canonical_tool_name(tool_name: &str) -> &str {
 
     match normalized.as_str() {
         "agent" | "agenttool" | "agent_tool" => "AgentTool",
+        "sessiontool" | "session_tool" => "SessionTool",
         "read" | "file_read" | "read_file" => "read",
         "bash" | "shell" | "execute" | "tool_execute" | "terminal" => "bash",
         "edit" | "file_edit" | "edit_file" | "editfile" => "file_edit",
@@ -66,6 +67,7 @@ pub fn is_known_tool_name(tool_name: &str) -> bool {
             | "lsp"
             | "agent"
             | "agenttool"
+            | "sessiontool"
             | "codesearch"
             | "glob_search"
             | "content_search"

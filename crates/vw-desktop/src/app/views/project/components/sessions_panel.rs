@@ -569,7 +569,8 @@ fn session_tree_projection<'a>(
         .filter(|session| {
             session.time.archived.is_none()
                 && !session.is_plan_run()
-                && session.parent_id.as_deref().is_none_or(|id| id.trim().is_empty())
+                && (session.parent_id.as_deref().is_none_or(|id| id.trim().is_empty())
+                    || session.is_visible_task())
                 && seen_ids.insert(session.id.as_str())
         })
         .collect::<Vec<_>>();

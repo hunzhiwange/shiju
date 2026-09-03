@@ -350,6 +350,42 @@ fn update_generated_title_updates_loaded_and_project_session_copies() {
 }
 
 #[test]
+fn externally_created_session_does_not_replace_active_session() {
+    let (mut app, _task) = crate::app::App::new();
+    let mut visible = session_info("visible-task", "Visible task", "/project");
+    visible.parent_id = Some("main-session".to_string());
+    visible.slug = vw_shared::session::info::Info::visible_task_slug("visible-task");
+    app.project_path = Some("/project".to_string());
+    app.active_session_id = Some("main-session".to_string());
+    app.sessions = vec![session_info("main-session", "Main", "/project")];
+    app.chat = vec![chat_message(ChatRole::User, "keep this chat")];
+    app.chat_message_ids = vec![Some("main-message".to_string())];
+    app.get_session_runtime_mut("main-session").is_requesting = true;
+
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::VisibleTaskSessionLoaded(Ok(visible.clone())),
+    );
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::VisibleTaskSessionLoaded(Ok(visible)),
+    );
+
+    assert_eq!(app.active_session_id.as_deref(), Some("main-session"));
+    assert_eq!(app.chat[0].content, "keep this chat");
+    assert_eq!(app.chat_message_ids, vec![Some("main-message".to_string())]);
+    assert!(app.get_session_runtime("main-session").is_requesting);
+    assert_eq!(app.sessions.iter().filter(|info| info.id == "visible-task").count(), 1);
+    assert_eq!(
+        app.project_sessions["/project"]
+            .iter()
+            .filter(|info| info.id == "visible-task")
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn update_unhandled_message_leaves_chat_state_unchanged() {
     let (mut app, _task) = crate::app::App::new();
     app.chat = vec![chat_message(ChatRole::User, "existing")];

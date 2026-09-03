@@ -23,7 +23,8 @@ pub(crate) use helpers::{
     prepare_session_ui_chunks_task, prepare_session_ui_task, prepare_stream_message_ui_task,
 };
 pub(crate) use session::{
-    latest_assistant_model_label, loaded_chat_from_gateway_messages, steps_from_gateway_messages,
+    cache_external_session, latest_assistant_model_label, loaded_chat_from_gateway_messages,
+    steps_from_gateway_messages,
 };
 
 #[derive(Debug, Clone)]

@@ -83,6 +83,34 @@ pub async fn create_session(input: CreateSessionInput) -> Result<SessionSnapshot
     .map_err(LifecycleError::Project)?
 }
 
+/// 创建并持久化一个带稳定 slug 标记的用户可见任务会话。
+pub async fn create_visible_task_session(
+    input: CreateSessionInput,
+) -> Result<SessionSnapshot, LifecycleError> {
+    let scope = input.scope.clone();
+    let created = create_session(input).await?;
+    let session_id = created.info.id.clone();
+    let tenant = scope.tenant().clone();
+    let directory = scope.directory().to_path_buf();
+
+    let info = project::instance::provide(directory, None, move || {
+        Box::pin(async move {
+            ui_store::with_tenant_scope(tenant, async move {
+                session::update(&session_id, |info| {
+                    info.slug = session::Info::visible_task_slug(&info.slug);
+                })
+                .await
+                .map_err(LifecycleError::from)
+            })
+            .await
+        })
+    })
+    .await
+    .map_err(LifecycleError::Project)??;
+
+    Ok(SessionSnapshot { info, history: Vec::new() })
+}
+
 /// 加载会话，在读取历史前校验租户、目录和项目归属。
 pub async fn load_session(
     scope: SessionScope,

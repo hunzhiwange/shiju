@@ -72,7 +72,7 @@ use self::styles::{
 };
 use self::text::{
     message_text_body, session_control_selection_card, split_session_control_selection,
-    user_message_editor_body,
+    task_session_visible_text, user_message_editor_body,
 };
 
 use super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
@@ -155,6 +155,12 @@ pub fn message_view<'a>(
     render_cache: &'a models::ChatRenderCacheEntry,
     _enable_heavy_tool_content: bool,
 ) -> Element<'a, Message> {
+    let task_session_content = if role == ChatRole::User {
+        task_session_visible_text(content)
+    } else {
+        Cow::Borrowed(content)
+    };
+    let content = task_session_content.as_ref();
     let runtime = app.current_session_runtime();
     let is_user = role == ChatRole::User;
     let assistant_like = matches!(role, ChatRole::Assistant | ChatRole::Tool);

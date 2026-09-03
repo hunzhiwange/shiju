@@ -820,6 +820,35 @@ fn default_config_registers_agent_tool_with_builtin_subagents() {
     assert!(tool_names(&tools).contains(&"AgentTool"));
 }
 
+#[test]
+fn default_toolset_registers_session_tool_without_delegate_agents() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path();
+    let config = test_config(workspace);
+    let ctx =
+        ToolRuntimeContext::new("parent-session", Some(workspace.to_string_lossy().to_string()));
+
+    let (tools, _) = execution_environment_for_config(&ctx, Arc::new(config));
+
+    assert!(tool_names(&tools).contains(&"SessionTool"));
+}
+
+#[test]
+fn restricted_toolset_can_exclude_session_tool() {
+    let specs = vec![
+        ToolSpec::new("SessionTool", "Visible tasks", json!({"type": "object"})),
+        ToolSpec::new("file_read", "Read files", json!({"type": "object"})),
+    ];
+
+    let allowed = crate::session::processor::allowed_tool_ids_for_request_from_specs(
+        &specs,
+        &json!({"allowed_tools": ["file_read"]}),
+    );
+
+    assert!(allowed.contains("file_read"));
+    assert!(!allowed.contains("SessionTool"));
+}
+
 #[tokio::test]
 async fn workflow_and_goal_sessions_inherit_recursive_agent_tool_controls() {
     let dir = tempfile::tempdir().unwrap();

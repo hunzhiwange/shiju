@@ -14,6 +14,22 @@ use serde_json::{Map, Value};
 use vw_shared::message::types as agent_message;
 use web_time::Instant;
 
+/// 幂等登记外部创建的会话，不触碰当前活动会话及聊天运行态。
+pub(crate) fn cache_external_session(app: &mut App, info: vw_shared::session::info::Info) {
+    if let Some(existing) = app.sessions.iter_mut().find(|session| session.id == info.id) {
+        *existing = info.clone();
+    } else {
+        app.sessions.insert(0, info.clone());
+    }
+
+    let sessions = app.project_sessions.entry(info.directory.clone()).or_default();
+    if let Some(existing) = sessions.iter_mut().find(|session| session.id == info.id) {
+        *existing = info;
+    } else {
+        sessions.insert(0, info);
+    }
+}
+
 fn push_loaded_chat_message(
     chat: &mut Vec<models::ChatMessage>,
     message_ids: &mut Vec<Option<String>>,

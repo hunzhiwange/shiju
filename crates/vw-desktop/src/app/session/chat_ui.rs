@@ -62,14 +62,19 @@ fn parse_chat_ui_artifacts(
     };
 
     for (msg_idx, message) in chat.iter().enumerate() {
+        let display_content = if message.role == ChatRole::User {
+            vw_shared::session::session_utils::strip_task_session_source_marker(&message.content)
+        } else {
+            std::borrow::Cow::Borrowed(message.content.as_str())
+        };
         let visible = match message.role {
-            ChatRole::Assistant => crate::app::ui::chat::split_think(&message.content).1,
-            ChatRole::Tool | ChatRole::User | ChatRole::System => message.content.clone(),
+            ChatRole::Assistant => crate::app::ui::chat::split_think(display_content.as_ref()).1,
+            ChatRole::Tool | ChatRole::User | ChatRole::System => display_content.to_string(),
         };
         let copy_hash =
             crate::app::components::chat_panel::message_view::hash_chat_content(&visible);
         let entry = crate::app::components::chat_panel::message_view::build_render_cache_entry(
-            &message.content,
+            display_content.as_ref(),
             &visible,
             copy_hash,
             show_reasoning_summary,
@@ -80,7 +85,7 @@ fn parse_chat_ui_artifacts(
         let editor_text =
             crate::app::components::chat_panel::selectable_text::visible_editor_text_for_message(
                 message.role,
-                &message.content,
+                display_content.as_ref(),
                 &visible,
                 &entry.display_text,
             );

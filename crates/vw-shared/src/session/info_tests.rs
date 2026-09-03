@@ -62,3 +62,54 @@ fn plan_run_session_marker_round_trips() {
     assert!(restored.is_plan_run());
     assert_eq!(restored.slug, plan_run.slug);
 }
+
+#[test]
+fn visible_task_slug_is_idempotent_and_distinct_from_plan_run() {
+    let mut info = super::Info {
+        id: "session-1".to_string(),
+        slug: "ordinary-slug".to_string(),
+        project_id: "project-1".to_string(),
+        directory: "/work".to_string(),
+        parent_id: Some("parent-1".to_string()),
+        summary: None,
+        share: None,
+        title: "Visible task".to_string(),
+        version: "1".to_string(),
+        time: super::TimeInfo { created: 1, updated: 2, compacting: None, archived: None },
+        permission: None,
+        revert: None,
+    };
+
+    assert!(!info.is_visible_task());
+    info.slug = super::Info::visible_task_slug(&info.slug);
+
+    assert!(info.is_visible_task());
+    assert!(!info.is_plan_run());
+    assert_eq!(super::Info::visible_task_slug(&info.slug), info.slug);
+}
+
+#[test]
+fn visible_task_info_round_trip_preserves_parent() {
+    let info = super::Info {
+        id: "session-1".to_string(),
+        slug: super::Info::visible_task_slug("ordinary-slug"),
+        project_id: "project-1".to_string(),
+        directory: "/work".to_string(),
+        parent_id: Some("parent-1".to_string()),
+        summary: None,
+        share: None,
+        title: "Visible task".to_string(),
+        version: "1".to_string(),
+        time: super::TimeInfo { created: 1, updated: 2, compacting: None, archived: None },
+        permission: None,
+        revert: None,
+    };
+
+    let value = serde_json::to_value(&info).unwrap();
+    let restored: super::Info = serde_json::from_value(value).unwrap();
+
+    assert!(restored.is_visible_task());
+    assert!(!restored.is_plan_run());
+    assert_eq!(restored.slug, info.slug);
+    assert_eq!(restored.parent_id, Some("parent-1".to_string()));
+}

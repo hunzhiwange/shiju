@@ -128,6 +128,7 @@ pub(super) fn resolve_setup_name(
 pub(super) fn build_tool_descriptions(
     browser_enabled: bool,
     has_agent_tool: bool,
+    has_session_tool: bool,
 ) -> Vec<(&'static str, &'static str)> {
     let mut tool_descs = vec![
         (
@@ -187,6 +188,12 @@ pub(super) fn build_tool_descriptions(
         tool_descs.push((
             "AgentTool",
             "Delegate complex work to persistent sub-agents; skip only genuinely simple single-step tasks. Use launch (or spawn) to start independent work in the background and in parallel, run when the result is an immediate dependency, status to inspect tasks, wait for event-driven any/all completion with a bounded timeout, and stop to cancel owned tasks. Continue useful parent work after launch, then verify and synthesize required results before answering.",
+        ));
+    }
+    if has_session_tool {
+        tool_descs.push((
+            "SessionTool",
+            "Create and coordinate user-visible independent tasks. After create, record the session ID and use bounded wait/status/read, sending follow-ups only when necessary; do not take over the task locally or confuse it with hidden AgentTool subtasks or plan-run work.",
         ));
     }
 
@@ -389,7 +396,9 @@ pub(crate) fn setup_cli(
     // 构建工具描述列表，用于系统提示词
     // 每个工具包含名称和使用指南
     let has_agent_tool = tools_registry.iter().any(|tool| tool.name() == "AgentTool");
-    let tool_descs = build_tool_descriptions(config.browser.enabled, has_agent_tool);
+    let has_session_tool = tools_registry.iter().any(|tool| tool.name() == "SessionTool");
+    let tool_descs =
+        build_tool_descriptions(config.browser.enabled, has_agent_tool, has_session_tool);
 
     // 确定上下文压缩设置
     // 启用时会限制初始上下文大小以优化性能

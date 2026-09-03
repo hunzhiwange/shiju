@@ -51,6 +51,11 @@ mod store_tests;
 pub mod summary;
 /// 声明 system 子模块，保持当前领域的职责拆分清晰。
 pub mod system;
+/// 声明可见任务会话的运行状态协调器。
+pub(crate) mod task_session;
+#[cfg(test)]
+#[path = "task_session_tests.rs"]
+mod task_session_tests;
 /// 声明 title 子模块，保持当前领域的职责拆分清晰。
 pub mod title;
 /// 声明 todo 子模块，保持当前领域的职责拆分清晰。

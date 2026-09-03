@@ -75,6 +75,10 @@ pub(super) fn should_segment_text_block(text: &str) -> bool {
     text.len() > SEGMENT_MAX_CHARS || text.lines().count() > SEGMENT_MAX_LINES
 }
 
+pub(super) fn task_session_visible_text(raw: &str) -> std::borrow::Cow<'_, str> {
+    vw_shared::session::session_utils::strip_task_session_source_marker(raw)
+}
+
 fn parse_session_control_items(line: &str, prefix: &str) -> Option<Vec<String>> {
     let rest = line.strip_prefix(prefix)?;
     Some(

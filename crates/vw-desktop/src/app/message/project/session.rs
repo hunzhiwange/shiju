@@ -12,7 +12,8 @@ mod open;
 mod worktree;
 
 pub(crate) use lifecycle::{
-    latest_assistant_model_label, loaded_chat_from_gateway_messages, steps_from_gateway_messages,
+    cache_external_session, latest_assistant_model_label, loaded_chat_from_gateway_messages,
+    steps_from_gateway_messages,
 };
 
 #[cfg(test)]

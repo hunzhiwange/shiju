@@ -47,7 +47,7 @@ fn resolve_setup_name_preserves_explicit_empty_override() {
 
 #[test]
 fn tool_descriptions_always_include_core_tools() {
-    let descriptions = build_tool_descriptions(false, false);
+    let descriptions = build_tool_descriptions(false, false, false);
 
     for name in [
         "shell",
@@ -64,10 +64,11 @@ fn tool_descriptions_always_include_core_tools() {
 
 #[test]
 fn tool_descriptions_include_enabled_optional_tools() {
-    let descriptions = build_tool_descriptions(true, true);
+    let descriptions = build_tool_descriptions(true, true, true);
 
     assert!(has_tool(&descriptions, "browser_open"));
     assert!(has_tool(&descriptions, "AgentTool"));
+    assert!(has_tool(&descriptions, "SessionTool"));
     let agent_tool = tool_description(&descriptions, "AgentTool");
     for expected in [
         "complex",
@@ -92,21 +93,27 @@ fn tool_descriptions_include_enabled_optional_tools() {
 
 #[test]
 fn tool_descriptions_omit_disabled_optional_tools() {
-    let descriptions = build_tool_descriptions(false, false);
+    let descriptions = build_tool_descriptions(false, false, false);
 
     assert!(!has_tool(&descriptions, "browser_open"));
     assert!(!has_tool(&descriptions, "AgentTool"));
+    assert!(!has_tool(&descriptions, "SessionTool"));
 }
 
 #[test]
 fn tool_descriptions_enable_optional_tools_independently() {
-    let browser_only = build_tool_descriptions(true, false);
+    let browser_only = build_tool_descriptions(true, false, false);
     assert!(has_tool(&browser_only, "browser_open"));
     assert!(!has_tool(&browser_only, "AgentTool"));
 
-    let agent_only = build_tool_descriptions(false, true);
+    let agent_only = build_tool_descriptions(false, true, false);
     assert!(!has_tool(&agent_only, "browser_open"));
     assert!(has_tool(&agent_only, "AgentTool"));
+
+    let session_only = build_tool_descriptions(false, false, true);
+    assert!(!has_tool(&session_only, "browser_open"));
+    assert!(!has_tool(&session_only, "AgentTool"));
+    assert!(has_tool(&session_only, "SessionTool"));
 }
 
 #[test]

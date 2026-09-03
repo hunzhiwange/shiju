@@ -42,9 +42,17 @@ fn build_message_meta_labels(
                 message_meta_text(message.model.as_deref(), time_ms)
             }
             ChatRole::User => {
-                let step_index = assistant_count + 1;
-                let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);
-                message_meta_text(message.model.as_deref(), time_ms)
+                if vw_shared::session::session_utils::parse_task_session_source_marker(
+                    &message.content,
+                )
+                .is_some()
+                {
+                    Some(vw_shared::session::session_utils::TASK_SESSION_SOURCE_LABEL.to_string())
+                } else {
+                    let step_index = assistant_count + 1;
+                    let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);
+                    message_meta_text(message.model.as_deref(), time_ms)
+                }
             }
             ChatRole::System | ChatRole::Tool => None,
         };
@@ -66,9 +74,15 @@ fn build_message_meta_label(
             message_meta_text(message.model.as_deref(), time_ms)
         }
         ChatRole::User => {
-            let step_index = *assistant_count + 1;
-            let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);
-            message_meta_text(message.model.as_deref(), time_ms)
+            if vw_shared::session::session_utils::parse_task_session_source_marker(&message.content)
+                .is_some()
+            {
+                Some(vw_shared::session::session_utils::TASK_SESSION_SOURCE_LABEL.to_string())
+            } else {
+                let step_index = *assistant_count + 1;
+                let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);
+                message_meta_text(message.model.as_deref(), time_ms)
+            }
         }
         ChatRole::System | ChatRole::Tool => None,
     }
@@ -81,7 +95,10 @@ fn build_user_question_markers(chat: &[ChatMessage]) -> Vec<UserQuestionMarker> 
             (message.role == ChatRole::User).then(|| UserQuestionMarker {
                 message_idx,
                 preview: crate::app::components::chat_panel::user_question_preview(
-                    &message.content,
+                    vw_shared::session::session_utils::strip_task_session_source_marker(
+                        &message.content,
+                    )
+                    .as_ref(),
                 ),
             })
         })
@@ -184,7 +201,10 @@ impl App {
                 (message.role == ChatRole::User).then(|| UserQuestionMarker {
                     message_idx: indexed_len + offset,
                     preview: crate::app::components::chat_panel::user_question_preview(
-                        &message.content,
+                        vw_shared::session::session_utils::strip_task_session_source_marker(
+                            &message.content,
+                        )
+                        .as_ref(),
                     ),
                 })
             }),

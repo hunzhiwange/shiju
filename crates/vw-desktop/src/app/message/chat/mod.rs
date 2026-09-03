@@ -424,6 +424,9 @@ pub enum ChatMessage {
     /// Agent 工具调用的类型化生命周期事件。
     AgentToolLifecycle(u64, vw_gateway_client::GatewayChatToolEvent),
 
+    /// SessionTool 创建完成后，从网关读取到的权威可见任务会话元信息。
+    VisibleTaskSessionLoaded(Result<vw_shared::session::info::Info, String>),
+
     /// 合并一小段时间内的 Agent 流式增量，降低 UI 重绘和会话保存频率。
     AgentStreamDeltaFlush(String),
 
@@ -1069,6 +1072,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         message,
         ChatMessage::AgentStreamDelta(_, _)
             | ChatMessage::AgentToolLifecycle(_, _)
+            | ChatMessage::VisibleTaskSessionLoaded(_)
             | ChatMessage::AgentStreamDeltaFlush(_)
     );
 
@@ -1202,6 +1206,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         // 流式响应相关消息：Agent 增量更新、步骤状态、会话标题、问题应答等
         ChatMessage::AgentStreamDelta(_, _)
         | ChatMessage::AgentToolLifecycle(_, _)
+        | ChatMessage::VisibleTaskSessionLoaded(_)
         | ChatMessage::AgentStreamDeltaFlush(_)
         | ChatMessage::AgentStreamSessionSaveFlush(_)
         | ChatMessage::AgentContextLoaded(_, _)

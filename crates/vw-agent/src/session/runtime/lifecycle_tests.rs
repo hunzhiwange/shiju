@@ -7,7 +7,10 @@ use tempfile::TempDir;
 use tokio::sync::Mutex;
 use vw_api_types::id::TenantScope;
 
-use super::{CreateSessionInput, LifecycleError, SessionScope, create_session, load_session};
+use super::{
+    CreateSessionInput, LifecycleError, SessionScope, create_session, create_visible_task_session,
+    load_session,
+};
 
 static LIFECYCLE_TEST_LOCK: Mutex<()> = Mutex::const_new(());
 
@@ -92,5 +95,34 @@ async fn created_session_preserves_native_identity() {
     assert_eq!(loaded.info.directory, created.info.directory);
     assert!(loaded.history.is_empty());
 
+    crate::project::instance::dispose_all().await;
+}
+
+#[tokio::test]
+async fn session_tool_create_marks_visible_parent_relation() {
+    let _guard = LIFECYCLE_TEST_LOCK.lock().await;
+    crate::project::instance::dispose_all().await;
+
+    let project = TempDir::new().expect("project directory");
+    let scope = scope(tenant("runtime-platform-visible", "runtime-company-visible"), project.path());
+    let parent = create_session(CreateSessionInput {
+        scope: scope.clone(),
+        parent_id: None,
+        title: Some("Parent".to_string()),
+        permission: None,
+    })
+    .await
+    .expect("parent should be created");
+    let created = create_visible_task_session(CreateSessionInput {
+        scope,
+        parent_id: Some(parent.info.id.clone()),
+        title: Some("Visible task".to_string()),
+        permission: None,
+    })
+    .await
+    .expect("visible task should be created");
+
+    assert_eq!(created.info.parent_id.as_deref(), Some(parent.info.id.as_str()));
+    assert!(created.info.is_visible_task());
     crate::project::instance::dispose_all().await;
 }

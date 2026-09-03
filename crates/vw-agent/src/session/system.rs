@@ -147,6 +147,13 @@ fn runtime_capability_instructions(
         );
     }
 
+    if has_tool(&tool_ids, &["sessiontool", "session_tool"]) {
+        sections.push(
+            "## Visible Task Sessions\n- Use `SessionTool` only when the user explicitly requests a user-visible independent task. Use `AgentTool` for a hidden subtask and keep plan-run work inside its owning workflow.\n- After `create`, record the task session ID and coordinate it with `status`, `read`, bounded `wait`, and `send` only when necessary. Do not take over the target task locally; keep monitoring until it completes or needs user action."
+                .to_string(),
+        );
+    }
+
     if has_tool(&tool_ids, &["process"]) {
         sections.push(
             "## Background Tasks\n- Run long-running commands in the background with `process` and record the task ID. Continue independent work in the meantime; do not busy-wait with `sleep`.\n- Before the final response, read the output of tasks that remain relevant, confirm their exit status, and terminate background tasks that no longer provide value. Running does not mean validation passed."

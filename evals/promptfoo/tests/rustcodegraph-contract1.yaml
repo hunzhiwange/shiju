@@ -18,7 +18,7 @@
 
 - description: contract · node · 运行时能力指令源码
   metadata:
-    suite: rustcodegraph-contract
+    suite: rustcodegraph-contract1
     operation: node
     difficulty: easy
   vars:
@@ -36,7 +36,7 @@
 
 - description: contract · files · RustCodeGraph 实现文件
   metadata:
-    suite: rustcodegraph-contract
+    suite: rustcodegraph-contract1
     operation: files
     difficulty: easy
   vars:

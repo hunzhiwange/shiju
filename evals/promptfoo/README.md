@@ -27,26 +27,25 @@ evals/promptfoo/score.sh run
 像单元测试一样按测试组运行：
 
 ```bash
-evals/promptfoo/score.sh run --test rustcodegraph-selection1
+evals/promptfoo/score.sh run --suite selection
 ```
 
 单独运行 TypeScript 编辑器 coding 用例：
 
 ```bash
-evals/promptfoo/score.sh run --suite typescript-editor1
+evals/promptfoo/score.sh run --suite coding
 ```
 
 运行时切换模型，无需修改 YAML：
 
 ```bash
-evals/promptfoo/score.sh run --test typescript-editor1 --model provider/model
+evals/promptfoo/score.sh run --suite coding --model provider/model
 ```
 
 脚本固定 Promptfoo 版本、配置、禁用缓存并将并发设为 1，避免各次评分参数漂移。
-`run`、`before` 和 `after` 统一使用 `promptfooconfig.yaml`；可用 `--test`、`--batch`、
+`run`、`before` 和 `after` 统一使用 `promptfooconfig.yaml`；可用 `--suite`、`--batch`、
 `--metadata KEY=VALUE`、`--provider`、
-`--pattern` 和 `--failing` 缩小范围，用 `--model` 切换模型。`--suite` 作为
-`--test` 的兼容别名；多个 metadata 筛选使用 AND 逻辑。
+`--pattern` 和 `--failing` 缩小范围，用 `--model` 切换模型；多个 metadata 筛选使用 AND 逻辑。
 
 Provider 会将 `max_output_tokens` 设为 `0`，沿用模型自身上限，避免 DeepSeek V4 Flash 的长工具调用
 轨迹被网关通用 32000 token 限制截断。
@@ -173,7 +172,7 @@ evals/promptfoo/score.sh run --batch 4
 - 只读任务轨迹中没有明显写操作。
 - 回答包含全部 `expectedTerms`。
 
-coding 用例通过 `evaluationProfile: coding` 启用通用写入轨迹评分，并在 YAML 中用
+coding 用例通过 `metadata.suite: coding` 启用通用写入轨迹评分，并在 YAML 中用
 `writeRootPattern`（第一捕获组为写入根目录）、`requiredArtifactPattern`、
 `excludedArtifactPattern` 和 `requireSuccessfulTest` 声明具体约束。未知写入目标、允许目录外写入、
 缺少指定产物或没有成功的作用域内测试都会被确定性拒绝。

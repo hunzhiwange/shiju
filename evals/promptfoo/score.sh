@@ -17,7 +17,6 @@ usage() {
   evals/promptfoo/score.sh compare [before.json [after.json [comparison.md]]]
 
 筛选参数：
-  --test NAME           按测试组名运行（metadata.suite）
   --suite NAME          按 metadata.suite 筛选
   --batch NAME          按 metadata.batch 筛选
   --metadata KEY=VALUE  按任意 metadata 筛选，可重复使用
@@ -30,8 +29,8 @@ usage() {
 
 示例：
   evals/promptfoo/score.sh run --batch 4
-  evals/promptfoo/score.sh run --test rustcodegraph-selection --batch 4
-  evals/promptfoo/score.sh run --test coding --model provider/model
+  evals/promptfoo/score.sh run --suite selection --batch 4
+  evals/promptfoo/score.sh run --suite coding --model provider/model
   evals/promptfoo/score.sh run --suite coding
   evals/promptfoo/score.sh before --batch 4
   evals/promptfoo/score.sh after --batch 4
@@ -63,7 +62,7 @@ run_eval() {
   local -a filters=()
   while (($# > 0)); do
     case "$1" in
-      --test|--suite)
+      --suite)
         require_value "$1" "${2:-}"
         filters+=(--filter-metadata "suite=$2")
         shift 2

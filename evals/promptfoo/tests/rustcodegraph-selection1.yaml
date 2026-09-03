@@ -35,7 +35,7 @@
 
 - description: selection · impact · 运行时能力指令影响范围
   metadata:
-    suite: rustcodegraph-selection
+    suite: rustcodegraph-selection1
     operation: impact
     difficulty: hard
   vars:

@@ -264,7 +264,6 @@ fn bundled_workspace_identity_content(file_name: &str) -> Option<&'static str> {
         "IDENTITY.md" => Some(include_str!("../../../../../../assets/agent/IDENTITY.md")),
         "USER.md" => Some(include_str!("../../../../../../assets/agent/USER.md")),
         "HEARTBEAT.md" => Some(include_str!("../../../../../../assets/agent/HEARTBEAT.md")),
-        "BOOTSTRAP.md" => Some(include_str!("../../../../../../assets/agent/BOOTSTRAP.md")),
         "MEMORY.md" => Some(include_str!("../../../../../../assets/agent/MEMORY.md")),
         _ => None,
     }

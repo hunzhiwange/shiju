@@ -74,16 +74,14 @@ const BOOTSTRAP_MAX_CHARS: usize = 20_000;
 /// - `IDENTITY.md` - 项目身份与角色定义
 /// - `USER.md` - 用户偏好与定制化配置
 /// - `HEARTBEAT.md` - 心跳状态与周期性任务
-/// - `BOOTSTRAP.md` - 启动引导与初始化指令
 /// - `MEMORY.md` - 长期记忆与知识存储
-pub const WORKSPACE_IDENTITY_FILES: [&str; 8] = [
+pub const WORKSPACE_IDENTITY_FILES: [&str; 7] = [
     "AGENTS.md",
     "SOUL.md",
     "TOOLS.md",
     "IDENTITY.md",
     "USER.md",
     "HEARTBEAT.md",
-    "BOOTSTRAP.md",
     "MEMORY.md",
 ];
 

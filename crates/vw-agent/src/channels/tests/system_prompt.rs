@@ -153,25 +153,14 @@ fn prompt_missing_file_markers() {
     assert!(prompt.contains("[File not found: IDENTITY.md]"));
 }
 
-/// 测试 BOOTSTRAP.md 文件的条件性注入
-///
-/// BOOTSTRAP.md 是可选文件，仅在首次运行或需要初始化时存在。
-/// 验证：
-/// - 文件不存在时，不应在提示中出现
-/// - 文件存在时，应正确注入到提示中
 #[test]
-fn prompt_bootstrap_only_if_exists() {
+fn prompt_ignores_legacy_bootstrap_file() {
     let ws = make_workspace();
+    std::fs::write(ws.path().join("BOOTSTRAP.md"), "legacy bootstrap notes").unwrap();
     let prompt = build_system_prompt(ws.path(), "model", &[], &[], None, None);
 
-    // 文件不存在时不应出现
-    assert!(!prompt.contains("### BOOTSTRAP.md"), "BOOTSTRAP.md should not appear when missing");
-
-    // 创建 BOOTSTRAP.md 文件后应该出现
-    std::fs::write(ws.path().join("BOOTSTRAP.md"), "# Bootstrap\nFirst run.").unwrap();
-    let prompt2 = build_system_prompt(ws.path(), "model", &[], &[], None, None);
-    assert!(prompt2.contains("### BOOTSTRAP.md"), "BOOTSTRAP.md should appear when present");
-    assert!(prompt2.contains("First run"));
+    assert!(!prompt.contains("### BOOTSTRAP.md"));
+    assert!(!prompt.contains("legacy bootstrap notes"));
 }
 
 /// 测试每日记忆不会被自动注入到系统提示中

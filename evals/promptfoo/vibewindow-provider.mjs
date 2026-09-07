@@ -308,8 +308,14 @@ export default class VibeWindowProvider {
       '100000000',
     );
     const timeoutMs = resolveTimeoutMs(this.config);
-    const maxIterations = positiveInteger(this.config.maxIterations, DEFAULT_MAX_ITERATIONS);
-    const maxToolCalls = positiveInteger(this.config.maxToolCalls, DEFAULT_MAX_TOOL_CALLS);
+    const maxIterations = positiveInteger(
+      context.vars?.maxIterations ?? this.config.maxIterations,
+      DEFAULT_MAX_ITERATIONS,
+    );
+    const maxToolCalls = positiveInteger(
+      context.vars?.maxToolCalls ?? this.config.maxToolCalls,
+      DEFAULT_MAX_TOOL_CALLS,
+    );
     const requestId = randomUUID();
     const tenantHeaders = {
       'X-Platform-ID': platformId,

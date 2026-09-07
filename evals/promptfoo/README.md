@@ -36,6 +36,12 @@ evals/promptfoo/score.sh run --suite selection
 evals/promptfoo/score.sh run --suite coding
 ```
 
+运行会话控制首次选中技能的权限回归用例：
+
+```bash
+evals/promptfoo/score.sh run --suite coding-skill-selection
+```
+
 运行时切换模型，无需修改 YAML：
 
 ```bash
@@ -50,8 +56,8 @@ evals/promptfoo/score.sh run --suite coding --model provider/model
 Provider 会将 `max_output_tokens` 设为 `0`，沿用模型自身上限，避免 DeepSeek V4 Flash 的长工具调用
 轨迹被网关通用 32000 token 限制截断。
 Provider 在收到 step、工具及终态 SSE 事件时向 stderr 输出进度；达到 24 个 Agent 迭代或 32 次
-工具调用后，通过流请求 ID 调用 Gateway stop 接口。可通过 Provider 配置的 `maxIterations`、
-`maxToolCalls` 调整。
+工具调用后，通过流请求 ID 调用 Gateway stop 接口。可通过用例变量或 Provider 配置的
+`maxIterations`、`maxToolCalls` 调整，用例变量优先。
 
 评测矩阵从 `promptfooconfig.yaml` 的 `providers` 读取；每个 Provider 对同一组任务运行，
 Provider `label` 是前后结果匹配时的模型键，比较期间不要改名。Agent 工作目录配置为 `.`，
@@ -177,5 +183,8 @@ coding 用例通过 `metadata.suite: coding` 启用通用写入轨迹评分，�
 `excludedArtifactPattern` 和 `requireSuccessfulTest` 声明具体约束。未知写入目标、允许目录外写入、
 缺少指定产物或没有成功的作用域内测试都会被确定性拒绝。
 修复过程中失败但随后成功的测试尝试不影响评分；其他失败工具仍会被拒绝。
+
+`skill-selection` 评分档案用 `requiredSuccessfulSkills` 声明必须成功调用的技能。
+它会同时拒绝未调用、调用失败和其他失败工具，用于隔离验证会话选中技能的权限语义。
 
 `metadata` 中保留 context 路径、step、工具调用、usage、模型和 Agent，便于在 Promptfoo viewer 中分析失败原因。

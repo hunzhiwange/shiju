@@ -363,21 +363,20 @@ fn inject_workspace_file_handles_present_missing_empty_and_truncated_files() {
 fn workspace_identity_context_loads_openclaw_bootstrap_files() {
     let temp = tempfile::tempdir().unwrap();
     std::fs::write(temp.path().join("AGENTS.md"), "agent notes").unwrap();
-    std::fs::write(temp.path().join("BOOTSTRAP.md"), "boot notes").unwrap();
 
     let prompt = build_workspace_identity_context(temp.path(), None, Some(200));
 
     assert!(prompt.starts_with("## Project Identity Context"));
     assert!(prompt.contains("ALREADY injected"));
     assert!(!prompt.contains("agent notes"));
-    assert!(prompt.contains("boot notes"));
     assert!(prompt.contains("[File not found: SOUL.md]"));
 }
 
 #[test]
-fn load_openclaw_bootstrap_files_skips_missing_bootstrap_marker() {
+fn load_openclaw_bootstrap_files_does_not_include_bootstrap_file() {
     let temp = tempfile::tempdir().unwrap();
     std::fs::write(temp.path().join("AGENTS.md"), "agent notes").unwrap();
+    std::fs::write(temp.path().join("BOOTSTRAP.md"), "legacy bootstrap notes").unwrap();
 
     let mut prompt = String::new();
     load_openclaw_bootstrap_files(&mut prompt, temp.path(), 200);
@@ -385,6 +384,7 @@ fn load_openclaw_bootstrap_files_skips_missing_bootstrap_marker() {
     assert!(!prompt.contains("agent notes"));
     assert!(prompt.contains("[File not found: SOUL.md]"));
     assert!(!prompt.contains("### BOOTSTRAP.md"));
+    assert!(!prompt.contains("legacy bootstrap notes"));
 }
 
 #[test]

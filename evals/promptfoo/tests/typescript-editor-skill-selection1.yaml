@@ -1,0 +1,18 @@
+- description: coding-skill-selection · TypeScript 编辑器 · 首次选中技能权限
+  metadata:
+    suite: coding-skill-selection
+    batch: 1
+    difficulty: medium
+  vars:
+    evaluationProfile: skill-selection
+    requiredSuccessfulSkills:
+      - create-task-plans
+    maxIterations: 80
+    maxToolCalls: 80
+    task: |-
+      帮我实现一个TS编辑器,写入到 examples/editor1
+
+      <session_control_selection>
+      用户在会话控制中选中了以下上下文。选中不代表已经执行；请在本轮需要时再主动使用。
+      技能：create-task-plans
+      </session_control_selection>

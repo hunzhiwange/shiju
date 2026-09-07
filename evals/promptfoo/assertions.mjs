@@ -402,6 +402,39 @@ export function codingTrajectory(_output, context) {
   return gradingResult(true, `${root} 的写入范围和配置要求均通过`);
 }
 
+function calledSkillName(tool) {
+  if (String(tool?.name ?? '').toLowerCase() !== 'skill') {
+    return undefined;
+  }
+  const input = parsedInput(tool);
+  return [input?.skill, input?.name, input?.skill_name]
+    .find((value) => typeof value === 'string')
+    ?.trim()
+    .toLowerCase();
+}
+
+export function requiredSkillsSucceeded(_output, context) {
+  const configured = configuredList(context, 'requiredSuccessfulSkills');
+  if (configured.error) {
+    return gradingResult(false, configured.error);
+  }
+  const required = configured.values.map((name) => name.trim().toLowerCase()).filter(Boolean);
+  if (required.length === 0) {
+    return gradingResult(true, '未配置 requiredSuccessfulSkills');
+  }
+
+  const successful = new Set(
+    toolCalls(context).filter(isSuccessfulTool).map(calledSkillName).filter(Boolean),
+  );
+  const missing = required.filter((name) => !successful.has(name));
+  return gradingResult(
+    missing.length === 0,
+    missing.length === 0
+      ? `必需技能调用成功：${required.join(', ')}`
+      : `未成功调用必需技能：${missing.join(', ')}`,
+  );
+}
+
 export function readOnlyTrajectory(_output, context) {
   const calls = toolCalls(context);
   const writeToolNames = /^(apply_patch|write|write_file|edit|edit_file|delete_file)$/i;
@@ -580,6 +613,15 @@ const EVALUATION_PROFILES = Object.freeze({
       ['successful_run', 10, successfulRun, true],
       ['no_failed_tools', 20, noFailedTools, true],
       ['coding_trajectory', 60, codingTrajectory, true],
+      ['tool_call_budget', 10, maxToolCalls, false],
+    ],
+  },
+  'skill-selection': {
+    threshold: 1,
+    checks: [
+      ['successful_run', 25, successfulRun, true],
+      ['no_failed_tools', 25, noFailedTools, true],
+      ['required_skill_success', 40, requiredSkillsSucceeded, true],
       ['tool_call_budget', 10, maxToolCalls, false],
     ],
   },

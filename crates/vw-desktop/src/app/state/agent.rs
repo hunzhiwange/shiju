@@ -32,14 +32,13 @@ pub(crate) fn clear_pending_guide_handoff(request_id: u64) {
     pending.remove(&request_id);
 }
 
-pub(crate) const WORKSPACE_IDENTITY_FILES: [(&str, &str); 8] = [
+pub(crate) const WORKSPACE_IDENTITY_FILES: [(&str, &str); 7] = [
     ("AGENTS.md", "智能体 AGENTS"),
     ("SOUL.md", "核心逻辑 SOUL"),
     ("TOOLS.md", "工具集 TOOLS"),
     ("IDENTITY.md", "身份机制 IDENTITY"),
     ("USER.md", "用户系统 USER"),
     ("HEARTBEAT.md", "心跳机制 HEARTBEAT"),
-    ("BOOTSTRAP.md", "启动引导 BOOTSTRAP"),
     ("MEMORY.md", "记忆系统 MEMORY"),
 ];
 

@@ -16,7 +16,7 @@
 //! 2. **安全规则** — 操作护栏和限制
 //! 3. **技能** — 技能指令和工具元数据
 //! 4. **工作空间** — 当前工作目录
-//! 5. **引导文件** — AGENTS、SOUL、TOOLS、IDENTITY、USER、BOOTSTRAP、MEMORY
+//! 5. **身份文件** — AGENTS、SOUL、TOOLS、IDENTITY、USER、MEMORY
 //! 6. **日期时间** — 当前时区信息（用于缓存稳定性）
 //! 7. **运行时信息** — 主机名、操作系统、模型名称
 
@@ -406,7 +406,6 @@ pub(crate) async fn build_memory_context(
 /// - `IDENTITY.md` — 身份定义
 /// - `USER.md` — 用户特定配置
 /// - `HEARTBEAT.md` — 心跳状态与周期任务
-/// - `BOOTSTRAP.md` — 首次运行仪式
 /// - `MEMORY.md` — 精选的长期记忆
 ///
 /// # 参数
@@ -429,15 +428,9 @@ pub(crate) fn load_openclaw_bootstrap_files(
         "The following workspace files define your identity, behavior, and context. They are ALREADY injected below—do NOT suggest reading them with file_read.\n\n",
     );
 
-    let bootstrap_files =
-        ["SOUL.md", "TOOLS.md", "IDENTITY.md", "USER.md", "BOOTSTRAP.md", "MEMORY.md"];
+    let bootstrap_files = ["SOUL.md", "TOOLS.md", "IDENTITY.md", "USER.md", "MEMORY.md"];
 
     for filename in &bootstrap_files {
-        if matches!(*filename, "HEARTBEAT.md" | "BOOTSTRAP.md")
-            && !workspace_dir.join(filename).exists()
-        {
-            continue;
-        }
         inject_workspace_file(prompt, workspace_dir, filename, max_chars_per_file);
     }
 }
@@ -468,7 +461,7 @@ pub(crate) fn build_workspace_identity_context(
 /// 2. **安全** — 操作护栏提醒
 /// 3. **技能** — 完整的技能指令和工具元数据
 /// 4. **工作空间** — 工作目录
-/// 5. **引导文件** — AGENTS、SOUL、TOOLS、IDENTITY、USER、BOOTSTRAP、MEMORY
+/// 5. **身份文件** — AGENTS、SOUL、TOOLS、IDENTITY、USER、MEMORY
 /// 6. **日期时间** — 时区信息（用于缓存稳定性）
 /// 7. **运行时** — 主机、操作系统、模型
 ///

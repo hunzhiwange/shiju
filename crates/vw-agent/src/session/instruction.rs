@@ -47,14 +47,13 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     }))
 });
 
-const WORKSPACE_IDENTITY_FILES: [&str; 8] = [
+const WORKSPACE_IDENTITY_FILES: [&str; 7] = [
     "AGENTS.md",
     "SOUL.md",
     "TOOLS.md",
     "IDENTITY.md",
     "USER.md",
     "HEARTBEAT.md",
-    "BOOTSTRAP.md",
     "MEMORY.md",
 ];
 

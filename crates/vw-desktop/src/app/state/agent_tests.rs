@@ -67,17 +67,16 @@ fn clearing_pending_guide_handoff_prevents_consumption() {
 }
 
 #[test]
-fn acp_history_replay_modes_expose_stable_keys_and_labels() {
+fn acp_history_replay_modes_expose_stable_keys() {
     let cases = [
-        (AcpHistoryReplayMode::Discard, "discard", "丢弃历史"),
-        (AcpHistoryReplayMode::Full, "full", "全量重放"),
-        (AcpHistoryReplayMode::Summary, "summary", "摘要重放"),
-        (AcpHistoryReplayMode::Recent, "recent", "最近"),
+        (AcpHistoryReplayMode::Discard, "discard"),
+        (AcpHistoryReplayMode::Full, "full"),
+        (AcpHistoryReplayMode::Summary, "summary"),
+        (AcpHistoryReplayMode::Recent, "recent"),
     ];
 
-    for (mode, key, label) in cases {
+    for (mode, key) in cases {
         assert_eq!(mode.as_str(), key);
-        assert_eq!(mode.label(), label);
     }
 }
 

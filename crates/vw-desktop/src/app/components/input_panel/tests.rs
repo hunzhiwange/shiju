@@ -2,10 +2,9 @@
 //! 入口测试还用无运行时会话和不同视口宽度守住聊天列对齐与安全回退。
 
 use super::{
-    acp_history_controls, acp_selector_button, acp_selector_tooltip, bottom_bar_round_toggle,
-    dark_tooltip_content, popover_item_style, reasoning_effort_selector, selected_context_card,
-    selected_context_summary, session_tool_tab_buttons, skill_title, summarize_names, view,
-    with_dark_tooltip,
+    acp_selector_button, acp_selector_tooltip, bottom_bar_round_toggle, popover_item_style,
+    reasoning_effort_selector, selected_context_card, selected_context_summary,
+    session_tool_tab_buttons, skill_title, summarize_names, view,
 };
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::icon_svg;
@@ -17,7 +16,6 @@ use crate::app::{Message, QueueItem, TodoPanelPlacement, message};
 use iced::advanced::renderer::Headless;
 #[cfg(not(target_arch = "wasm32"))]
 use iced::advanced::{Layout, layout, widget::Tree};
-use iced::widget::{button, text};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::{Font, Pixels, Size};
 use iced::{Element, Length, Theme};
@@ -99,15 +97,6 @@ fn popover_item_style_delegates_selected_and_unselected_states() {
 }
 
 #[test]
-fn tooltip_helpers_wrap_content_with_shrink_size() {
-    let tip = dark_tooltip_content("提示");
-    assert_eq!(tip.as_widget().size().width, Length::Shrink);
-
-    let wrapped = with_dark_tooltip(button(text("content")).into(), "tip");
-    assert_eq!(wrapped.as_widget().children().len(), 2);
-}
-
-#[test]
 fn bottom_bar_round_toggle_builds_tooltip_wrapped_icon_button() {
     let icon: Element<'_, Message> = icon_svg(Icon::Sliders, 14.0).into();
     let element = bottom_bar_round_toggle(
@@ -128,20 +117,6 @@ fn acp_selector_tooltip_includes_selected_backend() {
 }
 
 #[test]
-fn acp_history_controls_render_all_modes_and_recent_input() {
-    for mode in [
-        AcpHistoryReplayMode::Discard,
-        AcpHistoryReplayMode::Summary,
-        AcpHistoryReplayMode::Full,
-        AcpHistoryReplayMode::Recent,
-    ] {
-        let element = acp_history_controls(mode, 5);
-
-        assert_eq!(element.as_widget().size().width, Length::Fill);
-    }
-}
-
-#[test]
 fn optional_selector_buttons_reflect_app_state() {
     let mut app = crate::app::App::new().0;
 
@@ -151,16 +126,99 @@ fn optional_selector_buttons_reflect_app_state() {
         assert_eq!(tools.as_widget().children().len(), 2);
         assert_eq!(skills.as_widget().children().len(), 2);
     }
-    assert!(acp_selector_button(&app, None).is_some());
+    assert!(acp_selector_button(&app, None, app.current_session_has_started()).is_some());
     assert!(reasoning_effort_selector(&app, None, None).is_none());
 
     app.acp_agents = vec!["Codex".to_string(), "Claude Code".to_string()];
     app.show_acp_popover = true;
-    let acp = acp_selector_button(&app, Some("Codex".to_string()));
+    let acp =
+        acp_selector_button(&app, Some("Codex".to_string()), app.current_session_has_started());
     assert!(acp.is_some());
-    let missing_acp = acp_selector_button(&app, Some("Missing Agent".to_string()));
+    let missing_acp = acp_selector_button(
+        &app,
+        Some("Missing Agent".to_string()),
+        app.current_session_has_started(),
+    );
     assert!(missing_acp.is_some());
     assert!(reasoning_effort_selector(&app, Some("codex"), None).is_some());
+}
+
+#[test]
+fn acp_selector_locks_after_session_started() {
+    let mut app = crate::app::App::new().0;
+    app.acp_agents = vec!["Codex".to_string()];
+
+    let unlocked =
+        acp_selector_button(&app, Some("Codex".to_string()), app.current_session_has_started())
+            .unwrap();
+    assert!(!unlocked.as_widget().children().is_empty());
+    drop(unlocked);
+
+    app.chat.push(crate::app::models::ChatMessage {
+        role: crate::app::models::ChatRole::User,
+        content: "started".to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+
+    let locked =
+        acp_selector_button(&app, Some("Codex".to_string()), app.current_session_has_started())
+            .unwrap();
+    assert!(locked.as_widget().children().is_empty());
+}
+
+#[test]
+fn input_panel_layouts_do_not_render_acp_history_interactions() {
+    fn tree_shape(tree: &Tree) -> Vec<usize> {
+        fn visit(tree: &Tree, shape: &mut Vec<usize>) {
+            shape.push(tree.children.len());
+            for child in &tree.children {
+                visit(child, shape);
+            }
+        }
+
+        let mut shape = Vec::new();
+        visit(tree, &mut shape);
+        shape
+    }
+
+    fn app_for_layout(layout: &str, mode: AcpHistoryReplayMode) -> crate::app::App {
+        let mut app = crate::app::App::new().0;
+        app.acp_agent = Some("codex".to_string());
+        app.acp_history_mode = mode;
+        app.acp_recent_count = 7;
+        app.quick_messages.clear();
+
+        match layout {
+            "standard" => {}
+            "queue" => app.current_session_runtime_mut().queue = vec![queue_item("queued")],
+            "todo" => {
+                app.active_session_id = Some("session".to_string());
+                app.chat_todo_session_id = Some("session".to_string());
+                app.chat_todo_items = vec![todo("1", "pending", "next")];
+                app.chat_todo_placement = TodoPanelPlacement::InputBottom;
+            }
+            _ => unreachable!(),
+        }
+        app
+    }
+
+    for layout in ["standard", "queue", "todo"] {
+        let baseline_app = app_for_layout(layout, AcpHistoryReplayMode::Discard);
+        let baseline_element = view(&baseline_app);
+        let baseline = tree_shape(&Tree::new(baseline_element.as_widget()));
+
+        for mode in [
+            AcpHistoryReplayMode::Summary,
+            AcpHistoryReplayMode::Full,
+            AcpHistoryReplayMode::Recent,
+        ] {
+            let app = app_for_layout(layout, mode);
+            let element = view(&app);
+            assert_eq!(tree_shape(&Tree::new(element.as_widget())), baseline, "layout={layout}");
+        }
+    }
 }
 
 #[test]

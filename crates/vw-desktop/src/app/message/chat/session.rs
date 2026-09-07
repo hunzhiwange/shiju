@@ -1222,6 +1222,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::none()
         }
         ChatMessage::AcpAgentSelected(agent) => {
+            if app.current_session_has_started() {
+                return app.show_warning_toast("会话开始后不能切换 ACP 后端");
+            }
             let (model, auto_model) = {
                 let runtime = app.current_session_runtime_mut();
                 runtime.acp_agent = agent.clone();

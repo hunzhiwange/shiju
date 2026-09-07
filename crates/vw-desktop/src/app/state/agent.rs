@@ -86,14 +86,6 @@ impl AcpHistoryReplayMode {
         }
     }
 
-    pub(crate) const fn label(self) -> &'static str {
-        match self {
-            Self::Discard => "丢弃历史",
-            Self::Full => "全量重放",
-            Self::Summary => "摘要重放",
-            Self::Recent => "最近",
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

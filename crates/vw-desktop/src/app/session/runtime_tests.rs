@@ -330,6 +330,55 @@ fn current_session_accessors_switch_between_empty_and_active_runtime() {
 }
 
 #[test]
+fn current_session_started_covers_chat_active_request_and_queue() {
+    let mut app = test_app();
+    app.active_session_id = Some("active".to_string());
+    app.session_runtime_states.clear();
+
+    assert!(!app.current_session_has_started());
+
+    app.chat.push(crate::app::models::ChatMessage {
+        role: crate::app::models::ChatRole::User,
+        content: "started".to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    assert!(app.current_session_has_started());
+
+    app.chat.clear();
+    app.current_session_runtime_mut().active_agent_request = Some(agent_request(41, "active"));
+    assert!(app.current_session_has_started());
+
+    let runtime = app.current_session_runtime_mut();
+    runtime.active_agent_request = None;
+    runtime.queue.push(crate::app::QueueItem {
+        created_ms: 10,
+        query: "queued".to_string(),
+        attachments: Vec::new(),
+        root: None,
+        model: None,
+        reasoning_effort: None,
+        acp_test: false,
+        acp_agent: None,
+        acp_allowed_tools: None,
+        agent: None,
+        allowed_tools: None,
+        require_agent_tool: false,
+        acp_force_new_session: false,
+        acp_history_mode: AcpHistoryReplayMode::Discard,
+        acp_recent_count: 3,
+        full_access_enabled: false,
+        send_behavior: crate::app::state::ChatSendBehavior::Queue,
+        request_history_override: None,
+        resume_history_only: false,
+        workflow_mode_enabled: false,
+        goal_mode_enabled: false,
+    });
+    assert!(app.current_session_has_started());
+}
+
+#[test]
 fn viewed_and_requesting_helpers_update_and_query_per_session_state() {
     let mut app = test_app();
     app.session_runtime_states.clear();

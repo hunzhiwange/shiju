@@ -108,14 +108,14 @@ use crate::app::components::chat_panel::{
 };
 use crate::app::components::input_panel::icons::acp_agent_icon;
 use crate::app::components::overlays::AboveOverlay;
-use crate::app::state::{AcpHistoryReplayMode, tool_display_name};
+use crate::app::state::tool_display_name;
 use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, TodoPanelPlacement, message};
 use drop_area::DropArea;
 use file_references::{extract_file_mentions, render_file_references};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, row, scrollable, text, text_input};
+use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Alignment, Color, Element, Length, Padding, Theme};
 use icons::icon_svg;
 use reasoning_selector::reasoning_effort_selector;
@@ -220,9 +220,14 @@ pub(super) fn session_tool_tab_buttons<'a>(
 pub(super) fn acp_selector_button<'a>(
     app: &'a App,
     selected_acp_agent: Option<String>,
+    locked: bool,
 ) -> Option<Element<'a, Message>> {
     let label = selected_acp_agent.as_deref().unwrap_or("ACP 智能体").to_string();
     let icon = acp_agent_icon(&label, styles::BOTTOM_BAR_ICON_SIZE);
+    if locked {
+        return Some(icon.into());
+    }
+
     let toggle = bottom_bar_round_toggle(
         icon,
         acp_selector_tooltip(&label),
@@ -330,70 +335,6 @@ pub(super) fn dark_tooltip_content<'a>(label: impl Into<String>) -> Element<'a, 
     .style(styles::tooltip_dark_style)
     .padding([6, 8])
     .into()
-}
-
-pub(super) fn with_dark_tooltip<'a>(
-    content: Element<'a, Message>,
-    label: impl Into<String>,
-) -> Element<'a, Message> {
-    Tooltip::new(content, dark_tooltip_content(label), TooltipPosition::Top).gap(6.0).into()
-}
-
-pub(super) fn acp_history_controls<'a>(
-    mode: AcpHistoryReplayMode,
-    recent_count: usize,
-) -> Element<'a, Message> {
-    let strategy_tip = |replay_mode: AcpHistoryReplayMode| match replay_mode {
-        AcpHistoryReplayMode::Discard => "不带旧上下文，只发送当前这条消息",
-        AcpHistoryReplayMode::Summary => "用本地压缩摘要重建上下文",
-        AcpHistoryReplayMode::Recent => "只重放最近几条对话",
-        AcpHistoryReplayMode::Full => "把当前本地历史完整重放给新 ACP",
-    };
-
-    let mut mode_row = row![].spacing(6).align_y(Alignment::Center);
-    for replay_mode in [
-        AcpHistoryReplayMode::Discard,
-        AcpHistoryReplayMode::Summary,
-        AcpHistoryReplayMode::Full,
-        AcpHistoryReplayMode::Recent,
-    ] {
-        let selected = replay_mode == mode;
-        let button = button(text(replay_mode.label()).size(12))
-            .padding([4, 8])
-            .style(move |theme: &Theme, status: iced::widget::button::Status| {
-                popover_item_style(theme, status, selected)
-            })
-            .on_press(Message::Chat(message::ChatMessage::AcpHistoryModeSelected(replay_mode)));
-        mode_row = mode_row.push(with_dark_tooltip(button.into(), strategy_tip(replay_mode)));
-    }
-
-    let recent_input: Element<'_, Message> = if mode == AcpHistoryReplayMode::Recent {
-        row![
-            text_input("3", &recent_count.to_string())
-                .on_input(|value| Message::Chat(
-                    message::ChatMessage::AcpHistoryRecentCountChanged(value)
-                ))
-                .padding([4, 6])
-                .width(Length::Fixed(34.0))
-                .size(12),
-            text("条").size(12)
-        ]
-        .spacing(4)
-        .align_y(Alignment::Center)
-        .into()
-    } else {
-        Space::new().into()
-    };
-
-    let controls_row = if mode == AcpHistoryReplayMode::Recent {
-        row![mode_row, recent_input, Space::new().width(Length::Fill)]
-            .spacing(6)
-            .align_y(Alignment::Center)
-    } else {
-        row![mode_row, Space::new().width(Length::Fill)].align_y(Alignment::Center)
-    };
-
-    container(controls_row).padding(Padding { top: 0.0, right: 8.0, bottom: 0.0, left: 8.0 }).into()
 }
 
 pub(super) fn skill_title(app: &App, skill_id: &str) -> String {
@@ -546,9 +487,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let selected_acp_agent =
         runtime.and_then(|r| r.acp_agent.clone()).or_else(|| app.acp_agent.clone());
     let reasoning_effort = runtime.map(|r| r.reasoning_effort).unwrap_or(app.reasoning_effort);
-    let effective_acp_agent = selected_acp_agent.clone();
-    let acp_history_mode = runtime.map(|r| r.acp_history_mode).unwrap_or(app.acp_history_mode);
-    let acp_recent_count = runtime.map(|r| r.acp_recent_count).unwrap_or(app.acp_recent_count);
     let full_access_enabled = runtime.map(|r| r.full_access_enabled).unwrap_or(false);
     let workflow_mode_enabled = runtime.map(|r| r.workflow_mode_enabled).unwrap_or(false);
     let subagent_mode_enabled = runtime.map(|r| r.subagent_mode_enabled).unwrap_or(false);
@@ -593,7 +531,11 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 构建附件按钮
     let attach_btn = attachment::attachment_button(app);
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
-    let acp_btn = acp_selector_button(app, selected_acp_agent.clone());
+    let acp_btn = acp_selector_button(
+        app,
+        selected_acp_agent.clone(),
+        app.current_session_has_started(),
+    );
     let reasoning_btn =
         reasoning_effort_selector(app, selected_acp_agent.as_deref(), reasoning_effort);
     let permission_btn = Some(full_access_button(has_permission_context, full_access_enabled));
@@ -706,10 +648,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         if let Some(context_card) = selected_context_card(app) {
             input_block = input_block.push(context_card);
         }
-        if effective_acp_agent.is_some() {
-            input_block =
-                input_block.push(acp_history_controls(acp_history_mode, acp_recent_count));
-        }
         input_block = input_block.push(input).push(divider).push(bottom_bar);
 
         column![attachment_strip, file_refs, task_mode_form, input_block].spacing(3)
@@ -718,9 +656,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         let mut standard = column![attachment_strip, file_refs, task_mode_form].spacing(6);
         if let Some(context_card) = selected_context_card(app) {
             standard = standard.push(context_card);
-        }
-        if effective_acp_agent.is_some() {
-            standard = standard.push(acp_history_controls(acp_history_mode, acp_recent_count));
         }
         standard.push(input).push(divider).push(bottom_bar)
     } else {
@@ -737,9 +672,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         .spacing(6);
         if let Some(context_card) = selected_context_card(app) {
             queued = queued.push(context_card);
-        }
-        if effective_acp_agent.is_some() {
-            queued = queued.push(acp_history_controls(acp_history_mode, acp_recent_count));
         }
         queued.push(input).push(divider).push(bottom_bar)
     };

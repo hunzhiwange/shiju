@@ -1124,6 +1124,51 @@ fn preference_messages_update_runtime_and_global_chat_defaults() {
 }
 
 #[test]
+fn acp_agent_selection_rejects_backend_switch_after_session_started() {
+    let cases = ["chat", "active_request", "queue"];
+
+    for case in cases {
+        let (mut app, _task) = crate::app::App::new();
+        app.active_session_id = Some("session-1".to_string());
+        app.acp_agent = Some("original-agent".to_string());
+        app.current_session_runtime_mut().acp_agent = Some("original-agent".to_string());
+
+        match case {
+            "chat" => app
+                .chat
+                .push(chat_message(crate::app::models::ChatRole::User, "started")),
+            "active_request" => {
+                app.current_session_runtime_mut().active_agent_request =
+                    Some(agent_request(7, "session-1"));
+            }
+            "queue" => app.current_session_runtime_mut().queue.push(queue_item(
+                "queued",
+                crate::app::state::ChatSendBehavior::Queue,
+            )),
+            _ => unreachable!(),
+        }
+
+        let _ = super::update(
+            &mut app,
+            super::ChatMessage::AcpAgentSelected(Some("replacement-agent".to_string())),
+        );
+
+        assert_eq!(app.acp_agent.as_deref(), Some("original-agent"), "case: {case}");
+        assert_eq!(
+            app.current_session_runtime().acp_agent.as_deref(),
+            Some("original-agent"),
+            "case: {case}"
+        );
+        assert!(
+            app.active_toast
+                .as_ref()
+                .is_some_and(|toast| toast.message.contains("会话开始后不能切换 ACP 后端")),
+            "case: {case}"
+        );
+    }
+}
+
+#[test]
 fn explicit_model_selection_cancels_pending_history_restore() {
     let (mut app, _task) = crate::app::App::new();
     app.prepare_historical_session_model("history");

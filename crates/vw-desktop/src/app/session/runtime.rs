@@ -137,6 +137,13 @@ impl App {
         }
     }
 
+    pub(crate) fn current_session_has_started(&self) -> bool {
+        let runtime = self.current_session_runtime();
+        !self.chat.is_empty()
+            || runtime.active_agent_request.is_some()
+            || !runtime.queue.is_empty()
+    }
+
     /// 执行 mark_session_viewed 对应的领域操作。
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。

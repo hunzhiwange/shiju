@@ -649,7 +649,7 @@ pub(crate) fn tool_bucket(tool_id: &str) -> SessionToolBucket {
         | "web_search" | "websearch" | "web_search_tool" | "screenshot" => {
             SessionToolBucket::Browser
         }
-        "AgentTool" | "Agent" | "agent" | "schedule" | "cron_add" | "cron_list" | "cron_remove"
+        "AgentTool" | "SessionTool" | "Agent" | "agent" | "schedule" | "cron_add" | "cron_list" | "cron_remove"
         | "cron_update" | "cron_run" | "cron_runs" | "todoread" | "todowrite"
         | "enter_worktree" | "exit_worktree" | "question" | "skill"
         | "memory_store" | "memory_forget" => SessionToolBucket::Agent,
@@ -672,7 +672,7 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         | "bash" | "shell" | "process" | "git_operations" => SessionToolGroup::Execute,
         "browser" | "browser_open" | "http_request" | "web_fetch" | "fetch_webpage"
         | "web_search" | "websearch" | "web_search_tool" | "screenshot" => SessionToolGroup::Web,
-        "AgentTool" | "Agent" | "agent" | "question" | "skill" | "schedule" | "cron_add"
+        "AgentTool" | "SessionTool" | "Agent" | "agent" | "question" | "skill" | "schedule" | "cron_add"
         | "cron_list" | "cron_remove" | "cron_update" | "cron_run" | "cron_runs" | "todoread"
         | "todowrite" | "enter_worktree" | "exit_worktree" => SessionToolGroup::Collaboration,
         "memory_recall" | "memory_store" | "memory_forget" => SessionToolGroup::Memory,
@@ -706,6 +706,7 @@ pub(crate) fn tool_display_name(tool_id: &str) -> String {
         "web_fetch" => "网页抓取".to_string(),
         "web_search" | "websearch" | "web_search_tool" => "联网搜索".to_string(),
         "AgentTool" | "Agent" | "agent" => "委托代理".to_string(),
+        "SessionTool" => "智能体管理".to_string(),
         "question" => "用户提问".to_string(),
         "skill" => "加载技能".to_string(),
         "memory_recall" => "读取记忆".to_string(),

@@ -398,6 +398,7 @@ pub const BUILTIN_REQUIRED_TOOL_IDS: &[&str] = &[
     "http_request",
     "screenshot",
     "AgentTool",
+    "SessionTool",
     "skill",
     "schedule",
     "memory_forget",

@@ -23,6 +23,7 @@ fn builtin_required_tool_catalog_matches_expected_ids_and_aliases() {
         "http_request",
         "screenshot",
         "AgentTool",
+        "SessionTool",
         "skill",
         "schedule",
         "memory_forget",

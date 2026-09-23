@@ -39,6 +39,7 @@ fn tool_in_preset_accepts_declared_members_and_inheritance() {
     ];
     let collaboration_only = [
         "AgentTool",
+        "SessionTool",
         "schedule",
         "cron_add",
         "cron_list",
@@ -190,6 +191,7 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("web_search_tool", "联网搜索", ToolGroup::Web),
         ("WebSearch", "联网搜索", ToolGroup::Web),
         ("AgentTool", "委托子代理", ToolGroup::Collaboration),
+        ("SessionTool", "智能体管理", ToolGroup::Collaboration),
         ("delegate", "委托执行", ToolGroup::Collaboration),
         ("schedule", "任务调度", ToolGroup::Collaboration),
         ("cron_add", "新增定时任务", ToolGroup::Collaboration),
@@ -394,6 +396,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         "rustcodegraph".to_string(),
         "custom_optional".to_string(),
         "AgentTool".to_string(),
+        "SessionTool".to_string(),
     ];
 
     assert_eq!(app.agents_settings.active_tools_list_tab, AGENT_TOOLS_OPTIONAL_TAB);
@@ -408,7 +411,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
     {
         let optional_view = super::tools::view(&app, &entry);
         let optional_tree = Tree::new(optional_view.as_widget());
-        let optional_list = &optional_tree.children[2];
+        let optional_list = &optional_tree.children[1];
         // tabs + select-all row + preset section + preset buttons + grouped cards
         assert!(optional_list.children.len() >= 4, "optional tab should keep preset controls");
         assert_eq!(optional_list.children[0].children.len(), 2, "optional/builtin tab buttons");
@@ -419,12 +422,12 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         &app.agents_settings.available_tools,
         &app.agents_settings.active_tools_list_tab,
     );
-    assert_eq!(builtin_ids, vec!["bash", "rustcodegraph", "AgentTool"]);
+    assert_eq!(builtin_ids, vec!["bash", "rustcodegraph", "AgentTool", "SessionTool"]);
     assert!(builtin_ids.iter().all(|id| is_builtin_required_tool_id(id)));
 
     let builtin_view = super::tools::view(&app, &entry);
     let builtin_tree = Tree::new(builtin_view.as_widget());
-    let builtin_list = &builtin_tree.children[2];
+    let builtin_list = &builtin_tree.children[1];
     assert_eq!(
         builtin_list.children.len(),
         2,

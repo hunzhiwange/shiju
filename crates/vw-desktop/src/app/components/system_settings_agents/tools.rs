@@ -224,6 +224,7 @@ pub(super) fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                     tool_id,
                     &[
                         "AgentTool",
+                        "SessionTool",
                         "schedule",
                         "cron_add",
                         "cron_list",
@@ -409,6 +410,11 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
         "AgentTool" => ToolMeta {
             name: "委托子代理",
             description: "把复杂工作交给持久子代理：launch/spawn 并行启动，run 同步等待，status/wait/stop 管理任务与结果。",
+            group: ToolGroup::Collaboration,
+        },
+        "SessionTool" => ToolMeta {
+            name: "智能体管理",
+            description: "创建、列出、读取、继续和等待当前工作区的用户可见任务会话。",
             group: ToolGroup::Collaboration,
         },
         "delegate" => ToolMeta {

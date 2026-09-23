@@ -16,6 +16,9 @@ fn tool_selector_buckets_match_runtime_surfaces() {
     assert_eq!(tool_bucket("bash"), SessionToolBucket::Execution);
     assert_eq!(tool_bucket("browser"), SessionToolBucket::Browser);
     assert_eq!(tool_bucket("AgentTool"), SessionToolBucket::Agent);
+    assert_eq!(tool_bucket("SessionTool"), SessionToolBucket::Agent);
+    assert_eq!(tool_group("SessionTool"), SessionToolGroup::Collaboration);
+    assert_eq!(tool_display_name("SessionTool"), "智能体管理");
 }
 
 #[test]

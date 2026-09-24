@@ -17,6 +17,19 @@ use crate::global_database::test_support::PostgresTestDatabase;
 use crate::project::store::ProjectStore;
 
 #[test]
+fn pinned_thread_store_separates_tenants_and_projects() -> Result<()> {
+    let temp = TempDir::new()?;
+    let first = ui_store::pinned_threads_scope("platform-a", "company", "project-a");
+    let other_project = ui_store::pinned_threads_scope("platform-a", "company", "project-b");
+    let other_tenant = ui_store::pinned_threads_scope("platform-b", "company", "project-a");
+    ui_store::set_thread_pinned(temp.path(), &first, "thread", true)?;
+    assert!(ui_store::load_pinned_threads(temp.path(), &first)?.contains("thread"));
+    assert!(ui_store::load_pinned_threads(temp.path(), &other_project)?.is_empty());
+    assert!(ui_store::load_pinned_threads(temp.path(), &other_tenant)?.is_empty());
+    Ok(())
+}
+
+#[test]
 fn session_scope_round_trips_and_clears() {
     let _global_state = GlobalStateGuard::new();
 

@@ -146,35 +146,70 @@ type SessionRef<'a> = (&'a str, &'a vw_shared::session::info::Info);
 fn collect_top_level_sessions<'a>(
     sessions: impl Iterator<Item = (&'a str, &'a vw_shared::session::info::Info)>,
 ) -> Vec<SessionRef<'a>> {
+    let sessions = sessions.collect::<Vec<_>>();
     sessions
-        .filter(|(_, session)| {
-            session.time.archived.is_none()
-                && session.parent_id.as_deref().is_none_or(|id| id.trim().is_empty())
+        .iter()
+        .copied()
+        .filter(|(path, session)| {
+            if session.time.archived.is_some() {
+                return false;
+            }
+            let Some(parent_id) = session
+                .parent_id
+                .as_deref()
+                .filter(|id| !id.trim().is_empty())
+            else {
+                return true;
+            };
+            session.is_visible_task()
+                && session.directory == *path
+                && sessions.iter().any(|(parent_path, parent)| {
+                    *parent_path == *path
+                        && parent.id == parent_id
+                        && parent.project_id == session.project_id
+                        && parent.directory == session.directory
+                })
         })
         .collect()
 }
 
-fn compare_sessions(left: &SessionRef<'_>, right: &SessionRef<'_>) -> std::cmp::Ordering {
-    right
+pub(super) fn compare_sessions(left: &SessionRef<'_>, right: &SessionRef<'_>, pinned: &std::collections::HashSet<(String, String)>) -> std::cmp::Ordering {
+    let left_pinned = pinned.contains(&(left.1.project_id.clone(), left.1.id.clone()));
+    let right_pinned = pinned.contains(&(right.1.project_id.clone(), right.1.id.clone()));
+    right_pinned.cmp(&left_pinned).then_with(|| right
         .1
         .time
         .updated
         .cmp(&left.1.time.updated)
         .then_with(|| left.1.id.cmp(&right.1.id))
-        .then_with(|| left.0.cmp(right.0))
+        .then_with(|| left.0.cmp(right.0)))
 }
 
-fn sort_and_truncate_sessions(sessions: &mut Vec<SessionRef<'_>>, limit: usize) {
+fn sort_and_truncate_sessions(sessions: &mut Vec<SessionRef<'_>>, limit: usize, pinned: &std::collections::HashSet<(String, String)>) {
     if limit == 0 {
         sessions.clear();
         return;
     }
 
     if sessions.len() > limit {
-        sessions.select_nth_unstable_by(limit, compare_sessions);
+        sessions.select_nth_unstable_by(limit, |left, right| compare_sessions(left, right, pinned));
         sessions.truncate(limit);
     }
-    sessions.sort_unstable_by(compare_sessions);
+    sessions.sort_unstable_by(|left, right| compare_sessions(left, right, pinned));
+}
+
+fn pinned_sessions(sessions: impl Iterator<Item = (String, String)>) -> std::collections::HashSet<(String, String)> {
+    let Some(home) = directories::BaseDirs::new() else { return Default::default(); };
+    let data_dir = vw_config_types::paths::home_config_dir(home.home_dir());
+    let tenant = vw_gateway_client::vw_api_types::id::TenantScope::default();
+    let mut result = std::collections::HashSet::new();
+    for project_id in sessions.map(|(project_id, _)| project_id).collect::<std::collections::HashSet<_>>() {
+        let scope = vw_shared::session::ui_store::pinned_threads_scope(tenant.platform_id().as_ref(), tenant.company_id().as_ref(), &project_id);
+        if let Ok(ids) = vw_shared::session::ui_store::load_pinned_threads(&data_dir, &scope) {
+            result.extend(ids.into_iter().map(|id| (project_id.clone(), id)));
+        }
+    }
+    result
 }
 
 fn project_matches_filter(app: &App, path: &str) -> bool {
@@ -223,6 +258,7 @@ fn task_status(app: &App, session_id: &str) -> WorkTaskStatus {
 }
 
 pub(super) fn model(app: &App) -> WorkSidebarModel {
+    let pinned = pinned_sessions(app.project_sessions.values().flatten().map(|session| (session.project_id.clone(), session.id.clone())));
     let mut task_sessions =
         collect_top_level_sessions(app.recent_projects.iter().flat_map(|path| {
             app.project_sessions
@@ -239,7 +275,7 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
         })
         .collect::<Vec<_>>();
     let task_total = task_sessions.len();
-    sort_and_truncate_sessions(&mut task_sessions, app.work_sidebar_visible_tasks);
+    sort_and_truncate_sessions(&mut task_sessions, app.work_sidebar_visible_tasks, &pinned);
     let tasks = task_sessions
         .into_iter()
         .map(|(path, session)| WorkTaskItem {
@@ -288,7 +324,7 @@ pub(super) fn model(app: &App) -> WorkSidebarModel {
                     .get(path)
                     .copied()
                     .unwrap_or(WORK_SIDEBAR_SPACE_TASKS_INITIAL_VISIBLE);
-                sort_and_truncate_sessions(&mut filtered_sessions, visible);
+                sort_and_truncate_sessions(&mut filtered_sessions, visible, &pinned);
                 filtered_sessions
                     .into_iter()
                     .map(|(_, session)| WorkSpaceSession {

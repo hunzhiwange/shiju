@@ -47,7 +47,10 @@ fn build_message_meta_labels(
                 )
                 .is_some()
                 {
-                    Some(vw_shared::session::session_utils::TASK_SESSION_SOURCE_LABEL.to_string())
+                    Some(
+                        vw_shared::session::session_utils::TASK_SESSION_SOURCE_DISPLAY_LABEL
+                            .to_string(),
+                    )
                 } else {
                     let step_index = assistant_count + 1;
                     let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);
@@ -77,7 +80,10 @@ fn build_message_meta_label(
             if vw_shared::session::session_utils::parse_task_session_source_marker(&message.content)
                 .is_some()
             {
-                Some(vw_shared::session::session_utils::TASK_SESSION_SOURCE_LABEL.to_string())
+                Some(
+                    vw_shared::session::session_utils::TASK_SESSION_SOURCE_DISPLAY_LABEL
+                        .to_string(),
+                )
             } else {
                 let step_index = *assistant_count + 1;
                 let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);

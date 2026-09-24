@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::collections::HashSet;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::io;
@@ -11,6 +12,34 @@ pub use crate::session::ui_types::{
 };
 
 use super::path;
+
+fn pinned_threads_path(data_dir: &Path, scope: &str) -> PathBuf {
+    data_dir.join("storage").join("pinned_threads").join(format!("{}.json", path::session_scope_key(scope)))
+}
+
+/// Compose an unambiguous tenant and project key for pinned thread storage.
+pub fn pinned_threads_scope(platform_id: &str, company_id: &str, project_id: &str) -> String {
+    format!("{}:{platform_id}{}:{company_id}{}:{project_id}", platform_id.len(), company_id.len(), project_id.len())
+}
+
+/// Load pinned thread IDs for one tenant and project scope.
+pub fn load_pinned_threads(data_dir: &Path, scope: &str) -> std::io::Result<HashSet<String>> {
+    let path = pinned_threads_path(data_dir, scope);
+    if !path.exists() { return Ok(HashSet::new()); }
+    let bytes = std::fs::read(path)?;
+    serde_json::from_slice(&bytes).map_err(std::io::Error::other)
+}
+
+/// Persist a pin change for one tenant and project scope.
+pub fn set_thread_pinned(data_dir: &Path, scope: &str, thread_id: &str, pinned: bool) -> std::io::Result<()> {
+    let mut ids = load_pinned_threads(data_dir, scope)?;
+    if pinned { ids.insert(thread_id.to_string()); } else { ids.remove(thread_id); }
+    let path = pinned_threads_path(data_dir, scope);
+    std::fs::create_dir_all(path.parent().expect("pinned threads directory"))?;
+    let temporary = path.with_extension(format!("{}.tmp", std::process::id()));
+    std::fs::write(&temporary, serde_json::to_vec(&ids).map_err(std::io::Error::other)?)?;
+    std::fs::rename(temporary, path)
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn json_to_io_error(error: serde_json::Error) -> io::Error {

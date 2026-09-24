@@ -39,16 +39,11 @@
 
 把任何有助于你完成工作的内容都写进来。这就是你的速查表。
 
-## SessionTool
+## Thread 工具
 
-`SessionTool` 协作当前工作区中的用户可见任务会话，不替代 `AgentTool`、plan-run 或 Agent Scheduler。
+用户可见任务使用 `create_thread`、`fork_thread`、`list_threads`、`read_thread`、`send_message_to_thread`、`handoff_thread`、`set_thread_title`、`set_thread_pinned`、`set_thread_archived`、`wait_threads`。这些命令直接出现在工具目录中；`SessionTool` 仅供内部适配，不再向模型注册。
 
-- `create`：创建并异步启动，立即可见且不切换当前会话。
-- `send`：续发消息；忙碌目标会被拒绝。
-- `read`：读取有界的历史输出。
-- `status`：查询指定任务状态。
-- `list`：列出当前会话发起的可见任务。
-- `wait`：按 `any` 或 `all` 等待状态变化，单次最长 60 秒。
+目标参数使用 `thread_id`，项目参数使用 `project_id`。`set_thread_title` 使用 `title`，`set_thread_pinned` 使用布尔 `pinned`，`set_thread_archived` 使用布尔 `archived`。未实现的跨主机交接由 `handoff_thread` 明确报错；不支持的参数也明确拒绝。
 
-仅允许同租户、同项目、同规范化目录的任务，并拒绝 self、busy、未知 ID、跨作用域或非可见任务目标。
-跨任务用户消息显示“由 ChatGPT 从另一项任务发起”；内部来源标记在展示和复制前被剔除。
+工具仅允许同租户、同项目、同规范化目录的可见任务，并拒绝当前任务、忙碌目标、未知 ID 和跨作用域目标。
+跨任务用户消息显示“由 VibeWindow 从另一项任务发起”；内部来源标记在展示和复制前被剔除。

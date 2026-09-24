@@ -221,20 +221,34 @@ fn unified_prompt_omits_unavailable_capability_instructions() {
 }
 
 #[test]
-fn system_prompt_distinguishes_visible_tasks_from_subagents() {
+fn system_prompt_uses_registered_thread_tools_for_visible_tasks() {
     let prompt = render_unified_prompt(
+        "provider/model",
+        "/workspace",
+        &["create_thread".into(), "AgentTool".into()],
+        false,
+    );
+
+    assert!(prompt.contains("## Visible Task Sessions"));
+    assert!(prompt.contains("`create_thread`"));
+    assert!(prompt.contains("user-visible independent task"));
+    assert!(prompt.contains("hidden subtask"));
+    assert!(prompt.contains("record the thread ID"));
+    assert!(prompt.contains("available task tools"));
+    assert!(prompt.contains("Do not take over the target task locally"));
+    assert!(prompt.contains("plan-run"));
+
+    let legacy_prompt = render_unified_prompt(
         "provider/model",
         "/workspace",
         &["SessionTool".into(), "AgentTool".into()],
         false,
     );
+    assert!(!legacy_prompt.contains("## Visible Task Sessions"));
 
-    assert!(prompt.contains("## Visible Task Sessions"));
-    assert!(prompt.contains("user-visible independent task"));
-    assert!(prompt.contains("hidden subtask"));
-    assert!(prompt.contains("bounded `wait`"));
-    assert!(prompt.contains("Do not take over the target task locally"));
-    assert!(prompt.contains("plan-run"));
+    let no_thread_tools =
+        render_unified_prompt("provider/model", "/workspace", &["AgentTool".into()], false);
+    assert!(!no_thread_tools.contains("## Visible Task Sessions"));
 }
 
 #[test]

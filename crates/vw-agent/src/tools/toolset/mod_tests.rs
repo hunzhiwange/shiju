@@ -821,7 +821,7 @@ fn default_config_registers_agent_tool_with_builtin_subagents() {
 }
 
 #[test]
-fn default_toolset_registers_session_tool_without_delegate_agents() {
+fn default_toolset_registers_thread_tools_without_delegate_agents() {
     let dir = tempfile::tempdir().unwrap();
     let workspace = dir.path();
     let config = test_config(workspace);
@@ -830,23 +830,52 @@ fn default_toolset_registers_session_tool_without_delegate_agents() {
 
     let (tools, _) = execution_environment_for_config(&ctx, Arc::new(config));
 
-    assert!(tool_names(&tools).contains(&"SessionTool"));
+    assert!(!tool_names(&tools).contains(&"SessionTool"));
+    assert!(tool_names(&tools).contains(&"create_thread"));
+    for name in ["list_threads", "read_thread", "wait_threads"] {
+        assert!(tool_names(&tools).contains(&name), "missing {name}");
+    }
 }
 
 #[test]
-fn restricted_toolset_can_exclude_session_tool() {
+fn thread_tools_visible_without_tool_search() {
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = ToolRuntimeContext::new(
+        "parent-session",
+        Some(dir.path().to_string_lossy().to_string()),
+    );
+    let specs = tool_specs_for_context(&ctx);
+    let expected = [
+        "create_thread", "fork_thread", "list_threads", "read_thread",
+        "send_message_to_thread", "handoff_thread", "set_thread_title",
+        "set_thread_pinned", "set_thread_archived", "wait_threads",
+    ];
+    for name in expected {
+        assert!(specs.iter().any(|spec| spec.id == name), "missing {name}");
+    }
+    assert!(!specs.iter().any(|spec| spec.id == "SessionTool"));
+
+    let disabled = crate::session::processor::allowed_tool_ids_for_request_from_specs(
+        &specs,
+        &json!({"disable_tools": true}),
+    );
+    assert!(disabled.is_empty());
+}
+
+#[test]
+fn restricted_toolset_can_exclude_thread_tools() {
     let specs = vec![
-        ToolSpec::new("SessionTool", "Visible tasks", json!({"type": "object"})),
+        ToolSpec::new("create_thread", "Visible tasks", json!({"type": "object"})),
         ToolSpec::new("file_read", "Read files", json!({"type": "object"})),
     ];
 
     let allowed = crate::session::processor::allowed_tool_ids_for_request_from_specs(
         &specs,
-        &json!({"allowed_tools": ["file_read"]}),
+        &json!({"disable_tools": true, "allowed_tools": ["file_read"]}),
     );
 
-    assert!(allowed.contains("file_read"));
-    assert!(!allowed.contains("SessionTool"));
+    assert!(!allowed.contains("file_read"));
+    assert!(!allowed.contains("create_thread"));
 }
 
 #[tokio::test]

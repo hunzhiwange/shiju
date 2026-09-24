@@ -72,6 +72,119 @@ export function noFailedTools(_output, context) {
   );
 }
 
+const THREAD_COMMANDS = Object.freeze([
+  'create_thread',
+  'list_threads',
+  'read_thread',
+  'wait_threads',
+  'send_message_to_thread',
+  'fork_thread',
+  'set_thread_title',
+  'set_thread_pinned',
+  'set_thread_archived',
+  'handoff_thread',
+]);
+
+function parsedJson(value) {
+  if (value && typeof value === 'object') {
+    return value;
+  }
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function threadTargetMatches(tool, threadId) {
+  const input = parsedJson(tool?.input);
+  if (tool?.name === 'wait_threads') {
+    return Array.isArray(input?.thread_ids) && input.thread_ids.includes(threadId);
+  }
+  return input?.thread_id === threadId;
+}
+
+export function threadTrajectory(_output, context) {
+  const calls = toolCalls(context);
+  const direct = new Map(THREAD_COMMANDS.map((name) => [name, calls.filter((call) => call?.name === name)]));
+  const missing = THREAD_COMMANDS.filter((name) => direct.get(name).length === 0);
+  if (missing.length > 0) {
+    return gradingResult(false, `Thread 命令缺失：${missing.join(', ')}`);
+  }
+
+  const createCalls = direct.get('create_thread');
+  const validCreate = createCalls.find((tool) => {
+    const input = parsedJson(tool.input);
+    const result = parsedJson(tool.output);
+    return (
+      isSuccessfulTool(tool) &&
+      input?.prompt === '写一篇50字的科幻小说.' &&
+      typeof result?.thread_id === 'string' &&
+      result.thread_id.trim() &&
+      typeof result?.project_id === 'string' &&
+      result.project_id.trim()
+    );
+  });
+  if (!validCreate || createCalls.some((tool) => !isSuccessfulTool(tool))) {
+    return gradingResult(false, 'create_thread 必须成功，使用指定 prompt，并返回 thread_id 与 project_id');
+  }
+
+  const created = parsedJson(validCreate.output);
+  const threadId = created.thread_id;
+  const projectId = created.project_id;
+  const listCalls = direct.get('list_threads');
+  const validList = listCalls.some((tool) => {
+    const result = parsedJson(tool.output);
+    return (
+      isSuccessfulTool(tool) &&
+      Array.isArray(result?.threads) &&
+      result.threads.some(
+        (thread) => thread?.thread_id === threadId && thread?.project_id === projectId,
+      )
+    );
+  });
+  if (!validList || listCalls.some((tool) => !isSuccessfulTool(tool))) {
+    return gradingResult(false, `list_threads 未返回创建的任务 ${threadId}`);
+  }
+
+  const targeted = THREAD_COMMANDS.filter(
+    (name) => !['create_thread', 'list_threads', 'handoff_thread'].includes(name),
+  );
+  for (const name of targeted) {
+    const commandCalls = direct.get(name);
+    const valid = commandCalls.some(
+      (tool) =>
+        isSuccessfulTool(tool) &&
+        threadTargetMatches(tool, threadId) &&
+        parsedJson(tool.output) !== undefined,
+    );
+    if (!valid || commandCalls.some((tool) => !isSuccessfulTool(tool))) {
+      return gradingResult(false, `${name} 必须成功调用任务 ${threadId} 并返回可解析结果`);
+    }
+  }
+
+  const handoffCalls = direct.get('handoff_thread');
+  const validHandoff = handoffCalls.some((tool) => {
+    const detail = `${tool?.output ?? ''} ${tool?.error ?? ''}`;
+    return (
+      tool?.isError === true &&
+      threadTargetMatches(tool, threadId) &&
+      /(?:unsupported|not supported|不支持)/i.test(detail)
+    );
+  });
+  if (!validHandoff || handoffCalls.some((tool) => isSuccessfulTool(tool))) {
+    return gradingResult(false, `handoff_thread 必须对任务 ${threadId} 明确报告不支持`);
+  }
+
+  return gradingResult(
+    true,
+    `Thread 命令 10/10；目标 ${threadId}；项目 ${projectId}；handoff_thread 按预期拒绝`,
+  );
+}
+
 export function maxToolCalls(_output, context) {
   const calls = toolCalls(context);
   const limit = Number(context?.vars?.maxToolCalls ?? context?.config?.maxToolCalls ?? 12);
@@ -623,6 +736,13 @@ const EVALUATION_PROFILES = Object.freeze({
       ['no_failed_tools', 25, noFailedTools, true],
       ['required_skill_success', 40, requiredSkillsSucceeded, true],
       ['tool_call_budget', 10, maxToolCalls, false],
+    ],
+  },
+  'thread-commands': {
+    threshold: 1,
+    checks: [
+      ['successful_run', 10, successfulRun, true],
+      ['thread_trajectory', 90, threadTrajectory, true],
     ],
   },
 });

@@ -1,7 +1,7 @@
 //! 可见任务会话的进程内运行状态协调器。
 
 use anyhow::{Result, bail};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 use std::sync::{Arc, Mutex};
@@ -12,7 +12,7 @@ use tokio::sync::watch;
 pub(crate) const MAX_TASK_SESSION_WAIT: Duration = Duration::from_secs(60);
 
 /// 可见任务会话的运行状态。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum TaskSessionState {
     Queued,
@@ -28,7 +28,7 @@ impl TaskSessionState {
 }
 
 /// 可见任务会话的稳定状态快照。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct TaskSessionSnapshot {
     pub(crate) parent_session_id: String,
     pub(crate) task_session_id: String,
@@ -117,6 +117,18 @@ impl TaskSessionCoordinator {
         };
         self.publish_change(version);
         Ok(())
+    }
+
+    /// 恢复缺失条目；仍在本进程运行的任务不会被旧磁盘状态覆盖。
+    pub(crate) fn restore(&self, snapshot: TaskSessionSnapshot) {
+        let mut state = self.lock_state();
+        if state.tasks.contains_key(&snapshot.task_session_id) {
+            return;
+        }
+        state.version = state.version.saturating_add(1);
+        let sequence = state.version;
+        state.tasks.insert(snapshot.task_session_id.clone(), TaskEntry { snapshot, sequence });
+        self.publish_change(state.version);
     }
 
     pub(crate) fn mark_running(

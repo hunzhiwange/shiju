@@ -39,7 +39,16 @@ fn tool_in_preset_accepts_declared_members_and_inheritance() {
     ];
     let collaboration_only = [
         "AgentTool",
-        "SessionTool",
+        "create_thread",
+        "fork_thread",
+        "list_threads",
+        "read_thread",
+        "send_message_to_thread",
+        "handoff_thread",
+        "set_thread_title",
+        "set_thread_pinned",
+        "set_thread_archived",
+        "wait_threads",
         "schedule",
         "cron_add",
         "cron_list",
@@ -191,7 +200,16 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("web_search_tool", "联网搜索", ToolGroup::Web),
         ("WebSearch", "联网搜索", ToolGroup::Web),
         ("AgentTool", "委托子代理", ToolGroup::Collaboration),
-        ("SessionTool", "智能体管理", ToolGroup::Collaboration),
+        ("create_thread", "创建任务", ToolGroup::Collaboration),
+        ("fork_thread", "分叉任务", ToolGroup::Collaboration),
+        ("list_threads", "列出任务", ToolGroup::Collaboration),
+        ("read_thread", "读取任务", ToolGroup::Collaboration),
+        ("send_message_to_thread", "续发任务消息", ToolGroup::Collaboration),
+        ("handoff_thread", "交接任务", ToolGroup::Collaboration),
+        ("set_thread_title", "修改任务标题", ToolGroup::Collaboration),
+        ("set_thread_pinned", "置顶任务", ToolGroup::Collaboration),
+        ("set_thread_archived", "归档任务", ToolGroup::Collaboration),
+        ("wait_threads", "等待任务", ToolGroup::Collaboration),
         ("delegate", "委托执行", ToolGroup::Collaboration),
         ("schedule", "任务调度", ToolGroup::Collaboration),
         ("cron_add", "新增定时任务", ToolGroup::Collaboration),
@@ -396,7 +414,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         "rustcodegraph".to_string(),
         "custom_optional".to_string(),
         "AgentTool".to_string(),
-        "SessionTool".to_string(),
+        "create_thread".to_string(),
     ];
 
     assert_eq!(app.agents_settings.active_tools_list_tab, AGENT_TOOLS_OPTIONAL_TAB);
@@ -422,7 +440,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         &app.agents_settings.available_tools,
         &app.agents_settings.active_tools_list_tab,
     );
-    assert_eq!(builtin_ids, vec!["bash", "rustcodegraph", "AgentTool", "SessionTool"]);
+    assert_eq!(builtin_ids, vec!["bash", "rustcodegraph", "AgentTool", "create_thread"]);
     assert!(builtin_ids.iter().all(|id| is_builtin_required_tool_id(id)));
 
     let builtin_view = super::tools::view(&app, &entry);

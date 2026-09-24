@@ -15,9 +15,17 @@ pub fn load_app_config(tenant: &TenantScope) -> Value {
     load_app_config_from_store_result(runtime_settings_store(), tenant)
 }
 
+pub(crate) fn load_app_config_result(tenant: &TenantScope) -> Result<Value> {
+    load_app_config_from_store(&runtime_settings_store()?, tenant)
+}
+
 /// 执行 set_config_field 操作，并返回调用方需要的结果。
 pub fn set_config_field(tenant: &TenantScope, key: &str, value: Value) {
     set_config_field_with_store_result(runtime_settings_store(), tenant, key, value);
+}
+
+pub(crate) fn set_config_field_result(tenant: &TenantScope, key: &str, value: Value) -> Result<()> {
+    set_config_field_in_store(&runtime_settings_store()?, tenant, key, value)
 }
 
 fn load_app_config_from_store_result(

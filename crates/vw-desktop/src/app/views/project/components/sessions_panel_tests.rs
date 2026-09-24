@@ -60,6 +60,17 @@ fn child_session(id: &str, parent_id: &str, updated: u64) -> Info {
 }
 
 #[test]
+fn pinned_thread_precedes_newer_thread_in_project_panel() {
+    let mut older = session("older", "Older", "/tmp/project", false);
+    older.time.updated = 10;
+    let mut newer = session("newer", "Newer", "/tmp/project", false);
+    newer.time.updated = 20;
+    let pinned = HashSet::from(["older".to_string()]);
+    assert!(compare_session_recency(&&older, &&newer, &pinned).is_lt());
+    assert!(compare_session_recency(&&older, &&newer, &HashSet::new()).is_gt());
+}
+
+#[test]
 fn session_tree_shows_visible_task_but_hides_internal_children() {
     let root = session("root", "Root", "/tmp/project", false);
     let mut visible = child_session("visible", "root", 5);

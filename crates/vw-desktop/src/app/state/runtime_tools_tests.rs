@@ -16,9 +16,9 @@ fn tool_selector_buckets_match_runtime_surfaces() {
     assert_eq!(tool_bucket("bash"), SessionToolBucket::Execution);
     assert_eq!(tool_bucket("browser"), SessionToolBucket::Browser);
     assert_eq!(tool_bucket("AgentTool"), SessionToolBucket::Agent);
-    assert_eq!(tool_bucket("SessionTool"), SessionToolBucket::Agent);
-    assert_eq!(tool_group("SessionTool"), SessionToolGroup::Collaboration);
-    assert_eq!(tool_display_name("SessionTool"), "智能体管理");
+    assert_eq!(tool_bucket("create_thread"), SessionToolBucket::Agent);
+    assert_eq!(tool_group("create_thread"), SessionToolGroup::Collaboration);
+    assert_eq!(tool_display_name("create_thread"), "创建任务");
 }
 
 #[test]
@@ -140,6 +140,27 @@ fn tool_selector_filters_tools_by_explicit_selection() {
 
     assert_eq!(selector.filter_tools(&tools), vec!["read".to_string(), "apply_patch".to_string()]);
     assert!(selector.has_custom_tool_selection());
+}
+
+#[test]
+fn thread_tools_can_be_disabled_individually() {
+    let names = [
+        "create_thread", "fork_thread", "list_threads", "read_thread",
+        "send_message_to_thread", "handoff_thread", "set_thread_title",
+        "set_thread_pinned", "set_thread_archived", "wait_threads",
+    ];
+    let mut tools = vec!["read".to_string()];
+    tools.extend(names.iter().map(|name| (*name).to_string()));
+
+    for name in names {
+        let mut selector = SessionToolSelectorState::default();
+        assert_eq!(tool_group(name), SessionToolGroup::Collaboration);
+        assert_eq!(tool_bucket(name), SessionToolBucket::Agent);
+        assert!(selector.toggle_tool(&tools, name), "could not disable {name}");
+        let filtered = selector.filter_tools(&tools);
+        assert!(!filtered.iter().any(|tool| tool == name));
+        assert_eq!(filtered.len(), tools.len() - 1);
+    }
 }
 
 #[test]

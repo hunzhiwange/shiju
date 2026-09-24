@@ -224,7 +224,16 @@ pub(super) fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
                     tool_id,
                     &[
                         "AgentTool",
-                        "SessionTool",
+                        "create_thread",
+                        "fork_thread",
+                        "list_threads",
+                        "read_thread",
+                        "send_message_to_thread",
+                        "handoff_thread",
+                        "set_thread_title",
+                        "set_thread_pinned",
+                        "set_thread_archived",
+                        "wait_threads",
                         "schedule",
                         "cron_add",
                         "cron_list",
@@ -412,9 +421,54 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "把复杂工作交给持久子代理：launch/spawn 并行启动，run 同步等待，status/wait/stop 管理任务与结果。",
             group: ToolGroup::Collaboration,
         },
-        "SessionTool" => ToolMeta {
-            name: "智能体管理",
-            description: "创建、列出、读取、继续和等待当前工作区的用户可见任务会话。",
+        "create_thread" => ToolMeta {
+            name: "创建任务",
+            description: "在当前项目中创建用户可见任务。",
+            group: ToolGroup::Collaboration,
+        },
+        "fork_thread" => ToolMeta {
+            name: "分叉任务",
+            description: "从当前项目中的可见任务分叉新任务。",
+            group: ToolGroup::Collaboration,
+        },
+        "list_threads" => ToolMeta {
+            name: "列出任务",
+            description: "列出当前任务发起的可见任务。",
+            group: ToolGroup::Collaboration,
+        },
+        "read_thread" => ToolMeta {
+            name: "读取任务",
+            description: "读取可见任务的历史输出。",
+            group: ToolGroup::Collaboration,
+        },
+        "send_message_to_thread" => ToolMeta {
+            name: "续发任务消息",
+            description: "向空闲的可见任务发送消息。",
+            group: ToolGroup::Collaboration,
+        },
+        "handoff_thread" => ToolMeta {
+            name: "交接任务",
+            description: "当前运行时暂不支持任务交接，调用时会返回明确错误。",
+            group: ToolGroup::Collaboration,
+        },
+        "set_thread_title" => ToolMeta {
+            name: "修改任务标题",
+            description: "修改可见任务的标题。",
+            group: ToolGroup::Collaboration,
+        },
+        "set_thread_pinned" => ToolMeta {
+            name: "置顶任务",
+            description: "设置或取消可见任务的置顶状态。",
+            group: ToolGroup::Collaboration,
+        },
+        "set_thread_archived" => ToolMeta {
+            name: "归档任务",
+            description: "归档或恢复可见任务。",
+            group: ToolGroup::Collaboration,
+        },
+        "wait_threads" => ToolMeta {
+            name: "等待任务",
+            description: "等待可见任务的状态变化。",
             group: ToolGroup::Collaboration,
         },
         "delegate" => ToolMeta {

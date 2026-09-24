@@ -147,9 +147,9 @@ fn runtime_capability_instructions(
         );
     }
 
-    if has_tool(&tool_ids, &["sessiontool", "session_tool"]) {
+    if has_tool(&tool_ids, &["create_thread"]) {
         sections.push(
-            "## Visible Task Sessions\n- Use `SessionTool` only when the user explicitly requests a user-visible independent task. Use `AgentTool` for a hidden subtask and keep plan-run work inside its owning workflow.\n- After `create`, record the task session ID and coordinate it with `status`, `read`, bounded `wait`, and `send` only when necessary. Do not take over the target task locally; keep monitoring until it completes or needs user action."
+            "## Visible Task Sessions\n- Use `create_thread` when the user explicitly requests a user-visible independent task in the current project. Use `AgentTool` for a hidden subtask and keep plan-run work inside its owning workflow.\n- After creation, record the thread ID and coordinate it with the available task tools only when necessary. Do not take over the target task locally; keep monitoring until it completes or needs user action."
                 .to_string(),
         );
     }

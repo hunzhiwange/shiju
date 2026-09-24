@@ -42,6 +42,18 @@ evals/promptfoo/score.sh run --suite coding
 evals/promptfoo/score.sh run --suite coding-skill-selection
 ```
 
+运行 Thread 命令顺序轨迹用例：
+
+```bash
+evals/promptfoo/score.sh run --suite thread-commands1
+```
+
+该用例在同一父任务中分轮覆盖 `create_thread`、`list_threads`、
+`read_thread`、`wait_threads`、`send_message_to_thread`、`fork_thread`、
+`set_thread_title`、`set_thread_pinned`、`set_thread_archived` 和 `handoff_thread`。
+评分依据 SSE 中的真实工具事件与持久化结果；`handoff_thread` 必须对原始
+`thread_id` 明确报告不支持，不将最终回答中的命令名称当作成功证据。
+
 运行时切换模型，无需修改 YAML：
 
 ```bash

@@ -111,6 +111,61 @@ pub async fn create_visible_task_session(
     Ok(SessionSnapshot { info, history: Vec::new() })
 }
 
+/// 在已验证的项目与父任务内分叉一个可见任务。
+pub(crate) async fn fork_visible_task_session(
+    scope: SessionScope,
+    parent_id: &str,
+    source_id: &str,
+    message_id: Option<&str>,
+) -> Result<session::Info, LifecycleError> {
+    let (project, _) = resolve_project(&scope).await?;
+    let tenant = scope.tenant().clone();
+    let directory = scope.directory().to_path_buf();
+    let parent_id = parent_id.to_string();
+    let source_id = source_id.to_string();
+    let message_id = message_id.map(str::to_string);
+    project::instance::provide(directory, None, move || {
+        Box::pin(async move {
+            ui_store::with_tenant_scope(tenant, async move {
+                load_info_for_scope(&scope, &project.id, &parent_id).await?;
+                let source = load_info_for_scope(&scope, &project.id, &source_id).await?;
+                if source.parent_id.as_deref() != Some(&parent_id) || !source.is_visible_task() {
+                    return Err(LifecycleError::SessionNotFound { session_id: source_id });
+                }
+                let created = session::fork_with_parent(&source.id, message_id.as_deref(), Some(parent_id)).await?;
+                session::update(&created.id, |info| {
+                    info.slug = session::Info::visible_task_slug(&info.slug);
+                }).await.map_err(LifecycleError::from)
+            }).await
+        })
+    }).await.map_err(LifecycleError::Project)?
+}
+
+/// 列出同一项目、目录及父会话下持久化的可见任务。
+pub(crate) async fn visible_tasks_for_parent(
+    scope: SessionScope,
+    parent_id: &str,
+) -> Result<Vec<session::Info>, LifecycleError> {
+    let (project, _) = resolve_project(&scope).await?;
+    let expected_project_id = project.id;
+    let tenant = scope.tenant().clone();
+    let directory = scope.directory().to_path_buf();
+    let parent_id = parent_id.to_string();
+    project::instance::provide(directory, None, move || {
+        Box::pin(async move {
+            ui_store::with_tenant_scope(tenant, async move {
+                load_info_for_scope(&scope, &expected_project_id, &parent_id).await?;
+                let children = session::children(&parent_id).await.map_err(LifecycleError::from)?;
+                Ok(children.into_iter().filter(|info| {
+                    info.is_visible_task()
+                        && info.project_id == expected_project_id
+                        && canonical_recorded_directory(&info.directory) == scope.directory()
+                }).collect())
+            }).await
+        })
+    }).await.map_err(LifecycleError::Project)?
+}
+
 /// 加载会话，在读取历史前校验租户、目录和项目归属。
 pub async fn load_session(
     scope: SessionScope,

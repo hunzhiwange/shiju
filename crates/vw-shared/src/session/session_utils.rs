@@ -5,7 +5,8 @@ use crate::time::now_ms;
 
 const TASK_SESSION_SOURCE_OPEN: &str = "<task_session_source>\n";
 const TASK_SESSION_SOURCE_ID_PREFIX: &str = "source_session_id: ";
-pub const TASK_SESSION_SOURCE_LABEL: &str = "由 ChatGPT 从另一项任务发起";
+const TASK_SESSION_SOURCE_MARKER_LABEL: &str = "";
+pub const TASK_SESSION_SOURCE_DISPLAY_LABEL: &str = "由 VibeWindow 从另一项任务发起";
 const TASK_SESSION_SOURCE_CLOSE: &str = "</task_session_source>\n";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,7 +23,7 @@ pub fn encode_task_session_source_marker(source_session_id: &str, content: &str)
     }
 
     Some(format!(
-        "{TASK_SESSION_SOURCE_OPEN}{TASK_SESSION_SOURCE_ID_PREFIX}{source_session_id}\n{TASK_SESSION_SOURCE_LABEL}\n{TASK_SESSION_SOURCE_CLOSE}{content}"
+        "{TASK_SESSION_SOURCE_OPEN}{TASK_SESSION_SOURCE_ID_PREFIX}{source_session_id}\n{TASK_SESSION_SOURCE_MARKER_LABEL}\n{TASK_SESSION_SOURCE_CLOSE}{content}"
     ))
 }
 
@@ -34,9 +35,7 @@ pub fn parse_task_session_source_marker(raw: &str) -> Option<TaskSessionSource<'
     if source_session_id.is_empty() || source_session_id.trim() != source_session_id {
         return None;
     }
-    let after_description = rest
-        .strip_prefix(TASK_SESSION_SOURCE_LABEL)?
-        .strip_prefix('\n')?;
+    let after_description = rest.strip_prefix(TASK_SESSION_SOURCE_MARKER_LABEL)?.strip_prefix('\n')?;
     let content = after_description.strip_prefix(TASK_SESSION_SOURCE_CLOSE)?;
 
     Some(TaskSessionSource { source_session_id, content })

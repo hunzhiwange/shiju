@@ -550,13 +550,20 @@ struct SessionTreeProjection<'a> {
     total_roots: usize,
 }
 
-fn compare_session_recency(left: &&session::Info, right: &&session::Info) -> std::cmp::Ordering {
-    right
+fn compare_session_recency(left: &&session::Info, right: &&session::Info, pinned: &HashSet<String>) -> std::cmp::Ordering {
+    pinned.contains(&right.id).cmp(&pinned.contains(&left.id)).then_with(|| right
         .time
         .updated
         .cmp(&left.time.updated)
         .then_with(|| right.time.created.cmp(&left.time.created))
-        .then_with(|| left.id.cmp(&right.id))
+        .then_with(|| left.id.cmp(&right.id)))
+}
+
+fn project_pinned_threads(project_id: &str) -> HashSet<String> {
+    let Some(home) = directories::BaseDirs::new() else { return HashSet::new(); };
+    let tenant = vw_gateway_client::vw_api_types::id::TenantScope::default();
+    let scope = vw_shared::session::ui_store::pinned_threads_scope(tenant.platform_id().as_ref(), tenant.company_id().as_ref(), project_id);
+    vw_shared::session::ui_store::load_pinned_threads(&vw_config_types::paths::home_config_dir(home.home_dir()), &scope).unwrap_or_default()
 }
 
 fn session_tree_projection<'a>(
@@ -574,7 +581,8 @@ fn session_tree_projection<'a>(
                 && seen_ids.insert(session.id.as_str())
         })
         .collect::<Vec<_>>();
-    roots.sort_by(compare_session_recency);
+    let pinned = sessions.first().map(|session| project_pinned_threads(&session.project_id)).unwrap_or_default();
+    roots.sort_by(|left, right| compare_session_recency(left, right, &pinned));
     let total_roots = roots.len();
     let rows =
         roots.into_iter().take(load_count).map(|session| SessionTreeRow { session }).collect();

@@ -4,7 +4,7 @@ use crate::project;
 use crate::session::session as agent_session;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::session::store::SessionStore;
-use crate::session::ui_config::{load_app_config, set_config_field};
+use crate::session::ui_config::{load_app_config, load_app_config_result, set_config_field, set_config_field_result};
 /// 当前公开项是模块对外契约的一部分。
 pub use crate::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
@@ -20,7 +20,8 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::sync::Mutex;
 #[cfg(not(target_arch = "wasm32"))]
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
+use vw_api_types::id::{ProjectId, ProjectScope};
+use vw_api_types::id::TenantScope;
 
 use vw_shared::session::path;
 use vw_shared::session::ui_store;
@@ -29,6 +30,54 @@ use vw_shared::session::ui_store;
 use crate::global_database::GlobalDatabase;
 
 static SESSION_SCOPE: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
+static TASK_STATE_WRITE: Mutex<()> = Mutex::new(());
+static PINNED_THREADS_WRITE: Mutex<()> = Mutex::new(());
+
+fn pinned_threads_scope(tenant: &TenantScope, project_id: &str) -> String {
+    ui_store::pinned_threads_scope(tenant.platform_id().as_ref(), tenant.company_id().as_ref(), project_id)
+}
+
+/// Load persisted pin state for one tenant and project.
+pub fn load_pinned_threads(tenant: &TenantScope, project_id: &str) -> anyhow::Result<HashSet<String>> {
+    anyhow::ensure!(!project_id.trim().is_empty(), "project_id must be non-empty");
+    ui_store::load_pinned_threads(data_dir(), &pinned_threads_scope(tenant, project_id)).map_err(Into::into)
+}
+
+/// Persist a pin change for one tenant and project.
+pub fn set_thread_pinned(tenant: &TenantScope, project_id: &str, thread_id: &str, pinned: bool) -> anyhow::Result<bool> {
+    anyhow::ensure!(!project_id.trim().is_empty(), "project_id must be non-empty");
+    anyhow::ensure!(!thread_id.trim().is_empty(), "thread_id must be non-empty");
+    let _guard = PINNED_THREADS_WRITE.lock().unwrap_or_else(|error| error.into_inner());
+    ui_store::set_thread_pinned(data_dir(), &pinned_threads_scope(tenant, project_id), thread_id, pinned)?;
+    Ok(load_pinned_threads(tenant, project_id)?.contains(thread_id))
+}
+
+/// 将可见任务最新轮次状态保存在租户与项目作用域内。
+pub(crate) fn save_visible_task_state(
+    tenant: &TenantScope,
+    project_id: &str,
+    snapshot: &crate::session::task_session::TaskSessionSnapshot,
+) -> anyhow::Result<()> {
+    let _guard = TASK_STATE_WRITE.lock().unwrap_or_else(|error| error.into_inner());
+    let key = format!("visible_task_states:{project_id}");
+    let mut states = load_app_config_result(tenant)?.get(&key).cloned().unwrap_or_else(|| serde_json::json!({}));
+    let object = states.as_object_mut().ok_or_else(|| anyhow::anyhow!("visible task state storage is not an object"))?;
+    object.insert(snapshot.task_session_id.clone(), serde_json::to_value(snapshot)?);
+    set_config_field_result(tenant, &key, states)?;
+    Ok(())
+}
+
+/// 读取项目内的持久化轮次；旧记录没有状态时由调用方按中断处理。
+pub(crate) fn load_visible_task_states(
+    tenant: &TenantScope,
+    project_id: &str,
+) -> anyhow::Result<std::collections::HashMap<String, crate::session::task_session::TaskSessionSnapshot>> {
+    let key = format!("visible_task_states:{project_id}");
+    Ok(load_app_config_result(tenant)?.get(&key).and_then(serde_json::Value::as_object)
+        .map(|states| states.iter().filter_map(|(id, value)| {
+            serde_json::from_value(value.clone()).ok().map(|state| (id.clone(), state))
+        }).collect()).unwrap_or_default())
+}
 static SESSION_DATA_DIR: LazyLock<PathBuf> = LazyLock::new(resolve_session_data_dir);
 #[cfg(not(target_arch = "wasm32"))]
 static RUNTIME_SESSION_STORE: LazyLock<Mutex<Option<SessionStore>>> =

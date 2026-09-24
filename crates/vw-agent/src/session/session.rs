@@ -863,14 +863,31 @@ async fn remove_messages_and_parts(session_id: &str) -> Result<(), Error> {
 /// }
 /// ```
 pub async fn fork(session_id: &str, message_id: Option<&str>) -> Result<Info, Error> {
+    fork_with_parent(session_id, message_id, None).await
+}
+
+pub(crate) async fn fork_with_parent(
+    session_id: &str,
+    message_id: Option<&str>,
+    parent_id: Option<String>,
+) -> Result<Info, Error> {
     // 读取原始会话信息
     let original = get(session_id).await?;
     // 生成分支标题
     let title = forked_title(&original.title);
     let directory = instance_directory_opt().unwrap_or_else(|| original.directory.clone());
+    // 在创建目标前确认截点确实属于源会话。
+    let mut msgs = super::message::messages(session_id, None).await?;
+    if let Some(until) = message_id {
+        if !msgs.iter().any(|msg| msg.info.id() == until) {
+            return Err(Error::Storage(storage::Error::NotFound(storage::NotFoundError {
+                message: format!("message {until} not found in source thread"),
+            })));
+        }
+    }
     // 创建新会话
     let created = create_next(CreateInput {
-        parent_id: None,
+        parent_id,
         title: Some(title),
         directory,
         permission: original.permission.clone(),
@@ -878,7 +895,6 @@ pub async fn fork(session_id: &str, message_id: Option<&str>) -> Result<Info, Er
     .await?;
 
     // 获取原始会话的所有消息，按时间正序复制，保证父消息映射可用。
-    let mut msgs = super::message::messages(session_id, None).await?;
     msgs.sort_by(|a, b| a.info.id().cmp(b.info.id()));
     // 建立旧消息 ID 到新消息 ID 的映射
     let mut id_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();

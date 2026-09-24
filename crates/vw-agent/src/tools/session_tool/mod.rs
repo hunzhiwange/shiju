@@ -7,9 +7,11 @@ use crate::gateway::api::handlers::session::stream::{
 };
 use crate::session::runtime::{
     CreateSessionInput, SessionScope, SessionSnapshot, create_visible_task_session, load_session,
+    visible_tasks_for_parent,
 };
 use crate::session::task_session::{
-    MAX_TASK_SESSION_WAIT, TaskSessionCoordinator, TaskSessionWaitCondition,
+    MAX_TASK_SESSION_WAIT, TaskSessionCoordinator, TaskSessionSnapshot, TaskSessionState,
+    TaskSessionWaitCondition,
     global_task_session_coordinator,
 };
 use async_trait::async_trait;
@@ -21,6 +23,7 @@ use std::time::Duration;
 use vw_api_types::chat::GatewayChatStreamRequest;
 use vw_api_types::id::{SessionId, TenantScope};
 use vw_shared::session::session_utils::encode_task_session_source_marker;
+use crate::session::ui_store;
 
 pub(crate) const MAX_SESSION_READ_CHARS: usize = 64 * 1024;
 
@@ -131,7 +134,42 @@ impl SessionTool {
         if !snapshot.info.is_visible_task() {
             anyhow::bail!("session '{session_id}' is not a visible task session");
         }
+        if snapshot.info.parent_id.as_deref() != Some(current) {
+            anyhow::bail!("session '{session_id}' parent session mismatch");
+        }
         Ok(snapshot)
+    }
+
+    async fn recover_tasks(&self) -> anyhow::Result<()> {
+        let parent = self.parent_session_id()?;
+        let scope = SessionScope::new(TenantScope::default(), self.workspace_dir()?)?;
+        let tasks = visible_tasks_for_parent(scope.clone(), parent).await?;
+        let Some(project_id) = tasks.first().map(|task| task.project_id.as_str()) else {
+            return Ok(());
+        };
+        let tenant = scope.tenant().clone();
+        let project_id = project_id.to_string();
+        let persisted = run_sync(move || {
+            ui_store::load_visible_task_states(&tenant, &project_id)
+        })?;
+        for task in tasks {
+            let saved = persisted.get(&task.id).filter(|state| state.parent_session_id == parent);
+            let mut snapshot = saved.cloned().unwrap_or_else(|| TaskSessionSnapshot {
+                parent_session_id: parent.to_string(),
+                task_session_id: task.id.clone(),
+                state: TaskSessionState::Failed,
+                error: Some("task turn state unavailable after restart".to_string()),
+                created_ms: task.time.created,
+                updated_ms: task.time.updated,
+            });
+            if !snapshot.state.is_terminal() {
+                snapshot.state = TaskSessionState::Failed;
+                snapshot.error = Some("task turn interrupted by restart".to_string());
+                snapshot.updated_ms = crate::session::session::now_ms();
+            }
+            self.coordinator.restore(snapshot);
+        }
+        Ok(())
     }
 
     fn inherited_model_ref() -> Option<String> {
@@ -153,6 +191,7 @@ impl SessionTool {
         &self,
         parent_session_id: String,
         task_session_id: String,
+        project_id: String,
         directory: String,
         prompt: String,
     ) -> anyhow::Result<()> {
@@ -161,6 +200,7 @@ impl SessionTool {
         let model = Self::inherited_model_ref();
         let thread_parent = parent_session_id.clone();
         let thread_task = task_session_id.clone();
+        let spawn_project_id = project_id.clone();
         let spawned = std::thread::Builder::new()
             .name("vw-visible-task-session".to_string())
             .spawn(move || {
@@ -172,6 +212,9 @@ impl SessionTool {
                     if let Err(error) = coordinator.mark_running(&thread_parent, &thread_task) {
                         tracing::error!(target: "vw_agent", error = %error, "failed to start visible task session state");
                         return;
+                    }
+                    if let Err(error) = persist_task_state(&coordinator, &thread_parent, &thread_task, &spawn_project_id) {
+                        tracing::error!(target: "vw_agent", error = %error, "failed to persist running visible task state");
                     }
                     let request = GatewayChatStreamRequest {
                         session_id: Some(SessionId::from(thread_task.as_str())),
@@ -191,6 +234,9 @@ impl SessionTool {
                             );
                         }
                     }
+                    if let Err(error) = persist_task_state(&coordinator, &thread_parent, &thread_task, &spawn_project_id) {
+                        tracing::error!(target: "vw_agent", error = %error, "failed to persist terminal visible task state");
+                    }
                 });
             });
 
@@ -198,6 +244,7 @@ impl SessionTool {
             let message = format!("spawn visible task session runtime: {error}");
             let _ =
                 self.coordinator.mark_failed(&parent_session_id, &task_session_id, message.clone());
+            persist_task_state(&self.coordinator, &parent_session_id, &task_session_id, &project_id)?;
             anyhow::bail!(message);
         }
         Ok(())
@@ -220,11 +267,14 @@ impl SessionTool {
         })
         .await?;
         let session_id = created.info.id;
+        let project_id = created.info.project_id;
         self.coordinator.register(&parent_session_id, &session_id)?;
+        persist_task_state(&self.coordinator, &parent_session_id, &session_id, &project_id)?;
         let directory = created.info.directory;
         self.spawn_background_turn(
             parent_session_id.clone(),
             session_id.clone(),
+            project_id,
             directory.clone(),
             prompt,
         )?;
@@ -241,6 +291,7 @@ impl SessionTool {
 
     async fn list(&self, args: &Value) -> anyhow::Result<ToolResult> {
         Self::validate_fields(args, &["action"])?;
+        self.recover_tasks().await?;
         let parent = self.parent_session_id()?;
         let snapshots = self.coordinator.snapshots(parent, &[])?;
         let mut tasks = Vec::new();
@@ -253,6 +304,7 @@ impl SessionTool {
 
     async fn status(&self, args: &Value) -> anyhow::Result<ToolResult> {
         Self::validate_fields(args, &["action", "session_ids"])?;
+        self.recover_tasks().await?;
         let ids = Self::required_ids(args)?;
         for id in &ids {
             self.validated_target(id).await?;
@@ -292,15 +344,20 @@ impl SessionTool {
 
     async fn send(&self, args: &Value) -> anyhow::Result<ToolResult> {
         Self::validate_fields(args, &["action", "session_id", "prompt"])?;
+        self.recover_tasks().await?;
         let parent = self.parent_session_id()?.to_string();
         let id = Self::required_text(args, "session_id")?.to_string();
         let prompt = Self::required_text(args, "prompt")?;
         let target = self.validated_target(&id).await?;
         self.coordinator.begin_turn(&parent, &id)?;
+        if let Err(error) = persist_task_state(&self.coordinator, &parent, &id, &target.info.project_id) {
+            let _ = self.coordinator.mark_failed(&parent, &id, error.to_string());
+            return Err(error);
+        }
         let prompt = encode_task_session_source_marker(&parent, prompt)
             .ok_or_else(|| anyhow::anyhow!("current session ID cannot be encoded as a source"))?;
         if let Err(error) =
-            self.spawn_background_turn(parent, id.clone(), target.info.directory, prompt)
+            self.spawn_background_turn(parent, id.clone(), target.info.project_id, target.info.directory, prompt)
         {
             return Err(error);
         }
@@ -309,6 +366,7 @@ impl SessionTool {
 
     async fn wait(&self, args: &Value) -> anyhow::Result<ToolResult> {
         Self::validate_fields(args, &["action", "session_ids", "condition", "timeout_ms"])?;
+        self.recover_tasks().await?;
         let ids = Self::required_ids(args)?;
         for id in &ids {
             self.validated_target(id).await?;
@@ -344,6 +402,36 @@ impl SessionTool {
     fn result(value: Value) -> anyhow::Result<ToolResult> {
         Ok(ToolResult { success: true, output: serde_json::to_string(&value)?, error: None })
     }
+}
+
+fn persist_task_state(
+    coordinator: &TaskSessionCoordinator,
+    parent_id: &str,
+    task_id: &str,
+    project_id: &str,
+) -> anyhow::Result<()> {
+    let snapshot = coordinator.snapshots(parent_id, &[task_id.to_string()])?.remove(0);
+    let project_id = project_id.to_string();
+    run_sync(move || {
+        ui_store::save_visible_task_state(
+            &TenantScope::default(),
+            &project_id,
+            &snapshot,
+        )
+    })
+}
+
+fn run_sync<T: Send>(operation: impl FnOnce() -> anyhow::Result<T> + Send) -> anyhow::Result<T> {
+    std::thread::scope(|scope| {
+        scope.spawn(operation).join().map_err(|panic| {
+            let message = panic
+                .downcast_ref::<&str>()
+                .copied()
+                .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
+                .unwrap_or("unknown panic");
+            anyhow::anyhow!("visible task state thread panicked: {message}")
+        })?
+    })
 }
 
 fn bounded_read_output(

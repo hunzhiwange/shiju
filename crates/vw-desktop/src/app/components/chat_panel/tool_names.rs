@@ -7,7 +7,6 @@ pub fn canonical_tool_name(tool_name: &str) -> &str {
 
     match normalized.as_str() {
         "agent" | "agenttool" | "agent_tool" => "AgentTool",
-        "sessiontool" | "session_tool" => "SessionTool",
         "read" | "file_read" | "read_file" => "read",
         "bash" | "shell" | "execute" | "tool_execute" | "terminal" => "bash",
         "edit" | "file_edit" | "edit_file" | "editfile" => "file_edit",
@@ -67,7 +66,16 @@ pub fn is_known_tool_name(tool_name: &str) -> bool {
             | "lsp"
             | "agent"
             | "agenttool"
-            | "sessiontool"
+            | "create_thread"
+            | "fork_thread"
+            | "list_threads"
+            | "read_thread"
+            | "send_message_to_thread"
+            | "handoff_thread"
+            | "set_thread_title"
+            | "set_thread_pinned"
+            | "set_thread_archived"
+            | "wait_threads"
             | "codesearch"
             | "glob_search"
             | "content_search"

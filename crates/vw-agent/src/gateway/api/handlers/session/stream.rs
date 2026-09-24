@@ -931,6 +931,25 @@ async fn start_gateway_chat_producer(
     } else {
         Some(preallocate_stream_turn_message_ids()?)
     };
+    let PreparedStreamHistory { history, query } = prepare_stream_history(
+        history_messages,
+        resume_history_only,
+        preserve_structured_prompt,
+    );
+    if should_persist_app_session_artifacts {
+        let title = initial_stream_session_title(&query);
+        let created_ms = agent_session::session::now_ms();
+        ensure_stream_agent_session(
+            &tenant,
+            app_session_scope.as_deref(),
+            &stream_session_id,
+            &root_dir,
+            &title,
+            created_ms,
+            created_ms,
+        )
+        .map_err(|error| ApiError::internal(error.to_string()))?;
+    }
     let runtime_handle = tokio::runtime::Handle::current();
 
     std::thread::spawn(move || {
@@ -945,11 +964,6 @@ async fn start_gateway_chat_producer(
             let processing_started_ms = agent_session::session::now_ms();
             let mut processing_timer = vw_shared::time::ActiveTimer::default();
             processing_timer.start_at(web_time::Instant::now());
-            let PreparedStreamHistory { history, query } = prepare_stream_history(
-                history_messages,
-                resume_history_only,
-                preserve_structured_prompt,
-            );
             let mut assistant_text = String::new();
             let mut assistant_finish_reason: Option<String> = None;
             let mut assistant_model = model.clone();

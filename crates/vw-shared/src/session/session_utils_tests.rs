@@ -47,11 +47,19 @@ fn task_session_source_marker_round_trip_preserves_content() {
 }
 
 #[test]
+fn task_session_source_marker_parses_existing_chatgpt_blocks() {
+    let raw = "<task_session_source>\nsource_session_id: session-123\n\n</task_session_source>\n旧消息";
+    let source = super::parse_task_session_source_marker(raw).expect("existing marker should parse");
+    assert_eq!(source.source_session_id, "session-123");
+    assert_eq!(source.content, "旧消息");
+}
+
+#[test]
 fn task_session_source_marker_rejects_malformed_blocks() {
     let malformed = [
-        "<task_session_source>\nsource_session_id: session-123\n由 ChatGPT 从另一项任务发起\n正文",
-        "<task_session_source>\nsource_session_id: \n由 ChatGPT 从另一项任务发起\n</task_session_source>\n正文",
-        "前缀<task_session_source>\nsource_session_id: session-123\n由 ChatGPT 从另一项任务发起\n</task_session_source>\n正文",
+        "<task_session_source>\nsource_session_id: session-123\n\n正文",
+        "<task_session_source>\nsource_session_id: \n\n</task_session_source>\n正文",
+        "前缀<task_session_source>\nsource_session_id: session-123\n\n</task_session_source>\n正文",
     ];
 
     for raw in malformed {

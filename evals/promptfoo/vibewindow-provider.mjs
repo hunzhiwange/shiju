@@ -23,6 +23,20 @@ function positiveInteger(value, fallback) {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function followupPrompts(value) {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error('VibeWindow evaluation turns must be an array of non-empty strings');
+  }
+  const prompts = value.map(nonEmpty);
+  if (prompts.some((prompt) => prompt === undefined)) {
+    throw new Error('VibeWindow evaluation turns must be an array of non-empty strings');
+  }
+  return prompts;
+}
+
 function parseMaybeJson(value) {
   if (typeof value !== 'string') {
     return value;
@@ -205,6 +219,7 @@ export function aggregateEvents(events) {
           name: String(event.name ?? ''),
           input: undefined,
           output: undefined,
+          error: undefined,
           isError: false,
           status: undefined,
           stepIndex: Number(event.step_index),
@@ -217,6 +232,9 @@ export function aggregateEvents(events) {
         }
         if (payload.output !== undefined) {
           existing.output = payload.output;
+        }
+        if (payload.error !== undefined) {
+          existing.error = payload.error;
         }
         existing.status = event.status ?? payload.status ?? existing.status;
         existing.isError = ['failed', 'denied', 'cancelled'].includes(existing.status);
@@ -316,80 +334,144 @@ export default class VibeWindowProvider {
       context.vars?.maxToolCalls ?? this.config.maxToolCalls,
       DEFAULT_MAX_TOOL_CALLS,
     );
-    const requestId = randomUUID();
     const tenantHeaders = {
       'X-Platform-ID': platformId,
       'X-Company-ID': companyId,
     };
-    const request = {
-      ...(model ? { model } : {}),
-      ...(agent ? { agent } : {}),
-      // DeepSeek V4 Flash 的输出上限高于 gateway 的通用 32000 上限；0 表示不附加
-      // 评测层 max_output_tokens，避免长工具调用轨迹被截断为 max_tokens 错误。
-      options: { max_output_tokens: 0 },
-      messages: [{ role: 'user', content: prompt }],
-    };
     const startedAt = performance.now();
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Accept: 'text/event-stream',
-          'Content-Type': 'application/json',
-          ...tenantHeaders,
-          'X-VibeWindow-Directory': directory,
-          'X-VW-Stream-Request-ID': requestId,
-        },
-        body: JSON.stringify(request),
-        signal: controller.signal,
-      });
+      const prompts = [prompt, ...followupPrompts(context.vars?.turns)];
+      const messages = [];
+      const turns = [];
+      let sessionId;
 
-      if (!response.ok) {
-        const body = (await response.text()).slice(0, MAX_ERROR_BODY_CHARS);
-        throw new Error(
-          `VibeWindow gateway returned ${response.status} ${response.statusText}: ${body}`.trim(),
-        );
+      for (const turnPrompt of prompts) {
+        messages.push({ role: 'user', content: turnPrompt });
+        const requestId = randomUUID();
+        const request = {
+          ...(sessionId ? { session_id: sessionId } : {}),
+          ...(model ? { model } : {}),
+          ...(agent ? { agent } : {}),
+          // DeepSeek V4 Flash 的输出上限高于 gateway 的通用 32000 上限；0 表示不附加
+          // 评测层 max_output_tokens，避免长工具调用轨迹被截断为 max_tokens 错误。
+          options: { max_output_tokens: 0 },
+          messages,
+        };
+        const turnStartedAt = performance.now();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              Accept: 'text/event-stream',
+              'Content-Type': 'application/json',
+              ...tenantHeaders,
+              'X-VibeWindow-Directory': directory,
+              'X-VW-Stream-Request-ID': requestId,
+            },
+            body: JSON.stringify(request),
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            const body = (await response.text()).slice(0, MAX_ERROR_BODY_CHARS);
+            throw new Error(
+              `VibeWindow gateway returned ${response.status} ${response.statusText}: ${body}`.trim(),
+            );
+          }
+
+          const events = [];
+          const steps = new Set();
+          const completedToolCalls = new Set();
+          let stopRequested = false;
+          for await (const event of parseSseStream(response.body)) {
+            reportProgress(event);
+            events.push(event);
+            if (event?.type === 'chat.step_start') {
+              steps.add(Number(event.step_index));
+            }
+            if (event?.type === 'chat.tool' && event.kind === 'complete') {
+              completedToolCalls.add(String(event.call_id ?? ''));
+            }
+            const reachedIterationLimit =
+              event?.type === 'chat.step_finish' && steps.size >= maxIterations;
+            const reachedToolCallLimit = completedToolCalls.size >= maxToolCalls;
+            if (!stopRequested && (reachedIterationLimit || reachedToolCallLimit)) {
+              stopRequested = true;
+              const reason = reachedIterationLimit
+                ? `${maxIterations} iterations`
+                : `${maxToolCalls} tool calls`;
+              process.stderr.write(`[vibewindow-eval] stopping stream after ${reason}\n`);
+              await stopStream(endpoint, requestId, tenantHeaders);
+            }
+          }
+
+          const result = aggregateEvents(events);
+          sessionId = result.sessionId;
+          const turn = {
+            ...result,
+            prompt: turnPrompt,
+            latencyMs: Math.round(performance.now() - turnStartedAt),
+            metadata: {
+              ...result.metadata,
+              endpoint,
+              directory,
+              model,
+              agent,
+            },
+          };
+          turns.push(turn);
+          messages.push({ role: 'assistant', content: result.output });
+        } finally {
+          clearTimeout(timeout);
+        }
       }
 
-      const events = [];
-      const steps = new Set();
-      const completedToolCalls = new Set();
-      let stopRequested = false;
-      for await (const event of parseSseStream(response.body)) {
-        reportProgress(event);
-        events.push(event);
-        if (event?.type === 'chat.step_start') {
-          steps.add(Number(event.step_index));
-        }
-        if (event?.type === 'chat.tool' && event.kind === 'complete') {
-          completedToolCalls.add(String(event.call_id ?? ''));
-        }
-        const reachedIterationLimit =
-          event?.type === 'chat.step_finish' && steps.size >= maxIterations;
-        const reachedToolCallLimit = completedToolCalls.size >= maxToolCalls;
-        if (!stopRequested && (reachedIterationLimit || reachedToolCallLimit)) {
-          stopRequested = true;
-          const reason = reachedIterationLimit
-            ? `${maxIterations} iterations`
-            : `${maxToolCalls} tool calls`;
-          process.stderr.write(`[vibewindow-eval] stopping stream after ${reason}\n`);
-          await stopStream(endpoint, requestId, tenantHeaders);
-        }
+      if (turns.length === 1) {
+        return turns[0];
       }
-      const result = aggregateEvents(events);
+
+      const finalTurn = turns.at(-1);
+      const usage = turns.reduce(
+        (total, turn) => ({
+          inputTokens: total.inputTokens + turn.metadata.usage.inputTokens,
+          outputTokens: total.outputTokens + turn.metadata.usage.outputTokens,
+          cachedTokens: total.cachedTokens + turn.metadata.usage.cachedTokens,
+          reasoningTokens: total.reasoningTokens + turn.metadata.usage.reasoningTokens,
+        }),
+        normalizeUsage(),
+      );
       return {
-        ...result,
+        output: finalTurn.output,
+        tokenUsage: {
+          total: usage.inputTokens + usage.outputTokens,
+          prompt: usage.inputTokens,
+          completion: usage.outputTokens,
+        },
+        finishReason: finalTurn.finishReason,
+        sessionId,
         prompt,
         latencyMs: Math.round(performance.now() - startedAt),
         metadata: {
-          ...result.metadata,
+          messageId: finalTurn.metadata.messageId,
+          parentMessageId: finalTurn.metadata.parentMessageId,
+          contextPaths: [...new Set(turns.flatMap((turn) => turn.metadata.contextPaths))],
+          eventTypes: turns.flatMap((turn) => turn.metadata.eventTypes),
+          steps: turns.flatMap((turn, turnIndex) =>
+            turn.metadata.steps.map((step) => ({ ...step, turnIndex })),
+          ),
+          toolCalls: turns.flatMap((turn, turnIndex) =>
+            turn.metadata.toolCalls.map((toolCall) => ({ ...toolCall, turnIndex })),
+          ),
+          usage,
           endpoint,
           directory,
           model,
           agent,
+          turns,
         },
       };
     } catch (error) {
@@ -403,8 +485,6 @@ export default class VibeWindowProvider {
         error: message,
         latencyMs: Math.round(performance.now() - startedAt),
       };
-    } finally {
-      clearTimeout(timeout);
     }
   }
 }

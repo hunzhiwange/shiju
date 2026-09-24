@@ -46,6 +46,45 @@ async fn create_task(
 }
 
 #[tokio::test]
+async fn session_tool_recovers_visible_tasks_after_coordinator_restart() {
+    let project = TempDir::new().expect("project directory");
+    let parent = create_parent(project.path()).await;
+    let task = create_task(project.path(), &parent.info.id).await;
+    let old = TaskSessionCoordinator::new();
+    old.register(&parent.info.id, &task.info.id).expect("register");
+    old.mark_running(&parent.info.id, &task.info.id).expect("start");
+    super::persist_task_state(&old, &parent.info.id, &task.info.id, &task.info.project_id)
+        .expect("persist running turn");
+    let restarted = SessionTool::new(Some(parent.info.id.clone()), project.path().to_path_buf())
+        .with_coordinator(TaskSessionCoordinator::new());
+
+    let listed = restarted.execute(json!({"action":"list"})).await.expect("list");
+    let listed: serde_json::Value = serde_json::from_str(&listed.output).expect("JSON");
+    assert_eq!(listed["tasks"][0]["session_id"], task.info.id);
+    assert_eq!(listed["tasks"][0]["state"], "failed");
+    let status = restarted.execute(json!({"action":"status","session_ids":[task.info.id]}))
+        .await.expect("status");
+    let status: serde_json::Value = serde_json::from_str(&status.output).expect("JSON");
+    assert_eq!(status["tasks"][0]["state"], "failed");
+    let executor = Arc::new(
+        |_directory: String, _request: vw_api_types::chat::GatewayChatStreamRequest| {
+            async {
+                Ok(GatewayChatStreamCollected {
+                    output: "continued".to_string(),
+                    message_id: None,
+                    parent_message_id: None,
+                })
+            }
+            .boxed()
+        },
+    );
+    let restarted = restarted.with_stream_executor(executor);
+    let sent = restarted.execute(json!({"action":"send","session_id":task.info.id,"prompt":"Continue"}))
+        .await.expect("send after recovery");
+    assert!(sent.success);
+}
+
+#[tokio::test]
 async fn session_tool_create_returns_before_background_turn_finishes() {
     let project = TempDir::new().expect("project directory");
     let parent = create_parent(project.path()).await;
@@ -252,7 +291,30 @@ async fn session_tool_rejects_cross_scope_and_busy_targets() {
         .execute(json!({"action":"read","session_id":other_task.info.id}))
         .await
         .expect_err("cross scope");
-    assert!(cross_scope.to_string().contains("ownership mismatch"));
+    assert!(cross_scope.to_string().contains("does not belong to directory"));
+}
+
+#[tokio::test]
+async fn session_tool_rejects_other_parent_visible_task() {
+    let project = TempDir::new().expect("project directory");
+    let parent = create_parent(project.path()).await;
+    let other_parent = create_parent(project.path()).await;
+    let other_task = create_task(project.path(), &other_parent.info.id).await;
+    let tool = SessionTool::new(Some(parent.info.id), project.path().to_path_buf())
+        .with_coordinator(TaskSessionCoordinator::new());
+
+    for args in [
+        json!({"action":"read","session_id":other_task.info.id}),
+        json!({"action":"status","session_ids":[other_task.info.id]}),
+        json!({"action":"wait","session_ids":[other_task.info.id],"timeout_ms":1}),
+        json!({"action":"send","session_id":other_task.info.id,"prompt":"Continue"}),
+    ] {
+        let error = tool.execute(args.clone()).await.expect_err("other parent's task must fail");
+        assert!(
+            error.to_string().contains("parent session mismatch"),
+            "{args}: {error}"
+        );
+    }
 }
 
 #[tokio::test]

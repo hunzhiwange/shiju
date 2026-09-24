@@ -1197,6 +1197,51 @@ async fn collect_gateway_chat_stream_runs_docs_request_and_persists_done_message
     assert_eq!(stored.len(), 2);
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn gateway_first_turn_registers_parent_before_thread_tool_use() {
+    let temp = make_docs_workspace();
+    let directory = temp.path().to_string_lossy().to_string();
+    let session_id = format!("ses_stream_parent_{}", uuid::Uuid::new_v4());
+    let request = docs_stream_request(Some(&session_id));
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let scope = crate::session::ui_store::resolve_session_scope_id_for_tenant(
+        &tenant,
+        Some(&directory),
+        None,
+    )
+    .expect("project scope");
+
+    assert!(
+        crate::session::ui_store::load_agent_session_scoped_for_tenant(
+            &tenant,
+            &session_id,
+            Some(&scope),
+        )
+        .is_none()
+    );
+
+    let tenant_for_stream = tenant.clone();
+    let directory_for_stream = directory.clone();
+    let receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
+        Box::pin(async move {
+            start_gateway_chat_stream(tenant_for_stream, directory_for_stream, request).await
+        })
+    })
+    .await
+    .expect("first gateway stream should start");
+
+    let parent = crate::session::ui_store::load_agent_session_scoped_for_tenant(
+        &tenant,
+        &session_id,
+        Some(&scope),
+    )
+    .expect("parent session must exist before streamed tool activity");
+    assert_eq!(parent.project_id, scope);
+    assert_eq!(parent.directory, directory);
+    assert_eq!(parent.parent_id, None);
+    drop(receiver);
+}
+
 // 轨迹提交一次性持久化步骤、工具和原始产物，不依赖后续 UI 快照保存。
 #[test]
 fn stream_trajectory_commit_persists_steps_tools_and_raw_without_ui_save() {

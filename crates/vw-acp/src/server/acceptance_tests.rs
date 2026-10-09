@@ -259,7 +259,10 @@ async fn unsupported_capabilities_return_method_not_found() {
         let _ = read_frame(&mut reader).await;
         write_frame(
             reader.get_mut(),
-            serde_json::json!({"jsonrpc":"2.0","id":2,"method":"authenticate","params":{}}),
+            serde_json::json!({
+                "jsonrpc":"2.0","id":2,"method":"authenticate",
+                "params":{"methodId":"unsupported"}
+            }),
         )
         .await;
         let unsupported = read_frame(&mut reader).await;

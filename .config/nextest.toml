@@ -1,0 +1,9 @@
+[profile.ci]
+fail-fast = false
+
+[test-groups.vw-acp-actor]
+max-threads = 1
+
+[[profile.default.overrides]]
+filter = 'package(vw-acp) and test(/client::actor::actor_tests::/)'
+test-group = 'vw-acp-actor'

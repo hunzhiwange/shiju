@@ -12,13 +12,17 @@ This document is located under `scripts/` for daily development and release.
   ```bash
   cd /path/to/vibe-window
   ```
+- Install the parallel test runner:
+  ```bash
+  cargo install cargo-nextest --locked
+  ```
 
 ## 1. macOS (Native Build + .app Bundle)
 
 ### 1.1 Native Build (Binary)
 ```bash
 cargo build
-cargo test
+make test
 ```
 
 Release:

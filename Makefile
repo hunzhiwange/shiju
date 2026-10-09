@@ -265,7 +265,8 @@ release-check-clippy: ## 对齐 CI clippy: 所有 target + 所有 feature + warn
 
 release-check-test: ## 对齐 CI 测试: workspace lib/bin/tests
 	mkdir -p target/test-home
-	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test --workspace --lib --bins --tests
+	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo nextest run --workspace --exclude vw-agent --exclude vw-desktop --lib --bins --tests
+	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test -p vw-agent -p vw-desktop --lib --bins --tests
 
 release-check-wasm: ensure-wasm-target ## 对齐 CI wasm 构建
 	cargo build -p vw-desktop --target wasm32-unknown-unknown --bin shi-ju
@@ -490,14 +491,20 @@ check-all:
 
 test:
 	mkdir -p target/test-home
-	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test --workspace --lib --bins --tests
+	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo nextest run --workspace --exclude vw-agent --exclude vw-desktop --lib --bins --tests
+	CARGO_HOME="$${CARGO_HOME:-$$HOME/.cargo}" RUSTUP_HOME="$${RUSTUP_HOME:-$$HOME/.rustup}" HOME="$(CURDIR)/target/test-home" RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test -p vw-agent -p vw-desktop --lib --bins --tests
 
 unit-test: ## 运行整个 workspace 的单元测试
-	perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test --workspace --lib --bins $(TEST_ARGS)
+	perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo nextest run --workspace --exclude vw-agent --exclude vw-desktop --lib --bins $(TEST_ARGS)
+	RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test -p vw-agent -p vw-desktop --lib --bins $(TEST_ARGS)
 
 unit-test-package: ## 运行单个 package 的单元测试: make unit-test-package PACKAGE=vw-acp
 	@test -n "$(PACKAGE)" || { echo "$(RED)Error: PACKAGE is required, e.g. make unit-test-package PACKAGE=vw-acp$(RESET)"; exit 1; }
-	perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test -p $(PACKAGE) --lib --bins $(TEST_ARGS)
+	@if [ "$(PACKAGE)" = "vw-agent" ] || [ "$(PACKAGE)" = "vw-desktop" ]; then \
+		RUST_TEST_THREADS=1 perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo test -p $(PACKAGE) --lib --bins $(TEST_ARGS); \
+	else \
+		perl -e 'alarm shift; exec @ARGV' $(TEST_TIMEOUT) cargo nextest run -p $(PACKAGE) --lib --bins $(TEST_ARGS); \
+	fi
 
 coverage: unit-coverage ## 生成整个 workspace 的单元测试覆盖率报告
 

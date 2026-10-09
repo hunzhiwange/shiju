@@ -7,7 +7,8 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use agent_client_protocol::{
-    Agent, InitializeRequest, LoadSessionRequest, NewSessionRequest, PromptRequest, ProtocolVersion,
+    Agent, AuthenticateRequest, InitializeRequest, LoadSessionRequest, NewSessionRequest,
+    ProtocolVersion,
 };
 use async_trait::async_trait;
 
@@ -126,8 +127,8 @@ async fn unsupported_methods_are_not_advertised() {
     assert!(before_initialize.data.is_some());
 
     initialize(&agent).await;
-    let unsupported = Agent::prompt(&agent, PromptRequest::new("missing", Vec::new()))
+    let unsupported = Agent::authenticate(&agent, AuthenticateRequest::new("unsupported"))
         .await
-        .expect_err("prompt is implemented in the next batch");
+        .expect_err("authentication is not advertised");
     assert_eq!(unsupported.message, "Method not found");
 }

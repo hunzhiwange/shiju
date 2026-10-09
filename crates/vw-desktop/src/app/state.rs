@@ -63,6 +63,8 @@ pub(crate) use app_state::{
     default_recent_project_session_auto_refresh,
     default_recent_project_session_refresh_interval_seconds,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use app_state::NativeStartupState;
 pub(crate) use knowledge::*;
 pub(crate) use pet::*;
 pub use presentation::AppTab;

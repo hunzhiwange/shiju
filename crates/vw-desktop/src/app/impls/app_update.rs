@@ -452,8 +452,9 @@ impl App {
         let task = match message {
             #[cfg(not(target_arch = "wasm32"))]
             Message::StartupCliServiceBootstrapped(result) => {
-                match result {
+                let error = match result {
                     Ok(()) => {
+                        self.startup_state = crate::app::state::NativeStartupState::Ready;
                         if cfg!(debug_assertions) {
                             tracing::debug!(
                                 target: "vw_desktop",
@@ -465,6 +466,7 @@ impl App {
                                 "desktop CLI service bootstrap completed"
                             );
                         }
+                        None
                     }
                     Err(error) => {
                         tracing::warn!(
@@ -472,7 +474,12 @@ impl App {
                             error = %error,
                             "desktop CLI service bootstrap failed"
                         );
+                        Some(error)
                     }
+                };
+                if let Some(error) = error {
+                    self.startup_state = crate::app::state::NativeStartupState::Failed(error);
+                    return Task::none();
                 }
                 let mut tasks = vec![
                     crate::app::message::account::load_repository(),

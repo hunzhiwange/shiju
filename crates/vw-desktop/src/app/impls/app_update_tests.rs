@@ -10,6 +10,22 @@ fn test_app() -> App {
     App::new().0
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn startup_cli_service_result_controls_main_interface_gate() {
+    let mut app = test_app();
+    assert_eq!(app.startup_state, crate::app::state::NativeStartupState::Starting);
+
+    let _ = app.update(Message::StartupCliServiceBootstrapped(Err("gateway unavailable".into())));
+    assert_eq!(
+        app.startup_state,
+        crate::app::state::NativeStartupState::Failed("gateway unavailable".into())
+    );
+
+    let _ = app.update(Message::StartupCliServiceBootstrapped(Ok(())));
+    assert_eq!(app.startup_state, crate::app::state::NativeStartupState::Ready);
+}
+
 #[test]
 fn sort_acp_agent_names_keeps_codex_first_and_sorts_remaining_names() {
     let names = vec!["zeta".to_string(), "codex".to_string(), "alpha".to_string()];

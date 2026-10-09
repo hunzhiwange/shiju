@@ -28,12 +28,43 @@ use super::views;
 use super::{App, Message, Screen};
 use super::{app_view_modals, app_view_status};
 
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MainWindowViewKind {
+    StartupTransition,
+    MainInterface,
+}
+
 impl App {
     pub fn view_window(&self, window: iced::window::Id) -> Element<'_, Message> {
         if self.task_pet_window_id == Some(window) {
             components::task_pet::window(self)
         } else {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                return match self.main_window_view_kind() {
+                    MainWindowViewKind::StartupTransition => components::startup_transition::view(
+                        &self.startup_state,
+                        self.status_animation_frame,
+                        &self.app_theme,
+                    ),
+                    MainWindowViewKind::MainInterface => self.view(),
+                };
+            }
+
+            #[cfg(target_arch = "wasm32")]
             self.view()
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn main_window_view_kind(&self) -> MainWindowViewKind {
+        match self.startup_state {
+            crate::app::state::NativeStartupState::Ready => MainWindowViewKind::MainInterface,
+            crate::app::state::NativeStartupState::Starting
+            | crate::app::state::NativeStartupState::Failed(_) => {
+                MainWindowViewKind::StartupTransition
+            }
         }
     }
 

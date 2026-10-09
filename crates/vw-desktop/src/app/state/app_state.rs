@@ -79,10 +79,21 @@ pub(crate) enum QuickMessageHandoffState {
 pub(crate) type UsageStepRawKey = SessionStepRawKey;
 pub(crate) type UsageStepRawPayloadResult = Result<Option<serde_json::Value>, String>;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum NativeStartupState {
+    Starting,
+    Ready,
+    Failed(String),
+}
+
 #[allow(dead_code)]
 pub struct App {
     /// 当前显示的屏幕
     pub(crate) screen: Screen,
+    /// 原生端本地服务启动状态，用于门控主界面。
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) startup_state: NativeStartupState,
     /// 当前项目工作区的界面呈现模式
     pub(crate) workspace_mode: WorkspaceMode,
     /// 工作模式右侧资源区的呈现模式

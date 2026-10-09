@@ -334,6 +334,8 @@ impl App {
         let mut app = Self {
             // ========== 基础状态 ==========
             screen: Screen::Home,
+            #[cfg(not(target_arch = "wasm32"))]
+            startup_state: state::NativeStartupState::Starting,
             workspace_mode: cfg_workspace_mode,
             work_resource_mode: state::WorkResourceMode::default(),
             work_resources_visible: false,

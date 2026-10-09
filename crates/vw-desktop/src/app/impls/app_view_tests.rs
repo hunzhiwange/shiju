@@ -10,6 +10,24 @@ fn test_app() -> App {
     App::new().0
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn main_window_uses_startup_transition_until_service_is_ready() {
+    let mut app = test_app();
+    let main_window = iced::window::Id::unique();
+
+    assert_eq!(app.main_window_view_kind(), MainWindowViewKind::StartupTransition);
+    std::hint::black_box(app.view_window(main_window));
+
+    app.startup_state = crate::app::state::NativeStartupState::Failed("service failed".into());
+    assert_eq!(app.main_window_view_kind(), MainWindowViewKind::StartupTransition);
+    std::hint::black_box(app.view_window(main_window));
+
+    app.startup_state = crate::app::state::NativeStartupState::Ready;
+    assert_eq!(app.main_window_view_kind(), MainWindowViewKind::MainInterface);
+    std::hint::black_box(app.view_window(main_window));
+}
+
 #[test]
 fn view_window_routes_task_pet_window_to_pet_view() {
     let mut app = test_app();

@@ -40,6 +40,13 @@ pub mod animated_text;
 /// 运行状态动画辅助组件
 pub mod status_animation;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod startup_transition;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "startup_transition_tests.rs"]
+mod startup_transition_tests;
+
 #[cfg(test)]
 #[path = "status_animation_tests.rs"]
 mod status_animation_tests;

@@ -25,16 +25,16 @@ path = "src/bin/vibe-agent.rs"
 
 [dependencies]
 anyhow = "1"
-base64 = "0.22"
+base64 = "0.23"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
 dialoguer = "0.11"
 libc = "0.2"
-pulldown-cmark = "0.9"
+pulldown-cmark = "0.13"
 ratatui = "0.30.0"
-schemars = "0.8"
+schemars = "1.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 similar = "2"
@@ -42,7 +42,7 @@ tokio = { version = "1", features = ["io-std", "io-util", "rt", "rt-multi-thread
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono", "fmt", "ansi"] }
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
-unicode-width = "0.1"
+unicode-width = "0.2"
 unicode-segmentation = "1"
 vw-agent = { path = "../vw-agent", version = "0.4.0" }
 vw-acp = { path = "../vw-acp", version = "0.4.0" }
@@ -54,7 +54,7 @@ vw-tui = { path = "../vw-tui", version = "0.4.0" }
 [dev-dependencies]
 async-trait = "0.1.89"
 tempfile = "3"
-tokio-tungstenite = "0.28"
+tokio-tungstenite = "0.29"
 
 [features]
 default = ["memory-postgres", "memory-mariadb", "channel-matrix", "channel-lark"]

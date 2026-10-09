@@ -5,7 +5,6 @@ use crate::app::message::settings::util::parse_comma_or_newline_list;
 use crate::app::{App, Message};
 use chrono::{Datelike, NaiveDate, Utc};
 use iced::Task;
-use rand::RngCore;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 use vw_config_types::gateway::GatewaySkey;
@@ -26,12 +25,12 @@ fn clamp_token_limit(value: u32) -> u32 {
 }
 
 fn hash_skey(skey: &str) -> String {
-    format!("{:x}", Sha256::digest(skey.trim().as_bytes()))
+    hex::encode(Sha256::digest(skey.trim().as_bytes()))
 }
 
 fn generate_skey() -> String {
     let mut bytes = [0_u8; 24];
-    rand::thread_rng().fill_bytes(&mut bytes);
+    rand::fill(&mut bytes);
     format!("sk-{}", hex::encode(bytes))
 }
 

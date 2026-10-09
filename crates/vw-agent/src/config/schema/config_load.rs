@@ -72,7 +72,8 @@ pub(crate) async fn load_config_from_toml_path(
             toml::to_string(&raw_toml).context("Failed to normalize config file")?;
 
         let mut ignored_paths: Vec<String> = Vec::new();
-        let deserializer = toml::Deserializer::new(&normalized_contents);
+        let deserializer = toml::Deserializer::parse(&normalized_contents)
+            .context("Failed to prepare normalized config")?;
         // 使用 serde_ignored 保持向后兼容：未知键不阻断启动，但必须记录，方便用户发现拼写错误。
         let mut config: Config = serde_ignored::deserialize(deserializer, |path| {
             ignored_paths.push(path.to_string());

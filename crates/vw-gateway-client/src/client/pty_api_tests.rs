@@ -1,5 +1,7 @@
 //! PTY HTTP 生命周期与 WebSocket 握手协议测试。
 
+#![allow(clippy::result_large_err)]
+
 use std::net::TcpListener;
 use std::sync::mpsc;
 

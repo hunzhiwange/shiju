@@ -23,6 +23,7 @@
 //! # 创建新任务
 //! vibe-agent task create --project-dir /path/to/project --prompt "实现新功能"
 //! ```
+
 //!
 //! ## 架构说明
 //!
@@ -35,6 +36,7 @@
 // #![forbid(unsafe_code)]
 #![allow(
     clippy::assigning_clones,
+    clippy::assert_is_empty,
     clippy::bool_to_int_with_if,
     clippy::case_sensitive_file_extension_comparisons,
     clippy::cast_possible_wrap,
@@ -52,6 +54,7 @@
     clippy::needless_pass_by_value,
     clippy::needless_raw_string_hashes,
     clippy::redundant_closure_for_method_calls,
+    clippy::result_large_err,
     clippy::similar_names,
     clippy::single_match_else,
     clippy::struct_field_names,

@@ -1945,7 +1945,7 @@ fn excerpt_around(text: &str, start: usize, end: usize) -> String {
     let suffix = if preview_end < text.len() { "..." } else { "" };
     // 用 […] 标记匹配关键词，便于在预览中直观定位
     let matched = &text[start..end];
-    format!("{prefix}{}[{matched}]{}{suffix}", &text[preview_start..start], &text[end..preview_end],)
+    format!("{prefix}{}[{matched}]{}{suffix}", &text[preview_start..start], &text[end..preview_end])
 }
 
 fn floor_char_boundary(text: &str, index: usize) -> usize {

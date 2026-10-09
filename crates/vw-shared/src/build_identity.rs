@@ -19,7 +19,7 @@ pub fn executable_build_id(path: impl AsRef<Path>) -> io::Result<String> {
         hasher.update(&buffer[..read]);
     }
 
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
 }
 
 /// 定位当前进程的可执行文件，并返回与 [`executable_build_id`] 相同格式的摘要。

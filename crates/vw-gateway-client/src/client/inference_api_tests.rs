@@ -1,5 +1,7 @@
 //! 推理 JSON、事件 SSE 与 WebSocket chat 客户端协议测试。
 
+#![allow(clippy::result_large_err)]
+
 use std::net::TcpListener;
 use std::sync::mpsc;
 

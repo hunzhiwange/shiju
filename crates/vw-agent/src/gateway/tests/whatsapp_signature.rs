@@ -41,7 +41,7 @@ use super::*;
 /// // 返回类似 "a1b2c3d4..." 的 64 字符十六进制字符串
 /// ```
 fn compute_whatsapp_signature_hex(secret: &str, body: &[u8]) -> String {
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
 
     // 创建以密钥初始化的 HMAC-SHA256 实例

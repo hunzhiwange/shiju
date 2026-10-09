@@ -10,7 +10,7 @@ pub(crate) static TEST_HOME_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mute
 
 fn short_hash(value: &str, length: usize) -> String {
     let digest = Sha256::digest(value.as_bytes());
-    let hex = format!("{digest:x}");
+    let hex = hex::encode(digest);
     hex[..length].to_string()
 }
 

@@ -490,7 +490,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
         }
 
         let env_vars = snapshot_env();
-        for (_provider_id, provider) in database.iter_mut() {
+        for provider in database.values_mut() {
             let key = provider
                 .env
                 .iter()

@@ -619,7 +619,7 @@ fn generate_token() -> String {
 ///
 /// 小写十六进制格式的 SHA-256 哈希值（64字符）
 fn hash_token(token: &str) -> String {
-    format!("{:x}", Sha256::digest(token.as_bytes()))
+    hex::encode(Sha256::digest(token.as_bytes()))
 }
 
 /// 对原始 skey 进行 SHA-256 哈希，供配置保存前归一化使用。

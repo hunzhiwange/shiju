@@ -206,7 +206,9 @@ pub fn fmt_ms(ms: u64) -> String {
         return "暂无".to_string();
     };
     // 定义日期时间格式：年-月-日 时:分
-    let Ok(fmt) = time::format_description::parse("[year]-[month]-[day] [hour]:[minute]") else {
+    let Ok(fmt) =
+        time::format_description::parse_borrowed::<2>("[year]-[month]-[day] [hour]:[minute]")
+    else {
         return "暂无".to_string();
     };
     dt.format(&fmt).unwrap_or_else(|_| "暂无".to_string())

@@ -535,7 +535,7 @@ pub(super) fn build_code_visual_section<'a>(
                                         )
                                     }
                                 )
-                                .step(1.0)
+                                .step(1.0_f32)
                                 .width(Length::Fill),
                                 container(text(retry_config.max_retries.to_string()).size(15))
                                     .padding([6, 10])
@@ -561,7 +561,7 @@ pub(super) fn build_code_visual_section<'a>(
                                         )
                                     }
                                 )
-                                .step(100.0)
+                                .step(100.0_f32)
                                 .width(Length::Fill),
                                 container(text(retry_config.retry_interval.to_string()).size(15))
                                     .padding([6, 10])

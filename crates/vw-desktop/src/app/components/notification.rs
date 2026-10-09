@@ -341,7 +341,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         n.created_at.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
                     let dt = time::OffsetDateTime::from_unix_timestamp(duration.as_secs() as i64)
                         .unwrap();
-                    let fmt = time::format_description::parse("[hour]:[minute]:[second]").unwrap();
+                    let fmt =
+                        time::format_description::parse_borrowed::<2>("[hour]:[minute]:[second]")
+                            .unwrap();
                     dt.format(&fmt).unwrap_or_default()
                 }
                 #[cfg(target_arch = "wasm32")]

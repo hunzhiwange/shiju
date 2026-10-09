@@ -50,8 +50,10 @@ const SUBTASK_SCROLLBAR_GUTTER: f32 = 12.0;
 fn format_subtask_started_at(ms: u64) -> String {
     static FMT: once_cell::sync::Lazy<Vec<time::format_description::FormatItem<'static>>> =
         once_cell::sync::Lazy::new(|| {
-            time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
-                .unwrap_or_default()
+            time::format_description::parse_borrowed::<2>(
+                "[year]-[month]-[day] [hour]:[minute]:[second]",
+            )
+            .unwrap_or_default()
         });
 
     let nanos = (ms as i128).saturating_mul(1_000_000);

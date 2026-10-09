@@ -690,8 +690,10 @@ fn format_task_plan_duration(ms: Option<u64>) -> String {
 fn format_task_plan_started_at(ms: Option<u64>) -> String {
     static FMT: once_cell::sync::Lazy<Vec<time::format_description::FormatItem<'static>>> =
         once_cell::sync::Lazy::new(|| {
-            time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
-                .unwrap_or_default()
+            time::format_description::parse_borrowed::<2>(
+                "[year]-[month]-[day] [hour]:[minute]:[second]",
+            )
+            .unwrap_or_default()
         });
 
     let Some(ms) = ms else {

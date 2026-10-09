@@ -122,7 +122,7 @@ fn transform_message(provider_id: &str, message: &str, status_code: Option<u16>)
 fn json(input: &str) -> Option<serde_json::Value> {
     serde_json::from_str::<serde_json::Value>(input)
         .ok()
-        .and_then(|v| if v.is_object() { Some(v) } else { None })
+        .filter(|v| v.is_object())
 }
 
 /// 从流式错误响应体中提取标准化错误。

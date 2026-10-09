@@ -431,8 +431,10 @@ fn today_date_string() -> String {
     let now = time::OffsetDateTime::now_utc();
 
     // 定义日期格式：简写周几、简写月份、日期、年份
-    let fmt = format_description::parse("[weekday repr:short] [month repr:short] [day] [year]")
-        .unwrap_or_default();
+    let fmt = format_description::parse_borrowed::<2>(
+        "[weekday repr:short] [month repr:short] [day] [year]",
+    )
+    .unwrap_or_default();
 
     // 格式化日期，失败时回退到 ISO 日期格式
     now.format(&fmt).unwrap_or_else(|_| now.date().to_string())

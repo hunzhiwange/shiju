@@ -18,6 +18,8 @@
 //! 通过集中导出公共符号，上层 crate 可以以较小的依赖面接入 vw-acp，
 //! 同时保持内部模块仍按单一职责拆分，便于后续演进与回滚。
 
+#![allow(clippy::result_large_err)]
+
 mod acp_error_shapes;
 mod acp_jsonrpc;
 mod agent_registry;

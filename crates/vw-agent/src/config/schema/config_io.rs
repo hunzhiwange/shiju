@@ -174,7 +174,8 @@ pub(crate) fn parse_config_contents(contents: &str) -> Result<Config> {
             normalize_top_level_table_aliases(&mut raw_toml);
             let normalized =
                 toml::to_string(&raw_toml).context("Failed to normalize TOML config")?;
-            let deserializer = toml::Deserializer::new(&normalized);
+            let deserializer = toml::Deserializer::parse(&normalized)
+                .context("Failed to prepare normalized TOML config")?;
             deserialize_config(deserializer, "TOML")
         }
     }

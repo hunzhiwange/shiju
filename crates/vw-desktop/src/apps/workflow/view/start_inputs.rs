@@ -402,7 +402,7 @@ pub(super) fn build_start_variable_file_settings<'a>(
                             ),
                         )
                     })
-                    .step(1.0)
+                    .step(1.0_f32)
                     .width(Length::Fill),
                 ]
                 .spacing(10)

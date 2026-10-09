@@ -198,13 +198,13 @@ pub(crate) fn extract_copy_targets(markdown_source: &str) -> Vec<CopyTarget> {
 
     for (event, range) in pulldown_cmark::Parser::new(markdown_source).into_offset_iter() {
         match event {
-            Event::Start(Tag::BlockQuote) => {
+            Event::Start(Tag::BlockQuote(_)) => {
                 if quote_depth == 0 {
                     quote = Some((range, targets.len(), false));
                 }
                 quote_depth += 1;
             }
-            Event::End(TagEnd::BlockQuote) => {
+            Event::End(TagEnd::BlockQuote(_)) => {
                 quote_depth = quote_depth.saturating_sub(1);
                 if quote_depth == 0 {
                     quote = None;

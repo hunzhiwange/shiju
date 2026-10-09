@@ -386,7 +386,7 @@ pub fn conversation_history_entries(record: &SessionRecord) -> Vec<ConversationH
                 let mut segments =
                     message.content.iter().filter_map(summarize_agent_content).collect::<Vec<_>>();
                 let mut tool_results = message.tool_results.iter().collect::<Vec<_>>();
-                tool_results.sort_by(|(left, _), (right, _)| left.cmp(right));
+                tool_results.sort_by_key(|(name, _)| *name);
                 segments.extend(
                     tool_results
                         .into_iter()

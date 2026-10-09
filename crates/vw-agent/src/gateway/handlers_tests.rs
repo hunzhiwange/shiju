@@ -16,7 +16,7 @@ use crate::app::agent::security::pairing::PairingGuard;
 use axum::body::{Bytes, to_bytes};
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use parking_lot::Mutex;
 use sha2::Sha256;
 use std::sync::Arc;

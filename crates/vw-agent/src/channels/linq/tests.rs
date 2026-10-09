@@ -399,7 +399,7 @@ mod tests {
         let now = chrono::Utc::now().timestamp().to_string();
 
         // 计算预期签名
-        use hmac::{Hmac, Mac};
+        use hmac::{Hmac, KeyInit, Mac};
         use sha2::Sha256;
         let message = format!("{now}.{body}");
         let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
@@ -435,7 +435,7 @@ mod tests {
         let stale_ts = (chrono::Utc::now().timestamp() - 600).to_string();
 
         // 即使签名正确，过期时间戳也应验证失败
-        use hmac::{Hmac, Mac};
+        use hmac::{Hmac, KeyInit, Mac};
         use sha2::Sha256;
         let message = format!("{stale_ts}.{body}");
         let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
@@ -458,7 +458,7 @@ mod tests {
         let body = r#"{"event_type":"message.received"}"#;
         let now = chrono::Utc::now().timestamp().to_string();
 
-        use hmac::{Hmac, Mac};
+        use hmac::{Hmac, KeyInit, Mac};
         use sha2::Sha256;
         let message = format!("{now}.{body}");
         let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
@@ -480,7 +480,7 @@ mod tests {
         let body = r#"{"event_type":"message.received"}"#;
         let now = chrono::Utc::now().timestamp().to_string();
 
-        use hmac::{Hmac, Mac};
+        use hmac::{Hmac, KeyInit, Mac};
         use sha2::Sha256;
         let message = format!("{now}.{body}");
         let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();

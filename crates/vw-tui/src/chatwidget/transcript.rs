@@ -366,11 +366,11 @@ impl TranscriptState {
             .last_content_height
             .get()
             .saturating_sub(self.last_viewport_height.get().max(1));
-        let next = if travel == 0 {
-            0
-        } else {
-            thumb_start.saturating_mul(max_top).saturating_add(travel / 2) / travel
-        };
+        let next = thumb_start
+            .saturating_mul(max_top)
+            .saturating_add(travel / 2)
+            .checked_div(travel)
+            .unwrap_or_default();
         self.scroll_top.set(next);
         self.follow_bottom.set(next == max_top);
     }

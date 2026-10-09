@@ -40,7 +40,7 @@ use axum::response::{IntoResponse, Response};
 /// 3. 对 payload 进行签名
 /// 4. 将签名结果编码为十六进制字符串
 fn compute_nextcloud_signature_hex(secret: &str, random: &str, body: &str) -> String {
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
 
     // 拼接随机值和请求体，形成待签名载荷

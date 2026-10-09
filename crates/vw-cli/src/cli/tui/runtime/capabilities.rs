@@ -129,7 +129,7 @@ fn configured_delegate_agents(config: &Value) -> Vec<DelegateAgentOption> {
         return agents;
     };
     let mut entries = configured.iter().collect::<Vec<_>>();
-    entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+    entries.sort_by_key(|(name, _)| *name);
     for (key, value) in entries {
         if value.get("enabled").and_then(Value::as_bool) == Some(false)
             || value.get("hidden").and_then(Value::as_bool) == Some(true)

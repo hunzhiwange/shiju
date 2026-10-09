@@ -50,7 +50,7 @@ pub fn strip_task_session_source_marker(raw: &str) -> Cow<'_, str> {
 /// 生成短随机 slug，失败时回退为当前时间戳。
 pub fn create_slug() -> String {
     let mut bytes = [0u8; 8];
-    slug_from_random_result(getrandom::getrandom(&mut bytes).map(|_| bytes).map_err(|_| ()))
+    slug_from_random_result(getrandom::fill(&mut bytes).map(|_| bytes).map_err(|_| ()))
 }
 
 fn slug_from_random_result(random: Result<[u8; 8], ()>) -> String {

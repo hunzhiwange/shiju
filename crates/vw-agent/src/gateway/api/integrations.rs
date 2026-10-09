@@ -355,7 +355,7 @@ pub fn config_revision(config: &Config) -> String {
     // 计算 SHA256 哈希
     let digest = Sha256::digest(serialized.as_bytes());
     // 格式化为十六进制字符串
-    format!("{digest:x}")
+    hex::encode(digest)
 }
 
 /// 获取当前活跃的仪表盘提供商 ID

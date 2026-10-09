@@ -193,7 +193,7 @@ fn normalize_skey(skey: &GatewaySkey) -> Result<Option<GatewaySkey>> {
 }
 
 fn hash_skey(raw_skey: &str) -> String {
-    format!("{:x}", Sha256::digest(raw_skey.trim().as_bytes()))
+    hex::encode(Sha256::digest(raw_skey.trim().as_bytes()))
 }
 
 fn mask_skey_for_display(raw_skey: &str) -> String {

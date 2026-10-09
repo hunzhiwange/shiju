@@ -9,7 +9,7 @@ use crate::plugins::{
 };
 use agent_client_protocol::{HttpHeader, McpServer};
 use anyhow::Context;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest_012::header::{HeaderMap, HeaderName, HeaderValue};
 use rmcp::model::{
     ClientCapabilities, ClientInfo, CreateElicitationRequestParam, CreateElicitationResult,
     CreateMessageRequestParam, CreateMessageResult, ErrorData, ListRootsResult, ResourceContents,
@@ -463,8 +463,8 @@ fn remote_header_map(headers: &[HttpHeader]) -> anyhow::Result<HeaderMap> {
 fn remote_http_client(
     headers: &[HttpHeader],
     connect_timeout: Duration,
-) -> anyhow::Result<reqwest::Client> {
-    reqwest::Client::builder()
+) -> anyhow::Result<reqwest_012::Client> {
+    reqwest_012::Client::builder()
         .default_headers(remote_header_map(headers)?)
         .connect_timeout(connect_timeout)
         .build()

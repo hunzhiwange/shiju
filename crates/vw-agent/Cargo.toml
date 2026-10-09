@@ -14,20 +14,20 @@ doctest = false
 [dependencies]
 anyhow = "1"
 async-trait = "0.1.89"
-base64 = "0.22"
+base64 = "0.23"
 chacha20poly1305 = "0.10.1"
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10.4"
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
 console = { version = "0.16" }
-cron = "0.15"
+cron = "0.16"
 directories = "5"
 futures-util = "0.3.32"
 glob = "0.3"
-getrandom = "0.2"
+getrandom = "0.4"
 hex = "0.4"
-hmac = "0.12.1"
+hmac = "0.13.0"
 html2md = "0.2.15"
 image = "0.25.9"
 include_dir = "0.7"
@@ -40,39 +40,39 @@ once_cell = "1"
 parking_lot = "0.12"
 pdf-extract = "0.12.0"
 postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
-pulldown-cmark = "0.9"
+pulldown-cmark = "0.13"
 prometheus = "0.14"
-rand = "0.8.6"
+rand = "0.10.3"
 r2d2 = "0.8.10"
 r2d2_postgres = "0.18.2"
 regex = "1"
 rhai = { version = "1.23", features = ["serde"] }
 rust-embed = "8.11.0"
 rustls-pki-types = "1.14.0"
-schemars = "0.8"
+schemars = "1.2"
 serde = { version = "1", features = ["derive"] }
 serde_ignored = "0.1.14"
 serde_json = "1"
 serde_yaml = "0.9"
-sha2 = "0.10"
+sha2 = "0.11"
 shell-words = "1.1"
 shellexpand = "3.1"
 similar = "2"
-strsim = "0.10"
+strsim = "0.11"
 thiserror = "2.0.18"
 time = { version = "0.3", features = ["formatting"] }
-toml = "0.8"
+toml = "0.9"
 tokio-util = { version = "0.7.18", features = ["compat"] }
 tower-http = { version = "0.6", features = ["limit", "timeout", "cors"] }
 tracing = "0.1"
-tree-sitter = { version = "0.25.8", optional = true }
+tree-sitter = { version = "0.26.10", optional = true }
 tree-sitter-bash = { version = "0.23", optional = true }
-unicode-width = "0.1"
+unicode-width = "0.2"
 urlencoding = "2.1"
 url = "2"
 uuid = { version = "1.11", features = ["v4", "js"] }
 walkdir = "2"
-webpki-roots = "0.26"
+webpki-roots = "1.0"
 web-time = "1.1.0"
 vw-config-types = { path = "../vw-config-types", version = "0.4.0" }
 vw-gateway-client = { path = "../vw-gateway-client", version = "0.4.0" }
@@ -104,20 +104,21 @@ probe-rs = { version = "0.31.0", optional = true }
 prost = { version = "0.14.3", optional = true }
 qrcode = { version = "0.14", optional = true }
 ratatui = "0.30.0"
-reqwest = { version = "0.12", default-features = false, features = ["multipart", "stream", "socks", "blocking", "json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls-tls-webpki-roots"] }
+reqwest = { version = "0.13", default-features = false, features = ["multipart", "stream", "socks", "blocking", "json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
+reqwest_012 = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
 reqwest-eventsource = "0.6.0"
 ring = "0.17.14"
 rmcp = { version = "0.8.0", features = ["server", "transport-io", "transport-child-process", "client", "transport-sse-client-reqwest", "transport-streamable-http-client-reqwest", "auth"] }
-rustcodegraph = "1.2.9"
+rustcodegraph = { path = "../../../codegraph", version = "1.2.10" }
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 rustyline = "17.0"
 tempfile = "3"
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "process", "signal"] }
-tokio-postgres-rustls = "0.13.0"
+tokio-postgres-rustls = "0.14.0"
 tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "logging", "tls12"] }
 tokio-serial = "5.4.5"
 tokio-stream = { version = "0.1.18", features = ["fs", "sync"] }
-tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
 wa-rs = { version = "0.2.0", optional = true, default-features = false, features = ["tokio-native", "tokio-transport", "ureq-client"] }
 wa-rs-binary = { version = "0.2.0", optional = true }
 wa-rs-core = { version = "0.2.0", optional = true }
@@ -141,13 +142,12 @@ console = "0.16"
 console_error_panic_hook = "0.1"
 console_log = "1"
 fern = "0.7"
-getrandom = { version = "0.2", features = ["js"] }
-getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
 js-sys = { version = "0.3", default-features = false }
-reqwest = { version = "0.12", features = ["json", "multipart", "stream"] }
+reqwest = { version = "0.13", features = ["json", "multipart", "stream"] }
 tokio = { version = "1", features = ["sync", "macros", "time", "rt", "process", "signal"] }
 tokio-stream = { version = "0.1.18", features = ["sync"] }
-wasm-bindgen = "=0.2.105"
+wasm-bindgen = "=0.2.126"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", default-features = false, features = ["Window"] }
 

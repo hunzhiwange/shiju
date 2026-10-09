@@ -217,12 +217,12 @@ fn random_base62(length: usize) -> Result<String, Error> {
 
 #[cfg(not(any(test, coverage)))]
 fn fill_random(bytes: &mut [u8]) -> Result<(), Error> {
-    getrandom::getrandom(bytes).map_err(|e| Error::Random(e.to_string()))
+    getrandom::fill(bytes).map_err(|e| Error::Random(e.to_string()))
 }
 
 #[cfg(any(test, coverage))]
 fn fill_random(bytes: &mut [u8]) -> Result<(), Error> {
-    getrandom::getrandom(bytes).expect("test randomness should be available");
+    getrandom::fill(bytes).expect("test randomness should be available");
     Ok(())
 }
 

@@ -271,7 +271,7 @@ impl ResponseCache {
 
         // 计算最终哈希值并格式化为十六进制字符串
         let hash = hasher.finalize();
-        format!("{:064x}", hash)
+        hex::encode(hash)
     }
 
     /// 从缓存中查找响应。

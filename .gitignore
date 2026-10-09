@@ -41,7 +41,7 @@ src/vite-plugin-rue/rue_transform/target/
 .vat/
 temp/
 target/
-build-dir/
+target-dir/
 *.wasm
 /vendor
 .gitnexus

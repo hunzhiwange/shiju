@@ -25,5 +25,5 @@ rustflags = ["-C", "link-args=/STACK:8388608"]
 rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
 
 [build]
-target-dir = "target"
-build-dir = "build-dir"
+target-dir = "target-dir"
+build-dir = "target"

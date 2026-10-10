@@ -96,6 +96,41 @@ fn copy_shortcut_without_input(app: &mut App) -> Task<Message> {
     }
 }
 
+pub(crate) fn copy_chat_message(
+    app: &mut App,
+    session_id: String,
+    message_idx: usize,
+) -> Task<Message> {
+    if app.active_session_id.as_deref() != Some(session_id.as_str()) {
+        return Task::none();
+    }
+    let Some(text) = crate::app::components::chat_panel::message_view::chat_message_action_text(
+        app,
+        message_idx,
+        false,
+    ) else {
+        return Task::none();
+    };
+    copy_code(app, text)
+}
+
+fn copy_code(app: &mut App, text: String) -> Task<Message> {
+    use std::hash::{Hash, Hasher};
+    use std::time::Duration;
+    use web_time::SystemTime;
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    let hash = hasher.finish();
+    app.last_copied_code_hash = Some(hash);
+    app.last_copy_time = Some(SystemTime::now());
+
+    Task::batch(vec![
+        iced::clipboard::write(text).map(|_: ()| Message::CopyDone),
+        message::after(Duration::from_secs(2), Message::CopyFeedbackExpired(hash)),
+    ])
+}
+
 impl App {
     fn parse_external_open_app(value: &str) -> Option<crate::app::state::ExternalOpenApp> {
         match value {
@@ -721,24 +756,10 @@ impl App {
             },
 
             // 复制代码到剪贴板
-            Message::CopyCode(s) => {
-                use std::hash::{Hash, Hasher};
-                use std::time::Duration;
-                use web_time::SystemTime;
+            Message::CopyCode(s) => copy_code(self, s),
 
-                // 计算复制内容的哈希值，用于后续的去重或追踪
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                s.hash(&mut hasher);
-                let h = hasher.finish();
-
-                // 记录最后复制的哈希值和时间
-                self.last_copied_code_hash = Some(h);
-                self.last_copy_time = Some(SystemTime::now());
-
-                Task::batch(vec![
-                    iced::clipboard::write(s).map(|_: ()| Message::CopyDone),
-                    message::after(Duration::from_secs(2), Message::CopyFeedbackExpired(h)),
-                ])
+            Message::CopyChatMessage { session_id, message_idx } => {
+                copy_chat_message(self, session_id, message_idx)
             }
 
             // 复制文件内容到剪贴板

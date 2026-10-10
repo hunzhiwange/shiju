@@ -862,6 +862,15 @@ pub enum ChatMessage {
         text: String,
     },
 
+    /// 打开聊天消息右键菜单；操作发生时再解析消息文本。
+    OpenChatMessageContextMenu {
+        target: u64,
+        x: f32,
+        y: f32,
+        session_id: String,
+        message_idx: usize,
+    },
+
     /// 关闭聊天消息右键菜单
     CloseMessageContextMenu,
 
@@ -1124,6 +1133,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::FullscreenOverlayEntered
         | ChatMessage::FullscreenOverlayExited
         | ChatMessage::OpenMessageContextMenu { .. }
+        | ChatMessage::OpenChatMessageContextMenu { .. }
         | ChatMessage::CloseMessageContextMenu
         | ChatMessage::CopyContextMenuText
         | ChatMessage::AppendContextMenuText

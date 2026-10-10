@@ -1,14 +1,41 @@
 //! 验证不同消息角色、附件与处理时长在消息视图中的呈现契约。
 //! 时间 fixture 区分进行中、已完成和暂停区间，防止历史耗时遗漏非模型活动。
 
-use super::{message_footer_padding, message_view, processing_duration_label};
+use super::{
+    copy_chat_message_action, message_footer_padding, message_view,
+    open_chat_message_context_menu_action, processing_duration_label,
+};
 use crate::app::models::{ChatMessage, ChatRenderCacheEntry, ChatRole};
+use crate::app::{Message, message};
 use iced::Padding;
 use std::borrow::Cow;
 use vw_shared::session::ui_types::ProcessingTiming;
 
 fn keep_message_view(element: iced::Element<'_, crate::app::Message>) {
     std::hint::black_box(element);
+}
+
+#[test]
+fn message_view_actions_carry_identity_without_message_text() {
+    let copy = copy_chat_message_action("session-1", 42);
+    assert!(matches!(
+        copy,
+        Message::CopyChatMessage { session_id, message_idx }
+            if session_id == "session-1" && message_idx == 42
+    ));
+
+    let context =
+        open_chat_message_context_menu_action(7, iced::Point::new(10.0, 20.0), "session-1", 42);
+    assert!(matches!(
+        context,
+        Message::Chat(message::ChatMessage::OpenChatMessageContextMenu {
+            target: 7,
+            x: 10.0,
+            y: 20.0,
+            session_id,
+            message_idx: 42,
+        }) if session_id == "session-1"
+    ));
 }
 
 #[test]

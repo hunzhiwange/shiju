@@ -611,6 +611,21 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::OpenMessageContextMenu { target, x, y, text } => {
             context_menus::handle_open_message_context_menu(app, target, x, y, text)
         }
+        ChatMessage::OpenChatMessageContextMenu { target, x, y, session_id, message_idx } => {
+            if app.active_session_id.as_deref() != Some(session_id.as_str()) {
+                return Task::none();
+            }
+            let Some(text) =
+                crate::app::components::chat_panel::message_view::chat_message_action_text(
+                    app,
+                    message_idx,
+                    true,
+                )
+            else {
+                return Task::none();
+            };
+            context_menus::handle_open_message_context_menu(app, target, x, y, text)
+        }
         ChatMessage::CloseMessageContextMenu => {
             context_menus::handle_close_message_context_menu(app)
         }

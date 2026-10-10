@@ -20,6 +20,8 @@ mod app_basic;
 mod app_init;
 mod app_subscription;
 mod app_update;
+#[cfg(test)]
+pub(crate) use app_update::copy_chat_message;
 mod app_view;
 mod app_view_modals;
 mod app_view_status;

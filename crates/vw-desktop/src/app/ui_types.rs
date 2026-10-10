@@ -122,6 +122,10 @@ pub enum Message {
         input_focused: bool,
     },
     CopyCode(String),
+    CopyChatMessage {
+        session_id: String,
+        message_idx: usize,
+    },
     CopyFile(String),
     CopyDone,
     CopyFeedbackExpired(u64),

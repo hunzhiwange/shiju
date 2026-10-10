@@ -110,6 +110,54 @@ pub(crate) use self::tool_summaries::tool_card_text_blocks;
 #[cfg(test)]
 pub(crate) use self::tool_summaries::trailing_tool_tail_text_source_block_idx;
 
+pub(crate) fn chat_message_action_text(
+    app: &App,
+    idx: usize,
+    prefer_selection: bool,
+) -> Option<String> {
+    if prefer_selection && let Some(selected) = selected_chat_text_for_message(app, idx) {
+        return Some(selected);
+    }
+
+    let message = app.chat.get(idx)?;
+    let task_session_content = if message.role == ChatRole::User {
+        task_session_visible_text(&message.content)
+    } else {
+        Cow::Borrowed(message.content.as_str())
+    };
+    let content = task_session_content.as_ref();
+    let content_hash = hash_chat_content(content);
+    let fallback_cache = models::ChatRenderCacheEntry::default();
+    let render_cache = app.chat_render_cache.get(&idx).unwrap_or(&fallback_cache);
+    let (visible_text, _) =
+        resolve_visible_text_and_copy_hash(app, idx, content, content_hash, render_cache);
+
+    if prefer_selection && visible_text.trim().is_empty() {
+        Some(content.to_string())
+    } else {
+        Some(visible_text.into_owned())
+    }
+}
+
+fn copy_chat_message_action(session_id: &str, message_idx: usize) -> Message {
+    Message::CopyChatMessage { session_id: session_id.to_string(), message_idx }
+}
+
+fn open_chat_message_context_menu_action(
+    target: u64,
+    point: iced::Point,
+    session_id: &str,
+    message_idx: usize,
+) -> Message {
+    Message::Chat(message::ChatMessage::OpenChatMessageContextMenu {
+        target,
+        x: point.x,
+        y: point.y,
+        session_id: session_id.to_string(),
+        message_idx,
+    })
+}
+
 pub(crate) fn message_footer_padding(is_user: bool) -> iced::Padding {
     if is_user { [0, 6].into() } else { iced::Padding::ZERO }
 }
@@ -316,7 +364,8 @@ pub fn message_view<'a>(
         }
     };
 
-    let copy_message = Message::CopyCode(visible_for_copy.to_string());
+    let session_id = app.active_session_id.as_deref().unwrap_or_default();
+    let copy_message = copy_chat_message_action(session_id, idx);
 
     let fork_press = Message::Chat(message::ChatMessage::OpenForkSessionDialog(idx));
     let reset_press = Message::Chat(message::ChatMessage::ToggleResetMenu(idx));
@@ -412,23 +461,10 @@ pub fn message_view<'a>(
         bubble_inner
     };
 
-    let context_text = selected_chat_text_for_message(app, idx).unwrap_or_else(|| {
-        if !visible_for_copy.trim().is_empty() {
-            visible_for_copy.to_string()
-        } else {
-            content.to_string()
-        }
-    });
-
     let bubble_inner: Element<'a, Message> = RightClickArea::new(
         bubble_inner.into(),
         Box::new(move |point| {
-            Message::Chat(message::ChatMessage::OpenMessageContextMenu {
-                target: context_key,
-                x: point.x,
-                y: point.y,
-                text: context_text.clone(),
-            })
+            open_chat_message_context_menu_action(context_key, point, session_id, idx)
         }),
     )
     .use_global_position()

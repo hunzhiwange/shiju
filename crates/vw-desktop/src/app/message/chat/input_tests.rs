@@ -22,6 +22,69 @@ fn chat_entry(role: ChatRole, content: &str) -> ChatEntry {
     }
 }
 
+fn copy_hash(text: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
+}
+
+#[test]
+fn copy_chat_message_resolves_current_session_text_on_press() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("session-current".to_string());
+    app.chat.push(chat_entry(ChatRole::Assistant, "<think>hidden reasoning</think>visible answer"));
+
+    let _ = crate::app::impls::copy_chat_message(&mut app, "session-current".to_string(), 0);
+
+    assert_eq!(app.last_copied_code_hash, Some(copy_hash("visible answer")));
+}
+
+#[test]
+fn stale_chat_message_action_does_not_copy_other_session() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("session-new".to_string());
+    app.chat.push(chat_entry(ChatRole::Assistant, "other session text"));
+
+    let _ = crate::app::impls::copy_chat_message(&mut app, "session-old".to_string(), 0);
+
+    assert_eq!(app.last_copied_code_hash, None);
+    assert!(app.last_copy_time.is_none());
+}
+
+#[test]
+fn chat_message_context_menu_resolves_visible_text_and_rejects_stale_session() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("session-current".to_string());
+    app.chat.push(chat_entry(ChatRole::Assistant, "<think>hidden</think>visible"));
+
+    let _ = super::update(
+        &mut app,
+        ChatMessage::OpenChatMessageContextMenu {
+            target: 7,
+            x: 10.0,
+            y: 20.0,
+            session_id: "session-current".to_string(),
+            message_idx: 0,
+        },
+    );
+    assert_eq!(app.chat_context_menu_text, "visible");
+
+    app.chat_context_menu_text.clear();
+    let _ = super::update(
+        &mut app,
+        ChatMessage::OpenChatMessageContextMenu {
+            target: 7,
+            x: 10.0,
+            y: 20.0,
+            session_id: "session-old".to_string(),
+            message_idx: 0,
+        },
+    );
+    assert!(app.chat_context_menu_text.is_empty());
+}
+
 async fn collect_task_messages(task: iced::Task<Message>) -> Vec<Message> {
     use iced_runtime::futures::futures::StreamExt;
 

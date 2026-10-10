@@ -180,38 +180,46 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
         .into()
 }
 
-/// 脉冲图标循环的四种星型字形，靠近 Claude Code 的跳动效果。
-const THINK_PULSE_GLYPHS: [&str; 4] = ["✳", "✶", "✷", "❋"];
+/// 使用固定星形，避免动画帧触发新字形的整形与栅格化。
+const THINK_PULSE_GLYPH: &str = "✳";
 
-/// 动画帧每 90ms 自增；每约半秒切换一种字形。
-const THINK_PULSE_FRAMES_PER_GLYPH: usize = 6;
-
-pub(crate) fn think_pulse_glyph(frame: usize) -> &'static str {
-    THINK_PULSE_GLYPHS[(frame / THINK_PULSE_FRAMES_PER_GLYPH) % THINK_PULSE_GLYPHS.len()]
+pub(crate) fn think_pulse_glyph(_frame: usize) -> &'static str {
+    THINK_PULSE_GLYPH
 }
 
-const THINK_PULSE_MIN_SIZE: f32 = 14.0;
+const THINK_PULSE_SIZE: f32 = 24.0;
 const THINK_PULSE_MAX_SIZE: f32 = 44.0;
-const THINK_PULSE_BREATH_PERIOD: usize = THINK_PULSE_FRAMES_PER_GLYPH * 2;
+const THINK_PULSE_BREATH_PERIOD: usize = 24;
+const THINK_PULSE_MIN_ALPHA: f32 = 0.5;
 const THINK_PULSE_VERTICAL_OFFSET: f32 = 3.0;
 
-pub(crate) fn think_pulse_size(frame: usize) -> f32 {
+pub(crate) fn think_pulse_size(_frame: usize) -> f32 {
+    THINK_PULSE_SIZE
+}
+
+pub(crate) fn think_pulse_geometry(frame: usize) -> (f32, f32) {
+    (THINK_PULSE_MAX_SIZE, think_pulse_size(frame))
+}
+
+pub(crate) fn think_pulse_color(frame: usize) -> Color {
     let phase = (frame % THINK_PULSE_BREATH_PERIOD) as f32 / THINK_PULSE_BREATH_PERIOD as f32
         * std::f32::consts::TAU;
     let wave = (1.0 - phase.cos()) / 2.0;
-    THINK_PULSE_MIN_SIZE + wave * (THINK_PULSE_MAX_SIZE - THINK_PULSE_MIN_SIZE)
+    Color { a: THINK_PULSE_MIN_ALPHA + wave * (1.0 - THINK_PULSE_MIN_ALPHA), ..THINK_PULSE_ACCENT }
 }
 
 fn think_pulse_indicator<'a>(frame: usize) -> Element<'a, Message> {
+    let color = think_pulse_color(frame);
+    let (slot_size, glyph_size) = think_pulse_geometry(frame);
     container(
         text(think_pulse_glyph(frame))
-            .size(think_pulse_size(frame))
+            .size(glyph_size)
             .line_height(iced::widget::text::LineHeight::Relative(1.0))
             .font(bold_font())
-            .style(|_theme: &Theme| iced::widget::text::Style { color: Some(THINK_PULSE_ACCENT) }),
+            .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(color) }),
     )
-    .width(Length::Fixed(THINK_PULSE_MAX_SIZE))
-    .height(Length::Fixed(THINK_PULSE_MAX_SIZE))
+    .width(Length::Fixed(slot_size))
+    .height(Length::Fixed(slot_size))
     // 星形字形的视觉中心偏低，增加底部留白将其向上补偿半个留白高度。
     .padding(iced::Padding {
         top: 0.0,

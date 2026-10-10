@@ -1,7 +1,7 @@
 use super::global_status::{
     COMPACT_ACTIVITY_ICON_SIZE, COMPACT_ACTIVITY_SLOT_SIZE, chat_global_status,
     chat_global_status_view, compact_activity_geometry, compact_activity_glyph, format_elapsed,
-    think_pulse_glyph, think_pulse_size, tokens_label,
+    think_pulse_color, think_pulse_geometry, think_pulse_glyph, think_pulse_size, tokens_label,
 };
 use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole, TokenUsage};
@@ -123,17 +123,54 @@ fn global_status_indicator_uses_shared_spinner_frames() {
 }
 
 #[test]
-fn thinking_pulse_cycles_shapes_and_breathes() {
-    assert_eq!(think_pulse_glyph(0), "✳");
-    assert_eq!(think_pulse_glyph(6), "✶");
-    assert_eq!(think_pulse_glyph(12), "✷");
-    assert_eq!(think_pulse_glyph(18), "❋");
-    assert_eq!(think_pulse_glyph(24), "✳");
+fn thinking_pulse_keeps_glyph_geometry_and_breathes_color() {
+    let glyph = think_pulse_glyph(0);
+    let size = think_pulse_size(0);
+    let geometry = think_pulse_geometry(0);
+    assert_eq!(glyph, "✳");
+    assert_eq!(size, 24.0);
+    assert_eq!(geometry, (44.0, 24.0));
 
-    assert!((think_pulse_size(0) - 14.0).abs() < 0.001);
-    assert!((think_pulse_size(6) - 44.0).abs() < 0.001);
-    for frame in 0..30 {
-        assert!((14.0..=44.0).contains(&think_pulse_size(frame)));
+    for frame in 0..24 {
+        assert_eq!(think_pulse_glyph(frame), glyph, "frame {frame}");
+        assert_eq!(think_pulse_size(frame), size, "frame {frame}");
+        assert_eq!(think_pulse_geometry(frame), geometry, "frame {frame}");
+    }
+
+    let trough = think_pulse_color(0);
+    let peak = think_pulse_color(12);
+    assert!(trough.a >= 0.4, "pulse trough must remain visible: {}", trough.a);
+    assert!(peak.a > trough.a + 0.4, "trough={}, peak={}", trough.a, peak.a);
+    assert_eq!(think_pulse_color(24), trough);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn thinking_pulse_shapes_all_animation_frames_with_fixed_layout() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let mut app = App::new().0;
+    app.current_session_runtime_mut().is_requesting = true;
+    app.chat.push(assistant("<think>正在分析界面渲染</think>"));
+    let limits = layout::Limits::new(Size::ZERO, Size::new(800.0, 100.0));
+    let mut expected = None;
+
+    for frame in 0..24 {
+        app.status_animation_frame = frame;
+        let mut element = chat_global_status_view(&app);
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        let row = Layout::new(&node).children().next().expect("status row");
+        let indicator = row.children().next().expect("thinking indicator");
+        let geometry = (indicator.bounds().size(), row.bounds().height);
+
+        if let Some(expected) = expected {
+            assert_eq!(geometry, expected, "frame {frame}");
+        } else {
+            expected = Some(geometry);
+        }
     }
 }
 

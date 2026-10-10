@@ -365,6 +365,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 .unwrap_or_else(Task::none);
             Task::batch([timing_task, delta_task, refresh_task])
         }
+        ChatMessage::AgentCompactionStatus(id, completed) => {
+            stream_events::handle_agent_compaction_status(app, id, completed)
+        }
         ChatMessage::VisibleTaskSessionLoaded(result) => {
             match result {
                 Ok(info) if info.is_visible_task() => {

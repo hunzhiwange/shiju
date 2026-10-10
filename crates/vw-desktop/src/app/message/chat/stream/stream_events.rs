@@ -546,6 +546,82 @@ pub(super) fn queue_agent_stream_delta(app: &mut App, id: u64, delta: String) ->
     queue_agent_session_delta(app, session_id, delta)
 }
 
+fn upsert_compaction_status(
+    chat: &mut Vec<models::ChatMessage>,
+    message_ids: &mut Vec<Option<String>>,
+    completed: bool,
+) -> usize {
+    let content = if completed {
+        crate::app::components::chat_panel::message_view::COMPACTION_COMPLETED_TEXT
+    } else {
+        crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
+    };
+    if completed
+        && let Some(idx) = chat.iter().rposition(|message| {
+            message.role == models::ChatRole::System
+                && message.content
+                    == crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
+        })
+    {
+        chat[idx].content = content.to_string();
+        return idx;
+    }
+
+    if message_ids.len() < chat.len() {
+        message_ids.resize(chat.len(), None);
+    }
+    chat.push(models::ChatMessage {
+        role: models::ChatRole::System,
+        content: content.to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    message_ids.push(None);
+    chat.len() - 1
+}
+
+pub(super) fn handle_agent_compaction_status(
+    app: &mut App,
+    id: u64,
+    completed: bool,
+) -> Task<Message> {
+    let Some(session_id) = app.find_session_by_request_id(id) else {
+        return Task::none();
+    };
+    let is_active = app.active_session_id.as_deref() == Some(session_id.as_str());
+    if is_active {
+        let changed_idx =
+            upsert_compaction_status(&mut app.chat, &mut app.chat_message_ids, completed);
+        app.chat_render_cache.remove(&changed_idx);
+        app.session_chat_cache.remove(&session_id);
+        app.session_chat_message_id_cache.remove(&session_id);
+        app.sync_active_session_from_chat();
+        return Task::batch([
+            scroll_chat_to_bottom_task(app),
+            schedule_agent_stream_session_save(app, &session_id),
+        ]);
+    }
+
+    let mut chat: Vec<models::ChatMessage> = app
+        .session_chat_cache
+        .get(&session_id)
+        .map(|messages| messages.iter().cloned().collect())
+        .unwrap_or_default();
+    let mut message_ids = app
+        .session_chat_message_id_cache
+        .get(&session_id)
+        .cloned()
+        .unwrap_or_else(|| vec![None; chat.len()]);
+    upsert_compaction_status(&mut chat, &mut message_ids, completed);
+    app.store_session_chat_snapshot(
+        session_id.clone(),
+        crate::app::session::shared_chat_messages(chat),
+        message_ids,
+    );
+    schedule_agent_stream_session_save(app, &session_id)
+}
+
 pub(super) fn queue_agent_session_delta(
     app: &mut App,
     session_id: String,

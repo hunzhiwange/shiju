@@ -175,6 +175,34 @@ pub(super) fn is_dark_theme(theme: &Theme) -> bool {
     theme.palette().background.r + theme.palette().background.g + theme.palette().background.b < 1.5
 }
 
+pub(crate) fn compaction_status_text_color(theme: &Theme) -> Color {
+    if is_dark_theme(theme) {
+        Color::from_rgb8(0xDC, 0xE3, 0xEC)
+    } else {
+        Color::from_rgb8(0x3D, 0x49, 0x57)
+    }
+}
+
+pub(crate) fn compaction_status_card_style(theme: &Theme) -> container::Style {
+    container::Style {
+        background: Some(Background::Color(if is_dark_theme(theme) {
+            Color::from_rgb8(0x25, 0x2A, 0x31)
+        } else {
+            Color::from_rgb8(0xEE, 0xF1, 0xF5)
+        })),
+        border: Border {
+            width: 1.0,
+            color: if is_dark_theme(theme) {
+                Color::from_rgb8(0x3D, 0x45, 0x50)
+            } else {
+                Color::from_rgb8(0xD7, 0xDC, 0xE3)
+            },
+            radius: 10.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
 pub(super) fn think_block_text_color(theme: &Theme) -> Color {
     chat_secondary_text_color(theme)
 }

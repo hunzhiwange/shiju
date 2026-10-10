@@ -479,6 +479,34 @@ fn loaded_chat_from_gateway_messages_splits_tool_parts_into_tool_rows() {
 }
 
 #[test]
+fn compaction_status_history_restores_completed_without_summary_text() {
+    let messages = vec![agent_message::WithParts {
+        info: assistant_info("assistant-compaction"),
+        parts: vec![
+            agent_message::Part::Compaction(agent_message::CompactionPart {
+                base: part_base("part-compaction", "assistant-compaction"),
+                auto: true,
+            }),
+            agent_message::Part::Text(agent_message::TextPart {
+                base: part_base("part-summary", "assistant-compaction"),
+                text: "private compacted summary".to_string(),
+                synthetic: Some(true),
+                ignored: None,
+                time: None,
+                metadata: None,
+            }),
+        ],
+    }];
+
+    let (chat, message_ids) = loaded_chat_from_gateway_messages(messages);
+
+    assert_eq!(chat.len(), 1);
+    assert_eq!(chat[0].role, ChatRole::System);
+    assert_eq!(chat[0].content, "压缩完成");
+    assert_eq!(message_ids, vec![Some("assistant-compaction".to_string())]);
+}
+
+#[test]
 fn processing_timing_history_split_attaches_assistant_time_to_first_visible_row_only() {
     let messages = vec![agent_message::WithParts {
         info: assistant_info("assistant-timed"),

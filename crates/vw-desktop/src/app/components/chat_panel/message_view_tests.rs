@@ -261,6 +261,24 @@ fn streaming_assistant_uses_live_blocks_when_cache_is_stale() {
 }
 
 #[test]
+fn compaction_status_card_is_centered_and_dark_theme_readable() {
+    let contract = super::message_view::compaction_status_card_contract("正在压缩会话")
+        .expect("compaction status contract");
+    assert_eq!(contract.horizontal_alignment, iced::alignment::Horizontal::Center);
+    assert_eq!(contract.vertical_alignment, iced::alignment::Vertical::Center);
+    assert!(contract.uses_default_font);
+
+    let style = super::message_view::compaction_status_card_style(&iced::Theme::Dark);
+    let background = match style.background.expect("status background") {
+        iced::Background::Color(color) => color,
+        _ => panic!("expected solid status background"),
+    };
+    let text = super::message_view::compaction_status_text_color(&iced::Theme::Dark);
+    let contrast = (text.r + text.g + text.b) - (background.r + background.g + background.b);
+    assert!(contrast > 0.8, "dark theme status text must remain readable");
+}
+
+#[test]
 fn non_streaming_assistant_rebuilds_blocks_when_cache_is_stale() {
     let content = "<think>planning</think>\nvisible answer";
     let render_cache = stale_plain_text_cache();

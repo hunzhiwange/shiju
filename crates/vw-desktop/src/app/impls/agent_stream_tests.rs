@@ -283,6 +283,22 @@ fn chat_tool_event_keeps_legacy_tool_content() {
 }
 
 #[test]
+fn compaction_status_event_json_maps_both_lifecycle_phases() {
+    for (phase, completed) in [("started", false), ("completed", true)] {
+        let payload = serde_json::json!({"type": "chat.compaction", "phase": phase});
+        let message = super::chat_compaction_message(7, &payload).expect("compaction message");
+        let crate::app::Message::Chat(
+            crate::app::message::chat::ChatMessage::AgentCompactionStatus(request_id, actual),
+        ) = message
+        else {
+            panic!("expected compaction status message");
+        };
+        assert_eq!(request_id, 7);
+        assert_eq!(actual, completed);
+    }
+}
+
+#[test]
 fn session_tool_create_event_requests_visible_session_refresh() {
     let payload = serde_json::json!({
         "type": "chat.tool",

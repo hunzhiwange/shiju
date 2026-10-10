@@ -531,12 +531,38 @@ pub(crate) fn loaded_chat_from_gateway_messages(
         let mut processing_timing = message_processing_timing(&message.info);
         let mut content = String::new();
         let mut think_timing = Vec::new();
+        let has_compaction =
+            message.parts.iter().any(|part| matches!(part, agent_message::Part::Compaction(_)));
 
         // 网关消息按片段到达，这里保持原顺序合并，避免工具卡片和正文错位。
 
         for part in message.parts {
             match part {
-                agent_message::Part::Text(part) => content.push_str(&part.text),
+                agent_message::Part::Text(part) if !has_compaction => content.push_str(&part.text),
+                agent_message::Part::Compaction(_) => {
+                    flush_loaded_text_message(
+                        &mut chat,
+                        &mut message_ids,
+                        role.clone(),
+                        &mut content,
+                        model.clone(),
+                        &mut think_timing,
+                        &message_id,
+                        &mut processing_timing,
+                    );
+                    push_loaded_chat_message(
+                        &mut chat,
+                        &mut message_ids,
+                        models::ChatRole::System,
+                        crate::app::components::chat_panel::message_view::COMPACTION_COMPLETED_TEXT
+                            .to_string(),
+                        None,
+                        Vec::new(),
+                        message_id.clone(),
+                        &mut processing_timing,
+                    );
+                }
+                agent_message::Part::Text(_) => {}
                 agent_message::Part::Reasoning(part) => {
                     content.push_str("<think>");
                     content.push_str(&part.text);

@@ -94,6 +94,25 @@ fn agent_request(id: u64, session_id: &str) -> Arc<AgentRequest> {
 }
 
 #[test]
+fn compaction_status_started_then_completed_updates_one_message() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "compaction-session".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+
+    let _ = super::handle_agent_compaction_status(&mut app, 42, false);
+    assert_eq!(app.chat.len(), 1);
+    assert_eq!(app.chat[0].role, ChatRole::System);
+    assert_eq!(app.chat[0].content, "正在压缩会话");
+
+    let _ = super::handle_agent_compaction_status(&mut app, 42, true);
+    assert_eq!(app.chat.len(), 1);
+    assert_eq!(app.chat[0].content, "压缩完成");
+    assert_eq!(app.chat_message_ids, vec![None]);
+}
+
+#[test]
 fn background_stream_mutation_invalidates_cached_session_view() {
     let (mut app, _) = crate::app::App::new();
     app.active_session_id = Some("background".to_string());

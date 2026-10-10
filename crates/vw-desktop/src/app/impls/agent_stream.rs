@@ -2484,6 +2484,9 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         .unwrap_or_default()
                                     {
                                         "chat.tool" => chat_tool_message(req.id, &payload),
+                                        "chat.compaction" => {
+                                            chat_compaction_message(req.id, &payload)
+                                        }
                                         "chat.context_loaded" => {
                                             let paths = payload
                                                 .get("paths")
@@ -2729,6 +2732,15 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
     return s.boxed();
     #[cfg(target_arch = "wasm32")]
     return s.boxed_local();
+}
+
+fn chat_compaction_message(request_id: u64, payload: &serde_json::Value) -> Option<Message> {
+    let completed = match payload.get("phase").and_then(serde_json::Value::as_str)? {
+        "started" => false,
+        "completed" => true,
+        _ => return None,
+    };
+    Some(Message::Chat(message::ChatMessage::AgentCompactionStatus(request_id, completed)))
 }
 
 fn parse_usage(value: Option<&serde_json::Value>) -> crate::app::models::TokenUsage {

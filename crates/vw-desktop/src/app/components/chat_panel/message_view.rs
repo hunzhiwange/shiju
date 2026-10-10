@@ -93,7 +93,31 @@ pub(crate) use self::parse::hash_chat_content;
 pub(crate) use self::render_cache::{
     assistant_render_blocks, build_render_cache_entry, effective_assistant_render_cache,
 };
-pub(crate) use self::styles::{message_surface_contract, message_surface_style};
+pub(crate) use self::styles::{
+    compaction_status_card_style, compaction_status_text_color, message_surface_contract,
+    message_surface_style,
+};
+pub(crate) const COMPACTION_STARTED_TEXT: &str = "正在压缩会话";
+pub(crate) const COMPACTION_COMPLETED_TEXT: &str = "压缩完成";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct CompactionStatusCardContract {
+    pub(crate) horizontal_alignment: iced::alignment::Horizontal,
+    pub(crate) vertical_alignment: iced::alignment::Vertical,
+    pub(crate) uses_default_font: bool,
+}
+
+pub(crate) fn compaction_status_card_contract(
+    content: &str,
+) -> Option<CompactionStatusCardContract> {
+    matches!(content, COMPACTION_STARTED_TEXT | COMPACTION_COMPLETED_TEXT).then_some(
+        CompactionStatusCardContract {
+            horizontal_alignment: iced::alignment::Horizontal::Center,
+            vertical_alignment: iced::alignment::Vertical::Center,
+            uses_default_font: true,
+        },
+    )
+}
 pub(crate) use self::text::estimate_message_height_rough;
 #[cfg(test)]
 pub(crate) use self::text::should_prefer_plain_think_body;
@@ -203,6 +227,20 @@ pub fn message_view<'a>(
     render_cache: &'a models::ChatRenderCacheEntry,
     _enable_heavy_tool_content: bool,
 ) -> Element<'a, Message> {
+    if role == ChatRole::System && compaction_status_card_contract(content).is_some() {
+        return container(
+            container(iced_text(content).size(MESSAGE_META_TEXT_SIZE).style(|theme: &Theme| {
+                iced::widget::text::Style { color: Some(compaction_status_text_color(theme)) }
+            }))
+            .padding([8, 14])
+            .style(compaction_status_card_style),
+        )
+        .width(Length::Fill)
+        .height(Length::Fixed(44.0))
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Center)
+        .into();
+    }
     let task_session_content = if role == ChatRole::User {
         task_session_visible_text(content)
     } else {

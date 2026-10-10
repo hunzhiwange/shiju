@@ -17,7 +17,6 @@
 //! - **Slack**：机器人令牌（bot_token）和应用程序令牌（app_token）
 //! - **Mattermost**：机器人令牌（bot_token）
 //! - **Webhook**：Webhook 密钥（secret）
-//! - **Matrix**：访问令牌（access_token）
 //! - **WhatsApp**：访问令牌、应用密钥、验证令牌
 //! - **Linq**：API 令牌和签名密钥
 //! - **Nextcloud Talk**：应用令牌和 Webhook 密钥

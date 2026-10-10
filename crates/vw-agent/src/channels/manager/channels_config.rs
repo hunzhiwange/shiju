@@ -69,7 +69,7 @@ fn instance_display_name(channel_name: &str, instance_id: &str) -> String {
 /// - QQ 通道的 Webhook 模式会跳过 WebSocket 监听器启动
 pub(crate) fn collect_configured_channels(
     config: &Config,
-    _matrix_skip_context: &str,
+    _skip_context: &str,
 ) -> Vec<ConfiguredChannel> {
     let mut channels = Vec::new();
     let channel_instance_profiles_valid = match config

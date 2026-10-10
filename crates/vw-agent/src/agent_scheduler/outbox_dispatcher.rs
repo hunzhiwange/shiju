@@ -23,15 +23,15 @@ where
     A: RemoteDispatchAdapter + ?Sized,
 {
     store: &'a AgentSchedulerStore,
-    matrix_adapter: &'a A,
+    dispatch_adapter: &'a A,
 }
 
 impl<'a, A> OutboxDispatcher<'a, A>
 where
     A: RemoteDispatchAdapter + ?Sized,
 {
-    pub fn new(store: &'a AgentSchedulerStore, matrix_adapter: &'a A) -> Self {
-        Self { store, matrix_adapter }
+    pub fn new(store: &'a AgentSchedulerStore, dispatch_adapter: &'a A) -> Self {
+        Self { store, dispatch_adapter }
     }
 
     pub async fn drain_once(
@@ -84,10 +84,10 @@ where
             }
         };
 
-        let OutboxDispatchTarget::Matrix(request) = target;
-        tracing::info!(project_path = %project_path.storage_project_path().display(), outbox_message_id = message.id.as_str(), target = request.target.as_str(), recipient_id = ?request.recipient_id.as_deref(), "agent scheduler sending Matrix outbox message");
-        if let Err(error) = self.matrix_adapter.send_message(request).await {
-            tracing::warn!(project_path = %project_path.storage_project_path().display(), outbox_message_id = message.id.as_str(), error = %error, "agent scheduler Matrix outbox send failed");
+        let OutboxDispatchTarget::Remote(request) = target;
+        tracing::info!(project_path = %project_path.storage_project_path().display(), outbox_message_id = message.id.as_str(), target = request.target.as_str(), recipient_id = ?request.recipient_id.as_deref(), "agent scheduler sending outbox message");
+        if let Err(error) = self.dispatch_adapter.send_message(request).await {
+            tracing::warn!(project_path = %project_path.storage_project_path().display(), outbox_message_id = message.id.as_str(), error = %error, "agent scheduler outbox send failed");
             self.mark_failed(project_path, now_ms, &message.id, error.to_string())?;
             return Ok(DispatchOutcome::Failed);
         }
@@ -95,7 +95,7 @@ where
         self.store
             .mark_outbox_delivered(project_path, &message.id, now_ms)?
             .with_context(|| format!("claimed outbox message was not delivered: {}", message.id))?;
-        tracing::info!(project_path = %project_path.storage_project_path().display(), outbox_message_id = message.id.as_str(), "agent scheduler Matrix outbox delivered");
+        tracing::info!(project_path = %project_path.storage_project_path().display(), outbox_message_id = message.id.as_str(), "agent scheduler outbox delivered");
         Ok(DispatchOutcome::Delivered)
     }
 
@@ -130,19 +130,19 @@ enum DispatchOutcome {
 
 #[derive(Debug, Clone, PartialEq)]
 enum OutboxDispatchTarget {
-    Matrix(RemoteDispatchRequest),
+    Remote(RemoteDispatchRequest),
 }
 
 fn outbox_dispatch_target(message: &StoredOutboxMessage) -> Result<OutboxDispatchTarget> {
     match message.channel.as_str() {
-        "matrix" => Ok(OutboxDispatchTarget::Matrix(RemoteDispatchRequest {
+        "local" => Ok(OutboxDispatchTarget::Remote(RemoteDispatchRequest {
             channel: message.channel.clone(),
             target: message.target.clone(),
             recipient_id: message.recipient_id.clone(),
             body: message.body.clone(),
             payload_json: message.payload.clone(),
         })),
-        other => bail!("unsupported outbox channel for Matrix dispatcher: {other}"),
+        other => bail!("unsupported outbox channel: {other}"),
     }
 }
 
@@ -153,7 +153,7 @@ fn retry_after(now_ms: TimestampMs) -> TimestampMs {
 fn non_empty_failure_message(error_message: String) -> String {
     let error_message = error_message.trim();
     if error_message.is_empty() {
-        "matrix dispatch failed".to_string()
+        "outbox dispatch failed".to_string()
     } else {
         error_message.into()
     }

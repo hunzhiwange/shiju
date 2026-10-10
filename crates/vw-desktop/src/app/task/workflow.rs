@@ -924,8 +924,6 @@ pub enum TaskTransitionIntent {
     MergeFailed,
     /// 归档：`Completed -> Archived`。
     Archive,
-    /// Matrix 协同同步：沿默认线性边推进。
-    MatrixSync,
     /// 模拟执行步骤：沿默认线性边推进，用于测试与演示。
     Simulation,
 }
@@ -945,7 +943,6 @@ impl TaskTransitionIntent {
             | Self::ReviewApproved
             | Self::MergeSucceeded
             | Self::Archive
-            | Self::MatrixSync
             | Self::Simulation => Some(StatusOutcome::succeed()),
         }
     }
@@ -965,7 +962,7 @@ pub struct TaskStatusTransition {
 /// 默认工作流的显式自动转移边集合。
 ///
 /// 手动 `ManualMove` 不在此表内，由状态机单独放行任意跨列移动；
-/// `MatrixSync` 与 `Simulation` 同样不枚举具体边，运行时按默认线性 `next` 推进。
+/// `Simulation` 不枚举具体边，运行时按默认线性 `next` 推进。
 const DEV_LIFECYCLE_TRANSITIONS: &[TaskStatusTransition] = &[
     TaskStatusTransition {
         from: TaskStatus::Pool,
@@ -1121,7 +1118,7 @@ impl TaskStateMachine {
     /// 判断给定意图下从 `from` 到 `to` 的转移是否允许。
     ///
     /// `ManualMove` 始终允许工作流内部任意两个已知状态间移动，保留看板自由移动；
-    /// `MatrixSync` 与 `Simulation` 沿默认线性 `next` 推进；其余自动意图必须命中
+    /// `Simulation` 沿默认线性 `next` 推进；其余自动意图必须命中
     /// 工作流的显式转移边。
     pub fn can_transition(
         &self,
@@ -1134,7 +1131,7 @@ impl TaskStateMachine {
                 self.workflow.status_definition(from).is_some()
                     && self.workflow.status_definition(to).is_some()
             }
-            TaskTransitionIntent::MatrixSync | TaskTransitionIntent::Simulation => {
+            TaskTransitionIntent::Simulation => {
                 self.workflow.next_status(from) == Some(to)
             }
             _ if self.workflow.id() == DEFAULT_TASK_WORKFLOW_ID => {
@@ -1169,7 +1166,7 @@ impl TaskStateMachine {
 
     /// 返回给定意图在 `from` 状态下的唯一目标状态。
     ///
-    /// 对自动意图，从显式转移边解析唯一目标；对 `MatrixSync`/`Simulation` 返回默认
+    /// 对自动意图，从显式转移边解析唯一目标；对 `Simulation` 返回默认
     /// 线性下一状态；`ManualMove` 没有确定目标，返回 `None`。
     pub fn next_for_intent(
         &self,
@@ -1178,7 +1175,7 @@ impl TaskStateMachine {
     ) -> Option<TaskStatus> {
         match intent {
             TaskTransitionIntent::ManualMove => None,
-            TaskTransitionIntent::MatrixSync | TaskTransitionIntent::Simulation => {
+            TaskTransitionIntent::Simulation => {
                 self.workflow.next_status(from)
             }
             _ if self.workflow.id() == DEFAULT_TASK_WORKFLOW_ID => DEV_LIFECYCLE_TRANSITIONS

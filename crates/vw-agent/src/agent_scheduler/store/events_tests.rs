@@ -249,7 +249,7 @@ fn event_store_fixture(
 fn scope_message(body: &str) -> EnqueueOutboxMessageRequest {
     EnqueueOutboxMessageRequest {
         message_id: "shared-message".to_string(),
-        channel: "matrix".to_string(),
+        channel: "local".to_string(),
         target: "room:shared".to_string(),
         recipient_id: None,
         body: body.to_string(),

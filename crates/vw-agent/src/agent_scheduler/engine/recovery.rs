@@ -367,7 +367,7 @@ impl<'a> RecoveryEngine<'a> {
             project_path,
             EnqueueOutboxMessageRequest {
                 message_id,
-                channel: "matrix".to_string(),
+                channel: "local".to_string(),
                 target: target.clone(),
                 recipient_id: self.policy.admin_recipient_id.clone(),
                 body,

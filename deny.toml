@@ -9,7 +9,7 @@ unmaintained = "all"
 yanked = "deny"
 # Ignore known unmaintained transitive deps we cannot easily replace
 ignore = [
-    { id = "RUSTSEC-2026-0173", reason = "Transitive compile-time proc macros via matrix-sdk and mysql; no maintained compatible replacement is available upstream." },
+    { id = "RUSTSEC-2026-0173", reason = "Transitive compile-time proc macros via mysql; no maintained compatible replacement is available upstream." },
     { id = "RUSTSEC-2026-0189", reason = "rmcp is used for HTTP clients and a stdio server; the vulnerable Streamable HTTP server transport is not enabled." },
     { id = "RUSTSEC-2026-0192", reason = "Transitive font parsing via iced/resvg and pdf-extract; no maintained compatible replacement is available upstream." },
     { id = "RUSTSEC-2026-0194", reason = "Transitive via the Linux-only wayland-scanner build-time proc macro; it does not parse runtime or untrusted XML." },

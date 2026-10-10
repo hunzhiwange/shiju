@@ -3,9 +3,8 @@
 //!
 //! Agent Scheduler internal scheduling model.
 //!
-//! This module is the source of truth for Agent Teams style scheduling facts:
-//! tasks, runs, workers, teams, resource leases, events, and Matrix outbox
-//! records. It is the only scheduling and local execution fact source.
+//! This module is the source of truth for tasks, runs, resource leases, events,
+//! and local execution facts.
 
 pub mod adapters;
 pub mod artifacts;

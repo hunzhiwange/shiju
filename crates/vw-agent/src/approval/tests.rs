@@ -635,11 +635,11 @@ mod tests {
         assert!(mgr.is_non_cli_approval_actor_allowed("telegram", "alice")); // 全局 alice
         assert!(mgr.is_non_cli_approval_actor_allowed("telegram", "bob")); // telegram:bob
         assert!(mgr.is_non_cli_approval_actor_allowed("discord", "anyone")); // discord:*
-        assert!(mgr.is_non_cli_approval_actor_allowed("matrix", "carol")); // *:carol
+        assert!(mgr.is_non_cli_approval_actor_allowed("slack", "carol")); // *:carol
 
         // 验证拒绝情况
         assert!(!mgr.is_non_cli_approval_actor_allowed("telegram", "mallory")); // 不匹配
-        assert!(!mgr.is_non_cli_approval_actor_allowed("matrix", "bob")); // bob 仅限 telegram
+        assert!(!mgr.is_non_cli_approval_actor_allowed("slack", "bob")); // bob 仅限 telegram
     }
 
     /// 测试自然语言审批模式遵循配置覆盖

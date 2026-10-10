@@ -248,10 +248,6 @@ detect_config_channel_features() {
   if grep -Eq '^[[:space:]]*\[channels_config\.(lark|feishu)\][[:space:]]*$' "$config_path"; then
     features="$(append_csv_feature "$features" "channel-lark")"
   fi
-  if grep -Eq '^[[:space:]]*\[channels_config\.matrix\][[:space:]]*$' "$config_path"; then
-    features="$(append_csv_feature "$features" "channel-matrix")"
-  fi
-
   echo "$features"
 }
 

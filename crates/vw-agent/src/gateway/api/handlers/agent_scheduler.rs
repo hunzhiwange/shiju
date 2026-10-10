@@ -902,8 +902,8 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
     ) -> Result<AgentSchedulerOutboxDrainResponse, ApiError> {
         let project_path = parse_project_path(&request.project_path)?;
         let limit = request.limit.unwrap_or(DEFAULT_OUTBOX_DRAIN_LIMIT).min(MAX_OUTBOX_DRAIN_LIMIT);
-        let matrix = LocalOnlyDispatchAdapter;
-        let dispatcher = OutboxDispatcher::new(&self.store, &matrix);
+        let dispatch_adapter = LocalOnlyDispatchAdapter;
+        let dispatcher = OutboxDispatcher::new(&self.store, &dispatch_adapter);
         let (summary, messages) = dispatcher
             .drain_messages_once(&project_path, request.now_ms, limit)
             .await
@@ -1306,8 +1306,8 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
             limit,
             "agent scheduler project outbox drain requested"
         );
-        let matrix = LocalOnlyDispatchAdapter;
-        let dispatcher = OutboxDispatcher::new(&self.store, &matrix);
+        let dispatch_adapter = LocalOnlyDispatchAdapter;
+        let dispatcher = OutboxDispatcher::new(&self.store, &dispatch_adapter);
         let (summary, messages) = dispatcher
             .drain_messages_once(&project_path, request.now_ms, limit)
             .await
@@ -2498,7 +2498,6 @@ fn workspace_payload(workspace: &AgentSchedulerWorkspaceContextDto) -> Value {
 fn dispatch_mode_from_dto(dispatch_mode: AgentSchedulerDispatchModeDto) -> DispatchMode {
     match dispatch_mode {
         AgentSchedulerDispatchModeDto::Local => DispatchMode::Local,
-        AgentSchedulerDispatchModeDto::Matrix => DispatchMode::Local,
         AgentSchedulerDispatchModeDto::Auto => DispatchMode::Auto,
     }
 }
@@ -3116,7 +3115,6 @@ fn event_kind_to_dto(kind: AgentEventKind) -> AgentEventKindDto {
         AgentEventKind::ImportedLegacyTask => AgentEventKindDto::ImportedLegacyTask,
         AgentEventKind::TaskAssigned => AgentEventKindDto::TaskAssigned,
         AgentEventKind::WorkerSelected => AgentEventKindDto::WorkerSelected,
-        AgentEventKind::MatrixDispatched => AgentEventKindDto::MatrixDispatched,
         AgentEventKind::WorkerAcknowledged => AgentEventKindDto::WorkerAcknowledged,
         AgentEventKind::RunStarted => AgentEventKindDto::RunStarted,
         AgentEventKind::RunSubmitted => AgentEventKindDto::RunSubmitted,
@@ -3452,8 +3450,8 @@ impl AgentSchedulerGateway for FakeAgentSchedulerGateway {
             id: "2".to_string(),
             task_id: Some(task_id.clone()),
             run_id: Some(format!("run-{task_id}")),
-            kind: AgentEventKindDto::MatrixDispatched,
-            message: format!("queued Matrix dispatch for {task_id}"),
+            kind: AgentEventKindDto::OutboxQueued,
+            message: format!("queued local dispatch for {task_id}"),
             payload: json!({ "outbox_message_id": outbox_message_id }),
             created_at_ms: request.now_ms,
         });
@@ -3461,9 +3459,9 @@ impl AgentSchedulerGateway for FakeAgentSchedulerGateway {
             project_path: request.project_path,
             message: AgentOutboxMessageDto {
                 id: outbox_message_id.clone(),
-                target_kind: "matrix".to_string(),
-                target_id: "room:!worker-api:example.test".to_string(),
-                recipient_id: Some("@worker-api:example.test".to_string()),
+                target_kind: "local".to_string(),
+                target_id: "local-runner".to_string(),
+                recipient_id: None,
                 body: format!("New task [{task_id}]"),
                 status: AgentOutboxMessageStatusDto::Pending,
                 idempotency_key: format!("{task_id}:dispatch:worker-api"),

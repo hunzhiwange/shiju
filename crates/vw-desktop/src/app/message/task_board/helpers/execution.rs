@@ -33,7 +33,6 @@ pub(crate) const TASK_AUTO_CODE_REVIEW_TICK_INTERVAL_SECS: u64 = 30;
 pub(crate) const TASK_AUTO_MERGE_TICK_INTERVAL_SECS: u64 = 10;
 /// Agent Scheduler 命令飞行中状态同步延迟，避免命令卡住时日志面板也停住。
 pub(crate) const AGENT_SCHEDULER_COMMAND_IN_FLIGHT_SYNC_DELAY_SECS: u64 = 2;
-const AGENT_SCHEDULER_OUTBOX_DRAIN_LIMIT: usize = 10;
 #[allow(dead_code)]
 /// TASK_AUTO_PROMOTE_TICK_INTERVAL_SECS 使用的固定配置值。
 pub(crate) const TASK_AUTO_PROMOTE_TICK_INTERVAL_SECS: u64 = 30;
@@ -323,34 +322,6 @@ pub(crate) fn sync_agent_scheduler_status(project_path: String) -> iced::Task<cr
             })
         },
     )
-}
-
-pub(crate) fn agent_scheduler_dispatch_mode_uses_matrix(
-    dispatch_mode: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto,
-) -> bool {
-    !matches!(
-        dispatch_mode,
-        vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto::Local
-    )
-}
-
-pub(crate) async fn drain_agent_scheduler_outbox(
-    client: &vw_gateway_client::GatewayClient,
-    scope: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto,
-    now_ms: u64,
-) -> Result<(), String> {
-    client
-        .agent_scheduler_drain_outbox(
-            scope,
-            &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerOutboxDrainRequest {
-                now_ms: vw_gateway_client::vw_api_types::common::TimestampMs(
-                    i64::try_from(now_ms).unwrap_or(i64::MAX),
-                ),
-                limit: Some(AGENT_SCHEDULER_OUTBOX_DRAIN_LIMIT),
-            },
-        )
-        .await?;
-    Ok(())
 }
 
 async fn load_agent_scheduler_logs(
@@ -844,9 +815,6 @@ pub(crate) fn send_agent_scheduler_command(
             };
             if !response.accepted {
                 return Err(format!("agent scheduler command {:?} was rejected", command));
-            }
-            if agent_scheduler_dispatch_mode_uses_matrix(dispatch_mode) {
-                drain_agent_scheduler_outbox(&client, &scope, crate::app::time::now_ms()).await?;
             }
             client.agent_scheduler_status(&scope).await
         },

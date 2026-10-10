@@ -19,7 +19,7 @@
 use iced::widget::{Id, text_editor};
 use iced::{Point, Theme};
 use serde_json::Value;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::app::components::color_picker::ColorFormat;

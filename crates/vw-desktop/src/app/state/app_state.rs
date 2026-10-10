@@ -1180,10 +1180,6 @@ pub struct App {
     pub task_board_next_auto_merge_tick_at_ms: u64,
     /// gateway 任务池调度返回的 worktree 目标容量
     pub task_board_worktree_desired_capacity: Option<u32>,
-    /// Matrix 任务池入站事件游标
-    pub task_board_matrix_event_cursor: u64,
-    /// Matrix 任务池已处理事件 ID 环形记录
-    pub task_board_processed_matrix_event_ids: VecDeque<String>,
     /// 任务看板上次日志刷新时间（毫秒时间戳）
     pub task_board_last_log_flush_at_ms: u64,
     /// 任务看板日志扫描游标

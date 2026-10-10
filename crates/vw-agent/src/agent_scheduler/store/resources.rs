@@ -21,7 +21,6 @@ acquired_at_ms, expires_at_ms, released_at_ms, taint_reason, metadata_json";
 pub enum ResourceKind {
     WorkerSlot,
     Worktree,
-    MatrixDispatch,
     TeamCapacity,
     MergeTarget,
 }
@@ -32,7 +31,6 @@ impl ResourceKind {
         match self {
             Self::WorkerSlot => "worker_slot",
             Self::Worktree => "worktree",
-            Self::MatrixDispatch => "matrix_dispatch",
             Self::TeamCapacity => "team_capacity",
             Self::MergeTarget => "merge_target",
         }
@@ -42,7 +40,6 @@ impl ResourceKind {
         match value {
             "worker_slot" => Ok(Self::WorkerSlot),
             "worktree" => Ok(Self::Worktree),
-            "matrix_dispatch" => Ok(Self::MatrixDispatch),
             "team_capacity" => Ok(Self::TeamCapacity),
             "merge_target" => Ok(Self::MergeTarget),
             other => bail!("unsupported resource kind: {other}"),

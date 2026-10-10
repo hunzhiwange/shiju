@@ -4,12 +4,11 @@ use vw_gateway_client::vw_api_types::agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
     AgentSchedulerDispatchModeDto, AgentSchedulerScopeDto, AgentSchedulerTaskArtifactsResponse,
     AgentSchedulerTaskGraphResponse, AgentSchedulerTaskLogsResponse, AgentTaskStatusDto,
-    AgentWorkerStatusDto,
 };
 
 use super::cron::CronJobSnapshot;
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
-use crate::cli::tui::model::agent_view::{AgentMember, AgentStatus, AgentViewState};
+use crate::cli::tui::model::agent_view::AgentViewState;
 use crate::cli::tui::model::background_task::{
     BackgroundTask, BackgroundTaskKind, BackgroundTaskPanel, BackgroundTaskStatus,
     CanonicalTaskStatus, TaskArtifactSummary, TaskControlAction, TaskDetailView,
@@ -18,7 +17,6 @@ use crate::cli::tui::model::background_task::{
 use crate::cli::tui::model::integration::sanitize_integration_text;
 use crate::cli::tui::model::schedule_panel::{SchedulePanel, SchedulePanelItem};
 use crate::cli::tui::model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
-use crate::cli::tui::model::PermissionMode;
 
 const MAX_TASK_ID_CHARS: usize = 160;
 const MAX_TASK_LABEL_CHARS: usize = 160;
@@ -67,19 +65,12 @@ pub(crate) async fn load_orchestration(
     scope: Option<AgentSchedulerScopeDto>,
 ) -> OrchestrationSnapshot {
     let task_scope = scope.clone();
-    let worker_scope = scope.clone();
-    let (workflows, schedules, tasks, workers) = tokio::join!(
+    let (workflows, schedules, tasks) = tokio::join!(
         runtime.client().workflow_applications_list(),
         runtime.client().cron_jobs_get(),
         async {
             match task_scope.as_ref() {
                 Some(scope) => runtime.client().agent_scheduler_status(scope).await,
-                None => Err("project scope unavailable".to_string()),
-            }
-        },
-        async {
-            match worker_scope.as_ref() {
-                Some(scope) => runtime.client().agent_scheduler_workers(scope).await,
                 None => Err("project scope unavailable".to_string()),
             }
         },
@@ -156,28 +147,6 @@ pub(crate) async fn load_orchestration(
         Err(error) => {
             snapshot.tasks.error = Some(error.clone());
             snapshot.warnings.push(format!("tasks: {error}"));
-        }
-    }
-    match workers {
-        Ok(response) => {
-            snapshot.agents.members = response
-                .workers
-                .into_iter()
-                .map(|worker| AgentMember {
-                    id: worker.id.clone(),
-                    session_id: worker.room_id.unwrap_or_default(),
-                    team_id: worker.team_id,
-                    name: worker.worker_role.unwrap_or(worker.id),
-                    status: worker_status(worker.status),
-                    messages: None,
-                    permission_mode: PermissionMode::Default,
-                    queued_input: Vec::new(),
-                })
-                .collect();
-        }
-        Err(error) => {
-            snapshot.agents.error = Some(error.clone());
-            snapshot.warnings.push(format!("agents: {error}"));
         }
     }
     snapshot
@@ -480,16 +449,6 @@ fn canonical_task_status(status: &AgentTaskStatusDto) -> CanonicalTaskStatus {
         AgentTaskStatusDto::Failed => CanonicalTaskStatus::Failed,
         AgentTaskStatusDto::Cancelled => CanonicalTaskStatus::Cancelled,
         AgentTaskStatusDto::Archived => CanonicalTaskStatus::Archived,
-    }
-}
-
-fn worker_status(status: AgentWorkerStatusDto) -> AgentStatus {
-    match status {
-        AgentWorkerStatusDto::Pending => AgentStatus::Loading,
-        AgentWorkerStatusDto::Idle => AgentStatus::Ready,
-        AgentWorkerStatusDto::Busy | AgentWorkerStatusDto::Running => AgentStatus::Running,
-        AgentWorkerStatusDto::Stopped | AgentWorkerStatusDto::Sleeping => AgentStatus::Stopped,
-        AgentWorkerStatusDto::Failed | AgentWorkerStatusDto::Unavailable => AgentStatus::Failed,
     }
 }
 

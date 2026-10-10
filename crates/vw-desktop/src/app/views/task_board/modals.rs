@@ -513,7 +513,6 @@ pub fn build_task_settings_modal(app: &App) -> Element<'_, Message> {
         input_label("调度方式"),
         Space::new().width(Length::Fill),
         dispatch_mode_button("本地", AgentSchedulerDispatchModeDto::Local),
-        dispatch_mode_button("Matrix", AgentSchedulerDispatchModeDto::Matrix),
         dispatch_mode_button("自动", AgentSchedulerDispatchModeDto::Auto),
     ]
     .spacing(8)

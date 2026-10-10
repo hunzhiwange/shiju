@@ -302,7 +302,6 @@ pub enum AgentEventKindDto {
     ImportedLegacyTask,
     TaskAssigned,
     WorkerSelected,
-    MatrixDispatched,
     WorkerAcknowledged,
     TaskStarted,
     TaskCompleted,
@@ -345,90 +344,6 @@ pub struct AgentEventDto {
     #[serde(default)]
     pub payload: Value,
     pub created_at_ms: TimestampMs,
-}
-
-/// Agent Scheduler Matrix 派发事件的 Matrix room event type。
-pub const AGENT_SCHEDULER_MATRIX_DISPATCH_EVENT_TYPE: &str =
-    "com.vibewindow.agent_scheduler.dispatch.v1";
-
-const AGENT_SCHEDULER_MATRIX_TEXT_LIMIT: usize = 1024;
-
-/// Agent Scheduler Matrix worker 执行一次 run 所需的结构化派发事件。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerMatrixDispatchEventDto {
-    pub event_version: u8,
-    pub platform_id: String,
-    pub company_id: String,
-    pub project_id: String,
-    pub task_id: String,
-    pub run_id: String,
-    pub worker_id: String,
-    pub worker_role: String,
-    pub room_id: String,
-    pub matrix_user_id: String,
-    pub model: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model_provider: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub agent: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub acp_agent: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reasoning_effort: Option<ReasoningEffortDto>,
-    pub spec_path: String,
-    pub metadata_path: String,
-    pub created_at_ms: TimestampMs,
-}
-
-impl AgentSchedulerMatrixDispatchEventDto {
-    /// 校验事件 content 是否可以作为 Matrix room event 进入调度派发流。
-    pub fn validate_for_matrix_room_event(&self) -> Result<(), String> {
-        if self.event_version != 1 {
-            return Err("event_version must be 1".to_string());
-        }
-        validate_agent_scheduler_matrix_required_text("platform_id", &self.platform_id)?;
-        validate_agent_scheduler_matrix_required_text("company_id", &self.company_id)?;
-        validate_agent_scheduler_matrix_required_text("project_id", &self.project_id)?;
-        validate_agent_scheduler_matrix_required_text("task_id", &self.task_id)?;
-        validate_agent_scheduler_matrix_required_text("run_id", &self.run_id)?;
-        validate_agent_scheduler_matrix_required_text("worker_id", &self.worker_id)?;
-        validate_agent_scheduler_matrix_required_text("worker_role", &self.worker_role)?;
-        validate_agent_scheduler_matrix_required_text("room_id", &self.room_id)?;
-        validate_agent_scheduler_matrix_required_text("matrix_user_id", &self.matrix_user_id)?;
-        validate_agent_scheduler_matrix_required_text("model", &self.model)?;
-        validate_agent_scheduler_matrix_optional_text("model_provider", &self.model_provider)?;
-        validate_agent_scheduler_matrix_optional_text("agent", &self.agent)?;
-        validate_agent_scheduler_matrix_optional_text("acp_agent", &self.acp_agent)?;
-        validate_agent_scheduler_matrix_required_text("spec_path", &self.spec_path)?;
-        validate_agent_scheduler_matrix_required_text("metadata_path", &self.metadata_path)?;
-        Ok(())
-    }
-}
-
-fn validate_agent_scheduler_matrix_required_text(field: &str, value: &str) -> Result<(), String> {
-    if value.is_empty() {
-        return Err(format!("{field} must not be empty"));
-    }
-    validate_agent_scheduler_matrix_text_limit(field, value)
-}
-
-fn validate_agent_scheduler_matrix_optional_text(
-    field: &str,
-    value: &Option<String>,
-) -> Result<(), String> {
-    if let Some(value) = value {
-        validate_agent_scheduler_matrix_required_text(field, value)?;
-    }
-    Ok(())
-}
-
-fn validate_agent_scheduler_matrix_text_limit(field: &str, value: &str) -> Result<(), String> {
-    if value.chars().count() > AGENT_SCHEDULER_MATRIX_TEXT_LIMIT {
-        return Err(format!(
-            "{field} must be at most {AGENT_SCHEDULER_MATRIX_TEXT_LIMIT} characters"
-        ));
-    }
-    Ok(())
 }
 
 /// Outbox 消息状态。
@@ -491,9 +406,7 @@ pub enum AgentSchedulerDispatchModeDto {
     /// 本地 gateway runner 直接执行任务。
     #[default]
     Local,
-    /// 必须通过 Matrix worker 房间分发。
-    Matrix,
-    /// 兼容旧分发逻辑：有 Matrix worker 地址时走 Matrix，否则走本地目标。
+    /// 由本地运行时自动选择执行时机。
     Auto,
 }
 

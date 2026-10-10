@@ -69,7 +69,7 @@ pub enum ServiceCommands {
 /// 通道管理子命令
 ///
 /// 提供消息通道的配置、管理和健康检查功能。
-/// 支持多种通道类型：Telegram、Discord、Slack、WhatsApp、Matrix、iMessage、Email。
+/// 支持多种通道类型：Telegram、Discord、Slack、WhatsApp、iMessage、Email。
 ///
 /// # 通道类型
 ///
@@ -77,7 +77,6 @@ pub enum ServiceCommands {
 /// - **discord**：Discord Bot
 /// - **slack**：Slack App
 /// - **whatsapp**：WhatsApp Business API
-/// - **matrix**：Matrix 协议
 /// - **imessage**：Apple iMessage
 /// - **email**：电子邮件
 ///
@@ -119,7 +118,7 @@ pub enum ChannelCommands {
     ///
     /// # 支持的通道类型
     ///
-    /// - telegram、discord、slack、whatsapp、matrix、imessage、email
+    /// - telegram、discord、slack、whatsapp、imessage、email
     ///
     /// # 示例
     ///
@@ -135,7 +134,7 @@ pub enum ChannelCommands {
 
 提供通道类型和包含该通道类型所需配置键的 JSON 对象。
 
-支持的通道类型：telegram、discord、slack、whatsapp、matrix、imessage、email。
+支持的通道类型：telegram、discord、slack、whatsapp、imessage、email。
 
 示例：
   vibewindow channel add telegram '{\"bot_token\":\"...\",\"name\":\"my-bot\"}'
@@ -144,7 +143,7 @@ pub enum ChannelCommands {
         /// 通道类型
         ///
         /// 指定要添加的通道类型，支持：
-        /// telegram、discord、slack、whatsapp、matrix、imessage、email
+        /// telegram、discord、slack、whatsapp、imessage、email
         channel_type: String,
 
         /// 配置对象（JSON 格式）

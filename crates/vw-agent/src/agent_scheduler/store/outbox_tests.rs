@@ -531,7 +531,7 @@ fn outbox_request(
 ) -> EnqueueOutboxMessageRequest {
     EnqueueOutboxMessageRequest {
         message_id: message_id.to_string(),
-        channel: "matrix".to_string(),
+        channel: "local".to_string(),
         target: "!room:example.test".to_string(),
         recipient_id: Some("@worker:example.test".to_string()),
         body: "Task ready".to_string(),
@@ -566,7 +566,7 @@ fn insert_raw_outbox_message(
             project.tenant_scope().company_id().as_ref(),
             project.project_id().as_ref(),
             message_id,
-            "matrix",
+            "local",
             "!room:example.test",
             "Raw message",
             status,

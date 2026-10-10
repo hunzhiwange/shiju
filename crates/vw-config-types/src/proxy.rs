@@ -18,7 +18,6 @@ pub const SUPPORTED_PROXY_SERVICE_KEYS: &[&str] = &[
     "channel.discord",
     "channel.feishu",
     "channel.lark",
-    "channel.matrix",
     "channel.mattermost",
     "channel.nextcloud_talk",
     "channel.qq",

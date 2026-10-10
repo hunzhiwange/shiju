@@ -328,7 +328,7 @@ fn load_events_contains_searches_supported_fields_case_insensitively() {
     logger.append(&test_event("empty-fields", "other")).unwrap();
 
     let mut searchable = test_event("searchable", "trace_event");
-    searchable.channel = Some("Matrix".to_string());
+    searchable.channel = Some("Slack".to_string());
     searchable.provider = Some("OpenRouter".to_string());
     searchable.model = Some("Model-X".to_string());
     searchable.message = Some("Diagnostic summary".to_string());
@@ -339,7 +339,7 @@ fn load_events_contains_searches_supported_fields_case_insensitively() {
         " TRACE_EVENT ",
         " DIAGNOSTIC ",
         " PAYLOAD-TOKEN ",
-        " MATRIX ",
+        " SLACK ",
         " OPENROUTER ",
         " MODEL-X ",
     ] {
@@ -502,7 +502,7 @@ fn configured_logger_records_complete_event_and_none_disables_writes() {
     init_from_config(&cfg, tmp.path());
     record_event(
         "tool_call",
-        Some("matrix"),
+        Some("slack"),
         Some("openrouter"),
         Some("claude-sonnet"),
         Some("turn-1"),
@@ -517,7 +517,7 @@ fn configured_logger_records_complete_event_and_none_disables_writes() {
     assert!(!event.id.is_empty());
     assert!(!event.timestamp.is_empty());
     assert_eq!(event.event_type, "tool_call");
-    assert_eq!(event.channel.as_deref(), Some("matrix"));
+    assert_eq!(event.channel.as_deref(), Some("slack"));
     assert_eq!(event.provider.as_deref(), Some("openrouter"));
     assert_eq!(event.model.as_deref(), Some("claude-sonnet"));
     assert_eq!(event.turn_id.as_deref(), Some("turn-1"));

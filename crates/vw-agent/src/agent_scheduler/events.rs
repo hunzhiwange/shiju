@@ -9,7 +9,6 @@ pub enum AgentEventKind {
     ImportedLegacyTask,
     TaskAssigned,
     WorkerSelected,
-    MatrixDispatched,
     WorkerAcknowledged,
     RunStarted,
     RunSubmitted,
@@ -42,7 +41,6 @@ impl AgentEventKind {
             Self::ImportedLegacyTask => "imported_legacy_task",
             Self::TaskAssigned => "task_assigned",
             Self::WorkerSelected => "worker_selected",
-            Self::MatrixDispatched => "matrix_dispatched",
             Self::WorkerAcknowledged => "worker_acknowledged",
             Self::RunStarted => "run_started",
             Self::RunSubmitted => "run_submitted",
@@ -75,7 +73,6 @@ impl AgentEventKind {
             "imported_legacy_task" => Ok(Self::ImportedLegacyTask),
             "task_assigned" => Ok(Self::TaskAssigned),
             "worker_selected" => Ok(Self::WorkerSelected),
-            "matrix_dispatched" => Ok(Self::MatrixDispatched),
             "worker_acknowledged" => Ok(Self::WorkerAcknowledged),
             "run_started" => Ok(Self::RunStarted),
             "run_submitted" => Ok(Self::RunSubmitted),
@@ -108,12 +105,11 @@ impl AgentEventKind {
     }
 }
 
-pub const AGENT_EVENT_KIND_CATALOG: [AgentEventKind; 27] = [
+pub const AGENT_EVENT_KIND_CATALOG: [AgentEventKind; 26] = [
     AgentEventKind::TaskCreated,
     AgentEventKind::ImportedLegacyTask,
     AgentEventKind::TaskAssigned,
     AgentEventKind::WorkerSelected,
-    AgentEventKind::MatrixDispatched,
     AgentEventKind::WorkerAcknowledged,
     AgentEventKind::RunStarted,
     AgentEventKind::RunSubmitted,

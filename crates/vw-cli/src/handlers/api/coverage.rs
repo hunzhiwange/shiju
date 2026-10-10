@@ -20,11 +20,6 @@ pub(super) fn classify_route(route: &GatewayRouteEntry) -> Option<RouteCoverage>
     if matches!(path, "/v1/doc" | "/v1/find/symbol") {
         return Some(RouteCoverage::Excluded("documented placeholder returns 501 Not Implemented"));
     }
-    if path.ends_with("/worker-events")
-        || (path == "/v1/task-pool/matrix/events" && route.method == "POST")
-    {
-        return Some(RouteCoverage::Excluded("authenticated internal producer callback"));
-    }
     if path.starts_with("/v1/apiQL/") && path.ends_with('/') {
         return Some(RouteCoverage::Alias("apiql canonical route without trailing slash"));
     }

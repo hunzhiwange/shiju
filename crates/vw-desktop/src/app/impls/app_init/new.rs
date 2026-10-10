@@ -1651,8 +1651,6 @@ impl App {
             // 下次自动合并tick（10秒后）
             task_board_next_auto_merge_tick_at_ms: (init_ms as u64).saturating_add(10_000),
             task_board_worktree_desired_capacity: None,
-            task_board_matrix_event_cursor: 0,
-            task_board_processed_matrix_event_ids: std::collections::VecDeque::new(),
             // 日志刷新和扫描游标
             task_board_last_log_flush_at_ms: 0,
             task_board_log_scan_cursor: 0,

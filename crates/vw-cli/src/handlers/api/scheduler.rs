@@ -2,15 +2,14 @@
 
 use std::io::{Read, Write};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use clap::Subcommand;
 use serde_json::json;
 use vw_gateway_client::vw_api_types::agent_scheduler::{
     AgentSchedulerBulkCommandRequest, AgentSchedulerCommandRequest,
     AgentSchedulerCreateTaskRequest, AgentSchedulerLegacyImportRequest,
     AgentSchedulerOutboxDrainRequest, AgentSchedulerScopeDto,
-    AgentSchedulerTaskMetadataUpdateRequest, AgentSchedulerUpsertTeamRequest,
-    AgentSchedulerUpsertWorkerRequest, AgentSchedulerWakeRequest,
+    AgentSchedulerTaskMetadataUpdateRequest, AgentSchedulerWakeRequest,
 };
 use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope};
 
@@ -62,24 +61,6 @@ pub(super) enum SchedulerCommands {
         #[arg(long, value_parser = required)]
         input: String,
     },
-    /// 读取 Worker 快照。
-    Workers { #[arg(value_parser = required)] project_id: String },
-    /// 从 JSON 输入创建或更新 Worker。
-    WorkerUpsert {
-        #[arg(value_parser = required)]
-        project_id: String,
-        #[arg(long, value_parser = required)]
-        input: String,
-    },
-    /// 读取 Team 快照。
-    Teams { #[arg(value_parser = required)] project_id: String },
-    /// 从 JSON 输入创建或更新 Team。
-    TeamUpsert {
-        #[arg(value_parser = required)]
-        project_id: String,
-        #[arg(long, value_parser = required)]
-        input: String,
-    },
     /// 读取任务日志。
     Logs {
         #[arg(value_parser = required)]
@@ -115,15 +96,6 @@ pub(super) enum SchedulerCommands {
         #[arg(long, value_parser = required)]
         input: String,
     },
-    /// Worker run event 仅供已认证的内部 Worker 回调。
-    WorkerEvents {
-        #[arg(value_parser = required)]
-        project_id: String,
-        #[arg(value_parser = required)]
-        task_id: String,
-        #[arg(value_parser = required)]
-        run_id: String,
-    },
 }
 
 impl SchedulerCommands {
@@ -144,12 +116,6 @@ impl SchedulerCommands {
             Self::Import { project_id, .. } => {
                 Some(format!("import scheduler tasks in project '{project_id}'"))
             }
-            Self::WorkerUpsert { project_id, .. } => {
-                Some(format!("upsert scheduler worker in project '{project_id}'"))
-            }
-            Self::TeamUpsert { project_id, .. } => {
-                Some(format!("upsert scheduler team in project '{project_id}'"))
-            }
             Self::Wake { project_id, .. } => {
                 Some(format!("wake scheduler in project '{project_id}'"))
             }
@@ -158,12 +124,9 @@ impl SchedulerCommands {
             }
             Self::Workflow { .. }
             | Self::Tasks { .. }
-            | Self::Workers { .. }
-            | Self::Teams { .. }
             | Self::Logs { .. }
             | Self::Artifacts { .. }
-            | Self::Events { .. }
-            | Self::WorkerEvents { .. } => None,
+            | Self::Events { .. } => None,
         }
     }
 }
@@ -199,22 +162,14 @@ pub(super) async fn run(
             json!(client.agent_scheduler_update_task_metadata(&scope(context, project_id)?, &task_id, &request).await.map_err(anyhow::Error::msg)?)
         }
         SchedulerCommands::Import { project_id, input } => {
-            let request = parse::<AgentSchedulerLegacyImportRequest>(&input, stdin, "legacy import")?;
-            json!(client.agent_scheduler_import_legacy_tasks(&scope(context, project_id)?, &request).await.map_err(anyhow::Error::msg)?)
-        }
-        SchedulerCommands::Workers { project_id } => {
-            json!(client.agent_scheduler_workers(&scope(context, project_id)?).await.map_err(anyhow::Error::msg)?)
-        }
-        SchedulerCommands::WorkerUpsert { project_id, input } => {
-            let request = parse::<AgentSchedulerUpsertWorkerRequest>(&input, stdin, "worker upsert")?;
-            json!(client.agent_scheduler_upsert_worker(&scope(context, project_id)?, &request).await.map_err(anyhow::Error::msg)?)
-        }
-        SchedulerCommands::Teams { project_id } => {
-            json!(client.agent_scheduler_teams(&scope(context, project_id)?).await.map_err(anyhow::Error::msg)?)
-        }
-        SchedulerCommands::TeamUpsert { project_id, input } => {
-            let request = parse::<AgentSchedulerUpsertTeamRequest>(&input, stdin, "team upsert")?;
-            json!(client.agent_scheduler_upsert_team(&scope(context, project_id)?, &request).await.map_err(anyhow::Error::msg)?)
+            let request =
+                parse::<AgentSchedulerLegacyImportRequest>(&input, stdin, "legacy import")?;
+            json!(
+                client
+                    .agent_scheduler_import_legacy_tasks(&scope(context, project_id)?, &request)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Logs { project_id, task_id } => {
             json!(client.agent_scheduler_logs(&scope(context, project_id)?, &task_id).await.map_err(anyhow::Error::msg)?)
@@ -231,11 +186,12 @@ pub(super) async fn run(
         }
         SchedulerCommands::Drain { project_id, input } => {
             let request = parse::<AgentSchedulerOutboxDrainRequest>(&input, stdin, "outbox drain")?;
-            json!(client.agent_scheduler_drain_outbox(&scope(context, project_id)?, &request).await.map_err(anyhow::Error::msg)?)
-        }
-        SchedulerCommands::WorkerEvents { project_id, task_id, run_id } => {
-            let _ = (project_id, task_id, run_id);
-            bail!("scheduler worker-events is an internal worker callback and is not supported by shiju")
+            json!(
+                client
+                    .agent_scheduler_drain_outbox(&scope(context, project_id)?, &request)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
     };
     output::write_json(writer, &response, context.output_format())

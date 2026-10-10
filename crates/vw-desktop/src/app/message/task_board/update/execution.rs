@@ -44,9 +44,6 @@ fn wake_agent_scheduler(
                     },
                 )
                 .await?;
-            if response.outbox_message_id.is_some() {
-                drain_agent_scheduler_outbox(&client, &scope, now_ms).await?;
-            }
             Ok(response)
         },
         move |result| Message::TaskBoard(mapper(result)),
@@ -94,9 +91,6 @@ fn wake_agent_scheduler_after_registering_pending(
                     },
                 )
                 .await?;
-            if response.outbox_message_id.is_some() {
-                drain_agent_scheduler_outbox(&client, &scope, now_ms).await?;
-            }
             Ok(response)
         },
         move |result| Message::TaskBoard(mapper(result)),

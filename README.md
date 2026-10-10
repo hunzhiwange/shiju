@@ -216,8 +216,6 @@ cargo clippy -p vw-desktop --all-targets -- -D warnings
 
 - [`docs/vibewindow/ACP-对外接入.md`](docs/vibewindow/ACP-对外接入.md)：ACP Agent 启动、能力矩阵与安全边界。
 - [`docs/knowledge-base.md`](docs/knowledge-base.md)：知识库入库、嵌入配置和验证指南。
-- [`docs/staff-task-flow-messages.md`](docs/staff-task-flow-messages.md)：员工任务流交接消息、IPC 投递和阶段 Workflow 绑定说明。
-- [`docs/matrix-task-pool-rooms.md`](docs/matrix-task-pool-rooms.md)：可选 Matrix 任务池审计桥接说明。
 - [`docs/vibe-agent-usage.md`](docs/vibe-agent-usage.md)：Vibe Agent 使用指南。
 - [`docs/openapi.json`](docs/openapi.json)：网关 OpenAPI 描述。
 - [`scripts/BUILDING.md`](scripts/BUILDING.md)：macOS / Windows 构建与打包说明。

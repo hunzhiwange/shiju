@@ -1,4 +1,4 @@
-//! `scheduler` 路由、项目作用域、确认与内部回调排除测试。
+//! `scheduler` 路由、项目作用域与确认测试。
 
 use std::io::{Cursor, Read, Write};
 use std::net::TcpListener;
@@ -31,8 +31,6 @@ async fn api_scheduler_commands_cover_project_operations_and_scope_checks() {
     let bulk = br#"{"commands":[]}"#;
     let metadata = br#"{"patch":{"title":"Renamed"}}"#;
     let import = br#"{"tasks":[]}"#;
-    let worker = br#"{"worker_id":"worker-a"}"#;
-    let team = br#"{"team_id":"team-a","name":"Team A","leader_id":"worker-a","leader_ready":true,"ready_workers":1,"total_workers":1}"#;
     let wake = br#"{"now_ms":20}"#;
     let drain = br#"{"now_ms":21,"limit":10}"#;
 
@@ -47,18 +45,6 @@ async fn api_scheduler_commands_cover_project_operations_and_scope_checks() {
             Value::Null,
         ),
         Case::new(&["scheduler", "import", project, "--input", "-"], import, "", Value::Null),
-        Case::new(
-            &["scheduler", "worker-upsert", project, "--input", "-"],
-            worker,
-            "",
-            Value::Null,
-        ),
-        Case::new(
-            &["scheduler", "team-upsert", project, "--input", "-"],
-            team,
-            "",
-            Value::Null,
-        ),
         Case::new(&["scheduler", "wake", project, "--input", "-"], wake, "", Value::Null),
         Case::new(&["scheduler", "drain", project, "--input", "-"], drain, "", Value::Null),
     ];
@@ -70,34 +56,75 @@ async fn api_scheduler_commands_cover_project_operations_and_scope_checks() {
         assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
     }
 
-    let worker_events = run_command(
-        &common,
-        &["scheduler", "worker-events", project, "task/a", "run/1"],
-        b"",
-    )
-    .await
-    .expect_err("internal worker event must be excluded");
-    assert!(worker_events.contains("internal worker callback"));
-    assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
-
     let base = "/v1/agent-scheduler/projects/project%2Fone";
     let cases = [
-        Case::new(&["scheduler", "workflow", project], b"", &format!("{base}/workflow"), Value::Null),
+        Case::new(
+            &["scheduler", "workflow", project],
+            b"",
+            &format!("{base}/workflow"),
+            Value::Null,
+        ),
         Case::new(&["scheduler", "tasks", project], b"", &format!("{base}/tasks"), Value::Null),
-        Case::new(&["--yes", "scheduler", "create", project, "--input", "-"], create, &format!("{base}/tasks"), json!({"task_id":"task/a","title":"Task A","kind":"finite","spec_uri":"spec.md","meta_uri":"meta.json","metadata":null,"created_at_ms":1})),
-        Case::new(&["--yes", "scheduler", "command", project, "--input", "-"], command, &format!("{base}/commands"), json_body(command)),
-        Case::new(&["--yes", "scheduler", "bulk", project, "--input", "-"], bulk, &format!("{base}/commands/bulk"), json!({"commands":[],"stop_on_error":false})),
-        Case::new(&["--yes", "scheduler", "metadata", project, "task/a", "--input", "-"], metadata, &format!("{base}/tasks/task%2Fa/metadata"), json_body(metadata)),
-        Case::new(&["--yes", "scheduler", "import", project, "--input", "-"], import, &format!("{base}/legacy-import"), json!({"tasks":[],"dry_run":false})),
-        Case::new(&["scheduler", "workers", project], b"", &format!("{base}/workers"), Value::Null),
-        Case::new(&["--yes", "scheduler", "worker-upsert", project, "--input", "-"], worker, &format!("{base}/workers"), json_body(worker)),
-        Case::new(&["scheduler", "teams", project], b"", &format!("{base}/teams"), Value::Null),
-        Case::new(&["--yes", "scheduler", "team-upsert", project, "--input", "-"], team, &format!("{base}/teams"), json_body(team)),
-        Case::new(&["scheduler", "logs", project, "task/a"], b"", &format!("{base}/tasks/task%2Fa/logs"), Value::Null),
-        Case::new(&["scheduler", "artifacts", project, "task/a"], b"", &format!("{base}/tasks/task%2Fa/artifacts"), Value::Null),
-        Case::new(&["scheduler", "events", project, "--after-cursor", "6"], b"", &format!("{base}/events?after_cursor=6"), Value::Null),
-        Case::new(&["--yes", "scheduler", "wake", project, "--input", "-"], wake, &format!("{base}/wake"), json_body(wake)),
-        Case::new(&["--yes", "scheduler", "drain", project, "--input", "-"], drain, &format!("{base}/outbox/drain"), json_body(drain)),
+        Case::new(
+            &["--yes", "scheduler", "create", project, "--input", "-"],
+            create,
+            &format!("{base}/tasks"),
+            json!({"task_id":"task/a","title":"Task A","kind":"finite","spec_uri":"spec.md","meta_uri":"meta.json","metadata":null,"created_at_ms":1}),
+        ),
+        Case::new(
+            &["--yes", "scheduler", "command", project, "--input", "-"],
+            command,
+            &format!("{base}/commands"),
+            json_body(command),
+        ),
+        Case::new(
+            &["--yes", "scheduler", "bulk", project, "--input", "-"],
+            bulk,
+            &format!("{base}/commands/bulk"),
+            json!({"commands":[],"stop_on_error":false}),
+        ),
+        Case::new(
+            &["--yes", "scheduler", "metadata", project, "task/a", "--input", "-"],
+            metadata,
+            &format!("{base}/tasks/task%2Fa/metadata"),
+            json_body(metadata),
+        ),
+        Case::new(
+            &["--yes", "scheduler", "import", project, "--input", "-"],
+            import,
+            &format!("{base}/legacy-import"),
+            json!({"tasks":[],"dry_run":false}),
+        ),
+        Case::new(
+            &["scheduler", "logs", project, "task/a"],
+            b"",
+            &format!("{base}/tasks/task%2Fa/logs"),
+            Value::Null,
+        ),
+        Case::new(
+            &["scheduler", "artifacts", project, "task/a"],
+            b"",
+            &format!("{base}/tasks/task%2Fa/artifacts"),
+            Value::Null,
+        ),
+        Case::new(
+            &["scheduler", "events", project, "--after-cursor", "6"],
+            b"",
+            &format!("{base}/events?after_cursor=6"),
+            Value::Null,
+        ),
+        Case::new(
+            &["--yes", "scheduler", "wake", project, "--input", "-"],
+            wake,
+            &format!("{base}/wake"),
+            json_body(wake),
+        ),
+        Case::new(
+            &["--yes", "scheduler", "drain", project, "--input", "-"],
+            drain,
+            &format!("{base}/outbox/drain"),
+            json_body(drain),
+        ),
     ];
     for case in cases {
         run_command(&common, &case.command, &case.input)
@@ -118,11 +145,6 @@ fn scheduler_responses() -> Vec<Value> {
         "project_id":"project/one", "task_id":"task/a", "priority":0, "order_no":0,
         "model":"auto", "prompt":"prompt", "retry_count":0, "updated_at_ms":1
     });
-    let worker = json!({"id":"worker-a","model":"auto","status":"idle","updated_at_ms":1});
-    let team = json!({
-        "id":"team-a","name":"Team A","status":"active","leader_id":"worker-a",
-        "leader_ready":true,"ready_workers":1,"total_workers":1,"updated_at_ms":1
-    });
     vec![
         json!({"project_id":"project/one","workflow":null}),
         json!({"project_id":"project/one","tasks":[]}),
@@ -131,10 +153,6 @@ fn scheduler_responses() -> Vec<Value> {
         json!({"accepted":0,"rejected":0,"results":[]}),
         json!({"task":task}),
         json!({"imported":0,"skipped":0}),
-        json!({"workers":[]}),
-        json!({"worker":worker}),
-        json!({"teams":[]}),
-        json!({"team":team}),
         json!({"task_id":"task/a","logs":[]}),
         json!({"task_id":"task/a","artifacts":[]}),
         json!({"cursor":6,"events":[]}),

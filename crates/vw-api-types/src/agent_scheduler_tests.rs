@@ -9,7 +9,7 @@ use super::agent_scheduler::{
     AgentSchedulerCreateTaskRequest, AgentSchedulerCreateTaskResponse,
     AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyImportResponse, AgentSchedulerLegacyTaskImportDto,
-    AgentSchedulerMatrixDispatchEventDto, AgentSchedulerMoveTaskPayloadDto,
+    AgentSchedulerMoveTaskPayloadDto,
     AgentSchedulerOutboxDrainRequest, AgentSchedulerOutboxDrainResponse,
     AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerScope,
     AgentSchedulerTaskArtifactDto, AgentSchedulerTaskArtifactsResponse,

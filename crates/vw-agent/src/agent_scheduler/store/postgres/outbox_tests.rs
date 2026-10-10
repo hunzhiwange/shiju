@@ -42,7 +42,7 @@ fn map_outbox_message_row_rejects_negative_attempts_and_malformed_payload() -> R
     {
         let mut connection = fixture.database().connect_postgres()?;
         let negative_attempts = connection.query_one(
-            "SELECT 'message-1'::TEXT, 'matrix'::TEXT, 'room:ops'::TEXT, NULL::TEXT,
+            "SELECT 'message-1'::TEXT, 'local'::TEXT, 'runner'::TEXT, NULL::TEXT,
                     'body'::TEXT, 'pending'::TEXT, 'key'::TEXT, (-1)::BIGINT,
                     NULL::BIGINT, NULL::BIGINT, NULL::TEXT, '{}'::TEXT, 1::BIGINT, 1::BIGINT",
             &[],
@@ -52,7 +52,7 @@ fn map_outbox_message_row_rejects_negative_attempts_and_malformed_payload() -> R
         assert!(error.to_string().contains("PostgreSQL outbox attempts out of range: -1"));
 
         let malformed_payload = connection.query_one(
-            "SELECT 'message-1'::TEXT, 'matrix'::TEXT, 'room:ops'::TEXT, NULL::TEXT,
+            "SELECT 'message-1'::TEXT, 'local'::TEXT, 'runner'::TEXT, NULL::TEXT,
                     'body'::TEXT, 'pending'::TEXT, 'key'::TEXT, 0::BIGINT,
                     NULL::BIGINT, NULL::BIGINT, NULL::TEXT, '{'::TEXT, 1::BIGINT, 1::BIGINT",
             &[],
@@ -62,7 +62,7 @@ fn map_outbox_message_row_rejects_negative_attempts_and_malformed_payload() -> R
         assert!(error.to_string().contains("parse PostgreSQL outbox payload"));
 
         let unknown_status = connection.query_one(
-            "SELECT 'message-1'::TEXT, 'matrix'::TEXT, 'room:ops'::TEXT, NULL::TEXT,
+            "SELECT 'message-1'::TEXT, 'local'::TEXT, 'runner'::TEXT, NULL::TEXT,
                     'body'::TEXT, 'paused'::TEXT, 'key'::TEXT, 0::BIGINT,
                     NULL::BIGINT, NULL::BIGINT, NULL::TEXT, '{}'::TEXT, 1::BIGINT, 1::BIGINT",
             &[],

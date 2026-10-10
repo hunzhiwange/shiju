@@ -137,6 +137,21 @@ impl GatewayClient {
         Ok(loaded.map(SessionUiLoadResult::from))
     }
 
+    /// 读取会话 UI 数据和 Raw 索引，但不加载每步原始 LLM 载荷。
+    pub async fn session_ui_get_without_raw(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+    ) -> Result<Option<SessionUiLoadResult>, String> {
+        let loaded = self
+            .get_json_with_404::<ChatSessionWithRaw>(
+                &format!("{}/ui/without-raw", session_path(session_id)?),
+                &directory_query(directory),
+            )
+            .await?;
+        Ok(loaded.map(SessionUiLoadResult::from))
+    }
+
     /// 无目录限制地读取会话 UI 数据及每步原始 LLM 载荷。
     pub async fn session_ui_get_any_with_raw(
         &self,

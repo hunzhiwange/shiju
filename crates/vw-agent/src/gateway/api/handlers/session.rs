@@ -34,7 +34,7 @@ use stream::{chat_stream, chat_stream_stop};
 use ui_ops::{
     session_archived_get, session_archived_put, session_path_get, session_scope_get,
     session_scope_put, session_step_llm_raw_get, session_ui_get, session_ui_get_any,
-    session_ui_preview_meta, session_ui_previews, session_ui_save,
+    session_ui_get_without_raw, session_ui_preview_meta, session_ui_previews, session_ui_save,
 };
 use vw_api_types::id::TenantScope;
 
@@ -74,6 +74,10 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/session/archived", get(session_archived_get).put(session_archived_put))
         .route("/session/scope", get(session_scope_get).put(session_scope_put))
         .route("/session/{session_id}/ui", get(session_ui_get).put(session_ui_save))
+        .route(
+            "/session/{session_id}/ui/without-raw",
+            get(session_ui_get_without_raw),
+        )
         .route(
             "/session/{session_id}/turn/{turn_id}/step/{step_index}/llm-raw",
             get(session_step_llm_raw_get),

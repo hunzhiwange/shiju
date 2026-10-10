@@ -1048,7 +1048,7 @@ pub(crate) fn load_prepared_session_open_from_ui_store_task(
         async move {
             let client = crate::app::gateway_client()?;
             let mut loaded = client
-                .session_ui_get_with_raw(&session_id, Some(&project_path))
+                .session_ui_get_without_raw(&session_id, Some(&project_path))
                 .await?
                 .filter(|loaded| !loaded.session.messages.is_empty())
                 .ok_or_else(|| "session UI store has no message history".to_string())?;
@@ -1056,21 +1056,10 @@ pub(crate) fn load_prepared_session_open_from_ui_store_task(
             let llm_raw_step_indices = std::mem::take(&mut loaded.llm_raw_step_indices);
             let mut session = loaded.session;
 
-            let missing_message_model_count =
-                session.messages.iter().filter(|message| message.model.is_none()).count();
             crate::app::session::backfill_message_models_from_steps(
                 &mut session.messages,
                 &session.steps,
             );
-            if session.messages.iter().filter(|message| message.model.is_none()).count()
-                < missing_message_model_count
-            {
-                crate::app::session_gateway::gateway_save_session_async(
-                    &session,
-                    Some(&project_path),
-                )
-                .await?;
-            }
 
             crate::app::message::spawn_blocking_opt(move || {
                 let mut prepared = crate::app::session::prepare_session_open_from_ui_store(
@@ -1123,23 +1112,23 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
                     &session_id,
                     Some(&project_path),
                 ),
-                client.session_ui_get_with_raw(&session_id, Some(&project_path)),
+                client.session_ui_get_without_raw(&session_id, Some(&project_path)),
             );
             let messages = messages?;
             session_info?;
             let (step_llm_raw, llm_raw_step_indices) = match session_ui {
-                    Ok(Some(loaded)) => (loaded.step_llm_raw, loaded.llm_raw_step_indices),
-                    Ok(None) => (std::collections::HashMap::new(), Vec::new()),
-                    Err(error) => {
-                        tracing::warn!(
-                            target: "vw_desktop",
-                            session_id = %session_id,
-                            error = %error,
-                            "session raw step payloads were unavailable"
-                        );
-                        (std::collections::HashMap::new(), Vec::new())
-                    }
-                };
+                Ok(Some(loaded)) => (loaded.step_llm_raw, loaded.llm_raw_step_indices),
+                Ok(None) => (std::collections::HashMap::new(), Vec::new()),
+                Err(error) => {
+                    tracing::warn!(
+                        target: "vw_desktop",
+                        session_id = %session_id,
+                        error = %error,
+                        "session raw step payloads were unavailable"
+                    );
+                    (std::collections::HashMap::new(), Vec::new())
+                }
+            };
 
             crate::app::message::spawn_blocking_opt(move || {
                 let usage = messages.iter().fold(

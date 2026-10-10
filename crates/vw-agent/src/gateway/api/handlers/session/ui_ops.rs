@@ -111,6 +111,49 @@ pub(super) async fn session_ui_get(
     Ok(Json(session))
 }
 
+pub(super) async fn session_ui_get_without_raw(
+    Path(session_id): Path<String>,
+    Query(query): Query<InstanceQuery>,
+    headers: HeaderMap,
+) -> Result<Json<Option<SessionWithRaw>>, ApiError> {
+    let tenant = ui_store::current_tenant_scope();
+    let scope = resolve_scope_from_query(&tenant, &query, &headers);
+    let session = crate::global_database::run_isolated(move || {
+        let session =
+            ui_store::load_session_scoped_for_tenant(&tenant, &session_id, scope.as_deref());
+        let Some(session) = session else {
+            return Ok(None);
+        };
+        let llm_raw_step_indices = ui_store::load_llm_raw_step_indices_scoped_for_tenant(
+            &tenant,
+            &session.id,
+            scope.as_deref(),
+        )?
+        .into_iter()
+        .collect();
+        let steps = session
+            .steps
+            .into_iter()
+            .map(|step| SessionStepWithRaw { step, llm_raw: None })
+            .collect();
+        Ok(Some(SessionWithRaw {
+            id: session.id,
+            title: session.title,
+            messages: session.messages,
+            message_ids: session.message_ids,
+            calls: session.calls,
+            steps,
+            llm_raw_step_indices,
+            created_ms: session.created_ms,
+            updated_ms: session.updated_ms,
+        }))
+    })
+    .await
+    .map_err(|error| ApiError::internal(error.to_string()))?;
+    let session = session.map_err(|error: std::io::Error| ApiError::internal(error.to_string()))?;
+    Ok(Json(session))
+}
+
 pub(super) async fn session_step_llm_raw_get(
     Path((session_id, turn_id, step_index)): Path<(String, String, u32)>,
     Query(query): Query<InstanceQuery>,

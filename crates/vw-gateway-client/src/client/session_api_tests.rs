@@ -263,6 +263,37 @@ async fn session_ui_get_with_raw_preserves_step_payloads() {
 }
 
 #[tokio::test]
+async fn session_ui_get_without_raw_uses_lightweight_endpoint() {
+    let server = test_support::server(vec![(
+        200,
+        json!({
+            "id": "s1",
+            "title": "Session",
+            "llm_raw_step_indices": [3],
+            "steps": [{"index": 3, "turn_id": "turn-c", "started_ms": 10}]
+        }),
+    )]);
+
+    let loaded = server
+        .client()
+        .session_ui_get_without_raw("s1", Some("/repo"))
+        .await
+        .expect("load session without raw")
+        .expect("session exists");
+
+    assert!(loaded.step_llm_raw.is_empty());
+    assert_eq!(
+        loaded.llm_raw_step_indices,
+        vec![("s1".to_string(), "turn-c".to_string(), 3)]
+    );
+    assert_eq!(
+        server.take_request().path,
+        "/v1/session/s1/ui/without-raw?directory=%2Frepo"
+    );
+    server.join();
+}
+
+#[tokio::test]
 async fn session_archived_and_scope_updates_serialize_empty_values() {
     let server = test_support::server(vec![(200, json!(true)), (200, json!(true))]);
 

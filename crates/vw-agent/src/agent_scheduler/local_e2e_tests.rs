@@ -23,7 +23,6 @@ fn agent_scheduler_local_e2e_runs_without_matrix() -> Result<()> {
     std::fs::create_dir_all(&project_path)?;
     let store = AgentSchedulerStore::new();
     let task_id = TaskId::new("task-local-e2e")?;
-    let worker_id = WorkerName::new("gateway-local")?;
     let executor = RecordingExecutor::new("local e2e completed without Matrix");
     let runner = LocalAgentRunner::new(&store, &executor);
 
@@ -35,7 +34,6 @@ fn agent_scheduler_local_e2e_runs_without_matrix() -> Result<()> {
             &project_path,
             LocalAgentRunnerRequest {
                 task_id: task_id.clone(),
-                worker_id: worker_id.clone(),
                 now_ms: TimestampMs(1_783_050_000_000),
             },
         )?
@@ -44,7 +42,6 @@ fn agent_scheduler_local_e2e_runs_without_matrix() -> Result<()> {
     let task = store.load_task(&project_path, &task_id)?.expect("submitted task remains stored");
     assert_eq!(task.status, AgentTaskStatus::Submitted);
     assert_eq!(outcome.task_id, task_id);
-    assert_eq!(outcome.worker_id, worker_id);
     assert_eq!(outcome.run.status, AgentRunStatus::Succeeded);
 
     let logs = store.list_task_logs(&project_path, &task_id)?;

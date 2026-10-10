@@ -123,7 +123,6 @@ CREATE TABLE IF NOT EXISTS scheduler_runs (
     project_id TEXT NOT NULL,
     id TEXT NOT NULL,
     task_id TEXT NOT NULL,
-    worker_id TEXT,
     status TEXT NOT NULL,
     attempt INTEGER NOT NULL,
     lease_acquired_at_ms INTEGER,

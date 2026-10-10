@@ -165,7 +165,6 @@ fn gateway_stream_payload_task_log_appends_each_message_with_run_context() -> Re
     store.initialize_project(&project_path)?;
     let task_id = TaskId::new("task-stream-log")?;
     let run_id = RunId::new("run-stream-log")?;
-    let worker_id = WorkerName::new("worker-stream-log")?;
     store.create_task(&project_path, finite_task(&task_id)?)?;
     store
         .claim_task_run(
@@ -173,7 +172,6 @@ fn gateway_stream_payload_task_log_appends_each_message_with_run_context() -> Re
             ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id,
                 lease_acquired_at_ms: TimestampMs(100),
                 lease_expires_at_ms: Some(TimestampMs(200)),
             },
@@ -223,7 +221,6 @@ fn gateway_executor_workspace_methods_fail_before_pool_io_for_unregistered_proje
     std::fs::create_dir_all(&project_path)?;
     let executor = GatewayLocalAgentExecutor::default();
     let task_id = TaskId::new("task-unregistered")?;
-    let worker_id = WorkerName::new("worker-unregistered")?;
     let run_id = RunId::new("run-unregistered")?;
     let workspace = LocalAgentWorkspace {
         slot_id: "slot".to_string(),
@@ -235,7 +232,6 @@ fn gateway_executor_workspace_methods_fail_before_pool_io_for_unregistered_proje
         .lease_workspace(LocalAgentWorkspaceRequest {
             project_path: project_path.clone(),
             task_id: task_id.clone(),
-            worker_id: worker_id.clone(),
             run_id: run_id.clone(),
         })
         .expect_err("lease should fail before pool IO")
@@ -246,7 +242,6 @@ fn gateway_executor_workspace_methods_fail_before_pool_io_for_unregistered_proje
         .release_workspace(LocalAgentWorkspaceReleaseRequest {
             project_path: project_path.clone(),
             task_id: task_id.clone(),
-            worker_id: worker_id.clone(),
             run_id: run_id.clone(),
             workspace: workspace.clone(),
         })
@@ -258,7 +253,6 @@ fn gateway_executor_workspace_methods_fail_before_pool_io_for_unregistered_proje
         .recycle_workspace(LocalAgentWorkspaceRecycleRequest {
             project_path,
             task_id,
-            worker_id,
             run_id,
             workspace,
             taint_reason: "failed execution".to_string(),
@@ -286,7 +280,6 @@ fn gateway_executor_execute_collects_stream_output_and_appends_observed_logs() -
             ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("worker-execute")?,
                 lease_acquired_at_ms: TimestampMs(100),
                 lease_expires_at_ms: Some(TimestampMs(200)),
             },
@@ -552,7 +545,6 @@ fn execution_request(
     Ok(LocalAgentExecutionRequest {
         project_path: PathBuf::from("/repo"),
         task_id: TaskId::new("task-1")?,
-        worker_id: WorkerName::new("worker-1")?,
         run_id: RunId::new("run-1")?,
         title: "Task one".to_string(),
         prompt: "Do the task".to_string(),
@@ -572,7 +564,6 @@ fn workspace_request(task_id: &str) -> Result<LocalAgentWorkspaceRequest> {
     Ok(LocalAgentWorkspaceRequest {
         project_path: PathBuf::from("/repo"),
         task_id: TaskId::new(task_id)?,
-        worker_id: WorkerName::new("worker-1")?,
         run_id: RunId::new("run-1")?,
     })
 }
@@ -581,7 +572,6 @@ fn release_request(task_id: &str) -> Result<LocalAgentWorkspaceReleaseRequest> {
     Ok(LocalAgentWorkspaceReleaseRequest {
         project_path: PathBuf::from("/repo"),
         task_id: TaskId::new(task_id)?,
-        worker_id: WorkerName::new("worker-1")?,
         run_id: RunId::new("run-1")?,
         workspace: LocalAgentWorkspace {
             slot_id: "slot-1".to_string(),
@@ -596,7 +586,6 @@ fn recycle_request(task_id: &str, taint_reason: &str) -> Result<LocalAgentWorksp
     Ok(LocalAgentWorkspaceRecycleRequest {
         project_path: release.project_path,
         task_id: release.task_id,
-        worker_id: release.worker_id,
         run_id: release.run_id,
         workspace: release.workspace,
         taint_reason: taint_reason.to_string(),

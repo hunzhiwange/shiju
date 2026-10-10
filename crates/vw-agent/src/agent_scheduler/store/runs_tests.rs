@@ -35,7 +35,6 @@ fn agent_run_store_rejects_invalid_lease_times_and_returns_none_for_missing_runs
             ClaimTaskRunRequest {
                 run_id: RunId::new("invalid-lease-run")?,
                 task_id: missing_task_id.clone(),
-                worker_id: WorkerName::new("worker-invalid-lease")?,
                 lease_acquired_at_ms: TimestampMs(1_000),
                 lease_expires_at_ms: Some(TimestampMs(999)),
             },
@@ -248,7 +247,6 @@ fn assert_run_store_claims_task_once_and_lists_stale_leases(
             ClaimTaskRunRequest {
                 run_id: RunId::new("run-1")?,
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("worker-a")?,
                 lease_acquired_at_ms: TimestampMs(1_000),
                 lease_expires_at_ms: Some(TimestampMs(1_500)),
             },
@@ -256,7 +254,6 @@ fn assert_run_store_claims_task_once_and_lists_stale_leases(
         .expect("first claim succeeds");
     assert_eq!(first_claim.id.as_str(), "run-1");
     assert_eq!(first_claim.task_id, task_id);
-    assert_eq!(first_claim.worker_id.as_ref().map(WorkerName::as_str), Some("worker-a"));
     assert_eq!(first_claim.status, AgentRunStatus::Leased);
     assert_eq!(first_claim.attempt, 1);
     assert_eq!(first_claim.lease_acquired_at_ms, Some(TimestampMs(1_000)));
@@ -267,7 +264,6 @@ fn assert_run_store_claims_task_once_and_lists_stale_leases(
         ClaimTaskRunRequest {
             run_id: RunId::new("run-2")?,
             task_id: task_id.clone(),
-            worker_id: WorkerName::new("worker-b")?,
             lease_acquired_at_ms: TimestampMs(1_100),
             lease_expires_at_ms: Some(TimestampMs(1_600)),
         },
@@ -300,6 +296,30 @@ fn assert_run_store_claims_task_once_and_lists_stale_leases(
     assert_eq!(finished.finished_at_ms, Some(TimestampMs(2_500)));
     assert!(store.list_stale_runs(context, TimestampMs(3_000))?.is_empty());
 
+    Ok(())
+}
+
+#[test]
+fn run_lease_has_no_worker_identity() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let store = AgentSchedulerStore::new();
+    let task_id = TaskId::new("task-run-without-worker")?;
+    store.initialize_project(temp_dir.path())?;
+    store.create_task(temp_dir.path(), finite_task(&task_id)?)?;
+
+    let run = store
+        .claim_task_run(
+            temp_dir.path(),
+            ClaimTaskRunRequest {
+                run_id: RunId::new("run-without-worker")?,
+                task_id,
+                lease_acquired_at_ms: TimestampMs(1_000),
+                lease_expires_at_ms: Some(TimestampMs(1_500)),
+            },
+        )?
+        .expect("run claimed");
+
+    assert_eq!(run.task_id.as_str(), "task-run-without-worker");
     Ok(())
 }
 
@@ -378,7 +398,6 @@ fn assert_run_store_claims_each_dispatchable_task_status(
                 ClaimTaskRunRequest {
                     run_id: run_id.clone(),
                     task_id: task_id.clone(),
-                    worker_id: WorkerName::new(format!("worker-{suffix}"))?,
                     lease_acquired_at_ms: TimestampMs(1_000),
                     lease_expires_at_ms: None,
                 },
@@ -480,7 +499,6 @@ fn agent_run_store_loads_pending_and_stale_rows_from_sqlite() -> Result<()> {
 
         let loaded = store.load_run(&context, &run_id)?.expect("run row loads");
         assert_eq!(loaded.status, expected_status);
-        assert_eq!(loaded.worker_id, None);
     }
 
     let invalid_task_id = TaskId::new("task-invalid-run-status")?;
@@ -539,11 +557,10 @@ fn run_ids(runs: &[super::store::runs::StoredAgentRun]) -> Vec<&str> {
     runs.iter().map(|run| run.id.as_str()).collect()
 }
 
-fn claim_request(run_id: &str, task_id: &TaskId, worker_id: &str) -> ClaimTaskRunRequest {
+fn claim_request(run_id: &str, task_id: &TaskId, _worker_id: &str) -> ClaimTaskRunRequest {
     ClaimTaskRunRequest {
         run_id: RunId::new(run_id).expect("valid run id"),
         task_id: task_id.clone(),
-        worker_id: WorkerName::new(worker_id).expect("valid worker id"),
         lease_acquired_at_ms: TimestampMs(1_000),
         lease_expires_at_ms: Some(TimestampMs(2_000)),
     }
@@ -552,12 +569,11 @@ fn claim_request(run_id: &str, task_id: &TaskId, worker_id: &str) -> ClaimTaskRu
 fn ready_claim_request(
     run_id: &str,
     task_id: &TaskId,
-    worker_id: &str,
+    _worker_id: &str,
 ) -> ClaimReadyTaskRunRequest {
     ClaimReadyTaskRunRequest {
         run_id: RunId::new(run_id).expect("valid run id"),
         task_id: task_id.clone(),
-        worker_id: WorkerName::new(worker_id).expect("valid worker id"),
         lease_acquired_at_ms: TimestampMs(1_000),
         lease_expires_at_ms: Some(TimestampMs(2_000)),
     }

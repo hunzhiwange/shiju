@@ -2,13 +2,12 @@
 
 use vw_api_types::common::TimestampMs;
 
-use crate::agent_scheduler::domain::{RunId, TaskId, WorkerName};
+use crate::agent_scheduler::domain::{RunId, TaskId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 本地执行器启动一次已认领运行所需的最小不可变请求。
 pub struct LocalDispatchRequest {
     pub task_id: TaskId,
     pub run_id: RunId,
-    pub worker_id: WorkerName,
     pub requested_at_ms: TimestampMs,
 }

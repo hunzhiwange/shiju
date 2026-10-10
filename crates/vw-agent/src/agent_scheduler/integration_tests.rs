@@ -286,7 +286,6 @@ async fn global_database_enforces_project_and_scheduler_scope_isolation() -> Res
             ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: worker_id.clone(),
                 lease_acquired_at_ms: TimestampMs(1_000),
                 lease_expires_at_ms: Some(TimestampMs(1_500)),
             },
@@ -622,7 +621,6 @@ async fn agent_scheduler_e2e_dispatches_and_completes_finite_task() -> Result<()
         .await?
         .expect("queued finite task dispatches");
     assert_eq!(dispatch.task_id, task_id);
-    assert_eq!(dispatch.worker_id, worker_id);
     assert_eq!(controller.recorded_lifecycle_requests().len(), 1);
 
     let dispatched =

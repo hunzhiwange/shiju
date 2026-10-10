@@ -5,7 +5,7 @@ use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};
 use vw_api_types::common::TimestampMs;
 
-use crate::agent_scheduler::domain::{AgentRunStatus, RunId, TaskId, WorkerName};
+use crate::agent_scheduler::domain::{AgentRunStatus, RunId, TaskId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 
 use super::{
@@ -13,7 +13,7 @@ use super::{
     open_locked_initialized_connection, postgres_provider, scope_params,
 };
 
-const RUN_COLUMNS: &str = "id, task_id, worker_id, status, attempt, lease_acquired_at_ms, \
+const RUN_COLUMNS: &str = "id, task_id, status, attempt, lease_acquired_at_ms, \
 lease_expires_at_ms, started_at_ms, finished_at_ms, last_heartbeat_at_ms, error_message";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,7 +21,6 @@ lease_expires_at_ms, started_at_ms, finished_at_ms, last_heartbeat_at_ms, error_
 pub struct ClaimTaskRunRequest {
     pub run_id: RunId,
     pub task_id: TaskId,
-    pub worker_id: WorkerName,
     pub lease_acquired_at_ms: TimestampMs,
     pub lease_expires_at_ms: Option<TimestampMs>,
 }
@@ -31,7 +30,6 @@ pub struct ClaimTaskRunRequest {
 pub struct ClaimReadyTaskRunRequest {
     pub run_id: RunId,
     pub task_id: TaskId,
-    pub worker_id: WorkerName,
     pub lease_acquired_at_ms: TimestampMs,
     pub lease_expires_at_ms: Option<TimestampMs>,
 }
@@ -41,7 +39,6 @@ pub struct ClaimReadyTaskRunRequest {
 pub struct StoredAgentRun {
     pub id: RunId,
     pub task_id: TaskId,
-    pub worker_id: Option<WorkerName>,
     pub status: AgentRunStatus,
     pub attempt: u32,
     pub lease_acquired_at_ms: Option<TimestampMs>,
@@ -126,16 +123,15 @@ impl AgentSchedulerStore {
         let attempt = next_attempt(&tx, context, &request.task_id)?;
         tx.execute(
             "INSERT INTO scheduler_runs (
-                 platform_id, company_id, project_id, id, task_id, worker_id, status, attempt,
+                 platform_id, company_id, project_id, id, task_id, status, attempt,
                  lease_acquired_at_ms, lease_expires_at_ms, started_at_ms
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 platform_id,
                 company_id,
                 project_id,
                 request.run_id.as_str(),
                 request.task_id.as_str(),
-                request.worker_id.as_str(),
                 run_status_key(AgentRunStatus::Leased),
                 i64::from(attempt),
                 request.lease_acquired_at_ms.0,
@@ -198,16 +194,15 @@ impl AgentSchedulerStore {
         let attempt = next_attempt(&tx, context, &request.task_id)?;
         tx.execute(
             "INSERT INTO scheduler_runs (
-                 platform_id, company_id, project_id, id, task_id, worker_id, status, attempt,
+                 platform_id, company_id, project_id, id, task_id, status, attempt,
                  lease_acquired_at_ms, lease_expires_at_ms, started_at_ms
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 platform_id,
                 company_id,
                 project_id,
                 request.run_id.as_str(),
                 request.task_id.as_str(),
-                request.worker_id.as_str(),
                 run_status_key(AgentRunStatus::Leased),
                 i64::from(attempt),
                 request.lease_acquired_at_ms.0,
@@ -500,22 +495,20 @@ fn load_run_with_conn(
 }
 
 fn map_run_row(row: &Row<'_>) -> rusqlite::Result<StoredAgentRun> {
-    let status_key: String = row.get(3)?;
-    let attempt: i64 = row.get(4)?;
-    let worker_id: Option<String> = row.get(2)?;
+    let status_key: String = row.get(2)?;
+    let attempt: i64 = row.get(3)?;
 
     Ok(StoredAgentRun {
         id: parse_run_id(row.get(0)?)?,
         task_id: parse_task_id(row.get(1)?)?,
-        worker_id: parse_optional_worker_name(worker_id)?,
-        status: parse_run_status(&status_key).map_err(|error| conversion_error(3, error))?,
-        attempt: i64_to_u32(attempt, 4)?,
-        lease_acquired_at_ms: row.get::<_, Option<i64>>(5)?.map(TimestampMs),
-        lease_expires_at_ms: row.get::<_, Option<i64>>(6)?.map(TimestampMs),
-        started_at_ms: row.get::<_, Option<i64>>(7)?.map(TimestampMs),
-        finished_at_ms: row.get::<_, Option<i64>>(8)?.map(TimestampMs),
-        last_heartbeat_at_ms: row.get::<_, Option<i64>>(9)?.map(TimestampMs),
-        error_message: row.get(10)?,
+        status: parse_run_status(&status_key).map_err(|error| conversion_error(2, error))?,
+        attempt: i64_to_u32(attempt, 3)?,
+        lease_acquired_at_ms: row.get::<_, Option<i64>>(4)?.map(TimestampMs),
+        lease_expires_at_ms: row.get::<_, Option<i64>>(5)?.map(TimestampMs),
+        started_at_ms: row.get::<_, Option<i64>>(6)?.map(TimestampMs),
+        finished_at_ms: row.get::<_, Option<i64>>(7)?.map(TimestampMs),
+        last_heartbeat_at_ms: row.get::<_, Option<i64>>(8)?.map(TimestampMs),
+        error_message: row.get(9)?,
     })
 }
 
@@ -525,10 +518,6 @@ fn parse_run_id(value: String) -> rusqlite::Result<RunId> {
 
 fn parse_task_id(value: String) -> rusqlite::Result<TaskId> {
     TaskId::new(value).map_err(|error| conversion_error(1, error))
-}
-
-fn parse_optional_worker_name(value: Option<String>) -> rusqlite::Result<Option<WorkerName>> {
-    value.map(WorkerName::new).transpose().map_err(|error| conversion_error(2, error))
 }
 
 fn i64_to_u32(value: i64, column: usize) -> rusqlite::Result<u32> {

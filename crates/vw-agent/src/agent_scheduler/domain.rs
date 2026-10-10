@@ -366,7 +366,6 @@ impl From<AgentRunStatusDto> for AgentRunStatus {
 pub struct AgentRun {
     pub id: RunId,
     pub task_id: TaskId,
-    pub worker: Option<WorkerName>,
     pub status: AgentRunStatus,
     pub lease_expires_at_ms: Option<TimestampMs>,
     pub attempt: u32,
@@ -383,7 +382,6 @@ impl TryFrom<AgentRunDto> for AgentRun {
         let AgentRunDto {
             id,
             task_id,
-            worker_id,
             status,
             lease_expires_at_ms,
             attempt,
@@ -393,23 +391,9 @@ impl TryFrom<AgentRunDto> for AgentRun {
             error_message,
         } = value;
         let status = AgentRunStatus::from(status);
-        let worker = optional_worker_name(worker_id)?;
-
-        // 已租用或运行中的记录必须能定位工作节点，否则无法续租、回收或归责。
-        match status {
-            AgentRunStatus::Leased if worker.is_none() => {
-                bail!("leased run requires worker name")
-            }
-            AgentRunStatus::Running if worker.is_none() => {
-                bail!("running run requires worker name")
-            }
-            _ => {}
-        }
-
         Ok(Self {
             id: RunId::new(id)?,
             task_id: TaskId::new(task_id)?,
-            worker,
             status,
             lease_expires_at_ms,
             attempt,

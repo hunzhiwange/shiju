@@ -51,7 +51,6 @@ fn agent_domain_converts_from_api_dto_without_losing_scheduler_fields() {
     let domain_run = AgentRun::try_from(run).expect("run converts");
     assert_eq!(domain_run.id.as_str(), "run-1");
     assert_eq!(domain_run.task_id.as_str(), "task-20260702-100003");
-    assert_eq!(domain_run.worker.as_ref().map(WorkerName::as_str), Some("leader-a"));
     assert_eq!(domain_run.lease_expires_at_ms, Some(TimestampMs(1_783_000_300_000)));
     assert_eq!(domain_run.attempt, 2);
 
@@ -106,27 +105,11 @@ fn agent_domain_parses_known_task_kinds() {
 }
 
 #[test]
-fn agent_domain_rejects_missing_worker_name_for_leased_run() {
-    let mut run = run_dto("task-20260702-100003");
-    run.worker_id = None;
-
-    let error = AgentRun::try_from(run).expect_err("leased run requires worker");
-    assert!(error.to_string().contains("leased run requires worker name"));
-
+fn agent_domain_rejects_empty_worker_name() {
     let mut worker = worker_dto();
     worker.id.clear();
     let error = AgentWorker::try_from(worker).expect_err("empty worker name rejected");
     assert!(error.to_string().contains("worker name must not be empty"));
-}
-
-#[test]
-fn agent_domain_rejects_missing_worker_name_for_running_run() {
-    let mut run = run_dto("task-20260702-100003");
-    run.status = AgentRunStatusDto::Running;
-    run.worker_id = None;
-
-    let error = AgentRun::try_from(run).expect_err("running run requires worker");
-    assert!(error.to_string().contains("running run requires worker name"));
 }
 
 #[test]
@@ -347,7 +330,6 @@ fn run_dto(task_id: &str) -> AgentRunDto {
     AgentRunDto {
         id: "run-1".to_string(),
         task_id: task_id.to_string(),
-        worker_id: Some("leader-a".to_string()),
         status: AgentRunStatusDto::Leased,
         lease_expires_at_ms: Some(TimestampMs(1_783_000_300_000)),
         attempt: 2,

@@ -27,7 +27,6 @@ fn local_runner_success_leaves_finite_task_submitted_until_merge() -> Result<()>
     std::fs::create_dir_all(&project_path)?;
     let store = AgentSchedulerStore::new();
     let task_id = TaskId::new("task-local-runner-1")?;
-    let worker_id = WorkerName::new("local-worker")?;
     let executor = RecordingExecutor::succeeding("local execution completed");
     let runner = LocalAgentRunner::new(&store, &executor);
 
@@ -39,7 +38,6 @@ fn local_runner_success_leaves_finite_task_submitted_until_merge() -> Result<()>
             &project_path,
             LocalAgentRunnerRequest {
                 task_id: task_id.clone(),
-                worker_id: worker_id.clone(),
                 now_ms: TimestampMs(1_000),
             },
         )?
@@ -56,7 +54,6 @@ fn local_runner_success_leaves_finite_task_submitted_until_merge() -> Result<()>
             .is_some_and(|path| path.ends_with("worktrees/local-slot"))
     );
     assert_eq!(outcome.task_id, task_id);
-    assert_eq!(outcome.worker_id, worker_id);
     assert_eq!(outcome.run.status, AgentRunStatus::Succeeded);
 
     let logs = store.list_task_logs(&project_path, &task_id)?;
@@ -97,7 +94,6 @@ fn local_runner_success_leaves_finite_task_submitted_until_merge() -> Result<()>
     let requests = executor.requests.lock().expect("requests lock");
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].task_id, task_id);
-    assert_eq!(requests[0].worker_id, worker_id);
     assert!(requests[0].prompt.contains("Run local runner through scheduler store"));
     assert!(requests[0].prompt.contains("请输出一句简短最终回复"));
     assert_eq!(requests[0].model.as_deref(), Some("deepseek/deepseek-v4-flash"));
@@ -115,7 +111,6 @@ fn local_runner_forwards_task_reasoning_effort_to_acp_execution() -> Result<()> 
     std::fs::create_dir_all(&project_path)?;
     let store = AgentSchedulerStore::new();
     let task_id = TaskId::new("task-local-reasoning")?;
-    let worker_id = WorkerName::new("local-worker")?;
     let executor = RecordingExecutor::succeeding("completed");
     let runner = LocalAgentRunner::new(&store, &executor);
 
@@ -123,7 +118,7 @@ fn local_runner_forwards_task_reasoning_effort_to_acp_execution() -> Result<()> 
     store.create_task(&project_path, finite_task(&task_id)?)?;
     runner.run_once(
         &project_path,
-        LocalAgentRunnerRequest { task_id, worker_id, now_ms: TimestampMs(1_000) },
+        LocalAgentRunnerRequest { task_id, now_ms: TimestampMs(1_000) },
     )?;
 
     let requests = executor.requests.lock().expect("requests lock");
@@ -158,7 +153,6 @@ fn local_runner_cannot_bypass_task_graph() -> Result<()> {
         &project_path,
         LocalAgentRunnerRequest {
             task_id: task_id.clone(),
-            worker_id: WorkerName::new("local-worker")?,
             now_ms: TimestampMs(1_500),
         },
     )?;
@@ -181,7 +175,6 @@ fn local_runner_cannot_bypass_task_graph() -> Result<()> {
             &project_path,
             LocalAgentRunnerRequest {
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("local-worker")?,
                 now_ms: TimestampMs(1_502),
             },
         )?
@@ -208,7 +201,6 @@ fn agent_scheduler_local_runner_records_failed_execution_without_matrix() -> Res
             &project_path,
             LocalAgentRunnerRequest {
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("local-worker")?,
                 now_ms: TimestampMs(2_000),
             },
         )?
@@ -250,7 +242,6 @@ fn local_runner_logs_worktree_workspace_context() -> Result<()> {
             &project_path,
             LocalAgentRunnerRequest {
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("local-worker")?,
                 now_ms: TimestampMs(3_000),
             },
         )?
@@ -276,7 +267,6 @@ fn local_agent_runner_executes_with_leased_workspace() -> Result<()> {
     std::fs::create_dir_all(&project_path)?;
     let store = AgentSchedulerStore::new();
     let task_id = TaskId::new("task-local-runner-leased-workspace")?;
-    let worker_id = WorkerName::new("local-worker")?;
     let executor = RecordingExecutor::succeeding("local execution completed");
     let runner = LocalAgentRunner::new(&store, &executor);
 
@@ -288,7 +278,6 @@ fn local_agent_runner_executes_with_leased_workspace() -> Result<()> {
             &project_path,
             LocalAgentRunnerRequest {
                 task_id: task_id.clone(),
-                worker_id: worker_id.clone(),
                 now_ms: TimestampMs(4_000),
             },
         )?
@@ -298,7 +287,6 @@ fn local_agent_runner_executes_with_leased_workspace() -> Result<()> {
     assert_eq!(workspace_requests.len(), 1);
     assert_eq!(workspace_requests[0].project_path, project_path);
     assert_eq!(workspace_requests[0].task_id, task_id);
-    assert_eq!(workspace_requests[0].worker_id, worker_id);
 
     let requests = executor.requests.lock().expect("requests lock");
     assert_eq!(requests.len(), 1);
@@ -316,7 +304,6 @@ fn local_runner_success_logs_when_workspace_has_no_committable_changes() -> Resu
     std::fs::create_dir_all(&project_path)?;
     let store = AgentSchedulerStore::new();
     let task_id = TaskId::new("task-local-runner-no-changes")?;
-    let worker_id = WorkerName::new("local-worker")?;
     let executor = RecordingExecutor::succeeding_without_changes("local execution completed");
     let runner = LocalAgentRunner::new(&store, &executor);
 
@@ -328,7 +315,6 @@ fn local_runner_success_logs_when_workspace_has_no_committable_changes() -> Resu
             &project_path,
             LocalAgentRunnerRequest {
                 task_id: task_id.clone(),
-                worker_id,
                 now_ms: TimestampMs(5_000),
             },
         )?
@@ -373,7 +359,6 @@ fn local_runner_records_failure_when_executor_does_not_lease_workspace() -> Resu
             &project_path,
             LocalAgentRunnerRequest {
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("local-worker")?,
                 now_ms: TimestampMs(6_000),
             },
         )?
@@ -408,7 +393,6 @@ fn local_runner_start_once_handles_missing_non_finite_and_non_queued_tasks() -> 
     let store = AgentSchedulerStore::new();
     let executor = RecordingExecutor::succeeding("completed");
     let runner = LocalAgentRunner::new(&store, &executor);
-    let worker_id = WorkerName::new("local-worker")?;
     store.initialize_project(&project_path)?;
 
     assert!(
@@ -417,7 +401,6 @@ fn local_runner_start_once_handles_missing_non_finite_and_non_queued_tasks() -> 
                 &project_path,
                 LocalAgentRunnerRequest {
                     task_id: TaskId::new("missing-run-once-task")?,
-                    worker_id: worker_id.clone(),
                     now_ms: TimestampMs(7_000),
                 },
             )?
@@ -429,7 +412,6 @@ fn local_runner_start_once_handles_missing_non_finite_and_non_queued_tasks() -> 
                 &project_path,
                 LocalAgentRunnerRequest {
                     task_id: TaskId::new("missing-task")?,
-                    worker_id: worker_id.clone(),
                     now_ms: TimestampMs(7_001),
                 },
             )?
@@ -445,7 +427,6 @@ fn local_runner_start_once_handles_missing_non_finite_and_non_queued_tasks() -> 
             &project_path,
             LocalAgentRunnerRequest {
                 task_id: non_finite_id,
-                worker_id: worker_id.clone(),
                 now_ms: TimestampMs(7_002),
             },
         )
@@ -463,7 +444,6 @@ fn local_runner_start_once_handles_missing_non_finite_and_non_queued_tasks() -> 
                 &project_path,
                 LocalAgentRunnerRequest {
                     task_id: assigned_id,
-                    worker_id,
                     now_ms: TimestampMs(7_003),
                 },
             )?
@@ -482,7 +462,6 @@ fn local_runner_finish_started_run_handles_missing_non_finite_and_non_running_ta
     let store = AgentSchedulerStore::new();
     let executor = RecordingExecutor::succeeding("completed");
     let runner = LocalAgentRunner::new(&store, &executor);
-    let worker_id = WorkerName::new("local-worker")?;
     let run_id = super::domain::RunId::new("local-run-boundary")?;
     store.initialize_project(&project_path)?;
 
@@ -494,7 +473,6 @@ fn local_runner_finish_started_run_handles_missing_non_finite_and_non_running_ta
                 &run_id,
                 LocalAgentRunnerRequest {
                     task_id: TaskId::new("missing-task")?,
-                    worker_id: worker_id.clone(),
                     now_ms: TimestampMs(8_000),
                 },
             )?
@@ -513,7 +491,6 @@ fn local_runner_finish_started_run_handles_missing_non_finite_and_non_running_ta
             &run_id,
             LocalAgentRunnerRequest {
                 task_id: non_finite_id.clone(),
-                worker_id: worker_id.clone(),
                 now_ms: TimestampMs(8_001),
             },
         )
@@ -533,7 +510,6 @@ fn local_runner_finish_started_run_handles_missing_non_finite_and_non_running_ta
                 &run_id,
                 LocalAgentRunnerRequest {
                     task_id: submitted_id.clone(),
-                    worker_id,
                     now_ms: TimestampMs(8_002),
                 },
             )?
@@ -561,7 +537,6 @@ fn local_runner_fails_and_recycles_workspace_when_commit_cannot_read_workspace()
             &project_path,
             LocalAgentRunnerRequest {
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("local-worker")?,
                 now_ms: TimestampMs(9_000),
             },
         )?
@@ -593,7 +568,6 @@ fn local_executor_default_release_and_recycle_succeed() -> Result<()> {
     };
     let project_path = Path::new("/tmp/project").to_path_buf();
     let task_id = TaskId::new("task-local-defaults")?;
-    let worker_id = WorkerName::new("local-worker")?;
     let run_id = super::domain::RunId::new("run-local-defaults")?;
 
     LocalAgentExecutor::release_workspace(
@@ -601,7 +575,6 @@ fn local_executor_default_release_and_recycle_succeed() -> Result<()> {
         LocalAgentWorkspaceReleaseRequest {
             project_path: project_path.clone(),
             task_id: task_id.clone(),
-            worker_id: worker_id.clone(),
             run_id: run_id.clone(),
             workspace: workspace.clone(),
         },
@@ -611,7 +584,6 @@ fn local_executor_default_release_and_recycle_succeed() -> Result<()> {
         LocalAgentWorkspaceRecycleRequest {
             project_path,
             task_id,
-            worker_id,
             run_id,
             workspace,
             taint_reason: "not needed".to_string(),

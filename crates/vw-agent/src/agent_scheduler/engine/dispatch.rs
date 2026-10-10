@@ -6,14 +6,14 @@ use vw_api_types::agent_scheduler::AgentSchedulerMatrixDispatchEventDto;
 use vw_api_types::common::TimestampMs;
 use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
 
-use crate::agent_scheduler::adapters::controller::{ControllerAdapter, EnsureWorkerReadyRequest};
+use crate::agent_scheduler::adapters::controller::ControllerAdapter;
 use crate::agent_scheduler::adapters::local::LocalDispatchRequest;
 use crate::agent_scheduler::adapters::matrix::MatrixDispatchTarget;
-use crate::agent_scheduler::domain::{RunId, TaskId, WorkerName};
+use crate::agent_scheduler::domain::{RunId, TaskId};
 use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::lifecycle_bridge::{LifecycleBridge, LifecycleDispatchEligibility};
 use crate::agent_scheduler::scheduler::worker_selection::{
-    WorkerCandidateScore, WorkerSelectionRequest, select_worker_candidates,
+    WorkerCandidateScore, WorkerSelectionRequest,
 };
 use crate::agent_scheduler::lifecycle_bridge::builtin_task_workflow_snapshot;
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
@@ -21,7 +21,7 @@ use crate::agent_scheduler::store::events::AppendAgentEventRequest;
 use crate::agent_scheduler::store::outbox::EnqueueOutboxMessageRequest;
 use crate::agent_scheduler::store::runs::{ClaimReadyTaskRunRequest, StoredAgentRun};
 use crate::agent_scheduler::store::tasks::{AgentTaskFilter, StoredAgentTask};
-use crate::agent_scheduler::store::workers::{AgentWorkerFilter, StoredAgentWorker};
+use crate::agent_scheduler::store::workers::StoredAgentWorker;
 use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use crate::agent_scheduler::task_graph::{TaskGraph, TaskGraphReadiness};
 
@@ -32,7 +32,6 @@ pub const DEFAULT_RUN_LEASE_DURATION_MS: i64 = 30 * 60 * 1_000;
 pub struct DispatchOutcome {
     pub task_id: TaskId,
     pub run_id: RunId,
-    pub worker_id: WorkerName,
     pub target: DispatchTarget,
     pub outbox_message_id: Option<String>,
 }
@@ -126,92 +125,21 @@ where
         task: StoredAgentTask,
         now_ms: TimestampMs,
     ) -> Result<Option<DispatchOutcome>> {
-        let selection = selection_request_from_task(&task)?;
-        let workers = self.store.list_workers(project_path, AgentWorkerFilter::default())?;
-        let active_tasks =
-            self.store.list_active_tasks(project_path, AgentTaskFilter::default())?;
-        tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), dispatch_mode = ?self.dispatch_mode, workers = workers.len(), active_tasks = active_tasks.len(), required_skills = ?selection.required_skills, preferred_runtime = ?selection.preferred_runtime, team_id = ?selection.team_id.as_ref().map(|team_id| team_id.as_str()), "agent scheduler selecting worker for task");
-        let Some(candidate) =
-            select_worker_candidates(&selection, &workers, &active_tasks).into_iter().next()
-        else {
-            tracing::warn!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), dispatch_mode = ?self.dispatch_mode, workers = workers.len(), active_tasks = active_tasks.len(), "agent scheduler dispatch found no eligible worker");
-            return Ok(None);
-        };
-        let worker = selected_worker(&workers, &candidate)?;
-        tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), worker_id = worker.id.as_str(), worker_runtime = ?worker.runtime, worker_room_id = ?worker.room_id, worker_matrix_user_id = ?worker.matrix_user_id, worker_availability = ?candidate.availability, finite_active_tasks = candidate.finite_active_tasks, infinite_active_tasks = candidate.infinite_active_tasks, active_tasks = candidate.active_tasks, runtime_matched = candidate.runtime_matched, can_dispatch_now = candidate.can_dispatch_now, requires_wakeup = candidate.requires_wakeup, "agent scheduler selected worker");
-
-        let ready = self
-            .controller
-            .ensure_worker_ready(EnsureWorkerReadyRequest {
-                worker_name: worker.id.clone(),
-                runtime: worker.runtime.clone(),
-                team_id: worker.team_id.clone(),
-                worker_role: worker.worker_role.clone(),
-            })
-            .await?;
-        if ready.worker_name != worker.id {
-            bail!(
-                "controller returned readiness for {}, expected {}",
-                ready.worker_name.as_str(),
-                worker.id.as_str()
-            );
-        }
-        tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), worker_id = worker.id.as_str(), ready_runtime = ?ready.runtime, ready_room_id = ?ready.room_id, dispatch_mode = ?self.dispatch_mode, "agent scheduler worker ready");
-        validate_dispatch_mode_available(&ready, &worker, self.dispatch_mode)?;
-
-        let Some(run) = self.claim_ready_run(project_path, &task, &worker, now_ms)? else {
+        let Some(run) = self.claim_ready_run(project_path, &task, now_ms)? else {
             tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), "agent scheduler task became unavailable before ready claim");
             return Ok(None);
         };
-        let dispatched = self
-            .store
-            .transition_task_status(project_path, &task.id, AgentTaskStatus::Dispatched, now_ms)?
-            .with_context(|| {
-                format!("assigned task disappeared before dispatch: {}", task.id.as_str())
-            })?;
-
-        let target = dispatch_target_from_worker(
-            &ready,
-            &worker,
-            &dispatched,
-            &run,
-            now_ms,
-            self.dispatch_mode,
-        )?;
-        tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = dispatched.id.as_str(), run_id = run.id.as_str(), worker_id = worker.id.as_str(), dispatch_target = target.as_str(), "agent scheduler dispatch target resolved");
-        self.append_worker_selected_event(project_path, &task, &worker, &run, &target, now_ms)?;
-
-        let outbox_message_id = match &target {
-            DispatchTarget::Matrix(matrix_target) => {
-                let outbox = self.enqueue_dispatch_message(
-                    project_path,
-                    &dispatched,
-                    &worker,
-                    &run,
-                    matrix_target,
-                    now_ms,
-                )?;
-                tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = dispatched.id.as_str(), run_id = run.id.as_str(), worker_id = worker.id.as_str(), room_id = matrix_target.room_id.as_str(), recipient_id = matrix_target.recipient_id.as_str(), outbox_message_id = outbox.id.as_str(), "agent scheduler queued Matrix dispatch outbox message");
-                self.append_matrix_dispatched_event(
-                    project_path,
-                    &dispatched,
-                    &worker,
-                    &run,
-                    &outbox.id,
-                    now_ms,
-                )?;
-                Some(outbox.id)
-            }
-            DispatchTarget::Local(_) => None,
-        };
-
-        tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = dispatched.id.as_str(), run_id = run.id.as_str(), worker_id = worker.id.as_str(), dispatch_target = target.as_str(), outbox_message_id = ?outbox_message_id, "agent scheduler dispatch completed");
+        let target = DispatchTarget::Local(LocalDispatchRequest {
+            task_id: task.id.clone(),
+            run_id: run.id.clone(),
+            requested_at_ms: now_ms,
+        });
+        tracing::info!(project_path = %project_path.storage_project_path().display(), task_id = task.id.as_str(), run_id = run.id.as_str(), "agent scheduler local dispatch claimed");
         Ok(Some(DispatchOutcome {
-            task_id: dispatched.id,
+            task_id: task.id,
             run_id: run.id,
-            worker_id: worker.id,
             target,
-            outbox_message_id,
+            outbox_message_id: None,
         }))
     }
 
@@ -226,7 +154,6 @@ where
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task: &StoredAgentTask,
-        worker: &StoredAgentWorker,
         now_ms: TimestampMs,
     ) -> Result<Option<StoredAgentRun>> {
         let lease_expires_at_ms = TimestampMs(
@@ -241,7 +168,6 @@ where
             ClaimReadyTaskRunRequest {
                 run_id,
                 task_id: task.id.clone(),
-                worker_id: worker.id.clone(),
                 lease_acquired_at_ms: now_ms,
                 lease_expires_at_ms: Some(lease_expires_at_ms),
             },
@@ -453,7 +379,6 @@ pub(crate) fn dispatch_target_from_worker(
         DispatchTarget::Local(LocalDispatchRequest {
             task_id: task.id.clone(),
             run_id: run.id.clone(),
-            worker_id: worker.id.clone(),
             requested_at_ms: now_ms,
         })
     };

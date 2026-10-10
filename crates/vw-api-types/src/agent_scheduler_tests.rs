@@ -315,7 +315,6 @@ fn agent_scheduler_dto_round_trips_task_run_worker_team_and_outbox() {
     let run = AgentRunDto {
         id: "run-1".to_string(),
         task_id: finite_task.id.clone(),
-        worker_id: Some("worker-a".to_string()),
         status: AgentRunStatusDto::Leased,
         lease_expires_at_ms: Some(TimestampMs(1_783_000_300_000)),
         attempt: 2,

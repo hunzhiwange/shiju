@@ -660,7 +660,6 @@ fn reasoning_effort_end_to_end_matrix() {
         gateway_local_agent_stream_request(&LocalAgentExecutionRequest {
             project_path: PathBuf::from("/tmp/reasoning-matrix"),
             task_id: TaskId::new("task-reasoning-matrix").expect("valid task id"),
-            worker_id: WorkerName::new("worker-reasoning-matrix").expect("valid worker id"),
             run_id: RunId::new("run-reasoning-matrix").expect("valid run id"),
             title: "reasoning matrix".to_string(),
             prompt: "task".to_string(),

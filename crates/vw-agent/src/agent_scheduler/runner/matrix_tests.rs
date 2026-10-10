@@ -244,7 +244,6 @@ async fn matrix_worker_acquires_task_worktree_before_chat_stream() -> Result<()>
     assert_eq!(lease_request.project_path, PathBuf::from("/repo/project-1"));
     assert_eq!(lease_request.task_id.as_str(), "task-worktree");
     assert_eq!(lease_request.run_id.as_str(), "run-task-worktree");
-    assert_eq!(lease_request.worker_id.as_str(), "matrix-dev");
     Ok(())
 }
 
@@ -551,7 +550,6 @@ async fn matrix_scheduler_does_not_log_matrix_access_token() -> Result<()> {
             ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: worker_id.clone(),
                 lease_acquired_at_ms: now_ms,
                 lease_expires_at_ms: Some(TimestampMs(now_ms.0 + 30_000)),
             },

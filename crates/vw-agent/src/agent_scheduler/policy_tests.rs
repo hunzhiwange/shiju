@@ -102,7 +102,6 @@ fn agent_scheduler_policy_promotes_retries_times_out_and_plans_merge() -> Result
             ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: running_id.clone(),
-                worker_id: WorkerName::new("policy-worker")?,
                 lease_acquired_at_ms: TimestampMs(1_000),
                 lease_expires_at_ms: Some(TimestampMs(10_000)),
             },
@@ -275,7 +274,6 @@ fn agent_scheduler_policy_leaves_review_ready_task_for_stage_action() -> Result<
             ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("policy-worker")?,
                 lease_acquired_at_ms: TimestampMs(1_100),
                 lease_expires_at_ms: None,
             },
@@ -562,7 +560,6 @@ fn agent_scheduler_policy_times_out_running_task_by_lifecycle_transition() -> Re
             ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("policy-worker")?,
                 lease_acquired_at_ms: TimestampMs(1_000),
                 lease_expires_at_ms: Some(TimestampMs(10_000)),
             },

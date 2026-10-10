@@ -400,7 +400,6 @@ where
         let workspace_request = LocalAgentWorkspaceRequest {
             project_path: self.config.project_path.clone(),
             task_id: task_id.clone(),
-            worker_id: self.config.worker_id.clone(),
             run_id: run_id.clone(),
         };
         let workspace = match executor.lease_workspace(workspace_request) {
@@ -425,7 +424,6 @@ where
                     .release_workspace(LocalAgentWorkspaceReleaseRequest {
                         project_path: self.config.project_path.clone(),
                         task_id,
-                        worker_id: self.config.worker_id.clone(),
                         run_id,
                         workspace,
                     })
@@ -437,7 +435,6 @@ where
                     .recycle_workspace(LocalAgentWorkspaceRecycleRequest {
                         project_path: self.config.project_path.clone(),
                         task_id,
-                        worker_id: self.config.worker_id.clone(),
                         run_id,
                         workspace,
                         taint_reason,
@@ -451,7 +448,6 @@ where
                     .recycle_workspace(LocalAgentWorkspaceRecycleRequest {
                         project_path: self.config.project_path.clone(),
                         task_id,
-                        worker_id: self.config.worker_id.clone(),
                         run_id,
                         workspace,
                         taint_reason,
@@ -480,7 +476,6 @@ where
         let execution = executor.execute(LocalAgentExecutionRequest {
             project_path: self.config.project_path.clone(),
             task_id: task_id.clone(),
-            worker_id: self.config.worker_id.clone(),
             run_id: run_id.clone(),
             title: matrix_execution_title(&event.dispatch),
             prompt: matrix_execution_prompt(&event.dispatch),

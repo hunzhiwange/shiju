@@ -48,7 +48,6 @@ async fn agent_recovery_marks_stale_runs_and_releases_resources_after_grace() ->
         ClaimTaskRunRequest {
             run_id: run_id.clone(),
             task_id: task_id.clone(),
-            worker_id: WorkerName::new("worker-recovery")?,
             lease_acquired_at_ms: TimestampMs(1_000),
             lease_expires_at_ms: Some(TimestampMs(1_500)),
         },

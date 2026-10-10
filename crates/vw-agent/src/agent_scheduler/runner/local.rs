@@ -8,7 +8,7 @@ use serde_json::{Map, Value, json};
 use vw_api_types::ReasoningEffortDto;
 use vw_api_types::common::TimestampMs;
 
-use crate::agent_scheduler::domain::{RunId, TaskId, WorkerName};
+use crate::agent_scheduler::domain::{RunId, TaskId};
 use crate::agent_scheduler::engine::dispatch::ready_queued_finite_task;
 use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
@@ -32,7 +32,6 @@ const WORKTREE_LOG_PATH_LIMIT: usize = 240;
 /// 启动本地运行所需的任务标识、执行时刻和租约时长。
 pub struct LocalAgentRunnerRequest {
     pub task_id: TaskId,
-    pub worker_id: WorkerName,
     pub now_ms: TimestampMs,
 }
 
@@ -40,7 +39,6 @@ pub struct LocalAgentRunnerRequest {
 /// 本地运行启动后返回的运行与工作区信息。
 pub struct LocalAgentRunnerOutcome {
     pub task_id: TaskId,
-    pub worker_id: WorkerName,
     pub run: StoredAgentRun,
 }
 
@@ -49,7 +47,6 @@ pub struct LocalAgentRunnerOutcome {
 pub struct LocalAgentWorkspaceRequest {
     pub project_path: PathBuf,
     pub task_id: TaskId,
-    pub worker_id: WorkerName,
     pub run_id: RunId,
 }
 
@@ -66,7 +63,6 @@ pub struct LocalAgentWorkspace {
 pub struct LocalAgentExecutionRequest {
     pub project_path: PathBuf,
     pub task_id: TaskId,
-    pub worker_id: WorkerName,
     pub run_id: RunId,
     pub title: String,
     pub prompt: String,
@@ -87,7 +83,6 @@ pub struct LocalAgentExecutionOutput {
 pub struct LocalAgentWorkspaceRecycleRequest {
     pub project_path: PathBuf,
     pub task_id: TaskId,
-    pub worker_id: WorkerName,
     pub run_id: RunId,
     pub workspace: LocalAgentWorkspace,
     pub taint_reason: String,
@@ -97,7 +92,6 @@ pub struct LocalAgentWorkspaceRecycleRequest {
 pub struct LocalAgentWorkspaceReleaseRequest {
     pub project_path: PathBuf,
     pub task_id: TaskId,
-    pub worker_id: WorkerName,
     pub run_id: RunId,
     pub workspace: LocalAgentWorkspace,
 }
@@ -181,28 +175,23 @@ where
             request.now_ms,
             Some(AgentTaskStatus::Queued),
             Some(AgentTaskStatus::Assigned),
-            format!("local runner assigned {}", request.worker_id.as_str()),
+            "local runner assigned task",
         )?;
         self.append_event(
             project_path,
             &task.id,
             Some(&run.id),
-            &request.worker_id,
             AgentEventKind::WorkerSelected,
             Some(AgentTaskStatus::Queued),
             Some(AgentTaskStatus::Assigned),
-            format!("local runner selected {}", request.worker_id.as_str()),
+            "local runner selected task",
             json!({"dispatch_target": "local"}),
             request.now_ms,
         )?;
 
         self.advance_to_running(project_path, &task.id, &run.id, &request)?;
         let started_run = self.store.load_run(project_path, &run.id)?.unwrap_or(run);
-        Ok(Some(LocalAgentRunnerOutcome {
-            task_id: task.id,
-            worker_id: request.worker_id,
-            run: started_run,
-        }))
+        Ok(Some(LocalAgentRunnerOutcome { task_id: task.id, run: started_run }))
     }
 
     /// 提交工作区变化、记录产物并完成运行；失败路径仍负责释放资源。
@@ -224,11 +213,7 @@ where
         }
 
         let finished_run = self.execute_running_task(project_path, &task, run_id, &request)?;
-        Ok(Some(LocalAgentRunnerOutcome {
-            task_id: task.id,
-            worker_id: request.worker_id,
-            run: finished_run,
-        }))
+        Ok(Some(LocalAgentRunnerOutcome { task_id: task.id, run: finished_run }))
     }
 
     fn claim_ready_run(
@@ -245,7 +230,6 @@ where
             ClaimReadyTaskRunRequest {
                 run_id,
                 task_id: task.id.clone(),
-                worker_id: request.worker_id.clone(),
                 lease_acquired_at_ms: request.now_ms,
                 lease_expires_at_ms: Some(lease_expires_at_ms),
             },
@@ -308,7 +292,6 @@ where
             project_path,
             task_id,
             Some(run_id),
-            &request.worker_id,
             AgentEventKind::RunStarted,
             Some(AgentTaskStatus::Acknowledged),
             Some(AgentTaskStatus::Running),
@@ -329,7 +312,6 @@ where
         let workspace_request = LocalAgentWorkspaceRequest {
             project_path: project_path.storage_project_path().to_path_buf(),
             task_id: task.id.clone(),
-            worker_id: request.worker_id.clone(),
             run_id: run_id.clone(),
         };
 
@@ -363,7 +345,6 @@ where
         let execution = self.executor.execute(LocalAgentExecutionRequest {
             project_path: project_path.storage_project_path().to_path_buf(),
             task_id: task.id.clone(),
-            worker_id: request.worker_id.clone(),
             run_id: run_id.clone(),
             title: task.title.clone(),
             prompt: execution_prompt(task),
@@ -427,7 +408,6 @@ where
                     self.executor.recycle_workspace(LocalAgentWorkspaceRecycleRequest {
                         project_path: project_path.storage_project_path().to_path_buf(),
                         task_id: task.id.clone(),
-                        worker_id: request.worker_id.clone(),
                         run_id: run_id.clone(),
                         workspace,
                         taint_reason: message,
@@ -448,7 +428,6 @@ where
                 self.executor.recycle_workspace(LocalAgentWorkspaceRecycleRequest {
                     project_path: project_path.storage_project_path().to_path_buf(),
                     task_id: task.id.clone(),
-                    worker_id: request.worker_id.clone(),
                     run_id: run_id.clone(),
                     workspace,
                     taint_reason: message,
@@ -482,7 +461,6 @@ where
             project_path,
             &task.id,
             Some(run_id),
-            &request.worker_id,
             AgentEventKind::RunSubmitted,
             Some(AgentTaskStatus::Running),
             Some(AgentTaskStatus::Submitted),
@@ -590,7 +568,6 @@ where
             project_path,
             &task.id,
             Some(run_id),
-            &request.worker_id,
             AgentEventKind::RunFailed,
             Some(AgentTaskStatus::Running),
             Some(AgentTaskStatus::Failed),
@@ -663,7 +640,6 @@ where
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task_id: &TaskId,
         run_id: Option<&RunId>,
-        worker_id: &WorkerName,
         kind: AgentEventKind,
         from_status: Option<AgentTaskStatus>,
         to_status: Option<AgentTaskStatus>,
@@ -676,7 +652,7 @@ where
             AppendAgentEventRequest {
                 task_id: Some(task_id.clone()),
                 run_id: run_id.cloned(),
-                worker_id: Some(worker_id.clone()),
+                worker_id: None,
                 team_id: None,
                 kind,
                 from_status,

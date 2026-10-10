@@ -93,7 +93,6 @@ fn agent_scheduler_artifact_store_rejects_run_for_different_task() -> Result<()>
         ClaimTaskRunRequest {
             run_id: run_id.clone(),
             task_id: owning_task_id,
-            worker_id: WorkerName::new("worker-artifact-mismatch")?,
             lease_acquired_at_ms: TimestampMs(1_000),
             lease_expires_at_ms: Some(TimestampMs(5_000)),
         },
@@ -149,7 +148,6 @@ fn assert_lists_ordered_scope_local_artifacts(
             ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("worker-artifact")?,
                 lease_acquired_at_ms: TimestampMs(1_000),
                 lease_expires_at_ms: Some(TimestampMs(5_000)),
             },

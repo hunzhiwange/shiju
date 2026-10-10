@@ -896,11 +896,8 @@ impl StoreBackedAgentSchedulerGateway {
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task: &StoredAgentTask,
     ) -> Result<Option<WorkerName>, ApiError> {
-        let latest_run = self
-            .store
-            .load_latest_run_for_task(project_path, &task.id)
-            .map_err(map_scheduler_error)?;
-        Ok(latest_run.and_then(|run| run.worker_id).or_else(|| task.assigned_to.clone()))
+        let _ = project_path;
+        Ok(task.assigned_to.clone())
     }
 
 
@@ -2988,7 +2985,6 @@ impl StoreBackedAgentSchedulerGateway {
                     project_path = %project_path.storage_project_path().display(),
                     task_id = outcome.task_id.as_str(),
                     run_id = outcome.run_id.as_str(),
-                    worker_id = outcome.worker_id.as_str(),
                     outbox_message_id = ?outcome.outbox_message_id.as_deref(),
                     "agent scheduler project command dispatch outcome"
                 );
@@ -3098,7 +3094,6 @@ impl StoreBackedAgentSchedulerGateway {
         );
         let request = LocalAgentRunnerRequest {
             task_id,
-            worker_id: WorkerName::new(LOCAL_GATEWAY_WORKER_ID).map_err(map_scheduler_error)?,
             now_ms,
         };
         let start_store = self.store.clone();
@@ -3120,7 +3115,6 @@ impl StoreBackedAgentSchedulerGateway {
                 project_path = %project_path.storage_project_path().display(),
                 task_id = started_run.task_id.as_str(),
                 run_id = started_run.run.id.as_str(),
-                worker_id = started_run.worker_id.as_str(),
                 "agent scheduler local task started; background finish scheduled"
             );
             let finish_store = self.store.clone();
@@ -3389,7 +3383,7 @@ fn wake_response_from_outcome(outcome: Option<DispatchOutcome>) -> AgentSchedule
             dispatched: true,
             task_id: Some(outcome.task_id.as_str().to_string()),
             run_id: Some(outcome.run_id.as_str().to_string()),
-            worker_id: Some(outcome.worker_id.as_str().to_string()),
+            worker_id: None,
             outbox_message_id: outcome.outbox_message_id,
         },
         None => AgentSchedulerWakeResponse {
@@ -3492,27 +3486,13 @@ fn validate_worker_run_ownership(
     task: &StoredAgentTask,
     run: &StoredAgentRun,
     task_id: &TaskId,
-    worker_id: &WorkerName,
+    _worker_id: &WorkerName,
 ) -> Result<(), ApiError> {
     if &run.task_id != task_id || task.id != *task_id {
         return Err(ApiError::bad_request(format!(
             "run {} does not belong to task {}",
             run.id.as_str(),
             task_id.as_str()
-        )));
-    }
-    let Some(run_worker_id) = run.worker_id.as_ref() else {
-        return Err(ApiError::bad_request(format!(
-            "run {} is not assigned to a worker",
-            run.id.as_str()
-        )));
-    };
-    if run_worker_id != worker_id {
-        return Err(ApiError::bad_request(format!(
-            "run {} belongs to worker {}, got {}",
-            run.id.as_str(),
-            run_worker_id.as_str(),
-            worker_id.as_str()
         )));
     }
     Ok(())
@@ -3581,7 +3561,7 @@ fn append_command_event(
             AppendAgentEventRequest {
                 task_id: Some(task.id.clone()),
                 run_id: run.map(|run| run.id.clone()),
-                worker_id: run.and_then(|run| run.worker_id.clone()),
+                worker_id: task.assigned_to.clone(),
                 team_id: task.team_id.clone(),
                 kind: command_event_kind(command),
                 from_status: Some(from_status),
@@ -3593,7 +3573,6 @@ fn append_command_event(
                     "command": command_kind_key(command),
                     "task_id": task.id.as_str(),
                     "run_id": run.map(|run| run.id.as_str()),
-                    "worker_id": run.and_then(|run| run.worker_id.as_ref().map(WorkerName::as_str)),
                 }),
                 created_at_ms: now_ms,
             },
@@ -3906,7 +3885,7 @@ fn project_wake_response_from_local_outcome(
             dispatched: true,
             task_id: Some(outcome.task_id.as_str().to_string()),
             run_id: Some(outcome.run.id.as_str().to_string()),
-            worker_id: Some(outcome.worker_id.as_str().to_string()),
+            worker_id: None,
             outbox_message_id: None,
         },
         None => AgentSchedulerProjectWakeResponse {
@@ -3937,7 +3916,7 @@ fn project_wake_response_from_dispatch_outcome(
             dispatched: true,
             task_id: Some(outcome.task_id.as_str().to_string()),
             run_id: Some(outcome.run_id.as_str().to_string()),
-            worker_id: Some(outcome.worker_id.as_str().to_string()),
+            worker_id: None,
             outbox_message_id: outcome.outbox_message_id,
         },
         None => AgentSchedulerProjectWakeResponse {
@@ -4201,7 +4180,6 @@ fn run_to_dto(run: StoredAgentRun) -> AgentRunDto {
     AgentRunDto {
         id: run.id.as_str().to_string(),
         task_id: run.task_id.as_str().to_string(),
-        worker_id: run.worker_id.as_ref().map(WorkerName::as_str).map(str::to_string),
         status: run_status_to_dto(run.status),
         lease_expires_at_ms: run.lease_expires_at_ms,
         attempt: run.attempt,

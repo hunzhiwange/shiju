@@ -100,7 +100,6 @@ async fn agent_dispatch_engine_claims_task_and_enqueues_worker_message() -> Resu
         engine.dispatch_once(project_path, now_ms).await?.expect("pending task dispatches");
 
     assert_eq!(outcome.task_id.as_str(), "task-dispatch-1");
-    assert_eq!(outcome.worker_id.as_str(), "worker-api");
     let DispatchTarget::Matrix(target) = &outcome.target else {
         panic!("Matrix worker should dispatch through Matrix target");
     };
@@ -120,7 +119,6 @@ async fn agent_dispatch_engine_claims_task_and_enqueues_worker_message() -> Resu
         .list_stale_runs(project_path, TimestampMs(now_ms.0 + DEFAULT_RUN_LEASE_DURATION_MS))?;
     assert_eq!(stale_at_expiry.len(), 1);
     assert_eq!(stale_at_expiry[0].id, outcome.run_id);
-    assert_eq!(stale_at_expiry[0].worker_id.as_ref().map(WorkerName::as_str), Some("worker-api"),);
 
     let events = store.list_events_after(project_path, None, 10)?;
     let kinds = events.iter().map(|event| event.kind).collect::<Vec<_>>();
@@ -158,6 +156,24 @@ async fn dispatch_once_returns_none_when_no_queued_finite_task_exists() -> Resul
         .await?;
 
     assert_eq!(outcome, None);
+    assert!(controller.recorded_lifecycle_requests().is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn local_dispatch_claims_ready_task_without_worker_snapshot() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let project_path = temp_dir.path();
+    let store = AgentSchedulerStore::new();
+    let controller = FakeControllerAdapter::new();
+    store.initialize_project(project_path)?;
+    store.create_task(project_path, pending_task()?)?;
+
+    let outcome = DispatchEngine::new(&store, &controller)
+        .dispatch_once(project_path, TimestampMs(1_783_000_305_000))
+        .await?;
+
+    assert!(outcome.is_some(), "ready task should be claimed without a worker snapshot");
     assert!(controller.recorded_lifecycle_requests().is_empty());
     Ok(())
 }
@@ -214,7 +230,6 @@ async fn dispatch_task_once_dispatches_named_queued_task_after_lifecycle_check()
         .expect("named queued task dispatches");
 
     assert_eq!(outcome.task_id.as_str(), "task-dispatch-1");
-    assert_eq!(outcome.worker_id.as_str(), "worker-api");
     assert!(matches!(outcome.target, DispatchTarget::Matrix(_)));
     assert!(outcome.outbox_message_id.is_some());
     Ok(())
@@ -306,7 +321,6 @@ fn dispatch_tracing_enabled_evaluates_selection_and_completion_fields() -> Resul
                 .dispatch_once(success_project, TimestampMs(7))
                 .await?
                 .expect("task dispatches with tracing enabled");
-            assert_eq!(outcome.worker_id.as_str(), "worker-api");
             assert!(outcome.outbox_message_id.is_some());
             Result::<()>::Ok(())
         })
@@ -551,14 +565,12 @@ async fn agent_dispatch_engine_defaults_to_local_target_without_matrix() -> Resu
         engine.dispatch_once(project_path, now_ms).await?.expect("pending task dispatches");
 
     assert_eq!(outcome.task_id.as_str(), "task-dispatch-1");
-    assert_eq!(outcome.worker_id.as_str(), "worker-api");
     assert!(outcome.outbox_message_id.is_none());
     let DispatchTarget::Local(target) = &outcome.target else {
         panic!("worker without Matrix address should dispatch through local target");
     };
     assert_eq!(target.task_id.as_str(), "task-dispatch-1");
     assert_eq!(target.run_id, outcome.run_id);
-    assert_eq!(target.worker_id.as_str(), "worker-api");
     assert_eq!(target.requested_at_ms, now_ms);
 
     let task =
@@ -752,7 +764,6 @@ fn dispatch_helper_edges_cover_metadata_status_target_and_payload_defaults() -> 
             ClaimTaskRunRequest {
                 run_id: RunId::new("run-helper")?,
                 task_id: task.id.clone(),
-                worker_id: worker.id.clone(),
                 lease_acquired_at_ms: now_ms,
                 lease_expires_at_ms: None,
             },

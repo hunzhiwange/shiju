@@ -676,9 +676,7 @@ impl<'a> AgentSchedulerPolicyService<'a> {
             AppendAgentEventRequest {
                 task_id: Some(task.id.clone()),
                 run_id: run.map(|run| run.id.clone()),
-                worker_id: run
-                    .and_then(|run| run.worker_id.clone())
-                    .or_else(|| task.assigned_to.clone()),
+                worker_id: task.assigned_to.clone(),
                 team_id: task.team_id.clone(),
                 kind,
                 from_status,

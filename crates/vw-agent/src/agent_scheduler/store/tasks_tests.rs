@@ -70,7 +70,6 @@ fn agent_scheduler_task_graph_isolated_by_full_scope() -> Result<()> {
                 ClaimTaskRunRequest {
                     run_id: run_id.clone(),
                     task_id: task_id.clone(),
-                    worker_id: WorkerName::new("worker-a")?,
                     lease_acquired_at_ms: TimestampMs(1_010),
                     lease_expires_at_ms: Some(TimestampMs(2_010)),
                 },
@@ -88,7 +87,6 @@ fn agent_scheduler_task_graph_isolated_by_full_scope() -> Result<()> {
                 ClaimTaskRunRequest {
                     run_id: run_id.clone(),
                     task_id: task_id.clone(),
-                    worker_id: WorkerName::new("worker-b")?,
                     lease_acquired_at_ms: TimestampMs(1_030),
                     lease_expires_at_ms: Some(TimestampMs(2_030)),
                 },

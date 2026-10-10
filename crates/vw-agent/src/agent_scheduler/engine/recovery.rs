@@ -522,7 +522,7 @@ where
             AppendAgentEventRequest {
                 task_id: Some(run.task_id.clone()),
                 run_id: Some(run.id.clone()),
-                worker_id: run.worker_id.clone(),
+                worker_id: None,
                 team_id: task.and_then(|task| task.team_id.clone()),
                 kind: AgentEventKind::RunRecovered,
                 from_status: task.map(|task| task.status),

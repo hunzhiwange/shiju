@@ -234,8 +234,6 @@ pub enum AgentRunStatusDto {
 pub struct AgentRunDto {
     pub id: String,
     pub task_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub worker_id: Option<String>,
     pub status: AgentRunStatusDto,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lease_expires_at_ms: Option<TimestampMs>,

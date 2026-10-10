@@ -2,19 +2,18 @@
 //! 克隆、相等比较和字段提取共同锁定该纯数据适配层的值语义。
 
 use crate::agent_scheduler::adapters::local::LocalDispatchRequest;
-use crate::agent_scheduler::domain::{RunId, TaskId, WorkerName};
+use crate::agent_scheduler::domain::{RunId, TaskId};
 use vw_api_types::common::TimestampMs;
 
 fn local_dispatch_request(
     task_id: &str,
     run_id: &str,
-    worker_id: &str,
+    _worker_id: &str,
     requested_at_ms: i64,
 ) -> LocalDispatchRequest {
     LocalDispatchRequest {
         task_id: TaskId::new(task_id).expect("task id should be valid"),
         run_id: RunId::new(run_id).expect("run id should be valid"),
-        worker_id: WorkerName::new(worker_id).expect("worker name should be valid"),
         requested_at_ms: TimestampMs(requested_at_ms),
     }
 }
@@ -25,18 +24,16 @@ fn local_dispatch_request_preserves_fields() {
 
     assert_eq!(request.task_id.as_str(), "task-1");
     assert_eq!(request.run_id.as_str(), "run-1");
-    assert_eq!(request.worker_id.as_str(), "worker-1");
     assert_eq!(request.requested_at_ms, TimestampMs(123));
 }
 
 #[test]
 fn local_dispatch_request_supports_owned_field_extraction() {
-    let LocalDispatchRequest { task_id, run_id, worker_id, requested_at_ms } =
+    let LocalDispatchRequest { task_id, run_id, requested_at_ms } =
         local_dispatch_request("task-1", "run-1", "worker-1", 123);
 
     assert_eq!(task_id.as_str(), "task-1");
     assert_eq!(run_id.as_str(), "run-1");
-    assert_eq!(worker_id.as_str(), "worker-1");
     assert_eq!(requested_at_ms, TimestampMs(123));
 }
 

@@ -1051,7 +1051,6 @@ async fn agent_scheduler_worker_run_event_completes_matrix_task() {
             crate::agent_scheduler::store::runs::ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: worker_id.clone(),
                 lease_acquired_at_ms: TimestampMs(1_783_001_000_100),
                 lease_expires_at_ms: Some(TimestampMs(1_783_001_600_100)),
             },
@@ -1201,7 +1200,6 @@ async fn worker_submitted_advances_by_lifecycle_success_transition() {
             crate::agent_scheduler::store::runs::ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: worker_id.clone(),
                 lease_acquired_at_ms: TimestampMs(1_783_001_100_100),
                 lease_expires_at_ms: Some(TimestampMs(1_783_001_700_100)),
             },
@@ -1324,7 +1322,6 @@ async fn worker_failed_advances_by_lifecycle_failure_transition() {
             crate::agent_scheduler::store::runs::ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: worker_id.clone(),
                 lease_acquired_at_ms: TimestampMs(1_783_001_101_100),
                 lease_expires_at_ms: Some(TimestampMs(1_783_001_701_100)),
             },
@@ -1516,7 +1513,6 @@ async fn agent_scheduler_project_wake_respects_local_max_concurrent() {
             crate::agent_scheduler::store::runs::ClaimTaskRunRequest {
                 run_id: RunId::new("run-active-local").expect("run id"),
                 task_id: TaskId::new("task-active-local").expect("task id"),
-                worker_id: WorkerName::new(LOCAL_GATEWAY_WORKER_ID).expect("worker id"),
                 lease_acquired_at_ms: TimestampMs(1_783_000_910_500),
                 lease_expires_at_ms: Some(TimestampMs(1_783_000_940_500)),
             },
@@ -1609,7 +1605,6 @@ async fn agent_scheduler_project_wake_ignores_matrix_runs_for_local_concurrency(
             crate::agent_scheduler::store::runs::ClaimTaskRunRequest {
                 run_id: RunId::new("run-active-matrix").expect("run id"),
                 task_id: TaskId::new("task-active-matrix").expect("task id"),
-                worker_id: WorkerName::new("matrix-local").expect("worker id"),
                 lease_acquired_at_ms: TimestampMs(1_783_000_910_500),
                 lease_expires_at_ms: Some(TimestampMs(1_783_000_940_500)),
             },
@@ -2863,7 +2858,6 @@ async fn agent_scheduler_merge_command_resolves_source_from_run_workspace() {
             ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new("gateway-local").expect("worker id"),
                 lease_acquired_at_ms: TimestampMs(1_783_000_800_100),
                 lease_expires_at_ms: None,
             },
@@ -3073,7 +3067,6 @@ async fn gateway_local_executor_leases_task_worktree_instead_of_project_root() {
     let request = LocalAgentWorkspaceRequest {
         project_path: project_path.clone(),
         task_id: task_id.clone(),
-        worker_id: WorkerName::new(LOCAL_GATEWAY_WORKER_ID).expect("worker id"),
         run_id: RunId::new("run-local-worktree").expect("run id"),
     };
 
@@ -3309,7 +3302,6 @@ fn gateway_local_agent_stream_request_forwards_execution_selection() {
     let request = LocalAgentExecutionRequest {
         project_path: PathBuf::from("/tmp/project-root"),
         task_id: TaskId::new("task-deepseek").expect("task id"),
-        worker_id: WorkerName::new("gateway-local").expect("worker id"),
         run_id: RunId::new("run-deepseek").expect("run id"),
         title: "Run with selected model".to_string(),
         prompt: "Use the selected model".to_string(),
@@ -3382,7 +3374,6 @@ fn gateway_local_agent_stream_payloads_append_task_logs() {
             crate::agent_scheduler::store::runs::ClaimTaskRunRequest {
                 run_id: run_id.clone(),
                 task_id: task_id.clone(),
-                worker_id: WorkerName::new(LOCAL_GATEWAY_WORKER_ID).expect("worker id"),
                 lease_acquired_at_ms: TimestampMs(1_783_000_951_000),
                 lease_expires_at_ms: Some(TimestampMs(1_783_001_951_000)),
             },
@@ -3901,7 +3892,6 @@ fn scheduler_dto_helpers_preserve_metadata_workspace_and_errors() {
     let run = StoredAgentRun {
         id: run_id.clone(),
         task_id: task_id.clone(),
-        worker_id: Some(worker_id.clone()),
         status: AgentRunStatus::Failed,
         attempt: 3,
         lease_acquired_at_ms: Some(TimestampMs(22)),
@@ -3931,7 +3921,6 @@ fn scheduler_dto_helpers_preserve_metadata_workspace_and_errors() {
     let task_dto = task_to_dto(task.clone());
     assert_eq!(task_dto.dag[0].depends_on, vec!["task-root"]);
     let run_dto = run_to_dto(run.clone());
-    assert_eq!(run_dto.worker_id.as_deref(), Some("worker-dto"));
     assert_eq!(run_dto.status, AgentRunStatusDto::Failed);
 
     let log = task_log_to_dto(StoredAgentTaskLog {
@@ -4040,7 +4029,6 @@ fn scheduler_response_helpers_preserve_outcomes_and_payloads() {
     let run = StoredAgentRun {
         id: run_id.clone(),
         task_id: task_id.clone(),
-        worker_id: Some(worker_id.clone()),
         status: AgentRunStatus::Running,
         attempt: 1,
         lease_acquired_at_ms: None,
@@ -4053,7 +4041,6 @@ fn scheduler_response_helpers_preserve_outcomes_and_payloads() {
 
     let local = project_wake_response_from_local_outcome(Some(LocalAgentRunnerOutcome {
         task_id: task_id.clone(),
-        worker_id: worker_id.clone(),
         run: run.clone(),
     }));
     assert!(local.dispatched);
@@ -4063,7 +4050,6 @@ fn scheduler_response_helpers_preserve_outcomes_and_payloads() {
     let dispatch = crate::agent_scheduler::engine::dispatch::DispatchOutcome {
         task_id: task_id.clone(),
         run_id: run_id.clone(),
-        worker_id: worker_id.clone(),
         target: crate::agent_scheduler::engine::dispatch::DispatchTarget::Matrix(
             crate::agent_scheduler::adapters::matrix::MatrixDispatchTarget {
                 room_id: "!room:example.test".to_string(),
@@ -4147,7 +4133,6 @@ fn scheduler_worker_ownership_and_serializer_helpers_cover_error_edges() {
     let other_task_id = TaskId::new("task-other").expect("task id");
     let run_id = RunId::new("run-ownership").expect("run id");
     let worker_id = WorkerName::new("worker-owner").expect("worker id");
-    let other_worker_id = WorkerName::new("worker-other").expect("worker id");
     let task = StoredAgentTask {
         id: task_id.clone(),
         title: "Worker ownership".to_string(),
@@ -4172,7 +4157,6 @@ fn scheduler_worker_ownership_and_serializer_helpers_cover_error_edges() {
     let run = StoredAgentRun {
         id: run_id.clone(),
         task_id: task_id.clone(),
-        worker_id: Some(worker_id.clone()),
         status: AgentRunStatus::Running,
         attempt: 1,
         lease_acquired_at_ms: None,
@@ -4193,16 +4177,14 @@ fn scheduler_worker_ownership_and_serializer_helpers_cover_error_edges() {
             .to_string(),
         "run run-ownership does not belong to task task-ownership"
     );
-    let mut unassigned_run = run.clone();
-    unassigned_run.worker_id = None;
+    let unassigned_run = run.clone();
     assert_eq!(
         validate_worker_run_ownership(&task, &unassigned_run, &task_id, &worker_id)
             .expect_err("unassigned run")
             .to_string(),
         "run run-ownership is not assigned to a worker"
     );
-    let mut wrong_worker_run = run;
-    wrong_worker_run.worker_id = Some(other_worker_id);
+    let wrong_worker_run = run;
     assert_eq!(
         validate_worker_run_ownership(&task, &wrong_worker_run, &task_id, &worker_id)
             .expect_err("wrong worker")
@@ -4626,7 +4608,6 @@ async fn scheduler_run_local_task_records_started_run_and_skips_missing_task() {
         .expect("run local task")
         .expect("local run started");
     assert_eq!(started.task_id, task_id);
-    assert_eq!(started.worker_id.as_str(), LOCAL_GATEWAY_WORKER_ID);
 
     let skipped = gateway
         .run_local_task(
@@ -6188,7 +6169,7 @@ fn claim_matrix_run(
     project_path: &std::path::Path,
     task_id: &str,
     run_id: &str,
-    worker_id: &str,
+    _worker_id: &str,
 ) {
     store
         .claim_task_run(
@@ -6196,7 +6177,6 @@ fn claim_matrix_run(
             crate::agent_scheduler::store::runs::ClaimTaskRunRequest {
                 run_id: RunId::new(run_id).expect("run id"),
                 task_id: TaskId::new(task_id).expect("task id"),
-                worker_id: WorkerName::new(worker_id).expect("worker id"),
                 lease_acquired_at_ms: TimestampMs(1_783_000_910_500),
                 lease_expires_at_ms: Some(TimestampMs(1_783_000_940_500)),
             },

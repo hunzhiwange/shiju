@@ -7,7 +7,7 @@ use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_types::common::TimestampMs;
 
 use super::PostgresAgentSchedulerStore;
-use crate::agent_scheduler::domain::{AgentRunStatus, RunId, TaskId, WorkerName};
+use crate::agent_scheduler::domain::{AgentRunStatus, RunId, TaskId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::AgentSchedulerStorageContext;
 use crate::agent_scheduler::store::runs::{
@@ -15,7 +15,7 @@ use crate::agent_scheduler::store::runs::{
     finish_status_key, parse_run_status, run_status_key, task_status_allows_run,
 };
 
-const RUN_COLUMNS: &str = "id, task_id, worker_id, status, attempt, lease_acquired_at_ms, \
+const RUN_COLUMNS: &str = "id, task_id, status, attempt, lease_acquired_at_ms, \
 lease_expires_at_ms, started_at_ms, finished_at_ms, last_heartbeat_at_ms, error_message";
 
 impl PostgresAgentSchedulerStore {
@@ -141,16 +141,15 @@ impl PostgresAgentSchedulerStore {
             transaction
                 .execute(
                     "INSERT INTO scheduler_runs (
-                     platform_id, company_id, project_id, id, task_id, worker_id, status, attempt,
+                     platform_id, company_id, project_id, id, task_id, status, attempt,
                      lease_acquired_at_ms, lease_expires_at_ms, started_at_ms
-                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
                     &[
                         &project.platform_id().as_ref(),
                         &project.company_id().as_ref(),
                         &project.project_id().as_ref(),
                         &request.run_id.as_str(),
                         &request.task_id.as_str(),
-                        &request.worker_id.as_str(),
                         &run_status_key(AgentRunStatus::Leased),
                         &attempt,
                         &request.lease_acquired_at_ms.0,
@@ -258,16 +257,15 @@ impl PostgresAgentSchedulerStore {
             transaction
                 .execute(
                     "INSERT INTO scheduler_runs (
-                         platform_id, company_id, project_id, id, task_id, worker_id, status, attempt,
+                         platform_id, company_id, project_id, id, task_id, status, attempt,
                          lease_acquired_at_ms, lease_expires_at_ms, started_at_ms
-                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
                     &[
                         &project.platform_id().as_ref(),
                         &project.company_id().as_ref(),
                         &project.project_id().as_ref(),
                         &request.run_id.as_str(),
                         &request.task_id.as_str(),
-                        &request.worker_id.as_str(),
                         &run_status_key(AgentRunStatus::Leased),
                         &attempt,
                         &request.lease_acquired_at_ms.0,
@@ -501,24 +499,19 @@ fn load_run_with_client(
 fn map_run_row(row: &Row) -> Result<StoredAgentRun> {
     let run_id: String = row.try_get(0).context("read PostgreSQL run id")?;
     let task_id: String = row.try_get(1).context("read PostgreSQL run task id")?;
-    let worker_id: Option<String> = row.try_get(2).context("read PostgreSQL run worker")?;
-    let status_key: String = row.try_get(3).context("read PostgreSQL run status")?;
-    let attempt: i64 = row.try_get(4).context("read PostgreSQL run attempt")?;
+    let status_key: String = row.try_get(2).context("read PostgreSQL run status")?;
+    let attempt: i64 = row.try_get(3).context("read PostgreSQL run attempt")?;
     Ok(StoredAgentRun {
         id: RunId::new(run_id).context("parse PostgreSQL run id")?,
         task_id: TaskId::new(task_id).context("parse PostgreSQL run task id")?,
-        worker_id: worker_id
-            .map(WorkerName::new)
-            .transpose()
-            .context("parse PostgreSQL run worker")?,
         status: parse_run_status(&status_key).context("parse PostgreSQL run status")?,
         attempt: u32::try_from(attempt)
             .with_context(|| format!("PostgreSQL run attempt out of range: {attempt}"))?,
-        lease_acquired_at_ms: row.try_get::<_, Option<i64>>(5)?.map(TimestampMs),
-        lease_expires_at_ms: row.try_get::<_, Option<i64>>(6)?.map(TimestampMs),
-        started_at_ms: row.try_get::<_, Option<i64>>(7)?.map(TimestampMs),
-        finished_at_ms: row.try_get::<_, Option<i64>>(8)?.map(TimestampMs),
-        last_heartbeat_at_ms: row.try_get::<_, Option<i64>>(9)?.map(TimestampMs),
-        error_message: row.try_get(10)?,
+        lease_acquired_at_ms: row.try_get::<_, Option<i64>>(4)?.map(TimestampMs),
+        lease_expires_at_ms: row.try_get::<_, Option<i64>>(5)?.map(TimestampMs),
+        started_at_ms: row.try_get::<_, Option<i64>>(6)?.map(TimestampMs),
+        finished_at_ms: row.try_get::<_, Option<i64>>(7)?.map(TimestampMs),
+        last_heartbeat_at_ms: row.try_get::<_, Option<i64>>(8)?.map(TimestampMs),
+        error_message: row.try_get(9)?,
     })
 }

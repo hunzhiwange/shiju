@@ -43,7 +43,7 @@ fn reject_unprefixed_scheduler_tables(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-pub(super) const LEGACY_SCHEDULER_TABLES: [&str; 10] = [
+pub(super) const LEGACY_SCHEDULER_TABLES: [&str; 8] = [
     "tasks",
     "runs",
     "task_logs",
@@ -51,12 +51,10 @@ pub(super) const LEGACY_SCHEDULER_TABLES: [&str; 10] = [
     "run_workspaces",
     "events",
     "outbox_messages",
-    "workers",
-    "teams",
     "resource_leases",
 ];
 
-pub(super) const SCHEDULER_TABLES: [&str; 12] = [
+pub(super) const SCHEDULER_TABLES: [&str; 10] = [
     "scheduler_meta",
     "scheduler_tasks",
     "scheduler_task_dependencies",
@@ -64,8 +62,6 @@ pub(super) const SCHEDULER_TABLES: [&str; 12] = [
     "scheduler_task_logs",
     "scheduler_task_artifacts",
     "scheduler_run_workspaces",
-    "scheduler_workers",
-    "scheduler_teams",
     "scheduler_resource_leases",
     "scheduler_events",
     "scheduler_outbox_messages",
@@ -305,52 +301,6 @@ ON scheduler_task_dependencies(
 "#;
 
 pub(super) const RESOURCE_SCHEMA: &str = r#"
-CREATE TABLE IF NOT EXISTS scheduler_workers (
-    platform_id TEXT NOT NULL,
-    company_id TEXT NOT NULL,
-    project_id TEXT NOT NULL,
-    id TEXT NOT NULL,
-    runtime TEXT,
-    deployment TEXT,
-    model TEXT NOT NULL DEFAULT '',
-    model_provider TEXT,
-    status TEXT NOT NULL,
-    desired_state TEXT,
-    team_id TEXT,
-    worker_role TEXT,
-    matrix_user_id TEXT,
-    room_id TEXT,
-    container_state TEXT,
-    idle_since_ms INTEGER,
-    last_seen_at_ms INTEGER,
-    last_heartbeat_at TEXT,
-    capabilities_json TEXT NOT NULL DEFAULT '[]',
-    updated_at_ms INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (platform_id, company_id, project_id, id),
-    FOREIGN KEY (platform_id, company_id, project_id)
-        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT
-);
-
-CREATE TABLE IF NOT EXISTS scheduler_teams (
-    platform_id TEXT NOT NULL,
-    company_id TEXT NOT NULL,
-    project_id TEXT NOT NULL,
-    id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    status TEXT NOT NULL,
-    leader_id TEXT NOT NULL,
-    team_room_id TEXT,
-    leader_dm_room_id TEXT,
-    leader_ready INTEGER NOT NULL,
-    ready_workers INTEGER NOT NULL,
-    total_workers INTEGER NOT NULL,
-    members_json TEXT NOT NULL DEFAULT '[]',
-    updated_at_ms INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (platform_id, company_id, project_id, id),
-    FOREIGN KEY (platform_id, company_id, project_id)
-        REFERENCES projects(platform_id, company_id, project_id) ON DELETE RESTRICT
-);
-
 CREATE TABLE IF NOT EXISTS scheduler_resource_leases (
     platform_id TEXT NOT NULL,
     company_id TEXT NOT NULL,
@@ -372,16 +322,6 @@ CREATE TABLE IF NOT EXISTS scheduler_resource_leases (
 "#;
 
 pub(super) const RESOURCE_INDEXES: &str = r#"
-CREATE INDEX IF NOT EXISTS idx_scheduler_workers_status
-ON scheduler_workers(platform_id, company_id, project_id, status, id);
-CREATE INDEX IF NOT EXISTS idx_scheduler_workers_team_status
-ON scheduler_workers(platform_id, company_id, project_id, team_id, status, id);
-CREATE INDEX IF NOT EXISTS idx_scheduler_workers_runtime_status
-ON scheduler_workers(platform_id, company_id, project_id, runtime, status, id);
-CREATE INDEX IF NOT EXISTS idx_scheduler_workers_container_state
-ON scheduler_workers(platform_id, company_id, project_id, container_state, status, id);
-CREATE INDEX IF NOT EXISTS idx_scheduler_teams_status
-ON scheduler_teams(platform_id, company_id, project_id, status, id);
 CREATE INDEX IF NOT EXISTS idx_scheduler_resource_leases_resource_status
 ON scheduler_resource_leases(platform_id, company_id, project_id, resource_kind, resource_id, status);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_scheduler_resource_leases_active_resource

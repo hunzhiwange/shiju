@@ -9,7 +9,7 @@ use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
-use super::domain::{AgentSchedulerContext, RunId, TaskId, WorkerName};
+use super::domain::{AgentSchedulerContext, RunId, TaskId, AssigneeId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::AgentSchedulerStore;
 use super::store::logs::{AgentSchedulerWorkspaceContext, AppendAgentTaskLogRequest};
@@ -301,7 +301,7 @@ fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
         status: AgentTaskStatus::Dispatched,
         spec_uri: format!("shared/tasks/{}/spec.md", task_id.as_str()),
         meta_uri: format!("shared/tasks/{}/meta.json", task_id.as_str()),
-        assigned_to: Some(WorkerName::new("worker-observe")?),
+        assigned_to: Some(AssigneeId::new("worker-observe")?),
         team_id: None,
         room_id: Some("!worker-room:example.test".to_string()),
         project_room_id: Some("!project-room:example.test".to_string()),

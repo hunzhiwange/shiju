@@ -9,7 +9,7 @@ use vw_api_types::common::TimestampMs;
 use super::recurring::{
     RecurringDecision, RecurringSchedule, RecurringWaitReason, record_executed,
 };
-use crate::agent_scheduler::domain::{TaskId, WorkerName};
+use crate::agent_scheduler::domain::{TaskId, AssigneeId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::AgentSchedulerStore;
 use crate::agent_scheduler::store::tasks::{NewAgentTask, StoredAgentTask};
@@ -121,7 +121,7 @@ fn infinite_task() -> Result<NewAgentTask> {
         status: AgentTaskStatus::Active,
         spec_uri: "shared/tasks/task-infinite-recurring/spec.md".to_string(),
         meta_uri: "shared/tasks/task-infinite-recurring/meta.json".to_string(),
-        assigned_to: Some(WorkerName::new("worker-monitor")?),
+        assigned_to: Some(AssigneeId::new("worker-monitor")?),
         team_id: None,
         room_id: Some("!monitor-room:example.test".to_string()),
         project_room_id: None,

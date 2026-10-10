@@ -9,7 +9,7 @@ use vw_api_types::task::{
     TaskPoolWorkflowTransitionDto,
 };
 
-use super::domain::{AgentRunStatus, TaskId, WorkerName};
+use super::domain::{AgentRunStatus, TaskId, AssigneeId};
 use super::events::AgentEventKind;
 use super::policy::{
     AgentSchedulerPolicyConfig, AgentSchedulerPolicyOutcome, AgentSchedulerPolicyService,

@@ -12,7 +12,7 @@ use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
 use vw_config_types::staff::{StaffMemberTaskAssignmentConfig, StaffProjectStateConfig};
 
 use super::PostgresAgentSchedulerStore;
-use crate::agent_scheduler::domain::{TaskId, TeamId, WorkerName};
+use crate::agent_scheduler::domain::{TaskId, TeamId, AssigneeId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
 use crate::agent_scheduler::store::AgentSchedulerStorageContext;
 use crate::agent_scheduler::store::tasks::{
@@ -69,7 +69,7 @@ impl PostgresAgentSchedulerStore {
                         &task.title,
                         &task.spec_uri,
                         &task.meta_uri,
-                        &task.assigned_to.as_ref().map(WorkerName::as_str),
+                        &task.assigned_to.as_ref().map(AssigneeId::as_str),
                         &task.team_id.as_ref().map(TeamId::as_str),
                         &task.room_id,
                         &task.project_room_id,
@@ -555,7 +555,7 @@ fn map_task_row(row: &Row) -> Result<StoredAgentTask> {
         spec_uri: row.try_get(4)?,
         meta_uri: row.try_get(5)?,
         assigned_to: assigned_to
-            .map(WorkerName::new)
+            .map(AssigneeId::new)
             .transpose()
             .context("parse PostgreSQL task worker")?,
         team_id: team_id.map(TeamId::new).transpose().context("parse PostgreSQL task team")?,

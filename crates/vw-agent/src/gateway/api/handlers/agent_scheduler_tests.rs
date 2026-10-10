@@ -18,10 +18,7 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
     AgentSchedulerReplaceTaskGraphRequest,
     AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskMetadataPatchDto,
-    AgentSchedulerTaskMetadataUpdateRequest, AgentSchedulerUpsertTeamRequest,
-    AgentSchedulerUpsertWorkerRequest, AgentSchedulerWorkerRunEventKindDto,
-    AgentSchedulerWorkerRunEventRequest, AgentTaskKindDto, AgentTaskStatusDto, AgentTeamMemberDto,
-    AgentTeamStatusDto, AgentWorkerStatusDto,
+    AgentSchedulerTaskMetadataUpdateRequest, AgentTaskKindDto, AgentTaskStatusDto,
 };
 use vw_api_types::common::TimestampMs;
 use vw_api_types::task::{
@@ -61,6 +58,23 @@ async fn agent_scheduler_routes_require_header_tenant_scope() {
         .await
         .expect("response");
     assert_eq!(missing_tenant.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn agent_scheduler_routes_exclude_removed_remote_resources() {
+    let app = router::<()>().with_state(());
+    for path in [
+        "/agent-scheduler/projects/project-a/workers",
+        "/agent-scheduler/projects/project-a/teams",
+        "/agent-scheduler/projects/project-a/tasks/task-a/runs/run-a/worker-events",
+    ] {
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(path).body(Body::empty()).expect("request"))
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "unexpected route: {path}");
+    }
 }
 
 // 失败转换同时检查任务、运行和事件投影，避免只更新其中一个状态视图。
@@ -395,107 +409,6 @@ async fn agent_scheduler_gateway_local_command_respects_max_concurrent() {
 
 // 项目唤醒只应选择图依赖已就绪且生命周期允许的任务。
 #[tokio::test]
-async fn agent_scheduler_project_wake_runs_registered_queued_task() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-wake");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
-        output: "mock project wake output".to_string(),
-    });
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .create_task(
-            &project_path,
-            NewAgentTask {
-                id: TaskId::new("task-project-wake").expect("task id"),
-                title: "Run queued task through project wake".to_string(),
-                kind: AgentTaskKind::Finite,
-                status: AgentTaskStatus::Queued,
-                spec_uri: "shared/tasks/task-project-wake/spec.md".to_string(),
-                meta_uri: "shared/tasks/task-project-wake/meta.json".to_string(),
-                assigned_to: None,
-                team_id: None,
-                room_id: None,
-                project_room_id: None,
-                delegated_to_team: None,
-                schedule: None,
-                timezone: None,
-                next_scheduled_at: None,
-                last_executed_at: None,
-                dag: Vec::new(),
-                metadata: json!({
-                    "prompt": "Run this registered queued task through project wake",
-                    "priority": 4,
-                    "order_no": 9,
-                    "model": "auto",
-                    "agent": "main"
-                }),
-                created_at_ms: TimestampMs(1_783_000_900_000),
-            },
-        )
-        .expect("seed queued scheduler task");
-
-    let project_id = scheduler_project_id(&project_path);
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let wake_uri = format!("/agent-scheduler/projects/{project_id}/wake");
-    let request = AgentSchedulerProjectWakeRequest {
-        now_ms: TimestampMs(1_783_000_901_000),
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-        max_concurrent: None,
-        auto_promote_pool_tasks: false,
-    };
-
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(Method::POST)
-                .uri(wake_uri)
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(serde_json::to_string(&request).expect("wake json")))
-                .expect("wake request"),
-        )
-        .await
-        .expect("wake response");
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response_json(response).await;
-    assert_eq!(body["dispatched"], true);
-    assert_eq!(body["task_id"], "task-project-wake");
-    assert_eq!(body["worker_id"], LOCAL_GATEWAY_WORKER_ID);
-
-    let task_id = TaskId::new("task-project-wake").expect("task id");
-    let logs =
-        wait_for_store_log(&store, &project_path, &task_id, "local execution submitted result")
-            .await;
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Submitted);
-    assert!(logs.iter().any(|log| {
-        log.from_status == Some(AgentTaskStatus::Running)
-            && log.to_status == Some(AgentTaskStatus::Submitted)
-            && log.message == "local execution submitted result"
-    }));
-    let artifacts =
-        wait_for_store_artifact(&store, &project_path, &task_id, "execution_result").await;
-    assert!(artifacts.iter().any(|artifact| {
-        artifact.kind == "execution_result"
-            && artifact.payload["success"] == true
-            && artifact.payload["output"] == "mock project wake output"
-    }));
-    let snapshot = get_json(app, &format!("/agent-scheduler/projects/{project_id}/tasks")).await;
-    assert_eq!(snapshot["tasks"][0]["task_id"], "task-project-wake");
-    assert_eq!(snapshot["tasks"][0]["status"], "submitted");
-    assert_eq!(snapshot["tasks"][0]["status_key"], "code_complete");
-    assert_eq!(snapshot["tasks"][0]["merge_source_branch"], "vw/task/task-project-wake");
-    assert_eq!(snapshot["tasks"][0]["selected_worktree_branch"], "vw/task/task-project-wake");
-    assert_ne!(
-        snapshot["tasks"][0]["selected_worktree_path"].as_str(),
-        Some(project_path.to_string_lossy().as_ref())
-    );
-}
-
-#[tokio::test]
 async fn agent_scheduler_project_wake_skips_lifecycle_ineligible_queued_task() {
     let temp = tempfile::tempdir().expect("temp project root");
     let project_path = temp.path().join("project-agent-scheduler-wake-ineligible");
@@ -800,90 +713,6 @@ async fn project_wake_does_not_apply_staff_plan() {
         .expect("task");
     assert!(task.metadata.get("task_board.staff.member_id").is_none());
 }
-
-#[tokio::test]
-async fn agent_scheduler_project_wake_starts_task_without_staff_continuation() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-wake-staff-start");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
-        output: "mock local wake output".to_string(),
-    });
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .create_task(
-            &project_path,
-            NewAgentTask {
-                id: TaskId::new("task-assigned-autonomous-start").expect("task id"),
-                title: "Start assigned autonomous stage through project wake".to_string(),
-                kind: AgentTaskKind::Finite,
-                status: AgentTaskStatus::Queued,
-                spec_uri: "shared/tasks/task-assigned-autonomous-start/spec.md".to_string(),
-                meta_uri: "shared/tasks/task-assigned-autonomous-start/meta.json".to_string(),
-                assigned_to: None,
-                team_id: None,
-                room_id: None,
-                project_room_id: None,
-                delegated_to_team: None,
-                schedule: None,
-                timezone: None,
-                next_scheduled_at: None,
-                last_executed_at: None,
-                dag: Vec::new(),
-                metadata: json!({
-                    "task_board.status_key": "planning",
-                    "task_board.status_role": "planning",
-                    "task_board.staff.member_id": "staff-planner",
-                    "priority": 4,
-                    "order_no": 2,
-                    "prompt": "Start the assigned autonomous planning stage"
-                }),
-                created_at_ms: TimestampMs(1_783_000_907_000),
-            },
-        )
-        .expect("seed assigned autonomous stage task");
-    let project_id = scheduler_project_id(&project_path);
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let wake_uri = format!("/agent-scheduler/projects/{project_id}/wake");
-    let request = AgentSchedulerProjectWakeRequest {
-        now_ms: TimestampMs(1_783_000_908_000),
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-        max_concurrent: None,
-        auto_promote_pool_tasks: false,
-    };
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method(Method::POST)
-                .uri(wake_uri)
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(serde_json::to_string(&request).expect("wake json")))
-                .expect("wake request"),
-        )
-        .await
-        .expect("wake response");
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = response_json(response).await;
-
-    assert_eq!(body["dispatched"], true);
-    assert_eq!(body["task_id"], "task-assigned-autonomous-start");
-    assert_eq!(body["worker_id"], LOCAL_GATEWAY_WORKER_ID);
-
-    let task_id = TaskId::new("task-assigned-autonomous-start").expect("task id");
-    let logs =
-        wait_for_store_log(&store, &project_path, &task_id, "local execution submitted result")
-            .await;
-    assert!(logs.iter().any(|log| {
-        log.from_status == Some(AgentTaskStatus::Running)
-            && log.to_status == Some(AgentTaskStatus::Submitted)
-            && log.message == "local execution submitted result"
-    }));
-}
-
-
-
 
 // 任务板是事件投影而非独立真相源，此处固定首次唤醒后的投影同步。
 #[tokio::test]
@@ -2661,195 +2490,6 @@ fn scheduler_command_and_metadata_helpers_cover_edge_cases() {
 
 
 
-#[test]
-fn scheduler_worker_ownership_and_serializer_helpers_cover_error_edges() {
-    let task_id = TaskId::new("task-ownership").expect("task id");
-    let other_task_id = TaskId::new("task-other").expect("task id");
-    let run_id = RunId::new("run-ownership").expect("run id");
-    let worker_id = WorkerName::new("worker-owner").expect("worker id");
-    let task = StoredAgentTask {
-        id: task_id.clone(),
-        title: "Worker ownership".to_string(),
-        kind: AgentTaskKind::Finite,
-        status: AgentTaskStatus::Running,
-        spec_uri: "shared/tasks/task-ownership/spec.md".to_string(),
-        meta_uri: "shared/tasks/task-ownership/meta.json".to_string(),
-        assigned_to: Some(worker_id.clone()),
-        team_id: None,
-        room_id: None,
-        project_room_id: None,
-        delegated_to_team: None,
-        schedule: None,
-        timezone: None,
-        next_scheduled_at: None,
-        last_executed_at: None,
-        dag: Vec::new(),
-        metadata: json!({}),
-        created_at_ms: TimestampMs(70),
-        updated_at_ms: TimestampMs(71),
-    };
-    let run = StoredAgentRun {
-        id: run_id.clone(),
-        task_id: task_id.clone(),
-        status: AgentRunStatus::Running,
-        attempt: 1,
-        lease_acquired_at_ms: None,
-        lease_expires_at_ms: None,
-        started_at_ms: None,
-        finished_at_ms: None,
-        last_heartbeat_at_ms: None,
-        error_message: None,
-    };
-
-    validate_worker_run_ownership(&task, &run, &task_id, &worker_id)
-        .expect("matching worker owns run");
-    let mut wrong_task_run = run.clone();
-    wrong_task_run.task_id = other_task_id;
-    assert_eq!(
-        validate_worker_run_ownership(&task, &wrong_task_run, &task_id, &worker_id)
-            .expect_err("wrong task")
-            .to_string(),
-        "run run-ownership does not belong to task task-ownership"
-    );
-    let unassigned_run = run.clone();
-    assert_eq!(
-        validate_worker_run_ownership(&task, &unassigned_run, &task_id, &worker_id)
-            .expect_err("unassigned run")
-            .to_string(),
-        "run run-ownership is not assigned to a worker"
-    );
-    let wrong_worker_run = run;
-    assert_eq!(
-        validate_worker_run_ownership(&task, &wrong_worker_run, &task_id, &worker_id)
-            .expect_err("wrong worker")
-            .to_string(),
-        "run run-ownership belongs to worker worker-other, got worker-owner"
-    );
-
-    assert!(is_default_dispatch_mode(&AgentSchedulerDispatchModeDto::Local));
-    assert!(!is_default_dispatch_mode(&AgentSchedulerDispatchModeDto::Auto));
-    assert!(is_false(&false));
-    assert!(!is_false(&true));
-    assert!(task_metadata_object(Value::Null).expect("null metadata").is_empty());
-    assert_eq!(
-        task_metadata_object(json!(["not", "object"])).expect_err("array metadata").to_string(),
-        "task metadata must be a JSON object"
-    );
-    assert!(reasoning_effort_field(&json!({})).expect("missing effort").is_none());
-    assert!(
-        reasoning_effort_field(&json!({"reasoning_effort": null})).expect("null effort").is_none()
-    );
-    assert_eq!(
-        reasoning_effort_field(&json!({"reasoning_effort": "invalid-effort"}))
-            .expect_err("invalid effort")
-            .to_string(),
-        "invalid task metadata field reasoning_effort: unknown variant `invalid-effort`, expected one of `none`, `low`, `medium`, `high`, `xhigh`, `max`"
-    );
-}
-
-#[test]
-fn scheduler_error_helpers_cover_lifecycle_command_and_git_failures() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("error-helper-branches");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
-        output: "unused".to_string(),
-    });
-    gateway.store.initialize_project(&project_path).expect("init scheduler");
-    let worker_id = WorkerName::new("worker-error-helper").expect("worker id");
-    let task_id = TaskId::new("task-error-helper").expect("task id");
-    gateway
-        .store
-        .create_task(
-            &project_path,
-            worker_event_task(task_id.as_str(), AgentTaskStatus::Running, &worker_id),
-        )
-        .expect("seed task");
-    let task = gateway.store.load_task(&project_path, &task_id).expect("load task").expect("task");
-
-    assert_eq!(
-        gateway
-            .resolve_worker_lifecycle_outcome(&project_path, &task, WORKER_OUTCOME_SUCCESS)
-            .expect_err("missing workflow")
-            .to_string(),
-        "task board workflow is required for worker lifecycle outcome"
-    );
-    let event = append_command_event(
-        &gateway.store,
-        &project_path,
-        &task,
-        None,
-        AgentSchedulerCommandKindDto::Start,
-        AgentTaskStatus::Queued,
-        None,
-        TimestampMs(120),
-    )
-    .expect("append command event");
-    assert_eq!(event.message, "accepted agent scheduler command start");
-    assert!(
-        project_current_branch(&project_path)
-            .expect_err("non-git project")
-            .to_string()
-            .contains("merge target branch could not be resolved from project current branch")
-    );
-    assert_eq!(
-        map_scheduler_error(anyhow::anyhow!("scheduler helper error")).to_string(),
-        "scheduler helper error"
-    );
-    assert_eq!(
-        map_scheduler_command_error(anyhow::anyhow!(
-            "unsupported agent task transition for finite: completed -> queued"
-        ))
-        .to_string(),
-        "unsupported agent task transition for finite: completed -> queued"
-    );
-}
-
-
-#[tokio::test]
-async fn scheduler_run_local_task_records_started_run_and_skips_missing_task() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("run-local-direct");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
-        output: "local direct output".to_string(),
-    });
-    gateway.store.initialize_project(&project_path).expect("init scheduler");
-    let worker_id = WorkerName::new(LOCAL_GATEWAY_WORKER_ID).expect("local worker id");
-    let task_id = TaskId::new("task-run-local-direct").expect("task id");
-    gateway
-        .store
-        .create_task(
-            &project_path,
-            worker_event_task(task_id.as_str(), AgentTaskStatus::Queued, &worker_id),
-        )
-        .expect("seed local task");
-
-    let started = gateway
-        .run_local_task(
-            owned_scheduler_context(&project_path).expect("context"),
-            task_id.clone(),
-            TimestampMs(100),
-        )
-        .await
-        .expect("run local task")
-        .expect("local run started");
-    assert_eq!(started.task_id, task_id);
-
-    let skipped = gateway
-        .run_local_task(
-            owned_scheduler_context(&project_path).expect("context"),
-            TaskId::new("task-run-local-missing").expect("task id"),
-            TimestampMs(101),
-        )
-        .await
-        .expect("missing task should skip");
-    assert!(skipped.is_none());
-}
-
-
-
-
 #[tokio::test]
 async fn scheduler_task_board_command_payload_errors_are_reported_before_store_mutation() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -2919,137 +2559,6 @@ async fn scheduler_task_board_command_payload_errors_are_reported_before_store_m
             .expect_err("missing payload should fail");
         assert_eq!(error.to_string(), expected);
     }
-}
-
-#[tokio::test]
-async fn scheduler_task_board_command_success_branches_return_task_and_event_payloads() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("task-board-command-success");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let project_id = scheduler_project_id(&project_path);
-    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
-        output: "unused".to_string(),
-    });
-    gateway.store.initialize_project(&project_path).expect("init scheduler");
-    let task_id = TaskId::new("task-board-success").expect("task id");
-    gateway
-        .store
-        .create_task(
-            &project_path,
-            worker_event_task(
-                task_id.as_str(),
-                AgentTaskStatus::Queued,
-                &WorkerName::new("worker-board-success").expect("worker id"),
-            ),
-        )
-        .expect("seed task board task");
-
-    let updated = gateway
-        .apply_task_board_command(
-            &project_id,
-            &project_path,
-            &task_id,
-            AgentSchedulerCommandRequest {
-                task_id: task_id.as_str().into(),
-                command: AgentSchedulerCommandKindDto::UpdateMetadata,
-                dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-                max_concurrent: None,
-                reason: Some("metadata update".to_string()),
-                payload: AgentSchedulerCommandPayloadDto {
-                    metadata_update: Some(AgentSchedulerTaskMetadataPatchDto {
-                        title: Some("Updated title".to_string()),
-                        status_key: Some("updated_status".to_string()),
-                        ..AgentSchedulerTaskMetadataPatchDto::default()
-                    }),
-                    ..AgentSchedulerCommandPayloadDto::default()
-                },
-            },
-            TimestampMs(63),
-        )
-        .await
-        .expect("metadata update command");
-    assert!(updated.accepted);
-    assert_eq!(
-        updated.task.expect("updated task").read_model.title.as_deref(),
-        Some("Updated title")
-    );
-    assert!(updated.event.is_some());
-
-    let deleted = gateway
-        .apply_task_board_command(
-            &project_id,
-            &project_path,
-            &task_id,
-            AgentSchedulerCommandRequest {
-                task_id: task_id.as_str().into(),
-                command: AgentSchedulerCommandKindDto::SoftDelete,
-                dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-                max_concurrent: None,
-                reason: Some("soft delete".to_string()),
-                payload: AgentSchedulerCommandPayloadDto::default(),
-            },
-            TimestampMs(64),
-        )
-        .await
-        .expect("soft delete command");
-    assert!(deleted.accepted);
-    let restored = gateway
-        .apply_task_board_command(
-            &project_id,
-            &project_path,
-            &task_id,
-            AgentSchedulerCommandRequest {
-                task_id: task_id.as_str().into(),
-                command: AgentSchedulerCommandKindDto::Restore,
-                dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-                max_concurrent: None,
-                reason: Some("restore".to_string()),
-                payload: AgentSchedulerCommandPayloadDto::default(),
-            },
-            TimestampMs(65),
-        )
-        .await
-        .expect("restore command");
-    assert!(restored.accepted);
-
-    let imported = gateway
-        .apply_task_board_command(
-            &project_id,
-            &project_path,
-            &task_id,
-            AgentSchedulerCommandRequest {
-                task_id: task_id.as_str().into(),
-                command: AgentSchedulerCommandKindDto::ImportLegacyTask,
-                dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-                max_concurrent: None,
-                reason: Some("import legacy".to_string()),
-                payload: AgentSchedulerCommandPayloadDto {
-                    legacy_import: Some(AgentSchedulerLegacyTaskImportDto {
-                        task_id: "legacy-board-success".into(),
-                        title: "Legacy board success".to_string(),
-                        status_key: Some("legacy_status".to_string()),
-                        status: Some(AgentTaskStatusDto::Queued),
-                        priority: 2,
-                        order_no: 4,
-                        model: "auto".to_string(),
-                        agent: Some("agent".to_string()),
-                        acp_agent: None,
-                        reasoning_effort: None,
-                        prompt: "legacy prompt".to_string(),
-                        workflow_id: None,
-                        metadata: json!({"source": "legacy"}),
-                        created_at_ms: TimestampMs(66),
-                        updated_at_ms: Some(TimestampMs(67)),
-                    }),
-                    ..AgentSchedulerCommandPayloadDto::default()
-                },
-            },
-            TimestampMs(66),
-        )
-        .await
-        .expect("legacy import command");
-    assert!(imported.accepted);
-    assert_eq!(imported.task.expect("imported task").task_id.as_ref(), "legacy-board-success");
 }
 
 #[tokio::test]
@@ -3223,33 +2732,7 @@ impl AgentSchedulerGateway for MinimalGateway {
         Ok(AgentSchedulerTasksResponse { tasks: Vec::new() })
     }
 
-    async fn wake(
-        &self,
-        _request: AgentSchedulerWakeRequest,
-    ) -> Result<AgentSchedulerWakeResponse, ApiError> {
-        Ok(AgentSchedulerWakeResponse {
-            dispatched: false,
-            task_id: None,
-            run_id: None,
-            worker_id: None,
-            outbox_message_id: None,
-        })
-    }
 
-    async fn recover(
-        &self,
-        _request: AgentSchedulerRecoveryRequest,
-    ) -> Result<AgentSchedulerRecoveryResponse, ApiError> {
-        Ok(AgentSchedulerRecoveryResponse {
-            graced_run_ids: Vec::new(),
-            recovered_run_ids: Vec::new(),
-            released_resource_lease_ids: Vec::new(),
-            tainted_resource_lease_ids: Vec::new(),
-            drifted_worker_ids: Vec::new(),
-            slept_worker_ids: Vec::new(),
-            outbox_message_ids: Vec::new(),
-        })
-    }
 
     async fn list_events(
         &self,
@@ -3295,58 +2778,7 @@ fn create_task_request(task_id: &str) -> AgentSchedulerCreateTaskRequest {
     }
 }
 
-fn worker_event_task(
-    task_id: &str,
-    status: AgentTaskStatus,
-    worker_id: &WorkerName,
-) -> NewAgentTask {
-    NewAgentTask {
-        id: TaskId::new(task_id).expect("task id"),
-        title: format!("Worker event {task_id}"),
-        kind: AgentTaskKind::Finite,
-        status,
-        spec_uri: format!("shared/tasks/{task_id}/spec.md"),
-        meta_uri: format!("shared/tasks/{task_id}/meta.json"),
-        assigned_to: Some(worker_id.clone()),
-        team_id: None,
-        room_id: Some("!worker-event-room:localhost".to_string()),
-        project_room_id: None,
-        delegated_to_team: None,
-        schedule: None,
-        timezone: None,
-        next_scheduled_at: None,
-        last_executed_at: None,
-        dag: Vec::new(),
-        metadata: json!({
-            "task_board.workflow_id": "worker_event_flow",
-            "task_board.status_key": "custom_running",
-            "task_board.status_role": "executing",
-            "prompt": task_id,
-        }),
-        created_at_ms: TimestampMs(89),
-    }
-}
 
-fn worker_event_request(
-    worker_id: &str,
-    event: AgentSchedulerWorkerRunEventKindDto,
-    message: Option<&str>,
-) -> AgentSchedulerWorkerRunEventRequest {
-    AgentSchedulerWorkerRunEventRequest {
-        platform_id: vw_api_types::id::DEFAULT_PLATFORM_ID.to_string(),
-        company_id: vw_api_types::id::DEFAULT_COMPANY_ID.to_string(),
-        project_id: "worker-event-project".to_string(),
-        worker_id: worker_id.to_string(),
-        event,
-        message: message.map(str::to_string),
-        result: None,
-        error_message: None,
-        workspace: None,
-        payload: json!({"source": "unit"}),
-        now_ms: None,
-        lease_expires_at_ms: None,
-    }
-}
 
 
 // 无作用域路由必须先解析租户和项目上下文，再允许调用任何调度存储方法。
@@ -3870,14 +3302,6 @@ fn scheduler_status_helpers_distinguish_idempotent_and_slot_states() {
     assert!(!execution_slot_status(AgentTaskStatus::Submitted));
     assert!(execution_slot_status(AgentTaskStatus::Acknowledged));
     assert!(!start_command_is_idempotent_for_status(AgentTaskStatus::Queued));
-}
-
-#[test]
-fn scheduler_lifecycle_defaults_unknown_desired_state_to_running() {
-    assert_eq!(lifecycle_from_desired_state(Some("Sleeping")), WorkerLifecycleState::Sleeping);
-    assert_eq!(lifecycle_from_desired_state(Some("Stopped")), WorkerLifecycleState::Stopped);
-    assert_eq!(lifecycle_from_desired_state(Some("sleeping")), WorkerLifecycleState::Running);
-    assert_eq!(lifecycle_from_desired_state(None), WorkerLifecycleState::Running);
 }
 
 #[test]

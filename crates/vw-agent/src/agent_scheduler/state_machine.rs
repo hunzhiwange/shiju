@@ -83,7 +83,7 @@ pub fn agent_task_can_transition(
     match kind {
         AgentTaskKind::Finite => finite_can_transition(from, to),
         AgentTaskKind::Infinite => infinite_can_transition(from, to),
-        AgentTaskKind::TeamDag => team_dag_can_transition(from, to),
+        AgentTaskKind::DependencyGraph => dependency_graph_can_transition(from, to),
     }
 }
 
@@ -193,7 +193,7 @@ fn infinite_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -> bool {
     }
 }
 
-fn team_dag_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -> bool {
+fn dependency_graph_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -> bool {
     use AgentTaskStatus::{
         Acknowledged, Archived, Assigned, Blocked, Cancelled, Completed, Dispatched, Draft, Failed,
         Paused, Queued, Revision, Running, Submitted,
@@ -245,6 +245,6 @@ fn task_kind_name(kind: AgentTaskKind) -> &'static str {
     match kind {
         AgentTaskKind::Finite => "finite",
         AgentTaskKind::Infinite => "infinite",
-        AgentTaskKind::TeamDag => "team_dag",
+        AgentTaskKind::DependencyGraph => "dependency_graph",
     }
 }

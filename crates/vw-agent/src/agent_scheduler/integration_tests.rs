@@ -18,13 +18,10 @@ use vw_shared::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionStep, SessionTodoItem, TokenUsage,
 };
 
-use super::adapters::controller::{
-    FakeControllerAdapter, WorkerControllerSnapshot, WorkerLifecycleState,
-};
 use super::artifacts::TaskArtifactWriter;
 use super::domain::{
-    AgentRunStatus, AgentSchedulerContext, AgentTeamStatus, AgentWorkerStatus, HolderId,
-    ResourceId, ResourceLeaseId, RunId, TaskId, TeamId, WorkerName,
+    AgentRunStatus, AgentSchedulerContext, HolderId, ResourceId, ResourceLeaseId, RunId, TaskId,
+    TeamId, AssigneeId,
 };
 use super::engine::dispatch::DispatchEngine;
 use super::events::AgentEventKind;
@@ -38,11 +35,6 @@ use super::store::resources::{AcquireResourceLeaseRequest, ResourceKind};
 use super::store::runs::AgentRunFinishStatus;
 use super::store::runs::ClaimTaskRunRequest;
 use super::store::tasks::NewAgentTask;
-use super::store::teams::NewAgentTeamSnapshot;
-use super::store::workers::{
-    AgentCapabilityRecord, AgentWorkerFilter, NewAgentWorkerSnapshot,
-    UpdateAgentWorkerLifecycleRequest,
-};
 use super::task_graph::AgentTaskDependency;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
@@ -107,7 +99,6 @@ fn agent_scheduler_requires_same_scope_parent_project() -> Result<()> {
     postgres_fixture.cleanup()?;
     Ok(())
 }
-
 fn assert_scheduler_requires_same_scope_parent_project(database: GlobalDatabase) -> Result<()> {
     let store = AgentSchedulerStore::from_database(database.clone());
     let project_path = Path::new("scheduler-parent-project-test");
@@ -201,7 +192,7 @@ fn append_lifecycle_event(
     project_path: &Path,
     task_id: &TaskId,
     run_id: &RunId,
-    worker_id: &WorkerName,
+    worker_id: &AssigneeId,
     kind: AgentEventKind,
     from_status: AgentTaskStatus,
     to_status: AgentTaskStatus,
@@ -320,7 +311,7 @@ fn isolation_task(label: &str) -> Result<NewAgentTask> {
         status: AgentTaskStatus::Assigned,
         spec_uri: "shared/tasks/shared-task/spec.md".to_string(),
         meta_uri: "shared/tasks/shared-task/meta.json".to_string(),
-        assigned_to: Some(WorkerName::new("shared-worker")?),
+        assigned_to: Some(AssigneeId::new("shared-worker")?),
         team_id: Some(TeamId::new("shared-team")?),
         room_id: None,
         project_room_id: None,
@@ -336,21 +327,6 @@ fn isolation_task(label: &str) -> Result<NewAgentTask> {
 }
 
 
-fn isolation_team(label: &str) -> Result<NewAgentTeamSnapshot> {
-    Ok(NewAgentTeamSnapshot {
-        id: TeamId::new("shared-team")?,
-        name: format!("{label}-team"),
-        status: AgentTeamStatus::Active,
-        leader_id: WorkerName::new("shared-worker")?,
-        team_room_id: None,
-        leader_dm_room_id: None,
-        leader_ready: true,
-        ready_workers: 1,
-        total_workers: 1,
-        members: Vec::new(),
-        updated_at_ms: TimestampMs(900),
-    })
-}
 
 fn assert_project_local_databases_absent(project_path: &Path) {
     let project_config = project_path.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME);
@@ -392,48 +368,4 @@ impl TestClock {
         self.now_ms = TimestampMs(self.now_ms.0 + delta_ms);
         self.now_ms
     }
-}
-
-fn idle_worker(worker_id: &WorkerName) -> Result<NewAgentWorkerSnapshot> {
-    Ok(NewAgentWorkerSnapshot {
-        id: worker_id.clone(),
-        runtime: Some("copaw".to_string()),
-        deployment: Some("remote".to_string()),
-        model: "gpt-5-mini".to_string(),
-        model_provider: Some("openai".to_string()),
-        status: AgentWorkerStatus::Idle,
-        desired_state: Some("Running".to_string()),
-        team_id: Some(TeamId::new("team-e2e")?),
-        worker_role: Some("worker".to_string()),
-        matrix_user_id: Some("@worker-e2e:example.test".to_string()),
-        room_id: Some("!worker-e2e-room:example.test".to_string()),
-        container_state: Some("ready".to_string()),
-        idle_since_ms: Some(TimestampMs(1_783_000_900_000)),
-        last_seen_at_ms: Some(TimestampMs(1_783_000_950_000)),
-        last_heartbeat_at: Some("2026-07-02T10:15:50Z".to_string()),
-        capabilities: vec![AgentCapabilityRecord::skill("scheduler-e2e")],
-        updated_at_ms: TimestampMs(1_783_000_950_000),
-    })
-}
-
-fn isolation_worker(label: &str) -> Result<NewAgentWorkerSnapshot> {
-    Ok(NewAgentWorkerSnapshot {
-        id: WorkerName::new("shared-worker")?,
-        runtime: Some("local".to_string()),
-        deployment: Some("local".to_string()),
-        model: format!("{label}-model"),
-        model_provider: Some("test".to_string()),
-        status: AgentWorkerStatus::Idle,
-        desired_state: Some("Running".to_string()),
-        team_id: Some(TeamId::new("shared-team")?),
-        worker_role: Some("worker".to_string()),
-        matrix_user_id: None,
-        room_id: None,
-        container_state: Some("ready".to_string()),
-        idle_since_ms: Some(TimestampMs(900)),
-        last_seen_at_ms: Some(TimestampMs(900)),
-        last_heartbeat_at: None,
-        capabilities: Vec::new(),
-        updated_at_ms: TimestampMs(900),
-    })
 }

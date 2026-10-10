@@ -6,7 +6,7 @@ use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};
 use serde_json::Value;
 use vw_api_types::common::TimestampMs;
 
-use crate::agent_scheduler::domain::{RunId, TaskId, TeamId, WorkerName};
+use crate::agent_scheduler::domain::{RunId, TaskId, TeamId, AssigneeId};
 use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::state_machine::AgentTaskStatus;
 
@@ -23,7 +23,7 @@ to_status, from_status_key, to_status_key, message, payload_json, created_at_ms"
 pub struct AppendAgentEventRequest {
     pub task_id: Option<TaskId>,
     pub run_id: Option<RunId>,
-    pub worker_id: Option<WorkerName>,
+    pub worker_id: Option<AssigneeId>,
     pub team_id: Option<TeamId>,
     pub kind: AgentEventKind,
     pub from_status: Option<AgentTaskStatus>,
@@ -41,7 +41,7 @@ pub struct StoredAgentEvent {
     pub cursor: i64,
     pub task_id: Option<TaskId>,
     pub run_id: Option<RunId>,
-    pub worker_id: Option<WorkerName>,
+    pub worker_id: Option<AssigneeId>,
     pub team_id: Option<TeamId>,
     pub kind: AgentEventKind,
     pub from_status: Option<AgentTaskStatus>,
@@ -89,7 +89,7 @@ impl AgentSchedulerStore {
                 project_id,
                 event.task_id.as_ref().map(TaskId::as_str),
                 event.run_id.as_ref().map(RunId::as_str),
-                event.worker_id.as_ref().map(WorkerName::as_str),
+                event.worker_id.as_ref().map(AssigneeId::as_str),
                 event.team_id.as_ref().map(TeamId::as_str),
                 event.kind.as_str(),
                 event.from_status.map(AgentTaskStatus::as_str),
@@ -173,7 +173,7 @@ fn map_event_row(row: &Row<'_>) -> rusqlite::Result<StoredAgentEvent> {
             .map_err(|error| conversion_error(1, error))?,
         run_id: run_id.map(RunId::new).transpose().map_err(|error| conversion_error(2, error))?,
         worker_id: worker_id
-            .map(WorkerName::new)
+            .map(AssigneeId::new)
             .transpose()
             .map_err(|error| conversion_error(3, error))?,
         team_id: team_id

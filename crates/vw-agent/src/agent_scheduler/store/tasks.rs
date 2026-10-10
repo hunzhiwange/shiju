@@ -11,7 +11,7 @@ use vw_api_types::task::{
 };
 use vw_config_types::staff::{StaffMemberTaskAssignmentConfig, StaffProjectStateConfig};
 
-use crate::agent_scheduler::domain::{TaskId, TeamId, WorkerName};
+use crate::agent_scheduler::domain::{TaskId, TeamId, AssigneeId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
 
 use super::{
@@ -39,7 +39,7 @@ pub struct NewAgentTask {
     pub status: AgentTaskStatus,
     pub spec_uri: String,
     pub meta_uri: String,
-    pub assigned_to: Option<WorkerName>,
+    pub assigned_to: Option<AssigneeId>,
     pub team_id: Option<TeamId>,
     pub room_id: Option<String>,
     pub project_room_id: Option<String>,
@@ -62,7 +62,7 @@ pub struct StoredAgentTask {
     pub status: AgentTaskStatus,
     pub spec_uri: String,
     pub meta_uri: String,
-    pub assigned_to: Option<WorkerName>,
+    pub assigned_to: Option<AssigneeId>,
     pub team_id: Option<TeamId>,
     pub room_id: Option<String>,
     pub project_room_id: Option<String>,
@@ -83,7 +83,7 @@ pub struct AgentTaskDagNode {
     pub task_id: TaskId,
     pub title: String,
     pub depends_on: Vec<TaskId>,
-    pub assigned_to: Option<WorkerName>,
+    pub assigned_to: Option<AssigneeId>,
     pub status: AgentTaskStatus,
 }
 
@@ -92,7 +92,7 @@ pub struct AgentTaskDagNode {
 pub struct AgentTaskFilter {
     pub task_id: Option<TaskId>,
     pub status: Option<AgentTaskStatus>,
-    pub assigned_to: Option<WorkerName>,
+    pub assigned_to: Option<AssigneeId>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -116,7 +116,7 @@ impl AgentTaskFilter {
     }
 
     /// 创建仅匹配指定工作节点归属的筛选器。
-    pub fn for_worker(assigned_to: WorkerName) -> Self {
+    pub fn for_worker(assigned_to: AssigneeId) -> Self {
         Self { assigned_to: Some(assigned_to), ..Self::default() }
     }
 }
@@ -159,7 +159,7 @@ impl AgentSchedulerStore {
                 task.title,
                 task.spec_uri,
                 task.meta_uri,
-                task.assigned_to.as_ref().map(WorkerName::as_str),
+                task.assigned_to.as_ref().map(AssigneeId::as_str),
                 task.team_id.as_ref().map(TeamId::as_str),
                 task.room_id,
                 task.project_room_id,
@@ -709,8 +709,8 @@ fn parse_task_id(value: String) -> rusqlite::Result<TaskId> {
     TaskId::new(value).map_err(|error| conversion_error(0, error))
 }
 
-fn parse_optional_worker_name(value: Option<String>) -> rusqlite::Result<Option<WorkerName>> {
-    value.map(WorkerName::new).transpose().map_err(|error| conversion_error(6, error))
+fn parse_optional_worker_name(value: Option<String>) -> rusqlite::Result<Option<AssigneeId>> {
+    value.map(AssigneeId::new).transpose().map_err(|error| conversion_error(6, error))
 }
 
 fn parse_optional_team_id(value: Option<String>) -> rusqlite::Result<Option<TeamId>> {
@@ -735,7 +735,7 @@ pub(super) fn task_kind_key(kind: AgentTaskKind) -> &'static str {
     match kind {
         AgentTaskKind::Finite => "finite",
         AgentTaskKind::Infinite => "infinite",
-        AgentTaskKind::TeamDag => "team_dag",
+        AgentTaskKind::DependencyGraph => "dependency_graph",
     }
 }
 
@@ -896,7 +896,7 @@ impl From<&AgentTaskDagNode> for DagNodeJson {
                 .iter()
                 .map(|task_id| task_id.as_str().to_string())
                 .collect(),
-            assigned_to: value.assigned_to.as_ref().map(WorkerName::as_str).map(str::to_string),
+            assigned_to: value.assigned_to.as_ref().map(AssigneeId::as_str).map(str::to_string),
             status: value.status.as_str().to_string(),
         }
     }
@@ -914,7 +914,7 @@ impl TryFrom<DagNodeJson> for AgentTaskDagNode {
                 .into_iter()
                 .map(TaskId::new)
                 .collect::<Result<Vec<_>>>()?,
-            assigned_to: value.assigned_to.map(WorkerName::new).transpose()?,
+            assigned_to: value.assigned_to.map(AssigneeId::new).transpose()?,
             status: AgentTaskStatus::parse(&value.status)?,
         })
     }

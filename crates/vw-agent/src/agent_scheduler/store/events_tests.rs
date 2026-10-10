@@ -9,7 +9,7 @@ use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
-use super::domain::{AgentSchedulerContext, RunId, TaskId, WorkerName};
+use super::domain::{AgentSchedulerContext, RunId, TaskId, AssigneeId};
 use super::events::AgentEventKind;
 use super::state_machine::AgentTaskStatus;
 use super::store::AgentSchedulerStore;

@@ -14,9 +14,7 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerOutboxDrainRequest, AgentSchedulerReplaceTaskGraphRequest,
     AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskGraphEdgeDto,
     AgentSchedulerTaskMetadataPatchDto, AgentSchedulerTaskMetadataUpdateRequest,
-    AgentSchedulerUpsertTeamRequest, AgentSchedulerUpsertWorkerRequest, AgentSchedulerWakeRequest,
-    AgentSchedulerWorkerRunEventKindDto, AgentSchedulerWorkerRunEventRequest, AgentTaskKindDto,
-    AgentTaskStatusDto, AgentTeamMemberDto, AgentTeamStatusDto, AgentWorkerStatusDto,
+    AgentSchedulerWakeRequest, AgentTaskKindDto, AgentTaskStatusDto,
 };
 use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};

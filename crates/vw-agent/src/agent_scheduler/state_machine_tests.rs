@@ -68,14 +68,14 @@ fn agent_state_machine_accepts_finite_infinite_and_team_transitions() {
     ];
 
     for (from, to) in team_node_path {
-        ensure_transition(AgentTaskKind::TeamDag, from, to)
+        ensure_transition(AgentTaskKind::DependencyGraph, from, to)
             .expect("team DAG node transition allowed");
     }
 }
 
 #[test]
 fn agent_state_machine_allows_idempotent_transitions() {
-    for kind in [AgentTaskKind::Finite, AgentTaskKind::Infinite, AgentTaskKind::TeamDag] {
+    for kind in [AgentTaskKind::Finite, AgentTaskKind::Infinite, AgentTaskKind::DependencyGraph] {
         for status in
             [AgentTaskStatus::Assigned, AgentTaskStatus::Running, AgentTaskStatus::Completed]
         {
@@ -94,8 +94,8 @@ fn agent_state_machine_transition_keys_parse_and_reject_invalid_inputs() {
         .expect_err("unknown status key must be rejected");
     assert_eq!(invalid_status.to_string(), "unsupported agent task status: unknown");
 
-    let invalid_transition = ensure_transition_key(AgentTaskKind::TeamDag, "completed", "running")
+    let invalid_transition = ensure_transition_key(AgentTaskKind::DependencyGraph, "completed", "running")
         .expect_err("completed team DAG task must not restart");
-    assert!(invalid_transition.to_string().contains("team_dag"));
+    assert!(invalid_transition.to_string().contains("dependency_graph"));
     assert!(invalid_transition.to_string().contains("completed -> running"));
 }

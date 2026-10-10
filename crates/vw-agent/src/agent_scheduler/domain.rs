@@ -6,8 +6,7 @@ use std::path::{Path, PathBuf};
 use vw_api_types::agent_scheduler::{
     AgentCapabilityDto, AgentCapabilityKindDto, AgentResourceLeaseDto, AgentResourceLeaseStatusDto,
     AgentRunDto, AgentRunStatusDto, AgentSchedulerScope, AgentTaskDto, AgentTaskKindDto,
-    AgentTaskStatusDto, AgentTeamDto, AgentTeamMemberDto, AgentTeamStatusDto, AgentWorkerDto,
-    AgentWorkerStatusDto, TeamTaskDagNodeDto,
+    AgentTaskStatusDto, TaskDependencyNodeDto,
 };
 use vw_api_types::common::TimestampMs;
 
@@ -79,9 +78,9 @@ impl RunId {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 /// 已校验非空的工作节点名称。
-pub struct WorkerName(String);
+pub struct AssigneeId(String);
 
-impl WorkerName {
+impl AssigneeId {
     /// 校验并封装工作节点名称。
     pub fn new(value: impl Into<String>) -> Result<Self> {
         Ok(Self(non_empty(value.into(), "worker name")?))
@@ -172,7 +171,7 @@ impl HolderId {
 pub enum AgentTaskKind {
     Finite,
     Infinite,
-    TeamDag,
+    DependencyGraph,
 }
 
 impl AgentTaskKind {
@@ -181,7 +180,7 @@ impl AgentTaskKind {
         match value {
             "finite" => Ok(Self::Finite),
             "infinite" => Ok(Self::Infinite),
-            "team_dag" => Ok(Self::TeamDag),
+            "dependency_graph" => Ok(Self::DependencyGraph),
             other => bail!("unsupported agent task kind: {other}"),
         }
     }
@@ -192,7 +191,7 @@ impl From<AgentTaskKindDto> for AgentTaskKind {
         match value {
             AgentTaskKindDto::Finite => Self::Finite,
             AgentTaskKindDto::Infinite => Self::Infinite,
-            AgentTaskKindDto::TeamDag => Self::TeamDag,
+            AgentTaskKindDto::DependencyGraph => Self::DependencyGraph,
         }
     }
 }
@@ -246,7 +245,7 @@ pub struct AgentTask {
     pub title: String,
     pub kind: AgentTaskKind,
     pub status: AgentTaskStatus,
-    pub assigned_to: Option<WorkerName>,
+    pub assigned_to: Option<AssigneeId>,
     pub team_id: Option<TeamId>,
     pub room_id: Option<String>,
     pub project_room_id: Option<String>,
@@ -255,7 +254,7 @@ pub struct AgentTask {
     pub timezone: Option<String>,
     pub next_scheduled_at: Option<String>,
     pub last_executed_at: Option<String>,
-    pub dag: Vec<TeamTaskDagNode>,
+    pub dag: Vec<TaskDependencyNode>,
     pub created_at_ms: TimestampMs,
     pub updated_at_ms: TimestampMs,
     pub metadata: Value,
@@ -299,7 +298,7 @@ impl TryFrom<AgentTaskDto> for AgentTask {
             timezone,
             next_scheduled_at,
             last_executed_at,
-            dag: dag.into_iter().map(TeamTaskDagNode::try_from).collect::<Result<Vec<_>>>()?,
+            dag: dag.into_iter().map(TaskDependencyNode::try_from).collect::<Result<Vec<_>>>()?,
             created_at_ms,
             updated_at_ms,
             metadata,
@@ -309,19 +308,19 @@ impl TryFrom<AgentTaskDto> for AgentTask {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 团队任务实体内的单个依赖图节点。
-pub struct TeamTaskDagNode {
+pub struct TaskDependencyNode {
     pub task_id: TaskId,
     pub title: String,
     pub depends_on: Vec<TaskId>,
-    pub assigned_to: Option<WorkerName>,
+    pub assigned_to: Option<AssigneeId>,
     pub status: AgentTaskStatus,
 }
 
-impl TryFrom<TeamTaskDagNodeDto> for TeamTaskDagNode {
+impl TryFrom<TaskDependencyNodeDto> for TaskDependencyNode {
     type Error = anyhow::Error;
 
-    fn try_from(value: TeamTaskDagNodeDto) -> Result<Self> {
-        let TeamTaskDagNodeDto { task_id, title, depends_on, assigned_to, status } = value;
+    fn try_from(value: TaskDependencyNodeDto) -> Result<Self> {
+        let TaskDependencyNodeDto { task_id, title, depends_on, assigned_to, status } = value;
 
         Ok(Self {
             task_id: TaskId::new(task_id)?,
@@ -471,250 +470,6 @@ impl From<AgentCapabilityDto> for AgentCapability {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-/// 工作节点在调度领域中的可观察状态。
-pub enum AgentWorkerStatus {
-    Pending,
-    Idle,
-    Busy,
-    Running,
-    Sleeping,
-    Stopped,
-    Failed,
-    Unavailable,
-}
-
-impl AgentWorkerStatus {
-    /// 返回数据库和 API 映射使用的稳定状态键。
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Idle => "idle",
-            Self::Busy => "busy",
-            Self::Running => "running",
-            Self::Sleeping => "sleeping",
-            Self::Stopped => "stopped",
-            Self::Failed => "failed",
-            Self::Unavailable => "unavailable",
-        }
-    }
-
-    /// 解析工作节点状态键；未知值返回错误。
-    pub fn parse(value: &str) -> Result<Self> {
-        match value {
-            "pending" => Ok(Self::Pending),
-            "idle" => Ok(Self::Idle),
-            "busy" => Ok(Self::Busy),
-            "running" => Ok(Self::Running),
-            "sleeping" => Ok(Self::Sleeping),
-            "stopped" => Ok(Self::Stopped),
-            "failed" => Ok(Self::Failed),
-            "unavailable" => Ok(Self::Unavailable),
-            other => bail!("unsupported agent worker status: {other}"),
-        }
-    }
-}
-
-impl From<AgentWorkerStatusDto> for AgentWorkerStatus {
-    fn from(value: AgentWorkerStatusDto) -> Self {
-        match value {
-            AgentWorkerStatusDto::Pending => Self::Pending,
-            AgentWorkerStatusDto::Idle => Self::Idle,
-            AgentWorkerStatusDto::Busy => Self::Busy,
-            AgentWorkerStatusDto::Running => Self::Running,
-            AgentWorkerStatusDto::Sleeping => Self::Sleeping,
-            AgentWorkerStatusDto::Stopped => Self::Stopped,
-            AgentWorkerStatusDto::Failed => Self::Failed,
-            AgentWorkerStatusDto::Unavailable => Self::Unavailable,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-/// 经标识校验后的工作节点、路由信息和能力快照。
-pub struct AgentWorker {
-    pub id: WorkerName,
-    pub runtime: Option<String>,
-    pub model: String,
-    pub model_provider: Option<String>,
-    pub status: AgentWorkerStatus,
-    pub desired_state: Option<String>,
-    pub team_id: Option<TeamId>,
-    pub worker_role: Option<String>,
-    pub matrix_user_id: Option<String>,
-    pub room_id: Option<String>,
-    pub container_state: Option<String>,
-    pub idle_since_ms: Option<TimestampMs>,
-    pub last_heartbeat_at: Option<String>,
-    pub capabilities: Vec<AgentCapability>,
-}
-
-impl TryFrom<AgentWorkerDto> for AgentWorker {
-    type Error = anyhow::Error;
-
-    fn try_from(value: AgentWorkerDto) -> Result<Self> {
-        let AgentWorkerDto {
-            id,
-            runtime,
-            deployment: _,
-            model,
-            model_provider,
-            status,
-            desired_state,
-            team_id,
-            worker_role,
-            matrix_user_id,
-            room_id,
-            container_state,
-            idle_since_ms,
-            last_seen_at_ms: _,
-            last_heartbeat_at,
-            capabilities,
-            updated_at_ms: _,
-        } = value;
-
-        Ok(Self {
-            id: WorkerName::new(id)?,
-            runtime,
-            model,
-            model_provider,
-            status: status.into(),
-            desired_state,
-            team_id: optional_team_id(team_id)?,
-            worker_role,
-            matrix_user_id,
-            room_id,
-            container_state,
-            idle_since_ms,
-            last_heartbeat_at,
-            capabilities: capabilities.into_iter().map(AgentCapability::from).collect(),
-        })
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-/// 团队整体的就绪或故障状态。
-pub enum AgentTeamStatus {
-    Pending,
-    Active,
-    Degraded,
-    Failed,
-}
-
-impl AgentTeamStatus {
-    /// 返回数据库和 API 映射使用的稳定状态键。
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Active => "active",
-            Self::Degraded => "degraded",
-            Self::Failed => "failed",
-        }
-    }
-
-    /// 解析团队状态键；未知值返回错误。
-    pub fn parse(value: &str) -> Result<Self> {
-        match value {
-            "pending" => Ok(Self::Pending),
-            "active" => Ok(Self::Active),
-            "degraded" => Ok(Self::Degraded),
-            "failed" => Ok(Self::Failed),
-            other => bail!("unsupported agent team status: {other}"),
-        }
-    }
-}
-
-impl From<AgentTeamStatusDto> for AgentTeamStatus {
-    fn from(value: AgentTeamStatusDto) -> Self {
-        match value {
-            AgentTeamStatusDto::Pending => Self::Pending,
-            AgentTeamStatusDto::Active => Self::Active,
-            AgentTeamStatusDto::Degraded => Self::Degraded,
-            AgentTeamStatusDto::Failed => Self::Failed,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-/// 团队成员的角色、运行时身份和通信路由。
-pub struct AgentTeamMember {
-    pub worker_id: WorkerName,
-    pub runtime_name: Option<WorkerName>,
-    pub role: String,
-    pub room_id: Option<String>,
-    pub matrix_user_id: Option<String>,
-    pub ready: bool,
-}
-
-impl TryFrom<AgentTeamMemberDto> for AgentTeamMember {
-    type Error = anyhow::Error;
-
-    fn try_from(value: AgentTeamMemberDto) -> Result<Self> {
-        let AgentTeamMemberDto { worker_id, runtime_name, role, room_id, matrix_user_id, ready } =
-            value;
-
-        Ok(Self {
-            worker_id: WorkerName::new(worker_id)?,
-            runtime_name: optional_worker_name(runtime_name)?,
-            role,
-            room_id,
-            matrix_user_id,
-            ready,
-        })
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-/// 经标识校验后的团队领导者、成员与就绪计数快照。
-pub struct AgentTeam {
-    pub id: TeamId,
-    pub name: String,
-    pub status: AgentTeamStatus,
-    pub leader_id: WorkerName,
-    pub team_room_id: Option<String>,
-    pub leader_dm_room_id: Option<String>,
-    pub leader_ready: bool,
-    pub ready_workers: u32,
-    pub total_workers: u32,
-    pub members: Vec<AgentTeamMember>,
-}
-
-impl TryFrom<AgentTeamDto> for AgentTeam {
-    type Error = anyhow::Error;
-
-    fn try_from(value: AgentTeamDto) -> Result<Self> {
-        let AgentTeamDto {
-            id,
-            name,
-            status,
-            leader_id,
-            team_room_id,
-            leader_dm_room_id,
-            leader_ready,
-            ready_workers,
-            total_workers,
-            members,
-            updated_at_ms: _,
-        } = value;
-
-        Ok(Self {
-            id: TeamId::new(id)?,
-            name,
-            status: status.into(),
-            leader_id: WorkerName::new(leader_id)?,
-            team_room_id,
-            leader_dm_room_id,
-            leader_ready,
-            ready_workers,
-            total_workers,
-            members: members
-                .into_iter()
-                .map(AgentTeamMember::try_from)
-                .collect::<Result<Vec<_>>>()?,
-        })
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// 资源租约从持有到释放、过期或撤销的状态。
 pub enum AgentResourceLeaseStatus {
     Active,
@@ -775,8 +530,8 @@ impl TryFrom<AgentResourceLeaseDto> for AgentResourceLease {
     }
 }
 
-fn optional_worker_name(value: Option<String>) -> Result<Option<WorkerName>> {
-    value.map(WorkerName::new).transpose()
+fn optional_worker_name(value: Option<String>) -> Result<Option<AssigneeId>> {
+    value.map(AssigneeId::new).transpose()
 }
 
 fn optional_team_id(value: Option<String>) -> Result<Option<TeamId>> {

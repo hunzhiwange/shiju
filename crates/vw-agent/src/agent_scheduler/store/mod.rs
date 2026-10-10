@@ -24,8 +24,6 @@ pub mod resources;
 pub mod runs;
 pub(super) mod schema;
 pub mod tasks;
-pub mod teams;
-pub mod workers;
 
 #[derive(Debug, Clone)]
 pub struct AgentSchedulerStore {

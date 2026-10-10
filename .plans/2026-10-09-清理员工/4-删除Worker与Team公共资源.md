@@ -2,7 +2,34 @@
 
 批次：【批次 4】 依赖批次 3
 
-状态：未开始
+状态：已完成，待回归验证
+
+历史阻塞（已解除）：依赖批次 3 未达到本任务声明的前置状态。当前 `engine/dispatch.rs`
+仍导入并约束 `ControllerAdapter`、`worker_selection`、`StoredAgentWorker`，且保留
+`DispatchTarget::Matrix`、`AgentSchedulerMatrixDispatchEventDto` 与 Matrix 发件箱派发；
+`engine/recovery.rs` 仍通过控制器同步和休眠 Worker。因此无法在“不处理前置任务”且
+“只处理本任务范围”的约束下安全删除 Worker/Team 公共资源。后续已获准扩大范围，
+正在将派发与恢复路径收敛为纯本地实现。
+
+完成证据：任务指定负向搜索退出码 0；
+`cargo clippy -p vw-agent -p vw-api-types -p vw-gateway-client --all-targets --all-features -- -D warnings`
+退出码 0；Worker/Team 存储、选择器、控制器、TeamDag、公开 DTO、客户端方法和路由已删除，
+并新增移除路由返回 404 的断言。
+
+待回归原因：仓库级 `cargo clippy --all-targets --all-features -- -D warnings` 仍因本任务范围外、
+计划明确不处理的 `vw-desktop` Staff Worker/Team 设置界面引用已删除 DTO 和客户端方法而失败。
+失败集中在 `system_settings_staff`、`message/settings/staff/resources.rs`、
+`state/settings/staff_resources.rs` 及其测试；应由后续桌面员工界面清理任务删除。
+
+已运行检查：
+
+- `~/.rustcodegraph/bin/rustcodegraph status`
+- `~/.rustcodegraph/bin/rustcodegraph explore "AgentWorker WorkerName AgentTeam TeamDag worker_selection agent_scheduler routes client API store"`
+- `~/.rustcodegraph/bin/rustcodegraph impact AgentWorker --depth 3`
+- `~/.rustcodegraph/bin/rustcodegraph impact AgentTeam --depth 3`
+- 任务文件指定的失败验证 `rg`（确认 Worker/Team DTO、存储、路由仍存在）
+- `cargo clippy -p vw-agent -p vw-api-types -p vw-gateway-client --all-targets --all-features -- -D warnings`
+  （在删除显式模块的试探性变更下失败，错误确认 dispatch/recovery/gateway 仍依赖上述前置能力；试探性变更已全部撤回）
 
 目的：删除 Worker/Team 领域、存储、筛选、控制器、TeamDag、API 和公开 DTO，使本地执行器成为纯内部能力。
 

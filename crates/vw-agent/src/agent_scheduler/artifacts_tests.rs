@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use vw_api_types::common::TimestampMs;
 
 use super::artifacts::TaskArtifactWriter;
-use super::domain::{TaskId, WorkerName};
+use super::domain::{TaskId, AssigneeId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::tasks::StoredAgentTask;
 
@@ -44,7 +44,7 @@ fn agent_artifacts_export_and_import_legacy_task_files() -> Result<()> {
     assert_eq!(imported.task.id.as_str(), task.id.as_str());
     assert_eq!(imported.task.kind, AgentTaskKind::Finite);
     assert_eq!(imported.task.status, AgentTaskStatus::Assigned);
-    assert_eq!(imported.task.assigned_to.as_ref().map(WorkerName::as_str), Some("worker-a"));
+    assert_eq!(imported.task.assigned_to.as_ref().map(AssigneeId::as_str), Some("worker-a"));
     assert_eq!(imported.task.room_id.as_deref(), Some("!worker-room:example.test"));
     assert_eq!(imported.task.created_at_ms, task.created_at_ms);
     assert_eq!(imported.spec.requirements, "Build artifact export without MinIO.");
@@ -333,7 +333,7 @@ fn finite_task() -> Result<StoredAgentTask> {
         status: AgentTaskStatus::Assigned,
         spec_uri: "shared/tasks/task-artifact-1/spec.md".to_string(),
         meta_uri: "shared/tasks/task-artifact-1/meta.json".to_string(),
-        assigned_to: Some(WorkerName::new("worker-a")?),
+        assigned_to: Some(AssigneeId::new("worker-a")?),
         team_id: None,
         room_id: Some("!worker-room:example.test".to_string()),
         project_room_id: Some("!project-room:example.test".to_string()),

@@ -6,7 +6,7 @@ use serde_json::json;
 use std::path::Path;
 use vw_api_types::common::TimestampMs;
 
-use super::domain::{AgentRunStatus, TaskId, WorkerName};
+use super::domain::{AgentRunStatus, TaskId, AssigneeId};
 use super::runner::local::{
     LocalAgentExecutionOutput, LocalAgentExecutionRequest, LocalAgentExecutor, LocalAgentRunner,
     LocalAgentRunnerRequest, LocalAgentWorkspace, LocalAgentWorkspaceRecycleRequest,

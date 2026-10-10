@@ -20,7 +20,7 @@ use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 use vw_api_types::ReasoningEffortDto;
 use vw_api_types::agent_scheduler::{
-    AgentCapabilityDto, AgentCapabilityKindDto, AgentEventDto, AgentEventKindDto,
+    AgentCapabilityKindDto, AgentEventDto, AgentEventKindDto,
     AgentOutboxMessageDto, AgentOutboxMessageStatusDto, AgentRunDto, AgentRunStatusDto,
     AgentSchedulerBulkCommandRequest, AgentSchedulerBulkCommandResponse,
     AgentSchedulerCommandKindDto,
@@ -40,29 +40,19 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskGraphReadinessDto,
     AgentSchedulerTaskGraphResponse, AgentSchedulerTaskGraphTaskDto, AgentSchedulerTaskLogDto,
     AgentSchedulerTaskLogsResponse, AgentSchedulerTaskMetadataUpdateRequest,
-    AgentSchedulerTaskMetadataUpdateResponse, AgentSchedulerTeamsResponse,
-    AgentSchedulerUpsertTeamRequest, AgentSchedulerUpsertTeamResponse,
-    AgentSchedulerUpsertWorkerRequest, AgentSchedulerUpsertWorkerResponse,
+    AgentSchedulerTaskMetadataUpdateResponse,
     AgentSchedulerWakeRequest as AgentSchedulerProjectWakeRequest,
     AgentSchedulerWakeResponse as AgentSchedulerProjectWakeResponse,
-    AgentSchedulerWorkerRunEventKindDto, AgentSchedulerWorkerRunEventRequest,
-    AgentSchedulerWorkerRunEventResponse, AgentSchedulerWorkersResponse,
     AgentSchedulerWorkspaceContextDto, AgentTaskDto, AgentTaskKindDto, AgentTaskStatusDto,
-    AgentTeamDto, AgentTeamMemberDto, AgentTeamStatusDto, AgentWorkerDto, AgentWorkerStatusDto,
-    TeamTaskDagNodeDto,
+    TaskDependencyNodeDto,
 };
 use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_api_types::task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
 
-use crate::agent_scheduler::adapters::controller::{
-    ControllerAdapter, EnsureWorkerReadyRequest, WorkerControllerSnapshot, WorkerLifecycleRequest,
-    WorkerLifecycleState, WorkerStatusRequest,
-};
 use crate::agent_scheduler::adapters::dispatch::LocalOnlyDispatchAdapter;
 use crate::agent_scheduler::domain::{
-    AgentCapabilityKind, AgentRunStatus, AgentSchedulerContext, AgentTeamStatus, AgentWorkerStatus,
-    RunId, TaskId, TeamId, WorkerName,
+    AgentCapabilityKind, AgentRunStatus, AgentSchedulerContext, RunId, TaskId, TeamId, AssigneeId,
 };
 use crate::agent_scheduler::engine::dispatch::{
     DispatchEngine, DispatchMode, DispatchOutcome, load_dispatch_workflow,
@@ -71,7 +61,7 @@ use crate::agent_scheduler::engine::dispatch::{
 use crate::agent_scheduler::engine::recovery::{RecoveryEngine, RecoveryOutcome};
 use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::lifecycle_bridge::{
-    LifecycleBridge, LifecycleStatusProjection, status_role_key as lifecycle_status_role_key,
+    LifecycleStatusProjection, status_role_key as lifecycle_status_role_key,
 };
 use crate::agent_scheduler::outbox_dispatcher::OutboxDispatcher;
 use crate::agent_scheduler::policy::{
@@ -90,28 +80,19 @@ use crate::agent_scheduler::runner::local::{
 use crate::agent_scheduler::runner::local::{
     LocalAgentExecutor, LocalAgentRunner, LocalAgentRunnerOutcome, LocalAgentRunnerRequest,
 };
-use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
+use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::artifacts::{RecordTaskArtifactRequest, StoredTaskArtifact};
 use crate::agent_scheduler::store::events::{AppendAgentEventRequest, StoredAgentEvent};
 use crate::agent_scheduler::store::logs::{
-    AgentSchedulerWorkspaceContext, AppendAgentTaskLogRequest, StoredAgentRunWorkspaceContext,
-    StoredAgentTaskLog,
+    AppendAgentTaskLogRequest, StoredAgentRunWorkspaceContext, StoredAgentTaskLog,
 };
 use crate::agent_scheduler::store::outbox::{OutboxMessageStatus, StoredOutboxMessage};
 use crate::agent_scheduler::store::runs::StoredAgentRun;
 use crate::agent_scheduler::store::tasks::{
     AgentTaskDagNode, AgentTaskFilter, NewAgentTask, StoredAgentTask,
 };
-use crate::agent_scheduler::store::teams::{
-    AgentTeamMemberRecord, NewAgentTeamSnapshot, StoredAgentTeam,
-};
-use crate::agent_scheduler::store::workers::{
-    AgentCapabilityRecord, AgentWorkerFilter, NewAgentWorkerSnapshot, StoredAgentWorker,
-};
 use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
-use crate::agent_scheduler::task_board::{
-    AgentTaskBoardService, task_board_status_key as stored_task_board_status_key,
-};
+use crate::agent_scheduler::task_board::AgentTaskBoardService;
 use crate::agent_scheduler::task_graph::{
     AgentTaskDependency, TaskGraph, TaskGraphReadiness, TaskGraphTaskSnapshot,
 };
@@ -172,24 +153,12 @@ where
             post(agent_scheduler_project_legacy_import),
         )
         .route(
-            "/agent-scheduler/projects/{project_id}/workers",
-            post(agent_scheduler_project_upsert_worker).get(agent_scheduler_project_workers),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/teams",
-            post(agent_scheduler_project_upsert_team).get(agent_scheduler_project_teams),
-        )
-        .route(
             "/agent-scheduler/projects/{project_id}/tasks/{task_id}/logs",
             axum::routing::get(agent_scheduler_project_logs),
         )
         .route(
             "/agent-scheduler/projects/{project_id}/tasks/{task_id}/artifacts",
             axum::routing::get(agent_scheduler_project_artifacts),
-        )
-        .route(
-            "/agent-scheduler/projects/{project_id}/tasks/{task_id}/runs/{run_id}/worker-events",
-            post(agent_scheduler_project_worker_run_event),
         )
         .route(
             "/agent-scheduler/projects/{project_id}/events",
@@ -441,43 +410,9 @@ async fn agent_scheduler_project_legacy_import(
     gateway.import_legacy_tasks(project_id, project_path, body).await.map(Json)
 }
 
-async fn agent_scheduler_project_workers(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-) -> Result<Json<AgentSchedulerWorkersResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.list_workers(project_path).await.map(Json)
-}
 
-async fn agent_scheduler_project_upsert_worker(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerUpsertWorkerRequest>,
-) -> Result<Json<AgentSchedulerUpsertWorkerResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.upsert_worker(project_path, body).await.map(Json)
-}
 
-async fn agent_scheduler_project_teams(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-) -> Result<Json<AgentSchedulerTeamsResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.list_teams(project_path).await.map(Json)
-}
 
-async fn agent_scheduler_project_upsert_team(
-    AxumPath(project_id): AxumPath<String>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerUpsertTeamRequest>,
-) -> Result<Json<AgentSchedulerUpsertTeamResponse>, ApiError> {
-    let project_path = resolve_project_context(tenant, &project_id).await?;
-    gateway.upsert_team(project_path, body).await.map(Json)
-}
 
 async fn agent_scheduler_project_logs(
     AxumPath((project_id, task_id)): AxumPath<(String, String)>,
@@ -497,16 +432,6 @@ async fn agent_scheduler_project_artifacts(
     gateway.task_artifacts(project_path, task_id).await.map(Json)
 }
 
-async fn agent_scheduler_project_worker_run_event(
-    AxumPath((project_id, task_id, run_id)): AxumPath<(String, String, String)>,
-    Extension(tenant): Extension<TenantScope>,
-    Extension(gateway): Extension<SharedAgentSchedulerGateway>,
-    Json(body): Json<AgentSchedulerWorkerRunEventRequest>,
-) -> Result<Json<AgentSchedulerWorkerRunEventResponse>, ApiError> {
-    let context = resolve_project_context(tenant, &project_id).await?;
-    validate_worker_event_scope(context.scope(), &body)?;
-    gateway.worker_run_event(project_id, context, task_id, run_id, body).await.map(Json)
-}
 
 async fn agent_scheduler_project_events(
     AxumPath(project_id): AxumPath<String>,
@@ -616,13 +541,17 @@ pub(crate) trait AgentSchedulerGateway: Send + Sync {
 
     async fn wake(
         &self,
-        request: AgentSchedulerWakeRequest,
-    ) -> Result<AgentSchedulerWakeResponse, ApiError>;
+        _request: AgentSchedulerWakeRequest,
+    ) -> Result<AgentSchedulerWakeResponse, ApiError> {
+        Err(ApiError::internal("agent scheduler wake gateway is not configured"))
+    }
 
     async fn recover(
         &self,
-        request: AgentSchedulerRecoveryRequest,
-    ) -> Result<AgentSchedulerRecoveryResponse, ApiError>;
+        _request: AgentSchedulerRecoveryRequest,
+    ) -> Result<AgentSchedulerRecoveryResponse, ApiError> {
+        Err(ApiError::internal("agent scheduler recovery gateway is not configured"))
+    }
 
     async fn list_events(
         &self,
@@ -704,35 +633,9 @@ pub(crate) trait AgentSchedulerGateway: Send + Sync {
         Err(ApiError::internal("agent scheduler legacy import gateway is not configured"))
     }
 
-    async fn list_workers(
-        &self,
-        _project_path: AgentSchedulerContext,
-    ) -> Result<AgentSchedulerWorkersResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler worker gateway is not configured"))
-    }
 
-    async fn upsert_worker(
-        &self,
-        _project_path: AgentSchedulerContext,
-        _request: AgentSchedulerUpsertWorkerRequest,
-    ) -> Result<AgentSchedulerUpsertWorkerResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler worker gateway is not configured"))
-    }
 
-    async fn list_teams(
-        &self,
-        _project_path: AgentSchedulerContext,
-    ) -> Result<AgentSchedulerTeamsResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler team gateway is not configured"))
-    }
 
-    async fn upsert_team(
-        &self,
-        _project_path: AgentSchedulerContext,
-        _request: AgentSchedulerUpsertTeamRequest,
-    ) -> Result<AgentSchedulerUpsertTeamResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler team gateway is not configured"))
-    }
 
     async fn task_logs(
         &self,
@@ -750,16 +653,6 @@ pub(crate) trait AgentSchedulerGateway: Send + Sync {
         Err(ApiError::internal("agent scheduler artifact gateway is not configured"))
     }
 
-    async fn worker_run_event(
-        &self,
-        _project_id: String,
-        _project_path: AgentSchedulerContext,
-        _task_id: String,
-        _run_id: String,
-        _request: AgentSchedulerWorkerRunEventRequest,
-    ) -> Result<AgentSchedulerWorkerRunEventResponse, ApiError> {
-        Err(ApiError::internal("agent scheduler worker event gateway is not configured"))
-    }
 
     async fn task_board_events(
         &self,
@@ -853,52 +746,18 @@ impl StoreBackedAgentSchedulerGateway {
     fn active_dispatch_finite_task_count(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        dispatch_mode: AgentSchedulerDispatchModeDto,
+        _dispatch_mode: AgentSchedulerDispatchModeDto,
     ) -> Result<usize, ApiError> {
-        let local_worker_id =
-            WorkerName::new(LOCAL_GATEWAY_WORKER_ID).map_err(map_scheduler_error)?;
         let tasks = self
             .store
             .list_active_tasks(project_path, AgentTaskFilter::default())
             .map_err(map_scheduler_error)?;
-        let mut count = 0;
-        for task in tasks
+        Ok(tasks
             .into_iter()
             .filter(|task| task.kind == AgentTaskKind::Finite && execution_slot_status(task.status))
-        {
-            match dispatch_mode {
-                AgentSchedulerDispatchModeDto::Local => {
-                    let worker = self.active_task_worker(project_path, &task)?;
-                    let counts_for_local = match worker.as_ref() {
-                        Some(worker) => worker == &local_worker_id,
-                        None => true,
-                    };
-                    if counts_for_local {
-                        count += 1;
-                    }
-                }
-                AgentSchedulerDispatchModeDto::Matrix => {
-                    let worker = self.active_task_worker(project_path, &task)?;
-                    if worker.as_ref() != Some(&local_worker_id) {
-                        count += 1;
-                    }
-                }
-                AgentSchedulerDispatchModeDto::Auto => {
-                    count += 1;
-                }
-            }
-        }
-        Ok(count)
+            .count())
     }
 
-    fn active_task_worker(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-    ) -> Result<Option<WorkerName>, ApiError> {
-        let _ = project_path;
-        Ok(task.assigned_to.clone())
-    }
 
 
 }
@@ -999,9 +858,7 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
                 outbox_message_id: None,
             });
         }
-        let controller =
-            StoreSnapshotController { store: &self.store, project_path: &project_path };
-        let engine = DispatchEngine::new(&self.store, &controller)
+        let engine = DispatchEngine::new(&self.store)
             .with_dispatch_mode(dispatch_mode_from_dto(request.dispatch_mode));
         let outcome = engine
             .dispatch_once(&project_path, request.now_ms)
@@ -1016,9 +873,7 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
     ) -> Result<AgentSchedulerRecoveryResponse, ApiError> {
         let project_path = parse_project_path(&request.project_path)?;
         self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
-        let controller =
-            StoreSnapshotController { store: &self.store, project_path: &project_path };
-        let engine = RecoveryEngine::new(&self.store, &controller);
+        let engine = RecoveryEngine::new(&self.store);
         let outcome = engine
             .reconcile_once(&project_path, request.now_ms)
             .await
@@ -1299,61 +1154,9 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
         })
     }
 
-    async fn list_workers(
-        &self,
-        project_path: AgentSchedulerContext,
-    ) -> Result<AgentSchedulerWorkersResponse, ApiError> {
-        self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
-        let workers = self
-            .store
-            .list_workers(&project_path, AgentWorkerFilter::default())
-            .map_err(map_scheduler_error)?
-            .into_iter()
-            .map(worker_to_dto)
-            .collect();
-        Ok(AgentSchedulerWorkersResponse { workers })
-    }
 
-    async fn upsert_worker(
-        &self,
-        project_path: AgentSchedulerContext,
-        request: AgentSchedulerUpsertWorkerRequest,
-    ) -> Result<AgentSchedulerUpsertWorkerResponse, ApiError> {
-        self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
-        let worker = new_worker_from_request(request, current_timestamp_ms())?;
-        let worker = self
-            .store
-            .upsert_worker_snapshot(&project_path, worker)
-            .map_err(map_scheduler_error)?;
-        Ok(AgentSchedulerUpsertWorkerResponse { worker: worker_to_dto(worker) })
-    }
 
-    async fn list_teams(
-        &self,
-        project_path: AgentSchedulerContext,
-    ) -> Result<AgentSchedulerTeamsResponse, ApiError> {
-        self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
-        let teams = self
-            .store
-            .list_teams(&project_path)
-            .map_err(map_scheduler_error)?
-            .into_iter()
-            .map(team_to_dto)
-            .collect();
-        Ok(AgentSchedulerTeamsResponse { teams })
-    }
 
-    async fn upsert_team(
-        &self,
-        project_path: AgentSchedulerContext,
-        request: AgentSchedulerUpsertTeamRequest,
-    ) -> Result<AgentSchedulerUpsertTeamResponse, ApiError> {
-        self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
-        let team = new_team_from_request(request, current_timestamp_ms())?;
-        let team =
-            self.store.upsert_team_snapshot(&project_path, team).map_err(map_scheduler_error)?;
-        Ok(AgentSchedulerUpsertTeamResponse { team: team_to_dto(team) })
-    }
 
     async fn task_logs(
         &self,
@@ -1387,43 +1190,6 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
         Ok(AgentSchedulerTaskArtifactsResponse { task_id: task_id.as_str().into(), artifacts })
     }
 
-    async fn worker_run_event(
-        &self,
-        project_id: String,
-        project_path: AgentSchedulerContext,
-        task_id: String,
-        run_id: String,
-        request: AgentSchedulerWorkerRunEventRequest,
-    ) -> Result<AgentSchedulerWorkerRunEventResponse, ApiError> {
-        self.store.initialize_project(&project_path).map_err(map_scheduler_error)?;
-        let task_id = TaskId::new(task_id).map_err(map_bad_request)?;
-        let run_id = RunId::new(run_id).map_err(map_bad_request)?;
-        let worker_id = WorkerName::new(request.worker_id.clone()).map_err(map_bad_request)?;
-        let now_ms = request.now_ms.unwrap_or_else(current_timestamp_ms);
-        let outcome = self.apply_worker_run_event(
-            &project_path,
-            &task_id,
-            &run_id,
-            &worker_id,
-            request,
-            now_ms,
-        )?;
-        let task = task_board_task_to_dto(
-            &self.store,
-            &project_id,
-            &project_path,
-            outcome.task,
-            Some(&outcome.run),
-        )?;
-        let event =
-            outcome.event.map(|event| task_board_event_to_dto(&project_id, event)).transpose()?;
-        Ok(AgentSchedulerWorkerRunEventResponse {
-            accepted: true,
-            task,
-            run: run_to_dto(outcome.run),
-            event,
-        })
-    }
 
     async fn task_board_events(
         &self,
@@ -1558,12 +1324,6 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
     }
 }
 
-struct WorkerRunEventOutcome {
-    task: StoredAgentTask,
-    run: StoredAgentRun,
-    event: Option<StoredAgentEvent>,
-}
-
 impl StoreBackedAgentSchedulerGateway {
     async fn apply_policy_tick(
         &self,
@@ -1635,624 +1395,19 @@ impl StoreBackedAgentSchedulerGateway {
         Ok(())
     }
 
-    fn apply_worker_run_event(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        run_id: &RunId,
-        worker_id: &WorkerName,
-        request: AgentSchedulerWorkerRunEventRequest,
-        now_ms: TimestampMs,
-    ) -> Result<WorkerRunEventOutcome, ApiError> {
-        let AgentSchedulerWorkerRunEventRequest {
-            event,
-            message,
-            result,
-            error_message,
-            workspace,
-            payload,
-            lease_expires_at_ms,
-            ..
-        } = request;
-        let task = self
-            .store
-            .load_task(project_path, task_id)
-            .map_err(map_scheduler_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))?;
-        let run = self
-            .store
-            .load_run(project_path, run_id)
-            .map_err(map_scheduler_error)?
-            .ok_or_else(|| ApiError::not_found("run not found"))?;
-        validate_worker_run_ownership(&task, &run, task_id, worker_id)?;
 
-        let workspace_payload = workspace.as_ref().map(workspace_payload);
-        if let Some(workspace) = workspace {
-            self.record_worker_workspace(project_path, task_id, run_id, workspace, now_ms)?;
-        }
 
-        let event = match event {
-            AgentSchedulerWorkerRunEventKindDto::Acknowledged => self.acknowledge_worker_run(
-                project_path,
-                task_id,
-                run_id,
-                worker_id,
-                message,
-                payload,
-                now_ms,
-            )?,
-            AgentSchedulerWorkerRunEventKindDto::Started => self.start_worker_run(
-                project_path,
-                task_id,
-                run_id,
-                worker_id,
-                message,
-                payload,
-                lease_expires_at_ms,
-                now_ms,
-            )?,
-            AgentSchedulerWorkerRunEventKindDto::Heartbeat => {
-                self.heartbeat_worker_run(project_path, run_id, lease_expires_at_ms, now_ms)?;
-                None
-            }
-            AgentSchedulerWorkerRunEventKindDto::Submitted => self.submit_worker_run(
-                project_path,
-                task_id,
-                run_id,
-                worker_id,
-                message,
-                result,
-                payload,
-                workspace_payload,
-                now_ms,
-            )?,
-            AgentSchedulerWorkerRunEventKindDto::Completed => self.complete_worker_run(
-                project_path,
-                task_id,
-                run_id,
-                worker_id,
-                message,
-                result,
-                payload,
-                workspace_payload,
-                now_ms,
-            )?,
-            AgentSchedulerWorkerRunEventKindDto::Failed => self.fail_worker_run(
-                project_path,
-                task_id,
-                run_id,
-                worker_id,
-                message,
-                error_message,
-                payload,
-                workspace_payload,
-                now_ms,
-            )?,
-        };
-        let task = self
-            .store
-            .load_task(project_path, task_id)
-            .map_err(map_scheduler_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))?;
-        let run = self
-            .store
-            .load_run(project_path, run_id)
-            .map_err(map_scheduler_error)?
-            .ok_or_else(|| ApiError::not_found("run not found"))?;
-        Ok(WorkerRunEventOutcome { task, run, event })
-    }
 
-    fn record_worker_workspace(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        run_id: &RunId,
-        workspace: AgentSchedulerWorkspaceContextDto,
-        now_ms: TimestampMs,
-    ) -> Result<(), ApiError> {
-        self.store
-            .record_run_workspace_context(
-                project_path,
-                task_id,
-                run_id,
-                AgentSchedulerWorkspaceContext {
-                    slot_id: non_empty(workspace.slot_id, "workspace slot_id")?,
-                    path: non_empty(workspace.path, "workspace path")?,
-                    branch: non_empty(workspace.branch, "workspace branch")?,
-                },
-                now_ms,
-            )
-            .map_err(map_scheduler_error)?
-            .ok_or_else(|| ApiError::not_found("run not found"))?;
-        Ok(())
-    }
 
-    fn acknowledge_worker_run(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        run_id: &RunId,
-        worker_id: &WorkerName,
-        message: Option<String>,
-        payload: Value,
-        now_ms: TimestampMs,
-    ) -> Result<Option<StoredAgentEvent>, ApiError> {
-        let task = self.load_worker_event_task(project_path, task_id)?;
-        match task.status {
-            AgentTaskStatus::Dispatched => self.worker_transition(
-                project_path,
-                &task,
-                run_id,
-                worker_id,
-                AgentTaskStatus::Acknowledged,
-                AgentEventKind::WorkerAcknowledged,
-                message.unwrap_or_else(|| "Matrix worker acknowledged dispatch".to_string()),
-                worker_event_payload(worker_id, "acknowledged", payload, None, None, None),
-                now_ms,
-            ),
-            AgentTaskStatus::Acknowledged
-            | AgentTaskStatus::Running
-            | AgentTaskStatus::Submitted
-            | AgentTaskStatus::Completed => Ok(None),
-            _ => Err(ApiError::bad_request(format!(
-                "acknowledge requires dispatched task, got {}",
-                task.status.as_str()
-            ))),
-        }
-    }
 
-    fn start_worker_run(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        run_id: &RunId,
-        worker_id: &WorkerName,
-        message: Option<String>,
-        payload: Value,
-        lease_expires_at_ms: Option<TimestampMs>,
-        now_ms: TimestampMs,
-    ) -> Result<Option<StoredAgentEvent>, ApiError> {
-        self.acknowledge_worker_run(
-            project_path,
-            task_id,
-            run_id,
-            worker_id,
-            None,
-            json!({"implicit": true}),
-            now_ms,
-        )?;
-        let task = self.load_worker_event_task(project_path, task_id)?;
-        match task.status {
-            AgentTaskStatus::Acknowledged => {
-                self.heartbeat_worker_run(project_path, run_id, lease_expires_at_ms, now_ms)?;
-                self.worker_transition(
-                    project_path,
-                    &task,
-                    run_id,
-                    worker_id,
-                    AgentTaskStatus::Running,
-                    AgentEventKind::RunStarted,
-                    message.unwrap_or_else(|| "Matrix worker started run".to_string()),
-                    worker_event_payload(worker_id, "started", payload, None, None, None),
-                    now_ms,
-                )
-            }
-            AgentTaskStatus::Running | AgentTaskStatus::Submitted | AgentTaskStatus::Completed => {
-                self.heartbeat_worker_run(project_path, run_id, lease_expires_at_ms, now_ms)?;
-                Ok(None)
-            }
-            _ => Err(ApiError::bad_request(format!(
-                "start requires acknowledged task, got {}",
-                task.status.as_str()
-            ))),
-        }
-    }
 
-    fn heartbeat_worker_run(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        run_id: &RunId,
-        lease_expires_at_ms: Option<TimestampMs>,
-        now_ms: TimestampMs,
-    ) -> Result<(), ApiError> {
-        let lease_expires_at_ms = lease_expires_at_ms
-            .unwrap_or_else(|| add_ms_or_saturate(now_ms, DEFAULT_WORKER_RUN_LEASE_EXTENSION_MS));
-        self.store
-            .heartbeat_run(project_path, run_id, now_ms, lease_expires_at_ms)
-            .map_err(map_scheduler_error)?;
-        Ok(())
-    }
 
-    fn submit_worker_run(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        run_id: &RunId,
-        worker_id: &WorkerName,
-        message: Option<String>,
-        result: Option<String>,
-        payload: Value,
-        workspace: Option<Value>,
-        now_ms: TimestampMs,
-    ) -> Result<Option<StoredAgentEvent>, ApiError> {
-        let task = self.load_worker_event_task(project_path, task_id)?;
-        match task.status {
-            AgentTaskStatus::Running => {
-                let (from_status_key, target) = self.resolve_worker_lifecycle_outcome(
-                    project_path,
-                    &task,
-                    WORKER_OUTCOME_SUCCESS,
-                )?;
-                self.record_worker_execution_artifact(
-                    project_path,
-                    task_id,
-                    run_id,
-                    true,
-                    result.as_deref(),
-                    None,
-                    workspace.clone(),
-                    now_ms,
-                )?;
-                self.finish_worker_run_if_active(project_path, run_id, true, None, now_ms)?;
-                self.worker_lifecycle_transition(
-                    project_path,
-                    &task,
-                    run_id,
-                    worker_id,
-                    from_status_key,
-                    target,
-                    AgentEventKind::RunSubmitted,
-                    message.unwrap_or_else(|| "Matrix worker submitted result".to_string()),
-                    worker_event_payload(worker_id, "submitted", payload, result, None, workspace),
-                    now_ms,
-                )
-            }
-            AgentTaskStatus::Submitted | AgentTaskStatus::Completed => Ok(None),
-            _ => Err(ApiError::bad_request(format!(
-                "submit requires running task, got {}",
-                task.status.as_str()
-            ))),
-        }
-    }
 
-    fn complete_worker_run(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        run_id: &RunId,
-        worker_id: &WorkerName,
-        message: Option<String>,
-        result: Option<String>,
-        payload: Value,
-        workspace: Option<Value>,
-        now_ms: TimestampMs,
-    ) -> Result<Option<StoredAgentEvent>, ApiError> {
-        self.submit_worker_run(
-            project_path,
-            task_id,
-            run_id,
-            worker_id,
-            None,
-            result.clone(),
-            json!({"implicit": true}),
-            workspace.clone(),
-            now_ms,
-        )?;
-        let task = self.load_worker_event_task(project_path, task_id)?;
-        match task.status {
-            AgentTaskStatus::Submitted => {
-                let (from_status_key, target) = self.resolve_worker_lifecycle_outcome(
-                    project_path,
-                    &task,
-                    WORKER_OUTCOME_SUCCESS,
-                )?;
-                self.worker_lifecycle_transition(
-                    project_path,
-                    &task,
-                    run_id,
-                    worker_id,
-                    from_status_key,
-                    target,
-                    AgentEventKind::RunCompleted,
-                    message.unwrap_or_else(|| "Matrix worker completed run".to_string()),
-                    worker_event_payload(worker_id, "completed", payload, result, None, workspace),
-                    now_ms,
-                )
-            }
-            AgentTaskStatus::Completed => Ok(None),
-            _ => Err(ApiError::bad_request(format!(
-                "complete requires submitted task, got {}",
-                task.status.as_str()
-            ))),
-        }
-    }
 
-    fn fail_worker_run(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        run_id: &RunId,
-        worker_id: &WorkerName,
-        message: Option<String>,
-        error_message: Option<String>,
-        payload: Value,
-        workspace: Option<Value>,
-        now_ms: TimestampMs,
-    ) -> Result<Option<StoredAgentEvent>, ApiError> {
-        let task = self.load_worker_event_task(project_path, task_id)?;
-        match task.status {
-            AgentTaskStatus::Assigned
-            | AgentTaskStatus::Dispatched
-            | AgentTaskStatus::Acknowledged
-            | AgentTaskStatus::Running
-            | AgentTaskStatus::Submitted => {
-                let (from_status_key, target) = self.resolve_worker_lifecycle_outcome(
-                    project_path,
-                    &task,
-                    WORKER_OUTCOME_FAILURE,
-                )?;
-                let error_message = error_message
-                    .as_deref()
-                    .and_then(non_empty_str)
-                    .map(str::to_string)
-                    .or_else(|| message.as_deref().and_then(non_empty_str).map(str::to_string))
-                    .unwrap_or_else(|| "Matrix worker failed run".to_string());
-                self.record_worker_execution_artifact(
-                    project_path,
-                    task_id,
-                    run_id,
-                    false,
-                    None,
-                    Some(error_message.as_str()),
-                    workspace.clone(),
-                    now_ms,
-                )?;
-                self.finish_worker_run_if_active(
-                    project_path,
-                    run_id,
-                    false,
-                    Some(error_message.clone()),
-                    now_ms,
-                )?;
-                self.worker_lifecycle_transition(
-                    project_path,
-                    &task,
-                    run_id,
-                    worker_id,
-                    from_status_key,
-                    target,
-                    AgentEventKind::RunFailed,
-                    message.unwrap_or_else(|| format!("Matrix worker failed run: {error_message}")),
-                    worker_event_payload(
-                        worker_id,
-                        "failed",
-                        payload,
-                        None,
-                        Some(error_message),
-                        workspace,
-                    ),
-                    now_ms,
-                )
-            }
-            AgentTaskStatus::Failed => Ok(None),
-            _ => Err(ApiError::bad_request(format!(
-                "fail requires active task, got {}",
-                task.status.as_str()
-            ))),
-        }
-    }
 
-    fn finish_worker_run_if_active(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        run_id: &RunId,
-        succeeded: bool,
-        error_message: Option<String>,
-        now_ms: TimestampMs,
-    ) -> Result<(), ApiError> {
-        let status = if succeeded {
-            crate::agent_scheduler::store::runs::AgentRunFinishStatus::Succeeded
-        } else {
-            crate::agent_scheduler::store::runs::AgentRunFinishStatus::Failed
-        };
-        self.store
-            .finish_run(project_path, run_id, status, now_ms, error_message)
-            .map_err(map_scheduler_error)?;
-        Ok(())
-    }
 
-    fn record_worker_execution_artifact(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        run_id: &RunId,
-        success: bool,
-        output: Option<&str>,
-        error: Option<&str>,
-        workspace: Option<Value>,
-        now_ms: TimestampMs,
-    ) -> Result<(), ApiError> {
-        self.store
-            .record_task_artifact(
-                project_path,
-                RecordTaskArtifactRequest {
-                    task_id: task_id.clone(),
-                    run_id: Some(run_id.clone()),
-                    kind: "execution_result".to_string(),
-                    name: "matrix-worker-result.json".to_string(),
-                    path: Some(format!(
-                        "shared/tasks/{}/artifacts/matrix-worker-result.json",
-                        task_id.as_str()
-                    )),
-                    payload: json!({
-                        "success": success,
-                        "output": output,
-                        "error": error,
-                        "workspace": workspace,
-                        "source": "matrix_worker",
-                    }),
-                    created_at_ms: now_ms,
-                },
-            )
-            .map_err(map_scheduler_error)?;
-        Ok(())
-    }
 
-    fn worker_transition(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        run_id: &RunId,
-        worker_id: &WorkerName,
-        to_status: AgentTaskStatus,
-        kind: AgentEventKind,
-        message: String,
-        payload: Value,
-        now_ms: TimestampMs,
-    ) -> Result<Option<StoredAgentEvent>, ApiError> {
-        let from_status = task.status;
-        self.store
-            .transition_task_status(project_path, &task.id, to_status, now_ms)
-            .map_err(map_scheduler_command_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))?;
-        self.store
-            .append_task_log(
-                project_path,
-                AppendAgentTaskLogRequest {
-                    task_id: task.id.clone(),
-                    run_id: Some(run_id.clone()),
-                    timestamp_ms: now_ms,
-                    from_status: Some(from_status),
-                    to_status: Some(to_status),
-                    from_status_key: None,
-                    to_status_key: None,
-                    message: message.clone(),
-                },
-            )
-            .map_err(map_scheduler_error)?;
-        let event = self
-            .store
-            .append_event(
-                project_path,
-                AppendAgentEventRequest {
-                    task_id: Some(task.id.clone()),
-                    run_id: Some(run_id.clone()),
-                    worker_id: Some(worker_id.clone()),
-                    team_id: task.team_id.clone(),
-                    kind,
-                    from_status: Some(from_status),
-                    to_status: Some(to_status),
-                    from_status_key: None,
-                    to_status_key: None,
-                    message,
-                    payload,
-                    created_at_ms: now_ms,
-                },
-            )
-            .map_err(map_scheduler_error)?;
-        Ok(Some(event))
-    }
 
-    fn resolve_worker_lifecycle_outcome(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        lifecycle_outcome: &str,
-    ) -> Result<(String, LifecycleStatusProjection), ApiError> {
-        let workflow = self
-            .store
-            .load_task_board_workflow(project_path)
-            .map_err(map_scheduler_error)?
-            .ok_or_else(|| {
-                ApiError::bad_request(
-                    "task board workflow is required for worker lifecycle outcome",
-                )
-            })?;
-        let from_status_key = stored_task_board_status_key(task);
-        let target = LifecycleBridge::new(&workflow)
-            .resolve_outcome(&from_status_key, lifecycle_outcome)
-            .map_err(|error| ApiError::bad_request(error.to_string()))?;
-        ensure_transition(task.kind, task.status, target.runtime_status)
-            .map_err(map_scheduler_command_error)?;
-        Ok((from_status_key, target))
-    }
-
-    fn worker_lifecycle_transition(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        run_id: &RunId,
-        worker_id: &WorkerName,
-        from_status_key: String,
-        target: LifecycleStatusProjection,
-        kind: AgentEventKind,
-        message: String,
-        payload: Value,
-        now_ms: TimestampMs,
-    ) -> Result<Option<StoredAgentEvent>, ApiError> {
-        let from_status = task.status;
-        let to_status = target.runtime_status;
-        let to_status_key = target.status_key.clone();
-        let mut metadata = task_metadata_object(task.metadata.clone())?;
-        set_lifecycle_projection_metadata(&mut metadata, &target);
-        self.store
-            .transition_task_status_with_metadata(
-                project_path,
-                &task.id,
-                to_status,
-                Value::Object(metadata),
-                now_ms,
-            )
-            .map_err(map_scheduler_command_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))?;
-        self.store
-            .append_task_log(
-                project_path,
-                AppendAgentTaskLogRequest {
-                    task_id: task.id.clone(),
-                    run_id: Some(run_id.clone()),
-                    timestamp_ms: now_ms,
-                    from_status: Some(from_status),
-                    to_status: Some(to_status),
-                    from_status_key: Some(from_status_key.clone()),
-                    to_status_key: Some(to_status_key.clone()),
-                    message: message.clone(),
-                },
-            )
-            .map_err(map_scheduler_error)?;
-        let event = self
-            .store
-            .append_event(
-                project_path,
-                AppendAgentEventRequest {
-                    task_id: Some(task.id.clone()),
-                    run_id: Some(run_id.clone()),
-                    worker_id: Some(worker_id.clone()),
-                    team_id: task.team_id.clone(),
-                    kind,
-                    from_status: Some(from_status),
-                    to_status: Some(to_status),
-                    from_status_key: Some(from_status_key),
-                    to_status_key: Some(to_status_key),
-                    message,
-                    payload,
-                    created_at_ms: now_ms,
-                },
-            )
-            .map_err(map_scheduler_error)?;
-        Ok(Some(event))
-    }
-
-    fn load_worker_event_task(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-    ) -> Result<StoredAgentTask, ApiError> {
-        self.store
-            .load_task(project_path, task_id)
-            .map_err(map_scheduler_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))
-    }
 
     async fn apply_project_command(
         &self,
@@ -3014,8 +2169,7 @@ impl StoreBackedAgentSchedulerGateway {
             now_ms = now_ms.0,
             "agent scheduler dispatch project once"
         );
-        let controller = StoreSnapshotController { store: &self.store, project_path };
-        DispatchEngine::new(&self.store, &controller)
+        DispatchEngine::new(&self.store)
             .with_dispatch_mode(dispatch_mode_from_dto(dispatch_mode))
             .dispatch_once(project_path, now_ms)
             .await
@@ -3036,8 +2190,7 @@ impl StoreBackedAgentSchedulerGateway {
             now_ms = now_ms.0,
             "agent scheduler dispatch project task once"
         );
-        let controller = StoreSnapshotController { store: &self.store, project_path };
-        DispatchEngine::new(&self.store, &controller)
+        DispatchEngine::new(&self.store)
             .with_dispatch_mode(dispatch_mode_from_dto(dispatch_mode))
             .dispatch_task_once(project_path, task_id, now_ms)
             .await
@@ -3190,135 +2343,6 @@ fn task_board_write_command(command: AgentSchedulerCommandKindDto) -> bool {
     )
 }
 
-struct StoreSnapshotController<'a, C: ?Sized> {
-    store: &'a AgentSchedulerStore,
-    project_path: &'a C,
-}
-
-#[async_trait]
-impl<C> ControllerAdapter for StoreSnapshotController<'_, C>
-where
-    C: AgentSchedulerStorageContext + Sync + ?Sized,
-{
-    async fn ensure_worker_ready(
-        &self,
-        request: EnsureWorkerReadyRequest,
-    ) -> Result<WorkerControllerSnapshot> {
-        Ok(self.snapshot_for_worker(
-            request.worker_name,
-            WorkerLifecycleState::Running,
-            request.runtime,
-            request.team_id,
-            request.worker_role,
-        )?)
-    }
-
-    async fn request_worker_sleep(
-        &self,
-        request: WorkerLifecycleRequest,
-    ) -> Result<WorkerControllerSnapshot> {
-        Ok(self.snapshot_for_worker(
-            request.worker_name,
-            WorkerLifecycleState::Sleeping,
-            request.runtime,
-            request.team_id,
-            request.worker_role,
-        )?)
-    }
-
-    async fn request_worker_stop(
-        &self,
-        request: WorkerLifecycleRequest,
-    ) -> Result<WorkerControllerSnapshot> {
-        Ok(self.snapshot_for_worker(
-            request.worker_name,
-            WorkerLifecycleState::Stopped,
-            request.runtime,
-            request.team_id,
-            request.worker_role,
-        )?)
-    }
-
-    async fn worker_status(
-        &self,
-        request: WorkerStatusRequest,
-    ) -> Result<Option<WorkerControllerSnapshot>> {
-        let Some(worker) = self.stored_worker(&request.worker_name)? else {
-            return Ok(None);
-        };
-        Ok(Some(worker_snapshot(
-            request.worker_name,
-            lifecycle_from_desired_state(worker.desired_state.as_deref()),
-            worker.runtime,
-            worker.team_id,
-            worker.worker_role,
-            worker.room_id,
-            worker.container_state,
-        )))
-    }
-}
-
-impl<C> StoreSnapshotController<'_, C>
-where
-    C: AgentSchedulerStorageContext + ?Sized,
-{
-    fn snapshot_for_worker(
-        &self,
-        worker_name: WorkerName,
-        desired_state: WorkerLifecycleState,
-        runtime: Option<String>,
-        team_id: Option<TeamId>,
-        worker_role: Option<String>,
-    ) -> Result<WorkerControllerSnapshot> {
-        let stored = self.stored_worker(&worker_name)?;
-        Ok(worker_snapshot(
-            worker_name,
-            desired_state,
-            stored.as_ref().and_then(|worker| worker.runtime.clone()).or(runtime),
-            stored.as_ref().and_then(|worker| worker.team_id.clone()).or(team_id),
-            stored.as_ref().and_then(|worker| worker.worker_role.clone()).or(worker_role),
-            stored.as_ref().and_then(|worker| worker.room_id.clone()),
-            stored.and_then(|worker| worker.container_state),
-        ))
-    }
-
-    fn stored_worker(&self, worker_name: &WorkerName) -> Result<Option<StoredAgentWorker>> {
-        Ok(self
-            .store
-            .list_workers(self.project_path, AgentWorkerFilter::default())?
-            .into_iter()
-            .find(|worker| &worker.id == worker_name))
-    }
-}
-
-fn worker_snapshot(
-    worker_name: WorkerName,
-    desired_state: WorkerLifecycleState,
-    runtime: Option<String>,
-    team_id: Option<TeamId>,
-    worker_role: Option<String>,
-    room_id: Option<String>,
-    container_state: Option<String>,
-) -> WorkerControllerSnapshot {
-    WorkerControllerSnapshot {
-        worker_name,
-        desired_state,
-        runtime,
-        team_id,
-        worker_role,
-        room_id,
-        container_state,
-    }
-}
-
-fn lifecycle_from_desired_state(value: Option<&str>) -> WorkerLifecycleState {
-    match value {
-        Some("Sleeping") => WorkerLifecycleState::Sleeping,
-        Some("Stopped") => WorkerLifecycleState::Stopped,
-        _ => WorkerLifecycleState::Running,
-    }
-}
-
 fn new_task_from_request(
     request: AgentSchedulerCreateTaskRequest,
 ) -> Result<NewAgentTask, ApiError> {
@@ -3418,16 +2442,8 @@ fn recovery_response_from_outcome(outcome: RecoveryOutcome) -> AgentSchedulerRec
             .into_iter()
             .map(|id| id.as_str().to_string())
             .collect(),
-        drifted_worker_ids: outcome
-            .drifted_worker_ids
-            .into_iter()
-            .map(|id| id.as_str().to_string())
-            .collect(),
-        slept_worker_ids: outcome
-            .slept_worker_ids
-            .into_iter()
-            .map(|id| id.as_str().to_string())
-            .collect(),
+        drifted_worker_ids: Vec::new(),
+        slept_worker_ids: Vec::new(),
         outbox_message_ids: outcome.outbox_message_ids,
     }
 }
@@ -3456,19 +2472,6 @@ fn owned_scheduler_context(
     .map_err(map_scheduler_error)
 }
 
-fn validate_worker_event_scope(
-    scope: &AgentSchedulerScope,
-    request: &AgentSchedulerWorkerRunEventRequest,
-) -> Result<(), ApiError> {
-    let scope = scope.project_scope();
-    if request.platform_id != scope.platform_id().as_ref()
-        || request.company_id != scope.company_id().as_ref()
-        || request.project_id != scope.project_id().as_ref()
-    {
-        return Err(ApiError::bad_request("worker event scope does not match route scope"));
-    }
-    Ok(())
-}
 
 fn task_id_from_api(task_id: &vw_api_types::id::TaskId) -> Result<TaskId, ApiError> {
     TaskId::new(task_id.as_ref().to_string()).map_err(map_bad_request)
@@ -3482,21 +2485,6 @@ fn add_ms_or_saturate(timestamp: TimestampMs, delta_ms: i64) -> TimestampMs {
     TimestampMs(timestamp.0.saturating_add(delta_ms).max(timestamp.0))
 }
 
-fn validate_worker_run_ownership(
-    task: &StoredAgentTask,
-    run: &StoredAgentRun,
-    task_id: &TaskId,
-    _worker_id: &WorkerName,
-) -> Result<(), ApiError> {
-    if &run.task_id != task_id || task.id != *task_id {
-        return Err(ApiError::bad_request(format!(
-            "run {} does not belong to task {}",
-            run.id.as_str(),
-            task_id.as_str()
-        )));
-    }
-    Ok(())
-}
 
 fn workspace_payload(workspace: &AgentSchedulerWorkspaceContextDto) -> Value {
     json!({
@@ -3506,29 +2494,11 @@ fn workspace_payload(workspace: &AgentSchedulerWorkspaceContextDto) -> Value {
     })
 }
 
-fn worker_event_payload(
-    worker_id: &WorkerName,
-    phase: &str,
-    payload: Value,
-    result: Option<String>,
-    error_message: Option<String>,
-    workspace: Option<Value>,
-) -> Value {
-    json!({
-        "source": "matrix_worker",
-        "worker_id": worker_id.as_str(),
-        "phase": phase,
-        "result": result,
-        "error_message": error_message,
-        "workspace": workspace,
-        "payload": payload,
-    })
-}
 
 fn dispatch_mode_from_dto(dispatch_mode: AgentSchedulerDispatchModeDto) -> DispatchMode {
     match dispatch_mode {
         AgentSchedulerDispatchModeDto::Local => DispatchMode::Local,
-        AgentSchedulerDispatchModeDto::Matrix => DispatchMode::Matrix,
+        AgentSchedulerDispatchModeDto::Matrix => DispatchMode::Local,
         AgentSchedulerDispatchModeDto::Auto => DispatchMode::Auto,
     }
 }
@@ -3929,176 +2899,15 @@ fn project_wake_response_from_dispatch_outcome(
     }
 }
 
-fn new_worker_from_request(
-    request: AgentSchedulerUpsertWorkerRequest,
-    now_ms: TimestampMs,
-) -> Result<NewAgentWorkerSnapshot, ApiError> {
-    Ok(NewAgentWorkerSnapshot {
-        id: WorkerName::new(request.worker_id).map_err(map_bad_request)?,
-        runtime: optional_text(request.runtime),
-        deployment: optional_text(request.deployment),
-        model: optional_text(request.model).unwrap_or_else(|| "auto".to_string()),
-        model_provider: optional_text(request.model_provider),
-        status: worker_status_from_dto(request.status.unwrap_or(AgentWorkerStatusDto::Idle)),
-        desired_state: optional_text(request.desired_state),
-        team_id: optional_team_id(request.team_id)?,
-        worker_role: optional_text(request.worker_role),
-        matrix_user_id: optional_text(request.matrix_user_id),
-        room_id: optional_text(request.room_id),
-        container_state: optional_text(request.container_state),
-        idle_since_ms: request.idle_since_ms,
-        last_seen_at_ms: request.last_seen_at_ms,
-        last_heartbeat_at: optional_text(request.last_heartbeat_at),
-        capabilities: request
-            .capabilities
-            .into_iter()
-            .map(capability_from_dto)
-            .collect::<Result<Vec<_>, _>>()?,
-        updated_at_ms: request.updated_at_ms.unwrap_or(now_ms),
-    })
-}
 
-fn worker_to_dto(worker: StoredAgentWorker) -> AgentWorkerDto {
-    AgentWorkerDto {
-        id: worker.id.as_str().to_string(),
-        runtime: worker.runtime,
-        deployment: worker.deployment,
-        model: worker.model,
-        model_provider: worker.model_provider,
-        status: worker_status_to_dto(worker.status),
-        desired_state: worker.desired_state,
-        team_id: worker.team_id.as_ref().map(TeamId::as_str).map(str::to_string),
-        worker_role: worker.worker_role,
-        matrix_user_id: worker.matrix_user_id,
-        room_id: worker.room_id,
-        container_state: worker.container_state,
-        idle_since_ms: worker.idle_since_ms,
-        last_seen_at_ms: worker.last_seen_at_ms,
-        last_heartbeat_at: worker.last_heartbeat_at,
-        capabilities: worker.capabilities.into_iter().map(capability_to_dto).collect(),
-        updated_at_ms: worker.updated_at_ms,
-    }
-}
 
-fn new_team_from_request(
-    request: AgentSchedulerUpsertTeamRequest,
-    now_ms: TimestampMs,
-) -> Result<NewAgentTeamSnapshot, ApiError> {
-    let id = TeamId::new(request.team_id).map_err(map_bad_request)?;
-    let name = non_empty(request.name, "team name")?;
-    let leader_id = WorkerName::new(request.leader_id).map_err(map_bad_request)?;
-    let members =
-        request.members.into_iter().map(team_member_from_dto).collect::<Result<Vec<_>, _>>()?;
-    let total_workers = u32::try_from(members.len())
-        .map_err(|_| ApiError::bad_request("team member count exceeds u32"))?;
-    if request.total_workers != total_workers {
-        return Err(ApiError::bad_request(format!(
-            "team total_workers must match member count {total_workers}"
-        )));
-    }
-    let ready_workers = u32::try_from(members.iter().filter(|member| member.ready).count())
-        .map_err(|_| ApiError::bad_request("team ready member count exceeds u32"))?;
-    if request.ready_workers != ready_workers {
-        return Err(ApiError::bad_request(format!(
-            "team ready_workers must match ready member count {ready_workers}"
-        )));
-    }
-    let leader = members
-        .iter()
-        .find(|member| member.worker_id == leader_id)
-        .ok_or_else(|| ApiError::bad_request("team leader_id must identify a team member"))?;
-    if request.leader_ready != leader.ready {
-        return Err(ApiError::bad_request(
-            "team leader_ready must match the leader member ready state",
-        ));
-    }
 
-    Ok(NewAgentTeamSnapshot {
-        id,
-        name,
-        status: team_status_from_dto(request.status.unwrap_or(AgentTeamStatusDto::Pending)),
-        leader_id,
-        team_room_id: optional_text(request.team_room_id),
-        leader_dm_room_id: optional_text(request.leader_dm_room_id),
-        leader_ready: request.leader_ready,
-        ready_workers: request.ready_workers,
-        total_workers: request.total_workers,
-        members,
-        updated_at_ms: request.updated_at_ms.unwrap_or(now_ms),
-    })
-}
 
-fn team_member_from_dto(member: AgentTeamMemberDto) -> Result<AgentTeamMemberRecord, ApiError> {
-    Ok(AgentTeamMemberRecord {
-        worker_id: WorkerName::new(member.worker_id).map_err(map_bad_request)?,
-        runtime_name: optional_worker_name(member.runtime_name)?,
-        role: non_empty(member.role, "team member role")?,
-        room_id: optional_text(member.room_id),
-        matrix_user_id: optional_text(member.matrix_user_id),
-        ready: member.ready,
-    })
-}
 
-fn team_to_dto(team: StoredAgentTeam) -> AgentTeamDto {
-    AgentTeamDto {
-        id: team.id.as_str().to_string(),
-        name: team.name,
-        status: team_status_to_dto(team.status),
-        leader_id: team.leader_id.as_str().to_string(),
-        team_room_id: team.team_room_id,
-        leader_dm_room_id: team.leader_dm_room_id,
-        leader_ready: team.leader_ready,
-        ready_workers: team.ready_workers,
-        total_workers: team.total_workers,
-        members: team.members.into_iter().map(team_member_to_dto).collect(),
-        updated_at_ms: team.updated_at_ms,
-    }
-}
 
-fn team_member_to_dto(member: AgentTeamMemberRecord) -> AgentTeamMemberDto {
-    AgentTeamMemberDto {
-        worker_id: member.worker_id.as_str().to_string(),
-        runtime_name: member.runtime_name.as_ref().map(WorkerName::as_str).map(str::to_string),
-        role: member.role,
-        room_id: member.room_id,
-        matrix_user_id: member.matrix_user_id,
-        ready: member.ready,
-    }
-}
 
-fn team_status_from_dto(status: AgentTeamStatusDto) -> AgentTeamStatus {
-    match status {
-        AgentTeamStatusDto::Pending => AgentTeamStatus::Pending,
-        AgentTeamStatusDto::Active => AgentTeamStatus::Active,
-        AgentTeamStatusDto::Degraded => AgentTeamStatus::Degraded,
-        AgentTeamStatusDto::Failed => AgentTeamStatus::Failed,
-    }
-}
 
-fn team_status_to_dto(status: AgentTeamStatus) -> AgentTeamStatusDto {
-    match status {
-        AgentTeamStatus::Pending => AgentTeamStatusDto::Pending,
-        AgentTeamStatus::Active => AgentTeamStatusDto::Active,
-        AgentTeamStatus::Degraded => AgentTeamStatusDto::Degraded,
-        AgentTeamStatus::Failed => AgentTeamStatusDto::Failed,
-    }
-}
 
-fn capability_from_dto(capability: AgentCapabilityDto) -> Result<AgentCapabilityRecord, ApiError> {
-    Ok(AgentCapabilityRecord {
-        kind: capability_kind_from_dto(capability.kind),
-        name: non_empty(capability.name, "worker capability name")?,
-        metadata: capability.metadata,
-    })
-}
-
-fn capability_to_dto(capability: AgentCapabilityRecord) -> AgentCapabilityDto {
-    AgentCapabilityDto {
-        kind: capability_kind_to_dto(capability.kind),
-        name: capability.name,
-        metadata: capability.metadata,
-    }
-}
 
 fn task_graph_task_to_dto(
     task: &TaskGraphTaskSnapshot,
@@ -4138,7 +2947,7 @@ fn task_to_dto(task: StoredAgentTask) -> AgentTaskDto {
         title: task.title,
         kind: task_kind_to_dto(task.kind),
         status: task_status_to_dto(task.status),
-        assigned_to: task.assigned_to.as_ref().map(WorkerName::as_str).map(str::to_string),
+        assigned_to: task.assigned_to.as_ref().map(AssigneeId::as_str).map(str::to_string),
         team_id: task.team_id.as_ref().map(TeamId::as_str).map(str::to_string),
         room_id: task.room_id,
         project_room_id: task.project_room_id,
@@ -4154,12 +2963,12 @@ fn task_to_dto(task: StoredAgentTask) -> AgentTaskDto {
     }
 }
 
-fn dag_node_to_dto(node: AgentTaskDagNode) -> TeamTaskDagNodeDto {
-    TeamTaskDagNodeDto {
+fn dag_node_to_dto(node: AgentTaskDagNode) -> TaskDependencyNodeDto {
+    TaskDependencyNodeDto {
         task_id: node.task_id.as_str().to_string(),
         title: node.title,
         depends_on: node.depends_on.iter().map(|task_id| task_id.as_str().to_string()).collect(),
-        assigned_to: node.assigned_to.as_ref().map(WorkerName::as_str).map(str::to_string),
+        assigned_to: node.assigned_to.as_ref().map(AssigneeId::as_str).map(str::to_string),
         status: task_status_to_dto(node.status),
     }
 }
@@ -4225,7 +3034,7 @@ fn task_kind_from_dto(kind: AgentTaskKindDto) -> AgentTaskKind {
     match kind {
         AgentTaskKindDto::Finite => AgentTaskKind::Finite,
         AgentTaskKindDto::Infinite => AgentTaskKind::Infinite,
-        AgentTaskKindDto::TeamDag => AgentTaskKind::TeamDag,
+        AgentTaskKindDto::DependencyGraph => AgentTaskKind::DependencyGraph,
     }
 }
 
@@ -4233,7 +3042,7 @@ fn task_kind_to_dto(kind: AgentTaskKind) -> AgentTaskKindDto {
     match kind {
         AgentTaskKind::Finite => AgentTaskKindDto::Finite,
         AgentTaskKind::Infinite => AgentTaskKindDto::Infinite,
-        AgentTaskKind::TeamDag => AgentTaskKindDto::TeamDag,
+        AgentTaskKind::DependencyGraph => AgentTaskKindDto::DependencyGraph,
     }
 }
 
@@ -4277,31 +3086,7 @@ fn task_status_to_dto(status: AgentTaskStatus) -> AgentTaskStatusDto {
     }
 }
 
-fn worker_status_from_dto(status: AgentWorkerStatusDto) -> AgentWorkerStatus {
-    match status {
-        AgentWorkerStatusDto::Pending => AgentWorkerStatus::Pending,
-        AgentWorkerStatusDto::Idle => AgentWorkerStatus::Idle,
-        AgentWorkerStatusDto::Busy => AgentWorkerStatus::Busy,
-        AgentWorkerStatusDto::Running => AgentWorkerStatus::Running,
-        AgentWorkerStatusDto::Sleeping => AgentWorkerStatus::Sleeping,
-        AgentWorkerStatusDto::Stopped => AgentWorkerStatus::Stopped,
-        AgentWorkerStatusDto::Failed => AgentWorkerStatus::Failed,
-        AgentWorkerStatusDto::Unavailable => AgentWorkerStatus::Unavailable,
-    }
-}
 
-fn worker_status_to_dto(status: AgentWorkerStatus) -> AgentWorkerStatusDto {
-    match status {
-        AgentWorkerStatus::Pending => AgentWorkerStatusDto::Pending,
-        AgentWorkerStatus::Idle => AgentWorkerStatusDto::Idle,
-        AgentWorkerStatus::Busy => AgentWorkerStatusDto::Busy,
-        AgentWorkerStatus::Running => AgentWorkerStatusDto::Running,
-        AgentWorkerStatus::Sleeping => AgentWorkerStatusDto::Sleeping,
-        AgentWorkerStatus::Stopped => AgentWorkerStatusDto::Stopped,
-        AgentWorkerStatus::Failed => AgentWorkerStatusDto::Failed,
-        AgentWorkerStatus::Unavailable => AgentWorkerStatusDto::Unavailable,
-    }
-}
 
 fn capability_kind_from_dto(kind: AgentCapabilityKindDto) -> AgentCapabilityKind {
     match kind {
@@ -4515,6 +3300,14 @@ fn optional_text(value: Option<String>) -> Option<String> {
     value.as_deref().and_then(non_empty_str).map(str::to_string)
 }
 
+fn optional_worker_name(value: Option<String>) -> Result<Option<AssigneeId>, ApiError> {
+    value.map(AssigneeId::new).transpose().map_err(map_bad_request)
+}
+
+fn optional_team_id(value: Option<String>) -> Result<Option<TeamId>, ApiError> {
+    value.map(TeamId::new).transpose().map_err(map_bad_request)
+}
+
 fn parse_project_path(value: &str) -> Result<PathBuf, ApiError> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -4523,13 +3316,7 @@ fn parse_project_path(value: &str) -> Result<PathBuf, ApiError> {
     Ok(PathBuf::from(trimmed))
 }
 
-fn optional_worker_name(value: Option<String>) -> Result<Option<WorkerName>, ApiError> {
-    value.map(WorkerName::new).transpose().map_err(map_bad_request)
-}
 
-fn optional_team_id(value: Option<String>) -> Result<Option<TeamId>, ApiError> {
-    value.map(TeamId::new).transpose().map_err(map_bad_request)
-}
 
 fn non_empty(value: String, field_name: &str) -> Result<String, ApiError> {
     if value.trim().is_empty() {

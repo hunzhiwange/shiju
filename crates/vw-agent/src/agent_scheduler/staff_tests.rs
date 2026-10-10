@@ -2,7 +2,7 @@
 //! 配置夹具覆盖缺省值和非法引用，确保生成的团队计划不包含悬空成员或阶段。
 
 use super::*;
-use crate::agent_scheduler::domain::{AgentTaskKind, TaskId, WorkerName};
+use crate::agent_scheduler::domain::{AgentTaskKind, TaskId, AssigneeId};
 use vw_api_types::agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerStageActionInputsDto,
     AgentSchedulerStageActionOutcomeDto, AgentTaskStatusDto,
@@ -867,7 +867,7 @@ fn staff_read_model_extracts_task_board_metadata_and_running_ids() {
         status: AgentTaskStatus::Running,
         spec_uri: "memory://spec".to_string(),
         meta_uri: "memory://meta".to_string(),
-        assigned_to: Some(WorkerName::new("Planner").expect("worker")),
+        assigned_to: Some(AssigneeId::new("Planner").expect("worker")),
         team_id: None,
         room_id: None,
         project_room_id: None,

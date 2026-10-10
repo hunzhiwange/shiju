@@ -46,14 +46,6 @@ mod schema_tests;
 mod tasks_tests;
 
 #[cfg(test)]
-#[path = "store/workers_tests.rs"]
-mod workers_tests;
-
-#[cfg(test)]
-#[path = "store/teams_tests.rs"]
-mod teams_tests;
-
-#[cfg(test)]
 #[path = "store/runs_tests.rs"]
 mod runs_tests;
 
@@ -88,10 +80,6 @@ mod lifecycle_bridge_tests;
 #[cfg(test)]
 #[path = "artifacts_tests.rs"]
 mod artifacts_tests;
-
-#[cfg(test)]
-#[path = "scheduler/worker_selection_tests.rs"]
-mod worker_selection_tests;
 
 #[cfg(test)]
 #[path = "integration_tests.rs"]

@@ -7,7 +7,7 @@ use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_types::common::TimestampMs;
 
 use super::PostgresAgentSchedulerStore;
-use crate::agent_scheduler::domain::{RunId, TaskId, TeamId, WorkerName};
+use crate::agent_scheduler::domain::{RunId, TaskId, TeamId, AssigneeId};
 use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::state_machine::AgentTaskStatus;
 use crate::agent_scheduler::store::AgentSchedulerStorageContext;
@@ -54,7 +54,7 @@ impl PostgresAgentSchedulerStore {
                         &project.project_id().as_ref(),
                         &event.task_id.as_ref().map(TaskId::as_str),
                         &event.run_id.as_ref().map(RunId::as_str),
-                        &event.worker_id.as_ref().map(WorkerName::as_str),
+                        &event.worker_id.as_ref().map(AssigneeId::as_str),
                         &event.team_id.as_ref().map(TeamId::as_str),
                         &event.kind.as_str(),
                         &event.from_status.map(AgentTaskStatus::as_str),
@@ -153,7 +153,7 @@ fn map_event_row(row: &Row) -> Result<StoredAgentEvent> {
         task_id: task_id.map(TaskId::new).transpose().context("parse PostgreSQL event task id")?,
         run_id: run_id.map(RunId::new).transpose().context("parse PostgreSQL event run id")?,
         worker_id: worker_id
-            .map(WorkerName::new)
+            .map(AssigneeId::new)
             .transpose()
             .context("parse PostgreSQL event worker id")?,
         team_id: team_id.map(TeamId::new).transpose().context("parse PostgreSQL event team id")?,

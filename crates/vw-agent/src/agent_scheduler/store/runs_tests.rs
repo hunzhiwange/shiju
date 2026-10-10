@@ -11,7 +11,7 @@ use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, TenantScope};
 use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
-use super::domain::{AgentRunStatus, AgentSchedulerContext, RunId, TaskId, WorkerName};
+use super::domain::{AgentRunStatus, AgentSchedulerContext, RunId, TaskId, AssigneeId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::runs::{AgentRunFinishStatus, ClaimReadyTaskRunRequest, ClaimTaskRunRequest};
 use super::store::tasks::NewAgentTask;
@@ -538,7 +538,7 @@ fn finite_task_with_status(task_id: &TaskId, status: AgentTaskStatus) -> Result<
         status,
         spec_uri: format!("shared/tasks/{}/spec.md", task_id.as_str()),
         meta_uri: format!("shared/tasks/{}/meta.json", task_id.as_str()),
-        assigned_to: Some(WorkerName::new("worker-a")?),
+        assigned_to: Some(AssigneeId::new("worker-a")?),
         team_id: None,
         room_id: Some("!worker-room:example.test".to_string()),
         project_room_id: Some("!project-room:example.test".to_string()),

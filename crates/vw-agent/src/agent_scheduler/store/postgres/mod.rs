@@ -15,8 +15,6 @@ mod resources;
 mod runs;
 mod schema;
 mod tasks;
-mod teams;
-mod workers;
 
 #[derive(Debug)]
 pub(super) struct PostgresAgentSchedulerStore {

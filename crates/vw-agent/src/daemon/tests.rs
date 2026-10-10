@@ -15,9 +15,7 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::agent_scheduler::domain::{AgentWorkerStatus, WorkerName};
     use crate::agent_scheduler::store::AgentSchedulerStore;
-    use crate::agent_scheduler::store::workers::{AgentCapabilityRecord, NewAgentWorkerSnapshot};
     use crate::app::agent::config::schema::{
         DiscordConfig, FeishuConfig, FeishuInstanceConfig, LarkConfig, LarkReceiveMode,
         MattermostConfig, SlackConfig, WebhookConfig,

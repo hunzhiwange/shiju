@@ -1,27 +1,17 @@
-//! 协调任务就绪检查、工作节点选择、运行租约与本地或 Matrix 派发的原子流程。
+//! 协调任务就绪检查、运行租约与本地派发的原子流程。
 
 use anyhow::{Context, Result, bail};
-use serde_json::{Value, json};
-use vw_api_types::agent_scheduler::AgentSchedulerMatrixDispatchEventDto;
+use serde_json::Value;
 use vw_api_types::common::TimestampMs;
 use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
 
-use crate::agent_scheduler::adapters::controller::ControllerAdapter;
 use crate::agent_scheduler::adapters::local::LocalDispatchRequest;
-use crate::agent_scheduler::adapters::dispatch::RemoteDispatchTarget;
 use crate::agent_scheduler::domain::{RunId, TaskId};
-use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::lifecycle_bridge::{LifecycleBridge, LifecycleDispatchEligibility};
-use crate::agent_scheduler::scheduler::worker_selection::{
-    WorkerCandidateScore, WorkerSelectionRequest,
-};
 use crate::agent_scheduler::lifecycle_bridge::builtin_task_workflow_snapshot;
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
-use crate::agent_scheduler::store::events::AppendAgentEventRequest;
-use crate::agent_scheduler::store::outbox::EnqueueOutboxMessageRequest;
 use crate::agent_scheduler::store::runs::{ClaimReadyTaskRunRequest, StoredAgentRun};
 use crate::agent_scheduler::store::tasks::{AgentTaskFilter, StoredAgentTask};
-use crate::agent_scheduler::store::workers::StoredAgentWorker;
 use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use crate::agent_scheduler::task_graph::{TaskGraph, TaskGraphReadiness};
 
@@ -37,17 +27,15 @@ pub struct DispatchOutcome {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-/// 本地直连或 Matrix 异步消息两类派发目标。
+/// 本地直连派发目标。
 pub enum DispatchTarget {
     Local(LocalDispatchRequest),
-    Matrix(RemoteDispatchTarget),
 }
 
 impl DispatchTarget {
     fn as_str(&self) -> &'static str {
         match self {
             Self::Local(_) => "local",
-            Self::Matrix(_) => "matrix",
         }
     }
 }
@@ -58,28 +46,19 @@ pub enum DispatchMode {
     #[default]
     Auto,
     Local,
-    Matrix,
 }
 
 /// 协调存储、控制器和工作节点选择的单轮派发引擎。
-pub struct DispatchEngine<'a, C>
-where
-    C: ControllerAdapter + ?Sized,
-{
+pub struct DispatchEngine<'a> {
     store: &'a AgentSchedulerStore,
-    controller: &'a C,
     lease_duration_ms: i64,
     dispatch_mode: DispatchMode,
 }
 
-impl<'a, C> DispatchEngine<'a, C>
-where
-    C: ControllerAdapter + ?Sized,
-{
-    pub fn new(store: &'a AgentSchedulerStore, controller: &'a C) -> Self {
+impl<'a> DispatchEngine<'a> {
+    pub fn new(store: &'a AgentSchedulerStore) -> Self {
         Self {
             store,
-            controller,
             lease_duration_ms: DEFAULT_RUN_LEASE_DURATION_MS,
             dispatch_mode: DispatchMode::default(),
         }
@@ -174,117 +153,8 @@ where
         )
     }
 
-    fn append_worker_selected_event(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        worker: &StoredAgentWorker,
-        run: &StoredAgentRun,
-        target: &DispatchTarget,
-        now_ms: TimestampMs,
-    ) -> Result<()> {
-        self.store.append_event(
-            project_path,
-            AppendAgentEventRequest {
-                task_id: Some(task.id.clone()),
-                run_id: Some(run.id.clone()),
-                worker_id: Some(worker.id.clone()),
-                team_id: task.team_id.clone(),
-                kind: AgentEventKind::WorkerSelected,
-                from_status: Some(AgentTaskStatus::Queued),
-                to_status: Some(AgentTaskStatus::Assigned),
-                from_status_key: None,
-                to_status_key: None,
-                message: format!(
-                    "selected worker {} for task {}",
-                    worker.id.as_str(),
-                    task.id.as_str()
-                ),
-                payload: json!({
-                    "task_id": task.id.as_str(),
-                    "worker_id": worker.id.as_str(),
-                    "run_id": run.id.as_str(),
-                    "dispatch_target": target.as_str(),
-                }),
-                created_at_ms: now_ms,
-            },
-        )?;
-        Ok(())
-    }
 
-    fn enqueue_dispatch_message(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        worker: &StoredAgentWorker,
-        run: &StoredAgentRun,
-        target: &RemoteDispatchTarget,
-        now_ms: TimestampMs,
-    ) -> Result<crate::agent_scheduler::store::outbox::StoredOutboxMessage> {
-        let message_id = format!("outbox-{}-dispatch-{}", task.id.as_str(), worker.id.as_str());
-        let mention = target.recipient_id.as_str();
-        let body = format!(
-            "{mention} New task [{}]: {}. Use your file-sync skill to pull the spec: {}. @mention me when complete.",
-            task.id.as_str(),
-            task.title,
-            task.spec_uri
-        );
-        let payload = matrix_dispatch_event(project_path, task, worker, run, target, now_ms)?;
-        payload.validate_for_matrix_room_event().map_err(anyhow::Error::msg)?;
-        self.store.enqueue_outbox_message(
-            project_path,
-            EnqueueOutboxMessageRequest {
-                message_id,
-                channel: "matrix".to_string(),
-                target: format!("room:{}", target.room_id),
-                recipient_id: Some(target.recipient_id.clone()),
-                body,
-                idempotency_key: format!("{}:dispatch:{}", task.id.as_str(), worker.id.as_str()),
-                payload: serde_json::to_value(payload)
-                    .context("serialize Matrix dispatch event payload")?,
-                created_at_ms: now_ms,
-                next_attempt_at_ms: None,
-            },
-        )
-    }
 
-    fn append_matrix_dispatched_event(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        worker: &StoredAgentWorker,
-        run: &StoredAgentRun,
-        outbox_message_id: &str,
-        now_ms: TimestampMs,
-    ) -> Result<()> {
-        self.store.append_event(
-            project_path,
-            AppendAgentEventRequest {
-                task_id: Some(task.id.clone()),
-                run_id: Some(run.id.clone()),
-                worker_id: Some(worker.id.clone()),
-                team_id: task.team_id.clone(),
-                kind: AgentEventKind::MatrixDispatched,
-                from_status: Some(AgentTaskStatus::Assigned),
-                to_status: Some(AgentTaskStatus::Dispatched),
-                from_status_key: None,
-                to_status_key: None,
-                message: format!(
-                    "queued Matrix dispatch for task {} to {}",
-                    task.id.as_str(),
-                    worker.id.as_str()
-                ),
-                payload: json!({
-                    "task_id": task.id.as_str(),
-                    "worker_id": worker.id.as_str(),
-                    "run_id": run.id.as_str(),
-                    "outbox_message_id": outbox_message_id,
-                }),
-                created_at_ms: now_ms,
-            },
-        )?;
-        Ok(())
-    }
 }
 
 pub(crate) fn load_dispatch_workflow(
@@ -366,70 +236,8 @@ pub(crate) fn legacy_dispatch_status_key(status: AgentTaskStatus) -> &'static st
     }
 }
 
-pub(crate) fn dispatch_target_from_worker(
-    ready: &crate::agent_scheduler::adapters::controller::WorkerControllerSnapshot,
-    worker: &StoredAgentWorker,
-    task: &StoredAgentTask,
-    run: &StoredAgentRun,
-    now_ms: TimestampMs,
-    dispatch_mode: DispatchMode,
-) -> Result<DispatchTarget> {
-    let room_id = ready.room_id.clone().or_else(|| worker.room_id.clone());
-    let local_target = || {
-        DispatchTarget::Local(LocalDispatchRequest {
-            task_id: task.id.clone(),
-            run_id: run.id.clone(),
-            requested_at_ms: now_ms,
-        })
-    };
-    match dispatch_mode {
-        DispatchMode::Local => Ok(local_target()),
-        DispatchMode::Auto => match (room_id, worker.matrix_user_id.clone()) {
-            (Some(room_id), Some(recipient_id)) => {
-                Ok(DispatchTarget::Matrix(RemoteDispatchTarget { room_id, recipient_id }))
-            }
-            _ => Ok(local_target()),
-        },
-        DispatchMode::Matrix => match (room_id, worker.matrix_user_id.clone()) {
-            (Some(room_id), Some(recipient_id)) => {
-                Ok(DispatchTarget::Matrix(RemoteDispatchTarget { room_id, recipient_id }))
-            }
-            (None, _) => {
-                bail!("Matrix dispatch requires room_id for worker {}", worker.id.as_str())
-            }
-            (_, None) => {
-                bail!("Matrix dispatch requires matrix_user_id for worker {}", worker.id.as_str())
-            }
-        },
-    }
-}
 
-pub(crate) fn validate_dispatch_mode_available(
-    ready: &crate::agent_scheduler::adapters::controller::WorkerControllerSnapshot,
-    worker: &StoredAgentWorker,
-    dispatch_mode: DispatchMode,
-) -> Result<()> {
-    if dispatch_mode != DispatchMode::Matrix {
-        return Ok(());
-    }
-    let room_id = ready.room_id.as_ref().or(worker.room_id.as_ref());
-    if room_id.is_none() {
-        bail!("Matrix dispatch requires room_id for worker {}", worker.id.as_str());
-    }
-    if worker.matrix_user_id.is_none() {
-        bail!("Matrix dispatch requires matrix_user_id for worker {}", worker.id.as_str());
-    }
-    Ok(())
-}
 
-pub(crate) fn selected_worker(
-    workers: &[StoredAgentWorker],
-    candidate: &WorkerCandidateScore,
-) -> Result<StoredAgentWorker> {
-    workers.iter().find(|worker| worker.id == candidate.worker_id).cloned().with_context(|| {
-        format!("selected worker snapshot missing: {}", candidate.worker_id.as_str())
-    })
-}
 
 pub(crate) fn ready_queued_finite_task(
     store: &AgentSchedulerStore,
@@ -470,43 +278,6 @@ fn task_graph_allows_dispatch(graph: &TaskGraph, task: &StoredAgentTask) -> Resu
     Ok(matches!(graph.readiness_for(&task.id)?, TaskGraphReadiness::Ready))
 }
 
-pub(crate) fn matrix_dispatch_event(
-    project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-    task: &StoredAgentTask,
-    worker: &StoredAgentWorker,
-    run: &StoredAgentRun,
-    target: &RemoteDispatchTarget,
-    now_ms: TimestampMs,
-) -> Result<AgentSchedulerMatrixDispatchEventDto> {
-    let acp_agent = dispatch_acp_agent(task);
-    let reasoning_effort = if acp_agent.is_some() {
-        crate::agent_scheduler::task_board::reasoning_effort_from_metadata(&task.metadata)?
-    } else {
-        None
-    };
-    let scope = project_path.storage_scope()?;
-    let scope = scope.project_scope();
-    Ok(AgentSchedulerMatrixDispatchEventDto {
-        event_version: 1,
-        platform_id: scope.platform_id().as_ref().to_string(),
-        company_id: scope.company_id().as_ref().to_string(),
-        project_id: scope.project_id().as_ref().to_string(),
-        task_id: task.id.as_str().to_string(),
-        run_id: run.id.as_str().to_string(),
-        worker_id: worker.id.as_str().to_string(),
-        worker_role: worker.worker_role.clone().unwrap_or_else(|| "worker".to_string()),
-        room_id: target.room_id.clone(),
-        matrix_user_id: target.recipient_id.clone(),
-        model: dispatch_model(task).unwrap_or_else(|| worker.model.clone()),
-        model_provider: worker.model_provider.clone(),
-        agent: dispatch_agent(task, acp_agent.as_deref()),
-        acp_agent,
-        reasoning_effort,
-        spec_path: task.spec_uri.clone(),
-        metadata_path: task.meta_uri.clone(),
-        created_at_ms: now_ms,
-    })
-}
 
 pub(crate) fn dispatch_model(task: &StoredAgentTask) -> Option<String> {
     dispatch_metadata_string(task, "model").filter(|model| !model.eq_ignore_ascii_case("auto"))
@@ -540,15 +311,6 @@ fn dispatch_metadata_string(task: &StoredAgentTask, key: &str) -> Option<String>
         .map(str::to_string)
 }
 
-pub(crate) fn selection_request_from_task(
-    task: &StoredAgentTask,
-) -> Result<WorkerSelectionRequest> {
-    Ok(WorkerSelectionRequest {
-        required_skills: required_skills_from_metadata(&task.metadata)?,
-        team_id: task.team_id.clone(),
-        preferred_runtime: preferred_runtime_from_metadata(&task.metadata)?,
-    })
-}
 
 fn required_skills_from_metadata(metadata: &Value) -> Result<Vec<String>> {
     let skills = string_array_field(metadata, "required_skills")?;

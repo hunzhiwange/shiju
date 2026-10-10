@@ -63,7 +63,7 @@ pub enum AgentTaskKindDto {
     /// 按计划重复触发的长期任务。
     Infinite,
     /// 由 Team Leader 拆解并按 DAG 执行的团队任务。
-    TeamDag,
+    DependencyGraph,
 }
 
 /// Agent Scheduler 任务状态。
@@ -89,7 +89,7 @@ pub enum AgentTaskStatusDto {
 
 /// Team DAG 中的子任务节点。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TeamTaskDagNodeDto {
+pub struct TaskDependencyNodeDto {
     pub task_id: String,
     pub title: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -125,7 +125,7 @@ pub struct AgentTaskDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_executed_at: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub dag: Vec<TeamTaskDagNodeDto>,
+    pub dag: Vec<TaskDependencyNodeDto>,
     pub created_at_ms: TimestampMs,
     pub updated_at_ms: TimestampMs,
     #[serde(default)]
@@ -267,227 +267,6 @@ pub struct AgentCapabilityDto {
     pub name: String,
     #[serde(default)]
     pub metadata: Value,
-}
-
-/// Worker 运行状态或调度可用性。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentWorkerStatusDto {
-    Pending,
-    Idle,
-    Busy,
-    Running,
-    Sleeping,
-    Stopped,
-    Failed,
-    Unavailable,
-}
-
-/// Agent Worker 快照。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentWorkerDto {
-    pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub runtime: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployment: Option<String>,
-    pub model: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model_provider: Option<String>,
-    pub status: AgentWorkerStatusDto,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub desired_state: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub team_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub worker_role: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub matrix_user_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub room_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub container_state: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub idle_since_ms: Option<TimestampMs>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_seen_at_ms: Option<TimestampMs>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_heartbeat_at: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub capabilities: Vec<AgentCapabilityDto>,
-    pub updated_at_ms: TimestampMs,
-}
-
-/// Agent Worker 写入/更新请求。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentSchedulerUpsertWorkerRequest {
-    pub worker_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub runtime: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub deployment: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model_provider: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub status: Option<AgentWorkerStatusDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub desired_state: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub team_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub worker_role: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub matrix_user_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub room_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub container_state: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub idle_since_ms: Option<TimestampMs>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_seen_at_ms: Option<TimestampMs>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_heartbeat_at: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub capabilities: Vec<AgentCapabilityDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub updated_at_ms: Option<TimestampMs>,
-}
-
-/// Agent Worker 写入/更新响应。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentSchedulerUpsertWorkerResponse {
-    pub worker: AgentWorkerDto,
-}
-
-/// Agent Worker 列表响应。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentSchedulerWorkersResponse {
-    pub workers: Vec<AgentWorkerDto>,
-}
-
-/// Matrix/remote Worker 对一次 run 的生命周期上报类型。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentSchedulerWorkerRunEventKindDto {
-    Acknowledged,
-    Started,
-    Heartbeat,
-    Submitted,
-    Completed,
-    Failed,
-}
-
-/// Matrix/remote Worker 对一次 run 的生命周期上报。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentSchedulerWorkerRunEventRequest {
-    pub platform_id: String,
-    pub company_id: String,
-    pub project_id: String,
-    pub worker_id: String,
-    pub event: AgentSchedulerWorkerRunEventKindDto,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub result: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub error_message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub workspace: Option<AgentSchedulerWorkspaceContextDto>,
-    #[serde(default)]
-    pub payload: Value,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub now_ms: Option<TimestampMs>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub lease_expires_at_ms: Option<TimestampMs>,
-}
-
-/// Matrix/remote Worker 生命周期上报响应。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgentSchedulerWorkerRunEventResponse {
-    pub accepted: bool,
-    pub task: AgentSchedulerTaskBoardTaskDto,
-    pub run: AgentRunDto,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub event: Option<AgentSchedulerTaskBoardEventDto>,
-}
-
-/// Team 状态。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentTeamStatusDto {
-    Pending,
-    Active,
-    Degraded,
-    Failed,
-}
-
-/// Team 成员状态。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentTeamMemberDto {
-    pub worker_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub runtime_name: Option<String>,
-    pub role: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub room_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub matrix_user_id: Option<String>,
-    pub ready: bool,
-}
-
-/// Agent Team 快照。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentTeamDto {
-    pub id: String,
-    pub name: String,
-    pub status: AgentTeamStatusDto,
-    pub leader_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub team_room_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub leader_dm_room_id: Option<String>,
-    pub leader_ready: bool,
-    pub ready_workers: u32,
-    pub total_workers: u32,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub members: Vec<AgentTeamMemberDto>,
-    pub updated_at_ms: TimestampMs,
-}
-
-/// Agent Team 写入/更新请求。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerUpsertTeamRequest {
-    pub team_id: String,
-    pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub status: Option<AgentTeamStatusDto>,
-    pub leader_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub team_room_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub leader_dm_room_id: Option<String>,
-    pub leader_ready: bool,
-    pub ready_workers: u32,
-    pub total_workers: u32,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub members: Vec<AgentTeamMemberDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub updated_at_ms: Option<TimestampMs>,
-}
-
-/// Agent Team 写入/更新响应。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerUpsertTeamResponse {
-    pub team: AgentTeamDto,
-}
-
-/// Agent Team 列表响应。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerTeamsResponse {
-    pub teams: Vec<AgentTeamDto>,
 }
 
 /// 资源 lease 状态。

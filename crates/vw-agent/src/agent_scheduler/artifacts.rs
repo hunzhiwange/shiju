@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use vw_api_types::common::TimestampMs;
 
-use super::domain::{TaskId, TeamId, WorkerName};
+use super::domain::{TaskId, TeamId, AssigneeId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::tasks::{NewAgentTask, StoredAgentTask};
 
@@ -70,7 +70,7 @@ impl TaskArtifactWriter {
                 status,
                 spec_uri: format!("shared/tasks/{task_id}/spec.md"),
                 meta_uri: format!("shared/tasks/{task_id}/meta.json"),
-                assigned_to: meta.assigned_to.map(WorkerName::new).transpose()?,
+                assigned_to: meta.assigned_to.map(AssigneeId::new).transpose()?,
                 team_id: None,
                 room_id: meta.room_id,
                 project_room_id: meta.project_room_id,

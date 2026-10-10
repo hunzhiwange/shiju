@@ -8,11 +8,8 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskBoardStatusResponse,
     AgentSchedulerTaskBoardWorkflowResponse, AgentSchedulerTaskGraphResponse,
     AgentSchedulerTaskLogsResponse, AgentSchedulerTaskMetadataUpdateRequest,
-    AgentSchedulerTaskMetadataUpdateResponse, AgentSchedulerTeamsResponse,
-    AgentSchedulerUpsertTeamRequest, AgentSchedulerUpsertTeamResponse,
-    AgentSchedulerUpsertWorkerRequest, AgentSchedulerUpsertWorkerResponse,
-    AgentSchedulerWakeRequest, AgentSchedulerWakeResponse, AgentSchedulerWorkerRunEventRequest,
-    AgentSchedulerWorkerRunEventResponse, AgentSchedulerWorkersResponse,
+    AgentSchedulerTaskMetadataUpdateResponse,
+    AgentSchedulerWakeRequest, AgentSchedulerWakeResponse ,
 };
 
 use super::GatewayClient;
@@ -115,48 +112,6 @@ impl GatewayClient {
         self.post_json(&path, &[], request).await
     }
 
-    /// 拉取 Agent Scheduler Worker 快照。
-    pub async fn agent_scheduler_workers(
-        &self,
-        scope: &AgentSchedulerScopeDto,
-    ) -> Result<AgentSchedulerWorkersResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_workers_path(scope);
-        self.get_json(&path, &[]).await
-    }
-
-    /// 创建或更新 Agent Scheduler Worker 快照。
-    pub async fn agent_scheduler_upsert_worker(
-        &self,
-        scope: &AgentSchedulerScopeDto,
-        request: &AgentSchedulerUpsertWorkerRequest,
-    ) -> Result<AgentSchedulerUpsertWorkerResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_workers_path(scope);
-        self.post_json(&path, &[], request).await
-    }
-
-    /// 拉取 Agent Scheduler Team 快照。
-    pub async fn agent_scheduler_teams(
-        &self,
-        scope: &AgentSchedulerScopeDto,
-    ) -> Result<AgentSchedulerTeamsResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_teams_path(scope);
-        self.get_json(&path, &[]).await
-    }
-
-    /// 创建或更新 Agent Scheduler Team 快照。
-    pub async fn agent_scheduler_upsert_team(
-        &self,
-        scope: &AgentSchedulerScopeDto,
-        request: &AgentSchedulerUpsertTeamRequest,
-    ) -> Result<AgentSchedulerUpsertTeamResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_teams_path(scope);
-        self.post_json(&path, &[], request).await
-    }
-
     /// 拉取 Agent Scheduler 桌面任务板日志。
     pub async fn agent_scheduler_logs(
         &self,
@@ -228,19 +183,6 @@ impl GatewayClient {
         self.post_json(&path, &[], request).await
     }
 
-    /// 上报 Matrix/remote Worker run 生命周期事件。
-    pub async fn agent_scheduler_worker_run_event(
-        &self,
-        scope: &AgentSchedulerScopeDto,
-        task_id: &str,
-        run_id: &str,
-        request: &AgentSchedulerWorkerRunEventRequest,
-    ) -> Result<AgentSchedulerWorkerRunEventResponse, String> {
-        self.ensure_scheduler_tenant_scope(scope)?;
-        let path = agent_scheduler_worker_run_event_path(scope, task_id, run_id);
-        self.post_json(&path, &[], request).await
-    }
-
     fn ensure_scheduler_tenant_scope(&self, scope: &AgentSchedulerScopeDto) -> Result<(), String> {
         if scope.project_scope().tenant_scope() != self.endpoint().tenant_scope() {
             return Err("tenant scope does not match gateway endpoint tenant scope".to_string());
@@ -288,14 +230,6 @@ fn agent_scheduler_legacy_import_path(scope: &AgentSchedulerScopeDto) -> String 
     format!("{}/legacy-import", agent_scheduler_project_path(scope))
 }
 
-fn agent_scheduler_workers_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/workers", agent_scheduler_project_path(scope))
-}
-
-fn agent_scheduler_teams_path(scope: &AgentSchedulerScopeDto) -> String {
-    format!("{}/teams", agent_scheduler_project_path(scope))
-}
-
 fn agent_scheduler_logs_path(scope: &AgentSchedulerScopeDto, task_id: &str) -> String {
     format!("{}/tasks/{}/logs", agent_scheduler_project_path(scope), encode_path_segment(task_id))
 }
@@ -324,18 +258,6 @@ fn agent_scheduler_outbox_drain_path(scope: &AgentSchedulerScopeDto) -> String {
     format!("{}/outbox/drain", agent_scheduler_project_path(scope))
 }
 
-fn agent_scheduler_worker_run_event_path(
-    scope: &AgentSchedulerScopeDto,
-    task_id: &str,
-    run_id: &str,
-) -> String {
-    format!(
-        "{}/tasks/{}/runs/{}/worker-events",
-        agent_scheduler_project_path(scope),
-        encode_path_segment(task_id),
-        encode_path_segment(run_id)
-    )
-}
 
 fn encode_path_segment(value: &str) -> String {
     let mut encoded = String::new();

@@ -102,7 +102,7 @@ while moving `Queued` to `Assigned` and creating the run atomically.
 The first version covers only top-level `Finite` tasks and successful
 dependencies. It does not migrate `SubTask.batch` or
 `depends_on_batches`, add conditional or priority edges, or change worker
-selection. Legacy task `dag_json`, `TeamDagStatus`, and `ready_nodes` remain
+selection. Legacy task `dag_json`, `DependencyGraphStatus`, and `ready_nodes` remain
 compatibility/planning data and do not participate in scheduler dispatch.
 
 ## Migration And Safety

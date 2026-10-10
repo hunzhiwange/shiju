@@ -13,7 +13,7 @@ use vw_config_types::staff::{
     StaffStageActionInputsConfig, StaffStageAssignmentConfig,
 };
 
-use super::domain::{AgentSchedulerContext, RunId, TaskId, TeamId, WorkerName};
+use super::domain::{AgentSchedulerContext, RunId, TaskId, TeamId, AssigneeId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::AgentSchedulerStore;
 use super::store::artifacts::RecordTaskArtifactRequest;
@@ -209,7 +209,7 @@ fn assert_task_store_tracks_active_finite_tasks(
     let created = store.create_task(context, finite_task("task-finite-1")?)?;
     assert_eq!(created.id.as_str(), "task-finite-1");
     assert_eq!(created.status, AgentTaskStatus::Assigned);
-    assert_eq!(created.assigned_to.as_ref().map(WorkerName::as_str), Some("worker-a"));
+    assert_eq!(created.assigned_to.as_ref().map(AssigneeId::as_str), Some("worker-a"));
     assert_eq!(created.spec_uri, "shared/tasks/task-finite-1/spec.md");
     assert_eq!(created.meta_uri, "shared/tasks/task-finite-1/meta.json");
 
@@ -228,7 +228,7 @@ fn assert_task_store_tracks_active_finite_tasks(
     assert_eq!(by_status, vec![created.clone()]);
 
     let by_worker = store
-        .list_active_tasks(context, AgentTaskFilter::for_worker(WorkerName::new("worker-a")?))?;
+        .list_active_tasks(context, AgentTaskFilter::for_worker(AssigneeId::new("worker-a")?))?;
     assert_eq!(by_worker, vec![created.clone()]);
 
     let by_task = store
@@ -459,14 +459,14 @@ fn agent_task_store_list_filters_apply_to_task_board_and_all_tasks() -> Result<(
     store.initialize_project(project_path)?;
     let mut assigned =
         board_task("task-filter-assigned", "backlog", 1, 0, false, TimestampMs(1_783_000_100_000))?;
-    assigned.assigned_to = Some(WorkerName::new("worker-filter")?);
+    assigned.assigned_to = Some(AssigneeId::new("worker-filter")?);
     store.create_task(project_path, assigned)?;
     store.create_task(
         project_path,
         board_task("task-filter-other", "doing", 2, 0, false, TimestampMs(1_783_000_100_001))?,
     )?;
 
-    let mut filter = AgentTaskFilter::for_worker(WorkerName::new("worker-filter")?);
+    let mut filter = AgentTaskFilter::for_worker(AssigneeId::new("worker-filter")?);
     filter.status = Some(AgentTaskStatus::Queued);
     filter.task_id = Some(TaskId::new("task-filter-assigned")?);
     let board = store.list_task_board_tasks(project_path, filter.clone())?;
@@ -739,7 +739,7 @@ fn agent_scheduler_store_task_board_runtime_state_keeps_member_assignments_only(
 }
 
 #[test]
-fn agent_task_store_preserves_infinite_schedule_and_team_dag_fields() -> Result<()> {
+fn agent_task_store_preserves_infinite_schedule_and_dependency_graph_fields() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let project_path = temp_dir.path();
     let store = AgentSchedulerStore::new();
@@ -752,12 +752,12 @@ fn agent_task_store_preserves_infinite_schedule_and_team_dag_fields() -> Result<
     assert_eq!(infinite.timezone.as_deref(), Some("Asia/Shanghai"));
     assert_eq!(infinite.next_scheduled_at.as_deref(), Some("2026-07-02T10:15:00Z"));
 
-    let team_dag = store.create_task(project_path, team_dag_task()?)?;
-    assert_eq!(team_dag.kind, AgentTaskKind::TeamDag);
-    assert_eq!(team_dag.delegated_to_team.as_ref().map(TeamId::as_str), Some("team-alpha"));
-    assert_eq!(team_dag.dag.len(), 2);
-    assert_eq!(team_dag.dag[1].depends_on[0].as_str(), "node-plan");
-    assert_eq!(team_dag.dag[1].assigned_to.as_ref().map(WorkerName::as_str), Some("worker-ui"));
+    let dependency_graph = store.create_task(project_path, dependency_graph_task()?)?;
+    assert_eq!(dependency_graph.kind, AgentTaskKind::DependencyGraph);
+    assert_eq!(dependency_graph.delegated_to_team.as_ref().map(TeamId::as_str), Some("team-alpha"));
+    assert_eq!(dependency_graph.dag.len(), 2);
+    assert_eq!(dependency_graph.dag[1].depends_on[0].as_str(), "node-plan");
+    assert_eq!(dependency_graph.dag[1].assigned_to.as_ref().map(AssigneeId::as_str), Some("worker-ui"));
 
     Ok(())
 }
@@ -957,7 +957,7 @@ fn finite_task(id: &str) -> Result<NewAgentTask> {
         status: AgentTaskStatus::Assigned,
         spec_uri: format!("shared/tasks/{id}/spec.md"),
         meta_uri: format!("shared/tasks/{id}/meta.json"),
-        assigned_to: Some(WorkerName::new("worker-a")?),
+        assigned_to: Some(AssigneeId::new("worker-a")?),
         team_id: None,
         room_id: Some("!worker-room:example.test".to_string()),
         project_room_id: Some("!project-room:example.test".to_string()),
@@ -1015,7 +1015,7 @@ fn infinite_task() -> Result<NewAgentTask> {
         status: AgentTaskStatus::Active,
         spec_uri: "shared/tasks/task-infinite-1/spec.md".to_string(),
         meta_uri: "shared/tasks/task-infinite-1/meta.json".to_string(),
-        assigned_to: Some(WorkerName::new("worker-monitor")?),
+        assigned_to: Some(AssigneeId::new("worker-monitor")?),
         team_id: None,
         room_id: Some("!monitor-room:example.test".to_string()),
         project_room_id: None,
@@ -1030,15 +1030,15 @@ fn infinite_task() -> Result<NewAgentTask> {
     })
 }
 
-fn team_dag_task() -> Result<NewAgentTask> {
+fn dependency_graph_task() -> Result<NewAgentTask> {
     Ok(NewAgentTask {
         id: TaskId::new("task-team-1")?,
         title: "Ship team feature".to_string(),
-        kind: AgentTaskKind::TeamDag,
+        kind: AgentTaskKind::DependencyGraph,
         status: AgentTaskStatus::Queued,
         spec_uri: "shared/tasks/task-team-1/spec.md".to_string(),
         meta_uri: "shared/tasks/task-team-1/meta.json".to_string(),
-        assigned_to: Some(WorkerName::new("leader-a")?),
+        assigned_to: Some(AssigneeId::new("leader-a")?),
         team_id: Some(TeamId::new("team-alpha")?),
         room_id: Some("!leader-room:example.test".to_string()),
         project_room_id: Some("!project-room:example.test".to_string()),
@@ -1052,14 +1052,14 @@ fn team_dag_task() -> Result<NewAgentTask> {
                 task_id: TaskId::new("node-plan")?,
                 title: "Plan work".to_string(),
                 depends_on: Vec::new(),
-                assigned_to: Some(WorkerName::new("leader-a")?),
+                assigned_to: Some(AssigneeId::new("leader-a")?),
                 status: AgentTaskStatus::Queued,
             },
             AgentTaskDagNode {
                 task_id: TaskId::new("node-ui")?,
                 title: "Build UI".to_string(),
                 depends_on: vec![TaskId::new("node-plan")?],
-                assigned_to: Some(WorkerName::new("worker-ui")?),
+                assigned_to: Some(AssigneeId::new("worker-ui")?),
                 status: AgentTaskStatus::Queued,
             },
         ],

@@ -181,7 +181,7 @@ fn parse_task_kind(value: &str) -> Result<AgentTaskKind> {
     match value {
         "finite" => Ok(AgentTaskKind::Finite),
         "infinite" => Ok(AgentTaskKind::Infinite),
-        "team_dag" => Ok(AgentTaskKind::TeamDag),
+        "dependency_graph" => Ok(AgentTaskKind::DependencyGraph),
         other => bail!("unsupported agent task kind: {other}"),
     }
 }

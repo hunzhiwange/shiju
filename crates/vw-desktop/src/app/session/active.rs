@@ -120,6 +120,13 @@ impl App {
 
         self.close_session_transient_ui();
         let has_cold_chat_fallback = self.session_chat_cache.contains_key(&session_id);
+        if self.get_session_runtime(&session_id).is_requesting && !has_cold_chat_fallback {
+            self.store_session_chat_snapshot(
+                session_id.clone(),
+                shared_chat_messages(self.chat.clone()),
+                self.chat_message_ids.clone(),
+            );
+        }
         let snapshot = SessionViewSnapshot::take_from(self);
         let message_count = snapshot.chat().len();
 

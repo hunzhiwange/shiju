@@ -112,6 +112,47 @@ fn build_user_question_markers(chat: &[ChatMessage]) -> Vec<UserQuestionMarker> 
 }
 
 impl App {
+    fn rebuild_active_session_trajectory_projection(&mut self) {
+        self.active_session_view_state.trajectory_projection =
+            crate::app::components::chat_panel::trajectory::project_trajectory(
+                &self.active_session_view_state.steps,
+                &self.active_session_view_state.step_llm_raw,
+            );
+        #[cfg(test)]
+        {
+            self.active_session_view_state.trajectory_projection_rebuild_count += 1;
+        }
+    }
+
+    pub(crate) fn insert_active_session_step_llm_raw(
+        &mut self,
+        key: SessionStepRawKey,
+        raw: Value,
+    ) {
+        self.active_session_view_state.llm_raw_step_indices.insert(key.clone());
+        self.active_session_view_state.step_llm_raw.insert(key, raw);
+        self.rebuild_active_session_trajectory_projection();
+    }
+
+    pub(crate) fn insert_missing_active_session_step_llm_raw(
+        &mut self,
+        raw: HashMap<SessionStepRawKey, Value>,
+    ) {
+        let mut changed = false;
+        for (key, value) in raw {
+            self.active_session_view_state.llm_raw_step_indices.insert(key.clone());
+            if let std::collections::hash_map::Entry::Vacant(entry) =
+                self.active_session_view_state.step_llm_raw.entry(key)
+            {
+                entry.insert(value);
+                changed = true;
+            }
+        }
+        if changed {
+            self.rebuild_active_session_trajectory_projection();
+        }
+    }
+
     /// 移走离开会话的稳定聊天工作集；容量拒绝时保留原始消息缓存作冷恢复后备。
     pub(crate) fn stash_active_session_view(&mut self) {
         let Some(session_id) = self.active_session_id.clone() else {
@@ -272,6 +313,7 @@ impl App {
         self.active_session_view_state.step_llm_raw.clear();
         self.active_session_view_state.llm_raw_step_indices.clear();
         self.active_session_view_state.step_index_map.clear();
+        self.rebuild_active_session_trajectory_projection();
     }
 
     #[allow(dead_code)]
@@ -284,6 +326,7 @@ impl App {
         self.active_session_view_state.step_index_map =
             steps.iter().map(|step| (step.index, StepUiMeta::from(step))).collect();
         self.active_session_view_state.steps = steps;
+        self.rebuild_active_session_trajectory_projection();
     }
 
     /// 执行 replace_active_session_calls 对应的领域操作。
@@ -300,6 +343,7 @@ impl App {
     ) {
         self.active_session_view_state.llm_raw_step_indices.extend(raw.keys().cloned());
         self.active_session_view_state.step_llm_raw = raw;
+        self.rebuild_active_session_trajectory_projection();
     }
 
     /// 替换当前会话在存储层已存在的原始 LLM 稳定 turn/step 键。
@@ -333,6 +377,7 @@ impl App {
                 .steps
                 .sort_by_key(|existing| (existing.started_ms, existing.index));
         }
+        self.rebuild_active_session_trajectory_projection();
     }
 
     /// 执行 sync_active_session_from_chat 对应的领域操作。

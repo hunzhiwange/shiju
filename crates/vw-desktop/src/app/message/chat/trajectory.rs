@@ -2,7 +2,7 @@
 
 use super::ChatMessage;
 use crate::app::components::chat_panel::trajectory::{
-    TrajectoryDetailsAction, project_trajectory, trajectory_detail_values,
+    TrajectoryDetailsAction, trajectory_detail_values,
 };
 use crate::app::state::ChatPanelMode;
 use crate::app::state::SessionStepRawKey;
@@ -40,20 +40,14 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::TrajectoryTurnsToggled => {
             sync_controls_session(app);
-            let projection = project_trajectory(
-                &app.active_session_view_state.steps,
-                &app.active_session_view_state.step_llm_raw,
-            );
-            app.trajectory_controls.toggle_all_turns(&projection);
+            let projection = &app.active_session_view_state.trajectory_projection;
+            app.trajectory_controls.toggle_all_turns(projection);
             Task::none()
         }
         ChatMessage::TrajectoryCallsToggled => {
             sync_controls_session(app);
-            let projection = project_trajectory(
-                &app.active_session_view_state.steps,
-                &app.active_session_view_state.step_llm_raw,
-            );
-            app.trajectory_controls.toggle_all_calls(&projection);
+            let projection = &app.active_session_view_state.trajectory_projection;
+            app.trajectory_controls.toggle_all_calls(projection);
             Task::none()
         }
         ChatMessage::TrajectoryTurnToggled(turn_index) => {
@@ -68,10 +62,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::TrajectoryRecordSelected(record_id) => {
             sync_controls_session(app);
-            let projection = project_trajectory(
-                &app.active_session_view_state.steps,
-                &app.active_session_view_state.step_llm_raw,
-            );
+            let projection = app.active_session_view_state.trajectory_projection.clone();
             let changed = if let Some(record) = projection.record(&record_id) {
                 app.trajectory_controls.reveal_record(record);
                 app.trajectory_details.select_record(record)
@@ -174,10 +165,7 @@ fn apply_snapshot_result(
         }
     }
     app.active_session_view_state.llm_raw_step_indices.extend(loaded.llm_raw_step_indices);
-    for (key, raw) in loaded.step_llm_raw {
-        app.active_session_view_state.llm_raw_step_indices.insert(key.clone());
-        app.active_session_view_state.step_llm_raw.entry(key).or_insert(raw);
-    }
+    app.insert_missing_active_session_step_llm_raw(loaded.step_llm_raw);
     sync_details_values(app);
     refresh_missing_raw_task(app, &session_id, None)
 }
@@ -187,10 +175,7 @@ fn sync_controls_session(app: &mut App) {
 }
 
 fn sync_details_values(app: &mut App) {
-    let projection = project_trajectory(
-        &app.active_session_view_state.steps,
-        &app.active_session_view_state.step_llm_raw,
-    );
+    let projection = app.active_session_view_state.trajectory_projection.clone();
     sync_details_values_from_projection(app, &projection);
 }
 
@@ -343,8 +328,7 @@ fn apply_raw_result(
 
     match result {
         Ok(Some(raw)) => {
-            app.active_session_view_state.llm_raw_step_indices.insert(key.clone());
-            app.active_session_view_state.step_llm_raw.insert(key.clone(), raw);
+            app.insert_active_session_step_llm_raw(key.clone(), raw);
             clear_raw_load_state(app, &key);
             sync_details_values(app);
             Task::none()

@@ -54,8 +54,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.active_session_id.as_deref() == Some(session_id.as_str()) {
                 match result {
                     Ok(Some(raw)) => {
-                        app.active_session_view_state.llm_raw_step_indices.insert(key.clone());
-                        app.active_session_view_state.step_llm_raw.insert(key.clone(), raw);
+                        app.insert_active_session_step_llm_raw(key.clone(), raw);
                         app.usage_step_raw_payloads.remove(&key);
                         if app.usage_step_expanded.contains(&step_index) {
                             open_raw_modal(app, &key);

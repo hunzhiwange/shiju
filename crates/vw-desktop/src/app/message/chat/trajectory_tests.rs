@@ -312,8 +312,8 @@ mod trajectory_controls {
     #[test]
     fn select_expands_record_ancestors() {
         let (mut app, _) = App::new();
-        app.active_session_view_state.steps = vec![completed_step(1)];
-        app.active_session_view_state.step_llm_raw.insert(
+        app.replace_active_session_steps(vec![completed_step(1)]);
+        app.insert_active_session_step_llm_raw(
             raw_key("", 1),
             serde_json::json!({
                 "messages": [{"role": "user", "content": "question"}],
@@ -344,8 +344,8 @@ mod trajectory_controls {
     fn messages_update_controls_and_session_change_clears_collapsed_groups() {
         let (mut app, _) = App::new();
         app.active_session_id = Some("session-1".to_string());
-        app.active_session_view_state.steps = vec![completed_step(1)];
-        app.active_session_view_state.step_llm_raw.insert(
+        app.replace_active_session_steps(vec![completed_step(1)]);
+        app.insert_active_session_step_llm_raw(
             raw_key("session-1", 1),
             serde_json::json!({
                 "messages": [{"role": "user", "content": "question"}],
@@ -384,6 +384,86 @@ mod trajectory_controls {
         assert!(!app.trajectory_controls.is_turn_collapsed(1));
         assert!(!app.trajectory_controls.is_tool_step_collapsed(1));
     }
+}
+
+#[test]
+fn trajectory_cache_reuses_projection_for_view_interactions() {
+    let (mut app, _) = App::new();
+    app.active_session_id = Some("session-1".to_string());
+    app.replace_active_session_steps(vec![completed_step(1)]);
+    app.insert_active_session_step_llm_raw(
+        raw_key("session-1", 1),
+        serde_json::json!({
+            "messages": [{"role": "user", "content": "question"}],
+            "output": {"text": "answer"}
+        }),
+    );
+    let rebuild_count = app.active_session_view_state.trajectory_projection_rebuild_count;
+
+    {
+        let _view = crate::app::components::chat_panel::trajectory::view(&app);
+    }
+    {
+        let _view = crate::app::components::chat_panel::trajectory::view(&app);
+    }
+    let _task = super::update(&mut app, super::ChatMessage::TrajectoryTurnsToggled);
+    let record_id = app.active_session_view_state.trajectory_projection.records[0].id.clone();
+    let _task = super::update(&mut app, super::ChatMessage::TrajectoryRecordSelected(record_id));
+
+    assert_eq!(app.active_session_view_state.trajectory_projection_rebuild_count, rebuild_count);
+}
+
+#[test]
+fn trajectory_cache_invalidates_for_steps_and_raw_payloads() {
+    let (mut app, _) = App::new();
+    app.active_session_id = Some("session-1".to_string());
+    let initial_count = app.active_session_view_state.trajectory_projection_rebuild_count;
+
+    app.replace_active_session_steps(vec![completed_step(1)]);
+    let steps_count = app.active_session_view_state.trajectory_projection_rebuild_count;
+    assert_eq!(steps_count, initial_count + 1);
+
+    app.insert_active_session_step_llm_raw(
+        raw_key("session-1", 1),
+        serde_json::json!({
+            "messages": [{"role": "user", "content": "new question"}],
+            "output": {"text": "new answer"}
+        }),
+    );
+
+    assert_eq!(app.active_session_view_state.trajectory_projection_rebuild_count, steps_count + 1);
+    assert!(
+        app.active_session_view_state
+            .trajectory_projection
+            .records
+            .iter()
+            .any(|record| record.matches_query("new answer"))
+    );
+}
+
+#[test]
+fn trajectory_cache_survives_hot_session_restore() {
+    let (mut app, _) = App::new();
+    app.active_session_id = Some("session-1".to_string());
+    app.replace_active_session_steps(vec![completed_step(1)]);
+    app.insert_active_session_step_llm_raw(
+        raw_key("session-1", 1),
+        serde_json::json!({
+            "messages": [{"role": "user", "content": "cached question"}],
+            "output": {"text": "cached answer"}
+        }),
+    );
+    let expected = app.active_session_view_state.trajectory_projection.clone();
+    let rebuild_count = app.active_session_view_state.trajectory_projection_rebuild_count;
+
+    app.stash_active_session_view();
+    app.active_session_id = Some("session-2".to_string());
+    app.replace_active_session_steps(vec![completed_step(2)]);
+    let snapshot = app.session_view_cache.take("session-1").expect("cached session view");
+    snapshot.restore_into(&mut app);
+
+    assert_eq!(app.active_session_view_state.trajectory_projection, expected);
+    assert_eq!(app.active_session_view_state.trajectory_projection_rebuild_count, rebuild_count);
 }
 
 #[test]

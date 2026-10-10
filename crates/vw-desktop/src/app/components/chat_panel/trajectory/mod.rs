@@ -41,10 +41,7 @@ use iced::{Element, Length, Theme};
 
 /// 组合概览、搜索账本和详情检查器，数据始终来自当前活跃会话快照。
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
-    let projection = project_trajectory(
-        &app.active_session_view_state.steps,
-        &app.active_session_view_state.step_llm_raw,
-    );
+    let projection = &app.active_session_view_state.trajectory_projection;
     let selected_record_id = app.trajectory_details.selected_record_id();
     let select_record = |record_id| Message::Chat(ChatMessage::TrajectoryRecordSelected(record_id));
     let trajectory_controls = app.trajectory_controls.for_session(app.active_session_id.as_deref());

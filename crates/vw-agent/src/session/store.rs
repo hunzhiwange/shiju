@@ -699,7 +699,11 @@ impl SessionStore {
             SessionStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;
                 load_sqlite_session_turn_step_llm_raw(
-                    &connection, scope, session_id, turn_id, step_index,
+                    &connection,
+                    scope,
+                    session_id,
+                    turn_id,
+                    step_index,
                 )
             }
             SessionStoreProvider::Postgres(store) => run_sync_database(|| {
@@ -719,13 +723,21 @@ impl SessionStore {
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;
-                let turn_id = sqlite_session_step_turn_id(&connection, scope, session_id, step_index)?;
+                let turn_id =
+                    sqlite_session_step_turn_id(&connection, scope, session_id, step_index)?;
                 match turn_id {
                     Some(turn_id) => load_sqlite_session_turn_step_llm_raw(
-                        &connection, scope, session_id, &turn_id, step_index,
+                        &connection,
+                        scope,
+                        session_id,
+                        &turn_id,
+                        step_index,
                     ),
                     None => load_sqlite_legacy_session_step_llm_raw(
-                        &connection, scope, session_id, step_index,
+                        &connection,
+                        scope,
+                        session_id,
+                        step_index,
                     ),
                 }
             }
@@ -1072,7 +1084,15 @@ fn load_sqlite_session_turn_step_llm_raw(
             },
         )
         .optional()?;
-    let Some((model, system, tools, initial_request_config, initial_provider_messages, initial_message_sources)) = stored_context else {
+    let Some((
+        model,
+        system,
+        tools,
+        initial_request_config,
+        initial_provider_messages,
+        initial_message_sources,
+    )) = stored_context
+    else {
         return Ok(None);
     };
     let context = LlmRawTurnContext {
@@ -1081,12 +1101,18 @@ fn load_sqlite_session_turn_step_llm_raw(
         model: parse_raw_json(model, "turn model")?,
         system: parse_raw_json(system, "turn system")?,
         tools: parse_raw_json(tools, "turn tools")?,
-        initial_request_config: parse_raw_json(initial_request_config, "turn initial request config")?,
+        initial_request_config: parse_raw_json(
+            initial_request_config,
+            "turn initial request config",
+        )?,
         initial_provider_messages: parse_raw_json(
             initial_provider_messages,
             "turn initial provider messages",
         )?,
-        initial_message_sources: parse_raw_json(initial_message_sources, "turn initial message sources")?,
+        initial_message_sources: parse_raw_json(
+            initial_message_sources,
+            "turn initial message sources",
+        )?,
     };
     let mut statement = connection.prepare(
         "SELECT step_index, provider_message_prefix_len, provider_message_suffix_json,
@@ -1145,10 +1171,18 @@ fn sqlite_raw_round(row: &rusqlite::Row<'_>, turn_id: &str) -> rusqlite::Result<
     Ok(LlmRawRound {
         turn_id: turn_id.to_owned(),
         step_index: u32::try_from(row.get::<_, i64>(0)?).map_err(|error| {
-            rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Integer, Box::new(error))
+            rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Integer,
+                Box::new(error),
+            )
         })?,
         provider_message_prefix_len: usize::try_from(prefix_len).map_err(|error| {
-            rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Integer, Box::new(error))
+            rusqlite::Error::FromSqlConversionFailure(
+                1,
+                rusqlite::types::Type::Integer,
+                Box::new(error),
+            )
         })?,
         provider_message_suffix: parse_values(row.get(2)?, "provider message suffix")?,
         message_source_suffix: parse_values(row.get(3)?, "message source suffix")?,
@@ -1426,11 +1460,7 @@ fn validate_raw_commit(
                 bail!("LLM raw round turn_id does not match its context");
             }
             if !actual.insert((round.turn_id.as_str(), round.step_index)) {
-                bail!(
-                    "duplicate LLM raw artifact round: {}/{}",
-                    round.turn_id,
-                    round.step_index
-                );
+                bail!("duplicate LLM raw artifact round: {}/{}", round.turn_id, round.step_index);
             }
         }
     }
@@ -1525,7 +1555,10 @@ fn upsert_session_llm_raw_round(
             session_id,
             round.turn_id,
             i64::from(round.step_index),
-            usize_to_i64(round.provider_message_prefix_len, "LLM raw provider message prefix length")?,
+            usize_to_i64(
+                round.provider_message_prefix_len,
+                "LLM raw provider message prefix length"
+            )?,
             serde_json::to_string(&round.provider_message_suffix)?,
             serde_json::to_string(&round.message_source_suffix)?,
             round.system_delta.as_ref().map(serde_json::to_string).transpose()?,
@@ -1712,17 +1745,11 @@ fn ensure_sqlite_step_turn_id_column(connection: &Connection) -> Result<()> {
         .collect::<rusqlite::Result<Vec<_>>>()?;
     if !columns.iter().any(|(name, _)| name == "turn_id") {
         connection
-            .execute(
-                "ALTER TABLE session_steps ADD COLUMN turn_id TEXT NOT NULL DEFAULT ''",
-                [],
-            )
+            .execute("ALTER TABLE session_steps ADD COLUMN turn_id TEXT NOT NULL DEFAULT ''", [])
             .context("add SQLite session step turn_id column")?;
     }
 
-    if columns
-        .iter()
-        .any(|(name, primary_key_order)| name == "turn_id" && *primary_key_order > 0)
-    {
+    if columns.iter().any(|(name, primary_key_order)| name == "turn_id" && *primary_key_order > 0) {
         return Ok(());
     }
 

@@ -62,12 +62,14 @@ async fn session_tool_recovers_visible_tasks_after_coordinator_restart() {
     let listed: serde_json::Value = serde_json::from_str(&listed.output).expect("JSON");
     assert_eq!(listed["tasks"][0]["session_id"], task.info.id);
     assert_eq!(listed["tasks"][0]["state"], "failed");
-    let status = restarted.execute(json!({"action":"status","session_ids":[task.info.id]}))
-        .await.expect("status");
+    let status = restarted
+        .execute(json!({"action":"status","session_ids":[task.info.id]}))
+        .await
+        .expect("status");
     let status: serde_json::Value = serde_json::from_str(&status.output).expect("JSON");
     assert_eq!(status["tasks"][0]["state"], "failed");
-    let executor = Arc::new(
-        |_directory: String, _request: vw_api_types::chat::GatewayChatStreamRequest| {
+    let executor =
+        Arc::new(|_directory: String, _request: vw_api_types::chat::GatewayChatStreamRequest| {
             async {
                 Ok(GatewayChatStreamCollected {
                     output: "continued".to_string(),
@@ -76,11 +78,12 @@ async fn session_tool_recovers_visible_tasks_after_coordinator_restart() {
                 })
             }
             .boxed()
-        },
-    );
+        });
     let restarted = restarted.with_stream_executor(executor);
-    let sent = restarted.execute(json!({"action":"send","session_id":task.info.id,"prompt":"Continue"}))
-        .await.expect("send after recovery");
+    let sent = restarted
+        .execute(json!({"action":"send","session_id":task.info.id,"prompt":"Continue"}))
+        .await
+        .expect("send after recovery");
     assert!(sent.success);
 }
 
@@ -204,6 +207,42 @@ async fn session_tool_send_continues_existing_visible_task() {
     assert_eq!(source.source_session_id, parent.info.id);
 }
 
+#[test]
+fn background_turn_reports_startup_failure_instead_of_succeeding_silently() {
+    let project = TempDir::new().expect("project directory");
+    let executor_called = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let executor_called_for_call = Arc::clone(&executor_called);
+    let executor = Arc::new(
+        move |_directory: String, _request: vw_api_types::chat::GatewayChatStreamRequest| {
+            executor_called_for_call.store(true, std::sync::atomic::Ordering::SeqCst);
+            async {
+                Ok(GatewayChatStreamCollected {
+                    output: "unexpected".into(),
+                    message_id: None,
+                    parent_message_id: None,
+                })
+            }
+            .boxed()
+        },
+    );
+    let tool = SessionTool::new(Some("parent".into()), project.path().to_path_buf())
+        .with_coordinator(TaskSessionCoordinator::new())
+        .with_stream_executor(executor);
+
+    let error = tool
+        .spawn_background_turn(
+            "parent".into(),
+            "missing-task".into(),
+            "project".into(),
+            project.path().to_string_lossy().into_owned(),
+            "Continue".into(),
+        )
+        .expect_err("unregistered task startup must fail");
+
+    assert!(error.to_string().contains("unknown task session"));
+    assert!(!executor_called.load(std::sync::atomic::Ordering::SeqCst));
+}
+
 #[tokio::test]
 async fn session_tool_lists_statuses_reads_and_rejects_non_task_targets() {
     let project = TempDir::new().expect("project directory");
@@ -211,16 +250,15 @@ async fn session_tool_lists_statuses_reads_and_rejects_non_task_targets() {
     let task = create_task(project.path(), &parent.info.id).await;
     let scope = crate::session::runtime::SessionScope::new(TenantScope::default(), project.path())
         .expect("test scope");
-    let internal = crate::session::runtime::create_session(
-        crate::session::runtime::CreateSessionInput {
+    let internal =
+        crate::session::runtime::create_session(crate::session::runtime::CreateSessionInput {
             scope,
             parent_id: Some(parent.info.id.clone()),
             title: Some("Internal".to_string()),
             permission: None,
-        },
-    )
-    .await
-    .expect("internal child session");
+        })
+        .await
+        .expect("internal child session");
     let coordinator = TaskSessionCoordinator::new();
     coordinator.register(&parent.info.id, &task.info.id).expect("register");
     coordinator.mark_running(&parent.info.id, &task.info.id).expect("start");
@@ -240,10 +278,8 @@ async fn session_tool_lists_statuses_reads_and_rejects_non_task_targets() {
     let status: serde_json::Value = serde_json::from_str(&status.output).expect("status JSON");
     assert_eq!(status["tasks"][0]["state"], "succeeded");
 
-    let read = tool
-        .execute(json!({"action":"read","session_id":task.info.id}))
-        .await
-        .expect("read");
+    let read =
+        tool.execute(json!({"action":"read","session_id":task.info.id})).await.expect("read");
     let read: serde_json::Value = serde_json::from_str(&read.output).expect("read JSON");
     assert_eq!(read["session_id"], task.info.id);
     assert_eq!(read["messages"], json!([]));
@@ -255,9 +291,7 @@ async fn session_tool_lists_statuses_reads_and_rejects_non_task_targets() {
         .expect_err("internal child must stay inaccessible");
     assert!(internal_error.to_string().contains("not a visible task session"));
     assert!(
-        tool.execute(json!({"action":"read","session_id":"unknown-session"}))
-            .await
-            .is_err(),
+        tool.execute(json!({"action":"read","session_id":"unknown-session"})).await.is_err(),
         "unknown session IDs must be rejected"
     );
 }
@@ -310,10 +344,7 @@ async fn session_tool_rejects_other_parent_visible_task() {
         json!({"action":"send","session_id":other_task.info.id,"prompt":"Continue"}),
     ] {
         let error = tool.execute(args.clone()).await.expect_err("other parent's task must fail");
-        assert!(
-            error.to_string().contains("parent session mismatch"),
-            "{args}: {error}"
-        );
+        assert!(error.to_string().contains("parent session mismatch"), "{args}: {error}");
     }
 }
 

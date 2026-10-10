@@ -6,11 +6,6 @@ MODE="${MODE:-app}"
 PROFILE="${PROFILE:-release}"
 OUT_DIR="${OUT_DIR:-dist/macos}"
 TARGET="${TARGET:-}"
-if [[ "$PROFILE" == "release" || "$PROFILE" == "dist" ]]; then
-  export VIBEWINDOW_RELEASE_BUILD=1
-else
-  export VIBEWINDOW_RELEASE_BUILD=0
-fi
 DESKTOP_BIN_NAME="shi-ju"
 CLI_SOURCE_BIN_NAME="shiju"
 CLI_BIN_NAME="shiju"

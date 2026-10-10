@@ -30,16 +30,6 @@ fn parses_non_cli_mode_by_channel_with_aliases() {
     assert!(!parsed.contains_key("qq"));
 }
 
-#[test]
-fn parses_non_cli_mode_by_channel_normalizes_aliases_and_overwrites_duplicates() {
-    let parsed = parse_non_cli_mode_by_channel(
-        "slack:request_confirm, teams:requestconfirm, :direct, SLACK:disabled, matrix:direct:extra",
-    );
-
-    assert_eq!(parsed.get("teams"), Some(&NonCliNaturalLanguageApprovalMode::RequestConfirm));
-    assert_eq!(parsed.get("slack"), Some(&NonCliNaturalLanguageApprovalMode::Disabled));
-    assert_eq!(parsed.len(), 2);
-}
 
 #[test]
 fn parses_non_cli_mode_by_channel_returns_empty_for_blank_and_invalid_entries() {

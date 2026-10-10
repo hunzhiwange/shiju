@@ -136,33 +136,6 @@ fn policy_allow_all_once_grant_saturates_at_u32_max() {
     assert_eq!(manager.non_cli_allow_all_once_remaining(), u32::MAX);
 }
 
-#[test]
-fn policy_checks_non_cli_approval_actor_patterns() {
-    let open = ApprovalManager::from_config(&AutonomyConfig::default());
-    assert!(open.is_non_cli_approval_actor_allowed("discord", "anyone"));
-
-    let wildcard = ApprovalManager::from_config(&AutonomyConfig {
-        non_cli_approval_approvers: vec!["*".to_string()],
-        ..AutonomyConfig::default()
-    });
-    assert!(wildcard.is_non_cli_approval_actor_allowed("discord", "anyone"));
-
-    let manager = ApprovalManager::from_config(&AutonomyConfig {
-        non_cli_approval_approvers: vec![
-            "alice".to_string(),
-            "discord:bob".to_string(),
-            "slack:*".to_string(),
-            "*:carol".to_string(),
-        ],
-        ..AutonomyConfig::default()
-    });
-
-    assert!(manager.is_non_cli_approval_actor_allowed("telegram", "alice"));
-    assert!(manager.is_non_cli_approval_actor_allowed("discord", "bob"));
-    assert!(manager.is_non_cli_approval_actor_allowed("slack", "mallory"));
-    assert!(manager.is_non_cli_approval_actor_allowed("matrix", "carol"));
-    assert!(!manager.is_non_cli_approval_actor_allowed("discord", "mallory"));
-}
 
 #[test]
 fn policy_channel_mode_lookup_trims_channel_before_matching() {

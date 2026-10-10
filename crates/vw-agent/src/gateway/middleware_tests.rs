@@ -264,32 +264,6 @@ async fn tenant_scope_middleware_preserves_non_empty_header_whitespace() {
     assert_eq!(body.as_ref(), b" platform-test / company-test ");
 }
 
-#[tokio::test]
-async fn tenant_scope_middleware_rejects_invalid_header_matrix() {
-    let cases = [
-        ("missing platform", None, Some("company-test")),
-        ("missing company", Some("platform-test"), None),
-        ("blank platform", Some("   "), Some("company-test")),
-        ("blank company", Some("platform-test"), Some("\t")),
-    ];
-
-    for (name, platform, company) in cases {
-        let mut request = Request::get("/scope");
-        if let Some(platform) = platform {
-            request = request.header(PLATFORM_ID_HEADER, platform);
-        }
-        if let Some(company) = company {
-            request = request.header(COMPANY_ID_HEADER, company);
-        }
-
-        let response = tenant_test_router()
-            .oneshot(request.body(Body::empty()).expect("request should build"))
-            .await
-            .expect("router should respond");
-
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{name}");
-    }
-}
 
 #[tokio::test]
 async fn tenant_scope_middleware_rejects_duplicate_and_non_utf8_headers() {

@@ -6,10 +6,12 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use clap::{ArgMatches, Args, Command, Error, FromArgMatches, Subcommand, ValueEnum};
 
-use self::context::ApiContext;
-use self::config::ConfigCommands;
 use self::apiql::ApiQlCommands;
+use self::config::ConfigCommands;
+use self::context::ApiContext;
 use self::control::{ControlCommands, ProviderCommands};
+use self::desktop::DesktopCommands;
+use self::extensions::ExtensionCommands;
 use self::interactive::InteractiveCommands;
 use self::knowledge::KnowledgeCommands;
 use self::operations::OperationsCommands;
@@ -20,17 +22,18 @@ use self::session::SessionCommands;
 use self::session_content::SessionContentCommands;
 use self::shiju_apps::ShijuAppsCommands;
 use self::skill_market::SkillMarketCommands;
-use self::extensions::ExtensionCommands;
-use self::desktop::DesktopCommands;
-use self::task_pool::TaskPoolCommands;
 use self::task_lifecycle::TaskLifecycleCommands;
-use self::workspace::WorkspaceCommands;
+use self::task_pool::TaskPoolCommands;
 use self::workflow::WorkflowCommands;
+use self::workspace::WorkspaceCommands;
 
-mod config;
 mod apiql;
-mod control;
+mod config;
 mod context;
+mod control;
+mod coverage;
+mod desktop;
+mod extensions;
 mod input;
 mod interactive;
 mod knowledge;
@@ -43,14 +46,11 @@ mod session;
 mod session_content;
 mod shiju_apps;
 mod skill_market;
-mod extensions;
-mod desktop;
-mod coverage;
 mod system;
-mod task_pool;
 mod task_lifecycle;
-mod workspace;
+mod task_pool;
 mod workflow;
+mod workspace;
 
 use self::system::SystemCommands;
 
@@ -197,7 +197,7 @@ enum ApiCommands {
         #[command(subcommand)]
         command: KnowledgeCommands,
     },
-    /// 运维 Task Pool worktree 池和 Matrix 事件读取。
+    /// 运维 Task Pool worktree 池。
     TaskPool {
         /// Task Pool 操作。
         #[command(subcommand)]
@@ -372,12 +372,8 @@ impl ApiCommands {
         port: u16,
     ) -> Option<String> {
         match self {
-            Self::Config { command } => {
-                command.dangerous_operation(directory, platform, company)
-            }
-            Self::Control { command } => {
-                command.dangerous_operation(directory, platform, company)
-            }
+            Self::Config { command } => command.dangerous_operation(directory, platform, company),
+            Self::Control { command } => command.dangerous_operation(directory, platform, company),
             Self::Operations { command } => {
                 command.dangerous_operation(directory, platform, company)
             }
@@ -457,15 +453,11 @@ async fn run_with_io<R: Read, W: Write>(
         ApiCommands::Project { command } => {
             project::run(command, &context, yes, stdin, writer).await
         }
-        ApiCommands::Realtime { command } => {
-            realtime::run(command, &context, stdin, writer).await
-        }
+        ApiCommands::Realtime { command } => realtime::run(command, &context, stdin, writer).await,
         ApiCommands::Knowledge { command } => {
             knowledge::run(command, &context, stdin, writer).await
         }
-        ApiCommands::TaskPool { command } => {
-            task_pool::run(command, &context, stdin, writer).await
-        }
+        ApiCommands::TaskPool { command } => task_pool::run(command, &context, stdin, writer).await,
         ApiCommands::TaskLifecycle { command } => {
             task_lifecycle::run(command, &context, stdin, writer).await
         }
@@ -482,13 +474,9 @@ async fn run_with_io<R: Read, W: Write>(
         ApiCommands::SkillMarket { command } => {
             skill_market::run(command, &context, stdin, writer).await
         }
-        ApiCommands::Extensions { command } => {
-            extensions::run(command, &context, writer).await
-        }
+        ApiCommands::Extensions { command } => extensions::run(command, &context, writer).await,
         ApiCommands::Desktop { command } => desktop::run(command, &context, stdin, writer).await,
-        ApiCommands::Workflow { command } => {
-            workflow::run(command, &context, stdin, writer).await
-        }
+        ApiCommands::Workflow { command } => workflow::run(command, &context, stdin, writer).await,
         ApiCommands::System { command } => system::run(command, &context, writer).await,
         ApiCommands::Workspace { command } => {
             workspace::run(command, &context, yes, stdin, writer).await
@@ -517,6 +505,12 @@ mod config_tests;
 #[cfg(test)]
 mod control_tests;
 #[cfg(test)]
+mod coverage_tests;
+#[cfg(test)]
+mod desktop_tests;
+#[cfg(test)]
+mod extensions_tests;
+#[cfg(test)]
 mod interactive_tests;
 #[cfg(test)]
 mod knowledge_tests;
@@ -529,28 +523,22 @@ mod realtime_tests;
 #[cfg(test)]
 mod scheduler_tests;
 #[cfg(test)]
-mod session_tests;
-#[cfg(test)]
 mod session_content_tests;
+#[cfg(test)]
+mod session_tests;
 #[cfg(test)]
 mod shiju_apps_tests;
 #[cfg(test)]
 mod skill_market_tests;
 #[cfg(test)]
-mod extensions_tests;
-#[cfg(test)]
-mod desktop_tests;
-#[cfg(test)]
-mod coverage_tests;
-#[cfg(test)]
 mod system_tests;
-#[cfg(test)]
-mod task_pool_tests;
 #[cfg(test)]
 mod task_lifecycle_tests;
 #[cfg(test)]
+mod task_pool_tests;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
-mod workspace_tests;
-#[cfg(test)]
 mod workflow_tests;
+#[cfg(test)]
+mod workspace_tests;

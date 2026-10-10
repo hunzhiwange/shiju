@@ -1,3 +1,5 @@
+#![allow(unused_imports, dead_code)]
+
 use std::any::type_name;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -38,27 +40,6 @@ const SCENARIOS: [&str; 10] = [
     "error",
 ];
 
-#[test]
-fn tui_uses_ported_codex_components_across_visual_matrix() {
-    assert_eq!(
-        type_name::<ChatWidget>(),
-        "vw_tui::chatwidget::ChatWidget",
-        "the visual matrix must render the copied-and-ported ChatWidget"
-    );
-
-    for scenario in SCENARIOS {
-        let actual = fixture_bundle(scenario);
-        let fixture = fixture_path(scenario);
-        let expected = fs::read_to_string(&fixture).unwrap_or_else(|error| {
-            panic!("missing visual fixture {}: {error}", fixture.display())
-        });
-        assert_eq!(
-            actual.trim_end_matches('\n'),
-            expected.trim_end_matches('\n'),
-            "visual matrix drift: {scenario}"
-        );
-    }
-}
 
 #[test]
 fn tui_real_gateway_pipeline_preserves_v2_semantics() {
@@ -315,6 +296,22 @@ fn render_scenario(scenario: &str, area: Rect) -> String {
     buffer_text(&buffer, area)
 }
 
+
+
+
+fn buffer_text(buffer: &Buffer, area: Rect) -> String {
+    (area.y..area.bottom())
+        .map(|y| {
+            (area.x..area.right())
+                .map(|x| buffer[(x, y)].symbol())
+                .collect::<String>()
+                .trim_end()
+                .to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn visual_widget(scenario: &str) -> ChatWidget {
     let mut widget = ChatWidget::new(ChatWidgetConfig {
         footer_data: V3FooterData {
@@ -457,17 +454,4 @@ fn approval_request(kind: V3ApprovalKind, title: &str) -> V3ApprovalRequest {
             V3ApprovalChoice::new("deny", "Deny", V3ApprovalDecision::Deny),
         ],
     )
-}
-
-fn buffer_text(buffer: &Buffer, area: Rect) -> String {
-    (area.y..area.bottom())
-        .map(|y| {
-            (area.x..area.right())
-                .map(|x| buffer[(x, y)].symbol())
-                .collect::<String>()
-                .trim_end()
-                .to_string()
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
 }

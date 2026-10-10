@@ -331,152 +331,6 @@ async fn knowledge_indexing_chunks_and_cache_run_by_provider() {
     postgres.cleanup().expect("clean PostgreSQL test database");
 }
 
-async fn assert_knowledge_indexing_chunks_and_cache(database: GlobalDatabase) {
-    let tenant = TenantScope::new("platform-index", "company-index").expect("index tenant");
-    let other = TenantScope::new("platform-index", "company-other").expect("other tenant");
-    let provider = Arc::new(CountingEmbedding::default());
-    let store = vector_store_for_database(provider.clone(), database.clone(), tenant.clone());
-    let _other_store = vector_store_for_database(provider, database.clone(), other.clone());
-    let mut request = dataset_request("Provider indexing");
-    request.indexing_mode = KnowledgeIndexingMode::HighQuality;
-    request.retrieval_mode = KnowledgeRetrievalMode::Hybrid;
-    request.embedding_model = Some("fake-embedding".to_string());
-    let dataset = store.create_dataset(request).await.expect("dataset");
-    let queued = store
-        .enqueue_import(
-            dataset.id,
-            KnowledgeDocumentImportRequest {
-                filename: "provider.md".to_string(),
-                mime_type: Some("text/markdown".to_string()),
-                content_base64:
-                    "IyBQcm92aWRlcgoKUmVmdW5kIHBvbGljeSByZXR1cm4gd2luZG93IGlzIHNldmVuIGRheXMu"
-                        .to_string(),
-                metadata: json!({ "source": "provider-matrix" }),
-                enabled: true,
-            },
-        )
-        .await
-        .expect("queued import");
-
-    let completed =
-        store.process_next_index_job().await.expect("process job").expect("completed job");
-    assert_eq!(completed.status, KnowledgeIndexJobStatus::Completed);
-    let chunks = store.list_chunks(queued.document.id.clone()).await.expect("list chunks");
-    assert!(!chunks.is_empty());
-    assert_eq!(
-        count_document_rows(&database, "knowledge_chunks", &tenant, &queued.document.id),
-        chunks.len() as i64
-    );
-    assert_eq!(
-        count_document_rows(&database, "knowledge_chunks_fts", &tenant, &queued.document.id,),
-        chunks.len() as i64
-    );
-    let reindexed =
-        store.reindex_document(queued.document.id.clone()).await.expect("reindex document");
-    assert_eq!(reindexed.chunk_count, chunks.len() as u64);
-    assert_eq!(
-        count_document_rows(&database, "knowledge_chunks", &tenant, &queued.document.id),
-        chunks.len() as i64
-    );
-    assert_eq!(
-        count_document_rows(&database, "knowledge_chunks_fts", &tenant, &queued.document.id,),
-        chunks.len() as i64
-    );
-
-    let retry = store
-        .enqueue_import(
-            reindexed.dataset_id.clone(),
-            KnowledgeDocumentImportRequest {
-                filename: "retry.txt".to_string(),
-                mime_type: Some("text/plain".to_string()),
-                content_base64: "dW5pcXVlIHJldHJ5IGVtYmVkZGluZyBwYXlsb2Fk".to_string(),
-                metadata: json!({}),
-                enabled: true,
-            },
-        )
-        .await
-        .expect("queued retry import");
-    let failing_store = SqliteKnowledgeStore::with_embedder(
-        database.clone(),
-        tenant.clone(),
-        Arc::new(FailingEmbedding),
-        Some("fake-embedding".to_string()),
-        0.75,
-        0.25,
-        64,
-    )
-    .expect("failing provider store");
-    for attempt in 1..INDEX_JOB_MAX_ATTEMPTS {
-        let retried = failing_store
-            .process_next_index_job()
-            .await
-            .expect("retry failed embedding")
-            .expect("retried job");
-        assert_eq!(retried.status, KnowledgeIndexJobStatus::Queued);
-        assert!(retried.error_message.contains("retrying"));
-        assert_eq!(
-            index_job_attempt_count_for_database(&database, &tenant, &retry.job.id),
-            attempt
-        );
-        make_index_job_retry_ready_for_database(&database, &tenant, &retry.job.id);
-    }
-    let failed = failing_store
-        .process_next_index_job()
-        .await
-        .expect("fail exhausted embedding job")
-        .expect("failed job");
-    assert_eq!(failed.status, KnowledgeIndexJobStatus::Failed);
-    assert!(failed.finished_at_ms.is_some());
-    assert!(failed.error_message.contains("embedding failed"));
-    assert_eq!(count_document_rows(&database, "knowledge_chunks", &tenant, &retry.document.id), 0);
-    assert_eq!(
-        count_document_rows(&database, "knowledge_chunks_fts", &tenant, &retry.document.id,),
-        0
-    );
-
-    write_embedding_cache_blocking(
-        database.clone(),
-        &tenant,
-        "old",
-        vector::vec_to_bytes(&[1.0, 0.0]),
-        2,
-    )
-    .expect("write old tenant cache");
-    std::thread::sleep(std::time::Duration::from_millis(2));
-    write_embedding_cache_blocking(
-        database.clone(),
-        &other,
-        "old",
-        vector::vec_to_bytes(&[0.5, 0.5]),
-        1,
-    )
-    .expect("write other tenant cache");
-    write_embedding_cache_blocking(
-        database.clone(),
-        &tenant,
-        "new",
-        vector::vec_to_bytes(&[0.0, 1.0]),
-        1,
-    )
-    .expect("write new tenant cache");
-    assert!(
-        read_embedding_cache_blocking(database.clone(), &tenant, "old")
-            .expect("read pruned tenant cache")
-            .is_none()
-    );
-    assert_eq!(
-        read_embedding_cache_blocking(database.clone(), &tenant, "new")
-            .expect("read current tenant cache")
-            .expect("current tenant cache value"),
-        vec![0.0, 1.0]
-    );
-    assert_eq!(
-        read_embedding_cache_blocking(database, &other, "old")
-            .expect("read other tenant cache")
-            .expect("other tenant cache value"),
-        vec![0.5, 0.5]
-    );
-}
 
 #[tokio::test]
 async fn knowledge_index_job_claim_is_exclusive_by_provider() {
@@ -3169,4 +3023,151 @@ async fn workflow_provider_maps_retrieval_errors_to_strings() {
     };
 
     assert!(err.contains("query is required"));
+}
+
+async fn assert_knowledge_indexing_chunks_and_cache(database: GlobalDatabase) {
+    let tenant = TenantScope::new("platform-index", "company-index").expect("index tenant");
+    let other = TenantScope::new("platform-index", "company-other").expect("other tenant");
+    let provider = Arc::new(CountingEmbedding::default());
+    let store = vector_store_for_database(provider.clone(), database.clone(), tenant.clone());
+    let _other_store = vector_store_for_database(provider, database.clone(), other.clone());
+    let mut request = dataset_request("Provider indexing");
+    request.indexing_mode = KnowledgeIndexingMode::HighQuality;
+    request.retrieval_mode = KnowledgeRetrievalMode::Hybrid;
+    request.embedding_model = Some("fake-embedding".to_string());
+    let dataset = store.create_dataset(request).await.expect("dataset");
+    let queued = store
+        .enqueue_import(
+            dataset.id,
+            KnowledgeDocumentImportRequest {
+                filename: "provider.md".to_string(),
+                mime_type: Some("text/markdown".to_string()),
+                content_base64:
+                    "IyBQcm92aWRlcgoKUmVmdW5kIHBvbGljeSByZXR1cm4gd2luZG93IGlzIHNldmVuIGRheXMu"
+                        .to_string(),
+                metadata: json!({ "source": "provider-grid" }),
+                enabled: true,
+            },
+        )
+        .await
+        .expect("queued import");
+
+    let completed =
+        store.process_next_index_job().await.expect("process job").expect("completed job");
+    assert_eq!(completed.status, KnowledgeIndexJobStatus::Completed);
+    let chunks = store.list_chunks(queued.document.id.clone()).await.expect("list chunks");
+    assert!(!chunks.is_empty());
+    assert_eq!(
+        count_document_rows(&database, "knowledge_chunks", &tenant, &queued.document.id),
+        chunks.len() as i64
+    );
+    assert_eq!(
+        count_document_rows(&database, "knowledge_chunks_fts", &tenant, &queued.document.id,),
+        chunks.len() as i64
+    );
+    let reindexed =
+        store.reindex_document(queued.document.id.clone()).await.expect("reindex document");
+    assert_eq!(reindexed.chunk_count, chunks.len() as u64);
+    assert_eq!(
+        count_document_rows(&database, "knowledge_chunks", &tenant, &queued.document.id),
+        chunks.len() as i64
+    );
+    assert_eq!(
+        count_document_rows(&database, "knowledge_chunks_fts", &tenant, &queued.document.id,),
+        chunks.len() as i64
+    );
+
+    let retry = store
+        .enqueue_import(
+            reindexed.dataset_id.clone(),
+            KnowledgeDocumentImportRequest {
+                filename: "retry.txt".to_string(),
+                mime_type: Some("text/plain".to_string()),
+                content_base64: "dW5pcXVlIHJldHJ5IGVtYmVkZGluZyBwYXlsb2Fk".to_string(),
+                metadata: json!({}),
+                enabled: true,
+            },
+        )
+        .await
+        .expect("queued retry import");
+    let failing_store = SqliteKnowledgeStore::with_embedder(
+        database.clone(),
+        tenant.clone(),
+        Arc::new(FailingEmbedding),
+        Some("fake-embedding".to_string()),
+        0.75,
+        0.25,
+        64,
+    )
+    .expect("failing provider store");
+    for attempt in 1..INDEX_JOB_MAX_ATTEMPTS {
+        let retried = failing_store
+            .process_next_index_job()
+            .await
+            .expect("retry failed embedding")
+            .expect("retried job");
+        assert_eq!(retried.status, KnowledgeIndexJobStatus::Queued);
+        assert!(retried.error_message.contains("retrying"));
+        assert_eq!(
+            index_job_attempt_count_for_database(&database, &tenant, &retry.job.id),
+            attempt
+        );
+        make_index_job_retry_ready_for_database(&database, &tenant, &retry.job.id);
+    }
+    let failed = failing_store
+        .process_next_index_job()
+        .await
+        .expect("fail exhausted embedding job")
+        .expect("failed job");
+    assert_eq!(failed.status, KnowledgeIndexJobStatus::Failed);
+    assert!(failed.finished_at_ms.is_some());
+    assert!(failed.error_message.contains("embedding failed"));
+    assert_eq!(count_document_rows(&database, "knowledge_chunks", &tenant, &retry.document.id), 0);
+    assert_eq!(
+        count_document_rows(&database, "knowledge_chunks_fts", &tenant, &retry.document.id,),
+        0
+    );
+
+    write_embedding_cache_blocking(
+        database.clone(),
+        &tenant,
+        "old",
+        vector::vec_to_bytes(&[1.0, 0.0]),
+        2,
+    )
+    .expect("write old tenant cache");
+    std::thread::sleep(std::time::Duration::from_millis(2));
+    write_embedding_cache_blocking(
+        database.clone(),
+        &other,
+        "old",
+        vector::vec_to_bytes(&[0.5, 0.5]),
+        1,
+    )
+    .expect("write other tenant cache");
+    write_embedding_cache_blocking(
+        database.clone(),
+        &tenant,
+        "new",
+        vector::vec_to_bytes(&[0.0, 1.0]),
+        1,
+    )
+    .expect("write new tenant cache");
+    assert!(
+        read_embedding_cache_blocking(database.clone(), &tenant, "old")
+            .expect("read pruned tenant cache")
+            .is_none()
+    );
+    assert_eq!(
+        read_embedding_cache_blocking(database.clone(), &tenant, "new")
+            .expect("read current tenant cache")
+            .expect("current tenant cache value"),
+        vec![0.0, 1.0]
+    );
+    assert_eq!(
+        read_embedding_cache_blocking(database, &other, "old")
+            .expect("read other tenant cache")
+            .expect("other tenant cache value"),
+        vec![0.5, 0.5]
+    );
 }

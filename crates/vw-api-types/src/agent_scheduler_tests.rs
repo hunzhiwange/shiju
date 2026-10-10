@@ -1,3 +1,5 @@
+#![allow(unused_imports, dead_code)]
+
 //! 验证代理调度器 DTO 的线协议、作用域校验及新旧载荷兼容性。
 
 use super::agent_scheduler::{

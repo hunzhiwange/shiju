@@ -96,10 +96,7 @@ fn background_bootstrap_creates_new_session_without_loading_history() {
 
     assert_eq!(state.session.session_id.as_deref(), Some("created"));
     assert!(state.messages.is_empty());
-    assert_eq!(
-        requests.recv().expect("create request"),
-        "/v1/session?directory=%2Fworkspace"
-    );
+    assert_eq!(requests.recv().expect("create request"), "/v1/session?directory=%2Fworkspace");
     server.join().expect("background create fixture");
     assert!(requests.try_recv().is_err(), "startup must not request session history");
 }
@@ -121,7 +118,7 @@ fn background_bootstrap_restores_explicit_session_in_current_workspace() {
     );
     assert_eq!(
         requests.recv().expect("scoped snapshot request"),
-        "/v1/session/explicit/ui?directory=%2Fworkspace"
+        "/v1/session/explicit/ui/without-raw?directory=%2Fworkspace"
     );
     server.join().expect("explicit restore fixture");
 }
@@ -218,7 +215,7 @@ fn resume_switch_is_transactional() {
     assert_eq!(app.runtime().session_id(), Some("current"));
     assert_eq!(
         requests.recv().expect("snapshot request"),
-        "/v1/session/target/ui?directory=%2Fworkspace"
+        "/v1/session/target/ui/without-raw?directory=%2Fworkspace"
     );
     server.join().expect("failed resume fixture");
 }
@@ -255,7 +252,7 @@ fn resume_switch_commits_state_display_and_runtime_together() {
     assert!(!rendered.contains("old answer"));
     assert_eq!(
         requests.recv().expect("snapshot request"),
-        "/v1/session/target/ui?directory=%2Fworkspace"
+        "/v1/session/target/ui/without-raw?directory=%2Fworkspace"
     );
     server.join().expect("successful resume fixture");
 }
@@ -356,10 +353,7 @@ fn cd_switch_rejects_busy_runner_and_pending_queue() {
     assert!(runner.has_active_stream());
     runner.execute_action(
         &mut app,
-        V3Action::Submit {
-            text: format!("/cd {}", target.display()),
-            attachments: Vec::new(),
-        },
+        V3Action::Submit { text: format!("/cd {}", target.display()), attachments: Vec::new() },
     );
     assert_eq!(app.runtime().directory(), Path::new("/workspace"));
     assert!(!runner.directory_switch_in_flight());
@@ -373,10 +367,7 @@ fn cd_switch_rejects_busy_runner_and_pending_queue() {
     let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
     runner.execute_action(
         &mut app,
-        V3Action::Submit {
-            text: format!("/cd {}", target.display()),
-            attachments: Vec::new(),
-        },
+        V3Action::Submit { text: format!("/cd {}", target.display()), attachments: Vec::new() },
     );
     assert_eq!(app.runtime().directory(), Path::new("/workspace"));
     assert!(!runner.directory_switch_in_flight());

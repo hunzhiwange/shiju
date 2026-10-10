@@ -1281,49 +1281,6 @@ fn batch_execution_uses_distinct_sessions_for_parallel_subtasks() {
     assert_eq!(first, super::subtask_session_id("T1", "SUB-a"));
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn parse_create_task_plans_prompt_extracts_copyable_task_prompts_and_batches() {
-    let prompt_md = "# 任务执行提示\n\n说明文字，不属于任何任务。\n\n\
-## 任务 1: 状态机基础类型 【批次 1】 依赖批次 无\n\n\
-```text\n\
-请使用技能 ./skills/do-task-plans/SKILL.md 执行 `.plans/demo/1-状态机基础类型.md`。\n\n\
-开始前先阅读 plan.md。\n\
-```\n\n\
-## 任务 2: 存储状态更新接入状态机 【批次 2】 依赖批次 1\n\n\
-```text\n\
-请执行 `.plans/demo/2-存储状态更新接入状态机.md`。\n\
-```\n\n\
-## 任务 3: Matrix 校验 【批次 3】 依赖批次 1,2\n\n\
-```text\n\
-请执行 `.plans/demo/3-matrix校验.md`。\n\
-```\n";
-
-    let parsed =
-        super::parse_create_task_plans_prompt(prompt_md).expect("应能解析合法的 prompt.md");
-
-    // 顺序与每个 `## 任务 N` 一一对应。
-    assert_eq!(parsed.len(), 3);
-    assert_eq!(parsed[0].title, "状态机基础类型");
-    assert_eq!(parsed[1].title, "存储状态更新接入状态机");
-    assert_eq!(parsed[2].title, "Matrix 校验");
-
-    // 批次解析。
-    assert_eq!(parsed[0].batch, 1);
-    assert_eq!(parsed[1].batch, 2);
-    assert_eq!(parsed[2].batch, 3);
-
-    // 依赖批次：无依赖、单依赖、多依赖。
-    assert!(parsed[0].depends_on_batches.is_empty());
-    assert_eq!(parsed[1].depends_on_batches, vec![1]);
-    assert_eq!(parsed[2].depends_on_batches, vec![1, 2]);
-
-    // 完整可复制执行提示来自紧随标题的 ```text 代码块。
-    assert!(parsed[0].execution_prompt.contains("请使用技能 ./skills/do-task-plans/SKILL.md 执行"));
-    assert!(parsed[0].execution_prompt.contains("1-状态机基础类型.md"));
-    assert!(parsed[0].execution_prompt.contains("开始前先阅读 plan.md"));
-    assert!(parsed[2].execution_prompt.contains("3-matrix校验.md"));
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]

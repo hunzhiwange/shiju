@@ -83,7 +83,6 @@ pub(crate) type UsageStepRawPayloadResult = Result<Option<serde_json::Value>, St
 pub(crate) enum NativeStartupState {
     Starting,
     Ready,
-    Failed(String),
 }
 
 #[allow(dead_code)]
@@ -93,6 +92,8 @@ pub struct App {
     /// 原生端本地服务启动状态，用于门控主界面。
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) startup_state: NativeStartupState,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) startup_started_at: std::time::Instant,
     /// 当前项目工作区的界面呈现模式
     pub(crate) workspace_mode: WorkspaceMode,
     /// 工作模式右侧资源区的呈现模式
@@ -1113,6 +1114,7 @@ pub struct App {
     pub task_board_view_mode: TaskBoardViewMode,
     /// 任务看板任务列表
     pub task_board_tasks: Vec<crate::app::task::Task>,
+
     /// 任务看板创建对话框是否打开
     pub task_board_create_modal_open: bool,
     /// 任务看板草稿

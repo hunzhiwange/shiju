@@ -220,10 +220,7 @@ fn session_ui_commit_rejects_finished_step_without_raw() -> Result<()> {
 
         assert!(error.to_string().contains("missing LLM raw artifact"));
         assert!(fixture.store.load_session(&scope, &session.id)?.is_none());
-        assert!(fixture
-            .store
-            .load_session_step_llm_raw(&scope, &session.id, 0)?
-            .is_none());
+        assert!(fixture.store.load_session_step_llm_raw(&scope, &session.id, 0)?.is_none());
         Ok(())
     })?;
     Ok(())
@@ -236,40 +233,34 @@ fn session_ui_commit_reconstructs_shared_turn_raw() -> Result<()> {
         let (mut session, raw_rounds) = session_with_raw_rounds("commit-reconstruct-raw");
         session.title = "Committed raw".to_owned();
         let artifact = LlmRawArtifact::from_full_raw_rounds("turn-raw", &raw_rounds)?;
-        let expected_steps = [
-            LlmRawStepKey::new("turn-raw", 0)?,
-            LlmRawStepKey::new("turn-raw", 1)?,
-        ];
+        let expected_steps =
+            [LlmRawStepKey::new("turn-raw", 0)?, LlmRawStepKey::new("turn-raw", 1)?];
 
-        fixture.store.commit_session_ui_snapshot(
-            &scope,
-            &session,
-            &[artifact],
-            &expected_steps,
-        )?;
+        fixture.store.commit_session_ui_snapshot(&scope, &session, &[artifact], &expected_steps)?;
 
         let mut expected_session = session.clone();
         expected_session.calls.clear();
+        assert_json_eq!(fixture.store.load_session(&scope, &session.id)?, Some(expected_session));
         assert_json_eq!(
-            fixture.store.load_session(&scope, &session.id)?,
-            Some(expected_session)
-        );
-        assert_json_eq!(
-            fixture
-                .store
-                .load_session_turn_step_llm_raw(&scope, "commit-reconstruct-raw", "turn-raw", 0)?,
+            fixture.store.load_session_turn_step_llm_raw(
+                &scope,
+                "commit-reconstruct-raw",
+                "turn-raw",
+                0
+            )?,
             Some(raw_rounds[0].clone())
         );
         assert_json_eq!(
-            fixture
-                .store
-                .load_session_turn_step_llm_raw(&scope, "commit-reconstruct-raw", "turn-raw", 1)?,
+            fixture.store.load_session_turn_step_llm_raw(
+                &scope,
+                "commit-reconstruct-raw",
+                "turn-raw",
+                1
+            )?,
             Some(raw_rounds[1].clone())
         );
         assert_eq!(
-            fixture
-                .store
-                .load_session_llm_raw_step_indices(&scope, "commit-reconstruct-raw")?,
+            fixture.store.load_session_llm_raw_step_indices(&scope, "commit-reconstruct-raw")?,
             vec![0, 1]
         );
         Ok(())
@@ -281,7 +272,8 @@ fn session_ui_commit_reconstructs_shared_turn_raw() -> Result<()> {
 fn session_ui_commit_distinguishes_reused_step_indices_by_turn() -> Result<()> {
     for_each_session_store_provider(|fixture| {
         let scope = fixture.create_project(&fixture.tenant_a, "commit-reused-step-index")?;
-        let (mut session, first_turn_raw_rounds) = session_with_raw_rounds("commit-reused-step-index");
+        let (mut session, first_turn_raw_rounds) =
+            session_with_raw_rounds("commit-reused-step-index");
         let second_turn_raw = json!({
             "session_id": "commit-reused-step-index",
             "step_index": 0,
@@ -300,7 +292,8 @@ fn session_ui_commit_distinguishes_reused_step_indices_by_turn() -> Result<()> {
             turn_id: Some("turn-follow-up".to_owned()),
             ..session.steps[0].clone()
         });
-        let first_artifact = LlmRawArtifact::from_full_raw_rounds("turn-raw", &first_turn_raw_rounds)?;
+        let first_artifact =
+            LlmRawArtifact::from_full_raw_rounds("turn-raw", &first_turn_raw_rounds)?;
         let second_artifact = LlmRawArtifact::from_full_raw_rounds(
             "turn-follow-up",
             std::slice::from_ref(&second_turn_raw),
@@ -319,12 +312,7 @@ fn session_ui_commit_distinguishes_reused_step_indices_by_turn() -> Result<()> {
         )?;
 
         assert_json_eq!(
-            fixture.store.load_session_turn_step_llm_raw(
-                &scope,
-                &session.id,
-                "turn-raw",
-                0,
-            )?,
+            fixture.store.load_session_turn_step_llm_raw(&scope, &session.id, "turn-raw", 0,)?,
             Some(first_turn_raw_rounds[0].clone())
         );
         assert_json_eq!(
@@ -360,10 +348,7 @@ fn session_ui_commit_rolls_back_snapshot_when_raw_insert_fails() -> Result<()> {
     let (mut replacement, raw_rounds) = session_with_raw_rounds("commit-raw-rollback");
     replacement.title = "Must roll back".to_owned();
     let artifact = LlmRawArtifact::from_full_raw_rounds("turn-raw", &raw_rounds)?;
-    let expected_steps = [
-        LlmRawStepKey::new("turn-raw", 0)?,
-        LlmRawStepKey::new("turn-raw", 1)?,
-    ];
+    let expected_steps = [LlmRawStepKey::new("turn-raw", 0)?, LlmRawStepKey::new("turn-raw", 1)?];
 
     let error = fixture
         .store
@@ -371,18 +356,9 @@ fn session_ui_commit_rolls_back_snapshot_when_raw_insert_fails() -> Result<()> {
         .expect_err("raw insert failure must roll back the snapshot");
 
     assert!(error.to_string().contains("injected raw round failure"));
-    assert_json_eq!(
-        fixture.store.load_session(&scope, "commit-raw-rollback")?,
-        Some(original)
-    );
-    assert_eq!(
-        scoped_row_count(&fixture.database, "session_llm_raw_turns", &scope)?,
-        0
-    );
-    assert_eq!(
-        scoped_row_count(&fixture.database, "session_llm_raw_rounds", &scope)?,
-        0
-    );
+    assert_json_eq!(fixture.store.load_session(&scope, "commit-raw-rollback")?, Some(original));
+    assert_eq!(scoped_row_count(&fixture.database, "session_llm_raw_turns", &scope)?, 0);
+    assert_eq!(scoped_row_count(&fixture.database, "session_llm_raw_rounds", &scope)?, 0);
     Ok(())
 }
 

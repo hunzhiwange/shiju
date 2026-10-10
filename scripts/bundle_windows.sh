@@ -5,11 +5,6 @@ TARGET="${TARGET:-x86_64-pc-windows-msvc}"
 PROFILE="${PROFILE:-release}"
 OUT_DIR="${OUT_DIR:-dist/windows}"
 MODE="${MODE:-app}"
-if [[ "$PROFILE" == "release" || "$PROFILE" == "dist" ]]; then
-  export VIBEWINDOW_RELEASE_BUILD=1
-else
-  export VIBEWINDOW_RELEASE_BUILD=0
-fi
 CREATE_MSI="${CREATE_MSI:-0}"
 CREATE_ZIP="${CREATE_ZIP:-1}"
 DESKTOP_SOURCE_BIN_NAME="shi-ju.exe"

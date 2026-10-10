@@ -367,9 +367,8 @@ impl PostgresSessionStore {
         raw_artifacts: &[LlmRawArtifact],
     ) -> Result<()> {
         let mut connection = self.database.connect_postgres()?;
-        let mut transaction = connection
-            .transaction()
-            .context("begin PostgreSQL session UI raw commit")?;
+        let mut transaction =
+            connection.transaction().context("begin PostgreSQL session UI raw commit")?;
         let call_count = transaction
             .query_opt(
                 "SELECT call_count FROM session_index
@@ -383,9 +382,7 @@ impl PostgresSessionStore {
         replace_session_messages(&mut transaction, scope, session)?;
         replace_session_steps(&mut transaction, scope, session)?;
         upsert_session_llm_raw_artifacts(&mut transaction, scope, raw_artifacts)?;
-        transaction
-            .commit()
-            .context("commit PostgreSQL session UI raw commit")?;
+        transaction.commit().context("commit PostgreSQL session UI raw commit")?;
         Ok(())
     }
 
@@ -669,10 +666,8 @@ impl PostgresSessionStore {
                 &i64::from(step_index),
             ],
         )?;
-        let rounds = rows
-            .iter()
-            .map(|row| postgres_raw_round(row, turn_id))
-            .collect::<Result<Vec<_>>>()?;
+        let rounds =
+            rows.iter().map(|row| postgres_raw_round(row, turn_id)).collect::<Result<Vec<_>>>()?;
         if rounds.last().map(|round| round.step_index) != Some(step_index) {
             return Ok(None);
         }
@@ -1205,15 +1200,14 @@ fn upsert_session_llm_raw_round(
     round: &LlmRawRound,
 ) -> Result<()> {
     let step_index = i64::from(round.step_index);
-    let prefix_len = usize_to_i64(
-        round.provider_message_prefix_len,
-        "LLM raw provider message prefix length",
-    )?;
+    let prefix_len =
+        usize_to_i64(round.provider_message_prefix_len, "LLM raw provider message prefix length")?;
     let provider_message_suffix_json = serde_json::to_string(&round.provider_message_suffix)?;
     let message_source_suffix_json = serde_json::to_string(&round.message_source_suffix)?;
     let system_delta_json = round.system_delta.as_ref().map(serde_json::to_string).transpose()?;
     let tools_delta_json = round.tools_delta.as_ref().map(serde_json::to_string).transpose()?;
-    let request_config_delta_json = round.request_config_delta.as_ref().map(serde_json::to_string).transpose()?;
+    let request_config_delta_json =
+        round.request_config_delta.as_ref().map(serde_json::to_string).transpose()?;
     let output_json = serde_json::to_string(&round.output)?;
     client
         .execute(
@@ -1468,7 +1462,8 @@ fn postgres_raw_round(row: &Row, turn_id: &str) -> Result<LlmRawRound> {
 }
 
 fn parse_raw_json<T: serde::de::DeserializeOwned>(json: String, field: &str) -> Result<T> {
-    serde_json::from_str(&json).with_context(|| format!("parse stored PostgreSQL LLM raw {field} JSON"))
+    serde_json::from_str(&json)
+        .with_context(|| format!("parse stored PostgreSQL LLM raw {field} JSON"))
 }
 
 fn parse_agent_row(row: &Row, project_id: &str) -> Result<AgentSessionInfo> {

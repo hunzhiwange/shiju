@@ -20,6 +20,8 @@
 use iced::Task;
 use iced_code_editor::theme;
 use std::collections::HashMap;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Duration;
 
 use super::message;
 use super::{App, Message, Screen};
@@ -35,14 +37,25 @@ fn sort_acp_agent_names(mut acp_agents: Vec<String>) -> Vec<String> {
     acp_agents
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn startup_retry_interval(elapsed: Duration) -> Duration {
+    if elapsed >= Duration::from_secs(24 * 60 * 60) {
+        Duration::from_secs(60)
+    } else if elapsed >= Duration::from_secs(60 * 60) {
+        Duration::from_secs(20)
+    } else if elapsed >= Duration::from_secs(5 * 60) {
+        Duration::from_secs(10)
+    } else {
+        Duration::from_secs(2)
+    }
+}
+
 fn selected_gateway_became_healthy(
     settings: &crate::app::state::GatewayClientSettingsState,
     results: &[(String, bool)],
 ) -> bool {
-    let Some(selected_server) = settings
-        .servers
-        .iter()
-        .find(|server| server.id == settings.selected_server_id)
+    let Some(selected_server) =
+        settings.servers.iter().find(|server| server.id == settings.selected_server_id)
     else {
         return false;
     };
@@ -452,34 +465,31 @@ impl App {
         let task = match message {
             #[cfg(not(target_arch = "wasm32"))]
             Message::StartupCliServiceBootstrapped(result) => {
-                let error = match result {
+                match result {
                     Ok(()) => {
                         self.startup_state = crate::app::state::NativeStartupState::Ready;
-                        if cfg!(debug_assertions) {
-                            tracing::debug!(
-                                target: "vw_desktop",
-                                "desktop CLI service bootstrap skipped for debug build"
-                            );
-                        } else {
-                            tracing::info!(
-                                target: "vw_desktop",
-                                "desktop CLI service bootstrap completed"
-                            );
-                        }
-                        None
+                        tracing::info!(
+                            target: "vw_desktop",
+                            "desktop gateway is ready"
+                        );
                     }
                     Err(error) => {
-                        tracing::warn!(
+                        let retry_after =
+                            startup_retry_interval(self.startup_started_at.elapsed());
+                        tracing::debug!(
                             target: "vw_desktop",
                             error = %error,
-                            "desktop CLI service bootstrap failed"
+                            retry_after_seconds = retry_after.as_secs(),
+                            "desktop CLI service bootstrap will retry"
                         );
-                        Some(error)
+                        return Task::perform(
+                            async move {
+                                tokio::time::sleep(retry_after).await;
+                                crate::app::config::bootstrap_cli_service_async().await
+                            },
+                            Message::StartupCliServiceBootstrapped,
+                        );
                     }
-                };
-                if let Some(error) = error {
-                    self.startup_state = crate::app::state::NativeStartupState::Failed(error);
-                    return Task::none();
                 }
                 let mut tasks = vec![
                     crate::app::message::account::load_repository(),

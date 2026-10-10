@@ -118,10 +118,8 @@ impl TranscriptState {
         {
             *cell = Box::new(crate::history_cell::SessionHistoryCell::header(data));
         } else {
-            self.committed_history.insert(
-                0,
-                Box::new(crate::history_cell::SessionHistoryCell::header(data)),
-            );
+            self.committed_history
+                .insert(0, Box::new(crate::history_cell::SessionHistoryCell::header(data)));
         }
         self.invalidate_committed_history_layout();
     }
@@ -303,11 +301,8 @@ impl TranscriptState {
     ) -> usize {
         let viewport_height = viewport_height.max(1);
         let max_top = content_height.saturating_sub(viewport_height);
-        let top = if self.follow_bottom.get() {
-            max_top
-        } else {
-            self.scroll_top.get().min(max_top)
-        };
+        let top =
+            if self.follow_bottom.get() { max_top } else { self.scroll_top.get().min(max_top) };
         self.scroll_top.set(top);
         self.last_content_height.set(content_height);
         self.last_viewport_height.set(viewport_height);
@@ -353,7 +348,9 @@ impl TranscriptState {
                 self.scroll_lines(3);
                 TranscriptMouseAction::None
             }
-            MouseEventKind::Down(MouseButton::Left) if self.is_scrollbar_point(event.column, event.row) => {
+            MouseEventKind::Down(MouseButton::Left)
+                if self.is_scrollbar_point(event.column, event.row) =>
+            {
                 let Some((thumb_start, thumb_length)) = self.scrollbar_thumb() else {
                     return TranscriptMouseAction::None;
                 };
@@ -388,7 +385,8 @@ impl TranscriptState {
                     return TranscriptMouseAction::None;
                 }
                 self.selection_head.set(self.clamp_selection_point(event.column, event.row));
-                self.selected_text().map_or(TranscriptMouseAction::None, TranscriptMouseAction::Copy)
+                self.selected_text()
+                    .map_or(TranscriptMouseAction::None, TranscriptMouseAction::Copy)
             }
             MouseEventKind::Down(MouseButton::Left) => {
                 let Some(point) = self.selection_start_point(event.column, event.row) else {
@@ -439,10 +437,8 @@ impl TranscriptState {
         let travel = track_length.saturating_sub(thumb_length);
         let pointer = usize::from(row.saturating_sub(area.y)).min(track_length.saturating_sub(1));
         let thumb_start = pointer.saturating_sub(drag_offset).min(travel);
-        let max_top = self
-            .last_content_height
-            .get()
-            .saturating_sub(self.last_viewport_height.get().max(1));
+        let max_top =
+            self.last_content_height.get().saturating_sub(self.last_viewport_height.get().max(1));
         let next = thumb_start
             .saturating_mul(max_top)
             .saturating_add(travel / 2)
@@ -465,10 +461,7 @@ impl TranscriptState {
 
     fn selection_start_point(&self, column: u16, row: u16) -> Option<(u16, u16)> {
         let area = self.last_content_area.get();
-        (column >= area.x
-            && column < area.right()
-            && row >= area.y
-            && row < area.bottom())
+        (column >= area.x && column < area.right() && row >= area.y && row < area.bottom())
             .then_some((column, row))
     }
 
@@ -487,18 +480,10 @@ impl TranscriptState {
             let row_index = usize::from(row.saturating_sub(area.y));
             let row_cells = cells.get(row_index)?;
             let first_column = if row == start.1 { start.0 } else { area.x };
-            let last_column = if row == end.1 {
-                end.0
-            } else {
-                area.right().saturating_sub(1)
-            };
+            let last_column = if row == end.1 { end.0 } else { area.right().saturating_sub(1) };
             let first = usize::from(first_column.saturating_sub(area.x));
             let last = usize::from(last_column.saturating_sub(area.x));
-            let line = row_cells
-                .get(first..=last)?
-                .iter()
-                .map(String::as_str)
-                .collect::<String>();
+            let line = row_cells.get(first..=last)?.iter().map(String::as_str).collect::<String>();
             lines.push(line.trim_end().to_string());
         }
         let text = lines.join("\n");

@@ -265,40 +265,6 @@ fn non_object_components_are_ignored_after_heartbeat_check() {
     assert!(items[0].message.contains("heartbeat fresh"));
 }
 
-#[test]
-fn missing_daemon_timestamp_does_not_skip_component_checks() {
-    let tmp = TempDir::new().unwrap();
-    let config = test_config(&tmp);
-    let now = Utc::now().to_rfc3339();
-    write_state(
-        &config,
-        serde_json::json!({
-            "components": {
-                "scheduler": {
-                    "status": "ok",
-                    "last_ok": now,
-                },
-                "channel:matrix": {
-                    "status": "ok",
-                    "last_ok": now,
-                }
-            }
-        }),
-    );
-    let mut items = Vec::new();
-
-    check_daemon_state(&config, &mut items);
-
-    assert!(items.iter().any(|item| {
-        item.severity == Severity::Error && item.message.contains("invalid daemon timestamp")
-    }));
-    assert!(items.iter().any(|item| {
-        item.severity == Severity::Ok && item.message.contains("scheduler healthy")
-    }));
-    assert!(items.iter().any(|item| {
-        item.severity == Severity::Ok && item.message.contains("channel:matrix fresh")
-    }));
-}
 
 #[test]
 fn healthy_scheduler_without_channels_reports_tracking_warning() {

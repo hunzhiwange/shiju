@@ -50,8 +50,9 @@ impl GatewayUiRuntime {
         let directory = self.directory_value();
         let snapshot = self
             .client()
-            .session_ui_get(session_id, directory.as_deref())
+            .session_ui_get_without_raw(session_id, directory.as_deref())
             .await?
+            .map(|loaded| loaded.session)
             .ok_or_else(|| format!("session {session_id} has no UI snapshot"))?;
         if snapshot.id != session_id {
             return Err(format!(
@@ -97,10 +98,8 @@ impl GatewayUiRuntime {
             .ok_or_else(|| "session rename requires a non-empty title".to_string())?;
         let body = GatewaySessionPatchBody { title: Some(title.to_string()), time: None };
         let directory = self.directory_value();
-        let info: UiSessionMutationInfo = self
-            .client()
-            .session_update(session_id, directory.as_deref(), &body)
-            .await?;
+        let info: UiSessionMutationInfo =
+            self.client().session_update(session_id, directory.as_deref(), &body).await?;
         ensure_mutation_session_id("rename", session_id, info.id.as_str())
     }
 
@@ -110,10 +109,8 @@ impl GatewayUiRuntime {
             message_id: normalize_optional_str_ref(message_id).map(ToOwned::to_owned),
         });
         let directory = self.directory_value();
-        let info: UiSessionMutationInfo = self
-            .client()
-            .session_fork(session_id, directory.as_deref(), &body)
-            .await?;
+        let info: UiSessionMutationInfo =
+            self.client().session_fork(session_id, directory.as_deref(), &body).await?;
         let forked_id = normalize_optional_str_ref(Some(info.id.as_str()))
             .ok_or_else(|| "session fork returned an empty session id".to_string())?;
         if forked_id == session_id {
@@ -125,12 +122,11 @@ impl GatewayUiRuntime {
     async fn session_reset_to(&self, message_id: &str) -> Result<(), String> {
         let session_id = self.resolve_session_id(None)?;
         let message_id = required_message_id("reset", message_id)?;
-        let body = GatewaySessionResetBody { message_id: message_id.to_string(), revert_code: true };
+        let body =
+            GatewaySessionResetBody { message_id: message_id.to_string(), revert_code: true };
         let directory = self.directory_value();
-        let info: UiSessionMutationInfo = self
-            .client()
-            .session_reset(session_id, directory.as_deref(), &body)
-            .await?;
+        let info: UiSessionMutationInfo =
+            self.client().session_reset(session_id, directory.as_deref(), &body).await?;
         ensure_mutation_session_id("reset", session_id, info.id.as_str())
     }
 
@@ -139,9 +135,7 @@ impl GatewayUiRuntime {
         let message_id = required_message_id("compact", message_id)?;
         let body = GatewaySessionSummarizeBody { message_id: message_id.to_string() };
         let directory = self.directory_value();
-        self.client()
-            .session_summarize(session_id, directory.as_deref(), &body)
-            .await
+        self.client().session_summarize(session_id, directory.as_deref(), &body).await
     }
 
     async fn session_archive_current(&self) -> Result<(), String> {
@@ -193,10 +187,7 @@ impl GatewayUiRuntime {
     }
 
     /// 从当前会话末尾或指定持久化消息分叉，并返回 Gateway 分配的新会话 ID。
-    pub(crate) fn session_fork_blocking(
-        &self,
-        message_id: Option<&str>,
-    ) -> Result<String, String> {
+    pub(crate) fn session_fork_blocking(&self, message_id: Option<&str>) -> Result<String, String> {
         block_on_gateway(self.session_fork_from(message_id))
     }
 
@@ -221,11 +212,7 @@ fn required_message_id<'a>(operation: &str, message_id: &'a str) -> Result<&'a s
         .ok_or_else(|| format!("session {operation} requires a non-empty persisted message id"))
 }
 
-fn ensure_mutation_session_id(
-    operation: &str,
-    expected: &str,
-    actual: &str,
-) -> Result<(), String> {
+fn ensure_mutation_session_id(operation: &str, expected: &str, actual: &str) -> Result<(), String> {
     if actual == expected {
         Ok(())
     } else {

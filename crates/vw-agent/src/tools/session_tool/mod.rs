@@ -11,9 +11,9 @@ use crate::session::runtime::{
 };
 use crate::session::task_session::{
     MAX_TASK_SESSION_WAIT, TaskSessionCoordinator, TaskSessionSnapshot, TaskSessionState,
-    TaskSessionWaitCondition,
-    global_task_session_coordinator,
+    TaskSessionWaitCondition, global_task_session_coordinator,
 };
+use crate::session::ui_store;
 use async_trait::async_trait;
 use futures_util::future::BoxFuture;
 use serde_json::{Value, json};
@@ -23,7 +23,6 @@ use std::time::Duration;
 use vw_api_types::chat::GatewayChatStreamRequest;
 use vw_api_types::id::{SessionId, TenantScope};
 use vw_shared::session::session_utils::encode_task_session_source_marker;
-use crate::session::ui_store;
 
 pub(crate) const MAX_SESSION_READ_CHARS: usize = 64 * 1024;
 
@@ -149,9 +148,7 @@ impl SessionTool {
         };
         let tenant = scope.tenant().clone();
         let project_id = project_id.to_string();
-        let persisted = run_sync(move || {
-            ui_store::load_visible_task_states(&tenant, &project_id)
-        })?;
+        let persisted = run_sync(move || ui_store::load_visible_task_states(&tenant, &project_id))?;
         for task in tasks {
             let saved = persisted.get(&task.id).filter(|state| state.parent_session_id == parent);
             let mut snapshot = saved.cloned().unwrap_or_else(|| TaskSessionSnapshot {
@@ -198,6 +195,7 @@ impl SessionTool {
         let coordinator = self.coordinator.clone();
         let executor = self.stream_executor.clone();
         let model = Self::inherited_model_ref();
+        let (startup_tx, startup_rx) = std::sync::mpsc::sync_channel(1);
         let thread_parent = parent_session_id.clone();
         let thread_task = task_session_id.clone();
         let spawn_project_id = project_id.clone();
@@ -211,11 +209,20 @@ impl SessionTool {
                 runtime.block_on(async move {
                     if let Err(error) = coordinator.mark_running(&thread_parent, &thread_task) {
                         tracing::error!(target: "vw_agent", error = %error, "failed to start visible task session state");
+                        let _ = startup_tx.send(Err(error.to_string()));
                         return;
                     }
                     if let Err(error) = persist_task_state(&coordinator, &thread_parent, &thread_task, &spawn_project_id) {
                         tracing::error!(target: "vw_agent", error = %error, "failed to persist running visible task state");
+                        let _ = coordinator.mark_failed(
+                            &thread_parent,
+                            &thread_task,
+                            error.to_string(),
+                        );
+                        let _ = startup_tx.send(Err(error.to_string()));
+                        return;
                     }
+                    let _ = startup_tx.send(Ok(()));
                     let request = GatewayChatStreamRequest {
                         session_id: Some(SessionId::from(thread_task.as_str())),
                         messages: vec![json!({"role": "user", "content": prompt})],
@@ -244,10 +251,33 @@ impl SessionTool {
             let message = format!("spawn visible task session runtime: {error}");
             let _ =
                 self.coordinator.mark_failed(&parent_session_id, &task_session_id, message.clone());
-            persist_task_state(&self.coordinator, &parent_session_id, &task_session_id, &project_id)?;
+            persist_task_state(
+                &self.coordinator,
+                &parent_session_id,
+                &task_session_id,
+                &project_id,
+            )?;
             anyhow::bail!(message);
         }
-        Ok(())
+        match startup_rx.recv() {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(error)) => anyhow::bail!("start visible task session: {error}"),
+            Err(error) => {
+                let message = format!("visible task session stopped before startup: {error}");
+                let _ = self.coordinator.mark_failed(
+                    &parent_session_id,
+                    &task_session_id,
+                    message.clone(),
+                );
+                persist_task_state(
+                    &self.coordinator,
+                    &parent_session_id,
+                    &task_session_id,
+                    &project_id,
+                )?;
+                anyhow::bail!(message)
+            }
+        }
     }
 
     async fn create(&self, args: &Value) -> anyhow::Result<ToolResult> {
@@ -350,15 +380,21 @@ impl SessionTool {
         let prompt = Self::required_text(args, "prompt")?;
         let target = self.validated_target(&id).await?;
         self.coordinator.begin_turn(&parent, &id)?;
-        if let Err(error) = persist_task_state(&self.coordinator, &parent, &id, &target.info.project_id) {
+        if let Err(error) =
+            persist_task_state(&self.coordinator, &parent, &id, &target.info.project_id)
+        {
             let _ = self.coordinator.mark_failed(&parent, &id, error.to_string());
             return Err(error);
         }
         let prompt = encode_task_session_source_marker(&parent, prompt)
             .ok_or_else(|| anyhow::anyhow!("current session ID cannot be encoded as a source"))?;
-        if let Err(error) =
-            self.spawn_background_turn(parent, id.clone(), target.info.project_id, target.info.directory, prompt)
-        {
+        if let Err(error) = self.spawn_background_turn(
+            parent,
+            id.clone(),
+            target.info.project_id,
+            target.info.directory,
+            prompt,
+        ) {
             return Err(error);
         }
         Self::result(json!({"action": "send", "session_id": id, "state": "running"}))
@@ -413,11 +449,7 @@ fn persist_task_state(
     let snapshot = coordinator.snapshots(parent_id, &[task_id.to_string()])?.remove(0);
     let project_id = project_id.to_string();
     run_sync(move || {
-        ui_store::save_visible_task_state(
-            &TenantScope::default(),
-            &project_id,
-            &snapshot,
-        )
+        ui_store::save_visible_task_state(&TenantScope::default(), &project_id, &snapshot)
     })
 }
 

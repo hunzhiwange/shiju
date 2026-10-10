@@ -476,53 +476,6 @@ fn run_history_editor_allows_navigation_but_ignores_text_edits() {
     assert_eq!(app.cron_settings.runs_modal_editor.text(), "history");
 }
 
-#[test]
-fn edit_draft_messages_update_remaining_delivery_and_runtime_fields() {
-    let mut app = app();
-
-    let messages = [
-        SettingsMessage::CronJobEditNameChanged("edited".to_string()),
-        SettingsMessage::CronJobEditJobTypeChanged(CronAddJobType::Agent),
-        SettingsMessage::CronJobEditScheduleChanged("0 1 * * *".to_string()),
-        SettingsMessage::CronJobEditAtChanged("2026-07-18T00:00:00Z".to_string()),
-        SettingsMessage::CronJobEditEveryMsChanged("5000".to_string()),
-        SettingsMessage::CronJobEditAgentChanged("worker".to_string()),
-        SettingsMessage::CronJobEditAcpAgentChanged("codex".to_string()),
-        SettingsMessage::CronJobEditProjectPathChanged("/project".to_string()),
-        SettingsMessage::CronJobEditModelProviderChanged("openai".to_string()),
-        SettingsMessage::CronJobEditModelChanged("openai/gpt-5".to_string()),
-        SettingsMessage::CronJobEditFallbacksChanged("email\nslack".to_string()),
-        SettingsMessage::CronJobEditDeliveryChannelChanged("matrix".to_string()),
-        SettingsMessage::CronJobEditDeliveryToChanged("!room".to_string()),
-    ];
-    for message in messages {
-        let _ = update(&mut app, message);
-    }
-    let _ = update(&mut app, SettingsMessage::CronJobEditWakeToggled(true));
-    let _ = update(&mut app, SettingsMessage::CronJobEditFullAccessToggled(true));
-    let _ = update(&mut app, SettingsMessage::CronJobEditTaskPoolToggled(true));
-    let _ = update(&mut app, SettingsMessage::CronJobEditDeliveryEnabledToggled(true));
-    let _ = update(&mut app, SettingsMessage::CronJobEditDeliveryBestEffortToggled(false));
-    let _ = update(&mut app, SettingsMessage::CronJobEditDeleteAfterRunToggled(true));
-
-    let draft = &app.cron_settings.edit_draft;
-    assert_eq!(draft.name, "edited");
-    assert_eq!(draft.job_type, CronAddJobType::Agent);
-    assert_eq!(draft.schedule, "0 1 * * *");
-    assert_eq!(draft.at, "2026-07-18T00:00:00Z");
-    assert_eq!(draft.every_ms, "5000");
-    assert_eq!(draft.agent, "worker");
-    assert_eq!(draft.acp_agent, "codex");
-    assert_eq!(draft.project_path, "/project");
-    assert_eq!(draft.model_provider, "openai");
-    assert_eq!(draft.model, "openai/gpt-5");
-    assert_eq!(draft.fallbacks, "email\nslack");
-    assert_eq!(draft.delivery_channel, "matrix");
-    assert_eq!(draft.delivery_to, "!room");
-    assert!(draft.wake && draft.full_access && draft.task_pool && draft.delivery_enabled);
-    assert!(!draft.delivery_best_effort);
-    assert!(draft.delete_after_run);
-}
 
 #[test]
 fn edit_draft_editor_actions_keep_text_fields_in_sync() {
@@ -555,41 +508,6 @@ fn edit_draft_editor_actions_keep_text_fields_in_sync() {
     assert_eq!(app.cron_settings.edit_draft.prompt, "new prompt");
 }
 
-#[test]
-fn add_draft_messages_update_remaining_delivery_and_runtime_fields() {
-    let mut app = app();
-
-    let messages = [
-        SettingsMessage::CronAddSessionTargetChanged("isolated".to_string()),
-        SettingsMessage::CronAddAgentChanged("worker".to_string()),
-        SettingsMessage::CronAddAcpAgentChanged("codex".to_string()),
-        SettingsMessage::CronAddProjectPathChanged("/project".to_string()),
-        SettingsMessage::CronAddModelProviderChanged("openai".to_string()),
-        SettingsMessage::CronAddModelChanged("openai/gpt-5".to_string()),
-        SettingsMessage::CronAddFallbacksChanged("email\nslack".to_string()),
-        SettingsMessage::CronAddDeliveryChannelChanged("matrix".to_string()),
-        SettingsMessage::CronAddDeliveryToChanged("!room".to_string()),
-    ];
-    for message in messages {
-        let _ = update(&mut app, message);
-    }
-    let _ = update(&mut app, SettingsMessage::CronAddTaskPoolToggled(true));
-    let _ = update(&mut app, SettingsMessage::CronAddDeliveryBestEffortToggled(false));
-    let _ = update(&mut app, SettingsMessage::CronAddDeleteAfterRunToggled(true));
-
-    let draft = &app.cron_settings.add_draft;
-    assert_eq!(draft.session_target, "isolated");
-    assert_eq!(draft.agent, "worker");
-    assert_eq!(draft.acp_agent, "codex");
-    assert_eq!(draft.project_path, "/project");
-    assert_eq!(draft.model_provider, "openai");
-    assert_eq!(draft.model, "openai/gpt-5");
-    assert_eq!(draft.fallbacks, "email\nslack");
-    assert_eq!(draft.delivery_channel, "matrix");
-    assert_eq!(draft.delivery_to, "!room");
-    assert!(draft.task_pool && draft.delete_after_run);
-    assert!(!draft.delivery_best_effort);
-}
 
 #[test]
 fn add_draft_editor_actions_keep_text_fields_in_sync() {

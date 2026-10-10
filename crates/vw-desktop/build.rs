@@ -182,14 +182,6 @@ fn collect_named_icon_family_entries(
 }
 
 fn main() {
-    const RELEASE_BUILD_ENV: &str = "VIBEWINDOW_RELEASE_BUILD";
-
-    println!("cargo:rustc-check-cfg=cfg(vibewindow_release)");
-    println!("cargo:rerun-if-env-changed={RELEASE_BUILD_ENV}");
-    if env::var(RELEASE_BUILD_ENV).as_deref() == Ok("1") {
-        println!("cargo:rustc-cfg=vibewindow_release");
-    }
-
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR"));
 

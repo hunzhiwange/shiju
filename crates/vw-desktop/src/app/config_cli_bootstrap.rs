@@ -77,14 +77,6 @@ pub async fn bootstrap_cli_service_async() -> Result<(), String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn bootstrap_cli_service() -> Result<(), String> {
-    if !cfg!(vibewindow_release) {
-        tracing::debug!(
-            target: "vw_desktop",
-            "non-release build skips desktop CLI service bootstrap"
-        );
-        return Ok(());
-    }
-
     let home = resolve_home_dir()?;
     let config_dir = vw_config_types::paths::home_config_dir(&home);
     let cli = ensure_cli_installed(&home)?;
@@ -199,11 +191,7 @@ fn install_cli_from_source(source: &Path, target: &Path) -> Result<(), String> {
 
     let install_result = (|| {
         fs::copy(source, &staged).map_err(|err| {
-            format!(
-                "复制 CLI 可执行文件失败: {} -> {}: {err}",
-                source.display(),
-                staged.display()
-            )
+            format!("复制 CLI 可执行文件失败: {} -> {}: {err}", source.display(), staged.display())
         })?;
 
         #[cfg(unix)]

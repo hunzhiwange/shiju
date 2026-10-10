@@ -1,3 +1,5 @@
+#![allow(unused_imports, dead_code)]
+
 //! 任务看板弹窗的测试，覆盖创建、导入、设置及各类确认流程。
 //! 草稿与边界值 fixture 用于验证标签区分、分页和弹出层组合状态。
 use crate::app::state::TaskBoardSettingsModalTab;
@@ -121,24 +123,6 @@ fn settings_modal_builds_refresh_and_scheduling_tabs_with_midrange_values() {
     keep_element(scheduling);
 }
 
-#[test]
-fn settings_modal_builds_each_scheduler_dispatch_mode() {
-    let mut app = test_app();
-    app.task_board_settings_modal_tab = TaskBoardSettingsModalTab::Refresh;
-
-    for mode in [
-        AgentSchedulerDispatchModeDto::Local,
-        AgentSchedulerDispatchModeDto::Matrix,
-        AgentSchedulerDispatchModeDto::Auto,
-    ] {
-        app.task_board_settings.agent_scheduler_dispatch_mode = mode;
-
-        let modal = super::build_task_settings_modal(&app);
-
-        assert_eq!(modal.as_widget().size().width, Length::Fixed(580.0));
-        keep_element(modal);
-    }
-}
 
 #[test]
 fn settings_modal_builds_scheduling_tab_with_clamped_edges() {

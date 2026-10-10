@@ -336,6 +336,8 @@ impl App {
             screen: Screen::Home,
             #[cfg(not(target_arch = "wasm32"))]
             startup_state: state::NativeStartupState::Starting,
+            #[cfg(not(target_arch = "wasm32"))]
+            startup_started_at: std::time::Instant::now(),
             workspace_mode: cfg_workspace_mode,
             work_resource_mode: state::WorkResourceMode::default(),
             work_resources_visible: false,
@@ -1123,10 +1125,7 @@ impl App {
                 );
                 super::state::apply_default_allowed_tools(&mut entries, &available_tools);
                 if let Some(registered_tools) = registered_tools.as_deref() {
-                    super::state::retain_available_allowed_tools(
-                        &mut entries,
-                        registered_tools,
-                    );
+                    super::state::retain_available_allowed_tools(&mut entries, registered_tools);
                 }
                 super::state::AgentsSettingsState {
                     loading: true,

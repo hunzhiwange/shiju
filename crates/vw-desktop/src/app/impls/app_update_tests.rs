@@ -17,13 +17,22 @@ fn startup_cli_service_result_controls_main_interface_gate() {
     assert_eq!(app.startup_state, crate::app::state::NativeStartupState::Starting);
 
     let _ = app.update(Message::StartupCliServiceBootstrapped(Err("gateway unavailable".into())));
-    assert_eq!(
-        app.startup_state,
-        crate::app::state::NativeStartupState::Failed("gateway unavailable".into())
-    );
+    assert_eq!(app.startup_state, crate::app::state::NativeStartupState::Starting);
 
     let _ = app.update(Message::StartupCliServiceBootstrapped(Ok(())));
     assert_eq!(app.startup_state, crate::app::state::NativeStartupState::Ready);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn startup_retry_interval_slows_after_each_elapsed_threshold() {
+    assert_eq!(startup_retry_interval(Duration::ZERO), Duration::from_secs(2));
+    assert_eq!(startup_retry_interval(Duration::from_secs(299)), Duration::from_secs(2));
+    assert_eq!(startup_retry_interval(Duration::from_secs(300)), Duration::from_secs(10));
+    assert_eq!(startup_retry_interval(Duration::from_secs(3_599)), Duration::from_secs(10));
+    assert_eq!(startup_retry_interval(Duration::from_secs(3_600)), Duration::from_secs(20));
+    assert_eq!(startup_retry_interval(Duration::from_secs(86_399)), Duration::from_secs(20));
+    assert_eq!(startup_retry_interval(Duration::from_secs(86_400)), Duration::from_secs(60));
 }
 
 #[test]
@@ -606,10 +615,7 @@ fn selected_gateway_health_transition_triggers_only_when_becoming_healthy() {
         &app.gateway_client_settings,
         &[(selected_key.clone(), true)],
     ));
-    assert!(!selected_gateway_became_healthy(
-        &app.gateway_client_settings,
-        &[(other_key, true)],
-    ));
+    assert!(!selected_gateway_became_healthy(&app.gateway_client_settings, &[(other_key, true)],));
 
     app.gateway_client_settings.health.insert(selected_key.clone(), false);
     assert!(selected_gateway_became_healthy(

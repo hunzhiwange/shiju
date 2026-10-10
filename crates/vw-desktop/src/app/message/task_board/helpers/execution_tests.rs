@@ -733,18 +733,6 @@ fn worktree_recycle_failure_log_explains_gateway_cleanup_ownership() {
     );
 }
 
-#[test]
-fn scheduler_dispatch_mode_only_uses_matrix_for_non_local_modes() {
-    use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;
-
-    assert!(!super::agent_scheduler_dispatch_mode_uses_matrix(
-        AgentSchedulerDispatchModeDto::Local
-    ));
-    assert!(super::agent_scheduler_dispatch_mode_uses_matrix(
-        AgentSchedulerDispatchModeDto::Matrix
-    ));
-    assert!(super::agent_scheduler_dispatch_mode_uses_matrix(AgentSchedulerDispatchModeDto::Auto));
-}
 
 #[test]
 fn scheduler_status_mapping_covers_every_builtin_task_status() {

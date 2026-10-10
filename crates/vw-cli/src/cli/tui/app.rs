@@ -138,11 +138,24 @@ enum HostMessage {
         result: Result<Box<DirectorySwitchBootstrap>, String>,
     },
     EditorFinished(Result<Option<String>, String>),
-    StopFinished { request_id: String, result: Result<bool, String> },
-    PlanRunStopFinished { request_id: String, task_id: String, result: Result<bool, String> },
+    StopFinished {
+        request_id: String,
+        result: Result<bool, String>,
+    },
+    PlanRunStopFinished {
+        request_id: String,
+        task_id: String,
+        result: Result<bool, String>,
+    },
     InteractionsRefreshed(Result<InteractionSnapshot, String>),
-    PermissionReplyFinished { request_id: String, result: Result<(), String> },
-    QuestionReplyFinished { request_id: String, result: Result<(), String> },
+    PermissionReplyFinished {
+        request_id: String,
+        result: Result<(), String>,
+    },
+    QuestionReplyFinished {
+        request_id: String,
+        result: Result<(), String>,
+    },
     WorkflowResumeFinished {
         pause_request_id: String,
         result: Result<Box<WorkflowRunResponse>, String>,
@@ -378,13 +391,9 @@ impl ActiveRunner {
                             );
                         }
                         ActiveStreamKind::PlanRun => {
-                            let owned_request_id = app
-                                .state()
-                                .runtime
-                                .active_plan_run_request_id
-                                .clone();
-                            let owned_task_id =
-                                app.state().runtime.active_plan_run_task_id.clone();
+                            let owned_request_id =
+                                app.state().runtime.active_plan_run_request_id.clone();
+                            let owned_task_id = app.state().runtime.active_plan_run_task_id.clone();
                             let Some(task_id) = owned_task_id else {
                                 push_runner_error(
                                     app,
@@ -505,7 +514,10 @@ impl ActiveRunner {
                 }
                 CommandRoute::ChangeDirectory { path } => {
                     if self.memory_mutation_generation.is_some() {
-                        push_runner_error(app, "cannot switch directories during a memory mutation");
+                        push_runner_error(
+                            app,
+                            "cannot switch directories during a memory mutation",
+                        );
                         RunnerControl::Continue
                     } else {
                         self.start_directory_switch(app, path)
@@ -526,18 +538,14 @@ impl ActiveRunner {
                 CommandRoute::RenameSession { title: None } => {
                     app.prime_session_command("/rename ", "请输入当前会话的新标题，然后按 Enter。")
                 }
-                CommandRoute::RenameSession { title: Some(title) } => self
-                    .execute_session_operation(app, |app| app.rename_session(title.as_str())),
-                CommandRoute::ForkSession { message_id } => self.execute_session_operation(
-                    app,
-                    |app| app.fork_session(message_id.as_deref()),
-                ),
+                CommandRoute::RenameSession { title: Some(title) } => {
+                    self.execute_session_operation(app, |app| app.rename_session(title.as_str()))
+                }
+                CommandRoute::ForkSession { message_id } => self
+                    .execute_session_operation(app, |app| app.fork_session(message_id.as_deref())),
                 CommandRoute::ResetSession { message_id: None } => self
                     .execute_session_operation(app, |app| {
-                        app.open_session_message_picker(
-                            SESSION_RESET_SURFACE,
-                            "选择回退消息",
-                        )
+                        app.open_session_message_picker(SESSION_RESET_SURFACE, "选择回退消息")
                     }),
                 CommandRoute::ResetSession { message_id: Some(message_id) } => self
                     .execute_session_operation(app, |app| {
@@ -545,17 +553,15 @@ impl ActiveRunner {
                     }),
                 CommandRoute::CompactSession { message_id: None } => self
                     .execute_session_operation(app, |app| {
-                        app.open_session_message_picker(
-                            SESSION_COMPACT_SURFACE,
-                            "选择压缩起点",
-                        )
+                        app.open_session_message_picker(SESSION_COMPACT_SURFACE, "选择压缩起点")
                     }),
                 CommandRoute::CompactSession { message_id: Some(message_id) } => self
                     .execute_session_operation(app, |app| {
                         app.open_compact_confirmation(message_id.as_str())
                     }),
-                CommandRoute::ArchiveSession => self
-                    .execute_session_operation(app, V3GatewayApp::open_archive_confirmation),
+                CommandRoute::ArchiveSession => {
+                    self.execute_session_operation(app, V3GatewayApp::open_archive_confirmation)
+                }
                 CommandRoute::OpenSettings => {
                     app.open_settings();
                     RunnerControl::Continue
@@ -744,11 +750,7 @@ impl ActiveRunner {
         };
         let request_id = next_plan_run_request_id();
         app.begin_plan_run(request_id.as_str(), query.as_str());
-        self.active_stream = Some(spawn_plan_run(
-            app.runtime().clone(),
-            request,
-            request_id,
-        ));
+        self.active_stream = Some(spawn_plan_run(app.runtime().clone(), request, request_id));
         RunnerControl::Continue
     }
 
@@ -787,11 +789,7 @@ impl ActiveRunner {
             request.uuid.clone(),
             session_id,
         ));
-        self.active_stream = Some(spawn_workflow_run(
-            app.runtime().clone(),
-            request,
-            request_id,
-        ));
+        self.active_stream = Some(spawn_workflow_run(app.runtime().clone(), request, request_id));
         RunnerControl::Continue
     }
 
@@ -827,13 +825,10 @@ impl ActiveRunner {
         RunnerControl::Continue
     }
 
-    fn start_directory_switch(
-        &mut self,
-        app: &mut V3GatewayApp,
-        path: String,
-    ) -> RunnerControl {
+    fn start_directory_switch(&mut self, app: &mut V3GatewayApp, path: String) -> RunnerControl {
         if path.trim().is_empty() {
-            return app.prime_session_command("/cd ", "请输入 Gateway 已知的工作目录，然后按 Enter。");
+            return app
+                .prime_session_command("/cd ", "请输入 Gateway 已知的工作目录，然后按 Enter。");
         }
         let result = if self.directory_switch_source.is_some() {
             Err("a directory switch is already in progress".to_string())
@@ -870,11 +865,7 @@ impl ActiveRunner {
     fn execute_overlay_command(&mut self, app: &mut V3GatewayApp, command: TuiOverlayCommand) {
         if let TuiOverlayCommand::ConfirmDecision { request_id, intent, confirmed } = command {
             let result = app.dismiss_confirmation(request_id.as_str()).and_then(|()| {
-                if confirmed {
-                    self.execute_confirmed_intent(app, intent)
-                } else {
-                    Ok(())
-                }
+                if confirmed { self.execute_confirmed_intent(app, intent) } else { Ok(()) }
             });
             if let Err(error) = result {
                 push_runner_error(app, error);
@@ -911,10 +902,8 @@ impl ActiveRunner {
                     .as_ref()
                     .ok_or_else(|| "workflow resume has no owned run state".to_string())
                     .and_then(|ownership| {
-                        ownership.resume_request(
-                            app.state().session.session_id.as_deref(),
-                            question,
-                        )
+                        ownership
+                            .resume_request(app.state().session.session_id.as_deref(), question)
                     });
                 let request = match request {
                     Ok(request) => request,
@@ -1007,17 +996,11 @@ impl ActiveRunner {
                 app.mutate_integration(kind, id.as_str(), None)
             }
             UiConfirmIntent::HookMutation { plugin_id, hook_hash, trusted } => {
-                self.start_hook_mutation(
-                    app,
-                    plugin_id.as_str(),
-                    hook_hash.as_str(),
-                    trusted,
-                )
+                self.start_hook_mutation(app, plugin_id.as_str(), hook_hash.as_str(), trusted)
             }
-            UiConfirmIntent::MemoryStore { key, content } => self.start_memory_mutation(
-                app,
-                MemoryMutation::Store { key, content },
-            ),
+            UiConfirmIntent::MemoryStore { key, content } => {
+                self.start_memory_mutation(app, MemoryMutation::Store { key, content })
+            }
             UiConfirmIntent::MemoryDelete { key } => {
                 self.require_memory_key(app, key.as_str())?;
                 self.start_memory_mutation(app, MemoryMutation::Delete { key })
@@ -1089,11 +1072,7 @@ impl ActiveRunner {
         app.widget_mut().push_history(V3DisplayEvent::System {
             text: "正在运行 Gateway 诊断…".to_string(),
         });
-        spawn_doctor(
-            app.runtime().clone(),
-            self.doctor_generation,
-            self.host_sender.clone(),
-        );
+        spawn_doctor(app.runtime().clone(), self.doctor_generation, self.host_sender.clone());
     }
 
     fn start_cron_detail(&mut self, app: &V3GatewayApp, job_id: String) {
@@ -1140,20 +1119,12 @@ impl ActiveRunner {
 
     fn start_hook_catalog(&mut self, app: &V3GatewayApp) {
         self.hooks_generation = self.hooks_generation.wrapping_add(1);
-        spawn_hook_catalog(
-            app.runtime().clone(),
-            self.hooks_generation,
-            self.host_sender.clone(),
-        );
+        spawn_hook_catalog(app.runtime().clone(), self.hooks_generation, self.host_sender.clone());
     }
 
     fn start_hook_audit(&mut self, app: &V3GatewayApp) {
         self.hooks_generation = self.hooks_generation.wrapping_add(1);
-        spawn_hook_audit(
-            app.runtime().clone(),
-            self.hooks_generation,
-            self.host_sender.clone(),
-        );
+        spawn_hook_audit(app.runtime().clone(), self.hooks_generation, self.host_sender.clone());
     }
 
     fn start_memory_search(&mut self, app: &V3GatewayApp, query: Option<String>) {
@@ -1166,12 +1137,7 @@ impl ActiveRunner {
         );
     }
 
-    fn open_memory_store_confirmation(
-        &self,
-        app: &mut V3GatewayApp,
-        key: &str,
-        content: String,
-    ) {
+    fn open_memory_store_confirmation(&self, app: &mut V3GatewayApp, key: &str, content: String) {
         let key = key.trim();
         let result = if self.memory_mutation_generation.is_some() {
             Err("a memory mutation is already in progress".to_string())
@@ -1219,8 +1185,7 @@ impl ActiveRunner {
             .any(|item| item.kind == IntegrationKind::Memory && item.id == key)
             .then_some(())
             .ok_or_else(|| {
-                "memory deletion requires an exact key from the current memory snapshot"
-                    .to_string()
+                "memory deletion requires an exact key from the current memory snapshot".to_string()
             })
     }
 
@@ -1238,10 +1203,9 @@ impl ActiveRunner {
         if matches!(mutation, MemoryMutation::Delete { .. }) {
             self.require_memory_key(app, mutation.key())?;
         }
-        let query = (self.memory_snapshot_directory.as_deref()
-            == Some(app.runtime().directory()))
-        .then(|| self.memory_snapshot_query.clone())
-        .flatten();
+        let query = (self.memory_snapshot_directory.as_deref() == Some(app.runtime().directory()))
+            .then(|| self.memory_snapshot_query.clone())
+            .flatten();
         self.memory_generation = self.memory_generation.wrapping_add(1);
         self.memory_mutation_generation = Some(self.memory_generation);
         spawn_memory_mutation(
@@ -1411,9 +1375,11 @@ impl ActiveRunner {
                     }
                     match result {
                         Ok(bootstrap) => {
-                            self.file_search_generation = self.file_search_generation.wrapping_add(1);
+                            self.file_search_generation =
+                                self.file_search_generation.wrapping_add(1);
                             self.file_search_query = None;
-                            self.session_diff_generation = self.session_diff_generation.wrapping_add(1);
+                            self.session_diff_generation =
+                                self.session_diff_generation.wrapping_add(1);
                             self.doctor_generation = self.doctor_generation.wrapping_add(1);
                             self.cron_generation = self.cron_generation.wrapping_add(1);
                             self.task_detail_generation =
@@ -1566,7 +1532,9 @@ impl ActiveRunner {
                         continue;
                     }
                     match result {
-                        Ok(matches) => app.widget_mut().set_file_search_matches(query.as_str(), matches),
+                        Ok(matches) => {
+                            app.widget_mut().set_file_search_matches(query.as_str(), matches);
+                        }
                         Err(error) => app.widget_mut().set_file_search_error(
                             query.as_str(),
                             format!("file search unavailable: {error}"),
@@ -1611,42 +1579,32 @@ impl ActiveRunner {
                         ),
                     }
                 }
-                Ok(HostMessage::CronDetailFinished {
-                    generation,
-                    directory,
-                    job_id,
-                    result,
-                }) => {
+                Ok(HostMessage::CronDetailFinished { generation, directory, job_id, result }) => {
                     if generation != self.cron_generation
                         || directory.as_path() != app.runtime().directory()
                     {
                         continue;
                     }
                     match result {
-                        Ok(detail) => app.widget_mut().push_history(V3DisplayEvent::System {
-                            text: detail.render_text(),
-                        }),
+                        Ok(detail) => app
+                            .widget_mut()
+                            .push_history(V3DisplayEvent::System { text: detail.render_text() }),
                         Err(error) => push_runner_error(
                             app,
                             format!("failed to load Cron detail {job_id}: {error}"),
                         ),
                     }
                 }
-                Ok(HostMessage::TaskDetailFinished {
-                    generation,
-                    directory,
-                    task_id,
-                    result,
-                }) => {
+                Ok(HostMessage::TaskDetailFinished { generation, directory, task_id, result }) => {
                     if generation != self.task_detail_generation
                         || directory.as_path() != app.runtime().directory()
                     {
                         continue;
                     }
                     match result {
-                        Ok(detail) => app.widget_mut().push_history(V3DisplayEvent::System {
-                            text: detail.render_text(),
-                        }),
+                        Ok(detail) => app
+                            .widget_mut()
+                            .push_history(V3DisplayEvent::System { text: detail.render_text() }),
                         Err(error) => push_runner_error(
                             app,
                             format!("failed to load Scheduler task detail {task_id}: {error}"),
@@ -1695,9 +1653,8 @@ impl ActiveRunner {
                     }
                     match result {
                         Ok(text) if text.path() == requested_path => {
-                            app.widget_mut().push_history(V3DisplayEvent::System {
-                                text: text.render_text(),
-                            });
+                            app.widget_mut()
+                                .push_history(V3DisplayEvent::System { text: text.render_text() });
                         }
                         Ok(_) => push_runner_error(
                             app,
@@ -1725,10 +1682,9 @@ impl ActiveRunner {
                                 catalog.into_selection_items(),
                             );
                         }
-                        Err(error) => push_runner_error(
-                            app,
-                            format!("failed to load Hook catalog: {error}"),
-                        ),
+                        Err(error) => {
+                            push_runner_error(app, format!("failed to load Hook catalog: {error}"));
+                        }
                     }
                 }
                 Ok(HostMessage::HookAuditFinished { generation, directory, result }) => {
@@ -1738,13 +1694,12 @@ impl ActiveRunner {
                         continue;
                     }
                     match result {
-                        Ok(audit) => app.widget_mut().push_history(V3DisplayEvent::System {
-                            text: audit.render_text(),
-                        }),
-                        Err(error) => push_runner_error(
-                            app,
-                            format!("failed to load Hook audit: {error}"),
-                        ),
+                        Ok(audit) => app
+                            .widget_mut()
+                            .push_history(V3DisplayEvent::System { text: audit.render_text() }),
+                        Err(error) => {
+                            push_runner_error(app, format!("failed to load Hook audit: {error}"));
+                        }
                     }
                 }
                 Ok(HostMessage::HookMutationFinished {
@@ -1765,7 +1720,10 @@ impl ActiveRunner {
                         || active.hook_hash != hook_hash
                         || active.trusted != trusted
                     {
-                        push_runner_error(app, "Hook mutation response did not match the active request");
+                        push_runner_error(
+                            app,
+                            "Hook mutation response did not match the active request",
+                        );
                         continue;
                     }
                     if directory.as_path() != app.runtime().directory() {
@@ -1799,12 +1757,7 @@ impl ActiveRunner {
                         ),
                     }
                 }
-                Ok(HostMessage::MemorySearchFinished {
-                    generation,
-                    directory,
-                    query,
-                    result,
-                }) => {
+                Ok(HostMessage::MemorySearchFinished { generation, directory, query, result }) => {
                     if generation != self.memory_generation
                         || directory.as_path() != app.runtime().directory()
                     {
@@ -1942,11 +1895,9 @@ impl ActiveRunner {
         }
         if needs_workflow_terminal
             && let Some(ownership) = self.workflow_run.as_mut()
-            && let Some(terminal) = ownership.project_local_terminal(
-                UiRuntimeTerminalEvent::Error(
-                    "workflow stream ended before a terminal event".to_string(),
-                ),
-            )
+            && let Some(terminal) = ownership.project_local_terminal(UiRuntimeTerminalEvent::Error(
+                "workflow stream ended before a terminal event".to_string(),
+            ))
         {
             app.accept_runtime_event(terminal);
         }
@@ -2190,14 +2141,9 @@ impl V3GatewayApp {
         self.state.runtime.active_plan_run_task_id = None;
         self.state.status.turn_terminal = UiTurnTerminal::Streaming;
         self.state.status.last_error = None;
-        let base = UiMessageBase::new(UiMessageId::local(format!(
-            "plan-run-user-{request_id}"
-        )))
-        .with_origin(UiMessageOrigin::Local);
-        self.state.append_message(UiMessage::User(UiUserMessage {
-            base,
-            text: query.to_string(),
-        }));
+        let base = UiMessageBase::new(UiMessageId::local(format!("plan-run-user-{request_id}")))
+            .with_origin(UiMessageOrigin::Local);
+        self.state.append_message(UiMessage::User(UiUserMessage { base, text: query.to_string() }));
         self.widget.push_history(V3DisplayEvent::User {
             text: query.to_string(),
             attachments: Vec::new(),
@@ -2207,14 +2153,10 @@ impl V3GatewayApp {
     fn begin_workflow_run(&mut self, request_id: &str, query: &str) {
         self.state.status.turn_terminal = UiTurnTerminal::Streaming;
         self.state.status.last_error = None;
-        let base = UiMessageBase::new(UiMessageId::local(format!(
-            "workflow-run-user-{request_id}"
-        )))
-        .with_origin(UiMessageOrigin::Local);
-        self.state.append_message(UiMessage::User(UiUserMessage {
-            base,
-            text: query.to_string(),
-        }));
+        let base =
+            UiMessageBase::new(UiMessageId::local(format!("workflow-run-user-{request_id}")))
+                .with_origin(UiMessageOrigin::Local);
+        self.state.append_message(UiMessage::User(UiUserMessage { base, text: query.to_string() }));
         self.widget.push_history(V3DisplayEvent::User {
             text: query.to_string(),
             attachments: Vec::new(),
@@ -2230,10 +2172,7 @@ impl V3GatewayApp {
         &mut self,
         question: Option<super::model::UiQuestionOverlay>,
     ) {
-        reduce_tui_state(
-            &mut self.state,
-            TuiAction::WorkflowPauseQuestionReplaced(question),
-        );
+        reduce_tui_state(&mut self.state, TuiAction::WorkflowPauseQuestionReplaced(question));
         self.show_next_interaction();
     }
 
@@ -2488,7 +2427,9 @@ impl V3GatewayApp {
             .permission_modes
             .iter()
             .copied()
-            .filter(|mode| !plan_only || matches!(mode, PermissionMode::Default | PermissionMode::Plan))
+            .filter(|mode| {
+                !plan_only || matches!(mode, PermissionMode::Default | PermissionMode::Plan)
+            })
             .map(|mode| {
                 let id = permission_mode_id(mode);
                 setting_item(id, id, mode == current)
@@ -2606,8 +2547,8 @@ impl V3GatewayApp {
         dangerous_confirmed: bool,
     ) -> Result<(), String> {
         self.validate_settings_values(&values)?;
-        let enables_full_access = values.full_access_enabled
-            && !self.state.session_options.full_access_enabled();
+        let enables_full_access =
+            values.full_access_enabled && !self.state.session_options.full_access_enabled();
         let enables_bypass = values.permission_mode == PermissionMode::Bypass
             && !(self.state.session_options.permission_mode == PermissionMode::Bypass
                 && self.state.session_options.bypass_confirmed);
@@ -2637,12 +2578,8 @@ impl V3GatewayApp {
         self.state.session_options.delegate_agent.clone_from(&values.delegate_agent);
         self.state.session_options.select_acp_backend(values.acp_backend.clone());
         self.state.session_options.set_full_access(values.full_access_enabled);
-        self.state
-            .session_options
-            .set_subagent_mode(values.subagent_mode_enabled);
-        self.state
-            .session_options
-            .set_permission_mode(values.permission_mode, dangerous_confirmed);
+        self.state.session_options.set_subagent_mode(values.subagent_mode_enabled);
+        self.state.session_options.set_permission_mode(values.permission_mode, dangerous_confirmed);
         let display = GatewayV3Bridge::session_display_data(&self.runtime, &self.state);
         self.widget.set_session_header(display);
         self.widget.push_history(V3DisplayEvent::System {
@@ -2680,17 +2617,17 @@ impl V3GatewayApp {
         }
         if values.acp_backend != self.state.session_options.acp_backend
             && !capabilities
-            .acp_backends
-            .iter()
-            .any(|candidate| candidate.key == values.acp_backend)
+                .acp_backends
+                .iter()
+                .any(|candidate| candidate.key == values.acp_backend)
         {
             return Err("Gateway 未声明所选 ACP 后端".to_string());
         }
         if values.delegate_agent != self.state.session_options.delegate_agent
             && !capabilities
-            .delegate_agents
-            .iter()
-            .any(|candidate| candidate.key == values.delegate_agent)
+                .delegate_agents
+                .iter()
+                .any(|candidate| candidate.key == values.delegate_agent)
         {
             return Err("Gateway 配置未声明所选委托 Agent".to_string());
         }
@@ -2872,9 +2809,7 @@ impl V3GatewayApp {
         {
             Ok(message_id)
         } else {
-            Err(format!(
-                "message id {message_id} is not present in the current canonical snapshot"
-            ))
+            Err(format!("message id {message_id} is not present in the current canonical snapshot"))
         }
     }
 
@@ -3012,9 +2947,7 @@ impl V3GatewayApp {
     }
 
     fn replace_memory_items(&mut self, mut items: Vec<IntegrationItem>) {
-        self.state
-            .integration_catalog
-            .retain(|item| item.kind != IntegrationKind::Memory);
+        self.state.integration_catalog.retain(|item| item.kind != IntegrationKind::Memory);
         self.state.integration_catalog.append(&mut items);
     }
 
@@ -3052,29 +2985,17 @@ impl V3GatewayApp {
             Ok(UiConfirmOverlay {
                 request_id: format!("integration-toggle-{}-{id}", kind.command_name()),
                 title: "确认更改集成状态".to_string(),
-                body: format!(
-                    "{} {}",
-                    if enabled { "启用" } else { "禁用" },
-                    item.stable_key()
-                ),
+                body: format!("{} {}", if enabled { "启用" } else { "禁用" }, item.stable_key()),
                 confirm_label: "确认".to_string(),
                 cancel_label: "取消".to_string(),
                 destructive: false,
-                intent: UiConfirmIntent::IntegrationToggle {
-                    kind,
-                    id: id.to_string(),
-                    enabled,
-                },
+                intent: UiConfirmIntent::IntegrationToggle { kind, id: id.to_string(), enabled },
             })
         });
         self.show_integration_confirmation(result);
     }
 
-    pub(crate) fn open_integration_delete_confirmation(
-        &mut self,
-        kind: IntegrationKind,
-        id: &str,
-    ) {
+    pub(crate) fn open_integration_delete_confirmation(&mut self, kind: IntegrationKind, id: &str) {
         let result = self.require_integration(kind, id).and_then(|item| {
             if !item.can_delete {
                 return Err("selected integration cannot be deleted".to_string());
@@ -3095,7 +3016,10 @@ impl V3GatewayApp {
     fn show_integration_confirmation(&mut self, result: Result<UiConfirmOverlay, String>) {
         match result {
             Ok(overlay) => {
-                reduce_tui_state(&mut self.state, TuiAction::OverlayPushed(UiOverlay::Confirm(overlay)));
+                reduce_tui_state(
+                    &mut self.state,
+                    TuiAction::OverlayPushed(UiOverlay::Confirm(overlay)),
+                );
                 self.show_next_interaction();
             }
             Err(error) => push_runner_error(self, error),
@@ -3135,12 +3059,18 @@ impl V3GatewayApp {
             .integration_catalog
             .iter()
             .find(|item| item.kind == kind && item.id == id)
-            .ok_or_else(|| format!("integration {}:{id} is not in the Gateway catalog", kind.command_name()))
+            .ok_or_else(|| {
+                format!("integration {}:{id} is not in the Gateway catalog", kind.command_name())
+            })
     }
 
     fn open_orchestration(&mut self, kind: OrchestrationPanelKind) {
-        let (surface, title, mut items, warning):
-            (&str, &str, Vec<V3SelectionItem>, Option<String>) = match kind {
+        let (surface, title, mut items, warning): (
+            &str,
+            &str,
+            Vec<V3SelectionItem>,
+            Option<String>,
+        ) = match kind {
             OrchestrationPanelKind::Workflows => (
                 WORKFLOW_SELECTION_SURFACE,
                 "工作流",
@@ -3188,7 +3118,11 @@ impl V3GatewayApp {
                         read_only_item(
                             &item.id,
                             &item.name,
-                            &format!("{:?} · team {}", item.status, item.team_id.as_deref().unwrap_or("-")),
+                            &format!(
+                                "{:?} · team {}",
+                                item.status,
+                                item.team_id.as_deref().unwrap_or("-")
+                            ),
                         )
                     })
                     .collect::<Vec<_>>(),
@@ -3237,17 +3171,13 @@ impl V3GatewayApp {
                 "task control requires an ID owned by the current project snapshot".to_string()
             })
             .and_then(|task| {
-                let scope = self
-                    .state
-                    .orchestration
-                    .scope
-                    .as_ref()
-                    .ok_or_else(|| "task control requires a resolved project scope".to_string())?;
+                let scope =
+                    self.state.orchestration.scope.as_ref().ok_or_else(|| {
+                        "task control requires a resolved project scope".to_string()
+                    })?;
                 if task.session_id != scope.project_scope().project_id().as_ref() {
-                    return Err(
-                        "task control snapshot does not match the resolved project scope"
-                            .to_string(),
-                    );
+                    return Err("task control snapshot does not match the resolved project scope"
+                        .to_string());
                 }
                 if !task.canonical_status.allows(action) {
                     return Err(format!(
@@ -3275,10 +3205,7 @@ impl V3GatewayApp {
 
     fn open_cron_toggle_confirmation(&mut self, id: &str, enabled: bool) {
         let result = self.require_cron_job(id).map(|_| UiConfirmOverlay {
-            request_id: format!(
-                "cron-{}-{id}",
-                if enabled { "enable" } else { "disable" }
-            ),
+            request_id: format!("cron-{}-{id}", if enabled { "enable" } else { "disable" }),
             title: "确认更改定时任务状态".to_string(),
             body: format!("{}当前定时任务 {id}", if enabled { "启用" } else { "禁用" }),
             confirm_label: (if enabled { "启用" } else { "禁用" }).to_string(),
@@ -3304,14 +3231,9 @@ impl V3GatewayApp {
 
     fn require_cron_job(&self, id: &str) -> Result<&CronJobSnapshot, String> {
         let id = id.trim();
-        self.state
-            .orchestration
-            .cron_jobs
-            .iter()
-            .find(|job| job.owns_id(id))
-            .ok_or_else(|| {
-                "Cron mutation requires an ID from the current Cron snapshot".to_string()
-            })
+        self.state.orchestration.cron_jobs.iter().find(|job| job.owns_id(id)).ok_or_else(|| {
+            "Cron mutation requires an ID from the current Cron snapshot".to_string()
+        })
     }
 
     fn mutate_owned_cron(&mut self, id: &str, mutation: CronMutation) -> Result<(), String> {
@@ -3327,12 +3249,7 @@ impl V3GatewayApp {
     }
 
     fn control_owned_task(&mut self, id: &str, action: TaskControlAction) -> Result<(), String> {
-        control_owned_task_blocking(
-            &self.runtime,
-            &self.state.orchestration,
-            id,
-            action,
-        )?;
+        control_owned_task_blocking(&self.runtime, &self.state.orchestration, id, action)?;
         self.state.orchestration = load_orchestration_blocking(&self.runtime);
         Ok(())
     }
@@ -3631,10 +3548,8 @@ pub(crate) fn bootstrap_directory_switch(
             capabilities.warnings.join("; ")
         ));
     }
-    state.status.model_name = capabilities
-        .default_model
-        .clone()
-        .or_else(|| capabilities.matrix.models.first().cloned());
+    state.status.model_name =
+        capabilities.default_model.clone().or_else(|| capabilities.matrix.models.first().cloned());
     state.session_options.model.clone_from(&state.status.model_name);
     state.session_capabilities = capabilities.matrix;
     state.settings_warnings = capabilities.warnings;
@@ -3732,9 +3647,10 @@ pub(crate) fn gateway_stream_request_from_state(
     let mut messages: Vec<_> =
         snapshot.messages.iter().map(gateway_message_from_chat_message).collect();
     if !submission.attachments.is_empty()
-        && let Some(message) = messages.iter_mut().rev().find(|message| {
-            message.get("role").and_then(serde_json::Value::as_str) == Some("user")
-        })
+        && let Some(message) = messages
+            .iter_mut()
+            .rev()
+            .find(|message| message.get("role").and_then(serde_json::Value::as_str) == Some("user"))
     {
         message["content"] = gateway_structured_content(submission);
     }
@@ -3813,17 +3729,11 @@ fn gateway_role(role: ChatRole) -> &'static str {
 }
 
 fn replay_session_history(widget: &mut ChatWidget, state: &TuiState) {
-    let displayable = state
-        .messages
-        .iter()
-        .filter(|message| !matches!(message, UiMessage::Step(_)))
-        .count();
+    let displayable =
+        state.messages.iter().filter(|message| !matches!(message, UiMessage::Step(_))).count();
     let skip = displayable.saturating_sub(SESSION_HISTORY_DISPLAY_LIMIT);
-    for message in state
-        .messages
-        .iter()
-        .filter(|message| !matches!(message, UiMessage::Step(_)))
-        .skip(skip)
+    for message in
+        state.messages.iter().filter(|message| !matches!(message, UiMessage::Step(_))).skip(skip)
     {
         widget.push_history(display_event_from_message(message));
     }
@@ -4074,11 +3984,7 @@ fn spawn_session_diff(
     });
 }
 
-fn spawn_doctor(
-    runtime: GatewayUiRuntime,
-    generation: u64,
-    sender: mpsc::Sender<HostMessage>,
-) {
+fn spawn_doctor(runtime: GatewayUiRuntime, generation: u64, sender: mpsc::Sender<HostMessage>) {
     std::thread::spawn(move || {
         let directory = runtime.directory().to_path_buf();
         let result = load_gateway_diagnostics_blocking(&runtime);
@@ -4095,14 +4001,10 @@ fn spawn_cron_detail(
 ) {
     std::thread::spawn(move || {
         let directory = runtime.directory().to_path_buf();
-        let result = load_owned_cron_detail_blocking(&runtime, &snapshot, job_id.as_str())
-            .map(Box::new);
-        let _ = sender.send(HostMessage::CronDetailFinished {
-            generation,
-            directory,
-            job_id,
-            result,
-        });
+        let result =
+            load_owned_cron_detail_blocking(&runtime, &snapshot, job_id.as_str()).map(Box::new);
+        let _ =
+            sender.send(HostMessage::CronDetailFinished { generation, directory, job_id, result });
     });
 }
 
@@ -4115,14 +4017,10 @@ fn spawn_task_detail(
 ) {
     std::thread::spawn(move || {
         let directory = runtime.directory().to_path_buf();
-        let result = load_owned_task_detail_blocking(&runtime, &snapshot, task_id.as_str())
-            .map(Box::new);
-        let _ = sender.send(HostMessage::TaskDetailFinished {
-            generation,
-            directory,
-            task_id,
-            result,
-        });
+        let result =
+            load_owned_task_detail_blocking(&runtime, &snapshot, task_id.as_str()).map(Box::new);
+        let _ =
+            sender.send(HostMessage::TaskDetailFinished { generation, directory, task_id, result });
     });
 }
 
@@ -4174,11 +4072,7 @@ fn spawn_hook_catalog(
     });
 }
 
-fn spawn_hook_audit(
-    runtime: GatewayUiRuntime,
-    generation: u64,
-    sender: mpsc::Sender<HostMessage>,
-) {
+fn spawn_hook_audit(runtime: GatewayUiRuntime, generation: u64, sender: mpsc::Sender<HostMessage>) {
     std::thread::spawn(move || {
         let directory = runtime.directory().to_path_buf();
         let result = load_hook_audit_blocking(&runtime);
@@ -4222,12 +4116,8 @@ fn spawn_memory_search(
     std::thread::spawn(move || {
         let directory = runtime.directory().to_path_buf();
         let result = query_memory_blocking(&runtime, query.as_deref());
-        let _ = sender.send(HostMessage::MemorySearchFinished {
-            generation,
-            directory,
-            query,
-            result,
-        });
+        let _ =
+            sender.send(HostMessage::MemorySearchFinished { generation, directory, query, result });
     });
 }
 
@@ -4242,8 +4132,7 @@ fn spawn_memory_mutation(
         let directory = runtime.directory().to_path_buf();
         let action = mutation.action_name();
         let key = mutation.key().to_string();
-        let result =
-            mutate_memory_and_refresh_blocking(&runtime, &mutation, query.as_deref());
+        let result = mutate_memory_and_refresh_blocking(&runtime, &mutation, query.as_deref());
         let _ = sender.send(HostMessage::MemoryMutationFinished {
             generation,
             directory,
@@ -4343,10 +4232,7 @@ fn spawn_interaction_refresh(
     });
 }
 
-fn spawn_session_bootstrap(
-    mut runtime: GatewayUiRuntime,
-    sender: mpsc::Sender<HostMessage>,
-) {
+fn spawn_session_bootstrap(mut runtime: GatewayUiRuntime, sender: mpsc::Sender<HostMessage>) {
     std::thread::spawn(move || {
         let result = restore_or_create_session_state(&mut runtime).map(Box::new);
         let _ = sender.send(HostMessage::SessionBootstrapFinished(result));

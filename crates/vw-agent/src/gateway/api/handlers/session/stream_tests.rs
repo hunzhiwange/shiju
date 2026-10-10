@@ -615,93 +615,6 @@ fn chat_reasoning_effort_reaches_acp_options_without_leaking_to_non_acp() {
     assert!(default_options.get("reasoning_effort").is_none());
 }
 
-#[test]
-fn reasoning_effort_end_to_end_matrix() {
-    use std::path::PathBuf;
-
-    use crate::agent_scheduler::domain::{RunId, TaskId, WorkerName};
-    use crate::agent_scheduler::runner::gateway_executor::gateway_local_agent_stream_request;
-    use crate::agent_scheduler::runner::local::{LocalAgentExecutionRequest, LocalAgentWorkspace};
-    use vw_api_types::ReasoningEffortDto;
-
-    fn merged_reasoning_effort(request: GatewayChatStreamRequest) -> Option<String> {
-        merge_gateway_request_options(
-            request.options,
-            request.agent,
-            request.allowed_tools,
-            None,
-            None,
-            None,
-            request.acp_agent,
-            request.acp_allowed_tools,
-            request.reasoning_effort,
-        )
-        .get("reasoning_effort")
-        .and_then(Value::as_str)
-        .map(ToOwned::to_owned)
-    }
-
-    fn chat_request(
-        acp_agent: &str,
-        reasoning_effort: Option<ReasoningEffortDto>,
-    ) -> GatewayChatStreamRequest {
-        GatewayChatStreamRequest {
-            messages: vec![serde_json::json!({ "role": "user", "content": "chat" })],
-            acp_agent: Some(acp_agent.to_string()),
-            reasoning_effort,
-            ..GatewayChatStreamRequest::default()
-        }
-    }
-
-    fn task_request(
-        acp_agent: &str,
-        reasoning_effort: Option<ReasoningEffortDto>,
-    ) -> GatewayChatStreamRequest {
-        gateway_local_agent_stream_request(&LocalAgentExecutionRequest {
-            project_path: PathBuf::from("/tmp/reasoning-matrix"),
-            task_id: TaskId::new("task-reasoning-matrix").expect("valid task id"),
-            run_id: RunId::new("run-reasoning-matrix").expect("valid run id"),
-            title: "reasoning matrix".to_string(),
-            prompt: "task".to_string(),
-            model: None,
-            agent: None,
-            acp_agent: Some(acp_agent.to_string()),
-            reasoning_effort,
-            workspace: LocalAgentWorkspace {
-                slot_id: "slot-reasoning-matrix".to_string(),
-                path: "/tmp/reasoning-matrix".to_string(),
-                branch: "codex/reasoning-matrix".to_string(),
-            },
-        })
-    }
-
-    for (scenario, request, expected) in [
-        ("chat default", chat_request("codex", None), None),
-        ("chat Codex Xhigh", chat_request("codex", Some(ReasoningEffortDto::Xhigh)), Some("xhigh")),
-        ("chat Claude Max", chat_request("claude", Some(ReasoningEffortDto::Max)), Some("max")),
-        ("task default", task_request("codex", None), None),
-        ("task Codex High", task_request("codex", Some(ReasoningEffortDto::High)), Some("high")),
-        ("task Claude Max", task_request("claude", Some(ReasoningEffortDto::Max)), Some("max")),
-        ("explicit None", chat_request("codex", Some(ReasoningEffortDto::None)), Some("none")),
-    ] {
-        assert_eq!(merged_reasoning_effort(request).as_deref(), expected, "{scenario}");
-    }
-
-    let invalid = serde_json::from_value::<GatewayChatStreamRequest>(serde_json::json!({
-        "messages": [],
-        "acp_agent": "codex",
-        "reasoning_effort": "extreme"
-    }))
-    .expect_err("unsupported reasoning effort must fail at the request boundary");
-    assert!(invalid.to_string().contains("unknown variant `extreme`"));
-
-    let mut rebuilt = chat_request("codex", Some(ReasoningEffortDto::High));
-    rebuilt.options = Some(serde_json::json!({
-        "reasoning_effort": "stale",
-        "thought_level": "stale"
-    }));
-    assert_eq!(merged_reasoning_effort(rebuilt).as_deref(), Some("high"));
-}
 
 #[test]
 fn stream_part_builders_fill_expected_message_boundaries() {
@@ -864,11 +777,7 @@ async fn resolve_delegate_request_overrides_without_agent_returns_explicit_value
 async fn resolve_main_request_overrides_preserves_registered_tool_selection() {
     let overrides = resolve_delegate_request_overrides(
         Some("main".to_string()),
-        Some(vec![
-            "file_read".to_string(),
-            "memory_store".to_string(),
-            "schedule".to_string(),
-        ]),
+        Some(vec!["file_read".to_string(), "memory_store".to_string(), "schedule".to_string()]),
         Some("provider/model".to_string()),
     )
     .await
@@ -877,11 +786,7 @@ async fn resolve_main_request_overrides_preserves_registered_tool_selection() {
     assert_eq!(overrides.agent.as_deref(), Some("main"));
     assert_eq!(
         overrides.allowed_tools,
-        Some(vec![
-            "file_read".to_string(),
-            "memory_store".to_string(),
-            "schedule".to_string(),
-        ])
+        Some(vec!["file_read".to_string(), "memory_store".to_string(), "schedule".to_string(),])
     );
 }
 

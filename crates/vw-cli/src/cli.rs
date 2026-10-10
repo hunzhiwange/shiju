@@ -449,7 +449,7 @@ Examples:
     /// 管理通信通道（telegram、discord、slack）
     ///
     /// 添加、删除、列出和健康检查连接 VibeWindow 与消息平台的通道。
-    /// 支持的通道类型：telegram、discord、slack、whatsapp、matrix、imessage、email。
+    /// 支持的通道类型：telegram、discord、slack、whatsapp、imessage、email。
     ///
     /// # 示例
     ///
@@ -465,7 +465,7 @@ Manage communication channels.
 
 Add, remove, list, and health-check channels that connect VibeWindow \
 to messaging platforms. Supported channel types: telegram, discord, \
-slack, whatsapp, matrix, imessage, email.
+slack, whatsapp, imessage, email.
 
 Examples:
   vibewindow channel list

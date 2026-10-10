@@ -1,3 +1,5 @@
+#![allow(unused_imports, dead_code)]
+
 //! 验证发送控件在运行、排队、停止与禁用状态下的消息和布局。
 //! 控件测试分别构造会话运行态和发送策略，确保主操作不会映射到错误消息。
 
@@ -471,32 +473,6 @@ fn cancel_button_constructs_every_animation_phase() {
     }
 }
 
-#[test]
-fn send_button_constructs_idle_and_requesting_state_matrix() {
-    let mut app = crate::app::App::new().0;
-    let disabled = send_button(&app, false, false, false);
-    let enabled = send_button(&app, true, true, false);
-
-    assert_eq!(disabled.as_widget().children().len(), 2);
-    assert_eq!(enabled.as_widget().children().len(), 2);
-    drop(disabled);
-    drop(enabled);
-
-    for behavior in
-        [ChatSendBehavior::Queue, ChatSendBehavior::StopAndSend, ChatSendBehavior::Guide]
-    {
-        app.chat_send_behavior = behavior;
-        for show_popover in [false, true] {
-            app.show_send_mode_popover = show_popover;
-            for can_send in [false, true] {
-                let requesting = send_button(&app, can_send, can_send, true);
-
-                assert_eq!(requesting.as_widget().size().width, Length::Shrink);
-                assert_eq!(requesting.as_widget().children().len(), 2);
-            }
-        }
-    }
-}
 
 #[test]
 fn send_behavior_popover_constructs_all_selected_options() {

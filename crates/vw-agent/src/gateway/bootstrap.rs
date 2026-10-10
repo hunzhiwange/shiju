@@ -623,22 +623,6 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         ),
         client_route(
             "GET",
-            "/v1/agent-scheduler/projects/{project_id}/workers",
-            "scheduler workers",
-        ),
-        client_route(
-            "POST",
-            "/v1/agent-scheduler/projects/{project_id}/workers",
-            "upsert scheduler worker",
-        ),
-        client_route("GET", "/v1/agent-scheduler/projects/{project_id}/teams", "scheduler teams"),
-        client_route(
-            "POST",
-            "/v1/agent-scheduler/projects/{project_id}/teams",
-            "upsert scheduler team",
-        ),
-        client_route(
-            "GET",
             "/v1/agent-scheduler/projects/{project_id}/tasks/{task_id}/logs",
             "task logs",
         ),
@@ -646,11 +630,6 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
             "GET",
             "/v1/agent-scheduler/projects/{project_id}/tasks/{task_id}/artifacts",
             "task artifacts",
-        ),
-        client_route(
-            "POST",
-            "/v1/agent-scheduler/projects/{project_id}/tasks/{task_id}/runs/{run_id}/worker-events",
-            "worker run event",
         ),
         client_route("GET", "/v1/agent-scheduler/projects/{project_id}/events", "scheduler events"),
         client_route(

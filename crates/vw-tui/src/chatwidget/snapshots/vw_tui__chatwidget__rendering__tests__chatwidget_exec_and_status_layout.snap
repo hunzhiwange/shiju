@@ -7,7 +7,7 @@ expression: "render_frame(&widget, 72, 17)"
   •
 
 exec: running focused snapshots
-• Running command (0s • esc to interrupt)
+• ⠋ Running command (0s • esc to interrupt)
   └ cargo test
 
 › Ask VibeWindow

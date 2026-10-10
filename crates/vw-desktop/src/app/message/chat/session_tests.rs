@@ -513,10 +513,8 @@ fn session_agent_selection_switches_selectable_tools_to_selected_agent_range() {
     let (mut app, _task) = crate::app::App::new();
     app.agents_settings.available_tools =
         vec!["file_read".to_string(), "bash".to_string(), "grep".to_string()];
-    let mut worker = crate::app::state::DelegateAgentSettingsEntry::from_config(
-        "focused-worker",
-        None,
-    );
+    let mut worker =
+        crate::app::state::DelegateAgentSettingsEntry::from_config("focused-worker", None);
     worker.allowed_tools = vec!["bash".to_string()];
     app.agents_settings.entries.push(worker);
 
@@ -1139,17 +1137,15 @@ fn acp_agent_selection_rejects_backend_switch_after_session_started() {
         app.current_session_runtime_mut().acp_agent = Some("original-agent".to_string());
 
         match case {
-            "chat" => app
-                .chat
-                .push(chat_message(crate::app::models::ChatRole::User, "started")),
+            "chat" => app.chat.push(chat_message(crate::app::models::ChatRole::User, "started")),
             "active_request" => {
                 app.current_session_runtime_mut().active_agent_request =
                     Some(agent_request(7, "session-1"));
             }
-            "queue" => app.current_session_runtime_mut().queue.push(queue_item(
-                "queued",
-                crate::app::state::ChatSendBehavior::Queue,
-            )),
+            "queue" => app
+                .current_session_runtime_mut()
+                .queue
+                .push(queue_item("queued", crate::app::state::ChatSendBehavior::Queue)),
             _ => unreachable!(),
         }
 

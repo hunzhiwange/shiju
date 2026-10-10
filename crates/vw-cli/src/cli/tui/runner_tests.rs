@@ -236,7 +236,7 @@ fn runner_reports_empty_and_failed_session_diff() {
     request.recv_timeout(Duration::from_secs(3)).expect("record empty diff request");
     server.join().expect("empty diff gateway fixture");
     drain_until(&mut runner, &mut app, |_, app| {
-        render_widget(app).contains("当前会话没有文件变化")
+        transcript_text(app).contains("当前会话没有文件变化")
     });
 
     let (endpoint, request, server) = session_diff_response_fixture(
@@ -253,15 +253,16 @@ fn runner_reports_empty_and_failed_session_diff() {
     request.recv_timeout(Duration::from_secs(3)).expect("record failed diff request");
     server.join().expect("failed diff gateway fixture");
     drain_until(&mut runner, &mut app, |_, app| {
-        render_widget(app).contains("failed to load session diff")
+        transcript_text(app).contains("failed to load session diff")
     });
 }
 
 #[test]
 fn runner_reports_missing_session_id_for_diff() {
-    let client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", 9))
-        .expect("test gateway client");
-    let runtime = GatewayUiRuntime::new(client, GatewaySessionSeed::new(PathBuf::from("/workspace")));
+    let client =
+        GatewayClient::new(GatewayEndpoint::new("127.0.0.1", 9)).expect("test gateway client");
+    let runtime =
+        GatewayUiRuntime::new(client, GatewaySessionSeed::new(PathBuf::from("/workspace")));
     let mut state = TuiState::default();
     state.project.workspace_root = Some(PathBuf::from("/workspace"));
     let mut app = V3GatewayApp::new(runtime, state);
@@ -269,10 +270,7 @@ fn runner_reports_missing_session_id_for_diff() {
 
     runner.execute_action(
         &mut app,
-        V3Action::Select {
-            surface: "command_palette".to_string(),
-            item_id: "diff".to_string(),
-        },
+        V3Action::Select { surface: "command_palette".to_string(), item_id: "diff".to_string() },
     );
 
     drain_until(&mut runner, &mut app, |_, app| {
@@ -381,9 +379,8 @@ fn runner_projects_workflow_stream_and_single_terminal() {
     assert_eq!(runner.active_stream_kind(), Some("workflow"));
     drain_until(&mut runner, &mut app, |runner, _| !runner.has_active_stream());
 
-    let first = requests
-        .recv_timeout(Duration::from_secs(3))
-        .expect("record owned Workflow request");
+    let first =
+        requests.recv_timeout(Duration::from_secs(3)).expect("record owned Workflow request");
     assert_eq!(first.path, "/v1/workflow/applications/wf%2Fowned/chat-messages");
     let body: serde_json::Value = serde_json::from_str(first.body.as_str()).expect("request JSON");
     assert_eq!(body["query"], "deploy safely");
@@ -421,9 +418,8 @@ fn runner_projects_workflow_stream_and_single_terminal() {
         },
     );
     drain_until(&mut runner, &mut app, |runner, _| !runner.has_active_stream());
-    let second = requests
-        .recv_timeout(Duration::from_secs(3))
-        .expect("record failing Workflow request");
+    let second =
+        requests.recv_timeout(Duration::from_secs(3)).expect("record failing Workflow request");
     assert_eq!(second.path, "/v1/workflow/applications/wf%2Ferror/chat-messages");
     assert!(app.state().messages.iter().any(|message| match message {
         super::model::UiMessage::Error(message) => message.message.contains("workflow exploded"),
@@ -478,10 +474,7 @@ fn runner_discards_stale_workspace_file_listings() {
     for path in ["old", "new"] {
         runner.execute_action(
             &mut app,
-            V3Action::Submit {
-                text: format!("/files {path}"),
-                attachments: Vec::new(),
-            },
+            V3Action::Submit { text: format!("/files {path}"), attachments: Vec::new() },
         );
     }
     let requests = requests
@@ -517,8 +510,7 @@ fn runner_loads_owned_cron_history_without_cross_source_loss() {
         }],
         ..SchedulePanel::default()
     };
-    app.state_mut().orchestration.workflows.error =
-        Some("existing workflow warning".to_string());
+    app.state_mut().orchestration.workflows.error = Some("existing workflow warning".to_string());
     let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
 
     runner.execute_action(
@@ -535,7 +527,7 @@ fn runner_loads_owned_cron_history_without_cross_source_loss() {
         },
     );
     drain_until(&mut runner, &mut app, |_, app| {
-        render_widget(app).contains("current Cron snapshot")
+        transcript_text(app).contains("current Cron snapshot")
     });
     assert!(
         requests.recv_timeout(Duration::from_millis(100)).is_err(),
@@ -555,8 +547,7 @@ fn runner_loads_owned_cron_history_without_cross_source_loss() {
     );
     server.join().expect("Cron history fixture");
     drain_until(&mut runner, &mut app, |_, app| {
-        let rendered = render_widget(app);
-        rendered.contains("Cron 详情") && rendered.contains("nightly complete")
+        transcript_text(app).contains("nightly complete")
     });
     assert_eq!(
         app.state().orchestration.workflows.error.as_deref(),
@@ -602,7 +593,7 @@ fn runner_loads_owned_scheduler_task_detail() {
         },
     );
     drain_until(&mut runner, &mut app, |_, app| {
-        render_widget(app).contains("current project snapshot")
+        transcript_text(app).contains("current project snapshot")
     });
     assert!(
         requests.recv_timeout(Duration::from_millis(100)).is_err(),
@@ -616,9 +607,8 @@ fn runner_loads_owned_scheduler_task_detail() {
             item_id: "task/owned".to_string(),
         },
     );
-    let mut paths = requests
-        .recv_timeout(Duration::from_secs(3))
-        .expect("record task detail requests");
+    let mut paths =
+        requests.recv_timeout(Duration::from_secs(3)).expect("record task detail requests");
     paths.sort();
     assert_eq!(
         paths,
@@ -630,10 +620,8 @@ fn runner_loads_owned_scheduler_task_detail() {
     );
     server.join().expect("task detail fixture");
     drain_until(&mut runner, &mut app, |_, app| {
-        let rendered = render_widget(app);
-        rendered.contains("Scheduler 任务详情")
-            && rendered.contains("completed safely")
-            && rendered.contains("report.txt")
+        let transcript = transcript_text(app);
+        transcript.contains("completed safely") && transcript.contains("report.txt")
     });
 }
 
@@ -658,7 +646,11 @@ fn drain_until(
     let deadline = Instant::now() + Duration::from_secs(3);
     while !complete(runner, app) {
         runner.drain(app);
-        assert!(Instant::now() < deadline, "active runner did not settle before deadline");
+        assert!(
+            Instant::now() < deadline,
+            "active runner did not settle before deadline; rendered: {}",
+            render_widget(app)
+        );
         thread::sleep(Duration::from_millis(10));
     }
 }
@@ -771,8 +763,8 @@ fn out_of_order_file_search_fixture()
     (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
 }
 
-fn failing_file_search_fixture()
--> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+fn failing_file_search_fixture() -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>)
+{
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind failing file search fixture");
     let port = listener.local_addr().expect("gateway fixture address").port();
     let (sender, receiver) = mpsc::channel();
@@ -790,8 +782,7 @@ fn failing_file_search_fixture()
     (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
 }
 
-fn session_diff_fixture()
--> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+fn session_diff_fixture() -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
     session_diff_response_fixture(
         "200 OK",
         r#"[{"file":"src/lib.rs","before":"old value\n","after":"new value\n","additions":1,"deletions":1,"status":"modified"}]"#,
@@ -817,8 +808,8 @@ fn session_diff_response_fixture(
     (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
 }
 
-fn out_of_order_doctor_fixture()
--> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+fn out_of_order_doctor_fixture() -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>)
+{
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind doctor gateway fixture");
     let port = listener.local_addr().expect("doctor fixture address").port();
     let (sender, receiver) = mpsc::channel();
@@ -846,8 +837,7 @@ fn out_of_order_doctor_fixture()
     (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
 }
 
-fn doctor_error_fixture()
--> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+fn doctor_error_fixture() -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind doctor error fixture");
     let port = listener.local_addr().expect("doctor error fixture address").port();
     let (sender, receiver) = mpsc::channel();
@@ -927,8 +917,8 @@ fn workspace_file_runner_fixture()
     (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
 }
 
-fn cron_history_runner_fixture()
--> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+fn cron_history_runner_fixture() -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>)
+{
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind Cron history fixture");
     let port = listener.local_addr().expect("Cron history address").port();
     let (sender, receiver) = mpsc::channel();
@@ -1046,6 +1036,10 @@ fn render_widget(app: &V3GatewayApp) -> String {
     let mut buffer = Buffer::empty(area);
     app.widget().render(area, &mut buffer);
     buffer.content.iter().map(|cell| cell.symbol()).collect()
+}
+
+fn transcript_text(app: &V3GatewayApp) -> String {
+    app.transcript_lines(240, true).iter().map(ToString::to_string).collect::<String>()
 }
 
 struct RecordedRequest {

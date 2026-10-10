@@ -177,7 +177,14 @@ impl App {
             Subscription::none()
         };
 
-        let activity_animation_tick = if self.any_session_requesting()
+        #[cfg(not(target_arch = "wasm32"))]
+        let startup_transition_active =
+            self.startup_state == crate::app::state::NativeStartupState::Starting;
+        #[cfg(target_arch = "wasm32")]
+        let startup_transition_active = false;
+
+        let activity_animation_tick = if startup_transition_active
+            || self.any_session_requesting()
             || self.has_active_explore_summary_animation()
             || self.task_pet_window_id.is_some()
         {

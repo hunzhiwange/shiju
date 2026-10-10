@@ -61,8 +61,7 @@ impl App {
     pub(crate) fn main_window_view_kind(&self) -> MainWindowViewKind {
         match self.startup_state {
             crate::app::state::NativeStartupState::Ready => MainWindowViewKind::MainInterface,
-            crate::app::state::NativeStartupState::Starting
-            | crate::app::state::NativeStartupState::Failed(_) => {
+            crate::app::state::NativeStartupState::Starting => {
                 MainWindowViewKind::StartupTransition
             }
         }

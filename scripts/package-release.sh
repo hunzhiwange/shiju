@@ -86,12 +86,6 @@ if [ -z "$OUT_DIR" ]; then
   OUT_DIR="dist/release/$TARGET"
 fi
 
-if [[ "$PROFILE" == "release" || "$PROFILE" == "dist" ]]; then
-  export VIBEWINDOW_RELEASE_BUILD=1
-else
-  export VIBEWINDOW_RELEASE_BUILD=0
-fi
-
 PROFILE_FLAG=()
 if [ "$PROFILE" = "release" ]; then
   PROFILE_FLAG=(--release)

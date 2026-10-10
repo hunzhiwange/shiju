@@ -251,6 +251,44 @@ async fn session_message_list_honors_zero_limit_and_unbounded_newest_first() {
 }
 
 #[tokio::test]
+async fn session_message_list_rejects_incomplete_history() {
+    let _guard = MESSAGE_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    project::instance::dispose_all().await;
+
+    let project = TempDir::new().expect("project dir");
+    let session_id = unique_session_id("incomplete-history");
+    let valid = user_info(&session_id, "001");
+    agent_session::message::update_message(&valid).await.expect("valid message should persist");
+    crate::app::agent::storage::write(
+        &["message", &session_id, "002"],
+        &serde_json::json!({"role": "bad", "secret_marker": "must-not-leak"}),
+    )
+    .await
+    .expect("bad message fixture should persist");
+
+    let error = session_message_list(
+        Path(session_id.clone()),
+        Query(GatewaySessionMessageListQuery {
+            directory: Some(project.path().to_string_lossy().to_string()),
+            limit: None,
+        }),
+        HeaderMap::new(),
+    )
+    .await
+    .expect_err("unbounded message list should reject incomplete history");
+
+    assert_eq!(error.status, StatusCode::BAD_REQUEST);
+    assert!(!error.to_string().contains("must-not-leak"));
+
+    agent_session::message::remove_message(&session_id, "001").await.expect("valid cleanup");
+    crate::app::agent::storage::remove(&["message", &session_id, "002"])
+        .await
+        .expect("bad cleanup");
+    project::instance::dispose_all().await;
+}
+
+#[tokio::test]
 async fn session_message_list_returns_empty_for_unknown_session() {
     let _guard = MESSAGE_OPS_TEST_LOCK.lock().await;
     ensure_test_home();

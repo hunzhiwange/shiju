@@ -217,9 +217,8 @@ async fn get_combines_message_info_with_sorted_parts() {
 }
 
 #[tokio::test]
-// 列表先按时间倒序限量，并跳过损坏记录而不阻断其余会话。
-async fn messages_are_newest_first_limited_and_skip_unreadable_entries() {
-    let session_id = unique_session_id("messages");
+async fn limited_messages_are_newest_first_and_skip_unreadable_entries() {
+    let session_id = unique_session_id("limited-messages");
     let older = user_info(&session_id, "001");
     let newer = assistant_info(&session_id, "002", "001");
     update_message(&older).await.expect("older message should persist");
@@ -231,9 +230,6 @@ async fn messages_are_newest_first_limited_and_skip_unreadable_entries() {
         .await
         .expect("nested message fixture should persist");
 
-    let all = messages(&session_id, None).await.expect("messages should load");
-    assert_eq!(all.iter().map(|message| message.info.id()).collect::<Vec<_>>(), vec!["002", "001"]);
-
     let limited = messages(&session_id, Some(1)).await.expect("limited messages should load");
     assert_eq!(limited.len(), 1);
     assert_eq!(limited[0].info.id(), "002");
@@ -242,6 +238,27 @@ async fn messages_are_newest_first_limited_and_skip_unreadable_entries() {
     remove_message(&session_id, "002").await.expect("newer cleanup");
     storage::remove(&["message", &session_id, "003"]).await.expect("bad cleanup");
     storage::remove(&["message", &session_id, "nested", "ignored"]).await.expect("nested cleanup");
+}
+
+#[tokio::test]
+async fn complete_messages_rejects_unreadable_entry() {
+    let session_id = unique_session_id("complete-messages");
+    let valid = user_info(&session_id, "001");
+    update_message(&valid).await.expect("valid message should persist");
+    storage::write(
+        &["message", &session_id, "002"],
+        &json!({"role": "bad", "secret_marker": "must-not-leak"}),
+    )
+    .await
+    .expect("bad message fixture should persist");
+
+    let error = messages(&session_id, None)
+        .await
+        .expect_err("complete history should reject an unreadable entry");
+    assert!(!error.to_string().contains("must-not-leak"));
+
+    remove_message(&session_id, "001").await.expect("valid cleanup");
+    storage::remove(&["message", &session_id, "002"]).await.expect("bad cleanup");
 }
 
 #[tokio::test]

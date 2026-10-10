@@ -141,8 +141,8 @@ pub async fn get(session_id: &str, message_id: &str) -> Result<WithParts, super:
 
 /// 读取指定会话的消息列表。
 ///
-/// `limit` 为 `Some` 时最多返回对应数量。损坏或缺失的单条消息会被跳过，保证列表读取
-/// 尽可能可用。
+/// `limit` 为 `Some` 时最多返回对应数量，并跳过损坏或缺失的单条消息。
+/// `limit` 为 `None` 时表示完整历史读取，任何单条读取失败都会向上传播。
 pub async fn messages(
     session_id: &str,
     limit: Option<usize>,
@@ -160,8 +160,10 @@ pub async fn messages(
             continue;
         }
         let msg_id = key[2].clone();
-        if let Ok(msg) = get(session_id, &msg_id).await {
-            out.push(msg);
+        match get(session_id, &msg_id).await {
+            Ok(msg) => out.push(msg),
+            Err(error) if limit.is_none() => return Err(error),
+            Err(_) => {}
         }
     }
     Ok(out)

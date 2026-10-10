@@ -11,7 +11,7 @@ use vw_api_types::id::TenantScope;
 
 use crate::app::agent::tools::Tool;
 use crate::permission::next as permission_next;
-use crate::session::processor::ToolEvent;
+use crate::session::processor::{CompactionPhase, ToolEvent};
 use crate::session::ui_types::TokenUsage;
 use crate::session::{message, session};
 
@@ -136,6 +136,11 @@ pub enum PromptEvent {
     Text(String),
     /// 已净化的类型化工具事件。
     Tool(ToolEvent),
+    /// 自动压缩生命周期事件。
+    Compaction {
+        /// 当前压缩阶段。
+        phase: CompactionPhase,
+    },
     /// 处理器步骤开始。
     StepStart {
         /// 步骤索引。

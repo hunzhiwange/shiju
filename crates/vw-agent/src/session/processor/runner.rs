@@ -15,7 +15,7 @@ use super::todo_updates;
 use super::todos;
 use super::tools_exec;
 use super::turn_policy::ChatTurnPolicy;
-use super::types::{Request, ResolvedRequestModel, StreamEvent, ToolSessionState};
+use super::types::{CompactionPhase, Request, ResolvedRequestModel, StreamEvent, ToolSessionState};
 use super::utils;
 use crate::app::agent::config;
 use crate::app::agent::tools::{ToolRuntimeContext, ToolUseContext};
@@ -184,6 +184,7 @@ fn compact_transient_history_for_request(
     llm_messages: &mut Vec<Value>,
     model: &str,
     reliability: &crate::app::agent::config::ReliabilityConfig,
+    on_event: &mut impl FnMut(StreamEvent) -> bool,
 ) -> Result<bool, String> {
     let Some(boundary) = llm_messages
         .iter()
@@ -214,6 +215,7 @@ fn compact_transient_history_for_request(
     if context.trim().is_empty() {
         return Ok(false);
     }
+    on_event(StreamEvent::Compaction { phase: CompactionPhase::Started });
     let prompt = crate::session::compaction::internal_summary_prompt(&context);
     let mut discard_events = |_| true;
     let summary = llm_runner::run_llm_step_with_retry(
@@ -240,6 +242,7 @@ fn compact_transient_history_for_request(
             "content": format!("[Compaction summary]\n{summary}"),
         })),
     );
+    on_event(StreamEvent::Compaction { phase: CompactionPhase::Completed });
     Ok(true)
 }
 
@@ -733,6 +736,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 &mut llm_messages,
                 &selected_model.model,
                 &req.reliability,
+                &mut on_event,
             ) {
                 Ok(true) => {
                     internal_compaction_attempted = true;
@@ -792,6 +796,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                         &mut llm_messages,
                         &selected_model.model,
                         &req.reliability,
+                        &mut on_event,
                     ) {
                         Ok(true) => {
                             internal_compaction_attempted = true;

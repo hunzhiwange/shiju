@@ -270,6 +270,37 @@ fn stream_payload_for_non_done_event_encodes_delta_step_finish_and_error_state()
 }
 
 #[test]
+fn compaction_lifecycle_events_encode_stable_gateway_payloads() {
+    let mut assistant_text = String::new();
+    let mut finish_reason = None;
+    let mut assistant_model = None;
+    let mut recorder = StreamPatchRecorder::default();
+    let mut encode = |phase| {
+        stream_payload_for_non_done_event(
+            agent_session::processor::StreamEvent::Compaction { phase },
+            &mut assistant_text,
+            &mut finish_reason,
+            &mut assistant_model,
+            &mut recorder,
+            "session-id",
+            None,
+            "/unused",
+        )
+        .expect("compaction payload")
+    };
+
+    assert_eq!(
+        encode(agent_session::processor::CompactionPhase::Started),
+        serde_json::json!({"type": "chat.compaction", "phase": "started"})
+    );
+    assert_eq!(
+        encode(agent_session::processor::CompactionPhase::Completed),
+        serde_json::json!({"type": "chat.compaction", "phase": "completed"})
+    );
+    assert!(assistant_text.is_empty());
+}
+
+#[test]
 fn gateway_stream_preserves_existing_tool_payloads() {
     let mut assistant_text = String::new();
     let mut finish_reason = None;

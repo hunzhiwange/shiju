@@ -621,6 +621,16 @@ fn stream_payload_for_non_done_event(
                 "payload": event.payload,
             }))
         }
+        agent_session::processor::StreamEvent::Compaction { phase } => {
+            let phase = match phase {
+                agent_session::processor::CompactionPhase::Started => "started",
+                agent_session::processor::CompactionPhase::Completed => "completed",
+            };
+            Some(serde_json::json!({
+                "type": "chat.compaction",
+                "phase": phase,
+            }))
+        }
         agent_session::processor::StreamEvent::StepStart { step_index, created_ms, model } => {
             patch_recorder.note_step_start(step_index);
             if let Some(assistant_id) =
@@ -695,6 +705,9 @@ fn processor_event_from_prompt_event(
         }
         agent_session::runtime::PromptEvent::Tool(event) => {
             agent_session::processor::StreamEvent::Tool(event)
+        }
+        agent_session::runtime::PromptEvent::Compaction { phase } => {
+            agent_session::processor::StreamEvent::Compaction { phase }
         }
         agent_session::runtime::PromptEvent::StepStart { step_index, created_ms, model } => {
             agent_session::processor::StreamEvent::StepStart { step_index, created_ms, model }

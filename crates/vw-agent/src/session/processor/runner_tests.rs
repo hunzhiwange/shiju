@@ -352,6 +352,7 @@ fn event_texts(events: &[super::StreamEvent]) -> Vec<String> {
             super::StreamEvent::Tool(event) => {
                 Some(format!("tool:{}:{}", event.name, event.payload))
             }
+            super::StreamEvent::Compaction { phase } => Some(format!("compaction:{phase:?}")),
             super::StreamEvent::Error(text) => Some(format!("error:{text}")),
             super::StreamEvent::Done(_) => Some("done".to_string()),
             super::StreamEvent::PostToolRound { step_index } => {
@@ -725,7 +726,7 @@ fn context_preflight_runs_before_next_llm_step_after_real_input_usage() {
 }
 
 #[test]
-fn transient_internal_compaction_replaces_only_covered_history_without_tools() {
+fn compaction_lifecycle_replaces_only_covered_history_after_completion() {
     let _guard = super::llm_runner::test_llm_stream_guard();
     super::llm_runner::enqueue_test_llm_stream(vec![
         crate::app::agent::session::llm::StreamEvent::Delta("remembered context".to_string()),
@@ -748,12 +749,17 @@ fn transient_internal_compaction_replaces_only_covered_history_without_tools() {
             }
         }),
     ];
+    let mut events = Vec::new();
 
     let compacted = super::compact_transient_history_for_request(
         "runner-transient-compaction",
         &mut messages,
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+        &mut |event| {
+            events.push(event);
+            true
+        },
     )
     .expect("summary should succeed");
 
@@ -765,11 +771,18 @@ fn transient_internal_compaction_replaces_only_covered_history_without_tools() {
     assert_eq!(messages[1]["content"], "latest request");
     assert_eq!(messages[1]["_vw_source"]["rpcId"], "desktop-compaction-request");
     assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids(), vec![Vec::<String>::new()]);
+    assert!(matches!(
+        events.as_slice(),
+        [
+            super::StreamEvent::Compaction { phase: super::CompactionPhase::Started },
+            super::StreamEvent::Compaction { phase: super::CompactionPhase::Completed },
+        ]
+    ));
 }
 
 #[test]
 // 临时摘要失败时保留原历史，并允许主流程继续处理。
-fn transient_internal_compaction_keeps_history_when_summary_fails() {
+fn compaction_lifecycle_keeps_history_and_omits_completion_when_summary_fails() {
     let _guard = super::llm_runner::test_llm_stream_guard();
     super::llm_runner::enqueue_test_llm_stream(vec![
         crate::app::agent::session::llm::StreamEvent::Error(
@@ -784,17 +797,26 @@ fn transient_internal_compaction_keeps_history_when_summary_fails() {
         serde_json::json!({ "role": "user", "content": "latest request" }),
     ];
     let before = messages.clone();
+    let mut events = Vec::new();
 
     let error = super::compact_transient_history_for_request(
         "runner-transient-compaction-failure",
         &mut messages,
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+        &mut |event| {
+            events.push(event);
+            true
+        },
     )
     .expect_err("failed summaries must not change history");
 
     assert!(error.contains("summary unavailable"));
     assert_eq!(messages, before);
+    assert!(matches!(
+        events.as_slice(),
+        [super::StreamEvent::Compaction { phase: super::CompactionPhase::Started },]
+    ));
 }
 
 #[test]

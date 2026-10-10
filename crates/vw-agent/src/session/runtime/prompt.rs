@@ -17,6 +17,7 @@ fn map_non_terminal(event: StreamEvent) -> Option<PromptEvent> {
         StreamEvent::ContextLoaded { paths } => Some(PromptEvent::ContextLoaded { paths }),
         StreamEvent::Delta(text) => Some(PromptEvent::Text(text)),
         StreamEvent::Tool(event) => Some(PromptEvent::Tool(event)),
+        StreamEvent::Compaction { phase } => Some(PromptEvent::Compaction { phase }),
         StreamEvent::StepStart { step_index, created_ms, model } => {
             Some(PromptEvent::StepStart { step_index, created_ms, model })
         }

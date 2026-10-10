@@ -134,6 +134,15 @@ pub struct ToolEvent {
     pub payload: Value,
 }
 
+/// 自动压缩生命周期阶段。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompactionPhase {
+    /// 已确认存在可摘要历史，即将请求内部摘要。
+    Started,
+    /// 摘要已成功写回临时会话历史。
+    Completed,
+}
+
 /// 流式事件枚举
 ///
 /// 定义了会话处理过程中可能产生的各种流式事件类型。
@@ -154,6 +163,12 @@ pub enum StreamEvent {
 
     /// 类型化工具生命周期事件。
     Tool(ToolEvent),
+
+    /// 自动压缩生命周期事件。
+    Compaction {
+        /// 当前压缩阶段。
+        phase: CompactionPhase,
+    },
 
     /// 步骤开始事件，表示一个新的处理步骤开始执行
     StepStart {

@@ -459,6 +459,7 @@ fn work_sidebar_filters_sessions_by_project_and_update_time() {
     let mut app = App::new().0;
     let now = vw_shared::time::now_ms();
     app.recent_projects = vec!["/workspace/alpha".into(), "/workspace/beta".into()];
+    app.recent_projects_edits.clear();
     app.project_path = Some("/workspace/alpha".into());
     app.project_sessions.insert(
         "/workspace/alpha".into(),

@@ -1114,6 +1114,8 @@ pub struct App {
     pub task_board_view_mode: TaskBoardViewMode,
     /// 任务看板任务列表
     pub task_board_tasks: Vec<crate::app::task::Task>,
+    /// 本地终态正在持久化、需避免旧网关快照覆盖的任务 ID
+    pub task_board_tasks_pending_persistence: HashSet<String>,
 
     /// 任务看板创建对话框是否打开
     pub task_board_create_modal_open: bool,

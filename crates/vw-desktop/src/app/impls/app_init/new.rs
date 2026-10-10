@@ -1593,6 +1593,7 @@ impl App {
             task_board_loading: false,
             task_board_view_mode: crate::app::state::TaskBoardViewMode::default(),
             task_board_tasks: Vec::new(),
+            task_board_tasks_pending_persistence: std::collections::HashSet::new(),
             task_board_create_modal_open: false,
             task_board_settings_modal_open: false,
             task_board_settings_modal_tab: crate::app::state::TaskBoardSettingsModalTab::default(),

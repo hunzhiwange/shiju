@@ -20,12 +20,20 @@ fn persist_result_task_via_gateway(
     task: Task,
     action_label: &'static str,
 ) -> iced::Task<crate::app::Message> {
+    let task_id = task.id.clone();
+    let result_project_path = project_path.clone();
     iced::Task::perform(
         async move {
             persist_updated_tasks_via_gateway(&project_path, &[task], action_label, &workflow_id)
                 .await
         },
-        |_| Message::None,
+        move |result| {
+            Message::TaskBoard(TaskBoardMessage::TaskResultPersistenceCompleted {
+                project_path: result_project_path.clone(),
+                task_id: task_id.clone(),
+                result,
+            })
+        },
     )
 }
 
@@ -129,6 +137,7 @@ pub(super) fn update(
         }
         sync_viewing_logs(app, &task_id);
         if let (Some(project_path), Some(task_clone)) = (&app.project_path, task_to_persist.clone()) {
+            app.task_board_tasks_pending_persistence.insert(task_id.clone());
             let persist_task = persist_result_task_via_gateway(
                 project_path.clone(),
                 app.task_board_settings.workflow_id.clone(),
@@ -236,6 +245,7 @@ pub(super) fn update(
             }
             sync_viewing_logs(app, &task_id);
             if let (Some(project_path), Some(task_clone)) = (&app.project_path, task_to_persist.clone()) {
+                app.task_board_tasks_pending_persistence.insert(task_id.clone());
                 let persist_task = persist_result_task_via_gateway(
                     project_path.clone(),
                     app.task_board_settings.workflow_id.clone(),
@@ -248,6 +258,7 @@ pub(super) fn update(
         }
         sync_viewing_logs(app, &task_id);
         if let (Some(project_path), Some(task_clone)) = (&app.project_path, task_to_persist.clone()) {
+            app.task_board_tasks_pending_persistence.insert(task_id.clone());
             let persist_task = persist_result_task_via_gateway(
                 project_path.clone(),
                 app.task_board_settings.workflow_id.clone(),
@@ -346,6 +357,7 @@ pub(super) fn update(
             task_to_persist = Some(task.clone());
         }
         if let (Some(project_path), Some(task_clone)) = (&app.project_path, task_to_persist) {
+            app.task_board_tasks_pending_persistence.insert(task_id.clone());
             let persist_task = persist_result_task_via_gateway(
                 project_path.clone(),
                 app.task_board_settings.workflow_id.clone(),

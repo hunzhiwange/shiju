@@ -62,6 +62,31 @@ fn execution_success_uses_workflow_transition_to_review() {
 }
 
 #[test]
+fn task_result_persistence_guards_local_status_until_ack() {
+    use crate::app::task::{Task, TaskStatus};
+
+    let (mut app, _task) = crate::app::App::new();
+    app.project_path = Some("/tmp/vibewindow-persistence-guard-test".to_string());
+
+    let mut task = Task::new(1);
+    task.id = "T-persistence-guard".to_string();
+    task.status = TaskStatus::Running;
+    app.task_board_tasks = vec![task];
+    app.task_board_executor.running_tasks = vec!["T-persistence-guard".to_string()];
+
+    let _task = super::update(
+        &mut app,
+        super::TaskBoardMessage::TaskExecutionCompleted {
+            project_path: "/tmp/vibewindow-persistence-guard-test".to_string(),
+            task_id: "T-persistence-guard".to_string(),
+            result: Ok("done".to_string()),
+        },
+    );
+
+    assert!(app.task_board_tasks_pending_persistence.contains("T-persistence-guard"));
+}
+
+#[test]
 fn merge_success_uses_workflow_transition_to_completed() {
     use crate::app::task::{Task, TaskStatus};
 

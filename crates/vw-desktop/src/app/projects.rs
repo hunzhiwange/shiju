@@ -421,6 +421,7 @@ impl App {
         self.project_is_git_repo = false;
         self.task_board_loading = false;
         self.task_board_tasks.clear();
+        self.task_board_tasks_pending_persistence.clear();
         self.task_board_selected_tasks.clear();
         self.task_board_bulk_active_status = None;
         self.task_board_manual_merge_queue.clear();

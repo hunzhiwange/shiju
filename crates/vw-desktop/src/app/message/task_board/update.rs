@@ -327,6 +327,14 @@ fn apply_agent_scheduler_status(
 
     for snapshot in &response.tasks {
         let task_id = snapshot.task_id.as_ref().to_string();
+        if app.task_board_tasks_pending_persistence.contains(&task_id)
+            && let Some(task) = previous_tasks.iter().find(|task| task.id == task_id).cloned()
+        {
+            updated_task_ids.push(task_id);
+            updated_tasks.push(task.clone());
+            next_tasks.push(task);
+            continue;
+        }
         app.task_board_executor.finish_task(&task_id);
         let mut task = previous_tasks
             .iter()
@@ -338,6 +346,16 @@ fn apply_agent_scheduler_status(
         updated_task_ids.push(task_id);
         updated_tasks.push(task.clone());
         next_tasks.push(task);
+    }
+
+    for task in previous_tasks {
+        if app.task_board_tasks_pending_persistence.contains(&task.id)
+            && !next_tasks.iter().any(|next_task| next_task.id == task.id)
+        {
+            updated_task_ids.push(task.id.clone());
+            updated_tasks.push(task.clone());
+            next_tasks.push(task);
+        }
     }
 
     app.task_board_tasks = next_tasks;
@@ -424,11 +442,13 @@ fn merge_loaded_tasks_preserving_running_state(
     loaded_tasks: Vec<Task>,
     current_tasks: &[Task],
     running_task_ids: &[String],
+    pending_persistence_task_ids: &std::collections::HashSet<String>,
 ) -> Vec<Task> {
     let mut merged = loaded_tasks
         .into_iter()
         .map(|loaded_task| {
-            if running_task_ids.iter().any(|id| id == &loaded_task.id)
+            if (running_task_ids.iter().any(|id| id == &loaded_task.id)
+                || pending_persistence_task_ids.contains(&loaded_task.id))
                 && let Some(current_task) =
                     current_tasks.iter().find(|task| task.id == loaded_task.id)
             {
@@ -439,7 +459,8 @@ fn merge_loaded_tasks_preserving_running_state(
         .collect::<Vec<_>>();
 
     for current_task in current_tasks {
-        if running_task_ids.iter().any(|id| id == &current_task.id)
+        if (running_task_ids.iter().any(|id| id == &current_task.id)
+            || pending_persistence_task_ids.contains(&current_task.id))
             && !merged.iter().any(|task| task.id == current_task.id)
         {
             merged.push(current_task.clone());
@@ -448,6 +469,10 @@ fn merge_loaded_tasks_preserving_running_state(
 
     merged
 }
+
+#[cfg(test)]
+#[path = "update_tests.rs"]
+mod update_tests;
 
 /// 执行 update 对应的领域操作。
 ///
@@ -545,6 +570,7 @@ pub fn update(
                 tasks,
                 &app.task_board_tasks,
                 &app.task_board_executor.running_tasks,
+                &app.task_board_tasks_pending_persistence,
             );
             sync_task_log_cache_for_loaded_tasks(app);
             app.task_board_loading = false;
@@ -2592,6 +2618,23 @@ pub fn update(
                 sync_agent_scheduler_logs(project_path, response_project_id, task_ids),
                 followup_ticks,
             ])
+        }
+        TaskBoardMessage::TaskResultPersistenceCompleted { project_path, task_id, result } => {
+            if !task_board_project_matches(app, &project_path) {
+                return iced::Task::none();
+            }
+            app.task_board_tasks_pending_persistence.remove(&task_id);
+            let sync = sync_agent_scheduler_status_for_current_project(app);
+            if let Err(error) = result {
+                return iced::Task::batch(vec![
+                    app.show_error_toast(format!(
+                        "保存任务结果失败: {}",
+                        truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)
+                    )),
+                    sync,
+                ]);
+            }
+            sync
         }
         TaskBoardMessage::AgentSchedulerLogsLoaded { project_path, result } => {
             if !task_board_project_matches(app, &project_path) {

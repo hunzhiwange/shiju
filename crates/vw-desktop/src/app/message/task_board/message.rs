@@ -196,6 +196,11 @@ pub enum TaskBoardMessage {
         task_id: String,
         result: Result<String, String>,
     },
+    TaskResultPersistenceCompleted {
+        project_path: String,
+        task_id: String,
+        result: Result<(), String>,
+    },
     TaskRemovalWorktreeRecycled {
         project_path: String,
         task_id: String,

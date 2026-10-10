@@ -147,12 +147,12 @@ fn stale_tool_result_clearing_is_idempotent_and_ignores_other_roles() {
 }
 
 #[test]
-fn auto_compaction_uses_an_inclusive_ninety_percent_boundary() {
+fn auto_compaction_uses_an_inclusive_seventy_percent_boundary() {
     let model_limit = limit(1_000, Some(1_000), 100);
 
-    assert!(!should_compact(899, &model_limit));
-    assert!(should_compact(900, &model_limit));
-    assert!(should_compact(901, &model_limit));
+    assert!(!should_compact(699, &model_limit));
+    assert!(should_compact(700, &model_limit));
+    assert!(should_compact(701, &model_limit));
 }
 
 #[test]

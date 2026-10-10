@@ -9,7 +9,7 @@ use serde_json::Value;
 pub(crate) const RECENT_TOOL_RESULTS_TO_KEEP: usize = 8;
 pub(crate) const STALE_TOOL_RESULT_PLACEHOLDER: &str =
     "[Earlier tool result cleared to preserve conversation context]";
-pub(crate) const AUTO_COMPACTION_THRESHOLD_PERCENT: u64 = 90;
+pub(crate) const AUTO_COMPACTION_THRESHOLD_PERCENT: u64 = 70;
 
 const INVOKED_SKILL_SOURCE_FIELD: &str = "vw_invoked_skill_source";
 

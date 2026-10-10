@@ -4,10 +4,6 @@
 //! 不改变任何运行时行为。
 
 use super::*;
-use crate::app::task::{
-    TaskBoardStaffCapability, TaskBoardStaffCapabilityDraftField,
-    TaskBoardStaffCapabilitySummaryKind,
-};
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;
 
 #[derive(Debug, Clone)]
@@ -27,129 +23,6 @@ pub enum TaskBoardMessage {
         project_path: String,
         tasks: Vec<Task>,
     },
-    ToggleStaffMode(bool),
-    StaffConfigLoaded(Result<TaskBoardStaffConfig, String>),
-    StaffConfigLoadedForWorkflow {
-        workflow_id: String,
-        result: Result<TaskBoardStaffConfig, String>,
-    },
-    LoadStaffCapabilityCatalog,
-    LoadStaffCapabilityCatalogForWorkflow {
-        workflow_id: String,
-    },
-    StaffCapabilityCatalogLoaded(Result<Vec<TaskBoardStaffCapability>, String>),
-    StaffCapabilityCatalogLoadedForWorkflow {
-        workflow_id: String,
-        result: Result<Vec<TaskBoardStaffCapability>, String>,
-    },
-    UpdateStaffCapabilityDraft {
-        capability_id: String,
-        field: TaskBoardStaffCapabilityDraftField,
-        value: String,
-    },
-    UpdateStaffCapabilitySummaryDraft {
-        capability_id: String,
-        summary: TaskBoardStaffCapabilitySummaryKind,
-        description: String,
-        fields: Vec<String>,
-    },
-    AddStaffCapabilityDraft,
-    DeleteStaffCapabilityDraft {
-        capability_id: String,
-    },
-    SaveStaffCapabilityCatalog,
-    SaveStaffCapabilityCatalogForWorkflow {
-        workflow_id: String,
-    },
-    StaffCapabilityCatalogSaved(Result<Vec<TaskBoardStaffCapability>, String>),
-    StaffCapabilityCatalogSavedForWorkflow {
-        workflow_id: String,
-        result: Result<Vec<TaskBoardStaffCapability>, String>,
-    },
-    RefreshStaffProjection,
-    ReloadStaffConfig,
-    ReloadStaffConfigForWorkflow {
-        workflow_id: String,
-    },
-    StaffAutoSchedulePlanLoaded {
-        result:
-            Result<vw_gateway_client::vw_api_types::staff::StaffAutoSchedulePlanResponse, String>,
-    },
-    SubmitStaffCommand(TaskBoardStaffCommand),
-    SubmitStaffCommandSilently(TaskBoardStaffCommand),
-    StaffCommandQueueTick,
-    StaffCommandGatewayCompleted {
-        command: TaskBoardStaffCommand,
-        result: Result<vw_gateway_client::vw_api_types::staff::StaffCommandResponse, String>,
-    },
-    SelectStaffFeedTab(TaskBoardStaffFeedTab),
-    SelectAllStaffTaskStatuses,
-    SelectStaffTaskStatusTab(TaskStatus),
-    ToggleStaffTaskStatusFilter(TaskStatus),
-    UpdateStaffCommandInput(String),
-    SelectStaffCommandMember {
-        member_id: String,
-    },
-    SubmitStaffCommandInput,
-    OpenStaffStageAssignment,
-    CloseStaffStageAssignment,
-    SelectStaffStageAssignmentTab {
-        status: TaskStatus,
-        tab: TaskBoardStaffAssignmentTab,
-    },
-    SelectStaffOrchestrationTab(TaskBoardStaffOrchestrationTab),
-    SelectStaffStagePrimaryMember {
-        status: TaskStatus,
-        member_id: Option<String>,
-    },
-    SelectStaffStageActionCapability {
-        status: TaskStatus,
-        capability_id: Option<String>,
-    },
-    SelectStaffStageActionWorkflow {
-        status: TaskStatus,
-        workflow_uuid: Option<String>,
-    },
-    CreateStaffStageActionWorkflow {
-        status: TaskStatus,
-        workflow_id: String,
-    },
-    StaffStageActionWorkflowCreated {
-        status: TaskStatus,
-        result: Result<vw_gateway_client::WorkflowRecordSummary, String>,
-    },
-    UpdateStaffStageActionParameter {
-        status: TaskStatus,
-        key: String,
-        value: String,
-    },
-    RequestResetStaffStageActions,
-    ConfirmResetStaffStageActions,
-    CancelResetStaffStageActions,
-    SelectStaffStageWorkflowBinding {
-        status: TaskStatus,
-        workflow_uuid: Option<String>,
-    },
-    LoadStaffStageWorkflowOptions,
-    StaffStageWorkflowOptionsLoaded(Result<Vec<vw_gateway_client::WorkflowRecordSummary>, String>),
-    ToggleStaffStageBackupMember {
-        status: TaskStatus,
-        member_id: String,
-    },
-    ToggleStaffStageManagerMember {
-        status: TaskStatus,
-        member_id: String,
-    },
-    ToggleStaffStageAutonomous {
-        status: TaskStatus,
-        enabled: bool,
-    },
-    SaveStaffStageAssignment,
-    SaveStaffStageAssignmentForWorkflow {
-        workflow_id: String,
-    },
-    StaffStageAssignmentPersisted(Result<(), String>),
-    StaffTaskAssignmentPersisted(Result<(), String>),
     CreateTask,
     CreateTaskSubmitted,
     AddTaskFromInput(String),
@@ -322,13 +195,6 @@ pub enum TaskBoardMessage {
         project_path: String,
         task_id: String,
         result: Result<String, String>,
-    },
-    TaskStageWorkflowCompleted {
-        project_path: String,
-        task_id: String,
-        status: TaskStatus,
-        workflow_uuid: String,
-        result: Result<vw_gateway_client::GatewayWorkflowRunOutcome, String>,
     },
     TaskRemovalWorktreeRecycled {
         project_path: String,

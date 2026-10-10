@@ -32,7 +32,6 @@ mod scheduler;
 mod security;
 mod sessions;
 mod skills;
-mod staff;
 mod storage;
 mod tabs;
 mod themes;
@@ -46,14 +45,13 @@ use crate::app::{App, Message};
 use iced::Task;
 
 pub(crate) use messages::{
-    AcpMessage, AgentConfigTabMessage, AgentsMessage, BashPolicyCheck, BashValidatorCheck, BrowserMessage,
-    ChannelsMessage, EmbeddingRoutesMessage, GatewayClientMessage, GatewayMessage,
+    AcpMessage, AgentConfigTabMessage, AgentsMessage, BashPolicyCheck, BashValidatorCheck,
+    BrowserMessage, ChannelsMessage, EmbeddingRoutesMessage, GatewayClientMessage, GatewayMessage,
     GeneralSettingsMessage, HooksMessage, HttpRequestMessage, McpMessage, MemoryMessage,
     ModelConfigTabMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
-    QuickMessagesMessage, RuntimeMessage, SettingsMessage, StaffMessage, StaffResourceMessage,
-    StaffTeamDraftField,
-    StaffTeamMemberDraftField, StaffWorkerDraftField, StorageMessage, ThemeChromeField,
-    ThemeColorPickerTarget, ThemePaletteField, ThemesMessage, TunnelMessage, WebSearchMessage,
+    QuickMessagesMessage, RuntimeMessage, SettingsMessage, StorageMessage,
+    ThemeChromeField, ThemeColorPickerTarget, ThemePaletteField, ThemesMessage, TunnelMessage,
+    WebSearchMessage,
 };
 
 pub(crate) fn reload_agents_config_task(project_path: Option<String>) -> Task<Message> {
@@ -81,13 +79,6 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
         "tunnel" => app.tunnel_settings.save_error = save_error,
         "hooks" => app.hooks_settings.save_error = save_error,
         "skills" => app.skills_settings.save_error = save_error,
-        "staff" => {
-            let result = match save_error {
-                Some(error) => Err(error),
-                None => Ok(()),
-            };
-            staff::apply_saved_result(app, result);
-        }
         "runtime" => app.runtime_settings.save_error = save_error,
         "model_routes" => app.model_routes_settings.save_error = save_error,
         "embedding_routes" => app.embedding_routes_settings.save_error = save_error,
@@ -97,8 +88,6 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
     }
 }
 
-#[cfg(test)]
-mod tests;
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
 ///
@@ -135,7 +124,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::Tunnel(_) => tunnel::update(app, message),
         SettingsMessage::Themes(_) => themes::update(app, message),
         SettingsMessage::Agents(_) => agents::update(app, message),
-        SettingsMessage::Staff(_) => staff::update(app, message),
         SettingsMessage::QuickMessages(_) => quick_messages::update(app, message),
         SettingsMessage::AgentConfigSaved { tag, result } => {
             if tag == "agent" {

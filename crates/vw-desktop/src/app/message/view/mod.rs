@@ -445,7 +445,6 @@ pub enum ViewMessage {
     /// 打开任务工作流管理面板
     OpenWorkflowManager,
     /// 打开任务工作流管理面板并切换到阶段能力
-    OpenWorkflowManagerStageActions,
     /// 打开最近使用的应用
     AppsOpenMostRecent,
     /// 应用中心搜索内容改变
@@ -866,7 +865,6 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::OpenKnowledge
         | ViewMessage::OpenWorkflowTool
         | ViewMessage::OpenWorkflowManager
-        | ViewMessage::OpenWorkflowManagerStageActions
         | ViewMessage::AppsOpenMostRecent
         | ViewMessage::AppsSearchChanged(_)
         | ViewMessage::OpenWebUrl(_)

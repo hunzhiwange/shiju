@@ -54,7 +54,7 @@ fn wake_agent_scheduler(
 }
 
 fn agent_scheduler_lifecycle_error(app: &crate::app::App) -> Option<String> {
-    let workflow_id = current_staff_workflow_id(app);
+    let workflow_id = app.task_board_settings.workflow_id.clone();
     task_workflow_by_id(&workflow_id)
         .is_none()
         .then(|| format!("Agent Scheduler 已阻塞：任务生命周期未加载: {workflow_id}"))
@@ -74,7 +74,7 @@ fn wake_agent_scheduler_after_registering_pending(
     let now_ms = crate::app::time::now_ms();
     let dispatch_mode = app.task_board_settings.agent_scheduler_dispatch_mode;
     let max_concurrent = Some(app.task_board_settings.max_concurrent.clamp(1, 10));
-    let workflow_id = current_staff_workflow_id(app);
+    let workflow_id = app.task_board_settings.workflow_id.clone();
     let pending_create_requests =
         agent_scheduler_wake_create_task_requests(&app.task_board_tasks, &workflow_id);
     iced::Task::perform(
@@ -248,7 +248,7 @@ pub(super) fn update(
                 send_agent_scheduler_command(
                     project_path.clone(),
                     task,
-                    current_staff_workflow_id(app),
+                    app.task_board_settings.workflow_id.clone(),
                 AgentSchedulerCommandKindDto::Merge,
                 app.task_board_settings.agent_scheduler_dispatch_mode,
                 None,
@@ -379,7 +379,7 @@ pub(super) fn update(
                     return send_agent_scheduler_command(
                         path,
                         task,
-                        current_staff_workflow_id(app),
+                        app.task_board_settings.workflow_id.clone(),
                         command,
                         app.task_board_settings.agent_scheduler_dispatch_mode,
                         Some(app.task_board_settings.max_concurrent.clamp(1, 10)),

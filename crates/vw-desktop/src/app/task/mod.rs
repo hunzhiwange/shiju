@@ -66,11 +66,6 @@ pub mod workflow;
 /// 提供任务的持久化存储、检索和查询功能。
 pub mod store;
 
-/// 任务看板员工模式模型与存储。
-///
-/// 提供员工名册、角色工作流和项目级配置的基础能力。
-pub mod staff;
-
 // =============================================================================
 // 重新导出：执行器相关类型和函数
 // =============================================================================
@@ -134,8 +129,6 @@ pub use models::{
     legacy_executor_to_task_acp_agent, normalize_task_acp_agent_input, normalize_task_model_input,
 };
 
-#[cfg(test)]
-pub(crate) use staff::models::TaskBoardStageAction;
 pub use workflow::{
     DEFAULT_TASK_WORKFLOW_ID, OwnedStatusDefinition, OwnedStatusTransition, OwnedTaskWorkflow,
     StatusOutcome, StatusRole, TaskStateMachine, TaskStatusDefinition, TaskStatusTransition,
@@ -147,21 +140,6 @@ pub use workflow::{
 pub(crate) use workflow::{
     register_runtime_task_workflow, replace_runtime_task_lifecycle_workflows_for_tests,
     reset_runtime_task_lifecycle_cache, runtime_task_lifecycle_cache_test_lock,
-};
-
-pub use staff::{
-    TaskBoardStaffAutoSchedulePlan, TaskBoardStaffAutoScheduleSkip, TaskBoardStaffCapability,
-    TaskBoardStaffCapabilityDraftField, TaskBoardStaffCapabilityKind,
-    TaskBoardStaffCapabilitySummary, TaskBoardStaffCapabilitySummaryKind, TaskBoardStaffCommand,
-    TaskBoardStaffCommandAction, TaskBoardStaffCommandError, TaskBoardStaffCommandQueue,
-    TaskBoardStaffCommandStatus, TaskBoardStaffConfig, TaskBoardStaffEvent, TaskBoardStaffMember,
-    TaskBoardStaffRole, TaskBoardStaffStatus, TaskBoardStageAssignment,
-    TaskBoardStageWorkflowBinding, TaskBoardWorkflowStage,
-    apply_task_board_staff_config_to_staff_config,
-    apply_task_board_staff_config_to_staff_config_for_workflow_id, build_staff_auto_schedule_plan,
-    task_board_staff_capabilities_from_gateway_response,
-    task_board_staff_capability_catalog_request, task_board_staff_config_from_staff_config,
-    task_board_staff_config_from_staff_config_for_workflow_id,
 };
 
 // =============================================================================

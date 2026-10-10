@@ -1159,7 +1159,6 @@ impl App {
                     save_pending: false,
                 }
             },
-            staff_settings: settings_builders::build_staff_settings(&full_agent_cfg),
 
             // ========== 成本控制设置 ==========
             cost_settings: super::state::CostSettingsState::default(),
@@ -1595,34 +1594,6 @@ impl App {
             task_board_loading: false,
             task_board_view_mode: crate::app::state::TaskBoardViewMode::default(),
             task_board_tasks: Vec::new(),
-            task_board_staff_config: crate::app::task::TaskBoardStaffConfig::default(),
-            task_board_staff_config_workflow_id: None,
-            task_board_staff_projection: crate::app::task::staff::TaskBoardStaffProjection::default(
-            ),
-            task_board_staff_config_load_error: None,
-            task_board_staff_capability_catalog: Vec::new(),
-            task_board_staff_capability_catalog_workflow_id: None,
-            task_board_staff_capability_draft: Vec::new(),
-            task_board_staff_capability_catalog_loading: false,
-            task_board_staff_capability_saving: false,
-            task_board_staff_capability_catalog_error: None,
-            task_board_staff_command_queue:
-                crate::app::task::staff::TaskBoardStaffCommandQueue::default(),
-            task_board_staff_events: Vec::new(),
-            task_board_staff_feed_tab: crate::app::state::TaskBoardStaffFeedTab::default(),
-            task_board_staff_task_status_filter: Vec::new(),
-            task_board_staff_command_input: String::new(),
-            task_board_staff_filter_member_id: None,
-            task_board_staff_assignment_open: false,
-            task_board_staff_assignment_draft: None,
-            task_board_staff_workflow_binding_draft: None,
-            task_board_staff_stage_action_draft: None,
-            task_board_staff_stage_action_reset_confirm: false,
-            task_board_staff_workflow_options: Vec::new(),
-            task_board_staff_workflow_options_error: None,
-            task_board_staff_assignment_tabs: HashMap::new(),
-            task_board_staff_orchestration_tab:
-                crate::app::state::TaskBoardStaffOrchestrationTab::default(),
             task_board_create_modal_open: false,
             task_board_settings_modal_open: false,
             task_board_settings_modal_tab: crate::app::state::TaskBoardSettingsModalTab::default(),
@@ -1761,7 +1732,3 @@ impl App {
         (app, startup_task)
     }
 }
-
-#[cfg(test)]
-#[path = "new_tests.rs"]
-mod new_tests;

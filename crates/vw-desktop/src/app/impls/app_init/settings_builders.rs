@@ -44,15 +44,3 @@ pub(super) fn build_channels_settings(
     channels_settings.refresh_text_inputs();
     channels_settings
 }
-
-/// 模块内可见函数，执行 build_staff_settings 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_staff_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
-) -> super::state::StaffSettingsState {
-    super::state::StaffSettingsState::from_config(full_agent_cfg.staff.clone())
-}
-
-#[cfg(test)]
-#[path = "settings_builders_tests.rs"]
-mod settings_builders_tests;

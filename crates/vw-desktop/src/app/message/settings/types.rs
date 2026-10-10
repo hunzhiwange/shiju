@@ -3,7 +3,6 @@
 use vw_shared::provider::types as model_provider;
 
 use crate::app::state::{ModelCatalogEntry, ProviderModelsSummary, ProviderSummary};
-use vw_config_types::staff::StaffConfig;
 
 /// 一项待持久化的模型启用状态变更。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,10 +49,6 @@ pub type HookMutationCompleted = Result<vw_gateway_client::HookMutationResponseD
 /// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
 pub type AgentsLoaded =
     Result<(Vec<ProviderSummary>, Vec<ProviderModelsSummary>, Vec<String>), String>;
-/// `StaffLoaded` 的加载结果类型。
-///
-/// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type StaffLoaded = Result<StaffConfig, String>;
 /// `DialogueFlowPermissionLoaded` 的加载结果类型。
 ///
 /// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。

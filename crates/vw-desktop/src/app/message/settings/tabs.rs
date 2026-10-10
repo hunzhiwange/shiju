@@ -1,16 +1,14 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
+use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
 use crate::app::{App, Message, components::system_settings::SystemTab};
-use crate::app::components::system_settings_search::{
-    StaffSettingsSearchTab, SystemSettingsSearchTarget,
-};
 use iced::Task;
 
 use super::messages::{
     AcpMessage, AgentConfigTabMessage, AgentsMessage, BrowserMessage, ChannelsMessage,
-    GatewayMessage, GeneralSettingsMessage, HttpRequestMessage, McpMessage, MemoryMessage,
-    HooksMessage, ModelConfigTabMessage, ModelRoutesMessage, RuntimeMessage, SettingsMessage, StaffMessage,
-    StaffResourceMessage, WebSearchMessage,
+    GatewayMessage, GeneralSettingsMessage, HooksMessage, HttpRequestMessage, McpMessage,
+    MemoryMessage, ModelConfigTabMessage, ModelRoutesMessage, RuntimeMessage, SettingsMessage,
+    WebSearchMessage,
 };
 use super::models::models_refresh_task;
 use super::providers::refresh_task;
@@ -92,20 +90,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     Task::done(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh))),
                     Task::done(Message::Settings(SettingsMessage::SkillsRefresh)),
                 ])
-            } else if tab == SystemTab::Staff {
-                app.staff_settings.loading = true;
-                app.staff_settings.save_error = None;
-                app.staff_settings.save_success = false;
-                app.agents_settings.loading = true;
-                app.skills_settings.loading = true;
-                Task::batch(vec![
-                    Task::done(Message::Settings(SettingsMessage::Staff(StaffMessage::Refresh))),
-                    Task::done(Message::Settings(SettingsMessage::Staff(StaffMessage::Resources(
-                        StaffResourceMessage::Refresh,
-                    )))),
-                    Task::done(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh))),
-                    Task::done(Message::Settings(SettingsMessage::SkillsRefresh)),
-                ])
             } else if tab == SystemTab::Browser {
                 app.browser_settings.save_error = None;
                 Task::done(Message::Settings(SettingsMessage::Browser(BrowserMessage::Refresh)))
@@ -143,7 +127,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 SystemSettingsSearchTarget::Agents(_)
                 | SystemSettingsSearchTarget::AgentMcp(_)
                 | SystemSettingsSearchTarget::AgentSkills(_) => SystemTab::Agents,
-                SystemSettingsSearchTarget::Staff(_) => SystemTab::Staff,
                 SystemSettingsSearchTarget::Channels(_) => SystemTab::Agents,
                 SystemSettingsSearchTarget::Memory(_) => SystemTab::Memory,
                 SystemSettingsSearchTarget::Autonomy(_) => SystemTab::Autonomy,
@@ -153,9 +136,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let mut tasks = vec![update(app, SettingsMessage::SystemTabSelected(parent))];
 
             let child_task = match target {
-                SystemSettingsSearchTarget::TopLevel(_) | SystemSettingsSearchTarget::Network(_) => {
-                    Task::none()
-                }
+                SystemSettingsSearchTarget::TopLevel(_)
+                | SystemSettingsSearchTarget::Network(_) => Task::none(),
                 SystemSettingsSearchTarget::General(tab) => super::general::update(
                     app,
                     SettingsMessage::General(GeneralSettingsMessage::TabSelected(tab)),
@@ -171,18 +153,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app,
                     SettingsMessage::AgentConfigTab(AgentConfigTabMessage::Selected(tab)),
                 ),
-                SystemSettingsSearchTarget::Staff(tab) => {
-                    let key = match tab {
-                        StaffSettingsSearchTab::Roster => "roster",
-                        StaffSettingsSearchTab::Capabilities => "capabilities",
-                        StaffSettingsSearchTab::Teams => "teams",
-                        StaffSettingsSearchTab::Workers => "workers",
-                    };
-                    super::staff::update(
-                        app,
-                        SettingsMessage::Staff(StaffMessage::TabChanged(key.to_string())),
-                    )
-                }
                 SystemSettingsSearchTarget::Channels(tab) => {
                     tasks.push(update(
                         app,
@@ -241,11 +211,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     models_refresh_task()
                 }
                 crate::app::state::ModelConfigTab::ModelRoutes
-                | crate::app::state::ModelConfigTab::QueryClassification => {
-                    Task::done(Message::Settings(SettingsMessage::ModelRoutes(
-                        ModelRoutesMessage::Refresh,
-                    )))
-                }
+                | crate::app::state::ModelConfigTab::QueryClassification => Task::done(
+                    Message::Settings(SettingsMessage::ModelRoutes(ModelRoutesMessage::Refresh)),
+                ),
                 crate::app::state::ModelConfigTab::Multimodal => {
                     app.multimodal_settings.save_error = None;
                     app.model_settings.loading = true;
@@ -285,9 +253,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 crate::app::state::AgentConfigTab::Runtime => {
                     app.runtime_settings.save_error = None;
-                    Task::done(Message::Settings(SettingsMessage::Runtime(
-                        RuntimeMessage::Refresh,
-                    )))
+                    Task::done(Message::Settings(SettingsMessage::Runtime(RuntimeMessage::Refresh)))
                 }
                 crate::app::state::AgentConfigTab::Reliability => Task::none(),
                 crate::app::state::AgentConfigTab::DialogueFlow => {
@@ -320,6 +286,3 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         _ => Task::none(),
     }
 }
-#[cfg(test)]
-#[path = "tabs_tests.rs"]
-mod tabs_tests;

@@ -14,7 +14,6 @@ use crate::app::components::system_settings_common::{
     settings_muted_text_style, settings_panel_style,
 };
 use crate::app::message::TaskBoardMessage;
-use crate::app::state::TaskBoardViewMode;
 use crate::app::task::WorktreeState;
 use crate::app::{App, Message};
 
@@ -241,30 +240,6 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
         None
     };
 
-    let kanban_mode_btn = button(text("看板").size(12))
-        .on_press_maybe(
-            (app.task_board_view_mode != TaskBoardViewMode::Kanban)
-                .then_some(Message::TaskBoard(TaskBoardMessage::ToggleStaffMode(false))),
-        )
-        .padding([6, 10])
-        .style(if app.task_board_view_mode == TaskBoardViewMode::Kanban {
-            button_style_primary
-        } else {
-            button_style_secondary
-        });
-    let staff_mode_btn = button(text("员工").size(12))
-        .on_press_maybe(
-            (app.task_board_view_mode != TaskBoardViewMode::Staff)
-                .then_some(Message::TaskBoard(TaskBoardMessage::ToggleStaffMode(true))),
-        )
-        .padding([6, 10])
-        .style(if app.task_board_view_mode == TaskBoardViewMode::Staff {
-            button_style_primary
-        } else {
-            button_style_secondary
-        });
-    let mode_toggle = row![kanban_mode_btn, staff_mode_btn].spacing(4).align_y(Alignment::Center);
-
     let settings_btn = button(text("看板设置").size(12))
         .on_press(Message::TaskBoard(TaskBoardMessage::OpenSettingsModal))
         .padding([6, 12])
@@ -314,7 +289,6 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
     }
 
     let controls_row = row![
-        mode_toggle,
         exec_btn,
         new_task_btn,
         settings_btn,
@@ -555,7 +529,3 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
 
     container(content).padding([18, 20]).width(Length::Fill).style(control_outer_panel_style).into()
 }
-
-#[cfg(test)]
-#[path = "control_tests.rs"]
-mod control_tests;

@@ -15,7 +15,7 @@ use vw_config_types::ui::{QuickMessageGroup, QuickMessageKind};
 use super::types::{
     AgentsLoaded, DialogueFlowPermissionLoaded, DialogueFlowUiSettingsLoaded, HookAuditLoaded,
     HookCatalogLoaded, HookMutationCompleted, ModelStatusChange, ModelsLoaded, PluginsLoaded,
-    ProvidersLoaded, SkillsLoaded, StaffLoaded,
+    ProvidersLoaded, SkillsLoaded,
 };
 
 /// Embedding 路由设置页消息。
@@ -580,101 +580,6 @@ pub enum AgentsMessage {
     MaxIterationsChanged(String, u32),
 }
 
-/// 员工配置设置页消息。
-#[derive(Debug, Clone)]
-pub enum StaffMessage {
-    Refresh,
-    Loaded(StaffLoaded),
-    Resources(StaffResourceMessage),
-    TabChanged(String),
-    SelectMember(String),
-    AddMemberRequested,
-    DeleteMemberRequested(String),
-    ResetDraftRequested,
-    MemberIdChanged(String, String),
-    MemberNameChanged(String, String),
-    MemberRoleChanged(String, String),
-    MemberLevelChanged(String, String),
-    MemberStatusChanged(String, String),
-    MemberEnabledToggled(String, bool),
-    MemberCapacityChanged(String, String),
-    MemberDelegateAgentChanged(String, Option<String>),
-    MemberAcpAgentChanged(String, Option<String>),
-    ChannelBindingAdded(String),
-    ChannelBindingRemoved(String, usize),
-    ChannelBindingChannelTypeChanged(String, usize, String),
-    ChannelBindingInstanceIdChanged(String, usize, String),
-    CapabilityAgenticToggled(String, bool),
-    CapabilityAllowedToolToggled(String, String, bool),
-    CapabilityAllowedSkillToggled(String, String, bool),
-    CapabilityMaxIterationsChanged(String, String),
-    CapabilityMaxParallelTasksChanged(String, String),
-    CapabilityMaxActiveMinutesChanged(String, String),
-    SaveRequested,
-    Saved(Result<(), String>),
-}
-
-/// 员工设置中的项目级 Worker 与 Team 资源消息。
-#[derive(Debug, Clone)]
-pub enum StaffResourceMessage {
-    Refresh,
-    WorkersLoaded(
-        Result<Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentWorkerDto>, String>,
-    ),
-    WorkerSelected(String),
-    WorkerNewRequested,
-    WorkerFieldChanged(StaffWorkerDraftField, String),
-    WorkerCapabilitiesChanged(
-        Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentCapabilityDto>,
-    ),
-    WorkerSaveRequested,
-    WorkerSaved(Result<vw_gateway_client::vw_api_types::agent_scheduler::AgentWorkerDto, String>),
-    TeamsLoaded(
-        Result<Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentTeamDto>, String>,
-    ),
-    TeamSelected(String),
-    TeamNewRequested,
-    TeamFieldChanged(StaffTeamDraftField, String),
-    TeamStatusChanged(vw_gateway_client::vw_api_types::agent_scheduler::AgentTeamStatusDto),
-    TeamMemberAdded(String),
-    TeamMemberRemoved(usize),
-    TeamMemberFieldChanged(usize, StaffTeamMemberDraftField, String),
-    TeamMemberReadyToggled(usize, bool),
-    TeamSaveRequested,
-    TeamSaved(Result<vw_gateway_client::vw_api_types::agent_scheduler::AgentTeamDto, String>),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum StaffWorkerDraftField {
-    WorkerId,
-    Runtime,
-    Deployment,
-    Model,
-    ModelProvider,
-    TeamId,
-    WorkerRole,
-    MatrixUserId,
-    RoomId,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum StaffTeamDraftField {
-    TeamId,
-    Name,
-    LeaderId,
-    TeamRoomId,
-    LeaderDmRoomId,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum StaffTeamMemberDraftField {
-    WorkerId,
-    RuntimeName,
-    Role,
-    RoomId,
-    MatrixUserId,
-}
-
 /// 聊天快捷消息设置消息。
 #[derive(Debug, Clone)]
 pub enum QuickMessagesMessage {
@@ -728,7 +633,6 @@ pub enum SettingsMessage {
     Tunnel(TunnelMessage),
     Themes(ThemesMessage),
     Agents(AgentsMessage),
-    Staff(StaffMessage),
     QuickMessages(QuickMessagesMessage),
     AgentConfigSaved {
         tag: &'static str,

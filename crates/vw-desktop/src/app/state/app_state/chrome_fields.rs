@@ -241,19 +241,3 @@
     pub(crate) project_edit_task_board_scheduler_tick_interval_seconds_input: String,
     /// 项目任务池自动执行 tick 间隔秒数输入
     pub(crate) project_edit_task_board_auto_promote_tick_interval_seconds_input: String,
-    /// 任务看板员工配置所属 workflow
-    pub(crate) task_board_staff_config_workflow_id: Option<String>,
-    /// 任务看板员工能力目录
-    pub(crate) task_board_staff_capability_catalog:
-        Vec<crate::app::task::staff::TaskBoardStaffCapability>,
-    /// 任务看板员工能力目录所属 workflow
-    pub(crate) task_board_staff_capability_catalog_workflow_id: Option<String>,
-    /// 任务看板员工能力目录编辑草稿
-    pub(crate) task_board_staff_capability_draft:
-        Vec<crate::app::task::staff::TaskBoardStaffCapability>,
-    /// 任务看板员工能力目录是否正在加载
-    pub(crate) task_board_staff_capability_catalog_loading: bool,
-    /// 任务看板员工能力目录是否正在保存
-    pub(crate) task_board_staff_capability_saving: bool,
-    /// 任务看板员工能力目录加载或保存错误
-    pub(crate) task_board_staff_capability_catalog_error: Option<String>,

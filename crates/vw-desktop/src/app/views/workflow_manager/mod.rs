@@ -1,7 +1,5 @@
 //! 管理任务生命周期工作流的列表、编辑、校验与保存界面。
 
-mod capabilities;
-
 use std::collections::HashSet;
 use std::fmt;
 
@@ -18,15 +16,6 @@ use crate::app::components::system_settings_common::{
     settings_pick_list_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::toast::confirm_dialog;
-use crate::app::message::TaskBoardMessage;
-#[cfg(test)]
-use crate::app::task::staff::models::TaskBoardStageAction;
-#[cfg(test)]
-use crate::app::task::staff::stage_capabilities::SAVED_WORKFLOW_CAPABILITY_ID;
-use crate::app::task::staff::stage_capabilities::StageCapability;
-use crate::app::task::staff::stage_capabilities::stage_capability_registry;
-#[cfg(test)]
-use crate::app::task::task_workflow_by_id;
 use crate::app::task::workflow::TaskWorkflowRegistry;
 use crate::app::task::{
     OwnedStatusDefinition, OwnedStatusTransition, OwnedTaskWorkflow, StatusOutcome, StatusRole,
@@ -34,8 +23,6 @@ use crate::app::task::{
     update_runtime_task_lifecycle_cache,
 };
 use crate::app::{App, Message};
-#[cfg(test)]
-use vw_gateway_client::WorkflowRecordSummary;
 use vw_gateway_client::vw_api_types::task_lifecycle::{
     TaskLifecycleStatusDto, TaskLifecycleStatusRoleDto, TaskLifecycleStatusTransitionDto,
     TaskLifecycleWorkflowDto, TaskLifecycleWorkflowUpsertBody,
@@ -60,7 +47,6 @@ pub enum WorkflowManagerMessage {
     CopyWorkflow(String),
     SelectTab(WorkflowManagerTab),
     ToggleStatusRoleHelp,
-    ToggleStageActionHelp,
     StartNew,
     StartEditSelected,
     DeleteSelected,
@@ -92,8 +78,6 @@ pub enum WorkflowManagerMessage {
 pub enum WorkflowManagerTab {
     #[default]
     LifecycleDefinition,
-    StageActions,
-    CapabilityManagement,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,7 +101,6 @@ pub struct WorkflowManagerState {
     pending_confirmation: Option<WorkflowManagerConfirmation>,
     active_tab: WorkflowManagerTab,
     show_status_role_help: bool,
-    show_stage_action_help: bool,
 }
 
 impl Default for WorkflowManagerState {
@@ -163,7 +146,6 @@ impl WorkflowManagerState {
             pending_confirmation: None,
             active_tab: WorkflowManagerTab::LifecycleDefinition,
             show_status_role_help: false,
-            show_stage_action_help: false,
         }
     }
 
@@ -206,10 +188,6 @@ impl WorkflowManagerState {
 
     pub fn status_role_help_visible(&self) -> bool {
         self.show_status_role_help
-    }
-
-    pub fn stage_action_help_visible(&self) -> bool {
-        self.show_stage_action_help
     }
 
     pub fn active_tab(&self) -> WorkflowManagerTab {
@@ -629,10 +607,6 @@ pub(crate) fn update(
             state.show_status_role_help = !state.show_status_role_help;
             false
         }
-        WorkflowManagerMessage::ToggleStageActionHelp => {
-            state.show_stage_action_help = !state.show_stage_action_help;
-            false
-        }
         WorkflowManagerMessage::StartNew => {
             state.active_tab = WorkflowManagerTab::LifecycleDefinition;
             state.draft = Some(WorkflowDraft::empty());
@@ -798,70 +772,10 @@ pub(crate) fn update(
 
 /// 更新应用中的工作流状态、刷新运行时缓存并派发网关副作用。
 pub fn update_app(app: &mut App, message: WorkflowManagerMessage) -> Task<Message> {
-    let selected_workflow_changed = matches!(message, WorkflowManagerMessage::SelectWorkflow(_));
-    let load_stage_workflow_options =
-        matches!(message, WorkflowManagerMessage::SelectTab(WorkflowManagerTab::StageActions));
-    let load_capability_catalog_for_tab = matches!(
-        message,
-        WorkflowManagerMessage::SelectTab(
-            WorkflowManagerTab::StageActions | WorkflowManagerTab::CapabilityManagement
-        )
-    );
     let mut registry = registry_from_runtime();
     let _changed = update(&mut app.workflow_manager, &mut registry, message);
-    let workflow_id = workflow_manager_stage_action_workflow_id(app);
-    let active_tab = app.workflow_manager.active_tab();
-    let reload_staff_config = load_stage_workflow_options
-        || (selected_workflow_changed && active_tab == WorkflowManagerTab::StageActions);
-    let capability_catalog_matches = app.task_board_staff_capability_catalog_workflow_id.as_deref()
-        == Some(workflow_id.as_str())
-        && !app.task_board_staff_capability_catalog.is_empty();
-    let load_capability_catalog = (load_capability_catalog_for_tab && !capability_catalog_matches)
-        || (selected_workflow_changed
-            && matches!(
-                active_tab,
-                WorkflowManagerTab::StageActions | WorkflowManagerTab::CapabilityManagement
-            ));
-    if reload_staff_config {
-        app.task_board_staff_config_load_error = None;
-    }
-    if load_capability_catalog {
-        app.task_board_staff_capability_catalog_error = None;
-    }
-    let stage_workflow_options_task = if load_stage_workflow_options {
-        Some(Task::done(Message::TaskBoard(TaskBoardMessage::LoadStaffStageWorkflowOptions)))
-    } else {
-        None
-    };
-    let staff_config_reload_task = if reload_staff_config {
-        Some(Task::done(Message::TaskBoard(TaskBoardMessage::ReloadStaffConfigForWorkflow {
-            workflow_id: workflow_id.clone(),
-        })))
-    } else {
-        None
-    };
-    let capability_catalog_task = if load_capability_catalog {
-        Some(Task::done(Message::TaskBoard(
-            TaskBoardMessage::LoadStaffCapabilityCatalogForWorkflow {
-                workflow_id: workflow_id.clone(),
-            },
-        )))
-    } else {
-        None
-    };
     if let Some(effect) = app.workflow_manager.take_pending_effect() {
-        let effect_task = workflow_manager_effect_task(effect);
-        let mut tasks = vec![effect_task];
-        if let Some(task) = stage_workflow_options_task {
-            tasks.push(task);
-        }
-        if let Some(task) = staff_config_reload_task {
-            tasks.push(task);
-        }
-        if let Some(task) = capability_catalog_task {
-            tasks.push(task);
-        }
-        return Task::batch(tasks);
+        return workflow_manager_effect_task(effect);
     }
     let feedback_task = if let Some(feedback) = app.workflow_manager.feedback().cloned() {
         if feedback.is_error() {
@@ -874,17 +788,7 @@ pub fn update_app(app: &mut App, message: WorkflowManagerMessage) -> Task<Messag
     } else {
         Task::none()
     };
-    let mut tasks = vec![feedback_task];
-    if let Some(task) = stage_workflow_options_task {
-        tasks.push(task);
-    }
-    if let Some(task) = staff_config_reload_task {
-        tasks.push(task);
-    }
-    if let Some(task) = capability_catalog_task {
-        tasks.push(task);
-    }
-    Task::batch(tasks)
+    feedback_task
 }
 
 fn registry_from_runtime() -> TaskWorkflowRegistry {
@@ -1382,7 +1286,7 @@ fn apply_lifecycle_workflow_cache(
 /// 构建工作流列表、编辑器、阶段动作页面及确认对话框。
 pub fn view(app: &App) -> Element<'_, Message> {
     let state = &app.workflow_manager;
-    let body = match state.active_tab {
+    let body: Element<'_, Message> = match state.active_tab {
         WorkflowManagerTab::LifecycleDefinition => {
             let list = build_workflow_list(state);
             let editor = build_editor(state);
@@ -1394,21 +1298,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Start)
             .into()
         }
-        WorkflowManagerTab::StageActions => build_stage_actions_view(app),
-        WorkflowManagerTab::CapabilityManagement => {
-            capabilities::build_capability_management_view(app)
-        }
     };
 
     let help_panel = match state.active_tab {
         WorkflowManagerTab::LifecycleDefinition if state.show_status_role_help => {
             status_role_help_panel()
-        }
-        WorkflowManagerTab::StageActions if state.show_stage_action_help => {
-            stage_action_help_panel()
-        }
-        WorkflowManagerTab::CapabilityManagement if state.show_stage_action_help => {
-            stage_action_help_panel()
         }
         _ => Space::new().height(Length::Shrink).into(),
     };
@@ -1418,14 +1312,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .padding([9, 14])
             .style(rounded_action_btn_style)
             .on_press(Message::WorkflowManager(WorkflowManagerMessage::ToggleStatusRoleHelp)),
-        WorkflowManagerTab::StageActions => button(text("阶段能力帮助").size(13))
-            .padding([9, 14])
-            .style(rounded_action_btn_style)
-            .on_press(Message::WorkflowManager(WorkflowManagerMessage::ToggleStageActionHelp)),
-        WorkflowManagerTab::CapabilityManagement => button(text("能力帮助").size(13))
-            .padding([9, 14])
-            .style(rounded_action_btn_style)
-            .on_press(Message::WorkflowManager(WorkflowManagerMessage::ToggleStageActionHelp)),
     };
 
     let header_actions = row![
@@ -1448,7 +1334,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 row![
                     column![
                         text("任务编排").size(20),
-                        text("生命周期定义负责状态与流向；阶段能力负责项目阶段执行动作。")
+                        text("生命周期定义负责状态与流向。")
                             .size(12)
                             .style(settings_muted_text_style),
                     ]
@@ -1531,12 +1417,6 @@ fn workflow_manager_tabs(active_tab: WorkflowManagerTab) -> Element<'static, Mes
         workflow_manager_tab_button(
             "生命周期定义",
             WorkflowManagerTab::LifecycleDefinition,
-            active_tab
-        ),
-        workflow_manager_tab_button("阶段能力", WorkflowManagerTab::StageActions, active_tab),
-        workflow_manager_tab_button(
-            "能力管理",
-            WorkflowManagerTab::CapabilityManagement,
             active_tab
         ),
     ]
@@ -1753,303 +1633,6 @@ fn build_workflow_view(workflow: TaskWorkflow) -> Element<'static, Message> {
     .into()
 }
 
-#[cfg(test)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct StageActionRow {
-    status: TaskStatus,
-    capability_id: Option<String>,
-    capability_label: String,
-    capability_options: Vec<StageActionCapabilityOption>,
-    workflow_summary: Option<String>,
-}
-
-#[cfg(test)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct StageActionCapabilityOption {
-    capability_id: Option<String>,
-    label: String,
-}
-
-#[cfg(test)]
-impl fmt::Display for StageActionCapabilityOption {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.label)
-    }
-}
-
-#[cfg(test)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct StageWorkflowOption {
-    uuid: Option<String>,
-    label: String,
-}
-
-#[cfg(test)]
-impl fmt::Display for StageWorkflowOption {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.label)
-    }
-}
-
-fn build_stage_actions_view(app: &App) -> Element<'_, Message> {
-    let workflow_id = workflow_manager_stage_action_workflow_id(app);
-    let workflow_list = build_workflow_list(&app.workflow_manager);
-    let orchestration = if !stage_actions_view_ready(app, &workflow_id) {
-        let detail = stage_actions_loading_detail(app, &workflow_id);
-        settings_panel(
-            column![
-                text("正在加载阶段能力").size(16),
-                text(detail).size(12).style(settings_muted_text_style),
-            ]
-            .spacing(8),
-        )
-        .height(Length::Fill)
-        .into()
-    } else {
-        match app.task_board_staff_config.clone().retarget_for_workflow_id(&workflow_id) {
-            Ok(config) => {
-                let save_message = Some(Message::TaskBoard(
-                    TaskBoardMessage::SaveStaffStageAssignmentForWorkflow {
-                        workflow_id: workflow_id.clone(),
-                    },
-                ));
-                crate::app::views::task_board::staff_mode::assignment::build_embedded_orchestration_panel(
-                app,
-                &config,
-                &workflow_id,
-                Length::Fill,
-                Length::Fill,
-                save_message,
-            )
-            }
-            Err(error) => settings_panel(
-                column![
-                    text("无法加载阶段编排").size(16),
-                    text(error).size(12).style(settings_muted_text_style),
-                ]
-                .spacing(8),
-            )
-            .height(Length::Fill)
-            .into(),
-        }
-    };
-
-    row![
-        container(workflow_list).width(Length::Fixed(340.0)).height(Length::Fill),
-        container(orchestration).width(Length::Fill).height(Length::Fill),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Start)
-    .into()
-}
-
-fn stage_actions_loading_detail<'a>(app: &'a App, workflow_id: &str) -> &'a str {
-    let config_error = (app.task_board_staff_config_workflow_id.as_deref() == Some(workflow_id))
-        .then(|| app.task_board_staff_config_load_error.as_deref())
-        .flatten();
-    let catalog_error = (app.task_board_staff_capability_catalog_workflow_id.as_deref()
-        == Some(workflow_id))
-    .then(|| app.task_board_staff_capability_catalog_error.as_deref())
-    .flatten();
-
-    config_error.or(catalog_error).unwrap_or("正在加载当前工作流的阶段编排与能力目录")
-}
-
-fn stage_actions_view_ready(app: &App, workflow_id: &str) -> bool {
-    app.task_board_staff_config_workflow_id.as_deref() == Some(workflow_id)
-        && app.task_board_staff_capability_catalog_workflow_id.as_deref() == Some(workflow_id)
-        && !app.task_board_staff_capability_catalog.is_empty()
-}
-
-fn workflow_manager_stage_action_workflow_id(app: &App) -> String {
-    app.workflow_manager
-        .selected_workflow_id()
-        .map(ToString::to_string)
-        .unwrap_or_else(|| app.task_board_settings.workflow_id.clone())
-}
-
-#[cfg(test)]
-fn stage_action_rows(
-    workflow_id: &str,
-    stage_actions: &[TaskBoardStageAction],
-    workflow_options: &[WorkflowRecordSummary],
-    _workflow_error: Option<&str>,
-) -> Vec<StageActionRow> {
-    let Some(workflow) = task_workflow_by_id(workflow_id) else {
-        return Vec::new();
-    };
-
-    workflow
-        .statuses
-        .iter()
-        .map(|definition| {
-            let action = stage_action_for_status(stage_actions, definition.status);
-            let capability_id = action
-                .map(|action| action.capability_id.trim())
-                .filter(|capability_id| !capability_id.is_empty())
-                .map(ToString::to_string);
-            let mut capability_options = stage_action_capability_options(definition.role);
-            ensure_selected_capability_option(&mut capability_options, capability_id.as_deref());
-            let workflow_uuid = action.and_then(|action| {
-                action
-                    .workflow_uuid
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|uuid| !uuid.is_empty())
-                    .map(ToString::to_string)
-            });
-            let workflow_options =
-                stage_workflow_options(workflow_options, workflow_uuid.as_deref());
-            let workflow_summary = if capability_id.as_deref() == Some(SAVED_WORKFLOW_CAPABILITY_ID)
-            {
-                stage_workflow_summary(&workflow_options, workflow_uuid.as_deref())
-            } else {
-                None
-            };
-            StageActionRow {
-                status: definition.status,
-                capability_label: stage_action_selected_label(capability_id.as_deref()),
-                capability_id,
-                capability_options,
-                workflow_summary,
-            }
-        })
-        .collect()
-}
-
-#[cfg(test)]
-fn stage_action_for_status(
-    actions: &[TaskBoardStageAction],
-    status: TaskStatus,
-) -> Option<&TaskBoardStageAction> {
-    actions.iter().find(|action| action.status == status && !action.capability_id.trim().is_empty())
-}
-
-#[cfg(test)]
-fn stage_action_capability_options(role: StatusRole) -> Vec<StageActionCapabilityOption> {
-    let mut options =
-        vec![StageActionCapabilityOption { capability_id: None, label: "未配置".to_string() }];
-    options.extend(
-        stage_capability_registry()
-            .all()
-            .iter()
-            .filter(|capability| capability.supported_roles.contains(&role))
-            .map(|capability| StageActionCapabilityOption {
-                capability_id: Some(capability.stable_id.to_string()),
-                label: stage_action_capability_label(capability),
-            }),
-    );
-    options
-}
-
-#[cfg(test)]
-fn ensure_selected_capability_option(
-    options: &mut Vec<StageActionCapabilityOption>,
-    capability_id: Option<&str>,
-) {
-    let Some(capability_id) = capability_id else {
-        return;
-    };
-    if options.iter().any(|option| option.capability_id.as_deref() == Some(capability_id)) {
-        return;
-    }
-    options.push(StageActionCapabilityOption {
-        capability_id: Some(capability_id.to_string()),
-        label: stage_action_selected_label(Some(capability_id)),
-    });
-}
-
-fn stage_action_capability_label(capability: &StageCapability) -> String {
-    format!("{} ({})", capability.label, capability.stable_id)
-}
-
-#[cfg(test)]
-fn stage_action_capability_select_message(
-    status: TaskStatus,
-    capability_id: Option<String>,
-) -> Message {
-    Message::TaskBoard(TaskBoardMessage::SelectStaffStageActionCapability { status, capability_id })
-}
-
-#[cfg(test)]
-fn stage_action_selected_label(capability_id: Option<&str>) -> String {
-    let Some(capability_id) = capability_id else {
-        return "未配置".to_string();
-    };
-    selected_stage_capability(capability_id)
-        .map(stage_action_capability_label)
-        .unwrap_or_else(|| format!("不支持的阶段能力 ({capability_id})"))
-}
-
-#[cfg(test)]
-fn selected_stage_capability(capability_id: &str) -> Option<&'static StageCapability> {
-    stage_capability_registry()
-        .all()
-        .iter()
-        .find(|capability| capability.stable_id == capability_id)
-}
-
-#[cfg(test)]
-fn stage_workflow_options(
-    workflow_options: &[WorkflowRecordSummary],
-    selected_workflow_uuid: Option<&str>,
-) -> Vec<StageWorkflowOption> {
-    let mut options =
-        vec![StageWorkflowOption { uuid: None, label: "未选择 Workflow".to_string() }];
-    options.extend(workflow_options.iter().map(|record| StageWorkflowOption {
-        uuid: Some(record.uuid.clone()),
-        label: stage_workflow_option_label(record),
-    }));
-
-    if let Some(selected_workflow_uuid) = selected_workflow_uuid
-        && !options.iter().any(|option| option.uuid.as_deref() == Some(selected_workflow_uuid))
-    {
-        options.push(StageWorkflowOption {
-            uuid: Some(selected_workflow_uuid.to_string()),
-            label: format!("已绑定 {selected_workflow_uuid}"),
-        });
-    }
-
-    options
-}
-
-#[cfg(test)]
-fn stage_workflow_option_label(record: &WorkflowRecordSummary) -> String {
-    let name = record.name.trim();
-    if name.is_empty() { record.uuid.clone() } else { format!("{name} · {}", record.uuid) }
-}
-
-#[cfg(test)]
-fn stage_workflow_selected_option(
-    options: &[StageWorkflowOption],
-    workflow_uuid: Option<&str>,
-) -> Option<StageWorkflowOption> {
-    options
-        .iter()
-        .find(|option| option.uuid.as_deref() == workflow_uuid)
-        .cloned()
-        .or_else(|| options.first().cloned())
-}
-
-#[cfg(test)]
-fn stage_workflow_summary(
-    options: &[StageWorkflowOption],
-    workflow_uuid: Option<&str>,
-) -> Option<String> {
-    if workflow_uuid.is_some() {
-        stage_workflow_selected_option(options, workflow_uuid).map(|option| option.label)
-    } else {
-        Some("未选择 Workflow UUID".to_string())
-    }
-}
-
-#[derive(Debug, Clone)]
-struct WorkflowRouteView {
-    outcome: StatusOutcome,
-    label: String,
-    target_label: String,
-    target_key: String,
-}
 
 fn build_workflow_status_view(
     index: usize,
@@ -2111,6 +1694,14 @@ fn build_workflow_status_view(
         }
     })
     .into()
+}
+
+#[derive(Debug, Clone)]
+struct WorkflowRouteView {
+    outcome: StatusOutcome,
+    label: String,
+    target_label: String,
+    target_key: String,
 }
 
 fn route_badge(route: WorkflowRouteView) -> Element<'static, Message> {
@@ -2204,47 +1795,6 @@ fn status_role_help_panel() -> Element<'static, Message> {
     .into()
 }
 
-fn stage_action_help_panel() -> Element<'static, Message> {
-    let mut rows = column![].spacing(8);
-    for definition in stage_action_help_definitions() {
-        rows = rows.push(
-            row![
-                container(text(definition.title).size(12)).width(Length::Fixed(190.0)),
-                text(definition.description)
-                    .size(12)
-                    .style(settings_muted_text_style)
-                    .width(Length::Fill),
-            ]
-            .spacing(10)
-            .align_y(Alignment::Center),
-        );
-    }
-
-    settings_panel(
-        column![
-            row![
-                column![
-                    text("阶段能力如何执行").size(15),
-                    text("生命周期定义描述状态和结果边，阶段能力描述项目阶段实际运行的动作。")
-                        .size(12)
-                        .style(settings_muted_text_style),
-                ]
-                .spacing(4),
-                Space::new().width(Length::Fill),
-                button(text("收起").size(12))
-                    .padding([7, 10])
-                    .style(rounded_action_btn_style)
-                    .on_press(Message::WorkflowManager(
-                        WorkflowManagerMessage::ToggleStageActionHelp
-                    )),
-            ]
-            .align_y(Alignment::Center),
-            rows,
-        ]
-        .spacing(12),
-    )
-    .into()
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct StatusRoleHelpDefinition {
@@ -2253,11 +1803,6 @@ struct StatusRoleHelpDefinition {
     description: &'static str,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct StageActionHelpDefinition {
-    title: String,
-    description: String,
-}
 
 fn status_role_help_definitions() -> Vec<StatusRoleHelpDefinition> {
     StatusRoleOption::all()
@@ -2290,44 +1835,6 @@ fn role_scheduler_description(role: StatusRole) -> &'static str {
     }
 }
 
-fn stage_action_help_definitions() -> Vec<StageActionHelpDefinition> {
-    let mut definitions = vec![
-        StageActionHelpDefinition {
-            title: "调度关系".to_string(),
-            description:
-                "StatusRole 决定能不能调度，阶段能力决定具体执行；项目 stage_actions 只在对应阶段被调度后生效。"
-                    .to_string(),
-        },
-        StageActionHelpDefinition {
-            title: "入参契约".to_string(),
-            description:
-                "阶段能力只接收必要上下文，例如任务摘要、阶段 key、成员、优先级和显式 Workflow UUID。"
-                    .to_string(),
-        },
-        StageActionHelpDefinition {
-            title: "结果契约".to_string(),
-            description:
-                "能力产出的结果映射到生命周期边；内置 succeed/failed 结果保持稳定，自定义结果由 workflow 定义。"
-                    .to_string(),
-        },
-        StageActionHelpDefinition {
-            title: "安全边界".to_string(),
-            description:
-                "内置代码能力是标准能力，已保存 Workflow 是业务自定义能力；两者都只传递最小安全上下文，不记录密钥或原始令牌。"
-                    .to_string(),
-        },
-    ];
-    definitions.extend(stage_capability_registry().all().iter().map(|capability| {
-        StageActionHelpDefinition {
-            title: stage_action_capability_label(capability),
-            description: format!(
-                "入参：{}；结果：{}；权限：{}",
-                capability.input_contract, capability.result_semantics, capability.permission_hint
-            ),
-        }
-    }));
-    definitions
-}
 
 fn build_draft_editor(draft: &WorkflowDraft) -> Element<'_, Message> {
     let mut status_rows = column![].spacing(10);
@@ -2721,7 +2228,3 @@ impl fmt::Display for NextStatusOption {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "mod_tests.rs"]
-mod mod_tests;

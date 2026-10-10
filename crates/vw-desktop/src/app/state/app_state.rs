@@ -12,7 +12,6 @@ use super::*;
 pub enum TaskBoardViewMode {
     #[default]
     Kanban,
-    Staff,
 }
 
 /// 聊天面板主体的瞬时显示模式。
@@ -854,8 +853,6 @@ pub struct App {
     pub(crate) gateway_client_settings: GatewayClientSettingsState,
     /// 委托代理设置状态
     pub(crate) agents_settings: AgentsSettingsState,
-    /// 员工配置设置状态
-    pub(crate) staff_settings: StaffSettingsState,
     /// 成本控制设置状态
     pub(crate) cost_settings: CostSettingsState,
     /// 记忆系统设置状态
@@ -1116,60 +1113,6 @@ pub struct App {
     pub task_board_view_mode: TaskBoardViewMode,
     /// 任务看板任务列表
     pub task_board_tasks: Vec<crate::app::task::Task>,
-    /// 任务看板员工配置
-    pub task_board_staff_config: crate::app::task::TaskBoardStaffConfig,
-    /// 任务看板员工配置所属 workflow
-    pub task_board_staff_config_workflow_id: Option<String>,
-    /// 任务看板员工投影
-    pub task_board_staff_projection: crate::app::task::staff::TaskBoardStaffProjection,
-    /// 任务看板员工配置加载错误
-    pub task_board_staff_config_load_error: Option<String>,
-    /// 任务看板员工能力目录
-    pub task_board_staff_capability_catalog: Vec<crate::app::task::staff::TaskBoardStaffCapability>,
-    /// 任务看板员工能力目录所属 workflow
-    pub task_board_staff_capability_catalog_workflow_id: Option<String>,
-    /// 任务看板员工能力目录编辑草稿
-    pub task_board_staff_capability_draft: Vec<crate::app::task::staff::TaskBoardStaffCapability>,
-    /// 任务看板员工能力目录是否正在加载
-    pub task_board_staff_capability_catalog_loading: bool,
-    /// 任务看板员工能力目录是否正在保存
-    pub task_board_staff_capability_saving: bool,
-    /// 任务看板员工能力目录加载或保存错误
-    pub task_board_staff_capability_catalog_error: Option<String>,
-    /// 任务看板员工命令队列
-    pub task_board_staff_command_queue: crate::app::task::staff::TaskBoardStaffCommandQueue,
-    /// 任务看板员工事件流
-    pub task_board_staff_events: Vec<crate::app::task::staff::TaskBoardStaffEvent>,
-    /// 任务看板员工任务流当前标签页
-    pub task_board_staff_feed_tab: TaskBoardStaffFeedTab,
-    /// 任务看板员工任务状态筛选
-    pub task_board_staff_task_status_filter: Vec<crate::app::task::TaskStatus>,
-    /// 任务看板员工工作流输入
-    pub task_board_staff_command_input: String,
-    /// 任务看板员工模式当前筛选的成员 ID
-    pub task_board_staff_filter_member_id: Option<String>,
-    /// 任务看板员工阶段分配面板是否打开
-    pub task_board_staff_assignment_open: bool,
-    /// 任务看板员工阶段分配编辑草稿
-    pub task_board_staff_assignment_draft:
-        Option<Vec<crate::app::task::staff::TaskBoardStageAssignment>>,
-    /// 任务看板员工阶段 Workflow 绑定编辑草稿
-    pub task_board_staff_workflow_binding_draft:
-        Option<Vec<crate::app::task::staff::TaskBoardStageWorkflowBinding>>,
-    /// 任务看板员工阶段能力动作编辑草稿
-    pub task_board_staff_stage_action_draft:
-        Option<Vec<crate::app::task::staff::models::TaskBoardStageAction>>,
-    /// 任务看板员工阶段能力重置是否等待二次确认
-    pub task_board_staff_stage_action_reset_confirm: bool,
-    /// 任务看板员工阶段可绑定的已保存 Workflow
-    pub task_board_staff_workflow_options: Vec<vw_gateway_client::WorkflowRecordSummary>,
-    /// 任务看板员工阶段 Workflow 列表加载错误
-    pub task_board_staff_workflow_options_error: Option<String>,
-    /// 任务看板员工阶段分配各状态当前选择标签页
-    pub task_board_staff_assignment_tabs:
-        HashMap<crate::app::task::TaskStatus, TaskBoardStaffAssignmentTab>,
-    /// 任务看板员工阶段责任编排当前选择标签页
-    pub task_board_staff_orchestration_tab: TaskBoardStaffOrchestrationTab,
     /// 任务看板创建对话框是否打开
     pub task_board_create_modal_open: bool,
     /// 任务看板草稿

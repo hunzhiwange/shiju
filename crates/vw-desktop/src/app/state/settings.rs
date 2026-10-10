@@ -21,8 +21,6 @@ mod channels;
 mod infrastructure;
 mod provider_model;
 mod runtime;
-mod staff;
-mod staff_resources;
 
 /// 对外暴露当前模块需要复用的能力。
 pub(crate) use agents::*;
@@ -35,9 +33,6 @@ pub(crate) use provider_model::*;
 /// 对外暴露当前模块需要复用的能力。
 pub(crate) use runtime::*;
 /// 对外暴露当前模块需要复用的能力。
-pub(crate) use staff::*;
-/// 对外暴露员工资源状态。
-pub(crate) use staff_resources::*;
 
 #[cfg(test)]
 #[path = "settings_tests.rs"]

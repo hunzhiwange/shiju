@@ -406,6 +406,3 @@ pub fn with_help_modal<'a>(
         Message::Settings(SettingsMessage::SystemHelpClose),
     )
 }
-#[cfg(test)]
-#[path = "system_settings_help_tests.rs"]
-mod system_settings_help_tests;

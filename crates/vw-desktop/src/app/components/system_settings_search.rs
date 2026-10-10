@@ -10,15 +10,6 @@ use crate::app::state::{
     SkillsSettingsTab,
 };
 
-/// 人员设置页签的稳定搜索身份，避免搜索层依赖其私有界面状态。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StaffSettingsSearchTab {
-    Roster,
-    Capabilities,
-    Teams,
-    Workers,
-}
-
 /// 系统设置搜索结果对应的稳定强类型跳转目标。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemSettingsSearchTarget {
@@ -27,7 +18,6 @@ pub enum SystemSettingsSearchTarget {
     Models(ModelConfigTab),
     Cron(CronSettingsTab),
     Agents(AgentConfigTab),
-    Staff(StaffSettingsSearchTab),
     Channels(ChannelsSettingsTab),
     Memory(MemorySettingsTab),
     Autonomy(AutonomySettingsTab),
@@ -105,7 +95,6 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
         system_settings_cron, system_settings_gateway, system_settings_general,
         system_settings_mcp, system_settings_memory, system_settings_models,
         system_settings_network, system_settings_security, system_settings_skills,
-        system_settings_staff,
     };
 
     let mut entries = SystemTab::all()
@@ -137,7 +126,6 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     extend_tabs!(system_settings_models::MODEL_TABS, "模型", Models);
     extend_tabs!(system_settings_cron::CRON_TABS, "定时任务", Cron);
     extend_tabs!(system_settings_agents::AGENT_CONFIG_TABS, "智能体", Agents);
-    extend_tabs!(system_settings_staff::search_tabs(), "员工配置", Staff);
     let channel_tabs = system_settings_channels::channel_tab_descriptors();
     extend_tabs!(channel_tabs, "智能体 / 通道", Channels);
     extend_tabs!(system_settings_memory::MEMORY_TABS, "记忆配置", Memory);

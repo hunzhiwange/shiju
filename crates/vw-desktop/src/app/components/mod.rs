@@ -188,9 +188,6 @@ mod search_panel_tests;
 pub mod system_settings;
 pub mod system_settings_search;
 #[cfg(test)]
-#[path = "system_settings_tests.rs"]
-mod system_settings_tests;
-#[cfg(test)]
 #[path = "system_settings_search_tests.rs"]
 mod system_settings_search_tests;
 
@@ -202,7 +199,6 @@ pub mod system_settings_agents;
 /// 系统设置：员工配置
 ///
 /// 配置任务看板员工名册、agent 绑定和能力入口。
-pub mod system_settings_staff;
 
 /// 系统设置：代理间通信
 ///

@@ -47,8 +47,7 @@ pub(super) fn update(
         let mut task_to_persist: Option<Task> = None;
         let mut should_recycle_worktree = false;
         let mut recycle_reason: Option<String> = None;
-        let mut handoff: Option<(Task, TaskStatus, TaskStatus)> = None;
-        let mut staff_handoff_task = iced::Task::none();
+        let staff_handoff_task = iced::Task::none();
         let mut should_schedule_auto_review_tick = false;
             if let Some(task) = app.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
                 for log in final_logs {
@@ -58,7 +57,6 @@ pub(super) fn update(
             if task.status != TaskStatus::Running && !late_success_after_timeout {
                 task.add_log("任务状态已变化，忽略本次执行结果".to_string());
             } else {
-                let from_status = task.status;
                 match result {
                     Ok(output) => {
                         if late_success_after_timeout {
@@ -103,7 +101,6 @@ pub(super) fn update(
                             should_schedule_auto_review_tick = true;
                         }
                         if matches!(task.status, TaskStatus::CodeReview | TaskStatus::PrSubmitted) {
-                            handoff = Some((task.clone(), from_status, task.status));
                         }
                     }
                     Err(error) => {
@@ -119,11 +116,6 @@ pub(super) fn update(
                 }
             }
             task_to_persist = Some(task.clone());
-        }
-        if let Some((task, from_status, to_status)) = handoff {
-            staff_handoff_task =
-                staff_messages_update::maybe_record_task_handoff_message(app, &task, from_status, to_status);
-            task_to_persist = app.task_board_tasks.iter().find(|task| task.id == task_id).cloned();
         }
         if should_recycle_worktree {
             if let Some(task) = app.task_board_tasks.iter_mut().find(|task| task.id == task_id) {
@@ -168,8 +160,7 @@ pub(super) fn update(
         let mut task_to_persist: Option<Task> = None;
         let mut should_recycle_worktree = false;
         let mut recycle_reason: Option<String> = None;
-        let mut handoff: Option<(Task, TaskStatus, TaskStatus)> = None;
-        let mut staff_handoff_task = iced::Task::none();
+        let staff_handoff_task = iced::Task::none();
         if let Some(task) = app.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
             for log in final_logs {
                 append_task_log_stream(task, &log);
@@ -177,7 +168,6 @@ pub(super) fn update(
             if task.status != TaskStatus::CodeReview {
                 task.add_log("任务状态已变化，忽略本次审核结果".to_string());
             } else {
-                let from_status = task.status;
                 match result {
                     Ok(output) => {
                         let review_output = output.trim().to_string();
@@ -205,7 +195,6 @@ pub(super) fn update(
                                             TaskStatus::PrSubmitted,
                                             crate::app::task::TaskTransitionIntent::ReviewApproved,
                                         );
-                                        handoff = Some((task.clone(), from_status, task.status));
                                     }
                                     Err(reason) => {
                                         task.mark_paused(reason);
@@ -235,11 +224,6 @@ pub(super) fn update(
                 }
             }
             task_to_persist = Some(task.clone());
-        }
-        if let Some((task, from_status, to_status)) = handoff {
-            staff_handoff_task =
-                staff_messages_update::maybe_record_task_handoff_message(app, &task, from_status, to_status);
-            task_to_persist = app.task_board_tasks.iter().find(|task| task.id == task_id).cloned();
         }
         if should_recycle_worktree {
             if let Some(task) = app.task_board_tasks.iter_mut().find(|task| task.id == task_id) {
@@ -284,8 +268,7 @@ pub(super) fn update(
         let mut merge_succeeded = false;
         let mut recycle_reason: Option<String> = None;
         let mut task_to_persist: Option<Task> = None;
-        let mut handoff: Option<(Task, TaskStatus, TaskStatus)> = None;
-        let mut staff_handoff_task = iced::Task::none();
+        let staff_handoff_task = iced::Task::none();
         if let Some(task) = app.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
             for log in final_logs {
                 append_task_log_stream(task, &log);
@@ -298,7 +281,6 @@ pub(super) fn update(
             if task.status != TaskStatus::PrSubmitted && !late_success_after_timeout {
                 task.add_log("任务状态已变化，忽略本次合并结果".to_string());
             } else {
-                let from_status = task.status;
                 match result {
                     Ok(output) => {
                         if late_success_after_timeout {
@@ -324,7 +306,6 @@ pub(super) fn update(
                             task.mark_paused("合并成功但状态机拒绝进入任务完成".to_string());
                         } else {
                             merge_succeeded = true;
-                            handoff = Some((task.clone(), from_status, task.status));
                         }
                     }
                     Err(error) => {
@@ -344,11 +325,6 @@ pub(super) fn update(
                 }
             }
             task_to_persist = Some(task.clone());
-        }
-        if let Some((task, from_status, to_status)) = handoff {
-            staff_handoff_task =
-                staff_messages_update::maybe_record_task_handoff_message(app, &task, from_status, to_status);
-            task_to_persist = app.task_board_tasks.iter().find(|task| task.id == task_id).cloned();
         }
         sync_viewing_logs(app, &task_id);
         if !merge_succeeded && !app.task_board_manual_merge_queue.is_empty() {

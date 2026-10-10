@@ -21,7 +21,6 @@
 //! - **心跳配置 (Heartbeat)**：心跳检测设置
 //! - **定时任务配置 (Cron)**：定时任务配置
 //! - **智能体配置 (Agents)**：智能体、对话流、快捷消息与心跳配置
-//! - **员工配置 (Staff)**：任务看板员工名册、绑定和能力配置
 //! - 智能体配置内的 **通道** 标签：CLI 与多通道消息集成配置
 //! - **记忆配置 (Memory)**：记忆后端、缓存和嵌入检索配置
 //! - 智能体配置内的 **运行时** 标签：native/docker/wasm 运行时配置
@@ -63,7 +62,6 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Shadow, Vector
 /// - `Heartbeat` - 心跳设置，配置心跳检测参数
 /// - `Cron` - Cron 设置，配置定时任务
 /// - `Agents` - Agents 设置，配置 researcher / coder / reviewer 等委托代理
-/// - `Staff` - 员工配置，配置任务看板员工名册、绑定和能力
 /// - `Reliability` - 可靠性设置，配置容错与恢复机制
 /// - `Channels` - 通道设置，配置 CLI 与外部消息通道
 /// - `Memory` - 记忆设置，配置记忆后端和向量检索参数
@@ -100,8 +98,6 @@ pub enum SystemTab {
     Cron,
     /// 智能体配置标签页
     Agents,
-    /// 员工配置标签页
-    Staff,
     /// 通道配置标签页
     Channels,
     /// 记忆配置标签页
@@ -143,7 +139,6 @@ impl SystemTab {
             SystemTab::Models => "模型",
             SystemTab::Cron => "定时任务",
             SystemTab::Agents => "智能体",
-            SystemTab::Staff => "员工配置",
             SystemTab::Channels => "通道配置",
             SystemTab::Memory => "记忆配置",
             SystemTab::Runtime => "运行时配置",
@@ -174,13 +169,12 @@ impl SystemTab {
     ///     println!("{}", tab);
     /// }
     /// ```
-    pub(super) fn all() -> [SystemTab; 15] {
+    pub(super) fn all() -> [SystemTab; 14] {
         [
             SystemTab::General,
             SystemTab::Providers,
             SystemTab::Models,
             SystemTab::Agents,
-            SystemTab::Staff,
             SystemTab::Cron,
             SystemTab::Memory,
             SystemTab::Projects,
@@ -238,7 +232,6 @@ pub(super) fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
         SystemTab::Models => &["models", "llm", "ai", "provider"],
         SystemTab::Cron => &["cron", "schedule", "task", "自动化"],
         SystemTab::Agents => &["agents", "subagent", "智能体"],
-        SystemTab::Staff => &["staff", "员工"],
         SystemTab::Channels => &["channels", "message", "通道"],
         SystemTab::Memory => &["memory", "记忆"],
         SystemTab::Runtime => &["runtime", "native", "docker", "wasm", "运行时"],
@@ -293,7 +286,6 @@ pub(super) fn system_tab_matches_query(tab: SystemTab, query: &str) -> bool {
                 || descriptors_match(super::system_settings_mcp::MCP_TABS, &needle)
                 || descriptors_match(super::system_settings_skills::SKILLS_TABS, &needle)
         }
-        SystemTab::Staff => descriptors_match(super::system_settings_staff::search_tabs(), &needle),
         SystemTab::Channels => {
             descriptors_match(&super::system_settings_channels::channel_tab_descriptors(), &needle)
         }
@@ -334,7 +326,6 @@ fn search_target_parent_tab(target: SystemSettingsSearchTarget) -> SystemTab {
         SystemSettingsSearchTarget::Agents(_)
         | SystemSettingsSearchTarget::AgentMcp(_)
         | SystemSettingsSearchTarget::AgentSkills(_) => SystemTab::Agents,
-        SystemSettingsSearchTarget::Staff(_) => SystemTab::Staff,
         SystemSettingsSearchTarget::Channels(_) => SystemTab::Agents,
         SystemSettingsSearchTarget::Memory(_) => SystemTab::Memory,
         SystemSettingsSearchTarget::Autonomy(_) => SystemTab::Autonomy,
@@ -344,10 +335,7 @@ fn search_target_parent_tab(target: SystemSettingsSearchTarget) -> SystemTab {
     }
 }
 
-pub(super) fn search_results(
-    app: &App,
-    query: &str,
-) -> Vec<SystemSettingsSearchEntry> {
+pub(super) fn search_results(app: &App, query: &str) -> Vec<SystemSettingsSearchEntry> {
     let query = query.trim();
     let mut results = crate::app::components::system_settings_search::catalog(app)
         .into_iter()
@@ -368,8 +356,6 @@ pub(super) fn search_results(
 }
 
 fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> bool {
-    use crate::app::components::system_settings_search::StaffSettingsSearchTab;
-
     match target {
         SystemSettingsSearchTarget::TopLevel(tab) => {
             tab == app.system_settings_tab
@@ -388,16 +374,6 @@ fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> boo
             app.system_settings_tab == SystemTab::Agents
                 && app.agents_settings.active_config_tab == tab
         }
-        SystemSettingsSearchTarget::Staff(tab) => {
-            let key = match tab {
-                StaffSettingsSearchTab::Roster => "roster",
-                StaffSettingsSearchTab::Capabilities => "capabilities",
-                StaffSettingsSearchTab::Teams => "teams",
-                StaffSettingsSearchTab::Workers => "workers",
-            };
-            app.system_settings_tab == SystemTab::Staff
-                && app.staff_settings.active_tab.key() == key
-        }
         SystemSettingsSearchTarget::Channels(tab) => {
             app.system_settings_tab == SystemTab::Agents
                 && app.agents_settings.active_config_tab
@@ -408,10 +384,12 @@ fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> boo
             app.system_settings_tab == SystemTab::Memory && app.memory_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::Autonomy(tab) => {
-            app.system_settings_tab == SystemTab::Autonomy && app.autonomy_settings.active_tab == tab
+            app.system_settings_tab == SystemTab::Autonomy
+                && app.autonomy_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::Security(tab) => {
-            app.system_settings_tab == SystemTab::Security && app.security_settings.active_tab == tab
+            app.system_settings_tab == SystemTab::Security
+                && app.security_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::Gateway(tab) => {
             app.system_settings_tab == SystemTab::Gateway && app.gateway_settings.active_tab == tab
@@ -419,8 +397,7 @@ fn search_target_is_active(app: &App, target: SystemSettingsSearchTarget) -> boo
         SystemSettingsSearchTarget::Network(tab) => app.system_settings_tab == tab,
         SystemSettingsSearchTarget::AgentMcp(tab) => {
             app.system_settings_tab == SystemTab::Agents
-                && app.agents_settings.active_config_tab
-                    == crate::app::state::AgentConfigTab::Mcp
+                && app.agents_settings.active_config_tab == crate::app::state::AgentConfigTab::Mcp
                 && app.mcp_settings.active_tab == tab
         }
         SystemSettingsSearchTarget::AgentSkills(tab) => {
@@ -485,7 +462,9 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
             crate::app::state::AgentConfigTab::Channels => {
                 app.channels_settings.save_error.as_deref()
             }
-            crate::app::state::AgentConfigTab::Runtime => app.runtime_settings.save_error.as_deref(),
+            crate::app::state::AgentConfigTab::Runtime => {
+                app.runtime_settings.save_error.as_deref()
+            }
             crate::app::state::AgentConfigTab::Heartbeat => {
                 app.heartbeat_settings.save_error.as_deref()
             }
@@ -499,7 +478,6 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
             crate::app::state::AgentConfigTab::DialogueFlow
             | crate::app::state::AgentConfigTab::QuickMessages => None,
         },
-        SystemTab::Staff => app.staff_settings.save_error.as_deref(),
         SystemTab::Channels => app.channels_settings.save_error.as_deref(),
         SystemTab::Memory => match app.memory_settings.active_tab {
             crate::app::state::MemorySettingsTab::Storage => {
@@ -534,7 +512,6 @@ pub(super) fn tabbed_page_owns_save_error(active_tab: SystemTab) -> bool {
         SystemTab::Models
             | SystemTab::Cron
             | SystemTab::Agents
-            | SystemTab::Staff
             | SystemTab::Channels
             | SystemTab::Memory
             | SystemTab::Autonomy
@@ -733,7 +710,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         SystemTab::Models => crate::app::components::system_settings_models::view(app),
         SystemTab::Cron => crate::app::components::system_settings_cron::view(app),
         SystemTab::Agents => crate::app::components::system_settings_agents::view(app),
-        SystemTab::Staff => crate::app::components::system_settings_staff::view(app),
         SystemTab::Channels => crate::app::components::system_settings_channels::view(app),
         SystemTab::Memory => crate::app::components::system_settings_memory::view(app),
         SystemTab::Runtime => crate::app::components::system_settings_runtime::view(app),
@@ -751,9 +727,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         | SystemTab::HttpRequest
         | SystemTab::Browser
         | SystemTab::Proxy
-        | SystemTab::Tunnel => {
-            crate::app::components::system_settings_network::view(app)
-        }
+        | SystemTab::Tunnel => crate::app::components::system_settings_network::view(app),
     };
 
     // 左侧返回按钮和右侧关闭按钮执行相同的关闭操作
@@ -846,7 +820,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     content_with_help = content_with_help.push(content);
 
                     let content_panel: Element<'_, Message> = if active_tab == SystemTab::Agents
-                        || active_tab == SystemTab::Staff
                         || active_tab_help_modal_open(app, active_tab)
                     {
                         container(content_with_help)

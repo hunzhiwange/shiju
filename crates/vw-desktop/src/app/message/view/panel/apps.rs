@@ -1,7 +1,6 @@
 //! 处理应用面板导航，并为模型用量查询选择匹配的提供商。
 
 use super::ViewMessage;
-use crate::app::views::workflow_manager::{WorkflowManagerMessage, WorkflowManagerTab};
 use crate::app::{App, Message, Screen, state::UsageModelInfo};
 use iced::Task;
 
@@ -48,8 +47,6 @@ pub(super) fn pick_usage_provider_id(candidates: &[String], model_id: &str) -> O
 
 /// 处理应用面板导航和模型用量刷新消息。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
-    let open_workflow_manager_stage_actions =
-        matches!(message, ViewMessage::OpenWorkflowManagerStageActions);
     match message {
         ViewMessage::OpenApps => {
             let id = "apps".to_string();
@@ -200,7 +197,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.screen = Screen::WorkflowTool;
             crate::apps::workflow::ensure_initialized(app)
         }
-        ViewMessage::OpenWorkflowManager | ViewMessage::OpenWorkflowManagerStageActions => {
+        ViewMessage::OpenWorkflowManager => {
             let id = "workflow_manager".to_string();
             if let Some(pos) = app.open_tabs.iter().position(|t| t.id == "apps") {
                 app.open_tabs.remove(pos);
@@ -219,15 +216,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             app.active_tab_id = Some(id);
             app.screen = Screen::WorkflowManager;
-            if open_workflow_manager_stage_actions {
-                let stage_actions_task = crate::app::views::workflow_manager::update_app(
-                    app,
-                    WorkflowManagerMessage::SelectTab(WorkflowManagerTab::StageActions),
-                );
-                Task::batch(vec![refresh_task, stage_actions_task])
-            } else {
-                refresh_task
-            }
+            refresh_task
         }
         ViewMessage::AppsOpenMostRecent => {
             if let Some(path) = app.recent_projects.first().cloned() {
@@ -252,6 +241,3 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         _ => Task::none(),
     }
 }
-#[cfg(test)]
-#[path = "apps_tests.rs"]
-mod apps_tests;

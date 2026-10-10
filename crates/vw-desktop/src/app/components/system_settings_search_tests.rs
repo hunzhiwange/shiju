@@ -57,7 +57,6 @@ fn catalog_extracts_unique_navigable_child_tabs_and_scoped_keywords() {
     assert_target_count!(SystemSettingsSearchTarget::Models(_), 4);
     assert_target_count!(SystemSettingsSearchTarget::Cron(_), 4);
     assert_target_count!(SystemSettingsSearchTarget::Agents(_), 11);
-    assert_target_count!(SystemSettingsSearchTarget::Staff(_), 4);
     assert_target_count!(
         SystemSettingsSearchTarget::Channels(_),
         if cfg!(target_arch = "wasm32") { 20 } else { 21 }

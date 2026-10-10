@@ -421,11 +421,6 @@ impl App {
         self.project_is_git_repo = false;
         self.task_board_loading = false;
         self.task_board_tasks.clear();
-        self.task_board_staff_projection = Default::default();
-        self.task_board_staff_config_load_error = None;
-        self.task_board_staff_events.clear();
-        self.task_board_staff_command_input.clear();
-        self.task_board_staff_command_queue = Default::default();
         self.task_board_selected_tasks.clear();
         self.task_board_bulk_active_status = None;
         self.task_board_manual_merge_queue.clear();

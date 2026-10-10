@@ -388,13 +388,6 @@ pub(super) fn build_gateway_settings(
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 /// 模块内可见函数，执行 build_agents_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-/// 模块内可见函数，执行 build_staff_settings 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn build_staff_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
-) -> crate::app::state::StaffSettingsState {
-    crate::app::state::StaffSettingsState::from_config(full_agent_cfg.staff.clone())
-}
 
 /// 模块内可见函数，执行 build_memory_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
@@ -748,7 +741,6 @@ pub(super) fn apply_bootstrap_agent_config(
     app.browser_settings = build_browser_settings(full_agent_cfg);
     app.http_request_settings = build_http_request_settings(full_agent_cfg);
     app.gateway_settings = build_gateway_settings(&gateway_cfg_result);
-    app.staff_settings = build_staff_settings(full_agent_cfg);
     app.memory_settings = build_memory_settings(full_agent_cfg);
     app.channels_settings =
         super::settings_builders::build_channels_settings(&full_agent_cfg.channels_config);

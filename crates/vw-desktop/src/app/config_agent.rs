@@ -21,7 +21,6 @@ use vw_config_types::{
     runtime::RuntimeConfig,
     security::{AutonomyConfig, IdentityConfig, SecurityConfig},
     skills::SkillsConfig,
-    staff::StaffConfig,
     tools::{BrowserConfig, HttpRequestConfig, MultimodalConfig, WebSearchConfig},
 };
 
@@ -884,18 +883,6 @@ pub fn load_delegate_agents_config() -> HashMap<String, DelegateAgentConfig> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// 读取网关托管的员工配置。
-pub fn load_staff_config() -> StaffConfig {
-    load_agent_config_via_gateway().staff
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// 读取网关托管的员工配置，并保留加载错误。
-pub fn load_staff_config_result() -> Result<StaffConfig, String> {
-    Ok(load_full_agent_config_result()?.staff)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 /// 读取、保存或转换 `load_embedding_routes_config` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1131,18 +1118,6 @@ pub fn load_skills_config() -> SkillsConfig {
 /// 本函数不直接返回错误；缺省值和不可用状态会通过显式配置字段表达。
 pub fn load_delegate_agents_config() -> HashMap<String, DelegateAgentConfig> {
     HashMap::new()
-}
-
-#[cfg(target_arch = "wasm32")]
-/// 读取网关托管的员工配置。
-pub fn load_staff_config() -> StaffConfig {
-    StaffConfig::default()
-}
-
-#[cfg(target_arch = "wasm32")]
-/// 读取网关托管的员工配置，并保留加载错误。
-pub fn load_staff_config_result() -> Result<StaffConfig, String> {
-    Ok(StaffConfig::default())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1516,17 +1491,6 @@ pub async fn update_delegate_agents_config_result_async(
 }
 
 #[cfg(target_arch = "wasm32")]
-/// 通过网关写回员工配置根字段。
-pub fn update_staff_config_async(update: impl FnOnce(&mut StaffConfig) + 'static) -> Task<Message> {
-    spawn_gateway_task("staff", async move {
-        let mut cfg = load_full_agent_config_async().await?.staff;
-        update(&mut cfg);
-        let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-        patch_full_agent_config_async(serde_json::json!({ "staff": value })).await
-    })
-}
-
-#[cfg(target_arch = "wasm32")]
 /// 读取、保存或转换 `update_delegate_agents_config_async` 对应的配置数据与运行时状态。
 ///
 /// # 参数
@@ -1573,19 +1537,6 @@ pub fn update_delegate_agents_config_async(
         update(&mut cfg);
         let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
         patch_agent_config_result(&["agents"], value)
-    })
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-/// 通过网关写回员工配置根字段。
-pub fn update_staff_config_async(
-    update: impl FnOnce(&mut StaffConfig) + Send + 'static,
-) -> Task<Message> {
-    spawn_gateway_task("staff", async move {
-        let mut cfg = load_full_agent_config_result()?.staff;
-        update(&mut cfg);
-        let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
-        patch_agent_config_result(&["staff"], value)
     })
 }
 
@@ -1678,7 +1629,3 @@ pub async fn update_gateway_config_result_async(
     let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
     patch_full_agent_config_async(serde_json::json!({ "gateway": value })).await
 }
-
-#[cfg(test)]
-#[path = "config_agent_tests.rs"]
-mod config_agent_tests;

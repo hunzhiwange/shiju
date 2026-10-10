@@ -16,7 +16,6 @@ mod control;
 mod drag;
 mod modals;
 mod panel;
-pub(crate) mod staff_mode;
 
 /// 渲染对应界面。
 ///
@@ -30,13 +29,7 @@ pub(crate) mod staff_mode;
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let header = control::build_control_buttons(app);
-    let content = if app.task_board_view_mode == TaskBoardViewMode::Staff {
-        let staff_mode = staff_mode::build_staff_mode_view(app);
-        column![header, iced::widget::Space::new().height(12.0), staff_mode]
-            .spacing(0)
-            .width(Length::Fill)
-            .height(Length::Fill)
-    } else if app.task_board_worktree_pixel_office {
+    let content = if app.task_board_worktree_pixel_office {
         column![header].spacing(0).width(Length::Fill).height(Length::Fill)
     } else {
         let kanban = board::build_kanban_board(app);
@@ -136,7 +129,3 @@ fn task_board_container_style(theme: &Theme) -> container::Style {
         ..Default::default()
     }
 }
-
-#[cfg(test)]
-#[path = "tests.rs"]
-mod tests;

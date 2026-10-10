@@ -8,10 +8,6 @@ use serde_json::json;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
-use vw_config_types::staff::{
-    StaffMemberTaskAssignmentConfig, StaffProjectStateConfig, StaffStageActionConfig,
-    StaffStageActionInputsConfig, StaffStageAssignmentConfig,
-};
 
 use super::domain::{AgentSchedulerContext, RunId, TaskId, TeamId, AssigneeId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
@@ -383,7 +379,6 @@ fn agent_task_store_returns_none_for_missing_task_mutations_and_empty_meta() -> 
             .is_none()
     );
     assert!(store.load_task_board_workflow(project_path)?.is_none());
-    assert!(store.load_task_board_staff_project_state(project_path)?.is_none());
 
     Ok(())
 }
@@ -501,16 +496,6 @@ fn agent_task_store_reports_invalid_task_board_meta_json() -> Result<()> {
 
     let error = store.load_task_board_workflow(&context).expect_err("invalid workflow json fails");
     assert!(error.to_string().contains("parse task board workflow"));
-
-    connection.execute(
-        "INSERT INTO scheduler_meta (platform_id, company_id, project_id, key, value)
-         VALUES (?1, ?2, ?3, 'task_board.staff_project_state', '{bad json')",
-        ["platform-meta", "company-meta", "project-meta"],
-    )?;
-    let error = store
-        .load_task_board_staff_project_state(&context)
-        .expect_err("invalid staff project state json fails");
-    assert!(error.to_string().contains("parse staff project state"));
 
     Ok(())
 }
@@ -689,52 +674,6 @@ fn agent_task_store_transition_with_metadata_preserves_lifecycle_projection() ->
     assert_eq!(updated.status, AgentTaskStatus::Submitted);
     assert_eq!(updated.metadata["task_board.status_key"], "custom_review_ready");
     assert_eq!(updated.metadata["task_board.status_role"], "review_ready");
-    Ok(())
-}
-
-#[test]
-fn agent_scheduler_store_task_board_runtime_state_keeps_member_assignments_only() -> Result<()> {
-    let temp_dir = tempfile::tempdir()?;
-    let project_path = temp_dir.path();
-    let store = AgentSchedulerStore::new();
-    let project_state = StaffProjectStateConfig {
-        stage_assignments: vec![StaffStageAssignmentConfig {
-            stage_id: "planning".to_string(),
-            primary_member_id: Some("staff-planner".to_string()),
-            backup_member_ids: Vec::new(),
-            manager_member_ids: vec!["staff-orchestrator".to_string()],
-            autonomous: true,
-        }],
-        stage_actions: vec![StaffStageActionConfig {
-            stage_id: "planning".to_string(),
-            capability_id: "execute_task".to_string(),
-            workflow_uuid: None,
-            inputs: StaffStageActionInputsConfig::default(),
-        }],
-        member_task_assignments: vec![StaffMemberTaskAssignmentConfig {
-            member_id: "staff-executor".to_string(),
-            task_ids: vec!["task-runtime-owned".to_string()],
-        }],
-        ..StaffProjectStateConfig::default()
-    };
-
-    store.save_task_board_staff_project_state(project_path, &project_state)?;
-
-    let loaded =
-        store.load_task_board_staff_project_state(project_path)?.expect("staff project state");
-    assert!(loaded.capabilities.is_empty());
-    assert!(loaded.stage_assignments.is_empty());
-    assert!(loaded.stage_workflow_bindings.is_empty());
-    assert!(loaded.stage_actions.is_empty());
-    assert_eq!(loaded.member_task_assignments, project_state.member_task_assignments);
-
-    let raw_project_state = raw_staff_project_state_json(&store)?;
-    assert!(raw_project_state.contains("member_task_assignments"));
-    assert!(!raw_project_state.contains("capabilities"));
-    assert!(!raw_project_state.contains("stage_assignments"));
-    assert!(!raw_project_state.contains("stage_workflow_bindings"));
-    assert!(!raw_project_state.contains("stage_actions"));
-
     Ok(())
 }
 
@@ -1066,16 +1005,6 @@ fn dependency_graph_task() -> Result<NewAgentTask> {
         metadata: json!({"source": "test"}),
         created_at_ms: TimestampMs(1_783_000_100_000),
     })
-}
-
-fn raw_staff_project_state_json(store: &AgentSchedulerStore) -> Result<String> {
-    let conn = rusqlite::Connection::open(store.database_path())?;
-    Ok(conn.query_row(
-        "SELECT value FROM scheduler_meta
-         WHERE key = ?1",
-        ["task_board.staff_project_state"],
-        |row| row.get(0),
-    )?)
 }
 
 fn scheduler_context(

@@ -9,7 +9,6 @@ use vw_api_types::common::TimestampMs;
 use vw_api_types::task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto, TaskPoolWorkflowTransitionDto,
 };
-use vw_config_types::staff::{StaffMemberTaskAssignmentConfig, StaffProjectStateConfig};
 
 use crate::agent_scheduler::domain::{TaskId, TeamId, AssigneeId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
@@ -23,12 +22,6 @@ const TASK_COLUMNS: &str = "id, kind, status, title, spec_uri, meta_uri, assigne
 room_id, project_room_id, delegated_to_team, schedule, timezone, next_scheduled_at, \
 last_executed_at, dag_json, metadata_json, created_at_ms, updated_at_ms";
 const TASK_BOARD_WORKFLOW_META_KEY: &str = "task_board.workflow";
-const TASK_BOARD_STAFF_PROJECT_STATE_META_KEY: &str = "task_board.staff_project_state";
-
-#[derive(Serialize)]
-struct TaskBoardStaffRuntimeState<'a> {
-    member_task_assignments: &'a [StaffMemberTaskAssignmentConfig],
-}
 
 #[derive(Debug, Clone, PartialEq)]
 /// 创建任务所需的完整领域字段；写入前会校验种类与调度字段的一致性。
@@ -563,66 +556,6 @@ impl AgentSchedulerStore {
             .transpose()
     }
 
-    pub fn save_task_board_staff_project_state(
-        &self,
-        context: &(impl AgentSchedulerStorageContext + ?Sized),
-        project_state: &StaffProjectStateConfig,
-    ) -> Result<()> {
-        if let Some(store) = postgres_provider(self, context)? {
-            return store.save_task_board_staff_project_state(context, project_state);
-        }
-        let scope = context.storage_scope()?;
-        let (platform_id, company_id, project_id) = scope_params(&scope);
-        let (_guard, mut conn) = open_locked_initialized_connection(self, context)?;
-        let project_state_json = serde_json::to_string(&TaskBoardStaffRuntimeState {
-            member_task_assignments: &project_state.member_task_assignments,
-        })
-        .context("serialize staff project state")?;
-        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        tx.execute(
-            "INSERT INTO scheduler_meta (platform_id, company_id, project_id, key, value)
-             VALUES (?1, ?2, ?3, ?4, ?5)
-             ON CONFLICT(platform_id, company_id, project_id, key)
-             DO UPDATE SET value = excluded.value",
-            params![
-                platform_id,
-                company_id,
-                project_id,
-                TASK_BOARD_STAFF_PROJECT_STATE_META_KEY,
-                project_state_json
-            ],
-        )?;
-        tx.commit()?;
-        Ok(())
-    }
-
-    pub fn load_task_board_staff_project_state(
-        &self,
-        context: &(impl AgentSchedulerStorageContext + ?Sized),
-    ) -> Result<Option<StaffProjectStateConfig>> {
-        if let Some(store) = postgres_provider(self, context)? {
-            return store.load_task_board_staff_project_state(context);
-        }
-        let conn = open_initialized_connection(self, context)?;
-        let scope = context.storage_scope()?;
-        let (platform_id, company_id, project_id) = scope_params(&scope);
-        let project_state_json = conn
-            .query_row(
-                "SELECT value FROM scheduler_meta
-                 WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND key = ?4",
-                params![
-                    platform_id,
-                    company_id,
-                    project_id,
-                    TASK_BOARD_STAFF_PROJECT_STATE_META_KEY
-                ],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-        project_state_json
-            .map(|value| serde_json::from_str(&value).context("parse staff project state"))
-            .transpose()
-    }
 }
 
 pub(super) fn normalize_failed_retry_transitions(

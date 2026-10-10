@@ -22,7 +22,6 @@ use self::shiju_apps::ShijuAppsCommands;
 use self::skill_market::SkillMarketCommands;
 use self::extensions::ExtensionCommands;
 use self::desktop::DesktopCommands;
-use self::staff::StaffCommands;
 use self::task_pool::TaskPoolCommands;
 use self::task_lifecycle::TaskLifecycleCommands;
 use self::workspace::WorkspaceCommands;
@@ -47,7 +46,6 @@ mod skill_market;
 mod extensions;
 mod desktop;
 mod coverage;
-mod staff;
 mod system;
 mod task_pool;
 mod task_lifecycle;
@@ -253,12 +251,6 @@ enum ApiCommands {
         #[command(subcommand)]
         command: DesktopCommands,
     },
-    /// 管理 Staff 能力、编排、投影与调度命令。
-    Staff {
-        /// Staff 项目与 workflow 操作。
-        #[command(subcommand)]
-        command: StaffCommands,
-    },
     /// 管理 Workflow 应用、恢复运行与聊天流。
     Workflow {
         /// Workflow 应用操作。
@@ -402,7 +394,6 @@ impl ApiCommands {
             Self::SkillMarket { command } => command.dangerous_operation(),
             Self::Extensions { command } => command.dangerous_operation(),
             Self::Desktop { command } => command.dangerous_operation(host, port),
-            Self::Staff { command } => command.dangerous_operation(),
             Self::Workflow { command } => command.dangerous_operation(),
             Self::Apiql { .. }
             | Self::Provider { .. }
@@ -495,7 +486,6 @@ async fn run_with_io<R: Read, W: Write>(
             extensions::run(command, &context, writer).await
         }
         ApiCommands::Desktop { command } => desktop::run(command, &context, stdin, writer).await,
-        ApiCommands::Staff { command } => staff::run(command, &context, stdin, writer).await,
         ApiCommands::Workflow { command } => {
             workflow::run(command, &context, stdin, writer).await
         }
@@ -552,8 +542,6 @@ mod extensions_tests;
 mod desktop_tests;
 #[cfg(test)]
 mod coverage_tests;
-#[cfg(test)]
-mod staff_tests;
 #[cfg(test)]
 mod system_tests;
 #[cfg(test)]

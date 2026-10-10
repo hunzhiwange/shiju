@@ -33,7 +33,6 @@ use crate::routing::{EmbeddingRouteConfig, ModelRouteConfig, QueryClassification
 use crate::runtime::RuntimeConfig;
 use crate::security::{AutonomyConfig, IdentityConfig, SecretsConfig, SecurityConfig};
 use crate::skills::SkillsConfig;
-use crate::staff::StaffConfig;
 use crate::tools::{
     BrowserConfig, HttpRequestConfig, MultimodalConfig, WebFetchConfig, WebSearchConfig,
 };
@@ -226,9 +225,6 @@ pub struct Config {
     pub agents: HashMap<String, DelegateAgentConfig>,
 
     #[serde(default)]
-    pub staff: StaffConfig,
-
-    #[serde(default)]
     pub hooks: HooksConfig,
 
     #[serde(default)]
@@ -371,7 +367,6 @@ impl Default for Config {
             proxy: ProxyConfig::default(),
             identity: IdentityConfig::default(),
             agents: HashMap::new(),
-            staff: StaffConfig::default(),
             hooks: HooksConfig::default(),
             query_classification: QueryClassificationConfig::default(),
             model_support_vision: None,

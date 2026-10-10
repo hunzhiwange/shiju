@@ -9,7 +9,6 @@
 
 pub mod adapters;
 pub mod artifacts;
-pub mod capabilities;
 pub mod domain;
 pub mod engine;
 pub mod events;
@@ -19,7 +18,6 @@ pub mod policy;
 pub mod resources;
 pub mod runner;
 pub mod scheduler;
-pub mod staff;
 pub mod state_machine;
 pub mod store;
 pub mod task_board;

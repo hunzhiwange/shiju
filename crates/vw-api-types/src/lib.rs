@@ -18,7 +18,6 @@
 //! - [`knowledge`][]: 知识库、文档、检索与运行时能力 DTO
 //! - [`provider`][]: 模型提供商与模型能力信息
 //! - [`settings`][]: 运行时、安全、多代理与浏览器等设置
-//! - [`staff`][]: 员工任务流本地 IPC 消息 DTO
 //! - [`task`][]: 后台任务、任务事件流与执行请求
 //! - [`task_lifecycle`][]: 任务生命周期 workflow 跨网关 DTO
 //! - [`todo`][]: 会话待办项与待办更新请求
@@ -52,7 +51,6 @@ pub mod provider;
 pub mod question;
 pub mod session;
 pub mod settings;
-pub mod staff;
 pub mod task;
 pub mod task_lifecycle;
 pub mod todo;
@@ -102,9 +100,6 @@ mod session_tests;
 #[cfg(test)]
 #[path = "settings_tests.rs"]
 mod settings_tests;
-#[cfg(test)]
-#[path = "staff_tests.rs"]
-mod staff_tests;
 #[cfg(test)]
 #[path = "task_lifecycle_tests.rs"]
 mod task_lifecycle_tests;

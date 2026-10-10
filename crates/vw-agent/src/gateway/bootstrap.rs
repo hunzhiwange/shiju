@@ -668,55 +668,6 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
             "/v1/agent-scheduler/projects/{project_id}/outbox/drain",
             "drain scheduler outbox",
         ),
-        client_route("GET", "/v1/staff/stage-capabilities", "staff stage capabilities"),
-        client_route(
-            "GET",
-            "/v1/staff/projects/{project_id}/capabilities",
-            "staff project capabilities",
-        ),
-        client_route(
-            "PUT",
-            "/v1/staff/projects/{project_id}/capabilities",
-            "update staff project capabilities",
-        ),
-        client_route(
-            "GET",
-            "/v1/staff/projects/{project_id}/orchestration",
-            "staff project orchestration",
-        ),
-        client_route(
-            "PUT",
-            "/v1/staff/projects/{project_id}/orchestration",
-            "update staff project orchestration",
-        ),
-        client_route(
-            "GET",
-            "/v1/staff/projects/{project_id}/workflows/{workflow_id}/capabilities",
-            "staff workflow capabilities",
-        ),
-        client_route(
-            "PUT",
-            "/v1/staff/projects/{project_id}/workflows/{workflow_id}/capabilities",
-            "update staff workflow capabilities",
-        ),
-        client_route(
-            "GET",
-            "/v1/staff/projects/{project_id}/workflows/{workflow_id}/orchestration",
-            "staff workflow orchestration",
-        ),
-        client_route(
-            "PUT",
-            "/v1/staff/projects/{project_id}/workflows/{workflow_id}/orchestration",
-            "update staff workflow orchestration",
-        ),
-        client_route("GET", "/v1/staff/projects/{project_id}/projection", "staff projection"),
-        client_route("POST", "/v1/staff/projects/{project_id}/commands", "staff command"),
-        client_route(
-            "POST",
-            "/v1/staff/projects/{project_id}/auto-schedule-plan",
-            "staff auto-schedule plan",
-        ),
-        client_route("POST", "/v1/staff/ipc/messages", "staff IPC message"),
         client_route("GET", "/v1/apiQL/{entity_class}", "APIQL list"),
         client_route("GET", "/v1/apiQL/{entity_class}/", "APIQL list"),
         client_route("GET", "/v1/apiQL/{entity_class}/list-only", "APIQL list rows"),
@@ -949,7 +900,6 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
         .merge(api::handlers::provider::router())
         .merge(api::handlers::pty::router())
         .merge(api::handlers::question::router())
-        .merge(api::handlers::staff_ipc::router())
         .merge(api::handlers::task_pool::router())
         .merge(api::handlers::agent_scheduler::router())
         .merge(api::handlers::apiql::router())

@@ -21,7 +21,6 @@ pub(super) fn classify_route(route: &GatewayRouteEntry) -> Option<RouteCoverage>
         return Some(RouteCoverage::Excluded("documented placeholder returns 501 Not Implemented"));
     }
     if path.ends_with("/worker-events")
-        || path == "/v1/staff/ipc/messages"
         || (path == "/v1/task-pool/matrix/events" && route.method == "POST")
     {
         return Some(RouteCoverage::Excluded("authenticated internal producer callback"));
@@ -91,9 +90,6 @@ fn command_family(route: &GatewayRouteEntry) -> Option<&'static str> {
     }
     if path.starts_with("/v1/agent-scheduler") {
         return Some("scheduler");
-    }
-    if path.starts_with("/v1/staff") {
-        return Some("staff");
     }
     if path.starts_with("/v1/apiQL/") {
         return Some("apiql");

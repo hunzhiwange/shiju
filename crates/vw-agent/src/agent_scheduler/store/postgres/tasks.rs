@@ -4,12 +4,10 @@
 use ::postgres::types::ToSql;
 use ::postgres::{GenericClient, Row};
 use anyhow::{Context, Result, bail};
-use serde::Serialize;
 use serde_json::Value;
 use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_types::common::TimestampMs;
 use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
-use vw_config_types::staff::{StaffMemberTaskAssignmentConfig, StaffProjectStateConfig};
 
 use super::PostgresAgentSchedulerStore;
 use crate::agent_scheduler::domain::{TaskId, TeamId, AssigneeId};
@@ -25,12 +23,6 @@ const TASK_COLUMNS: &str = "id, kind, status, title, spec_uri, meta_uri, assigne
 room_id, project_room_id, delegated_to_team, schedule, timezone, next_scheduled_at, \
 last_executed_at, dag_json, metadata_json, created_at_ms, updated_at_ms";
 const TASK_BOARD_WORKFLOW_META_KEY: &str = "task_board.workflow";
-const TASK_BOARD_STAFF_PROJECT_STATE_META_KEY: &str = "task_board.staff_project_state";
-
-#[derive(Serialize)]
-struct TaskBoardStaffRuntimeState<'a> {
-    member_task_assignments: &'a [StaffMemberTaskAssignmentConfig],
-}
 
 impl PostgresAgentSchedulerStore {
     pub(in crate::agent_scheduler::store) fn create_task(
@@ -367,31 +359,6 @@ impl PostgresAgentSchedulerStore {
                 serde_json::from_str(&value)
                     .map(normalize_failed_retry_transitions)
                     .context("parse PostgreSQL task board workflow")
-            })
-            .transpose()
-    }
-
-    pub(in crate::agent_scheduler::store) fn save_task_board_staff_project_state(
-        &self,
-        context: &(impl AgentSchedulerStorageContext + ?Sized),
-        project_state: &StaffProjectStateConfig,
-    ) -> Result<()> {
-        let scope = context.storage_scope()?;
-        let state_json = serde_json::to_string(&TaskBoardStaffRuntimeState {
-            member_task_assignments: &project_state.member_task_assignments,
-        })
-        .context("serialize PostgreSQL staff project state")?;
-        self.upsert_meta(&scope, TASK_BOARD_STAFF_PROJECT_STATE_META_KEY, &state_json)
-    }
-
-    pub(in crate::agent_scheduler::store) fn load_task_board_staff_project_state(
-        &self,
-        context: &(impl AgentSchedulerStorageContext + ?Sized),
-    ) -> Result<Option<StaffProjectStateConfig>> {
-        let scope = context.storage_scope()?;
-        self.load_meta(&scope, TASK_BOARD_STAFF_PROJECT_STATE_META_KEY)?
-            .map(|value| {
-                serde_json::from_str(&value).context("parse PostgreSQL staff project state")
             })
             .transpose()
     }

@@ -88,7 +88,6 @@ pub(crate) async fn load_config_from_toml_path(
         }
         config.config_path = config_path.to_path_buf();
         config.workspace_dir = workspace_dir;
-        discard_legacy_staff_stage_config(&mut config);
         decrypt_config_secrets(&mut config, vibewindow_dir)?;
         resolve_telegram_allowed_users_env_refs(&mut config.channels_config)?;
         apply_env_overrides(&mut config);
@@ -130,7 +129,6 @@ fn decode_json_config_with_environment(
     }
     config.config_path = config_path.to_path_buf();
     config.workspace_dir = workspace_dir;
-    discard_legacy_staff_stage_config(&mut config);
     decrypt_config_secrets(&mut config, vibewindow_dir)?;
     resolve_telegram_allowed_users_env_refs(&mut config.channels_config)?;
     apply_environment(&mut config);
@@ -340,14 +338,4 @@ pub(crate) async fn load_or_init_config_for_tenant_without_env(
 /// 使用本地租户加载配置的兼容入口。
 pub async fn load_or_init_config() -> Result<Config> {
     load_or_init_config_for_tenant(&TenantScope::default(), None).await
-}
-
-fn discard_legacy_staff_stage_config(config: &mut Config) {
-    config.staff.project_state.capabilities.clear();
-    config.staff.project_state.stage_assignments.clear();
-    config.staff.project_state.stage_workflow_bindings.clear();
-    config.staff.project_state.stage_actions.clear();
-    for orchestration in config.staff.workflow_orchestrations.values_mut() {
-        orchestration.stage_workflow_bindings.clear();
-    }
 }

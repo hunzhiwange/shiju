@@ -137,9 +137,6 @@ pub mod session;
 /// 提供系统健康检查和运行状态查询处理器。
 pub mod status;
 
-/// 员工任务流本地 IPC 消息路由处理器模块
-pub mod staff_ipc;
-
 /// 任务池 worktree 池路由处理器模块
 pub mod task_pool;
 

@@ -53,7 +53,6 @@ mod shiju_skill_api;
 #[path = "shiju_skill_api_tests.rs"]
 mod shiju_skill_api_tests;
 mod skill_market_api;
-mod staff_api;
 mod system_api;
 #[cfg(test)]
 #[path = "system_api_tests.rs"]

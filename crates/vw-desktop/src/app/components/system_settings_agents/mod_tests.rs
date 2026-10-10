@@ -1,6 +1,8 @@
 //! 验证代理设置测试子模块已正确接入。
 //! 各标签页的行为由细分测试覆盖，此处仅防止测试模块装配回归。
 
+const SOURCE: &str = include_str!("mod.rs");
+
 #[test]
 fn agents_view_builds_default_loading_and_error_states() {
     let (mut app, _) = crate::app::App::new();
@@ -32,6 +34,11 @@ fn agent_config_tabs_render_each_existing_settings_page() {
         app.agents_settings.active_config_tab = tab;
         let _: iced::Element<'_, crate::app::Message> = super::view(&app);
     }
+}
+
+#[test]
+fn acp_tab_reserves_space_between_content_and_scrollbar() {
+    assert!(SOURCE.contains("Padding::default().right(12.0)"));
 }
 
 #[test]

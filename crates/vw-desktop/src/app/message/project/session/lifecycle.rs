@@ -691,6 +691,22 @@ fn apply_prepared_session_open(app: &mut App, prepared: crate::app::session::Pre
     app.active_session_view_state.ui_preparing = false;
 }
 
+fn remote_history_is_incomplete(
+    current_ids: &[Option<String>],
+    remote_ids: &[Option<String>],
+) -> bool {
+    if current_ids.is_empty() {
+        return false;
+    }
+
+    let current_known = current_ids.iter().flatten().collect::<std::collections::HashSet<_>>();
+    let remote_known = remote_ids.iter().flatten().collect::<std::collections::HashSet<_>>();
+    let shared_known_count = current_known.intersection(&remote_known).count();
+
+    (shared_known_count > 0 && shared_known_count < current_known.len())
+        || (shared_known_count == 0 && remote_ids.len() < current_ids.len())
+}
+
 /// handle 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
@@ -1105,6 +1121,26 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
                 Err(_) => return Some(iced::Task::none()),
             };
+
+            let incomplete_remote_history = source == PreparedSessionOpenSource::RemoteHistory
+                && (remote_history_is_incomplete(&app.chat_message_ids, &prepared.message_ids)
+                    || app
+                        .session_history_reset_boundary(&target_session_id)
+                        .is_some_and(|boundary| {
+                            boundary == app.chat_message_ids
+                                && prepared.message_ids != app.chat_message_ids
+                        }));
+            if incomplete_remote_history {
+                tracing::warn!(
+                    target: "vw_desktop",
+                    session_id = %target_session_id,
+                    remote_messages = prepared.message_ids.len(),
+                    retained_messages = app.chat_message_ids.len(),
+                    "preserved prepared session history because remote history was incomplete"
+                );
+                app.active_session_view_state.ui_preparing = false;
+                return Some(iced::Task::none());
+            }
 
             let same_remote_history = source == PreparedSessionOpenSource::RemoteHistory
                 && crate::app::session::session_content_signature(&app.chat, &app.chat_message_ids)

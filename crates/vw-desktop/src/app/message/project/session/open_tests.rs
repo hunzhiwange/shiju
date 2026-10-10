@@ -586,6 +586,124 @@ fn empty_remote_refresh_finishes_session_loading() {
 }
 
 #[test]
+fn short_remote_refresh_preserves_prepared_history() {
+    let mut app = app();
+    app.active_session_id = Some("target".to_string());
+    let mut local = ui_store_session(
+        "target",
+        vec![
+            Some("message-1".to_string()),
+            Some("message-2".to_string()),
+            Some("message-3".to_string()),
+        ],
+    );
+    local.messages = vec![
+        chat_message("first"),
+        chat_message("second"),
+        chat_message("third"),
+    ];
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::UiStore,
+            result: Ok(crate::app::session::prepare_session_open_from_ui_store(local, false)),
+        },
+    );
+
+    let mut tail = ui_store_session("target", vec![Some("message-3".to_string())]);
+    tail.messages = vec![chat_message("third")];
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(crate::app::session::prepare_session_open_from_ui_store(tail, false)),
+        },
+    );
+
+    assert_eq!(
+        app.chat_message_ids,
+        vec![
+            Some("message-1".to_string()),
+            Some("message-2".to_string()),
+            Some("message-3".to_string()),
+        ]
+    );
+    assert_eq!(app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(), vec![
+        "first", "second", "third"
+    ]);
+
+    let empty = crate::app::session::prepare_session_open(
+        "target".to_string(),
+        Vec::new(),
+        Vec::new(),
+        crate::app::models::TokenUsage::default(),
+        Vec::new(),
+        Vec::new(),
+        0,
+        None,
+        false,
+    );
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(empty),
+        },
+    );
+
+    assert_eq!(
+        app.chat_message_ids,
+        vec![
+            Some("message-1".to_string()),
+            Some("message-2".to_string()),
+            Some("message-3".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn remote_refresh_does_not_restore_messages_after_explicit_reset() {
+    let mut app = app();
+    app.active_session_id = Some("target".to_string());
+    app.chat = vec![chat_message("retained")];
+    app.chat_message_ids = vec![Some("message-1".to_string())];
+    app.mark_session_history_reset_boundary(
+        "target".to_string(),
+        app.chat_message_ids.clone(),
+    );
+
+    let mut stale = ui_store_session(
+        "target",
+        vec![Some("message-1".to_string()), Some("message-2".to_string())],
+    );
+    stale.messages = vec![chat_message("retained"), chat_message("removed")];
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(crate::app::session::prepare_session_open_from_ui_store(stale, false)),
+        },
+    );
+
+    assert_eq!(app.chat_message_ids, vec![Some("message-1".to_string())]);
+    assert_eq!(app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(), vec![
+        "retained"
+    ]);
+}
+
+#[test]
 fn remote_history_error_finishes_session_loading() {
     let mut app = app();
     app.active_session_id = Some("target".to_string());

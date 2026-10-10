@@ -555,6 +555,61 @@ fn equal_remote_refresh_keeps_hot_render_cache_and_scroll_id() {
 }
 
 #[test]
+fn empty_remote_refresh_finishes_session_loading() {
+    let mut app = app();
+    app.active_session_id = Some("target".to_string());
+    app.active_session_view_state.ui_preparing = true;
+    let prepared = crate::app::session::prepare_session_open(
+        "target".to_string(),
+        Vec::new(),
+        Vec::new(),
+        crate::app::models::TokenUsage::default(),
+        Vec::new(),
+        Vec::new(),
+        0,
+        None,
+        false,
+    );
+
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(prepared),
+        },
+    );
+
+    assert!(!app.active_session_view_state.ui_preparing);
+}
+
+#[test]
+fn remote_history_error_finishes_session_loading() {
+    let mut app = app();
+    app.active_session_id = Some("target".to_string());
+    app.active_session_view_state.ui_preparing = true;
+
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "target".to_string(),
+            project_path: "/tmp/project".to_string(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::RemoteHistory,
+            result: Err("gateway unavailable".to_string()),
+        },
+    );
+
+    assert!(!app.active_session_view_state.ui_preparing);
+    assert_eq!(
+        app.error_message.as_deref(),
+        Some("Failed to load session messages: gateway unavailable")
+    );
+}
+
+#[test]
 fn changed_remote_refresh_replaces_snapshot_once() {
     let mut app = app();
     app.active_session_id = Some("target".to_string());

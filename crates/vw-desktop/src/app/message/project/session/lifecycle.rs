@@ -1100,6 +1100,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         app.error_message =
                             Some(format!("Failed to load session messages: {error}"));
                     }
+                    app.active_session_view_state.ui_preparing = false;
                     return Some(iced::Task::none());
                 }
                 Err(_) => return Some(iced::Task::none()),
@@ -1109,6 +1110,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 && crate::app::session::session_content_signature(&app.chat, &app.chat_message_ids)
                     == prepared.content_signature;
             if same_remote_history {
+                app.active_session_view_state.ui_preparing = false;
                 app.usage = prepared.usage;
                 if !prepared.steps.is_empty() {
                     app.replace_active_session_steps(prepared.steps);

@@ -1114,14 +1114,20 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
                 "loading prepared session history from gateway"
             );
             let client = crate::app::gateway_client()?;
-            let messages = client
-                .session_messages::<Vec<agent_message::WithParts>>(&session_id, Some(&project_path))
-                .await?;
-            client
-                .session_get::<vw_shared::session::info::Info>(&session_id, Some(&project_path))
-                .await?;
-            let (step_llm_raw, llm_raw_step_indices) =
-                match client.session_ui_get_with_raw(&session_id, Some(&project_path)).await {
+            let (messages, session_info, session_ui) = tokio::join!(
+                client.session_messages::<Vec<agent_message::WithParts>>(
+                    &session_id,
+                    Some(&project_path),
+                ),
+                client.session_get::<vw_shared::session::info::Info>(
+                    &session_id,
+                    Some(&project_path),
+                ),
+                client.session_ui_get_with_raw(&session_id, Some(&project_path)),
+            );
+            let messages = messages?;
+            session_info?;
+            let (step_llm_raw, llm_raw_step_indices) = match session_ui {
                     Ok(Some(loaded)) => (loaded.step_llm_raw, loaded.llm_raw_step_indices),
                     Ok(None) => (std::collections::HashMap::new(), Vec::new()),
                     Err(error) => {

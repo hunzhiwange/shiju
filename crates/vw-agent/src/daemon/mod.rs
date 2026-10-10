@@ -22,13 +22,6 @@
 //! 3. 给予各组件宽限期完成清理
 //! 4. 超时后强制中止未完成的任务
 
-use crate::agent_scheduler::domain::AgentSchedulerContext;
-use crate::agent_scheduler::runner::matrix::{
-    ConfiguredMatrixWorkerComponent, MATRIX_WORKER_RUNTIME, configured_matrix_worker_from_stored,
-    matrix_worker_desired_state_is_running,
-};
-use crate::agent_scheduler::store::AgentSchedulerStore;
-use crate::agent_scheduler::store::workers::AgentWorkerFilter;
 use crate::app::agent::config::Config;
 use crate::app::agent::config::schema::ChannelsConfigExt;
 use anyhow::Result;
@@ -38,8 +31,6 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;
-use vw_api_types::agent_scheduler::AgentSchedulerScope;
-use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 
 /// 状态文件刷新间隔（秒）
 ///
@@ -287,37 +278,6 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
         tracing::info!("Cron disabled; scheduler supervisor not started");
     }
 
-    let matrix_worker_components = configured_matrix_worker_components(&config).await?;
-    if matrix_worker_components.is_empty() {
-        crate::app::agent::health::mark_component_ok("matrix-workers");
-        tracing::info!(
-            "No desired Running Matrix workers configured; matrix worker supervisors disabled"
-        );
-    } else {
-        for component in matrix_worker_components {
-            let worker_cfg = config.clone();
-            let component_name = matrix_worker_component_name(&component);
-            handles.push(spawn_component_supervisor(
-                component_name,
-                initial_backoff,
-                max_backoff,
-                move || {
-                    let cfg = worker_cfg.clone();
-                    let project_path = component.project_path.clone();
-                    let worker_id = component.worker_id.clone();
-                    async move {
-                        crate::agent_scheduler::runner::matrix::run_configured_matrix_worker(
-                            cfg,
-                            project_path,
-                            worker_id,
-                        )
-                        .await
-                    }
-                },
-            ));
-        }
-    }
-
     // 输出启动信息到控制台
     println!("💡 VibeWindow daemon started");
     if gateway_already_running {
@@ -325,7 +285,7 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     } else {
         println!("   Gateway:  http://{host}:{port}");
     }
-    println!("   Components: gateway, channels, heartbeat, scheduler, matrix-workers");
+    println!("   Components: gateway, channels, heartbeat, scheduler");
     println!("   {}", shutdown_hint());
 
     // 等待关闭信号
@@ -339,44 +299,6 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     }
 
     Ok(())
-}
-
-async fn configured_matrix_worker_components(
-    config: &Config,
-) -> Result<Vec<ConfiguredMatrixWorkerComponent>> {
-    if !config.channels_config.matrix_enabled {
-        return Ok(Vec::new());
-    }
-
-    let store = AgentSchedulerStore::new();
-    let context = matrix_worker_scheduler_context(config).await?;
-    let workers = store.list_workers(
-        &context,
-        AgentWorkerFilter {
-            runtime: Some(MATRIX_WORKER_RUNTIME.to_string()),
-            ..AgentWorkerFilter::default()
-        },
-    )?;
-    workers
-        .into_iter()
-        .filter(matrix_worker_desired_state_is_running)
-        .map(|worker| configured_matrix_worker_from_stored(&config.workspace_dir, worker))
-        .collect()
-}
-
-async fn matrix_worker_scheduler_context(config: &Config) -> Result<AgentSchedulerContext> {
-    let tenant_scope = TenantScope::default();
-    let project =
-        crate::app::agent::project::from_directory(&tenant_scope, &config.workspace_dir).await?.0;
-    let project_scope = ProjectScope::new(tenant_scope, ProjectId::from(project.id.as_str()))?;
-    AgentSchedulerContext::new(
-        AgentSchedulerScope::new(project_scope),
-        config.workspace_dir.clone(),
-    )
-}
-
-fn matrix_worker_component_name(component: &ConfiguredMatrixWorkerComponent) -> String {
-    format!("matrix-worker:{}", component.worker_id.as_str())
 }
 
 async fn existing_gateway_status(host: &str, port: u16) -> ExistingGatewayStatus {

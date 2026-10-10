@@ -57,8 +57,7 @@ tempfile = "3"
 tokio-tungstenite = "0.29"
 
 [features]
-default = ["memory-postgres", "memory-mariadb", "channel-matrix", "channel-lark"]
+default = ["memory-postgres", "memory-mariadb", "channel-lark"]
 memory-postgres = ["vw-agent/memory-postgres"]
 memory-mariadb = ["vw-agent/memory-mariadb"]
-channel-matrix = ["vw-agent/channel-matrix"]
 channel-lark = ["vw-agent/channel-lark"]

@@ -1,3 +1,5 @@
+#![allow(unused_imports, dead_code)]
+
 //! `clap` CLI 定义的端到端解析测试。
 //! 覆盖全局选项、Agent、Gateway、安全停止、Doctor、Task 与 Matrix 等子命令的默认值和显式参数。
 //! 还验证 shell 补全渲染及写入失败传播，并约束脚本引用当前 Rust worker 入口。
@@ -152,10 +154,28 @@ fn shell_completion_propagates_writer_flush_failure() {
 #[test]
 fn api_command_help_and_completions_cover_every_family() {
     let families = [
-        "apiql", "config", "provider", "control", "operations", "interactive", "project",
-        "realtime", "knowledge", "task-pool", "task-lifecycle", "scheduler", "session",
-        "session-content", "shiju-apps", "skill-market", "extensions", "desktop", "staff",
-        "workflow", "workspace", "system",
+        "apiql",
+        "config",
+        "provider",
+        "control",
+        "operations",
+        "interactive",
+        "project",
+        "realtime",
+        "knowledge",
+        "task-pool",
+        "task-lifecycle",
+        "scheduler",
+        "session",
+        "session-content",
+        "shiju-apps",
+        "skill-market",
+        "extensions",
+        "desktop",
+        "staff",
+        "workflow",
+        "workspace",
+        "system",
     ];
     let command = crate::cli::Cli::command();
     let names = command
@@ -495,133 +515,8 @@ fn task_commands_parse_create_and_read_defaults_and_overrides() {
     ));
 }
 
-#[test]
-fn matrix_worker_command_parses_worker_id_and_project_dir() {
-    let cli = crate::cli::Cli::try_parse_from([
-        "vibewindow",
-        "agent-scheduler",
-        "matrix-worker",
-        "--project-dir",
-        "/tmp/project",
-        "--worker-id",
-        "matrix-dev",
-    ])
-    .expect("matrix worker command should parse");
 
-    match cli.command {
-        crate::cli::Commands::AgentScheduler { agent_scheduler_command } => {
-            match agent_scheduler_command {
-                crate::cli::AgentSchedulerCommands::MatrixWorker {
-                    project_dir, worker_id, ..
-                } => {
-                    assert_eq!(project_dir, "/tmp/project");
-                    assert_eq!(worker_id, "matrix-dev");
-                }
-            }
-        }
-        other => panic!("expected agent-scheduler matrix-worker command, got {other:?}"),
-    }
-}
 
-#[test]
-fn cli_agent_scheduler_scope_defaults_and_overrides_are_explicit() {
-    let defaults = crate::cli::Cli::try_parse_from([
-        "vibewindow",
-        "agent-scheduler",
-        "matrix-worker",
-        "--project-dir",
-        "/tmp/project",
-        "--worker-id",
-        "matrix-dev",
-    ])
-    .expect("matrix worker defaults should parse");
-    let crate::cli::Commands::AgentScheduler { agent_scheduler_command } = defaults.command else {
-        panic!("expected agent-scheduler command");
-    };
-    let crate::cli::AgentSchedulerCommands::MatrixWorker { platform_id, company_id, .. } =
-        agent_scheduler_command;
-    assert_eq!(platform_id, "local");
-    assert_eq!(company_id, "local");
-
-    let overrides = crate::cli::Cli::try_parse_from([
-        "vibewindow",
-        "agent-scheduler",
-        "matrix-worker",
-        "--project-dir",
-        "/tmp/project",
-        "--worker-id",
-        "matrix-dev",
-        "--platform-id",
-        "desktop",
-        "--company-id",
-        "acme",
-    ])
-    .expect("matrix worker scope overrides should parse");
-    let crate::cli::Commands::AgentScheduler { agent_scheduler_command } = overrides.command else {
-        panic!("expected agent-scheduler command");
-    };
-    let crate::cli::AgentSchedulerCommands::MatrixWorker { platform_id, company_id, .. } =
-        agent_scheduler_command;
-    assert_eq!(platform_id, "desktop");
-    assert_eq!(company_id, "acme");
-
-    for blank_argument in ["--platform-id", "--company-id"] {
-        let error = crate::cli::Cli::try_parse_from([
-            "vibewindow",
-            "agent-scheduler",
-            "matrix-worker",
-            "--project-dir",
-            "/tmp/project",
-            "--worker-id",
-            "matrix-dev",
-            blank_argument,
-            "   ",
-        ])
-        .expect_err("blank scheduler scope argument should be rejected");
-        assert!(error.to_string().contains("must not be empty"));
-    }
-}
-
-#[test]
-fn matrix_local_script_commands_reference_rust_worker() {
-    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .and_then(Path::parent)
-        .expect("vw-cli crate should live under crates/vw-cli");
-    let script = fs::read_to_string(repo_root.join("dev/matrix/matrix-local.sh"))
-        .expect("matrix-local.sh should be readable");
-    let readme = fs::read_to_string(repo_root.join("dev/matrix/README.md"))
-        .expect("Matrix README should be readable");
-
-    assert!(
-        !script.contains("matrix-worker-local.py"),
-        "matrix-local.sh should not call the Python Matrix worker"
-    );
-    assert!(
-        script.contains("agent-scheduler matrix-worker"),
-        "matrix-local.sh should launch the Rust Matrix worker CLI"
-    );
-    assert!(
-        script.contains("target/debug/shiju"),
-        "matrix-local.sh should prefer the current repo debug binary before PATH"
-    );
-    assert!(
-        script.contains("stop_existing_matrix_workers"),
-        "matrix-local.sh should clean up duplicate Matrix worker processes"
-    );
-    for worker_id in ["matrix-dev", "matrix-test", "matrix-review"] {
-        assert!(script.contains(worker_id), "matrix-local.sh should reference {worker_id}");
-    }
-
-    assert!(
-        !readme.contains("matrix-worker-local.py"),
-        "Matrix README should describe the Rust worker path"
-    );
-    assert!(
-        readme.contains("agent-scheduler matrix-worker"),
-        "Matrix README should document the Rust worker CLI"
-    );
-}
 
 #[test]
 fn native_task_commands_use_global_agent_scheduler_store() {

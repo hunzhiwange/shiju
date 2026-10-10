@@ -149,9 +149,6 @@ pub mod task_lifecycle;
 /// 聊天工作流执行（task-plan-run）SSE 路由处理器模块
 pub mod task_plan_run;
 
-/// 任务池 Matrix 协同事件路由处理器模块
-pub mod task_pool_matrix;
-
 /// 工具管理处理器模块
 ///
 /// 提供 CLI 工具、成本统计和系统诊断相关的处理器。
@@ -208,11 +205,6 @@ pub use mcp::handle_api_mcp_inspect;
 /// - `handle_api_health`: 健康检查端点（GET /api/health）
 /// - `handle_api_status`: 系统运行状态（GET /api/status）
 pub use status::{handle_api_health, handle_api_status};
-
-/// 重新导出任务池 Matrix 协同事件处理器
-pub use task_pool_matrix::{
-    handle_api_task_pool_matrix_events, handle_api_task_pool_matrix_publish,
-};
 
 /// 重新导出员工任务流 IPC 消息处理器
 

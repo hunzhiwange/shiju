@@ -126,7 +126,7 @@ pub(crate) mod app {
     }
 }
 
-use cli::{AgentSchedulerCommands, Cli, Commands, ConfigCommands, DoctorCommands, TaskCommands};
+use cli::{Cli, Commands, ConfigCommands, DoctorCommands, TaskCommands};
 
 /// 重新导出命令枚举，确保二进制模块可以使用 `crate::<CommandEnum>`
 /// 同时保持命令定义的单一真实来源。
@@ -414,8 +414,7 @@ pub async fn run() -> Result<()> {
             if let Some(n) = max_actions_per_hour {
                 config.autonomy.max_actions_per_hour = n;
             }
-            let main_agent =
-                vw_config_types::agent::ensure_main_agent_config(&mut config.agents);
+            let main_agent = vw_config_types::agent::ensure_main_agent_config(&mut config.agents);
             // 应用工具迭代次数限制
             if let Some(n) = max_iterations {
                 main_agent.max_iterations = n;
@@ -571,32 +570,6 @@ pub async fn run() -> Result<()> {
 
         // 处理 Cron 命令：定时任务管理
         Commands::Cron { cron_command } => cron::handle_command(cron_command, &config),
-
-        // 处理 Agent Scheduler 运行时命令
-        Commands::AgentScheduler { agent_scheduler_command } => match agent_scheduler_command {
-            AgentSchedulerCommands::MatrixWorker {
-                platform_id,
-                company_id,
-                project_dir,
-                worker_id,
-            } => {
-                let project_path = std::path::PathBuf::from(resolve_project_dir(&project_dir)?);
-                let tenant_scope =
-                    vw_gateway_client::vw_api_types::id::TenantScope::new(platform_id, company_id)
-                        .with_context(|| "Invalid agent-scheduler tenant scope")?;
-                let worker_id = vw_agent::agent_scheduler::domain::WorkerName::new(worker_id)
-                    .with_context(
-                        || "Invalid --worker-id value for agent-scheduler matrix-worker",
-                    )?;
-                vw_agent::agent_scheduler::runner::matrix::run_configured_matrix_worker_until_shutdown_for_tenant(
-                    config,
-                    tenant_scope,
-                    project_path,
-                    worker_id,
-                )
-                .await
-            }
-        },
 
         // 处理 Providers 命令：列出支持的 AI 提供者
         Commands::Providers => {

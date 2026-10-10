@@ -5,8 +5,8 @@
 
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_control_with_hint, settings_muted_text_style, settings_panel,
+    SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style,
+    settings_control_with_hint, settings_divider, settings_muted_text_style, settings_panel,
     settings_pick_list_menu_style, settings_pick_list_style, settings_text_editor_style,
     settings_text_input_style, settings_value_badge,
 };
@@ -149,7 +149,6 @@ pub(super) fn is_multiline_list_key(key: &str) -> bool {
             | "mattermost.allowed_users"
             | "mattermost.group_reply.allowed_sender_ids"
             | "imessage.allowed_contacts"
-            | "matrix.allowed_users"
             | "signal.allowed_from"
             | "whatsapp.allowed_numbers"
             | "linq.allowed_senders"
@@ -167,8 +166,7 @@ pub(super) fn is_multiline_list_key(key: &str) -> bool {
             | "nostr.relays"
             | "nostr.allowed_pubkeys"
             | "clawdtalk.allowed_destinations"
-    ) || matches!(named_instance_field(key, "matrix_instances"), Some("allowed_users"))
-        || matches!(
+    ) || matches!(
             named_instance_field(key, "feishu_instances"),
             Some("allowed_users" | "group_reply.allowed_sender_ids")
         )
@@ -425,19 +423,12 @@ pub(super) fn number_row_with_hint<'a>(
         text(localized_label(label)).size(13).width(Length::Fixed(LABEL_WIDTH)),
         settings_control_with_hint(
             row![
-                NumberInput::new(
-                    value as f32,
-                    min as f32,
-                    max as f32,
-                    1.0,
-                    0,
-                    0.15,
-                    move |raw| {
-                        Message::Settings(SettingsMessage::Channels(
-                            ChannelsMessage::NumberChanged(key.clone(), raw.round() as u32),
-                        ))
-                    },
-                )
+                NumberInput::new(value as f32, min as f32, max as f32, 1.0, 0, 0.15, move |raw| {
+                    Message::Settings(SettingsMessage::Channels(ChannelsMessage::NumberChanged(
+                        key.clone(),
+                        raw.round() as u32,
+                    )))
+                },)
                 .settings_style(),
                 settings_value_badge(display),
             ]
@@ -670,9 +661,6 @@ pub(super) fn enabled_channels(app: &App) -> Vec<&'static str> {
     }
     if s.imessage.is_some() {
         items.push("iMessage");
-    }
-    if s.matrix_enabled {
-        items.push("Matrix");
     }
     if s.signal.is_some() {
         items.push("Signal");

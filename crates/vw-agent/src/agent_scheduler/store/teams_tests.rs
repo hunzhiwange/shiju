@@ -35,63 +35,6 @@ fn agent_team_store_rejects_ready_workers_above_total() -> Result<()> {
     Ok(())
 }
 
-fn assert_team_store_lists_and_loads_team_snapshots(
-    store: &AgentSchedulerStore,
-    context: &AgentSchedulerContext,
-    isolated_context: &AgentSchedulerContext,
-) -> Result<()> {
-    store.initialize_project(context)?;
-    let team_zulu = team_snapshot("team-zulu", "Zulu Team", "leader-zulu", 1)?;
-    let team_alpha = team_snapshot("team-alpha", "Alpha Team", "leader-alpha", 2)?;
-    store.upsert_team_snapshot(context, team_zulu)?;
-    let stored_alpha = store.upsert_team_snapshot(context, team_alpha)?;
-    store.upsert_team_snapshot(
-        isolated_context,
-        team_snapshot("team-alpha", "Isolated Team", "leader-isolated", 1)?,
-    )?;
-
-    assert_eq!(stored_alpha.id.as_str(), "team-alpha");
-    assert_eq!(stored_alpha.members.len(), 2);
-
-    let teams = store.list_teams(context)?;
-    assert_eq!(team_ids(&teams), vec!["team-alpha", "team-zulu"]);
-
-    let loaded = store.load_team(context, &TeamId::new("team-alpha")?)?.expect("team stored");
-    assert_eq!(loaded.name, "Alpha Team");
-    assert_eq!(loaded.status, AgentTeamStatus::Active);
-    assert_eq!(loaded.leader_id.as_str(), "leader-alpha");
-    assert_eq!(loaded.team_room_id.as_deref(), Some("!team-alpha:example.test"));
-    assert_eq!(loaded.leader_dm_room_id.as_deref(), Some("!leader-alpha:example.test"));
-    assert!(loaded.leader_ready);
-    assert_eq!(loaded.ready_workers, 2);
-    assert_eq!(loaded.total_workers, 2);
-    assert_eq!(loaded.updated_at_ms, TimestampMs(1_783_000_020_000));
-    assert_eq!(loaded.members.len(), 2);
-    assert_eq!(loaded.members[0].worker_id.as_str(), "leader-alpha");
-    assert_eq!(
-        loaded.members[0].runtime_name.as_ref().map(WorkerName::as_str),
-        Some("leader-alpha-runtime")
-    );
-    assert_eq!(loaded.members[0].role, "team_leader");
-    assert_eq!(loaded.members[0].room_id.as_deref(), Some("!leader-room:example.test"));
-    assert_eq!(loaded.members[0].matrix_user_id.as_deref(), Some("@leader-alpha:example.test"));
-    assert!(loaded.members[0].ready);
-    assert_eq!(loaded.members[1].worker_id.as_str(), "worker-alpha");
-    assert_eq!(loaded.members[1].runtime_name, None);
-    assert_eq!(loaded.members[1].role, "worker");
-    assert_eq!(loaded.members[1].room_id, None);
-    assert_eq!(loaded.members[1].matrix_user_id, None);
-    assert!(loaded.members[1].ready);
-    assert_eq!(
-        store
-            .load_team(isolated_context, &TeamId::new("team-alpha")?)?
-            .expect("isolated team stored")
-            .name,
-        "Isolated Team"
-    );
-
-    Ok(())
-}
 
 // 团队快照契约在所有可用后端执行，确保校验与列表顺序一致。
 fn for_each_team_store_provider(
@@ -150,6 +93,69 @@ fn team_store_fixture(
     Ok((AgentSchedulerStore::from_database(database), context, isolated_context))
 }
 
+
+fn team_ids(teams: &[StoredAgentTeam]) -> Vec<&str> {
+    teams.iter().map(|team| team.id.as_str()).collect()
+}
+
+fn assert_team_store_lists_and_loads_team_snapshots(
+    store: &AgentSchedulerStore,
+    context: &AgentSchedulerContext,
+    isolated_context: &AgentSchedulerContext,
+) -> Result<()> {
+    store.initialize_project(context)?;
+    let team_zulu = team_snapshot("team-zulu", "Zulu Team", "leader-zulu", 1)?;
+    let team_alpha = team_snapshot("team-alpha", "Alpha Team", "leader-alpha", 2)?;
+    store.upsert_team_snapshot(context, team_zulu)?;
+    let stored_alpha = store.upsert_team_snapshot(context, team_alpha)?;
+    store.upsert_team_snapshot(
+        isolated_context,
+        team_snapshot("team-alpha", "Isolated Team", "leader-isolated", 1)?,
+    )?;
+
+    assert_eq!(stored_alpha.id.as_str(), "team-alpha");
+    assert_eq!(stored_alpha.members.len(), 2);
+
+    let teams = store.list_teams(context)?;
+    assert_eq!(team_ids(&teams), vec!["team-alpha", "team-zulu"]);
+
+    let loaded = store.load_team(context, &TeamId::new("team-alpha")?)?.expect("team stored");
+    assert_eq!(loaded.name, "Alpha Team");
+    assert_eq!(loaded.status, AgentTeamStatus::Active);
+    assert_eq!(loaded.leader_id.as_str(), "leader-alpha");
+    assert_eq!(loaded.team_room_id.as_deref(), Some("!team-alpha:example.test"));
+    assert_eq!(loaded.leader_dm_room_id.as_deref(), Some("!leader-alpha:example.test"));
+    assert!(loaded.leader_ready);
+    assert_eq!(loaded.ready_workers, 2);
+    assert_eq!(loaded.total_workers, 2);
+    assert_eq!(loaded.updated_at_ms, TimestampMs(1_783_000_020_000));
+    assert_eq!(loaded.members.len(), 2);
+    assert_eq!(loaded.members[0].worker_id.as_str(), "leader-alpha");
+    assert_eq!(
+        loaded.members[0].runtime_name.as_ref().map(WorkerName::as_str),
+        Some("leader-alpha-runtime")
+    );
+    assert_eq!(loaded.members[0].role, "team_leader");
+    assert_eq!(loaded.members[0].room_id.as_deref(), Some("!leader-room:example.test"));
+    assert_eq!(loaded.members[0].matrix_user_id.as_deref(), Some("@leader-alpha:example.test"));
+    assert!(loaded.members[0].ready);
+    assert_eq!(loaded.members[1].worker_id.as_str(), "worker-alpha");
+    assert_eq!(loaded.members[1].runtime_name, None);
+    assert_eq!(loaded.members[1].role, "worker");
+    assert_eq!(loaded.members[1].room_id, None);
+    assert_eq!(loaded.members[1].matrix_user_id, None);
+    assert!(loaded.members[1].ready);
+    assert_eq!(
+        store
+            .load_team(isolated_context, &TeamId::new("team-alpha")?)?
+            .expect("isolated team stored")
+            .name,
+        "Isolated Team"
+    );
+
+    Ok(())
+}
+
 fn team_snapshot(
     id: &str,
     name: &str,
@@ -186,8 +192,4 @@ fn team_snapshot(
         ],
         updated_at_ms: TimestampMs(1_783_000_020_000),
     })
-}
-
-fn team_ids(teams: &[StoredAgentTeam]) -> Vec<&str> {
-    teams.iter().map(|team| team.id.as_str()).collect()
 }

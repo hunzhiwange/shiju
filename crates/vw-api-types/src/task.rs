@@ -224,103 +224,6 @@ impl TaskPoolStatus {
     }
 }
 
-/// 任务池 Matrix 协同事件的 Matrix room event type。
-pub const TASK_POOL_MATRIX_EVENT_TYPE: &str = "com.vibewindow.task_pool.event.v1";
-
-const TASK_POOL_MATRIX_TEXT_LIMIT: usize = 1024;
-
-/// 任务池 Matrix 协同事件的发起者。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TaskPoolMatrixActorDto {
-    pub matrix_user_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub display_name: Option<String>,
-}
-
-/// 任务池 Matrix 协同事件 envelope。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TaskPoolMatrixEventDto {
-    pub version: u8,
-    pub event_id: String,
-    pub task_id: String,
-    pub actor: TaskPoolMatrixActorDto,
-    pub occurred_at_ms: u64,
-    pub kind: TaskPoolMatrixEventKindDto,
-}
-
-impl TaskPoolMatrixEventDto {
-    /// 校验事件 content 是否可以作为 Matrix room event 进入任务池协同流。
-    pub fn validate_for_matrix_room_event(&self) -> Result<(), String> {
-        if self.version != 1 {
-            return Err("version must be 1".to_string());
-        }
-        validate_required_text("event_id", &self.event_id)?;
-        validate_required_text("task_id", &self.task_id)?;
-        validate_required_text("actor.matrix_user_id", &self.actor.matrix_user_id)?;
-        if let Some(display_name) = &self.actor.display_name {
-            validate_text_limit("actor.display_name", display_name)?;
-        }
-
-        match &self.kind {
-            TaskPoolMatrixEventKindDto::TaskStatusChanged { .. } => {}
-            TaskPoolMatrixEventKindDto::TaskClaimed { assignee } => {
-                validate_text_limit("kind.assignee", assignee)?;
-            }
-            TaskPoolMatrixEventKindDto::TaskNote { message } => {
-                validate_text_limit("kind.message", message)?;
-            }
-            TaskPoolMatrixEventKindDto::TaskBlocked { reason } => {
-                validate_text_limit("kind.reason", reason)?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-/// 任务池 Matrix 协同事件 kind。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum TaskPoolMatrixEventKindDto {
-    TaskStatusChanged {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        from_status: Option<TaskPoolStatus>,
-        to_status: TaskPoolStatus,
-    },
-    TaskClaimed {
-        assignee: String,
-    },
-    TaskNote {
-        message: String,
-    },
-    TaskBlocked {
-        reason: String,
-    },
-}
-
-/// 发布任务池 Matrix 协同事件请求。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TaskPoolMatrixPublishRequest {
-    pub event: TaskPoolMatrixEventDto,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub matrix_instance_id: Option<String>,
-}
-
-/// 发布任务池 Matrix 协同事件响应。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TaskPoolMatrixPublishResponse {
-    pub accepted: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub matrix_event_id: Option<String>,
-}
-
-/// 拉取任务池 Matrix 协同事件响应。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TaskPoolMatrixEventsResponse {
-    pub cursor: u64,
-    pub events: Vec<TaskPoolMatrixEventDto>,
-}
-
 /// 聊天工作流触发的计划执行请求。
 ///
 /// 网关侧始终按目标模式执行：独立验收未通过时自动续轮，直到达成或真实阻塞。
@@ -480,20 +383,6 @@ pub enum TaskPlanRunStreamEventDto {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         session_id: Option<String>,
     },
-}
-
-fn validate_required_text(field: &str, value: &str) -> Result<(), String> {
-    if value.is_empty() {
-        return Err(format!("{field} must not be empty"));
-    }
-    validate_text_limit(field, value)
-}
-
-fn validate_text_limit(field: &str, value: &str) -> Result<(), String> {
-    if value.chars().count() > TASK_POOL_MATRIX_TEXT_LIMIT {
-        return Err(format!("{field} must be at most {TASK_POOL_MATRIX_TEXT_LIMIT} characters"));
-    }
-    Ok(())
 }
 
 /// 任务池工作流状态的引擎语义角色。

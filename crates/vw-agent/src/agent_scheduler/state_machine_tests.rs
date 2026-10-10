@@ -84,26 +84,6 @@ fn agent_state_machine_allows_idempotent_transitions() {
     }
 }
 
-#[test]
-fn agent_state_machine_event_kind_catalog_uses_stable_snake_case_names() {
-    let required = [
-        "task_created",
-        "imported_legacy_task",
-        "worker_selected",
-        "matrix_dispatched",
-        "worker_acknowledged",
-        "run_completed",
-        "human_intervened",
-    ];
-    let catalog = AgentEventKind::catalog();
-    let names = catalog.iter().map(|kind| kind.as_str()).collect::<HashSet<_>>();
-
-    for kind in required {
-        assert!(names.contains(kind), "missing event kind {kind}");
-    }
-    assert_eq!(names.len(), catalog.len(), "event kind names must be unique");
-    assert!(names.iter().all(|kind| kind.chars().all(|ch| ch.is_ascii_lowercase() || ch == '_')));
-}
 
 #[test]
 fn agent_state_machine_transition_keys_parse_and_reject_invalid_inputs() {

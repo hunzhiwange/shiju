@@ -1032,12 +1032,6 @@ fn push_selected_agent(options: &mut Vec<String>, selected: &Option<String>) {
 
 fn channel_binding_profile_options(app: &App, draft: &StaffSettingsMemberDraft) -> Vec<String> {
     let mut options = Vec::new();
-    if app.channels_settings.matrix.is_some() {
-        push_channel_profile_option(&mut options, "matrix", DEFAULT_CHANNEL_INSTANCE_ID);
-    }
-    for instance in &app.channels_settings.matrix_instances {
-        push_channel_profile_option(&mut options, "matrix", &instance.id);
-    }
     if app.channels_settings.feishu.is_some() {
         push_channel_profile_option(&mut options, "feishu", DEFAULT_CHANNEL_INSTANCE_ID);
     }

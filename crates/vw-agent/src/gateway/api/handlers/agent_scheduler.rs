@@ -59,7 +59,7 @@ use crate::agent_scheduler::adapters::controller::{
     ControllerAdapter, EnsureWorkerReadyRequest, WorkerControllerSnapshot, WorkerLifecycleRequest,
     WorkerLifecycleState, WorkerStatusRequest,
 };
-use crate::agent_scheduler::adapters::matrix::ConfiguredMatrixDispatchAdapter;
+use crate::agent_scheduler::adapters::dispatch::LocalOnlyDispatchAdapter;
 use crate::agent_scheduler::domain::{
     AgentCapabilityKind, AgentRunStatus, AgentSchedulerContext, AgentTeamStatus, AgentWorkerStatus,
     RunId, TaskId, TeamId, WorkerName,
@@ -1047,7 +1047,7 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
     ) -> Result<AgentSchedulerOutboxDrainResponse, ApiError> {
         let project_path = parse_project_path(&request.project_path)?;
         let limit = request.limit.unwrap_or(DEFAULT_OUTBOX_DRAIN_LIMIT).min(MAX_OUTBOX_DRAIN_LIMIT);
-        let matrix = ConfiguredMatrixDispatchAdapter;
+        let matrix = LocalOnlyDispatchAdapter;
         let dispatcher = OutboxDispatcher::new(&self.store, &matrix);
         let (summary, messages) = dispatcher
             .drain_messages_once(&project_path, request.now_ms, limit)
@@ -1540,7 +1540,7 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
             limit,
             "agent scheduler project outbox drain requested"
         );
-        let matrix = ConfiguredMatrixDispatchAdapter;
+        let matrix = LocalOnlyDispatchAdapter;
         let dispatcher = OutboxDispatcher::new(&self.store, &matrix);
         let (summary, messages) = dispatcher
             .drain_messages_once(&project_path, request.now_ms, limit)

@@ -10,9 +10,8 @@ use super::email::EmailConfig;
 use super::lark::{FeishuConfig, FeishuInstanceConfig, LarkConfig};
 use super::{
     other::{
-        DingTalkConfig, DingTalkInstanceConfig, IrcConfig, LinqConfig, MatrixConfig,
-        MatrixInstanceConfig, NextcloudTalkConfig, NostrConfig, QQConfig, SignalConfig, WatiConfig,
-        WhatsAppConfig,
+        DingTalkConfig, DingTalkInstanceConfig, IrcConfig, LinqConfig, NextcloudTalkConfig,
+        NostrConfig, QQConfig, SignalConfig, WatiConfig, WhatsAppConfig,
     },
     types::{
         DiscordConfig, IMessageConfig, MattermostConfig, SlackConfig, TelegramConfig, WebhookConfig,
@@ -117,14 +116,6 @@ pub struct ChannelsConfig {
     pub webhook: Option<WebhookConfig>,
     /// iMessage 通道配置。
     pub imessage: Option<IMessageConfig>,
-    /// Matrix 通道配置。
-    pub matrix: Option<MatrixConfig>,
-    /// 是否启用 Matrix 通道及其命名实例。
-    #[serde(default)]
-    pub matrix_enabled: bool,
-    /// 命名 Matrix 通道实例配置。
-    #[serde(default)]
-    pub matrix_instances: Vec<MatrixInstanceConfig>,
     /// Signal 通道配置。
     pub signal: Option<SignalConfig>,
     /// WhatsApp 通道配置。
@@ -175,9 +166,6 @@ impl Default for ChannelsConfig {
             mattermost: None,
             webhook: None,
             imessage: None,
-            matrix: None,
-            matrix_enabled: false,
-            matrix_instances: Vec::new(),
             signal: None,
             whatsapp: None,
             linq: None,
@@ -207,14 +195,6 @@ impl ChannelsConfig {
     ) -> Result<Vec<ChannelInstanceProfile>, ChannelInstanceProfileError> {
         let mut profiles = Vec::new();
 
-        if self.matrix_enabled {
-            push_instance_profiles(
-                &mut profiles,
-                "matrix",
-                self.matrix.is_some(),
-                self.matrix_instances.iter().map(|instance| instance.id.as_str()),
-            )?;
-        }
         push_instance_profiles(
             &mut profiles,
             "feishu",

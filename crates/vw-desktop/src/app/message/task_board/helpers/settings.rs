@@ -107,16 +107,10 @@ pub(crate) fn pr_submitted_stall_timeout_secs(app: &crate::app::App) -> u64 {
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(crate) fn schedule_scheduler_tick(app: &crate::app::App) -> iced::Task<crate::app::Message> {
     let delay = std::time::Duration::from_secs(scheduler_tick_interval_secs(app));
-    iced::Task::batch(vec![
-        crate::app::message::after(
-            delay,
-            crate::app::Message::TaskBoard(TaskBoardMessage::ExecutionTick),
-        ),
-        crate::app::message::after(
-            delay,
-            crate::app::Message::TaskBoard(TaskBoardMessage::PollMatrixTaskPoolEvents),
-        ),
-    ])
+    crate::app::message::after(
+        delay,
+        crate::app::Message::TaskBoard(TaskBoardMessage::ExecutionTick),
+    )
 }
 
 /// 执行 schedule_auto_review_tick 对应的领域操作。

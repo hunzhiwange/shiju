@@ -58,11 +58,6 @@ impl ChannelsConfigExt for ChannelsConfig {
                 self.imessage.is_some(),
             ),
             (
-                Box::new(ConfigWrapper::new(self.matrix.as_ref())),
-                self.matrix_enabled
-                    && (self.matrix.is_some() || !self.matrix_instances.is_empty()),
-            ),
-            (
                 Box::new(ConfigWrapper::new(self.signal.as_ref())),
                 self.signal.is_some(),
             ),

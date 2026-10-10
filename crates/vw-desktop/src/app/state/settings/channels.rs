@@ -23,7 +23,6 @@ fn is_static_multiline_channel_key(key: &str) -> bool {
             | "mattermost.allowed_users"
             | "mattermost.group_reply.allowed_sender_ids"
             | "imessage.allowed_contacts"
-            | "matrix.allowed_users"
             | "signal.allowed_from"
             | "whatsapp.allowed_numbers"
             | "linq.allowed_senders"
@@ -45,8 +44,7 @@ fn is_static_multiline_channel_key(key: &str) -> bool {
 }
 
 fn is_named_instance_multiline_channel_key(key: &str) -> bool {
-    matches!(named_instance_field(key, "matrix_instances"), Some("allowed_users"))
-        || matches!(
+    matches!(
             named_instance_field(key, "feishu_instances"),
             Some("allowed_users" | "group_reply.allowed_sender_ids")
         )
@@ -66,7 +64,6 @@ pub enum ChannelsSettingsTab {
     Mattermost,
     Webhook,
     IMessage,
-    Matrix,
     Signal,
     WhatsApp,
     Linq,
@@ -91,7 +88,6 @@ impl ChannelsSettingsTab {
             "mattermost" => Some(Self::Mattermost),
             "webhook" => Some(Self::Webhook),
             "imessage" => Some(Self::IMessage),
-            "matrix" => Some(Self::Matrix),
             "signal" => Some(Self::Signal),
             "whatsapp" => Some(Self::WhatsApp),
             "linq" => Some(Self::Linq),
@@ -118,7 +114,6 @@ impl ChannelsSettingsTab {
             Self::Mattermost => "Mattermost",
             Self::Webhook => "Webhook",
             Self::IMessage => "iMessage",
-            Self::Matrix => "Matrix",
             Self::Signal => "Signal",
             Self::WhatsApp => "WhatsApp",
             Self::Linq => "Linq",
@@ -149,9 +144,6 @@ pub(crate) struct ChannelsSettingsState {
     pub(crate) mattermost: Option<vw_config_types::channels::MattermostConfig>,
     pub(crate) webhook: Option<vw_config_types::channels::WebhookConfig>,
     pub(crate) imessage: Option<vw_config_types::channels::IMessageConfig>,
-    pub(crate) matrix: Option<vw_config_types::channels::MatrixConfig>,
-    pub(crate) matrix_enabled: bool,
-    pub(crate) matrix_instances: Vec<vw_config_types::channels::MatrixInstanceConfig>,
     pub(crate) signal: Option<vw_config_types::channels::SignalConfig>,
     pub(crate) whatsapp: Option<vw_config_types::channels::WhatsAppConfig>,
     pub(crate) linq: Option<vw_config_types::channels::LinqConfig>,
@@ -186,9 +178,6 @@ impl Default for ChannelsSettingsState {
             mattermost: None,
             webhook: None,
             imessage: None,
-            matrix: None,
-            matrix_enabled: false,
-            matrix_instances: Vec::new(),
             signal: None,
             whatsapp: None,
             linq: None,
@@ -325,15 +314,6 @@ impl ChannelsSettingsState {
                 "imessage.allowed_contacts",
                 &cfg.allowed_contacts,
             );
-        }
-        if let Some(cfg) = self.matrix.as_ref() {
-            insert_list(&mut self.text_inputs, "matrix.allowed_users", &cfg.allowed_users);
-            insert_editor(&mut self.text_editors, "matrix.allowed_users", &cfg.allowed_users);
-        }
-        for (index, instance) in self.matrix_instances.iter().enumerate() {
-            let key = format!("matrix_instances.{index}.allowed_users");
-            insert_list(&mut self.text_inputs, &key, &instance.config.allowed_users);
-            insert_editor(&mut self.text_editors, &key, &instance.config.allowed_users);
         }
         if let Some(cfg) = self.signal.as_ref() {
             insert_list(&mut self.text_inputs, "signal.allowed_from", &cfg.allowed_from);

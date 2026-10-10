@@ -443,14 +443,6 @@ Examples:
         cron_command: CronCommands,
     },
 
-    /// 运行 Agent Scheduler 组件
-    #[command(name = "agent-scheduler")]
-    AgentScheduler {
-        /// Agent Scheduler 子命令
-        #[command(subcommand)]
-        agent_scheduler_command: AgentSchedulerCommands,
-    },
-
     /// 列出支持的 AI 提供商
     Providers,
 
@@ -654,10 +646,9 @@ impl Commands {
     pub(crate) fn into_api_args(self) -> Option<crate::handlers::api::ApiArgs> {
         match self {
             Self::Api(commands) => Some(commands.into_args()),
-            Self::Config {
-                api_options,
-                config_command: ConfigCommands::Gateway(command),
-            } => Some(crate::handlers::api::config_args(api_options, command)),
+            Self::Config { api_options, config_command: ConfigCommands::Gateway(command) } => {
+                Some(crate::handlers::api::config_args(api_options, command))
+            }
             _ => None,
         }
     }
@@ -722,34 +713,6 @@ pub(crate) enum TaskCommands {
         #[arg(long, default_value = "50")]
         limit: usize,
     },
-}
-
-/// Agent Scheduler 运行时子命令
-#[derive(Subcommand, Debug)]
-pub(crate) enum AgentSchedulerCommands {
-    /// 启动单个 Rust Matrix worker
-    #[command(name = "matrix-worker")]
-    MatrixWorker {
-        /// 平台作用域 ID
-        #[arg(long, default_value = "local", value_parser = parse_required_scope_id)]
-        platform_id: String,
-        /// 公司作用域 ID
-        #[arg(long, default_value = "local", value_parser = parse_required_scope_id)]
-        company_id: String,
-        /// Agent Scheduler 项目目录
-        #[arg(long)]
-        project_dir: String,
-        /// workers 表中的 worker id
-        #[arg(long)]
-        worker_id: String,
-    },
-}
-
-fn parse_required_scope_id(value: &str) -> Result<String, String> {
-    if value.trim().is_empty() {
-        return Err("scope id must not be empty".to_string());
-    }
-    Ok(value.to_string())
 }
 
 /// CLI 任务拆分模式。

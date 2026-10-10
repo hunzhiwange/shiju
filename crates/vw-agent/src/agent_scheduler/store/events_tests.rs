@@ -87,19 +87,6 @@ fn scope_event(message: &str, created_at_ms: TimestampMs) -> AppendAgentEventReq
     }
 }
 
-fn scope_message(body: &str) -> EnqueueOutboxMessageRequest {
-    EnqueueOutboxMessageRequest {
-        message_id: "shared-message".to_string(),
-        channel: "matrix".to_string(),
-        target: "room:shared".to_string(),
-        recipient_id: None,
-        body: body.to_string(),
-        idempotency_key: "shared-idempotency".to_string(),
-        payload: json!({}),
-        created_at_ms: TimestampMs(1_050),
-        next_attempt_at_ms: None,
-    }
-}
 
 #[test]
 fn agent_scheduler_event_store_pages_ordered_scope_local_events() -> Result<()> {
@@ -201,123 +188,6 @@ fn assert_pages_ordered_scope_local_events(
     Ok(())
 }
 
-#[test]
-fn agent_event_outbox_store_orders_events_and_deduplicates_messages() -> Result<()> {
-    let temp_dir = tempfile::tempdir()?;
-    let project_path = temp_dir.path();
-    let store = AgentSchedulerStore::new();
-    let task_id = TaskId::new("task-event-1")?;
-
-    store.initialize_project(project_path)?;
-
-    let first_event = store.append_event(
-        project_path,
-        AppendAgentEventRequest {
-            task_id: Some(task_id.clone()),
-            run_id: Some(RunId::new("run-event-1")?),
-            worker_id: Some(WorkerName::new("worker-a")?),
-            team_id: None,
-            kind: AgentEventKind::TaskAssigned,
-            from_status: Some(AgentTaskStatus::Queued),
-            to_status: Some(AgentTaskStatus::Assigned),
-            from_status_key: None,
-            to_status_key: None,
-            message: "task assigned to worker-a".to_string(),
-            payload: json!({"assigned_to": "worker-a"}),
-            created_at_ms: TimestampMs(1_000),
-        },
-    )?;
-    let second_event = store.append_event(
-        project_path,
-        AppendAgentEventRequest {
-            task_id: Some(task_id.clone()),
-            run_id: Some(RunId::new("run-event-1")?),
-            worker_id: Some(WorkerName::new("worker-a")?),
-            team_id: None,
-            kind: AgentEventKind::OutboxQueued,
-            from_status: None,
-            to_status: None,
-            from_status_key: None,
-            to_status_key: None,
-            message: "worker dispatch queued".to_string(),
-            payload: json!({"channel": "matrix"}),
-            created_at_ms: TimestampMs(1_100),
-        },
-    )?;
-
-    assert!(second_event.cursor > first_event.cursor);
-    let events = store.list_events_after(project_path, Some(first_event.cursor - 1), 10)?;
-    assert_eq!(
-        events.iter().map(|event| event.cursor).collect::<Vec<_>>(),
-        vec![first_event.cursor, second_event.cursor]
-    );
-    assert_eq!(events[0].task_id, Some(task_id));
-    assert_eq!(events[0].kind, AgentEventKind::TaskAssigned);
-    assert_eq!(events[0].from_status, Some(AgentTaskStatus::Queued));
-    assert_eq!(events[0].to_status, Some(AgentTaskStatus::Assigned));
-
-    let first_message = store.enqueue_outbox_message(
-        project_path,
-        EnqueueOutboxMessageRequest {
-            message_id: "outbox-1".to_string(),
-            channel: "matrix".to_string(),
-            target: "room:!worker-room:example.test".to_string(),
-            recipient_id: Some("@worker-a:example.test".to_string()),
-            body: "@worker-a:example.test New task [task-event-1]: TDD".to_string(),
-            idempotency_key: "task-event-1:dispatch:worker-a".to_string(),
-            payload: json!({"task_id": "task-event-1"}),
-            created_at_ms: TimestampMs(1_200),
-            next_attempt_at_ms: None,
-        },
-    )?;
-    let duplicate_message = store.enqueue_outbox_message(
-        project_path,
-        EnqueueOutboxMessageRequest {
-            message_id: "outbox-duplicate".to_string(),
-            channel: "matrix".to_string(),
-            target: "room:!worker-room:example.test".to_string(),
-            recipient_id: Some("@worker-a:example.test".to_string()),
-            body: "duplicate should not enqueue".to_string(),
-            idempotency_key: "task-event-1:dispatch:worker-a".to_string(),
-            payload: json!({"task_id": "task-event-1", "duplicate": true}),
-            created_at_ms: TimestampMs(1_201),
-            next_attempt_at_ms: None,
-        },
-    )?;
-
-    assert_eq!(duplicate_message.id, first_message.id);
-    assert_eq!(duplicate_message.body, first_message.body);
-
-    let claimed = store.claim_outbox_batch(project_path, TimestampMs(1_300), 10)?;
-    assert_eq!(claimed.len(), 1, "duplicate enqueue must not create a second pending message");
-    assert_eq!(claimed[0].id, first_message.id);
-    assert_eq!(claimed[0].status, OutboxMessageStatus::Claimed);
-    assert_eq!(claimed[0].attempts, 1);
-
-    store.mark_outbox_failed(
-        project_path,
-        &first_message.id,
-        "matrix send timed out".to_string(),
-        TimestampMs(1_350),
-        TimestampMs(1_500),
-    )?;
-    assert!(store.claim_outbox_batch(project_path, TimestampMs(1_499), 10)?.is_empty());
-
-    let retried = store.claim_outbox_batch(project_path, TimestampMs(1_500), 10)?;
-    assert_eq!(retried.len(), 1);
-    assert_eq!(retried[0].id, first_message.id);
-    assert_eq!(retried[0].attempts, 2);
-    assert_eq!(retried[0].last_error.as_deref(), Some("matrix send timed out"));
-
-    let delivered = store
-        .mark_outbox_delivered(project_path, &first_message.id, TimestampMs(1_600))?
-        .expect("claimed message can be delivered");
-    assert_eq!(delivered.status, OutboxMessageStatus::Delivered);
-    assert_eq!(delivered.delivered_at_ms, Some(TimestampMs(1_600)));
-    assert!(store.claim_outbox_batch(project_path, TimestampMs(2_000), 10)?.is_empty());
-
-    Ok(())
-}
 
 // 跨后端复用顺序和作用域断言，防止实现间出现可见性差异。
 fn for_each_event_store_provider(
@@ -374,4 +244,18 @@ fn event_store_fixture(
         project_path,
     )?;
     Ok((AgentSchedulerStore::from_database(database), context, isolated_context))
+}
+
+fn scope_message(body: &str) -> EnqueueOutboxMessageRequest {
+    EnqueueOutboxMessageRequest {
+        message_id: "shared-message".to_string(),
+        channel: "matrix".to_string(),
+        target: "room:shared".to_string(),
+        recipient_id: None,
+        body: body.to_string(),
+        idempotency_key: "shared-idempotency".to_string(),
+        payload: json!({}),
+        created_at_ms: TimestampMs(1_050),
+        next_attempt_at_ms: None,
+    }
 }

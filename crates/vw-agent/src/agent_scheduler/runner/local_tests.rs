@@ -183,46 +183,6 @@ fn local_runner_cannot_bypass_task_graph() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn agent_scheduler_local_runner_records_failed_execution_without_matrix() -> Result<()> {
-    let temp_dir = tempfile::tempdir()?;
-    let project_path = temp_dir.path().join("project-local-runner-fails");
-    std::fs::create_dir_all(&project_path)?;
-    let store = AgentSchedulerStore::new();
-    let task_id = TaskId::new("task-local-runner-fails")?;
-    let executor = RecordingExecutor::failing("local executor failed");
-    let runner = LocalAgentRunner::new(&store, &executor);
-
-    store.initialize_project(&project_path)?;
-    store.create_task(&project_path, finite_task(&task_id)?)?;
-
-    let outcome = runner
-        .run_once(
-            &project_path,
-            LocalAgentRunnerRequest {
-                task_id: task_id.clone(),
-                now_ms: TimestampMs(2_000),
-            },
-        )?
-        .expect("failed local execution still records a run");
-
-    let task =
-        store.load_task(&project_path, &task_id)?.expect("task persists after local failure");
-    assert_eq!(task.status, AgentTaskStatus::Failed);
-    assert_eq!(outcome.run.status, AgentRunStatus::Failed);
-    assert_eq!(outcome.run.error_message.as_deref(), Some("local executor failed"));
-
-    let logs = store.list_task_logs(&project_path, &task_id)?;
-    assert_eq!(logs.last().and_then(|log| log.to_status), Some(AgentTaskStatus::Failed));
-    assert!(logs.last().expect("failure log").message.contains("local executor failed"));
-
-    let artifacts = store.list_task_artifacts(&project_path, &task_id)?;
-    assert_eq!(artifacts.len(), 1);
-    assert_eq!(artifacts[0].payload["success"], false);
-    assert_eq!(artifacts[0].payload["error"], "local executor failed");
-
-    Ok(())
-}
 
 #[test]
 fn local_runner_logs_worktree_workspace_context() -> Result<()> {

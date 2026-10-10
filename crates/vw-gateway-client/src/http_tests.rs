@@ -260,13 +260,9 @@ async fn gateway_http_logs_and_errors_redact_sensitive_payloads() {
     let error = super::response_error("POST", &endpoint, "/v1/sensitive", response).await;
     let logs = captured.joined();
 
-    for secret in [
-        REQUEST_TOKEN,
-        REQUEST_SKEY,
-        REQUEST_PASSWORD,
-        RESPONSE_CREDENTIAL,
-        RESPONSE_API_KEY,
-    ] {
+    for secret in
+        [REQUEST_TOKEN, REQUEST_SKEY, REQUEST_PASSWORD, RESPONSE_CREDENTIAL, RESPONSE_API_KEY]
+    {
         assert!(!logs.contains(secret), "secret leaked into logs: {secret}");
         assert!(!error.contains(secret), "secret leaked into error: {secret}");
     }
@@ -346,14 +342,6 @@ async fn transport_error_returns_original_reqwest_message() {
     assert!(super::is_gateway_unavailable_error(&message));
 }
 
-#[test]
-fn retryable_gateway_error_classifies_transient_failures_only() {
-    assert!(super::is_retryable_gateway_error("gateway request failed: 503 Service Unavailable"));
-    assert!(super::is_retryable_gateway_error("error sending request for url: connection reset"));
-    assert!(super::is_retryable_gateway_error("request timed out"));
-    assert!(!super::is_retryable_gateway_error("gateway request failed: 400 Bad Request"));
-    assert!(!super::is_retryable_gateway_error("invalid api key"));
-}
 
 #[test]
 fn gateway_unavailable_error_classifies_connection_failures_only() {

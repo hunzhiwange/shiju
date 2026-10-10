@@ -27,50 +27,6 @@ fn outbox_message_status_as_str_returns_stable_storage_values() {
     assert_eq!(OutboxMessageStatus::Delivered.as_str(), "delivered");
 }
 
-#[test]
-fn outbox_store_enqueue_persists_defaults_initializes_schema_and_deduplicates() -> Result<()> {
-    let temp_dir = tempfile::tempdir()?;
-    let project_path = temp_dir.path();
-    let store = AgentSchedulerStore::new();
-
-    let message = store.enqueue_outbox_message(
-        project_path,
-        outbox_request("outbox-1", "idempotency-1", TimestampMs(1_000)),
-    )?;
-
-    assert_eq!(message.id, "outbox-1");
-    assert_eq!(message.channel, "matrix");
-    assert_eq!(message.target, "!room:example.test");
-    assert_eq!(message.recipient_id.as_deref(), Some("@worker:example.test"));
-    assert_eq!(message.body, "Task ready");
-    assert_eq!(message.status, OutboxMessageStatus::Pending);
-    assert_eq!(message.idempotency_key, "idempotency-1");
-    assert_eq!(message.attempts, 0);
-    assert_eq!(message.next_attempt_at_ms, None);
-    assert_eq!(message.delivered_at_ms, None);
-    assert_eq!(message.last_error, None);
-    assert_eq!(message.payload, json!({"task_id": "task-1"}));
-    assert_eq!(message.created_at_ms, TimestampMs(1_000));
-    assert_eq!(message.updated_at_ms, TimestampMs(1_000));
-
-    let duplicate = store.enqueue_outbox_message(
-        project_path,
-        EnqueueOutboxMessageRequest {
-            message_id: "outbox-duplicate".to_string(),
-            body: "Duplicate body".to_string(),
-            payload: json!({"duplicate": true}),
-            created_at_ms: TimestampMs(1_001),
-            ..outbox_request("ignored", "idempotency-1", TimestampMs(1_001))
-        },
-    )?;
-
-    assert_eq!(duplicate, message);
-    let claimed = store.claim_outbox_batch(project_path, TimestampMs(1_500), 10)?;
-    assert_eq!(claimed.len(), 1);
-    assert_eq!(claimed[0].id, "outbox-1");
-
-    Ok(())
-}
 
 #[test]
 fn outbox_store_enqueue_rejects_invalid_requests() -> Result<()> {
@@ -487,23 +443,6 @@ fn outbox_store_reports_invalid_stored_rows_when_loading_by_idempotency_key() ->
     Ok(())
 }
 
-fn outbox_request(
-    message_id: &str,
-    idempotency_key: &str,
-    created_at_ms: TimestampMs,
-) -> EnqueueOutboxMessageRequest {
-    EnqueueOutboxMessageRequest {
-        message_id: message_id.to_string(),
-        channel: "matrix".to_string(),
-        target: "!room:example.test".to_string(),
-        recipient_id: Some("@worker:example.test".to_string()),
-        body: "Task ready".to_string(),
-        idempotency_key: idempotency_key.to_string(),
-        payload: json!({"task_id": "task-1"}),
-        created_at_ms,
-        next_attempt_at_ms: None,
-    }
-}
 
 fn assert_error_contains<T: std::fmt::Debug>(result: Result<T>, expected: &str) {
     let error = result.expect_err("operation should fail");
@@ -583,6 +522,24 @@ fn outbox_store_fixture(
         project_path,
     )?;
     Ok((AgentSchedulerStore::from_database(database), context, isolated_context))
+}
+
+fn outbox_request(
+    message_id: &str,
+    idempotency_key: &str,
+    created_at_ms: TimestampMs,
+) -> EnqueueOutboxMessageRequest {
+    EnqueueOutboxMessageRequest {
+        message_id: message_id.to_string(),
+        channel: "matrix".to_string(),
+        target: "!room:example.test".to_string(),
+        recipient_id: Some("@worker:example.test".to_string()),
+        body: "Task ready".to_string(),
+        idempotency_key: idempotency_key.to_string(),
+        payload: json!({"task_id": "task-1"}),
+        created_at_ms,
+        next_attempt_at_ms: None,
+    }
 }
 
 fn insert_raw_outbox_message(

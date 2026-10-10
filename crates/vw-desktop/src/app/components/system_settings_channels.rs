@@ -18,8 +18,8 @@ mod enterprise_channels_tests;
 mod extended_channels_tests;
 
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_divider, settings_muted_text_style, settings_page_intro,
-    settings_error_banner, settings_section_card, settings_section_content,
+    settings_checkbox_style, settings_divider, settings_error_banner, settings_muted_text_style,
+    settings_page_intro, settings_section_card, settings_section_content,
     settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
@@ -66,7 +66,6 @@ pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSet
             "iMessage",
             &["imessage", "联系人"],
         ),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Matrix, "Matrix", &["homeserver", "room"]),
         SettingsTabDescriptor::new(ChannelsSettingsTab::Signal, "Signal", &["signal cli"]),
         SettingsTabDescriptor::new(ChannelsSettingsTab::WhatsApp, "WhatsApp", &["whatsapp"]),
         SettingsTabDescriptor::new(ChannelsSettingsTab::Linq, "Linq", &["linq"]),
@@ -257,7 +256,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ChannelsSettingsTab::Mattermost => basic_channels::mattermost_panel(app),
         ChannelsSettingsTab::Webhook => basic_channels::webhook_panel(app),
         ChannelsSettingsTab::IMessage => basic_channels::imessage_panel(app),
-        ChannelsSettingsTab::Matrix => basic_channels::matrix_panel(app),
         ChannelsSettingsTab::Signal => basic_channels::signal_panel(app),
         ChannelsSettingsTab::WhatsApp => extended_channels::whatsapp_panel(app),
         ChannelsSettingsTab::Linq => extended_channels::linq_panel(app),

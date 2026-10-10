@@ -41,11 +41,6 @@ pub(super) fn build_roster_panel<'a>(
             Some(Message::TaskBoard(TaskBoardMessage::ReloadStaffConfig)),
         ),
         action_button(
-            Icon::ChatTextFill,
-            "外部 Matrix 桥（可选）",
-            Some(Message::TaskBoard(TaskBoardMessage::OpenMatrixTaskPoolConfig)),
-        ),
-        action_button(
             Icon::GearWideConnected,
             "打开工作流编排",
             Some(Message::View(ViewMessage::OpenWorkflowManagerStageActions)),

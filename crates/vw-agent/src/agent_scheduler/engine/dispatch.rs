@@ -8,7 +8,7 @@ use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
 
 use crate::agent_scheduler::adapters::controller::ControllerAdapter;
 use crate::agent_scheduler::adapters::local::LocalDispatchRequest;
-use crate::agent_scheduler::adapters::matrix::MatrixDispatchTarget;
+use crate::agent_scheduler::adapters::dispatch::RemoteDispatchTarget;
 use crate::agent_scheduler::domain::{RunId, TaskId};
 use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::lifecycle_bridge::{LifecycleBridge, LifecycleDispatchEligibility};
@@ -40,7 +40,7 @@ pub struct DispatchOutcome {
 /// 本地直连或 Matrix 异步消息两类派发目标。
 pub enum DispatchTarget {
     Local(LocalDispatchRequest),
-    Matrix(MatrixDispatchTarget),
+    Matrix(RemoteDispatchTarget),
 }
 
 impl DispatchTarget {
@@ -218,7 +218,7 @@ where
         task: &StoredAgentTask,
         worker: &StoredAgentWorker,
         run: &StoredAgentRun,
-        target: &MatrixDispatchTarget,
+        target: &RemoteDispatchTarget,
         now_ms: TimestampMs,
     ) -> Result<crate::agent_scheduler::store::outbox::StoredOutboxMessage> {
         let message_id = format!("outbox-{}-dispatch-{}", task.id.as_str(), worker.id.as_str());
@@ -386,13 +386,13 @@ pub(crate) fn dispatch_target_from_worker(
         DispatchMode::Local => Ok(local_target()),
         DispatchMode::Auto => match (room_id, worker.matrix_user_id.clone()) {
             (Some(room_id), Some(recipient_id)) => {
-                Ok(DispatchTarget::Matrix(MatrixDispatchTarget { room_id, recipient_id }))
+                Ok(DispatchTarget::Matrix(RemoteDispatchTarget { room_id, recipient_id }))
             }
             _ => Ok(local_target()),
         },
         DispatchMode::Matrix => match (room_id, worker.matrix_user_id.clone()) {
             (Some(room_id), Some(recipient_id)) => {
-                Ok(DispatchTarget::Matrix(MatrixDispatchTarget { room_id, recipient_id }))
+                Ok(DispatchTarget::Matrix(RemoteDispatchTarget { room_id, recipient_id }))
             }
             (None, _) => {
                 bail!("Matrix dispatch requires room_id for worker {}", worker.id.as_str())
@@ -475,7 +475,7 @@ pub(crate) fn matrix_dispatch_event(
     task: &StoredAgentTask,
     worker: &StoredAgentWorker,
     run: &StoredAgentRun,
-    target: &MatrixDispatchTarget,
+    target: &RemoteDispatchTarget,
     now_ms: TimestampMs,
 ) -> Result<AgentSchedulerMatrixDispatchEventDto> {
     let acp_agent = dispatch_acp_agent(task);

@@ -340,6 +340,21 @@ fn run_dto(task_id: &str) -> AgentRunDto {
     }
 }
 
+
+
+fn resource_lease_dto(holder_id: &str) -> AgentResourceLeaseDto {
+    AgentResourceLeaseDto {
+        id: "lease-1".to_string(),
+        resource_kind: "worktree".to_string(),
+        resource_id: "slot-1".to_string(),
+        holder_id: holder_id.to_string(),
+        status: AgentResourceLeaseStatusDto::Active,
+        acquired_at_ms: TimestampMs(1_783_000_210_000),
+        expires_at_ms: Some(TimestampMs(1_783_000_300_000)),
+        released_at_ms: None,
+    }
+}
+
 fn worker_dto() -> AgentWorkerDto {
     AgentWorkerDto {
         id: "leader-a".to_string(),
@@ -386,18 +401,5 @@ fn team_dto() -> AgentTeamDto {
             ready: true,
         }],
         updated_at_ms: TimestampMs(1_783_000_200_010),
-    }
-}
-
-fn resource_lease_dto(holder_id: &str) -> AgentResourceLeaseDto {
-    AgentResourceLeaseDto {
-        id: "lease-1".to_string(),
-        resource_kind: "worktree".to_string(),
-        resource_id: "slot-1".to_string(),
-        holder_id: holder_id.to_string(),
-        status: AgentResourceLeaseStatusDto::Active,
-        acquired_at_ms: TimestampMs(1_783_000_210_000),
-        expires_at_ms: Some(TimestampMs(1_783_000_300_000)),
-        released_at_ms: None,
     }
 }

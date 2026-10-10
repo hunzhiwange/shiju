@@ -1,37 +1,10 @@
 //! 其他通道配置类型。
 //!
-//! 本模块包含 Matrix、Signal、WhatsApp、IRC、Nostr 等不在常见聊天平台模块中的
+//! 本模块包含 Signal、WhatsApp、IRC、Nostr 等不在常见聊天平台模块中的
 //! 通道配置结构。
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-/// Matrix 通道配置。
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct MatrixConfig {
-    /// Matrix homeserver 地址。
-    pub homeserver: String,
-    /// 访问 token。
-    pub access_token: String,
-    #[serde(default)]
-    pub user_id: Option<String>,
-    #[serde(default)]
-    pub device_id: Option<String>,
-    pub room_id: String,
-    pub allowed_users: Vec<String>,
-    #[serde(default)]
-    pub mention_only: bool,
-}
-
-/// 命名 Matrix 通道实例配置。
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct MatrixInstanceConfig {
-    /// 稳定实例 ID，用于员工绑定和 profile ref。
-    pub id: String,
-    /// Matrix 通道原有配置字段。
-    #[serde(flatten)]
-    pub config: MatrixConfig,
-}
 
 /// Signal 通道配置。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

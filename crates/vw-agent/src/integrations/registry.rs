@@ -158,21 +158,6 @@ pub fn all_integrations() -> Vec<IntegrationEntry> {
             status_fn: |_| IntegrationStatus::ComingSoon,
         },
         IntegrationEntry {
-            name: "Matrix",
-            description: "Matrix protocol (Element)",
-            category: IntegrationCategory::Chat,
-            status_fn: |c| {
-                if c.channels_config.matrix_enabled
-                    && (c.channels_config.matrix.is_some()
-                        || !c.channels_config.matrix_instances.is_empty())
-                {
-                    IntegrationStatus::Active
-                } else {
-                    IntegrationStatus::Available
-                }
-            },
-        },
-        IntegrationEntry {
             name: "Nostr",
             description: "Decentralized DMs (NIP-04)",
             category: IntegrationCategory::Chat,

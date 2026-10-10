@@ -60,44 +60,6 @@ fn channel_scalar_updates_store_values_and_clamp_timeout() {
     assert!(app.channels_settings.save_error.is_none());
 }
 
-// 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
-// 完成、失败与过期响应均按当前场景的既定契约处理。
-#[test]
-fn channel_enabled_and_instance_updates_refresh_derived_inputs() {
-    let mut app = app();
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::Channels(ChannelsMessage::EnabledToggled("telegram".to_string(), true)),
-    );
-    assert!(app.channels_settings.telegram.is_some());
-    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Telegram);
-    assert!(app.channels_settings.text_inputs.contains_key("telegram.allowed_users"));
-    assert!(app.channels_settings.text_editors.contains_key("telegram.allowed_users"));
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::Channels(ChannelsMessage::InstanceAdded("matrix".to_string())),
-    );
-    assert_eq!(app.channels_settings.matrix_instances.len(), 1);
-    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Matrix);
-    assert!(app.channels_settings.text_inputs.contains_key("matrix_instances.0.allowed_users"));
-    assert!(app.channels_settings.text_editors.contains_key("matrix_instances.0.allowed_users"));
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::Channels(ChannelsMessage::InstanceRemoved("matrix".to_string(), 99)),
-    );
-    assert_eq!(app.channels_settings.matrix_instances.len(), 1);
-
-    let _ = update(
-        &mut app,
-        SettingsMessage::Channels(ChannelsMessage::InstanceRemoved("matrix".to_string(), 0)),
-    );
-    assert!(app.channels_settings.matrix_instances.is_empty());
-    assert!(!app.channels_settings.text_inputs.contains_key("matrix_instances.0.allowed_users"));
-    assert!(!app.channels_settings.text_editors.contains_key("matrix_instances.0.allowed_users"));
-}
 
 #[test]
 fn channel_text_update_mirrors_input_and_applies_field() {

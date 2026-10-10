@@ -20,7 +20,7 @@ mod tests {
     use crate::agent_scheduler::store::workers::{AgentCapabilityRecord, NewAgentWorkerSnapshot};
     use crate::app::agent::config::schema::{
         DiscordConfig, FeishuConfig, FeishuInstanceConfig, LarkConfig, LarkReceiveMode,
-        MatrixConfig, MattermostConfig, SlackConfig, WebhookConfig,
+        MattermostConfig, SlackConfig, WebhookConfig,
     };
     use tempfile::TempDir;
     use vw_api_types::common::TimestampMs;
@@ -226,23 +226,6 @@ mod tests {
         assert!(!has_supervised_channels(&config));
     }
 
-    #[test]
-    fn configured_matrix_is_not_supervised_until_enabled() {
-        let mut config = Config::default();
-        config.channels_config.matrix = Some(MatrixConfig {
-            homeserver: "https://matrix.example.test".to_string(),
-            access_token: "token".to_string(),
-            user_id: None,
-            device_id: None,
-            room_id: "!room:example.test".to_string(),
-            allowed_users: Vec::new(),
-            mention_only: false,
-        });
-
-        assert!(!has_supervised_channels(&config));
-        config.channels_config.matrix_enabled = true;
-        assert!(has_supervised_channels(&config));
-    }
 
     #[test]
     fn configured_webhook_is_not_a_supervised_channel() {
@@ -715,70 +698,7 @@ mod tests {
         assert_eq!(target, Some(("telegram".to_string(), "123456".to_string())));
     }
 
-    #[tokio::test]
-    async fn daemon_starts_configured_matrix_worker_component() {
-        let tmp = TempDir::new().unwrap();
-        let config = test_config(&tmp);
-        let store = AgentSchedulerStore::new();
-        let context = matrix_worker_scheduler_context(&config).await.unwrap();
-        store
-            .upsert_worker_snapshot(&context, matrix_worker_snapshot("matrix-dev", Some("Running")))
-            .unwrap();
 
-        let components = configured_matrix_worker_components(&config).await.unwrap();
 
-        assert_eq!(components.len(), 1);
-        assert_eq!(components[0].worker_id.as_str(), "matrix-dev");
-        assert_eq!(components[0].matrix_user_id, "@matrix-dev:example.test");
-        assert_eq!(components[0].room_id, "!matrix-room:example.test");
-    }
 
-    #[test]
-    fn matrix_worker_component_name_includes_worker_identifier() {
-        let component = ConfiguredMatrixWorkerComponent {
-            project_path: PathBuf::from("project"),
-            worker_id: WorkerName::new("matrix-dev").unwrap(),
-            matrix_user_id: "@matrix-dev:example.test".to_string(),
-            room_id: "!matrix-room:example.test".to_string(),
-        };
-
-        assert_eq!(matrix_worker_component_name(&component), "matrix-worker:matrix-dev");
-    }
-
-    #[tokio::test]
-    async fn daemon_does_not_start_disabled_matrix_worker_component() {
-        let tmp = TempDir::new().unwrap();
-        let config = test_config(&tmp);
-        let store = AgentSchedulerStore::new();
-        let context = matrix_worker_scheduler_context(&config).await.unwrap();
-        store
-            .upsert_worker_snapshot(&context, matrix_worker_snapshot("matrix-dev", Some("Stopped")))
-            .unwrap();
-
-        let components = configured_matrix_worker_components(&config).await.unwrap();
-
-        assert!(components.is_empty());
-    }
-
-    fn matrix_worker_snapshot(id: &str, desired_state: Option<&str>) -> NewAgentWorkerSnapshot {
-        NewAgentWorkerSnapshot {
-            id: WorkerName::new(id).unwrap(),
-            runtime: Some("matrix".to_string()),
-            deployment: None,
-            model: "auto".to_string(),
-            model_provider: None,
-            status: AgentWorkerStatus::Unavailable,
-            desired_state: desired_state.map(str::to_string),
-            team_id: None,
-            worker_role: Some("executor".to_string()),
-            matrix_user_id: Some(format!("@{id}:example.test")),
-            room_id: Some("!matrix-room:example.test".to_string()),
-            container_state: Some("stopped".to_string()),
-            idle_since_ms: None,
-            last_seen_at_ms: None,
-            last_heartbeat_at: None,
-            capabilities: vec![AgentCapabilityRecord::skill("scheduler")],
-            updated_at_ms: TimestampMs(1),
-        }
-    }
 }

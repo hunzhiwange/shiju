@@ -91,7 +91,6 @@ pub enum TaskBoardMessage {
         member_id: String,
     },
     SubmitStaffCommandInput,
-    OpenMatrixTaskPoolConfig,
     OpenStaffStageAssignment,
     CloseStaffStageAssignment,
     SelectStaffStageAssignmentTab {
@@ -435,14 +434,6 @@ pub enum TaskBoardMessage {
             String,
         >,
     },
-    PollMatrixTaskPoolEvents,
-    TaskPoolMatrixEventPublished {
-        task_id: String,
-        result: Result<(), String>,
-    },
-    MatrixTaskPoolEventsLoaded(
-        Result<vw_gateway_client::vw_api_types::task::TaskPoolMatrixEventsResponse, String>,
-    ),
     AgentSchedulerAutoMergeWakeCompleted(
         Result<
             vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse,

@@ -4,7 +4,6 @@
 //! 不改变任何运行时行为。
 
 use crate::app::Message;
-use crate::app::components::system_settings::SystemTab;
 use crate::app::state::{MAIN_AGENT_KEY, TaskBoardViewMode};
 use crate::app::task::SubTaskStatus;
 use crate::app::task::models::parse_task_import_content;
@@ -48,10 +47,6 @@ mod execution_update;
 #[path = "update/staff_messages.rs"]
 mod staff_messages_update;
 
-const TASK_BOARD_MATRIX_PROCESSED_EVENT_LIMIT: usize = 2048;
-const TASK_BOARD_MATRIX_CHANNEL_TYPE: &str = "matrix";
-const TASK_BOARD_MATRIX_PLACEHOLDER_ROOM_ID: &str = "!room-id:localhost";
-
 #[cfg(test)]
 static TEST_GATEWAY_ENV_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
@@ -62,29 +57,6 @@ fn task_board_project_matches(app: &crate::app::App, project_path: &str) -> bool
 
 fn initial_task_status_for_app(app: &crate::app::App) -> TaskStatus {
     initial_task_status_for_workflow_id(&app.task_board_settings.workflow_id)
-}
-
-fn task_pool_status_for_gateway(
-    status: TaskStatus,
-) -> vw_gateway_client::vw_api_types::task::TaskPoolStatus {
-    use vw_gateway_client::vw_api_types::task::TaskPoolStatus;
-
-    match status {
-        TaskStatus::Pool => TaskPoolStatus::Pool,
-        TaskStatus::Pending => TaskPoolStatus::Pending,
-        TaskStatus::Planning => TaskPoolStatus::Planning,
-        TaskStatus::Running => TaskPoolStatus::Running,
-        TaskStatus::Failed => TaskPoolStatus::Failed,
-        TaskStatus::Paused => TaskPoolStatus::Paused,
-        TaskStatus::CodeComplete => TaskPoolStatus::CodeComplete,
-        TaskStatus::CodeReview => TaskPoolStatus::CodeReview,
-        TaskStatus::PrSubmitted => TaskPoolStatus::PrSubmitted,
-        TaskStatus::Completed => TaskPoolStatus::Completed,
-        TaskStatus::Archived => TaskPoolStatus::Archived,
-        // 自定义状态无对应网关协议变体（api-types 协议形态本任务不改），
-        // 暂回退到 Pool 占位，待工作流迁移任务接管自定义状态的协议映射。
-        TaskStatus::Custom(_) => TaskPoolStatus::Pool,
-    }
 }
 
 fn task_status_from_agent_scheduler_key(status_key: &str) -> Option<TaskStatus> {
@@ -220,251 +192,6 @@ fn merge_agent_scheduler_task_logs(
         }
     }
     changed
-}
-
-fn staff_matrix_binding_instance_id(member: &TaskBoardStaffMember) -> Option<&str> {
-    member
-        .channel_bindings
-        .iter()
-        .find(|binding| binding.channel_type.trim() == TASK_BOARD_MATRIX_CHANNEL_TYPE)
-        .and_then(|binding| {
-            let instance_id = binding.instance_id.trim();
-            (!instance_id.is_empty()).then_some(instance_id)
-        })
-}
-
-fn task_pool_matrix_actor_id(
-    task_id: &str,
-    matrix_instance_id: Option<&str>,
-    matrix_config: &vw_config_types::channels::MatrixConfig,
-) -> Option<String> {
-    let skip_reason = if matrix_config.homeserver.trim().is_empty() {
-        Some("homeserver is empty")
-    } else if matrix_config.access_token.trim().is_empty() {
-        Some("access_token is empty")
-    } else if matrix_config.room_id.trim().is_empty() {
-        Some("room_id is empty")
-    } else if matrix_config.room_id.trim() == TASK_BOARD_MATRIX_PLACEHOLDER_ROOM_ID {
-        Some("room_id is a placeholder")
-    } else {
-        None
-    };
-
-    if let Some(reason) = skip_reason {
-        tracing::warn!(
-            target: "vw_desktop",
-            task_id = %task_id,
-            matrix_instance_id = matrix_instance_id.unwrap_or("default"),
-            reason = reason,
-            "task board Matrix event skipped: Matrix publish target is incomplete"
-        );
-        return None;
-    }
-
-    let Some(actor_id) =
-        matrix_config.user_id.as_deref().map(str::trim).filter(|value| !value.is_empty())
-    else {
-        tracing::warn!(
-            target: "vw_desktop",
-            task_id = %task_id,
-            matrix_instance_id = matrix_instance_id.unwrap_or("default"),
-            "task board Matrix event skipped: Matrix publish target has no user_id"
-        );
-        return None;
-    };
-
-    Some(actor_id.to_string())
-}
-
-fn task_pool_matrix_publish_target(
-    app: &crate::app::App,
-    task: &Task,
-) -> Option<(Option<String>, String)> {
-    let staff_instance_id = find_task_execution_staff_member(&app.task_board_staff_config, task)
-        .and_then(staff_matrix_binding_instance_id);
-
-    if let Some(instance_id) = staff_instance_id {
-        let matrix_config =
-            if instance_id == vw_config_types::channels::chat::DEFAULT_CHANNEL_INSTANCE_ID {
-                app.channels_settings.matrix.as_ref()
-            } else {
-                app.channels_settings
-                    .matrix_instances
-                    .iter()
-                    .find(|instance| instance.id == instance_id)
-                    .map(|instance| &instance.config)
-            };
-
-        let Some(matrix_config) = matrix_config else {
-            tracing::warn!(
-                target: "vw_desktop",
-                task_id = %task.id,
-                matrix_instance_id = %instance_id,
-                "task board Matrix event skipped: staff Matrix instance is not configured"
-            );
-            return None;
-        };
-
-        let actor_id = task_pool_matrix_actor_id(&task.id, Some(instance_id), matrix_config)?;
-
-        return Some((Some(instance_id.to_string()), actor_id));
-    }
-
-    let matrix_config = app.channels_settings.matrix.as_ref()?;
-    let actor_id = task_pool_matrix_actor_id(&task.id, None, matrix_config)?;
-
-    Some((None, actor_id))
-}
-
-fn build_task_pool_matrix_publish_request(
-    app: &crate::app::App,
-    task: &Task,
-    from_status: Option<TaskStatus>,
-) -> Option<vw_gateway_client::vw_api_types::task::TaskPoolMatrixPublishRequest> {
-    use vw_gateway_client::vw_api_types::task::{
-        TaskPoolMatrixActorDto, TaskPoolMatrixEventDto, TaskPoolMatrixEventKindDto,
-        TaskPoolMatrixPublishRequest,
-    };
-
-    if from_status == Some(task.status) {
-        return None;
-    }
-
-    let (matrix_instance_id, actor_id) = task_pool_matrix_publish_target(app, task)?;
-
-    let event = TaskPoolMatrixEventDto {
-        version: 1,
-        event_id: format!(
-            "desktop:{}:{}:{}",
-            task.id,
-            task.status.to_string_key(),
-            task.updated_at_ms
-        ),
-        task_id: task.id.clone(),
-        actor: TaskPoolMatrixActorDto { matrix_user_id: actor_id, display_name: None },
-        occurred_at_ms: task.updated_at_ms,
-        kind: TaskPoolMatrixEventKindDto::TaskStatusChanged {
-            from_status: from_status.map(task_pool_status_for_gateway),
-            to_status: task_pool_status_for_gateway(task.status),
-        },
-    };
-
-    if let Err(error) = event.validate_for_matrix_room_event() {
-        tracing::warn!(
-            target: "vw_desktop",
-            task_id = %task.id,
-            error = %error,
-            "invalid task board Matrix event skipped"
-        );
-        return None;
-    }
-
-    Some(TaskPoolMatrixPublishRequest { event, matrix_instance_id })
-}
-
-fn publish_task_pool_matrix_status_event(
-    app: &crate::app::App,
-    task: &Task,
-    from_status: Option<TaskStatus>,
-) -> iced::Task<crate::app::Message> {
-    let Some(request) = build_task_pool_matrix_publish_request(app, task, from_status) else {
-        return iced::Task::none();
-    };
-
-    let task_id = task.id.clone();
-    iced::Task::perform(
-        async move {
-            let client = crate::app::config::gateway_client()?;
-            let response = client.task_pool_matrix_publish(&request).await?;
-            if response.accepted {
-                Ok(())
-            } else {
-                Err("gateway rejected task pool Matrix event".to_string())
-            }
-        },
-        move |result| {
-            Message::TaskBoard(TaskBoardMessage::TaskPoolMatrixEventPublished {
-                task_id: task_id.clone(),
-                result,
-            })
-        },
-    )
-}
-
-fn poll_task_pool_matrix_events(app: &crate::app::App) -> iced::Task<crate::app::Message> {
-    if app.channels_settings.matrix.is_none() || app.project_path.is_none() {
-        return iced::Task::none();
-    }
-
-    let after_cursor = app.task_board_matrix_event_cursor;
-    iced::Task::perform(
-        async move {
-            let client = crate::app::config::gateway_client()?;
-            client.task_pool_matrix_events(Some(after_cursor)).await
-        },
-        |result| Message::TaskBoard(TaskBoardMessage::MatrixTaskPoolEventsLoaded(result)),
-    )
-}
-
-fn open_matrix_task_pool_config(app: &mut crate::app::App) -> iced::Task<crate::app::Message> {
-    app.channels_settings.active_tab = crate::app::state::ChannelsSettingsTab::Matrix;
-    app.channels_settings.save_error = None;
-    app.show_system_settings = true;
-    app.system_settings_tab = SystemTab::Channels;
-    app.system_settings_help_tab = None;
-    iced::Task::none()
-}
-
-fn task_board_matrix_event_is_processed(app: &crate::app::App, event_id: &str) -> bool {
-    app.task_board_processed_matrix_event_ids.iter().any(|processed_id| processed_id == event_id)
-}
-
-fn remember_task_board_matrix_event(app: &mut crate::app::App, event_id: &str) {
-    if event_id.is_empty() || task_board_matrix_event_is_processed(app, event_id) {
-        return;
-    }
-
-    app.task_board_processed_matrix_event_ids.push_back(event_id.to_string());
-    while app.task_board_processed_matrix_event_ids.len() > TASK_BOARD_MATRIX_PROCESSED_EVENT_LIMIT
-    {
-        app.task_board_processed_matrix_event_ids.pop_front();
-    }
-}
-
-fn accept_matrix_task_pool_event(
-    app: &mut crate::app::App,
-    event: &vw_gateway_client::vw_api_types::task::TaskPoolMatrixEventDto,
-) -> bool {
-    if task_board_matrix_event_is_processed(app, &event.event_id) {
-        return false;
-    }
-
-    if let Err(error) = event.validate_for_matrix_room_event() {
-        tracing::warn!(
-            target: "vw_desktop",
-            event_id = %event.event_id,
-            task_id = %event.task_id,
-            error = %error,
-            "invalid Matrix task pool event skipped"
-        );
-        remember_task_board_matrix_event(app, &event.event_id);
-        return false;
-    }
-
-    remember_task_board_matrix_event(app, &event.event_id);
-    true
-}
-
-fn apply_matrix_task_pool_events(
-    app: &mut crate::app::App,
-    response: vw_gateway_client::vw_api_types::task::TaskPoolMatrixEventsResponse,
-) -> bool {
-    app.task_board_matrix_event_cursor = response.cursor;
-    let mut accepted = false;
-    for event in &response.events {
-        accepted |= accept_matrix_task_pool_event(app, event);
-    }
-    accepted
 }
 
 /// 按批次汇总子任务，生成形如「批次 1: 2 个; 批次 2(依赖 1): 1 个」的简短摘要。
@@ -2860,7 +2587,6 @@ fn apply_stage_workflow_completed(
     let Some(workflow) = workflow_for_task_board_settings(app) else {
         return iced::Task::none();
     };
-    let mut matrix_status_change = None;
 
     if let Some(task) = app.task_board_tasks.iter_mut().find(|task| task.id == task_id) {
         if task.status != status {
@@ -2869,7 +2595,6 @@ fn apply_stage_workflow_completed(
                 truncate_for_ui(&workflow_uuid, TASK_LOG_UI_MAX_ENTRY_CHARS)
             ));
         } else {
-            let from_status = task.status;
             match result {
                 Ok(outcome) => {
                     let summary = truncate_for_ui(&outcome.summary, TASK_LOG_UI_MAX_DETAIL_CHARS);
@@ -2890,20 +2615,11 @@ fn apply_stage_workflow_completed(
                     advance_stage_workflow_failure(task, &workflow, status, detail);
                 }
             }
-            if task.status != from_status {
-                matrix_status_change = Some((task.clone(), from_status));
-            }
         }
     }
 
     sync_viewing_logs(app, &task_id);
-    let publish_task = matrix_status_change
-        .as_ref()
-        .map(|(task, from_status)| {
-            publish_task_pool_matrix_status_event(app, task, Some(*from_status))
-        })
-        .unwrap_or_else(iced::Task::none);
-    publish_task
+    iced::Task::none()
 }
 
 fn stage_workflow_project_matches(app: &crate::app::App, project_path: &str) -> bool {
@@ -3126,13 +2842,10 @@ pub fn update(
 
             app.show_task_board = true;
             app.screen = crate::app::Screen::TaskBoard;
-            let matrix_poll = poll_task_pool_matrix_events(app);
-
             if let Some(project_path) = &app.project_path {
                 let path: String = project_path.clone();
                 return iced::Task::batch(vec![
                     maybe_schedule_worktree_snapshot_refresh(app, true),
-                    matrix_poll,
                     sync_task_board_gateway_snapshot(path),
                 ]);
             }
@@ -3457,7 +3170,6 @@ pub fn update(
             select_staff_command_member(app, member_id)
         }
         TaskBoardMessage::SubmitStaffCommandInput => submit_staff_command_input(app),
-        TaskBoardMessage::OpenMatrixTaskPoolConfig => open_matrix_task_pool_config(app),
         TaskBoardMessage::OpenStaffStageAssignment => {
             app.task_board_staff_assignment_open = true;
             app.task_board_staff_assignment_draft =
@@ -3671,52 +3383,12 @@ pub fn update(
             iced::Task::none()
         }
         TaskBoardMessage::TaskUpdated(task) => {
-            let from_status = app
-                .task_board_tasks
-                .iter()
-                .find(|existing| existing.id == task.id)
-                .map(|existing| existing.status)
-                .filter(|status| *status != task.status);
-            let publish_task = publish_task_pool_matrix_status_event(app, &task, from_status);
             if let Some(existing) = app.task_board_tasks.iter_mut().find(|t| t.id == task.id) {
                 *existing = task.clone();
             }
             refresh_staff_projection(app);
             prune_bulk_selection(app);
-            iced::Task::batch(vec![
-                publish_task,
-                schedule_task_pipeline_for_status(app, task.status),
-            ])
-        }
-        TaskBoardMessage::TaskPoolMatrixEventPublished { task_id, result } => {
-            if let Err(error) = result {
-                tracing::warn!(
-                    target: "vw_desktop",
-                    task_id = %task_id,
-                    error = %error,
-                    "failed to publish task board Matrix event"
-                );
-                return app.show_warning_toast(format!("Matrix 任务事件发布失败: {error}"));
-            }
-            iced::Task::none()
-        }
-        TaskBoardMessage::PollMatrixTaskPoolEvents => poll_task_pool_matrix_events(app),
-        TaskBoardMessage::MatrixTaskPoolEventsLoaded(result) => {
-            match result {
-                Ok(response) => {
-                    if apply_matrix_task_pool_events(app, response) {
-                        return sync_agent_scheduler_status_for_current_project(app);
-                    }
-                }
-                Err(error) => {
-                    tracing::warn!(
-                        target: "vw_desktop",
-                        error = %error,
-                        "failed to poll task board Matrix events"
-                    );
-                }
-            }
-            iced::Task::none()
+            schedule_task_pipeline_for_status(app, task.status)
         }
         TaskBoardMessage::TaskDeleted(task_id) => {
             app.task_board_selected_tasks.remove(&task_id);
@@ -4214,11 +3886,10 @@ pub fn update(
             if !task_board_project_matches(app, &project_path) {
                 return iced::Task::none();
             }
-            let publish_task = publish_task_pool_matrix_status_event(app, &task, None);
             app.task_board_tasks.push(task);
             prune_bulk_selection(app);
             app.task_board_create_submit_success = true;
-            let mut post_create_tasks = vec![publish_task];
+            let mut post_create_tasks = Vec::new();
             if app.task_board_clear_prompt_after_create {
                 app.task_board_draft.prompt.clear();
                 app.task_board_prompt_editor = iced::widget::text_editor::Content::new();
@@ -5763,7 +5434,6 @@ pub fn update(
                 return iced::Task::none();
             };
             let mut task_to_persist: Option<Task> = None;
-            let mut matrix_status_change: Option<(Task, TaskStatus)> = None;
             let mut execute_task_to_start: Option<Task> = None;
             let mut plan_failed = false;
             let staff_config = app.task_board_staff_config.clone();
@@ -5775,7 +5445,6 @@ pub fn update(
                 if task.status != TaskStatus::Planning {
                     task.add_log("任务状态已变化，忽略本次拆分结果".to_string());
                 } else {
-                    let from_status = task.status;
                     match result {
                         Ok(outcome) => {
                             task.subtasks.clear();
@@ -5875,9 +5544,6 @@ pub fn update(
                             task_to_persist = Some(task.clone());
                         }
                     }
-                    if task.status != from_status {
-                        matrix_status_change = Some((task.clone(), from_status));
-                    }
                 }
             }
 
@@ -5901,12 +5567,7 @@ pub fn update(
                     )
                 })
                 .unwrap_or_else(iced::Task::none);
-            let publish_task = matrix_status_change
-                .as_ref()
-                .map(|(task, from_status)| {
-                    publish_task_pool_matrix_status_event(app, task, Some(*from_status))
-                })
-                .unwrap_or_else(iced::Task::none);
+            let publish_task = iced::Task::none();
             if plan_failed {
                 let pipeline_task = task_to_persist
                     .as_ref()

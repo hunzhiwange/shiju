@@ -259,11 +259,10 @@ fn matrix_bridge_chip<'a>(matrix_bridge: StaffMatrixBridgeSnapshot) -> Element<'
     } else {
         ("本地协同".to_string(), styles::display_only_color())
     };
-    let button = button(text(label).size(10))
+    button(text(label).size(10))
         .padding([3, 7])
         .style(move |theme, status| styles::chip_button_style(theme, status, color))
-        .on_press(Message::TaskBoard(TaskBoardMessage::OpenMatrixTaskPoolConfig));
-    styles::tooltip(button.into(), "外部 Matrix 桥可选，本地协同无需服务器")
+        .into()
 }
 
 fn filtered_assignments<'a>(

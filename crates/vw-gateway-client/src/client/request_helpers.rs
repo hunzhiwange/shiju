@@ -7,15 +7,9 @@ use super::GatewayClient;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::endpoint::GatewayEndpoint;
 use crate::http::{
-    apply_request_context, is_retryable_gateway_error, log_request, log_request_succeeded,
-    parse_json_response, response_error, transport_error,
+    apply_request_context, log_request, log_request_succeeded, parse_json_response, response_error,
+    transport_error,
 };
-
-#[derive(Debug, Clone, Copy)]
-pub(super) struct GatewayRetryPolicy {
-    pub max_attempts: usize,
-    pub initial_backoff: std::time::Duration,
-}
 
 impl GatewayClient {
     /// 提供 get json 功能。
@@ -55,44 +49,6 @@ impl GatewayClient {
             .await
             .map_err(|err| transport_error("POST", &self.endpoint, path, err))?;
         parse_json_response("POST", &self.endpoint, path, response).await
-    }
-
-    /// 提供 post json 重试功能，仅供幂等业务接口显式调用。
-    pub(super) async fn post_json_with_retry<B: Serialize, T: DeserializeOwned>(
-        &self,
-        path: &str,
-        query: &[(String, String)],
-        body: &B,
-        policy: GatewayRetryPolicy,
-    ) -> Result<T, String> {
-        let max_attempts = policy.max_attempts.max(1);
-        let mut attempt = 1usize;
-        let mut backoff = policy.initial_backoff;
-
-        loop {
-            match self.post_json(path, query, body).await {
-                Ok(response) => return Ok(response),
-                Err(error)
-                    if attempt < max_attempts && is_retryable_gateway_error(error.as_str()) =>
-                {
-                    tracing::warn!(
-                        target: "vw_gateway_client",
-                        method = "POST",
-                        endpoint = %self.endpoint.describe(),
-                        path = path,
-                        attempt,
-                        max_attempts,
-                        backoff_ms = backoff.as_millis(),
-                        error = %error,
-                        "gateway request failed; retrying"
-                    );
-                    sleep_before_retry(backoff).await;
-                    attempt += 1;
-                    backoff = backoff.saturating_mul(2);
-                }
-                Err(error) => return Err(error),
-            }
-        }
     }
 
     /// 提供 patch json 功能。
@@ -217,17 +173,6 @@ impl GatewayClient {
             Err(response_error("GET", &self.endpoint, path, response).await)
         }
     }
-}
-
-async fn sleep_before_retry(delay: std::time::Duration) {
-    if delay.is_zero() {
-        return;
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    tokio::time::sleep(delay).await;
-    #[cfg(target_arch = "wasm32")]
-    let _ = delay;
 }
 
 /// 提供 get json blocking 功能。

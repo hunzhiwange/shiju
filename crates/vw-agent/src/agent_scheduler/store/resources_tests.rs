@@ -25,14 +25,6 @@ use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
 use crate::project::store::ProjectStore;
 
-#[test]
-fn resource_kind_as_str_returns_stable_storage_values() {
-    assert_eq!(ResourceKind::WorkerSlot.as_str(), "worker_slot");
-    assert_eq!(ResourceKind::Worktree.as_str(), "worktree");
-    assert_eq!(ResourceKind::MatrixDispatch.as_str(), "matrix_dispatch");
-    assert_eq!(ResourceKind::TeamCapacity.as_str(), "team_capacity");
-    assert_eq!(ResourceKind::MergeTarget.as_str(), "merge_target");
-}
 
 #[test]
 fn agent_resource_store_rejects_invalid_lease_times_and_empty_taint_reason() -> Result<()> {
@@ -92,50 +84,6 @@ fn agent_resource_store_enforces_exclusive_leases_and_expiry() -> Result<()> {
     for_each_resource_store_provider(assert_resource_store_enforces_exclusive_leases_and_expiry)
 }
 
-#[test]
-fn agent_resource_store_round_trips_all_resource_kinds_and_missing_taint() -> Result<()> {
-    let temp_dir = tempfile::tempdir()?;
-    let project_path = temp_dir.path();
-    let store = AgentSchedulerStore::new();
-    store.initialize_project(project_path)?;
-
-    for (index, resource_kind) in [
-        ResourceKind::WorkerSlot,
-        ResourceKind::Worktree,
-        ResourceKind::MatrixDispatch,
-        ResourceKind::TeamCapacity,
-        ResourceKind::MergeTarget,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let stored = store
-            .acquire_resource_lease(
-                project_path,
-                AcquireResourceLeaseRequest {
-                    lease_id: ResourceLeaseId::new(format!("kind-lease-{index}"))?,
-                    resource_kind,
-                    resource_id: ResourceId::new(format!("kind-resource-{index}"))?,
-                    holder_id: HolderId::new(format!("kind-holder-{index}"))?,
-                    acquired_at_ms: TimestampMs(1_000 + index as i64),
-                    lease_expires_at_ms: Some(TimestampMs(2_000 + index as i64)),
-                },
-            )?
-            .expect("resource kind lease should be acquired");
-
-        assert_eq!(stored.resource_kind, resource_kind);
-    }
-
-    let missing = store.mark_resource_tainted(
-        project_path,
-        ResourceKind::MergeTarget,
-        &ResourceId::new("missing-resource")?,
-        "no active lease".to_string(),
-    )?;
-    assert!(missing.is_none());
-
-    Ok(())
-}
 
 #[test]
 fn agent_resource_store_reports_corrupt_lease_rows() -> Result<()> {
@@ -486,27 +434,6 @@ fn resource_store_fixture(
     Ok((AgentSchedulerStore::from_database(database), context, isolated_context))
 }
 
-fn worker_snapshot(id: &str, model: &str) -> Result<NewAgentWorkerSnapshot> {
-    Ok(NewAgentWorkerSnapshot {
-        id: WorkerName::new(id)?,
-        runtime: Some(model.to_string()),
-        deployment: Some("local".to_string()),
-        model: model.to_string(),
-        model_provider: Some("test".to_string()),
-        status: AgentWorkerStatus::Idle,
-        desired_state: Some("Running".to_string()),
-        team_id: None,
-        worker_role: Some("worker".to_string()),
-        matrix_user_id: None,
-        room_id: None,
-        container_state: Some("ready".to_string()),
-        idle_since_ms: Some(TimestampMs(1_000)),
-        last_seen_at_ms: Some(TimestampMs(1_000)),
-        last_heartbeat_at: None,
-        capabilities: Vec::new(),
-        updated_at_ms: TimestampMs(1_000),
-    })
-}
 
 fn team_snapshot(id: &str, name: &str) -> Result<NewAgentTeamSnapshot> {
     Ok(NewAgentTeamSnapshot {
@@ -570,4 +497,26 @@ fn insert_raw_resource_lease(
         ],
     )?;
     Ok(())
+}
+
+fn worker_snapshot(id: &str, model: &str) -> Result<NewAgentWorkerSnapshot> {
+    Ok(NewAgentWorkerSnapshot {
+        id: WorkerName::new(id)?,
+        runtime: Some(model.to_string()),
+        deployment: Some("local".to_string()),
+        model: model.to_string(),
+        model_provider: Some("test".to_string()),
+        status: AgentWorkerStatus::Idle,
+        desired_state: Some("Running".to_string()),
+        team_id: None,
+        worker_role: Some("worker".to_string()),
+        matrix_user_id: None,
+        room_id: None,
+        container_state: Some("ready".to_string()),
+        idle_since_ms: Some(TimestampMs(1_000)),
+        last_seen_at_ms: Some(TimestampMs(1_000)),
+        last_heartbeat_at: None,
+        capabilities: Vec::new(),
+        updated_at_ms: TimestampMs(1_000),
+    })
 }

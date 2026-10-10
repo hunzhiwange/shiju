@@ -1,3 +1,5 @@
+#![allow(unused_imports, dead_code)]
+
 //! 验证员工设置的标签切换、通道绑定、选择归一化和错误提示。
 //!
 //! 输入标识会先去空、去重并过滤不可用项，相关断言保护保存前的规范化契约。
@@ -11,8 +13,7 @@ use crate::app::state::{
 use iced::widget::button;
 use iced::{Background, Theme};
 use vw_config_types::channels::{
-    DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig, MatrixConfig,
-    MatrixInstanceConfig,
+    DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
 };
 use vw_config_types::staff::{StaffChannelBindingConfig, StaffConfig, StaffMemberConfig};
 
@@ -97,82 +98,6 @@ fn staff_save_error_banner_follows_tabs_and_precedes_validation() {
     }
 }
 
-#[test]
-fn staff_channel_binding_staff_settings_view_builds_channel_binding_controls() {
-    let (mut app, _) = App::new();
-    app.channels_settings.matrix = Some(MatrixConfig {
-        homeserver: "https://matrix.example.test".to_string(),
-        access_token: "matrix-token".to_string(),
-        user_id: None,
-        device_id: None,
-        room_id: "!default:matrix.example.test".to_string(),
-        allowed_users: Vec::new(),
-        mention_only: false,
-    });
-    app.channels_settings.matrix_instances.push(MatrixInstanceConfig {
-        id: "planner".to_string(),
-        config: MatrixConfig {
-            homeserver: "https://matrix.example.test".to_string(),
-            access_token: "matrix-planner-token".to_string(),
-            user_id: None,
-            device_id: None,
-            room_id: "!planner:matrix.example.test".to_string(),
-            allowed_users: Vec::new(),
-            mention_only: false,
-        },
-    });
-    app.channels_settings.feishu_instances.push(FeishuInstanceConfig {
-        id: "planner-app".to_string(),
-        config: FeishuConfig {
-            app_id: "feishu-planner".to_string(),
-            app_secret: "feishu-secret".to_string(),
-            verification_token: None,
-            encrypt_key: None,
-            allowed_users: Vec::new(),
-            group_reply: None,
-            receive_mode: Default::default(),
-            port: None,
-            draft_update_interval_ms: 500,
-            max_draft_edits: 5,
-        },
-    });
-    app.channels_settings.dingtalk_instances.push(DingTalkInstanceConfig {
-        id: "ops".to_string(),
-        config: DingTalkConfig {
-            client_id: "dingtalk-client".to_string(),
-            client_secret: "dingtalk-secret".to_string(),
-            allowed_users: Vec::new(),
-        },
-    });
-
-    let mut config = StaffConfig::default();
-    let planner = config
-        .members
-        .iter_mut()
-        .find(|member| member.id == "staff-planner")
-        .expect("default planner");
-    planner.channel_bindings = vec![StaffChannelBindingConfig {
-        channel_type: "matrix".to_string(),
-        instance_id: "planner".to_string(),
-    }];
-    app.staff_settings = StaffSettingsState::from_config(config.normalize().expect("staff config"));
-
-    let draft = app
-        .staff_settings
-        .member_drafts
-        .iter()
-        .find(|draft| draft.id == "staff-planner")
-        .expect("planner draft");
-    let options = super::channel_binding_profile_options(&app, draft);
-
-    assert!(options.contains(&"matrix:default".to_string()));
-    assert!(options.contains(&"matrix:planner".to_string()));
-    assert!(options.contains(&"feishu:planner-app".to_string()));
-    assert!(options.contains(&"dingtalk:ops".to_string()));
-    assert_eq!(super::channel_binding_summary_label(draft), "Matrix planner");
-
-    let _: iced::Element<'_, crate::app::Message> = super::view(&app);
-}
 
 #[test]
 fn staff_setting_pick_options_display_chinese_and_save_english_keys() {

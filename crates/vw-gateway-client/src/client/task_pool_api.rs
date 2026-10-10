@@ -1,7 +1,6 @@
 use serde::Deserialize;
 use vw_api_types::task::{
     TaskPlanRunRequest, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto,
-    TaskPoolMatrixEventsResponse, TaskPoolMatrixPublishRequest, TaskPoolMatrixPublishResponse,
     TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeAcquireResponse,
     TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMaintenanceResponse,
     TaskPoolWorktreeMergeLockRequest, TaskPoolWorktreeMergeLockResponse,
@@ -13,13 +12,8 @@ use vw_api_types::task::{
 };
 
 use super::GatewayClient;
-use super::request_helpers::GatewayRetryPolicy;
-
-const TASK_POOL_RETRY_ATTEMPTS: usize = 3;
-const TASK_POOL_RETRY_BACKOFF_MS: u64 = 120;
 const TASK_PLAN_RUN_STREAM_PATH: &str = "/v1/task-plan-run/stream";
 const TASK_PLAN_RUN_PATH: &str = "/v1/task-plan-run";
-const TASK_POOL_MATRIX_EVENTS_PATH: &str = "/v1/task-pool/matrix/events";
 const TASK_POOL_WORKTREE_SNAPSHOT_PATH: &str = "/v1/task-pool/worktrees/snapshot";
 const TASK_POOL_WORKTREE_MAINTAIN_PATH: &str = "/v1/task-pool/worktrees/maintain";
 const TASK_POOL_WORKTREE_ACQUIRE_PATH: &str = "/v1/task-pool/worktrees/acquire";
@@ -41,7 +35,8 @@ impl GatewayClient {
             "{TASK_PLAN_RUN_STREAM_PATH}/{}/stop",
             encode_task_pool_path_segment(required_stream_request_id(request_id)?)
         );
-        let response: StreamStopResponse = self.post_json(&path, &[], &serde_json::json!({})).await?;
+        let response: StreamStopResponse =
+            self.post_json(&path, &[], &serde_json::json!({})).await?;
         Ok(response.cancelled)
     }
 
@@ -172,34 +167,6 @@ impl GatewayClient {
     ) -> Result<TaskPlanRunStatusResponse, String> {
         let path = format!("{TASK_PLAN_RUN_PATH}/{task_id}/stop");
         self.post_json(&path, &[], &serde_json::json!({})).await
-    }
-
-    /// 通过网关发布任务池 Matrix 协同事件。
-    pub async fn task_pool_matrix_publish(
-        &self,
-        request: &TaskPoolMatrixPublishRequest,
-    ) -> Result<TaskPoolMatrixPublishResponse, String> {
-        self.post_json_with_retry(
-            TASK_POOL_MATRIX_EVENTS_PATH,
-            &[],
-            request,
-            GatewayRetryPolicy {
-                max_attempts: TASK_POOL_RETRY_ATTEMPTS,
-                initial_backoff: std::time::Duration::from_millis(TASK_POOL_RETRY_BACKOFF_MS),
-            },
-        )
-        .await
-    }
-
-    /// 通过网关按 cursor 拉取任务池 Matrix 协同事件。
-    pub async fn task_pool_matrix_events(
-        &self,
-        after_cursor: Option<u64>,
-    ) -> Result<TaskPoolMatrixEventsResponse, String> {
-        let query = after_cursor
-            .map(|cursor| vec![("after_cursor".to_string(), cursor.to_string())])
-            .unwrap_or_default();
-        self.get_json(TASK_POOL_MATRIX_EVENTS_PATH, &query).await
     }
 
     /// 读取任务池 worktree 池快照。

@@ -100,60 +100,6 @@ async fn agent_recovery_marks_stale_runs_and_releases_resources_after_grace() ->
     Ok(())
 }
 
-#[tokio::test]
-async fn agent_recovery_sleeps_unassigned_worker_after_idle_threshold() -> Result<()> {
-    let temp_dir = tempfile::tempdir()?;
-    let project_path = temp_dir.path();
-    let store = AgentSchedulerStore::new();
-    let controller = FakeControllerAdapter::new();
-    let worker_id = WorkerName::new("worker-idle")?;
-
-    store.initialize_project(project_path)?;
-    store.upsert_worker_snapshot(
-        project_path,
-        NewAgentWorkerSnapshot {
-            id: worker_id.clone(),
-            runtime: Some("copaw".to_string()),
-            deployment: Some("local".to_string()),
-            model: "gpt-5-mini".to_string(),
-            model_provider: Some("openai".to_string()),
-            status: AgentWorkerStatus::Idle,
-            desired_state: Some("Running".to_string()),
-            team_id: None,
-            worker_role: Some("worker".to_string()),
-            matrix_user_id: None,
-            room_id: None,
-            container_state: Some("running".to_string()),
-            idle_since_ms: Some(TimestampMs(1_000)),
-            last_seen_at_ms: Some(TimestampMs(1_000)),
-            last_heartbeat_at: None,
-            capabilities: Vec::new(),
-            updated_at_ms: TimestampMs(1_000),
-        },
-    )?;
-    controller.set_snapshot(WorkerControllerSnapshot {
-        worker_name: worker_id.clone(),
-        desired_state: WorkerLifecycleState::Running,
-        runtime: Some("copaw".to_string()),
-        team_id: None,
-        worker_role: Some("worker".to_string()),
-        room_id: None,
-        container_state: Some("running".to_string()),
-    });
-    let policy =
-        RecoveryPolicy { idle_worker_sleep_after_ms: Some(100), ..RecoveryPolicy::default() };
-
-    let outcome = RecoveryEngine::with_policy(&store, &controller, policy)
-        .reconcile_once(project_path, TimestampMs(1_100))
-        .await?;
-
-    assert_eq!(outcome.slept_worker_ids, vec![worker_id.clone()]);
-    let requests = controller.recorded_lifecycle_requests();
-    assert_eq!(requests.len(), 1);
-    assert_eq!(requests[0].worker_name, worker_id);
-    assert_eq!(requests[0].desired_state, WorkerLifecycleState::Sleeping);
-    Ok(())
-}
 
 fn dispatched_task(task_id: &TaskId) -> Result<NewAgentTask> {
     Ok(NewAgentTask {

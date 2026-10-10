@@ -1,21 +1,11 @@
 //! 其他聊天与消息渠道配置的 agent 侧适配。
 //!
-//! 本模块集中为 Matrix、Signal、WhatsApp、IRC 等非核心渠道补齐 `ChannelConfig`
+//! 本模块集中为 Signal、WhatsApp、IRC 等非核心渠道补齐 `ChannelConfig`
 //! 元数据。实际字段定义仍来自 `vw_config_types`，这里仅负责稳定的用户可见名称与描述。
 
 pub use vw_config_types::channels::other::*;
 
 use crate::app::agent::config::traits::ChannelConfig;
-
-/// 为 Matrix 渠道配置提供展示名称和说明。
-impl ChannelConfig for MatrixConfig {
-    fn name() -> &'static str {
-        "Matrix"
-    }
-    fn desc() -> &'static str {
-        "self-hosted chat"
-    }
-}
 
 /// 为 Signal 渠道配置提供展示名称和说明。
 impl ChannelConfig for SignalConfig {

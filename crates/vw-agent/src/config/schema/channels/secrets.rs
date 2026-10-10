@@ -134,20 +134,6 @@ pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
         )?;
     }
 
-    // 解密 Matrix 渠道配置
-    // access_token 是必填项，用于身份验证
-    if let Some(ref mut matrix) = channels.matrix {
-        decrypt_secret(
-            store,
-            &mut matrix.access_token,
-            "config.channels_config.matrix.access_token",
-        )?;
-    }
-    for matrix in &mut channels.matrix_instances {
-        let path = channel_instance_secret_path("matrix", &matrix.id, "access_token");
-        decrypt_secret(store, &mut matrix.config.access_token, &path)?;
-    }
-
     // 解密 WhatsApp 渠道配置
     // 所有字段都是可选项，根据实际部署需求配置
     if let Some(ref mut whatsapp) = channels.whatsapp {
@@ -379,20 +365,6 @@ pub fn encrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
             &mut webhook.secret,
             "config.channels_config.webhook.secret",
         )?;
-    }
-
-    // 加密 Matrix 渠道配置
-    // access_token 是必填项
-    if let Some(ref mut matrix) = channels.matrix {
-        encrypt_secret(
-            store,
-            &mut matrix.access_token,
-            "config.channels_config.matrix.access_token",
-        )?;
-    }
-    for matrix in &mut channels.matrix_instances {
-        let path = channel_instance_secret_path("matrix", &matrix.id, "access_token");
-        encrypt_secret(store, &mut matrix.config.access_token, &path)?;
     }
 
     // 加密 WhatsApp 渠道配置

@@ -10,8 +10,8 @@ use iced::widget::column;
 
 use super::common::{
     GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, add_instance_row,
-    bool_row, group_reply_mode_value, instance_title_row, lark_receive_mode_value,
-    number_row, number_row_with_hint, number_row_with_key, panel, pick_row, pick_row_with_key,
+    bool_row, group_reply_mode_value, instance_title_row, lark_receive_mode_value, number_row,
+    number_row_with_hint, number_row_with_key, panel, pick_row, pick_row_with_key,
     qq_receive_mode_value, text_row, text_row_with_key,
 };
 

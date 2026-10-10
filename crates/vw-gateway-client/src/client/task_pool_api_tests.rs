@@ -5,9 +5,8 @@
 use serde_json::json;
 use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};
 use vw_api_types::task::{
-    TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto, TaskPoolMatrixActorDto,
-    TaskPoolMatrixEventDto, TaskPoolMatrixEventKindDto, TaskPoolMatrixPublishRequest,
-    TaskPoolStatus, TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeMaintenanceRequest,
+    TaskPlanRunRequest, TaskPlanRunStatus, TaskPlanRunStreamEventDto,
+    TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeMaintenanceRequest,
     TaskPoolWorktreeMergeLockRequest, TaskPoolWorktreeMergeUnlockRequest,
     TaskPoolWorktreeRecycleRequest, TaskPoolWorktreeReleaseRequest,
     TaskPoolWorktreeSlotRecycleRequest, TaskPoolWorktreeSlotStateDto,
@@ -345,93 +344,7 @@ async fn task_plan_resumable_stream_reports_caller_stop() {
     server.join();
 }
 
-#[tokio::test]
-async fn task_pool_matrix_publish_posts_event_and_events_get_uses_cursor() {
-    let server = test_support::server(vec![
-        (503, json!({"message": "warming up"})),
-        (200, json!({"accepted": true, "matrix_event_id": "$matrix-event"})),
-        (
-            200,
-            json!({
-                "cursor": 7,
-                "events": [{
-                    "version": 1,
-                    "event_id": "$event-1",
-                    "task_id": "task-a",
-                    "actor": {
-                        "matrix_user_id": "@agent:example.test"
-                    },
-                    "occurred_at_ms": 1_716_000_000_000u64,
-                    "kind": {
-                        "type": "task_status_changed",
-                        "from_status": "pool",
-                        "to_status": "running"
-                    }
-                }]
-            }),
-        ),
-    ]);
-    let event = TaskPoolMatrixEventDto {
-        version: 1,
-        event_id: "$event-1".to_string(),
-        task_id: "task-a".to_string(),
-        actor: TaskPoolMatrixActorDto {
-            matrix_user_id: "@agent:example.test".to_string(),
-            display_name: None,
-        },
-        occurred_at_ms: 1_716_000_000_000,
-        kind: TaskPoolMatrixEventKindDto::TaskStatusChanged {
-            from_status: Some(TaskPoolStatus::Pool),
-            to_status: TaskPoolStatus::Running,
-        },
-    };
-    let request = TaskPoolMatrixPublishRequest {
-        event: event.clone(),
-        matrix_instance_id: Some("planner".to_string()),
-    };
 
-    let publish =
-        server.client().task_pool_matrix_publish(&request).await.expect("publish matrix event");
-    let events = server.client().task_pool_matrix_events(Some(6)).await.expect("get matrix events");
-
-    assert!(publish.accepted);
-    assert_eq!(publish.matrix_event_id, Some("$matrix-event".to_string()));
-    assert_eq!(events.cursor, 7);
-    assert_eq!(events.events, vec![event]);
-
-    let first_publish = server.take_request();
-    let second_publish = server.take_request();
-    let list_events = server.take_request();
-    assert_eq!(first_publish.method, "POST");
-    assert_eq!(second_publish.method, "POST");
-    assert_eq!(first_publish.path, "/v1/task-pool/matrix/events");
-    assert_eq!(second_publish.path, "/v1/task-pool/matrix/events");
-    assert_eq!(first_publish.body, second_publish.body);
-    assert_eq!(second_publish.body["event"]["task_id"], "task-a");
-    assert_eq!(second_publish.body["matrix_instance_id"], "planner");
-    assert_eq!(list_events.method, "GET");
-    assert_eq!(list_events.path, "/v1/task-pool/matrix/events?after_cursor=6");
-    assert_eq!(list_events.body, serde_json::Value::Null);
-    server.join();
-}
-
-#[tokio::test]
-async fn task_pool_matrix_events_omits_cursor_when_not_provided() {
-    let server = test_support::server(vec![(200, json!({"cursor": 0, "events": []}))]);
-
-    let response = server
-        .client()
-        .task_pool_matrix_events(None)
-        .await
-        .expect("get matrix events without cursor");
-
-    assert_eq!(response.cursor, 0);
-    assert!(response.events.is_empty());
-    let request = server.take_request();
-    assert_eq!(request.method, "GET");
-    assert_eq!(request.path, "/v1/task-pool/matrix/events");
-    server.join();
-}
 
 #[tokio::test]
 async fn task_pool_api_uses_documented_pool_routes() {

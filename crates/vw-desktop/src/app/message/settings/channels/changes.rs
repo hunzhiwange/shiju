@@ -15,24 +15,6 @@ fn parse_instance_field<'a>(key: &'a str, prefix: &str) -> Option<(usize, &'a st
 }
 
 fn apply_instance_text_change(app: &mut App, key: &str, value: &str) -> bool {
-    if let Some((index, field)) = parse_instance_field(key, "matrix_instances") {
-        if let Some(instance) = app.channels_settings.matrix_instances.get_mut(index) {
-            match field {
-                "id" => instance.id = value.trim().to_string(),
-                "homeserver" => instance.config.homeserver = value.to_string(),
-                "access_token" => instance.config.access_token = value.to_string(),
-                "user_id" => instance.config.user_id = trim_to_option(value),
-                "device_id" => instance.config.device_id = trim_to_option(value),
-                "room_id" => instance.config.room_id = value.to_string(),
-                "allowed_users" => {
-                    instance.config.allowed_users = parse_comma_or_newline_list(value);
-                }
-                _ => {}
-            }
-        }
-        return true;
-    }
-
     if let Some((index, field)) = parse_instance_field(key, "feishu_instances") {
         if let Some(instance) = app.channels_settings.feishu_instances.get_mut(index) {
             match field {
@@ -66,17 +48,6 @@ fn apply_instance_text_change(app: &mut App, key: &str, value: &str) -> bool {
                 }
                 _ => {}
             }
-        }
-        return true;
-    }
-
-    false
-}
-
-fn apply_instance_bool_change(app: &mut App, key: &str, value: bool) -> bool {
-    if let Some((index, "mention_only")) = parse_instance_field(key, "matrix_instances") {
-        if let Some(instance) = app.channels_settings.matrix_instances.get_mut(index) {
-            instance.config.mention_only = value;
         }
         return true;
     }
@@ -224,36 +195,6 @@ pub(super) fn apply_text_change(app: &mut App, key: &str, value: String) {
         "imessage.allowed_contacts" => {
             if let Some(cfg) = app.channels_settings.imessage.as_mut() {
                 cfg.allowed_contacts = parse_comma_or_newline_list(&value);
-            }
-        }
-        "matrix.homeserver" => {
-            if let Some(cfg) = app.channels_settings.matrix.as_mut() {
-                cfg.homeserver = value;
-            }
-        }
-        "matrix.access_token" => {
-            if let Some(cfg) = app.channels_settings.matrix.as_mut() {
-                cfg.access_token = value;
-            }
-        }
-        "matrix.user_id" => {
-            if let Some(cfg) = app.channels_settings.matrix.as_mut() {
-                cfg.user_id = trim_to_option(&value);
-            }
-        }
-        "matrix.device_id" => {
-            if let Some(cfg) = app.channels_settings.matrix.as_mut() {
-                cfg.device_id = trim_to_option(&value);
-            }
-        }
-        "matrix.room_id" => {
-            if let Some(cfg) = app.channels_settings.matrix.as_mut() {
-                cfg.room_id = value;
-            }
-        }
-        "matrix.allowed_users" => {
-            if let Some(cfg) = app.channels_settings.matrix.as_mut() {
-                cfg.allowed_users = parse_comma_or_newline_list(&value);
             }
         }
         "signal.http_url" => {
@@ -600,9 +541,6 @@ mod changes_tests;
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 pub(super) fn apply_bool_change(app: &mut App, key: &str, value: bool) {
-    if apply_instance_bool_change(app, key, value) {
-        return;
-    }
 
     match key {
         "telegram.interrupt_on_new_message" => {
@@ -633,11 +571,6 @@ pub(super) fn apply_bool_change(app: &mut App, key: &str, value: bool) {
         "mattermost.mention_only" => {
             if let Some(cfg) = app.channels_settings.mattermost.as_mut() {
                 cfg.mention_only = Some(value);
-            }
-        }
-        "matrix.mention_only" => {
-            if let Some(cfg) = app.channels_settings.matrix.as_mut() {
-                cfg.mention_only = value;
             }
         }
         "signal.ignore_attachments" => {

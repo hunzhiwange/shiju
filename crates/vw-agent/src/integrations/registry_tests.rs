@@ -23,7 +23,7 @@ use crate::app::agent::config::Config;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::config::schema::EmailConfig;
 use crate::app::agent::config::schema::{
-    DingTalkConfig, DiscordConfig, IMessageConfig, MatrixConfig, QQConfig, QQReceiveMode,
+    DingTalkConfig, DiscordConfig, IMessageConfig, QQConfig, QQReceiveMode,
     SignalConfig, SlackConfig, StreamMode, TelegramConfig, WebhookConfig, WhatsAppConfig,
 };
 
@@ -207,54 +207,7 @@ fn imessage_available_when_not_configured() {
     assert!(matches!((im.status_fn)(&config), IntegrationStatus::Available));
 }
 
-/// 验证 Matrix 在配置后状态变为 Active
-///
-/// 此测试验证当配置中包含有效的 Matrix 配置时，
-/// Matrix 集成的状态应从 Available 转换为 Active。
-///
-/// # 测试配置
-///
-/// 使用包含以下字段的 `MatrixConfig`：
-/// - `homeserver`: "https://m.org"
-/// - `access_token`: "tok"
-/// - `room_id`: "!r:m"
-///
-/// # 预期结果
-///
-/// - 状态应为 `IntegrationStatus::Active`
-#[test]
-fn matrix_active_when_configured() {
-    let mut config = Config::default();
-    config.channels_config.matrix_enabled = true;
-    config.channels_config.matrix = Some(MatrixConfig {
-        homeserver: "https://m.org".into(),
-        access_token: "tok".into(),
-        user_id: None,
-        device_id: None,
-        room_id: "!r:m".into(),
-        allowed_users: vec![],
-        mention_only: false,
-    });
-    let entries = all_integrations();
-    let mx = entries.iter().find(|e| e.name == "Matrix").unwrap();
-    assert!(matches!((mx.status_fn)(&config), IntegrationStatus::Active));
-}
 
-/// 验证 Matrix 在未配置时状态为 Available
-///
-/// 此测试验证当配置中没有 Matrix 配置时，
-/// Matrix 集成应保持 Available 状态。
-///
-/// # 预期结果
-///
-/// - 状态应为 `IntegrationStatus::Available`
-#[test]
-fn matrix_available_when_not_configured() {
-    let config = Config::default();
-    let entries = all_integrations();
-    let mx = entries.iter().find(|e| e.name == "Matrix").unwrap();
-    assert!(matches!((mx.status_fn)(&config), IntegrationStatus::Available));
-}
 
 /// 验证"即将推出"集成保持 ComingSoon 状态
 ///

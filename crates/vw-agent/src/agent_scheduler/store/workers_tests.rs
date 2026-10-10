@@ -201,6 +201,13 @@ fn worker_store_fixture(
     Ok((AgentSchedulerStore::from_database(database), context, isolated_context))
 }
 
+
+
+
+fn worker_ids(workers: &[super::store::workers::StoredAgentWorker]) -> Vec<&str> {
+    workers.iter().map(|worker| worker.id.as_str()).collect()
+}
+
 fn standalone_worker() -> Result<NewAgentWorkerSnapshot> {
     Ok(NewAgentWorkerSnapshot {
         id: WorkerName::new("worker-standalone")?,
@@ -273,8 +280,4 @@ fn team_worker() -> Result<NewAgentWorkerSnapshot> {
         capabilities: vec![AgentCapabilityRecord::skill("api-implementation")],
         updated_at_ms: TimestampMs(1_783_000_020_000),
     })
-}
-
-fn worker_ids(workers: &[super::store::workers::StoredAgentWorker]) -> Vec<&str> {
-    workers.iter().map(|worker| worker.id.as_str()).collect()
 }

@@ -2,7 +2,7 @@ use super::*;
 use crate::app::agent::config::schema::{
     DingTalkConfig, DingTalkInstanceConfig, DiscordConfig, EmailConfig, FeishuConfig,
     FeishuInstanceConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, IrcConfig, LarkConfig,
-    LarkReceiveMode, LinqConfig, MatrixConfig, MatrixInstanceConfig, MattermostConfig,
+    LarkReceiveMode, LinqConfig, MattermostConfig,
     NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig, SlackConfig,
     StreamMode, TelegramConfig, WatiConfig, WhatsAppConfig,
 };
@@ -30,17 +30,6 @@ fn whatsapp_config(
     }
 }
 
-fn matrix_config() -> MatrixConfig {
-    MatrixConfig {
-        homeserver: "https://matrix.example.test".to_string(),
-        access_token: "matrix-token".to_string(),
-        user_id: Some("@bot:example.test".to_string()),
-        device_id: Some("DEVICE".to_string()),
-        room_id: "!room:example.test".to_string(),
-        allowed_users: vec!["@alice:example.test".to_string()],
-        mention_only: true,
-    }
-}
 
 fn lark_config(use_feishu: bool) -> LarkConfig {
     LarkConfig {
@@ -289,99 +278,11 @@ fn collect_configured_channels_skips_whatsapp_web_without_feature() {
     assert!(collect_configured_channels(&config, "test").is_empty());
 }
 
-#[cfg(all(feature = "channel-matrix", feature = "channel-lark", not(target_arch = "wasm32")))]
-#[test]
-fn collect_configured_channels_builds_named_channel_instances() {
-    let mut config = Config::default();
-    config.channels_config.matrix_enabled = true;
-    config.channels_config.matrix = Some(matrix_config());
-    config.channels_config.matrix_instances.push(MatrixInstanceConfig {
-        id: "planner".to_string(),
-        config: MatrixConfig {
-            access_token: "planner-token".to_string(),
-            room_id: "!planner:example.test".to_string(),
-            ..matrix_config()
-        },
-    });
-    config.channels_config.feishu = Some(feishu_config());
-    config.channels_config.feishu_instances.push(FeishuInstanceConfig {
-        id: "reviewer".to_string(),
-        config: FeishuConfig {
-            app_id: "reviewer-app-id".to_string(),
-            app_secret: "reviewer-secret".to_string(),
-            ..feishu_config()
-        },
-    });
-    config.channels_config.dingtalk = Some(dingtalk_config());
-    config.channels_config.dingtalk_instances.push(DingTalkInstanceConfig {
-        id: "1".to_string(),
-        config: DingTalkConfig { client_id: "ding-1".to_string(), ..dingtalk_config() },
-    });
 
-    assert_eq!(
-        channel_names(&collect_configured_channels(&config, "test")),
-        vec!["Matrix", "Matrix(planner)", "Feishu", "Feishu(reviewer)", "DingTalk", "DingTalk(1)"]
-    );
-}
 
-#[cfg(feature = "channel-matrix")]
-#[test]
-fn collect_configured_channels_builds_matrix_when_feature_enabled() {
-    let mut config = Config::default();
-    config.channels_config.matrix_enabled = true;
-    config.channels_config.matrix = Some(matrix_config());
 
-    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["Matrix"]);
-}
 
-#[cfg(feature = "channel-matrix")]
-#[test]
-fn collect_configured_channels_keeps_matrix_disabled_by_default() {
-    let mut config = Config::default();
-    config.channels_config.matrix = Some(matrix_config());
 
-    assert!(!config.channels_config.matrix_enabled);
-    assert!(collect_configured_channels(&config, "test").is_empty());
-}
-
-#[cfg(feature = "channel-matrix")]
-#[test]
-fn collect_configured_channels_skips_incomplete_matrix_config() {
-    let mut config = Config::default();
-    config.channels_config.matrix_enabled = true;
-    config.channels_config.matrix = Some(MatrixConfig {
-        homeserver: "https://matrix.example.test".to_string(),
-        access_token: "matrix-token".to_string(),
-        room_id: String::new(),
-        ..matrix_config()
-    });
-
-    assert!(collect_configured_channels(&config, "test").is_empty());
-}
-
-#[cfg(feature = "channel-matrix")]
-#[test]
-fn collect_configured_channels_skips_only_invalid_matrix_instance() {
-    let mut config = Config::default();
-    config.channels_config.matrix_enabled = true;
-    config.channels_config.matrix = Some(matrix_config());
-    config.channels_config.matrix_instances.push(MatrixInstanceConfig {
-        id: "disabled".to_string(),
-        config: MatrixConfig { access_token: " ".to_string(), ..matrix_config() },
-    });
-
-    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["Matrix"]);
-}
-
-#[cfg(not(feature = "channel-matrix"))]
-#[test]
-fn collect_configured_channels_skips_matrix_without_feature() {
-    let mut config = Config::default();
-    config.channels_config.matrix_enabled = true;
-    config.channels_config.matrix = Some(matrix_config());
-
-    assert!(collect_configured_channels(&config, "test").is_empty());
-}
 
 #[cfg(feature = "channel-lark")]
 #[test]

@@ -261,9 +261,6 @@ impl std::fmt::Debug for Config {
             self.channels_config.mattermost.is_some(),
             self.channels_config.webhook.is_some(),
             self.channels_config.imessage.is_some(),
-            self.channels_config.matrix_enabled
-                && (self.channels_config.matrix.is_some()
-                    || !self.channels_config.matrix_instances.is_empty()),
             self.channels_config.signal.is_some(),
             self.channels_config.whatsapp.is_some(),
             self.channels_config.linq.is_some(),

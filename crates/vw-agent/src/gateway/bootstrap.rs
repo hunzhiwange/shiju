@@ -590,8 +590,6 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("POST", "/v1/task-pool/worktrees/slots/recycle", "recycle worktree slots"),
         client_route("POST", "/v1/task-pool/worktrees/merge-lock", "lock worktree merge"),
         client_route("POST", "/v1/task-pool/worktrees/merge-unlock", "unlock worktree merge"),
-        client_route("GET", "/v1/task-pool/matrix/events", "Matrix task-pool events"),
-        client_route("POST", "/v1/task-pool/matrix/events", "publish Matrix task-pool event"),
         client_route(
             "GET",
             "/v1/agent-scheduler/projects/{project_id}/workflow",
@@ -953,7 +951,6 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
         .merge(api::handlers::question::router())
         .merge(api::handlers::staff_ipc::router())
         .merge(api::handlers::task_pool::router())
-        .merge(api::handlers::task_pool_matrix::router())
         .merge(api::handlers::agent_scheduler::router())
         .merge(api::handlers::apiql::router())
         .merge(api::handlers::task_lifecycle::router())

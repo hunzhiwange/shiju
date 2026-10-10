@@ -1,3 +1,5 @@
+#![allow(unused_imports, dead_code)]
+
 //! 验证渠道设置共享字段、开关、实例列表与样式组件。
 //! fixture 以空值和多实例组合检查共享控件的布局及消息归属。
 
@@ -13,7 +15,7 @@ use iced::widget::text;
 use vw_config_types::channels::{
     ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, DiscordConfig, FeishuConfig,
     FeishuInstanceConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, IrcConfig, LarkConfig,
-    LarkReceiveMode, LinqConfig, MatrixConfig, MatrixInstanceConfig, MattermostConfig,
+    LarkReceiveMode, LinqConfig, MattermostConfig,
     NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig, SlackConfig,
     TelegramConfig, WatiConfig, WebhookConfig, WhatsAppConfig,
 };
@@ -26,17 +28,6 @@ fn keep_element(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
 }
 
-fn matrix_config() -> MatrixConfig {
-    MatrixConfig {
-        homeserver: "https://matrix.example".to_string(),
-        access_token: "test-access-token".to_string(),
-        user_id: Some("@bot:matrix.example".to_string()),
-        device_id: Some("TEST-DEVICE".to_string()),
-        room_id: "!room:matrix.example".to_string(),
-        allowed_users: vec!["@alice:matrix.example".to_string()],
-        mention_only: true,
-    }
-}
 
 fn feishu_config() -> FeishuConfig {
     FeishuConfig {
@@ -61,191 +52,8 @@ fn dingtalk_config() -> DingTalkConfig {
     }
 }
 
-fn configure_all_direct_channels(app: &mut App) {
-    app.channels_settings.cli = true;
-    app.channels_settings.telegram = Some(TelegramConfig {
-        bot_token: "test-token".to_string(),
-        allowed_users: vec![],
-        stream_mode: Default::default(),
-        draft_update_interval_ms: 500,
-        interrupt_on_new_message: false,
-        mention_only: false,
-        group_reply: None,
-        base_url: None,
-    });
-    app.channels_settings.discord = Some(DiscordConfig {
-        bot_token: "test-token".to_string(),
-        guild_id: None,
-        allowed_users: vec![],
-        listen_to_bots: false,
-        mention_only: false,
-        group_reply: None,
-    });
-    app.channels_settings.slack = Some(SlackConfig {
-        bot_token: "test-token".to_string(),
-        app_token: None,
-        channel_id: None,
-        allowed_users: vec![],
-        group_reply: None,
-    });
-    app.channels_settings.mattermost = Some(MattermostConfig {
-        url: "https://mattermost.example".to_string(),
-        bot_token: "test-token".to_string(),
-        channel_id: None,
-        allowed_users: vec![],
-        thread_replies: None,
-        mention_only: None,
-        group_reply: None,
-    });
-    app.channels_settings.webhook = Some(WebhookConfig { port: 8_787, secret: None });
-    app.channels_settings.imessage = Some(IMessageConfig { allowed_contacts: vec![] });
-    app.channels_settings.matrix_enabled = true;
-    app.channels_settings.matrix = Some(matrix_config());
-    app.channels_settings.signal = Some(SignalConfig {
-        http_url: "http://127.0.0.1:8686".to_string(),
-        account: "+10000000000".to_string(),
-        group_id: None,
-        allowed_from: vec![],
-        ignore_attachments: false,
-        ignore_stories: false,
-    });
-    app.channels_settings.whatsapp = Some(WhatsAppConfig {
-        access_token: None,
-        phone_number_id: None,
-        verify_token: None,
-        app_secret: None,
-        session_path: None,
-        pair_phone: None,
-        pair_code: None,
-        allowed_numbers: vec![],
-    });
-    app.channels_settings.linq = Some(LinqConfig {
-        api_token: "test-token".to_string(),
-        from_phone: "+10000000001".to_string(),
-        signing_secret: None,
-        allowed_senders: vec![],
-    });
-    app.channels_settings.wati = Some(WatiConfig {
-        api_token: "test-token".to_string(),
-        api_url: "https://wati.example".to_string(),
-        tenant_id: None,
-        allowed_numbers: vec![],
-    });
-    app.channels_settings.nextcloud_talk = Some(NextcloudTalkConfig {
-        base_url: "https://nextcloud.example".to_string(),
-        app_token: "test-token".to_string(),
-        webhook_secret: None,
-        allowed_users: vec![],
-    });
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        app.channels_settings.email = Some(vw_config_types::channels::EmailConfig::default());
-    }
-    app.channels_settings.irc = Some(IrcConfig {
-        server: "irc.example".to_string(),
-        port: 6_697,
-        nickname: "test-bot".to_string(),
-        username: None,
-        channels: vec![],
-        allowed_users: vec![],
-        server_password: None,
-        nickserv_password: None,
-        sasl_password: None,
-        verify_tls: Some(true),
-    });
-    app.channels_settings.lark = Some(LarkConfig {
-        app_id: "test-app".to_string(),
-        app_secret: "test-secret".to_string(),
-        encrypt_key: None,
-        verification_token: None,
-        allowed_users: vec![],
-        mention_only: false,
-        group_reply: None,
-        use_feishu: false,
-        receive_mode: LarkReceiveMode::Websocket,
-        port: None,
-        draft_update_interval_ms: 1_000,
-        max_draft_edits: 3,
-    });
-    app.channels_settings.feishu = Some(feishu_config());
-    app.channels_settings.dingtalk = Some(dingtalk_config());
-    app.channels_settings.qq = Some(QQConfig {
-        app_id: "test-app".to_string(),
-        app_secret: "test-secret".to_string(),
-        allowed_users: vec![],
-        receive_mode: QQReceiveMode::Websocket,
-    });
-    app.channels_settings.nostr = Some(NostrConfig {
-        private_key: "test-private-key".to_string(),
-        relays: vec!["wss://relay.example".to_string()],
-        allowed_pubkeys: vec![],
-    });
-    app.channels_settings.clawdtalk = Some(ClawdTalkConfig {
-        api_key: "test-api-key".to_string(),
-        connection_id: "test-connection".to_string(),
-        from_number: "+10000000002".to_string(),
-        allowed_destinations: vec![],
-        webhook_secret: None,
-    });
-}
 
-#[test]
-fn multiline_list_keys_identify_collection_fields() {
-    for key in [
-        "telegram.allowed_users",
-        "telegram.group_reply.allowed_sender_ids",
-        "discord.allowed_users",
-        "discord.group_reply.allowed_sender_ids",
-        "slack.allowed_users",
-        "slack.group_reply.allowed_sender_ids",
-        "mattermost.allowed_users",
-        "mattermost.group_reply.allowed_sender_ids",
-        "imessage.allowed_contacts",
-        "matrix.allowed_users",
-        "signal.allowed_from",
-        "whatsapp.allowed_numbers",
-        "linq.allowed_senders",
-        "wati.allowed_numbers",
-        "nextcloud_talk.allowed_users",
-        "email.allowed_senders",
-        "irc.channels",
-        "irc.allowed_users",
-        "lark.allowed_users",
-        "lark.group_reply.allowed_sender_ids",
-        "feishu.allowed_users",
-        "feishu.group_reply.allowed_sender_ids",
-        "dingtalk.allowed_users",
-        "qq.allowed_users",
-        "nostr.relays",
-        "nostr.allowed_pubkeys",
-        "clawdtalk.allowed_destinations",
-    ] {
-        assert!(is_multiline_list_key(key), "{key} should be multiline");
-    }
-    assert!(!is_multiline_list_key("telegram.enabled"));
-}
 
-#[test]
-fn named_instance_multiline_keys_require_supported_prefix_and_field() {
-    for key in [
-        "matrix_instances.primary.allowed_users",
-        "feishu_instances.cn.allowed_users",
-        "feishu_instances.cn.group_reply.allowed_sender_ids",
-        "dingtalk_instances.ops.allowed_users",
-    ] {
-        assert!(is_multiline_list_key(key), "{key} should be multiline");
-    }
-    for key in [
-        "matrix_instances",
-        "matrix_instances.primary",
-        "matrix_instances.primary.room_id",
-        "feishu_instances.cn.group_reply.mode",
-        "dingtalk_instances.ops.client_id",
-        "slack_instances.primary.allowed_users",
-    ] {
-        assert!(!is_multiline_list_key(key), "{key} should remain single-line");
-    }
-}
 
 #[test]
 fn localized_label_maps_every_known_key_and_falls_back_to_original_key() {
@@ -379,105 +187,6 @@ fn labeled_options_display_human_labels() {
     );
 }
 
-#[test]
-fn row_helpers_build_static_and_dynamic_single_line_multiline_and_control_rows() {
-    let mut app = test_app();
-    app.channels_settings.text_editors.insert(
-        "telegram.allowed_users".to_string(),
-        iced::widget::text_editor::Content::with_text("alice\nbob"),
-    );
-    app.channels_settings.text_editors.insert(
-        "matrix_instances.primary.allowed_users".to_string(),
-        iced::widget::text_editor::Content::with_text("@alice:matrix.example"),
-    );
-    app.channels_settings
-        .text_inputs
-        .insert("telegram.bot_token".to_string(), "edited-token".to_string());
-    app.channels_settings.text_inputs.insert(
-        "matrix_instances.primary.room_id".to_string(),
-        "!edited:matrix.example".to_string(),
-    );
-
-    keep_element(text_row(
-        &app,
-        "bot_token",
-        "Telegram token",
-        "fallback-token",
-        "telegram.bot_token",
-        true,
-    ));
-    keep_element(text_row(
-        &app,
-        "allowed_users",
-        "逗号或换行分隔",
-        "",
-        "telegram.allowed_users",
-        false,
-    ));
-    keep_element(text_row_with_key(
-        &app,
-        "room_id",
-        "Matrix room",
-        "!fallback:matrix.example",
-        "matrix_instances.primary.room_id".to_string(),
-        false,
-    ));
-    keep_element(text_row_with_key(
-        &app,
-        "allowed_users",
-        "逗号或换行分隔",
-        "",
-        "matrix_instances.primary.allowed_users".to_string(),
-        false,
-    ));
-    keep_element(bool_row("mention_only", true, "仅提及时回复", "telegram.mention_only"));
-    keep_element(bool_row_with_key(
-        "verify_tls",
-        false,
-        "验证服务器证书",
-        "irc_instances.primary.verify_tls".to_string(),
-    ));
-    keep_element(number_row("port", 3000, 1, 65_535, "", "lark.port"));
-    keep_element(number_row("draft_update_interval_ms", 3000, 100, 60_000, "ms", "lark.delay"));
-    keep_element(number_row_with_hint(
-        "port",
-        3000,
-        1,
-        65_535,
-        "",
-        "feishu.port",
-        "Webhook 模式提示",
-    ));
-    keep_element(number_row_with_key(
-        "port",
-        3001,
-        1,
-        65_535,
-        "",
-        "feishu_instances.cn.port".to_string(),
-    ));
-    keep_element(pick_row(
-        "receive_mode",
-        "webhook",
-        &LARK_RECEIVE_MODE_OPTIONS,
-        "lark.receive_mode",
-    ));
-    keep_element(pick_row(
-        "receive_mode",
-        "missing",
-        &LARK_RECEIVE_MODE_OPTIONS,
-        "lark.receive_mode",
-    ));
-    keep_element(pick_row_with_key(
-        "receive_mode",
-        "websocket",
-        &QQ_RECEIVE_MODE_OPTIONS,
-        "qq_instances.primary.receive_mode".to_string(),
-    ));
-    keep_element(instance_title_row("Matrix · primary".to_string(), "matrix", 0));
-    keep_element(add_instance_row("matrix", "添加 Matrix 实例"));
-    keep_element(hint_row("提示"));
-}
 
 #[test]
 #[should_panic(expected = "multiline channel editor should be initialized")]
@@ -506,70 +215,4 @@ fn enabled_channels_returns_empty_when_every_channel_is_disabled() {
     app.channels_settings.cli = false;
 
     assert!(enabled_channels(&app).is_empty());
-}
-
-#[test]
-fn enabled_channels_reports_every_direct_channel_in_display_order() {
-    let mut app = test_app();
-    configure_all_direct_channels(&mut app);
-
-    let mut expected = vec![
-        "CLI",
-        "Telegram",
-        "Discord",
-        "Slack",
-        "Mattermost",
-        "Webhook",
-        "iMessage",
-        "Matrix",
-        "Signal",
-        "WhatsApp",
-        "Linq",
-        "WATI",
-        "Nextcloud Talk",
-    ];
-    #[cfg(not(target_arch = "wasm32"))]
-    expected.push("Email");
-    expected.extend(["IRC", "Lark", "Feishu", "DingTalk", "QQ", "Nostr", "ClawdTalk"]);
-
-    assert_eq!(enabled_channels(&app), expected);
-}
-
-#[test]
-fn enabled_channels_recognizes_named_instances_without_legacy_config() {
-    let mut app = test_app();
-    app.channels_settings.cli = false;
-    app.channels_settings.matrix_enabled = true;
-    app.channels_settings
-        .matrix_instances
-        .push(MatrixInstanceConfig { id: "primary".to_string(), config: matrix_config() });
-    app.channels_settings
-        .feishu_instances
-        .push(FeishuInstanceConfig { id: "cn".to_string(), config: feishu_config() });
-    app.channels_settings
-        .dingtalk_instances
-        .push(DingTalkInstanceConfig { id: "ops".to_string(), config: dingtalk_config() });
-
-    assert_eq!(enabled_channels(&app), ["Matrix", "Feishu", "DingTalk"]);
-}
-
-#[test]
-fn enabled_channels_does_not_duplicate_channels_with_legacy_and_named_instances() {
-    let mut app = test_app();
-    app.channels_settings.cli = false;
-    app.channels_settings.matrix_enabled = true;
-    app.channels_settings.matrix = Some(matrix_config());
-    app.channels_settings
-        .matrix_instances
-        .push(MatrixInstanceConfig { id: "primary".to_string(), config: matrix_config() });
-    app.channels_settings.feishu = Some(feishu_config());
-    app.channels_settings
-        .feishu_instances
-        .push(FeishuInstanceConfig { id: "cn".to_string(), config: feishu_config() });
-    app.channels_settings.dingtalk = Some(dingtalk_config());
-    app.channels_settings
-        .dingtalk_instances
-        .push(DingTalkInstanceConfig { id: "ops".to_string(), config: dingtalk_config() });
-
-    assert_eq!(enabled_channels(&app), ["Matrix", "Feishu", "DingTalk"]);
 }

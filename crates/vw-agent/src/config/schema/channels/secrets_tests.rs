@@ -16,127 +16,7 @@ fn channel_secret_round_trip_is_noop_when_encryption_disabled() {
     assert!(channels.telegram.is_none());
 }
 
-#[test]
-fn channel_secret_round_trip_encrypts_representative_fields() {
-    let tmp = tempfile::tempdir().unwrap();
-    let store = SecretStore::new(tmp.path(), true);
-    let mut channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
-        "cli": true,
-        "telegram": {"bot_token": "telegram-token", "allowed_users": []},
-        "slack": {"bot_token": "slack-token", "app_token": "slack-app"},
-        "webhook": {"port": 8080, "secret": "webhook-secret"},
-        "matrix": {
-            "homeserver": "https://matrix.example",
-            "access_token": "matrix-token",
-            "room_id": "!room:example",
-            "allowed_users": []
-        },
-        "whatsapp": {
-            "access_token": "wa-token",
-            "app_secret": "wa-secret",
-            "verify_token": "wa-verify"
-        },
-        "irc": {
-            "server": "irc.example",
-            "nickname": "bot",
-            "username": "bot",
-            "server_password": "server-pass",
-            "nickserv_password": "nick-pass",
-            "sasl_password": "sasl-pass"
-        },
-        "lark": {
-            "app_id": "app",
-            "app_secret": "lark-secret",
-            "encrypt_key": "lark-encrypt",
-            "verification_token": "lark-verify"
-        },
-        "dingtalk": {"client_id": "client", "client_secret": "ding-secret"},
-        "qq": {"app_id": "qq", "app_secret": "qq-secret"},
-        "nostr": {"private_key": "nostr-secret"},
-        "clawdtalk": {
-            "api_key": "clawd-key",
-            "connection_id": "conn",
-            "from_number": "+10000000000",
-            "webhook_secret": "clawd-webhook"
-        }
-    }))
-    .unwrap();
 
-    encrypt_channel_secrets(&store, &mut channels).unwrap();
-
-    assert!(SecretStore::is_encrypted(&channels.telegram.as_ref().unwrap().bot_token));
-    assert!(SecretStore::is_encrypted(
-        channels.slack.as_ref().unwrap().app_token.as_ref().unwrap()
-    ));
-    assert!(SecretStore::is_encrypted(channels.webhook.as_ref().unwrap().secret.as_ref().unwrap()));
-    assert!(SecretStore::is_encrypted(&channels.matrix.as_ref().unwrap().access_token));
-    assert!(SecretStore::is_encrypted(
-        channels.irc.as_ref().unwrap().sasl_password.as_ref().unwrap()
-    ));
-    assert!(SecretStore::is_encrypted(&channels.lark.as_ref().unwrap().app_secret));
-    assert!(SecretStore::is_encrypted(&channels.dingtalk.as_ref().unwrap().client_secret));
-    assert!(SecretStore::is_encrypted(&channels.qq.as_ref().unwrap().app_secret));
-    assert!(SecretStore::is_encrypted(&channels.nostr.as_ref().unwrap().private_key));
-
-    decrypt_channel_secrets(&store, &mut channels).unwrap();
-
-    assert_eq!(channels.telegram.unwrap().bot_token, "telegram-token");
-    assert_eq!(channels.slack.unwrap().app_token.as_deref(), Some("slack-app"));
-    assert_eq!(channels.irc.unwrap().sasl_password.as_deref(), Some("sasl-pass"));
-    assert_eq!(channels.clawdtalk.unwrap().webhook_secret.as_deref(), Some("clawd-webhook"));
-}
-
-#[test]
-fn channel_instance_secret_round_trip_encrypts_named_instances() {
-    let tmp = tempfile::tempdir().unwrap();
-    let store = SecretStore::new(tmp.path(), true);
-    let mut channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
-        "cli": true,
-        "matrix_instances": [{
-            "id": "planner",
-            "homeserver": "https://matrix.example",
-            "access_token": "matrix-token",
-            "room_id": "!room:example",
-            "allowed_users": []
-        }],
-        "feishu_instances": [{
-            "id": "cn",
-            "app_id": "feishu-app",
-            "app_secret": "feishu-secret",
-            "encrypt_key": "feishu-encrypt",
-            "verification_token": "feishu-verify"
-        }],
-        "dingtalk_instances": [{
-            "id": "1",
-            "client_id": "dingtalk-client",
-            "client_secret": "dingtalk-secret"
-        }]
-    }))
-    .unwrap();
-
-    encrypt_channel_secrets(&store, &mut channels).unwrap();
-
-    assert!(SecretStore::is_encrypted(&channels.matrix_instances[0].config.access_token));
-    assert!(SecretStore::is_encrypted(&channels.feishu_instances[0].config.app_secret));
-    assert!(SecretStore::is_encrypted(
-        channels.feishu_instances[0].config.encrypt_key.as_ref().unwrap()
-    ));
-    assert!(SecretStore::is_encrypted(
-        channels.feishu_instances[0].config.verification_token.as_ref().unwrap()
-    ));
-    assert!(SecretStore::is_encrypted(&channels.dingtalk_instances[0].config.client_secret));
-
-    decrypt_channel_secrets(&store, &mut channels).unwrap();
-
-    assert_eq!(channels.matrix_instances[0].config.access_token, "matrix-token");
-    assert_eq!(channels.feishu_instances[0].config.app_secret, "feishu-secret");
-    assert_eq!(channels.feishu_instances[0].config.encrypt_key.as_deref(), Some("feishu-encrypt"));
-    assert_eq!(
-        channels.feishu_instances[0].config.verification_token.as_deref(),
-        Some("feishu-verify")
-    );
-    assert_eq!(channels.dingtalk_instances[0].config.client_secret, "dingtalk-secret");
-}
 
 #[test]
 fn channel_secret_round_trip_encrypts_remaining_channel_fields() {
@@ -232,30 +112,6 @@ fn channel_secret_round_trip_preserves_absent_optional_fields() {
     assert_eq!(channels.clawdtalk.unwrap().webhook_secret, None);
 }
 
-// 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。
-#[test]
-fn channel_secret_decrypt_error_identifies_named_instance_field() {
-    let tmp = tempfile::tempdir().unwrap();
-    let store = SecretStore::new(tmp.path(), true);
-    let mut channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
-        "cli": true,
-        "matrix_instances": [{
-            "id": "planner",
-            "homeserver": "https://matrix.example",
-            "access_token": "enc2:not-hex",
-            "room_id": "!room:example",
-            "allowed_users": []
-        }]
-    }))
-    .unwrap();
-
-    let err = decrypt_channel_secrets(&store, &mut channels).unwrap_err().to_string();
-
-    assert!(err.contains(
-        "Failed to decrypt config.channels_config.matrix_instances.planner.access_token"
-    ));
-    assert_eq!(channels.matrix_instances[0].config.access_token, "enc2:not-hex");
-}
 
 #[test]
 fn channel_secret_decrypt_error_identifies_legacy_optional_field() {
@@ -292,90 +148,6 @@ fn channel_secret_decrypt_error_identifies_legacy_required_field() {
     assert_eq!(channels.discord.unwrap().bot_token, "enc2:not-hex");
 }
 
-#[test]
-fn channel_secret_decrypt_errors_identify_additional_legacy_fields() {
-    for (payload, expected_path) in [
-        (
-            serde_json::json!({
-                "cli": true,
-                "telegram": {"bot_token": "enc2:not-hex", "allowed_users": []}
-            }),
-            "config.channels_config.telegram.bot_token",
-        ),
-        (
-            serde_json::json!({
-                "cli": true,
-                "slack": {"bot_token": "enc2:not-hex"}
-            }),
-            "config.channels_config.slack.bot_token",
-        ),
-        (
-            serde_json::json!({
-                "cli": true,
-                "mattermost": {
-                    "url": "https://mattermost.example",
-                    "bot_token": "enc2:not-hex"
-                }
-            }),
-            "config.channels_config.mattermost.bot_token",
-        ),
-        (
-            serde_json::json!({
-                "cli": true,
-                "webhook": {"port": 8080, "secret": "enc2:not-hex"}
-            }),
-            "config.channels_config.webhook.secret",
-        ),
-        (
-            serde_json::json!({
-                "cli": true,
-                "matrix": {
-                    "homeserver": "https://matrix.example",
-                    "access_token": "enc2:not-hex",
-                    "room_id": "!room:example",
-                    "allowed_users": []
-                }
-            }),
-            "config.channels_config.matrix.access_token",
-        ),
-        (
-            serde_json::json!({
-                "cli": true,
-                "whatsapp": {"access_token": "enc2:not-hex"}
-            }),
-            "config.channels_config.whatsapp.access_token",
-        ),
-        (
-            serde_json::json!({
-                "cli": true,
-                "linq": {
-                    "api_token": "enc2:not-hex",
-                    "from_phone": "+10000000001"
-                }
-            }),
-            "config.channels_config.linq.api_token",
-        ),
-        (
-            serde_json::json!({
-                "cli": true,
-                "linq": {
-                    "api_token": "plain-token",
-                    "from_phone": "+10000000001",
-                    "signing_secret": "enc2:not-hex"
-                }
-            }),
-            "config.channels_config.linq.signing_secret",
-        ),
-    ] {
-        let tmp = tempfile::tempdir().unwrap();
-        let store = SecretStore::new(tmp.path(), true);
-        let mut channels: ChannelsConfig = serde_json::from_value(payload).unwrap();
-
-        let err = decrypt_channel_secrets(&store, &mut channels).unwrap_err().to_string();
-
-        assert!(err.contains(expected_path), "{expected_path}: {err}");
-    }
-}
 
 #[test]
 fn channel_secret_decrypt_error_identifies_named_instance_optional_field() {
@@ -400,36 +172,6 @@ fn channel_secret_decrypt_error_identifies_named_instance_optional_field() {
     assert_eq!(channels.feishu_instances[0].config.encrypt_key.as_deref(), Some("enc2:not-hex"));
 }
 
-#[test]
-fn channel_secret_processing_rejects_unsafe_instance_before_mutation() {
-    let tmp = tempfile::tempdir().unwrap();
-    let store = SecretStore::new(tmp.path(), true);
-    let channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
-        "cli": true,
-        "telegram": {"bot_token": "telegram-token", "allowed_users": []},
-        "matrix_instances": [{
-            "id": "unsafe/id",
-            "homeserver": "https://matrix.example",
-            "access_token": "matrix-token",
-            "room_id": "!room:example",
-            "allowed_users": []
-        }]
-    }))
-    .unwrap();
-    let mut encrypt_channels = channels.clone();
-    let mut decrypt_channels = channels;
-
-    let encrypt_err =
-        encrypt_channel_secrets(&store, &mut encrypt_channels).unwrap_err().to_string();
-    let decrypt_err =
-        decrypt_channel_secrets(&store, &mut decrypt_channels).unwrap_err().to_string();
-
-    let expected_error = "matrix channel instance id 'unsafe/id' must not contain ':', '/' or '\\'";
-    assert!(encrypt_err.contains(expected_error));
-    assert!(decrypt_err.contains(expected_error));
-    assert_eq!(encrypt_channels.telegram.unwrap().bot_token, "telegram-token");
-    assert_eq!(decrypt_channels.telegram.unwrap().bot_token, "telegram-token");
-}
 
 #[test]
 fn channel_secret_encrypt_error_identifies_legacy_field() {

@@ -122,6 +122,31 @@ fn agent_worker_selection_handles_container_state_and_non_load_bearing_tasks() -
     Ok(())
 }
 
+
+fn task(id: &str, assigned_to: &str, kind: AgentTaskKind) -> Result<StoredAgentTask> {
+    Ok(StoredAgentTask {
+        id: TaskId::new(id)?,
+        title: id.to_string(),
+        kind,
+        status: AgentTaskStatus::Running,
+        spec_uri: format!("file:///{id}/spec.md"),
+        meta_uri: format!("file:///{id}/meta.json"),
+        assigned_to: Some(WorkerName::new(assigned_to)?),
+        team_id: None,
+        room_id: None,
+        project_room_id: None,
+        delegated_to_team: None,
+        schedule: None,
+        timezone: None,
+        next_scheduled_at: None,
+        last_executed_at: None,
+        dag: Vec::new(),
+        metadata: Value::Null,
+        created_at_ms: TimestampMs(1_783_000_000_000),
+        updated_at_ms: TimestampMs(1_783_000_000_000),
+    })
+}
+
 fn worker(
     id: &str,
     status: AgentWorkerStatus,
@@ -146,30 +171,6 @@ fn worker(
         last_seen_at_ms: Some(TimestampMs(1_783_000_000_000)),
         last_heartbeat_at: Some("2026-07-02T10:00:00Z".to_string()),
         capabilities: skills.iter().map(|skill| AgentCapabilityRecord::skill(*skill)).collect(),
-        updated_at_ms: TimestampMs(1_783_000_000_000),
-    })
-}
-
-fn task(id: &str, assigned_to: &str, kind: AgentTaskKind) -> Result<StoredAgentTask> {
-    Ok(StoredAgentTask {
-        id: TaskId::new(id)?,
-        title: id.to_string(),
-        kind,
-        status: AgentTaskStatus::Running,
-        spec_uri: format!("file:///{id}/spec.md"),
-        meta_uri: format!("file:///{id}/meta.json"),
-        assigned_to: Some(WorkerName::new(assigned_to)?),
-        team_id: None,
-        room_id: None,
-        project_room_id: None,
-        delegated_to_team: None,
-        schedule: None,
-        timezone: None,
-        next_scheduled_at: None,
-        last_executed_at: None,
-        dag: Vec::new(),
-        metadata: Value::Null,
-        created_at_ms: TimestampMs(1_783_000_000_000),
         updated_at_ms: TimestampMs(1_783_000_000_000),
     })
 }

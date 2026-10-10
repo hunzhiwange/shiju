@@ -113,7 +113,7 @@ pub(super) fn build_staff_mode_view(app: &App) -> Element<'_, Message> {
 
 fn matrix_bridge_snapshot(app: &App) -> feed::StaffMatrixBridgeSnapshot {
     feed::StaffMatrixBridgeSnapshot {
-        enabled: app.channels_settings.matrix.is_some(),
+        enabled: false,
         cursor: app.task_board_matrix_event_cursor,
         processed_count: app.task_board_processed_matrix_event_ids.len(),
     }

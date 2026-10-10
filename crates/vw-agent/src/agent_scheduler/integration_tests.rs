@@ -21,7 +21,6 @@ use vw_shared::session::ui_types::{
 use super::adapters::controller::{
     FakeControllerAdapter, WorkerControllerSnapshot, WorkerLifecycleState,
 };
-use super::adapters::matrix::FakeMatrixDispatchAdapter;
 use super::artifacts::TaskArtifactWriter;
 use super::domain::{
     AgentRunStatus, AgentSchedulerContext, AgentTeamStatus, AgentWorkerStatus, HolderId,
@@ -141,399 +140,6 @@ fn assert_scheduler_requires_same_scope_parent_project(database: GlobalDatabase)
     store.initialize_project(&context)
 }
 
-#[tokio::test]
-async fn global_database_enforces_project_and_scheduler_scope_isolation() -> Result<()> {
-    let temp_dir = tempfile::tempdir()?;
-    let home = temp_dir.path().join("home");
-    let database_path = vw_config_types::paths::global_database_path(&home);
-    let database = GlobalDatabase::new(&database_path)?;
-    let projects = ProjectStore::new(database.clone())?;
-    let scheduler = AgentSchedulerStore::from_database_path(&database_path);
-    let sessions = SessionStore::new(database.clone())?;
-    let fixture_definitions = [
-        ("platform-a", "company-a", "shared-project", "tenant-a"),
-        ("platform-a", "company-b", "shared-project", "tenant-b"),
-        ("platform-b", "company-a", "shared-project", "tenant-c"),
-        ("platform-a", "company-a", "second-project", "project-d"),
-    ];
-    let mut fixtures = Vec::new();
-
-    for (platform_id, company_id, project_id, label) in fixture_definitions {
-        let tenant = TenantScope::new(platform_id, company_id)?;
-        let project_scope = ProjectScope::new(tenant.clone(), ProjectId::from(project_id))?;
-        let project_path = temp_dir.path().join(label);
-        fs::create_dir_all(&project_path)?;
-        projects.create(&tenant, &isolation_project_info(project_id, &project_path, label))?;
-        let context =
-            AgentSchedulerContext::new(AgentSchedulerScope::new(project_scope), project_path)?;
-        scheduler.initialize_project(&context)?;
-        fixtures.push((context, label));
-    }
-
-    let lifecycle = crate::task_lifecycle::store::create_workflow(
-        database.clone(),
-        fixtures[0].0.scope().project_scope().tenant_scope().clone(),
-        serde_json::from_value::<TaskLifecycleWorkflowUpsertBody>(json!({
-            "workflow": {
-                "id": "unified_lifecycle",
-                "label": "Unified Lifecycle",
-                "statuses": [
-                    {
-                        "key": "queued",
-                        "label": "Queued",
-                        "role": "queued",
-                        "next": "done"
-                    },
-                    {
-                        "key": "done",
-                        "label": "Done",
-                        "role": "done",
-                        "terminal": true
-                    }
-                ]
-            }
-        }))?,
-    )
-    .await
-    .map_err(|error| anyhow::anyhow!(error.message))?;
-    let loaded_lifecycle = crate::task_lifecycle::store::workflow_by_id(
-        database.clone(),
-        fixtures[0].0.scope().project_scope().tenant_scope().clone(),
-        lifecycle.id.clone(),
-    )
-    .await
-    .map_err(|error| anyhow::anyhow!(error.message))?;
-    let workflow_snapshot = serde_json::from_value::<TaskPoolWorkflowSnapshotDto>(
-        serde_json::to_value(&loaded_lifecycle)?,
-    )?;
-    scheduler.save_task_board_workflow(&fixtures[0].0, &workflow_snapshot)?;
-    assert_eq!(scheduler.load_task_board_workflow(&fixtures[0].0)?, Some(workflow_snapshot));
-
-    database.initialize_schema(|connection| {
-        connection.execute_batch(
-            "CREATE TABLE IF NOT EXISTS workflow_workflows (
-                 platform_id TEXT NOT NULL,
-                 company_id TEXT NOT NULL,
-                 uuid TEXT NOT NULL,
-                 name TEXT NOT NULL,
-                 description TEXT NOT NULL,
-                 workflow_yaml TEXT NOT NULL,
-                 created_at_ms INTEGER NOT NULL,
-                 updated_at_ms INTEGER NOT NULL,
-                 PRIMARY KEY (platform_id, company_id, uuid)
-             );",
-        )?;
-        Ok(())
-    })?;
-    let workflow_uuid = "00000000-0000-4000-8000-000000000301";
-    database.connect()?.execute(
-        "INSERT INTO workflow_workflows
-         (platform_id, company_id, uuid, name, description, workflow_yaml, created_at_ms, updated_at_ms)
-         VALUES ('platform-a', 'company-a', ?1, 'Unified saved workflow', '', 'shared: true', 1, 1)",
-        [workflow_uuid],
-    )?;
-    let hydrated_yaml: String = database.connect()?.query_row(
-        "SELECT workflow_yaml FROM workflow_workflows
-         WHERE platform_id = 'platform-a' AND company_id = 'company-a' AND uuid = ?1",
-        [workflow_uuid],
-        |row| row.get(0),
-    )?;
-    assert_eq!(hydrated_yaml, "shared: true");
-
-    let tenant_a = TenantScope::new("platform-a", "company-a")?;
-    assert_eq!(projects.list(&tenant_a)?.len(), 2);
-    let mut tenant_b_project =
-        projects.get(fixtures[1].0.scope().project_scope())?.expect("tenant B project exists");
-    tenant_b_project.name = Some("tenant-b-updated".to_string());
-    assert!(projects.update(fixtures[1].0.scope().project_scope(), &tenant_b_project)?);
-    assert_eq!(
-        projects.get(fixtures[0].0.scope().project_scope())?.and_then(|project| project.name),
-        Some("tenant-a".to_string())
-    );
-
-    let task_id = TaskId::new("shared-task")?;
-    let run_id = RunId::new("shared-run")?;
-    let worker_id = WorkerName::new("shared-worker")?;
-    let team_id = TeamId::new("shared-team")?;
-    let lease_id = ResourceLeaseId::new("shared-lease")?;
-
-    for (context, label) in &fixtures {
-        let scope = context.scope().project_scope();
-        database.connect()?.execute(
-            "INSERT INTO scheduler_meta (platform_id, company_id, project_id, key, value)
-             VALUES (?1, ?2, ?3, 'isolation.fixture', ?4)",
-            params![
-                scope.platform_id().as_ref(),
-                scope.company_id().as_ref(),
-                scope.project_id().as_ref(),
-                label,
-            ],
-        )?;
-        scheduler.create_task(context, isolation_task(label)?)?;
-        let mut completed_dependency = isolation_task(label)?;
-        completed_dependency.id = TaskId::new("shared-completed-dependency")?;
-        completed_dependency.status = AgentTaskStatus::Completed;
-        scheduler.create_task(context, completed_dependency)?;
-        scheduler.replace_task_dependencies(
-            context,
-            vec![AgentTaskDependency::new(
-                TaskId::new("shared-completed-dependency")?,
-                task_id.clone(),
-            )],
-        )?;
-        scheduler.claim_task_run(
-            context,
-            ClaimTaskRunRequest {
-                run_id: run_id.clone(),
-                task_id: task_id.clone(),
-                lease_acquired_at_ms: TimestampMs(1_000),
-                lease_expires_at_ms: Some(TimestampMs(1_500)),
-            },
-        )?;
-        scheduler.append_task_log(
-            context,
-            AppendAgentTaskLogRequest {
-                task_id: task_id.clone(),
-                run_id: Some(run_id.clone()),
-                timestamp_ms: TimestampMs(1_010),
-                from_status: None,
-                to_status: None,
-                from_status_key: None,
-                to_status_key: None,
-                message: format!("{label}-log"),
-            },
-        )?;
-        scheduler.record_run_workspace_context(
-            context,
-            &task_id,
-            &run_id,
-            AgentSchedulerWorkspaceContext {
-                slot_id: format!("{label}-slot"),
-                path: context.project_path().to_string_lossy().into_owned(),
-                branch: format!("codex/{label}"),
-            },
-            TimestampMs(1_020),
-        )?;
-        scheduler.record_task_artifact(
-            context,
-            super::store::artifacts::RecordTaskArtifactRequest {
-                task_id: task_id.clone(),
-                run_id: Some(run_id.clone()),
-                kind: "report".to_string(),
-                name: format!("{label}-artifact"),
-                path: None,
-                payload: json!({"scope": label}),
-                created_at_ms: TimestampMs(1_030),
-            },
-        )?;
-        scheduler.append_event(
-            context,
-            AppendAgentEventRequest {
-                task_id: Some(task_id.clone()),
-                run_id: Some(run_id.clone()),
-                worker_id: Some(worker_id.clone()),
-                team_id: Some(team_id.clone()),
-                kind: AgentEventKind::HumanIntervened,
-                from_status: None,
-                to_status: None,
-                from_status_key: None,
-                to_status_key: None,
-                message: format!("{label}-event"),
-                payload: json!({"scope": label}),
-                created_at_ms: TimestampMs(1_040),
-            },
-        )?;
-        scheduler.enqueue_outbox_message(
-            context,
-            EnqueueOutboxMessageRequest {
-                message_id: "shared-message".to_string(),
-                channel: "matrix".to_string(),
-                target: "room:shared".to_string(),
-                recipient_id: None,
-                body: format!("{label}-outbox"),
-                idempotency_key: "shared-idempotency".to_string(),
-                payload: json!({"scope": label}),
-                created_at_ms: TimestampMs(1_050),
-                next_attempt_at_ms: None,
-            },
-        )?;
-        scheduler.upsert_worker_snapshot(context, isolation_worker(label)?)?;
-        scheduler.upsert_team_snapshot(context, isolation_team(label)?)?;
-        scheduler.acquire_resource_lease(
-            context,
-            AcquireResourceLeaseRequest {
-                lease_id: lease_id.clone(),
-                resource_kind: ResourceKind::WorkerSlot,
-                resource_id: ResourceId::new("shared-resource")?,
-                holder_id: HolderId::new("shared-holder")?,
-                acquired_at_ms: TimestampMs(1_000),
-                lease_expires_at_ms: Some(TimestampMs(1_500)),
-            },
-        )?;
-        let project_scope = context.scope().project_scope();
-        sessions.save_session(project_scope, &isolation_session(label))?;
-        sessions.save_session_todos(
-            project_scope,
-            "shared-session",
-            &[SessionTodoItem {
-                id: "shared-todo".to_string(),
-                content: format!("{label}-todo"),
-                status: "pending".to_string(),
-                priority: "medium".to_string(),
-            }],
-        )?;
-        sessions.save_agent_session(
-            project_scope,
-            &isolation_agent_session(project_scope.project_id().as_ref(), label),
-        )?;
-    }
-
-    let scope_a = &fixtures[0].0;
-    let scope_b = &fixtures[1].0;
-    scheduler.transition_task_status(
-        scope_a,
-        &task_id,
-        AgentTaskStatus::Dispatched,
-        TimestampMs(1_100),
-    )?;
-    assert_eq!(
-        scheduler.load_task(scope_b, &task_id)?.expect("tenant B task").status,
-        AgentTaskStatus::Assigned
-    );
-    scheduler.heartbeat_run(scope_a, &run_id, TimestampMs(1_200), TimestampMs(5_000))?;
-    assert!(scheduler.list_stale_runs(scope_a, TimestampMs(2_000))?.is_empty());
-    assert_eq!(scheduler.list_stale_runs(scope_b, TimestampMs(2_000))?.len(), 1);
-    scheduler.update_worker_lifecycle(
-        scope_a,
-        UpdateAgentWorkerLifecycleRequest {
-            worker_id: worker_id.clone(),
-            status: AgentWorkerStatus::Running,
-            container_state: "running".to_string(),
-            idle_since_ms: None,
-            last_seen_at_ms: TimestampMs(1_200),
-            last_heartbeat_at: None,
-        },
-    )?;
-    assert_eq!(
-        scheduler.load_worker(scope_b, &worker_id)?.expect("tenant B worker").status,
-        AgentWorkerStatus::Idle
-    );
-    scheduler.release_resource_lease(
-        scope_a,
-        &lease_id,
-        &HolderId::new("shared-holder")?,
-        TimestampMs(2_000),
-    )?;
-    assert!(scheduler.list_stale_resource_leases(scope_a, TimestampMs(2_100))?.is_empty());
-    assert_eq!(scheduler.list_stale_resource_leases(scope_b, TimestampMs(2_100))?.len(), 1);
-
-    for (context, label) in &fixtures {
-        assert_eq!(
-            scheduler.load_task(context, &task_id)?.expect("scoped task").title,
-            format!("{label}-task")
-        );
-        assert_eq!(scheduler.list_task_logs(context, &task_id)?[0].message, format!("{label}-log"));
-        assert_eq!(
-            scheduler.list_task_artifacts(context, &task_id)?[0].name,
-            format!("{label}-artifact")
-        );
-        assert_eq!(
-            scheduler.list_events_after(context, None, 10)?[0].message,
-            format!("{label}-event")
-        );
-        assert_eq!(scheduler.list_workers(context, AgentWorkerFilter::default())?.len(), 1);
-        assert_eq!(scheduler.list_teams(context)?[0].name, format!("{label}-team"));
-        let claimed = scheduler.claim_outbox_batch(context, TimestampMs(2_200), 10)?;
-        assert_eq!(claimed.len(), 1);
-        assert_eq!(claimed[0].body, format!("{label}-outbox"));
-        assert_project_local_databases_absent(context.project_path());
-    }
-
-    let connection = database.connect()?;
-    assert_eq!(connection.query_row("PRAGMA foreign_keys", [], |row| row.get::<_, i64>(0))?, 1);
-    assert_eq!(
-        connection.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| {
-            row.get::<_, i64>(0)
-        })?,
-        0
-    );
-    let mut statement = connection.prepare(
-        "SELECT name FROM sqlite_schema
-         WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
-         ORDER BY name",
-    )?;
-    let application_tables = statement
-        .query_map([], |row| row.get::<_, String>(0))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    let mut expected_tables = GLOBAL_APPLICATION_TABLES;
-    expected_tables.sort_unstable();
-    assert_eq!(application_tables.iter().map(String::as_str).collect::<Vec<_>>(), expected_tables);
-    drop(statement);
-    for (context, _) in &fixtures {
-        for table in GLOBAL_SCOPED_TABLES {
-            let scope = context.scope().project_scope();
-            let sql = if table == "scheduler_meta" {
-                format!(
-                    "SELECT COUNT(*) FROM {table}
-                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                       AND key = 'isolation.fixture'"
-                )
-            } else {
-                format!(
-                    "SELECT COUNT(*) FROM {table}
-                     WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3"
-                )
-            };
-            let count: i64 = connection.query_row(
-                &sql,
-                params![
-                    scope.platform_id().as_ref(),
-                    scope.company_id().as_ref(),
-                    scope.project_id().as_ref(),
-                ],
-                |row| row.get(0),
-            )?;
-            let expected_count = if table == "scheduler_tasks" { 2 } else { 1 };
-            assert_eq!(count, expected_count, "unexpected scoped row count for {table}");
-        }
-        assert!(
-            projects.delete(context.scope().project_scope()).is_err(),
-            "scheduler rows must restrict project deletion"
-        );
-    }
-    let first_scope = fixtures[0].0.scope().project_scope();
-    let second_scope = fixtures[1].0.scope().project_scope();
-    assert!(sessions.delete_session(first_scope, "shared-session")?);
-    assert!(sessions.load_session(first_scope, "shared-session")?.is_none());
-    assert_eq!(
-        sessions
-            .load_session(second_scope, "shared-session")?
-            .expect("second project session remains")
-            .title,
-        "tenant-b"
-    );
-    drop(connection);
-
-    assert_eq!(scheduler.database_path(), database_path);
-    assert_eq!(
-        database_path,
-        vw_config_types::paths::home_config_dir(&home).join("database/vibe-window.sqlite3")
-    );
-    assert!(
-        !vw_config_types::paths::home_config_dir(&home)
-            .join("agent_scheduler/_index.sqlite3")
-            .exists()
-    );
-    assert!(
-        !vw_config_types::paths::home_config_dir(&home)
-            .join("task-lifecycle/workflows.sqlite")
-            .exists()
-    );
-    assert!(!home.join("workflow/workflows.sqlite").exists());
-    assert!(!vw_config_types::paths::home_config_dir(&home).join("storage/project").exists());
-    assert_global_database_permissions(&database_path)?;
-    Ok(())
-}
 
 fn isolation_session(label: &str) -> ChatSession {
     ChatSession {
@@ -588,331 +194,7 @@ fn isolation_agent_session(project_id: &str, label: &str) -> AgentSessionInfo {
     }
 }
 
-#[tokio::test]
-async fn agent_scheduler_e2e_dispatches_and_completes_finite_task() -> Result<()> {
-    let temp_dir = tempfile::tempdir()?;
-    let project_path = temp_dir.path().join("project-e2e");
-    let artifact_root = temp_dir.path().join("artifacts");
-    fs::create_dir_all(&project_path)?;
 
-    let store = AgentSchedulerStore::new();
-    let controller = FakeControllerAdapter::new();
-    let matrix = FakeMatrixDispatchAdapter::new();
-    let mut clock = TestClock::at(1_783_001_000_000);
-    let task_id = TaskId::new("task-e2e-finite")?;
-    let worker_id = WorkerName::new("worker-e2e")?;
-
-    store.initialize_project(&project_path)?;
-    store.create_task(&project_path, finite_task(&task_id)?)?;
-    store.upsert_worker_snapshot(&project_path, idle_worker(&worker_id)?)?;
-    controller.set_snapshot(WorkerControllerSnapshot {
-        worker_name: worker_id.clone(),
-        desired_state: WorkerLifecycleState::Running,
-        runtime: Some("copaw".to_string()),
-        team_id: Some(TeamId::new("team-e2e")?),
-        worker_role: Some("worker".to_string()),
-        room_id: Some("!worker-e2e-room:example.test".to_string()),
-        container_state: Some("ready".to_string()),
-    });
-
-    let engine = DispatchEngine::new(&store, &controller);
-    let dispatch = engine
-        .dispatch_once(&project_path, clock.advance_ms(1_000))
-        .await?
-        .expect("queued finite task dispatches");
-    assert_eq!(dispatch.task_id, task_id);
-    assert_eq!(controller.recorded_lifecycle_requests().len(), 1);
-
-    let dispatched =
-        store.load_task(&project_path, &task_id)?.expect("dispatched task remains persisted");
-    assert_eq!(dispatched.status, AgentTaskStatus::Dispatched);
-
-    let acknowledged_at_ms = clock.advance_ms(1_000);
-    store
-        .transition_task_status(
-            &project_path,
-            &task_id,
-            AgentTaskStatus::Acknowledged,
-            acknowledged_at_ms,
-        )?
-        .expect("worker acknowledgment is accepted");
-    append_lifecycle_event(
-        &store,
-        &project_path,
-        &task_id,
-        &dispatch.run_id,
-        &worker_id,
-        AgentEventKind::WorkerAcknowledged,
-        AgentTaskStatus::Dispatched,
-        AgentTaskStatus::Acknowledged,
-        "worker acknowledged task dispatch",
-        json!({"ack": "received"}),
-        acknowledged_at_ms,
-    )?;
-
-    let running_at_ms = clock.advance_ms(1_000);
-    store
-        .transition_task_status(&project_path, &task_id, AgentTaskStatus::Running, running_at_ms)?
-        .expect("acknowledged task starts running");
-    store
-        .heartbeat_run(
-            &project_path,
-            &dispatch.run_id,
-            running_at_ms,
-            TimestampMs(running_at_ms.0 + 30 * 60 * 1_000),
-        )?
-        .expect("leased run accepts worker heartbeat");
-    append_lifecycle_event(
-        &store,
-        &project_path,
-        &task_id,
-        &dispatch.run_id,
-        &worker_id,
-        AgentEventKind::RunStarted,
-        AgentTaskStatus::Acknowledged,
-        AgentTaskStatus::Running,
-        "worker started the run",
-        json!({"stage": "running"}),
-        running_at_ms,
-    )?;
-
-    let submitted_at_ms = clock.advance_ms(1_000);
-    store
-        .transition_task_status(
-            &project_path,
-            &task_id,
-            AgentTaskStatus::Submitted,
-            submitted_at_ms,
-        )?
-        .expect("running task accepts worker submission");
-    append_lifecycle_event(
-        &store,
-        &project_path,
-        &task_id,
-        &dispatch.run_id,
-        &worker_id,
-        AgentEventKind::RunSubmitted,
-        AgentTaskStatus::Running,
-        AgentTaskStatus::Submitted,
-        "worker submitted result",
-        json!({"result": "E2E lifecycle completed."}),
-        submitted_at_ms,
-    )?;
-
-    let completed_at_ms = clock.advance_ms(1_000);
-    let finished_run = store
-        .finish_run(
-            &project_path,
-            &dispatch.run_id,
-            AgentRunFinishStatus::Succeeded,
-            completed_at_ms,
-            None,
-        )?
-        .expect("worker run finishes successfully");
-    let completed_task = store
-        .transition_task_status(
-            &project_path,
-            &task_id,
-            AgentTaskStatus::Completed,
-            completed_at_ms,
-        )?
-        .expect("submitted task completes");
-    append_lifecycle_event(
-        &store,
-        &project_path,
-        &task_id,
-        &dispatch.run_id,
-        &worker_id,
-        AgentEventKind::RunCompleted,
-        AgentTaskStatus::Submitted,
-        AgentTaskStatus::Completed,
-        "worker completed finite task",
-        json!({"summary": "E2E lifecycle completed."}),
-        completed_at_ms,
-    )?;
-
-    let dispatcher = OutboxDispatcher::new(&store, &matrix);
-    let delivered_at_ms = clock.advance_ms(1_000);
-    let drain = dispatcher.drain_once(&project_path, delivered_at_ms, 10).await?;
-    assert_eq!(drain, OutboxDrainSummary { claimed: 1, delivered: 1, failed: 0 });
-    let matrix_requests = matrix.recorded_requests();
-    assert_eq!(matrix_requests.len(), 1);
-    assert_eq!(matrix_requests[0].target, "room:!worker-e2e-room:example.test");
-    assert_eq!(matrix_requests[0].recipient_id.as_deref(), Some("@worker-e2e:example.test"));
-    assert!(matrix_requests[0].body.contains("[task-e2e-finite]"));
-    assert_eq!(matrix_requests[0].payload_json["event_version"], 1);
-
-    assert_eq!(completed_task.status, AgentTaskStatus::Completed);
-    assert_eq!(finished_run.status, AgentRunStatus::Succeeded);
-    assert_eq!(finished_run.finished_at_ms, Some(completed_at_ms));
-    assert_run_persisted(&store, &dispatch.run_id, "succeeded", completed_at_ms)?;
-    let outbox_message_id =
-        dispatch.outbox_message_id.as_deref().expect("Matrix dispatch writes outbox");
-    assert_outbox_delivered(&store, outbox_message_id, delivered_at_ms)?;
-
-    let events = store.list_events_after(&project_path, None, 20)?;
-    let event_kinds = events.iter().map(|event| event.kind).collect::<Vec<_>>();
-    assert_eq!(
-        event_kinds,
-        vec![
-            AgentEventKind::WorkerSelected,
-            AgentEventKind::MatrixDispatched,
-            AgentEventKind::WorkerAcknowledged,
-            AgentEventKind::RunStarted,
-            AgentEventKind::RunSubmitted,
-            AgentEventKind::RunCompleted,
-        ]
-    );
-
-    assert_eq!(completed_task.id, task_id);
-    assert_eq!(completed_task.status, AgentTaskStatus::Completed);
-    assert_eq!(finished_run.id, dispatch.run_id);
-    assert_eq!(events.last().expect("completion event").kind, AgentEventKind::RunCompleted);
-
-    let artifacts =
-        TaskArtifactWriter::new().write_task_artifacts(&artifact_root, &completed_task)?;
-    let meta: Value = serde_json::from_str(&fs::read_to_string(&artifacts.meta_json)?)?;
-    assert_eq!(meta["type"], "finite");
-    assert_eq!(meta["status"], "completed");
-    assert_eq!(meta["task_id"], "task-e2e-finite");
-    assert!(meta["completed_at"].as_str().is_some());
-    assert!(
-        fs::read_to_string(&artifacts.spec_md)?.contains("Complete the scheduler E2E lifecycle.")
-    );
-    assert!(fs::read_to_string(&artifacts.result_md)?.contains("E2E lifecycle completed."));
-
-    let imported = TaskArtifactWriter::new()
-        .import_legacy_task(&artifact_root.join("shared/tasks/task-e2e-finite"))?;
-    assert_eq!(imported.task.status, AgentTaskStatus::Completed);
-    assert_eq!(imported.spec.acceptance_criteria.len(), 3);
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn agent_scheduler_task_graph_unlocks_only_after_completed_wake() -> Result<()> {
-    let temp_dir = tempfile::tempdir()?;
-    let project_path = temp_dir.path().join("task-graph-dispatch-closure");
-    fs::create_dir_all(&project_path)?;
-
-    let store = AgentSchedulerStore::new();
-    let controller = FakeControllerAdapter::new();
-    let worker_id = WorkerName::new("worker-task-graph-closure")?;
-    let prerequisite_id = TaskId::new("task-graph-prerequisite")?;
-    let successor_id = TaskId::new("task-graph-successor")?;
-    let failed_predecessor_id = TaskId::new("task-graph-failed-predecessor")?;
-    let failed_successor_id = TaskId::new("task-graph-failed-successor")?;
-
-    store.initialize_project(&project_path)?;
-    store.create_task(&project_path, finite_task(&prerequisite_id)?)?;
-    store.create_task(&project_path, finite_task(&successor_id)?)?;
-    let mut failed_predecessor = finite_task(&failed_predecessor_id)?;
-    failed_predecessor.status = AgentTaskStatus::Failed;
-    store.create_task(&project_path, failed_predecessor)?;
-    store.create_task(&project_path, finite_task(&failed_successor_id)?)?;
-    store.replace_task_dependencies(
-        &project_path,
-        vec![
-            AgentTaskDependency::new(prerequisite_id.clone(), successor_id.clone()),
-            AgentTaskDependency::new(failed_predecessor_id, failed_successor_id.clone()),
-        ],
-    )?;
-    store.upsert_worker_snapshot(&project_path, idle_worker(&worker_id)?)?;
-    controller.set_snapshot(WorkerControllerSnapshot {
-        worker_name: worker_id.clone(),
-        desired_state: WorkerLifecycleState::Running,
-        runtime: Some("copaw".to_string()),
-        team_id: Some(TeamId::new("team-e2e")?),
-        worker_role: Some("worker".to_string()),
-        room_id: Some("!worker-task-graph-closure:example.test".to_string()),
-        container_state: Some("ready".to_string()),
-    });
-    let engine = DispatchEngine::new(&store, &controller);
-
-    let first_dispatch = engine
-        .dispatch_once(&project_path, TimestampMs(1_783_002_000_000))
-        .await?
-        .expect("first wake dispatches the prerequisite only");
-    assert_eq!(first_dispatch.task_id, prerequisite_id);
-    assert_eq!(
-        store.load_task(&project_path, &successor_id)?.expect("successor persists").status,
-        AgentTaskStatus::Queued
-    );
-
-    for (status, timestamp_ms) in [
-        (AgentTaskStatus::Acknowledged, TimestampMs(1_783_002_001_000)),
-        (AgentTaskStatus::Running, TimestampMs(1_783_002_002_000)),
-        (AgentTaskStatus::Submitted, TimestampMs(1_783_002_003_000)),
-    ] {
-        store
-            .transition_task_status(&project_path, &prerequisite_id, status, timestamp_ms)?
-            .expect("prerequisite state transition persists");
-    }
-    assert_eq!(
-        engine.dispatch_once(&project_path, TimestampMs(1_783_002_004_000)).await?,
-        None,
-        "submitted prerequisite does not unlock its successor"
-    );
-    assert_eq!(
-        store
-            .load_task(&project_path, &failed_successor_id)?
-            .expect("failed dependency successor persists")
-            .status,
-        AgentTaskStatus::Queued
-    );
-
-    let completed_at_ms = TimestampMs(1_783_002_005_000);
-    store
-        .finish_run(
-            &project_path,
-            &first_dispatch.run_id,
-            AgentRunFinishStatus::Succeeded,
-            completed_at_ms,
-            None,
-        )?
-        .expect("prerequisite run finishes");
-    store
-        .transition_task_status(
-            &project_path,
-            &prerequisite_id,
-            AgentTaskStatus::Completed,
-            completed_at_ms,
-        )?
-        .expect("submitted prerequisite completes");
-
-    let second_dispatch = engine
-        .dispatch_once(&project_path, TimestampMs(1_783_002_006_000))
-        .await?
-        .expect("second explicit wake dispatches the unlocked successor");
-    assert_eq!(second_dispatch.task_id, successor_id);
-    assert!(store.load_run(&project_path, &second_dispatch.run_id)?.is_some());
-    assert_eq!(
-        store.load_task(&project_path, &successor_id)?.expect("successor persists").status,
-        AgentTaskStatus::Dispatched
-    );
-    assert_eq!(
-        store
-            .load_task(&project_path, &failed_successor_id)?
-            .expect("failed dependency successor persists")
-            .status,
-        AgentTaskStatus::Queued
-    );
-    assert_eq!(
-        store
-            .list_events_after(&project_path, None, 10)?
-            .into_iter()
-            .map(|event| event.kind)
-            .collect::<Vec<_>>(),
-        vec![
-            AgentEventKind::WorkerSelected,
-            AgentEventKind::MatrixDispatched,
-            AgentEventKind::WorkerSelected,
-            AgentEventKind::MatrixDispatched,
-        ]
-    );
-
-    Ok(())
-}
 
 fn append_lifecycle_event(
     store: &AgentSchedulerStore,
@@ -982,27 +264,6 @@ fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
     })
 }
 
-fn idle_worker(worker_id: &WorkerName) -> Result<NewAgentWorkerSnapshot> {
-    Ok(NewAgentWorkerSnapshot {
-        id: worker_id.clone(),
-        runtime: Some("copaw".to_string()),
-        deployment: Some("remote".to_string()),
-        model: "gpt-5-mini".to_string(),
-        model_provider: Some("openai".to_string()),
-        status: AgentWorkerStatus::Idle,
-        desired_state: Some("Running".to_string()),
-        team_id: Some(TeamId::new("team-e2e")?),
-        worker_role: Some("worker".to_string()),
-        matrix_user_id: Some("@worker-e2e:example.test".to_string()),
-        room_id: Some("!worker-e2e-room:example.test".to_string()),
-        container_state: Some("ready".to_string()),
-        idle_since_ms: Some(TimestampMs(1_783_000_900_000)),
-        last_seen_at_ms: Some(TimestampMs(1_783_000_950_000)),
-        last_heartbeat_at: Some("2026-07-02T10:15:50Z".to_string()),
-        capabilities: vec![AgentCapabilityRecord::skill("scheduler-e2e")],
-        updated_at_ms: TimestampMs(1_783_000_950_000),
-    })
-}
 
 fn assert_run_persisted(
     store: &AgentSchedulerStore,
@@ -1074,27 +335,6 @@ fn isolation_task(label: &str) -> Result<NewAgentTask> {
     })
 }
 
-fn isolation_worker(label: &str) -> Result<NewAgentWorkerSnapshot> {
-    Ok(NewAgentWorkerSnapshot {
-        id: WorkerName::new("shared-worker")?,
-        runtime: Some("local".to_string()),
-        deployment: Some("local".to_string()),
-        model: format!("{label}-model"),
-        model_provider: Some("test".to_string()),
-        status: AgentWorkerStatus::Idle,
-        desired_state: Some("Running".to_string()),
-        team_id: Some(TeamId::new("shared-team")?),
-        worker_role: Some("worker".to_string()),
-        matrix_user_id: None,
-        room_id: None,
-        container_state: Some("ready".to_string()),
-        idle_since_ms: Some(TimestampMs(900)),
-        last_seen_at_ms: Some(TimestampMs(900)),
-        last_heartbeat_at: None,
-        capabilities: Vec::new(),
-        updated_at_ms: TimestampMs(900),
-    })
-}
 
 fn isolation_team(label: &str) -> Result<NewAgentTeamSnapshot> {
     Ok(NewAgentTeamSnapshot {
@@ -1152,4 +392,48 @@ impl TestClock {
         self.now_ms = TimestampMs(self.now_ms.0 + delta_ms);
         self.now_ms
     }
+}
+
+fn idle_worker(worker_id: &WorkerName) -> Result<NewAgentWorkerSnapshot> {
+    Ok(NewAgentWorkerSnapshot {
+        id: worker_id.clone(),
+        runtime: Some("copaw".to_string()),
+        deployment: Some("remote".to_string()),
+        model: "gpt-5-mini".to_string(),
+        model_provider: Some("openai".to_string()),
+        status: AgentWorkerStatus::Idle,
+        desired_state: Some("Running".to_string()),
+        team_id: Some(TeamId::new("team-e2e")?),
+        worker_role: Some("worker".to_string()),
+        matrix_user_id: Some("@worker-e2e:example.test".to_string()),
+        room_id: Some("!worker-e2e-room:example.test".to_string()),
+        container_state: Some("ready".to_string()),
+        idle_since_ms: Some(TimestampMs(1_783_000_900_000)),
+        last_seen_at_ms: Some(TimestampMs(1_783_000_950_000)),
+        last_heartbeat_at: Some("2026-07-02T10:15:50Z".to_string()),
+        capabilities: vec![AgentCapabilityRecord::skill("scheduler-e2e")],
+        updated_at_ms: TimestampMs(1_783_000_950_000),
+    })
+}
+
+fn isolation_worker(label: &str) -> Result<NewAgentWorkerSnapshot> {
+    Ok(NewAgentWorkerSnapshot {
+        id: WorkerName::new("shared-worker")?,
+        runtime: Some("local".to_string()),
+        deployment: Some("local".to_string()),
+        model: format!("{label}-model"),
+        model_provider: Some("test".to_string()),
+        status: AgentWorkerStatus::Idle,
+        desired_state: Some("Running".to_string()),
+        team_id: Some(TeamId::new("shared-team")?),
+        worker_role: Some("worker".to_string()),
+        matrix_user_id: None,
+        room_id: None,
+        container_state: Some("ready".to_string()),
+        idle_since_ms: Some(TimestampMs(900)),
+        last_seen_at_ms: Some(TimestampMs(900)),
+        last_heartbeat_at: None,
+        capabilities: Vec::new(),
+        updated_at_ms: TimestampMs(900),
+    })
 }

@@ -1,3 +1,5 @@
+#![allow(unused_imports, dead_code)]
+
 // 验证员工模式工作流投影、配置重载与错误拒绝。
 // 测试夹具围绕目标分支构造可控状态；跨模块行为由对应集成测试负责。
 
@@ -254,19 +256,6 @@ fn task_board_unknown_lifecycle_reports_error_without_fallback() {
     );
 }
 
-#[test]
-fn staff_matrix_config_action_opens_channels_settings_on_matrix_tab() {
-    let (mut app, _task) = crate::app::App::new();
-    app.channels_settings.matrix = None;
-
-    let _task = super::update(&mut app, super::TaskBoardMessage::OpenMatrixTaskPoolConfig);
-
-    assert!(app.show_system_settings);
-    assert_eq!(app.system_settings_tab, SystemTab::Channels);
-    assert!(app.channels_settings.matrix.is_none());
-    assert_eq!(app.channels_settings.active_tab, crate::app::state::ChannelsSettingsTab::Matrix);
-    assert!(app.channels_settings.save_error.is_none());
-}
 
 #[test]
 fn staff_mode_loads_and_persists_staff_config_through_gateway() {

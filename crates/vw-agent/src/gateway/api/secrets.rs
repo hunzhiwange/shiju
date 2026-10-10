@@ -172,7 +172,7 @@ fn restore_vec_secrets(values: &mut [String], current: &[String]) {
 /// - 隧道服务（Cloudflare、Ngrok）的令牌
 /// - 各代理的 API 密钥
 /// - 所有通道配置中的令牌和密钥（Telegram、Discord、Slack、Mattermost、
-///   Webhook、Matrix、WhatsApp、Linq、WATI、Nextcloud、Email、IRC、
+///   Webhook、WhatsApp、Linq、WATI、Nextcloud、Email、IRC、
 ///   Lark/飞书、钉钉、QQ、Nostr、ClawdTalk）
 ///
 /// # 示例
@@ -249,11 +249,6 @@ pub fn mask_sensitive_fields(config: &Config) -> Config {
     // 掩码 Webhook 通道配置
     if let Some(webhook) = masked.channels_config.webhook.as_mut() {
         mask_optional_secret(&mut webhook.secret);
-    }
-
-    // 掩码 Matrix 通道配置
-    if let Some(matrix) = masked.channels_config.matrix.as_mut() {
-        mask_required_secret(&mut matrix.access_token);
     }
 
     // 掩码 WhatsApp 通道配置
@@ -440,13 +435,6 @@ fn restore_masked_sensitive_fields(incoming: &mut Config, current: &Config) {
         (incoming.channels_config.webhook.as_mut(), current.channels_config.webhook.as_ref())
     {
         restore_optional_secret(&mut incoming_ch.secret, &current_ch.secret);
-    }
-
-    // 恢复 Matrix 通道配置
-    if let (Some(incoming_ch), Some(current_ch)) =
-        (incoming.channels_config.matrix.as_mut(), current.channels_config.matrix.as_ref())
-    {
-        restore_required_secret(&mut incoming_ch.access_token, &current_ch.access_token);
     }
 
     // 恢复 WhatsApp 通道配置

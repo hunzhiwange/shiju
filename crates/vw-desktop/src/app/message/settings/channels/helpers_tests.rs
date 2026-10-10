@@ -4,20 +4,6 @@
 use super::*;
 use vw_config_types::channels::{GroupReplyConfig, GroupReplyMode, LarkReceiveMode, QQReceiveMode};
 
-// 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
-// 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
-#[test]
-fn default_matrix_config_uses_empty_restrictive_values() {
-    let matrix = default_matrix_config();
-
-    assert!(matrix.homeserver.is_empty());
-    assert!(matrix.access_token.is_empty());
-    assert_eq!(matrix.user_id, None);
-    assert_eq!(matrix.device_id, None);
-    assert!(matrix.room_id.is_empty());
-    assert!(matrix.allowed_users.is_empty());
-    assert!(!matrix.mention_only);
-}
 
 #[test]
 fn default_feishu_config_uses_websocket_and_draft_defaults() {

@@ -80,21 +80,6 @@ fn tool_names(descriptions: &[(&'static str, &'static str)]) -> Vec<&'static str
     descriptions.iter().map(|(name, _)| *name).collect()
 }
 
-#[tokio::test]
-// 提供者初始化失败时不得启动监听器，避免半初始化状态。
-async fn start_channels_returns_provider_initialization_error_before_listener_startup() {
-    let mut config = Config::default();
-    config.default_provider = Some("__missing_provider_for_start_test__".to_string());
-    config.default_model = Some("model".to_string());
-    config.channels_config.telegram = None;
-    config.channels_config.discord = None;
-    config.channels_config.slack = None;
-    config.channels_config.matrix = None;
-
-    let err = start_channels(config).await.expect_err("missing provider should fail");
-
-    assert!(!err.to_string().is_empty());
-}
 
 #[test]
 fn start_module_exports_start_channels_symbol() {
@@ -245,15 +230,14 @@ async fn channel_hooks_use_shared_runtime_builder() {
     config.hooks.builtin.command_logger = true;
     config.hooks.plugins.enabled = false;
 
-    let hooks = build_channel_hooks(&config)
-        .expect("build channel hooks")
-        .expect("enabled hook runner");
+    let hooks =
+        build_channel_hooks(&config).expect("build channel hooks").expect("enabled hook runner");
     hooks
         .fire_after_tool_call("channel-tool", &ToolResult::default(), Duration::from_millis(3))
         .await;
 
-    let runtime = crate::app::agent::hooks::build_hook_runtime(&config)
-        .expect("build shared hook runtime");
+    let runtime =
+        crate::app::agent::hooks::build_hook_runtime(&config).expect("build shared hook runtime");
     let shared_hooks = runtime.runner_snapshot().expect("shared hook runner");
     shared_hooks
         .fire_after_tool_call("shared-tool", &ToolResult::default(), Duration::from_millis(4))

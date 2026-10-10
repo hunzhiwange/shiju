@@ -92,7 +92,6 @@ fantoccini = { version = "0.22.1", optional = true, default-features = false, fe
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 hostname = "0.4"
 lettre = { version = "0.11.22", default-features = false, features = ["builder", "smtp-transport", "hostname", "pool", "rustls-tls"] }
-matrix-sdk = { version = "0.16.1", optional = true, default-features = false, features = ["rustls-tls", "e2e-encryption", "automatic-room-key-forwarding", "sqlite", "markdown"] }
 mysql = { version = "27.0.0", optional = true }
 nostr-sdk = { version = "0.37", features = ["nip04", "nip59"] }
 nusb = "0.2.2"
@@ -176,5 +175,4 @@ sandbox-bubblewrap = []
 sandbox-landlock = ["dep:landlock"]
 shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash"]
 channel-lark = ["dep:prost"]
-channel-matrix = ["dep:matrix-sdk"]
 whatsapp-web = ["dep:prost", "dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport", "dep:qrcode"]

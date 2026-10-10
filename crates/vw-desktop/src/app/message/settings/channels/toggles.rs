@@ -7,12 +7,12 @@ use vw_config_types::channels::ClawdTalkConfig;
 use vw_config_types::channels::EmailConfig;
 use vw_config_types::channels::{
     DEFAULT_CHANNEL_INSTANCE_ID, DingTalkInstanceConfig, DiscordConfig, FeishuInstanceConfig,
-    IMessageConfig, IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig, MatrixInstanceConfig,
+    IMessageConfig, IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig,
     MattermostConfig, NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig,
     SlackConfig, TelegramConfig, WatiConfig, WebhookConfig, WhatsAppConfig,
 };
 
-use super::helpers::{default_dingtalk_config, default_feishu_config, default_matrix_config};
+use super::helpers::{default_dingtalk_config, default_feishu_config};
 
 /// 处理 `toggle_enabled` 对应的用户输入、异步结果或状态转换。
 ///
@@ -68,12 +68,6 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
         "imessage" => {
             app.channels_settings.imessage =
                 enabled.then(|| IMessageConfig { allowed_contacts: Vec::new() })
-        }
-        "matrix" => {
-            app.channels_settings.matrix_enabled = enabled;
-            if enabled {
-                app.channels_settings.matrix.get_or_insert_with(default_matrix_config);
-            }
         }
         "signal" => {
             app.channels_settings.signal = enabled.then(|| SignalConfig {
@@ -226,15 +220,6 @@ fn next_instance_id<'a>(
 
 pub(super) fn add_channel_instance(app: &mut App, channel: &str) {
     match channel {
-        "matrix" => {
-            let id = next_instance_id(
-                app.channels_settings.matrix.is_some(),
-                app.channels_settings.matrix_instances.iter().map(|instance| instance.id.as_str()),
-            );
-            app.channels_settings
-                .matrix_instances
-                .push(MatrixInstanceConfig { id, config: default_matrix_config() });
-        }
         "feishu" => {
             let id = next_instance_id(
                 app.channels_settings.feishu.is_some(),
@@ -262,11 +247,6 @@ pub(super) fn add_channel_instance(app: &mut App, channel: &str) {
 
 pub(super) fn remove_channel_instance(app: &mut App, channel: &str, index: usize) {
     match channel {
-        "matrix" => {
-            if index < app.channels_settings.matrix_instances.len() {
-                app.channels_settings.matrix_instances.remove(index);
-            }
-        }
         "feishu" => {
             if index < app.channels_settings.feishu_instances.len() {
                 app.channels_settings.feishu_instances.remove(index);

@@ -15,7 +15,7 @@
 //!
 //! - **即时通讯**：Telegram、Discord、Slack、Mattermost、iMessage、Signal、WhatsApp
 //! - **企业协作**：Lark/Feishu、DingTalk、QQ、Nextcloud Talk
-//! - **其他协议**：Matrix、IRC、Email、Nostr、Linq、WATI、ClawdTalk
+//! - **其他协议**：IRC、Email、Nostr、Linq、WATI、ClawdTalk
 //!
 //! ## 架构说明
 //!
@@ -24,70 +24,9 @@
 
 use super::*;
 use crate::app::agent::channels::clawdtalk::ClawdTalkChannel;
-#[cfg(feature = "channel-matrix")]
-use vw_config_types::channels::chat::DEFAULT_CHANNEL_INSTANCE_ID;
 
 fn instance_display_name(channel_name: &str, instance_id: &str) -> String {
     format!("{channel_name}({instance_id})")
-}
-
-#[cfg(feature = "channel-matrix")]
-fn build_matrix_channel(
-    config: &Config,
-    matrix: &crate::app::agent::config::schema::MatrixConfig,
-    instance_id: &str,
-) -> MatrixChannel {
-    MatrixChannel::new_with_session_hint_instance_id_and_vibewindow_dir(
-        matrix.homeserver.clone(),
-        matrix.access_token.clone(),
-        matrix.room_id.clone(),
-        matrix.allowed_users.clone(),
-        matrix.user_id.clone(),
-        matrix.device_id.clone(),
-        Some(instance_id.to_string()),
-        config.config_path.parent().map(|path| path.to_path_buf()),
-    )
-    .with_mention_only(matrix.mention_only)
-}
-
-#[cfg(feature = "channel-matrix")]
-fn matrix_config_validation_error(
-    matrix: &crate::app::agent::config::schema::MatrixConfig,
-) -> Option<&'static str> {
-    if matrix.homeserver.trim().is_empty() {
-        return Some("homeserver is empty");
-    }
-    if matrix.access_token.trim().is_empty() {
-        return Some("access_token is empty");
-    }
-
-    let room_id = matrix.room_id.trim();
-    if !room_id.starts_with('!') && !room_id.starts_with('#') {
-        return Some("room_id must start with '!' (room ID) or '#' (room alias)");
-    }
-
-    None
-}
-
-#[cfg(feature = "channel-matrix")]
-fn append_matrix_channel_if_valid(
-    config: &Config,
-    matrix: &crate::app::agent::config::schema::MatrixConfig,
-    instance_id: &str,
-    display_name: String,
-    channels: &mut Vec<ConfiguredChannel>,
-) {
-    if let Some(reason) = matrix_config_validation_error(matrix) {
-        tracing::warn!(
-            "{display_name} config is incomplete ({reason}); skipping optional channel."
-        );
-        return;
-    }
-
-    channels.push(ConfiguredChannel::new(
-        display_name,
-        Arc::new(build_matrix_channel(config, matrix, instance_id)),
-    ));
 }
 
 /// 从配置对象中收集所有已配置的通道实例
@@ -98,9 +37,6 @@ fn append_matrix_channel_if_valid(
 /// # 参数
 ///
 /// * `config` - 应用主配置对象的引用，包含所有通道的配置信息
-/// * `matrix_skip_context` - Matrix 通道跳过时的上下文信息，用于日志记录
-///   （即使 Matrix 功能未编译也会保留此参数，以避免未使用变量警告）
-///
 /// # 返回值
 ///
 /// 返回一个包含所有已配置且可用通道的向量。每个元素都是 `ConfiguredChannel` 结构，
@@ -109,7 +45,6 @@ fn append_matrix_channel_if_valid(
 /// # 平台限制
 ///
 /// - 大多数通道在 `wasm32` 目标平台上不可用
-/// - Matrix 通道需要启用 `channel-matrix` 特性
 /// - WhatsApp Web 模式需要启用 `whatsapp-web` 特性
 /// - Lark/Feishu 通道需要启用 `channel-lark` 特性
 ///
@@ -134,11 +69,8 @@ fn append_matrix_channel_if_valid(
 /// - QQ 通道的 Webhook 模式会跳过 WebSocket 监听器启动
 pub(crate) fn collect_configured_channels(
     config: &Config,
-    matrix_skip_context: &str,
+    _matrix_skip_context: &str,
 ) -> Vec<ConfiguredChannel> {
-    // 即使在 Matrix 支持已编译且 `#[cfg(not(feature = "channel-matrix"))]` 块被移除时，
-    // 也要保持此符号被使用，避免编译器产生未使用参数警告
-    let _ = matrix_skip_context;
     let mut channels = Vec::new();
     let channel_instance_profiles_valid = match config
         .channels_config
@@ -147,7 +79,7 @@ pub(crate) fn collect_configured_channels(
         Ok(_) => true,
         Err(err) => {
             tracing::warn!(
-                "Channel instance profile config is invalid: {err}; skipping Matrix, Feishu, and DingTalk channel instances."
+                "Channel instance profile config is invalid: {err}; skipping Feishu and DingTalk channel instances."
             );
             false
         }
@@ -244,44 +176,6 @@ pub(crate) fn collect_configured_channels(
             "iMessage",
             Arc::new(IMessageChannel::new(im.allowed_contacts.clone())),
         ));
-    }
-
-    // ==================== Matrix 通道配置 ====================
-    // Matrix 是去中心化的开放通信协议
-    #[cfg(feature = "channel-matrix")]
-    if channel_instance_profiles_valid && config.channels_config.matrix_enabled {
-        if let Some(ref mx) = config.channels_config.matrix {
-            append_matrix_channel_if_valid(
-                config,
-                mx,
-                DEFAULT_CHANNEL_INSTANCE_ID,
-                "Matrix".to_string(),
-                &mut channels,
-            );
-        }
-
-        for matrix_instance in &config.channels_config.matrix_instances {
-            append_matrix_channel_if_valid(
-                config,
-                &matrix_instance.config,
-                &matrix_instance.id,
-                instance_display_name("Matrix", &matrix_instance.id),
-                &mut channels,
-            );
-        }
-    }
-
-    // 当未启用 channel-matrix 特性但配置了 Matrix 时，记录警告
-    #[cfg(not(feature = "channel-matrix"))]
-    if config.channels_config.matrix_enabled
-        && (config.channels_config.matrix.is_some()
-            || !config.channels_config.matrix_instances.is_empty())
-    {
-        let matrix_instance_count = usize::from(config.channels_config.matrix.is_some())
-            + config.channels_config.matrix_instances.len();
-        tracing::warn!(
-            "Matrix channel has {matrix_instance_count} configured instance(s) but this build was compiled without `channel-matrix`; skipping Matrix {matrix_skip_context}."
-        );
     }
 
     // ==================== Signal 通道配置 ====================

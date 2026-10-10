@@ -43,9 +43,6 @@ pub mod lark;
 /// Linq 通道实现（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 pub mod linq;
-/// Matrix 通道实现（需启用 channel-matrix 特性）
-#[cfg(feature = "channel-matrix")]
-pub mod matrix;
 /// Mattermost 通道实现（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mattermost;
@@ -103,8 +100,6 @@ pub use irc::IrcChannel;
 pub use lark::LarkChannel;
 #[cfg(not(target_arch = "wasm32"))]
 pub use linq::LinqChannel;
-#[cfg(feature = "channel-matrix")]
-pub use matrix::MatrixChannel;
 #[cfg(not(target_arch = "wasm32"))]
 pub use mattermost::MattermostChannel;
 #[cfg(not(target_arch = "wasm32"))]

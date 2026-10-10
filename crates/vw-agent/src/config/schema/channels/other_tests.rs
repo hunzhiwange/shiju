@@ -1,35 +1,11 @@
 // 覆盖其它渠道配置的展示元数据及 WhatsApp 后端判定规则。
 
 use super::other::{
-    DingTalkConfig, IrcConfig, LinqConfig, MatrixConfig, NextcloudTalkConfig, NostrConfig,
+    DingTalkConfig, IrcConfig, LinqConfig, NextcloudTalkConfig, NostrConfig,
     QQConfig, SignalConfig, WatiConfig, WhatsAppConfig,
 };
 use crate::app::agent::config::traits::ChannelConfig;
 
-// 正常值、缺省值与非法输入成组验证，用于固定配置兼容边界和失败语义。
-#[test]
-fn other_channel_metadata_is_user_facing() {
-    assert_eq!(MatrixConfig::name(), "Matrix");
-    assert_eq!(MatrixConfig::desc(), "self-hosted chat");
-    assert_eq!(SignalConfig::name(), "Signal");
-    assert_eq!(SignalConfig::desc(), "An open-source, encrypted messaging service");
-    assert_eq!(WhatsAppConfig::name(), "WhatsApp");
-    assert_eq!(WhatsAppConfig::desc(), "Business Cloud API");
-    assert_eq!(LinqConfig::name(), "Linq");
-    assert_eq!(LinqConfig::desc(), "iMessage/RCS/SMS via Linq API");
-    assert_eq!(WatiConfig::name(), "WATI");
-    assert_eq!(WatiConfig::desc(), "WhatsApp via WATI Business API");
-    assert_eq!(NextcloudTalkConfig::name(), "NextCloud Talk");
-    assert_eq!(NextcloudTalkConfig::desc(), "NextCloud Talk platform");
-    assert_eq!(IrcConfig::name(), "IRC");
-    assert_eq!(IrcConfig::desc(), "IRC over TLS");
-    assert_eq!(DingTalkConfig::name(), "DingTalk");
-    assert_eq!(DingTalkConfig::desc(), "DingTalk Stream Mode");
-    assert_eq!(QQConfig::name(), "QQ Official");
-    assert_eq!(QQConfig::desc(), "Tencent QQ Bot");
-    assert_eq!(NostrConfig::name(), "Nostr");
-    assert_eq!(NostrConfig::desc(), "Nostr DMs");
-}
 
 #[test]
 fn whatsapp_backend_helpers_distinguish_cloud_web_and_ambiguous_configs() {

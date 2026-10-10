@@ -69,13 +69,6 @@ pub async fn handle_command(command: ChannelCommands, config: &Config) -> Result
                 println!("  {} {}", if configured { "✅" } else { "❌" }, channel.name());
             }
 
-            // 检查 Matrix 通道是否在当前构建中启用
-            if !cfg!(feature = "channel-matrix") {
-                println!(
-                    "  ℹ️ Matrix channel support is disabled in this build (enable `channel-matrix`)."
-                );
-            }
-
             // 检查 Lark/飞书通道是否在当前构建中启用
             if !cfg!(feature = "channel-lark") {
                 println!(

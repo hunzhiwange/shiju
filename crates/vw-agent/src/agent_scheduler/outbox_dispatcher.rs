@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, bail};
 use vw_api_types::common::TimestampMs;
 
-use super::adapters::matrix::{MatrixDispatchAdapter, MatrixDispatchRequest};
+use super::adapters::dispatch::{RemoteDispatchAdapter, RemoteDispatchRequest};
 use super::store::outbox::StoredOutboxMessage;
 use super::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 
@@ -20,7 +20,7 @@ pub struct OutboxDrainSummary {
 /// 负责消息认领、通道投递和重试状态落库的发件箱执行器。
 pub struct OutboxDispatcher<'a, A>
 where
-    A: MatrixDispatchAdapter + ?Sized,
+    A: RemoteDispatchAdapter + ?Sized,
 {
     store: &'a AgentSchedulerStore,
     matrix_adapter: &'a A,
@@ -28,7 +28,7 @@ where
 
 impl<'a, A> OutboxDispatcher<'a, A>
 where
-    A: MatrixDispatchAdapter + ?Sized,
+    A: RemoteDispatchAdapter + ?Sized,
 {
     pub fn new(store: &'a AgentSchedulerStore, matrix_adapter: &'a A) -> Self {
         Self { store, matrix_adapter }
@@ -130,12 +130,12 @@ enum DispatchOutcome {
 
 #[derive(Debug, Clone, PartialEq)]
 enum OutboxDispatchTarget {
-    Matrix(MatrixDispatchRequest),
+    Matrix(RemoteDispatchRequest),
 }
 
 fn outbox_dispatch_target(message: &StoredOutboxMessage) -> Result<OutboxDispatchTarget> {
     match message.channel.as_str() {
-        "matrix" => Ok(OutboxDispatchTarget::Matrix(MatrixDispatchRequest {
+        "matrix" => Ok(OutboxDispatchTarget::Matrix(RemoteDispatchRequest {
             channel: message.channel.clone(),
             target: message.target.clone(),
             recipient_id: message.recipient_id.clone(),

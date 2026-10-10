@@ -248,26 +248,6 @@ pub fn is_gateway_unavailable_error(message: &str) -> bool {
     .any(|needle| lower.contains(needle))
 }
 
-/// 判断网关错误文本是否适合做一次短重试。
-///
-/// 这里只覆盖传输层抖动与明确的临时 HTTP 状态，调用方仍应只在幂等接口上使用。
-pub(crate) fn is_retryable_gateway_error(message: &str) -> bool {
-    let lower = message.to_ascii_lowercase();
-    let retryable_status = [
-        "gateway request failed: 408",
-        "gateway request failed: 429",
-        "gateway request failed: 500",
-        "gateway request failed: 502",
-        "gateway request failed: 503",
-        "gateway request failed: 504",
-    ];
-    if retryable_status.iter().any(|needle| lower.contains(needle)) {
-        return true;
-    }
-
-    is_gateway_unavailable_error(message)
-}
-
 fn sanitize_payload(payload: &str) -> String {
     let payload = payload.trim();
     if payload.is_empty() {
@@ -318,17 +298,9 @@ fn is_sensitive_key(key: &str) -> bool {
         .filter(|character| character.is_ascii_alphanumeric())
         .flat_map(char::to_lowercase)
         .collect::<String>();
-    [
-        "skey",
-        "token",
-        "password",
-        "credential",
-        "apikey",
-        "secret",
-        "authorization",
-    ]
-    .iter()
-    .any(|sensitive| normalized.contains(sensitive))
+    ["skey", "token", "password", "credential", "apikey", "secret", "authorization"]
+        .iter()
+        .any(|sensitive| normalized.contains(sensitive))
 }
 
 fn contains_sensitive_marker(text: &str) -> bool {

@@ -78,10 +78,6 @@ mod store_logs_tests;
 mod store_artifacts_tests;
 
 #[cfg(test)]
-#[path = "outbox_dispatcher_tests.rs"]
-mod outbox_dispatcher_tests;
-
-#[cfg(test)]
 #[path = "policy_tests.rs"]
 mod policy_tests;
 
@@ -108,10 +104,6 @@ mod local_e2e_tests;
 #[cfg(test)]
 #[path = "runner/local_tests.rs"]
 mod local_runner_tests;
-
-#[cfg(test)]
-#[path = "runner/matrix_tests.rs"]
-mod matrix_runner_tests;
 
 #[cfg(test)]
 #[path = "task_graph_tests.rs"]

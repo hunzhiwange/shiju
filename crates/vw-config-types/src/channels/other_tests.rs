@@ -9,8 +9,7 @@ fn task_618_test_module_is_wired() {
 }
 
 use super::{
-    DingTalkConfig, DingTalkInstanceConfig, IrcConfig, LinqConfig, MatrixConfig,
-    MatrixInstanceConfig, NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig,
+    DingTalkConfig, IrcConfig, LinqConfig, NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode,
     WatiConfig, WhatsAppConfig, default_nostr_relays,
 };
 
@@ -58,31 +57,6 @@ fn whatsapp_backend_helpers_cover_cloud_web_incomplete_and_ambiguous_configs() {
     assert!(ambiguous.is_ambiguous_config());
 }
 
-// 可选集合与布尔值缺省时应落到协议安全默认，显式覆盖仍需原样保留。
-#[test]
-fn matrix_and_signal_deserialization_apply_optional_collection_and_boolean_defaults() {
-    let matrix: MatrixConfig = serde_json::from_value(serde_json::json!({
-        "homeserver": "https://matrix.example",
-        "access_token": "test-matrix-token",
-        "room_id": "!room:example",
-        "allowed_users": ["@alice:example"]
-    }))
-    .unwrap();
-    let signal: SignalConfig = serde_json::from_value(serde_json::json!({
-        "http_url": "http://signal.test",
-        "account": "+15550000000"
-    }))
-    .unwrap();
-
-    assert!(matrix.user_id.is_none());
-    assert!(matrix.device_id.is_none());
-    assert!(!matrix.mention_only);
-    assert_eq!(matrix.allowed_users, vec!["@alice:example".to_string()]);
-    assert!(signal.group_id.is_none());
-    assert!(signal.allowed_from.is_empty());
-    assert!(!signal.ignore_attachments);
-    assert!(!signal.ignore_stories);
-}
 
 #[test]
 fn whatsapp_deserialization_defaults_every_optional_field_and_allowed_numbers() {
@@ -162,31 +136,6 @@ fn simple_channel_configs_default_optional_and_allowlist_fields() {
     assert!(dingtalk.allowed_users.is_empty());
 }
 
-// 具名实例通过扁平字段承载通道配置，反序列化后不得丢失实例身份。
-#[test]
-fn named_instance_configs_deserialize_flattened_channel_fields() {
-    let matrix: MatrixInstanceConfig = serde_json::from_value(serde_json::json!({
-        "id": "primary",
-        "homeserver": "https://matrix.example",
-        "access_token": "test-matrix-token",
-        "room_id": "!room:example",
-        "allowed_users": []
-    }))
-    .unwrap();
-    let dingtalk: DingTalkInstanceConfig = serde_json::from_value(serde_json::json!({
-        "id": "mainland",
-        "client_id": "test-client-id",
-        "client_secret": "test-client-secret"
-    }))
-    .unwrap();
-
-    assert_eq!(matrix.id, "primary");
-    assert_eq!(matrix.config.homeserver, "https://matrix.example");
-    assert_eq!(matrix.config.room_id, "!room:example");
-    assert_eq!(dingtalk.id, "mainland");
-    assert_eq!(dingtalk.config.client_id, "test-client-id");
-    assert!(dingtalk.config.allowed_users.is_empty());
-}
 
 // QQ 模式采用稳定外部名称，未知值必须报错而不是静默回退。
 #[test]
@@ -238,16 +187,4 @@ fn nostr_relays_use_documented_defaults_but_preserve_an_explicit_empty_list() {
     assert_eq!(default_config.relays, expected);
     assert!(default_config.allowed_pubkeys.is_empty());
     assert!(explicit_empty.relays.is_empty());
-}
-
-// 缺少协议必填字段应停在反序列化边界，不能构造半有效通道配置。
-#[test]
-fn missing_required_channel_fields_are_rejected() {
-    let missing_access_token = serde_json::from_value::<MatrixConfig>(serde_json::json!({
-        "homeserver": "https://matrix.example",
-        "room_id": "!room:example",
-        "allowed_users": []
-    }));
-
-    assert!(missing_access_token.is_err());
 }

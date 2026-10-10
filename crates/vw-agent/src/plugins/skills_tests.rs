@@ -52,7 +52,6 @@ fn runtime_config(workspace_dir: &Path, config_dir: &Path) -> Config {
     let mut config = Config::default();
     config.workspace_dir = workspace_dir.to_path_buf();
     config.config_path = config_dir.join("vibewindow.json");
-    config.skills.open_skills_enabled = false;
     config
 }
 

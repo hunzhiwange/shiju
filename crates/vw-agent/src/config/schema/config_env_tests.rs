@@ -21,8 +21,6 @@ const CONFIG_ENV_KEYS: &[&str] = &[
     "MODEL",
     "OPENAI_API_KEY",
     "VIBEWINDOW_WORKSPACE",
-    "VIBEWINDOW_OPEN_SKILLS_ENABLED",
-    "VIBEWINDOW_OPEN_SKILLS_DIR",
     "VIBEWINDOW_SKILLS_PROMPT_MODE",
     "VIBEWINDOW_SKILLS_DIRECTORY_PROVIDER",
     "VIBEWINDOW_GATEWAY_PORT",
@@ -248,8 +246,6 @@ fn valid_workspace_skills_and_storage_values_are_normalized() {
     let env = ConfigEnvGuard::new();
     for (key, value) in [
         ("VIBEWINDOW_WORKSPACE", "/tmp/vibewindow-config-env"),
-        ("VIBEWINDOW_OPEN_SKILLS_ENABLED", "ON"),
-        ("VIBEWINDOW_OPEN_SKILLS_DIR", "  /tmp/shared-skills  "),
         ("VIBEWINDOW_SKILLS_PROMPT_MODE", " FULL "),
         ("VIBEWINDOW_SKILLS_DIRECTORY_PROVIDER", "claude-code"),
         ("VIBEWINDOW_STORAGE_PROVIDER", " postgres "),
@@ -263,8 +259,6 @@ fn valid_workspace_skills_and_storage_values_are_normalized() {
     apply_env_overrides(&mut config);
 
     assert_eq!(config.workspace_dir, Path::new("/tmp/vibewindow-config-env").join("workspace"));
-    assert!(config.skills.open_skills_enabled);
-    assert_eq!(config.skills.open_skills_dir.as_deref(), Some("/tmp/shared-skills"));
     assert_eq!(config.skills.prompt_injection_mode, SkillsPromptInjectionMode::Full);
     assert_eq!(config.skills.directory_provider, SkillsDirectoryProvider::Claude);
     assert_eq!(config.storage.provider.config.provider, "postgres");
@@ -276,7 +270,6 @@ fn valid_workspace_skills_and_storage_values_are_normalized() {
 fn boolean_overrides_preserve_multi_alias_flags_but_disable_strict_flags() {
     let env = ConfigEnvGuard::new();
     for (key, value) in [
-        ("VIBEWINDOW_OPEN_SKILLS_ENABLED", "off"),
         ("VIBEWINDOW_ALLOW_PUBLIC_BIND", "yes"),
         ("VIBEWINDOW_REASONING_ENABLED", "not-a-bool"),
         ("VIBEWINDOW_MODEL_SUPPORT_VISION", "not-a-bool"),
@@ -286,14 +279,12 @@ fn boolean_overrides_preserve_multi_alias_flags_but_disable_strict_flags() {
     }
 
     let mut config = Config::default();
-    config.skills.open_skills_enabled = true;
     config.gateway.allow_public_bind = true;
     config.runtime.reasoning_enabled = Some(true);
     config.model_support_vision = Some(true);
     config.web_search.enabled = true;
     apply_env_overrides(&mut config);
 
-    assert!(!config.skills.open_skills_enabled);
     assert!(!config.gateway.allow_public_bind);
     assert_eq!(config.runtime.reasoning_enabled, Some(true));
     assert_eq!(config.model_support_vision, Some(true));
@@ -309,8 +300,6 @@ fn blank_and_invalid_values_leave_structured_configuration_unchanged() {
         ("VIBEWINDOW_PROVIDER", ""),
         ("VIBEWINDOW_MODEL", ""),
         ("VIBEWINDOW_WORKSPACE", "  "),
-        ("VIBEWINDOW_OPEN_SKILLS_ENABLED", "  "),
-        ("VIBEWINDOW_OPEN_SKILLS_DIR", "  "),
         ("VIBEWINDOW_SKILLS_PROMPT_MODE", "verbose"),
         ("VIBEWINDOW_SKILLS_DIRECTORY_PROVIDER", "unknown"),
         ("VIBEWINDOW_GATEWAY_PORT", "70000"),
@@ -335,8 +324,6 @@ fn blank_and_invalid_values_leave_structured_configuration_unchanged() {
     config.api_key = Some("configured-key".to_string());
     config.default_provider = Some("configured-provider".to_string());
     config.default_model = Some("configured-model".to_string());
-    config.skills.open_skills_enabled = true;
-    config.skills.open_skills_dir = Some("configured-skills".to_string());
     config.skills.prompt_injection_mode = SkillsPromptInjectionMode::Full;
     config.skills.directory_provider = SkillsDirectoryProvider::Cursor;
     config.gateway.port = 1234;
@@ -358,8 +345,6 @@ fn blank_and_invalid_values_leave_structured_configuration_unchanged() {
     assert_eq!(config.default_provider.as_deref(), Some("configured-provider"));
     assert_eq!(config.default_model.as_deref(), Some("configured-model"));
     assert_eq!(config.workspace_dir, original_workspace);
-    assert!(config.skills.open_skills_enabled);
-    assert_eq!(config.skills.open_skills_dir.as_deref(), Some("configured-skills"));
     assert_eq!(config.skills.prompt_injection_mode, SkillsPromptInjectionMode::Full);
     assert_eq!(config.skills.directory_provider, SkillsDirectoryProvider::Cursor);
     assert_eq!(config.gateway.port, 1234);

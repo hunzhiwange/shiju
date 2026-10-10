@@ -115,14 +115,6 @@ pub struct SkillsConfig {
     #[serde(default = "default_auto_load_project_skills")]
     pub auto_load_project_skills: bool,
 
-    /// 是否启用开放技能目录。
-    #[serde(default)]
-    pub open_skills_enabled: bool,
-
-    /// 开放技能目录路径。
-    #[serde(default)]
-    pub open_skills_dir: Option<String>,
-
     /// 技能提示注入模式。
     #[serde(default)]
     pub prompt_injection_mode: SkillsPromptInjectionMode,
@@ -141,8 +133,6 @@ impl Default for SkillsConfig {
         Self {
             directory_provider: SkillsDirectoryProvider::default(),
             auto_load_project_skills: default_auto_load_project_skills(),
-            open_skills_enabled: false,
-            open_skills_dir: None,
             prompt_injection_mode: SkillsPromptInjectionMode::default(),
             security: SkillSecurityConfig::default(),
         }

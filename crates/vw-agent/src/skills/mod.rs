@@ -311,8 +311,8 @@ pub fn load_skills_with_config(
 ) -> Vec<Skill> {
     load_skills_with_open_skills_config_and_provider(
         workspace_dir,
-        Some(config.skills.open_skills_enabled),
-        config.skills.open_skills_dir.as_deref(),
+        None,
+        None,
         types::SkillLoadMode::from_prompt_mode(config.skills.prompt_injection_mode),
         config.skills.directory_provider,
         &config.skills.security,
@@ -329,8 +329,8 @@ pub(crate) fn load_skills_full_with_config(
 ) -> Vec<Skill> {
     load_skills_with_open_skills_config_and_provider(
         workspace_dir,
-        Some(config.skills.open_skills_enabled),
-        config.skills.open_skills_dir.as_deref(),
+        None,
+        None,
         types::SkillLoadMode::Full,
         config.skills.directory_provider,
         &config.skills.security,

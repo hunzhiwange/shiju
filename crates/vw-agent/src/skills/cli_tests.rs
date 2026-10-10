@@ -52,7 +52,6 @@ impl Drop for EnvVarGuard {
 fn isolated_config(workspace: &Path) -> crate::app::agent::config::Config {
     let mut config = crate::app::agent::config::Config::default();
     config.workspace_dir = workspace.to_path_buf();
-    config.skills.open_skills_enabled = false;
     config
 }
 

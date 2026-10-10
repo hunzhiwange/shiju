@@ -7,7 +7,7 @@
 //! - 支持多种环境变量命名风格（VIBEWINDOW_* 前缀优先，回退到通用名称）
 //! - 覆盖 API 密钥、Provider、模型、工作区目录等核心配置
 //! - 配置网关端口、主机绑定和公开绑定权限
-//! - 管理技能系统（开放技能启用/目录/提示模式）
+//! - 管理技能系统（目录提供方/提示模式）
 //! - 控制推理能力、视觉支持和网络搜索功能
 //! - 设置存储后端（Provider/连接 URL/超时）
 //! - 完整的代理配置（启用标志/URL/作用域/服务列表/验证）
@@ -93,28 +93,6 @@ pub fn apply_env_overrides(config: &mut Config) {
     }
 
     // ==================== 技能系统配置 ====================
-    // 开放技能启用标志：VIBEWINDOW_OPEN_SKILLS_ENABLED
-    // 支持多种布尔值表示：1|0|true|false|yes|no|on|off
-    if let Ok(flag) = std::env::var("VIBEWINDOW_OPEN_SKILLS_ENABLED") {
-        if !flag.trim().is_empty() {
-            match flag.trim().to_ascii_lowercase().as_str() {
-                "1" | "true" | "yes" | "on" => config.skills.open_skills_enabled = true,
-                "0" | "false" | "no" | "off" => config.skills.open_skills_enabled = false,
-                _ => tracing::warn!(
-                    "忽略无效的 VIBEWINDOW_OPEN_SKILLS_ENABLED 值（有效值：1|0|true|false|yes|no|on|off）"
-                ),
-            }
-        }
-    }
-
-    // 开放技能目录覆盖：VIBEWINDOW_OPEN_SKILLS_DIR
-    if let Ok(path) = std::env::var("VIBEWINDOW_OPEN_SKILLS_DIR") {
-        let trimmed = path.trim();
-        if !trimmed.is_empty() {
-            config.skills.open_skills_dir = Some(trimmed.to_string());
-        }
-    }
-
     // 技能提示模式覆盖：VIBEWINDOW_SKILLS_PROMPT_MODE
     // 有效值：full（完整模式）| compact（紧凑模式）
     if let Ok(mode) = std::env::var("VIBEWINDOW_SKILLS_PROMPT_MODE") {

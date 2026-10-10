@@ -165,8 +165,7 @@ fn delegate_agents_auto_load_project_skills_by_default_and_preserve_explicit_ski
     )
     .unwrap();
 
-    let mut root_config = test_config(&workspace);
-    root_config.skills.open_skills_enabled = false;
+    let root_config = test_config(&workspace);
     let agents = HashMap::from([(
         "worker".to_string(),
         agent_config("all", true, vec!["explicit-skill".to_string()]),
@@ -191,7 +190,6 @@ fn delegate_agents_require_explicit_skills_when_project_auto_load_is_disabled() 
 
     let mut root_config = test_config(&workspace);
     root_config.skills.auto_load_project_skills = false;
-    root_config.skills.open_skills_enabled = false;
     let agents = HashMap::from([(
         "worker".to_string(),
         agent_config("all", true, vec!["explicit-skill".to_string()]),

@@ -8,21 +8,24 @@ fn task_631_test_module_is_wired() {
     assert!(path.ends_with("skills_tests.rs"));
 }
 
-// 默认只读取 VibeWindow 技能目录，开放技能和额外注入能力均需显式开启。
+// 默认只读取 VibeWindow 技能目录，额外注入能力需显式开启。
 #[test]
 fn skills_config_defaults_to_vibewindow_directory_provider() {
     let config = super::SkillsConfig::default();
     assert_eq!(config.directory_provider, super::SkillsDirectoryProvider::Vibewindow);
     assert!(config.auto_load_project_skills);
-    assert!(!config.open_skills_enabled);
-    assert_eq!(config.open_skills_dir, None);
     assert_eq!(config.prompt_injection_mode, super::SkillsPromptInjectionMode::Compact);
+
+    let serialized = serde_json::to_value(&config).unwrap();
+    let keys = serialized.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>();
+    assert_eq!(
+        keys,
+        ["auto_load_project_skills", "directory_provider", "prompt_injection_mode", "security"]
+    );
 
     let parsed: super::SkillsConfig = serde_json::from_str("{}").unwrap();
     assert_eq!(parsed.directory_provider, super::SkillsDirectoryProvider::Vibewindow);
     assert!(parsed.auto_load_project_skills);
-    assert!(!parsed.open_skills_enabled);
-    assert_eq!(parsed.open_skills_dir, None);
     assert_eq!(parsed.prompt_injection_mode, super::SkillsPromptInjectionMode::Compact);
 }
 
@@ -178,21 +181,17 @@ fn skills_prompt_injection_mode_round_trips_as_snake_case() {
     assert_eq!(parsed, super::SkillsPromptInjectionMode::Compact);
 }
 
-// 完整配置读取确认开放技能目录与注入模式覆盖项不会被默认值吞掉。
+// 完整配置读取确认目录来源与注入模式覆盖项不会被默认值吞掉。
 #[test]
-fn skills_config_deserializes_open_skills_and_prompt_mode_overrides() {
+fn skills_config_deserializes_directory_and_prompt_mode_overrides() {
     let parsed: super::SkillsConfig = serde_json::from_value(serde_json::json!({
         "directory_provider": "cursor",
         "auto_load_project_skills": false,
-        "open_skills_enabled": true,
-        "open_skills_dir": "/tmp/skills",
         "prompt_injection_mode": "full"
     }))
     .unwrap();
 
     assert_eq!(parsed.directory_provider, super::SkillsDirectoryProvider::Cursor);
     assert!(!parsed.auto_load_project_skills);
-    assert!(parsed.open_skills_enabled);
-    assert_eq!(parsed.open_skills_dir.as_deref(), Some("/tmp/skills"));
     assert_eq!(parsed.prompt_injection_mode, super::SkillsPromptInjectionMode::Full);
 }

@@ -209,16 +209,11 @@ fn persist_skills_settings(app: &mut App) -> Task<Message> {
     let s = &app.skills_settings;
     let directory_provider = s.directory_provider;
     let auto_load_project_skills = s.auto_load_project_skills;
-    let open_skills_enabled = s.open_skills_enabled;
     let prompt_injection_mode = s.prompt_injection_mode;
-    let open_skills_dir = s.open_skills_dir_input.trim().to_string();
 
     crate::app::update_skills_config_async(move |skills| {
         skills.directory_provider = directory_provider;
         skills.auto_load_project_skills = auto_load_project_skills;
-        skills.open_skills_enabled = open_skills_enabled;
-        skills.open_skills_dir =
-            if open_skills_dir.is_empty() { None } else { Some(open_skills_dir) };
         skills.prompt_injection_mode = prompt_injection_mode;
     })
 }

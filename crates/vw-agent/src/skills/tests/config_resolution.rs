@@ -137,7 +137,7 @@ fn resolve_open_skills_dir_resolution_prefers_env_then_config_then_home() {
 /// - 清除可能影响测试的环境变量
 /// - 使用临时目录，测试后自动清理
 #[test]
-fn load_skills_with_config_reads_open_skills_dir_without_network() {
+fn explicit_open_skills_loader_reads_local_dir_without_network() {
     // 获取环境锁，确保此测试独占访问环境变量
     let _env_guard = open_skills_env_lock().lock().unwrap();
 
@@ -165,14 +165,13 @@ fn load_skills_with_config_reads_open_skills_dir_without_network() {
     )
     .unwrap();
 
-    // 构建测试配置
-    let mut config = crate::app::agent::config::Config::default();
-    config.workspace_dir = workspace_dir.clone();
-    config.skills.open_skills_enabled = true; // 启用 Open Skills
-    config.skills.open_skills_dir = Some(open_skills_dir.to_string_lossy().to_string()); // 指定目录
-
     // 执行技能加载
-    let skills = load_skills_with_config(&workspace_dir, &config);
+    let skills = load_skills_with_open_skills_config(
+        &workspace_dir,
+        Some(true),
+        open_skills_dir.to_str(),
+        types::SkillLoadMode::Full,
+    );
 
     // 验证：应成功加载 1 个技能
     assert_eq!(skills.len(), 1);

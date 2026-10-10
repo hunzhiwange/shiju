@@ -33,13 +33,11 @@ fn skills_sh_source_formats_github_clone_url() {
 #[test]
 fn runtime_and_skill_config_defaults_are_conservative() {
     let config = SkillsConfig::default();
-    assert!(!config.open_skills_enabled);
-    assert!(config.open_skills_dir.is_none());
     assert_eq!(config.prompt_injection_mode, SkillsPromptInjectionMode::Full);
 
     let runtime = SkillRuntimeConfig::default();
     assert_eq!(runtime.workspace_dir, PathBuf::from("."));
-    assert!(!runtime.skills.open_skills_enabled);
+    assert_eq!(runtime.skills.prompt_injection_mode, SkillsPromptInjectionMode::Full);
 }
 
 #[test]

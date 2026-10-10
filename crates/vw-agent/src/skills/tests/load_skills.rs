@@ -370,7 +370,6 @@ fn common_project_skill_roots_load_without_selecting_codex_provider() {
 
     let mut config = Config::default();
     config.skills.directory_provider = SkillsDirectoryProvider::Claude;
-    config.skills.open_skills_enabled = false;
 
     let names = load_skills_with_config(&project_dir, &config)
         .into_iter()
@@ -401,7 +400,6 @@ fn load_skills_uses_configured_directory_provider() {
 
     let mut config = Config::default();
     config.skills.directory_provider = SkillsDirectoryProvider::Codex;
-    config.skills.open_skills_enabled = false;
 
     let names = load_skills_with_config(&project_dir, &config)
         .iter()
@@ -460,7 +458,6 @@ fn configured_prompt_mode_controls_loaded_skill_detail() {
     .unwrap();
 
     let mut config = Config::default();
-    config.skills.open_skills_enabled = false;
     config.skills.prompt_injection_mode = SkillsPromptInjectionMode::Compact;
 
     let compact = load_skills_with_config(dir.path(), &config);

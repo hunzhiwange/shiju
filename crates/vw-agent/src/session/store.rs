@@ -351,6 +351,7 @@ impl SessionStore {
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
                 database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    reject_stale_session_ui_content(transaction, scope, session)?;
                     let call_count = existing_session_call_count(
                         transaction,
                         scope,
@@ -1220,6 +1221,34 @@ fn existing_session_call_count(
         )
         .optional()?;
     call_count.map_or(Ok(fallback), |value| from_i64_usize(value, "session call_count"))
+}
+
+fn reject_stale_session_ui_content(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session: &ChatSession,
+) -> Result<()> {
+    let stored_updated_ms = transaction
+        .query_row(
+            "SELECT updated_ms FROM session_index
+             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+            scoped_id_params(scope, &session.id),
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?
+        .map(|value| from_i64(value, "session updated_ms"))
+        .transpose()?;
+    if let Some(stored_updated_ms) = stored_updated_ms
+        && session.updated_ms < stored_updated_ms
+    {
+        bail!(
+            "stale session UI content for {}: incoming updated_ms {} is older than stored updated_ms {}",
+            session.id,
+            session.updated_ms,
+            stored_updated_ms
+        );
+    }
+    Ok(())
 }
 
 fn replace_session_messages(

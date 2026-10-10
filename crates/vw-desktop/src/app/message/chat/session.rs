@@ -566,7 +566,9 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
     );
     app.sync_active_session_from_chat();
 
-    let now = crate::app::time::now_ms();
+    let now = crate::app::time::now_ms()
+        .max(app.active_session_view_state.updated_ms.saturating_add(1));
+    app.active_session_view_state.updated_ms = now;
     let local = models::ChatSession {
         id: session_id,
         title: local_title,

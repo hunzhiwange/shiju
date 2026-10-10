@@ -393,6 +393,34 @@ fn session_store_projects_round_trip_without_cross_project_leaks() -> Result<()>
 }
 
 #[test]
+fn stale_ui_content_save_preserves_newer_messages() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "stale-ui-content")?;
+        let mut newer = sample_session("stale-ui-content", "Newer", 200);
+        newer.messages.push(ChatMessage {
+            role: ChatRole::User,
+            content: "new tail".to_owned(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        });
+        newer.message_ids.push(Some("message-3".to_owned()));
+        fixture.store.save_session(&scope, &newer)?;
+
+        let stale = sample_session("stale-ui-content", "Stale", 100);
+        let error = fixture
+            .store
+            .save_session_ui_content(&scope, &stale)
+            .expect_err("an older UI snapshot must be rejected");
+
+        assert!(error.to_string().contains("stale session UI content"));
+        assert_json_eq!(fixture.store.load_session(&scope, &newer.id)?, Some(newer));
+        Ok(())
+    })?;
+    Ok(())
+}
+
+#[test]
 fn postgres_session_store_runs_from_tokio_worker_without_nested_runtime() -> Result<()> {
     let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
     let fixture = StoreFixture::new(postgres_fixture.database().clone())?;

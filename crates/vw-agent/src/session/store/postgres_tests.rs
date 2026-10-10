@@ -2,6 +2,8 @@
 //! 这些用例故意传入 SQLite，证明后端检查发生在建表和数据访问之前。
 
 use super::*;
+use crate::project::store::ProjectStore;
+use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 fn sqlite_database() -> (tempfile::TempDir, GlobalDatabase) {
     let home = tempfile::tempdir().expect("temporary database home");
@@ -84,4 +86,51 @@ fn agent_session_operations_reject_sqlite_backend_before_querying_rows() {
     assert_requires_postgres(store.load_agent_sessions_all(tenant));
     assert_requires_postgres(store.load_agent_session_any(tenant, "agent-session"));
     assert_requires_postgres(store.delete_agent_session(&scope, "agent-session"));
+}
+
+#[test]
+fn stale_ui_content_save_preserves_newer_messages() -> Result<()> {
+    let postgres_fixture = crate::global_database::test_support::postgres_test_database!();
+    let database = postgres_fixture.database().clone();
+    let tenant = TenantScope::new("postgres-platform", "postgres-company")?;
+    let scope = ProjectScope::new(tenant.clone(), ProjectId::from("stale-ui-content"))?;
+    ProjectStore::new(database.clone())?.create(
+        &tenant,
+        &ProjectInfo {
+            id: "stale-ui-content".to_owned(),
+            worktree: "/work/stale-ui-content".to_owned(),
+            vcs: None,
+            name: Some("Stale UI content".to_owned()),
+            icon: None,
+            commands: None,
+            time: ProjectTimeInfo { created: 1, updated: 2, initialized: None },
+            sandboxes: Vec::new(),
+        },
+    )?;
+    let store = PostgresSessionStore::new(database)?;
+    let mut newer = empty_session();
+    newer.updated_ms = 200;
+    newer.messages.push(ChatMessage {
+        role: super::super::ChatRole::User,
+        content: "new tail".to_owned(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    newer.message_ids.push(Some("message-new".to_owned()));
+    store.save_session(&scope, &newer)?;
+
+    let mut stale = empty_session();
+    stale.updated_ms = 100;
+    let error = store
+        .save_session_ui_content(&scope, &stale)
+        .expect_err("an older PostgreSQL UI snapshot must be rejected");
+
+    assert!(error.to_string().contains("stale session UI content"));
+    assert_eq!(
+        serde_json::to_value(store.load_session(&scope, &newer.id)?)?,
+        serde_json::to_value(Some(newer))?
+    );
+    postgres_fixture.cleanup()?;
+    Ok(())
 }

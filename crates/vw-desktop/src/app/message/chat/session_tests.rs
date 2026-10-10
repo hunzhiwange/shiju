@@ -1063,9 +1063,14 @@ fn reset_session_locally_marks_boundary_and_next_send_uses_trimmed_history() {
         Some("m-old-follow-up".to_string()),
     ];
 
-    let _ = super::reset_session_locally(&mut app, "s1".to_string(), 0);
+    app.active_session_view_state.updated_ms = crate::app::time::now_ms().saturating_add(10_000);
+    let previous_updated_ms = app.active_session_view_state.updated_ms;
+
+    let save_task = super::reset_session_locally(&mut app, "s1".to_string(), 0);
 
     assert_eq!(app.chat.len(), 1);
+    assert_eq!(save_task.units(), 1);
+    assert!(app.active_session_view_state.updated_ms > previous_updated_ms);
     assert_eq!(app.session_history_reset_boundary("s1").unwrap(), &[Some("m-keep".to_string())]);
 
     app.current_session_runtime_mut().input_editor =

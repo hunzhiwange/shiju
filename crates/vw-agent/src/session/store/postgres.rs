@@ -5,7 +5,7 @@
 use std::collections::HashSet;
 
 use ::postgres::{GenericClient, Row};
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::session::info::Info as AgentSessionInfo;
 use vw_shared::session::ui_types::{
@@ -343,6 +343,7 @@ impl PostgresSessionStore {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction =
             connection.transaction().context("begin PostgreSQL session UI content save")?;
+        reject_stale_session_ui_content(&mut transaction, scope, session)?;
         let call_count = transaction
             .query_opt(
                 "SELECT call_count FROM session_index
@@ -935,6 +936,32 @@ impl PostgresSessionStore {
             .context("delete scoped PostgreSQL agent session")?;
         Ok(changed == 1)
     }
+}
+
+fn reject_stale_session_ui_content(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    session: &ChatSession,
+) -> Result<()> {
+    let stored_updated_ms = client
+        .query_opt(
+            "SELECT updated_ms FROM session_index
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+            scoped_id_params!(scope, &session.id),
+        )?
+        .map(|row| from_i64(row.get(0), "session updated_ms"))
+        .transpose()?;
+    if let Some(stored_updated_ms) = stored_updated_ms
+        && session.updated_ms < stored_updated_ms
+    {
+        bail!(
+            "stale session UI content for {}: incoming updated_ms {} is older than stored updated_ms {}",
+            session.id,
+            session.updated_ms,
+            stored_updated_ms
+        );
+    }
+    Ok(())
 }
 
 fn upsert_session_header(

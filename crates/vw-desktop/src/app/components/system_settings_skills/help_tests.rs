@@ -28,10 +28,7 @@ fn help_text_documents_configuration_fields_and_defaults() {
 
     for expected in [
         "auto_load_project_skills",
-        "open_skills_enabled",
-        "open_skills_dir",
         "prompt_injection_mode",
-        "$HOME/open-skills",
         "compact（默认）",
         "full：注入完整技能文本",
     ] {
@@ -40,10 +37,11 @@ fn help_text_documents_configuration_fields_and_defaults() {
 
     assert!(text.contains(
         r#""auto_load_project_skills": true,
-    "open_skills_enabled": false,
-    "open_skills_dir": null,
     "prompt_injection_mode": "compact""#
     ));
+
+    assert!(!text.contains("社区仓库"));
+    assert!(!text.contains("仓库目录"));
 }
 
 #[test]

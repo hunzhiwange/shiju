@@ -244,8 +244,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SkillsDeleteCompleted { .. }
         | SettingsMessage::SkillsDirectoryProviderChanged(_)
         | SettingsMessage::SkillsProjectAutoLoadToggled(_)
-        | SettingsMessage::SkillsOpenEnabledToggled(_)
-        | SettingsMessage::SkillsOpenDirChanged(_)
         | SettingsMessage::SkillsPromptInjectionModeChanged(_)
         | SettingsMessage::SkillsSave
         | SettingsMessage::SkillsHelpOpen

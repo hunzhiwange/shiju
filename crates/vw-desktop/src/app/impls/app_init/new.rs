@@ -939,10 +939,8 @@ impl App {
 
             // ========== 技能设置 ==========
             skills_settings: super::state::SkillsSettingsState {
-                open_skills_enabled: false,
                 auto_load_project_skills: skills_cfg.auto_load_project_skills,
                 directory_provider: skills_cfg.directory_provider,
-                open_skills_dir_input: String::new(),
                 prompt_injection_mode: skills_cfg.prompt_injection_mode,
                 active_tab: super::state::SkillsSettingsTab::Skills,
                 query: String::new(),

@@ -499,16 +499,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.skills_settings.save_error = None;
             persist_skills_settings(app)
         }
-        SettingsMessage::SkillsOpenEnabledToggled(v) => {
-            app.skills_settings.open_skills_enabled = v;
-            app.skills_settings.save_error = None;
-            persist_skills_settings(app)
-        }
-        SettingsMessage::SkillsOpenDirChanged(v) => {
-            app.skills_settings.open_skills_dir_input = v;
-            app.skills_settings.save_error = None;
-            persist_skills_settings(app)
-        }
         SettingsMessage::SkillsPromptInjectionModeChanged(v) => {
             app.skills_settings.prompt_injection_mode = v;
             app.skills_settings.save_error = None;

@@ -84,7 +84,6 @@ fn skills_enums_and_default_state_are_stable() {
     assert!(!detail.can_delete);
 
     let state = SkillsSettingsState::default();
-    assert!(!state.open_skills_enabled);
     assert!(state.auto_load_project_skills);
     assert_eq!(
         state.directory_provider,
@@ -148,7 +147,6 @@ fn skills_catalog_models_preserve_metadata_and_support_every_kind() {
     assert_eq!(plugin.source_path.as_deref(), Some("plugins/plugin-id"));
 
     let state = SkillsSettingsState::default();
-    assert!(state.open_skills_dir_input.is_empty());
     assert!(state.query.is_empty());
     assert!(state.plugin_catalog.is_empty());
     assert!(!state.plugin_loading);

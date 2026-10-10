@@ -166,14 +166,10 @@ pub(crate) struct PluginCatalogItem {
 
 #[derive(Debug, Clone)]
 pub(crate) struct SkillsSettingsState {
-    /// 是否启用开放技能
-    pub(crate) open_skills_enabled: bool,
     /// 是否让委托代理默认加载项目及父级技能
     pub(crate) auto_load_project_skills: bool,
     /// 技能目录提供方
     pub(crate) directory_provider: vw_config_types::skills::SkillsDirectoryProvider,
-    /// 开放技能目录路径输入
-    pub(crate) open_skills_dir_input: String,
     /// 提示注入模式
     pub(crate) prompt_injection_mode: vw_config_types::skills::SkillsPromptInjectionMode,
     /// 当前激活的技能设置页签
@@ -217,10 +213,8 @@ pub(crate) struct SkillsSettingsState {
 impl Default for SkillsSettingsState {
     fn default() -> Self {
         Self {
-            open_skills_enabled: false,
             auto_load_project_skills: true,
             directory_provider: vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
-            open_skills_dir_input: String::new(),
             prompt_injection_mode: vw_config_types::skills::SkillsPromptInjectionMode::Compact,
             active_tab: SkillsSettingsTab::Skills,
             query: String::new(),

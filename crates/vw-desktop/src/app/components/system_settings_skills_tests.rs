@@ -55,8 +55,6 @@ fn system_config_view_builds_default_and_populated_settings() {
 
     let mut app = test_app();
     app.skills_settings.auto_load_project_skills = false;
-    app.skills_settings.open_skills_enabled = true;
-    app.skills_settings.open_skills_dir_input = "/tmp/open-skills-fixture".to_string();
     app.skills_settings.prompt_injection_mode = SkillsPromptInjectionMode::Full;
 
     for provider in SkillsDirectoryProvider::ALL {
@@ -66,13 +64,13 @@ fn system_config_view_builds_default_and_populated_settings() {
 }
 
 #[test]
-fn system_config_view_keeps_five_config_rows_in_one_panel() {
+fn system_config_view_keeps_three_config_rows_in_one_panel() {
     let app = test_app();
     let element = system_config_view(&app);
     let tree = Tree::new(element.as_widget());
 
     assert_eq!(tree.children.len(), 2);
-    assert_eq!(tree.children[1].children.len(), 5);
+    assert_eq!(tree.children[1].children.len(), 3);
 }
 
 #[test]

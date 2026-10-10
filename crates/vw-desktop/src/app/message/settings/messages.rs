@@ -1052,8 +1052,6 @@ pub enum SettingsMessage {
     },
     SkillsDirectoryProviderChanged(vw_config_types::skills::SkillsDirectoryProvider),
     SkillsProjectAutoLoadToggled(bool),
-    SkillsOpenEnabledToggled(bool),
-    SkillsOpenDirChanged(String),
     SkillsPromptInjectionModeChanged(vw_config_types::skills::SkillsPromptInjectionMode),
     SkillsSave,
     SkillsHelpOpen,

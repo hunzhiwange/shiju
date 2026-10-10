@@ -99,11 +99,7 @@ pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &
         "MCP",
         &["model context protocol", "mcpServers", "server"],
     ),
-    SettingsTabDescriptor::new(
-        AgentConfigTab::Skills,
-        "技能",
-        &["skills", "open-skills", "catalog"],
-    ),
+    SettingsTabDescriptor::new(AgentConfigTab::Skills, "技能", &["skills", "catalog"]),
     SettingsTabDescriptor::new(
         AgentConfigTab::Plugins,
         "插件",

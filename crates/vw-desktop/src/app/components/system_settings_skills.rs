@@ -6,15 +6,15 @@ mod help;
 pub(super) mod plugins;
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_help_button, settings_muted_text_style,
-    settings_error_banner, settings_page_intro, settings_pick_list_menu_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_error_banner, settings_help_button,
+    settings_muted_text_style, settings_page_intro, settings_pick_list_menu_style,
     settings_pick_list_style, settings_section_card, settings_section_content,
-    settings_segment_button_style, settings_text_input_style,
+    settings_segment_button_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::SkillsSettingsTab;
 use crate::app::{App, Message, message};
-use iced::widget::{button, checkbox, column, container, pick_list, row, text, text_input};
+use iced::widget::{button, checkbox, column, container, pick_list, row, text};
 use iced::{Alignment, Element, Length};
 use vw_config_types::skills::{SkillsDirectoryProvider, SkillsPromptInjectionMode};
 
@@ -66,7 +66,7 @@ pub(super) const SKILLS_TABS: &[SettingsTabDescriptor<SkillsSettingsTab>] = &[
     SettingsTabDescriptor::new(
         SKILLS_TAB_LABELS[0].1,
         SKILLS_TAB_LABELS[0].0,
-        &["skills", "open-skills", "catalog", "技能目录"],
+        &["skills", "catalog", "技能目录"],
     ),
     SettingsTabDescriptor::new(
         SKILLS_TAB_LABELS[1].1,
@@ -114,26 +114,6 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
             .style(settings_checkbox_style),
     );
 
-    let open_enabled_row = field_row(
-        "Community sync",
-        "控制是否启用 open-skills 仓库同步。",
-        checkbox(s.open_skills_enabled)
-            .label("启用 open-skills 仓库同步")
-            .on_toggle(|v| Message::Settings(message::SettingsMessage::SkillsOpenEnabledToggled(v)))
-            .style(settings_checkbox_style),
-    );
-
-    let open_dir_row = field_row(
-        "Repository path",
-        "为空时默认使用 $HOME/open-skills。",
-        text_input("默认: $HOME/open-skills", &s.open_skills_dir_input)
-            .on_input(|v| Message::Settings(message::SettingsMessage::SkillsOpenDirChanged(v)))
-            .padding([10, 12])
-            .size(13)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
-    );
-
     let mode_full = matches!(s.prompt_injection_mode, SkillsPromptInjectionMode::Full);
     let mode_row = field_row(
         "Injection mode",
@@ -152,18 +132,18 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
             .style(settings_checkbox_style),
     );
 
-    let config_card = column![
-        settings_section_card(
-            "系统配置",
-            "这里配置项目技能默认加载、社区同步与 prompt injection；目录顺序单独展示。",
-        ),
-        settings_section_content(
-            column![provider_row, project_auto_load_row, open_enabled_row, open_dir_row, mode_row]
-                .spacing(0),
-        ),
-    ]
-    .spacing(16)
-    .width(Length::Fill);
+    let config_card =
+        column![
+            settings_section_card(
+                "系统配置",
+                "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。",
+            ),
+            settings_section_content(
+                column![provider_row, project_auto_load_row, mode_row].spacing(0),
+            ),
+        ]
+        .spacing(16)
+        .width(Length::Fill);
 
     config_card.into()
 }

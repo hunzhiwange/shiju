@@ -636,8 +636,6 @@ fn skill_mapping_loading_detail_and_config_paths() {
     assert!(app.skills_settings.save_error.is_none());
     let _ = update(&mut app, SettingsMessage::SkillsProjectAutoLoadToggled(false));
     assert!(!app.skills_settings.auto_load_project_skills);
-    let _ = update(&mut app, SettingsMessage::SkillsOpenEnabledToggled(true));
-    let _ = update(&mut app, SettingsMessage::SkillsOpenDirChanged(" /tmp/skills ".to_string()));
     let _ = update(
         &mut app,
         SettingsMessage::SkillsPromptInjectionModeChanged(SkillsPromptInjectionMode::Full),

@@ -261,6 +261,49 @@ fn trajectory_projection_record_ids_are_stable_across_reload_and_input_order() {
 }
 
 #[test]
+fn trajectory_projection_keeps_cumulative_messages_and_duplicate_step_indices_stable() {
+    let mut first_turn = step(1, 100, Some(200), [3, 2, 0, 0]);
+    first_turn.turn_id = Some("turn-a".to_string());
+    let mut second_turn = step(1, 300, Some(400), [4, 2, 0, 0]);
+    second_turn.turn_id = Some("turn-b".to_string());
+    let first_messages = vec![json!({"role": "user", "content": "first"})];
+    let second_messages = vec![
+        json!({"role": "user", "content": "first"}),
+        json!({"role": "assistant", "content": "answer one"}),
+        json!({"role": "user", "content": "second"}),
+    ];
+    let raw = HashMap::from([
+        (
+            ("session".to_string(), "turn-a".to_string(), 1),
+            raw_step(first_messages, "answer one", "reason one", Vec::new()),
+        ),
+        (
+            ("session".to_string(), "turn-b".to_string(), 1),
+            raw_step(second_messages, "answer two", "reason two", Vec::new()),
+        ),
+    ]);
+
+    let projection = project_trajectory(&[first_turn, second_turn], &raw);
+
+    assert_eq!(projection.steps.len(), 2);
+    assert_eq!(projection.records.len(), 5);
+    assert_eq!(
+        projection.records.iter().map(|record| record.id.as_str()).collect::<Vec<_>>(),
+        vec![
+            "turn:turn-a:step:1:system:0",
+            "turn:turn-a:step:1:message:0:user",
+            "turn:turn-a:step:1:assistant",
+            "turn:turn-b:step:1:message:2:user",
+            "turn:turn-b:step:1:assistant",
+        ]
+    );
+    assert_eq!(projection.records[2].detail.reasoning.as_deref(), Some("reason one"));
+    assert_eq!(projection.records[3].detail.input.as_deref(), Some("second"));
+    assert_eq!(projection.records[4].detail.reasoning.as_deref(), Some("reason two"));
+    assert_eq!(projection.summary.usage, TrajectoryUsage::new(7, 4, 0, 0));
+}
+
+#[test]
 fn projection_uses_persisted_tool_timing_by_call_id() {
     let mut persisted_step = step(1, 100, Some(500), [8, 1, 0, 0]);
     persisted_step.tool_timings = vec![

@@ -56,10 +56,10 @@ struct RequestSnapshot {
 }
 
 #[derive(Default)]
-struct ProjectionBuilder {
+struct ProjectionBuilder<'raw> {
     records: Vec<TrajectoryRecord>,
-    previous_messages: Vec<Value>,
-    previous_message_sources: Vec<Value>,
+    previous_messages: Option<&'raw [Value]>,
+    previous_message_sources: Option<&'raw [Value]>,
     previous_system: Vec<Value>,
     seen_system: HashSet<String>,
     assistant_echoes: Vec<AssistantEcho>,
@@ -69,7 +69,7 @@ struct ProjectionBuilder {
     next_turn: u32,
 }
 
-impl ProjectionBuilder {
+impl<'raw> ProjectionBuilder<'raw> {
     fn new(steps: &[ChatSessionStep]) -> Self {
         let mut ordered_steps = steps.iter().collect::<Vec<_>>();
         ordered_steps.sort_by_key(|step| step.index);
@@ -90,7 +90,7 @@ impl ProjectionBuilder {
         &mut self,
         step_index: u32,
         step: Option<&ChatSessionStep>,
-        raw: Option<&Value>,
+        raw: Option<&'raw Value>,
     ) -> TrajectoryStep {
         let mut record_ids = Vec::new();
         let mut turn_indices = Vec::new();
@@ -185,8 +185,8 @@ impl ProjectionBuilder {
     fn project_messages(
         &mut self,
         step_index: u32,
-        messages: Option<&Value>,
-        message_sources: Option<&Value>,
+        messages: Option<&'raw Value>,
+        message_sources: Option<&'raw Value>,
         request_tools: &[TrajectoryToolDefinition],
         record_ids: &mut Vec<String>,
         turn_indices: &mut Vec<u32>,
@@ -194,12 +194,12 @@ impl ProjectionBuilder {
         let Some(messages) = messages.and_then(Value::as_array) else {
             return;
         };
-        let message_sources = aligned_message_sources(messages, message_sources);
+        let message_sources = message_sources.and_then(Value::as_array).map(Vec::as_slice);
         let prefix_len = common_message_prefix_len(
-            &self.previous_messages,
-            &self.previous_message_sources,
+            self.previous_messages.unwrap_or_default(),
+            self.previous_message_sources,
             messages,
-            &message_sources,
+            message_sources,
         );
         for (offset, message) in messages[prefix_len..].iter().enumerate() {
             let message_index = prefix_len + offset;
@@ -207,13 +207,13 @@ impl ProjectionBuilder {
                 step_index,
                 message_index,
                 message,
-                message_sources.get(message_index),
+                message_source(message_sources, message_index),
                 request_tools,
                 record_ids,
                 turn_indices,
             );
         }
-        self.previous_messages.clone_from(messages);
+        self.previous_messages = Some(messages);
         self.previous_message_sources = message_sources;
     }
 
@@ -605,13 +605,7 @@ pub(crate) fn project_trajectory<K: ProjectionRawKey>(
             (step.started_ms, step.index, key.0.clone())
         })
     });
-    let duplicate_step_indices = ordered_keys
-        .iter()
-        .map(|(_, step_index)| *step_index)
-        .filter(|step_index| {
-            ordered_keys.iter().filter(|(_, candidate)| candidate == step_index).count() > 1
-        })
-        .collect::<BTreeSet<_>>();
+    let duplicate_step_indices = duplicate_step_indices(&ordered_keys);
 
     let mut builder = ProjectionBuilder::new(steps);
     let projected_steps = ordered_keys
@@ -638,6 +632,14 @@ pub(crate) fn project_trajectory<K: ProjectionRawKey>(
     let turns = build_turns(&builder.records, &projected_steps);
     let summary = build_summary(&builder.records, &projected_steps, &turns);
     TrajectoryProjection { records: builder.records, steps: projected_steps, turns, summary }
+}
+
+fn duplicate_step_indices(keys: &[(String, u32)]) -> BTreeSet<u32> {
+    let mut counts = BTreeMap::<u32, usize>::new();
+    for (_, step_index) in keys {
+        *counts.entry(*step_index).or_default() += 1;
+    }
+    counts.into_iter().filter_map(|(index, count)| (count > 1).then_some(index)).collect()
 }
 
 fn build_turns(records: &[TrajectoryRecord], steps: &[TrajectoryStep]) -> Vec<TrajectoryTurn> {
@@ -786,29 +788,24 @@ fn common_prefix_len(previous: &[Value], current: &[Value]) -> usize {
     previous.iter().zip(current).take_while(|(left, right)| left == right).count()
 }
 
-fn aligned_message_sources(messages: &[Value], sources: Option<&Value>) -> Vec<Value> {
-    let sources = sources.and_then(Value::as_array);
-    messages
-        .iter()
-        .enumerate()
-        .map(|(index, _)| {
-            sources.and_then(|sources| sources.get(index)).cloned().unwrap_or(Value::Null)
-        })
-        .collect()
+fn message_source(sources: Option<&[Value]>, index: usize) -> Option<&Value> {
+    sources.and_then(|sources| sources.get(index)).filter(|source| !source.is_null())
 }
 
 fn common_message_prefix_len(
     previous_messages: &[Value],
-    previous_sources: &[Value],
+    previous_sources: Option<&[Value]>,
     current_messages: &[Value],
-    current_sources: &[Value],
+    current_sources: Option<&[Value]>,
 ) -> usize {
     previous_messages
         .iter()
-        .zip(previous_sources)
-        .zip(current_messages.iter().zip(current_sources))
-        .take_while(|((previous_message, previous_source), (current_message, current_source))| {
-            previous_message == current_message && previous_source == current_source
+        .zip(current_messages)
+        .enumerate()
+        .take_while(|(index, (previous_message, current_message))| {
+            previous_message == current_message
+                && message_source(previous_sources, *index)
+                    == message_source(current_sources, *index)
         })
         .count()
 }

@@ -301,9 +301,19 @@ async fn project_resolve_v1(
     Extension(tenant): Extension<TenantScope>,
     Json(body): Json<ResolveProjectRequest>,
 ) -> Result<Json<ResolveProjectResponse>, ApiError> {
-    let (info, _) = project::from_directory(&tenant, body.directory)
-        .await
-        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    let info = if body.create_if_missing {
+        project::from_directory(&tenant, body.directory)
+            .await
+            .map(|(info, _)| info)
+            .map_err(|error| ApiError::bad_request(error.to_string()))?
+    } else {
+        project::list(&tenant)
+            .await
+            .map_err(|error| ApiError::bad_request(error.to_string()))?
+            .into_iter()
+            .find(|info| project_owns_directory(info, &body.directory))
+            .ok_or_else(|| ApiError::not_found("project directory not found"))?
+    };
     let project = crate::global_database::run_isolated(move || map_project(&info))
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?;

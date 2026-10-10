@@ -807,6 +807,42 @@ async fn project_resolve_and_change_records_handle_plain_directory() {
 }
 
 #[tokio::test]
+async fn project_resolve_without_create_does_not_persist_missing_directory() {
+    let temp = TempDir::new().expect("tempdir");
+    let directory = temp.path().to_string_lossy().to_string();
+
+    let error = project_resolve_v1(
+        default_tenant_scope(),
+        Json(ResolveProjectRequest { directory: directory.clone(), create_if_missing: false }),
+    )
+    .await
+    .expect_err("unregistered directory should not resolve");
+
+    assert_eq!(error.status, axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(error.message, "project directory not found");
+    let projects = project::list(&project::default_tenant_scope()).await.expect("list projects");
+    assert!(!projects.iter().any(|info| project_owns_directory(info, &directory)));
+}
+
+#[tokio::test]
+async fn project_resolve_without_create_returns_registered_project() {
+    let temp = TempDir::new().expect("tempdir");
+    let directory = temp.path().to_string_lossy().to_string();
+    let id = format!("handler-project-resolve-existing-{}", Uuid::new_v4());
+    store_project(&project_info(&id, directory.clone(), Vec::new()));
+
+    let Json(resolved) = project_resolve_v1(
+        default_tenant_scope(),
+        Json(ResolveProjectRequest { directory, create_if_missing: false }),
+    )
+    .await
+    .expect("registered directory should resolve");
+
+    assert_eq!(resolved.project.id.0, id);
+    remove_project(&resolved.project.id.0);
+}
+
+#[tokio::test]
 async fn project_change_records_uses_stored_sandbox_match() {
     let temp = TempDir::new().expect("tempdir");
     let repo = git2::Repository::init(temp.path()).expect("repo init");

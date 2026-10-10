@@ -10,7 +10,7 @@ use vw_api_types::common::TimestampMs;
 use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
 
 use super::PostgresAgentSchedulerStore;
-use crate::agent_scheduler::domain::{TaskId, TeamId, AssigneeId};
+use crate::agent_scheduler::domain::{AssigneeId, TaskId, TeamId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
 use crate::agent_scheduler::store::AgentSchedulerStorageContext;
 use crate::agent_scheduler::store::tasks::{

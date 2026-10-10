@@ -7,9 +7,9 @@ use vw_config_types::channels::ClawdTalkConfig;
 use vw_config_types::channels::EmailConfig;
 use vw_config_types::channels::{
     DEFAULT_CHANNEL_INSTANCE_ID, DingTalkInstanceConfig, DiscordConfig, FeishuInstanceConfig,
-    IMessageConfig, IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig,
-    MattermostConfig, NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig,
-    SlackConfig, TelegramConfig, WatiConfig, WebhookConfig, WhatsAppConfig,
+    IMessageConfig, IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig, MattermostConfig,
+    NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig, SlackConfig,
+    TelegramConfig, WatiConfig, WebhookConfig, WhatsAppConfig,
 };
 
 use super::helpers::{default_dingtalk_config, default_feishu_config};

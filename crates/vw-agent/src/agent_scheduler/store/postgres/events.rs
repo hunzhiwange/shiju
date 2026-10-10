@@ -7,7 +7,7 @@ use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_types::common::TimestampMs;
 
 use super::PostgresAgentSchedulerStore;
-use crate::agent_scheduler::domain::{RunId, TaskId, TeamId, AssigneeId};
+use crate::agent_scheduler::domain::{AssigneeId, RunId, TaskId, TeamId};
 use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::state_machine::AgentTaskStatus;
 use crate::agent_scheduler::store::AgentSchedulerStorageContext;

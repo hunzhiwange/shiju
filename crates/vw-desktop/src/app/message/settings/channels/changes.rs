@@ -541,7 +541,6 @@ mod changes_tests;
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 pub(super) fn apply_bool_change(app: &mut App, key: &str, value: bool) {
-
     match key {
         "telegram.interrupt_on_new_message" => {
             if let Some(cfg) = app.channels_settings.telegram.as_mut() {

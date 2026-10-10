@@ -40,11 +40,13 @@ fn active_runner_drain_yields_after_stream_budget() {
     );
 
     assert!(runner.drain(&mut app), "a full stream budget must yield remaining work");
-    let rendered = app.transcript_lines(80, true).iter().map(ToString::to_string).collect::<String>();
+    let rendered =
+        app.transcript_lines(80, true).iter().map(ToString::to_string).collect::<String>();
     assert_eq!(rendered.matches('x').count(), STREAM_EVENT_BUDGET);
 
     runner.drain(&mut app);
-    let rendered = app.transcript_lines(80, true).iter().map(ToString::to_string).collect::<String>();
+    let rendered =
+        app.transcript_lines(80, true).iter().map(ToString::to_string).collect::<String>();
     assert_eq!(rendered.matches('x').count(), STREAM_EVENT_BUDGET + 1);
 }
 
@@ -54,10 +56,7 @@ fn ready_key_burst_is_applied_before_next_frame() {
     let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
     let mut events = (0..TERMINAL_EVENT_BUDGET)
         .map(|_| Event::Key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE)))
-        .chain(std::iter::once(Event::Key(KeyEvent::new(
-            KeyCode::Char('z'),
-            KeyModifiers::NONE,
-        ))));
+        .chain(std::iter::once(Event::Key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE))));
     let first = events.next().expect("non-empty input burst");
 
     let outcome = apply_ready_terminal_events(&mut app, &mut runner, first, || Ok(events.next()))
@@ -546,9 +545,7 @@ fn runner_loads_owned_cron_history_without_cross_source_loss() {
         "/v1/cron/cron%2Fowned/runs"
     );
     server.join().expect("Cron history fixture");
-    drain_until(&mut runner, &mut app, |_, app| {
-        transcript_text(app).contains("nightly complete")
-    });
+    drain_until(&mut runner, &mut app, |_, app| transcript_text(app).contains("nightly complete"));
     assert_eq!(
         app.state().orchestration.workflows.error.as_deref(),
         Some("existing workflow warning"),

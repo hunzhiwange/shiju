@@ -344,8 +344,6 @@ async fn task_plan_resumable_stream_reports_caller_stop() {
     server.join();
 }
 
-
-
 #[tokio::test]
 async fn task_pool_api_uses_documented_pool_routes() {
     let server = test_support::server(vec![

@@ -14,11 +14,6 @@ fn app() -> App {
     App::new().0
 }
 
-
-
-
 mod channel_instance_settings {
     use super::*;
-
-
 }

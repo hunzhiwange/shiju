@@ -98,10 +98,6 @@ async fn request_helpers_cover_http_verbs_success_404_decode_and_error_paths() {
     server.join();
 }
 
-
-
-
-
 #[tokio::test]
 async fn delete_empty_returns_status_and_response_body_on_failure() {
     let server = test_support::server(vec![(405, json!({"message": "delete denied"}))]);

@@ -7,8 +7,8 @@ use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
 
 use crate::agent_scheduler::adapters::local::LocalDispatchRequest;
 use crate::agent_scheduler::domain::{RunId, TaskId};
-use crate::agent_scheduler::lifecycle_bridge::{LifecycleBridge, LifecycleDispatchEligibility};
 use crate::agent_scheduler::lifecycle_bridge::builtin_task_workflow_snapshot;
+use crate::agent_scheduler::lifecycle_bridge::{LifecycleBridge, LifecycleDispatchEligibility};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::runs::{ClaimReadyTaskRunRequest, StoredAgentRun};
 use crate::agent_scheduler::store::tasks::{AgentTaskFilter, StoredAgentTask};
@@ -152,18 +152,13 @@ impl<'a> DispatchEngine<'a> {
             },
         )
     }
-
-
-
 }
 
 pub(crate) fn load_dispatch_workflow(
     store: &AgentSchedulerStore,
     project_path: &(impl AgentSchedulerStorageContext + ?Sized),
 ) -> Result<TaskPoolWorkflowSnapshotDto> {
-    Ok(store
-        .load_task_board_workflow(project_path)?
-        .unwrap_or_else(builtin_task_workflow_snapshot))
+    Ok(store.load_task_board_workflow(project_path)?.unwrap_or_else(builtin_task_workflow_snapshot))
 }
 
 pub(crate) fn task_lifecycle_allows_dispatch(
@@ -236,9 +231,6 @@ pub(crate) fn legacy_dispatch_status_key(status: AgentTaskStatus) -> &'static st
     }
 }
 
-
-
-
 pub(crate) fn ready_queued_finite_task(
     store: &AgentSchedulerStore,
     project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -278,7 +270,6 @@ fn task_graph_allows_dispatch(graph: &TaskGraph, task: &StoredAgentTask) -> Resu
     Ok(matches!(graph.readiness_for(&task.id)?, TaskGraphReadiness::Ready))
 }
 
-
 pub(crate) fn dispatch_model(task: &StoredAgentTask) -> Option<String> {
     dispatch_metadata_string(task, "model").filter(|model| !model.eq_ignore_ascii_case("auto"))
 }
@@ -310,7 +301,6 @@ fn dispatch_metadata_string(task: &StoredAgentTask, key: &str) -> Option<String>
         .filter(|value| !value.is_empty())
         .map(str::to_string)
 }
-
 
 fn required_skills_from_metadata(metadata: &Value) -> Result<Vec<String>> {
     let skills = string_array_field(metadata, "required_skills")?;

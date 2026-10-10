@@ -6,7 +6,7 @@ use rusqlite::{Connection, OptionalExtension, Row, TransactionBehavior, params};
 use serde_json::Value;
 use vw_api_types::common::TimestampMs;
 
-use crate::agent_scheduler::domain::{RunId, TaskId, TeamId, AssigneeId};
+use crate::agent_scheduler::domain::{AssigneeId, RunId, TaskId, TeamId};
 use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::state_machine::AgentTaskStatus;
 

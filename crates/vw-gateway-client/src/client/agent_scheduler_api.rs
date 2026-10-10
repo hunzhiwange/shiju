@@ -8,8 +8,8 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskBoardStatusResponse,
     AgentSchedulerTaskBoardWorkflowResponse, AgentSchedulerTaskGraphResponse,
     AgentSchedulerTaskLogsResponse, AgentSchedulerTaskMetadataUpdateRequest,
-    AgentSchedulerTaskMetadataUpdateResponse,
-    AgentSchedulerWakeRequest, AgentSchedulerWakeResponse ,
+    AgentSchedulerTaskMetadataUpdateResponse, AgentSchedulerWakeRequest,
+    AgentSchedulerWakeResponse,
 };
 
 use super::GatewayClient;
@@ -257,7 +257,6 @@ fn agent_scheduler_wake_path(scope: &AgentSchedulerScopeDto) -> String {
 fn agent_scheduler_outbox_drain_path(scope: &AgentSchedulerScopeDto) -> String {
     format!("{}/outbox/drain", agent_scheduler_project_path(scope))
 }
-
 
 fn encode_path_segment(value: &str) -> String {
     let mut encoded = String::new();

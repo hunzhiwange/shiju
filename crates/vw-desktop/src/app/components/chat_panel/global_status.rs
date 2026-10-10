@@ -180,32 +180,40 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
         .into()
 }
 
-/// 使用固定星形，避免动画帧触发新字形的整形与栅格化。
-const THINK_PULSE_GLYPH: &str = "✳";
+/// 恢复原有的四种星形轮换效果。
+const THINK_PULSE_GLYPHS: [&str; 4] = ["✳", "✶", "✷", "❋"];
+const THINK_PULSE_FRAMES_PER_GLYPH: usize = 6;
+/// 每个原始视觉帧持续两个 90ms 全局帧，降低重布局频率。
+const THINK_PULSE_FRAME_HOLD: usize = 2;
 
-pub(crate) fn think_pulse_glyph(_frame: usize) -> &'static str {
-    THINK_PULSE_GLYPH
+fn think_pulse_frame(frame: usize) -> usize {
+    frame / THINK_PULSE_FRAME_HOLD
 }
 
-const THINK_PULSE_SIZE: f32 = 24.0;
+pub(crate) fn think_pulse_glyph(frame: usize) -> &'static str {
+    let frame = think_pulse_frame(frame);
+    THINK_PULSE_GLYPHS[(frame / THINK_PULSE_FRAMES_PER_GLYPH) % THINK_PULSE_GLYPHS.len()]
+}
+
+const THINK_PULSE_MIN_SIZE: f32 = 14.0;
 const THINK_PULSE_MAX_SIZE: f32 = 44.0;
-const THINK_PULSE_BREATH_PERIOD: usize = 24;
-const THINK_PULSE_MIN_ALPHA: f32 = 0.5;
+const THINK_PULSE_BREATH_PERIOD: usize = THINK_PULSE_FRAMES_PER_GLYPH * 2;
 const THINK_PULSE_VERTICAL_OFFSET: f32 = 3.0;
 
-pub(crate) fn think_pulse_size(_frame: usize) -> f32 {
-    THINK_PULSE_SIZE
+pub(crate) fn think_pulse_size(frame: usize) -> f32 {
+    let frame = think_pulse_frame(frame);
+    let phase = (frame % THINK_PULSE_BREATH_PERIOD) as f32 / THINK_PULSE_BREATH_PERIOD as f32
+        * std::f32::consts::TAU;
+    let wave = (1.0 - phase.cos()) / 2.0;
+    THINK_PULSE_MIN_SIZE + wave * (THINK_PULSE_MAX_SIZE - THINK_PULSE_MIN_SIZE)
 }
 
 pub(crate) fn think_pulse_geometry(frame: usize) -> (f32, f32) {
     (THINK_PULSE_MAX_SIZE, think_pulse_size(frame))
 }
 
-pub(crate) fn think_pulse_color(frame: usize) -> Color {
-    let phase = (frame % THINK_PULSE_BREATH_PERIOD) as f32 / THINK_PULSE_BREATH_PERIOD as f32
-        * std::f32::consts::TAU;
-    let wave = (1.0 - phase.cos()) / 2.0;
-    Color { a: THINK_PULSE_MIN_ALPHA + wave * (1.0 - THINK_PULSE_MIN_ALPHA), ..THINK_PULSE_ACCENT }
+pub(crate) fn think_pulse_color(_frame: usize) -> Color {
+    THINK_PULSE_ACCENT
 }
 
 fn think_pulse_indicator<'a>(frame: usize) -> Element<'a, Message> {

@@ -14,7 +14,7 @@ use vw_api_types::task::{
 };
 
 use super::*;
-use crate::agent_scheduler::domain::{RunId, TaskId, AssigneeId};
+use crate::agent_scheduler::domain::{AssigneeId, RunId, TaskId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::runs::ClaimTaskRunRequest;
 use crate::agent_scheduler::store::tasks::NewAgentTask;

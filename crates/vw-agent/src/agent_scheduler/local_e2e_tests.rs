@@ -6,7 +6,7 @@ use serde_json::json;
 use std::path::Path;
 use vw_api_types::common::TimestampMs;
 
-use super::domain::{AgentRunStatus, TaskId, AssigneeId};
+use super::domain::{AgentRunStatus, AssigneeId, TaskId};
 use super::events::AgentEventKind;
 use super::runner::local::{
     LocalAgentExecutionOutput, LocalAgentExecutionRequest, LocalAgentExecutor, LocalAgentRunner,
@@ -15,8 +15,6 @@ use super::runner::local::{
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::AgentSchedulerStore;
 use super::store::tasks::NewAgentTask;
-
-
 
 struct RecordingExecutor {
     output: String,

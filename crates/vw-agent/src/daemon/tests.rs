@@ -224,7 +224,6 @@ mod tests {
         assert!(!has_supervised_channels(&config));
     }
 
-
     #[test]
     fn configured_webhook_is_not_a_supervised_channel() {
         let mut config = Config::default();
@@ -695,8 +694,4 @@ mod tests {
         let target = heartbeat_delivery_target(&config).unwrap();
         assert_eq!(target, Some(("telegram".to_string(), "123456".to_string())));
     }
-
-
-
-
 }

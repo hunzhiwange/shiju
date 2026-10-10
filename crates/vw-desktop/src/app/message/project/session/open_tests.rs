@@ -608,11 +608,7 @@ fn short_remote_refresh_preserves_prepared_history() {
             Some("message-3".to_string()),
         ],
     );
-    local.messages = vec![
-        chat_message("first"),
-        chat_message("second"),
-        chat_message("third"),
-    ];
+    local.messages = vec![chat_message("first"), chat_message("second"), chat_message("third")];
     let _ = super::super::lifecycle::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::SessionOpenPrepared {
@@ -645,9 +641,10 @@ fn short_remote_refresh_preserves_prepared_history() {
             Some("message-3".to_string()),
         ]
     );
-    assert_eq!(app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(), vec![
-        "first", "second", "third"
-    ]);
+    assert_eq!(
+        app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),
+        vec!["first", "second", "third"]
+    );
 
     let empty = crate::app::session::prepare_session_open(
         "target".to_string(),
@@ -687,10 +684,7 @@ fn remote_refresh_does_not_restore_messages_after_explicit_reset() {
     app.active_session_id = Some("target".to_string());
     app.chat = vec![chat_message("retained")];
     app.chat_message_ids = vec![Some("message-1".to_string())];
-    app.mark_session_history_reset_boundary(
-        "target".to_string(),
-        app.chat_message_ids.clone(),
-    );
+    app.mark_session_history_reset_boundary("target".to_string(), app.chat_message_ids.clone());
 
     let mut stale = ui_store_session(
         "target",
@@ -709,9 +703,10 @@ fn remote_refresh_does_not_restore_messages_after_explicit_reset() {
     );
 
     assert_eq!(app.chat_message_ids, vec![Some("message-1".to_string())]);
-    assert_eq!(app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(), vec![
-        "retained"
-    ]);
+    assert_eq!(
+        app.chat.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),
+        vec!["retained"]
+    );
 }
 
 #[test]

@@ -1,17 +1,16 @@
 use crate::task::{
-    CommandTaskSpecDto, CreateTaskRequest, ListTasksRequest, TaskKind,
-    TaskPlanRunStatus, TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto,
-    TaskPoolStatus, TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto,
-    TaskPoolWorkflowStatusRoleDto, TaskPoolWorkflowTransitionDto, TaskPoolWorktreeAcquireRequest,
-    TaskPoolWorktreeAcquireResponse, TaskPoolWorktreeMaintenanceRequest,
-    TaskPoolWorktreeMaintenanceResponse, TaskPoolWorktreeMergeLockDto,
-    TaskPoolWorktreeMergeLockRequest, TaskPoolWorktreeMergeLockResponse,
-    TaskPoolWorktreeMergeUnlockRequest, TaskPoolWorktreeMergeUnlockResponse,
-    TaskPoolWorktreeRecycleRequest, TaskPoolWorktreeRecycleResponse,
-    TaskPoolWorktreeReleaseRequest, TaskPoolWorktreeReleaseResponse, TaskPoolWorktreeSlotDto,
-    TaskPoolWorktreeSlotRecycleRequest, TaskPoolWorktreeSlotRecycleResponse,
-    TaskPoolWorktreeSlotStateDto, TaskPoolWorktreeSnapshotRequest,
-    TaskPoolWorktreeSnapshotResponse, TaskStatus,
+    CommandTaskSpecDto, CreateTaskRequest, ListTasksRequest, TaskKind, TaskPlanRunStatus,
+    TaskPlanRunStatusResponse, TaskPlanRunStreamEventDto, TaskPoolStatus,
+    TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
+    TaskPoolWorkflowTransitionDto, TaskPoolWorktreeAcquireRequest, TaskPoolWorktreeAcquireResponse,
+    TaskPoolWorktreeMaintenanceRequest, TaskPoolWorktreeMaintenanceResponse,
+    TaskPoolWorktreeMergeLockDto, TaskPoolWorktreeMergeLockRequest,
+    TaskPoolWorktreeMergeLockResponse, TaskPoolWorktreeMergeUnlockRequest,
+    TaskPoolWorktreeMergeUnlockResponse, TaskPoolWorktreeRecycleRequest,
+    TaskPoolWorktreeRecycleResponse, TaskPoolWorktreeReleaseRequest,
+    TaskPoolWorktreeReleaseResponse, TaskPoolWorktreeSlotDto, TaskPoolWorktreeSlotRecycleRequest,
+    TaskPoolWorktreeSlotRecycleResponse, TaskPoolWorktreeSlotStateDto,
+    TaskPoolWorktreeSnapshotRequest, TaskPoolWorktreeSnapshotResponse, TaskStatus,
 };
 use serde_json::json;
 
@@ -39,7 +38,6 @@ fn task_requests_default_stream_and_filters() {
     assert_eq!(serde_json::to_value(TaskStatus::Cancelled).expect("serialize"), json!("cancelled"));
 }
 
-
 #[test]
 fn task_pool_status_keys_round_trip_for_all_builtin_statuses() {
     let statuses = [
@@ -61,10 +59,6 @@ fn task_pool_status_keys_round_trip_for_all_builtin_statuses() {
     }
     assert_eq!(TaskPoolStatus::from_status_key("custom_review"), None);
 }
-
-
-
-
 
 #[test]
 fn task_worktree_pool_types_round_trip() {

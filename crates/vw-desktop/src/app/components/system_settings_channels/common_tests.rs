@@ -15,9 +15,9 @@ use iced::widget::text;
 use vw_config_types::channels::{
     ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, DiscordConfig, FeishuConfig,
     FeishuInstanceConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, IrcConfig, LarkConfig,
-    LarkReceiveMode, LinqConfig, MattermostConfig,
-    NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig, SlackConfig,
-    TelegramConfig, WatiConfig, WebhookConfig, WhatsAppConfig,
+    LarkReceiveMode, LinqConfig, MattermostConfig, NextcloudTalkConfig, NostrConfig, QQConfig,
+    QQReceiveMode, SignalConfig, SlackConfig, TelegramConfig, WatiConfig, WebhookConfig,
+    WhatsAppConfig,
 };
 
 fn test_app() -> App {
@@ -27,7 +27,6 @@ fn test_app() -> App {
 fn keep_element(element: iced::Element<'_, Message>) {
     std::hint::black_box(element);
 }
-
 
 fn feishu_config() -> FeishuConfig {
     FeishuConfig {
@@ -51,9 +50,6 @@ fn dingtalk_config() -> DingTalkConfig {
         allowed_users: vec!["alice".to_string()],
     }
 }
-
-
-
 
 #[test]
 fn localized_label_maps_every_known_key_and_falls_back_to_original_key() {
@@ -186,7 +182,6 @@ fn labeled_options_display_human_labels() {
         [("webhook", "Webhook".to_string()), ("websocket", "WebSocket".to_string())]
     );
 }
-
 
 #[test]
 #[should_panic(expected = "multiline channel editor should be initialized")]

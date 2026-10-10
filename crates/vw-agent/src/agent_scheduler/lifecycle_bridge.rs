@@ -20,19 +20,9 @@ pub fn builtin_task_workflow_snapshot() -> TaskPoolWorkflowSnapshotDto {
         ("running", "Running", TaskPoolWorkflowStatusRoleDto::Executing, false),
         ("failed", "Failed", TaskPoolWorkflowStatusRoleDto::Failed, false),
         ("paused", "Paused", TaskPoolWorkflowStatusRoleDto::Paused, false),
-        (
-            "code_complete",
-            "Code Complete",
-            TaskPoolWorkflowStatusRoleDto::ReviewReady,
-            false,
-        ),
+        ("code_complete", "Code Complete", TaskPoolWorkflowStatusRoleDto::ReviewReady, false),
         ("code_review", "Code Review", TaskPoolWorkflowStatusRoleDto::Review, false),
-        (
-            "pr_submitted",
-            "PR Submitted",
-            TaskPoolWorkflowStatusRoleDto::Merging,
-            false,
-        ),
+        ("pr_submitted", "PR Submitted", TaskPoolWorkflowStatusRoleDto::Merging, false),
         ("completed", "Completed", TaskPoolWorkflowStatusRoleDto::Done, true),
         ("archived", "Archived", TaskPoolWorkflowStatusRoleDto::Archived, true),
     ];

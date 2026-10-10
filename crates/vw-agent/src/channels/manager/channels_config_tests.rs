@@ -2,9 +2,9 @@ use super::*;
 use crate::app::agent::config::schema::{
     DingTalkConfig, DingTalkInstanceConfig, DiscordConfig, EmailConfig, FeishuConfig,
     FeishuInstanceConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, IrcConfig, LarkConfig,
-    LarkReceiveMode, LinqConfig, MattermostConfig,
-    NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig, SlackConfig,
-    StreamMode, TelegramConfig, WatiConfig, WhatsAppConfig,
+    LarkReceiveMode, LinqConfig, MattermostConfig, NextcloudTalkConfig, NostrConfig, QQConfig,
+    QQReceiveMode, SignalConfig, SlackConfig, StreamMode, TelegramConfig, WatiConfig,
+    WhatsAppConfig,
 };
 use vw_config_types::channels::clawdtalk::ClawdTalkConfig;
 
@@ -29,7 +29,6 @@ fn whatsapp_config(
         allowed_numbers: vec!["+15551112222".to_string()],
     }
 }
-
 
 fn lark_config(use_feishu: bool) -> LarkConfig {
     LarkConfig {
@@ -277,12 +276,6 @@ fn collect_configured_channels_skips_whatsapp_web_without_feature() {
 
     assert!(collect_configured_channels(&config, "test").is_empty());
 }
-
-
-
-
-
-
 
 #[cfg(feature = "channel-lark")]
 #[test]

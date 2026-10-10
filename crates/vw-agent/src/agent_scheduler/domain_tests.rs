@@ -12,7 +12,7 @@ use vw_api_types::id::ProjectId;
 
 use super::domain::{
     AgentCapabilityKind, AgentResourceLease, AgentResourceLeaseStatus, AgentRun, AgentRunStatus,
-    AgentSchedulerContext, AgentTask, AgentTaskKind, AgentTaskStatus, TeamId, AssigneeId,
+    AgentSchedulerContext, AgentTask, AgentTaskKind, AgentTaskStatus, AssigneeId, TeamId,
 };
 
 #[test]
@@ -131,8 +131,6 @@ fn run_dto(task_id: &str) -> AgentRunDto {
         error_message: None,
     }
 }
-
-
 
 fn resource_lease_dto(holder_id: &str) -> AgentResourceLeaseDto {
     AgentResourceLeaseDto {

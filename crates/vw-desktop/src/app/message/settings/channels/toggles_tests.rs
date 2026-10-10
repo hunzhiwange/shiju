@@ -149,7 +149,6 @@ fn toggle_enabled_disables_every_static_channel() {
     assert!(app.channels_settings.clawdtalk.is_none());
 }
 
-
 #[test]
 fn toggle_enabled_ignores_unknown_channel() {
     let mut app = app();

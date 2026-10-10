@@ -49,9 +49,8 @@ pub(crate) use messages::{
     BrowserMessage, ChannelsMessage, EmbeddingRoutesMessage, GatewayClientMessage, GatewayMessage,
     GeneralSettingsMessage, HooksMessage, HttpRequestMessage, McpMessage, MemoryMessage,
     ModelConfigTabMessage, ModelRoutesMessage, MultimodalMessage, QueryClassificationMessage,
-    QuickMessagesMessage, RuntimeMessage, SettingsMessage, StorageMessage,
-    ThemeChromeField, ThemeColorPickerTarget, ThemePaletteField, ThemesMessage, TunnelMessage,
-    WebSearchMessage,
+    QuickMessagesMessage, RuntimeMessage, SettingsMessage, StorageMessage, ThemeChromeField,
+    ThemeColorPickerTarget, ThemePaletteField, ThemesMessage, TunnelMessage, WebSearchMessage,
 };
 
 pub(crate) fn reload_agents_config_task(project_path: Option<String>) -> Task<Message> {
@@ -87,7 +86,6 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
         _ => {}
     }
 }
-
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
 ///

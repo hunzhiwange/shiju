@@ -52,9 +52,6 @@ fn channel_changes_apply_text_bool_number_and_modes() {
     );
 }
 
-
-
-
 // 数据边界：覆盖规范化、默认值以及相关状态字段的既定规则。
 // 这里固定可观察结果，避免依赖处理过程中的临时实现细节。
 #[test]
@@ -69,7 +66,6 @@ fn channel_text_changes_clear_optional_fields_and_ignore_disabled_or_unknown_key
     assert_eq!(app.channels_settings.telegram.as_ref().unwrap().base_url, None);
     assert!(app.channels_settings.discord.is_none());
 }
-
 
 #[test]
 fn unknown_instance_fields_and_channel_keys_preserve_existing_values() {
@@ -88,7 +84,6 @@ fn unknown_instance_fields_and_channel_keys_preserve_existing_values() {
     assert_eq!(feishu.port, Some(8080));
     assert_eq!(feishu.receive_mode, LarkReceiveMode::Webhook);
 }
-
 
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
 // 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。

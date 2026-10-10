@@ -1150,12 +1150,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
             let incomplete_remote_history = source == PreparedSessionOpenSource::RemoteHistory
                 && (remote_history_is_incomplete(&app.chat_message_ids, &prepared.message_ids)
-                    || app
-                        .session_history_reset_boundary(&target_session_id)
-                        .is_some_and(|boundary| {
+                    || app.session_history_reset_boundary(&target_session_id).is_some_and(
+                        |boundary| {
                             boundary == app.chat_message_ids
                                 && prepared.message_ids != app.chat_message_ids
-                        }));
+                        },
+                    ));
             if incomplete_remote_history {
                 tracing::warn!(
                     target: "vw_desktop",

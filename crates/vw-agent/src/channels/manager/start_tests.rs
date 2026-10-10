@@ -80,7 +80,6 @@ fn tool_names(descriptions: &[(&'static str, &'static str)]) -> Vec<&'static str
     descriptions.iter().map(|(name, _)| *name).collect()
 }
 
-
 #[test]
 fn start_module_exports_start_channels_symbol() {
     let _ = start_channels;

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use vw_api_types::common::TimestampMs;
 
-use super::domain::{TaskId, TeamId, AssigneeId};
+use super::domain::{AssigneeId, TaskId, TeamId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::tasks::{NewAgentTask, StoredAgentTask};
 

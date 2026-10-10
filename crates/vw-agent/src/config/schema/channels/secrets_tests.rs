@@ -16,8 +16,6 @@ fn channel_secret_round_trip_is_noop_when_encryption_disabled() {
     assert!(channels.telegram.is_none());
 }
 
-
-
 #[test]
 fn channel_secret_round_trip_encrypts_remaining_channel_fields() {
     let tmp = tempfile::tempdir().unwrap();
@@ -112,7 +110,6 @@ fn channel_secret_round_trip_preserves_absent_optional_fields() {
     assert_eq!(channels.clawdtalk.unwrap().webhook_secret, None);
 }
 
-
 #[test]
 fn channel_secret_decrypt_error_identifies_legacy_optional_field() {
     let tmp = tempfile::tempdir().unwrap();
@@ -148,7 +145,6 @@ fn channel_secret_decrypt_error_identifies_legacy_required_field() {
     assert_eq!(channels.discord.unwrap().bot_token, "enc2:not-hex");
 }
 
-
 #[test]
 fn channel_secret_decrypt_error_identifies_named_instance_optional_field() {
     let tmp = tempfile::tempdir().unwrap();
@@ -171,7 +167,6 @@ fn channel_secret_decrypt_error_identifies_named_instance_optional_field() {
     );
     assert_eq!(channels.feishu_instances[0].config.encrypt_key.as_deref(), Some("enc2:not-hex"));
 }
-
 
 #[test]
 fn channel_secret_encrypt_error_identifies_legacy_field() {

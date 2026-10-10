@@ -20,10 +20,9 @@ use serde_json::{Map, Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 use vw_api_types::ReasoningEffortDto;
 use vw_api_types::agent_scheduler::{
-    AgentCapabilityKindDto, AgentEventDto, AgentEventKindDto,
-    AgentOutboxMessageDto, AgentOutboxMessageStatusDto, AgentRunDto, AgentRunStatusDto,
-    AgentSchedulerBulkCommandRequest, AgentSchedulerBulkCommandResponse,
-    AgentSchedulerCommandKindDto,
+    AgentCapabilityKindDto, AgentEventDto, AgentEventKindDto, AgentOutboxMessageDto,
+    AgentOutboxMessageStatusDto, AgentRunDto, AgentRunStatusDto, AgentSchedulerBulkCommandRequest,
+    AgentSchedulerBulkCommandResponse, AgentSchedulerCommandKindDto,
     AgentSchedulerCommandRequest as AgentSchedulerProjectCommandRequest,
     AgentSchedulerCommandResponse as AgentSchedulerProjectCommandResponse,
     AgentSchedulerCreateTaskRequest, AgentSchedulerCreateTaskResponse,
@@ -31,10 +30,9 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerLegacyImportResponse,
     AgentSchedulerOutboxDrainRequest as AgentSchedulerProjectOutboxDrainRequest,
     AgentSchedulerOutboxDrainResponse as AgentSchedulerProjectOutboxDrainResponse,
-    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerScope,
-    AgentSchedulerTaskArtifactDto, AgentSchedulerTaskArtifactsResponse,
-    AgentSchedulerTaskBoardEventDto, AgentSchedulerTaskBoardEventsResponse,
-    AgentSchedulerTaskBoardSnapshotReadModelDto,
+    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerScope, AgentSchedulerTaskArtifactDto,
+    AgentSchedulerTaskArtifactsResponse, AgentSchedulerTaskBoardEventDto,
+    AgentSchedulerTaskBoardEventsResponse, AgentSchedulerTaskBoardSnapshotReadModelDto,
     AgentSchedulerTaskBoardStatusResponse, AgentSchedulerTaskBoardTaskDto,
     AgentSchedulerTaskBoardTaskReadModelDto, AgentSchedulerTaskBoardWorkflowResponse,
     AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskGraphReadinessDto,
@@ -52,7 +50,7 @@ use vw_api_types::task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRole
 
 use crate::agent_scheduler::adapters::dispatch::LocalOnlyDispatchAdapter;
 use crate::agent_scheduler::domain::{
-    AgentCapabilityKind, AgentRunStatus, AgentSchedulerContext, RunId, TaskId, TeamId, AssigneeId,
+    AgentCapabilityKind, AgentRunStatus, AgentSchedulerContext, AssigneeId, RunId, TaskId, TeamId,
 };
 use crate::agent_scheduler::engine::dispatch::{
     DispatchEngine, DispatchMode, DispatchOutcome, load_dispatch_workflow,
@@ -410,10 +408,6 @@ async fn agent_scheduler_project_legacy_import(
     gateway.import_legacy_tasks(project_id, project_path, body).await.map(Json)
 }
 
-
-
-
-
 async fn agent_scheduler_project_logs(
     AxumPath((project_id, task_id)): AxumPath<(String, String)>,
     Extension(tenant): Extension<TenantScope>,
@@ -431,7 +425,6 @@ async fn agent_scheduler_project_artifacts(
     let project_path = resolve_project_context(tenant, &project_id).await?;
     gateway.task_artifacts(project_path, task_id).await.map(Json)
 }
-
 
 async fn agent_scheduler_project_events(
     AxumPath(project_id): AxumPath<String>,
@@ -633,10 +626,6 @@ pub(crate) trait AgentSchedulerGateway: Send + Sync {
         Err(ApiError::internal("agent scheduler legacy import gateway is not configured"))
     }
 
-
-
-
-
     async fn task_logs(
         &self,
         _project_path: AgentSchedulerContext,
@@ -652,7 +641,6 @@ pub(crate) trait AgentSchedulerGateway: Send + Sync {
     ) -> Result<AgentSchedulerTaskArtifactsResponse, ApiError> {
         Err(ApiError::internal("agent scheduler artifact gateway is not configured"))
     }
-
 
     async fn task_board_events(
         &self,
@@ -757,9 +745,6 @@ impl StoreBackedAgentSchedulerGateway {
             .filter(|task| task.kind == AgentTaskKind::Finite && execution_slot_status(task.status))
             .count())
     }
-
-
-
 }
 
 impl StoreBackedAgentSchedulerGateway {
@@ -1154,10 +1139,6 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
         })
     }
 
-
-
-
-
     async fn task_logs(
         &self,
         project_path: AgentSchedulerContext,
@@ -1189,7 +1170,6 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
             .collect();
         Ok(AgentSchedulerTaskArtifactsResponse { task_id: task_id.as_str().into(), artifacts })
     }
-
 
     async fn task_board_events(
         &self,
@@ -1395,20 +1375,6 @@ impl StoreBackedAgentSchedulerGateway {
         Ok(())
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     async fn apply_project_command(
         &self,
         project_id: &str,
@@ -1487,10 +1453,9 @@ impl StoreBackedAgentSchedulerGateway {
             | AgentSchedulerCommandKindDto::UpdateMetadata
             | AgentSchedulerCommandKindDto::SoftDelete
             | AgentSchedulerCommandKindDto::Restore
-            | AgentSchedulerCommandKindDto::ImportLegacyTask => Err(ApiError::bad_request(format!(
-                "unsupported agent scheduler command: {}",
-                command_kind_key(command)
-            ))),
+            | AgentSchedulerCommandKindDto::ImportLegacyTask => Err(ApiError::bad_request(
+                format!("unsupported agent scheduler command: {}", command_kind_key(command)),
+            )),
         }
     }
 
@@ -1593,7 +1558,6 @@ impl StoreBackedAgentSchedulerGateway {
             event: Some(event),
         })
     }
-
 
     async fn merge_project_task(
         &self,
@@ -2245,10 +2209,7 @@ impl StoreBackedAgentSchedulerGateway {
             now_ms = now_ms.0,
             "agent scheduler local task start requested"
         );
-        let request = LocalAgentRunnerRequest {
-            task_id,
-            now_ms,
-        };
+        let request = LocalAgentRunnerRequest { task_id, now_ms };
         let start_store = self.store.clone();
         let start_executor = Arc::clone(&self.executor);
         let start_project_path = project_path.clone();
@@ -2472,7 +2433,6 @@ fn owned_scheduler_context(
     .map_err(map_scheduler_error)
 }
 
-
 fn task_id_from_api(task_id: &vw_api_types::id::TaskId) -> Result<TaskId, ApiError> {
     TaskId::new(task_id.as_ref().to_string()).map_err(map_bad_request)
 }
@@ -2485,7 +2445,6 @@ fn add_ms_or_saturate(timestamp: TimestampMs, delta_ms: i64) -> TimestampMs {
     TimestampMs(timestamp.0.saturating_add(delta_ms).max(timestamp.0))
 }
 
-
 fn workspace_payload(workspace: &AgentSchedulerWorkspaceContextDto) -> Value {
     json!({
         "slot_id": workspace.slot_id,
@@ -2493,7 +2452,6 @@ fn workspace_payload(workspace: &AgentSchedulerWorkspaceContextDto) -> Value {
         "branch": workspace.branch,
     })
 }
-
 
 fn dispatch_mode_from_dto(dispatch_mode: AgentSchedulerDispatchModeDto) -> DispatchMode {
     match dispatch_mode {
@@ -2645,9 +2603,6 @@ fn task_board_task_read_model(
         stage_label: string_field(metadata, "task_board.stage_label"),
     }
 }
-
-
-
 
 fn task_board_status_role_from_metadata(metadata: &Value) -> Option<TaskPoolWorkflowStatusRoleDto> {
     let role = string_field(metadata, "task_board.status_role")?;
@@ -2898,16 +2853,6 @@ fn project_wake_response_from_dispatch_outcome(
     }
 }
 
-
-
-
-
-
-
-
-
-
-
 fn task_graph_task_to_dto(
     task: &TaskGraphTaskSnapshot,
     graph: &TaskGraph,
@@ -3084,8 +3029,6 @@ fn task_status_to_dto(status: AgentTaskStatus) -> AgentTaskStatusDto {
         AgentTaskStatus::Archived => AgentTaskStatusDto::Archived,
     }
 }
-
-
 
 fn capability_kind_from_dto(kind: AgentCapabilityKindDto) -> AgentCapabilityKind {
     match kind {
@@ -3313,8 +3256,6 @@ fn parse_project_path(value: &str) -> Result<PathBuf, ApiError> {
     }
     Ok(PathBuf::from(trimmed))
 }
-
-
 
 fn non_empty(value: String, field_name: &str) -> Result<String, ApiError> {
     if value.trim().is_empty() {

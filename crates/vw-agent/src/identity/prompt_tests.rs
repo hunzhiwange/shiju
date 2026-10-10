@@ -14,8 +14,6 @@ fn prompt_is_empty_for_empty_identity() {
     assert!(aieos_to_system_prompt(&AieosIdentity::default()).is_empty());
 }
 
-
-
 #[test]
 fn prompt_uses_full_name_when_first_name_is_absent() {
     let identity = AieosIdentity {
@@ -32,7 +30,6 @@ fn prompt_uses_full_name_when_first_name_is_absent() {
     assert!(prompt.contains("**姓名:** Single Name"));
     assert!(!prompt.contains("**Full Name:**"));
 }
-
 
 #[test]
 fn prompt_keeps_absent_optional_collections_quiet_but_emits_section_headings() {

@@ -205,7 +205,6 @@ async fn load_config_from_toml_path_propagates_deserialize_secret_and_validation
     }
 }
 
-
 #[tokio::test]
 async fn load_config_merges_tenant_base_project_override_then_environment() {
     let temp_home = tempfile::tempdir().unwrap();

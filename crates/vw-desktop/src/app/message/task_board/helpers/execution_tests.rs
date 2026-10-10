@@ -733,7 +733,6 @@ fn worktree_recycle_failure_log_explains_gateway_cleanup_ownership() {
     );
 }
 
-
 #[test]
 fn scheduler_status_mapping_covers_every_builtin_task_status() {
     use crate::app::task::TaskStatus;

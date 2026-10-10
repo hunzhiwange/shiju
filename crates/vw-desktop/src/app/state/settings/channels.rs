@@ -45,10 +45,9 @@ fn is_static_multiline_channel_key(key: &str) -> bool {
 
 fn is_named_instance_multiline_channel_key(key: &str) -> bool {
     matches!(
-            named_instance_field(key, "feishu_instances"),
-            Some("allowed_users" | "group_reply.allowed_sender_ids")
-        )
-        || matches!(named_instance_field(key, "dingtalk_instances"), Some("allowed_users"))
+        named_instance_field(key, "feishu_instances"),
+        Some("allowed_users" | "group_reply.allowed_sender_ids")
+    ) || matches!(named_instance_field(key, "dingtalk_instances"), Some("allowed_users"))
 }
 
 fn is_multiline_channel_key(key: &str) -> bool {

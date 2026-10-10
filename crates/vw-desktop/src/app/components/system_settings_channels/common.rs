@@ -167,10 +167,9 @@ pub(super) fn is_multiline_list_key(key: &str) -> bool {
             | "nostr.allowed_pubkeys"
             | "clawdtalk.allowed_destinations"
     ) || matches!(
-            named_instance_field(key, "feishu_instances"),
-            Some("allowed_users" | "group_reply.allowed_sender_ids")
-        )
-        || matches!(named_instance_field(key, "dingtalk_instances"), Some("allowed_users"))
+        named_instance_field(key, "feishu_instances"),
+        Some("allowed_users" | "group_reply.allowed_sender_ids")
+    ) || matches!(named_instance_field(key, "dingtalk_instances"), Some("allowed_users"))
 }
 
 pub(super) fn localized_label(label: &'static str) -> &'static str {

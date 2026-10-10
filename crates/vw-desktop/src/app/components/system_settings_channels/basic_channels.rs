@@ -8,7 +8,8 @@ use iced::Element;
 use iced::widget::column;
 
 use super::common::{
-    GROUP_REPLY_MODE_OPTIONS, bool_row, group_reply_mode_value, number_row, panel, pick_row, text_row,
+    GROUP_REPLY_MODE_OPTIONS, bool_row, group_reply_mode_value, number_row, panel, pick_row,
+    text_row,
 };
 
 /// 构建或处理 `telegram_panel` 对应的界面片段与交互数据。

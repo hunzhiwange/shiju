@@ -23,8 +23,8 @@ use crate::app::agent::config::Config;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::config::schema::EmailConfig;
 use crate::app::agent::config::schema::{
-    DingTalkConfig, DiscordConfig, IMessageConfig, QQConfig, QQReceiveMode,
-    SignalConfig, SlackConfig, StreamMode, TelegramConfig, WebhookConfig, WhatsAppConfig,
+    DingTalkConfig, DiscordConfig, IMessageConfig, QQConfig, QQReceiveMode, SignalConfig,
+    SlackConfig, StreamMode, TelegramConfig, WebhookConfig, WhatsAppConfig,
 };
 
 /// 验证注册表包含足够的集成条目
@@ -206,8 +206,6 @@ fn imessage_available_when_not_configured() {
     let im = entries.iter().find(|e| e.name == "iMessage").unwrap();
     assert!(matches!((im.status_fn)(&config), IntegrationStatus::Available));
 }
-
-
 
 /// 验证"即将推出"集成保持 ComingSoon 状态
 ///

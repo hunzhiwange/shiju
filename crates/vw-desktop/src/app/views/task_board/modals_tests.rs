@@ -123,7 +123,6 @@ fn settings_modal_builds_refresh_and_scheduling_tabs_with_midrange_values() {
     keep_element(scheduling);
 }
 
-
 #[test]
 fn settings_modal_builds_scheduling_tab_with_clamped_edges() {
     let mut app = test_app();

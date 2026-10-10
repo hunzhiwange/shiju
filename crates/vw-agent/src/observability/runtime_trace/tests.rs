@@ -335,14 +335,9 @@ fn load_events_contains_searches_supported_fields_case_insensitively() {
     searchable.payload = serde_json::json!({ "detail": "payload-token" });
     logger.append(&searchable).unwrap();
 
-    for needle in [
-        " TRACE_EVENT ",
-        " DIAGNOSTIC ",
-        " PAYLOAD-TOKEN ",
-        " SLACK ",
-        " OPENROUTER ",
-        " MODEL-X ",
-    ] {
+    for needle in
+        [" TRACE_EVENT ", " DIAGNOSTIC ", " PAYLOAD-TOKEN ", " SLACK ", " OPENROUTER ", " MODEL-X "]
+    {
         let events = load_events(&path, 10, None, Some(needle)).unwrap();
         assert_eq!(events.len(), 1, "needle {needle} should match");
         assert_eq!(events[0].id, "searchable");

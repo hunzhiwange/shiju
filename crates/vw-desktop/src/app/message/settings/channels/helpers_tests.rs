@@ -4,7 +4,6 @@
 use super::*;
 use vw_config_types::channels::{GroupReplyConfig, GroupReplyMode, LarkReceiveMode, QQReceiveMode};
 
-
 #[test]
 fn default_feishu_config_uses_websocket_and_draft_defaults() {
     let feishu = default_feishu_config();

@@ -476,7 +476,6 @@ fn run_history_editor_allows_navigation_but_ignores_text_edits() {
     assert_eq!(app.cron_settings.runs_modal_editor.text(), "history");
 }
 
-
 #[test]
 fn edit_draft_editor_actions_keep_text_fields_in_sync() {
     let mut app = app();
@@ -507,7 +506,6 @@ fn edit_draft_editor_actions_keep_text_fields_in_sync() {
     assert_eq!(app.cron_settings.edit_draft.command, "new command");
     assert_eq!(app.cron_settings.edit_draft.prompt, "new prompt");
 }
-
 
 #[test]
 fn add_draft_editor_actions_keep_text_fields_in_sync() {

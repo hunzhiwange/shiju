@@ -10,7 +10,7 @@ use vw_api_types::task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto, TaskPoolWorkflowTransitionDto,
 };
 
-use crate::agent_scheduler::domain::{TaskId, TeamId, AssigneeId};
+use crate::agent_scheduler::domain::{AssigneeId, TaskId, TeamId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
 
 use super::{
@@ -555,7 +555,6 @@ impl AgentSchedulerStore {
             })
             .transpose()
     }
-
 }
 
 pub(super) fn normalize_failed_retry_transitions(

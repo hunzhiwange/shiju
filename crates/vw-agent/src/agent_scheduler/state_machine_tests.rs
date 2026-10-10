@@ -84,7 +84,6 @@ fn agent_state_machine_allows_idempotent_transitions() {
     }
 }
 
-
 #[test]
 fn agent_state_machine_transition_keys_parse_and_reject_invalid_inputs() {
     ensure_transition_key(AgentTaskKind::Finite, "draft", "assigned")
@@ -94,8 +93,9 @@ fn agent_state_machine_transition_keys_parse_and_reject_invalid_inputs() {
         .expect_err("unknown status key must be rejected");
     assert_eq!(invalid_status.to_string(), "unsupported agent task status: unknown");
 
-    let invalid_transition = ensure_transition_key(AgentTaskKind::DependencyGraph, "completed", "running")
-        .expect_err("completed team DAG task must not restart");
+    let invalid_transition =
+        ensure_transition_key(AgentTaskKind::DependencyGraph, "completed", "running")
+            .expect_err("completed team DAG task must not restart");
     assert!(invalid_transition.to_string().contains("dependency_graph"));
     assert!(invalid_transition.to_string().contains("completed -> running"));
 }

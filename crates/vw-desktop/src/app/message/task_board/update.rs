@@ -34,7 +34,9 @@ fn initial_task_status_for_app(app: &crate::app::App) -> TaskStatus {
     initial_task_status_for_workflow_id(&app.task_board_settings.workflow_id)
 }
 
-fn workflow_for_task_board_settings(app: &crate::app::App) -> Option<crate::app::task::TaskWorkflow> {
+fn workflow_for_task_board_settings(
+    app: &crate::app::App,
+) -> Option<crate::app::task::TaskWorkflow> {
     task_workflow_by_id(&app.task_board_settings.workflow_id)
 }
 
@@ -396,7 +398,6 @@ fn apply_agent_scheduler_logs(
 
     updated_tasks
 }
-
 
 fn schedule_agent_scheduler_status_followup_ticks(
     app: &mut crate::app::App,

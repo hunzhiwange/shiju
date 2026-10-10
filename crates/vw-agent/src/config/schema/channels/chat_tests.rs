@@ -50,7 +50,6 @@ fn channels_list_adds_webhook_after_regular_channels() {
     assert!(!all.last().unwrap().1);
 }
 
-
 #[test]
 fn channels_except_webhook_excludes_configured_webhook() {
     let config = ChannelsConfig {
@@ -60,7 +59,6 @@ fn channels_except_webhook_excludes_configured_webhook() {
 
     assert!(config.channels_except_webhook().iter().all(|(handle, _)| handle.name() != "Webhook"));
 }
-
 
 #[test]
 fn blank_feishu_is_not_reported_as_enabled() {

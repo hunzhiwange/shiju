@@ -1131,9 +1131,7 @@ impl TaskStateMachine {
                 self.workflow.status_definition(from).is_some()
                     && self.workflow.status_definition(to).is_some()
             }
-            TaskTransitionIntent::Simulation => {
-                self.workflow.next_status(from) == Some(to)
-            }
+            TaskTransitionIntent::Simulation => self.workflow.next_status(from) == Some(to),
             _ if self.workflow.id() == DEFAULT_TASK_WORKFLOW_ID => {
                 DEV_LIFECYCLE_TRANSITIONS.iter().any(|edge| {
                     edge.from == from
@@ -1175,9 +1173,7 @@ impl TaskStateMachine {
     ) -> Option<TaskStatus> {
         match intent {
             TaskTransitionIntent::ManualMove => None,
-            TaskTransitionIntent::Simulation => {
-                self.workflow.next_status(from)
-            }
+            TaskTransitionIntent::Simulation => self.workflow.next_status(from),
             _ if self.workflow.id() == DEFAULT_TASK_WORKFLOW_ID => DEV_LIFECYCLE_TRANSITIONS
                 .iter()
                 .find(|edge| edge.from == from && edge.intent == intent)

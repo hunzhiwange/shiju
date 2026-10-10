@@ -1413,13 +1413,11 @@ fn workflow_confirmation_dialog(
 }
 
 fn workflow_manager_tabs(active_tab: WorkflowManagerTab) -> Element<'static, Message> {
-    row![
-        workflow_manager_tab_button(
-            "生命周期定义",
-            WorkflowManagerTab::LifecycleDefinition,
-            active_tab
-        ),
-    ]
+    row![workflow_manager_tab_button(
+        "生命周期定义",
+        WorkflowManagerTab::LifecycleDefinition,
+        active_tab
+    ),]
     .spacing(8)
     .align_y(Alignment::Center)
     .into()
@@ -1633,7 +1631,6 @@ fn build_workflow_view(workflow: TaskWorkflow) -> Element<'static, Message> {
     .into()
 }
 
-
 fn build_workflow_status_view(
     index: usize,
     label: String,
@@ -1795,14 +1792,12 @@ fn status_role_help_panel() -> Element<'static, Message> {
     .into()
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct StatusRoleHelpDefinition {
     value: &'static str,
     label: &'static str,
     description: &'static str,
 }
-
 
 fn status_role_help_definitions() -> Vec<StatusRoleHelpDefinition> {
     StatusRoleOption::all()
@@ -1834,7 +1829,6 @@ fn role_scheduler_description(role: StatusRole) -> &'static str {
         StatusRole::Custom => "展示或自定义阶段；系统不施加自动调度语义。",
     }
 }
-
 
 fn build_draft_editor(draft: &WorkflowDraft) -> Element<'_, Message> {
     let mut status_rows = column![].spacing(10);

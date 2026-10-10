@@ -67,10 +67,7 @@ impl<'a> RecoveryEngine<'a> {
         Self::with_policy(store, RecoveryPolicy::default())
     }
 
-    pub fn with_policy(
-        store: &'a AgentSchedulerStore,
-        policy: RecoveryPolicy,
-    ) -> Self {
+    pub fn with_policy(store: &'a AgentSchedulerStore, policy: RecoveryPolicy) -> Self {
         Self { store, policy }
     }
 
@@ -313,9 +310,6 @@ impl<'a> RecoveryEngine<'a> {
         }
         Ok(())
     }
-
-
-
 
     #[allow(clippy::too_many_arguments)]
     fn append_recovery_event(

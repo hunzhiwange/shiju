@@ -16,9 +16,9 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
     AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
-    AgentSchedulerReplaceTaskGraphRequest,
-    AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskMetadataPatchDto,
-    AgentSchedulerTaskMetadataUpdateRequest, AgentTaskKindDto, AgentTaskStatusDto,
+    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerTaskGraphEdgeDto,
+    AgentSchedulerTaskMetadataPatchDto, AgentSchedulerTaskMetadataUpdateRequest, AgentTaskKindDto,
+    AgentTaskStatusDto,
 };
 use vw_api_types::common::TimestampMs;
 use vw_api_types::task::{
@@ -405,7 +405,6 @@ async fn agent_scheduler_gateway_local_command_respects_max_concurrent() {
     let task = store.load_task(&project_path, &task_id).expect("load queued task").unwrap();
     assert_eq!(task.status, AgentTaskStatus::Queued);
 }
-
 
 // 项目唤醒只应选择图依赖已就绪且生命周期允许的任务。
 #[tokio::test]
@@ -885,8 +884,6 @@ async fn agent_scheduler_project_wake_respects_local_max_concurrent() {
     let queued = store.load_task(&project_path, &queued_id).expect("load queued task").unwrap();
     assert_eq!(queued.status, AgentTaskStatus::Queued);
 }
-
-
 
 #[tokio::test]
 async fn agent_scheduler_gateway_policy_wake_leaves_pool_when_auto_promote_disabled() {
@@ -2255,8 +2252,6 @@ async fn gateway_local_executor_leases_task_worktree_instead_of_project_root() {
     cleanup_merge_test_project(&project_id).await;
 }
 
-
-
 #[test]
 fn gateway_local_agent_stream_request_forwards_execution_selection() {
     let request = LocalAgentExecutionRequest {
@@ -2383,7 +2378,6 @@ fn gateway_local_agent_stream_payloads_append_task_logs() {
     assert!(logs.iter().any(|log| log.message == "gateway stream completed"));
 }
 
-
 #[test]
 fn scheduler_command_and_metadata_helpers_cover_edge_cases() {
     for (command, key, event_kind, is_board_write) in [
@@ -2476,9 +2470,6 @@ fn scheduler_command_and_metadata_helpers_cover_edge_cases() {
     );
     assert_eq!(map_task_board_error(anyhow::anyhow!("board bad")).to_string(), "board bad");
 }
-
-
-
 
 #[tokio::test]
 async fn scheduler_task_board_command_payload_errors_are_reported_before_store_mutation() {
@@ -2722,8 +2713,6 @@ impl AgentSchedulerGateway for MinimalGateway {
         Ok(AgentSchedulerTasksResponse { tasks: Vec::new() })
     }
 
-
-
     async fn list_events(
         &self,
         _query: AgentSchedulerEventsQuery,
@@ -2767,9 +2756,6 @@ fn create_task_request(task_id: &str) -> AgentSchedulerCreateTaskRequest {
         created_at_ms: TimestampMs(40),
     }
 }
-
-
-
 
 // 无作用域路由必须先解析租户和项目上下文，再允许调用任何调度存储方法。
 #[tokio::test]
@@ -2873,7 +2859,6 @@ async fn scheduler_project_route_wrappers_resolve_context_before_gateway_calls()
         "agent scheduler project outbox gateway is not configured"
     );
 }
-
 
 struct RecordingLocalExecutor {
     output: String,
@@ -3016,8 +3001,6 @@ async fn wait_for_store_artifact(
 
     panic!("timed out waiting for store artifact kind {kind}");
 }
-
-
 
 fn encode_path_segment(value: &str) -> String {
     let mut encoded = String::new();

@@ -11,14 +11,13 @@ use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
 use super::domain::{
-    AgentSchedulerContext, HolderId, ResourceId, ResourceLeaseId, TeamId, AssigneeId,
+    AgentSchedulerContext, AssigneeId, HolderId, ResourceId, ResourceLeaseId, TeamId,
 };
 use super::store::resources::{AcquireResourceLeaseRequest, ResourceKind, ResourceLeaseStatus};
 use super::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
 use crate::global_database::GlobalDatabase;
 use crate::global_database::test_support::PostgresTestDatabase;
 use crate::project::store::ProjectStore;
-
 
 #[test]
 fn agent_resource_store_rejects_invalid_lease_times_and_empty_taint_reason() -> Result<()> {

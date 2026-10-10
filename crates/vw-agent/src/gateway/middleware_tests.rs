@@ -264,7 +264,6 @@ async fn tenant_scope_middleware_preserves_non_empty_header_whitespace() {
     assert_eq!(body.as_ref(), b" platform-test / company-test ");
 }
 
-
 #[tokio::test]
 async fn tenant_scope_middleware_rejects_duplicate_and_non_utf8_headers() {
     let duplicate_request = Request::get("/scope")

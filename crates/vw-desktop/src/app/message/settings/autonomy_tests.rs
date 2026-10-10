@@ -30,7 +30,6 @@ fn parses_non_cli_mode_by_channel_with_aliases() {
     assert!(!parsed.contains_key("qq"));
 }
 
-
 #[test]
 fn parses_non_cli_mode_by_channel_returns_empty_for_blank_and_invalid_entries() {
     assert!(parse_non_cli_mode_by_channel("  ,\n\t ").is_empty());

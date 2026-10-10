@@ -20,8 +20,8 @@ use vw_shared::session::ui_types::{
 
 use super::artifacts::TaskArtifactWriter;
 use super::domain::{
-    AgentRunStatus, AgentSchedulerContext, HolderId, ResourceId, ResourceLeaseId, RunId, TaskId,
-    TeamId, AssigneeId,
+    AgentRunStatus, AgentSchedulerContext, AssigneeId, HolderId, ResourceId, ResourceLeaseId,
+    RunId, TaskId, TeamId,
 };
 use super::engine::dispatch::DispatchEngine;
 use super::events::AgentEventKind;
@@ -131,7 +131,6 @@ fn assert_scheduler_requires_same_scope_parent_project(database: GlobalDatabase)
     store.initialize_project(&context)
 }
 
-
 fn isolation_session(label: &str) -> ChatSession {
     ChatSession {
         id: "shared-session".to_string(),
@@ -184,8 +183,6 @@ fn isolation_agent_session(project_id: &str, label: &str) -> AgentSessionInfo {
         revert: None,
     }
 }
-
-
 
 fn append_lifecycle_event(
     store: &AgentSchedulerStore,
@@ -254,7 +251,6 @@ fn finite_task(task_id: &TaskId) -> Result<NewAgentTask> {
         created_at_ms: TimestampMs(1_783_001_000_000),
     })
 }
-
 
 fn assert_run_persisted(
     store: &AgentSchedulerStore,
@@ -325,8 +321,6 @@ fn isolation_task(label: &str) -> Result<NewAgentTask> {
         created_at_ms: TimestampMs(900),
     })
 }
-
-
 
 fn assert_project_local_databases_absent(project_path: &Path) {
     let project_config = project_path.join(vw_config_types::paths::HOME_CONFIG_DIR_NAME);

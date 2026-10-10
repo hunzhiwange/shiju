@@ -646,7 +646,6 @@ fn chat_reasoning_effort_reaches_acp_options_without_leaking_to_non_acp() {
     assert!(default_options.get("reasoning_effort").is_none());
 }
 
-
 #[test]
 fn stream_part_builders_fill_expected_message_boundaries() {
     let base = stream_part_base("ses-1", "msg-assistant", "prt-base".to_string());

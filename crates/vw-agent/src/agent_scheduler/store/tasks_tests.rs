@@ -9,7 +9,7 @@ use vw_api_types::agent_scheduler::AgentSchedulerScope;
 use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 
-use super::domain::{AgentSchedulerContext, RunId, TaskId, TeamId, AssigneeId};
+use super::domain::{AgentSchedulerContext, AssigneeId, RunId, TaskId, TeamId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::AgentSchedulerStore;
 use super::store::artifacts::RecordTaskArtifactRequest;
@@ -696,7 +696,10 @@ fn agent_task_store_preserves_infinite_schedule_and_dependency_graph_fields() ->
     assert_eq!(dependency_graph.delegated_to_team.as_ref().map(TeamId::as_str), Some("team-alpha"));
     assert_eq!(dependency_graph.dag.len(), 2);
     assert_eq!(dependency_graph.dag[1].depends_on[0].as_str(), "node-plan");
-    assert_eq!(dependency_graph.dag[1].assigned_to.as_ref().map(AssigneeId::as_str), Some("worker-ui"));
+    assert_eq!(
+        dependency_graph.dag[1].assigned_to.as_ref().map(AssigneeId::as_str),
+        Some("worker-ui")
+    );
 
     Ok(())
 }

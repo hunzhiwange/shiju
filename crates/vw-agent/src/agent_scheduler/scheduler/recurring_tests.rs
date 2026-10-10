@@ -9,7 +9,7 @@ use vw_api_types::common::TimestampMs;
 use super::recurring::{
     RecurringDecision, RecurringSchedule, RecurringWaitReason, record_executed,
 };
-use crate::agent_scheduler::domain::{TaskId, AssigneeId};
+use crate::agent_scheduler::domain::{AssigneeId, TaskId};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::AgentSchedulerStore;
 use crate::agent_scheduler::store::tasks::{NewAgentTask, StoredAgentTask};

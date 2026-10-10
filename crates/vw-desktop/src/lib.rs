@@ -43,6 +43,5 @@ pub mod fonts;
 #[path = "tests.rs"]
 mod tests;
 
-
 #[cfg(test)]
 include!("legacy_task_board_switches_exact_tests.rs");

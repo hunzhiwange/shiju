@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use vw_api_types::common::TimestampMs;
 
 use super::artifacts::TaskArtifactWriter;
-use super::domain::{TaskId, AssigneeId};
+use super::domain::{AssigneeId, TaskId};
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::tasks::StoredAgentTask;
 

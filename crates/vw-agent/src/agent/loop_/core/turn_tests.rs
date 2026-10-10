@@ -177,8 +177,6 @@ async fn agent_turn_delegates_to_tool_loop_with_channel_defaults() {
     assert_eq!(history.last().map(|message| message.content.as_str()), Some("plain response"));
 }
 
-
-
 #[tokio::test]
 async fn run_tool_call_loop_with_non_cli_approval_context_scopes_approval_and_reply_target() {
     let calls = Arc::new(AtomicUsize::new(0));

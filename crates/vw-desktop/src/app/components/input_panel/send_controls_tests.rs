@@ -473,7 +473,6 @@ fn cancel_button_constructs_every_animation_phase() {
     }
 }
 
-
 #[test]
 fn send_behavior_popover_constructs_all_selected_options() {
     for behavior in

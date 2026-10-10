@@ -3909,19 +3909,12 @@ fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
             continue;
         }
 
-        let wait = if background_work_remaining {
-            Duration::ZERO
-        } else {
-            Duration::from_millis(50)
-        };
+        let wait =
+            if background_work_remaining { Duration::ZERO } else { Duration::from_millis(50) };
         if event::poll(wait)? {
             let first_event = event::read()?;
             let outcome = apply_ready_terminal_events(&mut app, &mut runner, first_event, || {
-                if event::poll(Duration::ZERO)? {
-                    event::read().map(Some)
-                } else {
-                    Ok(None)
-                }
+                if event::poll(Duration::ZERO)? { event::read().map(Some) } else { Ok(None) }
             })?;
             editor_terminal_suspended |= outcome.editor_terminal_suspended;
             if outcome.quit {

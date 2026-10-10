@@ -1281,7 +1281,6 @@ fn batch_execution_uses_distinct_sessions_for_parallel_subtasks() {
     assert_eq!(first, super::subtask_session_id("T1", "SUB-a"));
 }
 
-
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn parse_create_task_plans_prompt_dedupes_sorts_and_rejects_self_dependency() {

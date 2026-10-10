@@ -331,7 +331,6 @@ async fn knowledge_indexing_chunks_and_cache_run_by_provider() {
     postgres.cleanup().expect("clean PostgreSQL test database");
 }
 
-
 #[tokio::test]
 async fn knowledge_index_job_claim_is_exclusive_by_provider() {
     let sqlite = GlobalDatabase::new(db_path()).expect("SQLite global database");

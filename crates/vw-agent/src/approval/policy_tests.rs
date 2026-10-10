@@ -136,7 +136,6 @@ fn policy_allow_all_once_grant_saturates_at_u32_max() {
     assert_eq!(manager.non_cli_allow_all_once_remaining(), u32::MAX);
 }
 
-
 #[test]
 fn policy_channel_mode_lookup_trims_channel_before_matching() {
     let mut modes = HashMap::new();

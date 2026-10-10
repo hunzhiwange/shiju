@@ -60,7 +60,6 @@ fn channel_scalar_updates_store_values_and_clamp_timeout() {
     assert!(app.channels_settings.save_error.is_none());
 }
 
-
 #[test]
 fn channel_text_update_mirrors_input_and_applies_field() {
     let mut app = app();

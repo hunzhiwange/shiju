@@ -7,9 +7,8 @@ use crate::app::agent::channels::email_channel::EmailConfig;
 use crate::app::agent::config::schema::{
     CloudflareTunnelConfig, CustomTunnelConfig, DingTalkConfig, DiscordConfig,
     EmbeddingRouteConfig, FeishuConfig, IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig,
-    MattermostConfig, NextcloudTalkConfig, NgrokTunnelConfig, NostrConfig, QQConfig,
-    QQReceiveMode, SlackConfig, StreamMode, TelegramConfig, WatiConfig, WebhookConfig,
-    WhatsAppConfig,
+    MattermostConfig, NextcloudTalkConfig, NgrokTunnelConfig, NostrConfig, QQConfig, QQReceiveMode,
+    SlackConfig, StreamMode, TelegramConfig, WatiConfig, WebhookConfig, WhatsAppConfig,
 };
 use crate::app::agent::config::{Config, DelegateAgentConfig};
 use vw_config_types::channels::ClawdTalkConfig;
@@ -17,8 +16,6 @@ use vw_config_types::channels::ClawdTalkConfig;
 fn secret(value: &str) -> Option<String> {
     Some(value.to_string())
 }
-
-
 
 #[test]
 fn mask_helpers_handle_present_empty_and_absent_values() {

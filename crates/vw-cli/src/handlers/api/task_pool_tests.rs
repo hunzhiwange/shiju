@@ -12,7 +12,6 @@ use serde_json::{Value, json};
 use super::run_with_io;
 use crate::cli::Cli;
 
-
 struct Case {
     command: Vec<String>,
     input: Vec<u8>,

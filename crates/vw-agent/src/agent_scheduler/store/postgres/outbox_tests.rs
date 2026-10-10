@@ -9,7 +9,6 @@ use super::map_outbox_message_row;
 use crate::agent_scheduler::store::outbox::OutboxMessageStatus;
 use crate::global_database::test_support::PostgresTestDatabase;
 
-
 #[test]
 fn map_outbox_message_row_preserves_failure_retry_state() -> Result<()> {
     let fixture = crate::global_database::test_support::postgres_test_database!();

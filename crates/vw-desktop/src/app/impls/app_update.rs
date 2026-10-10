@@ -509,8 +509,7 @@ impl App {
                         );
                     }
                     Err(error) => {
-                        let retry_after =
-                            startup_retry_interval(self.startup_started_at.elapsed());
+                        let retry_after = startup_retry_interval(self.startup_started_at.elapsed());
                         tracing::debug!(
                             target: "vw_desktop",
                             error = %error,

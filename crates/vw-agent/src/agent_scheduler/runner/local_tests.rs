@@ -6,7 +6,7 @@ use serde_json::json;
 use std::path::Path;
 use vw_api_types::common::TimestampMs;
 
-use super::domain::{AgentRunStatus, TaskId, AssigneeId};
+use super::domain::{AgentRunStatus, AssigneeId, TaskId};
 use super::runner::local::{
     LocalAgentExecutionOutput, LocalAgentExecutionRequest, LocalAgentExecutor, LocalAgentRunner,
     LocalAgentRunnerRequest, LocalAgentWorkspace, LocalAgentWorkspaceRecycleRequest,
@@ -36,10 +36,7 @@ fn local_runner_success_leaves_finite_task_submitted_until_merge() -> Result<()>
     let outcome = runner
         .run_once(
             &project_path,
-            LocalAgentRunnerRequest {
-                task_id: task_id.clone(),
-                now_ms: TimestampMs(1_000),
-            },
+            LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(1_000) },
         )?
         .expect("queued finite task runs locally");
 
@@ -116,10 +113,8 @@ fn local_runner_forwards_task_reasoning_effort_to_acp_execution() -> Result<()> 
 
     store.initialize_project(&project_path)?;
     store.create_task(&project_path, finite_task(&task_id)?)?;
-    runner.run_once(
-        &project_path,
-        LocalAgentRunnerRequest { task_id, now_ms: TimestampMs(1_000) },
-    )?;
+    runner
+        .run_once(&project_path, LocalAgentRunnerRequest { task_id, now_ms: TimestampMs(1_000) })?;
 
     let requests = executor.requests.lock().expect("requests lock");
     assert_eq!(requests.len(), 1);
@@ -151,10 +146,7 @@ fn local_runner_cannot_bypass_task_graph() -> Result<()> {
 
     let outcome = runner.run_once(
         &project_path,
-        LocalAgentRunnerRequest {
-            task_id: task_id.clone(),
-            now_ms: TimestampMs(1_500),
-        },
+        LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(1_500) },
     )?;
 
     assert_eq!(outcome, None);
@@ -173,16 +165,12 @@ fn local_runner_cannot_bypass_task_graph() -> Result<()> {
     let outcome = runner
         .run_once(
             &project_path,
-            LocalAgentRunnerRequest {
-                task_id: task_id.clone(),
-                now_ms: TimestampMs(1_502),
-            },
+            LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(1_502) },
         )?
         .expect("task runs after the prerequisite completes");
     assert_eq!(outcome.task_id, task_id);
     Ok(())
 }
-
 
 #[test]
 fn local_runner_logs_worktree_workspace_context() -> Result<()> {
@@ -200,10 +188,7 @@ fn local_runner_logs_worktree_workspace_context() -> Result<()> {
     let outcome = runner
         .run_once(
             &project_path,
-            LocalAgentRunnerRequest {
-                task_id: task_id.clone(),
-                now_ms: TimestampMs(3_000),
-            },
+            LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(3_000) },
         )?
         .expect("queued finite task runs locally");
 
@@ -236,10 +221,7 @@ fn local_agent_runner_executes_with_leased_workspace() -> Result<()> {
     runner
         .run_once(
             &project_path,
-            LocalAgentRunnerRequest {
-                task_id: task_id.clone(),
-                now_ms: TimestampMs(4_000),
-            },
+            LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(4_000) },
         )?
         .expect("queued finite task runs locally");
 
@@ -273,10 +255,7 @@ fn local_runner_success_logs_when_workspace_has_no_committable_changes() -> Resu
     let outcome = runner
         .run_once(
             &project_path,
-            LocalAgentRunnerRequest {
-                task_id: task_id.clone(),
-                now_ms: TimestampMs(5_000),
-            },
+            LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(5_000) },
         )?
         .expect("queued finite task runs locally");
 
@@ -317,10 +296,7 @@ fn local_runner_records_failure_when_executor_does_not_lease_workspace() -> Resu
     let outcome = runner
         .run_once(
             &project_path,
-            LocalAgentRunnerRequest {
-                task_id: task_id.clone(),
-                now_ms: TimestampMs(6_000),
-            },
+            LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(6_000) },
         )?
         .expect("workspace lease failure still records a run");
 
@@ -385,10 +361,7 @@ fn local_runner_start_once_handles_missing_non_finite_and_non_queued_tasks() -> 
     let error = runner
         .start_once(
             &project_path,
-            LocalAgentRunnerRequest {
-                task_id: non_finite_id,
-                now_ms: TimestampMs(7_002),
-            },
+            LocalAgentRunnerRequest { task_id: non_finite_id, now_ms: TimestampMs(7_002) },
         )
         .expect_err("infinite task rejected")
         .to_string();
@@ -402,10 +375,7 @@ fn local_runner_start_once_handles_missing_non_finite_and_non_queued_tasks() -> 
         runner
             .start_once(
                 &project_path,
-                LocalAgentRunnerRequest {
-                    task_id: assigned_id,
-                    now_ms: TimestampMs(7_003),
-                },
+                LocalAgentRunnerRequest { task_id: assigned_id, now_ms: TimestampMs(7_003) },
             )?
             .is_none()
     );
@@ -449,10 +419,7 @@ fn local_runner_finish_started_run_handles_missing_non_finite_and_non_running_ta
             &project_path,
             &non_finite_id,
             &run_id,
-            LocalAgentRunnerRequest {
-                task_id: non_finite_id.clone(),
-                now_ms: TimestampMs(8_001),
-            },
+            LocalAgentRunnerRequest { task_id: non_finite_id.clone(), now_ms: TimestampMs(8_001) },
         )
         .expect_err("infinite task rejected")
         .to_string();
@@ -495,10 +462,7 @@ fn local_runner_fails_and_recycles_workspace_when_commit_cannot_read_workspace()
     let outcome = runner
         .run_once(
             &project_path,
-            LocalAgentRunnerRequest {
-                task_id: task_id.clone(),
-                now_ms: TimestampMs(9_000),
-            },
+            LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(9_000) },
         )?
         .expect("commit failure still records run");
 

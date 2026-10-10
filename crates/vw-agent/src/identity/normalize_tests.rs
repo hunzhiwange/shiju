@@ -20,8 +20,6 @@ fn normalize_ignores_empty_sections_and_dedupes_lists() {
     assert_eq!(normalized.psychology.unwrap().moral_compass.unwrap(), vec!["care"]);
 }
 
-
-
 #[test]
 // 兼容生成器的嵌套形状是输入适配边界，不能影响规范化后的统一模型。
 fn normalize_supports_nested_generator_fallback_shape() {

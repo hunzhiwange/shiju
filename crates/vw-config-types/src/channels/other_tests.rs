@@ -9,8 +9,8 @@ fn task_618_test_module_is_wired() {
 }
 
 use super::{
-    DingTalkConfig, IrcConfig, LinqConfig, NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode,
-    WatiConfig, WhatsAppConfig, default_nostr_relays,
+    DingTalkConfig, IrcConfig, LinqConfig, NextcloudTalkConfig, NostrConfig, QQConfig,
+    QQReceiveMode, WatiConfig, WhatsAppConfig, default_nostr_relays,
 };
 
 // WhatsApp 两种后端依赖互斥凭据组，不完整或同时配置时都不能误判。
@@ -56,7 +56,6 @@ fn whatsapp_backend_helpers_cover_cloud_web_incomplete_and_ambiguous_configs() {
     assert!(ambiguous.is_web_config());
     assert!(ambiguous.is_ambiguous_config());
 }
-
 
 #[test]
 fn whatsapp_deserialization_defaults_every_optional_field_and_allowed_numbers() {
@@ -135,7 +134,6 @@ fn simple_channel_configs_default_optional_and_allowlist_fields() {
     assert!(nextcloud.allowed_users.is_empty());
     assert!(dingtalk.allowed_users.is_empty());
 }
-
 
 // QQ 模式采用稳定外部名称，未知值必须报错而不是静默回退。
 #[test]

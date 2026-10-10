@@ -9,7 +9,7 @@ use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::project::{Info as ProjectInfo, TimeInfo as ProjectTimeInfo};
 
-use super::domain::{AgentSchedulerContext, RunId, TaskId, AssigneeId};
+use super::domain::{AgentSchedulerContext, AssigneeId, RunId, TaskId};
 use super::events::AgentEventKind;
 use super::state_machine::AgentTaskStatus;
 use super::store::AgentSchedulerStore;
@@ -86,7 +86,6 @@ fn scope_event(message: &str, created_at_ms: TimestampMs) -> AppendAgentEventReq
         created_at_ms,
     }
 }
-
 
 #[test]
 fn agent_scheduler_event_store_pages_ordered_scope_local_events() -> Result<()> {
@@ -187,7 +186,6 @@ fn assert_pages_ordered_scope_local_events(
 
     Ok(())
 }
-
 
 // 跨后端复用顺序和作用域断言，防止实现间出现可见性差异。
 fn for_each_event_store_provider(

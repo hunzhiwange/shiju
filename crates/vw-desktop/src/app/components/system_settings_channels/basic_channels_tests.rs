@@ -6,8 +6,8 @@
 use crate::app::{App, Message};
 use vw_config_types::channels::{
     DingTalkConfig, DingTalkInstanceConfig, DiscordConfig, FeishuConfig, FeishuInstanceConfig,
-    GroupReplyConfig, GroupReplyMode, IMessageConfig,
-    MattermostConfig, SignalConfig, SlackConfig, TelegramConfig, WebhookConfig,
+    GroupReplyConfig, GroupReplyMode, IMessageConfig, MattermostConfig, SignalConfig, SlackConfig,
+    TelegramConfig, WebhookConfig,
 };
 
 // 渠道测试从无启用项的应用状态开始，确保每个面板自行声明所需配置。
@@ -27,17 +27,11 @@ fn group_reply() -> GroupReplyConfig {
     }
 }
 
-
 #[test]
 fn basic_channels_tests_are_wired() {
     assert!(module_path!().contains("basic_channels_tests"));
 }
 
-
-
-
-
 mod channel_instance_settings {
     use super::*;
-
 }

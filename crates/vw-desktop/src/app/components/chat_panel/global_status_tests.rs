@@ -123,25 +123,24 @@ fn global_status_indicator_uses_shared_spinner_frames() {
 }
 
 #[test]
-fn thinking_pulse_keeps_glyph_geometry_and_breathes_color() {
-    let glyph = think_pulse_glyph(0);
-    let size = think_pulse_size(0);
-    let geometry = think_pulse_geometry(0);
-    assert_eq!(glyph, "✳");
-    assert_eq!(size, 24.0);
-    assert_eq!(geometry, (44.0, 24.0));
+fn thinking_pulse_cycles_original_shapes_and_breathes_more_slowly() {
+    assert_eq!(think_pulse_glyph(0), "✳");
+    assert_eq!(think_pulse_glyph(11), "✳");
+    assert_eq!(think_pulse_glyph(12), "✶");
+    assert_eq!(think_pulse_glyph(24), "✷");
+    assert_eq!(think_pulse_glyph(36), "❋");
+    assert_eq!(think_pulse_glyph(48), "✳");
 
-    for frame in 0..24 {
-        assert_eq!(think_pulse_glyph(frame), glyph, "frame {frame}");
-        assert_eq!(think_pulse_size(frame), size, "frame {frame}");
-        assert_eq!(think_pulse_geometry(frame), geometry, "frame {frame}");
+    assert!((think_pulse_size(0) - 14.0).abs() < 0.001);
+    assert!((think_pulse_size(12) - 44.0).abs() < 0.001);
+    assert!((think_pulse_size(24) - 14.0).abs() < 0.001);
+    assert_eq!(think_pulse_size(0), think_pulse_size(1));
+    assert_eq!(think_pulse_color(0), think_pulse_color(48));
+
+    for frame in 0..48 {
+        assert!((14.0..=44.0).contains(&think_pulse_size(frame)), "frame {frame}");
+        assert_eq!(think_pulse_geometry(frame).0, 44.0, "frame {frame}");
     }
-
-    let trough = think_pulse_color(0);
-    let peak = think_pulse_color(12);
-    assert!(trough.a >= 0.4, "pulse trough must remain visible: {}", trough.a);
-    assert!(peak.a > trough.a + 0.4, "trough={}, peak={}", trough.a, peak.a);
-    assert_eq!(think_pulse_color(24), trough);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -157,7 +156,7 @@ async fn thinking_pulse_shapes_all_animation_frames_with_fixed_layout() {
     let limits = layout::Limits::new(Size::ZERO, Size::new(800.0, 100.0));
     let mut expected = None;
 
-    for frame in 0..24 {
+    for frame in 0..48 {
         app.status_animation_frame = frame;
         let mut element = chat_global_status_view(&app);
         let mut tree = Tree::new(element.as_widget());

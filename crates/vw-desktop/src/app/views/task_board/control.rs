@@ -288,16 +288,10 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
         summary_row = summary_row.push(worktree_chip);
     }
 
-    let controls_row = row![
-        exec_btn,
-        new_task_btn,
-        settings_btn,
-        archive_completed_btn,
-        refresh_btn,
-        close_btn
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let controls_row =
+        row![exec_btn, new_task_btn, settings_btn, archive_completed_btn, refresh_btn, close_btn]
+            .spacing(8)
+            .align_y(Alignment::Center);
     let controls_scroll = scrollable(controls_row)
         .direction(iced::widget::scrollable::Direction::Horizontal(
             iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),

@@ -27,7 +27,6 @@ fn outbox_message_status_as_str_returns_stable_storage_values() {
     assert_eq!(OutboxMessageStatus::Delivered.as_str(), "delivered");
 }
 
-
 #[test]
 fn outbox_store_enqueue_rejects_invalid_requests() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
@@ -442,7 +441,6 @@ fn outbox_store_reports_invalid_stored_rows_when_loading_by_idempotency_key() ->
 
     Ok(())
 }
-
 
 fn assert_error_contains<T: std::fmt::Debug>(result: Result<T>, expected: &str) {
     let error = result.expect_err("operation should fail");

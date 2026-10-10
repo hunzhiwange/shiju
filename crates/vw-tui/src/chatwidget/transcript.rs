@@ -201,11 +201,7 @@ impl TranscriptState {
             .iter()
             .find(|cached| cached.key == key)
             .expect("committed layout cache is initialized");
-        if separated {
-            layout.separated_line_count
-        } else {
-            layout.line_count
-        }
+        if separated { layout.separated_line_count } else { layout.line_count }
     }
 
     pub(super) fn committed_lines_range(

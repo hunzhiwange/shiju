@@ -40,7 +40,6 @@ const SCENARIOS: [&str; 10] = [
     "error",
 ];
 
-
 #[test]
 fn tui_real_gateway_pipeline_preserves_v2_semantics() {
     let mut app = gateway_app();
@@ -295,9 +294,6 @@ fn render_scenario(scenario: &str, area: Rect) -> String {
     }
     buffer_text(&buffer, area)
 }
-
-
-
 
 fn buffer_text(buffer: &Buffer, area: Rect) -> String {
     (area.y..area.bottom())

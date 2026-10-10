@@ -342,7 +342,6 @@ async fn transport_error_returns_original_reqwest_message() {
     assert!(super::is_gateway_unavailable_error(&message));
 }
 
-
 #[test]
 fn gateway_unavailable_error_classifies_connection_failures_only() {
     assert!(super::is_gateway_unavailable_error("error sending request for url"));

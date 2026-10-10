@@ -20,9 +20,6 @@ fn group(prefix: &str) -> vw_config_types::channels::GroupReplyConfig {
     vw_config_types::channels::GroupReplyConfig { mode: None, allowed_sender_ids: values(prefix) }
 }
 
-
-
-
 #[test]
 fn default_channels_state_matches_ui_defaults() {
     let state = ChannelsSettingsState::default();
@@ -48,7 +45,6 @@ fn project_dir_trims_blank_input_and_preserves_non_blank_path() {
     state.project_dir_input = "  /tmp/vibe-window  ".to_string();
     assert_eq!(state.project_dir(), Some(PathBuf::from("/tmp/vibe-window")));
 }
-
 
 #[test]
 fn refresh_text_inputs_inserts_empty_group_reply_when_config_omits_group_reply() {

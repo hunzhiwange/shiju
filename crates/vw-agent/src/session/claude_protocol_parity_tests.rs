@@ -33,7 +33,6 @@ fn resolved(path: &Path, content: String, conditions: Vec<String>) -> Resolved {
     }
 }
 
-
 struct DelegateParityTool {
     name: &'static str,
 }

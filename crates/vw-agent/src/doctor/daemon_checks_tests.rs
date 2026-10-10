@@ -265,7 +265,6 @@ fn non_object_components_are_ignored_after_heartbeat_check() {
     assert!(items[0].message.contains("heartbeat fresh"));
 }
 
-
 #[test]
 fn healthy_scheduler_without_channels_reports_tracking_warning() {
     let tmp = TempDir::new().unwrap();

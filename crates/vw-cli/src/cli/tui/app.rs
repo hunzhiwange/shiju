@@ -37,44 +37,42 @@ use vw_tui::{
 
 use super::bridge::GatewayV3Bridge;
 use super::commands::{
-    CommandRoute, HOOK_CATALOG_SURFACE, SESSION_COMPACT_SURFACE, SESSION_RESET_SURFACE,
-    SESSION_RESUME_SURFACE,
+    CommandRoute, HOOK_CATALOG_SURFACE, OrchestrationPanelKind, SCHEDULE_SELECTION_SURFACE,
+    SESSION_COMPACT_SURFACE, SESSION_RESET_SURFACE, SESSION_RESUME_SURFACE,
     SETTINGS_ACCESS_SURFACE, SETTINGS_ACP_SURFACE, SETTINGS_DELEGATE_SURFACE,
     SETTINGS_EFFORT_SURFACE, SETTINGS_MODEL_SURFACE, SETTINGS_PERMISSION_SURFACE,
-    OrchestrationPanelKind, SETTINGS_PLAN_SURFACE, SETTINGS_SUBAGENT_SURFACE, SETTINGS_SURFACE,
-    SCHEDULE_SELECTION_SURFACE, SettingsTarget, WORKFLOW_SELECTION_SURFACE,
-    TASK_SELECTION_SURFACE, WORKSPACE_FILES_SURFACE,
+    SETTINGS_PLAN_SURFACE, SETTINGS_SUBAGENT_SURFACE, SETTINGS_SURFACE, SettingsTarget,
+    TASK_SELECTION_SURFACE, WORKFLOW_SELECTION_SURFACE, WORKSPACE_FILES_SURFACE,
     command_palette_items_with_integrations, help_text, session_resume_items,
 };
 use super::controller::{TuiController, TuiControllerCommand, TuiOverlayCommand};
-use super::model::permission::{PermissionDecision, PermissionQueue, PermissionRequest};
 use super::model::background_task::{TaskControlAction, TaskDetailView};
 use super::model::integration::{IntegrationItem, IntegrationKind};
+use super::model::permission::{PermissionDecision, PermissionQueue, PermissionRequest};
+use super::model::settings_panel::{SettingKey, SettingsPanel, SettingsValues};
 use super::model::{
     PermissionMode, PromptSubmission, ReasoningEffort, UiAttachment, UiAttachmentKind,
     UiConfirmIntent, UiConfirmOverlay, UiMessage, UiMessageBase, UiMessageId, UiMessageOrigin,
     UiOverlay, UiPermissionOverlay, UiStepState, UiTodoOverlay, UiTurnTerminal, UiUserMessage,
 };
 use super::paste::{PromptAttachment, PromptAttachmentKind};
-use super::model::settings_panel::{SettingKey, SettingsPanel, SettingsValues};
 use super::runtime::capabilities::load_session_capabilities_blocking;
 use super::runtime::cron::{
     CronDetailView, CronJobSnapshot, CronMutation, load_owned_cron_detail_blocking,
     mutate_owned_cron_and_refresh_blocking,
 };
-use super::runtime::diagnostics::{
-    GatewayDiagnosticsReport, load_gateway_diagnostics_blocking,
-};
+use super::runtime::diagnostics::{GatewayDiagnosticsReport, load_gateway_diagnostics_blocking};
 use super::runtime::file_search::search_files_blocking;
 use super::runtime::gateway::{GatewayUiRuntime, normalize_optional_str_ref};
 use super::runtime::hooks::{
-    HookAuditView, HookCatalogItem, HookCatalogView, HookMutationRefresh,
-    load_hook_audit_blocking, load_hook_catalog_blocking, mutate_hook_and_refresh_blocking,
+    HookAuditView, HookCatalogItem, HookCatalogView, HookMutationRefresh, load_hook_audit_blocking,
+    load_hook_catalog_blocking, mutate_hook_and_refresh_blocking,
 };
 use super::runtime::integrations::{
     MemoryMutation, delete_integration_blocking, load_integrations_blocking,
     mutate_memory_and_refresh_blocking, query_memory_blocking, set_integration_enabled_blocking,
 };
+use super::runtime::interaction::InteractionSnapshot;
 use super::runtime::orchestration::{
     OrchestrationSnapshot, control_owned_task_blocking, load_orchestration_blocking,
     load_owned_task_detail_blocking, load_owned_workflow_detail_blocking,
@@ -82,21 +80,23 @@ use super::runtime::orchestration::{
 use super::runtime::plan_run::{
     plan_run_request, stop_owned_plan_run_blocking, stream_plan_run_resumable_blocking,
 };
-use super::runtime::interaction::InteractionSnapshot;
 use super::runtime::session_diff::load_session_diff_blocking;
 use super::runtime::stream_adapter::{UiRuntimeEvent, UiRuntimeTerminalEvent};
-use super::runtime::workspace_files::{
-    WorkspaceFileListing, WorkspaceFileText, load_workspace_files_blocking,
-    read_workspace_file_blocking,
-};
 use super::runtime::workflow_run::{
     OwnedWorkflowRunRequest, WorkflowRunOwnership, resume_workflow_run_blocking,
     stream_workflow_run_blocking, workflow_run_request,
+};
+use super::runtime::workspace_files::{
+    WorkspaceFileListing, WorkspaceFileText, load_workspace_files_blocking,
+    read_workspace_file_blocking,
 };
 use super::state::{TuiAction, TuiState, reduce_tui_state};
 
 type V3Terminal = CustomTerminal<CrosstermBackend<io::Stdout>>;
 const SESSION_HISTORY_DISPLAY_LIMIT: usize = 100;
+pub(crate) const HOST_MESSAGE_BUDGET: usize = 64;
+pub(crate) const STREAM_EVENT_BUDGET: usize = 64;
+pub(crate) const TERMINAL_EVENT_BUDGET: usize = 64;
 
 enum StreamMessage {
     ChatEvent(GatewayChatStreamEvent),
@@ -1343,15 +1343,16 @@ impl ActiveRunner {
     }
 
     /// 非阻塞汇集本地副作与 Gateway 流消息，并在流结束后尝试启动排队输入。
-    pub(crate) fn drain(&mut self, app: &mut V3GatewayApp) {
+    pub(crate) fn drain(&mut self, app: &mut V3GatewayApp) -> bool {
         if app.take_interaction_refresh_requested() {
             self.request_interaction_refresh(app);
         }
-        self.drain_host_messages(app);
-        self.drain_active_stream(app);
+        let host_work_remaining = self.drain_host_messages(app);
+        let stream_work_remaining = self.drain_active_stream(app);
         if app.take_interaction_refresh_requested() {
             self.request_interaction_refresh(app);
         }
+        host_work_remaining || stream_work_remaining
     }
 
     /// 在终端首帧可绘制后，后台恢复最近会话并转换完整状态。
@@ -1380,15 +1381,18 @@ impl ActiveRunner {
         spawn_interaction_refresh(app.runtime().clone(), session_id, self.host_sender.clone());
     }
 
-    fn drain_host_messages(&mut self, app: &mut V3GatewayApp) {
-        loop {
+    fn drain_host_messages(&mut self, app: &mut V3GatewayApp) -> bool {
+        for _ in 0..HOST_MESSAGE_BUDGET {
             match self.host_receiver.try_recv() {
                 Ok(HostMessage::SessionBootstrapFinished(result)) => {
                     self.session_bootstrap_in_flight = false;
                     match result {
                         Ok(state) => app.commit_initial_session_state(*state),
                         Err(error) => {
-                            push_runner_error(app, format!("failed to load session history: {error}"));
+                            push_runner_error(
+                                app,
+                                format!("failed to load session history: {error}"),
+                            );
                         }
                     }
                 }
@@ -1855,24 +1859,28 @@ impl ActiveRunner {
                         ),
                     }
                 }
-                Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
+                Err(TryRecvError::Empty | TryRecvError::Disconnected) => return false,
             }
         }
+        true
     }
 
-    fn drain_active_stream(&mut self, app: &mut V3GatewayApp) {
+    fn drain_active_stream(&mut self, app: &mut V3GatewayApp) -> bool {
         let Some(stream) = self.active_stream.as_ref() else {
             self.start_next_queued_prompt(app);
-            return;
+            return false;
         };
         let mut terminal = None;
+        let mut processed = 0;
 
-        loop {
+        for _ in 0..STREAM_EVENT_BUDGET {
             match stream.receiver.try_recv() {
                 Ok(StreamMessage::ChatEvent(event)) => {
+                    processed += 1;
                     app.accept_gateway_event(event);
                 }
                 Ok(StreamMessage::WorkflowEvent(event)) => {
+                    processed += 1;
                     let Some(ownership) = self.workflow_run.as_mut() else {
                         push_runner_error(app, "workflow stream event has no owned run state");
                         continue;
@@ -1892,9 +1900,11 @@ impl ActiveRunner {
                     }
                 }
                 Ok(StreamMessage::RuntimeEvent(event)) => {
+                    processed += 1;
                     app.accept_runtime_event(event);
                 }
                 Ok(StreamMessage::Finished(result)) => {
+                    processed += 1;
                     terminal = Some(result);
                     break;
                 }
@@ -1907,12 +1917,11 @@ impl ActiveRunner {
         }
 
         let Some(result) = terminal else {
-            return;
+            return processed == STREAM_EVENT_BUDGET;
         };
         let kind = stream.kind;
-        let needs_plan_terminal =
-            kind == ActiveStreamKind::PlanRun
-                && app.state().runtime.active_plan_run_request_id.is_some();
+        let needs_plan_terminal = kind == ActiveStreamKind::PlanRun
+            && app.state().runtime.active_plan_run_request_id.is_some();
         let needs_workflow_terminal = kind == ActiveStreamKind::Workflow
             && self.workflow_run.as_ref().is_some_and(|ownership| {
                 ownership.request_id() == stream.request_id && ownership.terminal_events() == 0
@@ -1946,6 +1955,24 @@ impl ActiveRunner {
         }
         self.active_stream = None;
         self.start_next_queued_prompt(app);
+        false
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_test_stream(
+        &mut self,
+        events: impl IntoIterator<Item = GatewayChatStreamEvent>,
+    ) {
+        let (sender, receiver) = mpsc::channel();
+        for event in events {
+            sender.send(StreamMessage::ChatEvent(event)).expect("test stream receiver");
+        }
+        self.active_stream = Some(ActiveStream {
+            kind: ActiveStreamKind::Chat,
+            request_id: "test-stream".to_string(),
+            receiver,
+            cancel: Arc::new(AtomicBool::new(false)),
+        });
     }
 
     fn start_next_queued_prompt(&mut self, app: &mut V3GatewayApp) {
@@ -3882,6 +3909,77 @@ fn display_event_from_message(message: &UiMessage) -> V3DisplayEvent {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct TerminalBatchOutcome {
+    pub(crate) processed: usize,
+    pub(crate) quit: bool,
+    pub(crate) editor_terminal_suspended: bool,
+}
+
+pub(crate) fn apply_ready_terminal_events(
+    app: &mut V3GatewayApp,
+    runner: &mut ActiveRunner,
+    first_event: Event,
+    mut read_ready: impl FnMut() -> io::Result<Option<Event>>,
+) -> io::Result<TerminalBatchOutcome> {
+    let mut outcome = TerminalBatchOutcome::default();
+    let mut next_event = Some(first_event);
+
+    while let Some(current_event) = next_event {
+        outcome.processed += 1;
+        if runner.has_transcript_pager() {
+            match current_event {
+                Event::Key(key)
+                    if matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) =>
+                {
+                    runner.handle_pager_key(key);
+                }
+                Event::Resize(width, _) => runner.refresh_pager(app, width),
+                _ => {}
+            }
+        } else {
+            let action = match current_event {
+                Event::Key(key)
+                    if matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) =>
+                {
+                    app.widget_mut().handle_key_event(key)
+                }
+                Event::Paste(text) => app.widget_mut().handle_paste(text),
+                Event::Mouse(mouse) => app.widget_mut().handle_mouse_event(mouse),
+                Event::Resize(width, _) => {
+                    let _ = app.resize_reflow_lines(width);
+                    V3Action::None
+                }
+                _ => V3Action::None,
+            };
+
+            let opens_editor = matches!(action, V3Action::OpenExternalEditor);
+            if opens_editor {
+                crossterm::terminal::disable_raw_mode()?;
+            }
+            let control = runner.execute_action(app, action);
+            if opens_editor {
+                if runner.editor_in_flight() {
+                    outcome.editor_terminal_suspended = true;
+                } else {
+                    crossterm::terminal::enable_raw_mode()?;
+                }
+            }
+            if control == RunnerControl::Quit {
+                outcome.quit = true;
+                break;
+            }
+        }
+
+        if outcome.processed == TERMINAL_EVENT_BUDGET {
+            break;
+        }
+        next_event = read_ready()?;
+    }
+
+    Ok(outcome)
+}
+
 fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = V3Terminal::with_options(backend)?;
@@ -3890,7 +3988,7 @@ fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
     let mut editor_terminal_suspended = false;
 
     loop {
-        runner.drain(&mut app);
+        let background_work_remaining = runner.drain(&mut app);
         if editor_terminal_suspended && !runner.editor_in_flight() {
             crossterm::terminal::enable_raw_mode()?;
             terminal.clear()?;
@@ -3901,55 +3999,29 @@ fn run_event_loop(mut app: V3GatewayApp) -> io::Result<()> {
             continue;
         }
 
+        let wait = if background_work_remaining {
+            Duration::ZERO
+        } else {
+            Duration::from_millis(50)
+        };
+        if event::poll(wait)? {
+            let first_event = event::read()?;
+            let outcome = apply_ready_terminal_events(&mut app, &mut runner, first_event, || {
+                if event::poll(Duration::ZERO)? {
+                    event::read().map(Some)
+                } else {
+                    Ok(None)
+                }
+            })?;
+            editor_terminal_suspended |= outcome.editor_terminal_suspended;
+            if outcome.quit {
+                return Ok(());
+            }
+        }
+
         let width = crossterm::terminal::size()?.0;
         runner.refresh_pager(&app, width);
         draw(&app, runner.transcript_pager.as_mut(), &mut terminal)?;
-
-        if !event::poll(Duration::from_millis(50))? {
-            continue;
-        }
-
-        if runner.has_transcript_pager() {
-            match event::read()? {
-                Event::Key(key)
-                    if matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) =>
-                {
-                    runner.handle_pager_key(key);
-                }
-                Event::Resize(width, _) => runner.refresh_pager(&app, width),
-                _ => {}
-            }
-            continue;
-        }
-
-        let action = match event::read()? {
-            Event::Key(key) if matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) => {
-                app.widget_mut().handle_key_event(key)
-            }
-            Event::Paste(text) => app.widget_mut().handle_paste(text),
-            Event::Mouse(mouse) => app.widget_mut().handle_mouse_event(mouse),
-            Event::Resize(width, _) => {
-                let _ = app.resize_reflow_lines(width);
-                continue;
-            }
-            _ => continue,
-        };
-
-        let opens_editor = matches!(action, V3Action::OpenExternalEditor);
-        if opens_editor {
-            crossterm::terminal::disable_raw_mode()?;
-        }
-        let control = runner.execute_action(&mut app, action);
-        if opens_editor {
-            if runner.editor_in_flight() {
-                editor_terminal_suspended = true;
-            } else {
-                crossterm::terminal::enable_raw_mode()?;
-            }
-        }
-        if control == RunnerControl::Quit {
-            return Ok(());
-        }
     }
 }
 

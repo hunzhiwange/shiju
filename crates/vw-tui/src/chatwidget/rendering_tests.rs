@@ -8,6 +8,18 @@ use crate::vibe::action::{
     V3ApprovalChoice, V3ApprovalDecision, V3ApprovalKind, V3ApprovalRequest,
 };
 
+#[derive(Debug)]
+struct CountingHistoryCell {
+    display_count: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl HistoryCell for CountingHistoryCell {
+    fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
+        self.display_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        vec![Line::from(format!("width {width}"))]
+    }
+}
+
 fn render_frame(widget: &ChatWidget, width: u16, height: u16) -> String {
     let area = Rect::new(0, 0, width, height);
     let mut buffer = Buffer::empty(area);
@@ -20,6 +32,13 @@ fn render_frame(widget: &ChatWidget, width: u16, height: u16) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn render_frame_with_stable_spinner(widget: &ChatWidget, width: u16, height: u16) -> String {
+    const FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    FRAMES.into_iter().fold(render_frame(widget, width, height), |frame, spinner| {
+        frame.replace(&format!("• {spinner} "), "• ⠋ ")
+    })
 }
 
 fn sample_widget() -> ChatWidget {
@@ -92,7 +111,10 @@ fn chatwidget_running_layout() {
     widget
         .set_status(V3ChatStatus::running("Working", Some("Preparing renderer snapshots".into())));
 
-    insta::assert_snapshot!("chatwidget_running_layout", render_frame(&widget, 72, 16));
+    insta::assert_snapshot!(
+        "chatwidget_running_layout",
+        render_frame_with_stable_spinner(&widget, 72, 16)
+    );
 }
 
 #[test]
@@ -109,7 +131,10 @@ fn chatwidget_exec_and_status_layout() {
     }));
     widget.set_status(V3ChatStatus::running("Running command", Some("cargo test".into())));
 
-    insta::assert_snapshot!("chatwidget_exec_and_status_layout", render_frame(&widget, 72, 17));
+    insta::assert_snapshot!(
+        "chatwidget_exec_and_status_layout",
+        render_frame_with_stable_spinner(&widget, 72, 17)
+    );
 }
 
 #[test]
@@ -142,6 +167,45 @@ fn chatwidget_transcript_scrollbar_and_navigation_are_wired() {
     });
     let wheel_down = render_frame(&widget, 48, 10);
     assert_ne!(wheel_down, page_up);
+
+    widget.transcript.scroll_to_top();
+    let top = render_frame(&widget, 48, 10);
+    assert!(top.contains("history row 00"));
+    assert!(!top.contains("history row 19"));
+
+    widget.transcript.scroll_lines(10);
+    let middle = render_frame(&widget, 48, 10);
+    assert!(middle.contains("history row 05"));
+    assert!(!middle.contains("history row 00"));
+    assert!(!middle.contains("history row 19"));
+
+    widget.transcript.scroll_to_bottom();
+    let bottom = render_frame(&widget, 48, 10);
+    assert!(bottom.contains("history row 19"));
+    assert!(!bottom.contains("history row 00"));
+}
+
+#[test]
+fn unchanged_long_transcript_reuses_layout_and_projects_only_viewport() {
+    let display_count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let mut widget = sample_widget();
+    for _ in 0..200 {
+        widget
+            .transcript
+            .push_cell(Box::new(CountingHistoryCell { display_count: display_count.clone() }));
+    }
+
+    let _first = render_frame(&widget, 48, 10);
+    let first_layout_count = display_count.load(std::sync::atomic::Ordering::Relaxed);
+    widget.handle_key_event(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('a'),
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    let _second = render_frame(&widget, 48, 10);
+
+    assert!(first_layout_count >= 200);
+    assert_eq!(display_count.load(std::sync::atomic::Ordering::Relaxed), first_layout_count);
+    assert!(widget.transcript.last_projected_committed_line_count() <= 10);
 }
 
 #[test]

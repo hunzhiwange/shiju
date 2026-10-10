@@ -5,14 +5,18 @@ use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint};
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_gateway_client::vw_api_types::id::ProjectId;
+use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint};
 use vw_tui::V3Action;
 
-use super::app::{ActiveRunner, V3GatewayApp};
+use super::app::{
+    ActiveRunner, STREAM_EVENT_BUDGET, TERMINAL_EVENT_BUDGET, V3GatewayApp,
+    apply_ready_terminal_events,
+};
 use super::commands::{
     SCHEDULE_SELECTION_SURFACE, TASK_SELECTION_SURFACE, WORKSPACE_FILES_SURFACE,
 };
@@ -25,6 +29,43 @@ use super::model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
 use super::runtime::cron::CronJobSnapshot;
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::state::TuiState;
+
+#[test]
+fn active_runner_drain_yields_after_stream_budget() {
+    let mut app = test_app(GatewayEndpoint::new("127.0.0.1", 9));
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+    runner.install_test_stream(
+        (0..=STREAM_EVENT_BUDGET)
+            .map(|_| vw_gateway_client::GatewayChatStreamEvent::Delta("x".to_string())),
+    );
+
+    assert!(runner.drain(&mut app), "a full stream budget must yield remaining work");
+    let rendered = app.transcript_lines(80, true).iter().map(ToString::to_string).collect::<String>();
+    assert_eq!(rendered.matches('x').count(), STREAM_EVENT_BUDGET);
+
+    runner.drain(&mut app);
+    let rendered = app.transcript_lines(80, true).iter().map(ToString::to_string).collect::<String>();
+    assert_eq!(rendered.matches('x').count(), STREAM_EVENT_BUDGET + 1);
+}
+
+#[test]
+fn ready_key_burst_is_applied_before_next_frame() {
+    let mut app = test_app(GatewayEndpoint::new("127.0.0.1", 9));
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+    let mut events = (0..TERMINAL_EVENT_BUDGET)
+        .map(|_| Event::Key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE)))
+        .chain(std::iter::once(Event::Key(KeyEvent::new(
+            KeyCode::Char('z'),
+            KeyModifiers::NONE,
+        ))));
+    let first = events.next().expect("non-empty input burst");
+
+    let outcome = apply_ready_terminal_events(&mut app, &mut runner, first, || Ok(events.next()))
+        .expect("apply ready terminal events");
+
+    assert_eq!(outcome.processed, TERMINAL_EVENT_BUDGET);
+    assert_eq!(app.widget().draft(), "a".repeat(TERMINAL_EVENT_BUDGET));
+}
 
 #[test]
 fn active_runner_executes_local_actions_and_drains_queue() {
@@ -58,7 +99,10 @@ fn active_runner_executes_local_actions_and_drains_queue() {
 
     let paths = requests.try_iter().collect::<Vec<_>>();
     assert_eq!(
-        paths.iter().filter(|path| path.as_str() == "/v1/chat/stream").count(),
+        paths
+            .iter()
+            .filter(|path| path.as_str() == "/v1/chat/stream?directory=%2Fworkspace")
+            .count(),
         2,
         "the queued prompt must be submitted exactly once after the first terminal event"
     );
@@ -630,7 +674,7 @@ fn two_turn_gateway_fixture() -> (GatewayEndpoint, mpsc::Receiver<String>, threa
             let (mut stream, _) = listener.accept().expect("accept gateway request");
             let request = read_request(&mut stream);
             sender.send(request.path.clone()).expect("record gateway request");
-            if request.path == "/v1/chat/stream" {
+            if request.path == "/v1/chat/stream?directory=%2Fworkspace" {
                 stream_count += 1;
                 let body = format!(
                     "id: {stream_count}\ndata: {{\"type\":\"chat.done\",\"finish_reason\":\"stop\"}}\n\n"
@@ -661,7 +705,7 @@ fn interrupt_gateway_fixture()
     let handle = thread::spawn(move || {
         let (mut stream, _) = listener.accept().expect("accept stream request");
         let request = read_request(&mut stream);
-        assert_eq!(request.path, "/v1/chat/stream");
+        assert_eq!(request.path, "/v1/chat/stream?directory=%2Fworkspace");
         let stream_request_id = request
             .header("x-vw-stream-request-id")
             .expect("resumable stream request id")

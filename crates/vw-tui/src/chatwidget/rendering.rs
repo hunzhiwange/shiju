@@ -53,21 +53,18 @@ struct TranscriptAreaRenderable<'a> {
 }
 
 impl TranscriptAreaRenderable<'_> {
-    fn lines(&self, width: u16) -> Vec<Line<'static>> {
-        let width = width.max(1);
-        let mut lines = self.transcript.committed_lines(width, true);
-        let mut push_cell = |cell: &dyn HistoryCell| {
-            if !lines.is_empty() {
+    fn dynamic_lines(&self, width: u16, has_committed: bool) -> Vec<Line<'static>> {
+        let mut lines = Vec::new();
+        let mut has_previous = has_committed;
+        for cell in [self.transcript.active_cell.as_deref(), self.transcript.live_tail.as_deref()]
+            .into_iter()
+            .flatten()
+        {
+            if has_previous {
                 lines.push(Line::default());
             }
             lines.extend(cell.display_lines(width));
-        };
-
-        if let Some(cell) = self.transcript.active_cell.as_ref() {
-            push_cell(cell.as_ref());
-        }
-        if let Some(cell) = self.transcript.live_tail.as_ref() {
-            push_cell(cell.as_ref());
+            has_previous = true;
         }
         lines
     }
@@ -102,15 +99,23 @@ impl Renderable for TranscriptAreaRenderable<'_> {
         }
         let content_area = Rect::new(area.x, area.y, area.width.saturating_sub(1), area.height);
         let content_width = content_area.width.max(1);
-        let paragraph =
-            Paragraph::new(Text::from(self.lines(content_width))).wrap(Wrap { trim: false });
-        let rendered_height = paragraph.line_count(content_width);
+        let committed_height = self.transcript.committed_line_count(content_width, true);
+        let dynamic_lines = self.dynamic_lines(content_width, committed_height > 0);
+        let rendered_height = committed_height + dynamic_lines.len();
         let viewport_height = usize::from(content_area.height.max(1));
         let scroll_top = self.transcript.viewport_scroll_top(rendered_height, viewport_height);
+        let viewport_end = scroll_top.saturating_add(viewport_height).min(rendered_height);
+        let mut visible_lines = self.transcript.committed_lines_range(
+            content_width,
+            true,
+            scroll_top.min(committed_height)..viewport_end.min(committed_height),
+        );
+        let dynamic_start = scroll_top.saturating_sub(committed_height).min(dynamic_lines.len());
+        let dynamic_end = viewport_end.saturating_sub(committed_height).min(dynamic_lines.len());
+        visible_lines.extend(dynamic_lines[dynamic_start..dynamic_end].iter().cloned());
+        let paragraph = Paragraph::new(Text::from(visible_lines)).wrap(Wrap { trim: false });
         Clear.render(area, buf);
-        paragraph
-            .scroll((u16::try_from(scroll_top).unwrap_or(u16::MAX), 0))
-            .render(content_area, buf);
+        paragraph.render(content_area, buf);
         if rendered_height > viewport_height && area.width > 1 {
             let scrollbar_area = Rect::new(area.right().saturating_sub(1), area.y, 1, area.height);
             let max_top = rendered_height.saturating_sub(viewport_height);
@@ -132,11 +137,10 @@ impl Renderable for TranscriptAreaRenderable<'_> {
         // static transcript; committed and live cells remain immutable inputs.
         // 测量完整静态对话记录时保持活动单元高度缓存可用；已提交单元与活动单元仍作为不可变输入。
         let _ = self.active_desired_height(width);
-        Paragraph::new(Text::from(self.lines(width)))
-            .wrap(Wrap { trim: false })
-            .line_count(width.max(1))
-            .try_into()
-            .unwrap_or(u16::MAX)
+        let width = width.max(1);
+        let committed_height = self.transcript.committed_line_count(width, true);
+        let dynamic_height = self.dynamic_lines(width, committed_height > 0).len();
+        committed_height.saturating_add(dynamic_height).try_into().unwrap_or(u16::MAX)
     }
 }
 

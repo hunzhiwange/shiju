@@ -40,6 +40,9 @@ struct CommittedHistoryLayoutCacheKey {
 struct CommittedHistoryLayoutCache {
     key: CommittedHistoryLayoutCacheKey,
     cells: Vec<Vec<Line<'static>>>,
+    cell_ranges: Vec<std::ops::Range<usize>>,
+    line_count: usize,
+    separated_line_count: usize,
 }
 
 pub(super) struct TranscriptState {
@@ -60,6 +63,8 @@ pub(super) struct TranscriptState {
     selection_anchor: Cell<Option<(u16, u16)>>,
     selection_head: Cell<Option<(u16, u16)>>,
     selecting: Cell<bool>,
+    #[cfg(test)]
+    last_projected_committed_line_count: Cell<usize>,
 }
 
 pub(super) enum TranscriptMouseAction {
@@ -87,6 +92,8 @@ impl Default for TranscriptState {
             selection_anchor: Cell::new(None),
             selection_head: Cell::new(None),
             selecting: Cell::new(false),
+            #[cfg(test)]
+            last_projected_committed_line_count: Cell::new(0),
         }
     }
 }
@@ -150,53 +157,123 @@ impl TranscriptState {
         self.committed_history_layout.get_mut().clear();
     }
 
-    pub(super) fn committed_lines(&self, width: u16, separated: bool) -> Vec<Line<'static>> {
+    fn ensure_committed_layout(&self, width: u16) -> CommittedHistoryLayoutCacheKey {
         let key = CommittedHistoryLayoutCacheKey {
             width,
             syntax_theme_revision: crate::render::highlight::syntax_theme_revision(),
         };
-        let needs_refresh = !self
-            .committed_history_layout
-            .borrow()
-            .iter()
-            .any(|cached| cached.key == key);
+        let needs_refresh =
+            !self.committed_history_layout.borrow().iter().any(|cached| cached.key == key);
         if needs_refresh {
-            let cells =
+            let cells: Vec<Vec<Line<'static>>> =
                 self.committed_history.iter().map(|cell| cell.display_lines(width)).collect();
+            let line_count = cells.iter().map(Vec::len).sum::<usize>();
+            let separated_line_count = line_count + cells.len().saturating_sub(1);
+            let mut next_line = 0usize;
+            let cell_ranges = cells
+                .iter()
+                .enumerate()
+                .map(|(index, cell)| {
+                    let start = next_line;
+                    next_line += cell.len() + usize::from(index > 0);
+                    start..next_line
+                })
+                .collect();
             let mut cached_layouts = self.committed_history_layout.borrow_mut();
-            cached_layouts.retain(|cached| {
-                cached.key.syntax_theme_revision == key.syntax_theme_revision
-            });
+            cached_layouts
+                .retain(|cached| cached.key.syntax_theme_revision == key.syntax_theme_revision);
             if cached_layouts.len() >= COMMITTED_HISTORY_LAYOUT_CACHE_CAPACITY {
                 cached_layouts.remove(0);
             }
-            cached_layouts.push(CommittedHistoryLayoutCache { key, cells });
+            cached_layouts.push(CommittedHistoryLayoutCache {
+                key,
+                cells,
+                cell_ranges,
+                line_count,
+                separated_line_count,
+            });
         }
+        key
+    }
 
+    pub(super) fn committed_line_count(&self, width: u16, separated: bool) -> usize {
+        let key = self.ensure_committed_layout(width);
         let cached = self.committed_history_layout.borrow();
-        let cells = &cached
+        let layout = cached
             .iter()
             .find(|cached| cached.key == key)
-            .expect("committed layout cache is initialized")
-            .cells;
-        let separator_count = if separated { cells.len().saturating_sub(1) } else { 0 };
-        let line_count = cells.iter().map(Vec::len).sum::<usize>() + separator_count;
-        let mut lines = Vec::with_capacity(line_count);
-        for (index, cell_lines) in cells.iter().enumerate() {
-            if separated && index > 0 {
-                lines.push(Line::default());
-            }
-            lines.extend(cell_lines.iter().cloned());
+            .expect("committed layout cache is initialized");
+        if separated {
+            layout.separated_line_count
+        } else {
+            layout.line_count
         }
+    }
+
+    pub(super) fn committed_lines_range(
+        &self,
+        width: u16,
+        separated: bool,
+        range: std::ops::Range<usize>,
+    ) -> Vec<Line<'static>> {
+        let key = self.ensure_committed_layout(width);
+        let cached = self.committed_history_layout.borrow();
+        let layout = cached
+            .iter()
+            .find(|cached| cached.key == key)
+            .expect("committed layout cache is initialized");
+        let mut lines = Vec::with_capacity(range.end.saturating_sub(range.start));
+        if separated {
+            let first_cell = layout.cell_ranges.partition_point(|cell| cell.end <= range.start);
+            for (index, (cell_lines, cell_range)) in
+                layout.cells.iter().zip(&layout.cell_ranges).enumerate().skip(first_cell)
+            {
+                if cell_range.start >= range.end {
+                    break;
+                }
+                let separator_index = cell_range.start;
+                if index > 0 && range.contains(&separator_index) {
+                    lines.push(Line::default());
+                }
+                let content_start = cell_range.start + usize::from(index > 0);
+                let start = range.start.saturating_sub(content_start).min(cell_lines.len());
+                let end = range.end.saturating_sub(content_start).min(cell_lines.len());
+                lines.extend(cell_lines[start..end].iter().cloned());
+            }
+        } else {
+            let mut line_index = 0usize;
+            for cell_lines in &layout.cells {
+                let cell_end = line_index + cell_lines.len();
+                if cell_end > range.start && line_index < range.end {
+                    let start = range.start.saturating_sub(line_index).min(cell_lines.len());
+                    let end = range.end.saturating_sub(line_index).min(cell_lines.len());
+                    lines.extend(cell_lines[start..end].iter().cloned());
+                }
+                line_index = cell_end;
+                if line_index >= range.end {
+                    break;
+                }
+            }
+        }
+        #[cfg(test)]
+        self.last_projected_committed_line_count.set(lines.len());
         lines
+    }
+
+    pub(super) fn committed_lines(&self, width: u16, separated: bool) -> Vec<Line<'static>> {
+        let line_count = self.committed_line_count(width, separated);
+        self.committed_lines_range(width, separated, 0..line_count)
+    }
+
+    #[cfg(test)]
+    pub(super) fn last_projected_committed_line_count(&self) -> usize {
+        self.last_projected_committed_line_count.get()
     }
 
     // 计算 `scroll_lines` 所需的界面结果。
     pub(super) fn scroll_lines(&self, delta: isize) {
-        let max_top = self
-            .last_content_height
-            .get()
-            .saturating_sub(self.last_viewport_height.get().max(1));
+        let max_top =
+            self.last_content_height.get().saturating_sub(self.last_viewport_height.get().max(1));
         let current = if self.follow_bottom.get() { max_top } else { self.scroll_top.get() };
         let next = current.saturating_add_signed(delta).min(max_top);
         self.scroll_top.set(next);

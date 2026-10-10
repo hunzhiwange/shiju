@@ -72,9 +72,7 @@ async fn shiju_skill_adapter_reads_markdown_readme_envelope() {
     let requests = requests.join().expect("join fixture");
     assert!(requests[0].starts_with("GET /skills/31/readme "));
     assert!(
-        requests[0]
-            .to_ascii_lowercase()
-            .contains("x-api-key: fixture-private-skill-secret\r\n")
+        requests[0].to_ascii_lowercase().contains("x-api-key: fixture-private-skill-secret\r\n")
     );
 }
 
@@ -241,10 +239,7 @@ async fn shiju_skill_adapter_uses_current_default_catalog_contracts() {
     let credential = credential();
 
     client
-        .search(
-            &credential,
-            &ShijuSkillSearchQuery { query: None, cursor: None, page_size: 20 },
-        )
+        .search(&credential, &ShijuSkillSearchQuery { query: None, cursor: None, page_size: 20 })
         .await
         .expect("marketplace");
     client

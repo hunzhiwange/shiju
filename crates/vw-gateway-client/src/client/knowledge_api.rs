@@ -41,12 +41,7 @@ impl GatewayClient {
         &self,
         dataset_id: &str,
     ) -> Result<KnowledgeDatasetDto, String> {
-        self.delete_json(
-            &dataset_path(dataset_id)?,
-            &[],
-            &serde_json::json!({}),
-        )
-        .await
+        self.delete_json(&dataset_path(dataset_id)?, &[], &serde_json::json!({})).await
     }
 
     pub async fn knowledge_documents_list(
@@ -81,8 +76,7 @@ impl GatewayClient {
         dataset_id: &str,
         body: &KnowledgeDocumentImportRequest,
     ) -> Result<KnowledgeDocumentImportResponse, String> {
-        self.post_json(&format!("{}/documents/import", dataset_path(dataset_id)?), &[], body)
-            .await
+        self.post_json(&format!("{}/documents/import", dataset_path(dataset_id)?), &[], body).await
     }
 
     pub async fn knowledge_document_import_async(
@@ -90,31 +84,23 @@ impl GatewayClient {
         dataset_id: &str,
         body: &KnowledgeDocumentImportRequest,
     ) -> Result<KnowledgeDocumentImportQueuedResponse, String> {
-        self.post_json(
-            &format!("{}/documents/import-async", dataset_path(dataset_id)?),
-            &[],
-            body,
-        )
-        .await
+        self.post_json(&format!("{}/documents/import-async", dataset_path(dataset_id)?), &[], body)
+            .await
     }
 
     pub async fn knowledge_index_job_get(
         &self,
         job_id: &str,
     ) -> Result<KnowledgeIndexJobDto, String> {
-        self.get_json(&format!("/v1/knowledge/index-jobs/{}", resource_id(job_id, "job")?), &[]).await
+        self.get_json(&format!("/v1/knowledge/index-jobs/{}", resource_id(job_id, "job")?), &[])
+            .await
     }
 
     pub async fn knowledge_document_delete(
         &self,
         document_id: &str,
     ) -> Result<KnowledgeDocumentDto, String> {
-        self.delete_json(
-            &document_path(document_id)?,
-            &[],
-            &serde_json::json!({}),
-        )
-        .await
+        self.delete_json(&document_path(document_id)?, &[], &serde_json::json!({})).await
     }
 
     pub async fn knowledge_document_update(
@@ -199,7 +185,9 @@ fn encode_path_segment(value: &str) -> String {
     let mut encoded = String::new();
     for byte in value.bytes() {
         match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => encoded.push(char::from(byte)),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(char::from(byte))
+            }
             _ => encoded.push_str(&format!("%{byte:02X}")),
         }
     }

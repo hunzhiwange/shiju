@@ -29,9 +29,7 @@ fn v3_display_event_mapping_is_exhaustive() {
             diff: V3FileDiff {
                 files: vec![V3FileDiffEntry {
                     path: "src/lib.rs".into(),
-                    change: V3FileChange::Update {
-                        unified_diff: "@@ -1 +1 @@\n-old\n+new".into(),
-                    },
+                    change: V3FileChange::Update { unified_diff: "@@ -1 +1 @@\n-old\n+new".into() },
                 }],
             },
         },

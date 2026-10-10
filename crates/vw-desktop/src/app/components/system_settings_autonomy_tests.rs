@@ -147,15 +147,8 @@ fn view_builds_empty_and_unicode_list_items() {
 #[test]
 fn list_editor_renders_one_row_per_saved_item() {
     let items = vec!["cargo".to_string(), "git status".to_string(), "未知工具".to_string()];
-    let element = list_editor(
-        AutonomyListKind::AllowedCommands,
-        "允许命令",
-        "说明",
-        &items,
-        "",
-        None,
-        &[],
-    );
+    let element =
+        list_editor(AutonomyListKind::AllowedCommands, "允许命令", "说明", &items, "", None, &[]);
     let tree = Tree::new(element.as_widget());
 
     assert_eq!(tree.children.len(), 3);

@@ -5,7 +5,6 @@
 //! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
 //! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
 
-
 //! VibeWindow 输入编辑器：通过显式行为边界复制了文本域的行为。编辑、Unicode 换行、Vim 模式、粘贴突发、本地草稿历史及光标处 `@token` 处理均保留在 UI 中。Enter、Tab、Esc、中断、历史记录和附件操作返回外部桥接的 [`V3Action`]；该模块从未发送应用事件或查找运行时状态。
 //! The VibeWindow composer: copied textarea behavior with an explicit action boundary.
 //!
@@ -83,11 +82,8 @@ impl ChatComposer {
     pub(crate) fn replace_text(&mut self, text: &str) {
         self.textarea.set_text_clearing_elements(text);
         self.textarea.set_cursor(text.len());
-        self.footer.mode = if text.is_empty() {
-            FooterMode::ComposerEmpty
-        } else {
-            FooterMode::ComposerHasDraft
-        };
+        self.footer.mode =
+            if text.is_empty() { FooterMode::ComposerEmpty } else { FooterMode::ComposerHasDraft };
     }
 
     /// Returns the editable file-search query immediately before the cursor.
@@ -123,11 +119,7 @@ impl ChatComposer {
         query.chars().all(is_file_search_char).then_some(token_start + at_offset..cursor)
     }
 
-    pub(crate) fn restore_submission(
-        &mut self,
-        text: &str,
-        attachments: Vec<V3Attachment>,
-    ) {
+    pub(crate) fn restore_submission(&mut self, text: &str, attachments: Vec<V3Attachment>) {
         self.replace_text(text);
         self.attachments = attachments;
     }

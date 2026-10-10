@@ -371,15 +371,10 @@ fn scroll_changed_clamps_offsets_and_updates_autoscroll() {
     let (mut app, _) = crate::app::App::new();
     app.chat_auto_scroll = false;
 
-    let _ =
-        super::update(
-            &mut app,
-            ChatMessage::ScrollChanged {
-                offset_y: 1.5,
-                absolute_offset_y: 0.0,
-                viewport_h: -10.0,
-            },
-        );
+    let _ = super::update(
+        &mut app,
+        ChatMessage::ScrollChanged { offset_y: 1.5, absolute_offset_y: 0.0, viewport_h: -10.0 },
+    );
 
     assert_eq!(app.chat_scroll_offset_y, 0.0);
     assert_eq!(app.chat_scroll_viewport_h, 0.0);
@@ -622,12 +617,7 @@ fn scroll_within_rendered_window_skips_redundant_measurement() {
 
     let max_scroll_top = app.chat_virtualizer.max_scroll_top_px();
     let outcome =
-        super::input::apply_chat_scroll_changed(
-            &mut app,
-            1_510.0 / max_scroll_top,
-            1_510.0,
-            300.0,
-        );
+        super::input::apply_chat_scroll_changed(&mut app, 1_510.0 / max_scroll_top, 1_510.0, 300.0);
 
     assert!(outcome.viewport_or_offset_changed);
     assert!(!outcome.measure_visible_messages);
@@ -644,12 +634,7 @@ fn scroll_across_rendered_window_boundary_requests_measurement() {
 
     let max_scroll_top = app.chat_virtualizer.max_scroll_top_px();
     let outcome =
-        super::input::apply_chat_scroll_changed(
-            &mut app,
-            1_200.0 / max_scroll_top,
-            1_200.0,
-            300.0,
-        );
+        super::input::apply_chat_scroll_changed(&mut app, 1_200.0 / max_scroll_top, 1_200.0, 300.0);
 
     assert!(outcome.measure_visible_messages);
 }
@@ -746,8 +731,7 @@ fn manual_scroll_and_explicit_navigation_release_turn_focus() {
     app.chat_auto_scroll = false;
 
     let manual_absolute_y = app.chat_virtualizer.max_scroll_top_px() * 0.5;
-    let _ =
-        super::input::apply_chat_scroll_changed(&mut app, 0.5, manual_absolute_y, 300.0);
+    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.5, manual_absolute_y, 300.0);
 
     assert_eq!(app.chat_virtualizer.turn_focus_user_index(), None);
 

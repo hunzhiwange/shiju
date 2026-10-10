@@ -264,7 +264,6 @@ fn tool_card_texts_cover_browser_open_sparse_fields() {
         tool_card("browser_open", serde_json::json!({"output":"opened","result":{"data":{}}})),
         vec!["opened".to_string()]
     );
-
 }
 
 #[test]

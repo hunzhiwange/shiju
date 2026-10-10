@@ -63,10 +63,7 @@ fn field_row<'a>(
 
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro(
-            "代理配置",
-            "配置 HTTP、HTTPS、SOCKS5 代理以及生效范围。",
-        ),
+        settings_page_intro("代理配置", "配置 HTTP、HTTPS、SOCKS5 代理以及生效范围。",),
         content(app),
     ]
     .spacing(16)

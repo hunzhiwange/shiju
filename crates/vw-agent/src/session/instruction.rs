@@ -47,15 +47,8 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     }))
 });
 
-const WORKSPACE_IDENTITY_FILES: [&str; 7] = [
-    "AGENTS.md",
-    "SOUL.md",
-    "TOOLS.md",
-    "IDENTITY.md",
-    "USER.md",
-    "HEARTBEAT.md",
-    "MEMORY.md",
-];
+const WORKSPACE_IDENTITY_FILES: [&str; 7] =
+    ["AGENTS.md", "SOUL.md", "TOOLS.md", "IDENTITY.md", "USER.md", "HEARTBEAT.md", "MEMORY.md"];
 
 /// 单个项目实例内的指令加载状态。
 #[derive(Debug, Default)]

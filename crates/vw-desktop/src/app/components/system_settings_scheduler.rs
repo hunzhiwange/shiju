@@ -159,12 +159,8 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
     );
 
     let mut col = column![
-        row![
-            text("内置调度器").size(16),
-            Space::new().width(Length::Fill),
-            help_btn
-        ]
-        .align_y(Alignment::Start),
+        row![text("内置调度器").size(16), Space::new().width(Length::Fill), help_btn]
+            .align_y(Alignment::Start),
     ]
     .spacing(16)
     .width(Length::Fill);
@@ -173,11 +169,11 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
         col = col.push(help_panel);
     }
 
-    col = col
-        .push(settings_section_card("执行能力", "控制调度器处理任务的吞吐和并发上限。"))
-        .push(settings_section_content(
+    col = col.push(settings_section_card("执行能力", "控制调度器处理任务的吞吐和并发上限。")).push(
+        settings_section_content(
             column![enabled_row, max_tasks_row, max_concurrent_row].spacing(0),
-        ));
+        ),
+    );
 
     col.into()
 }

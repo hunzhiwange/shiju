@@ -68,7 +68,7 @@ impl RecordingChannel {
         }
     }
 
-// 记录型渠道保留发送顺序，用于核对草稿、回复和反应协作。
+    // 记录型渠道保留发送顺序，用于核对草稿、回复和反应协作。
     async fn sent_contents(&self) -> Vec<String> {
         self.sent.lock().await.clone()
     }

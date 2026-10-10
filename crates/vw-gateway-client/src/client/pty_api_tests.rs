@@ -42,11 +42,8 @@ async fn pty_api_uses_http_and_websocket_routes() {
         .await
         .expect("create");
     assert_eq!(created.id, "pty-created");
-    let detail = server
-        .client()
-        .pty_get("pty /one", Some("/tmp/project root"))
-        .await
-        .expect("detail");
+    let detail =
+        server.client().pty_get("pty /one", Some("/tmp/project root")).await.expect("detail");
     assert_eq!(detail.status, PtyStatusDto::Running);
     let updated = server
         .client()
@@ -62,11 +59,7 @@ async fn pty_api_uses_http_and_websocket_routes() {
         .expect("update");
     assert_eq!(updated.status, PtyStatusDto::Exited);
     assert!(
-        server
-            .client()
-            .pty_delete("pty /one", Some("/tmp/project root"))
-            .await
-            .expect("delete")
+        server.client().pty_delete("pty /one", Some("/tmp/project root")).await.expect("delete")
     );
 
     let requests = [

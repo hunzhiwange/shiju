@@ -29,11 +29,12 @@ fn allowed_tool_ids_include_aliases_and_request_filter_intersects_base_set() {
     assert_eq!(filtered, expected);
 
     assert_eq!(allowed_tool_ids_for_request(None, &json!({})), base);
-    let empty_selection =
-        allowed_tool_ids_for_request(None, &json!({"allowed_tools": ["  ", 42]}));
-    assert!(empty_selection.iter().all(|tool| {
-        vw_config_types::tools::is_builtin_required_tool_id(tool)
-    }));
+    let empty_selection = allowed_tool_ids_for_request(None, &json!({"allowed_tools": ["  ", 42]}));
+    assert!(
+        empty_selection
+            .iter()
+            .all(|tool| { vw_config_types::tools::is_builtin_required_tool_id(tool) })
+    );
 }
 
 #[test]
@@ -77,13 +78,7 @@ fn request_filter_only_retains_requested_tools_and_dynamic_skill_loader() {
     let allowed =
         allowed_tool_ids_for_request_from_specs(&specs, &json!({"allowed_tools": ["file_read"]}));
 
-    assert_eq!(
-        allowed,
-        HashSet::from([
-            "file_read".to_string(),
-            "skill".to_string(),
-        ])
-    );
+    assert_eq!(allowed, HashSet::from(["file_read".to_string(), "skill".to_string(),]));
     assert!(!allowed.contains("web_fetch"));
     assert!(!allowed.contains(crate::app::agent::tools::TODO_WRITE_TOOL_ID));
     assert!(!allowed.contains("AskUserQuestion"));
@@ -164,17 +159,13 @@ fn request_filter_distinguishes_missing_list_from_explicit_empty_list() {
     ];
     let all = HashSet::from(["file_read".to_string(), "custom_tool".to_string()]);
 
-    for options in [
-        json!({}),
-        json!({"allowed_tools": null}),
-        json!({"allowed_tools": "file_read"}),
-    ] {
+    for options in
+        [json!({}), json!({"allowed_tools": null}), json!({"allowed_tools": "file_read"})]
+    {
         assert_eq!(allowed_tool_ids_for_request_from_specs(&specs, &options), all);
     }
-    for options in [
-        json!({"allowed_tools": []}),
-        json!({"allowed_tools": [null, false, 42, "  "]}),
-    ] {
+    for options in [json!({"allowed_tools": []}), json!({"allowed_tools": [null, false, 42, "  "]})]
+    {
         assert_eq!(
             allowed_tool_ids_for_request_from_specs(&specs, &options),
             HashSet::from(["file_read".to_string()])

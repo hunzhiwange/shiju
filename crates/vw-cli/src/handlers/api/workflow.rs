@@ -7,8 +7,7 @@ use clap::Subcommand;
 use serde_json::json;
 use vw_gateway_client::vw_api_types::workflow::{WorkflowRecordUpsertBody, WorkflowResumeRequest};
 use vw_gateway_client::{
-    GatewayWorkflowDefaultStreamRequest, GatewayWorkflowStreamEvent,
-    GatewayWorkflowStreamRequest,
+    GatewayWorkflowDefaultStreamRequest, GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
 };
 
 use super::context::ApiContext;
@@ -18,13 +17,22 @@ use super::output;
 #[derive(Subcommand, Debug)]
 pub(super) enum WorkflowCommands {
     /// 恢复暂停的 Workflow 运行。
-    Resume { #[arg(long, value_parser = required)] input: String },
+    Resume {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
     /// 列出保存的 Workflow 应用。
     List,
     /// 从 JSON 输入创建 Workflow 应用。
-    Create { #[arg(long, value_parser = required)] input: String },
+    Create {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
     /// 读取 Workflow 应用详情。
-    Detail { #[arg(value_parser = required)] uuid: String },
+    Detail {
+        #[arg(value_parser = required)]
+        uuid: String,
+    },
     /// 从 JSON 输入更新 Workflow 应用。
     Update {
         #[arg(value_parser = required)]
@@ -33,9 +41,15 @@ pub(super) enum WorkflowCommands {
         input: String,
     },
     /// 删除 Workflow 应用。
-    Delete { #[arg(value_parser = required)] uuid: String },
+    Delete {
+        #[arg(value_parser = required)]
+        uuid: String,
+    },
     /// 通过默认入口流式运行保存应用或内联 Workflow。
-    Chat { #[arg(long, value_parser = required)] input: String },
+    Chat {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
     /// 通过 UUID 路径流式运行保存的 Workflow 应用。
     ChatApplication {
         #[arg(value_parser = required)]
@@ -85,7 +99,12 @@ pub(super) async fn run(
         }
         WorkflowCommands::Update { uuid, input } => {
             let request = parse::<WorkflowRecordUpsertBody>(&input, stdin, "update")?;
-            json!(client.workflow_application_update(&uuid, &request).await.map_err(anyhow::Error::msg)?)
+            json!(
+                client
+                    .workflow_application_update(&uuid, &request)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         WorkflowCommands::Delete { uuid } => {
             json!(client.workflow_application_delete(&uuid).await.map_err(anyhow::Error::msg)?)

@@ -1,10 +1,10 @@
 //! 目标模式纯函数测试。
 
+use super::goal::inspect_goal_task_file;
 use super::{
     GoalTaskFilesState, PlanTaskEntry, build_goal_continuation_prompt, goal_turn_session_id,
     inspect_goal_task_files,
 };
-use super::goal::inspect_goal_task_file;
 
 fn task(file: &str) -> PlanTaskEntry {
     PlanTaskEntry {

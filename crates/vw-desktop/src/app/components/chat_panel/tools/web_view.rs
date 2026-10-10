@@ -92,8 +92,7 @@ pub fn tool_web_view<'a>(
     }
 
     if matches!(tool_name, "web_fetch" | "fetch_webpage" | "http_request") {
-        let header_summary =
-            if metadata_text.is_empty() { summary } else { metadata_text.clone() };
+        let header_summary = if metadata_text.is_empty() { summary } else { metadata_text.clone() };
         let content = tool_activity_header(
             tool_name,
             title,

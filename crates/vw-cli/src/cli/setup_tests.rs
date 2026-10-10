@@ -49,15 +49,9 @@ fn resolve_setup_name_preserves_explicit_empty_override() {
 fn tool_descriptions_always_include_core_tools() {
     let descriptions = build_tool_descriptions(false, false, false);
 
-    for name in [
-        "shell",
-        "file_read",
-        "file_write",
-        "memory_store",
-        "cron_add",
-        "screenshot",
-        "schedule",
-    ] {
+    for name in
+        ["shell", "file_read", "file_write", "memory_store", "cron_add", "screenshot", "schedule"]
+    {
         assert!(has_tool(&descriptions, name), "missing core tool description: {name}");
     }
 }

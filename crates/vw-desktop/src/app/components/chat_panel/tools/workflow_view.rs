@@ -2,8 +2,8 @@
 //!
 //! 聊天流只保留节点标题、状态与短摘要；完整节点输出统一交给工具详情弹窗。
 
-use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::text::Wrapping;
+use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{button, container, mouse_area, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme};
 use serde_json::Value;
@@ -131,18 +131,13 @@ fn plan_run_card_display(value: &Value) -> Option<PlanRunCardDisplay> {
         "subtask_started" | "subtask_finished" => {
             let title = metadata_string(value, "title");
             let primary_text = if title.is_empty() { "工作流节点".to_string() } else { title };
-            let tooltip_text =
-                (!task_path.is_empty()).then(|| format!("任务路径：{task_path}"));
+            let tooltip_text = (!task_path.is_empty()).then(|| format!("任务路径：{task_path}"));
             (primary_text, tooltip_text)
         }
         _ => return None,
     };
 
-    Some(PlanRunCardDisplay {
-        primary_text,
-        summary_text: String::new(),
-        tooltip_text,
-    })
+    Some(PlanRunCardDisplay { primary_text, summary_text: String::new(), tooltip_text })
 }
 
 fn plan_run_tooltip_content(label: String) -> Element<'static, Message> {
@@ -426,14 +421,9 @@ pub fn tool_workflow_view<'a>(
     }
     actions = actions.push(detail_btn);
 
-    let card = container(tool_activity_header(
-        "workflow_node",
-        title,
-        summary,
-        visual,
-        actions.into(),
-    ))
-    .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 });
+    let card =
+        container(tool_activity_header("workflow_node", title, summary, visual, actions.into()))
+            .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 });
     let card = if plan_run_card.is_some() {
         card.width(Length::Shrink).max_width(PLAN_RUN_CARD_MAX_WIDTH)
     } else {
@@ -446,13 +436,11 @@ pub fn tool_workflow_view<'a>(
         .into();
 
     Some(match plan_run_card.and_then(|display| display.tooltip_text) {
-        Some(tooltip_text) => Tooltip::new(
-            card,
-            plan_run_tooltip_content(tooltip_text),
-            TooltipPosition::Top,
-        )
-        .gap(6.0)
-        .into(),
+        Some(tooltip_text) => {
+            Tooltip::new(card, plan_run_tooltip_content(tooltip_text), TooltipPosition::Top)
+                .gap(6.0)
+                .into()
+        }
         None => card,
     })
 }

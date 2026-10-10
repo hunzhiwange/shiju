@@ -76,11 +76,7 @@ fn fixture(responses: Vec<FixtureResponse>) -> (String, String, thread::JoinHand
             })
             .collect()
     });
-    (
-        format!("http://{address}/app-platform/api/"),
-        format!("http://{address}/iam/api/v1/"),
-        handle,
-    )
+    (format!("http://{address}/app-platform/api/"), format!("http://{address}/iam/api/v1/"), handle)
 }
 
 fn envelope(items: Value) -> String {
@@ -154,11 +150,7 @@ async fn shiju_app_routes_require_credentials_and_valid_installation_ids() {
 
     let (status, body) = response(
         app.clone(),
-        request(
-            "GET",
-            "/shiju/apps/lowercase/api-key-binding",
-            Some(CREDENTIAL),
-        ),
+        request("GET", "/shiju/apps/lowercase/api-key-binding", Some(CREDENTIAL)),
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
@@ -339,21 +331,13 @@ async fn shiju_app_binding_routes_map_get_keys_and_put() {
         "updated_at": null
     });
     let (app_base, iam_base, requests) = fixture(vec![
-        FixtureResponse {
-            status: 200,
-            headers: Vec::new(),
-            body: binding.to_string(),
-        },
+        FixtureResponse { status: 200, headers: Vec::new(), body: binding.to_string() },
         FixtureResponse {
             status: 200,
             headers: Vec::new(),
             body: serde_json::json!({"code": 200, "data": {"list": [key.clone()]}}).to_string(),
         },
-        FixtureResponse {
-            status: 200,
-            headers: Vec::new(),
-            body: binding.to_string(),
-        },
+        FixtureResponse { status: 200, headers: Vec::new(), body: binding.to_string() },
         FixtureResponse {
             status: 200,
             headers: Vec::new(),
@@ -367,11 +351,7 @@ async fn shiju_app_binding_routes_map_get_keys_and_put() {
 
     let (status, binding) = response(
         app.clone(),
-        request(
-            "GET",
-            &format!("/shiju/apps/{INSTALLATION_ID}/api-key-binding"),
-            Some(CREDENTIAL),
-        ),
+        request("GET", &format!("/shiju/apps/{INSTALLATION_ID}/api-key-binding"), Some(CREDENTIAL)),
     )
     .await;
     assert_eq!(status, StatusCode::OK);

@@ -98,12 +98,7 @@ fn reliability_help_explains_affected_features_and_omits_removed_fields() {
         assert!(help_text.contains(expected), "missing help text: {expected}");
     }
 
-    for removed in [
-        "fallback_providers",
-        "fallback_api_keys",
-        "api_keys",
-        "model_fallbacks",
-    ] {
+    for removed in ["fallback_providers", "fallback_api_keys", "api_keys", "model_fallbacks"] {
         assert!(!help_text.contains(removed), "removed field remains in help: {removed}");
     }
 }

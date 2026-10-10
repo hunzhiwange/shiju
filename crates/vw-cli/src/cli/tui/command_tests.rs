@@ -1,9 +1,9 @@
 use std::net::TcpListener;
 use std::path::PathBuf;
 
-use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint};
 use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_gateway_client::vw_api_types::id::ProjectId;
+use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint};
 use vw_tui::{V3Action, V3ApprovalDecision};
 
 use super::app::{ActiveRunner, V3GatewayApp};
@@ -18,8 +18,8 @@ use super::model::background_task::{
     CanonicalTaskStatus, TaskControlAction,
 };
 use super::model::schedule_panel::{SchedulePanel, SchedulePanelItem};
-use super::model::{UiConfirmIntent, UiOverlay};
 use super::model::workflow_panel::{WorkflowPanel, WorkflowPanelItem};
+use super::model::{UiConfirmIntent, UiOverlay};
 use super::runtime::cron::CronJobSnapshot;
 use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime};
 use super::runtime::orchestration::OrchestrationSnapshot;
@@ -120,9 +120,7 @@ fn unknown_slash_command_is_rejected_without_a_gateway_request() {
 fn cd_command_routes_non_empty_path() {
     assert_eq!(
         route_slash_submission("/cd ../target directory").expect("/cd should route"),
-        Some(CommandRoute::ChangeDirectory {
-            path: "../target directory".to_string(),
-        })
+        Some(CommandRoute::ChangeDirectory { path: "../target directory".to_string() })
     );
     assert!(
         route_slash_submission("/cd   ")
@@ -208,9 +206,7 @@ fn hooks_commands_route_catalog_audit_and_mutations() {
         assert!(route_slash_submission(command).is_err(), "invalid Hook mutation: {command}");
     }
     assert!(
-        command_palette_items()
-            .iter()
-            .any(|item| item.id == "hooks" && !item.disabled),
+        command_palette_items().iter().any(|item| item.id == "hooks" && !item.disabled),
         "/hooks should be discoverable"
     );
 }
@@ -219,9 +215,7 @@ fn hooks_commands_route_catalog_audit_and_mutations() {
 fn memory_command_preserves_query() {
     assert_eq!(
         route_slash_submission("/memory rust async").expect("memory query should route"),
-        Some(CommandRoute::QueryMemory {
-            query: Some("rust async".to_string()),
-        })
+        Some(CommandRoute::QueryMemory { query: Some("rust async".to_string()) })
     );
     assert_eq!(
         route_slash_submission("/memory").expect("empty memory query should refresh the directory"),
@@ -240,8 +234,7 @@ fn memory_mutation_parser_requires_key_and_content() {
         })
     );
     assert_eq!(
-        route_slash_submission("/memory forget project/key")
-            .expect("memory delete should route"),
+        route_slash_submission("/memory forget project/key").expect("memory delete should route"),
         Some(CommandRoute::ConfirmMemoryDelete { key: "project/key".to_string() })
     );
 
@@ -299,24 +292,16 @@ fn workflow_dynamic_command_requires_catalog_uuid_and_query() {
         },
         ..OrchestrationSnapshot::default()
     };
-    let request = workflow_run_request(
-        &snapshot,
-        Some("stable-session"),
-        "wf/current",
-        "deploy safely",
-    )
-    .expect("owned UUID and stable session should build a request");
+    let request =
+        workflow_run_request(&snapshot, Some("stable-session"), "wf/current", "deploy safely")
+            .expect("owned UUID and stable session should build a request");
     assert_eq!(request.uuid, "wf/current");
     assert_eq!(request.body.query, "deploy safely");
     assert_eq!(request.body.user, "stable-session");
 
-    let error = workflow_run_request(
-        &snapshot,
-        Some("stable-session"),
-        "wf/stale",
-        "deploy safely",
-    )
-    .expect_err("stale Workflow UUID must be rejected before a request");
+    let error =
+        workflow_run_request(&snapshot, Some("stable-session"), "wf/stale", "deploy safely")
+            .expect_err("stale Workflow UUID must be rejected before a request");
     assert!(error.contains("current Workflow snapshot"));
 }
 
@@ -333,10 +318,7 @@ fn task_control_routes_supported_commands_only() {
         assert_eq!(
             route_slash_submission(&format!("/tasks {command_name} task/owned"))
                 .expect("supported task control should route"),
-            Some(CommandRoute::ConfirmTaskControl {
-                id: "task/owned".to_string(),
-                action,
-            })
+            Some(CommandRoute::ConfirmTaskControl { id: "task/owned".to_string(), action })
         );
     }
 
@@ -455,10 +437,7 @@ fn task_control_enforces_canonical_transition_and_confirmation() {
 
     runner.execute_action(
         &mut app,
-        V3Action::Submit {
-            text: "/tasks pause task/owned".to_string(),
-            attachments: Vec::new(),
-        },
+        V3Action::Submit { text: "/tasks pause task/owned".to_string(), attachments: Vec::new() },
     );
     let UiOverlay::Confirm(pause) = app.state().overlays.active().expect("pause confirmation")
     else {
@@ -498,27 +477,19 @@ fn task_control_enforces_canonical_transition_and_confirmation() {
 fn schedule_mutations_require_snapshot_id_and_confirmation() {
     assert_eq!(
         route_slash_submission("/schedule enable cron/owned").expect("enable should route"),
-        Some(CommandRoute::ConfirmCronToggle {
-            job_id: "cron/owned".to_string(),
-            enabled: true,
-        })
+        Some(CommandRoute::ConfirmCronToggle { job_id: "cron/owned".to_string(), enabled: true })
     );
     assert_eq!(
         route_slash_submission("/schedule disable cron/owned").expect("disable should route"),
-        Some(CommandRoute::ConfirmCronToggle {
-            job_id: "cron/owned".to_string(),
-            enabled: false,
-        })
+        Some(CommandRoute::ConfirmCronToggle { job_id: "cron/owned".to_string(), enabled: false })
     );
     assert_eq!(
         route_slash_submission("/schedule delete cron/owned").expect("delete should route"),
         Some(CommandRoute::ConfirmCronDelete { job_id: "cron/owned".to_string() })
     );
-    for command in [
-        "/schedule enable",
-        "/schedule delete cron/owned extra",
-        "/schedule edit cron/owned",
-    ] {
+    for command in
+        ["/schedule enable", "/schedule delete cron/owned extra", "/schedule edit cron/owned"]
+    {
         assert!(route_slash_submission(command).is_err(), "invalid Cron mutation: {command}");
     }
 
@@ -584,10 +555,7 @@ fn schedule_mutations_require_snapshot_id_and_confirmation() {
         panic!("expected typed Cron delete confirmation");
     };
     assert!(delete.destructive);
-    assert_eq!(
-        delete.intent,
-        UiConfirmIntent::ScheduleDelete { id: "cron/owned".to_string() }
-    );
+    assert_eq!(delete.intent, UiConfirmIntent::ScheduleDelete { id: "cron/owned".to_string() });
     let request_id = delete.request_id.clone();
     runner.execute_action(
         &mut app,

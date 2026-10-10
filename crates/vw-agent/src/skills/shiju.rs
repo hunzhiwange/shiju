@@ -390,9 +390,7 @@ fn validate_tag_id(tag_id: Option<u64>) -> Result<(), ShijuSkillError> {
 
 fn validate_tag_ids(tag_ids: &[u64]) -> Result<(), ShijuSkillError> {
     if tag_ids.contains(&0) {
-        Err(ShijuSkillError::invalid(
-            "SHIJU skill tag_ids must contain only positive integers",
-        ))
+        Err(ShijuSkillError::invalid("SHIJU skill tag_ids must contain only positive integers"))
     } else {
         Ok(())
     }
@@ -400,9 +398,7 @@ fn validate_tag_ids(tag_ids: &[u64]) -> Result<(), ShijuSkillError> {
 
 fn validate_statuses(statuses: &[String]) -> Result<(), ShijuSkillError> {
     if statuses.iter().any(|status| !MAINTAINED_SKILL_STATUSES.contains(&status.as_str())) {
-        Err(ShijuSkillError::invalid(
-            "SHIJU skill statuses contains an unsupported value",
-        ))
+        Err(ShijuSkillError::invalid("SHIJU skill statuses contains an unsupported value"))
     } else {
         Ok(())
     }

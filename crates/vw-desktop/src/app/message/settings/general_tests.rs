@@ -13,9 +13,7 @@ fn tab_selection_updates_general_settings_content() {
 
     let _ = update(
         &mut app,
-        SettingsMessage::General(GeneralSettingsMessage::TabSelected(
-            GeneralSettingsTab::Editor,
-        )),
+        SettingsMessage::General(GeneralSettingsMessage::TabSelected(GeneralSettingsTab::Editor)),
     );
 
     assert_eq!(app.general_settings_tab, GeneralSettingsTab::Editor);
@@ -30,9 +28,7 @@ fn theme_tab_selection_clears_error_and_refreshes_gallery() {
 
     let task = update(
         &mut app,
-        SettingsMessage::General(GeneralSettingsMessage::TabSelected(
-            GeneralSettingsTab::Themes,
-        )),
+        SettingsMessage::General(GeneralSettingsMessage::TabSelected(GeneralSettingsTab::Themes)),
     );
 
     assert_eq!(app.general_settings_tab, GeneralSettingsTab::Themes);

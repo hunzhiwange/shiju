@@ -789,8 +789,9 @@ pub(crate) fn default_param_for_tool(tool: &str) -> &'static str {
     match tool {
         "shell" | "bash" | "sh" | "exec" | "command" | "cmd" => "command",
         // 所有文件工具默认使用 path 参数
-        "file_read" | "fileread" | "readfile" | "read_file" | "file" | "write" | "file_write" | "filewrite" | "writefile"
-        | "write_file" | "file_list" | "filelist" | "listfiles" | "list_files" => "path",
+        "file_read" | "fileread" | "readfile" | "read_file" | "file" | "write" | "file_write"
+        | "filewrite" | "writefile" | "write_file" | "file_list" | "filelist" | "listfiles"
+        | "list_files" => "path",
         "grep" | "glob" => "pattern",
         "codesearch" => "query",
         // 记忆召回和删除默认使用 query 参数

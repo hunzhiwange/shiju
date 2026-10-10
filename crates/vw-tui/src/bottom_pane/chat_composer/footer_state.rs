@@ -1,6 +1,5 @@
 //! 本模块集中实现 `footer_state` 在底部面板中的职责。
 
-
 //! VibeWindow 底部使用的本地、时间无关的状态
 //! Local, time-independent state used by the VibeWindow footer.
 

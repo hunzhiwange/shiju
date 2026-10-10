@@ -99,10 +99,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 },
                 |(session_id, turn_id, step_index, result)| {
                     Message::View(ViewMessage::UsageTurnStepRawLoaded(
-                        session_id,
-                        turn_id,
-                        step_index,
-                        result,
+                        session_id, turn_id, step_index, result,
                     ))
                 },
             )

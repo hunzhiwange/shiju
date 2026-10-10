@@ -2,7 +2,6 @@
 //! 关键声明 `handle_vim_extra_command`、`handle_vim_pending_command`、`vim_command_char` 共同界定本文件的对外交互面。
 //! 状态读取与更新均沿用既有类型，不在渲染路径中引入额外业务副作用。
 
-
 //! 待编辑的 Vim 命令。
 //! Pending Vim editing commands.
 

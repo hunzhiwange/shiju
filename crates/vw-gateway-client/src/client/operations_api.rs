@@ -23,10 +23,7 @@ impl GatewayClient {
     ) -> Result<Value, String> {
         let integration_id = required_path_value(integration_id, "integration id")?;
         self.put_json(
-            &format!(
-                "/v1/integrations/{}/credentials",
-                encode_path_segment(integration_id)
-            ),
+            &format!("/v1/integrations/{}/credentials", encode_path_segment(integration_id)),
             &[],
             body,
         )
@@ -57,12 +54,8 @@ impl GatewayClient {
     /// 删除指定键的记忆。
     pub async fn memory_delete(&self, key: &str) -> Result<Value, String> {
         let key = required_path_value(key, "memory key")?;
-        self.delete_json(
-            &format!("/v1/memory/{}", encode_path_segment(key)),
-            &[],
-            &Value::Null,
-        )
-        .await
+        self.delete_json(&format!("/v1/memory/{}", encode_path_segment(key)), &[], &Value::Null)
+            .await
     }
 
     /// 以 GET 执行 Gateway 诊断。
@@ -77,9 +70,7 @@ impl GatewayClient {
 }
 
 fn non_empty_optional<'a>(value: Option<&'a str>, label: &str) -> Result<Option<&'a str>, String> {
-    value
-        .map(|value| required_path_value(value, label))
-        .transpose()
+    value.map(|value| required_path_value(value, label)).transpose()
 }
 
 fn required_path_value<'a>(value: &'a str, label: &str) -> Result<&'a str, String> {

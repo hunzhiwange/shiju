@@ -19,9 +19,8 @@ impl ApiQlQuery {
         let mut pairs = Vec::new();
         for parameter in parameters {
             let parameter = parameter.into();
-            let (key, value) = parameter
-                .split_once('=')
-                .ok_or_else(|| invalid_parameter(&parameter))?;
+            let (key, value) =
+                parameter.split_once('=').ok_or_else(|| invalid_parameter(&parameter))?;
             if !valid_query_key(key) {
                 return Err(invalid_parameter(&parameter));
             }
@@ -92,8 +91,7 @@ impl GatewayClient {
 fn valid_query_key(key: &str) -> bool {
     !key.is_empty()
         && key.bytes().all(|byte| {
-            byte.is_ascii_alphanumeric()
-                || matches!(byte, b'_' | b'-' | b'.' | b':' | b'[' | b']')
+            byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b':' | b'[' | b']')
         })
 }
 

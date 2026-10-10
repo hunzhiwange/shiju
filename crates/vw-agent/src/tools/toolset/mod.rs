@@ -804,15 +804,42 @@ pub fn all_tools_with_runtime(
         Some(session_id.to_string()),
         workspace_dir.to_path_buf(),
     )));
-    tool_arcs.push(Arc::new(super::thread_tool::ForkThreadTool::new(Some(session_id.to_string()), workspace_dir.to_path_buf())));
-    tool_arcs.push(Arc::new(super::thread_tool::HandoffThreadTool::new(Some(session_id.to_string()), workspace_dir.to_path_buf())));
-    tool_arcs.push(Arc::new(super::thread_tool::ListThreadsTool::new(Some(session_id.to_string()), workspace_dir.to_path_buf())));
-    tool_arcs.push(Arc::new(super::thread_tool::ReadThreadTool::new(Some(session_id.to_string()), workspace_dir.to_path_buf())));
-    tool_arcs.push(Arc::new(super::thread_tool::WaitThreadsTool::new(Some(session_id.to_string()), workspace_dir.to_path_buf())));
-    tool_arcs.push(Arc::new(super::thread_tool::SendMessageToThreadTool::new(Some(session_id.to_string()), workspace_dir.to_path_buf())));
-    tool_arcs.push(Arc::new(super::thread_tool::SetThreadTitleTool::new(Some(session_id.to_string()), workspace_dir.to_path_buf())));
-    tool_arcs.push(Arc::new(super::thread_tool::SetThreadArchivedTool::new(Some(session_id.to_string()), workspace_dir.to_path_buf())));
-    tool_arcs.push(Arc::new(super::thread_tool::SetThreadPinnedTool::new(Some(session_id.to_string()), workspace_dir.to_path_buf())));
+    tool_arcs.push(Arc::new(super::thread_tool::ForkThreadTool::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )));
+    tool_arcs.push(Arc::new(super::thread_tool::HandoffThreadTool::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )));
+    tool_arcs.push(Arc::new(super::thread_tool::ListThreadsTool::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )));
+    tool_arcs.push(Arc::new(super::thread_tool::ReadThreadTool::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )));
+    tool_arcs.push(Arc::new(super::thread_tool::WaitThreadsTool::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )));
+    tool_arcs.push(Arc::new(super::thread_tool::SendMessageToThreadTool::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )));
+    tool_arcs.push(Arc::new(super::thread_tool::SetThreadTitleTool::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )));
+    tool_arcs.push(Arc::new(super::thread_tool::SetThreadArchivedTool::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )));
+    tool_arcs.push(Arc::new(super::thread_tool::SetThreadPinnedTool::new(
+        Some(session_id.to_string()),
+        workspace_dir.to_path_buf(),
+    )));
 
     let delegate_agents =
         enabled_delegate_agents_with_project_skills(agents, workspace_dir, root_config);

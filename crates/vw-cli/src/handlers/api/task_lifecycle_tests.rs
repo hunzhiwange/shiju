@@ -11,7 +11,14 @@ async fn api_task_lifecycle_commands_cover_workflow_crud_and_reset() {
     let workflow = json!({"id":"wf/one","label":"One","statuses":[]});
     let body = json!({"workflow":workflow.clone()});
     let input = body.to_string();
-    let responses = vec![json!([workflow.clone()]), workflow.clone(), workflow.clone(), workflow.clone(), json!({"id":"wf/one","deleted":true}), workflow];
+    let responses = vec![
+        json!([workflow.clone()]),
+        workflow.clone(),
+        workflow.clone(),
+        workflow.clone(),
+        json!({"id":"wf/one","deleted":true}),
+        workflow,
+    ];
     let (port, requests) = spawn_server(responses);
     let port = port.to_string();
     let common = ["--host", "127.0.0.1", "--port", port.as_str()];
@@ -21,7 +28,9 @@ async fn api_task_lifecycle_commands_cover_workflow_crud_and_reset() {
         &["task-lifecycle", "delete", "wf/one"][..],
         &["task-lifecycle", "reset", "wf/one"][..],
     ] {
-        let error = run_command(&common, command, input.as_bytes()).await.expect_err("write requires --yes");
+        let error = run_command(&common, command, input.as_bytes())
+            .await
+            .expect_err("write requires --yes");
         assert!(error.contains("--yes"));
         assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
     }
@@ -31,9 +40,13 @@ async fn api_task_lifecycle_commands_cover_workflow_crud_and_reset() {
     assert_request(&requests, "GET", "/v1/task-lifecycle/workflows/wf%2Fone", Value::Null);
 
     let yes = ["--host", "127.0.0.1", "--port", port.as_str(), "--yes"];
-    run_command(&yes, &["task-lifecycle", "create", "--input", "-"], input.as_bytes()).await.unwrap();
+    run_command(&yes, &["task-lifecycle", "create", "--input", "-"], input.as_bytes())
+        .await
+        .unwrap();
     assert_request(&requests, "POST", "/v1/task-lifecycle/workflows", body.clone());
-    run_command(&yes, &["task-lifecycle", "update", "wf/one", "--input", "-"], input.as_bytes()).await.unwrap();
+    run_command(&yes, &["task-lifecycle", "update", "wf/one", "--input", "-"], input.as_bytes())
+        .await
+        .unwrap();
     assert_request(&requests, "PUT", "/v1/task-lifecycle/workflows/wf%2Fone", body);
     run_command(&yes, &["task-lifecycle", "delete", "wf/one"], b"").await.unwrap();
     assert_request(&requests, "DELETE", "/v1/task-lifecycle/workflows/wf%2Fone", json!({}));

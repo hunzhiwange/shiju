@@ -220,12 +220,10 @@ async fn shiju_skill_routes_reject_missing_credential_and_invalid_filters() {
         ("statuses=draft,archived", "statuses"),
     ] {
         let (status, body) = response(
-            Request::get(format!(
-                "/shiju/skills/maintained?page=1&page_size=20&{query}"
-            ))
-            .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
-            .body(Body::empty())
-            .expect("maintained request"),
+            Request::get(format!("/shiju/skills/maintained?page=1&page_size=20&{query}"))
+                .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
+                .body(Body::empty())
+                .expect("maintained request"),
         )
         .await;
         assert_eq!(status, StatusCode::BAD_REQUEST);

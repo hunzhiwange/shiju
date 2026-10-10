@@ -8,7 +8,6 @@
 //! 取消与关闭路径保持已有返回语义，不暗中确认待处理操作。
 //! 选择、滚动与焦点值在使用前由原有逻辑约束到有效范围。
 
-
 //! 从 Codex 复制的通用选择表面，由 VibeWindow 拥有。
 //! Generic selection surface copied from Codex and owned by VibeWindow.
 //!

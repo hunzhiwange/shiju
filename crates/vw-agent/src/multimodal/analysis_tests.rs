@@ -28,10 +28,7 @@ struct SequentialAnalyzer {
 
 impl SequentialAnalyzer {
     fn new() -> Self {
-        Self {
-            support_calls: AtomicUsize::new(0),
-            extraction_calls: AtomicUsize::new(0),
-        }
+        Self { support_calls: AtomicUsize::new(0), extraction_calls: AtomicUsize::new(0) }
     }
 }
 

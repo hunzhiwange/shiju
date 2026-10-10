@@ -23,9 +23,15 @@ pub(super) enum SessionCommands {
     /// 读取会话运行状态表。
     Status,
     /// 创建会话。
-    Create { #[arg(long, value_parser = required)] input: String },
+    Create {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
     /// 读取会话详情。
-    Detail { #[arg(value_parser = required)] session_id: String },
+    Detail {
+        #[arg(value_parser = required)]
+        session_id: String,
+    },
     /// 更新会话。
     Update {
         #[arg(value_parser = required)]
@@ -34,11 +40,20 @@ pub(super) enum SessionCommands {
         input: String,
     },
     /// 删除会话。
-    Delete { #[arg(value_parser = required)] session_id: String },
+    Delete {
+        #[arg(value_parser = required)]
+        session_id: String,
+    },
     /// 读取直接子会话。
-    Children { #[arg(value_parser = required)] session_id: String },
+    Children {
+        #[arg(value_parser = required)]
+        session_id: String,
+    },
     /// 读取会话待办。
-    TodoGet { #[arg(value_parser = required)] session_id: String },
+    TodoGet {
+        #[arg(value_parser = required)]
+        session_id: String,
+    },
     /// 覆盖会话待办。
     TodoPut {
         #[arg(value_parser = required)]
@@ -94,9 +109,7 @@ impl SessionCommands {
             }
             Self::Fork { session_id, .. } => Some(format!("fork session '{session_id}'")),
             Self::Reset { session_id, .. } => Some(format!("reset session '{session_id}'")),
-            Self::Summarize { session_id, .. } => {
-                Some(format!("summarize session '{session_id}'"))
-            }
+            Self::Summarize { session_id, .. } => Some(format!("summarize session '{session_id}'")),
             Self::Title { session_id, .. } => {
                 Some(format!("generate title for session '{session_id}'"))
             }
@@ -144,7 +157,10 @@ pub(super) async fn run(
         }
         SessionCommands::TodoPut { session_id, input } => {
             let body = parse::<GatewaySessionTodoPutBody>(&input, stdin, "todo update")?;
-            client.session_todo_update(&session_id, directory, &body).await.map(|value| json!(value))
+            client
+                .session_todo_update(&session_id, directory, &body)
+                .await
+                .map(|value| json!(value))
         }
         SessionCommands::Fork { session_id, input } => {
             let body = parse::<GatewaySessionForkBody>(&input, stdin, "fork")?;

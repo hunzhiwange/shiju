@@ -79,11 +79,7 @@ fn fixture(responses: Vec<FixtureResponse>) -> (String, String, thread::JoinHand
             })
             .collect()
     });
-    (
-        format!("http://{address}/app-platform/api/"),
-        format!("http://{address}/iam/api/v1/"),
-        handle,
-    )
+    (format!("http://{address}/app-platform/api/"), format!("http://{address}/iam/api/v1/"), handle)
 }
 
 fn ok(items: serde_json::Value) -> FixtureResponse {
@@ -327,20 +323,13 @@ async fn shiju_apps_adapter_redacts_credentials_and_upstream_bodies() {
 #[tokio::test(flavor = "multi_thread")]
 async fn shiju_app_binding_flow_parses_configured_and_unconfigured_records() {
     let (app_base, iam_base, requests) = fixture(vec![
-        FixtureResponse {
-            status: 200,
-            headers: Vec::new(),
-            body: binding(true, true).to_string(),
-        },
+        FixtureResponse { status: 200, headers: Vec::new(), body: binding(true, true).to_string() },
         FixtureResponse {
             status: 200,
             headers: Vec::new(),
             body: binding(false, true).to_string(),
         },
-        iam_keys(serde_json::json!([
-            iam_key("42", "enabled"),
-            iam_key("43", "disabled")
-        ])),
+        iam_keys(serde_json::json!([iam_key("42", "enabled"), iam_key("43", "disabled")])),
     ]);
     let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
 
@@ -390,11 +379,7 @@ async fn save_binding_result(
         responses.push(iam_keys(keys));
     }
     if include_put {
-        responses.push(FixtureResponse {
-            status: 204,
-            headers: Vec::new(),
-            body: String::new(),
-        });
+        responses.push(FixtureResponse { status: 204, headers: Vec::new(), body: String::new() });
     }
     let (app_base, iam_base, requests) = fixture(responses);
     let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
@@ -442,8 +427,7 @@ async fn shiju_app_binding_save_reloads_and_accepts_only_enabled_owned_key() {
         (binding(false, true), serde_json::json!([iam_key("43", "disabled")]), 43, 2),
         (binding(false, true), serde_json::json!([iam_key("42", "enabled")]), 999, 2),
     ] {
-        let (result, requests) =
-            save_binding_result(binding_response, keys, id, false).await;
+        let (result, requests) = save_binding_result(binding_response, keys, id, false).await;
         let error = result.expect_err("binding save must reject the key");
         assert_eq!(error.kind(), ShijuAppErrorKind::InvalidInput);
         assert_eq!(requests.len(), expected_requests);
@@ -460,11 +444,7 @@ async fn shiju_app_binding_save_reloads_and_accepts_only_enabled_owned_key() {
             body: binding(false, true).to_string(),
         },
         iam_keys(serde_json::json!([iam_key("42", "enabled")])),
-        FixtureResponse {
-            status: 500,
-            headers: Vec::new(),
-            body: sensitive_body,
-        },
+        FixtureResponse { status: 500, headers: Vec::new(), body: sensitive_body },
     ]);
     let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
     let error = client

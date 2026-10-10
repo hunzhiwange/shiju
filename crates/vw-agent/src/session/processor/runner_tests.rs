@@ -134,8 +134,7 @@ fn agents_referenced_skill_is_preloaded_before_first_user_request() {
 
     protocol.preload_skills(&referenced).expect("preload AGENTS skill");
     let history = vec![serde_json::json!({"role": "user", "content": "inspect callers"})];
-    let messages =
-        protocol.assemble(&history, &instructions, true).expect("assemble protocol");
+    let messages = protocol.assemble(&history, &instructions, true).expect("assemble protocol");
 
     assert!(
         messages[0]["content"]
@@ -754,10 +753,7 @@ fn transient_internal_compaction_replaces_only_covered_history_without_tools() {
         "runner-transient-compaction",
         &mut messages,
         "provider/model",
-        &crate::app::agent::config::ReliabilityConfig {
-            provider_retries: 0,
-            ..Default::default()
-        },
+        &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
     )
     .expect("summary should succeed");
 
@@ -793,10 +789,7 @@ fn transient_internal_compaction_keeps_history_when_summary_fails() {
         "runner-transient-compaction-failure",
         &mut messages,
         "provider/model",
-        &crate::app::agent::config::ReliabilityConfig {
-            provider_retries: 0,
-            ..Default::default()
-        },
+        &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
     )
     .expect_err("failed summaries must not change history");
 

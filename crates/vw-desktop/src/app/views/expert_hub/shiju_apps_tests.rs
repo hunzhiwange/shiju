@@ -136,10 +136,7 @@ fn shiju_apps_grid_limits_each_row_to_four_cards() {
 #[test]
 fn shiju_apps_title_uses_single_line_ellipsis_when_too_long() {
     assert_eq!(shiju_apps::app_title("会议纪要助手"), "会议纪要助手");
-    assert_eq!(
-        shiju_apps::app_title("AI 智能托管数据日志查询"),
-        "AI 智能托管数据日志..."
-    );
+    assert_eq!(shiju_apps::app_title("AI 智能托管数据日志查询"), "AI 智能托管数据日志...");
 }
 
 #[test]
@@ -178,11 +175,13 @@ fn api_key_binding_overlay_appears_only_after_unconfigured_binding() {
 
     for state in states {
         app.expert_hub.shiju_apps.launch = state;
-        assert!(shiju_apps::api_key_binding::is_visible(
-            &app.expert_hub.shiju_apps.launch
-        ));
+        assert!(shiju_apps::api_key_binding::is_visible(&app.expert_hub.shiju_apps.launch));
         let element = shiju_apps::view(&app);
-        assert_eq!(element.as_widget().children().len(), 2, "base and modal must both remain mounted");
+        assert_eq!(
+            element.as_widget().children().len(),
+            2,
+            "base and modal must both remain mounted"
+        );
     }
 
     for state in [
@@ -191,10 +190,7 @@ fn api_key_binding_overlay_appears_only_after_unconfigured_binding() {
             generation: 7,
             installation_id: "install-01".to_string(),
         },
-        ShijuAppLaunchState::Preparing {
-            generation: 7,
-            installation_id: "install-01".to_string(),
-        },
+        ShijuAppLaunchState::Preparing { generation: 7, installation_id: "install-01".to_string() },
         ShijuAppLaunchState::Error {
             generation: 7,
             installation_id: "install-01".to_string(),

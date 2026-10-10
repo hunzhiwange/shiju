@@ -175,16 +175,7 @@ async fn gateway_websocket_passes_hook_runtime_to_tool_loop() {
     state.hook_runtime = Some(runtime.clone());
     let mut history = vec![ChatMessage::user("run enabled tool")];
     assert_eq!(
-        run_websocket_tool_loop(
-            &state,
-            &mut history,
-            "test",
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap(),
+        run_websocket_tool_loop(&state, &mut history, "test", None, None, None,).await.unwrap(),
         "enabled"
     );
     assert_eq!(runtime.audit_store().entries().len(), 1);
@@ -193,9 +184,7 @@ async fn gateway_websocket_passes_hook_runtime_to_tool_loop() {
     runtime.replace(runtime.build_candidate(&hook_config).unwrap());
     let mut history = vec![ChatMessage::user("run disabled tool")];
     assert_eq!(
-        run_websocket_tool_loop(&state, &mut history, "test", None, None, None)
-            .await
-            .unwrap(),
+        run_websocket_tool_loop(&state, &mut history, "test", None, None, None).await.unwrap(),
         "disabled"
     );
     assert_eq!(runtime.audit_store().entries().len(), 1);

@@ -5,7 +5,6 @@
 //! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
 //! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
 
-
 //! VibeWindow 输入编辑器中的纯底部渲染。
 //! Pure footer rendering for the VibeWindow composer.
 //!

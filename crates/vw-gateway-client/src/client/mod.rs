@@ -13,10 +13,10 @@
 //! - 复用的 `reqwest::Client`
 
 mod agent_scheduler_api;
-mod apiql_api;
 #[cfg(test)]
 #[path = "agent_scheduler_api_tests.rs"]
 mod agent_scheduler_api_tests;
+mod apiql_api;
 mod config_api;
 mod control_api;
 #[cfg(test)]
@@ -26,17 +26,17 @@ mod cron_api;
 pub mod desktop_settings_api;
 mod file_api;
 mod git_api;
-mod knowledge_api;
 mod inference_api;
+mod knowledge_api;
 mod mcp_api;
 mod operations_api;
 #[cfg(test)]
 #[path = "operations_api_tests.rs"]
 mod operations_api_tests;
 mod permission_api;
-mod pty_api;
 mod project_api;
 mod provider_api;
+mod pty_api;
 mod question_api;
 mod request_helpers;
 mod session_api;
@@ -64,27 +64,25 @@ pub(crate) mod test_support;
 mod tools_api;
 mod workflow_api;
 
-pub use self::cron_api::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 pub use self::apiql_api::ApiQlQuery;
+pub use self::cron_api::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 pub use self::desktop_settings_api::{
     DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
-    DesktopPluginPathDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto,
-    DesktopServiceCommand, ExternalAppsStateDto, HookAuditEntryDto, HookCatalogEntryDto, HookMutationRequestDto,
-    HookMutationResponseDto,
+    DesktopPluginPathDto, DesktopServiceCommand, DesktopSkillCatalogEntryDto,
+    DesktopSkillDetailDto, DesktopSkillPathDto, ExternalAppsStateDto, HookAuditEntryDto,
+    HookCatalogEntryDto, HookMutationRequestDto, HookMutationResponseDto,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::inference_api::GatewayChatWebSocket;
+pub use self::inference_api::{
+    GatewayAgentRequest, GatewayAgentResponse, GatewayChatWebSocketEvent,
 };
 pub use self::permission_api::{
     PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto,
 };
-pub use self::inference_api::{
-    GatewayAgentRequest, GatewayAgentResponse, GatewayChatWebSocketEvent,
-};
-#[cfg(not(target_arch = "wasm32"))]
-pub use self::inference_api::GatewayChatWebSocket;
-pub use self::pty_api::{
-    PtyCreateRequest, PtyInfoDto, PtySizeDto, PtyStatusDto, PtyUpdateRequest,
-};
 #[cfg(not(target_arch = "wasm32"))]
 pub use self::pty_api::{PtyConnection, PtyWebSocketEvent};
+pub use self::pty_api::{PtyCreateRequest, PtyInfoDto, PtySizeDto, PtyStatusDto, PtyUpdateRequest};
 pub use self::session_api::SessionUiLoadResult;
 pub use self::shiju_account_api::{
     SHIJU_CREDENTIAL_HEADER, ShijuAccountDepartmentDto, ShijuAccountMeDto,
@@ -102,8 +100,7 @@ pub use self::shiju_skill_api::{
     ShijuMarketplaceSkillDto, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
     ShijuSkillReadmeDto, ShijuSkillScanResultDto, ShijuSkillSearchQuery, ShijuSkillTagDto,
     ShijuSkillVersionContentDto, ShijuSkillVersionDto, ShijuSkillVisibilityDto,
-    ShijuSkillVisibilityScopeDto,
-    ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
+    ShijuSkillVisibilityScopeDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
 pub use self::skill_market_api::{
     SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketEnvelope,

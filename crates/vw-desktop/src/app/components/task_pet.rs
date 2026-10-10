@@ -554,12 +554,16 @@ fn badge_button(count: usize) -> Element<'static, Message> {
 
 fn expand_collapse_button(collapsed: bool) -> Element<'static, Message> {
     button(
-        svg::Svg::new(assets::get_icon(if collapsed { Icon::ChevronUp } else { Icon::ChevronDown }))
-            .width(Length::Fixed(13.0))
-            .height(Length::Fixed(13.0))
-            .style(|_theme: &Theme, _status| svg::Style {
-                color: Some(Color::from_rgb8(190, 190, 190)),
-            }),
+        svg::Svg::new(assets::get_icon(if collapsed {
+            Icon::ChevronUp
+        } else {
+            Icon::ChevronDown
+        }))
+        .width(Length::Fixed(13.0))
+        .height(Length::Fixed(13.0))
+        .style(|_theme: &Theme, _status| svg::Style {
+            color: Some(Color::from_rgb8(190, 190, 190)),
+        }),
     )
     .width(Length::Fixed(24.0))
     .height(Length::Fixed(24.0))

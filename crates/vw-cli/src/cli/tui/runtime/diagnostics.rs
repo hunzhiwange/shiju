@@ -35,9 +35,11 @@ impl GatewayDiagnosticsReport {
                 self.ok_count, self.warning_count, self.error_count
             ),
         ];
-        lines.extend(self.items.iter().map(|item| {
-            format!("[{}] {}: {}", item.severity, item.category, item.message)
-        }));
+        lines.extend(
+            self.items
+                .iter()
+                .map(|item| format!("[{}] {}: {}", item.severity, item.category, item.message)),
+        );
         lines.join("\n")
     }
 }
@@ -60,11 +62,8 @@ fn diagnostics_report(value: &Value) -> Result<GatewayDiagnosticsReport, String>
         .get("results")
         .and_then(Value::as_array)
         .ok_or_else(|| "Gateway diagnostics response is missing results".to_string())?;
-    let items = results
-        .iter()
-        .filter_map(diagnostic_item)
-        .take(MAX_DIAGNOSTIC_RESULTS)
-        .collect::<Vec<_>>();
+    let items =
+        results.iter().filter_map(diagnostic_item).take(MAX_DIAGNOSTIC_RESULTS).collect::<Vec<_>>();
     let ok_count = items.iter().filter(|item| item.severity == "ok").count();
     let warning_count = items.iter().filter(|item| item.severity == "warn").count();
     let error_count = items.iter().filter(|item| item.severity == "error").count();
@@ -78,14 +77,10 @@ fn diagnostic_item(value: &Value) -> Option<GatewayDiagnosticItem> {
         "error" => "error",
         _ => return None,
     };
-    let category = bounded_sanitized_text(
-        value.get("category").and_then(Value::as_str)?,
-        MAX_CATEGORY_CHARS,
-    );
-    let message = bounded_sanitized_text(
-        value.get("message").and_then(Value::as_str)?,
-        MAX_MESSAGE_CHARS,
-    );
+    let category =
+        bounded_sanitized_text(value.get("category").and_then(Value::as_str)?, MAX_CATEGORY_CHARS);
+    let message =
+        bounded_sanitized_text(value.get("message").and_then(Value::as_str)?, MAX_MESSAGE_CHARS);
     if category.is_empty() || message.is_empty() {
         return None;
     }

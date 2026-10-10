@@ -136,11 +136,10 @@ fn apply_config(app: &mut App, config: &vw_config_types::config::Config) -> bool
         &mut entries,
         &app.agents_settings.available_tools,
     );
-    let removed_stale_tools = app.agents_settings.registered_tools.as_deref().is_some_and(
-        |registered_tools| {
+    let removed_stale_tools =
+        app.agents_settings.registered_tools.as_deref().is_some_and(|registered_tools| {
             crate::app::state::retain_available_allowed_tools(&mut entries, registered_tools)
-        },
-    );
+        });
     app.agents_settings.entries = entries;
     if !app
         .agents_settings
@@ -168,16 +167,7 @@ fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
     match preset_key {
         "minimal" => tool_matches_any(
             tool_id,
-            &[
-                "ls",
-                "read",
-                "file_read",
-                "pdf_read",
-                "grep",
-                "glob",
-                "memory_recall",
-                "question",
-            ],
+            &["ls", "read", "file_read", "pdf_read", "grep", "glob", "memory_recall", "question"],
         ),
         "coding" => {
             tool_in_preset(tool_id, "minimal")
@@ -549,10 +539,7 @@ fn build_agents_settings_patch(
             serde_json::json!(entry.max_history_messages.clamp(1, 1000)),
         );
         agent.insert("parallel_tools".to_string(), serde_json::json!(entry.parallel_tools));
-        agent.insert(
-            "max_iterations".to_string(),
-            serde_json::json!(entry.max_iterations.max(1)),
-        );
+        agent.insert("max_iterations".to_string(), serde_json::json!(entry.max_iterations.max(1)));
         agents.insert(entry.key.clone(), serde_json::Value::Object(agent));
     }
     agents.insert("general".to_string(), serde_json::Value::Null);
@@ -678,11 +665,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                             &available_tools,
                         );
                     }
-                    let removed_stale_tools =
-                        crate::app::state::retain_available_allowed_tools(
-                            &mut app.agents_settings.entries,
-                            &registered_tools,
-                        );
+                    let removed_stale_tools = crate::app::state::retain_available_allowed_tools(
+                        &mut app.agents_settings.entries,
+                        &registered_tools,
+                    );
                     app.agents_settings.available_tools = available_tools;
                     app.agents_settings.registered_tools = Some(registered_tools);
                     removed_stale_tools

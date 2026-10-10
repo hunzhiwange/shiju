@@ -1,10 +1,10 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
-use crate::app::{App, Message};
 use crate::app::session_gateway::{
     gateway_hook_audit_async, gateway_hook_revoke_async, gateway_hook_trust_async,
     gateway_hooks_async,
 };
+use crate::app::{App, Message};
 use iced::Task;
 
 use super::messages::{HooksMessage, SettingsMessage};
@@ -34,20 +34,15 @@ fn audit_refresh_task() -> Task<Message> {
 }
 
 fn trust_task(plugin_id: String, hook_hash: String) -> Task<Message> {
-    Task::perform(
-        async move { gateway_hook_trust_async(&plugin_id, &hook_hash).await },
-        |result| {
-            Message::Settings(SettingsMessage::Hooks(HooksMessage::MutationCompleted(result)))
-        },
-    )
+    Task::perform(async move { gateway_hook_trust_async(&plugin_id, &hook_hash).await }, |result| {
+        Message::Settings(SettingsMessage::Hooks(HooksMessage::MutationCompleted(result)))
+    })
 }
 
 fn revoke_task(plugin_id: String, hook_hash: String) -> Task<Message> {
     Task::perform(
         async move { gateway_hook_revoke_async(&plugin_id, &hook_hash).await },
-        |result| {
-            Message::Settings(SettingsMessage::Hooks(HooksMessage::MutationCompleted(result)))
-        },
+        |result| Message::Settings(SettingsMessage::Hooks(HooksMessage::MutationCompleted(result))),
     )
 }
 

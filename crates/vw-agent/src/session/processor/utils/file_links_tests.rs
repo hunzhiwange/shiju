@@ -233,15 +233,8 @@ fn maybe_inject_file_link_supports_every_file_tool_alias() {
     let workspace = tempfile::tempdir().expect("temp workspace");
     let ctx = ctx_for(workspace.path());
 
-    for name in [
-        "read",
-        "file_read",
-        "pdf_read",
-        "write",
-        "file_write",
-        "file_edit",
-        "apply_patch",
-    ] {
+    for name in ["read", "file_read", "pdf_read", "write", "file_write", "file_edit", "apply_patch"]
+    {
         let output =
             super::maybe_inject_file_link(name, r#"{"filePath":"missing.md"}"#, &ctx, "body");
 

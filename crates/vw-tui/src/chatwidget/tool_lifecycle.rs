@@ -17,12 +17,7 @@ impl ChatWidget {
     }
 
     // 接收 `on_tool_output_delta` 对应事件，并只更新本地展示状态。
-    pub(super) fn on_tool_output_delta(
-        &mut self,
-        turn_id: String,
-        call_id: String,
-        delta: String,
-    ) {
+    pub(super) fn on_tool_output_delta(&mut self, turn_id: String, call_id: String, delta: String) {
         self.on_command_output_delta(&turn_id, call_id, delta);
     }
 
@@ -34,13 +29,7 @@ impl ChatWidget {
         exit_code: i32,
         duration_ms: u64,
     ) {
-        self.on_command_finished(
-            &turn_id,
-            call_id,
-            output,
-            exit_code,
-            duration_ms,
-        );
+        self.on_command_finished(&turn_id, call_id, output, exit_code, duration_ms);
         self.flush_file_diffs_if_tool_group_finished();
     }
 

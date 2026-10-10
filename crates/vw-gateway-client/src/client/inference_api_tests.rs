@@ -6,8 +6,8 @@ use std::net::TcpListener;
 use std::sync::mpsc;
 
 use serde_json::json;
-use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 use vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_types::id::ProjectId;
 
@@ -35,24 +35,46 @@ async fn inference_and_stream_clients_preserve_protocol_events() {
     assert_eq!(agent.response, "hello");
     let openai = server
         .client()
-        .inference_openai_chat(&json!({"model":"auto","messages":[{"role":"user","content":"hello"}]}))
+        .inference_openai_chat(
+            &json!({"model":"auto","messages":[{"role":"user","content":"hello"}]}),
+        )
         .await
         .expect("OpenAI inference");
     assert_eq!(openai["id"], "chat-1");
 
     let mut events = Vec::new();
-    server.client().stream_gateway_events(|event| { events.push(event); true }).await.unwrap();
-    server.client().stream_global_events(|event| { events.push(event); true }).await.unwrap();
     server
         .client()
-        .stream_instance_events(Some("/workspace"), |event| { events.push(event); true })
+        .stream_gateway_events(|event| {
+            events.push(event);
+            true
+        })
         .await
         .unwrap();
-    let scope = AgentSchedulerScopeDto::for_default_tenant(ProjectId::from("project/one"))
-        .expect("scope");
     server
         .client()
-        .stream_agent_scheduler_events(&scope, Some(6), |event| { events.push(event); true })
+        .stream_global_events(|event| {
+            events.push(event);
+            true
+        })
+        .await
+        .unwrap();
+    server
+        .client()
+        .stream_instance_events(Some("/workspace"), |event| {
+            events.push(event);
+            true
+        })
+        .await
+        .unwrap();
+    let scope =
+        AgentSchedulerScopeDto::for_default_tenant(ProjectId::from("project/one")).expect("scope");
+    server
+        .client()
+        .stream_agent_scheduler_events(&scope, Some(6), |event| {
+            events.push(event);
+            true
+        })
         .await
         .unwrap();
     assert_eq!(events.iter().map(|event| event.id).collect::<Vec<_>>(), vec![Some(7); 4]);

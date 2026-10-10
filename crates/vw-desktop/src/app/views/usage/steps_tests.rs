@@ -152,11 +152,10 @@ fn raw_payload_status_reports_loaded_loading_error_and_missing_states() {
             "output": {"tool_calls": [{"id": "call-1"}]}
         }))),
     );
-    app.usage_step_raw_payloads
-        .insert(
-            ("session-1".to_string(), String::new(), 2),
-            Err("gateway request failed".to_string()),
-        );
+    app.usage_step_raw_payloads.insert(
+        ("session-1".to_string(), String::new(), 2),
+        Err("gateway request failed".to_string()),
+    );
     app.usage_step_raw_loading.insert(("session-1".to_string(), String::new(), 3));
 
     assert!(super::raw_payload_status(&app, "session-1", 1).contains("历史消息 1 条"));

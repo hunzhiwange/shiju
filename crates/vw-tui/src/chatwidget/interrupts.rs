@@ -26,9 +26,8 @@ impl ChatWidget {
         self.exec_state.finish_running(130, &reason);
         self.commit_exec_group();
         self.interrupt_state.record(turn_id);
-        self.transcript.push_history(V3DisplayEvent::System {
-            text: format!("Cancelled: {reason}"),
-        });
+        self.transcript
+            .push_history(V3DisplayEvent::System { text: format!("Cancelled: {reason}") });
         self.set_status(V3ChatStatus::idle());
     }
 }

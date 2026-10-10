@@ -649,13 +649,34 @@ pub(crate) fn tool_bucket(tool_id: &str) -> SessionToolBucket {
         | "web_search" | "websearch" | "web_search_tool" | "screenshot" => {
             SessionToolBucket::Browser
         }
-        "AgentTool" | "create_thread" | "fork_thread" | "list_threads" | "read_thread"
-        | "send_message_to_thread" | "handoff_thread" | "set_thread_title"
-        | "set_thread_pinned" | "set_thread_archived" | "wait_threads"
-        | "Agent" | "agent" | "schedule" | "cron_add" | "cron_list" | "cron_remove"
-        | "cron_update" | "cron_run" | "cron_runs" | "todoread" | "todowrite"
-        | "enter_worktree" | "exit_worktree" | "question" | "skill"
-        | "memory_store" | "memory_forget" => SessionToolBucket::Agent,
+        "AgentTool"
+        | "create_thread"
+        | "fork_thread"
+        | "list_threads"
+        | "read_thread"
+        | "send_message_to_thread"
+        | "handoff_thread"
+        | "set_thread_title"
+        | "set_thread_pinned"
+        | "set_thread_archived"
+        | "wait_threads"
+        | "Agent"
+        | "agent"
+        | "schedule"
+        | "cron_add"
+        | "cron_list"
+        | "cron_remove"
+        | "cron_update"
+        | "cron_run"
+        | "cron_runs"
+        | "todoread"
+        | "todowrite"
+        | "enter_worktree"
+        | "exit_worktree"
+        | "question"
+        | "skill"
+        | "memory_store"
+        | "memory_forget" => SessionToolBucket::Agent,
         _ => SessionToolBucket::Other,
     }
 }
@@ -675,12 +696,32 @@ pub(crate) fn tool_group(tool_id: &str) -> SessionToolGroup {
         | "bash" | "shell" | "process" | "git_operations" => SessionToolGroup::Execute,
         "browser" | "browser_open" | "http_request" | "web_fetch" | "fetch_webpage"
         | "web_search" | "websearch" | "web_search_tool" | "screenshot" => SessionToolGroup::Web,
-        "AgentTool" | "create_thread" | "fork_thread" | "list_threads" | "read_thread"
-        | "send_message_to_thread" | "handoff_thread" | "set_thread_title"
-        | "set_thread_pinned" | "set_thread_archived" | "wait_threads"
-        | "Agent" | "agent" | "question" | "skill" | "schedule" | "cron_add"
-        | "cron_list" | "cron_remove" | "cron_update" | "cron_run" | "cron_runs" | "todoread"
-        | "todowrite" | "enter_worktree" | "exit_worktree" => SessionToolGroup::Collaboration,
+        "AgentTool"
+        | "create_thread"
+        | "fork_thread"
+        | "list_threads"
+        | "read_thread"
+        | "send_message_to_thread"
+        | "handoff_thread"
+        | "set_thread_title"
+        | "set_thread_pinned"
+        | "set_thread_archived"
+        | "wait_threads"
+        | "Agent"
+        | "agent"
+        | "question"
+        | "skill"
+        | "schedule"
+        | "cron_add"
+        | "cron_list"
+        | "cron_remove"
+        | "cron_update"
+        | "cron_run"
+        | "cron_runs"
+        | "todoread"
+        | "todowrite"
+        | "enter_worktree"
+        | "exit_worktree" => SessionToolGroup::Collaboration,
         "memory_recall" | "memory_store" | "memory_forget" => SessionToolGroup::Memory,
         "batch" => SessionToolGroup::Integration,
         _ => SessionToolGroup::Other,

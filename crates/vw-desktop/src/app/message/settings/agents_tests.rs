@@ -1236,11 +1236,8 @@ fn available_tools_exclude_mcp_dynamic_ids() {
 #[test]
 fn loaded_tool_catalog_removes_all_stale_selections_and_schedules_save() {
     let mut app = test_app();
-    entry_mut(&mut app, "main").allowed_tools = vec![
-        "removed_a".to_string(),
-        "read".to_string(),
-        "removed_b".to_string(),
-    ];
+    entry_mut(&mut app, "main").allowed_tools =
+        vec!["removed_a".to_string(), "read".to_string(), "removed_b".to_string()];
 
     let _ = update(
         &mut app,

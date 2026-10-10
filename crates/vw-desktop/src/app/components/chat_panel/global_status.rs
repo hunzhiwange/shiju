@@ -139,11 +139,7 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
 
     // 进行内容保留完整单行，由剩余布局宽度动态裁切，不再按固定字符数提前截短。
     let detail_line = single_line(&status.detail);
-    let content = if detail_line.is_empty() {
-        action
-    } else {
-        format!("{action} {detail_line}")
-    };
+    let content = if detail_line.is_empty() { action } else { format!("{action} {detail_line}") };
 
     // 时间、token 紧跟图标，进行内容放到最后。
     let mut meta_parts = Vec::new();
@@ -191,8 +187,7 @@ const THINK_PULSE_GLYPHS: [&str; 4] = ["✳", "✶", "✷", "❋"];
 const THINK_PULSE_FRAMES_PER_GLYPH: usize = 6;
 
 pub(crate) fn think_pulse_glyph(frame: usize) -> &'static str {
-    THINK_PULSE_GLYPHS
-        [(frame / THINK_PULSE_FRAMES_PER_GLYPH) % THINK_PULSE_GLYPHS.len()]
+    THINK_PULSE_GLYPHS[(frame / THINK_PULSE_FRAMES_PER_GLYPH) % THINK_PULSE_GLYPHS.len()]
 }
 
 const THINK_PULSE_MIN_SIZE: f32 = 14.0;
@@ -213,9 +208,7 @@ fn think_pulse_indicator<'a>(frame: usize) -> Element<'a, Message> {
             .size(think_pulse_size(frame))
             .line_height(iced::widget::text::LineHeight::Relative(1.0))
             .font(bold_font())
-            .style(|_theme: &Theme| iced::widget::text::Style {
-                color: Some(THINK_PULSE_ACCENT),
-            }),
+            .style(|_theme: &Theme| iced::widget::text::Style { color: Some(THINK_PULSE_ACCENT) }),
     )
     .width(Length::Fixed(THINK_PULSE_MAX_SIZE))
     .height(Length::Fixed(THINK_PULSE_MAX_SIZE))
@@ -258,9 +251,7 @@ fn compact_activity_indicator<'a>(visual: ToolVisual, frame: usize) -> Element<'
         icon_svg(visual.icon)
             .width(Length::Fixed(icon_size))
             .height(Length::Fixed(icon_size))
-            .style(move |theme: &Theme, _status| svg::Style {
-                color: Some(visual.color(theme)),
-            })
+            .style(move |theme: &Theme, _status| svg::Style { color: Some(visual.color(theme)) })
             .into()
     };
 

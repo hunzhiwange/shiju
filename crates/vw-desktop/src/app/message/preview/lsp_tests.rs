@@ -535,11 +535,8 @@ fn handle_lsp_hover_from_mouse_keeps_pending_deadline_for_same_symbol() {
     let point = iced::Point::new(100.0, 10.0);
 
     super::lsp::handle_lsp_hover_from_mouse(&mut app, point);
-    let first_ready_at = app
-        .lsp_hover_pending
-        .as_ref()
-        .expect("first hover should schedule a request")
-        .ready_at;
+    let first_ready_at =
+        app.lsp_hover_pending.as_ref().expect("first hover should schedule a request").ready_at;
 
     super::lsp::handle_lsp_hover_from_mouse(&mut app, point);
 

@@ -26,14 +26,35 @@ fn set_thread_pinned_round_trip_and_project_order() {
     let older = session("older", "Older", "/workspace/project", 10);
     let newer = session("newer", "Newer", "/workspace/project", 20);
     let pinned_keys = pinned.iter().map(|id| (project.to_string(), id.clone())).collect();
-    assert!(work_sidebar::compare_sessions(&("/workspace/project", &older), &("/workspace/project", &newer), &pinned_keys).is_lt());
+    assert!(
+        work_sidebar::compare_sessions(
+            &("/workspace/project", &older),
+            &("/workspace/project", &newer),
+            &pinned_keys
+        )
+        .is_lt()
+    );
     let mut other_project = older.clone();
     other_project.project_id = "other".into();
-    assert!(work_sidebar::compare_sessions(&("/workspace/project", &other_project), &("/workspace/project", &newer), &pinned_keys).is_gt());
+    assert!(
+        work_sidebar::compare_sessions(
+            &("/workspace/project", &other_project),
+            &("/workspace/project", &newer),
+            &pinned_keys
+        )
+        .is_gt()
+    );
     vw_shared::session::ui_store::set_thread_pinned(temp.path(), project, "older", false).unwrap();
     let unpinned = vw_shared::session::ui_store::load_pinned_threads(temp.path(), project).unwrap();
     assert!(!unpinned.contains("older"));
-    assert!(work_sidebar::compare_sessions(&("/workspace/project", &older), &("/workspace/project", &newer), &Default::default()).is_gt());
+    assert!(
+        work_sidebar::compare_sessions(
+            &("/workspace/project", &older),
+            &("/workspace/project", &newer),
+            &Default::default()
+        )
+        .is_gt()
+    );
 }
 
 fn session(id: &str, title: &str, directory: &str, updated: u64) -> Info {
@@ -69,9 +90,15 @@ fn work_sidebar_hides_archived_task_and_shows_restored_task() {
     task.slug = Info::visible_task_slug(&task.slug);
     task.time.archived = Some(30);
     app.project_sessions.insert(path.into(), vec![session("root", "Root", path, 10), task]);
-    assert_eq!(work_sidebar::model(&app).tasks.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(), ["root"]);
+    assert_eq!(
+        work_sidebar::model(&app).tasks.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
+        ["root"]
+    );
     app.project_sessions.get_mut(path).expect("project")[1].time.archived = None;
-    assert_eq!(work_sidebar::model(&app).tasks.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(), ["task", "root"]);
+    assert_eq!(
+        work_sidebar::model(&app).tasks.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
+        ["task", "root"]
+    );
 }
 
 #[test]
@@ -105,8 +132,7 @@ fn work_sidebar_shows_visible_task_in_own_project() {
             wrong_project_id,
         ],
     );
-    app.project_sessions
-        .insert(beta.into(), vec![session("beta-root", "Beta", beta, 5)]);
+    app.project_sessions.insert(beta.into(), vec![session("beta-root", "Beta", beta, 5)]);
 
     for _ in 0..2 {
         let model = work_sidebar::model(&app);
@@ -115,25 +141,14 @@ fn work_sidebar_shows_visible_task_in_own_project() {
             ["visible", "alpha-root", "beta-root"]
         );
         assert_eq!(
-            model.spaces[0]
-                .sessions
-                .iter()
-                .map(|task| task.id.as_str())
-                .collect::<Vec<_>>(),
+            model.spaces[0].sessions.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(),
             ["visible", "alpha-root"]
         );
         assert_eq!(
-            model.spaces[1]
-                .sessions
-                .iter()
-                .map(|task| task.id.as_str())
-                .collect::<Vec<_>>(),
+            model.spaces[1].sessions.iter().map(|task| task.id.as_str()).collect::<Vec<_>>(),
             ["beta-root"]
         );
-        app.project_sessions
-            .get_mut(alpha)
-            .unwrap()
-            .retain(|item| item.id != "visible");
+        app.project_sessions.get_mut(alpha).unwrap().retain(|item| item.id != "visible");
         app.project_sessions.get_mut(alpha).unwrap().push(visible.clone());
     }
 }

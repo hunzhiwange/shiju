@@ -13,8 +13,8 @@ use super::{
     filter_mcp_from_available_tools, ordered_agent_keys, retain_available_allowed_tools,
 };
 use crate::app::state::{
-    AGENT_DETAIL_BASIC_TAB, AGENT_PROMPT_SYSTEM_TAB, AGENT_TOOLS_OPTIONAL_TAB,
-    AgentConfigTab, AgentSettingsEntryKind, MAIN_AGENT_KEY, WORKSPACE_IDENTITY_FILES,
+    AGENT_DETAIL_BASIC_TAB, AGENT_PROMPT_SYSTEM_TAB, AGENT_TOOLS_OPTIONAL_TAB, AgentConfigTab,
+    AgentSettingsEntryKind, MAIN_AGENT_KEY, WORKSPACE_IDENTITY_FILES,
 };
 use std::collections::HashMap;
 use vw_config_types::agent::{DelegateAgentConfig, builtin_agent_keys};

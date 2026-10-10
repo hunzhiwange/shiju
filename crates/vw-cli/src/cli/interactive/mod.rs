@@ -41,9 +41,9 @@
 use crate::app::agent::config::Config;
 use anyhow::Result;
 
-use super::setup::CliSetup;
 #[cfg(test)]
 use self::tests::run_tui;
+use super::setup::CliSetup;
 #[cfg(not(test))]
 use super::tui::run_tui;
 

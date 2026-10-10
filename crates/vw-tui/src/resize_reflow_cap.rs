@@ -91,12 +91,18 @@ mod tests {
     #[test]
     // 显式行数优先于终端自动检测。
     fn configured_resize_reflow_max_rows_overrides_auto_detection() {
-        assert_eq!(resize_reflow_max_rows_for(ResizeReflowCap::Limit(42), TerminalKind::VsCode), Some(42));
+        assert_eq!(
+            resize_reflow_max_rows_for(ResizeReflowCap::Limit(42), TerminalKind::VsCode),
+            Some(42)
+        );
     }
 
     #[test]
     // 禁用上限以 `None` 表示保留全部重排行。
     fn disabled_resize_reflow_max_rows_keeps_all_rows() {
-        assert_eq!(resize_reflow_max_rows_for(ResizeReflowCap::Disabled, TerminalKind::Other), None);
+        assert_eq!(
+            resize_reflow_max_rows_for(ResizeReflowCap::Disabled, TerminalKind::Other),
+            None
+        );
     }
 }

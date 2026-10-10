@@ -113,9 +113,7 @@ impl HookHandler for CommandPluginHookHandler {
 /// 发现插件钩子，仅为信任摘要仍匹配当前声明的钩子创建处理器。
 ///
 /// 清单发生任何安全相关变化都会改变摘要，使钩子重新进入待审核状态。
-pub(crate) fn trusted_plugin_hook_handlers(
-    config: &Config,
-) -> Result<Vec<Box<dyn HookHandler>>> {
+pub(crate) fn trusted_plugin_hook_handlers(config: &Config) -> Result<Vec<Box<dyn HookHandler>>> {
     if !config.hooks.enabled || !config.hooks.plugins.enabled {
         return Ok(Vec::new());
     }

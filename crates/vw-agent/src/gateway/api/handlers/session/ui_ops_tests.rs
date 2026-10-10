@@ -1199,13 +1199,10 @@ async fn session_ui_get_maps_invalid_json_llm_raw_to_internal_error() {
         )
         .expect("raw payload should be corrupted for the error case");
 
-    let error = session_ui_get(
-        Path(session_id.clone()),
-        Query(query_for(project_path)),
-        HeaderMap::new(),
-    )
-    .await
-    .expect_err("invalid raw payload should fail");
+    let error =
+        session_ui_get(Path(session_id.clone()), Query(query_for(project_path)), HeaderMap::new())
+            .await
+            .expect_err("invalid raw payload should fail");
     assert_eq!(error.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
 
     let Json(without_raw) = session_ui_get_without_raw(

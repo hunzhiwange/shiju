@@ -56,21 +56,16 @@ pub fn history_cell_for(event: &V3DisplayEvent) -> Box<dyn HistoryCell> {
         V3DisplayEvent::ToolCall { call_id, tool, command } => {
             Box::new(ExecHistoryCell::from_pending(call_id.clone(), tool.clone(), command.clone()))
         }
-        V3DisplayEvent::ToolResult {
-            call_id,
-            tool,
-            command,
-            output,
-            exit_code,
-            duration_ms,
-        } => Box::new(ExecHistoryCell::from_result(
-            call_id.clone(),
-            tool.clone(),
-            command.clone(),
-            output.clone(),
-            *exit_code,
-            *duration_ms,
-        )),
+        V3DisplayEvent::ToolResult { call_id, tool, command, output, exit_code, duration_ms } => {
+            Box::new(ExecHistoryCell::from_result(
+                call_id.clone(),
+                tool.clone(),
+                command.clone(),
+                output.clone(),
+                *exit_code,
+                *duration_ms,
+            ))
+        }
         V3DisplayEvent::FileDiff { diff } => Box::new(PatchHistoryCell::new(diff.clone())),
         V3DisplayEvent::Thinking { text } => Box::new(PlainHistoryCell::bullet("thinking", text)),
         V3DisplayEvent::Step { title, status } => Box::new(PlainHistoryCell::bullet(

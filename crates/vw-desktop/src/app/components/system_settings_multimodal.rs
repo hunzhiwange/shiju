@@ -93,7 +93,8 @@ fn image_model_options(app: &App) -> Vec<String> {
                         .filter(|model| {
                             model.enabled
                                 && !model.id.trim().is_empty()
-                                && model.detail["capabilities"]["input"]["image"].as_bool() == Some(true)
+                                && model.detail["capabilities"]["input"]["image"].as_bool()
+                                    == Some(true)
                         })
                         .map(|model| format!("{}/{}", provider.id, model.id))
                 }),

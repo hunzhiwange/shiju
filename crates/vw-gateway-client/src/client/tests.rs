@@ -80,16 +80,11 @@ fn endpoint_returns_bound_configuration() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn chat_stream_stop_uses_request_scoped_route() {
-    let server = crate::client::test_support::server(vec![(
-        200,
-        serde_json::json!({ "cancelled": true }),
-    )]);
+    let server =
+        crate::client::test_support::server(vec![(200, serde_json::json!({ "cancelled": true }))]);
 
-    let cancelled = server
-        .client()
-        .chat_stream_stop("desktop-request-1")
-        .await
-        .expect("chat stream stop");
+    let cancelled =
+        server.client().chat_stream_stop("desktop-request-1").await.expect("chat stream stop");
 
     assert!(cancelled);
     let request = server.take_request();

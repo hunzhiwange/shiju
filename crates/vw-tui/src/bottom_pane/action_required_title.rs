@@ -1,6 +1,5 @@
 //! 本模块集中实现 `action_required_title` 在底部面板中的职责。
 
-
 //! 用于显式用户操作的标题文本
 //! Shared title text for overlays that require an explicit user action.
 

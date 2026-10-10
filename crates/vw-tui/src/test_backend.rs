@@ -119,15 +119,11 @@ impl Backend for VT100Backend {
             columns_rows: self.vt100().screen().size().into(),
             // 像素尺寸为任意占位值，测试只依赖字符行列。
             // Arbitrary size, we don't rely on this in testing.
-            pixels: Size {
-                width: 640,
-                height: 480,
-            },
+            pixels: Size { width: 640, height: 480 },
         })
     }
 
     fn flush(&mut self) -> io::Result<()> {
         self.crossterm_backend.writer_mut().flush()
     }
-
 }

@@ -3,12 +3,12 @@
 
 use super::message_view::{
     assistant_render_blocks, deduped_tool_last_indices, effective_assistant_render_cache,
-    explore_summary_text_blocks, hash_chat_content, message_footer_padding, message_view,
-    message_surface_contract, message_surface_style, parse_markdown_blocks,
+    explore_summary_text_blocks, hash_chat_content, message_footer_padding,
+    message_surface_contract, message_surface_style, message_view, parse_markdown_blocks,
     should_highlight_pending_permission_tool, should_prefer_plain_think_body,
-    should_use_user_message_editor,
-    should_render_think_block, summarize_explore_items, think_block_default_expanded,
-    think_block_resolved_expanded, tool_card_text_blocks, trailing_tool_tail_text_source_block_idx,
+    should_render_think_block, should_use_user_message_editor, summarize_explore_items,
+    think_block_default_expanded, think_block_resolved_expanded, tool_card_text_blocks,
+    trailing_tool_tail_text_source_block_idx,
 };
 use super::tools::{EXPLORE_GROUP_TOOL_IDX, tool_name_from_raw};
 use super::utils::strip_internal_tool_trace;
@@ -41,8 +41,7 @@ fn user_message_falls_back_to_source_text_while_selectable_editor_is_empty() {
 
     assert!(!should_use_user_message_editor(&app, 0, "刚发送的消息", true));
 
-    app.chat_message_editors[0] =
-        iced::widget::text_editor::Content::with_text("刚发送的消息");
+    app.chat_message_editors[0] = iced::widget::text_editor::Content::with_text("刚发送的消息");
     assert!(should_use_user_message_editor(&app, 0, "刚发送的消息", true));
     assert!(!should_use_user_message_editor(&app, 0, "刚发送的消息", false));
 }
@@ -55,17 +54,7 @@ async fn selectable_user_message_fills_available_width() {
     let (mut app, _) = App::new();
     app.chat_message_editors.push(iced::widget::text_editor::Content::with_text(CONTENT));
     let cache = ChatRenderCacheEntry::default();
-    let mut element = message_view(
-        &app,
-        0,
-        ChatRole::User,
-        CONTENT,
-        &[],
-        None,
-        None,
-        &cache,
-        true,
-    );
+    let mut element = message_view(&app, 0, ChatRole::User, CONTENT, &[], None, None, &cache, true);
     let renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
@@ -73,20 +62,12 @@ async fn selectable_user_message_fills_available_width() {
     let limits = layout::Limits::new(Size::ZERO, Size::new(1_000.0, 1_200.0));
     let mut tree = Tree::new(element.as_widget());
     let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
-    let bubble_shell = Layout::new(&node)
-        .children()
-        .next()
-        .expect("message column should contain a bubble shell");
-    let bubble = bubble_shell
-        .children()
-        .next()
-        .expect("bubble shell should contain the user bubble");
+    let bubble_shell =
+        Layout::new(&node).children().next().expect("message column should contain a bubble shell");
+    let bubble =
+        bubble_shell.children().next().expect("bubble shell should contain the user bubble");
 
-    assert!(
-        node.bounds().height < 240.0,
-        "user bubble was unexpectedly tall: {:?}",
-        node.bounds()
-    );
+    assert!(node.bounds().height < 240.0, "user bubble was unexpectedly tall: {:?}", node.bounds());
     assert_eq!(bubble.bounds().width, node.bounds().width);
 }
 
@@ -156,8 +137,7 @@ async fn message_visual_contract_renders_complex_content_in_light_and_dark_theme
     {
         let (mut app, _) = App::new();
         app.app_theme = theme.clone();
-        app.chat_message_editors
-            .push(iced::widget::text_editor::Content::with_text(USER_CONTENT));
+        app.chat_message_editors.push(iced::widget::text_editor::Content::with_text(USER_CONTENT));
         app.chat_message_ids = vec![None, None, Some("msg-visual".to_string())];
         app.chat_markdown_blocks.insert(1_u64 << 32, parse_markdown_blocks(MARKDOWN_CONTENT));
         let request = vw_gateway_client::PendingPermissionRequestDto {

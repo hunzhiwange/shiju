@@ -213,9 +213,7 @@ impl RawRoundView {
 }
 
 fn required_value<'a>(object: &'a Map<String, Value>, name: &str) -> Result<&'a Value> {
-    object
-        .get(name)
-        .with_context(|| format!("LLM raw round is missing {name}"))
+    object.get(name).with_context(|| format!("LLM raw round is missing {name}"))
 }
 
 fn ensure_turn_context_matches(context: &LlmRawTurnContext, current: &RawRoundView) -> Result<()> {

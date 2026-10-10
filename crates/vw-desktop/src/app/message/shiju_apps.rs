@@ -101,18 +101,12 @@ pub(crate) fn update(app: &mut App, message: ShijuAppsMessage) -> Task<Message> 
         ShijuAppsMessage::OpenInstalled(installation_id) => {
             prepare_installed_launch(app, installation_id)
         }
-        ShijuAppsMessage::BindingLoaded {
-            generation,
-            account_id,
-            installation_id,
-            result,
-        } => finish_binding_check(app, generation, &account_id, &installation_id, result),
-        ShijuAppsMessage::ApiKeysLoaded {
-            generation,
-            account_id,
-            installation_id,
-            result,
-        } => finish_api_key_load(app, generation, &account_id, &installation_id, result),
+        ShijuAppsMessage::BindingLoaded { generation, account_id, installation_id, result } => {
+            finish_binding_check(app, generation, &account_id, &installation_id, result)
+        }
+        ShijuAppsMessage::ApiKeysLoaded { generation, account_id, installation_id, result } => {
+            finish_api_key_load(app, generation, &account_id, &installation_id, result)
+        }
         ShijuAppsMessage::SelectApiKey(api_key_id) => {
             select_api_key(app, api_key_id);
             Task::none()
@@ -124,13 +118,7 @@ pub(crate) fn update(app: &mut App, message: ShijuAppsMessage) -> Task<Message> 
             account_id,
             installation_id,
             result,
-        } => finish_api_key_binding_save(
-            app,
-            generation,
-            &account_id,
-            &installation_id,
-            result,
-        ),
+        } => finish_api_key_binding_save(app, generation, &account_id, &installation_id, result),
         ShijuAppsMessage::CancelApiKeyBinding => {
             cancel_api_key_binding(app);
             Task::none()
@@ -214,11 +202,8 @@ fn begin_binding_check(app: &mut App, installation_id: String) -> Task<Message> 
         async move {
             let gateway_credential =
                 credential.gateway_credential().map_err(|error| error.to_string())?;
-            gateway_shiju_app_api_key_binding_async(
-                &gateway_credential,
-                &requested_installation_id,
-            )
-            .await
+            gateway_shiju_app_api_key_binding_async(&gateway_credential, &requested_installation_id)
+                .await
         },
         move |result| {
             Message::ShijuApps(ShijuAppsMessage::BindingLoaded {
@@ -239,10 +224,7 @@ fn finish_binding_check(
     result: Result<ShijuAppApiKeyBindingDto, String>,
 ) -> Task<Message> {
     let current = launch_result_is_current(app, generation, account_id, installation_id)
-        && matches!(
-            app.expert_hub.shiju_apps.launch,
-            ShijuAppLaunchState::CheckingBinding { .. }
-        );
+        && matches!(app.expert_hub.shiju_apps.launch, ShijuAppLaunchState::CheckingBinding { .. });
     if !current {
         return Task::none();
     }
@@ -338,11 +320,8 @@ fn finish_api_key_load(
 
     let (api_keys, selected_api_key_id, error, toast_message) = match result {
         Ok(keys) => {
-            let selected = keys
-                .api_keys
-                .iter()
-                .find(|key| key.status == "enabled")
-                .map(|key| key.api_key_id);
+            let selected =
+                keys.api_keys.iter().find(|key| key.status == "enabled").map(|key| key.api_key_id);
             let error = selected.is_none().then(|| {
                 if keys.api_keys.is_empty() {
                     "当前账户没有可选择的 IAM API 密钥".to_string()
@@ -374,11 +353,7 @@ fn finish_api_key_load(
 
 fn select_api_key(app: &mut App, api_key_id: u64) {
     let ShijuAppLaunchState::SelectingApiKey {
-        can_edit,
-        api_keys,
-        selected_api_key_id,
-        error,
-        ..
+        can_edit, api_keys, selected_api_key_id, error, ..
     } = &mut app.expert_hub.shiju_apps.launch
     else {
         return;
@@ -423,9 +398,7 @@ fn save_api_key_binding(app: &mut App) -> Task<Message> {
     let Some(selected_api_key_id) = selected_api_key_id else {
         return reject_api_key_save(app, "请选择一个已启用的 IAM API 密钥");
     };
-    if !api_keys
-        .iter()
-        .any(|key| key.api_key_id == selected_api_key_id && key.status == "enabled")
+    if !api_keys.iter().any(|key| key.api_key_id == selected_api_key_id && key.status == "enabled")
     {
         return reject_api_key_save(app, "所选 IAM API 密钥不存在或未启用");
     }
@@ -487,19 +460,18 @@ fn finish_api_key_binding_save(
     installation_id: &str,
     result: Result<(), String>,
 ) -> Task<Message> {
-    let (can_edit, api_keys, selected_api_key_id) =
-        match &app.expert_hub.shiju_apps.launch {
-            ShijuAppLaunchState::SavingApiKeyBinding {
-                generation: active_generation,
-                installation_id: active_installation_id,
-                can_edit,
-                api_keys,
-                selected_api_key_id,
-            } if *active_generation == generation && active_installation_id == installation_id => {
-                (*can_edit, api_keys.clone(), *selected_api_key_id)
-            }
-            _ => return Task::none(),
-        };
+    let (can_edit, api_keys, selected_api_key_id) = match &app.expert_hub.shiju_apps.launch {
+        ShijuAppLaunchState::SavingApiKeyBinding {
+            generation: active_generation,
+            installation_id: active_installation_id,
+            can_edit,
+            api_keys,
+            selected_api_key_id,
+        } if *active_generation == generation && active_installation_id == installation_id => {
+            (*can_edit, api_keys.clone(), *selected_api_key_id)
+        }
+        _ => return Task::none(),
+    };
     if !launch_result_is_current(app, generation, account_id, installation_id) {
         return Task::none();
     }
@@ -538,10 +510,8 @@ fn continue_installed_launch(
         return app.show_error_toast("登录识矩账户后打开应用");
     };
     let credential = account.skill_hub_credential();
-    app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Preparing {
-        generation,
-        installation_id: installation_id.clone(),
-    };
+    app.expert_hub.shiju_apps.launch =
+        ShijuAppLaunchState::Preparing { generation, installation_id: installation_id.clone() };
     let requested_installation_id = installation_id.clone();
     Task::perform(
         async move {
@@ -567,11 +537,8 @@ fn launch_result_is_current(
     account_id: &str,
     installation_id: &str,
 ) -> bool {
-    app.expert_hub.shiju_apps.launch_response_is_current(
-        generation,
-        account_id,
-        installation_id,
-    ) && app.account.active_account().is_some_and(|account| account.id() == account_id)
+    app.expert_hub.shiju_apps.launch_response_is_current(generation, account_id, installation_id)
+        && app.account.active_account().is_some_and(|account| account.id() == account_id)
 }
 
 fn set_launch_error(app: &mut App, generation: u64, installation_id: &str, message: String) {

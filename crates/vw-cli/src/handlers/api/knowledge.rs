@@ -191,72 +191,145 @@ pub(super) async fn run(
 ) -> Result<()> {
     let client = context.client();
     let response = match command {
-        KnowledgeCommands::Status => json!(client.knowledge_status().await.map_err(anyhow::Error::msg)?),
+        KnowledgeCommands::Status => {
+            json!(client.knowledge_status().await.map_err(anyhow::Error::msg)?)
+        }
         KnowledgeCommands::Embedding { command } => match command {
-            EmbeddingCommands::Status => json!(client.knowledge_embedding_status().await.map_err(anyhow::Error::msg)?),
-            EmbeddingCommands::Presets => json!(client.knowledge_embedding_presets().await.map_err(anyhow::Error::msg)?),
+            EmbeddingCommands::Status => {
+                json!(client.knowledge_embedding_status().await.map_err(anyhow::Error::msg)?)
+            }
+            EmbeddingCommands::Presets => {
+                json!(client.knowledge_embedding_presets().await.map_err(anyhow::Error::msg)?)
+            }
             EmbeddingCommands::Test { input } => {
                 let body = parse::<KnowledgeEmbeddingTestRequest>(&input, stdin, "embedding test")?;
                 json!(client.knowledge_embedding_test(&body).await.map_err(anyhow::Error::msg)?)
             }
         },
         KnowledgeCommands::Dataset { command } => match command {
-            DatasetCommands::List => json!(client.knowledge_datasets_list().await.map_err(anyhow::Error::msg)?),
+            DatasetCommands::List => {
+                json!(client.knowledge_datasets_list().await.map_err(anyhow::Error::msg)?)
+            }
             DatasetCommands::Create { input } => {
                 let body = parse::<KnowledgeDatasetCreateRequest>(&input, stdin, "dataset create")?;
                 json!(client.knowledge_dataset_create(&body).await.map_err(anyhow::Error::msg)?)
             }
-            DatasetCommands::Detail { dataset_id } => json!(client.knowledge_dataset_get(&dataset_id).await.map_err(anyhow::Error::msg)?),
-            DatasetCommands::Delete { dataset_id } => json!(client.knowledge_dataset_delete(&dataset_id).await.map_err(anyhow::Error::msg)?),
+            DatasetCommands::Detail { dataset_id } => {
+                json!(client.knowledge_dataset_get(&dataset_id).await.map_err(anyhow::Error::msg)?)
+            }
+            DatasetCommands::Delete { dataset_id } => json!(
+                client.knowledge_dataset_delete(&dataset_id).await.map_err(anyhow::Error::msg)?
+            ),
         },
         KnowledgeCommands::Document { command } => match command {
-            DocumentCommands::List { dataset_id, status } => json!(client.knowledge_documents_query(&dataset_id, &KnowledgeDocumentListQuery { status: status.map(Into::into) }).await.map_err(anyhow::Error::msg)?),
+            DocumentCommands::List { dataset_id, status } => json!(
+                client
+                    .knowledge_documents_query(
+                        &dataset_id,
+                        &KnowledgeDocumentListQuery { status: status.map(Into::into) }
+                    )
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            ),
             DocumentCommands::Create { dataset_id, input } => {
-                let body = parse::<KnowledgeDocumentCreateRequest>(&input, stdin, "document create")?;
-                json!(client.knowledge_document_create(&dataset_id, &body).await.map_err(anyhow::Error::msg)?)
+                let body =
+                    parse::<KnowledgeDocumentCreateRequest>(&input, stdin, "document create")?;
+                json!(
+                    client
+                        .knowledge_document_create(&dataset_id, &body)
+                        .await
+                        .map_err(anyhow::Error::msg)?
+                )
             }
             DocumentCommands::Import { dataset_id, input } => {
-                let body = parse::<KnowledgeDocumentImportRequest>(&input, stdin, "document import")?;
-                json!(client.knowledge_document_import(&dataset_id, &body).await.map_err(anyhow::Error::msg)?)
+                let body =
+                    parse::<KnowledgeDocumentImportRequest>(&input, stdin, "document import")?;
+                json!(
+                    client
+                        .knowledge_document_import(&dataset_id, &body)
+                        .await
+                        .map_err(anyhow::Error::msg)?
+                )
             }
             DocumentCommands::ImportAsync { dataset_id, input } => {
-                let body = parse::<KnowledgeDocumentImportRequest>(&input, stdin, "document async import")?;
-                json!(client.knowledge_document_import_async(&dataset_id, &body).await.map_err(anyhow::Error::msg)?)
+                let body = parse::<KnowledgeDocumentImportRequest>(
+                    &input,
+                    stdin,
+                    "document async import",
+                )?;
+                json!(
+                    client
+                        .knowledge_document_import_async(&dataset_id, &body)
+                        .await
+                        .map_err(anyhow::Error::msg)?
+                )
             }
             DocumentCommands::Batch { input } => {
-                let body = parse::<KnowledgeDocumentsBatchActionRequest>(&input, stdin, "document batch")?;
-                json!(client.knowledge_documents_batch_action(&body).await.map_err(anyhow::Error::msg)?)
+                let body =
+                    parse::<KnowledgeDocumentsBatchActionRequest>(&input, stdin, "document batch")?;
+                json!(
+                    client
+                        .knowledge_documents_batch_action(&body)
+                        .await
+                        .map_err(anyhow::Error::msg)?
+                )
             }
             DocumentCommands::Update { document_id, input } => {
-                let body = parse::<KnowledgeDocumentPatchRequest>(&input, stdin, "document update")?;
-                json!(client.knowledge_document_update(&document_id, &body).await.map_err(anyhow::Error::msg)?)
+                let body =
+                    parse::<KnowledgeDocumentPatchRequest>(&input, stdin, "document update")?;
+                json!(
+                    client
+                        .knowledge_document_update(&document_id, &body)
+                        .await
+                        .map_err(anyhow::Error::msg)?
+                )
             }
-            DocumentCommands::Delete { document_id } => json!(client.knowledge_document_delete(&document_id).await.map_err(anyhow::Error::msg)?),
-            DocumentCommands::Chunks { document_id } => json!(client.knowledge_chunks_list(&document_id).await.map_err(anyhow::Error::msg)?),
+            DocumentCommands::Delete { document_id } => json!(
+                client.knowledge_document_delete(&document_id).await.map_err(anyhow::Error::msg)?
+            ),
+            DocumentCommands::Chunks { document_id } => {
+                json!(client.knowledge_chunks_list(&document_id).await.map_err(anyhow::Error::msg)?)
+            }
             DocumentCommands::Reindex { document_id, input } => {
-                let body = parse::<KnowledgeDocumentReindexRequest>(&input, stdin, "document reindex")?;
-                json!(client.knowledge_document_reindex(&document_id, &body).await.map_err(anyhow::Error::msg)?)
+                let body =
+                    parse::<KnowledgeDocumentReindexRequest>(&input, stdin, "document reindex")?;
+                json!(
+                    client
+                        .knowledge_document_reindex(&document_id, &body)
+                        .await
+                        .map_err(anyhow::Error::msg)?
+                )
             }
         },
-        KnowledgeCommands::Job { job_id } => json!(client.knowledge_index_job_get(&job_id).await.map_err(anyhow::Error::msg)?),
+        KnowledgeCommands::Job { job_id } => {
+            json!(client.knowledge_index_job_get(&job_id).await.map_err(anyhow::Error::msg)?)
+        }
         KnowledgeCommands::Retrieve { input } => {
             let body = parse::<KnowledgeRetrieveRequest>(&input, stdin, "knowledge retrieve")?;
             json!(client.knowledge_retrieve(&body).await.map_err(anyhow::Error::msg)?)
         }
         KnowledgeCommands::RetrievalTest { input } => {
-            let body = parse::<KnowledgeRetrieveRequest>(&input, stdin, "knowledge retrieval test")?;
+            let body =
+                parse::<KnowledgeRetrieveRequest>(&input, stdin, "knowledge retrieval test")?;
             json!(client.knowledge_retrieval_test(&body).await.map_err(anyhow::Error::msg)?)
         }
     };
     output::write_json(writer, &response, context.output_format())
 }
 
-fn parse<T: serde::de::DeserializeOwned>(source: &str, stdin: &mut impl Read, operation: &str) -> Result<T> {
-    serde_json::from_value(read_json_input(source, stdin)?).with_context(|| format!("invalid {operation} JSON input"))
+fn parse<T: serde::de::DeserializeOwned>(
+    source: &str,
+    stdin: &mut impl Read,
+    operation: &str,
+) -> Result<T> {
+    serde_json::from_value(read_json_input(source, stdin)?)
+        .with_context(|| format!("invalid {operation} JSON input"))
 }
 
 fn required(value: &str) -> Result<String, String> {
     let value = value.trim();
-    if value.is_empty() { return Err("value must not be empty".to_string()); }
+    if value.is_empty() {
+        return Err("value must not be empty".to_string());
+    }
     Ok(value.to_string())
 }

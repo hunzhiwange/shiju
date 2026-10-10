@@ -33,14 +33,8 @@ pub(crate) struct HookCatalogView {
 }
 
 impl HookCatalogView {
-    pub(crate) fn find(
-        &self,
-        plugin_id: &str,
-        hook_hash: &str,
-    ) -> Option<&HookCatalogItem> {
-        self.items
-            .iter()
-            .find(|item| item.plugin_id == plugin_id && item.hook_hash == hook_hash)
+    pub(crate) fn find(&self, plugin_id: &str, hook_hash: &str) -> Option<&HookCatalogItem> {
+        self.items.iter().find(|item| item.plugin_id == plugin_id && item.hook_hash == hook_hash)
     }
 
     pub(crate) fn into_selection_items(self) -> Vec<V3SelectionItem> {
@@ -80,9 +74,8 @@ impl HookCatalogView {
             )));
         }
         if self.truncated {
-            items.push(status_item(format!(
-                "Hook catalog truncated to {MAX_HOOK_ENTRIES} entries"
-            )));
+            items
+                .push(status_item(format!("Hook catalog truncated to {MAX_HOOK_ENTRIES} entries")));
         }
         if items.is_empty() {
             items.push(status_item("未发现 Hook 声明".to_string()));
@@ -129,15 +122,10 @@ impl HookAuditView {
             )
         }));
         if self.malformed_count > 0 {
-            lines.push(format!(
-                "Ignored {} malformed Hook audit record(s)",
-                self.malformed_count
-            ));
+            lines.push(format!("Ignored {} malformed Hook audit record(s)", self.malformed_count));
         }
         if self.truncated {
-            lines.push(format!(
-                "Hook audit truncated to {MAX_HOOK_ENTRIES} entries"
-            ));
+            lines.push(format!("Hook audit truncated to {MAX_HOOK_ENTRIES} entries"));
         }
         lines.join("\n")
     }
@@ -284,10 +272,7 @@ fn sanitize_hook_text(value: &str, max_chars: usize) -> String {
     if max_chars <= 3 {
         return sanitized.chars().take(max_chars).collect();
     }
-    format!(
-        "{}...",
-        sanitized.chars().take(max_chars.saturating_sub(3)).collect::<String>()
-    )
+    format!("{}...", sanitized.chars().take(max_chars.saturating_sub(3)).collect::<String>())
 }
 
 fn status_item(label: String) -> V3SelectionItem {

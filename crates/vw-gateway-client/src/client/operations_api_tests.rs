@@ -27,11 +27,7 @@ async fn operations_api_uses_documented_routes() {
         )
         .await
         .expect("credentials");
-    server
-        .client()
-        .memory_query_get(Some("find this"), Some("core"))
-        .await
-        .expect("memory query");
+    server.client().memory_query_get(Some("find this"), Some("core")).await.expect("memory query");
     server
         .client()
         .memory_store(&json!({"key": "one", "content": "remember", "category": "core"}))
@@ -50,11 +46,7 @@ async fn operations_api_uses_documented_routes() {
             json!({"revision": "r1", "fields": {"token": "secret"}}),
         ),
         ("GET", "/v1/memory?query=find+this&category=core", json!(null)),
-        (
-            "POST",
-            "/v1/memory",
-            json!({"key": "one", "content": "remember", "category": "core"}),
-        ),
+        ("POST", "/v1/memory", json!({"key": "one", "content": "remember", "category": "core"})),
         ("DELETE", "/v1/memory/memory%20%2F%E4%B8%80", json!(null)),
         ("GET", "/v1/doctor", json!(null)),
         ("POST", "/v1/doctor", json!({})),

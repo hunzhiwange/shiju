@@ -8,10 +8,7 @@ use crate::vibe::event::{V3FileChange, V3FileDiffEntry};
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
 
-pub fn create_diff_summary(
-    files: &[V3FileDiffEntry],
-    wrap_cols: usize,
-) -> Vec<Line<'static>> {
+pub fn create_diff_summary(files: &[V3FileDiffEntry], wrap_cols: usize) -> Vec<Line<'static>> {
     // 文件之间插入空行，并将路径摘要放在对应差异正文之前。
     let mut lines = Vec::new();
     for (index, file) in files.iter().enumerate() {

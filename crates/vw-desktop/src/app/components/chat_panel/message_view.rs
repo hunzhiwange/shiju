@@ -235,10 +235,8 @@ pub fn message_view<'a>(
         let icon_size = if compact_square { MESSAGE_META_TEXT_SIZE } else { 12.0 };
         let compact_button_size = MESSAGE_META_TEXT_SIZE;
         let btn = button(
-            icon_svg(icon)
-                .width(Length::Fixed(icon_size))
-                .height(Length::Fixed(icon_size))
-                .style(move |theme: &Theme, status| svg::Style {
+            icon_svg(icon).width(Length::Fixed(icon_size)).height(Length::Fixed(icon_size)).style(
+                move |theme: &Theme, status| svg::Style {
                     color: Some(message_action_icon_color(
                         theme,
                         status,
@@ -246,7 +244,8 @@ pub fn message_view<'a>(
                         compact_square,
                         is_user,
                     )),
-                }),
+                },
+            ),
         )
         .width(if compact_square {
             Length::Fixed(compact_button_size)
@@ -586,18 +585,14 @@ pub fn message_view<'a>(
 
     if is_user {
         column![
-            container(bubble_inner)
-                .width(Length::Fill)
-                .align_x(iced::alignment::Horizontal::Right),
+            container(bubble_inner).width(Length::Fill).align_x(iced::alignment::Horizontal::Right),
             row![footer_container].align_y(Alignment::Center)
         ]
         .spacing(4)
         .into()
     } else {
         column![
-            container(bubble_inner)
-                .width(Length::Fill)
-                .align_x(iced::alignment::Horizontal::Left),
+            container(bubble_inner).width(Length::Fill).align_x(iced::alignment::Horizontal::Left),
             row![footer_container].align_y(Alignment::Center)
         ]
         .spacing(4)
@@ -613,8 +608,5 @@ pub(super) fn should_use_user_message_editor(
 ) -> bool {
     has_no_attachments
         && selectable_text_policy(content, false) != SelectableTextPolicy::PreviewWithCopyFallback
-        && app
-            .chat_message_editors
-            .get(idx)
-            .is_some_and(|editor| !editor.text().trim().is_empty())
+        && app.chat_message_editors.get(idx).is_some_and(|editor| !editor.text().trim().is_empty())
 }

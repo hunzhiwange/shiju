@@ -96,10 +96,7 @@ fn plan_goal_stop_requires_owned_identifiers() {
     let port = listener.local_addr().expect("address").port();
     let server = thread::spawn(move || {
         let mut requests = Vec::new();
-        for body in [
-            r#"{"cancelled":true}"#,
-            r#"{"task_id":"owned-task","status":"cancelled"}"#,
-        ] {
+        for body in [r#"{"cancelled":true}"#, r#"{"task_id":"owned-task","status":"cancelled"}"#] {
             let (mut stream, _) = listener.accept().expect("accept");
             requests.push(read_request(&mut stream));
             write_json(&mut stream, body);

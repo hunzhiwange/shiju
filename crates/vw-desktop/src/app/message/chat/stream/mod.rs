@@ -23,15 +23,16 @@ use iced::Task;
 use std::cell::RefCell;
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::{HashMap, HashSet};
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::{LazyLock, Mutex};
 #[cfg(all(test, not(target_arch = "wasm32")))]
 use std::sync::Arc;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::{LazyLock, Mutex};
 use vw_shared::session::session_utils::is_default_title;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
-type SaveSessionHook =
-    Arc<Mutex<Box<dyn FnMut(&models::ChatSession, Option<&str>) -> Option<std::path::PathBuf> + Send>>>;
+type SaveSessionHook = Arc<
+    Mutex<Box<dyn FnMut(&models::ChatSession, Option<&str>) -> Option<std::path::PathBuf> + Send>>,
+>;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 thread_local! {
@@ -118,9 +119,7 @@ fn stream_session_save_message(completed: Option<StreamSessionSaveResult>) -> Me
         }
         None => {
             tracing::warn!(target: "vw_desktop", "stream session save task failed");
-            Message::Chat(ChatMessage::SessionSaveFailed(
-                "会话保存任务异常终止".to_string(),
-            ))
+            Message::Chat(ChatMessage::SessionSaveFailed("会话保存任务异常终止".to_string()))
         }
     }
 }
@@ -256,22 +255,22 @@ pub(super) fn save_session_task(
                     session,
                     directory,
                     |session, directory| {
-                    #[cfg(test)]
-                    if let Some(hook) = save_hook.as_ref() {
-                        let mut hook = hook.lock().expect("save session hook lock");
-                        return Ok(hook(session, directory));
-                    }
-                    let result = gateway_save_session_for_stream(session, directory);
-                    if let Err(error) = &result {
-                        tracing::warn!(
-                            target: "vw_desktop",
-                            session_id = %session.id,
-                            directory = ?directory,
-                            error = %error,
-                            "failed to save stream session"
-                        );
-                    }
-                    result
+                        #[cfg(test)]
+                        if let Some(hook) = save_hook.as_ref() {
+                            let mut hook = hook.lock().expect("save session hook lock");
+                            return Ok(hook(session, directory));
+                        }
+                        let result = gateway_save_session_for_stream(session, directory);
+                        if let Err(error) = &result {
+                            tracing::warn!(
+                                target: "vw_desktop",
+                                session_id = %session.id,
+                                directory = ?directory,
+                                error = %error,
+                                "failed to save stream session"
+                            );
+                        }
+                        result
                     },
                 );
                 Some(result)
@@ -566,11 +565,7 @@ pub(crate) fn session_tool_created_session(
     if output.get("action").and_then(serde_json::Value::as_str) != Some("create") {
         return None;
     }
-    let session_id = output
-        .get("session_id")?
-        .as_str()?
-        .trim()
-        .to_string();
+    let session_id = output.get("session_id")?.as_str()?.trim().to_string();
     if session_id.is_empty() {
         return None;
     }

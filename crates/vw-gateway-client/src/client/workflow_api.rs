@@ -6,8 +6,8 @@ use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use vw_api_types::workflow::{
-    WorkflowRecord, WorkflowRecordDeleteResponse, WorkflowRecordSummary, WorkflowRecordUpsertBody,
-    WorkflowPauseDto, WorkflowResumeRequest, WorkflowRunResponse,
+    WorkflowPauseDto, WorkflowRecord, WorkflowRecordDeleteResponse, WorkflowRecordSummary,
+    WorkflowRecordUpsertBody, WorkflowResumeRequest, WorkflowRunResponse,
 };
 
 use crate::http::{
@@ -152,22 +152,17 @@ impl fmt::Debug for GatewayWorkflowStreamEvent {
                 .field("text", text)
                 .field("data", data)
                 .finish(),
-            Self::Message {
-                id,
-                task_id,
-                message_id,
-                conversation_id,
-                answer,
-                created_at,
-            } => formatter
-                .debug_struct("Message")
-                .field("id", id)
-                .field("task_id", task_id)
-                .field("message_id", message_id)
-                .field("conversation_id", conversation_id)
-                .field("answer", answer)
-                .field("created_at", created_at)
-                .finish(),
+            Self::Message { id, task_id, message_id, conversation_id, answer, created_at } => {
+                formatter
+                    .debug_struct("Message")
+                    .field("id", id)
+                    .field("task_id", task_id)
+                    .field("message_id", message_id)
+                    .field("conversation_id", conversation_id)
+                    .field("answer", answer)
+                    .field("created_at", created_at)
+                    .finish()
+            }
             Self::WorkflowFinished { task_id, workflow_run_id, data, pause } => {
                 let mut debug = formatter.debug_struct("WorkflowFinished");
                 debug.field("task_id", task_id).field("workflow_run_id", workflow_run_id);
@@ -252,8 +247,7 @@ impl GatewayClient {
         &self,
         uuid: &str,
     ) -> Result<WorkflowRecordDeleteResponse, String> {
-        self.delete_json(&workflow_application_path(uuid)?, &[], &serde_json::json!({}))
-            .await
+        self.delete_json(&workflow_application_path(uuid)?, &[], &serde_json::json!({})).await
     }
 
     /// 运行默认 Workflow 入口并按 SSE 顺序回调事件。
@@ -262,11 +256,8 @@ impl GatewayClient {
         body: &GatewayWorkflowDefaultStreamRequest,
         on_event: impl FnMut(GatewayWorkflowStreamEvent) -> bool,
     ) -> Result<(), String> {
-        let has_uuid = body
-            .application_uuid
-            .as_deref()
-            .map(str::trim)
-            .is_some_and(|value| !value.is_empty());
+        let has_uuid =
+            body.application_uuid.as_deref().map(str::trim).is_some_and(|value| !value.is_empty());
         let has_workflow = body
             .application_workflow
             .as_deref()
@@ -432,10 +423,7 @@ fn workflow_application_path(uuid: &str) -> Result<String, String> {
 }
 
 fn workflow_application_stream_path(uuid: &str) -> Result<String, String> {
-    Ok(format!(
-        "{}{WORKFLOW_APPLICATION_STREAM_PATH_SUFFIX}",
-        workflow_application_path(uuid)?
-    ))
+    Ok(format!("{}{WORKFLOW_APPLICATION_STREAM_PATH_SUFFIX}", workflow_application_path(uuid)?))
 }
 
 fn encode_path_segment(value: &str) -> String {
@@ -487,10 +475,8 @@ fn parse_workflow_stream_event(payload: Value) -> GatewayWorkflowStreamEvent {
         },
         Some("workflow_finished") => {
             let data = data_field(&payload);
-            let pause = data
-                .get("pause")
-                .cloned()
-                .and_then(|value| serde_json::from_value(value).ok());
+            let pause =
+                data.get("pause").cloned().and_then(|value| serde_json::from_value(value).ok());
             GatewayWorkflowStreamEvent::WorkflowFinished {
                 task_id: string_field(&payload, "task_id"),
                 workflow_run_id: string_field(&payload, "workflow_run_id"),

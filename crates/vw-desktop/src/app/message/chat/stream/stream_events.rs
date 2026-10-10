@@ -97,9 +97,7 @@ fn calibrate_stream_tail_at_terminal(
         .filter(|idx| {
             chat.get(*idx).is_some_and(|message| message.role == models::ChatRole::Assistant)
         })
-        .or_else(|| {
-            chat.iter().rposition(|message| message.role == models::ChatRole::Assistant)
-        })?;
+        .or_else(|| chat.iter().rposition(|message| message.role == models::ChatRole::Assistant))?;
     let message = &mut chat[message_idx];
     let (thinks, _visible, thinking_open) = chat::split_think(&message.content);
     let estimated_height =
@@ -136,10 +134,7 @@ fn apply_active_terminal_tail_calibration(app: &mut App, calibration: TerminalTa
         .thinking_open
         .then(|| calibration.think_count.saturating_sub(1))
         .filter(|_| calibration.think_count > 0);
-    app.apply_stream_tail_estimated_height(
-        calibration.message_idx,
-        calibration.estimated_height,
-    );
+    app.apply_stream_tail_estimated_height(calibration.message_idx, calibration.estimated_height);
 }
 
 fn apply_stream_done_message_ids(
@@ -485,19 +480,14 @@ fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<M
     if schedule_flush {
         crate::app::message::after(
             STREAM_SESSION_SAVE_FLUSH_INTERVAL,
-            Message::Chat(super::ChatMessage::AgentStreamSessionSaveFlush(
-                session_id.to_string(),
-            )),
+            Message::Chat(super::ChatMessage::AgentStreamSessionSaveFlush(session_id.to_string())),
         )
     } else {
         Task::none()
     }
 }
 
-pub(super) fn flush_agent_stream_session_save(
-    app: &mut App,
-    session_id: String,
-) -> Task<Message> {
+pub(super) fn flush_agent_stream_session_save(app: &mut App, session_id: String) -> Task<Message> {
     let should_save = {
         let runtime = app.get_session_runtime_mut(&session_id);
         std::mem::take(&mut runtime.stream_save_flush_scheduled)

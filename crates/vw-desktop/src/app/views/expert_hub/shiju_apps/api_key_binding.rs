@@ -42,11 +42,9 @@ pub(crate) fn selected_key(state: &ShijuAppLaunchState) -> Option<&ShijuIamApiKe
             selected_api_key_id: Some(selected_api_key_id),
             ..
         } => (api_keys, *selected_api_key_id),
-        ShijuAppLaunchState::SavingApiKeyBinding {
-            api_keys,
-            selected_api_key_id,
-            ..
-        } => (api_keys, *selected_api_key_id),
+        ShijuAppLaunchState::SavingApiKeyBinding { api_keys, selected_api_key_id, .. } => {
+            (api_keys, *selected_api_key_id)
+        }
         _ => return None,
     };
     api_keys.iter().find(|key| key.api_key_id == selected_api_key_id)
@@ -57,10 +55,8 @@ pub(crate) fn selected_label(state: &ShijuAppLaunchState) -> Option<String> {
 }
 
 pub(crate) fn save_enabled(state: &ShijuAppLaunchState) -> bool {
-    matches!(
-        state,
-        ShijuAppLaunchState::SelectingApiKey { can_edit: true, .. }
-    ) && selected_key(state).is_some_and(|key| key.status == "enabled")
+    matches!(state, ShijuAppLaunchState::SelectingApiKey { can_edit: true, .. })
+        && selected_key(state).is_some_and(|key| key.status == "enabled")
 }
 
 pub(crate) fn select_action(api_key_id: u64) -> ShijuAppsMessage {
@@ -123,19 +119,13 @@ fn ascii_value(value: String, size: u32) -> iced::widget::Text<'static> {
     if is_ascii { value.font(Font::MONOSPACE) } else { value }
 }
 
-fn detail_field(
-    label: &'static str,
-    value: String,
-    monospace: bool,
-) -> Element<'static, Message> {
+fn detail_field(label: &'static str, value: String, monospace: bool) -> Element<'static, Message> {
     let value = if monospace && value.is_ascii() {
         text(value).size(12).font(Font::MONOSPACE)
     } else {
         text(value).size(13)
     };
-    column![text(label).size(11).style(settings_muted_text_style), value]
-        .spacing(4)
-        .into()
+    column![text(label).size(11).style(settings_muted_text_style), value].spacing(4).into()
 }
 
 fn selected_key_details(key: &ShijuIamApiKeyDto) -> Element<'static, Message> {
@@ -204,7 +194,8 @@ fn selection_control(state: &ShijuAppLaunchState) -> Element<'static, Message> {
                 .map(|key| ApiKeyOption { api_key_id: key.api_key_id, label: option_label(key) })
                 .collect::<Vec<_>>();
             let selected_id = selected_key(state).map(|key| key.api_key_id);
-            let selected = options.iter().find(|option| Some(option.api_key_id) == selected_id).cloned();
+            let selected =
+                options.iter().find(|option| Some(option.api_key_id) == selected_id).cloned();
             pick_list(options, selected, |option| {
                 Message::ShijuApps(select_action(option.api_key_id))
             })
@@ -246,9 +237,8 @@ fn body(app: &App) -> Element<'static, Message> {
     let app_name = application_name(app, current_installation_id);
     let status_error = matches!(state, ShijuAppLaunchState::Error { .. });
     let close_message = Message::ShijuApps(cancel_action());
-    let mut refresh_button = button(text("刷新").size(12))
-        .padding([7, 12])
-        .style(rounded_action_btn_style);
+    let mut refresh_button =
+        button(text("刷新").size(12)).padding([7, 12]).style(rounded_action_btn_style);
     if matches!(
         state,
         ShijuAppLaunchState::SelectingApiKey { .. } | ShijuAppLaunchState::Error { .. }
@@ -274,8 +264,7 @@ fn body(app: &App) -> Element<'static, Message> {
     let summary = row![
         column![
             text(app_name).size(16),
-            ascii_value(current_installation_id.to_string(), 11)
-                .style(settings_muted_text_style),
+            ascii_value(current_installation_id.to_string(), 11).style(settings_muted_text_style),
         ]
         .spacing(4)
         .width(Length::Fill),
@@ -320,25 +309,22 @@ fn body(app: &App) -> Element<'static, Message> {
                 content = content.push(loading_feedback("正在安全加载 IAM API 密钥…"));
             }
             ShijuAppLaunchState::SelectingApiKey { error: None, .. } => {
-                content = content.push(error_banner(
-                    "尚未绑定 IAM API 密钥，请选择一个已启用项。".to_string(),
-                ));
+                content = content
+                    .push(error_banner("尚未绑定 IAM API 密钥，请选择一个已启用项。".to_string()));
             }
             _ => {}
         }
     }
 
-    let mut save_button = button(text(if matches!(
-        state,
-        ShijuAppLaunchState::SavingApiKeyBinding { .. }
-    ) {
-        "正在保存 API 密钥…"
-    } else {
-        "保存 API 密钥"
-    }))
-    .padding([11, 16])
-    .width(Length::Fill)
-    .style(styles::binding_primary_action_style);
+    let mut save_button =
+        button(text(if matches!(state, ShijuAppLaunchState::SavingApiKeyBinding { .. }) {
+            "正在保存 API 密钥…"
+        } else {
+            "保存 API 密钥"
+        }))
+        .padding([11, 16])
+        .width(Length::Fill)
+        .style(styles::binding_primary_action_style);
     if save_enabled(state) {
         save_button = save_button.on_press(Message::ShijuApps(save_action()));
     }
@@ -346,24 +332,17 @@ fn body(app: &App) -> Element<'static, Message> {
 
     let scrollable_body = scrollable(content)
         .direction(Direction::Vertical(
-            Scrollbar::new()
-                .width(styles::SCROLLBAR_WIDTH)
-                .scroller_width(styles::SCROLLBAR_WIDTH),
+            Scrollbar::new().width(styles::SCROLLBAR_WIDTH).scroller_width(styles::SCROLLBAR_WIDTH),
         ))
         .height(Length::Shrink);
     column![header, scrollable_body].spacing(16).into()
 }
 
-pub(super) fn with_overlay<'a>(
-    app: &'a App,
-    base: Element<'a, Message>,
-) -> Element<'a, Message> {
+pub(super) fn with_overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     if !is_visible(&app.expert_hub.shiju_apps.launch) {
         return base;
     }
     let close_message = Message::ShijuApps(cancel_action());
-    let card = settings_modal_card(body(app))
-        .width(Length::Fixed(640.0))
-        .max_height(680.0);
+    let card = settings_modal_card(body(app)).width(Length::Fixed(640.0)).max_height(680.0);
     settings_modal_overlay(Some(base), close_message, card)
 }

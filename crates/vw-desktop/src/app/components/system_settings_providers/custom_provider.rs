@@ -444,7 +444,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 "认证与请求头",
                 "设置默认 API Key，并为需要额外 header 的网关场景补充请求头。",
             ),
-            settings_section_content(column![api_key_row, settings_divider(), headers_row].spacing(0)),
+            settings_section_content(
+                column![api_key_row, settings_divider(), headers_row].spacing(0)
+            ),
         ]
         .spacing(16);
         let models_tab = column![

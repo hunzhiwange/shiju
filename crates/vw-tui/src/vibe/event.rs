@@ -68,9 +68,18 @@ pub struct V3FileDiff {
 /// VibeWindow 自有的纯展示事件词汇；它不是线协议枚举，外层桥接可转换事件，而 TUI 保持无请求或审批权限的纯渲染器。
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum V3DisplayEvent {
-    User { text: String, attachments: Vec<V3Attachment> },
-    Assistant { markdown: String },
-    ToolCall { call_id: String, tool: String, command: String },
+    User {
+        text: String,
+        attachments: Vec<V3Attachment>,
+    },
+    Assistant {
+        markdown: String,
+    },
+    ToolCall {
+        call_id: String,
+        tool: String,
+        command: String,
+    },
     ToolResult {
         call_id: String,
         tool: String,
@@ -79,15 +88,36 @@ pub enum V3DisplayEvent {
         exit_code: i32,
         duration_ms: u64,
     },
-    FileDiff { diff: V3FileDiff },
-    Thinking { text: String },
-    Step { title: String, status: V3StepStatus },
-    System { text: String },
-    Error { message: String },
-    Attachment { attachment: V3Attachment },
-    Progress { label: String, detail: Option<String> },
-    CompactBoundary { summary: String },
-    Unknown { type_name: String, detail: String },
+    FileDiff {
+        diff: V3FileDiff,
+    },
+    Thinking {
+        text: String,
+    },
+    Step {
+        title: String,
+        status: V3StepStatus,
+    },
+    System {
+        text: String,
+    },
+    Error {
+        message: String,
+    },
+    Attachment {
+        attachment: V3Attachment,
+    },
+    Progress {
+        label: String,
+        detail: Option<String>,
+    },
+    CompactBoundary {
+        summary: String,
+    },
+    Unknown {
+        type_name: String,
+        detail: String,
+    },
 }
 
 /// Product-neutral streaming lifecycle input consumed by `ChatWidget`.

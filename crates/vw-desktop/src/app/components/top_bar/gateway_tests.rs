@@ -9,11 +9,9 @@ use super::{
     lsp_tab_content, manage_plugins_message, mcp_server_summaries, mcp_tab_content,
     plugin_tab_content, status_dot, tab_label,
 };
-use crate::app::components::system_settings::SystemTab;
 use crate::app::components::editor::Editor;
-use crate::app::message::settings::{
-    AgentConfigTabMessage, GatewayClientMessage, SettingsMessage,
-};
+use crate::app::components::system_settings::SystemTab;
+use crate::app::message::settings::{AgentConfigTabMessage, GatewayClientMessage, SettingsMessage};
 use crate::app::message::view::MenuType;
 use crate::app::state::{
     AgentConfigTab, GatewayClientServerDraft, PluginCatalogItem, TopBarGatewayTab,

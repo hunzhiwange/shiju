@@ -753,7 +753,8 @@ fn canonical_agent_tool_registers_when_delegate_agent_exists() {
     std::fs::create_dir_all(&workspace).unwrap();
     let memory = test_memory(&workspace);
     let mut root_config = test_config(&workspace);
-    vw_config_types::agent::ensure_main_agent_config(&mut root_config.agents).compact_context = true;
+    vw_config_types::agent::ensure_main_agent_config(&mut root_config.agents).compact_context =
+        true;
 
     let mut agents = HashMap::new();
     agents.insert("researcher".to_string(), agent_config("all", true, Vec::new()));
@@ -838,15 +839,20 @@ fn default_toolset_registers_thread_tools_without_delegate_agents() {
 #[test]
 fn thread_tools_visible_without_tool_search() {
     let dir = tempfile::tempdir().unwrap();
-    let ctx = ToolRuntimeContext::new(
-        "parent-session",
-        Some(dir.path().to_string_lossy().to_string()),
-    );
+    let ctx =
+        ToolRuntimeContext::new("parent-session", Some(dir.path().to_string_lossy().to_string()));
     let specs = tool_specs_for_context(&ctx);
     let expected = [
-        "create_thread", "fork_thread", "list_threads", "read_thread",
-        "send_message_to_thread", "handoff_thread", "set_thread_title",
-        "set_thread_pinned", "set_thread_archived", "wait_threads",
+        "create_thread",
+        "fork_thread",
+        "list_threads",
+        "read_thread",
+        "send_message_to_thread",
+        "handoff_thread",
+        "set_thread_title",
+        "set_thread_pinned",
+        "set_thread_archived",
+        "wait_threads",
     ];
     for name in expected {
         assert!(specs.iter().any(|spec| spec.id == name), "missing {name}");

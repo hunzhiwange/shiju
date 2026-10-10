@@ -37,7 +37,7 @@ impl Channel for RecordingChannel {
         Ok(())
     }
 
-// 假渠道分别记录草稿完成与取消，使响应状态转换可独立断言。
+    // 假渠道分别记录草稿完成与取消，使响应状态转换可独立断言。
     async fn finalize_draft(
         &self,
         _recipient: &str,

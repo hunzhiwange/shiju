@@ -5,8 +5,7 @@ use super::advanced_view::{
     advanced_base_title, advanced_fallback_body, advanced_metadata_text, advanced_success_body,
     advanced_summary, agent_tool_detail_message, agent_tool_primary_message, agent_tool_session_id,
     compact_browser_success_summary, format_browser_success_body, is_advanced_surface_tool,
-    nested_string,
-    result_data_message, tool_advanced_view,
+    nested_string, result_data_message, tool_advanced_view,
 };
 use super::apply_patch_view::tool_apply_patch_view;
 use super::git_diff_view::tool_git_diff_view;

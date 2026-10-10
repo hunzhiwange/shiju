@@ -95,22 +95,22 @@ fn prepare_prompt_attachment(
     if !path.starts_with(&root) {
         return Err(format!("attachment path escapes workspace: {raw_path}"));
     }
-    let metadata = path
-        .metadata()
-        .map_err(|_| format!("attachment path is unreadable: {raw_path}"))?;
+    let metadata =
+        path.metadata().map_err(|_| format!("attachment path is unreadable: {raw_path}"))?;
     if !metadata.is_file() {
         return Err(format!("attachment path is not a file: {raw_path}"));
     }
     reject_oversize(label, metadata.len())?;
 
-    let media_type = attachment
-        .media_type
-        .clone()
-        .unwrap_or_else(|| media_type_for_path(&path).to_string());
+    let media_type =
+        attachment.media_type.clone().unwrap_or_else(|| media_type_for_path(&path).to_string());
     let uri = Some(file_uri(&path));
     match attachment.kind {
         V3AttachmentKind::Image => {
-            if !matches!(media_type.as_str(), "image/png" | "image/jpeg" | "image/webp" | "image/gif" | "image/bmp") {
+            if !matches!(
+                media_type.as_str(),
+                "image/png" | "image/jpeg" | "image/webp" | "image/gif" | "image/bmp"
+            ) {
                 return Err(format!("unsupported image attachment type: {media_type}"));
             }
             let bytes = std::fs::read(&path)
@@ -151,16 +151,20 @@ fn prepare_prompt_attachment(
 
 fn reject_oversize(label: &str, size: u64) -> Result<(), String> {
     if size > MAX_ATTACHMENT_BYTES {
-        Err(format!(
-            "attachment '{label}' exceeds the 5 MiB Gateway input limit"
-        ))
+        Err(format!("attachment '{label}' exceeds the 5 MiB Gateway input limit"))
     } else {
         Ok(())
     }
 }
 
 fn media_type_for_path(path: &Path) -> &'static str {
-    match path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase().as_str() {
+    match path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
         "webp" => "image/webp",
@@ -172,7 +176,8 @@ fn media_type_for_path(path: &Path) -> &'static str {
         "html" | "htm" => "text/html",
         "css" => "text/css",
         "xml" => "text/xml",
-        "txt" | "rs" | "toml" | "yaml" | "yml" | "js" | "ts" | "tsx" | "jsx" | "py" | "sh" | "sql" => "text/plain",
+        "txt" | "rs" | "toml" | "yaml" | "yml" | "js" | "ts" | "tsx" | "jsx" | "py" | "sh"
+        | "sql" => "text/plain",
         _ => "application/octet-stream",
     }
 }

@@ -69,11 +69,11 @@ pub(crate) mod theme;
 #[path = "theme_tests.rs"]
 mod theme_tests;
 pub(crate) mod transcript;
+pub(crate) mod tui;
 pub(crate) mod tui_utils;
 #[cfg(test)]
 #[path = "tui_utils_tests.rs"]
 mod tui_utils_tests;
-pub(crate) mod tui;
 
 /// 导出主运行入口函数
 ///

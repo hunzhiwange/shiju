@@ -230,7 +230,9 @@ fn parse_tag_ids(value: Option<&str>) -> Result<Vec<u64>, ApiError> {
         .map(|tag_id| {
             let tag_id = tag_id.trim();
             if tag_id.is_empty() {
-                return Err(ApiError::bad_request("SHIJU skill tag_ids cannot contain empty items"));
+                return Err(ApiError::bad_request(
+                    "SHIJU skill tag_ids cannot contain empty items",
+                ));
             }
             let tag_id = tag_id.parse::<u64>().map_err(|_| {
                 ApiError::bad_request("SHIJU skill tag_ids must contain only positive integers")

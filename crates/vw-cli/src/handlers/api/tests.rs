@@ -13,8 +13,8 @@ use crate::cli::Cli;
 
 #[tokio::test]
 async fn api_cli_context_input_output_and_confirmation_are_stable() {
-    let cli = Cli::try_parse_from(["shiju", "provider", "list"])
-        .expect("api provider list should parse");
+    let cli =
+        Cli::try_parse_from(["shiju", "provider", "list"]).expect("api provider list should parse");
     let api_args = cli.command.into_api_args().expect("expected API command");
     assert_eq!(api_args.host, "127.0.0.1");
     assert_eq!(api_args.port, 14_682);
@@ -30,14 +30,9 @@ async fn api_cli_context_input_output_and_confirmation_are_stable() {
         assert!(error.to_string().contains("must not be empty"));
     }
 
-    let env_cli = Cli::try_parse_from([
-        "shiju",
-        "provider",
-        "--skey-env",
-        "TEST_GATEWAY_SKEY",
-        "list",
-    ])
-    .expect("environment auth source should parse");
+    let env_cli =
+        Cli::try_parse_from(["shiju", "provider", "--skey-env", "TEST_GATEWAY_SKEY", "list"])
+            .expect("environment auth source should parse");
     let env_args = env_cli.command.into_api_args().expect("expected API command");
     let env_context = ApiContext::from_args_with_env(&env_args, |name| {
         (name == "TEST_GATEWAY_SKEY").then(|| "env-secret".into())
@@ -57,8 +52,7 @@ async fn api_cli_context_input_output_and_confirmation_are_stable() {
         "list",
     ])
     .expect("file auth source should parse");
-    let empty_skey_args =
-        empty_skey_cli.command.into_api_args().expect("expected API command");
+    let empty_skey_args = empty_skey_cli.command.into_api_args().expect("expected API command");
     let error = ApiContext::from_args(&empty_skey_args).expect_err("empty skey file must fail");
     assert!(error.to_string().contains("skey file is empty"));
 

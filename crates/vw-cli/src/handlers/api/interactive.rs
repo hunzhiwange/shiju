@@ -7,10 +7,10 @@ use clap::{Subcommand, ValueEnum};
 use serde_json::{Value, json};
 use vw_gateway_client::{PendingPermissionReplyDto, PtyCreateRequest, PtyUpdateRequest};
 
+use super::ApiOutputFormat;
 use super::context::ApiContext;
 use super::input::read_json_input;
 use super::output;
-use super::ApiOutputFormat;
 
 /// 权限、问题与 PTY 接口族。
 #[derive(Subcommand, Debug)]
@@ -135,12 +135,12 @@ impl InteractiveCommands {
             Self::Permission { command: PermissionCommands::Reply { request_id, .. } } => {
                 Some(format!("reply to permission request '{request_id}'"))
             }
-            Self::Question {
-                command: QuestionCommands::Reply { request_id, .. },
-            } => Some(format!("reply to question request '{request_id}'")),
-            Self::Question {
-                command: QuestionCommands::Reject { request_id },
-            } => Some(format!("reject question request '{request_id}'")),
+            Self::Question { command: QuestionCommands::Reply { request_id, .. } } => {
+                Some(format!("reply to question request '{request_id}'"))
+            }
+            Self::Question { command: QuestionCommands::Reject { request_id } } => {
+                Some(format!("reject question request '{request_id}'"))
+            }
             Self::Pty { command: PtyCommands::Create { .. } } => Some("create PTY".to_string()),
             Self::Pty { command: PtyCommands::Update { pty_id, .. } } => {
                 Some(format!("update PTY '{pty_id}'"))
@@ -165,7 +165,12 @@ pub(super) async fn run(
     let response = match command {
         InteractiveCommands::Permission { command } => match command {
             PermissionCommands::List => {
-                json!(client.permission_list(context.directory()).await.map_err(anyhow::Error::msg)?)
+                json!(
+                    client
+                        .permission_list(context.directory())
+                        .await
+                        .map_err(anyhow::Error::msg)?
+                )
             }
             PermissionCommands::Reply { request_id, reply, message } => json!(
                 client
@@ -205,10 +210,7 @@ pub(super) async fn run(
                 )
             }
             PtyCommands::Detail { pty_id } => json!(
-                client
-                    .pty_get(&pty_id, context.directory())
-                    .await
-                    .map_err(anyhow::Error::msg)?
+                client.pty_get(&pty_id, context.directory()).await.map_err(anyhow::Error::msg)?
             ),
             PtyCommands::Update { pty_id, input } => {
                 let request = parse_input::<PtyUpdateRequest>(&input, stdin, "PTY update")?;
@@ -271,9 +273,11 @@ async fn run_pty_connect(
     };
     let end = json!({"type":"connection_end","status":status});
     match context.output_format() {
-        ApiOutputFormat::Json => {
-            output::write_json(writer, &json!({"events":events,"status":status}), ApiOutputFormat::Json)
-        }
+        ApiOutputFormat::Json => output::write_json(
+            writer,
+            &json!({"events":events,"status":status}),
+            ApiOutputFormat::Json,
+        ),
         ApiOutputFormat::Jsonl => output::write_jsonl_item(writer, &end),
     }
 }
@@ -282,9 +286,9 @@ fn parse_answers(source: &str, stdin: &mut impl Read) -> Result<Vec<Vec<String>>
     let answers = serde_json::from_value::<Vec<Vec<String>>>(read_json_input(source, stdin)?)
         .context("invalid question reply JSON input")?;
     if answers.is_empty()
-        || answers.iter().any(|answer| {
-            answer.is_empty() || answer.iter().any(|option| option.trim().is_empty())
-        })
+        || answers
+            .iter()
+            .any(|answer| answer.is_empty() || answer.iter().any(|option| option.trim().is_empty()))
     {
         bail!("question answers and answer options must not be empty");
     }

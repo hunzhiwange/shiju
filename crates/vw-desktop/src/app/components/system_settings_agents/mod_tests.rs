@@ -52,10 +52,7 @@ fn agents_error_banner_follows_agent_tabs() {
     for (tab, expected) in [
         (crate::app::state::AgentConfigTab::Runtime, Some("runtime save failed")),
         (crate::app::state::AgentConfigTab::Acp, Some("acp save failed")),
-        (
-            crate::app::state::AgentConfigTab::Reliability,
-            Some("reliability save failed"),
-        ),
+        (crate::app::state::AgentConfigTab::Reliability, Some("reliability save failed")),
         (crate::app::state::AgentConfigTab::Heartbeat, Some("heartbeat save failed")),
         (crate::app::state::AgentConfigTab::Channels, None),
         (crate::app::state::AgentConfigTab::Mcp, None),

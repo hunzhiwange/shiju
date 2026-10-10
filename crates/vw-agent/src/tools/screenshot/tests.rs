@@ -650,7 +650,9 @@ async fn screenshot_call_exposes_inline_image_marker() {
     let large_file = tokio::fs::File::create(&large_path).await.expect("fixture should be created");
     large_file.set_len(super::MAX_RAW_BYTES + 1).await.expect("fixture size should be set");
     let large = tool.call_result_from_capture(
-        ScreenshotTool::read_and_encode(&large_path).await.expect("large screenshot should report path"),
+        ScreenshotTool::read_and_encode(&large_path)
+            .await
+            .expect("large screenshot should report path"),
     );
     assert!(!large.model_text().contains("[IMAGE:"));
     assert!(large.model_text().contains("Screenshot captured:"));

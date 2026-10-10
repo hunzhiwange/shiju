@@ -75,15 +75,8 @@ const BOOTSTRAP_MAX_CHARS: usize = 20_000;
 /// - `USER.md` - 用户偏好与定制化配置
 /// - `HEARTBEAT.md` - 心跳状态与周期性任务
 /// - `MEMORY.md` - 长期记忆与知识存储
-pub const WORKSPACE_IDENTITY_FILES: [&str; 7] = [
-    "AGENTS.md",
-    "SOUL.md",
-    "TOOLS.md",
-    "IDENTITY.md",
-    "USER.md",
-    "HEARTBEAT.md",
-    "MEMORY.md",
-];
+pub const WORKSPACE_IDENTITY_FILES: [&str; 7] =
+    ["AGENTS.md", "SOUL.md", "TOOLS.md", "IDENTITY.md", "USER.md", "HEARTBEAT.md", "MEMORY.md"];
 
 /// 提示词构建上下文
 ///

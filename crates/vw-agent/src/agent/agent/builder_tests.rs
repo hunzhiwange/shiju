@@ -16,11 +16,11 @@ use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::skills::Skill;
 use crate::app::agent::tools::{Tool, ToolResult};
 use async_trait::async_trait;
-use vw_config_types::agent::AgentDefinitionConfig;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use vw_config_types::agent::AgentDefinitionConfig;
 
 struct TestProvider;
 
@@ -210,10 +210,8 @@ fn build_uses_configured_optional_fields() {
         ..Skill::default()
     };
     let classification_config = QueryClassificationConfig { enabled: true, rules: Vec::new() };
-    let config = AgentDefinitionConfig {
-        max_history_messages: 7,
-        ..AgentDefinitionConfig::default()
-    };
+    let config =
+        AgentDefinitionConfig { max_history_messages: 7, ..AgentDefinitionConfig::default() };
     let identity_config = IdentityConfig {
         format: "test-format".into(),
         aieos_path: None,

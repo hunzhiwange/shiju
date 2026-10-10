@@ -1281,13 +1281,11 @@ pub(crate) fn prepare_session_ui_task(
             .await
         },
         |res| match res {
-            Some((session_id, phase)) => {
-                Message::Project(ProjectMessage::SessionUiPrepared {
-                    session_id,
-                    stream_generation: None,
-                    phase,
-                })
-            }
+            Some((session_id, phase)) => Message::Project(ProjectMessage::SessionUiPrepared {
+                session_id,
+                stream_generation: None,
+                phase,
+            }),
             None => Message::None,
         },
     )

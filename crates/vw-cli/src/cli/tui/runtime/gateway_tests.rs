@@ -155,9 +155,8 @@ fn project_resolution_never_creates_or_rebinds_unknown_projects() {
             .with_id(Some("old-session".to_string())),
     );
 
-    let resolved = runtime
-        .resolve_project_directory_blocking(target.as_path(), false)
-        .expect("known project");
+    let resolved =
+        runtime.resolve_project_directory_blocking(target.as_path(), false).expect("known project");
 
     assert_eq!(resolved.directory, target.to_string_lossy());
     assert_eq!(runtime.directory(), original.canonicalize().unwrap());
@@ -165,10 +164,8 @@ fn project_resolution_never_creates_or_rebinds_unknown_projects() {
     assert!(request.starts_with("POST /v1/projects/resolve "));
     assert!(request.contains("\"create_if_missing\":false"));
 
-    let (port, server) = spawn_json_sequence_server(vec![(
-        "404 Not Found",
-        r#"{"message":"unknown project"}"#,
-    )]);
+    let (port, server) =
+        spawn_json_sequence_server(vec![("404 Not Found", r#"{"message":"unknown project"}"#)]);
     runtime.client = GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).expect("client");
     let before = runtime.session().clone();
     let error = runtime

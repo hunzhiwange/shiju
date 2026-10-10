@@ -27,8 +27,8 @@
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     bool_support_label, format_context_limit, icon_btn, provider_logo_svg,
-    rounded_action_btn_style, settings_close_button, settings_divider, settings_modal_card,
-    settings_error_banner, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
+    rounded_action_btn_style, settings_close_button, settings_divider, settings_error_banner,
+    settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
     settings_panel, settings_panel_style, settings_section_card, settings_section_content,
     settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };

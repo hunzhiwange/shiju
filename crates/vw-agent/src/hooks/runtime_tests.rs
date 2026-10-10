@@ -3,10 +3,8 @@
 // 临时脚本模拟处理器输出，只有完整候选配置才能替换当前钩子集合。
 use super::{HookResult, build_hook_runtime};
 use crate::app::agent::config::Config;
-use crate::plugins::{
-    PluginHookTrustStore, load_plugin_hooks_manifest, plugin_hook_trust_file,
-};
 use crate::app::agent::tools::ToolResult;
+use crate::plugins::{PluginHookTrustStore, load_plugin_hooks_manifest, plugin_hook_trust_file};
 use serde_json::json;
 use std::fs;
 use std::path::Path;
@@ -16,8 +14,7 @@ fn write_json(path: &Path, value: serde_json::Value) {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("json parent");
     }
-    fs::write(path, serde_json::to_vec_pretty(&value).expect("json bytes"))
-        .expect("write json");
+    fs::write(path, serde_json::to_vec_pretty(&value).expect("json bytes")).expect("write json");
 }
 
 #[cfg(unix)]

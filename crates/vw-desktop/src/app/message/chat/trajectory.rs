@@ -173,15 +173,10 @@ fn apply_snapshot_result(
             app.upsert_active_session_step(step);
         }
     }
-    app.active_session_view_state
-        .llm_raw_step_indices
-        .extend(loaded.llm_raw_step_indices);
+    app.active_session_view_state.llm_raw_step_indices.extend(loaded.llm_raw_step_indices);
     for (key, raw) in loaded.step_llm_raw {
         app.active_session_view_state.llm_raw_step_indices.insert(key.clone());
-        app.active_session_view_state
-            .step_llm_raw
-            .entry(key)
-            .or_insert(raw);
+        app.active_session_view_state.step_llm_raw.entry(key).or_insert(raw);
     }
     sync_details_values(app);
     refresh_missing_raw_task(app, &session_id, None)
@@ -225,8 +220,7 @@ pub(super) fn refresh_missing_raw_task(
         .retain(|(loading_session_id, _, _)| loading_session_id == session_id);
     app.trajectory_raw_attempts
         .retain(|(loading_session_id, _, _), _| loading_session_id == session_id);
-    app.trajectory_raw_errors
-        .retain(|(error_session_id, _, _), _| error_session_id == session_id);
+    app.trajectory_raw_errors.retain(|(error_session_id, _, _), _| error_session_id == session_id);
 
     let mut candidate_keys = app
         .active_session_view_state
@@ -234,13 +228,7 @@ pub(super) fn refresh_missing_raw_task(
         .iter()
         .filter(|step| step.finished_ms.is_some())
         .filter(|step| only_step_index.is_none_or(|index| index == step.index))
-        .map(|step| {
-            (
-                session_id.to_string(),
-                trajectory_turn_id(step),
-                step.index,
-            )
-        })
+        .map(|step| (session_id.to_string(), trajectory_turn_id(step), step.index))
         .collect::<BTreeSet<_>>();
     candidate_keys.extend(
         app.active_session_view_state
@@ -261,8 +249,7 @@ pub(super) fn refresh_missing_raw_task(
         .collect::<Vec<_>>();
 
     let mut tasks = Vec::with_capacity(missing.len());
-    let directory =
-        app.known_session_directory(session_id).or_else(|| app.project_path.clone());
+    let directory = app.known_session_directory(session_id).or_else(|| app.project_path.clone());
     for key in missing {
         app.trajectory_raw_errors.remove(&key);
         app.trajectory_raw_loading.insert(key.clone());
@@ -295,8 +282,7 @@ fn retry_raw_load_task(
         clear_raw_load_state(app, &key);
         return Task::none();
     }
-    let directory =
-        app.known_session_directory(&session_id).or_else(|| app.project_path.clone());
+    let directory = app.known_session_directory(&session_id).or_else(|| app.project_path.clone());
     raw_load_task(session_id, turn_id, step_index, directory, attempt)
 }
 
@@ -409,15 +395,11 @@ fn is_current_completed_missing_raw(
     app.active_session_id.as_deref() == Some(session_id)
         && !app.active_session_view_state.step_llm_raw.contains_key(&key)
         && (app.active_session_view_state.llm_raw_step_indices.contains(&key)
-            || app
-                .active_session_view_state
-                .steps
-                .iter()
-                .any(|step| {
-                    step.index == step_index
-                        && trajectory_turn_id(step) == turn_id
-                        && step.finished_ms.is_some()
-                }))
+            || app.active_session_view_state.steps.iter().any(|step| {
+                step.index == step_index
+                    && trajectory_turn_id(step) == turn_id
+                    && step.finished_ms.is_some()
+            }))
 }
 
 fn trajectory_turn_id(step: &crate::app::models::ChatSessionStep) -> String {

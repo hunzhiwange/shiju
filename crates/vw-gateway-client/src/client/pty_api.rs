@@ -105,18 +105,18 @@ impl PtyConnection {
             let Some(message) = self.socket.next().await else {
                 return Ok(None);
             };
-            let event = match message.map_err(|error| format!("PTY WebSocket receive failed: {error}"))?
-            {
-                Message::Text(data) => PtyWebSocketEvent::Text { data: data.to_string() },
-                Message::Binary(data) => PtyWebSocketEvent::Binary { data: data.to_vec() },
-                Message::Ping(data) => PtyWebSocketEvent::Ping { data: data.to_vec() },
-                Message::Pong(data) => PtyWebSocketEvent::Pong { data: data.to_vec() },
-                Message::Close(frame) => PtyWebSocketEvent::Closed {
-                    code: frame.as_ref().map(|frame| frame.code.into()),
-                    reason: frame.map(|frame| frame.reason.to_string()),
-                },
-                Message::Frame(_) => continue,
-            };
+            let event =
+                match message.map_err(|error| format!("PTY WebSocket receive failed: {error}"))? {
+                    Message::Text(data) => PtyWebSocketEvent::Text { data: data.to_string() },
+                    Message::Binary(data) => PtyWebSocketEvent::Binary { data: data.to_vec() },
+                    Message::Ping(data) => PtyWebSocketEvent::Ping { data: data.to_vec() },
+                    Message::Pong(data) => PtyWebSocketEvent::Pong { data: data.to_vec() },
+                    Message::Close(frame) => PtyWebSocketEvent::Closed {
+                        code: frame.as_ref().map(|frame| frame.code.into()),
+                        reason: frame.map(|frame| frame.reason.to_string()),
+                    },
+                    Message::Frame(_) => continue,
+                };
             return Ok(Some(event));
         }
     }
@@ -154,11 +154,7 @@ impl GatewayClient {
         self.put_json(&path, &directory_query(directory), input).await
     }
 
-    pub async fn pty_delete(
-        &self,
-        pty_id: &str,
-        directory: Option<&str>,
-    ) -> Result<bool, String> {
+    pub async fn pty_delete(&self, pty_id: &str, directory: Option<&str>) -> Result<bool, String> {
         let path = pty_path(pty_id)?;
         self.delete_json(&path, &directory_query(directory), &serde_json::Value::Null).await
     }

@@ -4,7 +4,6 @@
 //! 交互分支通过明确枚举或返回值向上层传递选择结果。
 //! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
 
-
 //! 命令完成表面。VibeWindow 提供命令行；此模块仅过滤并渲染。
 //! Command completion surface. VibeWindow supplies command rows; this module only filters and renders.
 use crate::bottom_pane::list_selection_view::SelectionItem;

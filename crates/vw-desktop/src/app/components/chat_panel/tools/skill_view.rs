@@ -54,11 +54,9 @@ pub fn tool_skill_view<'a>(
     )));
 
     let content: Element<'a, Message> = mouse_area(
-        container(
-            tool_activity_header("skill", title, skill_name, visual, detail_btn.into()),
-        )
-        .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
-        .width(Length::Fill),
+        container(tool_activity_header("skill", title, skill_name, visual, detail_btn.into()))
+            .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
+            .width(Length::Fill),
     )
     .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
     .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))

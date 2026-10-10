@@ -743,8 +743,7 @@ pub fn tool_git_diff_view<'a>(
     }
 
     actions = actions.push(detail_btn);
-    let head_row =
-        tool_activity_header("git_diff", title, summary, visual, actions.into());
+    let head_row = tool_activity_header("git_diff", title, summary, visual, actions.into());
 
     let head = mouse_area(container(head_row).width(Length::Fill).padding([2, 2]))
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))

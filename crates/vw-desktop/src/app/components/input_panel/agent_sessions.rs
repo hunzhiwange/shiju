@@ -349,15 +349,10 @@ pub(super) fn agent_session_stop_message(child: &AgentChildSession) -> Option<Me
 
 /// 返回会话可执行操作的辅助说明，无操作时返回 `None`。
 pub(super) fn agent_session_tooltip_text(child: &AgentChildSession) -> Option<&str> {
-    child
-        .task_path
-        .as_deref()
-        .map(str::trim)
-        .filter(|path| !path.is_empty())
-        .or_else(|| {
-            let directory = child.directory.trim();
-            (!directory.is_empty()).then_some(directory)
-        })
+    child.task_path.as_deref().map(str::trim).filter(|path| !path.is_empty()).or_else(|| {
+        let directory = child.directory.trim();
+        (!directory.is_empty()).then_some(directory)
+    })
 }
 
 fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Message> {

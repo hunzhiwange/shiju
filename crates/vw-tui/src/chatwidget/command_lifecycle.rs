@@ -71,12 +71,7 @@ impl ChatWidget {
         if !self.accept_turn_event(turn_id, "tool terminal") {
             return;
         }
-        let mut result = self.exec_state.finish(
-            &call_id,
-            output.clone(),
-            exit_code,
-            duration_ms,
-        );
+        let mut result = self.exec_state.finish(&call_id, output.clone(), exit_code, duration_ms);
         if result == CallMutation::MissingStart {
             self.push_diagnostic("tool terminal without start", format!("call_id={call_id}"));
             let _ = self.exec_state.start(
@@ -84,12 +79,7 @@ impl ChatWidget {
                 "unknown".to_string(),
                 format!("[missing tool start: {call_id}]"),
             );
-            result = self.exec_state.finish(
-                &call_id,
-                output,
-                exit_code,
-                duration_ms,
-            );
+            result = self.exec_state.finish(&call_id, output, exit_code, duration_ms);
         }
         match result {
             CallMutation::Applied => self.sync_exec_group(),

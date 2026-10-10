@@ -40,12 +40,16 @@ pub(crate) fn build_agentic_tools(
         .filter_map(|tool| {
             let spec = tool.spec();
             let tool_id = spec.id.as_str();
-            let blocked = std::iter::once(tool_id)
-                .chain(spec.aliases.iter().map(String::as_str))
-                .any(|id| BLOCKED_DELEGATE_TOOL_IDS.iter().any(|blocked| id.eq_ignore_ascii_case(blocked)));
+            let blocked =
+                std::iter::once(tool_id).chain(spec.aliases.iter().map(String::as_str)).any(|id| {
+                    BLOCKED_DELEGATE_TOOL_IDS.iter().any(|blocked| id.eq_ignore_ascii_case(blocked))
+                });
             let selected = vw_config_types::tools::is_builtin_required_tool_id(tool_id)
                 || allowed_tool_ids.contains(&tool_id.to_lowercase())
-                || spec.aliases.iter().any(|alias| allowed_tool_ids.contains(&alias.to_lowercase()));
+                || spec
+                    .aliases
+                    .iter()
+                    .any(|alias| allowed_tool_ids.contains(&alias.to_lowercase()));
             if blocked || !selected {
                 return None;
             }
@@ -110,7 +114,9 @@ impl CapabilityFilteredSkillTool {
         Self {
             inner,
             allowed_skills,
-            description: format!("Load a skill allowed for the delegated agent. Available skills: {allowed}"),
+            description: format!(
+                "Load a skill allowed for the delegated agent. Available skills: {allowed}"
+            ),
         }
     }
 }

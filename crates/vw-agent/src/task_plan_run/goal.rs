@@ -99,12 +99,7 @@ pub fn build_goal_continuation_prompt(
     let canonical_task_files = tasks
         .iter()
         .map(|task| {
-            format!(
-                "- [{}] {}：{}",
-                task.id,
-                task.title,
-                task_file_path(plan_abs, task).display()
-            )
+            format!("- [{}] {}：{}", task.id, task.title, task_file_path(plan_abs, task).display())
         })
         .collect::<Vec<_>>()
         .join("\n");
@@ -119,12 +114,7 @@ pub fn build_goal_continuation_prompt(
 \n\n# 规范任务文件\n{}\
 \n\n# 已有执行证据\n{}\
 \n\n先复用上述已有执行证据修正未通过清单，不要重复实现已经达成的产物；只更新列出的规范任务文件。",
-        build_goal_continuation_prompt_base(
-            original_goal,
-            plan_markdown,
-            reason,
-            task_files_state,
-        ),
+        build_goal_continuation_prompt_base(original_goal, plan_markdown, reason, task_files_state,),
         plan_abs.display(),
         canonical_task_files,
         evidence,

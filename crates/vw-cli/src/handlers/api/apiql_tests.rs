@@ -22,12 +22,10 @@ async fn api_apiql_commands_use_canonical_routes_for_all_query_modes() {
     let common = ["--host", "127.0.0.1", "--port", port.as_str()];
 
     for invalid in ["page=0", "page_size=0", "limit=not-a-number", "=value"] {
-        let error = run_command(
-            &common,
-            &["apiql", "list-page", "product:product", "--param", invalid],
-        )
-        .await
-        .expect_err("invalid APIQL pagination must fail");
+        let error =
+            run_command(&common, &["apiql", "list-page", "product:product", "--param", invalid])
+                .await
+                .expect_err("invalid APIQL pagination must fail");
         assert!(error.contains("invalid APIQL query parameter"));
         assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
     }
@@ -48,13 +46,7 @@ async fn api_apiql_commands_use_canonical_routes_for_all_query_modes() {
             "/apiQL/product%3Aproduct?column%5B%5D=id&orderBy=id+asc&limit=2",
         ),
         (
-            vec![
-                "apiql",
-                "list-only",
-                "product:product",
-                "--param",
-                "column[]=id",
-            ],
+            vec!["apiql", "list-only", "product:product", "--param", "column[]=id"],
             "/apiQL/product%3Aproduct/list-only?column%5B%5D=id",
         ),
         (

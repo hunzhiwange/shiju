@@ -1,35 +1,31 @@
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::PathBuf;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 use serde_json::json;
-use vw_gateway_client::vw_api_types::agent_scheduler::{
-    AgentSchedulerScopeDto,
-};
+use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;
 use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
-use vw_gateway_client::vw_api_types::workflow::{
-    WorkflowHumanActionDto, WorkflowPauseDto,
-};
+use vw_gateway_client::vw_api_types::workflow::{WorkflowHumanActionDto, WorkflowPauseDto};
 use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint, GatewayWorkflowStreamEvent};
 use vw_tui::{V3Action, V3ApprovalDecision};
 
 use super::app::{ActiveRunner, V3GatewayApp};
-use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime, block_on_gateway};
+use super::commands::{
+    CommandRoute, SCHEDULE_SELECTION_SURFACE, TASK_SELECTION_SURFACE, route_selection,
+};
+use super::model::UiOverlay;
+use super::model::background_task::{CanonicalTaskStatus, TaskControlAction};
 use super::runtime::cron::{
     CronJobSnapshot, CronMutation, load_owned_cron_detail_blocking,
     mutate_owned_cron_and_refresh_blocking,
 };
+use super::runtime::gateway::{GatewaySessionSeed, GatewayUiRuntime, block_on_gateway};
 use super::runtime::orchestration::{
     control_owned_task_blocking, load_orchestration, load_owned_task_detail_blocking,
     load_owned_workflow_detail_blocking,
 };
-use super::commands::{
-    CommandRoute, SCHEDULE_SELECTION_SURFACE, TASK_SELECTION_SURFACE, route_selection,
-};
-use super::model::background_task::{CanonicalTaskStatus, TaskControlAction};
-use super::model::UiOverlay;
 use super::runtime::workflow_run::WorkflowRunOwnership;
 use super::state::{TuiAction, TuiState, reduce_tui_state};
 
@@ -86,7 +82,13 @@ fn orchestration_panels_render_gateway_snapshots() {
         for _ in 0..4 {
             let (mut stream, _) = listener.accept().expect("accept");
             let request = read_request(&mut stream);
-            let path = request.lines().next().unwrap_or_default().split_whitespace().nth(1).unwrap_or_default();
+            let path = request
+                .lines()
+                .next()
+                .unwrap_or_default()
+                .split_whitespace()
+                .nth(1)
+                .unwrap_or_default();
             paths.push(path.to_string());
             let body = match path {
                 "/v1/workflow/applications" => json!([{
@@ -117,8 +119,9 @@ fn orchestration_panels_render_gateway_snapshots() {
         paths
     });
 
-    let snapshot = block_on_gateway(async { Ok(load_orchestration(&runtime(port), Some(scope())).await) })
-        .expect("snapshot");
+    let snapshot =
+        block_on_gateway(async { Ok(load_orchestration(&runtime(port), Some(scope())).await) })
+            .expect("snapshot");
     assert_eq!(snapshot.workflows.items[0].uuid, "wf-1");
     assert_eq!(snapshot.schedules.items[0].id, "cron-1");
     assert_eq!(snapshot.cron_jobs.len(), 1, "canonical Cron DTO must survive in the snapshot");
@@ -166,13 +169,8 @@ fn orchestration_controls_require_owned_stable_ids() {
         write_json(&mut stream, r#"{"accepted":true}"#);
         request
     });
-    control_owned_task_blocking(
-        &runtime(port),
-        &snapshot,
-        "owned-task",
-        TaskControlAction::Cancel,
-    )
-    .expect("owned command");
+    control_owned_task_blocking(&runtime(port), &snapshot, "owned-task", TaskControlAction::Cancel)
+        .expect("owned command");
     let request = server.join().expect("server");
     assert!(request.starts_with("POST /v1/agent-scheduler/projects/project-one/commands "));
     assert!(request.contains(r#""task_id":"owned-task""#));
@@ -319,10 +317,8 @@ fn task_control_refreshes_snapshot_only_after_gateway_success() {
         requests
     });
     let mut success_state = TuiState::default();
-    success_state.orchestration = task_snapshot_with_status(
-        Some(scope()),
-        CanonicalTaskStatus::Running,
-    );
+    success_state.orchestration =
+        task_snapshot_with_status(Some(scope()), CanonicalTaskStatus::Running);
     let mut success_app = V3GatewayApp::new(runtime(success_port), success_state);
     let mut success_runner = ActiveRunner::new_with_editor(std::sync::Arc::new(|_| Ok(None)));
     confirm_task_control(&mut success_runner, &mut success_app, "/tasks pause task/owned");
@@ -333,9 +329,9 @@ fn task_control_refreshes_snapshot_only_after_gateway_success() {
     );
     let success_requests = success_server.join().expect("success server");
     assert_eq!(success_requests.len(), 5);
-    assert!(success_requests[0].starts_with(
-        "POST /v1/agent-scheduler/projects/project-one/commands "
-    ));
+    assert!(
+        success_requests[0].starts_with("POST /v1/agent-scheduler/projects/project-one/commands ")
+    );
 
     let failure_listener = TcpListener::bind("127.0.0.1:0").expect("failure fixture");
     let failure_port = failure_listener.local_addr().expect("address").port();
@@ -348,10 +344,8 @@ fn task_control_refreshes_snapshot_only_after_gateway_success() {
         (request, failure_listener.accept().is_ok())
     });
     let mut failure_state = TuiState::default();
-    failure_state.orchestration = task_snapshot_with_status(
-        Some(scope()),
-        CanonicalTaskStatus::Running,
-    );
+    failure_state.orchestration =
+        task_snapshot_with_status(Some(scope()), CanonicalTaskStatus::Running);
     let mut failure_app = V3GatewayApp::new(runtime(failure_port), failure_state);
     let before_failure = failure_app.state().orchestration.clone();
     let mut failure_runner = ActiveRunner::new_with_editor(std::sync::Arc::new(|_| Ok(None)));
@@ -753,7 +747,8 @@ fn cron_mutation_refreshes_after_gateway_success_only() {
             &json!({"jobs": [{
                 "id":"cron/owned","name":"Nightly","schedule_kind":"cron",
                 "expression":"0 0 * * *","next_run":"later","enabled":false
-            }]}).to_string(),
+            }]})
+            .to_string(),
         );
         requests
     });
@@ -865,10 +860,8 @@ fn workflow_pause_projects_typed_questions_without_persisting_token() {
         pause: Some(pause),
     });
 
-    let question = ownership
-        .pause_question()
-        .expect("valid Workflow form")
-        .expect("paused Workflow question");
+    let question =
+        ownership.pause_question().expect("valid Workflow form").expect("paused Workflow question");
     assert_eq!(question.session_id, "session-owned");
     assert_eq!(question.prompts.len(), 3);
     assert_eq!(question.prompts[0].header, "Review comment");
@@ -880,10 +873,7 @@ fn workflow_pause_projects_typed_questions_without_persisting_token() {
 
     let mut state = TuiState::default();
     state.session.session_id = Some("session-owned".to_string());
-    reduce_tui_state(
-        &mut state,
-        TuiAction::WorkflowPauseQuestionReplaced(Some(question)),
-    );
+    reduce_tui_state(&mut state, TuiAction::WorkflowPauseQuestionReplaced(Some(question)));
     let persisted = serde_json::to_string(&state.to_chat_session()).expect("serialize snapshot");
     assert!(!persisted.contains("secret-workflow-token"));
     assert!(!format!("{state:?}").contains("secret-workflow-token"));
@@ -903,7 +893,12 @@ fn read_request(stream: &mut std::net::TcpStream) -> String {
             let headers = String::from_utf8_lossy(&bytes[..header_end + 4]);
             let length = headers
                 .lines()
-                .find_map(|line| line.to_ascii_lowercase().strip_prefix("content-length:").map(str::trim).and_then(|value| value.parse::<usize>().ok()))
+                .find_map(|line| {
+                    line.to_ascii_lowercase()
+                        .strip_prefix("content-length:")
+                        .map(str::trim)
+                        .and_then(|value| value.parse::<usize>().ok())
+                })
                 .unwrap_or_default();
             if bytes.len() >= header_end + 4 + length {
                 break;

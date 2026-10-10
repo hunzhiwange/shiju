@@ -402,10 +402,9 @@ fn iso_file_stamp_utc() -> String {
     #[cfg(not(target_arch = "wasm32"))]
     {
         use time::{OffsetDateTime, UtcOffset, format_description};
-        let fmt = format_description::parse_borrowed::<2>(
-            "[year]-[month]-[day]T[hour][minute][second]",
-        )
-        .unwrap_or_default();
+        let fmt =
+            format_description::parse_borrowed::<2>("[year]-[month]-[day]T[hour][minute][second]")
+                .unwrap_or_default();
         let dt = OffsetDateTime::from_unix_timestamp(secs)
             .unwrap_or_else(|_| OffsetDateTime::UNIX_EPOCH)
             .to_offset(UtcOffset::UTC);

@@ -71,11 +71,7 @@ pub(crate) fn read_workspace_file_blocking(
     block_on_gateway(async {
         let response = runtime
             .client()
-            .file_read_in_directory(
-                runtime.directory_value().as_deref(),
-                None,
-                path.as_str(),
-            )
+            .file_read_in_directory(runtime.directory_value().as_deref(), None, path.as_str())
             .await?;
         workspace_text_from_parts(
             runtime.directory(),
@@ -93,13 +89,11 @@ pub(crate) fn normalize_workspace_relative_path(value: &str) -> Result<String, S
         return Ok(".".to_string());
     }
     if normalized.contains('\0') || normalized.starts_with('/') {
-        return Err("workspace file path must be relative to the current Gateway directory".to_string());
+        return Err(
+            "workspace file path must be relative to the current Gateway directory".to_string()
+        );
     }
-    if normalized
-        .split('/')
-        .next()
-        .is_some_and(|segment| segment.ends_with(':'))
-    {
+    if normalized.split('/').next().is_some_and(|segment| segment.ends_with(':')) {
         return Err("workspace file path must not be absolute".to_string());
     }
 
@@ -121,11 +115,7 @@ pub(crate) fn normalize_workspace_relative_path(value: &str) -> Result<String, S
             }
         }
     }
-    if segments.is_empty() {
-        Ok(".".to_string())
-    } else {
-        Ok(segments.join("/"))
-    }
+    if segments.is_empty() { Ok(".".to_string()) } else { Ok(segments.join("/")) }
 }
 
 fn normalize_workspace_file_path(value: &str) -> Result<String, String> {
@@ -222,18 +212,14 @@ fn workspace_parent(path: &str) -> String {
 
 fn is_direct_child(parent: &str, child: &str) -> bool {
     let child_parent = Path::new(child).parent().and_then(Path::to_str).unwrap_or_default();
-    if parent == "." {
-        child_parent.is_empty()
-    } else {
-        child_parent == parent
-    }
+    if parent == "." { child_parent.is_empty() } else { child_parent == parent }
 }
 
 fn looks_binary(content: &str) -> bool {
     content.contains('\u{fffd}')
-        || content.chars().any(|character| {
-            character.is_control() && !matches!(character, '\n' | '\r' | '\t')
-        })
+        || content
+            .chars()
+            .any(|character| character.is_control() && !matches!(character, '\n' | '\r' | '\t'))
 }
 
 #[derive(Debug, Deserialize)]

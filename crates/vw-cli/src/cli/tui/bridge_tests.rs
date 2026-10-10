@@ -11,9 +11,7 @@ use ratatui::layout::Rect;
 use serde_json::json;
 use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
-use vw_tui::{
-    V3Action, V3ApprovalDecision, V3Event, V3FileChange, V3UserInputAnswer,
-};
+use vw_tui::{V3Action, V3ApprovalDecision, V3Event, V3FileChange, V3UserInputAnswer};
 
 use super::app::V3GatewayApp;
 use super::bridge::{GatewayV3Bridge, structured_patch_diff};
@@ -92,10 +90,7 @@ fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
     let close_file_search = app
         .handle_action(V3Action::FileSearchQueryChanged { query: None })
         .expect("close file search action");
-    assert_eq!(
-        close_file_search,
-        TuiControllerCommand::FileSearchQueryChanged { query: None }
-    );
+    assert_eq!(close_file_search, TuiControllerCommand::FileSearchQueryChanged { query: None });
 
     let mut permission_queue = PermissionQueue::default();
     permission_queue.replace(vec![PermissionRequest {
@@ -542,10 +537,8 @@ fn tui_explicit_resume_restores_gateway_session_title_history_and_identity() {
         created_ms: 10,
         updated_ms: 20,
     };
-    let (endpoint, requests, server) = gateway_fixture(vec![
-        serde_json::to_value(&snapshot).expect("snapshot JSON"),
-        json!(true),
-    ]);
+    let (endpoint, requests, server) =
+        gateway_fixture(vec![serde_json::to_value(&snapshot).expect("snapshot JSON"), json!(true)]);
     let client = GatewayClient::new(endpoint).expect("test gateway client");
     let runtime = GatewayUiRuntime::new(
         client,

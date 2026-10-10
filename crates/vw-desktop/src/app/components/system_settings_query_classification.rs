@@ -65,11 +65,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     let header = row![
-        container(settings_page_intro(
-            "查询模型分类",
-            "将请求 pattern 映射到已配置的模型路由。"
-        ))
-        .width(Length::Fill),
+        container(settings_page_intro("查询模型分类", "将请求 pattern 映射到已配置的模型路由。"))
+            .width(Length::Fill),
         button(text("前往模型路由"))
             .on_press(Message::Settings(SettingsMessage::ModelConfigTab(
                 ModelConfigTabMessage::Selected(ModelConfigTab::ModelRoutes),

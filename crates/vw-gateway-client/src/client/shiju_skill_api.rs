@@ -390,12 +390,8 @@ impl GatewayClient {
         credential: &ShijuCredential,
         skill_id: u64,
     ) -> Result<ShijuSkillReadmeDto, String> {
-        self.shiju_skill_get(
-            &format!("{SHIJU_SKILLS_PATH}/{skill_id}/readme"),
-            &[],
-            credential,
-        )
-        .await
+        self.shiju_skill_get(&format!("{SHIJU_SKILLS_PATH}/{skill_id}/readme"), &[], credential)
+            .await
     }
 
     /// Lists published versions for one SHIJU private skill.

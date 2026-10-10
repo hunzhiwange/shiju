@@ -9,14 +9,14 @@ pub(crate) mod file_search;
 pub(crate) mod gateway;
 pub(crate) mod hooks;
 pub(crate) mod integrations;
+pub(crate) mod interaction;
 pub(crate) mod orchestration;
 pub(crate) mod plan_run;
-pub(crate) mod interaction;
 pub(crate) mod session_diff;
 mod session_store;
 pub(crate) mod stream_adapter;
-pub(crate) mod workspace_files;
 pub(crate) mod workflow_run;
+pub(crate) mod workspace_files;
 
 #[cfg(test)]
 mod diagnostics_tests;

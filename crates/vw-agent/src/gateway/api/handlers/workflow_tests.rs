@@ -863,11 +863,9 @@ fn workflow_sse_preserves_human_pause() {
     let paused_json = serde_json::to_value(paused_finished).expect("serialize paused workflow");
     assert_eq!(paused_json["pause"], serde_json::to_value(pause).expect("serialize pause"));
 
-    let completed_json = serde_json::to_value(workflow_finished_data(
-        &workflow_response("run-completed"),
-        10,
-    ))
-    .expect("serialize completed workflow");
+    let completed_json =
+        serde_json::to_value(workflow_finished_data(&workflow_response("run-completed"), 10))
+            .expect("serialize completed workflow");
     assert!(completed_json.get("pause").is_none());
 }
 

@@ -554,7 +554,8 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     // 否则 deny 规则会提前从 skill 工具描述中移除这些技能，模型只能看到一个
     // 无法执行的协议要求。
     let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
-    let allowed_tools = allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
+    let allowed_tools =
+        allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
     let prompt_tool_ids = allowed_tools.iter().cloned().collect::<Vec<_>>();
     base_system = base_system.with_runtime_context_and_modes(
         selected_model.step_event_model(),

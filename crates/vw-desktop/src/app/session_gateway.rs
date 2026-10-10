@@ -36,10 +36,9 @@ use vw_gateway_client::{
     ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuAppApiKeyBindingDto,
     ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto,
     ShijuCompanySkillQuery, ShijuCredential, ShijuIamApiKeyListDto, ShijuInstalledSkillDto,
-    ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMaintainedSkillQuery,
-    ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
-    ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
-    ShijuTenantSkillDto,
+    ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto,
+    ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery,
+    ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
 use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
 

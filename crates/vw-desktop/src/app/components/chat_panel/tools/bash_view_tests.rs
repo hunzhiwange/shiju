@@ -127,9 +127,8 @@ fn bash_view_ignores_cached_multiline_text_for_compact_summary() {
 fn bash_tool_header_uses_shared_type_and_status_slots() {
     let app = app();
 
-    for (idx, status) in ["waiting", "running", "completed", "failed", "cancelled"]
-        .into_iter()
-        .enumerate()
+    for (idx, status) in
+        ["waiting", "running", "completed", "failed", "cancelled"].into_iter().enumerate()
     {
         let visible = format!(
             "tool bash\n{}",

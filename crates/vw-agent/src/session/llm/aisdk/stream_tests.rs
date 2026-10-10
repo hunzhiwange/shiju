@@ -24,8 +24,8 @@ use crate::app::agent::session::message::AssistantError;
 use crate::app::agent::tools;
 
 use super::{
-    aisdk_stream_chunk_error, do_stream_request_aisdk_with_model, parse_reasoning_effort_label,
-    normalize_tool_call_id, reasoning_request_config, uses_dashscope_reasoning_body,
+    aisdk_stream_chunk_error, do_stream_request_aisdk_with_model, normalize_tool_call_id,
+    parse_reasoning_effort_label, reasoning_request_config, uses_dashscope_reasoning_body,
 };
 
 type ChunkResult = aisdk::Result<Vec<AiStreamChunk>>;
@@ -248,10 +248,7 @@ fn reasoning_request_config_splits_dashscope_body_from_top_level_effort() {
 
 #[test]
 fn synthetic_openai_tool_call_ids_are_namespaced_per_request() {
-    assert_eq!(
-        normalize_tool_call_id("provider-call-1", "request-a"),
-        "provider-call-1"
-    );
+    assert_eq!(normalize_tool_call_id("provider-call-1", "request-a"), "provider-call-1");
     assert_eq!(
         normalize_tool_call_id("openai-tool-call-custom", "request-a"),
         "openai-tool-call-custom"

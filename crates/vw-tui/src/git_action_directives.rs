@@ -8,11 +8,26 @@ use std::path::Path;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum GitActionDirective {
     /// 指令只携带界面执行动作所需的工作目录、分支和 PR 元数据。
-    Stage { cwd: String },
-    Commit { cwd: String },
-    CreateBranch { cwd: String, branch: String },
-    Push { cwd: String, branch: String },
-    CreatePr { cwd: String, branch: String, url: Option<String>, is_draft: bool },
+    Stage {
+        cwd: String,
+    },
+    Commit {
+        cwd: String,
+    },
+    CreateBranch {
+        cwd: String,
+        branch: String,
+    },
+    Push {
+        cwd: String,
+        branch: String,
+    },
+    CreatePr {
+        cwd: String,
+        branch: String,
+        url: Option<String>,
+        is_draft: bool,
+    },
 }
 
 impl GitActionDirective {

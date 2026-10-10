@@ -10,8 +10,8 @@ use vw_gateway_client::vw_api_types::chat::{GatewayChatStreamEvent, GatewayChatS
 use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope};
 use vw_gateway_client::vw_api_types::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};
 use vw_gateway_client::{
-    GatewayAgentRequest, GatewayChatWebSocketEvent, GatewayJsonSseEvent, GatewayStreamAttemptResult,
-    GatewayStreamEvent, GatewayStreamResume,
+    GatewayAgentRequest, GatewayChatWebSocketEvent, GatewayJsonSseEvent,
+    GatewayStreamAttemptResult, GatewayStreamEvent, GatewayStreamResume,
 };
 
 use super::context::ApiContext;
@@ -20,11 +20,26 @@ use super::output;
 
 #[derive(Subcommand, Debug)]
 pub(super) enum RealtimeCommands {
-    Agent { #[arg(long, value_parser = required)] input: String },
-    Openai { #[arg(long, value_parser = required)] input: String },
-    GatewayEvents { #[arg(long)] limit: Option<usize> },
-    GlobalEvents { #[arg(long)] limit: Option<usize> },
-    InstanceEvents { #[arg(long)] limit: Option<usize> },
+    Agent {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
+    Openai {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
+    GatewayEvents {
+        #[arg(long)]
+        limit: Option<usize>,
+    },
+    GlobalEvents {
+        #[arg(long)]
+        limit: Option<usize>,
+    },
+    InstanceEvents {
+        #[arg(long)]
+        limit: Option<usize>,
+    },
     SchedulerEvents {
         #[arg(value_parser = required)]
         project_id: String,
@@ -41,7 +56,10 @@ pub(super) enum RealtimeCommands {
         #[arg(long, value_parser = required)]
         input: String,
     },
-    ChatStop { #[arg(value_parser = required)] request_id: String },
+    ChatStop {
+        #[arg(value_parser = required)]
+        request_id: String,
+    },
     PlanStream {
         #[arg(long, value_parser = required)]
         request_id: String,
@@ -50,8 +68,14 @@ pub(super) enum RealtimeCommands {
         #[arg(long, value_parser = required)]
         input: String,
     },
-    PlanStop { #[arg(value_parser = required)] request_id: String },
-    Websocket { #[arg(long, value_parser = required)] input: String },
+    PlanStop {
+        #[arg(value_parser = required)]
+        request_id: String,
+    },
+    Websocket {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
 }
 
 impl RealtimeCommands {
@@ -59,16 +83,12 @@ impl RealtimeCommands {
         match self {
             Self::Agent { .. } => Some("run agent inference".to_string()),
             Self::Openai { .. } => Some("run OpenAI-compatible inference".to_string()),
-            Self::ChatStream { request_id, .. } => {
-                Some(format!("run chat stream '{request_id}'"))
-            }
+            Self::ChatStream { request_id, .. } => Some(format!("run chat stream '{request_id}'")),
             Self::ChatStop { request_id } => Some(format!("stop chat stream '{request_id}'")),
             Self::PlanStream { request_id, .. } => {
                 Some(format!("run task plan stream '{request_id}'"))
             }
-            Self::PlanStop { request_id } => {
-                Some(format!("stop task plan stream '{request_id}'"))
-            }
+            Self::PlanStop { request_id } => Some(format!("stop task plan stream '{request_id}'")),
             Self::Websocket { .. } => Some("open WebSocket chat session".to_string()),
             Self::GatewayEvents { .. }
             | Self::GlobalEvents { .. }
@@ -87,12 +107,17 @@ pub(super) async fn run(
     match command {
         RealtimeCommands::Agent { input } => {
             let request = parse::<GatewayAgentRequest>(&input, stdin, "agent")?;
-            let response = context.client().inference_agent(&request).await.map_err(anyhow::Error::msg)?;
+            let response =
+                context.client().inference_agent(&request).await.map_err(anyhow::Error::msg)?;
             output::write_json(writer, &response, context.output_format())
         }
         RealtimeCommands::Openai { input } => {
             let request = read_json_input(&input, stdin)?;
-            let response = context.client().inference_openai_chat(&request).await.map_err(anyhow::Error::msg)?;
+            let response = context
+                .client()
+                .inference_openai_chat(&request)
+                .await
+                .map_err(anyhow::Error::msg)?;
             output::write_json(writer, &response, context.output_format())
         }
         RealtimeCommands::GatewayEvents { limit } => {
@@ -127,7 +152,8 @@ pub(super) async fn run(
             run_chat_stream(context, request_id, last_event_id, &request, writer).await
         }
         RealtimeCommands::ChatStop { request_id } => {
-            let cancelled = context.client().chat_stream_stop(&request_id).await.map_err(anyhow::Error::msg)?;
+            let cancelled =
+                context.client().chat_stream_stop(&request_id).await.map_err(anyhow::Error::msg)?;
             output::write_json(writer, &json!({"cancelled":cancelled}), context.output_format())
         }
         RealtimeCommands::PlanStream { request_id, last_event_id, input } => {
@@ -135,7 +161,11 @@ pub(super) async fn run(
             run_plan_stream(context, request_id, last_event_id, &request, writer).await
         }
         RealtimeCommands::PlanStop { request_id } => {
-            let cancelled = context.client().task_plan_run_stream_stop(&request_id).await.map_err(anyhow::Error::msg)?;
+            let cancelled = context
+                .client()
+                .task_plan_run_stream_stop(&request_id)
+                .await
+                .map_err(anyhow::Error::msg)?;
             output::write_json(writer, &json!({"cancelled":cancelled}), context.output_format())
         }
         RealtimeCommands::Websocket { input } => {
@@ -212,15 +242,12 @@ async fn run_chat_stream(
 fn chat_event_json(event: &GatewayStreamEvent<GatewayChatStreamEvent>) -> Value {
     let payload = match &event.event {
         GatewayChatStreamEvent::Delta(delta) => json!({"type":"chat.delta","delta":delta}),
-        GatewayChatStreamEvent::Done {
-            finish_reason,
-            usage,
-            message_id,
-            parent_message_id,
-        } => json!({
-            "type":"chat.done", "finish_reason":finish_reason, "usage":usage,
-            "message_id":message_id, "parent_message_id":parent_message_id
-        }),
+        GatewayChatStreamEvent::Done { finish_reason, usage, message_id, parent_message_id } => {
+            json!({
+                "type":"chat.done", "finish_reason":finish_reason, "usage":usage,
+                "message_id":message_id, "parent_message_id":parent_message_id
+            })
+        }
         GatewayChatStreamEvent::Error(error) => json!({"type":"chat.error","error":error}),
         GatewayChatStreamEvent::Other(payload) => payload.clone(),
     };
@@ -300,7 +327,10 @@ async fn run_websocket(
             && data.get("type").and_then(Value::as_str) == Some("error")
         {
             protocol_error = Some(
-                data.get("message").and_then(Value::as_str).unwrap_or("WebSocket error").to_string(),
+                data.get("message")
+                    .and_then(Value::as_str)
+                    .unwrap_or("WebSocket error")
+                    .to_string(),
             );
         }
         let closed = event.is_closed();

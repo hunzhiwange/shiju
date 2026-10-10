@@ -138,12 +138,8 @@ fn workflow_resume_requires_current_owned_pause() {
     drain_until(&mut runner, &mut app, |runner, app| {
         !runner.has_active_stream() && app.state().tasks.workflow_pause_request_id.is_some()
     });
-    let first_request_id = app
-        .state()
-        .tasks
-        .workflow_pause_request_id
-        .clone()
-        .expect("first pause question");
+    let first_request_id =
+        app.state().tasks.workflow_pause_request_id.clone().expect("first pause question");
     let persisted = serde_json::to_string(&app.state().to_chat_session()).expect("snapshot");
     assert!(!persisted.contains("token-1"));
 
@@ -162,11 +158,7 @@ fn workflow_resume_requires_current_owned_pause() {
     app.state_mut().session.session_id = Some("other-session".to_string());
     runner.execute_action(
         &mut app,
-        workflow_answer(
-            first_request_id.as_str(),
-            "looks good",
-            "Approve [approve]",
-        ),
+        workflow_answer(first_request_id.as_str(), "looks good", "Approve [approve]"),
     );
     assert!(
         requests.recv_timeout(Duration::from_millis(100)).is_err(),
@@ -176,11 +168,7 @@ fn workflow_resume_requires_current_owned_pause() {
 
     runner.execute_action(
         &mut app,
-        workflow_answer(
-            first_request_id.as_str(),
-            "looks good",
-            "Approve [approve]",
-        ),
+        workflow_answer(first_request_id.as_str(), "looks good", "Approve [approve]"),
     );
     drain_until(&mut runner, &mut app, |runner, app| {
         !runner.interaction_in_flight()
@@ -191,20 +179,12 @@ fn workflow_resume_requires_current_owned_pause() {
                 .as_deref()
                 .is_some_and(|request_id| request_id != first_request_id)
     });
-    let second_request_id = app
-        .state()
-        .tasks
-        .workflow_pause_request_id
-        .clone()
-        .expect("replacement pause question");
+    let second_request_id =
+        app.state().tasks.workflow_pause_request_id.clone().expect("replacement pause question");
 
     runner.execute_action(
         &mut app,
-        workflow_answer(
-            first_request_id.as_str(),
-            "replayed",
-            "Approve [approve]",
-        ),
+        workflow_answer(first_request_id.as_str(), "replayed", "Approve [approve]"),
     );
     assert!(
         requests.recv_timeout(Duration::from_millis(100)).is_err(),
@@ -213,23 +193,14 @@ fn workflow_resume_requires_current_owned_pause() {
 
     runner.execute_action(
         &mut app,
-        workflow_answer(
-            second_request_id.as_str(),
-            "continue now",
-            "Continue [continue]",
-        ),
+        workflow_answer(second_request_id.as_str(), "continue now", "Continue [continue]"),
     );
     drain_until(&mut runner, &mut app, |runner, app| {
-        !runner.interaction_in_flight()
-            && app.state().tasks.workflow_pause_request_id.is_none()
+        !runner.interaction_in_flight() && app.state().tasks.workflow_pause_request_id.is_none()
     });
     runner.execute_action(
         &mut app,
-        workflow_answer(
-            second_request_id.as_str(),
-            "duplicate",
-            "Continue [continue]",
-        ),
+        workflow_answer(second_request_id.as_str(), "duplicate", "Continue [continue]"),
     );
     assert!(
         requests.recv_timeout(Duration::from_millis(100)).is_err(),
@@ -237,10 +208,8 @@ fn workflow_resume_requires_current_owned_pause() {
     );
 
     let recorded = requests.try_iter().collect::<Vec<_>>();
-    let resume = recorded
-        .iter()
-        .filter(|request| request.path == "/v1/workflow/resume")
-        .collect::<Vec<_>>();
+    let resume =
+        recorded.iter().filter(|request| request.path == "/v1/workflow/resume").collect::<Vec<_>>();
     assert_eq!(resume.len(), 2);
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(resume[0].body.as_str()).expect("first resume"),
@@ -272,10 +241,7 @@ fn workflow_answer(request_id: &str, text: &str, action: &str) -> V3Action {
                 question_id: "0".to_string(),
                 values: vec![format!("user_note: {text}")],
             },
-            V3UserInputAnswer {
-                question_id: "1".to_string(),
-                values: vec![action.to_string()],
-            },
+            V3UserInputAnswer { question_id: "1".to_string(), values: vec![action.to_string()] },
         ],
     }
 }
@@ -450,12 +416,7 @@ fn write_response(stream: &mut TcpStream, status: &str, body: &str) {
     write_typed_response(stream, status, body, "application/json");
 }
 
-fn write_typed_response(
-    stream: &mut TcpStream,
-    status: &str,
-    body: &str,
-    content_type: &str,
-) {
+fn write_typed_response(stream: &mut TcpStream, status: &str, body: &str, content_type: &str) {
     let response = format!(
         "HTTP/1.1 {status}\r\ncontent-type: {content_type}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
         body.len()

@@ -72,7 +72,11 @@ fn revoke_requested(entry: &vw_gateway_client::HookCatalogEntryDto) -> Message {
     }))
 }
 
-fn refresh_button<'a>(label: &'static str, loading: bool, message: Message) -> Element<'a, Message> {
+fn refresh_button<'a>(
+    label: &'static str,
+    loading: bool,
+    message: Message,
+) -> Element<'a, Message> {
     let mut control = button(text(if loading { "加载中…" } else { label }).size(12))
         .padding([7, 12])
         .style(|theme, status| settings_segment_button_style(theme, status, false));
@@ -88,7 +92,8 @@ fn hook_catalog_card<'a>(
 ) -> Element<'a, Message> {
     let status = if entry.trusted { "已信任" } else { "待审核" };
     let args = if entry.args.is_empty() { "（无）".to_string() } else { entry.args.join(" ") };
-    let action_message = if entry.trusted { revoke_requested(entry) } else { trust_requested(entry) };
+    let action_message =
+        if entry.trusted { revoke_requested(entry) } else { trust_requested(entry) };
     let action_label = if entry.trusted { "撤销信任" } else { "信任" };
     let mut action = button(text(action_label).size(12))
         .padding([7, 12])
@@ -120,12 +125,9 @@ fn hook_catalog_card<'a>(
             ]
             .spacing(8)
             .align_y(Alignment::Center),
-            row![
-                text("参数").size(11).style(settings_muted_text_style),
-                text(args).size(12),
-            ]
-            .spacing(8)
-            .align_y(Alignment::Center),
+            row![text("参数").size(11).style(settings_muted_text_style), text(args).size(12),]
+                .spacing(8)
+                .align_y(Alignment::Center),
             row![
                 text("工作目录").size(11).style(settings_muted_text_style),
                 text(&entry.working_dir).size(12),
@@ -143,7 +145,8 @@ fn hook_catalog_panel(app: &App) -> Element<'_, Message> {
     let s = &app.hooks_settings;
     let mut rows = column![].spacing(10).width(Length::Fill);
     if s.catalog.is_empty() {
-        let message = if s.catalog_loading { "正在加载插件 hooks…" } else { "未发现插件 hooks" };
+        let message =
+            if s.catalog_loading { "正在加载插件 hooks…" } else { "未发现插件 hooks" };
         rows = rows.push(
             container(text(message).size(12).style(settings_muted_text_style))
                 .center_x(Length::Fill)
@@ -165,7 +168,8 @@ fn audit_panel(app: &App) -> Element<'_, Message> {
     let s = &app.hooks_settings;
     let mut rows = column![].spacing(8).width(Length::Fill);
     if s.audit.is_empty() {
-        let message = if s.audit_loading { "正在加载审计记录…" } else { "暂无审计记录" };
+        let message =
+            if s.audit_loading { "正在加载审计记录…" } else { "暂无审计记录" };
         rows = rows.push(
             container(text(message).size(12).style(settings_muted_text_style))
                 .center_x(Length::Fill)

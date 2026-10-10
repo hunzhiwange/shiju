@@ -61,16 +61,17 @@ async fn conversation_shell_uses_shared_reading_column_width() {
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                 .await
                 .expect("tiny-skia headless renderer should be available");
-        let mut element: iced::Element<'_, Message> = iced::widget::container(chat_message_column())
-            .width(iced::Length::Fill)
-            .center_x(iced::Length::Fill)
-            .padding(iced::Padding {
-                top: 0.0,
-                right: HORIZONTAL_PADDING,
-                bottom: 0.0,
-                left: HORIZONTAL_PADDING,
-            })
-            .into();
+        let mut element: iced::Element<'_, Message> =
+            iced::widget::container(chat_message_column())
+                .width(iced::Length::Fill)
+                .center_x(iced::Length::Fill)
+                .padding(iced::Padding {
+                    top: 0.0,
+                    right: HORIZONTAL_PADDING,
+                    bottom: 0.0,
+                    left: HORIZONTAL_PADDING,
+                })
+                .into();
         let limits = layout::Limits::new(Size::ZERO, Size::new(viewport_width, 600.0));
         let mut tree = Tree::new(element.as_widget());
         let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
@@ -257,7 +258,9 @@ async fn conversation_shell_renders_visual_regression_scenarios_without_panic() 
             let width = if matches!(scenario, Scenario::Narrow) { 420.0 } else { 1_000.0 };
             let bounds = Size::new(width, 720.0);
             let shell = iced::widget::column![
-                iced::widget::container(view(&app)).width(iced::Length::Fill).height(iced::Length::Fill),
+                iced::widget::container(view(&app))
+                    .width(iced::Length::Fill)
+                    .height(iced::Length::Fill),
                 iced::widget::container(crate::app::components::input_panel::view(&app))
                     .width(iced::Length::Fill)
                     .padding(iced::Padding { top: 0.0, right: 16.0, bottom: 8.0, left: 16.0 })

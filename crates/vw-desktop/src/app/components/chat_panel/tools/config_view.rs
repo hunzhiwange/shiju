@@ -232,8 +232,15 @@ pub fn tool_config_view<'a>(
     let result = parse_config_result(&value);
     let has_lifecycle = matches!(
         status,
-        "waiting" | "queued" | "running" | "completed" | "success" | "error" | "failed"
-            | "denied" | "cancelled"
+        "waiting"
+            | "queued"
+            | "running"
+            | "completed"
+            | "success"
+            | "error"
+            | "failed"
+            | "denied"
+            | "cancelled"
     );
     let allows_header_without_result = matches!(
         status,
@@ -245,9 +252,8 @@ pub fn tool_config_view<'a>(
     }
 
     let input = parse_config_input(tool_input(&value));
-    let is_error =
-        matches!(status, "error" | "failed" | "denied")
-            || result.as_ref().is_some_and(|item| !item.success);
+    let is_error = matches!(status, "error" | "failed" | "denied")
+        || result.as_ref().is_some_and(|item| !item.success);
     let summary = result
         .as_ref()
         .map(summary_from_result)

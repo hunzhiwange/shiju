@@ -1,8 +1,8 @@
 //! 计划生成与按批次调度的子会话执行器。
 
 use super::goal::{
-    GoalTaskFilesState, build_goal_continuation_prompt, goal_turn_session_id, inspect_goal_task_file,
-    inspect_goal_task_files,
+    GoalTaskFilesState, build_goal_continuation_prompt, goal_turn_session_id,
+    inspect_goal_task_file, inspect_goal_task_files,
 };
 use super::prompts::{build_execution_prompt, build_goal_planning_prompt_for_dir, plan_dir_abs};
 use super::session_bind::{ensure_plan_run_session_info, persist_plan_run_session_history};
@@ -112,9 +112,9 @@ impl SessionRunner for GatewaySessionRunner {
         let options = gateway_session_options(&request);
         let reliability =
             crate::config::get_project_for_tenant(&self.tenant, Path::new(&request.root))
-            .await
-            .map_err(|error| error.to_string())?
-            .reliability;
+                .await
+                .map_err(|error| error.to_string())?
+                .reliability;
         let assistant_message_id = preallocate_assistant_message_id()?;
 
         let processor_request = crate::app::agent::session::processor::Request {

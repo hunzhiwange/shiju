@@ -531,11 +531,8 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 构建附件按钮
     let attach_btn = attachment::attachment_button(app);
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
-    let acp_btn = acp_selector_button(
-        app,
-        selected_acp_agent.clone(),
-        app.current_session_has_started(),
-    );
+    let acp_btn =
+        acp_selector_button(app, selected_acp_agent.clone(), app.current_session_has_started());
     let reasoning_btn =
         reasoning_effort_selector(app, selected_acp_agent.as_deref(), reasoning_effort);
     let permission_btn = Some(full_access_button(has_permission_context, full_access_enabled));

@@ -576,11 +576,7 @@ async fn diff_recomputes_stale_empty_cache_from_session_messages() {
         variant: None,
     }));
     let part = message::Part::Patch(message::PatchPart {
-        base: message::PartBase {
-            id: part_id,
-            session_id: session_id.clone(),
-            message_id,
-        },
+        base: message::PartBase { id: part_id, session_id: session_id.clone(), message_id },
         hash: "tree-stale-cache".to_string(),
         files: vec!["demo/111.md".to_string()],
         additions: None,
@@ -589,16 +585,12 @@ async fn diff_recomputes_stale_empty_cache_from_session_messages() {
 
     message::update_message(&info).await.expect("persist message");
     message::update_part(&part).await.expect("persist patch part");
-    storage::write(
-        &["session_diff", &session_id],
-        &Vec::<snapshot::FileDiff>::new(),
-    )
-    .await
-    .expect("persist empty diff cache");
-
-    let diffs = recompute_session_diff_for_read(&session_id)
+    storage::write(&["session_diff", &session_id], &Vec::<snapshot::FileDiff>::new())
         .await
-        .expect("recompute persisted messages");
+        .expect("persist empty diff cache");
+
+    let diffs =
+        recompute_session_diff_for_read(&session_id).await.expect("recompute persisted messages");
 
     assert_eq!(diffs.len(), 1);
     assert_eq!(diffs[0].file, "demo/111.md");
@@ -684,7 +676,10 @@ async fn diff_fallback_includes_untracked_file_as_added() {
                     time: message::UserTime { created: 1 },
                     summary: None,
                     agent: "gateway".to_string(),
-                    model: message::ModelRef { provider_id: String::new(), model_id: String::new() },
+                    model: message::ModelRef {
+                        provider_id: String::new(),
+                        model_id: String::new(),
+                    },
                     system: None,
                     tools: None,
                     variant: None,

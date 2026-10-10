@@ -101,13 +101,7 @@ pub(crate) fn maybe_inject_file_link(
     }
     let eligible = matches!(
         name,
-        "read"
-            | "file_read"
-            | "pdf_read"
-            | "write"
-            | "file_write"
-            | "file_edit"
-            | "apply_patch"
+        "read" | "file_read" | "pdf_read" | "write" | "file_write" | "file_edit" | "apply_patch"
     );
     if !eligible {
         return output.to_string();

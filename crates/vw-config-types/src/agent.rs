@@ -275,25 +275,10 @@ pub struct BuiltinAgentSpec {
 }
 
 const READONLY_CODE_TOOLS: &[&str] = &["file_read", "ls", "glob", "grep"];
-const RESEARCHER_TOOLS: &[&str] = &[
-    "file_read",
-    "ls",
-    "glob",
-    "grep",
-    "web_fetch",
-    "web_search_tool",
-    "pdf_read",
-];
-const CODER_TOOLS: &[&str] = &[
-    "file_read",
-    "file_write",
-    "file_edit",
-    "apply_patch",
-    "bash",
-    "ls",
-    "glob",
-    "grep",
-];
+const RESEARCHER_TOOLS: &[&str] =
+    &["file_read", "ls", "glob", "grep", "web_fetch", "web_search_tool", "pdf_read"];
+const CODER_TOOLS: &[&str] =
+    &["file_read", "file_write", "file_edit", "apply_patch", "bash", "ls", "glob", "grep"];
 const MAIN_TOOLS: &[&str] = &[
     "AgentTool",
     "file_read",

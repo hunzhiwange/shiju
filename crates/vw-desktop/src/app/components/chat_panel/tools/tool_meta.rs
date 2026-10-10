@@ -246,11 +246,7 @@ fn tool_icon_badge_size(_tool_name: &str) -> f32 {
     14.0
 }
 
-fn tool_icon_badge_color(
-    theme: &Theme,
-    is_compact_file_tool: bool,
-    visual: ToolVisual,
-) -> Color {
+fn tool_icon_badge_color(theme: &Theme, is_compact_file_tool: bool, visual: ToolVisual) -> Color {
     if visual.state == ToolVisualState::Unknown && is_compact_file_tool {
         chat_secondary_subtle_text_color(theme)
     } else {
@@ -351,10 +347,7 @@ pub fn tool_header_label(tool_name: &str) -> String {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn tool_icon_badge<'a>(
-    tool_name: &str,
-    visual: ToolVisual,
-) -> Element<'a, Message> {
+pub fn tool_icon_badge<'a>(tool_name: &str, visual: ToolVisual) -> Element<'a, Message> {
     let icon = icon_svg(tool_icon(tool_name))
         .width(Length::Fixed(tool_icon_badge_size(tool_name)))
         .height(Length::Fixed(tool_icon_badge_size(tool_name)))
@@ -600,12 +593,9 @@ fn tool_inline_summary_with_max_chars(
                     (true, true) => None,
                     (false, true) => Some(truncate_chars(pattern, max_chars).to_string()),
                     (true, false) => Some(truncate_chars(&path, max_chars).to_string()),
-                    (false, false) => {
-                        Some(
-                            truncate_chars(&format!("{} in {}", pattern, path), max_chars)
-                                .to_string(),
-                        )
-                    }
+                    (false, false) => Some(
+                        truncate_chars(&format!("{} in {}", pattern, path), max_chars).to_string(),
+                    ),
                 }
             }
             "ls" | "list_dir" => {
@@ -629,11 +619,7 @@ fn tool_inline_summary_with_max_chars(
                     .and_then(|x| x.as_str())
                     .unwrap_or("")
                     .trim();
-                if cmd.is_empty() {
-                    None
-                } else {
-                    Some(truncate_chars(cmd, max_chars).to_string())
-                }
+                if cmd.is_empty() { None } else { Some(truncate_chars(cmd, max_chars).to_string()) }
             }
             "webfetch" | "web_fetch" | "fetch_webpage" => {
                 let url = v
@@ -648,11 +634,9 @@ fn tool_inline_summary_with_max_chars(
                     (true, true) => None,
                     (false, true) => Some(truncate_chars(url, max_chars).to_string()),
                     (true, false) => Some(truncate_chars(query, max_chars).to_string()),
-                    (false, false) => {
-                        Some(
-                            truncate_chars(&format!("{} in {}", query, url), max_chars).to_string(),
-                        )
-                    }
+                    (false, false) => Some(
+                        truncate_chars(&format!("{} in {}", query, url), max_chars).to_string(),
+                    ),
                 }
             }
             "question" => {
@@ -709,11 +693,7 @@ fn tool_inline_summary_with_max_chars(
             }
             "browser_open" | "open_browser_page" => {
                 let url = v.get("url").and_then(|x| x.as_str()).unwrap_or("").trim();
-                if url.is_empty() {
-                    None
-                } else {
-                    Some(truncate_chars(url, max_chars).to_string())
-                }
+                if url.is_empty() { None } else { Some(truncate_chars(url, max_chars).to_string()) }
             }
             "agenttool" | "agent" => {
                 let agent = v
@@ -750,12 +730,11 @@ fn tool_inline_summary_with_max_chars(
                 let url = v.get("url").and_then(|x| x.as_str()).unwrap_or("").trim();
                 let selector = v.get("selector").and_then(|x| x.as_str()).unwrap_or("").trim();
                 if !url.is_empty() {
-                    Some(
-                        truncate_chars(&format!("{} · {}", action, url), max_chars).to_string(),
-                    )
+                    Some(truncate_chars(&format!("{} · {}", action, url), max_chars).to_string())
                 } else if !selector.is_empty() {
                     Some(
-                        truncate_chars(&format!("{} · {}", action, selector), max_chars).to_string(),
+                        truncate_chars(&format!("{} · {}", action, selector), max_chars)
+                            .to_string(),
                     )
                 } else if action.is_empty() {
                     None
@@ -774,10 +753,7 @@ fn tool_inline_summary_with_max_chars(
                     let mut summary = if files.is_empty() || files == "." {
                         "git diff".to_string()
                     } else {
-                        format!(
-                            "git diff {}",
-                            truncate_chars(files, max_chars.saturating_sub(16))
-                        )
+                        format!("git diff {}", truncate_chars(files, max_chars.saturating_sub(16)))
                     };
                     if cached {
                         summary.push_str(" --cached");

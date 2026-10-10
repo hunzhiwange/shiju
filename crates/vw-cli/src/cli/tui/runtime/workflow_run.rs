@@ -37,9 +37,7 @@ pub(crate) fn workflow_run_request(
 ) -> Result<OwnedWorkflowRunRequest, String> {
     let uuid = uuid.trim();
     if !snapshot.workflows.items.iter().any(|item| item.uuid == uuid) {
-        return Err(
-            "workflow run requires a UUID from the current Workflow snapshot".to_string()
-        );
+        return Err("workflow run requires a UUID from the current Workflow snapshot".to_string());
     }
     let query = query.trim();
     if query.is_empty() {
@@ -153,16 +151,14 @@ impl WorkflowRunOwnership {
         event: GatewayWorkflowStreamEvent,
     ) -> Vec<UiRuntimeEvent> {
         self.observe_event(&event);
-        let suppress_answer = self.saw_text_chunk
-            && matches!(&event, GatewayWorkflowStreamEvent::Message { .. });
-        if matches!(&event, GatewayWorkflowStreamEvent::TextChunk { text, .. } if !text.is_empty()) {
+        let suppress_answer =
+            self.saw_text_chunk && matches!(&event, GatewayWorkflowStreamEvent::Message { .. });
+        if matches!(&event, GatewayWorkflowStreamEvent::TextChunk { text, .. } if !text.is_empty())
+        {
             self.saw_text_chunk = true;
         }
-        let mut events = if suppress_answer {
-            Vec::new()
-        } else {
-            adapt_gateway_workflow_stream_event(event)
-        };
+        let mut events =
+            if suppress_answer { Vec::new() } else { adapt_gateway_workflow_stream_event(event) };
         events.retain(|event| {
             if !matches!(event, UiRuntimeEvent::Terminal(_)) {
                 return true;
@@ -178,26 +174,10 @@ impl WorkflowRunOwnership {
 
     fn observe_event(&mut self, event: &GatewayWorkflowStreamEvent) {
         match event {
-            GatewayWorkflowStreamEvent::WorkflowStarted {
-                task_id,
-                workflow_run_id,
-                ..
-            }
-            | GatewayWorkflowStreamEvent::NodeStarted {
-                task_id,
-                workflow_run_id,
-                ..
-            }
-            | GatewayWorkflowStreamEvent::NodeFinished {
-                task_id,
-                workflow_run_id,
-                ..
-            }
-            | GatewayWorkflowStreamEvent::TextChunk {
-                task_id,
-                workflow_run_id,
-                ..
-            } => {
+            GatewayWorkflowStreamEvent::WorkflowStarted { task_id, workflow_run_id, .. }
+            | GatewayWorkflowStreamEvent::NodeStarted { task_id, workflow_run_id, .. }
+            | GatewayWorkflowStreamEvent::NodeFinished { task_id, workflow_run_id, .. }
+            | GatewayWorkflowStreamEvent::TextChunk { task_id, workflow_run_id, .. } => {
                 record_once(&mut self.task_id, task_id);
                 record_once(&mut self.workflow_run_id, workflow_run_id);
             }
@@ -267,11 +247,7 @@ impl WorkflowRunOwnership {
         let request_id = self
             .pause_request_id()
             .ok_or_else(|| "workflow pause requires its owned run id".to_string())?;
-        Ok(Some(UiQuestionOverlay::from_workflow_pause(
-            request_id,
-            self.session_id.clone(),
-            pause,
-        )))
+        Ok(Some(UiQuestionOverlay::from_workflow_pause(request_id, self.session_id.clone(), pause)))
     }
 
     /// 只允许当前会话对当前 pause 生成一次精确恢复请求。
@@ -303,7 +279,9 @@ impl WorkflowRunOwnership {
             pause,
         );
         if question.prompts != expected_question.prompts {
-            return Err("workflow resume question shape does not match the current pause".to_string());
+            return Err(
+                "workflow resume question shape does not match the current pause".to_string()
+            );
         }
         let run_id = self
             .workflow_run_id
@@ -377,9 +355,8 @@ impl WorkflowRunOwnership {
                 )));
             }
         }
-        self.terminal_events = usize::from(
-            events.iter().any(|event| matches!(event, UiRuntimeEvent::Terminal(_))),
-        );
+        self.terminal_events =
+            usize::from(events.iter().any(|event| matches!(event, UiRuntimeEvent::Terminal(_))));
         Ok(events)
     }
 
@@ -493,10 +470,9 @@ fn workflow_form_fields(pause: &WorkflowPauseDto) -> Vec<WorkflowFormField> {
 
 fn workflow_form_option(option: &Value) -> Option<WorkflowFormOption> {
     match option {
-        Value::String(value) => Some(WorkflowFormOption {
-            display: value.clone(),
-            value: Value::String(value.clone()),
-        }),
+        Value::String(value) => {
+            Some(WorkflowFormOption { display: value.clone(), value: Value::String(value.clone()) })
+        }
         Value::Object(_) => {
             let display = workflow_value_string(option, "label")
                 .or_else(|| workflow_value_string(option, "name"))
@@ -520,8 +496,12 @@ fn workflow_field_answer(
     let values = if field.options.is_empty() {
         answers
             .iter()
-            .filter_map(|answer| user_note(answer).or_else(|| (!answer.trim().is_empty()).then_some(answer.trim())))
-            .map(|answer| coerce_workflow_value(field.kind.as_str(), Value::String(answer.to_string())))
+            .filter_map(|answer| {
+                user_note(answer).or_else(|| (!answer.trim().is_empty()).then_some(answer.trim()))
+            })
+            .map(|answer| {
+                coerce_workflow_value(field.kind.as_str(), Value::String(answer.to_string()))
+            })
             .collect::<Result<Vec<_>, _>>()?
     } else {
         let note = answers.iter().find_map(|answer| user_note(answer));

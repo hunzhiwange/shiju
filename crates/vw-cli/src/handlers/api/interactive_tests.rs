@@ -51,11 +51,7 @@ async fn api_interactive_commands_cover_permission_question_and_pty() {
             br#"[["A"]]"#,
             "question /one",
         ),
-        Case::new(
-            &["interactive", "question", "reject", "question /one"],
-            b"",
-            "question /one",
-        ),
+        Case::new(&["interactive", "question", "reject", "question /one"], b"", "question /one"),
         Case::new(
             &["interactive", "pty", "create", "--input", "-"],
             br#"{"command":"bash","cwd":"/tmp/project root"}"#,
@@ -66,11 +62,7 @@ async fn api_interactive_commands_cover_permission_question_and_pty() {
             br#"{"title":"renamed","size":{"rows":32,"cols":120}}"#,
             "pty /one",
         ),
-        Case::new(
-            &["interactive", "pty", "delete", "pty /one"],
-            b"",
-            "pty /one",
-        ),
+        Case::new(&["interactive", "pty", "delete", "pty /one"], b"", "pty /one"),
         Case::new(
             &["interactive", "pty", "connect", "pty /one", "--cursor", "42"],
             b"",
@@ -98,14 +90,7 @@ async fn api_interactive_commands_cover_permission_question_and_pty() {
 
     let unknown = run_command(
         &common,
-        &[
-            "--yes",
-            "interactive",
-            "permission",
-            "reply",
-            "permission /one",
-            "sometimes",
-        ],
+        &["--yes", "interactive", "permission", "reply", "permission /one", "sometimes"],
         b"",
     )
     .await
@@ -113,13 +98,9 @@ async fn api_interactive_commands_cover_permission_question_and_pty() {
     assert!(unknown.contains("invalid value"));
     assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
 
-    let empty_id = run_command(
-        &common,
-        &["interactive", "question", "reject", "   "],
-        b"",
-    )
-    .await
-    .expect_err("blank request id must fail");
+    let empty_id = run_command(&common, &["interactive", "question", "reject", "   "], b"")
+        .await
+        .expect_err("blank request id must fail");
     assert!(empty_id.contains("must not be empty"));
     assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
 
@@ -132,7 +113,16 @@ async fn api_interactive_commands_cover_permission_question_and_pty() {
             Value::Null,
         ),
         RequestCase::new(
-            &["--yes", "interactive", "permission", "reply", "permission /one", "always", "--message", "trusted"],
+            &[
+                "--yes",
+                "interactive",
+                "permission",
+                "reply",
+                "permission /one",
+                "always",
+                "--message",
+                "trusted",
+            ],
             b"",
             "POST",
             "/v1/permission/permission%20%2Fone/reply?directory=%2Ftmp%2Fproject+root",
@@ -219,15 +209,7 @@ async fn api_interactive_commands_cover_permission_question_and_pty() {
     ];
     let output = run_command(
         &ws_common,
-        &[
-            "--yes",
-            "interactive",
-            "pty",
-            "connect",
-            "pty /one",
-            "--cursor",
-            "42",
-        ],
+        &["--yes", "interactive", "pty", "connect", "pty /one", "--cursor", "42"],
         b"",
     )
     .await
@@ -303,7 +285,11 @@ async fn run_command<S: AsRef<str>>(
     command: &[S],
     input: &[u8],
 ) -> Result<Vec<u8>, String> {
-    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") { (Some("--yes"), &command[1..]) } else { (None, command) };
+    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") {
+        (Some("--yes"), &command[1..])
+    } else {
+        (None, command)
+    };
     let (family, command) = command.split_first().ok_or("API command family is required")?;
     let args = std::iter::once("shiju")
         .chain(std::iter::once(family.as_ref()))

@@ -14,11 +14,28 @@ use super::output;
 #[derive(Subcommand, Debug)]
 pub(super) enum TaskLifecycleCommands {
     List,
-    Create { #[arg(long, value_parser = required)] input: String },
-    Get { #[arg(value_parser = required)] id: String },
-    Update { #[arg(value_parser = required)] id: String, #[arg(long, value_parser = required)] input: String },
-    Delete { #[arg(value_parser = required)] id: String },
-    Reset { #[arg(value_parser = required)] id: String },
+    Create {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
+    Get {
+        #[arg(value_parser = required)]
+        id: String,
+    },
+    Update {
+        #[arg(value_parser = required)]
+        id: String,
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
+    Delete {
+        #[arg(value_parser = required)]
+        id: String,
+    },
+    Reset {
+        #[arg(value_parser = required)]
+        id: String,
+    },
 }
 
 impl TaskLifecycleCommands {
@@ -41,31 +58,43 @@ pub(super) async fn run(
 ) -> Result<()> {
     let client = context.client();
     let response = match command {
-        TaskLifecycleCommands::List => client.task_lifecycle_workflows_list().await.map(|v| json!(v)),
+        TaskLifecycleCommands::List => {
+            client.task_lifecycle_workflows_list().await.map(|v| json!(v))
+        }
         TaskLifecycleCommands::Create { input } => {
             let body = parse(&input, stdin)?;
             client.task_lifecycle_workflows_create(&body).await.map(|v| json!(v))
         }
-        TaskLifecycleCommands::Get { id } => client.task_lifecycle_workflows_get(&id).await.map(|v| json!(v)),
+        TaskLifecycleCommands::Get { id } => {
+            client.task_lifecycle_workflows_get(&id).await.map(|v| json!(v))
+        }
         TaskLifecycleCommands::Update { id, input } => {
             let body = parse(&input, stdin)?;
             client.task_lifecycle_workflows_update(&id, &body).await.map(|v| json!(v))
         }
-        TaskLifecycleCommands::Delete { id } => client.task_lifecycle_workflows_delete(&id).await.map(|v| json!(v)),
-        TaskLifecycleCommands::Reset { id } => client.task_lifecycle_workflows_reset(&id).await.map(|v| json!(v)),
-    }.map_err(anyhow::Error::msg)?;
+        TaskLifecycleCommands::Delete { id } => {
+            client.task_lifecycle_workflows_delete(&id).await.map(|v| json!(v))
+        }
+        TaskLifecycleCommands::Reset { id } => {
+            client.task_lifecycle_workflows_reset(&id).await.map(|v| json!(v))
+        }
+    }
+    .map_err(anyhow::Error::msg)?;
     output::write_json(writer, &response, context.output_format())
 }
 
 fn parse(source: &str, stdin: &mut impl Read) -> Result<TaskLifecycleWorkflowUpsertBody> {
-    let body: TaskLifecycleWorkflowUpsertBody = serde_json::from_value(read_json_input(source, stdin)?)
-        .context("invalid task lifecycle workflow JSON input")?;
+    let body: TaskLifecycleWorkflowUpsertBody =
+        serde_json::from_value(read_json_input(source, stdin)?)
+            .context("invalid task lifecycle workflow JSON input")?;
     body.workflow.validate().map_err(anyhow::Error::msg)?;
     Ok(body)
 }
 
 fn required(value: &str) -> Result<String, String> {
     let value = value.trim();
-    if value.is_empty() { return Err("value must not be empty".to_string()); }
+    if value.is_empty() {
+        return Err("value must not be empty".to_string());
+    }
     Ok(value.to_string())
 }

@@ -1,6 +1,5 @@
 //! 本模块集中实现 `bottom_pane_view` 在底部面板中的职责。
 
-
 use crate::render::renderable::Renderable;
 use crate::vibe::action::V3Action;
 use crossterm::event::KeyEvent;

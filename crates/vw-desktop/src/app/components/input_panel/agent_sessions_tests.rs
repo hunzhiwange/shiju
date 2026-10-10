@@ -4,9 +4,8 @@
 use super::agent_sessions::{
     agent_session_open_message, agent_session_status_label, agent_session_stop_message,
     agent_session_tooltip_text, agent_sessions_badge_label, agent_sessions_badge_style,
-    agent_sessions_entry,
-    agent_sessions_popover, agent_sessions_popover_style, agent_sessions_row_style,
-    agent_sessions_stop_style, running_agent_sessions,
+    agent_sessions_entry, agent_sessions_popover, agent_sessions_popover_style,
+    agent_sessions_row_style, agent_sessions_stop_style, running_agent_sessions,
 };
 use crate::app::models::{ChatMessage as ChatEntry, ChatRole};
 use crate::app::session::{AgentChildSession, AgentChildSessionKind, AgentChildSessionStatus};

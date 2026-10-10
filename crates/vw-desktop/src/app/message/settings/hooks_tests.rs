@@ -73,10 +73,7 @@ async fn hooks_tab_loads_catalog_and_audit() {
         Message::Settings(SettingsMessage::Hooks(HooksMessage::AuditRefresh))
     )));
 
-    let catalog_task = update(
-        &mut app,
-        SettingsMessage::Hooks(HooksMessage::CatalogRefresh),
-    );
+    let catalog_task = update(&mut app, SettingsMessage::Hooks(HooksMessage::CatalogRefresh));
     assert!(app.hooks_settings.catalog_loading);
     assert!(app.hooks_settings.catalog_error.is_none());
     assert!(has_scheduled_action(catalog_task));
@@ -107,10 +104,7 @@ fn plugin_hooks_toggle_persists_config() {
     app.hooks_settings.plugins_enabled = true;
     app.hooks_settings.save_error = Some("old".to_string());
 
-    let task = update(
-        &mut app,
-        SettingsMessage::Hooks(HooksMessage::PluginHooksToggled(false)),
-    );
+    let task = update(&mut app, SettingsMessage::Hooks(HooksMessage::PluginHooksToggled(false)));
 
     assert!(!app.hooks_settings.plugins_enabled);
     assert!(app.hooks_settings.save_error.is_none());
@@ -180,9 +174,7 @@ fn hook_load_failure_preserves_last_good_data() {
 
     let _ = update(
         &mut app,
-        SettingsMessage::Hooks(HooksMessage::CatalogLoaded(Err(
-            "catalog unavailable".to_string(),
-        ))),
+        SettingsMessage::Hooks(HooksMessage::CatalogLoaded(Err("catalog unavailable".to_string()))),
     );
     assert_eq!(app.hooks_settings.catalog, vec![catalog_entry(true)]);
     assert!(!app.hooks_settings.catalog_loading);
@@ -191,9 +183,7 @@ fn hook_load_failure_preserves_last_good_data() {
 
     let _ = update(
         &mut app,
-        SettingsMessage::Hooks(HooksMessage::AuditLoaded(Err(
-            "audit unavailable".to_string(),
-        ))),
+        SettingsMessage::Hooks(HooksMessage::AuditLoaded(Err("audit unavailable".to_string()))),
     );
     assert_eq!(app.hooks_settings.audit, vec![audit_entry()]);
     assert!(!app.hooks_settings.audit_loading);
@@ -205,7 +195,7 @@ fn hook_load_failure_preserves_last_good_data() {
     let _ = update(
         &mut app,
         SettingsMessage::Hooks(HooksMessage::MutationCompleted(Err(
-            "mutation unavailable".to_string(),
+            "mutation unavailable".to_string()
         ))),
     );
     assert_eq!(app.hooks_settings.catalog, catalog_snapshot);

@@ -2,10 +2,10 @@
 //! 选择 helper 必须原样保留当前配置，自定义主题目录则补入可选项。
 
 use super::*;
+use crate::app::state::GeneralSettingsTab;
 use crate::app::theme_catalog::{
     ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore, set_test_themes_root,
 };
-use crate::app::state::GeneralSettingsTab;
 use crate::app::{App, PreviewAutoSaveMode, Shell, TerminalTheme, message};
 use iced::widget::text;
 

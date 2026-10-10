@@ -35,7 +35,8 @@ pub fn parse_task_session_source_marker(raw: &str) -> Option<TaskSessionSource<'
     if source_session_id.is_empty() || source_session_id.trim() != source_session_id {
         return None;
     }
-    let after_description = rest.strip_prefix(TASK_SESSION_SOURCE_MARKER_LABEL)?.strip_prefix('\n')?;
+    let after_description =
+        rest.strip_prefix(TASK_SESSION_SOURCE_MARKER_LABEL)?.strip_prefix('\n')?;
     let content = after_description.strip_prefix(TASK_SESSION_SOURCE_CLOSE)?;
 
     Some(TaskSessionSource { source_session_id, content })

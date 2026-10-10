@@ -178,7 +178,7 @@ mod tests {
     }
 
     #[test]
-// 号码许可采用精确匹配，防止相似号码意外获得权限。
+    // 号码许可采用精确匹配，防止相似号码意外获得权限。
     fn wati_number_allowed_exact() {
         let ch = make_channel();
         assert!(ch.is_number_allowed("+1234567890"));

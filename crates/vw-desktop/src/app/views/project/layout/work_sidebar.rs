@@ -154,10 +154,7 @@ fn collect_top_level_sessions<'a>(
             if session.time.archived.is_some() {
                 return false;
             }
-            let Some(parent_id) = session
-                .parent_id
-                .as_deref()
-                .filter(|id| !id.trim().is_empty())
+            let Some(parent_id) = session.parent_id.as_deref().filter(|id| !id.trim().is_empty())
             else {
                 return true;
             };
@@ -173,19 +170,29 @@ fn collect_top_level_sessions<'a>(
         .collect()
 }
 
-pub(super) fn compare_sessions(left: &SessionRef<'_>, right: &SessionRef<'_>, pinned: &std::collections::HashSet<(String, String)>) -> std::cmp::Ordering {
+pub(super) fn compare_sessions(
+    left: &SessionRef<'_>,
+    right: &SessionRef<'_>,
+    pinned: &std::collections::HashSet<(String, String)>,
+) -> std::cmp::Ordering {
     let left_pinned = pinned.contains(&(left.1.project_id.clone(), left.1.id.clone()));
     let right_pinned = pinned.contains(&(right.1.project_id.clone(), right.1.id.clone()));
-    right_pinned.cmp(&left_pinned).then_with(|| right
-        .1
-        .time
-        .updated
-        .cmp(&left.1.time.updated)
-        .then_with(|| left.1.id.cmp(&right.1.id))
-        .then_with(|| left.0.cmp(right.0)))
+    right_pinned.cmp(&left_pinned).then_with(|| {
+        right
+            .1
+            .time
+            .updated
+            .cmp(&left.1.time.updated)
+            .then_with(|| left.1.id.cmp(&right.1.id))
+            .then_with(|| left.0.cmp(right.0))
+    })
 }
 
-fn sort_and_truncate_sessions(sessions: &mut Vec<SessionRef<'_>>, limit: usize, pinned: &std::collections::HashSet<(String, String)>) {
+fn sort_and_truncate_sessions(
+    sessions: &mut Vec<SessionRef<'_>>,
+    limit: usize,
+    pinned: &std::collections::HashSet<(String, String)>,
+) {
     if limit == 0 {
         sessions.clear();
         return;
@@ -198,13 +205,23 @@ fn sort_and_truncate_sessions(sessions: &mut Vec<SessionRef<'_>>, limit: usize, 
     sessions.sort_unstable_by(|left, right| compare_sessions(left, right, pinned));
 }
 
-fn pinned_sessions(sessions: impl Iterator<Item = (String, String)>) -> std::collections::HashSet<(String, String)> {
-    let Some(home) = directories::BaseDirs::new() else { return Default::default(); };
+fn pinned_sessions(
+    sessions: impl Iterator<Item = (String, String)>,
+) -> std::collections::HashSet<(String, String)> {
+    let Some(home) = directories::BaseDirs::new() else {
+        return Default::default();
+    };
     let data_dir = vw_config_types::paths::home_config_dir(home.home_dir());
     let tenant = vw_gateway_client::vw_api_types::id::TenantScope::default();
     let mut result = std::collections::HashSet::new();
-    for project_id in sessions.map(|(project_id, _)| project_id).collect::<std::collections::HashSet<_>>() {
-        let scope = vw_shared::session::ui_store::pinned_threads_scope(tenant.platform_id().as_ref(), tenant.company_id().as_ref(), &project_id);
+    for project_id in
+        sessions.map(|(project_id, _)| project_id).collect::<std::collections::HashSet<_>>()
+    {
+        let scope = vw_shared::session::ui_store::pinned_threads_scope(
+            tenant.platform_id().as_ref(),
+            tenant.company_id().as_ref(),
+            &project_id,
+        );
         if let Ok(ids) = vw_shared::session::ui_store::load_pinned_threads(&data_dir, &scope) {
             result.extend(ids.into_iter().map(|id| (project_id.clone(), id)));
         }
@@ -258,7 +275,12 @@ fn task_status(app: &App, session_id: &str) -> WorkTaskStatus {
 }
 
 pub(super) fn model(app: &App) -> WorkSidebarModel {
-    let pinned = pinned_sessions(app.project_sessions.values().flatten().map(|session| (session.project_id.clone(), session.id.clone())));
+    let pinned = pinned_sessions(
+        app.project_sessions
+            .values()
+            .flatten()
+            .map(|session| (session.project_id.clone(), session.id.clone())),
+    );
     let mut task_sessions =
         collect_top_level_sessions(app.recent_projects.iter().flat_map(|path| {
             app.project_sessions

@@ -440,10 +440,8 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
 
                     // 工具调用已完整可用，直接收集
                     LanguageModelStreamChunkType::ToolCallAvailable(info) => {
-                        let call_id = normalize_tool_call_id(
-                            &info.tool.id,
-                            &tool_call_request_namespace,
-                        );
+                        let call_id =
+                            normalize_tool_call_id(&info.tool.id, &tool_call_request_namespace);
                         if tool_call_ids.insert(call_id.clone()) {
                             tool_calls.push(ToolCall {
                                 id: call_id,
@@ -513,10 +511,8 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
                     match msg.content {
                         // 工具调用：添加到工具调用列表
                         AiContent::ToolCall(info) => {
-                            let call_id = normalize_tool_call_id(
-                                &info.tool.id,
-                                &tool_call_request_namespace,
-                            );
+                            let call_id =
+                                normalize_tool_call_id(&info.tool.id, &tool_call_request_namespace);
                             if tool_call_ids.insert(call_id.clone()) {
                                 tool_calls.push(ToolCall {
                                     id: call_id,

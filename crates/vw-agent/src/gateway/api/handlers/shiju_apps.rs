@@ -12,8 +12,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use vw_gateway_client::{
     SHIJU_CREDENTIAL_HEADER, ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest,
-    ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuCredential,
-    ShijuIamApiKeyListDto,
+    ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuCredential, ShijuIamApiKeyListDto,
 };
 
 use crate::gateway::ApiError;
@@ -76,11 +75,7 @@ async fn api_key_binding_get(
     Path(installation_id): Path<String>,
 ) -> Result<Json<ShijuAppApiKeyBindingDto>, ApiError> {
     let credential = credential(&headers)?;
-    client
-        .api_key_binding(credential.expose(), &installation_id)
-        .await
-        .map(Json)
-        .map_err(map_error)
+    client.api_key_binding(credential.expose(), &installation_id).await.map(Json).map_err(map_error)
 }
 
 async fn api_key_binding_put(

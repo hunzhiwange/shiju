@@ -167,9 +167,7 @@ impl ShijuAppClient {
                 ShijuAppError::invalid_input("SHIJU application API key is not owned")
             })?;
         if key.status != "enabled" {
-            return Err(ShijuAppError::invalid_input(
-                "SHIJU application API key is not enabled",
-            ));
+            return Err(ShijuAppError::invalid_input("SHIJU application API key is not enabled"));
         }
 
         let endpoint = self
@@ -364,9 +362,7 @@ fn binding_path(installation_id: &str) -> String {
 
 fn validate_installation_id(installation_id: &str) -> Result<(), ShijuAppError> {
     if !is_valid_installation_id(installation_id) {
-        return Err(ShijuAppError::invalid_input(
-            "SHIJU application installation ID is invalid",
-        ));
+        return Err(ShijuAppError::invalid_input("SHIJU application installation ID is invalid"));
     }
     Ok(())
 }

@@ -184,16 +184,7 @@ pub(super) fn tool_in_preset(tool_id: &str, preset_key: &str) -> bool {
     match preset_key {
         "minimal" => tool_matches_any(
             tool_id,
-            &[
-                "ls",
-                "read",
-                "file_read",
-                "pdf_read",
-                "grep",
-                "glob",
-                "memory_recall",
-                "question",
-            ],
+            &["ls", "read", "file_read", "pdf_read", "grep", "glob", "memory_recall", "question"],
         ),
         "coding" => {
             tool_in_preset(tool_id, "minimal")

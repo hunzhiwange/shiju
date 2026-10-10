@@ -55,7 +55,7 @@ mod tests {
     }
 
     #[test]
-// Graph 请求携带凭据，非 HTTPS 地址必须在发送前拒绝。
+    // Graph 请求携带凭据，非 HTTPS 地址必须在发送前拒绝。
     fn whatsapp_ensure_https_rejects_non_https_urls() {
         let err = ensure_https("http://graph.facebook.com/v18.0/123/messages").unwrap_err();
         assert!(err.to_string().contains("URL scheme must be https"));

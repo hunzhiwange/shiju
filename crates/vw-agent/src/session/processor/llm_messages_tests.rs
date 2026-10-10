@@ -104,7 +104,8 @@ fn session_protocol_injects_agents_and_skills_on_every_desktop_step() {
         &invoked,
         listing.clone(),
     );
-    let next = super::assemble_session_protocol_messages(&history, &instructions, &invoked, listing);
+    let next =
+        super::assemble_session_protocol_messages(&history, &instructions, &invoked, listing);
 
     for messages in [&first, &next] {
         assert_eq!(messages[0], invoked[0]);

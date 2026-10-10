@@ -5,8 +5,8 @@
 use vw_shared::session::ui_types::ChatSessionMeta;
 use vw_tui::V3SelectionItem;
 
-use super::model::integration::{IntegrationItem, IntegrationKind};
 use super::model::background_task::TaskControlAction;
+use super::model::integration::{IntegrationItem, IntegrationKind};
 use super::model::{PermissionMode, ReasoningEffort};
 use super::runtime::workspace_files::normalize_workspace_relative_path;
 
@@ -41,11 +41,7 @@ pub(crate) enum CommandRoute {
     ReadWorkspaceFile { path: String },
     OpenHookCatalog,
     ShowHookAudit,
-    ConfirmHookMutation {
-        plugin_id: String,
-        hook_hash: String,
-        trusted: bool,
-    },
+    ConfirmHookMutation { plugin_id: String, hook_hash: String, trusted: bool },
     ChangeDirectory { path: String },
     Exit,
     OpenSessionPicker,
@@ -174,17 +170,19 @@ const COMMANDS: &[CommandSpec] = &[
     CommandSpec::local("fork", "从当前会话创建分支", || CommandRoute::ForkSession {
         message_id: None,
     }),
-    CommandSpec::local("reset", "将当前会话回退到持久化消息（别名 /rewind）", || {
-        CommandRoute::ResetSession { message_id: None }
-    }),
+    CommandSpec::local(
+        "reset",
+        "将当前会话回退到持久化消息（别名 /rewind）",
+        || CommandRoute::ResetSession { message_id: None },
+    ),
     CommandSpec::local("compact", "压缩当前会话上下文（别名 /summarize）", || {
         CommandRoute::CompactSession { message_id: None }
     }),
     CommandSpec::local("archive", "归档当前会话", || CommandRoute::ArchiveSession),
     CommandSpec::local("model", "选择当前会话模型", || CommandRoute::OpenModelPicker),
     CommandSpec::local("effort", "选择推理强度", || CommandRoute::OpenEffortPicker),
-    CommandSpec::local("plan", "配置计划模式", || {
-        CommandRoute::OpenPermissionPicker { plan_only: true }
+    CommandSpec::local("plan", "配置计划模式", || CommandRoute::OpenPermissionPicker {
+        plan_only: true,
     }),
     CommandSpec::local("permissions", "配置当前会话权限", || {
         CommandRoute::OpenPermissionPicker { plan_only: false }
@@ -199,8 +197,8 @@ const COMMANDS: &[CommandSpec] = &[
     CommandSpec::local("mcp", "查看 MCP 服务", || {
         CommandRoute::OpenIntegrations(IntegrationKind::Mcp)
     }),
-    CommandSpec::local("memory", "查询或刷新记忆", || {
-        CommandRoute::QueryMemory { query: None }
+    CommandSpec::local("memory", "查询或刷新记忆", || CommandRoute::QueryMemory {
+        query: None,
     }),
     CommandSpec::local("workflows", "查看工作流", || {
         CommandRoute::OpenOrchestration(OrchestrationPanelKind::Workflows)
@@ -262,19 +260,19 @@ pub(crate) fn route_selection(surface: &str, item_id: &str) -> Result<CommandRou
             CommandRoute::CompactSession { message_id: Some(message_id) }
         }),
         SETTINGS_SURFACE => route_settings_target(item_id),
-        SETTINGS_MODEL_SURFACE => required_setting_value("model", item_id)
-            .map(CommandRoute::ApplyModel),
+        SETTINGS_MODEL_SURFACE => {
+            required_setting_value("model", item_id).map(CommandRoute::ApplyModel)
+        }
         SETTINGS_EFFORT_SURFACE => parse_effort(item_id).map(CommandRoute::ApplyEffort),
         SETTINGS_PERMISSION_SURFACE | SETTINGS_PLAN_SURFACE => {
             parse_permission_mode(item_id).map(CommandRoute::ApplyPermissionMode)
         }
-        SETTINGS_ACP_SURFACE => Ok(CommandRoute::ApplyAcpBackend(optional_setting_value(
-            item_id,
-            "default",
-        )?)),
-        SETTINGS_DELEGATE_SURFACE => Ok(CommandRoute::ApplyDelegateAgent(optional_setting_value(
-            item_id, "main",
-        )?)),
+        SETTINGS_ACP_SURFACE => {
+            Ok(CommandRoute::ApplyAcpBackend(optional_setting_value(item_id, "default")?))
+        }
+        SETTINGS_DELEGATE_SURFACE => {
+            Ok(CommandRoute::ApplyDelegateAgent(optional_setting_value(item_id, "main")?))
+        }
         SETTINGS_ACCESS_SURFACE => match item_id {
             "standard" => Ok(CommandRoute::ApplyFullAccess(false)),
             "full" => Ok(CommandRoute::ApplyFullAccess(true)),
@@ -369,12 +367,9 @@ pub(crate) fn help_text() -> String {
 
 fn route_command_id(item_id: &str) -> Result<CommandRoute, String> {
     if let Some(id) = item_id.strip_prefix("integration:skill:") {
-        return stable_integration_id(IntegrationKind::Skill, id, "")
-            .map(|(kind, id, arguments)| CommandRoute::ExpandIntegrationPrompt {
-                kind,
-                id,
-                arguments,
-            });
+        return stable_integration_id(IntegrationKind::Skill, id, "").map(
+            |(kind, id, arguments)| CommandRoute::ExpandIntegrationPrompt { kind, id, arguments },
+        );
     }
     COMMANDS
         .iter()
@@ -386,12 +381,9 @@ fn route_command_id(item_id: &str) -> Result<CommandRoute, String> {
 
 fn route_slash_command(command_id: &str, arguments: &str) -> Result<CommandRoute, String> {
     if let Some(id) = command_id.strip_prefix("skill:") {
-        return stable_integration_id(IntegrationKind::Skill, id, arguments)
-            .map(|(kind, id, arguments)| CommandRoute::ExpandIntegrationPrompt {
-                kind,
-                id,
-                arguments,
-            });
+        return stable_integration_id(IntegrationKind::Skill, id, arguments).map(
+            |(kind, id, arguments)| CommandRoute::ExpandIntegrationPrompt { kind, id, arguments },
+        );
     }
     if let Some(uuid) = command_id.strip_prefix("workflow:") {
         let uuid = uuid.trim();
@@ -429,9 +421,7 @@ fn route_slash_command(command_id: &str, arguments: &str) -> Result<CommandRoute
                     }
                 };
                 if plugin_id.is_empty() || hook_hash.is_empty() || parts.next().is_some() {
-                    return Err(
-                        "/hooks expects trust|revoke <plugin-id> <hook-hash>".to_string()
-                    );
+                    return Err("/hooks expects trust|revoke <plugin-id> <hook-hash>".to_string());
                 }
                 Ok(CommandRoute::ConfirmHookMutation {
                     plugin_id: plugin_id.to_string(),
@@ -464,10 +454,8 @@ fn route_slash_command(command_id: &str, arguments: &str) -> Result<CommandRoute
                 "cancel" => TaskControlAction::Cancel,
                 "archive" => TaskControlAction::Archive,
                 _ => {
-                    return Err(
-                        "/tasks expects start, retry, pause, resume, cancel, or archive"
-                            .to_string(),
-                    );
+                    return Err("/tasks expects start, retry, pause, resume, cancel, or archive"
+                        .to_string());
                 }
             };
             Ok(CommandRoute::ConfirmTaskControl { id: id.to_string(), action })
@@ -479,9 +467,7 @@ fn route_slash_command(command_id: &str, arguments: &str) -> Result<CommandRoute
         "model" if !arguments.is_empty() => {
             Ok(CommandRoute::ApplyModel(required_setting_value("model", arguments)?))
         }
-        "effort" if !arguments.is_empty() => {
-            parse_effort(arguments).map(CommandRoute::ApplyEffort)
-        }
+        "effort" if !arguments.is_empty() => parse_effort(arguments).map(CommandRoute::ApplyEffort),
         "plan" if !arguments.is_empty() => match arguments {
             "on" | "plan" => Ok(CommandRoute::ApplyPermissionMode(PermissionMode::Plan)),
             "off" | "default" => Ok(CommandRoute::ApplyPermissionMode(PermissionMode::Default)),
@@ -559,14 +545,12 @@ fn route_schedule_management(arguments: &str) -> Result<CommandRoute, String> {
         return Err("/schedule expects <enable|disable|delete> <owned-job-id>".to_string());
     }
     match action {
-        "enable" => Ok(CommandRoute::ConfirmCronToggle {
-            job_id: job_id.to_string(),
-            enabled: true,
-        }),
-        "disable" => Ok(CommandRoute::ConfirmCronToggle {
-            job_id: job_id.to_string(),
-            enabled: false,
-        }),
+        "enable" => {
+            Ok(CommandRoute::ConfirmCronToggle { job_id: job_id.to_string(), enabled: true })
+        }
+        "disable" => {
+            Ok(CommandRoute::ConfirmCronToggle { job_id: job_id.to_string(), enabled: false })
+        }
         "delete" => Ok(CommandRoute::ConfirmCronDelete { job_id: job_id.to_string() }),
         _ => Err("/schedule expects enable, disable, or delete".to_string()),
     }
@@ -585,32 +569,22 @@ fn route_workspace_file_selection(item_id: &str) -> Result<CommandRoute, String>
     }
 }
 
-fn route_integration_management(
-    command_id: &str,
-    arguments: &str,
-) -> Result<CommandRoute, String> {
+fn route_integration_management(command_id: &str, arguments: &str) -> Result<CommandRoute, String> {
     let mut parts = arguments.split_whitespace();
     let action = parts.next().unwrap_or_default();
     let id = parts.next().unwrap_or_default();
     if parts.next().is_some() || id.is_empty() {
         return Err(format!("/{command_id} management expects <enable|disable|delete> <id>"));
     }
-    let kind = if command_id == "skills" {
-        IntegrationKind::Skill
-    } else {
-        IntegrationKind::Plugin
-    };
+    let kind =
+        if command_id == "skills" { IntegrationKind::Skill } else { IntegrationKind::Plugin };
     match action {
-        "enable" => Ok(CommandRoute::ConfirmIntegrationToggle {
-            kind,
-            id: id.to_string(),
-            enabled: true,
-        }),
-        "disable" => Ok(CommandRoute::ConfirmIntegrationToggle {
-            kind,
-            id: id.to_string(),
-            enabled: false,
-        }),
+        "enable" => {
+            Ok(CommandRoute::ConfirmIntegrationToggle { kind, id: id.to_string(), enabled: true })
+        }
+        "disable" => {
+            Ok(CommandRoute::ConfirmIntegrationToggle { kind, id: id.to_string(), enabled: false })
+        }
         "delete" => Ok(CommandRoute::ConfirmIntegrationDelete { kind, id: id.to_string() }),
         _ => Err(format!("/{command_id} management expects enable, disable, or delete")),
     }
@@ -671,10 +645,7 @@ fn required_setting_value(name: &str, value: &str) -> Result<String, String> {
     }
 }
 
-fn optional_setting_value(
-    value: &str,
-    default_id: &str,
-) -> Result<Option<String>, String> {
+fn optional_setting_value(value: &str, default_id: &str) -> Result<Option<String>, String> {
     let value = required_setting_value("session", value)?;
     Ok((value != default_id).then_some(value))
 }
@@ -692,9 +663,8 @@ fn stable_message_route(
 }
 
 fn required_message_id_argument(command_id: &str, arguments: &str) -> Result<String, String> {
-    optional_message_id_argument(command_id, arguments)?.ok_or_else(|| {
-        format!("TUI command /{command_id} requires one persisted message id")
-    })
+    optional_message_id_argument(command_id, arguments)?
+        .ok_or_else(|| format!("TUI command /{command_id} requires one persisted message id"))
 }
 
 fn optional_message_id_argument(

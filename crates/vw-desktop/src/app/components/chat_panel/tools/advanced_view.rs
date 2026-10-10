@@ -500,17 +500,9 @@ pub fn tool_advanced_view<'a>(
         actions = actions.push(detail_btn);
 
         let card: Element<'a, Message> = mouse_area(
-            container(
-                tool_activity_header(
-                    tool_name,
-                    base_title,
-                    summary,
-                    visual,
-                    actions.into(),
-                ),
-            )
-            .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
-            .width(Length::Fill),
+            container(tool_activity_header(tool_name, base_title, summary, visual, actions.into()))
+                .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
+                .width(Length::Fill),
         )
         .on_press(primary_message)
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
@@ -529,15 +521,13 @@ pub fn tool_advanced_view<'a>(
     if collapse_success_body {
         return Some(
             mouse_area(
-                container(
-                    tool_activity_header(
-                        tool_name,
-                        title,
-                        truncate_chars(summary.trim(), 80),
-                        visual,
-                        detail_btn.into(),
-                    ),
-                )
+                container(tool_activity_header(
+                    tool_name,
+                    title,
+                    truncate_chars(summary.trim(), 80),
+                    visual,
+                    detail_btn.into(),
+                ))
                 .padding(Padding { top: 4.0, right: 6.0, bottom: 4.0, left: 0.0 })
                 .width(Length::Fill),
             )

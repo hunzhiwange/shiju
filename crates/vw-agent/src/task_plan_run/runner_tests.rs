@@ -85,7 +85,11 @@ impl Default for CancellationGatedSessionRunner {
 }
 
 impl PromptPathSessionRunner {
-    fn new(plan_fixture: PlanFixture, canonical_task_file: PathBuf, decoy_task_file: PathBuf) -> Self {
+    fn new(
+        plan_fixture: PlanFixture,
+        canonical_task_file: PathBuf,
+        decoy_task_file: PathBuf,
+    ) -> Self {
         Self {
             canonical_plan_dir: plan_fixture.plan_dir.clone(),
             plan_fixture: Arc::new(Mutex::new(Some(plan_fixture))),
@@ -198,12 +202,9 @@ impl SessionRunner for PromptPathSessionRunner {
             return Ok("plan ready".to_string());
         }
 
-        let names_canonical_paths = request
-            .query
-            .contains(&self.canonical_plan_dir.to_string_lossy().to_string())
-            && request
-                .query
-                .contains(&self.canonical_task_file.to_string_lossy().to_string());
+        let names_canonical_paths =
+            request.query.contains(&self.canonical_plan_dir.to_string_lossy().to_string())
+                && request.query.contains(&self.canonical_task_file.to_string_lossy().to_string());
         let target =
             if names_canonical_paths { &self.canonical_task_file } else { &self.decoy_task_file };
         std::fs::write(
@@ -236,12 +237,8 @@ impl SessionRunner for ContinuationEvidenceSessionRunner {
         }
 
         let receives_required_context = request.query.contains(&self.prior_output)
-            && request
-                .query
-                .contains(&self.canonical_plan_dir.to_string_lossy().to_string())
-            && request
-                .query
-                .contains(&self.canonical_task_file.to_string_lossy().to_string())
+            && request.query.contains(&self.canonical_plan_dir.to_string_lossy().to_string())
+            && request.query.contains(&self.canonical_task_file.to_string_lossy().to_string())
             && request.query.contains("状态不是");
         let target = if receives_required_context {
             &self.canonical_task_file
@@ -993,8 +990,7 @@ async fn task_plan_run_updates_only_canonical_user_plan_task_file() {
     let task_file_name = "1-bind-path.md";
     let canonical_plan_dir = super::plan_dir_abs(&home, task_id);
     let canonical_task_file = canonical_plan_dir.join(task_file_name);
-    let decoy_plan_dir =
-        project_root.join(".plans").join(super::prompts::plan_dir_name(task_id));
+    let decoy_plan_dir = project_root.join(".plans").join(super::prompts::plan_dir_name(task_id));
     let decoy_task_file = decoy_plan_dir.join(task_file_name);
     std::fs::create_dir_all(&decoy_plan_dir).expect("create decoy plan dir");
     let decoy_before = "# 诱饵任务\n\n状态：未开始\n";
@@ -1027,10 +1023,7 @@ async fn task_plan_run_updates_only_canonical_user_plan_task_file() {
         std::fs::read_to_string(&canonical_task_file).expect("read canonical task"),
         "# 任务\n\n状态：已完成\n\n完成条件：路径绑定已验证\n\n验证命令：cargo test\n\n验证结果：退出码：0；通过\n"
     );
-    assert_eq!(
-        std::fs::read_to_string(&decoy_task_file).expect("read decoy task"),
-        decoy_before
-    );
+    assert_eq!(std::fs::read_to_string(&decoy_task_file).expect("read decoy task"), decoy_before);
     let calls = runner.calls.lock().expect("calls lock");
     let execution_prompt = &calls[1].query;
     assert!(execution_prompt.contains(&canonical_plan_dir.to_string_lossy().to_string()));
@@ -1511,10 +1504,7 @@ async fn goal_continuation_receives_prior_execution_evidence_and_canonical_paths
     assert!(continuation_prompt.contains("状态不是"));
     drop(calls);
 
-    assert_eq!(
-        std::fs::read_to_string(&decoy_task_file).expect("read decoy task"),
-        decoy_before
-    );
+    assert_eq!(std::fs::read_to_string(&decoy_task_file).expect("read decoy task"), decoy_before);
     let events = events.lock().expect("events");
     assert!(events.iter().any(|event| matches!(
         event,
@@ -1660,10 +1650,10 @@ fn gateway_session_options_use_approve_all_for_acp() {
 
 #[test]
 fn gateway_plan_run_preallocates_assistant_message_id() {
-    let first = super::runner::preallocate_assistant_message_id()
-        .expect("first assistant message id");
-    let second = super::runner::preallocate_assistant_message_id()
-        .expect("second assistant message id");
+    let first =
+        super::runner::preallocate_assistant_message_id().expect("first assistant message id");
+    let second =
+        super::runner::preallocate_assistant_message_id().expect("second assistant message id");
 
     assert!(!first.trim().is_empty());
     assert!(!second.trim().is_empty());

@@ -6,8 +6,7 @@ use serde_json::json;
 
 use super::{
     SHIJU_CREDENTIAL_HEADER, ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest,
-    ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuCredential,
-    ShijuIamApiKeyListDto,
+    ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuCredential, ShijuIamApiKeyListDto,
 };
 use crate::client::test_support;
 
@@ -151,18 +150,12 @@ fn shiju_app_api_key_contract_preserves_safe_shapes() {
     assert!(configured.personal.configured);
     assert!(configured.personal.can_edit);
     assert_eq!(configured.personal.api_key_id, Some(42));
-    assert_eq!(
-        configured.personal.api_key_mask.as_deref(),
-        Some("sk-****cafe")
-    );
+    assert_eq!(configured.personal.api_key_mask.as_deref(), Some("sk-****cafe"));
     assert!(!unconfigured.personal.configured);
     assert!(unconfigured.personal.api_key_id.is_none());
     assert_eq!(keys.api_keys.len(), 2);
     assert_eq!(keys.api_keys[0].status, "enabled");
-    assert_eq!(
-        keys.api_keys[1].expires_at.as_deref(),
-        Some("2026-08-20T00:00:00+08:00")
-    );
+    assert_eq!(keys.api_keys[1].expires_at.as_deref(), Some("2026-08-20T00:00:00+08:00"));
     assert_eq!(serde_json::to_value(configured).unwrap(), configured_fixture);
     assert_eq!(serde_json::to_value(unconfigured).unwrap(), unconfigured_fixture);
     assert_eq!(serde_json::to_value(keys).unwrap(), keys_fixture);
@@ -193,11 +186,8 @@ async fn shiju_app_client_uses_binding_key_list_and_save_routes() {
         }
     });
     let keys_fixture = json!({"apiKeys": []});
-    let server = test_support::server(vec![
-        (200, binding_fixture),
-        (200, keys_fixture),
-        (204, json!(null)),
-    ]);
+    let server =
+        test_support::server(vec![(200, binding_fixture), (200, keys_fixture), (204, json!(null))]);
     let credential = credential();
 
     server
@@ -205,11 +195,7 @@ async fn shiju_app_client_uses_binding_key_list_and_save_routes() {
         .shiju_app_api_key_binding(&credential, "01K1APP0000000000000000001")
         .await
         .unwrap();
-    server
-        .client()
-        .shiju_app_api_keys(&credential)
-        .await
-        .unwrap();
+    server.client().shiju_app_api_keys(&credential).await.unwrap();
     server
         .client()
         .shiju_app_save_api_key_binding(
@@ -222,10 +208,7 @@ async fn shiju_app_client_uses_binding_key_list_and_save_routes() {
 
     let binding = server.take_request();
     assert_eq!(binding.method, "GET");
-    assert_eq!(
-        binding.path,
-        "/v1/shiju/apps/01K1APP0000000000000000001/api-key-binding"
-    );
+    assert_eq!(binding.path, "/v1/shiju/apps/01K1APP0000000000000000001/api-key-binding");
     assert_eq!(binding.body, serde_json::Value::Null);
 
     let keys = server.take_request();
@@ -235,17 +218,11 @@ async fn shiju_app_client_uses_binding_key_list_and_save_routes() {
 
     let save = server.take_request();
     assert_eq!(save.method, "PUT");
-    assert_eq!(
-        save.path,
-        "/v1/shiju/apps/01K1APP0000000000000000001/api-key-binding"
-    );
+    assert_eq!(save.path, "/v1/shiju/apps/01K1APP0000000000000000001/api-key-binding");
     assert_eq!(save.body, json!({"apiKeyId": 42}));
 
     for request in [binding, keys, save] {
-        assert_eq!(
-            request.header(SHIJU_CREDENTIAL_HEADER),
-            Some(credential.expose())
-        );
+        assert_eq!(request.header(SHIJU_CREDENTIAL_HEADER), Some(credential.expose()));
         assert!(!request.path.contains(credential.expose()));
         assert!(!request.body.to_string().contains(credential.expose()));
     }

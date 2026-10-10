@@ -6,7 +6,6 @@
 //! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
 //! 键盘输入只在当前界面状态内解释，未匹配输入继续遵循上层约定。
 
-
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Stylize;

@@ -10,9 +10,7 @@ use crate::app::Message;
 use crate::app::components::animated_text::neutral_sweep_text_color;
 use crate::app::components::chat_panel::tool_text_support::chat_text_line_height;
 
-use super::super::global_status::{
-    COMPACT_ACTIVITY_TEXT_SIZE, compact_running_activity_indicator,
-};
+use super::super::global_status::{COMPACT_ACTIVITY_TEXT_SIZE, compact_running_activity_indicator};
 use super::super::utils::chat_secondary_text_color;
 
 pub(super) const MESSAGE_TEXT_SIZE: f32 = 15.0;
@@ -166,11 +164,7 @@ pub(super) fn message_action_button_style(
             } else {
                 Color::from_rgba8(218, 223, 230, 1.0)
             },
-            radius: if compact_square {
-                COMPACT_ACTION_BUTTON_RADIUS.into()
-            } else {
-                8.0.into()
-            },
+            radius: if compact_square { COMPACT_ACTION_BUTTON_RADIUS.into() } else { 8.0.into() },
         },
         text_color: super::super::utils::chat_secondary_muted_text_color(theme),
         ..Default::default()

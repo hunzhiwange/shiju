@@ -1,11 +1,11 @@
 //! 验证共享工具渲染器对各工具类型、别名和生命周期状态的分派。
 //! 通用 MCP 载荷和渲染提示可修正路由，但无法解析的工具块必须返回无视图。
 
-use super::tool_renderer::{
-    SharedToolRenderKind, render_shared_tool_view, shared_tool_render_kind,
-};
 use super::tool_meta::{
     tool_activity_header, tool_header_title, tool_status_badge, tool_visual_state,
+};
+use super::tool_renderer::{
+    SharedToolRenderKind, render_shared_tool_view, shared_tool_render_kind,
 };
 use super::{CommandItem, tool_command_summary_view};
 use crate::app::{App, Message};
@@ -46,12 +46,7 @@ async fn command_status_icon_stays_next_to_command() {
         let mut tree = Tree::new(element.as_widget());
         let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
 
-        Layout::new(&node)
-            .children()
-            .nth(2)
-            .expect("command status icon")
-            .bounds()
-            .x
+        Layout::new(&node).children().nth(2).expect("command status icon").bounds().x
     }
 
     let narrow = status_x(480.0).await;
@@ -246,9 +241,8 @@ fn render_shared_tool_view_dispatches_each_tool_kind() {
 fn shared_tool_headers_build_for_all_lifecycle_states() {
     let app = app();
 
-    for (idx, status) in ["waiting", "running", "completed", "failed", "cancelled"]
-        .into_iter()
-        .enumerate()
+    for (idx, status) in
+        ["waiting", "running", "completed", "failed", "cancelled"].into_iter().enumerate()
     {
         let visible = format!(
             "tool custom\n{}",

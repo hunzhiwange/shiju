@@ -4,11 +4,11 @@
 //! 再投影为产品中立的 `V3Event`。未支持的附件或失配审批会显式失败。
 
 use crossterm::event::{Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
+use vw_gateway_client::vw_api_types::tools::{ToolResultContentDto, ToolResultDto};
 use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayChatToolEvent,
     GatewayChatToolEventKind, GatewayChatToolStatus, normalize_chat_tool_event,
 };
-use vw_gateway_client::vw_api_types::tools::{ToolResultContentDto, ToolResultDto};
 use vw_tui::{
     V3Action, V3ApprovalDecision, V3Event, V3FileChange, V3FileDiff, V3FileDiffEntry,
     V3SessionDisplayData, V3TokenUsage, V3UserInputAnswer,
@@ -148,7 +148,8 @@ impl GatewayV3Bridge {
         action: V3Action,
     ) -> Result<TuiControllerCommand, String> {
         match action {
-            V3Action::None | V3Action::Attach(_)
+            V3Action::None
+            | V3Action::Attach(_)
             | V3Action::RemoveAttachment { .. }
             | V3Action::ToggleShortcuts => Ok(TuiControllerCommand::Continue),
             V3Action::FileSearchQueryChanged { query } => {
@@ -174,17 +175,11 @@ impl GatewayV3Bridge {
                 reduce_tui_state(state, TuiAction::PromptValueSet(text));
                 let submission = build_attachment_submission(state, state.prompt.value.as_str())
                     .with_attachments(prepared);
-                reduce_tui_state(
-                    state,
-                    TuiAction::PromptSubmissionStarted(submission.clone()),
-                );
+                reduce_tui_state(state, TuiAction::PromptSubmissionStarted(submission.clone()));
                 Ok(TuiControllerCommand::SubmitPrompt(submission))
             }
             V3Action::Queue { text, attachments } => {
-                prepare_prompt_attachments(
-                    state.project.workspace_root.as_deref(),
-                    &attachments,
-                )?;
+                prepare_prompt_attachments(state.project.workspace_root.as_deref(), &attachments)?;
                 Ok(TuiControllerCommand::QueuePrompt { text, attachments })
             }
             V3Action::Interrupt | V3Action::Cancel => {
@@ -505,7 +500,9 @@ fn confirmation_command(
             return Err("session mutations cannot be approved for the whole session".to_string());
         }
         V3ApprovalDecision::Custom(_) => {
-            return Err("session mutation confirmation does not accept custom decisions".to_string());
+            return Err(
+                "session mutation confirmation does not accept custom decisions".to_string()
+            );
         }
     };
     Ok(TuiControllerCommand::Overlay(TuiOverlayCommand::ConfirmDecision {

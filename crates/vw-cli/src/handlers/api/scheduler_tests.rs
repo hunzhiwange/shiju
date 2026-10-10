@@ -133,7 +133,13 @@ async fn api_scheduler_commands_cover_project_operations_and_scope_checks() {
         let request = requests.recv().expect("scheduler request");
         assert_eq!(request.path, case.path);
         assert_eq!(request.body, case.body);
-        let expected_method = if case.body.is_null() { "GET" } else if case.path.ends_with("/metadata") { "PATCH" } else { "POST" };
+        let expected_method = if case.body.is_null() {
+            "GET"
+        } else if case.path.ends_with("/metadata") {
+            "PATCH"
+        } else {
+            "POST"
+        };
         assert_eq!(request.method, expected_method);
         assert!(request.headers.contains("\r\nx-platform-id: platform-a\r\n"));
         assert!(request.headers.contains("\r\nx-company-id: company-b\r\n"));
@@ -188,7 +194,11 @@ async fn run_command<S: AsRef<str>>(
     command: &[S],
     input: &[u8],
 ) -> Result<Vec<u8>, String> {
-    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") { (Some("--yes"), &command[1..]) } else { (None, command) };
+    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") {
+        (Some("--yes"), &command[1..])
+    } else {
+        (None, command)
+    };
     let (family, command) = command.split_first().ok_or("API command family is required")?;
     let args = std::iter::once("shiju")
         .chain(std::iter::once(family.as_ref()))

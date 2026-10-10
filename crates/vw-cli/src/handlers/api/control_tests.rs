@@ -256,7 +256,11 @@ async fn api_control_commands_protect_credentials_and_destructive_actions() {
 }
 
 async fn run_command(common: &[&str], command: &[&str], input: &[u8]) -> Result<Vec<u8>, String> {
-    let (yes, command) = if command.first() == Some(&"--yes") { (Some("--yes"), &command[1..]) } else { (None, command) };
+    let (yes, command) = if command.first() == Some(&"--yes") {
+        (Some("--yes"), &command[1..])
+    } else {
+        (None, command)
+    };
     let (family, command) = command.split_first().ok_or("API command family is required")?;
     let args = std::iter::once("shiju")
         .chain(std::iter::once(*family))

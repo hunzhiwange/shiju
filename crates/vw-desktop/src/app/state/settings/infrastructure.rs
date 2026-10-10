@@ -246,7 +246,8 @@ impl SecurityListEditorState {
     }
 
     pub(crate) fn pending_remove_index(&self, kind: SecurityListKind) -> Option<usize> {
-        self.pending_remove.and_then(|(pending_kind, index)| (pending_kind == kind).then_some(index))
+        self.pending_remove
+            .and_then(|(pending_kind, index)| (pending_kind == kind).then_some(index))
     }
 
     pub(crate) fn cancel_remove(&mut self) {
@@ -488,7 +489,8 @@ impl AutonomyListEditorState {
     }
 
     pub(crate) fn pending_remove_index(&self, kind: AutonomyListKind) -> Option<usize> {
-        self.pending_remove.and_then(|(pending_kind, index)| (pending_kind == kind).then_some(index))
+        self.pending_remove
+            .and_then(|(pending_kind, index)| (pending_kind == kind).then_some(index))
     }
 
     pub(crate) fn cancel_remove(&mut self) {

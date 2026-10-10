@@ -4,7 +4,6 @@
 //! 交互分支通过明确枚举或返回值向上层传递选择结果。
 //! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
 
-
 //! 确定性的 VibeWindow 提供的匹配项搜索弹窗
 //! File-search popup over deterministic VibeWindow-provided matches.
 use crate::bottom_pane::scroll_state::ScrollState;
@@ -118,9 +117,11 @@ impl WidgetRef for &FileSearchPopup {
             &rows,
             &self.state,
             MAX_POPUP_ROWS,
-            self.error_message
-                .as_deref()
-                .unwrap_or(if self.waiting { "loading..." } else { "no matches" }),
+            self.error_message.as_deref().unwrap_or(if self.waiting {
+                "loading..."
+            } else {
+                "no matches"
+            }),
         );
     }
 }

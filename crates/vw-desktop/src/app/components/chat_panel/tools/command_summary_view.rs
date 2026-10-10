@@ -34,8 +34,7 @@ fn command_summary_visual(items: &[CommandItem]) -> ToolVisual {
         tool_visual_state("failed")
     } else if states.contains(&ToolVisualState::Cancelled) {
         tool_visual_state("cancelled")
-    } else if !states.is_empty()
-        && states.iter().all(|state| *state == ToolVisualState::Completed)
+    } else if !states.is_empty() && states.iter().all(|state| *state == ToolVisualState::Completed)
     {
         tool_visual_state("completed")
     } else {

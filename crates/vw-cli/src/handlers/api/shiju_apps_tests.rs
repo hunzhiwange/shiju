@@ -36,13 +36,55 @@ async fn api_shiju_account_and_app_commands_use_existing_gateway_client() {
     }
 
     let cases = [
-        (&["shiju-apps", "login"][..], b"".as_slice(), "POST", "/v1/shiju/account/login", json!({})),
-        (&["shiju-apps", "poll", "--input", "-"][..], br#"{"state":"state-1"}"#.as_slice(), "POST", "/v1/shiju/account/login/poll", json!({"state":"state-1"})),
-        (&["shiju-apps", "profile", "--input", "-"][..], credential.as_bytes(), "GET", "/v1/shiju/account/profile", Value::Null),
-        (&["shiju-apps", "catalog", "--input", "-"][..], credential.as_bytes(), "GET", "/v1/shiju/apps/catalog", Value::Null),
-        (&["shiju-apps", "list", "--input", "-"][..], credential.as_bytes(), "GET", "/v1/shiju/apps", Value::Null),
-        (&["shiju-apps", "api-keys", "--input", "-"][..], credential.as_bytes(), "GET", "/v1/shiju/apps/api-keys", Value::Null),
-        (&["shiju-apps", "binding-get", "install-1", "--input", "-"][..], credential.as_bytes(), "GET", "/v1/shiju/apps/install-1/api-key-binding", Value::Null),
+        (
+            &["shiju-apps", "login"][..],
+            b"".as_slice(),
+            "POST",
+            "/v1/shiju/account/login",
+            json!({}),
+        ),
+        (
+            &["shiju-apps", "poll", "--input", "-"][..],
+            br#"{"state":"state-1"}"#.as_slice(),
+            "POST",
+            "/v1/shiju/account/login/poll",
+            json!({"state":"state-1"}),
+        ),
+        (
+            &["shiju-apps", "profile", "--input", "-"][..],
+            credential.as_bytes(),
+            "GET",
+            "/v1/shiju/account/profile",
+            Value::Null,
+        ),
+        (
+            &["shiju-apps", "catalog", "--input", "-"][..],
+            credential.as_bytes(),
+            "GET",
+            "/v1/shiju/apps/catalog",
+            Value::Null,
+        ),
+        (
+            &["shiju-apps", "list", "--input", "-"][..],
+            credential.as_bytes(),
+            "GET",
+            "/v1/shiju/apps",
+            Value::Null,
+        ),
+        (
+            &["shiju-apps", "api-keys", "--input", "-"][..],
+            credential.as_bytes(),
+            "GET",
+            "/v1/shiju/apps/api-keys",
+            Value::Null,
+        ),
+        (
+            &["shiju-apps", "binding-get", "install-1", "--input", "-"][..],
+            credential.as_bytes(),
+            "GET",
+            "/v1/shiju/apps/install-1/api-key-binding",
+            Value::Null,
+        ),
     ];
     for (command, input, method, path, body) in cases {
         let output = run_command(&common, command, input).await.unwrap();
@@ -50,10 +92,27 @@ async fn api_shiju_account_and_app_commands_use_existing_gateway_client() {
         assert_request(&requests, method, path, body);
     }
     let yes = ["--host", "127.0.0.1", "--port", port.as_str(), "--yes"];
-    let output = run_command(&yes, &["shiju-apps", "binding-put", "install-1", "--input", "-"], binding.as_bytes()).await.unwrap();
+    let output = run_command(
+        &yes,
+        &["shiju-apps", "binding-put", "install-1", "--input", "-"],
+        binding.as_bytes(),
+    )
+    .await
+    .unwrap();
     assert!(!String::from_utf8_lossy(&output).contains(SECRET));
-    assert_request(&requests, "PUT", "/v1/shiju/apps/install-1/api-key-binding", json!({"apiKeyId":42}));
-    let output = run_command(&yes, &["shiju-apps", "launch", "install-1", "--input", "-"], credential.as_bytes()).await.unwrap();
+    assert_request(
+        &requests,
+        "PUT",
+        "/v1/shiju/apps/install-1/api-key-binding",
+        json!({"apiKeyId":42}),
+    );
+    let output = run_command(
+        &yes,
+        &["shiju-apps", "launch", "install-1", "--input", "-"],
+        credential.as_bytes(),
+    )
+    .await
+    .unwrap();
     assert!(!String::from_utf8_lossy(&output).contains(SECRET));
     assert_request(&requests, "POST", "/v1/shiju/apps/install-1/launch", Value::Null);
 }

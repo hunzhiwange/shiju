@@ -8,8 +8,7 @@ use serde_json::Value;
 use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
 use vw_gateway_client::{
     GatewayChatStreamEvent, GatewayChatUsage, GatewayTypedChatStreamEvent,
-    GatewayWorkflowStreamEvent,
-    normalize_chat_stream_event, normalize_chat_tool_event,
+    GatewayWorkflowStreamEvent, normalize_chat_stream_event, normalize_chat_tool_event,
 };
 
 use crate::cli::tui::model::{
@@ -318,17 +317,9 @@ pub(crate) fn adapt_gateway_workflow_stream_event(
             (!text.is_empty()).then(|| UiRuntimeEvent::Delta(text)).into_iter().collect()
         }
         GatewayWorkflowStreamEvent::Message { answer, .. } => {
-            (!answer.trim().is_empty())
-                .then(|| UiRuntimeEvent::Delta(answer))
-                .into_iter()
-                .collect()
+            (!answer.trim().is_empty()).then(|| UiRuntimeEvent::Delta(answer)).into_iter().collect()
         }
-        GatewayWorkflowStreamEvent::WorkflowFinished {
-            task_id,
-            workflow_run_id,
-            data,
-            pause,
-        } => {
+        GatewayWorkflowStreamEvent::WorkflowFinished { task_id, workflow_run_id, data, pause } => {
             let status = data
                 .get("status")
                 .and_then(Value::as_str)
@@ -399,18 +390,10 @@ fn workflow_progress(
     label: String,
     completed: bool,
 ) -> UiRuntimeEvent {
-    let stable_id = if workflow_run_id.trim().is_empty() {
-        task_id
-    } else {
-        workflow_run_id
-    };
+    let stable_id = if workflow_run_id.trim().is_empty() { task_id } else { workflow_run_id };
     UiRuntimeEvent::Message(UiMessage::Progress(UiProgressMessage {
-        base: UiMessageBase::new(UiMessageId::local(format!(
-            "workflow-run-{stable_id}-{phase}"
-        )))
-        .with_origin(UiMessageOrigin::Gateway {
-            event_type: format!("workflow.{phase}"),
-        }),
+        base: UiMessageBase::new(UiMessageId::local(format!("workflow-run-{stable_id}-{phase}")))
+            .with_origin(UiMessageOrigin::Gateway { event_type: format!("workflow.{phase}") }),
         label,
         current: None,
         total: None,

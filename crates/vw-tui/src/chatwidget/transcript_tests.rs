@@ -15,21 +15,14 @@ impl HistoryCell for CountingHistoryCell {
 }
 
 fn mouse(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
-    MouseEvent {
-        kind,
-        column,
-        row,
-        modifiers: crossterm::event::KeyModifiers::NONE,
-    }
+    MouseEvent { kind, column, row, modifiers: crossterm::event::KeyModifiers::NONE }
 }
 
 #[test]
 fn active_cell_commits_into_history_and_invalidates_layout() {
     let mut state = TranscriptState::default();
-    state.set_active_event(Some(V3DisplayEvent::Progress {
-        label: "working".into(),
-        detail: None,
-    }));
+    state
+        .set_active_event(Some(V3DisplayEvent::Progress { label: "working".into(), detail: None }));
     state.active_cell_layout.set(Some(ActiveCellLayoutCache {
         key: ActiveCellLayoutCacheKey {
             cell_identity: 1,
@@ -51,10 +44,7 @@ fn active_cell_commits_into_history_and_invalidates_layout() {
 fn transcript_lines_join_committed_active_and_live_cells() {
     let mut state = TranscriptState::default();
     state.push_history(V3DisplayEvent::System { text: "committed".into() });
-    state.set_active_event(Some(V3DisplayEvent::Progress {
-        label: "active".into(),
-        detail: None,
-    }));
+    state.set_active_event(Some(V3DisplayEvent::Progress { label: "active".into(), detail: None }));
     state.set_live_tail_event(Some(V3DisplayEvent::Assistant { markdown: "live".into() }));
 
     let committed = state

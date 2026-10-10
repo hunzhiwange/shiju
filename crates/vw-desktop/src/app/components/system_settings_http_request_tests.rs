@@ -47,11 +47,20 @@ fn row_helpers_build_each_http_request_control() {
             value,
         )))
     }));
-    keep_element(number_row("超时", "说明", 30, 0, 86_400, "秒", Some("安全提示"), |value| {
-        Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::TimeoutSecsChanged(
-            value,
-        )))
-    }));
+    keep_element(number_row(
+        "超时",
+        "说明",
+        30,
+        0,
+        86_400,
+        "秒",
+        Some("安全提示"),
+        |value| {
+            Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::TimeoutSecsChanged(
+                value,
+            )))
+        },
+    ));
 }
 
 #[test]

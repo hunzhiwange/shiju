@@ -4,9 +4,8 @@
 use super::{
     PLAN_RUN_CARD_MAX_WIDTH, WorkflowNodeState, chat_summary_text, elapsed_label, metadata_string,
     metadata_value, node_meta_label, output_preview_text, output_value, plan_run_card_display,
-    plan_run_tooltip_content, status_text, token_value,
-    tool_workflow_view, usage_label, usage_value,
-    workflow_node_detail_body, workflow_node_primary_message, workflow_node_state,
+    plan_run_tooltip_content, status_text, token_value, tool_workflow_view, usage_label,
+    usage_value, workflow_node_detail_body, workflow_node_primary_message, workflow_node_state,
     workflow_preview_message,
 };
 use crate::app::message;
@@ -481,10 +480,7 @@ async fn plan_run_subtask_card_hides_path_until_hover() {
             "task_path": ""
         }
     });
-    assert_eq!(
-        plan_run_card_display(&without_path).and_then(|display| display.tooltip_text),
-        None
-    );
+    assert_eq!(plan_run_card_display(&without_path).and_then(|display| display.tooltip_text), None);
 
     for theme in [Theme::Light, Theme::Dark] {
         let mut tooltip = plan_run_tooltip_content(format!("任务路径：{task_path}"));
@@ -646,8 +642,6 @@ fn specialized_tool_actions_survive_header_migration() {
     ));
     assert!(matches!(
         workflow_preview_message(&value),
-        Some(Message::WorkflowTool(
-            crate::apps::workflow::WorkflowMessage::OpenInlineYaml { .. }
-        ))
+        Some(Message::WorkflowTool(crate::apps::workflow::WorkflowMessage::OpenInlineYaml { .. }))
     ));
 }

@@ -114,15 +114,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
         _ => crate::app::components::system_settings_web_search::content(app),
     };
 
-    let mut sections = column![
-        settings_page_intro(
-            "网络配置",
-            "通过标签切换网页搜索、网络请求、浏览器、代理与隧道配置。",
-        ),
-        tabs,
-    ]
-    .spacing(16)
-    .width(Length::Fill);
+    let mut sections =
+        column![
+            settings_page_intro(
+                "网络配置",
+                "通过标签切换网页搜索、网络请求、浏览器、代理与隧道配置。",
+            ),
+            tabs,
+        ]
+        .spacing(16)
+        .width(Length::Fill);
 
     if let Some(error) = active_save_error(app) {
         sections = sections.push(settings_error_banner(error));

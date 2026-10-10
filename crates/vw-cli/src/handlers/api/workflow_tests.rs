@@ -78,36 +78,21 @@ async fn api_workflow_commands_cover_application_crud_resume_and_stream() {
         "/v1/workflow/applications",
         json!({"name":"Deploy","description":"Ship","workflow_yaml":"steps: []"}),
     );
-    run_command(
-        &common,
-        &["--yes", "workflow", "update", "wf/one", "--input", "-"],
-        upsert,
-    )
-    .await
-    .expect("update");
+    run_command(&common, &["--yes", "workflow", "update", "wf/one", "--input", "-"], upsert)
+        .await
+        .expect("update");
     assert_request(
         &requests,
         "PUT",
         "/v1/workflow/applications/wf%2Fone",
         json!({"name":"Deploy","description":"Ship","workflow_yaml":"steps: []"}),
     );
-    run_command(&common, &["--yes", "workflow", "delete", "wf/one"], b"")
-        .await
-        .expect("delete");
-    assert_request(
-        &requests,
-        "DELETE",
-        "/v1/workflow/applications/wf%2Fone",
-        json!({}),
-    );
+    run_command(&common, &["--yes", "workflow", "delete", "wf/one"], b"").await.expect("delete");
+    assert_request(&requests, "DELETE", "/v1/workflow/applications/wf%2Fone", json!({}));
 
-    let output = run_command(
-        &common,
-        &["--yes", "workflow", "chat", "--input", "-"],
-        default_chat,
-    )
-    .await
-    .expect("default workflow stream");
+    let output = run_command(&common, &["--yes", "workflow", "chat", "--input", "-"], default_chat)
+        .await
+        .expect("default workflow stream");
     let events = jsonl(&output);
     assert_eq!(events.len(), 2);
     assert!(events[0].get("WorkflowStarted").is_some());

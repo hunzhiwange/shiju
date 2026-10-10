@@ -40,13 +40,9 @@ async fn api_config_commands_preserve_scope_input_and_confirmation() {
 
     let refused = parse_api(&common, &["config", "patch", "--input", "-"]);
     assert!(matches!(refused.command, ApiCommands::Config { .. }));
-    let error = run_with_io(
-        refused,
-        &mut Cursor::new(br#"{"model":"o3"}"#),
-        &mut Vec::new(),
-    )
-    .await
-    .expect_err("config writes must require confirmation");
+    let error = run_with_io(refused, &mut Cursor::new(br#"{"model":"o3"}"#), &mut Vec::new())
+        .await
+        .expect_err("config writes must require confirmation");
     let error = error.to_string();
     assert!(error.contains("--yes"));
     assert!(error.contains("/tmp/workspace"));
@@ -141,18 +137,11 @@ async fn api_config_commands_preserve_scope_input_and_confirmation() {
         Value::Null,
     );
 
-    let invalid = parse_api(
-        &common,
-        &["--yes", "config", "patch", "--input", "-"],
-    );
-    let error = run_with_io(
-        invalid,
-        &mut Cursor::new(br#"{"invalid":true}"#),
-        &mut Vec::new(),
-    )
-    .await
-    .expect_err("gateway validation failure should propagate")
-    .to_string();
+    let invalid = parse_api(&common, &["--yes", "config", "patch", "--input", "-"]);
+    let error = run_with_io(invalid, &mut Cursor::new(br#"{"invalid":true}"#), &mut Vec::new())
+        .await
+        .expect_err("gateway validation failure should propagate")
+        .to_string();
     assert!(error.contains("422"));
     assert!(error.contains("invalid config"));
     assert_request(
@@ -208,9 +197,7 @@ fn assert_request(request: &RecordedRequest, method: &str, path: &str, body: Val
     assert!(headers.contains("\r\nx-company-id: company-b\r\n"));
 }
 
-fn spawn_config_server(
-    responses: Vec<(u16, Value)>,
-) -> (u16, mpsc::Receiver<RecordedRequest>) {
+fn spawn_config_server(responses: Vec<(u16, Value)>) -> (u16, mpsc::Receiver<RecordedRequest>) {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind config test server");
     let port = listener.local_addr().expect("config server address").port();
     let (request_tx, request_rx) = mpsc::channel();

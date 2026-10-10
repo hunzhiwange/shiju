@@ -112,11 +112,13 @@ fn selecting_empty_image_model_clears_the_configured_model() {
     );
 
     assert!(app.multimodal_settings.ocr_model.is_empty());
-    assert!(multimodal_config_from_state(&app.multimodal_settings)
-        .expect("empty image model should be valid when the active model supports images")
-        .ocr
-        .model
-        .is_none());
+    assert!(
+        multimodal_config_from_state(&app.multimodal_settings)
+            .expect("empty image model should be valid when the active model supports images")
+            .ocr
+            .model
+            .is_none()
+    );
 }
 
 #[test]

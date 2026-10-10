@@ -32,11 +32,7 @@ fn typing_at_requests_search_and_selecting_inserts_path() {
     pane.set_file_search_matches(
         "sr",
         vec![
-            V3FileSearchMatch {
-                id: "lib".into(),
-                path: "src/lib.rs".into(),
-                ..Default::default()
-            },
+            V3FileSearchMatch { id: "lib".into(), path: "src/lib.rs".into(), ..Default::default() },
             V3FileSearchMatch {
                 id: "main".into(),
                 path: "src/main.rs".into(),
@@ -63,9 +59,6 @@ fn typing_at_requests_search_and_selecting_inserts_path() {
     assert_eq!(pane.draft(), "@src/main.rs @");
     assert!(!pane.file_search_visible());
 
-    assert_eq!(
-        pane.handle_key_event(key(KeyCode::Char('!'))),
-        V3Action::None
-    );
+    assert_eq!(pane.handle_key_event(key(KeyCode::Char('!'))), V3Action::None);
     assert_eq!(pane.draft(), "@src/main.rs @!");
 }

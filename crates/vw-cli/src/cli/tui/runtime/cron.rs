@@ -178,11 +178,7 @@ impl CronDetailView {
         let history = if self.runs.is_empty() {
             "暂无运行记录".to_string()
         } else {
-            self.runs
-                .iter()
-                .map(CronRunSummary::render_text)
-                .collect::<Vec<_>>()
-                .join("\n")
+            self.runs.iter().map(CronRunSummary::render_text).collect::<Vec<_>>().join("\n")
         };
         format!(
             concat!(
@@ -235,11 +231,8 @@ pub(crate) fn load_owned_cron_detail_blocking(
     job_id: &str,
 ) -> Result<CronDetailView, String> {
     let job_id = job_id.trim();
-    let job = snapshot
-        .iter()
-        .find(|job| job.owned_id == job_id)
-        .cloned()
-        .ok_or_else(|| {
+    let job =
+        snapshot.iter().find(|job| job.owned_id == job_id).cloned().ok_or_else(|| {
             "Cron detail requires an ID from the current Cron snapshot".to_string()
         })?;
     let runs = block_on_gateway(async { runtime.client().cron_job_runs_get(job_id).await })
@@ -254,11 +247,7 @@ pub(crate) fn load_owned_cron_detail_blocking(
     }
     Ok(CronDetailView {
         job,
-        runs: runs
-            .into_iter()
-            .take(MAX_HISTORY_RUNS)
-            .map(CronRunSummary::from_dto)
-            .collect(),
+        runs: runs.into_iter().take(MAX_HISTORY_RUNS).map(CronRunSummary::from_dto).collect(),
     })
 }
 
@@ -276,10 +265,8 @@ pub(crate) fn mutate_owned_cron_and_refresh_blocking(
     block_on_gateway(async {
         match mutation {
             CronMutation::SetEnabled(enabled) => {
-                let request = CronUpdateRequest {
-                    enabled: Some(enabled),
-                    ..CronUpdateRequest::default()
-                };
+                let request =
+                    CronUpdateRequest { enabled: Some(enabled), ..CronUpdateRequest::default() };
                 runtime.client().cron_job_update(job_id, &request).await.map(|_| ())?;
             }
             CronMutation::Delete => runtime.client().cron_job_delete(job_id).await?,
@@ -300,10 +287,7 @@ fn bounded_text(value: &str, max_chars: usize) -> String {
     if max_chars <= 3 {
         return sanitized.chars().take(max_chars).collect();
     }
-    format!(
-        "{}...",
-        sanitized.chars().take(max_chars.saturating_sub(3)).collect::<String>()
-    )
+    format!("{}...", sanitized.chars().take(max_chars.saturating_sub(3)).collect::<String>())
 }
 
 fn redact_bearer_value(value: &str) -> String {

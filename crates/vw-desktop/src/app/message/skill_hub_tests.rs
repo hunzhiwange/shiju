@@ -12,13 +12,12 @@ use crate::app::account::{
 use crate::app::skill_hub::{
     CursorPage, InstalledSkill, LoadState, MarketplaceSkill, MineFilterMenu, MineSkillStatus,
     PackageVersionCacheEntry, Page, PublicDetailMode, ShijuDirectInstallState, ShijuInstallItem,
-    ShijuInstallation,
-    ShijuInstallationsReport, ShijuKeySyncOutcome, ShijuKeySyncReport, ShijuMultiInstallReport,
-    ShijuPackageId, ShijuPackageRelease, ShijuPackageStatus, ShijuTargetInstallation,
-    ShijuTargetKeySync, ShijuTargetUninstall, ShijuUninstallReport, SkillActionKind,
-    SkillCacheSyncReport, SkillCacheSyncState, SkillDetail, SkillDetailState, SkillDownloadUrl,
-    SkillHubError, SkillInstallScope, SkillInstallSelection, SkillInstallTarget, SkillTag,
-    SkillVersion, SkillVersionAction, SkillVersionDirection, resolve_skill_destinations,
+    ShijuInstallation, ShijuInstallationsReport, ShijuKeySyncOutcome, ShijuKeySyncReport,
+    ShijuMultiInstallReport, ShijuPackageId, ShijuPackageRelease, ShijuPackageStatus,
+    ShijuTargetInstallation, ShijuTargetKeySync, ShijuTargetUninstall, ShijuUninstallReport,
+    SkillActionKind, SkillCacheSyncReport, SkillCacheSyncState, SkillDetail, SkillDetailState,
+    SkillDownloadUrl, SkillHubError, SkillInstallScope, SkillInstallSelection, SkillInstallTarget,
+    SkillTag, SkillVersion, SkillVersionAction, SkillVersionDirection, resolve_skill_destinations,
 };
 use crate::app::skill_hub::{ExpertHubSection, SkillTab};
 use crate::app::state::ToastKind;
@@ -947,13 +946,9 @@ fn skill_detail_readme_ignores_stale_results_and_preserves_detail() {
     assert!(!detail.readme_items.is_empty());
     assert!(matches!(detail.detail, LoadState::Loaded(_)));
 
-    let _ = app.update(Message::SkillHub(SkillHubMessage::SetSkillReadmeMode(
-        PublicDetailMode::Markdown,
-    )));
-    assert_eq!(
-        app.expert_hub.detail.as_ref().unwrap().readme_mode,
-        PublicDetailMode::Markdown
-    );
+    let _ = app
+        .update(Message::SkillHub(SkillHubMessage::SetSkillReadmeMode(PublicDetailMode::Markdown)));
+    assert_eq!(app.expert_hub.detail.as_ref().unwrap().readme_mode, PublicDetailMode::Markdown);
 
     let _ = app.update(Message::SkillHub(SkillHubMessage::SkillReadmeLoaded {
         generation,

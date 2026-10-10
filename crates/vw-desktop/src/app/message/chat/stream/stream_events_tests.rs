@@ -10,8 +10,7 @@ fn stream_events_tests_module_is_wired() {
 use crate::app::components::chat_panel::virtualizer::{ChatScrollMode, ChatVirtualizer};
 use crate::app::models::{ChatMessage, ChatRole, ThinkTiming};
 use crate::app::state::{
-    AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QuickMessageHandoffState,
-    StreamTailState,
+    AcpHistoryReplayMode, AgentRequest, ChatSendBehavior, QuickMessageHandoffState, StreamTailState,
 };
 use crate::app::{Message, QueueItem};
 use std::sync::{
@@ -529,11 +528,9 @@ fn active_stream_terminal_flushes_pending_delta() {
 
     fn queue_first_and_pending(app: &mut crate::app::App, request_id: u64) {
         let session_id = app.active_session_id.clone().unwrap();
-        let _first_task =
-            super::queue_agent_stream_delta(app, request_id, "hello".to_string());
+        let _first_task = super::queue_agent_stream_delta(app, request_id, "hello".to_string());
         assert_eq!(app.chat.last().unwrap().content, "hello");
-        let _merge_timer =
-            super::queue_agent_stream_delta(app, request_id, " tail".to_string());
+        let _merge_timer = super::queue_agent_stream_delta(app, request_id, " tail".to_string());
         assert_eq!(app.get_session_runtime(&session_id).pending_stream_delta, " tail");
     }
 
@@ -560,8 +557,7 @@ fn active_stream_terminal_flushes_pending_delta() {
 
     let mut error_app = active_app(43);
     queue_first_and_pending(&mut error_app, 43);
-    let _terminal_task =
-        super::handle_agent_stream_error(&mut error_app, 43, "failed".to_string());
+    let _terminal_task = super::handle_agent_stream_error(&mut error_app, 43, "failed".to_string());
     assert_flushed(&error_app);
 
     let mut cancelled_app = active_app(44);
@@ -588,32 +584,29 @@ async fn stream_deltas_debounce_full_session_save() {
 
     let saved_sessions = Arc::new(std::sync::Mutex::new(Vec::new()));
     let observed_sessions = Arc::clone(&saved_sessions);
-    let (first_save, duplicate_save, flush_save, late_flush) =
-        super::super::with_save_session_hook(
-            move |session, _| {
-                observed_sessions.lock().unwrap().push(session.clone());
-                Some(std::path::PathBuf::from("/saved/session.json"))
-            },
-            || {
-                let first_save = super::handle_agent_session_delta(
-                    &mut app,
-                    session_id.clone(),
-                    "hello".to_string(),
-                );
-                let duplicate_save = super::handle_agent_session_delta(
-                    &mut app,
-                    session_id.clone(),
-                    " world".to_string(),
-                );
-                assert!(app.get_session_runtime(&session_id).stream_save_flush_scheduled);
-                let flush_save =
-                    super::flush_agent_stream_session_save(&mut app, session_id.clone());
-                assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
-                let late_flush =
-                    super::flush_agent_stream_session_save(&mut app, session_id.clone());
-                (first_save, duplicate_save, flush_save, late_flush)
-            },
-        );
+    let (first_save, duplicate_save, flush_save, late_flush) = super::super::with_save_session_hook(
+        move |session, _| {
+            observed_sessions.lock().unwrap().push(session.clone());
+            Some(std::path::PathBuf::from("/saved/session.json"))
+        },
+        || {
+            let first_save = super::handle_agent_session_delta(
+                &mut app,
+                session_id.clone(),
+                "hello".to_string(),
+            );
+            let duplicate_save = super::handle_agent_session_delta(
+                &mut app,
+                session_id.clone(),
+                " world".to_string(),
+            );
+            assert!(app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+            let flush_save = super::flush_agent_stream_session_save(&mut app, session_id.clone());
+            assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+            let late_flush = super::flush_agent_stream_session_save(&mut app, session_id.clone());
+            (first_save, duplicate_save, flush_save, late_flush)
+        },
+    );
 
     assert!(first_save.units() > 0, "the first delta should schedule a save flush");
     assert_eq!(
@@ -675,8 +668,7 @@ async fn stream_done_persists_latest_delta_and_cancels_debounce() {
                 None,
             );
             assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
-            let late_flush =
-                super::flush_agent_stream_session_save(&mut app, session_id.clone());
+            let late_flush = super::flush_agent_stream_session_save(&mut app, session_id.clone());
             (duplicate_save, terminal_save, late_flush)
         },
     );
@@ -785,10 +777,7 @@ fn tail_message_prewarm_does_not_mark_chunk_state() {
     let first_task = super::handle_agent_stream_delta(&mut app, 42, "hello".to_string());
     let second_task = super::handle_agent_stream_delta(&mut app, 42, " world".to_string());
 
-    assert!(
-        first_task.units() > second_task.units(),
-        "only one tail prewarm should be in flight"
-    );
+    assert!(first_task.units() > second_task.units(), "only one tail prewarm should be in flight");
     assert!(app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
     assert!(app.active_session_view_state.dirty_preparing_chat_ui_chunks.is_empty());
     assert_eq!(app.chat.last().unwrap().content, "hello world");
@@ -1239,10 +1228,7 @@ fn stream_done_clears_active_request_and_applies_ids_and_usage() {
     assert_eq!(app.chat_message_ids[0].as_deref(), Some("parent-id"));
     assert_eq!(app.chat_message_ids[1].as_deref(), Some("assistant-id"));
     assert_eq!(app.usage, usage);
-    assert_eq!(
-        app.active_session_view_state.steps[0].turn_id.as_deref(),
-        Some("assistant-id")
-    );
+    assert_eq!(app.active_session_view_state.steps[0].turn_id.as_deref(), Some("assistant-id"));
     assert!(!app.show_send_mode_popover);
     let runtime = app.get_session_runtime(&session_id);
     assert!(!runtime.is_requesting);

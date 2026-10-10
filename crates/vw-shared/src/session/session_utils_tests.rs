@@ -39,8 +39,8 @@ fn task_session_source_marker_round_trip_preserves_content() {
     let encoded = super::encode_task_session_source_marker("session-123", content)
         .expect("non-empty source id should encode");
 
-    let source = super::parse_task_session_source_marker(&encoded)
-        .expect("encoded marker should parse");
+    let source =
+        super::parse_task_session_source_marker(&encoded).expect("encoded marker should parse");
     assert_eq!(source.source_session_id, "session-123");
     assert_eq!(source.content, content);
     assert_eq!(super::strip_task_session_source_marker(&encoded), content);
@@ -48,8 +48,10 @@ fn task_session_source_marker_round_trip_preserves_content() {
 
 #[test]
 fn task_session_source_marker_parses_existing_chatgpt_blocks() {
-    let raw = "<task_session_source>\nsource_session_id: session-123\n\n</task_session_source>\n旧消息";
-    let source = super::parse_task_session_source_marker(raw).expect("existing marker should parse");
+    let raw =
+        "<task_session_source>\nsource_session_id: session-123\n\n</task_session_source>\n旧消息";
+    let source =
+        super::parse_task_session_source_marker(raw).expect("existing marker should parse");
     assert_eq!(source.source_session_id, "session-123");
     assert_eq!(source.content, "旧消息");
 }

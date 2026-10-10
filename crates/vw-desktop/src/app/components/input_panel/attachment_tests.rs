@@ -5,8 +5,8 @@
 use super::{
     AttachmentDisplayItem, AttachmentDisplayKind, attachment_button, attachment_chip,
     attachment_preview_strip, attachment_strip, attachment_thumbnail, chip_close_style, chip_style,
-    chip_thumb_style, is_supported_image_attachment, parse_attachment_markers,
-    open_attachment_message, split_attachment_name_extension, truncate_attachment_name_middle,
+    chip_thumb_style, is_supported_image_attachment, open_attachment_message,
+    parse_attachment_markers, split_attachment_name_extension, truncate_attachment_name_middle,
 };
 use crate::app::{App, Message, message};
 use iced::widget::button;

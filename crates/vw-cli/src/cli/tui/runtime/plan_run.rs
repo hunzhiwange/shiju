@@ -21,9 +21,8 @@ pub(crate) fn plan_run_request(
     if query.is_empty() {
         return Err("plan/goal run requires a non-empty request".to_string());
     }
-    let root = root
-        .to_str()
-        .ok_or_else(|| "plan/goal workspace root is not valid UTF-8".to_string())?;
+    let root =
+        root.to_str().ok_or_else(|| "plan/goal workspace root is not valid UTF-8".to_string())?;
     Ok(TaskPlanRunRequest {
         query: query.to_string(),
         root: root.to_string(),
@@ -57,9 +56,11 @@ pub(crate) fn stream_plan_run_resumable_blocking(
             true
         },
     ))
-    .map(|result| {
-        if consumer_stopped { GatewayStreamAttemptResult::CallerStopped } else { result }
-    })
+    .map(
+        |result| {
+            if consumer_stopped { GatewayStreamAttemptResult::CallerStopped } else { result }
+        },
+    )
 }
 
 /// 校验停止目标同时匹配当前 TUI 保存的 request ID 与 task ID。

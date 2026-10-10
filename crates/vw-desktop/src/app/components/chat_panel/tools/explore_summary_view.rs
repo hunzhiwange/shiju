@@ -586,12 +586,11 @@ pub fn tool_explore_summary_view<'a>(
         ..Default::default()
     })
     .on_press(Message::Chat(message::ChatMessage::ToggleExploreSummary(msg_idx, group_tool_idx)));
-    let toggle_slot: Element<'a, Message> =
-        if app.chat_tool_hovered_idx == Some(key) {
-            toggle_btn.into()
-        } else {
-            Space::new().width(Length::Fixed(EXPLORE_TOGGLE_SLOT_WIDTH)).into()
-        };
+    let toggle_slot: Element<'a, Message> = if app.chat_tool_hovered_idx == Some(key) {
+        toggle_btn.into()
+    } else {
+        Space::new().width(Length::Fixed(EXPLORE_TOGGLE_SLOT_WIDTH)).into()
+    };
     let head_row =
         row![title_view, summary_slot, toggle_slot, container(Space::new()).width(Length::Fill)]
             .spacing(7)

@@ -268,7 +268,10 @@ fn tool_header_keeps_permission_and_detail_actions() {
     let element = tool_text_view(&app, msg_idx, tool_idx, visible).expect("permission card");
     assert_card_has_no_inline_editor(&element);
     assert_eq!(
-        super::tool_permission_summary("custom", &serde_json::from_str(visible.split_once('\n').unwrap().1).unwrap()),
+        super::tool_permission_summary(
+            "custom",
+            &serde_json::from_str(visible.split_once('\n').unwrap().1).unwrap()
+        ),
         Some("需要权限批准")
     );
     assert!(matches!(

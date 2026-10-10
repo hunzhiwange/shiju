@@ -42,12 +42,10 @@ impl ChatWidget {
         self.streaming.kind = Some(kind);
         self.streaming.text.push_str(&delta);
         let event = match kind {
-            StreamKind::Thinking => V3DisplayEvent::Thinking {
-                text: self.streaming.text.clone(),
-            },
-            StreamKind::Answer => V3DisplayEvent::Assistant {
-                markdown: self.streaming.text.clone(),
-            },
+            StreamKind::Thinking => V3DisplayEvent::Thinking { text: self.streaming.text.clone() },
+            StreamKind::Answer => {
+                V3DisplayEvent::Assistant { markdown: self.streaming.text.clone() }
+            }
         };
         self.transcript.set_active_event(Some(event));
         self.transcript.set_live_tail_event(None);

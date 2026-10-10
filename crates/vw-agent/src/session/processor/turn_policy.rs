@@ -23,8 +23,7 @@ impl ChatTurnPolicy {
             .then_some(configured_max_iterations)
             .unwrap_or(DEFAULT_MAX_ITERATIONS);
         let configured_max_history_messages = selected_agent.max_history_messages;
-        let max_history_messages =
-            configured_max_history_messages.max(1).min(MAX_HISTORY_MESSAGES);
+        let max_history_messages = configured_max_history_messages.max(1).min(MAX_HISTORY_MESSAGES);
         let max_history_messages = if configured_max_history_messages == 0 {
             DEFAULT_MAX_HISTORY_MESSAGES
         } else {

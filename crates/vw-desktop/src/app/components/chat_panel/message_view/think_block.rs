@@ -10,6 +10,7 @@ use crate::app::components::text_editor_scroll_panel::pass_wheel_to_parent;
 use crate::app::models;
 use crate::app::{App, Message, message};
 
+use super::super::global_status::COMPACT_ACTIVITY_SLOT_SIZE;
 use super::super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
 use super::super::tool_text_support::{
     READ_ONLY_EDITOR_MAX_HEIGHT, chat_text_font, chat_text_line_height, read_only_text_style,
@@ -22,7 +23,6 @@ use super::styles::{
     THINK_BLOCK_CONTENT_SPACING, THINK_META_TEXT_SIZE, THINK_STATUS_TEXT_SIZE,
     think_block_text_color, thinking_status_text,
 };
-use super::super::global_status::COMPACT_ACTIVITY_SLOT_SIZE;
 use super::text::{should_segment_text_block, think_text_body};
 
 /// 渲染思考块视图
@@ -84,10 +84,8 @@ pub(super) fn think_block_view<'a>(
         icon_svg(icon_kind)
             .width(Length::Fixed(10.0))
             .height(Length::Fixed(10.0))
-            .style(move |theme: &Theme, _status| {
-                svg::Style {
-                    color: Some(chat_secondary_muted_text_color(theme)),
-                }
+            .style(move |theme: &Theme, _status| svg::Style {
+                color: Some(chat_secondary_muted_text_color(theme)),
             })
             .into()
     } else {

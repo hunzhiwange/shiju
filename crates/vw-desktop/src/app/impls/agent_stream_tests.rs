@@ -66,13 +66,7 @@ fn plan_run_delta_buffer_coalesces_before_ui_dispatch() {
 
     for (millis, session_id, delta, event_id) in inputs {
         buffer
-            .push_delta(
-                session_id,
-                delta,
-                event_id,
-                Duration::from_millis(millis),
-                &mut send,
-            )
+            .push_delta(session_id, delta, event_id, Duration::from_millis(millis), &mut send)
             .expect("delta dispatch");
     }
     buffer.flush(&mut send).expect("final flush");
@@ -96,48 +90,27 @@ fn plan_run_delta_buffer_coalesces_before_ui_dispatch() {
     let mut window_buffer = super::PlanRunDeltaBuffer::default();
     let mut window_batches = Vec::new();
     window_buffer
-        .push_delta(
-            "session-a",
-            &"x".repeat(360),
-            7,
-            Duration::ZERO,
-            &mut |batch| {
-                window_batches.push(batch.clone());
-                Ok::<(), ()>(())
-            },
-        )
+        .push_delta("session-a", &"x".repeat(360), 7, Duration::ZERO, &mut |batch| {
+            window_batches.push(batch.clone());
+            Ok::<(), ()>(())
+        })
         .expect("buffer former soft threshold");
     assert!(window_batches.is_empty(), "360 characters must not flush early");
     window_buffer
-        .push_delta(
-            "session-a",
-            "y",
-            8,
-            Duration::from_millis(9_999),
-            &mut |batch| {
-                window_batches.push(batch.clone());
-                Ok::<(), ()>(())
-            },
-        )
+        .push_delta("session-a", "y", 8, Duration::from_millis(9_999), &mut |batch| {
+            window_batches.push(batch.clone());
+            Ok::<(), ()>(())
+        })
         .expect("buffer before ten-second window");
     assert!(window_batches.is_empty(), "9.999 seconds must not flush");
     window_buffer
-        .push_delta(
-            "session-a",
-            "界",
-            9,
-            Duration::from_secs(10),
-            &mut |batch| {
-                window_batches.push(batch.clone());
-                Ok::<(), ()>(())
-            },
-        )
+        .push_delta("session-a", "界", 9, Duration::from_secs(10), &mut |batch| {
+            window_batches.push(batch.clone());
+            Ok::<(), ()>(())
+        })
         .expect("flush at ten-second window");
     assert_eq!(window_batches.len(), 1);
-    assert_eq!(
-        window_batches[0].delta,
-        format!("{}y", "x".repeat(360))
-    );
+    assert_eq!(window_batches[0].delta, format!("{}y", "x".repeat(360)));
     assert_eq!(window_batches[0].event_count, 2);
     assert_eq!(window_batches[0].first_event_id, 7);
     assert_eq!(window_batches[0].last_event_id, 8);
@@ -157,16 +130,10 @@ fn plan_run_delta_buffer_coalesces_before_ui_dispatch() {
     let mut hard_limit_batches = Vec::new();
     let oversized = "z".repeat(super::PLAN_RUN_DELTA_HARD_LIMIT_BYTES + 1);
     hard_limit_buffer
-        .push_delta(
-            "session-hard-limit",
-            &oversized,
-            10,
-            Duration::ZERO,
-            &mut |batch| {
-                hard_limit_batches.push(batch.clone());
-                Ok::<(), ()>(())
-            },
-        )
+        .push_delta("session-hard-limit", &oversized, 10, Duration::ZERO, &mut |batch| {
+            hard_limit_batches.push(batch.clone());
+            Ok::<(), ()>(())
+        })
         .expect("split oversized delta");
     hard_limit_buffer
         .flush(&mut |batch| {
@@ -202,28 +169,16 @@ fn plan_run_delta_buffer_flushes_before_lifecycle_event() {
     let mut buffer = super::PlanRunDeltaBuffer::default();
     let mut dispatched = Vec::new();
     buffer
-        .push_delta(
-            "session-a",
-            "partial ",
-            20,
-            Duration::ZERO,
-            &mut |batch| {
-                dispatched.push(Dispatch::Delta(batch.delta.clone()));
-                Ok::<(), ()>(())
-            },
-        )
+        .push_delta("session-a", "partial ", 20, Duration::ZERO, &mut |batch| {
+            dispatched.push(Dispatch::Delta(batch.delta.clone()));
+            Ok::<(), ()>(())
+        })
         .expect("first delta");
     buffer
-        .push_delta(
-            "session-a",
-            "answer",
-            21,
-            Duration::from_millis(10),
-            &mut |batch| {
-                dispatched.push(Dispatch::Delta(batch.delta.clone()));
-                Ok::<(), ()>(())
-            },
-        )
+        .push_delta("session-a", "answer", 21, Duration::from_millis(10), &mut |batch| {
+            dispatched.push(Dispatch::Delta(batch.delta.clone()));
+            Ok::<(), ()>(())
+        })
         .expect("second delta");
 
     let flushed_cursor = buffer
@@ -345,7 +300,8 @@ fn session_tool_create_event_requests_visible_session_refresh() {
 
     let message = super::chat_tool_message(8, &payload).expect("desktop tool message");
     let crate::app::Message::Chat(crate::app::message::chat::ChatMessage::AgentToolLifecycle(
-        _, event,
+        _,
+        event,
     )) = message
     else {
         panic!("expected dedicated tool lifecycle message");
@@ -1766,9 +1722,7 @@ fn plan_run_tool_block_exposes_plan_or_task_path() {
                 .expect("tool block payload");
             serde_json::from_str::<serde_json::Value>(payload).expect("tool block json")
         })
-        .map(|payload| {
-            payload["metadata"]["task_path"].as_str().map(str::to_string)
-        })
+        .map(|payload| payload["metadata"]["task_path"].as_str().map(str::to_string))
         .collect::<Vec<_>>();
 
     assert_eq!(task_paths[0].as_deref(), Some("/plans/task-1"));

@@ -313,12 +313,10 @@ impl App {
     pub(crate) fn upsert_active_session_step(&mut self, mut step: ChatSessionStep) {
         normalize_step_turn_id(&mut step);
         self.active_session_view_state.step_index_map.insert(step.index, StepUiMeta::from(&step));
-        if let Some(existing_step) = self
-            .active_session_view_state
-            .steps
-            .iter_mut()
-            .find(|existing| {
-                existing.index == step.index && existing.turn_id.as_deref() == step.turn_id.as_deref()
+        if let Some(existing_step) =
+            self.active_session_view_state.steps.iter_mut().find(|existing| {
+                existing.index == step.index
+                    && existing.turn_id.as_deref() == step.turn_id.as_deref()
             })
         {
             *existing_step = step;

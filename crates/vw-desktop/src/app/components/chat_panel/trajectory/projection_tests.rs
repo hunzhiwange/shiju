@@ -363,10 +363,7 @@ fn projection_reprojects_message_when_only_source_changes() {
     ]);
 
     let projection = project_trajectory(
-        &[
-            step(1, 100, Some(200), [3, 2, 0, 0]),
-            step(2, 300, Some(400), [3, 2, 0, 0]),
-        ],
+        &[step(1, 100, Some(200), [3, 2, 0, 0]), step(2, 300, Some(400), [3, 2, 0, 0])],
         &HashMap::from([(1, first), (2, second)]),
     );
     let inputs = projection

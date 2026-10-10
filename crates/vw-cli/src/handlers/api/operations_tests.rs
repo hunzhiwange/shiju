@@ -225,7 +225,11 @@ async fn run_command<S: AsRef<str>>(
     command: &[S],
     input: &[u8],
 ) -> Result<Vec<u8>, String> {
-    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") { (Some("--yes"), &command[1..]) } else { (None, command) };
+    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") {
+        (Some("--yes"), &command[1..])
+    } else {
+        (None, command)
+    };
     let (family, command) = command.split_first().ok_or("API command family is required")?;
     let args = std::iter::once("shiju")
         .chain(std::iter::once(family.as_ref()))
@@ -259,9 +263,7 @@ fn assert_request(request: &RecordedRequest, method: &str, path: &str, body: Val
     assert!(headers.contains("\r\nx-company-id: company-b\r\n"));
 }
 
-fn spawn_operations_server(
-    responses: Vec<(u16, Value)>,
-) -> (u16, mpsc::Receiver<RecordedRequest>) {
+fn spawn_operations_server(responses: Vec<(u16, Value)>) -> (u16, mpsc::Receiver<RecordedRequest>) {
     let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind operations test server");
     let port = listener.local_addr().expect("operations server address").port();
     let (request_tx, request_rx) = mpsc::channel();

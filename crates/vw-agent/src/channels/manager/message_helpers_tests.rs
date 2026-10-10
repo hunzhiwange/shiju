@@ -26,7 +26,7 @@ struct RecordingMemory {
 }
 
 impl RecordingMemory {
-// 召回夹具显式注入排序结果，隔离验证提示上下文拼装。
+    // 召回夹具显式注入排序结果，隔离验证提示上下文拼装。
     fn with_recall_entries(recall_entries: Vec<MemoryEntry>) -> Self {
         Self { recall_entries, ..Self::default() }
     }

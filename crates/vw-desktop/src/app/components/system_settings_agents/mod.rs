@@ -34,9 +34,10 @@ use self::shared::{
     agent_sidebar_button_style, detail_tab_button, entry_kind_label, section_card, selected_entry,
 };
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_muted_text_style, settings_page_intro, settings_panel_style,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_segment_button_style,
-    settings_error_banner, settings_text_input_style, settings_value_badge,
+    rounded_action_btn_style, settings_error_banner, settings_muted_text_style,
+    settings_page_intro, settings_panel_style, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_segment_button_style, settings_text_input_style,
+    settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, SettingsMessage};

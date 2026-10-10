@@ -115,9 +115,7 @@ pub(crate) async fn load_integrations(runtime: &GatewayUiRuntime) -> LoadedInteg
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn load_integrations_blocking(
-    runtime: &GatewayUiRuntime,
-) -> LoadedIntegrationCatalog {
+pub(crate) fn load_integrations_blocking(runtime: &GatewayUiRuntime) -> LoadedIntegrationCatalog {
     block_on_gateway(async { Ok(load_integrations(runtime).await) }).unwrap_or_else(|error| {
         LoadedIntegrationCatalog {
             items: Vec::new(),
@@ -132,11 +130,7 @@ pub(crate) fn query_memory_blocking(
     query: Option<&str>,
 ) -> Result<Vec<IntegrationItem>, String> {
     block_on_gateway(async {
-        runtime
-            .client()
-            .memory_query_get(query, None)
-            .await
-            .map(|value| memory_items(&value))
+        runtime.client().memory_query_get(query, None).await.map(|value| memory_items(&value))
     })
     .map_err(|error| sanitized_warning("memory", error))
 }
@@ -163,11 +157,7 @@ pub(crate) fn mutate_memory_and_refresh_blocking(
                 runtime.client().memory_delete(key).await?;
             }
         }
-        runtime
-            .client()
-            .memory_query_get(query, None)
-            .await
-            .map(|value| memory_items(&value))
+        runtime.client().memory_query_get(query, None).await.map(|value| memory_items(&value))
     })
     .map_err(|error| sanitized_warning("memory", error))
 }
@@ -188,11 +178,9 @@ pub(crate) fn set_integration_enabled_blocking(
                 .skill_set_enabled(runtime.directory_value().as_deref(), item.id.as_str(), enabled)
                 .await
                 .map(|_| ()),
-            IntegrationKind::Plugin => runtime
-                .client()
-                .plugin_set_enabled(item.id.as_str(), enabled)
-                .await
-                .map(|_| ()),
+            IntegrationKind::Plugin => {
+                runtime.client().plugin_set_enabled(item.id.as_str(), enabled).await.map(|_| ())
+            }
             _ => Err("integration kind cannot be toggled".to_string()),
         }
     })
@@ -213,11 +201,9 @@ pub(crate) fn delete_integration_blocking(
                 .skill_delete(runtime.directory_value().as_deref(), item.id.as_str())
                 .await
                 .map(|_| ()),
-            IntegrationKind::Plugin => runtime
-                .client()
-                .plugin_delete(item.id.as_str())
-                .await
-                .map(|_| ()),
+            IntegrationKind::Plugin => {
+                runtime.client().plugin_delete(item.id.as_str()).await.map(|_| ())
+            }
             _ => Err("integration kind cannot be deleted".to_string()),
         }
     })
@@ -238,11 +224,7 @@ fn memory_items(value: &Value) -> Vec<IntegrationItem> {
         .into_iter()
         .flatten()
         .filter_map(|entry| {
-            let id = entry
-                .get("key")
-                .or_else(|| entry.get("id"))
-                .and_then(Value::as_str)?
-                .trim();
+            let id = entry.get("key").or_else(|| entry.get("id")).and_then(Value::as_str)?.trim();
             if id.is_empty() {
                 return None;
             }
@@ -252,10 +234,7 @@ fn memory_items(value: &Value) -> Vec<IntegrationItem> {
                 .and_then(Value::as_str)
                 .unwrap_or_default();
             let title = entry.get("title").and_then(Value::as_str).unwrap_or(id);
-            let source = entry
-                .get("scope")
-                .and_then(Value::as_str)
-                .unwrap_or("gateway:memory");
+            let source = entry.get("scope").and_then(Value::as_str).unwrap_or("gateway:memory");
             Some(IntegrationItem {
                 kind: IntegrationKind::Memory,
                 id: id.to_string(),

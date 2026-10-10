@@ -201,7 +201,10 @@ where
 
 /// Runs a v3 terminal operation and restores raw mode, cursor, paste and screen state.
 /// 执行一次 v3 终端操作，并恢复原始模式、光标、粘贴及屏幕状态。
-pub fn run_terminal<T>(mode: TerminalMode, operation: impl FnOnce() -> io::Result<T>) -> io::Result<T> {
+pub fn run_terminal<T>(
+    mode: TerminalMode,
+    operation: impl FnOnce() -> io::Result<T>,
+) -> io::Result<T> {
     run_with_control(CrosstermControl::new(std::io::stdout()), mode, operation)
 }
 
@@ -289,11 +292,7 @@ mod tests {
                 let control = FakeControl::default();
                 let observed = control.0.clone();
                 let result = run_with_control(control, mode, || {
-                    if should_fail {
-                        Err(io::Error::other("operation failed"))
-                    } else {
-                        Ok(())
-                    }
+                    if should_fail { Err(io::Error::other("operation failed")) } else { Ok(()) }
                 });
 
                 let restores = match mode {

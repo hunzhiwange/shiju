@@ -454,21 +454,19 @@ async fn tracked_from_materialized(
         &materialized.model_input_bytes,
         &materialized.model_input_mime,
     )?;
-    let analysis = match analysis_cache
-        .analyze_or_load(store, scope, &image_id, model_ref, extractor)
-        .await
-    {
-        Ok(analysis) => analysis,
-        Err(error) if is_exhausted_recoverable_analysis_error(&error) => ImageAnalysisResult {
-            version: 1,
-            image_id: image_id.clone(),
-            visible_text: String::new(),
-            visual_summary: ANALYSIS_UNAVAILABLE_TEXT.to_string(),
-            model_ref: model_ref.to_string(),
-            prompt_version: ANALYSIS_PROMPT_VERSION.to_string(),
-        },
-        Err(error) => return Err(error),
-    };
+    let analysis =
+        match analysis_cache.analyze_or_load(store, scope, &image_id, model_ref, extractor).await {
+            Ok(analysis) => analysis,
+            Err(error) if is_exhausted_recoverable_analysis_error(&error) => ImageAnalysisResult {
+                version: 1,
+                image_id: image_id.clone(),
+                visible_text: String::new(),
+                visual_summary: ANALYSIS_UNAVAILABLE_TEXT.to_string(),
+                model_ref: model_ref.to_string(),
+                prompt_version: ANALYSIS_PROMPT_VERSION.to_string(),
+            },
+            Err(error) => return Err(error),
+        };
     let reference_text = format_image_reference_text(&image_id, &analysis);
     Ok(TrackedImage {
         image_id,

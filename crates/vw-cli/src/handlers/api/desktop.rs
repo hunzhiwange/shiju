@@ -15,25 +15,69 @@ use super::output;
 #[derive(Subcommand, Debug)]
 pub(super) enum DesktopCommands {
     PreferencesGet,
-    PreferencesPatch { #[arg(long, value_parser = required)] input: String },
-    ToolGet { #[arg(value_parser = required)] tool_type: String },
-    ToolPut { #[arg(value_parser = required)] tool_type: String, #[arg(long, value_parser = required)] input: String },
+    PreferencesPatch {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
+    ToolGet {
+        #[arg(value_parser = required)]
+        tool_type: String,
+    },
+    ToolPut {
+        #[arg(value_parser = required)]
+        tool_type: String,
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
     Skills,
-    SkillDetail { #[arg(value_parser = required)] skill_id: String },
+    SkillDetail {
+        #[arg(value_parser = required)]
+        skill_id: String,
+    },
     SkillCreate,
-    SkillInstall { #[arg(value_parser = required)] skill_id: String },
-    SkillEnable { #[arg(value_parser = required)] skill_id: String, #[arg(long, action = ArgAction::Set)] enabled: bool },
-    SkillDelete { #[arg(value_parser = required)] skill_id: String },
+    SkillInstall {
+        #[arg(value_parser = required)]
+        skill_id: String,
+    },
+    SkillEnable {
+        #[arg(value_parser = required)]
+        skill_id: String,
+        #[arg(long, action = ArgAction::Set)]
+        enabled: bool,
+    },
+    SkillDelete {
+        #[arg(value_parser = required)]
+        skill_id: String,
+    },
     ExternalApps,
-    Open { #[arg(value_parser = required)] path: String, #[arg(value_parser = required)] target: String },
-    Reveal { #[arg(value_parser = required)] path: String },
-    Service { #[arg(value_enum)] command: ServiceCommand },
+    Open {
+        #[arg(value_parser = required)]
+        path: String,
+        #[arg(value_parser = required)]
+        target: String,
+    },
+    Reveal {
+        #[arg(value_parser = required)]
+        path: String,
+    },
+    Service {
+        #[arg(value_enum)]
+        command: ServiceCommand,
+    },
     ProjectPreferencesGet,
-    ProjectPreferencesPut { #[arg(long, value_parser = required)] input: String },
+    ProjectPreferencesPut {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
-pub(super) enum ServiceCommand { Status, Start, Stop, Restart }
+pub(super) enum ServiceCommand {
+    Status,
+    Start,
+    Stop,
+    Restart,
+}
 impl From<ServiceCommand> for DesktopServiceCommand {
     fn from(value: ServiceCommand) -> Self {
         match value {
@@ -53,14 +97,20 @@ impl DesktopCommands {
             Self::ToolPut { tool_type, .. } => format!("write desktop tool content '{tool_type}'"),
             Self::SkillCreate => "create desktop skill scaffold".to_string(),
             Self::SkillInstall { skill_id } => format!("install desktop skill '{skill_id}'"),
-            Self::SkillEnable { skill_id, enabled } => format!("set desktop skill '{skill_id}' enabled={enabled}"),
+            Self::SkillEnable { skill_id, enabled } => {
+                format!("set desktop skill '{skill_id}' enabled={enabled}")
+            }
             Self::SkillDelete { skill_id } => format!("delete desktop skill '{skill_id}'"),
             Self::Open { path, target } => format!("open '{path}' with '{target}'"),
             Self::Reveal { path } => format!("reveal '{path}'"),
             Self::Service { command } => format!("run desktop service command '{command:?}'"),
             Self::ProjectPreferencesPut { .. } => "write desktop project preferences".to_string(),
-            Self::PreferencesGet | Self::ToolGet { .. } | Self::Skills | Self::SkillDetail { .. }
-            | Self::ExternalApps | Self::ProjectPreferencesGet => return None,
+            Self::PreferencesGet
+            | Self::ToolGet { .. }
+            | Self::Skills
+            | Self::SkillDetail { .. }
+            | Self::ExternalApps
+            | Self::ProjectPreferencesGet => return None,
         };
         Some(format!("{action} on remote Gateway {endpoint}"))
     }
@@ -75,16 +125,33 @@ pub(super) async fn run(
     let client = context.client();
     let project_path = context.directory();
     let response = match command {
-        DesktopCommands::PreferencesGet => client.desktop_preferences_get().await.map_err(anyhow::Error::msg)?,
-        DesktopCommands::PreferencesPatch { input } => client.desktop_preferences_patch(&read_json_input(&input, stdin)?).await.map_err(anyhow::Error::msg)?,
-        DesktopCommands::ToolGet { tool_type } => json!({"content":client.desktop_tool_content_get(&tool_type).await.map_err(anyhow::Error::msg)?}),
+        DesktopCommands::PreferencesGet => {
+            client.desktop_preferences_get().await.map_err(anyhow::Error::msg)?
+        }
+        DesktopCommands::PreferencesPatch { input } => client
+            .desktop_preferences_patch(&read_json_input(&input, stdin)?)
+            .await
+            .map_err(anyhow::Error::msg)?,
+        DesktopCommands::ToolGet { tool_type } => {
+            json!({"content":client.desktop_tool_content_get(&tool_type).await.map_err(anyhow::Error::msg)?})
+        }
         DesktopCommands::ToolPut { tool_type, input } => {
             let body = parse::<ContentInput>(&input, stdin, "tool content")?;
-            client.desktop_tool_content_put(&tool_type, &body.content).await.map_err(anyhow::Error::msg)?;
+            client
+                .desktop_tool_content_put(&tool_type, &body.content)
+                .await
+                .map_err(anyhow::Error::msg)?;
             json!({"saved":true})
         }
-        DesktopCommands::Skills => json!(client.desktop_skills_get(project_path).await.map_err(anyhow::Error::msg)?),
-        DesktopCommands::SkillDetail { skill_id } => json!(client.desktop_skill_detail_get(project_path, &skill_id).await.map_err(anyhow::Error::msg)?),
+        DesktopCommands::Skills => {
+            json!(client.desktop_skills_get(project_path).await.map_err(anyhow::Error::msg)?)
+        }
+        DesktopCommands::SkillDetail { skill_id } => json!(
+            client
+                .desktop_skill_detail_get(project_path, &skill_id)
+                .await
+                .map_err(anyhow::Error::msg)?
+        ),
         DesktopCommands::SkillCreate => {
             let path = required_project_path(project_path)?;
             json!({"path":client.desktop_skill_create(path).await.map_err(anyhow::Error::msg)?})
@@ -93,8 +160,12 @@ pub(super) async fn run(
             let path = required_project_path(project_path)?;
             json!({"path":client.desktop_skill_install_builtin(path, &skill_id).await.map_err(anyhow::Error::msg)?})
         }
-        DesktopCommands::SkillEnable { skill_id, enabled } => json!({"path":client.desktop_skill_set_enabled(project_path, &skill_id, enabled).await.map_err(anyhow::Error::msg)?}),
-        DesktopCommands::SkillDelete { skill_id } => json!({"path":client.desktop_skill_delete(project_path, &skill_id).await.map_err(anyhow::Error::msg)?}),
+        DesktopCommands::SkillEnable { skill_id, enabled } => {
+            json!({"path":client.desktop_skill_set_enabled(project_path, &skill_id, enabled).await.map_err(anyhow::Error::msg)?})
+        }
+        DesktopCommands::SkillDelete { skill_id } => {
+            json!({"path":client.desktop_skill_delete(project_path, &skill_id).await.map_err(anyhow::Error::msg)?})
+        }
         DesktopCommands::ExternalApps => {
             let state = client.desktop_external_apps_get().await.map_err(anyhow::Error::msg)?;
             json!({"platform":state.platform,"apps":state.apps.into_iter().map(|(id,available)|json!({"id":id,"available":available})).collect::<Vec<_>>()})
@@ -108,7 +179,10 @@ pub(super) async fn run(
             json!({"revealed":true,"path":path})
         }
         DesktopCommands::Service { command } => {
-            let value = client.desktop_service_command_typed(command.into()).await.map_err(anyhow::Error::msg)?;
+            let value = client
+                .desktop_service_command_typed(command.into())
+                .await
+                .map_err(anyhow::Error::msg)?;
             json!({"command":value.command,"output":value.output})
         }
         DesktopCommands::ProjectPreferencesGet => {
@@ -118,7 +192,15 @@ pub(super) async fn run(
         DesktopCommands::ProjectPreferencesPut { input } => {
             let path = required_project_path(project_path)?;
             let body = parse::<ProjectPreferencesInput>(&input, stdin, "project preferences")?;
-            client.desktop_project_preferences_put(path, &body.model, body.auto_model, body.acp_agent.as_deref()).await.map_err(anyhow::Error::msg)?;
+            client
+                .desktop_project_preferences_put(
+                    path,
+                    &body.model,
+                    body.auto_model,
+                    body.acp_agent.as_deref(),
+                )
+                .await
+                .map_err(anyhow::Error::msg)?;
             json!({"saved":true})
         }
     };
@@ -126,13 +208,32 @@ pub(super) async fn run(
 }
 
 #[derive(Deserialize)]
-struct ContentInput { content: String }
+struct ContentInput {
+    content: String,
+}
 #[derive(Deserialize)]
-struct ProjectPreferencesInput { model: String, #[serde(default)] auto_model: bool, #[serde(default)] acp_agent: Option<String> }
-fn required_project_path(path: Option<&str>) -> Result<&str> { path.context("desktop command requires --directory") }
-fn parse<T: serde::de::DeserializeOwned>(source: &str, stdin: &mut impl Read, kind: &str) -> Result<T> {
-    serde_json::from_value(read_json_input(source, stdin)?).with_context(|| format!("invalid desktop {kind} JSON input"))
+struct ProjectPreferencesInput {
+    model: String,
+    #[serde(default)]
+    auto_model: bool,
+    #[serde(default)]
+    acp_agent: Option<String>,
+}
+fn required_project_path(path: Option<&str>) -> Result<&str> {
+    path.context("desktop command requires --directory")
+}
+fn parse<T: serde::de::DeserializeOwned>(
+    source: &str,
+    stdin: &mut impl Read,
+    kind: &str,
+) -> Result<T> {
+    serde_json::from_value(read_json_input(source, stdin)?)
+        .with_context(|| format!("invalid desktop {kind} JSON input"))
 }
 fn required(value: &str) -> Result<String, String> {
-    let value = value.trim(); if value.is_empty() { return Err("value must not be empty".to_string()); } Ok(value.to_string())
+    let value = value.trim();
+    if value.is_empty() {
+        return Err("value must not be empty".to_string());
+    }
+    Ok(value.to_string())
 }

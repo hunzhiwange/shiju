@@ -247,14 +247,12 @@ fn readme_panel<'a>(app: &'a App, state: &'a SkillDetailState) -> Element<'a, Me
             .size(13)
             .style(styles::muted_text_style)
             .into(),
-        LoadState::NeedsLogin => text("登录识矩账户后查看 README")
-            .size(13)
-            .style(styles::muted_text_style)
-            .into(),
-        LoadState::Idle | LoadState::Loading { .. } => text("README 正在加载…")
-            .size(13)
-            .style(styles::muted_text_style)
-            .into(),
+        LoadState::NeedsLogin => {
+            text("登录识矩账户后查看 README").size(13).style(styles::muted_text_style).into()
+        }
+        LoadState::Idle | LoadState::Loading { .. } => {
+            text("README 正在加载…").size(13).style(styles::muted_text_style).into()
+        }
     };
 
     container(
@@ -503,31 +501,13 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             loaded_view(app, state, detail, versions, None)
         }
         (LoadState::Loaded(detail), LoadState::Error(error)) => {
-            loaded_view(
-                app,
-                state,
-                detail,
-                &[],
-                Some(format!("版本列表加载失败：{error}")),
-            )
+            loaded_view(app, state, detail, &[], Some(format!("版本列表加载失败：{error}")))
         }
         (LoadState::Loaded(detail), LoadState::NeedsLogin) => {
-            loaded_view(
-                app,
-                state,
-                detail,
-                &[],
-                Some("登录识矩账户后查看版本列表".to_string()),
-            )
+            loaded_view(app, state, detail, &[], Some("登录识矩账户后查看版本列表".to_string()))
         }
         (LoadState::Loaded(detail), LoadState::Idle | LoadState::Loading { .. }) => {
-            loaded_view(
-                app,
-                state,
-                detail,
-                &[],
-                Some("版本列表正在加载…".to_string()),
-            )
+            loaded_view(app, state, detail, &[], Some("版本列表正在加载…".to_string()))
         }
         (LoadState::Error(error), _) => status_view("技能详情加载失败", error.clone()),
         _ => status_view("正在加载技能详情", "正在同步技能信息与可下载版本…".to_string()),

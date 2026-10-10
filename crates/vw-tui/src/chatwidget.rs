@@ -27,8 +27,8 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::text::Line;
 
-mod constructor;
 mod command_lifecycle;
+mod constructor;
 mod exec_state;
 mod input_queue;
 mod input_submission;
@@ -81,7 +81,6 @@ impl ChatOverlay {
             Self::Selection(overlay) => overlay.handle_key_event(event),
         }
     }
-
 }
 
 impl Renderable for ChatOverlay {
@@ -145,8 +144,7 @@ impl ChatWidget {
     /// 添加外层桥接提供的带边框会话标题。
     /// Adds the copied bordered session header supplied by the outer bridge.
     pub fn push_session_header(&mut self, data: crate::V3SessionDisplayData) {
-        self.transcript
-            .push_cell(Box::new(crate::history_cell::SessionHistoryCell::header(data)));
+        self.transcript.push_cell(Box::new(crate::history_cell::SessionHistoryCell::header(data)));
     }
 
     /// 桥接层拥有的元数据变化后替换现有会话标题。
@@ -229,11 +227,7 @@ impl ChatWidget {
 
     /// Supplies successful file matches for the still-active query.
     /// 为仍处于活动状态的查询注入成功的文件匹配结果。
-    pub fn set_file_search_matches(
-        &mut self,
-        query: &str,
-        matches: Vec<V3FileSearchMatch>,
-    ) {
+    pub fn set_file_search_matches(&mut self, query: &str, matches: Vec<V3FileSearchMatch>) {
         self.bottom_pane.set_file_search_matches(query, matches);
     }
 
@@ -327,9 +321,9 @@ impl ChatWidget {
         if let TranscriptMouseAction::Copy(text) = self.transcript.handle_mouse_event(event) {
             match crate::clipboard_copy::copy_to_clipboard(text.as_str()) {
                 Ok(lease) => self.clipboard_lease = lease,
-                Err(error) => self
-                    .transcript
-                    .push_history(V3DisplayEvent::Error { message: format!("复制失败：{error}") }),
+                Err(error) => self.transcript.push_history(V3DisplayEvent::Error {
+                    message: format!("复制失败：{error}"),
+                }),
             }
         }
         V3Action::None
@@ -381,11 +375,7 @@ impl ChatWidget {
     }
 
     /// 提交未能启动时原子恢复文本与附件。
-    pub fn restore_submission(
-        &mut self,
-        text: &str,
-        attachments: Vec<crate::V3Attachment>,
-    ) {
+    pub fn restore_submission(&mut self, text: &str, attachments: Vec<crate::V3Attachment>) {
         self.bottom_pane.restore_submission(text, attachments);
     }
 

@@ -85,11 +85,7 @@ pub(super) fn binding_field_style(theme: &Theme) -> container::Style {
     container::Style {
         background: Some(Background::Color(palette.background.base.color)),
         text_color: Some(theme.palette().text),
-        border: Border {
-            color: palette.background.strong.color,
-            width: 1.0,
-            radius: 9.0.into(),
-        },
+        border: Border { color: palette.background.strong.color, width: 1.0, radius: 9.0.into() },
         ..Default::default()
     }
 }
@@ -120,13 +116,11 @@ pub(super) fn binding_state_style(theme: &Theme, error: bool) -> container::Styl
     }
 }
 
-pub(super) fn binding_primary_action_style(
-    theme: &Theme,
-    status: button::Status,
-) -> button::Style {
+pub(super) fn binding_primary_action_style(theme: &Theme, status: button::Status) -> button::Style {
     let mut style = primary_action_btn_style(theme, status);
     if status == button::Status::Disabled {
-        style.background = Some(Background::Color(theme.extended_palette().background.strong.color));
+        style.background =
+            Some(Background::Color(theme.extended_palette().background.strong.color));
         style.text_color = theme.palette().text.scale_alpha(0.48);
     }
     style

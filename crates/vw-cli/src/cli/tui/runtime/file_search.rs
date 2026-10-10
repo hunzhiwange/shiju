@@ -46,11 +46,7 @@ pub(super) fn safe_relative_path(value: &str) -> Result<String, String> {
     if normalized.is_empty() || normalized.contains('\0') || normalized.starts_with('/') {
         return Err("file search returned an invalid relative path".to_string());
     }
-    if normalized
-        .split('/')
-        .next()
-        .is_some_and(|segment| segment.ends_with(':'))
-    {
+    if normalized.split('/').next().is_some_and(|segment| segment.ends_with(':')) {
         return Err("file search returned an absolute path".to_string());
     }
 

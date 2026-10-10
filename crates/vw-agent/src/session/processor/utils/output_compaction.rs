@@ -112,19 +112,18 @@ fn sanitize_json_value(
     if (is_todo_write_tool_id(tool) || is_todo_read_tool_id(tool)) && key == "content" {
         omit_keys = false;
     }
-    let omit_by_tool =
-        matches!(tool, "write" | "file_write" | "file_edit" | "apply_patch")
-            && matches!(
-                key,
-                "content"
-                    | "patch"
-                    | "oldString"
-                    | "newString"
-                    | "old_string"
-                    | "new_string"
-                    | "cell"
-                    | "source"
-            );
+    let omit_by_tool = matches!(tool, "write" | "file_write" | "file_edit" | "apply_patch")
+        && matches!(
+            key,
+            "content"
+                | "patch"
+                | "oldString"
+                | "newString"
+                | "old_string"
+                | "new_string"
+                | "cell"
+                | "source"
+        );
 
     match v {
         Value::String(s) => {

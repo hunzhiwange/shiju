@@ -70,14 +70,8 @@ fn todo_tool_header<'a>(
     .on_press(Message::Chat(message::ChatMessage::ToggleTool(msg_idx, tool_idx)));
     let actions = row![meta, toggle_btn, detail_slot].spacing(7).align_y(Alignment::Center);
     mouse_area(
-        container(tool_activity_header(
-            tool_name,
-            label,
-            "",
-            visual,
-            actions.into(),
-        ))
-        .width(Length::Fill),
+        container(tool_activity_header(tool_name, label, "", visual, actions.into()))
+            .width(Length::Fill),
     )
     .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
     .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))

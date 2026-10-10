@@ -163,18 +163,10 @@ pub(crate) fn build_common_tool_view<'a>(
     } else {
         Space::new().width(Length::Fixed(22.0)).into()
     };
-    let header_summary = if summary.trim().is_empty() {
-        meta
-    } else {
-        format!("{summary} · {meta}")
-    };
-    let head = tool_activity_header(
-        &view_ctx.tool_name,
-        title,
-        header_summary,
-        visual,
-        detail_slot,
-    );
+    let header_summary =
+        if summary.trim().is_empty() { meta } else { format!("{summary} · {meta}") };
+    let head =
+        tool_activity_header(&view_ctx.tool_name, title, header_summary, visual, detail_slot);
 
     let filter_row: Element<'a, Message> = if render_state.is_search {
         let filter_input = text_input("筛选文件...", &view_ctx.app.tool_files_filter)
@@ -376,10 +368,7 @@ pub(crate) fn build_common_tool_view<'a>(
             .width(Length::Fill)
             .style(simplified_block_style),
     )
-    .on_enter(Message::Chat(message::ChatMessage::ToolHover(
-        view_ctx.msg_idx,
-        view_ctx.tool_idx,
-    )))
+    .on_enter(Message::Chat(message::ChatMessage::ToolHover(view_ctx.msg_idx, view_ctx.tool_idx)))
     .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave))
     .into()
 }

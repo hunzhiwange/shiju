@@ -256,10 +256,8 @@ pub(crate) async fn stream_json_sse(
         client.get(format!("{}{}", endpoint.base_url(), path)).query(query),
         endpoint,
     );
-    let response = request
-        .send()
-        .await
-        .map_err(|error| transport_error("GET", endpoint, path, error))?;
+    let response =
+        request.send().await.map_err(|error| transport_error("GET", endpoint, path, error))?;
     if !response.status().is_success() {
         return Err(response_error("GET", endpoint, path, response).await);
     }

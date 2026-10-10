@@ -124,9 +124,7 @@ pub(crate) fn conversation_reading_column<'a>(
     padding: Padding,
 ) -> iced::widget::Container<'a, Message> {
     container(
-        container(content)
-            .width(Length::Fill)
-            .max_width(CONVERSATION_READING_COLUMN_MAX_WIDTH),
+        container(content).width(Length::Fill).max_width(CONVERSATION_READING_COLUMN_MAX_WIDTH),
     )
     .width(Length::Fill)
     .center_x(Length::Fill)
@@ -204,8 +202,8 @@ fn session_loading_panel(app: &App) -> Element<'_, Message> {
             .height(Length::Fill),
             empty_fullscreen_controls(app)
         ]
-            .width(Length::Fill)
-            .height(Length::Fill),
+        .width(Length::Fill)
+        .height(Length::Fill),
         chat_global_status_reading_column(app)
     ]
     .width(Length::Fill)
@@ -499,12 +497,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 创建可滚动容器，包含消息列
     let scroll_content = scrollable(conversation_reading_column(
         col,
-        Padding {
-            top: 16.0,
-            right: 18.0,
-            bottom: 20.0,
-            left: 18.0,
-        },
+        Padding { top: 16.0, right: 18.0, bottom: 20.0, left: 18.0 },
     ))
     .direction(chat_scroll_direction())
     .id(app.chat_scroll_id.clone())
@@ -567,8 +560,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .height(Length::Fill),
                 empty_fullscreen_controls(app)
             ]
-                .width(Length::Fill)
-                .height(Length::Fill),
+            .width(Length::Fill)
+            .height(Length::Fill),
             chat_global_status_reading_column(app)
         ]
         .width(Length::Fill)

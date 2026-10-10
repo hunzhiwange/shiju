@@ -314,10 +314,10 @@ pub mod chatwidget;
 // VibeWindow 适配：复制模块先于下游消费者激活，因此阶段性死代码许可只限定于本批次。
 // VibeWindow adaptation: copied modules are activated before their downstream
 // consumers, so staged dead-code allowances stay scoped to this batch only.
-#[allow(dead_code)]
-mod color;
 mod clipboard_copy;
 mod clipboard_image;
+#[allow(dead_code)]
+mod color;
 #[allow(dead_code)]
 mod custom_terminal;
 #[allow(dead_code)]
@@ -349,9 +349,9 @@ mod markdown_text_merge;
 #[allow(dead_code)]
 mod motion;
 #[allow(dead_code)]
-mod pager_overlay;
-#[allow(dead_code)]
 pub mod onboarding;
+#[allow(dead_code)]
+mod pager_overlay;
 #[allow(dead_code, unused_imports)]
 mod render;
 #[allow(dead_code)]
@@ -359,16 +359,18 @@ pub(crate) mod resume_picker;
 #[allow(dead_code)]
 pub mod selection_list;
 #[allow(dead_code)]
-mod streaming;
-#[allow(dead_code)]
-mod style;
-#[allow(dead_code)]
 pub mod status;
 #[allow(dead_code)]
 mod status_indicator_widget;
 #[allow(dead_code)]
+mod streaming;
+#[allow(dead_code)]
+mod style;
+#[allow(dead_code)]
 mod table_detect;
 // 终端适配层集中处理链接、调色板和启动探测，避免渲染层直接依赖环境细节。
+#[allow(dead_code)]
+mod resize_reflow_cap;
 #[allow(dead_code)]
 mod terminal_hyperlinks;
 #[allow(dead_code)]
@@ -378,15 +380,13 @@ mod terminal_probe;
 #[allow(dead_code)]
 mod text_formatting;
 #[allow(dead_code)]
+pub(crate) mod theme_picker;
+#[allow(dead_code)]
 mod thread_transcript;
 #[allow(dead_code)]
 mod transcript_reflow;
 #[allow(dead_code)]
-mod resize_reflow_cap;
-#[allow(dead_code)]
 mod tui;
-#[allow(dead_code)]
-pub(crate) mod theme_picker;
 #[allow(dead_code)]
 mod ui_consts;
 pub mod vibe;
@@ -408,12 +408,14 @@ mod upstream_snapshot_matrix;
 pub use chatwidget::{ChatWidget, ChatWidgetConfig, V3ChatStatus};
 pub use custom_terminal::Terminal as CustomTerminal;
 pub use history_cell::{ExecHistoryCell, HistoryCell, history_cell_for, render_display_event};
-pub use insert_history::{HistoryLineWrapPolicy, insert_history_lines, insert_history_lines_with_wrap_policy};
+pub use insert_history::{
+    HistoryLineWrapPolicy, insert_history_lines, insert_history_lines_with_wrap_policy,
+};
 pub use pager_overlay::TranscriptPager;
 pub use resize_reflow_cap::{ResizeReflowCap, resize_reflow_max_rows};
 pub use status::{StatusHistoryCell, V3SessionDisplayData, V3TokenUsage};
-pub use tui::{TerminalMode, run_terminal};
 pub use transcript_reflow::{TranscriptReflowState, TranscriptWidthChange};
+pub use tui::{TerminalMode, run_terminal};
 pub use vibe::action::{
     V3_NON_SECURITY_SELECTION_SURFACES, V3Action, V3ApprovalChoice, V3ApprovalDecision,
     V3ApprovalKind, V3ApprovalRequest, V3FileSearchMatch, V3FooterData, V3SelectionItem,

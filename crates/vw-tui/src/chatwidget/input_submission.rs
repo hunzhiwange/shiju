@@ -19,43 +19,22 @@ impl ChatWidget {
                 self.on_thinking_delta(&turn_id, delta);
             }
             V3Event::TextDelta { turn_id, delta } => self.on_text_delta(&turn_id, delta),
-            V3Event::ToolStarted {
-                turn_id,
-                call_id,
-                tool,
-                command,
-            } => self.on_tool_started(turn_id, call_id, tool, command),
-            V3Event::ToolOutputDelta {
-                turn_id,
-                call_id,
-                delta,
-            } => self.on_tool_output_delta(turn_id, call_id, delta),
-            V3Event::ToolCompleted {
-                turn_id,
-                call_id,
-                output,
-                exit_code,
-                duration_ms,
-            } => self.on_tool_completed(
-                turn_id,
-                call_id,
-                output,
-                exit_code,
-                duration_ms,
-            ),
+            V3Event::ToolStarted { turn_id, call_id, tool, command } => {
+                self.on_tool_started(turn_id, call_id, tool, command)
+            }
+            V3Event::ToolOutputDelta { turn_id, call_id, delta } => {
+                self.on_tool_output_delta(turn_id, call_id, delta)
+            }
+            V3Event::ToolCompleted { turn_id, call_id, output, exit_code, duration_ms } => {
+                self.on_tool_completed(turn_id, call_id, output, exit_code, duration_ms)
+            }
             V3Event::FileDiff { turn_id, diff } => self.on_file_diff(turn_id, diff),
-            V3Event::ToolFailed {
-                turn_id,
-                call_id,
-                message,
-                duration_ms,
-            } => self.on_tool_failed(turn_id, call_id, message, duration_ms),
-            V3Event::ToolCancelled {
-                turn_id,
-                call_id,
-                reason,
-                duration_ms,
-            } => self.on_tool_cancelled(turn_id, call_id, reason, duration_ms),
+            V3Event::ToolFailed { turn_id, call_id, message, duration_ms } => {
+                self.on_tool_failed(turn_id, call_id, message, duration_ms)
+            }
+            V3Event::ToolCancelled { turn_id, call_id, reason, duration_ms } => {
+                self.on_tool_cancelled(turn_id, call_id, reason, duration_ms)
+            }
             V3Event::TurnCompleted { turn_id } => self.on_turn_completed(turn_id),
             V3Event::TurnFailed { turn_id, message } => self.on_turn_failed(turn_id, message),
             V3Event::TurnCancelled { turn_id, reason } => {

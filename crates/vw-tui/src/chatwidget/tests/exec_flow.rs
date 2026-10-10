@@ -14,9 +14,7 @@ fn rendered(chat: &ChatWidget, width: u16, height: u16) -> String {
     chat.render(area, &mut buffer);
     (0..height)
         .map(|y| {
-            let mut line = (0..width)
-                .map(|x| buffer[(x, y)].symbol())
-                .collect::<String>();
+            let mut line = (0..width).map(|x| buffer[(x, y)].symbol()).collect::<String>();
             while line.ends_with(' ') {
                 line.pop();
             }
@@ -81,10 +79,7 @@ Checking vw-tui
             exit_code: 0,
             duration_ms: 12,
         },
-        V3Event::TextDelta {
-            turn_id: "turn-12".into(),
-            delta: "The check passed.".into(),
-        },
+        V3Event::TextDelta { turn_id: "turn-12".into(), delta: "The check passed.".into() },
         V3Event::TurnCompleted { turn_id: "turn-12".into() },
     ] {
         chat.handle_v3_event(event);
@@ -134,9 +129,7 @@ fn v3_file_diff_waits_for_parallel_tool_group() {
             diff: V3FileDiff {
                 files: vec![V3FileDiffEntry {
                     path: "src/a.rs".into(),
-                    change: V3FileChange::Update {
-                        unified_diff: "@@ -1 +1 @@\n-old\n+new".into(),
-                    },
+                    change: V3FileChange::Update { unified_diff: "@@ -1 +1 @@\n-old\n+new".into() },
                 }],
             },
         },

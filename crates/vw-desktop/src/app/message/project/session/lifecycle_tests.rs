@@ -360,10 +360,7 @@ fn session_messages_loaded_changed_content_replaces_history_and_invalidates_ui_c
         let mut app = app();
         app.active_session_id = Some("session-1".to_string());
         let messages = vec![
-            text_message(
-                assistant_info_at_with_parent("assistant-1", "user-1", 1_000),
-                "answer",
-            ),
+            text_message(assistant_info_at_with_parent("assistant-1", "user-1", 1_000), "answer"),
             text_message(user_info_at("user-1", 900), "question"),
         ];
         let (live_chat, _) = loaded_chat_from_gateway_messages(messages.clone());

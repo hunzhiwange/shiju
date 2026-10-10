@@ -4,7 +4,6 @@
 //! 交互分支通过明确枚举或返回值向上层传递选择结果。
 //! 空数据、越界索引与不可用选项按现有分支保持可预期的回退。
 
-
 //! 通过 VibeWindow 拥有的行为边界复制了审批表面。
 //! Copied approval surface with a VibeWindow-owned action boundary.
 //!

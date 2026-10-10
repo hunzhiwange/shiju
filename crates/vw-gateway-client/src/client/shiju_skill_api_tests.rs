@@ -92,7 +92,7 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
     assert_eq!(
         readme,
         ShijuSkillReadmeDto {
-            markdown: Some("# 使用说明\n支持 UTF-8 正文。".to_string()),
+            markdown: Some("# 使用说明\n支持 UTF-8 正文。".to_string())
         }
     );
 
@@ -238,8 +238,8 @@ fn shiju_skill_readme_contract_accepts_current_and_legacy_gateway_shapes() {
     .expect("legacy plain-text README contract");
     assert_eq!(legacy_plain_text.markdown.as_deref(), Some("# 旧版纯文本 README"));
 
-    let empty: ShijuSkillReadmeDto = serde_json::from_value(json!({"markdown": null}))
-        .expect("empty README contract");
+    let empty: ShijuSkillReadmeDto =
+        serde_json::from_value(json!({"markdown": null})).expect("empty README contract");
     assert_eq!(empty.markdown, None);
 }
 

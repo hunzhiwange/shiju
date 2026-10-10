@@ -8,8 +8,8 @@ use anyhow::{Context, Result};
 
 use crate::app::agent::config::Config;
 
-use super::builtin::{CommandAuditStore, CommandLoggerHook};
 use super::HookRunner;
+use super::builtin::{CommandAuditStore, CommandLoggerHook};
 
 /// 已完整构建、可原子替换当前 runner 的候选对象。
 pub struct HookRuntimeCandidate {
@@ -60,7 +60,10 @@ pub fn build_hook_runtime(config: &Config) -> Result<HookRuntime> {
     HookRuntime::build(config)
 }
 
-fn build_candidate(config: &Config, audit_store: CommandAuditStore) -> Result<HookRuntimeCandidate> {
+fn build_candidate(
+    config: &Config,
+    audit_store: CommandAuditStore,
+) -> Result<HookRuntimeCandidate> {
     if !config.hooks.enabled {
         return Ok(HookRuntimeCandidate { runner: None });
     }

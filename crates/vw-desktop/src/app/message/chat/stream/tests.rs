@@ -36,10 +36,7 @@ fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::i
     }
 }
 
-fn agent_request(
-    id: u64,
-    session_id: &str,
-) -> std::sync::Arc<crate::app::state::AgentRequest> {
+fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<crate::app::state::AgentRequest> {
     std::sync::Arc::new(crate::app::state::AgentRequest {
         id,
         session: session_id.to_string(),
@@ -362,14 +359,9 @@ fn externally_created_session_does_not_replace_active_session() {
     app.chat_message_ids = vec![Some("main-message".to_string())];
     app.get_session_runtime_mut("main-session").is_requesting = true;
 
-    let _ = super::update(
-        &mut app,
-        super::ChatMessage::VisibleTaskSessionLoaded(Ok(visible.clone())),
-    );
-    let _ = super::update(
-        &mut app,
-        super::ChatMessage::VisibleTaskSessionLoaded(Ok(visible)),
-    );
+    let _ =
+        super::update(&mut app, super::ChatMessage::VisibleTaskSessionLoaded(Ok(visible.clone())));
+    let _ = super::update(&mut app, super::ChatMessage::VisibleTaskSessionLoaded(Ok(visible)));
 
     assert_eq!(app.active_session_id.as_deref(), Some("main-session"));
     assert_eq!(app.chat[0].content, "keep this chat");
@@ -377,10 +369,7 @@ fn externally_created_session_does_not_replace_active_session() {
     assert!(app.get_session_runtime("main-session").is_requesting);
     assert_eq!(app.sessions.iter().filter(|info| info.id == "visible-task").count(), 1);
     assert_eq!(
-        app.project_sessions["/project"]
-            .iter()
-            .filter(|info| info.id == "visible-task")
-            .count(),
+        app.project_sessions["/project"].iter().filter(|info| info.id == "visible-task").count(),
         1
     );
 }
@@ -541,10 +530,7 @@ fn stream_session_save_retains_latest_snapshot_after_failure() {
     let first_attempts = Arc::clone(&attempts);
     let first = std::thread::spawn(move || {
         first_coordinator.save(snapshot("first"), None, move |session, _| {
-            first_attempts
-                .lock()
-                .expect("attempts lock")
-                .push(session.messages[0].content.clone());
+            first_attempts.lock().expect("attempts lock").push(session.messages[0].content.clone());
             first_save_started_tx.send(()).expect("signal first save start");
             release_first_save_rx
                 .recv_timeout(Duration::from_secs(10))
@@ -567,10 +553,7 @@ fn stream_session_save_retains_latest_snapshot_after_failure() {
 
     let retry_attempts = Arc::clone(&attempts);
     let retried = coordinator.save(snapshot("newest"), None, move |session, _| {
-        retry_attempts
-            .lock()
-            .expect("attempts lock")
-            .push(session.messages[0].content.clone());
+        retry_attempts.lock().expect("attempts lock").push(session.messages[0].content.clone());
         Ok(Some(std::path::PathBuf::from(&session.id)))
     });
 
@@ -593,14 +576,10 @@ fn stream_session_save_ack_requires_atomic_commit() {
         updated_ms: 2,
     };
 
-    let failed = coordinator.save(snapshot.clone(), None, |_, _| {
-        Err("database is locked".to_string())
-    });
+    let failed =
+        coordinator.save(snapshot.clone(), None, |_, _| Err("database is locked".to_string()));
     assert!(matches!(&failed, super::StreamSessionSaveResult::Deferred(_)));
-    assert!(matches!(
-        super::stream_session_save_message(Some(failed)),
-        crate::app::Message::None
-    ));
+    assert!(matches!(super::stream_session_save_message(Some(failed)), crate::app::Message::None));
 
     let committed = coordinator.save(snapshot, None, |_, _| Ok(None));
     assert_eq!(committed, super::StreamSessionSaveResult::Committed);
@@ -646,10 +625,7 @@ fn stream_session_save_stops_retries_after_payload_too_large() {
     });
 
     assert_eq!(blocked, super::StreamSessionSaveResult::Blocked);
-    assert!(matches!(
-        super::stream_session_save_message(Some(blocked)),
-        crate::app::Message::None
-    ));
+    assert!(matches!(super::stream_session_save_message(Some(blocked)), crate::app::Message::None));
     assert_eq!(*saved_count.lock().expect("save count lock"), 1);
 }
 

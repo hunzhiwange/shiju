@@ -245,11 +245,8 @@ pub(crate) fn reduce_tui_state(state: &mut TuiState, action: TuiAction) {
             set_search_query(state, query);
         }
         TuiAction::QuestionsReplaced(questions) => {
-            let workflow_question = state
-                .tasks
-                .workflow_pause_request_id
-                .as_deref()
-                .and_then(|request_id| {
+            let workflow_question =
+                state.tasks.workflow_pause_request_id.as_deref().and_then(|request_id| {
                     state
                         .tasks
                         .pending_questions
@@ -264,10 +261,7 @@ pub(crate) fn reduce_tui_state(state: &mut TuiState, action: TuiAction) {
         }
         TuiAction::WorkflowPauseQuestionReplaced(question) => {
             if let Some(request_id) = state.tasks.workflow_pause_request_id.take() {
-                state
-                    .tasks
-                    .pending_questions
-                    .retain(|current| current.request_id != request_id);
+                state.tasks.pending_questions.retain(|current| current.request_id != request_id);
             }
             if let Some(question) = question {
                 state.tasks.workflow_pause_request_id = Some(question.request_id.clone());

@@ -230,11 +230,7 @@ where
             tracing::warn!("failed to read initial cursor position; defaulting to origin: {err}");
             Position { x: 0, y: 0 }
         });
-        Ok(Self::with_screen_size_and_cursor_position(
-            backend,
-            screen_size,
-            cursor_pos,
-        ))
+        Ok(Self::with_screen_size_and_cursor_position(backend, screen_size, cursor_pos))
     }
 
     /// 使用调用方提供的初始光标位置创建终端；仅当外部已完成有界探测并选择同一回退时使用，
@@ -247,11 +243,7 @@ where
     /// fallback they want the first render to honor.
     pub fn with_options_and_cursor_position(backend: B, cursor_pos: Position) -> io::Result<Self> {
         let screen_size = backend.size()?;
-        Ok(Self::with_screen_size_and_cursor_position(
-            backend,
-            screen_size,
-            cursor_pos,
-        ))
+        Ok(Self::with_screen_size_and_cursor_position(backend, screen_size, cursor_pos))
     }
 
     fn with_screen_size_and_cursor_position(
@@ -342,9 +334,8 @@ where
     /// current backend for drawing.
     pub fn flush(&mut self) -> io::Result<()> {
         let updates = diff_buffers(self.previous_buffer(), self.current_buffer());
-        let last_put_command = updates
-            .iter()
-            .rfind(|command| matches!(command, DrawCommand::Put { .. }));
+        let last_put_command =
+            updates.iter().rfind(|command| matches!(command, DrawCommand::Put { .. }));
         if let Some(&DrawCommand::Put { x, y, .. }) = last_put_command {
             self.last_known_cursor_pos = Position { x, y };
         }
@@ -631,10 +622,8 @@ where
     }
 
     pub(crate) fn note_history_rows_inserted(&mut self, inserted_rows: u16) {
-        self.visible_history_rows = self
-            .visible_history_rows
-            .saturating_add(inserted_rows)
-            .min(self.viewport_area.top());
+        self.visible_history_rows =
+            self.visible_history_rows.saturating_add(inserted_rows).min(self.viewport_area.top());
     }
 
     /// 清空非活动缓冲区并与当前缓冲区交换。
@@ -772,11 +761,7 @@ fn diff_buffers(a: &Buffer, b: &Buffer) -> Vec<DrawCommand> {
     for (x, y, cell) in cell_updates {
         let row = usize::from(y - a.area.y);
         if x <= last_nonblank_columns[row] {
-            updates.push(DrawCommand::Put {
-                x,
-                y,
-                cell: cell.clone(),
-            });
+            updates.push(DrawCommand::Put { x, y, cell: cell.clone() });
         }
     }
     updates
@@ -814,20 +799,14 @@ where
         match &command {
             DrawCommand::Put { cell, .. } => {
                 if cell.modifier != modifier {
-                    let diff = ModifierDiff {
-                        from: modifier,
-                        to: cell.modifier,
-                    };
+                    let diff = ModifierDiff { from: modifier, to: cell.modifier };
                     diff.queue(writer)?;
                     modifier = cell.modifier;
                 }
                 if cell.fg != fg || cell.bg != bg {
                     queue!(
                         writer,
-                        SetColors(Colors::new(
-                            crossterm_color(cell.fg),
-                            crossterm_color(cell.bg)
-                        ))
+                        SetColors(Colors::new(crossterm_color(cell.fg), crossterm_color(cell.bg)))
                     )?;
                     fg = cell.fg;
                     bg = cell.bg;
@@ -1023,16 +1002,12 @@ mod tests {
         }
 
         fn size(&self) -> io::Result<Size> {
-            self.size_call_count
-                .set(self.size_call_count.get().saturating_add(/*rhs*/ 1));
+            self.size_call_count.set(self.size_call_count.get().saturating_add(/*rhs*/ 1));
             Ok(self.size)
         }
 
         fn window_size(&mut self) -> io::Result<WindowSize> {
-            Ok(WindowSize {
-                columns_rows: self.size,
-                pixels: self.size,
-            })
+            Ok(WindowSize { columns_rows: self.size, pixels: self.size })
         }
 
         fn flush(&mut self) -> io::Result<()> {
@@ -1052,19 +1027,9 @@ mod tests {
         // 历史插入直接写终端，会留下差异缓冲中不存在的单元；内部默认样式空格仍必须覆盖这些旧内容。
         // History insertion writes directly to the terminal, leaving cells that are absent from
         // the diff buffers. Interior default-style spaces must still overwrite those stale cells.
-        write!(
-            terminal.backend_mut(),
-            "probe-08tcleantwords stale\r\nprobe-09xcleanxwords stale"
-        )
-        .expect("prefill terminal");
-        assert!(
-            terminal
-                .backend()
-                .vt100()
-                .screen()
-                .contents()
-                .contains("probe-08tcleantwords")
-        );
+        write!(terminal.backend_mut(), "probe-08tcleantwords stale\r\nprobe-09xcleanxwords stale")
+            .expect("prefill terminal");
+        assert!(terminal.backend().vt100().screen().contents().contains("probe-08tcleantwords"));
 
         terminal.invalidate_viewport();
         terminal
@@ -1136,10 +1101,7 @@ mod tests {
         }
 
         assert_eq!(terminal.backend().size_call_count.get(), 1);
-        assert_eq!(
-            terminal.last_known_screen_size,
-            Size::new(/*width*/ 8, /*height*/ 4)
-        );
+        assert_eq!(terminal.last_known_screen_size, Size::new(/*width*/ 8, /*height*/ 4));
         assert_snapshot!(snapshots.join("\n\n"), @r"
         alpha beta
 
@@ -1150,9 +1112,7 @@ mod tests {
 
     #[test]
     fn diff_buffers_only_updates_changed_cells_when_row_tails_are_unchanged() {
-        let area = Rect::new(
-            /*x*/ 0, /*y*/ 0, /*width*/ 10, /*height*/ 2,
-        );
+        let area = Rect::new(/*x*/ 0, /*y*/ 0, /*width*/ 10, /*height*/ 2);
         let mut previous = Buffer::empty(area);
         previous.set_string(0, 0, "-", Style::default());
         previous.set_string(0, 1, "中", Style::default());
@@ -1176,9 +1136,7 @@ mod tests {
         let previous = Buffer::empty(area);
         let mut next = Buffer::empty(area);
 
-        next.cell_mut((2, 0))
-            .expect("cell should exist")
-            .set_symbol("X");
+        next.cell_mut((2, 0)).expect("cell should exist").set_symbol("X");
 
         let commands = diff_buffers(&previous, &next);
 
@@ -1191,9 +1149,7 @@ mod tests {
             "expected diff_buffers not to emit ClearToEnd; commands: {commands:?}",
         );
         assert!(
-            commands
-                .iter()
-                .any(|command| matches!(command, DrawCommand::Put { x: 2, y: 0, .. })),
+            commands.iter().any(|command| matches!(command, DrawCommand::Put { x: 2, y: 0, .. })),
             "expected diff_buffers to update the final cell; commands: {commands:?}",
         );
     }
@@ -1294,9 +1250,7 @@ mod tests {
             0,
             0,
             "漢 tail",
-            Style::default()
-                .bg(Color::Blue)
-                .add_modifier(Modifier::UNDERLINED),
+            Style::default().bg(Color::Blue).add_modifier(Modifier::UNDERLINED),
         );
         next.set_string(0, 0, "a tail", Style::default());
         next[(0, 0)]
@@ -1306,9 +1260,7 @@ mod tests {
         let commands = diff_buffers(&previous, &next);
 
         assert!(
-            commands
-                .iter()
-                .any(|command| matches!(command, DrawCommand::Put { x: 1, y: 0, .. })),
+            commands.iter().any(|command| matches!(command, DrawCommand::Put { x: 1, y: 0, .. })),
             "expected the styled trailing cell to be cleared; commands: {commands:?}"
         );
     }

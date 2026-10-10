@@ -181,10 +181,8 @@ pub(crate) fn filter_mcp_from_available_tools(tools: Vec<String>) -> Vec<String>
 
 /// 规范化网关实际注册的完整工具目录，保留仍有效的动态 MCP 工具。
 pub(crate) fn normalize_available_tool_catalog(tools: Vec<String>) -> Vec<String> {
-    let mut tools = tools
-        .into_iter()
-        .filter(|tool_id| !tool_id.trim().is_empty())
-        .collect::<Vec<_>>();
+    let mut tools =
+        tools.into_iter().filter(|tool_id| !tool_id.trim().is_empty()).collect::<Vec<_>>();
     if !tools.iter().any(|tool_id| tool_id == "rustcodegraph") {
         tools.push("rustcodegraph".to_string());
     }
@@ -229,10 +227,8 @@ pub(crate) fn retain_available_allowed_tools(
     entries: &mut [DelegateAgentSettingsEntry],
     available_tools: &[String],
 ) -> bool {
-    let available = available_tools
-        .iter()
-        .map(String::as_str)
-        .collect::<std::collections::BTreeSet<_>>();
+    let available =
+        available_tools.iter().map(String::as_str).collect::<std::collections::BTreeSet<_>>();
     let mut changed = false;
 
     for entry in entries {

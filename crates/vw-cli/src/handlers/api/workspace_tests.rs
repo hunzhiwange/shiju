@@ -275,7 +275,11 @@ async fn run_command<S: AsRef<str>>(
     command: &[S],
     input: &[u8],
 ) -> Result<Vec<u8>, String> {
-    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") { (Some("--yes"), &command[1..]) } else { (None, command) };
+    let (yes, command) = if command.first().is_some_and(|part| part.as_ref() == "--yes") {
+        (Some("--yes"), &command[1..])
+    } else {
+        (None, command)
+    };
     let (family, command) = command.split_first().ok_or("API command family is required")?;
     let args = std::iter::once("shiju")
         .chain(std::iter::once(family.as_ref()))

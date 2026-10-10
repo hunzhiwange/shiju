@@ -79,9 +79,7 @@ pub(crate) struct ClipboardLease {
 impl ClipboardLease {
     #[cfg(target_os = "linux")]
     fn native_linux(clipboard: arboard::Clipboard) -> Self {
-        Self {
-            _clipboard: Some(clipboard),
-        }
+        Self { _clipboard: Some(clipboard) }
     }
 
     #[cfg(test)]
@@ -250,9 +248,7 @@ fn arboard_copy(text: &str) -> Result<Option<ClipboardLease>, String> {
     let _guard = SuppressStderr::new();
     let mut clipboard =
         arboard::Clipboard::new().map_err(|e| format!("clipboard unavailable: {e}"))?;
-    clipboard
-        .set_text(text)
-        .map_err(|e| format!("failed to set clipboard text: {e}"))?;
+    clipboard.set_text(text).map_err(|e| format!("failed to set clipboard text: {e}"))?;
     Ok(None)
 }
 
@@ -268,9 +264,7 @@ fn arboard_copy(text: &str) -> Result<Option<ClipboardLease>, String> {
     let _guard = SuppressStderr::new();
     let mut clipboard =
         arboard::Clipboard::new().map_err(|e| format!("clipboard unavailable: {e}"))?;
-    clipboard
-        .set_text(text)
-        .map_err(|e| format!("failed to set clipboard text: {e}"))?;
+    clipboard.set_text(text).map_err(|e| format!("failed to set clipboard text: {e}"))?;
     Ok(Some(ClipboardLease::native_linux(clipboard)))
 }
 
@@ -309,9 +303,8 @@ fn wsl_clipboard_copy(text: &str) -> Result<(), String> {
 
     drop(stdin);
 
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("failed to wait for powershell.exe: {e}"))?;
+    let output =
+        child.wait_with_output().map_err(|e| format!("failed to wait for powershell.exe: {e}"))?;
 
     if output.status.success() {
         Ok(())
@@ -366,9 +359,7 @@ fn tmux_clipboard_copy(text: &str) -> Result<(), String> {
 
     drop(stdin);
 
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("failed to wait for tmux: {e}"))?;
+    let output = child.wait_with_output().map_err(|e| format!("failed to wait for tmux: {e}"))?;
 
     if output.status.success() {
         Ok(())
@@ -452,9 +443,7 @@ impl SuppressStderr {
                 return Self { saved_fd: None };
             }
             libc::close(devnull);
-            Self {
-                saved_fd: Some(saved),
-            }
+            Self { saved_fd: Some(saved) }
         }
     }
 }
@@ -504,12 +493,8 @@ fn osc52_copy(text: &str) -> Result<(), String> {
 }
 
 fn write_osc52_to_writer(mut writer: impl Write, sequence: &str) -> Result<(), String> {
-    writer
-        .write_all(sequence.as_bytes())
-        .map_err(|e| format!("failed to write OSC 52: {e}"))?;
-    writer
-        .flush()
-        .map_err(|e| format!("failed to flush OSC 52: {e}"))
+    writer.write_all(sequence.as_bytes()).map_err(|e| format!("failed to write OSC 52: {e}"))?;
+    writer.flush().map_err(|e| format!("failed to flush OSC 52: {e}"))
 }
 
 fn osc52_sequence(text: &str, tmux: bool) -> Result<String, String> {
@@ -541,40 +526,23 @@ mod tests {
     use super::write_osc52_to_writer;
 
     fn remote_environment() -> CopyEnvironment {
-        CopyEnvironment {
-            ssh_session: true,
-            wsl_session: true,
-            tmux_session: false,
-        }
+        CopyEnvironment { ssh_session: true, wsl_session: true, tmux_session: false }
     }
 
     fn remote_tmux_environment() -> CopyEnvironment {
-        CopyEnvironment {
-            tmux_session: true,
-            ..remote_environment()
-        }
+        CopyEnvironment { tmux_session: true, ..remote_environment() }
     }
 
     fn local_environment() -> CopyEnvironment {
-        CopyEnvironment {
-            ssh_session: false,
-            wsl_session: false,
-            tmux_session: false,
-        }
+        CopyEnvironment { ssh_session: false, wsl_session: false, tmux_session: false }
     }
 
     fn local_wsl_environment() -> CopyEnvironment {
-        CopyEnvironment {
-            wsl_session: true,
-            ..local_environment()
-        }
+        CopyEnvironment { wsl_session: true, ..local_environment() }
     }
 
     fn local_tmux_environment() -> CopyEnvironment {
-        CopyEnvironment {
-            tmux_session: true,
-            ..local_environment()
-        }
+        CopyEnvironment { tmux_session: true, ..local_environment() }
     }
 
     #[test]
@@ -582,12 +550,8 @@ mod tests {
         use base64::Engine;
         let text = "# Hello\n\n```rust\nfn main() {}\n```\n";
         let sequence = osc52_sequence(text, /*tmux*/ false).expect("OSC 52 sequence");
-        let encoded = sequence
-            .trim_start_matches("\u{1b}]52;c;")
-            .trim_end_matches('\u{7}');
-        let decoded = base64::engine::general_purpose::STANDARD
-            .decode(encoded)
-            .unwrap();
+        let encoded = sequence.trim_start_matches("\u{1b}]52;c;").trim_end_matches('\u{7}');
+        let decoded = base64::engine::general_purpose::STANDARD.decode(encoded).unwrap();
         assert_eq!(decoded, text.as_bytes());
     }
 
@@ -795,10 +759,7 @@ mod tests {
             || panic!("tmux info should not be queried when forwarding is disabled"),
         );
 
-        assert_eq!(
-            result,
-            Err("tmux clipboard forwarding is disabled".to_string())
-        );
+        assert_eq!(result, Err("tmux clipboard forwarding is disabled".to_string()));
     }
 
     #[test]
@@ -990,10 +951,7 @@ mod tests {
         let Err(error) = result else {
             panic!("expected native and OSC 52 errors");
         };
-        assert_eq!(
-            error,
-            "native clipboard: native unavailable; OSC 52 fallback: osc blocked"
-        );
+        assert_eq!(error, "native clipboard: native unavailable; OSC 52 fallback: osc blocked");
         assert_eq!(osc_calls.get(), 1);
         assert_eq!(native_calls.get(), 1);
         assert_eq!(wsl_calls.get(), 0);

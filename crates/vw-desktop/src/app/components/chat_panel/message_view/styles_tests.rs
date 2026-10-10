@@ -5,10 +5,10 @@ use super::styles::{
     ASSISTANT_BLOCK_SPACING, ASSISTANT_HEADER_BODY_SPACING, COMPACT_ACTION_BUTTON_RADIUS,
     MARKDOWN_BLOCK_SPACING, MESSAGE_META_TEXT_SIZE, MESSAGE_TEXT_SIZE,
     PROCESSING_DURATION_TEXT_SIZE, THINK_BLOCK_CONTENT_SPACING, THINK_META_TEXT_SIZE,
-    THINK_STATUS_TEXT_SIZE, is_dark_theme, message_body_text_color,
-    message_action_button_style, message_action_icon_color, message_meta_text_color,
-    message_text_line_height, processing_duration_text_color, subtle_card_shadow,
-    think_block_text_color, thinking_status_text,
+    THINK_STATUS_TEXT_SIZE, is_dark_theme, message_action_button_style, message_action_icon_color,
+    message_body_text_color, message_meta_text_color, message_text_line_height,
+    processing_duration_text_color, subtle_card_shadow, think_block_text_color,
+    thinking_status_text,
 };
 use iced::widget::{button, svg};
 use iced::{Color, Theme, theme::Palette};

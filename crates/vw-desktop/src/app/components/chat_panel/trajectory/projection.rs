@@ -591,10 +591,7 @@ pub(crate) fn project_trajectory<K: ProjectionRawKey>(
 ) -> TrajectoryProjection {
     let mut steps_by_key = BTreeMap::new();
     for step in steps {
-        let turn_id = step
-            .turn_id
-            .clone()
-            .unwrap_or_else(|| format!("legacy-step-{}", step.index));
+        let turn_id = step.turn_id.clone().unwrap_or_else(|| format!("legacy-step-{}", step.index));
         steps_by_key.insert((turn_id, step.index), step);
     }
     let raw_by_key = step_llm_raw
@@ -604,11 +601,9 @@ pub(crate) fn project_trajectory<K: ProjectionRawKey>(
     let keys = steps_by_key.keys().chain(raw_by_key.keys()).cloned().collect::<BTreeSet<_>>();
     let mut ordered_keys = keys.into_iter().collect::<Vec<_>>();
     ordered_keys.sort_by_key(|key| {
-        steps_by_key
-            .get(key)
-            .map_or((u64::MAX, key.1, key.0.clone()), |step| {
-                (step.started_ms, step.index, key.0.clone())
-            })
+        steps_by_key.get(key).map_or((u64::MAX, key.1, key.0.clone()), |step| {
+            (step.started_ms, step.index, key.0.clone())
+        })
     });
     let duplicate_step_indices = ordered_keys
         .iter()

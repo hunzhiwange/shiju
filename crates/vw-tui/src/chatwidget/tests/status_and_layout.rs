@@ -16,11 +16,7 @@ fn rendered(chat: &ChatWidget) -> String {
         .content
         .chunks(usize::from(area.width))
         .map(|row| {
-            row.iter()
-                .map(ratatui::buffer::Cell::symbol)
-                .collect::<String>()
-                .trim_end()
-                .to_string()
+            row.iter().map(ratatui::buffer::Cell::symbol).collect::<String>().trim_end().to_string()
         })
         .collect::<Vec<_>>()
         .join("\n")
@@ -82,10 +78,7 @@ fn status_and_layout_tool_error_and_cancel_keep_terminal_cells() {
             reason: "interrupted".into(),
             duration_ms: 7,
         },
-        V3Event::TurnFailed {
-            turn_id: "turn-tools".into(),
-            message: "turn failed".into(),
-        },
+        V3Event::TurnFailed { turn_id: "turn-tools".into(), message: "turn failed".into() },
     ] {
         chat.handle_v3_event(event);
     }

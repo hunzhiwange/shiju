@@ -25,7 +25,8 @@ fn tool_in_preset_rejects_unknown_preset() {
 
 #[test]
 fn tool_in_preset_accepts_declared_members_and_inheritance() {
-    let minimal = ["ls", "read", "file_read", "pdf_read", "grep", "glob", "memory_recall", "question"];
+    let minimal =
+        ["ls", "read", "file_read", "pdf_read", "grep", "glob", "memory_recall", "question"];
     let coding_only = ["write", "file_write", "apply_patch", "bash", "shell", "git_operations"];
     let research_only = [
         "browser",

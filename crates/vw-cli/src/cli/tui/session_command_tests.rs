@@ -23,9 +23,7 @@ fn session_mutations_use_confirmed_gateway_contracts() {
     );
     assert_eq!(
         route_slash_submission("/summarize current-assistant").expect("route compact alias"),
-        Some(CommandRoute::CompactSession {
-            message_id: Some("current-assistant".to_string())
-        })
+        Some(CommandRoute::CompactSession { message_id: Some("current-assistant".to_string()) })
     );
 
     let cases = [
@@ -56,7 +54,10 @@ fn session_mutations_use_confirmed_gateway_contracts() {
         );
 
         assert_eq!(app.state(), &before, "cancel must restore the pre-command state for {command}");
-        assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty | TryRecvError::Disconnected)));
+        assert!(matches!(
+            requests.try_recv(),
+            Err(TryRecvError::Empty | TryRecvError::Disconnected)
+        ));
         server.join().expect("cancel fixture");
     }
 
@@ -69,7 +70,10 @@ fn session_mutations_use_confirmed_gateway_contracts() {
         runner.execute_action(&mut app, submit(command));
 
         assert_eq!(app.state(), &before, "invalid message id must not mutate state for {command}");
-        assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty | TryRecvError::Disconnected)));
+        assert!(matches!(
+            requests.try_recv(),
+            Err(TryRecvError::Empty | TryRecvError::Disconnected)
+        ));
         server.join().expect("invalid message id fixture");
     }
 }
@@ -250,12 +254,10 @@ impl SuccessCase {
 
     fn confirm_intent(self) -> UiConfirmIntent {
         match self {
-            Self::Reset => UiConfirmIntent::ResetSession {
-                message_id: "current-user".to_string(),
-            },
-            Self::Compact => UiConfirmIntent::CompactSession {
-                message_id: "current-assistant".to_string(),
-            },
+            Self::Reset => UiConfirmIntent::ResetSession { message_id: "current-user".to_string() },
+            Self::Compact => {
+                UiConfirmIntent::CompactSession { message_id: "current-assistant".to_string() }
+            }
             Self::Archive => UiConfirmIntent::ArchiveSession,
             Self::Rename | Self::Fork => panic!("non-destructive operation has no confirmation"),
         }
@@ -332,10 +334,7 @@ fn snapshot(id: &str, title: &str, assistant: &str) -> ChatSession {
                 processing_timing: None,
             },
         ],
-        message_ids: vec![
-            Some(format!("{id}-user")),
-            Some(format!("{id}-assistant")),
-        ],
+        message_ids: vec![Some(format!("{id}-user")), Some(format!("{id}-assistant"))],
         calls: Vec::new(),
         steps: Vec::new(),
         created_ms: 1,

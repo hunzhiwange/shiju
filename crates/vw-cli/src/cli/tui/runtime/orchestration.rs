@@ -183,7 +183,9 @@ pub(crate) fn load_owned_workflow_detail_blocking(
     }
     let record = block_on_gateway(async { runtime.client().workflow_application_get(uuid).await })?;
     if record.uuid != uuid {
-        return Err("Gateway Workflow detail UUID does not match the selected snapshot item".to_string());
+        return Err(
+            "Gateway Workflow detail UUID does not match the selected snapshot item".to_string()
+        );
     }
     let (node_count, edge_count) = workflow_structure_counts(record.workflow_yaml.as_str());
     Ok(WorkflowDetailSummary {
@@ -203,12 +205,9 @@ pub(crate) fn control_owned_task_blocking(
     action: TaskControlAction,
 ) -> Result<(), String> {
     let task_id = task_id.trim();
-    let task = snapshot
-        .tasks
-        .tasks
-        .iter()
-        .find(|task| task.id == task_id)
-        .ok_or_else(|| "task control requires an ID owned by the current project snapshot".to_string())?;
+    let task = snapshot.tasks.tasks.iter().find(|task| task.id == task_id).ok_or_else(|| {
+        "task control requires an ID owned by the current project snapshot".to_string()
+    })?;
     let scope = snapshot
         .scope
         .as_ref()
@@ -217,10 +216,7 @@ pub(crate) fn control_owned_task_blocking(
         return Err("task control snapshot does not match the resolved project scope".to_string());
     }
     if !task.canonical_status.allows(action) {
-        return Err(format!(
-            "task canonical state does not allow {}",
-            action.command_name()
-        ));
+        return Err(format!("task canonical state does not allow {}", action.command_name()));
     }
     let request = AgentSchedulerCommandRequest {
         task_id: task_id.into(),
@@ -253,14 +249,9 @@ pub(crate) fn load_owned_task_detail_blocking(
     task_id: &str,
 ) -> Result<TaskDetailView, String> {
     let task_id = task_id.trim();
-    let task = snapshot
-        .tasks
-        .tasks
-        .iter()
-        .find(|task| task.id == task_id)
-        .ok_or_else(|| {
-            "task detail requires an ID from the current project snapshot".to_string()
-        })?;
+    let task = snapshot.tasks.tasks.iter().find(|task| task.id == task_id).ok_or_else(|| {
+        "task detail requires an ID from the current project snapshot".to_string()
+    })?;
     let scope = snapshot
         .scope
         .as_ref()
@@ -342,10 +333,7 @@ fn summarize_task_logs(
             TaskLogSummary {
                 seq_no: log.seq_no,
                 timestamp_ms: log.timestamp_ms.0,
-                transition: bounded_task_text(
-                    &format!("{from} → {to}"),
-                    MAX_TASK_LABEL_CHARS,
-                ),
+                transition: bounded_task_text(&format!("{from} → {to}"), MAX_TASK_LABEL_CHARS),
                 message: bounded_task_text(&log.message, MAX_TASK_DETAIL_CHARS),
             }
         })
@@ -390,10 +378,7 @@ fn bounded_task_text(value: &str, max_chars: usize) -> String {
     if max_chars <= 3 {
         return sanitized.chars().take(max_chars).collect();
     }
-    format!(
-        "{}...",
-        sanitized.chars().take(max_chars.saturating_sub(3)).collect::<String>()
-    )
+    format!("{}...", sanitized.chars().take(max_chars.saturating_sub(3)).collect::<String>())
 }
 
 fn redact_bearer_value(value: &str) -> String {

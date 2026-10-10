@@ -59,10 +59,7 @@ impl StatusHistoryCell {
             ]),
             Line::default(),
             formatter.line("Model", vec![self.data.model.clone().into()]),
-            formatter.line(
-                "Directory",
-                vec![self.data.cwd.display().to_string().into()],
-            ),
+            formatter.line("Directory", vec![self.data.cwd.display().to_string().into()]),
             formatter.line("Gateway", vec![self.data.gateway_endpoint.clone().into()]),
             formatter.line("Permissions", vec![self.data.permissions.clone().into()]),
             formatter.line("Session", vec![session.to_string().into()]),
@@ -113,12 +110,7 @@ mod tests {
             permissions: "Plan · workspace write".to_string(),
             session_id: Some("session-14".to_string()),
             session_title: Some("Port welcome surfaces".to_string()),
-            token_usage: V3TokenUsage {
-                input: 1_024,
-                output: 512,
-                cached: 128,
-                reasoning: 64,
-            },
+            token_usage: V3TokenUsage { input: 1_024, output: 512, cached: 128, reasoning: 64 },
             resumed: true,
         }
     }

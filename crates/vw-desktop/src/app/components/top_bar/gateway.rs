@@ -444,11 +444,7 @@ fn plugin_tab_content(app: &App) -> Vec<Element<'_, Message>> {
         "刷新插件状态",
         Some(Message::Settings(SettingsMessage::PluginsRefresh)),
     ));
-    rows.push(menu_item_btn(
-        "管理插件",
-        None,
-        Some(manage_plugins_message()),
-    ));
+    rows.push(menu_item_btn("管理插件", None, Some(manage_plugins_message())));
     rows
 }
 

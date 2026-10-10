@@ -18,13 +18,15 @@ use serde_json::Value;
 use crate::app::assets::Icon;
 use crate::app::{App, Message, message};
 
-use super::tool_meta::{tool_activity_header, tool_header_label, tool_inline_summary, tool_visual_state};
+use super::tool_meta::{
+    tool_activity_header, tool_header_label, tool_inline_summary, tool_visual_state,
+};
 use super::tool_parse::{
     tool_error_text, tool_input, tool_output_text, tool_status, tool_summary_text,
 };
 use super::{
-    canonical_tool_name, tool_permission_error_text, tool_permission_state, tool_permission_summary,
-    tool_permission_title,
+    canonical_tool_name, tool_permission_error_text, tool_permission_state,
+    tool_permission_summary, tool_permission_title,
 };
 use crate::app::components::chat_panel::utils::{
     copy_tooltip_content, eye_icon_button_style, eye_icon_svg_style, icon_svg,
@@ -39,16 +41,8 @@ pub(super) fn tool_text_failure_title(label: &str) -> String {
     format!("{label} 失败")
 }
 
-pub(super) fn tool_text_detail_message(
-    msg_idx: usize,
-    tool_idx: usize,
-    visible: &str,
-) -> Message {
-    Message::Chat(message::ChatMessage::OpenToolDetail(
-        msg_idx,
-        tool_idx,
-        visible.to_string(),
-    ))
+pub(super) fn tool_text_detail_message(msg_idx: usize, tool_idx: usize, visible: &str) -> Message {
+    Message::Chat(message::ChatMessage::OpenToolDetail(msg_idx, tool_idx, visible.to_string()))
 }
 
 pub(super) fn workflow_preview_message(tool_name: &str, value: &Value) -> Option<Message> {

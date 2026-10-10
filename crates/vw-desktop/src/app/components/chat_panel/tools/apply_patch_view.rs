@@ -145,11 +145,8 @@ pub fn tool_apply_patch_view<'a>(
         files.first().map(|(_, path)| path.as_str()).unwrap_or(primary_name.as_str()),
     );
 
-    let mut header_summary = if primary_name.is_empty() {
-        permission_target.unwrap_or_default()
-    } else {
-        primary_name
-    };
+    let mut header_summary =
+        if primary_name.is_empty() { permission_target.unwrap_or_default() } else { primary_name };
     if let Some(extra) = trailing_summary {
         if !header_summary.is_empty() {
             header_summary.push_str(" · ");
@@ -157,9 +154,10 @@ pub fn tool_apply_patch_view<'a>(
         header_summary.push_str(&extra);
     }
 
-    let mut actions = row![container(header_file_type_icon(header_icon)).width(Length::Fixed(16.0))]
-        .spacing(6)
-        .align_y(Alignment::Center);
+    let mut actions =
+        row![container(header_file_type_icon(header_icon)).width(Length::Fixed(16.0))]
+            .spacing(6)
+            .align_y(Alignment::Center);
 
     if line_adds + line_dels > 0 {
         actions = actions.push(apply_patch_change_totals(line_adds, line_dels));
@@ -172,13 +170,8 @@ pub fn tool_apply_patch_view<'a>(
     }
 
     actions = actions.push(detail_btn);
-    let head_row = tool_activity_header(
-        "apply_patch",
-        title,
-        header_summary,
-        visual,
-        actions.into(),
-    );
+    let head_row =
+        tool_activity_header("apply_patch", title, header_summary, visual, actions.into());
 
     let head_with_hover = mouse_area(container(head_row).width(Length::Fill).padding([1, 0]))
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
@@ -319,10 +312,8 @@ pub fn tool_apply_patch_view<'a>(
                         tool_idx,
                         path.clone(),
                     ));
-                    let view_changes_btn = view_changes_toggle_button(
-                        file_expanded,
-                        toggle_message.clone(),
-                    );
+                    let view_changes_btn =
+                        view_changes_toggle_button(file_expanded, toggle_message.clone());
                     let header_row = row![
                         row![apply_patch_file_icon(icon), file_ref, eye_btn, external_diff_btn]
                             .spacing(8)

@@ -107,8 +107,13 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     let s = &app.embedding_routes_settings;
 
     let header = row![
-        container(text("按场景配置嵌入提供商、模型、维度和 API Key；在“嵌入与检索”中用 hint:模式名 引用。").style(settings_muted_text_style))
-            .width(Length::Fill),
+        container(
+            text(
+                "按场景配置嵌入提供商、模型、维度和 API Key；在“嵌入与检索”中用 hint:模式名 引用。"
+            )
+            .style(settings_muted_text_style)
+        )
+        .width(Length::Fill),
         button(text("添加路由"))
             .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(
                 EmbeddingRoutesMessage::AddRoute,

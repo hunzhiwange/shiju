@@ -41,9 +41,9 @@ use crate::app::components::chat_panel::utils::{
 };
 use crate::app::{App, Message, message};
 
-use super::{canonical_tool_name, tool_permission_state, tool_permission_target_summary};
 use super::tool_meta::{tool_activity_header, tool_verb, tool_visual_state};
 use super::tool_parse::{tool_error_text, tool_input, tool_output_text, tool_status};
+use super::{canonical_tool_name, tool_permission_state, tool_permission_target_summary};
 
 struct FilesViewContext<'a> {
     app: &'a App,

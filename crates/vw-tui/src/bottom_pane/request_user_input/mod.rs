@@ -8,7 +8,6 @@
 //! 取消与关闭路径保持已有返回语义，不暗中确认待处理操作。
 //! 选择、滚动与焦点值在使用前由原有逻辑约束到有效范围。
 
-
 //! 将请求 - 用户输入表面与 VibeWindow 拥有的答案动作复制。 问题、选项标签和当前焦点属于呈现状态。提交事件不构造应用服务器响应，也不创建任何 AppServer 响应。空提交、未回答的问题以及 `Esc` 保持显式路径，以便桥接应用可以应用其自身策略。
 //! Copied request-user-input surface with VibeWindow-owned answer actions.
 //!

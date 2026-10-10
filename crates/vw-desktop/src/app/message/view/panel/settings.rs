@@ -518,9 +518,8 @@ fn start_shutdown(app: &mut App, window_id: iced::window::Id) -> Task<Message> {
 
 #[cfg(all(not(target_arch = "wasm32"), not(test)))]
 fn arm_shutdown_exit_watchdog() {
-    let _ = std::thread::Builder::new()
-        .name("vw-desktop-shutdown-watchdog".to_string())
-        .spawn(|| {
+    let _ =
+        std::thread::Builder::new().name("vw-desktop-shutdown-watchdog".to_string()).spawn(|| {
             std::thread::sleep(SHUTDOWN_EXIT_WATCHDOG_TIMEOUT);
             std::process::exit(0);
         });
@@ -572,9 +571,7 @@ async fn stop_shutdown_streams(requests: Vec<ShutdownStreamRequest>) {
         });
     }
 
-    let wait_for_stops = async {
-        while stops.join_next().await.is_some() {}
-    };
+    let wait_for_stops = async { while stops.join_next().await.is_some() {} };
     if tokio::time::timeout(SHUTDOWN_TIMEOUT, wait_for_stops).await.is_err() {
         stops.abort_all();
     }

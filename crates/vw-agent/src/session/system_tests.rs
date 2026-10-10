@@ -266,8 +266,7 @@ fn rustcodegraph_native_contract_is_advertised_only_when_registered() {
     assert!(!registered.contains("`query` / `node`"));
     assert!(!registered.contains("`affected` for test selection"));
 
-    let skill_only =
-        render_unified_prompt("provider/model", "/workspace", &["skill".into()], true);
+    let skill_only = render_unified_prompt("provider/model", "/workspace", &["skill".into()], true);
     assert!(skill_only.contains("## Skills"));
     assert!(!skill_only.contains("## RustCodeGraph"));
 

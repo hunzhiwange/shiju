@@ -16,7 +16,10 @@ use tracing::subscriber::Interest;
 use vw_config_types::plugins::PluginsConfig;
 
 // 夹具先写入精确钩子摘要再注册，用来区分受信执行与未审查跳过。
-fn register_trusted_plugin_hooks(runner: &mut HookRunner, config: &Config) -> anyhow::Result<usize> {
+fn register_trusted_plugin_hooks(
+    runner: &mut HookRunner,
+    config: &Config,
+) -> anyhow::Result<usize> {
     let handlers = trusted_plugin_hook_handlers(config)?;
     let registered = handlers.len();
     for handler in handlers {

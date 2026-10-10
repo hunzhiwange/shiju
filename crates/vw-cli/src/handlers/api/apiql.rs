@@ -2,7 +2,7 @@
 
 use std::io::Write;
 
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use clap::Subcommand;
 use serde_json::json;
 use vw_gateway_client::ApiQlQuery;
@@ -70,7 +70,9 @@ pub(super) async fn run(
 }
 
 fn query(parameters: Vec<String>) -> Result<ApiQlQuery> {
-    ApiQlQuery::from_parameters(parameters).map_err(anyhow::Error::msg).context("invalid APIQL query parameter")
+    ApiQlQuery::from_parameters(parameters)
+        .map_err(anyhow::Error::msg)
+        .context("invalid APIQL query parameter")
 }
 
 fn required(value: &str) -> Result<String, String> {

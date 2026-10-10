@@ -64,11 +64,7 @@ fn attachments_reach_gateway_as_structured_content() {
     assert_eq!(content[0], serde_json::json!({"type": "text", "text": "inspect"}));
     assert_eq!(content[1]["type"], "resource");
     assert_eq!(content[1]["resource"]["text"], "attachment body");
-    assert!(
-        content[1]["resource"]["uri"]
-            .as_str()
-            .is_some_and(|uri| uri.starts_with("file://"))
-    );
+    assert!(content[1]["resource"]["uri"].as_str().is_some_and(|uri| uri.starts_with("file://")));
 }
 
 #[test]
@@ -78,10 +74,8 @@ fn attachment_failure_restores_the_composer_draft() {
     let mut app = test_app(temp.path().to_path_buf());
     app.widget_mut().replace_draft("keep this draft");
     app.widget_mut().add_attachment(attachment.clone());
-    let action = app.widget_mut().handle_key_event(KeyEvent::new(
-        KeyCode::Enter,
-        KeyModifiers::NONE,
-    ));
+    let action =
+        app.widget_mut().handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     assert_eq!(app.widget().draft(), "");
 
     let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));

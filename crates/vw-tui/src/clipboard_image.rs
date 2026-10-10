@@ -7,20 +7,17 @@ use crate::{V3Attachment, V3AttachmentKind};
 pub(crate) fn is_image_paste_key(event: crossterm::event::KeyEvent) -> bool {
     event.kind == crossterm::event::KeyEventKind::Press
         && matches!(event.code, crossterm::event::KeyCode::Char(value) if value.eq_ignore_ascii_case(&'v'))
-        && event
-            .modifiers
-            .intersects(crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT)
+        && event.modifiers.intersects(
+            crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT,
+        )
 }
 
 pub(crate) fn read_clipboard_image_attachment() -> Result<V3Attachment, String> {
-    let mut clipboard = arboard::Clipboard::new()
-        .map_err(|error| format!("无法访问系统剪贴板：{error}"))?;
-    let image = clipboard
-        .get_image()
-        .map_err(|error| format!("剪贴板中没有可用图片：{error}"))?;
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|error| format!("无法访问系统剪贴板：{error}"))?;
+    let image = clipboard.get_image().map_err(|error| format!("剪贴板中没有可用图片：{error}"))?;
     let width = u32::try_from(image.width).map_err(|_| "剪贴板图片宽度超出范围".to_string())?;
-    let height =
-        u32::try_from(image.height).map_err(|_| "剪贴板图片高度超出范围".to_string())?;
+    let height = u32::try_from(image.height).map_err(|_| "剪贴板图片高度超出范围".to_string())?;
     let bytes = encode_rgba_as_png(width, height, image.bytes.as_ref())?;
 
     Ok(V3Attachment {

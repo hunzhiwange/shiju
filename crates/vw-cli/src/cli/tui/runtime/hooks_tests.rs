@@ -90,11 +90,7 @@ fn hook_catalog_and_audit_render_safe_fields() {
     assert!(audit_rendered.contains("shell"));
     assert!(audit_rendered.contains("42 ms"));
     assert!(audit_rendered.contains("1 malformed"));
-    for secret in [
-        "raw-environment-secret",
-        "raw-audit-command",
-        "raw-auth-secret",
-    ] {
+    for secret in ["raw-environment-secret", "raw-audit-command", "raw-auth-secret"] {
         assert!(!audit_rendered.contains(secret), "audit leaked {secret}");
     }
 

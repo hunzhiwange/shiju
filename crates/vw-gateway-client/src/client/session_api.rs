@@ -118,7 +118,8 @@ impl GatewayClient {
             "/v1/chat/stream/{}/stop",
             encode_session_path_segment(required_stream_request_id(request_id)?)
         );
-        let response: StreamStopResponse = self.post_json(&path, &[], &serde_json::json!({})).await?;
+        let response: StreamStopResponse =
+            self.post_json(&path, &[], &serde_json::json!({})).await?;
         Ok(response.cancelled)
     }
 
@@ -328,8 +329,7 @@ impl GatewayClient {
         directory: Option<&str>,
         body: &GatewaySessionPatchBody,
     ) -> Result<T, String> {
-        self.patch_json(&session_path(session_id)?, &directory_query(directory), body)
-            .await
+        self.patch_json(&session_path(session_id)?, &directory_query(directory), body).await
     }
 
     /// 删除会话。
@@ -353,7 +353,7 @@ impl GatewayClient {
             &directory_query(directory),
             body,
         )
-            .await
+        .await
     }
 
     /// 将会话重置到指定消息节点或初始状态。
@@ -398,7 +398,7 @@ impl GatewayClient {
             &directory_query(directory),
             body,
         )
-            .await
+        .await
     }
 
     /// 获取会话待办列表。
@@ -407,11 +407,8 @@ impl GatewayClient {
         session_id: &str,
         directory: Option<&str>,
     ) -> Result<Vec<Todo>, String> {
-        self.get_json(
-            &format!("{}/todo", session_path(session_id)?),
-            &directory_query(directory),
-        )
-        .await
+        self.get_json(&format!("{}/todo", session_path(session_id)?), &directory_query(directory))
+            .await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -436,11 +433,8 @@ impl GatewayClient {
         session_id: &str,
         query: &GatewaySessionDiffQuery,
     ) -> Result<T, String> {
-        self.get_json(
-            &format!("{}/diff", session_path(session_id)?),
-            &session_diff_query(query),
-        )
-        .await
+        self.get_json(&format!("{}/diff", session_path(session_id)?), &session_diff_query(query))
+            .await
     }
 
     /// 读取会话 UI 持久化数据，不存在时返回 None。
@@ -476,7 +470,7 @@ impl GatewayClient {
             &directory_query(directory),
             session,
         )
-            .await
+        .await
     }
 
     /// 列出目录下会话 UI 预览元数据。

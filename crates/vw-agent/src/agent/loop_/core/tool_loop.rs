@@ -69,8 +69,7 @@ pub async fn run_tool_call_loop(
         .ok()
         .flatten()
         .or_else(|| non_cli_approval_context.as_ref().map(|ctx| ctx.reply_target.clone()));
-    let max_iterations =
-        if max_iterations == 0 { DEFAULT_MAX_ITERATIONS } else { max_iterations };
+    let max_iterations = if max_iterations == 0 { DEFAULT_MAX_ITERATIONS } else { max_iterations };
     let tool_specs: Vec<crate::app::agent::tools::ToolSpec> = tools_registry
         .iter()
         .filter(|tool| {

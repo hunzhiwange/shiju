@@ -21,11 +21,7 @@ pub(crate) enum TuiControllerEvent {
 /// 需要由宿主提交给对应运行时的对话框结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum TuiOverlayCommand {
-    ConfirmDecision {
-        request_id: String,
-        intent: UiConfirmIntent,
-        confirmed: bool,
-    },
+    ConfirmDecision { request_id: String, intent: UiConfirmIntent, confirmed: bool },
     PermissionDecision { request_id: String, decision: PermissionDecision },
     QuestionSubmitted(UiQuestionOverlay),
     QuestionRejected(UiQuestionOverlay),
@@ -112,10 +108,7 @@ pub(crate) fn build_prompt_submission(state: &TuiState, text: &str) -> Option<Pr
 }
 
 /// 允许纯附件输入的提交快照构造器。
-pub(crate) fn build_attachment_submission(
-    state: &TuiState,
-    text: &str,
-) -> PromptSubmission {
+pub(crate) fn build_attachment_submission(state: &TuiState, text: &str) -> PromptSubmission {
     let mut submission = PromptSubmission::new(text.trim())
         .with_stream_id(now_ms())
         .with_history_len(state.prompt.history.entries.len());

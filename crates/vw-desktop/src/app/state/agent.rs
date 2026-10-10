@@ -85,7 +85,6 @@ impl AcpHistoryReplayMode {
             _ => Self::Discard,
         }
     }
-
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -256,11 +255,7 @@ impl StreamTailState {
             return;
         }
         let ui_generation = self.ui_generation;
-        *self = Self {
-            message_idx: Some(message_idx),
-            ui_generation,
-            ..Self::default()
-        };
+        *self = Self { message_idx: Some(message_idx), ui_generation, ..Self::default() };
     }
 
     pub(crate) fn apply_delta(&mut self, delta: &str) {
@@ -268,9 +263,8 @@ impl StreamTailState {
             return;
         }
         self.processed_bytes = self.processed_bytes.saturating_add(delta.len());
-        self.explicit_lines = self
-            .explicit_lines
-            .saturating_add(delta.bytes().filter(|byte| *byte == b'\n').count());
+        self.explicit_lines =
+            self.explicit_lines.saturating_add(delta.bytes().filter(|byte| *byte == b'\n').count());
         self.scan_think_tags(delta);
         self.scan_tool_markers(delta);
         self.recalculate_height();
@@ -396,9 +390,7 @@ impl StreamTailState {
 }
 
 fn possible_incomplete_think_tag(candidate: &str) -> bool {
-    ["<think", "<thinking", "</think", "</thinking"]
-        .iter()
-        .any(|tag| tag.starts_with(candidate))
+    ["<think", "<thinking", "</think", "</thinking"].iter().any(|tag| tag.starts_with(candidate))
         || candidate.starts_with("<think")
         || candidate.starts_with("</think")
 }

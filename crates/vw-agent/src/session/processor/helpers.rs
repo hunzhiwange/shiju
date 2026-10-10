@@ -55,8 +55,7 @@ pub(crate) fn allowed_tool_ids_for_request_from_specs(
     // 内置必需工具始终注册；其余工具必须同时存在于请求清单和当前注册表中。
     base.iter()
         .filter(|tool| {
-            requested.contains(*tool)
-                || vw_config_types::tools::is_builtin_required_tool_id(tool)
+            requested.contains(*tool) || vw_config_types::tools::is_builtin_required_tool_id(tool)
         })
         .cloned()
         .collect()

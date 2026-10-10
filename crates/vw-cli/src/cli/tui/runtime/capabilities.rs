@@ -6,8 +6,7 @@ use serde_json::Value;
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
 use crate::cli::tui::model::{
-    AcpBackendOption, DelegateAgentOption, PermissionMode, ReasoningEffort,
-    SessionCapabilityMatrix,
+    AcpBackendOption, DelegateAgentOption, PermissionMode, ReasoningEffort, SessionCapabilityMatrix,
 };
 
 /// Gateway 能力加载结果；失败来源保留为可展示警告，矩阵使用安全最小值。
@@ -88,10 +87,9 @@ pub(crate) async fn load_session_capabilities(
 
     match runtime.enabled_acp_backend_keys().await {
         Ok(keys) => {
-            matrix.acp_backends.extend(keys.into_iter().map(|key| AcpBackendOption {
-                label: key.clone(),
-                key: Some(key),
-            }));
+            matrix.acp_backends.extend(
+                keys.into_iter().map(|key| AcpBackendOption { label: key.clone(), key: Some(key) }),
+            );
         }
         Err(error) => warnings.push(format!("加载 Gateway ACP 能力失败：{error}")),
     }
@@ -153,8 +151,6 @@ fn config_allows_dangerous_access(config: &Value) -> bool {
         .and_then(|value| value.get("level"))
         .and_then(Value::as_str)
         .is_some_and(|level| level.eq_ignore_ascii_case("full"))
-        && autonomy
-            .and_then(|value| value.get("workspace_only"))
-            .and_then(Value::as_bool)
+        && autonomy.and_then(|value| value.get("workspace_only")).and_then(Value::as_bool)
             == Some(false)
 }

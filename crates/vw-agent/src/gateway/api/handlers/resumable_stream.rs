@@ -191,12 +191,7 @@ impl ResumableStreamStore {
     /// 请求停止一个仍在运行的可恢复流。
     ///
     /// 返回 `false` 表示目标流不存在；重复请求保持幂等并返回 `true`。
-    pub(super) fn cancel(
-        &self,
-        tenant: TenantScope,
-        kind: StreamKind,
-        request_id: &str,
-    ) -> bool {
+    pub(super) fn cancel(&self, tenant: TenantScope, kind: StreamKind, request_id: &str) -> bool {
         let key = StreamKey { tenant, kind, request_id: request_id.to_string() };
         let run = {
             let state = lock_or_recover(&self.state);

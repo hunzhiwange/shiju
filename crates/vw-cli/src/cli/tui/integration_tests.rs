@@ -34,16 +34,30 @@ fn integration_fixture() -> (u16, thread::JoinHandle<Vec<String>>) {
         for _ in 0..4 {
             let (mut stream, _) = listener.accept().expect("accept");
             let request = read_request(&mut stream);
-            let path = request.lines().next().unwrap_or_default().split_whitespace().nth(1).unwrap_or_default();
+            let path = request
+                .lines()
+                .next()
+                .unwrap_or_default()
+                .split_whitespace()
+                .nth(1)
+                .unwrap_or_default();
             paths.push(path.to_string());
             let body = match path {
-                path if path.starts_with("/v1/skills") => r#"[
+                path if path.starts_with("/v1/skills") => {
+                    r#"[
                     {"id":"review","title":"Project Review","description":"project copy","kind":"local","resource_count":1,"installed":true,"enabled":true,"source":"project"},
                     {"id":"review","title":"Built-in Review","description":"built-in copy","kind":"built-in","resource_count":1,"installed":true,"enabled":true,"source":"built-in"}
-                ]"#,
-                "/v1/plugins" => r#"[{"id":"demo","display_name":"Demo","version":"1.0","description":"plugin","enabled":true,"component_count":2}]"#,
-                "/v1/mcp/inspect" => r#"{"servers":[{"name":"docs","transport":"http","enabled":true,"required":false,"connection_status":"connected","tool_count":1,"resource_count":2}]}"#,
-                path if path.starts_with("/v1/memory") => r#"{"entries":[{"key":"project-note","title":"Note","content":"safe preview","scope":"project"}]}"#,
+                ]"#
+                }
+                "/v1/plugins" => {
+                    r#"[{"id":"demo","display_name":"Demo","version":"1.0","description":"plugin","enabled":true,"component_count":2}]"#
+                }
+                "/v1/mcp/inspect" => {
+                    r#"{"servers":[{"name":"docs","transport":"http","enabled":true,"required":false,"connection_status":"connected","tool_count":1,"resource_count":2}]}"#
+                }
+                path if path.starts_with("/v1/memory") => {
+                    r#"{"entries":[{"key":"project-note","title":"Note","content":"safe preview","scope":"project"}]}"#
+                }
                 _ => "{}",
             };
             write_json(&mut stream, body);
@@ -196,10 +210,7 @@ fn hook_mutations_require_catalog_membership_and_confirmation() {
         requests
     });
     let temp = tempfile::tempdir().expect("workspace");
-    let mut app = V3GatewayApp::new(
-        runtime(port, temp.path().to_path_buf()),
-        TuiState::default(),
-    );
+    let mut app = V3GatewayApp::new(runtime(port, temp.path().to_path_buf()), TuiState::default());
     let mut runner = ActiveRunner::new_with_editor(std::sync::Arc::new(|_| Ok(None)));
 
     runner.execute_action(&mut app, submit("/hooks"));
@@ -292,10 +303,7 @@ fn hook_mutation_refreshes_only_after_gateway_success() {
         (catalog_request, mutation_request)
     });
     let temp = tempfile::tempdir().expect("workspace");
-    let mut app = V3GatewayApp::new(
-        runtime(port, temp.path().to_path_buf()),
-        TuiState::default(),
-    );
+    let mut app = V3GatewayApp::new(runtime(port, temp.path().to_path_buf()), TuiState::default());
     let mut runner = ActiveRunner::new_with_editor(std::sync::Arc::new(|_| Ok(None)));
 
     runner.execute_action(&mut app, submit("/hooks"));
@@ -410,12 +418,12 @@ fn memory_search_rejects_stale_results() {
     );
     assert!(app.state().integration_catalog.contains(&plugin));
     let requests = server.join().expect("join memory fixture");
-    assert!(requests.iter().any(|request| {
-        request.starts_with("GET /v1/memory?query=rust+slow ")
-    }));
-    assert!(requests.iter().any(|request| {
-        request.starts_with("GET /v1/memory?query=fresh+async ")
-    }));
+    assert!(
+        requests.iter().any(|request| { request.starts_with("GET /v1/memory?query=rust+slow ") })
+    );
+    assert!(
+        requests.iter().any(|request| { request.starts_with("GET /v1/memory?query=fresh+async ") })
+    );
 }
 
 #[test]
@@ -435,10 +443,7 @@ fn memory_search_failure_preserves_existing_integrations() {
         request
     });
     let temp = tempfile::tempdir().expect("workspace");
-    let original = vec![
-        plugin_item("existing-plugin"),
-        memory_item("startup", "startup result"),
-    ];
+    let original = vec![plugin_item("existing-plugin"), memory_item("startup", "startup result")];
     let mut state = TuiState::default();
     state.session.session_id = Some("integration-session".to_string());
     state.integration_catalog.clone_from(&original);
@@ -570,10 +575,7 @@ fn memory_mutations_confirm_overwrite_and_delete() {
         panic!("expected typed memory delete confirmation");
     };
     assert!(delete.destructive);
-    assert_eq!(
-        delete.intent,
-        UiConfirmIntent::MemoryDelete { key: "owned/key".to_string() }
-    );
+    assert_eq!(delete.intent, UiConfirmIntent::MemoryDelete { key: "owned/key".to_string() });
     let delete_request_id = delete.request_id.clone();
     runner.execute_action(
         &mut app,
@@ -747,7 +749,12 @@ fn read_request(stream: &mut std::net::TcpStream) -> String {
             let headers = String::from_utf8_lossy(&bytes[..header_end + 4]);
             let content_length = headers
                 .lines()
-                .find_map(|line| line.to_ascii_lowercase().strip_prefix("content-length:").map(str::trim).and_then(|value| value.parse::<usize>().ok()))
+                .find_map(|line| {
+                    line.to_ascii_lowercase()
+                        .strip_prefix("content-length:")
+                        .map(str::trim)
+                        .and_then(|value| value.parse::<usize>().ok())
+                })
                 .unwrap_or_default();
             if bytes.len() >= header_end + 4 + content_length {
                 break;

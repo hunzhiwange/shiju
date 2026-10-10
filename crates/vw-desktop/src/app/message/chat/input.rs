@@ -282,8 +282,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             editor_actions::handle_think_editor_action(app, msg_idx, think_idx, action)
         }
         ChatMessage::ScrollChanged { offset_y: rel_y, absolute_offset_y, viewport_h } => {
-            let outcome =
-                apply_chat_scroll_changed(app, rel_y, absolute_offset_y, viewport_h);
+            let outcome = apply_chat_scroll_changed(app, rel_y, absolute_offset_y, viewport_h);
             let chunk_task = if !outcome.pending_chunk_starts.is_empty()
                 && let Some(session_id) = app.active_session_id.clone()
             {

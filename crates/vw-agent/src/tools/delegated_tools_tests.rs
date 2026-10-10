@@ -50,11 +50,7 @@ impl Tool for NamedTool {
 // 批处理工具即使被显式选择也保持禁用，防止委派代理递归扩散任务。
 fn build_agentic_tools_blocks_batch_even_when_selected() {
     let parent_tools: Vec<Arc<dyn Tool>> = vec![Arc::new(NamedTool { name: "batch" })];
-    let config = delegated_config(
-        &["batch"],
-        DelegateCapabilityPolicy::Unrestricted,
-        &[],
-    );
+    let config = delegated_config(&["batch"], DelegateCapabilityPolicy::Unrestricted, &[]);
     let tools = build_agentic_tools(&parent_tools, &config, &[]);
 
     assert!(tools.is_empty());
@@ -74,11 +70,7 @@ fn build_agentic_tools_empty_selection_keeps_builtin_and_blocks_recursive_tool()
 #[test]
 fn build_agentic_tools_matches_tool_aliases() {
     let parent_tools: Vec<Arc<dyn Tool>> = vec![Arc::new(NamedTool { name: "file_write" })];
-    let config = delegated_config(
-        &["write"],
-        DelegateCapabilityPolicy::Unrestricted,
-        &[],
-    );
+    let config = delegated_config(&["write"], DelegateCapabilityPolicy::Unrestricted, &[]);
     let tools = build_agentic_tools(&parent_tools, &config, &[]);
 
     assert_eq!(tools.len(), 1);
@@ -88,11 +80,7 @@ fn build_agentic_tools_matches_tool_aliases() {
 #[tokio::test]
 async fn delegated_skill_tool_enforces_resolved_skill_capabilities() {
     let parent_tools: Vec<Arc<dyn Tool>> = vec![Arc::new(NamedTool { name: "skill" })];
-    let config = delegated_config(
-        &["skill"],
-        DelegateCapabilityPolicy::Strict,
-        &["translate"],
-    );
+    let config = delegated_config(&["skill"], DelegateCapabilityPolicy::Strict, &["translate"]);
     let tools = build_agentic_tools(&parent_tools, &config, &[]);
 
     assert_eq!(tools.len(), 1);
@@ -108,11 +96,7 @@ async fn delegated_skill_tool_enforces_resolved_skill_capabilities() {
 #[test]
 fn strict_skill_policy_without_defaults_does_not_expose_skill() {
     let parent_tools: Vec<Arc<dyn Tool>> = vec![Arc::new(NamedTool { name: "skill" })];
-    let config = delegated_config(
-        &["skill"],
-        DelegateCapabilityPolicy::Strict,
-        &[],
-    );
+    let config = delegated_config(&["skill"], DelegateCapabilityPolicy::Strict, &[]);
     let tools = build_agentic_tools(&parent_tools, &config, &[]);
 
     assert!(tools.is_empty());
@@ -121,11 +105,7 @@ fn strict_skill_policy_without_defaults_does_not_expose_skill() {
 #[tokio::test]
 async fn delegated_tool_ref_forwards_contract_and_execution() {
     let parent_tools: Vec<Arc<dyn Tool>> = vec![Arc::new(NamedTool { name: "file_write" })];
-    let config = delegated_config(
-        &[" ", " write "],
-        DelegateCapabilityPolicy::Unrestricted,
-        &[],
-    );
+    let config = delegated_config(&[" ", " write "], DelegateCapabilityPolicy::Unrestricted, &[]);
     let tools = build_agentic_tools(&parent_tools, &config, &[]);
 
     assert_eq!(tools.len(), 1);
@@ -163,11 +143,7 @@ fn filtered_skill_tool_exposes_sorted_trimmed_skill_contract() {
 #[tokio::test]
 async fn filtered_skill_tool_delegates_missing_and_blank_names() {
     let parent_tools: Vec<Arc<dyn Tool>> = vec![Arc::new(NamedTool { name: "skill" })];
-    let config = delegated_config(
-        &["skill"],
-        DelegateCapabilityPolicy::Strict,
-        &["translate"],
-    );
+    let config = delegated_config(&["skill"], DelegateCapabilityPolicy::Strict, &["translate"]);
     let tools = build_agentic_tools(&parent_tools, &config, &[]);
 
     let missing = tools[0].execute(json!({})).await.unwrap();

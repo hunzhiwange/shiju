@@ -55,12 +55,7 @@ impl CommandAuditStore {
     }
 
     pub fn entries(&self) -> Vec<CommandAuditEntry> {
-        self.entries
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .iter()
-            .cloned()
-            .collect()
+        self.entries.lock().unwrap_or_else(|error| error.into_inner()).iter().cloned().collect()
     }
 
     fn push(&self, entry: CommandAuditEntry) {

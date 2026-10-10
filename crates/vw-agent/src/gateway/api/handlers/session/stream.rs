@@ -8,11 +8,11 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use axum::{Extension, Json};
 use axum::extract::Query;
 use axum::http::HeaderMap;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::{Extension, Json};
 use serde_json::{Map, Value};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -565,10 +565,9 @@ fn gateway_content_to_prompt_text(content: &Value, preserve_structured: bool) ->
                 let data = block.get("data").and_then(Value::as_str)?;
                 Some(format!("[IMAGE:data:{mime_type};base64,{data}]"))
             }
-            Some("resource_link") => block
-                .get("uri")
-                .and_then(Value::as_str)
-                .map(|uri| format!("[Resource: {uri}]")),
+            Some("resource_link") => {
+                block.get("uri").and_then(Value::as_str).map(|uri| format!("[Resource: {uri}]"))
+            }
             Some("resource") => {
                 let resource = block.get("resource")?;
                 let uri = resource.get("uri").and_then(Value::as_str).unwrap_or_default();
@@ -778,10 +777,7 @@ async fn resolve_delegate_request_overrides(
     let mut registered_tools = explicit_allowed_tools
         .unwrap_or_else(|| normalize_tool_ids(config.allowed_tools).unwrap_or_default());
     registered_tools.retain(|tool| {
-        !matches!(
-            tool.trim().to_ascii_lowercase().as_str(),
-            "agenttool" | "agent_tool" | "agent"
-        )
+        !matches!(tool.trim().to_ascii_lowercase().as_str(), "agenttool" | "agent_tool" | "agent")
     });
 
     Ok(DelegateRequestOverrides {
@@ -931,11 +927,8 @@ async fn start_gateway_chat_producer(
     } else {
         Some(preallocate_stream_turn_message_ids()?)
     };
-    let PreparedStreamHistory { history, query } = prepare_stream_history(
-        history_messages,
-        resume_history_only,
-        preserve_structured_prompt,
-    );
+    let PreparedStreamHistory { history, query } =
+        prepare_stream_history(history_messages, resume_history_only, preserve_structured_prompt);
     if should_persist_app_session_artifacts {
         let title = initial_stream_session_title(&query);
         let created_ms = agent_session::session::now_ms();

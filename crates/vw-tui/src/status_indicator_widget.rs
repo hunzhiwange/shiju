@@ -48,7 +48,8 @@ impl<'a> StatusIndicatorWidget<'a> {
 
     fn wrapped_details_lines(&self, width: u16) -> Vec<Line<'static>> {
         // 详情首行带树形前缀，续行与详情文本对齐。
-        let Some(details) = self.status.detail.as_deref().filter(|detail| !detail.is_empty()) else {
+        let Some(details) = self.status.detail.as_deref().filter(|detail| !detail.is_empty())
+        else {
             return Vec::new();
         };
         if width == 0 {
@@ -115,7 +116,8 @@ mod tests {
     #[test]
     // 同时固定宽屏详情与窄屏截断两种布局快照。
     fn status_indicator_keeps_working_and_narrow_layout() {
-        let status = V3ChatStatus::running("Working", Some("reading copied components".to_string()));
+        let status =
+            V3ChatStatus::running("Working", Some("reading copied components".to_string()));
         let widget = StatusIndicatorWidget::new(&status, Duration::ZERO);
         let wide_area = Rect::new(0, 0, 80, 2);
         let mut wide = Buffer::empty(wide_area);

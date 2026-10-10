@@ -513,10 +513,7 @@ pub(crate) async fn handle_llm_result(
             // 构建超时错误消息
             let timeout_msg = format!(
                 "LLM response timed out after {}s (base={}s, max_iterations={})",
-                channel_message_timeout_budget_secs(
-                    ctx.message_timeout_secs,
-                    ctx.max_iterations
-                ),
+                channel_message_timeout_budget_secs(ctx.message_timeout_secs, ctx.max_iterations),
                 ctx.message_timeout_secs,
                 ctx.max_iterations
             );

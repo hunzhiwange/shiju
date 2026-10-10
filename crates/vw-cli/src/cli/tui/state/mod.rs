@@ -262,10 +262,8 @@ fn parse_tool_message_payload(raw: &str) -> ParsedToolMessage {
     if let Ok(value) = serde_json::from_str::<Value>(&payload_text) {
         let status = value.get("status").and_then(Value::as_str).unwrap_or("completed");
         let is_error = matches!(status, "error" | "denied");
-        let command = value
-            .get("input")
-            .or_else(|| value.get("title"))
-            .and_then(|input| match input {
+        let command =
+            value.get("input").or_else(|| value.get("title")).and_then(|input| match input {
                 Value::Null => None,
                 Value::String(text) => {
                     let text = text.trim();

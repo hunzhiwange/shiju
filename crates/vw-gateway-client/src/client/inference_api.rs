@@ -147,11 +147,8 @@ impl GatewayClient {
         use tokio_tungstenite::tungstenite::http::HeaderValue;
         use vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER};
 
-        let url = format!(
-            "ws://{}:{}/v1/ws/chat",
-            self.endpoint.normalized_host(),
-            self.endpoint.port
-        );
+        let url =
+            format!("ws://{}:{}/v1/ws/chat", self.endpoint.normalized_host(), self.endpoint.port);
         let mut request = url
             .into_client_request()
             .map_err(|error| format!("invalid chat WebSocket request: {error}"))?;

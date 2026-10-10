@@ -32,10 +32,8 @@ fn completed_step_for_turn(index: u32, turn_id: &str) -> ChatSessionStep {
 fn trajectory_raw_cache_keys_include_turn_id() {
     let (mut app, _) = App::new();
     app.active_session_id = Some("shared-session".to_string());
-    app.active_session_view_state.steps = vec![
-        completed_step_for_turn(1, "turn-a"),
-        completed_step_for_turn(1, "turn-b"),
-    ];
+    app.active_session_view_state.steps =
+        vec![completed_step_for_turn(1, "turn-a"), completed_step_for_turn(1, "turn-b")];
     let first_key = ("shared-session".to_string(), "turn-a".to_string(), 1);
     let second_key = ("shared-session".to_string(), "turn-b".to_string(), 1);
     for key in [&first_key, &second_key] {
@@ -60,14 +58,8 @@ fn trajectory_raw_cache_keys_include_turn_id() {
     }
 
     assert_eq!(app.active_session_view_state.step_llm_raw.len(), 2);
-    assert_eq!(
-        app.active_session_view_state.step_llm_raw[&first_key]["output"]["text"],
-        "first"
-    );
-    assert_eq!(
-        app.active_session_view_state.step_llm_raw[&second_key]["output"]["text"],
-        "second"
-    );
+    assert_eq!(app.active_session_view_state.step_llm_raw[&first_key]["output"]["text"], "first");
+    assert_eq!(app.active_session_view_state.step_llm_raw[&second_key]["output"]["text"], "second");
 }
 
 #[test]
@@ -75,11 +67,7 @@ fn trajectory_raw_refresh_normalizes_blank_turn_id() {
     let (mut app, _) = App::new();
     app.active_session_id = Some("active-session".to_string());
     app.active_session_view_state.steps = vec![completed_step_for_turn(12, "  \t")];
-    let legacy_key = (
-        "active-session".to_string(),
-        "legacy-step-12".to_string(),
-        12,
-    );
+    let legacy_key = ("active-session".to_string(), "legacy-step-12".to_string(), 12);
 
     let task = super::trajectory::refresh_missing_raw_task(&mut app, "active-session", None);
 
@@ -126,7 +114,10 @@ mod trajectory_raw {
         assert_eq!(app.active_session_view_state.step_llm_raw.get(&key), Some(&reconstructed));
         assert!(!app.usage_step_raw_payloads.contains_key(&key));
         let modal = app.usage_step_raw_modal.as_ref().expect("shared raw modal");
-        assert_eq!(serde_json::from_str::<serde_json::Value>(&modal.content).unwrap(), reconstructed);
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&modal.content).unwrap(),
+            reconstructed
+        );
     }
 }
 
@@ -225,12 +216,7 @@ fn trajectory_snapshot_refresh_populates_raw_without_opening_usage_modal() {
         },
     );
 
-    assert!(
-        app.active_session_view_state
-            .steps
-            .iter()
-            .any(|step| step.index == 3)
-    );
+    assert!(app.active_session_view_state.steps.iter().any(|step| step.index == 3));
     assert!(app.active_session_view_state.step_llm_raw.contains_key(&key));
     assert!(app.active_session_view_state.llm_raw_step_indices.contains(&key));
     assert!(app.usage_step_raw_modal.is_none());
@@ -460,7 +446,9 @@ fn trajectory_raw_refresh_ignores_stale_session() {
             result: Ok(Some(serde_json::json!({ "wrong_step": true }))),
         },
     );
-    assert!(!app.active_session_view_state.step_llm_raw.contains_key(&raw_key("active-session", 8)));
+    assert!(
+        !app.active_session_view_state.step_llm_raw.contains_key(&raw_key("active-session", 8))
+    );
 
     let active_key = current_key.clone();
     app.trajectory_raw_loading.insert(active_key.clone());

@@ -291,10 +291,7 @@ pub(crate) fn leading_whitespace_prefix(line: &Line<'_>) -> Line<'static> {
             .find_map(|(idx, ch)| (!ch.is_whitespace()).then_some(idx))
             .unwrap_or(span.content.len());
         if prefix_end > 0 {
-            spans.push(Span::styled(
-                span.content[..prefix_end].to_string(),
-                span.style,
-            ));
+            spans.push(Span::styled(span.content[..prefix_end].to_string(), span.style));
         }
         if prefix_end < span.content.len() {
             break;
@@ -345,15 +342,10 @@ fn write_history_line<W: Write>(
         .line
         .spans
         .iter()
-        .map(|s| Span {
-            style: s.style.patch(line.line.style),
-            content: s.content.clone(),
-        })
+        .map(|s| Span { style: s.style.patch(line.line.style), content: s.content.clone() })
         .collect();
-    let merged_line = HyperlinkLine {
-        line: Line::from(merged_spans),
-        hyperlinks: line.hyperlinks.clone(),
-    };
+    let merged_line =
+        HyperlinkLine { line: Line::from(merged_spans), hyperlinks: line.hyperlinks.clone() };
     let decorated = decorate_spans(&merged_line);
     write_spans(writer, decorated.iter())
 }
@@ -479,10 +471,7 @@ where
         modifier.insert(span.style.add_modifier);
         modifier.remove(span.style.sub_modifier);
         if modifier != last_modifier {
-            let diff = ModifierDiff {
-                from: last_modifier,
-                to: modifier,
-            };
+            let diff = ModifierDiff { from: last_modifier, to: modifier };
             diff.queue(&mut writer)?;
             last_modifier = modifier;
         }
@@ -541,10 +530,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(
-            String::from_utf8(actual).unwrap(),
-            String::from_utf8(expected).unwrap()
-        );
+        assert_eq!(String::from_utf8(actual).unwrap(), String::from_utf8(expected).unwrap());
     }
 
     #[test]
@@ -592,10 +578,7 @@ mod tests {
                 }
             }
         }
-        assert!(
-            saw_colored,
-            "expected at least one colored cell in vt100 output"
-        );
+        assert!(saw_colored, "expected at least one colored cell in vt100 output");
     }
 
     #[test]
@@ -613,10 +596,8 @@ mod tests {
 
         // 创建带明显前缀且足以换行的长块引用。
         // Create a long blockquote with a distinct prefix and enough text to wrap.
-        let mut line: Line<'static> = Line::from(vec![
-            "> ".into(),
-            "This is a long quoted line that should wrap".into(),
-        ]);
+        let mut line: Line<'static> =
+            Line::from(vec!["> ".into(), "This is a long quoted line that should wrap".into()]);
         line = line.style(Color::Green);
 
         insert_history_lines(&mut term, vec![line])
@@ -756,12 +737,9 @@ mod tests {
         let rows: Vec<String> = screen.rows(0, width).collect();
 
         let needle = "1. Third level (ordered)";
-        let row_idx = rows
-            .iter()
-            .position(|r| r.contains(needle))
-            .unwrap_or_else(|| {
-                panic!("expected to find row containing {needle:?}, have rows: {rows:?}")
-            });
+        let row_idx = rows.iter().position(|r| r.contains(needle)).unwrap_or_else(|| {
+            panic!("expected to find row containing {needle:?}, have rows: {rows:?}")
+        });
         let col_start = rows[row_idx].find(needle).unwrap() as u16; // column where '1' starts
 
         // 验证第三级数字标记 `1.` 着色，而其后空格之后的正文恢复默认色。
@@ -830,8 +808,7 @@ mod tests {
         let rows: Vec<String> = term.backend().vt100().screen().rows(0, width).collect();
 
         assert!(
-            rows.iter()
-                .any(|r| r.contains("│ example.test/api/v1/projects")),
+            rows.iter().any(|r| r.contains("│ example.test/api/v1/projects")),
             "expected prefix and URL-like token on same row, rows: {rows:?}"
         );
         assert!(
@@ -875,11 +852,8 @@ mod tests {
 
         let screen = term.backend().vt100().screen();
         let rows = screen.rows(/*start*/ 0, width).collect::<Vec<_>>();
-        let message_rows = rows
-            .iter()
-            .enumerate()
-            .filter(|(_, row)| !row.trim().is_empty())
-            .collect::<Vec<_>>();
+        let message_rows =
+            rows.iter().enumerate().filter(|(_, row)| !row.trim().is_empty()).collect::<Vec<_>>();
 
         assert!(message_rows.len() > 1, "expected wrapped URL: {rows:?}");
         assert!(
@@ -891,11 +865,7 @@ mod tests {
                 .iter()
                 .enumerate()
                 .map(|(index, (_, row))| {
-                    if index == 0 {
-                        row.strip_prefix("▌ ").unwrap().trim()
-                    } else {
-                        row.trim()
-                    }
+                    if index == 0 { row.strip_prefix("▌ ").unwrap().trim() } else { row.trim() }
                 })
                 .collect::<String>(),
             url
@@ -906,12 +876,9 @@ mod tests {
                 vt100::Color::Default,
                 "wrapped user-message gutter lost its background on row {row}"
             );
-            let content_col = row_text
-                .trim_end()
-                .chars()
-                .count()
-                .saturating_sub(1)
-                .min(usize::from(width - 1)) as u16;
+            let content_col =
+                row_text.trim_end().chars().count().saturating_sub(1).min(usize::from(width - 1))
+                    as u16;
             assert_ne!(
                 screen.cell(row as u16, content_col).unwrap().bgcolor(),
                 vt100::Color::Default,
@@ -930,12 +897,8 @@ mod tests {
         term.set_viewport_area(viewport);
 
         let url = "https://example.test/path/abcdef12345";
-        let line: Line<'static> = Line::from(vec![
-            "  │ ".into(),
-            "see ".into(),
-            url.into(),
-            " tail words".into(),
-        ]);
+        let line: Line<'static> =
+            Line::from(vec!["  │ ".into(), "see ".into(), url.into(), " tail words".into()]);
 
         insert_history_lines(&mut term, vec![line]).expect("insert mixed history");
 
@@ -956,12 +919,8 @@ mod tests {
         let height: u16 = 10;
         let backend = VT100Backend::new(width, height);
         let mut term = crate::custom_terminal::Terminal::with_options(backend).expect("terminal");
-        let viewport = Rect::new(
-            /*x*/ 0,
-            /*y*/ height - 1,
-            /*width*/ width,
-            /*height*/ 1,
-        );
+        let viewport =
+            Rect::new(/*x*/ 0, /*y*/ height - 1, /*width*/ width, /*height*/ 1);
         term.set_viewport_area(viewport);
 
         let line: Line<'static> = Line::from(vec![
@@ -989,12 +948,8 @@ mod tests {
         let height: u16 = 10;
         let backend = VT100Backend::new(width, height);
         let mut term = crate::custom_terminal::Terminal::with_options(backend).expect("terminal");
-        let viewport = Rect::new(
-            /*x*/ 0,
-            /*y*/ height - 1,
-            /*width*/ width,
-            /*height*/ 1,
-        );
+        let viewport =
+            Rect::new(/*x*/ 0, /*y*/ height - 1, /*width*/ width, /*height*/ 1);
         term.set_viewport_area(viewport);
 
         let line = Line::from(
@@ -1035,8 +990,7 @@ mod tests {
 
         let rows: Vec<String> = term.backend().vt100().screen().rows(0, width).collect();
         assert!(
-            rows.iter()
-                .any(|row| row.trim_end() == "alpha beta gamma del"),
+            rows.iter().any(|row| row.trim_end() == "alpha beta gamma del"),
             "expected terminal soft-wrap instead of Codex word pre-wrap, rows: {rows:?}"
         );
     }
@@ -1047,12 +1001,8 @@ mod tests {
         let height: u16 = 8;
         let backend = VT100Backend::new(width, height);
         let mut term = crate::custom_terminal::Terminal::with_options(backend).expect("terminal");
-        let viewport = Rect::new(
-            /*x*/ 0,
-            /*y*/ height - 2,
-            /*width*/ width,
-            /*height*/ 2,
-        );
+        let viewport =
+            Rect::new(/*x*/ 0, /*y*/ height - 2, /*width*/ width, /*height*/ 2);
         term.set_viewport_area(viewport);
 
         let line = Line::from("raw-start-aaaaaaaaaaaaaaaaaaaaaaaa-tail-must-remain");

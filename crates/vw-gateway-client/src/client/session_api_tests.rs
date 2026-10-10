@@ -282,14 +282,8 @@ async fn session_ui_get_without_raw_uses_lightweight_endpoint() {
         .expect("session exists");
 
     assert!(loaded.step_llm_raw.is_empty());
-    assert_eq!(
-        loaded.llm_raw_step_indices,
-        vec![("s1".to_string(), "turn-c".to_string(), 3)]
-    );
-    assert_eq!(
-        server.take_request().path,
-        "/v1/session/s1/ui/without-raw?directory=%2Frepo"
-    );
+    assert_eq!(loaded.llm_raw_step_indices, vec![("s1".to_string(), "turn-c".to_string(), 3)]);
+    assert_eq!(server.take_request().path, "/v1/session/s1/ui/without-raw?directory=%2Frepo");
     server.join();
 }
 
@@ -332,22 +326,13 @@ async fn session_client_uses_core_lifecycle_routes() {
 
     let status: serde_json::Value =
         server.client().session_status(Some("/repo path")).await.expect("status");
-    let children: serde_json::Value = server
-        .client()
-        .session_children("s/one", Some("/repo path"))
-        .await
-        .expect("children");
+    let children: serde_json::Value =
+        server.client().session_children("s/one", Some("/repo path")).await.expect("children");
 
     assert!(status.get("s/one").is_some());
     assert_eq!(children[0]["id"], "child");
-    assert_eq!(
-        server.take_request().path,
-        "/v1/session/status?directory=%2Frepo+path"
-    );
-    assert_eq!(
-        server.take_request().path,
-        "/v1/session/s%2Fone/children?directory=%2Frepo+path"
-    );
+    assert_eq!(server.take_request().path, "/v1/session/status?directory=%2Frepo+path");
+    assert_eq!(server.take_request().path, "/v1/session/s%2Fone/children?directory=%2Frepo+path");
     assert!(server.client().session_get::<serde_json::Value>(" ", None).await.is_err());
     server.join();
 }
@@ -396,14 +381,26 @@ async fn session_client_uses_content_and_ui_routes() {
             .expect("part delete")
     );
 
-    assert_eq!(server.take_request().path, "/v1/session/s%2Fone/message?directory=%2Frepo+path&limit=7");
-    assert_eq!(server.take_request().path, "/v1/session/s%2Fone/message/m%2Fone?directory=%2Frepo+path");
+    assert_eq!(
+        server.take_request().path,
+        "/v1/session/s%2Fone/message?directory=%2Frepo+path&limit=7"
+    );
+    assert_eq!(
+        server.take_request().path,
+        "/v1/session/s%2Fone/message/m%2Fone?directory=%2Frepo+path"
+    );
     let update = server.take_request();
     assert_eq!(update.method, "PATCH");
-    assert_eq!(update.path, "/v1/session/s%2Fone/message/m%2Fone/part/p%2Fone?directory=%2Frepo+path");
+    assert_eq!(
+        update.path,
+        "/v1/session/s%2Fone/message/m%2Fone/part/p%2Fone?directory=%2Frepo+path"
+    );
     let delete = server.take_request();
     assert_eq!(delete.method, "DELETE");
-    assert_eq!(delete.path, "/v1/session/s%2Fone/message/m%2Fone/part/p%2Fone?directory=%2Frepo+path");
+    assert_eq!(
+        delete.path,
+        "/v1/session/s%2Fone/message/m%2Fone/part/p%2Fone?directory=%2Frepo+path"
+    );
     server.join();
 }
 

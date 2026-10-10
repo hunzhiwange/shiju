@@ -147,10 +147,8 @@ async fn turn_bails_out_at_max_iterations() {
 
     let provider = Box::new(ScriptedProvider::new(responses));
 
-    let config = AgentDefinitionConfig {
-        max_iterations: max_iters,
-        ..AgentDefinitionConfig::default()
-    };
+    let config =
+        AgentDefinitionConfig { max_iterations: max_iters, ..AgentDefinitionConfig::default() };
 
     let mut agent = build_agent_with_config(provider, vec![Box::new(EchoTool)], config);
 

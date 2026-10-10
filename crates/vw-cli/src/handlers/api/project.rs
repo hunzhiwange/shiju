@@ -129,9 +129,9 @@ impl ProjectCommands {
             Self::Worktree {
                 command: WorktreeCommands::Delete { project_id, worktree_id, .. },
             } => Some(format!("delete worktree '{worktree_id}' in project '{project_id}'")),
-            Self::Worktree {
-                command: WorktreeCommands::Reset { project_id, worktree_id, .. },
-            } => Some(format!("reset worktree '{worktree_id}' in project '{project_id}'")),
+            Self::Worktree { command: WorktreeCommands::Reset { project_id, worktree_id, .. } } => {
+                Some(format!("reset worktree '{worktree_id}' in project '{project_id}'"))
+            }
             Self::List { .. }
             | Self::Resolve { .. }
             | Self::Detail { .. }
@@ -157,12 +157,7 @@ pub(super) async fn run(
             client
                 .project_list(
                     tenant,
-                    &ListProjectsRequest {
-                        cursor,
-                        limit,
-                        query,
-                        status: status.map(Into::into),
-                    },
+                    &ListProjectsRequest { cursor, limit, query, status: status.map(Into::into) },
                 )
                 .await
                 .map_err(anyhow::Error::msg)?
@@ -242,8 +237,7 @@ pub(super) async fn run(
                 )
             }
             WorktreeCommands::Reset { project_id, worktree_id, input } => {
-                let request =
-                    parse_input::<ResetWorktreeRequest>(&input, stdin, "worktree reset")?;
+                let request = parse_input::<ResetWorktreeRequest>(&input, stdin, "worktree reset")?;
                 json!(
                     client
                         .worktree_reset(

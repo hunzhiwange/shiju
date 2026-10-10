@@ -27,8 +27,7 @@ use crate::task_plan_run::{
 
 /// 相对 `/v1` 的路由路径，与桌面客户端 `/v1/task-plan-run/stream` 对齐。
 pub(crate) const TASK_PLAN_RUN_STREAM_ROUTE: &str = "/task-plan-run/stream";
-pub(crate) const TASK_PLAN_RUN_STREAM_STOP_ROUTE: &str =
-    "/task-plan-run/stream/{request_id}/stop";
+pub(crate) const TASK_PLAN_RUN_STREAM_STOP_ROUTE: &str = "/task-plan-run/stream/{request_id}/stop";
 pub(crate) const TASK_PLAN_RUN_STATUS_ROUTE: &str = "/task-plan-run/{task_id}/status";
 pub(crate) const TASK_PLAN_RUN_STOP_ROUTE: &str = "/task-plan-run/{task_id}/stop";
 

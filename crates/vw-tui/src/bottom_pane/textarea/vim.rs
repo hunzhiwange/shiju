@@ -9,7 +9,6 @@
 //! 选择、滚动与焦点值在使用前由原有逻辑约束到有效范围。
 //! 格式化和样式函数只组装展示数据，不改写输入模型。
 
-
 use super::TextArea;
 use super::split_word_pieces;
 use crate::key_hint::KeyBindingListExt;

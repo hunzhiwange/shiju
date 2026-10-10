@@ -249,21 +249,13 @@ pub fn tool_lsp_view<'a>(
     } else {
         format!("{summary} · {meta_label}")
     };
-    let head = container(tool_activity_header(
-        "lsp",
-        title,
-        header_summary,
-        visual,
-        detail_slot,
-    ))
-    .width(Length::Fill);
+    let head = container(tool_activity_header("lsp", title, header_summary, visual, detail_slot))
+        .width(Length::Fill);
 
     let body: Element<'a, Message> = if is_running || is_waiting {
-        let pending = if is_waiting { "等待 LSP 响应..." } else { "正在等待 LSP 响应..." };
-        container(text(pending).size(14))
-            .padding([10, 12])
-            .width(Length::Fill)
-            .into()
+        let pending =
+            if is_waiting { "等待 LSP 响应..." } else { "正在等待 LSP 响应..." };
+        container(text(pending).size(14)).padding([10, 12]).width(Length::Fill).into()
     } else if is_error || data.as_ref().is_some_and(|data| !data.success) {
         build_error_body(&error_text)
     } else if let Some(data) = data.as_ref() {

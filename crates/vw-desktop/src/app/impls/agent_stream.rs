@@ -9,8 +9,7 @@ const GATEWAY_STREAM_INITIAL_RETRY_DELAY: std::time::Duration =
     std::time::Duration::from_millis(500);
 const GATEWAY_STREAM_MAX_RETRY_DELAY: std::time::Duration =
     std::time::Duration::from_secs(3 * 60 * 60);
-const PLAN_RUN_DELTA_FLUSH_INTERVAL: std::time::Duration =
-    std::time::Duration::from_secs(10);
+const PLAN_RUN_DELTA_FLUSH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
 const PLAN_RUN_DELTA_HARD_LIMIT_BYTES: usize = 16 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,11 +80,9 @@ impl PlanRunDeltaBuffer {
             merge_forwarded_cursor(&mut forwarded_cursor, self.flush(send)?);
         }
 
-        if self
-            .pending
-            .as_ref()
-            .is_some_and(|pending| pending.delta.len().saturating_add(delta.len()) > PLAN_RUN_DELTA_HARD_LIMIT_BYTES)
-        {
+        if self.pending.as_ref().is_some_and(|pending| {
+            pending.delta.len().saturating_add(delta.len()) > PLAN_RUN_DELTA_HARD_LIMIT_BYTES
+        }) {
             merge_forwarded_cursor(&mut forwarded_cursor, self.flush(send)?);
         }
 
@@ -101,13 +98,8 @@ impl PlanRunDeltaBuffer {
         match self.pending.as_mut() {
             Some(pending) => pending.append_complete_event(remaining, event_id),
             None => {
-                self.pending = Some(PlanRunDeltaBatch::new(
-                    session_id,
-                    remaining,
-                    event_id,
-                    now,
-                    true,
-                ));
+                self.pending =
+                    Some(PlanRunDeltaBatch::new(session_id, remaining, event_id, now, true));
             }
         }
 
@@ -1678,18 +1670,16 @@ fn plan_run_event_output_text(event: &vw_api_types::task::TaskPlanRunStreamEvent
     }
 }
 
-fn plan_run_event_task_path(
-    event: &vw_api_types::task::TaskPlanRunStreamEventDto,
-) -> Option<&str> {
+fn plan_run_event_task_path(event: &vw_api_types::task::TaskPlanRunStreamEventDto) -> Option<&str> {
     match event {
         vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { plan_dir, .. }
         | vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { plan_dir, .. } => {
             Some(plan_dir)
         }
         vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted { task_file, .. }
-        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {
-            task_file, ..
-        } => Some(task_file),
+        | vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished { task_file, .. } => {
+            Some(task_file)
+        }
         _ => None,
     }
     .map(String::as_str)
@@ -1741,9 +1731,7 @@ fn plan_run_tool_block(
     if let Some(task_path) = plan_run_event_task_path(event) {
         metadata["task_path"] = json!(task_path);
     }
-    if let vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated {
-        subtask_count, ..
-    } = event
+    if let vw_api_types::task::TaskPlanRunStreamEventDto::PlanCreated { subtask_count, .. } = event
     {
         metadata["subtask_count"] = json!(subtask_count);
     }
@@ -1924,10 +1912,7 @@ async fn stream_workflow_chat_messages(
 ///
 /// 门控只认工作流开关：单独开启目标不会进入严格 plan-run。
 /// 网关 plan-run 固定目标模式，不再区分 Goal/Workflow 参数。
-pub(crate) fn task_plan_run_active(
-    workflow_mode_enabled: bool,
-    resume_history_only: bool,
-) -> bool {
+pub(crate) fn task_plan_run_active(workflow_mode_enabled: bool, resume_history_only: bool) -> bool {
     workflow_mode_enabled && !resume_history_only
 }
 
@@ -2636,10 +2621,9 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                     match plan_run_delta_buffer.flush(&mut |batch| {
                         try_send_plan_run_delta_batch(&mut output, req.id, batch)
                     }) {
-                        Ok(forwarded_event_id) => merge_forwarded_cursor(
-                            &mut last_forwarded_event_id,
-                            forwarded_event_id,
-                        ),
+                        Ok(forwarded_event_id) => {
+                            merge_forwarded_cursor(&mut last_forwarded_event_id, forwarded_event_id)
+                        }
                         Err(err) => {
                             gateway_stream_stop_after_forward_err(err, &mut stop_reason);
                         }

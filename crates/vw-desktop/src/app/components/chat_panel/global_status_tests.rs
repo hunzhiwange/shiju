@@ -47,10 +47,8 @@ fn running_read_tool_becomes_latest_status() {
 fn running_tool_status_keeps_full_detail_for_layout_clipping() {
     let long_path = format!("/workspace/{}target.rs", "deeply_nested_directory/".repeat(8));
     let input = serde_json::json!({ "filePath": long_path }).to_string();
-    let content = format!(
-        "tool read\n{}",
-        serde_json::json!({ "status": "running", "input": input })
-    );
+    let content =
+        format!("tool read\n{}", serde_json::json!({ "status": "running", "input": input }));
 
     let status = chat_global_status(&[assistant(&content)], true).expect("running read status");
 

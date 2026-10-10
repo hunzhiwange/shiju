@@ -187,10 +187,8 @@ fn init_skills_dir_installs_native_first_rustcodegraph_instructions() {
 
     init_skills_dir(dir.path()).unwrap();
 
-    let instructions = std::fs::read_to_string(
-        skills_dir(dir.path()).join("rustcodegraph/SKILL.md"),
-    )
-    .unwrap();
+    let instructions =
+        std::fs::read_to_string(skills_dir(dir.path()).join("rustcodegraph/SKILL.md")).unwrap();
     let native_entry = instructions.find("先检查当前会话的可用工具目录").unwrap();
     let cli_fallback = instructions.find("## CLI 后备").unwrap();
 

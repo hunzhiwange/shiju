@@ -15,8 +15,8 @@ use super::traits::{Tool, ToolCallResult, ToolRenderHint, ToolResult};
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::shell::tokio_command;
 use async_trait::async_trait;
-use serde_json::json;
 use serde_json::Value;
+use serde_json::json;
 use std::fmt::Write;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -680,17 +680,11 @@ impl ScreenshotTool {
             .and_then(|value| value.lines().next())
             .map(str::to_string);
         let size_bytes = output.lines().find_map(|line| {
-            line.strip_prefix("Size: ")?
-                .split_whitespace()
-                .next()?
-                .parse::<u64>()
-                .ok()
+            line.strip_prefix("Size: ")?.split_whitespace().next()?.parse::<u64>().ok()
         });
 
-        let image_marker = output
-            .lines()
-            .find_map(|line| line.strip_prefix("data:"))
-            .and_then(|data| {
+        let image_marker =
+            output.lines().find_map(|line| line.strip_prefix("data:")).and_then(|data| {
                 let (mime_type, base64) = data.split_once(";base64,")?;
                 (!mime_type.is_empty() && !base64.is_empty())
                     .then(|| (mime_type.to_string(), format!("data:{data}")))
@@ -699,9 +693,7 @@ impl ScreenshotTool {
             .as_ref()
             .map(|(mime_type, _)| mime_type.clone())
             .or_else(|| path.as_deref().map(Self::mime_type_from_path));
-        let dimensions = path
-            .as_deref()
-            .and_then(|path| image::image_dimensions(path).ok());
+        let dimensions = path.as_deref().and_then(|path| image::image_dimensions(path).ok());
 
         result.data = json!({
             "success": result.is_success(),

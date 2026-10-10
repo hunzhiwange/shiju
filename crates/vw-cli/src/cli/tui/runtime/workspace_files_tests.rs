@@ -34,14 +34,10 @@ fn workspace_file_browser_rejects_escape_and_reads_selected_text() {
     assert!(rendered.contains("[内容已截断]"));
     assert!(rendered.chars().count() < 17_000, "file display must remain bounded");
 
-    let requests = requests
-        .recv_timeout(Duration::from_secs(3))
-        .expect("record workspace file requests");
+    let requests =
+        requests.recv_timeout(Duration::from_secs(3)).expect("record workspace file requests");
     assert_eq!(requests.len(), 2, "escape rejection must not make a request");
-    assert_eq!(
-        requests[0].path,
-        "/v1/file?directory=%2Fworkspace&path=."
-    );
+    assert_eq!(requests[0].path, "/v1/file?directory=%2Fworkspace&path=.");
     assert_eq!(requests[1].path, "/v1/file/read");
     assert!(requests[1].body.contains(r#"\"directory\":\"/workspace\""#));
     assert!(requests[1].body.contains(r#"\"path\":\"README.md\""#));
@@ -52,14 +48,8 @@ fn workspace_file_browser_rejects_escape_and_reads_selected_text() {
 fn workspace_file_response_rejects_mismatched_paths_and_binary_text() {
     let root = std::path::Path::new("/workspace");
     assert!(
-        workspace_text_from_parts(
-            root,
-            "README.md",
-            "/other",
-            "README.md",
-            "text".to_string(),
-        )
-        .is_err()
+        workspace_text_from_parts(root, "README.md", "/other", "README.md", "text".to_string(),)
+            .is_err()
     );
     assert!(
         workspace_text_from_parts(

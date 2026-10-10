@@ -90,22 +90,10 @@ fn field_rows_build_text_secure_bool_hint_and_number_controls() {
     let _: iced::Element<'_, Message> = bool_row("开关", "说明", true, "开启", |value| {
         Message::Settings(SettingsMessage::Gateway(GatewayMessage::AuthEnabledToggled(value)))
     });
-    let _: iced::Element<'_, Message> = text_row_with_hint(
-        "文本",
-        "说明",
-        "占位",
-        "值",
-        "提示文本",
-        |_| Message::None,
-    );
-    let _: iced::Element<'_, Message> = bool_row_with_hint(
-        "开关",
-        "说明",
-        true,
-        "开启",
-        "提示文本",
-        |_| Message::None,
-    );
+    let _: iced::Element<'_, Message> =
+        text_row_with_hint("文本", "说明", "占位", "值", "提示文本", |_| Message::None);
+    let _: iced::Element<'_, Message> =
+        bool_row_with_hint("开关", "说明", true, "开启", "提示文本", |_| Message::None);
     let _: iced::Element<'_, Message> = number_row("数字", "说明", 7, 1, 10, "秒", |value| {
         Message::Settings(SettingsMessage::Gateway(GatewayMessage::IdempotencyTtlSecsChanged(
             value,

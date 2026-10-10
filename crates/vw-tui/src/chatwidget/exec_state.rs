@@ -72,27 +72,19 @@ impl ExecState {
     }
 
     pub(super) fn has_running_calls(&self) -> bool {
-        self.cell
-            .as_ref()
-            .is_some_and(|cell| cell.calls.iter().any(|call| call.duration.is_none()))
+        self.cell.as_ref().is_some_and(|cell| cell.calls.iter().any(|call| call.duration.is_none()))
     }
 
-    pub(super) fn start(
-        &mut self,
-        call_id: String,
-        tool: String,
-        command: String,
-    ) -> CallMutation {
+    pub(super) fn start(&mut self, call_id: String, tool: String, command: String) -> CallMutation {
         if self.terminal_call_ids.contains(&call_id) {
             return CallMutation::AlreadyTerminal;
         }
         if self.call_indexes.contains_key(&call_id) {
             return CallMutation::Duplicate;
         }
-        let cell = self.cell.get_or_insert_with(|| ExecCell {
-            calls: Vec::new(),
-            animations_enabled: false,
-        });
+        let cell = self
+            .cell
+            .get_or_insert_with(|| ExecCell { calls: Vec::new(), animations_enabled: false });
         let index = cell.calls.len();
         cell.calls.push(ExecCall {
             call_id: call_id.clone(),

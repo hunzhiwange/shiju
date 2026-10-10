@@ -213,8 +213,10 @@ fn model_tool_result_preserves_image_marker() {
     let output = format!("Screenshot captured: /tmp/pixel.png (1 bytes, image/png, 1x1)\n{marker}");
 
     assert_eq!(super::compact_tool_output("screenshot", &output), output);
-    assert!(super::batch_model_output(1, &[computed_success("screenshot", Some(&output))])
-        .contains(marker));
+    assert!(
+        super::batch_model_output(1, &[computed_success("screenshot", Some(&output))])
+            .contains(marker)
+    );
 }
 
 #[test]

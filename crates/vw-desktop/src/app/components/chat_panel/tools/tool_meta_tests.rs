@@ -41,22 +41,8 @@ fn tool_icons_distinguish_common_activity_types() {
 #[test]
 fn tool_visual_state_maps_all_supported_lifecycles() {
     for (raw, state, icon, label, is_animated, tone) in [
-        (
-            "waiting",
-            ToolVisualState::Waiting,
-            Icon::Clock,
-            "等待中",
-            true,
-            ToolVisualTone::Waiting,
-        ),
-        (
-            "queued",
-            ToolVisualState::Waiting,
-            Icon::Clock,
-            "等待中",
-            true,
-            ToolVisualTone::Waiting,
-        ),
+        ("waiting", ToolVisualState::Waiting, Icon::Clock, "等待中", true, ToolVisualTone::Waiting),
+        ("queued", ToolVisualState::Waiting, Icon::Clock, "等待中", true, ToolVisualTone::Waiting),
         (
             "running",
             ToolVisualState::Running,
@@ -81,38 +67,10 @@ fn tool_visual_state_maps_all_supported_lifecycles() {
             false,
             ToolVisualTone::Success,
         ),
-        (
-            "error",
-            ToolVisualState::Failed,
-            Icon::X,
-            "失败",
-            false,
-            ToolVisualTone::Danger,
-        ),
-        (
-            "failed",
-            ToolVisualState::Failed,
-            Icon::X,
-            "失败",
-            false,
-            ToolVisualTone::Danger,
-        ),
-        (
-            "denied",
-            ToolVisualState::Failed,
-            Icon::X,
-            "失败",
-            false,
-            ToolVisualTone::Danger,
-        ),
-        (
-            "cancelled",
-            ToolVisualState::Cancelled,
-            Icon::X,
-            "已取消",
-            false,
-            ToolVisualTone::Muted,
-        ),
+        ("error", ToolVisualState::Failed, Icon::X, "失败", false, ToolVisualTone::Danger),
+        ("failed", ToolVisualState::Failed, Icon::X, "失败", false, ToolVisualTone::Danger),
+        ("denied", ToolVisualState::Failed, Icon::X, "失败", false, ToolVisualTone::Danger),
+        ("cancelled", ToolVisualState::Cancelled, Icon::X, "已取消", false, ToolVisualTone::Muted),
     ] {
         let visual = tool_visual_state(raw);
         assert_eq!(visual.state, state, "{raw}");

@@ -7,9 +7,7 @@ use vw_tui::{V3FileChange, V3FileDiff, V3FileDiffEntry};
 
 use super::gateway::{GatewayUiRuntime, block_on_gateway};
 
-pub(crate) fn load_session_diff_blocking(
-    runtime: &GatewayUiRuntime,
-) -> Result<V3FileDiff, String> {
+pub(crate) fn load_session_diff_blocking(runtime: &GatewayUiRuntime) -> Result<V3FileDiff, String> {
     block_on_gateway(async {
         let session_id = runtime.resolve_session_id(None)?.to_string();
         let directory = runtime
@@ -20,10 +18,8 @@ pub(crate) fn load_session_diff_blocking(
             .ok_or_else(|| {
                 "gateway runtime directory is required and must be valid UTF-8".to_string()
             })?;
-        let query = GatewaySessionDiffQuery {
-            directory: Some(directory.to_string()),
-            message_id: None,
-        };
+        let query =
+            GatewaySessionDiffQuery { directory: Some(directory.to_string()), message_id: None };
         let files = runtime.client().session_diff::<Vec<FileDiff>>(&session_id, &query).await?;
         Ok(map_session_diff(files))
     })
@@ -43,17 +39,13 @@ fn map_file_diff(file: FileDiff) -> V3FileDiffEntry {
         None if !file.before.is_empty() && file.after.is_empty() => {
             V3FileChange::Delete { content: file.before }
         }
-        Some(DiffStatus::Modified) | None => {
-            modified_change(&file.file, &file.before, &file.after)
-        }
+        Some(DiffStatus::Modified) | None => modified_change(&file.file, &file.before, &file.after),
     };
     V3FileDiffEntry { path: file.file, change }
 }
 
 fn modified_change(path: &str, before: &str, after: &str) -> V3FileChange {
-    let unified_diff = TextDiff::from_lines(before, after)
-        .unified_diff()
-        .header(path, path)
-        .to_string();
+    let unified_diff =
+        TextDiff::from_lines(before, after).unified_diff().header(path, path).to_string();
     V3FileChange::Update { unified_diff }
 }

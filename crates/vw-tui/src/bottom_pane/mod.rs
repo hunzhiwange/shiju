@@ -6,7 +6,6 @@
 //! 布局计算以当前可用区域为边界，避免向小终端尺寸外绘制。
 //! 键盘输入只在当前界面状态内解释，未匹配输入继续遵循上层约定。
 
-
 //! 本地输入编辑器与底部边界。`@` 文件面板优先处理 Up/Down、Enter 与 Esc，并与 `/` 命令面板互斥；普通编辑和粘贴继续交给输入框。复制的 Codex 渲染核心位于该边界之下，而所有业务结果均保留在此模块中，[`V3Action`] 作为所有者。此模块不拥有发送者、客户端、运行时或请求对象。
 //! VibeWindow's local composer and footer boundary.
 //!
@@ -47,10 +46,10 @@ pub(crate) mod approval_overlay;
 mod chat_composer;
 #[path = "command_popup.rs"]
 pub(crate) mod command_popup;
-#[path = "file_search_popup.rs"]
-pub(crate) mod file_search_popup;
 #[cfg(test)]
 mod file_search_integration_tests;
+#[path = "file_search_popup.rs"]
+pub(crate) mod file_search_popup;
 #[path = "footer.rs"]
 mod footer;
 #[path = "chat_composer/footer_state.rs"]
@@ -166,11 +165,7 @@ impl BottomPane {
         self.sync_popups();
     }
 
-    pub(crate) fn restore_submission(
-        &mut self,
-        text: &str,
-        attachments: Vec<crate::V3Attachment>,
-    ) {
+    pub(crate) fn restore_submission(&mut self, text: &str, attachments: Vec<crate::V3Attachment>) {
         self.composer.restore_submission(text, attachments);
         self.sync_popups();
     }
@@ -205,11 +200,7 @@ impl BottomPane {
         self.sync_popups();
     }
 
-    pub(crate) fn set_file_search_matches(
-        &mut self,
-        query: &str,
-        matches: Vec<V3FileSearchMatch>,
-    ) {
+    pub(crate) fn set_file_search_matches(&mut self, query: &str, matches: Vec<V3FileSearchMatch>) {
         if let Some(popup) = self.file_search_popup.as_mut() {
             popup.set_matches(query, matches);
         }
@@ -233,11 +224,7 @@ impl BottomPane {
         let text = self.composer.text();
         let first_line = text.lines().next().unwrap_or_default();
         let editing_command = first_line.starts_with('/')
-            && !first_line
-                .strip_prefix('/')
-                .unwrap_or_default()
-                .chars()
-                .any(char::is_whitespace);
+            && !first_line.strip_prefix('/').unwrap_or_default().chars().any(char::is_whitespace);
         if !editing_command || self.command_items.is_empty() {
             self.command_popup = None;
             return;

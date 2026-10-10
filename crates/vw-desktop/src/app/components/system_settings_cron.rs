@@ -1249,10 +1249,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 }
 
 fn active_save_error(app: &App) -> Option<&str> {
-    app.cron_settings
-        .save_error
-        .as_deref()
-        .or(app.scheduler_settings.save_error.as_deref())
+    app.cron_settings.save_error.as_deref().or(app.scheduler_settings.save_error.as_deref())
 }
 
 fn with_runs_modal<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {

@@ -13,7 +13,10 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Style, Stylize as _};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, StatefulWidget, Widget};
+use ratatui::widgets::{
+    Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+    StatefulWidget, Widget,
+};
 
 use scrolling::{clamp_offset, max_scroll_offset, render_scrolled_lines};
 
@@ -78,11 +81,8 @@ impl TranscriptPager {
             self.scroll_offset
         };
         self.scroll_offset = current.saturating_add_signed(delta);
-        self.scroll_offset = clamp_offset(
-            self.scroll_offset,
-            self.content_height(),
-            self.last_viewport_height,
-        );
+        self.scroll_offset =
+            clamp_offset(self.scroll_offset, self.content_height(), self.last_viewport_height);
         self.follow_bottom = self.scroll_offset
             == max_scroll_offset(self.content_height(), self.last_viewport_height);
     }
@@ -133,7 +133,8 @@ impl TranscriptPager {
 
         // 仅在内容溢出时渲染一列宽滚动条。
         if content_height > self.last_viewport_height {
-            let scrollbar_area = Rect::new(inner.right().saturating_sub(1), inner.y, 1, content_area.height);
+            let scrollbar_area =
+                Rect::new(inner.right().saturating_sub(1), inner.y, 1, content_area.height);
             let mut state = ScrollbarState::new(max_offset).position(self.scroll_offset);
             Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(None)
@@ -154,10 +155,9 @@ impl TranscriptPager {
             format!(" {position} ").bold(),
             "↑/↓ scroll  PgUp/PgDn page  Home/End jump  Esc close".dim(),
         ]);
-        Paragraph::new(footer).style(Style::default()).render(
-            Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1),
-            buf,
-        );
+        Paragraph::new(footer)
+            .style(Style::default())
+            .render(Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1), buf);
     }
 
     fn content_height(&self) -> usize {
@@ -172,9 +172,7 @@ mod tests {
 
     fn pager() -> TranscriptPager {
         TranscriptPager::new(
-            (0..24)
-                .map(|index| Line::from(format!("transcript line {index:02}")))
-                .collect(),
+            (0..24).map(|index| Line::from(format!("transcript line {index:02}"))).collect(),
         )
     }
 

@@ -31,23 +31,13 @@ mod stream;
 #[cfg(test)]
 mod tests;
 
+pub use client::ApiQlQuery;
+#[cfg(not(target_arch = "wasm32"))]
+pub use client::GatewayChatWebSocket;
 /// 网关 HTTP 与流式接口的统一客户端入口。
 ///
 /// 调用方通常只需要持有这个类型，即可访问本 crate 暴露的大部分能力。
 pub use client::GatewayClient;
-pub use client::ApiQlQuery;
-pub use client::{
-    GatewayAgentRequest, GatewayAgentResponse, GatewayChatWebSocketEvent,
-};
-#[cfg(not(target_arch = "wasm32"))]
-pub use client::GatewayChatWebSocket;
-/// Provider 列表接口的响应结构。
-///
-/// 包含全部 provider、默认路由与已连接 provider 三部分信息。
-pub use client::{
-    ProviderAuthMethodDto, ProviderAuthMethodsResponse, ProviderListResponse,
-    ProviderOAuthAuthorizationDto,
-};
 /// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
 pub use client::SessionUiLoadResult;
 pub use client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
@@ -56,19 +46,27 @@ pub use client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 /// 该结构会把原始 JSON 响应规整为更适合 UI 层消费的字段。
 pub use client::{
     DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
-    DesktopPluginPathDto, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto,
-    DesktopServiceCommand, ExternalAppsStateDto, HookAuditEntryDto, HookCatalogEntryDto, HookMutationRequestDto,
-    HookMutationResponseDto, PendingPermissionReplyDto, PendingPermissionRequestDto,
-    PendingPermissionToolDto, PtyCreateRequest, PtyInfoDto, PtySizeDto, PtyStatusDto,
-    PtyUpdateRequest,
+    DesktopPluginPathDto, DesktopServiceCommand, DesktopSkillCatalogEntryDto,
+    DesktopSkillDetailDto, DesktopSkillPathDto, ExternalAppsStateDto, HookAuditEntryDto,
+    HookCatalogEntryDto, HookMutationRequestDto, HookMutationResponseDto,
+    PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto,
+    PtyCreateRequest, PtyInfoDto, PtySizeDto, PtyStatusDto, PtyUpdateRequest,
 };
-#[cfg(not(target_arch = "wasm32"))]
-pub use client::{PtyConnection, PtyWebSocketEvent};
+pub use client::{GatewayAgentRequest, GatewayAgentResponse, GatewayChatWebSocketEvent};
 /// Workflow streaming 请求与事件类型。
 pub use client::{
     GatewayWorkflowDefaultStreamRequest, GatewayWorkflowResponseMode, GatewayWorkflowRunOutcome,
     GatewayWorkflowStreamError, GatewayWorkflowStreamEvent, GatewayWorkflowStreamRequest,
 };
+/// Provider 列表接口的响应结构。
+///
+/// 包含全部 provider、默认路由与已连接 provider 三部分信息。
+pub use client::{
+    ProviderAuthMethodDto, ProviderAuthMethodsResponse, ProviderListResponse,
+    ProviderOAuthAuthorizationDto,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use client::{PtyConnection, PtyWebSocketEvent};
 /// SHIJU account gateway transport contract.
 pub use client::{
     SHIJU_CREDENTIAL_HEADER, ShijuAccountDepartmentDto, ShijuAccountMeDto,
@@ -88,8 +86,7 @@ pub use client::{
     ShijuMarketplaceSkillDto, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
     ShijuSkillReadmeDto, ShijuSkillScanResultDto, ShijuSkillSearchQuery, ShijuSkillTagDto,
     ShijuSkillVersionContentDto, ShijuSkillVersionDto, ShijuSkillVisibilityDto,
-    ShijuSkillVisibilityScopeDto,
-    ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
+    ShijuSkillVisibilityScopeDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
 /// Unified skill-market transport contract.
 pub use client::{
@@ -138,8 +135,8 @@ pub use stream::{ChatStreamEvent, ChatStreamRequest};
 pub use stream::{
     GatewayChatStepFinishEvent, GatewayChatStepStartEvent, GatewayChatStreamEvent,
     GatewayChatStreamRequest, GatewayChatToolEvent, GatewayChatToolEventKind,
-    GatewayChatToolStatus, GatewayChatUsage, GatewayStreamAttemptResult, GatewayStreamEvent,
-    GatewayJsonSseEvent, GatewayStreamResume, GatewayTypedChatStreamEvent, LAST_EVENT_ID_HEADER,
+    GatewayChatToolStatus, GatewayChatUsage, GatewayJsonSseEvent, GatewayStreamAttemptResult,
+    GatewayStreamEvent, GatewayStreamResume, GatewayTypedChatStreamEvent, LAST_EVENT_ID_HEADER,
     STREAM_REQUEST_ID_HEADER, normalize_chat_stream_event, normalize_chat_tool_event,
 };
 /// 对外透出共享的 API 类型定义。

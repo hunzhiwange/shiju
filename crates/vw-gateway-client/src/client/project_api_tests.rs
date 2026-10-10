@@ -341,18 +341,11 @@ async fn project_api_uses_project_worktree_routes() {
         .client()
         .project_update(
             &scope,
-            &UpdateProjectRequest {
-                name: Some("renamed".to_string()),
-                ..Default::default()
-            },
+            &UpdateProjectRequest { name: Some("renamed".to_string()), ..Default::default() },
         )
         .await
         .expect("update");
-    server
-        .client()
-        .project_change_records(&scope, "/work/demo")
-        .await
-        .expect("records");
+    server.client().project_change_records(&scope, "/work/demo").await.expect("records");
     server.client().project_worktrees(&scope).await.expect("worktrees");
     server
         .client()
@@ -393,10 +386,7 @@ async fn project_api_uses_project_worktree_routes() {
     assert_eq!(paths[6], "/v1/projects/project%20%2Fone/worktrees");
     assert_eq!(paths[7], "/v1/projects/project%20%2Fone/worktrees/worktree%20%2Fone");
     assert_eq!(paths[8], "/v1/projects/project%20%2Fone/worktrees/worktree%20%2Fone");
-    assert_eq!(
-        paths[9],
-        "/v1/projects/project%20%2Fone/worktrees/worktree%20%2Fone/reset"
-    );
+    assert_eq!(paths[9], "/v1/projects/project%20%2Fone/worktrees/worktree%20%2Fone/reset");
     let error = server
         .client()
         .worktree_get(&scope, "   ")

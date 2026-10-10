@@ -104,7 +104,8 @@ async fn session_tool_create_marks_visible_parent_relation() {
     crate::project::instance::dispose_all().await;
 
     let project = TempDir::new().expect("project directory");
-    let scope = scope(tenant("runtime-platform-visible", "runtime-company-visible"), project.path());
+    let scope =
+        scope(tenant("runtime-platform-visible", "runtime-company-visible"), project.path());
     let parent = create_session(CreateSessionInput {
         scope: scope.clone(),
         parent_id: None,

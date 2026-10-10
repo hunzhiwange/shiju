@@ -21,9 +21,15 @@ use super::output;
 #[derive(Subcommand, Debug)]
 pub(super) enum SchedulerCommands {
     /// 读取项目 workflow 快照。
-    Workflow { #[arg(value_parser = required)] project_id: String },
+    Workflow {
+        #[arg(value_parser = required)]
+        project_id: String,
+    },
     /// 读取项目任务快照。
-    Tasks { #[arg(value_parser = required)] project_id: String },
+    Tasks {
+        #[arg(value_parser = required)]
+        project_id: String,
+    },
     /// 从 JSON 输入创建任务。
     Create {
         #[arg(value_parser = required)]
@@ -140,26 +146,61 @@ pub(super) async fn run(
     let client = context.client();
     let response = match command {
         SchedulerCommands::Workflow { project_id } => {
-            json!(client.agent_scheduler_workflow(&scope(context, project_id)?).await.map_err(anyhow::Error::msg)?)
+            json!(
+                client
+                    .agent_scheduler_workflow(&scope(context, project_id)?)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Tasks { project_id } => {
-            json!(client.agent_scheduler_status(&scope(context, project_id)?).await.map_err(anyhow::Error::msg)?)
+            json!(
+                client
+                    .agent_scheduler_status(&scope(context, project_id)?)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Create { project_id, input } => {
             let request = parse::<AgentSchedulerCreateTaskRequest>(&input, stdin, "create")?;
-            json!(client.agent_scheduler_create_task(&scope(context, project_id)?, &request).await.map_err(anyhow::Error::msg)?)
+            json!(
+                client
+                    .agent_scheduler_create_task(&scope(context, project_id)?, &request)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Command { project_id, input } => {
             let request = parse::<AgentSchedulerCommandRequest>(&input, stdin, "command")?;
-            json!(client.agent_scheduler_command(&scope(context, project_id)?, &request).await.map_err(anyhow::Error::msg)?)
+            json!(
+                client
+                    .agent_scheduler_command(&scope(context, project_id)?, &request)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Bulk { project_id, input } => {
             let request = parse::<AgentSchedulerBulkCommandRequest>(&input, stdin, "bulk command")?;
-            json!(client.agent_scheduler_bulk_command(&scope(context, project_id)?, &request).await.map_err(anyhow::Error::msg)?)
+            json!(
+                client
+                    .agent_scheduler_bulk_command(&scope(context, project_id)?, &request)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Metadata { project_id, task_id, input } => {
-            let request = parse::<AgentSchedulerTaskMetadataUpdateRequest>(&input, stdin, "metadata")?;
-            json!(client.agent_scheduler_update_task_metadata(&scope(context, project_id)?, &task_id, &request).await.map_err(anyhow::Error::msg)?)
+            let request =
+                parse::<AgentSchedulerTaskMetadataUpdateRequest>(&input, stdin, "metadata")?;
+            json!(
+                client
+                    .agent_scheduler_update_task_metadata(
+                        &scope(context, project_id)?,
+                        &task_id,
+                        &request
+                    )
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Import { project_id, input } => {
             let request =
@@ -172,17 +213,37 @@ pub(super) async fn run(
             )
         }
         SchedulerCommands::Logs { project_id, task_id } => {
-            json!(client.agent_scheduler_logs(&scope(context, project_id)?, &task_id).await.map_err(anyhow::Error::msg)?)
+            json!(
+                client
+                    .agent_scheduler_logs(&scope(context, project_id)?, &task_id)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Artifacts { project_id, task_id } => {
-            json!(client.agent_scheduler_artifacts(&scope(context, project_id)?, &task_id).await.map_err(anyhow::Error::msg)?)
+            json!(
+                client
+                    .agent_scheduler_artifacts(&scope(context, project_id)?, &task_id)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Events { project_id, after_cursor } => {
-            json!(client.agent_scheduler_events(&scope(context, project_id)?, after_cursor).await.map_err(anyhow::Error::msg)?)
+            json!(
+                client
+                    .agent_scheduler_events(&scope(context, project_id)?, after_cursor)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Wake { project_id, input } => {
             let request = parse::<AgentSchedulerWakeRequest>(&input, stdin, "wake")?;
-            json!(client.agent_scheduler_wake(&scope(context, project_id)?, &request).await.map_err(anyhow::Error::msg)?)
+            json!(
+                client
+                    .agent_scheduler_wake(&scope(context, project_id)?, &request)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
         }
         SchedulerCommands::Drain { project_id, input } => {
             let request = parse::<AgentSchedulerOutboxDrainRequest>(&input, stdin, "outbox drain")?;

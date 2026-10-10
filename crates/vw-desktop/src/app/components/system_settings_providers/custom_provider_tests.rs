@@ -119,7 +119,8 @@ fn overlays_build_edit_modal_headers_models_and_error_states() {
 fn overlays_adds_one_editable_row_per_configured_header() {
     let mut app = test_app();
     app.provider_settings.custom_provider_modal_open = true;
-    app.provider_settings.custom_provider_tab = crate::app::state::CustomProviderTab::Authentication;
+    app.provider_settings.custom_provider_tab =
+        crate::app::state::CustomProviderTab::Authentication;
     let single_header =
         element_tree(super::custom_provider::view_overlays(&app, text("dialog").into()));
 

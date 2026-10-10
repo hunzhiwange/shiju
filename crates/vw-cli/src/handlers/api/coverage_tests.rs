@@ -20,7 +20,12 @@ fn api_route_coverage_classifies_every_documented_gateway_route() {
 
     let mut keys = HashSet::new();
     for route in &routes {
-        assert!(keys.insert((route.method, route.path)), "duplicate route {} {}", route.method, route.path);
+        assert!(
+            keys.insert((route.method, route.path)),
+            "duplicate route {} {}",
+            route.method,
+            route.path
+        );
     }
     let command = crate::cli::Cli::command();
     let families = command.get_subcommands().map(clap::Command::get_name).collect::<HashSet<_>>();
@@ -31,7 +36,12 @@ fn api_route_coverage_classifies_every_documented_gateway_route() {
         match classify_route(route).expect("classified") {
             RouteCoverage::Command(family) => {
                 command_count += 1;
-                assert!(families.contains(family), "route {} {} maps to missing api family {family}", route.method, route.path);
+                assert!(
+                    families.contains(family),
+                    "route {} {} maps to missing api family {family}",
+                    route.method,
+                    route.path
+                );
             }
             RouteCoverage::Alias(target) => {
                 alias_count += 1;

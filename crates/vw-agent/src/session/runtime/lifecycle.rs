@@ -132,13 +132,20 @@ pub(crate) async fn fork_visible_task_session(
                 if source.parent_id.as_deref() != Some(&parent_id) || !source.is_visible_task() {
                     return Err(LifecycleError::SessionNotFound { session_id: source_id });
                 }
-                let created = session::fork_with_parent(&source.id, message_id.as_deref(), Some(parent_id)).await?;
+                let created =
+                    session::fork_with_parent(&source.id, message_id.as_deref(), Some(parent_id))
+                        .await?;
                 session::update(&created.id, |info| {
                     info.slug = session::Info::visible_task_slug(&info.slug);
-                }).await.map_err(LifecycleError::from)
-            }).await
+                })
+                .await
+                .map_err(LifecycleError::from)
+            })
+            .await
         })
-    }).await.map_err(LifecycleError::Project)?
+    })
+    .await
+    .map_err(LifecycleError::Project)?
 }
 
 /// 列出同一项目、目录及父会话下持久化的可见任务。
@@ -156,14 +163,20 @@ pub(crate) async fn visible_tasks_for_parent(
             ui_store::with_tenant_scope(tenant, async move {
                 load_info_for_scope(&scope, &expected_project_id, &parent_id).await?;
                 let children = session::children(&parent_id).await.map_err(LifecycleError::from)?;
-                Ok(children.into_iter().filter(|info| {
-                    info.is_visible_task()
-                        && info.project_id == expected_project_id
-                        && canonical_recorded_directory(&info.directory) == scope.directory()
-                }).collect())
-            }).await
+                Ok(children
+                    .into_iter()
+                    .filter(|info| {
+                        info.is_visible_task()
+                            && info.project_id == expected_project_id
+                            && canonical_recorded_directory(&info.directory) == scope.directory()
+                    })
+                    .collect())
+            })
+            .await
         })
-    }).await.map_err(LifecycleError::Project)?
+    })
+    .await
+    .map_err(LifecycleError::Project)?
 }
 
 /// 加载会话，在读取历史前校验租户、目录和项目归属。

@@ -176,12 +176,7 @@ pub(super) async fn run<R: Read, W: Write>(
             }
             CronOperationsCommands::Update { job_id, input } => {
                 let request = parse_input::<CronUpdateRequest>(&input, stdin, "Cron update")?;
-                json!(
-                    client
-                        .cron_job_update(&job_id, &request)
-                        .await
-                        .map_err(anyhow::Error::msg)?
-                )
+                json!(client.cron_job_update(&job_id, &request).await.map_err(anyhow::Error::msg)?)
             }
             CronOperationsCommands::Delete { job_id } => {
                 client.cron_job_delete(&job_id).await.map_err(anyhow::Error::msg)?;

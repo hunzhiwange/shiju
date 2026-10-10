@@ -11,8 +11,8 @@ use crate::app::components::system_settings_common::{
     danger_action_btn_style, icon_svg, rounded_action_btn_style, settings_checkbox_style,
     settings_control_with_hint, settings_divider, settings_error_banner, settings_help_button,
     settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_page_intro,
-    settings_panel, settings_section_card, settings_section_content,
-    settings_segment_button_style, settings_text_input_style, settings_value_badge,
+    settings_panel, settings_section_card, settings_section_content, settings_segment_button_style,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{GatewayMessage, SettingsMessage};
@@ -817,14 +817,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             "监听地址",
             "控制网关监听 host / port。默认仅绑定回环地址，避免意外暴露到公网。"
         ),
-        settings_section_content(
-            column![
-                port_row,
-                settings_divider(),
-                host_row,
-            ]
-            .spacing(0)
-        ),
+        settings_section_content(column![port_row, settings_divider(), host_row,].spacing(0)),
         settings_section_card("安全开关", "控制 skey 鉴权、公网绑定与反向代理头信任策略。"),
         settings_section_content(
             column![

@@ -16,9 +16,9 @@ use crate::app::{Message, QueueItem, TodoPanelPlacement, message};
 use iced::advanced::renderer::Headless;
 #[cfg(not(target_arch = "wasm32"))]
 use iced::advanced::{Layout, layout, widget::Tree};
+use iced::{Element, Length, Theme};
 #[cfg(not(target_arch = "wasm32"))]
 use iced::{Font, Pixels, Size};
-use iced::{Element, Length, Theme};
 use vw_shared::todo::Todo;
 
 // 入口测试使用最小目录项、队列项和待办项组合输入面板的独立区域。
@@ -266,10 +266,8 @@ async fn input_panel_aligns_with_chat_column_on_wide_and_narrow_layouts() {
         let limits = layout::Limits::new(Size::ZERO, Size::new(viewport_width, 600.0));
         let mut tree = Tree::new(element.as_widget());
         let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
-        let panel_shell = Layout::new(&node)
-            .children()
-            .next()
-            .expect("chat area should contain the input shell");
+        let panel_shell =
+            Layout::new(&node).children().next().expect("chat area should contain the input shell");
 
         panel_shell
             .children()

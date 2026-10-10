@@ -83,18 +83,17 @@ impl SessionHistoryCell {
         const GATEWAY_LABEL: &str = "gateway:";
         const PERMISSIONS_LABEL: &str = "permissions:";
         const SESSION_LABEL: &str = "session:";
-        let label_width = [MODEL_LABEL, DIRECTORY_LABEL, GATEWAY_LABEL, PERMISSIONS_LABEL, SESSION_LABEL]
-            .into_iter()
-            .map(str::len)
-            .max()
-            .unwrap_or_default();
+        let label_width =
+            [MODEL_LABEL, DIRECTORY_LABEL, GATEWAY_LABEL, PERMISSIONS_LABEL, SESSION_LABEL]
+                .into_iter()
+                .map(str::len)
+                .max()
+                .unwrap_or_default();
         let row = |label: &str, value: String| {
-            Line::from(vec![
-                format!("{label:<label_width$} ").dim(),
-                Span::from(value),
-            ])
+            Line::from(vec![format!("{label:<label_width$} ").dim(), Span::from(value)])
         };
-        let directory_prefix_width = display_width(DIRECTORY_LABEL) + 1 + label_width - DIRECTORY_LABEL.len();
+        let directory_prefix_width =
+            display_width(DIRECTORY_LABEL) + 1 + label_width - DIRECTORY_LABEL.len();
         let directory_width = inner_width.saturating_sub(directory_prefix_width);
         let directory = crate::text_formatting::center_truncate_path(
             data.cwd.display().to_string().as_str(),

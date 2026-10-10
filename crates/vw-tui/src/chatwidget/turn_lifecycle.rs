@@ -117,10 +117,9 @@ impl ChatWidget {
                 "turn start while another turn is active",
                 format!("turn_id={turn_id}"),
             ),
-            TurnStartOutcome::AlreadyTerminal => self.push_diagnostic(
-                "turn start after terminal",
-                format!("turn_id={turn_id}"),
-            ),
+            TurnStartOutcome::AlreadyTerminal => {
+                self.push_diagnostic("turn start after terminal", format!("turn_id={turn_id}"))
+            }
         }
     }
 
@@ -186,10 +185,9 @@ impl ChatWidget {
         }
         self.commit_stream_segment();
         if self.exec_state.has_running_calls() {
-            let call_ids = self.exec_state.finish_running(
-                130,
-                "tool did not emit a terminal event before turn completion",
-            );
+            let call_ids = self
+                .exec_state
+                .finish_running(130, "tool did not emit a terminal event before turn completion");
             self.sync_exec_group();
             self.commit_exec_group();
             self.push_diagnostic(

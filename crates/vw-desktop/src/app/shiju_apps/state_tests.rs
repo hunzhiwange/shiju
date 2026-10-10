@@ -55,24 +55,8 @@ fn launch_response_requires_generation_account_and_installation_identity() {
         ..ShijuAppsState::default()
     };
 
-    assert!(state.launch_response_is_current(
-        8,
-        "company-1",
-        "01K1APP0000000000000000001"
-    ));
-    assert!(!state.launch_response_is_current(
-        7,
-        "company-1",
-        "01K1APP0000000000000000001"
-    ));
-    assert!(!state.launch_response_is_current(
-        8,
-        "company-2",
-        "01K1APP0000000000000000001"
-    ));
-    assert!(!state.launch_response_is_current(
-        8,
-        "company-1",
-        "01K1APP0000000000000000002"
-    ));
+    assert!(state.launch_response_is_current(8, "company-1", "01K1APP0000000000000000001"));
+    assert!(!state.launch_response_is_current(7, "company-1", "01K1APP0000000000000000001"));
+    assert!(!state.launch_response_is_current(8, "company-2", "01K1APP0000000000000000001"));
+    assert!(!state.launch_response_is_current(8, "company-1", "01K1APP0000000000000000002"));
 }

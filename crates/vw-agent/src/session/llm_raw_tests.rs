@@ -5,10 +5,8 @@ use serde_json::{Value, json};
 use super::llm_raw::LlmRawArtifact;
 
 fn raw_round(step_index: u32, messages: Vec<Value>, config: Value, output: Value) -> Value {
-    let message_sources = messages
-        .iter()
-        .map(|message| json!({"source": message["role"]}))
-        .collect::<Vec<_>>();
+    let message_sources =
+        messages.iter().map(|message| json!({"source": message["role"]})).collect::<Vec<_>>();
     json!({
         "session_id": "session-a",
         "step_index": step_index,
@@ -59,11 +57,8 @@ fn raw_rounds_reconstruct_provider_messages_after_tools() {
         json!({"text": "done", "tool_calls": []}),
     );
 
-    let artifact = LlmRawArtifact::from_full_raw_rounds(
-        "turn-a",
-        &[first.clone(), second.clone()],
-    )
-    .unwrap();
+    let artifact =
+        LlmRawArtifact::from_full_raw_rounds("turn-a", &[first.clone(), second.clone()]).unwrap();
 
     assert_eq!(artifact.rounds[1].provider_message_prefix_len, 1);
     assert_eq!(artifact.rounds[1].provider_message_suffix.len(), 2);

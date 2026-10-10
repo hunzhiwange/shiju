@@ -641,9 +641,7 @@ const MAX_PROVIDER_RETRY_BACKOFF_MS: u64 = 5_000;
 
 pub(crate) fn provider_retry_backoff_ms(initial_backoff_ms: u64, retry_index: u32) -> u64 {
     let multiplier = 1u64.checked_shl(retry_index).unwrap_or(u64::MAX);
-    initial_backoff_ms
-        .saturating_mul(multiplier)
-        .min(MAX_PROVIDER_RETRY_BACKOFF_MS)
+    initial_backoff_ms.saturating_mul(multiplier).min(MAX_PROVIDER_RETRY_BACKOFF_MS)
 }
 #[cfg(test)]
 #[path = "llm_runner_tests.rs"]

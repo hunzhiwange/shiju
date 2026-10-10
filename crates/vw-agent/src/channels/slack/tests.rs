@@ -103,7 +103,7 @@ mod tests {
     }
 
     #[test]
-// 自动选择频道时排除已归档和未加入项，避免投递到无效目标。
+    // 自动选择频道时排除已归档和未加入项，避免投递到无效目标。
     fn extract_channel_ids_filters_archived_and_non_member_entries() {
         let payload = serde_json::json!({
             "channels": [

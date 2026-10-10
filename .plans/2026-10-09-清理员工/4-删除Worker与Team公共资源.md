@@ -2,7 +2,7 @@
 
 批次：【批次 4】 依赖批次 3
 
-状态：已完成，待回归验证
+状态：已完成，待回归
 
 历史阻塞（已解除）：依赖批次 3 未达到本任务声明的前置状态。当前 `engine/dispatch.rs`
 仍导入并约束 `ControllerAdapter`、`worker_selection`、`StoredAgentWorker`，且保留

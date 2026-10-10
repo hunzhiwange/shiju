@@ -1,6 +1,8 @@
 //! 验证 AI SDK 流事件、用量、结束原因与错误传播。
 
 use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
@@ -144,6 +146,136 @@ async fn run_fake_stream(
     .await;
 
     (result, events)
+}
+
+fn spawn_openai_stream_server(
+    request_count: usize,
+) -> (String, Arc<Mutex<Vec<Value>>>, std::thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("stream server should bind");
+    let address = listener.local_addr().expect("stream server address");
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let server_requests = Arc::clone(&requests);
+    let server = std::thread::spawn(move || {
+        for _ in 0..request_count {
+            let (mut stream, _) = listener.accept().expect("stream server should accept request");
+            let mut request = Vec::new();
+            let mut buffer = [0_u8; 4096];
+            loop {
+                let read = stream.read(&mut buffer).expect("stream server should read request");
+                assert!(read > 0, "request should not close before its body");
+                request.extend_from_slice(&buffer[..read]);
+                let Some(headers_end) = request.windows(4).position(|bytes| bytes == b"\r\n\r\n")
+                else {
+                    continue;
+                };
+                let headers =
+                    std::str::from_utf8(&request[..headers_end]).expect("request headers utf8");
+                let content_length = headers
+                    .lines()
+                    .find_map(|line| {
+                        line.strip_prefix("Content-Length: ")
+                            .or_else(|| line.strip_prefix("content-length: "))
+                    })
+                    .expect("request content length")
+                    .parse::<usize>()
+                    .expect("numeric content length");
+                if request.len() >= headers_end + 4 + content_length {
+                    break;
+                }
+            }
+
+            let headers_end = request.windows(4).position(|bytes| bytes == b"\r\n\r\n").unwrap();
+            let request_body: Value = serde_json::from_slice(&request[headers_end + 4..])
+                .expect("request body should be json");
+            let includes_usage =
+                request_body.pointer("/stream_options/include_usage").and_then(Value::as_bool)
+                    == Some(true);
+            server_requests.lock().expect("request capture lock").push(request_body);
+
+            let usage = if includes_usage {
+                concat!(
+                    ",\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":22,\"total_tokens\":33,",
+                    "\"prompt_tokens_details\":{\"cached_tokens\":3},",
+                    "\"completion_tokens_details\":{\"reasoning_tokens\":4}}"
+                )
+            } else {
+                ""
+            };
+            let body = format!(
+                "data: {{\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"stop\"}}]{usage}}}\n\ndata: [DONE]\n\n"
+            );
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            stream.write_all(response.as_bytes()).expect("stream server should respond");
+        }
+    });
+
+    (format!("http://{address}/v1"), requests, server)
+}
+
+async fn run_openai_compatible_stream(
+    provider_id: &str,
+    base_url: &str,
+) -> (Result<(), Error>, Vec<StreamEvent>) {
+    let model = OpenAICompatible::<DynamicModel>::builder()
+        .provider_name(provider_id)
+        .api_key("test-token")
+        .model_name("test-model")
+        .base_url(base_url)
+        .build()
+        .expect("openai compatible model");
+    let mut events = Vec::new();
+    let result = do_stream_request_aisdk_with_model(
+        provider_id.to_string(),
+        model,
+        format!("{base_url}/chat/completions"),
+        false,
+        vec![Message::User("hello".into())],
+        &HashMap::new(),
+        None,
+        None,
+        None,
+        &Value::Null,
+        0,
+        None,
+        &mut |event| events.push(event),
+    )
+    .await;
+    (result, events)
+}
+
+#[tokio::test]
+async fn token_plan_stream_requests_and_emits_usage() {
+    let (base_url, requests, server) = spawn_openai_stream_server(2);
+
+    let (token_plan_result, token_plan_events) =
+        run_openai_compatible_stream("token-plan", &base_url).await;
+    let (other_result, other_events) = run_openai_compatible_stream("openai", &base_url).await;
+    server.join().expect("stream server should finish");
+
+    assert!(token_plan_result.is_ok());
+    assert!(other_result.is_ok());
+    let requests = requests.lock().expect("request capture lock");
+    assert_eq!(requests[0].pointer("/stream_options/include_usage"), Some(&json!(true)));
+    assert_eq!(requests[1].get("stream_options"), None);
+    assert!(matches!(
+        token_plan_events.as_slice(),
+        [StreamEvent::Done { usage, .. }]
+            if usage.input_tokens == 11
+                && usage.output_tokens == 22
+                && usage.cached_tokens == 3
+                && usage.reasoning_tokens == 4
+    ));
+    assert!(matches!(
+        other_events.as_slice(),
+        [StreamEvent::Done { usage, .. }]
+            if usage.input_tokens == 0
+                && usage.output_tokens == 0
+                && usage.cached_tokens == 0
+                && usage.reasoning_tokens == 0
+    ));
 }
 
 #[test]

@@ -272,6 +272,16 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
         builder.max_output_tokens = Some(m.min(u64::from(u32::MAX)) as u32);
     }
 
+    let mut request_body = Map::new();
+    if provider_id.eq_ignore_ascii_case("token-plan") {
+        request_body.insert(
+            "stream_options".to_string(),
+            serde_json::json!({
+                "include_usage": true
+            }),
+        );
+    }
+
     // 处理 merged_options 中的高级参数
     if let Some(obj) = merged_options.as_object() {
         // 存在惩罚：控制模型是否倾向于讨论新话题
@@ -299,7 +309,7 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
         let (reasoning_effort, reasoning_body) =
             reasoning_request_config(&provider_id, &request_url, obj);
         if let Some(body) = reasoning_body {
-            builder = builder.body(Value::Object(body));
+            request_body.extend(body);
         }
         builder.reasoning_effort = reasoning_effort.map(|value| match value {
             "low" => aisdk::core::language_model::ReasoningEffort::Low,
@@ -319,6 +329,9 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
                 builder.stop_sequences = Some(seq);
             }
         }
+    }
+    if !request_body.is_empty() {
+        builder = builder.body(Value::Object(request_body));
     }
 
     // 构建最终请求

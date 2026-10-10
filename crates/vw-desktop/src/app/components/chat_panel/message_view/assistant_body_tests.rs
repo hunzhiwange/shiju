@@ -2,11 +2,12 @@
 //! 块序列 fixture 专门覆盖隐藏推理、尾随探索工具和可见边界触发的分组刷新。
 
 use super::assistant_body::{
-    count_visible_non_explore_tool_cards, deduped_tool_last_indices, render_assistant_body,
+    count_visible_non_explore_tool_cards, deduped_tool_last_indices,
+    deduped_tool_last_indices_with_metadata, render_assistant_body,
     should_highlight_pending_permission_tool,
 };
 use super::markdown::parse_markdown_blocks;
-use crate::app::models::{ParsedChatBlock, ThinkTiming};
+use crate::app::models::{ParsedChatBlock, ThinkTiming, ToolBlockRenderMetadata};
 use crate::app::{App, Message};
 use iced::Element;
 use iced::advanced::widget::Tree;
@@ -35,6 +36,7 @@ fn rendered_top_level_count(
         special_text_blocks,
         String::new(),
         blocks,
+        Vec::new(),
         true,
         false,
         "",
@@ -98,7 +100,7 @@ fn visible_non_explore_tool_count_skips_hidden_duplicates_and_post_explore_file_
     ];
     let last = deduped_tool_last_indices(&blocks);
 
-    assert_eq!(count_visible_non_explore_tool_cards(&blocks, &last), 2);
+    assert_eq!(count_visible_non_explore_tool_cards(&blocks, &[], &last), 2);
 }
 
 #[test]
@@ -116,7 +118,7 @@ fn visible_text_closes_pending_explore_group_before_file_list_tool() {
     ];
     let last = deduped_tool_last_indices(&blocks);
 
-    assert_eq!(count_visible_non_explore_tool_cards(&blocks, &last), 1);
+    assert_eq!(count_visible_non_explore_tool_cards(&blocks, &[], &last), 1);
 }
 
 #[test]
@@ -134,7 +136,30 @@ fn think_block_closes_pending_explore_group_before_file_list_tool_count() {
     ];
     let last = deduped_tool_last_indices(&blocks);
 
-    assert_eq!(count_visible_non_explore_tool_cards(&blocks, &last), 1);
+    assert_eq!(count_visible_non_explore_tool_cards(&blocks, &[], &last), 1);
+}
+
+#[test]
+fn cached_tool_metadata_drives_dedup_and_count_without_reparsing_raw_blocks() {
+    let blocks = vec![
+        ParsedChatBlock::Tool { raw: "invalid first raw".to_string() },
+        ParsedChatBlock::Tool { raw: "invalid second raw".to_string() },
+    ];
+    let metadata = vec![
+        Some(ToolBlockRenderMetadata {
+            name: Some("bash".to_string()),
+            identity: Some("bash:pwd".to_string()),
+        }),
+        Some(ToolBlockRenderMetadata {
+            name: Some("bash".to_string()),
+            identity: Some("bash:pwd".to_string()),
+        }),
+    ];
+
+    let last = deduped_tool_last_indices_with_metadata(&blocks, &metadata);
+
+    assert_eq!(last.get("bash:pwd"), Some(&1));
+    assert_eq!(count_visible_non_explore_tool_cards(&blocks, &metadata, &last), 1);
 }
 
 #[test]
@@ -147,6 +172,7 @@ fn render_assistant_body_builds_plain_text_body() {
         &[],
         Vec::new(),
         "hello".to_string(),
+        Vec::new(),
         Vec::new(),
         false,
         false,
@@ -171,6 +197,7 @@ fn special_markdown_text_uses_single_editor_for_cross_block_selection() {
         vec![text.to_string()],
         String::new(),
         vec![ParsedChatBlock::Text { content: text.to_string() }],
+        Vec::new(),
         true,
         false,
         text,
@@ -195,6 +222,7 @@ fn render_assistant_body_builds_api_error_card_for_special_text_block() {
         vec![error.to_string()],
         String::new(),
         blocks,
+        Vec::new(),
         true,
         false,
         error,
@@ -223,6 +251,7 @@ fn render_assistant_body_defers_text_before_trailing_explore_tools() {
         vec!["summary".to_string()],
         String::new(),
         blocks,
+        Vec::new(),
         true,
         false,
         "summary",
@@ -255,6 +284,7 @@ fn render_assistant_body_handles_special_text_think_and_tool_blocks() {
         vec!["answer".to_string()],
         String::new(),
         blocks,
+        Vec::new(),
         true,
         false,
         "answer",
@@ -281,6 +311,7 @@ fn render_assistant_body_groups_explore_tools_before_visible_text() {
         vec!["summary".to_string()],
         String::new(),
         blocks,
+        Vec::new(),
         true,
         true,
         "summary",
@@ -391,6 +422,7 @@ fn render_assistant_body_builds_api_error_card_without_special_blocks() {
         Vec::new(),
         error.to_string(),
         Vec::new(),
+        Vec::new(),
         false,
         false,
         error,
@@ -411,6 +443,7 @@ fn render_assistant_body_falls_back_for_unknown_tool_block() {
         Vec::new(),
         String::new(),
         blocks,
+        Vec::new(),
         true,
         false,
         "not a tool",

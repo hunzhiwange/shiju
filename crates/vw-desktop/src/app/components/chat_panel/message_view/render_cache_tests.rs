@@ -176,3 +176,35 @@ fn resolve_visible_text_recomputes_when_fresh_cache_lacks_visible_text_or_hash()
     assert!(matches!(visible, std::borrow::Cow::Owned(ref text) if text == "body"));
     assert_eq!(copy_hash, hash_chat_content("body"));
 }
+
+#[test]
+fn render_cache_derives_tool_name_and_identity_once_per_content_version() {
+    let raw = concat!(
+        "tool bash\n",
+        "{\"tool_call_id\":\"call-1\",\"input\":\"pwd\",\"status\":\"completed\"}\n"
+    );
+
+    let entry = build_render_cache_entry(raw, "", hash_chat_content(""), true);
+    let metadata = entry.tool_block_metadata[0].as_ref().expect("tool metadata");
+
+    assert_eq!(metadata.name.as_deref(), Some("bash"));
+    assert_eq!(metadata.identity.as_deref(), Some("bash:pwd"));
+
+    let resolved =
+        effective_assistant_render_cache(raw, &entry, "", hash_chat_content(""), false, true);
+    assert!(matches!(resolved, std::borrow::Cow::Borrowed(_)));
+}
+
+#[test]
+fn render_cache_rebuilds_tool_metadata_when_content_changes() {
+    let old_raw = "tool bash\n{\"input\":\"pwd\",\"status\":\"completed\"}\n";
+    let new_raw = "tool shell\n{\"input\":\"ls\",\"status\":\"completed\"}\n";
+    let entry = build_render_cache_entry(old_raw, "", hash_chat_content(""), true);
+
+    let resolved =
+        effective_assistant_render_cache(new_raw, &entry, "", hash_chat_content(""), true, true);
+    assert!(matches!(&resolved, std::borrow::Cow::Owned(_)));
+    let metadata = resolved.tool_block_metadata[0].as_ref().expect("tool metadata");
+    assert_eq!(metadata.name.as_deref(), Some("bash"));
+    assert_eq!(metadata.identity.as_deref(), Some("bash:ls"));
+}

@@ -328,6 +328,7 @@ pub fn message_view<'a>(
             render_cache.special_text_blocks.clone(),
             render_cache.display_text.clone(),
             assistant_blocks,
+            render_cache.tool_block_metadata.clone(),
             has_special_assistant_blocks,
             is_streaming_assistant,
             visible_for_copy.as_ref(),

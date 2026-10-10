@@ -24,6 +24,7 @@ pub struct ChatRenderCacheEntry {
     pub show_reasoning_summary: bool,
     pub copy_content_hash: Option<u64>,
     pub blocks: Vec<ParsedChatBlock>,
+    pub tool_block_metadata: Vec<Option<ToolBlockRenderMetadata>>,
     pub has_special_blocks: bool,
     pub special_text_blocks: Vec<String>,
     pub tool_card_text_blocks: Vec<Vec<String>>,
@@ -34,6 +35,12 @@ pub struct ChatRenderCacheEntry {
     pub is_large_message: bool,
     pub estimated_collapsed_height: f32,
     pub estimated_expanded_height: f32,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ToolBlockRenderMetadata {
+    pub name: Option<String>,
+    pub identity: Option<String>,
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use crate::app::App;
 use crate::app::models::{self, ParsedChatBlock};
 
-use super::super::tools::{is_explore_tool, tool_name_from_raw};
+use super::super::tools::{is_explore_tool, tool_identity_from_raw, tool_name_from_raw};
 use super::super::utils::{normalize_display_text, strip_internal_tool_trace, truncate_chars};
 use super::parse::{RenderBlock, borrowed_blocks, hash_chat_content, owned_blocks_from_raw};
 use super::text::estimate_text_height;
@@ -49,6 +49,16 @@ pub(crate) fn build_render_cache_entry(
     const FOLDABLE_BLOCKS: usize = 18;
 
     let blocks = owned_blocks_from_raw(raw);
+    let tool_block_metadata = blocks
+        .iter()
+        .map(|block| match block {
+            ParsedChatBlock::Tool { raw } => Some(models::ToolBlockRenderMetadata {
+                name: tool_name_from_raw(raw),
+                identity: tool_identity_from_raw(raw),
+            }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
     let has_special_blocks = blocks
         .iter()
         .any(|block| matches!(block, ParsedChatBlock::Think { .. } | ParsedChatBlock::Tool { .. }));
@@ -61,7 +71,7 @@ pub(crate) fn build_render_cache_entry(
     let mut estimated_expanded_height = 40.0;
     let mut explore_group_force_running = false;
 
-    for block in borrowed_blocks(&blocks) {
+    for (block_idx, block) in borrowed_blocks(&blocks).enumerate() {
         match block {
             RenderBlock::Think { content, open } => {
                 if open || show_reasoning_summary {
@@ -82,7 +92,10 @@ pub(crate) fn build_render_cache_entry(
                 }
             }
             RenderBlock::Tool { raw } => {
-                if let Some(name) = tool_name_from_raw(raw)
+                if let Some(name) = tool_block_metadata
+                    .get(block_idx)
+                    .and_then(Option::as_ref)
+                    .and_then(|metadata| metadata.name.as_deref())
                     && is_explore_tool(&name)
                 {
                     explore_items.push(raw.to_string());
@@ -177,6 +190,7 @@ pub(crate) fn build_render_cache_entry(
         show_reasoning_summary,
         copy_content_hash: Some(copy_hash),
         blocks,
+        tool_block_metadata,
         has_special_blocks,
         special_text_blocks,
         tool_card_text_blocks,

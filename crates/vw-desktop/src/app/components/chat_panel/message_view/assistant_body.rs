@@ -33,6 +33,7 @@ use super::tool_summaries::{
 
 pub(super) fn count_visible_non_explore_tool_cards(
     blocks: &[ParsedChatBlock],
+    tool_block_metadata: &[Option<models::ToolBlockRenderMetadata>],
     tool_last: &HashMap<String, usize>,
 ) -> usize {
     let mut count = 0usize;
@@ -44,7 +45,11 @@ pub(super) fn count_visible_non_explore_tool_cards(
                 has_pending_explore_group = false;
             }
             ParsedChatBlock::Tool { raw } => {
-                let Some(tool_name) = tool_name_from_raw(raw) else {
+                let metadata = tool_block_metadata.get(block_idx).and_then(Option::as_ref);
+                let tool_name = metadata
+                    .and_then(|metadata| metadata.name.clone())
+                    .or_else(|| tool_name_from_raw(raw));
+                let Some(tool_name) = tool_name else {
                     continue;
                 };
 
@@ -53,7 +58,10 @@ pub(super) fn count_visible_non_explore_tool_cards(
                     continue;
                 }
 
-                if let Some(identity) = tool_identity_from_raw(raw)
+                let identity = metadata
+                    .and_then(|metadata| metadata.identity.clone())
+                    .or_else(|| tool_identity_from_raw(raw));
+                if let Some(identity) = identity
                     && tool_last.get(&identity).copied() != Some(block_idx)
                 {
                     continue;
@@ -196,6 +204,13 @@ pub(crate) fn should_highlight_pending_permission_tool(
 }
 
 pub(crate) fn deduped_tool_last_indices(blocks: &[ParsedChatBlock]) -> HashMap<String, usize> {
+    deduped_tool_last_indices_with_metadata(blocks, &[])
+}
+
+pub(super) fn deduped_tool_last_indices_with_metadata(
+    blocks: &[ParsedChatBlock],
+    tool_block_metadata: &[Option<models::ToolBlockRenderMetadata>],
+) -> HashMap<String, usize> {
     let mut tool_last: HashMap<String, usize> = HashMap::new();
 
     for (block_idx, block) in blocks.iter().enumerate() {
@@ -203,13 +218,19 @@ pub(crate) fn deduped_tool_last_indices(blocks: &[ParsedChatBlock]) -> HashMap<S
             continue;
         };
 
-        if let Some(name) = tool_name_from_raw(raw)
+        let metadata = tool_block_metadata.get(block_idx).and_then(Option::as_ref);
+        let name =
+            metadata.and_then(|metadata| metadata.name.clone()).or_else(|| tool_name_from_raw(raw));
+        if let Some(name) = name
             && is_explore_tool(&name)
         {
             continue;
         }
 
-        if let Some(identity) = tool_identity_from_raw(raw) {
+        let identity = metadata
+            .and_then(|metadata| metadata.identity.clone())
+            .or_else(|| tool_identity_from_raw(raw));
+        if let Some(identity) = identity {
             tool_last.insert(identity, block_idx);
         }
     }
@@ -295,6 +316,7 @@ pub(super) fn render_assistant_body<'a>(
     special_text_blocks: Vec<String>,
     display_text: String,
     blocks: Vec<ParsedChatBlock>,
+    tool_block_metadata: Vec<Option<models::ToolBlockRenderMetadata>>,
     has_special: bool,
     is_streaming_assistant: bool,
     visible_for_copy: &str,
@@ -306,7 +328,7 @@ pub(super) fn render_assistant_body<'a>(
         && app.chat_message_editors.get(idx).is_some();
 
     if has_special {
-        let tool_last = deduped_tool_last_indices(&blocks);
+        let tool_last = deduped_tool_last_indices_with_metadata(&blocks, &tool_block_metadata);
         let message_id = app.chat_message_ids.get(idx).and_then(|value| value.as_deref());
         let is_permission_target_message =
             pending_permission_targets_message(app.permission_modal_request.as_ref(), message_id);
@@ -315,7 +337,7 @@ pub(super) fn render_assistant_body<'a>(
             app.permission_modal_request_id.as_deref(),
         );
         let visible_non_explore_tool_count = if is_permission_target_message {
-            count_visible_non_explore_tool_cards(&blocks, &tool_last)
+            count_visible_non_explore_tool_cards(&blocks, &tool_block_metadata, &tool_last)
         } else {
             0
         };
@@ -375,10 +397,15 @@ pub(super) fn render_assistant_body<'a>(
                 }
                 ParsedChatBlock::Tool { raw } => {
                     let raw_text = raw.clone();
-                    let tool_name = tool_name_from_raw(&raw_text);
+                    let metadata = tool_block_metadata.get(block_i).and_then(Option::as_ref);
+                    let tool_name = metadata
+                        .and_then(|metadata| metadata.name.clone())
+                        .or_else(|| tool_name_from_raw(&raw_text));
 
                     if !tool_name.as_deref().is_some_and(is_explore_tool)
-                        && let Some(identity) = tool_identity_from_raw(&raw_text)
+                        && let Some(identity) = metadata
+                            .and_then(|metadata| metadata.identity.clone())
+                            .or_else(|| tool_identity_from_raw(&raw_text))
                         && tool_last.get(&identity).copied() != Some(block_i)
                     {
                         tool_idx += 1;

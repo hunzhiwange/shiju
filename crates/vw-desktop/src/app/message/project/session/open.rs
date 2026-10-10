@@ -218,9 +218,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     |res| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, res)),
                 ));
             }
-            Some(iced::Task::done(Message::Chat(
-                crate::app::message::ChatMessage::LoadInputPanelTodos,
-            )))
+            Some(iced::Task::none())
         }
         ProjectMessage::RecentOverlayClosed => {
             if app.new_session_picker_project.is_some() {

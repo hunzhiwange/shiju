@@ -282,14 +282,28 @@ async fn recent_hover_uses_cached_sessions_without_scheduling_gateway_load() {
 
     assert_eq!(app.hovered_recent_project, Some(path.clone()));
     assert!(!app.project_sessions_loading.contains(&path));
-    assert!(matches!(
-        messages.as_slice(),
-        [crate::app::Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)]
-    ));
+    assert!(messages.is_empty());
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn recent_hover_none_clears_hover_and_schedules_todo_refresh() {
+async fn repeated_recent_hover_does_not_reload_active_session_todos() {
+    let mut app = app();
+    let path = "/tmp/cached-project".to_string();
+    app.project_sessions.insert(path.clone(), Vec::new());
+    app.hovered_recent_project = Some(path.clone());
+
+    let task = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::RecentHovered(Some(path)),
+    )
+    .expect("repeated recent hover should return a task");
+    let messages = collect_task_messages(task).await;
+
+    assert!(messages.is_empty(), "repeated hover emitted {messages:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn recent_hover_none_clears_hover_without_scheduling_todo_refresh() {
     let mut app = app();
     app.hovered_recent_project = Some("/tmp/project".to_string());
 
@@ -299,10 +313,7 @@ async fn recent_hover_none_clears_hover_and_schedules_todo_refresh() {
     let messages = collect_task_messages(task).await;
 
     assert!(app.hovered_recent_project.is_none());
-    assert!(matches!(
-        messages.as_slice(),
-        [crate::app::Message::Chat(crate::app::message::ChatMessage::LoadInputPanelTodos)]
-    ));
+    assert!(messages.is_empty());
 }
 
 #[tokio::test(flavor = "multi_thread")]

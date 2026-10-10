@@ -1227,7 +1227,6 @@ fn space_button(space: &WorkSpaceItem) -> Element<'static, Message> {
     };
 
     let path = space.path.clone();
-    let hover_path = path.clone();
     mouse_area(
         container(
             row![switch, toggle, Space::new().width(Length::Fill), actions,]
@@ -1239,7 +1238,6 @@ fn space_button(space: &WorkSpaceItem) -> Element<'static, Message> {
         .style(space_row_style(space.selected)),
     )
     .on_enter(Message::Project(ProjectMessage::RecentHovered(Some(path))))
-    .on_move(move |_| Message::Project(ProjectMessage::RecentHovered(Some(hover_path.clone()))))
     .on_exit(Message::Project(ProjectMessage::RecentHovered(None)))
     .into()
 }

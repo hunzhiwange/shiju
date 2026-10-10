@@ -7,7 +7,6 @@
 //!
 //! 本模块覆盖以下功能区域：
 //!
-//! - **配置解析**：验证技能目录路径和启用状态的解析逻辑
 //! - **域名信任**：验证受信任域名及其子域名的匹配规则
 //! - **下载策略**：验证技能源的别名解析和默认下载策略
 //! - **Git 源检测**：验证各种 Git 协议格式的识别
@@ -27,7 +26,6 @@
 //! # 子模块结构
 //!
 //! - [`helpers`] - 测试辅助工具，包括环境变量锁定和清理机制
-//! - [`config_resolution`] - 技能配置解析测试（启用状态、目录路径）
 //! - [`domain_trust`] - 受信任域名匹配测试
 //! - [`download_policy`] - 下载策略和别名解析测试
 //! - [`git_source`] - Git 源格式检测测试
@@ -37,8 +35,6 @@
 //! - [`skills_sh_source`] - skills.sh URL 解析测试
 
 pub(crate) mod helpers;
-
-mod config_resolution;
 
 mod domain_trust;
 

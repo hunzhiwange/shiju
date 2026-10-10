@@ -1,7 +1,6 @@
 //! 技能模块常量定义
 //!
 //! 本模块定义了技能（Skill）子系统所需的所有常量配置，包括：
-//! - 外部技能仓库的 URL 和同步配置
 //! - 预加载技能的默认源列表
 //! - 内置预加载技能的结构定义
 //! - 下载策略文件的名称
@@ -9,21 +8,6 @@
 //! 这些常量用于技能的下载、同步、预加载等核心功能。
 
 use std::collections::BTreeMap;
-
-/// Open Skills 开源技能仓库的 GitHub URL
-///
-/// 这是 VibeWindow 社区维护的公开技能仓库，包含大量可复用的技能定义。
-pub(crate) const OPEN_SKILLS_REPO_URL: &str = "https://github.com/besoeasy/open-skills";
-
-/// Open Skills 同步标记文件名
-///
-/// 在本地技能目录中创建此文件，用于标记该目录已与远程仓库同步。
-pub(crate) const OPEN_SKILLS_SYNC_MARKER: &str = ".vibewindow-open-skills-sync";
-
-/// Open Skills 自动同步间隔（秒）
-///
-/// 默认为 7 天（604800 秒）。超过此时间后，系统会尝试重新同步远程技能仓库。
-pub(crate) const OPEN_SKILLS_SYNC_INTERVAL_SECS: u64 = 60 * 60 * 24 * 7;
 
 /// 技能下载策略配置文件名
 ///

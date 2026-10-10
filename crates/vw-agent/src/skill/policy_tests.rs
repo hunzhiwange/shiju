@@ -4,33 +4,6 @@
 use super::*;
 use crate::app::agent::skill::constants::SKILL_DOWNLOAD_POLICY_FILE;
 use std::path::Path;
-use std::sync::{Mutex, OnceLock};
-
-// 环境变量相关用例共用此锁，隔离并行测试对进程状态的修改。
-fn open_skills_env_lock() -> &'static Mutex<()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-}
-
-struct OpenSkillsEnvGuard(Option<String>);
-
-impl OpenSkillsEnvGuard {
-    fn set(value: &str) -> Self {
-        let original = std::env::var("VIBEWINDOW_OPEN_SKILLS_ENABLED").ok();
-        unsafe { std::env::set_var("VIBEWINDOW_OPEN_SKILLS_ENABLED", value) };
-        Self(original)
-    }
-}
-
-impl Drop for OpenSkillsEnvGuard {
-    fn drop(&mut self) {
-        if let Some(value) = &self.0 {
-            unsafe { std::env::set_var("VIBEWINDOW_OPEN_SKILLS_ENABLED", value) };
-        } else {
-            unsafe { std::env::remove_var("VIBEWINDOW_OPEN_SKILLS_ENABLED") };
-        }
-    }
-}
 
 #[test]
 fn normalizes_domain_lists_and_matches_subdomains() {
@@ -79,43 +52,6 @@ fn policy_path_uses_stable_file_name() {
         download_policy_path(Path::new("/tmp/skills")),
         Path::new("/tmp/skills").join(SKILL_DOWNLOAD_POLICY_FILE)
     );
-}
-
-#[test]
-fn open_skills_enabled_sources_parse_env_like_values() {
-    for value in ["1", "true", "YES", " on "] {
-        assert_eq!(parse_open_skills_enabled(value), Some(true));
-    }
-    for value in ["0", "false", "NO", " off "] {
-        assert_eq!(parse_open_skills_enabled(value), Some(false));
-    }
-    for value in ["", "   ", "maybe"] {
-        assert_eq!(parse_open_skills_enabled(value), None);
-    }
-
-    assert!(open_skills_enabled_from_sources(Some(false), Some("true")));
-    assert!(!open_skills_enabled_from_sources(Some(true), Some("0")));
-    assert!(open_skills_enabled_from_sources(Some(true), Some("bad-value")));
-    assert!(!open_skills_enabled_from_sources(Some(false), Some("")));
-    assert!(!open_skills_enabled_from_sources(None, None));
-}
-
-#[test]
-fn open_skills_enabled_reads_process_environment_override() {
-    let _lock = open_skills_env_lock().lock().unwrap();
-    let _guard = OpenSkillsEnvGuard::set("off");
-
-    assert!(!open_skills_enabled(Some(true)));
-}
-
-#[test]
-fn open_skills_enabled_uses_config_when_environment_is_unset() {
-    let _lock = open_skills_env_lock().lock().unwrap();
-    let _guard = OpenSkillsEnvGuard::set("");
-    unsafe { std::env::remove_var("VIBEWINDOW_OPEN_SKILLS_ENABLED") };
-
-    assert!(open_skills_enabled(Some(true)));
-    assert!(!open_skills_enabled(None));
 }
 
 #[test]

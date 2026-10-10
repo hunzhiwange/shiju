@@ -212,17 +212,9 @@ pub enum SkillsPromptInjectionMode {
 
 /// 技能系统配置
 ///
-/// 定义技能系统的全局配置选项，控制技能功能是否启用以及相关路径。
+/// 定义技能系统的全局配置选项。
 #[derive(Debug, Clone)]
 pub struct SkillsConfig {
-    /// 是否启用开放技能功能
-    /// 当为 true 时，允许从外部源下载和安装技能
-    pub open_skills_enabled: bool,
-
-    /// 自定义技能目录路径（可选）
-    /// 如果未指定，将使用默认路径 ~/.vibewindow/workspace/skills
-    pub open_skills_dir: Option<String>,
-
     /// 提示词注入模式，控制如何将技能信息注入到代理上下文
     pub prompt_injection_mode: SkillsPromptInjectionMode,
 }
@@ -231,15 +223,9 @@ impl Default for SkillsConfig {
     /// 创建默认的技能配置
     ///
     /// 默认配置：
-    /// - 禁用开放技能功能
-    /// - 使用默认技能目录
     /// - 使用完整提示词注入模式
     fn default() -> Self {
-        Self {
-            open_skills_enabled: false,
-            open_skills_dir: None,
-            prompt_injection_mode: SkillsPromptInjectionMode::Full,
-        }
+        Self { prompt_injection_mode: SkillsPromptInjectionMode::Full }
     }
 }
 

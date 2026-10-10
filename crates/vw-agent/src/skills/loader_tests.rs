@@ -41,32 +41,6 @@ fn read_markdown_skill_metadata_reads_from_disk() {
 }
 
 #[test]
-fn open_skill_markdown_metadata_only_omits_prompt_body() {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let path = dir.path().join("browser.md");
-    std::fs::write(&path, "# Browser\n\nUse browser safely.").unwrap();
-
-    let skill = load_open_skill_md(&path, SkillLoadMode::MetadataOnly).unwrap();
-    assert_eq!(skill.name, "browser");
-    assert!(skill.prompts.is_empty());
-    assert!(skill.tags.contains(&"open-skills".to_string()));
-}
-
-#[test]
-fn open_skill_markdown_full_loads_prompt_body_and_defaults_description() {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let path = dir.path().join("helper.markdown");
-    std::fs::write(&path, "# Helper\n").unwrap();
-
-    let skill = load_open_skill_md(&path, SkillLoadMode::Full).unwrap();
-
-    assert_eq!(skill.name, "helper");
-    assert_eq!(skill.description, "No description");
-    assert_eq!(skill.prompts, vec!["# Helper\n"]);
-    assert_eq!(skill.author.as_deref(), Some("besoeasy/open-skills"));
-}
-
-#[test]
 // 缺失或禁用目录视为空来源，单个不可用来源不能阻断其它技能目录加载。
 fn load_skills_from_directory_skips_disabled_and_missing_directories() {
     let dir = tempfile::tempdir().expect("temp dir");

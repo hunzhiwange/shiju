@@ -11,10 +11,10 @@
 //! # 使用示例
 //!
 //! ```rust,ignore
-//! use vibe_window::app::agent::skills::tests::helpers::{open_skills_env_lock, EnvVarGuard};
+//! use vibe_window::app::agent::skills::tests::helpers::{env_var_lock, EnvVarGuard};
 //!
 //! // 使用环境锁确保测试串行执行
-//! let _lock = open_skills_env_lock().lock().unwrap();
+//! let _lock = env_var_lock().lock().unwrap();
 //!
 //! // 临时取消设置环境变量，测试结束后自动恢复
 //! let _guard = EnvVarGuard::unset("MY_ENV_VAR");
@@ -37,7 +37,7 @@ use std::sync::{Mutex, OnceLock};
 /// 当测试需要修改或读取环境变量时，应先获取此锁以确保测试隔离：
 ///
 /// ```rust,ignore
-/// let _lock = open_skills_env_lock().lock().unwrap();
+/// let _lock = env_var_lock().lock().unwrap();
 /// // 在此作用域内，其他测试无法同时获取锁
 /// // 可以安全地修改环境变量
 /// ```
@@ -45,7 +45,7 @@ use std::sync::{Mutex, OnceLock};
 /// # 实现细节
 ///
 /// 使用 `OnceLock` 实现线程安全的单次初始化，确保全局只有一个互斥锁实例。
-pub fn open_skills_env_lock() -> &'static Mutex<()> {
+pub fn env_var_lock() -> &'static Mutex<()> {
     static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     ENV_LOCK.get_or_init(|| Mutex::new(()))
 }
@@ -77,7 +77,7 @@ pub fn open_skills_env_lock() -> &'static Mutex<()> {
 ///
 /// 此结构体使用 `unsafe` 代码块调用 `std::env::set_var` 和 `std::env::remove_var`。
 /// 在 Rust 2024 版本及以后，这些函数被标记为不安全，因为修改环境变量
-/// 在多线程环境中可能导致未定义行为。使用环境锁（`open_skills_env_lock`）
+/// 在多线程环境中可能导致未定义行为。使用环境锁（`env_var_lock`）
 /// 可以确保线程安全。
 pub struct EnvVarGuard {
     /// 环境变量的键名（静态字符串）

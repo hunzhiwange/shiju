@@ -146,8 +146,7 @@ prompts = ["Do not preload me"]
     // 按名称排序以确保测试断言顺序一致
     skills.sort_by(|a, b| a.name.cmp(&b.name));
 
-    // 环境变量可能启用额外 OpenSkills 来源；本用例只验证工作区内两个技能的
-    // Compact 加载形状。
+    // 本用例只验证工作区内两个技能的 Compact 加载形状。
     assert!(skills.iter().any(|skill| skill.name == "md-meta"));
     assert!(skills.iter().any(|skill| skill.name == "toml-meta"));
 

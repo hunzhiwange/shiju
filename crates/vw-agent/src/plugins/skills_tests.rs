@@ -88,8 +88,6 @@ fn plugin_skills_are_loaded_from_manifest_component_path() {
     let _lock = lock_env();
     let dir = tempfile::tempdir().expect("temp dir");
     let _home = EnvVarGuard::set("HOME", dir.path().join("home").to_str().unwrap());
-    let _open_enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
-    let _open_dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
 
     let workspace_dir = dir.path().join("workspace");
     let config_dir = dir.path().join("config");
@@ -116,8 +114,6 @@ fn plugin_skills_follow_configured_security_policy() {
     let _lock = lock_env();
     let dir = tempfile::tempdir().expect("temp dir");
     let _home = EnvVarGuard::set("HOME", dir.path().join("home").to_str().unwrap());
-    let _open_enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
-    let _open_dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
 
     let workspace_dir = dir.path().join("workspace");
     let config_dir = dir.path().join("config");
@@ -141,8 +137,6 @@ fn plugin_skills_workspace_skill_overrides_plugin_skill() {
     let _lock = lock_env();
     let dir = tempfile::tempdir().expect("temp dir");
     let _home = EnvVarGuard::set("HOME", dir.path().join("home").to_str().unwrap());
-    let _open_enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
-    let _open_dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
 
     let workspace_dir = dir.path().join("workspace");
     let config_dir = dir.path().join("config");
@@ -167,8 +161,6 @@ fn plugin_skills_disabled_plugin_skills_are_skipped() {
     let _lock = lock_env();
     let dir = tempfile::tempdir().expect("temp dir");
     let _home = EnvVarGuard::set("HOME", dir.path().join("home").to_str().unwrap());
-    let _open_enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
-    let _open_dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
 
     let workspace_dir = dir.path().join("workspace");
     let config_dir = dir.path().join("config");

@@ -380,51 +380,6 @@ fn load_skill_md(path: &Path, dir: &Path, load_mode: SkillLoadMode) -> Result<Sk
     })
 }
 
-/// 从任意 Markdown 文件加载开放技能
-///
-/// 与 `load_skill_md` 类似，但用于加载不在技能目录中的独立 Markdown 技能文件。
-/// 主要用于支持 open-skills 生态的技能加载。
-///
-/// # 参数
-///
-/// - `path`：Markdown 技能文件的完整路径
-/// - `load_mode`：加载模式
-///
-/// # 返回值
-///
-/// - `Ok(Skill)`：成功构建的技能对象
-/// - `Err`：文件读取失败
-///
-/// # 特殊标记
-///
-/// 开放技能使用以下标记：
-/// - `version`：`"open-skills"`（标识来源）
-/// - `author`：`"besoeasy/open-skills"`
-/// - `tags`：包含 `"open-skills"` 标签
-pub(crate) fn load_open_skill_md(path: &Path, load_mode: SkillLoadMode) -> Result<Skill> {
-    // 使用文件名（不含扩展名）作为技能名称
-    let name = path.file_stem().and_then(|n| n.to_str()).unwrap_or("open-skill").to_string();
-    let content = std::fs::read_to_string(path)?;
-    let metadata = parse_markdown_skill_metadata(&content);
-    let description = metadata.description.unwrap_or_else(|| "No description".to_string());
-    let prompts = match load_mode {
-        SkillLoadMode::Full => vec![content],
-        SkillLoadMode::MetadataOnly => Vec::new(),
-    };
-
-    Ok(Skill {
-        name,
-        description,
-        version: "open-skills".to_string(),
-        author: Some("besoeasy/open-skills".to_string()),
-        tags: vec!["open-skills".to_string()],
-        tools: Vec::new(),
-        prompts,
-        location: Some(path.to_path_buf()),
-        ..Skill::default()
-    })
-}
-
 fn frontmatter_string(value: Option<&str>) -> Option<String> {
     sanitize_frontmatter_value(value)
 }

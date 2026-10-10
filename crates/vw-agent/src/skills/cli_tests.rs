@@ -93,8 +93,6 @@ fn handle_list_covers_empty_and_populated_workspaces() {
     let home = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
-    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
     let config = isolated_config(workspace.path());
 
     handle_command(SkillCommands::List, &config).unwrap();
@@ -109,8 +107,6 @@ fn handle_list_loads_manifest_tools_and_tags() {
     let home = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
-    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
     let config = isolated_config(workspace.path());
 
     write_manifest_skill(
@@ -145,8 +141,6 @@ fn handle_audit_reports_success_missing_and_findings() {
     let home = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
-    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
     let mut config = isolated_config(workspace.path());
     config.skills.security.detect_high_risk_content = true;
     config.skills.security.detect_shell_chaining = true;
@@ -181,8 +175,6 @@ fn handle_audit_resolves_installed_skill_name() {
     let home = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
-    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
     let config = isolated_config(workspace.path());
     let installed =
         write_installed_skill(workspace.path(), "installed-safe", "# Safe\nSafe skill\n");
@@ -199,8 +191,6 @@ fn handle_audit_reports_error_for_existing_file_source() {
     let home = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
-    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
     let config = isolated_config(workspace.path());
     let source = workspace.path().join("not-a-skill.md");
     std::fs::write(&source, "# Not a directory\n").unwrap();
@@ -238,8 +228,6 @@ fn handle_remove_removes_existing_skill_and_reports_missing_repeat() {
     let home = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
-    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
     let config = isolated_config(workspace.path());
     let skill = write_installed_skill(workspace.path(), "remove-me", "# Remove\nRemove skill\n");
 
@@ -315,8 +303,6 @@ fn handle_install_applies_configured_security_policy() {
     let workspace = tempfile::tempdir().unwrap();
     let source_root = tempfile::tempdir().unwrap();
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
-    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
     let mut config = isolated_config(workspace.path());
 
     let source = source_root.path().join("local-skill");
@@ -354,8 +340,6 @@ fn handle_install_rejects_missing_local_source() {
     let home = tempfile::tempdir().unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
-    let _enabled = EnvVarGuard::set("VIBEWINDOW_OPEN_SKILLS_ENABLED", "0");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
     let config = isolated_config(workspace.path());
     let missing = workspace.path().join("missing-source");
 

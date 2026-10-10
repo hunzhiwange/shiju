@@ -2,7 +2,7 @@
 //! 同名技能按来源优先级去重，动态路径只接受实际存在且可读取的技能目录。
 
 use super::*;
-use crate::app::agent::skills::tests::helpers::{EnvVarGuard, open_skills_env_lock};
+use crate::app::agent::skills::tests::helpers::{EnvVarGuard, env_var_lock};
 use std::fs;
 use std::path::Path;
 
@@ -55,11 +55,9 @@ argument-hint: "[revision]"
 #[test]
 // 动态来源和内置来源同名时按固定优先级选择，不能依赖扫描先后顺序。
 fn skill_discovery_applies_source_precedence_and_dynamic_paths() {
-    let _lock = open_skills_env_lock().lock().unwrap();
+    let _lock = env_var_lock().lock().unwrap();
     let home = tempfile::tempdir().unwrap();
     let _home = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
-    let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
 
     let repo = home.path().join("repo");
     let workspace = repo.join("apps").join("demo");

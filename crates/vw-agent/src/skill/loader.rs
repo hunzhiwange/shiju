@@ -4,24 +4,17 @@
 //!
 //! # 主要功能
 //!
-//! - **技能发现**：自动扫描工作区和开放技能仓库中的技能包
+//! - **技能发现**：自动扫描工作区中的技能包
 //! - **格式支持**：支持 TOML 格式（`SKILL.toml`）和 Markdown 格式（`SKILL.md`）
 //! - **安全审计**：在加载前对技能目录和文件进行安全审计
 //! - **加载模式**：支持完整加载和仅元数据加载两种模式
 //!
-//! # 技能来源
-//!
-//! 1. **工作区技能**：位于 `<workspace>/skills/` 目录下的用户自定义技能
-//! 2. **开放技能**：来自 `besoeasy/open-skills` 仓库的社区共享技能
-//!
 //! # 加载策略
 //!
 //! - 对于工作区技能：优先加载 `SKILL.toml`，如不存在则尝试 `SKILL.md`
-//! - 对于开放技能：优先使用现代布局（`skills/<name>/SKILL.md`），回退到根目录 Markdown 文件
 //! - 所有技能在加载前必须通过安全审计
 
 use crate::app::agent::skill::audit;
-use crate::app::agent::skill::open_skills::ensure_open_skills_repo;
 use crate::app::agent::skill::types::{
     Skill, SkillLoadMode, SkillManifest, SkillMetadataManifest, SkillRuntimeConfig,
 };
@@ -33,7 +26,6 @@ use vw_config_types::skills::SkillSecurityConfig;
 /// 从工作区技能目录加载所有技能
 ///
 /// 这是最简单的技能加载入口，使用默认配置加载工作区中的所有技能。
-/// 开放技能功能将使用默认值（取决于 `ensure_open_skills_repo` 的实现）。
 ///
 /// # 参数
 ///
@@ -53,34 +45,27 @@ use vw_config_types::skills::SkillSecurityConfig;
 /// }
 /// ```
 pub fn load_skills(workspace_dir: &Path) -> Vec<Skill> {
-    load_skills_with_open_skills_config(workspace_dir, None, None, SkillLoadMode::Full)
+    load_workspace_skills(workspace_dir, SkillLoadMode::Full, &SkillSecurityConfig::default())
 }
 
 /// 使用运行时配置加载技能（运行时推荐使用此方法）
 ///
-/// 这是运行时加载技能的推荐方法，从配置中读取开放技能的启用状态、
-/// 目录路径以及提示注入模式等设置。
+/// 这是运行时加载技能的推荐方法，从配置中读取提示注入模式。
 ///
 /// # 参数
 ///
 /// - `workspace_dir`: 工作区根目录路径
-/// - `config`: 技能运行时配置，包含开放技能和加载模式设置
+/// - `config`: 技能运行时配置
 ///
 /// # 返回值
 ///
 /// 返回根据配置加载的技能列表。
 ///
-/// # 配置说明
-///
-/// - `config.skills.open_skills_enabled`: 是否启用开放技能
-/// - `config.skills.open_skills_dir`: 开放技能仓库的自定义路径
-/// - `config.skills.prompt_injection_mode`: 提示注入模式，决定加载完整内容还是仅元数据
 pub fn load_skills_with_config(workspace_dir: &Path, config: &SkillRuntimeConfig) -> Vec<Skill> {
-    load_skills_with_open_skills_config(
+    load_workspace_skills(
         workspace_dir,
-        Some(config.skills.open_skills_enabled),
-        config.skills.open_skills_dir.as_deref(),
         SkillLoadMode::from_prompt_mode(config.skills.prompt_injection_mode),
+        &SkillSecurityConfig::default(),
     )
 }
 
@@ -103,55 +88,9 @@ pub fn load_skills_with_config(workspace_dir: &Path, config: &SkillRuntimeConfig
 /// 适用于需要完整技能内容而不仅仅是元数据的内部操作。
 pub(crate) fn load_skills_full_with_config(
     workspace_dir: &Path,
-    config: &SkillRuntimeConfig,
+    _config: &SkillRuntimeConfig,
 ) -> Vec<Skill> {
-    load_skills_with_open_skills_config(
-        workspace_dir,
-        Some(config.skills.open_skills_enabled),
-        config.skills.open_skills_dir.as_deref(),
-        SkillLoadMode::Full,
-    )
-}
-
-/// 核心技能加载实现：支持开放技能配置
-///
-/// 这是所有公开加载函数的内部实现，统一处理开放技能和工作区技能的加载逻辑。
-///
-/// # 参数
-///
-/// - `workspace_dir`: 工作区根目录路径
-/// - `config_open_skills_enabled`: 开放技能启用标志（None 表示使用默认值）
-/// - `config_open_skills_dir`: 开放技能仓库路径（None 表示使用默认路径）
-/// - `load_mode`: 加载模式，Full 表示加载完整内容，MetadataOnly 表示仅加载元数据
-///
-/// # 返回值
-///
-/// 返回所有成功加载的技能列表（开放技能 + 工作区技能）。
-///
-/// # 加载顺序
-///
-/// 1. 首先加载开放技能（如果启用且可用）
-/// 2. 然后加载工作区技能
-fn load_skills_with_open_skills_config(
-    workspace_dir: &Path,
-    config_open_skills_enabled: Option<bool>,
-    config_open_skills_dir: Option<&str>,
-    load_mode: SkillLoadMode,
-) -> Vec<Skill> {
-    let security = SkillSecurityConfig::default();
-    // 初始化技能列表
-    let mut skills = Vec::new();
-
-    // 尝试加载开放技能（如果配置启用且仓库可用）
-    if let Some(open_skills_dir) =
-        ensure_open_skills_repo(config_open_skills_enabled, config_open_skills_dir)
-    {
-        skills.extend(load_open_skills(&open_skills_dir, load_mode, &security));
-    }
-
-    // 加载工作区技能
-    skills.extend(load_workspace_skills(workspace_dir, load_mode, &security));
-    skills
+    load_workspace_skills(workspace_dir, SkillLoadMode::Full, &SkillSecurityConfig::default())
 }
 
 /// 从工作区加载技能
@@ -259,99 +198,6 @@ fn load_skills_from_directory(
     skills
 }
 
-/// 从开放技能仓库加载技能
-///
-/// 支持两种布局：
-/// 1. 现代布局（优先）：`skills/<name>/SKILL.md` - 每个技能有独立目录
-/// 2. 传统布局：根目录下的 `.md` 文件 - 每个 Markdown 文件是一个技能
-///
-/// # 参数
-///
-/// - `repo_dir`: 开放技能仓库的根目录路径
-/// - `load_mode`: 加载模式
-///
-/// # 返回值
-///
-/// 返回成功加载的开放技能列表。
-///
-/// # 过滤规则
-///
-/// - 跳过非 Markdown 文件
-/// - 跳过 `README.md` 文件
-/// - 跳过未通过安全审计的文件
-fn load_open_skills(
-    repo_dir: &Path,
-    load_mode: SkillLoadMode,
-    security: &SkillSecurityConfig,
-) -> Vec<Skill> {
-    // 现代开放技能布局将技能包存储在 `skills/<name>/SKILL.md`
-    // 优先使用这种结构，避免将仓库文档（如 CONTRIBUTING.md）误认为可执行技能
-    let nested_skills_dir = repo_dir.join("skills");
-    if nested_skills_dir.is_dir() {
-        return load_skills_from_directory(&nested_skills_dir, load_mode, security);
-    }
-
-    // 回退到传统布局：扫描根目录下的 Markdown 文件
-    let mut skills = Vec::new();
-
-    let Ok(entries) = std::fs::read_dir(repo_dir) else {
-        return skills;
-    };
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        // 跳过目录，只处理文件
-        if !path.is_file() {
-            continue;
-        }
-
-        // 检查是否为 Markdown 文件
-        let is_markdown = path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("md"));
-        if !is_markdown {
-            continue;
-        }
-
-        // 跳过 README.md 文件
-        let is_readme = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| name.eq_ignore_ascii_case("README.md"));
-        if is_readme {
-            continue;
-        }
-
-        // 对 Markdown 文件进行安全审计
-        match audit::audit_open_skill_markdown_with_security(&path, repo_dir, security) {
-            // 审计通过则继续加载
-            Ok(report) if report.is_clean() => {}
-            // 审计发现安全问题，跳过该文件
-            Ok(report) => {
-                tracing::warn!(
-                    "skipping insecure open-skill file {}: {}",
-                    path.display(),
-                    report.summary()
-                );
-                continue;
-            }
-            // 审计过程出错，跳过该文件
-            Err(err) => {
-                tracing::warn!("skipping unauditable open-skill file {}: {err}", path.display());
-                continue;
-            }
-        }
-
-        // 加载开放技能文件
-        if let Ok(skill) = load_open_skill_md(&path, load_mode) {
-            skills.push(skill);
-        }
-    }
-
-    skills
-}
-
 /// 从 SKILL.toml 清单文件加载技能
 ///
 /// 解析 TOML 格式的技能清单文件，根据加载模式决定是否包含工具和提示内容。
@@ -453,52 +299,6 @@ fn load_skill_md(path: &Path, dir: &Path, load_mode: SkillLoadMode) -> Result<Sk
         version: "0.1.0".to_string(),
         author: None,
         tags: Vec::new(),
-        tools: Vec::new(),
-        prompts,
-        location: Some(path.to_path_buf()),
-    })
-}
-
-/// 从开放技能 Markdown 文件加载技能（内部使用）
-///
-/// 专门用于加载开放技能仓库中的 Markdown 文件。
-/// 技能名称从文件名推断（不含扩展名）。
-///
-/// # 参数
-///
-/// - `path`: Markdown 文件的路径
-/// - `load_mode`: 加载模式
-///
-/// # 返回值
-///
-/// - `Ok(Skill)`: 成功创建的技能对象
-/// - `Err`: 文件读取失败
-///
-/// # 默认值
-///
-/// - 版本：`"open-skills"`
-/// - 作者：`"besoeasy/open-skills"`
-/// - 标签：包含 `"open-skills"`
-pub(crate) fn load_open_skill_md(path: &Path, load_mode: SkillLoadMode) -> Result<Skill> {
-    // 从文件名（不含扩展名）推断技能名称
-    let name = path.file_stem().and_then(|n| n.to_str()).unwrap_or("open-skill").to_string();
-
-    let (description, prompts) = match load_mode {
-        // 完整模式：读取整个文件内容
-        SkillLoadMode::Full => {
-            let content = std::fs::read_to_string(path)?;
-            (extract_description(&content), vec![content])
-        }
-        // 元数据模式：仅提取描述
-        SkillLoadMode::MetadataOnly => (extract_description_from_markdown(path)?, Vec::new()),
-    };
-
-    Ok(Skill {
-        name,
-        description,
-        version: "open-skills".to_string(),
-        author: Some("besoeasy/open-skills".to_string()),
-        tags: vec!["open-skills".to_string()],
         tools: Vec::new(),
         prompts,
         location: Some(path.to_path_buf()),

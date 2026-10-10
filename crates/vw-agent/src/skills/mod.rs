@@ -4,7 +4,7 @@
 //!
 //! ## 模块职责
 //!
-//! - **技能加载**：从工作空间目录和 OpenSkills 仓库加载技能定义
+//! - **技能加载**：从本地目录和插件加载技能定义
 //! - **技能发现**：自动发现并列出可用的技能
 //! - **技能管理**：提供技能目录初始化、安装、卸载等管理操作
 //! - **技能审计**：审计技能的安全性、合规性等
@@ -23,7 +23,6 @@
 //! - `init`：技能目录初始化
 //! - `installer`：技能安装器
 //! - `loader`：技能加载器
-//! - `open_skills`：OpenSkills 集成
 //! - `policy`：技能策略管理
 //! - `prompt`：技能提示词生成
 //! - `source`：技能源管理
@@ -42,7 +41,6 @@ mod invoked;
 mod listing;
 mod loader;
 pub(crate) mod marketplace;
-mod open_skills;
 mod policy;
 mod prompt;
 mod session_state;
@@ -276,13 +274,18 @@ fn extend_unique_skills(target: &mut Vec<Skill>, seen: &mut HashSet<String>, ite
 /// println!("已加载 {} 个技能", skills.len());
 /// ```
 pub fn load_skills(workspace_dir: &Path) -> Vec<Skill> {
-    load_skills_with_open_skills_config(workspace_dir, None, None, types::SkillLoadMode::Full)
+    load_skills_with_provider(
+        workspace_dir,
+        types::SkillLoadMode::Full,
+        SkillsDirectoryProvider::Vibewindow,
+        &vw_config_types::skills::SkillSecurityConfig::default(),
+        None,
+    )
 }
 
 /// 使用运行时配置加载技能（推荐在运行时使用）
 ///
-/// 此函数根据提供的配置对象加载技能，包括 OpenSkills 的启用状态、
-/// OpenSkills 目录路径以及提示词注入模式等配置项。
+/// 此函数根据提供的配置对象加载本地与插件技能。
 ///
 /// # 参数
 ///
@@ -309,10 +312,8 @@ pub fn load_skills_with_config(
     workspace_dir: &Path,
     config: &crate::app::agent::config::Config,
 ) -> Vec<Skill> {
-    load_skills_with_open_skills_config_and_provider(
+    load_skills_with_provider(
         workspace_dir,
-        None,
-        None,
         types::SkillLoadMode::from_prompt_mode(config.skills.prompt_injection_mode),
         config.skills.directory_provider,
         &config.skills.security,
@@ -327,10 +328,8 @@ pub(crate) fn load_skills_full_with_config(
     workspace_dir: &Path,
     config: &crate::app::agent::config::Config,
 ) -> Vec<Skill> {
-    load_skills_with_open_skills_config_and_provider(
+    load_skills_with_provider(
         workspace_dir,
-        None,
-        None,
         types::SkillLoadMode::Full,
         config.skills.directory_provider,
         &config.skills.security,
@@ -338,49 +337,8 @@ pub(crate) fn load_skills_full_with_config(
     )
 }
 
-/// 使用 OpenSkills 配置加载技能（内部实现）
-///
-/// 这是技能加载的核心实现函数，会根据配置决定是否加载 OpenSkills 仓库中的技能，
-/// 然后加载工作空间本地的技能。两个来源的技能会被合并返回。
-///
-/// # 参数
-///
-/// * `workspace_dir` - 工作空间根目录的路径
-/// * `config_open_skills_enabled` - 是否启用 OpenSkills（`None` 表示使用默认值）
-/// * `config_open_skills_dir` - OpenSkills 目录路径（`None` 表示使用默认位置）
-/// * `load_mode` - 技能加载模式（完整模式、轻量模式等）
-///
-/// # 返回值
-///
-/// 返回加载的所有技能列表（`Vec<Skill>`），包含 OpenSkills 和工作空间技能
-///
-/// # 加载顺序
-///
-/// 1. 优先加载当前工作区与祖先目录中的本地技能
-/// 2. 然后补充全局 VibeWindow 配置目录中的 `skills` 与 `~/.skills` 技能
-/// 3. 最后在启用时追加 OpenSkills 社区仓库技能
-/// 4. 同名技能按前面的来源优先，后续来源会被去重跳过
-pub(crate) fn load_skills_with_open_skills_config(
+fn load_skills_with_provider(
     workspace_dir: &Path,
-    config_open_skills_enabled: Option<bool>,
-    config_open_skills_dir: Option<&str>,
-    load_mode: types::SkillLoadMode,
-) -> Vec<Skill> {
-    load_skills_with_open_skills_config_and_provider(
-        workspace_dir,
-        config_open_skills_enabled,
-        config_open_skills_dir,
-        load_mode,
-        SkillsDirectoryProvider::Vibewindow,
-        &vw_config_types::skills::SkillSecurityConfig::default(),
-        None,
-    )
-}
-
-fn load_skills_with_open_skills_config_and_provider(
-    workspace_dir: &Path,
-    config_open_skills_enabled: Option<bool>,
-    config_open_skills_dir: Option<&str>,
     load_mode: types::SkillLoadMode,
     directory_provider: SkillsDirectoryProvider,
     security: &vw_config_types::skills::SkillSecurityConfig,
@@ -402,18 +360,6 @@ fn load_skills_with_open_skills_config_and_provider(
             crate::plugins::load_plugin_skills(workspace_dir, config, load_mode),
         );
     }
-
-    if let Some(open_skills_dir) = open_skills::resolve_local_open_skills_repo(
-        config_open_skills_enabled,
-        config_open_skills_dir,
-    ) {
-        extend_unique_skills(
-            &mut skills,
-            &mut seen,
-            open_skills::load_open_skills(&open_skills_dir, load_mode, security),
-        );
-    }
-    open_skills::schedule_open_skills_sync(config_open_skills_enabled, config_open_skills_dir);
 
     skills
 }

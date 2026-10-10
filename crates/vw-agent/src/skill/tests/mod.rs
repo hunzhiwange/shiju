@@ -5,7 +5,6 @@ mod git_source;
 mod init;
 mod load_skills;
 mod md_skill;
-mod open_skills;
 mod prompt;
 mod skills_sh;
 mod toml_skill;

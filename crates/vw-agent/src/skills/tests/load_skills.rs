@@ -5,7 +5,7 @@
 //! 逻辑和验证场景混在一起。
 
 use super::super::*;
-use super::helpers::{EnvVarGuard, open_skills_env_lock};
+use super::helpers::{EnvVarGuard, env_var_lock};
 use crate::app::agent::config::Config;
 use crate::app::agent::config::SkillsPromptInjectionMode;
 use std::fs;
@@ -13,9 +13,7 @@ use std::path::PathBuf;
 use vw_config_types::{paths::home_config_dir, skills::SkillsDirectoryProvider};
 
 fn load_workspace_only(workspace_dir: &std::path::Path) -> Vec<Skill> {
-    let _lock = open_skills_env_lock().lock().unwrap();
-    let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+    let _lock = env_var_lock().lock().unwrap();
     load_skills(workspace_dir)
 }
 
@@ -277,7 +275,7 @@ fn skills_dir_path() {
 fn load_skills_discovers_workspace_ancestor_and_global_sources() {
     // HOME 是进程级环境变量，测试需要串行化，避免并发测试互相污染
     // skill 搜索路径。
-    let _lock = open_skills_env_lock().lock().unwrap();
+    let _lock = env_var_lock().lock().unwrap();
     let home = tempfile::tempdir().unwrap();
     let _guard = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
 
@@ -354,7 +352,7 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
 
 #[test]
 fn common_project_skill_roots_load_without_selecting_codex_provider() {
-    let _lock = open_skills_env_lock().lock().unwrap();
+    let _lock = env_var_lock().lock().unwrap();
     let home = tempfile::tempdir().unwrap();
     let _guard = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
 
@@ -381,11 +379,9 @@ fn common_project_skill_roots_load_without_selecting_codex_provider() {
 
 #[test]
 fn load_skills_uses_configured_directory_provider() {
-    let _lock = open_skills_env_lock().lock().unwrap();
+    let _lock = env_var_lock().lock().unwrap();
     let home = tempfile::tempdir().unwrap();
     let _guard = EnvVarGuard::set("HOME", home.path().to_str().unwrap());
-    let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
 
     let project_dir = home.path().join("project");
     fs::create_dir_all(&project_dir).unwrap();
@@ -432,9 +428,7 @@ fn workspace_skill_roots_follow_directory_provider_contract() {
 
 #[test]
 fn configured_prompt_mode_controls_loaded_skill_detail() {
-    let _lock = open_skills_env_lock().lock().unwrap();
-    let _enabled = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_ENABLED");
-    let _dir = EnvVarGuard::unset("VIBEWINDOW_OPEN_SKILLS_DIR");
+    let _lock = env_var_lock().lock().unwrap();
 
     let dir = tempfile::tempdir().unwrap();
     let skill_dir = dir.path().join(".vibewindow").join("skills").join("detailed");

@@ -18,10 +18,7 @@ fn defaults_are_stable_and_include_builtin_aliases() {
 }
 
 #[test]
-fn repository_policy_and_sync_constants_are_stable() {
-    assert_eq!(OPEN_SKILLS_REPO_URL, "https://github.com/besoeasy/open-skills");
-    assert_eq!(OPEN_SKILLS_SYNC_MARKER, ".vibewindow-open-skills-sync");
-    assert_eq!(OPEN_SKILLS_SYNC_INTERVAL_SECS, 60 * 60 * 24 * 7);
+fn repository_policy_constants_are_stable() {
     assert_eq!(SKILL_DOWNLOAD_POLICY_FILE, ".download-policy.toml");
     assert_eq!(SKILLS_SH_HOST, "skills.sh");
 }

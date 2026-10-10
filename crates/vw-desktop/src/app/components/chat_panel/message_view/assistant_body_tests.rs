@@ -346,7 +346,7 @@ fn render_assistant_body_keeps_commands_grouped_across_hidden_reasoning() {
 
 #[test]
 fn render_assistant_body_flushes_command_groups_at_visible_boundaries() {
-    let app = App::new().0;
+    let mut app = App::new().0;
 
     let text_blocks = vec![
         command_block("bash", "call-1", "first"),
@@ -380,6 +380,7 @@ fn render_assistant_body_flushes_command_groups_at_visible_boundaries() {
         ParsedChatBlock::Think { content: "思考边界".to_string(), open: false },
         command_block("bash", "call-2", "second"),
     ];
+    app.dialogue_flow_show_reasoning_summary = true;
     assert!(rendered_top_level_count(&app, think_blocks, Vec::new(), &[]) >= 2);
 }
 

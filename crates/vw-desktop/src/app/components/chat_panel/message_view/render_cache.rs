@@ -208,9 +208,9 @@ pub(super) fn resolve_visible_text_and_copy_hash<'a>(
     app: &'a App,
     idx: usize,
     content: &'a str,
+    current_content_hash: u64,
     render_cache: &models::ChatRenderCacheEntry,
 ) -> (Cow<'a, str>, u64) {
-    let current_content_hash = hash_chat_content(content);
     let cache_is_fresh = render_cache.content_hash == current_content_hash;
 
     if cache_is_fresh
@@ -229,13 +229,14 @@ pub(super) fn resolve_visible_text_and_copy_hash<'a>(
 
 pub(crate) fn effective_assistant_render_cache<'a>(
     content: &str,
+    current_content_hash: u64,
     render_cache: &'a models::ChatRenderCacheEntry,
     visible_for_copy: &str,
     copy_hash: u64,
     _is_streaming_assistant: bool,
     show_reasoning_summary: bool,
 ) -> Cow<'a, models::ChatRenderCacheEntry> {
-    if render_cache.content_hash != hash_chat_content(content)
+    if render_cache.content_hash != current_content_hash
         || render_cache.show_reasoning_summary != show_reasoning_summary
     {
         Cow::Owned(build_render_cache_entry(
@@ -251,10 +252,11 @@ pub(crate) fn effective_assistant_render_cache<'a>(
 
 pub(crate) fn assistant_render_blocks<'a>(
     content: &str,
+    current_content_hash: u64,
     render_cache: &'a models::ChatRenderCacheEntry,
     _is_streaming_assistant: bool,
 ) -> (Cow<'a, [ParsedChatBlock]>, bool) {
-    if render_cache.content_hash != hash_chat_content(content) {
+    if render_cache.content_hash != current_content_hash {
         let blocks = owned_blocks_from_raw(content);
         let has_special_blocks =
             blocks.iter().any(|block| !matches!(block, ParsedChatBlock::Text { .. }));

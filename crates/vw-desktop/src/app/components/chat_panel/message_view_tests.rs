@@ -252,7 +252,8 @@ fn streaming_assistant_uses_live_blocks_when_cache_is_stale() {
     let content = "<think>planning</think>\nvisible answer";
     let render_cache = stale_plain_text_cache();
 
-    let (blocks, has_special_blocks) = assistant_render_blocks(content, &render_cache, true);
+    let (blocks, has_special_blocks) =
+        assistant_render_blocks(content, hash_chat_content(content), &render_cache, true);
 
     assert!(matches!(blocks.first(), Some(ParsedChatBlock::Think { .. })));
     assert!(matches!(blocks.get(1), Some(ParsedChatBlock::Text { .. })));
@@ -264,7 +265,8 @@ fn non_streaming_assistant_rebuilds_blocks_when_cache_is_stale() {
     let content = "<think>planning</think>\nvisible answer";
     let render_cache = stale_plain_text_cache();
 
-    let (blocks, has_special_blocks) = assistant_render_blocks(content, &render_cache, false);
+    let (blocks, has_special_blocks) =
+        assistant_render_blocks(content, hash_chat_content(content), &render_cache, false);
 
     assert!(matches!(blocks.first(), Some(ParsedChatBlock::Think { .. })));
     assert!(matches!(blocks.get(1), Some(ParsedChatBlock::Text { .. })));
@@ -281,7 +283,8 @@ fn non_streaming_assistant_rebuilds_all_think_blocks_when_cache_is_stale() {
     );
     let render_cache = stale_plain_text_cache();
 
-    let (blocks, has_special_blocks) = assistant_render_blocks(content, &render_cache, false);
+    let (blocks, has_special_blocks) =
+        assistant_render_blocks(content, hash_chat_content(content), &render_cache, false);
 
     assert!(has_special_blocks);
     assert_eq!(blocks.len(), 4);
@@ -302,6 +305,7 @@ fn streaming_assistant_rebuilds_special_text_blocks_when_cache_is_stale() {
 
     let live_cache = effective_assistant_render_cache(
         content,
+        hash_chat_content(content),
         &render_cache,
         content,
         hash_chat_content(content),
@@ -320,6 +324,7 @@ fn non_streaming_assistant_rebuilds_special_text_blocks_when_cache_is_stale() {
 
     let live_cache = effective_assistant_render_cache(
         content,
+        hash_chat_content(content),
         &render_cache,
         content,
         hash_chat_content(content),
@@ -340,7 +345,8 @@ fn assistant_render_blocks_extracts_inline_file_write_tool_after_colon() {
     );
     let render_cache = stale_plain_text_cache();
 
-    let (blocks, has_special_blocks) = assistant_render_blocks(content, &render_cache, false);
+    let (blocks, has_special_blocks) =
+        assistant_render_blocks(content, hash_chat_content(content), &render_cache, false);
 
     assert!(has_special_blocks);
     assert!(
@@ -482,6 +488,7 @@ fn trailing_tool_tail_text_source_block_idx_ignores_blank_tail_after_tools() {
 
     let live_cache = effective_assistant_render_cache(
         content,
+        hash_chat_content(content),
         &render_cache,
         content,
         hash_chat_content(content),
@@ -500,6 +507,7 @@ fn trailing_tool_tail_text_source_block_idx_skips_when_text_already_follows_tool
 
     let live_cache = effective_assistant_render_cache(
         content,
+        hash_chat_content(content),
         &render_cache,
         content,
         hash_chat_content(content),
@@ -523,6 +531,7 @@ fn trailing_tool_tail_text_source_block_idx_handles_non_explore_tool_before_expl
 
     let live_cache = effective_assistant_render_cache(
         content,
+        hash_chat_content(content),
         &render_cache,
         content,
         hash_chat_content(content),
@@ -544,6 +553,7 @@ fn trailing_tool_tail_text_source_block_idx_skips_non_explore_tool_suffix() {
 
     let live_cache = effective_assistant_render_cache(
         content,
+        hash_chat_content(content),
         &render_cache,
         content,
         hash_chat_content(content),

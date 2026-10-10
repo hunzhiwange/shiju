@@ -309,18 +309,28 @@ fn push_special_text_block<'a>(
     body.push(message_text_body(text, false))
 }
 
-pub(super) fn render_assistant_body<'a>(
+pub(super) fn render_assistant_body<'a, T, U, V, W>(
     app: &'a App,
     idx: usize,
     think_timing: &'a [models::ThinkTiming],
-    special_text_blocks: Vec<String>,
-    display_text: String,
-    blocks: Vec<ParsedChatBlock>,
-    tool_block_metadata: Vec<Option<models::ToolBlockRenderMetadata>>,
+    special_text_blocks: T,
+    display_text: U,
+    blocks: V,
+    tool_block_metadata: W,
     has_special: bool,
     is_streaming_assistant: bool,
     visible_for_copy: &str,
-) -> Column<'a, Message> {
+) -> Column<'a, Message>
+where
+    T: AsRef<[String]>,
+    U: AsRef<str>,
+    V: AsRef<[ParsedChatBlock]>,
+    W: AsRef<[Option<models::ToolBlockRenderMetadata>]>,
+{
+    let special_text_blocks = special_text_blocks.as_ref();
+    let display_text = display_text.as_ref();
+    let blocks = blocks.as_ref();
+    let tool_block_metadata = tool_block_metadata.as_ref();
     let mut body = column![].spacing(ASSISTANT_BLOCK_SPACING);
     let use_editor = !is_streaming_assistant
         && selectable_text_policy(visible_for_copy, should_segment_text_block(visible_for_copy))
@@ -328,7 +338,7 @@ pub(super) fn render_assistant_body<'a>(
         && app.chat_message_editors.get(idx).is_some();
 
     if has_special {
-        let tool_last = deduped_tool_last_indices_with_metadata(&blocks, &tool_block_metadata);
+        let tool_last = deduped_tool_last_indices_with_metadata(blocks, tool_block_metadata);
         let message_id = app.chat_message_ids.get(idx).and_then(|value| value.as_deref());
         let is_permission_target_message =
             pending_permission_targets_message(app.permission_modal_request.as_ref(), message_id);
@@ -337,14 +347,14 @@ pub(super) fn render_assistant_body<'a>(
             app.permission_modal_request_id.as_deref(),
         );
         let visible_non_explore_tool_count = if is_permission_target_message {
-            count_visible_non_explore_tool_cards(&blocks, &tool_block_metadata, &tool_last)
+            count_visible_non_explore_tool_cards(blocks, tool_block_metadata, &tool_last)
         } else {
             0
         };
         let total_think_blocks =
             blocks.iter().filter(|block| matches!(block, ParsedChatBlock::Think { .. })).count();
 
-        let trailing_tool_tail_text_block_idx = trailing_tool_tail_text_source_block_idx(&blocks);
+        let trailing_tool_tail_text_block_idx = trailing_tool_tail_text_source_block_idx(blocks);
 
         let mut think_idx = 0usize;
         let mut tool_idx = 0usize;
@@ -624,7 +634,7 @@ pub(super) fn render_assistant_body<'a>(
             // 编辑器不可用时保留块级 Markdown 与消息复制按钮作为回退。
             body = body.push(super::markdown::markdown_body_view(app, idx, 0, blocks));
         } else if !text.is_empty() {
-            body = body.push(message_text_body(text, false));
+            body = body.push(message_text_body(text.to_owned(), false));
         }
         body
     }

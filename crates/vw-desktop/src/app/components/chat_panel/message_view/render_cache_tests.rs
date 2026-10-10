@@ -23,6 +23,7 @@ fn effective_assistant_render_cache_rebuilds_stale_cache() {
     let old = build_render_cache_entry("old", "old", hash_chat_content("old"), true);
     let rebuilt = effective_assistant_render_cache(
         "tool bash\n{\"status\":\"completed\"}",
+        hash_chat_content("tool bash\n{\"status\":\"completed\"}"),
         &old,
         "tool bash",
         hash_chat_content("tool bash"),
@@ -38,7 +39,7 @@ fn assistant_render_blocks_uses_cache_when_fresh() {
     let raw = "plain text";
     let entry = build_render_cache_entry(raw, raw, hash_chat_content(raw), true);
 
-    let (blocks, has_special) = assistant_render_blocks(raw, &entry, false);
+    let (blocks, has_special) = assistant_render_blocks(raw, hash_chat_content(raw), &entry, false);
 
     assert!(!has_special);
     assert!(
@@ -110,10 +111,62 @@ fn build_render_cache_entry_truncates_preview_for_long_visible_text() {
 fn effective_assistant_render_cache_borrows_fresh_cache() {
     let raw = "fresh";
     let entry = build_render_cache_entry(raw, raw, hash_chat_content(raw), false);
-    let resolved =
-        effective_assistant_render_cache(raw, &entry, raw, hash_chat_content(raw), false, false);
+    let resolved = effective_assistant_render_cache(
+        raw,
+        hash_chat_content(raw),
+        &entry,
+        raw,
+        hash_chat_content(raw),
+        false,
+        false,
+    );
 
     assert!(matches!(resolved, std::borrow::Cow::Borrowed(_)));
+}
+
+#[test]
+fn render_cache_long_message_hit_borrows_blocks_and_text() {
+    let raw = format!("<think>plan</think>\n{}", "long answer\n".repeat(2_000));
+    let content_hash = hash_chat_content(&raw);
+    let entry = build_render_cache_entry(&raw, &raw, content_hash, true);
+
+    let resolved = effective_assistant_render_cache(
+        &raw,
+        content_hash,
+        &entry,
+        &raw,
+        content_hash,
+        false,
+        true,
+    );
+    let (blocks, has_special) = assistant_render_blocks(&raw, content_hash, &resolved, false);
+
+    assert!(matches!(resolved, std::borrow::Cow::Borrowed(_)));
+    assert!(matches!(blocks, std::borrow::Cow::Borrowed(_)));
+    assert!(std::ptr::eq(blocks.as_ptr(), entry.blocks.as_ptr()));
+    assert!(std::ptr::eq(resolved.display_text.as_ptr(), entry.display_text.as_ptr()));
+    assert!(has_special);
+}
+
+#[test]
+fn render_cache_streaming_content_change_rebuilds_long_message() {
+    let cached = format!("{}old tail", "long answer\n".repeat(2_000));
+    let streamed = format!("{}new tail", "long answer\n".repeat(2_000));
+    let entry = build_render_cache_entry(&cached, &cached, hash_chat_content(&cached), true);
+
+    let resolved = effective_assistant_render_cache(
+        &streamed,
+        hash_chat_content(&streamed),
+        &entry,
+        &streamed,
+        hash_chat_content(&streamed),
+        true,
+        true,
+    );
+
+    assert!(matches!(resolved, std::borrow::Cow::Owned(_)));
+    assert!(resolved.display_text.ends_with("new tail"));
+    assert_eq!(resolved.content_hash, hash_chat_content(&streamed));
 }
 
 #[test]
@@ -122,6 +175,7 @@ fn effective_assistant_render_cache_rebuilds_when_reasoning_summary_flag_changes
     let entry = build_render_cache_entry(raw, "answer", hash_chat_content("answer"), false);
     let resolved = effective_assistant_render_cache(
         raw,
+        hash_chat_content(raw),
         &entry,
         "answer",
         hash_chat_content("answer"),
@@ -136,8 +190,12 @@ fn effective_assistant_render_cache_rebuilds_when_reasoning_summary_flag_changes
 fn assistant_render_blocks_rebuilds_stale_blocks() {
     let entry = build_render_cache_entry("plain", "plain", hash_chat_content("plain"), true);
 
-    let (blocks, has_special) =
-        assistant_render_blocks("tool bash\n{\"status\":\"completed\"}", &entry, true);
+    let (blocks, has_special) = assistant_render_blocks(
+        "tool bash\n{\"status\":\"completed\"}",
+        hash_chat_content("tool bash\n{\"status\":\"completed\"}"),
+        &entry,
+        true,
+    );
 
     assert!(has_special);
     assert!(matches!(blocks.first(), Some(ParsedChatBlock::Tool { .. })));
@@ -151,14 +209,24 @@ fn resolve_visible_text_uses_fresh_cache_and_recomputes_stale_content() {
     let cached_content = "<think>secret</think>cached body";
     let cache = build_render_cache_entry(cached_content, "cached body", 42, true);
 
-    let (cached_visible, cached_hash) =
-        resolve_visible_text_and_copy_hash(&app, 0, cached_content, &cache);
+    let (cached_visible, cached_hash) = resolve_visible_text_and_copy_hash(
+        &app,
+        0,
+        cached_content,
+        hash_chat_content(cached_content),
+        &cache,
+    );
     assert!(matches!(cached_visible, std::borrow::Cow::Borrowed("cached visible")));
     assert_eq!(cached_hash, 42);
 
     let stale_content = "<think>new secret</think>new body";
-    let (recomputed_visible, recomputed_hash) =
-        resolve_visible_text_and_copy_hash(&app, 0, stale_content, &cache);
+    let (recomputed_visible, recomputed_hash) = resolve_visible_text_and_copy_hash(
+        &app,
+        0,
+        stale_content,
+        hash_chat_content(stale_content),
+        &cache,
+    );
     assert!(matches!(recomputed_visible, std::borrow::Cow::Owned(ref text) if text == "new body"));
     assert_eq!(recomputed_hash, hash_chat_content("new body"));
 }
@@ -171,7 +239,8 @@ fn resolve_visible_text_recomputes_when_fresh_cache_lacks_visible_text_or_hash()
     let content = "<think>secret</think>body";
     let cache = build_render_cache_entry(content, "body", hash_chat_content("body"), true);
 
-    let (visible, copy_hash) = resolve_visible_text_and_copy_hash(&app, 0, content, &cache);
+    let (visible, copy_hash) =
+        resolve_visible_text_and_copy_hash(&app, 0, content, hash_chat_content(content), &cache);
 
     assert!(matches!(visible, std::borrow::Cow::Owned(ref text) if text == "body"));
     assert_eq!(copy_hash, hash_chat_content("body"));
@@ -190,8 +259,15 @@ fn render_cache_derives_tool_name_and_identity_once_per_content_version() {
     assert_eq!(metadata.name.as_deref(), Some("bash"));
     assert_eq!(metadata.identity.as_deref(), Some("bash:pwd"));
 
-    let resolved =
-        effective_assistant_render_cache(raw, &entry, "", hash_chat_content(""), false, true);
+    let resolved = effective_assistant_render_cache(
+        raw,
+        hash_chat_content(raw),
+        &entry,
+        "",
+        hash_chat_content(""),
+        false,
+        true,
+    );
     assert!(matches!(resolved, std::borrow::Cow::Borrowed(_)));
 }
 
@@ -201,8 +277,15 @@ fn render_cache_rebuilds_tool_metadata_when_content_changes() {
     let new_raw = "tool shell\n{\"input\":\"ls\",\"status\":\"completed\"}\n";
     let entry = build_render_cache_entry(old_raw, "", hash_chat_content(""), true);
 
-    let resolved =
-        effective_assistant_render_cache(new_raw, &entry, "", hash_chat_content(""), true, true);
+    let resolved = effective_assistant_render_cache(
+        new_raw,
+        hash_chat_content(new_raw),
+        &entry,
+        "",
+        hash_chat_content(""),
+        true,
+        true,
+    );
     assert!(matches!(&resolved, std::borrow::Cow::Owned(_)));
     let metadata = resolved.tool_block_metadata[0].as_ref().expect("tool metadata");
     assert_eq!(metadata.name.as_deref(), Some("bash"));

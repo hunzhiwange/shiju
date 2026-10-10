@@ -168,10 +168,12 @@ pub fn message_view<'a>(
         role == ChatRole::Assistant && runtime.is_requesting && idx + 1 == app.chat.len();
     let live_processing_elapsed_ms = is_streaming_assistant
         .then(|| runtime.processing_timer.elapsed_ms_at(web_time::Instant::now()));
+    let content_hash = hash_chat_content(content);
     let (visible_for_copy, visible_content_hash) =
-        resolve_visible_text_and_copy_hash(app, idx, content, render_cache);
+        resolve_visible_text_and_copy_hash(app, idx, content, content_hash, render_cache);
     let render_cache = effective_assistant_render_cache(
         content,
+        content_hash,
         render_cache,
         visible_for_copy.as_ref(),
         visible_content_hash,
@@ -179,8 +181,7 @@ pub fn message_view<'a>(
         app.dialogue_flow_show_reasoning_summary,
     );
     let (assistant_blocks, has_special_assistant_blocks) =
-        assistant_render_blocks(content, render_cache.as_ref(), false);
-    let assistant_blocks = assistant_blocks.into_owned();
+        assistant_render_blocks(content, content_hash, render_cache.as_ref(), false);
     let assistant_has_tool_blocks =
         assistant_blocks.iter().any(|block| matches!(block, models::ParsedChatBlock::Tool { .. }));
     let (cleaned_attachment_text, attachment_items) = parse_attachment_markers(content);
@@ -325,10 +326,10 @@ pub fn message_view<'a>(
             app,
             idx,
             think_timing,
-            render_cache.special_text_blocks.clone(),
-            render_cache.display_text.clone(),
-            assistant_blocks,
-            render_cache.tool_block_metadata.clone(),
+            &render_cache.special_text_blocks,
+            &render_cache.display_text,
+            assistant_blocks.as_ref(),
+            &render_cache.tool_block_metadata,
             has_special_assistant_blocks,
             is_streaming_assistant,
             visible_for_copy.as_ref(),

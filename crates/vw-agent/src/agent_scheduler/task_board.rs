@@ -5,16 +5,14 @@ use serde_json::{Map, Value, json};
 use vw_api_types::ReasoningEffortDto;
 use vw_api_types::agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerLegacyTaskImportDto,
-    AgentSchedulerMoveTaskPayloadDto, AgentSchedulerStaffCommandPayloadDto,
-    AgentSchedulerStageActionCommandPayloadDto, AgentSchedulerStageActionInputsDto,
-    AgentSchedulerStageActionOutcomeDto, AgentSchedulerTaskMetadataPatchDto, AgentTaskStatusDto,
+    AgentSchedulerMoveTaskPayloadDto, AgentSchedulerTaskMetadataPatchDto, AgentTaskStatusDto,
 };
 use vw_api_types::common::TimestampMs;
 use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
 
 use crate::agent_scheduler::domain::TaskId;
 use crate::agent_scheduler::events::AgentEventKind;
-use crate::agent_scheduler::lifecycle_bridge::{LifecycleStatusProjection, status_role_key};
+use crate::agent_scheduler::lifecycle_bridge::status_role_key;
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::events::{AppendAgentEventRequest, StoredAgentEvent};
 use crate::agent_scheduler::store::logs::AppendAgentTaskLogRequest;
@@ -512,200 +510,6 @@ impl<'a> AgentTaskBoardService<'a> {
         )?))
     }
 
-    pub fn assign_staff(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        payload: AgentSchedulerStaffCommandPayloadDto,
-        reason: Option<&str>,
-        now_ms: TimestampMs,
-    ) -> Result<Option<AgentTaskBoardWriteOutcome>> {
-        let Some(current) = self.store.load_task(project_path, task_id)? else {
-            return Ok(None);
-        };
-        let from_status_key = task_board_status_key(&current);
-        let command_id = required_text(payload.command_id, "staff command_id")?;
-        let member_id = required_text(payload.member_id, "staff member_id")?;
-        let mut metadata = object_metadata(current.metadata.clone())?;
-        metadata.insert("task_board.staff.command_id".to_string(), json!(command_id));
-        metadata.insert("task_board.staff.member_id".to_string(), json!(member_id));
-        set_metadata_string(&mut metadata, "task_board.staff.stage_id", payload.stage_id)?;
-        set_metadata_string(&mut metadata, "task_board.staff.member_role", payload.role)?;
-        set_metadata_string(&mut metadata, "task_board.staff.action", payload.action)?;
-        if let Some(extra) = payload.metadata {
-            metadata.insert("task_board.staff.metadata".to_string(), extra);
-        }
-        let updated =
-            self.update_task(project_path, &current, None, None, Value::Object(metadata), now_ms)?;
-        let to_status_key = task_board_status_key(&updated);
-        let message = reason
-            .and_then(non_empty_str)
-            .map(str::to_string)
-            .unwrap_or_else(|| "assigned staff member to task".to_string());
-        let event = self.append_audit_event_with_payload(
-            project_path,
-            &updated,
-            AgentEventKind::HumanIntervened,
-            Some(from_status_key.clone()),
-            Some(to_status_key.clone()),
-            &message,
-            AgentSchedulerCommandKindDto::AssignStaff,
-            json!({
-                "staff": {
-                    "member_id": string_field(&updated.metadata, "task_board.staff.member_id"),
-                    "stage_id": string_field(&updated.metadata, "task_board.staff.stage_id"),
-                    "action": string_field(&updated.metadata, "task_board.staff.action"),
-                }
-            }),
-            now_ms,
-        )?;
-        self.append_audit_log(
-            project_path,
-            &updated,
-            Some(from_status_key),
-            Some(to_status_key),
-            message,
-            now_ms,
-        )?;
-        Ok(Some(AgentTaskBoardWriteOutcome { task: updated, event }))
-    }
-
-    /// 校验并执行阶段能力动作，再按动作结果推进工作流。
-    pub fn run_stage_action(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task_id: &TaskId,
-        payload: AgentSchedulerStageActionCommandPayloadDto,
-        outcome_target: Option<LifecycleStatusProjection>,
-        reason: Option<&str>,
-        now_ms: TimestampMs,
-    ) -> Result<Option<AgentTaskBoardWriteOutcome>> {
-        let Some(current) = self.store.load_task(project_path, task_id)? else {
-            return Ok(None);
-        };
-        let AgentSchedulerStageActionCommandPayloadDto {
-            stage_id,
-            capability_id,
-            workflow_uuid,
-            inputs,
-            outcome,
-            member_id,
-            metadata: payload_metadata,
-        } = payload;
-        let from_status_key = task_board_status_key(&current);
-        let stage_id = required_text(stage_id, "stage_id")?;
-        let capability_id = required_text(capability_id, "capability_id")?;
-        let workflow_uuid = optional_required_text(workflow_uuid, "workflow_uuid")?;
-        let member_id = optional_required_text(member_id, "member_id")?;
-        let outcome_key = outcome.map(stage_action_outcome_key);
-        let outcome_target = match (outcome, outcome_target) {
-            (Some(_), Some(target)) => Some(target),
-            (Some(_), None) => bail!("stage action outcome requires resolved workflow status"),
-            (None, Some(_)) => bail!("resolved workflow status requires stage action outcome"),
-            (None, None) => None,
-        };
-        let outcome_target_status_key =
-            outcome_target.as_ref().map(|target| target.status_key.clone());
-        let mut metadata = object_metadata(current.metadata.clone())?;
-        metadata.insert("task_board.stage_action.stage_id".to_string(), json!(stage_id));
-        metadata.insert("task_board.stage_action.capability_id".to_string(), json!(capability_id));
-        set_metadata_string(
-            &mut metadata,
-            "task_board.stage_action.workflow_uuid",
-            workflow_uuid.clone(),
-        )?;
-        if workflow_uuid.is_none() {
-            metadata.remove("task_board.stage_action.workflow_uuid");
-        }
-        set_metadata_string(&mut metadata, "task_board.stage_action.member_id", member_id.clone())?;
-        if member_id.is_none() {
-            metadata.remove("task_board.stage_action.member_id");
-        }
-        metadata.insert("task_board.stage_action.executed_at_ms".to_string(), json!(now_ms.0));
-        let result_key = outcome_key.unwrap_or("accepted");
-        metadata.insert("task_board.stage_action.result".to_string(), json!(result_key));
-        if let Some(outcome_key) = outcome_key {
-            metadata.insert("task_board.stage_action.outcome".to_string(), json!(outcome_key));
-        } else {
-            metadata.remove("task_board.stage_action.outcome");
-        }
-        if let Some(target) = outcome_target.as_ref() {
-            metadata.insert(
-                "task_board.stage_action.outcome_target_status_key".to_string(),
-                json!(target.status_key),
-            );
-            set_metadata_string(
-                &mut metadata,
-                "task_board.status_key",
-                Some(target.status_key.clone()),
-            )?;
-            metadata.insert(
-                "task_board.status_role".to_string(),
-                json!(status_role_key(target.status_role)),
-            );
-        } else {
-            metadata.remove("task_board.stage_action.outcome_target_status_key");
-        }
-        if !inputs.is_empty() {
-            metadata.insert(
-                "task_board.stage_action.inputs".to_string(),
-                safe_stage_action_inputs(&inputs),
-            );
-        } else {
-            metadata.remove("task_board.stage_action.inputs");
-        }
-        if let Some(extra) = payload_metadata {
-            metadata.insert("task_board.stage_action.metadata".to_string(), extra);
-        }
-        let status = outcome_target.as_ref().map(|target| target.runtime_status);
-        let updated = self.update_task(
-            project_path,
-            &current,
-            None,
-            status,
-            Value::Object(metadata),
-            now_ms,
-        )?;
-        let to_status_key = task_board_status_key(&updated);
-        let message = reason
-            .and_then(non_empty_str)
-            .map(str::to_string)
-            .unwrap_or_else(|| "ran staff stage action".to_string());
-        let event = self.append_audit_event_with_payload(
-            project_path,
-            &updated,
-            AgentEventKind::HumanIntervened,
-            Some(from_status_key.clone()),
-            Some(to_status_key.clone()),
-            &message,
-            AgentSchedulerCommandKindDto::RunStageAction,
-            json!({
-                "stage_action": {
-                    "stage_id": string_field(&updated.metadata, "task_board.stage_action.stage_id"),
-                    "capability_id": string_field(
-                        &updated.metadata,
-                        "task_board.stage_action.capability_id"
-                    ),
-                    "workflow_uuid": workflow_uuid,
-                    "member_id": member_id,
-                    "result": result_key,
-                    "outcome": outcome_key,
-                    "target_status_key": outcome_target_status_key,
-                }
-            }),
-            now_ms,
-        )?;
-        self.append_audit_log(
-            project_path,
-            &updated,
-            Some(from_status_key),
-            Some(to_status_key),
-            message,
-            now_ms,
-        )?;
-        Ok(Some(AgentTaskBoardWriteOutcome { task: updated, event }))
-    }
-
     /// 批量导入旧任务；单项失败会记录原因而不丢弃其它成功项。
     pub fn import_legacy_tasks(
         &self,
@@ -1090,21 +894,6 @@ fn agent_scheduler_control_status(status: AgentTaskStatus) -> bool {
     )
 }
 
-fn safe_stage_action_inputs(inputs: &AgentSchedulerStageActionInputsDto) -> Value {
-    let mut metadata = Map::new();
-    if let Some(workflow_uuid) = inputs.workflow_uuid.as_deref().and_then(non_empty_str) {
-        metadata.insert("workflow_uuid".to_string(), json!(workflow_uuid));
-    }
-    if !inputs.parameters.is_empty() {
-        metadata.insert(
-            "parameter_keys".to_string(),
-            json!(inputs.parameters.keys().cloned().collect::<Vec<_>>()),
-        );
-        metadata.insert("parameter_count".to_string(), json!(inputs.parameters.len()));
-    }
-    Value::Object(metadata)
-}
-
 fn agent_status_from_status_key(status_key: &str) -> Option<AgentTaskStatus> {
     match status_key {
         "pool" | "draft" => Some(AgentTaskStatus::Draft),
@@ -1155,17 +944,6 @@ fn command_key(command: AgentSchedulerCommandKindDto) -> &'static str {
         AgentSchedulerCommandKindDto::SoftDelete => "soft_delete",
         AgentSchedulerCommandKindDto::Restore => "restore",
         AgentSchedulerCommandKindDto::ImportLegacyTask => "import_legacy_task",
-        AgentSchedulerCommandKindDto::AssignStaff => "assign_staff",
-        AgentSchedulerCommandKindDto::RunStageAction => "run_stage_action",
-    }
-}
-
-fn stage_action_outcome_key(outcome: AgentSchedulerStageActionOutcomeDto) -> &'static str {
-    match outcome {
-        AgentSchedulerStageActionOutcomeDto::Success => "success",
-        AgentSchedulerStageActionOutcomeDto::Failure => "failure",
-        AgentSchedulerStageActionOutcomeDto::Retry => "retry",
-        AgentSchedulerStageActionOutcomeDto::Blocked => "blocked",
     }
 }
 

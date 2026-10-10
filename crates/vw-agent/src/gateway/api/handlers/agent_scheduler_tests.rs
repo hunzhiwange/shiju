@@ -16,8 +16,7 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
     AgentSchedulerDispatchModeDto, AgentSchedulerLegacyImportRequest,
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
-    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerStageActionCommandPayloadDto,
-    AgentSchedulerStageActionInputsDto, AgentSchedulerStageActionOutcomeDto,
+    AgentSchedulerReplaceTaskGraphRequest,
     AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskMetadataPatchDto,
     AgentSchedulerTaskMetadataUpdateRequest, AgentSchedulerUpsertTeamRequest,
     AgentSchedulerUpsertWorkerRequest, AgentSchedulerWorkerRunEventKindDto,
@@ -28,10 +27,6 @@ use vw_api_types::common::TimestampMs;
 use vw_api_types::task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
     TaskPoolWorkflowTransitionDto,
-};
-use vw_config_types::staff::{
-    StaffCapabilityConfig, StaffCapabilityIoSummaryConfig, StaffCapabilityKindConfig, StaffConfig,
-    StaffStageAssignmentConfig, StaffWorkflowOrchestrationConfig,
 };
 
 // 测试使用独立租户、项目和执行器夹具，防止调度状态在作用域之间串扰。
@@ -757,28 +752,13 @@ async fn project_local_wake_uses_graph_readiness() {
 }
 
 #[tokio::test]
-async fn agent_scheduler_project_wake_applies_autonomous_staff_assignment() {
+async fn agent_scheduler_project_wake_ignores_autonomous_staff_assignment() {
     let temp = tempfile::tempdir().expect("temp project root");
     let project_path = temp.path().join("project-agent-scheduler-wake-staff-assign");
     std::fs::create_dir_all(&project_path).expect("project dir");
-    let mut staff_config = StaffConfig::default();
-    staff_config.workflow_orchestrations.insert(
-        "dev_lifecycle".to_string(),
-        StaffWorkflowOrchestrationConfig {
-            stage_assignments: vec![StaffStageAssignmentConfig {
-                stage_id: "pending".to_string(),
-                primary_member_id: Some("staff-orchestrator".to_string()),
-                backup_member_ids: Vec::new(),
-                manager_member_ids: Vec::new(),
-                autonomous: true,
-            }],
-            ..StaffWorkflowOrchestrationConfig::default()
-        },
-    );
-    let gateway = StoreBackedAgentSchedulerGateway::with_executor_and_staff_config(
-        RecordingLocalExecutor { output: "unexpected local execution".to_string() },
-        staff_config,
-    );
+    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
+        output: "local execution without staff assignment".to_string(),
+    });
     let store = gateway.store.clone();
     store.initialize_project(&project_path).expect("init scheduler");
     store
@@ -838,36 +818,85 @@ async fn agent_scheduler_project_wake_applies_autonomous_staff_assignment() {
 
     let task_id = TaskId::new("task-autonomous-staff-assign").expect("task id");
     let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.metadata["task_board.staff.member_id"], "staff-orchestrator");
-    assert_eq!(task.status, AgentTaskStatus::Queued);
-    assert_eq!(body["dispatched"], false);
-    assert_eq!(body["task_id"], serde_json::Value::Null);
-    assert!(store.load_latest_run_for_task(&project_path, &task_id).expect("latest run").is_none());
+    assert!(task.metadata.get("task_board.staff.member_id").is_none());
+    assert_eq!(body["dispatched"], true);
+    assert_eq!(body["task_id"], "task-autonomous-staff-assign");
+    assert!(store.load_latest_run_for_task(&project_path, &task_id).expect("latest run").is_some());
 }
 
 #[tokio::test]
-async fn agent_scheduler_project_wake_starts_assigned_autonomous_task() {
+async fn project_wake_does_not_apply_staff_plan() {
+    let temp = tempfile::tempdir().expect("temp project root");
+    let project_path = temp.path().join("project-wake-without-staff-plan");
+    std::fs::create_dir_all(&project_path).expect("project dir");
+    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
+        output: "local execution without staff plan".to_string(),
+    });
+    let store = gateway.store.clone();
+    store.initialize_project(&project_path).expect("init scheduler");
+    store
+        .create_task(
+            &project_path,
+            NewAgentTask {
+                id: TaskId::new("task-wake-without-staff-plan").expect("task id"),
+                title: "Dispatch without applying staff plan".to_string(),
+                kind: AgentTaskKind::Finite,
+                status: AgentTaskStatus::Queued,
+                spec_uri: "shared/tasks/task-wake-without-staff-plan/spec.md".to_string(),
+                meta_uri: "shared/tasks/task-wake-without-staff-plan/meta.json".to_string(),
+                assigned_to: None,
+                team_id: None,
+                room_id: None,
+                project_room_id: None,
+                delegated_to_team: None,
+                schedule: None,
+                timezone: None,
+                next_scheduled_at: None,
+                last_executed_at: None,
+                dag: Vec::new(),
+                metadata: json!({
+                    "task_board.status_key": "pending",
+                    "task_board.status_role": "queued",
+                    "prompt": "Run locally without staff orchestration"
+                }),
+                created_at_ms: TimestampMs(1_783_000_906_500),
+            },
+        )
+        .expect("seed task");
+
+    let response = gateway
+        .wake_project(
+            scheduler_project_id(&project_path),
+            owned_scheduler_context(&project_path).expect("scheduler context"),
+            AgentSchedulerProjectWakeRequest {
+                now_ms: TimestampMs(1_783_000_906_600),
+                dispatch_mode: AgentSchedulerDispatchModeDto::Local,
+                max_concurrent: None,
+                auto_promote_pool_tasks: false,
+            },
+        )
+        .await
+        .expect("wake project");
+
+    assert!(response.dispatched);
+    let task = store
+        .load_task(
+            &project_path,
+            &TaskId::new("task-wake-without-staff-plan").expect("task id"),
+        )
+        .expect("load task")
+        .expect("task");
+    assert!(task.metadata.get("task_board.staff.member_id").is_none());
+}
+
+#[tokio::test]
+async fn agent_scheduler_project_wake_starts_task_without_staff_continuation() {
     let temp = tempfile::tempdir().expect("temp project root");
     let project_path = temp.path().join("project-agent-scheduler-wake-staff-start");
     std::fs::create_dir_all(&project_path).expect("project dir");
-    let mut staff_config = StaffConfig::default();
-    staff_config.workflow_orchestrations.insert(
-        "dev_lifecycle".to_string(),
-        StaffWorkflowOrchestrationConfig {
-            stage_assignments: vec![StaffStageAssignmentConfig {
-                stage_id: "planning".to_string(),
-                primary_member_id: Some("staff-planner".to_string()),
-                backup_member_ids: Vec::new(),
-                manager_member_ids: Vec::new(),
-                autonomous: true,
-            }],
-            ..StaffWorkflowOrchestrationConfig::default()
-        },
-    );
-    let gateway = StoreBackedAgentSchedulerGateway::with_executor_and_staff_config(
-        RecordingLocalExecutor { output: "mock assigned staff wake output".to_string() },
-        staff_config,
-    );
+    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
+        output: "mock local wake output".to_string(),
+    });
     let store = gateway.store.clone();
     store.initialize_project(&project_path).expect("init scheduler");
     store
@@ -938,12 +967,6 @@ async fn agent_scheduler_project_wake_starts_assigned_autonomous_task() {
         log.from_status == Some(AgentTaskStatus::Running)
             && log.to_status == Some(AgentTaskStatus::Submitted)
             && log.message == "local execution submitted result"
-    }));
-    let events = store.list_events_after(&project_path, None, 100).expect("list events");
-    assert!(events.iter().any(|event| {
-        event.task_id.as_ref() == Some(&task_id)
-            && event.message == "agent scheduler project wake staff continuation"
-            && event.payload["command"] == "start"
     }));
 }
 
@@ -2124,574 +2147,6 @@ async fn agent_scheduler_gateway_rejects_invalid_graph_without_partial_write() {
         }])
     );
 }
-
-#[tokio::test]
-async fn agent_scheduler_run_stage_action_applies_success_outcome_binding() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-stage-action-success");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let gateway = StoreBackedAgentSchedulerGateway::default();
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .save_task_board_workflow(
-            &project_path,
-            &TaskPoolWorkflowSnapshotDto {
-                id: "stage_action_flow".to_string(),
-                label: "Stage Action Flow".to_string(),
-                statuses: vec![
-                    TaskPoolWorkflowStatusDto {
-                        key: "queued".to_string(),
-                        label: "Queued".to_string(),
-                        role: TaskPoolWorkflowStatusRoleDto::Queued,
-                        enabled: true,
-                        terminal: false,
-                        next: Some("code_complete".to_string()),
-                        transitions: vec![TaskPoolWorkflowTransitionDto {
-                            outcome: "success".to_string(),
-                            label: None,
-                            target: "code_complete".to_string(),
-                        }],
-                    },
-                    TaskPoolWorkflowStatusDto {
-                        key: "code_complete".to_string(),
-                        label: "Code Complete".to_string(),
-                        role: TaskPoolWorkflowStatusRoleDto::ReviewReady,
-                        enabled: true,
-                        terminal: false,
-                        next: None,
-                        transitions: Vec::new(),
-                    },
-                ],
-            },
-        )
-        .expect("save workflow");
-    store
-        .create_task(
-            &project_path,
-            NewAgentTask {
-                id: TaskId::new("task-stage-action-success").expect("task id"),
-                title: "Apply stage action outcome".to_string(),
-                kind: AgentTaskKind::Finite,
-                status: AgentTaskStatus::Queued,
-                spec_uri: "shared/tasks/task-stage-action-success/spec.md".to_string(),
-                meta_uri: "shared/tasks/task-stage-action-success/meta.json".to_string(),
-                assigned_to: None,
-                team_id: None,
-                room_id: None,
-                project_room_id: None,
-                delegated_to_team: None,
-                schedule: None,
-                timezone: None,
-                next_scheduled_at: None,
-                last_executed_at: None,
-                dag: Vec::new(),
-                metadata: json!({
-                    "task_board.workflow_id": "stage_action_flow",
-                    "task_board.status_key": "queued",
-                    "task_board.status_role": "queued",
-                    "priority": 3,
-                    "order_no": 1,
-                    "prompt": "Advance after stage action success"
-                }),
-                created_at_ms: TimestampMs(1_783_000_915_000),
-            },
-        )
-        .expect("seed scheduler task");
-
-    let project_id = scheduler_project_id(&project_path);
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let command = AgentSchedulerCommandRequest {
-        task_id: "task-stage-action-success".into(),
-        command: AgentSchedulerCommandKindDto::RunStageAction,
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-        max_concurrent: None,
-        reason: Some("stage action reported success".to_string()),
-        payload: AgentSchedulerCommandPayloadDto {
-            stage_action: Some(AgentSchedulerStageActionCommandPayloadDto {
-                stage_id: "queued".to_string(),
-                capability_id: "execute_task".to_string(),
-                workflow_uuid: None,
-                inputs: AgentSchedulerStageActionInputsDto {
-                    workflow_uuid: None,
-                    parameters: BTreeMap::from([("api_token".to_string(), json!("secret-token"))]),
-                },
-                outcome: Some(AgentSchedulerStageActionOutcomeDto::Success),
-                member_id: Some("staff-reviewer".to_string()),
-                metadata: Some(json!({"source": "stage_action_result"})),
-            }),
-            ..AgentSchedulerCommandPayloadDto::default()
-        },
-    };
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method(Method::POST)
-                .uri(format!("/agent-scheduler/projects/{project_id}/commands"))
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(serde_json::to_string(&command).expect("command json")))
-                .expect("command request"),
-        )
-        .await
-        .expect("command response");
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = response_json(response).await;
-    assert_eq!(body["task"]["status"], "submitted");
-    assert_eq!(body["task"]["status_key"], "code_complete");
-    assert_eq!(body["event"]["from_status_key"], "queued");
-    assert_eq!(body["event"]["to_status_key"], "code_complete");
-    assert_eq!(body["event"]["payload"]["stage_action"]["outcome"], "success");
-    assert!(!body["event"]["payload"].to_string().contains("secret-token"));
-
-    let task_id = TaskId::new("task-stage-action-success").expect("task id");
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Submitted);
-    assert_eq!(task.metadata["task_board.status_key"], "code_complete");
-    assert_eq!(task.metadata["task_board.stage_action.capability_id"], "execute_task");
-    assert_eq!(task.metadata["task_board.stage_action.stage_id"], "queued");
-    assert_eq!(task.metadata["task_board.stage_action.outcome"], "success");
-    assert!(!task.metadata.to_string().contains("secret-token"));
-}
-
-// 阶段动作通过角色映射选择运行时能力，确保工作流定义不依赖具体执行器名称。
-#[tokio::test]
-async fn agent_scheduler_run_stage_action_uses_lifecycle_role_runtime_mapping() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-stage-action-custom-role");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let gateway = StoreBackedAgentSchedulerGateway::default();
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .save_task_board_workflow(
-            &project_path,
-            &TaskPoolWorkflowSnapshotDto {
-                id: "custom_stage_action_flow".to_string(),
-                label: "Custom Stage Action Flow".to_string(),
-                statuses: vec![
-                    TaskPoolWorkflowStatusDto {
-                        key: "custom_queued".to_string(),
-                        label: "Custom Queued".to_string(),
-                        role: TaskPoolWorkflowStatusRoleDto::Queued,
-                        enabled: true,
-                        terminal: false,
-                        next: Some("custom_review_ready".to_string()),
-                        transitions: vec![TaskPoolWorkflowTransitionDto {
-                            outcome: "success".to_string(),
-                            label: None,
-                            target: "custom_review_ready".to_string(),
-                        }],
-                    },
-                    TaskPoolWorkflowStatusDto {
-                        key: "custom_review_ready".to_string(),
-                        label: "Custom Review Ready".to_string(),
-                        role: TaskPoolWorkflowStatusRoleDto::ReviewReady,
-                        enabled: true,
-                        terminal: false,
-                        next: None,
-                        transitions: Vec::new(),
-                    },
-                ],
-            },
-        )
-        .expect("save workflow");
-    store
-        .create_task(
-            &project_path,
-            NewAgentTask {
-                id: TaskId::new("task-stage-action-custom-role").expect("task id"),
-                title: "Apply custom stage action outcome".to_string(),
-                kind: AgentTaskKind::Finite,
-                status: AgentTaskStatus::Queued,
-                spec_uri: "shared/tasks/task-stage-action-custom-role/spec.md".to_string(),
-                meta_uri: "shared/tasks/task-stage-action-custom-role/meta.json".to_string(),
-                assigned_to: None,
-                team_id: None,
-                room_id: None,
-                project_room_id: None,
-                delegated_to_team: None,
-                schedule: None,
-                timezone: None,
-                next_scheduled_at: None,
-                last_executed_at: None,
-                dag: Vec::new(),
-                metadata: json!({
-                    "task_board.workflow_id": "custom_stage_action_flow",
-                    "task_board.status_key": "custom_queued",
-                    "task_board.status_role": "queued",
-                    "priority": 3,
-                    "order_no": 1,
-                    "prompt": "Advance custom stage action by lifecycle role"
-                }),
-                created_at_ms: TimestampMs(1_783_000_915_500),
-            },
-        )
-        .expect("seed scheduler task");
-
-    let project_id = scheduler_project_id(&project_path);
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let command = AgentSchedulerCommandRequest {
-        task_id: "task-stage-action-custom-role".into(),
-        command: AgentSchedulerCommandKindDto::RunStageAction,
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-        max_concurrent: None,
-        reason: Some("stage action reported success".to_string()),
-        payload: AgentSchedulerCommandPayloadDto {
-            stage_action: Some(AgentSchedulerStageActionCommandPayloadDto {
-                stage_id: "custom_queued".to_string(),
-                capability_id: "execute_task".to_string(),
-                workflow_uuid: None,
-                inputs: AgentSchedulerStageActionInputsDto::default(),
-                outcome: Some(AgentSchedulerStageActionOutcomeDto::Success),
-                member_id: Some("staff-reviewer".to_string()),
-                metadata: None,
-            }),
-            ..AgentSchedulerCommandPayloadDto::default()
-        },
-    };
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method(Method::POST)
-                .uri(format!("/agent-scheduler/projects/{project_id}/commands"))
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(serde_json::to_string(&command).expect("command json")))
-                .expect("command request"),
-        )
-        .await
-        .expect("command response");
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = response_json(response).await;
-    assert_eq!(body["task"]["status"], "submitted");
-    assert_eq!(body["task"]["status_key"], "custom_review_ready");
-    assert_eq!(body["task"]["read_model"]["status_role"], "review_ready");
-    assert_eq!(body["event"]["from_status_key"], "custom_queued");
-    assert_eq!(body["event"]["to_status_key"], "custom_review_ready");
-
-    let task_id = TaskId::new("task-stage-action-custom-role").expect("task id");
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Submitted);
-    assert_eq!(task.metadata["task_board.status_key"], "custom_review_ready");
-    assert_eq!(task.metadata["task_board.status_role"], "review_ready");
-}
-
-#[tokio::test]
-async fn agent_scheduler_run_stage_action_uses_builtin_status_role_when_metadata_is_missing() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-stage-action-builtin-role");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let gateway = StoreBackedAgentSchedulerGateway::default();
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .create_task(
-            &project_path,
-            NewAgentTask {
-                id: TaskId::new("task-stage-action-builtin-role").expect("task id"),
-                title: "Run builtin planning stage action".to_string(),
-                kind: AgentTaskKind::Finite,
-                status: AgentTaskStatus::Queued,
-                spec_uri: "shared/tasks/task-stage-action-builtin-role/spec.md".to_string(),
-                meta_uri: "shared/tasks/task-stage-action-builtin-role/meta.json".to_string(),
-                assigned_to: None,
-                team_id: None,
-                room_id: None,
-                project_room_id: None,
-                delegated_to_team: None,
-                schedule: None,
-                timezone: None,
-                next_scheduled_at: None,
-                last_executed_at: None,
-                dag: Vec::new(),
-                metadata: json!({
-                    "task_board.status_key": "planning",
-                    "priority": 2,
-                    "order_no": 1,
-                    "prompt": "Run builtin planning action without role metadata"
-                }),
-                created_at_ms: TimestampMs(1_783_000_915_650),
-            },
-        )
-        .expect("seed scheduler task");
-
-    let project_id = scheduler_project_id(&project_path);
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let command = AgentSchedulerCommandRequest {
-        task_id: "task-stage-action-builtin-role".into(),
-        command: AgentSchedulerCommandKindDto::RunStageAction,
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-        max_concurrent: None,
-        reason: Some("accepted builtin planning stage action".to_string()),
-        payload: AgentSchedulerCommandPayloadDto {
-            stage_action: Some(AgentSchedulerStageActionCommandPayloadDto {
-                stage_id: "planning".to_string(),
-                capability_id: "execute_task".to_string(),
-                workflow_uuid: None,
-                inputs: AgentSchedulerStageActionInputsDto::default(),
-                outcome: None,
-                member_id: Some("staff-planner".to_string()),
-                metadata: None,
-            }),
-            ..AgentSchedulerCommandPayloadDto::default()
-        },
-    };
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method(Method::POST)
-                .uri(format!("/agent-scheduler/projects/{project_id}/commands"))
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(serde_json::to_string(&command).expect("command json")))
-                .expect("command request"),
-        )
-        .await
-        .expect("command response");
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = response_json(response).await;
-    assert_eq!(body["task"]["status_key"], "planning");
-    assert_eq!(body["event"]["payload"]["stage_action"]["capability_id"], "execute_task");
-    assert_eq!(body["event"]["payload"]["stage_action"]["result"], "accepted");
-}
-
-#[tokio::test]
-async fn agent_scheduler_run_stage_action_accepts_project_custom_capability() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-stage-action-custom-capability");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let mut staff_config = StaffConfig::default();
-    staff_config.workflow_orchestrations.insert(
-        "release_flow".to_string(),
-        StaffWorkflowOrchestrationConfig {
-            capabilities: vec![StaffCapabilityConfig {
-                id: "release_workflow".to_string(),
-                label: "Release Workflow".to_string(),
-                capability_type: StaffCapabilityKindConfig::SavedWorkflow,
-                built_in: false,
-                input_summary: StaffCapabilityIoSummaryConfig::default(),
-                result_summary: StaffCapabilityIoSummaryConfig::default(),
-            }],
-            ..StaffWorkflowOrchestrationConfig::default()
-        },
-    );
-    let gateway = StoreBackedAgentSchedulerGateway::with_executor_and_staff_config(
-        RecordingLocalExecutor { output: "stage action should not run local executor".to_string() },
-        staff_config,
-    );
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .save_task_board_workflow(
-            &project_path,
-            &TaskPoolWorkflowSnapshotDto {
-                id: "release_flow".to_string(),
-                label: "Release Flow".to_string(),
-                statuses: vec![TaskPoolWorkflowStatusDto {
-                    key: "release_planning".to_string(),
-                    label: "Release Planning".to_string(),
-                    role: TaskPoolWorkflowStatusRoleDto::Planning,
-                    enabled: true,
-                    terminal: false,
-                    next: None,
-                    transitions: Vec::new(),
-                }],
-            },
-        )
-        .expect("save workflow");
-    store
-        .create_task(
-            &project_path,
-            NewAgentTask {
-                id: TaskId::new("task-stage-action-custom-capability").expect("task id"),
-                title: "Run custom saved workflow capability".to_string(),
-                kind: AgentTaskKind::Finite,
-                status: AgentTaskStatus::Queued,
-                spec_uri: "shared/tasks/task-stage-action-custom-capability/spec.md".to_string(),
-                meta_uri: "shared/tasks/task-stage-action-custom-capability/meta.json".to_string(),
-                assigned_to: None,
-                team_id: None,
-                room_id: None,
-                project_room_id: None,
-                delegated_to_team: None,
-                schedule: None,
-                timezone: None,
-                next_scheduled_at: None,
-                last_executed_at: None,
-                dag: Vec::new(),
-                metadata: json!({
-                    "task_board.workflow_id": "release_flow",
-                    "task_board.status_key": "release_planning",
-                    "task_board.status_role": "planning",
-                    "priority": 2,
-                    "order_no": 1,
-                    "prompt": "Run configured release workflow"
-                }),
-                created_at_ms: TimestampMs(1_783_000_915_800),
-            },
-        )
-        .expect("seed scheduler task");
-
-    let project_id = scheduler_project_id(&project_path);
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let command = AgentSchedulerCommandRequest {
-        task_id: "task-stage-action-custom-capability".into(),
-        command: AgentSchedulerCommandKindDto::RunStageAction,
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-        max_concurrent: None,
-        reason: Some("accepted custom stage workflow".to_string()),
-        payload: AgentSchedulerCommandPayloadDto {
-            stage_action: Some(AgentSchedulerStageActionCommandPayloadDto {
-                stage_id: "release_planning".to_string(),
-                capability_id: "release_workflow".to_string(),
-                workflow_uuid: Some("018ff4b0-1d0d-7a2c-a30c-7bcf9ee1f099".to_string()),
-                inputs: AgentSchedulerStageActionInputsDto {
-                    workflow_uuid: Some("018ff4b0-1d0d-7a2c-a30c-7bcf9ee1f099".to_string()),
-                    parameters: BTreeMap::from([("release_channel".to_string(), json!("stable"))]),
-                },
-                outcome: None,
-                member_id: Some("staff-planner".to_string()),
-                metadata: None,
-            }),
-            ..AgentSchedulerCommandPayloadDto::default()
-        },
-    };
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method(Method::POST)
-                .uri(format!("/agent-scheduler/projects/{project_id}/commands"))
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(serde_json::to_string(&command).expect("command json")))
-                .expect("command request"),
-        )
-        .await
-        .expect("command response");
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = response_json(response).await;
-    assert_eq!(body["task"]["status_key"], "release_planning");
-    assert_eq!(body["event"]["payload"]["stage_action"]["capability_id"], "release_workflow");
-    assert_eq!(body["event"]["payload"]["stage_action"]["result"], "accepted");
-
-    let task_id = TaskId::new("task-stage-action-custom-capability").expect("task id");
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Queued);
-    assert_eq!(task.metadata["task_board.stage_action.capability_id"], "release_workflow");
-    assert_eq!(
-        task.metadata["task_board.stage_action.workflow_uuid"],
-        "018ff4b0-1d0d-7a2c-a30c-7bcf9ee1f099"
-    );
-}
-
-#[tokio::test]
-async fn agent_scheduler_run_stage_action_rejects_missing_outcome_transition() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-stage-action-reject");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let gateway = StoreBackedAgentSchedulerGateway::default();
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .save_task_board_workflow(
-            &project_path,
-            &TaskPoolWorkflowSnapshotDto {
-                id: "stage_action_flow".to_string(),
-                label: "Stage Action Flow".to_string(),
-                statuses: vec![TaskPoolWorkflowStatusDto {
-                    key: "queued".to_string(),
-                    label: "Queued".to_string(),
-                    role: TaskPoolWorkflowStatusRoleDto::Queued,
-                    enabled: true,
-                    terminal: false,
-                    next: None,
-                    transitions: Vec::new(),
-                }],
-            },
-        )
-        .expect("save workflow");
-    store
-        .create_task(
-            &project_path,
-            NewAgentTask {
-                id: TaskId::new("task-stage-action-reject").expect("task id"),
-                title: "Reject unknown stage action outcome".to_string(),
-                kind: AgentTaskKind::Finite,
-                status: AgentTaskStatus::Queued,
-                spec_uri: "shared/tasks/task-stage-action-reject/spec.md".to_string(),
-                meta_uri: "shared/tasks/task-stage-action-reject/meta.json".to_string(),
-                assigned_to: None,
-                team_id: None,
-                room_id: None,
-                project_room_id: None,
-                delegated_to_team: None,
-                schedule: None,
-                timezone: None,
-                next_scheduled_at: None,
-                last_executed_at: None,
-                dag: Vec::new(),
-                metadata: json!({
-                    "task_board.workflow_id": "stage_action_flow",
-                    "task_board.status_key": "queued",
-                    "priority": 1,
-                    "order_no": 1
-                }),
-                created_at_ms: TimestampMs(1_783_000_916_000),
-            },
-        )
-        .expect("seed scheduler task");
-
-    let project_id = scheduler_project_id(&project_path);
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let command = AgentSchedulerCommandRequest {
-        task_id: "task-stage-action-reject".into(),
-        command: AgentSchedulerCommandKindDto::RunStageAction,
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-        max_concurrent: None,
-        reason: Some("stage action reported success".to_string()),
-        payload: AgentSchedulerCommandPayloadDto {
-            stage_action: Some(AgentSchedulerStageActionCommandPayloadDto {
-                stage_id: "queued".to_string(),
-                capability_id: "execute_task".to_string(),
-                workflow_uuid: None,
-                inputs: AgentSchedulerStageActionInputsDto::default(),
-                outcome: Some(AgentSchedulerStageActionOutcomeDto::Success),
-                member_id: Some("staff-reviewer".to_string()),
-                metadata: None,
-            }),
-            ..AgentSchedulerCommandPayloadDto::default()
-        },
-    };
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method(Method::POST)
-                .uri(format!("/agent-scheduler/projects/{project_id}/commands"))
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(serde_json::to_string(&command).expect("command json")))
-                .expect("command request"),
-        )
-        .await
-        .expect("command response");
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response_json(response).await;
-    assert!(
-        body["error"]
-            .as_str()
-            .expect("error")
-            .contains("stage action outcome success has no workflow transition from queued")
-    );
-
-    let task_id = TaskId::new("task-stage-action-reject").expect("task id");
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Queued);
-    assert_eq!(task.metadata["task_board.status_key"], "queued");
-    assert!(task.metadata.get("task_board.stage_action.outcome").is_none());
-}
-
-// 任务板命令分别覆盖内容更新、状态迁移和软删除，固定各操作产生的事件类型。
 #[tokio::test]
 async fn agent_scheduler_gateway_task_board_updates_moves_and_soft_deletes_task() {
     let temp = tempfile::tempdir().expect("temp project root");
@@ -4160,18 +3615,6 @@ fn scheduler_command_and_metadata_helpers_cover_edge_cases() {
             AgentEventKind::HumanIntervened,
             true,
         ),
-        (
-            AgentSchedulerCommandKindDto::AssignStaff,
-            "assign_staff",
-            AgentEventKind::HumanIntervened,
-            true,
-        ),
-        (
-            AgentSchedulerCommandKindDto::RunStageAction,
-            "run_stage_action",
-            AgentEventKind::HumanIntervened,
-            true,
-        ),
     ] {
         assert_eq!(command_kind_key(command), key);
         assert_eq!(command_event_kind(command), event_kind);
@@ -4484,8 +3927,6 @@ fn scheduler_dto_helpers_preserve_metadata_workspace_and_errors() {
     assert_eq!(board_task.last_error.as_deref(), Some("run error"));
     assert_eq!(board_task.merge_source_branch.as_deref(), Some("feature/dto"));
     assert_eq!(board_task.workspace.as_ref().expect("workspace").slot_id, "slot-run");
-    assert_eq!(board_task.read_model.staff.as_ref().expect("staff").backup_member_ids, vec!["bob"]);
-    assert!(!board_task.read_model.available_stage_actions.is_empty());
 
     let task_dto = task_to_dto(task.clone());
     assert_eq!(task_dto.dag[0].depends_on, vec!["task-root"]);
@@ -5580,28 +5021,6 @@ async fn scheduler_project_command_branches_transition_or_reject_tasks() {
         .expect("retry after");
     assert_eq!(after_retry.status, AgentTaskStatus::Queued);
 
-    let unsupported_id = TaskId::new("task-unsupported").expect("task id");
-    let unsupported = gateway
-        .store
-        .load_task(&project_path, &unsupported_id)
-        .expect("load unsupported")
-        .expect("unsupported task");
-    assert_eq!(
-        gateway
-            .apply_project_command(
-                &project_id,
-                &project_path,
-                &unsupported,
-                AgentSchedulerCommandKindDto::RunStageAction,
-                AgentSchedulerDispatchModeDto::Local,
-                None,
-                TimestampMs(54),
-            )
-            .await
-            .expect_err("unsupported command")
-            .to_string(),
-        "unsupported agent scheduler command: run_stage_action"
-    );
 }
 
 #[tokio::test]
@@ -5651,14 +5070,6 @@ async fn scheduler_task_board_command_payload_errors_are_reported_before_store_m
         (
             AgentSchedulerCommandKindDto::ImportLegacyTask,
             "import_legacy_task command requires legacy_import payload",
-        ),
-        (
-            AgentSchedulerCommandKindDto::AssignStaff,
-            "assign_staff command requires staff_command payload",
-        ),
-        (
-            AgentSchedulerCommandKindDto::RunStageAction,
-            "run_stage_action command requires stage_action payload",
         ),
         (AgentSchedulerCommandKindDto::Start, "unsupported task board command dispatch: start"),
     ] {

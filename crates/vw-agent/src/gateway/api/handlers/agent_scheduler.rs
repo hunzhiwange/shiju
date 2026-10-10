@@ -31,12 +31,10 @@ use vw_api_types::agent_scheduler::{
     AgentSchedulerLegacyImportResponse,
     AgentSchedulerOutboxDrainRequest as AgentSchedulerProjectOutboxDrainRequest,
     AgentSchedulerOutboxDrainResponse as AgentSchedulerProjectOutboxDrainResponse,
-    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerScope, AgentSchedulerStageActionInputsDto,
-    AgentSchedulerStageCapabilityIoSummaryDto, AgentSchedulerStageCapabilityKindDto,
+    AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerScope,
     AgentSchedulerTaskArtifactDto, AgentSchedulerTaskArtifactsResponse,
     AgentSchedulerTaskBoardEventDto, AgentSchedulerTaskBoardEventsResponse,
-    AgentSchedulerTaskBoardSnapshotReadModelDto, AgentSchedulerTaskBoardStaffAssignmentDto,
-    AgentSchedulerTaskBoardStageActionCapabilityDto, AgentSchedulerTaskBoardStageActionDto,
+    AgentSchedulerTaskBoardSnapshotReadModelDto,
     AgentSchedulerTaskBoardStatusResponse, AgentSchedulerTaskBoardTaskDto,
     AgentSchedulerTaskBoardTaskReadModelDto, AgentSchedulerTaskBoardWorkflowResponse,
     AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskGraphReadinessDto,
@@ -55,9 +53,7 @@ use vw_api_types::agent_scheduler::{
 };
 use vw_api_types::common::TimestampMs;
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
-use vw_api_types::staff::{StaffCapabilityKindDto, StaffCommandDto};
 use vw_api_types::task::{TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusRoleDto};
-use vw_config_types::staff::StaffConfig;
 
 use crate::agent_scheduler::adapters::controller::{
     ControllerAdapter, EnsureWorkerReadyRequest, WorkerControllerSnapshot, WorkerLifecycleRequest,
@@ -94,13 +90,6 @@ use crate::agent_scheduler::runner::local::{
 use crate::agent_scheduler::runner::local::{
     LocalAgentExecutor, LocalAgentRunner, LocalAgentRunnerOutcome, LocalAgentRunnerRequest,
 };
-use crate::agent_scheduler::staff::{
-    build_staff_auto_schedule_plan, build_staff_projection, running_staff_task_ids,
-    scheduler_command_for_action, staff_auto_schedule_command_is_assignment,
-    staff_auto_schedule_command_is_continuation, staff_config_for_workflow_orchestration,
-    staff_task_read_model_from_task, status_role_for_key, validate_staff_command,
-    workflow_snapshot_from_staff_config,
-};
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus, ensure_transition};
 use crate::agent_scheduler::store::artifacts::{RecordTaskArtifactRequest, StoredTaskArtifact};
 use crate::agent_scheduler::store::events::{AppendAgentEventRequest, StoredAgentEvent};
@@ -126,8 +115,6 @@ use crate::agent_scheduler::task_board::{
 use crate::agent_scheduler::task_graph::{
     AgentTaskDependency, TaskGraph, TaskGraphReadiness, TaskGraphTaskSnapshot,
 };
-#[cfg(not(test))]
-use crate::app::agent::config::schema::ConfigExt;
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::project;
 
@@ -826,34 +813,10 @@ impl ProjectDispatchLocks {
 }
 
 #[derive(Clone)]
-enum ProjectWakeStaffConfig {
-    #[cfg(not(test))]
-    Runtime,
-    #[cfg(test)]
-    Disabled,
-    #[cfg(test)]
-    Static(StaffConfig),
-}
-
-impl Default for ProjectWakeStaffConfig {
-    fn default() -> Self {
-        #[cfg(not(test))]
-        {
-            Self::Runtime
-        }
-        #[cfg(test)]
-        {
-            Self::Disabled
-        }
-    }
-}
-
-#[derive(Clone)]
 pub(crate) struct StoreBackedAgentSchedulerGateway {
     pub(crate) store: AgentSchedulerStore,
     executor: Arc<dyn LocalAgentExecutor + Send + Sync>,
     dispatch_locks: ProjectDispatchLocks,
-    project_wake_staff_config: ProjectWakeStaffConfig,
 }
 
 impl Default for StoreBackedAgentSchedulerGateway {
@@ -862,7 +825,6 @@ impl Default for StoreBackedAgentSchedulerGateway {
         Self {
             executor: Arc::new(GatewayLocalAgentExecutor::new(store.clone())),
             dispatch_locks: ProjectDispatchLocks::default(),
-            project_wake_staff_config: ProjectWakeStaffConfig::default(),
             store,
         }
     }
@@ -878,20 +840,6 @@ impl StoreBackedAgentSchedulerGateway {
             store: AgentSchedulerStore::new(),
             executor: Arc::new(executor),
             dispatch_locks: ProjectDispatchLocks::default(),
-            project_wake_staff_config: ProjectWakeStaffConfig::Disabled,
-        }
-    }
-
-    #[cfg(test)]
-    fn with_executor_and_staff_config<E>(executor: E, staff_config: StaffConfig) -> Self
-    where
-        E: LocalAgentExecutor + Send + Sync + 'static,
-    {
-        Self {
-            store: AgentSchedulerStore::new(),
-            executor: Arc::new(executor),
-            dispatch_locks: ProjectDispatchLocks::default(),
-            project_wake_staff_config: ProjectWakeStaffConfig::Static(staff_config),
         }
     }
 
@@ -955,252 +903,7 @@ impl StoreBackedAgentSchedulerGateway {
         Ok(latest_run.and_then(|run| run.worker_id).or_else(|| task.assigned_to.clone()))
     }
 
-    async fn project_wake_staff_config(&self) -> Result<Option<StaffConfig>, ApiError> {
-        match &self.project_wake_staff_config {
-            #[cfg(not(test))]
-            ProjectWakeStaffConfig::Runtime => {
-                let config =
-                    crate::app::agent::config::Config::load_or_init().await.map_err(|error| {
-                        ApiError::internal(format!(
-                            "failed to load staff config for project wake: {error}"
-                        ))
-                    })?;
-                Ok(Some(config.staff))
-            }
-            #[cfg(test)]
-            ProjectWakeStaffConfig::Disabled => Ok(None),
-            #[cfg(test)]
-            ProjectWakeStaffConfig::Static(config) => Ok(Some(config.clone())),
-        }
-    }
 
-    async fn apply_project_wake_staff_plan(
-        &self,
-        project_id: &str,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        now_ms: TimestampMs,
-    ) -> Result<Option<AgentSchedulerProjectWakeResponse>, ApiError> {
-        let Some(staff_config) = self.project_wake_staff_config().await? else {
-            return Ok(None);
-        };
-
-        let workflow = self
-            .store
-            .load_task_board_workflow(project_path)
-            .map_err(map_scheduler_error)?
-            .unwrap_or_else(|| workflow_snapshot_from_staff_config(&staff_config));
-        let staff_config =
-            staff_config_for_workflow_orchestration(&staff_config, &workflow.id, &workflow)
-                .normalize()
-                .map_err(ApiError::bad_request)?;
-        if staff_config.project_state.stage_assignments.is_empty() {
-            return Ok(None);
-        }
-        let tasks = self
-            .store
-            .list_task_board_tasks(project_path, AgentTaskFilter::default())
-            .map_err(map_scheduler_error)?
-            .into_iter()
-            .map(|task| staff_task_read_model_from_task(task, &workflow))
-            .collect::<Vec<_>>();
-        let running_task_ids = running_staff_task_ids(&tasks);
-        let projection =
-            build_staff_projection(&tasks, &staff_config, &workflow, &running_task_ids)
-                .map_err(ApiError::bad_request)?;
-        let plan = build_staff_auto_schedule_plan(
-            &tasks,
-            &staff_config,
-            &projection,
-            &workflow,
-            &running_task_ids,
-            now_ms,
-        )
-        .map_err(ApiError::bad_request)?;
-
-        let mut applied = false;
-        for command in &plan.commands {
-            if !staff_auto_schedule_command_is_assignment(command) {
-                continue;
-            }
-            if self
-                .apply_project_wake_staff_command(
-                    project_id,
-                    project_path,
-                    &tasks,
-                    &staff_config,
-                    &workflow,
-                    command,
-                    "agent scheduler project wake staff assignment",
-                    now_ms,
-                )
-                .await?
-                .is_some()
-            {
-                applied = true;
-            }
-        }
-        if applied {
-            return Ok(Some(empty_project_wake_response()));
-        }
-
-        for command in &plan.commands {
-            if !staff_auto_schedule_command_is_continuation(command) {
-                continue;
-            }
-            if let Some(response) = self
-                .apply_project_wake_staff_command(
-                    project_id,
-                    project_path,
-                    &tasks,
-                    &staff_config,
-                    &workflow,
-                    command,
-                    "agent scheduler project wake staff continuation",
-                    now_ms,
-                )
-                .await?
-            {
-                return Ok(Some(response));
-            }
-        }
-
-        Ok(None)
-    }
-
-    async fn apply_project_wake_staff_command(
-        &self,
-        project_id: &str,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        tasks: &[crate::agent_scheduler::staff::StaffTaskReadModel],
-        staff_config: &StaffConfig,
-        workflow: &TaskPoolWorkflowSnapshotDto,
-        command: &StaffCommandDto,
-        reason: &'static str,
-        now_ms: TimestampMs,
-    ) -> Result<Option<AgentSchedulerProjectWakeResponse>, ApiError> {
-        let action = validate_staff_command(command, tasks, staff_config, workflow)
-            .map_err(ApiError::bad_request)?;
-        let Some(scheduler_command) =
-            scheduler_command_for_action(&action, command, Some(reason.to_string()))
-        else {
-            return Ok(None);
-        };
-        self.apply_project_wake_scheduler_command(
-            project_id,
-            project_path,
-            scheduler_command,
-            now_ms,
-        )
-        .await
-    }
-
-    async fn apply_project_wake_scheduler_command(
-        &self,
-        project_id: &str,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        request: AgentSchedulerProjectCommandRequest,
-        now_ms: TimestampMs,
-    ) -> Result<Option<AgentSchedulerProjectWakeResponse>, ApiError> {
-        let task_id = task_id_from_api(&request.task_id)?;
-        let command = request.command;
-        if task_board_write_command(command) {
-            let result = self
-                .apply_task_board_command(project_id, project_path, &task_id, request, now_ms)
-                .await?;
-            return Ok(result.accepted.then(empty_project_wake_response));
-        }
-
-        let task_before = self
-            .store
-            .load_task(project_path, &task_id)
-            .map_err(map_scheduler_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))?;
-        let mut run_for_event = None;
-        let response = match command {
-            AgentSchedulerCommandKindDto::Start | AgentSchedulerCommandKindDto::Promote => {
-                if start_command_is_idempotent_for_status(task_before.status) {
-                    empty_project_wake_response()
-                } else {
-                    if request.dispatch_mode != AgentSchedulerDispatchModeDto::Local {
-                        return Err(ApiError::bad_request(
-                            "staff wake continuation start requires local dispatch",
-                        ));
-                    }
-                    self.ensure_queued_for_local_run(project_path, &task_before, now_ms)?;
-                    let max_concurrent =
-                        normalize_project_wake_max_concurrent(request.max_concurrent);
-                    let active_count = self
-                        .active_dispatch_finite_task_count(project_path, request.dispatch_mode)?;
-                    let outcome = if active_count >= max_concurrent {
-                        tracing::info!(
-                            project_path = %project_path.storage_project_path().display(),
-                            task_id = task_id.as_str(),
-                            active_count,
-                            max_concurrent,
-                            "agent scheduler staff wake start skipped because concurrency limit is reached"
-                        );
-                        None
-                    } else {
-                        self.run_local_task(
-                            owned_scheduler_context(project_path)?,
-                            task_id.clone(),
-                            now_ms,
-                        )
-                        .await?
-                    };
-                    if let Some(outcome) = outcome {
-                        run_for_event = Some(outcome.run.clone());
-                        AgentSchedulerProjectWakeResponse {
-                            dispatched: true,
-                            task_id: Some(outcome.task_id.as_str().to_string()),
-                            run_id: Some(outcome.run.id.as_str().to_string()),
-                            worker_id: Some(outcome.worker_id.as_str().to_string()),
-                            outbox_message_id: None,
-                        }
-                    } else {
-                        empty_project_wake_response()
-                    }
-                }
-            }
-            AgentSchedulerCommandKindDto::Merge => {
-                self.merge_project_task(project_id, project_path, &task_before, now_ms).await?;
-                empty_project_wake_response()
-            }
-            AgentSchedulerCommandKindDto::Retry
-            | AgentSchedulerCommandKindDto::Pause
-            | AgentSchedulerCommandKindDto::Resume
-            | AgentSchedulerCommandKindDto::Cancel
-            | AgentSchedulerCommandKindDto::Archive
-            | AgentSchedulerCommandKindDto::Move
-            | AgentSchedulerCommandKindDto::UpdateMetadata
-            | AgentSchedulerCommandKindDto::SoftDelete
-            | AgentSchedulerCommandKindDto::Restore
-            | AgentSchedulerCommandKindDto::ImportLegacyTask
-            | AgentSchedulerCommandKindDto::AssignStaff
-            | AgentSchedulerCommandKindDto::RunStageAction => {
-                return Err(ApiError::bad_request(format!(
-                    "unsupported staff wake continuation command: {}",
-                    command_kind_key(command)
-                )));
-            }
-        };
-        let task_after = self
-            .store
-            .load_task(project_path, &task_id)
-            .map_err(map_scheduler_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))?;
-        append_command_event(
-            &self.store,
-            project_path,
-            &task_after,
-            run_for_event.as_ref(),
-            command,
-            task_before.status,
-            request.reason.as_deref(),
-            now_ms,
-        )?;
-        Ok(Some(response))
-    }
 }
 
 impl StoreBackedAgentSchedulerGateway {
@@ -1766,18 +1469,6 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
         .await?;
         let dispatch_lock = self.project_dispatch_lock(&project_path);
         let _dispatch_guard = dispatch_lock.lock().await;
-        if let Some(response) =
-            self.apply_project_wake_staff_plan(&project_id, &project_path, request.now_ms).await?
-        {
-            tracing::info!(
-                project_path = %project_path.storage_project_path().display(),
-                dispatch_mode = ?request.dispatch_mode,
-                dispatched = response.dispatched,
-                task_id = ?response.task_id.as_deref(),
-                "agent scheduler project wake applied staff plan before dispatch"
-            );
-            return Ok(response);
-        }
         let max_concurrent = normalize_project_wake_max_concurrent(request.max_concurrent);
         let active_count =
             self.active_dispatch_finite_task_count(&project_path, request.dispatch_mode)?;
@@ -2644,9 +2335,7 @@ impl StoreBackedAgentSchedulerGateway {
             | AgentSchedulerCommandKindDto::UpdateMetadata
             | AgentSchedulerCommandKindDto::SoftDelete
             | AgentSchedulerCommandKindDto::Restore
-            | AgentSchedulerCommandKindDto::ImportLegacyTask
-            | AgentSchedulerCommandKindDto::AssignStaff
-            | AgentSchedulerCommandKindDto::RunStageAction => Err(ApiError::bad_request(format!(
+            | AgentSchedulerCommandKindDto::ImportLegacyTask => Err(ApiError::bad_request(format!(
                 "unsupported agent scheduler command: {}",
                 command_kind_key(command)
             ))),
@@ -2725,72 +2414,6 @@ impl StoreBackedAgentSchedulerGateway {
                         .transpose()?,
                 });
             }
-            AgentSchedulerCommandKindDto::AssignStaff => {
-                let payload = request.payload.staff_command.ok_or_else(|| {
-                    ApiError::bad_request("assign_staff command requires staff_command payload")
-                })?;
-                service
-                    .assign_staff(project_path, task_id, payload, request.reason.as_deref(), now_ms)
-                    .map_err(map_task_board_error)?
-            }
-            AgentSchedulerCommandKindDto::RunStageAction => {
-                let payload = request.payload.stage_action.ok_or_else(|| {
-                    ApiError::bad_request("run_stage_action command requires stage_action payload")
-                })?;
-                let current = self
-                    .store
-                    .load_task(project_path, task_id)
-                    .map_err(map_scheduler_error)?
-                    .ok_or_else(|| ApiError::not_found("task not found"))?;
-                let from_status_key = stored_task_board_status_key(&current);
-                let workflow = self
-                    .store
-                    .load_task_board_workflow(project_path)
-                    .map_err(map_scheduler_error)?;
-                let current_role = workflow
-                    .as_ref()
-                    .and_then(|workflow| workflow_status_role(workflow, &from_status_key))
-                    .or_else(|| task_board_status_role_from_metadata(&current.metadata))
-                    .or_else(|| status_role_for_key(&from_status_key));
-                let capability_catalog =
-                    self.project_stage_capability_catalog(workflow.as_ref()).await?;
-                crate::agent_scheduler::staff::validate_stage_action_payload(
-                    &payload.stage_id,
-                    &payload.capability_id,
-                    payload.workflow_uuid.as_deref(),
-                    &payload.inputs,
-                    current_role,
-                    &capability_catalog,
-                )
-                .map_err(ApiError::bad_request)?;
-                let outcome_target = if let Some(outcome) = payload.outcome {
-                    let workflow = workflow.as_ref().ok_or_else(|| {
-                        ApiError::bad_request(
-                            "task board workflow is required for stage action outcome",
-                        )
-                    })?;
-                    Some(
-                        crate::agent_scheduler::staff::resolve_stage_action_outcome_target_status(
-                            workflow,
-                            &from_status_key,
-                            outcome,
-                        )
-                        .map_err(ApiError::bad_request)?,
-                    )
-                } else {
-                    None
-                };
-                service
-                    .run_stage_action(
-                        project_path,
-                        task_id,
-                        payload,
-                        outcome_target,
-                        request.reason.as_deref(),
-                        now_ms,
-                    )
-                    .map_err(map_task_board_error)?
-            }
             AgentSchedulerCommandKindDto::Start
             | AgentSchedulerCommandKindDto::Retry
             | AgentSchedulerCommandKindDto::Pause
@@ -2819,21 +2442,6 @@ impl StoreBackedAgentSchedulerGateway {
         })
     }
 
-    async fn project_stage_capability_catalog(
-        &self,
-        workflow: Option<&TaskPoolWorkflowSnapshotDto>,
-    ) -> Result<Vec<vw_api_types::staff::StaffStageCapabilityDto>, ApiError> {
-        let Some(staff_config) = self.project_wake_staff_config().await? else {
-            return Ok(crate::agent_scheduler::staff::stage_capabilities());
-        };
-        let workflow =
-            workflow.cloned().unwrap_or_else(|| workflow_snapshot_from_staff_config(&staff_config));
-        let staff_config =
-            staff_config_for_workflow_orchestration(&staff_config, &workflow.id, &workflow)
-                .normalize()
-                .map_err(ApiError::bad_request)?;
-        Ok(crate::agent_scheduler::staff::stage_capabilities_for_config(&staff_config))
-    }
 
     async fn merge_project_task(
         &self,
@@ -3585,8 +3193,6 @@ fn task_board_write_command(command: AgentSchedulerCommandKindDto) -> bool {
             | AgentSchedulerCommandKindDto::SoftDelete
             | AgentSchedulerCommandKindDto::Restore
             | AgentSchedulerCommandKindDto::ImportLegacyTask
-            | AgentSchedulerCommandKindDto::AssignStaff
-            | AgentSchedulerCommandKindDto::RunStageAction
     )
 }
 
@@ -4089,86 +3695,11 @@ fn task_board_task_read_model(
         stage_id: string_field(metadata, "task_board.stage_id")
             .or_else(|| Some(status_key.to_string())),
         stage_label: string_field(metadata, "task_board.stage_label"),
-        staff: task_board_staff_assignment_from_metadata(metadata),
-        stage_action: task_board_stage_action_from_metadata(metadata),
-        available_stage_actions: task_board_available_stage_actions(metadata),
     }
 }
 
-fn task_board_staff_assignment_from_metadata(
-    metadata: &Value,
-) -> Option<AgentSchedulerTaskBoardStaffAssignmentDto> {
-    let member_id = string_field(metadata, "task_board.staff.member_id");
-    let member_role = string_field(metadata, "task_board.staff.member_role");
-    let primary_member_id = string_field(metadata, "task_board.staff.primary_member_id");
-    let backup_member_ids = string_array_field(metadata, "task_board.staff.backup_member_ids");
-    let manager_member_ids = string_array_field(metadata, "task_board.staff.manager_member_ids");
-    let autonomous = bool_field(metadata, "task_board.staff.autonomous").unwrap_or_default();
-    if member_id.is_none()
-        && member_role.is_none()
-        && primary_member_id.is_none()
-        && backup_member_ids.is_empty()
-        && manager_member_ids.is_empty()
-        && !autonomous
-    {
-        return None;
-    }
-    Some(AgentSchedulerTaskBoardStaffAssignmentDto {
-        member_id,
-        member_role,
-        primary_member_id,
-        backup_member_ids,
-        manager_member_ids,
-        autonomous,
-    })
-}
 
-fn task_board_stage_action_from_metadata(
-    metadata: &Value,
-) -> Option<AgentSchedulerTaskBoardStageActionDto> {
-    let stage_id = string_field(metadata, "task_board.stage_action.stage_id")
-        .or_else(|| string_field(metadata, "task_board.stage_id"))?;
-    let capability_id = string_field(metadata, "task_board.stage_action.capability_id")?;
-    Some(AgentSchedulerTaskBoardStageActionDto {
-        stage_id,
-        capability_id,
-        workflow_uuid: string_field(metadata, "task_board.stage_action.workflow_uuid"),
-        inputs: AgentSchedulerStageActionInputsDto::default(),
-    })
-}
 
-fn task_board_available_stage_actions(
-    metadata: &Value,
-) -> Vec<AgentSchedulerTaskBoardStageActionCapabilityDto> {
-    let Some(status_role) = task_board_status_role_from_metadata(metadata) else {
-        return Vec::new();
-    };
-    crate::agent_scheduler::staff::stage_capabilities()
-        .into_iter()
-        .filter(|capability| capability.supported_roles.contains(&status_role))
-        .map(|capability| AgentSchedulerTaskBoardStageActionCapabilityDto {
-            capability_id: capability.capability_id,
-            label: capability.label,
-            capability_type: match capability.capability_type {
-                StaffCapabilityKindDto::BuiltIn => AgentSchedulerStageCapabilityKindDto::BuiltIn,
-                StaffCapabilityKindDto::SavedWorkflow => {
-                    AgentSchedulerStageCapabilityKindDto::SavedWorkflow
-                }
-            },
-            built_in: capability.built_in,
-            supported_roles: capability.supported_roles,
-            requires_workflow_uuid: capability.requires_workflow_uuid,
-            input_summary: AgentSchedulerStageCapabilityIoSummaryDto {
-                description: capability.input_summary.description,
-                fields: capability.input_summary.fields,
-            },
-            result_summary: AgentSchedulerStageCapabilityIoSummaryDto {
-                description: capability.result_summary.description,
-                fields: capability.result_summary.fields,
-            },
-        })
-        .collect()
-}
 
 fn task_board_status_role_from_metadata(metadata: &Value) -> Option<TaskPoolWorkflowStatusRoleDto> {
     let role = string_field(metadata, "task_board.status_role")?;
@@ -4944,8 +4475,6 @@ fn command_kind_key(command: AgentSchedulerCommandKindDto) -> &'static str {
         AgentSchedulerCommandKindDto::SoftDelete => "soft_delete",
         AgentSchedulerCommandKindDto::Restore => "restore",
         AgentSchedulerCommandKindDto::ImportLegacyTask => "import_legacy_task",
-        AgentSchedulerCommandKindDto::AssignStaff => "assign_staff",
-        AgentSchedulerCommandKindDto::RunStageAction => "run_stage_action",
     }
 }
 

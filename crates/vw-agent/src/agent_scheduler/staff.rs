@@ -2,11 +2,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-use serde_json::{Value, json};
+use serde_json::Value;
 use vw_api_types::agent_scheduler::{
     AgentSchedulerCommandKindDto, AgentSchedulerCommandPayloadDto, AgentSchedulerCommandRequest,
     AgentSchedulerDispatchModeDto, AgentSchedulerMoveTaskPayloadDto,
-    AgentSchedulerStaffCommandPayloadDto, AgentSchedulerStageActionCommandPayloadDto,
     AgentSchedulerStageActionInputsDto, AgentSchedulerStageActionOutcomeDto, AgentTaskStatusDto,
 };
 use vw_api_types::common::TimestampMs;
@@ -455,31 +454,11 @@ pub fn staff_auto_schedule_command_is_continuation(command: &StaffCommandDto) ->
 /// 将阶段动作转换为调度命令；不支持的动作会返回明确错误。
 pub fn scheduler_command_for_action(
     action: &StaffCommandActionDto,
-    source_command: &StaffCommandDto,
+    _source_command: &StaffCommandDto,
     reason: Option<String>,
 ) -> Option<AgentSchedulerCommandRequest> {
-    let command_id = command_id(source_command).to_string();
     match action {
-        StaffCommandActionDto::AssignTask { task_id, member_id } => {
-            Some(AgentSchedulerCommandRequest {
-                task_id: task_id.clone().into(),
-                command: AgentSchedulerCommandKindDto::AssignStaff,
-                dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-                max_concurrent: None,
-                reason,
-                payload: AgentSchedulerCommandPayloadDto {
-                    staff_command: Some(AgentSchedulerStaffCommandPayloadDto {
-                        command_id,
-                        member_id: member_id.clone(),
-                        stage_id: None,
-                        role: None,
-                        action: Some("assign_task".to_string()),
-                        metadata: None,
-                    }),
-                    ..AgentSchedulerCommandPayloadDto::default()
-                },
-            })
-        }
+        StaffCommandActionDto::AssignTask { .. } => None,
         StaffCommandActionDto::ChangeTaskStatus { task_id, to_status_key, to_status } => {
             Some(AgentSchedulerCommandRequest {
                 task_id: task_id.clone().into(),
@@ -506,13 +485,7 @@ pub fn scheduler_command_for_action(
             reason,
             payload: AgentSchedulerCommandPayloadDto::default(),
         }),
-        StaffCommandActionDto::RunCodeReview { task_id } => stage_action_command(
-            task_id,
-            CODE_REVIEW_CAPABILITY_ID,
-            None,
-            member_id(source_command).map(str::to_string),
-            reason,
-        ),
+        StaffCommandActionDto::RunCodeReview { .. } => None,
         StaffCommandActionDto::RunMerge { task_id } => Some(AgentSchedulerCommandRequest {
             task_id: task_id.clone().into(),
             command: AgentSchedulerCommandKindDto::Merge,
@@ -521,19 +494,7 @@ pub fn scheduler_command_for_action(
             reason,
             payload: AgentSchedulerCommandPayloadDto::default(),
         }),
-        StaffCommandActionDto::RunStageWorkflow {
-            task_id,
-            stage_id,
-            workflow_uuid,
-            member_id,
-            ..
-        } => stage_action_command(
-            task_id,
-            SAVED_WORKFLOW_CAPABILITY_ID,
-            Some((stage_id.clone(), workflow_uuid.clone())),
-            Some(member_id.clone()),
-            reason,
-        ),
+        StaffCommandActionDto::RunStageWorkflow { .. } => None,
         StaffCommandActionDto::ViewTaskLogs { .. }
         | StaffCommandActionDto::FilterByMember { .. } => None,
     }
@@ -637,43 +598,6 @@ fn validate_stage_action_role(
         "staff stage action capability {capability_id} does not support status role {} for {stage_id}",
         status_role_key(role)
     ))
-}
-
-fn stage_action_command(
-    task_id: &str,
-    capability_id: &str,
-    saved_workflow: Option<(String, String)>,
-    member_id: Option<String>,
-    reason: Option<String>,
-) -> Option<AgentSchedulerCommandRequest> {
-    let stage_id = saved_workflow
-        .as_ref()
-        .map(|(stage_id, _)| stage_id.clone())
-        .unwrap_or_else(|| capability_id.to_string());
-    let workflow_uuid = saved_workflow.map(|(_, workflow_uuid)| workflow_uuid);
-    let inputs = AgentSchedulerStageActionInputsDto {
-        workflow_uuid: workflow_uuid.clone(),
-        ..AgentSchedulerStageActionInputsDto::default()
-    };
-    Some(AgentSchedulerCommandRequest {
-        task_id: task_id.to_string().into(),
-        command: AgentSchedulerCommandKindDto::RunStageAction,
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-        max_concurrent: None,
-        reason,
-        payload: AgentSchedulerCommandPayloadDto {
-            stage_action: Some(AgentSchedulerStageActionCommandPayloadDto {
-                stage_id,
-                capability_id: capability_id.to_string(),
-                workflow_uuid,
-                inputs,
-                outcome: None,
-                member_id,
-                metadata: Some(json!({"source": "staff_command"})),
-            }),
-            ..AgentSchedulerCommandPayloadDto::default()
-        },
-    })
 }
 
 fn runtime_config(

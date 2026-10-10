@@ -12,6 +12,7 @@ use vw_api_types::task::{
 
 use super::dispatch::{
     DEFAULT_RUN_LEASE_DURATION_MS, DispatchEngine, DispatchMode, DispatchTarget,
+    load_dispatch_workflow,
 };
 use crate::agent_scheduler::adapters::controller::{
     ControllerAdapter, EnsureWorkerReadyRequest, FakeControllerAdapter, WorkerControllerSnapshot,
@@ -31,6 +32,27 @@ use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentScheduler
 use crate::agent_scheduler::task_graph::AgentTaskDependency;
 
 struct EnabledTraceSubscriber;
+
+#[test]
+fn dispatch_workflow_fallback_does_not_require_staff_config() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let store = AgentSchedulerStore::new();
+    store.initialize_project(temp_dir.path())?;
+
+    let workflow = load_dispatch_workflow(&store, temp_dir.path())?;
+
+    assert_eq!(
+        workflow,
+        crate::agent_scheduler::lifecycle_bridge::builtin_task_workflow_snapshot()
+    );
+    assert!(
+        workflow
+            .statuses
+            .iter()
+            .any(|status| status.role == TaskPoolWorkflowStatusRoleDto::Queued)
+    );
+    Ok(())
+}
 
 impl tracing::Subscriber for EnabledTraceSubscriber {
     fn enabled(&self, _metadata: &tracing::Metadata<'_>) -> bool {

@@ -1477,28 +1477,20 @@ fn staff_start_command_uses_stage_actions_and_reports_unsupported_states() {
 }
 
 #[test]
-fn staff_scheduler_command_conversion_preserves_payloads_and_local_dispatch() {
+fn staff_scheduler_command_conversion_only_emits_neutral_lifecycle_commands() {
     let source = StaffCommandDto::StartTask {
         command_id: "cmd-source".to_string(),
         task_id: "task-source".to_string(),
         member_id: "staff-reviewer".to_string(),
     };
-    let assign = scheduler_command_for_action(
+    assert!(scheduler_command_for_action(
         &StaffCommandActionDto::AssignTask {
             task_id: "task-assign".to_string(),
             member_id: "staff-orchestrator".to_string(),
         },
         &source,
         Some("because".to_string()),
-    )
-    .expect("assign request");
-    assert_eq!(assign.command, AgentSchedulerCommandKindDto::AssignStaff);
-    assert_eq!(assign.dispatch_mode, AgentSchedulerDispatchModeDto::Local);
-    assert_eq!(assign.reason.as_deref(), Some("because"));
-    let staff_payload = assign.payload.staff_command.expect("staff payload");
-    assert_eq!(staff_payload.command_id, "cmd-source");
-    assert_eq!(staff_payload.member_id, "staff-orchestrator");
-    assert_eq!(staff_payload.action.as_deref(), Some("assign_task"));
+    ).is_none());
 
     let moved = scheduler_command_for_action(
         &StaffCommandActionDto::ChangeTaskStatus {
@@ -1523,17 +1515,11 @@ fn staff_scheduler_command_conversion_preserves_payloads_and_local_dispatch() {
     .expect("start request");
     assert_eq!(execute.command, AgentSchedulerCommandKindDto::Start);
 
-    let review = scheduler_command_for_action(
+    assert!(scheduler_command_for_action(
         &StaffCommandActionDto::RunCodeReview { task_id: "task-review".to_string() },
         &source,
         None,
-    )
-    .expect("review request");
-    assert_eq!(review.command, AgentSchedulerCommandKindDto::RunStageAction);
-    let review_payload = review.payload.stage_action.expect("review payload");
-    assert_eq!(review_payload.stage_id, CODE_REVIEW_CAPABILITY_ID);
-    assert_eq!(review_payload.capability_id, CODE_REVIEW_CAPABILITY_ID);
-    assert_eq!(review_payload.member_id.as_deref(), Some("staff-reviewer"));
+    ).is_none());
 
     let merge = scheduler_command_for_action(
         &StaffCommandActionDto::RunMerge { task_id: "task-merge".to_string() },
@@ -1543,7 +1529,7 @@ fn staff_scheduler_command_conversion_preserves_payloads_and_local_dispatch() {
     .expect("merge request");
     assert_eq!(merge.command, AgentSchedulerCommandKindDto::Merge);
 
-    let workflow = scheduler_command_for_action(
+    assert!(scheduler_command_for_action(
         &StaffCommandActionDto::RunStageWorkflow {
             task_id: "task-workflow".to_string(),
             stage_id: "planning".to_string(),
@@ -1553,20 +1539,7 @@ fn staff_scheduler_command_conversion_preserves_payloads_and_local_dispatch() {
         },
         &source,
         None,
-    )
-    .expect("workflow request");
-    let workflow_payload = workflow.payload.stage_action.expect("workflow payload");
-    assert_eq!(workflow_payload.stage_id, "planning");
-    assert_eq!(workflow_payload.capability_id, SAVED_WORKFLOW_CAPABILITY_ID);
-    assert_eq!(
-        workflow_payload.workflow_uuid.as_deref(),
-        Some("018ff4b0-1d0d-7a2c-a30c-7bcf9ee1f099")
-    );
-    assert_eq!(
-        workflow_payload.inputs.workflow_uuid.as_deref(),
-        Some("018ff4b0-1d0d-7a2c-a30c-7bcf9ee1f099")
-    );
-    assert_eq!(workflow_payload.member_id.as_deref(), Some("staff-planner"));
+    ).is_none());
 
     assert!(
         scheduler_command_for_action(

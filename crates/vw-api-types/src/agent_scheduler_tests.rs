@@ -12,13 +12,9 @@ use super::agent_scheduler::{
     AgentSchedulerMatrixDispatchEventDto, AgentSchedulerMoveTaskPayloadDto,
     AgentSchedulerOutboxDrainRequest, AgentSchedulerOutboxDrainResponse,
     AgentSchedulerReplaceTaskGraphRequest, AgentSchedulerScope,
-    AgentSchedulerStaffCommandPayloadDto, AgentSchedulerStageActionCommandPayloadDto,
-    AgentSchedulerStageActionInputsDto, AgentSchedulerStageActionOutcomeDto,
-    AgentSchedulerStageCapabilityIoSummaryDto, AgentSchedulerStageCapabilityKindDto,
     AgentSchedulerTaskArtifactDto, AgentSchedulerTaskArtifactsResponse,
     AgentSchedulerTaskBoardEventDto, AgentSchedulerTaskBoardEventsResponse,
-    AgentSchedulerTaskBoardSnapshotReadModelDto, AgentSchedulerTaskBoardStaffAssignmentDto,
-    AgentSchedulerTaskBoardStageActionCapabilityDto, AgentSchedulerTaskBoardStageActionDto,
+    AgentSchedulerTaskBoardSnapshotReadModelDto,
     AgentSchedulerTaskBoardStatusResponse, AgentSchedulerTaskBoardTaskDto,
     AgentSchedulerTaskBoardTaskReadModelDto, AgentSchedulerTaskBoardWorkflowResponse,
     AgentSchedulerTaskGraphEdgeDto, AgentSchedulerTaskGraphReadinessDto,
@@ -40,7 +36,6 @@ use super::task::{
     TaskPoolWorkflowSnapshotDto, TaskPoolWorkflowStatusDto, TaskPoolWorkflowStatusRoleDto,
 };
 use serde_json::json;
-use std::collections::BTreeMap;
 
 // 图快照 fixture 同时覆盖依赖边方向、阻塞原因以及任务就绪状态的往返序列化。
 #[test]
@@ -482,36 +477,6 @@ fn agent_scheduler_task_board_contract_uses_native_scheduler_names() {
             status_role: Some(TaskPoolWorkflowStatusRoleDto::Executing),
             stage_id: Some("running".to_string()),
             stage_label: Some("Running".to_string()),
-            staff: Some(AgentSchedulerTaskBoardStaffAssignmentDto {
-                member_id: Some("staff-executor".to_string()),
-                member_role: Some("executor".to_string()),
-                primary_member_id: Some("staff-executor".to_string()),
-                backup_member_ids: vec!["staff-reviewer".to_string()],
-                manager_member_ids: vec!["staff-orchestrator".to_string()],
-                autonomous: true,
-            }),
-            stage_action: Some(AgentSchedulerTaskBoardStageActionDto {
-                stage_id: "running".to_string(),
-                capability_id: "execute_task".to_string(),
-                workflow_uuid: None,
-                inputs: AgentSchedulerStageActionInputsDto::default(),
-            }),
-            available_stage_actions: vec![AgentSchedulerTaskBoardStageActionCapabilityDto {
-                capability_id: "execute_task".to_string(),
-                label: "Execute task".to_string(),
-                capability_type: AgentSchedulerStageCapabilityKindDto::BuiltIn,
-                built_in: true,
-                supported_roles: vec![TaskPoolWorkflowStatusRoleDto::Queued],
-                requires_workflow_uuid: false,
-                input_summary: AgentSchedulerStageCapabilityIoSummaryDto {
-                    description: "Task summary".to_string(),
-                    fields: vec!["task_id".to_string()],
-                },
-                result_summary: AgentSchedulerStageCapabilityIoSummaryDto {
-                    description: "Execution result".to_string(),
-                    fields: vec!["status".to_string()],
-                },
-            }],
         },
         updated_at_ms: TimestampMs(12),
     };
@@ -701,26 +666,6 @@ fn agent_scheduler_task_board_contract_uses_native_scheduler_names() {
             event: None,
         }],
     };
-    let staff_payload = AgentSchedulerCommandPayloadDto {
-        staff_command: Some(AgentSchedulerStaffCommandPayloadDto {
-            command_id: "staff-start-1".to_string(),
-            member_id: "staff-executor".to_string(),
-            stage_id: Some("running".to_string()),
-            role: Some("executor".to_string()),
-            action: Some("start_task".to_string()),
-            metadata: Some(json!({"source": "staff_mode"})),
-        }),
-        stage_action: Some(AgentSchedulerStageActionCommandPayloadDto {
-            stage_id: "code_review".to_string(),
-            capability_id: "code_review".to_string(),
-            workflow_uuid: None,
-            inputs: AgentSchedulerStageActionInputsDto::default(),
-            outcome: None,
-            member_id: Some("staff-reviewer".to_string()),
-            metadata: None,
-        }),
-        ..AgentSchedulerCommandPayloadDto::default()
-    };
     let wake_request = AgentSchedulerWakeRequest {
         now_ms: TimestampMs(16),
         dispatch_mode: AgentSchedulerDispatchModeDto::Local,
@@ -778,10 +723,6 @@ fn agent_scheduler_task_board_contract_uses_native_scheduler_names() {
     assert_eq!(status_json["tasks"][0]["workspace"]["slot_id"], "slot-1");
     assert_eq!(status_json["tasks"][0]["read_model"]["workflow_id"], "dev_lifecycle");
     assert_eq!(status_json["tasks"][0]["read_model"]["status_role"], "executing");
-    assert_eq!(
-        status_json["tasks"][0]["read_model"]["stage_action"]["capability_id"],
-        "execute_task"
-    );
     let events_json = serde_json::to_value(&events_response).expect("events");
     assert_eq!(events_json["events"][0]["kind"], "task_started");
     assert_eq!(events_json["events"][0]["workspace"]["branch"], "agent/task-a");
@@ -815,9 +756,6 @@ fn agent_scheduler_task_board_contract_uses_native_scheduler_names() {
         .accepted,
         1
     );
-    let staff_json = serde_json::to_value(staff_payload).expect("staff payload");
-    assert_eq!(staff_json["staff_command"]["member_id"], "staff-executor");
-    assert_eq!(staff_json["stage_action"]["capability_id"], "code_review");
     let wake_json = serde_json::to_value(&wake_request).expect("wake request");
     assert_eq!(wake_json["auto_promote_pool_tasks"], true);
     assert!(
@@ -869,62 +807,6 @@ fn agent_scheduler_task_board_contract_uses_native_scheduler_names() {
         .claimed,
         1
     );
-}
-
-// 阶段动作输入允许结构化参数，并继续接受旧载荷中的顶层工作流标识。
-#[test]
-fn staff_stage_action_inputs_and_outcome_roundtrip() {
-    let inputs = AgentSchedulerStageActionInputsDto {
-        workflow_uuid: Some("workflow-review".to_string()),
-        parameters: BTreeMap::from([("focus".to_string(), json!("security"))]),
-    };
-    let command_payload = AgentSchedulerCommandPayloadDto {
-        stage_action: Some(AgentSchedulerStageActionCommandPayloadDto {
-            stage_id: "code_review".to_string(),
-            capability_id: "product_review".to_string(),
-            workflow_uuid: None,
-            inputs: inputs.clone(),
-            outcome: Some(AgentSchedulerStageActionOutcomeDto::Retry),
-            member_id: Some("staff-reviewer".to_string()),
-            metadata: Some(json!({"source": "staff"})),
-        }),
-        ..AgentSchedulerCommandPayloadDto::default()
-    };
-
-    let value = serde_json::to_value(&command_payload).expect("serialize command payload");
-    assert_eq!(value["stage_action"]["inputs"]["workflow_uuid"], "workflow-review");
-    assert_eq!(value["stage_action"]["inputs"]["parameters"]["focus"], "security");
-    assert_eq!(value["stage_action"]["outcome"], "retry");
-    assert!(value["stage_action"].get("workflow_uuid").is_none());
-    assert_eq!(
-        serde_json::from_value::<AgentSchedulerCommandPayloadDto>(value)
-            .expect("decode command payload"),
-        command_payload
-    );
-
-    let read_model_action = AgentSchedulerTaskBoardStageActionDto {
-        stage_id: "code_review".to_string(),
-        capability_id: "product_review".to_string(),
-        workflow_uuid: None,
-        inputs,
-    };
-    let read_model_json = serde_json::to_value(&read_model_action).expect("serialize read model");
-    assert_eq!(read_model_json["inputs"]["workflow_uuid"], "workflow-review");
-    assert_eq!(
-        serde_json::from_value::<AgentSchedulerTaskBoardStageActionDto>(read_model_json)
-            .expect("decode read model"),
-        read_model_action
-    );
-
-    let legacy_payload = json!({
-        "stage_id": "code_review",
-        "capability_id": "saved_workflow",
-        "workflow_uuid": "legacy-workflow"
-    });
-    let legacy_action: AgentSchedulerTaskBoardStageActionDto =
-        serde_json::from_value(legacy_payload).expect("legacy action decodes");
-    assert_eq!(legacy_action.workflow_uuid.as_deref(), Some("legacy-workflow"));
-    assert_eq!(legacy_action.inputs, AgentSchedulerStageActionInputsDto::default());
 }
 
 // 管理接口 fixture 保证完整 worker 与 team 快照在增改查响应间无字段丢失。

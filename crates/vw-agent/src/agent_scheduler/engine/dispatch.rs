@@ -5,7 +5,6 @@ use serde_json::{Value, json};
 use vw_api_types::agent_scheduler::AgentSchedulerMatrixDispatchEventDto;
 use vw_api_types::common::TimestampMs;
 use vw_api_types::task::TaskPoolWorkflowSnapshotDto;
-use vw_config_types::staff::StaffConfig;
 
 use crate::agent_scheduler::adapters::controller::{ControllerAdapter, EnsureWorkerReadyRequest};
 use crate::agent_scheduler::adapters::local::LocalDispatchRequest;
@@ -16,7 +15,7 @@ use crate::agent_scheduler::lifecycle_bridge::{LifecycleBridge, LifecycleDispatc
 use crate::agent_scheduler::scheduler::worker_selection::{
     WorkerCandidateScore, WorkerSelectionRequest, select_worker_candidates,
 };
-use crate::agent_scheduler::staff::workflow_snapshot_from_staff_config;
+use crate::agent_scheduler::lifecycle_bridge::builtin_task_workflow_snapshot;
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
 use crate::agent_scheduler::store::events::AppendAgentEventRequest;
 use crate::agent_scheduler::store::outbox::EnqueueOutboxMessageRequest;
@@ -368,7 +367,7 @@ pub(crate) fn load_dispatch_workflow(
 ) -> Result<TaskPoolWorkflowSnapshotDto> {
     Ok(store
         .load_task_board_workflow(project_path)?
-        .unwrap_or_else(|| workflow_snapshot_from_staff_config(&StaffConfig::default())))
+        .unwrap_or_else(builtin_task_workflow_snapshot))
 }
 
 pub(crate) fn task_lifecycle_allows_dispatch(

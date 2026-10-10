@@ -705,8 +705,6 @@ pub enum AgentSchedulerCommandKindDto {
     SoftDelete,
     Restore,
     ImportLegacyTask,
-    AssignStaff,
-    RunStageAction,
 }
 
 /// Agent Scheduler 分发模式。
@@ -746,10 +744,6 @@ pub struct AgentSchedulerCommandPayloadDto {
     pub metadata_update: Option<AgentSchedulerTaskMetadataPatchDto>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub legacy_import: Option<AgentSchedulerLegacyTaskImportDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub staff_command: Option<AgentSchedulerStaffCommandPayloadDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub stage_action: Option<AgentSchedulerStageActionCommandPayloadDto>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub extra: Option<Value>,
 }
@@ -859,38 +853,6 @@ pub struct AgentSchedulerLegacyTaskImportDto {
     pub updated_at_ms: Option<TimestampMs>,
 }
 
-/// 员工命令载荷。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerStaffCommandPayloadDto {
-    pub command_id: String,
-    pub member_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub stage_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub role: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub action: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<Value>,
-}
-
-/// 阶段动作执行载荷。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerStageActionCommandPayloadDto {
-    pub stage_id: String,
-    pub capability_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub workflow_uuid: Option<String>,
-    #[serde(default, skip_serializing_if = "AgentSchedulerStageActionInputsDto::is_empty")]
-    pub inputs: AgentSchedulerStageActionInputsDto,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub outcome: Option<AgentSchedulerStageActionOutcomeDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub member_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<Value>,
-}
-
 /// Structured inputs for a stage action command or projection.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerStageActionInputsDto {
@@ -984,83 +946,12 @@ pub struct AgentSchedulerTaskBoardTaskReadModelDto {
     pub stage_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stage_label: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub staff: Option<AgentSchedulerTaskBoardStaffAssignmentDto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub stage_action: Option<AgentSchedulerTaskBoardStageActionDto>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub available_stage_actions: Vec<AgentSchedulerTaskBoardStageActionCapabilityDto>,
 }
 
 impl AgentSchedulerTaskBoardTaskReadModelDto {
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
     }
-}
-
-/// 任务板员工分配投影。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerTaskBoardStaffAssignmentDto {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub member_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub member_role: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub primary_member_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub backup_member_ids: Vec<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub manager_member_ids: Vec<String>,
-    #[serde(default)]
-    pub autonomous: bool,
-}
-
-/// 任务板阶段动作绑定投影。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerTaskBoardStageActionDto {
-    pub stage_id: String,
-    pub capability_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub workflow_uuid: Option<String>,
-    #[serde(default, skip_serializing_if = "AgentSchedulerStageActionInputsDto::is_empty")]
-    pub inputs: AgentSchedulerStageActionInputsDto,
-}
-
-/// 任务板阶段动作能力投影。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerTaskBoardStageActionCapabilityDto {
-    pub capability_id: String,
-    pub label: String,
-    #[serde(rename = "type", default)]
-    pub capability_type: AgentSchedulerStageCapabilityKindDto,
-    #[serde(default)]
-    pub built_in: bool,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub supported_roles: Vec<TaskPoolWorkflowStatusRoleDto>,
-    #[serde(default)]
-    pub requires_workflow_uuid: bool,
-    #[serde(default)]
-    pub input_summary: AgentSchedulerStageCapabilityIoSummaryDto,
-    #[serde(default)]
-    pub result_summary: AgentSchedulerStageCapabilityIoSummaryDto,
-}
-
-/// Stage action capability execution family.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentSchedulerStageCapabilityKindDto {
-    #[default]
-    BuiltIn,
-    SavedWorkflow,
-}
-
-/// Human-readable IO summary for a stage action capability.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentSchedulerStageCapabilityIoSummaryDto {
-    #[serde(default)]
-    pub description: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub fields: Vec<String>,
 }
 
 /// Agent Scheduler 桌面任务板状态响应。

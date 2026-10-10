@@ -3,19 +3,14 @@
 
 use anyhow::Result;
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
 use vw_api_types::ReasoningEffortDto;
 use vw_api_types::agent_scheduler::{
     AgentSchedulerLegacyTaskImportDto, AgentSchedulerMoveTaskPayloadDto,
-    AgentSchedulerStaffCommandPayloadDto, AgentSchedulerStageActionCommandPayloadDto,
-    AgentSchedulerStageActionInputsDto, AgentSchedulerStageActionOutcomeDto,
     AgentSchedulerTaskMetadataPatchDto, AgentTaskStatusDto,
 };
 use vw_api_types::common::TimestampMs;
-use vw_api_types::task::TaskPoolWorkflowStatusRoleDto;
 
 use super::domain::TaskId;
-use super::lifecycle_bridge::LifecycleStatusProjection;
 use super::state_machine::{AgentTaskKind, AgentTaskStatus};
 use super::store::AgentSchedulerStore;
 use super::store::logs::AppendAgentTaskLogRequest;
@@ -336,100 +331,6 @@ fn task_board_service_moves_archives_soft_deletes_and_restores_tasks() -> Result
             .archive_task(temp.path(), &TaskId::new("missing")?, None, TimestampMs(70))?
             .is_none()
     );
-    Ok(())
-}
-
-#[test]
-fn task_board_service_records_staff_assignment_and_stage_action_metadata() -> Result<()> {
-    let temp = tempfile::tempdir()?;
-    let store = AgentSchedulerStore::new();
-    store.initialize_project(temp.path())?;
-    let service = AgentTaskBoardService::new(&store);
-    let task_id = TaskId::new("task-staff-flow")?;
-    store.create_task(
-        temp.path(),
-        new_board_task(task_id.as_str(), "pending", AgentTaskStatus::Queued)?,
-    )?;
-
-    let assigned = service
-        .assign_staff(
-            temp.path(),
-            &task_id,
-            AgentSchedulerStaffCommandPayloadDto {
-                command_id: "cmd-1".to_string(),
-                member_id: "member-1".to_string(),
-                stage_id: Some("stage-1".to_string()),
-                role: Some("reviewer".to_string()),
-                action: Some("inspect".to_string()),
-                metadata: Some(json!({"ticket": 7})),
-            },
-            None,
-            TimestampMs(100),
-        )?
-        .expect("staff assignment should update task");
-    assert_eq!(assigned.task.metadata["task_board.staff.command_id"], "cmd-1");
-    assert_eq!(assigned.task.metadata["task_board.staff.member_id"], "member-1");
-    assert_eq!(assigned.event.payload["staff"]["stage_id"], "stage-1");
-
-    let mut parameters = BTreeMap::new();
-    parameters.insert("unsafe_secret".to_string(), json!("do-not-store"));
-    let staged = service
-        .run_stage_action(
-            temp.path(),
-            &task_id,
-            AgentSchedulerStageActionCommandPayloadDto {
-                stage_id: "stage-2".to_string(),
-                capability_id: "capability-1".to_string(),
-                workflow_uuid: Some("workflow-1".to_string()),
-                inputs: AgentSchedulerStageActionInputsDto {
-                    workflow_uuid: Some("input-workflow".to_string()),
-                    parameters,
-                },
-                outcome: Some(AgentSchedulerStageActionOutcomeDto::Success),
-                member_id: Some("member-2".to_string()),
-                metadata: Some(json!({"note": "ok"})),
-            },
-            Some(LifecycleStatusProjection {
-                status_key: "code_complete".to_string(),
-                status_role: TaskPoolWorkflowStatusRoleDto::ReviewReady,
-                runtime_status: AgentTaskStatus::Submitted,
-            }),
-            Some("stage succeeded"),
-            TimestampMs(110),
-        )?
-        .expect("stage action should update task");
-    assert_eq!(staged.task.status, AgentTaskStatus::Submitted);
-    assert_eq!(staged.task.metadata["task_board.status_key"], "code_complete");
-    assert_eq!(staged.task.metadata["task_board.status_role"], "review_ready");
-    assert_eq!(staged.task.metadata["task_board.stage_action.result"], "success");
-    assert_eq!(staged.task.metadata["task_board.stage_action.inputs"]["parameter_count"], 1);
-    assert_eq!(
-        staged.task.metadata["task_board.stage_action.inputs"]["parameter_keys"][0],
-        "unsafe_secret"
-    );
-    assert!(staged.task.metadata["task_board.stage_action.inputs"].get("unsafe_secret").is_none());
-    assert_eq!(staged.event.payload["stage_action"]["target_status_key"], "code_complete");
-
-    let missing_target = match service.run_stage_action(
-        temp.path(),
-        &task_id,
-        AgentSchedulerStageActionCommandPayloadDto {
-            stage_id: "stage-3".to_string(),
-            capability_id: "capability-2".to_string(),
-            workflow_uuid: None,
-            inputs: AgentSchedulerStageActionInputsDto::default(),
-            outcome: Some(AgentSchedulerStageActionOutcomeDto::Failure),
-            member_id: None,
-            metadata: None,
-        },
-        None,
-        None,
-        TimestampMs(120),
-    ) {
-        Ok(_) => panic!("outcome without target should fail"),
-        Err(error) => error,
-    };
-    assert!(missing_target.to_string().contains("requires resolved workflow status"));
     Ok(())
 }
 

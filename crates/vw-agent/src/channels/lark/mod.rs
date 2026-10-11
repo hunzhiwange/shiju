@@ -39,6 +39,9 @@
 
 mod ack;
 mod constants;
+// The next delivery task wires this pure formatter into send.
+#[allow(dead_code)]
+mod formatting;
 mod parsing;
 mod platform;
 mod token;
@@ -575,3 +578,6 @@ mod mod_tests;
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod formatting_tests;

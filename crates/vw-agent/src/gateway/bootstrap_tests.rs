@@ -151,7 +151,6 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
         "/v1/shiju/skills/{skill_id}",
         "/v1/shiju/skills/{skill_id}/versions",
         "/v1/shiju/skills/{skill_id}/install",
-        "/v1/apiQL/{entity_class}/list-page",
         "/v1/agent-scheduler/projects/{project_id}/tasks",
         "/v1/session/{session_id}/message/{message_id}/part/{part_id}",
         "/v1/workflow/applications/{uuid}/chat-messages",
@@ -164,7 +163,7 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
 #[test]
 fn gateway_route_summary_lists_all_documented_routes() {
     let routes = documented_gateway_routes();
-    assert_eq!(routes.len(), 247);
+    assert_eq!(routes.len(), 232);
     let unique = routes
         .iter()
         .map(|route| (route.method, route.path))

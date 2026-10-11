@@ -74,9 +74,6 @@ pub(crate) mod shiju_skills;
 /// 提供定时任务的添加、删除和列表查询操作处理器。
 pub mod cron;
 
-/// ApiQL V1 兼容路由模块
-pub(crate) mod apiql;
-
 /// 第三方集成处理器模块
 ///
 /// 处理外部服务集成的配置、凭证和设置管理。

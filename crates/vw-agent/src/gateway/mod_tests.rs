@@ -174,23 +174,31 @@ async fn bootstrap_router_registers_v1_agent_scheduler_project_routes() {
 }
 
 #[tokio::test]
-async fn bootstrap_router_registers_apiql_routes_under_v1() {
+async fn bootstrap_router_does_not_register_apiql_routes() {
     let app = bootstrap_rest_app(auth_state(false, &[]));
 
-    for path in ["/v1/apiQL/product:product/", "/v1/apiQL/product:product/list-page/"] {
-        let response = app
-            .clone()
-            .oneshot(
-                Request::post(path)
-                    .header(PLATFORM_ID_HEADER, "platform-test")
-                    .header(COMPANY_ID_HEADER, "company-test")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED, "{path}");
+    for suffix in [
+        "",
+        "/",
+        "/list-only",
+        "/list-only/",
+        "/list-count",
+        "/list-count/",
+        "/list-page",
+        "/list-page/",
+    ] {
+        let path = format!("/v1/apiQL/product:product{suffix}");
+        for method in ["GET", "POST"] {
+            let request = Request::builder()
+                .method(method)
+                .uri(&path)
+                .header(PLATFORM_ID_HEADER, "platform-test")
+                .header(COMPANY_ID_HEADER, "company-test")
+                .body(Body::empty())
+                .unwrap();
+            let response = app.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{method} {path}");
+        }
     }
 }
 

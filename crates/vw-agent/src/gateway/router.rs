@@ -160,8 +160,6 @@ fn handler_router() -> Router {
         .merge(handlers::agent_scheduler::router())
         // 任务生命周期 workflow 路由
         .merge(handlers::task_lifecycle::router())
-        // ApiQL PHP 兼容只读列表路由
-        .merge(handlers::apiql::router())
         // Workflow 应用路由：Dify Workflow 保存与列表
         .merge(handlers::workflow::applications_router())
         // Skills 与桌面端轻量 API：偏好、工具内容、服务生命周期等

@@ -647,14 +647,6 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
             "/v1/agent-scheduler/projects/{project_id}/outbox/drain",
             "drain scheduler outbox",
         ),
-        client_route("GET", "/v1/apiQL/{entity_class}", "APIQL list"),
-        client_route("GET", "/v1/apiQL/{entity_class}/", "APIQL list"),
-        client_route("GET", "/v1/apiQL/{entity_class}/list-only", "APIQL list rows"),
-        client_route("GET", "/v1/apiQL/{entity_class}/list-only/", "APIQL list rows"),
-        client_route("GET", "/v1/apiQL/{entity_class}/list-count", "APIQL list count"),
-        client_route("GET", "/v1/apiQL/{entity_class}/list-count/", "APIQL list count"),
-        client_route("GET", "/v1/apiQL/{entity_class}/list-page", "APIQL list page"),
-        client_route("GET", "/v1/apiQL/{entity_class}/list-page/", "APIQL list page"),
         client_route("POST", "/v1/workflow/resume", "resume workflow"),
         client_route("POST", "/v1/workflow/applications/chat-messages", "workflow chat"),
         client_route(
@@ -881,7 +873,6 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
         .merge(api::handlers::question::router())
         .merge(api::handlers::task_pool::router())
         .merge(api::handlers::agent_scheduler::router())
-        .merge(api::handlers::apiql::router())
         .merge(api::handlers::task_lifecycle::router())
         .merge(api::handlers::task_plan_run::router())
         .merge(api::handlers::workflow::router())

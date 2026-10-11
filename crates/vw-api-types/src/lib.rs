@@ -9,7 +9,6 @@
 //! # 模块概览
 //!
 //! - [`agent_scheduler`][]: Agent Scheduler 任务、Worker、Team、lease、事件与 outbox DTO
-//! - [`apiql`][]: ApiQL 只读列表、分页响应与实体配置 DTO
 //! - [`chat`][]: 聊天消息、流式事件与聊天请求体
 //! - [`session`][]: 会话详情、列表、归档、分叉与网关会话操作
 //! - [`project`][]: 项目实体、项目列表与项目级变更记录
@@ -37,7 +36,6 @@
 //! - 通过新类型包装 ID，降低字符串误用风险
 
 pub mod agent_scheduler;
-pub mod apiql;
 pub mod chat;
 pub mod common;
 pub mod error;
@@ -61,9 +59,6 @@ pub mod worktree;
 #[cfg(test)]
 #[path = "agent_scheduler_tests.rs"]
 mod agent_scheduler_tests;
-#[cfg(test)]
-#[path = "apiql_tests.rs"]
-mod apiql_tests;
 #[cfg(test)]
 #[path = "chat_tests.rs"]
 mod chat_tests;

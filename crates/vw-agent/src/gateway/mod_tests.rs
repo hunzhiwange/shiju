@@ -174,45 +174,6 @@ async fn bootstrap_router_registers_v1_agent_scheduler_project_routes() {
 }
 
 #[tokio::test]
-async fn bootstrap_router_does_not_register_apiql_routes() {
-    let app = bootstrap_rest_app(auth_state(false, &[]));
-
-    for suffix in [
-        "",
-        "/",
-        "/list-only",
-        "/list-only/",
-        "/list-count",
-        "/list-count/",
-        "/list-page",
-        "/list-page/",
-    ] {
-        let path = format!("/v1/apiQL/product:product{suffix}");
-        for method in ["GET", "POST"] {
-            let request = Request::builder()
-                .method(method)
-                .uri(&path)
-                .header(PLATFORM_ID_HEADER, "platform-test")
-                .header(COMPANY_ID_HEADER, "company-test")
-                .body(Body::empty())
-                .unwrap();
-            let response = app.clone().oneshot(request).await.unwrap();
-            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{method} {path}");
-        }
-    }
-}
-
-#[tokio::test]
-async fn bootstrap_apiql_root_compat_route_is_not_registered() {
-    let token = String::from("paired-token");
-    let app = bootstrap_rest_app(auth_state(true, &[token]));
-
-    let response = app.oneshot(tenant_request("/apiQL/v1:product:product/")).await.unwrap();
-
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
-}
-
-#[tokio::test]
 async fn bootstrap_router_rejects_client_routes_without_tenant_headers() {
     let app = bootstrap_rest_app(auth_state(false, &[]));
 

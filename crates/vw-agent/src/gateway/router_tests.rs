@@ -216,24 +216,3 @@ async fn build_router_rejects_unversioned_routes_without_tenant_headers() {
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
-
-#[tokio::test]
-async fn build_router_does_not_register_apiql_routes() {
-    let app = build_router(Vec::new());
-    for prefix in ["", "/v1"] {
-        for suffix in [
-            "",
-            "/",
-            "/list-only",
-            "/list-only/",
-            "/list-count",
-            "/list-count/",
-            "/list-page",
-            "/list-page/",
-        ] {
-            let path = format!("{prefix}/apiQL/product:product{suffix}");
-            let response = app.clone().oneshot(tenant_request(&path)).await.unwrap();
-            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
-        }
-    }
-}

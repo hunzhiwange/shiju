@@ -352,11 +352,6 @@ pub(super) fn tool_meta(tool_id: &str) -> ToolMeta {
             description: "调用语义代码搜索服务，返回与查询最相关的代码片段和上下文。",
             group: ToolGroup::Search,
         },
-        "rustcodegraph" => ToolMeta {
-            name: "RustCodeGraph",
-            description: "通过现有索引查询并增量同步当前工作区代码，支持符号、调用关系、影响分析和索引状态查询；源码始终只读。",
-            group: ToolGroup::Search,
-        },
         "bash" | "shell" => ToolMeta {
             name: "命令行",
             description: "在受限工作目录执行 Bash 命令，支持超时、审批和风险控制。",

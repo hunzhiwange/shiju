@@ -212,25 +212,22 @@ fn ordered_agent_keys_excludes_retired_builtin_agents_from_legacy_config() {
 }
 
 #[test]
-fn available_tools_always_include_contextual_rustcodegraph_builtin() {
-    assert_eq!(filter_mcp_from_available_tools(Vec::new()), vec!["rustcodegraph"]);
+fn available_tools_preserve_only_registered_non_mcp_tools() {
+    assert!(filter_mcp_from_available_tools(Vec::new()).is_empty());
     assert_eq!(
         filter_mcp_from_available_tools(vec![
-            "rustcodegraph".to_string(),
+            "bash".to_string(),
             "bash".to_string(),
             "mcp__rustcodegraph__search".to_string(),
-            "rustcodegraph".to_string(),
+            "bash".to_string(),
         ]),
-        vec!["bash", "rustcodegraph"]
+        vec!["bash"]
     );
 }
 
 #[test]
 fn stale_selections_are_removed_against_the_current_tool_catalog() {
-    assert_eq!(
-        filter_mcp_from_available_tools(vec!["read".to_string()]),
-        vec!["read", "rustcodegraph"]
-    );
+    assert_eq!(filter_mcp_from_available_tools(vec!["read".to_string()]), vec!["read"]);
 
     let mut entries = vec![DelegateAgentSettingsEntry::from_config("custom", None)];
     entries[0].allowed_tools =

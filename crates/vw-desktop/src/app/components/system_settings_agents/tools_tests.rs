@@ -183,7 +183,6 @@ fn tool_meta_classifies_every_declared_tool_and_alias() {
         ("glob_search", "组合搜索", ToolGroup::Search),
         ("code_search", "代码检索", ToolGroup::Search),
         ("codesearch", "代码检索", ToolGroup::Search),
-        ("rustcodegraph", "RustCodeGraph", ToolGroup::Search),
         ("bash", "命令行", ToolGroup::Execute),
         ("shell", "命令行", ToolGroup::Execute),
         ("process", "后台进程", ToolGroup::Execute),
@@ -412,7 +411,6 @@ fn tools_view_splits_optional_and_builtin_tabs() {
     let entry = app.agents_settings.entries[0].clone();
     app.agents_settings.available_tools = vec![
         "bash".to_string(),
-        "rustcodegraph".to_string(),
         "custom_optional".to_string(),
         "AgentTool".to_string(),
         "create_thread".to_string(),
@@ -441,7 +439,7 @@ fn tools_view_splits_optional_and_builtin_tabs() {
         &app.agents_settings.available_tools,
         &app.agents_settings.active_tools_list_tab,
     );
-    assert_eq!(builtin_ids, vec!["bash", "rustcodegraph", "AgentTool", "create_thread"]);
+    assert_eq!(builtin_ids, vec!["bash", "AgentTool", "create_thread"]);
     assert!(builtin_ids.iter().all(|id| is_builtin_required_tool_id(id)));
 
     let builtin_view = super::tools::view(&app, &entry);

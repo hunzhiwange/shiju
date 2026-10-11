@@ -183,9 +183,6 @@ pub(crate) fn filter_mcp_from_available_tools(tools: Vec<String>) -> Vec<String>
 pub(crate) fn normalize_available_tool_catalog(tools: Vec<String>) -> Vec<String> {
     let mut tools =
         tools.into_iter().filter(|tool_id| !tool_id.trim().is_empty()).collect::<Vec<_>>();
-    if !tools.iter().any(|tool_id| tool_id == "rustcodegraph") {
-        tools.push("rustcodegraph".to_string());
-    }
     tools.sort();
     tools.dedup();
     tools

@@ -1226,10 +1226,7 @@ fn available_tools_exclude_mcp_dynamic_ids() {
         )))),
     );
 
-    assert_eq!(
-        app.agents_settings.available_tools,
-        vec!["bash".to_string(), "read".to_string(), "rustcodegraph".to_string()]
-    );
+    assert_eq!(app.agents_settings.available_tools, vec!["bash".to_string(), "read".to_string()]);
     assert!(!app.agents_settings.available_tools.iter().any(|tool| tool.starts_with("mcp__")));
 }
 
@@ -1250,7 +1247,7 @@ fn loaded_tool_catalog_removes_all_stale_selections_and_schedules_save() {
 
     assert_eq!(
         app.agents_settings.registered_tools.as_deref().expect("tool catalog"),
-        ["read".to_string(), "rustcodegraph".to_string()]
+        ["read".to_string()]
     );
     assert_eq!(entry(&app, "main").allowed_tools, ["read"]);
     assert!(app.agents_settings.save_in_flight);
@@ -1260,7 +1257,7 @@ fn loaded_tool_catalog_removes_all_stale_selections_and_schedules_save() {
 fn config_loaded_after_tool_catalog_removes_stale_selections_and_schedules_save() {
     let mut app = test_app();
     app.agents_settings.config_ready = false;
-    app.agents_settings.available_tools = vec!["read".to_string(), "rustcodegraph".to_string()];
+    app.agents_settings.available_tools = vec!["read".to_string()];
     app.agents_settings.registered_tools = Some(app.agents_settings.available_tools.clone());
 
     let mut config = vw_config_types::config::Config::default();

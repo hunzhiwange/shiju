@@ -20,9 +20,6 @@ pub(super) fn classify_route(route: &GatewayRouteEntry) -> Option<RouteCoverage>
     if matches!(path, "/v1/doc" | "/v1/find/symbol") {
         return Some(RouteCoverage::Excluded("documented placeholder returns 501 Not Implemented"));
     }
-    if path.starts_with("/v1/apiQL/") && path.ends_with('/') {
-        return Some(RouteCoverage::Alias("apiql canonical route without trailing slash"));
-    }
     if path == "/v1/cron/runs/{id}" {
         return Some(RouteCoverage::Alias("api operations cron runs"));
     }
@@ -85,9 +82,6 @@ fn command_family(route: &GatewayRouteEntry) -> Option<&'static str> {
     }
     if path.starts_with("/v1/agent-scheduler") {
         return Some("scheduler");
-    }
-    if path.starts_with("/v1/apiQL/") {
-        return Some("apiql");
     }
     if path.starts_with("/v1/workflow") {
         return Some("workflow");

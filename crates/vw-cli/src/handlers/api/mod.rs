@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use clap::{ArgMatches, Args, Command, Error, FromArgMatches, Subcommand, ValueEnum};
 
-use self::apiql::ApiQlCommands;
 use self::config::ConfigCommands;
 use self::context::ApiContext;
 use self::control::{ControlCommands, ProviderCommands};
@@ -27,7 +26,6 @@ use self::task_pool::TaskPoolCommands;
 use self::workflow::WorkflowCommands;
 use self::workspace::WorkspaceCommands;
 
-mod apiql;
 mod config;
 mod context;
 mod control;
@@ -143,12 +141,6 @@ impl ApiArgs {
 /// API 领域命令注册表。
 #[derive(Subcommand, Debug)]
 enum ApiCommands {
-    /// 查询 APIQL 实体列表、行、计数与分页。
-    Apiql {
-        /// APIQL 只读查询模式。
-        #[command(subcommand)]
-        command: ApiQlCommands,
-    },
     /// 读取或受控更新 Gateway 配置。
     Config {
         /// 配置读取与更新操作。
@@ -391,10 +383,7 @@ impl ApiCommands {
             Self::Extensions { command } => command.dangerous_operation(),
             Self::Desktop { command } => command.dangerous_operation(host, port),
             Self::Workflow { command } => command.dangerous_operation(),
-            Self::Apiql { .. }
-            | Self::Provider { .. }
-            | Self::System { .. }
-            | Self::Workspace { .. } => None,
+            Self::Provider { .. } | Self::System { .. } | Self::Workspace { .. } => None,
         }
     }
 }
@@ -438,7 +427,6 @@ async fn run_with_io<R: Read, W: Write>(
 
     let context = ApiContext::from_args(&args)?;
     match args.command {
-        ApiCommands::Apiql { command } => apiql::run(command, &context, writer).await,
         ApiCommands::Config { command } => config::run(command, &context, stdin, writer).await,
         ApiCommands::Provider { command } => {
             control::run_provider(command, &context, stdin, writer).await
@@ -498,8 +486,6 @@ fn ensure_confirmed(yes: bool, operation: &str) -> Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod apiql_tests;
 #[cfg(test)]
 mod config_tests;
 #[cfg(test)]

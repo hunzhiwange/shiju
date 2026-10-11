@@ -33,30 +33,23 @@ fn cli_definition_builds_without_panicking() {
 }
 
 #[test]
-fn startup_help_lists_only_root_commands() {
+fn cli_help_rejects_removed_query_command() {
+    let removed_command = ["api", "ql"].concat();
     let error = crate::cli::Cli::command()
         .try_get_matches_from(["shiju"])
         .expect_err("a top-level command is required");
     let help = error.to_string();
-
     assert_eq!(help.matches("Commands:").count(), 1);
-    assert!(help.contains("  apiql "));
+    assert!(!help.contains(&removed_command));
     assert!(help.contains("  server "));
-    assert!(!help.contains("apiql list"));
     assert!(!help.contains("server install"));
 
-    let error = crate::cli::Cli::command()
-        .try_get_matches_from(["shiju", "apiql"])
-        .expect_err("an APIQL subcommand is required");
-    let apiql_help = error.to_string();
-
-    assert!(apiql_help.contains("list"));
-
-    let error = crate::cli::Cli::command()
-        .try_get_matches_from(["shiju", "apiql", "list", "--help"])
-        .expect_err("leaf help should stop command execution");
-    assert_eq!(error.kind(), clap::error::ErrorKind::DisplayHelp);
-    assert!(error.to_string().contains("Usage: shiju apiql list"));
+    for arguments in [vec!["shiju", &removed_command], vec!["shiju", &removed_command, "list"]] {
+        let error = crate::cli::Cli::command()
+            .try_get_matches_from(arguments)
+            .expect_err("removed command must be rejected");
+        assert_eq!(error.kind(), clap::error::ErrorKind::InvalidSubcommand);
+    }
 }
 
 #[test]
@@ -76,7 +69,7 @@ fn every_visible_nested_command_supports_contextual_help() {
 
     let mut paths = Vec::new();
     collect_paths(&crate::cli::Cli::command(), &mut Vec::new(), &mut paths);
-    assert!(paths.iter().any(|path| path == &["apiql", "list"]));
+    assert!(paths.iter().any(|path| path == &["server", "install"]));
 
     for path in paths {
         let mut arguments = vec!["shiju".to_string(), "help".to_string()];
@@ -154,7 +147,6 @@ fn shell_completion_propagates_writer_flush_failure() {
 #[test]
 fn api_command_help_and_completions_cover_every_family() {
     let families = [
-        "apiql",
         "config",
         "provider",
         "control",

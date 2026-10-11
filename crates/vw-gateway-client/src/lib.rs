@@ -31,7 +31,6 @@ mod stream;
 #[cfg(test)]
 mod tests;
 
-pub use client::ApiQlQuery;
 #[cfg(not(target_arch = "wasm32"))]
 pub use client::GatewayChatWebSocket;
 /// 网关 HTTP 与流式接口的统一客户端入口。

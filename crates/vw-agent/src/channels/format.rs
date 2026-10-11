@@ -224,6 +224,10 @@ pub(crate) fn strip_tool_call_tags(message: &str) -> String {
 /// - **telegram**: 支持 Markdown 格式、媒体附件标记、表情符号等
 /// - **whatsapp**: 支持基础格式（粗体）、媒体附件标记，但不支持标题和表格
 /// - **lark/feishu**: 支持 CommonMark 与 GFM 富文本
+/// - **slack**: 使用 mrkdwn 方言
+/// - **discord/mattermost/dingtalk/nextcloud_talk**: 使用各平台 Markdown 子集
+/// - **signal/imessage/nostr/linq/wati/email**: 使用纯文本
+/// - **irc**: 由入站消息注入专用纯文本约束，不在这里重复添加
 pub(crate) fn channel_delivery_instructions(channel_name: &str) -> Option<&'static str> {
     match channel_name {
         "telegram" => Some(
@@ -259,6 +263,57 @@ pub(crate) fn channel_delivery_instructions(channel_name: &str) -> Option<&'stat
              - Use Markdown tables only when rows and columns materially improve clarity.\n\
              - Be concise and direct, and do not emit raw HTML.\n\
              - Use tool results silently: answer the latest user message directly, and do not narrate delayed/internal tool execution bookkeeping.",
+        ),
+        "slack" => Some(
+            "When responding on Slack:\n\
+             - Use Slack mrkdwn: *bold*, _italic_, ~strikethrough~, and `inline code`.\n\
+             - Use triple backticks for code blocks and > for quotes.\n\
+             - Use bare URLs or <https://example.com|label> for links, not [label](url).\n\
+             - No Markdown headings; use *bold* section labels instead.\n\
+             - No Markdown tables; use simple bullet lists instead, and no raw HTML.\n\
+             - Escape literal &, <, and > as &amp;, &lt;, and &gt; preserve mrkdwn link delimiters.\n\
+             - Be concise and answer the user directly.",
+        ),
+        "discord" => Some(
+            "When responding on Discord:\n\
+             - Use Markdown: **bold**, *italic*, headings, bullet or numbered lists, and > quotes.\n\
+             - Use `inline code` and fenced code blocks for code.\n\
+             - Use [label](https://example.com) or bare URLs for links.\n\
+             - No Markdown tables; use lists instead, and no raw HTML.\n\
+             - Avoid unsupported GFM structures such as task checkboxes; use ordinary lists.\n\
+             - Be concise and answer the user directly.",
+        ),
+        "mattermost" => Some(
+            "When responding on Mattermost:\n\
+             - Use Markdown: **bold**, *italic*, headings, bullet or numbered lists, and > quotes.\n\
+             - Use `inline code`, fenced code blocks, and [label](https://example.com) links.\n\
+             - Use Markdown tables only when rows and columns improve clarity; keep cells single-line.\n\
+             - Use no raw HTML or embedded HTML in table cells.\n\
+             - Avoid task checkboxes and LaTeX that may depend on client or server settings.\n\
+             - Be concise and answer the user directly.",
+        ),
+        "dingtalk" => Some(
+            "When responding on DingTalk:\n\
+             - Use basic Markdown: **bold**, *italic*, headings, simple lists, and > quotes.\n\
+             - Use [label](https://example.com) or bare URLs for links.\n\
+             - No Markdown tables or task checkboxes; use ordinary lists, and no raw HTML.\n\
+             - Avoid fenced code blocks and inline backticks; use indented plain text for code.\n\
+             - Be concise and answer the user directly.",
+        ),
+        "nextcloud_talk" => Some(
+            "When responding on Nextcloud Talk:\n\
+             - Use Markdown: **bold**, *italic*, headings, simple lists, and > quotes.\n\
+             - Use `inline code` and fenced code blocks for code; use bare URLs for links.\n\
+             - Use Markdown tables only when rows and columns improve clarity; prefer lists for older clients.\n\
+             - Use no raw HTML and avoid unsupported GFM extensions beyond these structures.\n\
+             - Be concise and answer the user directly.",
+        ),
+        "signal" | "imessage" | "nostr" | "linq" | "wati" | "email" => Some(
+            "When responding on this plain-text channel:\n\
+             - Use plain text with short paragraphs, line breaks, and simple numbered or dash lists.\n\
+             - No Markdown formatting (headings, emphasis, backticks, code fences, or link markup), no HTML, and no tables.\n\
+             - Use bare URLs for links and plain indented text for code.\n\
+             - Be concise and answer the user directly.",
         ),
         _ => None,
     }

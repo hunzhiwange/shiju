@@ -82,6 +82,23 @@ fn channel_delivery_instructions_are_known_for_chat_channels() {
     assert!(channel_delivery_instructions("whatsapp").is_some());
     assert!(channel_delivery_instructions("lark").is_some());
     assert!(channel_delivery_instructions("feishu").is_some());
+    for channel in [
+        "slack",
+        "discord",
+        "mattermost",
+        "dingtalk",
+        "nextcloud_talk",
+        "signal",
+        "imessage",
+        "nostr",
+        "linq",
+        "wati",
+        "email",
+    ] {
+        assert!(channel_delivery_instructions(channel).is_some(), "missing {channel} contract");
+    }
+    // IRC supplies its plain-text contract in the inbound message.
+    assert!(channel_delivery_instructions("irc").is_none());
     assert!(channel_delivery_instructions("unknown").is_none());
 }
 
@@ -102,6 +119,51 @@ fn channel_delivery_instructions_include_channel_specific_requirements() {
         assert!(instructions.contains("code blocks"));
     }
     assert_eq!(lark, feishu);
+    let slack = channel_delivery_instructions("slack").expect("slack instructions");
+    for requirement in [
+        "mrkdwn",
+        "*bold*",
+        "_italic_",
+        "<https://example.com|label>",
+        "No Markdown headings",
+        "No Markdown tables",
+        "no raw HTML",
+    ] {
+        assert!(slack.contains(requirement), "missing Slack requirement: {requirement}");
+    }
+    for (channel, requirements) in [
+        ("discord", vec!["**bold**", "fenced code blocks", "No Markdown tables"]),
+        ("mattermost", vec!["**bold**", "fenced code blocks", "Markdown tables"]),
+        (
+            "dingtalk",
+            vec![
+                "**bold**",
+                "[label](https://example.com)",
+                "No Markdown tables",
+                "Avoid fenced code blocks",
+            ],
+        ),
+        ("nextcloud_talk", vec!["**bold**", "fenced code blocks", "Markdown tables"]),
+    ] {
+        let instructions = channel_delivery_instructions(channel).expect("Markdown instructions");
+        assert!(instructions.contains("Markdown"), "{channel}");
+        assert!(instructions.contains("no raw HTML"), "{channel}");
+        for requirement in requirements {
+            assert!(
+                instructions.contains(requirement),
+                "missing {channel} requirement: {requirement}"
+            );
+        }
+    }
+    for channel in ["signal", "imessage", "nostr", "linq", "wati", "email"] {
+        let instructions = channel_delivery_instructions(channel).expect("plain-text instructions");
+        for requirement in ["plain text", "No Markdown", "no HTML", "no tables", "bare URLs"] {
+            assert!(
+                instructions.contains(requirement),
+                "missing {channel} requirement: {requirement}"
+            );
+        }
+    }
 }
 
 #[test]

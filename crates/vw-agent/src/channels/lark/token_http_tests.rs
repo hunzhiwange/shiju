@@ -10,12 +10,14 @@ async fn lark_channel_send_posts_markdown_as_rich_text() {
     let mut server = TestServer::spawn(vec![MockResponse::json(200, r#"{"code":0}"#)]).await;
     let ch = test_channel(&server.base_url);
     cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
-    let markdown = "## 状态\n\n- **完成**\n\n```rust\nlet ready = true;\n```\n\n| 项目 | 状态 |\n| --- | --- |\n| 飞书 | ✅ |";
+    let markdown = "## 状态\n\n第一行\n第二行\n\n- **完成**";
 
     ch.send(&SendMessage::new(markdown, "oc_chat")).await.unwrap();
 
     let request = server.next_request().await;
     assert_eq!(request_path(&request), "/im/v1/messages?receive_id_type=chat_id");
+    assert!(request.starts_with("POST "));
+    assert_eq!(header_value(&request, "authorization").as_deref(), Some("Bearer cached-token"));
     let body = request_json_body(&request);
     assert_eq!(body["receive_id"], "oc_chat");
     assert_eq!(body["msg_type"], "post");
@@ -23,8 +25,38 @@ async fn lark_channel_send_posts_markdown_as_rich_text() {
         serde_json::from_str(body["content"].as_str().unwrap()).unwrap();
     assert_eq!(
         content["zh_cn"]["content"][0][0],
-        serde_json::json!({"tag": "md", "text": markdown})
+        serde_json::json!({"tag": "md", "text": "## 状态\n\n第一行  \n第二行\n\n- **完成**"})
     );
+}
+
+#[tokio::test]
+async fn lark_channel_send_uses_interactive_card_for_complex_markdown() {
+    for markdown in
+        ["```rust\nlet ready = true;\n```", "| 项目 | 状态 |\n| --- | --- |\n| 飞书 | ✅ |"]
+    {
+        let mut server = TestServer::spawn(vec![MockResponse::json(200, r#"{"code":0}"#)]).await;
+        let ch = test_channel(&server.base_url);
+        cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
+
+        ch.send(&SendMessage::new(markdown, "oc_chat")).await.unwrap();
+
+        let request = server.next_request().await;
+        assert!(request.starts_with("POST "));
+        assert_eq!(request_path(&request), "/im/v1/messages?receive_id_type=chat_id");
+        assert_eq!(header_value(&request, "authorization").as_deref(), Some("Bearer cached-token"));
+        let body = request_json_body(&request);
+        assert_eq!(body["receive_id"], "oc_chat");
+        assert_eq!(body["msg_type"], "interactive");
+        let content: serde_json::Value =
+            serde_json::from_str(body["content"].as_str().unwrap()).unwrap();
+        assert_eq!(
+            content,
+            serde_json::json!({
+                "schema": "2.0",
+                "body": {"elements": [{"tag": "markdown", "content": markdown}]},
+            })
+        );
+    }
 }
 
 #[tokio::test]

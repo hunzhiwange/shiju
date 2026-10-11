@@ -164,7 +164,6 @@ fn api_command_help_and_completions_cover_every_family() {
         "skill-market",
         "extensions",
         "desktop",
-        "staff",
         "workflow",
         "workspace",
         "system",

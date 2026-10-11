@@ -84,3 +84,33 @@
 - `cargo clippy --all-targets --all-features -- -D warnings`：退出 0。
 - `rg -n -i 'apiql' crates/vw-cli crates/vw-gateway-client`：无匹配，退出 1。
 - 待回归：修复以上既有 CLI/TUI 与 Shiju 契约测试后，重跑两个规定的测试命令；通过后删除本任务文件。只读 plan.md 未修改。
+
+## 共享实现结束后的回归（2026-10-11）
+
+- 基于共享工作区提交 `3ac70b782` 回归，保留状态“已完成，待回归”，不标记为外部阻塞。
+- 修正本任务相邻帮助/补全测试：`ApiCommands` 没有注册 staff 命令，移除过期 staff 预期；不增加不存在的命令。
+- 所有回归阶段动态领取槽位 1，`CARGO_TARGET_DIR=/Users/dyhb/code/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。阶段结束后已清理本人锁，缓存保留。
+- `cargo fmt --all`：退出 0。
+- `cargo test -p vw-cli cli_tests -- --nocapture`：退出 0，15 个有效测试通过，覆盖根帮助、旧命令拒绝、全部可见嵌套命令帮助及 shell 补全。
+- `cargo test -p vw-cli api_route_coverage_classifies_every_documented_gateway_route -- --nocapture`：退出 0，1 个有效测试通过。
+- `cargo clippy --all-targets --all-features -- -D warnings`：退出 0。
+- 最终 `cargo test -p vw-cli cli -- --nocapture`：退出 101，275 通过、13 失败；均为既有 TUI 测试，staff 帮助失败已修复。
+- `cargo test -p vw-gateway-client --lib`：退出 101，222 通过、2 失败，仍为前述 runtimeSetCookie 与 scan_result fixture/契约偏差。
+- `rg -n -i 'apiql' crates/vw-cli crates/vw-gateway-client`：退出 1，无匹配。
+- 此任务范围的行为、路由元数据和静态验证已通过；规定的两个广义测试仍有与 ApiQL 拆除无关的失败，所以保留任务文件，不声称全部验证完成。
+- 待回归失败具体列表：
+  - `cli::runtime::tui::bridge_tests::tui_explicit_resume_restores_gateway_session_title_history_and_identity`：预期 `/ui`，当前使用 `/ui/without-raw`。
+  - `cli::runtime::tui::session_command_tests::session_mutations_use_confirmed_gateway_contracts`：同上。
+  - `cli::runtime::tui::command_tests::command_catalog_exposes_stable_ids_and_disabled_reasons`：实际本地命令为 help/status/doctor，旧预期为 help/status/exit。
+  - `cli::runtime::tui::runtime::workspace_files_tests::workspace_file_browser_rejects_escape_and_reads_selected_text`：body 断言要求多余的 JSON 反斜杠。
+  - `cli::runtime::tui::integration_tests::hook_catalog_failure_isolated_from_existing_integrations`：错误消息投影未满足断言。
+  - `cli::runtime::tui::integration_tests::hook_mutation_refreshes_only_after_gateway_success`：初始 Hook catalog 接收超时。
+  - `cli::runtime::tui::integration_tests::hook_mutations_require_catalog_membership_and_confirmation`：同上。
+  - `cli::runtime::tui::integration_tests::memory_mutation_failure_preserves_snapshot_and_redacts_content`：未生成 store confirmation。
+  - `cli::runtime::tui::integration_tests::memory_mutations_confirm_overwrite_and_delete`：初始 memory query 接收超时。
+  - `cli::runtime::tui::integration_tests::memory_search_failure_preserves_existing_integrations`：drain 超时。
+  - `cli::runtime::tui::interaction_tests::workflow_resume_requires_current_owned_pause`：replayed pause 的零请求断言失败。
+  - `cli::runtime::tui::orchestration_tests::orchestration_panels_render_gateway_snapshots`：agents.members 为空。
+  - `cli::runtime::tui::orchestration_tests::task_control_refreshes_snapshot_only_after_gateway_success`：未生成 task control confirmation。
+  - `client::shiju_app_api_tests::shiju_app_sensitive_values_remain_redacted`：launch fixture 缺少 runtimeSetCookie。
+  - `client::shiju_skill_api_tests::shiju_skill_contract_preserves_catalog_detail_and_version_shapes`：当前响应包含 scan_result，旧 fixture 不含该字段。

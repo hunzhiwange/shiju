@@ -123,11 +123,7 @@ npx --yes promptfoo@0.122.0 view
 
 | 现象 | 优先检查 |
 | --- | --- |
-| `direct_rustcodegraph_call` 低 | 检查内置工具注册、工作区索引状态和模型可见的工具清单。 |
-| `rustcodegraph_operation` 低 | 改进工具描述与 operation 示例，确认任务要求映射到支持的 operation。 |
-| `rustcodegraph_call_success` 低 | 修复工具实现、输入校验或索引错误；先查看失败调用的 status/output。 |
 | `expected_facts` 低 | 改进结果表达，确保回答从工具输出提取要求的事实，不以提及工具名代替事实。 |
-| `no_navigation_fallback` 低 | 检查 CLI、`grep`、`rg` 与内置工具指导是否冲突，消除错误的 fallback 提示。 |
 
 ## 覆盖运行参数
 
@@ -160,17 +156,15 @@ Provider 被同一个环境变量覆盖。
 直接在 `tests/` 下新增 YAML 或追加任务，主配置会通过 `tests/*.yaml`
 自动加载。无需修改 `assertions.mjs` 或新建 Promptfoo config。为新增用例设置
 稳定的 `metadata.batch`，即可只执行本批。RustCodeGraph 任务提供
-`expectedOperations` 和稳定的 `expectedTerms`，评分器会自动选择对应规则：
+稳定的 `expectedTerms`，评分器会自动选择对应规则：
 
 ```yaml
 - description: 示例
   metadata:
-    suite: selection
+    suite: rustcodegraph-selection
     batch: 4
   vars:
     task: 读取目标符号并回答，不要修改代码。
-    expectedOperations:
-      - node
     expectedTerms: '["TargetSymbol", "target_file.rs"]'
     maxToolCalls: 6
 ```
@@ -182,7 +176,8 @@ evals/promptfoo/score.sh run --batch 4
 ```
 
 通用评分入口会根据 `metadata.suite` 和用例变量自动选择评测规则，
-并在 Promptfoo 中保留各项 metric。RustCodeGraph 用例检查：
+并在 Promptfoo 中保留各项 metric。RustCodeGraph 用例通过外部 CLI 技能导航；
+CLI 不可用或未索引时允许普通搜索回退，不要求专用工具调用。用例检查：
 
 - 流正常到达 `chat.done` 且回答非空。
 - 没有失败、拒绝或取消的工具调用。

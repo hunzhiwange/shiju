@@ -1,21 +1,3 @@
-- description: contract · callers · 工具注册函数调用者
-  metadata:
-    suite: rustcodegraph-contract1
-    operation: callers
-    difficulty: easy
-  vars:
-    task: >-
-      请直接调用内置 rustcodegraph 工具的 callers operation，查询
-      register_rustcodegraph_tool 的全部直接调用者。不要使用 CLI、grep 或 rg，
-      不要修改代码；回答调用者名称及其文件路径。
-    expectedOperations:
-      - callers
-    expectedTerms:
-      - default_tools_with_runtime
-      - all_tools_with_runtime
-      - crates/vw-agent/src/tools/toolset/mod.rs
-    maxToolCalls: 6
-
 - description: contract · node · 运行时能力指令源码
   metadata:
     suite: rustcodegraph-contract1
@@ -23,30 +5,11 @@
     difficulty: easy
   vars:
     task: >-
-      请直接调用内置 rustcodegraph 工具的 node operation，读取
-      runtime_capability_instructions 的符号源码。不要使用 CLI、grep 或 rg，
+      请通过 RustCodeGraph 外部 CLI 技能读取
+      runtime_capability_instructions 的符号源码。CLI 不可用或未索引时使用普通搜索，
       不要修改代码；回答定义文件、函数名及其直接调用者。
-    expectedOperations:
-      - node
     expectedTerms:
       - runtime_capability_instructions
       - crates/vw-agent/src/session/system.rs
       - render_unified_prompt_with_modes
-    maxToolCalls: 6
-
-- description: contract · files · RustCodeGraph 实现文件
-  metadata:
-    suite: rustcodegraph-contract1
-    operation: files
-    difficulty: easy
-  vars:
-    task: >-
-      请直接调用内置 rustcodegraph 工具的 files operation，列出索引中
-      crates/vw-agent/src/tools/rustcodegraph 目录下的 Rust 源文件。不要使用
-      CLI、grep 或 rg，不要修改代码；回答完整的仓库相对路径。
-    expectedOperations:
-      - files
-    expectedTerms:
-      - crates/vw-agent/src/tools/rustcodegraph/mod.rs
-      - crates/vw-agent/src/tools/rustcodegraph/tests.rs
     maxToolCalls: 6

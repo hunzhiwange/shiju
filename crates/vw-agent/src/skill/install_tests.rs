@@ -182,23 +182,23 @@ fn init_skills_dir_writes_readme_policy_and_builtin_skills() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn init_skills_dir_installs_native_first_rustcodegraph_instructions() {
+fn init_skills_dir_installs_cli_first_rustcodegraph_instructions() {
     let dir = tempfile::tempdir().expect("temp dir");
 
     init_skills_dir(dir.path()).unwrap();
 
     let instructions =
         std::fs::read_to_string(skills_dir(dir.path()).join("rustcodegraph/SKILL.md")).unwrap();
-    let native_entry = instructions.find("先检查当前会话的可用工具目录").unwrap();
-    let cli_fallback = instructions.find("## CLI 后备").unwrap();
-
-    assert!(native_entry < cli_fallback, "native entry must precede CLI fallback");
-    assert!(instructions.contains(r#"{"operation":"explore","query":"..."}"#));
-    assert!(instructions.contains(r#"{"operation":"search","query":"..."}"#));
-    assert!(instructions.contains("CLI `query` 对应原生 `search`"));
+    assert!(instructions.contains("独立安装的外部 `rustcodegraph` CLI"));
+    assert!(instructions.contains("rustcodegraph explore"));
+    assert!(instructions.contains("rustcodegraph query"));
     assert!(instructions.contains("~/.rustcodegraph/bin/rustcodegraph"));
-    assert!(instructions.contains("$env:LOCALAPPDATA\\rustcodegraph"));
-    assert!(instructions.contains("没有 `.rustcodegraph/` 索引时，使用普通代码搜索与文件读取工具"));
+    assert!(instructions.contains("CLI 未安装或不可执行时，回退普通代码搜索与文件读取"));
+    assert!(instructions.contains("如果没有 `.rustcodegraph/`，不要自动初始化"));
+    assert!(instructions.contains("使用普通工具"));
+    assert!(!instructions.contains("原生"));
+    assert!(!instructions.contains("CLI 后备"));
+    assert!(!instructions.contains(r#"{"operation":""#));
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -34,18 +34,6 @@ function isSuccessfulTool(tool) {
   );
 }
 
-function rustcodegraphOperationName(tool) {
-  let input = tool?.input;
-  if (typeof input === 'string') {
-    try {
-      input = JSON.parse(input);
-    } catch {
-      return undefined;
-    }
-  }
-  return typeof input?.operation === 'string' ? input.operation.trim().toLowerCase() : undefined;
-}
-
 export function successfulRun(output, context) {
   const eventTypes = metadata(context).eventTypes ?? [];
   const pass =
@@ -577,111 +565,6 @@ export function containsExpectedTerms(output, context) {
   );
 }
 
-export function directRustcodegraphCall(_output, context) {
-  const direct = toolCalls(context).filter((tool) => tool?.name === 'rustcodegraph');
-  return gradingResult(
-    direct.length > 0,
-    direct.length > 0
-      ? `检测到 ${direct.length} 次内置 rustcodegraph 调用`
-      : '未检测到内置 rustcodegraph 调用',
-  );
-}
-
-export function successfulRustcodegraphCall(_output, context) {
-  const direct = toolCalls(context).filter((tool) => tool?.name === 'rustcodegraph');
-  const successful = direct.filter(isSuccessfulTool);
-  if (successful.length > 0) {
-    const operations = successful
-      .map(rustcodegraphOperationName)
-      .filter(Boolean)
-      .join(', ');
-    return gradingResult(
-      true,
-      operations
-        ? `内置 rustcodegraph 调用成功：${operations}`
-        : '内置 rustcodegraph 调用成功',
-    );
-  }
-  if (direct.length === 0) {
-    return gradingResult(false, '没有可验证成功状态的内置 rustcodegraph 调用');
-  }
-  const failures = direct
-    .map(
-      (tool) =>
-        `${rustcodegraphOperationName(tool) ?? '未知操作'}(${tool.status ?? '缺少完成状态'})`,
-    )
-    .join(', ');
-  return gradingResult(false, `内置 rustcodegraph 调用未成功：${failures}`);
-}
-
-export function rustcodegraphOperation(_output, context) {
-  const configured = configuredList(context, 'expectedOperations');
-  if (configured.error) {
-    return gradingResult(false, configured.error);
-  }
-  const expected = configured.values.map((operation) => operation.trim().toLowerCase()).filter(Boolean);
-  if (expected.length === 0) {
-    return gradingResult(true, '未配置 expectedOperations，不限制操作类型');
-  }
-
-  const direct = toolCalls(context).filter((tool) => tool?.name === 'rustcodegraph');
-  const successful = direct.filter(isSuccessfulTool);
-  if (successful.length === 0) {
-    if (direct.length === 0) {
-      return gradingResult(false, `未通过内置 rustcodegraph 执行期望操作：${expected.join(', ')}`);
-    }
-    const failures = direct
-      .map(
-        (tool) =>
-          `${rustcodegraphOperationName(tool) ?? '未知操作'}(${tool.status ?? '缺少完成状态'})`,
-      )
-      .join(', ');
-    return gradingResult(false, `RustCodeGraph 操作调用未成功：${failures}`);
-  }
-
-  const actual = [...new Set(successful.map(rustcodegraphOperationName).filter(Boolean))];
-  const missing = expected.filter((operation) => !actual.includes(operation));
-  return gradingResult(
-    missing.length === 0,
-    missing.length === 0
-      ? `RustCodeGraph 操作匹配：${expected.join(', ')}`
-      : `RustCodeGraph 操作不匹配；期望：${expected.join(', ')}；实际：${actual.join(', ') || '无'}`,
-  );
-}
-
-export function noNavigationFallback(_output, context) {
-  const shellTool = /^(bash|shell|exec|exec_command|terminal|command|run_command)$/i;
-  const cliFallbacks = [];
-  const textFallbacks = [];
-  for (const tool of toolCalls(context)) {
-    if (!shellTool.test(tool?.name ?? '')) {
-      continue;
-    }
-    const command = commandText(tool);
-    if (/(^|[^\w-])rustcodegraph(?=\s|$)/i.test(command)) {
-      cliFallbacks.push(tool.name);
-    }
-    if (
-      /(^|[\s;&|])(rg|grep|ag|ack|ripgrep|findstr)(?=\s|$)/i.test(command) ||
-      /(^|[\s;&|])git\s+grep(?=\s|$)/i.test(command)
-    ) {
-      textFallbacks.push(tool.name);
-    }
-  }
-
-  const reasons = [];
-  if (cliFallbacks.length > 0) {
-    reasons.push(`RustCodeGraph CLI fallback：${cliFallbacks.join(', ')}`);
-  }
-  if (textFallbacks.length > 0) {
-    reasons.push(`文本搜索 fallback：${textFallbacks.join(', ')}`);
-  }
-  return gradingResult(
-    reasons.length === 0,
-    reasons.length === 0 ? '未使用代码导航 fallback' : reasons.join('；'),
-  );
-}
-
 export function expectedFactsScore(output, context) {
   const configured = configuredList(context, 'expectedTerms');
   if (configured.error) {
@@ -712,10 +595,6 @@ const EVALUATION_PROFILES = Object.freeze({
       ['successful_run', 10, successfulRun, true],
       ['read_only', 10, readOnlyTrajectory, true],
       ['no_failed_tools', 10, noFailedTools, true],
-      ['direct_rustcodegraph_call', 20, directRustcodegraphCall, true],
-      ['rustcodegraph_call_success', 15, successfulRustcodegraphCall, true],
-      ['rustcodegraph_operation', 10, rustcodegraphOperation, false],
-      ['no_navigation_fallback', 10, noNavigationFallback, false],
       ['expected_facts', 10, expectedFactsScore, false],
       ['tool_call_budget', 5, maxToolCalls, false],
     ],
@@ -753,7 +632,7 @@ function evaluationProfile(context) {
     return explicit.trim();
   }
   const suite = String(context?.test?.metadata?.suite ?? context?.vars?.suite ?? '');
-  if (suite.startsWith('rustcodegraph-') || context?.vars?.expectedOperations) {
+  if (suite.startsWith('rustcodegraph-')) {
     return 'rustcodegraph';
   }
   return suite;

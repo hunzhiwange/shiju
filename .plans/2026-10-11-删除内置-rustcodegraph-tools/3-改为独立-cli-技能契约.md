@@ -2,7 +2,7 @@
 
 批次：【批次 3】 依赖批次 2
 
-状态：未开始
+状态：已完成，待回归
 
 目的：让打包与仓库内 RustCodeGraph 技能只描述外部 CLI，清除原生 Tool 承诺并完成全仓验证。
 
@@ -67,3 +67,15 @@
 ## 完成
 
 完成时应确认 RustCodeGraph 只作为可选外部 CLI 技能存在，VibeWindow 不再提供或宣传内置 Tool，且仓库规定的 `cargo clippy --all-targets --all-features -- -D warnings` 已执行。
+
+## 本次执行证据（2026-10-11）
+
+- 依赖已满足：后端移除提交 13fd75115、目录清理提交 684d81ef0 已存在；前序验证受工具链问题影响。
+- 两份技能完全一致，保留索引 status/sync、explore/query/node/调用图/affected、无索引与无 CLI 回退、不自动安装或初始化、shell 权限边界；bundled 别名与技能资源注册保留。通用 MCP fixture 和 shell PATH 未修改。
+- 修改前 bundled 原生入口、安装测试与专用指标均命中；修改后指定全仓 rg 原生实现/注册/提示/指标零命中（rg 退出 1 表示无匹配）。移除三个引用已删除原生实现的 YAML 用例，保留其它导航场景并允许 CLI/普通搜索。
+- Python 静态契约检查退出 0；node --check evals/promptfoo/assertions.mjs 退出 0；真实评分函数验证 CLI、普通搜索回退通过及失败工具拒绝，共 3 个场景，退出 0。未运行在线模型评测。
+- cargo fmt --all 退出 0；cargo clippy --all-targets --all-features -- -D warnings 退出 101，任务外错误：crates/vw-desktop/src/app/task/models.rs:568 不稳定 atomic_try_update（E0658）；crates/vw-cli/src/lib.rs:39 未知 clippy::assert_is_empty lint。未改动这些文件。
+- 有效 Rust 测试数量：未运行（仓库规则禁止 cargo test）；Clippy 不替代行为测试。
+- 动态槽位 1，CARGO_TARGET_DIR=/Users/dyhb/code/vibe-window/target/rust-slot-1；CARGO_BUILD_BUILD_DIR 同路径覆盖仓库共享 build-dir。Cargo 全部结束后锁与 owner 已释放，编译缓存保留。
+- 最终 diff 与 git diff --check 已审查通过；排除工作区其他 Lark 和桌面设置改动。plan.md 保持只读。
+- 下一步：修复上述任务外工具链问题后重跑全量 Clippy，通过后删除本任务文件。

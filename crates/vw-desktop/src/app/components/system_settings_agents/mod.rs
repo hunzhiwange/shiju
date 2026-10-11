@@ -186,15 +186,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .height(Length::Fill)
                 .into()
         }
-        AgentConfigTab::Acp => {
-            scrollable(
-                container(crate::app::components::system_settings_acp::view(app))
-                    .padding(iced::Padding::default().right(12.0)),
-            )
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill)
-                .into()
-        }
+        AgentConfigTab::Acp => scrollable(
+            container(crate::app::components::system_settings_acp::view(app))
+                .padding(iced::Padding::default().right(12.0)),
+        )
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill)
+        .into(),
         AgentConfigTab::Mcp => {
             scrollable(container(crate::app::components::system_settings_mcp::view(app)))
                 .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))

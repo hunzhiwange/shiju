@@ -59,10 +59,7 @@ fn has_tool(tool_ids: &BTreeSet<String>, candidates: &[&str]) -> bool {
     candidates.iter().any(|candidate| tool_ids.contains(*candidate))
 }
 
-fn runtime_capability_instructions(
-    available_tool_ids: &[String],
-    rustcodegraph_skill_available: bool,
-) -> String {
+fn runtime_capability_instructions(available_tool_ids: &[String]) -> String {
     let tool_ids = available_tool_ids
         .iter()
         .map(|tool| tool.trim().to_ascii_lowercase())
@@ -119,13 +116,6 @@ fn runtime_capability_instructions(
     if skill_available {
         sections.push(
             "## Skills\n- Available skills are listed by name and description in a temporary `<system-reminder>`. When a skill matches the task or the user names one, invoke the Skill Tool first. After it succeeds, follow the injected skill instructions in full; do not guess paths or preload instructions."
-                .to_string(),
-        );
-    }
-
-    if skill_available && rustcodegraph_skill_available && has_tool(&tool_ids, &["rustcodegraph"]) {
-        sections.push(
-            "## RustCodeGraph\n- The RustCodeGraph skill and native `rustcodegraph` tool are available. For code navigation, first invoke the Skill Tool to load the skill and check the index as it requires.\n- Invoke the native tool with JSON arguments. Start most investigations with `rustcodegraph` and `{\"operation\":\"explore\",\"query\":\"...\"}`; use `search` / `node` for precise lookup and `callers` / `callees` / `impact` for call and impact analysis.\n- After a branch switch or bulk file change, or whenever status or tool output reports pending, stale, or degraded index state, invoke the RustCodeGraph `sync` operation once and retry the original operation. Normal saved edits are watched automatically, so do not sync before every query.\n- Do not immediately reread source context already obtained from the graph. Fall back to ordinary file search only for unindexed content, a stale index, or documents and configuration not covered by the graph."
                 .to_string(),
         );
     }
@@ -226,7 +216,6 @@ pub(crate) fn render_unified_prompt_with_modes(
     model_id: &str,
     working_directory: &str,
     available_tool_ids: &[String],
-    rustcodegraph_skill_available: bool,
     runtime_modes: RuntimePromptModes,
 ) -> String {
     let model_id = model_id.trim();
@@ -236,10 +225,7 @@ pub(crate) fn render_unified_prompt_with_modes(
     PROMPT_UNIFIED
         .replace("{{model_id}}", model_id)
         .replace("{{working_directory}}", working_directory)
-        .replace(
-            "{{runtime_capabilities}}",
-            &runtime_capability_instructions(available_tool_ids, rustcodegraph_skill_available),
-        )
+        .replace("{{runtime_capabilities}}", &runtime_capability_instructions(available_tool_ids))
         .replace("{{runtime_modes}}", &runtime_mode_instructions(runtime_modes))
         .trim()
         .to_string()
@@ -249,13 +235,11 @@ pub(crate) fn render_unified_prompt(
     model_id: &str,
     working_directory: &str,
     available_tool_ids: &[String],
-    rustcodegraph_skill_available: bool,
 ) -> String {
     render_unified_prompt_with_modes(
         model_id,
         working_directory,
         available_tool_ids,
-        rustcodegraph_skill_available,
         RuntimePromptModes::default(),
     )
 }
@@ -264,13 +248,11 @@ pub(crate) fn render_unified_prompt_from_ref(
     model: Option<&str>,
     root: Option<&str>,
     available_tool_ids: &[String],
-    rustcodegraph_skill_available: bool,
 ) -> String {
     render_unified_prompt_from_ref_with_modes(
         model,
         root,
         available_tool_ids,
-        rustcodegraph_skill_available,
         RuntimePromptModes::default(),
     )
 }
@@ -279,14 +261,12 @@ pub(crate) fn render_unified_prompt_from_ref_with_modes(
     model: Option<&str>,
     root: Option<&str>,
     available_tool_ids: &[String],
-    rustcodegraph_skill_available: bool,
     runtime_modes: RuntimePromptModes,
 ) -> String {
     render_unified_prompt_with_modes(
         model.unwrap_or("unknown"),
         &resolve_cwd(root),
         available_tool_ids,
-        rustcodegraph_skill_available,
         runtime_modes,
     )
 }
@@ -295,13 +275,11 @@ pub(crate) fn render_unified_prompt_for_model(
     model: &provider::Model,
     root: Option<&str>,
     available_tool_ids: &[String],
-    rustcodegraph_skill_available: bool,
 ) -> String {
     render_unified_prompt(
         &format!("{}/{}", model.provider_id, model.api.id),
         &resolve_cwd(root),
         available_tool_ids,
-        rustcodegraph_skill_available,
     )
 }
 
@@ -320,7 +298,7 @@ pub(crate) fn render_unified_prompt_for_model(
 /// println!("系统指令: {}", instructions);
 /// ```
 pub fn instructions() -> String {
-    render_unified_prompt_from_ref(None, None, &[], false)
+    render_unified_prompt_from_ref(None, None, &[])
 }
 
 /// 返回统一的系统提示
@@ -345,7 +323,6 @@ pub(crate) fn provider_with_context(
     model: &provider::Model,
     root: Option<&str>,
     available_tool_ids: &[String],
-    rustcodegraph_skill_available: bool,
 ) -> Vec<String> {
     let id = model.api.id.as_str();
 
@@ -355,16 +332,11 @@ pub(crate) fn provider_with_context(
         .tag("providerID", &model.provider_id)
         .info("system_prompt::provider called", None);
 
-    vec![render_unified_prompt_for_model(
-        model,
-        root,
-        available_tool_ids,
-        rustcodegraph_skill_available,
-    )]
+    vec![render_unified_prompt_for_model(model, root, available_tool_ids)]
 }
 
 pub fn provider(model: &provider::Model) -> Vec<String> {
-    provider_with_context(model, None, &[], false)
+    provider_with_context(model, None, &[])
 }
 
 /// Converts a Boolean value to "Yes" or "No".

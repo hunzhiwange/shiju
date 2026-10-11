@@ -160,21 +160,6 @@ fn boxed_registry_from_arcs(tools: Vec<Arc<dyn Tool>>) -> Vec<Box<dyn Tool>> {
     tools.into_iter().map(ArcDelegatingTool::boxed).collect()
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn register_rustcodegraph_tool(tool_arcs: &mut Vec<Arc<dyn Tool>>, workspace_dir: &Path) {
-    if !::rustcodegraph::CodeGraph::is_initialized(workspace_dir) {
-        return;
-    }
-
-    match RustCodeGraphTool::new(workspace_dir.to_path_buf()) {
-        Ok(tool) => tool_arcs.push(Arc::new(tool)),
-        Err(error) => tracing::warn!(
-            workspace = %workspace_dir.display(),
-            "RustCodeGraph tool registration skipped invalid index: {error}"
-        ),
-    }
-}
-
 /// 根据当前上下文构建可执行工具集。
 pub(crate) fn execution_tools_for_context(ctx: &ToolRuntimeContext) -> Vec<Box<dyn Tool>> {
     execution_environment_for_context(ctx).0
@@ -553,7 +538,6 @@ pub fn default_tools_with_runtime(
         tool_arcs.push(Arc::new(FileWriteTool::new(security.clone())));
         tool_arcs.push(Arc::new(ApplyPatchTool::new(security.clone())));
         tool_arcs.push(Arc::new(LsTool::new(security.clone())));
-        register_rustcodegraph_tool(&mut tool_arcs, &security.workspace_dir);
         tool_arcs.push(Arc::new(GlobTool::new(security.clone())));
         tool_arcs.push(Arc::new(GrepTool::new(security.clone())));
     }
@@ -672,7 +656,6 @@ pub fn all_tools_with_runtime(
         tool_arcs.push(Arc::new(FileWriteTool::new(security.clone())));
         tool_arcs.push(Arc::new(ApplyPatchTool::new(security.clone())));
         tool_arcs.push(Arc::new(LsTool::new(security.clone())));
-        register_rustcodegraph_tool(&mut tool_arcs, &security.workspace_dir);
         tool_arcs.push(Arc::new(GlobTool::new(security.clone())));
         tool_arcs.push(Arc::new(GrepTool::new(security.clone())));
         tool_arcs.push(Arc::new(EnterWorktreeTool::new()));

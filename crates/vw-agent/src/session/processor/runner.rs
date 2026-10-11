@@ -496,8 +496,6 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     } else {
         skills
     };
-    let rustcodegraph_skill_available =
-        skills.iter().any(|skill| skill.name.eq_ignore_ascii_case("rustcodegraph"));
     let mut session_protocol = DesktopSessionProtocol::new(
         skills,
         agent_key.as_deref().unwrap_or("main"),
@@ -564,7 +562,6 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         selected_model.step_event_model(),
         req.root.as_deref(),
         &prompt_tool_ids,
-        rustcodegraph_skill_available,
         crate::session::system::RuntimePromptModes::from_options(&req.options),
     );
     if is_acp {

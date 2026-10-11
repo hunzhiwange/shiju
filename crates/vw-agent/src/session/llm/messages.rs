@@ -83,12 +83,7 @@ pub fn build_system_messages(input: &StreamInput, is_codex: bool) -> Vec<String>
         Vec::new()
     } else {
         let tool_ids = input.tools.keys().cloned().collect::<Vec<_>>();
-        crate::app::agent::session::system::provider_with_context(
-            &input.model,
-            None,
-            &tool_ids,
-            false,
-        )
+        crate::app::agent::session::system::provider_with_context(&input.model, None, &tool_ids)
     };
 
     // 记录日志：provider 提示词数量

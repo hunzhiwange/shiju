@@ -131,12 +131,11 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
         "WebSearch",
         "Browser",
         "list_mcp_resources",
-        "rustcodegraph",
     ]
     .into_iter()
     .map(str::to_string)
     .collect::<Vec<_>>();
-    let prompt = render_unified_prompt("deepseek/deepseek-v4-flash", "/workspace", &tools, true);
+    let prompt = render_unified_prompt("deepseek/deepseek-v4-flash", "/workspace", &tools);
 
     assert!(prompt.contains("## Instruction Priority"));
     assert!(prompt.contains("AGENTS.md"));
@@ -157,16 +156,6 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
             && prompt.contains("apply_patch")
             && prompt.contains("TodoWrite"),
         "unified prompt must describe the built-in tool routing contract"
-    );
-    assert!(
-        prompt.contains("## RustCodeGraph")
-            && prompt.contains("explore")
-            && prompt.contains("search")
-            && prompt.contains("impact")
-            && !prompt.contains("affected")
-            && prompt.contains("`sync` operation once")
-            && prompt.contains("watched automatically"),
-        "unified prompt must preserve the indexed Rust navigation workflow"
     );
     assert!(template.lines().count() <= 80, "unified prompt template should remain compact");
     assert!(template.contains("{{model_id}}"));
@@ -203,7 +192,7 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
 
 #[test]
 fn unified_prompt_omits_unavailable_capability_instructions() {
-    let prompt = render_unified_prompt("provider/model", "/workspace", &["file_read".into()], true);
+    let prompt = render_unified_prompt("provider/model", "/workspace", &["file_read".into()]);
 
     assert!(prompt.contains("## Files and Search"));
     assert!(prompt.contains("the final response must mention the primary output"));
@@ -213,7 +202,6 @@ fn unified_prompt_omits_unavailable_capability_instructions() {
     assert!(!prompt.contains("`glob`"));
     assert!(!prompt.contains("`grep`"));
     assert!(!prompt.contains("## Skills"));
-    assert!(!prompt.contains("## RustCodeGraph"));
     assert!(!prompt.contains("## Task Tracking"));
     assert!(!prompt.contains("## Subagents"));
     assert!(!prompt.contains("## Background Tasks"));
@@ -226,7 +214,6 @@ fn system_prompt_uses_registered_thread_tools_for_visible_tasks() {
         "provider/model",
         "/workspace",
         &["create_thread".into(), "AgentTool".into()],
-        false,
     );
 
     assert!(prompt.contains("## Visible Task Sessions"));
@@ -242,37 +229,12 @@ fn system_prompt_uses_registered_thread_tools_for_visible_tasks() {
         "provider/model",
         "/workspace",
         &["SessionTool".into(), "AgentTool".into()],
-        false,
     );
     assert!(!legacy_prompt.contains("## Visible Task Sessions"));
 
     let no_thread_tools =
-        render_unified_prompt("provider/model", "/workspace", &["AgentTool".into()], false);
+        render_unified_prompt("provider/model", "/workspace", &["AgentTool".into()]);
     assert!(!no_thread_tools.contains("## Visible Task Sessions"));
-}
-
-#[test]
-fn rustcodegraph_native_contract_is_advertised_only_when_registered() {
-    let registered = render_unified_prompt(
-        "provider/model",
-        "/workspace",
-        &["skill".into(), "rustcodegraph".into()],
-        true,
-    );
-
-    assert!(registered.contains("## RustCodeGraph"));
-    assert!(registered.contains(r#"{"operation":"explore","query":"..."}"#));
-    assert!(registered.contains("`search`"));
-    assert!(!registered.contains("`query` / `node`"));
-    assert!(!registered.contains("`affected` for test selection"));
-
-    let skill_only = render_unified_prompt("provider/model", "/workspace", &["skill".into()], true);
-    assert!(skill_only.contains("## Skills"));
-    assert!(!skill_only.contains("## RustCodeGraph"));
-
-    let native_without_skill =
-        render_unified_prompt("provider/model", "/workspace", &["rustcodegraph".into()], true);
-    assert!(!native_without_skill.contains("## RustCodeGraph"));
 }
 
 #[test]
@@ -281,7 +243,6 @@ fn unified_prompt_injects_only_enabled_runtime_modes() {
         "provider/model",
         "/workspace",
         &[],
-        false,
         RuntimePromptModes { goal: true, workflow: false },
     );
     assert!(goal_prompt.contains("## Current Runtime Mode"));
@@ -292,7 +253,6 @@ fn unified_prompt_injects_only_enabled_runtime_modes() {
         "provider/model",
         "/workspace",
         &[],
-        false,
         RuntimePromptModes { goal: true, workflow: true },
     );
     assert!(workflow_prompt.contains("Goal mode is enabled"));

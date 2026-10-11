@@ -121,18 +121,13 @@ fn system_prompt_runtime_context_renders_model_directory_and_available_capabilit
     ];
 
     let prompt = super::system_with_metadata(None, project.path().to_str())
-        .with_runtime_context(
-            Some("deepseek/deepseek-v4-flash"),
-            project.path().to_str(),
-            &tools,
-            true,
-        )
-        .with_runtime_context(Some("ignored/model"), project.path().to_str(), &tools, true);
+        .with_runtime_context(Some("deepseek/deepseek-v4-flash"), project.path().to_str(), &tools)
+        .with_runtime_context(Some("ignored/model"), project.path().to_str(), &tools);
 
     assert_eq!(prompt.content.matches(super::super::system::UNIFIED_PROMPT_MARKER).count(), 1);
     assert!(prompt.content.contains("deepseek/deepseek-v4-flash"));
     assert!(prompt.content.contains(&project.path().display().to_string()));
-    assert!(prompt.content.contains("## RustCodeGraph"));
+    assert!(prompt.content.contains("## Skills"));
     assert!(prompt.content.contains("## Task Tracking"));
     assert!(prompt.content.contains("## Subagents"));
     assert!(!prompt.content.contains("ignored/model"));

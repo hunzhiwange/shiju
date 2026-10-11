@@ -91,8 +91,6 @@ pub mod question;
 mod read_state;
 pub mod registry;
 pub mod remote_trigger;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod rustcodegraph;
 pub mod schedule;
 mod scheduler;
 #[cfg(not(target_arch = "wasm32"))]
@@ -165,8 +163,6 @@ pub use powershell::PowerShellTool;
 pub use question::QuestionTool;
 pub use read_state::{FileReadStateCache, FileReadStateEntry, FileSnapshot};
 pub use remote_trigger::RemoteTriggerTool;
-#[cfg(not(target_arch = "wasm32"))]
-pub use rustcodegraph::RustCodeGraphTool;
 pub use schedule::ScheduleTool;
 #[allow(unused_imports)]
 #[cfg(not(target_arch = "wasm32"))]

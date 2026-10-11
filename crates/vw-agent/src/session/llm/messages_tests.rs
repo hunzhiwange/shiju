@@ -152,7 +152,6 @@ fn build_system_messages_keeps_pre_rendered_runtime_prompt_once() {
         "deepseek/deepseek-v4-flash",
         "/workspace/project",
         &["TodoRead".into(), "TodoWrite".into(), "AgentTool".into()],
-        false,
     );
     input.system = vec![rendered, "session system".to_string()];
 

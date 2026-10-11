@@ -161,13 +161,11 @@ impl SystemPrompt {
         model: Option<&str>,
         root: Option<&str>,
         available_tool_ids: &[String],
-        rustcodegraph_skill_available: bool,
     ) -> Self {
         self.with_runtime_context_and_modes(
             model,
             root,
             available_tool_ids,
-            rustcodegraph_skill_available,
             super::system::RuntimePromptModes::default(),
         )
     }
@@ -178,7 +176,6 @@ impl SystemPrompt {
         model: Option<&str>,
         root: Option<&str>,
         available_tool_ids: &[String],
-        rustcodegraph_skill_available: bool,
         runtime_modes: super::system::RuntimePromptModes,
     ) -> Self {
         if !self.base_content.contains(super::system::UNIFIED_PROMPT_MARKER) {
@@ -186,7 +183,6 @@ impl SystemPrompt {
                 model,
                 root,
                 available_tool_ids,
-                rustcodegraph_skill_available,
                 runtime_modes,
             );
             self.base_content = join_non_empty_parts(vec![unified, self.base_content]);

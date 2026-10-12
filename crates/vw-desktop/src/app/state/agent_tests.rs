@@ -172,7 +172,6 @@ fn session_runtime_with_defaults_preserves_model_and_initializes_idle_state() {
     assert!(!runtime.task_mode_enabled);
     assert!(!runtime.workflow_mode_enabled);
     assert!(runtime.goal_mode_enabled);
-    assert!(!runtime.subagent_mode_enabled);
     assert_eq!(runtime.task_mode_priority, "999");
     assert_eq!(runtime.task_mode_subtasks, ["", "", ""]);
     assert_eq!(runtime.task_mode_subtask_editors.len(), 3);

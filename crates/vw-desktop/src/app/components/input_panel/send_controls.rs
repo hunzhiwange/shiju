@@ -437,41 +437,6 @@ pub fn workflow_mode_button(active: bool) -> Element<'static, Message> {
     .into()
 }
 
-pub fn subagent_mode_button(active: bool) -> Element<'static, Message> {
-    // 子智能体用盒子图标，避免与 ACP 默认后端的机器人图标撞车。
-    let subagent_icon: Element<'_, Message> = icon_svg(Icon::Box, SECONDARY_ICON_SIZE)
-        .style(move |theme: &Theme, _| svg::Style {
-            color: Some(if active {
-                prominent_action_foreground(theme)
-            } else {
-                theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.92 } else { 0.88 })
-            }),
-        })
-        .into();
-
-    let button_content = container(subagent_icon)
-        .width(Length::Fixed(SECONDARY_BUTTON_SIZE))
-        .height(Length::Fixed(SECONDARY_BUTTON_SIZE))
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center);
-
-    let button = button(button_content)
-        .padding(0)
-        .style(move |theme: &Theme, status| {
-            permission_access_button_style(theme, status, true, active)
-        })
-        .on_press(Message::Chat(message::ChatMessage::SubagentModeToggled(!active)));
-
-    let tooltip_label =
-        if active { "关闭子智能体模式" } else { "启用子智能体模式" };
-    tooltip(
-        button,
-        container(text(tooltip_label).size(12)).style(tooltip_dark_style).padding([6, 8]),
-        Position::Top,
-    )
-    .into()
-}
-
 /// 创建发送按钮
 ///
 /// 该按钮用于发送消息或队列任务。按钮的外观和行为会根据
@@ -676,16 +641,15 @@ pub fn cancel_button(submit_anim: u8) -> Element<'static, Message> {
 /// 工具栏采用水平布局，从左到右依次为：
 /// 1. 完全访问权限按钮（如果提供）
 /// 2. 工作流按钮
-/// 3. 子智能体按钮
-/// 4. 代理 / 工具 / 技能 TAB 入口（如果提供）
-/// 5. ACP 按钮（如果提供）
-/// 6. 推理强度按钮（如果提供）
-/// 7. 模型按钮（左侧固定）
-/// 8. 弹性空白（占据中间空间）
-/// 9. 使用情况按钮
-/// 10. 附件按钮
-/// 11. 任务池按钮（如果提供）
-/// 12. 取消和发送按钮（仅在非任务模式下显示）
+/// 3. 代理 / 工具 / 技能 TAB 入口（如果提供）
+/// 4. ACP 按钮（如果提供）
+/// 5. 推理强度按钮（如果提供）
+/// 6. 模型按钮（左侧固定）
+/// 7. 弹性空白（占据中间空间）
+/// 8. 使用情况按钮
+/// 9. 附件按钮
+/// 10. 任务池按钮（如果提供）
+/// 11. 取消和发送按钮（仅在非任务模式下显示）
 pub fn bottom_bar<'a>(
     agent_tab_btn: Option<Element<'a, Message>>,
     tools_tab_btn: Option<Element<'a, Message>>,
@@ -694,7 +658,6 @@ pub fn bottom_bar<'a>(
     reasoning_btn: Option<Element<'a, Message>>,
     permission_btn: Option<Element<'a, Message>>,
     workflow_btn: Element<'a, Message>,
-    subagent_btn: Element<'a, Message>,
     model_btn: Element<'a, Message>,
     usage_btn: Element<'a, Message>,
     attach_btn: Element<'a, Message>,
@@ -703,7 +666,7 @@ pub fn bottom_bar<'a>(
     send_btn: Option<Element<'a, Message>>,
     task_mode_enabled: bool,
 ) -> Element<'a, Message> {
-    // 创建基础布局：完全访问 + 工作流 + 子智能体 + 会话 TAB + ACP + 模型 + 弹性空白 + 使用情况
+    // 创建基础布局：完全访问 + 工作流 + 会话 TAB + ACP + 模型 + 弹性空白 + 使用情况
     let mut bar = row![].spacing(4);
 
     if let Some(permission_btn) = permission_btn {
@@ -711,7 +674,6 @@ pub fn bottom_bar<'a>(
     }
 
     bar = bar.push(workflow_btn);
-    bar = bar.push(subagent_btn);
 
     if let Some(agent_tab_btn) = agent_tab_btn {
         bar = bar.push(agent_tab_btn);

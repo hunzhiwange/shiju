@@ -569,9 +569,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             task_mode::handle_workflow_mode_toggled(app, value)
         }
         ChatMessage::GoalModeToggled(value) => task_mode::handle_goal_mode_toggled(app, value),
-        ChatMessage::SubagentModeToggled(value) => {
-            task_mode::handle_subagent_mode_toggled(app, value)
-        }
         ChatMessage::TaskModePriorityChanged(value) => {
             task_mode::handle_task_mode_priority_changed(app, value)
         }

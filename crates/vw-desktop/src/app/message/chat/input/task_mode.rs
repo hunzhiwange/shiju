@@ -25,12 +25,6 @@ pub(super) fn handle_goal_mode_toggled(app: &mut App, _enabled: bool) -> Task<Me
     Task::none()
 }
 
-/// 切换子智能体模式；该模式独立于工作流与目标模式。
-pub(super) fn handle_subagent_mode_toggled(app: &mut App, enabled: bool) -> Task<Message> {
-    app.current_session_runtime_mut().subagent_mode_enabled = enabled;
-    Task::none()
-}
-
 /// 模块内可见函数，执行 handle_task_mode_priority_changed 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_task_mode_priority_changed(app: &mut App, value: String) -> Task<Message> {

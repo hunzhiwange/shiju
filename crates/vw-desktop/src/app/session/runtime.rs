@@ -188,7 +188,25 @@ impl App {
         runtime: &SessionRuntimeState,
     ) -> Option<Vec<String>> {
         let inventory = self.session_tool_inventory(runtime);
-        request_allowed_tools_from_inventory(runtime, &inventory)
+        let mut allowed_tools = request_allowed_tools_from_inventory(runtime, &inventory);
+        let registered_tools = self
+            .agents_settings
+            .registered_tools
+            .as_ref()
+            .unwrap_or(&self.agents_settings.available_tools);
+        if let Some(allowed_tools) = &mut allowed_tools {
+            if registered_tools.iter().any(|tool| tool.eq_ignore_ascii_case("AgentTool"))
+                && !allowed_tools.iter().any(|tool| tool.eq_ignore_ascii_case("AgentTool"))
+            {
+                allowed_tools.push("AgentTool".to_string());
+                allowed_tools.sort_unstable();
+            }
+        } else if inventory.restricts_tools
+            && registered_tools.iter().any(|tool| tool.eq_ignore_ascii_case("AgentTool"))
+        {
+            allowed_tools = Some(vec!["AgentTool".to_string()]);
+        }
+        allowed_tools
     }
 
     /// 执行 mark_active_session_viewed 对应的领域操作。

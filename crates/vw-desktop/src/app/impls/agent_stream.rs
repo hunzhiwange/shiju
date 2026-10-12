@@ -1987,7 +1987,6 @@ async fn stream_task_plan_run_resumable(
 
 fn gateway_request_options(
     req: &AgentRequest,
-    subagent_system_prompt: Option<&str>,
     rpc_id: &str,
     client_time_zone: &str,
 ) -> Option<serde_json::Value> {
@@ -2020,9 +2019,6 @@ fn gateway_request_options(
     }
     if req.resume_history_only {
         options.insert("desktop_resume_history_only".to_string(), json!(true));
-    }
-    if let Some(system_prompt) = subagent_system_prompt {
-        options.insert("chat_system_prompt".to_string(), json!(system_prompt));
     }
     if lightweight_goal_enabled_for_request(req) {
         // 目标模式由会话处理器依据 Todo 状态决定是否续轮。
@@ -2064,22 +2060,8 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 .map(|config| config.timezone)
                 .unwrap_or_else(|_| vw_config_types::ui::default_timezone());
 
-            let subagent_system_prompt = req
-                .history
-                .iter()
-                .find(|message| {
-                    matches!(message.role, models::ChatRole::System)
-                        && message.content
-                            == crate::app::message::chat::session::SUBAGENT_MODE_SYSTEM_PROMPT
-                })
-                .map(|message| message.content.clone());
             let mut messages = Vec::new();
             for message in &req.history {
-                if subagent_system_prompt.as_deref().is_some_and(|prompt| {
-                    matches!(message.role, models::ChatRole::System) && message.content == prompt
-                }) {
-                    continue;
-                }
                 messages.push(json!({
                     "role": match message.role {
                         models::ChatRole::User => "user",
@@ -2098,12 +2080,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 "messages": messages,
                 "model": req.model,
             });
-            let options = gateway_request_options(
-                &req,
-                subagent_system_prompt.as_deref(),
-                &rpc_id,
-                &client_time_zone,
-            );
+            let options = gateway_request_options(&req, &rpc_id, &client_time_zone);
             // 仅工作流开启才进入 task_plan_run；目标模式由网关固定开启。
             let workflow_mode_active =
                 task_plan_run_active(req.workflow_mode_enabled, req.resume_history_only);

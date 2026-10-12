@@ -1192,7 +1192,6 @@ pub(super) fn handle_agent_post_tool_round(
     let Some(active_request) = runtime.active_agent_request.as_ref().map(Arc::clone) else {
         return Task::none();
     };
-    let subagent_mode_enabled = runtime.subagent_mode_enabled;
     let insert_idx = leading_guide_count(&runtime.queue);
     let completed_ms = now_ms();
     let elapsed = {
@@ -1217,11 +1216,6 @@ pub(super) fn handle_agent_post_tool_round(
     let save_task = save_session_task(session, session_directory_for_save(app, &session_id));
 
     let resume_history = app.chat.clone();
-    let continuation_history = if subagent_mode_enabled {
-        chat_session::history_with_subagent_mode_system_prompt(&resume_history)
-    } else {
-        resume_history.clone()
-    };
     let continuation = QueueItem {
         created_ms: now_ms(),
         query: continuation_label_from_history(&resume_history),
@@ -1240,7 +1234,7 @@ pub(super) fn handle_agent_post_tool_round(
         acp_recent_count: active_request.acp_recent_count,
         full_access_enabled: active_request.full_access_enabled,
         send_behavior: ChatSendBehavior::Queue,
-        request_history_override: Some(continuation_history),
+        request_history_override: Some(resume_history),
         resume_history_only: true,
         workflow_mode_enabled: active_request.workflow_mode_enabled,
         goal_mode_enabled: active_request.goal_mode_enabled,

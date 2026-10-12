@@ -1612,12 +1612,13 @@ fn send_current_session_input_keeps_goal_mode_for_root_session() {
 }
 
 #[test]
-fn subagent_mode_request_preserves_agent_tool_without_requirement() {
+fn request_preserves_registered_agent_tool_without_desktop_prompt() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("root-subagent".to_string());
     app.sessions = vec![session_info("root-subagent", "Root Subagent", "/repo")];
     app.chat_send_behavior = crate::app::state::ChatSendBehavior::Queue;
     app.agents_settings.available_tools = vec!["shell".to_string(), "AgentTool".to_string()];
+    app.agents_settings.registered_tools = Some(app.agents_settings.available_tools.clone());
     app.agents_settings
         .entries
         .iter_mut()
@@ -1627,20 +1628,16 @@ fn subagent_mode_request_preserves_agent_tool_without_requirement() {
     {
         let runtime = app.get_session_runtime_mut("root-subagent");
         runtime.input_editor = iced::widget::text_editor::Content::with_text("delegate this work");
-        runtime.subagent_mode_enabled = true;
     }
 
     let _ = super::send_current_session_input(&mut app);
 
     let runtime = app.get_session_runtime("root-subagent");
     let request = runtime.active_agent_request.as_ref().expect("request should start");
-    let injected = request.history.first().expect("subagent system prompt");
-    assert_eq!(injected.role, crate::app::models::ChatRole::System);
-    assert_eq!(injected.content, super::SUBAGENT_MODE_SYSTEM_PROMPT);
-    assert!(injected.content.contains("AgentTool"));
-    assert!(!injected.content.contains("required primary execution path"));
-    assert!(app.chat.iter().all(|message| message.content != injected.content));
     assert!(!request.require_agent_tool);
+    assert!(
+        request.history.iter().all(|message| !message.content.contains("AgentTool-First Mode"))
+    );
     assert_eq!(
         request.allowed_tools.as_ref().expect("restricted tools"),
         &["AgentTool".to_string(), "shell".to_string()]
@@ -1648,12 +1645,13 @@ fn subagent_mode_request_preserves_agent_tool_without_requirement() {
 }
 
 #[test]
-fn subagent_mode_request_disabled_preserves_restricted_tools() {
+fn request_does_not_add_unregistered_agent_tool() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("root-standard".to_string());
     app.sessions = vec![session_info("root-standard", "Root Standard", "/repo")];
     app.chat_send_behavior = crate::app::state::ChatSendBehavior::Queue;
     app.agents_settings.available_tools = vec!["shell".to_string(), "AgentTool".to_string()];
+    app.agents_settings.registered_tools = Some(vec!["shell".to_string()]);
     app.agents_settings
         .entries
         .iter_mut()
@@ -1663,7 +1661,6 @@ fn subagent_mode_request_disabled_preserves_restricted_tools() {
     {
         let runtime = app.get_session_runtime_mut("root-standard");
         runtime.input_editor = iced::widget::text_editor::Content::with_text("handle this work");
-        runtime.subagent_mode_enabled = false;
     }
 
     let _ = super::send_current_session_input(&mut app);
@@ -1673,7 +1670,7 @@ fn subagent_mode_request_disabled_preserves_restricted_tools() {
     assert!(!request.require_agent_tool);
     assert_eq!(request.allowed_tools.as_ref().expect("restricted tools"), &["shell".to_string()]);
     assert!(
-        request.history.iter().all(|message| message.content != super::SUBAGENT_MODE_SYSTEM_PROMPT)
+        request.history.iter().all(|message| !message.content.contains("AgentTool-First Mode"))
     );
 }
 

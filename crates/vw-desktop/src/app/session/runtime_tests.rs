@@ -252,6 +252,59 @@ fn session_tool_inventory_preserves_selected_custom_registered_tools() {
 }
 
 #[test]
+fn restricted_request_preserves_registered_agent_tool() {
+    let mut app = test_app();
+    let runtime = SessionRuntimeState::default();
+    app.agents_settings
+        .entries
+        .iter_mut()
+        .find(|entry| entry.key == MAIN_AGENT_KEY)
+        .expect("main agent should exist")
+        .allowed_tools = vec!["shell".to_string()];
+    app.agents_settings.registered_tools =
+        Some(vec!["shell".to_string(), "AgentTool".to_string(), "unselected_tool".to_string()]);
+
+    assert_eq!(
+        app.session_allowed_tools_for_request(&runtime),
+        Some(vec!["AgentTool".to_string(), "shell".to_string()])
+    );
+}
+
+#[test]
+fn restricted_request_does_not_invent_unregistered_agent_tool() {
+    let mut app = test_app();
+    let runtime = SessionRuntimeState::default();
+    app.agents_settings
+        .entries
+        .iter_mut()
+        .find(|entry| entry.key == MAIN_AGENT_KEY)
+        .expect("main agent should exist")
+        .allowed_tools = vec!["shell".to_string()];
+    app.agents_settings.registered_tools = Some(vec!["shell".to_string()]);
+
+    assert_eq!(app.session_allowed_tools_for_request(&runtime), Some(vec!["shell".to_string()]));
+}
+
+#[test]
+fn empty_restricted_request_keeps_only_registered_agent_tool() {
+    let mut app = test_app();
+    let runtime = SessionRuntimeState::default();
+    app.agents_settings
+        .entries
+        .iter_mut()
+        .find(|entry| entry.key == MAIN_AGENT_KEY)
+        .expect("main agent should exist")
+        .allowed_tools
+        .clear();
+    app.agents_settings.registered_tools = Some(vec!["AgentTool".to_string()]);
+
+    assert_eq!(
+        app.session_allowed_tools_for_request(&runtime),
+        Some(vec!["AgentTool".to_string()])
+    );
+}
+
+#[test]
 fn get_session_runtime_prefers_existing_state_and_uses_global_defaults_for_missing_state() {
     let mut app = test_app();
     app.session_runtime_states.clear();

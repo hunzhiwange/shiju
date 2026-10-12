@@ -539,8 +539,8 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
 }
 
 #[test]
-fn subagent_mode_request_gateway_options_sets_requirement_and_preserves_tools() {
-    let mut request = super::AgentRequest {
+fn autonomous_agent_tool_request_does_not_add_desktop_prompt_or_requirement() {
+    let request = super::AgentRequest {
         id: 92,
         session: "subagent-session".to_string(),
         query: "delegate".to_string(),
@@ -552,7 +552,7 @@ fn subagent_mode_request_gateway_options_sets_requirement_and_preserves_tools() 
         acp_allowed_tools: None,
         agent: None,
         allowed_tools: Some(vec!["AgentTool".to_string(), "shell".to_string()]),
-        require_agent_tool: true,
+        require_agent_tool: false,
         acp_force_new_session: false,
         acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
@@ -563,27 +563,11 @@ fn subagent_mode_request_gateway_options_sets_requirement_and_preserves_tools() 
         history: Vec::new(),
     };
 
-    let options = super::gateway_request_options(
-        &request,
-        Some(crate::app::message::chat::session::SUBAGENT_MODE_SYSTEM_PROMPT),
-        "desktop-test-92",
-        "Asia/Shanghai",
-    )
-    .expect("subagent options");
-    assert_eq!(options["require_agent_tool"], true);
+    let options = super::gateway_request_options(&request, "desktop-test-92", "Asia/Shanghai")
+        .expect("agent tool options");
+    assert!(options.get("require_agent_tool").is_none());
     assert_eq!(options["allowed_tools"], serde_json::json!(["AgentTool", "shell"]));
-    assert_eq!(
-        options["chat_system_prompt"],
-        crate::app::message::chat::session::SUBAGENT_MODE_SYSTEM_PROMPT
-    );
-
-    request.require_agent_tool = false;
-    request.allowed_tools = Some(vec!["shell".to_string()]);
-    let disabled =
-        super::gateway_request_options(&request, None, "desktop-test-92", "Asia/Shanghai")
-            .expect("restricted options");
-    assert!(disabled.get("require_agent_tool").is_none());
-    assert_eq!(disabled["allowed_tools"], serde_json::json!(["shell"]));
+    assert!(options.get("chat_system_prompt").is_none());
 }
 
 #[test]
@@ -2175,7 +2159,7 @@ fn sample_agent_request(
 fn gateway_request_options_include_input_source() {
     let request = sample_agent_request(false, true, None);
     let rpc_id = super::desktop_stream_request_id(&request);
-    let options = super::gateway_request_options(&request, None, &rpc_id, "America/New_York")
+    let options = super::gateway_request_options(&request, &rpc_id, "America/New_York")
         .expect("request options");
 
     assert_eq!(
@@ -2225,9 +2209,8 @@ fn lightweight_goal_gate_is_structural_and_language_agnostic() {
 #[test]
 fn lightweight_goal_mode_finishes_without_secondary_evaluation() {
     let request = sample_agent_request(false, true, Some("/tmp/project"));
-    let options =
-        super::gateway_request_options(&request, None, "desktop-goal-request", "Asia/Shanghai")
-            .expect("goal mode options");
+    let options = super::gateway_request_options(&request, "desktop-goal-request", "Asia/Shanghai")
+        .expect("goal mode options");
 
     assert_eq!(options.get("goal_mode").and_then(|value| value.as_bool()), Some(true));
     assert_eq!(
@@ -2379,9 +2362,8 @@ fn lightweight_goal_continues_until_evaluation_passes() {
     );
 
     let request = sample_agent_request(false, true, Some("/tmp/project"));
-    let options =
-        super::gateway_request_options(&request, None, "desktop-goal-request", "Asia/Shanghai")
-            .expect("goal-only options");
+    let options = super::gateway_request_options(&request, "desktop-goal-request", "Asia/Shanghai")
+        .expect("goal-only options");
     assert_eq!(options.get("goal_mode").and_then(|value| value.as_bool()), Some(true));
     assert!(
         super::build_task_plan_run_request(&request).expect("goal-only").is_none(),

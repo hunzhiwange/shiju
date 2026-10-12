@@ -120,8 +120,7 @@ use iced::{Alignment, Color, Element, Length, Padding, Theme};
 use icons::icon_svg;
 use reasoning_selector::reasoning_effort_selector;
 use send_controls::{
-    bottom_bar, cancel_button, full_access_button, pool_button, send_button, subagent_mode_button,
-    workflow_mode_button,
+    bottom_bar, cancel_button, full_access_button, pool_button, send_button, workflow_mode_button,
 };
 use task_mode::task_mode_form;
 
@@ -489,7 +488,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let reasoning_effort = runtime.map(|r| r.reasoning_effort).unwrap_or(app.reasoning_effort);
     let full_access_enabled = runtime.map(|r| r.full_access_enabled).unwrap_or(false);
     let workflow_mode_enabled = runtime.map(|r| r.workflow_mode_enabled).unwrap_or(false);
-    let subagent_mode_enabled = runtime.map(|r| r.subagent_mode_enabled).unwrap_or(false);
 
     // 任务模式相关状态
     let task_mode_enabled = runtime.map(|r| r.task_mode_enabled).unwrap_or(false);
@@ -537,7 +535,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         reasoning_effort_selector(app, selected_acp_agent.as_deref(), reasoning_effort);
     let permission_btn = Some(full_access_button(has_permission_context, full_access_enabled));
     let workflow_btn = workflow_mode_button(workflow_mode_enabled);
-    let subagent_btn = subagent_mode_button(subagent_mode_enabled);
 
     // ========== 计算按钮启用状态 ==========
     let input_text = input_editor.text().to_string();
@@ -580,7 +577,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         reasoning_btn,
         permission_btn,
         workflow_btn,
-        subagent_btn,
         model_btn,
         usage_btn,
         attach_btn,

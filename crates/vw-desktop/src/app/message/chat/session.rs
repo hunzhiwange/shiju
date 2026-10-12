@@ -32,27 +32,6 @@ enum InlineModeCommand {
     ChatMode,
 }
 
-pub(crate) const SUBAGENT_MODE_SYSTEM_PROMPT: &str = "## AgentTool-First Mode\n\n\
-- Prefer AgentTool for meaningful independent workstreams when delegation improves speed, focus, or verification.\n\
-- The parent agent may work directly when delegation would not help, and remains responsible for coordinating, verifying evidence, and synthesizing results.\n\
-- If an AgentTool call fails, report the exact blocker and continue safely when the task can still be completed without that delegation.\n\
-- Continue to follow all safety, permission, scope, and validation requirements.";
-
-pub(super) fn history_with_subagent_mode_system_prompt(
-    history: &[models::ChatMessage],
-) -> Vec<models::ChatMessage> {
-    let mut request_history = Vec::with_capacity(history.len().saturating_add(1));
-    request_history.push(models::ChatMessage {
-        role: models::ChatRole::System,
-        content: SUBAGENT_MODE_SYSTEM_PROMPT.to_string(),
-        model: None,
-        think_timing: Vec::new(),
-        processing_timing: None,
-    });
-    request_history.extend_from_slice(history);
-    request_history
-}
-
 fn clear_quick_message_handoff_for_request(app: &mut App, request_id: u64) {
     let generating_git_commit = matches!(
         app.quick_message_handoff,
@@ -1031,7 +1010,6 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
     let workflow_mode_enabled =
         runtime.workflow_mode_enabled && !active_session_is_plan_run_child(app);
     let goal_mode_enabled = !active_session_is_plan_run_child(app);
-    let subagent_mode_enabled = runtime.subagent_mode_enabled;
     if let Some(command) = parse_inline_mode_command(&query) {
         return apply_inline_mode_command(app, command);
     }
@@ -1062,12 +1040,7 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
     let model = if runtime.auto_model { None } else { Some(runtime.model.clone()) };
     let reasoning_effort = runtime.reasoning_effort;
     let acp_agent = resolve_acp_agent(app, runtime.acp_agent.clone());
-    let mut allowed_tools = app.session_allowed_tools_for_request(&runtime);
-    if subagent_mode_enabled && let Some(allowed_tools) = &mut allowed_tools {
-        allowed_tools.retain(|tool| !tool.eq_ignore_ascii_case("AgentTool"));
-        allowed_tools.push("AgentTool".to_string());
-        allowed_tools.sort_unstable();
-    }
+    let allowed_tools = app.session_allowed_tools_for_request(&runtime);
     let agent = request_delegate_agent(runtime.agent.clone());
     let acp_test = acp_agent.is_some();
     let acp_allowed_tools = acp_test.then(|| allowed_tools.clone()).flatten();
@@ -1111,8 +1084,7 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
         acp_recent_count,
         full_access_enabled,
         send_behavior: app.chat_send_behavior,
-        request_history_override: subagent_mode_enabled
-            .then(|| history_with_subagent_mode_system_prompt(&app.chat)),
+        request_history_override: None,
         resume_history_only: false,
         workflow_mode_enabled,
         goal_mode_enabled,
@@ -1984,7 +1956,6 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         app.active_session_id = Some(id.clone());
         let runtime = app.get_session_runtime_mut(&id);
         runtime.full_access_enabled = pending_runtime.full_access_enabled;
-        runtime.subagent_mode_enabled = pending_runtime.subagent_mode_enabled;
     }
 
     let request_history = item.request_history_override.clone().unwrap_or_else(|| app.chat.clone());

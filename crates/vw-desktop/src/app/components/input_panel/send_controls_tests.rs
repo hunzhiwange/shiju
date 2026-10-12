@@ -6,8 +6,8 @@
 use super::send_controls::{
     bottom_bar, cancel_button, full_access_button, is_dark_theme, permission_access_button_style,
     pool_button, prominent_action_background, prominent_action_foreground, prominent_action_style,
-    send_behavior_icon, send_behavior_popover, send_button, subagent_mode_button,
-    utility_cluster_style, workflow_mode_button,
+    send_behavior_icon, send_behavior_popover, send_button, utility_cluster_style,
+    workflow_mode_button,
 };
 use super::styles::square_icon_button_style;
 use crate::app::Message;
@@ -382,7 +382,7 @@ fn workflow_mode_button_constructs_inactive_and_active_variants() {
 }
 
 #[test]
-fn bottom_bar_places_workflow_after_full_access_and_before_subagent() {
+fn bottom_bar_places_workflow_after_full_access_and_before_session_tabs() {
     let controls = include_str!("send_controls.rs");
     let workflow_push = controls.find("bar = bar.push(workflow_btn)").expect("workflow push");
     let subagent_push = controls.find("bar = bar.push(subagent_btn)").expect("subagent push");
@@ -441,7 +441,6 @@ fn bottom_bar_places_workflow_after_full_access_and_before_subagent() {
         Some(spacer()),
         Some(spacer()),
         spacer(),
-        spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
@@ -451,17 +450,10 @@ fn bottom_bar_places_workflow_after_full_access_and_before_subagent() {
         false,
     );
     let children = normal.as_widget().children();
-    // permission + workflow + subagent + agent + tools + skills + acp + reasoning + model + fill + utility + actions
-    assert_eq!(children.len(), 12);
-    assert_eq!(children[10].children.len(), 2);
-    assert_eq!(children[11].children.len(), 3);
-}
-
-#[test]
-fn subagent_mode_button_constructs_inactive_and_active_variants() {
-    for element in [subagent_mode_button(false), subagent_mode_button(true)] {
-        assert_eq!(element.as_widget().children().len(), 2);
-    }
+    // permission + workflow + agent + tools + skills + acp + reasoning + model + fill + utility + actions
+    assert_eq!(children.len(), 11);
+    assert_eq!(children[9].children.len(), 2);
+    assert_eq!(children[10].children.len(), 3);
 }
 
 #[test]
@@ -495,7 +487,6 @@ fn bottom_bar_places_optional_prefix_utility_and_action_controls() {
         Some(spacer()),
         Some(spacer()),
         spacer(),
-        spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
@@ -507,9 +498,9 @@ fn bottom_bar_places_optional_prefix_utility_and_action_controls() {
     let children = normal.as_widget().children();
 
     assert_eq!(normal.as_widget().size().width, Length::Fill);
-    assert_eq!(children.len(), 12);
-    assert_eq!(children[10].children.len(), 2);
-    assert_eq!(children[11].children.len(), 3);
+    assert_eq!(children.len(), 11);
+    assert_eq!(children[9].children.len(), 2);
+    assert_eq!(children[10].children.len(), 3);
 }
 
 #[test]
@@ -521,7 +512,6 @@ fn bottom_bar_keeps_minimal_non_task_utility_and_attachment_clusters() {
         None,
         None,
         None,
-        spacer(),
         spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
@@ -548,7 +538,6 @@ fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
         None,
         None,
         spacer(),
-        spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),
         button(text("attach")).into(),
@@ -573,7 +562,6 @@ fn bottom_bar_task_mode_without_pool_keeps_usage_and_attachment_only() {
         None,
         None,
         None,
-        spacer(),
         spacer(),
         button(text("model")).into(),
         button(text("usage")).into(),

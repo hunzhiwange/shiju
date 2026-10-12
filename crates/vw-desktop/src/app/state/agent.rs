@@ -468,8 +468,6 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) workflow_mode_enabled: bool,
     /// 是否持续执行并独立验收，直到达到目标
     pub(crate) goal_mode_enabled: bool,
-    /// 是否要求顶层智能体优先通过 AgentTool 委托实质工作
-    pub(crate) subagent_mode_enabled: bool,
     /// 任务模式的优先级
     pub(crate) task_mode_priority: String,
     /// 任务模式的模型标识符
@@ -652,7 +650,6 @@ impl SessionRuntimeState {
             task_mode_enabled: false,
             workflow_mode_enabled: false,
             goal_mode_enabled: true,
-            subagent_mode_enabled: false,
             task_mode_priority: "999".to_string(),
             task_mode_model,
             task_mode_executor: None,

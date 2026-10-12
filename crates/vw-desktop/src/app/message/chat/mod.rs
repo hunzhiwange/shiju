@@ -315,9 +315,6 @@ pub enum ChatMessage {
     /// 目标模式已固定开启；消息保留仅为兼容，处理端会忽略关闭请求。
     GoalModeToggled(bool),
 
-    /// 子智能体模式开关切换；启用后顶层提示词要求优先使用 AgentTool。
-    SubagentModeToggled(bool),
-
     /// 任务优先级变化
     ///
     /// 修改当前任务的优先级
@@ -1174,7 +1171,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::TaskModeToggled(_)
         | ChatMessage::WorkflowModeToggled(_)
         | ChatMessage::GoalModeToggled(_)
-        | ChatMessage::SubagentModeToggled(_)
         | ChatMessage::TaskModePriorityChanged(_)
         | ChatMessage::TaskModeExecutorChanged(_)
         | ChatMessage::TaskModeReasoningEffortChanged(_)

@@ -786,8 +786,8 @@ fn cron_mutation_refreshes_after_gateway_success_only() {
         CronMutation::Delete,
     )
     .expect("successful delete must refresh Cron source");
-    assert!(refreshed.schedules.items.is_empty());
-    assert!(refreshed.cron_jobs.is_empty());
+    assert_eq!(refreshed.schedules.items, Vec::new());
+    assert_eq!(refreshed.cron_jobs, Vec::new());
     let delete_requests = delete_server.join().expect("delete server");
     assert!(delete_requests[0].starts_with("DELETE /v1/cron/cron%2Fowned "));
     assert!(delete_requests[1].starts_with("GET /v1/cron "));

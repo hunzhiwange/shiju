@@ -45,11 +45,11 @@ fn api_route_coverage_classifies_every_documented_gateway_route() {
             }
             RouteCoverage::Alias(target) => {
                 alias_count += 1;
-                assert!(!target.trim().is_empty());
+                assert_ne!(target.trim(), "");
             }
             RouteCoverage::Excluded(target) => {
                 excluded_count += 1;
-                assert!(!target.trim().is_empty());
+                assert_ne!(target.trim(), "");
             }
         }
     }

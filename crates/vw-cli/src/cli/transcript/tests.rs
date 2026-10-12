@@ -102,14 +102,14 @@ fn streaming_think_block_id_stays_stable_across_rebuilds() {
 
     let (streaming_view_a, remaining_a) =
         build_streaming_transcript_view(&transcript, draft, false);
-    assert!(remaining_a.is_empty());
+    assert_eq!(remaining_a, "");
     let (_, think_map_a) =
         transcript_to_lines(&streaming_view_a, false, false, &BTreeSet::new(), "");
     let think_id_a = first_think_meta(&think_map_a).id;
 
     let (streaming_view_b, remaining_b) =
         build_streaming_transcript_view(&transcript, draft, false);
-    assert!(remaining_b.is_empty());
+    assert_eq!(remaining_b, "");
     let (_, think_map_b) =
         transcript_to_lines(&streaming_view_b, false, false, &BTreeSet::new(), "");
     let think_id_b = first_think_meta(&think_map_b).id;

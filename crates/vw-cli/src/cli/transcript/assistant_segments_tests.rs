@@ -31,7 +31,7 @@ fn parses_empty_input_and_preserves_plain_text_lines() {
         panic!("expected final line to remain text");
     };
     assert_eq!(first, "first");
-    assert!(blank.is_empty());
+    assert_eq!(blank, "");
     assert_eq!(second, " second ");
 }
 

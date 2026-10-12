@@ -95,8 +95,8 @@ fn git_workspace_status_exposes_dirty_files_in_original_order() {
 
 #[test]
 fn git_workspace_status_returns_empty_files_for_non_dirty_states() {
-    assert!(GitWorkspaceStatus::ReadyClean.modified_files().is_empty());
-    assert!(GitWorkspaceStatus::Unavailable.modified_files().is_empty());
+    assert_eq!(GitWorkspaceStatus::ReadyClean.modified_files(), &[] as &[String]);
+    assert_eq!(GitWorkspaceStatus::Unavailable.modified_files(), &[] as &[String]);
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn collect_git_workspace_status_reports_unavailable_for_missing_directory() {
         std::env::temp_dir().join(format!("vw-cli-missing-worktree-{}", std::process::id()));
 
     assert_eq!(collect_git_workspace_status(&missing), GitWorkspaceStatus::Unavailable);
-    assert!(collect_modified_files(&missing).is_empty());
+    assert_eq!(collect_modified_files(&missing), Vec::<String>::new());
 }
 
 #[test]

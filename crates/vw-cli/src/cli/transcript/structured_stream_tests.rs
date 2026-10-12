@@ -32,7 +32,7 @@ fn appends_assistant_entry_for_structured_stream() {
         build_streaming_transcript_view(&transcript, "<think>\nreasoning", true);
 
     assert_eq!(view.len(), 2);
-    assert!(remaining.is_empty());
+    assert_eq!(remaining, "");
     assert!(matches!(view[1].role, TranscriptRole::Assistant));
     assert_eq!(view[1].text, "<think>\nreasoning");
 }

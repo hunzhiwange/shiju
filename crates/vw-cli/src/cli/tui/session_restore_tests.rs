@@ -74,7 +74,7 @@ fn startup_state_is_empty_before_background_session_create() {
     let state = initial_tui_state(&runtime);
 
     assert_eq!(state.session.session_id, None);
-    assert!(state.messages.is_empty());
+    assert_eq!(state.messages, Vec::new());
     assert_eq!(state.session.scope.as_deref(), Some("workspace-write"));
     assert_eq!(state.project.workspace_root.as_deref(), Some(Path::new("/workspace")));
 }
@@ -95,7 +95,7 @@ fn background_bootstrap_creates_new_session_without_loading_history() {
     let state = restore_or_create_session_state(&mut runtime).expect("create session in worker");
 
     assert_eq!(state.session.session_id.as_deref(), Some("created"));
-    assert!(state.messages.is_empty());
+    assert_eq!(state.messages, Vec::new());
     assert_eq!(requests.recv().expect("create request"), "/v1/session?directory=%2Fworkspace");
     server.join().expect("background create fixture");
     assert!(requests.try_recv().is_err(), "startup must not request session history");
@@ -276,7 +276,7 @@ fn new_session_rebinds_runtime_after_create() {
     assert_eq!(display.session_id.as_deref(), Some("created"));
     assert_eq!(app.runtime().session_id(), Some("created"));
     assert_eq!(app.state().session.title, "Fresh session");
-    assert!(app.state().messages.is_empty());
+    assert_eq!(app.state().messages, Vec::new());
     assert_eq!(app.state().session.scope.as_deref(), Some("workspace-write"));
     assert_eq!(app.state().project.workspace_root.as_deref(), Some(Path::new("/workspace")));
     assert_eq!(requests.recv().expect("create request"), "/v1/session?directory=%2Fworkspace");

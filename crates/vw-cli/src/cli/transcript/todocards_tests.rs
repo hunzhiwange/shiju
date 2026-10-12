@@ -97,7 +97,7 @@ fn parse_todos_from_array_returns_default_for_empty_input() {
     assert_eq!(data.done, 0);
     assert_eq!(data.running, 0);
     assert_eq!(data.pending, 0);
-    assert!(data.items.is_empty());
+    assert_eq!(data.items, Vec::new());
 }
 
 #[test]

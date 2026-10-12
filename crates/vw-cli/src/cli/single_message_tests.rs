@@ -282,7 +282,7 @@ async fn run_single_message_prepends_memory_context_when_autosave_is_disabled() 
         .expect("provider response should be returned");
 
     assert_eq!(response, "concise reply");
-    assert!(memory.stores().is_empty());
+    assert_eq!(memory.stores(), Vec::new());
     assert_eq!(memory.recalls(), vec![(message.clone(), 5, None)]);
     let calls = provider_calls.lock().expect("provider calls lock should be available");
     assert_eq!(calls.len(), 1);
@@ -307,7 +307,7 @@ async fn run_single_message_skips_autosave_below_character_threshold() {
         .expect("provider response should be returned");
 
     assert_eq!(response, "response");
-    assert!(memory.stores().is_empty());
+    assert_eq!(memory.stores(), Vec::new());
     assert_eq!(memory.recalls(), vec![(message, 5, None)]);
 }
 

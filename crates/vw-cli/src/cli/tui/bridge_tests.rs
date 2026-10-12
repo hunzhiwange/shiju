@@ -292,7 +292,7 @@ fn tui_projects_typed_tools_and_hides_known_gateway_lifecycle_events() {
             "finish_reason": "tool"
         })),
     ] {
-        assert!(app.accept_gateway_event(event).is_empty());
+        assert_eq!(app.accept_gateway_event(event), Vec::new());
     }
 
     let unknown = app.accept_gateway_event(GatewayChatStreamEvent::Other(json!({

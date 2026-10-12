@@ -565,7 +565,7 @@ fn format_task_date_from_ms(ms: u64) -> String {
 fn generate_task_id() -> String {
     let current_ms = now_ms();
     let ms = LAST_TASK_ID_MILLIS
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |previous| {
+        .try_update(Ordering::Relaxed, Ordering::Relaxed, |previous| {
             Some(current_ms.max(previous.saturating_add(1)))
         })
         .map(|previous| current_ms.max(previous.saturating_add(1)))

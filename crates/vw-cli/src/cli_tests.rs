@@ -223,7 +223,7 @@ fn agent_command_preserves_defaults_and_explicit_values() {
     assert_eq!(provider, None);
     assert_eq!(model, None);
     assert_eq!(temperature, 0.7);
-    assert!(peripheral.is_empty());
+    assert_eq!(peripheral, Vec::<String>::new());
     assert_eq!(autonomy_level, None);
     assert_eq!(max_actions_per_hour, None);
     assert_eq!(max_iterations, None);

@@ -129,7 +129,7 @@ fn runtime_capability_instructions(available_tool_ids: &[String]) -> String {
 
     if has_tool(&tool_ids, &["agenttool", "agent", "agent_tool", "delegate"]) {
         sections.push(
-            "## Subagents\n- Delegate only concrete, independent, bounded subtasks. Do not delegate the entire original task or duplicate the parent task.\n- Independent subtasks may run concurrently in the background using `AgentTool`'s `launch` / `spawn`; use `run` only when the result is needed immediately. Record child-session IDs, continue local work, and `wait` for, verify, and integrate results before the final response. Use `stop` to end tasks that no longer provide value."
+            "## Subagents\n- Before starting work, assess the task's complexity, whether it contains concrete independent workflows, and whether delegation or parallel execution has a clear net benefit. Proactively start subagents when those benefits are clear; handle simple, tightly coupled, or delegation-heavy tasks directly.\n- Delegate only concrete, independent, bounded subtasks. Do not delegate the entire original task or duplicate the parent task.\n- Independent subtasks may run concurrently in the background using `AgentTool`'s `launch` / `spawn`; use `run` only when the result is needed immediately. Record child-session IDs, continue local work, and `wait` for, verify, and integrate results before the final response. Use `stop` to end tasks that no longer provide value."
                 .to_string(),
         );
     }

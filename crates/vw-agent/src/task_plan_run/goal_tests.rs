@@ -66,6 +66,40 @@ fn goal_task_files_require_completed_status_and_validation_evidence() {
 }
 
 #[test]
+fn goal_task_files_accept_expected_failure_only_with_successful_completion_check() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        temp.path().join("1-goal.md"),
+        "# task\n\n状态：已完成\n\n完成条件：预期失败已由外层检查确认\n\n验证命令：sh -c 'run-test; test $? -eq 1'\n\n验证结果：内层测试 EXIT=1（预期）；外层检查退出码：0\n",
+    )
+    .expect("write expected failure evidence");
+
+    assert_eq!(
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")])
+            .expect("successful completion check"),
+        GoalTaskFilesState::Complete
+    );
+}
+
+#[test]
+fn execution_prompt_separates_expected_failure_from_completion_evidence() {
+    let plan_abs = std::path::Path::new("/tmp/runtime-home/plan/task-contract");
+    let prompt = super::prompts::build_execution_prompt(
+        "验证预期失败证据",
+        1,
+        &[],
+        plan_abs,
+        &plan_abs.join("1-contract.md"),
+        "# plan.md",
+        "# 子任务.md",
+    );
+
+    assert!(prompt.contains("预期失败命令必须由退出 0 的外层检查证明"));
+    assert!(prompt.contains("顶层 `验证命令：` 只能记录完成后实际运行且退出 0 的检查"));
+    assert!(prompt.contains("内层预期 `EXIT=1` 不得写成完成证据"));
+}
+
+#[test]
 fn goal_mode_session_ids_are_stable() {
     assert_eq!(goal_turn_session_id("task.1", 2), "task-1-goal-2");
 }

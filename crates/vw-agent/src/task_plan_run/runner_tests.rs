@@ -1029,6 +1029,8 @@ async fn task_plan_run_updates_only_canonical_user_plan_task_file() {
     assert!(execution_prompt.contains(&canonical_plan_dir.to_string_lossy().to_string()));
     assert!(execution_prompt.contains(&canonical_task_file.to_string_lossy().to_string()));
     assert!(!execution_prompt.contains(&decoy_task_file.to_string_lossy().to_string()));
+    assert!(execution_prompt.contains("预期失败命令必须由退出 0 的外层检查证明"));
+    assert!(execution_prompt.contains("顶层 `验证命令：` 只能记录完成后实际运行且退出 0 的检查"));
 }
 
 #[tokio::test]

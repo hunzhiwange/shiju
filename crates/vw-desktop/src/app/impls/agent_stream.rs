@@ -1645,6 +1645,11 @@ fn plan_run_event_output_text(event: &vw_api_types::task::TaskPlanRunStreamEvent
                     "子任务完成，任务文件已处理: {task_file}\n{}",
                     output.as_deref().unwrap_or_default()
                 )
+            } else if output.is_some() {
+                format!(
+                    "子任务验收未通过，任务文件待修正: {task_file}\n{}",
+                    error.as_deref().unwrap_or("验收未通过")
+                )
             } else {
                 format!(
                     "子任务失败，任务文件保留: {task_file}\n{}",

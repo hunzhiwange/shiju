@@ -82,6 +82,39 @@ fn plan_goal_events_reach_the_active_transcript() {
 }
 
 #[test]
+fn plan_goal_subtask_validation_failure_is_distinct_from_execution_failure() {
+    let validation_failure = TaskPlanRunStreamEventDto::SubtaskFinished {
+        task_id: "owned-task".to_string(),
+        batch: 1,
+        subtask_id: "child-one".to_string(),
+        title: "实现闭环".to_string(),
+        task_file: "task.md".to_string(),
+        success: false,
+        output: Some("实现已返回".to_string()),
+        error: Some("缺少验证结果".to_string()),
+        session_id: "child-session".to_string(),
+    };
+    let validation_events = adapt_task_plan_run_event(validation_failure.clone());
+    assert!(format!("{:?}", validation_events[0]).contains("子任务验收未通过"));
+    assert!(validation_events.iter().any(|event| format!("{event:?}").contains("缺少验证结果")));
+
+    let execution_failure = TaskPlanRunStreamEventDto::SubtaskFinished {
+        task_id: "owned-task".to_string(),
+        batch: 1,
+        subtask_id: "child-one".to_string(),
+        title: "实现闭环".to_string(),
+        task_file: "task.md".to_string(),
+        success: false,
+        output: None,
+        error: Some("会话中断".to_string()),
+        session_id: "child-session".to_string(),
+    };
+    let execution_events = adapt_task_plan_run_event(execution_failure);
+    assert!(format!("{:?}", execution_events[0]).contains("子任务失败"));
+    assert!(execution_events.iter().any(|event| format!("{event:?}").contains("会话中断")));
+}
+
+#[test]
 fn plan_goal_stop_requires_owned_identifiers() {
     let mismatch = validate_owned_plan_run(
         Some("owned-request"),

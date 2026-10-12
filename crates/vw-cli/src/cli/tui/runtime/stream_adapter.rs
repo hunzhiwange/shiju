@@ -216,16 +216,27 @@ pub(crate) fn adapt_task_plan_run_event(event: TaskPlanRunStreamEventDto) -> Vec
             session_id,
             ..
         } => {
+            let validation_failed = !success && output.is_some();
             let mut events = vec![plan_run_progress(
                 &task_id,
                 &format!("subtask-{subtask_id}-finished"),
-                format!("{}：{title}", if success { "子任务完成" } else { "子任务失败" }),
+                format!(
+                    "{}：{title}",
+                    if success {
+                        "子任务完成"
+                    } else if validation_failed {
+                        "子任务验收未通过，待修正"
+                    } else {
+                        "子任务失败"
+                    }
+                ),
                 None,
                 None,
                 true,
                 Some(session_id),
             )];
-            if let Some(text) = output.or(error).filter(|text| !text.trim().is_empty()) {
+            for text in [output, error].into_iter().flatten().filter(|text| !text.trim().is_empty())
+            {
                 events.push(UiRuntimeEvent::Delta(format!("{text}\n")));
             }
             events

@@ -2049,6 +2049,41 @@ fn plan_run_blocked_subtask_and_success_without_output_use_stable_payloads() {
 }
 
 #[test]
+fn plan_run_subtask_validation_failure_is_distinct_from_execution_failure() {
+    use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;
+
+    let validation_failure = TaskPlanRunStreamEventDto::SubtaskFinished {
+        task_id: "task-2".to_string(),
+        batch: 4,
+        subtask_id: "sub-11".to_string(),
+        title: "验收".to_string(),
+        task_file: "11-accept.md".to_string(),
+        success: false,
+        output: Some("实现已返回".to_string()),
+        error: Some("缺少验证结果".to_string()),
+        session_id: "task-2-sub-11".to_string(),
+    };
+    let output = super::plan_run_event_output_text(&validation_failure);
+    assert!(output.contains("子任务验收未通过，任务文件待修正: 11-accept.md"));
+    assert!(output.contains("缺少验证结果"));
+
+    let execution_failure = TaskPlanRunStreamEventDto::SubtaskFinished {
+        task_id: "task-2".to_string(),
+        batch: 4,
+        subtask_id: "sub-11".to_string(),
+        title: "验收".to_string(),
+        task_file: "11-accept.md".to_string(),
+        success: false,
+        output: None,
+        error: Some("会话中断".to_string()),
+        session_id: "task-2-sub-11".to_string(),
+    };
+    let output = super::plan_run_event_output_text(&execution_failure);
+    assert!(output.contains("子任务失败，任务文件保留: 11-accept.md"));
+    assert!(output.contains("会话中断"));
+}
+
+#[test]
 fn workflow_event_defaults_and_incomplete_frames_are_safe() {
     assert!(matches!(
         super::parse_workflow_chat_messages_event(serde_json::json!({

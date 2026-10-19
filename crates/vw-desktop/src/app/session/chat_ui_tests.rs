@@ -499,3 +499,107 @@ fn stale_prepared_stream_message_is_ignored() {
     assert_eq!(app.chat_render_cache[&0].content_hash, 77);
     assert_eq!(app.chat_visible_text_cache[0].as_deref(), Some("kept"));
 }
+
+#[test]
+fn markdown_cache_reuses_unchanged_message() {
+    let (mut app, _task) = super::App::new();
+    app.chat = vec![message(super::ChatRole::Assistant, "# 标题\n\n第一段\n\n- 列表项")];
+    let first = super::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
+    app.apply_prepared_chat_ui_phase(first);
+
+    let first_key = crate::app::components::chat_panel::message_view::markdown_block_key(0, 0, 0);
+    app.chat_markdown_block_editors
+        .get_mut(&first_key)
+        .expect("first markdown editor")
+        .perform(iced::widget::text_editor::Action::SelectAll);
+
+    let unchanged = super::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
+    app.apply_prepared_chat_ui_phase(unchanged);
+
+    assert_eq!(app.chat_markdown_blocks[&0].len(), 3);
+    assert_eq!(
+        app.chat_markdown_block_editors[&first_key].selection().as_deref(),
+        Some("标题"),
+        "unchanged content should retain the existing editor instead of rebuilding it"
+    );
+}
+
+#[test]
+fn markdown_cache_prunes_offscreen_blocks() {
+    let (mut app, _task) = super::App::new();
+    app.chat =
+        (0..500).map(|idx| message(super::ChatRole::Assistant, &format!("# 消息 {idx}"))).collect();
+    app.sync_chat_message_estimated_heights_len();
+    app.chat_virtualizer.set_viewport_height(2_000.0);
+    app.chat_virtualizer.scroll_to_item_anchor(250, 0.0, 0.0);
+
+    for idx in 0..app.chat.len() {
+        app.chat_markdown_blocks.insert(
+            (idx as u64) << 32,
+            crate::app::components::chat_panel::message_view::parse_markdown_blocks(&format!(
+                "# 消息 {idx}"
+            )),
+        );
+        app.chat_markdown_block_editors.insert(
+            crate::app::components::chat_panel::message_view::markdown_block_key(idx, 0, 0),
+            iced::widget::text_editor::Content::with_text(&format!("消息 {idx}")),
+        );
+    }
+
+    app.prune_chat_heavy_editor_caches(240, 260);
+
+    assert!(!app.chat_markdown_blocks.contains_key(&0));
+    assert!(!app.chat_markdown_blocks.contains_key(&((499_u64) << 32)));
+    assert!(app.chat_markdown_blocks.contains_key(&((250_u64) << 32)));
+    eprintln!(
+        "markdown history cache: messages=500, retained_blocks={}, retained_editors={}",
+        app.chat_markdown_blocks.len(),
+        app.chat_markdown_block_editors.len()
+    );
+    assert_eq!(app.chat_markdown_blocks.len(), app.chat_markdown_block_editors.len());
+    assert!(app.chat_markdown_blocks.len() < 128);
+    assert!(app.chat_markdown_block_editors.keys().all(|key| {
+        let block_key = ((*key >> 64) as u64) << 32;
+        app.chat_markdown_blocks.contains_key(&block_key)
+    }));
+}
+
+#[test]
+fn markdown_cache_reuse_performance_probe() {
+    let (mut app, _task) = super::App::new();
+    let mut content = "长回复正文。".repeat(2_000);
+    for idx in 0..200 {
+        content.push_str(&format!("\n\n- 列表项 {idx}\n\n```rust\nlet item_{idx} = {idx};\n```"));
+    }
+    app.chat = vec![message(super::ChatRole::Assistant, &content)];
+
+    let warmup = super::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
+    app.apply_prepared_chat_ui_phase(warmup);
+
+    let mut rebuild_micros = Vec::with_capacity(3);
+    for _ in 0..3 {
+        app.chat_markdown_blocks.clear();
+        app.chat_markdown_block_editors.clear();
+        let phase = super::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
+        let started = std::time::Instant::now();
+        app.apply_prepared_chat_ui_phase(phase);
+        rebuild_micros.push(started.elapsed().as_micros());
+    }
+
+    let mut reuse_micros = Vec::with_capacity(3);
+    for _ in 0..3 {
+        let phase = super::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
+        let started = std::time::Instant::now();
+        app.apply_prepared_chat_ui_phase(phase);
+        reuse_micros.push(started.elapsed().as_micros());
+    }
+
+    eprintln!(
+        "markdown performance: bytes={}, rebuild_us={rebuild_micros:?}, reuse_us={reuse_micros:?}, blocks={}, editors={}",
+        content.len(),
+        app.chat_markdown_blocks[&0].len(),
+        app.chat_markdown_block_editors.len()
+    );
+    assert_eq!(app.chat_markdown_blocks[&0].len(), 401);
+    assert_eq!(app.chat_markdown_block_editors.len(), 400);
+}

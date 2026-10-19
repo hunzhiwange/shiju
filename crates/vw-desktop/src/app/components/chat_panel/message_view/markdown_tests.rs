@@ -252,3 +252,18 @@ fn markdown_body_view_builds_every_block_kind_with_editor_and_text_fallbacks() {
     assert_eq!(element_child_count(markdown_body_view(&app, 2, 3, &blocks)), blocks.len());
     assert_eq!(element_child_count(markdown_body_view(&app, 2, 3, &[])), 0);
 }
+
+#[test]
+fn long_markdown_keeps_bounded_editor_work() {
+    let mut markdown = "长回复正文。".repeat(2_000);
+    for idx in 0..200 {
+        markdown.push_str(&format!("\n\n- 列表项 {idx}\n\n```rust\nlet item_{idx} = {idx};\n```"));
+    }
+
+    let blocks = parse_markdown_blocks(&markdown);
+    let source_line_count = markdown.lines().count();
+
+    assert_eq!(blocks.len(), 401);
+    assert!(blocks.len() < source_line_count);
+    assert!(blocks.iter().map(|block| block.text.len()).sum::<usize>() <= markdown.len());
+}

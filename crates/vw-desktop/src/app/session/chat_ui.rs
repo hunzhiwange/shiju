@@ -366,21 +366,24 @@ fn sync_chat_aux_text_editors_for_message(
     app: &mut App,
     msg_idx: usize,
     render_entry: &ChatRenderCacheEntry,
+    reuse_markdown_cache: bool,
 ) {
     sync_chat_explore_summary_animations_for_message(app, msg_idx, render_entry);
 
     let is_assistant_message =
         matches!(app.chat.get(msg_idx).map(|message| message.role), Some(ChatRole::Assistant));
 
-    app.chat_markdown_blocks.retain(|key, _| (*key >> 32) as usize != msg_idx);
-    app.chat_markdown_block_editors.retain(|key, _| (*key >> 64) as usize != msg_idx);
+    if !reuse_markdown_cache {
+        app.chat_markdown_blocks.retain(|key, _| (*key >> 32) as usize != msg_idx);
+        app.chat_markdown_block_editors.retain(|key, _| (*key >> 64) as usize != msg_idx);
+    }
 
     for (text_idx, text) in render_entry.special_text_blocks.iter().enumerate() {
         let key = ((msg_idx as u64) << 32) | (text_idx as u64);
         if let Some(editor) = read_only_chat_editor_content(text) {
             app.chat_special_text_editors.insert(key, editor);
         }
-        if is_assistant_message {
+        if is_assistant_message && !reuse_markdown_cache {
             sync_markdown_blocks_for_text(app, msg_idx, text_idx, text);
         }
     }
@@ -389,6 +392,7 @@ fn sync_chat_aux_text_editors_for_message(
     if is_assistant_message
         && !render_entry.has_special_blocks
         && !render_entry.display_text.trim().is_empty()
+        && !reuse_markdown_cache
     {
         sync_markdown_blocks_for_text(app, msg_idx, 0, &render_entry.display_text);
     }
@@ -620,14 +624,6 @@ impl App {
 
         self.chat_special_text_editors.retain(|key, _| {
             let message_idx = (*key >> 32) as usize;
-            message_idx < chunk_start_idx || message_idx >= chunk_end_idx
-        });
-        self.chat_markdown_blocks.retain(|key, _| {
-            let message_idx = (*key >> 32) as usize;
-            message_idx < chunk_start_idx || message_idx >= chunk_end_idx
-        });
-        self.chat_markdown_block_editors.retain(|key, _| {
-            let message_idx = (*key >> 64) as usize;
             message_idx < chunk_start_idx || message_idx >= chunk_end_idx
         });
         self.chat_tool_text_editors.retain(|key, _| {
@@ -1024,6 +1020,8 @@ impl App {
             let Some(render_entry) = render_cache.get(&idx) else {
                 is_chunk_fresh = false;
                 self.chat_render_cache.remove(&idx);
+                self.chat_markdown_blocks.retain(|key, _| (*key >> 32) as usize != idx);
+                self.chat_markdown_block_editors.retain(|key, _| (*key >> 64) as usize != idx);
                 self.chat_explore_summary_animations.retain(|key, _| (*key >> 64) as usize != idx);
                 continue;
             };
@@ -1031,12 +1029,19 @@ impl App {
             if render_entry.content_hash != expected_hash {
                 is_chunk_fresh = false;
                 self.chat_render_cache.remove(&idx);
+                self.chat_markdown_blocks.retain(|key, _| (*key >> 32) as usize != idx);
+                self.chat_markdown_block_editors.retain(|key, _| (*key >> 64) as usize != idx);
                 self.chat_explore_summary_animations.retain(|key, _| (*key >> 64) as usize != idx);
                 continue;
             }
 
+            let reuse_markdown_cache = self
+                .chat_render_cache
+                .get(&idx)
+                .is_some_and(|cached| cached.content_hash == render_entry.content_hash)
+                && self.chat_markdown_blocks.keys().any(|key| (*key >> 32) as usize == idx);
             self.chat_render_cache.insert(idx, render_entry.clone());
-            sync_chat_aux_text_editors_for_message(self, idx, render_entry);
+            sync_chat_aux_text_editors_for_message(self, idx, render_entry, reuse_markdown_cache);
             let offset = idx - chunk_start_idx;
             self.chat_visible_text_cache[idx] = visible_texts.get(offset).cloned().flatten();
             self.chat_copy_hash_cache[idx] = copy_hashes.get(offset).copied().flatten();
@@ -1091,13 +1096,21 @@ impl App {
         }
 
         self.chat_special_text_editors.retain(|key, _| (*key >> 32) as usize != message_idx);
-        self.chat_markdown_blocks.retain(|key, _| (*key >> 32) as usize != message_idx);
-        self.chat_markdown_block_editors.retain(|key, _| (*key >> 64) as usize != message_idx);
         self.chat_tool_text_editors.retain(|key, _| (*key >> 64) as usize != message_idx);
         self.chat_think_editors.retain(|key, _| (*key >> 32) as usize != message_idx);
 
+        let reuse_markdown_cache = self
+            .chat_render_cache
+            .get(&message_idx)
+            .is_some_and(|cached| cached.content_hash == render_cache.content_hash)
+            && self.chat_markdown_blocks.keys().any(|key| (*key >> 32) as usize == message_idx);
         self.chat_render_cache.insert(message_idx, render_cache.clone());
-        sync_chat_aux_text_editors_for_message(self, message_idx, &render_cache);
+        sync_chat_aux_text_editors_for_message(
+            self,
+            message_idx,
+            &render_cache,
+            reuse_markdown_cache,
+        );
         self.chat_visible_text_cache[message_idx] = Some(visible_text);
         self.chat_copy_hash_cache[message_idx] = Some(copy_hash);
         self.chat_message_editors[message_idx] = message_editor_text

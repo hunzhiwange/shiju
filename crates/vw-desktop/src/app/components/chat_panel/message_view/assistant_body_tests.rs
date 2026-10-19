@@ -183,12 +183,39 @@ fn render_assistant_body_builds_plain_text_body() {
 }
 
 #[test]
-fn special_markdown_text_uses_single_editor_for_cross_block_selection() {
+fn completed_assistant_body_prefers_markdown_layout() {
+    let mut app = App::new().0;
+    let text = "# 标题\n\n第一段\n\n- 列表项";
+    app.chat_message_editors.push(text_editor::Content::with_text(text));
+    let blocks = parse_markdown_blocks(text);
+    app.chat_markdown_blocks.insert(0, blocks.clone());
+
+    let body = render_assistant_body(
+        &app,
+        0,
+        &[],
+        Vec::new(),
+        text.to_string(),
+        Vec::new(),
+        Vec::new(),
+        false,
+        false,
+        text,
+    );
+    let element: Element<'_, Message> = body.into();
+    let tree = Tree::new(element.as_widget());
+
+    assert_eq!(tree.children.len(), 1);
+    assert_eq!(tree.children[0].children.len(), blocks.len());
+}
+
+#[test]
+fn special_text_block_prefers_markdown_layout() {
     let mut app = App::new().0;
     let text = "# 标题\n\n第一段\n\n- 列表项";
     app.chat_special_text_editors.insert(0, text_editor::Content::with_text(text));
-    app.chat_markdown_blocks.insert(0, parse_markdown_blocks(text));
-    assert!(app.chat_markdown_blocks[&0].len() > 1);
+    let blocks = parse_markdown_blocks(text);
+    app.chat_markdown_blocks.insert(0, blocks.clone());
 
     let body = render_assistant_body(
         &app,
@@ -206,7 +233,7 @@ fn special_markdown_text_uses_single_editor_for_cross_block_selection() {
     let tree = Tree::new(element.as_widget());
 
     assert_eq!(tree.children.len(), 1);
-    assert_eq!(tree.children[0].children.len(), 1);
+    assert_eq!(tree.children[0].children.len(), blocks.len());
 }
 
 #[test]

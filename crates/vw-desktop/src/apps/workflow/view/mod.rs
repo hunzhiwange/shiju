@@ -42,6 +42,8 @@ mod if_else;
 mod menu;
 mod next_step;
 mod node_editor;
+#[cfg_attr(not(test), allow(dead_code))]
+mod node_editor_fields;
 mod node_visual;
 mod node_visual_integrations;
 mod run_preview;
@@ -51,6 +53,10 @@ mod start_panel;
 mod styles;
 mod toolbar;
 mod variables;
+
+#[cfg(test)]
+#[path = "node_editor_fields_tests.rs"]
+mod node_editor_fields_tests;
 
 use app_editor::*;
 use app_list::*;

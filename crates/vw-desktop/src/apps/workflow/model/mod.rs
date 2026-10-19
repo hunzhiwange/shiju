@@ -22,6 +22,9 @@ mod creation_tests;
 #[path = "defaults_tests.rs"]
 mod defaults_tests;
 #[cfg(test)]
+#[path = "dify_node_fixtures_tests.rs"]
+mod dify_node_fixtures_tests;
+#[cfg(test)]
 #[path = "dify_tests.rs"]
 mod dify_tests;
 #[cfg(test)]

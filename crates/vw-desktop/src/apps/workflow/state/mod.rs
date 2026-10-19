@@ -321,6 +321,69 @@ pub struct WorkflowCodeOutputDraft {
     pub value_type: String,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkflowVariableSelectorDraft {
+    pub path: Vec<String>,
+}
+
+impl WorkflowVariableSelectorDraft {
+    pub fn from_input(input: &str) -> Self {
+        Self {
+            path: input
+                .split('.')
+                .map(str::trim)
+                .filter(|part| !part.is_empty())
+                .map(str::to_string)
+                .collect(),
+        }
+    }
+
+    pub fn to_input(&self) -> String {
+        self.path.join(".")
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkflowNamedValueDraft {
+    pub id: String,
+    pub name: String,
+    pub value_type: String,
+    pub selector: WorkflowVariableSelectorDraft,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkflowKeyValueDraft {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkflowModelDraft {
+    pub provider: String,
+    pub name: String,
+    pub mode: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WorkflowNodeFieldEdit {
+    VariableSelectorChanged(String),
+    NamedValueAdded,
+    NamedValueRemoved(usize),
+    NamedValueNameChanged(usize, String),
+    NamedValueTypeChanged(usize, String),
+    NamedValueSelectorChanged(usize, String),
+    KeyValueAdded,
+    KeyValueRemoved(usize),
+    KeyValueKeyChanged(usize, String),
+    KeyValueValueChanged(usize, String),
+    ModelProviderChanged(String),
+    ModelNameChanged(String),
+    ModelModeChanged(String),
+    RetryEnabledChanged(bool),
+    RetryMaxRetriesChanged(u8),
+    RetryIntervalChanged(u16),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WorkflowNodeRetryDraft {
     pub enabled: bool,

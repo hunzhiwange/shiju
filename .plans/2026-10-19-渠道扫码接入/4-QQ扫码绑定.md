@@ -2,7 +2,7 @@
 
 批次：【批次 2】依赖批次 1
 
-状态：未开始
+状态：已完成，待回归验证
 
 目的：移植 QQ Portal 绑定任务及 AES-GCM 密钥解密，将 app_id/app_secret 映射到现有 QQ 通道。
 
@@ -60,3 +60,12 @@
 - 仅凭当前验证证据标记 `已完成`；无关既有故障阻断验证时可标记 `已完成，待回归` 并保留文件；真正无法实施则标记 `已阻塞`，在本文件写明原因和检查。
 - 有代码、测试、配置或文档变更时使用 `$git-commit` 检查并仅提交本任务变更；只有本任务文件状态更新/删除时不提交。获得证据并提交后删除本任务文件，最终报告证据。
 - `plan.md` 只读，不得修改。
+
+## 验证记录
+
+- 失败测试：`cargo test -p vw-agent --lib qq_qr_rejects_tampered_secret_and_maps_valid_credentials`，退出码 101；缺少 `decrypt_secret` 与 `map_poll_response`，符合预期。
+- 聚焦测试：`cargo test -p vw-agent --lib qq_qr_`，退出码 0；2 项通过。
+- 包级 Clippy：`cargo clippy -p vw-agent --all-targets --all-features -- -D warnings`，退出码 0。
+- 全仓 Clippy：`cargo clippy --all-targets --all-features -- -D warnings`，退出码 101；被无关并行 Skill Hub 改动阻断，`vw-desktop` 测试引用尚未落地的字段与消息变体（34 个错误）。
+- 实际槽位：失败验证槽位 1；格式化/聚焦测试曾使用槽位 3 后因内部 Cargo 锁中断，随后聚焦测试及 Clippy 使用槽位 4。
+- 最终 `CARGO_TARGET_DIR`：`/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-4`；缓存保留，所有本任务槽位锁已释放。

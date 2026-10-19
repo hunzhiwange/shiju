@@ -16,6 +16,10 @@ mod agent_scheduler_api;
 #[cfg(test)]
 #[path = "agent_scheduler_api_tests.rs"]
 mod agent_scheduler_api_tests;
+mod channel_qr_api;
+#[cfg(test)]
+#[path = "channel_qr_api_tests.rs"]
+mod channel_qr_api_tests;
 mod config_api;
 mod control_api;
 #[cfg(test)]
@@ -63,6 +67,9 @@ pub(crate) mod test_support;
 mod tools_api;
 mod workflow_api;
 
+pub use self::channel_qr_api::{
+    ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto,
+};
 pub use self::cron_api::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 pub use self::desktop_settings_api::{
     DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,

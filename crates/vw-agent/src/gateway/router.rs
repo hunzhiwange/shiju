@@ -140,6 +140,8 @@ fn handler_router() -> Router {
         .merge(handlers::config::router())
         // Provider 路由：模型提供者管理
         .merge(handlers::provider::router())
+        // Channel QR-code authorization routes.
+        .merge(handlers::channel_qr::router())
         // 知识库路由：数据集、文档入库与召回
         .merge(handlers::knowledge::router())
         // 文件路由：文件系统操作

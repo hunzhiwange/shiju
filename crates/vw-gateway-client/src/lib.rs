@@ -39,6 +39,8 @@ pub use client::GatewayChatWebSocket;
 pub use client::GatewayClient;
 /// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
 pub use client::SessionUiLoadResult;
+/// Channel QR-code authorization transport contract.
+pub use client::{ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto};
 pub use client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 /// 桌面端可用外部应用状态的精简传输对象。
 ///

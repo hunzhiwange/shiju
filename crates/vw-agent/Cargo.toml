@@ -101,7 +101,7 @@ opentelemetry_sdk = { version = "0.31.0", optional = true }
 portable-pty = "0.9"
 probe-rs = { version = "0.31.0", optional = true }
 prost = { version = "0.14.3", optional = true }
-qrcode = { version = "0.14", optional = true }
+qrcode = "0.14"
 ratatui = "0.30.0"
 reqwest = { version = "0.13", default-features = false, features = ["multipart", "stream", "socks", "blocking", "json", "gzip", "brotli", "deflate", "zstd", "http2", "rustls"] }
 reqwest_012 = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
@@ -174,4 +174,4 @@ sandbox-bubblewrap = []
 sandbox-landlock = ["dep:landlock"]
 shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash"]
 channel-lark = ["dep:prost"]
-whatsapp-web = ["dep:prost", "dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport", "dep:qrcode"]
+whatsapp-web = ["dep:prost", "dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport"]

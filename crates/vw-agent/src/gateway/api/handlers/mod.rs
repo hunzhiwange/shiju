@@ -46,6 +46,9 @@ pub mod config;
 /// 身份认证路由处理器模块
 pub mod auth;
 
+/// Channel QR-code authorization handlers.
+pub(crate) mod channel_qr;
+
 /// Agent Scheduler 路由处理器模块
 pub mod agent_scheduler;
 

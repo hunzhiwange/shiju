@@ -27,7 +27,7 @@ async fn api_skill_market_commands_cover_shiju_and_unified_market_routes() {
         br#"{"credential":"private","query":{"query":"rust cli","cursor":"c/1","page_size":5}}"#;
     let system =
         br#"{"credential":"private","query":{"page":1,"page_size":5,"name":"agent","tag_id":2}}"#;
-    let maintained = br#"{"credential":"private","query":{"page":1,"page_size":5,"keyword":"ops","tag_ids":[2,3],"statuses":["draft","published"]}}"#;
+    let maintained = br#"{"credential":"private","query":{"page":1,"page_size":5,"keyword":"ops","tag_ids":[2,1],"company_tag_ids":[5],"statuses":["draft","published"]}}"#;
     let market = br#"{"keyword":"rust cli","category":"dev","namespace":"ns/one","sort":"downloads","page":2,"page_size":5}"#;
 
     let shiju_reads = [
@@ -49,7 +49,7 @@ async fn api_skill_market_commands_cover_shiju_and_unified_market_routes() {
         (
             &["skill-market", "shiju-maintained", "--input", "-"][..],
             maintained.as_slice(),
-            "/v1/shiju/skills/maintained?page=1&page_size=5&keyword=ops&tag_ids=2%2C3&statuses=draft%2Cpublished",
+            "/v1/shiju/skills/maintained?page=1&page_size=5&keyword=ops&tag_ids=2%2C1&company_tag_ids=5&statuses=draft%2Cpublished",
         ),
         (
             &["skill-market", "shiju-detail", "7", "--input", "-"][..],

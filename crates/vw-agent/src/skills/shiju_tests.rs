@@ -7,8 +7,7 @@ use std::thread;
 
 use super::*;
 use vw_gateway_client::{
-    ShijuCredential, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery,
-    ShijuSystemSkillQuery,
+    ShijuCredential, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery,
 };
 
 #[test]
@@ -170,7 +169,8 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
                 page: 4,
                 page_size: 20,
                 keyword: Some("个人".to_string()),
-                tag_ids: vec![2, 1, 3, 4],
+                tag_ids: vec![2, 1],
+                company_tag_ids: vec![5],
                 statuses: vec![
                     "draft".to_string(),
                     "pending_review".to_string(),
@@ -191,7 +191,7 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
         "GET /marketplace/skills?page_size=20&q=%E8%A7%86%E8%A7%89+%26+%E5%88%86%E6%9E%90&cursor=cursor%2Fnext ",
         "GET /me/skills ",
         "GET /tenant/system-skills?page=2&page_size=20&name=%E8%A7%86%E8%A7%89&tag_id=2 ",
-        "GET /me/maintained-skills?page=4&page_size=20&keyword=%E4%B8%AA%E4%BA%BA&tag_ids=2%2C1%2C3%2C4&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished ",
+        "GET /me/maintained-skills?page=4&page_size=20&keyword=%E4%B8%AA%E4%BA%BA&tag_ids=2%2C1&company_tag_ids=5&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished ",
         "GET /skills/31 ",
         "GET /skills/31/versions ",
     ];
@@ -212,10 +212,8 @@ async fn shiju_skill_adapter_uses_current_default_catalog_contracts() {
         "page_size": 20,
         "total": 0
     }));
-    let (base, requests) = fixture(vec![
-        ("200 OK".to_string(), page.clone()),
-        ("200 OK".to_string(), page),
-    ]);
+    let (base, requests) =
+        fixture(vec![("200 OK".to_string(), page.clone()), ("200 OK".to_string(), page)]);
     let client = ShijuSkillClient::with_base_url(&base).expect("client");
     let credential = credential();
 
@@ -231,6 +229,7 @@ async fn shiju_skill_adapter_uses_current_default_catalog_contracts() {
                 page_size: 20,
                 keyword: None,
                 tag_ids: Vec::new(),
+                company_tag_ids: Vec::new(),
                 statuses: Vec::new(),
             },
         )
@@ -238,10 +237,8 @@ async fn shiju_skill_adapter_uses_current_default_catalog_contracts() {
         .expect("maintained");
 
     let requests = requests.join().expect("join fixture");
-    let expected = [
-        "GET /marketplace/skills?page_size=20 ",
-        "GET /me/maintained-skills?page=1&page_size=20 ",
-    ];
+    let expected =
+        ["GET /marketplace/skills?page_size=20 ", "GET /me/maintained-skills?page=1&page_size=20 "];
     for (request, expected) in requests.iter().zip(expected) {
         assert!(request.starts_with(expected), "{request}");
     }
@@ -311,6 +308,7 @@ async fn shiju_skill_adapter_rejects_invalid_paging_and_upstream_errors_without_
                 page_size: 20,
                 keyword: None,
                 tag_ids: vec![2, 0, 1],
+                company_tag_ids: Vec::new(),
                 statuses: vec!["draft".to_string()],
             },
         )
@@ -326,6 +324,23 @@ async fn shiju_skill_adapter_rejects_invalid_paging_and_upstream_errors_without_
                 page_size: 20,
                 keyword: None,
                 tag_ids: vec![2, 1],
+                company_tag_ids: vec![5, 0],
+                statuses: vec!["draft".to_string()],
+            },
+        )
+        .await
+        .expect_err("zero company tag ID");
+    assert!(invalid.to_string().contains("company_tag_ids"));
+
+    let invalid = client
+        .maintained(
+            &credential,
+            &ShijuMaintainedSkillQuery {
+                page: 1,
+                page_size: 20,
+                keyword: None,
+                tag_ids: vec![2, 1],
+                company_tag_ids: Vec::new(),
                 statuses: vec!["archived".to_string()],
             },
         )

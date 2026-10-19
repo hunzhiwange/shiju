@@ -5,9 +5,9 @@
 use serde_json::json;
 
 use super::{
-    SHIJU_CREDENTIAL_HEADER, ShijuCredential, ShijuMaintainedSkillQuery,
-    ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
-    ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillQuery,
+    SHIJU_CREDENTIAL_HEADER, ShijuCredential, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto,
+    ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery,
+    ShijuSkillVersionDto, ShijuSystemSkillQuery,
 };
 use crate::client::test_support;
 
@@ -64,7 +64,8 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
         page: 4,
         page_size: 20,
         keyword: Some("my visual".to_string()),
-        tag_ids: vec![2, 1, 3, 4],
+        tag_ids: vec![2, 1],
+        company_tag_ids: vec![5],
         statuses: vec![
             "draft".to_string(),
             "pending_review".to_string(),
@@ -91,7 +92,7 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
         "/v1/shiju/skills/search?page_size=20&q=visual+guide&cursor=cursor%2Fnext",
         "/v1/shiju/skills/installed",
         "/v1/shiju/skills/system?page=2&page_size=20&name=system+visual&tag_id=7",
-        "/v1/shiju/skills/maintained?page=4&page_size=20&keyword=my+visual&tag_ids=2%2C1%2C3%2C4&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished",
+        "/v1/shiju/skills/maintained?page=4&page_size=20&keyword=my+visual&tag_ids=2%2C1&company_tag_ids=5&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished",
         "/v1/shiju/skills/31",
         "/v1/shiju/skills/31/readme",
         "/v1/shiju/skills/31/versions",

@@ -7,10 +7,9 @@ use reqwest::{Method, StatusCode, Url};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use vw_gateway_client::{
-    ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
-    ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
-    ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
-    ShijuTenantSkillDto,
+    ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto,
+    ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery,
+    ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
 
 const SHIJU_SKILL_BASE_URL: &str = "https://gateway.shiju.cloud/sj/skill-hub/api/v1/";
@@ -144,11 +143,13 @@ impl ShijuSkillClient {
     ) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, ShijuSkillError> {
         validate_page(query.page, query.page_size)?;
         validate_optional_text(query.keyword.as_deref(), "keyword")?;
-        validate_tag_ids(&query.tag_ids)?;
+        validate_tag_ids(&query.tag_ids, "tag_ids")?;
+        validate_tag_ids(&query.company_tag_ids, "company_tag_ids")?;
         validate_statuses(&query.statuses)?;
         let mut parameters = page_parameters(query.page, query.page_size);
         push_text_filter(&mut parameters, "keyword", query.keyword.as_deref());
-        push_tag_ids_filter(&mut parameters, &query.tag_ids);
+        push_tag_ids_filter(&mut parameters, "tag_ids", &query.tag_ids);
+        push_tag_ids_filter(&mut parameters, "company_tag_ids", &query.company_tag_ids);
         push_statuses_filter(&mut parameters, &query.statuses);
         self.get("me/maintained-skills", &parameters, credential).await
     }
@@ -367,9 +368,11 @@ fn validate_tag_id(tag_id: Option<u64>) -> Result<(), ShijuSkillError> {
     }
 }
 
-fn validate_tag_ids(tag_ids: &[u64]) -> Result<(), ShijuSkillError> {
+fn validate_tag_ids(tag_ids: &[u64], name: &str) -> Result<(), ShijuSkillError> {
     if tag_ids.contains(&0) {
-        Err(ShijuSkillError::invalid("SHIJU skill tag_ids must contain only positive integers"))
+        Err(ShijuSkillError::invalid(format!(
+            "SHIJU skill {name} must contain only positive integers"
+        )))
     } else {
         Ok(())
     }
@@ -407,10 +410,10 @@ fn push_tag_filter(query: &mut Vec<(&str, String)>, tag_id: Option<u64>) {
     }
 }
 
-fn push_tag_ids_filter(query: &mut Vec<(&str, String)>, tag_ids: &[u64]) {
+fn push_tag_ids_filter<'a>(query: &mut Vec<(&'a str, String)>, key: &'a str, tag_ids: &[u64]) {
     if !tag_ids.is_empty() {
         let tag_ids = tag_ids.iter().map(u64::to_string).collect::<Vec<_>>().join(",");
-        query.push(("tag_ids", tag_ids));
+        query.push((key, tag_ids));
     }
 }
 

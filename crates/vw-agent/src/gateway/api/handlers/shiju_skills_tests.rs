@@ -116,19 +116,19 @@ async fn shiju_skill_readme_route_forwards_markdown_content() {
 #[tokio::test(flavor = "multi_thread")]
 async fn shiju_skill_routes_forward_maintained_multi_value_filters() {
     let body = r#"{"code":200,"message":"","data":{"items":[],"page":1,"page_size":20,"total":0}}"#;
-    let response = format!(
+    let upstream_response = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
         body.len()
     );
-    let (base, requests) = upstream_fixture_with_response(1, response.into_bytes());
+    let (base, requests) = upstream_fixture_with_response(1, upstream_response.into_bytes());
     let router = super::router_with_client::<()>(
         crate::skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
     );
 
-    let response = router
+    let valid_response = router
         .oneshot(
             Request::get(
-                "/shiju/skills/maintained?page=1&page_size=20&tag_ids=2%2C1%2C3%2C4&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished",
+                "/shiju/skills/maintained?page=1&page_size=20&tag_ids=2%2C1&company_tag_ids=5&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished",
             )
             .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
             .body(Body::empty())
@@ -136,12 +136,22 @@ async fn shiju_skill_routes_forward_maintained_multi_value_filters() {
         )
         .await
         .expect("response");
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(valid_response.status(), StatusCode::OK);
 
     let requests = requests.join().expect("join fixture");
     assert!(requests[0].starts_with(
-        "GET /me/maintained-skills?page=1&page_size=20&tag_ids=2%2C1%2C3%2C4&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished "
+        "GET /me/maintained-skills?page=1&page_size=20&tag_ids=2%2C1&company_tag_ids=5&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished "
     ));
+
+    let (status, body) = response(
+        Request::get("/shiju/skills/maintained?page=1&page_size=20&company_tag_ids=5%2C0")
+            .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
+            .body(Body::empty())
+            .expect("invalid maintained request"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body.to_string().contains("company_tag_ids"));
 }
 
 #[tokio::test(flavor = "multi_thread")]

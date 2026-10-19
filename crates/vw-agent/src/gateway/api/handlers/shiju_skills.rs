@@ -12,10 +12,10 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 use vw_gateway_client::{
-    SHIJU_CREDENTIAL_HEADER, ShijuCredential, ShijuInstalledSkillDto,
-    ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
-    ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto,
-    ShijuSystemSkillQuery, ShijuTenantSkillDto,
+    SHIJU_CREDENTIAL_HEADER, ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
+    ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
+    ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
+    ShijuTenantSkillDto,
 };
 
 use crate::gateway::ApiError;
@@ -70,6 +70,7 @@ struct MaintainedParams {
     page_size: u32,
     keyword: Option<String>,
     tag_ids: Option<String>,
+    company_tag_ids: Option<String>,
     statuses: Option<String>,
 }
 
@@ -120,7 +121,8 @@ async fn maintained_get(
         page: params.page,
         page_size: params.page_size,
         keyword: params.keyword,
-        tag_ids: parse_tag_ids(params.tag_ids.as_deref())?,
+        tag_ids: parse_tag_ids(params.tag_ids.as_deref(), "tag_ids")?,
+        company_tag_ids: parse_tag_ids(params.company_tag_ids.as_deref(), "company_tag_ids")?,
         statuses: parse_statuses(params.statuses.as_deref())?,
     };
     client.maintained(&credential, &query).await.map(Json).map_err(map_error)
@@ -195,7 +197,7 @@ fn map_error(error: ShijuSkillError) -> ApiError {
     }
 }
 
-fn parse_tag_ids(value: Option<&str>) -> Result<Vec<u64>, ApiError> {
+fn parse_tag_ids(value: Option<&str>, name: &str) -> Result<Vec<u64>, ApiError> {
     let Some(value) = value else {
         return Ok(Vec::new());
     };
@@ -204,17 +206,19 @@ fn parse_tag_ids(value: Option<&str>) -> Result<Vec<u64>, ApiError> {
         .map(|tag_id| {
             let tag_id = tag_id.trim();
             if tag_id.is_empty() {
-                return Err(ApiError::bad_request(
-                    "SHIJU skill tag_ids cannot contain empty items",
-                ));
+                return Err(ApiError::bad_request(format!(
+                    "SHIJU skill {name} cannot contain empty items"
+                )));
             }
             let tag_id = tag_id.parse::<u64>().map_err(|_| {
-                ApiError::bad_request("SHIJU skill tag_ids must contain only positive integers")
+                ApiError::bad_request(format!(
+                    "SHIJU skill {name} must contain only positive integers"
+                ))
             })?;
             if tag_id == 0 {
-                return Err(ApiError::bad_request(
-                    "SHIJU skill tag_ids must contain only positive integers",
-                ));
+                return Err(ApiError::bad_request(format!(
+                    "SHIJU skill {name} must contain only positive integers"
+                )));
             }
             Ok(tag_id)
         })

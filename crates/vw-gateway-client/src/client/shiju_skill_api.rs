@@ -38,6 +38,8 @@ pub struct ShijuMaintainedSkillQuery {
     pub page_size: u32,
     pub keyword: Option<String>,
     pub tag_ids: Vec<u64>,
+    #[serde(default)]
+    pub company_tag_ids: Vec<u64>,
     pub statuses: Vec<String>,
 }
 
@@ -345,7 +347,8 @@ impl GatewayClient {
     ) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, String> {
         let mut query_pairs = page_query(query.page, query.page_size);
         push_text_filter(&mut query_pairs, "keyword", query.keyword.as_deref());
-        push_tag_ids_filter(&mut query_pairs, &query.tag_ids);
+        push_tag_ids_filter(&mut query_pairs, "tag_ids", &query.tag_ids);
+        push_tag_ids_filter(&mut query_pairs, "company_tag_ids", &query.company_tag_ids);
         push_statuses_filter(&mut query_pairs, &query.statuses);
         self.shiju_skill_get(&format!("{SHIJU_SKILLS_PATH}/maintained"), &query_pairs, credential)
             .await
@@ -468,10 +471,10 @@ fn push_tag_filter(query: &mut Vec<(String, String)>, tag_id: Option<u64>) {
     }
 }
 
-fn push_tag_ids_filter(query: &mut Vec<(String, String)>, tag_ids: &[u64]) {
+fn push_tag_ids_filter(query: &mut Vec<(String, String)>, key: &str, tag_ids: &[u64]) {
     if !tag_ids.is_empty() {
         let tag_ids = tag_ids.iter().map(u64::to_string).collect::<Vec<_>>().join(",");
-        query.push(("tag_ids".to_string(), tag_ids));
+        query.push((key.to_string(), tag_ids));
     }
 }
 

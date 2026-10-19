@@ -1,12 +1,11 @@
 //! 协调识矩技能列表、详情、安装、版本操作与本地缓存同步消息。
 
 use crate::app::session_gateway::{
-    gateway_shiju_maintained_skills_async,
-    gateway_shiju_skill_detail_async, gateway_shiju_skill_installed_async,
-    gateway_shiju_skill_readme_async, gateway_shiju_skill_remote_install_async,
-    gateway_shiju_skill_remote_install_version_async, gateway_shiju_skill_remote_uninstall_async,
-    gateway_shiju_skill_search_async, gateway_shiju_skill_versions_async,
-    gateway_shiju_system_skills_async,
+    gateway_shiju_maintained_skills_async, gateway_shiju_skill_detail_async,
+    gateway_shiju_skill_installed_async, gateway_shiju_skill_readme_async,
+    gateway_shiju_skill_remote_install_async, gateway_shiju_skill_remote_install_version_async,
+    gateway_shiju_skill_remote_uninstall_async, gateway_shiju_skill_search_async,
+    gateway_shiju_skill_versions_async, gateway_shiju_system_skills_async,
 };
 use crate::app::skill_hub::{
     CursorPage, ExpertHubSection, InstalledSkill, LoadState, MarketplaceSkill, MineFilterMenu,
@@ -29,9 +28,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tempfile::NamedTempFile;
-use vw_gateway_client::{
-    ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery,
-};
+use vw_gateway_client::{ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery};
 
 mod public;
 #[cfg(test)]
@@ -2063,6 +2060,7 @@ pub(super) fn mine_query(app: &App) -> ShijuMaintainedSkillQuery {
         page_size: SHIJU_PAGE_SIZE,
         keyword: (!keyword.is_empty()).then_some(keyword),
         tag_ids: app.expert_hub.submitted_mine_tag_ids.clone(),
+        company_tag_ids: Vec::new(),
         statuses: app
             .expert_hub
             .submitted_mine_statuses

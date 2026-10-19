@@ -515,12 +515,20 @@ pub(super) fn mine_tag_filter_options<'a>(
     tags: impl Iterator<Item = &'a crate::app::skill_hub::SkillTag>,
     selected_ids: &[u64],
 ) -> Vec<MineTagFilterOption> {
-    let mut options = Vec::new();
+    let mut catalog_options = Vec::new();
     for tag in tags {
-        if !options.iter().any(|option: &MineTagFilterOption| option.id == tag.id) {
-            options.push(MineTagFilterOption { id: tag.id, label: tag.name.clone() });
+        if !catalog_options
+            .iter()
+            .any(|(_, option): &(i64, MineTagFilterOption)| option.id == tag.id)
+        {
+            catalog_options.push((
+                tag.sort_order,
+                MineTagFilterOption { id: tag.id, label: tag.name.clone() },
+            ));
         }
     }
+    catalog_options.sort_by_key(|(sort_order, _)| *sort_order);
+    let mut options = catalog_options.into_iter().map(|(_, option)| option).collect::<Vec<_>>();
     for selected_id in selected_ids {
         if !options.iter().any(|option| option.id == *selected_id) {
             options.push(MineTagFilterOption {
@@ -532,11 +540,35 @@ pub(super) fn mine_tag_filter_options<'a>(
     options
 }
 
-pub(super) fn mine_tag_filter_label(selected_ids: &[u64]) -> String {
-    if selected_ids.is_empty() {
-        "选择标签".to_string()
+/// 从账号范围目录构建菜单选项，并为未加载目录保留已选项。
+pub(super) fn mine_catalog_filter_options(
+    catalog: &LoadState<Vec<crate::app::skill_hub::SkillTag>>,
+    selected_ids: &[u64],
+) -> (Vec<MineTagFilterOption>, Option<&'static str>) {
+    let tags = match catalog {
+        LoadState::Loaded(tags) => tags.as_slice(),
+        _ => &[],
+    };
+    let options = mine_tag_filter_options(tags.iter(), selected_ids);
+    let empty_label = if !options.is_empty() {
+        None
     } else {
-        format!("已选 {} 个标签", selected_ids.len())
+        Some(match catalog {
+            LoadState::Idle | LoadState::Loading { .. } => "标签目录加载中",
+            LoadState::NeedsLogin => "登录后加载标签",
+            LoadState::Error(_) => "标签目录加载失败",
+            LoadState::Loaded(_) => "暂无可选标签",
+        })
+    };
+    let warning = matches!(catalog, LoadState::Error(_)).then_some("标签目录加载失败");
+    (options, warning.or(empty_label))
+}
+
+pub(super) fn mine_named_tag_filter_label(name: &str, selected_ids: &[u64]) -> String {
+    if selected_ids.is_empty() {
+        name.to_string()
+    } else {
+        format!("{name} {}", selected_ids.len())
     }
 }
 
@@ -611,30 +643,28 @@ fn mine_filter_trigger(
     .into()
 }
 
-fn mine_tag_filter(app: &App) -> Element<'_, Message> {
-    let open = app.expert_hub.mine_filter_menu == Some(MineFilterMenu::Tags);
-    let trigger = mine_filter_trigger(
-        mine_tag_filter_label(&app.expert_hub.mine_tag_ids_draft),
-        open,
-        SkillHubMessage::ToggleMineTagFilterMenu,
-    );
-    let tags = match &app.expert_hub.mine {
-        LoadState::Loaded(page) => mine_tag_filter_options(
-            page.items.iter().flat_map(|skill| skill.tags.iter()),
-            &app.expert_hub.mine_tag_ids_draft,
-        ),
-        _ => mine_tag_filter_options(std::iter::empty(), &app.expert_hub.mine_tag_ids_draft),
-    };
-    let tags_empty = tags.is_empty();
+fn mine_tag_filter<'a>(
+    app: &'a App,
+    menu_kind: MineFilterMenu,
+    selected_ids: &'a [u64],
+    catalog: &'a LoadState<Vec<crate::app::skill_hub::SkillTag>>,
+    label: &'static str,
+    toggle_message: SkillHubMessage,
+    toggle_option: fn(u64) -> SkillHubMessage,
+) -> Element<'a, Message> {
+    let open = app.expert_hub.mine_filter_menu == Some(menu_kind);
+    let trigger =
+        mine_filter_trigger(mine_named_tag_filter_label(label, selected_ids), open, toggle_message);
+    let (tags, empty_label) = mine_catalog_filter_options(catalog, selected_ids);
     let mut entries = column![].spacing(2);
     for option in tags {
-        let selected = app.expert_hub.mine_tag_ids_draft.contains(&option.id);
+        let selected = selected_ids.contains(&option.id);
         let tag_id = option.id;
         entries = entries.push(
             container(
                 checkbox(selected)
                     .label(option.label)
-                    .on_toggle(move |_| Message::SkillHub(SkillHubMessage::MineTagToggled(tag_id)))
+                    .on_toggle(move |_| Message::SkillHub(toggle_option(tag_id)))
                     .size(16)
                     .spacing(8)
                     .style(settings_checkbox_style)
@@ -645,10 +675,9 @@ fn mine_tag_filter(app: &App) -> Element<'_, Message> {
             .style(move |theme| mine_filter_menu_entry_style(theme, selected)),
         );
     }
-    if tags_empty {
+    if let Some(empty_label) = empty_label {
         entries = entries.push(
-            container(text("暂无可选标签").size(13).style(styles::muted_text_style))
-                .padding([8, 10]),
+            container(text(empty_label).size(13).style(styles::muted_text_style)).padding([8, 10]),
         );
     }
     let menu = container(
@@ -780,7 +809,24 @@ fn search_controls(app: &App) -> Element<'_, Message> {
         }
         SkillTab::Mine => row![
             list_search_input(&app.expert_hub.mine_filter.keyword_draft),
-            mine_tag_filter(app),
+            mine_tag_filter(
+                app,
+                MineFilterMenu::Tags,
+                &app.expert_hub.mine_tag_ids_draft,
+                &app.expert_hub.platform_tag_catalog,
+                "平台标签",
+                SkillHubMessage::ToggleMineTagFilterMenu,
+                SkillHubMessage::MineTagToggled,
+            ),
+            mine_tag_filter(
+                app,
+                MineFilterMenu::CompanyTags,
+                &app.expert_hub.mine_company_tag_ids_draft,
+                &app.expert_hub.company_tag_catalog,
+                "公司标签",
+                SkillHubMessage::ToggleMineCompanyTagFilterMenu,
+                SkillHubMessage::MineCompanyTagToggled,
+            ),
             mine_status_filter(app),
             filter_buttons(),
         ]

@@ -5,8 +5,9 @@ use super::list::{
     SCROLLBAR_GUTTER, SCROLLBAR_WIDTH, access_action_message, description_preview,
     description_tooltip, detail_action_message, grid_column_count, install_action_message,
     installed_quick_upgrade_message, market_search_messages, marketplace_quick_upgrade_action,
-    mine_filter_menu_entry_style, mine_filter_menu_style, mine_status_filter_label,
-    mine_tag_filter_label, mine_tag_filter_options, pagination_messages, skill_tab_specs,
+    mine_catalog_filter_options, mine_filter_menu_entry_style, mine_filter_menu_style,
+    mine_named_tag_filter_label, mine_status_filter_label, mine_tag_filter_options,
+    pagination_messages, skill_tab_specs,
 };
 use super::styles::{
     action_button_style, card_style, search_input_style, selected_tab_style, skill_badge_style,
@@ -138,20 +139,56 @@ fn expert_hub_market_search_and_pagination_emit_scoped_messages() {
 #[test]
 fn mine_multi_select_labels_and_tag_fallbacks_are_stable() {
     let tags = [
-        SkillTag { id: 9, name: "设计".to_string(), sort_order: 0 },
+        SkillTag { id: 9, name: "设计".to_string(), sort_order: 2 },
         SkillTag { id: 2, name: "开发".to_string(), sort_order: 1 },
-        SkillTag { id: 9, name: "重复名称".to_string(), sort_order: 2 },
+        SkillTag { id: 9, name: "重复名称".to_string(), sort_order: 0 },
     ];
     let options = mine_tag_filter_options(tags.iter(), &[2, 7]);
 
-    assert_eq!(options.iter().map(|option| option.id).collect::<Vec<_>>(), vec![9, 2, 7]);
+    assert_eq!(options.iter().map(|option| option.id).collect::<Vec<_>>(), vec![2, 9, 7]);
     assert_eq!(
         options.iter().map(|option| option.label.as_str()).collect::<Vec<_>>(),
-        vec!["设计", "开发", "标签 7"]
+        vec!["开发", "设计", "标签 7"]
     );
-    assert_eq!(mine_tag_filter_label(&[]), "选择标签");
-    assert_eq!(mine_tag_filter_label(&[9, 2]), "已选 2 个标签");
-    assert_eq!(mine_status_filter_label(&MineSkillStatus::ALL), "已选 4 个状态");
+    assert_eq!(mine_named_tag_filter_label("平台标签", &[]), "平台标签");
+    assert_eq!(mine_named_tag_filter_label("公司标签", &[2, 7]), "公司标签 2");
+    assert_eq!(mine_status_filter_label(&MineSkillStatus::DEFAULT), "已选 3 个状态");
+    assert!(!MineSkillStatus::DEFAULT.contains(&MineSkillStatus::Unpublished));
+}
+
+#[test]
+fn mine_tag_catalogs_are_independent_sorted_and_keep_selected_fallbacks() {
+    let platform = LoadState::Loaded(vec![
+        SkillTag { id: 3, name: "平台三".to_string(), sort_order: 30 },
+        SkillTag { id: 1, name: "平台一".to_string(), sort_order: 10 },
+    ]);
+    let company = LoadState::Loaded(vec![
+        SkillTag { id: 8, name: "公司八".to_string(), sort_order: 20 },
+        SkillTag { id: 7, name: "公司七".to_string(), sort_order: 10 },
+    ]);
+
+    let (platform_options, platform_empty) = mine_catalog_filter_options(&platform, &[9]);
+    let (company_options, company_empty) = mine_catalog_filter_options(&company, &[]);
+    assert_eq!(
+        platform_options.iter().map(|option| option.label.as_str()).collect::<Vec<_>>(),
+        vec!["平台一", "平台三", "标签 9"]
+    );
+    assert_eq!(
+        company_options.iter().map(|option| option.label.as_str()).collect::<Vec<_>>(),
+        vec!["公司七", "公司八"]
+    );
+    assert_eq!(platform_empty, None);
+    assert_eq!(company_empty, None);
+
+    let (failed_options, failed_empty) =
+        mine_catalog_filter_options(&LoadState::Error("目录不可用".to_string()), &[12]);
+    assert_eq!(failed_options[0].label, "标签 12");
+    assert_eq!(failed_empty, Some("标签目录加载失败"));
+
+    let (empty_options, empty_label) =
+        mine_catalog_filter_options(&LoadState::Loaded(Vec::new()), &[]);
+    assert!(empty_options.is_empty());
+    assert_eq!(empty_label, Some("暂无可选标签"));
 }
 
 #[test]

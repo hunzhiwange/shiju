@@ -741,7 +741,6 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("GET", "/v1/shiju/skills/search", "search SHIJU skills"),
         client_route("GET", "/v1/shiju/skills/installed", "installed SHIJU skills"),
         client_route("GET", "/v1/shiju/skills/system", "SHIJU system skills"),
-        client_route("GET", "/v1/shiju/skills/company", "SHIJU company skills"),
         client_route("GET", "/v1/shiju/skills/maintained", "maintained SHIJU skills"),
         client_route("GET", "/v1/shiju/skills/{skill_id}", "SHIJU skill detail"),
         client_route("GET", "/v1/shiju/skills/{skill_id}/versions", "SHIJU skill versions"),

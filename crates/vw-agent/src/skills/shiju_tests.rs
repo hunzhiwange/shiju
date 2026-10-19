@@ -7,7 +7,7 @@ use std::thread;
 
 use super::*;
 use vw_gateway_client::{
-    ShijuCompanySkillQuery, ShijuCredential, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery,
+    ShijuCredential, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery,
     ShijuSystemSkillQuery,
 };
 
@@ -131,10 +131,6 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
         ),
         (
             "200 OK".to_string(),
-            envelope(serde_json::json!({"items": [], "page": 3, "page_size": 20, "total": 0})),
-        ),
-        (
-            "200 OK".to_string(),
             envelope(serde_json::json!({"items": [], "page": 4, "page_size": 20, "total": 0})),
         ),
         ("200 OK".to_string(), envelope(detail)),
@@ -168,19 +164,6 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
         .await
         .expect("system");
     client
-        .company(
-            &credential,
-            &ShijuCompanySkillQuery {
-                page: 3,
-                page_size: 20,
-                keyword: Some("分析".to_string()),
-                tag_id: Some(1),
-                status: Some("draft".to_string()),
-            },
-        )
-        .await
-        .expect("company");
-    client
         .maintained(
             &credential,
             &ShijuMaintainedSkillQuery {
@@ -208,7 +191,6 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
         "GET /marketplace/skills?page_size=20&q=%E8%A7%86%E8%A7%89+%26+%E5%88%86%E6%9E%90&cursor=cursor%2Fnext ",
         "GET /me/skills ",
         "GET /tenant/system-skills?page=2&page_size=20&name=%E8%A7%86%E8%A7%89&tag_id=2 ",
-        "GET /tenant/skills?page=3&page_size=20&keyword=%E5%88%86%E6%9E%90&tag_id=1&statuses=draft ",
         "GET /me/maintained-skills?page=4&page_size=20&keyword=%E4%B8%AA%E4%BA%BA&tag_ids=2%2C1%2C3%2C4&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished ",
         "GET /skills/31 ",
         "GET /skills/31/versions ",
@@ -232,7 +214,6 @@ async fn shiju_skill_adapter_uses_current_default_catalog_contracts() {
     }));
     let (base, requests) = fixture(vec![
         ("200 OK".to_string(), page.clone()),
-        ("200 OK".to_string(), page.clone()),
         ("200 OK".to_string(), page),
     ]);
     let client = ShijuSkillClient::with_base_url(&base).expect("client");
@@ -242,19 +223,6 @@ async fn shiju_skill_adapter_uses_current_default_catalog_contracts() {
         .search(&credential, &ShijuSkillSearchQuery { query: None, cursor: None, page_size: 20 })
         .await
         .expect("marketplace");
-    client
-        .company(
-            &credential,
-            &ShijuCompanySkillQuery {
-                page: 1,
-                page_size: 20,
-                keyword: None,
-                tag_id: None,
-                status: None,
-            },
-        )
-        .await
-        .expect("company");
     client
         .maintained(
             &credential,
@@ -272,7 +240,6 @@ async fn shiju_skill_adapter_uses_current_default_catalog_contracts() {
     let requests = requests.join().expect("join fixture");
     let expected = [
         "GET /marketplace/skills?page_size=20 ",
-        "GET /tenant/skills?page=1&page_size=20&statuses=draft%2Cpending_review%2Cpublished ",
         "GET /me/maintained-skills?page=1&page_size=20 ",
     ];
     for (request, expected) in requests.iter().zip(expected) {

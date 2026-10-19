@@ -1,6 +1,6 @@
 //! 识矩私有技能网关传输契约。
 //!
-//! 统一描述市场、系统、企业和维护中技能，并兼容历史 README 及可空集合的响应形状。
+//! 统一描述市场、系统和维护中技能，并兼容历史 README 及可空集合的响应形状。
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -29,16 +29,6 @@ pub struct ShijuSystemSkillQuery {
     pub page_size: u32,
     pub name: Option<String>,
     pub tag_id: Option<u64>,
-}
-
-/// Query for company skills visible to the active SHIJU account.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ShijuCompanySkillQuery {
-    pub page: u32,
-    pub page_size: u32,
-    pub keyword: Option<String>,
-    pub tag_id: Option<u64>,
-    pub status: Option<String>,
 }
 
 /// Query for skills maintained by the active SHIJU account.
@@ -345,20 +335,6 @@ impl GatewayClient {
         push_text_filter(&mut query_pairs, "name", query.name.as_deref());
         push_tag_filter(&mut query_pairs, query.tag_id);
         self.shiju_skill_get(&format!("{SHIJU_SKILLS_PATH}/system"), &query_pairs, credential).await
-    }
-
-    /// Lists SHIJU company skills visible to the active account.
-    pub async fn shiju_company_skills(
-        &self,
-        credential: &ShijuCredential,
-        query: &ShijuCompanySkillQuery,
-    ) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, String> {
-        let mut query_pairs = page_query(query.page, query.page_size);
-        push_text_filter(&mut query_pairs, "keyword", query.keyword.as_deref());
-        push_tag_filter(&mut query_pairs, query.tag_id);
-        push_text_filter(&mut query_pairs, "status", query.status.as_deref());
-        self.shiju_skill_get(&format!("{SHIJU_SKILLS_PATH}/company"), &query_pairs, credential)
-            .await
     }
 
     /// Lists SHIJU skills maintained by the active account.

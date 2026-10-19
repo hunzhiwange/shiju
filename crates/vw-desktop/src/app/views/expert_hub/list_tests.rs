@@ -53,16 +53,6 @@ fn set_state(app: &mut App, tab: SkillTab, state: usize) {
                 _ => LoadState::NeedsLogin,
             };
         }
-        SkillTab::Company => {
-            app.expert_hub.company = match state {
-                0 => LoadState::Loading { generation: 1 },
-                1 => {
-                    LoadState::Loaded(Page { items: Vec::new(), page: 1, page_size: 20, total: 0 })
-                }
-                2 => LoadState::Error("network error".to_string()),
-                _ => LoadState::NeedsLogin,
-            };
-        }
         SkillTab::Mine => {
             app.expert_hub.mine = match state {
                 0 => LoadState::Loading { generation: 1 },
@@ -84,6 +74,7 @@ fn expert_hub_view_builds_all_visible_skill_tabs_and_access_states() {
     let (mut app, _) = App::new();
 
     assert!(!skill_tab_specs().iter().any(|(_, tab)| *tab == SkillTab::System));
+    assert!(!skill_tab_specs().iter().any(|(label, _)| *label == "公司技能"));
     for &(_, tab) in skill_tab_specs() {
         for state in 0..4 {
             set_state(&mut app, tab, state);

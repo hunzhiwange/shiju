@@ -1,7 +1,7 @@
 //! 协调识矩技能列表、详情、安装、版本操作与本地缓存同步消息。
 
 use crate::app::session_gateway::{
-    gateway_shiju_company_skills_async, gateway_shiju_maintained_skills_async,
+    gateway_shiju_maintained_skills_async,
     gateway_shiju_skill_detail_async, gateway_shiju_skill_installed_async,
     gateway_shiju_skill_readme_async, gateway_shiju_skill_remote_install_async,
     gateway_shiju_skill_remote_install_version_async, gateway_shiju_skill_remote_uninstall_async,
@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tempfile::NamedTempFile;
 use vw_gateway_client::{
-    ShijuCompanySkillQuery, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery,
+    ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery,
 };
 
 mod public;
@@ -136,7 +136,6 @@ pub(crate) enum SkillHubMessage {
     SearchSubmitted,
     FilterKeywordChanged(String),
     FilterTagChanged(Option<u64>),
-    CompanyStatusChanged(Option<String>),
     ToggleMineTagFilterMenu,
     ToggleMineStatusFilterMenu,
     CloseMineFilterMenu,
@@ -212,11 +211,6 @@ pub(crate) enum SkillHubMessage {
         generation: u64,
         account_id: String,
         result: Result<Page<SystemSkill>, SkillHubError>,
-    },
-    CompanyLoaded {
-        generation: u64,
-        account_id: String,
-        result: Result<Page<TenantSkill>, SkillHubError>,
     },
     MineLoaded {
         generation: u64,
@@ -370,7 +364,6 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
         SkillHubMessage::FilterKeywordChanged(keyword) => {
             match app.expert_hub.skill_tab {
                 SkillTab::System => app.expert_hub.system_filter.keyword_draft = keyword,
-                SkillTab::Company => app.expert_hub.company_filter.keyword_draft = keyword,
                 SkillTab::Mine => app.expert_hub.mine_filter.keyword_draft = keyword,
                 SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => {}
             }
@@ -379,15 +372,8 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
         SkillHubMessage::FilterTagChanged(tag_id) => {
             match app.expert_hub.skill_tab {
                 SkillTab::System => app.expert_hub.system_filter.tag_id_draft = tag_id,
-                SkillTab::Company => app.expert_hub.company_filter.tag_id_draft = tag_id,
                 SkillTab::Mine => {}
                 SkillTab::Marketplace | SkillTab::Installed | SkillTab::Install => {}
-            }
-            Task::none()
-        }
-        SkillHubMessage::CompanyStatusChanged(status) => {
-            if app.expert_hub.skill_tab == SkillTab::Company {
-                app.expert_hub.company_status_draft = status;
             }
             Task::none()
         }
@@ -426,12 +412,6 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                     app.expert_hub.system_filter.submit();
                     app.expert_hub.system_page = 1;
                 }
-                SkillTab::Company => {
-                    app.expert_hub.company_filter.submit();
-                    app.expert_hub.submitted_company_status =
-                        app.expert_hub.company_status_draft.clone();
-                    app.expert_hub.company_page = 1;
-                }
                 SkillTab::Mine => {
                     app.expert_hub.submit_mine_filters();
                     app.expert_hub.mine_page = 1;
@@ -452,12 +432,6 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                     app.expert_hub.system_filter.reset();
                     app.expert_hub.system_page = 1;
                 }
-                SkillTab::Company => {
-                    app.expert_hub.company_filter.reset();
-                    app.expert_hub.company_status_draft = None;
-                    app.expert_hub.submitted_company_status = None;
-                    app.expert_hub.company_page = 1;
-                }
                 SkillTab::Mine => {
                     app.expert_hub.reset_mine_filters();
                     app.expert_hub.mine_page = 1;
@@ -470,10 +444,6 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             let changed = match app.expert_hub.skill_tab {
                 SkillTab::System if app.expert_hub.system_page > 1 => {
                     app.expert_hub.system_page -= 1;
-                    true
-                }
-                SkillTab::Company if app.expert_hub.company_page > 1 => {
-                    app.expert_hub.company_page -= 1;
                     true
                 }
                 SkillTab::Mine if app.expert_hub.mine_page > 1 => {
@@ -493,10 +463,6 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             let changed = match app.expert_hub.skill_tab {
                 SkillTab::System if page_has_next(&app.expert_hub.system) => {
                     app.expert_hub.system_page = app.expert_hub.system_page.saturating_add(1);
-                    true
-                }
-                SkillTab::Company if page_has_next(&app.expert_hub.company) => {
-                    app.expert_hub.company_page = app.expert_hub.company_page.saturating_add(1);
                     true
                 }
                 SkillTab::Mine if page_has_next(&app.expert_hub.mine) => {
@@ -653,14 +619,6 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
         SkillHubMessage::SystemLoaded { generation, account_id, result } => {
             if response_is_current(app, generation, &account_id) {
                 app.expert_hub.system = result
-                    .map(LoadState::Loaded)
-                    .unwrap_or_else(|error| LoadState::Error(error.to_string()));
-            }
-            Task::none()
-        }
-        SkillHubMessage::CompanyLoaded { generation, account_id, result } => {
-            if response_is_current(app, generation, &account_id) {
-                app.expert_hub.company = result
                     .map(LoadState::Loaded)
                     .unwrap_or_else(|error| LoadState::Error(error.to_string()));
             }
@@ -2075,7 +2033,6 @@ fn mark_current_needs_login(app: &mut App) {
         SkillTab::Marketplace => app.expert_hub.marketplace = LoadState::NeedsLogin,
         SkillTab::Installed => app.expert_hub.installed = LoadState::NeedsLogin,
         SkillTab::System => app.expert_hub.system = LoadState::NeedsLogin,
-        SkillTab::Company => app.expert_hub.company = LoadState::NeedsLogin,
         SkillTab::Mine => app.expert_hub.mine = LoadState::NeedsLogin,
         SkillTab::Install => app.expert_hub.install_guide.agent_package = LoadState::NeedsLogin,
     }
@@ -2166,38 +2123,6 @@ fn load_current_tab(app: &mut App) -> Task<Message> {
                 },
                 move |result| {
                     Message::SkillHub(SkillHubMessage::SystemLoaded {
-                        generation,
-                        account_id,
-                        result,
-                    })
-                },
-            )
-        }
-        SkillTab::Company => {
-            app.expert_hub.company = LoadState::Loading { generation };
-            let page = app.expert_hub.company_page;
-            let keyword = app.expert_hub.company_filter.submitted_keyword.clone();
-            let tag_id = app.expert_hub.company_filter.submitted_tag_id;
-            let status = app.expert_hub.submitted_company_status.clone();
-            Task::perform(
-                async move {
-                    let credential = credential
-                        .gateway_credential()
-                        .map_err(|error| SkillHubError::from(error.to_string()))?;
-                    let query = ShijuCompanySkillQuery {
-                        page,
-                        page_size: SHIJU_PAGE_SIZE,
-                        keyword: (!keyword.is_empty()).then_some(keyword),
-                        tag_id,
-                        status,
-                    };
-                    gateway_shiju_company_skills_async(&credential, &query)
-                        .await
-                        .map(Page::from)
-                        .map_err(SkillHubError::from)
-                },
-                move |result| {
-                    Message::SkillHub(SkillHubMessage::CompanyLoaded {
                         generation,
                         account_id,
                         result,

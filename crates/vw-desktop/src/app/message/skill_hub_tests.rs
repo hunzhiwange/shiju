@@ -88,7 +88,6 @@ fn private_shiju_tabs_dispatch_gateway_requests() {
     let _ = crate::app::session_gateway::gateway_shiju_skill_search_async;
     let _ = crate::app::session_gateway::gateway_shiju_skill_installed_async;
     let _ = crate::app::session_gateway::gateway_shiju_system_skills_async;
-    let _ = crate::app::session_gateway::gateway_shiju_company_skills_async;
     let _ = crate::app::session_gateway::gateway_shiju_maintained_skills_async;
 }
 
@@ -403,7 +402,7 @@ fn assert_skill_hub_routes_tabs_search_pages_and_account_changes() {
     let _task = app.update(Message::SkillHub(SkillHubMessage::SearchSubmitted));
     assert_eq!(app.expert_hub.submitted_search, "视觉 & 分析");
 
-    for tab in [SkillTab::Installed, SkillTab::System, SkillTab::Company, SkillTab::Mine] {
+    for tab in [SkillTab::Installed, SkillTab::System, SkillTab::Mine] {
         let previous_generation = app.expert_hub.request_generation;
         let previous_installed_generation = app.expert_hub.installed_request_generation;
         let _task = app.update(Message::SkillHub(SkillHubMessage::SelectSkillTab(tab)));
@@ -418,10 +417,6 @@ fn assert_skill_hub_routes_tabs_search_pages_and_account_changes() {
             SkillTab::System => {
                 assert!(app.expert_hub.request_generation > previous_generation);
                 assert!(matches!(app.expert_hub.system, LoadState::Loading { .. }))
-            }
-            SkillTab::Company => {
-                assert!(app.expert_hub.request_generation > previous_generation);
-                assert!(matches!(app.expert_hub.company, LoadState::Loading { .. }))
             }
             SkillTab::Mine => {
                 assert!(app.expert_hub.request_generation > previous_generation);
@@ -482,26 +477,6 @@ fn skill_hub_list_filters_submit_reset_and_restart_pagination() {
     assert_eq!(app.expert_hub.system_filter.submitted_keyword, "系统搜索");
     assert_eq!(app.expert_hub.system_filter.submitted_tag_id, Some(2));
     assert_eq!(app.expert_hub.system_page, 1);
-
-    let _ = app.update(Message::SkillHub(SkillHubMessage::SelectSkillTab(SkillTab::Company)));
-    app.expert_hub.company_page = 3;
-    let _ = app
-        .update(Message::SkillHub(SkillHubMessage::FilterKeywordChanged("公司搜索".to_string())));
-    let _ = app.update(Message::SkillHub(SkillHubMessage::FilterTagChanged(Some(1))));
-    let _ = app.update(Message::SkillHub(SkillHubMessage::CompanyStatusChanged(Some(
-        "draft".to_string(),
-    ))));
-    let _ = app.update(Message::SkillHub(SkillHubMessage::FiltersSubmitted));
-    assert_eq!(app.expert_hub.company_filter.submitted_keyword, "公司搜索");
-    assert_eq!(app.expert_hub.company_filter.submitted_tag_id, Some(1));
-    assert_eq!(app.expert_hub.submitted_company_status.as_deref(), Some("draft"));
-    assert_eq!(app.expert_hub.company_page, 1);
-
-    let _ = app.update(Message::SkillHub(SkillHubMessage::FiltersReset));
-    assert!(app.expert_hub.company_filter.keyword_draft.is_empty());
-    assert!(app.expert_hub.company_filter.submitted_keyword.is_empty());
-    assert_eq!(app.expert_hub.company_filter.tag_id_draft, None);
-    assert_eq!(app.expert_hub.submitted_company_status, None);
 }
 
 #[test]

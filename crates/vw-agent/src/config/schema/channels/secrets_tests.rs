@@ -17,6 +17,25 @@ fn channel_secret_round_trip_is_noop_when_encryption_disabled() {
 }
 
 #[test]
+fn wecom_secret_round_trip_encrypts_at_rest() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = SecretStore::new(tmp.path(), true);
+    let mut channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
+        "cli": true,
+        "wecom": {"bot_id": "bot-id", "secret": "plain-secret"}
+    }))
+    .unwrap();
+
+    encrypt_channel_secrets(&store, &mut channels).unwrap();
+    let encrypted = &channels.wecom.as_ref().unwrap().secret;
+    assert!(SecretStore::is_encrypted(encrypted));
+    assert!(!encrypted.contains("plain-secret"));
+
+    decrypt_channel_secrets(&store, &mut channels).unwrap();
+    assert_eq!(channels.wecom.unwrap().secret, "plain-secret");
+}
+
+#[test]
 fn channel_secret_round_trip_encrypts_remaining_channel_fields() {
     let tmp = tempfile::tempdir().unwrap();
     let store = SecretStore::new(tmp.path(), true);

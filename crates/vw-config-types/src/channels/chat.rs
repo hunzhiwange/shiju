@@ -8,6 +8,7 @@ use super::clawdtalk::ClawdTalkConfig;
 #[cfg(not(target_arch = "wasm32"))]
 use super::email::EmailConfig;
 use super::lark::{FeishuConfig, FeishuInstanceConfig, LarkConfig};
+use super::wecom::WeComConfig;
 use super::{
     other::{
         DingTalkConfig, DingTalkInstanceConfig, IrcConfig, LinqConfig, NextcloudTalkConfig,
@@ -145,6 +146,8 @@ pub struct ChannelsConfig {
     pub dingtalk_instances: Vec<DingTalkInstanceConfig>,
     /// QQ 通道配置。
     pub qq: Option<QQConfig>,
+    /// 企业微信 AI 机器人通道配置。
+    pub wecom: Option<WeComConfig>,
     /// Nostr 通道配置。
     pub nostr: Option<NostrConfig>,
     /// ClawdTalk 通道配置。
@@ -180,6 +183,7 @@ impl Default for ChannelsConfig {
             dingtalk: None,
             dingtalk_instances: Vec::new(),
             qq: None,
+            wecom: None,
             nostr: None,
             clawdtalk: None,
             message_timeout_secs: default_channel_message_timeout_secs(),

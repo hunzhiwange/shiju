@@ -62,6 +62,9 @@ fn enabled_channels(settings: &ChannelsSettingsState) -> Vec<&'static str> {
     if settings.qq.is_some() {
         channels.push("QQ");
     }
+    if settings.wecom.is_some() {
+        channels.push("WeCom");
+    }
     if settings.nostr.is_some() {
         channels.push("Nostr");
     }
@@ -101,6 +104,7 @@ pub(super) fn build_channels_config_from_settings(
         dingtalk: settings.dingtalk.clone(),
         dingtalk_instances: settings.dingtalk_instances.clone(),
         qq: settings.qq.clone(),
+        wecom: settings.wecom.clone(),
         nostr: settings.nostr.clone(),
         clawdtalk: settings.clawdtalk.clone(),
         message_timeout_secs: settings.message_timeout_secs.max(1) as u64,

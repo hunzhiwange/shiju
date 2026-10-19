@@ -6,6 +6,7 @@ use crate::app::agent::config::schema::{
     QQReceiveMode, SignalConfig, SlackConfig, StreamMode, TelegramConfig, WatiConfig,
     WhatsAppConfig,
 };
+use vw_config_types::channels::WeComConfig;
 use vw_config_types::channels::clawdtalk::ClawdTalkConfig;
 
 fn channel_names(channels: &[ConfiguredChannel]) -> Vec<&str> {
@@ -74,6 +75,17 @@ fn dingtalk_config() -> DingTalkConfig {
 fn collect_configured_channels_returns_empty_for_default_config() {
     let config = Config::default();
 
+    assert!(collect_configured_channels(&config, "test").is_empty());
+}
+
+#[test]
+fn collect_configured_channels_builds_wecom_only_with_complete_credentials() {
+    let mut config = Config::default();
+    config.channels_config.wecom =
+        Some(WeComConfig { bot_id: "bot-id".to_string(), secret: "secret".to_string() });
+    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["WeCom"]);
+
+    config.channels_config.wecom.as_mut().unwrap().secret = " ".to_string();
     assert!(collect_configured_channels(&config, "test").is_empty());
 }
 

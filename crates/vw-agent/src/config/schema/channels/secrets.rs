@@ -250,6 +250,10 @@ pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
         decrypt_secret(store, &mut qq.app_secret, "config.channels_config.qq.app_secret")?;
     }
 
+    if let Some(ref mut wecom) = channels.wecom {
+        decrypt_secret(store, &mut wecom.secret, "config.channels_config.wecom.secret")?;
+    }
+
     // 解密 Nostr 渠道配置
     // private_key 是必填项，用于签名消息
     if let Some(ref mut nostr) = channels.nostr {
@@ -481,6 +485,10 @@ pub fn encrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
     // app_secret 是必填项
     if let Some(ref mut qq) = channels.qq {
         encrypt_secret(store, &mut qq.app_secret, "config.channels_config.qq.app_secret")?;
+    }
+
+    if let Some(ref mut wecom) = channels.wecom {
+        encrypt_secret(store, &mut wecom.secret, "config.channels_config.wecom.secret")?;
     }
 
     // 加密 Nostr 渠道配置

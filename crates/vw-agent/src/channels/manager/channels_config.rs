@@ -24,6 +24,8 @@
 
 use super::*;
 use crate::app::agent::channels::clawdtalk::ClawdTalkChannel;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::channels::wecom::WeComChannel;
 
 fn instance_display_name(channel_name: &str, instance_id: &str) -> String {
     format!("{channel_name}({instance_id})")
@@ -432,6 +434,17 @@ pub(crate) fn collect_configured_channels(
                     qq.app_secret.clone(),    // QQ 应用密钥
                     qq.allowed_users.clone(), // 允许的用户列表
                 )),
+            ));
+        }
+    }
+
+    // ==================== 企业微信通道配置 ====================
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(ref wecom) = config.channels_config.wecom {
+        if wecom.has_required_credentials() {
+            channels.push(ConfiguredChannel::new(
+                "WeCom",
+                Arc::new(WeComChannel::new(wecom.bot_id.clone(), wecom.secret.clone())),
             ));
         }
     }

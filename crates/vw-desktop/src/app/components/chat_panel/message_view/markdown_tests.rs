@@ -8,11 +8,15 @@ use super::markdown::{
     markdown_body_view, markdown_visual_contract, parse_markdown_blocks, selection_actions,
     strip_inline_markdown,
 };
+use crate::app::components::chat_panel::tool_text_support::selected_chat_text_for_message;
 use crate::app::message::ViewMessage;
+use crate::app::message::chat::ChatMessage;
 use crate::app::{App, Message};
-use iced::Element;
+use iced::advanced::renderer::Headless;
 use iced::advanced::widget::Tree;
+use iced::advanced::{Layout, Shell, layout, mouse};
 use iced::widget::text_editor;
+use iced::{Element, Event, Font, Pixels, Point, Rectangle, Size};
 
 fn element_child_count(element: Element<'_, Message>) -> usize {
     let tree = Tree::new(element.as_widget());
@@ -152,6 +156,73 @@ fn reverse_cross_block_drag_selects_from_current_end() {
         actions.contains(&(0, text_editor::Action::Click(iced::Point::new(f32::MAX, f32::MAX))))
     );
     assert!(actions.contains(&(0, text_editor::Action::Drag(iced::Point::new(20.0, 10.0)))));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn formatted_markdown_selection_can_cross_blocks_through_pointer_events() {
+    let mut app = App::new().0;
+    let blocks = parse_markdown_blocks("first\n\nsecond\n\nthird");
+    for (block_idx, block) in blocks.iter().enumerate() {
+        app.chat_markdown_block_editors.insert(
+            markdown_block_key(0, 0, block_idx),
+            text_editor::Content::with_text(&block.text),
+        );
+    }
+
+    let mut element = markdown_body_view(&app, 0, 0, &blocks);
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let limits = layout::Limits::new(Size::ZERO, Size::new(500.0, 500.0));
+    let mut tree = Tree::new(element.as_widget());
+    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let block_bounds: Vec<_> = Layout::new(&node).children().map(|child| child.bounds()).collect();
+    assert_eq!(block_bounds.len(), 3);
+
+    let start = Point::new(block_bounds[0].x + 0.1, block_bounds[0].center_y());
+    let end =
+        Point::new(block_bounds[2].x + block_bounds[2].width - 0.1, block_bounds[2].center_y());
+    let events = [
+        (Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)), start),
+        (Event::Mouse(mouse::Event::CursorMoved { position: end }), end),
+        (Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)), end),
+    ];
+    let mut messages = Vec::new();
+    let mut clipboard = iced::advanced::clipboard::Null;
+    for (event, position) in events {
+        let mut shell = Shell::new(&mut messages);
+        element.as_widget_mut().update(
+            &mut tree,
+            &event,
+            Layout::new(&node),
+            mouse::Cursor::Available(position),
+            &renderer,
+            &mut clipboard,
+            &mut shell,
+            &Rectangle::INFINITE,
+        );
+    }
+    drop(element);
+
+    for message in messages {
+        if let Message::Chat(ChatMessage::MarkdownBlockEditorAction(
+            msg_idx,
+            text_idx,
+            block_idx,
+            action,
+        )) = message
+        {
+            let key = markdown_block_key(msg_idx, text_idx, block_idx);
+            app.chat_markdown_block_editors.get_mut(&key).expect("markdown editor").perform(action);
+        }
+    }
+
+    assert_eq!(
+        selected_chat_text_for_message(&app, 0).as_deref(),
+        Some("first\n\nsecond\n\nthird")
+    );
 }
 
 #[test]

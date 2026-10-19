@@ -12,7 +12,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 use vw_gateway_client::{
-    SHIJU_CREDENTIAL_HEADER, ShijuCompanySkillQuery, ShijuCredential, ShijuInstalledSkillDto,
+    SHIJU_CREDENTIAL_HEADER, ShijuCredential, ShijuInstalledSkillDto,
     ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
     ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto,
     ShijuSystemSkillQuery, ShijuTenantSkillDto,
@@ -40,7 +40,6 @@ where
         .route("/shiju/skills/search", get(search_get))
         .route("/shiju/skills/installed", get(installed_get))
         .route("/shiju/skills/system", get(system_get))
-        .route("/shiju/skills/company", get(company_get))
         .route("/shiju/skills/maintained", get(maintained_get))
         .route("/shiju/skills/{skill_id}", get(detail_get))
         .route("/shiju/skills/{skill_id}/readme", get(readme_get))
@@ -63,15 +62,6 @@ struct SystemParams {
     page_size: u32,
     name: Option<String>,
     tag_id: Option<u64>,
-}
-
-#[derive(Deserialize)]
-struct CompanyParams {
-    page: u32,
-    page_size: u32,
-    keyword: Option<String>,
-    tag_id: Option<u64>,
-    status: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -118,22 +108,6 @@ async fn system_get(
         tag_id: params.tag_id,
     };
     client.system(&credential, &query).await.map(Json).map_err(map_error)
-}
-
-async fn company_get(
-    Extension(client): Extension<Arc<ShijuSkillClient>>,
-    headers: HeaderMap,
-    Query(params): Query<CompanyParams>,
-) -> Result<Json<ShijuSkillPageDto<ShijuTenantSkillDto>>, ApiError> {
-    let credential = credential(&headers)?;
-    let query = ShijuCompanySkillQuery {
-        page: params.page,
-        page_size: params.page_size,
-        keyword: params.keyword,
-        tag_id: params.tag_id,
-        status: params.status,
-    };
-    client.company(&credential, &query).await.map(Json).map_err(map_error)
 }
 
 async fn maintained_get(

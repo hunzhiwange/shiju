@@ -94,7 +94,7 @@ pub use self::shiju_app_api::{
     ShijuIamApiKeyDto, ShijuIamApiKeyListDto, ShijuInstalledAppDto,
 };
 pub use self::shiju_skill_api::{
-    ShijuCompanySkillQuery, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
+    ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
     ShijuMarketplaceSkillDto, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
     ShijuSkillReadmeDto, ShijuSkillScanResultDto, ShijuSkillSearchQuery, ShijuSkillTagDto,
     ShijuSkillVersionContentDto, ShijuSkillVersionDto, ShijuSkillVisibilityDto,

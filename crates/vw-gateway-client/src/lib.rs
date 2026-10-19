@@ -81,7 +81,7 @@ pub use client::{
 };
 /// SHIJU private-skill gateway transport contract.
 pub use client::{
-    ShijuCompanySkillQuery, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
+    ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
     ShijuMarketplaceSkillDto, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto,
     ShijuSkillReadmeDto, ShijuSkillScanResultDto, ShijuSkillSearchQuery, ShijuSkillTagDto,
     ShijuSkillVersionContentDto, ShijuSkillVersionDto, ShijuSkillVisibilityDto,

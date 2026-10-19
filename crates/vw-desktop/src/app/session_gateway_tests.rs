@@ -323,7 +323,6 @@ fn desktop_gateway_async_surfaces_are_exposed_without_network_access() {
     let _ = super::gateway_shiju_skill_search_async;
     let _ = super::gateway_shiju_skill_installed_async;
     let _ = super::gateway_shiju_system_skills_async;
-    let _ = super::gateway_shiju_company_skills_async;
     let _ = super::gateway_shiju_maintained_skills_async;
     let _ = super::gateway_shiju_skill_detail_async;
     let _ = super::gateway_shiju_skill_readme_async;

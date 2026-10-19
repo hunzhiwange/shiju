@@ -20,6 +20,7 @@ fn expert_hub_shell_builds_all_sections_and_skill_tabs() {
         SkillTab::Marketplace,
         SkillTab::Installed,
         SkillTab::System,
+        SkillTab::Company,
         SkillTab::Mine,
         SkillTab::Install,
     ] {

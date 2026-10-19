@@ -146,6 +146,7 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
         "/v1/shiju/skills/search",
         "/v1/shiju/skills/installed",
         "/v1/shiju/skills/system",
+        "/v1/shiju/skills/company",
         "/v1/shiju/skills/maintained",
         "/v1/shiju/skills/{skill_id}",
         "/v1/shiju/skills/{skill_id}/versions",

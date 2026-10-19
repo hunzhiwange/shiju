@@ -16,6 +16,7 @@ pub(crate) enum SkillTab {
     Marketplace,
     Installed,
     System,
+    Company,
     Mine,
     Install,
 }
@@ -996,17 +997,22 @@ pub(crate) struct ExpertHubState {
     pub(crate) search_draft: String,
     pub(crate) submitted_search: String,
     pub(crate) system_filter: SkillListFilter,
+    pub(crate) company_filter: SkillListFilter,
     pub(crate) mine_filter: SkillListFilter,
     pub(crate) mine_tag_ids_draft: Vec<u64>,
     pub(crate) submitted_mine_tag_ids: Vec<u64>,
     pub(crate) mine_statuses_draft: Vec<MineSkillStatus>,
     pub(crate) submitted_mine_statuses: Vec<MineSkillStatus>,
     pub(crate) mine_filter_menu: Option<MineFilterMenu>,
+    pub(crate) company_status_draft: Option<String>,
+    pub(crate) submitted_company_status: Option<String>,
     pub(crate) system_page: u32,
+    pub(crate) company_page: u32,
     pub(crate) mine_page: u32,
     pub(crate) marketplace: LoadState<super::CursorPage<super::MarketplaceSkill>>,
     pub(crate) installed: LoadState<Vec<super::InstalledSkill>>,
     pub(crate) system: LoadState<super::Page<super::SystemSkill>>,
+    pub(crate) company: LoadState<super::Page<super::TenantSkill>>,
     pub(crate) mine: LoadState<super::Page<super::TenantSkill>>,
     pub(crate) request_generation: u64,
     pub(crate) installed_request_generation: u64,
@@ -1093,12 +1099,17 @@ impl ExpertHubState {
         self.search_draft.clear();
         self.submitted_search.clear();
         self.system_filter.reset();
+        self.company_filter.reset();
         self.reset_mine_filters();
+        self.company_status_draft = None;
+        self.submitted_company_status = None;
         self.system_page = 1;
+        self.company_page = 1;
         self.mine_page = 1;
         self.marketplace = LoadState::Idle;
         self.installed = LoadState::Idle;
         self.system = LoadState::Idle;
+        self.company = LoadState::Idle;
         self.mine = LoadState::Idle;
         self.request_generation = self.request_generation.wrapping_add(1);
         self.installed_request_generation = self.installed_request_generation.wrapping_add(1);
@@ -1218,17 +1229,22 @@ impl Default for ExpertHubState {
             search_draft: String::new(),
             submitted_search: String::new(),
             system_filter: SkillListFilter::default(),
+            company_filter: SkillListFilter::default(),
             mine_filter: SkillListFilter::default(),
             mine_tag_ids_draft: Vec::new(),
             submitted_mine_tag_ids: Vec::new(),
             mine_statuses_draft: MineSkillStatus::ALL.to_vec(),
             submitted_mine_statuses: MineSkillStatus::ALL.to_vec(),
             mine_filter_menu: None,
+            company_status_draft: None,
+            submitted_company_status: None,
             system_page: 1,
+            company_page: 1,
             mine_page: 1,
             marketplace: LoadState::Idle,
             installed: LoadState::Idle,
             system: LoadState::Idle,
+            company: LoadState::Idle,
             mine: LoadState::Idle,
             request_generation: 0,
             installed_request_generation: 0,

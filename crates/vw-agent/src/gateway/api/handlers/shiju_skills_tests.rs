@@ -203,6 +203,17 @@ async fn shiju_skill_routes_reject_missing_credential_and_invalid_filters() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(body["error"].as_str().unwrap_or_default().contains("page"));
 
+    let (status, body) = response(
+        Request::get("/shiju/skills/company?page=1&page_size=20&status=%20%20")
+            .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
+            .body(Body::empty())
+            .expect("company request"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["error"].as_str().unwrap_or_default().contains("status"));
+    assert!(!body.to_string().contains("fixture-handler-secret"));
+
     for (query, expected) in [
         ("tag_ids=2,,1", "tag_ids"),
         ("tag_ids=2,0,1", "tag_ids"),

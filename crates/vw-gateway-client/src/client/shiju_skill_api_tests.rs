@@ -5,7 +5,7 @@
 use serde_json::json;
 
 use super::{
-    SHIJU_CREDENTIAL_HEADER, ShijuCredential, ShijuMaintainedSkillQuery,
+    SHIJU_CREDENTIAL_HEADER, ShijuCompanySkillQuery, ShijuCredential, ShijuMaintainedSkillQuery,
     ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
     ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillQuery,
 };
@@ -21,6 +21,7 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
         (200, json!({"items": [], "next_cursor": null, "has_more": false})),
         (200, json!([])),
         (200, json!({"items": [], "page": 2, "page_size": 20, "total": 0})),
+        (200, json!({"items": [], "page": 3, "page_size": 20, "total": 0})),
         (200, json!({"items": [], "page": 4, "page_size": 20, "total": 0})),
         (
             200,
@@ -60,6 +61,13 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
         name: Some("system visual".to_string()),
         tag_id: Some(7),
     };
+    let company = ShijuCompanySkillQuery {
+        page: 3,
+        page_size: 20,
+        keyword: Some("company visual".to_string()),
+        tag_id: Some(8),
+        status: Some("published".to_string()),
+    };
     let maintained = ShijuMaintainedSkillQuery {
         page: 4,
         page_size: 20,
@@ -76,6 +84,7 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
     server.client().shiju_skill_search(&credential, &search).await.unwrap();
     server.client().shiju_skill_installed(&credential).await.unwrap();
     server.client().shiju_system_skills(&credential, &system).await.unwrap();
+    server.client().shiju_company_skills(&credential, &company).await.unwrap();
     server.client().shiju_maintained_skills(&credential, &maintained).await.unwrap();
     server.client().shiju_skill_detail(&credential, 31).await.unwrap();
     let readme = server.client().shiju_skill_readme(&credential, 31).await.unwrap();
@@ -91,6 +100,7 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
         "/v1/shiju/skills/search?page_size=20&q=visual+guide&cursor=cursor%2Fnext",
         "/v1/shiju/skills/installed",
         "/v1/shiju/skills/system?page=2&page_size=20&name=system+visual&tag_id=7",
+        "/v1/shiju/skills/company?page=3&page_size=20&keyword=company+visual&tag_id=8&status=published",
         "/v1/shiju/skills/maintained?page=4&page_size=20&keyword=my+visual&tag_ids=2%2C1%2C3%2C4&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished",
         "/v1/shiju/skills/31",
         "/v1/shiju/skills/31/readme",

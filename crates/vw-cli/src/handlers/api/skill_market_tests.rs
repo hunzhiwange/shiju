@@ -8,7 +8,7 @@ use super::session_tests::{assert_request, run_command, spawn_server};
 
 #[tokio::test(flavor = "current_thread")]
 async fn api_skill_market_commands_cover_shiju_and_unified_market_routes() {
-    let (port, requests) = spawn_server(vec![Value::Null; 16]);
+    let (port, requests) = spawn_server(vec![Value::Null; 17]);
     let port = port.to_string();
     let common = ["--host", "127.0.0.1", "--port", port.as_str()];
     let yes = ["--host", "127.0.0.1", "--port", port.as_str(), "--yes"];
@@ -27,6 +27,7 @@ async fn api_skill_market_commands_cover_shiju_and_unified_market_routes() {
         br#"{"credential":"private","query":{"query":"rust cli","cursor":"c/1","page_size":5}}"#;
     let system =
         br#"{"credential":"private","query":{"page":1,"page_size":5,"name":"agent","tag_id":2}}"#;
+    let company = br#"{"credential":"private","query":{"page":1,"page_size":5,"keyword":"ops","tag_id":2,"status":"published"}}"#;
     let maintained = br#"{"credential":"private","query":{"page":1,"page_size":5,"keyword":"ops","tag_ids":[2,3],"statuses":["draft","published"]}}"#;
     let market = br#"{"keyword":"rust cli","category":"dev","namespace":"ns/one","sort":"downloads","page":2,"page_size":5}"#;
 
@@ -45,6 +46,11 @@ async fn api_skill_market_commands_cover_shiju_and_unified_market_routes() {
             &["skill-market", "shiju-system", "--input", "-"][..],
             system.as_slice(),
             "/v1/shiju/skills/system?page=1&page_size=5&name=agent&tag_id=2",
+        ),
+        (
+            &["skill-market", "shiju-company", "--input", "-"][..],
+            company.as_slice(),
+            "/v1/shiju/skills/company?page=1&page_size=5&keyword=ops&tag_id=2&status=published",
         ),
         (
             &["skill-market", "shiju-maintained", "--input", "-"][..],

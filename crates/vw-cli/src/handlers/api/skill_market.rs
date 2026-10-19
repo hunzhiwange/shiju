@@ -7,7 +7,7 @@ use clap::Subcommand;
 use serde::Deserialize;
 use serde_json::json;
 use vw_gateway_client::{
-    ShijuCredential, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery,
+    ShijuCompanySkillQuery, ShijuCredential, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery,
     ShijuSystemSkillQuery, SkillMarketSkillLocatorDto, SkillMarketSkillQuery,
 };
 
@@ -26,6 +26,10 @@ pub(super) enum SkillMarketCommands {
         input: String,
     },
     ShijuSystem {
+        #[arg(long, value_parser = required)]
+        input: String,
+    },
+    ShijuCompany {
         #[arg(long, value_parser = required)]
         input: String,
     },
@@ -138,6 +142,15 @@ pub(super) async fn run(
             json!(
                 client
                     .shiju_system_skills(&request.credential, &request.query)
+                    .await
+                    .map_err(anyhow::Error::msg)?
+            )
+        }
+        SkillMarketCommands::ShijuCompany { input } => {
+            let request = query::<ShijuCompanySkillQuery>(&input, stdin)?;
+            json!(
+                client
+                    .shiju_company_skills(&request.credential, &request.query)
                     .await
                     .map_err(anyhow::Error::msg)?
             )

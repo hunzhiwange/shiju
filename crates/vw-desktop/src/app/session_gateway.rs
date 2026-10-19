@@ -35,7 +35,7 @@ use vw_gateway_client::{
     ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto,
     ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuAppApiKeyBindingDto,
     ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto,
-    ShijuCredential, ShijuIamApiKeyListDto, ShijuInstalledSkillDto,
+    ShijuCompanySkillQuery, ShijuCredential, ShijuIamApiKeyListDto, ShijuInstalledSkillDto,
     ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto,
     ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery,
     ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
@@ -194,6 +194,14 @@ pub(crate) async fn gateway_shiju_system_skills_async(
 ) -> Result<ShijuSkillPageDto<ShijuSystemSkillDto>, String> {
     let client = gateway_client()?;
     client.shiju_system_skills(credential, query).await
+}
+
+pub(crate) async fn gateway_shiju_company_skills_async(
+    credential: &ShijuCredential,
+    query: &ShijuCompanySkillQuery,
+) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, String> {
+    let client = gateway_client()?;
+    client.shiju_company_skills(credential, query).await
 }
 
 pub(crate) async fn gateway_shiju_maintained_skills_async(

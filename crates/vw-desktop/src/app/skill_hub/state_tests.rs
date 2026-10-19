@@ -14,6 +14,7 @@ fn expert_hub_state_defaults_to_skills_marketplace() {
     assert!(matches!(state.marketplace, LoadState::Idle));
     assert!(matches!(state.installed, LoadState::Idle));
     assert!(matches!(state.system, LoadState::Idle));
+    assert!(matches!(state.company, LoadState::Idle));
     assert!(matches!(state.mine, LoadState::Idle));
     assert!(state.mine_tag_ids_draft.is_empty());
     assert!(state.submitted_mine_tag_ids.is_empty());
@@ -138,7 +139,10 @@ fn expert_hub_state_clears_account_scoped_results_and_pages() {
             tag_id_draft: Some(2),
             submitted_tag_id: Some(2),
         },
+        company_status_draft: Some("draft".to_string()),
+        submitted_company_status: Some("draft".to_string()),
         system_page: 4,
+        company_page: 3,
         mine_page: 2,
         mine_tag_ids_draft: vec![9, 2],
         submitted_mine_tag_ids: vec![9],
@@ -156,12 +160,14 @@ fn expert_hub_state_clears_account_scoped_results_and_pages() {
     assert!(state.search_draft.is_empty());
     assert!(state.submitted_search.is_empty());
     assert_eq!(state.system_filter, SkillListFilter::default());
+    assert_eq!(state.company_status_draft, None);
+    assert_eq!(state.submitted_company_status, None);
     assert!(state.mine_tag_ids_draft.is_empty());
     assert!(state.submitted_mine_tag_ids.is_empty());
     assert_eq!(state.mine_statuses_draft, MineSkillStatus::ALL);
     assert_eq!(state.submitted_mine_statuses, MineSkillStatus::ALL);
     assert_eq!(state.mine_filter_menu, None);
-    assert_eq!((state.system_page, state.mine_page), (1, 1));
+    assert_eq!((state.system_page, state.company_page, state.mine_page), (1, 1, 1));
     assert!(matches!(state.marketplace, LoadState::Idle));
     assert!(state.detail.is_none());
     assert!(state.action.is_none());

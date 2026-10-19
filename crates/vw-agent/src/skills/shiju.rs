@@ -7,7 +7,7 @@ use reqwest::{Method, StatusCode, Url};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use vw_gateway_client::{
-    ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
+    ShijuCompanySkillQuery, ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
     ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
     ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
     ShijuTenantSkillDto,
@@ -15,6 +15,7 @@ use vw_gateway_client::{
 
 const SHIJU_SKILL_BASE_URL: &str = "https://gateway.shiju.cloud/sj/skill-hub/api/v1/";
 const MAX_PAGE_SIZE: u32 = 100;
+const VISIBLE_SKILL_STATUSES: &str = "draft,pending_review,published";
 const MAINTAINED_SKILL_STATUSES: [&str; 4] =
     ["draft", "pending_review", "published", "unpublished"];
 
@@ -134,6 +135,26 @@ impl ShijuSkillClient {
         push_text_filter(&mut parameters, "name", query.name.as_deref());
         push_tag_filter(&mut parameters, query.tag_id);
         self.get("tenant/system-skills", &parameters, credential).await
+    }
+
+    /// 列出当前公司技能。
+    pub(crate) async fn company(
+        &self,
+        credential: &ShijuCredential,
+        query: &ShijuCompanySkillQuery,
+    ) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, ShijuSkillError> {
+        validate_page(query.page, query.page_size)?;
+        validate_optional_text(query.keyword.as_deref(), "keyword")?;
+        validate_optional_text(query.status.as_deref(), "status")?;
+        validate_tag_id(query.tag_id)?;
+        let mut parameters = page_parameters(query.page, query.page_size);
+        push_text_filter(&mut parameters, "keyword", query.keyword.as_deref());
+        push_tag_filter(&mut parameters, query.tag_id);
+        parameters.push((
+            "statuses",
+            query.status.as_deref().unwrap_or(VISIBLE_SKILL_STATUSES).to_string(),
+        ));
+        self.get("tenant/skills", &parameters, credential).await
     }
 
     /// 列出当前用户维护的技能及指定状态集合。

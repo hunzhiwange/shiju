@@ -50,6 +50,26 @@ impl fmt::Display for TagFilterOption {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct StatusFilterOption {
+    value: Option<&'static str>,
+    label: &'static str,
+}
+
+impl fmt::Display for StatusFilterOption {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.label)
+    }
+}
+
+const COMPANY_STATUS_OPTIONS: [StatusFilterOption; 5] = [
+    StatusFilterOption { value: None, label: "全部状态" },
+    StatusFilterOption { value: Some("draft"), label: "草稿" },
+    StatusFilterOption { value: Some("pending_review"), label: "待审核" },
+    StatusFilterOption { value: Some("published"), label: "已发布" },
+    StatusFilterOption { value: Some("unpublished"), label: "已下架" },
+];
+
 pub(super) fn market_search_messages(value: String) -> (Message, Message) {
     (
         Message::SkillHub(SkillHubMessage::SearchDraftChanged(value)),
@@ -136,6 +156,7 @@ pub(super) fn skill_tab_specs() -> &'static [(&'static str, SkillTab)] {
     &[
         ("技能市场", SkillTab::Marketplace),
         ("已安装技能", SkillTab::Installed),
+        ("公司技能", SkillTab::Company),
         ("我的技能", SkillTab::Mine),
         ("安装识矩技能", SkillTab::Install),
     ]
@@ -497,6 +518,13 @@ fn current_tag_options(app: &App, selected_id: Option<u64>) -> Vec<TagFilterOpti
             ),
             _ => tag_filter_options(std::iter::empty(), selected_id),
         },
+        SkillTab::Company => match &app.expert_hub.company {
+            LoadState::Loaded(page) => tag_filter_options(
+                page.items.iter().flat_map(|skill| skill.tags.iter()),
+                selected_id,
+            ),
+            _ => tag_filter_options(std::iter::empty(), selected_id),
+        },
         SkillTab::Mine => match &app.expert_hub.mine {
             LoadState::Loaded(page) => tag_filter_options(
                 page.items.iter().flat_map(|skill| skill.tags.iter()),
@@ -759,8 +787,17 @@ fn search_controls(app: &App) -> Element<'_, Message> {
             .into()
         }
         SkillTab::Installed | SkillTab::Install => Space::new().height(Length::Shrink).into(),
-        SkillTab::System => {
-            let filter = &app.expert_hub.system_filter;
+        SkillTab::System | SkillTab::Company => {
+            let filter = match app.expert_hub.skill_tab {
+                SkillTab::System => &app.expert_hub.system_filter,
+                SkillTab::Company => &app.expert_hub.company_filter,
+                SkillTab::Marketplace
+                | SkillTab::Installed
+                | SkillTab::Mine
+                | SkillTab::Install => {
+                    unreachable!()
+                }
+            };
             let options = current_tag_options(app, filter.tag_id_draft);
             let selected = options.iter().find(|option| option.id == filter.tag_id_draft).cloned();
             let tag_picker = pick_list(options, selected, |option| {
@@ -772,11 +809,28 @@ fn search_controls(app: &App) -> Element<'_, Message> {
             .style(settings_pick_list_style)
             .menu_style(settings_pick_list_menu_style)
             .width(Length::Fixed(150.0));
-            row![list_search_input(&filter.keyword_draft), tag_picker, filter_buttons()]
+            let mut controls = row![list_search_input(&filter.keyword_draft), tag_picker]
                 .spacing(8)
-                .align_y(Alignment::Center)
-                .wrap()
-                .into()
+                .align_y(Alignment::Center);
+            if app.expert_hub.skill_tab == SkillTab::Company {
+                let selected_status = COMPANY_STATUS_OPTIONS
+                    .iter()
+                    .copied()
+                    .find(|option| option.value == app.expert_hub.company_status_draft.as_deref());
+                controls = controls.push(
+                    pick_list(COMPANY_STATUS_OPTIONS, selected_status, |option| {
+                        Message::SkillHub(SkillHubMessage::CompanyStatusChanged(
+                            option.value.map(str::to_string),
+                        ))
+                    })
+                    .padding([9, 12])
+                    .text_size(13)
+                    .style(settings_pick_list_style)
+                    .menu_style(settings_pick_list_menu_style)
+                    .width(Length::Fixed(140.0)),
+                );
+            }
+            controls.push(filter_buttons()).wrap().into()
         }
         SkillTab::Mine => row![
             list_search_input(&app.expert_hub.mine_filter.keyword_draft),
@@ -806,6 +860,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         SkillTab::Marketplace => marketplace_content(app),
         SkillTab::Installed => installed_content(app),
         SkillTab::System => system_content(app),
+        SkillTab::Company => tenant_content(&app.expert_hub.company, "暂无公司技能"),
         SkillTab::Mine => tenant_content(&app.expert_hub.mine, "暂无我的技能"),
         SkillTab::Install => super::install_guide::view(app),
     };

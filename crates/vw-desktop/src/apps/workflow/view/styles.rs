@@ -126,6 +126,18 @@ pub(super) fn modal_card_style(theme: &Theme) -> iced::widget::container::Style 
     settings_modal_card_style(theme)
 }
 
+/// 节点编辑器作为覆盖画布的右侧抽屉展示，不使用模态圆角与遮罩。
+pub(super) fn node_editor_drawer_style(theme: &Theme) -> iced::widget::container::Style {
+    let mut style = settings_modal_card_style(theme);
+    style.border.radius = 0.0.into();
+    style.shadow = Shadow {
+        color: Color::BLACK.scale_alpha(if is_dark_theme(theme) { 0.28 } else { 0.16 }),
+        offset: Vector::new(-8.0, 0.0),
+        blur_radius: 24.0,
+    };
+    style
+}
+
 /// 提供 validation summary style 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。

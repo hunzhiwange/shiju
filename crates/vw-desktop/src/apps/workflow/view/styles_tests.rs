@@ -122,6 +122,10 @@ fn modal_styles_delegate_to_system_settings_common_styles() {
     assert_eq!(card.background, expected_card.background);
     assert_eq!(card.border, expected_card.border);
     assert_eq!(card.shadow, expected_card.shadow);
+
+    let drawer = node_editor_drawer_style(&Theme::Light);
+    assert_eq!(drawer.border.radius, 0.0.into());
+    assert!(drawer.shadow.offset.x < 0.0);
 }
 
 #[test]

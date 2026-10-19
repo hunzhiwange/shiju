@@ -49,6 +49,11 @@ fn modal_builds_visual_tab_with_answer_editor() {
 }
 
 #[test]
+fn node_editor_drawer_uses_two_fifths_of_the_workflow_width() {
+    assert_eq!(NODE_EDITOR_DRAWER_PORTION * 3, NODE_EDITOR_CANVAS_PORTION * 2);
+}
+
+#[test]
 fn modal_falls_back_from_missing_visual_tab_to_description() {
     let state = state_with_editor(editor_with_tab(WorkflowNodeEditorTab::Visual, None));
 

@@ -1,7 +1,10 @@
 //! 工作流节点编辑器视图模块，负责组装节点编辑弹窗、标签页、说明区和高级 DSL 区域。
 
 use super::*;
-use iced::widget::{column, row};
+use iced::widget::{column, opaque, row};
+
+const NODE_EDITOR_CANVAS_PORTION: u16 = 3;
+const NODE_EDITOR_DRAWER_PORTION: u16 = 2;
 
 /// 构建 node editor modal 对应的界面元素。
 ///
@@ -54,9 +57,7 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
         .then(|| build_node_validation_summary(&editor.validation))
         .unwrap_or_else(|| container(Space::new().height(0)).into());
 
-    settings_modal_overlay(
-        None,
-        Message::None,
+    let drawer = opaque(
         container(
             column![
                 build_node_editor_header(editor),
@@ -72,8 +73,16 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
         .width(Length::Fill)
         .height(Length::Fill)
         .padding([18, 20])
-        .style(modal_card_style),
-    )
+        .style(node_editor_drawer_style),
+    );
+
+    row![
+        Space::new().width(Length::FillPortion(NODE_EDITOR_CANVAS_PORTION)),
+        container(drawer).width(Length::FillPortion(NODE_EDITOR_DRAWER_PORTION)),
+    ]
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }
 
 /// 构建 embedded text editor 对应的界面元素。

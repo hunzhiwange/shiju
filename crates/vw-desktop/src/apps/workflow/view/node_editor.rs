@@ -1,6 +1,9 @@
 //! 工作流节点编辑器视图模块，负责组装节点编辑弹窗、标签页、说明区和高级 DSL 区域。
 
 use super::*;
+use crate::app::components::text_editor_context_menu::{
+    TextEditorContextMenuMessages, TextEditorContextMenuState, wrap_with_context_menu,
+};
 use iced::widget::{column, opaque, row};
 
 const NODE_EDITOR_CANVAS_PORTION: u16 = 3;
@@ -40,7 +43,7 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
             content = content.push(build_node_connection_hint());
         }
         WorkflowNodeEditorTab::AdvancedDsl => {
-            content = content.push(build_node_advanced_dsl_section(editor));
+            content = content.push(build_node_advanced_dsl_section(state, editor));
         }
     }
 
@@ -242,22 +245,74 @@ pub(super) fn build_node_editor_tab_button(
 /// 构建 node advanced dsl section 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_node_advanced_dsl_section(
-    editor: &super::state::WorkflowNodeEditorDraft,
-) -> Element<'_, Message> {
-    container(
-        text_editor(&editor.raw_data_editor)
-            .placeholder("输入节点 data 的 YAML，支持各类型特有字段")
-            .on_action(|action| {
-                Message::WorkflowTool(WorkflowMessage::NodeEditorDataAction(action))
+pub(super) fn build_node_advanced_dsl_section<'a>(
+    state: &'a WorkflowState,
+    editor: &'a super::state::WorkflowNodeEditorDraft,
+) -> Element<'a, Message> {
+    let editor = text_editor(&editor.raw_data_editor)
+        .id(iced::widget::Id::new(super::super::NODE_EDITOR_DSL_EDITOR_ID))
+        .placeholder("输入节点 data 的 YAML，支持各类型特有字段")
+        .on_action(|action| Message::WorkflowTool(WorkflowMessage::NodeEditorDataAction(action)))
+        .key_binding(node_editor_dsl_key_binding)
+        .padding([10, 12])
+        .height(Length::Fixed(360.0))
+        .style(editor_style);
+    let editor = wrap_with_context_menu(
+        editor,
+        TextEditorContextMenuState {
+            open: state.node_editor_dsl_context_menu_open,
+            position: state.node_editor_dsl_context_menu_pos,
+        },
+        |point| {
+            Message::WorkflowTool(WorkflowMessage::NodeEditorDslOpenContextMenu {
+                x: point.x,
+                y: point.y,
             })
-            .padding([10, 12])
-            .height(Length::Fixed(360.0))
-            .style(editor_style),
-    )
+        },
+        TextEditorContextMenuMessages {
+            close: Message::WorkflowTool(WorkflowMessage::NodeEditorDslCloseContextMenu),
+            undo: Some(Message::WorkflowTool(WorkflowMessage::NodeEditorDslUndo)),
+            redo: Some(Message::WorkflowTool(WorkflowMessage::NodeEditorDslRedo)),
+            copy: Message::WorkflowTool(WorkflowMessage::NodeEditorDslContextMenuCopy),
+            cut: Message::WorkflowTool(WorkflowMessage::NodeEditorDslContextMenuCut),
+            paste: Message::WorkflowTool(WorkflowMessage::NodeEditorDslContextMenuPaste),
+            delete: Message::WorkflowTool(WorkflowMessage::NodeEditorDslContextMenuDelete),
+        },
+    );
+
+    container(editor)
     .padding(0)
     .style(value_card_style)
     .into()
+}
+
+fn node_editor_dsl_key_binding(
+    key_press: text_editor::KeyPress,
+) -> Option<text_editor::Binding<Message>> {
+    let command = key_press.modifiers.command();
+    let shift = key_press.modifiers.shift();
+    let custom = match key_press.key.as_ref() {
+        iced::keyboard::Key::Character(value)
+            if command && value.eq_ignore_ascii_case("z") && shift =>
+        {
+            Some(WorkflowMessage::NodeEditorDslRedo)
+        }
+        iced::keyboard::Key::Character(value)
+            if command && value.eq_ignore_ascii_case("z") =>
+        {
+            Some(WorkflowMessage::NodeEditorDslUndo)
+        }
+        iced::keyboard::Key::Character(value)
+            if command && value.eq_ignore_ascii_case("y") =>
+        {
+            Some(WorkflowMessage::NodeEditorDslRedo)
+        }
+        _ => None,
+    };
+
+    custom
+        .map(|message| text_editor::Binding::Custom(Message::WorkflowTool(message)))
+        .or_else(|| text_editor::Binding::from_key_press(key_press))
 }
 
 /// 构建 node visual placeholder 对应的界面元素。

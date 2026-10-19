@@ -20,6 +20,7 @@ use crate::app::{App, AppTab, Message, Screen};
 use iced::Task;
 
 pub(crate) const WORKFLOW_TOOL_TAB_ID: &str = "workflow_tool";
+pub(crate) const NODE_EDITOR_DSL_EDITOR_ID: &str = "workflow-node-advanced-dsl-editor";
 
 pub(crate) fn sync_top_tab(app: &mut App) {
     let title = app.workflow_state.title().to_string();

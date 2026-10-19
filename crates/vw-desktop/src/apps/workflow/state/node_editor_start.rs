@@ -4,6 +4,8 @@
 
 use super::*;
 
+const NODE_EDITOR_DSL_HISTORY_LIMIT: usize = 100;
+
 fn build_start_variable_editor_draft(
     mode: WorkflowStartVariableEditorMode,
     variable: WorkflowStartVariableDraft,
@@ -130,14 +132,50 @@ impl WorkflowState {
 
     pub fn node_editor_action(&mut self, action: text_editor::Action) {
         if let Some(editor) = self.node_editor.as_mut() {
+            let previous = editor.raw_data_editor.text();
+            let records_history = action.is_edit();
             editor.raw_data_editor.perform(action);
-            if let Ok(visual_draft) =
-                build_node_visual_draft(&editor.block_type, &editor.raw_data_editor.text())
-            {
-                editor.visual_draft = visual_draft;
-                clamp_node_editor_start_variable_focus(editor);
+            let changed = records_history && editor.raw_data_editor.text() != previous;
+            refresh_node_editor_from_raw(editor);
+            if changed {
+                push_node_editor_dsl_history(&mut self.node_editor_dsl_undo_stack, previous);
+                self.node_editor_dsl_redo_stack.clear();
             }
-            clear_node_editor_validation(editor);
+        }
+    }
+
+    pub fn finish_node_editor_raw_edit(&mut self, previous: String) {
+        if let Some(editor) = self.node_editor.as_mut() {
+            let changed = editor.raw_data_editor.text() != previous;
+            refresh_node_editor_from_raw(editor);
+            if changed {
+                push_node_editor_dsl_history(&mut self.node_editor_dsl_undo_stack, previous);
+                self.node_editor_dsl_redo_stack.clear();
+            }
+        }
+    }
+
+    pub fn undo_node_editor_dsl(&mut self) {
+        let Some(previous) = self.node_editor_dsl_undo_stack.pop() else {
+            return;
+        };
+        if let Some(editor) = self.node_editor.as_mut() {
+            let current = editor.raw_data_editor.text();
+            push_node_editor_dsl_history(&mut self.node_editor_dsl_redo_stack, current);
+            editor.raw_data_editor = text_editor::Content::with_text(&previous);
+            refresh_node_editor_from_raw(editor);
+        }
+    }
+
+    pub fn redo_node_editor_dsl(&mut self) {
+        let Some(next) = self.node_editor_dsl_redo_stack.pop() else {
+            return;
+        };
+        if let Some(editor) = self.node_editor.as_mut() {
+            let current = editor.raw_data_editor.text();
+            push_node_editor_dsl_history(&mut self.node_editor_dsl_undo_stack, current);
+            editor.raw_data_editor = text_editor::Content::with_text(&next);
+            refresh_node_editor_from_raw(editor);
         }
     }
 
@@ -582,6 +620,23 @@ impl WorkflowState {
             }
             false
         });
+    }
+}
+
+fn refresh_node_editor_from_raw(editor: &mut WorkflowNodeEditorDraft) {
+    if let Ok(visual_draft) =
+        build_node_visual_draft(&editor.block_type, &editor.raw_data_editor.text())
+    {
+        editor.visual_draft = visual_draft;
+        clamp_node_editor_start_variable_focus(editor);
+    }
+    clear_node_editor_validation(editor);
+}
+
+fn push_node_editor_dsl_history(history: &mut Vec<String>, value: String) {
+    history.push(value);
+    if history.len() > NODE_EDITOR_DSL_HISTORY_LIMIT {
+        history.remove(0);
     }
 }
 

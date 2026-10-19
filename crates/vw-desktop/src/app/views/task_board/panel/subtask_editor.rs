@@ -668,6 +668,8 @@ fn build_task_logs_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
             })
         },
         TextEditorContextMenuMessages {
+            undo: None,
+            redo: None,
             close: Message::TaskBoard(TaskBoardMessage::LogsViewerCloseContextMenu),
             copy: Message::TaskBoard(TaskBoardMessage::LogsViewerContextMenuCopy),
             cut: Message::TaskBoard(TaskBoardMessage::LogsViewerContextMenuCut),

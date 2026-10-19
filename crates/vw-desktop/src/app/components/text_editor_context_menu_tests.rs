@@ -28,6 +28,8 @@ fn editor_id() -> iced::widget::Id {
 
 fn messages() -> TextEditorContextMenuMessages<TestMessage> {
     TextEditorContextMenuMessages {
+        undo: None,
+        redo: None,
         close: TestMessage::Close,
         copy: TestMessage::Copy,
         cut: TestMessage::Cut,

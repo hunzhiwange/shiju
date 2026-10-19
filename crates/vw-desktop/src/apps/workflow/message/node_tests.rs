@@ -80,6 +80,86 @@ fn open_create_editor(app: &mut App, block_type: &str) {
 }
 
 #[test]
+fn advanced_dsl_context_menu_opens_and_closes_for_editor_actions() {
+    let mut app = App::new().0;
+    open_create_editor(&mut app, "answer");
+
+    node_message(
+        &mut app,
+        WorkflowMessage::NodeEditorDslOpenContextMenu { x: 18.0, y: 24.0 },
+    );
+    assert!(app.workflow_state.node_editor_dsl_context_menu_open);
+    assert_eq!(app.workflow_state.node_editor_dsl_context_menu_pos, Some((18.0, 24.0)));
+
+    node_message(&mut app, WorkflowMessage::NodeEditorDataAction(editor_scroll()));
+    assert!(!app.workflow_state.node_editor_dsl_context_menu_open);
+    assert!(app.workflow_state.node_editor_dsl_context_menu_pos.is_none());
+
+    for action in [
+        WorkflowMessage::NodeEditorDslCloseContextMenu,
+        WorkflowMessage::NodeEditorDslUndo,
+        WorkflowMessage::NodeEditorDslRedo,
+        WorkflowMessage::NodeEditorDslContextMenuCopy,
+        WorkflowMessage::NodeEditorDslContextMenuCut,
+        WorkflowMessage::NodeEditorDslContextMenuPaste,
+        WorkflowMessage::NodeEditorDslContextMenuDelete,
+    ] {
+        node_message(
+            &mut app,
+            WorkflowMessage::NodeEditorDslOpenContextMenu { x: 3.0, y: 4.0 },
+        );
+        node_message(&mut app, action);
+        assert!(!app.workflow_state.node_editor_dsl_context_menu_open);
+        assert!(app.workflow_state.node_editor_dsl_context_menu_pos.is_none());
+    }
+}
+
+#[test]
+fn advanced_dsl_undo_and_redo_restore_editor_text() {
+    let mut app = App::new().0;
+    open_create_editor(&mut app, "answer");
+    let original = app
+        .workflow_state
+        .node_editor
+        .as_ref()
+        .expect("node editor")
+        .raw_data_editor
+        .text();
+
+    node_message(&mut app, WorkflowMessage::NodeEditorDataAction(editor_paste("\nextra: true")));
+    let edited = app
+        .workflow_state
+        .node_editor
+        .as_ref()
+        .expect("node editor")
+        .raw_data_editor
+        .text();
+    assert_ne!(edited, original);
+
+    node_message(&mut app, WorkflowMessage::NodeEditorDslUndo);
+    assert_eq!(
+        app.workflow_state
+            .node_editor
+            .as_ref()
+            .expect("node editor")
+            .raw_data_editor
+            .text(),
+        original
+    );
+
+    node_message(&mut app, WorkflowMessage::NodeEditorDslRedo);
+    assert_eq!(
+        app.workflow_state
+            .node_editor
+            .as_ref()
+            .expect("node editor")
+            .raw_data_editor
+            .text(),
+        edited
+    );
+}
+
+#[test]
 fn quick_insert_create_edit_and_submit_messages_update_node_state() {
     let mut app = app_with_workflow();
 

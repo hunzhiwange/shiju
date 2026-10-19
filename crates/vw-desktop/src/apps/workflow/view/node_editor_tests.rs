@@ -1,7 +1,18 @@
 //! 工作流节点编辑器视图测试模块，覆盖弹窗、标签页和编辑区构建路径。
 
 use super::*;
-use iced::{Point, widget::text_editor};
+use iced::{Point, keyboard, widget::text_editor};
+
+fn dsl_key_press(key: &str, modifiers: keyboard::Modifiers) -> text_editor::KeyPress {
+    text_editor::KeyPress {
+        key: keyboard::Key::Character(key.into()),
+        modified_key: keyboard::Key::Character(key.into()),
+        physical_key: keyboard::key::Physical::Code(keyboard::key::Code::KeyZ),
+        modifiers,
+        text: None,
+        status: text_editor::Status::Focused { is_hovered: false },
+    }
+}
 
 fn editor_with_tab(
     active_tab: WorkflowNodeEditorTab,
@@ -124,7 +135,14 @@ fn node_editor_parts_build_individually() {
     );
     let _description = build_node_description_section(&editor);
     let _hint = build_node_connection_hint();
-    let _advanced = build_node_advanced_dsl_section(&editor);
+    let state = state_with_editor(editor_with_tab(
+        WorkflowNodeEditorTab::AdvancedDsl,
+        Some(answer_visual()),
+    ));
+    let _advanced = build_node_advanced_dsl_section(
+        &state,
+        state.node_editor.as_ref().expect("node editor"),
+    );
     let _placeholder = build_node_visual_placeholder();
 }
 
@@ -175,6 +193,37 @@ fn start_variable_type_option_supports_equality_and_copy() {
 
     assert_eq!(copied, option);
     assert_eq!(copied.input_type, "paragraph");
+}
+
+#[test]
+fn advanced_dsl_shortcuts_use_platform_command_for_undo_and_redo() {
+    let undo = node_editor_dsl_key_binding(dsl_key_press(
+        "z",
+        keyboard::Modifiers::COMMAND,
+    ));
+    let redo_with_shift = node_editor_dsl_key_binding(dsl_key_press(
+        "z",
+        keyboard::Modifiers::COMMAND | keyboard::Modifiers::SHIFT,
+    ));
+    let redo_with_y = node_editor_dsl_key_binding(dsl_key_press(
+        "y",
+        keyboard::Modifiers::COMMAND,
+    ));
+
+    assert!(matches!(
+        undo,
+        Some(text_editor::Binding::Custom(Message::WorkflowTool(
+            WorkflowMessage::NodeEditorDslUndo
+        )))
+    ));
+    for redo in [redo_with_shift, redo_with_y] {
+        assert!(matches!(
+            redo,
+            Some(text_editor::Binding::Custom(Message::WorkflowTool(
+                WorkflowMessage::NodeEditorDslRedo
+            )))
+        ));
+    }
 }
 
 #[test]

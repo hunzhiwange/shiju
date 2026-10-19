@@ -5,8 +5,8 @@
 
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
-use iced::widget::{button, column, container, operation, text, text_editor};
-use iced::{Background, Border, Color, Element, Length, Point, Task, Theme};
+use iced::widget::{Space, button, column, container, operation, row, text, text_editor};
+use iced::{Alignment, Background, Border, Color, Element, Length, Point, Task, Theme};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -24,6 +24,8 @@ pub struct TextEditorContextMenuState {
 /// 该定义保持在当前模块职责内，调用方应通过显式字段、变体或别名理解其语义。
 pub struct TextEditorContextMenuMessages<Message> {
     pub close: Message,
+    pub undo: Option<Message>,
+    pub redo: Option<Message>,
     pub copy: Message,
     pub cut: Message,
     pub paste: Message,
@@ -283,28 +285,35 @@ pub fn paste_action(content: String) -> text_editor::Action {
 pub(super) fn context_menu<'a, Message: Clone + 'a>(
     messages: TextEditorContextMenuMessages<Message>,
 ) -> Element<'a, Message> {
-    container(
-        column![
-            button(text("复制选择").size(12))
-                .width(Length::Fill)
-                .style(menu_button_style)
-                .on_press(messages.copy),
-            button(text("剪切").size(12))
-                .width(Length::Fill)
-                .style(menu_button_style)
-                .on_press(messages.cut),
-            button(text("粘贴").size(12))
-                .width(Length::Fill)
-                .style(menu_button_style)
-                .on_press(messages.paste),
-            button(text("删除").size(12))
-                .width(Length::Fill)
-                .style(menu_button_style)
-                .on_press(messages.delete),
-        ]
-        .spacing(4)
-        .width(Length::Fixed(132.0)),
-    )
+    let menu_button = |label: &'static str, shortcut: &'static str, message: Message| {
+        button(
+            row![
+                text(label).size(12),
+                Space::new().width(Length::Fill),
+                text(shortcut).size(11).style(shortcut_text_style),
+            ]
+            .align_y(Alignment::Center),
+        )
+            .width(Length::Fill)
+            .style(menu_button_style)
+            .on_press(message)
+    };
+    let mut actions = column![
+        menu_button("复制选择", copy_shortcut(), messages.copy),
+        menu_button("剪切", cut_shortcut(), messages.cut),
+        menu_button("粘贴", paste_shortcut(), messages.paste),
+        menu_button("删除", "Del", messages.delete),
+    ]
+    .spacing(4)
+    .width(Length::Fixed(176.0));
+    if let Some(message) = messages.undo {
+        actions = actions.push(menu_button("撤销", undo_shortcut(), message));
+    }
+    if let Some(message) = messages.redo {
+        actions = actions.push(menu_button("重做", redo_shortcut(), message));
+    }
+
+    container(actions)
     .padding(6)
     .style(popover_style)
     .into()
@@ -312,14 +321,72 @@ pub(super) fn context_menu<'a, Message: Clone + 'a>(
 
 fn copy_context_menu<'a, Message: Clone + 'a>(copy: Message) -> Element<'a, Message> {
     container(
-        button(text("复制").size(12))
-            .width(Length::Fixed(112.0))
+        button(row![
+            text("复制").size(12),
+            Space::new().width(Length::Fill),
+            text(copy_shortcut()).size(11).style(shortcut_text_style),
+        ])
+            .width(Length::Fixed(144.0))
             .style(menu_button_style)
             .on_press(copy),
     )
     .padding(6)
     .style(popover_style)
     .into()
+}
+
+#[cfg(target_os = "macos")]
+fn copy_shortcut() -> &'static str {
+    "⌘C"
+}
+
+#[cfg(not(target_os = "macos"))]
+fn copy_shortcut() -> &'static str {
+    "Ctrl+C"
+}
+
+#[cfg(target_os = "macos")]
+fn cut_shortcut() -> &'static str {
+    "⌘X"
+}
+
+#[cfg(not(target_os = "macos"))]
+fn cut_shortcut() -> &'static str {
+    "Ctrl+X"
+}
+
+#[cfg(target_os = "macos")]
+fn paste_shortcut() -> &'static str {
+    "⌘V"
+}
+
+#[cfg(not(target_os = "macos"))]
+fn paste_shortcut() -> &'static str {
+    "Ctrl+V"
+}
+
+#[cfg(target_os = "macos")]
+fn undo_shortcut() -> &'static str {
+    "⌘Z"
+}
+
+#[cfg(not(target_os = "macos"))]
+fn undo_shortcut() -> &'static str {
+    "Ctrl+Z"
+}
+
+#[cfg(target_os = "macos")]
+fn redo_shortcut() -> &'static str {
+    "⇧⌘Z"
+}
+
+#[cfg(not(target_os = "macos"))]
+fn redo_shortcut() -> &'static str {
+    "Ctrl+Y"
+}
+
+fn shortcut_text_style(theme: &Theme) -> iced::widget::text::Style {
+    iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.55)) }
 }
 
 pub(super) fn popover_style(theme: &Theme) -> iced::widget::container::Style {

@@ -18,6 +18,10 @@ impl WorkflowState {
         self.zoom_menu_open = false;
         self.variable_panel = None;
         self.variable_editor = None;
+        self.node_editor_dsl_context_menu_open = false;
+        self.node_editor_dsl_context_menu_pos = None;
+        self.node_editor_dsl_undo_stack.clear();
+        self.node_editor_dsl_redo_stack.clear();
         let yaml = default_node_data_yaml(block_type)?;
         let title = pretty_block_type(block_type);
         let visual_draft = build_node_visual_draft(block_type, &yaml)?;
@@ -70,6 +74,10 @@ impl WorkflowState {
         self.zoom_menu_open = false;
         self.variable_panel = None;
         self.variable_editor = None;
+        self.node_editor_dsl_context_menu_open = false;
+        self.node_editor_dsl_context_menu_pos = None;
+        self.node_editor_dsl_undo_stack.clear();
+        self.node_editor_dsl_redo_stack.clear();
         self.app_editor = None;
         self.node_editor = Some(WorkflowNodeEditorDraft {
             mode: WorkflowNodeEditorMode::Edit(target_id),
@@ -92,12 +100,18 @@ impl WorkflowState {
 
     pub fn close_node_editor(&mut self) {
         self.node_editor = None;
+        self.node_editor_dsl_context_menu_open = false;
+        self.node_editor_dsl_context_menu_pos = None;
+        self.node_editor_dsl_undo_stack.clear();
+        self.node_editor_dsl_redo_stack.clear();
     }
 
     pub fn set_node_editor_active_tab(&mut self, tab: WorkflowNodeEditorTab) {
         if let Some(editor) = self.node_editor.as_mut() {
             editor.active_tab = tab;
         }
+        self.node_editor_dsl_context_menu_open = false;
+        self.node_editor_dsl_context_menu_pos = None;
     }
 
     pub fn insert_node_immediately(

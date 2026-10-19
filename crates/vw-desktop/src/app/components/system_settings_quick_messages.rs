@@ -68,7 +68,7 @@ fn item_view(app: &App, index: usize) -> Element<'_, Message> {
     .text_size(13)
     .style(settings_pick_list_style)
     .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(170.0));
+    .width(Length::FillPortion(1));
 
     let kind_control = pick_list(QuickMessageKind::ALL, Some(kind), move |value| {
         settings_message(QuickMessagesMessage::KindChanged(index, value))
@@ -77,7 +77,7 @@ fn item_view(app: &App, index: usize) -> Element<'_, Message> {
     .text_size(13)
     .style(settings_pick_list_style)
     .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fixed(190.0));
+    .width(Length::FillPortion(1));
 
     let actions = row![
         button(text("上移").size(12))
@@ -100,12 +100,13 @@ fn item_view(app: &App, index: usize) -> Element<'_, Message> {
         column![
             row![
                 text(format!("快捷项 {}", index + 1)).size(12).style(settings_muted_text_style),
-                group_control,
-                kind_control,
-                actions,
+                container(actions)
+                    .width(Length::Fill)
+                    .align_x(iced::alignment::Horizontal::Right),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
+            row![group_control, kind_control].spacing(10).width(Length::Fill),
             text_control,
         ]
         .spacing(10)

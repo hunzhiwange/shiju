@@ -155,6 +155,73 @@ async fn shiju_skill_routes_forward_maintained_multi_value_filters() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_routes_forward_tag_catalogs() {
+    let bodies = [
+        r#"{"code":200,"message":"","data":{"items":[{"id":2,"name":"平台","sort_order":1}]}}"#,
+        r#"{"code":200,"message":"","data":{"items":[{"id":5,"name":"公司","sort_order":3}]}}"#,
+    ];
+    let responses = bodies
+        .iter()
+        .map(|body| {
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+        })
+        .collect::<Vec<_>>();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind tag route fixture");
+    let address = listener.local_addr().expect("fixture address");
+    let requests = thread::spawn(move || {
+        responses
+            .into_iter()
+            .map(|response| {
+                let (mut stream, _) = listener.accept().expect("accept tag request");
+                let mut request = [0_u8; 2048];
+                let read = stream.read(&mut request).expect("read tag request");
+                stream.write_all(response.as_bytes()).expect("write tag response");
+                String::from_utf8(request[..read].to_vec()).expect("request UTF-8")
+            })
+            .collect::<Vec<_>>()
+    });
+    let router = super::router_with_client::<()>(
+        crate::skills::shiju::ShijuSkillClient::with_base_url(&format!("http://{address}"))
+            .expect("client"),
+    );
+
+    for (path, expected) in [
+        (
+            "/shiju/skills/tags",
+            serde_json::json!({"items":[{"id":2,"name":"平台","sort_order":1}]}),
+        ),
+        (
+            "/shiju/skills/tenant/tags",
+            serde_json::json!({"items":[{"id":5,"name":"公司","sort_order":3}]}),
+        ),
+    ] {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::get(path)
+                    .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
+                    .body(Body::empty())
+                    .expect("tag request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+        assert_eq!(serde_json::from_slice::<Value>(&body).expect("tag JSON"), expected);
+    }
+
+    let requests = requests.join().expect("join fixture");
+    assert!(requests[0].starts_with("GET /tags "));
+    assert!(requests[1].starts_with("GET /tenant/tags "));
+    for request in requests {
+        assert!(!request.lines().next().unwrap_or_default().contains("fixture-handler-secret"));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn shiju_skill_routes_forward_empty_and_version_install_bodies() {
     let (base, requests) = upstream_fixture(2);
     let router = super::router_with_client::<()>(

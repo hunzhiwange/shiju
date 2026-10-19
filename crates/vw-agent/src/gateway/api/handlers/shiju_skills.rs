@@ -14,8 +14,8 @@ use serde::Deserialize;
 use vw_gateway_client::{
     SHIJU_CREDENTIAL_HEADER, ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
     ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
-    ShijuSkillSearchQuery, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
-    ShijuTenantSkillDto,
+    ShijuSkillSearchQuery, ShijuSkillTagCatalogDto, ShijuSkillVersionDto, ShijuSystemSkillDto,
+    ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
 
 use crate::gateway::ApiError;
@@ -39,6 +39,8 @@ where
     Router::new()
         .route("/shiju/skills/search", get(search_get))
         .route("/shiju/skills/installed", get(installed_get))
+        .route("/shiju/skills/tags", get(tags_get))
+        .route("/shiju/skills/tenant/tags", get(tenant_tags_get))
         .route("/shiju/skills/system", get(system_get))
         .route("/shiju/skills/maintained", get(maintained_get))
         .route("/shiju/skills/{skill_id}", get(detail_get))
@@ -94,6 +96,22 @@ async fn installed_get(
 ) -> Result<Json<Vec<ShijuInstalledSkillDto>>, ApiError> {
     let credential = credential(&headers)?;
     client.installed(&credential).await.map(Json).map_err(map_error)
+}
+
+async fn tags_get(
+    Extension(client): Extension<Arc<ShijuSkillClient>>,
+    headers: HeaderMap,
+) -> Result<Json<ShijuSkillTagCatalogDto>, ApiError> {
+    let credential = credential(&headers)?;
+    client.tags(&credential).await.map(Json).map_err(map_error)
+}
+
+async fn tenant_tags_get(
+    Extension(client): Extension<Arc<ShijuSkillClient>>,
+    headers: HeaderMap,
+) -> Result<Json<ShijuSkillTagCatalogDto>, ApiError> {
+    let credential = credential(&headers)?;
+    client.tenant_tags(&credential).await.map(Json).map_err(map_error)
 }
 
 async fn system_get(

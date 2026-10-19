@@ -205,6 +205,43 @@ async fn shiju_skill_adapter_maps_all_private_catalog_paths() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_adapter_maps_tag_catalogs_and_redacts_errors() {
+    let (base, requests) = fixture(vec![
+        (
+            "200 OK".to_string(),
+            envelope(serde_json::json!({
+                "items": [{"id": 2, "name": "平台", "sort_order": 1}]
+            })),
+        ),
+        (
+            "200 OK".to_string(),
+            envelope(serde_json::json!({
+                "items": [{"id": 5, "name": "公司", "sort_order": 3}]
+            })),
+        ),
+        (
+            "500 Internal Server Error".to_string(),
+            r#"{"secret":"fixture-private-skill-secret"}"#.to_string(),
+        ),
+    ]);
+    let client = ShijuSkillClient::with_base_url(&base).expect("client");
+    let credential = credential();
+
+    let platform = client.tags(&credential).await.expect("platform tags");
+    let company = client.tenant_tags(&credential).await.expect("tenant tags");
+    let error = client.tags(&credential).await.expect_err("upstream error");
+
+    assert_eq!(platform.items[0].id, 2);
+    assert_eq!(company.items[0].id, 5);
+    assert!(!error.to_string().contains(credential.expose()));
+    assert!(!error.to_string().contains("secret"));
+    let requests = requests.join().expect("join fixture");
+    assert!(requests[0].starts_with("GET /tags "));
+    assert!(requests[1].starts_with("GET /tenant/tags "));
+    assert!(requests[2].starts_with("GET /tags "));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn shiju_skill_adapter_uses_current_default_catalog_contracts() {
     let page = envelope(serde_json::json!({
         "items": [],

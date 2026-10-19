@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use vw_gateway_client::{
     ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto,
     ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery,
-    ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
+    ShijuSkillTagCatalogDto, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
+    ShijuTenantSkillDto,
 };
 
 const SHIJU_SKILL_BASE_URL: &str = "https://gateway.shiju.cloud/sj/skill-hub/api/v1/";
@@ -118,6 +119,22 @@ impl ShijuSkillClient {
         credential: &ShijuCredential,
     ) -> Result<Vec<ShijuInstalledSkillDto>, ShijuSkillError> {
         self.get("me/skills", &[], credential).await
+    }
+
+    /// 列出完整的平台标签目录。
+    pub(crate) async fn tags(
+        &self,
+        credential: &ShijuCredential,
+    ) -> Result<ShijuSkillTagCatalogDto, ShijuSkillError> {
+        self.get("tags", &[], credential).await
+    }
+
+    /// 列出完整的公司标签目录。
+    pub(crate) async fn tenant_tags(
+        &self,
+        credential: &ShijuCredential,
+    ) -> Result<ShijuSkillTagCatalogDto, ShijuSkillError> {
+        self.get("tenant/tags", &[], credential).await
     }
 
     /// 列出可见的系统技能。

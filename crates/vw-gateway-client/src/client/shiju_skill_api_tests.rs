@@ -107,6 +107,33 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
     server.join();
 }
 
+#[tokio::test]
+async fn shiju_skill_client_uses_tag_catalog_paths() {
+    let server = test_support::server(vec![
+        (200, json!({"items": [{"id": 2, "name": "平台", "sort_order": 1}]})),
+        (200, json!({"items": [{"id": 5, "name": "公司", "sort_order": 3}]})),
+    ]);
+    let credential = credential();
+
+    let platform = server.client().shiju_skill_tags(&credential).await.unwrap();
+    let company = server.client().shiju_tenant_skill_tags(&credential).await.unwrap();
+
+    assert_eq!(platform.items[0].id, 2);
+    assert_eq!(platform.items[0].name, "平台");
+    assert_eq!(platform.items[0].sort_order, 1);
+    assert_eq!(company.items[0].id, 5);
+    assert_eq!(company.items[0].name, "公司");
+    assert_eq!(company.items[0].sort_order, 3);
+    for expected_path in ["/v1/shiju/skills/tags", "/v1/shiju/skills/tenant/tags"] {
+        let request = server.take_request();
+        assert_eq!(request.method, "GET");
+        assert_eq!(request.path, expected_path);
+        assert_eq!(request.header(SHIJU_CREDENTIAL_HEADER), Some(credential.expose()));
+        assert!(!request.path.contains(credential.expose()));
+    }
+    server.join();
+}
+
 #[test]
 fn shiju_skill_contract_preserves_catalog_detail_and_version_shapes() {
     let catalog_fixture = json!({

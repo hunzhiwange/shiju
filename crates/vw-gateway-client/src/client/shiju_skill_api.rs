@@ -52,6 +52,13 @@ pub struct ShijuSkillTagDto {
     pub sort_order: i64,
 }
 
+/// Complete SHIJU tag catalog returned by platform and tenant tag endpoints.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShijuSkillTagCatalogDto {
+    #[serde(default)]
+    pub items: Vec<ShijuSkillTagDto>,
+}
+
 /// SHIJU private-market skill summary.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShijuMarketplaceSkillDto {
@@ -307,6 +314,22 @@ pub struct ShijuSkillVersionDto {
 struct EmptyRequest {}
 
 impl GatewayClient {
+    /// Lists all platform tags available to the active SHIJU account.
+    pub async fn shiju_skill_tags(
+        &self,
+        credential: &ShijuCredential,
+    ) -> Result<ShijuSkillTagCatalogDto, String> {
+        self.shiju_skill_get(&format!("{SHIJU_SKILLS_PATH}/tags"), &[], credential).await
+    }
+
+    /// Lists all tenant tags available to the active SHIJU account.
+    pub async fn shiju_tenant_skill_tags(
+        &self,
+        credential: &ShijuCredential,
+    ) -> Result<ShijuSkillTagCatalogDto, String> {
+        self.shiju_skill_get(&format!("{SHIJU_SKILLS_PATH}/tenant/tags"), &[], credential).await
+    }
+
     /// Searches the cursor-based SHIJU private marketplace.
     pub async fn shiju_skill_search(
         &self,

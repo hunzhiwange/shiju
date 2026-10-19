@@ -12,6 +12,7 @@ use crate::app::message::project::helpers::{
 };
 use crate::app::projects::save_recent_projects_meta_background;
 use crate::app::{App, Message, models};
+use std::collections::HashSet;
 use web_time::Instant;
 
 fn merge_project_sessions(
@@ -22,9 +23,10 @@ fn merge_project_sessions(
         return incoming;
     };
 
+    let mut seen: HashSet<String> = incoming.iter().map(|session| session.id.clone()).collect();
     let mut merged = incoming;
     for session in existing {
-        if !merged.iter().any(|item| item.id == session.id) {
+        if seen.insert(session.id.clone()) {
             merged.push(session);
         }
     }

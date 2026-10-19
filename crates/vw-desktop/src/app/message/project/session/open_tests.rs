@@ -172,6 +172,26 @@ fn merge_project_sessions_replaces_existing_summary() {
 }
 
 #[test]
+fn merge_project_sessions_keeps_incoming_order_and_unique_existing_sessions() {
+    let incoming = (0..2_000)
+        .map(|index| session_info(&format!("incoming-{index}"), 0, 0))
+        .collect();
+    let mut existing = vec![session_info("incoming-0", 1, 1)];
+    existing.extend(
+        (0..2_000).map(|index| session_info(&format!("existing-{index}"), 0, 0)),
+    );
+    existing.push(session_info("existing-0", 2, 2));
+
+    let merged = super::merge_project_sessions(Some(existing), incoming);
+
+    assert_eq!(merged.len(), 4_000);
+    assert_eq!(merged[0].id, "incoming-0");
+    assert_eq!(merged[1_999].id, "incoming-1999");
+    assert_eq!(merged[2_000].id, "existing-0");
+    assert_eq!(merged[3_999].id, "existing-1999");
+}
+
+#[test]
 fn sessions_loaded_updates_list_or_pushes_notification() {
     let mut app = app();
     let sessions = vec![session_info("s1", 1, 0)];

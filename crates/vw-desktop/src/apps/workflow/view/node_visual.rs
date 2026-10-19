@@ -1,5 +1,7 @@
 //! 工作流节点可视化视图模块，根据节点类型分派到对应的配置面板渲染函数。
 
+use super::node_editor_fields::{build_named_value_list, build_variable_selector_field};
+use super::state::WorkflowNodeFieldEdit;
 use super::*;
 use iced::widget::{column, row};
 
@@ -148,6 +150,47 @@ pub(super) fn build_node_visual_section<'a>(
             ),
             validation.first_error_for("answer.text"),
         )),
+        WorkflowNodeVisualDraft::End { outputs } => Some(
+            column![
+                text("输出变量").size(13),
+                build_named_value_list(outputs, |edit| Message::WorkflowTool(
+                    WorkflowMessage::NodeEditorEndFieldEdit(edit)
+                )),
+            ]
+            .spacing(8)
+            .into(),
+        ),
+        WorkflowNodeVisualDraft::TemplateTransform { variables, template_editor } => Some(
+            column![
+                text("模板变量").size(13),
+                build_named_value_list(variables, |edit| Message::WorkflowTool(
+                    WorkflowMessage::NodeEditorTemplateFieldEdit(edit)
+                )),
+                build_editor_field_validated(
+                    "Jinja 模板",
+                    build_embedded_text_editor(
+                        template_editor,
+                        "输入 Jinja 模板",
+                        WorkflowMessage::NodeEditorTemplateAction,
+                        220.0,
+                    ),
+                    validation.first_error_for("template.template"),
+                ),
+            ]
+            .spacing(10)
+            .into(),
+        ),
+        WorkflowNodeVisualDraft::DocumentExtractor { variable_selector } => {
+            Some(build_variable_selector_field("文件变量", variable_selector, |edit| match edit
+            {
+                WorkflowNodeFieldEdit::VariableSelectorChanged(value) => {
+                    Message::WorkflowTool(WorkflowMessage::NodeEditorDocumentSelectorChanged(value))
+                }
+                _ => Message::WorkflowTool(WorkflowMessage::NodeEditorDocumentSelectorChanged(
+                    String::new(),
+                )),
+            }))
+        }
         WorkflowNodeVisualDraft::IfElse { cases } => {
             Some(build_if_else_visual_section(cases, validation))
         }

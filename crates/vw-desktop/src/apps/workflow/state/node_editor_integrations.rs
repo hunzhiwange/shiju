@@ -743,3 +743,71 @@ fn maybe_sync_code_default_value_editor(
         ));
     }
 }
+
+impl WorkflowState {
+    pub fn edit_node_editor_end_field(&mut self, edit: WorkflowNodeFieldEdit) {
+        self.update_node_visual_draft(|draft| match draft {
+            WorkflowNodeVisualDraft::End { outputs } => apply_named_value_edit(outputs, edit),
+            _ => false,
+        });
+    }
+
+    pub fn edit_node_editor_template_field(&mut self, edit: WorkflowNodeFieldEdit) {
+        self.update_node_visual_draft(|draft| match draft {
+            WorkflowNodeVisualDraft::TemplateTransform { variables, .. } => {
+                apply_named_value_edit(variables, edit)
+            }
+            _ => false,
+        });
+    }
+
+    pub fn node_editor_template_action(&mut self, action: text_editor::Action) {
+        self.update_node_visual_draft(|draft| match draft {
+            WorkflowNodeVisualDraft::TemplateTransform { template_editor, .. } => {
+                template_editor.perform(action);
+                true
+            }
+            _ => false,
+        });
+    }
+
+    pub fn set_node_editor_document_selector(&mut self, value: String) {
+        self.update_node_visual_draft(|draft| match draft {
+            WorkflowNodeVisualDraft::DocumentExtractor { variable_selector } => {
+                *variable_selector = WorkflowVariableSelectorDraft::from_input(&value);
+                true
+            }
+            _ => false,
+        });
+    }
+}
+
+fn apply_named_value_edit(
+    values: &mut Vec<WorkflowNamedValueDraft>,
+    edit: WorkflowNodeFieldEdit,
+) -> bool {
+    match edit {
+        WorkflowNodeFieldEdit::NamedValueAdded => {
+            values.push(WorkflowNamedValueDraft {
+                value_type: "string".to_string(),
+                ..WorkflowNamedValueDraft::default()
+            });
+            true
+        }
+        WorkflowNodeFieldEdit::NamedValueRemoved(index) if index < values.len() => {
+            values.remove(index);
+            true
+        }
+        WorkflowNodeFieldEdit::NamedValueNameChanged(index, value) => {
+            values.get_mut(index).map(|item| item.name = value).is_some()
+        }
+        WorkflowNodeFieldEdit::NamedValueTypeChanged(index, value) => {
+            values.get_mut(index).map(|item| item.value_type = value).is_some()
+        }
+        WorkflowNodeFieldEdit::NamedValueSelectorChanged(index, value) => values
+            .get_mut(index)
+            .map(|item| item.selector = WorkflowVariableSelectorDraft::from_input(&value))
+            .is_some(),
+        _ => false,
+    }
+}

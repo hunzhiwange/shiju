@@ -75,6 +75,27 @@ pub(super) fn apply_visual_draft_to_yaml(
         ("answer", WorkflowNodeVisualDraft::Answer { answer_editor }) => {
             set_mapping_string(data_map, "answer", &answer_editor.text());
         }
+        ("end", WorkflowNodeVisualDraft::End { outputs }) => {
+            data_map.insert(yaml_key("outputs"), named_values_value(outputs, true));
+        }
+        (
+            "template-transform",
+            WorkflowNodeVisualDraft::TemplateTransform { variables, template_editor },
+        ) => {
+            data_map.insert(yaml_key("variables"), named_values_value(variables, false));
+            set_mapping_string(data_map, "template", &template_editor.text());
+        }
+        (
+            "document-extractor",
+            WorkflowNodeVisualDraft::DocumentExtractor { variable_selector },
+        ) => {
+            data_map.insert(
+                yaml_key("variable_selector"),
+                Value::Sequence(
+                    variable_selector.path.iter().cloned().map(Value::String).collect(),
+                ),
+            );
+        }
         ("if-else", WorkflowNodeVisualDraft::IfElse { cases }) => {
             data_map.insert(
                 yaml_key("cases"),
@@ -293,6 +314,31 @@ pub(super) fn apply_visual_draft_to_yaml(
     let yaml = serde_yaml::to_string(&data_value)
         .map_err(|error| format!("生成节点 data YAML 失败: {error}"))?;
     Ok(yaml.strip_prefix("---\n").unwrap_or(&yaml).to_string())
+}
+
+fn named_values_value(values: &[WorkflowNamedValueDraft], include_type: bool) -> Value {
+    Value::Sequence(
+        values
+            .iter()
+            .map(|item| {
+                let mut map = Mapping::new();
+                if !item.id.is_empty() {
+                    set_mapping_string(&mut map, "id", &item.id);
+                }
+                set_mapping_string(&mut map, "variable", &item.name);
+                if include_type {
+                    set_mapping_string(&mut map, "value_type", &item.value_type);
+                }
+                map.insert(
+                    yaml_key("value_selector"),
+                    Value::Sequence(
+                        item.selector.path.iter().cloned().map(Value::String).collect(),
+                    ),
+                );
+                Value::Mapping(map)
+            })
+            .collect(),
+    )
 }
 
 pub(super) fn parse_node_data_yaml_value(text: &str) -> Result<Value, String> {

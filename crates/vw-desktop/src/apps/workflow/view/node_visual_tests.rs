@@ -5,8 +5,8 @@ use iced::{Point, widget::text_editor};
 
 use crate::apps::workflow::state::{
     WorkflowCodeOutputDraft, WorkflowCodeVariableDraft, WorkflowIfElseCaseDraft,
-    WorkflowNodeEditorDraft, WorkflowNodeEditorValidation, WorkflowNodeRetryDraft,
-    WorkflowNodeValidationError,
+    WorkflowNamedValueDraft, WorkflowNodeEditorDraft, WorkflowNodeEditorValidation,
+    WorkflowNodeRetryDraft, WorkflowNodeValidationError, WorkflowVariableSelectorDraft,
 };
 
 fn editor_with_visual_draft(
@@ -53,6 +53,33 @@ fn node_visual_section_returns_none_without_visual_draft() {
 #[test]
 fn node_visual_section_builds_start_visual() {
     assert_visual_section_builds("start", WorkflowNodeVisualDraft::Start { variables: Vec::new() });
+}
+
+#[test]
+fn output_and_text_nodes_visual_sections_build() {
+    let named = WorkflowNamedValueDraft {
+        name: "result".to_string(),
+        value_type: "string".to_string(),
+        selector: WorkflowVariableSelectorDraft::from_input("start.query"),
+        ..WorkflowNamedValueDraft::default()
+    };
+    assert_visual_section_builds(
+        "end",
+        WorkflowNodeVisualDraft::End { outputs: vec![named.clone()] },
+    );
+    assert_visual_section_builds(
+        "template-transform",
+        WorkflowNodeVisualDraft::TemplateTransform {
+            variables: vec![named],
+            template_editor: text_editor::Content::with_text("{{ result }}"),
+        },
+    );
+    assert_visual_section_builds(
+        "document-extractor",
+        WorkflowNodeVisualDraft::DocumentExtractor {
+            variable_selector: WorkflowVariableSelectorDraft::from_input("start.file"),
+        },
+    );
 }
 
 #[test]

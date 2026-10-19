@@ -206,6 +206,24 @@ pub(super) fn validate_node_editor_draft(
                 }
             }
         }
+        Some(WorkflowNodeVisualDraft::End { outputs }) => {
+            validate_named_values(&mut field_errors, "end.outputs", outputs, true);
+        }
+        Some(WorkflowNodeVisualDraft::TemplateTransform { variables, template_editor }) => {
+            validate_named_values(&mut field_errors, "template.variables", variables, false);
+            if template_editor.text().trim().is_empty() {
+                push_validation_error(&mut field_errors, "template.template", "模板内容不能为空");
+            }
+        }
+        Some(WorkflowNodeVisualDraft::DocumentExtractor { variable_selector }) => {
+            if variable_selector.path.is_empty() {
+                push_validation_error(
+                    &mut field_errors,
+                    "document_extractor.variable_selector",
+                    "文件变量选择器不能为空",
+                );
+            }
+        }
         Some(WorkflowNodeVisualDraft::KnowledgeRetrieval {
             query_selector_input,
             query_attachment_selector_input,
@@ -548,6 +566,32 @@ fn push_validation_error(
 ) {
     field_errors
         .push(WorkflowNodeValidationError { path: path.to_string(), message: message.into() });
+}
+
+fn validate_named_values(
+    errors: &mut Vec<WorkflowNodeValidationError>,
+    prefix: &str,
+    values: &[WorkflowNamedValueDraft],
+    require_type: bool,
+) {
+    let mut names = std::collections::HashSet::new();
+    for (index, item) in values.iter().enumerate() {
+        if item.name.trim().is_empty() {
+            push_validation_error(errors, &format!("{prefix}[{index}].name"), "变量名不能为空");
+        } else if !names.insert(item.name.trim()) {
+            push_validation_error(errors, &format!("{prefix}[{index}].name"), "变量名不能重复");
+        }
+        if require_type && item.value_type.trim().is_empty() {
+            push_validation_error(errors, &format!("{prefix}[{index}].type"), "变量类型不能为空");
+        }
+        if item.selector.path.is_empty() {
+            push_validation_error(
+                errors,
+                &format!("{prefix}[{index}].selector"),
+                "变量选择器不能为空",
+            );
+        }
+    }
 }
 
 fn is_supported_code_output_type(value_type: &str) -> bool {

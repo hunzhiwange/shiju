@@ -57,6 +57,9 @@ mod node_editor_branches_tests;
 #[cfg(test)]
 #[path = "node_editor_integrations_tests.rs"]
 mod node_editor_integrations_tests;
+#[cfg(test)]
+#[path = "output_and_text_nodes_tests.rs"]
+mod output_and_text_nodes_tests;
 
 #[cfg(test)]
 use app_ui::organized_node_positions;
@@ -257,6 +260,16 @@ pub enum WorkflowNodeVisualDraft {
     },
     Answer {
         answer_editor: text_editor::Content,
+    },
+    End {
+        outputs: Vec<WorkflowNamedValueDraft>,
+    },
+    TemplateTransform {
+        variables: Vec<WorkflowNamedValueDraft>,
+        template_editor: text_editor::Content,
+    },
+    DocumentExtractor {
+        variable_selector: WorkflowVariableSelectorDraft,
     },
     IfElse {
         cases: Vec<WorkflowIfElseCaseDraft>,

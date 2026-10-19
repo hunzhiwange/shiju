@@ -10,7 +10,8 @@ use super::model::{
 use super::model::{WorkflowViewport, load_document_from_text, serialize_workflow_yaml};
 use super::state::{
     WorkflowAppEditorMode, WorkflowCanvasContextMenuTarget, WorkflowNodeEditorTab,
-    WorkflowRunInputDraft, WorkflowSavedAppSummary, WorkflowVariablePanelKind,
+    WorkflowNodeFieldEdit, WorkflowRunInputDraft, WorkflowSavedAppSummary,
+    WorkflowVariablePanelKind,
 };
 use crate::app::{App, Message};
 use iced::widget::text_editor;
@@ -207,6 +208,10 @@ pub enum WorkflowMessage {
     NodeEditorLlmUserPromptAction(text_editor::Action),
     NodeEditorLlmVisionEnabledChanged(bool),
     NodeEditorAnswerAction(text_editor::Action),
+    NodeEditorEndFieldEdit(WorkflowNodeFieldEdit),
+    NodeEditorTemplateFieldEdit(WorkflowNodeFieldEdit),
+    NodeEditorTemplateAction(text_editor::Action),
+    NodeEditorDocumentSelectorChanged(String),
     NodeEditorCodeLanguageChanged(String),
     NodeEditorCodeAddInputVariable,
     NodeEditorCodeRemoveInputVariable(usize),

@@ -508,6 +508,22 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             app.workflow_state.node_editor_answer_action(action);
             Task::none()
         }
+        WorkflowMessage::NodeEditorEndFieldEdit(edit) => {
+            app.workflow_state.edit_node_editor_end_field(edit);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorTemplateFieldEdit(edit) => {
+            app.workflow_state.edit_node_editor_template_field(edit);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorTemplateAction(action) => {
+            app.workflow_state.node_editor_template_action(action);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorDocumentSelectorChanged(value) => {
+            app.workflow_state.set_node_editor_document_selector(value);
+            Task::none()
+        }
         WorkflowMessage::NodeEditorCodeLanguageChanged(value) => {
             app.workflow_state.set_node_editor_code_language(value);
             Task::none()

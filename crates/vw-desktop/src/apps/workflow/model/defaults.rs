@@ -101,6 +101,28 @@ pub(super) fn default_node_data_value(block_type: &str) -> Value {
             ("type", Value::String("answer".to_string())),
             ("variables", Value::Sequence(Vec::new())),
         ]),
+        "end" => yaml_map(vec![
+            ("desc", Value::String(String::new())),
+            ("outputs", Value::Sequence(Vec::new())),
+            ("selected", Value::Bool(false)),
+            ("title", Value::String(title)),
+            ("type", Value::String("end".to_string())),
+        ]),
+        "template-transform" => yaml_map(vec![
+            ("desc", Value::String(String::new())),
+            ("selected", Value::Bool(false)),
+            ("template", Value::String(String::new())),
+            ("title", Value::String(title)),
+            ("type", Value::String("template-transform".to_string())),
+            ("variables", Value::Sequence(Vec::new())),
+        ]),
+        "document-extractor" => yaml_map(vec![
+            ("desc", Value::String(String::new())),
+            ("selected", Value::Bool(false)),
+            ("title", Value::String(title)),
+            ("type", Value::String("document-extractor".to_string())),
+            ("variable_selector", Value::Sequence(Vec::new())),
+        ]),
         "code" => yaml_map(vec![
             ("code", Value::String("def main():\n    return {}\n".to_string())),
             ("code_language", Value::String("python3".to_string())),

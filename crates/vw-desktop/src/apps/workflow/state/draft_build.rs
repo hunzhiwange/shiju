@@ -22,6 +22,25 @@ pub(super) fn build_node_visual_draft(
                 })
                 .unwrap_or_default(),
         })),
+        "end" => Ok(Some(WorkflowNodeVisualDraft::End {
+            outputs: build_named_value_drafts(mapping_value(data_map, "outputs")),
+        })),
+        "template-transform" => Ok(Some(WorkflowNodeVisualDraft::TemplateTransform {
+            variables: build_named_value_drafts(mapping_value(data_map, "variables")),
+            template_editor: text_editor::Content::with_text(
+                mapping_value(data_map, "template").and_then(Value::as_str).unwrap_or_default(),
+            ),
+        })),
+        "document-extractor" => Ok(Some(WorkflowNodeVisualDraft::DocumentExtractor {
+            variable_selector: WorkflowVariableSelectorDraft {
+                path: mapping_value(data_map, "variable_selector")
+                    .and_then(Value::as_sequence)
+                    .map(|items| {
+                        items.iter().filter_map(Value::as_str).map(str::to_string).collect()
+                    })
+                    .unwrap_or_default(),
+            },
+        })),
         "llm" => {
             let model_map = mapping_value(data_map, "model").and_then(Value::as_mapping);
             let completion_params = model_map
@@ -266,6 +285,45 @@ pub(super) fn build_node_visual_draft(
         }
         _ => Ok(None),
     }
+}
+
+fn build_named_value_drafts(value: Option<&Value>) -> Vec<WorkflowNamedValueDraft> {
+    value
+        .and_then(Value::as_sequence)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_mapping)
+                .map(|item| WorkflowNamedValueDraft {
+                    id: mapping_value(item, "id")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    name: mapping_value(item, "variable")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string(),
+                    value_type: mapping_value(item, "value_type")
+                        .or_else(|| mapping_value(item, "type"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("string")
+                        .to_string(),
+                    selector: WorkflowVariableSelectorDraft {
+                        path: mapping_value(item, "value_selector")
+                            .and_then(Value::as_sequence)
+                            .map(|selector| {
+                                selector
+                                    .iter()
+                                    .filter_map(Value::as_str)
+                                    .map(str::to_string)
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
+                    },
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 pub(super) fn sync_node_editor_raw_from_visual(

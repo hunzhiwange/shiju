@@ -10,7 +10,7 @@ fn test_module_is_wired() {
 use super::*;
 use crate::apps::workflow::state::{
     WorkflowCanvasContextMenuTarget, WorkflowNodeEditorMode, WorkflowNodeEditorTab,
-    WorkflowNodeVisualDraft,
+    WorkflowNodeFieldEdit, WorkflowNodeVisualDraft,
 };
 use iced::Point;
 use iced::widget::text_editor;
@@ -80,14 +80,58 @@ fn open_create_editor(app: &mut App, block_type: &str) {
 }
 
 #[test]
+fn output_and_text_nodes_messages_update_visual_drafts() {
+    let mut app = App::new().0;
+
+    open_create_editor(&mut app, "end");
+    node_message(
+        &mut app,
+        WorkflowMessage::NodeEditorEndFieldEdit(WorkflowNodeFieldEdit::NamedValueAdded),
+    );
+    node_message(
+        &mut app,
+        WorkflowMessage::NodeEditorEndFieldEdit(WorkflowNodeFieldEdit::NamedValueNameChanged(
+            0,
+            "result".to_string(),
+        )),
+    );
+    node_message(
+        &mut app,
+        WorkflowMessage::NodeEditorEndFieldEdit(WorkflowNodeFieldEdit::NamedValueSelectorChanged(
+            0,
+            "code.result".to_string(),
+        )),
+    );
+    assert!(
+        app.workflow_state.node_editor.as_ref().unwrap().raw_data_editor.text().contains("result")
+    );
+
+    open_create_editor(&mut app, "template-transform");
+    node_message(
+        &mut app,
+        WorkflowMessage::NodeEditorTemplateFieldEdit(WorkflowNodeFieldEdit::NamedValueAdded),
+    );
+    node_message(&mut app, WorkflowMessage::NodeEditorTemplateAction(editor_paste("Hello")));
+    assert!(
+        app.workflow_state.node_editor.as_ref().unwrap().raw_data_editor.text().contains("Hello")
+    );
+
+    open_create_editor(&mut app, "document-extractor");
+    node_message(
+        &mut app,
+        WorkflowMessage::NodeEditorDocumentSelectorChanged("start.file".to_string()),
+    );
+    assert!(
+        app.workflow_state.node_editor.as_ref().unwrap().raw_data_editor.text().contains("file")
+    );
+}
+
+#[test]
 fn advanced_dsl_context_menu_opens_and_closes_for_editor_actions() {
     let mut app = App::new().0;
     open_create_editor(&mut app, "answer");
 
-    node_message(
-        &mut app,
-        WorkflowMessage::NodeEditorDslOpenContextMenu { x: 18.0, y: 24.0 },
-    );
+    node_message(&mut app, WorkflowMessage::NodeEditorDslOpenContextMenu { x: 18.0, y: 24.0 });
     assert!(app.workflow_state.node_editor_dsl_context_menu_open);
     assert_eq!(app.workflow_state.node_editor_dsl_context_menu_pos, Some((18.0, 24.0)));
 

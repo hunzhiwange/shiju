@@ -450,6 +450,15 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         project_switcher,
         row![
             container(
+                scrollable(container(detail).padding(iced::Padding::default().right(12.0)))
+                    .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                    .height(Length::Fill)
+            )
+            .padding([18, 20])
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(settings_panel_style),
+            container(
                 column![
                     add_agent_bar,
                     row![
@@ -473,16 +482,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
                 .height(Length::Fill)
             )
             .padding([18, 18])
-            .width(Length::Fixed(228.0))
-            .height(Length::Fill)
-            .style(settings_panel_style),
-            container(
-                scrollable(container(detail).padding(iced::Padding::default().right(12.0)))
-                    .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                    .height(Length::Fill)
-            )
-            .padding([18, 20])
-            .width(Length::Fill)
+            .width(Length::Fixed(456.0))
             .height(Length::Fill)
             .style(settings_panel_style),
         ]

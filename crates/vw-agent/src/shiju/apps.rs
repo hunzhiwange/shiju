@@ -335,7 +335,7 @@ impl IamApiKeyRecord {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ApiKeyBindingSaveRecord {
-    api_key_id: u64,
+    api_key_id: String,
     key_name: String,
     api_key_mask: String,
     status: String,
@@ -346,7 +346,7 @@ struct ApiKeyBindingSaveRecord {
 impl From<ShijuIamApiKeyDto> for ApiKeyBindingSaveRecord {
     fn from(key: ShijuIamApiKeyDto) -> Self {
         Self {
-            api_key_id: key.api_key_id,
+            api_key_id: key.api_key_id.to_string(),
             key_name: key.key_name,
             api_key_mask: key.api_key_mask,
             status: key.status,

@@ -379,7 +379,24 @@ async fn save_binding_result(
         responses.push(iam_keys(keys));
     }
     if include_put {
-        responses.push(FixtureResponse { status: 204, headers: Vec::new(), body: String::new() });
+        responses.push(FixtureResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: serde_json::json!({
+                "$schema": "https://gateway.shiju.cloud/schemas/BindingRecord.json",
+                "personal": {
+                    "apiKeyId": "42",
+                    "keyName": "Key 42",
+                    "apiKeyMask": "sk-****42",
+                    "status": "enabled",
+                    "expiresAt": "2041-10-03 08:00:00",
+                    "configured": true,
+                    "canEdit": true,
+                    "updatedAt": "2026-10-19T17:09:05.148577+08:00"
+                }
+            })
+            .to_string(),
+        });
     }
     let (app_base, iam_base, requests) = fixture(responses);
     let client = ShijuAppClient::with_base_urls(&app_base, &iam_base).expect("client");
@@ -410,7 +427,7 @@ async fn shiju_app_binding_save_reloads_and_accepts_only_enabled_owned_key() {
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(body).expect("PUT JSON"),
         serde_json::json!({
-            "apiKeyId": 42,
+            "apiKeyId": "42",
             "keyName": "Key 42",
             "apiKeyMask": "sk-****42",
             "status": "enabled",

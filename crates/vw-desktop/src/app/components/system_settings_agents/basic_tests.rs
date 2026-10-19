@@ -14,14 +14,15 @@ fn view_tree(
     Tree::new(element.as_widget())
 }
 
-fn assert_common_field_structure(tree: &Tree) {
-    assert_eq!(tree.children.len(), 13);
-    for row_index in 5..=9 {
+fn assert_common_field_structure(tree: &Tree, has_registration: bool) {
+    let offset = usize::from(has_registration);
+    assert_eq!(tree.children.len(), 12 + offset);
+    for row_index in (4 + offset)..=(8 + offset) {
         assert_eq!(tree.children[row_index].children.len(), 2);
     }
-    assert_eq!(tree.children[3].children.len(), 3);
-    assert_eq!(tree.children[4].children.len(), 3);
-    assert_eq!(tree.children[2].children.len(), 1);
+    assert_eq!(tree.children[2 + offset].children.len(), 3);
+    assert_eq!(tree.children[3 + offset].children.len(), 3);
+    assert_eq!(tree.children[1 + offset].children.len(), 1);
 }
 
 #[test]
@@ -36,8 +37,7 @@ fn basic_view_main_hides_availability_and_shows_common_runtime_controls() {
 
     let tree = view_tree(&app, main, vec!["openai".to_string(), main.provider.clone()]);
 
-    assert_common_field_structure(&tree);
-    assert!(tree.children[1].children.is_empty());
+    assert_common_field_structure(&tree, false);
 }
 
 #[test]
@@ -88,7 +88,7 @@ fn basic_view_worker_shows_availability_and_common_runtime_controls() {
 
     let tree = view_tree(&app, worker, vec!["openai".to_string(), worker.provider.clone()]);
 
-    assert_common_field_structure(&tree);
+    assert_common_field_structure(&tree, true);
     assert_eq!(tree.children[1].children.len(), 2);
     assert_eq!(tree.children[1].children[1].children.len(), 1);
     assert_eq!(tree.children[1].children[1].children[0].children.len(), 2);
@@ -103,7 +103,7 @@ fn basic_view_keeps_current_provider_and_model_even_when_missing_from_catalog() 
 
     let tree = view_tree(&app, &entry, vec!["openai".to_string()]);
 
-    assert_common_field_structure(&tree);
+    assert_common_field_structure(&tree, false);
 }
 
 #[test]
@@ -129,8 +129,7 @@ fn basic_view_preserves_fields_for_blank_selections_and_numeric_boundaries() {
 
         let tree = view_tree(&app, &entry, Vec::new());
 
-        assert_common_field_structure(&tree);
-        assert!(tree.children[1].children.is_empty());
+        assert_common_field_structure(&tree, false);
     }
 }
 
@@ -151,6 +150,5 @@ fn basic_view_renders_runtime_boolean_and_text_variants() {
 
     let tree = view_tree(&app, &entry, vec![entry.provider.clone()]);
 
-    assert_common_field_structure(&tree);
-    assert!(tree.children[1].children.is_empty());
+    assert_common_field_structure(&tree, false);
 }

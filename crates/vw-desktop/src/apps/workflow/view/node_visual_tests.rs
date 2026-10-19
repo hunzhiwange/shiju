@@ -4,9 +4,10 @@ use super::*;
 use iced::{Point, widget::text_editor};
 
 use crate::apps::workflow::state::{
-    WorkflowCodeOutputDraft, WorkflowCodeVariableDraft, WorkflowIfElseCaseDraft,
-    WorkflowNamedValueDraft, WorkflowNodeEditorDraft, WorkflowNodeEditorValidation,
-    WorkflowNodeRetryDraft, WorkflowNodeValidationError, WorkflowVariableSelectorDraft,
+    WorkflowClassifierClassDraft, WorkflowCodeOutputDraft, WorkflowCodeVariableDraft,
+    WorkflowIfElseCaseDraft, WorkflowModelDraft, WorkflowNamedValueDraft, WorkflowNodeEditorDraft,
+    WorkflowNodeEditorValidation, WorkflowNodeRetryDraft, WorkflowNodeValidationError,
+    WorkflowParameterDraft, WorkflowVariableSelectorDraft,
 };
 
 fn editor_with_visual_draft(
@@ -78,6 +79,44 @@ fn output_and_text_nodes_visual_sections_build() {
         "document-extractor",
         WorkflowNodeVisualDraft::DocumentExtractor {
             variable_selector: WorkflowVariableSelectorDraft::from_input("start.file"),
+        },
+    );
+}
+
+#[test]
+fn classifier_and_parameter_extractor_visual_sections_build() {
+    let model = WorkflowModelDraft {
+        provider: "openai".to_string(),
+        name: "gpt".to_string(),
+        mode: "chat".to_string(),
+    };
+    assert_visual_section_builds(
+        "question-classifier",
+        WorkflowNodeVisualDraft::QuestionClassifier {
+            query: WorkflowVariableSelectorDraft::from_input("start.query"),
+            model: model.clone(),
+            classes: vec![WorkflowClassifierClassDraft {
+                id: "support".to_string(),
+                name: "售后".to_string(),
+                ..WorkflowClassifierClassDraft::default()
+            }],
+            instruction_editor: text_editor::Content::with_text("分类"),
+        },
+    );
+    assert_visual_section_builds(
+        "parameter-extractor",
+        WorkflowNodeVisualDraft::ParameterExtractor {
+            query: WorkflowVariableSelectorDraft::from_input("start.query"),
+            model,
+            parameters: vec![WorkflowParameterDraft {
+                name: "city".to_string(),
+                value_type: "string".to_string(),
+                description: "城市".to_string(),
+                required: true,
+                ..WorkflowParameterDraft::default()
+            }],
+            reasoning_mode: "prompt".to_string(),
+            instruction_editor: text_editor::Content::with_text("提取"),
         },
     );
 }

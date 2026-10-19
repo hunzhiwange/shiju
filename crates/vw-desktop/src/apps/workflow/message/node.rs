@@ -524,6 +524,34 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             app.workflow_state.set_node_editor_document_selector(value);
             Task::none()
         }
+        WorkflowMessage::NodeEditorStructuredFieldEdit(edit) => {
+            app.workflow_state.edit_node_editor_structured_field(edit);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorClassifierAddClass => {
+            app.workflow_state.add_node_editor_classifier_class();
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorClassifierRemoveClass(index) => {
+            app.workflow_state.remove_node_editor_classifier_class(index);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorClassifierClassIdChanged(index, value) => {
+            app.workflow_state.set_node_editor_classifier_class_id(index, value);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorClassifierClassNameChanged(index, value) => {
+            app.workflow_state.set_node_editor_classifier_class_name(index, value);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorExtractorAddParameter => {
+            app.workflow_state.add_node_editor_extractor_parameter();
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorExtractorRemoveParameter(index) => {
+            app.workflow_state.remove_node_editor_extractor_parameter(index);
+            Task::none()
+        }
         WorkflowMessage::NodeEditorCodeLanguageChanged(value) => {
             app.workflow_state.set_node_editor_code_language(value);
             Task::none()

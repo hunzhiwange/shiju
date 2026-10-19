@@ -1,7 +1,13 @@
 //! 工作流节点可视化视图模块，根据节点类型分派到对应的配置面板渲染函数。
 
-use super::node_editor_fields::{build_named_value_list, build_variable_selector_field};
-use super::state::WorkflowNodeFieldEdit;
+use super::node_editor_fields::{
+    build_model_fields, build_named_value_list, build_variable_selector_field,
+};
+use super::state::{
+    WorkflowClassifierClassDraft, WorkflowModelDraft, WorkflowNodeEditorValidation,
+    WorkflowNodeFieldEdit, WorkflowParameterDraft, WorkflowStructuredNodeEdit,
+    WorkflowVariableSelectorDraft,
+};
 use super::*;
 use iced::widget::{column, row};
 
@@ -191,6 +197,32 @@ pub(super) fn build_node_visual_section<'a>(
                 )),
             }))
         }
+        WorkflowNodeVisualDraft::QuestionClassifier {
+            query,
+            model,
+            classes,
+            instruction_editor,
+        } => Some(build_question_classifier_section(
+            validation,
+            query,
+            model,
+            classes,
+            instruction_editor,
+        )),
+        WorkflowNodeVisualDraft::ParameterExtractor {
+            query,
+            model,
+            parameters,
+            reasoning_mode,
+            instruction_editor,
+        } => Some(build_parameter_extractor_section(
+            validation,
+            query,
+            model,
+            parameters,
+            reasoning_mode,
+            instruction_editor,
+        )),
         WorkflowNodeVisualDraft::IfElse { cases } => {
             Some(build_if_else_visual_section(cases, validation))
         }
@@ -287,6 +319,166 @@ pub(super) fn build_node_visual_section<'a>(
             default_value_editor,
         )),
     }
+}
+
+fn structured_message(edit: WorkflowStructuredNodeEdit) -> Message {
+    Message::WorkflowTool(WorkflowMessage::NodeEditorStructuredFieldEdit(edit))
+}
+
+fn build_structured_model_header<'a>(
+    query: &'a WorkflowVariableSelectorDraft,
+    model: &'a WorkflowModelDraft,
+) -> Element<'a, Message> {
+    column![
+        build_variable_selector_field("输入变量", query, |edit| match edit {
+            WorkflowNodeFieldEdit::VariableSelectorChanged(value) => {
+                structured_message(WorkflowStructuredNodeEdit::Query(value))
+            }
+            _ => structured_message(WorkflowStructuredNodeEdit::Query(String::new())),
+        }),
+        build_model_fields(model, |edit| match edit {
+            WorkflowNodeFieldEdit::ModelProviderChanged(value) => {
+                structured_message(WorkflowStructuredNodeEdit::ModelProvider(value))
+            }
+            WorkflowNodeFieldEdit::ModelNameChanged(value) => {
+                structured_message(WorkflowStructuredNodeEdit::ModelName(value))
+            }
+            WorkflowNodeFieldEdit::ModelModeChanged(value) => {
+                structured_message(WorkflowStructuredNodeEdit::ModelMode(value))
+            }
+            _ => structured_message(WorkflowStructuredNodeEdit::ModelMode(String::new())),
+        }),
+    ]
+    .spacing(10)
+    .into()
+}
+
+fn build_question_classifier_section<'a>(
+    validation: &'a WorkflowNodeEditorValidation,
+    query: &'a WorkflowVariableSelectorDraft,
+    model: &'a WorkflowModelDraft,
+    classes: &'a [WorkflowClassifierClassDraft],
+    instruction_editor: &'a text_editor::Content,
+) -> Element<'a, Message> {
+    let mut list = column![text("分类").size(13)].spacing(8);
+    for (index, class) in classes.iter().enumerate() {
+        list = list.push(
+            container(
+                row![
+                    text_input("分类 ID", &class.id).on_input(move |value| Message::WorkflowTool(
+                        WorkflowMessage::NodeEditorClassifierClassIdChanged(index, value)
+                    )),
+                    text_input("分类名称", &class.name).on_input(move |value| {
+                        Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorClassifierClassNameChanged(index, value),
+                        )
+                    }),
+                    button(text("删除")).on_press(Message::WorkflowTool(
+                        WorkflowMessage::NodeEditorClassifierRemoveClass(index),
+                    )),
+                ]
+                .spacing(8),
+            )
+            .padding(10)
+            .style(super::node_editor_fields::node_editor_field_card_style),
+        );
+    }
+    column![
+        build_structured_model_header(query, model),
+        list.push(
+            button(text("新增分类"))
+                .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorClassifierAddClass))
+        ),
+        build_editor_field_validated(
+            "分类指令",
+            build_embedded_text_editor(
+                instruction_editor,
+                "输入分类指令",
+                |action| WorkflowMessage::NodeEditorStructuredFieldEdit(
+                    WorkflowStructuredNodeEdit::Instruction(action)
+                ),
+                140.0,
+            ),
+            validation.first_error_for("classifier.instruction"),
+        ),
+    ]
+    .spacing(10)
+    .into()
+}
+
+fn build_parameter_extractor_section<'a>(
+    _validation: &'a WorkflowNodeEditorValidation,
+    query: &'a WorkflowVariableSelectorDraft,
+    model: &'a WorkflowModelDraft,
+    parameters: &'a [WorkflowParameterDraft],
+    reasoning_mode: &'a str,
+    instruction_editor: &'a text_editor::Content,
+) -> Element<'a, Message> {
+    let mut list = column![text("参数").size(13)].spacing(8);
+    for (index, parameter) in parameters.iter().enumerate() {
+        list = list.push(
+            container(
+                column![
+                    row![
+                        text_input("参数名", &parameter.name).on_input(move |value| {
+                            structured_message(WorkflowStructuredNodeEdit::ParameterName(
+                                index, value,
+                            ))
+                        }),
+                        text_input("类型", &parameter.value_type).on_input(move |value| {
+                            structured_message(WorkflowStructuredNodeEdit::ParameterType(
+                                index, value,
+                            ))
+                        }),
+                        button(text("删除")).on_press(Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorExtractorRemoveParameter(index),
+                        )),
+                    ]
+                    .spacing(8),
+                    text_input("参数说明", &parameter.description).on_input(move |value| {
+                        structured_message(WorkflowStructuredNodeEdit::ParameterDescription(
+                            index, value,
+                        ))
+                    }),
+                    row![
+                        toggler(parameter.required).on_toggle(move |value| {
+                            structured_message(WorkflowStructuredNodeEdit::ParameterRequired(
+                                index, value,
+                            ))
+                        }),
+                        text("必填").size(12),
+                    ]
+                    .spacing(8),
+                ]
+                .spacing(8),
+            )
+            .padding(10)
+            .style(super::node_editor_fields::node_editor_field_card_style),
+        );
+    }
+    column![
+        build_structured_model_header(query, model),
+        workflow_text_input("推理模式", reasoning_mode, |value| structured_message(
+            WorkflowStructuredNodeEdit::ReasoningMode(value)
+        )),
+        list.push(
+            button(text("新增参数"))
+                .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorExtractorAddParameter))
+        ),
+        build_editor_field(
+            "提取指令",
+            build_embedded_text_editor(
+                instruction_editor,
+                "输入提取指令",
+                |action| WorkflowMessage::NodeEditorStructuredFieldEdit(
+                    WorkflowStructuredNodeEdit::Instruction(action)
+                ),
+                140.0,
+            ),
+        ),
+    ]
+    .spacing(10)
+    .into()
 }
 
 #[cfg(test)]

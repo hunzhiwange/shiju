@@ -5,6 +5,88 @@
 use super::*;
 
 impl WorkflowState {
+    pub fn add_node_editor_classifier_class(&mut self) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::QuestionClassifier { classes, .. } = draft {
+                let next = classes.len() + 1;
+                classes.push(WorkflowClassifierClassDraft {
+                    id: format!("class-{next}"),
+                    name: format!("分类 {next}"),
+                    ..WorkflowClassifierClassDraft::default()
+                });
+                true
+            } else {
+                false
+            }
+        });
+    }
+
+    pub fn remove_node_editor_classifier_class(&mut self, index: usize) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::QuestionClassifier { classes, .. } = draft
+                && index < classes.len()
+            {
+                classes.remove(index);
+                return true;
+            }
+            false
+        });
+    }
+
+    pub fn set_node_editor_classifier_class_id(&mut self, index: usize, value: String) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::QuestionClassifier { classes, .. } = draft
+                && let Some(class) = classes.get_mut(index)
+            {
+                class.id = value;
+                return true;
+            }
+            false
+        });
+    }
+
+    pub fn set_node_editor_classifier_class_name(&mut self, index: usize, value: String) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::QuestionClassifier { classes, .. } = draft
+                && let Some(class) = classes.get_mut(index)
+            {
+                class.name = value;
+                return true;
+            }
+            false
+        });
+    }
+
+    pub fn add_node_editor_extractor_parameter(&mut self) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::ParameterExtractor { parameters, .. } = draft {
+                parameters.push(WorkflowParameterDraft {
+                    value_type: "string".to_string(),
+                    ..WorkflowParameterDraft::default()
+                });
+                true
+            } else {
+                false
+            }
+        });
+    }
+
+    pub fn remove_node_editor_extractor_parameter(&mut self, index: usize) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::ParameterExtractor { parameters, .. } = draft
+                && index < parameters.len()
+            {
+                parameters.remove(index);
+                return true;
+            }
+            false
+        });
+    }
+
+    pub fn edit_node_editor_structured_field(&mut self, edit: WorkflowStructuredNodeEdit) {
+        self.update_node_visual_draft(|draft| apply_structured_node_edit(draft, edit));
+    }
+
     pub fn add_node_editor_if_else_case(&mut self) {
         self.update_node_visual_draft(|draft| {
             if let WorkflowNodeVisualDraft::IfElse { cases } = draft {
@@ -267,4 +349,72 @@ impl WorkflowState {
             }
         });
     }
+}
+
+fn apply_structured_node_edit(
+    draft: &mut WorkflowNodeVisualDraft,
+    edit: WorkflowStructuredNodeEdit,
+) -> bool {
+    let (query, model, instruction) = match draft {
+        WorkflowNodeVisualDraft::QuestionClassifier {
+            query, model, instruction_editor, ..
+        }
+        | WorkflowNodeVisualDraft::ParameterExtractor {
+            query, model, instruction_editor, ..
+        } => (query, model, instruction_editor),
+        _ => return false,
+    };
+    match edit {
+        WorkflowStructuredNodeEdit::Query(value) => {
+            *query = WorkflowVariableSelectorDraft::from_input(&value)
+        }
+        WorkflowStructuredNodeEdit::ModelProvider(value) => model.provider = value,
+        WorkflowStructuredNodeEdit::ModelName(value) => model.name = value,
+        WorkflowStructuredNodeEdit::ModelMode(value) => model.mode = value,
+        WorkflowStructuredNodeEdit::Instruction(action) => instruction.perform(action),
+        WorkflowStructuredNodeEdit::ReasoningMode(value) => {
+            if let WorkflowNodeVisualDraft::ParameterExtractor { reasoning_mode, .. } = draft {
+                *reasoning_mode = value;
+            } else {
+                return false;
+            }
+        }
+        WorkflowStructuredNodeEdit::ParameterName(index, value) => {
+            if let WorkflowNodeVisualDraft::ParameterExtractor { parameters, .. } = draft
+                && let Some(parameter) = parameters.get_mut(index)
+            {
+                parameter.name = value;
+            } else {
+                return false;
+            }
+        }
+        WorkflowStructuredNodeEdit::ParameterType(index, value) => {
+            if let WorkflowNodeVisualDraft::ParameterExtractor { parameters, .. } = draft
+                && let Some(parameter) = parameters.get_mut(index)
+            {
+                parameter.value_type = value;
+            } else {
+                return false;
+            }
+        }
+        WorkflowStructuredNodeEdit::ParameterDescription(index, value) => {
+            if let WorkflowNodeVisualDraft::ParameterExtractor { parameters, .. } = draft
+                && let Some(parameter) = parameters.get_mut(index)
+            {
+                parameter.description = value;
+            } else {
+                return false;
+            }
+        }
+        WorkflowStructuredNodeEdit::ParameterRequired(index, value) => {
+            if let WorkflowNodeVisualDraft::ParameterExtractor { parameters, .. } = draft
+                && let Some(parameter) = parameters.get_mut(index)
+            {
+                parameter.required = value;
+            } else {
+                return false;
+            }
+        }
+    }
+    true
 }

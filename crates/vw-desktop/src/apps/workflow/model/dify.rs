@@ -76,6 +76,8 @@ pub(super) struct DifyNodeData {
     pub(super) error_strategy: String,
     #[serde(default)]
     pub(super) cases: Vec<DifyCase>,
+    #[serde(default)]
+    pub(super) classes: Vec<DifyCase>,
     pub(super) selected: Option<bool>,
 }
 

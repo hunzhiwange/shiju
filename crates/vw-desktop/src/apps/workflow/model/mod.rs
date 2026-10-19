@@ -220,7 +220,7 @@ pub struct WorkflowStartVariableSummary {
     pub value_type: String,
 }
 
-const WORKFLOW_NODE_TYPES: [WorkflowNodeTypeDescriptor; 14] = [
+const WORKFLOW_NODE_TYPES: [WorkflowNodeTypeDescriptor; 15] = [
     WorkflowNodeTypeDescriptor {
         block_type: "start",
         label: "开始",
@@ -268,6 +268,12 @@ const WORKFLOW_NODE_TYPES: [WorkflowNodeTypeDescriptor; 14] = [
         label: "问题分类",
         summary: "基于问题内容进行分类路由。",
         icon: WorkflowNodeIconDescriptor { family: "lucide", name: "circle-question-mark" },
+    },
+    WorkflowNodeTypeDescriptor {
+        block_type: "parameter-extractor",
+        label: "参数提取",
+        summary: "从文本中提取结构化参数。",
+        icon: WorkflowNodeIconDescriptor { family: "lucide", name: "scan-text" },
     },
     WorkflowNodeTypeDescriptor {
         block_type: "http-request",

@@ -224,6 +224,73 @@ pub(super) fn validate_node_editor_draft(
                 );
             }
         }
+        Some(WorkflowNodeVisualDraft::QuestionClassifier { query, model, classes, .. }) => {
+            validate_structured_model(&mut field_errors, "classifier", query, model);
+            if classes.is_empty() {
+                push_validation_error(&mut field_errors, "classifier.classes", "至少需要一个分类");
+            }
+            let mut ids = std::collections::HashSet::new();
+            for (index, class) in classes.iter().enumerate() {
+                if class.id.trim().is_empty() {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("classifier.classes[{index}].id"),
+                        "分类 ID 不能为空",
+                    );
+                } else if !ids.insert(class.id.trim().to_string()) {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("classifier.classes[{index}].id"),
+                        "分类 ID 不能重复",
+                    );
+                }
+                if class.name.trim().is_empty() {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("classifier.classes[{index}].name"),
+                        "分类名称不能为空",
+                    );
+                }
+            }
+        }
+        Some(WorkflowNodeVisualDraft::ParameterExtractor {
+            query,
+            model,
+            parameters,
+            reasoning_mode,
+            ..
+        }) => {
+            validate_structured_model(&mut field_errors, "parameter_extractor", query, model);
+            if reasoning_mode.trim().is_empty() {
+                push_validation_error(
+                    &mut field_errors,
+                    "parameter_extractor.reasoning_mode",
+                    "推理模式不能为空",
+                );
+            }
+            let mut names = std::collections::HashSet::new();
+            for (index, parameter) in parameters.iter().enumerate() {
+                let name = parameter.name.trim();
+                let path = format!("parameter_extractor.parameters[{index}].name");
+                if name.is_empty() {
+                    push_validation_error(&mut field_errors, &path, "参数名不能为空");
+                } else if matches!(name, "__is_success" | "__reason") {
+                    push_validation_error(&mut field_errors, &path, "参数名为系统保留名");
+                } else if !names.insert(name.to_string()) {
+                    push_validation_error(&mut field_errors, &path, "参数名不能重复");
+                }
+                if !matches!(
+                    parameter.value_type.trim(),
+                    "string" | "number" | "boolean" | "array" | "object"
+                ) {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("parameter_extractor.parameters[{index}].type"),
+                        "参数类型不受支持",
+                    );
+                }
+            }
+        }
         Some(WorkflowNodeVisualDraft::KnowledgeRetrieval {
             query_selector_input,
             query_attachment_selector_input,
@@ -557,6 +624,26 @@ pub(super) fn validate_node_editor_draft(
     }
 
     WorkflowNodeEditorValidation { field_errors }
+}
+
+fn validate_structured_model(
+    errors: &mut Vec<WorkflowNodeValidationError>,
+    prefix: &str,
+    query: &WorkflowVariableSelectorDraft,
+    model: &WorkflowModelDraft,
+) {
+    if query.path.is_empty() {
+        push_validation_error(errors, &format!("{prefix}.query"), "输入变量不能为空");
+    }
+    for (field, value, message) in [
+        ("provider", model.provider.as_str(), "模型 provider 不能为空"),
+        ("model_name", model.name.as_str(), "模型名称不能为空"),
+        ("model_mode", model.mode.as_str(), "模型 mode 不能为空"),
+    ] {
+        if value.trim().is_empty() {
+            push_validation_error(errors, &format!("{prefix}.{field}"), message);
+        }
+    }
 }
 
 fn push_validation_error(

@@ -37,6 +37,9 @@ mod app_ui_tests;
 #[path = "canvas_ops_tests.rs"]
 mod canvas_ops_tests;
 #[cfg(test)]
+#[path = "classification_nodes_tests.rs"]
+mod classification_nodes_tests;
+#[cfg(test)]
 #[path = "core_tests.rs"]
 mod core_tests;
 #[cfg(test)]
@@ -271,6 +274,19 @@ pub enum WorkflowNodeVisualDraft {
     DocumentExtractor {
         variable_selector: WorkflowVariableSelectorDraft,
     },
+    QuestionClassifier {
+        query: WorkflowVariableSelectorDraft,
+        model: WorkflowModelDraft,
+        classes: Vec<WorkflowClassifierClassDraft>,
+        instruction_editor: text_editor::Content,
+    },
+    ParameterExtractor {
+        query: WorkflowVariableSelectorDraft,
+        model: WorkflowModelDraft,
+        parameters: Vec<WorkflowParameterDraft>,
+        reasoning_mode: String,
+        instruction_editor: text_editor::Content,
+    },
     IfElse {
         cases: Vec<WorkflowIfElseCaseDraft>,
     },
@@ -377,6 +393,22 @@ pub struct WorkflowModelDraft {
     pub mode: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct WorkflowClassifierClassDraft {
+    pub raw_class: Value,
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct WorkflowParameterDraft {
+    pub raw_parameter: Value,
+    pub name: String,
+    pub value_type: String,
+    pub description: String,
+    pub required: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WorkflowNodeFieldEdit {
     VariableSelectorChanged(String),
@@ -395,6 +427,20 @@ pub enum WorkflowNodeFieldEdit {
     RetryEnabledChanged(bool),
     RetryMaxRetriesChanged(u8),
     RetryIntervalChanged(u16),
+}
+
+#[derive(Debug, Clone)]
+pub enum WorkflowStructuredNodeEdit {
+    Query(String),
+    ModelProvider(String),
+    ModelName(String),
+    ModelMode(String),
+    Instruction(text_editor::Action),
+    ReasoningMode(String),
+    ParameterName(usize, String),
+    ParameterType(usize, String),
+    ParameterDescription(usize, String),
+    ParameterRequired(usize, bool),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

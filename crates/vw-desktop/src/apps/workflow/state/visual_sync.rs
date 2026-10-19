@@ -96,6 +96,65 @@ pub(super) fn apply_visual_draft_to_yaml(
                 ),
             );
         }
+        (
+            "question-classifier",
+            WorkflowNodeVisualDraft::QuestionClassifier {
+                query,
+                model,
+                classes,
+                instruction_editor,
+            },
+        ) => {
+            data_map.insert(yaml_key("query_variable_selector"), selector_path_value(query));
+            merge_model_value(data_map, model);
+            data_map.insert(
+                yaml_key("classes"),
+                Value::Sequence(
+                    classes
+                        .iter()
+                        .map(|item| {
+                            let mut map = item.raw_class.as_mapping().cloned().unwrap_or_default();
+                            set_mapping_string(&mut map, "id", &item.id);
+                            set_mapping_string(&mut map, "name", &item.name);
+                            Value::Mapping(map)
+                        })
+                        .collect(),
+                ),
+            );
+            set_mapping_string(data_map, "instruction", &instruction_editor.text());
+        }
+        (
+            "parameter-extractor",
+            WorkflowNodeVisualDraft::ParameterExtractor {
+                query,
+                model,
+                parameters,
+                reasoning_mode,
+                instruction_editor,
+            },
+        ) => {
+            data_map.insert(yaml_key("query"), selector_path_value(query));
+            merge_model_value(data_map, model);
+            data_map.insert(
+                yaml_key("parameters"),
+                Value::Sequence(
+                    parameters
+                        .iter()
+                        .map(|item| {
+                            let mut map =
+                                item.raw_parameter.as_mapping().cloned().unwrap_or_default();
+                            set_mapping_string(&mut map, "name", &item.name);
+                            set_mapping_string(&mut map, "type", &item.value_type);
+                            set_mapping_string(&mut map, "description", &item.description);
+                            set_mapping_bool(&mut map, "required", item.required);
+                            Value::Mapping(map)
+                        })
+                        .collect(),
+                ),
+            );
+            set_mapping_string(data_map, "reasoning_mode", reasoning_mode);
+            set_mapping_string(data_map, "instruction", &instruction_editor.text());
+        }
         ("if-else", WorkflowNodeVisualDraft::IfElse { cases }) => {
             data_map.insert(
                 yaml_key("cases"),
@@ -339,6 +398,17 @@ fn named_values_value(values: &[WorkflowNamedValueDraft], include_type: bool) ->
             })
             .collect(),
     )
+}
+
+fn selector_path_value(selector: &WorkflowVariableSelectorDraft) -> Value {
+    Value::Sequence(selector.path.iter().cloned().map(Value::String).collect())
+}
+
+fn merge_model_value(data_map: &mut Mapping, model: &WorkflowModelDraft) {
+    let model_map = ensure_mapping_entry(data_map, "model");
+    set_mapping_string(model_map, "provider", &model.provider);
+    set_mapping_string(model_map, "name", &model.name);
+    set_mapping_string(model_map, "mode", &model.mode);
 }
 
 pub(super) fn parse_node_data_yaml_value(text: &str) -> Result<Value, String> {

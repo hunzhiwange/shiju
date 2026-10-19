@@ -208,6 +208,21 @@ pub(super) fn default_node_data_value(block_type: &str) -> Value {
             ("title", Value::String(title)),
             ("type", Value::String("knowledge-retrieval".to_string())),
         ]),
+        "question-classifier" => default_structured_model_node_data(
+            title,
+            "question-classifier",
+            "query_variable_selector",
+            vec![("classes", Value::Sequence(Vec::new()))],
+        ),
+        "parameter-extractor" => default_structured_model_node_data(
+            title,
+            "parameter-extractor",
+            "query",
+            vec![
+                ("parameters", Value::Sequence(Vec::new())),
+                ("reasoning_mode", Value::String("prompt".to_string())),
+            ],
+        ),
         "tool" => yaml_map(vec![
             ("credential_id", Value::String(String::new())),
             ("desc", Value::String(String::new())),
@@ -264,4 +279,30 @@ pub(super) fn default_node_data_value(block_type: &str) -> Value {
             ("type", Value::String(block_type.to_string())),
         ]),
     }
+}
+
+fn default_structured_model_node_data<'a>(
+    title: String,
+    block_type: &str,
+    query_key: &'a str,
+    mut fields: Vec<(&'a str, Value)>,
+) -> Value {
+    fields.extend([
+        ("desc", Value::String(String::new())),
+        ("instruction", Value::String(String::new())),
+        (
+            "model",
+            yaml_map(vec![
+                ("completion_params", yaml_map(vec![])),
+                ("mode", Value::String("chat".to_string())),
+                ("name", Value::String(String::new())),
+                ("provider", Value::String(String::new())),
+            ]),
+        ),
+        (query_key, Value::Sequence(Vec::new())),
+        ("selected", Value::Bool(false)),
+        ("title", Value::String(title)),
+        ("type", Value::String(block_type.to_string())),
+    ]);
+    yaml_map(fields)
 }

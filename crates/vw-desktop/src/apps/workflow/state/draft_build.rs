@@ -41,6 +41,71 @@ pub(super) fn build_node_visual_draft(
                     .unwrap_or_default(),
             },
         })),
+        "question-classifier" => Ok(Some(WorkflowNodeVisualDraft::QuestionClassifier {
+            query: selector_draft(mapping_value(data_map, "query_variable_selector")),
+            model: model_draft(mapping_value(data_map, "model")),
+            classes: mapping_value(data_map, "classes")
+                .and_then(Value::as_sequence)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_mapping)
+                        .map(|item| WorkflowClassifierClassDraft {
+                            raw_class: Value::Mapping(item.clone()),
+                            id: mapping_value(item, "id")
+                                .and_then(Value::as_str)
+                                .unwrap_or_default()
+                                .to_string(),
+                            name: mapping_value(item, "name")
+                                .and_then(Value::as_str)
+                                .unwrap_or_default()
+                                .to_string(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            instruction_editor: text_editor::Content::with_text(
+                mapping_value(data_map, "instruction").and_then(Value::as_str).unwrap_or_default(),
+            ),
+        })),
+        "parameter-extractor" => Ok(Some(WorkflowNodeVisualDraft::ParameterExtractor {
+            query: selector_draft(mapping_value(data_map, "query")),
+            model: model_draft(mapping_value(data_map, "model")),
+            parameters: mapping_value(data_map, "parameters")
+                .and_then(Value::as_sequence)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_mapping)
+                        .map(|item| WorkflowParameterDraft {
+                            raw_parameter: Value::Mapping(item.clone()),
+                            name: mapping_value(item, "name")
+                                .and_then(Value::as_str)
+                                .unwrap_or_default()
+                                .to_string(),
+                            value_type: mapping_value(item, "type")
+                                .and_then(Value::as_str)
+                                .unwrap_or("string")
+                                .to_string(),
+                            description: mapping_value(item, "description")
+                                .and_then(Value::as_str)
+                                .unwrap_or_default()
+                                .to_string(),
+                            required: mapping_value(item, "required")
+                                .and_then(Value::as_bool)
+                                .unwrap_or(false),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            reasoning_mode: mapping_value(data_map, "reasoning_mode")
+                .and_then(Value::as_str)
+                .unwrap_or("prompt")
+                .to_string(),
+            instruction_editor: text_editor::Content::with_text(
+                mapping_value(data_map, "instruction").and_then(Value::as_str).unwrap_or_default(),
+            ),
+        })),
         "llm" => {
             let model_map = mapping_value(data_map, "model").and_then(Value::as_mapping);
             let completion_params = model_map
@@ -324,6 +389,36 @@ fn build_named_value_drafts(value: Option<&Value>) -> Vec<WorkflowNamedValueDraf
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn selector_draft(value: Option<&Value>) -> WorkflowVariableSelectorDraft {
+    WorkflowVariableSelectorDraft {
+        path: value
+            .and_then(Value::as_sequence)
+            .map(|parts| parts.iter().filter_map(Value::as_str).map(str::to_string).collect())
+            .unwrap_or_default(),
+    }
+}
+
+fn model_draft(value: Option<&Value>) -> WorkflowModelDraft {
+    let model = value.and_then(Value::as_mapping);
+    WorkflowModelDraft {
+        provider: model
+            .and_then(|map| mapping_value(map, "provider"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        name: model
+            .and_then(|map| mapping_value(map, "name"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string(),
+        mode: model
+            .and_then(|map| mapping_value(map, "mode"))
+            .and_then(Value::as_str)
+            .unwrap_or("chat")
+            .to_string(),
+    }
 }
 
 pub(super) fn sync_node_editor_raw_from_visual(

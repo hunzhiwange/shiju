@@ -286,9 +286,9 @@ pub(super) fn build_source_handles(
 ) -> Vec<WorkflowHandle> {
     let effective_type = normalized_block_type(renderer_type, block_type);
 
-    let mut handles = if !data.cases.is_empty() {
-        let handles = data
-            .cases
+    let branch_cases = if data.cases.is_empty() { &data.classes } else { &data.cases };
+    let mut handles = if !branch_cases.is_empty() {
+        let handles = branch_cases
             .iter()
             .enumerate()
             .filter_map(|(index, case)| {

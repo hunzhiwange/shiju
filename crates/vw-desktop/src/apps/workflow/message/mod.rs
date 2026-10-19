@@ -11,7 +11,7 @@ use super::model::{WorkflowViewport, load_document_from_text, serialize_workflow
 use super::state::{
     WorkflowAppEditorMode, WorkflowCanvasContextMenuTarget, WorkflowNodeEditorTab,
     WorkflowNodeFieldEdit, WorkflowRunInputDraft, WorkflowSavedAppSummary,
-    WorkflowVariablePanelKind,
+    WorkflowStructuredNodeEdit, WorkflowVariablePanelKind,
 };
 use crate::app::{App, Message};
 use iced::widget::text_editor;
@@ -212,6 +212,13 @@ pub enum WorkflowMessage {
     NodeEditorTemplateFieldEdit(WorkflowNodeFieldEdit),
     NodeEditorTemplateAction(text_editor::Action),
     NodeEditorDocumentSelectorChanged(String),
+    NodeEditorStructuredFieldEdit(WorkflowStructuredNodeEdit),
+    NodeEditorClassifierAddClass,
+    NodeEditorClassifierRemoveClass(usize),
+    NodeEditorClassifierClassIdChanged(usize, String),
+    NodeEditorClassifierClassNameChanged(usize, String),
+    NodeEditorExtractorAddParameter,
+    NodeEditorExtractorRemoveParameter(usize),
     NodeEditorCodeLanguageChanged(String),
     NodeEditorCodeAddInputVariable,
     NodeEditorCodeRemoveInputVariable(usize),

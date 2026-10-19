@@ -6,8 +6,8 @@ use crate::app::agent::config::schema::{
     QQReceiveMode, SignalConfig, SlackConfig, StreamMode, TelegramConfig, WatiConfig,
     WhatsAppConfig,
 };
-use vw_config_types::channels::WeComConfig;
 use vw_config_types::channels::clawdtalk::ClawdTalkConfig;
+use vw_config_types::channels::{DEFAULT_WECHAT_BASE_URL, WeChatConfig, WeComConfig};
 
 fn channel_names(channels: &[ConfiguredChannel]) -> Vec<&str> {
     channels.iter().map(|channel| channel.display_name.as_ref()).collect()
@@ -86,6 +86,20 @@ fn collect_configured_channels_builds_wecom_only_with_complete_credentials() {
     assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["WeCom"]);
 
     config.channels_config.wecom.as_mut().unwrap().secret = " ".to_string();
+    assert!(collect_configured_channels(&config, "test").is_empty());
+}
+
+#[test]
+fn collect_configured_channels_builds_wechat_only_with_trusted_complete_config() {
+    let mut config = Config::default();
+    config.channels_config.wechat = Some(WeChatConfig {
+        bot_token: "bot-token".to_string(),
+        base_url: DEFAULT_WECHAT_BASE_URL.to_string(),
+    });
+    assert_eq!(channel_names(&collect_configured_channels(&config, "test")), vec!["WeChat"]);
+
+    config.channels_config.wechat.as_mut().unwrap().base_url =
+        "https://attacker.example".to_string();
     assert!(collect_configured_channels(&config, "test").is_empty());
 }
 

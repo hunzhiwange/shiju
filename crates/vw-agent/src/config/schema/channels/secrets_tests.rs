@@ -36,6 +36,25 @@ fn wecom_secret_round_trip_encrypts_at_rest() {
 }
 
 #[test]
+fn wechat_token_round_trip_encrypts_at_rest() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = SecretStore::new(tmp.path(), true);
+    let mut channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
+        "cli": true,
+        "wechat": {"bot_token": "plain-token"}
+    }))
+    .unwrap();
+
+    encrypt_channel_secrets(&store, &mut channels).unwrap();
+    let encrypted = &channels.wechat.as_ref().unwrap().bot_token;
+    assert!(SecretStore::is_encrypted(encrypted));
+    assert!(!encrypted.contains("plain-token"));
+
+    decrypt_channel_secrets(&store, &mut channels).unwrap();
+    assert_eq!(channels.wechat.unwrap().bot_token, "plain-token");
+}
+
+#[test]
 fn channel_secret_round_trip_encrypts_remaining_channel_fields() {
     let tmp = tempfile::tempdir().unwrap();
     let store = SecretStore::new(tmp.path(), true);

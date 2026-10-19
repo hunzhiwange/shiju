@@ -36,6 +36,7 @@ pub(super) fn build_channels_settings(
         dingtalk_instances: channels_cfg.dingtalk_instances.clone(),
         qq: channels_cfg.qq.clone(),
         wecom: channels_cfg.wecom.clone(),
+        wechat: channels_cfg.wechat.clone(),
         nostr: channels_cfg.nostr.clone(),
         clawdtalk: channels_cfg.clawdtalk.clone(),
         message_timeout_secs: channels_cfg.message_timeout_secs.min(u32::MAX as u64) as u32,

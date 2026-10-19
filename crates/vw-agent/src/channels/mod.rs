@@ -69,6 +69,9 @@ pub mod traits;
 /// WATI 通道实现（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 pub mod wati;
+/// 微信 iLink 机器人通道实现（非 WASM 平台）
+#[cfg(not(target_arch = "wasm32"))]
+pub mod wechat;
 /// 企业微信 AI 机器人通道实现（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 pub mod wecom;
@@ -120,6 +123,8 @@ pub use telegram::TelegramChannel;
 pub use traits::{Channel, SendMessage};
 #[cfg(not(target_arch = "wasm32"))]
 pub use wati::WatiChannel;
+#[cfg(not(target_arch = "wasm32"))]
+pub use wechat::WeChatChannel;
 #[cfg(not(target_arch = "wasm32"))]
 pub use wecom::WeComChannel;
 #[cfg(not(target_arch = "wasm32"))]

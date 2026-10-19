@@ -25,6 +25,8 @@
 use super::*;
 use crate::app::agent::channels::clawdtalk::ClawdTalkChannel;
 #[cfg(not(target_arch = "wasm32"))]
+use crate::app::agent::channels::wechat::WeChatChannel;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::channels::wecom::WeComChannel;
 
 fn instance_display_name(channel_name: &str, instance_id: &str) -> String {
@@ -446,6 +448,17 @@ pub(crate) fn collect_configured_channels(
                 "WeCom",
                 Arc::new(WeComChannel::new(wecom.bot_id.clone(), wecom.secret.clone())),
             ));
+        }
+    }
+
+    // ==================== 微信通道配置 ====================
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(ref wechat) = config.channels_config.wechat
+        && wechat.has_required_credentials()
+    {
+        match WeChatChannel::new(wechat.bot_token.clone(), wechat.base_url.clone()) {
+            Ok(channel) => channels.push(ConfiguredChannel::new("WeChat", Arc::new(channel))),
+            Err(error) => tracing::warn!("WeChat channel configuration rejected: {error}"),
         }
     }
 

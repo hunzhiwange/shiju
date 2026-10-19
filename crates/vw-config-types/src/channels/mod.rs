@@ -9,6 +9,7 @@ pub mod email;
 pub mod lark;
 pub mod other;
 pub mod types;
+pub mod wechat;
 pub mod wecom;
 
 pub use chat::*;
@@ -17,4 +18,5 @@ pub use email::*;
 pub use lark::*;
 pub use other::*;
 pub use types::*;
+pub use wechat::*;
 pub use wecom::*;

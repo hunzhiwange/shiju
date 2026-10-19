@@ -15,6 +15,52 @@ fn credential() -> ShijuCredential {
 }
 
 #[test]
+fn shiju_app_binding_accepts_upstream_string_key_id() {
+    let fixture = json!({
+        "$schema": "https://gateway.shiju.cloud/schemas/BindingRecord.json",
+        "personal": {
+            "apiKeyId": "101001",
+            "keyName": "fixture key",
+            "apiKeyMask": "sk_****8395",
+            "status": "enabled",
+            "expiresAt": "2041-10-03 08:00:00",
+            "configured": true,
+            "canEdit": true,
+            "updatedAt": "2026-08-17T10:46:00.20508+08:00"
+        },
+        "unattended": {
+            "apiKeyId": "",
+            "configured": false,
+            "canEdit": true
+        }
+    });
+    let binding: ShijuAppApiKeyBindingDto =
+        serde_json::from_value(fixture).expect("upstream binding");
+    assert_eq!(binding.personal.api_key_id, Some(101001));
+    assert!(binding.personal.configured);
+}
+
+#[test]
+fn shiju_app_binding_accepts_empty_and_numeric_key_ids() {
+    for (raw, expected) in [(json!(""), None), (json!(null), None), (json!(42), Some(42))] {
+        let binding: ShijuAppApiKeyBindingDto = serde_json::from_value(json!({
+            "personal": {
+                "configured": false,
+                "canEdit": true,
+                "apiKeyId": raw,
+                "keyName": "",
+                "apiKeyMask": "",
+                "status": "",
+                "expiresAt": "",
+                "updatedAt": ""
+            }
+        }))
+        .expect("binding key ID");
+        assert_eq!(binding.personal.api_key_id, expected);
+    }
+}
+
+#[test]
 fn shiju_app_contract_preserves_catalog_and_installed_shapes() {
     let catalog_fixture = json!({
         "apps": [{

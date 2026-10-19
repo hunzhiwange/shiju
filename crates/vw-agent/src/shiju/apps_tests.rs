@@ -115,7 +115,7 @@ fn binding(configured: bool, can_edit: bool) -> serde_json::Value {
         "personal": {
             "configured": configured,
             "canEdit": can_edit,
-            "apiKeyId": configured.then_some(42),
+            "apiKeyId": if configured { "42" } else { "" },
             "keyName": configured.then_some("Desktop automation"),
             "apiKeyMask": configured.then_some("sk-****cafe"),
             "status": configured.then_some("enabled"),

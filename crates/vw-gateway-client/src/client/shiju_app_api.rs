@@ -4,6 +4,7 @@
 
 use std::fmt;
 
+use serde::de::Error as _;
 use serde::{Deserialize, Serialize};
 
 use super::{GatewayClient, ShijuCredential};
@@ -94,12 +95,32 @@ pub struct ShijuAppApiKeyBindingDto {
 pub struct ShijuAppPersonalApiKeyBindingDto {
     pub configured: bool,
     pub can_edit: bool,
+    #[serde(default, deserialize_with = "deserialize_optional_api_key_id")]
     pub api_key_id: Option<u64>,
     pub key_name: Option<String>,
     pub api_key_mask: Option<String>,
     pub status: Option<String>,
     pub expires_at: Option<String>,
     pub updated_at: Option<String>,
+}
+
+fn deserialize_optional_api_key_id<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum ApiKeyId {
+        Number(u64),
+        Text(String),
+    }
+
+    match Option::<ApiKeyId>::deserialize(deserializer)? {
+        None => Ok(None),
+        Some(ApiKeyId::Text(value)) if value.is_empty() => Ok(None),
+        Some(ApiKeyId::Number(value)) => Ok(Some(value)),
+        Some(ApiKeyId::Text(value)) => value.parse::<u64>().map(Some).map_err(D::Error::custom),
+    }
 }
 
 /// IAM API keys available to the current SHIJU account.

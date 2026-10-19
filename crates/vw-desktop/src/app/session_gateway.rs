@@ -35,9 +35,9 @@ use vw_gateway_client::{
     ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto,
     ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuAppApiKeyBindingDto,
     ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto,
-    ShijuCredential, ShijuIamApiKeyListDto, ShijuInstalledSkillDto,
-    ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto,
-    ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery,
+    ShijuCredential, ShijuIamApiKeyListDto, ShijuInstalledSkillDto, ShijuLoginChallengeDto,
+    ShijuLoginPollDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto,
+    ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillTagCatalogDto,
     ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
 use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
@@ -202,6 +202,20 @@ pub(crate) async fn gateway_shiju_maintained_skills_async(
 ) -> Result<ShijuSkillPageDto<ShijuTenantSkillDto>, String> {
     let client = gateway_client()?;
     client.shiju_maintained_skills(credential, query).await
+}
+
+pub(crate) async fn gateway_shiju_skill_tags_async(
+    credential: &ShijuCredential,
+) -> Result<ShijuSkillTagCatalogDto, String> {
+    let client = gateway_client()?;
+    client.shiju_skill_tags(credential).await
+}
+
+pub(crate) async fn gateway_shiju_tenant_skill_tags_async(
+    credential: &ShijuCredential,
+) -> Result<ShijuSkillTagCatalogDto, String> {
+    let client = gateway_client()?;
+    client.shiju_tenant_skill_tags(credential).await
 }
 
 pub(crate) async fn gateway_shiju_skill_detail_async(

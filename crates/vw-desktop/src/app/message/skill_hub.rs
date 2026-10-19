@@ -5,7 +5,8 @@ use crate::app::session_gateway::{
     gateway_shiju_skill_installed_async, gateway_shiju_skill_readme_async,
     gateway_shiju_skill_remote_install_async, gateway_shiju_skill_remote_install_version_async,
     gateway_shiju_skill_remote_uninstall_async, gateway_shiju_skill_search_async,
-    gateway_shiju_skill_versions_async, gateway_shiju_system_skills_async,
+    gateway_shiju_skill_tags_async, gateway_shiju_skill_versions_async,
+    gateway_shiju_system_skills_async, gateway_shiju_tenant_skill_tags_async,
 };
 use crate::app::skill_hub::{
     CursorPage, ExpertHubSection, InstalledSkill, LoadState, MarketplaceSkill, MineFilterMenu,
@@ -14,7 +15,7 @@ use crate::app::skill_hub::{
     ShijuMultiInstallReport, ShijuPackageId, ShijuPackageRelease, ShijuUninstallReport,
     SkillActionKind, SkillCacheSyncReport, SkillDetail, SkillDetailState, SkillHubClient,
     SkillHubError, SkillInstallScope, SkillInstallSelection, SkillInstallTarget, SkillTab,
-    SkillVersion, SkillVersionAction, SkillVersionDirection, SystemSkill, TenantSkill,
+    SkillTag, SkillVersion, SkillVersionAction, SkillVersionDirection, SystemSkill, TenantSkill,
     install_shiju_archive_for_targets, package_version_cache_path, parse_public_markdown,
     resolve_skill_destinations, shiju_installation, shiju_installations_for_targets,
     sync_business_skill_cache, sync_shiju_key_for_targets, uninstall_shiju_for_targets,
@@ -134,9 +135,11 @@ pub(crate) enum SkillHubMessage {
     FilterKeywordChanged(String),
     FilterTagChanged(Option<u64>),
     ToggleMineTagFilterMenu,
+    ToggleMineCompanyTagFilterMenu,
     ToggleMineStatusFilterMenu,
     CloseMineFilterMenu,
     MineTagToggled(u64),
+    MineCompanyTagToggled(u64),
     MineStatusToggled(MineSkillStatus),
     FiltersSubmitted,
     FiltersReset,
@@ -213,6 +216,16 @@ pub(crate) enum SkillHubMessage {
         generation: u64,
         account_id: String,
         result: Result<Page<TenantSkill>, SkillHubError>,
+    },
+    PlatformTagCatalogLoaded {
+        generation: u64,
+        account_id: String,
+        result: Result<Vec<SkillTag>, SkillHubError>,
+    },
+    CompanyTagCatalogLoaded {
+        generation: u64,
+        account_id: String,
+        result: Result<Vec<SkillTag>, SkillHubError>,
     },
 }
 
@@ -380,6 +393,12 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             }
             Task::none()
         }
+        SkillHubMessage::ToggleMineCompanyTagFilterMenu => {
+            if app.expert_hub.skill_tab == SkillTab::Mine {
+                app.expert_hub.toggle_mine_filter_menu(MineFilterMenu::CompanyTags);
+            }
+            Task::none()
+        }
         SkillHubMessage::ToggleMineStatusFilterMenu => {
             if app.expert_hub.skill_tab == SkillTab::Mine {
                 app.expert_hub.toggle_mine_filter_menu(MineFilterMenu::Statuses);
@@ -394,6 +413,13 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             if app.expert_hub.skill_tab == SkillTab::Mine {
                 let option_order = mine_tag_option_order(app);
                 app.expert_hub.toggle_mine_tag(tag_id, &option_order);
+            }
+            Task::none()
+        }
+        SkillHubMessage::MineCompanyTagToggled(tag_id) => {
+            if app.expert_hub.skill_tab == SkillTab::Mine {
+                let option_order = mine_company_tag_option_order(app);
+                app.expert_hub.toggle_mine_company_tag(tag_id, &option_order);
             }
             Task::none()
         }
@@ -624,6 +650,22 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
         SkillHubMessage::MineLoaded { generation, account_id, result } => {
             if response_is_current(app, generation, &account_id) {
                 app.expert_hub.mine = result
+                    .map(LoadState::Loaded)
+                    .unwrap_or_else(|error| LoadState::Error(error.to_string()));
+            }
+            Task::none()
+        }
+        SkillHubMessage::PlatformTagCatalogLoaded { generation, account_id, result } => {
+            if tag_catalog_response_is_current(app, generation, &account_id) {
+                app.expert_hub.platform_tag_catalog = result
+                    .map(LoadState::Loaded)
+                    .unwrap_or_else(|error| LoadState::Error(error.to_string()));
+            }
+            Task::none()
+        }
+        SkillHubMessage::CompanyTagCatalogLoaded { generation, account_id, result } => {
+            if tag_catalog_response_is_current(app, generation, &account_id) {
+                app.expert_hub.company_tag_catalog = result
                     .map(LoadState::Loaded)
                     .unwrap_or_else(|error| LoadState::Error(error.to_string()));
             }
@@ -2025,6 +2067,11 @@ fn installed_response_is_current(app: &App, generation: u64, account_id: &str) -
         && app.expert_hub.account_id.as_deref() == Some(account_id)
 }
 
+fn tag_catalog_response_is_current(app: &App, generation: u64, account_id: &str) -> bool {
+    app.expert_hub.tag_catalog_generation == generation
+        && app.expert_hub.account_id.as_deref() == Some(account_id)
+}
+
 fn mark_current_needs_login(app: &mut App) {
     match app.expert_hub.skill_tab {
         SkillTab::Marketplace => app.expert_hub.marketplace = LoadState::NeedsLogin,
@@ -2037,14 +2084,31 @@ fn mark_current_needs_login(app: &mut App) {
 
 fn mine_tag_option_order(app: &App) -> Vec<u64> {
     let mut ids = Vec::new();
-    if let LoadState::Loaded(page) = &app.expert_hub.mine {
-        for tag in page.items.iter().flat_map(|skill| skill.tags.iter()) {
+    if let LoadState::Loaded(tags) = &app.expert_hub.platform_tag_catalog {
+        for tag in tags {
             if !ids.contains(&tag.id) {
                 ids.push(tag.id);
             }
         }
     }
     for selected_id in &app.expert_hub.mine_tag_ids_draft {
+        if !ids.contains(selected_id) {
+            ids.push(*selected_id);
+        }
+    }
+    ids
+}
+
+fn mine_company_tag_option_order(app: &App) -> Vec<u64> {
+    let mut ids = Vec::new();
+    if let LoadState::Loaded(tags) = &app.expert_hub.company_tag_catalog {
+        for tag in tags {
+            if !ids.contains(&tag.id) {
+                ids.push(tag.id);
+            }
+        }
+    }
+    for selected_id in &app.expert_hub.mine_company_tag_ids_draft {
         if !ids.contains(selected_id) {
             ids.push(*selected_id);
         }
@@ -2060,7 +2124,7 @@ pub(super) fn mine_query(app: &App) -> ShijuMaintainedSkillQuery {
         page_size: SHIJU_PAGE_SIZE,
         keyword: (!keyword.is_empty()).then_some(keyword),
         tag_ids: app.expert_hub.submitted_mine_tag_ids.clone(),
-        company_tag_ids: Vec::new(),
+        company_tag_ids: app.expert_hub.submitted_mine_company_tag_ids.clone(),
         statuses: app
             .expert_hub
             .submitted_mine_statuses
@@ -2131,7 +2195,7 @@ fn load_current_tab(app: &mut App) -> Task<Message> {
         SkillTab::Mine => {
             app.expert_hub.mine = LoadState::Loading { generation };
             let query = mine_query(app);
-            Task::perform(
+            let list_task = Task::perform(
                 async move {
                     let credential = credential
                         .gateway_credential()
@@ -2148,10 +2212,68 @@ fn load_current_tab(app: &mut App) -> Task<Message> {
                         result,
                     })
                 },
-            )
+            );
+            Task::batch([list_task, load_mine_tag_catalogs(app)])
         }
         SkillTab::Install => load_agent_package(app, false),
     }
+}
+
+fn load_mine_tag_catalogs(app: &mut App) -> Task<Message> {
+    let should_load =
+        matches!(app.expert_hub.platform_tag_catalog, LoadState::Idle | LoadState::Error(_))
+            || matches!(app.expert_hub.company_tag_catalog, LoadState::Idle | LoadState::Error(_));
+    if !should_load {
+        return Task::none();
+    }
+    let Some(account) = app.account.active_account() else {
+        return Task::none();
+    };
+    let account_id = account.id().to_string();
+    let credential = account.skill_hub_credential();
+    let generation = app.expert_hub.next_tag_catalog_generation();
+    app.expert_hub.platform_tag_catalog = LoadState::Loading { generation };
+    app.expert_hub.company_tag_catalog = LoadState::Loading { generation };
+
+    let platform_account_id = account_id.clone();
+    let platform_credential = credential.clone();
+    let platform = Task::perform(
+        async move {
+            let credential = platform_credential
+                .gateway_credential()
+                .map_err(|error| SkillHubError::from(error.to_string()))?;
+            gateway_shiju_skill_tags_async(&credential)
+                .await
+                .map(|catalog| catalog.items.into_iter().map(SkillTag::from).collect())
+                .map_err(SkillHubError::from)
+        },
+        move |result| {
+            Message::SkillHub(SkillHubMessage::PlatformTagCatalogLoaded {
+                generation,
+                account_id: platform_account_id,
+                result,
+            })
+        },
+    );
+    let company = Task::perform(
+        async move {
+            let credential = credential
+                .gateway_credential()
+                .map_err(|error| SkillHubError::from(error.to_string()))?;
+            gateway_shiju_tenant_skill_tags_async(&credential)
+                .await
+                .map(|catalog| catalog.items.into_iter().map(SkillTag::from).collect())
+                .map_err(SkillHubError::from)
+        },
+        move |result| {
+            Message::SkillHub(SkillHubMessage::CompanyTagCatalogLoaded {
+                generation,
+                account_id,
+                result,
+            })
+        },
+    );
+    Task::batch([platform, company])
 }
 
 fn load_marketplace_skills(app: &mut App) -> Task<Message> {

@@ -4,7 +4,8 @@
 use super::SkillHubMessage;
 use super::skill_hub::{
     ShijuDownloadChunk, agent_install_text, dispatch_download_with, dispatch_shiju_download_with,
-    mine_query, open_shiju_install_dir_with, write_shiju_download_chunks,
+    mine_query, open_shiju_install_dir_with, update as update_skill_hub,
+    write_shiju_download_chunks,
 };
 use crate::app::account::{
     AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount,
@@ -483,7 +484,7 @@ fn skill_hub_list_filters_submit_reset_and_restart_pagination() {
 fn mine_filters_toggle_without_loading_then_submit_and_reset() {
     let (mut app, _) = App::new();
     app.account.replace_repository(repository_with_account("account-secret", "company-1"));
-    let _ = app.update(Message::SkillHub(SkillHubMessage::SelectSkillTab(SkillTab::Mine)));
+    let _ = update_skill_hub(&mut app, SkillHubMessage::SelectSkillTab(SkillTab::Mine));
     let generation_before_drafts = app.expert_hub.request_generation;
     app.expert_hub.mine_page = 3;
 
@@ -506,8 +507,8 @@ fn mine_filters_toggle_without_loading_then_submit_and_reset() {
 
     let _ = app.update(Message::SkillHub(SkillHubMessage::FiltersReset));
     assert!(app.expert_hub.mine_tag_ids_draft.is_empty());
-    assert_eq!(app.expert_hub.mine_statuses_draft, MineSkillStatus::ALL);
-    assert_eq!(app.expert_hub.submitted_mine_statuses, MineSkillStatus::ALL);
+    assert_eq!(app.expert_hub.mine_statuses_draft, MineSkillStatus::DEFAULT);
+    assert_eq!(app.expert_hub.submitted_mine_statuses, MineSkillStatus::DEFAULT);
     assert_eq!(app.expert_hub.mine_page, 1);
 }
 
@@ -519,6 +520,8 @@ fn mine_query_uses_only_submitted_multi_value_filters() {
     app.expert_hub.mine_filter.submitted_keyword = "已提交".to_string();
     app.expert_hub.mine_tag_ids_draft = vec![7];
     app.expert_hub.submitted_mine_tag_ids = vec![9, 2];
+    app.expert_hub.mine_company_tag_ids_draft = vec![8];
+    app.expert_hub.submitted_mine_company_tag_ids = vec![6, 4];
     app.expert_hub.mine_statuses_draft = vec![MineSkillStatus::Draft];
     app.expert_hub.submitted_mine_statuses =
         vec![MineSkillStatus::PendingReview, MineSkillStatus::Unpublished];
@@ -528,11 +531,80 @@ fn mine_query_uses_only_submitted_multi_value_filters() {
     assert_eq!(query.page, 4);
     assert_eq!(query.keyword.as_deref(), Some("已提交"));
     assert_eq!(query.tag_ids, vec![9, 2]);
+    assert_eq!(query.company_tag_ids, vec![6, 4]);
     assert_eq!(query.statuses, vec!["pending_review", "unpublished"]);
 
     app.expert_hub.reset_mine_filters();
     let reset_query = mine_query(&app);
-    assert_eq!(reset_query.statuses, vec!["draft", "pending_review", "published", "unpublished"]);
+    assert!(reset_query.company_tag_ids.is_empty());
+    assert_eq!(reset_query.statuses, vec!["draft", "pending_review", "published"]);
+}
+
+#[test]
+fn mine_tag_catalog_responses_ignore_stale_generation_and_account() {
+    let (mut app, _) = App::new();
+    app.account.replace_repository(repository_with_account("account-secret", "company-1"));
+    let _ = update_skill_hub(&mut app, SkillHubMessage::SelectSkillTab(SkillTab::Mine));
+    let generation = app.expert_hub.tag_catalog_generation;
+    let account_id = app.expert_hub.account_id.clone().unwrap();
+    let platform_tags = vec![SkillTag { id: 2, name: "平台".to_string(), sort_order: 1 }];
+
+    let _ = update_skill_hub(
+        &mut app,
+        SkillHubMessage::PlatformTagCatalogLoaded {
+            generation: generation.wrapping_sub(1),
+            account_id: account_id.clone(),
+            result: Ok(platform_tags.clone()),
+        },
+    );
+    assert!(matches!(app.expert_hub.platform_tag_catalog, LoadState::Loading { .. }));
+
+    let _ = update_skill_hub(
+        &mut app,
+        SkillHubMessage::PlatformTagCatalogLoaded {
+            generation,
+            account_id: "other-account".to_string(),
+            result: Ok(platform_tags.clone()),
+        },
+    );
+    assert!(matches!(app.expert_hub.platform_tag_catalog, LoadState::Loading { .. }));
+
+    let _ = update_skill_hub(
+        &mut app,
+        SkillHubMessage::PlatformTagCatalogLoaded {
+            generation,
+            account_id,
+            result: Ok(platform_tags.clone()),
+        },
+    );
+    assert!(
+        matches!(app.expert_hub.platform_tag_catalog, LoadState::Loaded(ref tags) if *tags == platform_tags)
+    );
+
+    let _ = update_skill_hub(
+        &mut app,
+        SkillHubMessage::CompanyTagCatalogLoaded {
+            generation,
+            account_id: "other-account".to_string(),
+            result: Ok(Vec::new()),
+        },
+    );
+    assert!(matches!(app.expert_hub.company_tag_catalog, LoadState::Loading { .. }));
+
+    let account_id = app.expert_hub.account_id.clone().unwrap();
+    let _ = update_skill_hub(
+        &mut app,
+        SkillHubMessage::CompanyTagCatalogLoaded {
+            generation,
+            account_id,
+            result: Err(SkillHubError::from("目录加载失败".to_string())),
+        },
+    );
+
+    assert!(matches!(
+        &app.expert_hub.company_tag_catalog,
+        LoadState::Error(message) if message.contains("目录加载失败")
+    ));
 }
 
 #[test]

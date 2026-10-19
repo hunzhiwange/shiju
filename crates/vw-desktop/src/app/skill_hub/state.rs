@@ -578,6 +578,7 @@ pub(crate) enum MineSkillStatus {
 impl MineSkillStatus {
     pub(crate) const ALL: [Self; 4] =
         [Self::Draft, Self::PendingReview, Self::Published, Self::Unpublished];
+    pub(crate) const DEFAULT: [Self; 3] = [Self::Draft, Self::PendingReview, Self::Published];
 
     pub(crate) const fn as_str(self) -> &'static str {
         match self {
@@ -602,6 +603,7 @@ impl MineSkillStatus {
 /// “我的技能”当前展开的筛选菜单。
 pub(crate) enum MineFilterMenu {
     Tags,
+    CompanyTags,
     Statuses,
 }
 
@@ -999,9 +1001,13 @@ pub(crate) struct ExpertHubState {
     pub(crate) mine_filter: SkillListFilter,
     pub(crate) mine_tag_ids_draft: Vec<u64>,
     pub(crate) submitted_mine_tag_ids: Vec<u64>,
+    pub(crate) mine_company_tag_ids_draft: Vec<u64>,
+    pub(crate) submitted_mine_company_tag_ids: Vec<u64>,
     pub(crate) mine_statuses_draft: Vec<MineSkillStatus>,
     pub(crate) submitted_mine_statuses: Vec<MineSkillStatus>,
     pub(crate) mine_filter_menu: Option<MineFilterMenu>,
+    pub(crate) platform_tag_catalog: LoadState<Vec<super::SkillTag>>,
+    pub(crate) company_tag_catalog: LoadState<Vec<super::SkillTag>>,
     pub(crate) system_page: u32,
     pub(crate) mine_page: u32,
     pub(crate) marketplace: LoadState<super::CursorPage<super::MarketplaceSkill>>,
@@ -1010,6 +1016,7 @@ pub(crate) struct ExpertHubState {
     pub(crate) mine: LoadState<super::Page<super::TenantSkill>>,
     pub(crate) request_generation: u64,
     pub(crate) installed_request_generation: u64,
+    pub(crate) tag_catalog_generation: u64,
     pub(crate) detail_generation: u64,
     pub(crate) action_generation: u64,
     pub(crate) cache_sync_generation: u64,
@@ -1024,26 +1031,34 @@ pub(crate) struct ExpertHubState {
     pub(crate) shiju_apps: crate::app::shiju_apps::ShijuAppsState,
 }
 
+fn toggle_ordered_ids(selected_ids: &mut Vec<u64>, tag_id: u64, option_order: &[u64]) {
+    if selected_ids.contains(&tag_id) {
+        selected_ids.retain(|selected| *selected != tag_id);
+        return;
+    }
+
+    selected_ids.push(tag_id);
+    let selected = selected_ids.clone();
+    selected_ids.clear();
+    for option_id in option_order {
+        if selected.contains(option_id) && !selected_ids.contains(option_id) {
+            selected_ids.push(*option_id);
+        }
+    }
+    for selected_id in selected {
+        if !selected_ids.contains(&selected_id) {
+            selected_ids.push(selected_id);
+        }
+    }
+}
+
 impl ExpertHubState {
     pub(crate) fn toggle_mine_tag(&mut self, tag_id: u64, option_order: &[u64]) {
-        if self.mine_tag_ids_draft.contains(&tag_id) {
-            self.mine_tag_ids_draft.retain(|selected| *selected != tag_id);
-            return;
-        }
+        toggle_ordered_ids(&mut self.mine_tag_ids_draft, tag_id, option_order);
+    }
 
-        self.mine_tag_ids_draft.push(tag_id);
-        let selected = self.mine_tag_ids_draft.clone();
-        self.mine_tag_ids_draft.clear();
-        for option_id in option_order {
-            if selected.contains(option_id) && !self.mine_tag_ids_draft.contains(option_id) {
-                self.mine_tag_ids_draft.push(*option_id);
-            }
-        }
-        for selected_id in selected {
-            if !self.mine_tag_ids_draft.contains(&selected_id) {
-                self.mine_tag_ids_draft.push(selected_id);
-            }
-        }
+    pub(crate) fn toggle_mine_company_tag(&mut self, tag_id: u64, option_order: &[u64]) {
+        toggle_ordered_ids(&mut self.mine_company_tag_ids_draft, tag_id, option_order);
     }
 
     pub(crate) fn toggle_mine_status(&mut self, status: MineSkillStatus) {
@@ -1069,6 +1084,7 @@ impl ExpertHubState {
     pub(crate) fn submit_mine_filters(&mut self) {
         self.mine_filter.submit();
         self.submitted_mine_tag_ids.clone_from(&self.mine_tag_ids_draft);
+        self.submitted_mine_company_tag_ids.clone_from(&self.mine_company_tag_ids_draft);
         self.submitted_mine_statuses.clone_from(&self.mine_statuses_draft);
         self.close_mine_filter_menu();
     }
@@ -1077,8 +1093,10 @@ impl ExpertHubState {
         self.mine_filter.reset();
         self.mine_tag_ids_draft.clear();
         self.submitted_mine_tag_ids.clear();
-        self.mine_statuses_draft = MineSkillStatus::ALL.to_vec();
-        self.submitted_mine_statuses = MineSkillStatus::ALL.to_vec();
+        self.mine_company_tag_ids_draft.clear();
+        self.submitted_mine_company_tag_ids.clear();
+        self.mine_statuses_draft = MineSkillStatus::DEFAULT.to_vec();
+        self.submitted_mine_statuses = MineSkillStatus::DEFAULT.to_vec();
         self.close_mine_filter_menu();
     }
 
@@ -1100,8 +1118,11 @@ impl ExpertHubState {
         self.installed = LoadState::Idle;
         self.system = LoadState::Idle;
         self.mine = LoadState::Idle;
+        self.platform_tag_catalog = LoadState::Idle;
+        self.company_tag_catalog = LoadState::Idle;
         self.request_generation = self.request_generation.wrapping_add(1);
         self.installed_request_generation = self.installed_request_generation.wrapping_add(1);
+        self.tag_catalog_generation = self.tag_catalog_generation.wrapping_add(1);
         self.detail_generation = self.detail_generation.wrapping_add(1);
         self.action_generation = self.action_generation.wrapping_add(1);
         self.cache_sync_generation = self.cache_sync_generation.wrapping_add(1);
@@ -1123,6 +1144,11 @@ impl ExpertHubState {
     pub(crate) fn next_installed_request_generation(&mut self) -> u64 {
         self.installed_request_generation = self.installed_request_generation.wrapping_add(1);
         self.installed_request_generation
+    }
+
+    pub(crate) fn next_tag_catalog_generation(&mut self) -> u64 {
+        self.tag_catalog_generation = self.tag_catalog_generation.wrapping_add(1);
+        self.tag_catalog_generation
     }
 
     pub(crate) fn next_detail_generation(&mut self) -> u64 {
@@ -1221,9 +1247,13 @@ impl Default for ExpertHubState {
             mine_filter: SkillListFilter::default(),
             mine_tag_ids_draft: Vec::new(),
             submitted_mine_tag_ids: Vec::new(),
-            mine_statuses_draft: MineSkillStatus::ALL.to_vec(),
-            submitted_mine_statuses: MineSkillStatus::ALL.to_vec(),
+            mine_company_tag_ids_draft: Vec::new(),
+            submitted_mine_company_tag_ids: Vec::new(),
+            mine_statuses_draft: MineSkillStatus::DEFAULT.to_vec(),
+            submitted_mine_statuses: MineSkillStatus::DEFAULT.to_vec(),
             mine_filter_menu: None,
+            platform_tag_catalog: LoadState::Idle,
+            company_tag_catalog: LoadState::Idle,
             system_page: 1,
             mine_page: 1,
             marketplace: LoadState::Idle,
@@ -1232,6 +1262,7 @@ impl Default for ExpertHubState {
             mine: LoadState::Idle,
             request_generation: 0,
             installed_request_generation: 0,
+            tag_catalog_generation: 0,
             detail_generation: 0,
             action_generation: 0,
             cache_sync_generation: 0,

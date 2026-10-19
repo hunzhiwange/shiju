@@ -17,8 +17,12 @@ fn expert_hub_state_defaults_to_skills_marketplace() {
     assert!(matches!(state.mine, LoadState::Idle));
     assert!(state.mine_tag_ids_draft.is_empty());
     assert!(state.submitted_mine_tag_ids.is_empty());
-    assert_eq!(state.mine_statuses_draft, MineSkillStatus::ALL);
-    assert_eq!(state.submitted_mine_statuses, MineSkillStatus::ALL);
+    assert_eq!(state.mine_statuses_draft, MineSkillStatus::DEFAULT);
+    assert_eq!(state.submitted_mine_statuses, MineSkillStatus::DEFAULT);
+    assert!(state.mine_company_tag_ids_draft.is_empty());
+    assert!(state.submitted_mine_company_tag_ids.is_empty());
+    assert!(matches!(state.platform_tag_catalog, LoadState::Idle));
+    assert!(matches!(state.company_tag_catalog, LoadState::Idle));
     assert_eq!(state.mine_filter_menu, None);
     assert_eq!(state.shiju_apps, crate::app::shiju_apps::ShijuAppsState::default());
 }
@@ -32,29 +36,28 @@ fn expert_hub_state_toggles_mine_filters_in_option_order_and_resets_defaults() {
     state.toggle_mine_tag(5, &[9, 2, 5]);
     state.toggle_mine_tag(2, &[9, 2, 5]);
     assert_eq!(state.mine_tag_ids_draft, vec![9, 5]);
+    state.toggle_mine_company_tag(7, &[8, 7]);
+    assert_eq!(state.mine_company_tag_ids_draft, vec![7]);
 
     state.toggle_mine_status(MineSkillStatus::Published);
     state.toggle_mine_status(MineSkillStatus::Draft);
-    assert_eq!(
-        state.mine_statuses_draft,
-        vec![MineSkillStatus::PendingReview, MineSkillStatus::Unpublished]
-    );
+    assert_eq!(state.mine_statuses_draft, vec![MineSkillStatus::PendingReview]);
 
     state.mine_filter.keyword_draft = "  我的搜索  ".to_string();
     state.submit_mine_filters();
     assert_eq!(state.mine_filter.submitted_keyword, "我的搜索");
     assert_eq!(state.submitted_mine_tag_ids, vec![9, 5]);
-    assert_eq!(
-        state.submitted_mine_statuses,
-        vec![MineSkillStatus::PendingReview, MineSkillStatus::Unpublished]
-    );
+    assert_eq!(state.submitted_mine_company_tag_ids, vec![7]);
+    assert_eq!(state.submitted_mine_statuses, vec![MineSkillStatus::PendingReview]);
 
     state.reset_mine_filters();
     assert_eq!(state.mine_filter, SkillListFilter::default());
     assert!(state.mine_tag_ids_draft.is_empty());
     assert!(state.submitted_mine_tag_ids.is_empty());
-    assert_eq!(state.mine_statuses_draft, MineSkillStatus::ALL);
-    assert_eq!(state.submitted_mine_statuses, MineSkillStatus::ALL);
+    assert!(state.mine_company_tag_ids_draft.is_empty());
+    assert!(state.submitted_mine_company_tag_ids.is_empty());
+    assert_eq!(state.mine_statuses_draft, MineSkillStatus::DEFAULT);
+    assert_eq!(state.submitted_mine_statuses, MineSkillStatus::DEFAULT);
 }
 
 #[test]
@@ -142,6 +145,8 @@ fn expert_hub_state_clears_account_scoped_results_and_pages() {
         mine_page: 2,
         mine_tag_ids_draft: vec![9, 2],
         submitted_mine_tag_ids: vec![9],
+        mine_company_tag_ids_draft: vec![7],
+        submitted_mine_company_tag_ids: vec![7],
         mine_statuses_draft: vec![MineSkillStatus::Draft],
         submitted_mine_statuses: vec![MineSkillStatus::Draft],
         mine_filter_menu: Some(MineFilterMenu::Tags),
@@ -158,8 +163,12 @@ fn expert_hub_state_clears_account_scoped_results_and_pages() {
     assert_eq!(state.system_filter, SkillListFilter::default());
     assert!(state.mine_tag_ids_draft.is_empty());
     assert!(state.submitted_mine_tag_ids.is_empty());
-    assert_eq!(state.mine_statuses_draft, MineSkillStatus::ALL);
-    assert_eq!(state.submitted_mine_statuses, MineSkillStatus::ALL);
+    assert!(state.mine_company_tag_ids_draft.is_empty());
+    assert!(state.submitted_mine_company_tag_ids.is_empty());
+    assert_eq!(state.mine_statuses_draft, MineSkillStatus::DEFAULT);
+    assert_eq!(state.submitted_mine_statuses, MineSkillStatus::DEFAULT);
+    assert!(matches!(state.platform_tag_catalog, LoadState::Idle));
+    assert!(matches!(state.company_tag_catalog, LoadState::Idle));
     assert_eq!(state.mine_filter_menu, None);
     assert_eq!((state.system_page, state.mine_page), (1, 1));
     assert!(matches!(state.marketplace, LoadState::Idle));

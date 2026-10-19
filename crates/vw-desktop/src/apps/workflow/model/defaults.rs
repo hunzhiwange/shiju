@@ -133,6 +133,42 @@ pub(super) fn default_node_data_value(block_type: &str) -> Value {
             ("type", Value::String("code".to_string())),
             ("variables", Value::Sequence(Vec::new())),
         ]),
+        "http-request" => yaml_map(vec![
+            ("authorization", yaml_map(vec![("type", Value::String("no-auth".to_string()))])),
+            (
+                "body",
+                yaml_map(vec![
+                    ("data", Value::Sequence(Vec::new())),
+                    ("type", Value::String("none".to_string())),
+                ]),
+            ),
+            ("desc", Value::String(String::new())),
+            ("error_strategy", Value::String("none".to_string())),
+            ("headers", Value::String(String::new())),
+            ("method", Value::String("get".to_string())),
+            ("params", Value::String(String::new())),
+            (
+                "retry_config",
+                yaml_map(vec![
+                    ("max_retries", yaml_value(1_u64)),
+                    ("retry_enabled", Value::Bool(false)),
+                    ("retry_interval", yaml_value(100_u64)),
+                ]),
+            ),
+            ("selected", Value::Bool(false)),
+            ("ssl_verify", Value::Bool(true)),
+            (
+                "timeout",
+                yaml_map(vec![
+                    ("connect", yaml_value(10_u64)),
+                    ("read", yaml_value(60_u64)),
+                    ("write", yaml_value(20_u64)),
+                ]),
+            ),
+            ("title", Value::String(title)),
+            ("type", Value::String("http-request".to_string())),
+            ("url", Value::String(String::new())),
+        ]),
         "llm" => yaml_map(vec![
             (
                 "context",

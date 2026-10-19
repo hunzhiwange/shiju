@@ -505,6 +505,86 @@ pub(super) fn validate_node_editor_draft(
                 push_validation_error(&mut field_errors, "answer.text", "回复内容不能为空");
             }
         }
+        Some(WorkflowNodeVisualDraft::HttpRequest {
+            method,
+            url,
+            auth_type,
+            auth_username,
+            auth_password,
+            auth_token,
+            headers_editor,
+            params_editor,
+            body_editor,
+            timeout_connect,
+            timeout_read,
+            timeout_write,
+            retry_config,
+            error_strategy,
+            ..
+        }) => {
+            if !matches!(
+                method.to_ascii_lowercase().as_str(),
+                "get" | "post" | "put" | "patch" | "delete" | "head" | "options"
+            ) {
+                push_validation_error(&mut field_errors, "http.method", "HTTP 方法不受支持");
+            }
+            let lower_url = url.trim().to_ascii_lowercase();
+            if !(lower_url.starts_with("http://") || lower_url.starts_with("https://"))
+                || url.trim().split_once("://").is_none_or(|(_, rest)| rest.trim().is_empty())
+            {
+                push_validation_error(
+                    &mut field_errors,
+                    "http.url",
+                    "URL 必须是有效的 HTTP 或 HTTPS 地址",
+                );
+            }
+            let auth_invalid = match auth_type.as_str() {
+                "no-auth" => false,
+                "basic" => auth_username.trim().is_empty() || auth_password.trim().is_empty(),
+                "bearer" | "api-key" => auth_token.trim().is_empty(),
+                _ => true,
+            };
+            if auth_invalid {
+                push_validation_error(&mut field_errors, "http.authorization", "鉴权配置不完整");
+            }
+            for (path, value) in [
+                ("http.timeout.connect", timeout_connect),
+                ("http.timeout.read", timeout_read),
+                ("http.timeout.write", timeout_write),
+            ] {
+                if value.trim().parse::<u64>().ok().filter(|v| *v > 0 && *v <= 3600).is_none() {
+                    push_validation_error(&mut field_errors, path, "超时必须是 1 到 3600 秒的整数");
+                }
+            }
+            for (path, editor) in [
+                ("http.headers", headers_editor),
+                ("http.params", params_editor),
+                ("http.body", body_editor),
+            ] {
+                if parse_http_value(&editor.text(), path).is_err() {
+                    push_validation_error(&mut field_errors, path, "必须是合法 YAML");
+                }
+            }
+            if retry_config.enabled {
+                if !(1..=10).contains(&retry_config.max_retries) {
+                    push_validation_error(
+                        &mut field_errors,
+                        "http.retry.max_retries",
+                        "最大重试次数必须在 1 到 10 之间",
+                    );
+                }
+                if !(100..=5000).contains(&retry_config.retry_interval) {
+                    push_validation_error(
+                        &mut field_errors,
+                        "http.retry.retry_interval",
+                        "重试间隔必须在 100 到 5000 毫秒之间",
+                    );
+                }
+            }
+            if !matches!(error_strategy.as_str(), "none" | "fail-branch") {
+                push_validation_error(&mut field_errors, "http.error_strategy", "错误策略不受支持");
+            }
+        }
         Some(WorkflowNodeVisualDraft::Code {
             language,
             inputs,

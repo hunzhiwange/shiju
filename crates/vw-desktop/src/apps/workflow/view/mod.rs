@@ -12,8 +12,9 @@ use super::model::{
 pub(super) use super::state;
 use super::state::{
     WorkflowAppEditorMode, WorkflowCanvasContextMenuTarget, WorkflowCodeOutputDraft,
-    WorkflowCodeVariableDraft, WorkflowNodeEditorMode, WorkflowNodeEditorTab,
-    WorkflowNodeRetryDraft, WorkflowNodeVisualDraft, WorkflowState, WorkflowVariablePanelKind,
+    WorkflowCodeVariableDraft, WorkflowHttpRequestEdit, WorkflowNodeEditorMode,
+    WorkflowNodeEditorTab, WorkflowNodeRetryDraft, WorkflowNodeVisualDraft, WorkflowState,
+    WorkflowVariablePanelKind,
 };
 use crate::app::Message;
 use crate::app::assets::{self, Icon};
@@ -38,6 +39,7 @@ mod app_editor;
 mod app_list;
 mod canvas_shell;
 mod header;
+mod http_request;
 mod if_else;
 mod menu;
 mod next_step;
@@ -62,6 +64,7 @@ use app_editor::*;
 use app_list::*;
 use canvas_shell::*;
 use header::*;
+use http_request::*;
 use if_else::*;
 use menu::*;
 use next_step::*;

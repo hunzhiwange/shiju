@@ -106,6 +106,77 @@ pub(super) fn build_node_visual_draft(
                 mapping_value(data_map, "instruction").and_then(Value::as_str).unwrap_or_default(),
             ),
         })),
+        "http-request" => {
+            let auth = mapping_value(data_map, "authorization").and_then(Value::as_mapping);
+            let body = mapping_value(data_map, "body").and_then(Value::as_mapping);
+            let timeout = mapping_value(data_map, "timeout").and_then(Value::as_mapping);
+            let retry = build_code_retry_draft(mapping_value(data_map, "retry_config"));
+            Ok(Some(WorkflowNodeVisualDraft::HttpRequest {
+                method: mapping_value(data_map, "method")
+                    .and_then(Value::as_str)
+                    .unwrap_or("get")
+                    .to_string(),
+                url: mapping_value(data_map, "url")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                auth_type: auth
+                    .and_then(|m| mapping_value(m, "type"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("no-auth")
+                    .to_string(),
+                auth_username: auth
+                    .and_then(|m| mapping_value(m, "username"))
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                auth_password: auth
+                    .and_then(|m| mapping_value(m, "password"))
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                auth_token: auth
+                    .and_then(|m| mapping_value(m, "token"))
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                headers_editor: text_editor::Content::with_text(&value_yaml_for_editor(
+                    mapping_value(data_map, "headers").unwrap_or(&Value::String(String::new())),
+                )),
+                params_editor: text_editor::Content::with_text(&value_yaml_for_editor(
+                    mapping_value(data_map, "params").unwrap_or(&Value::String(String::new())),
+                )),
+                body_type: body
+                    .and_then(|m| mapping_value(m, "type"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("none")
+                    .to_string(),
+                body_editor: text_editor::Content::with_text(&value_yaml_for_editor(
+                    body.and_then(|m| mapping_value(m, "data"))
+                        .unwrap_or(&Value::Sequence(Vec::new())),
+                )),
+                timeout_connect: timeout
+                    .and_then(|m| mapping_value(m, "connect"))
+                    .map(scalar_value_to_string)
+                    .unwrap_or_else(|| "10".to_string()),
+                timeout_read: timeout
+                    .and_then(|m| mapping_value(m, "read"))
+                    .map(scalar_value_to_string)
+                    .unwrap_or_else(|| "60".to_string()),
+                timeout_write: timeout
+                    .and_then(|m| mapping_value(m, "write"))
+                    .map(scalar_value_to_string)
+                    .unwrap_or_else(|| "20".to_string()),
+                ssl_verify: mapping_value(data_map, "ssl_verify")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(true),
+                retry_config: retry,
+                error_strategy: mapping_value(data_map, "error_strategy")
+                    .and_then(Value::as_str)
+                    .unwrap_or("none")
+                    .to_string(),
+            }))
+        }
         "llm" => {
             let model_map = mapping_value(data_map, "model").and_then(Value::as_mapping);
             let completion_params = model_map

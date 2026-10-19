@@ -75,6 +75,82 @@ pub(super) fn apply_visual_draft_to_yaml(
         ("answer", WorkflowNodeVisualDraft::Answer { answer_editor }) => {
             set_mapping_string(data_map, "answer", &answer_editor.text());
         }
+        (
+            "http-request",
+            WorkflowNodeVisualDraft::HttpRequest {
+                method,
+                url,
+                auth_type,
+                auth_username,
+                auth_password,
+                auth_token,
+                headers_editor,
+                params_editor,
+                body_type,
+                body_editor,
+                timeout_connect,
+                timeout_read,
+                timeout_write,
+                ssl_verify,
+                retry_config,
+                error_strategy,
+            },
+        ) => {
+            set_mapping_string(data_map, "method", &method.to_ascii_lowercase());
+            set_mapping_string(data_map, "url", url);
+            let auth = ensure_mapping_entry(data_map, "authorization");
+            set_mapping_string(auth, "type", auth_type);
+            match auth_type.as_str() {
+                "basic" => {
+                    set_mapping_string(auth, "username", auth_username);
+                    set_mapping_string(auth, "password", auth_password);
+                    auth.remove(&yaml_key("token"));
+                }
+                "bearer" | "api-key" => {
+                    set_mapping_string(auth, "token", auth_token);
+                    auth.remove(&yaml_key("username"));
+                    auth.remove(&yaml_key("password"));
+                }
+                _ => {
+                    auth.remove(&yaml_key("username"));
+                    auth.remove(&yaml_key("password"));
+                    auth.remove(&yaml_key("token"));
+                }
+            }
+            data_map
+                .insert(yaml_key("headers"), parse_http_value(&headers_editor.text(), "请求头")?);
+            data_map
+                .insert(yaml_key("params"), parse_http_value(&params_editor.text(), "查询参数")?);
+            let body = ensure_mapping_entry(data_map, "body");
+            set_mapping_string(body, "type", body_type);
+            body.insert(yaml_key("data"), parse_http_value(&body_editor.text(), "请求体")?);
+            let timeout = ensure_mapping_entry(data_map, "timeout");
+            for (key, input) in
+                [("connect", timeout_connect), ("read", timeout_read), ("write", timeout_write)]
+            {
+                let value = input
+                    .trim()
+                    .parse::<u64>()
+                    .map_err(|_| format!("HTTP {key} timeout 必须是正整数"))?;
+                timeout.insert(
+                    yaml_key(key),
+                    serde_yaml::to_value(value)
+                        .map_err(|e| format!("HTTP timeout 序列化失败: {e}"))?,
+                );
+            }
+            set_mapping_bool(data_map, "ssl_verify", *ssl_verify);
+            let retry = ensure_mapping_entry(data_map, "retry_config");
+            set_mapping_bool(retry, "retry_enabled", retry_config.enabled);
+            retry.insert(
+                yaml_key("max_retries"),
+                serde_yaml::to_value(retry_config.max_retries).map_err(|e| e.to_string())?,
+            );
+            retry.insert(
+                yaml_key("retry_interval"),
+                serde_yaml::to_value(retry_config.retry_interval).map_err(|e| e.to_string())?,
+            );
+            set_mapping_string(data_map, "error_strategy", error_strategy);
+        }
         ("end", WorkflowNodeVisualDraft::End { outputs }) => {
             data_map.insert(yaml_key("outputs"), named_values_value(outputs, true));
         }
@@ -373,6 +449,13 @@ pub(super) fn apply_visual_draft_to_yaml(
     let yaml = serde_yaml::to_string(&data_value)
         .map_err(|error| format!("生成节点 data YAML 失败: {error}"))?;
     Ok(yaml.strip_prefix("---\n").unwrap_or(&yaml).to_string())
+}
+
+pub(super) fn parse_http_value(input: &str, label: &str) -> Result<Value, String> {
+    if input.trim().is_empty() {
+        return Ok(Value::String(String::new()));
+    }
+    serde_yaml::from_str(input).map_err(|_| format!("{label}必须是合法 YAML"))
 }
 
 fn named_values_value(values: &[WorkflowNamedValueDraft], include_type: bool) -> Value {

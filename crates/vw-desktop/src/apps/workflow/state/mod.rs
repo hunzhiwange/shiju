@@ -46,6 +46,9 @@ mod core_tests;
 #[path = "draft_build_tests.rs"]
 mod draft_build_tests;
 #[cfg(test)]
+#[path = "http_request_tests.rs"]
+mod http_request_tests;
+#[cfg(test)]
 #[path = "ids_tests.rs"]
 mod ids_tests;
 #[cfg(test)]
@@ -287,6 +290,24 @@ pub enum WorkflowNodeVisualDraft {
         reasoning_mode: String,
         instruction_editor: text_editor::Content,
     },
+    HttpRequest {
+        method: String,
+        url: String,
+        auth_type: String,
+        auth_username: String,
+        auth_password: String,
+        auth_token: String,
+        headers_editor: text_editor::Content,
+        params_editor: text_editor::Content,
+        body_type: String,
+        body_editor: text_editor::Content,
+        timeout_connect: String,
+        timeout_read: String,
+        timeout_write: String,
+        ssl_verify: bool,
+        retry_config: WorkflowNodeRetryDraft,
+        error_strategy: String,
+    },
     IfElse {
         cases: Vec<WorkflowIfElseCaseDraft>,
     },
@@ -441,6 +462,28 @@ pub enum WorkflowStructuredNodeEdit {
     ParameterType(usize, String),
     ParameterDescription(usize, String),
     ParameterRequired(usize, bool),
+}
+
+#[derive(Debug, Clone)]
+pub enum WorkflowHttpRequestEdit {
+    Method(String),
+    Url(String),
+    AuthType(String),
+    AuthUsername(String),
+    AuthPassword(String),
+    AuthToken(String),
+    Headers(text_editor::Action),
+    Params(text_editor::Action),
+    BodyType(String),
+    Body(text_editor::Action),
+    TimeoutConnect(String),
+    TimeoutRead(String),
+    TimeoutWrite(String),
+    SslVerify(bool),
+    RetryEnabled(bool),
+    RetryMaxRetries(u8),
+    RetryInterval(u16),
+    ErrorStrategy(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

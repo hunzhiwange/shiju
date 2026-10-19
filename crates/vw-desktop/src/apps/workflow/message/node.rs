@@ -552,6 +552,10 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             app.workflow_state.remove_node_editor_extractor_parameter(index);
             Task::none()
         }
+        WorkflowMessage::NodeEditorHttpRequestEdit(edit) => {
+            app.workflow_state.edit_node_editor_http_request(edit);
+            Task::none()
+        }
         WorkflowMessage::NodeEditorCodeLanguageChanged(value) => {
             app.workflow_state.set_node_editor_code_language(value);
             Task::none()

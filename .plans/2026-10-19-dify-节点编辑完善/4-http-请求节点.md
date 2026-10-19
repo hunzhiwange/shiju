@@ -2,7 +2,15 @@
 
 批次：【批次 4】 依赖批次 3
 
-状态：未开始
+状态：已完成，待回归
+
+回归记录（2026-10-20）：
+
+- `cargo test -p vw-desktop http_request_visual_edit_round_trips_without_secret_leak --lib`：1 passed，退出码 0。
+- `cargo test -p vw-desktop http_request_validation_rejects_invalid_url_timeout_and_empty_auth_without_secret --lib`：1 passed，退出码 0。
+- `cargo clippy -p vw-desktop --all-targets --all-features -- -D warnings`：退出码 0。
+- `cargo clippy --all-targets --all-features -- -D warnings`：被无关 Shiju 改动阻断；`ShijuSkillSearchQuery` 测试仍引用已不存在的 `tag_id`/`company_tag_id` 字段。
+- 验证槽位：1；`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`。宽泛 `http_request_` 过滤器中本任务 2 项均通过，另有 2 项无关系统设置 allowlist 测试失败。
 
 目的：实现 HTTP 方法、URL、鉴权、请求头、参数、请求体、超时、TLS、重试与错误策略的安全可视化编辑。
 

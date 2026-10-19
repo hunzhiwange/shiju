@@ -5,6 +5,53 @@
 use super::*;
 
 impl WorkflowState {
+    pub fn edit_node_editor_http_request(&mut self, edit: WorkflowHttpRequestEdit) {
+        self.update_node_visual_draft(|draft| {
+            let WorkflowNodeVisualDraft::HttpRequest {
+                method,
+                url,
+                auth_type,
+                auth_username,
+                auth_password,
+                auth_token,
+                headers_editor,
+                params_editor,
+                body_type,
+                body_editor,
+                timeout_connect,
+                timeout_read,
+                timeout_write,
+                ssl_verify,
+                retry_config,
+                error_strategy,
+            } = draft
+            else {
+                return false;
+            };
+            match edit {
+                WorkflowHttpRequestEdit::Method(v) => *method = v,
+                WorkflowHttpRequestEdit::Url(v) => *url = v,
+                WorkflowHttpRequestEdit::AuthType(v) => *auth_type = v,
+                WorkflowHttpRequestEdit::AuthUsername(v) => *auth_username = v,
+                WorkflowHttpRequestEdit::AuthPassword(v) => *auth_password = v,
+                WorkflowHttpRequestEdit::AuthToken(v) => *auth_token = v,
+                WorkflowHttpRequestEdit::Headers(a) => headers_editor.perform(a),
+                WorkflowHttpRequestEdit::Params(a) => params_editor.perform(a),
+                WorkflowHttpRequestEdit::BodyType(v) => *body_type = v,
+                WorkflowHttpRequestEdit::Body(a) => body_editor.perform(a),
+                WorkflowHttpRequestEdit::TimeoutConnect(v) => *timeout_connect = v,
+                WorkflowHttpRequestEdit::TimeoutRead(v) => *timeout_read = v,
+                WorkflowHttpRequestEdit::TimeoutWrite(v) => *timeout_write = v,
+                WorkflowHttpRequestEdit::SslVerify(v) => *ssl_verify = v,
+                WorkflowHttpRequestEdit::RetryEnabled(v) => retry_config.enabled = v,
+                WorkflowHttpRequestEdit::RetryMaxRetries(v) => retry_config.max_retries = v,
+                WorkflowHttpRequestEdit::RetryInterval(v) => retry_config.retry_interval = v,
+                WorkflowHttpRequestEdit::ErrorStrategy(v) => *error_strategy = v,
+            }
+            true
+        });
+    }
+
     pub fn set_node_editor_tool_provider_id(&mut self, value: String) {
         self.update_node_visual_draft(|draft| {
             if let WorkflowNodeVisualDraft::Tool { provider_id, .. } = draft {

@@ -9,6 +9,12 @@ use crate::app::App;
 use iced::widget::text_editor;
 use iced::{Color, Theme};
 
+fn selected_editor(text: &str) -> text_editor::Content {
+    let mut editor = text_editor::Content::with_text(text);
+    editor.perform(text_editor::Action::SelectAll);
+    editor
+}
+
 #[test]
 fn tool_text_key_packs_indices_without_collisions_for_adjacent_values() {
     assert_ne!(tool_text_key(1, 2, 3), tool_text_key(1, 2, 4));
@@ -252,7 +258,7 @@ fn selected_chat_text_for_message_returns_none_when_no_selection() {
 }
 
 #[test]
-fn selected_chat_text_for_message_prefers_message_editor_over_fallback_sources() {
+fn selected_chat_text_for_message_prefers_visible_markdown_over_message_editor() {
     let mut app = App::new().0;
     app.chat_message_editors.push(text_editor::Content::with_text("message selected"));
     app.chat_message_editors[0].perform(text_editor::Action::SelectAll);
@@ -265,7 +271,21 @@ fn selected_chat_text_for_message_prefers_message_editor_over_fallback_sources()
         .expect("block editor")
         .perform(text_editor::Action::SelectAll);
 
-    assert_eq!(selected_chat_text_for_message(&app, 0).as_deref(), Some("message selected"));
+    assert_eq!(selected_chat_text_for_message(&app, 0).as_deref(), Some("block selected"));
+}
+
+#[test]
+fn formatted_markdown_selection_can_cross_blocks() {
+    let mut app = App::new().0;
+    app.chat_message_editors.push(selected_editor("# hidden source"));
+    for (block_idx, text) in ["标题", "第一段", "列表项"].into_iter().enumerate() {
+        app.chat_markdown_block_editors.insert(block_idx as u128, selected_editor(text));
+    }
+
+    assert_eq!(
+        selected_chat_text_for_message(&app, 0).as_deref(),
+        Some("标题\n\n第一段\n\n列表项")
+    );
 }
 
 #[test]

@@ -206,7 +206,8 @@ fn completed_assistant_body_prefers_markdown_layout() {
     let tree = Tree::new(element.as_widget());
 
     assert_eq!(tree.children.len(), 1);
-    assert_eq!(tree.children[0].children.len(), blocks.len());
+    assert_eq!(tree.children[0].children.len(), 1);
+    assert_eq!(tree.children[0].children[0].children.len(), blocks.len());
 }
 
 #[test]
@@ -233,7 +234,8 @@ fn special_text_block_prefers_markdown_layout() {
     let tree = Tree::new(element.as_widget());
 
     assert_eq!(tree.children.len(), 1);
-    assert_eq!(tree.children[0].children.len(), blocks.len());
+    assert_eq!(tree.children[0].children.len(), 1);
+    assert_eq!(tree.children[0].children[0].children.len(), blocks.len());
 }
 
 #[test]

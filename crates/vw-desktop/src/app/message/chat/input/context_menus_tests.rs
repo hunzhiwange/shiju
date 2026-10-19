@@ -206,6 +206,29 @@ fn message_context_menu_prefers_active_text_selection_over_fallback_text() {
 }
 
 #[test]
+fn markdown_context_menu_copies_selected_text() {
+    let mut app = test_app();
+    app.chat_message_editors.push(selected_editor("hidden markdown source"));
+    app.chat_markdown_block_editors.insert(0, selected_editor("可见选区"));
+
+    handle_open_message_context_menu(&mut app, 0, 3.0, 4.0, "fallback".to_string());
+
+    assert_eq!(app.chat_context_menu_text, "可见选区");
+}
+
+#[test]
+fn markdown_context_menu_falls_back_to_full_visible_text() {
+    let mut app = test_app();
+    app.chat_message_editors.push(text_editor::Content::with_text("# source"));
+    app.chat_markdown_block_editors.insert(0, text_editor::Content::with_text("标题"));
+    let visible = "# source\n\nparagraph".to_string();
+
+    handle_open_message_context_menu(&mut app, 0, 1.0, 2.0, visible.clone());
+
+    assert_eq!(app.chat_context_menu_text, visible);
+}
+
+#[test]
 fn message_context_menu_close_and_reset_dialog_state_are_local() {
     let mut app = test_app();
 

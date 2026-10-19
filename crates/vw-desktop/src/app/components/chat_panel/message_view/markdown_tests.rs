@@ -5,7 +5,8 @@
 
 use super::markdown::{
     MarkdownBlock, MarkdownBlockKind, link_click_message, markdown_block_font, markdown_block_key,
-    markdown_body_view, markdown_visual_contract, parse_markdown_blocks, strip_inline_markdown,
+    markdown_body_view, markdown_visual_contract, parse_markdown_blocks, selection_actions,
+    strip_inline_markdown,
 };
 use crate::app::message::ViewMessage;
 use crate::app::{App, Message};
@@ -14,7 +15,8 @@ use iced::advanced::widget::Tree;
 use iced::widget::text_editor;
 
 fn element_child_count(element: Element<'_, Message>) -> usize {
-    Tree::new(element.as_widget()).children.len()
+    let tree = Tree::new(element.as_widget());
+    tree.children.first().map_or(0, |content| content.children.len())
 }
 
 #[test]
@@ -113,6 +115,43 @@ fn block_key_is_unique_per_index_triplet() {
     assert_ne!(markdown_block_key(1, 0, 0), markdown_block_key(1, 0, 1));
     assert_ne!(markdown_block_key(1, 0, 0), markdown_block_key(1, 1, 0));
     assert_ne!(markdown_block_key(1, 0, 0), markdown_block_key(2, 0, 0));
+}
+
+#[test]
+fn cross_block_drag_selects_boundaries_and_intermediate_blocks() {
+    let actions = selection_actions(
+        0,
+        2,
+        iced::Point::new(40.0, 12.0),
+        iced::Rectangle::new(iced::Point::new(10.0, 10.0), iced::Size::new(100.0, 30.0)),
+        4,
+    );
+
+    assert!(actions.contains(&(1, text_editor::Action::SelectAll)));
+    assert!(actions.contains(&(3, text_editor::Action::Click(iced::Point::ORIGIN))));
+    assert!(
+        actions.contains(&(0, text_editor::Action::Drag(iced::Point::new(f32::MAX, f32::MAX))))
+    );
+    assert!(actions.contains(&(2, text_editor::Action::Click(iced::Point::ORIGIN))));
+    assert!(actions.contains(&(2, text_editor::Action::Drag(iced::Point::new(30.0, 2.0)))));
+}
+
+#[test]
+fn reverse_cross_block_drag_selects_from_current_end() {
+    let actions = selection_actions(
+        2,
+        0,
+        iced::Point::new(25.0, 18.0),
+        iced::Rectangle::new(iced::Point::new(5.0, 8.0), iced::Size::new(100.0, 30.0)),
+        3,
+    );
+
+    assert!(actions.contains(&(1, text_editor::Action::SelectAll)));
+    assert!(actions.contains(&(2, text_editor::Action::Drag(iced::Point::ORIGIN))));
+    assert!(
+        actions.contains(&(0, text_editor::Action::Click(iced::Point::new(f32::MAX, f32::MAX))))
+    );
+    assert!(actions.contains(&(0, text_editor::Action::Drag(iced::Point::new(20.0, 10.0)))));
 }
 
 #[test]

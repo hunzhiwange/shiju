@@ -5,8 +5,15 @@
 //! 每个块用只读 `text_editor` 渲染（原生支持划选复制），行内 `**`、`` ` ``、链接
 //! 等标记被清理为纯文本，仅保留块级排版。
 
+use iced::advanced::layout;
+use iced::advanced::renderer;
+use iced::advanced::widget::{self, Operation, Tree};
+use iced::advanced::{Clipboard, Layout, Shell, Widget};
+use iced::mouse;
 use iced::widget::{Space, column, container, row, text, text_editor};
-use iced::{Background, Border, Color, Element, Length, Padding, Theme};
+use iced::{
+    Background, Border, Color, Element, Event, Length, Padding, Point, Rectangle, Size, Theme,
+};
 
 use crate::app::components::text_editor_scroll_panel::pass_wheel_to_parent;
 use crate::app::{App, Message, message};
@@ -530,5 +537,211 @@ pub(crate) fn markdown_body_view<'a>(
     for (block_idx, block) in blocks.iter().enumerate() {
         body = body.push(markdown_block_view(app, msg_idx, text_idx, block_idx, block));
     }
-    body.into()
+    Element::new(MarkdownSelectionArea {
+        content: body.into(),
+        msg_idx,
+        text_idx,
+        block_count: blocks.len(),
+    })
+}
+
+#[derive(Debug, Default)]
+struct MarkdownSelectionState {
+    anchor_block: Option<usize>,
+    dragging: bool,
+}
+
+struct MarkdownSelectionArea<'a> {
+    content: Element<'a, Message>,
+    msg_idx: usize,
+    text_idx: usize,
+    block_count: usize,
+}
+
+fn block_at_position(layout: Layout<'_>, position: Point) -> Option<(usize, Rectangle)> {
+    layout.children().enumerate().find_map(|(index, child)| {
+        child.bounds().contains(position).then_some((index, child.bounds()))
+    })
+}
+
+pub(crate) fn selection_actions(
+    anchor: usize,
+    current: usize,
+    current_position: Point,
+    current_bounds: Rectangle,
+    block_count: usize,
+) -> Vec<(usize, text_editor::Action)> {
+    let (start, end) = if anchor <= current { (anchor, current) } else { (current, anchor) };
+    let mut actions = Vec::with_capacity(block_count + 2);
+
+    for block_idx in 0..block_count {
+        if block_idx < start || block_idx > end {
+            actions.push((block_idx, text_editor::Action::Click(Point::ORIGIN)));
+        } else if block_idx != anchor && block_idx != current {
+            actions.push((block_idx, text_editor::Action::SelectAll));
+        }
+    }
+
+    let local = Point::new(
+        (current_position.x - current_bounds.x).max(0.0),
+        (current_position.y - current_bounds.y).max(0.0),
+    );
+    if anchor < current {
+        actions.push((anchor, text_editor::Action::Drag(Point::new(f32::MAX, f32::MAX))));
+        actions.push((current, text_editor::Action::Click(Point::ORIGIN)));
+        actions.push((current, text_editor::Action::Drag(local)));
+    } else if anchor > current {
+        actions.push((anchor, text_editor::Action::Drag(Point::ORIGIN)));
+        actions.push((current, text_editor::Action::Click(Point::new(f32::MAX, f32::MAX))));
+        actions.push((current, text_editor::Action::Drag(local)));
+    }
+
+    actions
+}
+
+impl Widget<Message, Theme, iced::Renderer> for MarkdownSelectionArea<'_> {
+    fn tag(&self) -> widget::tree::Tag {
+        widget::tree::Tag::of::<MarkdownSelectionState>()
+    }
+
+    fn state(&self) -> widget::tree::State {
+        widget::tree::State::new(MarkdownSelectionState::default())
+    }
+
+    fn children(&self) -> Vec<Tree> {
+        vec![Tree::new(&self.content)]
+    }
+
+    fn diff(&self, tree: &mut Tree) {
+        tree.diff_children(std::slice::from_ref(&self.content));
+    }
+
+    fn size(&self) -> Size<Length> {
+        self.content.as_widget().size()
+    }
+
+    fn layout(
+        &mut self,
+        tree: &mut Tree,
+        renderer: &iced::Renderer,
+        limits: &layout::Limits,
+    ) -> layout::Node {
+        self.content.as_widget_mut().layout(&mut tree.children[0], renderer, limits)
+    }
+
+    fn operate(
+        &mut self,
+        tree: &mut Tree,
+        layout: Layout<'_>,
+        renderer: &iced::Renderer,
+        operation: &mut dyn Operation,
+    ) {
+        self.content.as_widget_mut().operate(&mut tree.children[0], layout, renderer, operation);
+    }
+
+    fn update(
+        &mut self,
+        tree: &mut Tree,
+        event: &Event,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        renderer: &iced::Renderer,
+        clipboard: &mut dyn Clipboard,
+        shell: &mut Shell<'_, Message>,
+        viewport: &Rectangle,
+    ) {
+        let state = tree.state.downcast_mut::<MarkdownSelectionState>();
+        let position = cursor.position();
+
+        if matches!(event, Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)))
+            && let Some(position) = position
+            && let Some((block_idx, _)) = block_at_position(layout, position)
+        {
+            state.anchor_block = Some(block_idx);
+            state.dragging = true;
+            for other_idx in 0..self.block_count {
+                if other_idx != block_idx {
+                    shell.publish(Message::Chat(message::ChatMessage::MarkdownBlockEditorAction(
+                        self.msg_idx,
+                        self.text_idx,
+                        other_idx,
+                        text_editor::Action::Click(Point::ORIGIN),
+                    )));
+                }
+            }
+        }
+
+        self.content.as_widget_mut().update(
+            &mut tree.children[0],
+            event,
+            layout,
+            cursor,
+            renderer,
+            clipboard,
+            shell,
+            viewport,
+        );
+
+        if matches!(event, Event::Mouse(mouse::Event::CursorMoved { .. }))
+            && state.dragging
+            && let Some(anchor) = state.anchor_block
+            && let Some(position) = position
+            && let Some((current, bounds)) = block_at_position(layout, position)
+            && current != anchor
+        {
+            for (block_idx, action) in
+                selection_actions(anchor, current, position, bounds, self.block_count)
+            {
+                shell.publish(Message::Chat(message::ChatMessage::MarkdownBlockEditorAction(
+                    self.msg_idx,
+                    self.text_idx,
+                    block_idx,
+                    action,
+                )));
+            }
+        }
+
+        if matches!(event, Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))) {
+            state.dragging = false;
+            state.anchor_block = None;
+        }
+    }
+
+    fn draw(
+        &self,
+        tree: &Tree,
+        renderer: &mut iced::Renderer,
+        theme: &Theme,
+        style: &renderer::Style,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        viewport: &Rectangle,
+    ) {
+        self.content.as_widget().draw(
+            &tree.children[0],
+            renderer,
+            theme,
+            style,
+            layout,
+            cursor,
+            viewport,
+        );
+    }
+
+    fn mouse_interaction(
+        &self,
+        tree: &Tree,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        viewport: &Rectangle,
+        renderer: &iced::Renderer,
+    ) -> mouse::Interaction {
+        self.content.as_widget().mouse_interaction(
+            &tree.children[0],
+            layout,
+            cursor,
+            viewport,
+            renderer,
+        )
+    }
 }

@@ -106,15 +106,8 @@ pub fn read_only_text_style(theme: &Theme, value: Color) -> iced::widget::text_e
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
 pub fn selected_chat_text_for_message(app: &App, msg_idx: usize) -> Option<String> {
-    app.chat_message_editors
-        .get(msg_idx)
-        .and_then(selected_text)
-        .or_else(|| {
-            app.chat_markdown_block_editors
-                .iter()
-                .filter(|(key, _)| ((**key) >> 64) as usize == msg_idx)
-                .find_map(|(_, content)| selected_text(content))
-        })
+    selected_markdown_text_for_message(app, msg_idx)
+        .or_else(|| app.chat_message_editors.get(msg_idx).and_then(selected_text))
         .or_else(|| {
             app.chat_special_text_editors
                 .iter()
@@ -133,6 +126,22 @@ pub fn selected_chat_text_for_message(app: &App, msg_idx: usize) -> Option<Strin
                 .filter(|(key, _)| ((**key) >> 32) as usize == msg_idx)
                 .find_map(|(_, content)| selected_text(content))
         })
+}
+
+fn selected_markdown_text_for_message(app: &App, msg_idx: usize) -> Option<String> {
+    let mut selections: Vec<(u128, String)> = app
+        .chat_markdown_block_editors
+        .iter()
+        .filter(|(key, _)| ((**key) >> 64) as usize == msg_idx)
+        .filter_map(|(key, content)| selected_text(content).map(|text| (*key, text)))
+        .collect();
+    selections.sort_unstable_by_key(|(key, _)| *key);
+
+    if selections.is_empty() {
+        None
+    } else {
+        Some(selections.into_iter().map(|(_, text)| text).collect::<Vec<_>>().join("\n\n"))
+    }
 }
 
 /// 执行 selected_chat_text_for_tool 对应的模块功能。

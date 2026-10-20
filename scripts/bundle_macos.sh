@@ -6,6 +6,7 @@ MODE="${MODE:-app}"
 PROFILE="${PROFILE:-release}"
 OUT_DIR="${OUT_DIR:-dist/macos}"
 TARGET="${TARGET:-}"
+TARGET_ROOT="${CARGO_TARGET_DIR:-target-dir}"
 DESKTOP_BIN_NAME="shi-ju"
 CLI_SOURCE_BIN_NAME="shiju"
 CLI_BIN_NAME="shiju"
@@ -15,6 +16,9 @@ MACOS_ICON_SOURCE="${MACOS_ICON_SOURCE:-assets/logo/icon.icns}"
 MACOS_ICON_NAME="ShiJu.icns"
 PACKAGE_APP="${PACKAGE_APP:-0}"
 CREATE_DMG="${CREATE_DMG:-0}"
+INCLUDE_CLI_IN_APP="${INCLUDE_CLI_IN_APP:-1}"
+INCLUDE_CLI_COMPAT_IN_APP="${INCLUDE_CLI_COMPAT_IN_APP:-0}"
+INCLUDE_ACP_IN_APP="${INCLUDE_ACP_IN_APP:-0}"
 MACOS_SIGN_MODE="${MACOS_SIGN_MODE:-adhoc}"
 MACOS_SIGN_IDENTITY="${MACOS_SIGN_IDENTITY:-}"
 MACOS_NOTARIZE="${MACOS_NOTARIZE:-0}"
@@ -22,10 +26,10 @@ NOTARY_KEYCHAIN_PROFILE="${NOTARY_KEYCHAIN_PROFILE:-}"
 NOTARY_KEYCHAIN_PATH="${NOTARY_KEYCHAIN_PATH:-}"
 
 if [ -n "$TARGET" ]; then
-  TARGET_DIR="target/$TARGET/$PROFILE"
+  TARGET_DIR="$TARGET_ROOT/$TARGET/$PROFILE"
   TARGET_SUFFIX="-$TARGET"
 else
-  TARGET_DIR="target/$PROFILE"
+  TARGET_DIR="$TARGET_ROOT/$PROFILE"
   TARGET_SUFFIX=""
 fi
 
@@ -184,10 +188,9 @@ ensure_app_icon() {
 }
 
 if [ "$MODE" = "cli" ]; then
-  if [ ! -f "$TARGET_DIR/${CLI_SOURCE_BIN_NAME}" ] || [ ! -f "$TARGET_DIR/${CLI_COMPAT_BIN_NAME}" ]; then
-    echo "Building CLI (${CLI_BIN_NAME})..."
-    cargo_build -p vw-cli --bin "$CLI_SOURCE_BIN_NAME" --bin "$CLI_COMPAT_BIN_NAME" --all-features
-  fi
+  echo "Building CLI (${CLI_BIN_NAME})..."
+  cargo_build -p vw-cli --bin "$CLI_SOURCE_BIN_NAME" --bin "$CLI_COMPAT_BIN_NAME" \
+    --no-default-features --features channel-lark
   mkdir -p "$OUT_DIR"
   SRC_BIN="$TARGET_DIR/${CLI_SOURCE_BIN_NAME}"
   COMPAT_SRC_BIN="$TARGET_DIR/${CLI_COMPAT_BIN_NAME}"
@@ -214,30 +217,22 @@ APP_BUNDLE="$BUNDLE_DIR/ShiJu.app"
 
 need_cargo_bundle
 
-if [ ! -f "$APP_BUNDLE/Contents/MacOS/$DESKTOP_BIN_NAME" ]; then
-  echo "Bundling main application..."
-  cargo_bundle -p vw-desktop --bin shi-ju --all-features
-fi
+echo "Bundling main application..."
+cargo_bundle -p vw-desktop --bin shi-ju
 
-if [ ! -f "$TARGET_DIR/vw-webview" ]; then
-  echo "Building helper binary..."
-  cargo_build -p vw-webview --bin vw-webview --all-features
-fi
-if [ "${INCLUDE_CLI_IN_APP:-0}" = "1" ]; then
-  if [ ! -f "$TARGET_DIR/${CLI_SOURCE_BIN_NAME}" ]; then
-    echo "Building CLI binary (to include in app bundle)..."
-    cargo_build -p vw-cli --bin "$CLI_SOURCE_BIN_NAME" --all-features
-  fi
-  if [ "${INCLUDE_CLI_COMPAT_IN_APP:-0}" = "1" ] && [ ! -f "$TARGET_DIR/${CLI_COMPAT_BIN_NAME}" ]; then
+echo "Building helper binary..."
+cargo_build -p vw-webview --bin vw-webview
+if [ "$INCLUDE_CLI_IN_APP" = "1" ]; then
+  echo "Building CLI binary (to include in app bundle)..."
+  cargo_build -p vw-cli --bin "$CLI_SOURCE_BIN_NAME" --no-default-features --features channel-lark
+  if [ "$INCLUDE_CLI_COMPAT_IN_APP" = "1" ]; then
     echo "Building CLI compatibility binary (to include in app bundle)..."
-    cargo_build -p vw-cli --bin "$CLI_COMPAT_BIN_NAME" --all-features
+    cargo_build -p vw-cli --bin "$CLI_COMPAT_BIN_NAME" --no-default-features --features channel-lark
   fi
 fi
-if [ "${INCLUDE_ACP_IN_APP:-0}" = "1" ]; then
-  if [ ! -f "$TARGET_DIR/${ACP_BIN_NAME}" ]; then
-    echo "Building ACP binary (to include in app bundle)..."
-    cargo_build -p vw-acp --bin "$ACP_BIN_NAME" --all-features
-  fi
+if [ "$INCLUDE_ACP_IN_APP" = "1" ]; then
+  echo "Building ACP binary (to include in app bundle)..."
+  cargo_build -p vw-acp --bin "$ACP_BIN_NAME"
 fi
 
 HELPER_BIN="$TARGET_DIR/vw-webview"
@@ -255,17 +250,17 @@ fi
 
 echo "Copying helper binary to bundle..."
 cp "$HELPER_BIN" "$DEST_DIR/"
-if [ "${INCLUDE_CLI_IN_APP:-0}" = "1" ]; then
+if [ "$INCLUDE_CLI_IN_APP" = "1" ]; then
   echo "Copying CLI binary to bundle..."
   AGENT_BIN="$TARGET_DIR/${CLI_SOURCE_BIN_NAME}"
   cp "$AGENT_BIN" "$DEST_DIR/${CLI_BIN_NAME}"
-  if [ "${INCLUDE_CLI_COMPAT_IN_APP:-0}" = "1" ]; then
+  if [ "$INCLUDE_CLI_COMPAT_IN_APP" = "1" ]; then
     cp "$TARGET_DIR/${CLI_COMPAT_BIN_NAME}" "$DEST_DIR/${CLI_COMPAT_BIN_NAME}"
   else
     rm -f "$DEST_DIR/${CLI_COMPAT_BIN_NAME}"
   fi
 fi
-if [ "${INCLUDE_ACP_IN_APP:-0}" = "1" ]; then
+if [ "$INCLUDE_ACP_IN_APP" = "1" ]; then
   echo "Copying ACP binary to bundle..."
   cp "$TARGET_DIR/${ACP_BIN_NAME}" "$DEST_DIR/${ACP_BIN_NAME}"
 fi

@@ -590,6 +590,9 @@ fn cli_binary_name() -> &'static str {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn resolve_agent_binary_path() -> Result<PathBuf, String> {
+    #[cfg(debug_assertions)]
+    build_development_cli()?;
+
     let current_exe =
         std::env::current_exe().map_err(|err| format!("获取当前可执行文件失败: {err}"))?;
     let exe_dir = current_exe.parent().ok_or_else(|| "无法定位当前可执行文件目录".to_string())?;
@@ -616,6 +619,25 @@ fn resolve_agent_binary_path() -> Result<PathBuf, String> {
         }
     }
     Err("未找到内置 CLI 可执行文件 vibewindow（兼容名 vibe-agent）".to_string())
+}
+
+#[cfg(all(not(target_arch = "wasm32"), debug_assertions))]
+fn build_development_cli() -> Result<(), String> {
+    let workspace_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let cargo = std::env::var_os("CARGO").map_or_else(|| PathBuf::from("cargo"), PathBuf::from);
+    let args = ["build", "-p", "vw-cli", "--bin", "shiju"];
+
+    tracing::info!(target: "vw_desktop", "building the development CLI before service bootstrap");
+    let output = Command::new(&cargo)
+        .current_dir(&workspace_dir)
+        .args(args)
+        .output()
+        .map_err(|err| format!("构建开发 CLI 失败: {err}"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+
+    Err(command_failure_message(&cargo, &args, output))
 }
 
 #[cfg(not(target_arch = "wasm32"))]

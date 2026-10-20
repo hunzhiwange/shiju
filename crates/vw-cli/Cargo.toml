@@ -44,7 +44,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono", "fmt
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 unicode-width = "0.2"
 unicode-segmentation = "1"
-vw-agent = { path = "../vw-agent", version = "0.4.0" }
+vw-agent = { path = "../vw-agent", version = "0.4.0", default-features = false }
 vw-acp = { path = "../vw-acp", version = "0.4.0" }
 vw-config-types = { path = "../vw-config-types", version = "0.4.0" }
 vw-gateway-client = { path = "../vw-gateway-client", version = "0.4.0" }
@@ -57,7 +57,14 @@ tempfile = "3"
 tokio-tungstenite = "0.29"
 
 [features]
-default = ["memory-postgres", "memory-mariadb", "channel-lark"]
+default = ["agent-defaults", "memory-postgres", "memory-mariadb", "channel-lark"]
+agent-defaults = [
+  "vw-agent/rag-pdf",
+  "vw-agent/firecrawl",
+  "vw-agent/web-fetch-html2md",
+  "vw-agent/web-fetch-plaintext",
+  "vw-agent/shell-ast",
+]
 memory-postgres = ["vw-agent/memory-postgres"]
 memory-mariadb = ["vw-agent/memory-mariadb"]
 channel-lark = ["vw-agent/channel-lark"]

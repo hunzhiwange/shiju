@@ -409,11 +409,25 @@ fn option_string_values(options: &Value, key: &str) -> Vec<String> {
         .collect()
 }
 
+fn ensure_persistent_request_message_id(req: &mut Request) -> Result<(), String> {
+    if req.persist_app_session_artifacts && req.assistant_message_id.is_none() {
+        req.assistant_message_id = Some(
+            crate::id::ascending(crate::id::Prefix::Message, None)
+                .map_err(|error| error.to_string())?,
+        );
+    }
+    Ok(())
+}
+
 /// 执行会话处理主循环。
 ///
 /// 本函数保留原有入口签名，对外仍通过 `processor::run` 暴露；
 /// 这里仅将实现迁移至独立文件，方便后续按职责维护。
 pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static) {
+    if let Err(message) = ensure_persistent_request_message_id(&mut req) {
+        on_event(StreamEvent::Error(message));
+        return;
+    }
     let mut session = Session::new(req.session.clone());
     let mut raw_rounds = Vec::new();
     let is_acp = is_acp_request(&req.options);

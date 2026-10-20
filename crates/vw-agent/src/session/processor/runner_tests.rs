@@ -628,7 +628,6 @@ fn raw_artifact_is_buffered_before_step_finish() {
     let mut req = request_with_session(&session_id);
     req.query = "answer once".to_string();
     req.persist_app_session_artifacts = true;
-    req.assistant_message_id = Some("assistant-turn-raw-before-step-finish".to_string());
     let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let observed_events = std::sync::Arc::clone(&events);
 
@@ -638,10 +637,15 @@ fn raw_artifact_is_buffered_before_step_finish() {
     });
 
     let events = events.lock().expect("events lock should not be poisoned");
-    let raw_index = events
+    let (raw_index, raw_artifact) = events
         .iter()
-        .position(|event| matches!(event, super::StreamEvent::LlmRawArtifact(_)))
+        .enumerate()
+        .find_map(|(index, event)| match event {
+            super::StreamEvent::LlmRawArtifact(artifact) => Some((index, artifact)),
+            _ => None,
+        })
         .expect("processor must emit a raw artifact");
+    assert!(!raw_artifact.context.turn_id.is_empty());
     let finish_index = events
         .iter()
         .position(|event| matches!(event, super::StreamEvent::StepFinish { .. }))

@@ -110,13 +110,13 @@ pub(super) fn view(state: &ShijuAppsLoadState<ShijuAppCatalogDto>) -> Element<'s
                     .padding([0, styles::SCROLLABLE_SIDE_PADDING])
                     .width(Length::Fill),
             )
-                .direction(Direction::Vertical(
-                    Scrollbar::new()
-                        .width(styles::SCROLLBAR_WIDTH)
-                        .scroller_width(styles::SCROLLBAR_WIDTH),
-                ))
-                .height(Length::Fill)
-                .into()
+            .direction(Direction::Vertical(
+                Scrollbar::new()
+                    .width(styles::SCROLLBAR_WIDTH)
+                    .scroller_width(styles::SCROLLBAR_WIDTH),
+            ))
+            .height(Length::Fill)
+            .into()
         }
     }
 }

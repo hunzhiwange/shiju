@@ -68,7 +68,7 @@ async fn wechat_channel_receives_text_and_sends_reply() {
     channel
         .send(&SendMessage {
             recipient: received.reply_target,
-            content: "world".into(),
+            content: "## 回复\n\n**重点**与[文档](https://example.com)".into(),
             subject: None,
             thread_ts: None,
         })
@@ -80,7 +80,10 @@ async fn wechat_channel_receives_text_and_sends_reply() {
     let sent = requests.last().unwrap();
     assert_eq!(sent["msg"]["to_user_id"], "user-1@im.wechat");
     assert_eq!(sent["msg"]["context_token"], "context-1");
-    assert_eq!(sent["msg"]["item_list"][0]["text_item"]["text"], "world");
+    assert_eq!(
+        sent["msg"]["item_list"][0]["text_item"]["text"],
+        "## 回复\n\n**重点**与[文档](https://example.com)"
+    );
 
     listen.abort();
 }

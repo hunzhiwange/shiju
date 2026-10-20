@@ -70,11 +70,9 @@ fn china_channel_cards_build_brand_icons_and_active_states() {
 
 #[test]
 fn channel_tabs_group_global_china_and_international_channels() {
-    for tab in [
-        ChannelsSettingsTab::Global,
-        ChannelsSettingsTab::Webhook,
-        ChannelsSettingsTab::Email,
-    ] {
+    for tab in
+        [ChannelsSettingsTab::Global, ChannelsSettingsTab::Webhook, ChannelsSettingsTab::Email]
+    {
         assert!(matches!(channel_tab_group(tab), ChannelTabGroup::Global));
     }
     for tab in [

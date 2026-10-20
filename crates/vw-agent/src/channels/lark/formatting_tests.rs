@@ -17,6 +17,12 @@ fn lark_formatter_materializes_soft_breaks_in_post() {
 }
 
 #[test]
+fn lark_formatter_inserts_newline_before_fenced_code() {
+    let content = payload("说明```rust\nfn main() {}\n```", "interactive");
+    assert_eq!(content["body"]["elements"][0]["content"], "说明\n```rust\nfn main() {}\n```");
+}
+
+#[test]
 fn lark_formatter_uses_card_for_fenced_code() {
     for markdown in ["```rust\nlet ready = true;\n```", "~~~\n代码\n~~~", "    indented code\n"] {
         let content = payload(markdown, "interactive");

@@ -222,13 +222,15 @@ fn find_think_close_tag(s: &str) -> Option<(usize, usize)> {
     None
 }
 
-fn strip_completed_think_blocks(output: &str) -> String {
+fn strip_think_blocks(output: &str) -> String {
     let mut visible = String::with_capacity(output.len());
     let mut cursor = 0;
     while let Some((rel_start, open_len)) = find_think_open_tag(&output[cursor..]) {
         let start = cursor + rel_start;
         let open_end = start + open_len;
         let Some((rel_close, close_len)) = find_think_close_tag(&output[open_end..]) else {
+            visible.push_str(&output[cursor..start]);
+            cursor = output.len();
             break;
         };
         visible.push_str(&output[cursor..start]);
@@ -255,32 +257,27 @@ fn tool_block_end(output: &str, start: usize) -> Option<usize> {
     Some(json_start + values.byte_offset())
 }
 
-pub(crate) fn child_agent_handoff_from_output(output: &str) -> String {
-    let visible = strip_completed_think_blocks(output);
-    let mut segments = Vec::new();
+pub(crate) fn visible_answer_from_execution_output(output: &str) -> String {
+    let visible = strip_think_blocks(output);
     let mut cursor = 0;
     let mut search_from = 0;
+    let mut saw_tool_block = false;
     while let Some(relative_start) = visible[search_from..].find("tool ") {
         let start = search_from + relative_start;
         let Some(end) = tool_block_end(&visible, start) else {
             search_from = start + "tool ".len();
             continue;
         };
-        let segment = visible[cursor..start].trim();
-        if !segment.is_empty() {
-            segments.push(segment);
-        }
+        saw_tool_block = true;
         cursor = end;
         search_from = end;
     }
     let final_segment = visible[cursor..].trim();
-    if !final_segment.is_empty() {
-        segments.push(final_segment);
-    }
-    segments
-        .last()
-        .map(|segment| (*segment).to_string())
-        .unwrap_or_else(|| visible.trim().to_string())
+    if saw_tool_block { final_segment.to_string() } else { visible.trim().to_string() }
+}
+
+pub(crate) fn child_agent_handoff_from_output(output: &str) -> String {
+    visible_answer_from_execution_output(output)
 }
 
 async fn ensure_turn_history(

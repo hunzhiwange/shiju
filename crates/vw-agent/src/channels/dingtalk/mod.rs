@@ -46,6 +46,7 @@
 //! }).await?;
 //! ```
 
+use super::outbound_format::normalize_chat_markdown;
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
@@ -54,6 +55,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
+
+const DINGTALK_MARKDOWN_MAX_CHARS: usize = 3_500;
 
 /// 钉钉机器人回调消息的订阅主题
 ///
@@ -206,11 +209,20 @@ impl DingTalkChannel {
 
     fn webhook_reply_body(message: &SendMessage) -> serde_json::Value {
         let title = message.subject.as_deref().unwrap_or("VibeWindow");
+        if message.content.chars().count() > DINGTALK_MARKDOWN_MAX_CHARS {
+            return serde_json::json!({
+                "msgtype": "text",
+                "text": {
+                    "content": message.content,
+                }
+            });
+        }
+        let content = normalize_chat_markdown(&message.content);
         serde_json::json!({
             "msgtype": "markdown",
             "markdown": {
                 "title": title,
-                "text": message.content,
+                "text": content,
             }
         })
     }

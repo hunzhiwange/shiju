@@ -34,9 +34,7 @@ fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Mess
     if is_current {
         if let Some(handle) = flow.qrcode_image.as_ref() {
             content = content.push(
-                Image::new(handle.clone())
-                    .width(Length::Fixed(220.0))
-                    .height(Length::Fixed(220.0)),
+                Image::new(handle.clone()).width(Length::Fixed(220.0)).height(Length::Fixed(220.0)),
             );
         }
         let status = match flow.status {

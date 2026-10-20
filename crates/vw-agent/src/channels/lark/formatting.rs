@@ -1,5 +1,6 @@
 //! Pure outbound Markdown formatting shared by Lark and Feishu.
 
+use super::super::outbound_format::normalize_feishu_markdown;
 use pulldown_cmark::{Event, Options, Parser, Tag};
 use serde_json::json;
 
@@ -11,8 +12,9 @@ pub(super) struct FormattedLarkMessage {
 
 /// Keep simple replies as posts; use a Markdown card for code blocks and tables.
 pub(super) fn format_lark_message(markdown: &str) -> FormattedLarkMessage {
+    let markdown = normalize_feishu_markdown(markdown);
     let mut soft_breaks = Vec::new();
-    for (event, range) in Parser::new_ext(markdown, Options::ENABLE_TABLES).into_offset_iter() {
+    for (event, range) in Parser::new_ext(&markdown, Options::ENABLE_TABLES).into_offset_iter() {
         match event {
             Event::Start(Tag::CodeBlock(_) | Tag::Table(_)) => {
                 return FormattedLarkMessage {

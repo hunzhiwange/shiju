@@ -67,7 +67,7 @@ async fn wecom_channel_receives_text_and_replies_in_same_chat() {
     channel
         .send(&SendMessage {
             recipient: received.reply_target,
-            content: "world".into(),
+            content: "| 名称 | 状态 |\n| --- | --- |\n| A | 已完成 |".into(),
             subject: None,
             thread_ts: None,
         })
@@ -80,7 +80,10 @@ async fn wecom_channel_receives_text_and_replies_in_same_chat() {
     assert_eq!(frames[0]["body"]["secret"], "secret");
     assert_eq!(frames[1]["cmd"], "aibot_respond_msg");
     assert_eq!(frames[1]["headers"]["req_id"], "callback-1");
-    assert_eq!(frames[1]["body"]["stream"]["content"], "world");
+    assert_eq!(
+        frames[1]["body"]["stream"]["content"],
+        "| 名称 | 状态  |\n| --- | --- |\n| A  | 已完成 |"
+    );
     assert_eq!(frames[1]["body"]["stream"]["finish"], true);
 
     listen.abort();

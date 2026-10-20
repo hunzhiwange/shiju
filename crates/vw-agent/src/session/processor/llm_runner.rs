@@ -24,7 +24,8 @@
 //! 模块会自动检测并格式化推理内容（模型思考过程），使用标准化的标签包裹，
 //! 确保推理内容与普通文本内容清晰分离。
 
-use super::types::StreamEvent;
+use super::types::{StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
+use super::utils::now_ms;
 use crate::app::agent::session::llm;
 use crate::app::agent::tools::ToolSpec;
 use crate::session::ui_types as models;
@@ -332,6 +333,42 @@ fn collect_llm_step_from_stream(
             // 处理工具调用
             llm::StreamEvent::ToolCalls(calls) => {
                 tool_calls = calls;
+            }
+            // ACP 工具已在远端执行；只转成类型化展示事件，不能混入最终答复或再次执行。
+            llm::StreamEvent::RemoteToolUpdate { call_id, name, is_initial, payload } => {
+                if !pending.is_empty() {
+                    let chunk = std::mem::take(&mut pending);
+                    emit_stream_event(on_event, abort_tx, StreamEvent::Delta(chunk))?;
+                }
+                let status = match payload.get("status").and_then(Value::as_str) {
+                    Some("running") => ToolCallStatus::Running,
+                    Some("waiting") => ToolCallStatus::Waiting,
+                    Some("completed") => ToolCallStatus::Completed,
+                    Some("error" | "failed") => ToolCallStatus::Failed,
+                    Some("denied") => ToolCallStatus::Denied,
+                    Some("cancelled") => ToolCallStatus::Cancelled,
+                    Some(other) => ToolCallStatus::Other(other.to_string()),
+                    None => ToolCallStatus::Other("unknown".to_string()),
+                };
+                let kind = match (&status, is_initial) {
+                    (_, true) => ToolEventKind::Start,
+                    (ToolCallStatus::Running | ToolCallStatus::Waiting, false) => {
+                        ToolEventKind::Update
+                    }
+                    _ => ToolEventKind::Complete,
+                };
+                emit_stream_event(
+                    on_event,
+                    abort_tx,
+                    StreamEvent::Tool(ToolEvent {
+                        call_id,
+                        name,
+                        kind,
+                        status,
+                        occurred_ms: now_ms(),
+                        payload,
+                    }),
+                )?;
             }
             // 处理完整消息历史
             llm::StreamEvent::FullMessages(msgs) => {

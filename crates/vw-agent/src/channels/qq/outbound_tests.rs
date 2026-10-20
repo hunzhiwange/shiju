@@ -458,8 +458,8 @@ async fn send_message_with_client_posts_text_and_media_with_incrementing_sequenc
     assert_eq!(
         parse_json(&requests[0].body),
         json!({
-            "content": "hello",
-            "msg_type": 0,
+            "markdown": {"content": "hello"},
+            "msg_type": 2,
             "msg_id": "thread-1",
             "msg_seq": 1
         })
@@ -542,11 +542,49 @@ async fn send_message_with_client_omits_passive_fields_without_thread_id() {
     let requests = handle.await.expect("server join");
     let text_body = parse_json(&requests[0].body);
     let media_body = parse_json(&requests[2].body);
-    assert_eq!(text_body["content"], "hello");
-    assert_eq!(text_body["msg_type"], 0);
+    assert_eq!(text_body["markdown"]["content"], "hello");
+    assert_eq!(text_body["msg_type"], 2);
     assert!(text_body.get("msg_id").is_none());
     assert!(text_body.get("msg_seq").is_none());
     assert_eq!(media_body["media"]["file_info"], "file-a");
     assert!(media_body.get("msg_id").is_none());
     assert!(media_body.get("msg_seq").is_none());
+}
+
+#[tokio::test]
+async fn send_message_with_client_falls_back_after_markdown_validation_error() {
+    let (base_url, handle) = spawn_https_server(vec![
+        MockResponse {
+            path: "/messages",
+            status: 400,
+            content_type: "application/json",
+            body: r#"{"code":40034012,"message":"markdown not allowed"}"#,
+        },
+        MockResponse {
+            path: "/messages",
+            status: 200,
+            content_type: "application/json",
+            body: "{}",
+        },
+    ])
+    .await;
+    let client = test_client();
+    let message = SendMessage::new("访问 https://example.com", "user:test_user");
+
+    send_message_with_client(
+        &client,
+        "test-token",
+        &format!("{base_url}/messages"),
+        &format!("{base_url}/files"),
+        &message,
+    )
+    .await
+    .expect("plain-text fallback should succeed");
+
+    let requests = handle.await.expect("server join");
+    assert_eq!(parse_json(&requests[0].body)["msg_type"], 2);
+    assert_eq!(
+        parse_json(&requests[1].body),
+        json!({"content": "访问 [链接已省略]", "msg_type": 0})
+    );
 }

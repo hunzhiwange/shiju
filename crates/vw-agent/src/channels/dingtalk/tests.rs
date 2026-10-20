@@ -367,6 +367,31 @@ mod tests {
     }
 
     #[test]
+    fn webhook_reply_body_normalizes_dingtalk_markdown() {
+        let message = SendMessage::new(
+            "说明\n1. 第一步\n2. 第二步\n\n    ```rust\n    fn main() {}\n    ```",
+            "chat-1",
+        );
+
+        let body = DingTalkChannel::webhook_reply_body(&message);
+
+        assert_eq!(
+            body["markdown"]["text"],
+            "说明\n\n1. 第一步\n2. 第二步\n\n```rust\nfn main() {}\n```"
+        );
+    }
+
+    #[test]
+    fn webhook_reply_body_uses_plain_text_for_long_content() {
+        let content = "界".repeat(DINGTALK_MARKDOWN_MAX_CHARS + 1);
+        let body = DingTalkChannel::webhook_reply_body(&SendMessage::new(&content, "chat-1"));
+
+        assert_eq!(body["msgtype"], "text");
+        assert_eq!(body["text"]["content"], content);
+        assert!(body.get("markdown").is_none());
+    }
+
+    #[test]
     fn channel_message_from_data_builds_group_message() {
         let ch = DingTalkChannel::new("id".into(), "secret".into(), vec!["staff-1".into()]);
         let data = serde_json::json!({

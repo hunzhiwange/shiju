@@ -80,6 +80,19 @@ pub enum StreamEvent {
     ReasoningDelta(String),
     /// 工具调用事件，包含需要执行的工具调用列表
     ToolCalls(Vec<ToolCall>),
+    /// 远端 ACP 代理已经执行的工具生命周期更新。
+    ///
+    /// 该事件只用于展示，不能再次作为本地工具调用执行。
+    RemoteToolUpdate {
+        /// ACP 工具调用的稳定标识。
+        call_id: String,
+        /// 工具名称。
+        name: String,
+        /// 是否为该调用的初始事件。
+        is_initial: bool,
+        /// 已净化的结构化生命周期载荷。
+        payload: Value,
+    },
     /// 完成事件，包含结束原因和令牌使用统计
     Done {
         /// 完成原因（如"stop"、"length"等）

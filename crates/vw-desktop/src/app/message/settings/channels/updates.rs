@@ -298,59 +298,52 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             app.channels_settings.qr_flow.poll_in_flight = false;
             match result {
-                Ok(response) => {
-                    match response.status {
-                        ChannelQrStatusDto::Pending => {
-                            app.channels_settings.qr_flow.status =
-                                Some(ChannelQrStatusDto::Pending);
-                            schedule_qr_poll(channel, generation, Duration::from_secs(1))
-                        }
-                        ChannelQrStatusDto::Scanned => {
-                            app.channels_settings.qr_flow.status =
-                                Some(ChannelQrStatusDto::Scanned);
-                            app.channels_settings.qr_flow.scan_observed = true;
-                            schedule_qr_poll(channel, generation, Duration::from_secs(1))
-                        }
-                        ChannelQrStatusDto::Authorized => {
-                            app.channels_settings.qr_flow.status =
-                                Some(ChannelQrStatusDto::Authorized);
-                            let result = response
-                                .credentials
-                                .as_ref()
-                                .ok_or_else(|| "扫码授权确认但未返回凭据".to_string())
-                                .and_then(|credentials| {
-                                    fill_confirmed_credentials(app, &channel, credentials)
-                                });
-                            match result {
-                                Ok(()) => {
-                                    app.channels_settings.qr_flow.credentials_ready = true;
-                                    app.show_success_toast("扫码授权成功，请确认后保存")
-                                }
-                                Err(error) => {
-                                    app.channels_settings.qr_flow.close();
-                                    app.show_error_toast(error)
-                                }
+                Ok(response) => match response.status {
+                    ChannelQrStatusDto::Pending => {
+                        app.channels_settings.qr_flow.status = Some(ChannelQrStatusDto::Pending);
+                        schedule_qr_poll(channel, generation, Duration::from_secs(1))
+                    }
+                    ChannelQrStatusDto::Scanned => {
+                        app.channels_settings.qr_flow.status = Some(ChannelQrStatusDto::Scanned);
+                        app.channels_settings.qr_flow.scan_observed = true;
+                        schedule_qr_poll(channel, generation, Duration::from_secs(1))
+                    }
+                    ChannelQrStatusDto::Authorized => {
+                        app.channels_settings.qr_flow.status = Some(ChannelQrStatusDto::Authorized);
+                        let result = response
+                            .credentials
+                            .as_ref()
+                            .ok_or_else(|| "扫码授权确认但未返回凭据".to_string())
+                            .and_then(|credentials| {
+                                fill_confirmed_credentials(app, &channel, credentials)
+                            });
+                        match result {
+                            Ok(()) => {
+                                app.channels_settings.qr_flow.credentials_ready = true;
+                                app.show_success_toast("扫码授权成功，请确认后保存")
                             }
-                        }
-                        ChannelQrStatusDto::Expired => {
-                            app.channels_settings.qr_flow.close();
-                            app.show_warning_toast("二维码已过期，请重新获取")
-                        }
-                        ChannelQrStatusDto::Failed => {
-                            if app.channels_settings.qr_flow.scan_observed {
+                            Err(error) => {
                                 app.channels_settings.qr_flow.close();
-                                app.show_error_toast("扫码授权失败，请重新获取")
-                            } else {
-                                app.channels_settings.qr_flow.status =
-                                    Some(ChannelQrStatusDto::Pending);
-                                schedule_qr_poll(channel, generation, Duration::from_secs(2))
+                                app.show_error_toast(error)
                             }
                         }
                     }
-                }
-                Err(_) => {
-                    schedule_qr_poll(channel, generation, Duration::from_secs(2))
-                }
+                    ChannelQrStatusDto::Expired => {
+                        app.channels_settings.qr_flow.close();
+                        app.show_warning_toast("二维码已过期，请重新获取")
+                    }
+                    ChannelQrStatusDto::Failed => {
+                        if app.channels_settings.qr_flow.scan_observed {
+                            app.channels_settings.qr_flow.close();
+                            app.show_error_toast("扫码授权失败，请重新获取")
+                        } else {
+                            app.channels_settings.qr_flow.status =
+                                Some(ChannelQrStatusDto::Pending);
+                            schedule_qr_poll(channel, generation, Duration::from_secs(2))
+                        }
+                    }
+                },
+                Err(_) => schedule_qr_poll(channel, generation, Duration::from_secs(2)),
             }
         }
         ChannelsMessage::QrClosed => {

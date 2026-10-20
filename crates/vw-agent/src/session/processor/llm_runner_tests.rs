@@ -249,6 +249,49 @@ fn collect_stream_returns_text_tool_calls_usage_and_full_messages() {
 }
 
 #[test]
+fn remote_tool_updates_are_forwarded_without_entering_answer_text() {
+    let (tx, rx) = mpsc::channel();
+    tx.send(llm::StreamEvent::RemoteToolUpdate {
+        call_id: "remote-1".to_string(),
+        name: "bash".to_string(),
+        is_initial: true,
+        payload: serde_json::json!({"status": "running", "input": "pwd"}),
+    })
+    .expect("remote tool event should be queued");
+    tx.send(llm::StreamEvent::Delta("最终答复".to_string())).expect("answer should be queued");
+    tx.send(llm::StreamEvent::Done {
+        usage: models::TokenUsage::default(),
+        finish_reason: Some("stop".to_string()),
+    })
+    .expect("done should be queued");
+    drop(tx);
+
+    let (abort_tx, _abort_rx) = tokio::sync::watch::channel(false);
+    let mut forwarded = Vec::new();
+    let step = super::collect_llm_step_from_stream(
+        rx,
+        &mut |event| {
+            forwarded.push(event);
+            true
+        },
+        &abort_tx,
+        Duration::from_millis(5),
+    )
+    .expect("stream should produce a step");
+
+    assert_eq!(step.text, "最终答复");
+    assert!(matches!(
+        &forwarded[0],
+        super::StreamEvent::Tool(event)
+            if event.call_id == "remote-1"
+                && event.name == "bash"
+                && event.kind == super::ToolEventKind::Start
+                && event.status == super::ToolCallStatus::Running
+    ));
+    assert!(matches!(&forwarded[1], super::StreamEvent::Delta(text) if text == "最终答复"));
+}
+
+#[test]
 fn llm_stream_emits_first_text_delta_immediately() {
     let first_delta = observe_first_delta_before_stream_continues(
         llm::StreamEvent::Delta("hello".to_string()),

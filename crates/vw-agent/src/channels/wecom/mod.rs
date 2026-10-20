@@ -1,5 +1,6 @@
 //! 企业微信 AI 机器人 WebSocket 通道。
 
+use super::outbound_format::format_wecom_markdown_tables;
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use anyhow::{Context, bail};
 use async_trait::async_trait;
@@ -122,6 +123,7 @@ impl WeComChannel {
     }
 
     fn reply_frame(request_id: &str, content: &str) -> Value {
+        let content = format_wecom_markdown_tables(content);
         json!({
             "cmd": "aibot_respond_msg",
             "headers": {"req_id": request_id},

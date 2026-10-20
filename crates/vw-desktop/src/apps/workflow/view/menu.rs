@@ -88,9 +88,9 @@ pub(super) fn build_context_node_picker_menu(
                 bottom: 0.0,
                 left: 0.0,
             }))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fixed(276.0))
-                .width(Length::Fill),
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fixed(276.0))
+            .width(Length::Fill),
         ]
         .spacing(10),
     )

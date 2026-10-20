@@ -258,11 +258,11 @@ fn error_from_tool_update(status: &str, output: &str) -> Option<String> {
     None
 }
 
-/// 把远端工具更新渲染为 transcript delta。
+/// 把远端工具更新规整为只读生命周期事件。
 ///
-/// 这里故意返回文本 delta，而不是本地 `ToolCall` 执行请求：ACP 工具已经在远端代理侧运行，
-/// 本地再次执行会扩大权限边界并造成重复副作用。
-fn transcript_tool_delta_from_update(update: &Map<String, Value>) -> Option<String> {
+/// ACP 工具已经在远端代理侧运行，因此这里保留展示所需的结构化信息，但绝不把它转换成
+/// 本地 `ToolCall` 执行请求或普通答复文本。
+fn remote_tool_update_from_update(update: &Map<String, Value>) -> Option<StreamEvent> {
     let update_type = update.get("sessionUpdate").and_then(Value::as_str)?;
     if update_type != "tool_call" && update_type != "tool_call_update" {
         return None;
@@ -286,10 +286,11 @@ fn transcript_tool_delta_from_update(update: &Map<String, Value>) -> Option<Stri
         .and_then(|hint| hint.summary.clone());
     let render_hint = result.as_ref().and_then(|dto| dto.render_hint.clone());
 
-    Some(format!(
-        "tool {}\n{}\n",
-        tool_name,
-        json!({
+    Some(StreamEvent::RemoteToolUpdate {
+        call_id: tool_call_id.to_string(),
+        name: tool_name,
+        is_initial: update_type == "tool_call",
+        payload: json!({
             "status": status,
             "toolCallId": tool_call_id,
             "input": input,
@@ -300,8 +301,8 @@ fn transcript_tool_delta_from_update(update: &Map<String, Value>) -> Option<Stri
             "summary": summary,
             "renderHint": render_hint,
             "result": result,
-        })
-    ))
+        }),
+    })
 }
 
 /// 提取 ACP agent message chunk 的文本增量。
@@ -401,12 +402,11 @@ pub(crate) fn forward_acp_message(
     {
         on_event(StreamEvent::ReasoningDelta(reasoning));
     }
-    if let Some(tool_delta) = session_update_payload_from_message(message)
-        .and_then(|update| transcript_tool_delta_from_update(&update))
-        && !tool_delta.is_empty()
+    if let Some(tool_update) = session_update_payload_from_message(message)
+        .and_then(|update| remote_tool_update_from_update(&update))
     {
         *delta_count = delta_count.saturating_add(1);
-        on_event(StreamEvent::Delta(tool_delta));
+        on_event(tool_update);
     }
     if let Some(tool_call) = extract_tool_call_from_acp_message(message) {
         tracing::info!(

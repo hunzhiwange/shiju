@@ -144,6 +144,8 @@ pub(crate) mod format;
 pub(crate) mod history;
 /// 通道管理器
 pub(crate) mod manager;
+/// 跨平台出站消息格式规整
+pub(crate) mod outbound_format;
 /// 提示词构建
 pub(crate) mod prompt;
 /// 消息路由逻辑
@@ -171,6 +173,9 @@ pub(crate) use session::*;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
+#[cfg(test)]
+#[path = "outbound_format_tests.rs"]
+mod outbound_format_tests;
 
 use crate::app::agent::agent::loop_::{
     build_shell_policy_instructions, build_tool_instructions_from_specs, scrub_credentials,

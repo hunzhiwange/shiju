@@ -406,10 +406,8 @@ fn from_config_accepts_configured_custom_provider() {
             "models": {"model": {"status": "active"}}
         }),
     );
-    config.workspace_dir = std::env::temp_dir().join(format!(
-        "vibe-window-custom-provider-{}",
-        std::process::id()
-    ));
+    config.workspace_dir =
+        std::env::temp_dir().join(format!("vibe-window-custom-provider-{}", std::process::id()));
 
     assert!(Agent::from_config(&config).is_ok());
 }

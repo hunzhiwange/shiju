@@ -87,6 +87,8 @@ fn channel_delivery_instructions_are_known_for_chat_channels() {
         "discord",
         "mattermost",
         "dingtalk",
+        "wecom",
+        "qq",
         "nextcloud_talk",
         "signal",
         "imessage",
@@ -140,9 +142,11 @@ fn channel_delivery_instructions_include_channel_specific_requirements() {
                 "**bold**",
                 "[label](https://example.com)",
                 "No Markdown tables",
-                "Avoid fenced code blocks",
+                "Fenced code blocks",
             ],
         ),
+        ("wecom", vec!["**bold**", "fenced code blocks", "Markdown tables"]),
+        ("qq", vec!["headings", "fenced code blocks", "links"]),
         ("nextcloud_talk", vec!["**bold**", "fenced code blocks", "Markdown tables"]),
     ] {
         let instructions = channel_delivery_instructions(channel).expect("Markdown instructions");
@@ -279,6 +283,37 @@ fn sanitize_channel_response_removes_known_tool_json_and_tags() {
     );
 
     assert_eq!(sanitize_channel_response(response, &tools), "hello\n\ndone");
+}
+
+#[test]
+fn sanitize_channel_response_keeps_only_visible_answer_from_execution_transcript() {
+    let tools = Vec::<Box<dyn Tool>>::new();
+    let response = concat!(
+        "<think>The user asks who are you. Let me inspect the workspace.</think>\n",
+        "我先读一下工作区里的身份文件。\n",
+        "tool bash\n",
+        "{\"status\":\"running\",\"input\":\"ls\",\"output\":\"\"}\n",
+        "tool bash\n",
+        "{\"status\":\"completed\",\"input\":\"ls\",\"output\":\"AGENTS.md\"}\n",
+        "我是 VibeWindow 助手，可以帮你处理项目和日常任务。"
+    );
+
+    assert_eq!(
+        sanitize_channel_response(response, &tools),
+        "我是 VibeWindow 助手，可以帮你处理项目和日常任务。"
+    );
+}
+
+#[test]
+fn sanitize_channel_response_rejects_execution_transcript_without_final_answer() {
+    let tools = Vec::<Box<dyn Tool>>::new();
+    let response = concat!(
+        "准备读取文件。\n",
+        "tool file_read\n",
+        "{\"status\":\"completed\",\"output\":\"secret internal context\"}\n"
+    );
+
+    assert!(sanitize_channel_response(response, &tools).is_empty());
 }
 
 #[test]

@@ -225,7 +225,7 @@ pub(crate) fn strip_tool_call_tags(message: &str) -> String {
 /// - **whatsapp**: 支持基础格式（粗体）、媒体附件标记，但不支持标题和表格
 /// - **lark/feishu**: 支持 CommonMark 与 GFM 富文本
 /// - **slack**: 使用 mrkdwn 方言
-/// - **discord/mattermost/dingtalk/nextcloud_talk**: 使用各平台 Markdown 子集
+/// - **discord/mattermost/dingtalk/wecom/qq/nextcloud_talk**: 使用各平台 Markdown 子集
 /// - **signal/imessage/nostr/linq/wati/email**: 使用纯文本
 /// - **irc**: 由入站消息注入专用纯文本约束，不在这里重复添加
 pub(crate) fn channel_delivery_instructions(channel_name: &str) -> Option<&'static str> {
@@ -297,7 +297,25 @@ pub(crate) fn channel_delivery_instructions(channel_name: &str) -> Option<&'stat
              - Use basic Markdown: **bold**, *italic*, headings, simple lists, and > quotes.\n\
              - Use [label](https://example.com) or bare URLs for links.\n\
              - No Markdown tables or task checkboxes; use ordinary lists, and no raw HTML.\n\
-             - Avoid fenced code blocks and inline backticks; use indented plain text for code.\n\
+             - Put a blank line before the first numbered-list item.\n\
+             - Fenced code blocks are supported; keep the opening and closing fences unindented.\n\
+             - Use tool results silently: never include internal reasoning, tool calls, or execution transcripts.\n\
+             - Be concise and answer the user directly.",
+        ),
+        "wecom" => Some(
+            "When responding on WeCom:\n\
+             - Use Markdown: **bold**, headings, lists, links, fenced code blocks, and > quotes.\n\
+             - Markdown tables are supported and will be aligned for the client.\n\
+             - Avoid task checkboxes and client-specific extensions; use no raw HTML.\n\
+             - Use tool results silently: never include internal reasoning, tool calls, or execution transcripts.\n\
+             - Be concise and answer the user directly.",
+        ),
+        "qq" => Some(
+            "When responding on QQ:\n\
+             - Use Markdown for structured, readable replies.\n\
+             - Use headings, lists, links, emphasis, inline code, and fenced code blocks where helpful.\n\
+             - Use no raw HTML or unsupported client-specific extensions.\n\
+             - Use tool results silently: never include internal reasoning, tool calls, or execution transcripts.\n\
              - Be concise and answer the user directly.",
         ),
         "nextcloud_talk" => Some(
@@ -313,6 +331,7 @@ pub(crate) fn channel_delivery_instructions(channel_name: &str) -> Option<&'stat
              - Use plain text with short paragraphs, line breaks, and simple numbered or dash lists.\n\
              - No Markdown formatting (headings, emphasis, backticks, code fences, or link markup), no HTML, and no tables.\n\
              - Use bare URLs for links and plain indented text for code.\n\
+             - Use tool results silently: never include internal reasoning, tool calls, or execution transcripts.\n\
              - Be concise and answer the user directly.",
         ),
         _ => None,
@@ -669,7 +688,9 @@ pub(crate) fn extract_tool_context_summary(history: &[ChatMessage], start_index:
 ///
 /// 返回净化后的响应字符串
 pub(crate) fn sanitize_channel_response(response: &str, tools: &[Box<dyn Tool>]) -> String {
-    let without_tool_tags = strip_tool_call_tags(response);
+    let visible_response =
+        crate::app::agent::session::child_agent::visible_answer_from_execution_output(response);
+    let without_tool_tags = strip_tool_call_tags(&visible_response);
     let known_tool_names: HashSet<String> =
         tools.iter().map(|tool| tool.spec().id.to_ascii_lowercase()).collect();
     strip_isolated_tool_json_artifacts(&without_tool_tags, &known_tool_names)

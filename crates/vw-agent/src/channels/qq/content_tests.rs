@@ -48,6 +48,22 @@ fn build_text_message_body_trims_and_adds_passive_reply_fields() {
 }
 
 #[test]
+fn build_markdown_message_body_uses_qq_native_markdown() {
+    let body = build_markdown_message_body("## 回复", Some("msg-1"), 2).expect("markdown body");
+
+    assert_eq!(body["markdown"]["content"], "## 回复");
+    assert_eq!(body["msg_type"], 2);
+    assert_eq!(body["msg_id"], "msg-1");
+    assert_eq!(body["msg_seq"], 2);
+}
+
+#[test]
+fn sanitize_qq_plain_text_matches_reference_fallbacks() {
+    assert_eq!(sanitize_qq_plain_text("访问 https://example.com/a", false), "访问 [链接已省略]");
+    assert_eq!(sanitize_qq_plain_text("访问 example.com/a", true), "访问 [链接已省略]");
+}
+
+#[test]
 fn compose_message_content_uses_filename_when_content_type_is_missing() {
     let payload = serde_json::json!({
         "content": "  ",

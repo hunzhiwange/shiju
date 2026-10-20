@@ -41,16 +41,14 @@ enum ChannelTabGroup {
     International,
 }
 
-const CHANNEL_TAB_GROUPS: [(ChannelTabGroup, &str); 2] = [
-    (ChannelTabGroup::Global, "全局"),
-    (ChannelTabGroup::China, "中文互联网"),
-];
+const CHANNEL_TAB_GROUPS: [(ChannelTabGroup, &str); 2] =
+    [(ChannelTabGroup::Global, "全局"), (ChannelTabGroup::China, "中文互联网")];
 
 const fn channel_tab_group(tab: ChannelsSettingsTab) -> ChannelTabGroup {
     match tab {
-        ChannelsSettingsTab::Global
-        | ChannelsSettingsTab::Webhook
-        | ChannelsSettingsTab::Email => ChannelTabGroup::Global,
+        ChannelsSettingsTab::Global | ChannelsSettingsTab::Webhook | ChannelsSettingsTab::Email => {
+            ChannelTabGroup::Global
+        }
         ChannelsSettingsTab::Feishu
         | ChannelsSettingsTab::DingTalk
         | ChannelsSettingsTab::Qq
@@ -77,11 +75,7 @@ pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSet
     ));
     tabs.extend([
         SettingsTabDescriptor::new(ChannelsSettingsTab::Feishu, "飞书", &["feishu", "飞书"]),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::DingTalk,
-            "钉钉",
-            &["dingtalk", "钉钉"],
-        ),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::DingTalk, "钉钉", &["dingtalk", "钉钉"]),
         SettingsTabDescriptor::new(ChannelsSettingsTab::Qq, "QQ", &["qq"]),
         SettingsTabDescriptor::new(
             ChannelsSettingsTab::WeCom,
@@ -251,9 +245,8 @@ fn china_channel_card(
     active_tab: ChannelsSettingsTab,
 ) -> Element<'static, Message> {
     let active = descriptor.tab == active_tab;
-    let icon = container(china_channel_icon(descriptor.tab))
-        .padding(8)
-        .style(move |theme: &iced::Theme| {
+    let icon = container(china_channel_icon(descriptor.tab)).padding(8).style(
+        move |theme: &iced::Theme| {
             let is_dark = theme.palette().background.r
                 + theme.palette().background.g
                 + theme.palette().background.b
@@ -265,7 +258,8 @@ fn china_channel_card(
                 border: Border { radius: 12.0.into(), ..Default::default() },
                 ..Default::default()
             }
-        });
+        },
+    );
     let content = row![
         icon,
         text(descriptor.label).size(16),
@@ -370,9 +364,8 @@ fn channel_tabs(active_tab: ChannelsSettingsTab) -> Element<'static, Message> {
             }
             rows = rows.push(tab_row);
         }
-        sections = sections.push(
-            column![text(title).size(12).style(settings_muted_text_style), rows].spacing(8),
-        );
+        sections = sections
+            .push(column![text(title).size(12).style(settings_muted_text_style), rows].spacing(8));
     }
 
     sections.into()

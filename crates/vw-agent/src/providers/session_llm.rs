@@ -93,6 +93,15 @@ impl SessionLlmProvider {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    fn is_tool_lifecycle_event(event: &vw_gateway_client::GatewayChatStreamEvent) -> bool {
+        matches!(
+            event,
+            vw_gateway_client::GatewayChatStreamEvent::Other(payload)
+                if payload.get("type").and_then(serde_json::Value::as_str) == Some("chat.tool")
+        )
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn gateway_chat_request(
         messages: Vec<serde_json::Value>,
         model: &str,
@@ -145,7 +154,12 @@ impl SessionLlmProvider {
                         stream_error = Some(error);
                         return false;
                     }
-                    vw_gateway_client::GatewayChatStreamEvent::Other(_) => {}
+                    event @ vw_gateway_client::GatewayChatStreamEvent::Other(_) => {
+                        if Self::is_tool_lifecycle_event(&event) {
+                            // 嵌套 ACP 会话在工具前可能发送说明性文字；工具完成后只保留最终答复阶段。
+                            output.clear();
+                        }
+                    }
                 }
                 true
             },

@@ -646,12 +646,11 @@ fn build_question_classifier_section<'a>(
                             WorkflowMessage::NodeEditorClassifierClassNameChanged(index, value),
                         )
                     }),
-                    button(text("删除"))
-                        .style(danger_action_btn_style)
-                        .padding([8, 10])
-                        .on_press(Message::WorkflowTool(
-                            WorkflowMessage::NodeEditorClassifierRemoveClass(index),
-                        )),
+                    button(text("删除")).style(danger_action_btn_style).padding([8, 10]).on_press(
+                        Message::WorkflowTool(WorkflowMessage::NodeEditorClassifierRemoveClass(
+                            index
+                        ),)
+                    ),
                 ]
                 .spacing(8),
             )

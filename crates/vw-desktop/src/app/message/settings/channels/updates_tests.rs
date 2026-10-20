@@ -286,10 +286,8 @@ fn channel_qr_flow_ignores_failure_until_scan_is_observed() {
     app.channels_settings.qr_flow.handle = Some("pending-handle".to_string());
     let generation = app.channels_settings.qr_flow.generation;
 
-    let failed = ChannelQrStatusResponseDto {
-        status: ChannelQrStatusDto::Failed,
-        credentials: None,
-    };
+    let failed =
+        ChannelQrStatusResponseDto { status: ChannelQrStatusDto::Failed, credentials: None };
     let _ = update(
         &mut app,
         SettingsMessage::Channels(ChannelsMessage::QrPolled {

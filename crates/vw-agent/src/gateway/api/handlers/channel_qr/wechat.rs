@@ -60,8 +60,7 @@ async fn get_json(
         .timeout(timeout)
         .build()
         .map_err(|_| provider_error("WeChat authorization client is unavailable"))?;
-    let mut request =
-        client.get(format!("{}/{path}", base_url.trim_end_matches('/'))).query(query);
+    let mut request = client.get(format!("{}/{path}", base_url.trim_end_matches('/'))).query(query);
     if include_client_version {
         request = request.header("iLink-App-ClientVersion", "1");
     }

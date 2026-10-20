@@ -501,6 +501,8 @@ pub fn stream_prompt(
             StreamEvent::ReasoningDelta(_) => {}
             // 工具调用：在简化接口中忽略
             StreamEvent::ToolCalls(_) => {}
+            // 远端工具生命周期只用于完整会话 UI，在简化提示接口中忽略
+            StreamEvent::RemoteToolUpdate { .. } => {}
             // 完整消息：在简化接口中忽略
             StreamEvent::FullMessages(_) => {}
             // 完成：提取使用统计并转发
@@ -933,6 +935,8 @@ pub fn send_prompt(
                 StreamEvent::ReasoningDelta(_) => {}
                 // 工具调用：忽略
                 StreamEvent::ToolCalls(_) => {}
+                // 远端工具生命周期：忽略
+                StreamEvent::RemoteToolUpdate { .. } => {}
                 // 完整消息：忽略
                 StreamEvent::FullMessages(_) => {}
                 // 记录 token 使用统计

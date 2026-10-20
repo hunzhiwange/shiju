@@ -61,25 +61,27 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
         .then(|| build_node_validation_summary(&editor.validation))
         .unwrap_or_else(|| container(Space::new().height(0)).into());
 
-    let drawer = opaque(mouse_area(
-        container(
-            column![
-                build_node_editor_header(editor),
-                build_node_editor_tabs(has_visual_tab, active_tab),
-                validation_summary,
-                scrollable(scroll_content)
-                    .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                    .height(Length::Fill),
-            ]
-            .spacing(14)
-            .height(Length::Fill),
+    let drawer = opaque(
+        mouse_area(
+            container(
+                column![
+                    build_node_editor_header(editor),
+                    build_node_editor_tabs(has_visual_tab, active_tab),
+                    validation_summary,
+                    scrollable(scroll_content)
+                        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                        .height(Length::Fill),
+                ]
+                .spacing(14)
+                .height(Length::Fill),
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .padding([18, 20])
+            .style(node_editor_drawer_style),
         )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .padding([18, 20])
-        .style(node_editor_drawer_style),
-    )
-    .on_scroll(|_| Message::WorkflowTool(WorkflowMessage::NodeEditorScrollCaptured)));
+        .on_scroll(|_| Message::WorkflowTool(WorkflowMessage::NodeEditorScrollCaptured)),
+    );
 
     row![
         Space::new().width(Length::FillPortion(NODE_EDITOR_CANVAS_PORTION)),

@@ -1,7 +1,52 @@
 use super::QQChannel;
 use super::auth::ensure_https;
-use super::content::{build_media_message_body, build_text_message_body, parse_outgoing_content};
+use super::content::{
+    build_markdown_message_body, build_media_message_body, build_text_message_body,
+    parse_outgoing_content, sanitize_qq_plain_text,
+};
+use reqwest::StatusCode;
 use serde_json::{Value, json};
+use std::fmt;
+
+#[derive(Debug)]
+struct QqPostError {
+    status: StatusCode,
+    op: String,
+    body: String,
+}
+
+impl fmt::Display for QqPostError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "QQ {} failed ({}): {}", self.op, self.status, self.body)
+    }
+}
+
+impl std::error::Error for QqPostError {}
+
+fn should_fallback_from_markdown(error: &anyhow::Error) -> bool {
+    let Some(error) = error.downcast_ref::<QqPostError>() else {
+        return false;
+    };
+    if !error.status.is_client_error() {
+        return false;
+    }
+    let body = error.body.to_lowercase();
+    body.contains("markdown")
+        || body.contains("msg_type")
+        || body.contains("msg type")
+        || body.contains("message type")
+        || body.contains("50056")
+        || body.contains("40034012")
+        || body.contains("不允许发送原生 markdown")
+}
+
+fn is_url_content_error(error: &anyhow::Error) -> bool {
+    let Some(error) = error.downcast_ref::<QqPostError>() else {
+        return false;
+    };
+    let body = error.body.to_lowercase();
+    body.contains("304003") || body.contains("40034028") || body.contains("不允许包含url")
+}
 
 /// 解析发送端点 URL。
 fn resolve_send_endpoints(recipient: &str) -> (String, String) {
@@ -43,7 +88,7 @@ async fn post_json_with_client(
         let status = resp.status();
         let err = resp.text().await.unwrap_or_default();
         let sanitized = crate::app::agent::providers::sanitize_api_error(&err);
-        anyhow::bail!("QQ {op} failed ({status}): {sanitized}");
+        return Err(QqPostError { status, op: op.to_string(), body: sanitized }.into());
     }
 
     Ok(())
@@ -102,8 +147,28 @@ async fn send_message_with_client(
 
     let (text_content, image_urls) = parse_outgoing_content(&message.content);
 
-    if let Some(body) = build_text_message_body(&text_content, passive_msg_id, msg_seq) {
-        post_json_with_client(client, token, message_url, &body, "send message").await?;
+    if let Some(body) = build_markdown_message_body(&text_content, passive_msg_id, msg_seq) {
+        if let Err(error) =
+            post_json_with_client(client, token, message_url, &body, "send message").await
+        {
+            if !should_fallback_from_markdown(&error) {
+                return Err(error);
+            }
+            let fallback = sanitize_qq_plain_text(&text_content, false);
+            let body = build_text_message_body(&fallback, passive_msg_id, msg_seq)
+                .expect("non-empty Markdown has a non-empty plain fallback");
+            if let Err(error) =
+                post_json_with_client(client, token, message_url, &body, "send message").await
+            {
+                if !is_url_content_error(&error) {
+                    return Err(error);
+                }
+                let fallback = sanitize_qq_plain_text(&text_content, true);
+                let body = build_text_message_body(&fallback, passive_msg_id, msg_seq)
+                    .expect("non-empty Markdown has a non-empty plain fallback");
+                post_json_with_client(client, token, message_url, &body, "send message").await?;
+            }
+        }
         if passive_msg_id.is_some() {
             msg_seq += 1;
         }

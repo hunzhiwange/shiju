@@ -31,6 +31,26 @@ fn parse_usage_returns_none_without_payload() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn tool_lifecycle_events_reset_nested_provider_visible_output() {
+    use vw_gateway_client::GatewayChatStreamEvent;
+
+    let tool = GatewayChatStreamEvent::Other(serde_json::json!({
+        "type": "chat.tool",
+        "name": "bash",
+    }));
+    let unrelated = GatewayChatStreamEvent::Other(serde_json::json!({
+        "type": "chat.step_start",
+    }));
+
+    assert!(SessionLlmProvider::is_tool_lifecycle_event(&tool));
+    assert!(!SessionLlmProvider::is_tool_lifecycle_event(&unrelated));
+    assert!(!SessionLlmProvider::is_tool_lifecycle_event(&GatewayChatStreamEvent::Delta(
+        "answer".to_string()
+    )));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn parse_usage_returns_none_for_invalid_payload() {
     let payload = serde_json::json!({"input_tokens": "many"});
     assert!(SessionLlmProvider::parse_usage(Some(&payload)).is_none());

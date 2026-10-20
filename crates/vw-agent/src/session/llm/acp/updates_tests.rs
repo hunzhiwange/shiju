@@ -315,7 +315,7 @@ fn tool_status_metadata_output_and_error_helpers_cover_fallbacks() {
 }
 
 #[test]
-fn transcript_tool_delta_accepts_input_output_aliases() {
+fn remote_tool_update_accepts_input_output_aliases() {
     let update = object(json!({
         "sessionUpdate": "tool_call_update",
         "toolCallId": "call-1",
@@ -329,11 +329,14 @@ fn transcript_tool_delta_accepts_input_output_aliases() {
         "output": "2026-06-05 12:34:56\n"
     }));
 
-    let delta = transcript_tool_delta_from_update(&update).expect("delta should be built");
-    let payload: Value =
-        serde_json::from_str(delta.lines().nth(1).expect("json payload")).expect("payload");
+    let event = remote_tool_update_from_update(&update).expect("event should be built");
+    let StreamEvent::RemoteToolUpdate { call_id, name, is_initial, payload } = event else {
+        panic!("expected remote tool update");
+    };
 
-    assert!(delta.starts_with("tool execute\n"));
+    assert_eq!(call_id, "call-1");
+    assert_eq!(name, "execute");
+    assert!(!is_initial);
     assert_eq!(payload["status"], "completed");
     assert_eq!(payload["toolCallId"], "call-1");
     assert_eq!(payload["title"], "Terminal");
@@ -342,7 +345,7 @@ fn transcript_tool_delta_accepts_input_output_aliases() {
 }
 
 #[test]
-fn transcript_tool_delta_renders_dto_metadata_summary_and_errors() {
+fn remote_tool_update_renders_dto_metadata_summary_and_errors() {
     let update = object(json!({
         "sessionUpdate": "tool_call",
         "toolCallId": "call-2",
@@ -358,11 +361,13 @@ fn transcript_tool_delta_renders_dto_metadata_summary_and_errors() {
         }
     }));
 
-    let delta = transcript_tool_delta_from_update(&update).expect("delta should be built");
-    let payload: Value =
-        serde_json::from_str(delta.lines().nth(1).expect("json payload")).expect("payload");
+    let event = remote_tool_update_from_update(&update).expect("event should be built");
+    let StreamEvent::RemoteToolUpdate { name, is_initial, payload, .. } = event else {
+        panic!("expected remote tool update");
+    };
 
-    assert!(delta.starts_with("tool Apply Patch\n"));
+    assert_eq!(name, "Apply Patch");
+    assert!(is_initial);
     assert_eq!(payload["status"], "error");
     assert_eq!(payload["metadata"], json!({"kind": "patch"}));
     assert_eq!(payload["output"], "patch failed");
@@ -372,16 +377,16 @@ fn transcript_tool_delta_renders_dto_metadata_summary_and_errors() {
 }
 
 #[test]
-fn transcript_tool_delta_ignores_non_tool_or_missing_id_updates() {
+fn remote_tool_update_ignores_non_tool_or_missing_id_updates() {
     assert!(
-        transcript_tool_delta_from_update(&object(json!({
+        remote_tool_update_from_update(&object(json!({
             "sessionUpdate": "agent_message_chunk",
             "toolCallId": "call-1"
         })))
         .is_none()
     );
     assert!(
-        transcript_tool_delta_from_update(&object(json!({
+        remote_tool_update_from_update(&object(json!({
             "sessionUpdate": "tool_call",
             "toolCallId": " "
         })))
@@ -533,7 +538,15 @@ fn forward_acp_message_emits_deltas_reasoning_tools_and_usage() {
     );
     assert!(matches!(&events[0], StreamEvent::Delta(text) if text == "hello"));
     assert!(matches!(&events[1], StreamEvent::ReasoningDelta(text) if text == "thinking"));
-    assert!(matches!(&events[2], StreamEvent::Delta(text) if text.starts_with("tool shell\n")));
+    assert!(matches!(
+        &events[2],
+        StreamEvent::RemoteToolUpdate { call_id, name, is_initial, payload }
+            if call_id == "call-1"
+                && name == "shell"
+                && !is_initial
+                && payload["status"] == "completed"
+                && payload["output"] == "done"
+    ));
 }
 
 #[test]
@@ -656,16 +669,19 @@ fn tool_status_helpers_cover_aliases_empty_status_and_null_metadata() {
 }
 
 #[test]
-fn transcript_tool_delta_uses_safe_defaults_for_optional_fields() {
-    let delta = transcript_tool_delta_from_update(&object(json!({
+fn remote_tool_update_uses_safe_defaults_for_optional_fields() {
+    let event = remote_tool_update_from_update(&object(json!({
         "sessionUpdate": "tool_call",
         "toolCallId": "call-defaults"
     })))
-    .expect("tool transcript");
-    let payload: Value =
-        serde_json::from_str(delta.lines().nth(1).expect("json payload")).expect("payload");
+    .expect("remote tool update");
+    let StreamEvent::RemoteToolUpdate { call_id, name, is_initial, payload } = event else {
+        panic!("expected remote tool update");
+    };
 
-    assert!(delta.starts_with("tool tool_call\n"));
+    assert_eq!(call_id, "call-defaults");
+    assert_eq!(name, "tool_call");
+    assert!(is_initial);
     assert_eq!(payload["status"], "running");
     assert_eq!(payload["input"], "{}");
     assert_eq!(payload["title"], "tool_call");

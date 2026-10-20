@@ -1,5 +1,7 @@
 use crate::app::agent::channels::traits::ChannelMessage;
+use regex::Regex;
 use serde_json::{Map, Value, json};
+use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -153,6 +155,43 @@ pub(super) fn build_text_message_body(
     apply_passive_reply_fields(&mut body, msg_id, msg_seq);
 
     Some(Value::Object(body))
+}
+
+/// 构建 QQ 原生 Markdown 消息体。
+pub(super) fn build_markdown_message_body(
+    content: &str,
+    msg_id: Option<&str>,
+    msg_seq: u64,
+) -> Option<Value> {
+    let text = content.trim();
+    if text.is_empty() {
+        return None;
+    }
+
+    let mut body = Map::new();
+    body.insert("markdown".to_string(), json!({"content": text}));
+    body.insert("msg_type".to_string(), Value::from(2));
+    apply_passive_reply_fields(&mut body, msg_id, msg_seq);
+    Some(Value::Object(body))
+}
+
+/// QQ 普通文本接口不允许 URL；Markdown 降级时替换链接。
+pub(super) fn sanitize_qq_plain_text(content: &str, aggressive: bool) -> String {
+    static URL: OnceLock<Regex> = OnceLock::new();
+    static BARE_DOMAIN: OnceLock<Regex> = OnceLock::new();
+    let pattern = if aggressive {
+        BARE_DOMAIN.get_or_init(|| {
+            Regex::new(
+                r"(?i)https?://[^\s]+|www\.[^\s]+|\b[\w][\w.-]*\.(?:com|cn|org|net|edu|gov|io|co|cc|tv|me|info|biz|app|dev|top|xyz|site|vip|shop|tech|club|pro|live|mobi|asia|wiki)(?:\.[a-z]{2,3})?\b(?:/[^\s]*)?",
+            )
+            .expect("QQ bare-domain regex must compile")
+        })
+    } else {
+        URL.get_or_init(|| {
+            Regex::new(r"(?i)https?://[^\s]+|www\.[^\s]+").expect("QQ URL regex must compile")
+        })
+    };
+    pattern.replace_all(content, "[链接已省略]").into_owned()
 }
 
 /// 构建媒体消息体。

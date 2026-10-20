@@ -249,9 +249,8 @@ pub(super) fn build_canvas_context_menu_overlay(state: &WorkflowState) -> Elemen
         }
     };
 
-    let menu_card = mouse_area(menu_card).on_scroll(|_| {
-        Message::WorkflowTool(WorkflowMessage::CanvasContextMenuScrollCaptured)
-    });
+    let menu_card = mouse_area(menu_card)
+        .on_scroll(|_| Message::WorkflowTool(WorkflowMessage::CanvasContextMenuScrollCaptured));
 
     container(
         column![

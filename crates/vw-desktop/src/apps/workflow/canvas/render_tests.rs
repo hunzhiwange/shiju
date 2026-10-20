@@ -243,6 +243,7 @@ fn node_plan_wraps_descriptions_and_tracks_selection_state() {
     assert!(plan.descendant_selected);
     assert!(!plan.show_start_variables);
     assert_eq!(plan.desc_lines, vec!["包含 1 个子节点".to_string()]);
+    assert_eq!(plan.description_x, plan.title_x);
     assert_eq!(plan.content_scale, 0.5);
 }
 

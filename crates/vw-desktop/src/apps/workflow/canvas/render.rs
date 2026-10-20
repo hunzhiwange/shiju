@@ -63,8 +63,18 @@ pub(super) struct NodePlan {
     pub(super) show_start_variables: bool,
     pub(super) content_scale: f32,
     pub(super) content_top: f32,
+    pub(super) title_x: f32,
+    pub(super) description_x: f32,
     pub(super) title_font_size: f32,
     pub(super) desc_font_size: f32,
+}
+
+fn node_text_x(rect: Rectangle, content_scale: f32) -> f32 {
+    rect.x + (14.0 + 24.0 + 12.0) * content_scale
+}
+
+fn node_text_width(rect: Rectangle, content_scale: f32) -> f32 {
+    rect.x + rect.width - node_text_x(rect, content_scale) - 14.0 * content_scale
 }
 
 pub(super) fn draw_grid(frame: &mut Frame, size: Size, pan: Vector, zoom: f32, theme: &Theme) {
@@ -371,7 +381,6 @@ pub(super) fn draw_nodes(
     let icon_size = 24.0 * content_scale;
     let icon_inset = (4.0 * content_scale).max(1.2);
     let icon_corner_radius = 11.0 * content_scale;
-    let title_gap = 12.0 * content_scale;
     let card_padding_x = 14.0 * content_scale;
     let desc_gap = 10.0 * content_scale;
     let text_line_gap = 3.0 * content_scale;
@@ -401,16 +410,14 @@ pub(super) fn draw_nodes(
         } else {
             node.title.clone()
         };
-        let title_max_chars =
-            (((rect.width - icon_offset_x - icon_size - title_gap - card_padding_x)
-                / (title_font_size * 0.63))
-                .floor()
-                .max(8.0)) as usize;
+        let title_max_chars = ((node_text_width(rect, content_scale) / (title_font_size * 0.63))
+            .floor()
+            .max(8.0)) as usize;
         let title_lines =
             wrap_text_lines(&title_text, title_max_chars, if rect.height > 120.0 { 2 } else { 1 });
-        let desc_max_chars = ((rect.width - card_padding_x * 2.0) / (desc_font_size * 0.62))
+        let desc_max_chars = ((node_text_width(rect, content_scale) / (desc_font_size * 0.62))
             .floor()
-            .max(10.0) as usize;
+            .max(10.0)) as usize;
         let desc_lines = if !show_start_variables
             && rect.height >= 84.0
             && !description.trim().is_empty()
@@ -554,7 +561,7 @@ pub(super) fn draw_nodes(
             });
         }
 
-        let title_x = icon_rect.x + icon_rect.width + title_gap;
+        let title_x = node_text_x(rect, content_scale);
         let title_y = if show_start_variables {
             icon_rect.y + (icon_rect.height - title_block_height).max(0.0) / 2.0
         } else {
@@ -673,10 +680,7 @@ pub(super) fn draw_nodes(
             for (index, line) in desc_lines.iter().enumerate() {
                 frame.fill_text(Text {
                     content: line.clone(),
-                    position: Point::new(
-                        rect.x + card_padding_x,
-                        desc_y + index as f32 * desc_line_step,
-                    ),
+                    position: Point::new(title_x, desc_y + index as f32 * desc_line_step),
                     color: text_secondary,
                     size: Pixels(desc_font_size),
                     align_x: iced::widget::text::Alignment::Left,
@@ -714,10 +718,7 @@ pub(super) fn node_plan(
 ) -> NodePlan {
     let rect = node_screen_rect(node, pan, zoom);
     let content_scale = zoom.max(0.3);
-    let icon_offset_x = 14.0 * content_scale;
     let icon_size = 24.0 * content_scale;
-    let title_gap = 12.0 * content_scale;
-    let card_padding_x = 14.0 * content_scale;
     let desc_gap = 10.0 * content_scale;
     let text_line_gap = 3.0 * content_scale;
     let start_variable_row_height = 34.0 * content_scale;
@@ -734,15 +735,15 @@ pub(super) fn node_plan(
     } else {
         node.title.clone()
     };
-    let title_max_chars = (((rect.width - icon_offset_x - icon_size - title_gap - card_padding_x)
-        / (title_font_size * 0.63))
+    let title_max_chars = ((node_text_width(rect, content_scale) / (title_font_size * 0.63))
         .floor()
         .max(8.0)) as usize;
     let title_lines =
         wrap_text_lines(&title_text, title_max_chars, if rect.height > 120.0 { 2 } else { 1 });
     let description = node_description_text(document, node);
-    let desc_max_chars =
-        ((rect.width - card_padding_x * 2.0) / (desc_font_size * 0.62)).floor().max(10.0) as usize;
+    let desc_max_chars = ((node_text_width(rect, content_scale) / (desc_font_size * 0.62))
+        .floor()
+        .max(10.0)) as usize;
     let desc_lines =
         if !show_start_variables && rect.height >= 84.0 && !description.trim().is_empty() {
             wrap_text_lines(&description, desc_max_chars, if rect.height > 140.0 { 3 } else { 2 })
@@ -791,6 +792,8 @@ pub(super) fn node_plan(
         show_start_variables,
         content_scale,
         content_top,
+        title_x: node_text_x(rect, content_scale),
+        description_x: node_text_x(rect, content_scale),
         title_font_size,
         desc_font_size,
     }

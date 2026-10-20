@@ -361,8 +361,7 @@ pub(crate) fn export_svg(document: &WorkflowDocument) -> String {
         let title_max_chars = (title_width / (title_font_size * 0.63)).floor().max(8.0) as usize;
         let title_lines =
             wrap_text_lines(&title, title_max_chars, if rect.height > 120.0 { 2 } else { 1 });
-        let desc_max_chars =
-            ((rect.width - 28.0) / (desc_font_size * 0.62)).floor().max(10.0) as usize;
+        let desc_max_chars = (title_width / (desc_font_size * 0.62)).floor().max(10.0) as usize;
         let desc_lines = if !show_start_variables
             && rect.height >= 84.0
             && !description.trim().is_empty()
@@ -518,7 +517,7 @@ pub(crate) fn export_svg(document: &WorkflowDocument) -> String {
                 let _ = writeln!(
                     svg,
                     "<text x=\"{:.2}\" y=\"{:.2}\" font-family=\"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif\" font-size=\"{:.2}\" fill=\"{}\">{}</text>",
-                    rect.x + 14.0,
+                    title_x,
                     desc_y + desc_font_size + index as f32 * desc_line_step,
                     desc_font_size,
                     color_to_css(text_secondary),

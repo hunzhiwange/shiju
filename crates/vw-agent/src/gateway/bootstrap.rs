@@ -456,6 +456,12 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("POST", "/v1/agent", "tool-enabled agent chat"),
         client_route("POST", "/v1/chat/completions", "OpenAI-compatible chat"),
         client_route("GET", "/v1/models", "list available models"),
+        client_route("POST", "/v1/channels/{channel}/qrcode", "start channel QR authorization"),
+        client_route(
+            "GET",
+            "/v1/channels/{channel}/qrcode/status",
+            "poll channel QR authorization",
+        ),
         client_route("GET", "/v1/ws/chat", "WebSocket agent chat"),
         client_route("GET", "/v1/events", "gateway event stream"),
         client_route("GET", "/v1/status", "runtime status"),
@@ -860,6 +866,7 @@ pub(super) fn client_router(
 pub(super) fn stateful_handler_router() -> Router<AppState> {
     Router::<AppState>::new()
         .merge(api::handlers::auth::router())
+        .merge(api::handlers::channel_qr::router())
         .merge(api::handlers::file::router())
         .merge(api::handlers::git::router())
         .merge(api::handlers::global::stateful_router())

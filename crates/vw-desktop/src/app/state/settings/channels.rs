@@ -8,11 +8,12 @@ use super::*;
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ChannelQrFlowState {
     pub(crate) channel: Option<String>,
-    pub(crate) qrcode_png: Option<Vec<u8>>,
+    pub(crate) qrcode_image: Option<iced::widget::image::Handle>,
     pub(crate) handle: Option<String>,
     pub(crate) expires_at: Option<String>,
     pub(crate) status: Option<vw_gateway_client::ChannelQrStatusDto>,
     pub(crate) poll_in_flight: bool,
+    pub(crate) scan_observed: bool,
     pub(crate) generation: u64,
     pub(crate) credentials_ready: bool,
 }
@@ -21,11 +22,12 @@ impl ChannelQrFlowState {
     pub(crate) fn close(&mut self) {
         self.generation = self.generation.wrapping_add(1);
         self.channel = None;
-        self.qrcode_png = None;
+        self.qrcode_image = None;
         self.handle = None;
         self.expires_at = None;
         self.status = None;
         self.poll_in_flight = false;
+        self.scan_observed = false;
         self.credentials_ready = false;
     }
 }

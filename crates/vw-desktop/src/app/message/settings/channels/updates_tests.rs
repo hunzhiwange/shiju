@@ -232,6 +232,7 @@ fn channel_qr_flow_stops_on_close_and_fills_confirmed_credentials() {
         }),
     );
     assert_eq!(app.channels_settings.qr_flow.channel.as_deref(), Some("qq"));
+    assert!(app.channels_settings.qr_flow.qrcode_image.is_some());
     assert!(app.channels_settings.qq.is_none(), "fetching must not fill credentials");
 
     let _ = update(&mut app, SettingsMessage::Channels(ChannelsMessage::QrClosed));
@@ -275,4 +276,51 @@ fn channel_qr_flow_stops_on_close_and_fills_confirmed_credentials() {
     assert_eq!(qq.app_id, "confirmed-id");
     assert_eq!(qq.app_secret, "confirmed-secret");
     assert!(!app.channels_settings.qr_flow.poll_in_flight);
+}
+
+#[test]
+fn channel_qr_flow_ignores_failure_until_scan_is_observed() {
+    let mut app = app();
+    let channel = "wechat".to_string();
+    app.channels_settings.qr_flow.channel = Some(channel.clone());
+    app.channels_settings.qr_flow.handle = Some("pending-handle".to_string());
+    let generation = app.channels_settings.qr_flow.generation;
+
+    let failed = ChannelQrStatusResponseDto {
+        status: ChannelQrStatusDto::Failed,
+        credentials: None,
+    };
+    let _ = update(
+        &mut app,
+        SettingsMessage::Channels(ChannelsMessage::QrPolled {
+            channel: channel.clone(),
+            generation,
+            result: Ok(failed.clone()),
+        }),
+    );
+    assert_eq!(app.channels_settings.qr_flow.channel.as_deref(), Some("wechat"));
+    assert_eq!(app.channels_settings.qr_flow.status, Some(ChannelQrStatusDto::Pending));
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Channels(ChannelsMessage::QrPolled {
+            channel: channel.clone(),
+            generation,
+            result: Ok(ChannelQrStatusResponseDto {
+                status: ChannelQrStatusDto::Scanned,
+                credentials: None,
+            }),
+        }),
+    );
+    assert!(app.channels_settings.qr_flow.scan_observed);
+
+    let _ = update(
+        &mut app,
+        SettingsMessage::Channels(ChannelsMessage::QrPolled {
+            channel,
+            generation,
+            result: Ok(failed),
+        }),
+    );
+    assert!(app.channels_settings.qr_flow.channel.is_none());
 }

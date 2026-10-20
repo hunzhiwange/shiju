@@ -8,7 +8,7 @@ use crate::app::components::system_settings_common::{
 };
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{Image, button, column, image, row, text};
+use iced::widget::{Image, button, column, row, text};
 use iced::{Element, Length};
 
 use super::common::{
@@ -32,9 +32,9 @@ fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Mess
     .spacing(10);
 
     if is_current {
-        if let Some(bytes) = flow.qrcode_png.as_ref() {
+        if let Some(handle) = flow.qrcode_image.as_ref() {
             content = content.push(
-                Image::new(image::Handle::from_bytes(bytes.clone()))
+                Image::new(handle.clone())
                     .width(Length::Fixed(220.0))
                     .height(Length::Fixed(220.0)),
             );
@@ -114,7 +114,14 @@ pub(super) fn lark_panel(app: &App) -> Element<'_, Message> {
                 "lark.verification_token",
                 true,
             ),
-            text_row(app, "allowed_users", "逗号或换行分隔", "", "lark.allowed_users", false),
+            text_row(
+                app,
+                "allowed_users",
+                "逗号或换行分隔，支持 *",
+                "",
+                "lark.allowed_users",
+                false,
+            ),
             bool_row("mention_only", cfg.mention_only, "群聊仅 @ 时回复", "lark.mention_only"),
             bool_row("use_feishu", cfg.use_feishu, "使用飞书中国区端点", "lark.use_feishu"),
             pick_row(
@@ -126,7 +133,7 @@ pub(super) fn lark_panel(app: &App) -> Element<'_, Message> {
             text_row(
                 app,
                 "group_reply.allowed_sender_ids",
-                "逗号或换行分隔",
+                "逗号或换行分隔，支持 *",
                 "",
                 "lark.group_reply.allowed_sender_ids",
                 false,
@@ -216,7 +223,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
             .push(text_row(
                 app,
                 "allowed_users",
-                "逗号或换行分隔",
+                "逗号或换行分隔，支持 *",
                 "",
                 "feishu.allowed_users",
                 false,
@@ -230,7 +237,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
             .push(text_row(
                 app,
                 "group_reply.allowed_sender_ids",
-                "逗号或换行分隔",
+                "逗号或换行分隔，支持 *",
                 "",
                 "feishu.group_reply.allowed_sender_ids",
                 false,
@@ -320,7 +327,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
             .push(text_row_with_key(
                 app,
                 "allowed_users",
-                "逗号或换行分隔",
+                "逗号或换行分隔，支持 *",
                 "",
                 format!("{key_prefix}.allowed_users"),
                 false,
@@ -334,7 +341,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
             .push(text_row_with_key(
                 app,
                 "group_reply.allowed_sender_ids",
-                "逗号或换行分隔",
+                "逗号或换行分隔，支持 *",
                 "",
                 format!("{key_prefix}.group_reply.allowed_sender_ids"),
                 false,
@@ -415,7 +422,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
             .push(text_row(
                 app,
                 "allowed_users",
-                "逗号或换行分隔",
+                "逗号或换行分隔，支持 *",
                 "",
                 "dingtalk.allowed_users",
                 false,
@@ -458,7 +465,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
             .push(text_row_with_key(
                 app,
                 "allowed_users",
-                "逗号或换行分隔",
+                "逗号或换行分隔，支持 *",
                 "",
                 format!("{key_prefix}.allowed_users"),
                 false,
@@ -467,7 +474,13 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
 
     body = body.push(add_instance_row("dingtalk", "新增钉钉实例"));
 
-    panel("dingtalk", "钉钉", "钉钉 Stream 模式鉴权与白名单。", enabled, body.into())
+    panel(
+        "dingtalk",
+        "钉钉",
+        "钉钉 Stream 模式鉴权；白名单为空时拒绝所有用户，* 表示允许所有用户。",
+        enabled,
+        body.into(),
+    )
 }
 
 /// 构建或处理 `qq_panel` 对应的界面片段与交互数据。
@@ -490,7 +503,14 @@ pub(super) fn qq_panel(app: &App) -> Element<'_, Message> {
             qr_authorization(app, "qq"),
             text_row(app, "app_id", "QQ app id", &cfg.app_id, "qq.app_id", true),
             text_row(app, "app_secret", "QQ app secret", &cfg.app_secret, "qq.app_secret", true),
-            text_row(app, "allowed_users", "逗号或换行分隔", "", "qq.allowed_users", false),
+            text_row(
+                app,
+                "allowed_users",
+                "逗号或换行分隔，支持 *",
+                "",
+                "qq.allowed_users",
+                false,
+            ),
             pick_row(
                 "receive_mode",
                 qq_receive_mode_value(cfg.receive_mode.clone()),

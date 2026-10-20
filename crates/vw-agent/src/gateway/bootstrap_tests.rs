@@ -162,7 +162,7 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
 #[test]
 fn gateway_route_summary_lists_all_documented_routes() {
     let routes = documented_gateway_routes();
-    assert_eq!(routes.len(), 232);
+    assert_eq!(routes.len(), 234);
     let unique = routes
         .iter()
         .map(|route| (route.method, route.path))
@@ -170,6 +170,21 @@ fn gateway_route_summary_lists_all_documented_routes() {
     assert_eq!(unique.len(), routes.len(), "documented routes must be unique");
     assert!(routes.iter().any(|route| route.path == "/v1/desktop/project-preferences"));
     assert!(routes.iter().any(|route| route.path == "/v1/session/{session_id}/title"));
+    assert!(routes.iter().any(|route| route.path == "/v1/channels/{channel}/qrcode"));
+    assert!(routes.iter().any(|route| route.path == "/v1/channels/{channel}/qrcode/status"));
+}
+
+#[tokio::test]
+async fn stateful_handler_router_registers_channel_qr_routes() {
+    let app = Router::new().nest("/v1", stateful_handler_router()).with_state(state());
+    let request = Request::builder()
+        .method("GET")
+        .uri("/v1/channels/feishu/qrcode")
+        .body(Body::empty())
+        .unwrap();
+    let response = app.oneshot(request).await.unwrap();
+
+    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
 
 #[tokio::test]

@@ -41,10 +41,9 @@ enum ChannelTabGroup {
     International,
 }
 
-const CHANNEL_TAB_GROUPS: [(ChannelTabGroup, &str); 3] = [
+const CHANNEL_TAB_GROUPS: [(ChannelTabGroup, &str); 2] = [
     (ChannelTabGroup::Global, "全局"),
     (ChannelTabGroup::China, "中文互联网"),
-    (ChannelTabGroup::International, "国外"),
 ];
 
 const fn channel_tab_group(tab: ChannelsSettingsTab) -> ChannelTabGroup {
@@ -94,44 +93,6 @@ pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSet
             "微信",
             &["wechat", "微信", "扫码"],
         ),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::Telegram,
-            "Telegram",
-            &["bot token", "allowed users"],
-        ),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::Discord,
-            "Discord",
-            &["bot token", "guild"],
-        ),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::Slack,
-            "Slack",
-            &["外部消息", "bot token", "app token"],
-        ),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::Mattermost,
-            "Mattermost",
-            &["server url", "token"],
-        ),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::IMessage,
-            "iMessage",
-            &["imessage", "联系人"],
-        ),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Signal, "Signal", &["signal cli"]),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::WhatsApp, "WhatsApp", &["whatsapp"]),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Linq, "Linq", &["linq"]),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Wati, "WATI", &["wati"]),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::NextcloudTalk,
-            "Nextcloud Talk",
-            &["nextcloud", "talk"],
-        ),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Irc, "IRC", &["irc"]),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Lark, "Lark", &["lark", "飞书"]),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Nostr, "Nostr", &["nostr"]),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::ClawdTalk, "ClawdTalk", &["clawdtalk"]),
     ]);
     tabs
 }
@@ -244,26 +205,31 @@ fn tab_button(
 }
 
 fn china_channel_icon(tab: ChannelsSettingsTab) -> svg::Svg<'static> {
-    let (bytes, color): (&'static [u8], Color) = match tab {
+    let (bytes, light_color, dark_color): (&'static [u8], Color, Color) = match tab {
         ChannelsSettingsTab::DingTalk => (
             include_bytes!("../../../../../assets/icons/bootstrap/send-fill.svg"),
             Color::from_rgb8(22, 119, 255),
+            Color::from_rgb8(72, 156, 255),
         ),
         ChannelsSettingsTab::Feishu => (
             include_bytes!("../../../../../assets/icons/bootstrap/boxes.svg"),
             Color::from_rgb8(51, 112, 255),
+            Color::from_rgb8(100, 147, 255),
         ),
         ChannelsSettingsTab::Qq => (
             include_bytes!("../../../../../assets/icons/bootstrap/tencent-qq.svg"),
             Color::from_rgb8(18, 24, 38),
+            Color::from_rgb8(241, 245, 249),
         ),
         ChannelsSettingsTab::WeCom => (
             include_bytes!("../../../../../assets/icons/bootstrap/chat-square-dots-fill.svg"),
             Color::from_rgb8(0, 132, 255),
+            Color::from_rgb8(65, 165, 255),
         ),
         ChannelsSettingsTab::WeChat => (
             include_bytes!("../../../../../assets/icons/bootstrap/wechat.svg"),
             Color::from_rgb8(7, 193, 96),
+            Color::from_rgb8(54, 211, 127),
         ),
         _ => unreachable!("only Chinese internet channel tabs have brand icons"),
     };
@@ -271,7 +237,13 @@ fn china_channel_icon(tab: ChannelsSettingsTab) -> svg::Svg<'static> {
     svg::Svg::new(svg::Handle::from_memory(bytes))
         .width(Length::Fixed(28.0))
         .height(Length::Fixed(28.0))
-        .style(move |_theme: &iced::Theme, _status| svg::Style { color: Some(color) })
+        .style(move |theme: &iced::Theme, _status| {
+            let is_dark = theme.palette().background.r
+                + theme.palette().background.g
+                + theme.palette().background.b
+                < 1.5;
+            svg::Style { color: Some(if is_dark { dark_color } else { light_color }) }
+        })
 }
 
 fn china_channel_card(
@@ -280,7 +252,7 @@ fn china_channel_card(
 ) -> Element<'static, Message> {
     let active = descriptor.tab == active_tab;
     let icon = container(china_channel_icon(descriptor.tab))
-        .padding(10)
+        .padding(8)
         .style(move |theme: &iced::Theme| {
             let is_dark = theme.palette().background.r
                 + theme.palette().background.g
@@ -300,12 +272,12 @@ fn china_channel_card(
         container(text("")).width(Length::Fill),
         text("配置").size(13).style(settings_muted_text_style),
     ]
-    .spacing(14)
+    .spacing(12)
     .align_y(Alignment::Center);
 
     button(content)
-        .padding([18, 20])
-        .height(Length::Fixed(88.0))
+        .padding([14, 18])
+        .height(Length::Fixed(78.0))
         .width(Length::Fill)
         .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(
             descriptor.tab,

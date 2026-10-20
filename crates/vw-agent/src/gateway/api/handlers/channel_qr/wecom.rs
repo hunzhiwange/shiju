@@ -98,7 +98,7 @@ fn map_poll_response(response: &Value) -> ProviderPoll {
         .and_then(Value::as_str)
         .unwrap_or_default()
         .to_ascii_lowercase();
-    if status == "confirmed" {
+    if matches!(status.as_str(), "success" | "confirmed") {
         let bot_info = data.and_then(|data| data.get("bot_info")).and_then(Value::as_object);
         let bot_id = bot_info.and_then(|info| info.get("botid")).and_then(Value::as_str);
         let secret = bot_info.and_then(|info| info.get("secret")).and_then(Value::as_str);
@@ -115,10 +115,10 @@ fn map_poll_response(response: &Value) -> ProviderPoll {
     }
 
     let status = match status.as_str() {
-        "waiting" | "" => ChannelQrStatus::Pending,
+        "waiting" | "pending" | "" => ChannelQrStatus::Pending,
         "scanned" => ChannelQrStatus::Scanned,
         "expired" => ChannelQrStatus::Expired,
-        _ => ChannelQrStatus::Failed,
+        _ => ChannelQrStatus::Pending,
     };
     ProviderPoll { status, credentials: None }
 }

@@ -49,6 +49,7 @@ fn command_family(route: &GatewayRouteEntry) -> Option<&'static str> {
         return Some("operations");
     }
     if path.starts_with("/v1/auth/")
+        || path.starts_with("/v1/channels/")
         || path.starts_with("/v1/hooks")
         || matches!(path, "/v1/global/dispose" | "/v1/instance/dispose")
     {

@@ -15,7 +15,7 @@ fn api_route_coverage_classifies_every_documented_gateway_route() {
         .map(|route| format!("{} {}", route.method, route.path))
         .collect::<Vec<_>>();
 
-    assert_eq!(routes.len(), 232, "Gateway route baseline changed");
+    assert_eq!(routes.len(), 234, "Gateway route baseline changed");
     assert!(missing.is_empty(), "unclassified Gateway routes:\n{}", missing.join("\n"));
 
     let mut keys = HashSet::new();
@@ -53,5 +53,5 @@ fn api_route_coverage_classifies_every_documented_gateway_route() {
             }
         }
     }
-    assert_eq!((command_count, alias_count, excluded_count), (226, 3, 3));
+    assert_eq!((command_count, alias_count, excluded_count), (228, 3, 3));
 }

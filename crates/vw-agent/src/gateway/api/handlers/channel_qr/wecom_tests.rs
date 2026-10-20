@@ -43,20 +43,24 @@ async fn wecom_qr_fetch_extracts_only_required_settings() {
 }
 
 #[tokio::test]
-async fn wecom_qr_maps_confirmed_bot_credentials() {
-    let payload =
-        r#"{"data":{"status":"confirmed","bot_info":{"botid":"bot-1","secret":"secret-1"}}}"#;
-    let (base_url, requests) = fixture("application/json", vec![payload]).await;
+async fn wecom_qr_maps_success_and_legacy_confirmed_bot_credentials() {
+    for status in ["success", "confirmed"] {
+        let payload = format!(
+            r#"{{"data":{{"status":"{status}","bot_info":{{"botid":"bot-1","secret":"secret-1"}}}}}}"#
+        );
+        let payload: &'static str = Box::leak(payload.into_boxed_str());
+        let (base_url, requests) = fixture("application/json", vec![payload]).await;
 
-    let result = poll_at(&base_url, "scan code").await.expect("poll succeeds");
-    let requests = requests.await.expect("WeCom fixture completes");
+        let result = poll_at(&base_url, "scan code").await.expect("poll succeeds");
+        let requests = requests.await.expect("WeCom fixture completes");
 
-    assert_eq!(result.status, ChannelQrStatus::Authorized);
-    assert_eq!(
-        result.credentials,
-        Some(json!({"bot_id": "bot-1", "secret": "secret-1"}).as_object().unwrap().clone())
-    );
-    assert!(requests[0].starts_with("GET /ai/qc/query_result?scode=scan+code HTTP/1.1"));
+        assert_eq!(result.status, ChannelQrStatus::Authorized);
+        assert_eq!(
+            result.credentials,
+            Some(json!({"bot_id": "bot-1", "secret": "secret-1"}).as_object().unwrap().clone())
+        );
+        assert!(requests[0].starts_with("GET /ai/qc/query_result?scode=scan+code HTTP/1.1"));
+    }
 }
 
 #[tokio::test]
@@ -65,7 +69,7 @@ async fn wecom_qr_maps_waiting_scanned_expired_and_error() {
         (r#"{"data":{"status":"waiting"}}"#, ChannelQrStatus::Pending),
         (r#"{"data":{"status":"scanned"}}"#, ChannelQrStatus::Scanned),
         (r#"{"data":{"status":"expired"}}"#, ChannelQrStatus::Expired),
-        (r#"{"data":{"status":"error"}}"#, ChannelQrStatus::Failed),
+        (r#"{"data":{"status":"error"}}"#, ChannelQrStatus::Pending),
     ] {
         let (base_url, requests) = fixture("application/json", vec![payload]).await;
         let result = poll_at(&base_url, "scan-code").await.expect("poll succeeds");
@@ -82,7 +86,7 @@ async fn wecom_qr_rejects_missing_fetch_and_confirmed_fields() {
     requests.await.expect("WeCom fixture completes");
     assert_eq!(error.to_string(), "WeCom authorization page settings were invalid");
 
-    let payload = r#"{"data":{"status":"confirmed","bot_info":{"botid":"bot-1"}}}"#;
+    let payload = r#"{"data":{"status":"success","bot_info":{"botid":"bot-1"}}}"#;
     let (base_url, requests) = fixture("application/json", vec![payload]).await;
     let result = poll_at(&base_url, "scan-code").await.expect("poll succeeds");
     requests.await.expect("WeCom fixture completes");

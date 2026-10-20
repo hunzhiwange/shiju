@@ -62,6 +62,16 @@ fn qr_poll_task(channel: String, handle: String, generation: u64) -> Task<Messag
     )
 }
 
+fn schedule_qr_poll(channel: String, generation: u64, delay: Duration) -> Task<Message> {
+    crate::app::message::after(
+        delay,
+        Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrPollTick {
+            channel,
+            generation,
+        })),
+    )
+}
+
 fn credential(credentials: &Map<String, Value>, key: &str) -> Result<String, String> {
     credentials
         .get(key)
@@ -245,17 +255,14 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         });
                     match decoded {
                         Ok(bytes) => {
-                            app.channels_settings.qr_flow.qrcode_png = Some(bytes);
+                            app.channels_settings.qr_flow.qrcode_image =
+                                Some(iced::widget::image::Handle::from_bytes(bytes));
                             app.channels_settings.qr_flow.handle = Some(response.handle);
                             app.channels_settings.qr_flow.expires_at = Some(response.expires_at);
                             app.channels_settings.qr_flow.status =
                                 Some(ChannelQrStatusDto::Pending);
-                            crate::app::message::after(
-                                Duration::from_secs(1),
-                                Message::Settings(SettingsMessage::Channels(
-                                    ChannelsMessage::QrPollTick { channel, generation },
-                                )),
-                            )
+                            app.channels_settings.qr_flow.scan_observed = false;
+                            schedule_qr_poll(channel, generation, Duration::from_secs(1))
                         }
                         Err(error) => {
                             app.channels_settings.qr_flow.close();
@@ -292,17 +299,21 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.channels_settings.qr_flow.poll_in_flight = false;
             match result {
                 Ok(response) => {
-                    app.channels_settings.qr_flow.status = Some(response.status);
                     match response.status {
-                        ChannelQrStatusDto::Pending | ChannelQrStatusDto::Scanned => {
-                            crate::app::message::after(
-                                Duration::from_secs(1),
-                                Message::Settings(SettingsMessage::Channels(
-                                    ChannelsMessage::QrPollTick { channel, generation },
-                                )),
-                            )
+                        ChannelQrStatusDto::Pending => {
+                            app.channels_settings.qr_flow.status =
+                                Some(ChannelQrStatusDto::Pending);
+                            schedule_qr_poll(channel, generation, Duration::from_secs(1))
+                        }
+                        ChannelQrStatusDto::Scanned => {
+                            app.channels_settings.qr_flow.status =
+                                Some(ChannelQrStatusDto::Scanned);
+                            app.channels_settings.qr_flow.scan_observed = true;
+                            schedule_qr_poll(channel, generation, Duration::from_secs(1))
                         }
                         ChannelQrStatusDto::Authorized => {
+                            app.channels_settings.qr_flow.status =
+                                Some(ChannelQrStatusDto::Authorized);
                             let result = response
                                 .credentials
                                 .as_ref()
@@ -326,14 +337,19 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                             app.show_warning_toast("二维码已过期，请重新获取")
                         }
                         ChannelQrStatusDto::Failed => {
-                            app.channels_settings.qr_flow.close();
-                            app.show_error_toast("扫码授权失败，请重新获取")
+                            if app.channels_settings.qr_flow.scan_observed {
+                                app.channels_settings.qr_flow.close();
+                                app.show_error_toast("扫码授权失败，请重新获取")
+                            } else {
+                                app.channels_settings.qr_flow.status =
+                                    Some(ChannelQrStatusDto::Pending);
+                                schedule_qr_poll(channel, generation, Duration::from_secs(2))
+                            }
                         }
                     }
                 }
-                Err(error) => {
-                    app.channels_settings.qr_flow.close();
-                    app.show_error_toast(format!("查询扫码状态失败：{error}"))
+                Err(_) => {
+                    schedule_qr_poll(channel, generation, Duration::from_secs(2))
                 }
             }
         }

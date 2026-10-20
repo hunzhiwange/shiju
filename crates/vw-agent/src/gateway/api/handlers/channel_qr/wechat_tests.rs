@@ -39,16 +39,19 @@ async fn wechat_qr_fetch_maps_qrcode_without_credentials_in_state() {
 }
 
 #[tokio::test]
-async fn wechat_qr_maps_waiting_scanned_expired_and_error() {
+async fn wechat_qr_maps_provider_and_legacy_waiting_states() {
     for (payload, expected) in [
+        (r#"{"status":"wait"}"#, ChannelQrStatus::Pending),
         (r#"{"status":"waiting"}"#, ChannelQrStatus::Pending),
+        (r#"{"status":"scaned"}"#, ChannelQrStatus::Scanned),
         (r#"{"status":"scanned"}"#, ChannelQrStatus::Scanned),
         (r#"{"status":"expired"}"#, ChannelQrStatus::Expired),
         (r#"{"status":"error"}"#, ChannelQrStatus::Failed),
     ] {
         let (base_url, request) = fixture(payload).await;
         let result = poll_at(&base_url, "qr-value").await.expect("poll succeeds");
-        request.await.expect("WeChat fixture completes");
+        let request = request.await.expect("WeChat fixture completes");
+        assert!(request.to_ascii_lowercase().contains("ilink-app-clientversion: 1"));
         assert_eq!(result.status, expected);
         assert_eq!(result.credentials, None);
     }

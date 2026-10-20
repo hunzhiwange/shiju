@@ -43,12 +43,29 @@ fn view_builds_empty_enabled_channel_summary() {
 }
 
 #[test]
-fn channel_tabs_builds_three_group_five_column_grid() {
+fn channel_tabs_builds_domestic_two_group_grid() {
     let app = test_app();
 
     assert_eq!(CHANNEL_TAB_COLUMNS, 5);
-    assert_eq!(CHANNEL_TAB_GROUPS.map(|(_, title)| title), ["全局", "中文互联网", "国外"]);
+    assert_eq!(CHINA_CHANNEL_CARD_COLUMNS, 3);
+    assert_eq!(CHANNEL_TAB_GROUPS.map(|(_, title)| title), ["全局", "中文互联网"]);
     keep_element(channel_tabs(app.channels_settings.active_tab));
+}
+
+#[test]
+fn china_channel_cards_build_brand_icons_and_active_states() {
+    let descriptors = channel_tab_descriptors();
+    let china = descriptors
+        .iter()
+        .filter(|descriptor| channel_tab_group(descriptor.tab) == ChannelTabGroup::China)
+        .collect::<Vec<_>>();
+
+    assert_eq!(china.len(), 5);
+    for descriptor in &china {
+        std::hint::black_box(china_channel_icon(descriptor.tab));
+        keep_element(china_channel_card(descriptor, descriptor.tab));
+    }
+    keep_element(china_channel_cards(&china, ChannelsSettingsTab::Global));
 }
 
 #[test]
@@ -74,6 +91,11 @@ fn channel_tabs_group_global_china_and_international_channels() {
     }
 
     let descriptors = channel_tab_descriptors();
+    assert!(
+        descriptors
+            .iter()
+            .all(|descriptor| channel_tab_group(descriptor.tab) != ChannelTabGroup::International)
+    );
     assert_eq!(
         descriptors
             .iter()

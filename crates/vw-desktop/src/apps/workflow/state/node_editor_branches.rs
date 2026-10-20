@@ -316,6 +316,50 @@ impl WorkflowState {
         });
     }
 
+    pub fn node_editor_knowledge_reranking_model_action(&mut self, action: text_editor::Action) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::KnowledgeRetrieval { reranking_model_editor, .. } =
+                draft
+            {
+                reranking_model_editor.perform(action);
+                true
+            } else {
+                false
+            }
+        });
+    }
+
+    pub fn set_node_editor_knowledge_metadata_filtering_mode(&mut self, value: String) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::KnowledgeRetrieval { metadata_filtering_mode, .. } =
+                draft
+            {
+                *metadata_filtering_mode = value;
+                true
+            } else {
+                false
+            }
+        });
+    }
+
+    pub fn node_editor_knowledge_metadata_model_config_action(
+        &mut self,
+        action: text_editor::Action,
+    ) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::KnowledgeRetrieval {
+                metadata_model_config_editor,
+                ..
+            } = draft
+            {
+                metadata_model_config_editor.perform(action);
+                true
+            } else {
+                false
+            }
+        });
+    }
+
     pub fn set_node_editor_knowledge_single_model_provider(&mut self, value: String) {
         self.update_node_visual_draft(|draft| {
             if let WorkflowNodeVisualDraft::KnowledgeRetrieval { single_model_provider, .. } = draft

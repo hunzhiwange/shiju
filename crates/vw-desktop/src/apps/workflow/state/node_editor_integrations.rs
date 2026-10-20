@@ -309,6 +309,39 @@ impl WorkflowState {
         });
     }
 
+    pub fn node_editor_llm_completion_params_action(&mut self, action: text_editor::Action) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::Llm { completion_params_editor, .. } = draft {
+                completion_params_editor.perform(action);
+                true
+            } else {
+                false
+            }
+        });
+    }
+
+    pub fn node_editor_llm_structured_output_action(&mut self, action: text_editor::Action) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::Llm { structured_output_editor, .. } = draft {
+                structured_output_editor.perform(action);
+                true
+            } else {
+                false
+            }
+        });
+    }
+
+    pub fn node_editor_llm_memory_action(&mut self, action: text_editor::Action) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::Llm { memory_editor, .. } = draft {
+                memory_editor.perform(action);
+                true
+            } else {
+                false
+            }
+        });
+    }
+
     pub fn set_node_editor_llm_context_enabled(&mut self, value: bool) {
         self.update_node_visual_draft(|draft| {
             if let WorkflowNodeVisualDraft::Llm { context_enabled, .. } = draft {
@@ -357,6 +390,17 @@ impl WorkflowState {
         self.update_node_visual_draft(|draft| {
             if let WorkflowNodeVisualDraft::Llm { vision_enabled, .. } = draft {
                 *vision_enabled = value;
+                true
+            } else {
+                false
+            }
+        });
+    }
+
+    pub fn set_node_editor_llm_vision_selector(&mut self, value: String) {
+        self.update_node_visual_draft(|draft| {
+            if let WorkflowNodeVisualDraft::Llm { vision_selector_input, .. } = draft {
+                *vision_selector_input = value;
                 true
             } else {
                 false

@@ -103,6 +103,7 @@ vision:
             system_prompt_editor,
             user_prompt_editor,
             vision_enabled,
+            ..
         }) => {
             assert_eq!(provider, "openai");
             assert_eq!(model_name, "gpt-4.1");
@@ -150,6 +151,7 @@ single_retrieval_config:
             single_model_provider,
             single_model_name,
             single_model_mode,
+            ..
         }) => {
             assert_eq!(query_selector_input, "start.query");
             assert_eq!(query_attachment_selector_input, "start.files");
@@ -478,6 +480,7 @@ fn build_node_visual_draft_rejects_malformed_yaml_and_defaults_empty_node_shapes
             system_prompt_editor,
             user_prompt_editor,
             vision_enabled,
+            ..
         }) => {
             assert!(provider.is_empty());
             assert!(model_name.is_empty());
@@ -541,6 +544,7 @@ multiple_retrieval_config:
             single_model_provider,
             single_model_name,
             single_model_mode,
+            ..
         }) => {
             assert!(query_selector_input.is_empty());
             assert!(query_attachment_selector_input.is_empty());

@@ -380,6 +380,18 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             app.workflow_state.set_node_editor_knowledge_reranking_enabled(value);
             Task::none()
         }
+        WorkflowMessage::NodeEditorKnowledgeRerankingModelAction(action) => {
+            app.workflow_state.node_editor_knowledge_reranking_model_action(action);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorKnowledgeMetadataFilteringModeChanged(value) => {
+            app.workflow_state.set_node_editor_knowledge_metadata_filtering_mode(value);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorKnowledgeMetadataModelConfigAction(action) => {
+            app.workflow_state.node_editor_knowledge_metadata_model_config_action(action);
+            Task::none()
+        }
         WorkflowMessage::NodeEditorKnowledgeSingleModelProviderChanged(value) => {
             app.workflow_state.set_node_editor_knowledge_single_model_provider(value);
             Task::none()
@@ -484,6 +496,18 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             app.workflow_state.set_node_editor_llm_enable_thinking(value);
             Task::none()
         }
+        WorkflowMessage::NodeEditorLlmCompletionParamsAction(action) => {
+            app.workflow_state.node_editor_llm_completion_params_action(action);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorLlmStructuredOutputAction(action) => {
+            app.workflow_state.node_editor_llm_structured_output_action(action);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorLlmMemoryAction(action) => {
+            app.workflow_state.node_editor_llm_memory_action(action);
+            Task::none()
+        }
         WorkflowMessage::NodeEditorLlmContextEnabledChanged(value) => {
             app.workflow_state.set_node_editor_llm_context_enabled(value);
             Task::none()
@@ -502,6 +526,10 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
         }
         WorkflowMessage::NodeEditorLlmVisionEnabledChanged(value) => {
             app.workflow_state.set_node_editor_llm_vision_enabled(value);
+            Task::none()
+        }
+        WorkflowMessage::NodeEditorLlmVisionSelectorChanged(value) => {
+            app.workflow_state.set_node_editor_llm_vision_selector(value);
             Task::none()
         }
         WorkflowMessage::NodeEditorAnswerAction(action) => {

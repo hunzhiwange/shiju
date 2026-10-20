@@ -37,11 +37,15 @@ pub(super) fn apply_visual_draft_to_yaml(
                 model_name,
                 model_mode,
                 enable_thinking,
+                completion_params_editor,
+                structured_output_editor,
+                memory_editor,
                 context_enabled,
                 context_selector_input,
                 system_prompt_editor,
                 user_prompt_editor,
                 vision_enabled,
+                vision_selector_input,
             },
         ) => {
             let model_map = ensure_mapping_entry(data_map, "model");
@@ -49,8 +53,22 @@ pub(super) fn apply_visual_draft_to_yaml(
             set_mapping_string(model_map, "name", model_name);
             set_mapping_string(model_map, "mode", model_mode);
 
-            let completion_params = ensure_mapping_entry(model_map, "completion_params");
-            set_mapping_bool(completion_params, "enable_thinking", *enable_thinking);
+            let completion_params_value =
+                parse_mapping_yaml(&completion_params_editor.text(), "LLM completion params")?;
+            let mut completion_params = completion_params_value
+                .as_mapping()
+                .cloned()
+                .expect("parse_mapping_yaml returns a mapping");
+            set_mapping_bool(&mut completion_params, "enable_thinking", *enable_thinking);
+            model_map.insert(yaml_key("completion_params"), Value::Mapping(completion_params));
+            data_map.insert(
+                yaml_key("structured_output"),
+                parse_mapping_yaml(&structured_output_editor.text(), "LLM structured output")?,
+            );
+            data_map.insert(
+                yaml_key("memory"),
+                parse_mapping_yaml(&memory_editor.text(), "LLM memory")?,
+            );
 
             let context_map = ensure_mapping_entry(data_map, "context");
             set_mapping_bool(context_map, "enabled", *context_enabled);
@@ -61,6 +79,10 @@ pub(super) fn apply_visual_draft_to_yaml(
 
             let vision_map = ensure_mapping_entry(data_map, "vision");
             set_mapping_bool(vision_map, "enabled", *vision_enabled);
+            vision_map.insert(
+                yaml_key("variable_selector"),
+                selector_path_value_from_input(vision_selector_input),
+            );
 
             let prompt_value = data_map
                 .remove(&yaml_key("prompt_template"))
@@ -431,6 +453,9 @@ pub(super) fn apply_visual_draft_to_yaml(
                 score_threshold_enabled,
                 score_threshold_input,
                 reranking_enable,
+                reranking_model_editor,
+                metadata_filtering_mode,
+                metadata_model_config_editor,
                 single_model_provider,
                 single_model_name,
                 single_model_mode,
@@ -459,6 +484,18 @@ pub(super) fn apply_visual_draft_to_yaml(
                     .map_err(|error| format!("知识检索 top_k 序列化失败: {error}"))?,
             );
             set_mapping_bool(multiple_config, "reranking_enable", *reranking_enable);
+            multiple_config.insert(
+                yaml_key("reranking_model"),
+                parse_mapping_yaml(&reranking_model_editor.text(), "知识检索 reranking model")?,
+            );
+            set_mapping_string(multiple_config, "metadata_filtering_mode", metadata_filtering_mode);
+            multiple_config.insert(
+                yaml_key("metadata_model_config"),
+                parse_mapping_yaml(
+                    &metadata_model_config_editor.text(),
+                    "知识检索 metadata model config",
+                )?,
+            );
             if *score_threshold_enabled {
                 let score_threshold = score_threshold_input
                     .trim()

@@ -109,6 +109,7 @@ fn knowledge_editor_updates_all_visual_fields() {
         single_model_provider,
         single_model_name,
         single_model_mode,
+        ..
     } = visual_draft(&state)
     else {
         panic!("expected knowledge retrieval visual draft");

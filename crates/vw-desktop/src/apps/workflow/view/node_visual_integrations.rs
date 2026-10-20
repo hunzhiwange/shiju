@@ -20,6 +20,9 @@ pub(super) fn build_knowledge_visual_section<'a>(
     score_threshold_enabled: bool,
     score_threshold_input: &'a str,
     reranking_enable: bool,
+    reranking_model_editor: &'a text_editor::Content,
+    metadata_filtering_mode: &'a str,
+    metadata_model_config_editor: &'a text_editor::Content,
     single_model_provider: &'a str,
     single_model_name: &'a str,
     single_model_mode: &'a str,
@@ -100,6 +103,34 @@ pub(super) fn build_knowledge_visual_section<'a>(
             ),
         ]
         .spacing(12),
+        build_editor_field(
+            "Reranking Model YAML",
+            build_embedded_text_editor(
+                reranking_model_editor,
+                "输入 reranking_model YAML map",
+                WorkflowMessage::NodeEditorKnowledgeRerankingModelAction,
+                120.0,
+            ),
+        ),
+        build_editor_field(
+            "Metadata Filtering Mode",
+            workflow_text_input(
+                "disabled / automatic / manual",
+                metadata_filtering_mode,
+                |value| Message::WorkflowTool(
+                    WorkflowMessage::NodeEditorKnowledgeMetadataFilteringModeChanged(value),
+                ),
+            ),
+        ),
+        build_editor_field(
+            "Metadata Model Config YAML",
+            build_embedded_text_editor(
+                metadata_model_config_editor,
+                "输入 metadata_model_config YAML map",
+                WorkflowMessage::NodeEditorKnowledgeMetadataModelConfigAction,
+                120.0,
+            ),
+        ),
         build_editor_field_validated(
             "Score Threshold",
             column![

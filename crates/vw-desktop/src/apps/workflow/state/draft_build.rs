@@ -396,6 +396,18 @@ pub(super) fn build_node_visual_draft(
                     .and_then(|params| mapping_value(params, "enable_thinking"))
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
+                completion_params_editor: text_editor::Content::with_text(&value_yaml_for_editor(
+                    model_map
+                        .and_then(|model| mapping_value(model, "completion_params"))
+                        .unwrap_or(&Value::Mapping(Mapping::new())),
+                )),
+                structured_output_editor: text_editor::Content::with_text(&value_yaml_for_editor(
+                    mapping_value(data_map, "structured_output")
+                        .unwrap_or(&Value::Mapping(Mapping::new())),
+                )),
+                memory_editor: text_editor::Content::with_text(&value_yaml_for_editor(
+                    mapping_value(data_map, "memory").unwrap_or(&Value::Mapping(Mapping::new())),
+                )),
                 context_enabled: context_map
                     .and_then(|context| mapping_value(context, "enabled"))
                     .and_then(Value::as_bool)
@@ -415,6 +427,9 @@ pub(super) fn build_node_visual_draft(
                     .and_then(|vision| mapping_value(vision, "enabled"))
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
+                vision_selector_input: selector_input_from_value(
+                    vision_map.and_then(|vision| mapping_value(vision, "variable_selector")),
+                ),
             }))
         }
         "answer" => Ok(Some(WorkflowNodeVisualDraft::Answer {
@@ -471,6 +486,23 @@ pub(super) fn build_node_visual_draft(
                     .and_then(|config| mapping_value(config, "reranking_enable"))
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
+                reranking_model_editor: text_editor::Content::with_text(&value_yaml_for_editor(
+                    multiple_config
+                        .and_then(|config| mapping_value(config, "reranking_model"))
+                        .unwrap_or(&Value::Mapping(Mapping::new())),
+                )),
+                metadata_filtering_mode: multiple_config
+                    .and_then(|config| mapping_value(config, "metadata_filtering_mode"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("disabled")
+                    .to_string(),
+                metadata_model_config_editor: text_editor::Content::with_text(
+                    &value_yaml_for_editor(
+                        multiple_config
+                            .and_then(|config| mapping_value(config, "metadata_model_config"))
+                            .unwrap_or(&Value::Mapping(Mapping::new())),
+                    ),
+                ),
                 single_model_provider: single_model
                     .and_then(|model| mapping_value(model, "provider"))
                     .and_then(Value::as_str)

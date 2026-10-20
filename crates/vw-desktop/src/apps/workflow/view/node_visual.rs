@@ -29,11 +29,15 @@ pub(super) fn build_node_visual_section<'a>(
             model_name,
             model_mode,
             enable_thinking,
+            completion_params_editor,
+            structured_output_editor,
+            memory_editor,
             context_enabled,
             context_selector_input,
             system_prompt_editor,
             user_prompt_editor,
             vision_enabled,
+            vision_selector_input,
         } => Some(
             column![
                 row![
@@ -61,6 +65,33 @@ pub(super) fn build_node_visual_section<'a>(
                     ),
                 ]
                 .spacing(12),
+                build_editor_field(
+                    "Completion Params YAML",
+                    build_embedded_text_editor(
+                        completion_params_editor,
+                        "输入 completion_params YAML map",
+                        WorkflowMessage::NodeEditorLlmCompletionParamsAction,
+                        120.0,
+                    ),
+                ),
+                build_editor_field(
+                    "Structured Output YAML",
+                    build_embedded_text_editor(
+                        structured_output_editor,
+                        "输入 structured_output YAML map",
+                        WorkflowMessage::NodeEditorLlmStructuredOutputAction,
+                        120.0,
+                    ),
+                ),
+                build_editor_field(
+                    "Memory YAML",
+                    build_embedded_text_editor(
+                        memory_editor,
+                        "输入 memory YAML map",
+                        WorkflowMessage::NodeEditorLlmMemoryAction,
+                        120.0,
+                    ),
+                ),
                 row![
                     build_editor_field_validated(
                         "模型模式",
@@ -132,14 +163,24 @@ pub(super) fn build_node_visual_section<'a>(
                 ),
                 build_editor_field(
                     "视觉输入",
-                    row![
-                        toggler(*vision_enabled).on_toggle(|value| Message::WorkflowTool(
-                            WorkflowMessage::NodeEditorLlmVisionEnabledChanged(value),
-                        )),
-                        text("vision.enabled").size(12).style(settings_muted_text_style),
+                    column![
+                        row![
+                            toggler(*vision_enabled).on_toggle(|value| Message::WorkflowTool(
+                                WorkflowMessage::NodeEditorLlmVisionEnabledChanged(value),
+                            )),
+                            text("vision.enabled").size(12).style(settings_muted_text_style),
+                        ]
+                        .spacing(8)
+                        .align_y(Alignment::Center),
+                        workflow_text_input(
+                            "例如：start.image",
+                            vision_selector_input,
+                            |value| Message::WorkflowTool(
+                                WorkflowMessage::NodeEditorLlmVisionSelectorChanged(value),
+                            ),
+                        ),
                     ]
                     .spacing(8)
-                    .align_y(Alignment::Center)
                     .into(),
                 ),
             ]
@@ -235,6 +276,9 @@ pub(super) fn build_node_visual_section<'a>(
             score_threshold_enabled,
             score_threshold_input,
             reranking_enable,
+            reranking_model_editor,
+            metadata_filtering_mode,
+            metadata_model_config_editor,
             single_model_provider,
             single_model_name,
             single_model_mode,
@@ -248,6 +292,9 @@ pub(super) fn build_node_visual_section<'a>(
             *score_threshold_enabled,
             score_threshold_input,
             *reranking_enable,
+            reranking_model_editor,
+            metadata_filtering_mode,
+            metadata_model_config_editor,
             single_model_provider,
             single_model_name,
             single_model_mode,

@@ -52,6 +52,9 @@ mod data_nodes_tests;
 #[path = "draft_build_tests.rs"]
 mod draft_build_tests;
 #[cfg(test)]
+#[path = "existing_nodes_tests.rs"]
+mod existing_nodes_tests;
+#[cfg(test)]
 #[path = "http_request_tests.rs"]
 mod http_request_tests;
 #[cfg(test)]
@@ -264,11 +267,15 @@ pub enum WorkflowNodeVisualDraft {
         model_name: String,
         model_mode: String,
         enable_thinking: bool,
+        completion_params_editor: text_editor::Content,
+        structured_output_editor: text_editor::Content,
+        memory_editor: text_editor::Content,
         context_enabled: bool,
         context_selector_input: String,
         system_prompt_editor: text_editor::Content,
         user_prompt_editor: text_editor::Content,
         vision_enabled: bool,
+        vision_selector_input: String,
     },
     Answer {
         answer_editor: text_editor::Content,
@@ -357,6 +364,9 @@ pub enum WorkflowNodeVisualDraft {
         score_threshold_enabled: bool,
         score_threshold_input: String,
         reranking_enable: bool,
+        reranking_model_editor: text_editor::Content,
+        metadata_filtering_mode: String,
+        metadata_model_config_editor: text_editor::Content,
         single_model_provider: String,
         single_model_name: String,
         single_model_mode: String,

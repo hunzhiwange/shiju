@@ -400,6 +400,26 @@ pub(crate) fn markdown_block_font(block: &MarkdownBlock) -> iced::Font {
     }
 }
 
+/// 将 Markdown 块转换为单个只读编辑器使用的连续文本。
+pub(crate) fn markdown_editor_text(blocks: &[MarkdownBlock]) -> String {
+    blocks
+        .iter()
+        .map(|block| match &block.kind {
+            MarkdownBlockKind::BulletItem(level) => {
+                format!("{}• {}", "  ".repeat(usize::from(*level)), block.text)
+            }
+            MarkdownBlockKind::OrderedItem(marker) => format!("{marker} {}", block.text),
+            MarkdownBlockKind::Quote => {
+                block.text.lines().map(|line| format!("│ {line}")).collect::<Vec<_>>().join("\n")
+            }
+            MarkdownBlockKind::Heading(_)
+            | MarkdownBlockKind::Paragraph
+            | MarkdownBlockKind::CodeBlock(_) => block.text.clone(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
 /// 渲染单个 Markdown 块为可划选元素。
 fn markdown_block_view<'a>(
     app: &'a App,
@@ -407,12 +427,13 @@ fn markdown_block_view<'a>(
     text_idx: usize,
     block_idx: usize,
     block: &'a MarkdownBlock,
+    whole_response: bool,
 ) -> Element<'a, Message> {
     let contract = markdown_visual_contract();
     let theme = app.theme();
     let key = markdown_block_key(msg_idx, text_idx, block_idx);
-    let size = block_text_size(&block.kind);
-    let font = markdown_block_font(block);
+    let size = if whole_response { MESSAGE_TEXT_SIZE } else { block_text_size(&block.kind) };
+    let font = if whole_response { chat_text_font() } else { markdown_block_font(block) };
     let body_color = message_body_text_color(&theme, false);
 
     let editor: Element<'a, Message> =
@@ -441,6 +462,10 @@ fn markdown_block_view<'a>(
                 .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(body_color) })
                 .into()
         };
+
+    if whole_response {
+        return container(editor).width(Length::Fill).into();
+    }
 
     match &block.kind {
         MarkdownBlockKind::CodeBlock(_) => container(editor)
@@ -526,7 +551,7 @@ fn quote_bar_style(theme: &Theme) -> iced::widget::container::Style {
     }
 }
 
-/// 渲染整段助手正文的 Markdown 块为可划选列表。
+/// 使用单个只读编辑器渲染整段助手正文。
 pub(crate) fn markdown_body_view<'a>(
     app: &'a App,
     msg_idx: usize,
@@ -534,14 +559,28 @@ pub(crate) fn markdown_body_view<'a>(
     blocks: &'a [MarkdownBlock],
 ) -> Element<'a, Message> {
     let mut body = column![].spacing(markdown_visual_contract().block_spacing).width(Length::Fill);
-    for (block_idx, block) in blocks.iter().enumerate() {
-        body = body.push(markdown_block_view(app, msg_idx, text_idx, block_idx, block));
+    if let Some(block) = blocks.first() {
+        let key = markdown_block_key(msg_idx, text_idx, 0);
+        if app.chat_markdown_block_editors.contains_key(&key) {
+            body = body.push(markdown_block_view(app, msg_idx, text_idx, 0, block, true));
+        } else {
+            let body_color = message_body_text_color(&app.theme(), false);
+            body = body.push(
+                text(markdown_editor_text(blocks))
+                    .size(MESSAGE_TEXT_SIZE)
+                    .font(chat_text_font())
+                    .line_height(chat_text_line_height())
+                    .style(move |_theme: &Theme| iced::widget::text::Style {
+                        color: Some(body_color),
+                    }),
+            );
+        }
     }
     Element::new(MarkdownSelectionArea {
         content: body.into(),
         msg_idx,
         text_idx,
-        block_count: blocks.len(),
+        block_count: usize::from(!blocks.is_empty()),
     })
 }
 

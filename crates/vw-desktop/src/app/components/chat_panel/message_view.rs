@@ -88,7 +88,9 @@ use super::utils::{
 pub(crate) use self::assistant_body::deduped_tool_last_indices;
 #[cfg(test)]
 pub(crate) use self::assistant_body::should_highlight_pending_permission_tool;
-pub(crate) use self::markdown::{MarkdownBlock, markdown_block_key, parse_markdown_blocks};
+pub(crate) use self::markdown::{
+    MarkdownBlock, markdown_block_key, markdown_editor_text, parse_markdown_blocks,
+};
 pub(crate) use self::parse::hash_chat_content;
 pub(crate) use self::render_cache::{
     assistant_render_blocks, build_render_cache_entry, effective_assistant_render_cache,

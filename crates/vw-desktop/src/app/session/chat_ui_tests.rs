@@ -519,7 +519,7 @@ fn markdown_cache_reuses_unchanged_message() {
     assert_eq!(app.chat_markdown_blocks[&0].len(), 3);
     assert_eq!(
         app.chat_markdown_block_editors[&first_key].selection().as_deref(),
-        Some("标题"),
+        Some("标题\n\n第一段\n\n• 列表项"),
         "unchanged content should retain the existing editor instead of rebuilding it"
     );
 }
@@ -601,5 +601,5 @@ fn markdown_cache_reuse_performance_probe() {
         app.chat_markdown_block_editors.len()
     );
     assert_eq!(app.chat_markdown_blocks[&0].len(), 401);
-    assert_eq!(app.chat_markdown_block_editors.len(), 400);
+    assert!(app.chat_markdown_block_editors.len() <= 1);
 }

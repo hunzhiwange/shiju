@@ -352,11 +352,10 @@ fn sync_markdown_blocks_for_text(app: &mut App, msg_idx: usize, text_idx: usize,
     use crate::app::components::chat_panel::message_view;
 
     let blocks = message_view::parse_markdown_blocks(text);
-    for (block_idx, block) in blocks.iter().enumerate() {
-        if let Some(editor) = read_only_chat_editor_content(&block.text) {
-            let key = message_view::markdown_block_key(msg_idx, text_idx, block_idx);
-            app.chat_markdown_block_editors.insert(key, editor);
-        }
+    let editor_text = message_view::markdown_editor_text(&blocks);
+    if let Some(editor) = read_only_chat_editor_content(&editor_text) {
+        let key = message_view::markdown_block_key(msg_idx, text_idx, 0);
+        app.chat_markdown_block_editors.insert(key, editor);
     }
     let block_key = ((msg_idx as u64) << 32) | (text_idx as u64);
     app.chat_markdown_blocks.insert(block_key, blocks);

@@ -220,7 +220,7 @@ pub struct WorkflowStartVariableSummary {
     pub value_type: String,
 }
 
-const WORKFLOW_NODE_TYPES: [WorkflowNodeTypeDescriptor; 15] = [
+const WORKFLOW_NODE_TYPES: [WorkflowNodeTypeDescriptor; 16] = [
     WorkflowNodeTypeDescriptor {
         block_type: "start",
         label: "开始",
@@ -304,6 +304,12 @@ const WORKFLOW_NODE_TYPES: [WorkflowNodeTypeDescriptor; 15] = [
         label: "变量聚合",
         summary: "把多个变量汇总为一个输出。",
         icon: WorkflowNodeIconDescriptor { family: "lucide", name: "combine" },
+    },
+    WorkflowNodeTypeDescriptor {
+        block_type: "list-operator",
+        label: "列表操作",
+        summary: "过滤、排序并截取列表变量。",
+        icon: WorkflowNodeIconDescriptor { family: "lucide", name: "list-filter" },
     },
     WorkflowNodeTypeDescriptor {
         block_type: "agent",

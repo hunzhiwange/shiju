@@ -31,6 +31,7 @@ pub fn pretty_block_type(kind: &str) -> String {
         "loop" => "循环".to_string(),
         "variable-assigner" => "变量赋值".to_string(),
         "variable-aggregator" => "变量聚合".to_string(),
+        "list-operator" => "列表操作".to_string(),
         "agent" => "Agent".to_string(),
         "document-extractor" => "文档提取".to_string(),
         other if other.is_empty() => "节点".to_string(),
@@ -65,6 +66,7 @@ pub fn workflow_node_icon(kind: &str) -> WorkflowNodeIconDescriptor {
         "loop" => WorkflowNodeIconDescriptor { family: "lucide", name: "refresh-cw" },
         "variable-assigner" => WorkflowNodeIconDescriptor { family: "lucide", name: "variable" },
         "variable-aggregator" => WorkflowNodeIconDescriptor { family: "lucide", name: "combine" },
+        "list-operator" => WorkflowNodeIconDescriptor { family: "lucide", name: "list-filter" },
         "agent" => WorkflowNodeIconDescriptor { family: "lucide", name: "bot-message-square" },
         _ => WorkflowNodeIconDescriptor { family: "lucide", name: "workflow" },
     }
@@ -89,6 +91,7 @@ pub fn workflow_node_accent_color(kind: &str) -> Color {
         "loop" => Color::from_rgb8(0x38, 0xB2, 0xAC),
         "variable-assigner" => Color::from_rgb8(0x22, 0xC5, 0x5E),
         "variable-aggregator" => Color::from_rgb8(0x0F, 0x76, 0x94),
+        "list-operator" => Color::from_rgb8(0x25, 0x63, 0xEB),
         "agent" => Color::from_rgb8(0xE1, 0x1D, 0x48),
         _ => Color::from_rgb8(0x64, 0x74, 0x8B),
     }

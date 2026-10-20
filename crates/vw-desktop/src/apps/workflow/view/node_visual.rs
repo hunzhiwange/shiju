@@ -334,6 +334,31 @@ pub(super) fn build_node_visual_section<'a>(
             *retry_config,
             error_strategy,
         )),
+        WorkflowNodeVisualDraft::VariableAssigner { items } => {
+            Some(build_variable_assigner_section(items))
+        }
+        WorkflowNodeVisualDraft::VariableAggregator { variables, output_type } => {
+            Some(build_variable_aggregator_section(variables, output_type))
+        }
+        WorkflowNodeVisualDraft::ListOperator {
+            variable,
+            conditions,
+            filter_enabled,
+            order_enabled,
+            order_key,
+            order_direction,
+            limit_enabled,
+            limit_size,
+        } => Some(build_list_operator_section(
+            variable,
+            conditions,
+            *filter_enabled,
+            *order_enabled,
+            order_key,
+            order_direction,
+            *limit_enabled,
+            limit_size,
+        )),
         WorkflowNodeVisualDraft::Code {
             language,
             inputs,

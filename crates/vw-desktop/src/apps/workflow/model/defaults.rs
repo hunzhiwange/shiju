@@ -169,6 +169,48 @@ pub(super) fn default_node_data_value(block_type: &str) -> Value {
             ("type", Value::String("http-request".to_string())),
             ("url", Value::String(String::new())),
         ]),
+        "variable-assigner" => yaml_map(vec![
+            ("desc", Value::String(String::new())),
+            ("items", Value::Sequence(Vec::new())),
+            ("selected", Value::Bool(false)),
+            ("title", Value::String(title)),
+            ("type", Value::String("variable-assigner".to_string())),
+            ("version", Value::String("2".to_string())),
+        ]),
+        "variable-aggregator" => yaml_map(vec![
+            ("desc", Value::String(String::new())),
+            ("output_type", Value::String("string".to_string())),
+            ("selected", Value::Bool(false)),
+            ("title", Value::String(title)),
+            ("type", Value::String("variable-aggregator".to_string())),
+            ("variables", Value::Sequence(Vec::new())),
+        ]),
+        "list-operator" => yaml_map(vec![
+            ("desc", Value::String(String::new())),
+            (
+                "filter_by",
+                yaml_map(vec![
+                    ("conditions", Value::Sequence(Vec::new())),
+                    ("enabled", Value::Bool(false)),
+                ]),
+            ),
+            (
+                "limit",
+                yaml_map(vec![("enabled", Value::Bool(false)), ("size", yaml_value(10_u64))]),
+            ),
+            (
+                "order_by",
+                yaml_map(vec![
+                    ("enabled", Value::Bool(false)),
+                    ("key", Value::String(String::new())),
+                    ("value", Value::String("asc".to_string())),
+                ]),
+            ),
+            ("selected", Value::Bool(false)),
+            ("title", Value::String(title)),
+            ("type", Value::String("list-operator".to_string())),
+            ("variable", Value::Sequence(Vec::new())),
+        ]),
         "llm" => yaml_map(vec![
             (
                 "context",

@@ -177,6 +177,111 @@ pub(super) fn build_node_visual_draft(
                     .to_string(),
             }))
         }
+        "variable-assigner" => Ok(Some(WorkflowNodeVisualDraft::VariableAssigner {
+            items: mapping_value(data_map, "items")
+                .and_then(Value::as_sequence)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_mapping)
+                        .map(|item| {
+                            let variable_selector =
+                                selector_draft(mapping_value(item, "variable_selector"));
+                            let value =
+                                mapping_value(item, "value").cloned().unwrap_or(Value::Null);
+                            WorkflowAssignmentDraft {
+                                raw_item: Value::Mapping(item.clone()),
+                                variable_selector_input: variable_selector.to_input(),
+                                variable_selector,
+                                operation: mapping_value(item, "operation")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or("over-write")
+                                    .to_string(),
+                                input_type: mapping_value(item, "input_type")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or("constant")
+                                    .to_string(),
+                                value_input: value_yaml_for_editor(&value).trim().to_string(),
+                                value,
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+        })),
+        "variable-aggregator" => Ok(Some(WorkflowNodeVisualDraft::VariableAggregator {
+            variables: mapping_value(data_map, "variables")
+                .and_then(Value::as_sequence)
+                .map(|items| {
+                    items.iter().map(|item| selector_draft(Some(item)).to_input()).collect()
+                })
+                .unwrap_or_default(),
+            output_type: mapping_value(data_map, "output_type")
+                .and_then(Value::as_str)
+                .unwrap_or("string")
+                .to_string(),
+        })),
+        "list-operator" => {
+            let filter = mapping_value(data_map, "filter_by").and_then(Value::as_mapping);
+            let order = mapping_value(data_map, "order_by").and_then(Value::as_mapping);
+            let limit = mapping_value(data_map, "limit").and_then(Value::as_mapping);
+            Ok(Some(WorkflowNodeVisualDraft::ListOperator {
+                variable: selector_draft(mapping_value(data_map, "variable")).to_input(),
+                conditions: filter
+                    .and_then(|map| mapping_value(map, "conditions"))
+                    .and_then(Value::as_sequence)
+                    .map(|items| {
+                        items
+                            .iter()
+                            .filter_map(Value::as_mapping)
+                            .map(|item| {
+                                let value =
+                                    mapping_value(item, "value").cloned().unwrap_or(Value::Null);
+                                WorkflowListConditionDraft {
+                                    raw_condition: Value::Mapping(item.clone()),
+                                    key: mapping_value(item, "key")
+                                        .and_then(Value::as_str)
+                                        .unwrap_or_default()
+                                        .to_string(),
+                                    comparison_operator: mapping_value(item, "comparison_operator")
+                                        .and_then(Value::as_str)
+                                        .unwrap_or("is")
+                                        .to_string(),
+                                    value_input: value_yaml_for_editor(&value).trim().to_string(),
+                                    value,
+                                }
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                filter_enabled: filter
+                    .and_then(|map| mapping_value(map, "enabled"))
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+                order_enabled: order
+                    .and_then(|map| mapping_value(map, "enabled"))
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+                order_key: order
+                    .and_then(|map| mapping_value(map, "key"))
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                order_direction: order
+                    .and_then(|map| mapping_value(map, "value"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("asc")
+                    .to_string(),
+                limit_enabled: limit
+                    .and_then(|map| mapping_value(map, "enabled"))
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+                limit_size: limit
+                    .and_then(|map| mapping_value(map, "size"))
+                    .map(scalar_value_to_string)
+                    .unwrap_or_else(|| "10".to_string()),
+            }))
+        }
         "llm" => {
             let model_map = mapping_value(data_map, "model").and_then(Value::as_mapping);
             let completion_params = model_map

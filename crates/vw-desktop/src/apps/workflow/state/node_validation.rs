@@ -700,6 +700,81 @@ pub(super) fn validate_node_editor_draft(
                 );
             }
         }
+        Some(WorkflowNodeVisualDraft::VariableAssigner { items }) => {
+            for (index, item) in items.iter().enumerate() {
+                if item.variable_selector.path.is_empty() {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("assigner.items[{index}].target"),
+                        "目标变量不能为空",
+                    );
+                }
+                if item.operation.trim().is_empty() {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("assigner.items[{index}].operation"),
+                        "赋值操作不能为空",
+                    );
+                }
+                if item.input_type == "variable"
+                    && !matches!(&item.value, Value::Sequence(parts) if !parts.is_empty())
+                {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("assigner.items[{index}].value"),
+                        "变量来源必须是选择器",
+                    );
+                }
+            }
+        }
+        Some(WorkflowNodeVisualDraft::VariableAggregator { variables, output_type }) => {
+            if variables.is_empty() {
+                push_validation_error(
+                    &mut field_errors,
+                    "aggregator.variables",
+                    "至少需要一个候选变量",
+                );
+            }
+            if variables
+                .iter()
+                .any(|item| WorkflowVariableSelectorDraft::from_input(item).path.is_empty())
+            {
+                push_validation_error(
+                    &mut field_errors,
+                    "aggregator.variables",
+                    "候选变量不能为空",
+                );
+            }
+            if output_type.trim().is_empty() {
+                push_validation_error(
+                    &mut field_errors,
+                    "aggregator.output_type",
+                    "输出类型不能为空",
+                );
+            }
+        }
+        Some(WorkflowNodeVisualDraft::ListOperator {
+            variable,
+            conditions,
+            filter_enabled,
+            limit_enabled,
+            limit_size,
+            ..
+        }) => {
+            if WorkflowVariableSelectorDraft::from_input(variable).path.is_empty() {
+                push_validation_error(&mut field_errors, "list.variable", "输入数组不能为空");
+            }
+            if *filter_enabled && conditions.is_empty() {
+                push_validation_error(
+                    &mut field_errors,
+                    "list.conditions",
+                    "启用过滤时至少需要一条条件",
+                );
+            }
+            if *limit_enabled && limit_size.trim().parse::<u64>().is_err() {
+                push_validation_error(&mut field_errors, "list.limit", "截取数量必须是非负整数");
+            }
+        }
         None => {}
     }
 

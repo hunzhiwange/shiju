@@ -556,6 +556,10 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             app.workflow_state.edit_node_editor_http_request(edit);
             Task::none()
         }
+        WorkflowMessage::NodeEditorDataNodeEdit(edit) => {
+            app.workflow_state.edit_node_editor_data_node(edit);
+            Task::none()
+        }
         WorkflowMessage::NodeEditorCodeLanguageChanged(value) => {
             app.workflow_state.set_node_editor_code_language(value);
             Task::none()
@@ -668,11 +672,7 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
                 .node_editor
                 .as_mut()
                 .map(|editor| {
-                    selection_cut_task(
-                        &mut editor.raw_data_editor,
-                        &node_editor_dsl_editor_id(),
-                    )
-                    .1
+                    selection_cut_task(&mut editor.raw_data_editor, &node_editor_dsl_editor_id()).1
                 })
                 .unwrap_or_else(Task::none);
             app.workflow_state.finish_node_editor_raw_edit(previous);
@@ -697,11 +697,8 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
                 .node_editor
                 .as_mut()
                 .map(|editor| {
-                    selection_delete_task(
-                        &mut editor.raw_data_editor,
-                        &node_editor_dsl_editor_id(),
-                    )
-                    .1
+                    selection_delete_task(&mut editor.raw_data_editor, &node_editor_dsl_editor_id())
+                        .1
                 })
                 .unwrap_or_else(Task::none);
             app.workflow_state.finish_node_editor_raw_edit(previous);

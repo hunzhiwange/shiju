@@ -43,6 +43,9 @@ mod classification_nodes_tests;
 #[path = "core_tests.rs"]
 mod core_tests;
 #[cfg(test)]
+#[path = "data_nodes_tests.rs"]
+mod data_nodes_tests;
+#[cfg(test)]
 #[path = "draft_build_tests.rs"]
 mod draft_build_tests;
 #[cfg(test)]
@@ -308,6 +311,23 @@ pub enum WorkflowNodeVisualDraft {
         retry_config: WorkflowNodeRetryDraft,
         error_strategy: String,
     },
+    VariableAssigner {
+        items: Vec<WorkflowAssignmentDraft>,
+    },
+    VariableAggregator {
+        variables: Vec<String>,
+        output_type: String,
+    },
+    ListOperator {
+        variable: String,
+        conditions: Vec<WorkflowListConditionDraft>,
+        filter_enabled: bool,
+        order_enabled: bool,
+        order_key: String,
+        order_direction: String,
+        limit_enabled: bool,
+        limit_size: String,
+    },
     IfElse {
         cases: Vec<WorkflowIfElseCaseDraft>,
     },
@@ -428,6 +448,52 @@ pub struct WorkflowParameterDraft {
     pub value_type: String,
     pub description: String,
     pub required: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct WorkflowAssignmentDraft {
+    pub raw_item: Value,
+    pub variable_selector: WorkflowVariableSelectorDraft,
+    pub variable_selector_input: String,
+    pub operation: String,
+    pub input_type: String,
+    pub value: Value,
+    pub value_input: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct WorkflowListConditionDraft {
+    pub raw_condition: Value,
+    pub key: String,
+    pub comparison_operator: String,
+    pub value: Value,
+    pub value_input: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum WorkflowDataNodeEdit {
+    AssignmentAdd,
+    AssignmentRemove(usize),
+    AssignmentTarget(usize, String),
+    AssignmentOperation(usize, String),
+    AssignmentInputType(usize, String),
+    AssignmentValue(usize, String),
+    AggregatorAdd,
+    AggregatorRemove(usize),
+    AggregatorVariable(usize, String),
+    AggregatorOutputType(String),
+    ListVariable(String),
+    ListFilterEnabled(bool),
+    ListConditionAdd,
+    ListConditionRemove(usize),
+    ListConditionKey(usize, String),
+    ListConditionOperator(usize, String),
+    ListConditionValue(usize, String),
+    ListOrderEnabled(bool),
+    ListOrderKey(String),
+    ListOrderDirection(String),
+    ListLimitEnabled(bool),
+    ListLimitSize(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

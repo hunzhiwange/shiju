@@ -9,9 +9,9 @@ use super::model::{
 #[cfg(not(target_arch = "wasm32"))]
 use super::model::{WorkflowViewport, load_document_from_text, serialize_workflow_yaml};
 use super::state::{
-    WorkflowAppEditorMode, WorkflowCanvasContextMenuTarget, WorkflowHttpRequestEdit,
-    WorkflowNodeEditorTab, WorkflowNodeFieldEdit, WorkflowRunInputDraft, WorkflowSavedAppSummary,
-    WorkflowStructuredNodeEdit, WorkflowVariablePanelKind,
+    WorkflowAppEditorMode, WorkflowCanvasContextMenuTarget, WorkflowDataNodeEdit,
+    WorkflowHttpRequestEdit, WorkflowNodeEditorTab, WorkflowNodeFieldEdit, WorkflowRunInputDraft,
+    WorkflowSavedAppSummary, WorkflowStructuredNodeEdit, WorkflowVariablePanelKind,
 };
 use crate::app::{App, Message};
 use iced::widget::text_editor;
@@ -220,6 +220,7 @@ pub enum WorkflowMessage {
     NodeEditorExtractorAddParameter,
     NodeEditorExtractorRemoveParameter(usize),
     NodeEditorHttpRequestEdit(WorkflowHttpRequestEdit),
+    NodeEditorDataNodeEdit(WorkflowDataNodeEdit),
     NodeEditorCodeLanguageChanged(String),
     NodeEditorCodeAddInputVariable,
     NodeEditorCodeRemoveInputVariable(usize),

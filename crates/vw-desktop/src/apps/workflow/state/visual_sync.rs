@@ -172,6 +172,95 @@ pub(super) fn apply_visual_draft_to_yaml(
                 ),
             );
         }
+        ("variable-assigner", WorkflowNodeVisualDraft::VariableAssigner { items }) => {
+            data_map.insert(
+                yaml_key("items"),
+                Value::Sequence(
+                    items
+                        .iter()
+                        .map(|item| {
+                            let mut map = item.raw_item.as_mapping().cloned().unwrap_or_default();
+                            map.insert(
+                                yaml_key("variable_selector"),
+                                selector_path_value(&item.variable_selector),
+                            );
+                            set_mapping_string(&mut map, "operation", &item.operation);
+                            set_mapping_string(&mut map, "input_type", &item.input_type);
+                            map.insert(yaml_key("value"), item.value.clone());
+                            Value::Mapping(map)
+                        })
+                        .collect(),
+                ),
+            );
+        }
+        (
+            "variable-aggregator",
+            WorkflowNodeVisualDraft::VariableAggregator { variables, output_type },
+        ) => {
+            data_map.insert(
+                yaml_key("variables"),
+                Value::Sequence(
+                    variables
+                        .iter()
+                        .map(|item| {
+                            selector_path_value(&WorkflowVariableSelectorDraft::from_input(item))
+                        })
+                        .collect(),
+                ),
+            );
+            set_mapping_string(data_map, "output_type", output_type);
+        }
+        (
+            "list-operator",
+            WorkflowNodeVisualDraft::ListOperator {
+                variable,
+                conditions,
+                filter_enabled,
+                order_enabled,
+                order_key,
+                order_direction,
+                limit_enabled,
+                limit_size,
+            },
+        ) => {
+            data_map.insert(
+                yaml_key("variable"),
+                selector_path_value(&WorkflowVariableSelectorDraft::from_input(variable)),
+            );
+            let filter = ensure_mapping_entry(data_map, "filter_by");
+            set_mapping_bool(filter, "enabled", *filter_enabled);
+            filter.insert(
+                yaml_key("conditions"),
+                Value::Sequence(
+                    conditions
+                        .iter()
+                        .map(|condition| {
+                            let mut map =
+                                condition.raw_condition.as_mapping().cloned().unwrap_or_default();
+                            set_mapping_string(&mut map, "key", &condition.key);
+                            set_mapping_string(
+                                &mut map,
+                                "comparison_operator",
+                                &condition.comparison_operator,
+                            );
+                            map.insert(yaml_key("value"), condition.value.clone());
+                            Value::Mapping(map)
+                        })
+                        .collect(),
+                ),
+            );
+            let order = ensure_mapping_entry(data_map, "order_by");
+            set_mapping_bool(order, "enabled", *order_enabled);
+            set_mapping_string(order, "key", order_key);
+            set_mapping_string(order, "value", order_direction);
+            let limit = ensure_mapping_entry(data_map, "limit");
+            set_mapping_bool(limit, "enabled", *limit_enabled);
+            let size = limit_size
+                .trim()
+                .parse::<u64>()
+                .map_err(|_| "列表截取数量必须是非负整数".to_string())?;
+            limit.insert(yaml_key("size"), serde_yaml::to_value(size).map_err(|e| e.to_string())?);
+        }
         (
             "question-classifier",
             WorkflowNodeVisualDraft::QuestionClassifier {

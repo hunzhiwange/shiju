@@ -55,6 +55,7 @@ fn pretty_block_type_maps_known_trimmed_empty_and_unknown_values() {
         ("loop", "循环"),
         ("variable-assigner", "变量赋值"),
         ("variable-aggregator", "变量聚合"),
+        ("list-operator", "列表操作"),
         ("agent", "Agent"),
         ("document-extractor", "文档提取"),
         ("  ", "节点"),
@@ -70,7 +71,7 @@ fn pretty_block_type_maps_known_trimmed_empty_and_unknown_values() {
 fn supported_node_types_exposes_ordered_descriptors() {
     let descriptors = supported_node_types();
 
-    assert_eq!(descriptors.len(), 15);
+    assert_eq!(descriptors.len(), 16);
     assert_eq!(descriptors.first().map(|item| item.block_type), Some("start"));
     assert_eq!(descriptors.first().map(|item| item.label), Some("开始"));
     assert_eq!(descriptors.last().map(|item| item.block_type), Some("agent"));
@@ -98,6 +99,7 @@ fn workflow_node_icon_maps_known_types_and_default() {
         ("loop", "refresh-cw"),
         ("variable-assigner", "variable"),
         ("variable-aggregator", "combine"),
+        ("list-operator", "list-filter"),
         ("agent", "bot-message-square"),
         ("unknown", "workflow"),
     ];
@@ -129,6 +131,7 @@ fn workflow_node_accent_color_maps_known_types_and_default() {
         ("loop", Color::from_rgb8(0x38, 0xB2, 0xAC)),
         ("variable-assigner", Color::from_rgb8(0x22, 0xC5, 0x5E)),
         ("variable-aggregator", Color::from_rgb8(0x0F, 0x76, 0x94)),
+        ("list-operator", Color::from_rgb8(0x25, 0x63, 0xEB)),
         ("agent", Color::from_rgb8(0xE1, 0x1D, 0x48)),
         ("unknown", Color::from_rgb8(0x64, 0x74, 0x8B)),
     ];

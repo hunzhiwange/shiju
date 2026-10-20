@@ -8,10 +8,12 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
+use tokio::time::{Duration, Instant, MissedTickBehavior};
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
 
 const WECOM_WS_URL: &str = "wss://openws.work.weixin.qq.com";
+const WECOM_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 
 #[derive(Clone)]
 pub struct WeComChannel {
@@ -43,6 +45,31 @@ impl WeComChannel {
             "cmd": "aibot_subscribe",
             "headers": {"req_id": format!("aibot_subscribe_{}", Uuid::new_v4())},
             "body": {"bot_id": self.bot_id, "secret": self.secret},
+        })
+    }
+
+    fn validate_subscription_ack(frame: &Value, request_id: &str) -> anyhow::Result<()> {
+        let ack_request_id = frame
+            .get("headers")
+            .and_then(|headers| headers.get("req_id"))
+            .and_then(Value::as_str)
+            .context("企微订阅响应缺少 headers.req_id")?;
+        if ack_request_id != request_id {
+            bail!("企微订阅响应 req_id 不匹配");
+        }
+
+        let errcode =
+            frame.get("errcode").and_then(Value::as_i64).context("企微订阅响应缺少 errcode")?;
+        if errcode != 0 {
+            bail!("企微订阅失败（errcode: {errcode}）");
+        }
+        Ok(())
+    }
+
+    fn heartbeat_frame() -> Value {
+        json!({
+            "cmd": "ping",
+            "headers": {"req_id": format!("ping_{}", Uuid::new_v4())},
         })
     }
 
@@ -136,13 +163,32 @@ impl Channel for WeComChannel {
             .await
             .context("连接企微 WebSocket 失败")?;
         let (mut write, mut read) = stream.split();
-        write.send(Message::Text(self.subscribe_frame().to_string().into())).await?;
+        let subscribe = self.subscribe_frame();
+        let subscribe_request_id =
+            subscribe["headers"]["req_id"].as_str().context("构造企微订阅请求失败")?.to_string();
+        write.send(Message::Text(subscribe.to_string().into())).await?;
+
+        let ack = read.next().await.context("企微 WebSocket 在订阅响应前已结束")??;
+        let Message::Text(ack) = ack else {
+            bail!("企微订阅响应不是文本帧");
+        };
+        let ack: Value = serde_json::from_str(ack.as_ref()).context("解析企微订阅响应失败")?;
+        Self::validate_subscription_ack(&ack, &subscribe_request_id)?;
 
         let (outbound_tx, mut outbound_rx) = mpsc::channel(32);
         *self.outbound.write().await = Some(outbound_tx);
+        let mut heartbeat = tokio::time::interval_at(
+            Instant::now() + WECOM_HEARTBEAT_INTERVAL,
+            WECOM_HEARTBEAT_INTERVAL,
+        );
+        heartbeat.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        tracing::info!("企微：已连接，正在监听消息...");
 
         loop {
             tokio::select! {
+                _ = heartbeat.tick() => {
+                    write.send(Message::Text(Self::heartbeat_frame().to_string().into())).await?;
+                }
                 outbound = outbound_rx.recv() => {
                     let Some(frame) = outbound else { bail!("企微 WebSocket 发送队列已关闭"); };
                     write.send(Message::Text(frame.to_string().into())).await?;

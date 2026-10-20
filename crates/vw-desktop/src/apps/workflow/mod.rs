@@ -9,6 +9,8 @@ pub mod state;
 pub mod view;
 
 #[cfg(test)]
+mod dify_node_editor_round_trip_tests;
+#[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
 #[cfg(test)]

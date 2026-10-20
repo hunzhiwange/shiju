@@ -220,7 +220,7 @@ pub struct WorkflowStartVariableSummary {
     pub value_type: String,
 }
 
-const WORKFLOW_NODE_TYPES: [WorkflowNodeTypeDescriptor; 16] = [
+const WORKFLOW_NODE_TYPES: [WorkflowNodeTypeDescriptor; 19] = [
     WorkflowNodeTypeDescriptor {
         block_type: "start",
         label: "开始",
@@ -238,6 +238,12 @@ const WORKFLOW_NODE_TYPES: [WorkflowNodeTypeDescriptor; 16] = [
         label: "回复",
         summary: "直接输出文本或模板结果。",
         icon: WorkflowNodeIconDescriptor { family: "lucide", name: "message-square-text" },
+    },
+    WorkflowNodeTypeDescriptor {
+        block_type: "end",
+        label: "结束",
+        summary: "结束工作流并返回结构化输出。",
+        icon: WorkflowNodeIconDescriptor { family: "lucide", name: "circle-check" },
     },
     WorkflowNodeTypeDescriptor {
         block_type: "if-else",
@@ -280,6 +286,18 @@ const WORKFLOW_NODE_TYPES: [WorkflowNodeTypeDescriptor; 16] = [
         label: "HTTP 请求",
         summary: "向外部接口发送请求。",
         icon: WorkflowNodeIconDescriptor { family: "lucide", name: "globe" },
+    },
+    WorkflowNodeTypeDescriptor {
+        block_type: "template-transform",
+        label: "模板转换",
+        summary: "使用模板组合变量并生成文本。",
+        icon: WorkflowNodeIconDescriptor { family: "lucide", name: "replace-all" },
+    },
+    WorkflowNodeTypeDescriptor {
+        block_type: "document-extractor",
+        label: "文档提取",
+        summary: "从文件变量中提取文档文本。",
+        icon: WorkflowNodeIconDescriptor { family: "lucide", name: "file-text" },
     },
     WorkflowNodeTypeDescriptor {
         block_type: "iteration",

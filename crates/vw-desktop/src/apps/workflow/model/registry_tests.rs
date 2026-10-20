@@ -71,7 +71,7 @@ fn pretty_block_type_maps_known_trimmed_empty_and_unknown_values() {
 fn supported_node_types_exposes_ordered_descriptors() {
     let descriptors = supported_node_types();
 
-    assert_eq!(descriptors.len(), 16);
+    assert_eq!(descriptors.len(), 19);
     assert_eq!(descriptors.first().map(|item| item.block_type), Some("start"));
     assert_eq!(descriptors.first().map(|item| item.label), Some("开始"));
     assert_eq!(descriptors.last().map(|item| item.block_type), Some("agent"));

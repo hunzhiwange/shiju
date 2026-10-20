@@ -65,6 +65,11 @@ fn node_editor_drawer_uses_two_fifths_of_the_workflow_width() {
 }
 
 #[test]
+fn node_editor_content_leaves_space_for_the_scrollbar() {
+    assert!(NODE_EDITOR_SCROLLBAR_GUTTER > 4.0);
+}
+
+#[test]
 fn modal_falls_back_from_missing_visual_tab_to_description() {
     let state = state_with_editor(editor_with_tab(WorkflowNodeEditorTab::Visual, None));
 

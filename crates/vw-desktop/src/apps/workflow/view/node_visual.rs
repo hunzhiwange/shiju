@@ -520,19 +520,21 @@ fn build_loop_section<'a>(
     for (index, item) in variables.iter().enumerate() {
         variable_list = variable_list.push(
             row![
-                text_input("ID", &item.id).on_input(move |v| data_node_message(
+                workflow_text_input("ID", &item.id, move |v| data_node_message(
                     WorkflowDataNodeEdit::LoopVariableId(index, v)
                 )),
-                text_input("名称", &item.label).on_input(move |v| data_node_message(
+                workflow_text_input("名称", &item.label, move |v| data_node_message(
                     WorkflowDataNodeEdit::LoopVariableLabel(index, v)
                 )),
-                text_input("类型", &item.value_type).on_input(move |v| data_node_message(
+                workflow_text_input("类型", &item.value_type, move |v| data_node_message(
                     WorkflowDataNodeEdit::LoopVariableType(index, v)
                 )),
-                text_input("初始值", &item.initial_value_input).on_input(move |v| {
+                workflow_text_input("初始值", &item.initial_value_input, move |v| {
                     data_node_message(WorkflowDataNodeEdit::LoopVariableValue(index, v))
                 }),
                 button(text("删除"))
+                    .style(danger_action_btn_style)
+                    .padding([8, 10])
                     .on_press(data_node_message(WorkflowDataNodeEdit::LoopVariableRemove(index))),
             ]
             .spacing(8),
@@ -542,16 +544,18 @@ fn build_loop_section<'a>(
     for (index, item) in conditions.iter().enumerate() {
         condition_list = condition_list.push(
             row![
-                text_input("变量选择器", &item.selector).on_input(move |v| data_node_message(
+                workflow_text_input("变量选择器", &item.selector, move |v| data_node_message(
                     WorkflowDataNodeEdit::LoopConditionSelector(index, v)
                 )),
-                text_input("操作符", &item.comparison_operator).on_input(move |v| {
+                workflow_text_input("操作符", &item.comparison_operator, move |v| {
                     data_node_message(WorkflowDataNodeEdit::LoopConditionOperator(index, v))
                 }),
-                text_input("比较值", &item.value_input).on_input(move |v| data_node_message(
+                workflow_text_input("比较值", &item.value_input, move |v| data_node_message(
                     WorkflowDataNodeEdit::LoopConditionValue(index, v)
                 )),
                 button(text("删除"))
+                    .style(danger_action_btn_style)
+                    .padding([8, 10])
                     .on_press(data_node_message(WorkflowDataNodeEdit::LoopConditionRemove(index))),
             ]
             .spacing(8),
@@ -560,10 +564,14 @@ fn build_loop_section<'a>(
     column![
         variable_list.push(
             button(text("新增循环变量"))
+                .style(rounded_action_btn_style)
+                .padding([8, 12])
                 .on_press(data_node_message(WorkflowDataNodeEdit::LoopVariableAdd))
         ),
         condition_list.push(
             button(text("新增终止条件"))
+                .style(rounded_action_btn_style)
+                .padding([8, 12])
                 .on_press(data_node_message(WorkflowDataNodeEdit::LoopConditionAdd))
         ),
         row![
@@ -630,17 +638,20 @@ fn build_question_classifier_section<'a>(
         list = list.push(
             container(
                 row![
-                    text_input("分类 ID", &class.id).on_input(move |value| Message::WorkflowTool(
+                    workflow_text_input("分类 ID", &class.id, move |value| Message::WorkflowTool(
                         WorkflowMessage::NodeEditorClassifierClassIdChanged(index, value)
                     )),
-                    text_input("分类名称", &class.name).on_input(move |value| {
+                    workflow_text_input("分类名称", &class.name, move |value| {
                         Message::WorkflowTool(
                             WorkflowMessage::NodeEditorClassifierClassNameChanged(index, value),
                         )
                     }),
-                    button(text("删除")).on_press(Message::WorkflowTool(
-                        WorkflowMessage::NodeEditorClassifierRemoveClass(index),
-                    )),
+                    button(text("删除"))
+                        .style(danger_action_btn_style)
+                        .padding([8, 10])
+                        .on_press(Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorClassifierRemoveClass(index),
+                        )),
                 ]
                 .spacing(8),
             )
@@ -652,6 +663,8 @@ fn build_question_classifier_section<'a>(
         build_structured_model_header(query, model),
         list.push(
             button(text("新增分类"))
+                .style(rounded_action_btn_style)
+                .padding([8, 12])
                 .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorClassifierAddClass))
         ),
         build_editor_field_validated(
@@ -685,22 +698,25 @@ fn build_parameter_extractor_section<'a>(
             container(
                 column![
                     row![
-                        text_input("参数名", &parameter.name).on_input(move |value| {
+                        workflow_text_input("参数名", &parameter.name, move |value| {
                             structured_message(WorkflowStructuredNodeEdit::ParameterName(
                                 index, value,
                             ))
                         }),
-                        text_input("类型", &parameter.value_type).on_input(move |value| {
+                        workflow_text_input("类型", &parameter.value_type, move |value| {
                             structured_message(WorkflowStructuredNodeEdit::ParameterType(
                                 index, value,
                             ))
                         }),
-                        button(text("删除")).on_press(Message::WorkflowTool(
-                            WorkflowMessage::NodeEditorExtractorRemoveParameter(index),
-                        )),
+                        button(text("删除"))
+                            .style(danger_action_btn_style)
+                            .padding([8, 10])
+                            .on_press(Message::WorkflowTool(
+                                WorkflowMessage::NodeEditorExtractorRemoveParameter(index),
+                            )),
                     ]
                     .spacing(8),
-                    text_input("参数说明", &parameter.description).on_input(move |value| {
+                    workflow_text_input("参数说明", &parameter.description, move |value| {
                         structured_message(WorkflowStructuredNodeEdit::ParameterDescription(
                             index, value,
                         ))
@@ -728,6 +744,8 @@ fn build_parameter_extractor_section<'a>(
         )),
         list.push(
             button(text("新增参数"))
+                .style(rounded_action_btn_style)
+                .padding([8, 12])
                 .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorExtractorAddParameter))
         ),
         build_editor_field(

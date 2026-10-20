@@ -659,6 +659,7 @@ fn node_messages_without_matching_state_are_safe_noops() {
         WorkflowMessage::NodeEditorTitleChanged("ignored".to_string()),
         WorkflowMessage::NodeEditorDescriptionChanged("ignored".to_string()),
         WorkflowMessage::NodeEditorDescriptionAction(editor_scroll()),
+        WorkflowMessage::NodeEditorScrollCaptured,
         WorkflowMessage::NodeEditorStartVariableHovered(Some(3)),
         WorkflowMessage::NodeEditorStartRemoveVariable(3),
         WorkflowMessage::NodeEditorStartCloseVariableEditor,

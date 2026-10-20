@@ -73,6 +73,7 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             app.workflow_state.node_editor_description_action(action);
             Task::none()
         }
+        WorkflowMessage::NodeEditorScrollCaptured => Task::none(),
         WorkflowMessage::NodeEditorStartAddVariable => {
             app.workflow_state.open_node_editor_start_variable_create();
             Task::none()

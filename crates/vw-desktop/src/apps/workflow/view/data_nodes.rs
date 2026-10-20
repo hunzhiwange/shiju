@@ -20,7 +20,10 @@ pub(super) fn build_variable_assigner_section<'a>(
                         &item.variable_selector_input,
                         move |v| { message(WorkflowDataNodeEdit::AssignmentTarget(index, v)) }
                     ),
-                    button("删除").on_press(message(WorkflowDataNodeEdit::AssignmentRemove(index))),
+                    button("删除")
+                        .style(danger_action_btn_style)
+                        .padding([8, 10])
+                        .on_press(message(WorkflowDataNodeEdit::AssignmentRemove(index))),
                 ]
                 .spacing(8),
                 row![
@@ -41,7 +44,14 @@ pub(super) fn build_variable_assigner_section<'a>(
             .spacing(6),
         );
     }
-    content.push(button("添加赋值").on_press(message(WorkflowDataNodeEdit::AssignmentAdd))).into()
+    content
+        .push(
+            button("添加赋值")
+                .style(rounded_action_btn_style)
+                .padding([8, 12])
+                .on_press(message(WorkflowDataNodeEdit::AssignmentAdd)),
+        )
+        .into()
 }
 
 pub(super) fn build_variable_aggregator_section<'a>(
@@ -58,13 +68,21 @@ pub(super) fn build_variable_aggregator_section<'a>(
                 workflow_text_input("候选变量，例如 start.value", variable, move |v| {
                     message(WorkflowDataNodeEdit::AggregatorVariable(index, v))
                 }),
-                button("删除").on_press(message(WorkflowDataNodeEdit::AggregatorRemove(index))),
+                button("删除")
+                    .style(danger_action_btn_style)
+                    .padding([8, 10])
+                    .on_press(message(WorkflowDataNodeEdit::AggregatorRemove(index))),
             ]
             .spacing(8),
         );
     }
     content
-        .push(button("添加候选变量").on_press(message(WorkflowDataNodeEdit::AggregatorAdd)))
+        .push(
+            button("添加候选变量")
+                .style(rounded_action_btn_style)
+                .padding([8, 12])
+                .on_press(message(WorkflowDataNodeEdit::AggregatorAdd)),
+        )
         .into()
 }
 
@@ -103,13 +121,21 @@ pub(super) fn build_list_operator_section<'a>(
                 workflow_text_input("值", &condition.value_input, move |v| message(
                     WorkflowDataNodeEdit::ListConditionValue(index, v)
                 )),
-                button("删除").on_press(message(WorkflowDataNodeEdit::ListConditionRemove(index))),
+                button("删除")
+                    .style(danger_action_btn_style)
+                    .padding([8, 10])
+                    .on_press(message(WorkflowDataNodeEdit::ListConditionRemove(index))),
             ]
             .spacing(6),
         );
     }
     content
-        .push(button("添加过滤条件").on_press(message(WorkflowDataNodeEdit::ListConditionAdd)))
+        .push(
+            button("添加过滤条件")
+                .style(rounded_action_btn_style)
+                .padding([8, 12])
+                .on_press(message(WorkflowDataNodeEdit::ListConditionAdd)),
+        )
         .push(
             row![
                 toggler(order_enabled)

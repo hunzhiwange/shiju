@@ -4,10 +4,11 @@ use super::*;
 use crate::app::components::text_editor_context_menu::{
     TextEditorContextMenuMessages, TextEditorContextMenuState, wrap_with_context_menu,
 };
-use iced::widget::{column, opaque, row};
+use iced::widget::{column, mouse_area, opaque, row};
 
 const NODE_EDITOR_CANVAS_PORTION: u16 = 3;
 const NODE_EDITOR_DRAWER_PORTION: u16 = 2;
+const NODE_EDITOR_SCROLLBAR_GUTTER: f32 = 12.0;
 
 /// 构建 node editor modal 对应的界面元素。
 ///
@@ -49,7 +50,7 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
 
     let scroll_content = container(content).width(Length::Fill).padding(iced::Padding {
         top: 0.0,
-        right: 4.0,
+        right: NODE_EDITOR_SCROLLBAR_GUTTER,
         bottom: 0.0,
         left: 0.0,
     });
@@ -60,7 +61,7 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
         .then(|| build_node_validation_summary(&editor.validation))
         .unwrap_or_else(|| container(Space::new().height(0)).into());
 
-    let drawer = opaque(
+    let drawer = opaque(mouse_area(
         container(
             column![
                 build_node_editor_header(editor),
@@ -77,7 +78,8 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
         .height(Length::Fill)
         .padding([18, 20])
         .style(node_editor_drawer_style),
-    );
+    )
+    .on_scroll(|_| Message::WorkflowTool(WorkflowMessage::NodeEditorScrollCaptured)));
 
     row![
         Space::new().width(Length::FillPortion(NODE_EDITOR_CANVAS_PORTION)),

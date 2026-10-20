@@ -122,6 +122,7 @@ pub enum WorkflowMessage {
     NodeEditorTitleChanged(String),
     NodeEditorDescriptionChanged(String),
     NodeEditorDescriptionAction(text_editor::Action),
+    NodeEditorScrollCaptured,
     NodeEditorStartAddVariable,
     NodeEditorStartVariableHovered(Option<usize>),
     NodeEditorStartRemoveVariable(usize),

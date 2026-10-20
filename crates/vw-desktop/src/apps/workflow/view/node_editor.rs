@@ -280,10 +280,7 @@ pub(super) fn build_node_advanced_dsl_section<'a>(
         },
     );
 
-    container(editor)
-    .padding(0)
-    .style(value_card_style)
-    .into()
+    container(editor).padding(0).style(value_card_style).into()
 }
 
 fn node_editor_dsl_key_binding(
@@ -297,14 +294,10 @@ fn node_editor_dsl_key_binding(
         {
             Some(WorkflowMessage::NodeEditorDslRedo)
         }
-        iced::keyboard::Key::Character(value)
-            if command && value.eq_ignore_ascii_case("z") =>
-        {
+        iced::keyboard::Key::Character(value) if command && value.eq_ignore_ascii_case("z") => {
             Some(WorkflowMessage::NodeEditorDslUndo)
         }
-        iced::keyboard::Key::Character(value)
-            if command && value.eq_ignore_ascii_case("y") =>
-        {
+        iced::keyboard::Key::Character(value) if command && value.eq_ignore_ascii_case("y") => {
             Some(WorkflowMessage::NodeEditorDslRedo)
         }
         _ => None,

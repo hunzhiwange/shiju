@@ -139,10 +139,8 @@ fn node_editor_parts_build_individually() {
         WorkflowNodeEditorTab::AdvancedDsl,
         Some(answer_visual()),
     ));
-    let _advanced = build_node_advanced_dsl_section(
-        &state,
-        state.node_editor.as_ref().expect("node editor"),
-    );
+    let _advanced =
+        build_node_advanced_dsl_section(&state, state.node_editor.as_ref().expect("node editor"));
     let _placeholder = build_node_visual_placeholder();
 }
 
@@ -197,18 +195,12 @@ fn start_variable_type_option_supports_equality_and_copy() {
 
 #[test]
 fn advanced_dsl_shortcuts_use_platform_command_for_undo_and_redo() {
-    let undo = node_editor_dsl_key_binding(dsl_key_press(
-        "z",
-        keyboard::Modifiers::COMMAND,
-    ));
+    let undo = node_editor_dsl_key_binding(dsl_key_press("z", keyboard::Modifiers::COMMAND));
     let redo_with_shift = node_editor_dsl_key_binding(dsl_key_press(
         "z",
         keyboard::Modifiers::COMMAND | keyboard::Modifiers::SHIFT,
     ));
-    let redo_with_y = node_editor_dsl_key_binding(dsl_key_press(
-        "y",
-        keyboard::Modifiers::COMMAND,
-    ));
+    let redo_with_y = node_editor_dsl_key_binding(dsl_key_press("y", keyboard::Modifiers::COMMAND));
 
     assert!(matches!(
         undo,

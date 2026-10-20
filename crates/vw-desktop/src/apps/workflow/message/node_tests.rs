@@ -148,10 +148,7 @@ fn advanced_dsl_context_menu_opens_and_closes_for_editor_actions() {
         WorkflowMessage::NodeEditorDslContextMenuPaste,
         WorkflowMessage::NodeEditorDslContextMenuDelete,
     ] {
-        node_message(
-            &mut app,
-            WorkflowMessage::NodeEditorDslOpenContextMenu { x: 3.0, y: 4.0 },
-        );
+        node_message(&mut app, WorkflowMessage::NodeEditorDslOpenContextMenu { x: 3.0, y: 4.0 });
         node_message(&mut app, action);
         assert!(!app.workflow_state.node_editor_dsl_context_menu_open);
         assert!(app.workflow_state.node_editor_dsl_context_menu_pos.is_none());
@@ -162,43 +159,23 @@ fn advanced_dsl_context_menu_opens_and_closes_for_editor_actions() {
 fn advanced_dsl_undo_and_redo_restore_editor_text() {
     let mut app = App::new().0;
     open_create_editor(&mut app, "answer");
-    let original = app
-        .workflow_state
-        .node_editor
-        .as_ref()
-        .expect("node editor")
-        .raw_data_editor
-        .text();
+    let original =
+        app.workflow_state.node_editor.as_ref().expect("node editor").raw_data_editor.text();
 
     node_message(&mut app, WorkflowMessage::NodeEditorDataAction(editor_paste("\nextra: true")));
-    let edited = app
-        .workflow_state
-        .node_editor
-        .as_ref()
-        .expect("node editor")
-        .raw_data_editor
-        .text();
+    let edited =
+        app.workflow_state.node_editor.as_ref().expect("node editor").raw_data_editor.text();
     assert_ne!(edited, original);
 
     node_message(&mut app, WorkflowMessage::NodeEditorDslUndo);
     assert_eq!(
-        app.workflow_state
-            .node_editor
-            .as_ref()
-            .expect("node editor")
-            .raw_data_editor
-            .text(),
+        app.workflow_state.node_editor.as_ref().expect("node editor").raw_data_editor.text(),
         original
     );
 
     node_message(&mut app, WorkflowMessage::NodeEditorDslRedo);
     assert_eq!(
-        app.workflow_state
-            .node_editor
-            .as_ref()
-            .expect("node editor")
-            .raw_data_editor
-            .text(),
+        app.workflow_state.node_editor.as_ref().expect("node editor").raw_data_editor.text(),
         edited
     );
 }

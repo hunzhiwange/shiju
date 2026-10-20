@@ -294,9 +294,9 @@ pub(super) fn context_menu<'a, Message: Clone + 'a>(
             ]
             .align_y(Alignment::Center),
         )
-            .width(Length::Fill)
-            .style(menu_button_style)
-            .on_press(message)
+        .width(Length::Fill)
+        .style(menu_button_style)
+        .on_press(message)
     };
     let mut actions = column![
         menu_button("复制选择", copy_shortcut(), messages.copy),
@@ -313,10 +313,7 @@ pub(super) fn context_menu<'a, Message: Clone + 'a>(
         actions = actions.push(menu_button("重做", redo_shortcut(), message));
     }
 
-    container(actions)
-    .padding(6)
-    .style(popover_style)
-    .into()
+    container(actions).padding(6).style(popover_style).into()
 }
 
 fn copy_context_menu<'a, Message: Clone + 'a>(copy: Message) -> Element<'a, Message> {
@@ -326,9 +323,9 @@ fn copy_context_menu<'a, Message: Clone + 'a>(copy: Message) -> Element<'a, Mess
             Space::new().width(Length::Fill),
             text(copy_shortcut()).size(11).style(shortcut_text_style),
         ])
-            .width(Length::Fixed(144.0))
-            .style(menu_button_style)
-            .on_press(copy),
+        .width(Length::Fixed(144.0))
+        .style(menu_button_style)
+        .on_press(copy),
     )
     .padding(6)
     .style(popover_style)

@@ -100,9 +100,7 @@ fn item_view(app: &App, index: usize) -> Element<'_, Message> {
         column![
             row![
                 text(format!("快捷项 {}", index + 1)).size(12).style(settings_muted_text_style),
-                container(actions)
-                    .width(Length::Fill)
-                    .align_x(iced::alignment::Horizontal::Right),
+                container(actions).width(Length::Fill).align_x(iced::alignment::Horizontal::Right),
             ]
             .spacing(10)
             .align_y(Alignment::Center),

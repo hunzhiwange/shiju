@@ -223,15 +223,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .height(Length::Fill)
                 .into()
         }
-        AgentConfigTab::QuickMessages => {
-            scrollable(
-                container(crate::app::components::system_settings_quick_messages::view(app))
-                    .padding(iced::Padding { left: 8.0, right: 16.0, ..Default::default() }),
-            )
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill)
-                .into()
-        }
+        AgentConfigTab::QuickMessages => scrollable(
+            container(crate::app::components::system_settings_quick_messages::view(app))
+                .padding(iced::Padding { left: 8.0, right: 16.0, ..Default::default() }),
+        )
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fill)
+        .into(),
         AgentConfigTab::Heartbeat => {
             scrollable(container(crate::app::components::system_settings_heartbeat::view(app)))
                 .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))

@@ -7,8 +7,8 @@ use clap::Subcommand;
 use serde::Deserialize;
 use serde_json::json;
 use vw_gateway_client::{
-    ShijuCredential, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery,
-    ShijuSystemSkillQuery, SkillMarketSkillLocatorDto, SkillMarketSkillQuery,
+    ShijuCredential, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery,
+    SkillMarketSkillLocatorDto, SkillMarketSkillQuery,
 };
 
 use super::context::ApiContext;

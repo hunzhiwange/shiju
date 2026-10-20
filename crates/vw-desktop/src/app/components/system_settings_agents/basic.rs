@@ -203,12 +203,14 @@ pub(super) fn view<'a>(
     let registration_section: Option<Element<'_, Message>> = if registration_rows.is_empty() {
         None
     } else {
-        Some(column![
-            section_card("可用性", "控制该智能体是否作为可用 Agent 暴露。"),
-            column(registration_rows).spacing(14),
-        ]
-        .spacing(14)
-        .into())
+        Some(
+            column![
+                section_card("可用性", "控制该智能体是否作为可用 Agent 暴露。"),
+                column(registration_rows).spacing(14),
+            ]
+            .spacing(14)
+            .into(),
+        )
     };
 
     let allow_as_subagent_row = row![

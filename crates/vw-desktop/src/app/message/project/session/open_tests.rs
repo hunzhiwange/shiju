@@ -173,13 +173,10 @@ fn merge_project_sessions_replaces_existing_summary() {
 
 #[test]
 fn merge_project_sessions_keeps_incoming_order_and_unique_existing_sessions() {
-    let incoming = (0..2_000)
-        .map(|index| session_info(&format!("incoming-{index}"), 0, 0))
-        .collect();
+    let incoming =
+        (0..2_000).map(|index| session_info(&format!("incoming-{index}"), 0, 0)).collect();
     let mut existing = vec![session_info("incoming-0", 1, 1)];
-    existing.extend(
-        (0..2_000).map(|index| session_info(&format!("existing-{index}"), 0, 0)),
-    );
+    existing.extend((0..2_000).map(|index| session_info(&format!("existing-{index}"), 0, 0)));
     existing.push(session_info("existing-0", 2, 2));
 
     let merged = super::merge_project_sessions(Some(existing), incoming);

@@ -9,6 +9,27 @@ pub use vw_config_types::channels::chat::{ChannelsConfig, default_channel_messag
 use crate::app::agent::config::traits::ChannelConfig;
 use crate::app::agent::config::traits::ConfigHandle;
 use vw_config_types::channels::other::QQReceiveMode;
+use vw_config_types::channels::{WeChatConfig, WeComConfig};
+
+impl ChannelConfig for WeComConfig {
+    fn name() -> &'static str {
+        "WeCom"
+    }
+
+    fn desc() -> &'static str {
+        "WeCom Bot"
+    }
+}
+
+impl ChannelConfig for WeChatConfig {
+    fn name() -> &'static str {
+        "WeChat"
+    }
+
+    fn desc() -> &'static str {
+        "WeChat Bot"
+    }
+}
 
 /// 聊天通道配置的代理侧扩展方法。
 ///
@@ -107,6 +128,18 @@ impl ChannelsConfigExt for ChannelsConfig {
             (
                 Box::new(ConfigWrapper::new(self.dingtalk.as_ref())),
                 self.dingtalk.is_some(),
+            ),
+            (
+                Box::new(ConfigWrapper::new(self.wecom.as_ref())),
+                self.wecom
+                    .as_ref()
+                    .is_some_and(|wecom| wecom.has_required_credentials()),
+            ),
+            (
+                Box::new(ConfigWrapper::new(self.wechat.as_ref())),
+                self.wechat
+                    .as_ref()
+                    .is_some_and(|wechat| wechat.has_required_credentials()),
             ),
             (
                 Box::new(ConfigWrapper::new(self.qq.as_ref())),

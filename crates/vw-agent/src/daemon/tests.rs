@@ -22,6 +22,7 @@ mod tests {
     };
     use tempfile::TempDir;
     use vw_api_types::common::TimestampMs;
+    use vw_config_types::channels::{WeChatConfig, WeComConfig};
 
     /// 创建用于测试的配置对象
     ///
@@ -347,6 +348,34 @@ mod tests {
             app_secret: "app-secret".into(),
             allowed_users: vec!["*".into()],
             receive_mode: crate::app::agent::config::schema::QQReceiveMode::Websocket,
+        });
+        assert!(has_supervised_channels(&config));
+    }
+
+    #[test]
+    fn detects_qq_webhook_as_gateway_only() {
+        let mut config = Config::default();
+        config.channels_config.qq = Some(crate::app::agent::config::schema::QQConfig {
+            app_id: "app-id".into(),
+            app_secret: "app-secret".into(),
+            allowed_users: vec!["*".into()],
+            receive_mode: crate::app::agent::config::schema::QQReceiveMode::Webhook,
+        });
+
+        assert!(!has_supervised_channels(&config));
+    }
+
+    #[test]
+    fn detects_wecom_and_wechat_as_supervised_channels() {
+        let mut config = Config::default();
+        config.channels_config.wecom =
+            Some(WeComConfig { bot_id: "bot-id".into(), secret: "secret".into() });
+        assert!(has_supervised_channels(&config));
+
+        config.channels_config.wecom = None;
+        config.channels_config.wechat = Some(WeChatConfig {
+            bot_token: "bot-token".into(),
+            base_url: "https://ilinkai.weixin.qq.com".into(),
         });
         assert!(has_supervised_channels(&config));
     }

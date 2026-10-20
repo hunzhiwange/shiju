@@ -3,9 +3,10 @@
 use super::chat::ChannelsConfigExt;
 use super::other::{QQConfig, QQReceiveMode};
 use super::{
-    ChannelsConfig, FeishuConfig, FeishuInstanceConfig, LarkConfig, LarkReceiveMode,
-    TelegramConfig, WebhookConfig,
+    ChannelsConfig, DingTalkConfig, FeishuConfig, FeishuInstanceConfig, LarkConfig,
+    LarkReceiveMode, TelegramConfig, WebhookConfig,
 };
+use vw_config_types::channels::{WeChatConfig, WeComConfig};
 
 fn feishu_config(app_id: &str, app_secret: &str) -> FeishuConfig {
     FeishuConfig {
@@ -79,4 +80,58 @@ fn blank_feishu_is_not_reported_as_enabled() {
             .iter()
             .all(|(handle, enabled)| !matches!(handle.name(), "Lark" | "Feishu") || !*enabled)
     );
+}
+
+#[test]
+fn channels_except_webhook_reports_enterprise_channels_with_runtime_eligibility() {
+    let config = ChannelsConfig {
+        feishu: Some(feishu_config("app-id", "app-secret")),
+        dingtalk: Some(DingTalkConfig {
+            client_id: "client-id".to_string(),
+            client_secret: "client-secret".to_string(),
+            allowed_users: Vec::new(),
+        }),
+        wecom: Some(WeComConfig { bot_id: "bot-id".to_string(), secret: "secret".to_string() }),
+        wechat: Some(WeChatConfig {
+            bot_token: "bot-token".to_string(),
+            base_url: "https://ilinkai.weixin.qq.com".to_string(),
+        }),
+        qq: Some(QQConfig {
+            app_id: "app-id".to_string(),
+            app_secret: "app-secret".to_string(),
+            allowed_users: Vec::new(),
+            receive_mode: QQReceiveMode::Websocket,
+        }),
+        ..Default::default()
+    };
+
+    let channels = config.channels_except_webhook();
+    for name in ["Feishu", "DingTalk", "WeCom", "WeChat", "QQ Official"] {
+        assert!(
+            channels.iter().any(|(handle, enabled)| handle.name() == name && *enabled),
+            "{name} should be reported as runtime eligible"
+        );
+    }
+
+    let ineligible = ChannelsConfig {
+        wecom: Some(WeComConfig { bot_id: "bot-id".to_string(), secret: " ".to_string() }),
+        wechat: Some(WeChatConfig {
+            bot_token: "bot-token".to_string(),
+            base_url: "http://untrusted.example.com".to_string(),
+        }),
+        qq: Some(QQConfig {
+            app_id: "app-id".to_string(),
+            app_secret: "app-secret".to_string(),
+            allowed_users: Vec::new(),
+            receive_mode: QQReceiveMode::Webhook,
+        }),
+        ..Default::default()
+    };
+    let channels = ineligible.channels_except_webhook();
+    for name in ["WeCom", "WeChat", "QQ Official"] {
+        assert!(
+            channels.iter().any(|(handle, enabled)| handle.name() == name && !*enabled),
+            "{name} should remain listed but not runtime eligible"
+        );
+    }
 }

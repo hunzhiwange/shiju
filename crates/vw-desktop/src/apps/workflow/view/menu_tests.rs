@@ -129,7 +129,7 @@ fn context_node_picker_menu_includes_start_when_state_has_no_start() {
     let element =
         build_context_node_picker_menu(&state, "添加节点", "选择要创建的节点类型。", false);
 
-    assert_element_size(&element, Length::Fixed(208.0), Length::Shrink);
+    assert_element_size(&element, Length::Fixed(260.0), Length::Shrink);
     assert_eq!(context_node_picker_item_count(&element), node_types.len());
 }
 
@@ -144,7 +144,7 @@ fn context_node_picker_menu_excludes_start_when_requested() {
     let element =
         build_context_node_picker_menu(&state, "添加下游节点", "选择下游节点类型。", true);
 
-    assert_element_size(&element, Length::Fixed(208.0), Length::Shrink);
+    assert_element_size(&element, Length::Fixed(260.0), Length::Shrink);
     assert_eq!(context_node_picker_item_count(&element), node_types.len());
 }
 
@@ -164,7 +164,7 @@ fn context_node_picker_menu_excludes_start_when_document_already_has_start() {
 
     let element = build_context_node_picker_menu(&state, "添加节点", "开始节点已存在。", false);
 
-    assert_element_size(&element, Length::Fixed(208.0), Length::Shrink);
+    assert_element_size(&element, Length::Fixed(260.0), Length::Shrink);
     assert_eq!(context_node_picker_item_count(&element), node_types.len());
 }
 

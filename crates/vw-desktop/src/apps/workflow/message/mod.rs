@@ -295,6 +295,7 @@ pub enum WorkflowMessage {
     CancelConnection,
     CancelInteraction,
     OpenCanvasContextMenu(WorkflowCanvasContextMenuTarget, Point, Point),
+    CanvasContextMenuScrollCaptured,
     CloseCanvasContextMenu,
     DuplicateSelectedNode,
     DeleteSelectedNode,

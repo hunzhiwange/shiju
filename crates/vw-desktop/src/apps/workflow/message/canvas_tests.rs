@@ -144,6 +144,9 @@ fn context_delete_undo_redo_and_error_messages_are_dispatched() {
     assert!(app.workflow_state.context_menu.is_some());
     assert_eq!(app.workflow_state.selected_node_id.as_deref(), Some("a"));
 
+    canvas::handle(&mut app, WorkflowMessage::CanvasContextMenuScrollCaptured);
+    assert!(app.workflow_state.context_menu.is_some());
+
     canvas::handle(&mut app, WorkflowMessage::CloseCanvasContextMenu);
     assert!(app.workflow_state.context_menu.is_none());
 

@@ -3,6 +3,9 @@
 use super::*;
 use iced::widget::{column, row};
 
+const CONTEXT_NODE_PICKER_SCROLLBAR_GUTTER: f32 = 12.0;
+const CONTEXT_NODE_PICKER_WIDTH: f32 = 260.0;
+
 /// 提供 workflow node icon badge 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
@@ -79,14 +82,19 @@ pub(super) fn build_context_node_picker_menu(
                 text(description).size(10).style(settings_muted_text_style),
             ]
             .spacing(2),
-            scrollable(container(items).width(Length::Fill))
+            scrollable(container(items).width(Length::Fill).padding(iced::Padding {
+                top: 0.0,
+                right: CONTEXT_NODE_PICKER_SCROLLBAR_GUTTER,
+                bottom: 0.0,
+                left: 0.0,
+            }))
                 .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
                 .height(Length::Fixed(276.0))
                 .width(Length::Fill),
         ]
         .spacing(10),
     )
-    .width(Length::Fixed(208.0))
+    .width(Length::Fixed(CONTEXT_NODE_PICKER_WIDTH))
     .padding([10, 10])
     .style(floating_panel_style)
     .into()

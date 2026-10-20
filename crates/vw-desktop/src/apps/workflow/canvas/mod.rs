@@ -128,7 +128,7 @@ impl<'a> canvas::Program<Message> for WorkflowCanvas<'a> {
                 } else if let Some(edge_id) = self.hit_test_edge(cursor_pos, &handle_slots) {
                     (WorkflowCanvasContextMenuTarget::Edge(edge_id), Size::new(228.0, 84.0))
                 } else {
-                    (WorkflowCanvasContextMenuTarget::Canvas, Size::new(228.0, 332.0))
+                    (WorkflowCanvasContextMenuTarget::Canvas, Size::new(280.0, 332.0))
                 };
 
                 let anchor = Point::new(

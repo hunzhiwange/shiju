@@ -288,6 +288,7 @@ fn workflow_messages_clone_and_debug_cover_signal_variants() {
             Point::new(11.0, 12.0),
             Point::new(13.0, 14.0),
         ),
+        WorkflowMessage::CanvasContextMenuScrollCaptured,
         WorkflowMessage::CloseCanvasContextMenu,
         WorkflowMessage::DuplicateSelectedNode,
         WorkflowMessage::DeleteSelectedNode,

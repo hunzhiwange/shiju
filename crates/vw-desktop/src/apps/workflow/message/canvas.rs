@@ -75,6 +75,7 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             app.workflow_state.open_context_menu(target, anchor, world);
             Task::none()
         }
+        WorkflowMessage::CanvasContextMenuScrollCaptured => Task::none(),
         WorkflowMessage::CloseCanvasContextMenu => {
             app.workflow_state.close_context_menu();
             Task::none()

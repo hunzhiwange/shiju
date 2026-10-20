@@ -1,7 +1,7 @@
 //! 工作流画布外壳视图模块，负责组合画布区域、悬浮工具栏、上下文菜单和快速插入面板。
 
 use super::*;
-use iced::widget::{column, row};
+use iced::widget::{column, mouse_area, row};
 
 /// 构建 status chip 对应的界面元素。
 ///
@@ -248,6 +248,10 @@ pub(super) fn build_canvas_context_menu_overlay(state: &WorkflowState) -> Elemen
             build_context_node_picker_menu(state, "新增下游节点", "点击后自动关联到当前节点", true)
         }
     };
+
+    let menu_card = mouse_area(menu_card).on_scroll(|_| {
+        Message::WorkflowTool(WorkflowMessage::CanvasContextMenuScrollCaptured)
+    });
 
     container(
         column![

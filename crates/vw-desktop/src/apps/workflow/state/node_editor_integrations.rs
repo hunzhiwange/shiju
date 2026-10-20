@@ -888,6 +888,133 @@ fn apply_data_node_edit(draft: &mut WorkflowNodeVisualDraft, edit: WorkflowDataN
             WorkflowNodeVisualDraft::ListOperator { limit_size, .. },
             WorkflowDataNodeEdit::ListLimitSize(value),
         ) => *limit_size = value,
+        (
+            WorkflowNodeVisualDraft::Iteration { iterator_selector, .. },
+            WorkflowDataNodeEdit::IterationIterator(value),
+        ) => *iterator_selector = value,
+        (
+            WorkflowNodeVisualDraft::Iteration { output_selector, .. },
+            WorkflowDataNodeEdit::IterationOutput(value),
+        ) => *output_selector = value,
+        (
+            WorkflowNodeVisualDraft::Iteration { output_type, .. },
+            WorkflowDataNodeEdit::IterationOutputType(value),
+        ) => *output_type = value,
+        (
+            WorkflowNodeVisualDraft::Iteration { is_parallel, .. },
+            WorkflowDataNodeEdit::IterationParallel(value),
+        ) => *is_parallel = value,
+        (
+            WorkflowNodeVisualDraft::Iteration { parallel_nums, .. },
+            WorkflowDataNodeEdit::IterationParallelNums(value),
+        ) => *parallel_nums = value,
+        (
+            WorkflowNodeVisualDraft::Iteration { error_handle_mode, .. },
+            WorkflowDataNodeEdit::IterationErrorMode(value),
+        ) => *error_handle_mode = value,
+        (
+            WorkflowNodeVisualDraft::Loop { variables, .. },
+            WorkflowDataNodeEdit::LoopVariableAdd,
+        ) => variables.push(WorkflowLoopVariableDraft {
+            raw_variable: Value::Mapping(Mapping::new()),
+            id: String::new(),
+            label: String::new(),
+            value_type: "string".into(),
+            initial_value: Value::Null,
+            initial_value_input: String::new(),
+        }),
+        (
+            WorkflowNodeVisualDraft::Loop { variables, .. },
+            WorkflowDataNodeEdit::LoopVariableRemove(index),
+        ) => {
+            if index < variables.len() {
+                variables.remove(index);
+            }
+        }
+        (
+            WorkflowNodeVisualDraft::Loop { variables, .. },
+            WorkflowDataNodeEdit::LoopVariableId(index, value),
+        ) => {
+            if let Some(item) = variables.get_mut(index) {
+                item.id = value;
+            }
+        }
+        (
+            WorkflowNodeVisualDraft::Loop { variables, .. },
+            WorkflowDataNodeEdit::LoopVariableLabel(index, value),
+        ) => {
+            if let Some(item) = variables.get_mut(index) {
+                item.label = value;
+            }
+        }
+        (
+            WorkflowNodeVisualDraft::Loop { variables, .. },
+            WorkflowDataNodeEdit::LoopVariableType(index, value),
+        ) => {
+            if let Some(item) = variables.get_mut(index) {
+                item.value_type = value;
+            }
+        }
+        (
+            WorkflowNodeVisualDraft::Loop { variables, .. },
+            WorkflowDataNodeEdit::LoopVariableValue(index, value),
+        ) => {
+            if let Some(item) = variables.get_mut(index) {
+                item.initial_value = parse_data_value(&value);
+                item.initial_value_input = value;
+            }
+        }
+        (
+            WorkflowNodeVisualDraft::Loop { break_conditions, .. },
+            WorkflowDataNodeEdit::LoopConditionAdd,
+        ) => break_conditions.push(WorkflowLoopConditionDraft {
+            raw_condition: Value::Mapping(Mapping::new()),
+            selector: String::new(),
+            comparison_operator: "is".into(),
+            value: Value::Null,
+            value_input: String::new(),
+        }),
+        (
+            WorkflowNodeVisualDraft::Loop { break_conditions, .. },
+            WorkflowDataNodeEdit::LoopConditionRemove(index),
+        ) => {
+            if index < break_conditions.len() {
+                break_conditions.remove(index);
+            }
+        }
+        (
+            WorkflowNodeVisualDraft::Loop { break_conditions, .. },
+            WorkflowDataNodeEdit::LoopConditionSelector(index, value),
+        ) => {
+            if let Some(item) = break_conditions.get_mut(index) {
+                item.selector = value;
+            }
+        }
+        (
+            WorkflowNodeVisualDraft::Loop { break_conditions, .. },
+            WorkflowDataNodeEdit::LoopConditionOperator(index, value),
+        ) => {
+            if let Some(item) = break_conditions.get_mut(index) {
+                item.comparison_operator = value;
+            }
+        }
+        (
+            WorkflowNodeVisualDraft::Loop { break_conditions, .. },
+            WorkflowDataNodeEdit::LoopConditionValue(index, value),
+        ) => {
+            if let Some(item) = break_conditions.get_mut(index) {
+                item.value = parse_data_value(&value);
+                item.value_input = value;
+            }
+        }
+        (
+            WorkflowNodeVisualDraft::Loop { logical_operator, .. },
+            WorkflowDataNodeEdit::LoopLogicalOperator(value),
+        ) => *logical_operator = value,
+        (
+            WorkflowNodeVisualDraft::Loop { max_loop_count, .. },
+            WorkflowDataNodeEdit::LoopMaxCount(value),
+        ) => *max_loop_count = value,
         _ => return false,
     }
     true

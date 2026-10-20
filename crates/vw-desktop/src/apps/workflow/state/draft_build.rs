@@ -282,6 +282,90 @@ pub(super) fn build_node_visual_draft(
                     .unwrap_or_else(|| "10".to_string()),
             }))
         }
+        "iteration" => Ok(Some(WorkflowNodeVisualDraft::Iteration {
+            iterator_selector: selector_draft(mapping_value(data_map, "iterator_selector"))
+                .to_input(),
+            output_selector: selector_draft(mapping_value(data_map, "output_selector")).to_input(),
+            output_type: mapping_value(data_map, "output_type")
+                .and_then(Value::as_str)
+                .unwrap_or("array[string]")
+                .to_string(),
+            is_parallel: mapping_value(data_map, "is_parallel")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            parallel_nums: mapping_value(data_map, "parallel_nums")
+                .map(scalar_value_to_string)
+                .unwrap_or_else(|| "10".to_string()),
+            error_handle_mode: mapping_value(data_map, "error_handle_mode")
+                .and_then(Value::as_str)
+                .unwrap_or("terminated")
+                .to_string(),
+        })),
+        "loop" => Ok(Some(WorkflowNodeVisualDraft::Loop {
+            variables: mapping_value(data_map, "loop_variables")
+                .and_then(Value::as_sequence)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_mapping)
+                        .map(|item| {
+                            let initial_value =
+                                mapping_value(item, "value").cloned().unwrap_or(Value::Null);
+                            WorkflowLoopVariableDraft {
+                                raw_variable: Value::Mapping(item.clone()),
+                                id: mapping_value(item, "id")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or_default()
+                                    .to_string(),
+                                label: mapping_value(item, "label")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or_default()
+                                    .to_string(),
+                                value_type: mapping_value(item, "var_type")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or("string")
+                                    .to_string(),
+                                initial_value_input: value_yaml_for_editor(&initial_value)
+                                    .trim()
+                                    .to_string(),
+                                initial_value,
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            break_conditions: mapping_value(data_map, "break_conditions")
+                .and_then(Value::as_sequence)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_mapping)
+                        .map(|item| {
+                            let value =
+                                mapping_value(item, "value").cloned().unwrap_or(Value::Null);
+                            WorkflowLoopConditionDraft {
+                                raw_condition: Value::Mapping(item.clone()),
+                                selector: selector_draft(mapping_value(item, "variable_selector"))
+                                    .to_input(),
+                                comparison_operator: mapping_value(item, "comparison_operator")
+                                    .and_then(Value::as_str)
+                                    .unwrap_or("is")
+                                    .to_string(),
+                                value_input: value_yaml_for_editor(&value).trim().to_string(),
+                                value,
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            logical_operator: mapping_value(data_map, "logical_operator")
+                .and_then(Value::as_str)
+                .unwrap_or("and")
+                .to_string(),
+            max_loop_count: mapping_value(data_map, "max_loop_count")
+                .map(scalar_value_to_string)
+                .unwrap_or_else(|| "10".to_string()),
+        })),
         "llm" => {
             let model_map = mapping_value(data_map, "model").and_then(Value::as_mapping);
             let completion_params = model_map

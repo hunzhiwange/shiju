@@ -40,6 +40,9 @@ mod canvas_ops_tests;
 #[path = "classification_nodes_tests.rs"]
 mod classification_nodes_tests;
 #[cfg(test)]
+#[path = "container_nodes_tests.rs"]
+mod container_nodes_tests;
+#[cfg(test)]
 #[path = "core_tests.rs"]
 mod core_tests;
 #[cfg(test)]
@@ -328,6 +331,20 @@ pub enum WorkflowNodeVisualDraft {
         limit_enabled: bool,
         limit_size: String,
     },
+    Iteration {
+        iterator_selector: String,
+        output_selector: String,
+        output_type: String,
+        is_parallel: bool,
+        parallel_nums: String,
+        error_handle_mode: String,
+    },
+    Loop {
+        variables: Vec<WorkflowLoopVariableDraft>,
+        break_conditions: Vec<WorkflowLoopConditionDraft>,
+        logical_operator: String,
+        max_loop_count: String,
+    },
     IfElse {
         cases: Vec<WorkflowIfElseCaseDraft>,
     },
@@ -471,6 +488,25 @@ pub struct WorkflowListConditionDraft {
 }
 
 #[derive(Debug, Clone)]
+pub struct WorkflowLoopVariableDraft {
+    pub raw_variable: Value,
+    pub id: String,
+    pub label: String,
+    pub value_type: String,
+    pub initial_value: Value,
+    pub initial_value_input: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct WorkflowLoopConditionDraft {
+    pub raw_condition: Value,
+    pub selector: String,
+    pub comparison_operator: String,
+    pub value: Value,
+    pub value_input: String,
+}
+
+#[derive(Debug, Clone)]
 pub enum WorkflowDataNodeEdit {
     AssignmentAdd,
     AssignmentRemove(usize),
@@ -494,6 +530,25 @@ pub enum WorkflowDataNodeEdit {
     ListOrderDirection(String),
     ListLimitEnabled(bool),
     ListLimitSize(String),
+    IterationIterator(String),
+    IterationOutput(String),
+    IterationOutputType(String),
+    IterationParallel(bool),
+    IterationParallelNums(String),
+    IterationErrorMode(String),
+    LoopVariableAdd,
+    LoopVariableRemove(usize),
+    LoopVariableId(usize, String),
+    LoopVariableLabel(usize, String),
+    LoopVariableType(usize, String),
+    LoopVariableValue(usize, String),
+    LoopConditionAdd,
+    LoopConditionRemove(usize),
+    LoopConditionSelector(usize, String),
+    LoopConditionOperator(usize, String),
+    LoopConditionValue(usize, String),
+    LoopLogicalOperator(String),
+    LoopMaxCount(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

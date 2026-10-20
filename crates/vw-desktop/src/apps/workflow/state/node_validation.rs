@@ -775,6 +775,103 @@ pub(super) fn validate_node_editor_draft(
                 push_validation_error(&mut field_errors, "list.limit", "截取数量必须是非负整数");
             }
         }
+        Some(WorkflowNodeVisualDraft::Iteration {
+            iterator_selector,
+            output_selector,
+            output_type,
+            parallel_nums,
+            error_handle_mode,
+            ..
+        }) => {
+            if iterator_selector.trim().is_empty() {
+                push_validation_error(
+                    &mut field_errors,
+                    "iteration.iterator_selector",
+                    "迭代输入不能为空",
+                );
+            }
+            if output_selector.trim().is_empty() {
+                push_validation_error(
+                    &mut field_errors,
+                    "iteration.output_selector",
+                    "迭代输出不能为空",
+                );
+            }
+            if output_type.trim().is_empty() {
+                push_validation_error(
+                    &mut field_errors,
+                    "iteration.output_type",
+                    "输出类型不能为空",
+                );
+            }
+            if !matches!(parallel_nums.trim().parse::<u64>(), Ok(1..)) {
+                push_validation_error(
+                    &mut field_errors,
+                    "iteration.parallel_nums",
+                    "并行数量必须是正整数",
+                );
+            }
+            if error_handle_mode.trim().is_empty() {
+                push_validation_error(
+                    &mut field_errors,
+                    "iteration.error_handle_mode",
+                    "错误处理方式不能为空",
+                );
+            }
+        }
+        Some(WorkflowNodeVisualDraft::Loop {
+            variables,
+            break_conditions,
+            logical_operator,
+            max_loop_count,
+        }) => {
+            if !matches!(max_loop_count.trim().parse::<u64>(), Ok(1..)) {
+                push_validation_error(
+                    &mut field_errors,
+                    "loop.max_loop_count",
+                    "最大循环次数必须是正整数",
+                );
+            }
+            if !matches!(logical_operator.as_str(), "and" | "or") {
+                push_validation_error(
+                    &mut field_errors,
+                    "loop.logical_operator",
+                    "逻辑运算仅支持 and 或 or",
+                );
+            }
+            for (index, item) in variables.iter().enumerate() {
+                if item.id.trim().is_empty() {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("loop.variables[{index}].id"),
+                        "循环变量 ID 不能为空",
+                    );
+                }
+                if item.label.trim().is_empty() {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("loop.variables[{index}].label"),
+                        "循环变量名称不能为空",
+                    );
+                }
+            }
+            for (index, item) in break_conditions.iter().enumerate() {
+                if item.selector.trim().is_empty() {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("loop.break_conditions[{index}].selector"),
+                        "终止条件变量不能为空",
+                    );
+                }
+                if item.comparison_operator.trim().is_empty() {
+                    push_validation_error(
+                        &mut field_errors,
+                        &format!("loop.break_conditions[{index}].operator"),
+                        "终止条件操作符不能为空",
+                    );
+                }
+            }
+        }
         None => {}
     }
 

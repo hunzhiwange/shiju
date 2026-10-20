@@ -262,6 +262,98 @@ pub(super) fn apply_visual_draft_to_yaml(
             limit.insert(yaml_key("size"), serde_yaml::to_value(size).map_err(|e| e.to_string())?);
         }
         (
+            "iteration",
+            WorkflowNodeVisualDraft::Iteration {
+                iterator_selector,
+                output_selector,
+                output_type,
+                is_parallel,
+                parallel_nums,
+                error_handle_mode,
+            },
+        ) => {
+            data_map.insert(
+                yaml_key("iterator_selector"),
+                selector_path_value(&WorkflowVariableSelectorDraft::from_input(iterator_selector)),
+            );
+            data_map.insert(
+                yaml_key("output_selector"),
+                selector_path_value(&WorkflowVariableSelectorDraft::from_input(output_selector)),
+            );
+            set_mapping_string(data_map, "output_type", output_type);
+            set_mapping_bool(data_map, "is_parallel", *is_parallel);
+            let count = parallel_nums
+                .trim()
+                .parse::<u64>()
+                .map_err(|_| "并行数量必须是正整数".to_string())?;
+            data_map.insert(
+                yaml_key("parallel_nums"),
+                serde_yaml::to_value(count).map_err(|e| e.to_string())?,
+            );
+            set_mapping_string(data_map, "error_handle_mode", error_handle_mode);
+        }
+        (
+            "loop",
+            WorkflowNodeVisualDraft::Loop {
+                variables,
+                break_conditions,
+                logical_operator,
+                max_loop_count,
+            },
+        ) => {
+            data_map.insert(
+                yaml_key("loop_variables"),
+                Value::Sequence(
+                    variables
+                        .iter()
+                        .map(|item| {
+                            let mut map =
+                                item.raw_variable.as_mapping().cloned().unwrap_or_default();
+                            set_mapping_string(&mut map, "id", &item.id);
+                            set_mapping_string(&mut map, "label", &item.label);
+                            set_mapping_string(&mut map, "var_type", &item.value_type);
+                            map.insert(yaml_key("value"), item.initial_value.clone());
+                            Value::Mapping(map)
+                        })
+                        .collect(),
+                ),
+            );
+            data_map.insert(
+                yaml_key("break_conditions"),
+                Value::Sequence(
+                    break_conditions
+                        .iter()
+                        .map(|item| {
+                            let mut map =
+                                item.raw_condition.as_mapping().cloned().unwrap_or_default();
+                            map.insert(
+                                yaml_key("variable_selector"),
+                                selector_path_value(&WorkflowVariableSelectorDraft::from_input(
+                                    &item.selector,
+                                )),
+                            );
+                            set_mapping_string(
+                                &mut map,
+                                "comparison_operator",
+                                &item.comparison_operator,
+                            );
+                            map.insert(yaml_key("value"), item.value.clone());
+                            Value::Mapping(map)
+                        })
+                        .collect(),
+                ),
+            );
+            set_mapping_string(data_map, "logical_operator", logical_operator);
+            let count = max_loop_count
+                .trim()
+                .parse::<u64>()
+                .map_err(|_| "最大循环次数必须是正整数".to_string())?;
+            data_map.insert(
+                yaml_key("max_loop_count"),
+                serde_yaml::to_value(count).map_err(|e| e.to_string())?,
+            );
+        }
+        (
             "question-classifier",
             WorkflowNodeVisualDraft::QuestionClassifier {
                 query,

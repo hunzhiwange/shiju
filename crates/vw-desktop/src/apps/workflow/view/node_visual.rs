@@ -4,9 +4,9 @@ use super::node_editor_fields::{
     build_model_fields, build_named_value_list, build_variable_selector_field,
 };
 use super::state::{
-    WorkflowClassifierClassDraft, WorkflowModelDraft, WorkflowNodeEditorValidation,
-    WorkflowNodeFieldEdit, WorkflowParameterDraft, WorkflowStructuredNodeEdit,
-    WorkflowVariableSelectorDraft,
+    WorkflowClassifierClassDraft, WorkflowLoopConditionDraft, WorkflowLoopVariableDraft,
+    WorkflowModelDraft, WorkflowNodeEditorValidation, WorkflowNodeFieldEdit,
+    WorkflowParameterDraft, WorkflowStructuredNodeEdit, WorkflowVariableSelectorDraft,
 };
 use super::*;
 use iced::widget::{column, row};
@@ -359,6 +359,29 @@ pub(super) fn build_node_visual_section<'a>(
             *limit_enabled,
             limit_size,
         )),
+        WorkflowNodeVisualDraft::Iteration {
+            iterator_selector,
+            output_selector,
+            output_type,
+            is_parallel,
+            parallel_nums,
+            error_handle_mode,
+        } => Some(build_iteration_section(
+            iterator_selector,
+            output_selector,
+            output_type,
+            *is_parallel,
+            parallel_nums,
+            error_handle_mode,
+        )),
+        WorkflowNodeVisualDraft::Loop {
+            variables,
+            break_conditions,
+            logical_operator,
+            max_loop_count,
+        } => {
+            Some(build_loop_section(variables, break_conditions, logical_operator, max_loop_count))
+        }
         WorkflowNodeVisualDraft::Code {
             language,
             inputs,
@@ -380,6 +403,140 @@ pub(super) fn build_node_visual_section<'a>(
             default_value_editor,
         )),
     }
+}
+
+fn data_node_message(edit: WorkflowDataNodeEdit) -> Message {
+    Message::WorkflowTool(WorkflowMessage::NodeEditorDataNodeEdit(edit))
+}
+
+fn build_iteration_section<'a>(
+    iterator_selector: &'a str,
+    output_selector: &'a str,
+    output_type: &'a str,
+    is_parallel: bool,
+    parallel_nums: &'a str,
+    error_handle_mode: &'a str,
+) -> Element<'a, Message> {
+    column![
+        build_editor_field(
+            "迭代输入",
+            workflow_text_input("例如：start.items", iterator_selector, |v| data_node_message(
+                WorkflowDataNodeEdit::IterationIterator(v)
+            ))
+        ),
+        build_editor_field(
+            "迭代输出",
+            workflow_text_input("例如：iteration.item", output_selector, |v| data_node_message(
+                WorkflowDataNodeEdit::IterationOutput(v)
+            ))
+        ),
+        row![
+            build_editor_field(
+                "输出类型",
+                workflow_text_input("array[string]", output_type, |v| data_node_message(
+                    WorkflowDataNodeEdit::IterationOutputType(v)
+                ))
+            ),
+            build_editor_field(
+                "错误处理",
+                workflow_text_input("terminated", error_handle_mode, |v| data_node_message(
+                    WorkflowDataNodeEdit::IterationErrorMode(v)
+                ))
+            ),
+        ]
+        .spacing(12),
+        build_editor_field(
+            "并行执行",
+            row![
+                toggler(is_parallel)
+                    .on_toggle(|v| data_node_message(WorkflowDataNodeEdit::IterationParallel(v))),
+                workflow_text_input("并行数量", parallel_nums, |v| data_node_message(
+                    WorkflowDataNodeEdit::IterationParallelNums(v)
+                )),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .into()
+        ),
+    ]
+    .spacing(10)
+    .into()
+}
+
+fn build_loop_section<'a>(
+    variables: &'a [WorkflowLoopVariableDraft],
+    conditions: &'a [WorkflowLoopConditionDraft],
+    logical_operator: &'a str,
+    max_loop_count: &'a str,
+) -> Element<'a, Message> {
+    let mut variable_list = column![text("循环变量").size(13)].spacing(8);
+    for (index, item) in variables.iter().enumerate() {
+        variable_list = variable_list.push(
+            row![
+                text_input("ID", &item.id).on_input(move |v| data_node_message(
+                    WorkflowDataNodeEdit::LoopVariableId(index, v)
+                )),
+                text_input("名称", &item.label).on_input(move |v| data_node_message(
+                    WorkflowDataNodeEdit::LoopVariableLabel(index, v)
+                )),
+                text_input("类型", &item.value_type).on_input(move |v| data_node_message(
+                    WorkflowDataNodeEdit::LoopVariableType(index, v)
+                )),
+                text_input("初始值", &item.initial_value_input).on_input(move |v| {
+                    data_node_message(WorkflowDataNodeEdit::LoopVariableValue(index, v))
+                }),
+                button(text("删除"))
+                    .on_press(data_node_message(WorkflowDataNodeEdit::LoopVariableRemove(index))),
+            ]
+            .spacing(8),
+        );
+    }
+    let mut condition_list = column![text("终止条件").size(13)].spacing(8);
+    for (index, item) in conditions.iter().enumerate() {
+        condition_list = condition_list.push(
+            row![
+                text_input("变量选择器", &item.selector).on_input(move |v| data_node_message(
+                    WorkflowDataNodeEdit::LoopConditionSelector(index, v)
+                )),
+                text_input("操作符", &item.comparison_operator).on_input(move |v| {
+                    data_node_message(WorkflowDataNodeEdit::LoopConditionOperator(index, v))
+                }),
+                text_input("比较值", &item.value_input).on_input(move |v| data_node_message(
+                    WorkflowDataNodeEdit::LoopConditionValue(index, v)
+                )),
+                button(text("删除"))
+                    .on_press(data_node_message(WorkflowDataNodeEdit::LoopConditionRemove(index))),
+            ]
+            .spacing(8),
+        );
+    }
+    column![
+        variable_list.push(
+            button(text("新增循环变量"))
+                .on_press(data_node_message(WorkflowDataNodeEdit::LoopVariableAdd))
+        ),
+        condition_list.push(
+            button(text("新增终止条件"))
+                .on_press(data_node_message(WorkflowDataNodeEdit::LoopConditionAdd))
+        ),
+        row![
+            build_editor_field(
+                "条件关系",
+                workflow_text_input("and / or", logical_operator, |v| data_node_message(
+                    WorkflowDataNodeEdit::LoopLogicalOperator(v)
+                ))
+            ),
+            build_editor_field(
+                "最大循环次数",
+                workflow_text_input("10", max_loop_count, |v| data_node_message(
+                    WorkflowDataNodeEdit::LoopMaxCount(v)
+                ))
+            ),
+        ]
+        .spacing(12),
+    ]
+    .spacing(12)
+    .into()
 }
 
 fn structured_message(edit: WorkflowStructuredNodeEdit) -> Message {

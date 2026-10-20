@@ -8,6 +8,7 @@ use std::process::Command;
 use std::sync::Mutex;
 
 const SERVICE_ENV_NAMES: &[&str] = &[
+    "VIBEWINDOW_DATABASE_URL",
     "GEMINI_API_KEY",
     "GEMINI_CLI_CLIENT_ID",
     "GEMINI_CLI_CLIENT_SECRET",
@@ -82,12 +83,20 @@ fn env_builders_return_empty_strings_without_service_environment() {
 #[test]
 fn launchd_env_builder_xml_escapes_non_empty_values_and_skips_empty_values() {
     with_clean_service_env(|| {
+        EnvGuard::set(
+            "VIBEWINDOW_DATABASE_URL",
+            "postgres://db.example/vibe?sslmode=require&x=<y>",
+        );
         EnvGuard::set("OPENAI_API_KEY", "sk<&>\"'");
         EnvGuard::set("ANTHROPIC_API_KEY", "");
 
         let block = build_launchd_env_vars();
 
         assert!(block.starts_with("\n  <key>EnvironmentVariables</key>"));
+        assert!(block.contains("<key>VIBEWINDOW_DATABASE_URL</key>"));
+        assert!(block.contains(
+            "<string>postgres://db.example/vibe?sslmode=require&amp;x=&lt;y&gt;</string>"
+        ));
         assert!(block.contains("<key>OPENAI_API_KEY</key>"));
         assert!(block.contains("<string>sk&lt;&amp;&gt;&quot;&apos;</string>"));
         assert!(!block.contains("ANTHROPIC_API_KEY"));
@@ -112,12 +121,16 @@ fn launchd_env_builder_preserves_service_env_order_for_multiple_values() {
 #[test]
 fn systemd_env_builder_includes_non_empty_values_and_trailing_newline() {
     with_clean_service_env(|| {
+        EnvGuard::set("VIBEWINDOW_DATABASE_URL", "postgres://db.example/vibe");
         EnvGuard::set("OPENAI_API_KEY", "sk-test");
         EnvGuard::set("ANTHROPIC_API_KEY", "");
 
         let block = build_systemd_env_vars();
 
-        assert_eq!(block, "Environment=\"OPENAI_API_KEY=sk-test\"\n");
+        assert_eq!(
+            block,
+            "Environment=\"VIBEWINDOW_DATABASE_URL=postgres://db.example/vibe\"\nEnvironment=\"OPENAI_API_KEY=sk-test\"\n"
+        );
     });
 }
 

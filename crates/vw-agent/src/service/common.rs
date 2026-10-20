@@ -3,6 +3,7 @@ use std::process::Command;
 
 /// 需要转发到 launchd/systemd 服务的环境变量列表。
 const SERVICE_ENV_VARS: &[&str] = &[
+    "VIBEWINDOW_DATABASE_URL",
     "GEMINI_API_KEY",
     "GEMINI_CLI_CLIENT_ID",
     "GEMINI_CLI_CLIENT_SECRET",

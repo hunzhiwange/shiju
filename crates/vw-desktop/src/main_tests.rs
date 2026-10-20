@@ -145,3 +145,35 @@ fn iced_settings_include_default_font_and_embedded_fonts() {
     assert!(settings.antialiasing);
     assert!(settings.vsync);
 }
+
+#[test]
+fn channel_qr_flow_stops_on_close_and_fills_confirmed_credentials() {
+    let open = app::ChannelQrFlowSnapshot {
+        channel: Some("qq".to_string()),
+        generation: 7,
+        poll_in_flight: true,
+        credentials_ready: false,
+        configured: false,
+    };
+    assert!(open.accepts_result("qq", 7));
+
+    let closed = app::ChannelQrFlowSnapshot {
+        channel: None,
+        generation: 8,
+        poll_in_flight: false,
+        credentials_ready: false,
+        configured: false,
+    };
+    assert!(!closed.accepts_result("qq", 7));
+
+    let confirmed = app::ChannelQrFlowSnapshot {
+        channel: Some("qq".to_string()),
+        generation: 8,
+        poll_in_flight: false,
+        credentials_ready: true,
+        configured: true,
+    };
+    assert!(confirmed.accepts_result("qq", 8));
+    assert!(confirmed.credentials_ready);
+    assert!(confirmed.configured);
+}

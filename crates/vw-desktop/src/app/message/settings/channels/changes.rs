@@ -489,6 +489,26 @@ pub(super) fn apply_text_change(app: &mut App, key: &str, value: String) {
                 cfg.allowed_users = parse_comma_or_newline_list(&value);
             }
         }
+        "wecom.bot_id" => {
+            if let Some(cfg) = app.channels_settings.wecom.as_mut() {
+                cfg.bot_id = value;
+            }
+        }
+        "wecom.secret" => {
+            if let Some(cfg) = app.channels_settings.wecom.as_mut() {
+                cfg.secret = value;
+            }
+        }
+        "wechat.bot_token" => {
+            if let Some(cfg) = app.channels_settings.wechat.as_mut() {
+                cfg.bot_token = value;
+            }
+        }
+        "wechat.base_url" => {
+            if let Some(cfg) = app.channels_settings.wechat.as_mut() {
+                cfg.base_url = value;
+            }
+        }
         "nostr.private_key" => {
             if let Some(cfg) = app.channels_settings.nostr.as_mut() {
                 cfg.private_key = value;

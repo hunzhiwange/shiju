@@ -92,6 +92,16 @@ pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSet
             &["dingtalk", "钉钉"],
         ),
         SettingsTabDescriptor::new(ChannelsSettingsTab::Qq, "QQ", &["qq"]),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::WeCom,
+            "企业微信",
+            &["wecom", "企业微信", "扫码"],
+        ),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::WeChat,
+            "微信",
+            &["wechat", "微信", "扫码"],
+        ),
         SettingsTabDescriptor::new(ChannelsSettingsTab::Nostr, "Nostr", &["nostr"]),
         SettingsTabDescriptor::new(ChannelsSettingsTab::ClawdTalk, "ClawdTalk", &["clawdtalk"]),
     ]);
@@ -270,6 +280,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ChannelsSettingsTab::Feishu => enterprise_channels::feishu_panel(app),
         ChannelsSettingsTab::DingTalk => enterprise_channels::dingtalk_panel(app),
         ChannelsSettingsTab::Qq => enterprise_channels::qq_panel(app),
+        ChannelsSettingsTab::WeCom => enterprise_channels::wecom_panel(app),
+        ChannelsSettingsTab::WeChat => enterprise_channels::wechat_panel(app),
         ChannelsSettingsTab::Nostr => enterprise_channels::nostr_panel(app),
         ChannelsSettingsTab::ClawdTalk => enterprise_channels::clawdtalk_panel(app),
     };

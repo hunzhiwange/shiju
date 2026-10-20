@@ -148,6 +148,21 @@ pub use self::terminal::{Shell, TerminalState, TerminalTheme, build_palette};
 pub(crate) use self::ui_types::FocusArea;
 /// 对外暴露当前模块需要复用的能力。
 pub use self::ui_types::{DiffTheme, Message, Screen, SettingsTab, TodoPanelPlacement};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChannelQrFlowSnapshot {
+    pub channel: Option<String>,
+    pub generation: u64,
+    pub poll_in_flight: bool,
+    pub credentials_ready: bool,
+    pub configured: bool,
+}
+
+impl ChannelQrFlowSnapshot {
+    pub fn accepts_result(&self, channel: &str, generation: u64) -> bool {
+        self.channel.as_deref() == Some(channel) && self.generation == generation
+    }
+}
 /// 对外暴露当前模块需要复用的能力。
 pub use vw_config_types::ui::PreviewAutoSaveMode;
 /// 对外暴露当前模块需要复用的能力。

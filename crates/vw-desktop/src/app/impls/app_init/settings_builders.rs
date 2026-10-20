@@ -42,6 +42,7 @@ pub(super) fn build_channels_settings(
         message_timeout_secs: channels_cfg.message_timeout_secs.min(u32::MAX as u64) as u32,
         active_tab: super::state::ChannelsSettingsTab::Global,
         save_error: None,
+        qr_flow: Default::default(),
     };
     channels_settings.refresh_text_inputs();
     channels_settings

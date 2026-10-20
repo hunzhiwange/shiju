@@ -9,7 +9,7 @@ use vw_config_types::channels::{
     DEFAULT_CHANNEL_INSTANCE_ID, DingTalkInstanceConfig, DiscordConfig, FeishuInstanceConfig,
     IMessageConfig, IrcConfig, LarkConfig, LarkReceiveMode, LinqConfig, MattermostConfig,
     NextcloudTalkConfig, NostrConfig, QQConfig, QQReceiveMode, SignalConfig, SlackConfig,
-    TelegramConfig, WatiConfig, WebhookConfig, WhatsAppConfig,
+    TelegramConfig, WatiConfig, WeChatConfig, WeComConfig, WebhookConfig, WhatsAppConfig,
 };
 
 use super::helpers::{default_dingtalk_config, default_feishu_config};
@@ -169,6 +169,16 @@ pub(super) fn toggle_enabled(app: &mut App, channel: &str, enabled: bool) {
                 app_secret: String::new(),
                 allowed_users: Vec::new(),
                 receive_mode: QQReceiveMode::Webhook,
+            })
+        }
+        "wecom" => {
+            app.channels_settings.wecom =
+                enabled.then(|| WeComConfig { bot_id: String::new(), secret: String::new() })
+        }
+        "wechat" => {
+            app.channels_settings.wechat = enabled.then(|| WeChatConfig {
+                bot_token: String::new(),
+                base_url: vw_config_types::channels::DEFAULT_WECHAT_BASE_URL.to_string(),
             })
         }
         "nostr" => {

@@ -5,6 +5,9 @@ use super::*;
 use crate::app::App;
 use std::sync::Arc;
 use vw_config_types::channels::LarkReceiveMode;
+use vw_gateway_client::{
+    ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto,
+};
 
 fn app() -> App {
     let mut app = App::new().0;
@@ -205,4 +208,71 @@ fn channel_cli_toggle_rejects_disabling_the_last_entry() {
 
     assert!(!app.channels_settings.cli);
     assert!(app.channels_settings.save_error.as_deref().unwrap_or("").contains("至少保留一个"));
+}
+
+#[test]
+fn channel_qr_flow_stops_on_close_and_fills_confirmed_credentials() {
+    let mut app = app();
+    let channel = "qq".to_string();
+
+    let _ =
+        update(&mut app, SettingsMessage::Channels(ChannelsMessage::QrRequested(channel.clone())));
+    let generation = app.channels_settings.qr_flow.generation;
+    let _ = update(
+        &mut app,
+        SettingsMessage::Channels(ChannelsMessage::QrFetched {
+            channel: channel.clone(),
+            generation,
+            result: Ok(ChannelQrFetchResponseDto {
+                channel: channel.clone(),
+                qrcode_png_base64: "cG5n".to_string(),
+                handle: "one-time-handle".to_string(),
+                expires_at: "2026-10-20T12:00:00Z".to_string(),
+            }),
+        }),
+    );
+    assert_eq!(app.channels_settings.qr_flow.channel.as_deref(), Some("qq"));
+    assert!(app.channels_settings.qq.is_none(), "fetching must not fill credentials");
+
+    let _ = update(&mut app, SettingsMessage::Channels(ChannelsMessage::QrClosed));
+    let stale = ChannelQrStatusResponseDto {
+        status: ChannelQrStatusDto::Authorized,
+        credentials: Some(serde_json::Map::from_iter([
+            ("app_id".to_string(), serde_json::Value::String("stale-id".to_string())),
+            ("app_secret".to_string(), serde_json::Value::String("stale-secret".to_string())),
+        ])),
+    };
+    let _ = update(
+        &mut app,
+        SettingsMessage::Channels(ChannelsMessage::QrPolled {
+            channel: channel.clone(),
+            generation,
+            result: Ok(stale),
+        }),
+    );
+    assert!(app.channels_settings.qq.is_none(), "closing must invalidate an in-flight poll");
+
+    let next_generation = app.channels_settings.qr_flow.generation;
+    app.channels_settings.qr_flow.channel = Some(channel.clone());
+    app.channels_settings.qr_flow.handle = Some("next-handle".to_string());
+    let confirmed = ChannelQrStatusResponseDto {
+        status: ChannelQrStatusDto::Authorized,
+        credentials: Some(serde_json::Map::from_iter([
+            ("app_id".to_string(), serde_json::Value::String("confirmed-id".to_string())),
+            ("app_secret".to_string(), serde_json::Value::String("confirmed-secret".to_string())),
+        ])),
+    };
+    let _ = update(
+        &mut app,
+        SettingsMessage::Channels(ChannelsMessage::QrPolled {
+            channel,
+            generation: next_generation,
+            result: Ok(confirmed),
+        }),
+    );
+
+    let qq = app.channels_settings.qq.as_ref().expect("confirmed credentials should fill form");
+    assert_eq!(qq.app_id, "confirmed-id");
+    assert_eq!(qq.app_secret, "confirmed-secret");
+    assert!(!app.channels_settings.qr_flow.poll_in_flight);
 }

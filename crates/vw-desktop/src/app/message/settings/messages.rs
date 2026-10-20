@@ -264,6 +264,23 @@ pub enum ChannelsMessage {
     BoolToggled(String, bool),
     NumberChanged(String, u32),
     ReceiveModeChanged(String, String),
+    QrRequested(String),
+    QrFetched {
+        channel: String,
+        generation: u64,
+        result: Result<vw_gateway_client::ChannelQrFetchResponseDto, String>,
+    },
+    QrPollTick {
+        channel: String,
+        generation: u64,
+    },
+    QrPolled {
+        channel: String,
+        generation: u64,
+        result: Result<vw_gateway_client::ChannelQrStatusResponseDto, String>,
+    },
+    QrClosed,
+    QrSaveConfirmed,
 }
 
 /// 本地网关设置页消息。

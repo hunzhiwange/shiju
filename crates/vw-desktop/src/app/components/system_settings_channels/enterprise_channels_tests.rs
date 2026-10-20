@@ -5,7 +5,7 @@ use crate::app::{App, Message};
 use vw_config_types::channels::{
     ClawdTalkConfig, DingTalkConfig, DingTalkInstanceConfig, FeishuConfig, FeishuInstanceConfig,
     GroupReplyConfig, GroupReplyMode, LarkConfig, LarkReceiveMode, NostrConfig, QQConfig,
-    QQReceiveMode,
+    QQReceiveMode, WeChatConfig, WeComConfig,
 };
 
 // 企业渠道实例由用例显式注入，避免其他渠道配置污染标题回退。
@@ -62,6 +62,12 @@ fn configure_enterprise_channels(app: &mut App) {
         allowed_users: vec!["alice".to_string()],
         receive_mode: QQReceiveMode::Websocket,
     });
+    app.channels_settings.wecom =
+        Some(WeComConfig { bot_id: "wecom-bot".to_string(), secret: "wecom-secret".to_string() });
+    app.channels_settings.wechat = Some(WeChatConfig {
+        bot_token: "wechat-token".to_string(),
+        base_url: vw_config_types::channels::DEFAULT_WECHAT_BASE_URL.to_string(),
+    });
     app.channels_settings.nostr = Some(NostrConfig {
         private_key: "nsec".to_string(),
         relays: vec!["wss://relay.example".to_string()],
@@ -89,6 +95,8 @@ fn enterprise_panels_build_disabled_and_expanded_enabled_states() {
     keep_element(super::enterprise_channels::feishu_panel(&app));
     keep_element(super::enterprise_channels::dingtalk_panel(&app));
     keep_element(super::enterprise_channels::qq_panel(&app));
+    keep_element(super::enterprise_channels::wecom_panel(&app));
+    keep_element(super::enterprise_channels::wechat_panel(&app));
     keep_element(super::enterprise_channels::nostr_panel(&app));
     keep_element(super::enterprise_channels::clawdtalk_panel(&app));
 
@@ -97,8 +105,29 @@ fn enterprise_panels_build_disabled_and_expanded_enabled_states() {
     keep_element(super::enterprise_channels::feishu_panel(&app));
     keep_element(super::enterprise_channels::dingtalk_panel(&app));
     keep_element(super::enterprise_channels::qq_panel(&app));
+    keep_element(super::enterprise_channels::wecom_panel(&app));
+    keep_element(super::enterprise_channels::wechat_panel(&app));
     keep_element(super::enterprise_channels::nostr_panel(&app));
     keep_element(super::enterprise_channels::clawdtalk_panel(&app));
+}
+
+#[test]
+fn channel_qr_panels_build_real_image_path_with_non_ascii_labels() {
+    let mut app = test_app();
+    configure_enterprise_channels(&mut app);
+    app.channels_settings.qr_flow.channel = Some("wecom".to_string());
+    app.channels_settings.qr_flow.qrcode_png = Some(
+        base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        )
+        .expect("valid PNG fixture"),
+    );
+    app.channels_settings.qr_flow.status = Some(vw_gateway_client::ChannelQrStatusDto::Scanned);
+    app.channels_settings.qr_flow.expires_at = Some("2026-10-20T12:00:00Z".to_string());
+    app.channels_settings.qr_flow.credentials_ready = true;
+
+    keep_element(super::enterprise_channels::wecom_panel(&app));
 }
 
 #[test]

@@ -3,10 +3,13 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use crate::app::components::system_settings_common::settings_section_card;
+use crate::app::components::system_settings_common::{
+    rounded_action_btn_style, settings_muted_text_style, settings_section_card,
+};
+use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::Element;
-use iced::widget::column;
+use iced::widget::{Image, button, column, image, row, text};
+use iced::{Element, Length};
 
 use super::common::{
     GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, add_instance_row,
@@ -14,6 +17,60 @@ use super::common::{
     number_row_with_hint, number_row_with_key, panel, pick_row, pick_row_with_key,
     qq_receive_mode_value, text_row, text_row_with_key,
 };
+
+fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Message> {
+    let flow = &app.channels_settings.qr_flow;
+    let is_current = flow.channel.as_deref() == Some(channel);
+    let mut content = column![
+        settings_section_card("扫码授权", "使用手机端扫描二维码；授权成功后请明确保存。"),
+        button(text(if is_current { "重新获取二维码" } else { "获取二维码" }).size(12))
+            .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrRequested(
+                channel.to_string()
+            ),)))
+            .style(rounded_action_btn_style),
+    ]
+    .spacing(10);
+
+    if is_current {
+        if let Some(bytes) = flow.qrcode_png.as_ref() {
+            content = content.push(
+                Image::new(image::Handle::from_bytes(bytes.clone()))
+                    .width(Length::Fixed(220.0))
+                    .height(Length::Fixed(220.0)),
+            );
+        }
+        let status = match flow.status {
+            Some(vw_gateway_client::ChannelQrStatusDto::Pending) => "等待扫码",
+            Some(vw_gateway_client::ChannelQrStatusDto::Scanned) => "已扫码，等待确认",
+            Some(vw_gateway_client::ChannelQrStatusDto::Authorized) => "授权成功，尚未保存",
+            Some(vw_gateway_client::ChannelQrStatusDto::Expired) => "二维码已过期",
+            Some(vw_gateway_client::ChannelQrStatusDto::Failed) => "授权失败",
+            None => "正在获取二维码",
+        };
+        content = content.push(text(status).size(12).style(settings_muted_text_style));
+        if let Some(expires_at) = flow.expires_at.as_deref() {
+            content = content
+                .push(row![text("有效期至：").size(12), text(expires_at).size(12)].spacing(4));
+        }
+        let mut actions = row![
+            button(text("关闭").size(12))
+                .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrClosed)))
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(8);
+        if flow.credentials_ready {
+            actions = actions.push(
+                button(text("保存授权配置").size(12))
+                    .on_press(Message::Settings(SettingsMessage::Channels(
+                        ChannelsMessage::QrSaveConfirmed,
+                    )))
+                    .style(rounded_action_btn_style),
+            );
+        }
+        content = content.push(actions);
+    }
+    content.into()
+}
 
 /// 构建或处理 `lark_panel` 对应的界面片段与交互数据。
 ///
@@ -208,7 +265,8 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
                 200,
                 "",
                 "feishu.max_draft_edits",
-            ));
+            ))
+            .push(qr_authorization(app, "feishu"));
     }
 
     for (index, instance) in s.feishu_instances.iter().enumerate() {
@@ -409,6 +467,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
     }
 
     body = body.push(add_instance_row("dingtalk", "新增 DingTalk 实例"));
+    body = body.push(qr_authorization(app, "dingtalk"));
 
     panel("dingtalk", "DingTalk", "钉钉 Stream 模式鉴权与白名单。", enabled, body.into())
 }
@@ -439,6 +498,7 @@ pub(super) fn qq_panel(app: &App) -> Element<'_, Message> {
                 &QQ_RECEIVE_MODE_OPTIONS,
                 "qq.receive_mode",
             ),
+            qr_authorization(app, "qq"),
         ]
         .spacing(12)
         .into()
@@ -447,6 +507,38 @@ pub(super) fn qq_panel(app: &App) -> Element<'_, Message> {
     };
 
     panel("qq", "QQ", "QQ 官方机器人 app 信息与接收模式。", s.qq.is_some(), body)
+}
+
+pub(super) fn wecom_panel(app: &App) -> Element<'_, Message> {
+    let s = &app.channels_settings;
+    let body: Element<'_, Message> = if let Some(cfg) = s.wecom.as_ref() {
+        column![
+            text_row(app, "bot_id", "企业微信 Bot ID", &cfg.bot_id, "wecom.bot_id", false),
+            text_row(app, "secret", "企业微信 Secret", &cfg.secret, "wecom.secret", true),
+            qr_authorization(app, "wecom"),
+        ]
+        .spacing(12)
+        .into()
+    } else {
+        column![].into()
+    };
+    panel("wecom", "企业微信", "企业微信 AI 机器人长连接凭据。", s.wecom.is_some(), body)
+}
+
+pub(super) fn wechat_panel(app: &App) -> Element<'_, Message> {
+    let s = &app.channels_settings;
+    let body: Element<'_, Message> = if let Some(cfg) = s.wechat.as_ref() {
+        column![
+            text_row(app, "bot_token", "微信 Bot Token", &cfg.bot_token, "wechat.bot_token", true,),
+            text_row(app, "base_url", "可信 iLink 地址", &cfg.base_url, "wechat.base_url", false,),
+            qr_authorization(app, "wechat"),
+        ]
+        .spacing(12)
+        .into()
+    } else {
+        column![].into()
+    };
+    panel("wechat", "微信", "微信 iLink 机器人凭据与可信平台地址。", s.wechat.is_some(), body)
 }
 
 /// 构建或处理 `nostr_panel` 对应的界面片段与交互数据。

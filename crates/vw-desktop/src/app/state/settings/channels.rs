@@ -5,6 +5,31 @@
 
 use super::*;
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ChannelQrFlowState {
+    pub(crate) channel: Option<String>,
+    pub(crate) qrcode_png: Option<Vec<u8>>,
+    pub(crate) handle: Option<String>,
+    pub(crate) expires_at: Option<String>,
+    pub(crate) status: Option<vw_gateway_client::ChannelQrStatusDto>,
+    pub(crate) poll_in_flight: bool,
+    pub(crate) generation: u64,
+    pub(crate) credentials_ready: bool,
+}
+
+impl ChannelQrFlowState {
+    pub(crate) fn close(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        self.channel = None;
+        self.qrcode_png = None;
+        self.handle = None;
+        self.expires_at = None;
+        self.status = None;
+        self.poll_in_flight = false;
+        self.credentials_ready = false;
+    }
+}
+
 fn named_instance_field<'a>(key: &'a str, prefix: &str) -> Option<&'a str> {
     let rest = key.strip_prefix(prefix)?.strip_prefix('.')?;
     let (_, field) = rest.split_once('.')?;
@@ -74,6 +99,8 @@ pub enum ChannelsSettingsTab {
     Feishu,
     DingTalk,
     Qq,
+    WeCom,
+    WeChat,
     Nostr,
     ClawdTalk,
 }
@@ -98,6 +125,8 @@ impl ChannelsSettingsTab {
             "feishu" => Some(Self::Feishu),
             "dingtalk" => Some(Self::DingTalk),
             "qq" => Some(Self::Qq),
+            "wecom" => Some(Self::WeCom),
+            "wechat" => Some(Self::WeChat),
             "nostr" => Some(Self::Nostr),
             "clawdtalk" => Some(Self::ClawdTalk),
             _ => None,
@@ -124,6 +153,8 @@ impl ChannelsSettingsTab {
             Self::Feishu => "Feishu",
             Self::DingTalk => "DingTalk",
             Self::Qq => "QQ",
+            Self::WeCom => "企业微信",
+            Self::WeChat => "微信",
             Self::Nostr => "Nostr",
             Self::ClawdTalk => "ClawdTalk",
         }
@@ -164,6 +195,7 @@ pub(crate) struct ChannelsSettingsState {
     pub(crate) message_timeout_secs: u32,
     pub(crate) active_tab: ChannelsSettingsTab,
     pub(crate) save_error: Option<String>,
+    pub(crate) qr_flow: ChannelQrFlowState,
 }
 
 impl Default for ChannelsSettingsState {
@@ -200,6 +232,7 @@ impl Default for ChannelsSettingsState {
             message_timeout_secs: 300,
             active_tab: ChannelsSettingsTab::Global,
             save_error: None,
+            qr_flow: ChannelQrFlowState::default(),
         }
     }
 }
@@ -442,6 +475,27 @@ impl ChannelsSettingsState {
                 "clawdtalk.allowed_destinations",
                 &cfg.allowed_destinations,
             );
+        }
+    }
+}
+
+impl crate::app::App {
+    pub fn channel_qr_flow_snapshot(&self) -> crate::app::ChannelQrFlowSnapshot {
+        let flow = &self.channels_settings.qr_flow;
+        let configured = match flow.channel.as_deref() {
+            Some("dingtalk") => self.channels_settings.dingtalk.is_some(),
+            Some("feishu") => self.channels_settings.feishu.is_some(),
+            Some("qq") => self.channels_settings.qq.is_some(),
+            Some("wecom") => self.channels_settings.wecom.is_some(),
+            Some("wechat") => self.channels_settings.wechat.is_some(),
+            _ => false,
+        };
+        crate::app::ChannelQrFlowSnapshot {
+            channel: flow.channel.clone(),
+            generation: flow.generation,
+            poll_in_flight: flow.poll_in_flight,
+            credentials_ready: flow.credentials_ready,
+            configured,
         }
     }
 }
